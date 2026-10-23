@@ -563,4 +563,11 @@ export const jAdapt = {
       },
     ),
   },
+  revision: {
+    undoWindowDays: param('revision.undoWindowDays', 7, 'D', 'design-revisions', [], {
+      range: [1, 28],
+      unit: 'days',
+      note: 'Default: a plan change can be undone for this many days. Later, an undo would restore sessions planned from data that no longer describes the runner; no study sets the length.',
+    }),
+  },
 } satisfies ParamGroups

@@ -366,8 +366,13 @@ describe('re-plan', () => {
       plan.sessions.map((s) => s.date + s.kind),
     )
     expect(after.weeks).toHaveLength(plan.weeks.length)
+    // Right after generating, the plan has nothing to change: the revision is written, with an
+    // empty diff, and the list leaves it out unless asked for it (spec 4.2).
     const revisions = (await c.get('/api/plan/revisions')).body as PlanRevision[]
-    expect(revisions.map((r) => r.reason)).toEqual(['owner', 'generate'])
+    expect(revisions.map((r) => r.reason)).toEqual(['generate'])
+    const all = (await c.get('/api/plan/revisions?include=empty')).body as PlanRevision[]
+    expect(all.map((r) => r.reason)).toEqual(['owner', 'generate'])
+    expect(all[0]?.id).toBe(revision.id)
   })
 
   test('a finished session of the current week survives a re-plan', async () => {

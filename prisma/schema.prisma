@@ -229,12 +229,21 @@ model PlanSession {
 }
 
 model PlanRevision {
-  id        String   @id @default(cuid())
-  planId    String
-  createdAt DateTime @default(now())
-  reason    String // 'generate' | 'weekly' | 'review' | 'owner' | 'break'
-  summary   String
-  changes   String   @default("[]") // JSON text: PlanChange[]
+  id           String    @id @default(cuid())
+  planId       String
+  createdAt    DateTime  @default(now())
+  reason       String // 'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch'
+  summary      String
+  changes      String    @default("[]") // JSON text: PlanChange[]
+  auto         Boolean   @default(false) // written by the scheduler, not by a request
+  decision     String? // JSON text: the WeeklyDecision this revision acted on (weekly and review)
+  diff         String? // JSON text: PlanDiff; null on rows written before the revision model
+  undo         String? // JSON text: UndoPayload; never sent to the client; null when nothing can be restored
+  undoneAt     DateTime?
+  undoneById   String? // the 'undo' revision that reverted this one
+  undoOf       String? // on an 'undo' revision: the revision it reverted
+  seenAt       DateTime? // the one seen marker in the product
+  disruptionId String? // the window this revision created, changed or removed (no foreign key)
 
   plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
 

@@ -13,6 +13,7 @@ import type {
   Prediction,
   ReadinessSnapshot,
   ResolvedTargets,
+  SessionBrief,
   SessionFlag,
   SessionKind,
   SessionSpec,
@@ -446,7 +447,8 @@ export interface PlanSession {
   original: Partial<SessionSpec> | null
   updatedAt: string
 }
-export type PlanRevisionReason = 'generate' | 'weekly' | 'review' | 'owner' | 'break'
+export type PlanRevisionReason =
+  'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch'
 export interface PlanRevision {
   id: string
   planId: string
@@ -454,6 +456,85 @@ export interface PlanRevision {
   reason: PlanRevisionReason
   summary: string
   changes: PlanChange[]
+}
+
+// The revision model (phase 3a design 4.2, ADR 0007). A revision stores what a re-plan, an owner
+// edit or a rest window wrote to the plan as a `PlanDiff`, and the rows needed to reverse it as a
+// server-only `UndoPayload` (`server/services/replan.ts`), which no route sends.
+
+/** One session on either side of a revision, identified by its `externalId` (design 4.1). */
+export interface SessionDiffLine {
+  change: 'added' | 'removed' | 'changed'
+  externalId: string
+  /** Null for a session that is only previewed: its row does not exist yet. */
+  sessionId: string | null
+  date: string
+  weekStart: string
+  before: SessionBrief | null
+  after: SessionBrief | null
+  fields: Array<'date' | 'kind' | 'durationMin' | 'distanceM' | 'gainM' | 'structure' | 'status'>
+  rules: string[]
+}
+export interface WeekDiffLine {
+  weekStart: string
+  runMinBefore: number
+  runMinAfter: number
+  flagsAdded: string[]
+  flagsRemoved: string[]
+}
+export interface PlanDiff {
+  v: 1
+  sessions: SessionDiffLine[]
+  weeks: WeekDiffLine[]
+  holds: Array<{ from: string; to: string; label: string; disruptionId: string | null }>
+  totals: {
+    added: number
+    removed: number
+    changed: number
+    weeksChanged: number
+    runMinBefore: number
+    runMinAfter: number
+  }
+  /** True when nothing was written: no session line, no week line and no hold. */
+  empty: boolean
+}
+export type UndoReasonCode =
+  | 'already-undone'
+  | 'is-undo'
+  | 'not-undoable'
+  | 'window-passed'
+  | 'plan-archived'
+  | 'edited-since'
+  | 'session-run'
+  | 'safety-rule'
+  | 'checklist'
+export interface UndoReason {
+  code: UndoReasonCode
+  message: string
+  sessionId?: string
+  weekStart?: string
+  disruptionId?: string
+  rules?: string[]
+}
+export interface UndoState {
+  available: boolean
+  reasons: UndoReason[]
+  undoneAt: string | null
+}
+/** A revision as the API serves it: the stored row without its undo payload. */
+export interface PlanRevisionView extends PlanRevision {
+  /** Written by the scheduler, not by a request. */
+  auto: boolean
+  /** The weekly decision this revision acted on, when it acted on one. */
+  decision: WeeklyDecision | null
+  /** Null on revisions written before the revision model, and on those with nothing to show. */
+  diff: PlanDiff | null
+  undo: UndoState
+  seenAt: string | null
+  /** On an 'undo' revision: the revision it reverted. */
+  undoOf: string | null
+  /** The rest window this revision created, changed or removed. */
+  disruptionId: string | null
 }
 export interface PlanWithSessions extends PlanWithWeeks {
   sessions: PlanSession[]

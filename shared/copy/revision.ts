@@ -1,8 +1,15 @@
-// Sentences about revisions, diffs and rest windows (phase 3a design, sections 4.5 and 9.6). Ids are
-// `<area>.<name>`; every template is spread into `TEMPLATES`, so the copy-lint test renders each one.
-// This file holds the window sentences (`window.*`): what a window does to the days around it, the
-// rule behind it and the reasons a request for one is refused. A figure that restates a rule
-// number (the n-3 days, the window limits, the run-length range) comes from the Params.
+// Sentences about revisions, diffs and rest windows (phase 3a design, sections 4.2, 4.5 and 9.6).
+// Ids are `<area>.<name>`; every template is spread into `TEMPLATES`, so the copy-lint test renders
+// each one. This file holds two sets:
+//
+// - The window sentences (`window.*`): what a window does to the days around it, the rule behind
+//   it and the reasons a request for one is refused. A figure that restates a rule number (the n-3
+//   days, the window limits, the run-length range) comes from the Params.
+// - The words of the revision log (`revision.*`, ADR 0007): the summary line of a revision and the
+//   reason an undo is refused. The helpers fill a template from the figures of the stored diff or
+//   write, never from free prose. A summary is stored with its revision, before anyone knows which
+//   units the runner reads, so no slot there is a distance, a pace or a climb: dates, counts,
+//   minutes and the session's own title read the same in kilometres and in miles.
 import { addDays } from '../dates.ts'
 import type { DisruptionIssue, DisruptionIssueCode, WindowPlan } from '../engine/disruption.ts'
 import { RUN_CAP_MAX_MIN } from '../engine/disruption.ts'
@@ -92,9 +99,9 @@ function countPhrase(n: number, noun: string): string {
   return `${word} ${noun}${n === 1 ? '' : 's'}`
 }
 
-const count = (n: number): Quantity => ({ kind: 'count', n })
+const count = (n: number) => ({ kind: 'count', n }) as const
 const minutes = (min: number): Quantity => ({ kind: 'minutes', min })
-const day = (iso: string): Quantity => ({ kind: 'date', iso, style: 'weekday' })
+const day = (iso: string) => ({ kind: 'date', iso, style: 'weekday' }) as const
 
 /**
  * What a window does to the days around it, as facts in the order the runner meets them: the rest
@@ -229,4 +236,149 @@ export function issueFact(issue: DisruptionIssue): WindowFact {
 /** The sentence for a refused request, in the runner's units. */
 export function describeIssue(issue: DisruptionIssue, units: Units): string {
   return renderWindowFact(issueFact(issue), units)
+}
+
+export const REVISION_TEMPLATES = {
+  // The summary of a re-plan: how many week-level changes it made, then the weekly decision.
+  'revision.changes.none': tpl('No changes to the plan.'),
+  'revision.changes.one': tpl('1 change across 1 week.'),
+  'revision.changes.one-week': tpl('{changes} changes across 1 week.', { changes: 'count' }),
+  'revision.changes.many': tpl('{changes} changes across {weeks} weeks.', {
+    changes: 'count',
+    weeks: 'count',
+  }),
+  'revision.decision': tpl("Last week's decision: {decision}, next week up to {minutes}.", {
+    decision: 'text',
+    minutes: 'minutes',
+  }),
+
+  // The summary of the owner's edit of one session.
+  'revision.owner.skipped': tpl('Skipped {title} on {date}.', { title: 'text', date: 'date' }),
+  'revision.owner.restored': tpl('Restored {title} on {date}.', { title: 'text', date: 'date' }),
+  'revision.owner.moved': tpl('Moved {title} from {from} to {to}.', {
+    title: 'text',
+    from: 'date',
+    to: 'date',
+  }),
+  'revision.owner.swapped': tpl('Swapped {title} on {date} with {other} on {otherDate}.', {
+    title: 'text',
+    date: 'date',
+    other: 'text',
+    otherDate: 'date',
+  }),
+
+  // The summary of a new plan.
+  'revision.generated': tpl('Plan generated for {goal}: {weeks} weeks, {sessions} sessions.', {
+    goal: 'text',
+    weeks: 'count',
+    sessions: 'count',
+  }),
+
+  // Why an undo is refused, for the reasons that need only the revision itself.
+  'revision.undo.already-undone': tpl('This update was already undone.'),
+  'revision.undo.is-undo': tpl('An undo cannot be undone.'),
+  'revision.undo.not-undoable': tpl('This update has nothing to restore.'),
+  'revision.undo.window-passed': tpl('The {days}-day window for undoing this update has passed.', {
+    days: 'count',
+  }),
+} satisfies Record<string, Template>
+
+/** No slot of the revision templates depends on the units, so any units give the same text. */
+const STORED_UNITS = 'km'
+
+/** "3 changes across 2 weeks." for the week-level changes of a re-plan. */
+export function changesSummary(changes: number, weeks: number): string {
+  if (changes === 0) return render(REVISION_TEMPLATES['revision.changes.none'], {}, STORED_UNITS)
+  if (weeks <= 1) {
+    return changes === 1
+      ? render(REVISION_TEMPLATES['revision.changes.one'], {}, STORED_UNITS)
+      : render(
+          REVISION_TEMPLATES['revision.changes.one-week'],
+          { changes: count(changes) },
+          STORED_UNITS,
+        )
+  }
+  return render(
+    REVISION_TEMPLATES['revision.changes.many'],
+    { changes: count(changes), weeks: count(weeks) },
+    STORED_UNITS,
+  )
+}
+
+/** The weekly decision a re-plan acted on, and the target it set for the week after. */
+export function decisionSummary(decision: string, nextWeekTargetMin: number): string {
+  return render(
+    REVISION_TEMPLATES['revision.decision'],
+    { decision, minutes: { kind: 'minutes', min: nextWeekTargetMin } },
+    STORED_UNITS,
+  )
+}
+
+export function skippedSummary(title: string, date: string): string {
+  return render(
+    REVISION_TEMPLATES['revision.owner.skipped'],
+    { title, date: day(date) },
+    STORED_UNITS,
+  )
+}
+
+export function restoredSummary(title: string, date: string): string {
+  return render(
+    REVISION_TEMPLATES['revision.owner.restored'],
+    { title, date: day(date) },
+    STORED_UNITS,
+  )
+}
+
+export function movedSummary(title: string, from: string, to: string): string {
+  return render(
+    REVISION_TEMPLATES['revision.owner.moved'],
+    { title, from: day(from), to: day(to) },
+    STORED_UNITS,
+  )
+}
+
+export function swappedSummary(
+  title: string,
+  date: string,
+  other: string,
+  otherDate: string,
+): string {
+  return render(
+    REVISION_TEMPLATES['revision.owner.swapped'],
+    { title, date: day(date), other, otherDate: day(otherDate) },
+    STORED_UNITS,
+  )
+}
+
+export function generatedSummary(goal: string, weeks: number, sessions: number): string {
+  return render(
+    REVISION_TEMPLATES['revision.generated'],
+    { goal, weeks: count(weeks), sessions: count(sessions) },
+    STORED_UNITS,
+  )
+}
+
+/**
+ * The message of an undo reason that needs only the revision itself. The reasons that name a row,
+ * a rule or a check arrive with the undo itself.
+ */
+export function undoReasonMessage(
+  code: 'already-undone' | 'is-undo' | 'not-undoable' | 'window-passed',
+  undoWindowDays: number,
+): string {
+  switch (code) {
+    case 'already-undone':
+      return render(REVISION_TEMPLATES['revision.undo.already-undone'], {}, STORED_UNITS)
+    case 'is-undo':
+      return render(REVISION_TEMPLATES['revision.undo.is-undo'], {}, STORED_UNITS)
+    case 'not-undoable':
+      return render(REVISION_TEMPLATES['revision.undo.not-undoable'], {}, STORED_UNITS)
+    case 'window-passed':
+      return render(
+        REVISION_TEMPLATES['revision.undo.window-passed'],
+        { days: count(undoWindowDays) },
+        STORED_UNITS,
+      )
+  }
 }
