@@ -165,7 +165,48 @@ describe('errorHandler', () => {
   })
 })
 
+/** Paths that `mountStatic` serves (assets, root files, the index fallback), not the API. */
+const STATIC_PATHS = [
+  '/assets/index-abc123.js',
+  '/assets/index-abc123.css',
+  '/manifest.webmanifest',
+  '/favicon.svg',
+  '/robots.txt',
+  '/',
+  '/some/page',
+]
+
+/** The `remaining` value of a `RateLimit: limit=…, remaining=…, reset=…` header (draft 7). */
+function remainingBudget(res: { headers: Record<string, unknown> }): number {
+  const header = res.headers['ratelimit']
+  const match = typeof header === 'string' ? /remaining=(\d+)/.exec(header) : null
+  if (!match?.[1]) throw new Error(`No ratelimit header with a remaining count: ${String(header)}`)
+  return Number(match[1])
+}
+
 describe('global rate limit', () => {
+  test('static files and the SPA fallback leave the budget alone, API calls spend it', async () => {
+    const limited = await createTestCtx({}, { globalLimit: 20 })
+    try {
+      const first = remainingBudget(await client(limited).get('/api/health'))
+      expect(first).toBe(19)
+
+      for (const path of STATIC_PATHS) {
+        const res = await client(limited).get(path)
+        expect(res.status, path).not.toBe(429)
+        expect(res.headers['ratelimit'], path).toBeUndefined()
+      }
+      const afterStatic = remainingBudget(await client(limited).get('/api/health'))
+      // One API call since `first`, and none of the static requests.
+      expect(afterStatic).toBe(first - 1)
+
+      const afterApi = remainingBudget(await client(limited).get('/api/health'))
+      expect(afterApi).toBe(afterStatic - 1)
+    } finally {
+      await limited.close()
+    }
+  })
+
   test('the request after the limit gets 429 with the standard error body', async () => {
     const limited = await createTestCtx({}, { globalLimit: 3 })
     try {
@@ -178,9 +219,13 @@ describe('global rate limit', () => {
         error: { code: 'internal', details: { retryAfterSec: 900 } },
       })
       expect(res.headers['retry-after']).toBeTruthy()
-      // Other paths share the budget, including the SPA fallback and unknown API paths.
-      expect((await client(limited).get('/some/page')).status).toBe(429)
+      // Every API path shares the budget, including unknown ones.
+      expect((await client(limited).get('/api/no-such-route')).status).toBe(429)
       expect((await client(limited).post('/api/auth/logout')).status).toBe(429)
+      // The SPA fallback and the static files sit outside it.
+      for (const path of STATIC_PATHS) {
+        expect((await client(limited).get(path)).status, path).not.toBe(429)
+      }
     } finally {
       await limited.close()
     }
