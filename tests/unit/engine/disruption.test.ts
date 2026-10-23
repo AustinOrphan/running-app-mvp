@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
 import {
   describeIssue,
+  describeUndoFinding,
   describeWindow,
   issueFact,
   WINDOW_TEMPLATES,
   windowFacts,
+  windowHoldLabel,
+  windowRevisionSummary,
   windowRuleFact,
 } from '../../../shared/copy/revision.ts'
 import { renderFact, TEMPLATES } from '../../../shared/copy/templates.ts'
@@ -29,11 +32,20 @@ import {
   type DisruptionIssueCode,
   type DisruptionPlan,
 } from '../../../shared/engine/disruption.ts'
+import { backdatedSkips } from '../../../shared/engine/index.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { illnessPhase } from '../../../shared/engine/readiness.ts'
 import type { DisruptionWindow } from '../../../shared/engine/types.ts'
 import type { DisruptionReason } from '../../../shared/types.ts'
 import { input, wellnessDay } from './e8-fixtures.ts'
+
+/** The columns of a session that `backdatedSkips` reads. */
+interface BackdateRow {
+  date: string
+  kind: string
+  status: string
+  activityId: string | null
+}
 
 // October 2026: the 19th is a Monday, the 26th the next one, 2 November the one after.
 const MON = '2026-10-19'
@@ -1131,5 +1143,125 @@ describe('window copy', () => {
   it('gives facts the registry can render, so a stored record keeps working', () => {
     const fact = windowFacts(plan(rest(MON, 3)).windows[0]!)[0]!
     expect(renderFact(fact, 'km')).toBe('Rest from Mon 19 Oct to Wed 21 Oct.')
+  })
+})
+
+describe('back-dating', () => {
+  const session = (over: Partial<BackdateRow> = {}): BackdateRow => ({
+    date: '2026-10-20',
+    kind: 'easy',
+    status: 'planned',
+    activityId: null,
+    ...over,
+  })
+  // ill from Monday the 19th to Wednesday the 21st, read on Thursday the 22nd
+  const ill = plan(win({ reason: 'illness-above-neck', startDate: MON, endDate: addDays(MON, 2) }))
+  const today = '2026-10-22'
+
+  it('skips the unlinked sessions still to be run on a past day the window holds', () => {
+    const rows = [
+      session({ date: MON, kind: 'threshold' }),
+      session({ date: '2026-10-20', status: 'moved' }),
+      session({ date: '2026-10-21', status: 'downgraded' }),
+      session({ date: '2026-10-21', kind: 'strength' }),
+      session({ date: '2026-10-20', status: 'adjusted', kind: 'long' }),
+    ]
+    expect(backdatedSkips(rows, ill, today)).toEqual(rows)
+  })
+
+  it('leaves linked, finished, skipped and rest sessions as they are', () => {
+    const rows = [
+      session({ activityId: 'a1' }),
+      session({ status: 'completed' }),
+      session({ status: 'partial' }),
+      session({ status: 'skipped' }),
+      session({ kind: 'rest' }),
+      session({ kind: 'race' }),
+    ]
+    expect(backdatedSkips(rows, ill, today)).toEqual([])
+  })
+
+  it('leaves today, the days ahead and the days no window rules', () => {
+    const rows = [
+      session({ date: today }),
+      session({ date: '2026-10-23' }),
+      session({ date: '2026-10-18' }),
+    ]
+    expect(backdatedSkips(rows, ill, today)).toEqual([])
+    expect(backdatedSkips([session()], plan(), today)).toEqual([])
+  })
+
+  it('includes the symptom-free wait after the window when it is past too', () => {
+    // ill on the 19th only: the 20th is the symptom-free day and still a held day
+    const short = plan(win({ reason: 'illness-above-neck', startDate: MON, endDate: MON }))
+    expect(backdatedSkips([session({ date: '2026-10-20' })], short, today)).toHaveLength(1)
+    // the easy days after it are not held: the runner may have run them
+    expect(backdatedSkips([session({ date: '2026-10-21' })], short, today)).toEqual([])
+  })
+
+  it('skips the past days of a capped window, which may have been run short, only when unlinked', () => {
+    const travel = plan(
+      win({ mode: 'limited', maxRunMin: 30, startDate: MON, endDate: addDays(MON, 2) }),
+    )
+    expect(backdatedSkips([session(), session({ activityId: 'a1' })], travel, today)).toEqual([
+      session(),
+    ])
+  })
+})
+
+describe('window copy for a revision', () => {
+  const reasons: DisruptionReason[] = [
+    'illness-above-neck',
+    'illness-below-neck',
+    'niggle',
+    'short-on-time',
+    'travel',
+  ]
+
+  it('names a window in a diff like the rest day it holds', () => {
+    for (const reason of reasons) {
+      const title = restSessions(plan(win({ reason })))[0]!.title
+      expect(windowHoldLabel({ reason, mode: 'rest', maxRunMin: null }), reason).toBe(title)
+    }
+    expect(windowHoldLabel({ reason: 'travel', mode: 'limited', maxRunMin: 30 })).toBe(
+      'Runs up to 30 min: travel',
+    )
+    // a limited window with no cap holds as rest
+    expect(windowHoldLabel({ reason: 'travel', mode: 'limited', maxRunMin: null })).toBe(
+      'Rest: travel',
+    )
+  })
+
+  it('writes the summary of each change from the dates and the reason', () => {
+    const w = { reason: 'niggle', startDate: MON, endDate: addDays(MON, 2) } as const
+    expect(windowRevisionSummary('created', w)).toBe(
+      'Added a window (niggle) from Mon 19 Oct to Wed 21 Oct.',
+    )
+    expect(windowRevisionSummary('updated', w)).toBe(
+      'Changed the window (niggle) to run from Mon 19 Oct to Wed 21 Oct.',
+    )
+    expect(windowRevisionSummary('removed', w)).toBe(
+      'Removed the window (niggle) from Mon 19 Oct to Wed 21 Oct.',
+    )
+  })
+
+  it('passes the lint for every reason and change', () => {
+    for (const reason of reasons) {
+      const w = { reason, startDate: MON, endDate: addDays(MON, 2) }
+      for (const kind of ['created', 'updated', 'removed'] as const) {
+        expect(lintText(windowRevisionSummary(kind, w)), `${reason} ${kind}`).toEqual([])
+      }
+      expect(lintText(windowHoldLabel({ reason, mode: 'rest', maxRunMin: null }))).toEqual([])
+    }
+  })
+
+  it('says that a window changed when its undo is refused for it', () => {
+    const reason = describeUndoFinding({ code: 'edited-since', disruptionId: 'w1' }, 7)
+    expect(reason).toEqual({
+      code: 'edited-since',
+      disruptionId: 'w1',
+      message: 'The window changed after this update, so it cannot be restored.',
+    })
+    expect(lintText(reason.message)).toEqual([])
   })
 })

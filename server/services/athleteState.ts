@@ -13,6 +13,7 @@ import { predictFromState } from '../../shared/engine/predict.ts'
 import { isQualityKind, readinessSnapshot } from '../../shared/engine/readiness.ts'
 import type {
   AthleteState,
+  DisruptionWindow,
   EngineInput,
   GoalModel,
   Prediction,
@@ -26,6 +27,7 @@ import { ZONE_CHANGE_MARK, zoneDecisionsOf } from '../../shared/engine/zoneChang
 import type {
   Activity,
   AthleteProfile,
+  Disruption,
   Goal,
   Plan,
   PlanPhase,
@@ -46,6 +48,7 @@ import {
 import {
   loadActivities,
   loadProfile,
+  toDisruption,
   toGoal,
   toPlan,
   toPlanSession,
@@ -65,6 +68,30 @@ export const SNAPSHOT_TTL_MS = 5 * 60_000
 
 const WELLNESS_DAYS = 60
 const REVIEW_WEEKS = 16
+const DAYS_PER_WEEK = 7
+
+/**
+ * How many days after its last day a window can still matter [rule J9]: a window is read for
+ * `j9.maxWindowDays` after it ends, and a niggle's injury report lasts the length of the
+ * injury-return ladder after that, so the longer of the two bounds what the snapshot loads.
+ */
+export function disruptionHorizonDays(): number {
+  return Math.max(P.j9.maxWindowDays.value, P.injuryReturn.levelsMin.value.length * DAYS_PER_WEEK)
+}
+
+/** A stored window as the engine reads it: only what the rules need. */
+export function toEngineWindow(row: Disruption): DisruptionWindow {
+  return {
+    id: row.id,
+    reason: row.reason,
+    mode: row.mode,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    maxRunMin: row.maxRunMin,
+    pain: row.pain,
+    gaitChange: row.gaitChange,
+  }
+}
 
 /** What the snapshot needs from the app: the data-versioned client. */
 export type SnapshotDeps = Pick<Deps, 'prisma'>
@@ -92,6 +119,11 @@ export interface AthleteContext {
   /** The REDs flag count of the latest screening, 0 without one. */
   readonly screeningFlags: number
   readonly zoneChanges: NonNullable<EngineInput['zoneChanges']>
+  /**
+   * The active rest and limited-running windows that can still matter (`disruptionHorizonDays`),
+   * oldest first. The engine reads them as `EngineInput.disruptions`.
+   */
+  readonly disruptions: Disruption[]
   /** Every goal of the user. */
   readonly goals: Goal[]
   /** `currentGoalFor`: the active plan's goal, else the active goal. */
@@ -405,6 +437,7 @@ async function buildContext(
     planRow,
     goalRows,
     goal,
+    disruptionRows,
   ] = await Promise.all([
     loadProfile(prisma, userId),
     loadActivities(prisma, userId, {
@@ -439,6 +472,14 @@ async function buildContext(
     }),
     prisma.goal.findMany({ where: { userId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
     currentGoalFor(prisma, userId),
+    prisma.disruption.findMany({
+      where: {
+        userId,
+        status: 'active',
+        endDate: { gte: addDays(today, -disruptionHorizonDays()) },
+      },
+      orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
+    }),
   ])
 
   const activities = newestFirst.reverse()
@@ -457,6 +498,7 @@ async function buildContext(
   const reviews = reviewRows.map(toWeeklyReview)
   const screeningFlags = screening?.flags ?? 0
   const zoneChanges = zoneChangesOf(revisions)
+  const disruptions = disruptionRows.map(toDisruption)
   const planSessions = planRow ? planRow.sessions.map(toPlanSession) : []
   const existing = deepFreeze(
     planRow ? existingFrom(planRow.weeks.map(toPlanWeek), planSessions) : null,
@@ -474,6 +516,9 @@ async function buildContext(
     options: {},
     screeningFlags,
     zoneChanges,
+    // The windows are engine input: `risk.injuryReport` and the illness gate read them, so the
+    // state and readiness below would miss an active window without this.
+    ...(disruptions.length === 0 ? {} : { disruptions: disruptions.map(toEngineWindow) }),
   }
   // The state depends on the data above and on nothing a goal, an option, a forecast or the stored
   // plan adds, so it is the same for every reader. Readiness is the exception: the masters gate
@@ -513,6 +558,7 @@ async function buildContext(
     reviews,
     screeningFlags,
     zoneChanges,
+    disruptions,
     goals,
     goal,
     plan: planRow ? toPlan(planRow) : null,

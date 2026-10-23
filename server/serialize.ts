@@ -1,6 +1,7 @@
 import type {
   Activity as ActivityRow,
   AthleteProfile as AthleteProfileRow,
+  Disruption as DisruptionRow,
   FuelLog as FuelLogRow,
   FuelProduct as FuelProductRow,
   FuelSettings as FuelSettingsRow,
@@ -53,6 +54,10 @@ import type {
   AthleteProfile,
   Availability,
   DataStatus,
+  Disruption,
+  DisruptionMode,
+  DisruptionReason,
+  DisruptionStatus,
   DuplicateStatus,
   Feel,
   FuelLogItem,
@@ -479,6 +484,25 @@ export function revisionView(row: PlanRevisionListRow, undo: UndoState): PlanRev
  */
 export function toPlanRevision(row: PlanRevisionRow, now: Date = new Date()): PlanRevisionView {
   return revisionView(row, ownUndoState(row, now))
+}
+
+/** A stored rest or limited-running window as the API serves it. */
+export function toDisruption(row: DisruptionRow): Disruption {
+  return {
+    id: row.id,
+    reason: row.reason as DisruptionReason,
+    mode: row.mode as DisruptionMode,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    maxRunMin: row.maxRunMin,
+    area: row.area,
+    pain: row.pain,
+    gaitChange: row.gaitChange,
+    note: row.note,
+    status: row.status as DisruptionStatus,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
 }
 
 /** The three columns of a revision that the Today change line reads. */

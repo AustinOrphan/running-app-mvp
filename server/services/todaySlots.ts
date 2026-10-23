@@ -1,7 +1,8 @@
 // The named slots of the Today payload (phase 3a design 7.4 and 7.6). Each owning epic gives its
 // slot a type in `TodaySlots` and a provider here: the disruption banner (E5), the fuel target
-// line and the fuel prompt (E6), the watch line (E1) and the brief line (E4). Until then every
-// provider answers null and the slot takes no height.
+// line and the fuel prompt (E6), the watch line (E1) and the brief line (E4). Until its epic
+// lands, a provider answers null and the slot takes no height. The disruption slot (E5-5) holds
+// the window in effect, else an offer to set one (`disruptionSlot`).
 //
 // The providers run side by side under `Promise.allSettled`. A provider that throws, or whose
 // promise rejects, leaves its slot null and is logged; the page still loads. A provider receives
@@ -10,6 +11,7 @@ import type { TodaySlots } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { createLogger } from '../logger.ts'
 import type { AthleteContext } from './athleteState.ts'
+import { disruptionSlot } from './disruptions.ts'
 import { safeMessage } from './syncLog.ts'
 
 export type SlotName = keyof TodaySlots
@@ -37,7 +39,7 @@ export type SlotProvider<K extends SlotName> = (
  * its changes.
  */
 export const slotProviders: { [K in SlotName]: SlotProvider<K> } = {
-  disruption: () => null,
+  disruption: ({ context, date, preview }) => disruptionSlot({ context, date, preview }),
   fuel: () => null,
   watch: () => null,
   brief: () => null,

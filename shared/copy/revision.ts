@@ -38,6 +38,14 @@ export const WINDOW_TEMPLATES = {
     { days: 'count', share: 'share' },
   ),
 
+  // The label of a window in a diff (`PlanDiff.holds`), like the title of a rest day.
+  'window.label.rest': tpl('Rest: {reason}', { reason: 'text' }, { shape: 'label' }),
+  'window.label.limited': tpl(
+    'Runs up to {max}: {reason}',
+    { max: 'minutes', reason: 'text' },
+    { shape: 'label' },
+  ),
+
   // The rule behind a window.
   'window.rule-illness': tpl(
     'Running waits until you have had {free}, then {easy} before any hard session.',
@@ -269,6 +277,23 @@ export const REVISION_TEMPLATES = {
     otherDate: 'date',
   }),
 
+  // The summary of a change to a window (E5): added, changed or removed.
+  'revision.window.created': tpl('Added a window ({reason}) from {from} to {to}.', {
+    reason: 'text',
+    from: 'date',
+    to: 'date',
+  }),
+  'revision.window.updated': tpl('Changed the window ({reason}) to run from {from} to {to}.', {
+    reason: 'text',
+    from: 'date',
+    to: 'date',
+  }),
+  'revision.window.removed': tpl('Removed the window ({reason}) from {from} to {to}.', {
+    reason: 'text',
+    from: 'date',
+    to: 'date',
+  }),
+
   // The summary of the owner's decision on a zone proposal. The proposed values are in the
   // revision's changes, which the page shows in the runner's units.
   'revision.zone.accepted': tpl('Accepted the proposed {boundary} on {date}.', {
@@ -315,6 +340,9 @@ export const REVISION_TEMPLATES = {
   ),
   'revision.undo.edited-since.plan': tpl(
     'The plan changed after this update, so it cannot be restored.',
+  ),
+  'revision.undo.edited-since.window': tpl(
+    'The window changed after this update, so it cannot be restored.',
   ),
   'revision.undo.session-run': tpl('A run is linked to {title} on {date}, so this update stays.', {
     title: 'text',
@@ -451,6 +479,55 @@ export function planRestoredSummary(): string {
   return render(REVISION_TEMPLATES['revision.plan-restored'], {}, STORED_UNITS)
 }
 
+/** How a reason reads in the summary and the label of a window; no numbers. */
+const REASON_WORDS: Record<DisruptionReason, string> = {
+  'illness-above-neck': 'illness',
+  'illness-below-neck': 'illness',
+  niggle: 'niggle',
+  'short-on-time': 'short on time',
+  travel: 'travel',
+}
+
+/** What a revision did to a window. */
+export type WindowChangeKind = 'created' | 'updated' | 'removed'
+
+/** "Added a window (illness) from Wed 22 Oct to Fri 24 Oct." for the revision of a window action. */
+export function windowRevisionSummary(
+  kind: WindowChangeKind,
+  window: { reason: DisruptionReason; startDate: string; endDate: string },
+): string {
+  const slots = {
+    reason: REASON_WORDS[window.reason],
+    from: day(window.startDate),
+    to: day(window.endDate),
+  }
+  switch (kind) {
+    case 'created':
+      return render(REVISION_TEMPLATES['revision.window.created'], slots, STORED_UNITS)
+    case 'updated':
+      return render(REVISION_TEMPLATES['revision.window.updated'], slots, STORED_UNITS)
+    case 'removed':
+      return render(REVISION_TEMPLATES['revision.window.removed'], slots, STORED_UNITS)
+  }
+}
+
+/** "Rest: illness" or "Runs up to 30 min: travel": the name of a window in a diff. */
+export function windowHoldLabel(window: {
+  reason: DisruptionReason
+  mode: 'rest' | 'limited'
+  maxRunMin: number | null
+}): string {
+  const reason = REASON_WORDS[window.reason]
+  if (window.mode === 'limited' && window.maxRunMin !== null && window.maxRunMin > 0) {
+    return render(
+      WINDOW_TEMPLATES['window.label.limited'],
+      { max: { kind: 'minutes', min: window.maxRunMin }, reason },
+      STORED_UNITS,
+    )
+  }
+  return render(WINDOW_TEMPLATES['window.label.rest'], { reason }, STORED_UNITS)
+}
+
 /**
  * The message of an undo reason that needs only the revision itself. The reasons that name a row,
  * a rule or a check are built by `describeUndoFinding`.
@@ -533,6 +610,11 @@ export function describeUndoFinding(finding: UndoFinding, undoWindowDays: number
             { date: day(finding.weekStart) },
             STORED_UNITS,
           ),
+        )
+      }
+      if (finding.disruptionId !== undefined) {
+        return reason(
+          render(REVISION_TEMPLATES['revision.undo.edited-since.window'], {}, STORED_UNITS),
         )
       }
       return plain()

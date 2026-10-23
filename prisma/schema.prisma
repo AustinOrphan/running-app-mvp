@@ -37,6 +37,7 @@ model User {
   fuelProducts      FuelProduct[]
   fuelLogs          FuelLog[]
   fuelSettings      FuelSettings?
+  disruptions       Disruption[]
 }
 
 model Activity {
@@ -632,4 +633,30 @@ model FuelSettings {
   updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A dated rest or limited-running window the runner reported (phase 3a design 9.3, rule J9). State:
+// the athlete snapshot, the engine and the publisher read it. A window is engine input, not a set
+// of check-ins, and it is written only by a revision (`PlanRevision.disruptionId` names it, with no
+// foreign key). `status` 'undone' is a window withdrawn, by its removal or by the undo of the
+// revision that created it; the row stays, so a revision keeps pointing at it.
+model Disruption {
+  id         String   @id @default(cuid())
+  userId     String
+  reason     String // 'illness-above-neck' | 'illness-below-neck' | 'niggle' | 'short-on-time' | 'travel'
+  mode       String // 'rest' | 'limited'
+  startDate  String // YYYY-MM-DD; may be in the past
+  endDate    String // YYYY-MM-DD, inclusive
+  maxRunMin  Int? // 'limited' only
+  area       String? // niggle only
+  pain       Int? // niggle only, 0-10
+  gaitChange Boolean  @default(false) // niggle only
+  note       String? // never read by the engine
+  status     String   @default("active") // 'active' | 'undone'
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, endDate])
 }

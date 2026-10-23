@@ -9,6 +9,7 @@ import { breakRestart, trimQuality } from './adapt.ts'
 import { estimateState } from './athlete.ts'
 import { runChecklist } from './checklist.ts'
 import {
+  dayRuleOn,
   dayRulesIn,
   disruptionPlan,
   disruptionWeekCap,
@@ -17,6 +18,7 @@ import {
   restSessions,
   returnWeeks,
   type DayRule,
+  type DisruptionPlan,
 } from './disruption.ts'
 import { feasibility } from './goal.ts'
 import { applyGuards } from './guards.ts'
@@ -206,6 +208,30 @@ export function keptByReplan(
   if (mondayOf(session.date) === mondayOf(today) && session.status !== 'planned') return !released
   if (session.date >= addDays(today, P.macroDesign.keepOwnerEditsDays.value)) return false
   return !released && (OWNER_EDITS.has(session.status) || isTrim(session))
+}
+
+/** The kinds a window never skips: a rest day has nothing to skip, and the race is the runner's call. */
+const NEVER_SKIPPED: ReadonlySet<string> = new Set(['rest', 'race'])
+
+/**
+ * The past sessions a rest window skips when it is reported late [rules J9, G-6]: sessions dated
+ * before `today`, on a day the windows hold or cap, that are still to be run (`isToRun`) and have
+ * no activity linked, so nothing says they were run. They are marked skipped, not deleted, and the
+ * minutes they held are lost and never added back. Linked and finished sessions stay as they are.
+ * Returns the matching entries of `sessions`, in their order.
+ */
+export function backdatedSkips<
+  S extends { date: string; kind: string; status: string; activityId: string | null },
+>(sessions: readonly S[], plan: DisruptionPlan, today: string): S[] {
+  if (plan.days.length === 0) return []
+  return sessions.filter((session) => {
+    if (session.date >= today || session.activityId !== null) return false
+    if (NEVER_SKIPPED.has(session.kind) || !isToRun(session.status as PlanSessionStatus)) {
+      return false
+    }
+    const rule = dayRuleOn(plan, session.date)
+    return rule !== null && (rule.held || rule.maxRunMin !== null)
+  })
 }
 
 function bySlot(a: SessionSpec, b: SessionSpec): number {

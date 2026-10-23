@@ -15,6 +15,7 @@ import {
   goalModelFor,
   loadAthleteContext,
   neutralGoal,
+  toEngineWindow,
   type AthleteContext,
 } from './athleteState.ts'
 import { cachedForecast } from './weatherCache.ts'
@@ -127,6 +128,10 @@ export function inputFromContext(
     options: parts.options ?? {},
     screeningFlags: context.screeningFlags,
     zoneChanges: context.zoneChanges,
+    // Absent without a window, so a plan without windows is the plan it always was.
+    ...(context.disruptions.length === 0
+      ? {}
+      : { disruptions: context.disruptions.map(toEngineWindow) }),
   }
 }
 
