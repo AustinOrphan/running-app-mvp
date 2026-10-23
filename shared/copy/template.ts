@@ -131,14 +131,22 @@ function slotIssue(kind: SlotKind, value: unknown): string | null {
 
 /**
  * Fills a template in the runner's units. `slots` is checked against the template at compile time;
- * values that arrive as data (a stored fact) are checked again here.
+ * values that arrive as data (a stored fact) are checked again here, including a `slots` that is
+ * not an object at all (null, undefined, a string, an array), which counts as a bad record.
  */
 export function render<S extends SlotSpec>(
   template: Template<S>,
   slots: SlotValues<S>,
   units: Units,
 ): string {
-  const values = slots as Readonly<Record<string, unknown>>
+  const raw: unknown = slots
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    if (isCopyStrict()) {
+      throw new CopyError(`Template "${template.text}"`, ['slots must be an object'])
+    }
+    return template.fallback
+  }
+  const values = raw as Readonly<Record<string, unknown>>
   const declared = template.slots as SlotSpec
   const problems: string[] = []
   const extras: string[] = []

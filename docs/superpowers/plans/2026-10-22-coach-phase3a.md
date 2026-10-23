@@ -421,9 +421,10 @@ Size L. Depends on: E3-1, E3-7, E4-1. **Docker. Validation.** Contract: spec 4.2
   `tests/unit/engine/{diff,params}.test.ts`, `tests/unit/server/migrations.test.ts`,
   `tests/api/{revisions,engine,plan,scheduler}.test.ts`.
 - **Acceptance:**
-  - The migration adds exactly the columns and index of spec 4.2 with the backfill (`auto` for
-    weekly and break, `seenAt = createdAt`); chain case and drift check pass; older rows read as
-    `diff` and `undo` null.
+  - The migration adds exactly the columns of spec 4.2 with the backfill (`auto` for weekly and
+    break, `seenAt = createdAt`); the `[planId, reason]` index is not part of it, because migration B
+    (E3-4) already shipped it; chain case and drift check pass; older rows read as `diff` and
+    `undo` null.
   - `computeReplan` (no writes; optional input transformer), `applyReplan` and `recordPlanWrite`
     exist in `server/services/replan.ts`; `replanActivePlan` keeps its signature; reviews and the
     scheduler compile unchanged; the pre-split implementation is kept as a test oracle and its

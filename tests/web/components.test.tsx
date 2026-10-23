@@ -388,6 +388,66 @@ describe('expectCleanCopy', () => {
     }).toThrow(/text: "behind" in "you are behind"/)
   })
 
+  test('fails on a banned phrase that inline markup splits, and names the block', () => {
+    const { container } = render(
+      <div>
+        <p>
+          You <b>should</b> have gone.
+        </p>
+      </div>,
+    )
+    expect(() => {
+      expectCleanCopy(container)
+    }).toThrow(/^Copy breaks the G5 lint:\n<p>: "should have" in "You should have gone\.", split/)
+  })
+
+  test('joins nested inline markup and the whitespace between text nodes', () => {
+    for (const [phrase, ui] of [
+      [
+        'personal best',
+        <li>
+          A personal <em>best</em> today
+        </li>,
+      ],
+      [
+        'personal record',
+        <p>
+          Your <i>personal</i> <b>record</b> stands.
+        </p>,
+      ],
+    ] as const) {
+      const { container, unmount } = render(<div>{ui}</div>)
+      expect(() => {
+        expectCleanCopy(container)
+      }).toThrow(new RegExp(`<(?:p|li)>: "${phrase}" in .*, split by markup`))
+      unmount()
+    }
+  })
+
+  test('reports a hit inside one text node once, not again as a split phrase', () => {
+    const { container } = render(
+      <p>
+        Nothing here, and <b>you are behind</b> the plan.
+      </p>,
+    )
+    expect(() => {
+      expectCleanCopy(container)
+    }).toThrow(/^Copy breaks the G5 lint:\ntext: "behind" in "you are behind"$/)
+  })
+
+  test('does not join the text of separate blocks into a phrase', () => {
+    const { container } = render(
+      <div>
+        <p>Your personal</p> <p>record of runs</p>
+        <ul>
+          <li>Should</li>
+          <li>have a day off</li>
+        </ul>
+      </div>,
+    )
+    expectCleanCopy(container)
+  })
+
   test('also reads the accessible-name attributes', () => {
     for (const attributes of [
       { 'aria-label': 'Missed sessions' },
