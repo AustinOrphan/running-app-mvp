@@ -6,6 +6,7 @@
 // generated plan needs no trimming. Pure: no I/O, no clock.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
+import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { startWeek, type StartPath } from './startWeeks.ts'
 import type { AthleteState, SessionKind, SessionSpec } from './types.ts'
@@ -60,20 +61,25 @@ export interface CompletedReference {
 
 /**
  * Whether a completed activity is a run of the 30-day reference [rules g-1]. A race counts as a run
- * when it is shorter than the marathon distance (`g1.referenceRaceMaxM`) or has no distance; a
- * marathon or longer would otherwise let training runs reach 1.10 times the race. Duplicates are
- * the caller's business.
+ * when it is shorter than the marathon distance (`g1.referenceRaceMaxM`); a race without a distance
+ * counts when it lasted no longer than `g1.referenceRaceMaxHours`. A marathon or longer would
+ * otherwise let training runs reach 1.10 times the race. Duplicates are the caller's business
+ * (`isCounted`).
  */
 export function countsTowardReference(a: Activity): boolean {
   if (a.type === 'run') return true
-  return a.type === 'race' && (a.distanceM === null || a.distanceM < P.g1.referenceRaceMaxM.value)
+  if (a.type !== 'race') return false
+  if (a.distanceM === null) return a.durationSec <= P.g1.referenceRaceMaxHours.value * 3600
+  return a.distanceM < P.g1.referenceRaceMaxM.value
 }
 
-const isCounted = (a: Activity) =>
-  countsTowardReference(a) &&
-  a.duplicateOfId === null &&
-  a.duplicateStatus !== 'possible' &&
-  a.duplicateStatus !== 'confirmed'
+/**
+ * The one predicate for "counts" in the reference and the gain ramp: the duplicate status alone
+ * decides, as in `estimateState`, `aggregateWeeks` and the execution. A `possible` or `confirmed`
+ * duplicate is out; a duplicate the owner dismissed keeps its `duplicateOfId` and is a real run
+ * [rules g-1].
+ */
+const isCounted = (a: Activity) => countsTowardReference(a) && !isDuplicate(a)
 
 /**
  * The completed runs of `history`; when it holds none, one record the day before `state.asOf` with

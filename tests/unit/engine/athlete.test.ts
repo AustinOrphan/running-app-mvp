@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import { addDays } from '../../../shared/dates.ts'
 import { efficiencyIndex, estimateState, experienceClass } from '../../../shared/engine/athlete.ts'
+import { completedReference } from '../../../shared/engine/limits.ts'
 import { ewma } from '../../../shared/engine/load.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, GoalModel } from '../../../shared/engine/types.ts'
 import type { Activity, AthleteProfile, WellnessDay } from '../../../shared/types.ts'
 import { makeActivity, makeWeekRow } from '../../factories.ts'
@@ -125,7 +127,44 @@ describe('estimateState: longest run in 30 days', () => {
     expect(longest(42_195).durationSec).toBe(3600)
     expect(longest(42_194).durationSec).toBe(90_000)
     expect(longest(10_000)).toMatchObject({ distanceM: 10_000, durationSec: 90_000, gainM: 5000 })
-    expect(longest(null).durationSec).toBe(90_000)
+    // a race without a distance is judged by its duration: 25 h is no reference run
+    expect(longest(null).durationSec).toBe(3600)
+  })
+
+  test('a race without a distance counts up to 4 h [G-1]', () => {
+    const base = run(12, { distanceM: 10_000, durationSec: 3600 })
+    const race = (durationSec: number) =>
+      run(10, { type: 'race', distanceM: null, durationSec, elevationGainM: 50 })
+    const longest = (durationSec: number) =>
+      estimateState(input([base, race(durationSec)])).longest30d
+    expect(P.g1.referenceRaceMaxHours.value).toBe(4)
+    expect(longest(2 * 3600)).toMatchObject({ durationSec: 7200, gainM: 50 })
+    expect(longest(4 * 3600).durationSec).toBe(14_400)
+    expect(longest(4 * 3600 + 1)).toMatchObject({ durationSec: 3600, gainM: 0 })
+    expect(longest(4 * 3600 + 1).twoDaySec).toBe(3600)
+  })
+
+  test('agrees with the 30-day reference of the limits on what counts', () => {
+    // a dismissed duplicate keeps its duplicateOfId and is a real run; the others are not
+    const dismissed = run(5, {
+      durationSec: 9000,
+      distanceM: 20_000,
+      duplicateOfId: 'other',
+      duplicateStatus: 'dismissed',
+    })
+    const base = run(12, { durationSec: 3600, distanceM: 10_000 })
+    const flagged = (duplicateStatus: Activity['duplicateStatus']) =>
+      run(6, { durationSec: 12_000, duplicateStatus, duplicateOfId: 'other' })
+    for (const history of [
+      [base, dismissed],
+      [base, dismissed, flagged('possible'), flagged('confirmed')],
+      [dismissed],
+    ]) {
+      const s = estimateState(input(history))
+      const runs = completedReference(history, s).runs
+      expect(s.longest30d.durationSec).toBe(9000)
+      expect(Math.max(...runs.map((r) => r.min)) * 60).toBe(s.longest30d.durationSec)
+    }
   })
 
   test('is all zero without runs', () => {

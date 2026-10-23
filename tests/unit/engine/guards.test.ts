@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { applyGuards, nextWeekCap } from '../../../shared/engine/guards.ts'
-import { completedReference, referenceAt, twoDayReference } from '../../../shared/engine/limits.ts'
+import {
+  completedReference,
+  countsTowardReference,
+  referenceAt,
+  runCaps,
+  twoDayReference,
+  weeklyGain,
+} from '../../../shared/engine/limits.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { SessionSpec } from '../../../shared/engine/types.ts'
 import type { Activity, WeekRow } from '../../../shared/types.ts'
@@ -265,6 +272,30 @@ describe('applyGuards: session spike guard (G-1)', () => {
       expect(longest(race(undefined))).toBe(240)
     })
 
+    it('counts a race without a distance only up to 4 h, so a long ultra is no reference run', () => {
+      const hours = P.g1.referenceRaceMaxHours.value
+      expect(hours).toBe(4)
+      expect(P.g1.referenceRaceMaxHours.grade).toBe('D')
+      expect(P.g1.referenceRaceMaxHours.note).toMatch(/default/i)
+      const race = (durationMin: number) =>
+        run('2026-10-22', durationMin, { type: 'race', distanceKm: undefined })
+      expect(countsTowardReference(race(60))).toBe(true)
+      expect(countsTowardReference(race(240))).toBe(true)
+      expect(countsTowardReference(race(241))).toBe(false)
+      // a race with a distance is judged by the distance, whatever its duration
+      expect(countsTowardReference(run('2026-10-22', 1200, { type: 'race', distanceKm: 10 }))).toBe(
+        true,
+      )
+      // the cap that a 20-hour race logged without a distance would have set: 22 hours
+      const history = [run('2026-10-24', 30, { distanceKm: 5 }), race(1200)]
+      const caps = runCaps(referenceAt(completedReference(history, state()).runs, '2026-11-03'))
+      expect(caps.min).toBe(Math.floor(30 * 1.1 + 1e-9))
+      const short = [run('2026-10-24', 30, { distanceKm: 5 }), race(180)]
+      expect(runCaps(referenceAt(completedReference(short, state()).runs, '2026-11-03')).min).toBe(
+        Math.floor(180 * 1.1 + 1e-9),
+      )
+    })
+
     it('keeps a long race out of the largest 2-day total', () => {
       const history = [
         run('2026-10-10', 60, { distanceKm: 10 }),
@@ -273,6 +304,48 @@ describe('applyGuards: session spike guard (G-1)', () => {
       const { runs, virtualTwoDay } = completedReference(history, state())
       expect(runs.map((r) => r.min)).toEqual([60])
       expect(twoDayReference(runs, virtualTwoDay, '2026-11-03')).toBe(60)
+    })
+  })
+
+  describe('duplicates in the reference [rules g-1]', () => {
+    const base = run('2026-10-10', 60, { distanceKm: 10, elevationGainM: 100, elevationLossM: 100 })
+    // the owner dismissed the duplicate flag: the run stays, with the id of its look-alike
+    const dismissed = run('2026-10-24', 150, {
+      distanceKm: 25,
+      elevationGainM: 400,
+      elevationLossM: 400,
+      duplicateOfId: 'other',
+      duplicateStatus: 'dismissed',
+    })
+    const flagged = (status: 'possible' | 'confirmed') => ({
+      ...dismissed,
+      id: `${dismissed.id}-${status}`,
+      duplicateStatus: status,
+    })
+    const longest = (history: Activity[]) =>
+      referenceAt(completedReference(history, state()).runs, '2026-11-03')
+
+    it('counts a dismissed duplicate as a run, like the athlete state does', () => {
+      expect(longest([base, dismissed])).toMatchObject({ min: 150, distanceM: 25000, gainM: 400 })
+      expect(runCaps(longest([base, dismissed])).min).toBe(165)
+    })
+
+    it('leaves a possible or a confirmed duplicate out', () => {
+      expect(longest([base, flagged('possible')]).min).toBe(60)
+      expect(longest([base, flagged('confirmed')]).min).toBe(60)
+    })
+
+    it('counts a dismissed duplicate alone, from the history and not from the state maxima', () => {
+      const alone = completedReference([dismissed], state())
+      expect(alone.runs.map((r) => r.min)).toEqual([150])
+      expect(alone.virtualTwoDay).toEqual([])
+    })
+
+    it('counts the climbing of a dismissed duplicate in the weekly gain', () => {
+      const week = mondayOf('2026-10-24')
+      expect(weeklyGain([base, dismissed]).get(week)).toBe(400)
+      expect(weeklyGain([base, flagged('confirmed')]).get(week)).toBeUndefined()
+      expect(weeklyGain([base, flagged('possible')]).get(week)).toBeUndefined()
     })
   })
 

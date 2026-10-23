@@ -1,10 +1,10 @@
 // Goal model and feasibility [rules section d]. Pure: no I/O, no clock; `today` is an argument.
 import { daysBetween, mondayOf } from '../dates.ts'
 import type { Goal } from '../types.ts'
-import { startWeekMin } from './limits.ts'
+import { startWeekMin, ultraRunCapMin } from './limits.ts'
 import { P } from './params/index.ts'
 import { predictFromState } from './predict.ts'
-import type { StartPath } from './startWeeks.ts'
+import { rungCount, startWeek, type StartPath } from './startWeeks.ts'
 import type { AthleteState, EngineWarning, Feasibility, GoalModel } from './types.ts'
 
 const SEC_PER_MIN = 60
@@ -144,6 +144,175 @@ function taperWeeks(distanceClass: DistanceClass): number {
   return Math.ceil(days / DAYS_PER_WEEK)
 }
 
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  const hi = sorted[mid] ?? 0
+  return sorted.length % 2 === 1 ? hi : ((sorted[mid - 1] ?? hi) + hi) / 2
+}
+
+/** Average training pace in sec/km: recent weeks, else the goal pace slowed, else a default. */
+export function trainingPace(state: AthleteState, goal: GoalModel): number {
+  const paces = state.weeks
+    .slice(-4)
+    .filter((w) => w.runM > 0 && w.runMin > 0)
+    .map((w) => (w.runMin * SEC_PER_MIN) / (w.runM / M_PER_KM))
+  if (paces.length > 0) return median(paces)
+  if (goal.expectedDurationSec > 0 && goal.distanceM > 0) {
+    return (
+      (goal.expectedDurationSec / (goal.distanceM / M_PER_KM)) *
+      P.macroDesign.trainingPaceFactor.value
+    )
+  }
+  return P.macroDesign.defaultEasyPaceSecPerKm.value
+}
+
+/** Minutes of running that cover `km` at the training pace. */
+const minutesFor = (km: number, paceSecPerKm: number) =>
+  Math.ceil((km * paceSecPerKm) / SEC_PER_MIN)
+
+/** The weekly-minutes ceiling for the goal: the class peak, lifted to the D3 floor for time goals. */
+export function peakWeeklyMin(goal: GoalModel, pace: number): number {
+  let peak = P.peakWeeklyMin[goal.distanceClass].value
+  if (goal.goalType === 'time') {
+    if (goal.distanceClass === 'half') {
+      peak = Math.max(peak, minutesFor(P.d3.halfMinWeeklyKm.value, pace))
+    } else if (goal.distanceClass === 'marathon') {
+      peak = Math.max(peak, minutesFor(P.d3.marathonMinWeeklyKm.value, pace))
+    }
+  }
+  return peak
+}
+
+/**
+ * The long-run tier of a 5 km or 10 km goal [rules D7]: 0 below the first boundary of
+ * `macroDesign.longRunTierWeeklyMin`, 1 up to and including the second, 2 above it. It is read from
+ * the completed typical week, never from a planned one, so a plan cannot lift its own cap.
+ */
+function longRunTier(state: AthleteState): 0 | 1 | 2 {
+  const [low, high] = P.macroDesign.longRunTierWeeklyMin.value
+  if (state.typicalWeekMin < low) return 0
+  return state.typicalWeekMin <= high ? 1 : 2
+}
+
+/**
+ * Longest planned run in minutes. 5 km and 10 km goals take the tier of the completed typical week
+ * and stop at the minutes that 16 km takes at `longRunPace`, the pace the long run is carried at
+ * [rules D7]; `pace` is the training pace, which turns the D3 floors of a half-marathon or marathon
+ * time goal into minutes. Ultras are capped by the lesser of 6 h and 60% of the race [H2].
+ */
+export function peakLongRunMin(
+  goal: GoalModel,
+  pace: number,
+  state: AthleteState,
+  longRunPace = pace,
+): number {
+  const table = P.peakLongRunMin[goal.distanceClass].value
+  let peak: number
+  if (typeof table === 'number') {
+    peak = table
+  } else {
+    const kmMin = Math.floor(
+      (P.macroDesign.peakLongRunKmMax.value * longRunPace) / SEC_PER_MIN + EPSILON,
+    )
+    peak = Math.min(table[longRunTier(state)], kmMin)
+  }
+  if (goal.goalType === 'time') {
+    if (goal.distanceClass === 'half') {
+      peak = Math.max(peak, minutesFor(P.d3.halfMinLongRunKm.value, pace))
+    } else if (goal.distanceClass === 'marathon') {
+      peak = Math.max(peak, minutesFor(P.d3.marathonMinLongRunKm.value, pace))
+    }
+  }
+  const cap = goal.isUltra ? ultraRunCapMin(goal.expectedDurationSec) : null
+  if (cap !== null) peak = Math.min(peak, cap)
+  return peak
+}
+
+/** The long run of a half-marathon or marathon goal against its D3 floor [rules D3, D4]. */
+export interface LongRunFloor {
+  /** The D3 floor, in km. */
+  floorKm: number
+  /** The longest long run the planner schedules at its peak, in minutes and in km at the training pace. */
+  plannedMin: number
+  plannedKm: number
+  /** Whether the planner schedules a long run of the floor. */
+  reached: boolean
+  /** The long run the check works toward, in metres: the floor, or the planned run when it is shorter. */
+  targetM: number
+}
+
+/**
+ * The long run the check works toward for a half marathon or a marathon: the D3 floor, or the long
+ * run the planner can schedule when that is shorter. The planner's long run is the lesser of
+ * `peakLongRunMin` and the long-run share of the larger of the class peak week and the start week,
+ * in minutes at the training pace, so the check never counts weeks toward a run the plan does not
+ * build [rules D3, D4]. Null for the other classes, which have no long-run floor.
+ */
+export function longRunFloor(
+  goal: GoalModel,
+  state: AthleteState,
+  start?: StartPath | null,
+): LongRunFloor | null {
+  const floorKm =
+    goal.distanceClass === 'half'
+      ? P.d3.halfMinLongRunKm.value
+      : goal.distanceClass === 'marathon'
+        ? P.d3.marathonMinLongRunKm.value
+        : null
+  if (floorKm === null) return null
+  const pace = trainingPace(state, goal)
+  const weekMin = Math.max(peakWeeklyMin(goal, pace), startWeekMin(state, start))
+  const plannedMin = Math.min(
+    peakLongRunMin(goal, pace, state),
+    Math.floor(P.macroDesign.longRunShareOfWeek.value * weekMin + EPSILON),
+  )
+  const plannedKm = (plannedMin * SEC_PER_MIN) / pace
+  const reached = plannedMin >= minutesFor(floorKm, pace)
+  return {
+    floorKm,
+    plannedMin,
+    plannedKm,
+    reached,
+    targetM: (reached ? floorKm : plannedKm) * M_PER_KM,
+  }
+}
+
+/**
+ * What the start of a plan adds to the long-run path of a goal that is not an ultra [rules E6, g-3,
+ * J7]: the weeks of its programme still ahead, and the long run the plan has once they are over.
+ * The 3 x N floor has that run at once (N minutes). A plan without a start path and without a run in
+ * the last 30 days has no G-1 reference; it opens with its long-run share of the start week, the
+ * typical week or the restart volume after a break, as the generator does. With a run in the window
+ * that run is the start, as the generator holds its first long run to 1.10 times it. A ladder or
+ * injury-return programme counts its last session (the 30 minutes of the last rung, the last level)
+ * only after its weeks, which have no recovery week inside them.
+ */
+function startReach(
+  state: AthleteState,
+  start: StartPath | null | undefined,
+): { weeks: number; reachMin: number } {
+  if (start === undefined || start === null) {
+    const { distanceM, durationSec } = state.longest30d
+    if (distanceM > 0 || durationSec > 0) return { weeks: 0, reachMin: 0 }
+    const weekMin = startWeekMin(state, start)
+    return {
+      weeks: 0,
+      reachMin: Math.floor(P.macroDesign.longRunShareOfWeek.value * weekMin + EPSILON),
+    }
+  }
+  if (start.kind === 'floor') return { weeks: 0, reachMin: start.sessionMin }
+  if (start.kind === 'ladder') {
+    const held = start.bmiHold ? P.noviceLadder.bmiHoldWeeks.value - 1 : 0
+    return {
+      weeks: rungCount() - start.rung + 1 + held,
+      reachMin: startWeek('ladder', rungCount()).longest,
+    }
+  }
+  const levels = P.injuryReturn.levelsMin.value
+  return { weeks: levels.length - start.level, reachMin: levels[levels.length - 1] ?? 0 }
+}
+
 /**
  * The long run, in whole minutes, that the feasibility check of an ultra works toward [rules D4]:
  * the least of the class value, the H2 cap (6 h), its race fraction (60% of the expected duration)
@@ -176,6 +345,10 @@ export function ultraLongRunTargetMin(
  * formula on the recent weekly distance, and the longer of the two governs. An ultra also grows its
  * weekly running time from the start week to the class peak, and the slower path labels it. The
  * start week is the first week of `start`, the start path of the plan (`startPath`, macro.ts).
+ * The inputs follow the plan: L0 is at least the first session of the start path, a ladder or an
+ * injury-return programme adds its remaining weeks and counts its last session only after them, the
+ * weekly floor grows from the start week, and the Lt of a half or marathon is the D3 floor or the
+ * long run the planner schedules when that is shorter (`longRunFloor`).
  * A label only: it changes no limit and no session.
  */
 export function feasibility(
@@ -187,8 +360,12 @@ export function feasibility(
   const notes: EngineWarning[] = []
   const weeksAvailable = Math.max(0, Math.floor(daysBetween(today, goal.date) / DAYS_PER_WEEK))
 
-  // Target long run. Ultras count time on feet (H2); shorter goals count distance (D3).
+  // Target long run. Ultras count time on feet (H2); shorter goals count distance (D3). The pace
+  // that turns the planner's minutes into distance is the training pace of the generator.
+  const pace = trainingPace(state, goal)
   let longRunWeeks: number
+  // Weeks of a start programme before the long run can grow; they have no cutback week inside.
+  let leadWeeks = 0
   if (goal.isUltra) {
     const current = Math.max(
       state.longest30d.durationSec,
@@ -196,13 +373,24 @@ export function feasibility(
     )
     longRunWeeks = growthWeeks(current, ultraLongRunTargetMin(goal, state, start) * SEC_PER_MIN)
   } else {
+    // D3/D4: a half or marathon works toward the D3 floor, or the long run the planner schedules
+    // when that is shorter; the other classes toward the race distance, at most a typical session.
+    const floor = longRunFloor(goal, state, start)
     const targetM =
-      goal.distanceClass === 'half'
-        ? P.d3.halfMinLongRunKm.value * M_PER_KM
-        : goal.distanceClass === 'marathon'
-          ? P.d3.marathonMinLongRunKm.value * M_PER_KM
-          : Math.min(goal.distanceM, P.d3.typicalSessionKm.value * M_PER_KM)
-    const current = Math.max(state.longest30d.distanceM, P.g1.minStepDistanceM.value)
+      floor?.targetM ?? Math.min(goal.distanceM, P.d3.typicalSessionKm.value * M_PER_KM)
+    if (floor !== null && !floor.reached && goal.goalType === 'time') {
+      notes.push({
+        code: 'long-run-floor',
+        severity: 'info',
+        message: `A ${goal.distanceClass === 'half' ? 'half-marathon' : 'marathon'} time goal asks for a long run above ${floor.floorKm} km. The plan builds up to about ${floor.plannedMin} minutes (${floor.plannedKm.toFixed(1)} km at the training pace) within its weekly time, so the outlook counts the weeks to that run.`,
+        rules: ['D3'],
+      })
+    }
+    // E6: the plan starts from its first session, and a ladder reaches its last rung after its weeks.
+    const reach = startReach(state, start)
+    leadWeeks = reach.weeks
+    const startM = ((reach.reachMin * SEC_PER_MIN) / pace) * M_PER_KM
+    const current = Math.max(state.longest30d.distanceM, P.g1.minStepDistanceM.value, startM)
     longRunWeeks = growthWeeks(current, targetM)
   }
 
@@ -217,8 +405,11 @@ export function feasibility(
           : null
       : null
   if (floorKm !== null) {
+    // the weekly path grows from the week the plan starts at, in km at the training pace (E6, J7)
+    const startKm = (startWeekMin(state, start) * SEC_PER_MIN) / pace
     const currentKm = Math.max(
       meanWeeklyKm(state, today, 4),
+      startKm,
       P.g1.minStepDistanceM.value / M_PER_KM,
     )
     weeklyWeeks = growthWeeks(currentKm, floorKm)
@@ -257,10 +448,12 @@ export function feasibility(
     }
   }
 
-  const growth = Math.max(longRunWeeks, weeklyWeeks)
-  const weeksNeeded = Math.ceil(
-    growth * P.d4.cutbackFactor.value + taperWeeks(goal.distanceClass) - EPSILON,
+  // The growth weeks carry a cutback week in every cycle; the weeks of a start programme do not.
+  const pathWeeks = Math.max(
+    leadWeeks + longRunWeeks * P.d4.cutbackFactor.value,
+    weeklyWeeks * P.d4.cutbackFactor.value,
   )
+  const weeksNeeded = Math.ceil(pathWeeks + taperWeeks(goal.distanceClass) - EPSILON)
 
   let label: Feasibility['label']
   if (weeksAvailable >= weeksNeeded * P.d4Label.comfortableMargin.value - EPSILON) {
