@@ -30,7 +30,12 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': {
+        target: 'http://localhost:3001',
+        // The root is `web/`, so the data hooks under `web/api/` are requested as `/api/<name>.ts`
+        // in development; those are source modules for Vite, not calls for the server.
+        bypass: (req) => (/\.tsx?(\?|$)/.test(req.url ?? '') ? req.url : undefined),
+      },
     },
   },
 })

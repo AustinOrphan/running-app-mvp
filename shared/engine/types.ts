@@ -114,6 +114,11 @@ export interface AthleteState {
   weeks: WeekRow[]
   /** Median run minutes of the last 4 weeks with a run. */
   typicalWeekMin: number
+  /**
+   * The lesser of the run minutes of the last two complete weeks, 0 unless both hold a run
+   * [rules E6]. The current partial week never counts.
+   */
+  recentWeekMin: number
   longest30d: {
     distanceM: number
     durationSec: number

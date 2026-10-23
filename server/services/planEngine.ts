@@ -118,6 +118,8 @@ function weekRow(week: WeekDraft) {
     tid: json(week.tid),
     flags: json(week.flags),
     gainTargetM: week.gainTargetM,
+    qualitySessions: week.qualitySessions,
+    isRecovery: week.isRecovery,
   }
 }
 

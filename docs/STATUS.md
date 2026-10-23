@@ -98,7 +98,11 @@ linting unit-tests` worktrees and the detached comparison worktree the start-pat
 
 - Bare repository with worktrees (`~/src/BARE-REPO-WORKFLOW.md`). Isolated agent worktrees
   branch from `origin/main` and have no `node_modules`; agents run `npm ci` first.
-- Port 3101 is reserved by the Playwright web server, which also clears `test-results/`.
+- The Playwright web server listens on 3101 plus a per-checkout offset (0-399, a hash of the
+  checkout's absolute path, `tests/e2e/env.ts`), so worktrees can run `npm run test:e2e` at the
+  same time; it also clears `test-results/`. Print a checkout's port with
+  `node -e "import('./tests/e2e/env.ts').then((m) => console.log(m.E2E_PORT))"`. Two checkouts can
+  still hash to one port; the run then fails on the bind error.
 - The owner's intervals.icu account goes dormant without a login; Garmin's official API is
   closed to new applicants (October 2026).
 - Personal training data stays in Google Sheets, Smashrun and the owner's own app database; the

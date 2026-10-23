@@ -7,7 +7,6 @@ import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
 import { weatherIndex } from '../../shared/engine/heat.ts'
-import { isQualityKind } from '../../shared/engine/readiness.ts'
 import type {
   EngineInput,
   GoalModel,
@@ -283,11 +282,11 @@ export function existingFrom(
       longRunM: longest,
       gainTargetM: w.gainTargetM,
       runDays: w.runDays,
-      qualitySessions: inWeek.filter((s) => isQualityKind(s.kind)).length,
+      qualitySessions: w.qualitySessions,
       strengthSessions: w.strengthSessions,
       tid: w.tid ?? { z1: 80, z2: 5, z3: 15 },
       flags: w.flags,
-      isRecovery: w.flags.includes('recovery'),
+      isRecovery: w.isRecovery,
       isTaper: w.flags.includes('taper') || w.phase === ('taper' as PlanPhase),
     }
   })

@@ -25,6 +25,7 @@ import {
   rampStep,
   referenceBetween,
   runCaps,
+  startLevelMin,
   tightRamp,
   weeklyGain,
   weeklyRamp,
@@ -462,7 +463,8 @@ function ladderEntry(ref: number, bound: number): number {
 
 /**
  * Where a runner starts, from history [rules E6, G-3, A9]: the run-walk ladder, 3 sessions of N
- * minutes, the injury-return ladder, or null when the typical week is at or above
+ * minutes, the injury-return ladder, or null when the start level (`startLevelMin`, limits.ts:
+ * the typical week, or the last two complete weeks when they were higher) is at or above
  * 3 x 20 minutes. It reads the runs of the last 30 and 90 days that the 30-day reference of G-1
  * counts (a marathon or longer race is none of them); sex never changes the dose.
  *
@@ -481,7 +483,7 @@ function ladderEntry(ref: number, bound: number): number {
  */
 export function startPath(input: EngineInput, state: AthleteState): StartPath | null {
   const sessionMin = P.restartFloor.sessionMin.value
-  if (state.typicalWeekMin >= P.restartFloor.sessions.value * sessionMin) return null
+  if (startLevelMin(state) >= P.restartFloor.sessions.value * sessionMin) return null
   const runs = runFacts(input)
 
   if (state.risk.recentInjury) {
@@ -589,11 +591,11 @@ function atOwnLength(week: WeekDraft, kind: StartKind, step: number): boolean {
  * The 3 x N floor week a re-plan is made in, when the start path has since ended [rules E6, g-2]:
  * the plan opened this week on the floor, so the week stays on it. The floor is one week, and its
  * exemption from the 2-week ceiling is the week's own. History logged since the plan was made (a
- * week of runs imported late) can lift the typical week to 3 x 20 and end the start path, but the
+ * week of runs imported late) can lift the start level to 3 x 20 and end the start path, but the
  * week is then not drawn again from the ceiling of the weeks before the layoff (28 min x 1.3),
  * which would plan it below the floor it opened on and every week after it below the plan they
- * continue. Null without such a week, and under a progression hold, where a runner with a typical
- * week keeps it and no floor repeats.
+ * continue. Null without such a week, and under a progression hold, where a runner with a start
+ * level keeps it and no floor repeats.
  */
 function floorContinuation(
   input: EngineInput,
@@ -891,7 +893,7 @@ function planWeeks(
   const carried = startContinuation(input, firstMonday, hold)
   const fresh =
     carried !== null || (hold && state.typicalWeekMin > 0) ? null : startPath(input, state)
-  // The floor week the plan opened on stays on the floor when the typical week has since ended the
+  // The floor week the plan opened on stays on the floor when the start level has since ended the
   // start path (`floorContinuation`).
   const lapsed =
     carried === null && fresh === null ? floorContinuation(input, firstMonday, hold) : null
@@ -952,8 +954,8 @@ function planWeeks(
       ? opening!.minutes
       : anchored !== null
         ? anchored.minutes
-        : state.typicalWeekMin > 0
-          ? state.typicalWeekMin
+        : startLevelMin(state) > 0
+          ? startLevelMin(state)
           : P.macroDesign.startFloorWeekMin.value
   const ceiling = Math.max(peakWeeklyMin(goal, pace), start)
   const hasGain = goal.gainM > 0 && goal.distanceM > 0
@@ -1379,7 +1381,11 @@ export function macroPlanDraft(
   // and would anchor the restart above the J7 volume.
   const rest = planWeeks(
     { ...input, today: normalStart, existing: null },
-    { ...state, typicalWeekMin: lead.restartMin },
+    {
+      ...state,
+      typicalWeekMin: lead.restartMin,
+      recentWeekMin: Math.min(state.recentWeekMin, lead.restartMin),
+    },
     goal,
     feasibility,
     {
