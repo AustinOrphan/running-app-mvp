@@ -163,6 +163,17 @@ export const hUltra = {
         note: 'Reference for sustained ultra climbing only, not a target or a race-average figure.',
       },
     ),
+    climbNoteGainPerHourM: param(
+      'h4.climbNoteGainPerHourM',
+      150,
+      'D',
+      'H4',
+      ['hingrand-2023-power-vs-ascent-speed', 'jeker-2020-vertical-speed-ultra'],
+      {
+        unit: 'm/h',
+        note: 'Default: a session whose planned gain reaches this many metres per hour of running gets a climbing line (climb by effort, not by speed). No study sets this number; it sits well below the about 550 m/h reference for sustained ultra climbing.',
+      },
+    ),
   },
   h5: {
     downhillStartWeeksBeforeRace: param('h5.downhillStartWeeksBeforeRace', 8, 'D', 'H5', [], {

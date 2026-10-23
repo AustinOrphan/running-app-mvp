@@ -78,6 +78,31 @@ export interface SessionSpec {
   rules: string[]
   flags: SessionFlag[]
 }
+/**
+ * A session's targets as every surface shows them (`resolveTargets`, design 4.6): the figure the
+ * day leads with, the secondary figures, and the notes that explain them.
+ */
+export interface ResolvedTargets {
+  /** The zone the stored target names. */
+  zone: ZoneKey
+  /** What leads: a heart-rate ceiling or band, the stored work pace, or effort. */
+  mode: 'hr-ceiling' | 'hr-band' | 'pace' | 'effort'
+  /** Top of the current Z1, in bpm. */
+  hrCeiling: number | null
+  /** Current Z2 or Z3 band, in bpm. */
+  hrRange: [number, number] | null
+  /** Seconds per km, slow end first; a guide unless the mode is `pace`. */
+  paceSecPerKm: [number, number] | null
+  /** CR-10. */
+  rpe: [number, number]
+  /** Hot enough to steer by effort (`isHotForSteering`); never true for strength, mobility or rest. */
+  hot: boolean
+  hotNote: string | null
+  /** Set when the figures use zones that changed after the session was planned. */
+  zonesNote: string | null
+  /** `zones` when a heart-rate or pace figure was read from the current zones. */
+  source: 'zones' | 'plan'
+}
 export interface Boundary {
   value: number
   band: [number, number]

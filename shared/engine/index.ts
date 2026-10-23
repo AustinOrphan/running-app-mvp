@@ -3,7 +3,8 @@
 // prediction in that order; replan keeps the past and recomputes the future. The other entry
 // points delegate to the module that owns the rule.
 import { addDays, mondayOf } from '../dates.ts'
-import type { AthleteProfile, Weekday } from '../types.ts'
+import { isToRun } from '../domain/sessionStatus.ts'
+import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
 import { breakRestart, trimQuality } from './adapt.ts'
 import { estimateState } from './athlete.ts'
 import { runChecklist } from './checklist.ts'
@@ -101,7 +102,6 @@ export interface ReplanOptions {
 }
 
 const OWNER_EDITS: ReadonlySet<string> = new Set(['moved', 'skipped'])
-const TO_RUN: ReadonlySet<string> = new Set(['moved', 'downgraded'])
 
 const isTrim = (s: { status: string; rules: string[] }) =>
   s.status === 'downgraded' && s.rules.includes('design-4.3')
@@ -722,8 +722,12 @@ export function replan(
   const pastWeeks = oldWeeks.filter((w) => w.weekStart < currentMonday)
   const keptRows = oldSessions.filter((s) => keptByReplan(s, input.today))
   const kept = keptRows.map(specOf)
+  // The engine input types a stored status as a string; the server passes the plan's own statuses.
   const toRun = new Set(
-    kept.filter((_, i) => keptRows[i]!.date >= input.today && TO_RUN.has(keptRows[i]!.status)),
+    kept.filter(
+      (_, i) =>
+        keptRows[i]!.date >= input.today && isToRun(keptRows[i]!.status as PlanSessionStatus),
+    ),
   )
 
   // A re-plan never adds to a week with settled sessions what the replaced plan did not hold on

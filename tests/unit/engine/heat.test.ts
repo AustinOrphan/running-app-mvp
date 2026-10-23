@@ -4,6 +4,7 @@ import {
   heatAbilityMultiplier,
   heatPenaltyPct,
   heatWarning,
+  isHotForSteering,
   liljegrenWbgt,
   trainingHeatAdvice,
   weatherIndex,
@@ -164,6 +165,9 @@ function session(over: Partial<SessionSpec> = {}): SessionSpec {
 
 type Hour = NonNullable<EngineInput['forecast']>[number]
 
+/** What the advice holds when there is nothing to say. */
+const NO_ADVICE = { note: null, coolerHour: null, coolerValue: null, peak: null }
+
 /** A summer day: cool dawn, hot afternoon; shortwave follows a simple bell. */
 function summerDay(date: string, peakC: number, dawnC: number): Hour[] {
   const hours: Hour[] = []
@@ -183,21 +187,17 @@ function summerDay(date: string, peakC: number, dawnC: number): Hour[] {
 
 describe('trainingHeatAdvice (rules I7)', () => {
   it('gives no note on a mild day', () => {
-    expect(trainingHeatAdvice(summerDay('2026-07-10', 10, 4), session())).toEqual({
-      note: null,
-      coolerHour: null,
-    })
+    expect(trainingHeatAdvice(summerDay('2026-07-10', 10, 4), session())).toEqual(NO_ADVICE)
   })
 
   it('gives no note when the forecast has no hours for the date, or for non-running sessions', () => {
-    expect(trainingHeatAdvice(summerDay('2026-07-11', 36, 20), session())).toEqual({
-      note: null,
-      coolerHour: null,
-    })
-    expect(
-      trainingHeatAdvice(summerDay('2026-07-10', 36, 20), session({ kind: 'strength' })),
-    ).toEqual({ note: null, coolerHour: null })
-    expect(trainingHeatAdvice([], session())).toEqual({ note: null, coolerHour: null })
+    expect(trainingHeatAdvice(summerDay('2026-07-11', 36, 20), session())).toEqual(NO_ADVICE)
+    for (const kind of ['strength', 'mobility', 'rest'] as const) {
+      expect(trainingHeatAdvice(summerDay('2026-07-10', 36, 20), session({ kind }))).toEqual(
+        NO_ADVICE,
+      )
+    }
+    expect(trainingHeatAdvice([], session())).toEqual(NO_ADVICE)
   })
 
   it('on a hot day advises effort over pace, hydration and an early cooler start for a key session', () => {
@@ -222,11 +222,72 @@ describe('trainingHeatAdvice (rules I7)', () => {
     expect(short).not.toBeNull()
   })
 
-  it('suggests a cooler hour for key sessions only', () => {
+  it('suggests a cooler hour for any run, not only the key sessions', () => {
     const hours = summerDay('2026-07-10', 36, 18)
-    const easy = trainingHeatAdvice(hours, session({ kind: 'easy', durationMin: 40 }))
-    expect(easy.note).not.toBeNull()
-    expect(easy.coolerHour).toBeNull()
+    for (const kind of ['easy', 'recovery', 'strides', 'long', 'threshold', 'b2b'] as const) {
+      const advice = trainingHeatAdvice(hours, session({ kind, durationMin: 40 }))
+      expect(advice.note, kind).not.toBeNull()
+      expect(advice.coolerHour, kind).not.toBeNull()
+      expect(advice.coolerValue, kind).not.toBeNull()
+      expect(advice.note, kind).toContain(advice.coolerHour!)
+    }
+  })
+
+  it('offers the cooler hour only for a gain of at least i7.coolerMinGainC', () => {
+    // a flat day: no sun and one temperature, so every hour is as warm as the peak
+    const flat: Hour[] = summerDay('2026-07-10', 32, 32).map((h) => ({
+      ...h,
+      tempC: 32,
+      shortwaveWm2: 0,
+    }))
+    const advice = trainingHeatAdvice(flat, session({ kind: 'easy', durationMin: 40 }))
+    expect(advice.note).not.toBeNull()
+    expect(advice.coolerHour).toBeNull()
+    expect(advice.coolerValue).toBeNull()
+    expect(advice.peak).not.toBeNull()
+  })
+
+  it('returns the peak: the hour with the highest index, and which index it is', () => {
+    const hours = summerDay('2026-07-10', 36, 18)
+    const { peak } = trainingHeatAdvice(hours, session())
+    expect(peak).not.toBeNull()
+    expect(peak!.index).toBe('wbgt')
+    const window = hours.filter((h) => {
+      const hour = Number(h.time.slice(11, 13))
+      return hour >= P.i7.windowStartHour.value && hour < P.i7.windowEndHour.value
+    })
+    const best = Math.max(...window.map((h) => weatherIndex(h).value - P.i2.wbgtOptimumC.value[1]))
+    const at = window.find((h) => weatherIndex(h).value - P.i2.wbgtOptimumC.value[1] === best)!
+    expect(peak!.hour).toBe(Number(at.time.slice(11, 13)))
+    expect(peak!.value).toBe(weatherIndex(at).value)
+    expect(trainingHeatAdvice(hours, session()).note).toContain(
+      `reaches ${peak!.value.toFixed(0)} C around ${String(peak!.hour).padStart(2, '0')}:00`,
+    )
+  })
+
+  it('returns the cooler value that the note quotes', () => {
+    const hours = summerDay('2026-07-10', 36, 18)
+    const { note, coolerHour, coolerValue, peak } = trainingHeatAdvice(hours, session())
+    expect(coolerHour).not.toBeNull()
+    expect(coolerValue).not.toBeNull()
+    expect(coolerValue!).toBeLessThan(peak!.value)
+    expect(peak!.value - coolerValue!).toBeGreaterThanOrEqual(P.i7.coolerMinGainC.value)
+    expect(note).toContain(`about ${coolerValue!.toFixed(0)} C`)
+  })
+
+  it('labels a peak without radiation as air temperature', () => {
+    const hours = summerDay('2026-07-10', 33, 17).map(({ shortwaveWm2: _s, ...rest }) => rest)
+    const { peak } = trainingHeatAdvice(hours, session())
+    expect(peak).toMatchObject({ index: 'air-temperature' })
+    expect(peak!.value).toBeCloseTo(33, 5)
+  })
+
+  it('has no peak when the day stays inside the optimum band or is not a running day', () => {
+    expect(trainingHeatAdvice(summerDay('2026-07-10', 10, 4), session()).peak).toBeNull()
+    expect(trainingHeatAdvice([], session()).peak).toBeNull()
+    expect(
+      trainingHeatAdvice(summerDay('2026-07-10', 36, 20), session({ kind: 'strength' })).peak,
+    ).toBeNull()
   })
 
   it('warns above WBGT 25 C and labels the index', () => {
@@ -246,6 +307,48 @@ describe('trainingHeatAdvice (rules I7)', () => {
   it('is deterministic', () => {
     const hours = summerDay('2026-07-10', 36, 18)
     expect(trainingHeatAdvice(hours, session())).toEqual(trainingHeatAdvice(hours, session()))
+  })
+})
+
+describe('isHotForSteering (rules I9)', () => {
+  const warn = P.i9.warnWbgtC.value
+
+  it('is hot from a WBGT peak at or above the I9 warning and not below it', () => {
+    expect(warn).toBe(25)
+    expect(isHotForSteering({ value: warn, index: 'wbgt' }, [])).toBe(true)
+    expect(isHotForSteering({ value: warn + 4, index: 'wbgt' }, [])).toBe(true)
+    expect(isHotForSteering({ value: warn - 0.1, index: 'wbgt' }, [])).toBe(false)
+    expect(isHotForSteering({ value: 20, index: 'wbgt' }, [])).toBe(false)
+  })
+
+  it('is hot from the heat flag alone, with or without a peak', () => {
+    expect(isHotForSteering(null, ['heat'])).toBe(true)
+    expect(isHotForSteering({ value: 12, index: 'wbgt' }, ['heat'])).toBe(true)
+    expect(isHotForSteering({ value: 40, index: 'air-temperature' }, ['night', 'heat'])).toBe(true)
+  })
+
+  it('is never hot from an air-temperature peak alone', () => {
+    expect(isHotForSteering({ value: 40, index: 'air-temperature' }, [])).toBe(false)
+    expect(isHotForSteering({ value: warn, index: 'air-temperature' }, [])).toBe(false)
+  })
+
+  it('is not hot without a peak and without the flag, and other flags do not count', () => {
+    expect(isHotForSteering(null, [])).toBe(false)
+    expect(isHotForSteering(null, ['night', 'downhill', 'spike-warn'])).toBe(false)
+  })
+
+  it('follows the forecast: 25 C WBGT is hot, a mild afternoon at 20 C is not', () => {
+    const hotDay = trainingHeatAdvice(summerDay('2026-07-10', 40, 30), session())
+    expect(hotDay.peak!.value).toBeGreaterThanOrEqual(warn)
+    expect(isHotForSteering(hotDay.peak, [])).toBe(true)
+    const mildDay = trainingHeatAdvice(summerDay('2026-07-10', 24, 12), session())
+    expect(mildDay.peak).not.toBeNull()
+    expect(mildDay.peak!.value).toBeLessThan(warn)
+    expect(isHotForSteering(mildDay.peak, [])).toBe(false)
+  })
+
+  it('adds no Param: the threshold is the one rule I9 already carries', () => {
+    expect(P.i9.warnWbgtC.rule).toBe('I9')
   })
 })
 
