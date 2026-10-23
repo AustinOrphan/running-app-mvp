@@ -26,7 +26,7 @@ export const hUltra = {
       ['tanda-2015-training-anthropometry-100km', 'coates-2021-physio-determinants-ultra'],
       {
         unit: 'm',
-        note: 'For goals of 100 km or more, grow weekly volume before adding pace work.',
+        note: 'For goals of 100K or more, grow weekly volume before adding pace work.',
       },
     ),
     keepSpeedWorkAtM: param(
@@ -35,7 +35,7 @@ export const hUltra = {
       'C',
       'H1',
       ['tanda-2015-training-anthropometry-100km', 'coates-2021-physio-determinants-ultra'],
-      { unit: 'm', note: 'For 50 km, keep speed work.' },
+      { unit: 'm', note: 'For 50K, keep speed work.' },
     ),
     experiencedMedianWeeklyKm: param(
       'h1.experiencedMedianWeeklyKm',
@@ -74,7 +74,7 @@ export const hUltra = {
       ['outside-2015-orton-koop-100-miles'],
       {
         unit: 'fraction of expected race duration',
-        note: 'Default: no study sets this number. It binds only for races expected under 10 h (for example a 50 km goal).',
+        note: 'Default: no study sets this number. It binds only for races expected under 10 h (for example a 50K goal).',
       },
     ),
     raceSimulationMaxHours: param(
@@ -370,7 +370,7 @@ export const hUltra = {
       ['hoffman-2013-eah-hydration-161km'],
       {
         unit: '% body mass',
-        note: 'Weight loss up to 3% is fine; weight gain is a red flag.',
+        note: 'Weight loss up to 3% is fine; weight gain is a warning sign.',
       },
     ),
   },
@@ -451,7 +451,7 @@ export const hUltra = {
       ],
       {
         unit: 'min per run',
-        note: 'Default. The marathon first step is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate), grade B there; the value is graded D because it also caps the first step after 50 km and longer races, where it extrapolates to the 25-45 min jogs coaches describe.',
+        note: 'Default. The marathon first step is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate), grade B there; the value is graded D because it also caps the first step after 50K and longer races, where it extrapolates to the 25-45 min jogs coaches describe.',
       },
     ),
     step1MaxRuns: param(
@@ -466,7 +466,7 @@ export const hUltra = {
       ],
       {
         unit: 'runs',
-        note: 'Default. The marathon first step is the schedule of one small randomised trial (days 2, 4 and 6, three runs on non-consecutive days), grade B there; the value is graded D because it also caps the first step after 50 km and longer races, where it is an extrapolation.',
+        note: 'Default. The marathon first step is the schedule of one small randomised trial (days 2, 4 and 6, three runs on non-consecutive days), grade B there; the value is graded D because it also caps the first step after 50K and longer races, where it is an extrapolation.',
       },
     ),
     step2RunMaxMin: param(
@@ -488,7 +488,7 @@ export const hUltra = {
       ['cts-2025-koop-ultra-recovery', 'skurka-2017-roche-100-recovery'],
       {
         unit: 'min',
-        note: 'Default: from the third step on, the longest run of a week is at most this long; an engineering default with no study behind it.',
+        note: 'Default: from the third step on, the longest run of a week is at most this long; an engineering default that no study supports.',
       },
     ),
     modifierMultiplier: param(
@@ -608,7 +608,7 @@ export const hUltra = {
       ],
       {
         unit: 'days',
-        note: 'Default: days without running after a race of 80.5 to 130 km; no 100 km time course exists, and 118 km data show raised damage markers at days 3 and 7.',
+        note: 'Default: days without running after a race of 80.5 to 130 km; no 100K time course exists, and 118 km data show raised damage markers at days 3 and 7.',
       },
     ),
     ultra100mi: param(

@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, test } from 'vitest'
+import { allParams } from '../../shared/engine/params/index.ts'
 import type { Param } from '../../shared/engine/types.ts'
 import type { ResearchParams, Units, UserSettings } from '../../shared/types.ts'
 import { PaperCard } from '../../web/components/PaperCard.tsx'
@@ -138,6 +139,38 @@ describe('WhyDrawer', () => {
     expect(dialog.textContent).not.toMatch(/An adjustment needs a rating/)
     // Only the effort parameters bring the sentence; another rule in the same drawer does not.
     expect(within(dialog).getAllByText(/An effort verdict needs a rating/)).toHaveLength(1)
+  })
+
+  test.each([
+    {
+      units: 'mi' as const,
+      step: 'the minimum step is 0.3 mi (stored in metres)',
+      gain: 'with a minimum step of 328 ft.',
+    },
+    {
+      units: 'km' as const,
+      step: 'the minimum step is 0.5 km (stored in metres)',
+      gain: 'with a minimum step of 100 m.',
+    },
+  ])('a parameter note reads in the units of its value ($units)', async ({ units, step, gain }) => {
+    const real = (id: string): Param<unknown> => {
+      const found = allParams().find((p) => p.id === id)
+      if (found === undefined) throw new Error(`No parameter ${id} in the registry`)
+      return found
+    }
+    const params = [real('g1.minStepDistanceM'), real('h4.minStepGainM')]
+    mockApi({
+      ...settingsRoute(units),
+      'GET /api/research/params': () => ({ version: 'v', params }),
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<Harness rules={params.map((p) => p.rule)} />)
+    await user.click(screen.getByRole('button', { name: 'Why' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const sentence = (part: string) => (content: string) => content.includes(part)
+    expect(await within(dialog).findByText(sentence(step))).toBeInTheDocument()
+    expect(within(dialog).getByText(sentence(gain))).toBeInTheDocument()
   })
 
   test('prints the novice ladder one rung and session to a line, not as a flat list', async () => {

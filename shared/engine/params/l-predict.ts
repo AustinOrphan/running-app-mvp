@@ -44,7 +44,7 @@ export const lPredict = {
     ),
     sameDistanceTolerancePct: param('l1.sameDistanceTolerancePct', 5, 'D', 'L1', [], {
       unit: '% of target distance',
-      note: 'Default: a race within this much of the target distance anchors it directly at any distance, including a marathon or an ultra (L4 anchors on the marathon PB and prior ultra results).',
+      note: 'Default: a race within this much of the target distance anchors it directly at any distance, including a marathon or an ultra (L4 anchors on the fastest marathon time and prior ultra results).',
     }),
     refitWindowWeeks: param<[number, number]>(
       'l1.refitWindowWeeks',

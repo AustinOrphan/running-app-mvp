@@ -302,7 +302,7 @@ Version 1, 2026-10-22. This document integrates 20 topic syntheses into one rule
   - A ratio below 0.70 may be shown as information about a return from a break.
   - Grade B/C [nakaoka-2021-acwr-runners, impellizzeri-2020-acwr-pitfalls, wang-2020-acwr-lessons, griffin-2020-acwr-systematic-review, cloosterman-2026-gps-load-injury]. In a second GPS cohort the small duration-ratio association (HR 1.33) disappeared when runners injured at baseline were excluded.
   - **Conflict:** the volume and ultra topics propose a soft cap at 7:28 ≥ 1.5 [toresdahl-2023-nyc-marathon-training-injury, craddock-2020-acwr-two-oceans]. Resolution: display only. The per-day OR was 1.06, a large runner cohort showed an inverse association [frandsen-2025-session-spike], the duration-based ratio lost its association once runners injured at baseline were excluded [cloosterman-2026-gps-load-injury], and G-1 already bounds the spikes.
-- **G-6 Never make up missed volume.**
+- **G-6 Never make up lost volume.**
   - Next week's target = min(planned target, actual last week × (1 + ramp)).
   - Skipped or downgraded sessions are not rescheduled. Grade B [vesterinen-2016-hrv-runners-rct, duking-2021-hrv-guided-meta]; the formula itself is D.
 - **G-7 Symptom check-ins are secondary.** Only 6.9-11.1% of overuse injuries had a reported problem beforehand, so check-ins never replace load guards. Grade C [frandsen-2025-sudden-onset].

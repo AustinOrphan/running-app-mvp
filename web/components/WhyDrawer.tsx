@@ -8,7 +8,7 @@ import { useSettings } from '../api/settings.ts'
 import { GradeBadge } from './GradeBadge.tsx'
 import { PaperCard } from './PaperCard.tsx'
 import { Sheet } from './Sheet.tsx'
-import { RATING_WHY_NOTE } from './engineText.ts'
+import { localiseParamNote, RATING_WHY_NOTE } from './engineText.ts'
 import { ruleTitle } from './ruleTitles.ts'
 import styles from './WhyDrawer.module.css'
 import { useCorpus, useToggleSet } from './researchCorpus.ts'
@@ -91,7 +91,9 @@ function paramLabel(id: string): string {
 function ParamRow({ param, units }: { param: Param<unknown>; units: Units }) {
   return (
     <div className={styles.param}>
-      <p className={styles.sentence}>{param.note ?? paramLabel(param.id)}</p>
+      <p className={styles.sentence}>
+        {param.note === undefined ? paramLabel(param.id) : localiseParamNote(param.note, units)}
+      </p>
       <dl className={styles.facts}>
         {describeParam(param, units).map((row) => (
           <div

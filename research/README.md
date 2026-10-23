@@ -98,6 +98,10 @@ record, and engine code uses only those records (`P.g1.spikeRatioWarn.value`):
 - `evidence` lists paper ids from `papers/`. A grade D parameter may have none.
 - A grade D parameter has a `note` that says it is a default. The why drawer shows the rule, grade,
   note and papers.
+- A `note` is app copy. It passes the G5 lint (`shared/copy/lint.ts`; a test lints every note), and
+  the why drawer reads its kilometre, metre, km/h, m/h and "per km" figures in the runner's units
+  (`localiseParamNote`). Race classes are written `5K`, `10K`, `50K` and `100K`, as on the Goals
+  page, because a distance such as "50 km" would be converted.
 - Section files are `a-state`, `b-load`, `c-zones`, `d-goal`, `e-macro`, `f-micro`, `g-limits`,
   `h-ultra`, `i-env`, `j-adapt`, `k-taper`, `l-predict` and `m-execution`; `index.ts` merges them
   into `P` and holds `PARAMS_VERSION`.

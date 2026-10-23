@@ -72,9 +72,9 @@ export const RULE_TITLES: Record<string, string> = {
   'g-3': 'Tightened profiles',
   'g-4': 'Sex-specific limits',
   'g-5': 'Load ratio is never a gate',
-  'g-6': 'Never make up missed volume',
+  'g-6': 'Never make up lost volume',
   'g-7': 'Symptom check-ins are secondary',
-  'G-6': 'Never make up missed volume',
+  'G-6': 'Never make up lost volume',
   // (h) ultra
   H1: 'Progression priority',
   H2: 'Time on feet',
