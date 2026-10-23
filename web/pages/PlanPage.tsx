@@ -95,8 +95,8 @@ const STRENGTH_OPTIONS: Array<{ value: '0' | '1' | '2'; label: string }> = [
 ]
 
 const CYCLE_OPTIONS: Array<{ value: '3:1' | '2:1'; label: string }> = [
-  { value: '3:1', label: '3 up, 1 easy' },
-  { value: '2:1', label: '2 up, 1 easy' },
+  { value: '3:1', label: 'Every 4th week' },
+  { value: '2:1', label: 'Every 3rd week' },
 ]
 
 const POLARIZED_OPTIONS: Array<{ value: 'off' | 'on'; label: string }> = [
@@ -178,13 +178,15 @@ function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
         )}
       </Field>
       <Segmented<'3:1' | '2:1'>
-        label="Recovery cycle"
+        label="Easier week"
+        hint="Three building weeks then a lighter one is the usual rhythm; two then one suits a return from a break. The plan shortens the rhythm itself when it needs to."
         options={CYCLE_OPTIONS}
         value={cycle}
         onChange={setCycle}
       />
       <Segmented<'0' | '1' | '2'>
-        label="Strength sessions per week"
+        label="Strength sessions a week"
+        hint="Two during the strength block, then one to maintain; never on a key run day."
         options={STRENGTH_OPTIONS}
         value={strength}
         onChange={setStrength}
@@ -192,6 +194,7 @@ function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
       {shortGoal ? (
         <Segmented<'off' | 'on'>
           label="Polarized specific phase"
+          hint="For 5 to 10 km goals: harder hard days and easier easy days in the final weeks. Off unless wanted."
           options={POLARIZED_OPTIONS}
           value={polarized}
           onChange={setPolarized}

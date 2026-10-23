@@ -124,7 +124,12 @@ function weekMinutes(sessions: SessionSpec[], weekStart: string, from: string): 
     .reduce((sum, s) => sum + s.durationMin, 0)
 }
 
-/** G-2, G-3: no week above the 2-week ceiling or the tightened ramp; the soft 10% only warns. */
+/**
+ * G-2, G-3: no week above the 2-week ceiling or the tightened ramp; the soft 10% only warns. The
+ * minutes already run in the current week are a fact, not a plan: a week run above its limit with
+ * nothing more planned in it is taken as run, and fails only if the sessions still to run take it
+ * past the limit.
+ */
 function progression(draft: PlanDraft, input: EngineInput, state: AthleteState): ChecklistResult {
   const rules = ['g-2', 'g-3']
   const volume = new Map<string, number>()
@@ -133,6 +138,7 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   const starts = [...new Set(draft.sessions.map((s) => mondayOf(s.date)))].sort()
   const failures: string[] = []
   const ahead = toRun(draft, input)
+  const takenAsRun: string[] = []
   let soft = 0
   // The same limits the guards apply (limits.ts): a recovery or taper week, and the current week
   // when the plan starts after its Monday, set no baseline; the first week of a start path is
@@ -163,7 +169,8 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
     if (weekStart < currentMonday) continue
     // The current week holds what was already run plus the sessions still planned.
     const done = weekStart === currentMonday ? (volume.get(weekStart) ?? 0) : 0
-    const total = done + weekMinutes(ahead, weekStart, input.today)
+    const planned = weekMinutes(ahead, weekStart, input.today)
+    const total = done + planned
     volume.set(weekStart, total)
     if (total <= 0) continue
     if (
@@ -177,20 +184,21 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
     const limits = rampLimits(ctx, weekStart)
     if (limits === null) continue
     if (total > limits.allowed + EPS) {
-      failures.push(
-        `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(limits.allowed)} min`,
-      )
+      if (planned > EPS) {
+        failures.push(
+          `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(limits.allowed)} min`,
+        )
+      } else takenAsRun.push(`${weekStart} (${Math.round(total)} min)`)
     } else if (!limits.exempt && total > limits.soft + EPS) soft += 1
   }
   if (failures.length > 0) return result('progression', false, failures.join('; '), rules)
-  return result(
-    'progression',
-    true,
-    soft === 0
-      ? 'Every week is within the weekly ramp.'
-      : `Every week is within the ceiling; ${soft} week(s) step above the soft ${Math.round(P.g2.rampSoft.value * 100)}% and carry a warning.`,
-    rules,
-  )
+  const softNote = `${soft} week(s) step above the soft ${Math.round(P.g2.rampSoft.value * 100)}% and carry a warning`
+  let detail: string
+  if (takenAsRun.length > 0) {
+    detail = `Every planned week is within the ${soft === 0 ? 'weekly ramp' : `ceiling; ${softNote}`}; the week of ${takenAsRun.join(', ')} was run above its limit and is taken as run.`
+  } else if (soft === 0) detail = 'Every week is within the weekly ramp.'
+  else detail = `Every week is within the ceiling; ${softNote}.`
+  return result('progression', true, detail, rules)
 }
 
 /** E3: no more than the cycle's loading weeks in a row, and recovery weeks cut the volume. */

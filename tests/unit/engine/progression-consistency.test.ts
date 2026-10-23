@@ -6,9 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { feasibility } from '../../../shared/engine/goal.ts'
-import { breakRestart } from '../../../shared/engine/adapt.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
-import { buildPlan, replan } from '../../../shared/engine/index.ts'
+import { afterBreak, buildPlan, replan } from '../../../shared/engine/index.ts'
 import { macroPlan } from '../../../shared/engine/macro.ts'
 import { startExemptions } from '../../../shared/engine/startWeeks.ts'
 import type { EngineInput, PlanDraft, SessionSpec } from '../../../shared/engine/types.ts'
@@ -106,17 +105,7 @@ describe.each(all)('generated plan inside the limits: $label', (a: MatrixAthlete
 
   it('plans the weeks the macrocycle drew: no week lowered after the fact', () => {
     // the state the generator plans from: after a break the typical week is the restart volume
-    const raw = estimateState(a.input)
-    const st =
-      raw.layoffDays >= 7 && raw.typicalWeekMin > 0
-        ? {
-            ...raw,
-            typicalWeekMin: Math.min(
-              raw.typicalWeekMin,
-              breakRestart(raw.layoffDays, raw.typicalWeekMin).restartMin,
-            ),
-          }
-        : raw
+    const st = afterBreak(estimateState(a.input))
     const macro = macroPlan(a.input, st, a.input.goal, feasibility(a.input.goal, st, TODAY))
     const plan = buildPlan(a.input)
     const lowered = plan.weeks

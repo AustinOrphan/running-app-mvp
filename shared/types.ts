@@ -351,6 +351,10 @@ export interface PlanWeek {
    */
   flags: string[]
   gainTargetM: number | null
+  /** Version-2 plans only: the engine's count of quality sessions for the week. */
+  qualitySessions: number
+  /** Version-2 plans only: the engine's recovery-week flag (a post-race week has no 'recovery' flag). */
+  isRecovery: boolean
   updatedAt: string
 }
 export type DataStatus = 'unconfirmed' | 'complete' | 'missing'

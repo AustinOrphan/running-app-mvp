@@ -10,7 +10,7 @@ import { efficiencyIndex } from './athlete.ts'
 import { dayRulesIn, disruptionPlan, heldDates, restartFraction } from './disruption.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
-import { wholeMinutes } from './limits.ts'
+import { plannedMinOf, wholeMinutes } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { lastWindowDay, postRaceWindows, stageLabel, windowDay } from './postRace.ts'
@@ -558,7 +558,8 @@ export function weeklyDecision(
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
   const plannedThis = plannedFull ?? actual
   const nextWeek = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
-  const nextPlanned = nextWeek?.targetRunMin ?? Math.round(plannedThis * (1 + ramp))
+  const nextPlanned =
+    nextWeek === undefined ? Math.round(plannedThis * (1 + ramp)) : plannedMinOf(nextWeek)
   let nextWeekTargetMin: number
   if (decision === 'progress') {
     // A ladder or injury-return week is a step of a fixed programme, exempt from the soft ramp:

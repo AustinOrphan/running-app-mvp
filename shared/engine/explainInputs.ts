@@ -17,6 +17,7 @@ import type { HrModel } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
 import {
   countsTowardReference,
+  plannedMinOf,
   spikeOverrideLimit,
   spikeWarnLimit,
   VOLUME_KINDS,
@@ -362,7 +363,10 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
       { sources: weekRuns(ctx, last).map(activitySource), window: weekWindow(last) },
     ),
   ]
-  const target = plannedWeek(ctx, next)?.targetRunMin
+  // The decision caps the week from the minutes it was planned at; a week already run past its
+  // target is stored at the minutes run and carries the planned ones (`plannedMinOf`).
+  const nextWeek = plannedWeek(ctx, next)
+  const target = nextWeek === null ? undefined : plannedMinOf(nextWeek)
   if (target !== undefined) {
     const ramp = weeklyRamp(ctx.state)
     facts.push(

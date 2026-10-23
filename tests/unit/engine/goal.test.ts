@@ -13,7 +13,7 @@ import {
   trainingPace,
   ultraLongRunTargetMin,
 } from '../../../shared/engine/goal.ts'
-import { startWeekMin } from '../../../shared/engine/limits.ts'
+import { restartFloorMin, startWeekMin } from '../../../shared/engine/limits.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { predictFromState } from '../../../shared/engine/predict.ts'
 import { rungCount } from '../../../shared/engine/startWeeks.ts'
@@ -31,6 +31,7 @@ function makeState(
     /** Running minutes of each completed week; with `weeklyKm` it sets the training pace. */
     weekMin?: number
     typicalWeekMin?: number
+    recentWeekMin?: number
     recentInjury?: boolean
     yearsRunning?: number | null
     races?: AthleteState['fitness']['races']
@@ -63,6 +64,7 @@ function makeState(
     load: { metric: 'minutes', acute: 0, chronic: 0, daily: [] },
     weeks,
     typicalWeekMin: over.typicalWeekMin ?? weekMin,
+    recentWeekMin: over.recentWeekMin ?? 0,
     longest30d: {
       distanceM: over.longestM ?? 10000,
       durationSec: over.longestSec ?? 3600,
@@ -444,6 +446,21 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
       expect(startWeekMin(state, { kind: 'injury-return', level: 2 })).toBe(30)
       expect(startWeekMin(state, null)).toBe(30)
       expect(startWeekMin(makeState({ typicalWeekMin: 200 }), null)).toBe(200)
+    })
+
+    it('reads the start level: the recent level lifts a typical week that sits below it [rules E6]', () => {
+      const floor = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
+      // weeks of 30, 30, 90 and 79 min: a median of 55 and a recent level of 79
+      const lifted = makeState({ typicalWeekMin: 55, recentWeekMin: 79 })
+      expect(startWeekMin(lifted)).toBe(79)
+      expect(startWeekMin(lifted, null)).toBe(79)
+      expect(restartFloorMin(lifted)).toBeNull()
+      // a recent level under the typical week changes nothing
+      expect(startWeekMin(makeState({ typicalWeekMin: 120, recentWeekMin: 90 }))).toBe(120)
+      // a recent level under the floor leaves the floor, as for a sparse history
+      const sparse = makeState({ typicalWeekMin: 30, recentWeekMin: 30 })
+      expect(startWeekMin(sparse)).toBe(floor)
+      expect(restartFloorMin(sparse)).toBe(floor)
     })
 
     it('starts the weekly path of an ultra at the first week of the start path', () => {

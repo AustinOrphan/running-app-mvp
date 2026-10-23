@@ -4,7 +4,8 @@
 // Week flags written here (WeekDraft.flags): 'recovery', 'peak', 'taper', 'race-week',
 // 'post-race', 'strength-block', 'gut-training', 'heat-acclimation', 'night', 'downhill', 'b2b',
 // and for the first weeks of a plan 'restart-floor', 'run-walk', 'ladder-<n>', 'injury-return',
-// 'injury-level-<n>' (startWeeks.ts).
+// 'injury-level-<n>' (startWeeks.ts). A re-plan adds 'overshoot' and 'planned-<n>' to a loading
+// week run past its target (index.ts, limits.ts `overshootFlags`).
 // Race week is the last week with the race in it: its volume is the shake-out running around the
 // race, not the race itself, and its long run is 0. The weeks after the race (H12) follow it; the
 // days of the race week after the hold are a week of their own (`macroPlanDraft`).
@@ -19,11 +20,13 @@ import {
   gainLimit,
   injuryTight,
   noviceRamp,
+  plannedMinOf,
   rampLimits,
   rampSkipWeeks,
   rampStep,
   referenceBetween,
   runCaps,
+  startLevelMin,
   tightRamp,
   weeklyGain,
   weeklyRamp,
@@ -336,7 +339,9 @@ function replanAnchor(
         .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))[0]
     : current
   if (work === undefined || work.targetRunMin <= 0 || !Number.isFinite(stepCap)) return null
-  return { minutes: Math.min(work.targetRunMin, stepCap), paused: current.isRecovery }
+  // A week run past its target is stored at the minutes run; the loading sequence carries on from
+  // the minutes it was planned at, so an overshoot lifts nothing after it [rules g-2, g-6].
+  return { minutes: Math.min(plannedMinOf(work), stepCap), paused: current.isRecovery }
 }
 
 /** Quality sessions wanted in a pre-taper week before the run-day cap [rules F2, H1]. */
@@ -459,7 +464,8 @@ function ladderEntry(ref: number, bound: number): number {
 
 /**
  * Where a runner starts, from history [rules E6, G-3, A9]: the run-walk ladder, 3 sessions of N
- * minutes, the injury-return ladder, or null when the typical week is at or above
+ * minutes, the injury-return ladder, or null when the start level (`startLevelMin`, limits.ts:
+ * the typical week, or the last two complete weeks when they were higher) is at or above
  * 3 x 20 minutes. It reads the runs of the last 30 and 90 days that the 30-day reference of G-1
  * counts (a marathon or longer race is none of them); sex never changes the dose.
  *
@@ -478,7 +484,7 @@ function ladderEntry(ref: number, bound: number): number {
  */
 export function startPath(input: EngineInput, state: AthleteState): StartPath | null {
   const sessionMin = P.restartFloor.sessionMin.value
-  if (state.typicalWeekMin >= P.restartFloor.sessions.value * sessionMin) return null
+  if (startLevelMin(state) >= P.restartFloor.sessions.value * sessionMin) return null
   const runs = runFacts(input)
 
   if (injuryTight(state)) {
@@ -922,8 +928,8 @@ function planWeeks(
       ? opening!.minutes
       : anchored !== null
         ? anchored.minutes
-        : state.typicalWeekMin > 0
-          ? state.typicalWeekMin
+        : startLevelMin(state) > 0
+          ? startLevelMin(state)
           : P.macroDesign.startFloorWeekMin.value
   const ceiling = Math.max(peakWeeklyMin(goal, pace), start)
   const hasGain = goal.gainM > 0 && goal.distanceM > 0
@@ -1351,7 +1357,11 @@ export function macroPlanDraft(
   // and would anchor the restart above the J7 volume.
   const rest = planWeeks(
     { ...input, today: normalStart, existing: null },
-    { ...state, typicalWeekMin: lead.restartMin },
+    {
+      ...state,
+      typicalWeekMin: lead.restartMin,
+      recentWeekMin: Math.min(state.recentWeekMin, lead.restartMin),
+    },
     goal,
     feasibility,
     {

@@ -72,6 +72,8 @@ function makePlan(): PlanWithWeeks {
     tid: null,
     flags: [],
     gainTargetM: null,
+    qualitySessions: 0,
+    isRecovery: false,
     updatedAt: '2026-01-01T00:00:00.000Z',
   }))
   return {

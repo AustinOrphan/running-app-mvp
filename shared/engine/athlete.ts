@@ -464,12 +464,25 @@ function riskOf(
 }
 
 /**
- * Completed runs average under `a5.lowFrequencyRunsPerWeek` a week over the last
- * `a5.lowFrequencyWindowWeeks` weeks, for a runner whose typical week is at or above the
- * start-path floor [rules A5]: those below the floor have a start path (E6) instead.
+ * The recent level [rules E6]: the lesser of the run minutes of the last
+ * `macroDesign.startRecentWeeks` complete weeks, and 0 unless every one of them holds a run.
+ * `weeks` ends with the current week, which is part of a week and never counts.
  */
-function lowFrequencyOf(runs: Activity[], today: string, typicalWeekMin: number): boolean {
-  if (typicalWeekMin < P.restartFloor.sessions.value * P.restartFloor.sessionMin.value) return false
+function recentLevel(weeks: WeekRow[]): number {
+  const count = P.macroDesign.startRecentWeeks.value
+  const recent = weeks.slice(-1 - count, -1)
+  if (recent.length < count || recent.some((w) => w.runMin <= 0)) return 0
+  return Math.min(...recent.map((w) => w.runMin))
+}
+
+/**
+ * Completed runs average under `a5.lowFrequencyRunsPerWeek` a week over the last
+ * `a5.lowFrequencyWindowWeeks` weeks, for a runner whose start level (`startLevelMin`, limits.ts)
+ * is at or above the start-path floor [rules A5]: those below the floor have a start path (E6)
+ * instead.
+ */
+function lowFrequencyOf(runs: Activity[], today: string, startLevel: number): boolean {
+  if (startLevel < P.restartFloor.sessions.value * P.restartFloor.sessionMin.value) return false
   const weeks = P.a5.lowFrequencyWindowWeeks.value
   const inWindow = runs.filter((a) => {
     const ago = daysBetween(a.date, today)
@@ -500,6 +513,7 @@ export function estimateState(input: EngineInput): AthleteState {
     .slice(0, P.a5.typicalWeekCount.value)
     .map((w) => w.runMin)
   const typicalWeekMin = typical.length === 0 ? 0 : Math.round(median(typical))
+  const recentWeekMin = recentLevel(weeks)
 
   const runDates = [...new Set(runs.map((a) => a.date))].sort()
   const lastRunDate = runDates[runDates.length - 1] ?? null
@@ -530,6 +544,7 @@ export function estimateState(input: EngineInput): AthleteState {
     },
     weeks,
     typicalWeekMin,
+    recentWeekMin,
     longest30d: longestRuns(runs, today),
     gaps16w: countGaps(runDates, today),
     layoffDays,
@@ -538,7 +553,7 @@ export function estimateState(input: EngineInput): AthleteState {
     efficiency: efficiencyIndex(acts, today),
     durability: durabilityOf(runs),
     risk: riskOf(input, weeks, age, lastRunDate, yearsRunning),
-    lowFrequency: lowFrequencyOf(runs, today, typicalWeekMin),
+    lowFrequency: lowFrequencyOf(runs, today, Math.max(typicalWeekMin, recentWeekMin)),
     heatAcclimation: heatCredit(acts, today),
   }
 }
