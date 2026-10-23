@@ -320,8 +320,8 @@ function carriedPhases(
  * Where a re-plan restarts the loading sequence: the working target of the current week in the plan
  * it replaces, not the typical week, so the Monday re-plan does not flatten the progression. In a
  * recovery week the sequence continues from the work week before it (`paused`). The start is held
- * to the step the recent weeks allow (`stepCap`), so missed training still lowers it. A break of a
- * week or more restarts from the typical week.
+ * to the step the recent weeks allow (`stepCap`, never below the minutes already run in the week),
+ * so missed training still lowers it. A break of a week or more restarts from the typical week.
  */
 function replanAnchor(
   input: EngineInput,
@@ -819,13 +819,20 @@ function planWeeks(
     novice: rampNovice,
     tight: tightRamp(state),
   }
+  // The minutes already logged in the week the plan opens in. The ceiling of G-2 limits what a plan
+  // adds to the weeks two and three before it; it cannot take back minutes already run, so the cap
+  // of the opening week is never below them. Otherwise a plan made in the middle of the week after
+  // one above that ceiling (runs imported late, a layoff just ended) would plan the week below what
+  // is logged in it, and every week after it from there [rules g-2].
+  const loggedOpening = state.weeks.find((w) => w.weekStart === firstMonday)?.runMin ?? 0
   /** The most a loading week may hold: the planning limit, at the athlete's own ramp. */
   const stepCap = (weekStart: string): number => {
     if (restartWeeks.has(weekStart)) return Infinity
     const lim = rampLimits(rampCtx, weekStart)
     if (lim === null) return Infinity
     if (lim.isFloorWeek) return floorEps(lim.plan)
-    return floorEps(Math.min(lim.plan, rampStep(lim.base, ramp, rampNovice)))
+    const cap = floorEps(Math.min(lim.plan, rampStep(lim.base, ramp, rampNovice)))
+    return weekStart === firstMonday ? Math.max(cap, loggedOpening) : cap
   }
   const runs: RunRecord[] = [...completedReference(input.activities, state).runs]
   // the runs a programme week is compared with leave out the sessions of other programme weeks
@@ -923,20 +930,27 @@ function planWeeks(
   const opening = startCount > 0 ? startWeek(path!.kind, schedule.steps[0]!) : null
   // a 3 x N floor does not replace a recovery week of the plan being replaced
   const lifts = path?.kind !== 'floor' || phases[0]?.isRecovery !== true
+  // the plan being replaced opened this week on the 3 x N floor
+  const onFloorNow =
+    input.existing?.weeks
+      .find((w) => w.weekStart === firstMonday)
+      ?.flags.includes('restart-floor') === true
+  // A re-plan keeps its floor week when the minutes run in it have lifted the cap of the opening
+  // week (`stepCap`) to the floor itself: the continuation then no longer sits below the floor
+  // week, and the week would lose its floor flags [rules E6, g-2].
   const restart =
     path !== null &&
     opening !== null &&
     lifts &&
-    (carried !== null || continued === null || continued.minutes < opening.minutes)
+    (carried !== null ||
+      continued === null ||
+      continued.minutes < opening.minutes ||
+      (onFloorNow && path.kind === 'floor'))
       ? path
       : null
   const startWeeks = restart === null ? 0 : startCount
   // the plan opens with this path: it is new, or it began this week (a re-plan keeps its floor week)
-  const opensPlan =
-    carried === null ||
-    input.existing?.weeks
-      .find((w) => w.weekStart === firstMonday)
-      ?.flags.includes('restart-floor') === true
+  const opensPlan = carried === null || onFloorNow
   // the weeks of a ladder follow its steps and repeats: no recovery week inside it (the weeks after
   // it open a new block, which the checklist counts the same way)
   const programmeWeeks = restart !== null && restart.kind !== 'floor' ? startWeeks : 0

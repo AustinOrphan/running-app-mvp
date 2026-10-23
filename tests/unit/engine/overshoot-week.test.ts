@@ -430,4 +430,87 @@ describe('the weeks after an overshot restart floor week, once the weeks before 
     })
     expect(weekOf(held.draft, MONDAY).flags).not.toContain('restart-floor')
   })
+
+  describe('a plan generated from scratch on that Thursday [rules G-2, G-3, E6, J7]', () => {
+    // The same history, with no plan to continue (the "Regenerate plan" button). The weeks two and
+    // three before the week of the plan hold 30 and 0 minutes, so the 2-week ceiling of its first
+    // week is 30 x 1.3 = 39 minutes, with 79 already run in it and 94 the week before.
+    const fresh = buildPlan({ ...first, today: THURSDAY, activities: history })
+    const control = replanOn(nextWeek(MONDAY, 1), existing)
+
+    it('takes the 79 minutes run as the week, planned from the start level and not from the ceiling of the weeks before the layoff', () => {
+      const week = weekOf(fresh, MONDAY)
+      expect(week.targetRunMin).toBeGreaterThanOrEqual(79)
+      expect(week.flags).toContain('overshoot')
+      // the floor week the runner has outrun, not the 39 minutes of the stale ceiling
+      expect(plannedMinOf(week)).toBeGreaterThanOrEqual(60)
+      expect(failed(fresh)).toEqual([])
+      expect(
+        fresh.sessions.filter((s) => s.date >= THURSDAY && mondayOf(s.date) === MONDAY),
+      ).toEqual([])
+    })
+
+    it('draws the weeks after it from that level, not below a Monday re-plan of the continued plan', () => {
+      const weeks = loadingAfter(fresh)
+      const monday = loadingAfter(control.draft)
+      expect(monday.slice(0, 3)).toEqual([66, 72, 79])
+      weeks.forEach((minutes, i) => {
+        expect(minutes, `loading week ${String(i + 1)}`).toBeGreaterThanOrEqual(monday[i]!)
+      })
+    })
+
+    it('keeps the weeks after it inside the ramp from the weeks actually run (94, then 79 minutes)', () => {
+      const loading = [94, 79]
+      for (const w of fresh.weeks.slice(1, 8)) {
+        if (!w.isRecovery) {
+          expect(w.targetRunMin, `week of ${w.weekStart}`).toBeLessThanOrEqual(
+            Math.floor(Math.max(...loading.slice(-2)) * 1.1 + 1e-9),
+          )
+          loading.push(w.targetRunMin)
+        }
+      }
+      expect(Math.min(...loadingAfter(fresh))).toBeGreaterThan(60)
+    })
+
+    it('draws the same weeks when the plan is re-planned the next day and on the next Monday', () => {
+      const again = replanOn(FRIDAY, storedRows(fresh, FRIDAY))
+      expect(failed(again.draft)).toEqual([])
+      expect(targets(again.draft)).toEqual(targets(fresh))
+      expect(weekOf(again.draft, MONDAY).flags).toEqual(weekOf(fresh, MONDAY).flags)
+      const monday = replanOn(nextWeek(MONDAY, 1), storedRows(again.draft, nextWeek(MONDAY, 1)))
+      expect(failed(monday.draft)).toEqual([])
+      expect(loadingAfter(monday.draft, 3)).toEqual(loadingAfter(fresh, 3))
+    })
+
+    it('plans no week below the minutes run in it when only part of the ceiling is passed', () => {
+      // On the Wednesday only the 44 minutes of Monday are run: above the 39-minute ceiling, below
+      // the start level. The week is not planned under them, and the weeks after it rise from it.
+      const wednesday = buildPlan({
+        ...first,
+        today: WEDNESDAY,
+        activities: history.filter((a) => a.date <= WEDNESDAY && a.id !== 'done-wed'),
+      })
+      const week = weekOf(wednesday, MONDAY)
+      expect(week.targetRunMin).toBeGreaterThanOrEqual(44)
+      expect(failed(wednesday)).toEqual([])
+      expect(loadingAfter(wednesday)[0]).toBeGreaterThan(week.targetRunMin)
+    })
+  })
+
+  describe('a plan generated from scratch for a runner who has not outrun the floor [rules E6, A9, J7]', () => {
+    // 30-minute weeks only, and 20 minutes run on the Monday of the week of the plan.
+    const quiet = floorRunner(THURSDAY)
+    const plan = buildPlan({
+      ...quiet,
+      activities: [...quiet.activities, logged(MONDAY, 20, 'quiet-mon')],
+    })
+
+    it('still opens on the 60-minute restart floor', () => {
+      const week = weekOf(plan, MONDAY)
+      expect(week.targetRunMin).toBe(60)
+      expect(week.flags).toContain('restart-floor')
+      expect(week.flags).not.toContain('overshoot')
+      expect(failed(plan)).toEqual([])
+    })
+  })
 })
