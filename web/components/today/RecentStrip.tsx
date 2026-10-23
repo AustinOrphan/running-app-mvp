@@ -1,8 +1,9 @@
 import { addDays } from '../../../shared/dates.ts'
 import type { ActivityListItem, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
+import { useActivities } from '../../api/activities.ts'
 import { formatShortDate, plural } from '../format.ts'
-import styles from './today.module.css'
+import styles from './RecentStrip.module.css'
 
 const STRIP_DAYS = 28
 
@@ -26,16 +27,13 @@ function runMinutesPerDay(activities: ActivityListItem[], today: string, days: n
   })
 }
 
-/** Run minutes for each of the last 28 days as a bar strip, with a table for screen readers. */
-export function RecentStrip({
-  activities,
-  today,
-  units,
-}: {
-  activities: ActivityListItem[]
-  today: string
-  units: Units
-}) {
+/**
+ * Run minutes for each of the last 28 days as a bar strip, with a table for screen readers. It
+ * reads the activities itself, so the page mounts it only once it is near the viewport.
+ */
+export function RecentStrip({ today, units }: { today: string; units: Units }) {
+  const { data: activities } = useActivities({ from: addDays(today, 1 - STRIP_DAYS) })
+  if (activities === undefined) return null
   const strip = runMinutesPerDay(activities, today, STRIP_DAYS)
   const stripRuns = activities.filter(
     (a) =>
@@ -51,7 +49,7 @@ export function RecentStrip({
 
   return (
     <section className={styles.section}>
-      <h2 className={styles.heading}>Last 28 days</h2>
+      <h2 className={styles.heading}>{`Last ${String(STRIP_DAYS)} days`}</h2>
       <div className={styles.strip} aria-hidden="true">
         {strip.map((day) => (
           <span
@@ -62,10 +60,10 @@ export function RecentStrip({
         ))}
       </div>
       <p className={styles.caption}>
-        {`${String(stripRuns.length)} ${plural(stripRuns.length, 'run', 'runs')}, ${formatDistance(stripDistanceM, units)} in the last 28 days`}
+        {`${String(stripRuns.length)} ${plural(stripRuns.length, 'run', 'runs')}, ${formatDistance(stripDistanceM, units)} in the last ${String(STRIP_DAYS)} days`}
       </p>
       <table className="visually-hidden">
-        <caption>Run minutes per day, last 28 days</caption>
+        <caption>{`Run minutes per day, last ${String(STRIP_DAYS)} days`}</caption>
         <thead>
           <tr>
             <th scope="col">Day</th>

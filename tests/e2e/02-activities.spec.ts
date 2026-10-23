@@ -30,6 +30,8 @@ test('logging a run from the Activities page shows it in the list and on the das
 
   await page.getByRole('link', { name: 'Today' }).first().click()
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible()
+  // The history sections load when the foot of the page comes near the viewport.
+  await page.getByRole('region', { name: 'Disclaimer' }).scrollIntoViewIfNeeded()
   await expect(page.getByText('1 run, 5.00 mi in the last 28 days')).toBeVisible()
 
   // The edit sheet opens on the saved values and the row can be deleted again.

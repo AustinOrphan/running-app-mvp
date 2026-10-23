@@ -783,6 +783,8 @@ export interface TodayRace {
   targetDate: string
   dateProvisional: boolean
   daysToRace: number
+  /** The race distance in metres; null when the goal has none. */
+  distanceM: number | null
   /** Null when the athlete's state supports no source, or the goal has no distance. */
   prediction: Pick<Prediction, 'method' | 'predictedSec' | 'lowSec' | 'highSec'> | null
   /** How wide the range has to be; null when the goal has no distance. */

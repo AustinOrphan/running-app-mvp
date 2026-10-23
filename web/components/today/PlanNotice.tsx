@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import buttonStyles from '../Button.module.css'
 import { EmptyState } from '../EmptyState.tsx'
-import styles from './today.module.css'
+import styles from './PlanNotice.module.css'
 
 /** What to do when there is no plan, or a note that this week is outside the one there is. */
 export function PlanNotice({

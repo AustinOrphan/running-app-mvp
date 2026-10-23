@@ -1,0 +1,40 @@
+.section {
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+
+.heading {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 3rem;
+  margin-bottom: var(--space-2);
+}
+
+.bar,
+.barEmpty {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+
+.bar {
+  background: var(--chart-actual);
+}
+
+.barEmpty {
+  background: var(--border);
+}
+
+.caption {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

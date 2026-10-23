@@ -11,8 +11,8 @@ function weekdayName(date: string): string {
 }
 
 // The golden path of the training engine: a profile and a goal with race descriptors, a generated
-// plan, today's session with its reasons, the matching run rated afterwards, the plan's account of
-// how it went, and a decided review of the finished week that re-plans.
+// plan, today's session as the Today hero with its reasons, the matching run rated afterwards, the
+// plan's account of how it went, and a decided review of the finished week that re-plans.
 test('profile, goal, plan, today, a rated run, its assessment, a review and what changed', async ({
   page,
   baseURL,
@@ -79,11 +79,12 @@ test('profile, goal, plan, today, a rated run, its assessment, a review and what
   if (todays === undefined) throw new Error(`The plan has no run for ${today}.`)
 
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: "Today's session" })).toBeVisible()
   const card = page.getByRole('article', { name: todays.title })
   await expect(card).toBeVisible()
   await expect(card.getByText(todays.purpose)).toBeVisible()
-  await card.getByRole('button', { name: 'Why this session' }).click()
+  await expect(card.getByText(`${String(todays.durationMin)}`, { exact: true })).toBeVisible()
+  await expect(card.getByText('Effort', { exact: true })).toBeVisible()
+  await card.getByRole('button', { name: 'Explain' }).click()
   const why = page.getByRole('dialog', { name: 'Why this?' })
   // Each rule is named in words, never as a bare id.
   await expect(why.getByRole('heading', { level: 3 }).first()).toBeVisible()

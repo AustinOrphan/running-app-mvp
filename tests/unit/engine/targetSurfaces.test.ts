@@ -6,7 +6,7 @@
 // and compares the figures with the resolver's. A second implementation of the rules, or a number
 // typed into a surface, fails here.
 //
-// Registered now:  hero (Today, E2-2), FIT workout file (E1-3).
+// Registered now:  hero (Today, E2-5: the rendered `SessionTargets`), FIT workout file (E1-3).
 // To be registered by the task that builds the surface:
 //   session sheet, intervals.icu description, ICS outline             E1-7, E1-6
 //   weekly brief key session                                          E4-5
@@ -20,6 +20,8 @@
 // hot day), and the matrix then requires that its lead is the resolver's and that every figure it
 // does carry equals the resolver's. A surface that has no page for a kind (a strength day has no
 // workout file) lists the kinds it `covers`.
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { easedSession } from '../../../shared/engine/readiness.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -30,11 +32,12 @@ import type {
   SessionSpec,
   ZoneSet,
 } from '../../../shared/engine/types.ts'
-import { formatDuration, formatPace } from '../../../shared/units.ts'
+import { formatDuration } from '../../../shared/units.ts'
 import type { Units } from '../../../shared/types.ts'
 import { publishable } from '../../../shared/workouts/labels.ts'
 import { toWorkoutPlan } from '../../../shared/workouts/plan.ts'
 import { encodeWorkoutFit } from '../../../server/services/workoutFit.ts'
+import { SessionTargets } from '../../../web/components/today/SessionTargets.tsx'
 import { expandWorkout, readWorkout, type ExpandedStep } from '../../fixtures/fit/readWorkout.ts'
 import { prescribed, SESSION_KINDS, zoneSetFixture } from './fixtures.ts'
 
@@ -86,27 +89,20 @@ function reference(session: SessionSpec, ctx: SurfaceContext): SurfaceReading {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The hero: lines in the wording of the Today design (spec 7.6), read back from the text.
+// The hero: the term list of Today (`SessionTargets`, spec 7.6) rendered to markup, and the
+// figures read back out of what it says.
 // ---------------------------------------------------------------------------------------------
 
+/** The lines the hero prints, in order: "Heart rate: under 149 bpm", with a note after a period. */
 function heroLines(t: ResolvedTargets, units: Units): string[] {
-  const hr = (): string | null => {
-    if (t.hrCeiling !== null) return `Heart rate: under ${t.hrCeiling} bpm`
-    if (t.hrRange !== null) return `Heart rate: ${t.hrRange[0]} to ${t.hrRange[1]} bpm`
-    return null
-  }
-  const pace =
-    t.paceSecPerKm === null
-      ? null
-      : `Pace: about ${formatPace(t.paceSecPerKm[0], 1000, units).split(' ')[0]} to ${formatPace(t.paceSecPerKm[1], 1000, units)}`
-  const effort = `Effort: ${t.rpe[0]} to ${t.rpe[1]} out of 10`
-  const lines: Array<string | null> =
-    t.mode === 'effort'
-      ? [effort, hr(), pace]
-      : t.mode === 'pace'
-        ? [pace, effort, hr()]
-        : [hr(), pace, effort]
-  return lines.filter((line): line is string => line !== null)
+  const markup = renderToStaticMarkup(createElement(SessionTargets, { targets: t, units }))
+  const rows = [...markup.matchAll(/<div[^>]*>(.*?)<\/div>/g)].map((row) => row[1] ?? '')
+  return rows.map((row) => {
+    const term = /<dt[^>]*>(.*?)<\/dt>/.exec(row)?.[1]
+    const values = [...row.matchAll(/<dd[^>]*>(.*?)<\/dd>/g)].map((dd) => dd[1])
+    if (term === undefined || values.length === 0) throw new Error(`Unreadable row: ${row}`)
+    return `${term}: ${values.join(' ')}`
+  })
 }
 
 function paceSeconds(text: string): number {
@@ -123,8 +119,9 @@ const hero: SurfaceAdapter = {
     const find = (re: RegExp) => lines.map((line) => re.exec(line)).find((m) => m !== null) ?? null
     const ceiling = find(/^Heart rate: under (\d+) bpm/)
     const band = find(/^Heart rate: (\d+) to (\d+) bpm/)
-    const pace = find(/^Pace: about (\d+:\d{2}) to (\d+:\d{2}) \/(km|mi)/)
-    const effort = find(/^Effort: (\d+) to (\d+) out of 10/)!
+    // The hero prints the quicker pace first; the resolver keeps the slow end first.
+    const pace = find(/^Pace: (?:about )?(\d+:\d{2}) to (\d+:\d{2}) \/(km|mi)/)
+    const effort = find(/^Effort: (\d+)(?: to (\d+))? out of 10/)!
     if (pace !== null) expect(pace[3]).toBe(ctx.units)
     return {
       lead: lead.startsWith('Effort')
@@ -136,8 +133,8 @@ const hero: SurfaceAdapter = {
             : 'hr-band',
       hrCeiling: ceiling ? Number(ceiling[1]) : null,
       hrRange: band ? [Number(band[1]), Number(band[2])] : null,
-      paceSecPerUnit: pace ? [paceSeconds(pace[1]!), paceSeconds(pace[2]!)] : null,
-      effort: [Number(effort[1]), Number(effort[2])],
+      paceSecPerUnit: pace ? [paceSeconds(pace[2]!), paceSeconds(pace[1]!)] : null,
+      effort: [Number(effort[1]), Number(effort[2] ?? effort[1])],
     }
   },
 }

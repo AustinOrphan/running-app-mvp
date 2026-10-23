@@ -1099,7 +1099,7 @@ caches `rl-shell-<buildId>` (two generations kept), `rl-api-v1` and `rl-meta`. H
 - `GET /api/today` gains `tz` (the server's IANA zone) and `coach: TodayCoach`: generated at,
   preview flag, verdict, up to three signals, the hero (session, advice, reasons, eased session,
   target, linked run, other sessions), the next session, the week strip, the race countdown (with
-  `wide`, the minimum half-width and its rules), the change line (the stored revision summary),
+  the distance in metres, `wide`, the minimum half-width and its rules), the change line (the stored revision summary),
   health (counts plus notes from registered producers) and the slots; `heat` gains `peakHour`,
   `coolerValue`, `index`, `hotForSteering`. `?date=` accepts today or up to two days ahead (else 400
   "Use today or one of the next two days."); a future date returns `preview: true`, no verdict and
@@ -1151,8 +1151,16 @@ DashboardPage            useToday(), useSettings(); two columns from 900 px via 
   WeekStrip (7 cells, Meter, caption, advisory line)
   <TodaySlot name="brief" budget=52>               ChangeLine until E4's BriefLine
   <TodaySlot name="fuelPrompt">                    E6 FuelPromptCard (below the fold, unbudgeted)
-  RaceCountdown · FeedbackCard · DataHealth · RecentWeeks · DisclaimerNote
+  CheckinCard (until E2-6 folds it into ReadinessRead) · FeedbackCard · RaceCountdown · DataHealth
+  History (RecentStrip, RecentWeeks; read their own data once near the viewport) · DisclaimerNote
 ```
+
+A day with no hero shows `NoSession` (or `PlanNotice` when the payload shows no plan at all); a
+week outside the plan adds one muted line. Until E2-6, Done opens the log form and Not today the
+session's sheet. `HealthNotes` lists the red-flag notes and then the producers' notes, each linking
+to where it can be put right. The unrated runs of `FeedbackCard` are `TodayView.unrated` (runs and
+races of the last seven days with neither a rating of effort nor a feel); no other request is made
+above the fold than `/api/today` and `/api/settings`.
 
 `TodaySlot` renders `<div data-slot data-budget-px>` only with content, so an empty slot costs zero
 height. Above-the-fold slots read `coach.slots.<name>`; a slot whose data is missing offline renders
