@@ -1,6 +1,13 @@
 // The contract between the engine modules, the server and the web app (training-engine plan,
 // "Shared contract"). Frozen after Task E1: change it only with the plan.
-import type { Activity, AthleteProfile, WeekRow, WeeklyReview, WellnessDay } from '../types.ts'
+import type {
+  Activity,
+  AthleteProfile,
+  PlanSessionStatus,
+  WeekRow,
+  WeeklyReview,
+  WellnessDay,
+} from '../types.ts'
 
 export type Grade = 'A' | 'B' | 'C' | 'D'
 export interface Param<T = number> {
@@ -421,4 +428,206 @@ export interface InputFact {
   state: 'used' | 'insufficient'
   /** The dates the figure was read over, when it is a window. */
   window?: { from: string; to: string }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The personal fuel ladder [rules H7, ADR 0011]
+//
+// Plain data throughout: the ladder is replayed from the runner's logs on every read and nothing
+// below is stored. `shared/engine/fuel.ts` builds these; `shared/engine/fuelCopy.ts` words them.
+// ---------------------------------------------------------------------------------------------
+
+/** The switches of the fuel settings that bound the ladder. */
+export interface FuelSettingsInput {
+  /** Opens the rungs from the first higher tier up to the second (70 to 90 g/h by default). */
+  optIn90: boolean
+  /** Opens the rungs above the second tier; needs `optIn90`. */
+  optInAdvanced: boolean
+  /** A diagnosed gut condition: the ladder stays at the floor. */
+  giDisease: boolean
+}
+
+/** One product eaten on a run, as a log's snapshot keeps it, with the servings taken. */
+export interface FuelItem {
+  name: string
+  /** Carbohydrate in one serving, grams. */
+  carbsG: number
+  sodiumMg: number | null
+  kcal: number | null
+  /** More than one transportable carbohydrate. */
+  multiCarb: boolean
+  servings: number
+}
+
+/**
+ * The weather a run had, as the activity stores it. WBGT needs temperature and humidity; wind and
+ * solar radiation fall back to the assumptions of `execution` (no wind, shade), and a run without
+ * humidity is judged on its air temperature.
+ */
+export interface RunWeather {
+  tempC: number | null
+  humidityPct: number | null
+  windKph: number | null
+  shortwaveWm2?: number | null
+}
+
+/** What the ladder reads from a fuel log. */
+export interface FuelLogInput {
+  skipped: boolean
+  items: readonly FuelItem[]
+  /** 0 to 4. */
+  gut: number
+  /** 0 to 4; null when not answered. */
+  nausea: number | null
+  /** The runner's own answer to "it was hot"; null means the weather decides, on every replay. */
+  hotOverride: boolean | null
+}
+
+/** A logged run as the ladder replays it. */
+export interface FuelRunInput {
+  activityId: string
+  /** The runner's local day, `YYYY-MM-DD`. */
+  date: string
+  /** Time of day, to order two runs on one day; null when unknown. */
+  startTime: string | null
+  /** Elapsed seconds, not moving seconds: eating happens at stops. */
+  elapsedSec: number
+  weather: RunWeather | null
+  /** The flags of the plan session the run is linked to; null when the run is not linked. */
+  sessionFlags: readonly SessionFlag[] | null
+  log: FuelLogInput
+}
+
+/** The carbohydrate rate of a rung: one figure, and the range at the floor. */
+export interface RungRate {
+  /** Grams per hour; the low end at the floor. */
+  gPerH: number
+  /** The floor's range; null for every other rung. */
+  range: [number, number] | null
+}
+
+export interface FuelRung extends RungRate {
+  /** 0 is the floor. */
+  index: number
+  grade: Grade
+  /** Every rung above the floor. */
+  lowCertainty: boolean
+  /** Above the first higher tier, a run counts only with enough multiple-source carbohydrate. */
+  multiCarbRequired: boolean
+  opens: 'always' | 'first-opt-in' | 'second-opt-in'
+}
+
+export type RungState =
+  | 'tolerated'
+  | 'next-up'
+  | 'repeat'
+  | 'later'
+  | 'opt-in'
+  | 'opens-after-second-tier'
+  | 'gut-condition'
+
+export interface FuelRungView extends FuelRung {
+  state: RungState
+}
+
+/** Why a logged run did or did not count toward the ladder. */
+export type CountReason =
+  'counted' | 'skipped' | 'too-short' | 'below-target' | 'too-little-multi-carb'
+
+export type StepOutcome =
+  | 'step-up'
+  | 'tolerated-top'
+  | 'tolerated-more'
+  | 'warm-tolerated'
+  | 'hold'
+  | 'fall-back'
+  | 'not-counted'
+
+/** What one logged run did to the ladder. */
+export interface LadderStep {
+  activityId: string
+  date: string
+  /** The rung being tried when the run happened. */
+  rungIndex: number
+  rung: RungRate
+  /** The rung the target stands on after the run. */
+  nextIndex: number
+  next: RungRate
+  /** Grams per hour of elapsed time; null when the run has no elapsed time. */
+  rateGPerH: number | null
+  multiCarbShare: number
+  /** The higher of the gut and nausea scores. */
+  score: number
+  hot: boolean
+  reason: CountReason
+  outcome: StepOutcome
+  /** The minutes a run needed to count (fewer in a gut-training week). */
+  requiredMin: number
+  /** For `tolerated-more`: tolerated runs still needed before the next step. */
+  toleratedLeft: number | null
+  /** Whether the current rung repeats after this run. */
+  held: boolean
+}
+
+export type LadderBasis = 'start' | 'next-up' | 'repeat' | 'fell-back' | 'at-ceiling' | 'locked'
+
+/** The replayed ladder. */
+export interface LadderResult {
+  rungs: FuelRungView[]
+  /** The rung the next run tries. */
+  currentIndex: number
+  /** The last rung a run was tolerated on; -1 before any. */
+  toleratedIndex: number
+  /** The last counted run scored badly: the current rung repeats. */
+  held: boolean
+  locked: boolean
+  /** The highest rung the settings open. */
+  ceilingIndex: number
+  basis: LadderBasis
+  /** The nausea plan comes forward: the last counted run's nausea score reached the cut-off. */
+  nauseaForward: boolean
+  countedRuns: number
+  /** Every logged run, oldest first. */
+  steps: LadderStep[]
+}
+
+/** A plan session as the fuel target reads it (`PlanSession` fits). */
+export interface FuelSessionInput {
+  id: string
+  date: string
+  kind: SessionKind
+  durationMin: number
+  flags: readonly SessionFlag[]
+  status: PlanSessionStatus
+}
+
+export type FuelBasis = LadderBasis | 'warm-held' | 'warm-repeat' | 'warm-steady'
+
+/** The fuel target for one session. */
+export interface FuelTarget {
+  sessionId: string
+  date: string
+  rungIndex: number
+  /** Grams per hour; the low end at the floor. */
+  gPerH: number
+  range: [number, number] | null
+  lowCertainty: boolean
+  multiCarbRequired: boolean
+  basis: FuelBasis
+  /** The last rung a run was tolerated on, when the basis names it. */
+  lastTolerated: RungRate | null
+  /** The rung a warm day held back, for the `warm-held` and `warm-repeat` bases. */
+  heldBack: RungRate | null
+  /** The day's forecast is hot for fuel. */
+  hot: boolean
+  /** The nausea plan comes forward: a hot day, or the last counted run's nausea score. */
+  nauseaPlanForward: boolean
+  locked: boolean
+}
+
+export interface EahCard {
+  /** Events over `n7.eahStrongerAlertHours`, or heat. */
+  stronger: boolean
+  heading: string
+  lines: string[]
 }

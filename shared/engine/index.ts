@@ -80,6 +80,22 @@ export type {
 export { runChecklist } from './checklist.ts'
 export { explain } from './explain.ts'
 export { assessExecution, matchSessions } from './execution.ts'
+export {
+  ceilingIndex,
+  eahCard,
+  fuelEligible,
+  fuelLineForSession,
+  fuelRungs,
+  fuelTargetFor,
+  fuelTargetsFor,
+  fuelWatchLine,
+  isBlockRun,
+  isHotForFuel,
+  replayLadder,
+  runIsHot,
+  runScore,
+} from './fuel.ts'
+export type { FuelContext, LadderInput } from './fuel.ts'
 export { PARAMS_VERSION, P } from './params/index.ts'
 export { predictRace, rangeLabel } from './predict.ts'
 export { readinessSignals, readinessVerdict, strongestAdvice, todayAdvice } from './readiness.ts'
