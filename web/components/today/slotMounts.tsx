@@ -10,6 +10,7 @@ import { useOnline } from '../useOnline.ts'
 import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
 import { FuelTargetLine } from '../fuel/FuelTargetLine.tsx'
+import { DisruptionSlot } from './DisruptionSlot.tsx'
 import { SlotFrame } from './SlotFrame.tsx'
 import type { SlotName } from './slots.ts'
 
@@ -44,6 +45,19 @@ function fuelLine(view: TodayView): ReactNode {
 function FuelTargetMount() {
   const today = useLoaded<TodayView>(keys.today)
   return <SlotFrame name="fuel">{today === undefined ? null : fuelLine(today)}</SlotFrame>
+}
+
+/**
+ * E5: the rest-window banner, or the offer of one after a check-in that reports illness or pain
+ * (64 px). The payload's `disruption` slot says which; nothing is drawn before the settings, which
+ * give the units, are in the cache. `DisruptionSlot` keeps the sheets of a window it has shown.
+ */
+function DisruptionMount() {
+  const today = useLoaded<TodayView>(keys.today)
+  const settings = useLoaded<UserSettings>(keys.settings)
+  return today === undefined || settings === undefined ? null : (
+    <DisruptionSlot view={today} units={settings.units} />
+  )
 }
 
 /** E6: the fuel log card below the fold, for the recent runs that have no log yet. */
@@ -126,6 +140,7 @@ function BriefMount() {
  * it, so the brief slot takes the brief line only where the page leaves it without content.
  */
 export const SLOT_MOUNTS: Partial<Record<SlotName, ComponentType>> = {
+  disruption: DisruptionMount,
   brief: BriefMount,
   fuel: FuelTargetMount,
   watch: WatchMount,

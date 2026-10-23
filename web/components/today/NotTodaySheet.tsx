@@ -11,8 +11,8 @@ export interface NotTodaySheetProps {
   /** Called in place of `onClose` after the session was moved or skipped. */
   onChanged: () => void
   /**
-   * Room for what a later epic adds above the move and skip controls: E5's "Not 100%" entry and
-   * its live guards. The sheet does not know what it is given.
+   * Room for what a later epic adds above the move and skip controls: E5's "Not 100%" entry
+   * (`NotFullEntry`, which the hero passes). The sheet does not know what it is given.
    */
   children?: ReactNode
 }

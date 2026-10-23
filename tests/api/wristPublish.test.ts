@@ -15,10 +15,17 @@ import {
 } from '../../server/services/publish.ts'
 import { settleBackground } from '../../server/services/sync.ts'
 import { forecastCellOf, settleWeatherCache } from '../../server/services/weatherCache.ts'
+import type {
+  DisruptionResult,
+  PlanWithSessions,
+  SessionWorkoutView,
+  TodayView,
+} from '../../shared/types.ts'
 import {
   client,
   createTestCtx,
   expectNoRefusedFetches,
+  seedUser,
   type TestCtx,
   type TestUser,
 } from './helpers.ts'
@@ -1059,5 +1066,140 @@ describe('the run record', () => {
     expect(stored).not.toContain(API_KEY)
     expect(stored).not.toContain(Buffer.from(`API_KEY:${API_KEY}`).toString('base64'))
     expect((await rowsOf(u))[0]?.failMessage).toContain('Bad request')
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Rest windows (design 9.4 and 9.6, task E5-8)
+// ---------------------------------------------------------------------------------------------
+
+describe('a rest window', () => {
+  /**
+   * A runner whose plan the engine generated (the window routes re-plan it), with publishing on.
+   * The plan has runs from today on, so a window over the coming days holds some of them.
+   */
+  async function generated(email: string) {
+    const u = await seedUser(ctx, { email, units: 'km' })
+    await ctx.prisma.athleteProfile.create({
+      data: { userId: u.id, hrMax: 190, hrMaxSource: 'measured', hrRest: 50, timezone: 'UTC' },
+    })
+    await seedHistory(ctx, u.id, today)
+    const goal = await ctx.prisma.goal.create({
+      data: {
+        userId: u.id,
+        name: 'Synthetic half',
+        priority: 'A',
+        targetDate: addDays(today, 7 * 5 + 5),
+        distanceM: 21_097,
+        goalType: 'finish',
+      },
+    })
+    const res = await client(ctx, u).post('/api/plan/generate').send({ goalId: goal.id })
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    await connectIntervals(ctx, u.id)
+    await enablePublishing(ctx, u.id)
+    return { u, plan: res.body as PlanWithSessions }
+  }
+
+  /** What is on intervals.icu, by identity: the event's own id changes when it is made again. */
+  const onCalendar = (): Array<[string | null, string, string, string]> =>
+    fake
+      .byDate()
+      .map((e): [string | null, string, string, string] => [
+        e.external_id,
+        dayOf(e),
+        e.name,
+        e.description,
+      ])
+
+  /** An illness window over the three days after tomorrow's. */
+  const window = () => ({
+    reason: 'illness-above-neck',
+    mode: 'rest',
+    startDate: tomorrow,
+    endDate: addDays(tomorrow, 2),
+  })
+
+  test('withdraws the days it holds on the next publish, and its undo sends them again', async () => {
+    const { u } = await generated('window-publish@example.com')
+    await publish(u)
+    const before = onCalendar()
+    // the window must hold something the publisher had sent
+    const held = before.filter(([, day]) => day >= tomorrow && day <= addDays(tomorrow, 2))
+    expect(held.length).toBeGreaterThan(0)
+
+    const created = await client(ctx, u).post('/api/plan/disruptions').send(window())
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    const { revision } = created.body as DisruptionResult
+
+    fake.forget()
+    const withdrawn = await publish(u)
+    expect(withdrawn.withdrawn).toBeGreaterThan(0)
+    expect(withdrawn.status).toBe('ok')
+    // nothing runs on a day inside the window, and today's run is still on the calendar
+    expect(
+      onCalendar().filter(([, day]) => day >= tomorrow && day <= addDays(tomorrow, 2)),
+    ).toEqual([])
+    expect(onCalendar().some(([, day]) => day === today)).toBe(
+      before.some(([, day]) => day === today),
+    )
+    const rows = await rowsOf(u)
+    for (const [externalId] of held) {
+      expect(
+        rows.find((row) => externalId?.endsWith(row.externalId))?.state,
+        String(externalId),
+      ).toBe('withdrawn')
+    }
+
+    const undone = await client(ctx, u).post(`/api/plan/revisions/${revision.id}/undo`).send({})
+    expect(undone.status, JSON.stringify(undone.body)).toBe(200)
+
+    fake.forget()
+    const again = await publish(u)
+    expect(again.sent).toBeGreaterThan(0)
+    expect(again.status).toBe('ok')
+    // the calendar holds what it held before the window, with the identities the plan kept
+    expect(onCalendar()).toEqual(before)
+    const back = await rowsOf(u)
+    for (const [externalId] of held) {
+      expect(
+        back.find((row) => externalId?.endsWith(row.externalId))?.state,
+        String(externalId),
+      ).toBe('sent')
+    }
+  })
+
+  test('Today, the session sheet and the publish set agree on a day the window holds', async () => {
+    const { u } = await generated('window-agree@example.com')
+    await publish(u)
+    // the first day of the window on which the plan had a run, in the two days Today can look ahead
+    const lookAhead = addDays(today, 2)
+    const run = fake.byDate().find((event) => dayOf(event) >= tomorrow && dayOf(event) <= lookAhead)
+    expect(run, 'the plan has a run on one of the first days of the window').toBeDefined()
+    const day = dayOf(run!)
+
+    const created = await client(ctx, u).post('/api/plan/disruptions').send(window())
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    await publish(u)
+
+    // a rest day on Today, with the window in effect
+    const view = (await client(ctx, u).get(`/api/today?date=${day}`)).body as TodayView
+    expect(view.coach.hero?.session.kind).toBe('rest')
+    expect(view.coach.hero?.session.flags).toContain('rest-window')
+    expect(view.coach.disruptions.map((w) => w.phase)).toEqual(['resting'])
+
+    // not a run in the session sheet: no workout file
+    const sheet = await client(ctx, u).get(
+      `/api/plan/sessions/${view.coach.hero!.session.id}/workout`,
+    )
+    expect(sheet.status, JSON.stringify(sheet.body)).toBe(200)
+    expect((sheet.body as SessionWorkoutView).file).toMatchObject({
+      available: false,
+      reason: 'not-a-run',
+    })
+
+    // and nothing on the calendar, where the run was a moment ago
+    expect(onCalendar().filter(([, eventDay]) => eventDay === day)).toEqual([])
+    expect(fake.events.has(run!.id)).toBe(false)
   })
 })

@@ -32,7 +32,7 @@
  * **How a slot is filled.** `TodaySlot` renders nothing while a slot has no content, so an empty
  * slot costs no height. A page places a slot without content and the epic that owns it registers a
  * mount for it in `slotMounts.tsx` (E6 does for `fuel` and `fuelPrompt`, E1 for `watch`, E4 for
- * `brief`), so filling a slot edits no page: `DashboardPage.tsx` and `SessionHero.tsx` stay as they
+ * `brief`, E5 for `disruption`), so filling a slot edits no page: `DashboardPage.tsx` and `SessionHero.tsx` stay as they
  * are. The `brief` mount asks for the newest brief only once the slot is near the viewport, so the
  * first screen keeps to its two requests. A slot whose data is missing offline renders nothing.
  *
