@@ -79,7 +79,7 @@ function median(values: number[]): number {
 }
 
 /** The check-in recorded on a date, or null when the day has none of the check-in fields. */
-export function checkinOn(input: EngineInput, date: string): Checkin | null {
+export function checkinOn(input: Pick<EngineInput, 'wellness'>, date: string): Checkin | null {
   const row = input.wellness.find((w) => w.date === date)
   return row ? checkinOfRow(row) : null
 }

@@ -5,6 +5,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query'
+import type { StandoutView } from '../../shared/copy/standoutRender.ts'
 import { ACTIVITY_PAGE_MAX } from '../../shared/limits.ts'
 import type {
   Activity,
@@ -138,6 +139,18 @@ export function useActivityDetail(id: string | undefined) {
   return useQuery({
     queryKey: [keys.activityDetail, id],
     queryFn: () => api<ActivityDetail>('GET', `/activities/${encodeURIComponent(id ?? '')}/detail`),
+    enabled: id !== undefined && id !== '',
+  })
+}
+
+/**
+ * What stood out on a run (`GET /api/activities/:id/standout`). The key sits under
+ * `keys.activityDetail`, so a rating, an edit or a link, which invalidate the detail, read it again.
+ */
+export function useStandout(id: string | undefined) {
+  return useQuery({
+    queryKey: [keys.activityDetail, id, 'standout'],
+    queryFn: () => api<StandoutView>('GET', `/activities/${encodeURIComponent(id ?? '')}/standout`),
     enabled: id !== undefined && id !== '',
   })
 }

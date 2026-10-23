@@ -170,6 +170,9 @@ function activitySource(a: Activity): SourceRef {
   }
 }
 
+// The fact constructor and the quantity helpers, shared with the run insights (`standout.ts`).
+export { activitySource, bpm, climb, count, distance, duration, exact, make, minutes, percent }
+
 const profileSource = (ctx: ExplainContext): SourceRef => ({
   kind: 'profile',
   id: 'profile',

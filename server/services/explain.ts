@@ -14,17 +14,18 @@ import {
   explainWeeks,
   type ExplainContext,
 } from '../../shared/engine/explainInputs.ts'
-import { fitHrModel } from '../../shared/engine/execution.ts'
 import { weeklyRamp } from '../../shared/engine/limits.ts'
 import type { EngineInput, ExplainRequest, ExplainView } from '../../shared/engine/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound } from '../errors.ts'
 import {
+  hrModelOf,
   loadAthleteContext,
   memoByVersion,
   neutralGoal,
   type AthleteContext,
 } from './athleteState.ts'
+import { explainActivity } from './insight.ts'
 import { executionRecordsByWeek } from './planEngine.ts'
 
 /** The engine's view of the snapshot: the athlete's own data and the stored plan, with no goal. */
@@ -66,20 +67,26 @@ const NOT_FOUND: Record<ExplainRequest['subject'], string> = {
   zone: 'Not found.',
   prediction: 'Goal not found.',
   rules: 'Not found.',
-  // Their figures are stored with the brief and with the run's insights (E4-5, E4-7).
+  // The figures of a brief are stored with it (E4-5).
   brief: 'Explanations for briefs are not available yet.',
-  activity: 'Explanations for runs are not available yet.',
+  // A run is answered from its stored insight, before this table is read.
+  activity: 'Activity not found.',
 }
 
 /**
  * The figures behind one Explain request. Throws 404 for a session or week outside the user's
- * current plan, a goal that is not theirs, and a subject whose figures are stored with it.
+ * current plan, a goal that is not theirs, a run that is not theirs, and a subject whose figures
+ * are stored with it and not stored yet (a brief).
  */
 export async function explainView(
   deps: Deps,
   args: { userId: string; request: ExplainRequest; today?: string },
 ): Promise<ExplainView> {
   const { userId, request } = args
+  // A run's figures are the ones stored with its insight (E4-7), not read again from the snapshot.
+  if (request.subject === 'activity') {
+    return explainActivity(deps, { userId, activityId: request.id })
+  }
   const today = args.today ?? todayIso()
   const context = await loadAthleteContext(deps, { userId, today })
   const input = engineInputOf(context)
@@ -102,11 +109,7 @@ export async function explainView(
   const memo = { userId, today }
 
   return memoByVersion(deps, { ...memo, name: `explain:${JSON.stringify(request)}` }, async () => {
-    const hrModel = needs.hrModel
-      ? await memoByVersion(deps, { ...memo, name: 'explain:hr-model' }, () =>
-          fitHrModel(context.activities, today),
-        )
-      : null
+    const hrModel = needs.hrModel ? await hrModelOf(deps, context) : null
 
     // A decision exists only for a week the stored plan covers, as `weeklyDecisions` has it.
     const planId = context.plan?.id ?? null

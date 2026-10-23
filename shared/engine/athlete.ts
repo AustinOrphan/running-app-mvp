@@ -331,30 +331,41 @@ function vo2maxTrend(input: EngineInput, today: string): number | null {
 }
 
 /**
- * The largest group of comparable, cool long runs that durability is read from [A7]. A long run
- * lasts from the reference duration of the durability prior (90 min) up to the drift inference
- * limit; runs are comparable when their duration and temperature are close. On a tie the group
- * anchored on the newer run wins.
+ * Whether a run is one durability can be read from [A7]: a cool long run with a drift reading. A
+ * long run lasts from the reference duration of the durability prior (90 min) up to the drift
+ * inference limit.
+ */
+export function isDurabilityCandidate(a: Activity): boolean {
+  return (
+    a.type === 'run' &&
+    a.decouplingPct !== null &&
+    a.tempC !== null &&
+    a.tempC < P.a7.heatExcludeC.value &&
+    a.durationSec >= P.a7.thresholdDropAfterMin.value * 60 &&
+    a.durationSec <= P.a7.driftInferenceLimitMin.value * 60
+  )
+}
+
+/** Whether two durability candidates are comparable [A7]: close in duration and in temperature. */
+export function comparableLongRuns(anchor: Activity, other: Activity): boolean {
+  return (
+    Math.abs(other.durationSec - anchor.durationSec) <=
+      P.a7.comparableDurationTolerance.value * anchor.durationSec &&
+    Math.abs((other.tempC as number) - (anchor.tempC as number)) <=
+      P.a7.comparableTempToleranceC.value
+  )
+}
+
+/**
+ * The largest group of comparable, cool long runs that durability is read from [A7]. Runs are
+ * comparable when their duration and temperature are close (`comparableLongRuns`). On a tie the
+ * group anchored on the newer run wins.
  */
 export function durabilityRuns(runs: Activity[]): Activity[] {
-  const candidates = runs.filter(
-    (a) =>
-      a.type === 'run' &&
-      a.decouplingPct !== null &&
-      a.tempC !== null &&
-      a.tempC < P.a7.heatExcludeC.value &&
-      a.durationSec >= P.a7.thresholdDropAfterMin.value * 60 &&
-      a.durationSec <= P.a7.driftInferenceLimitMin.value * 60,
-  )
+  const candidates = runs.filter(isDurabilityCandidate)
   let best: Activity[] = []
   for (const anchor of candidates) {
-    const group = candidates.filter(
-      (a) =>
-        Math.abs(a.durationSec - anchor.durationSec) <=
-          P.a7.comparableDurationTolerance.value * anchor.durationSec &&
-        Math.abs((a.tempC as number) - (anchor.tempC as number)) <=
-          P.a7.comparableTempToleranceC.value,
-    )
+    const group = candidates.filter((a) => comparableLongRuns(anchor, a))
     const newer = group.length === best.length && anchor.date > (best[0]?.date ?? '')
     if (group.length > best.length || newer) best = group
   }

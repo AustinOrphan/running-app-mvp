@@ -83,6 +83,7 @@ model Activity {
   duplicates  Activity[]      @relation("Duplicates")
   stream      ActivityStream?
   file        ActivityFile?
+  insight     ActivityInsight?
   planSession PlanSession?
   raceResult  RaceResult?
 
@@ -344,6 +345,21 @@ model ActivityFile {
   sizeBytes  Int
   sha256     String
   gz         Bytes
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+// What stood out on one run (non-state: derived from state, written on a read path and by the
+// pipeline after a store, and read by no snapshot, memo or deliverable, so a write must not drop
+// the cache it was computed from). `insight.ts` is the only writer. `facts` is JSON text:
+// { basis, items: InputFact[] }, template ids and slots and never prose. Stale when `version`
+// differs from STANDOUT_VERSION, the activity changed after `computedAt`, or the stored assessment
+// of the session it fulfils is no longer the `basis` the facts were computed with.
+model ActivityInsight {
+  activityId String   @id
+  version    Int
+  facts      String
+  computedAt DateTime
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 }

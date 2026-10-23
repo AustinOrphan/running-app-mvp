@@ -202,14 +202,17 @@ describe('GET /api/explain: whose records', () => {
     expect((await explain(`subject=week&weekStart=${thisMonday}`)).status).toBe(404)
   })
 
-  test('answers 404 for a brief or a run until their stored figures exist', async () => {
+  test('answers 404 for a brief until its stored figures exist; a run answers (standout.test.ts)', async () => {
     const run = await ctx.prisma.activity.create({
       data: { userId: user.id, date: addDays(today, -1), type: 'run', durationSec: 1800 },
     })
     const brief = await explain(`subject=brief&weekStart=${thisMonday}`)
     expect(brief.status).toBe(404)
     expect(brief.body).toMatchObject({ error: { code: 'not_found' } })
-    expect((await explain(`subject=activity&id=${run.id}`)).status).toBe(404)
+    const activity = await explain(`subject=activity&id=${run.id}`)
+    expect(activity.status).toBe(200)
+    expect(activity.body).toMatchObject({ subject: 'activity', frozen: true })
+    expect((await explain('subject=activity&id=missing')).status).toBe(404)
   })
 
   test('reads each user’s own numbers', async () => {
