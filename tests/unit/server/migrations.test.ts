@@ -480,6 +480,39 @@ function seedSyncState(db: DatabaseSync): void {
   })
 }
 
+/**
+ * The previous release's accounts: two runners, each with a connected intervals.icu integration,
+ * one with an activity. The wrist-delivery tables must leave all of it alone.
+ */
+function seedWristDelivery(db: DatabaseSync): void {
+  for (const id of ['u1', 'u2']) {
+    insert(db, 'User', {
+      id,
+      email: `${id}@example.com`,
+      passwordHash: 'not-a-real-hash',
+      updatedAt: STAMP,
+    })
+    insert(db, 'Integration', {
+      id: `i-${id}`,
+      userId: id,
+      provider: 'intervals',
+      status: 'connected',
+      secret: 'v1.not.a.real.secret',
+      config: JSON.stringify({ athleteId: 'i1001' }),
+      updatedAt: STAMP,
+    })
+  }
+  insert(db, 'Activity', {
+    id: 'a1',
+    userId: 'u1',
+    date: '2026-10-06',
+    type: 'run',
+    durationSec: 2700,
+    distanceM: 8000,
+    updatedAt: STAMP,
+  })
+}
+
 function verifySyncLog(db: DatabaseSync, before: Snapshot): void {
   expectNothingLost(before, db)
   expectConsistent(db)
@@ -526,6 +559,465 @@ function verifySyncLog(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT count(*) AS n FROM "Integration"')).toEqual([{ n: 2 }])
 }
 
+function verifyWristDelivery(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Both tables are new and empty; no existing row is given a delivery channel.
+  for (const table of ['DeliveryChannel', 'WristPublication']) {
+    expect(rowsOf(db, `SELECT count(*) AS n FROM "${table}"`), table).toEqual([{ n: 0 }])
+  }
+  expectIndex(db, 'DeliveryChannel', ['userId', 'channel'], true)
+  expectIndex(db, 'DeliveryChannel', ['tokenHash'], true)
+  expectIndex(db, 'WristPublication', ['userId', 'channel', 'externalId'], true)
+  expectIndex(db, 'WristPublication', ['userId', 'channel', 'date'], false)
+  const keys = (table: string) =>
+    rowsOf(db, `PRAGMA foreign_key_list("${table}")`).map((k) => ({
+      from: k.from,
+      table: k.table,
+      onDelete: k.on_delete,
+    }))
+  expect(keys('DeliveryChannel')).toEqual([{ from: 'userId', table: 'User', onDelete: 'CASCADE' }])
+  // Publications join PlanSession by externalId and have no foreign key to it.
+  expect(keys('WristPublication')).toEqual([{ from: 'userId', table: 'User', onDelete: 'CASCADE' }])
+
+  // The defaults: publishing is off until the runner turns it on.
+  insert(db, 'DeliveryChannel', { id: 'c1', userId: 'u1', channel: 'intervals', updatedAt: STAMP })
+  expect(rowsOf(db, `SELECT enabled, garminLinked, tokenHash FROM "DeliveryChannel"`)).toEqual([
+    { enabled: 0, garminLinked: 0, tokenHash: null },
+  ])
+  insert(db, 'WristPublication', {
+    id: 'w1',
+    userId: 'u1',
+    channel: 'intervals',
+    externalId: 'rl-abc123-ext1',
+    date: '2026-10-12',
+    kind: 'easy',
+    title: 'Easy run, 45 min',
+    state: 'pending',
+    desiredHash: 'h1',
+    updatedAt: STAMP,
+  })
+  expect(
+    rowsOf(db, `SELECT variant, warnings, attempts, remoteId FROM "WristPublication"`),
+  ).toEqual([{ variant: 'planned', warnings: '[]', attempts: 0, remoteId: null }])
+
+  // One row per user and channel; one publication per session identity; the feed token hash is
+  // unique, and rows without a token do not collide.
+  expect(() =>
+    insert(db, 'DeliveryChannel', {
+      id: 'c1b',
+      userId: 'u1',
+      channel: 'intervals',
+      updatedAt: STAMP,
+    }),
+  ).toThrow(/UNIQUE/)
+  insert(db, 'DeliveryChannel', {
+    id: 'c2',
+    userId: 'u1',
+    channel: 'calendar',
+    tokenHash: 'a'.repeat(64),
+    updatedAt: STAMP,
+  })
+  expect(() =>
+    insert(db, 'DeliveryChannel', {
+      id: 'c3',
+      userId: 'u2',
+      channel: 'calendar',
+      tokenHash: 'a'.repeat(64),
+      updatedAt: STAMP,
+    }),
+  ).toThrow(/UNIQUE/)
+  insert(db, 'DeliveryChannel', { id: 'c4', userId: 'u2', channel: 'intervals', updatedAt: STAMP })
+  insert(db, 'DeliveryChannel', { id: 'c5', userId: 'u2', channel: 'calendar', updatedAt: STAMP })
+  expect(() =>
+    insert(db, 'WristPublication', {
+      id: 'w1b',
+      userId: 'u1',
+      channel: 'intervals',
+      externalId: 'rl-abc123-ext1',
+      date: '2026-10-13',
+      kind: 'easy',
+      title: 'Easy run, 45 min',
+      state: 'pending',
+      desiredHash: 'h2',
+      updatedAt: STAMP,
+    }),
+  ).toThrow(/UNIQUE/)
+
+  // Deleting a runner deletes the runner's delivery rows and nobody else's.
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, `SELECT id FROM "DeliveryChannel" ORDER BY id`)).toEqual([
+    { id: 'c4' },
+    { id: 'c5' },
+  ])
+  expect(rowsOf(db, `SELECT count(*) AS n FROM "WristPublication"`)).toEqual([{ n: 0 }])
+  expect(rowsOf(db, `SELECT id FROM "Integration"`)).toEqual([{ id: 'i-u2' }])
+}
+
+/** A previous-release prediction row; `createdAt` is whatever storage type the case wants. */
+function predictionRow(
+  id: string,
+  inputs: string,
+  createdAt: string | number,
+): Record<string, SQLInputValue> {
+  return {
+    id,
+    userId: 'u1',
+    goalId: 'g1',
+    createdAt,
+    method: 'synthetic',
+    predictedSec: 12_000,
+    lowSec: 11_500,
+    highSec: 12_600,
+    inputs,
+  }
+}
+
+const withToday = (today: string) => JSON.stringify({ today, conditions: [], rules: ['l-1'] })
+
+/**
+ * The previous release's prediction log: one row per generate or re-plan, with the day in
+ * "inputs". The first four rows are the design's: a Wednesday and a Sunday `inputs.today`, then a
+ * text and an integer "createdAt" with no day in "inputs". The rest exercise the fallback. 19
+ * October 2026 is a Monday.
+ */
+function seedPredictionLog(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic marathon',
+    priority: 'A',
+    targetDate: '2027-04-18',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Activity', {
+    id: 'a1',
+    userId: 'u1',
+    date: '2026-10-06',
+    type: 'run',
+    durationSec: 2700,
+    distanceM: 8000,
+    updatedAt: STAMP,
+  })
+  // A Wednesday and a Sunday of one week; "createdAt" disagrees, so "inputs" is what decides.
+  const iso = (day: string, time: string) => `${day}T${time}.000+00:00`
+  insert(
+    db,
+    'PredictionLog',
+    predictionRow('wed', withToday('2026-10-21'), iso('2026-10-23', '06:00:00')),
+  )
+  insert(
+    db,
+    'PredictionLog',
+    predictionRow('sun', withToday('2026-10-25'), iso('2026-10-26', '01:00:00')),
+  )
+  // No day in "inputs": the UTC day of "createdAt", as SQL text and as milliseconds since the epoch.
+  insert(db, 'PredictionLog', predictionRow('text', '{}', '2026-10-22 08:30:00'))
+  insert(db, 'PredictionLog', predictionRow('int', '{}', Date.UTC(2026, 9, 26, 5)))
+  // The driver's ISO text late on a Sunday; "inputs" that are not JSON; a day that is a number.
+  insert(db, 'PredictionLog', predictionRow('late', '{}', iso('2026-10-25', '23:30:00')))
+  insert(db, 'PredictionLog', predictionRow('junk', 'not json', iso('2026-10-27', '09:00:00')))
+  insert(db, 'PredictionLog', predictionRow('number', '{"today":5}', Date.UTC(2026, 10, 1, 12)))
+}
+
+function verifyRaceResults(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Every row is kept, the several of one week included: the log collapses on read.
+  const rows = rowsOf(db, 'SELECT * FROM "PredictionLog" ORDER BY id')
+  expect(rows.map((r) => r.id)).toEqual(['int', 'junk', 'late', 'number', 'sun', 'text', 'wed'])
+  expect(Object.fromEntries(rows.map((r) => [r.id, [r.loggedOn, r.weekStart]]))).toEqual({
+    wed: ['2026-10-21', '2026-10-19'],
+    sun: ['2026-10-25', '2026-10-19'],
+    text: ['2026-10-22', '2026-10-19'],
+    int: ['2026-10-26', '2026-10-26'],
+    late: ['2026-10-25', '2026-10-19'],
+    junk: ['2026-10-27', '2026-10-26'],
+    number: ['2026-11-01', '2026-10-26'],
+  })
+
+  // No database default: both columns are required, so a writer that forgets one fails loudly.
+  const columns = rowsOf(db, 'PRAGMA table_info("PredictionLog")')
+  for (const name of ['weekStart', 'loggedOn']) {
+    expect(
+      columns.find((c) => c.name === name),
+      name,
+    ).toMatchObject({
+      notnull: 1,
+      dflt_value: null,
+    })
+  }
+  expect(() => {
+    insert(db, 'PredictionLog', {
+      id: 'x',
+      userId: 'u1',
+      goalId: 'g1',
+      method: 'synthetic',
+      predictedSec: 1,
+      lowSec: 1,
+      highSec: 1,
+    })
+  }).toThrow(/NOT NULL/)
+  expectIndex(db, 'PredictionLog', ['userId', 'goalId', 'createdAt'], false)
+  expectIndex(db, 'PredictionLog', ['userId', 'goalId', 'weekStart'], false)
+  const keys = rowsOf(db, `PRAGMA foreign_key_list("PredictionLog")`).map((k) => ({
+    from: k.from,
+    table: k.table,
+    onDelete: k.on_delete,
+  }))
+  expect(keys).toContainEqual({ from: 'userId', table: 'User', onDelete: 'CASCADE' })
+  expect(keys).toContainEqual({ from: 'goalId', table: 'Goal', onDelete: 'CASCADE' })
+
+  // The result table starts empty; its goal and its activity are each unique.
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "RaceResult"')).toEqual([{ n: 0 }])
+  expectIndex(db, 'RaceResult', ['goalId'], true)
+  expectIndex(db, 'RaceResult', ['activityId'], true)
+  const required = {
+    userId: 'u1',
+    goalId: 'g1',
+    date: '2027-04-18',
+    distanceM: 42_195,
+    outcome: 'finished',
+    timeSec: 12_000,
+    updatedAt: STAMP,
+  }
+  insert(db, 'RaceResult', { id: 'r1', ...required, activityId: 'a1' })
+  expect(rowsOf(db, `SELECT * FROM "RaceResult" WHERE id = 'r1'`)[0]).toMatchObject({
+    gainM: null,
+    note: null,
+  })
+  insert(db, 'Goal', {
+    id: 'g2',
+    userId: 'u1',
+    name: 'Another synthetic race',
+    priority: 'B',
+    targetDate: '2027-06-01',
+    updatedAt: STAMP,
+  })
+  expect(() => {
+    insert(db, 'RaceResult', { id: 'r2', ...required })
+  }).toThrow(/UNIQUE/)
+  expect(() => {
+    insert(db, 'RaceResult', { id: 'r2', ...required, goalId: 'g2', activityId: 'a1' })
+  }).toThrow(/UNIQUE/)
+
+  // Deleting the activity keeps the result; deleting the goal takes the result and its predictions.
+  db.exec(`DELETE FROM "Activity" WHERE id = 'a1'`)
+  expect(rowsOf(db, `SELECT "activityId" FROM "RaceResult" WHERE id = 'r1'`)).toEqual([
+    { activityId: null },
+  ])
+  db.exec(`DELETE FROM "Goal" WHERE id = 'g1'`)
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "RaceResult"')).toEqual([{ n: 0 }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "PredictionLog"')).toEqual([{ n: 0 }])
+}
+
+/** The previous release's revisions: one of each reason, in two plans, with distinct timestamps. */
+function seedRevisions(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic marathon',
+    priority: 'A',
+    targetDate: '2027-04-18',
+    updatedAt: STAMP,
+  })
+  for (const id of ['p-active', 'p-old']) {
+    insert(db, 'Plan', {
+      id,
+      userId: 'u1',
+      goalId: 'g1',
+      name: 'Synthetic plan',
+      startDate: '2026-10-05',
+      raceWeekStart: '2027-04-12',
+      status: id === 'p-active' ? 'active' : 'archived',
+      generatorVersion: 2,
+      updatedAt: STAMP,
+    })
+  }
+  const changes = JSON.stringify([
+    { weekStart: '2026-10-12', field: 'targetRunMin', from: 300, to: 280, rules: ['J5'] },
+  ])
+  // [id, plan, reason, createdAt]
+  const revisions: Array<[string, string, string, string]> = [
+    ['r01', 'p-active', 'generate', '2026-10-05 08:00:00'],
+    ['r02', 'p-active', 'weekly', '2026-10-12 03:00:00'],
+    ['r03', 'p-active', 'review', '2026-10-13 09:30:00'],
+    ['r04', 'p-active', 'owner', '2026-10-14 18:45:00'],
+    ['r05', 'p-active', 'break', '2026-10-19 03:00:00'],
+    ['r06', 'p-old', 'weekly', '2026-09-28 03:00:00'],
+    ['r07', 'p-old', 'generate', '2026-09-21 08:00:00'],
+  ]
+  for (const [id, planId, reason, createdAt] of revisions) {
+    insert(db, 'PlanRevision', {
+      id,
+      planId,
+      reason,
+      summary: `Synthetic ${reason} revision.`,
+      changes: reason === 'generate' ? '[]' : changes,
+      createdAt,
+    })
+  }
+}
+
+function verifyRevisionModel(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  const seeded = before.get('PlanRevision') ?? []
+  expect(seeded).toHaveLength(7)
+  const rows = rowsOf(db, 'SELECT * FROM "PlanRevision" ORDER BY id')
+  expect(rows.map((r) => r.id)).toEqual(seeded.map((r) => r.id).sort())
+
+  // The scheduler's revisions (weekly and break) are automatic; nothing else is.
+  expect(
+    rows.filter((r) => r.auto === 1).map((r) => r.id),
+    'rows backfilled as automatic',
+  ).toEqual(['r02', 'r05', 'r06'])
+  expect(rows.filter((r) => r.auto === 0).map((r) => r.id)).toEqual(['r01', 'r03', 'r04', 'r07'])
+
+  // Every old revision counts as seen when it was written, so none reads as new.
+  for (const row of rows) expect(row.seenAt, `seenAt of ${String(row.id)}`).toBe(row.createdAt)
+
+  // Old rows have no diff, no undo payload and no link to an undo or a rest window.
+  for (const row of rows) {
+    expect(row, String(row.id)).toMatchObject({
+      decision: null,
+      diff: null,
+      undo: null,
+      undoneAt: null,
+      undoneById: null,
+      undoOf: null,
+      disruptionId: null,
+    })
+  }
+
+  // New rows default to a manual, unseen revision.
+  db.exec(
+    `INSERT INTO "PlanRevision" ("id", "planId", "reason", "summary") VALUES ('r08', 'p-active', 'owner', 'New.')`,
+  )
+  expect(rowsOf(db, `SELECT auto, seenAt FROM "PlanRevision" WHERE id = 'r08'`)).toEqual([
+    { auto: 0, seenAt: null },
+  ])
+
+  // Both indexes survive the redefine, and the cascade from the plan still fires.
+  expectIndex(db, 'PlanRevision', ['planId', 'createdAt'], false)
+  expectIndex(db, 'PlanRevision', ['planId', 'reason'], false)
+  const keys = rowsOf(db, `PRAGMA foreign_key_list("PlanRevision")`).map((k) => ({
+    from: k.from,
+    table: k.table,
+    onDelete: k.on_delete,
+  }))
+  expect(keys).toEqual([{ from: 'planId', table: 'Plan', onDelete: 'CASCADE' }])
+  db.exec(`DELETE FROM "Plan" WHERE id = 'p-old'`)
+  expect(rowsOf(db, `SELECT count(*) AS n FROM "PlanRevision" WHERE "planId" = 'p-old'`)).toEqual([
+    { n: 0 },
+  ])
+}
+
+/**
+ * The previous release's places: a profile with a home location, a goal with a race location and
+ * an activity with weather, which are what the caches are keyed on and what they replace. The
+ * weather cache adds two tables beside them and touches none.
+ */
+function seedPlaces(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'AthleteProfile', {
+    userId: 'u1',
+    homeLat: 20.5,
+    homeLng: -30.12,
+    updatedAt: STAMP,
+  })
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic marathon',
+    priority: 'A',
+    targetDate: '2027-04-18',
+    raceLat: 40.12,
+    raceLng: -105.23,
+    updatedAt: STAMP,
+  })
+  insert(db, 'Activity', {
+    id: 'a1',
+    userId: 'u1',
+    date: '2026-10-06',
+    type: 'run',
+    durationSec: 2700,
+    distanceM: 8000,
+    tempC: 11.5,
+    weatherSource: 'open-meteo',
+    updatedAt: STAMP,
+  })
+}
+
+function verifyWeatherCache(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Both tables start empty: the old in-memory caches left nothing to carry over.
+  for (const table of ['ForecastCache', 'ClimateCache']) {
+    expect(tableNames(db)).toContain(table)
+    expect(rowsOf(db, `SELECT count(*) AS n FROM "${table}"`)).toEqual([{ n: 0 }])
+  }
+  expectIndex(db, 'ForecastCache', ['latE1', 'lngE1'], true)
+  expectIndex(db, 'ClimateCache', ['latE2', 'lngE2', 'monthDay', 'startHour', 'windowHours'], true)
+
+  // A forecast cell is integer tenths of a degree; only the cell is required.
+  insert(db, 'ForecastCache', { id: 'f1', latE1: 205, lngE1: -301 })
+  insert(db, 'ForecastCache', { id: 'f2', latE1: 205, lngE1: -300 })
+  expect(rowsOf(db, `SELECT * FROM "ForecastCache" WHERE id = 'f1'`)[0]).toMatchObject({
+    hours: '[]',
+    fetchedAt: null,
+    failedAt: null,
+    lastError: null,
+  })
+  expect(() => {
+    insert(db, 'ForecastCache', { id: 'f3', latE1: 205, lngE1: -301 })
+  }).toThrow(/UNIQUE/)
+
+  // A race climate is one row per cell, month and day, start hour and window length.
+  const cell = { latE2: 4012, lngE2: -10523, monthDay: '04-18', startHour: 8, windowHours: 4 }
+  insert(db, 'ClimateCache', { id: 'c1', ...cell })
+  insert(db, 'ClimateCache', { id: 'c2', ...cell, windowHours: 5 })
+  insert(db, 'ClimateCache', { id: 'c3', ...cell, monthDay: '04-19', wbgtC: 17.4, complete: 1 })
+  expect(rowsOf(db, `SELECT * FROM "ClimateCache" WHERE id = 'c1'`)[0]).toMatchObject({
+    wbgtC: null,
+    samples: 0,
+    yearsRead: 0,
+    complete: 0,
+    fetchedAt: null,
+    failedAt: null,
+    lastError: null,
+  })
+  expect(() => {
+    insert(db, 'ClimateCache', { id: 'c4', ...cell })
+  }).toThrow(/UNIQUE/)
+
+  // The caches hold places, not people: removing the user takes nothing from them.
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "ForecastCache"')).toEqual([{ n: 2 }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "ClimateCache"')).toEqual([{ n: 3 }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -541,6 +1033,26 @@ const CASES: FixtureCase[] = [
     migration: 'foundation_sync_log',
     seed: seedSyncState,
     verify: verifySyncLog,
+  },
+  {
+    migration: 'wrist_delivery',
+    seed: seedWristDelivery,
+    verify: verifyWristDelivery,
+  },
+  {
+    migration: 'race_results',
+    seed: seedPredictionLog,
+    verify: verifyRaceResults,
+  },
+  {
+    migration: 'revision_model',
+    seed: seedRevisions,
+    verify: verifyRevisionModel,
+  },
+  {
+    migration: 'foundation_weather_cache',
+    seed: seedPlaces,
+    verify: verifyWeatherCache,
   },
 ]
 

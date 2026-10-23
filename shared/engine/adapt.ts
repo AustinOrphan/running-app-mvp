@@ -7,9 +7,10 @@ import { addDays } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
+import { restartFraction } from './disruption.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
-import { plannedMinOf } from './limits.ts'
+import { plannedMinOf, wholeMinutes } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { lastWindowDay, postRaceWindows, stageLabel, windowDay } from './postRace.ts'
@@ -193,8 +194,7 @@ function postRaceDecision(
   return {
     decision: 'hold',
     signals,
-    nextWeekTargetMin:
-      next?.targetRunMin ?? Math.floor(nextWeekCap(plannedThis, actual, ramp) + 1e-9),
+    nextWeekTargetMin: next?.targetRunMin ?? wholeMinutes(nextWeekCap(plannedThis, actual, ramp)),
     postRace: {
       label,
       phase: info?.kind === 'step' ? 'step' : 'hold',
@@ -509,16 +509,15 @@ export function weeklyDecision(
   const nextPlanned =
     nextWeek === undefined ? Math.round(plannedThis * (1 + ramp)) : plannedMinOf(nextWeek)
   let nextWeekTargetMin: number
-  // Whole minutes, rounded down so the number never passes the cap.
-  const whole = (minutes: number) => Math.floor(minutes + 1e-9)
   if (decision === 'progress') {
     // A ladder or injury-return week is a step of a fixed programme, exempt from the soft ramp:
     // the suggestion is the minutes the step is planned at, inside the 2-week ceiling [rules E6, G-3]
     nextWeekTargetMin =
       nextWeek !== undefined && isProgrammeWeek(nextWeek.flags)
-        ? whole(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
-        : whole(nextWeekCap(nextPlanned, actual, ramp))
-  } else if (decision === 'hold') nextWeekTargetMin = whole(nextWeekCap(plannedThis, actual, ramp))
+        ? wholeMinutes(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
+        : wholeMinutes(nextWeekCap(nextPlanned, actual, ramp))
+  } else if (decision === 'hold')
+    nextWeekTargetMin = wholeMinutes(nextWeekCap(plannedThis, actual, ramp))
   else {
     nextWeekTargetMin = Math.round(
       nextWeekCap(plannedThis, actual, ramp) * (1 - P.e3.recoveryWeekCutPct.value / 100),
@@ -583,11 +582,7 @@ export function breakRestart(
   layoffDays: number,
   preBreakWeekMin: number,
 ): { restartMin: number; fraction: number } {
-  let fraction: number
-  if (layoffDays < P.j7.tier1Days.value) fraction = P.j7.restartUnder7.value
-  else if (layoffDays <= P.j7.tier2Days.value) fraction = P.j7.restart7to14.value
-  else if (layoffDays <= P.j7.tier3Days.value) fraction = P.j7.restart15to28.value
-  else fraction = P.j7.restartOver28.value
+  const fraction = restartFraction(layoffDays)
   return { restartMin: Math.round(preBreakWeekMin * fraction), fraction }
 }
 

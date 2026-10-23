@@ -111,6 +111,7 @@ export const RULE_TITLES: Record<string, string> = {
   J6: 'Perceived-recovery gate',
   J7: 'Breaks',
   J8: 'Fatigue states',
+  J9: 'Rest windows and returns',
   // (k) taper
   K1: 'Taper length',
   K2: 'Taper volume',
@@ -147,6 +148,8 @@ export const RULE_TITLES: Record<string, string> = {
   'design-4.1': 'Matching activities to sessions',
   'design-4.2': 'Execution assessment',
   'design-4.3': 'Trimming the next quality session',
+  'design-revisions': 'Undoing a plan change',
+  'design-explain': 'What stood out on a run',
 }
 
 /**

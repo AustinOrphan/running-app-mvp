@@ -262,7 +262,10 @@ interface ExecutionAssessment {
   scheduler: `replan(existingPlan, state)` keeps the past and the current week's completed
   sessions, recomputes future weeks from the updated state within all limits, and writes a
   `PlanRevision` with per-week changes and rule ids. Breaks of 7 days or more apply the
-  restart table [rules J7].
+  restart table [rules J7]. Every re-plan is a visible, undoable revision (ADR 0007, 2026-10-23):
+  the revision stores a session-level diff and a row-level undo payload, and the Plan page lists
+  it. The weekly re-plan stays automatic; a target the owner set by hand is kept while it is
+  within the engine's limits [rules g-2].
 - **Review page:** shows the weekly decision with its signals, execution summaries, zone
   proposals to accept or decline, and the next-week target (the owner's final say stays, as
   today, bounded by the limits).

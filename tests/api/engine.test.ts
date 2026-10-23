@@ -10,9 +10,15 @@ import type {
   Screening,
   TodayView,
 } from '../../shared/types.ts'
-import { resetClimateCache } from '../../server/services/engineInput.ts'
-import { resetForecastCache } from '../../server/services/weather.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import { fakeFetch } from '../fakeFetch.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // Lets one test force a failed checklist; every other call goes to the real engine.
 const force = vi.hoisted(() => ({ failChecklist: false }))
@@ -53,10 +59,12 @@ afterAll(async () => {
   await ctx.close()
 })
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals()
-  resetClimateCache()
-  resetForecastCache()
+  vi.setSystemTime(new Date(2026, 9, 21, 12))
+  await ctx.prisma.climateCache.deleteMany()
+  await ctx.prisma.forecastCache.deleteMany()
+  expectNoRefusedFetches(ctx)
 })
 
 /** Twelve completed weeks of four runs, so the engine has a history to build on. */
@@ -366,8 +374,13 @@ describe('re-plan', () => {
       plan.sessions.map((s) => s.date + s.kind),
     )
     expect(after.weeks).toHaveLength(plan.weeks.length)
+    // Right after generating, the plan has nothing to change: the revision is written, with an
+    // empty diff, and the list leaves it out unless asked for it (spec 4.2).
     const revisions = (await c.get('/api/plan/revisions')).body as PlanRevision[]
-    expect(revisions.map((r) => r.reason)).toEqual(['owner', 'generate'])
+    expect(revisions.map((r) => r.reason)).toEqual(['generate'])
+    const all = (await c.get('/api/plan/revisions?include=empty')).body as PlanRevision[]
+    expect(all.map((r) => r.reason)).toEqual(['owner', 'generate'])
+    expect(all[0]?.id).toBe(revision.id)
   })
 
   test('re-plans with no change in the data report no change in the weeks', async () => {
@@ -755,7 +768,7 @@ describe('predictions', () => {
     expect((empty.body as PredictionView).log).toEqual([])
   })
 
-  test('the race-day climate comes from the archive when the race has a location', async () => {
+  test('plan generation reads the race climate from the archive when the race has a location', async () => {
     const u = await seedUser(ctx, { email: 'climate@example.com' })
     await seedHistory(u.id)
     const goal = await seedGoal(u.id)
@@ -764,15 +777,14 @@ describe('predictions', () => {
       data: { raceLat: 40.1, raceLng: -105.2, startTime: '07:00' },
     })
     const urls: string[] = []
-    vi.stubGlobal('fetch', (input: string | URL | Request) => {
-      const url = String(input instanceof Request ? input.url : input)
-      urls.push(url)
-      const times = Array.from({ length: 72 }, (_, i) => {
-        const day = 1 + Math.floor(i / 24)
-        return `2025-06-0${day}T${String(i % 24).padStart(2, '0')}:00`
-      })
-      return Promise.resolve(
-        Response.json({
+    ctx.fetch = fakeFetch({
+      'GET https://archive-api.open-meteo.com/v1/archive': (request) => {
+        urls.push(request.url)
+        const times = Array.from({ length: 72 }, (_, i) => {
+          const day = 1 + Math.floor(i / 24)
+          return `2025-06-0${day}T${String(i % 24).padStart(2, '0')}:00`
+        })
+        return Response.json({
           hourly: {
             time: times,
             temperature_2m: times.map(() => 40),
@@ -780,18 +792,22 @@ describe('predictions', () => {
             wind_speed_10m: times.map(() => 8),
             shortwave_radiation: times.map(() => 900),
           },
-        }),
-      )
+        })
+      },
     })
     const plan = await generated(u, goal.id)
     expect(urls.length).toBeGreaterThan(0)
-    expect(urls.every((url) => url.startsWith('https://archive-api.open-meteo.com/'))).toBe(true)
     expect(urls[0]).toContain('latitude=40.1')
     // A hot archive makes the race-day WBGT exceed the range of the penalty model.
     expect(plan.warnings.map((w) => w.code)).toContain('heat-above-model-range')
+    // The climate is cached: the next plan, and a prediction, ask the archive nothing.
+    const asked = urls.length
+    await generated(u, goal.id)
+    await client(ctx, u).get(`/api/predictions?goalId=${goal.id}`).expect(200)
+    expect(urls).toHaveLength(asked)
   })
 
-  test('a failed climate request does not fail the plan', async () => {
+  test('a failed climate request does not fail the plan and is retried after the back-off', async () => {
     const u = await seedUser(ctx, { email: 'climate-fail@example.com' })
     await seedHistory(u.id)
     const goal = await seedGoal(u.id)
@@ -799,17 +815,24 @@ describe('predictions', () => {
       where: { id: goal.id },
       data: { raceLat: 41.1, raceLng: -104.2 },
     })
-    vi.stubGlobal('fetch', () => Promise.resolve(new Response('down', { status: 503 })))
+    let asked = 0
+    ctx.fetch = fakeFetch({
+      'GET https://archive-api.open-meteo.com/v1/archive': () => {
+        asked += 1
+        return new Response('down', { status: 503 })
+      },
+    })
     expect((await client(ctx, u).post('/api/plan/generate').send({ goalId: goal.id })).status).toBe(
       201,
     )
-    // The failure is not remembered: the next plan asks the archive again.
-    let asked = 0
-    vi.stubGlobal('fetch', () => {
-      asked += 1
-      return Promise.resolve(new Response('down', { status: 503 }))
-    })
+    const first = asked
+    expect(first).toBeGreaterThan(0)
+
+    // Inside the 15-minute back-off the archive is left alone; afterwards it is asked again.
     await client(ctx, u).post('/api/plan/generate').send({ goalId: goal.id })
-    expect(asked).toBeGreaterThan(0)
+    expect(asked).toBe(first)
+    vi.setSystemTime(new Date(2026, 9, 21, 12, 16))
+    await client(ctx, u).post('/api/plan/generate').send({ goalId: goal.id })
+    expect(asked).toBeGreaterThan(first)
   })
 })

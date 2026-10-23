@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HttpError } from '../../../server/errors.ts'
+import { intervalsPublish } from '../../../server/providers/intervalsPublish.ts'
 import { getProvider, PROVIDERS } from '../../../server/providers/registry.ts'
 import { RateLimitPause } from '../../../server/providers/types.ts'
 
@@ -30,7 +31,7 @@ describe('provider registry', () => {
       ]),
     )
     expect(summary).toEqual({
-      intervals: [['pull'], true, false],
+      intervals: [['pull', 'publish'], true, false],
       strava: [['pull'], false, false],
       garmin: [['pull'], true, true],
       'apple-health': [['push', 'upload'], true, false],
@@ -38,11 +39,24 @@ describe('provider registry', () => {
     })
   })
 
-  it('implements a module for each pull and push channel it declares', () => {
-    for (const { info, pull, push } of Object.values(PROVIDERS)) {
+  it('implements a module for each pull, push and publish channel it declares', () => {
+    for (const { info, pull, push, publish } of Object.values(PROVIDERS)) {
       expect(Boolean(pull)).toBe(info.channels.includes('pull'))
       expect(Boolean(push)).toBe(info.channels.includes('push'))
+      expect(Boolean(publish)).toBe(info.channels.includes('publish'))
     }
+  })
+
+  it('publishes through intervals.icu alone, and the calendar feed is not a provider (ADR 0008)', () => {
+    const publishers = Object.entries(PROVIDERS)
+      .filter(([, provider]) => provider.info.channels.includes('publish'))
+      .map(([key]) => key)
+    expect(publishers).toEqual(['intervals'])
+    expect(PROVIDERS['intervals']?.publish).toBe(intervalsPublish)
+    // The experimental Garmin provider never writes.
+    expect(PROVIDERS['garmin']?.publish).toBeUndefined()
+    expect(Object.keys(PROVIDERS)).not.toContain('calendar')
+    expect(() => getProvider('calendar')).toThrow(HttpError)
   })
 
   it('returns a provider by key and throws notFound otherwise', () => {

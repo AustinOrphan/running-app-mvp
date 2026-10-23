@@ -64,6 +64,26 @@ describe('RULE_TITLES', () => {
     for (const p of paramsForRule('L7')) expect(ruleTitle(p.rule), p.id).not.toBeNull()
   })
 
+  test('titles the disruption rule, and its Params resolve to it', () => {
+    expect(RULE_TITLES['J9']).toBe('Rest windows and returns')
+    expect(ruleTitle('j9')).toBe('Rest windows and returns')
+    expect(paramsForRule('J9')).toHaveLength(3)
+    for (const p of paramsForRule('J9')) expect(ruleTitle(p.rule), p.id).not.toBeNull()
+  })
+
+  test('titles the standout thresholds by what the runner sees, and their Params resolve to it', () => {
+    expect(RULE_TITLES['design-explain']).toBe('What stood out on a run')
+    expect(ruleTitle('DESIGN-EXPLAIN')).toBe('What stood out on a run')
+    const params = paramsForRule('design-explain')
+    expect(params.map((p) => p.id)).toEqual([
+      'standout.longestLookbackWeeks',
+      'standout.gradeNoteMinPct',
+      'standout.driftDeltaPp',
+      'standout.hrDeltaMinBpm',
+    ])
+    for (const p of params) expect(ruleTitle(p.rule), p.id).toBe('What stood out on a run')
+  })
+
   test('tells g-1 from G1, ignoring case but not hyphens', () => {
     expect(ruleTitle('g-1')).not.toBe(ruleTitle('G1'))
     expect(ruleTitle('G-1')).toBe('Session spike guard')

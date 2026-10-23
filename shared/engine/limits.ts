@@ -14,6 +14,9 @@ import type { AthleteState, SessionKind, SessionSpec, WeekDraft } from './types.
 /** Guards float noise (100 * 1.1 = 110.00000000000001) before rounding down. */
 export const EPS = 1e-9
 
+/** Whole minutes, rounded down so the number never passes the cap it came from [rules g-6]. */
+export const wholeMinutes = (minutes: number): number => Math.floor(minutes + EPS)
+
 /**
  * Planned session kinds that count toward the weekly running minutes and the 30-day reference. A
  * planned race and a hike do not: the weeks before the plan (`state.weeks.runMin`) leave races out

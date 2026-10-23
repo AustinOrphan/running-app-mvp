@@ -1174,7 +1174,9 @@ function planWeeks(
   if (opensPlan && startDrawn[0] !== undefined) flag(0, 'restart-floor')
 
   const specificIdx = phases.map((p, i) => (p.phase === 'specific' ? i : -1)).filter((i) => i >= 0)
-  if (goal.isUltra || goal.distanceClass === 'marathon') {
+  // The last specific weeks, so the block ends before the taper; `gutTraining: false` (a gut
+  // condition or an opt-out) leaves it out and changes nothing else [rule H7].
+  if ((goal.isUltra || goal.distanceClass === 'marathon') && input.options.gutTraining !== false) {
     for (const i of specificIdx.slice(-P.h7.gutTrainingWeeks.value)) flag(i, 'gut-training')
   }
   if (goal.raceWbgtC !== null && goal.raceWbgtC >= P.i8.triggerWbgtC.value) {

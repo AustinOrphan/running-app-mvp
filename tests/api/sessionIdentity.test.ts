@@ -165,9 +165,10 @@ describe('a Monday re-plan of an unchanged plan', () => {
       execution: linkedBefore.execution,
     })
 
-    // One revision and one prediction are written with the sessions, in the same transaction.
+    // One revision is written with the sessions, in the same transaction. The week already holds
+    // the prediction that the generate logged, so the re-plan refreshes that row and adds none.
     expect(await ctx.prisma.planRevision.count({ where: { planId: plan.id } })).toBe(2)
-    expect(await ctx.prisma.predictionLog.count({ where: { userId: u.id } })).toBe(predictions + 1)
+    expect(await ctx.prisma.predictionLog.count({ where: { userId: u.id } })).toBe(predictions)
   })
 
   test('keeps the externalIds that every route serves', async () => {

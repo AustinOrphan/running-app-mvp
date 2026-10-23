@@ -366,6 +366,8 @@ describe('the cache', () => {
         predictedSec: 1,
         lowSec: 1,
         highSec: 1,
+        weekStart: '2026-10-19',
+        loggedOn: '2026-10-21',
       },
     })
     expect(await load(user.id)).toBe(first)

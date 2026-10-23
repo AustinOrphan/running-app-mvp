@@ -250,6 +250,120 @@ describe('placeWeek', () => {
     const sessions = place(week({ flags: ['gut-training', 'night'] }))
     const long = sessions.find((s) => s.kind === 'long')!
     expect(long.flags).toEqual(expect.arrayContaining(['fuel-practice', 'night']))
+    expect(long.rules).toContain('H7')
+  })
+
+  describe('fuel practice in a gut-training week [rule H7]', () => {
+    const gutWeek = (over: Partial<WeekDraft> = {}) =>
+      week({ flags: ['gut-training'], runDays: 6, targetRunMin: 480, longRunMin: 150, ...over })
+    const fuelRuns = (sessions: SessionSpec[]) =>
+      sessions.filter((s) => s.flags.includes('fuel-practice'))
+    /** The plan without the fuel marks, to compare a week with and without the block. */
+    const unmarked = (sessions: SessionSpec[]) =>
+      sessions.map((s) => ({
+        ...s,
+        flags: s.flags.filter((f) => f !== 'fuel-practice'),
+        rules: s.rules.filter((r) => r !== 'H7'),
+      }))
+
+    it('marks the long run and the next longest runs, up to the weekly cap, with rule H7', () => {
+      const sessions = place(gutWeek())
+      const marked = fuelRuns(sessions)
+      expect(marked).toHaveLength(P.h7.gutBlockSessionsPerWeek.value)
+      expect(marked.every((s) => s.rules.includes('H7'))).toBe(true)
+      expect(marked.some((s) => s.kind === 'long')).toBe(true)
+      // the cap is binding: more runs than the cap are long enough
+      const longEnough = sessions.filter(
+        (s) => isRun(s) && s.durationMin >= P.h7.gutTrainingSessionMinMin.value,
+      )
+      expect(longEnough.length).toBeGreaterThan(marked.length)
+      // after the long run, the longest of the easy runs
+      const easy = sessions.filter((s) => s.kind === 'easy')
+      const shortestMarked = Math.min(
+        ...marked.filter((s) => s.kind === 'easy').map((s) => s.durationMin),
+      )
+      for (const s of easy.filter((x) => !marked.includes(x))) {
+        expect(s.durationMin).toBeLessThanOrEqual(shortestMarked)
+      }
+      // no run outside the marked ones says so
+      expect(sessions.filter((s) => !marked.includes(s) && s.rules.includes('H7'))).toHaveLength(0)
+    })
+
+    it('marks both days of a back-to-back pair before other runs, even shorter ones', () => {
+      const sessions = place(
+        gutWeek({
+          phase: 'specific',
+          flags: ['gut-training', 'b2b'],
+          targetRunMin: 640,
+          longRunMin: 120,
+        }),
+      )
+      const day1 = sessions.find((s) => s.flags.includes('b2b-day1'))!
+      const day2 = sessions.find((s) => s.flags.includes('b2b-day2'))!
+      const others = sessions.filter((s) => s !== day1 && s !== day2)
+      // day 2 is under the other runs and over the session minimum
+      expect(day2.durationMin).toBeGreaterThanOrEqual(P.h7.gutTrainingSessionMinMin.value)
+      expect(others.filter((s) => s.durationMin > day2.durationMin).length).toBeGreaterThan(
+        P.h7.gutBlockSessionsPerWeek.value,
+      )
+      expect(day1.flags).toContain('fuel-practice')
+      expect(day2.flags).toContain('fuel-practice')
+      expect(fuelRuns(sessions)).toHaveLength(P.h7.gutBlockSessionsPerWeek.value)
+    })
+
+    it('marks only runs of at least the session minimum', () => {
+      for (const targetRunMin of [150, 200, 260, 330, 480]) {
+        const sessions = place(gutWeek({ targetRunMin, longRunMin: Math.round(targetRunMin / 3) }))
+        for (const s of fuelRuns(sessions)) {
+          expect(s.durationMin, `${targetRunMin} min week`).toBeGreaterThanOrEqual(
+            P.h7.gutTrainingSessionMinMin.value,
+          )
+        }
+      }
+      // a long run under the minimum is not marked
+      const short = place(gutWeek({ targetRunMin: 150, longRunMin: 50, runDays: 3 }))
+      expect(Math.max(...short.filter(isRun).map((s) => s.durationMin))).toBeLessThan(
+        P.h7.gutTrainingSessionMinMin.value,
+      )
+      expect(fuelRuns(short)).toHaveLength(0)
+    })
+
+    it('never marks threshold, interval or hill work, nor a run outside a gut-training week', () => {
+      const build = place(gutWeek({ phase: 'build', qualitySessions: 2, targetRunMin: 540 }))
+      const hard = build.filter((s) => ['threshold', 'intervals', 'hills'].includes(s.kind))
+      expect(hard.some((s) => s.durationMin >= P.h7.gutTrainingSessionMinMin.value)).toBe(true)
+      expect(hard.filter((s) => s.flags.includes('fuel-practice'))).toEqual([])
+      const specific = place(gutWeek({ phase: 'specific', qualitySessions: 2, targetRunMin: 540 }))
+      for (const s of fuelRuns([...build, ...specific])) {
+        expect(['easy', 'long', 'long-fast-finish', 'b2b', 'race-pace']).toContain(s.kind)
+      }
+      expect(fuelRuns(place(week({ runDays: 6, targetRunMin: 480, longRunMin: 150 })))).toEqual([])
+      expect(fuelRuns(place(week({ flags: ['night'], runDays: 6, targetRunMin: 480 })))).toEqual([])
+    })
+
+    it('marks the long day of a back-to-back pair and leaves minutes, days and kinds as they are', () => {
+      for (const over of [
+        {},
+        { phase: 'specific' as const, flags: ['gut-training', 'b2b'], longRunMin: 180 },
+        { runDays: 4, targetRunMin: 300 },
+        { qualitySessions: 0 },
+      ]) {
+        const gut = place(gutWeek(over))
+        const plain = place(
+          gutWeek({
+            ...over,
+            flags: (over.flags ?? ['gut-training']).filter((f) => f !== 'gut-training'),
+          }),
+        )
+        expect(fuelRuns(gut).length).toBeGreaterThan(0)
+        expect(fuelRuns(plain)).toHaveLength(0)
+        expect(unmarked(gut)).toEqual(plain)
+      }
+      const pair = place(
+        gutWeek({ phase: 'specific', flags: ['gut-training', 'b2b'], longRunMin: 180 }),
+      )
+      expect(fuelRuns(pair).some((s) => s.flags.includes('b2b-day1'))).toBe(true)
+    })
   })
 
   it('fills the distance of the long run and spreads the weekly gain over the runs', () => {

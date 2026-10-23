@@ -18,6 +18,7 @@ import type {
   ReadinessVerdict,
   TodayView,
 } from '../types.ts'
+import { illnessGate, type IllnessGate } from './disruption.ts'
 import { P } from './params/index.ts'
 import type {
   Checkin,
@@ -145,6 +146,8 @@ interface HrvEval {
   readings: number
   /** Earlier readings the range is built from: the count `j4.minReadings` is tested against. */
   baseline: number
+  /** Days before the date the baseline is read from: the cycle-aware lookback of the profile. */
+  lookback: number
   latest: number | null
   /** The reading itself in ms; `latest` is its natural log. */
   latestMs: number | null
@@ -174,12 +177,21 @@ function hrvOn(ctx: Ctx, date: string): HrvEval {
   const baseline = base.length
   const readings = baseline + (latestMs === null ? 0 : 1)
   if (baseline < P.j4.minReadings.value) {
-    return { readings, baseline, latest, latestMs, mean: null, sd: null, flag: false }
+    return { readings, baseline, lookback, latest, latestMs, mean: null, sd: null, flag: false }
   }
   const baseMean = mean(base)
   const baseSd = sampleSd(base)
   if (latestMs === null || latest === null) {
-    return { readings, baseline, latest, latestMs, mean: baseMean, sd: baseSd, flag: false }
+    return {
+      readings,
+      baseline,
+      lookback,
+      latest,
+      latestMs,
+      mean: baseMean,
+      sd: baseSd,
+      flag: false,
+    }
   }
   const floorPct =
     P.j4.noiseFloorGarminPolarWhoopPct.value + (cyclic ? P.j4.cycleBandWidenPp.value : 0)
@@ -201,6 +213,7 @@ function hrvOn(ctx: Ctx, date: string): HrvEval {
   return {
     readings,
     baseline,
+    lookback,
     latest,
     latestMs,
     mean: baseMean,
@@ -319,30 +332,17 @@ function declineStreakDays(ctx: Ctx, date: string): number {
   return streak
 }
 
-export type IllnessPhase = 'clear' | 'rest' | 'easy-only'
+export type { IllnessPhase } from './disruption.ts'
 
 /**
- * Return-from-illness gate [rules n-3]: rest through the symptom-free day, easy running for the
- * next easy days, intensity after. A day without an illness report counts as symptom-free;
- * illness is never inferred from HRV or resting HR.
+ * Return-from-illness gate [rules n-3] from the check-ins: rest through the symptom-free day, easy
+ * running for the next easy days, intensity after. A day without an illness report counts as
+ * symptom-free; illness is never inferred from HRV or resting HR. The gate itself is
+ * `illnessGate`, the only implementation of n-3, which rest windows share.
  */
-export function illnessPhase(
-  input: EngineInput,
-  date: string,
-): { phase: IllnessPhase; since: number | null } {
-  let last: string | null = null
-  for (const row of input.wellness) {
-    if (row.illness === true && row.date <= date && (last === null || row.date > last)) {
-      last = row.date
-    }
-  }
-  if (last === null) return { phase: 'clear', since: null }
-  const since = daysBetween(last, date)
-  const free = P.n3.illnessSymptomFreeDays.value
-  const easy = P.n3.illnessEasyDaysBeforeIntensity.value
-  if (since <= free) return { phase: 'rest', since }
-  if (since <= free + easy) return { phase: 'easy-only', since }
-  return { phase: 'clear', since }
+export function illnessPhase(input: EngineInput, date: string): IllnessGate {
+  const illnessDays = input.wellness.filter((row) => row.illness === true).map((row) => row.date)
+  return illnessGate(illnessDays, date)
 }
 
 /**
@@ -439,6 +439,8 @@ export function readinessSnapshot(input: EngineInput, date: string): ReadinessSn
     // latest, baselineMean and baselineSd are on the ln(rMSSD) scale.
     hrv: {
       readings: hrv.readings,
+      baseline: hrv.baseline,
+      lookbackDays: hrv.lookback,
       latest: hrv.latest,
       baselineMean: hrv.mean,
       baselineSd: hrv.sd,

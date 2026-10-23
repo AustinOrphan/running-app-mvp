@@ -19,18 +19,21 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  activities    Activity[]
-  importBatches ImportBatch[]
-  goals         Goal[]
-  plans         Plan[]
-  reviews       WeeklyReview[]
-  profile       AthleteProfile?
-  wellnessDays  WellnessDay[]
-  integrations  Integration[]
-  importedFiles ImportedFile[]
-  predictions   PredictionLog[]
-  screenings    Screening[]
-  syncRuns      SyncRun[]
+  activities        Activity[]
+  importBatches     ImportBatch[]
+  goals             Goal[]
+  plans             Plan[]
+  reviews           WeeklyReview[]
+  profile           AthleteProfile?
+  wellnessDays      WellnessDay[]
+  integrations      Integration[]
+  importedFiles     ImportedFile[]
+  predictions       PredictionLog[]
+  screenings        Screening[]
+  syncRuns          SyncRun[]
+  deliveryChannels  DeliveryChannel[]
+  wristPublications WristPublication[]
+  raceResults       RaceResult[]
 }
 
 model Activity {
@@ -81,6 +84,7 @@ model Activity {
   stream      ActivityStream?
   file        ActivityFile?
   planSession PlanSession?
+  raceResult  RaceResult?
 
   @@unique([userId, providerKey])
   @@index([userId, date])
@@ -134,6 +138,7 @@ model Goal {
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   plans       Plan[]
   predictions PredictionLog[]
+  raceResult  RaceResult?
 
   @@index([userId])
 }
@@ -226,12 +231,21 @@ model PlanSession {
 }
 
 model PlanRevision {
-  id        String   @id @default(cuid())
-  planId    String
-  createdAt DateTime @default(now())
-  reason    String // 'generate' | 'weekly' | 'review' | 'owner' | 'break'
-  summary   String
-  changes   String   @default("[]") // JSON text: PlanChange[]
+  id           String    @id @default(cuid())
+  planId       String
+  createdAt    DateTime  @default(now())
+  reason       String // 'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch'
+  summary      String
+  changes      String    @default("[]") // JSON text: PlanChange[]
+  auto         Boolean   @default(false) // written by the scheduler, not by a request
+  decision     String? // JSON text: the WeeklyDecision this revision acted on (weekly and review)
+  diff         String? // JSON text: PlanDiff; null on rows written before the revision model
+  undo         String? // JSON text: UndoPayload; never sent to the client; null when nothing can be restored
+  undoneAt     DateTime?
+  undoneById   String? // the 'undo' revision that reverted this one
+  undoOf       String? // on an 'undo' revision: the revision it reverted
+  seenAt       DateTime? // the one seen marker in the product
+  disruptionId String? // the window this revision created, changed or removed (no foreign key)
 
   plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
@@ -248,13 +262,35 @@ model PredictionLog {
   predictedSec Int
   lowSec       Int
   highSec      Int
-  inputs       String   @default("{}") // JSON text
+  inputs       String   @default("{}") // JSON text: today, conditions, rules, paramsVersion, course
   actualSec    Int?
+  weekStart    String // Monday of the local week the prediction belongs to, YYYY-MM-DD
+  loggedOn     String // runner's local day the prediction was made, YYYY-MM-DD
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([userId, goalId, createdAt])
+  @@index([userId, goalId, weekStart])
+}
+
+model RaceResult {
+  id         String   @id @default(cuid())
+  userId     String
+  goalId     String   @unique
+  activityId String?  @unique
+  date       String // YYYY-MM-DD, race day
+  distanceM  Int
+  gainM      Int?
+  outcome    String // 'finished' | 'did-not-finish'
+  timeSec    Int? // official finish time; null for a did-not-finish
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal     Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
 }
 
 model Screening {
@@ -416,6 +452,44 @@ model SyncRun {
   @@index([userId, provider, startedAt])
 }
 
+// The 7-day hourly forecast of one 0.1 degree home cell (non-state). The weather job fills it and
+// no request waits for it; a change key that depends on the forecast uses `forecastStamp`. Cells are
+// integer tenths of a degree so that the unique key never compares floats. `fetchedAt` is null until
+// a fetch succeeds; a failed fetch keeps the old hours and sets `failedAt` (15-minute back-off).
+model ForecastCache {
+  id        String    @id @default(cuid())
+  latE1     Int
+  lngE1     Int
+  hours     String    @default("[]") // JSON text: WeatherHour[], GMT
+  fetchedAt DateTime?
+  failedAt  DateTime?
+  lastError String?
+
+  @@unique([latE1, lngE1])
+}
+
+// Race-window WBGT climatology of one 0.01 degree race cell, month and day, start hour and window
+// length (state: the snapshot's prediction reads it, so a refresh must drop a memoised prediction).
+// `wbgtC` is the mean over the last three archive years; `complete` is false while a year could not
+// be read, and an incomplete row, or one older than 30 days, is read again with its old value kept.
+model ClimateCache {
+  id          String    @id @default(cuid())
+  latE2       Int
+  lngE2       Int
+  monthDay    String // 'MM-DD'
+  startHour   Int
+  windowHours Int
+  wbgtC       Float?
+  samples     Int       @default(0)
+  yearsRead   Int       @default(0)
+  complete    Boolean   @default(false)
+  fetchedAt   DateTime?
+  failedAt    DateTime?
+  lastError   String?
+
+  @@unique([latE2, lngE2, monthDay, startHour, windowHours])
+}
+
 model ImportedFile {
   id         String   @id @default(cuid())
   userId     String
@@ -429,4 +503,55 @@ model ImportedFile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sha256])
+}
+
+// One row per user and delivery channel (settings, the scheduler's state, the calendar feed's token
+// hash). Non-state: a publish run writes it, and a state write would trigger the next run.
+model DeliveryChannel {
+  id             String    @id @default(cuid())
+  userId         String
+  channel        String // 'intervals' | 'calendar'
+  enabled        Boolean   @default(false)
+  garminLinked   Boolean   @default(false) // intervals: the runner ticked the Garmin upload
+  dataKey        String? // intervals: the composed change key the last run saw
+  lastRunAt      DateTime?
+  pausedUntil    DateTime?
+  referenceJson  String? // intervals: { maxHr, lthr, thresholdPaceMps, readAt }, 6 h cache
+  tokenHash      String?   @unique // calendar: SHA-256 of the feed token; the token is never stored
+  tokenCreatedAt DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel])
+}
+
+// What the remote holds, or should hold, for one session identity. Joined to PlanSession by
+// externalId with no foreign key, so a regenerate that carries the identity keeps the row. Non-state.
+model WristPublication {
+  id            String    @id @default(cuid())
+  userId        String
+  channel       String // 'intervals'
+  externalId    String // PlanSession.externalId
+  date          String // YYYY-MM-DD
+  kind          String
+  variant       String    @default("planned") // 'planned' | 'eased'
+  title         String // the allowlisted public title sent
+  remoteId      String?
+  state         String // 'pending' | 'sent' | 'failed' | 'withdrawn' | 'owner-removed'
+  desiredHash   String
+  sentHash      String?
+  failCode      String?
+  failMessage   String? // sanitised, max 200
+  deviceMessage String? // sanitised, max 200
+  warnings      String    @default("[]") // JSON text: string[]
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime?
+  sentAt        DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, externalId])
+  @@index([userId, channel, date])
 }

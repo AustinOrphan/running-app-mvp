@@ -512,6 +512,9 @@ const REASON_LABELS: Record<PlanRevisionReason, string> = {
   review: 'After a review',
   owner: 'Your edit',
   break: 'Restart after a break',
+  disruption: 'Time off',
+  undo: 'Undo',
+  'goal-switch': 'New goal',
 }
 
 /** A short "Why" control that opens the shared drawer for the given rule ids. */

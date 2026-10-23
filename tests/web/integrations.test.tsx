@@ -4,7 +4,7 @@ import { describe, expect, test, vi } from 'vitest'
 import type { IntegrationStatus, ProviderInfo } from '../../shared/types.ts'
 import { SYNC_POLL_MS } from '../../web/api/integrations.ts'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makeInputs, makeStateView } from './state-fixtures.ts'
 
 const infos: Record<string, ProviderInfo> = {
@@ -266,7 +266,7 @@ describe('IntegrationsPage', () => {
         status: 202,
         body: status('intervals', { status: 'connected', lastSyncAt: before }),
       }),
-      'GET /api/activities': () => [],
+      'GET /api/activities': () => activityPage([]),
       'GET /api/imports': () => [],
       'GET /api/wellness': () => [],
       'GET /api/state': () => makeStateView(),

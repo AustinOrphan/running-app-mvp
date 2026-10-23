@@ -10,7 +10,7 @@ import type {
 import { addDays } from '../../shared/dates.ts'
 import { hasSubjectivePart } from '../../shared/engine/execution.ts'
 import { formatDistance, formatPace } from '../../shared/units.ts'
-import type { Activity, PlanSession, PlanSessionStatus, Units } from '../../shared/types.ts'
+import type { ActivityListItem, PlanSession, PlanSessionStatus, Units } from '../../shared/types.ts'
 import { useActivities } from '../api/activities.ts'
 import { useLinkPlanSession } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
@@ -74,6 +74,7 @@ const FLAG_LABELS: Record<SessionFlag, string> = {
   'run-walk': 'Run-walk intervals',
   'post-race': 'After the race: easy running only',
   'injury-return': 'Return-to-running step',
+  'rest-window': 'Rest window',
 }
 
 const COMPLETION_LABELS: Record<ExecutionAssessment['completion'], string> = {
@@ -151,7 +152,7 @@ function paceText(range: [number, number], units: Units): string {
   return `${value(fast)} to ${value(slow)} /${units}`
 }
 
-function activityLabel(activity: Activity, units: Units | undefined): string {
+function activityLabel(activity: ActivityListItem, units: Units | undefined): string {
   const parts = [
     `${formatWeekday(activity.date)} ${formatShortDate(activity.date)}`,
     `${String(Math.round(activity.durationSec / 60))}${NBSP}min`,

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { parse, validationError } from '../errors.ts'
 import { loadProfile } from '../serialize.ts'
+import { warmWeatherCaches } from '../services/weatherCache.ts'
 import type { AthleteProfile, ValidationIssue, Weekday } from '../../shared/types.ts'
 
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
@@ -112,7 +113,8 @@ export function profileRouter(deps: Deps): Router {
   // Fields that are absent keep their saved value; a null clears a nullable one.
   router.put('/', async (req, res) => {
     const body = parse(buildSchema(new Date()), req.body)
-    const merged: AthleteProfile = { ...(await loadProfile(prisma, req.userId)) }
+    const saved = await loadProfile(prisma, req.userId)
+    const merged: AthleteProfile = { ...saved }
     Object.assign(merged, body)
     merged.homeLat = round2(merged.homeLat)
     merged.homeLng = round2(merged.homeLng)
@@ -147,6 +149,15 @@ export function profileRouter(deps: Deps): Router {
       create: { userId: req.userId, ...data },
       update: data,
     })
+    // A new home place, or a change in whether races without a place of their own use it, needs a
+    // forecast and race climates the cache does not hold yet; they are fetched after the response.
+    if (
+      merged.homeLat !== saved.homeLat ||
+      merged.homeLng !== saved.homeLng ||
+      merged.useHomeWeather !== saved.useHomeWeather
+    ) {
+      warmWeatherCaches(deps, req.userId)
+    }
     res.json(await loadProfile(prisma, req.userId))
   })
 

@@ -43,6 +43,14 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   `server/services/sync.ts` drives pull providers.
 - Network access goes only through `ctx.fetch`, never a global `fetch` or an HTTP client of its own,
   so tests inject synthetic responses and no test touches the network.
+- Request handlers never call Open-Meteo. It stays outside the registry: the weather job
+  (`refreshWeatherCaches`, every 10 minutes) fills `ForecastCache` and `ClimateCache`, and engine
+  input, predictions, zones and Today read them, so a miss gives no forecast and no race heat, never
+  a wait. The two waits that remain are the forecast route on a never-filled cell (5 s, then 502)
+  and `ensureClimate` in plan generation (8 s). `ForecastCache` is not state: a change key that
+  depends on the forecast adds `forecastStamp(prisma, userId)`. Its fetch is `Deps.fetch`, read at
+  each call (the global `fetch` when unset); tests inject one through the API helpers' `ctx.fetch`
+  and never stub the global.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.
@@ -89,6 +97,11 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   `externalId` (fresh unless carried) and `trimmed`, the indexed form of `rules` holding
   `design-4.3`. `isTrimmed()` in `server/serialize.ts` is the one derivation: set `trimmed` with it
   on every write of `rules`, and never filter the stored `rules` text with `contains`.
+- A re-plan and a `PlanRevision` are written only through `computeReplan` (reads, decides, writes
+  nothing), `applyReplan` and `recordPlanWrite` in `server/services/replan.ts` (ADR 0007);
+  `replanActivePlan` wraps the first two. Nothing else creates a revision (a test scans `server/`),
+  and each revision stores a `PlanDiff` and an `UndoPayload` built from the rows actually written.
+  Summaries are templates in `shared/copy/revision.ts`.
 - Week and statistics code reads `ActivityCore` rows (`loadActivityCores`, six columns), from
   `activityLoadStart(first week)` to the last Sunday, never every whole activity. A loop over weeks
   reads the database once for all of them (`executionRecordsByWeek`).
@@ -98,13 +111,18 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
 ## Testing
 
 - API tests use `tests/api/helpers.ts` (own SQLite file per context, seeded user and cookie).
+  `ctx.fetch` starts as `noNetwork()`, which rejects, names the URL and records it in
+  `ctx.refusedFetches` (the weather layer swallows the rejection); end an `afterEach` with
+  `expectNoRefusedFetches(ctx)` so an unplanned call still fails the test, and set `ctx.fetch` to a
+  `fakeFetch` to plan calls.
 - Page tests use `tests/web/helpers.tsx`; query by role and accessible name.
 - E2E specs in `tests/e2e` drive the UI by role and label, use dates computed from the clock,
   and call `resetData()` and `signedInApi()` from `tests/e2e/helpers.ts` so each spec stands on
   its own. `01-auth.spec.ts` owns the empty database and must stay first. No sleeps; rely on
   auto-waiting assertions.
   `resetData()` derives its table list from `prisma/schema.prisma` (every model with a `userId`
-  column except `User`), so a new table needs no edit there.
+  column except `User`, and the shared caches that have neither a `userId` nor a parent), so a new
+  table needs no edit there.
   `signedInApi()` signs in with a minted session cookie once the account exists, because the
   sign-in route allows 10 attempts per window and the suite would exhaust it.
 - Every migration adds a case to `tests/unit/server/migrations.test.ts`: it seeds the previous

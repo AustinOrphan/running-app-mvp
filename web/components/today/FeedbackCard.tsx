@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { addDays } from '../../../shared/dates.ts'
-import type { Activity, Units } from '../../../shared/types.ts'
+import type { ActivityListItem, Units } from '../../../shared/types.ts'
 import { formatDistance, formatDuration } from '../../../shared/units.ts'
 import { useSaveFeedback } from '../../api/activities.ts'
 import { ApiError } from '../../api/client.ts'
@@ -13,7 +13,7 @@ import styles from './today.module.css'
 const FEEDBACK_DAYS = 7
 
 /** Runs and races from the last week that have neither an RPE nor a feel, newest first. */
-function unratedRecent(activities: Activity[], today: string): Activity[] {
+function unratedRecent(activities: ActivityListItem[], today: string): ActivityListItem[] {
   const first = addDays(today, 1 - FEEDBACK_DAYS)
   return activities.filter(
     (a) =>
@@ -28,7 +28,7 @@ function unratedRecent(activities: Activity[], today: string): Activity[] {
 }
 
 /** "Run Tue 17 Mar, 30:00, 5.00 km" for one unrated run. */
-function activityLine(activity: Activity, units: Units): { type: string; rest: string } {
+function activityLine(activity: ActivityListItem, units: Units): { type: string; rest: string } {
   const figures = [
     formatDuration(activity.durationSec),
     ...(activity.distanceM === null ? [] : [formatDistance(activity.distanceM, units)]),
@@ -44,7 +44,7 @@ function FeedbackItem({
   units,
   onSaved,
 }: {
-  activity: Activity
+  activity: ActivityListItem
   units: Units
   onSaved: () => void
 }) {
@@ -92,7 +92,7 @@ function FeedbackQueued({
   units,
   onRate,
 }: {
-  activity: Activity
+  activity: ActivityListItem
   units: Units
   onRate: () => void
 }) {
@@ -125,7 +125,7 @@ export function FeedbackCard({
   units,
   onSaved,
 }: {
-  activities: Activity[]
+  activities: ActivityListItem[]
   today: string
   units: Units
   onSaved: () => void

@@ -72,6 +72,49 @@ Last update: 2026-10-23.
   0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
   to `2026-10-23.1`.
 
+- **Phase 3a wave 2 (branch `feat/coach-phase3`, PR from `wave/3a-2`, 2026-10-23):** the stores
+  and engines the surfaces will show. R0-1: the revision foundation (`server/services/replan.ts`:
+  `computeReplan` reads only, `applyReplan` and `recordPlanWrite` are the only writers of a re-plan
+  or a revision; every re-plan and owner session edit stores a session-level diff and a row-level
+  undo payload; `GET /api/plan/revisions` pages and hides empty diffs; `revision.undoWindowDays`
+  7 days; ADR 0007 accepted and the rewrite design's anti-goal amended). E3-3: Open-Meteo moves
+  behind two caches (`ForecastCache` non-state, `ClimateCache` state) filled by the weather job
+  with a 15-minute back-off and a 20 s request timeout; no request path calls Open-Meteo
+  (`Deps.fetch` is injected and the test context's default fetch refuses the network);
+  `ensureClimate` before plan generation; `forecastStamp` for the publisher. E3-5:
+  `GET /api/activities` is a paged envelope without the heart-rate histogram and `GET /api/stats`
+  serves the statistics from six-column rows memoised by data version; the Activities page loads
+  50 at a time. E1-4: the publish channel (`DeliveryChannel`, `WristPublication`, both
+  non-state; `PublishProvider`; the intervals.icu publisher with every spec 6.6 status path against
+  an injected fetch; public titles only through `publicTitle`; ADR 0008 accepted). E4-2: the
+  explain inputs (`shared/engine/explainInputs.ts`: builders for g-1, g-2, g-6, A2-A8, C1-C5,
+  J2-J5, J7 and L1-L6 with a gap sentence each; `GET /api/explain` from the snapshot and
+  `memoByVersion` only; the four `standout` Params under `design-explain`). E5-3: rule J9 with
+  `j9.maxWindowDays`, `j9.maxBackdateDays` and `j9.niggleEasyDays`, and the pure disruption module
+  (`shared/engine/disruption.ts`: window phases, the niggle tail, return fractions, week caps,
+  held dates, validation; `illnessPhase` rebuilt on `illnessGate` with identical results). E6-2:
+  the pure fuel ladder (`shared/engine/fuel.ts`, `fuelCopy.ts`, `shared/domain/fuel.ts`:
+  `replayLadder`, `fuelTargetFor`, the watch line, the EAH card; E6-1's seven replay mechanics
+  confirmed against the spec, one amended in H7: a tolerated hot-day run is neutral). E6-3: the
+  gut-training option (`options.gutTraining`, on unless set false) and the `fuel-practice` flag on
+  up to `h7.gutBlockSessionsPerWeek` long, easy or race-pace runs of at least 60 minutes, decided at
+  placement; weeks, minutes and zones unchanged. E10s-1: `RaceResult` (state), the weekly
+  de-duplicated prediction log with `weekStart`, `loggedOn` and the course snapshot, `recordPrediction`
+  at both plan writers, the six-hourly ensure job. `PARAMS_VERSION` is `2026-10-23.2`. Four
+  migrations, renumbered at merge to sort after the sync log's (`wrist_delivery`, `race_results`,
+  `revision_model`, `foundation_weather_cache`). Gates on the merged branch: `npm run check`
+  (159 files, 5547 tests), `npm run build`, `npm run test:e2e` (19), `docker build .` (nine migrations apply),
+  owner validation identical to wave 1. Adversarial review: see below.
+- Wave 2 left for later tasks: `computeReplan` does not await `ensureClimate` (only generation
+  does, per the spec); `ClimateCache` rows are never pruned; after a boot the first weather tick
+  (30 s) leaves Today without a heat note; e2e spec 08 saves a home location and so causes one
+  background Open-Meteo request from the e2e server; `planEngine.ts` and `replan.ts` import each
+  other (uses inside function bodies only); `RUN_CAP_MAX_MIN` 240 in the disruption form is a
+  named constant, not a Param; the explain service makes one narrow `executionRecordsByWeek`
+  query for a weekly decision because the snapshot does not carry execution assessments; the
+  Stats totals read the whole history (lifetime figures cannot be bounded); the intervals.icu
+  module's live behaviour (sport-settings fields, date-only `start_date_local`, step syntax,
+  `external_id` echo) is unconfirmed until the owner's manual run.
 - **Phase 3a wave 1 (branch `feat/coach-phase3`, PR from `wave/3a-1`, 2026-10-23):** the
   foundation every surface reads. E3-2: the cached athlete snapshot (`server/services/athleteState.ts`:
   `loadAthleteContext`, `memoByVersion`, `currentGoalFor`; one build shared by concurrent requests,
@@ -112,6 +155,65 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   and new when a re-plan changes its day or kind, so E1 publishes under
   `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
   and derives no id from the date, the kind or the order.
+
+## Wave 2 adversarial review (2026-10-23)
+
+Six lenses over the wave-2 diff against the wave-1 base (136 files); 32 findings, each tried by two
+independent refuters: 18 confirmed (one duplicate pair), 14 disputed. The two mediums were a
+self-contradicting explanation sentence and a hash test that could not fail.
+
+Fixed on the integration branch before `wave/3a-2` was cut (`task/3a-W2-fix-revisions`,
+`task/3a-W2-fix-explain`, `task/3a-W2-fix-weather`), or inside R0-2 where noted:
+
+1. The accepted and declined zone-proposal revisions were hand-built prose that also served as
+   lookup keys; they are templates now (`revision.zone.*`) and the lookups read the stored
+   `changes[]` (`shared/engine/zoneChange.ts`). A proposal declined before this change is no
+   longer recognised and could reappear once.
+2. The J4 explanation counted today's HRV reading and always said 21 days; it reads the baseline
+   count and the cycle-aware lookback from the snapshot. The g-6 and J5 sentences restate the
+   decision's own figures (`wholeMinutes`, the plain weekly total). The L1 anchor appears only
+   when a race-anchored method was used. The C2 critical-speed row has its own sentence.
+3. The undo hash read a linked run as an edit; the session-run check runs before the hash
+   comparison (R0-2). `GET /api/plan/revisions` no longer reads every undo payload (R0-2). The
+   undo-payload hash test compares every created and updated session and week.
+4. Offset paging could repeat a row when a write landed between pages; the page joins by id and
+   the count is read after the page. A goal with one race coordinate mixed it with the home
+   coordinate; places are taken as pairs and the goal body refuses a half-set place.
+5. The Activities page keeps its count status region mounted and moves focus to it when the last
+   page loads.
+6. Test strength: the disruption-cap property test reaches its clamps; the Open-Meteo timeout
+   test proves the 20 s abort; the `ensureClimate` wait test is gated, not timed; the explain memo
+   tests count builds; the C1 hr-band builder is exercised.
+
+Accepted from the disputed list and fixed with them: `safeMessage`-style publish failure
+sentences are templates (`shared/copy/publish.ts`); a null `external_id` echo falls back to
+positional matching; the `noNetwork` guard records refused calls and every suite asserts none;
+the publisher's global-fetch guard covers `withdraw` and `globalThis.fetch`; `ensureClimate`
+returns at once when a usable climate value exists.
+
+Found by wave-3 tasks and fixed here: the cached forecast carried no solar radiation, so
+`isHotForSteering` could never fire from the forecast; `shortwave_radiation` is requested and
+stored in the forecast hours (no migration), and a hot synthetic afternoon now steers.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- `explain.ts` rebuilds the weekly decision by hand for one narrow query [the snapshot does not
+  carry execution assessments; E4-5 or E3's next pass decides whether to add them].
+- An engine trim of a future session writes a plan row outside any revision, so a later undo reads
+  it as an edit [trims are rare and the undo refusal names the row; R0-2 records the trim as an
+  owner-visible change in a later wave if the owner asks].
+- The "Eased for today" line and the step vocabulary exist in two layers [E1-3 reconciled the
+  publisher to `shared/workouts` templates in wave 3].
+- Percent-of-max heart rate is floored on the upper edge, so a watch alerts a beat early
+  [conservative by design; the comment is corrected].
+- The restart sentence says "the week before" where the rule means the week before the window
+  [E4-8's reading pass].
+- The weather-job test pinned an idle run wave 1 stopped storing [already changed at the merge
+  of wave 1 into the integration branch].
+- The pre-split re-plan oracle shares helpers with the new path and never has a weekly decision
+  [the row-level comparison is the real check; noted for E3's next test pass].
+- Failed or partial climate refreshes write the state table and bump the data version [rare;
+  moving `failedAt`/`lastError` off the state table needs a schema change; later].
 
 ## Wave 1 adversarial review (2026-10-23)
 

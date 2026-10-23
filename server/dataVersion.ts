@@ -27,12 +27,17 @@ export const STATE_MODELS = [
   'PlanWeek',
   'PlanSession',
   'PlanRevision',
+  'RaceResult',
+  // The snapshot's prediction reads the race climate, so a refresh must drop a memoised prediction.
+  'ClimateCache',
 ] as const
 
 /**
  * Models that nothing cached reads, or that are written on a read path or by a background job.
  * A derived table written on a read (a lazy brief, a prediction log) must be here: marked as
- * state, each lazy write would invalidate the cache it had just filled.
+ * state, each lazy write would invalidate the cache it had just filled. The publisher's own tables
+ * (`DeliveryChannel`, `WristPublication`) are here too: a run that raised the version would trigger
+ * the next run.
  */
 export const NON_STATE_MODELS = [
   'ActivityStream',
@@ -42,6 +47,11 @@ export const NON_STATE_MODELS = [
   'Integration',
   'PredictionLog',
   'SyncRun',
+  'DeliveryChannel',
+  'WristPublication',
+  // Written on a read path (a stale or empty forecast is refreshed there) and read by no snapshot
+  // or memo; a deliverable that depends on it composes `forecastStamp` into its change key.
+  'ForecastCache',
 ] as const
 
 const STATE_SET: ReadonlySet<string> = new Set(STATE_MODELS)

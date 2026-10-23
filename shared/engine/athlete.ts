@@ -80,19 +80,28 @@ function metresPerBeat(a: Activity): number | null {
   return ((distance / seconds) * 60) / a.avgHr
 }
 
+/** One steady flat run behind the efficiency index, with its metres per heartbeat [rules A8]. */
+export interface EfficiencySample {
+  activity: Activity
+  value: number
+}
+
 /**
- * Pace at a fixed HR on steady flat runs, as metres per heartbeat, with its change from the
- * window before [rules A8]. Only runs that pass the steady-and-flat sample checks, last 20-90
- * minutes and were not run in heat count. `asOf` defaults to the latest activity date.
+ * The runs the efficiency index reads [rules A8]: those that pass the steady-and-flat sample
+ * checks, last 20-90 minutes and were not run in heat, split into the recent window and the window
+ * before it, in input order. `asOf` defaults to the latest activity date.
  */
-export function efficiencyIndex(activities: Activity[], asOf?: string): AthleteState['efficiency'] {
+export function efficiencySamples(
+  activities: Activity[],
+  asOf?: string,
+): { recent: EfficiencySample[]; prior: EfficiencySample[] } {
   const dated = activities.filter((a) => !isDuplicate(a))
-  if (dated.length === 0) return { current: null, trendPct: null, samples: 0 }
+  const recent: EfficiencySample[] = []
+  const prior: EfficiencySample[] = []
+  if (dated.length === 0) return { recent, prior }
   const end = asOf ?? dated.map((a) => a.date).sort()[dated.length - 1] ?? ''
   const recentDays = P.a8.recentWeeks.value * DAYS_PER_WEEK
   const priorDays = P.a8.priorWeeks.value * DAYS_PER_WEEK
-  const recent: number[] = []
-  const prior: number[] = []
   for (const a of dated) {
     if (a.type !== 'run' || !steadyFlatSample(a)) continue
     const minutes = (a.movingSec ?? a.durationSec) / 60
@@ -101,12 +110,24 @@ export function efficiencyIndex(activities: Activity[], asOf?: string): AthleteS
     const value = metresPerBeat(a)
     if (value === null) continue
     const age = daysBetween(a.date, end)
-    if (age >= 0 && age < recentDays) recent.push(value)
-    else if (age >= recentDays && age < recentDays + priorDays) prior.push(value)
+    if (age >= 0 && age < recentDays) recent.push({ activity: a, value })
+    else if (age >= recentDays && age < recentDays + priorDays) prior.push({ activity: a, value })
   }
+  return { recent, prior }
+}
+
+/**
+ * Pace at a fixed HR on steady flat runs, as metres per heartbeat, with its change from the
+ * window before [rules A8]. Only runs that pass the steady-and-flat sample checks, last 20-90
+ * minutes and were not run in heat count (`efficiencySamples`). `asOf` defaults to the latest
+ * activity date.
+ */
+export function efficiencyIndex(activities: Activity[], asOf?: string): AthleteState['efficiency'] {
+  if (activities.every(isDuplicate)) return { current: null, trendPct: null, samples: 0 }
+  const { recent, prior } = efficiencySamples(activities, asOf)
   const min = P.a8.minRunsPerWindow.value
-  const current = recent.length >= min ? median(recent) : null
-  const before = prior.length >= min ? median(prior) : null
+  const current = recent.length >= min ? median(recent.map((s) => s.value)) : null
+  const before = prior.length >= min ? median(prior.map((s) => s.value)) : null
   return {
     current,
     trendPct: current !== null && before !== null ? (current / before - 1) * 100 : null,
@@ -211,14 +232,25 @@ function flatDistance(a: Activity): number | null {
   return a.elevationGainM / (a.distanceM / 1000) <= P.b2.flatMaxGainPerKm.value ? a.distanceM : null
 }
 
-function fitnessOf(runs: Activity[], input: EngineInput, today: string): AthleteState['fitness'] {
-  // Critical speed: the fastest grade-adjusted effort of each distance band inside the window.
+/** The best grade-adjusted effort of one distance band inside the critical-speed window [rules A6]. */
+export interface CsEffort {
+  activity: Activity
+  distanceM: number
+  timeSec: number
+}
+
+/**
+ * The efforts critical speed is fitted from [rules A6]: the fastest grade-adjusted effort of each
+ * distance band inside the window, in the order the bands were first reached. Fewer than
+ * `a6.csMinEfforts` of them give no fit.
+ */
+export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
   const edges = [
     P.a6.csMinDistanceM.value,
     ...P.a6.csBandInnerEdgesM.value,
     P.a6.csMaxDistanceM.value,
   ]
-  const best = new Map<number, { distanceM: number; timeSec: number }>()
+  const best = new Map<number, CsEffort>()
   for (const a of runs) {
     const age = daysBetween(a.date, today)
     if (age < 0 || age >= P.a6.csWindowDays.value) continue
@@ -230,10 +262,15 @@ function fitnessOf(runs: Activity[], input: EngineInput, today: string): Athlete
     while (band + 1 < edges.length - 1 && distanceM >= edges[band + 1]!) band += 1
     const held = best.get(band)
     if (!held || distanceM / timeSec > held.distanceM / held.timeSec) {
-      best.set(band, { distanceM, timeSec })
+      best.set(band, { activity: a, distanceM, timeSec })
     }
   }
-  const cs = criticalSpeed([...best.values()])
+  return [...best.values()]
+}
+
+function fitnessOf(runs: Activity[], input: EngineInput, today: string): AthleteState['fitness'] {
+  const efforts = csEffortsOf(runs, today)
+  const cs = criticalSpeed(efforts)
 
   const races = runs
     .filter(
@@ -243,7 +280,7 @@ function fitnessOf(runs: Activity[], input: EngineInput, today: string): Athlete
   return {
     csMps: cs?.csMps ?? null,
     dPrimeM: cs?.dPrimeM ?? null,
-    csEfforts: best.size,
+    csEfforts: efforts.length,
     exponent: personalExponent(races),
     races,
     vo2maxTrend: vo2maxTrend(input, today),
@@ -294,10 +331,12 @@ function vo2maxTrend(input: EngineInput, today: string): number | null {
 }
 
 /**
- * Median decoupling of the largest group of comparable, cool long runs [A7]. A long run lasts
- * from the reference duration of the durability prior (90 min) up to the drift inference limit.
+ * The largest group of comparable, cool long runs that durability is read from [A7]. A long run
+ * lasts from the reference duration of the durability prior (90 min) up to the drift inference
+ * limit; runs are comparable when their duration and temperature are close. On a tie the group
+ * anchored on the newer run wins.
  */
-function durabilityOf(runs: Activity[]): AthleteState['durability'] {
+export function durabilityRuns(runs: Activity[]): Activity[] {
   const candidates = runs.filter(
     (a) =>
       a.type === 'run' &&
@@ -319,6 +358,12 @@ function durabilityOf(runs: Activity[]): AthleteState['durability'] {
     const newer = group.length === best.length && anchor.date > (best[0]?.date ?? '')
     if (group.length > best.length || newer) best = group
   }
+  return best
+}
+
+/** Median decoupling of the largest group of comparable, cool long runs [A7]. */
+function durabilityOf(runs: Activity[]): AthleteState['durability'] {
+  const best = durabilityRuns(runs)
   return {
     decouplingMedianPct:
       best.length >= P.a7.minComparableRuns.value

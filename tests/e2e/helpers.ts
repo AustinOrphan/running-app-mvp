@@ -89,8 +89,9 @@ export async function signedInApi(page: Page, origin: string): Promise<Api> {
  * with no profile, check-ins, integrations or screenings left by an earlier spec.
  * It writes to the server's SQLite file directly: the API has no way to retire an active plan.
  * The table list is derived from `prisma/schema.prisma` (every model with a `userId` column
- * except `User`, children through their cascades), so a model added later is cleared without
- * editing this function; `tests/unit/server/resetData.test.ts` fails if one is skipped.
+ * except `User`, children through their cascades, and the shared caches that have neither a
+ * `userId` nor a parent), so a model added later is cleared without editing this function;
+ * `tests/unit/server/resetData.test.ts` fails if one is skipped.
  */
 export async function resetData() {
   const prisma = createPrisma(E2E_DATABASE_URL)
@@ -102,7 +103,10 @@ export async function resetData() {
   }
 }
 
-/** The toast region announces confirmations; it is the one `role="status"` on a signed-in page. */
+/**
+ * The toast region announces confirmations. Some pages add a status line of their own (the data
+ * summary, the activity count), so the locator narrows by the message text.
+ */
 export function toast(page: Page, message: string | RegExp) {
   return page.getByRole('status').getByText(message)
 }

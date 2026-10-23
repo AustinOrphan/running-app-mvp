@@ -143,4 +143,5 @@ export const keys = {
   screenings: 'screenings',
   researchParams: 'researchParams',
   state: 'state',
+  stats: 'stats',
 } as const

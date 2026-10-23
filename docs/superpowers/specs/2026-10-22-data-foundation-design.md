@@ -223,6 +223,10 @@ Channels:
   re-scan skip files already seen. Read-only; the path must exist and be a directory; in
   Docker it must be mounted.
 
+A fourth, outbound channel, `publish`, is defined in ADR 0008 and in section 4.4 of
+`docs/superpowers/specs/2026-10-22-coach-phase3a-design.md`. The three inbound channels above are
+unchanged.
+
 #### 2.6.1 Providers in this release
 
 Decided by the feasibility research of 2026-10-22 (`docs/research/integrations-2026-10.md`).

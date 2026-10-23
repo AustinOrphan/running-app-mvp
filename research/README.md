@@ -58,6 +58,10 @@ time for the Research page and the "why" drawer.
    NHS and original Couch-to-5K plans, coaching, clinical and magazine pages) kept as grade D
    conventions: they may set a default and never raise a grade. One blog post was not admitted.
    Sources verified twice under different ids merged by DOI, so each paper has one id.
+8. **Disruption rule J9 (2026-10-23).** Written for phase 3a from papers already in the corpus, with
+   no new paper: illness follows n-3, the restart after a long hold follows J7, and the tightened
+   profile after a reported niggle follows G-3. The rule is grade D as a whole, and its three
+   parameters (window length, back-dating, easy days after a niggle) are labelled defaults.
 
 ## Evidence levels and grades
 

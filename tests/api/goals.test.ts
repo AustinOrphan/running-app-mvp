@@ -312,6 +312,58 @@ describe('race descriptors', () => {
     expect((await put({ raceLat: 12.3456 })).body).toMatchObject({ raceLat: 12.35 })
   })
 
+  test('the race place is both coordinates or neither, on POST and on PUT', async () => {
+    const post = (body: Record<string, unknown>) =>
+      client(ctx, user)
+        .post('/api/goals')
+        .send({ name: 'Place', priority: 'A', targetDate: '2027-05-09', ...body })
+    const paths = (res: { body: { error: { details: { issues: Array<{ path: string }> } } } }) =>
+      res.body.error.details.issues.map((issue) => issue.path)
+
+    const latOnly = await post({ raceLat: 40.12 })
+    expect(latOnly.status).toBe(400)
+    expect(paths(latOnly)).toEqual(['raceLng'])
+    const lngOnly = await post({ raceLng: -105.2, raceLat: null })
+    expect(lngOnly.status).toBe(400)
+    expect(paths(lngOnly)).toEqual(['raceLat'])
+    expect((await post({ raceLat: 40.12, raceLng: -105.2 })).status).toBe(201)
+    expect((await post({ raceLat: null, raceLng: null })).status).toBe(201)
+    expect((await post({})).status).toBe(201)
+
+    const created = await createGoal({ name: 'Edit place' })
+    const put = (body: Record<string, unknown>) =>
+      client(ctx, user).put(`/api/goals/${created.id}`).send(body)
+    // The pair is judged as saved plus patched.
+    const half = await put({ raceLat: 40.12 })
+    expect(half.status).toBe(400)
+    expect(paths(half)).toEqual(['raceLng'])
+    expect((await put({ raceLat: 40.12, raceLng: -105.2 })).status).toBe(200)
+    expect((await put({ raceLat: 41.5 })).body).toMatchObject({ raceLat: 41.5, raceLng: -105.2 })
+    const cleared = await put({ raceLng: null })
+    expect(cleared.status).toBe(400)
+    expect(paths(cleared)).toEqual(['raceLng'])
+    expect((await put({ raceLat: null, raceLng: null })).body).toMatchObject({
+      raceLat: null,
+      raceLng: null,
+    })
+  })
+
+  test('a goal saved with a lone coordinate before the check can still be edited elsewhere', async () => {
+    const legacy = await ctx.prisma.goal.create({
+      data: {
+        userId: user.id,
+        name: 'Half place',
+        priority: 'B',
+        targetDate: '2027-05-09',
+        distanceM: 10_000,
+        raceLat: 40.12,
+      },
+    })
+    const res = await client(ctx, user).put(`/api/goals/${legacy.id}`).send({ notes: 'Fine.' })
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ raceLat: 40.12, raceLng: null, notes: 'Fine.' })
+  })
+
   test('a goal made before the descriptors existed can still be edited without touching the type', async () => {
     const legacy = await ctx.prisma.goal.create({
       data: {

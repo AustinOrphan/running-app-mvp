@@ -12,6 +12,7 @@ import { apiNotFound, errorHandler } from './errors.ts'
 import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
 import { checkinsRouter } from './routes/checkins.ts'
+import { explainRouter } from './routes/explain.ts'
 import { goalsRouter } from './routes/goals.ts'
 import { healthRouter } from './routes/health.ts'
 import { importsRouter } from './routes/imports.ts'
@@ -26,6 +27,7 @@ import { reviewsRouter } from './routes/reviews.ts'
 import { screeningsRouter } from './routes/screenings.ts'
 import { settingsRouter } from './routes/settings.ts'
 import { stateRouter } from './routes/state.ts'
+import { statsRouter } from './routes/stats.ts'
 import { todayRouter } from './routes/today.ts'
 import { weatherRouter } from './routes/weather.ts'
 import { weeksRouter } from './routes/weeks.ts'
@@ -36,6 +38,12 @@ import { mountStatic } from './static.ts'
 export interface Deps {
   prisma: PrismaClient
   config: Config
+  /**
+   * The network client of work that is not a scheduled job (the weather cache, a manual sync). Left
+   * out in production, where the global `fetch` is looked up at each call; tests set it, read at
+   * each call too, so that none reaches the network and none stubs the global.
+   */
+  fetch?: typeof fetch
 }
 
 const REQUEST_ID = /^[\w.-]{1,64}$/
@@ -97,6 +105,8 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api', requireAuth(deps))
   app.use('/api/settings', settingsRouter(deps))
   app.use('/api/state', stateRouter(deps))
+  app.use('/api/stats', statsRouter(deps))
+  app.use('/api/explain', explainRouter(deps))
   app.use('/api/activities', activitiesRouter(deps))
   app.use('/api/imports', importsRouter(deps))
   app.use('/api/goals', goalsRouter(deps))

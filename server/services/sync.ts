@@ -96,7 +96,7 @@ export async function providerContext(
   },
 ): Promise<ProviderCtx> {
   const { timezone } = await loadProfile(deps.prisma, userId)
-  const fetchFn = opts.fetch ?? ((input, init) => fetch(input, init))
+  const fetchFn = opts.fetch ?? deps.fetch ?? ((input, init) => fetch(input, init))
   return {
     fetch: fetchFn,
     timezone,
