@@ -7,6 +7,7 @@ import { useOnline } from '../useOnline.ts'
 import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
 import { FuelTargetLine } from '../fuel/FuelTargetLine.tsx'
+import { ChangeLine } from './ChangeLine.tsx'
 import { SlotFrame } from './SlotFrame.tsx'
 import type { SlotName } from './slots.ts'
 
@@ -80,11 +81,28 @@ function WatchMount() {
 }
 
 /**
+ * The line on what the last update of the plan changed, under the week strip (52 px), until E4's
+ * brief line takes the slot: that epic replaces this entry, and the page stays as it is.
+ */
+function ChangeLineMount() {
+  const today = useLoaded<TodayView>(keys.today)
+  const settings = useLoaded<UserSettings>(keys.settings)
+  const change = today?.coach.change ?? null
+  return (
+    <SlotFrame name="brief">
+      {change === null || settings === undefined ? null : (
+        <ChangeLine change={change} units={settings.units} />
+      )}
+    </SlotFrame>
+  )
+}
+
+/**
  * What fills a slot that its page places without content. An epic that fills its slot from the
- * Today payload adds its mount here; a slot whose content depends on the page's own state (the
- * brief line) is filled by the page and has no entry.
+ * Today payload adds its mount here, so the page that places the slot is not edited.
  */
 export const SLOT_MOUNTS: Partial<Record<SlotName, ComponentType>> = {
+  brief: ChangeLineMount,
   fuel: FuelTargetMount,
   watch: WatchMount,
   fuelPrompt: FuelPromptMount,

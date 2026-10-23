@@ -1,6 +1,7 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
-import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
+import type { PlanSession, PlanWithSessions, TodayHeat, TodayView } from '../../shared/types.ts'
+import { SLOT_BUDGETS_PX } from '../../web/components/today/slots.ts'
 import { relativeDates, resetData, signedInApi, toast, type Api } from './helpers.ts'
 
 // Today as the runner uses it: Not today and Done on the session's hero, then the one-tap check-in
@@ -8,7 +9,8 @@ import { relativeDates, resetData, signedInApi, toast, type Api } from './helper
 // allows 20000 `/api` requests per 15 minutes per IP (1000 in production; static files are outside
 // the count) and the whole suite spends about 940 of them, so the specs share one signed-in page
 // (its cache keeps the assets), one plan, and as few page loads as the flows need to keep the run
-// short and the count low.
+// short and the count low. The fold and layout tests come before Done, because a logged run takes
+// the Done button away.
 test.describe.configure({ mode: 'serial' })
 
 const RUN_KINDS = ['easy', 'recovery', 'long', 'threshold', 'intervals', 'hills', 'race-pace']
@@ -96,6 +98,120 @@ async function restoreConnection(): Promise<void> {
   })
 }
 
+// ---- The first screen: the measured fold and the two-column layout (spec 7.6) ----------------
+
+/** The tab bar under the content on a phone (`--tabbar-h`). */
+const TAB_BAR_PX = 56
+const TODAY_REQUEST = '**/api/today'
+
+/**
+ * A warm day as the server reports one. It gives the hero its cooler start line and its closed
+ * "What to know today" row, the tallest ordinary day, which the e2e data would not produce by
+ * itself (the e2e server has no forecast).
+ */
+const WARM_DAY: TodayHeat = {
+  wbgtC: 25,
+  note: 'Warm and humid this afternoon. Run by effort and drink early.',
+  coolerHour: '06:00',
+  peakHour: 15,
+  coolerValue: 17,
+  index: 'wbgt',
+  hotForSteering: false,
+}
+
+/** Serves `GET /api/today` as the server sends it, on a warm day. */
+async function serveWarmDay(): Promise<void> {
+  await page.route(TODAY_REQUEST, async (route) => {
+    // The browser revalidates with the tag it holds; a 304 has no body to change.
+    const headers = { ...route.request().headers() }
+    delete headers['if-none-match']
+    const response = await route.fetch({ headers })
+    const view = (await response.json()) as TodayView
+    await route.fulfill({ response, json: { ...view, heat: WARM_DAY } })
+  })
+}
+
+/** The default desktop window of the other tests, and the real payload again. */
+async function restoreDesktop(): Promise<void> {
+  await page.unroute(TODAY_REQUEST)
+  await page.setViewportSize({ width: 1280, height: 720 })
+}
+
+/**
+ * Fills every budgeted slot to its budget (`SLOT_BUDGETS_PX`), the most its owning epic's content
+ * may take at 360 px. A slot that already holds content gets the budget as its minimum height and
+ * must not be taller than it; a slot nobody has mounted yet gets a stub of exactly the budget, in
+ * the place the page gives it. Both measure alike, so this test keeps holding as E1, E4 and E5
+ * mount their content.
+ */
+async function fillSlotsToBudget(): Promise<void> {
+  const all: Array<[string, number | null]> = Object.entries(SLOT_BUDGETS_PX)
+  const budgets = all.filter((entry): entry is [string, number] => entry[1] !== null)
+  await page.evaluate((entries) => {
+    const columns = document.querySelector('[data-layout]')
+    const hero = document.querySelector('article')
+    const done = Array.from(hero?.querySelectorAll('button') ?? []).find(
+      (button) => button.textContent.trim() === 'Done',
+    )
+    // Where the page puts each slot: the top of the session group, under the targets, under the
+    // actions, under the week strip.
+    const place: Record<string, (stub: HTMLElement) => void> = {
+      disruption: (stub) => columns?.firstElementChild?.prepend(stub),
+      fuel: (stub) => hero?.querySelector('dl')?.after(stub),
+      watch: (stub) => done?.parentElement?.after(stub),
+      brief: (stub) => document.querySelector('section[aria-label="This week"]')?.after(stub),
+    }
+    for (const [name, budget] of entries) {
+      const present = document.querySelector<HTMLElement>(`[data-slot="${name}"]`)
+      if (present !== null) {
+        if (present.getBoundingClientRect().height > budget + 0.5) {
+          throw new Error(`The ${name} slot is taller than its ${String(budget)} px budget.`)
+        }
+        present.style.minHeight = `${String(budget)}px`
+        continue
+      }
+      const stub = document.createElement('div')
+      stub.dataset['slot'] = name
+      stub.dataset['budgetPx'] = String(budget)
+      stub.style.height = `${String(budget)}px`
+      place[name]?.(stub)
+      if (!stub.isConnected) throw new Error(`The ${name} slot has no place on the page.`)
+    }
+  }, budgets)
+}
+
+/** The server's own read of the answer has replaced the first guess: a verdict and its signal. */
+async function settled(read: Locator): Promise<void> {
+  await expect(read.getByRole('status')).not.toHaveText(/No readiness signals yet/)
+  await expect(read.getByRole('list', { name: 'Readiness signals' })).toBeVisible()
+}
+
+/** The bottom edge of the hero's Done button, in pixels from the top of the viewport. */
+async function doneBottom(): Promise<number> {
+  const box = await page
+    .getByRole('article', { name: planned.title })
+    .getByRole('button', { name: 'Done', exact: true })
+    .boundingBox()
+  if (box === null) throw new Error('Done has no box on the page.')
+  return box.y + box.height
+}
+
+/** Attaches the viewport as the report's picture of the layout, and records the measurement. */
+async function attachScreenshot(name: string, doneAt?: number): Promise<void> {
+  const info = test.info()
+  await info.attach(name, { body: await page.screenshot(), contentType: 'image/png' })
+  if (doneAt !== undefined) {
+    info.annotations.push({ type: name, description: `Done ends at ${String(doneAt)} px` })
+  }
+}
+
+/** Whether the page is wider than the window. */
+async function scrollsSideways(): Promise<boolean> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  )
+}
+
 test.beforeAll(async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL })
   page = await context.newPage()
@@ -126,6 +242,137 @@ test('Not today skips the session and says it is not made up later', async () =>
   // Put it back with the action behind the session sheet's Restore session, so that Done has a
   // session to work on.
   await api.post(`/plan/sessions/${planned.id}/adjust`, { adjustment: { type: 'restore' } })
+})
+
+test('at 360 px the recent weeks wait for the foot of the page, and nothing scrolls sideways', async () => {
+  // A short window, so the foot of the page is more than the 240 px look-ahead below it.
+  const height = 600
+  await page.setViewportSize({ width: 360, height })
+  await serveWarmDay()
+  const weeks: string[] = []
+  const onRequest = (request: { url: () => string }) => {
+    if (new URL(request.url()).pathname === '/api/weeks') weeks.push(request.url())
+  }
+  page.on('request', onRequest)
+  try {
+    await page.goto('/')
+    await expect(page.getByRole('article', { name: planned.title })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'This week' })).toBeVisible()
+    // The disclaimer follows the history sections; the page is long enough to test the wait.
+    const disclaimer = await page.getByRole('region', { name: 'Disclaimer' }).boundingBox()
+    expect(disclaimer?.y).toBeGreaterThan(height + 240)
+    expect(weeks).toHaveLength(0)
+    expect(await scrollsSideways()).toBe(false)
+
+    await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight)
+    })
+    await expect(page.getByRole('img', { name: 'Run hours per week, last 12 weeks' })).toBeVisible()
+    expect(weeks).toHaveLength(1)
+    // With the history sections in view the page is as narrow as the rest.
+    expect(await scrollsSideways()).toBe(false)
+    await page.evaluate(() => {
+      window.scrollTo(0, 0)
+    })
+  } finally {
+    page.off('request', onRequest)
+  }
+})
+
+// The next three tests keep the page the one before loaded and change its window, so the server
+// sees one load of Today for the whole measurement; the check-in is unanswered until the third.
+
+test('at 390 x 844 and 360 x 740 Done is inside the fold with the check-in unanswered and every slot filled', async () => {
+  const card = page.getByRole('article', { name: planned.title })
+  await expect(page.getByRole('radiogroup', { name: 'How do you feel today?' })).toBeVisible()
+  await expect(card.getByText(/^Cooler start: /)).toBeVisible()
+  await fillSlotsToBudget()
+  await expect(page.locator('[data-slot][data-budget-px]')).toHaveCount(4)
+
+  // A phone in a browser: the viewport above the 56 px tab bar.
+  await page.setViewportSize({ width: 390, height: 844 })
+  const tall = await doneBottom()
+  await attachScreenshot('today-390x844-unanswered', tall)
+  await expect(card.getByRole('heading', { level: 2 })).toBeInViewport()
+  expect(tall).toBeLessThanOrEqual(844 - TAB_BAR_PX)
+
+  await page.setViewportSize({ width: 360, height: 740 })
+  const narrow = await doneBottom()
+  await attachScreenshot('today-360x740-unanswered', narrow)
+  expect(narrow).toBeLessThanOrEqual(740)
+  expect(await scrollsSideways()).toBe(false)
+})
+
+test('once the check-in is answered Done is inside the viewport at 360 x 740 and at 390 x 707', async () => {
+  const { today } = relativeDates()
+  const read = page.getByRole('region', { name: 'Readiness' })
+  await read.getByRole('radio', { name: 'Normal' }).click()
+  await expect(read.getByText('Checked in: normal.')).toBeVisible()
+  await expect(read.getByRole('radiogroup')).toBeHidden()
+  await settled(read)
+  await fillSlotsToBudget()
+
+  const narrow = await doneBottom()
+  await attachScreenshot('today-360x740-answered', narrow)
+  expect(narrow).toBeLessThanOrEqual(740)
+  expect(await scrollsSideways()).toBe(false)
+
+  // An installed app on a shorter screen.
+  await page.setViewportSize({ width: 390, height: 707 })
+  const installed = await doneBottom()
+  await attachScreenshot('today-390x707-answered', installed)
+  expect(installed).toBeLessThanOrEqual(707)
+
+  // The answer is cleared again for the tests after this one.
+  await expect
+    .poll(
+      async () => ((await api.get(`/checkins/${today}`)) as { fatigue: number } | null)?.fatigue,
+    )
+    .toBe(3)
+  await expect.poll(queued).toBe(0)
+  await api.put(`/checkins/${today}`, { fatigue: null })
+})
+
+test('at 1280 x 800 Today stands in two columns, the session first and the week beside it', async () => {
+  try {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    const card = page.getByRole('article', { name: planned.title })
+    const strip = page.getByRole('region', { name: 'This week' })
+    await expect(card).toBeVisible()
+    await expect(strip).toBeVisible()
+    await fillSlotsToBudget()
+
+    const cardBox = await card.boundingBox()
+    const stripBox = await strip.boundingBox()
+    if (cardBox === null || stripBox === null) throw new Error('The hero or the strip has no box.')
+    // The strip is in the right column, level with the hero, and on the screen.
+    expect(stripBox.x).toBeGreaterThanOrEqual(cardBox.x + cardBox.width)
+    expect(stripBox.y + stripBox.height).toBeLessThanOrEqual(800)
+    expect(stripBox.y).toBeLessThan(cardBox.y + cardBox.height)
+    expect(await scrollsSideways()).toBe(false)
+    await attachScreenshot('today-1280x800')
+
+    // Tab order follows the picture: the hero's actions come before anything in the week.
+    await page.getByRole('main').focus()
+    const order: string[] = []
+    for (let step = 0; step < 30; step += 1) {
+      await page.keyboard.press('Tab')
+      const focus = await page.evaluate(() => {
+        const element = document.activeElement
+        return {
+          name: element?.getAttribute('aria-label') ?? (element?.textContent ?? '').trim(),
+          inWeek: element?.closest('section[aria-label="This week"]') != null,
+        }
+      })
+      order.push(focus.name)
+      if (focus.inWeek) break
+    }
+    expect(order.at(-1)).toMatch(/\d{1,2}/) // a day of the week
+    expect(order.slice(0, -1)).toEqual(expect.arrayContaining(['Done', 'Explain', 'Not today']))
+    expect(order.indexOf('Done')).toBeLessThan(order.length - 1)
+  } finally {
+    await restoreDesktop()
+  }
 })
 
 test('Done with no connection keeps a draft and turns Save off, then logs the run once', async () => {
