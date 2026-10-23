@@ -4,6 +4,7 @@ import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import { lintText } from '../../shared/copy/lint.ts'
+import type { ActivityListItem, ActivityListPage } from '../../shared/types.ts'
 
 export interface MockRequest {
   body: unknown
@@ -59,6 +60,50 @@ export function mockApi(routes: MockRoutes): {
   })
 
   return { calls }
+}
+
+/** A list row as the server sends it: the stored activity without its heart-rate histogram. */
+function listItem(item: ActivityListItem): ActivityListItem {
+  const row: Record<string, unknown> = { ...item }
+  delete row['hrHistogram']
+  return row as unknown as ActivityListItem
+}
+
+/**
+ * The body of `GET /api/activities` for `items`: by default one page that holds them all. `total`
+ * and `nextOffset` say more rows wait on the server.
+ */
+export function activityPage(
+  items: ActivityListItem[],
+  over: Partial<Omit<ActivityListPage, 'items'>> = {},
+): ActivityListPage {
+  const offset = over.offset ?? 0
+  return {
+    items: items.map(listItem),
+    total: over.total ?? offset + items.length,
+    limit: over.limit ?? 100,
+    offset,
+    nextOffset: over.nextOffset ?? null,
+  }
+}
+
+/**
+ * A `GET /api/activities` handler that serves `all` page by page, as the server does: the request's
+ * `limit` and `offset` choose the slice, `total` is the whole list and `nextOffset` points past it.
+ */
+export function activityRoute(all: ActivityListItem[]): (req: MockRequest) => ActivityListPage {
+  return ({ query }) => {
+    const limit = Number(query.get('limit') ?? 100)
+    const offset = Number(query.get('offset') ?? 0)
+    const items = all.slice(offset, offset + limit)
+    const next = offset + items.length
+    return activityPage(items, {
+      total: all.length,
+      limit,
+      offset,
+      nextOffset: items.length > 0 && next < all.length ? next : null,
+    })
+  }
 }
 
 export function renderWithProviders(ui: ReactElement, opts: { route?: string } = {}): RenderResult {

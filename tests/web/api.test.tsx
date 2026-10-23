@@ -4,7 +4,9 @@ import type { ReactNode } from 'react'
 import { describe, expect, test } from 'vitest'
 import { useLogin, useLogout, useMe, useSetup } from '../../web/api/auth.ts'
 import {
+  ACTIVITY_FOLLOW_MAX_PAGES,
   useActivities,
+  useActivityPages,
   useCreateActivity,
   useDeleteActivity,
   useResolveDuplicate,
@@ -29,6 +31,7 @@ import { useReviews, useSaveReview } from '../../web/api/reviews.ts'
 import { useSettings, useUpdateSettings } from '../../web/api/settings.ts'
 import { useProfile, useUpdateProfile } from '../../web/api/profile.ts'
 import { useAthleteState } from '../../web/api/state.ts'
+import { useStats } from '../../web/api/stats.ts'
 import { useToday } from '../../web/api/today.ts'
 import { useWeeks } from '../../web/api/weeks.ts'
 import {
@@ -37,7 +40,8 @@ import {
   useZoneProposals,
   useZones,
 } from '../../web/api/zones.ts'
-import { mockApi, type MockRoutes } from './helpers.tsx'
+import { activityPage, activityRoute, mockApi, type MockRoutes } from './helpers.tsx'
+import { makeActivity } from '../factories.ts'
 
 function setup() {
   const queryClient = new QueryClient({
@@ -59,6 +63,8 @@ const goalInput = {
   dateProvisional: false,
 }
 
+const emptyStats = { monthly: [], yearly: [], efforts: [], longest: [] }
+
 /** Routes that answer every contract path with a harmless body. */
 function allRoutes(overrides: MockRoutes = {}): MockRoutes {
   return {
@@ -69,7 +75,8 @@ function allRoutes(overrides: MockRoutes = {}): MockRoutes {
     'POST /api/auth/logout': () => ({ status: 204, body: undefined }),
     'GET /api/settings': () => user,
     'PUT /api/settings': () => user,
-    'GET /api/activities': () => [],
+    'GET /api/activities': () => activityPage([]),
+    'GET /api/stats': () => emptyStats,
     'POST /api/activities': () => ({ status: 201, body: {} }),
     'PUT /api/activities/a1': () => ({}),
     'DELETE /api/activities/a1': () => ({ status: 204, body: undefined }),
@@ -135,8 +142,10 @@ describe('request shapes', () => {
     })
 
     const urls = calls.map((c) => `${c.method} ${c.url}`)
-    expect(urls).toContain('GET /api/activities?from=2026-03-01&to=2026-03-31&type=run')
-    expect(urls).toContain('GET /api/activities')
+    expect(urls).toContain(
+      'GET /api/activities?from=2026-03-01&to=2026-03-31&type=run&limit=500&offset=0',
+    )
+    expect(urls).toContain('GET /api/activities?limit=500&offset=0')
     expect(urls).toContain('GET /api/weeks?from=2026-01-05&to=2026-03-02')
     expect(urls).toContain('GET /api/reviews?from=2026-02-23&to=2026-03-02')
     expect(urls).toContain('GET /api/plan')
@@ -248,6 +257,115 @@ describe('request shapes', () => {
       expect(result.current.isSuccess).toBe(true)
     })
     expect(queryClient.getQueryData([keys.activities, params])).toEqual([])
+  })
+})
+
+describe('the activity list', () => {
+  const rows = Array.from({ length: 1203 }, (_, i) =>
+    makeActivity({ id: `a${String(i).padStart(4, '0')}`, date: '2026-03-02' }),
+  )
+
+  test('useActivities follows nextOffset in pages of 500 and returns every row', async () => {
+    const serve = activityRoute(rows)
+    const { calls } = mockApi(allRoutes({ 'GET /api/activities': serve }))
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActivities({ type: 'run' }), { wrapper })
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data?.map((a) => a.id)).toEqual(rows.map((a) => a.id))
+    expect(calls.map((c) => c.url)).toEqual([
+      '/api/activities?type=run&limit=500&offset=0',
+      '/api/activities?type=run&limit=500&offset=500',
+      '/api/activities?type=run&limit=500&offset=1000',
+    ])
+  })
+
+  test('useActivities stops after ACTIVITY_FOLLOW_MAX_PAGES when the server keeps saying more', async () => {
+    const { calls } = mockApi(
+      allRoutes({
+        'GET /api/activities': ({ query }) =>
+          activityPage([makeActivity()], {
+            offset: Number(query.get('offset')),
+            nextOffset: Number(query.get('offset')) + 1,
+          }),
+      }),
+    )
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActivities(), { wrapper })
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+    expect(calls).toHaveLength(ACTIVITY_FOLLOW_MAX_PAGES)
+    expect(result.current.data).toHaveLength(ACTIVITY_FOLLOW_MAX_PAGES)
+  })
+
+  test('useActivities drops the heart-rate histogram the server leaves out', async () => {
+    mockApi(allRoutes({ 'GET /api/activities': activityRoute(rows.slice(0, 2)) }))
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActivities(), { wrapper })
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+    expect(result.current.data?.[0]).not.toHaveProperty('hrHistogram')
+  })
+
+  test('useActivityPages reads 50 at a time and joins the pages; the total is the server`s', async () => {
+    const { calls } = mockApi(allRoutes({ 'GET /api/activities': activityRoute(rows) }))
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActivityPages({ from: '2026-03-01' }), { wrapper })
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+    expect(result.current.data).toMatchObject({ total: 1203 })
+    expect(result.current.data?.items).toHaveLength(50)
+    expect(result.current.hasNextPage).toBe(true)
+
+    await act(() => result.current.fetchNextPage())
+    await waitFor(() => {
+      expect(result.current.data?.items).toHaveLength(100)
+    })
+    expect(result.current.data?.items.map((a) => a.id)).toEqual(rows.slice(0, 100).map((a) => a.id))
+    expect(calls.map((c) => c.url)).toEqual([
+      '/api/activities?from=2026-03-01&limit=50&offset=0',
+      '/api/activities?from=2026-03-01&limit=50&offset=50',
+    ])
+  })
+
+  test('useActivityPages has no next page after the last one', async () => {
+    mockApi(allRoutes({ 'GET /api/activities': activityRoute(rows.slice(0, 30)) }))
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActivityPages(), { wrapper })
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+    expect(result.current.data?.items).toHaveLength(30)
+    expect(result.current.hasNextPage).toBe(false)
+  })
+
+  test('a write refetches the statistics along with the list', async () => {
+    const { calls } = mockApi(allRoutes())
+    const { wrapper } = setup()
+    const { result } = renderHook(
+      () => ({
+        stats: useStats(),
+        pages: useActivityPages(),
+        create: useCreateActivity(),
+      }),
+      { wrapper },
+    )
+    await waitFor(() => {
+      expect(result.current.stats.isSuccess).toBe(true)
+      expect(result.current.pages.isSuccess).toBe(true)
+    })
+    const before = calls.length
+
+    await act(() => result.current.create.mutateAsync(activityInput))
+    await waitFor(() => {
+      expect(calls.slice(before).map((c) => c.url)).toContain('/api/stats')
+    })
+    expect(calls.slice(before).map((c) => c.url)).toContain('/api/activities?limit=50&offset=0')
   })
 })
 

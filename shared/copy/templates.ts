@@ -7,6 +7,7 @@
 // their templates into `TEMPLATES`.
 import type { InputFact } from '../engine/types.ts'
 import type { Units } from '../types.ts'
+import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
 import { SYNC_TEMPLATES } from './sync.ts'
@@ -15,6 +16,7 @@ import { TODAY_TEMPLATES } from './today.ts'
 export const TEMPLATES = {
   ...TODAY_TEMPLATES,
   ...DATA_IN_USE_TEMPLATES,
+  ...ACTIVITY_LIST_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',

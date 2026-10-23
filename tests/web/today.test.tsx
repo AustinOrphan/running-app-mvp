@@ -5,7 +5,7 @@ import type { Activity, TodayView } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
 import { makeActivity } from '../factories.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makeSession, makeToday, TODAY } from './today-fixtures.ts'
 
 // Stands in for the real drawer (Task E14) so the wiring is visible: which rules it was opened with.
@@ -33,7 +33,7 @@ function renderToday(today: TodayView, activities: Activity[] = [], extra: MockR
     'GET /api/plan': () => null,
     'GET /api/weeks': () => [],
     'GET /api/reviews': () => [],
-    'GET /api/activities': () => activities,
+    'GET /api/activities': () => activityPage(activities),
     'GET /api/settings': () => settings,
     ...extra,
   })
@@ -356,7 +356,7 @@ describe('Today: How did it go? toast', () => {
     let saved = false
     const run = makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })
     renderToday(makeToday(), [], {
-      'GET /api/activities': () => (saved ? [{ ...run, rpe: 6 }] : [run]),
+      'GET /api/activities': () => activityPage(saved ? [{ ...run, rpe: 6 }] : [run]),
       'PATCH /api/activities/r1/feedback': () => {
         saved = true
         return {}

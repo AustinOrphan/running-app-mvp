@@ -5,7 +5,7 @@ import type { PlanSession } from '../../shared/types.ts'
 import { SessionSheet } from '../../web/components/SessionSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { makeActivity } from '../factories.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makeSession, settings } from './plan-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -35,7 +35,7 @@ function renderSheet(session: PlanSession, extra: MockRoutes = {}) {
   const onClose = vi.fn()
   const api = mockApi({
     'GET /api/settings': () => settings,
-    'GET /api/activities': () => nearby,
+    'GET /api/activities': () => activityPage(nearby),
     ...extra,
   })
   renderWithProviders(
@@ -270,7 +270,7 @@ describe('SessionSheet', () => {
     const dialog = await screen.findByRole('dialog')
     const select = await within(dialog).findByLabelText('Link an activity')
     expect(calls.find((c) => c.url.startsWith('/api/activities'))?.url).toBe(
-      '/api/activities?from=2027-01-06&to=2027-01-20',
+      '/api/activities?from=2027-01-06&to=2027-01-20&limit=500&offset=0',
     )
     const link = within(dialog).getByRole('button', { name: 'Link' })
     expect(link).toBeDisabled()

@@ -7,7 +7,7 @@ import type { Express } from 'express'
 import request from 'supertest'
 import type { Test } from 'supertest'
 import { inject } from 'vitest'
-import type { Units } from '../../shared/types.ts'
+import type { ActivityListItem, ActivityListPage, Units } from '../../shared/types.ts'
 import { createApp } from '../../server/app.ts'
 import { signSession } from '../../server/auth/session.ts'
 import type { Config } from '../../server/config.ts'
@@ -90,4 +90,21 @@ export function client(ctx: TestCtx, user?: TestUser) {
     put: (url: string) => prepare(agent.put(url)),
     delete: (url: string) => prepare(agent.delete(url)),
   }
+}
+
+/**
+ * The rows `GET /api/activities` answers with, newest first. `query` is the query string without
+ * the `?`; it names filters and, if needed, one page (`limit`, `offset`). The envelope (`total`,
+ * `nextOffset`) is for tests that read the response themselves.
+ */
+export async function listActivities(
+  ctx: TestCtx,
+  user: TestUser,
+  query = '',
+): Promise<ActivityListItem[]> {
+  const res = await client(ctx, user).get(`/api/activities${query === '' ? '' : `?${query}`}`)
+  if (res.status !== 200) {
+    throw new Error(`GET /api/activities?${query} answered ${String(res.status)}`)
+  }
+  return (res.body as ActivityListPage).items
 }

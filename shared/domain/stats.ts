@@ -1,21 +1,4 @@
-import type { ActivityCore } from '../types.ts'
-
-export interface FastestEffort {
-  label: string
-  targetM: number
-  activityId: string
-  date: string
-  distanceM: number
-  durationSec: number
-  paceSecPerKm: number
-}
-
-export interface PeriodTotal {
-  runMin: number
-  runM: number
-  runs: number
-  longestRunMin: number
-}
+import type { ActivityCore, FastestEffort, PeriodTotal, StatsView } from '../types.ts'
 
 const EFFORT_TARGETS: ReadonlyArray<{ label: string; targetM: number }> = [
   { label: '1 mi', targetM: 1609.344 },
@@ -41,7 +24,8 @@ function isFasterOrEarlier(a: ActivityCore, b: ActivityCore): boolean {
   const left = a.durationSec * (b.distanceM ?? 0)
   const right = b.durationSec * (a.distanceM ?? 0)
   if (left !== right) return left < right
-  return a.date < b.date
+  // The id settles a full tie, so the answer does not depend on the order the rows arrive in.
+  return a.date !== b.date ? a.date < b.date : a.id < b.id
 }
 
 export function fastestEfforts(activities: ActivityCore[]): FastestEffort[] {
@@ -114,7 +98,23 @@ export function longestRuns<T extends ActivityCore>(activities: T[], limit = 10)
   return activities
     .filter((a) => a.type === 'run' && counts(a))
     .sort(
-      (a, b) => b.durationSec - a.durationSec || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0),
+      (a, b) =>
+        b.durationSec - a.durationSec ||
+        (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
     )
     .slice(0, limit)
+}
+
+/**
+ * Every statistic of a history, in one value: what `GET /api/stats` returns. The result does not
+ * depend on the order of `activities`.
+ */
+export function statsOf(activities: ActivityCore[]): StatsView {
+  return {
+    monthly: monthlyTotals(activities),
+    yearly: yearlyTotals(activities),
+    efforts: fastestEfforts(activities),
+    longest: longestRuns(activities),
+  }
 }
