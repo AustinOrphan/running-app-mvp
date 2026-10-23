@@ -59,7 +59,7 @@ Last update: 2026-10-23.
   `formatQuantity`, `describeParamValue` in the runner's units, `expectCleanCopy`) and ADR 0010.
   Gates on the merged branch: `npm run check` (123 files, 3336 tests), `npm run build`,
   `npm run test:e2e` (18), `docker build .` (the migration applies), owner validation unchanged
-  apart from the date. Adversarial review: see below..
+  apart from the date. Adversarial review: see below.
 - Known from E4-1, to fix in wave 1: four Param notes (`h8.weightLossToleranceMaxPct`,
   `pain.flagScore`, `h12.laterStepLongRunMaxMin`, `l1.sameDistanceTolerancePct`) and the G-6 rule
   title ("Never make up missed volume") fail the G5 lint; a drawer test that opens them with
@@ -69,6 +69,14 @@ Last update: 2026-10-23.
   #541 (persist `qualitySessions` and `isRecovery` on `PlanWeek` so a re-plan stops reporting a
   phantom change). The integration branch takes `main` after they merge; the two `2026-10-22.3`
   versions are reconciled to `2026-10-23.1` there.
+
+- **Session identity (E3-7, the contract for the publish channel in E1):** a session's `externalId`
+  is its only durable identity, kept by owner moves, swaps, skips and restores and by every
+  re-plan that leaves it on the same day and kind (`pairSessions` in
+  `shared/domain/sessionIdentity.ts`), carried by a regenerate for sessions dated today or later,
+  and new when a re-plan changes its day or kind, so E1 publishes under
+  `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
+  and derives no id from the date, the kind or the order.
 
 ## Wave 0 adversarial review (2026-10-23)
 
