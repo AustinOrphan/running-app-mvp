@@ -5,10 +5,13 @@ import type {
   ChecklistResult,
   ExecutionAssessment,
   Feasibility,
+  Grade,
+  InputFact,
   Param,
   PlanChange,
   Prediction,
   ReadinessSnapshot,
+  ResolvedTargets,
   SessionFlag,
   SessionKind,
   SessionSpec,
@@ -421,6 +424,139 @@ export interface TodayView {
   checkin: Checkin | null
   readiness: ReadinessSnapshot
   unrated: Activity[]
+}
+// ---- Today as a coach (phase 3a, section 7) ----------------------------------------------------
+// The pure pieces are `readinessSignals`, `readinessVerdict`, `rangeLabel`, `weekStrip` and
+// `isoDateInZone`; the service composes them into `TodayCoach` (E2-4). Sentences are never kept in
+// these types: a signal, a verdict and a health note hold a template id and its slots, and
+// `renderFact` (`shared/copy/templates.ts`) writes the words in the runner's units.
+
+/** The readings a readiness signal can come from, in the order the list leans on them. */
+export type ReadinessSignalCode = 'illness' | 'pain' | 'hrv' | 'resting-hr' | 'sleep' | 'checkin'
+/** One reading behind the verdict. `noted` is set for a reading the verdict leans on. */
+export interface ReadinessSignal extends Pick<InputFact, 'template' | 'slots'> {
+  code: ReadinessSignalCode
+  noted: boolean
+}
+export type ReadinessVerdictCode =
+  'ready' | 'low-stays' | 'easy' | 'rest' | 'lighter-week' | 'no-signals'
+/** The one line that says what readiness means for today. */
+export interface ReadinessVerdict extends Pick<InputFact, 'template' | 'slots'> {
+  code: ReadinessVerdictCode
+}
+/**
+ * How wide a race prediction has to be (`rangeLabel`): the least half-width the interval may
+ * have, the rules that set it and the evidence grade of that floor. `wide` marks the ultra floor
+ * [L4], where the range is wide on purpose.
+ */
+export interface RangeLabel {
+  wide: boolean
+  /** Percent of the predicted time. */
+  minHalfWidthPct: number
+  rules: string[]
+  grade: Grade
+}
+/** A session's targets plus the climbing line, as the hero shows them. */
+export interface TodayTarget extends ResolvedTargets {
+  climbNote: string | null
+}
+export interface TodayHero {
+  /** The session as planned. */
+  session: PlanSession
+  advice: TodayAdvice
+  reasons: string[]
+  /** The J3 downgrade of `session`; set only for the advice `downgrade-easy`. */
+  eased: PlanSession | null
+  /** Targets of the session as it will be run (the eased one when there is one); null for rest. */
+  target: TodayTarget | null
+  /** The logged run linked to the session. */
+  linkedRun: Activity | null
+  /** The day's other sessions (strength, mobility). */
+  others: PlanSession[]
+}
+/**
+ * How a day of the week strip reads. A past day whose run is still to be done and has no logged
+ * run is `unlogged` ("planned, no run logged"); the strip has no wording for a miss.
+ */
+export type WeekStripMark = 'done' | 'partial' | 'skipped' | 'planned' | 'unlogged' | 'free'
+export interface WeekStripDay {
+  date: string
+  mark: WeekStripMark
+  isToday: boolean
+  /** Run minutes logged on the day. */
+  runMin: number
+  /** Every session of the day, in order; a tap on the day opens them. */
+  sessions: PlanSession[]
+}
+export interface WeekStrip {
+  /** Monday. */
+  weekStart: string
+  /** Seven days, Monday first. */
+  days: WeekStripDay[]
+  /** Run minutes logged this week. */
+  runMin: number
+  /** The plan week's target; null outside the plan. */
+  targetRunMin: number | null
+  /** The advisory split of what is left through Sunday; null without a target. */
+  remaining: { remainingMin: number; remainingDays: number; perDayMin: number | null } | null
+}
+export interface TodayRace {
+  goalId: string
+  name: string
+  targetDate: string
+  dateProvisional: boolean
+  daysToRace: number
+  /** Null when the athlete's state supports no source. */
+  prediction: Pick<Prediction, 'method' | 'predictedSec' | 'lowSec' | 'highSec'> | null
+  range: RangeLabel
+}
+/** The newest weekly, break or review update of the last seven days, as the plan stored it. */
+export interface ChangeLine {
+  id: string
+  createdAt: string
+  reason: PlanRevisionReason
+  summary: string
+}
+/** A note from a registered producer (sync paused, weekly update not run, ...). */
+export interface HealthNote extends Pick<InputFact, 'template' | 'slots'> {
+  code: string
+  /** Where the note leads, or null. */
+  href: string | null
+}
+export interface TodayHealth {
+  possibleDuplicates: number
+  pastUnconfirmedWeeks: number
+  lastWeekReady: boolean
+  notes: HealthNote[]
+}
+/**
+ * What the named Today slots hold. Each owning epic gives its slot a type (disruption E5, fuel
+ * and fuelPrompt E6, watch E1, brief E4); until then a slot is null and takes no height.
+ */
+export interface TodaySlots {
+  disruption: null
+  fuel: null
+  watch: null
+  brief: null
+  fuelPrompt: null
+}
+export interface TodayCoach {
+  /** ISO instant the payload was composed. */
+  generatedAt: string
+  /** True for a day after today: no verdict, no signals, nothing written. */
+  preview: boolean
+  verdict: ReadinessVerdict | null
+  /** At most `SIGNAL_LIMIT`, noted readings first. */
+  signals: ReadinessSignal[]
+  /** Null when the day has no session. */
+  hero: TodayHero | null
+  /** The next session after the viewed day. */
+  next: PlanSession | null
+  weekStrip: WeekStrip | null
+  race: TodayRace | null
+  change: ChangeLine | null
+  health: TodayHealth
+  slots: TodaySlots
 }
 /** A proposed zone change that the owner accepts or declines; `id` is stable for one proposal. */
 export type ZoneProposalView = ZoneProposal & { id: string }

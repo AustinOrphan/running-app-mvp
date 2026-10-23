@@ -1,8 +1,9 @@
 // Race prediction with an interval and its method [rules section l]. Pure: no I/O, no clock.
+import type { RangeLabel } from '../types.ts'
 import { estimateState } from './athlete.ts'
 import { heatPenaltyPct } from './heat.ts'
 import { P } from './params/index.ts'
-import type { AthleteState, EngineInput, Prediction } from './types.ts'
+import type { AthleteState, EngineInput, Param, Prediction } from './types.ts'
 
 /** What is being predicted: the course, not the athlete. */
 export interface PredictTarget {
@@ -222,10 +223,31 @@ function basePrediction(state: AthleteState, target: PredictTarget): Base | null
   return { sec, estimates }
 }
 
+/** The Param that sets the least half-width of the interval for a course of this distance. */
+function halfWidthFloor(distanceM: number): Param {
+  if (distanceM <= P.l1.riegelMaxTargetM.value) return P.l6.minBandPct
+  if (distanceM <= P.d1.ultraAboveM.value) return P.l2.marathonMinHalfWidthPct
+  return P.l4.ultraMinHalfWidthPct
+}
+
 function minHalfWidthPct(target: PredictTarget): number {
-  if (target.distanceM <= P.l1.riegelMaxTargetM.value) return P.l6.minBandPct.value
-  if (target.distanceM <= P.d1.ultraAboveM.value) return P.l2.marathonMinHalfWidthPct.value
-  return P.l4.ultraMinHalfWidthPct.value
+  return halfWidthFloor(target.distanceM).value
+}
+
+/**
+ * How wide a prediction for this course has to be: the interval floor of `predictFromState` with
+ * the rules that set it and its grade, so the Today countdown labels the range from the same
+ * Params the interval uses [rules L2, L4, L6]. `wide` is true for an ultra, where the floor is a
+ * grade D default and the range is wide on purpose; the label never narrows an interval.
+ */
+export function rangeLabel(target: Pick<PredictTarget, 'distanceM'>): RangeLabel {
+  const floor = halfWidthFloor(target.distanceM)
+  return {
+    wide: target.distanceM > P.d1.ultraAboveM.value,
+    minHalfWidthPct: floor.value,
+    rules: [...new Set([floor.rule, 'L6'])].sort(),
+    grade: floor.grade,
+  }
 }
 
 /**
