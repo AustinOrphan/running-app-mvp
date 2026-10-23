@@ -1,0 +1,49 @@
+/* The `fuel` slot is 26 px tall at 360 px: one line of text (22 px) with a hairline of padding, a
+   whole-row summary to tap, and no wrapping. The disclosure opens below the line, past the
+   budget, because the runner asked for it. */
+.line {
+  min-width: 0;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  height: 1.625rem;
+  padding: 0.125rem 0;
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  cursor: pointer;
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary::after {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--accent);
+  content: '+';
+  font-weight: 600;
+}
+
+.line[open] > .summary::after {
+  content: '−';
+}
+
+.summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.heading {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: lining-nums tabular-nums;
+}

@@ -71,6 +71,8 @@ export function invalidateActivityData(queryClient: QueryClient): Promise<unknow
       keys.predictions,
       keys.state,
       keys.stats,
+      // A run's fuel log is read against its elapsed time and weather, and the ladder against its logs.
+      keys.fuel,
     ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
   )
 }

@@ -2,12 +2,20 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { describe, expect, test } from 'vitest'
+import { stepNote } from '../../shared/engine/fuelCopy.ts'
 import type { ExecutionAssessment } from '../../shared/engine/types.ts'
-import type { ActivityDetail, Feel, PlanWithSessions, Units } from '../../shared/types.ts'
+import type {
+  ActivityDetail,
+  Feel,
+  FuelLogView,
+  PlanWithSessions,
+  Units,
+} from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { makeActivity } from '../factories.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { loggedRun, logOf, makeLab, saved } from './fuel-fixtures.ts'
+import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makeSession, makeV2Plan } from './plan-fixtures.ts'
 
 function makeDetail(over: Partial<ActivityDetail> = {}): ActivityDetail {
@@ -609,5 +617,141 @@ describe('ActivityDetailPage', () => {
       'href',
       '/activities',
     )
+  })
+})
+
+describe('ActivityDetailPage: the Fuel section', () => {
+  const longRun = (over: Parameters<typeof makeActivity>[0] = {}) =>
+    makeDetail({
+      activity: makeActivity({
+        id: 'a1',
+        date: '2026-03-02',
+        durationSec: 3 * 3600,
+        distanceM: 30000,
+        tempC: 12,
+        humidityPct: 60,
+        windKph: 5,
+        ...over,
+      }),
+    })
+  const runs = [loggedRun(1, { servings: 6, gut: 1, nausea: 0, activityId: 'a1' })]
+
+  test('is not there for a short run, and nothing asks for a log', async () => {
+    const short = renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'Run' })
+    expect(screen.queryByRole('region', { name: 'Fuel' })).not.toBeInTheDocument()
+    expect(short.calls.some((call) => call.url.startsWith('/api/fuel'))).toBe(false)
+  })
+
+  test('is not there for a long activity that is not a run', async () => {
+    const api = renderDetail({ detail: longRun({ type: 'strength' }) })
+    await screen.findByRole('heading', { level: 1, name: 'Strength' })
+    expect(screen.queryByRole('region', { name: 'Fuel' })).not.toBeInTheDocument()
+    expect(api.calls.some((call) => call.url.startsWith('/api/fuel'))).toBe(false)
+  })
+
+  test('a long run without a log says so and offers Log fuel, which opens the form', async () => {
+    const user = userEvent.setup()
+    renderDetail({
+      detail: longRun(),
+      routes: { 'GET /api/fuel/logs/a1': () => null, 'GET /api/fuel': () => makeLab() },
+    })
+    const section = await screen.findByRole('region', { name: 'Fuel' })
+    expect(await within(section).findByText('No fuel log for this run yet.')).toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: 'Log fuel' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Fuel log' })
+    expect(await within(sheet).findByRole('button', { name: 'Save fuel log' })).toBeInTheDocument()
+    await user.click(within(sheet).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog', { name: 'Fuel log' })).not.toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Log fuel' })).toHaveFocus()
+  })
+
+  test('shows what was logged, the total against the target, the scores and whether it counted', async () => {
+    renderDetail({
+      detail: longRun(),
+      routes: {
+        'GET /api/fuel/logs/a1': () => logOf(runs, 'a1'),
+        'GET /api/fuel': () => makeLab(runs),
+      },
+    })
+    const section = await screen.findByRole('region', { name: 'Fuel' })
+    expect(await within(section).findByText('6 × Example gel')).toBeInTheDocument()
+    expect(
+      within(section).getByText(
+        'You took 150 g of carbohydrate in 3 h: 50 g/h. Target was 30 to 50 g/h.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section).getByText('Mild, 1 of 4')).toBeInTheDocument()
+    expect(within(section).getByText('None, 0 of 4')).toBeInTheDocument()
+    expect(within(section).getByText('Counted toward your ladder.')).toBeInTheDocument()
+    expect(within(section).getByText(stepNote(logOf(runs, 'a1').step))).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Edit fuel log' })).toBeInTheDocument()
+    expectCleanCopy(section)
+  })
+
+  test('a run marked "not this time" shows the reason and still offers Log fuel', async () => {
+    const skipped = loggedRun(1, { activityId: 'a1' })
+    skipped.log.skipped = true
+    renderDetail({
+      detail: longRun(),
+      routes: { 'GET /api/fuel/logs/a1': () => logOf([skipped], 'a1') },
+    })
+    const section = await screen.findByRole('region', { name: 'Fuel' })
+    expect(
+      await within(section).findByText(
+        'Not logged this time, so this run does not count toward your ladder.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Log fuel' })).toBeInTheDocument()
+  })
+
+  test('says the log did not load, in an alert, and offers no button', async () => {
+    renderDetail({
+      detail: longRun(),
+      routes: {
+        'GET /api/fuel/logs/a1': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'No.' } },
+        }),
+      },
+    })
+    const section = await screen.findByRole('region', { name: 'Fuel' })
+    expect(await within(section).findByRole('alert')).toHaveTextContent(
+      'The fuel log did not load. Reload the page to try again.',
+    )
+    expect(within(section).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  test('editing the log saves it, closes the sheet, reads the log again and keeps focus on the button', async () => {
+    const user = userEvent.setup()
+    let current: FuelLogView | null = logOf(runs, 'a1')
+    const better = [loggedRun(1, { servings: 6, gut: 0, nausea: 0, activityId: 'a1' })]
+    const api = renderDetail({
+      detail: longRun(),
+      routes: {
+        'GET /api/fuel/logs/a1': () => current,
+        'GET /api/fuel': () => makeLab(runs),
+        'PUT /api/fuel/logs/a1': () => {
+          current = logOf(better, 'a1')
+          return saved(better, 'a1')
+        },
+      },
+    })
+    const section = await screen.findByRole('region', { name: 'Fuel' })
+    await user.click(await within(section).findByRole('button', { name: 'Edit fuel log' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Fuel log' })
+    await user.click(
+      within(within(sheet).getByRole('radiogroup', { name: 'Gut' })).getByRole('radio', {
+        name: '0 None',
+      }),
+    )
+    await user.click(within(sheet).getByRole('button', { name: 'Save fuel log' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Fuel log' })).not.toBeInTheDocument()
+    })
+    expect(api.calls.filter((call) => call.method === 'PUT')).toHaveLength(1)
+    expect(await within(section).findByText('Counted toward your ladder.')).toBeInTheDocument()
+    expect(within(section).queryByText('Mild, 1 of 4')).not.toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Edit fuel log' })).toHaveFocus()
   })
 })
