@@ -5,6 +5,7 @@
 //
 // Ids are `<area>.<name>`. Epics add their own files (`today.ts`, `revision.ts`, ...) and spread
 // their templates into `TEMPLATES`.
+import { FUEL_TEMPLATES } from '../engine/fuelCopy.ts'
 import type { InputFact } from '../engine/types.ts'
 import type { Units } from '../types.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
@@ -15,6 +16,7 @@ import { TODAY_TEMPLATES } from './today.ts'
 export const TEMPLATES = {
   ...TODAY_TEMPLATES,
   ...DATA_IN_USE_TEMPLATES,
+  ...FUEL_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',
