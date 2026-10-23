@@ -29,7 +29,7 @@ import {
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
-import { macroPlan, redsHold, startPath } from './macro.ts'
+import { macroPlanDraft, redsHold, startPath } from './macro.ts'
 import { holdSessions, placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { planWindows, postRaceWarnings } from './postRace.ts'
@@ -226,7 +226,8 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
   const currentMonday = mondayOf(today)
   const pastWeeks = (input.existing?.weeks ?? []).filter((w) => w.weekStart < currentMonday)
   const macro: WeekDraft[] = []
-  for (const w of macroPlan(input, state, goal, feas)) {
+  const { weeks: macroWeeks, raceWeekTail } = macroPlanDraft(input, state, goal, feas)
+  for (const w of macroWeeks) {
     let week: WeekDraft = {
       ...capWeek(w, input.weekCaps?.[w.weekStart]),
       index: w.index + weekOffset,
@@ -430,11 +431,36 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     const inside = sessions.filter((s) => s.date < goal.date || mondayOf(s.date) > raceMonday)
     // hold days after a race are rest days, the race week's included [rules H12]
     const rest = holdSessions(week, zones, windows, today).filter((s) => !keptDates.has(s.date))
-    placed.push(...inside, ...rest)
-    history.push(...inside)
+    // The days of the race week after the hold carry the first return step: easy runs within its
+    // caps, counted with the step's runs of the weeks after [rules H12].
+    const afterRace =
+      raceWeekTail !== null && raceWeekTail.targetRunMin > 0 && week.weekStart === raceMonday
+        ? placeWeek(raceWeekTail, {
+            profile: closeDates(
+              input.profile,
+              week.weekStart,
+              new Set([
+                ...closed,
+                ...[0, 1, 2, 3, 4, 5, 6]
+                  .map((i) => addDays(week.weekStart, i))
+                  .filter((date) => date <= goal.date),
+              ]),
+            ),
+            zones,
+            state,
+            prevSessions: [...history, ...inside],
+            limits: {
+              runs: [...records, ...inside.filter((s) => VOLUME_KINDS.has(s.kind)).map(recordOf)],
+              virtualTwoDay: completed.virtualTwoDay,
+            },
+            postRace: windows,
+          }).filter((s) => !keptDates.has(s.date))
+        : []
+    placed.push(...inside, ...rest, ...afterRace)
+    history.push(...inside, ...afterRace)
 
     // The week enters the baselines and its runs the 30-day reference, as the guards count them.
-    const ahead = [...inside, ...keptToRun].filter((s) => s.date >= today)
+    const ahead = [...inside, ...afterRace, ...keptToRun].filter((s) => s.date >= today)
     volumes.set(week.weekStart, done.minutes + runningMinutes(ahead))
     gains.set(week.weekStart, done.gain + runningGain(ahead))
     for (const s of ahead.sort(bySlot)) {

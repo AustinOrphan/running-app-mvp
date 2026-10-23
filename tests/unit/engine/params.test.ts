@@ -178,10 +178,13 @@ describe('parameter registry', () => {
     expect(P.macroDesign.postRaceMarathonFractions.value).toEqual([0.5, 0.75])
     expect(P.macroDesign.postRaceLongFractions.value).toEqual([0.25, 0.5, 0.75])
     expect(P.macroDesign.postRaceReducedFraction.value).toBe(0.5)
-    // grade B only where one trial backs the dose; every other value is a labelled default
+    // grade B only where one trial backs the value for every class it applies to; the first-step
+    // caps are the marathon trial's dose but also bind the ultra classes, so they are defaults
     expect(hold.marathon.grade).toBe('B')
-    expect(P.h12.step1RunMaxMin.grade).toBe('B')
+    expect(P.h12.step1RunMaxMin.grade).toBe('D')
+    expect(P.h12.step1MaxRuns.grade).toBe('D')
     expect(P.h12.modifierMultiplier.grade).toBe('D')
-    expect(paramsForRule('H12')).toHaveLength(19)
+    expect(P.h12.goalRaceDistanceTolerancePct.value).toBe(10)
+    expect(paramsForRule('H12')).toHaveLength(20)
   })
 })

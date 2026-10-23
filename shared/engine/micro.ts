@@ -310,6 +310,10 @@ function planRuns(
   const light = week.isTaper || week.isRecovery || week.phase === 'taper' || week.phase === 'race'
   const fewest = light ? 1 : P.fplace.minRunsPerWeek.value
   if (startWeekPlan) return planStartRuns()
+  // A taper, race or recovery week with fewer minutes than the shortest run holds one run of those
+  // minutes, from the run day minimum up, and none under it: its target is a ceiling [rules F5, K2].
+  const small = light && week.targetRunMin < minRun
+  if (small && week.targetRunMin < P.fplace.minRunDayMin.value) return []
 
   // The long day (or the pair of days) comes first. The long run is never shorter than the
   // session minimum, and a week of several runs keeps the others at the minimum too.
@@ -395,7 +399,7 @@ function planRuns(
     fixedMin = raised
   }
   const cap0 = fixed[0]?.minutes ?? Infinity
-  const toPlace = Math.max(0, target - fixedMin, others.length * minRun)
+  const toPlace = Math.max(0, target - fixedMin, small ? 0 : others.length * minRun)
   const minutes = distribute(
     toPlace,
     others.map((d) => Math.min(slots[d]!.runMaxMin ?? slots[d]!.capMin, cap0)),

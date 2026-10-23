@@ -155,6 +155,7 @@ function postRaceDecision(
   input: EngineInput,
   weekStart: string,
   asOf: string,
+  ramp: number,
 ): WeeklyDecision | null {
   const weekEnd = addDays(weekStart, 6)
   const { own, past } = postRaceWindows(input)
@@ -183,10 +184,15 @@ function postRaceDecision(
       rules: ['H12', 'J3'],
     })
   }
+  // The last post-race week of a plan has no next week: the minutes then follow the rule of a
+  // held week, never a suggestion of 0 minutes [rules G-6, J5].
+  const actual = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
+  const plannedThis = plannedWeekMin(input, weekStart) ?? actual
   return {
     decision: 'hold',
     signals,
-    nextWeekTargetMin: next?.targetRunMin ?? 0,
+    nextWeekTargetMin:
+      next?.targetRunMin ?? Math.floor(nextWeekCap(plannedThis, actual, ramp) + 1e-9),
     postRace: {
       label,
       phase: info?.kind === 'step' ? 'step' : 'hold',
@@ -273,7 +279,7 @@ export function weeklyDecision(
   const ramp = ctx.ramp ?? P.g2.rampSoft.value
   const finished = input.today > weekEnd
   const asOf = finished ? weekEnd : input.today
-  const inWindow = postRaceDecision(input, weekStart, asOf)
+  const inWindow = postRaceDecision(input, weekStart, asOf, ramp)
   if (inWindow !== null) return inWindow
   const actual = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
 

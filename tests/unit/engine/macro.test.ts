@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { spikeWarnLimit } from '../../../shared/engine/limits.ts'
 import { macroPlan, peakLongRunMin, redsHold } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { lastWindowDay, ownWindow, windowDay } from '../../../shared/engine/postRace.ts'
@@ -815,9 +816,16 @@ describe('macroPlan: vertical gain and post-race', () => {
     }
     // the last week holds only the days the window still covers, so it can sit below the one before
     expect(post[2]?.targetRunMin).toBeGreaterThan(post[1]!.targetRunMin)
-    // a long run appears only in the third step, and stays at or under 90 min
+    // no long run before the third step, and no run of a week above the normal band of G-1 over
+    // the longest run of the weeks before it (all within 30 days here): the runs regrow at 1.10x,
+    // so the 90 min long run of the third step is reached later than its first week
     expect(post.slice(0, 2).every((w) => w.longRunMin === 0)).toBe(true)
-    expect(post[2]?.longRunMin).toBeGreaterThan(P.h12.step2RunMaxMin.value)
+    const longest = (w: WeekDraft) =>
+      w.runDays === 0 ? 0 : Math.max(w.longRunMin, Math.ceil(w.targetRunMin / w.runDays))
+    for (let i = 2; i < post.length; i++) {
+      const before = Math.max(...post.slice(0, i).map(longest))
+      expect(longest(post[i]!)).toBeLessThanOrEqual(spikeWarnLimit(before, P.g1.minStepMin.value))
+    }
     expect(post[0]?.focus).toMatch(/After the race/)
     expect(post[1]?.runDays).toBeLessThanOrEqual(P.h12.step1MaxRuns.value)
     expect(post[1]?.targetRunMin).toBeGreaterThan(0)

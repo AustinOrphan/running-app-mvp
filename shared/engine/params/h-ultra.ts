@@ -431,7 +431,7 @@ export const hUltra = {
     step1RunMaxMin: param(
       'h12.step1RunMaxMin',
       40,
-      'B',
+      'D',
       'H12',
       [
         'martinez-navarro-2021-marathon-week-rct',
@@ -440,13 +440,13 @@ export const hUltra = {
       ],
       {
         unit: 'min per run',
-        note: 'Grade B for the marathon first step: it is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate). For ultras it extrapolates to the 25-45 min jogs coaches describe and is a default there.',
+        note: 'Default. The marathon first step is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate), grade B there; the value is graded D because it also caps the first step after 50 km and longer races, where it extrapolates to the 25-45 min jogs coaches describe.',
       },
     ),
     step1MaxRuns: param(
       'h12.step1MaxRuns',
       3,
-      'B',
+      'D',
       'H12',
       [
         'martinez-navarro-2021-marathon-week-rct',
@@ -455,7 +455,7 @@ export const hUltra = {
       ],
       {
         unit: 'runs',
-        note: 'Grade B for the marathon first step: the trial ran on days 2, 4 and 6, three runs on non-consecutive days. For ultras it is an extrapolation and a default.',
+        note: 'Default. The marathon first step is the schedule of one small randomised trial (days 2, 4 and 6, three runs on non-consecutive days), grade B there; the value is graded D because it also caps the first step after 50 km and longer races, where it is an extrapolation.',
       },
     ),
     step2RunMaxMin: param(
@@ -548,6 +548,10 @@ export const hUltra = {
         note: 'Default: after the check-in gate has delayed the return this many days, the J8 clinician checklist is shown (the same 14 days as j8.deloadSuggestDays).',
       },
     ),
+    goalRaceDistanceTolerancePct: param('h12.goalRaceDistanceTolerancePct', 10, 'D', 'H12', [], {
+      unit: '% of the goal distance',
+      note: 'Default: a race logged on the goal date is the goal race itself, and has no window of its own, when its distance is within this share of the goal distance; a GPS track seldom equals the entered distance.',
+    }),
   },
   h12HoldDays: {
     marathon: param(
