@@ -11,6 +11,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { breakRestart, weekEvidence } from './adapt.ts'
 import { bmiOf } from './athlete.ts'
+import { peakLongRunMin, peakWeeklyMin, trainingPace } from './goal.ts'
 import {
   completedReference,
   gainLimit,
@@ -21,7 +22,6 @@ import {
   referenceBetween,
   runCaps,
   tightRamp,
-  ultraRunCapMin,
   weeklyGain,
   weeklyRamp,
   type RampContext,
@@ -71,15 +71,11 @@ const EPS = 1e-9
 const floorEps = (x: number) => Math.floor(x + EPS)
 const floorTo10 = (x: number) => Math.floor((x + EPS) / 10) * 10
 
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  const hi = sorted[mid] ?? 0
-  return sorted.length % 2 === 1 ? hi : ((sorted[mid - 1] ?? hi) + hi) / 2
-}
-
 /** Weekly ramp that applies to this athlete [rules G-2, G-3]; defined with the other limits. */
 export { weeklyRamp }
+
+/** The long-run ceiling of a goal is defined with the goal model (goal.ts), which the feasibility reads too. */
+export { peakLongRunMin }
 
 /**
  * Two or more flags on the latest energy-availability screening hold progression [rules n-4, J5]:
@@ -136,74 +132,6 @@ export function taperMultipliers(weeks: number): number[] {
   if (weeks >= 3) return P.k2.threeWeekMultipliers.value
   if (weeks === 2) return two
   return [two[two.length - 1] ?? 0]
-}
-
-/** Average training pace in sec/km: recent weeks, else the goal pace slowed, else a default. */
-function trainingPace(state: AthleteState, goal: GoalModel): number {
-  const paces = state.weeks
-    .slice(-4)
-    .filter((w) => w.runM > 0 && w.runMin > 0)
-    .map((w) => (w.runMin * 60) / (w.runM / 1000))
-  if (paces.length > 0) return median(paces)
-  if (goal.expectedDurationSec > 0 && goal.distanceM > 0) {
-    return (
-      (goal.expectedDurationSec / (goal.distanceM / 1000)) * P.macroDesign.trainingPaceFactor.value
-    )
-  }
-  return P.macroDesign.defaultEasyPaceSecPerKm.value
-}
-
-/** Minutes of running that cover `km` at the training pace. */
-const minutesFor = (km: number, paceSecPerKm: number) => Math.ceil((km * paceSecPerKm) / 60)
-
-/** The weekly-minutes ceiling for the goal: the class peak, lifted to the D3 floor for time goals. */
-function peakWeeklyMin(goal: GoalModel, pace: number): number {
-  let peak = P.peakWeeklyMin[goal.distanceClass].value
-  if (goal.goalType === 'time') {
-    if (goal.distanceClass === 'half') {
-      peak = Math.max(peak, minutesFor(P.d3.halfMinWeeklyKm.value, pace))
-    } else if (goal.distanceClass === 'marathon') {
-      peak = Math.max(peak, minutesFor(P.d3.marathonMinWeeklyKm.value, pace))
-    }
-  }
-  return peak
-}
-
-/**
- * The long-run tier of a 5 km or 10 km goal [rules D7]: 0 below the first boundary of
- * `macroDesign.longRunTierWeeklyMin`, 1 up to and including the second, 2 above it. It is read from
- * the completed typical week, never from a planned one, so a plan cannot lift its own cap.
- */
-function longRunTier(state: AthleteState): 0 | 1 | 2 {
-  const [low, high] = P.macroDesign.longRunTierWeeklyMin.value
-  if (state.typicalWeekMin < low) return 0
-  return state.typicalWeekMin <= high ? 1 : 2
-}
-
-/**
- * Longest planned run in minutes. 5 km and 10 km goals take the tier of the completed typical week
- * and stop at the minutes that 16 km takes at `pace` [rules D7]; ultras are capped by the lesser of
- * 6 h and 60% of the race [H2].
- */
-export function peakLongRunMin(goal: GoalModel, pace: number, state: AthleteState): number {
-  const table = P.peakLongRunMin[goal.distanceClass].value
-  let peak: number
-  if (typeof table === 'number') {
-    peak = table
-  } else {
-    const kmMin = floorEps((P.macroDesign.peakLongRunKmMax.value * pace) / 60)
-    peak = Math.min(table[longRunTier(state)], kmMin)
-  }
-  if (goal.goalType === 'time') {
-    if (goal.distanceClass === 'half') {
-      peak = Math.max(peak, minutesFor(P.d3.halfMinLongRunKm.value, pace))
-    } else if (goal.distanceClass === 'marathon') {
-      peak = Math.max(peak, minutesFor(P.d3.marathonMinLongRunKm.value, pace))
-    }
-  }
-  const cap = goal.isUltra ? ultraRunCapMin(goal.expectedDurationSec) : null
-  if (cap !== null) peak = Math.min(peak, cap)
-  return peak
 }
 
 /** Z1/Z2/Z3 shares of running time [rules E4]; Z1 never below its floor, Z2 never above Z1. */
@@ -863,7 +791,6 @@ function planWeeks(
           ? state.typicalWeekMin
           : P.macroDesign.startFloorWeekMin.value
   const ceiling = Math.max(peakWeeklyMin(goal, pace), start)
-  const peakLong = peakLongRunMin(goal, pace, state)
   const hasGain = goal.gainM > 0 && goal.distanceM > 0
   const gainPerKm = hasGain ? goal.gainM / (goal.distanceM / 1000) : 0
   const gainStep = P.h4.minStepGainM.value
@@ -871,15 +798,26 @@ function planWeeks(
   // (sessions.ts), and otherwise takes the week's long-run distance at the training pace.
   const z1 = buildZones(input.profile, state, input.today).pace?.z1 ?? null
   const runPace = z1 === null ? pace : (z1[0] + z1[1]) / 2
+  // The D7 distance cap of a 5 km or 10 km long run is measured at the pace the run is carried at,
+  // so a runner whose zone 1 is faster than the logged runs gets the minutes of 16 km at that pace.
+  const peakLong = peakLongRunMin(goal, pace, state, runPace)
+  const shortRace = goal.distanceClass === '5k' || goal.distanceClass === '10k'
+  const longRunMaxM = shortRace ? P.macroDesign.peakLongRunKmMax.value * 1000 : Infinity
   /** The long run's distance at the training pace, within the distance limit of the week. */
   const distanceOf = (minutes: number, caps: { distanceM: number }) => {
     if (minutes <= 0) return null
     const metres = Math.round((((minutes * 60) / pace) * 1000) / 100) * 100
-    return Number.isFinite(caps.distanceM) ? Math.min(metres, Math.floor(caps.distanceM)) : metres
+    return Math.min(
+      metres,
+      longRunMaxM,
+      Number.isFinite(caps.distanceM) ? Math.floor(caps.distanceM) : Infinity,
+    )
   }
   /** The distance the long run will carry: as prescribed, rounded to 100 m. */
   const carriedM = (minutes: number, metres: number | null) =>
-    z1 === null ? metres : Math.round((((minutes * 60) / runPace) * 1000) / 100) * 100
+    z1 === null
+      ? metres
+      : Math.min(Math.round((((minutes * 60) / runPace) * 1000) / 100) * 100, longRunMaxM)
 
   const target: number[] = []
   const longRun: number[] = []

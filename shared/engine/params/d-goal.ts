@@ -226,7 +226,7 @@ export const dGoal = {
     ),
     beyond: param('d4LongRun.beyond', 270, 'D', 'D4', ['daniel-2024-217km-sleep-training'], {
       unit: 'min',
-      note: 'Default: longest single run the feasibility check works toward beyond 100 miles; back-to-backs add time on feet, H2 caps it. The only training study beyond 100 miles (217 km, n = 38) links frequency, not long-run size, to time, so this is an extrapolation.',
+      note: 'Default: longest single run the feasibility check works toward beyond 100 miles; back-to-backs add time on feet, H2 caps it. One questionnaire study beyond 100 miles (217 km, n = 38) reports training frequency, which correlates with race time; no study there tests long-run size, so this is an extrapolation.',
     }),
   },
   d4Label: {

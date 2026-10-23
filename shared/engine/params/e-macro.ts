@@ -638,10 +638,17 @@ export const eMacro = {
         note: "Default: peak long-run duration for 100 miles, capped by H2. It equals the 6 h cap and the low end of one coach's 6-7 h final long run; the default plan reaches about 270 min, and only high-volume runners approach 360.",
       },
     ),
-    beyond: param('peakLongRunMin.beyond', 360, 'D', 'design-macro', [], {
-      unit: 'min',
-      note: 'Default: peak long-run duration beyond 100 miles, capped by H2. No training data exist beyond 100 miles.',
-    }),
+    beyond: param(
+      'peakLongRunMin.beyond',
+      360,
+      'D',
+      'design-macro',
+      ['daniel-2024-217km-sleep-training'],
+      {
+        unit: 'min',
+        note: 'Default: peak long-run duration beyond 100 miles, capped by H2. One questionnaire study (daniel-2024-217km-sleep-training) reports training frequency beyond 100 miles; no study there tests long-run size, so no study sets this number.',
+      },
+    ),
   },
   // Session structure defaults (sessions.ts) where the rules give a method but not a size.
   sessionDesign: {
