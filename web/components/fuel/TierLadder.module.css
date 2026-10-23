@@ -1,0 +1,68 @@
+/* A rung is a row: its rate, the word for its state and, on a second line when the row is narrow,
+   the grade and the certainty label. The rung the next run tries has an accent edge. */
+.rungs {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rung {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, max-content) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) 0 var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border);
+  border-left: 3px solid transparent;
+}
+
+.rung:first-child {
+  border-top: 0;
+}
+
+.rung[aria-current='step'] {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.rate {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.state {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+}
+
+.rung[data-state='tolerated'] .state {
+  color: var(--success);
+}
+
+.rung[data-state='later'] .state,
+.rung[data-state='opt-in'] .state,
+.rung[data-state='opens-after-second-tier'] .state,
+.rung[data-state='gut-condition'] .state {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.meta {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.certainty {
+  font-weight: 500;
+}

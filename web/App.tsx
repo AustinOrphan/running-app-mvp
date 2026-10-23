@@ -7,6 +7,7 @@ import { Layout } from './components/Layout.tsx'
 import { ActivitiesPage } from './pages/ActivitiesPage.tsx'
 import { ActivityDetailPage } from './pages/ActivityDetailPage.tsx'
 import { DashboardPage } from './pages/DashboardPage.tsx'
+import { FuelLabPage } from './pages/FuelLabPage.tsx'
 import { GoalsPage } from './pages/GoalsPage.tsx'
 import { IntegrationsPage } from './pages/IntegrationsPage.tsx'
 import { LoginPage } from './pages/LoginPage.tsx'
@@ -67,6 +68,7 @@ export function App() {
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/research" element={<ResearchPage />} />
+          <Route path="/fuel" element={<FuelLabPage />} />
           <Route path="/more" element={<MorePage />} />
         </Route>
       </Route>

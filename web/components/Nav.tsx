@@ -134,7 +134,7 @@ const primary: Item[] = [
   {
     to: '/more',
     label: 'More',
-    paths: ['/more', '/goals', '/stats', '/settings', '/integrations', '/profile'],
+    paths: ['/more', '/goals', '/stats', '/settings', '/integrations', '/profile', '/fuel'],
     icon: (
       <Icon>
         <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="3" />
