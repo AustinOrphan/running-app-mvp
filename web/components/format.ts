@@ -99,3 +99,8 @@ export function formatClimb(gainM: number, units: Units): string {
     ? `${String(Math.round(gainM * FEET_PER_METRE))} ft`
     : `${String(Math.round(gainM))} m`
 }
+
+/** `one` for a count of 1, `many` otherwise; the count itself is not included. */
+export function plural(count: number, one: string, many: string): string {
+  return count === 1 ? one : many
+}
