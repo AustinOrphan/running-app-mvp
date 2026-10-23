@@ -385,7 +385,7 @@ describe('the weather job fills the caches', () => {
     await runWeatherJob(ctx, { fetch: fetchFn, now: at })
   }
 
-  test('through the injected fetch, on the ages of the design, and records each run', async () => {
+  test('through the injected fetch, on the ages of the design, and records each busy run', async () => {
     const { user } = await runner('job@example.com')
     const calls: URL[] = []
     const fetchFn = fakeFetch({
@@ -410,9 +410,9 @@ describe('the weather job fills the caches', () => {
     await runAt(fetchFn, new Date(NOW.getTime() + FORECAST_REFRESH_MS))
     expect(calls).toHaveLength(5)
 
+    // The run 59 minutes later had nothing to report after an ok run: an idle run is not stored.
     expect((await jobRuns(user.id)).map((run) => [run.status, run.accepted, run.failed])).toEqual([
       ['ok', 2, 0],
-      ['ok', 0, 0],
       ['ok', 1, 0],
     ])
   })

@@ -28,6 +28,7 @@ import {
 } from '../../server/services/syncLog.ts'
 import type { SyncRunView, WellnessInput } from '../../shared/types.ts'
 import { fakeFetch, type FakeRoute } from '../fakeFetch.ts'
+import { buildFit } from '../fixtures/fit/buildFit.ts'
 import {
   client,
   createTestCtx,
@@ -37,14 +38,18 @@ import {
   type TestUser,
 } from './helpers.ts'
 
-// Every log line the server writes in this file, so a test can prove a token never reached one.
+// Every log line the server writes in this file, at every level (the real logger is silent under
+// test), so a test can prove a token never reached one. The redaction is the real logger's.
 const logged = vi.hoisted(() => ({ lines: [] as string[] }))
 vi.mock('../../server/logger.ts', async () => {
   const { pino } = await import('pino')
   return {
     createLogger: () =>
       pino(
-        { level: 'warn' },
+        {
+          level: 'debug',
+          redact: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'],
+        },
         {
           write: (chunk: string) => {
             logged.lines.push(chunk)
@@ -496,30 +501,92 @@ describe('a folder scan writes one run', () => {
     utimesSync(path, new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
   }
 
-  test('an idle scan is recorded; a scan with an unreadable file is partial and names it', async () => {
+  /** A synthetic one-session run. */
+  function fitBytes(): Uint8Array {
+    const startUnix = Date.UTC(2026, 0, 5, 7, 0, 0) / 1000
+    return buildFit({
+      serial: 7,
+      timeCreatedUnix: startUnix,
+      sessions: [
+        {
+          sport: 1,
+          startUnix,
+          durationSec: 600,
+          distanceM: 1800,
+          records: Array.from({ length: 11 }, (_, i) => ({
+            t: i * 60,
+            distanceM: i * 180,
+            speedMps: 3,
+            hr: 140 + i,
+          })),
+        },
+      ],
+    })
+  }
+
+  async function folderRuns(): Promise<SyncRunView[]> {
+    const res = await client(ctx, user).get('/api/integrations/folder/runs')
+    expect(res.status).toBe(200)
+    return res.body as SyncRunView[]
+  }
+
+  test('a scheduled scan that finds nothing is stored once, not every five minutes', async () => {
     await watch(dir)
     await scanFolderIntegration(deps(), user.id)
-    put('broken.fit', new Uint8Array([1, 2, 3, 4]))
-    await scanFolderIntegration(deps(), user.id, { trigger: 'manual' })
-
-    const res = await client(ctx, user).get('/api/integrations/folder/runs')
-    const [second, first] = res.body as SyncRunView[]
-    expect(first).toMatchObject({
+    await scanFolderIntegration(deps(), user.id)
+    await scanFolderIntegration(deps(), user.id)
+    const [only, ...rest] = await folderRuns()
+    expect(rest).toEqual([])
+    expect(only).toMatchObject({
       channel: 'folder',
       trigger: 'schedule',
       status: 'ok',
       accepted: 0,
+      duplicate: 0,
       failed: 0,
       importBatchId: null,
     })
-    expect(second).toMatchObject({
+    // The integration row still tells when the last scan ran.
+    expect((await ctx.prisma.integration.findFirstOrThrow()).lastSyncAt).not.toBeNull()
+
+    // A manual scan is the owner asking, so it is stored even when it finds nothing.
+    await scanFolderIntegration(deps(), user.id, { trigger: 'manual' })
+    expect((await folderRuns()).map((run) => run.trigger)).toEqual(['manual', 'schedule'])
+  })
+
+  test('a scan with an unreadable file is partial and names it; the idle scan after it is stored once', async () => {
+    await watch(dir)
+    put('broken.fit', new Uint8Array([1, 2, 3, 4]))
+    await scanFolderIntegration(deps(), user.id, { trigger: 'manual' })
+    for (let scan = 0; scan < 3; scan += 1) await scanFolderIntegration(deps(), user.id)
+
+    const [recovery, partial, ...rest] = await folderRuns()
+    expect(rest).toEqual([])
+    expect(partial).toMatchObject({
       channel: 'folder',
       trigger: 'manual',
       status: 'partial',
       failed: 1,
     })
-    expect(second?.failures[0]?.ref).toBe('broken.fit')
-    expect(second?.importBatchId).toBeTruthy()
+    expect(partial?.failures[0]?.ref).toBe('broken.fit')
+    expect(partial?.importBatchId).toBeTruthy()
+    // The file is remembered as invalid, so the next scans find nothing; the first of them is
+    // stored, so that the newest row shows the recovery, and the rest are not.
+    expect(recovery).toMatchObject({ trigger: 'schedule', status: 'ok', accepted: 0, failed: 0 })
+  })
+
+  test('a scan with new files is stored, and so is every failed scan', async () => {
+    await watch(dir)
+    put('a.fit', fitBytes())
+    await scanFolderIntegration(deps(), user.id)
+    expect(await folderRuns()).toMatchObject([{ status: 'ok', accepted: 1 }])
+
+    await ctx.prisma.integration.updateMany({
+      data: { config: JSON.stringify({ path: join(dir, 'missing') }) },
+    })
+    await runFolderJob(deps())
+    await runFolderJob(deps())
+    expect((await folderRuns()).map((run) => run.status)).toEqual(['error', 'error', 'ok'])
   })
 
   test('an unreadable folder records an error run', async () => {
@@ -637,18 +704,54 @@ describe('recordSyncRun', () => {
     await expect(
       recordSyncRun(broken, { ...base, userId: user.id, startedAt: new Date() }),
     ).resolves.toBeUndefined()
-    // A message that cannot be turned into text is swallowed too.
-    const hostile = {
-      toString() {
-        throw new Error('no text')
-      },
-    }
-    await expect(
-      recordSyncRun(deps(), { ...base, userId: user.id, startedAt: new Date(), message: hostile }),
-    ).resolves.toBeUndefined()
     // The failure to write is logged without the text that failed, which here held a token.
     expect(logged.lines.join('')).toContain('recording a sync run failed')
     expect(logged.lines.join('')).not.toContain(BEARER)
+  })
+
+  // `textOf` falls back to JSON.stringify, which throws for both of these before anything is
+  // written: a log that cannot make text of a message must not fail the sync that finished.
+  const hostile: Array<[string, () => unknown]> = [
+    [
+      'a toJSON that throws',
+      () => ({
+        toJSON(): never {
+          throw new Error('no text')
+        },
+      }),
+    ],
+    [
+      'a circular object',
+      () => {
+        const loop: Record<string, unknown> = {}
+        loop.self = loop
+        return loop
+      },
+    ],
+  ]
+
+  test.each(hostile)('%s is swallowed: no row, one log line, no throw', async (_label, make) => {
+    await expect(
+      recordSyncRun(deps(), { ...base, userId: user.id, startedAt: new Date(), message: make() }),
+    ).resolves.toBeUndefined()
+    expect(await ctx.prisma.syncRun.count()).toBe(0)
+    expect(
+      logged.lines.filter((line) => line.includes('recording a sync run failed')),
+    ).toHaveLength(1)
+
+    logged.lines.length = 0
+    await expect(
+      recordSyncRun(deps(), {
+        ...base,
+        userId: user.id,
+        startedAt: new Date(),
+        failures: [{ ref: 'intervals:i1', reason: make() }],
+      }),
+    ).resolves.toBeUndefined()
+    expect(await ctx.prisma.syncRun.count()).toBe(0)
+    expect(
+      logged.lines.filter((line) => line.includes('recording a sync run failed')),
+    ).toHaveLength(1)
   })
 
   test('keeps the newest 200 rows per user and provider', async () => {
@@ -731,6 +834,24 @@ describe('recordSyncRun', () => {
 })
 
 describe('tokens never reach a row, a response or a log line', () => {
+  /** Searches every place a token could end up: rows, responses and the captured log lines. */
+  async function expectNoLeak(leaks: readonly string[]): Promise<void> {
+    const stored = await everythingStored()
+    const bodies = {
+      runs: JSON.stringify(await runs()),
+      integrations: JSON.stringify((await client(ctx, user).get('/api/integrations')).body),
+      imports: JSON.stringify((await client(ctx, user).get('/api/imports')).body),
+      jobs: JSON.stringify((await client(ctx, user).get('/api/jobs')).body),
+      log: logged.lines.join(''),
+    }
+    for (const leak of leaks) {
+      expect(stored, `stored: ${leak}`).not.toContain(leak)
+      for (const [name, text] of Object.entries(bodies)) {
+        expect(text, `${name}: ${leak}`).not.toContain(leak)
+      }
+    }
+  }
+
   test('a provider error that echoes the key and a bearer token is scrubbed everywhere', async () => {
     await connect()
     const fetchFn = intervals(
@@ -751,20 +872,32 @@ describe('tokens never reach a row, a response or a log line', () => {
     const log = createLogger(ctx.config)
     await runSyncJob(deps(), { fetch: fetchFn }, log)
 
-    const stored = await everythingStored()
-    for (const leak of [API_KEY, BEARER]) {
-      expect(stored, `stored: ${leak}`).not.toContain(leak)
-      expect(JSON.stringify(await runs()), `response: ${leak}`).not.toContain(leak)
-      expect(JSON.stringify((await client(ctx, user).get('/api/integrations')).body)).not.toContain(
-        leak,
-      )
-      expect(JSON.stringify((await client(ctx, user).get('/api/imports')).body)).not.toContain(leak)
-      expect(logged.lines.join(''), `log: ${leak}`).not.toContain(leak)
-    }
+    await expectNoLeak([API_KEY, BEARER])
+    // The log is captured at every level: the requests above wrote lines, so the search had text.
+    expect(logged.lines.length).toBeGreaterThan(0)
     // The failure itself is still reported.
     const [run] = await runs()
     expect(run?.failures[0]?.ref).toBe('intervals:i1')
     expect(run?.wellnessStatus).toBe('error')
+  })
+
+  test('an error that leaves a sync is logged by the scheduler without the token', async () => {
+    await connect()
+    // The write that ends a pull is the one failure `syncProvider` does not catch itself, so the
+    // scheduler logs it; the message holds a header and a key the way a client error can.
+    vi.spyOn(ctx.prisma.integration, 'updateMany').mockRejectedValueOnce(
+      new Error(`write refused: Authorization: Bearer ${BEARER} api_key=${API_KEY}`),
+    )
+    await runSyncJob(deps(), { fetch: intervals([]) }, createLogger(ctx.config))
+
+    // Positive control: the line exists and names the failure, so the search below has a target.
+    const line = logged.lines.find((text) => text.includes('scheduled sync failed'))
+    expect(line, 'the scheduler logs the sync that threw').toBeDefined()
+    expect(line).toContain('write refused')
+    await expectNoLeak([API_KEY, BEARER])
+    const [run] = await runs()
+    expect(run).toMatchObject({ status: 'error' })
+    expect(run?.message).toContain('write refused')
   })
 })
 

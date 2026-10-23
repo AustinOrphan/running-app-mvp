@@ -9,7 +9,12 @@ import { scanFolderIntegration } from '../services/folder.ts'
 import { replanActivePlan } from '../services/planEngine.ts'
 import { ensureWeeklyPrediction } from '../services/predictionLog.ts'
 import { syncProvider } from '../services/sync.ts'
-import { recordSyncRun, safeMessage } from '../services/syncLog.ts'
+import {
+  recordSyncRun,
+  recordSyncRunUnlessIdle,
+  safeMessage,
+  syncMessage,
+} from '../services/syncLog.ts'
 import { enrichWeather } from '../services/weather.ts'
 import { refreshWeatherCaches } from '../services/weatherCache.ts'
 
@@ -31,7 +36,8 @@ type Log = ReturnType<typeof createLogger>
 /**
  * Writes the `job` run of one scheduled job for one user (spec 4.7). The job name is the
  * `provider` of the row, so `GET /api/jobs` finds the latest run of each. An error is stored
- * through `safeMessage`.
+ * through `safeMessage`. With `skipIdle`, a run with nothing to report is not stored (see
+ * `recordSyncRunUnlessIdle`).
  */
 async function recordJob(
   deps: Deps,
@@ -45,10 +51,12 @@ async function recordJob(
     accepted?: number
     duplicate?: number
     failed?: number
+    skipIdle?: boolean
   } = {},
 ): Promise<void> {
   const failed = outcome.error !== undefined && outcome.error !== null
-  await recordSyncRun(deps, {
+  const record = outcome.skipIdle ? recordSyncRunUnlessIdle : recordSyncRun
+  await record(deps, {
     userId,
     provider: job,
     channel: 'job',
@@ -114,9 +122,13 @@ export async function runSyncJob(
       runs.reduce((total, run) => total + run[key], 0)
     const status = worstStatus(runs.map((run) => run.status))
     const failedRun = runs.find((run) => run.status === 'error')
+    // A run can fail with an empty message; the job still says in words that a sync did not finish.
+    const failedText = failedRun?.message
+      ? failedRun.message
+      : syncMessage('sync.msg.sync-unfinished', {})
     await recordJob(deps, 'sync', userId, startedAt, {
       status,
-      error: thrown ?? (failedRun ? (failedRun.message ?? 'A sync did not finish.') : null),
+      error: thrown ?? (failedRun ? failedText : null),
       accepted: sum('accepted'),
       duplicate: sum('duplicate'),
       failed: sum('failed'),
@@ -177,6 +189,7 @@ export async function runWeatherJob(
       accepted: filled + caches.refreshed,
       failed: caches.failed,
       error: error ?? caches.error,
+      skipIdle: true,
     })
   }
 }

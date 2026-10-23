@@ -28,10 +28,11 @@ describe('Today templates', () => {
     }
   })
 
-  test('the six verdicts read as the design words them', () => {
+  test('the verdicts read as the design words them', () => {
     const verdicts: Record<ReadinessVerdict['code'], string> = {
       ready: 'Ready as planned.',
       'low-stays': "Signals are a little low. Today's session is already easy, so it stays.",
+      'low-plan-stays': 'Signals are a little low. The plan stays as it is.',
       easy: 'An easy run is the better choice today.',
       rest: 'A rest day is the better choice today.',
       'lighter-week': 'Recent signals have stayed low for several days. A lighter week may help.',

@@ -1,11 +1,11 @@
 import { Router } from 'express'
 import type { Deps } from '../app.ts'
 import { SecretError, hashToken, tokensEqual } from '../crypto.ts'
-import { notFound, unauthorized } from '../errors.ts'
+import { HttpError, notFound, unauthorized } from '../errors.ts'
 import { getProvider } from '../providers/registry.ts'
 import { storeParsed, storeWellness } from '../services/activityStore.ts'
 import { openIntegration, providerContext } from '../services/sync.ts'
-import { MAX_FAILURES_STORED, recordSyncRun } from '../services/syncLog.ts'
+import { MAX_FAILURES_STORED, recordSyncRun, syncMessage } from '../services/syncLog.ts'
 import type { ImportReportRow } from '../../shared/types.ts'
 
 const MAX_REPORT_ROWS = 100
@@ -52,7 +52,8 @@ export function ingestRouter(deps: Deps): Router {
     let batchId: string | null = null
     let wellnessRows = 0
     let ignored: Record<string, number> = {}
-    let allFailed = false
+    /** Set when every pushed activity failed to store; the run and the integration say so. */
+    let allFailedMessage: string | null = null
     const counts = { skippedDuplicate: 0, skippedInvalid: 0 }
     const report: ImportReportRow[] = []
     const failed: Array<{ providerKey: string; reason: string }> = []
@@ -101,22 +102,27 @@ export function ingestRouter(deps: Deps): Router {
       wellnessRows = await storeWellness(deps, row.userId, wellness, provider)
 
       // A push where every activity failed to store is a failed sync, not a connected one.
-      allFailed = activities.length > 0 && counts.skippedInvalid === activities.length
+      if (activities.length > 0 && counts.skippedInvalid === activities.length) {
+        allFailedMessage = syncMessage('sync.msg.push-none-stored', {
+          reason: failed[0]?.reason ?? 'unknown error',
+        })
+      }
       await prisma.integration.update({
         where: { id: row.id },
-        data: allFailed
-          ? {
-              status: 'error',
-              lastSyncAt: new Date(),
-              lastSyncStatus: 'error',
-              lastError: `Every pushed activity failed to store: ${failed[0]?.reason ?? 'unknown error'}`,
-            }
-          : {
-              status: 'connected',
-              lastSyncAt: new Date(),
-              lastSyncStatus: 'ok',
-              lastError: null,
-            },
+        data:
+          allFailedMessage !== null
+            ? {
+                status: 'error',
+                lastSyncAt: new Date(),
+                lastSyncStatus: 'error',
+                lastError: allFailedMessage,
+              }
+            : {
+                status: 'connected',
+                lastSyncAt: new Date(),
+                lastSyncStatus: 'ok',
+                lastError: null,
+              },
       })
     } catch (error) {
       await recordSyncRun(deps, {
@@ -126,7 +132,12 @@ export function ingestRouter(deps: Deps): Router {
         trigger: 'push',
         startedAt,
         status: 'error',
-        message: error,
+        // A body the provider cannot read is the sender's to fix; the stored text says so in the
+        // app's words, not the validator's.
+        message:
+          error instanceof HttpError && error.code === 'validation'
+            ? syncMessage('sync.msg.push-unreadable', {})
+            : error,
       })
       throw error
     }
@@ -137,15 +148,13 @@ export function ingestRouter(deps: Deps): Router {
       channel: 'push',
       trigger: 'push',
       startedAt,
-      status: allFailed ? 'error' : counts.skippedInvalid > 0 ? 'partial' : 'ok',
+      status: allFailedMessage !== null ? 'error' : counts.skippedInvalid > 0 ? 'partial' : 'ok',
       accepted,
       duplicate: counts.skippedDuplicate,
       failed: counts.skippedInvalid,
       wellnessStatus: wellnessRows > 0 ? 'read' : 'none',
       wellnessDays: wellnessRows > 0 ? wellnessRows : null,
-      message: allFailed
-        ? `Every pushed activity failed to store: ${failed[0]?.reason ?? 'unknown error'}`
-        : null,
+      message: allFailedMessage,
       failures: failed
         .slice(0, MAX_FAILURES_STORED)
         .map((item) => ({ ref: item.providerKey, reason: item.reason })),
