@@ -5,6 +5,12 @@
 /** Sources listed under one figure before "and {n} more". */
 export const EXPLAIN_MAX_SOURCES = 5
 
+/** Rule ids one Explain request may carry. */
+export const EXPLAIN_MAX_RULES = 12
+
+/** Days of check-ins the readiness explanation counts. */
+export const EXPLAIN_CHECKIN_DAYS = 7
+
 /** Sentences on the "What stood out" card of a run. */
 export const STANDOUT_MAX_CARDS = 3
 

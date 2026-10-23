@@ -11,6 +11,7 @@ import type { Units } from '../types.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
+import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
 import { SYNC_TEMPLATES } from './sync.ts'
 import { TODAY_TEMPLATES } from './today.ts'
@@ -22,6 +23,7 @@ export const TEMPLATES = {
   ...FUEL_TEMPLATES,
   ...WINDOW_TEMPLATES,
   ...ACTIVITY_LIST_TEMPLATES,
+  ...EXPLAIN_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',
