@@ -19,3 +19,16 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/*
+ * The build button names the goal, which can run to 200 characters. Button sets a line height of 1
+ * and no vertical padding, so a name that wraps would sit flush against the edges, and a word with
+ * no break would push the page sideways. The selector is two classes deep to outrank Button.
+ */
+.buttons .action {
+  max-width: 100%;
+  padding-block: var(--space-2);
+  line-height: var(--lh-base);
+  overflow-wrap: anywhere;
+  text-align: center;
+}

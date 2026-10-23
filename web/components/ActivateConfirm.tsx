@@ -50,10 +50,10 @@ export function ActivateConfirm({
         {activateFollowsText(currentGoal, nextGoal)} {ACTIVATE_ARCHIVED_TEXT}
       </p>
       <div className={styles.buttons}>
-        <Button variant="primary" loading={loading} onClick={onConfirm}>
+        <Button variant="primary" className={styles.action} loading={loading} onClick={onConfirm}>
           {activateBuildLabel(nextGoal)}
         </Button>
-        <Button variant="quiet" disabled={loading} onClick={onCancel}>
+        <Button variant="quiet" className={styles.action} disabled={loading} onClick={onCancel}>
           Cancel
         </Button>
       </div>

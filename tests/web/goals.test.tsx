@@ -549,10 +549,10 @@ const confirmText = () =>
   screen.findByText(/^The plan follows Spring half\. Making Autumn 10K active builds a new plan/)
 
 describe('Make active while a plan follows another goal', () => {
-  function twoGoals(extra: MockRoutes = {}) {
+  function twoGoals(extra: MockRoutes = {}, nextName = 'Autumn 10K') {
     let goals = [
       makeGoal({ id: 'g1', name: 'Spring half', isActive: true }),
-      makeGoal({ id: 'g2', name: 'Autumn 10K', priority: 'B', distanceM: 10_000 }),
+      makeGoal({ id: 'g2', name: nextName, priority: 'B', distanceM: 10_000 }),
     ]
     const mock = mockApi(
       routes([], miUser, {
@@ -682,6 +682,26 @@ describe('Make active while a plan follows another goal', () => {
     const { container } = renderWithToasts()
     await user.click(await screen.findByRole('button', { name: 'Make active' }))
     await confirmText()
+    expectCleanCopy(container)
+  })
+
+  test('a goal name of the longest length reaches the question and the build button whole, and reads cleanly', async () => {
+    const user = userEvent.setup()
+    // 200 characters is the longest name the server takes; the last word has no break in it.
+    const stem = 'Autumn 10K around the reservoir and back along the river path '
+    const nextName =
+      stem + 'Supercalifragilisticexpialidocious'.repeat(5).slice(0, 200 - stem.length)
+    expect(nextName).toHaveLength(200)
+    twoGoals({}, nextName)
+    const { container } = renderWithToasts()
+
+    await user.click(await screen.findByRole('button', { name: 'Make active' }))
+    const question = await screen.findByRole('group', { name: /^The plan follows Spring half\./ })
+    expect(question).toHaveTextContent(`Making ${nextName} active builds a new plan`)
+    expect(
+      within(question).getByRole('button', { name: `Build plan for ${nextName}` }),
+    ).toBeEnabled()
+    expect(within(question).getByRole('button', { name: 'Cancel' })).toBeEnabled()
     expectCleanCopy(container)
   })
 })

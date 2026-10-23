@@ -171,8 +171,12 @@ test('the Goals question for Make active fits at 360 px and clears the tab bar',
     distanceM: 42_195,
     goalType: 'finish',
   })) as { id: string }
+  // The goal that is made active names the build button, so its name is the long one that has to
+  // wrap over several lines inside the button.
+  const nextName =
+    'Narrow 10K around the reservoir and back along the river path past the old mill and the lake to the trailhead car park'
   await api.post('/goals', {
-    name: 'Narrow 10K',
+    name: nextName,
     priority: 'B',
     // Later than the plan's race, so its card is the last one and the question ends the page.
     targetDate: addDays(thisMonday, 7 * 16 + 5),
@@ -183,7 +187,7 @@ test('the Goals question for Make active fits at 360 px and clears the tab bar',
   await api.post('/plan/generate', { goalId: first.id })
 
   await page.goto('/goals')
-  const card = page.getByRole('article', { name: 'Narrow 10K' })
+  const card = page.getByRole('article', { name: nextName })
   await card.getByRole('button', { name: 'Make active' }).click()
   const question = card.getByRole('group', { name: /^The plan follows/ })
   await expect(question).toBeVisible()
@@ -200,7 +204,7 @@ test('the Goals question for Make active fits at 360 px and clears the tab bar',
   expect((questionBox?.x ?? 0) + (questionBox?.width ?? 0)).toBeLessThanOrEqual(
     (viewport?.width ?? 0) + 0.5,
   )
-  for (const name of ['Build plan for Narrow 10K', 'Cancel']) {
+  for (const name of [`Build plan for ${nextName}`, 'Cancel']) {
     const button = question.getByRole('button', { name })
     await expect(button).toBeVisible()
     const box = await button.boundingBox()
@@ -211,6 +215,14 @@ test('the Goals question for Make active fits at 360 px and clears the tab bar',
     expect((box?.y ?? 0) + (box?.height ?? 0), `${name} bottom edge`).toBeLessThanOrEqual(limit)
     expect(await isUncovered(button), name).toBe(true)
   }
+  // The label wraps over several lines, which keep room above and below them in the button.
+  const padding = await question
+    .getByRole('button', { name: `Build plan for ${nextName}` })
+    .evaluate((element) => {
+      const style = getComputedStyle(element)
+      return Math.min(parseFloat(style.paddingTop), parseFloat(style.paddingBottom))
+    })
+  expect(padding).toBeGreaterThan(0)
   await question.getByRole('button', { name: 'Cancel' }).click()
   await expect(question).toBeHidden()
 })
