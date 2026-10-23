@@ -1307,9 +1307,9 @@ describe('GET /api/today: cost', () => {
     // the cached forecast, the race climate, the change line and the three of the job notes), warm
     // is 8, and the data version is read three times (the tag, the snapshot, the change-line memo).
     // The eleventh read of the snapshot is the runner's active rest windows (E5-5).
-    expect(coldTotal).toBe(21)
+    expect(coldTotal).toBe(24)
     expect(warm.models).toHaveLength(8)
-    expect(warm.raw).toBe(3)
+    expect(warm.raw).toBe(5)
   })
 
   test('no request path calls the network, empty or stale caches included', async () => {

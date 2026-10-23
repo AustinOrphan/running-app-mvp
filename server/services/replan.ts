@@ -40,6 +40,7 @@ import {
 import { conflict, notFound, validationError } from '../errors.ts'
 import { toPlanRevision, toPlanSession } from '../serialize.ts'
 import { gatherEngineInput, sessionSpec } from './engineInput.ts'
+import { withGutTrainingOption } from './fuel.ts'
 import { recordPrediction, type PredictionGoal } from './predictionLog.ts'
 import {
   executionRecordsByWeek,
@@ -449,6 +450,11 @@ export interface ReplanResult {
   today: string
   /** The newest revision of the plan before anything was read, for the head check of the write. */
   headRevisionId: string | null
+  /**
+   * The engine options the draft was made with, the gut-training switch included. `applyReplan`
+   * stores them in `Plan.options`; absent, the stored options are left as they are.
+   */
+  options?: EngineInput['options']
   /** The reason the revision is written with: a weekly update after a long break reads 'break'. */
   reason: PlanRevisionReason
   auto: boolean
@@ -608,7 +614,14 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // The newest revision is read before anything else, so a revision that lands during the compute
   // makes the head check of the write (and the hash of a preview) differ, never silently match.
   const headRevisionId = await headRevisionOf(prisma, plan.id)
-  const options = JSON.parse(plan.options) as EngineInput['options']
+  // The gut-training switch is read from the stored fuel settings at every compute, so a change to
+  // the switches shows up in the next re-plan's diff, and a preview and its commit agree (design
+  // 10.5). `applyReplan` stores the options it was computed with.
+  const options = await withGutTrainingOption(
+    prisma,
+    userId,
+    JSON.parse(plan.options) as EngineInput['options'],
+  )
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },
@@ -675,6 +688,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     input: { goal: input.goal },
     today,
     headRevisionId,
+    options,
     reason,
     // The scheduler asks for 'weekly' and nothing else does; a request never writes an automatic revision.
     auto: args.reason === 'weekly',
@@ -752,6 +766,7 @@ export async function applyReplan(
           feasibility: JSON.stringify(draft.feasibility),
           warnings: JSON.stringify(draft.warnings),
           checklist: JSON.stringify(draft.checklist),
+          ...(result.options === undefined ? {} : { options: JSON.stringify(result.options) }),
         },
       })
       await recordPrediction(tx, {

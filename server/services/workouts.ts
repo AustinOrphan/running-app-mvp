@@ -87,11 +87,16 @@ export async function buildDeliverables(
     .sort((a, b) => (a.date === b.date ? a.order - b.order : a.date < b.date ? -1 : 1))
   if (sessions.length === 0) return []
 
-  const [user, forecast, fuel] = await Promise.all([
+  const [user, forecast] = await Promise.all([
     deps.prisma.user.findUnique({ where: { id: userId }, select: { units: true } }),
     loadForecast(deps.prisma, userId, context.profile),
-    loadFuelContext(deps, { userId, today, horizonDays: Math.max(0, daysBetween(today, to)) }),
   ])
+  // The fuel context reuses the snapshot and the forecast read above: one read of each per build.
+  const fuel = await loadFuelContext(
+    deps,
+    { userId, today, horizonDays: Math.max(0, daysBetween(today, to)) },
+    { athlete: context, forecast },
+  )
   const units: Units = user?.units === 'mi' ? 'mi' : 'km'
 
   const advice = new Map<string, TodayAdvice>()
@@ -117,12 +122,14 @@ export async function buildDeliverables(
     const targets = resolveTargets(source, context.zones, {
       hot: isHotForSteering(peak, source.flags),
     })
+    // An eased run keeps its fuel target (design 10.5): the minutes and the day are the planned
+    // ones, and the planned flags carry `fuel-practice`, which `easedSession` drops with the rest.
     const fuelLine = fuelLineFor(fuel, {
       id: planned.id,
       date: planned.date,
       kind: source.kind,
       durationMin: source.durationMin,
-      flags: source.flags,
+      flags: planned.flags,
       status: planned.status as PlanSessionStatus,
     })
     return {

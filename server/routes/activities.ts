@@ -4,7 +4,12 @@ import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
-import { markDuplicates, releaseDuplicates, releaseDuplicatesOf } from '../services/duplicates.ts'
+import {
+  markDuplicates,
+  moveConfirmedLogs,
+  releaseDuplicates,
+  releaseDuplicatesOf,
+} from '../services/duplicates.ts'
 import { runExecutionQuietly } from '../services/execution.ts'
 import { standoutView } from '../services/insight.ts'
 import { findPossibleDuplicate } from '../../shared/domain/duplicates.ts'
@@ -331,6 +336,9 @@ export function activitiesRouter(deps: Deps): Router {
       where: { id },
       data: { duplicateStatus: status },
     })
+    if (status === 'confirmed') {
+      await moveConfirmedLogs(prisma, req.userId, existing.duplicateOfId)
+    }
     res.json(toActivity(updated))
   })
 
