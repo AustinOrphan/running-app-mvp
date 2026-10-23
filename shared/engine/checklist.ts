@@ -407,9 +407,10 @@ function levelDifferentiation(draft: PlanDraft, state: AthleteState): ChecklistR
 
 /**
  * E6, G-3: the ladder rises one rung at most from one week to the next and never past its last
- * rung; the injury-return ladder rises one level at most.
+ * rung; the injury-return ladder rises one level at most; no whole ladder or injury-return week
+ * from today on is left without a run.
  */
-function ladderSteps(draft: PlanDraft): ChecklistResult {
+function ladderSteps(draft: PlanDraft, input: EngineInput): ChecklistResult {
   const rules = ['E6', 'g-3']
   const failures: string[] = []
   const weeks = sortedWeeks(draft)
@@ -432,11 +433,20 @@ function ladderSteps(draft: PlanDraft): ChecklistResult {
       )
     }
   }
+  for (const week of weeks) {
+    // a part week (its Monday has passed) may have no day left to run on
+    if (!isStartPathWeek(week) || week.targetRunMin <= 0 || week.weekStart < input.today) continue
+    const runs = draft.sessions.filter(
+      (s) => mondayOf(s.date) === week.weekStart && VOLUME_KINDS.has(s.kind) && s.durationMin > 0,
+    )
+    if (runs.length === 0)
+      failures.push(`week of ${week.weekStart}: a start-path week holds no run`)
+  }
   return result(
     'ladder-steps',
     failures.length === 0,
     failures.length === 0
-      ? `The ladder rises one step a week at most, over ${rungCount()} rungs.`
+      ? `The ladder rises one step a week at most, over ${rungCount()} rungs, and every ladder or injury-return week holds a run.`
       : failures.join('; '),
     rules,
   )
@@ -757,7 +767,7 @@ export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistRes
     tid(draft),
     taper(draft),
     levelDifferentiation(draft, state),
-    ladderSteps(draft),
+    ladderSteps(draft, input),
     breakRestartItem(draft, input, state),
     spikeGuard(draft, state),
     availability(draft, input),

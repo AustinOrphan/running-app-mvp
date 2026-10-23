@@ -677,7 +677,7 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
             },
     })
 
-  it('places the three sessions of a rung on non-consecutive days, the longest last, flagged run-walk', () => {
+  it('places the three sessions of a rung on non-consecutive days, the longest last, flagged run-walk where they walk', () => {
     const sessions = runsOf(placeStart(ladderWeek(5, { targetRunMin: 62 })))
     expect(sessions).toHaveLength(3)
     // rung 5: 5-3w-5-3w-5 (21 min), 8-5w-8 (21 min), 20 min without a stop
@@ -686,10 +686,9 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
     for (let i = 1; i < days.length; i += 1) {
       expect(days[i]! - days[i - 1]!).toBeGreaterThanOrEqual(2)
     }
-    for (const s of sessions) {
-      expect(s.kind).toBe('easy')
-      expect(s.flags).toContain('run-walk')
-    }
+    for (const s of sessions) expect(s.kind).toBe('easy')
+    // only a session with a walking break is a run-walk session; the continuous 20 minutes is not
+    expect(sessions.map((s) => s.flags.includes('run-walk'))).toEqual([true, true, false])
   })
 
   it('plans no quality, whatever the week asks for', () => {
@@ -721,10 +720,12 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
     expect(sessions.map((s) => s.durationMin)).toEqual([18, 18, 18])
   })
 
-  it('leaves a session out when the bound falls under the run day minimum', () => {
-    // 10 + 3 = 13 min sits under the 15-min run day minimum
+  it('places a session at the bound when the bound falls under the run day minimum, never under 5 minutes', () => {
+    // 10 + 3 = 13 min sits under the 15-min run day minimum, which a ladder session is exempt from
     const sessions = runsOf(placeStart(ladderWeek(1), { recent: 10 }))
-    expect(sessions).toEqual([])
+    expect(sessions.map((s) => s.durationMin)).toEqual([13, 13, 13])
+    // a bound under 5 minutes leaves no session to place
+    expect(runsOf(placeStart(ladderWeek(1), { recent: 1 }))).toEqual([])
   })
 
   it('places the runs of an injury-return level with a rest day between them, from 5 minutes', () => {

@@ -522,10 +522,17 @@ export function prescribe(
     default:
       if (ctx.blueprint !== undefined && kind === 'easy') {
         built = buildLadderSession(ctx.blueprint, duration)
-        flags.push('run-walk')
         purpose = ladderPurpose(ctx.blueprint, week)
         const rung = ladderRung(week.flags)
-        title = rung === null ? 'Run-walk' : `Run-walk, step ${String(rung)}`
+        // only a session with a walking break is a run-walk session; a continuous run of 20 to
+        // 30 minutes is an easy run, titled by its rung
+        if (hasWalk(clipBlueprint(ctx.blueprint, duration))) {
+          flags.push('run-walk')
+          title = rung === null ? 'Run-walk' : `Run-walk, step ${String(rung)}`
+        } else {
+          title =
+            rung === null ? 'Easy run' : `Ladder step ${String(rung)}: ${String(duration)} min easy`
+        }
       } else if (ctx.runWalk && (kind === 'easy' || kind === 'recovery' || kind === 'long')) {
         built = buildRunWalk(duration)
         flags.push('run-walk')

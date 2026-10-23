@@ -30,7 +30,7 @@ import {
 } from './limits.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
-import type { StartKind } from './startWeeks.ts'
+import { isLadderSession, startSessionMinMin, type StartKind } from './startWeeks.ts'
 import type {
   AthleteState,
   EngineWarning,
@@ -657,18 +657,23 @@ function cloneSession(s: SessionSpec): SessionSpec {
   return structuredClone(s)
 }
 
+/** A session of a ladder week or an injury-return week: the programme sets its length [rules E6, g-3]. */
+const isStartSession = (s: SessionSpec): boolean =>
+  s.flags.includes('injury-return') || isLadderSession(s)
+
 /**
  * The shortest a run may be made by a cut: the session minimum, the run day minimum for run-walk,
- * or the first level of the injury-return ladder.
+ * or, for a ladder or injury-return session, the shortest start session (5 minutes), which is
+ * exempt from the run day minimum.
  */
 function runMinimum(s: SessionSpec): number {
-  if (s.flags.includes('injury-return')) return P.injuryReturn.levelsMin.value[0] ?? 0
+  if (isStartSession(s)) return startSessionMinMin()
   return s.flags.includes('run-walk') ? P.fplace.minRunDayMin.value : P.fplace.easyRunMinMin.value
 }
 
 /** The smallest size a guard cuts a run to; a run already under the session minimum may go to the run day minimum. */
 function minSize(s: SessionSpec): number {
-  if (s.flags.includes('injury-return')) return runMinimum(s)
+  if (isStartSession(s)) return runMinimum(s)
   return s.durationMin >= runMinimum(s) ? runMinimum(s) : P.fplace.minRunDayMin.value
 }
 

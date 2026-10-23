@@ -3,17 +3,20 @@
 // re-plan, the sessions and the limits around them. Synthetic runners; no personal data.
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { breakRestart, weekEvidence } from '../../../shared/engine/adapt.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { runChecklist } from '../../../shared/engine/checklist.ts'
 import { feasibility } from '../../../shared/engine/goal.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
-import { buildPlan, replan } from '../../../shared/engine/index.ts'
+import { buildPlan, replan, weeklyDecision } from '../../../shared/engine/index.ts'
 import { macroPlan, startPath } from '../../../shared/engine/macro.ts'
+import { isProgramme } from '../../../shared/engine/limits.ts'
 import { placeWeek } from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { prescribe } from '../../../shared/engine/sessions.ts'
 import {
   clipBlueprint,
+  injuryLevel,
   rungCount,
   rungSessions,
   sessionMin,
@@ -221,9 +224,36 @@ describe('startPath: the choice from history [rules E6, A9]', () => {
     expect(pathOf(runs, { injuries: [INJURY] })).toBeNull()
   })
 
-  it('does not lift an earlier bone stress injury or the other tightened profiles', () => {
+  it('takes an earlier bone stress injury through the start path, but never lifts it above 3 x 20', () => {
     const old = { ...INJURY, year: 2022, kind: 'bone-stress' as const }
-    expect(pathOf([runOf(10, 30)], { injuries: [old] })).toBeNull()
+    // an unflagged runner with the same 30-min run is lifted to 3 x 30
+    expect(pathOf([runOf(10, 30)], { runningSinceYear: 2020 })).toEqual({
+      kind: 'floor',
+      sessionMin: 30,
+    })
+    expect(pathOf([runOf(10, 30)], { runningSinceYear: 2020, injuries: [old] })).toEqual({
+      kind: 'floor',
+      sessionMin: 20,
+    })
+    // a novice with no runs takes the ladder, as an unflagged novice does
+    expect(pathOf([], { ...NOVICE, injuries: [old] })).toEqual({
+      kind: 'ladder',
+      rung: 1,
+      bmiHold: false,
+    })
+  })
+
+  it('takes the two BSI factors (earlier bone stress injury and a low BMI) through the start path too', () => {
+    const lean: Partial<AthleteProfile> = {
+      ...NOVICE,
+      sex: 'female',
+      heightCm: 168,
+      weightKg: 50,
+      injuries: [{ ...INJURY, year: 2021, kind: 'bone-stress' as const }],
+    }
+    const inp = input({ activities: [], profile: profile(lean) })
+    expect(estimateState(inp).risk.bsiFactors).toBeGreaterThanOrEqual(2)
+    expect(startPath(inp, estimateState(inp))).toEqual({ kind: 'ladder', rung: 1, bmiHold: false })
   })
 
   it('returns null from a typical week of 3 x 20 min', () => {
@@ -321,10 +351,47 @@ describe('macroPlan: the weeks of the ladder [rules E6]', () => {
     expect(rungs).toEqual([1, 1, 1, 2, 3, 4, 5, 6, 7, 8, 9])
   })
 
-  it('draws no ladder under a progression hold, and starts from the start floor week', () => {
+  it('keeps the ladder under a progression hold, at its entry rung and with no growth', () => {
     const held = weeksOf(novice({ screeningFlags: 2 }))
-    expect(ladderOf(held)).toEqual([])
-    expect(held[0]!.targetRunMin).toBe(P.macroDesign.startFloorWeekMin.value)
+    const ladder = ladderOf(held)
+    // a hold stops growth: every pre-taper week repeats rung 1, as run-walk, not as 3 x 20
+    expect(ladder.length).toBeGreaterThan(9)
+    for (const w of ladder) {
+      expect(w.flags).toContain('ladder-1')
+      expect(w.targetRunMin).toBe(startWeek('ladder', 1).minutes)
+    }
+    expect(held[0]!.flags).toEqual(expect.arrayContaining(['restart-floor', 'run-walk']))
+    expect(held[0]!.targetRunMin).toBeLessThanOrEqual(P.macroDesign.startFloorWeekMin.value + 3)
+    // and without the hold the same runner climbs
+    const free = ladderOf(weeksOf(novice()))
+    expect(free.map((w) => w.targetRunMin)).not.toEqual(
+      ladder.slice(0, free.length).map((w) => w.targetRunMin),
+    )
+  })
+
+  it('repeats the 3 x N floor every week under a progression hold', () => {
+    const experienced = input({
+      screeningFlags: 2,
+      profile: profile({ runningSinceYear: 2020 }),
+    })
+    const weeks = weeksOf(experienced).filter((w) => !w.isTaper && !w.flags.includes('post-race'))
+    expect(weeks[0]!.flags).toContain('restart-floor')
+    for (const w of weeks.filter((x) => !x.isTaper && x.phase !== 'race').slice(0, 8)) {
+      expect(w.targetRunMin, w.weekStart).toBe(3 * P.restartFloor.sessionMin.value)
+      expect(w.runDays).toBe(3)
+    }
+  })
+
+  it('leaves a runner with a typical week to the hold, as before: no start path lifts the week', () => {
+    const week = (back: number) => [0, 2].map((d) => runOf(back * 7 + d + 4, 20))
+    const typical = input({
+      screeningFlags: 2,
+      profile: profile({ runningSinceYear: 2020 }),
+      activities: [1, 2, 3, 4].flatMap(week),
+    })
+    const weeks = weeksOf(typical)
+    expect(weeks[0]!.flags).not.toContain('restart-floor')
+    expect(weeks[0]!.targetRunMin).toBe(40)
   })
 
   it('cuts the ladder where the taper begins', () => {
@@ -560,6 +627,34 @@ describe('the ladder at a re-plan: advance and hold [rules E6]', () => {
     expect(third.rung).toBe(2)
   })
 
+  it('advances after a week with fewer sessions than the rung draws when each was run, and repeats a rung the bound held short', () => {
+    const advancedTo = (change: Partial<WeekDraft>, minutes: number[]) => {
+      const weeks = ladderWeeks([1, 2]).map((w, i) => (i === 1 ? { ...w, ...change } : w))
+      const week = weeks[1]!
+      const activities = [
+        ...runsFor(weeks[0]!, 1),
+        ...minutes.map((m, i) =>
+          runOf(-(Date.parse(addDays(week.weekStart, 1 + 2 * i)) - Date.parse(TODAY)) / 864e5, m, {
+            id: `own-${String(i)}`,
+          }),
+        ),
+      ]
+      const inp = input({
+        today: NEXT,
+        activities,
+        profile: profile(NOVICE),
+        existing: { weeks, sessions: [] },
+      })
+      const st = estimateState(inp)
+      const out = macroPlan(inp, st, inp.goal, feasibility(inp.goal, st, NEXT))
+      return Number(out[0]!.flags.find((f) => f.startsWith('ladder-'))?.slice(7))
+    }
+    // two spaced days held two sessions of 21 min, both run: on to rung 3
+    expect(advancedTo({ runDays: 2, targetRunMin: 42 }, [21, 21])).toBe(3)
+    // three sessions cut to 13 min by G-1, all run: the rung is not yet run at its length
+    expect(advancedTo({ runDays: 3, targetRunMin: 39 }, [13, 13, 13])).toBe(2)
+  })
+
   it('draws no ladder week after the last rung, and no quality for two weeks', () => {
     const out = rungAfter([8, 9], [1, 1])
     expect(out.first.flags.some((f) => f.startsWith('ladder-'))).toBe(false)
@@ -685,20 +780,27 @@ describe('the floor and the injury-return ladder [rules E6, g-3]', () => {
     expect(quietKinds.filter((k) => k !== 'easy' && k !== 'long' && k !== 'rest')).toEqual([])
   })
 
-  it('climbs the levels from a pain-free run: 25 minutes allow level 5 and then level 6 at the bound', () => {
+  it('climbs the levels from a pain-free run: 25 minutes allow level 5, and level 6 is held at the bound until it is run', () => {
     const plan = buildPlan({
       ...injured(),
       activities: [runOf(5, 25, { pain: 0 })],
     })
     const levels = plan.weeks.filter((w) => w.flags.includes('injury-return'))
-    expect(levels.map((w) => w.flags.find((f) => f.startsWith('injury-level-')))).toEqual([
-      'injury-level-4',
-      'injury-level-5',
-    ])
-    const runs = plan.sessions.filter((s) => s.flags.includes('injury-return'))
+    const names = levels.map((w) => w.flags.find((f) => f.startsWith('injury-level-')))
     // level 5 is 25 min, the run before it; level 6 is 30 min, held to the G-1 bound on a 25-min
-    // run, the larger of 1.10 x 25 = 27.5 and 25 + 3 (the duration step), so 28
-    expect(runs.map((s) => s.durationMin)).toEqual([25, 25, 28, 28])
+    // run, the larger of 1.10 x 25 = 27.5 and 25 + 3 (the duration step), so 28. The bound does not
+    // grow until a run is logged, so level 6 repeats at 28 and the programme does not end by the
+    // count of weeks: it ends once level 6 has been run at its own length.
+    expect(names.slice(0, 2)).toEqual(['injury-level-4', 'injury-level-5'])
+    expect(names.slice(2).every((n) => n === 'injury-level-5')).toBe(true)
+    expect(names.length).toBeGreaterThan(2)
+    const runs = plan.sessions.filter((s) => s.flags.includes('injury-return'))
+    expect(runs.map((s) => s.durationMin).slice(0, 4)).toEqual([25, 25, 28, 28])
+    // while the 25-min run is in the 30-day window; level 6 is run at 30 once it is out of it
+    expect(runs.slice(0, 8).every((s) => s.durationMin === 25 || s.durationMin === 28)).toBe(true)
+    // the label says what the week holds and what it works toward
+    expect(levels[1]!.focus).toMatch(/28 min this week, working toward 30 min/)
+    expect(levels[0]!.focus).not.toMatch(/working toward/)
     expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
   })
 
@@ -740,9 +842,9 @@ describe('the floor and the injury-return ladder [rules E6, g-3]', () => {
       const out = macroPlan(inp, st, inp.goal, feasibility(inp.goal, st, MONDAY))
       return Number(out[0]!.flags.find((f) => f.startsWith('injury-level-'))?.slice(13) ?? -1)
     }
-    const twoRuns = (w: WeekDraft, over: Partial<Activity> = {}) =>
+    const twoRuns = (w: WeekDraft, over: Partial<Activity> = {}, minutes = 10) =>
       [1, 4].map((d) =>
-        runOf(-(Date.parse(addDays(w.weekStart, d)) - Date.parse(TODAY)) / 864e5, 10, {
+        runOf(-(Date.parse(addDays(w.weekStart, d)) - Date.parse(TODAY)) / 864e5, minutes, {
           id: `inj-${w.weekStart}-${String(d)}`,
           ...over,
         }),
@@ -760,8 +862,59 @@ describe('the floor and the injury-return ladder [rules E6, g-3]', () => {
         wellness: [wellnessDay(next, { painScore: 1 })],
       }),
     ).toBe(0)
-    // the ladder ends after level 6
-    expect(levelAfter(levels([4, 5]), (w) => twoRuns(w))).toBe(-1)
+    // the ladder ends after level 6, run at its own length (30 min, within a minute)
+    expect(levelAfter(levels([4, 5]), (w) => twoRuns(w, {}, 30))).toBe(-1)
+    expect(levelAfter(levels([4, 5]), (w) => twoRuns(w, {}, 29))).toBe(-1)
+  })
+
+  it("advances a level only when both runs reached the level's minutes, else repeats it", () => {
+    const level = (n: number): WeekDraft[] => {
+      const sw = startWeek('injury-return', n)
+      return [
+        {
+          weekStart: addDays(MONDAY, -7),
+          index: 0,
+          phase: 'build',
+          focus: sw.focus,
+          targetRunMin: sw.minutes,
+          longRunMin: 0,
+          longRunM: null,
+          gainTargetM: null,
+          runDays: 2,
+          qualitySessions: 0,
+          strengthSessions: 0,
+          tid: { z1: 100, z2: 0, z3: 0 },
+          flags: sw.flags,
+          isRecovery: false,
+          isTaper: false,
+        },
+      ]
+    }
+    const after = (n: number, minutes: number[]) => {
+      const weeks = level(n)
+      const inp = {
+        ...injured(),
+        today: MONDAY,
+        activities: minutes.map((m, i) =>
+          runOf(
+            -(Date.parse(addDays(weeks[0]!.weekStart, 1 + 3 * i)) - Date.parse(TODAY)) / 864e5,
+            m,
+            { id: `lvl-${String(n)}-${String(i)}`, pain: 0 },
+          ),
+        ),
+        existing: { weeks, sessions: [] },
+      }
+      const st = estimateState(inp)
+      const out = macroPlan(inp, st, inp.goal, feasibility(inp.goal, st, MONDAY))
+      return injuryLevel(out[0]!.flags)
+    }
+    // level index 2 is 15 min: a minute under it still counts, two minutes under does not
+    expect(after(2, [15, 15])).toBe(3)
+    expect(after(2, [14, 14])).toBe(3)
+    expect(after(2, [13, 15])).toBe(2)
+    expect(after(2, [13, 13])).toBe(2)
+    // short runs held by G-1 do not carry the level on, however many weeks pass
+    expect(after(2, [11, 11])).toBe(2)
   })
 
   it('holds the checklist item of the ladder steps: one rung a week at most', () => {
@@ -831,5 +984,631 @@ describe('a re-plan in the first weeks of a start path [rules E6]', () => {
     expect(week.flags).not.toContain('restart-floor')
     expect(week.focus).toMatch(/repeating the step/)
     expect(next.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+})
+
+// ---- review fixes, round 2: the start paths against the G-1 reference ----
+
+const raceOf = (daysBack: number, distanceM: number, minutes: number): Activity =>
+  activity(daysAgo(daysBack), {
+    id: `race-${String(daysBack)}-${String(distanceM)}`,
+    type: 'race',
+    durationSec: minutes * 60,
+    movingSec: minutes * 60,
+    distanceM,
+  })
+
+const runsIn = (plan: { sessions: SessionSpec[] }, weekStart: string): SessionSpec[] =>
+  plan.sessions.filter(
+    (s) => mondayOf(s.date) === weekStart && s.kind !== 'strength' && s.kind !== 'race',
+  )
+
+describe('the start path reads the runs that the G-1 reference counts [rules E6, g-1]', () => {
+  const years = { runningSinceYear: 2018 }
+
+  it('leaves a marathon or longer race out of the longest run, as the reference does', () => {
+    const marathon = raceOf(25, 42_195, 240)
+    // the marathon would lift a runner with 2018 on the clock to 3 x 30 on its own
+    expect(pathOf([marathon], years)).toEqual({ kind: 'floor', sessionMin: 20 })
+    // with a short run since, the 30-day reference is that run: the ladder, not 3 x 30
+    expect(pathOf([marathon, runOf(3, 10)], years)).toEqual({
+      kind: 'ladder',
+      rung: 4,
+      bmiHold: false,
+    })
+    // an ultra is no reference run either
+    expect(pathOf([raceOf(25, 80_000, 600), runOf(3, 10)], years)).toEqual({
+      kind: 'ladder',
+      rung: 4,
+      bmiHold: false,
+    })
+  })
+
+  it('holds the first week to the bound it will have: a long run leaving the 30 days that week does not lift the floor', () => {
+    // 25 minutes 28 days ago leaves the window two days into the week; the 10-minute run two days
+    // ago is what limits the sessions from then on (1.10 x 10 = 11, or 10 + 3 = 13 minutes)
+    const runs = [runOf(28, 25), runOf(2, 10)]
+    expect(pathOf(runs, { runningSinceYear: 2020 })).toEqual({
+      kind: 'ladder',
+      rung: 4,
+      bmiHold: false,
+    })
+    const plan = buildPlan(
+      input({ activities: runs, profile: profile({ runningSinceYear: 2020 }) }),
+    )
+    // the weeks after the part week of the start say what they hold
+    for (const w of plan.weeks
+      .filter((x) => x.weekStart > MONDAY && x.targetRunMin > 0)
+      .slice(0, 4)) {
+      const placed = runsIn(plan, w.weekStart)
+      expect(placed.length, w.weekStart).toBeGreaterThan(0)
+      expect(w.targetRunMin, w.weekStart).toBe(placed.reduce((n, s) => n + s.durationMin, 0))
+    }
+    expect(plan.warnings.map((w) => w.code)).not.toContain('spike-run-dropped')
+  })
+
+  it('counts a race shorter than the marathon as a run, as the reference does', () => {
+    expect(pathOf([raceOf(25, 21_097, 110)], years)).toEqual({ kind: 'floor', sessionMin: 30 })
+  })
+
+  it('plans no floor above what G-1 leaves: a marathon and a 10-minute run give runs, not an empty plan', () => {
+    const plan = buildPlan(
+      input({ activities: [raceOf(25, 42_195, 240), runOf(3, 10)], profile: profile(years) }),
+    )
+    // the ladder at the 13-minute bound, not 3 x 30 cut to nothing
+    expect(plan.weeks[0]!.flags).toEqual(
+      expect.arrayContaining(['restart-floor', 'run-walk', 'ladder-4']),
+    )
+    for (const w of plan.weeks.filter((x) => x.targetRunMin > 0).slice(0, 6)) {
+      const runs = runsIn(plan, w.weekStart)
+      expect(runs.length, w.weekStart).toBeGreaterThan(0)
+      expect(w.targetRunMin, w.weekStart).toBe(runs.reduce((n, s) => n + s.durationMin, 0))
+    }
+    expect(plan.warnings.map((w) => w.code)).not.toContain('spike-run-dropped')
+    expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+
+  it('writes the week target and focus from the sessions placed after a marathon', () => {
+    // two 20-minute runs long ago and a marathon five days ago: the restart week is 3 x 20
+    const plan = buildPlan(
+      input({
+        activities: [runOf(80, 20), runOf(60, 20), raceOf(5, 42_195, 240)],
+        profile: profile({ runningSinceYear: 2020 }),
+      }),
+    )
+    const restart = plan.weeks.find((w) => w.flags.includes('post-race-restart'))!
+    const runs = runsIn(plan, restart.weekStart)
+    expect(runs.length).toBeGreaterThan(0)
+    expect(restart.targetRunMin).toBe(runs.reduce((n, s) => n + s.durationMin, 0))
+    expect(restart.focus).toContain(
+      `${String(Math.max(...runs.map((s) => s.durationMin)))} minutes`,
+    )
+    expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+})
+
+describe('a ladder or injury-return session the bound leaves short [rules E6, g-3]', () => {
+  const shortRuns = [runOf(3, 10), runOf(6, 10)]
+
+  it('places the sessions at the bound under the run day minimum, never under 5 minutes', () => {
+    const plan = buildPlan(input({ activities: shortRuns, profile: profile(NOVICE) }))
+    const first = runsIn(plan, MONDAY)
+    expect(first).toHaveLength(3)
+    for (const s of first) {
+      expect(s.durationMin).toBeGreaterThanOrEqual(5)
+      expect(s.durationMin).toBeLessThan(P.fplace.minRunDayMin.value)
+    }
+    expect(plan.weeks[0]!.targetRunMin).toBe(first.reduce((n, s) => n + s.durationMin, 0))
+    expect(plan.warnings.map((w) => w.code)).not.toContain('spike-run-dropped')
+  })
+
+  it('holds the rung, and says what the week works toward, while the bound keeps it short', () => {
+    const plan = buildPlan(input({ activities: shortRuns, profile: profile(NOVICE) }))
+    const ladder = plan.weeks.filter((w) => w.flags.some((f) => f.startsWith('ladder-')))
+    // rung 4 is 22 minutes a session; the bound is lower, so the step repeats instead of
+    // moving on with sessions the rung does not describe
+    expect(ladder.slice(0, 4).every((w) => w.flags.includes('ladder-4'))).toBe(true)
+    expect(ladder[0]!.focus).toMatch(/up to \d+ min this week, working toward 22 min/)
+    expect(ladder[0]!.focus).not.toMatch(/behind|missed|streak|failed|\bred\b/i)
+    for (const w of ladder) expect(runsIn(plan, w.weekStart).length, w.weekStart).toBeGreaterThan(0)
+  })
+
+  it('never leaves a ladder or injury-return week without a run, and the checklist says so if one is', () => {
+    for (const inp of [
+      input({ activities: shortRuns, profile: profile(NOVICE) }),
+      input({ profile: profile({ runningSinceYear: 2023, injuries: [INJURY] }) }),
+    ]) {
+      const plan = buildPlan(inp)
+      const bad = structuredClone(plan)
+      // a whole week: the week of the plan's start is a part week, which may have no day left
+      const week = bad.weeks.find(
+        (w) => w.weekStart >= TODAY && w.flags.some((f) => /^(ladder-|injury-level-)/.test(f)),
+      )!
+      bad.sessions = bad.sessions.filter((s) => mondayOf(s.date) !== week.weekStart)
+      const item = runChecklist(bad, inp).find((c) => c.id === 'ladder-steps')!
+      expect(item.ok).toBe(false)
+      expect(item.detail).toContain(`week of ${week.weekStart}: a start-path week holds no run`)
+      expect(runChecklist(plan, inp).find((c) => c.id === 'ladder-steps')!.ok).toBe(true)
+    }
+  })
+})
+
+describe('tightened profiles and a progression hold on the start path [rules E6, A9, n-1, n-4]', () => {
+  const OLD_BSI = { ...INJURY, year: 2022, kind: 'bone-stress' as const }
+
+  it('starts a novice with an earlier bone stress injury on rung 1, run-walk, as an unflagged novice', () => {
+    const plan = buildPlan(
+      input({ profile: profile({ ...NOVICE, injuries: [OLD_BSI] }), activities: [] }),
+    )
+    const first = runsIn(plan, MONDAY)
+    expect(plan.weeks[0]!.flags).toEqual(expect.arrayContaining(['restart-floor', 'ladder-1']))
+    expect(first.map((s) => s.durationMin)).toEqual([21, 21, 21])
+    expect(first.every((s) => s.flags.includes('run-walk'))).toBe(true)
+    expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+
+  it('keeps the ladder at its rung under a progression hold, in the sessions as well as the weeks', () => {
+    const plan = buildPlan(input({ profile: profile(NOVICE), screeningFlags: 2 }))
+    const ladder = plan.weeks.filter((w) => w.flags.some((f) => f.startsWith('ladder-')))
+    expect(ladder.length).toBeGreaterThan(2)
+    for (const w of ladder.slice(0, 4)) {
+      expect(w.flags).toContain('ladder-1')
+      expect(runsIn(plan, w.weekStart).map((s) => s.durationMin)).toEqual(
+        w === ladder[0] ? [21, 21, 21] : [21, 21, 21],
+      )
+    }
+    // the runs stay run-walk, never three continuous 20-minute runs
+    expect(runsIn(plan, MONDAY).every((s) => s.flags.includes('run-walk'))).toBe(true)
+  })
+
+  it('carries a ladder through a hold without advancing it', () => {
+    // two weeks of rung 1 and 2 were run in full; a hold now keeps the plan at the last rung
+    const weeks = [1, 2].map((rung, i) => {
+      const sw = startWeek('ladder', rung)
+      return {
+        weekStart: addDays(MONDAY, -7 * (2 - i)),
+        index: i,
+        phase: 'build',
+        focus: sw.focus,
+        targetRunMin: sw.minutes,
+        longRunMin: 0,
+        longRunM: null,
+        gainTargetM: null,
+        runDays: 3,
+        qualitySessions: 0,
+        strengthSessions: 0,
+        tid: { z1: 100, z2: 0, z3: 0 },
+        flags: [...(i === 0 ? ['restart-floor'] : []), ...sw.flags],
+        isRecovery: false,
+        isTaper: false,
+      } satisfies WeekDraft
+    })
+    const activities = weeks.flatMap((w) =>
+      [1, 3, 5].map((d) =>
+        runOf(
+          -(Date.parse(addDays(w.weekStart, d)) - Date.parse(TODAY)) / 864e5,
+          w.targetRunMin / 3,
+          { id: `hold-${w.weekStart}-${String(d)}`, pain: 0 },
+        ),
+      ),
+    )
+    const base = {
+      today: MONDAY,
+      activities,
+      profile: profile(NOVICE),
+      existing: { weeks, sessions: [] },
+    }
+    const rungOf = (inp: EngineInput) => {
+      const st = estimateState(inp)
+      const out = macroPlan(inp, st, inp.goal, feasibility(inp.goal, st, MONDAY))
+      return Number(out[0]!.flags.find((f) => f.startsWith('ladder-'))?.slice(7))
+    }
+    expect(rungOf(input(base))).toBe(3)
+    expect(rungOf(input({ ...base, screeningFlags: 2 }))).toBe(2)
+  })
+})
+
+describe('the injury-return ladder runs each level at its length [rules G-3]', () => {
+  const injured = () => input({ profile: profile({ runningSinceYear: 2022, injuries: [INJURY] }) })
+  const RUNNING = new Set(['easy', 'recovery', 'long', 'long-fast-finish', 'strides'])
+
+  it('never ends by the count of weeks: nine re-plans keep every level week with runs and an honest label', () => {
+    let current = buildPlan(injured())
+    let activities: Activity[] = []
+    let monday = addDays(MONDAY, 7)
+    for (let k = 0; k < 9; k++) {
+      activities = [
+        ...activities,
+        ...current.sessions
+          .filter((s) => s.date >= addDays(monday, -7) && s.date < monday && RUNNING.has(s.kind))
+          .map((s) =>
+            runOf(-(Date.parse(s.date) - Date.parse(TODAY)) / 864e5, s.durationMin, {
+              id: `inj-chain-${s.date}`,
+              pain: 0,
+              rpe: 3,
+            }),
+          ),
+      ]
+      const existing = {
+        weeks: current.weeks,
+        sessions: current.sessions.map((s, i) => ({
+          ...s,
+          id: `s${String(i)}`,
+          status: s.date < monday ? 'completed' : 'planned',
+          activityId: null,
+        })),
+      }
+      current = replan({ ...injured(), today: monday, activities, existing }).draft
+      const ahead = current.weeks.filter((w) => w.weekStart >= monday && w.targetRunMin > 0)
+      for (const w of ahead) {
+        // no week is left without a run, and a week ahead says the minutes it holds
+        const runs = runsIn(current, w.weekStart)
+        expect(runs.length, `${monday} ${w.weekStart}`).toBeGreaterThan(0)
+      }
+      const week = current.weeks.find((w) => w.weekStart === monday)!
+      const level = Number(week.flags.find((f) => f.startsWith('injury-level-'))?.slice(13))
+      // the programme is still on: the runs are far under level 6, so it has not been run
+      expect(Number.isNaN(level), monday).toBe(false)
+      const longest = Math.max(...runsIn(current, monday).map((s) => s.durationMin))
+      const table = P.injuryReturn.levelsMin.value[level]!
+      if (longest < table) expect(week.focus, monday).toMatch(/working toward/)
+      expect(current.warnings.map((w) => w.code)).not.toContain('spike-run-dropped')
+      expect(current.checklist.filter((c) => !c.ok)).toEqual([])
+      monday = addDays(monday, 7)
+    }
+    // eight weeks of 5 to 13 minutes: the ladder is on level 3 or lower, not at its end
+    expect(activities.at(-1)!.durationSec / 60).toBeLessThan(15)
+  })
+
+  it('labels a level held short by G-1 with its minutes and what it works toward', () => {
+    const plan = buildPlan({ ...injured(), activities: [runOf(5, 9, { pain: 0 })] })
+    const first = plan.weeks.find((w) => w.flags.includes('injury-return'))!
+    // a 9-minute run allows level 1 (5 min) at most: pain-free runs of 5 and 10 are the levels
+    expect(first.flags).toContain('injury-level-0')
+    const next = plan.weeks.filter((w) => w.flags.includes('injury-return'))[1]!
+    // level 2 is 10 minutes; the bound on a 9-minute run is 12, so it is run in full
+    expect(next.focus).toMatch(/10 minutes/)
+  })
+
+  it('draws the plain weeks after the ladder from the last run, with runs in them', () => {
+    const plan = buildPlan({ ...injured(), activities: [runOf(5, 30, { pain: 0 })] })
+    const after = plan.weeks.filter(
+      (w) => !w.flags.includes('injury-return') && w.targetRunMin > 0 && !w.isTaper,
+    )
+    expect(after.length).toBeGreaterThan(0)
+    for (const w of after.slice(0, 4)) {
+      expect(runsIn(plan, w.weekStart).length, w.weekStart).toBeGreaterThan(0)
+    }
+    expect(plan.warnings.map((w) => w.code)).not.toContain('spike-run-dropped')
+  })
+})
+
+describe('a re-plan the day after the first run of a floor or injury-return week [rules F5, E6, g-3]', () => {
+  function replanAfterFirstRun(inp: EngineInput) {
+    const plan = buildPlan(inp)
+    const firstRun = plan.sessions.find((s) => s.date >= TODAY && s.kind !== 'strength')!
+    const done = activity(firstRun.date, {
+      id: 'done-1',
+      durationSec: firstRun.durationMin * 60,
+      movingSec: firstRun.durationMin * 60,
+      distanceM: Math.round(firstRun.durationMin * 160),
+      pain: 0,
+    })
+    const today = addDays(firstRun.date, 1)
+    const next = replan({
+      ...inp,
+      today,
+      activities: [...inp.activities, done],
+      existing: {
+        weeks: plan.weeks,
+        sessions: plan.sessions.map((s, i) => ({
+          ...s,
+          id: `s${String(i)}`,
+          status: s === firstRun ? 'completed' : 'planned',
+          activityId: s === firstRun ? 'done-1' : null,
+        })),
+      },
+    }).draft
+    return { plan, next, firstRun }
+  }
+
+  const noConsecutive = (plan: { sessions: SessionSpec[] }, weekStart: string) => {
+    const days = [
+      ...new Set(
+        runsIn(plan, weekStart)
+          .filter((s) => s.kind !== 'rest')
+          .map((s) => s.date),
+      ),
+    ].sort()
+    for (let i = 1; i < days.length; i++) {
+      expect(
+        (Date.parse(days[i]!) - Date.parse(days[i - 1]!)) / 864e5,
+        days.join(' '),
+      ).toBeGreaterThan(1)
+    }
+  }
+
+  it('keeps the floor week on non-consecutive days against the run already done', () => {
+    const { next, firstRun } = replanAfterFirstRun(
+      input({ activities: [runOf(5, 25)], profile: profile({ runningSinceYear: 2023 }) }),
+    )
+    expect(next.weeks[0]!.flags).toContain('restart-floor')
+    expect(next.weeks[0]!.flags).not.toContain('run-walk')
+    noConsecutive(next, MONDAY)
+    expect(runsIn(next, MONDAY).some((s) => s.date === addDays(firstRun.date, 1))).toBe(false)
+    expect(next.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+
+  it('keeps the injury-return week a rest day apart from the run already done', () => {
+    const { next, firstRun } = replanAfterFirstRun(
+      input({ profile: profile({ runningSinceYear: 2023, injuries: [INJURY] }) }),
+    )
+    expect(next.weeks[0]!.flags).toContain('injury-return')
+    noConsecutive(next, MONDAY)
+    expect(runsIn(next, MONDAY).some((s) => s.date === addDays(firstRun.date, 1))).toBe(false)
+    expect(next.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+})
+
+describe('a ladder week that fewer than three spaced days can hold [rules F5, E6]', () => {
+  const day = (available: boolean) => ({ available, maxMin: null })
+  const onlyMonTueWed = {
+    mon: day(true),
+    tue: day(true),
+    wed: day(true),
+    thu: day(false),
+    fri: day(false),
+    sat: day(false),
+    sun: day(false),
+  }
+
+  it('sets the week target, run days and focus to what is placed, and counts the weeks in one note', () => {
+    const plan = buildPlan(input({ profile: profile({ ...NOVICE, availability: onlyMonTueWed }) }))
+    const ladder = plan.weeks.filter((w) => w.flags.some((f) => f.startsWith('ladder-')))
+    // the week of the plan's start is a part week and keeps the programme's own numbers
+    for (const w of ladder.slice(1)) {
+      const runs = runsIn(plan, w.weekStart)
+      expect(runs).toHaveLength(2)
+      expect(w.runDays, w.weekStart).toBe(2)
+      expect(w.targetRunMin, w.weekStart).toBe(runs.reduce((n, s) => n + s.durationMin, 0))
+      expect(w.focus, w.weekStart).toMatch(/two days a week/)
+    }
+    const notes = plan.warnings.filter((w) => w.code === 'availability-limits-runs')
+    expect(notes).toHaveLength(1)
+    // the part week of the start and the eight whole ladder weeks after it, counted in one note
+    expect(notes[0]!.message).toMatch(
+      /^9 week\(s\), from the week of 2026-10-19, have room for fewer run days/,
+    )
+    expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+
+  it('does the same for the injury-return ladder', () => {
+    // Monday and Tuesday are open, and a level keeps a rest day between its two runs
+    const plan = buildPlan(
+      input({
+        profile: profile({
+          runningSinceYear: 2023,
+          injuries: [INJURY],
+          availability: { ...onlyMonTueWed, wed: day(false) },
+        }),
+      }),
+    )
+    const levels = plan.weeks.filter((w) => w.flags.includes('injury-return')).slice(1)
+    expect(levels.length).toBeGreaterThan(2)
+    for (const w of levels) {
+      const runs = runsIn(plan, w.weekStart)
+      expect(runs, w.weekStart).toHaveLength(1)
+      expect(w.runDays, w.weekStart).toBe(1)
+      expect(w.targetRunMin, w.weekStart).toBe(runs[0]!.durationMin)
+      expect(w.focus, w.weekStart).not.toMatch(/behind|missed|streak|failed/i)
+    }
+    expect(plan.warnings.map((w) => w.code)).toContain('availability-limits-runs')
+    expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+})
+
+describe('ladder completion and the review of a ladder week [rules E6, G-3, G-6]', () => {
+  const ladderWeek1 = (() => {
+    const sw = startWeek('ladder', 1)
+    return {
+      weekStart: addDays(MONDAY, -7),
+      index: 0,
+      phase: 'build',
+      focus: sw.focus,
+      targetRunMin: sw.minutes,
+      longRunMin: 0,
+      longRunM: null,
+      gainTargetM: null,
+      runDays: 3,
+      qualitySessions: 0,
+      strengthSessions: 0,
+      tid: { z1: 100, z2: 0, z3: 0 },
+      flags: ['restart-floor', ...sw.flags],
+      isRecovery: false,
+      isTaper: false,
+    } satisfies WeekDraft
+  })()
+
+  /** Three planned sessions of the week, each linked to the activity logged for it, if any. */
+  const withLinks = (logged: number[]) => {
+    const sessions = [1, 3, 5].map((d, i) =>
+      planned(`ls-${String(i)}`, addDays(ladderWeek1.weekStart, d), 'easy', {
+        durationMin: 21,
+        activityId: logged[i] === undefined ? null : `lk-${String(i)}`,
+        status: logged[i] === undefined ? 'planned' : 'completed',
+      }),
+    )
+    const activities = logged.map((m, i) =>
+      activity(addDays(ladderWeek1.weekStart, [1, 3, 5][i]!), {
+        id: `lk-${String(i)}`,
+        durationSec: m * 60,
+        movingSec: m * 60,
+        distanceM: Math.round(m * 160),
+        pain: 0,
+      }),
+    )
+    return input({
+      today: MONDAY,
+      activities,
+      profile: profile(NOVICE),
+      existing: { weeks: [ladderWeek1], sessions },
+    })
+  }
+
+  it("credits an activity linked to a session with at most the session's minutes", () => {
+    // two of three sessions logged, each with the two 5-minute walks the watch recorded
+    const inp = withLinks([31, 31])
+    const ev = weekEvidence(inp, ladderWeek1.weekStart)
+    expect(ev.plannedMin).toBe(63)
+    expect(ev.actualMin).toBe(42)
+    expect(ev.share!).toBeLessThan(P.noviceLadder.advanceMinCompletion.value)
+    const st = estimateState(inp)
+    const out = macroPlan(inp, st, inp.goal, feasibility(inp.goal, st, MONDAY))
+    expect(out[0]!.flags).toContain('ladder-1')
+    expect(out[0]!.focus).toMatch(/repeating the step/)
+  })
+
+  it('advances when all three sessions were done, walks recorded or not', () => {
+    for (const logged of [
+      [31, 31, 31],
+      [21, 21, 21],
+    ]) {
+      const inp = withLinks(logged)
+      const st = estimateState(inp)
+      const out = macroPlan(inp, st, inp.goal, feasibility(inp.goal, st, MONDAY))
+      expect(out[0]!.flags, logged.join()).toContain('ladder-2')
+    }
+  })
+
+  it('counts a run that is not linked to a session whole', () => {
+    const inp = withLinks([])
+    const run = (d: number) =>
+      activity(addDays(ladderWeek1.weekStart, d), {
+        id: `free-${String(d)}`,
+        durationSec: 21 * 60,
+        movingSec: 21 * 60,
+        pain: 0,
+      })
+    const free = { ...inp, activities: [run(1), run(3)] }
+    expect(weekEvidence(free, ladderWeek1.weekStart).actualMin).toBe(42)
+  })
+
+  it('suggests the planned minutes for a ladder week next, not the soft ramp of the week before', () => {
+    // rung 3 is 54 min and was run in full; rung 4 is 66 min, 22% more, which the ladder is
+    // exempt from the soft 10% for
+    const weeks = [3, 4].map((rung, i) => {
+      const sw = startWeek('ladder', rung)
+      return {
+        ...ladderWeek1,
+        weekStart: addDays(MONDAY, -7 + 7 * i),
+        index: i,
+        focus: sw.focus,
+        targetRunMin: sw.minutes,
+        flags: sw.flags,
+      } satisfies WeekDraft
+    })
+    const done = [1, 3, 5].map((d) =>
+      runOf(-(Date.parse(addDays(weeks[0]!.weekStart, d)) - Date.parse(TODAY)) / 864e5, 18, {
+        id: `rev-${String(d)}`,
+        pain: 0,
+        rpe: 3,
+      }),
+    )
+    const inp = input({
+      today: addDays(weeks[0]!.weekStart, 7),
+      activities: done,
+      profile: profile(NOVICE),
+      existing: { weeks, sessions: [] },
+    })
+    const decision = weeklyDecision(inp, weeks[0]!.weekStart)
+    expect(decision.decision).toBe('progress')
+    expect(decision.nextWeekTargetMin).toBe(66)
+    // the same runner with a plain next week keeps the soft ramp
+    const plain = {
+      ...inp,
+      existing: {
+        weeks: [weeks[0]!, { ...weeks[1]!, flags: [], targetRunMin: 66 }],
+        sessions: [],
+      },
+    }
+    expect(weeklyDecision(plain, weeks[0]!.weekStart).nextWeekTargetMin).toBe(59)
+  })
+})
+
+describe('the flags and titles of the ladder sessions [rules E6]', () => {
+  const plan = buildPlan(input({ profile: profile(NOVICE) }))
+  const sessionsOfRung = (rung: number) => {
+    const week = plan.weeks.find((w) => w.flags.includes(`ladder-${String(rung)}`))!
+    return runsIn(plan, week.weekStart)
+  }
+
+  it('gives the run-walk flag and title only to a session with a walking break', () => {
+    const rung5 = sessionsOfRung(5)
+    expect(rung5.map((s) => s.flags.includes('run-walk'))).toEqual([true, true, false])
+    expect(rung5.map((s) => s.title)).toEqual([
+      'Run-walk, step 5',
+      'Run-walk, step 5',
+      'Ladder step 5: 20 min easy',
+    ])
+  })
+
+  it('titles the continuous rungs by their rung, as easy runs', () => {
+    for (const [rung, minutes] of [
+      [7, 25],
+      [8, 28],
+      [9, 30],
+    ] as const) {
+      for (const s of sessionsOfRung(rung)) {
+        expect(s.title).toBe(`Ladder step ${String(rung)}: ${String(minutes)} min easy`)
+        expect(s.flags).not.toContain('run-walk')
+        expect(s.kind).toBe('easy')
+      }
+    }
+  })
+
+  it('still treats a continuous ladder run as a ladder session: no reference for the next step, 5-minute minimum', () => {
+    const continuous = sessionsOfRung(8)[0]!
+    expect(isProgramme(continuous)).toBe(true)
+    // the guards may cut it down to 5 minutes, not to the run day minimum
+    const near = activity(addDays(continuous.date, -3), {
+      id: 'near-ref',
+      durationSec: 600,
+      movingSec: 600,
+      distanceM: 1600,
+    })
+    const cut = applyGuards(
+      [continuous],
+      estimateState(input({ profile: profile(NOVICE) })),
+      [near],
+      { neverOverride: true },
+    )
+    // 28 minutes against a 10-minute run: held to the 13-minute bound, kept under the 15-minute
+    // run day minimum
+    expect(cut.sessions.map((x) => x.durationMin)).toEqual([13])
+  })
+
+  it('counts the longest running bout of a continuous ladder run, not the framing walks', () => {
+    const rung7 = sessionsOfRung(7)[0]!
+    const walk = runOf(4, 35, { id: 'rung7-run', distanceM: 4000 })
+    const linked = planned('rung7', daysAgo(4), 'easy', {
+      activityId: 'rung7-run',
+      structure: rung7.structure,
+      flags: rung7.flags,
+    })
+    const inp = input({ activities: [walk], profile: profile({ runningSinceYear: 2022 }) })
+    const withSession = { ...inp, existing: { weeks: [], sessions: [linked] } }
+    // 35 minutes recorded, 25 of them running: a 3 x 25 floor, not 3 x 30
+    expect(startPath(inp, estimateState(inp))).toEqual({ kind: 'floor', sessionMin: 30 })
+    expect(startPath(withSession, estimateState(withSession))).toEqual({
+      kind: 'floor',
+      sessionMin: 25,
+    })
+  })
+})
+
+describe('the orphan J7 run-walk rule is gone [rules J7, E6]', () => {
+  it('leaves no run-walk threshold in the J7 parameters and no run-walk output on the restart', () => {
+    expect('runWalkIfConsistentUnderMonths' in P.j7).toBe(false)
+    expect(Object.keys(breakRestart(60, 100)).sort()).toEqual(['fraction', 'restartMin'])
   })
 })

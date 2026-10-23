@@ -20,6 +20,7 @@ import {
   readinessSnapshot,
   sleepAverageH,
 } from './readiness.ts'
+import { isProgrammeWeek } from './startWeeks.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -241,9 +242,58 @@ export interface WeekEvidence {
   runs: number
 }
 
+/**
+ * The running minutes of a week as the start paths count them. A ladder or injury-return week
+ * credits an activity linked to a planned session with at most that session's minutes, so a
+ * recording that carries the 5-minute walks around a ladder session does not stand for more than
+ * the session was planned at; a run that is not linked counts whole. Any other week is the plain
+ * weekly total.
+ */
+function creditedMin(input: EngineInput, weekStart: string): number {
+  const weekEnd = addDays(weekStart, 6)
+  const week = input.existing?.weeks.find((w) => w.weekStart === weekStart)
+  if (week === undefined || !isProgrammeWeek(week.flags)) {
+    return aggregateWeeks(input.activities, [weekStart])[0]!.runMin
+  }
+  const plannedFor = new Map<string, number>()
+  for (const s of input.existing?.sessions ?? []) {
+    if (
+      s.activityId !== null &&
+      s.date >= weekStart &&
+      s.date <= weekEnd &&
+      RUN_KINDS.has(s.kind)
+    ) {
+      plannedFor.set(s.activityId, s.durationMin)
+    }
+  }
+  let seconds = 0
+  for (const a of input.activities) {
+    if (a.type !== 'run' || isDuplicate(a) || a.date < weekStart || a.date > weekEnd) continue
+    const planned = plannedFor.get(a.id)
+    seconds += planned === undefined ? a.durationSec : Math.min(a.durationSec, planned * 60)
+  }
+  return Math.round(seconds / 60)
+}
+
+/**
+ * How many runs of the week reached `minutes`, within a minute for rounding: an injury-return
+ * level advances only when both of its runs were run at the level's own length [rules G-3].
+ */
+export function runsReaching(input: EngineInput, weekStart: string, minutes: number): number {
+  const weekEnd = addDays(weekStart, 6)
+  return input.activities.filter(
+    (a) =>
+      (a.type === 'run' || a.type === 'race') &&
+      !isDuplicate(a) &&
+      a.date >= weekStart &&
+      a.date <= weekEnd &&
+      a.durationSec / 60 >= minutes - 1,
+  ).length
+}
+
 export function weekEvidence(input: EngineInput, weekStart: string): WeekEvidence {
   const weekEnd = addDays(weekStart, 6)
-  const actualMin = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
+  const actualMin = creditedMin(input, weekStart)
   const plannedMin = plannedWeekMin(input, weekStart)
   const runs = input.activities.filter(
     (a) =>
@@ -448,14 +498,19 @@ export function weeklyDecision(
 
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
   const plannedThis = plannedFull ?? actual
-  const nextPlanned =
-    input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))?.targetRunMin ??
-    Math.round(plannedThis * (1 + ramp))
+  const nextWeek = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
+  const nextPlanned = nextWeek?.targetRunMin ?? Math.round(plannedThis * (1 + ramp))
   let nextWeekTargetMin: number
   // Whole minutes, rounded down so the number never passes the cap.
   const whole = (minutes: number) => Math.floor(minutes + 1e-9)
-  if (decision === 'progress') nextWeekTargetMin = whole(nextWeekCap(nextPlanned, actual, ramp))
-  else if (decision === 'hold') nextWeekTargetMin = whole(nextWeekCap(plannedThis, actual, ramp))
+  if (decision === 'progress') {
+    // A ladder or injury-return week is a step of a fixed programme, exempt from the soft ramp:
+    // the suggestion is the minutes the step is planned at, inside the 2-week ceiling [rules E6, G-3]
+    nextWeekTargetMin =
+      nextWeek !== undefined && isProgrammeWeek(nextWeek.flags)
+        ? whole(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
+        : whole(nextWeekCap(nextPlanned, actual, ramp))
+  } else if (decision === 'hold') nextWeekTargetMin = whole(nextWeekCap(plannedThis, actual, ramp))
   else {
     nextWeekTargetMin = Math.round(
       nextWeekCap(plannedThis, actual, ramp) * (1 - P.e3.recoveryWeekCutPct.value / 100),
@@ -515,23 +570,17 @@ export function zoneProposals(input: EngineInput, executions?: ExecutionRecord[]
   ]
 }
 
-/** Restart volume after a break of 7 days or more [rules J7]. */
+/** Restart volume after a break of 7 days or more [rules J7]; E6 sets the first week when it is small. */
 export function breakRestart(
   layoffDays: number,
   preBreakWeekMin: number,
-  consistentMonthsBefore?: number,
-): { restartMin: number; fraction: number; runWalk: boolean } {
+): { restartMin: number; fraction: number } {
   let fraction: number
   if (layoffDays < P.j7.tier1Days.value) fraction = P.j7.restartUnder7.value
   else if (layoffDays <= P.j7.tier2Days.value) fraction = P.j7.restart7to14.value
   else if (layoffDays <= P.j7.tier3Days.value) fraction = P.j7.restart15to28.value
   else fraction = P.j7.restartOver28.value
-  // Run-walk needs a known short running history; with none given the usual restart applies.
-  const runWalk =
-    layoffDays > P.j7.tier3Days.value &&
-    consistentMonthsBefore !== undefined &&
-    consistentMonthsBefore < P.j7.runWalkIfConsistentUnderMonths.value
-  return { restartMin: Math.round(preBreakWeekMin * fraction), fraction, runWalk }
+  return { restartMin: Math.round(preBreakWeekMin * fraction), fraction }
 }
 
 /**

@@ -924,17 +924,21 @@ describe('macroPlan: restart floor and run days', () => {
     )
   })
 
-  it('leaves a typical week at or above the floor and tightened profiles alone', () => {
+  it('leaves a typical week at or above the floor alone', () => {
     expect(floorPlan(state({ typicalWeekMin: FLOOR }), [recentRun(30)])[0]!.flags).not.toContain(
       'restart-floor',
     )
+  })
+
+  it('takes a tightened profile through the start path, but never lifts it above 3 x 20', () => {
     const tight = state({
       typicalWeekMin: 27,
       risk: { recentInjury: false, priorBsi: true, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
     })
+    // an unflagged runner with the same 30-min run is lifted to 3 x 30 (the test above)
     const weeks = floorPlan(tight, [recentRun(30)])
-    expect(weeks[0]!.flags).not.toContain('restart-floor')
-    expect(weeks[0]!.targetRunMin).toBe(27)
+    expect(weeks[0]!.flags).toContain('restart-floor')
+    expect(weeks[0]!.targetRunMin).toBe(FLOOR)
   })
 
   it('plans at least 4 run days from 3 h, 5 from 5 h and 6 from 7 h of weekly running', () => {

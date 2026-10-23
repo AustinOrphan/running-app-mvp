@@ -89,23 +89,21 @@ const codes = (d: ReturnType<typeof weeklyDecision>) => d.signals.map((s) => s.c
 
 describe('breakRestart (J7)', () => {
   it('restarts at 100% under 7 days', () => {
-    expect(breakRestart(3, 300)).toEqual({ restartMin: 300, fraction: 1, runWalk: false })
+    expect(breakRestart(3, 300)).toEqual({ restartMin: 300, fraction: 1 })
     expect(breakRestart(6, 300).fraction).toBe(1)
   })
 
   it('restarts at 90% for 7-14 days, 75% for 15-28 and 50% beyond', () => {
-    expect(breakRestart(7, 300)).toEqual({ restartMin: 270, fraction: 0.9, runWalk: false })
+    expect(breakRestart(7, 300)).toEqual({ restartMin: 270, fraction: 0.9 })
     expect(breakRestart(14, 300).fraction).toBe(0.9)
-    expect(breakRestart(15, 300)).toEqual({ restartMin: 225, fraction: 0.75, runWalk: false })
+    expect(breakRestart(15, 300)).toEqual({ restartMin: 225, fraction: 0.75 })
     expect(breakRestart(28, 300).fraction).toBe(0.75)
-    expect(breakRestart(29, 300)).toEqual({ restartMin: 150, fraction: 0.5, runWalk: false })
+    expect(breakRestart(29, 300)).toEqual({ restartMin: 150, fraction: 0.5 })
   })
 
-  it('uses run-walk after over 28 days only with under 6 consistent months before', () => {
-    expect(breakRestart(40, 200, 3).runWalk).toBe(true)
-    expect(breakRestart(40, 200, 12).runWalk).toBe(false)
-    expect(breakRestart(40, 200).runWalk).toBe(false)
-    expect(breakRestart(20, 200, 3).runWalk).toBe(false)
+  it('leaves the first week after a long break to E6: no run-walk output, only the restart volume', () => {
+    expect(Object.keys(breakRestart(40, 200)).sort()).toEqual(['fraction', 'restartMin'])
+    expect(breakRestart(40, 200)).toEqual({ restartMin: 100, fraction: 0.5 })
   })
 })
 

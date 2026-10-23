@@ -36,7 +36,13 @@ import { planWindows, postRaceWarnings } from './postRace.ts'
 import { predictRace } from './predict.ts'
 import { focalBoneActive, isQualityKind } from './readiness.ts'
 import { prescribe } from './sessions.ts'
-import { isProgrammeWeek, startExemptions, startKind } from './startWeeks.ts'
+import {
+  isProgrammeWeek,
+  placedFocus,
+  startExemptions,
+  startKind,
+  startSessionMinMin,
+} from './startWeeks.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -280,8 +286,8 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
 
   // Micro: each week to days; weeks see the sessions placed before them.
   const placed: SessionSpec[] = []
-  const shortOfDays: Array<{ weekStart: string; open: number; wanted: number }> = []
-  const tooShort: Array<{ weekStart: string; room: number }> = []
+  const shortOfDays: Array<{ weekStart: string; fit: number; wanted: number; spaced: boolean }> = []
+  const tooShort: Array<{ weekStart: string; room: number; minimum: number }> = []
   const history: SessionSpec[] = [...kept]
   const raceMonday = mondayOf(goal.date)
   for (let w = 0; w < macro.length; w++) {
@@ -399,17 +405,61 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         sessions = sessions.map((s) => (s === next ? cut : s))
       }
     }
-    // Fewer run days open than planned: the week gets the days there are, and the plan says so.
+    // Fewer run days open than planned: the week gets the days there are, and the plan says so. A
+    // week of a start path keeps a rest day between runs, so open days that sit next to each other
+    // hold fewer sessions than the programme draws; the week then says what was placed.
+    const startDrawn = isProgrammeWeek(week.flags) || week.flags.includes('restart-floor')
+    const placedRuns = sessions.filter((s) => VOLUME_KINDS.has(s.kind) && s.durationMin > 0)
+    const placedDays = new Set(placedRuns.map((s) => s.date)).size
     const open = WEEKDAYS.filter((day) => {
       const a = profile.availability[day]
       return a.available && (a.maxMin === null || a.maxMin >= P.fplace.minRunDayMin.value)
     }).length
+    // a part week (its Monday has passed) holds fewer runs by nature and is not counted
+    const spaced =
+      startDrawn &&
+      week.weekStart >= today &&
+      placedRuns.length > 0 &&
+      placedDays < planWeek.runDays
     if (
       planWeek.targetRunMin > 0 &&
       !planWeek.flags.includes('post-race') &&
-      open < planWeek.runDays
+      (open < planWeek.runDays || spaced)
     ) {
-      shortOfDays.push({ weekStart: week.weekStart, open, wanted: planWeek.runDays })
+      shortOfDays.push({
+        weekStart: week.weekStart,
+        fit: spaced ? placedDays : open,
+        wanted: planWeek.runDays,
+        spaced,
+      })
+    }
+    if (startDrawn && placedRuns.length > 0) {
+      // The week says what was placed. A whole week with nothing kept in it takes the target and
+      // run days too, but not the first week of a start path: its minutes are the baseline the
+      // ramp measures from. The current week, which part of it has run, takes the words only.
+      const whole = !isCurrent && keptAhead.length === 0
+      const baseline = week.flags.includes('restart-floor')
+      const minutes = runningMinutes(placedRuns)
+      const longest = Math.max(...placedRuns.map((s) => s.durationMin))
+      const drawn = macro[w]!
+      const focus = placedFocus(drawn, { days: whole ? placedDays : drawn.runDays, longest })
+      const counts = whole && !baseline
+      if (
+        focus !== drawn.focus ||
+        (counts && (minutes !== drawn.targetRunMin || placedDays !== drawn.runDays))
+      ) {
+        macro[w] = {
+          ...drawn,
+          ...(counts
+            ? {
+                targetRunMin: minutes,
+                runDays: placedDays,
+                longRunMin: drawn.longRunMin > 0 ? longest : 0,
+              }
+            : {}),
+          focus,
+        }
+      }
     }
     // A week with a target but no run placed because 1.10x the 30-day reference is under the run
     // day minimum on every day left: the limit is hit, so the plan says so [rules g-1, F5].
@@ -421,8 +471,9 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
           .filter((date) => date >= today)
           .map((date) => runCaps(referenceAt(records, date)).min),
       )
-      if (room < P.fplace.minRunDayMin.value) {
-        tooShort.push({ weekStart: week.weekStart, room })
+      const minimum = startDrawn ? startSessionMinMin() : P.fplace.minRunDayMin.value
+      if (room < minimum) {
+        tooShort.push({ weekStart: week.weekStart, room, minimum })
       }
     }
     // The race day holds the race and the rest of race week is the start of recovery; the weeks
@@ -472,7 +523,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     warnings.push({
       code: 'availability-limits-runs',
       severity: 'info',
-      message: `${shortOfDays.length} week(s), from the week of ${first.weekStart}, have fewer open run days (${first.open}) than the ${first.wanted} planned, so those weeks hold the runs on the days that are open.`,
+      message: `${shortOfDays.length} week(s), from the week of ${first.weekStart}, have room for fewer run days (${first.fit}) than the ${first.wanted} planned${first.spaced ? ', as the open days leave too few with a rest day between runs' : ''}, so those weeks hold the runs on the days that fit.`,
       rules: ['F5'],
     })
   }
@@ -481,7 +532,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     warnings.push({
       code: 'spike-run-dropped',
       severity: 'info',
-      message: `${tooShort.length} week(s), from the week of ${first.weekStart}, hold no run: ${P.g1.spikeRatioWarn.value}x the longest run of the last ${P.g1.windowDays.value} days is ${first.room} min, under the ${P.fplace.minRunDayMin.value}-minute run day minimum, so those runs are left out.`,
+      message: `${tooShort.length} week(s), from the week of ${first.weekStart}, hold no run: ${P.g1.spikeRatioWarn.value}x the longest run of the last ${P.g1.windowDays.value} days is ${first.room} min, under the ${first.minimum}-minute minimum for a run in those weeks, so those runs are left out.`,
       rules: ['g-1', 'F5'],
     })
   }

@@ -27,10 +27,12 @@ import { prescribe, type PrescribeContext } from './sessions.ts'
 import {
   clipBlueprint,
   fitBlueprints,
+  hasWalk,
   injuryLevel,
   ladderRung,
   rungSessions,
   sessionMin,
+  startSessionMinMin,
   startWeek,
 } from './startWeeks.ts'
 import type {
@@ -262,10 +264,14 @@ function planRuns(
   const runWalk = week.flags.includes('run-walk')
   // A novice plan holds no quality work in its first weeks, on the ladder or not [rules F5, E6].
   const gentle = runWalk || (novice && week.index < P.flib.runWalkWeeks.value)
+  // A ladder or injury-return week: the programme sets the sessions [rules E6, g-3].
+  const startWeekPlan = rung !== null || injuryWeek
   // Shortest run of the week: the session minimum, the run day minimum for run-walk and the first
-  // weeks of a novice plan [F5], or the first level of the injury-return ladder [G-3].
-  const minRun = injuryWeek
-    ? (P.injuryReturn.levelsMin.value[0] ?? 0)
+  // weeks of a novice plan [F5]. A ladder or injury-return session is exempt from the run day
+  // minimum and is placed at the day's G-1 bound down to the first level of the injury-return
+  // ladder (5 minutes), not left out [E6, G-3].
+  const minRun = startWeekPlan
+    ? startSessionMinMin()
     : gentle
       ? P.fplace.minRunDayMin.value
       : P.fplace.easyRunMinMin.value
@@ -293,9 +299,10 @@ function planRuns(
   const night = /night|dark/i.test(flagText)
   const heat = /heat/i.test(flagText)
   const preferred = WEEKDAYS.indexOf(profile.longRunDay)
-  // In a start-path week a run never sits next to a run kept earlier in the same week: the weeks
-  // of a start path keep a rest day between runs [rules F5, E6, g-3].
-  const startWeekPlan = rung !== null || injuryWeek
+  // In a start-path week (the ladder, the injury-return ladder and the 3 x N floor) a run never
+  // sits next to a run kept earlier in the same week: the weeks of a start path keep a rest day
+  // between runs [rules F5, E6, g-3].
+  const spacedFromKept = startWeekPlan || floorWeek
   const startGap = injuryWeek ? P.injuryReturn.restDaysBetween.value + 1 : 2
   const nearKept = (day: number) =>
     before.some(
@@ -305,7 +312,7 @@ function planRuns(
         Math.abs(offsetOf(s.date) - day) < startGap,
     )
   const usable = (day: number) =>
-    slots[day]!.open && slots[day]!.capMin >= minRun && !(startWeekPlan && nearKept(day))
+    slots[day]!.open && slots[day]!.capMin >= minRun && !(spacedFromKept && nearKept(day))
   // A taper, race or recovery week may hold a single run; any other week at least two [F5].
   const light = week.isTaper || week.isRecovery || week.phase === 'taper' || week.phase === 'race'
   const fewest = light ? 1 : P.fplace.minRunsPerWeek.value
@@ -453,11 +460,23 @@ function planRuns(
     const days = spacedDays(wanted, gap).sort((a, b) => a - b)
     const blueprints = all.slice(all.length - days.length)
     // each session is cut to its day's limit, and the week to its target: the week is placed
-    // against the target the ramp allows
-    const cut = fitBlueprints(
-      blueprints.map((bp, i) => clipBlueprint(bp, slots[days[i]!]!.capMin)),
-      week.targetRunMin,
-    )
+    // against the target the ramp allows. A session the day's limit cut keeps that length, and the
+    // others give way to the target, so a limit that ends during the week (an old run leaving the
+    // 30 days) does not shorten the sessions after it in proportion.
+    const byDay = blueprints.map((bp, i) => clipBlueprint(bp, slots[days[i]!]!.capMin))
+    const held = byDay.map((bp, i) => sessionMin(bp) < sessionMin(blueprints[i]!))
+    const heldMin = byDay.reduce((n, bp, i) => n + (held[i] ? sessionMin(bp) : 0), 0)
+    const cut =
+      held.some(Boolean) && held.some((h) => !h) && heldMin <= week.targetRunMin
+        ? (() => {
+            const free = fitBlueprints(
+              byDay.filter((_, i) => !held[i]),
+              week.targetRunMin - heldMin,
+            )
+            let next = 0
+            return byDay.map((bp, i) => (held[i] ? bp : free[next++]!))
+          })()
+        : fitBlueprints(byDay, week.targetRunMin)
     const plan: RunPlan[] = []
     cut.forEach((clipped, i) => {
       const day = days[i]!
@@ -467,7 +486,7 @@ function planRuns(
         day,
         kind: 'easy',
         minutes,
-        flags: injuryWeek ? ['injury-return'] : ['run-walk'],
+        flags: injuryWeek ? ['injury-return'] : hasWalk(clipped) ? ['run-walk'] : [],
         blueprint: injuryWeek ? undefined : clipped,
         fixed: true,
       })
