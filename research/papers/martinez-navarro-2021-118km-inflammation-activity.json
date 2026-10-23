@@ -1,0 +1,35 @@
+{
+  "id": "martinez-navarro-2021-118km-inflammation-activity",
+  "title": "Inflammation, muscle damage and postrace physical activity following a mountain ultramarathon",
+  "authors": "Martinez-Navarro I, Collado E, Hernando C, Hernando B, Hernando C",
+  "year": 2021,
+  "journal": "The Journal of Sports Medicine and Physical Fitness",
+  "doi": "10.23736/s0022-4707.21.11977-2",
+  "pmid": "33555667",
+  "url": "https://doi.org/10.23736/s0022-4707.21.11977-2",
+  "design": "prospective-cohort",
+  "population": "34 athletes (29 men, 5 women) in a 118-km mountain ultramarathon; blood before, immediately after, day 3 and day 7; accelerometer activity in the week after",
+  "sampleSize": 34,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "CK was significantly higher in faster runners at 3 days postrace (d = 1.17); LDH was higher in faster runners at 3 and 7 days (d = 1.01 and d = 1.05).",
+    "Race time correlated with CK and LDH at day 3 (rs = -0.41 and -0.52) and at day 7 (rs = -0.36 and -0.46): faster races went with higher damage markers.",
+    "Postrace physical activity levels did not differ between faster and slower runners, and activity was not associated with muscle damage and inflammation recovery, except light-intensity activity and CRP at day 3 (rs = -0.40).",
+    "Authors conclude race time had a higher influence on muscle damage recovery than postrace physical activity intensity; inflammatory activity takes longer to normalise than muscle damage and is not related to race time."
+  ],
+  "limitations": "Only days 3 and 7 sampled; the abstract does not state whether markers had normalised by day 7; activity was observational, not an intervention; n = 34 with 5 women.",
+  "implications": [
+    "Faster finishers had higher CK and LDH at days 3 and 7, so the hold could scale with effort and pace and not distance alone; the engine lacks a good effort input, so keep this as a documented caveat.",
+    "Light activity in the week after a mountain ultra was not linked to worse marker recovery (observational), which is consistent with walking and very easy activity being compatible with a no-running hold.",
+    "CRP and inflammation take longer to normalise than CK, supporting a graded second week."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed give a five-author list (Martinez-Navarro, Collado, Hernando C, Hernando B, Hernando C); the record's list was wrong and is corrected. Abstract re-read from PubMed and Europe PMC (PMID 33555667): d values, rs values and conclusions match. The 'finish pace' wording in an implication was softened to what the abstract states (race time).",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "buist-2010-rri-risk-factors-4-mile",
+  "title": "Incidence and risk factors of running-related injuries during preparation for a 4-mile recreational running event",
+  "authors": "Buist I, Bredeweg SW, Bessem B, van Mechelen W, Lemmink KA, Diercks RL",
+  "year": 2010,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsm.2007.044677",
+  "pmid": "18487252",
+  "url": "https://doi.org/10.1136/bjsm.2007.044677",
+  "design": "prospective-cohort",
+  "population": "Novice and recreational runners training for a 4-mile event (Netherlands), 8-week observation",
+  "sampleSize": 629,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "629 novice and recreational runners were followed for 8 weeks; at least one running-related injury in 25.9%; incidence 30.1 per 1000 h of running (95% CI 25.4 to 34.7).",
+    "No previous running experience was the most important risk factor: HR 2.6 (95% CI 1.2 to 5.5) in men and HR 2.1 (95% CI 1.2 to 3.7) in women.",
+    "Men were more prone to injury than women (HR 1.4, 95% CI 1.0 to 2.0).",
+    "Authors: novice runners may benefit the most from preventive interventions."
+  ],
+  "limitations": "Observational; injury defined as musculoskeletal pain of the lower limb or back restricting running for at least 1 day; the cohort mixes novices and recreational runners; the paper says nothing about dose per session or run-walk.",
+  "implications": [
+    "History is the right axis for splitting start dose: no previous running experience carries roughly double the hazard, which supports separate novice and returner paths.",
+    "Do not let sex change the floor dose; the sex-specific HRs are risk profiles, not dosing evidence."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (first author Buist; online 2008-05-16) and Europe PMC abstract (PMID 18487252; print year 2010, BJSM 44(8)). All numbers match. Year 2010 is the print year; the DOI prefix reflects the 2008 online date.",
+    "checkedAt": "2026-10-22"
+  }
+}

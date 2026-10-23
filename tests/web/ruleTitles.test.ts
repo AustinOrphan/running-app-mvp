@@ -56,9 +56,14 @@ describe('RULE_TITLES', () => {
     expect(ruleTitle('J5')).toBe('Weekly decision')
   })
 
-  test('tells g-1 from G1, and still finds a loosely spelled id', () => {
+  test('tells g-1 from G1, ignoring case but not hyphens', () => {
     expect(ruleTitle('g-1')).not.toBe(ruleTitle('G1'))
-    expect(ruleTitle('K-1')).toBe('Taper length')
+    expect(ruleTitle('G-1')).toBe('Session spike guard')
+    expect(ruleTitle('g1')).toBe('Deterministic core')
+    expect(ruleTitle('f-LIB')).toBe('Session library')
+    expect(ruleTitle('k1')).toBe('Taper length')
+    // K-1 is not an id the engine uses.
+    expect(ruleTitle('K-1')).toBeNull()
     expect(ruleTitle('zz-9')).toBeNull()
   })
 

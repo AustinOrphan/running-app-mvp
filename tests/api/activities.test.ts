@@ -110,7 +110,7 @@ describe('activities CRUD', () => {
   test('validation', async () => {
     const bad: Array<[string, object]> = [
       ['durationSec', { ...run, durationSec: 0 }],
-      ['durationSec', { ...run, durationSec: 172801 }],
+      ['durationSec', { ...run, durationSec: 540001 }],
       ['distanceM', { ...run, distanceM: -1 }],
       ['distanceM', { ...run, distanceM: 1000001 }],
       ['rpe', { ...run, rpe: 0 }],
@@ -135,7 +135,7 @@ describe('activities CRUD', () => {
       const paths = (json(res).error.details.issues as Array<{ path: string }>).map((i) => i.path)
       expect(paths).toContain(path)
     }
-    const edge = await post({ ...run, durationSec: 172800, distanceM: 1000000, rpe: 10, avgHr: 30 })
+    const edge = await post({ ...run, durationSec: 540000, distanceM: 1000000, rpe: 10, avgHr: 30 })
     expect(edge.status).toBe(201)
     const strength = await post({ date: '2026-03-02', type: 'strength', durationSec: 1800 })
     expect(strength.status).toBe(201)

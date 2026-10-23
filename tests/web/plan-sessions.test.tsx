@@ -6,7 +6,14 @@ import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
-import { makeRevision, makeSession, makeV1Plan, makeV2Plan, settings } from './plan-fixtures.ts'
+import {
+  makeRevision,
+  makeSession,
+  makeV1Plan,
+  makeV2Plan,
+  makeV2Week,
+  settings,
+} from './plan-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
   WhyDrawer: ({ rules, open }: { rules: string[]; open: boolean }) =>
@@ -75,6 +82,31 @@ describe('Plan page, version-2 plans', () => {
     expect(within(checks).getByText('Every week is within the ramp limit.')).toBeInTheDocument()
     expect(within(checks).getByText('Taper is one week long.')).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/behind|missed|streak/i)
+  })
+
+  test('marks the cutback chip from the engine recovery flag, not from the week index', async () => {
+    mockApi(
+      routes(
+        makeV2Plan({
+          weeks: [
+            makeV2Week(0),
+            makeV2Week(1, { flags: ['recovery'] }),
+            makeV2Week(2, { flags: ['ladder-2'] }),
+            // The index a version-1 plan would mark as a cutback, without the engine's flag.
+            makeV2Week(3),
+          ],
+        }),
+      ),
+    )
+    renderPlan()
+    await screen.findByRole('region', { name: 'Feasibility' })
+    const row = (weekStart: string) =>
+      document.querySelector<HTMLElement>(`tr[data-week="${weekStart}"]`)!
+    expect(row('2027-01-11')).toHaveAttribute('data-cutback', 'true')
+    expect(within(row('2027-01-11')).getByText('cutback')).toBeInTheDocument()
+    expect(row('2027-01-25')).not.toHaveAttribute('data-cutback')
+    expect(row('2027-01-18')).not.toHaveAttribute('data-cutback')
+    expect(screen.getAllByText('cutback')).toHaveLength(1)
   })
 
   test('groups warnings of one code into a line with a disclosure of the weeks', async () => {

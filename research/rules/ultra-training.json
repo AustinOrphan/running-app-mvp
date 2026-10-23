@@ -12,9 +12,9 @@
   },
   {
     "id": "ultra-volume-before-pace-100k",
-    "statement": "For goals of about 100 km and longer, prioritise growing weekly distance (bounded by the athlete's history and injury flags) ahead of adding pace work; for marathon and 50 km goals keep pace work in higher proportion. Weekly distance and training pace are the two inputs of a locally fitted race-pace sanity check.",
-    "parameter": "progression_priority",
-    "value": "volume first for >=100 km; pace weighted more for <=marathon",
+    "statement": "For goals of about 100 km and longer, prioritise growing weekly running time (bounded by the athlete's history, G-1/G-2 and injury flags) ahead of pace work and ahead of lengthening the single long run; for marathon and 50 km goals keep pace work in higher proportion. Weekly volume, frequency and climbing are the training variables consistently associated with ultra performance across seven cross-sectional cohorts; the longest single run is not.",
+    "parameter": "h1.volumeFirstFromM",
+    "value": "volume first for >=100 km; pace weighted more for <=50 km",
     "unit": "qualitative",
     "appliesTo": "Athletes with 100 km to 100-mile goals",
     "grade": "C",
@@ -22,30 +22,42 @@
     "evidence": [
       "tanda-2015-training-anthropometry-100km",
       "hoffman-2011-wser-vt100-factors",
-      "sewry-2022-safer-xxi-dnf"
+      "sewry-2022-safer-xxi-dnf",
+      "rust-2012-100km-vs-marathoners",
+      "belinchon-2021-mountain-race-predictors",
+      "daniel-2024-217km-sleep-training",
+      "coates-2021-physio-determinants-ultra"
     ]
   },
   {
     "id": "ultra-readiness-flags",
-    "statement": "Show non-blocking readiness messages when recent weekly distance, sessions per week, or training pace look low compared with the athlete's own history and the goal, since each was associated with DNF in a 24,000-starter 56 km cohort. No thresholds may be hard-coded from this evidence.",
+    "statement": "Show non-blocking readiness messages when recent weekly distance, sessions per week, or training pace look low compared with the athlete's own history and the goal, since each was associated with DNF in a 24,000-starter 56 km cohort and low volume recurs as an injury marker in trail runners. No thresholds may be hard-coded from this evidence.",
     "parameter": "readiness_flags",
     "value": "weekly distance, sessions per week, goal pace vs recent training pace",
     "unit": "athlete-relative, no numeric threshold",
     "appliesTo": "Athletes 4+ weeks from an ultra goal",
     "grade": "B",
     "confidence": "moderate",
-    "evidence": ["sewry-2022-safer-xxi-dnf", "burgess-2025-training-load-injury-gam"]
+    "evidence": [
+      "sewry-2022-safer-xxi-dnf",
+      "burgess-2025-training-load-injury-gam",
+      "soppelsa-2025-trail-injury-performance"
+    ]
   },
   {
     "id": "ultra-low-volume-note",
-    "statement": "Show an informational note, not a block, when average weekly running distance in the 12 weeks before an ultra is under 30 km. Based on one 56 km cohort; treat as a conservative default.",
+    "statement": "Show an informational note, not a block, when average weekly running distance in the 12 weeks before an ultra is under 30 km. Low weekly volume is associated with injury and DNF in several cohorts (possibly reverse causation); the 30 km value comes from one 56 km cohort and is a conservative default.",
     "parameter": "low_weekly_distance_note",
     "value": "30",
     "unit": "km/week",
     "appliesTo": "Athletes training for 50 km and longer",
     "grade": "D",
     "confidence": "low",
-    "evidence": ["craddock-2020-acwr-two-oceans", "burgess-2025-training-load-injury-gam"]
+    "evidence": [
+      "craddock-2020-acwr-two-oceans",
+      "burgess-2025-training-load-injury-gam",
+      "soppelsa-2025-trail-injury-performance"
+    ]
   },
   {
     "id": "ultra-acwr-informational",
@@ -60,17 +72,18 @@
   },
   {
     "id": "ultra-injury-history-gate",
-    "statement": "Apply conservative ramp rates and an explicit injury-history check to younger and less experienced runners, and show a note when the athlete has under 3 years of regular running before a first ultra. The 3-year value is the lower quarter of a descriptive distribution, not a risk threshold.",
+    "statement": "Apply conservative ramp rates and an explicit injury-history check to younger and less experienced runners, and show a note when the athlete has under 3 years of regular running before a first ultra. The 3-year value is the lower quarter of a descriptive distribution, not a risk threshold. Do not treat shorter ultra goals (about 50 km) as low-risk: entrants training for 46 km had the highest injury rate per 1000 h in one event.",
     "parameter": "min_years_regular_running_note",
     "value": "3",
     "unit": "years",
-    "appliesTo": "First-time ultra and 100-mile runners",
+    "appliesTo": "First-time ultra and 100-mile runners; all ultra distances for the shorter-goal caution",
     "grade": "D",
     "confidence": "low",
     "evidence": [
       "hoffman-2013-ultra-exercise-behavior",
       "hoffman-2014-ultra-health-injury",
-      "sewry-2022-safer-xxi-dnf"
+      "sewry-2022-safer-xxi-dnf",
+      "viljoen-2024-mac-ultra-injury-rate"
     ]
   },
   {
@@ -134,7 +147,8 @@
       "knechtle-2018-ultra-physiology-review",
       "coates-2021-physio-determinants-ultra",
       "pastor-2022-trail-determinants-distances",
-      "schutz-2019-tefr-prerace"
+      "schutz-2019-tefr-prerace",
+      "oloughlin-2019-wellington-sex-predictors"
     ]
   },
   {
@@ -150,28 +164,35 @@
   },
   {
     "id": "ultra-volume-benchmark",
-    "statement": "Use about 64 km/week (3,347 km/yr median) only as a descriptive sanity check of experienced ultrarunners' volume; never set it as a target. Cap peak volume by the athlete's own history and injury risk.",
-    "parameter": "experienced_ultra_median_weekly_distance",
+    "statement": "Use about 64 km/week (3,347 km/yr median) only as a descriptive sanity check of experienced ultrarunners' volume; never set it as a target. Strava summaries of 100-mile finishers (median peak week about 79-81 miles, about 16 h, 3-4 weeks out) are practice context only, from self-selected finishers. Cap peak volume by the athlete's own history and injury risk.",
+    "parameter": "h1.experiencedMedianWeeklyKm",
     "value": "64",
     "unit": "km/week (descriptive)",
     "appliesTo": "Recreational athletes with ultra goals",
     "grade": "C",
     "confidence": "moderate",
-    "evidence": ["hoffman-2013-ultra-exercise-behavior", "byrne-2024-elite-24h-training"]
+    "evidence": [
+      "hoffman-2013-ultra-exercise-behavior",
+      "byrne-2024-elite-24h-training",
+      "outside-2023-strava-western-states",
+      "outside-2023-strava-utmb"
+    ]
   },
   {
     "id": "ultra-peak-timing-recovery",
-    "statement": "Place peak training volume about 3 weeks before the goal race (elite n = 1 structure), and follow 100 km or longer races with a long, load-scaled recovery block. No day count is evidenced; engine default: no running for 7 days after a 100 km or longer race, then reduced running for at least a further 7 days, scaled up by race load (TRIMP or duration).",
-    "parameter": "post_race_recovery_default",
-    "value": "7 days no running, then >=7 days reduced",
-    "unit": "days (engine default)",
+    "statement": "Place peak training volume about 3 weeks before the goal race (elite n = 1 structure; also the modal peak-week timing of Western States and UTMB finishers on Strava), and follow 100 km or longer races, including tune-up races, with the day-counted post-race window of H12 (hold, then 7-day steps scaled by race class). No day count is evidenced beyond the time courses cited in H12.",
+    "parameter": "h12HoldDays",
+    "value": "see H12: hold 7 days (100 km class) to 14 days (beyond 170 km), then 7-day steps",
+    "unit": "days",
     "appliesTo": "Races of 100 km or longer",
     "grade": "D",
     "confidence": "low",
     "evidence": [
       "byrne-2024-elite-24h-training",
       "knechtle-2018-ultra-physiology-review",
-      "fornasiero-2018-ultra-intensity"
+      "fornasiero-2018-ultra-intensity",
+      "outside-2023-strava-western-states",
+      "outside-2023-strava-utmb"
     ]
   },
   {
@@ -184,5 +205,120 @@
     "grade": "C",
     "confidence": "low",
     "evidence": ["schutz-2019-tefr-prerace"]
+  },
+  {
+    "id": "ultra-longest-run-no-finish-threshold",
+    "statement": "Do not present any longest-run length as required for, or predictive of, finishing an ultra. Finisher vs non-finisher comparisons found no significant difference (161 km, ES 0.73, P = 0.07; UTMB Strava, nearly identical medians) or lost significance after adjustment (66 km); the only positive signal is a self-reported longest run linked to faster time, not to finishing. These null results are underpowered, so they are absence of evidence, not evidence that no length matters: the rule is a copy guard (grade D) and long-run targets are sketches.",
+    "parameter": null,
+    "value": "no threshold",
+    "unit": null,
+    "appliesTo": "All ultra goals, copy and feasibility labels",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "tan-2017-finishers-161km",
+      "taksaudom-2017-66km-predictors",
+      "outside-2023-strava-utmb",
+      "baldea-2009-leadville-training"
+    ]
+  },
+  {
+    "id": "ultra-longest-run-feasibility-target",
+    "statement": "The D4 feasibility check works toward a longest single run Lt that is the least of the class value (180 min for 50 km, 240 min for 100 km, 240 min for 100 miles, 270 min beyond), the H2 cap and the long-run share times the larger of the class peak week and the start week, so it never exceeds the long run the plan can schedule. Back-to-backs add time on feet beyond it. These are defaults that sit at or below observed practice (every Western States finisher on Strava logged at least one 20-mile run); no study sets them.",
+    "parameter": "d4LongRun.ultra50 / ultra100k / ultra100mi / beyond",
+    "value": "180 / 240 / 240 / 270",
+    "unit": "min",
+    "appliesTo": "Ultra goals, feasibility check",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "outside-2023-strava-western-states",
+      "outside-2023-strava-utmb",
+      "outside-2015-orton-koop-100-miles",
+      "tan-2017-finishers-161km"
+    ]
+  },
+  {
+    "id": "ultra-feasibility-weekly-time",
+    "statement": "For ultra goals, the D4 feasibility check also grows weekly running time from the start week (the larger of the typical week and the start-path floor week) toward the distance class's peak weekly time with the weekly ramp, and the label uses the slower of the long-run and weekly paths, because weekly volume and frequency, not the single long run, are the variables associated with ultra performance and DNF. The label never refuses a goal or raises load.",
+    "parameter": "peakWeeklyMin.ultra50 / ultra100k / ultra100mi / beyond",
+    "value": "390 / 480 / 600 / 660 (existing values reused)",
+    "unit": "min per week",
+    "appliesTo": "Ultra goals, feasibility label only",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "rust-2012-100km-vs-marathoners",
+      "belinchon-2021-mountain-race-predictors",
+      "tanda-2015-training-anthropometry-100km",
+      "hoffman-2011-wser-vt100-factors",
+      "sewry-2022-safer-xxi-dnf"
+    ]
+  },
+  {
+    "id": "ultra-longest-run-cap",
+    "statement": "Cap the longest single training run at the lesser of 6 h or 60% of expected race duration; G-1 applies to both duration and distance, so the long run grows by time on feet within the 1.10x session guard even where coaching convention (for example +1 h per month) would move faster. The cap lies inside the range of named-coach conventions (3-5 h to 6-7 h) and below what finishers log when races are counted; no injury or performance study sets it, and no study links any long-run length to injury, so it is a conservative default.",
+    "parameter": "h2.longestRunCapHours / h2.longestRunCapRaceFraction",
+    "value": "6 h / 0.60",
+    "unit": "h; fraction of expected race duration",
+    "appliesTo": "All ultra goals",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "frandsen-2025-session-spike",
+      "outside-2023-strava-utmb",
+      "outside-2023-strava-western-states",
+      "outside-2015-orton-koop-100-miles",
+      "viljoen-2022-trail-risk-factors"
+    ]
+  },
+  {
+    "id": "ultra-race-simulation-tuneup",
+    "statement": "Design intent, not implemented: one race simulation of up to 8 h per build, only within G-1, may be an entered tune-up race (50 km to 100 km); most 100-mile finishers raced during the build. It would fall no later than 3 weeks before race day and never in the taper, and after a tune-up of 100 km or more H12 applies. No code path reads h2.raceSimulationMaxHours, so the app must not describe the simulation as available. The value is a convention.",
+    "parameter": "h2.raceSimulationMaxHours",
+    "value": "8 h (not read by any code)",
+    "unit": "h",
+    "appliesTo": "Ultra goals of 100 km and longer (design intent)",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "outside-2023-strava-western-states",
+      "outside-2023-strava-utmb",
+      "outside-2015-orton-koop-100-miles",
+      "frandsen-2025-session-spike"
+    ]
+  },
+  {
+    "id": "ultra-long-run-share",
+    "statement": "For ultras the long run is about 45% of weekly running time (marathon and shorter 35%), always capped by H2 and G-1. The Western States peak week put about 40% of weekly distance in the long run (derived from two medians); because long runs are slower than weekday runs, the time share is higher than the distance share. Convention only.",
+    "parameter": "macroDesign.longRunShareOfWeekUltra",
+    "value": "0.45",
+    "unit": "fraction of weekly running time",
+    "appliesTo": "Ultra plans",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["outside-2023-strava-western-states", "outside-2023-strava-utmb"]
+  },
+  {
+    "id": "ultra-back-to-back",
+    "statement": "Back-to-back long days: at most one pair every 2 weeks, in build or specific phases only, never in the taper; day 2 is no longer than day 1 (default 0.6 of day 1); the pair's combined duration is no more than 1.10x the largest 2-day total in the last 30 days (G-1 by analogy); the next day is rest or easy. No study measures back-to-backs or links them to finishing or injury; do not confuse them with same-day double sessions, which one review lists as an injury factor.",
+    "parameter": "h3.b2bMinGapWeeks / h3.b2bDay2MaxRatioOfDay1 / h3.b2bTwoDayRatio / fplace.b2bDay2Fraction",
+    "value": "2 weeks / 1.0 / 1.10 / 0.6",
+    "unit": "weeks; ratio; ratio; fraction of day 1",
+    "appliesTo": "Ultra plans",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["frandsen-2025-session-spike", "viljoen-2022-trail-risk-factors"]
+  },
+  {
+    "id": "ultra-sex-extrapolation-note",
+    "statement": "Apply no sex-specific long-run, back-to-back or volume values; state in rule notes that ultra training data come largely from male samples. A systematic review found sex differences in predictors and responses but evidence too weak to formulate sex-specific guidance.",
+    "parameter": null,
+    "value": "no sex-specific values",
+    "unit": null,
+    "appliesTo": "All ultra goals",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": ["kelly-2023-sex-specific-ultra-review", "oloughlin-2019-wellington-sex-predictors"]
   }
 ]

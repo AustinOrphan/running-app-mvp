@@ -13,6 +13,8 @@ import { heatWarning } from './heat.ts'
 import {
   completedReference,
   gainLimit,
+  isProgramme,
+  noviceRamp,
   rampLimits,
   rampSkipWeeks,
   recordOf,
@@ -27,12 +29,20 @@ import {
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
-import { macroPlan, redsHold } from './macro.ts'
-import { placeWeek } from './micro.ts'
+import { macroPlanDraft, redsHold, startPath } from './macro.ts'
+import { holdSessions, placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
+import { planWindows, postRaceWarnings } from './postRace.ts'
 import { predictRace } from './predict.ts'
 import { focalBoneActive, isQualityKind } from './readiness.ts'
 import { prescribe } from './sessions.ts'
+import {
+  isProgrammeWeek,
+  placedFocus,
+  startExemptions,
+  startKind,
+  startSessionMinMin,
+} from './startWeeks.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -76,6 +86,8 @@ interface Keep {
   toRun: ReadonlySet<KeptSession>
   /** For weeks with kept sessions: the running minutes the replaced plan still had on other days. */
   stillPlanned: ReadonlyMap<string, number>
+  /** The kept sessions that a recorded activity stands for; its run is counted from the activity. */
+  matched: ReadonlySet<KeptSession>
   decisions: NonNullable<ReplanOptions['decisions']>
 }
 
@@ -196,7 +208,7 @@ function reduceWeek(week: WeekDraft, lastLoad: WeekDraft | undefined): WeekDraft
  * A break of 7 days or more restarts below the volume before it [rules J7]: the typical week the
  * macrocycle grows from is the restart volume, not the pre-break one.
  */
-function afterBreak(state: AthleteState): AthleteState {
+export function afterBreak(state: AthleteState): AthleteState {
   if (state.layoffDays < P.j7.tier1Days.value || state.typicalWeekMin <= 0) return state
   const restart = breakRestart(state.layoffDays, state.typicalWeekMin)
   return { ...state, typicalWeekMin: Math.min(state.typicalWeekMin, restart.restartMin) }
@@ -218,11 +230,12 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
   const kept = keep.sessions
   const state = afterBreak(estimateState(input))
   const zones = buildZones(input.profile, state, today)
-  const feas = feasibility(goal, state, today)
+  const feas = feasibility(goal, state, today, startPath(input, state))
   const currentMonday = mondayOf(today)
   const pastWeeks = (input.existing?.weeks ?? []).filter((w) => w.weekStart < currentMonday)
   const macro: WeekDraft[] = []
-  for (const w of macroPlan(input, state, goal, feas)) {
+  const { weeks: macroWeeks, raceWeekTail } = macroPlanDraft(input, state, goal, feas)
+  for (const w of macroWeeks) {
     let week: WeekDraft = {
       ...capWeek(w, input.weekCaps?.[w.weekStart]),
       index: w.index + weekOffset,
@@ -236,15 +249,27 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     macro.push(week)
   }
   const keptDates = new Set(kept.filter((s) => s.date >= today).map((s) => s.date))
+  // The post-race windows the plan's days fall in: a past race's, and the goal race's [rules H12].
+  const windows = planWindows(input)
 
   // The limits, from the completed runs and weeks, then each week as it is placed.
   const completed = completedReference(input.activities, state)
+  // The 30-day reference of every run: the completed runs and the planned ones before it. The
+  // sessions of a start-path programme are compared with the completed runs and the plain runs
+  // only (`plain`); the runs after a programme see its sessions too [rules E6, g-1].
   const records: RunRecord[] = [...completed.runs]
+  const plain: RunRecord[] = [...completed.runs]
   const volumes = new Map(state.weeks.map((w) => [w.weekStart, w.runMin]))
   const gains = weeklyGain(input.activities)
   const floorWeek = [...pastWeeks, ...macro].filter((w) => w.flags.includes('restart-floor')).at(-1)
+  // The post-race weeks are recovery weeks that set a ramp baseline: the weeks after them grow
+  // from the last step, not from the weeks before the race [rules H12, g-6].
   const lowWeeks = [...pastWeeks, ...macro]
-    .filter((w) => w.isRecovery || w.isTaper)
+    .filter((w) => (w.isRecovery || w.isTaper) && !w.flags.includes('post-race'))
+    .map((w) => w.weekStart)
+  // exempt from G-2: the post-race weeks, and the week that restarts from them [rules H12, J7]
+  const afterRaceWeeks = [...pastWeeks, ...macro]
+    .filter((w) => w.flags.includes('post-race') || w.flags.includes('post-race-restart'))
     .map((w) => w.weekStart)
   const rampCtx: RampContext = {
     volumes,
@@ -253,8 +278,9 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       floorWeek === undefined
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
+    exempt: startExemptions([...pastWeeks, ...macro]),
     typicalWeekMin: state.typicalWeekMin,
-    novice: state.experience === 'novice',
+    novice: noviceRamp(state),
     tight: tightRamp(state),
   }
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
@@ -263,8 +289,8 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
 
   // Micro: each week to days; weeks see the sessions placed before them.
   const placed: SessionSpec[] = []
-  const shortOfDays: Array<{ weekStart: string; open: number; wanted: number }> = []
-  const tooShort: Array<{ weekStart: string; room: number }> = []
+  const shortOfDays: Array<{ weekStart: string; fit: number; wanted: number; spaced: boolean }> = []
+  const tooShort: Array<{ weekStart: string; room: number; minimum: number }> = []
   const history: SessionSpec[] = [...kept]
   const raceMonday = mondayOf(goal.date)
   for (let w = 0; w < macro.length; w++) {
@@ -279,24 +305,39 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       const date = addDays(week.weekStart, i)
       if (date < today || keptDates.has(date)) closed.add(date)
     }
+    // What the current week has run so far: the recorded activities, and the sessions kept from the
+    // replaced plan that no activity stands for (finished without a recorded run). A day with a
+    // run, done or kept, is one run day: a session finished today and its activity are the same run.
+    const ranDates = new Set(
+      isCurrent
+        ? input.activities
+            .filter(
+              (a) =>
+                (a.type === 'run' || a.type === 'race') &&
+                !isDuplicate(a) &&
+                a.date >= week.weekStart &&
+                a.date <= today &&
+                !keptDates.has(a.date),
+            )
+            .map((a) => a.date)
+        : [],
+    )
+    const unrecorded = isCurrent
+      ? kept.filter(
+          (s) =>
+            inWeek(s) &&
+            s.date < today &&
+            VOLUME_KINDS.has(s.kind) &&
+            s.durationMin > 0 &&
+            !keep.matched.has(s) &&
+            !ranDates.has(s.date),
+        )
+      : []
     const done = isCurrent
       ? {
-          minutes: doneRow?.runMin ?? 0,
-          gain: doneGain,
-          // a day with a run, done or kept, is one run day: a session finished today and its
-          // activity are the same run
-          runDays: new Set(
-            input.activities
-              .filter(
-                (a) =>
-                  (a.type === 'run' || a.type === 'race') &&
-                  !isDuplicate(a) &&
-                  a.date >= week.weekStart &&
-                  a.date <= today &&
-                  !keptDates.has(a.date),
-              )
-              .map((a) => a.date),
-          ).size,
+          minutes: (doneRow?.runMin ?? 0) + runningMinutes(unrecorded),
+          gain: doneGain + runningGain(unrecorded),
+          runDays: new Set([...ranDates, ...unrecorded.map((s) => s.date)]).size,
         }
       : { minutes: 0, gain: 0, runDays: 0 }
     const keptMin = runningMinutes(keptToRun)
@@ -325,7 +366,11 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       }
     }
     // Inside the weekly ramp and the gain ramp, over what is run and placed [rules g-2, H4].
-    const ramp = rampLimits(rampCtx, week.weekStart)
+    // The post-race weeks and the restart week after them are exempt from G-2, as a return to an
+    // established base [rules H12].
+    const ramp = afterRaceWeeks.includes(week.weekStart)
+      ? null
+      : rampLimits(rampCtx, week.weekStart)
     if (ramp !== null && planWeek.targetRunMin > 0) {
       planWeek = capWeek(planWeek, Math.max(0, ramp.plan - done.minutes - keptMin))
     }
@@ -345,6 +390,11 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       }
     }
 
+    // The race week of the goal is placed as before: the days after the race are dropped below, and
+    // its minutes stay before the race. Every other week keeps the windows its days fall in.
+    const placing = windows.filter(
+      (w) => !(w.race.date === goal.date && mondayOf(w.race.date) === week.weekStart),
+    )
     const profile =
       closed.size > 0 ? closeDates(input.profile, week.weekStart, closed) : input.profile
     let sessions =
@@ -354,7 +404,15 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
             zones,
             state,
             prevSessions: history,
-            limits: { runs: records, virtualTwoDay: completed.virtualTwoDay },
+            limits: {
+              runs: isProgrammeWeek(week.flags) ? plain : records,
+              virtualTwoDay: completed.virtualTwoDay,
+            },
+            postRace: placing,
+            longRunMaxM:
+              goal.distanceClass === '5k' || goal.distanceClass === '10k'
+                ? P.macroDesign.peakLongRunKmMax.value * 1000
+                : undefined,
           })
         : []
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].
@@ -369,17 +427,61 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         sessions = sessions.map((s) => (s === next ? cut : s))
       }
     }
-    // Fewer run days open than planned: the week gets the days there are, and the plan says so.
+    // Fewer run days open than planned: the week gets the days there are, and the plan says so. A
+    // week of a start path keeps a rest day between runs, so open days that sit next to each other
+    // hold fewer sessions than the programme draws; the week then says what was placed.
+    const startDrawn = isProgrammeWeek(week.flags) || week.flags.includes('restart-floor')
+    const placedRuns = sessions.filter((s) => VOLUME_KINDS.has(s.kind) && s.durationMin > 0)
+    const placedDays = new Set(placedRuns.map((s) => s.date)).size
     const open = WEEKDAYS.filter((day) => {
       const a = profile.availability[day]
       return a.available && (a.maxMin === null || a.maxMin >= P.fplace.minRunDayMin.value)
     }).length
+    // a part week (its Monday has passed) holds fewer runs by nature and is not counted
+    const spaced =
+      startDrawn &&
+      week.weekStart >= today &&
+      placedRuns.length > 0 &&
+      placedDays < planWeek.runDays
     if (
       planWeek.targetRunMin > 0 &&
       !planWeek.flags.includes('post-race') &&
-      open < planWeek.runDays
+      (open < planWeek.runDays || spaced)
     ) {
-      shortOfDays.push({ weekStart: week.weekStart, open, wanted: planWeek.runDays })
+      shortOfDays.push({
+        weekStart: week.weekStart,
+        fit: spaced ? placedDays : open,
+        wanted: planWeek.runDays,
+        spaced,
+      })
+    }
+    if (startDrawn && placedRuns.length > 0) {
+      // The week says what was placed. A whole week with nothing kept in it takes the target and
+      // run days too, but not the first week of a start path: its minutes are the baseline the
+      // ramp measures from. The current week, which part of it has run, takes the words only.
+      const whole = !isCurrent && keptAhead.length === 0
+      const baseline = week.flags.includes('restart-floor')
+      const minutes = runningMinutes(placedRuns)
+      const longest = Math.max(...placedRuns.map((s) => s.durationMin))
+      const drawn = macro[w]!
+      const focus = placedFocus(drawn, { days: whole ? placedDays : drawn.runDays, longest })
+      const counts = whole && !baseline
+      if (
+        focus !== drawn.focus ||
+        (counts && (minutes !== drawn.targetRunMin || placedDays !== drawn.runDays))
+      ) {
+        macro[w] = {
+          ...drawn,
+          ...(counts
+            ? {
+                targetRunMin: minutes,
+                runDays: placedDays,
+                longRunMin: drawn.longRunMin > 0 ? longest : 0,
+              }
+            : {}),
+          focus,
+        }
+      }
     }
     // A week with a target but no run placed because 1.10x the 30-day reference is under the run
     // day minimum on every day left: the limit is hit, so the plan says so [rules g-1, F5].
@@ -391,21 +493,53 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
           .filter((date) => date >= today)
           .map((date) => runCaps(referenceAt(records, date)).min),
       )
-      if (room < P.fplace.minRunDayMin.value) {
-        tooShort.push({ weekStart: week.weekStart, room })
+      const minimum = startDrawn ? startSessionMinMin() : P.fplace.minRunDayMin.value
+      if (room < minimum) {
+        tooShort.push({ weekStart: week.weekStart, room, minimum })
       }
     }
     // The race day holds the race and the rest of race week is the start of recovery; the weeks
     // after it keep their own (reduced) sessions.
     const inside = sessions.filter((s) => s.date < goal.date || mondayOf(s.date) > raceMonday)
-    placed.push(...inside)
-    history.push(...inside)
+    // hold days after a race are rest days, the race week's included [rules H12]
+    const rest = holdSessions(week, zones, windows, today).filter((s) => !keptDates.has(s.date))
+    // The days of the race week after the hold carry the first return step: easy runs within its
+    // caps, counted with the step's runs of the weeks after [rules H12].
+    const afterRace =
+      raceWeekTail !== null && raceWeekTail.targetRunMin > 0 && week.weekStart === raceMonday
+        ? placeWeek(raceWeekTail, {
+            profile: closeDates(
+              input.profile,
+              week.weekStart,
+              new Set([
+                ...closed,
+                ...[0, 1, 2, 3, 4, 5, 6]
+                  .map((i) => addDays(week.weekStart, i))
+                  .filter((date) => date <= goal.date),
+              ]),
+            ),
+            zones,
+            state,
+            prevSessions: [...history, ...inside],
+            limits: {
+              runs: [...records, ...inside.filter((s) => VOLUME_KINDS.has(s.kind)).map(recordOf)],
+              virtualTwoDay: completed.virtualTwoDay,
+            },
+            postRace: windows,
+          }).filter((s) => !keptDates.has(s.date))
+        : []
+    placed.push(...inside, ...rest, ...afterRace)
+    history.push(...inside, ...afterRace)
 
     // The week enters the baselines and its runs the 30-day reference, as the guards count them.
-    const ahead = [...inside, ...keptToRun].filter((s) => s.date >= today)
+    const ahead = [...inside, ...afterRace, ...keptToRun].filter((s) => s.date >= today)
     volumes.set(week.weekStart, done.minutes + runningMinutes(ahead))
     gains.set(week.weekStart, done.gain + runningGain(ahead))
-    for (const s of ahead.sort(bySlot)) if (VOLUME_KINDS.has(s.kind)) records.push(recordOf(s))
+    for (const s of ahead.sort(bySlot)) {
+      if (!VOLUME_KINDS.has(s.kind)) continue
+      records.push(recordOf(s))
+      if (!isProgramme(s)) plain.push(recordOf(s))
+    }
   }
 
   // Guards over the whole plan: the check, which finds nothing to cut in a plan placed as above.
@@ -413,7 +547,12 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     ultraRaceDurationSec: goal.isUltra ? goal.expectedDurationSec : null,
     neverOverride: true,
     lowWeeks,
-    restartFloor: rampCtx.floor,
+    exemptWeeks: afterRaceWeeks,
+    startPath:
+      rampCtx.floor === null || floorWeek === undefined
+        ? null
+        : { ...rampCtx.floor, kind: startKind(floorWeek.flags) ?? 'floor' },
+    exempt: rampCtx.exempt,
     fixed: kept.filter((s) => keep.toRun.has(s) && s.date >= today),
   })
 
@@ -431,7 +570,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     warnings.push({
       code: 'availability-limits-runs',
       severity: 'info',
-      message: `${shortOfDays.length} week(s), from the week of ${first.weekStart}, have fewer open run days (${first.open}) than the ${first.wanted} planned, so those weeks hold the runs on the days that are open.`,
+      message: `${shortOfDays.length} week(s), from the week of ${first.weekStart}, have room for fewer run days (${first.fit}) than the ${first.wanted} planned${first.spaced ? ', as the open days leave too few with a rest day between runs' : ''}, so those weeks hold the runs on the days that fit.`,
       rules: ['F5'],
     })
   }
@@ -440,10 +579,11 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     warnings.push({
       code: 'spike-run-dropped',
       severity: 'info',
-      message: `${tooShort.length} week(s), from the week of ${first.weekStart}, hold no run: ${P.g1.spikeRatioWarn.value}x the longest run of the last ${P.g1.windowDays.value} days is ${first.room} min, under the ${P.fplace.minRunDayMin.value}-minute run day minimum, so those runs are left out.`,
+      message: `${tooShort.length} week(s), from the week of ${first.weekStart}, hold no run: ${P.g1.spikeRatioWarn.value}x the longest run of the last ${P.g1.windowDays.value} days is ${first.room} min, under the ${first.minimum}-minute minimum for a run in those weeks, so those runs are left out.`,
       rules: ['g-1', 'F5'],
     })
   }
+  warnings.push(...postRaceWarnings(windows))
   if (redsHold(state)) {
     warnings.push({
       code: 'reds-hold',
@@ -512,7 +652,7 @@ function raceSession(input: EngineInput, zones: ZoneSet, week: WeekDraft): Sessi
 export function buildPlan(input: EngineInput): PlanDraft {
   const draft = generate(
     input,
-    { sessions: [], toRun: new Set(), stillPlanned: new Map(), decisions: {} },
+    { sessions: [], toRun: new Set(), stillPlanned: new Map(), matched: new Set(), decisions: {} },
     0,
   )
   return { ...draft, checklist: runChecklist(draft, input) }
@@ -604,9 +744,10 @@ export function replan(
       ),
     )
   }
+  const matched = new Set(kept.filter((_, i) => keptRows[i]!.activityId !== null))
   const draft = generate(
     input,
-    { sessions: kept, toRun, stillPlanned, decisions: options.decisions ?? {} },
+    { sessions: kept, toRun, stillPlanned, matched, decisions: options.decisions ?? {} },
     pastWeeks.length,
   )
   const keptSet = new Set<SessionSpec>(kept)

@@ -1,0 +1,35 @@
+{
+  "id": "paech-2021-100mile-hrv",
+  "title": "Influence of a 100-mile ultramarathon on heart rate and heart rate variability",
+  "authors": "Paech C, Schrieber S, Daehnert I, Schmidt-Hellinger PJ, Wolfarth B, Wuestenfeld J, Thouet T",
+  "year": 2021,
+  "journal": "BMJ Open Sport & Exercise Medicine",
+  "doi": "10.1136/bmjsem-2020-001005",
+  "pmid": "34046186",
+  "url": "https://doi.org/10.1136/bmjsem-2020-001005",
+  "design": "prospective-cohort",
+  "population": "28 runners (25 men, 3 women) in a 100-mile ultramarathon, 24 h Holter ECG one week before, immediately after and after a week of recovery",
+  "sampleSize": 28,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "A rise in baseline heart rate (18.98%) immediately after the run.",
+    "A significant drop in the SD of all normal RR intervals (7.12%) 1 week after the run.",
+    "Full return of HRV to the athletes' baseline did not occur within 1 week.",
+    "Authors conclude HRV might be a suitable parameter to evaluate the state of recovery after a 100-mile run but does not help to quantify it, since damage to the tendomuscular system primarily characterises recovery. No significant differences between finishers and non-finishers in the analysed parameters."
+  ],
+  "limitations": "Small sample, 3 women; only one follow-up point (1 week), so the time to HRV normalisation is unknown; 24 h Holter HRV is not the same as a morning wearable reading; abstract gives no per-metric values beyond the percentages.",
+  "implications": [
+    "One week after a 100-mile race, 24 h HRV is still depressed: a wearable HRV that has not returned to baseline should be treated as supporting a longer hold, never as grounds to release early.",
+    "Because HRV tracks autonomic state and not tendomuscular damage, HRV and resting HR should not be used to shorten a 100-mile schedule; at most they may extend it or delay progression.",
+    "The engine should not expect HRV to normalise inside the first 7 days after a 100-mile race, so an HRV-based gate on a week-1 step would stay shut by design."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed esummary show a different author list from the record (Paech, Schrieber, Daehnert, Schmidt-Hellinger, Wolfarth, Wuestenfeld, Thouet); corrected. Abstract re-read (PMID 34046186); percentages, 1-week statement and conclusion match.",
+    "checkedAt": "2026-10-22"
+  }
+}

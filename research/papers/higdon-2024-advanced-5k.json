@@ -1,0 +1,33 @@
+{
+  "id": "higdon-2024-advanced-5k",
+  "title": "Hal Higdon Advanced 5K Training Program (8 weeks)",
+  "authors": "Higdon H",
+  "year": 2024,
+  "journal": "halhigdon.com",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.halhigdon.com/training-programs/5k-training/advanced-5k/",
+  "design": "book-or-guideline",
+  "population": "Experienced 5K runners who already run 4-5 days a week and 20-30+ miles weekly (6 run days per week in the plan)",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Sunday long run is set by time: 60, 65, 70 min in weeks 1-3, 5K test race in week 4, then 75, 85, 90 min in weeks 5-7; week 8 is the 5K race.",
+    "Typical week is 6 run days and 1 day off: Monday 3 mi easy, Tuesday 200 m or 400 m repeats, Thursday 30-45 min tempo, Saturday 4-6 mi fast run.",
+    "Peak long run is 90 min; the page header lists a longest workout of 12 miles, which does not match the 90 min schedule and is treated as unreliable."
+  ],
+  "limitations": "Read through a page-fetch summariser; the header 'longest workout 12 miles' is inconsistent with the schedule. Convention, not evidence. Year is the access date.",
+  "implications": [
+    "Established advanced 5K plan peaks the long run at 90 min for runners at 20-30+ miles per week, above the engine's current 60 min 5K cap; supports raising the 5K high-volume cap toward 75-90 min.",
+    "Long run is time-based, matching the engine's minutes convention; progression is +5 min per step, with a +10 min step in week 6."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched halhigdon.com advanced 5K page 2026-10-22: Sunday 60/65/70/test/75/85/90/race, 12-mile header inconsistency and the 4-5 days and 20-30+ miles audience statement confirmed. Corrected the audience (earlier record gave only 'advanced recreational') and the progression step (5 min, one 10 min). Published convention, not evidence.",
+    "checkedAt": "2026-10-22"
+  }
+}

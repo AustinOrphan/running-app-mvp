@@ -18,7 +18,7 @@ import { mExecution } from './m-execution.ts'
 import { nChecklist } from './n-checklist.ts'
 
 /** Bump when any parameter value, grade or rule changes; stored with every generated plan. */
-export const PARAMS_VERSION = '2026-10-22.1'
+export const PARAMS_VERSION = '2026-10-22.2'
 
 /** The section files in order; a task adds parameters only to its own file(s). */
 export const PARAM_SECTIONS = {
@@ -67,8 +67,11 @@ export function allParams(): Array<Param<unknown>> {
   return (Object.keys(PARAM_SECTIONS) as Array<keyof typeof PARAM_SECTIONS>).flatMap(sectionParams)
 }
 
-/** The parameters that belong to a rule id, matched case-insensitively and ignoring hyphens. */
+/**
+ * The parameters that belong to a rule id, matched case-insensitively but not ignoring hyphens:
+ * `g-3` (tightened profiles) and `G3` (priors, not optima) are different rules.
+ */
 export function paramsForRule(rule: string): Array<Param<unknown>> {
-  const key = (id: string) => id.toLowerCase().replace(/-/g, '')
-  return allParams().filter((p) => key(p.rule) === key(rule))
+  const key = rule.toLowerCase()
+  return allParams().filter((p) => p.rule.toLowerCase() === key)
 }

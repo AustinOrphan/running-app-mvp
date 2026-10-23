@@ -1,0 +1,33 @@
+{
+  "id": "runningmagazine-2023-daniels-long-run-limit",
+  "title": "Is your long run too long? (reports Jack Daniels long-run limit)",
+  "authors": "Baswick P",
+  "year": 2023,
+  "journal": "Running Magazine (Canada)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://runningmagazine.ca/?p=99607",
+  "design": "book-or-guideline",
+  "population": "General runners; rule from Daniels' Running Formula as reported by a magazine",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Runners with under 64 km per week should limit the long run to 30% of total weekly distance.",
+    "Over 64 km per week the long run should not exceed 25% of the week's distance or 150 minutes, whichever comes first.",
+    "The article states the rule only in terms of weekly mileage or time and gives no 5 km or 10 km figures; the only race it mentions is the marathon as a general example."
+  ],
+  "limitations": "Secondary source (magazine article, 2023-06-28, byline Paul Baswick), not the book; the rule is as reported, and applying it to 5-10 km is the engine's inference.",
+  "implications": [
+    "A 30% share cap applies at low and medium volume: a 3 h week caps the long run near 54 min and a 5 h week near 90 min (arithmetic on time as a proxy for distance).",
+    "The 150 min cap is far above any 5-10 km need; the engine's 60 min 5K cap is stricter than Daniels and could be raised for high volume."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched runningmagazine.ca/?p=99607 on 2026-10-22: byline Paul Baswick, title 'Is your long run too long?', date 2023-06-28, 30% under 64 km and 25%/150 min over 64 km quoted verbatim, no race-distance application. Removed the unsupported conversion of 3-6 h to 25-55 km. Secondary report; the book was not checked. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

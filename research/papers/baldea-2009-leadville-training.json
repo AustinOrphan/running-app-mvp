@@ -1,0 +1,34 @@
+{
+  "id": "baldea-2009-leadville-training",
+  "title": "Training patterns, non-steroidal anti-inflammatory medication use, and effects on high-altitude ultramarathon performance (Leadville Trail 100)",
+  "authors": "Baldea JD, Khodaee M, Poddar SK, Hill JC, Johnson J",
+  "year": 2009,
+  "journal": "ACSM 56th Annual Meeting, presentation 703 (abstract hosted by Coach Sci. Abstracts, San Diego State University)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://coachsci.sdsu.edu/csa/vol161/baldea.htm",
+  "design": "cross-sectional",
+  "population": "Leadville Trail 100 (100 mi, 9,200-12,600 ft) entrants surveyed at registration; mean age 43.3 (21-71), 82.1% male.",
+  "sampleSize": 351,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "351 of 444 entrants responded (79.1%); anonymous self-administered survey given at registration the day before the race.",
+    "Mean 5.2 training days per week; mean longest training run 51 miles; 51.7% trained from personal experience.",
+    "Altitude of residence, finishing goal, length of longest training run and training frequency per week had statistically significant relationships with finishing time; age, gender, arrival time, training duration, training altitude and NSAID use did not.",
+    "The abstract's implication line states these four variables 'correlated with a better finishing time'. No coefficients, and no finishing-rate or finisher-vs-DNF analysis, are given."
+  ],
+  "limitations": "Conference abstract, not peer reviewed; self-reported longest run (likely includes races); no effect sizes; relates to finish time among respondents, not to finishing or injury; no DOI.",
+  "implications": [
+    "Only a self-reported 100-mile entrant average (51 mi, far more than 6 h of running for most) with a direction (longer longest run, faster time); cannot support or refute a 6 h cap because race-distance runs inflate the figure.",
+    "Treat as descriptive context for what 100-mile entrants do, not as a dose-response for the engine."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "No DOI or PMID. Re-fetched https://coachsci.sdsu.edu/csa/vol161/baldea.htm and read the full abstract: 351/444, 5.2 days, 51 miles, the four significant variables and the non-significant list match, and the 'correlated with a better finishing time' wording is in the Implication line. The ACSM meeting citation on the page says Seattle; journal field corrected to avoid mislabelling the meeting as San Diego. Non-peer-reviewed.",
+    "checkedAt": "2026-10-22"
+  }
+}

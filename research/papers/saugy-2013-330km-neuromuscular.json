@@ -1,0 +1,34 @@
+{
+  "id": "saugy-2013-330km-neuromuscular",
+  "title": "Alterations of Neuromuscular Function after the World's Most Challenging Mountain Ultra-Marathon",
+  "authors": "Saugy J, Place N, Millet GY, Degache F, Schena F, Millet GP",
+  "year": 2013,
+  "journal": "PLoS ONE",
+  "doi": "10.1371/journal.pone.0065596",
+  "pmid": "23840345",
+  "url": "https://doi.org/10.1371/journal.pone.0065596",
+  "design": "prospective-cohort",
+  "population": "15 experienced ultra-marathon runners in a 330 km, 24,000 m elevation-change trail race (finish time 122.43 +/- 17.21 h) and 8 sleep-deprived controls",
+  "sampleSize": 15,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Maximal voluntary contraction declined -13 +/- 17% (knee extensors) and -10 +/- 16% (plantar flexors) at mid-race and -24 +/- 13% and -26 +/- 19% post-race; central activation ratio fell -24 +/- 24% and -28 +/- 34%; controls did not change.",
+    "Peripheral markers also altered: 100 Hz doublet -18 +/- 18% (KE) and -20 +/- 15% (PF); peak twitch -33 +/- 12% (KE) and -19 +/- 14% (PF).",
+    "Post-race CK 3719 +/- 3045 U/L, LDH 1145 +/- 511, CRP 13.1 +/- 7.5 mg/L and myoglobin 449.3 +/- 338.2 ug/L, all higher than pre-race in runners but not controls.",
+    "Authors report less neuromuscular fatigue, muscle damage and inflammation than in shorter mountain ultras, and conclude such extreme exercise seems to induce a relative muscle preservation process, likely due to protective anticipatory pacing and sleep deprivation."
+  ],
+  "limitations": "No post-race recovery time course in the abstract; very small sample of highly experienced finishers at slow paces; the comparison with shorter ultras is indirect.",
+  "implications": [
+    "Damage and neuromuscular deficit did not rise in proportion to distance: a 330 km event at slow pace produced smaller CK than the 166 km race (Millet 2011), though the deficit was still about -24 to -26% MVC. A hold that grows linearly with distance beyond 100 miles is not supported; a cap is a judgement, not a finding.",
+    "Because this paper has no recovery data, it cannot support a specific day count for races above 100 miles; using the 100-mile hold as the ceiling for events up to 330 km is a design choice that should be flagged as such."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2013-06-26, authors match) and abstract re-read (PMID 23840345); all numbers match. Implication reworded so the cap is labelled a judgement and the residual deficit is stated.",
+    "checkedAt": "2026-10-22"
+  }
+}

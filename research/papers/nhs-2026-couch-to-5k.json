@@ -1,0 +1,36 @@
+{
+  "id": "nhs-2026-couch-to-5k",
+  "title": "NHS Couch to 5K running plan (week-by-week)",
+  "authors": "NHS (England), Better Health",
+  "year": 2026,
+  "journal": "NHS Better Health website",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.nhs.uk/better-health/get-active/get-running-with-couch-to-5k/couch-to-5k-running-plan/",
+  "design": "book-or-guideline",
+  "population": "General adult beginners; no outcome data",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["beginners-return"],
+  "findings": [
+    "9 weeks, 3 runs a week with a rest day aimed for between runs; each run has a 5 min warm-up walk and a 5 min cool-down walk; the page says to speak to a GP first if worried about health.",
+    "Week 1 (all 3 runs): run 1 min / walk 1.5 min x 7, then run 1 min, i.e. 8 min of running (28.5 min total). Week 2: run 1.5 / walk 2 x 5, then run 1.5, i.e. 9 min of running (29 min total).",
+    "Week 3: run 1.5, walk 1.5, run 3, walk 3, run 1.5, walk 1.5, run 3 (9 min running, 25 min total). Week 4: run 3, walk 1.5, run 5, walk 2.5, run 3, walk 1.5, run 5 (16 min running, 31.5 min total).",
+    "Week 5: run 1 is 5/walk 3/5/walk 3/5 (31 min total); run 2 is 8/walk 5/8 (31 min); run 3 is the first continuous 20 min run (30 min total). Week 6: run 1 is 5/walk 3/8/walk 3/5 (34 min), run 2 is 10/walk 3/10 (33 min), run 3 is 25 min continuous (35 min).",
+    "Week 7 is 3 x 25 min continuous (35 min total); week 8 is 3 x 28 min continuous (38 min); week 9 is 3 x 30 min continuous (40 min). Week 5 text: if you need to repeat any of the runs or weeks, that's totally okay."
+  ],
+  "limitations": "Convention (evidence level D): no outcome data on the page; the page shows published 24 Jun 2025 and modified 4 Sep 2026 in its metadata (year given is the modified year); the published plan is not evidence that run-walk beats 3 x 20 continuous.",
+  "implications": [
+    "The mainstream run-walk start is 8 min of running in week 1, 9 min in weeks 2-3 and 16 min in week 4, with the first 20 min continuous run in week 5 (run 3), a 25 min run in week 6 and 3 x 25 min continuous only from week 7.",
+    "Weeks can be repeated: the page says repeating runs or weeks is fine, supporting a hold-or-repeat rule on the floor.",
+    "Use as a convention-level template (grade D) for the true novice path."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the NHS page this session and read weeks 1-9 from the HTML. Corrected two errors in the earlier record: (1) the quoted phrase 'or longer as you go through the plan' does not appear (the page says 'run further and for longer'), removed; (2) the implication claimed about 24-27 min of running time by week 4, but week 4 is 16 min of running (31.5 min is the session total). Added per-week running minutes. Page metadata: published 24 Jun 2025, modified 4 Sep 2026. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

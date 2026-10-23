@@ -533,7 +533,8 @@ was held to 40 minutes). A plan for a sparse 100-mile history carried about 50 w
    tenderness on a bone" from the active state and clears it only when the runner unticks it;
    the server stores an explicit `false` only from such an action.
 2. **Multi-day activities:** the parse cap becomes 240 hours (200-mile races take up to about
-   100 hours), with the stream buckets bounded accordingly.
+   100 hours), with the stream buckets bounded accordingly. (Later unified to 150 hours for
+   every entry path; see the design spec, section 10, item 8.)
 3. **No trims or proposals from guesses:** an effort score with no subjective part (no RPE,
    no feel) is capped at ±1 with low confidence, and quality trims require a subjective part.
 4. **Zone proposals use fresh evidence only:** observations before the last accepted change

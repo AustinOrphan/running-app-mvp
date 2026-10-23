@@ -9,7 +9,9 @@ import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
+import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
+import { lastWindowDay, postRaceWindows, stageLabel, windowDay } from './postRace.ts'
 import {
   checkinOn,
   hrvFlaggedOn,
@@ -18,6 +20,7 @@ import {
   readinessSnapshot,
   sleepAverageH,
 } from './readiness.ts'
+import { isProgrammeWeek } from './startWeeks.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -144,6 +147,178 @@ function formatPace(secPerKm: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }
 
+/**
+ * A week inside a post-race window reports its stage instead of progress, hold or reduce
+ * [rules H12]: the plan follows the window, and a rating can only delay it. `decision` is 'hold'
+ * for callers that read only that, and the next week keeps the minutes the plan holds for it.
+ */
+function postRaceDecision(
+  input: EngineInput,
+  weekStart: string,
+  asOf: string,
+  ramp: number,
+): WeeklyDecision | null {
+  const weekEnd = addDays(weekStart, 6)
+  const { own, past } = postRaceWindows(input)
+  // the goal race's window counts for the weeks the plan marks as post-race; a past race's window
+  // for any week it covers, since the plan was built inside it
+  const planned = input.existing?.weeks.some(
+    (w) => w.weekStart === weekStart && w.flags.includes('post-race'),
+  )
+  const window = [past, planned === true ? own : null].find(
+    (w) => w !== null && w.race.date <= asOf && w.race.date <= weekEnd && w.quietUntil > weekStart,
+  )
+  if (window === null || window === undefined) return null
+  // the stage on the last day of the week that is not ahead of today, kept inside the window
+  const day = [asOf, weekEnd, lastWindowDay(window)].reduce((a, b) => (a < b ? a : b))
+  const at = day < window.race.date ? window.race.date : day
+  const info = windowDay(window, at)
+  const label = stageLabel(window, at)
+  const next = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
+  const signals: WeeklyDecision['signals'] = [
+    { code: 'post-race-stage', detail: label, rules: ['H12'] },
+  ]
+  if (window.extensionDays > 0) {
+    signals.push({
+      code: 'post-race-delayed',
+      detail: `A sore, tired, painful or ill day keeps you at your current step: the return is ${window.extensionDays} day${window.extensionDays === 1 ? '' : 's'} later than the default schedule, and a good day does not speed it up.`,
+      rules: ['H12', 'J3'],
+    })
+  }
+  // The last post-race week of a plan has no next week: the minutes then follow the rule of a
+  // held week, never a suggestion of 0 minutes [rules G-6, J5].
+  const actual = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
+  const plannedThis = plannedWeekMin(input, weekStart) ?? actual
+  return {
+    decision: 'hold',
+    signals,
+    nextWeekTargetMin:
+      next?.targetRunMin ?? Math.floor(nextWeekCap(plannedThis, actual, ramp) + 1e-9),
+    postRace: {
+      label,
+      phase: info?.kind === 'step' ? 'step' : 'hold',
+      step: info?.kind === 'step' ? info.stage.step : null,
+      steps: window.stages.length,
+      holdUntil: window.holdUntil,
+      quietUntil: window.quietUntil,
+      extensionDays: window.extensionDays,
+    },
+  }
+}
+
+/** Planned running minutes of a week: its planned sessions, else its target; null when unknown. */
+function plannedWeekMin(input: EngineInput, weekStart: string): number | null {
+  const weekEnd = addDays(weekStart, 6)
+  const sessions = (input.existing?.sessions ?? []).filter(
+    (s) => s.date >= weekStart && s.date <= weekEnd && RUN_KINDS.has(s.kind),
+  )
+  if (sessions.length > 0) return minutes(sessions)
+  return input.existing?.weeks.find((w) => w.weekStart === weekStart)?.targetRunMin ?? null
+}
+
+/**
+ * The worst pain reported in a week up to `asOf`, on a check-in or an activity. Focal bone pain
+ * counts as the flag score [rules n-1, n-2].
+ */
+function worstPainIn(input: EngineInput, weekStart: string, asOf: string): number {
+  const weekEnd = addDays(weekStart, 6)
+  let worst = 0
+  for (let k = 0; k < 7; k++) {
+    const date = addDays(weekStart, k)
+    if (date > asOf) break
+    const checkin = checkinOn(input, date)
+    if (checkin?.painScore != null) worst = Math.max(worst, checkin.painScore)
+    if (checkin?.painFocalBone) worst = Math.max(worst, P.pain.flagScore.value)
+  }
+  for (const a of input.activities) {
+    if (a.date >= weekStart && a.date <= weekEnd && a.pain !== null) worst = Math.max(worst, a.pain)
+  }
+  return worst
+}
+
+/** What a finished week shows to the start paths [rules E6, G-3]: completion, pain and effort. */
+export interface WeekEvidence {
+  plannedMin: number | null
+  actualMin: number
+  /** Minutes run over minutes planned; null when nothing was planned. */
+  share: number | null
+  worstPain: number
+  /** Mean RPE of the week's runs that carry one; null without ratings. */
+  meanRpe: number | null
+  runs: number
+}
+
+/**
+ * The running minutes of a week as the start paths count them. A ladder or injury-return week
+ * credits an activity linked to a planned session with at most that session's minutes, so a
+ * recording that carries the 5-minute walks around a ladder session does not stand for more than
+ * the session was planned at; a run that is not linked counts whole. Any other week is the plain
+ * weekly total.
+ */
+function creditedMin(input: EngineInput, weekStart: string): number {
+  const weekEnd = addDays(weekStart, 6)
+  const week = input.existing?.weeks.find((w) => w.weekStart === weekStart)
+  if (week === undefined || !isProgrammeWeek(week.flags)) {
+    return aggregateWeeks(input.activities, [weekStart])[0]!.runMin
+  }
+  const plannedFor = new Map<string, number>()
+  for (const s of input.existing?.sessions ?? []) {
+    if (
+      s.activityId !== null &&
+      s.date >= weekStart &&
+      s.date <= weekEnd &&
+      RUN_KINDS.has(s.kind)
+    ) {
+      plannedFor.set(s.activityId, s.durationMin)
+    }
+  }
+  let seconds = 0
+  for (const a of input.activities) {
+    if (a.type !== 'run' || isDuplicate(a) || a.date < weekStart || a.date > weekEnd) continue
+    const planned = plannedFor.get(a.id)
+    seconds += planned === undefined ? a.durationSec : Math.min(a.durationSec, planned * 60)
+  }
+  return Math.round(seconds / 60)
+}
+
+/**
+ * How many runs of the week reached `minutes`, within a minute for rounding: an injury-return
+ * level advances only when both of its runs were run at the level's own length [rules G-3].
+ */
+export function runsReaching(input: EngineInput, weekStart: string, minutes: number): number {
+  const weekEnd = addDays(weekStart, 6)
+  return input.activities.filter(
+    (a) =>
+      (a.type === 'run' || a.type === 'race') &&
+      !isDuplicate(a) &&
+      a.date >= weekStart &&
+      a.date <= weekEnd &&
+      a.durationSec / 60 >= minutes - 1,
+  ).length
+}
+
+export function weekEvidence(input: EngineInput, weekStart: string): WeekEvidence {
+  const weekEnd = addDays(weekStart, 6)
+  const actualMin = creditedMin(input, weekStart)
+  const plannedMin = plannedWeekMin(input, weekStart)
+  const runs = input.activities.filter(
+    (a) =>
+      (a.type === 'run' || a.type === 'race') &&
+      !isDuplicate(a) &&
+      a.date >= weekStart &&
+      a.date <= weekEnd,
+  )
+  const rated = runs.filter((a) => a.rpe !== null)
+  return {
+    plannedMin,
+    actualMin,
+    share: plannedMin !== null && plannedMin > 0 ? actualMin / plannedMin : null,
+    worstPain: worstPainIn(input, weekStart, weekEnd),
+    meanRpe: rated.length === 0 ? null : rated.reduce((sum, a) => sum + a.rpe!, 0) / rated.length,
+    runs: runs.length,
+  }
+}
+
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
 export function weeklyDecision(
   input: EngineInput,
@@ -154,6 +329,8 @@ export function weeklyDecision(
   const ramp = ctx.ramp ?? P.g2.rampSoft.value
   const finished = input.today > weekEnd
   const asOf = finished ? weekEnd : input.today
+  const inWindow = postRaceDecision(input, weekStart, asOf, ramp)
+  if (inWindow !== null) return inWindow
   const actual = aggregateWeeks(input.activities, [weekStart])[0]!.runMin
 
   // Completion: a week still in progress is judged on the sessions already due, never on the rest.
@@ -161,8 +338,7 @@ export function weeklyDecision(
   const weekSessions = (input.existing?.sessions ?? []).filter(
     (s) => s.date >= weekStart && s.date <= weekEnd && RUN_KINDS.has(s.kind),
   )
-  const plannedFull =
-    weekSessions.length > 0 ? minutes(weekSessions) : (draft?.targetRunMin ?? null)
+  const plannedFull = plannedWeekMin(input, weekStart)
   const plannedDue =
     weekSessions.length > 0
       ? minutes(weekSessions.filter((s) => s.date < input.today))
@@ -212,25 +388,23 @@ export function weeklyDecision(
   let poorDays = 0
   let hrvDays = 0
   let illnessDay: string | null = null
-  let worstPain = 0
   for (let k = 0; k < 7; k++) {
     const date = addDays(weekStart, k)
     if (date > asOf) break
     const checkin = checkinOn(input, date)
     if (poorSubjective(checkin)) poorDays += 1
     if (checkin?.illness && illnessDay === null) illnessDay = date
-    if (checkin?.painScore != null) worstPain = Math.max(worstPain, checkin.painScore)
-    if (checkin?.painFocalBone) worstPain = Math.max(worstPain, P.pain.flagScore.value)
     if (hrvFlaggedOn(input, date)) hrvDays += 1
   }
-  for (const a of input.activities) {
-    if (a.date >= weekStart && a.date <= weekEnd && a.pain !== null)
-      worstPain = Math.max(worstPain, a.pain)
-  }
+  const worstPain = worstPainIn(input, weekStart, asOf)
   const weekObs = observations(input, ctx.executions).filter(
     (o) => o.date >= weekStart && o.date <= weekEnd,
   )
-  const harder = weekObs.filter((o) => (o.score ?? 0) >= P.j5.harderEffortScore.value).length
+  // Only verdicts that rest on the runner's own rating count: a guess from heart rate or pace
+  // alone never moves the plan [design 7].
+  const harder = weekObs.filter(
+    (o) => o.subjective && (o.score ?? 0) >= P.j5.harderEffortScore.value,
+  ).length
   const weekReview = input.reviews.find((r) => r.weekStart === weekStart)
   const reviewFatigue =
     weekReview !== undefined &&
@@ -330,14 +504,19 @@ export function weeklyDecision(
 
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
   const plannedThis = plannedFull ?? actual
-  const nextPlanned =
-    input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))?.targetRunMin ??
-    Math.round(plannedThis * (1 + ramp))
+  const nextWeek = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
+  const nextPlanned = nextWeek?.targetRunMin ?? Math.round(plannedThis * (1 + ramp))
   let nextWeekTargetMin: number
   // Whole minutes, rounded down so the number never passes the cap.
   const whole = (minutes: number) => Math.floor(minutes + 1e-9)
-  if (decision === 'progress') nextWeekTargetMin = whole(nextWeekCap(nextPlanned, actual, ramp))
-  else if (decision === 'hold') nextWeekTargetMin = whole(nextWeekCap(plannedThis, actual, ramp))
+  if (decision === 'progress') {
+    // A ladder or injury-return week is a step of a fixed programme, exempt from the soft ramp:
+    // the suggestion is the minutes the step is planned at, inside the 2-week ceiling [rules E6, G-3]
+    nextWeekTargetMin =
+      nextWeek !== undefined && isProgrammeWeek(nextWeek.flags)
+        ? whole(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
+        : whole(nextWeekCap(nextPlanned, actual, ramp))
+  } else if (decision === 'hold') nextWeekTargetMin = whole(nextWeekCap(plannedThis, actual, ramp))
   else {
     nextWeekTargetMin = Math.round(
       nextWeekCap(plannedThis, actual, ramp) * (1 - P.e3.recoveryWeekCutPct.value / 100),
@@ -397,23 +576,17 @@ export function zoneProposals(input: EngineInput, executions?: ExecutionRecord[]
   ]
 }
 
-/** Restart volume after a break of 7 days or more [rules J7]. */
+/** Restart volume after a break of 7 days or more [rules J7]; E6 sets the first week when it is small. */
 export function breakRestart(
   layoffDays: number,
   preBreakWeekMin: number,
-  consistentMonthsBefore?: number,
-): { restartMin: number; fraction: number; runWalk: boolean } {
+): { restartMin: number; fraction: number } {
   let fraction: number
   if (layoffDays < P.j7.tier1Days.value) fraction = P.j7.restartUnder7.value
   else if (layoffDays <= P.j7.tier2Days.value) fraction = P.j7.restart7to14.value
   else if (layoffDays <= P.j7.tier3Days.value) fraction = P.j7.restart15to28.value
   else fraction = P.j7.restartOver28.value
-  // Run-walk needs a known short running history; with none given the usual restart applies.
-  const runWalk =
-    layoffDays > P.j7.tier3Days.value &&
-    consistentMonthsBefore !== undefined &&
-    consistentMonthsBefore < P.j7.runWalkIfConsistentUnderMonths.value
-  return { restartMin: Math.round(preBreakWeekMin * fraction), fraction, runWalk }
+  return { restartMin: Math.round(preBreakWeekMin * fraction), fraction }
 }
 
 /**

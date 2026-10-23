@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from 'react'
 import { todayIso } from '../../shared/dates.ts'
+import { MAX_DURATION_SEC } from '../../shared/limits.ts'
 import type { Activity, ActivityType, Feel, Units } from '../../shared/types.ts'
 import { formatDuration, kmToM, mToKm, mToMiles, milesToM } from '../../shared/units.ts'
 import {
@@ -52,13 +53,12 @@ const TYPE_OPTIONS = (Object.keys(TYPE_LABELS) as ActivityType[]).map((value) =>
   label: TYPE_LABELS[value],
 }))
 
-const MAX_DURATION_SEC = 48 * 3600
 const M_PER_FOOT = 0.3048
 const DURATION_HINT = 'Enter minutes like 45, or 0:45:00'
 
 /**
  * A bare number is minutes; `m:ss` and `h:mm:ss` are read as written. Seconds, and minutes
- * after an hour, must be below 60. Null for anything else, zero, or more than 48 hours.
+ * after an hour, must be below 60. Null for anything else, zero, or more than 150 hours.
  */
 export function parseDurationInput(text: string): number | null {
   const value = text.trim()

@@ -1,0 +1,34 @@
+{
+  "id": "tan-2017-finishers-161km",
+  "title": "Assessment of Differences in the Anthropometric, Physiological and Training Characteristics of Finishers and Non-finishers in a Tropical 161-km Ultra-marathon",
+  "authors": "Tan PL, Tan FH, Bosch AN",
+  "year": 2017,
+  "journal": "International Journal of Exercise Science",
+  "doi": "10.70252/hbei2580",
+  "pmid": "28966704",
+  "url": "https://doi.org/10.70252/hbei2580",
+  "design": "cross-sectional",
+  "population": "Runners entered in a tropical 161-km race; 12 finishers and 14 non-finishers, tested at least 3 weeks before the race with training logged from 6 weeks before.",
+  "sampleSize": 26,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "26 runners (12 finishers, 14 non-finishers); training sessions were recorded from six weeks before the race.",
+    "Effect-size calculations showed moderate differences between finishers and non-finishers in longest run attempted (ES = 0.73, P = 0.07), so the difference did not reach P < 0.05.",
+    "Other differences: cross-training hours (ES = 0.73, P = 0.06), lactate concentration at LT1 (ES = 0.88, P = 0.05), velocity at LT2 (ES = 0.70, P = 0.07).",
+    "The abstract gives no longest-run values in km or minutes. Authors conclude runners should not neglect long runs and should incorporate cross-training."
+  ],
+  "limitations": "Tiny sample, many comparisons, no result at P < 0.05 for longest run, six-week training window only, no longest-run values or threshold in the abstract.",
+  "implications": [
+    "Weak, non-significant hint that a longer longest run goes with finishing at 161 km; supports keeping a long-run target but gives no minute or km threshold, so it cannot calibrate 240 or 270 min.",
+    "Grade C at most for any long-run parameter citing this paper (D for a number); do not use it to justify a number."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (title, 2017, Int J Exerc Sci, first author Tan) and the Europe PMC abstract (PMID 28966704). N=12/14, ES and P values for longest run, cross-training, LT1 and LT2 match. Reworded finding 2 to say the abstract calls the differences moderate and that longest run did not reach P < 0.05.",
+    "checkedAt": "2026-10-22"
+  }
+}

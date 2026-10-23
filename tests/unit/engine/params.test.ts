@@ -27,7 +27,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-22.1')
+    expect(PARAMS_VERSION).toBe('2026-10-22.2')
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {
@@ -77,9 +77,11 @@ describe('parameter registry', () => {
   })
 
   it('has finite numeric values, ordered ranges and values inside their range', () => {
+    // a value is a number or a list of numbers, nested as deep as the data needs (the ladder rungs)
+    const finite = (v: unknown): boolean =>
+      Array.isArray(v) ? v.every(finite) : typeof v === 'number' && Number.isFinite(v)
     for (const p of all) {
-      const values = Array.isArray(p.value) ? (p.value as unknown[]) : [p.value]
-      for (const v of values) expect(Number.isFinite(v), p.id).toBe(true)
+      expect(finite(p.value), p.id).toBe(true)
       if (p.range) {
         expect(p.range[0], p.id).toBeLessThanOrEqual(p.range[1] as number)
         if (typeof p.value === 'number') {
@@ -107,6 +109,20 @@ describe('parameter registry', () => {
   it('finds the parameters of a rule', () => {
     expect(paramsForRule('g-1').map((p) => p.id)).toContain('g1.spikeRatioWarn')
     expect(paramsForRule('G-1').map((p) => p.id)).not.toContain('global3.minObservations')
+  })
+
+  it('matches a rule id without regard to case, but not to hyphens', () => {
+    const ids = (rule: string) => paramsForRule(rule).map((p) => p.id)
+    // g-3 (tightened profiles) and G3 (priors, not optima) are different rules.
+    expect(ids('g-3')).toContain('injuryReturn.levelsMin')
+    expect(ids('g-3')).not.toContain('global3.minObservations')
+    expect(ids('G3')).toContain('global3.minObservations')
+    expect(ids('G3')).not.toContain('injuryReturn.levelsMin')
+    expect(ids('G-3')).toEqual(ids('g-3'))
+    expect(ids('h12')).toEqual(ids('H12'))
+    // Without the hyphen it is another rule id, and no parameter carries that id.
+    expect(ids('g1')).toEqual([])
+    expect(ids('G1')).toEqual([])
   })
 
   it('has an expected RPE range for every session kind', () => {
@@ -149,10 +165,40 @@ describe('parameter registry', () => {
     expect(P.k2.twoWeekMultipliers.value).toEqual([0.65, 0.4])
     expect(P.j7.restart15to28.value).toBe(0.75)
     expect(P.h2.longestRunCapHours.value).toBe(6)
-    expect(P.h2.longestRunCapHours.evidence).toEqual([])
+    expect(P.h2.longestRunCapHours.grade).toBe('D')
     expect(P.i11.costRatioMinus20.value).toBe(0.51)
     expect(P.i12.vo2maxDeclinePctPer1000m.range).toEqual([4.6, 7.5])
     expect(P.l6.minBandPct.value).toBe(3)
     expect(P.n1.bsiReturnDays.value).toEqual([44, 56, 107, 127])
+  })
+
+  it('transcribes the post-race window of rule H12', () => {
+    const hold = P.h12HoldDays
+    expect(
+      [hold.marathon, hold.ultra50, hold.ultra100k, hold.ultra100mi, hold.beyond].map(
+        (p) => p.value,
+      ),
+    ).toEqual([2, 4, 7, 10, 14])
+    expect(P.h12.reducedDays.value).toBe(7)
+    expect([P.h12.step1RunMaxMin.value, P.h12.step1MaxRuns.value]).toEqual([40, 3])
+    expect([P.h12.step2RunMaxMin.value, P.h12.laterStepLongRunMaxMin.value]).toEqual([60, 90])
+    expect([P.h12.modifierMultiplier.value, P.h12.hillyDescentMPerKm.value]).toEqual([1.5, 30])
+    expect([
+      P.h12.advanceCleanCheckins.value,
+      P.h12.ownBaselineMinCheckins.value,
+      P.h12.gateEscalationDays.value,
+      P.h12.gateStaleDays.value,
+    ]).toEqual([2, 14, 14, 3])
+    expect(P.macroDesign.postRaceMarathonFractions.value).toEqual([0.5, 0.75])
+    expect(P.macroDesign.postRaceLongFractions.value).toEqual([0.25, 0.5, 0.75])
+    expect(P.macroDesign.postRaceReducedFraction.value).toBe(0.5)
+    // grade B only where one trial backs the value for every class it applies to; the first-step
+    // caps are the marathon trial's dose but also bind the ultra classes, so they are defaults
+    expect(hold.marathon.grade).toBe('B')
+    expect(P.h12.step1RunMaxMin.grade).toBe('D')
+    expect(P.h12.step1MaxRuns.grade).toBe('D')
+    expect(P.h12.modifierMultiplier.grade).toBe('D')
+    expect(P.h12.goalRaceDistanceTolerancePct.value).toBe(10)
+    expect(paramsForRule('H12')).toHaveLength(20)
   })
 })

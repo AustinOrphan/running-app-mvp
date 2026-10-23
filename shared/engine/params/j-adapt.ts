@@ -197,7 +197,7 @@ export const jAdapt = {
     }),
     harderEffortSessions: param('j5.harderEffortSessions', 2, 'D', 'J5', SUBJECTIVE, {
       unit: 'sessions in the week',
-      note: 'Default: this many sessions in a week with an effort score of +1 or more count as a subjective decline (design 4.3).',
+      note: 'Default: this many sessions in a week with an effort score of +1 or more count as a subjective decline (design 4.3); only scores that rest on an RPE or feel rating count.',
     }),
     harderEffortScore: param('j5.harderEffortScore', 1, 'D', 'J5', SUBJECTIVE, {
       unit: 'effort score',
@@ -314,17 +314,6 @@ export const jAdapt = {
       range: [0.5, 0.6],
       note: 'Default: layoff over 28 days, 50-60%; the lower end is the default.',
     }),
-    runWalkIfConsistentUnderMonths: param(
-      'j7.runWalkIfConsistentUnderMonths',
-      6,
-      'D',
-      'J7',
-      RESTART,
-      {
-        unit: 'months',
-        note: 'Default: after a layoff over 28 days use run-walk if the athlete had under this many months of consistent running before the break.',
-      },
-    ),
     vo2maxFallDay21Pct: param(
       'j7.vo2maxFallDay21Pct',
       7,

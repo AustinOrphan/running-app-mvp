@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addDays, daysBetween } from '../../../shared/dates.ts'
 import type { SessionKind, SessionSpec, WeekDraft } from '../../../shared/engine/types.ts'
-import { placeWeek } from '../../../shared/engine/micro.ts'
+import { holdSessions, placeWeek } from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import { postRaceWindow, windowWeeks } from '../../../shared/engine/postRace.ts'
 import { ZONES, availability, profile, session, state, week } from './e6-fixtures.ts'
 
 // Task E5 owns `prescribe`; the placement is tested against a fake with the frozen signature.
@@ -158,7 +159,7 @@ describe('placeWeek', () => {
     expect(quality.length).toBeLessThanOrEqual(P.f2.qualitySessionsPerWeek.value)
   })
 
-  it('gives novices three non-consecutive run days with the run-walk flag, and no quality', () => {
+  it('gives novices at most three non-consecutive run days', () => {
     const sessions = place(week({ index: 2, runDays: 5, qualitySessions: 2 }), {
       profile: profile({ longRunDay: 'sun' }),
     })
@@ -173,10 +174,6 @@ describe('placeWeek', () => {
     expect(days).toHaveLength(P.f5.noviceRunDays.value)
     for (let i = 1; i < days.length; i += 1)
       expect(days[i]! - days[i - 1]!).toBeGreaterThanOrEqual(2)
-    for (const s of novice) {
-      expect(s.flags).toContain('run-walk')
-      expect(HARD).not.toContain(s.kind)
-    }
   })
 
   it('keeps a novice off the Monday after a Sunday run', () => {
@@ -189,14 +186,36 @@ describe('placeWeek', () => {
     expect(novice.map(dayOf)).not.toContain(0)
   })
 
-  it('stops run-walk after the novice programme length', () => {
-    const late = placeWeek(week({ index: P.flib.runWalkWeeks.value }), {
-      profile: profile(),
+  it('holds no quality work in the first weeks of a novice plan, ladder or not', () => {
+    const early = placeWeek(week({ index: 2, runDays: 5, qualitySessions: 2, phase: 'build' }), {
+      profile: profile({ longRunDay: 'sun' }),
       zones: ZONES,
       state: state({ experience: 'novice' }),
       prevSessions: [],
     })
-    for (const s of late) expect(s.flags).not.toContain('run-walk')
+    expect(early.some((s) => HARD.includes(s.kind) || s.kind === 'strides')).toBe(false)
+    const later = placeWeek(
+      week({ index: P.flib.runWalkWeeks.value, runDays: 5, qualitySessions: 2, phase: 'build' }),
+      {
+        profile: profile({ longRunDay: 'sun' }),
+        zones: ZONES,
+        state: state({ experience: 'novice' }),
+        prevSessions: [],
+      },
+    )
+    expect(later.some((s) => HARD.includes(s.kind))).toBe(true)
+  })
+
+  it('marks run-walk by the week flags, not by a novice plan index', () => {
+    for (const index of [0, P.flib.runWalkWeeks.value + 3]) {
+      const novice = placeWeek(week({ index }), {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ experience: 'novice' }),
+        prevSessions: [],
+      })
+      for (const s of novice) expect(s.flags).not.toContain('run-walk')
+    }
   })
 
   it('caps run days at 6 from age 40, and not below', () => {
@@ -457,6 +476,53 @@ describe('placeWeek', () => {
       for (const s of sessions.filter(isRun)) expect(s.durationMin).toBeGreaterThanOrEqual(20)
       expect(runMinutes(sessions)).toBe(60)
     })
+
+    it('places three runs at the day limit when it is under the session minimum, not none [E6, G-1]', () => {
+      // the limit of G-1 leaves 17 minutes a day: the floor runs at 17, the week says 3 x 17
+      const day = { available: true, maxMin: 17 }
+      const sessions = place(
+        week({
+          index: 0,
+          targetRunMin: 51,
+          longRunMin: 17,
+          runDays: 3,
+          qualitySessions: 0,
+          flags: ['restart-floor'],
+        }),
+        {
+          profile: profile({
+            availability: availability({
+              mon: day,
+              tue: day,
+              wed: day,
+              thu: day,
+              fri: day,
+              sat: day,
+              sun: day,
+            }),
+          }),
+        },
+      )
+      const runs = sessions.filter(isRun)
+      expect(runs.map((s) => s.durationMin)).toEqual([17, 17, 17])
+      const days = runs.map(dayOf).sort((a, b) => a - b)
+      for (let i = 1; i < days.length; i++)
+        expect(days[i]! - days[i - 1]!).toBeGreaterThanOrEqual(2)
+    })
+
+    it('shares a week held under N a session between its runs, not onto fewer runs', () => {
+      const sessions = place(
+        week({
+          index: 0,
+          targetRunMin: 48,
+          longRunMin: 16,
+          runDays: 3,
+          qualitySessions: 0,
+          flags: ['restart-floor'],
+        }),
+      )
+      expect(sessions.filter(isRun).map((s) => s.durationMin)).toEqual([16, 16, 16])
+    })
   })
 
   describe('pairs and the 2-day total', () => {
@@ -482,5 +548,260 @@ describe('placeWeek', () => {
       expect(sessions.some((s) => s.kind === 'long' || s.kind === 'long-fast-finish')).toBe(true)
       expect(sessions.filter(isRun).length).toBeGreaterThanOrEqual(2)
     })
+  })
+
+  describe('post-race window (H12)', () => {
+    // A marathon on the Sunday before the week of 2026-11-02, by a runner under 40 with an earlier
+    // finish: days 0 and 1 are the hold, step 1 runs Tuesday to the Monday after (3 to 9 November),
+    // step 2 the 7 days after that, and quality work waits for 17 November.
+    const RACE = '2026-11-01'
+    const window = postRaceWindow(
+      { date: RACE, distanceM: 42_195, lossM: null, distanceClass: 'marathon' },
+      { age: 30 },
+      [{ date: '2025-04-01', distanceM: 42_195 }],
+      [],
+      '2026-11-01',
+    )
+    const afterRace = (weekStart: string) =>
+      windowWeeks(window, {
+        weekStarts: [weekStart],
+        firstIndex: 0,
+        reference: 300,
+        referenceRunDays: 5,
+      })[0]!
+    const placeAfter = (weekStart: string, prev: SessionSpec[] = []) =>
+      placeWeek(afterRace(weekStart), {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: prev,
+        postRace: [window],
+      })
+
+    it('keeps the hold day free and puts three capped runs on every other day in step 1', () => {
+      const sessions = placeAfter('2026-11-02')
+      expect(sessions.map((s) => s.date)).toEqual(['2026-11-03', '2026-11-05', '2026-11-07'])
+      for (const s of sessions) {
+        expect(s.kind).toBe('recovery')
+        expect(s.durationMin).toBeLessThanOrEqual(P.h12.step1RunMaxMin.value)
+        expect(s.flags).toContain('post-race')
+        expect(s.rules).toContain('H12')
+        expect(s.title).toBe(`After the race: easy ${s.durationMin} min`)
+      }
+    })
+
+    it('counts the first step across the weeks it spans: no fourth run, none next to the third', () => {
+      const first = placeAfter('2026-11-02')
+      // the last day of step 1 is Monday 9 November: three runs are already placed
+      const next = placeAfter('2026-11-09', first)
+      expect(next.some((s) => s.date === '2026-11-09')).toBe(false)
+      const steps2 = next.filter(isRun)
+      expect(steps2.length).toBeGreaterThan(0)
+      for (const s of steps2) {
+        expect(s.kind).toBe('easy')
+        expect(s.durationMin).toBeLessThanOrEqual(60)
+      }
+    })
+
+    it('puts no quality work before the end of the window, whatever the week asks for', () => {
+      const ask = week({
+        weekStart: '2026-11-09',
+        phase: 'build',
+        qualitySessions: 2,
+        targetRunMin: 300,
+      })
+      const inside = placeWeek(ask, {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: [],
+        postRace: [window],
+      })
+      expect(inside.filter((s) => HARD.includes(s.kind) || s.kind === 'strides')).toEqual([])
+      // the same week without the window holds quality work
+      const free = placeWeek(ask, {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: [],
+      })
+      expect(free.some((s) => HARD.includes(s.kind))).toBe(true)
+      // a week that starts on the first day quality is allowed may hold it again
+      const after = placeWeek(
+        week({ weekStart: '2026-11-17', phase: 'build', qualitySessions: 2 }),
+        {
+          profile: profile(),
+          zones: ZONES,
+          state: state({ age: 30 }),
+          prevSessions: [],
+          postRace: [window],
+        },
+      )
+      expect(after.some((s) => HARD.includes(s.kind))).toBe(true)
+    })
+
+    it('lets one run of a later step reach 90 min and holds the others to 60', () => {
+      const late = postRaceWindow(
+        { date: RACE, distanceM: 160_934, lossM: null, distanceClass: 'ultra100mi' },
+        { age: 30 },
+        [{ date: '2025-04-01', distanceM: 160_934 }],
+        [],
+        RACE,
+      )
+      // a 10-day hold: step 2 runs 18 to 24 November and step 3 from 25 November
+      const wk = windowWeeks(late, {
+        weekStarts: ['2026-11-23'],
+        firstIndex: 0,
+        reference: 500,
+        referenceRunDays: 5,
+      })[0]!
+      const sessions = placeWeek(wk, {
+        profile: profile(),
+        zones: ZONES,
+        state: state({ age: 30 }),
+        prevSessions: [],
+        postRace: [late],
+      })
+      const lengths = sessions.map((s) => s.durationMin).sort((a, b) => b - a)
+      expect(lengths[0]!).toBe(P.h12.laterStepLongRunMaxMin.value)
+      for (const m of lengths.slice(1)) expect(m).toBeLessThanOrEqual(P.h12.step2RunMaxMin.value)
+    })
+
+    it('writes a rest day with the hold copy for every hold day from the first date given', () => {
+      const days = holdSessions(week({ weekStart: '2026-11-02' }), ZONES, [window], '2026-11-01')
+      expect(days.map((s) => s.date)).toEqual(['2026-11-02'])
+      expect(days[0]).toMatchObject({ kind: 'rest', title: 'After the race: rest' })
+      expect(days[0]!.purpose).toBe(
+        'Rest. Walking and easy movement are fine; no running until 2026-11-03.',
+      )
+      // the race day carries the race, and later hold days are not asked for before `from`
+      expect(
+        holdSessions(week({ weekStart: '2026-10-26' }), ZONES, [window], '2026-10-26'),
+      ).toEqual([])
+      expect(
+        holdSessions(week({ weekStart: '2026-11-02' }), ZONES, [window], '2026-11-03'),
+      ).toEqual([])
+    })
+  })
+})
+
+describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
+  const ladderWeek = (rung: number, over: Partial<WeekDraft> = {}) =>
+    week({
+      index: rung - 1,
+      targetRunMin: 63,
+      longRunMin: 0,
+      runDays: 3,
+      qualitySessions: 0,
+      flags: ['run-walk', `ladder-${String(rung)}`],
+      ...over,
+    })
+  const runsOf = (sessions: SessionSpec[]) => sessions.filter(isRun)
+  const noviceState = state({ experience: 'novice' })
+  const placeStart = (
+    w: WeekDraft,
+    over: { prev?: SessionSpec[]; recent?: number; profile?: ReturnType<typeof profile> } = {},
+  ) =>
+    placeWeek(w, {
+      profile: over.profile ?? profile({ longRunDay: 'sat' }),
+      zones: ZONES,
+      state: noviceState,
+      prevSessions: over.prev ?? [],
+      limits:
+        over.recent === undefined
+          ? undefined
+          : {
+              runs: [
+                {
+                  date: '2026-10-25',
+                  min: over.recent,
+                  distanceM: null,
+                  gainM: null,
+                  lossM: null,
+                },
+              ],
+              virtualTwoDay: [],
+            },
+    })
+
+  it('places the three sessions of a rung on non-consecutive days, the longest last, flagged run-walk where they walk', () => {
+    const sessions = runsOf(placeStart(ladderWeek(5, { targetRunMin: 62 })))
+    expect(sessions).toHaveLength(3)
+    // rung 5: 5-3w-5-3w-5 (21 min), 8-5w-8 (21 min), 20 min without a stop
+    expect(sessions.map((s) => s.durationMin)).toEqual([21, 21, 20])
+    const days = sessions.map(dayOf)
+    for (let i = 1; i < days.length; i += 1) {
+      expect(days[i]! - days[i - 1]!).toBeGreaterThanOrEqual(2)
+    }
+    for (const s of sessions) expect(s.kind).toBe('easy')
+    // only a session with a walking break is a run-walk session; the continuous 20 minutes is not
+    expect(sessions.map((s) => s.flags.includes('run-walk'))).toEqual([true, true, false])
+  })
+
+  it('plans no quality, whatever the week asks for', () => {
+    const sessions = runsOf(placeStart(ladderWeek(4, { qualitySessions: 2, phase: 'build' })))
+    expect(sessions.every((s) => s.kind === 'easy')).toBe(true)
+  })
+
+  it('with fewer open days than sessions keeps the later, longer sessions', () => {
+    const avail = availability({
+      mon: { available: false, maxMin: null },
+      tue: { available: false, maxMin: null },
+      wed: { available: false, maxMin: null },
+      thu: { available: false, maxMin: null },
+    })
+    const sessions = runsOf(
+      placeStart(ladderWeek(5, { targetRunMin: 62 }), {
+        profile: profile({ availability: avail }),
+      }),
+    )
+    // Friday to Sunday are open: Friday and Sunday are the largest set of non-consecutive days
+    expect(sessions.map(dayOf)).toEqual([4, 6])
+    expect(sessions.map((s) => s.durationMin)).toEqual([21, 20])
+  })
+
+  it('cuts a session to 1.10x the longest run of the last 30 days: the lesser of the rung and the bound', () => {
+    const sessions = runsOf(placeStart(ladderWeek(4, { targetRunMin: 66 }), { recent: 15 }))
+    // the bound is the larger of 1.10 x 15 = 16.5 and 15 + 3 (the duration step), so the
+    // 21.5-minute session of rung 4 is cut to 18 minutes
+    expect(sessions.map((s) => s.durationMin)).toEqual([18, 18, 18])
+  })
+
+  it('places a session at the bound when the bound falls under the run day minimum, never under 5 minutes', () => {
+    // 10 + 3 = 13 min sits under the 15-min run day minimum, which a ladder session is exempt from
+    const sessions = runsOf(placeStart(ladderWeek(1), { recent: 10 }))
+    expect(sessions.map((s) => s.durationMin)).toEqual([13, 13, 13])
+    // a bound under 5 minutes leaves no session to place
+    expect(runsOf(placeStart(ladderWeek(1), { recent: 1 }))).toEqual([])
+  })
+
+  it('places the runs of an injury-return level with a rest day between them, from 5 minutes', () => {
+    const injury = week({
+      index: 0,
+      targetRunMin: 10,
+      longRunMin: 0,
+      runDays: 2,
+      qualitySessions: 0,
+      flags: ['injury-return', 'injury-level-0'],
+    })
+    const sessions = runsOf(placeStart(injury))
+    expect(sessions.map((s) => s.durationMin)).toEqual([5, 5])
+    const days = sessions.map(dayOf)
+    expect(days[1]! - days[0]!).toBeGreaterThanOrEqual(P.injuryReturn.restDaysBetween.value + 1)
+    for (const s of sessions) expect(s.flags).toContain('injury-return')
+  })
+
+  it('holds an injury-return run to 1.10x the longest run: the lesser of the level and the bound', () => {
+    const injury = week({
+      index: 0,
+      targetRunMin: 30,
+      longRunMin: 0,
+      runDays: 2,
+      qualitySessions: 0,
+      flags: ['injury-return', 'injury-level-2'],
+    })
+    // level 3 is 15 min; from a 9-min run the bound is 9 + 3 = 12 (more than 1.10 x 9)
+    expect(runsOf(placeStart(injury, { recent: 9 })).map((s) => s.durationMin)).toEqual([12, 12])
+    expect(runsOf(placeStart(injury, { recent: 30 })).map((s) => s.durationMin)).toEqual([15, 15])
   })
 })

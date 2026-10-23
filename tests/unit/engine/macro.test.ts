@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
-import { macroPlan, redsHold } from '../../../shared/engine/macro.ts'
+import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { estimateState } from '../../../shared/engine/athlete.ts'
+import { goalModel } from '../../../shared/engine/goal.ts'
+import { buildPlan } from '../../../shared/engine/index.ts'
+import { spikeWarnLimit } from '../../../shared/engine/limits.ts'
+import { macroPlan, peakLongRunMin, redsHold } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import { lastWindowDay, ownWindow, windowDay } from '../../../shared/engine/postRace.ts'
+import { buildZones } from '../../../shared/engine/zones.ts'
 import type {
   AthleteState,
   EngineInput,
@@ -9,7 +15,8 @@ import type {
   GoalModel,
   WeekDraft,
 } from '../../../shared/engine/types.ts'
-import type { Activity, AthleteProfile } from '../../../shared/types.ts'
+import type { Activity, AthleteProfile, Goal, WeekRow } from '../../../shared/types.ts'
+import { activity, input as e8Input, profile as e8Profile } from './e8-fixtures.ts'
 
 const TODAY = '2026-01-05' // a Monday
 
@@ -61,6 +68,7 @@ function state(over: Partial<AthleteState> = {}): AthleteState {
     efficiency: { current: null, trendPct: null, samples: 0 },
     durability: { decouplingMedianPct: null, samples: 0 },
     risk: { recentInjury: false, priorBsi: false, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
+    lowFrequency: false,
     heatAcclimation: 0,
     ...over,
   }
@@ -154,9 +162,16 @@ describe('macroPlan: calendar and phases', () => {
     const raceWeek = weeks.find((w) => w.weekStart === mondayOf(g.date))
     expect(raceWeek?.phase).toBe('race')
     expect(raceWeek?.isTaper).toBe(true)
-    const last = weeks[weeks.length - 1]
-    expect(last?.flags).toContain('post-race')
-    expect(daysBetween(raceWeek?.weekStart ?? '', last?.weekStart ?? '')).toBe(7)
+    // the weeks after the race follow it one Monday at a time and cover the post-race window
+    const post = weeks.filter((w) => w.flags.includes('post-race'))
+    expect(post.length).toBeGreaterThan(0)
+    post.forEach((w, k) => {
+      expect(w.weekStart).toBe(addDays(raceWeek?.weekStart ?? '', 7 * (k + 1)))
+    })
+    const lastDay = lastWindowDay(ownWindow(input(g)))
+    const last = post[post.length - 1]
+    expect((last?.weekStart ?? '') <= lastDay).toBe(true)
+    expect(addDays(last?.weekStart ?? '', 6) >= lastDay).toBe(true)
   })
 
   it('builds backwards: base, build, specific, taper, race', () => {
@@ -369,26 +384,49 @@ describe('macroPlan: weekly targets and ramp', () => {
   })
 
   it('moves a novice up by at least one minute a week', () => {
+    // a typical week at the start-path floor: no ladder, so the ramp itself steps by time
     const work = workWeeks(
-      plan(goal('10k', 20), state({ experience: 'novice', typicalWeekMin: 10 })),
+      plan(goal('10k', 20), state({ experience: 'novice', typicalWeekMin: 60 })),
     )
     expect(at(work, 1)).toBeGreaterThanOrEqual(at(work, 0) + P.g2.noviceMinStepMin.value)
   })
 
-  // Task E21: no run is longer than the long run, which the 5 km table caps at 60 min, so six run
-  // days hold at most 360 min; the weeks hold there instead of drawing 400 that cannot be placed.
+  it('gives a low-frequency runner the same minimum step and the 2:1 cadence', () => {
+    const plain = plan(goal('10k', 24), state({ typicalWeekMin: 30 * 2, lowFrequency: false }))
+    const low = plan(goal('10k', 24), state({ typicalWeekMin: 30 * 2, lowFrequency: true }))
+    const firstRecovery = (weeks: WeekDraft[]) => weeks.findIndex((w) => w.isRecovery)
+    expect(firstRecovery(low)).toBeLessThan(firstRecovery(plain))
+    const work = workWeeks(low)
+    expect(at(work, 1)).toBeGreaterThanOrEqual(at(work, 0) + P.g2.noviceMinStepMin.value)
+  })
+
+  // Task E21: no run is longer than the long run, which the 5 km table caps at 90 min for a typical
+  // week above 360 min, so six run days hold at most 540 min; a week above that would hold there
+  // instead of drawing minutes that cannot be placed.
   it('holds a runner already above the peak table at the most the run days can place', () => {
     const work = workWeeks(plan(goal('5k', 20), state({ typicalWeekMin: 400 })))
     const most = Math.min(
       400,
-      Math.max(...work.map((w) => w.runDays)) * P.peakLongRunMin['5k'].value,
+      Math.max(...work.map((w) => w.runDays)) * P.peakLongRunMin['5k'].value[2],
     )
     expect(most).toBeGreaterThan(P.peakWeeklyMin['5k'].value)
     expect(work.every((w) => w.targetRunMin === most)).toBe(true)
   })
 
-  it('starts from the floor when there is no recent running', () => {
-    const work = workWeeks(plan(goal('half', 20), state({ typicalWeekMin: 0 })))
+  it('starts on rung 1 of the run-walk ladder when there is no recent running', () => {
+    const weeks = plan(goal('half', 20), state({ typicalWeekMin: 0, yearsRunning: null }))
+    expect(weeks[0]!.targetRunMin).toBe(63)
+    expect(weeks[0]!.flags).toEqual(
+      expect.arrayContaining(['restart-floor', 'run-walk', 'ladder-1']),
+    )
+  })
+
+  it('starts from the start floor week when a hold stops the ladder', () => {
+    const held = state({
+      typicalWeekMin: 0,
+      risk: { recentInjury: false, priorBsi: false, bsiFactors: 0, redsFlags: 2, noviceFlags: [] },
+    })
+    const work = workWeeks(plan(goal('half', 20), held))
     expect(at(work, 0)).toBe(P.macroDesign.startFloorWeekMin.value)
   })
 
@@ -434,6 +472,161 @@ describe('macroPlan: weekly targets and ramp', () => {
         Math.max(Math.floor(prev * 1.1 + 1e-9), prev + 1),
       )
     }
+  })
+})
+
+describe('macroPlan: 5 km and 10 km long-run tiers [rules D7]', () => {
+  const weekRows = (runMin: number, runM: number): WeekRow[] =>
+    [4, 3, 2, 1].map((back) => ({
+      weekStart: addDays(mondayOf(TODAY), -7 * back),
+      runMin,
+      runM,
+      runSessions: 4,
+      runDays: 4,
+      strengthSessions: 0,
+      crossMin: 0,
+      raceMin: 0,
+      longestRunMin: 0,
+      longRunShare: null,
+      avg4wRunMin: runMin,
+      streak3Plus: 0,
+    }))
+  const longest = (weeks: WeekDraft[]) => Math.max(...weeks.map((w) => w.longRunMin))
+
+  it('holds the tiers and the distance cap as default parameters', () => {
+    expect(P.peakLongRunMin['5k'].value).toEqual([60, 75, 90])
+    expect(P.peakLongRunMin['10k'].value).toEqual([75, 90, 100])
+    expect(P.macroDesign.longRunTierWeeklyMin.value).toEqual([180, 360])
+    expect(P.macroDesign.peakLongRunKmMax.value).toBe(16)
+    for (const p of [
+      P.peakLongRunMin['5k'],
+      P.peakLongRunMin['10k'],
+      P.macroDesign.longRunTierWeeklyMin,
+      P.macroDesign.peakLongRunKmMax,
+    ]) {
+      expect(p.grade).toBe('D')
+      expect(p.rule).toBe('D7')
+    }
+  })
+
+  it('gives a 5 km goal the cap of the tier of the typical week: 60, 75 and 90 min', () => {
+    const g = goal('5k', 20)
+    const cap = (typicalWeekMin: number) => peakLongRunMin(g, 345, state({ typicalWeekMin }))
+    expect([cap(120), cap(240), cap(400)]).toEqual([60, 75, 90])
+    // the boundaries: under 180 is the first tier, 180 to 360 inclusive the second
+    expect([cap(179), cap(180), cap(360), cap(361)]).toEqual([60, 75, 75, 90])
+  })
+
+  it('gives a 10 km goal 75, 90 and 100 min', () => {
+    const g = goal('10k', 20)
+    // 16 km take 107 min at 400 s/km, so the tiers bind
+    const cap = (typicalWeekMin: number) => peakLongRunMin(g, 400, state({ typicalWeekMin }))
+    expect([cap(120), cap(240), cap(400)]).toEqual([75, 90, 100])
+    // at 330 s/km 16 km take 88 min, under the top two tiers
+    expect(peakLongRunMin(g, 330, state({ typicalWeekMin: 400 }))).toBe(88)
+  })
+
+  it('plans the long runs of a 5 km goal up to that cap and not beyond', () => {
+    const planned = (typicalWeekMin: number) =>
+      longest(workWeeks(plan(goal('5k', 20), state({ typicalWeekMin }))))
+    expect([planned(120), planned(240), planned(400)]).toEqual([60, 75, 90])
+  })
+
+  it('caps a fast runner at the minutes that 16 km take', () => {
+    // 270 s/km over the last four weeks: 16 km take 72 min, under the 90 min of the top tier
+    const fast = state({ typicalWeekMin: 400, weeks: weekRows(180, 40_000) })
+    expect(peakLongRunMin(goal('5k', 20), 270, fast)).toBe(72)
+    expect(peakLongRunMin(goal('10k', 20), 270, fast)).toBe(72)
+    expect(longest(workWeeks(plan(goal('5k', 20), fast)))).toBe(72)
+    // a slower runner keeps the tier: 16 km at 360 s/km take 96 min
+    expect(peakLongRunMin(goal('5k', 20), 360, fast)).toBe(90)
+  })
+
+  it('takes the tier from the completed typical week, not from the planned weeks', () => {
+    // heavy weeks in the history rows or a high planned target do not lift the tier
+    const heavy = weekRows(500, 90_000)
+    const middle = state({ typicalWeekMin: 300, weeks: heavy })
+    expect(peakLongRunMin(goal('5k', 20), 345, middle)).toBe(75)
+    const weeks = plan(goal('5k', 30), state({ typicalWeekMin: 300 }))
+    expect(longest(weeks)).toBe(75)
+    expect(Math.max(...weeks.map((w) => w.targetRunMin))).toBeLessThanOrEqual(360)
+  })
+
+  it('leaves the other distance classes alone', () => {
+    const st = state({ typicalWeekMin: 400 })
+    expect(peakLongRunMin(goal('half', 20, { goalType: 'finish' }), 345, st)).toBe(
+      P.peakLongRunMin.half.value,
+    )
+    expect(peakLongRunMin(goal('marathon', 20, { goalType: 'finish' }), 345, st)).toBe(
+      P.peakLongRunMin.marathon.value,
+    )
+  })
+
+  it('measures the 16 km at the pace the long run is carried at, not the training pace', () => {
+    const st = state({ typicalWeekMin: 400 })
+    // logged runs at 390 s/km: 16 km take 104 min, above the 100 min of the top 10 km tier
+    expect(peakLongRunMin(goal('10k', 20), 390, st)).toBe(100)
+    // a long run carried at 300 s/km covers 16 km in 80 min
+    expect(peakLongRunMin(goal('10k', 20), 390, st, 300)).toBe(80)
+    expect(peakLongRunMin(goal('5k', 20), 390, st, 300)).toBe(80)
+    // a slower carried pace leaves the tier alone: 16 km at 420 s/km take 112 min
+    expect(peakLongRunMin(goal('10k', 20), 300, st, 420)).toBe(100)
+    // the D3 floors of a half or a marathon time goal are read at the training pace
+    const half = goal('half', 20)
+    expect(peakLongRunMin(half, 330, st, 270)).toBe(peakLongRunMin(half, 330, st))
+  })
+
+  describe('a fast threshold pace with slower logged runs', () => {
+    // threshold 240 s/km puts zone 1 near 300 s/km; the logged weeks run at 390 s/km
+    const fast: AthleteProfile = { ...PROFILE, thresholdPaceSecPerKm: 240 }
+    const history = () => state({ typicalWeekMin: 400, weeks: weekRows(180, 27_700) })
+    const withZones = (g: GoalModel): EngineInput => ({ ...input(g), profile: fast })
+
+    it.each(['5k', '10k'] as const)('keeps the long runs of a %s goal within 16 km', (cls) => {
+      const g = goal(cls, 24)
+      const st = history()
+      const weeks = macroPlan(withZones(g), st, g, FEASIBLE)
+      const z1 = buildZones(fast, st, TODAY).pace!.z1
+      const carried = (z1[0] + z1[1]) / 2
+      expect(carried).toBeLessThan(330)
+      const withLong = weeks.filter((w) => w.longRunM !== null)
+      expect(withLong.length).toBeGreaterThan(10)
+      for (const w of withLong) {
+        expect(w.longRunM!).toBeLessThanOrEqual(P.macroDesign.peakLongRunKmMax.value * 1000)
+        // at the carried pace the minutes of the week are at most 16 km
+        expect((w.longRunMin * 60) / carried).toBeLessThanOrEqual(
+          P.macroDesign.peakLongRunKmMax.value + 1e-9,
+        )
+      }
+      // the cap binds: the longest run is the minutes of 16 km at the carried pace
+      expect(longest(weeks)).toBe(Math.floor((16 * carried) / 60 + 1e-9))
+      // the training pace would have given a longer run, and a distance over 16 km
+      expect(Math.floor((16 * 390) / 60)).toBeGreaterThan(longest(weeks))
+    })
+
+    it.each(['5k', '10k'] as const)(
+      'places no long or fast-finish session of a %s plan beyond 16 km, the first part week included',
+      (cls) => {
+        const g = goal(cls, 24)
+        const draft = buildPlan({ ...withZones(g), activities: [] })
+        const long = draft.sessions.filter(
+          (x) => x.kind === 'long' || x.kind === 'long-fast-finish',
+        )
+        expect(long.length).toBeGreaterThan(10)
+        for (const x of long) {
+          expect(x.distanceM).not.toBeNull()
+          expect(x.distanceM!).toBeLessThanOrEqual(P.macroDesign.peakLongRunKmMax.value * 1000)
+        }
+      },
+    )
+
+    it('does not change a runner whose zone 1 is the training pace', () => {
+      const g = goal('10k', 24)
+      const st = history()
+      const slowZones = macroPlan({ ...input(g), profile: PROFILE }, st, g, FEASIBLE)
+      // no pace zones: 16 km at 390 s/km take 104 min, so the 100 min tier binds
+      expect(longest(slowZones)).toBe(100)
+    })
   })
 })
 
@@ -646,28 +839,104 @@ describe('macroPlan: vertical gain and post-race', () => {
     expect(Math.max(...work.map((w) => w.gainTargetM ?? 0))).toBeGreaterThan(0)
   })
 
-  it('adds a rest week then reduced weeks after a race of 100 km or more', () => {
-    const weeks = plan(goal('ultra100k', 26))
-    const post = weeks.filter((w) => w.flags.includes('post-race'))
-    const fractions = P.macroDesign.postRaceLongFractions.value
-    expect(post).toHaveLength(1 + fractions.length)
-    const ref = Math.max(...preTaper(weeks).map((w) => w.targetRunMin))
-    fractions.forEach((f, k) => {
-      expect(post[k + 1]?.targetRunMin).toBe(Math.floor(ref * f + 1e-9))
-    })
-    expect(post[1]!.targetRunMin).toBeLessThan(ref * 0.5)
-    expect(post[0]?.targetRunMin).toBe(0)
-    expect(post[0]?.runDays).toBe(0)
-    expect(post[1]?.targetRunMin).toBeGreaterThan(0)
-    expect(post[1]?.isRecovery).toBe(true)
+  /** A runner under 40 with an earlier race in the class: no modifier lengthens the hold. */
+  const SEASONED = (distanceClass: GoalModel['distanceClass'], g: GoalModel): EngineInput => ({
+    ...input(g),
+    profile: { ...PROFILE, birthYear: 1995 },
+    activities: [
+      {
+        id: 'earlier',
+        date: addDays(TODAY, -300),
+        type: 'race',
+        durationSec: DISTANCES[distanceClass].sec,
+        distanceM: DISTANCES[distanceClass].m,
+        duplicateOfId: null,
+        duplicateStatus: 'none',
+      } as unknown as Activity,
+    ],
   })
 
-  it('adds one reduced week after a shorter race', () => {
-    const weeks = plan(goal('half', 20))
+  /** What a post-race week holds by the rule: the step fractions of its days after the hold. */
+  function byTheRule(g: GoalModel, weekStart: string, ref: number): number {
+    const window = ownWindow(SEASONED(g.distanceClass, g))
+    let minutes = 0
+    for (let d = 0; d < 7; d++) {
+      const day = windowDay(window, addDays(weekStart, d))
+      if (day?.kind === 'step') minutes += (day.stage.fraction * ref) / 7
+    }
+    return Math.floor(minutes + 1e-9)
+  }
+
+  it('counts the weeks after a 100 km race in days: rest through the hold, then three steps', () => {
+    const g = goal('ultra100k', 26)
+    const weeks = macroPlan(SEASONED('ultra100k', g), state(), g, FEASIBLE)
+    const post = weeks.filter((w) => w.flags.includes('post-race'))
+    const ref = Math.max(...preTaper(weeks).map((w) => w.targetRunMin))
+    // a Saturday race: the hold (7 days) ends on the Saturday after, so the first Monday week is
+    // all rest bar its last two days, and the steps of 7 days follow (fractions .25, .5, .75)
+    expect(P.macroDesign.postRaceLongFractions.value).toEqual([0.25, 0.5, 0.75])
+    expect(post).toHaveLength(4)
+    expect(post[0]?.targetRunMin).toBe(byTheRule(g, post[0]!.weekStart, ref))
+    for (const w of post) {
+      expect(w.targetRunMin).toBeLessThanOrEqual(byTheRule(g, w.weekStart, ref))
+      expect(w.targetRunMin).toBeLessThan(ref * 0.75)
+      expect(w.isRecovery).toBe(true)
+      expect(w.qualitySessions).toBe(0)
+      expect(w.strengthSessions).toBe(0)
+      expect(w.longRunMin).toBeLessThanOrEqual(P.h12.laterStepLongRunMaxMin.value)
+      expect(w.tid.z1).toBe(100)
+    }
+    // the last week holds only the days the window still covers, so it can sit below the one before
+    expect(post[2]?.targetRunMin).toBeGreaterThan(post[1]!.targetRunMin)
+    // no long run before the third step, and no run of a week above the normal band of G-1 over
+    // the longest run of the weeks before it (all within 30 days here): the runs regrow at 1.10x,
+    // so the 90 min long run of the third step is reached later than its first week
+    expect(post.slice(0, 2).every((w) => w.longRunMin === 0)).toBe(true)
+    const longest = (w: WeekDraft) =>
+      w.runDays === 0 ? 0 : Math.max(w.longRunMin, Math.ceil(w.targetRunMin / w.runDays))
+    for (let i = 2; i < post.length; i++) {
+      const before = Math.max(...post.slice(0, i).map(longest))
+      expect(longest(post[i]!)).toBeLessThanOrEqual(spikeWarnLimit(before, P.g1.minStepMin.value))
+    }
+    expect(post[0]?.focus).toMatch(/After the race/)
+    expect(post[1]?.runDays).toBeLessThanOrEqual(P.h12.step1MaxRuns.value)
+    expect(post[1]?.targetRunMin).toBeGreaterThan(0)
+  })
+
+  it('keeps a week inside the hold at zero minutes and zero run days', () => {
+    // a marathon on a Sunday: Monday is day 1, inside the 2-day hold
+    const g = goal('marathon', 20, { date: addDays(mondayOf(TODAY), 20 * 7 + 6) })
+    const weeks = macroPlan(SEASONED('marathon', g), state(), g, FEASIBLE)
+    const first = weeks.find((w) => w.flags.includes('post-race'))!
+    // day 1 (Monday) is hold, day 2 (Tuesday) is the first run day: the week still holds minutes
+    expect(first.weekStart).toBe(addDays(g.date, 1))
+    expect(first.targetRunMin).toBeGreaterThan(0)
+    const hold = macroPlan(
+      SEASONED('ultra100mi', goal('ultra100mi', 26)),
+      state(),
+      goal('ultra100mi', 26),
+      FEASIBLE,
+    ).filter((w) => w.flags.includes('post-race'))
+    // a 10-day hold from a Saturday race covers the whole first Monday week (days 2 to 8)
+    expect(hold[0]?.targetRunMin).toBe(0)
+    expect(hold[0]?.runDays).toBe(0)
+    expect(hold[0]?.focus).toBe('After the race: rest')
+  })
+
+  it('adds one reduced step after a shorter race, 0.5 of the reference over the days it covers', () => {
+    const g = goal('half', 20)
+    const weeks = macroPlan(SEASONED('half', g), state(), g, FEASIBLE)
     const post = weeks.filter((w) => w.flags.includes('post-race'))
     expect(post).toHaveLength(1)
     const ref = Math.max(...preTaper(weeks).map((w) => w.targetRunMin))
+    // a Saturday race with no hold: the 7-day step covers Monday to Friday of the next week
     expect(post[0]?.targetRunMin).toBe(
+      Math.min(
+        byTheRule(g, post[0]!.weekStart, ref),
+        P.h12.step1MaxRuns.value * P.h12.step1RunMaxMin.value,
+      ),
+    )
+    expect(post[0]?.targetRunMin).toBeLessThanOrEqual(
       Math.floor(ref * P.macroDesign.postRaceReducedFraction.value + 1e-9),
     )
   })
@@ -695,36 +964,61 @@ describe('macroPlan: restart floor and run days', () => {
     return macroPlan({ ...input(g), activities }, st, g, FEASIBLE)
   }
 
-  it('starts at 3 sessions of 20 min when the typical week is below that, and grows from it', () => {
+  it('starts at 3 sessions of the longest recent run, held to 30 min, and grows from it', () => {
     const weeks = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(30)])
     expect(FLOOR).toBe(60)
-    expect(weeks[0]!.targetRunMin).toBe(FLOOR)
+    // 8 years of running, no flag, a 30-min run 20 days ago: 3 x 30
+    expect(weeks[0]!.targetRunMin).toBe(90)
     expect(weeks[0]!.runDays).toBe(P.restartFloor.sessions.value)
+    expect(weeks[0]!.longRunMin).toBe(30)
     expect(weeks[0]!.flags).toContain('restart-floor')
     expect(weeks[0]!.flags).not.toContain('run-walk')
-    expect(weeks[1]!.targetRunMin).toBeLessThanOrEqual(Math.floor(FLOOR * 1.1 + 1e-9))
+    expect(weeks[0]!.qualitySessions).toBe(0)
+    expect(weeks[1]!.targetRunMin).toBeLessThanOrEqual(Math.floor(90 * 1.1 + 1e-9))
     expect(weeks.slice(1).some((w) => w.flags.includes('restart-floor'))).toBe(false)
   })
 
-  it('makes the floor sessions run-walk when no run of 20 min was completed in 90 days', () => {
-    const none = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(15), recentRun(30, 120)])
-    expect(none[0]!.flags).toEqual(expect.arrayContaining(['restart-floor', 'run-walk']))
+  it('starts at 3 x 20 when the longest recent run is 20 to 24 min, or a flag holds the lift back', () => {
+    const twenty = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(24)])
+    expect(twenty[0]!.targetRunMin).toBe(FLOOR)
+    const flagged = state({
+      typicalWeekMin: 27,
+      risk: {
+        recentInjury: false,
+        priorBsi: false,
+        bsiFactors: 0,
+        redsFlags: 0,
+        noviceFlags: ['age-45-plus'],
+      },
+    })
+    expect(floorPlan(flagged, [recentRun(30)])[0]!.targetRunMin).toBe(FLOOR)
+    expect(
+      floorPlan(state({ typicalWeekMin: 27, yearsRunning: 1 }), [recentRun(30)])[0]!.targetRunMin,
+    ).toBe(FLOOR)
   })
 
-  it('leaves a typical week at or above the floor, no recent running, and tightened profiles alone', () => {
+  it('enters the ladder below 20 min of running in 90 days, with the run-walk flag', () => {
+    const none = floorPlan(state({ typicalWeekMin: 27 }), [recentRun(15), recentRun(30, 120)])
+    expect(none[0]!.flags).toEqual(
+      expect.arrayContaining(['restart-floor', 'run-walk', 'ladder-4']),
+    )
+  })
+
+  it('leaves a typical week at or above the floor alone', () => {
     expect(floorPlan(state({ typicalWeekMin: FLOOR }), [recentRun(30)])[0]!.flags).not.toContain(
       'restart-floor',
     )
-    expect(floorPlan(state({ typicalWeekMin: 0 }), [])[0]!.targetRunMin).toBe(
-      P.macroDesign.startFloorWeekMin.value,
-    )
+  })
+
+  it('takes a tightened profile through the start path, but never lifts it above 3 x 20', () => {
     const tight = state({
       typicalWeekMin: 27,
       risk: { recentInjury: false, priorBsi: true, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
     })
+    // an unflagged runner with the same 30-min run is lifted to 3 x 30 (the test above)
     const weeks = floorPlan(tight, [recentRun(30)])
-    expect(weeks[0]!.flags).not.toContain('restart-floor')
-    expect(weeks[0]!.targetRunMin).toBe(27)
+    expect(weeks[0]!.flags).toContain('restart-floor')
+    expect(weeks[0]!.targetRunMin).toBe(FLOOR)
   })
 
   it('plans at least 4 run days from 3 h, 5 from 5 h and 6 from 7 h of weekly running', () => {
@@ -801,5 +1095,94 @@ describe('macroPlan: REDs hold', () => {
     expect(taper.length).toBeGreaterThan(0)
     expect(taper[0]!.targetRunMin).toBeLessThan(240)
     expect(plan(goal('marathon', 20), held(1))).toEqual(plan(goal('marathon', 20), held(0)))
+  })
+})
+
+describe('buildPlan: the long runs of a 5 km or 10 km goal stay within 16 km [rules D7]', () => {
+  const MONDAY = '2026-10-19'
+  const record = (distanceM: number, targetDate: string): Goal => ({
+    id: 'goal-1',
+    userId: 'u1',
+    name: 'Synthetic race',
+    priority: 'A',
+    status: 'target',
+    targetDate,
+    dateProvisional: false,
+    distanceM,
+    location: null,
+    successCriteria: null,
+    notes: null,
+    url: null,
+    isActive: true,
+    gainM: null,
+    lossM: null,
+    surface: 'road',
+    goalType: 'finish',
+    targetTimeSec: null,
+    startTime: null,
+    raceLat: null,
+    raceLng: null,
+    supportLevel: 'aided',
+    createdAt: '2026-10-01T00:00:00Z',
+    updatedAt: '2026-10-01T00:00:00Z',
+  })
+  const WEEK_RUNS: Array<[number, number]> = [
+    [1, 60],
+    [3, 80],
+    [4, 80],
+    [5, 60],
+    [6, 140],
+  ]
+  /** Four weeks of 60, 80, 80, 60 and 140 minutes at `pace` s/km, ending before this week. */
+  const runner = (distanceM: number, threshold: number, pace: number): EngineInput => {
+    const activities: Activity[] = []
+    for (let week = 1; week <= 4; week++) {
+      for (const [dayOffset, min] of WEEK_RUNS) {
+        const date = addDays(MONDAY, -7 * week + dayOffset)
+        activities.push(
+          activity(date, {
+            id: `run-${date}`,
+            durationSec: min * 60,
+            movingSec: min * 60,
+            distanceM: Math.round(((min * 60) / pace) * 1000),
+            rpe: 3,
+          }),
+        )
+      }
+    }
+    activities.sort((a, b) => (a.date < b.date ? -1 : 1))
+    const base: EngineInput = {
+      ...e8Input(),
+      profile: e8Profile({ thresholdPaceSecPerKm: threshold, longRunDay: 'sat' }),
+      activities,
+    }
+    const model = goalModel(record(distanceM, '2027-03-13'), estimateState(base), null)
+    return { ...base, goal: model }
+  }
+
+  it.each([
+    [5000, 240, 330],
+    [5000, 240, 390],
+    [10_000, 240, 390],
+    [10_000, 270, 360],
+    [10_000, 270, 480],
+    [10_000, 300, 480],
+  ])('keeps a plain long run of %i m under 16 km at threshold %i and logged pace %i', (m, t, p) => {
+    const input = runner(m, t, p)
+    const built = buildPlan(input)
+    // the part week the plan opens with is left out: its few run days make the placement raise the
+    // long run to its share of the week (micro.ts), above the weekly long run the macrocycle sets
+    const longs = built.sessions.filter(
+      (s) => s.kind === 'long' && mondayOf(s.date) > mondayOf(input.today),
+    )
+    expect(longs.length).toBeGreaterThan(5)
+    for (const s of longs) {
+      expect(s.distanceM).not.toBeNull()
+      expect(s.distanceM!).toBeLessThanOrEqual(P.macroDesign.peakLongRunKmMax.value * 1000)
+    }
+    // the weekly long-run distance is within the cap too
+    for (const w of built.weeks) {
+      expect(w.longRunM ?? 0).toBeLessThanOrEqual(P.macroDesign.peakLongRunKmMax.value * 1000)
+    }
   })
 })

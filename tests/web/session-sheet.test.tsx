@@ -138,6 +138,110 @@ describe('SessionSheet', () => {
     expect(dialog.textContent).not.toMatch(/behind|missed|streak/i)
   })
 
+  describe('an effort verdict without a rating', () => {
+    const unrated = {
+      completion: 'completed',
+      intensity: 'on',
+      effort: {
+        score: 1,
+        confidence: 'low',
+        parts: { rpeDelta: null, feel: null, hrResidualZ: 1.4, paceResidualPct: 4 },
+      },
+      conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
+      flags: [],
+      lines: [],
+    } as const satisfies NonNullable<PlanSession['execution']>
+
+    test('says a rating is what lets the plan adjust, and links to where to give it', async () => {
+      renderSheet(
+        makeSession({
+          status: 'completed',
+          activityId: 'act1',
+          linkSource: 'auto',
+          execution: unrated,
+        }),
+      )
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText(/Harder than expected, low confidence/)).toBeInTheDocument()
+      const note = within(dialog).getByRole('note')
+      expect(note).toHaveTextContent(
+        "Rate this activity (effort or feel) so the plan can adjust. Without a rating, the plan's read of this activity stays a low-confidence guess from heart rate and pace, and the plan never changes because of it.",
+      )
+      expect(
+        within(note).getByRole('link', { name: 'Open the activity to rate it.' }),
+      ).toHaveAttribute('href', '/activities/act1')
+      expect(dialog.textContent).not.toMatch(/behind|missed|streak/i)
+    })
+
+    test('with no score the note only asks', async () => {
+      renderSheet(
+        makeSession({
+          status: 'completed',
+          activityId: 'act1',
+          execution: {
+            ...unrated,
+            effort: {
+              ...unrated.effort,
+              score: null,
+              parts: { ...unrated.effort.parts, hrResidualZ: null, paceResidualPct: null },
+            },
+          },
+        }),
+      )
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText('Effort not assessed')).toBeInTheDocument()
+      const note = within(dialog).getByRole('note')
+      expect(note).toHaveTextContent('Rate this activity (effort or feel) so the plan can adjust.')
+      expect(note).not.toHaveTextContent(/low-confidence guess/)
+    })
+
+    test('an activity of a different kind asks for a feel rating only', async () => {
+      renderSheet(
+        makeSession({
+          status: 'completed',
+          activityId: 'act1',
+          execution: {
+            ...unrated,
+            completion: 'modified',
+            intensity: 'unknown',
+            effort: {
+              score: null,
+              confidence: 'low',
+              parts: { rpeDelta: null, feel: null, hrResidualZ: null, paceResidualPct: null },
+            },
+          },
+        }),
+      )
+      const dialog = await screen.findByRole('dialog')
+      const note = within(dialog).getByRole('note')
+      expect(note).toHaveTextContent('Rate how this activity felt so the plan can adjust.')
+      expect(note).not.toHaveTextContent(/effort or feel/)
+      expect(
+        within(note).getByRole('link', { name: 'Open the activity to rate it.' }),
+      ).toHaveAttribute('href', '/activities/act1')
+    })
+
+    test.each([
+      ['an RPE', { rpeDelta: 1, feel: null }],
+      ['a feel', { rpeDelta: null, feel: 1 }],
+    ])('has no note once %s is behind the verdict', async (_name, rating) => {
+      renderSheet(
+        makeSession({
+          status: 'completed',
+          activityId: 'act1',
+          execution: {
+            ...unrated,
+            effort: { ...unrated.effort, parts: { ...unrated.effort.parts, ...rating } },
+          },
+        }),
+      )
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText(/Harder than expected/)).toBeInTheDocument()
+      expect(within(dialog).queryByRole('note')).not.toBeInTheDocument()
+      expect(within(dialog).queryByText(/Rate this activity/)).not.toBeInTheDocument()
+    })
+  })
+
   test('a linked activity is described and can be unlinked', async () => {
     const user = userEvent.setup()
     const { calls } = renderSheet(

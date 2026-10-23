@@ -62,6 +62,8 @@ export type SessionFlag =
   | 'b2b-day2'
   | 'downhill'
   | 'run-walk'
+  | 'post-race'
+  | 'injury-return'
 export interface SessionSpec {
   date: string
   order: number
@@ -137,8 +139,14 @@ export interface AthleteState {
     priorBsi: boolean
     bsiFactors: number
     redsFlags: number
+    /** The soft start flags of A9 (age, BMI, injury in the last 12 months, no running history). */
     noviceFlags: string[]
   }
+  /**
+   * Completed runs average under `a5.lowFrequencyRunsPerWeek` a week over the last
+   * `a5.lowFrequencyWindowWeeks` weeks, for a runner above the start-path floor [rules A5].
+   */
+  lowFrequency: boolean
   /** 0..1 credit */
   heatAcclimation: number
 }
@@ -256,6 +264,24 @@ export interface WeeklyDecision {
   decision: 'progress' | 'hold' | 'reduce'
   signals: Array<{ code: string; detail: string; rules: string[] }>
   nextWeekTargetMin: number
+  /**
+   * Set while the week lies inside a post-race window [rules H12]: the week reports its stage
+   * instead of progress, hold or reduce (`decision` is 'hold' for callers that read only that).
+   */
+  postRace?: {
+    /** 'After the race, step 2 of 3', or the rest line during the hold. */
+    label: string
+    phase: 'hold' | 'step'
+    /** 1-based step; null during the hold. */
+    step: number | null
+    steps: number
+    /** First day on which running is allowed. */
+    holdUntil: string
+    /** First day on which quality work is allowed. */
+    quietUntil: string
+    /** Days the check-in gate has moved the return past the default schedule. */
+    extensionDays: number
+  }
 }
 export interface ZoneProposal {
   boundary: 'cs' | 'lt1Pace' | 'thresholdPace' | 'lt1Hr' | 'hrMax'

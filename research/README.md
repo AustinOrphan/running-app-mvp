@@ -1,6 +1,6 @@
 # Research base
 
-The evidence behind the training engine: 300 papers, 20 topic syntheses, the rules derived from
+The evidence behind the training engine: 370 papers, 20 topic syntheses, the rules derived from
 them and the one document that turns the rules into engine behaviour. It is decision support for
 one recreational runner, not medical advice.
 
@@ -41,6 +41,23 @@ time for the Research page and the "why" drawer.
    repeats the check.
 6. **Terrain second pass.** The terrain-elevation topic was researched and verified a second time
    on 2026-10-22 and folded into H4, H5, I11, I12 and L5 of `engine-rules.md`.
+7. **Second pass (2026-10-22) on five questions.** The topics beginners-return, injury-load,
+   periodization-recovery, ultra-training and volume-performance were revisited for five engine
+   defaults: the starting dose for novices and returners, the session spike and weekly ramp,
+   recovery after marathons and ultras, the longest training run for ultras, and the long run for
+   5 km and 10 km goals. Each question had a finder (Crossref, Europe PMC, PubMed and the practice
+   sources a coach or runner cites), a verifier that re-fetched every source and corrected or
+   dropped what it could not support, an adversarial pass per source that tried to refute it or
+   show it was not relevant, a synthesis that rewrote the topic's synthesis, rules and gaps, and
+   one integration that checked the five proposals against each other and the standing
+   principles (a change toward more load needs stronger evidence; the conservative rule wins).
+   Where the proposals differed, the recorded decisions fixed the outcome, and `engine-rules.md` follows them. The corpus grew by 70
+   records, from 300 to 370: 48 with a DOI (checked with `npm run research:verify` on
+   2026-10-22; one year was corrected to Crossref's online-first year), 3 scholarly records
+   without a DOI (a conference abstract and two PubMed-only papers), and 19 practice sources (the
+   NHS and original Couch-to-5K plans, coaching, clinical and magazine pages) kept as grade D
+   conventions: they may set a default and never raise a grade. One blog post was not admitted.
+   Sources verified twice under different ids merged by DOI, so each paper has one id.
 
 ## Evidence levels and grades
 

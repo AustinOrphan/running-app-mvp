@@ -1,0 +1,39 @@
+{
+  "id": "relph-2023-couch-to-5k-injury",
+  "title": "\"Couch-to-5k\" or Couch to Ouch to Couch!? Who Takes Part in Beginner Runner Programmes in the UK and Is Non-Completion Linked to Musculoskeletal Injury?",
+  "authors": "Relph N, Taylor SL, Christian DL, Dey P, Owen MB",
+  "year": 2023,
+  "journal": "International Journal of Environmental Research and Public Health",
+  "doi": "10.3390/ijerph20176682",
+  "pmid": "37681822",
+  "url": "https://doi.org/10.3390/ijerph20176682",
+  "design": "prospective-cohort",
+  "population": "Adults in a modified 9-week Couch-to-5k programme in the UK (mean age 47.1, 81.8% female, mean BMI 28.1, 64% with prior running experience)",
+  "sampleSize": 110,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return", "injury-load"],
+  "findings": [
+    "110 runners (mean age 47.1 +/- 13.7 y; 81.8% female; mean BMI 28.1 kg/m2) did a modified 9-week Couch-to-5k programme; questionnaires at start, middle and end plus interviews with 15 drop-outs.",
+    "21 injuries were reported during the programme (19%); a previous injury increased the risk of a new injury (OR 7.56, 95% CI 2.06 to 27.75).",
+    "Only 27.3% completed the programme; dropping out was linked to musculoskeletal injury and to the progressive design of the programme.",
+    "64% of the sample had previous running experience and were classified as active; half self-reported pain or discomfort at baseline (EQ-5D-5L).",
+    "The authors state that Couch-to-5k lacks an evidence base and that future programmes should include injury-prevention advice and more flexible designs."
+  ],
+  "limitations": "Small, single-arm, no comparator (so it cannot say whether run-walk beats 3 x 20 or 3 x 30 continuous); wide OR interval; the programme was 'modified' and the modifications are not in the abstract; self-selected sample.",
+  "implications": [
+    "A run-walk plan is not shown to be safe by this study: 21 injuries (19%) and 27.3% completion mean the plan should allow repeating a week and should flag a prior injury.",
+    "A recent injury flag should lower the start dose or block the 3 x 20 floor (OR 7.56 is imprecise, so use as direction only, grade C).",
+    "Build in flexibility (repeat or hold a week) rather than a fixed 9-week ladder.",
+    "Couch-to-5k style plans are a convention without an evidence base; present the starter plan as a conservative default and not as evidence-based.",
+    "Ask about previous injury at onboarding and slow the starter plan for those who report one (OR 7.56, wide CI).",
+    "Allow repeating a week or pausing: the progressive design was linked to dropout, which supports a flexible progression rather than a fixed calendar."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (title, first author Relph, IJERPH, issued 2023-08-30) and Europe PMC abstract (PMID 37681822). All numbers (110, 47.1, 81.8%, BMI 28.1, 64%, 21 injuries 19%, OR 7.56 2.06-27.75, 27.3% completion) match. Minor rewording: 'injuries' not 'injured runners' for the 19%; the 'flexible designs' sentence now follows the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

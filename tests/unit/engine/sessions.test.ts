@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { P } from '../../../shared/engine/params/index.ts'
 import { prescribe, sessionLibrary } from '../../../shared/engine/sessions.ts'
+import { rungSessions, sessionMin } from '../../../shared/engine/startWeeks.ts'
 import type {
   Boundary,
   SessionKind,
@@ -398,5 +399,86 @@ describe('prescribe: other quality and special sessions', () => {
     expect(prescribe('intervals', 60, zones(), week())).toEqual(
       prescribe('intervals', 60, zones(), week()),
     )
+  })
+})
+
+describe('prescribe: start-path sessions [rules E6, G-3]', () => {
+  const ladderWeek = (rung: number, over: Partial<WeekDraft> = {}) =>
+    week({ flags: ['run-walk', `ladder-${String(rung)}`], ...over })
+  const counted = (s: SessionSpec) =>
+    s.structure
+      .filter((x) => x.kind === 'work' || x.kind === 'recover' || x.kind === 'steady')
+      .reduce((n, x) => n + ((x.durationSec ?? 0) * x.reps) / 60, 0)
+
+  it('builds rung 1 as one pair of steps with a repeat count, between two walks outside the minutes', () => {
+    const s = prescribe('easy', 21, zones(), ladderWeek(1), { blueprint: rungSessions(1)[0] })
+    expect(s.structure.map((x) => [x.kind, x.reps, x.durationSec])).toEqual([
+      ['warmup', 1, 300],
+      ['work', 7, 60],
+      ['recover', 7, 120],
+      ['cooldown', 1, 300],
+    ])
+    expect(s.durationMin).toBe(21)
+    expect(counted(s)).toBe(21)
+    expect(s.flags).toContain('run-walk')
+    expect(s.title).toBe('Run-walk, step 1')
+    expect(s.rules).toEqual(expect.arrayContaining(['E6', 'A9']))
+  })
+
+  it('writes irregular rungs step by step and a continuous run as one steady step', () => {
+    const r4 = prescribe('easy', 22, zones(), ladderWeek(4), {
+      blueprint: rungSessions(4)[0],
+    })
+    expect(r4.structure.slice(1, -1).map((x) => [x.kind, x.durationSec])).toEqual([
+      ['work', 180],
+      ['recover', 90],
+      ['work', 300],
+      ['recover', 150],
+      ['work', 180],
+      ['recover', 90],
+      ['work', 300],
+    ])
+    const r7 = prescribe('easy', 25, zones(), ladderWeek(7), { blueprint: [25] })
+    expect(r7.structure.map((x) => x.kind)).toEqual(['warmup', 'steady', 'cooldown'])
+    expect(r7.purpose).toMatch(/run 25 minutes without stopping/)
+  })
+
+  it('cuts the blueprint to the minutes it is given', () => {
+    const s = prescribe('easy', 12, zones(), ladderWeek(4), { blueprint: rungSessions(4)[0] })
+    expect(counted(s)).toBe(12)
+    expect(s.durationMin).toBe(12)
+  })
+
+  it('counts the distance of the minutes only: the walks around the session are left out', () => {
+    const s = prescribe('easy', 21, zones(), ladderWeek(1), { blueprint: rungSessions(1)[0] })
+    // 21 minutes at the middle of the zone 1 pace band (365 s/km), rounded to 100 m
+    expect(s.distanceM).toBe(Math.round(((21 * 60) / 365) * 10) * 100)
+  })
+
+  it('words the session without a word of blame', () => {
+    for (const rung of [1, 3, 5, 9]) {
+      for (const bp of rungSessions(rung)) {
+        const s = prescribe('easy', sessionMin(bp), zones(), ladderWeek(rung), { blueprint: bp })
+        expect(`${s.title} ${s.purpose}`).not.toMatch(/behind|missed|streak|badge|failed|\bred\b/i)
+      }
+    }
+  })
+
+  it('marks an injury-return run, with its level and the rules behind it', () => {
+    const w = week({ flags: ['injury-return', 'injury-level-2'] })
+    const s = prescribe('easy', 15, zones(), w)
+    expect(s.flags).toContain('injury-return')
+    expect(s.title).toBe('Return to running, level 3')
+    expect(s.rules).toEqual(expect.arrayContaining(['E6', 'A9', 'g-3']))
+    expect(s.durationMin).toBe(15)
+    expect(s.structure).toEqual([])
+    expect(s.purpose).toMatch(/rest day/)
+  })
+
+  it('marks the runs of the first week of the 3 x N floor with the start rules', () => {
+    const s = prescribe('easy', 25, zones(), week({ flags: ['restart-floor'] }))
+    expect(s.rules).toEqual(expect.arrayContaining(['E6', 'A9']))
+    expect(s.flags).not.toContain('run-walk')
+    expect(prescribe('easy', 25, zones(), week()).rules).not.toContain('E6')
   })
 })

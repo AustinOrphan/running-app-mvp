@@ -1,0 +1,37 @@
+{
+  "id": "outside-2023-strava-western-states",
+  "title": "What Strava Data Tells Us About How Runners Train for Western States (Trail Runner / Outside, Strava column, 14 Jun 2023)",
+  "authors": "Rom Z",
+  "year": 2023,
+  "journal": "Trail Runner Magazine (Outside)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.trailrunnermag.com/training/strava-western-states-100/",
+  "design": "book-or-guideline",
+  "population": "Western States 100 finishers 2018-2022 as compiled from Strava data; finishers only, sample size not stated.",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Median peak week 81 miles, 16 hours and 13.5K ft of gain; 22% peaked four weeks out, 19% three weeks out, 11% five weeks out.",
+    "Median longest run 50 miles; 57% logged a long run of 50 miles or more; 43% did at least a 100K in the lead-up; 65% did at least one race in the build-up.",
+    "All finishers logged at least one 20-mile long run; on average 10 runs of 20 miles or more in the build-up; 97% logged at least a 50K, on average three 50Ks in the six months before the race.",
+    "In the peak week the median long run was 32 miles (many a self-supported or race 50K); 32% did a 50-mile race in their peak week.",
+    "Median base entering the six-month lead-up: 37 miles per week with 2,700 ft of climbing and a 12-mile long run.",
+    "The article states no statistically significant variation from other US 100-milers in peak-week timing or long-run length. Back-to-backs are not discussed apart from the Memorial Weekend Western States training runs (a 50K, 19- and 20-mile days)."
+  ],
+  "limitations": "Journalistic descriptive summary, not peer reviewed; finishers only so no association with finishing; races and supported training runs count as long runs; Strava self-selected sample; medians given without distributions.",
+  "implications": [
+    "Real 100-mile finishers' longest runs (median 50 miles, over 9 hours for most) are far above a 240 min target and above a 6 h cap, but races and 50K-100K events dominate; a 6 h cap is stricter than observed practice and should be labelled a conservative default, grade D.",
+    "Median peak-week long run of 32 miles in an 81-mile week is roughly 40% of weekly distance (derived from two medians, approximate).",
+    "Peak week 3-4 weeks out is the modal timing, which fits a taper starting about 3 weeks before a 100 miler."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the page (HTTP 200, published 2023-06-14 per page metadata, byline Zoë Rom) and checked every figure: 81 mi/16 h/13.5K ft, 22/19/11%, median 50 mi, 57%, 43%, 65%, 20-mile runs, 97% 50K, 32-mile peak-week long run, 32% 50-mile race, 37 mi base/2,700 ft/12-mile run, no-significant-variation statement. Removed the comparison to a '25-35% typical long-run share', which is not in the source. Practice source, grade D. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

@@ -4,6 +4,7 @@ import {
   breakRestart,
   shouldTrimQuality,
   trimQuality,
+  weekEvidence,
   weeklyDecision,
   zoneProposals,
   type ExecutionRecord,
@@ -88,23 +89,21 @@ const codes = (d: ReturnType<typeof weeklyDecision>) => d.signals.map((s) => s.c
 
 describe('breakRestart (J7)', () => {
   it('restarts at 100% under 7 days', () => {
-    expect(breakRestart(3, 300)).toEqual({ restartMin: 300, fraction: 1, runWalk: false })
+    expect(breakRestart(3, 300)).toEqual({ restartMin: 300, fraction: 1 })
     expect(breakRestart(6, 300).fraction).toBe(1)
   })
 
   it('restarts at 90% for 7-14 days, 75% for 15-28 and 50% beyond', () => {
-    expect(breakRestart(7, 300)).toEqual({ restartMin: 270, fraction: 0.9, runWalk: false })
+    expect(breakRestart(7, 300)).toEqual({ restartMin: 270, fraction: 0.9 })
     expect(breakRestart(14, 300).fraction).toBe(0.9)
-    expect(breakRestart(15, 300)).toEqual({ restartMin: 225, fraction: 0.75, runWalk: false })
+    expect(breakRestart(15, 300)).toEqual({ restartMin: 225, fraction: 0.75 })
     expect(breakRestart(28, 300).fraction).toBe(0.75)
-    expect(breakRestart(29, 300)).toEqual({ restartMin: 150, fraction: 0.5, runWalk: false })
+    expect(breakRestart(29, 300)).toEqual({ restartMin: 150, fraction: 0.5 })
   })
 
-  it('uses run-walk after over 28 days only with under 6 consistent months before', () => {
-    expect(breakRestart(40, 200, 3).runWalk).toBe(true)
-    expect(breakRestart(40, 200, 12).runWalk).toBe(false)
-    expect(breakRestart(40, 200).runWalk).toBe(false)
-    expect(breakRestart(20, 200, 3).runWalk).toBe(false)
+  it('leaves the first week after a long break to E6: no run-walk output, only the restart volume', () => {
+    expect(Object.keys(breakRestart(40, 200)).sort()).toEqual(['fraction', 'restartMin'])
+    expect(breakRestart(40, 200)).toEqual({ restartMin: 100, fraction: 0.5 })
   })
 })
 
@@ -347,6 +346,26 @@ describe('weeklyDecision (J5, G-6)', () => {
     expect(once.decision).toBe('progress')
   })
 
+  it('ignores harder-than-expected verdicts that rest on heart rate or pace alone', () => {
+    // No RPE and no feel: the score is a low-confidence guess and never counts as a decline.
+    const unrated = (date: string, kind: SessionKind): ExecutionRecord => ({
+      date,
+      kind,
+      assessment: {
+        ...assessment(1),
+        effort: {
+          ...assessment(1).effort,
+          confidence: 'low',
+          parts: { rpeDelta: null, feel: null, hrResidualZ: 2, paceResidualPct: null },
+        },
+      },
+    })
+    const executions = [unrated('2026-10-12', 'easy'), unrated('2026-10-14', 'threshold')]
+    const d = weeklyDecision(base(), WEEK, { efficiency: STABLE, executions })
+    expect(d.decision).toBe('progress')
+    expect(codes(d)).toEqual([])
+  })
+
   it('derives effort from RPE and the feel rating when no assessment is passed', () => {
     const sessions = weekSessions().map((s, n) => ({
       ...s,
@@ -542,5 +561,138 @@ describe('zoneProposals (C8, design 4.3)', () => {
     expect(zoneProposals(i, executions)).toHaveLength(1)
     const tainted = executions.map((e) => ({ ...e, assessment: assessment(-1, ['heat']) }))
     expect(zoneProposals(i, tainted)).toEqual([])
+  })
+})
+
+describe('weeklyDecision inside a post-race window (H12)', () => {
+  // A marathon on Sunday 11 October by a runner of 36 with an earlier finish: a 2-day hold, step 1
+  // from 13 to 19 October, step 2 from 20 to 26 October, quality work from 27 October.
+  const marathon = (id: string, date: string) =>
+    activity(date, { id, type: 'race', durationSec: 14_400, distanceM: 42_195 })
+  const afterMarathon = (over: Partial<EngineInput> = {}) =>
+    base({
+      activities: [
+        ...runs([50, 50, 50, 50]),
+        marathon('old', '2025-10-12'),
+        marathon('m', '2026-10-11'),
+      ],
+      ...over,
+    })
+
+  it('reports the step instead of progress, hold or reduce', () => {
+    const d = weeklyDecision(afterMarathon(), WEEK, { efficiency: STABLE })
+    expect(d.postRace).toMatchObject({ phase: 'step', step: 1, steps: 2, extensionDays: 0 })
+    expect(d.postRace?.label).toBe('After the race, step 1 of 2')
+    expect(codes(d)).toEqual(['post-race-stage'])
+    expect(d.signals[0]!.detail).toBe('After the race, step 1 of 2')
+    expect(d.signals[0]!.rules).toContain('H12')
+    // the next week keeps the minutes the plan holds for it, never a cut from this week's total
+    expect(d.nextWeekTargetMin).toBe(210)
+    const current = weeklyDecision(afterMarathon(), NEXT, { efficiency: STABLE })
+    expect(current.postRace?.label).toBe('After the race, step 2 of 2')
+  })
+
+  it('says that a sore day keeps the current step when the gate has moved the return', () => {
+    // the day-9 boundary (20 October) moves to 21 October after a sore 18 October
+    const wellness = [
+      wellnessDay('2026-10-17', { soreness: 3 }),
+      wellnessDay('2026-10-18', { soreness: 5 }),
+      wellnessDay('2026-10-19', { soreness: 3 }),
+      wellnessDay('2026-10-20', { soreness: 3 }),
+    ]
+    const d = weeklyDecision(afterMarathon({ wellness, today: '2026-10-20' }), NEXT, {
+      efficiency: STABLE,
+    })
+    // 20 October would have been the first day of step 2; the sore day keeps the runner in step 1
+    expect(d.postRace).toMatchObject({ step: 1, extensionDays: 1 })
+    expect(codes(d)).toEqual(['post-race-stage', 'post-race-delayed'])
+    expect(d.signals[1]!.detail).toMatch(
+      /A sore, tired, painful or ill day keeps you at your current step/,
+    )
+    expect(d.signals[1]!.detail).not.toMatch(/behind|missed/i)
+  })
+
+  it('leaves the usual decision to a week outside the window and to a race that is not ahead', () => {
+    expect(
+      weeklyDecision(afterMarathon(), '2026-11-02', { efficiency: STABLE }).postRace,
+    ).toBeUndefined()
+    // a short race opens no window for a new plan
+    const tenK = base({
+      activities: [
+        ...runs([50, 50, 50, 50]),
+        activity('2026-10-11', { id: 'tenk', type: 'race', durationSec: 3000, distanceM: 10_000 }),
+      ],
+    })
+    expect(weeklyDecision(tenK, WEEK, { efficiency: STABLE }).postRace).toBeUndefined()
+    expect(weeklyDecision(base(), WEEK, { efficiency: STABLE }).decision).toBe('progress')
+  })
+
+  it('reports the rest of the hold with the date running resumes', () => {
+    const justRaced = afterMarathon({ today: '2026-10-12' })
+    const d = weeklyDecision(justRaced, WEEK, { efficiency: STABLE })
+    expect(d.postRace).toMatchObject({ phase: 'hold', step: null, holdUntil: '2026-10-13' })
+    expect(d.postRace?.label).toBe('After the race: rest, no running until 2026-10-13')
+  })
+})
+
+describe('weekEvidence: what a finished week shows the start paths [rules E6, G-3]', () => {
+  const weekRuns = (over: Partial<Activity> = {}) => [
+    activity('2026-10-13', { id: 'w1', durationSec: 1200, ...over }),
+    activity('2026-10-15', { id: 'w2', durationSec: 1200, ...over }),
+    activity('2026-10-17', { id: 'w3', durationSec: 1200, ...over }),
+  ]
+
+  it('gives minutes run, minutes planned, the share and the number of runs', () => {
+    const inp = input({
+      activities: weekRuns(),
+      existing: {
+        weeks: [weekDraft(WEEK, 63)],
+        sessions: [],
+      },
+    })
+    const ev = weekEvidence(inp, WEEK)
+    expect(ev.actualMin).toBe(60)
+    expect(ev.plannedMin).toBe(63)
+    expect(ev.share).toBeCloseTo(60 / 63, 9)
+    expect(ev.runs).toBe(3)
+    expect(ev.meanRpe).toBeNull()
+    expect(ev.worstPain).toBe(0)
+  })
+
+  it('plans from the sessions of the week when it has them, and says nothing without a plan', () => {
+    const sessions = [
+      planned('s1', '2026-10-13', 'easy', { durationMin: 20 }),
+      planned('s2', '2026-10-15', 'easy', { durationMin: 20 }),
+    ]
+    const inp = input({
+      activities: weekRuns(),
+      existing: { weeks: [weekDraft(WEEK, 99)], sessions },
+    })
+    expect(weekEvidence(inp, WEEK).plannedMin).toBe(40)
+    const none = weekEvidence(input({ activities: weekRuns() }), WEEK)
+    expect(none.plannedMin).toBeNull()
+    expect(none.share).toBeNull()
+  })
+
+  it('takes the worst pain from an activity or a check-in, and the mean of the ratings given', () => {
+    const rated = [
+      activity('2026-10-13', { id: 'r1', rpe: 4, pain: 1 }),
+      activity('2026-10-15', { id: 'r2', rpe: 6, pain: null }),
+      activity('2026-10-17', { id: 'r3', rpe: null }),
+    ]
+    const ev = weekEvidence(input({ activities: rated }), WEEK)
+    expect(ev.meanRpe).toBe(5)
+    expect(ev.worstPain).toBe(1)
+    const checkin = weekEvidence(
+      input({ activities: rated, wellness: [wellnessDay('2026-10-16', { painScore: 3 })] }),
+      WEEK,
+    )
+    expect(checkin.worstPain).toBe(3)
+    // a pain report outside the week does not count
+    const later = weekEvidence(
+      input({ activities: rated, wellness: [wellnessDay('2026-10-20', { painScore: 7 })] }),
+      WEEK,
+    )
+    expect(later.worstPain).toBe(1)
   })
 })

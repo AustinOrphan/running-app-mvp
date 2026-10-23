@@ -1,0 +1,35 @@
+{
+  "id": "kluitenberg-2016-nlstart2run-training-factors",
+  "title": "The NLstart2run study: Training-related factors associated with running-related injuries in novice runners",
+  "authors": "Kluitenberg B, van der Worp H, Huisstede BM, Hartgens F, Diercks R, Verhagen E, van Middelkoop M",
+  "year": 2016,
+  "journal": "Journal of Science and Medicine in Sport",
+  "doi": "10.1016/j.jsams.2015.09.006",
+  "pmid": "26452583",
+  "url": "https://doi.org/10.1016/j.jsams.2015.09.006",
+  "design": "prospective-cohort",
+  "population": "Novice runners in a 6-week Start to Run programme (Netherlands)",
+  "sampleSize": 1696,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "1696 novices completed weekly diaries of running exposure and injury during a 6-week novice programme; volume (min), frequency and mean RPE over the seven days before each training session were analysed as time-varying exposures in an extended Cox regression.",
+    "Running at a higher intensity (RPE) in the previous week was associated with a higher injury risk.",
+    "Running frequency was not significantly associated with injury, but there was a trend toward running three times per week being more hazardous than two.",
+    "Lower running volume was associated with a higher injury risk; the authors read this as running more than 60 min at a lower intensity being least injurious, but call the finding contrary to expectation and presumably due to other factors, and say it should not be used plainly as a guideline for novices."
+  ],
+  "limitations": "Observational with time-varying confounding (people who are already hurting run less, which would produce the volume finding); the frequency effect is a non-significant trend; the programme was 6 weeks only; no run-walk versus continuous contrast.",
+  "implications": [
+    "Keep intensity easy in the first weeks: the only clear adverse signal was higher RPE the week before.",
+    "Do not use this paper to justify a higher floor volume or to cut frequency to 2 days; the volume and frequency signals are weak and probably confounded.",
+    "Supports a conservative evidence grade (C/D) for any start-dose parameter that rests on frequency."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (title, first author Kluitenberg, JSAMS, issued 2016-08) and the Europe PMC abstract (PMID 26452583) in this session. n=1696, 6-week programme, seven-day time-varying volume/frequency/RPE, Cox model, RPE result, non-significant 3-vs-2 trend, lower-volume result and the authors' caveat all match. Only edit: stated that exposures cover the seven days before each session.",
+    "checkedAt": "2026-10-22"
+  }
+}

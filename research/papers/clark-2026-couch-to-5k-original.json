@@ -1,0 +1,34 @@
+{
+  "id": "clark-2026-couch-to-5k-original",
+  "title": "The Couch-to-5K Running Plan (original, Josh Clark, Cool Running; University of Arizona copy)",
+  "authors": "Clark J",
+  "year": 2026,
+  "journal": "University of Arizona hosted PDF of the Cool Running plan",
+  "doi": null,
+  "pmid": null,
+  "url": "https://zfcphp.arizona.edu/sites/default/files/images/Couch-to-5k%20Running%20Plan.pdf",
+  "design": "book-or-guideline",
+  "population": "General adult beginners; no outcome data",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Each session takes 'about 20 or 30 minutes, three times a week', spaced through the week for rest; a brisk 5 min warm-up walk before each session; run by time or distance.",
+    "Advice to 'ease into your running program gradually', 'Repeat weeks if needed and move ahead only when you feel you're ready', and 'Don't try to do more, even if you feel you can'.",
+    "Week 1: alternate 60 s jog and 90 s walk for a total of 20 min (about 8 min of jogging). Week 2: 90 s jog and 2 min walk for 20 min. Week 3: two repetitions of jog 90 s, walk 90 s, jog 3 min, walk 3 min. Week 4: jog 3, 5, 3, 5 min with walks of 90 s, 2.5 min, 90 s.",
+    "Week 5: runs 1 and 2 are interval blocks (5/3/5/3/5 and 8/5/8) and run 3 is 20 min jogging with no walking. Week 6: run 3 is 22 min non-stop. Weeks 7, 8 and 9 are 25, 28 and 30 min continuous, so this copy is a 9-week plan even though its title says 'two months'."
+  ],
+  "limitations": "Convention (D), no outcome data; hosted copy, not the Cool Running page; undated, so the year is the retrieval year; the copy's 9 weeks differ from the title's 'two months' wording.",
+  "implications": [
+    "The original design reaches the first 20 min continuous run in week 5 and 30 min in week 9; it does not start with 3 x 20 continuous.",
+    "Supports a plan that lets the runner stretch the schedule and repeat weeks, grade D."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-downloaded the University of Arizona PDF and read all weeks with pdftotext. Week-by-week prescriptions, the quoted advice and the 9-week length match. Year is the retrieval year because the PDF carries no date. Added jogging minutes for week 1. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

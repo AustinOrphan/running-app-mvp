@@ -199,7 +199,10 @@ function FeedbackCard({
       <h2 id={headingId} className={styles.heading}>
         How did it go?
       </h2>
-      <p className={styles.caption}>Recent runs without a rating. Rate any or all of it.</p>
+      <p className={styles.caption}>
+        Recent runs without a rating. A rating of effort or feel is what lets the plan adjust. Rate
+        any or all of it.
+      </p>
       <ul className={styles.feedbackList}>
         {newest === undefined ? null : (
           <FeedbackItem key={newest.id} activity={newest} units={units} onSaved={onSaved} />

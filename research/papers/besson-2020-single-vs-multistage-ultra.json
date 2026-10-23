@@ -1,0 +1,34 @@
+{
+  "id": "besson-2020-single-vs-multistage-ultra",
+  "title": "Fatigue and Recovery after Single-Stage versus Multistage Ultramarathon Running",
+  "authors": "Besson T, Rossi J, Le Roux Mallouf T, Marechal M, Doutreleau S, Verges S, Millet GY",
+  "year": 2020,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000002303",
+  "pmid": "32079919",
+  "url": "https://doi.org/10.1249/mss.0000000000002303",
+  "design": "prospective-cohort",
+  "population": "31 ultramarathon runners on the same course: 17 ran 169 km in one stage, 14 ran about 40 km/day over 4 days",
+  "sampleSize": 31,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Neuromuscular function (knee extensors and plantar flexors, voluntary and nerve-stimulated) tested before, after, and 2, 5 and 10 days after the races.",
+    "Reduction of knee-extensor voluntary activation (central fatigue) was greater after the single-stage race than the multistage race directly after the finish (-23% vs -7%, P < 0.01).",
+    "Reductions in evoked mechanical responses on relaxed knee-extensor and plantar-flexor muscle (peripheral fatigue) took longer to recover in the multistage group than in the single-stage group.",
+    "Authors conclude that running prolonged exercise over several days, each separated by rest, elicits more prolonged contractile impairment than a single-stage ultramarathon, which is associated with greater central fatigue."
+  ],
+  "limitations": "Non-randomised comparison of two self-selected groups; the abstract gives no numeric recovery values for D+2, D+5 and D+10, so it cannot date full recovery after the single-stage race; full text not read.",
+  "implications": [
+    "Supports that a single 100-mile effort leaves a mainly central deficit that is large immediately and has faster peripheral recovery than multi-day stacked running; a hold followed by a graded return is consistent with this, but the paper gives no day count.",
+    "Do not use this paper to set specific day thresholds; use it as supporting context that running load in the days after a race (not just race distance) may prolong contractile impairment, so extra running in the days after a race should be kept small. This is an extrapolation, since the multistage design is not post-race running."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref and PubMed esummary give a different author list (Besson, Rossi, Le Roux Mallouf, Marechal, Doutreleau, Verges, Millet); corrected. Abstract re-read unstripped from Europe PMC (PMID 32079919): -23% vs -7% P < 0.01, peripheral recovery slower in multistage, conclusion all present. Added caveat that the implication is an extrapolation.",
+    "checkedAt": "2026-10-22"
+  }
+}

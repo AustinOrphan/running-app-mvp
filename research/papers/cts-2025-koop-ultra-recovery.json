@@ -1,0 +1,35 @@
+{
+  "id": "cts-2025-koop-ultra-recovery",
+  "title": "Optimizing Recovery After an Ultramarathon (CTS, updated 2025-04-22)",
+  "authors": "Koop J",
+  "year": 2025,
+  "journal": "TrainRight (CTS)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://trainright.com/recovery-after-running-an-ultramarathon/",
+  "design": "book-or-guideline",
+  "population": "Coach guidance for ultramarathoners, mainly after a 100-mile race",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Days 1 to 3: 'There is nothing to be gained by rushing through these early days.' The page says to try to get up and walk for at least a few minutes a few times per hour (circulation and stiffness) early on.",
+    "Week 1: no runs over 20 minutes. Weeks 2 and 3: recovery-paced runs only, kept under 1 hour.",
+    "Sleep 8 to 10 hours on a regular basis for at least two weeks; the month after a 100-miler is a good time for other activities (swimming, easy cycling, yoga, kayaking, paddle boarding); adequate energy intake is essential.",
+    "A well-prepared athlete 'maybe' returns to training after a few weeks; for athletes who were unprepared and made major mistakes, recovery could take several weeks or months.",
+    "Readiness: an athlete is ready when 'excited to train again and feels physically fresh and energetic'."
+  ],
+  "limitations": "Convention from one coach, no data cited on the page fetched; no explicit distance-specific figures for 50 km or 100 km.",
+  "implications": [
+    "Gives a concrete shape: week 1 at most 20 min runs, weeks 2 and 3 recovery pace only and under 60 min, which can serve as a convention source for the 100-mile ramp.",
+    "Supports a feel-based gate (motivation and freshness) that can delay but, because of the Hoffman data, should not on its own advance the schedule."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the page twice with WebFetch: author Jason Koop, 'April 22, 2025', the 20 minute week-1 limit, weeks 2-3 under 1 hour, sleep, walking, cross-training and readiness quotes all present. 'Do not cut calories' reworded to the page's 'adequate energy intake is essential'; 'paddling' corrected to kayaking and paddle boarding. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

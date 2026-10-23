@@ -1,0 +1,35 @@
+{
+  "id": "belinchon-2021-mountain-race-predictors",
+  "title": "Predictors of Athlete's Performance in Ultra-Endurance Mountain Races",
+  "authors": "Belinchón-deMiguel P, Ruisoto P, Knechtle B, Nikolaidis PT, Herrera-Tapias B, Clemente-Suárez VJ",
+  "year": 2021,
+  "journal": "International Journal of Environmental Research and Public Health",
+  "doi": "10.3390/ijerph18030956",
+  "pmid": "33499204",
+  "url": "https://doi.org/10.3390/ijerph18030956",
+  "design": "cross-sectional",
+  "population": "448 finishers of ultra-endurance mountain races, grouped by race length (under 45 km, 45-90 km, over 90 km), by questionnaire.",
+  "sampleSize": 448,
+  "evidenceLevel": "C",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Higher performance was associated with better oral health status and higher accumulative altitude covered per week and higher positive accumulative altitude change per week in training.",
+    "In longer races, experience, a larger volume of training and better hydration/nutrition before the race were associated with better performance.",
+    "Athletes in races over 90 km had more experience and followed harder training schedules than those in shorter races.",
+    "For 45-90 km races, training intensity and volume were key predictors; for over 90 km, a larger fluid intake before the race was the single best predictor; for under 45 km, oral health status.",
+    "Psychological factors previously reported as predictors were inconsistent or failed to predict performance."
+  ],
+  "limitations": "Questionnaire, finishers only (no DNF), no longest-run or back-to-back variable in the abstract, performance is finish time not finishing or injury.",
+  "implications": [
+    "Supports volume and weekly climbing (not a single long run) as the performance predictors at 50-100 km; back vertical-gain in weekly targets for mountain races.",
+    "No evidence on the longest-run level, so no support for or against 180/240/270 min."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (IJERPH, 2021-01-22, Belinchón-deMiguel) and Europe PMC abstract (PMID 33499204). Findings match; added the under-45 km result. Wording 'accumulative altitude covered per week' kept close to the abstract.",
+    "checkedAt": "2026-10-22"
+  }
+}

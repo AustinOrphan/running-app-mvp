@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import { addDays } from '../../../shared/dates.ts'
 import { efficiencyIndex, estimateState, experienceClass } from '../../../shared/engine/athlete.ts'
+import { completedReference } from '../../../shared/engine/limits.ts'
 import { ewma } from '../../../shared/engine/load.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, GoalModel } from '../../../shared/engine/types.ts'
 import type { Activity, AthleteProfile, WellnessDay } from '../../../shared/types.ts'
 import { makeActivity, makeWeekRow } from '../../factories.ts'
@@ -112,6 +114,57 @@ describe('estimateState: longest run in 30 days', () => {
     ]
     expect(estimateState(input(acts)).longest30d.twoDaySec).toBe(5000 + 1000 + 4000)
     expect(estimateState(input([run(3, { durationSec: 7000 })])).longest30d.twoDaySec).toBe(7000)
+  })
+
+  test('a race of marathon distance or longer is left out [G-1]', () => {
+    const base = run(12, { distanceM: 10_000, durationSec: 3600 })
+    const race = (distanceM: number | null) =>
+      run(10, { type: 'race', distanceM, durationSec: 90_000, elevationGainM: 5000 })
+    const longest = (distanceM: number | null) =>
+      estimateState(input([base, race(distanceM)])).longest30d
+    expect(longest(161_000)).toMatchObject({ distanceM: 10_000, durationSec: 3600, gainM: 0 })
+    expect(longest(161_000).twoDaySec).toBe(3600)
+    expect(longest(42_195).durationSec).toBe(3600)
+    expect(longest(42_194).durationSec).toBe(90_000)
+    expect(longest(10_000)).toMatchObject({ distanceM: 10_000, durationSec: 90_000, gainM: 5000 })
+    // a race without a distance is judged by its duration: 25 h is no reference run
+    expect(longest(null).durationSec).toBe(3600)
+  })
+
+  test('a race without a distance counts up to 4 h [G-1]', () => {
+    const base = run(12, { distanceM: 10_000, durationSec: 3600 })
+    const race = (durationSec: number) =>
+      run(10, { type: 'race', distanceM: null, durationSec, elevationGainM: 50 })
+    const longest = (durationSec: number) =>
+      estimateState(input([base, race(durationSec)])).longest30d
+    expect(P.g1.referenceRaceMaxHours.value).toBe(4)
+    expect(longest(2 * 3600)).toMatchObject({ durationSec: 7200, gainM: 50 })
+    expect(longest(4 * 3600).durationSec).toBe(14_400)
+    expect(longest(4 * 3600 + 1)).toMatchObject({ durationSec: 3600, gainM: 0 })
+    expect(longest(4 * 3600 + 1).twoDaySec).toBe(3600)
+  })
+
+  test('agrees with the 30-day reference of the limits on what counts', () => {
+    // a dismissed duplicate keeps its duplicateOfId and is a real run; the others are not
+    const dismissed = run(5, {
+      durationSec: 9000,
+      distanceM: 20_000,
+      duplicateOfId: 'other',
+      duplicateStatus: 'dismissed',
+    })
+    const base = run(12, { durationSec: 3600, distanceM: 10_000 })
+    const flagged = (duplicateStatus: Activity['duplicateStatus']) =>
+      run(6, { durationSec: 12_000, duplicateStatus, duplicateOfId: 'other' })
+    for (const history of [
+      [base, dismissed],
+      [base, dismissed, flagged('possible'), flagged('confirmed')],
+      [dismissed],
+    ]) {
+      const s = estimateState(input(history))
+      const runs = completedReference(history, s).runs
+      expect(s.longest30d.durationSec).toBe(9000)
+      expect(Math.max(...runs.map((r) => r.min)) * 60).toBe(s.longest30d.durationSec)
+    }
   })
 
   test('is all zero without runs', () => {
@@ -288,19 +341,85 @@ describe('estimateState: experience, risk and flags', () => {
     expect(estimateState(input([], { profile: { sex: 'male' } })).risk.bsiFactors).toBe(0)
   })
 
-  test('soft flags apply to novices only', () => {
+  test('soft flags apply to every runner: age from 45 with no upper bound, BMI, injury, no history', () => {
     const novice = estimateState(
       input([], {
         profile: { birthYear: 1970, heightCm: 170, weightKg: 95, runningSinceYear: null },
       }),
     )
     expect(novice.experience).toBe('novice')
-    expect(novice.risk.noviceFlags).toEqual(['age-45-65', 'bmi-over-30', 'no-running-history'])
+    expect(novice.risk.noviceFlags).toEqual(['age-45-plus', 'bmi-over-30', 'no-running-history'])
     const trainedActs = Array.from({ length: 112 }, (_, i) => run(i, { durationSec: 3000 }))
     const trained = estimateState(
       input(trainedActs, { profile: { birthYear: 1970, heightCm: 170, weightKg: 95 } }),
     )
-    expect(trained.risk.noviceFlags).toEqual([])
+    expect(trained.risk.noviceFlags).toEqual(['age-45-plus', 'bmi-over-30'])
+    // 65 was only the enrolment limit of the source cohort: nobody ages out of the flag
+    const old = estimateState(input(trainedActs, { profile: { birthYear: 1950 } }))
+    expect(old.age).toBe(76)
+    expect(old.risk.noviceFlags).toEqual(['age-45-plus'])
+    const young = estimateState(input(trainedActs, { profile: { birthYear: 1990 } }))
+    expect(young.risk.noviceFlags).toEqual([])
+  })
+
+  test('an injury of any kind in the last 12 months is a soft flag; an older one is not', () => {
+    const injury = (year: number, month: number, kind: 'joint' | 'muscle') => ({
+      area: 'knee',
+      side: 'left' as const,
+      year,
+      month,
+      kind,
+      notes: null,
+    })
+    const acts = Array.from({ length: 112 }, (_, i) => run(i, { durationSec: 3000 }))
+    const recent = estimateState(input(acts, { profile: { injuries: [injury(2026, 2, 'joint')] } }))
+    expect(recent.risk.recentInjury).toBe(true)
+    expect(recent.risk.noviceFlags).toEqual(['injury-last-12-months'])
+    const muscle = estimateState(
+      input(acts, { profile: { injuries: [injury(2025, 12, 'muscle')] } }),
+    )
+    expect(muscle.risk.noviceFlags).toEqual(['injury-last-12-months'])
+    const old = estimateState(input(acts, { profile: { injuries: [injury(2024, 3, 'joint')] } }))
+    expect(old.risk.recentInjury).toBe(false)
+    expect(old.risk.noviceFlags).toEqual([])
+  })
+})
+
+describe('estimateState: low frequency [rules A5]', () => {
+  // the typical week must sit at or above the start-path floor: 3 x 20 = 60 min
+  const weekly = (runsPerWeek: number, minutes: number) =>
+    Array.from({ length: 6 }, (_, w) =>
+      Array.from({ length: runsPerWeek }, (_, k) =>
+        makeActivity({
+          id: `lf-${String(w)}-${String(k)}`,
+          date: addDays('2026-06-14', -7 * w - 2 * k),
+          type: 'run',
+          durationSec: minutes * 60,
+        }),
+      ),
+    ).flat()
+
+  test('under 2 completed runs a week over the last 4 weeks, above the floor, is low frequency', () => {
+    const one = estimateState(input(weekly(1, 70)))
+    expect(one.typicalWeekMin).toBe(70)
+    expect(one.lowFrequency).toBe(true)
+    expect(estimateState(input(weekly(2, 40))).lowFrequency).toBe(false)
+    expect(estimateState(input(weekly(3, 30))).lowFrequency).toBe(false)
+  })
+
+  test('a typical week under the floor has a start path instead, and no runs is not low frequency', () => {
+    expect(estimateState(input(weekly(1, 40))).lowFrequency).toBe(false)
+    expect(estimateState(input([])).lowFrequency).toBe(false)
+  })
+
+  test('counts 8 runs in 28 days as 2 a week: not low frequency', () => {
+    const eight = Array.from({ length: 8 }, (_, i) =>
+      run(3 * i, { id: `eight-${String(i)}`, durationSec: 1800 }),
+    )
+    const seven = eight.slice(0, 7)
+    const base = weekly(1, 70).filter((a) => a.date < addDays(TODAY, -28))
+    expect(estimateState(input([...base, ...eight])).lowFrequency).toBe(false)
+    expect(estimateState(input([...base, ...seven])).lowFrequency).toBe(true)
   })
 })
 

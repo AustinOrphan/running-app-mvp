@@ -1,0 +1,34 @@
+{
+  "id": "irunfar-2016-powell-post-100-return",
+  "title": "Returning to Normal: Getting Back on Track After a Focus Ultra (iRunFar, 2016)",
+  "authors": "Powell B",
+  "year": 2016,
+  "journal": "iRunFar",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.irunfar.com/returning-to-normal-getting-back-on-track-after-a-focus-ultra",
+  "design": "book-or-guideline",
+  "population": "One experienced ultrarunner's personal approach after the Hardrock 100",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "First runs: some 25- to 45-minute light jogs on generally easy terrain.",
+    "Over the first week he adds days until running roughly two out of every three days, with runs kept to an hour or less.",
+    "He starts running on a normal schedule roughly the third week after a 100 miler.",
+    "Resets to roughly 8 hours of sleep a night about a week after the race; irregular sleep, seemingly random extremely low energy patches and signs of adrenal fatigue or overtraining syndrome are what he watches for."
+  ],
+  "limitations": "Personal approach of one runner, presented as a baseline individuals should adjust; no data cited; the claim that volume stays below baseline in week 3 was not confirmed on re-fetch and is removed.",
+  "implications": [
+    "Gives a ratio-style return: run about 2 of every 3 days by the end of week 1, 25 to 45 min early on, normal schedule about week 3.",
+    "Supports sleep disturbance and low-energy patches as check-in items to watch during the return; the page does not state what to do when they appear, so treat delay as the plan's own cautious choice."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the page (WebFetch): Bryon Powell, August 3, 2016; run lengths, 2-of-3 days, third-week normal schedule, 8 h sleep and warning signs confirmed. Removed 'volume still below baseline / no training efforts' and 'more days off' phrasings that the fetch did not confirm. The old URL (irunfar.com/2016/08/...html) now redirects to the stored one; the page is dated 2016-08-03 in its metadata. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

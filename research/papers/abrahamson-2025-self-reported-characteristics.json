@@ -1,0 +1,35 @@
+{
+  "id": "abrahamson-2025-self-reported-characteristics",
+  "title": "Using Self-Reported Training Characteristics to Better Understand Who Is More Likely to Sustain Running-Related Injuries Than Others: The Garmin-RUNSAFE Running Health Study",
+  "authors": "Abrahamson J, Lindman I, Eriksen MB, Kibsgaard A, Nielsen RO",
+  "year": 2025,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.70004",
+  "pmid": "39713859",
+  "url": "https://doi.org/10.1111/sms.70004",
+  "design": "prospective-cohort",
+  "population": "Adults (18+) tracking running with a Garmin watch, 18 months of Garmin Connect data and weekly injury questionnaires; baseline self-reported experience, frequency, greatest weekly distance and programme use",
+  "sampleSize": 7391,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "7,391 runners; cumulative injury proportion 57.8% (95% CI 56.4-59.2) after 1000 km of running.",
+    "Those with few (<1 year) or many (>40 years) of years of running experience had the most RRIs.",
+    "Fewest new RRIs for runners with a self-reported weekly distance above 105 km (cRD -31.6, 95% CI -23.1 to -40.1) and running 7 times per week (cRD -47.1, 95% CI -35.9 to -58.3).",
+    "More RRIs with lower weekly frequency (<2 runs per week), shorter weekly distance (<25 km) or no structured running programme in the conclusion; the abstract's structured-programme estimate (cRD 4.4, 95% CI 0.9-7.8) is positive yet is described as the fewest-RRI group, so the sign is internally inconsistent."
+  ],
+  "limitations": "Abstract-level verification only. Baseline self-report, analysis at a fixed 1000 km, possible confounding by exposure (high-volume runners may be those who tolerate training), structured-programme sign unclear in the abstract. A descriptive risk-group paper, not a test of progression or session spikes.",
+  "implications": [
+    "Fewer than 1 year of experience carries the highest risk among experience groups: consistent with a more conservative regime for new runners, though the study cannot give step size.",
+    "Very experienced runners (more than 40 years) also had more RRIs, probably an age or experience signal; do not loosen limits automatically for long running history.",
+    "Low frequency (under 2 runs per week) and low weekly distance (under 25 km) mark higher injury risk; a plan could treat a runner as new or returning when logged frequency is that low, whatever they report as experience (a design choice)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (first author Abrahamson, 5 authors, online 2024-12-23) and Europe PMC abstract (PMID 39713859, pubYear 2025). Corrected: the abstract's methods name 'greatest running distance in 1 week' and self-reported weekly distance as the baseline exposure, so the >105 km finding is reworded; the structured-programme sign inconsistency is stated plainly; the 'survivor' remark is demoted to 'possible'. Relevant to novice versus experienced rule differences only, not to thresholds.",
+    "checkedAt": "2026-10-22"
+  }
+}

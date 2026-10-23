@@ -182,7 +182,7 @@ describe('parseActivityFile with a corrupt timestamp', () => {
 
   test('rejects a file with a point dated far before the others', () => {
     const bytes = new TextEncoder().encode(gpx('1970-01-01T00:00:00Z', ...normal))
-    expect(() => parseActivityFile('stray.gpx', bytes, { timezone: 'UTC' })).toThrow(/240 hours/)
+    expect(() => parseActivityFile('stray.gpx', bytes, { timezone: 'UTC' })).toThrow(/150 hours/)
   })
 
   test('accepts a long but plausible activity', () => {
@@ -190,10 +190,15 @@ describe('parseActivityFile with a corrupt timestamp', () => {
     expect(parseActivityFile('long.gpx', bytes, { timezone: 'UTC' })).toHaveLength(1)
   })
 
-  test('accepts a multi-day race of about 100 hours and rejects one past 240 hours', () => {
+  test('accepts a multi-day race of about 100 hours and one of exactly 150 hours', () => {
     const race = new TextEncoder().encode(gpx(normal[0]!, '2026-01-09T22:00:00Z'))
     expect(parseActivityFile('race.gpx', race, { timezone: 'UTC' })).toHaveLength(1)
-    const stray = new TextEncoder().encode(gpx(normal[0]!, '2026-01-16T20:00:00Z'))
-    expect(() => parseActivityFile('stray.gpx', stray, { timezone: 'UTC' })).toThrow(/240 hours/)
+    const limit = new TextEncoder().encode(gpx(normal[0]!, '2026-01-12T02:00:00Z'))
+    expect(parseActivityFile('limit.gpx', limit, { timezone: 'UTC' })).toHaveLength(1)
+  })
+
+  test('rejects an activity of 151 hours', () => {
+    const stray = new TextEncoder().encode(gpx(normal[0]!, '2026-01-12T03:00:00Z'))
+    expect(() => parseActivityFile('stray.gpx', stray, { timezone: 'UTC' })).toThrow(/150 hours/)
   })
 })

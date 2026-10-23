@@ -1,4 +1,4 @@
-// The nine synthetic athletes of the plan matrix [design section 9]: each has a profile, a run
+// The ten synthetic athletes of the plan matrix [design section 9]: each has a profile, a run
 // history of completed weeks and a goal. No personal data; dates are fixed so plans are stable.
 import { addDays } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
@@ -394,6 +394,20 @@ export function athletes(): MatrixAthlete[] {
       }),
     ),
     redsHeld(),
+    build(
+      'post-marathon-short-run',
+      'marathon 25 days ago and one 10-minute run since',
+      baseProfile({ birthYear: 1988, runningSinceYear: 2018, longRunDay: 'sat' }),
+      [{ fromWeek: 1, toWeek: 1, runs: [{ dow: 6, min: 10 }], paceSecPerKm: 360 }],
+      goalOf({
+        name: 'Synthetic 10 km',
+        targetDate: '2027-01-30',
+        distanceM: 10_000,
+        targetTimeSec: 3300,
+      }),
+      null,
+      [raceResult('2026-09-26', 42_195, 14_400)],
+    ),
   ]
 }
 

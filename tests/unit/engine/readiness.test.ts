@@ -175,6 +175,25 @@ describe('daily advice downgrades only (J3)', () => {
     expect(rows[0]!.advice).toBe('as-planned')
   })
 
+  it('never adds load: excellent ratings leave a hold-day rest and a post-race run as planned (H12)', () => {
+    const best = { fatigue: 1, soreness: 1, sleepQuality: 5, mood: 5, stress: 1 }
+    const i = input({
+      wellness: [
+        ...baseline(),
+        wellnessDay(YESTERDAY, { hrvRmssd: 80, ...best }),
+        wellnessDay(TODAY, { hrvRmssd: 85, ...best }),
+      ],
+    })
+    const rows = todayAdvice(i, [
+      { ...spec(TODAY, 'rest', { flags: ['post-race'] }), id: 'hold' },
+      { ...spec(TODAY, 'recovery', { flags: ['post-race'], order: 1 }), id: 'step' },
+    ])
+    expect(rows.map((r) => r.advice)).toEqual(['as-planned', 'as-planned'])
+    expect(rows.map((r) => r.reasons)).toEqual([[], []])
+    expect(rows[0]!.session.kind).toBe('rest')
+    expect(rows[1]!.session.durationMin).toBe(60)
+  })
+
   it('returns the session as a plan session with its id and prescription', () => {
     const rows = todayAdvice(input(), [{ ...spec(TODAY, 'long', { durationMin: 95 }), id: 'abc' }])
     expect(rows[0]!.session).toMatchObject({ id: 'abc', kind: 'long', durationMin: 95 })

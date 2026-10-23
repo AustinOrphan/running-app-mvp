@@ -1,6 +1,14 @@
 // Session library and prescriptions [rules F session library, C5, C6, H3-H7]. Pure functions: a
 // session comes back undated (date '', order 0); micro.ts places it on a day.
 import { P } from './params/index.ts'
+import {
+  clipBlueprint,
+  hasWalk,
+  injuryLevel,
+  ladderRung,
+  rungCount,
+  startKind,
+} from './startWeeks.ts'
 import type {
   SessionFlag,
   SessionKind,
@@ -30,6 +38,11 @@ export interface PrescribeContext {
   wellTrained?: boolean
   /** Novices and restarts run in short run-walk units [rules F run-walk]. */
   runWalk?: boolean
+  /**
+   * A session of the run-walk ladder [rules E6]: run and walk minutes in order, starting with a
+   * run. The session is cut to its `minutes` when that is shorter.
+   */
+  blueprint?: readonly number[]
 }
 
 interface LibraryEntry {
@@ -194,6 +207,9 @@ function frame(minutes: number) {
 
 interface Built {
   structure: Step[]
+  /** Steps before and after the session that are not part of its minutes (the ladder's walks). */
+  before?: Step[]
+  after?: Step[]
   /** Pace range of the work steps, when the session sets its own. */
   workPace: PaceRange | null
   rules: string[]
@@ -356,6 +372,61 @@ function buildRunWalk(minutes: number): Built {
   }
 }
 
+const secondsOf = (minutes: number) => Math.round(minutes * 60)
+
+/**
+ * A session of the run-walk ladder from its blueprint [rules E6]: the runs and the walking breaks
+ * in order, between a walk before and a walk after that are outside the session minutes. Equal
+ * run/walk pairs in a row become one pair of steps with a repeat count.
+ */
+function buildLadderSession(blueprint: readonly number[], minutes: number): Built {
+  const bp = clipBlueprint(blueprint, minutes)
+  const structure: Step[] = []
+  if (bp.length === 1) {
+    structure.push(step('steady', 1, secondsOf(bp[0]!), 'z1'))
+  } else {
+    let i = 0
+    while (i < bp.length) {
+      const run = bp[i]!
+      const walk = bp[i + 1]
+      if (walk === undefined) {
+        structure.push(step('work', 1, secondsOf(run), 'z1'))
+        break
+      }
+      let reps = 1
+      while (bp[i + 2 * reps] === run && bp[i + 2 * reps + 1] === walk) reps += 1
+      structure.push(
+        step('work', reps, secondsOf(run), 'z1'),
+        step('recover', reps, secondsOf(walk), 'z1'),
+      )
+      i += 2 * reps
+    }
+  }
+  const frame = secondsOf(P.noviceLadder.walkFrameMin.value)
+  return {
+    structure,
+    before: [step('warmup', 1, frame, 'z1')],
+    after: [step('cooldown', 1, frame, 'z1')],
+    workPace: null,
+    rules: [],
+  }
+}
+
+/** A blueprint in words: "run 1 min and walk 2 min, 7 times", or the steps in order. */
+function describeBlueprint(blueprint: readonly number[]): string {
+  if (!hasWalk(blueprint)) return `run ${String(blueprint[0] ?? 0)} minutes without stopping`
+  const pairs: Array<[number, number | undefined]> = []
+  for (let i = 0; i < blueprint.length; i += 2) pairs.push([blueprint[i]!, blueprint[i + 1]])
+  const [first, firstWalk] = pairs[0]!
+  if (pairs.length > 1 && pairs.every(([r, w]) => r === first && w === firstWalk)) {
+    return `run ${String(first)} min and walk ${String(firstWalk)} min, ${String(pairs.length)} times`
+  }
+  return blueprint
+    .map((v, i) => `${i % 2 === 0 ? 'run' : 'walk'} ${String(v)}`)
+    .join(', ')
+    .concat(' minutes')
+}
+
 function heavyStrengthPurpose(): string {
   return (
     `Heavy strength: ${P.flib.heavyExercises.value} exercises of ${P.flib.heavySets.value} sets of ` +
@@ -379,7 +450,10 @@ function distanceFor(
   const paceOfStep = (s: Step): number | null => {
     if (s.zone === 'race-pace') return mid(racePace ?? zones.pace?.z2)
     if (s.zone === 'strides') return mid(zones.pace?.z3)
-    if (s.kind === 'work') return mid(workPace ?? zones.pace?.[s.zone === 'z2' ? 'z2' : 'z3'])
+    if (s.kind === 'work') {
+      const zone = s.zone === 'z1' ? 'z1' : s.zone === 'z2' ? 'z2' : 'z3'
+      return mid(workPace ?? zones.pace?.[zone])
+    }
     return easy
   }
   let meters = 0
@@ -397,6 +471,15 @@ function distanceFor(
   return roundTo(meters, 100)
 }
 
+/** What a ladder session asks for, in words; the walks around it are outside its minutes. */
+function ladderPurpose(blueprint: readonly number[], week: WeekDraft): string {
+  const rung = ladderRung(week.flags)
+  const where =
+    rung === null ? 'Run-walk session' : `Run-walk step ${String(rung)} of ${String(rungCount())}`
+  const frame = P.noviceLadder.walkFrameMin.value
+  return `${where}: ${describeBlueprint(blueprint)}, at an easy, talking pace. Walk ${String(frame)} minutes before and after; those walks are not counted in the session or the week.`
+}
+
 /** A session for a week, not yet dated: structure, targets, purpose and rules. */
 export function prescribe(
   kind: SessionKind,
@@ -410,6 +493,7 @@ export function prescribe(
   const flags: SessionFlag[] = []
   const rules = [...lib.rules]
   let purpose = lib.purpose
+  let title = TITLES[kind]
   let built: Built = { structure: [], workPace: null, rules: [] }
 
   switch (kind) {
@@ -436,10 +520,38 @@ export function prescribe(
       purpose = heavyStrengthPurpose()
       break
     default:
-      if (ctx.runWalk && (kind === 'easy' || kind === 'recovery' || kind === 'long')) {
+      if (ctx.blueprint !== undefined && kind === 'easy') {
+        built = buildLadderSession(ctx.blueprint, duration)
+        purpose = ladderPurpose(ctx.blueprint, week)
+        const rung = ladderRung(week.flags)
+        // only a session with a walking break is a run-walk session; a continuous run of 20 to
+        // 30 minutes is an easy run, titled by its rung
+        if (hasWalk(clipBlueprint(ctx.blueprint, duration))) {
+          flags.push('run-walk')
+          title = rung === null ? 'Run-walk' : `Run-walk, step ${String(rung)}`
+        } else {
+          title =
+            rung === null ? 'Easy run' : `Ladder step ${String(rung)}: ${String(duration)} min easy`
+        }
+      } else if (ctx.runWalk && (kind === 'easy' || kind === 'recovery' || kind === 'long')) {
         built = buildRunWalk(duration)
         flags.push('run-walk')
       }
+  }
+
+  // The start paths [rules E6, G-3]: the weeks that begin a plan say which rules they rest on.
+  const start =
+    kind === 'easy' || kind === 'recovery' || kind === 'long' ? startKind(week.flags) : null
+  if (start !== null) {
+    rules.push('E6', 'A9')
+    if (week.flags.includes('injury-return')) {
+      flags.push('injury-return')
+      rules.push('g-3')
+      title = `Return to running, level ${String((injuryLevel(week.flags) ?? 0) + 1)}`
+      purpose = `Return to running: ${String(duration)} minutes of continuous easy running with a rest day between runs. Stop and rest if pain returns; the next level waits until the run, the hours after it and the next day are symptom-free.`
+    } else if (ctx.blueprint === undefined) {
+      purpose = `Starting week: an easy run of ${String(duration)} minutes, ${String(P.restartFloor.sessions.value)} days a week and never longer than the longest recent run allows.`
+    }
   }
 
   const has = (flag: string) => week.flags.includes(flag)
@@ -508,11 +620,11 @@ export function prescribe(
     date: '',
     order: 0,
     kind,
-    title: TITLES[kind],
+    title,
     durationMin: duration,
     distanceM: runDistance,
     gainM,
-    structure: built.structure,
+    structure: [...(built.before ?? []), ...built.structure, ...(built.after ?? [])],
     target: { zone: zoneKey, rpe: lib.rpe, hr, paceSecPerKm: pace, heatNote },
     purpose,
     rules: [...new Set([...rules, ...built.rules])],

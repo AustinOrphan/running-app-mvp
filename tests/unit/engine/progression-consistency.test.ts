@@ -10,6 +10,7 @@ import { breakRestart } from '../../../shared/engine/adapt.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import { macroPlan } from '../../../shared/engine/macro.ts'
+import { startExemptions } from '../../../shared/engine/startWeeks.ts'
 import type { EngineInput, PlanDraft, SessionSpec } from '../../../shared/engine/types.ts'
 import type { WeekRow } from '../../../shared/types.ts'
 import { session, state } from './e6-fixtures.ts'
@@ -87,8 +88,12 @@ describe.each(all)('generated plan inside the limits: $label', (a: MatrixAthlete
     const again = applyGuards(runs, st, a.input.activities, {
       ultraRaceDurationSec: a.input.goal.isUltra ? a.input.goal.expectedDurationSec : null,
       neverOverride: true,
-      lowWeeks: plan.weeks.filter((w) => w.isRecovery || w.isTaper).map((w) => w.weekStart),
-      restartFloor: (() => {
+      lowWeeks: plan.weeks
+        .filter((w) => (w.isRecovery || w.isTaper) && !w.flags.includes('post-race'))
+        .map((w) => w.weekStart),
+      exemptWeeks: plan.weeks.filter((w) => w.flags.includes('post-race')).map((w) => w.weekStart),
+      exempt: startExemptions(plan.weeks),
+      startPath: (() => {
         const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
         return floor === undefined
           ? null
@@ -423,21 +428,50 @@ describe('hold and reduce decisions reach the sessions [rules J5]', () => {
   })
 })
 
-describe('a 30-day longest run too short for a run day [rules g-1, F5]', () => {
+describe('a 30-day longest run too short for a run day [rules g-1, F5, E6]', () => {
+  // 10-min runs: the G-1 bound (the larger of 1.10x and the 3-min duration step) is 13 min,
+  // under the 15-min run day minimum
   const a = all.find((x) => x.id === 'half')!
   const short = a.input.activities.map((x) => ({
     ...x,
-    durationSec: 13 * 60,
-    movingSec: 13 * 60,
-    distanceM: 2300,
+    durationSec: 10 * 60,
+    movingSec: 10 * 60,
+    distanceM: 1800,
   }))
-  const plan = buildPlan({ ...a.input, activities: short })
 
-  it('leaves the weeks it cannot fill empty and says so', () => {
+  it('holds a start path at the bound, with no week left empty: a ladder session is exempt from the run day minimum', () => {
+    const plan = buildPlan({ ...a.input, activities: short })
+    const ladder = plan.weeks.filter((w) => w.flags.some((f) => f.startsWith('ladder-')))
+    expect(ladder.length).toBeGreaterThan(0)
+    for (const w of ladder) {
+      const runs = plan.sessions.filter(
+        (s) => mondayOf(s.date) === w.weekStart && RUNNING.has(s.kind),
+      )
+      expect(runs.length, w.weekStart).toBeGreaterThan(0)
+      // the week says what it holds
+      expect(w.targetRunMin, w.weekStart).toBe(minutesIn(plan.sessions, w.weekStart))
+      expect(w.runDays, w.weekStart).toBe(runs.length)
+    }
+    // the first weeks sit at 1.10x the 10-min runs: 13 min, under the 15-min run day minimum
+    expect(plan.sessions.find((s) => RUNNING.has(s.kind))!.durationMin).toBe(13)
+    expect(plan.warnings.map((w) => w.code)).not.toContain('spike-run-dropped')
+    expect(failed(plan)).toEqual([])
+  })
+
+  it('leaves the plain weeks it cannot fill empty and says so', () => {
+    // a week of daily 10-min runs is no start path: its weeks are plain, and the 13-min bound is
+    // under the plain run day minimum
+    const daily = Array.from({ length: 84 }, (_, i) => ({
+      ...short[0]!,
+      id: `daily-${String(i)}`,
+      date: addDays(a.input.today, -(i + 1)),
+    }))
+    const plan = buildPlan({ ...a.input, activities: daily })
     const empty = plan.weeks.filter(
       (w) => w.targetRunMin > 0 && minutesIn(plan.sessions, w.weekStart) === 0,
     )
     expect(empty.length).toBeGreaterThan(0)
+    expect(plan.weeks.some((w) => w.flags.some((f) => f.startsWith('ladder-')))).toBe(false)
     const warning = plan.warnings.find((w) => w.code === 'spike-run-dropped')
     expect(warning?.severity).toBe('info')
     expect(warning?.rules).toContain('g-1')

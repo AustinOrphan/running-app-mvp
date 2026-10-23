@@ -1,0 +1,35 @@
+{
+  "id": "ekblom-2006-infection-marathon",
+  "title": "Infectious episodes before and after a marathon race",
+  "authors": "Ekblom B, Ekblom O, Malm C",
+  "year": 2006,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/j.1600-0838.2005.00490.x",
+  "pmid": "16895535",
+  "url": "https://doi.org/10.1111/j.1600-0838.2005.00490.x",
+  "design": "retrospective-cohort",
+  "population": "1694 Stockholm Marathon 2000 runners (17% of all finishers); two questionnaires on self-reported infectious episodes in the 3 weeks before and the 3 weeks after the race",
+  "sampleSize": 1694,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Infection incidence was 17% in the 3 weeks before and 19% in the 3 weeks after the race, with no significant difference between women and men.",
+    "Among runners without a pre-race infection the post-race incidence was 16%; among runners with a pre-race infection 33% had a post-race infection (P < 0.05 versus pre-IE incidence).",
+    "Logistic regression: younger age, pre-race health status and, for men only, nausea during and after the race explained post-race infections; no relation to training volume 6 months before, finishing time or socioeconomic and demographic factors.",
+    "Authors conclude the study does not support the open window theory in recreational runners, and suggest increased infection rates can be caused by strenuous exercise too soon after an infection."
+  ],
+  "limitations": "Self-reported infections by questionnaire (recall bias); the abstract does not state when each questionnaire was completed, so the cohort label is approximate; marathon only, recreational runners; not ultra distance; no immune-function markers.",
+  "implications": [
+    "There is no evidence here that a 3-week post-marathon immune window justifies a longer hold; do not lengthen the hold on immunological grounds for marathons.",
+    "A runner who was ill before the race is the high-risk group (33% vs 16%): recent illness is a reasonable reason to delay the return ramp, and check-ins should ask about illness and not only soreness.",
+    "Post-race nausea in men tracked later infection but is too weak and too narrow to be a gate."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2005-10-27; authors Ekblom, Ekblom, Malm) and abstract re-read (PMID 16895535); all numbers match. Flagged the unverifiable design timing. The study does not cover ultras, so relevance to the ultra holds is indirect.",
+    "checkedAt": "2026-10-22"
+  }
+}

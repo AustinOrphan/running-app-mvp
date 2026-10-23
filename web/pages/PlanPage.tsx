@@ -772,6 +772,7 @@ function PlanTable({
 }) {
   const [editing, setEditing] = useState<PlanWeek | null>(null)
   const currentMonday = mondayOf(todayIso())
+  const isV2 = plan.generatorVersion >= 2
   const first = plan.weeks[0]?.weekStart ?? plan.startDate
   const last = plan.weeks[plan.weeks.length - 1]?.weekStart ?? first
   const to = currentMonday < first ? first : currentMonday > last ? last : currentMonday
@@ -822,7 +823,11 @@ function PlanTable({
         </thead>
         <tbody>
           {plan.weeks.map((week) => {
-            const cutback = isCutbackIndex(week.index, week.phase)
+            // A version-2 week carries the engine's own recovery flag (its cycle is 3:1 or 2:1 and
+            // ladder weeks are exempt); a version-1 week has none, so its index decides.
+            const cutback = isV2
+              ? week.flags.includes('recovery')
+              : isCutbackIndex(week.index, week.phase)
             const race = week.phase === 'race' && !week.flags.includes('post-race')
             const isCurrent = week.weekStart === currentMonday
             const runMin = week.weekStart <= currentMonday ? actual.get(week.weekStart) : undefined

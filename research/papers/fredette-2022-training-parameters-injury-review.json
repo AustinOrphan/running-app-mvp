@@ -1,0 +1,39 @@
+{
+  "id": "fredette-2022-training-parameters-injury-review",
+  "title": "The Association Between Running Injuries and Training Parameters: A Systematic Review",
+  "authors": "Fredette A, Roy JS, Perreault K, Dupuis F, Napier C, Esculier JF",
+  "year": 2022,
+  "journal": "Journal of Athletic Training",
+  "doi": "10.4085/1062-6050-0195.21",
+  "pmid": "34478518",
+  "url": "https://doi.org/10.4085/1062-6050-0195.21",
+  "design": "systematic-review",
+  "population": "Runners across 36 studies with prospective data (novice, recreational and competitive); searches to 7 July 2020",
+  "sampleSize": 23047,
+  "evidenceLevel": "A",
+  "topics": ["beginners-return", "injury-load", "volume-performance"],
+  "findings": [
+    "36 articles with 23,047 runners; 6043 (26.2%) had a running-related injury (range 8.8% to 91.3%).",
+    "Incidence was 14.9% in novice runners (range 9.4-94.9%), 26.1% in recreational (17.9-79.3%) and 62.6% in competitive runners (52.6-91.3%).",
+    "Most frequent sites were the knee (25.8%), foot/ankle (24.4%) and lower leg (24.4%).",
+    "Evidence on the association between weekly distance, duration, frequency, intensity or specific changes in training parameters and injury was conflicting; the authors advise caution when recommending optimal parameters or progressions."
+  ],
+  "limitations": "Heterogeneous definitions of injury and exposure; the review cannot say whether 3 x 20 versus 3 x 30 or a ramp exemption is safer; the novice incidence range is very wide.",
+  "implications": [
+    "No training parameter is reliably linked to injury, so the ramp exemption for the floor week and the choice of 3 x 20 versus 3 x 30 cannot be derived from outcome evidence; they are D-grade defaults.",
+    "Use a graded, conservative start because novices carry a pooled 14.9% injury incidence, without claiming a numeric optimum.",
+    "No progression threshold in the engine (10%/week soft, 30% over 2 weeks hard) can be graded above C/D on this review; label the weekly ramp rules as conventions with low-certainty evidence, not as findings.",
+    "Display progression limits as cautions, not as medical limits, and avoid copy implying a safe or unsafe number.",
+    "Novice incidence in the pooled data is lower than competitive incidence, which probably reflects exposure and follow-up differences (an inference); do not read it as novices tolerating faster ramps.",
+    "Do not present a long-run cap as injury-evidence-backed; justify any cap by convention (Daniels, Higdon, Johnson) and label it a default (grade D).",
+    "Prefer gradual, rating-informed progression over fixed hard thresholds; the evidence does not identify a safe or unsafe single-session duration."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (J Athl Train, first author Fredette, online 2021-09-03) and Europe PMC abstract (PMID 34478518; journal year 2022). All numbers match. Removed 'even on supervised programmes' from an implication: the abstract does not say the novice studies were supervised.",
+    "checkedAt": "2026-10-22"
+  }
+}

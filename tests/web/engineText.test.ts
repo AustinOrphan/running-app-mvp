@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest'
 import type { EngineWarning } from '../../shared/engine/types.ts'
-import { groupWarnings, localiseEngineText } from '../../web/components/engineText.ts'
+import {
+  groupWarnings,
+  localiseEngineText,
+  ratingCounts,
+  unratedEffortNote,
+} from '../../web/components/engineText.ts'
 
 const warning = (
   code: string,
@@ -99,5 +104,35 @@ describe('groupWarnings', () => {
       'mi',
     )
     expect(group!.summary).toBe('Climbing is 2297 ft in the week of 19 Oct.')
+  })
+})
+
+describe('ratingCounts', () => {
+  test('an RPE or a feel counts for an activity of the planned kind', () => {
+    expect(ratingCounts('completed', { rpe: 6, feel: null })).toBe(true)
+    expect(ratingCounts('partial', { rpe: null, feel: 0 })).toBe(true)
+    expect(ratingCounts('extended', { rpe: null, feel: null })).toBe(false)
+  })
+
+  test('only a feel counts for a different kind of activity', () => {
+    expect(ratingCounts('modified', { rpe: 6, feel: null })).toBe(false)
+    expect(ratingCounts('modified', { rpe: 6, feel: -1 })).toBe(true)
+    expect(ratingCounts('modified', { rpe: null, feel: 0 })).toBe(true)
+  })
+})
+
+describe('unratedEffortNote', () => {
+  test('asks for a feel rating alone when the activity is of a different kind', () => {
+    expect(unratedEffortNote(null, 'modified')).toBe(
+      'Rate how this activity felt so the plan can adjust.',
+    )
+    expect(unratedEffortNote(null, 'completed')).toBe(
+      'Rate this activity (effort or feel) so the plan can adjust.',
+    )
+  })
+
+  test('adds the caveat only where there is a score to call a guess', () => {
+    expect(unratedEffortNote(1, 'completed')).toMatch(/low-confidence guess/)
+    expect(unratedEffortNote(null, 'completed')).not.toMatch(/low-confidence guess/)
   })
 })

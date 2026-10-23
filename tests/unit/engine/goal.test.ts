@@ -4,9 +4,19 @@ const heat = vi.hoisted(() => ({ heatPenaltyPct: vi.fn() }))
 vi.mock('../../../shared/engine/heat.ts', () => heat)
 
 import { addDays } from '../../../shared/dates.ts'
-import { distanceClassOf, feasibility, goalModel } from '../../../shared/engine/goal.ts'
+import {
+  distanceClassOf,
+  feasibility,
+  goalModel,
+  longRunFloor,
+  peakLongRunMin,
+  trainingPace,
+  ultraLongRunTargetMin,
+} from '../../../shared/engine/goal.ts'
+import { startWeekMin } from '../../../shared/engine/limits.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { predictFromState } from '../../../shared/engine/predict.ts'
+import { rungCount } from '../../../shared/engine/startWeeks.ts'
 import type { Goal } from '../../../shared/types.ts'
 import type { AthleteState, GoalModel } from '../../../shared/engine/types.ts'
 
@@ -18,15 +28,20 @@ function makeState(
     longestM?: number
     longestSec?: number
     weeklyKm?: number
+    /** Running minutes of each completed week; with `weeklyKm` it sets the training pace. */
+    weekMin?: number
+    typicalWeekMin?: number
+    recentInjury?: boolean
     yearsRunning?: number | null
     races?: AthleteState['fitness']['races']
     csMps?: number | null
   } = {},
 ): AthleteState {
   // 16 completed weeks before TODAY, oldest first, plus the current partial week.
+  const weekMin = over.weekMin ?? 200
   const weeks = Array.from({ length: 16 }, (_, i) => ({
     weekStart: addDays(TODAY, -7 * (16 - i)),
-    runMin: 200,
+    runMin: weekMin,
     runM: (over.weeklyKm ?? 30) * 1000,
     runSessions: 4,
     runDays: 4,
@@ -35,7 +50,7 @@ function makeState(
     raceMin: 0,
     longestRunMin: 60,
     longRunShare: 0.3,
-    avg4wRunMin: 200,
+    avg4wRunMin: weekMin,
     streak3Plus: 0,
   }))
   weeks.push({ ...weeks[15]!, weekStart: TODAY, runM: 0 })
@@ -47,7 +62,7 @@ function makeState(
     yearsRunning: over.yearsRunning === undefined ? 6 : over.yearsRunning,
     load: { metric: 'minutes', acute: 0, chronic: 0, daily: [] },
     weeks,
-    typicalWeekMin: 200,
+    typicalWeekMin: over.typicalWeekMin ?? weekMin,
     longest30d: {
       distanceM: over.longestM ?? 10000,
       durationSec: over.longestSec ?? 3600,
@@ -68,7 +83,14 @@ function makeState(
     },
     efficiency: { current: null, trendPct: null, samples: 0 },
     durability: { decouplingMedianPct: null, samples: 0 },
-    risk: { recentInjury: false, priorBsi: false, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
+    risk: {
+      recentInjury: over.recentInjury ?? false,
+      priorBsi: false,
+      bsiFactors: 0,
+      redsFlags: 0,
+      noviceFlags: [],
+    },
+    lowFrequency: false,
     heatAcclimation: 0,
   }
 }
@@ -283,8 +305,9 @@ describe('goalModel', () => {
 
 describe('feasibility: D4 weeks formula with cutbacks', () => {
   it('computes ceil(ln(Lt/L0)/ln 1.10) x 4/3 plus the taper for a marathon time goal', () => {
-    // Long run: 10 km to 25 km; weekly: 36 km to 40 km; marathon taper 21 days = 3 weeks.
-    const state = makeState({ longestM: 10000, weeklyKm: 36 })
+    // Long run: 10 km to 25 km; weekly: 36 km to 40 km; marathon taper 21 days = 3 weeks. At 267 s/km
+    // the planner's 115-minute long run (35% of the 330-minute peak week) covers the 25 km floor.
+    const state = makeState({ longestM: 10000, weeklyKm: 36, weekMin: 160, typicalWeekMin: 100 })
     const needed = d4Weeks(10000, 25000, 3)
     expect(needed).toBe(17)
     const at = (weeks: number) =>
@@ -296,8 +319,9 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
   })
 
   it('lets the weekly floor govern a time goal when it takes longer', () => {
-    // Long run is nearly there (24 of 25 km); weekly 20 km to 40 km takes 8 growth weeks.
-    const state = makeState({ longestM: 24000, weeklyKm: 20 })
+    // Long run is nearly there (24 of 25 km); weekly 20 km to 40 km takes 8 growth weeks. At 270 s/km
+    // the planner's 115-minute long run covers the 25 km floor.
+    const state = makeState({ longestM: 24000, weeklyKm: 20, weekMin: 90 })
     const time = feasibility(makeModel({ goalType: 'time' }), state, TODAY)
     expect(time.weeksNeeded).toBe(d4Weeks(20, 40, 3))
     expect(time.weeksNeeded).toBe(14)
@@ -310,7 +334,7 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
   })
 
   it('uses the half-marathon floors: 32 km per week and a long run above 21 km', () => {
-    const state = makeState({ longestM: 21000, weeklyKm: 20 })
+    const state = makeState({ longestM: 21000, weeklyKm: 20, weekMin: 100 })
     const half = makeModel({ distanceClass: 'half', distanceM: 21097 })
     const f = feasibility(half, state, TODAY)
     expect(f.weeksNeeded).toBe(d4Weeks(20, 32, 2))
@@ -326,8 +350,8 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
     expect(feasibility(ten, state, TODAY).weeksNeeded).toBe(d4Weeks(3000, 10000, 2))
   })
 
-  it('floors a missing long run at the minimum step', () => {
-    const state = makeState({ longestM: 0, weeklyKm: 0 })
+  it('floors a tiny long run at the minimum step', () => {
+    const state = makeState({ longestM: 100, weeklyKm: 0 })
     const five = makeModel({ distanceClass: '5k', distanceM: 5000, goalType: 'finish' })
     expect(feasibility(five, state, TODAY).weeksNeeded).toBe(
       d4Weeks(P.g1.minStepDistanceM.value, 5000, 1),
@@ -340,7 +364,8 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
   })
 
   it('counts time on feet for an ultra: the class target, capped by 6 h or 60% of the expected duration', () => {
-    const state = makeState({ longestM: 15000, longestSec: 7200 })
+    // A weekly volume at the class peak, so the weekly path takes no weeks and the long run governs.
+    const state = makeState({ longestM: 15000, longestSec: 7200, typicalWeekMin: 600 })
     const ultra = makeModel({
       distanceClass: 'ultra50',
       distanceM: 50000,
@@ -348,15 +373,153 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
       goalType: 'finish',
       expectedDurationSec: 18000,
     })
-    // The 50 km target (3 h) equals 60% of 5 h and sits below the 6 h cap.
+    // The 50 km target (3 h) equals 60% of 5 h and sits below the 6 h cap; 0.45 x 600 min is more.
     expect(feasibility(ultra, state, TODAY).weeksNeeded).toBe(
       d4Weeks(7200, P.d4LongRun.ultra50.value * 60, 2),
     )
     const long = { ...ultra, distanceClass: 'ultra100mi' as const, expectedDurationSec: 36 * 3600 }
-    // The 100-mile target (4 h) sits below both caps (6 h; 60% of 36 h); taper is 14 days.
+    // The 100-mile target (4 h) sits below both caps (6 h; 60% of 36 h) and 0.45 x 600 min = 4.5 h;
+    // taper is 14 days.
     expect(feasibility(long, state, TODAY).weeksNeeded).toBe(
       d4Weeks(7200, P.d4LongRun.ultra100mi.value * 60, 2),
     )
+  })
+
+  describe('ultra D4: the long-run target follows the planner', () => {
+    const ultra = (distanceClass: GoalModel['distanceClass'], expectedDurationSec: number) =>
+      makeModel({
+        distanceClass,
+        distanceM: { ultra50: 50000, ultra100k: 100000, ultra100mi: 160934, beyond: 200000 }[
+          distanceClass as 'ultra50'
+        ],
+        isUltra: true,
+        goalType: 'finish',
+        expectedDurationSec,
+      })
+
+    it('is the long-run share of the class peak week, not the class value, with the defaults', () => {
+      const state = makeState()
+      // 0.45 x 390 = 175.5 and 0.45 x 480 = 216, rounded down to whole minutes like the planner
+      expect(ultraLongRunTargetMin(ultra('ultra50', 18000), state)).toBe(175)
+      expect(ultraLongRunTargetMin(ultra('ultra100k', 50000), state)).toBe(216)
+      expect(175).toBeLessThan(P.d4LongRun.ultra50.value)
+      expect(216).toBeLessThan(P.d4LongRun.ultra100k.value)
+      expect(P.macroDesign.longRunShareOfWeekUltra.value * P.peakWeeklyMin.ultra50.value).toBe(
+        175.5,
+      )
+    })
+
+    it('keeps the class value where the share allows more, and the H2 caps above all', () => {
+      const state = makeState()
+      // 0.45 x 600 = 270 and 0.45 x 660 = 297 are above the class values 240 and 270
+      expect(ultraLongRunTargetMin(ultra('ultra100mi', 108000), state)).toBe(240)
+      expect(ultraLongRunTargetMin(ultra('beyond', 150000), state)).toBe(270)
+      // 60% of a 4 h race is 144 min, under every other term
+      expect(ultraLongRunTargetMin(ultra('ultra50', 4 * 3600), state)).toBe(144)
+    })
+
+    it('uses the start week when it is above the class peak week', () => {
+      const big = makeState({ typicalWeekMin: 400 })
+      expect(ultraLongRunTargetMin(ultra('ultra50', 18000), big)).toBe(180)
+    })
+
+    it('reads the start week of the generator: the restart floor, the typical week or the start floor', () => {
+      const floor = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
+      expect(startWeekMin(makeState({ typicalWeekMin: 30 }))).toBe(floor)
+      expect(startWeekMin(makeState({ typicalWeekMin: 200 }))).toBe(200)
+      expect(startWeekMin(makeState({ typicalWeekMin: 0 }))).toBe(
+        P.macroDesign.startFloorWeekMin.value,
+      )
+      // a tightened profile is not lifted to the floor
+      expect(startWeekMin(makeState({ typicalWeekMin: 30, recentInjury: true }))).toBe(30)
+    })
+
+    it('reads the first week of the start path when one is given', () => {
+      const state = makeState({ typicalWeekMin: 30 })
+      // 3 x 25 min for the floor, the three sessions of rung 1 for the ladder
+      expect(startWeekMin(state, { kind: 'floor', sessionMin: 25 })).toBe(75)
+      expect(startWeekMin(state, { kind: 'ladder', rung: 1, bmiHold: false })).toBe(63)
+      // the injury-return levels set their own pace, so the typical week stands; so it does
+      // without a path
+      expect(startWeekMin(state, { kind: 'injury-return', level: 2 })).toBe(30)
+      expect(startWeekMin(state, null)).toBe(30)
+      expect(startWeekMin(makeState({ typicalWeekMin: 200 }), null)).toBe(200)
+    })
+
+    it('starts the weekly path of an ultra at the first week of the start path', () => {
+      const state = makeState({ longestSec: 1800, typicalWeekMin: 30, weeklyKm: 5 })
+      const goal = { ...ultra('ultra100mi', 108000), date: addDays(TODAY, 40 * 7) }
+      const longRun = d4Weeks(1800, P.d4LongRun.ultra100mi.value * 60, 2)
+      const ladder = feasibility(goal, state, TODAY, { kind: 'ladder', rung: 1, bmiHold: false })
+      expect(ladder.weeksNeeded).toBe(Math.max(longRun, d4Weeks(63, 534, 2)))
+      expect(ladder.notes.map((n) => n.code)).toContain('weekly-path')
+      const floor = feasibility(goal, state, TODAY, { kind: 'floor', sessionMin: 30 })
+      expect(floor.weeksNeeded).toBe(Math.max(longRun, d4Weeks(90, 534, 2)))
+      expect(floor.weeksNeeded).toBeLessThan(ladder.weeksNeeded)
+    })
+
+    it('measures the weekly path of an ultra and labels the slower of the two paths', () => {
+      // typical 200 min a week, longest run 2 h: the long run (to 175 min) needs 4 growth weeks;
+      // the week that carries a 175-min long run at the 45% share is 389 min, 7 growth weeks away
+      const state = makeState({ longestSec: 7200, typicalWeekMin: 200 })
+      const f = feasibility(ultra('ultra50', 18000), state, TODAY)
+      expect(Math.ceil(175 / P.macroDesign.longRunShareOfWeekUltra.value - 1e-9)).toBe(389)
+      expect(f.weeksNeeded).toBe(d4Weeks(200, 389, 2))
+      expect(f.weeksNeeded).toBeGreaterThan(d4Weeks(7200, 175 * 60, 2))
+      const note = f.notes.find((n) => n.code === 'weekly-path')
+      expect(note?.severity).toBe('info')
+      expect(note?.rules).toEqual(['D4'])
+      expect(note?.message).not.toMatch(/behind|missed|late|red/i)
+    })
+
+    it('leaves the long run to govern, without the note, when the week is already at the peak', () => {
+      const state = makeState({ longestSec: 3600, typicalWeekMin: 400 })
+      const f = feasibility(ultra('ultra50', 18000), state, TODAY)
+      expect(f.weeksNeeded).toBe(d4Weeks(3600, 180 * 60, 2))
+      expect(f.notes.map((n) => n.code)).not.toContain('weekly-path')
+    })
+
+    it('starts the weekly path of a runner under the restart floor at the floor', () => {
+      // typical 30 min, restart floor week 60 min, 100 miles: the weekly path from 60 to the
+      // 534-min week that carries the 240-min long run at the 45% share governs (the 600-min class
+      // peak is a ceiling, not the target)
+      const state = makeState({ longestSec: 1800, typicalWeekMin: 30, weeklyKm: 5 })
+      const goal = ultra('ultra100mi', 108000)
+      const floor = P.restartFloor.sessions.value * P.restartFloor.sessionMin.value
+      expect(Math.ceil(240 / P.macroDesign.longRunShareOfWeekUltra.value - 1e-9)).toBe(534)
+      const weekly = d4Weeks(floor, 534, 2)
+      const longRun = d4Weeks(1800, P.d4LongRun.ultra100mi.value * 60, 2)
+      expect(weekly).toBeGreaterThan(longRun)
+      const at = (weeks: number) =>
+        feasibility({ ...goal, date: addDays(TODAY, weeks * 7) }, state, TODAY)
+      expect(at(weekly)).toMatchObject({
+        weeksNeeded: weekly,
+        weeksAvailable: weekly,
+        label: 'tight',
+      })
+      expect(at(weekly).notes.map((n) => n.code)).toContain('weekly-path')
+      // one week fewer is under the weekly path, though the long run alone would still fit
+      expect(at(weekly - 1).label).toBe('not-reachable')
+      expect(weekly - 1).toBeGreaterThanOrEqual(longRun)
+    })
+
+    it('labels a 30-min typical week with 33 weeks to 100 miles tight by the weekly path', () => {
+      const state = makeState({ longestSec: 1800, typicalWeekMin: 30, weeklyKm: 5 })
+      const goal = { ...ultra('ultra100mi', 108000), date: addDays(TODAY, 33 * 7) }
+      const needed = d4Weeks(60, 534, 2)
+      const f = feasibility(goal, state, TODAY)
+      expect(f.weeksNeeded).toBe(needed)
+      expect(f.weeksAvailable).toBe(33)
+      // 60 to 534 min a week at 10% takes 23 growth weeks, 33 with cutbacks and the taper; the
+      // long run alone (30 min to 240 min) needs 32, so the weekly path governs by one week and
+      // the label stays tight. Measured against the 600-min class peak it would read not
+      // reachable although the generator builds the plan.
+      expect(needed).toBe(33)
+      expect(d4Weeks(1800, 240 * 60, 2)).toBe(32)
+      expect(f.label).toBe('tight')
+      expect(f.notes.map((n) => n.code)).toContain('weekly-path')
+      expect(f.notes.map((n) => n.code)).not.toContain('not-reachable')
+    })
   })
 
   it('leaves the current partial week out of the weekly average', () => {
@@ -369,6 +532,200 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
     const f = feasibility(makeModel({ date: addDays(TODAY, -3) }), makeState(), TODAY)
     expect(f.weeksAvailable).toBe(0)
     expect(f.label).toBe('not-reachable')
+  })
+})
+
+describe('feasibility: the long-run floor follows the planner [D3, D4]', () => {
+  const share = P.macroDesign.longRunShareOfWeek.value
+  const codes = (f: { notes: Array<{ code: string }> }) => f.notes.map((n) => n.code)
+  // 198 min a week over 36 km: 330 s/km, a typical week of 198 min
+  const steady = (over: Parameters<typeof makeState>[0] = {}) =>
+    makeState({ longestM: 12000, weeklyKm: 36, weekMin: 198, ...over })
+  const half = (over: Partial<GoalModel> = {}) =>
+    makeModel({ distanceClass: 'half', distanceM: 21097, ...over })
+
+  it('is the planner long run, the lesser of the class peak and 35% of the peak week', () => {
+    const marathon = makeModel()
+    // 35% of the 330-minute marathon peak week; the class long-run peak is 180 minutes
+    expect(Math.floor(share * P.peakWeeklyMin.marathon.value)).toBe(115)
+    const floor = longRunFloor(marathon, steady())
+    expect(floor).toMatchObject({ floorKm: 25, plannedMin: 115, reached: false })
+    expect(floor?.plannedKm).toBeCloseTo((115 * 60) / 330, 6)
+    expect(floor?.targetM).toBeCloseTo(((115 * 60) / 330) * 1000, 6)
+    // the half-marathon floor of 21 km, against 35% of the 270-minute peak week
+    expect(longRunFloor(half(), steady())).toMatchObject({ floorKm: 21, plannedMin: 94 })
+    // the other classes have no long-run floor
+    expect(longRunFloor(makeModel({ distanceClass: '10k', distanceM: 10000 }), steady())).toBeNull()
+  })
+
+  it('reaches the floor when the planner schedules it, and then works toward the floor', () => {
+    // 270 s/km: 25 km take 113 minutes, within the 115 the planner schedules
+    const fast = makeState({ longestM: 12000, weeklyKm: 44, weekMin: 198 })
+    expect(trainingPace(fast, makeModel())).toBeCloseTo(270, 6)
+    expect(longRunFloor(makeModel(), fast)).toMatchObject({ reached: true, targetM: 25000 })
+    const f = feasibility(makeModel(), fast, TODAY)
+    expect(f.weeksNeeded).toBe(d4Weeks(12000, 25000, 3))
+    expect(codes(f)).not.toContain('long-run-floor')
+  })
+
+  it('counts the weeks to the long run the plan builds, not to a floor it never reaches', () => {
+    const state = steady()
+    const f = feasibility(makeModel(), state, TODAY)
+    const built = ((115 * 60) / 330) * 1000
+    expect(f.weeksNeeded).toBe(d4Weeks(12000, built, 3))
+    // the floor of 25 km would have taken longer, a run the plan does not build
+    expect(f.weeksNeeded).toBeLessThan(d4Weeks(12000, 25000, 3))
+    // so a runner whose longest run is past what the plan builds needs no long-run growth week:
+    // the weekly floor of 40 km (36 km now) governs
+    const long = steady({ longestM: 24000 })
+    expect(feasibility(makeModel(), long, TODAY).weeksNeeded).toBe(d4Weeks(36, 40, 3))
+  })
+
+  it('says so in an info note when a time goal floor is out of reach', () => {
+    for (const goal of [makeModel(), half()]) {
+      const f = feasibility(goal, steady(), TODAY)
+      const note = f.notes.find((n) => n.code === 'long-run-floor')
+      expect(note?.severity).toBe('info')
+      expect(note?.rules).toEqual(['D3'])
+      expect(note?.message).toContain(`${goal.distanceClass === 'half' ? 21 : 25} km`)
+      expect(note?.message).not.toMatch(/behind|missed|late|red/i)
+    }
+  })
+
+  it('reconciles a finish goal the same way, without a floor note', () => {
+    const f = feasibility(makeModel({ goalType: 'finish' }), steady(), TODAY)
+    expect(codes(f)).not.toContain('long-run-floor')
+    expect(f.weeksNeeded).toBe(d4Weeks(12000, ((115 * 60) / 330) * 1000, 3))
+  })
+
+  it('reads the long-run peak of the macrocycle: lifted to the floor for a time goal only', () => {
+    const state = steady()
+    const pace = trainingPace(state, makeModel())
+    // 21 km take 116 minutes at 330 s/km, above the 105 of the class
+    expect(peakLongRunMin(half(), pace, state)).toBe(Math.ceil((21 * pace) / 60))
+    expect(peakLongRunMin(half({ goalType: 'finish' }), pace, state)).toBe(
+      P.peakLongRunMin.half.value,
+    )
+    // the 180 minutes of the marathon class are above the 138 that 25 km take
+    expect(peakLongRunMin(makeModel(), pace, state)).toBe(P.peakLongRunMin.marathon.value)
+  })
+
+  it('takes the start week when it is above the class peak week', () => {
+    const big = steady({ typicalWeekMin: 400 })
+    // 35% of the 400-minute start week, not of the 330-minute class peak
+    expect(longRunFloor(makeModel(), big)).toMatchObject({ plannedMin: 140 })
+  })
+})
+
+describe('feasibility: the start of the plan [E6, J7]', () => {
+  // 33:00 for 5 km: no recent run, so the training pace is the goal pace slowed by 15%
+  const five = (over: Partial<GoalModel> = {}) =>
+    makeModel({
+      distanceClass: '5k',
+      distanceM: 5000,
+      goalType: 'time',
+      expectedDurationSec: 1980,
+      ...over,
+    })
+  const half = (over: Partial<GoalModel> = {}) =>
+    makeModel({ distanceClass: 'half', distanceM: 21097, ...over })
+  const novice = () =>
+    makeState({ longestM: 0, longestSec: 0, weeklyKm: 0, typicalWeekMin: 0, yearsRunning: null })
+  const pace = (1980 / 5) * P.macroDesign.trainingPaceFactor.value
+  const metres = (minutes: number) => ((minutes * 60) / pace) * 1000
+  /** The programme weeks, then the growth with its cutback weeks, then the taper. */
+  const weeks = (lead: number, l0: number, lt: number, taper: number) =>
+    Math.ceil(lead + Math.ceil(Math.log(lt / l0) / Math.log(1.1) - 1e-9) * (4 / 3) + taper - 1e-9)
+
+  it('adds the weeks of a ladder and counts its 30 minutes only after them', () => {
+    const f = feasibility(five(), novice(), TODAY, { kind: 'ladder', rung: 1, bmiHold: false })
+    expect(rungCount()).toBe(9)
+    expect(f.weeksNeeded).toBe(weeks(9, metres(30), 5000, 1))
+    // 9 weeks of the ladder, 3 growth steps with their cutback week, 1 week of taper
+    expect(f.weeksNeeded).toBe(14)
+  })
+
+  it('no longer counts a runner on the ladder from the minimum step', () => {
+    const f = feasibility(five(), novice(), TODAY, { kind: 'ladder', rung: 1, bmiHold: false })
+    // the minimum step of 500 m took 35 weeks
+    expect(d4Weeks(P.g1.minStepDistanceM.value, 5000, 1)).toBe(35)
+    expect(f.weeksNeeded).toBeLessThan(20)
+  })
+
+  it('counts the weeks of the ladder that are left, and the BMI hold', () => {
+    const at = (rung: number, bmiHold = false) =>
+      feasibility(five(), novice(), TODAY, { kind: 'ladder', rung, bmiHold }).weeksNeeded
+    expect(at(5)).toBe(at(1) - 4)
+    expect(at(9)).toBe(at(1) - 8)
+    // rung 1 held for 3 weeks: 2 more than the plain ladder
+    expect(at(1, true)).toBe(at(1) + P.noviceLadder.bmiHoldWeeks.value - 1)
+  })
+
+  it('starts the long run of a 3 x N floor at N minutes, with no programme weeks', () => {
+    const f = feasibility(five(), novice(), TODAY, { kind: 'floor', sessionMin: 25 })
+    expect(f.weeksNeeded).toBe(weeks(0, metres(25), 5000, 1))
+    const longer = feasibility(five(), novice(), TODAY, { kind: 'floor', sessionMin: 30 })
+    expect(longer.weeksNeeded).toBeLessThanOrEqual(f.weeksNeeded)
+    const ladder = feasibility(five(), novice(), TODAY, { kind: 'ladder', rung: 1, bmiHold: false })
+    expect(longer.weeksNeeded).toBeLessThan(ladder.weeksNeeded)
+  })
+
+  it('counts the injury-return levels still ahead and the last level after them', () => {
+    const levels = P.injuryReturn.levelsMin.value
+    const f = feasibility(five(), novice(), TODAY, { kind: 'injury-return', level: 2 })
+    expect(f.weeksNeeded).toBe(
+      weeks(levels.length - 2, metres(levels[levels.length - 1]!), 5000, 1),
+    )
+  })
+
+  it('keeps the 30-day longest run when it is larger than the first session', () => {
+    const state = makeState({ longestM: 9000, weeklyKm: 0, typicalWeekMin: 0 })
+    const ten = five({ distanceClass: '10k', distanceM: 10000 })
+    const f = feasibility(ten, state, TODAY, { kind: 'floor', sessionMin: 20 })
+    expect(f.weeksNeeded).toBe(weeks(0, 9000, 10000, 2))
+  })
+
+  it('opens a plan with no run in 30 days at the long-run share of the restart week', () => {
+    // 120 min a week at 300 s/km after a break: the plan opens with a 42-minute long run (8.4 km)
+    const state = makeState({ longestM: 0, longestSec: 0, weeklyKm: 24, weekMin: 120 })
+    const goal = half({ goalType: 'time' })
+    const f = feasibility(goal, state, TODAY)
+    const planned = longRunFloor(goal, state)!
+    expect(planned.plannedMin).toBe(94)
+    expect(f.weeksNeeded).toBe(d4Weeks(8400, planned.targetM, 2))
+    expect(f.weeksNeeded).toBeLessThan(d4Weeks(P.g1.minStepDistanceM.value, planned.targetM, 2))
+    // with a run in the last 30 days that run is the start, as the generator holds to 1.10 times it
+    const ran = makeState({ longestM: 7000, longestSec: 2100, weeklyKm: 24, weekMin: 120 })
+    expect(feasibility(goal, ran, TODAY).weeksNeeded).toBe(d4Weeks(7000, planned.targetM, 2))
+  })
+
+  it('grows the weekly floor from the first week of the start path, not the minimum step', () => {
+    // half-marathon time goal: the 32 km floor, from 63 minutes a week on rung 1 of the ladder
+    const state = makeState({ longestM: 0, longestSec: 0, weeklyKm: 0, typicalWeekMin: 0 })
+    const goal = half({ goalType: 'time', expectedDurationSec: 6600 })
+    const slow = (6600 / 21.097) * P.macroDesign.trainingPaceFactor.value
+    const startKm = (63 * 60) / slow
+    const f = feasibility(goal, state, TODAY, { kind: 'ladder', rung: 1, bmiHold: false })
+    expect(f.notes.map((n) => n.code)).toContain('weekly-floor')
+    const weekly = d4Weeks(startKm, 32, 2)
+    expect(f.weeksNeeded).toBeGreaterThanOrEqual(weekly)
+    // not the 0.5 km minimum step, which would take far longer
+    expect(weekly).toBeLessThan(d4Weeks(0.5, 32, 2))
+  })
+
+  it('starts the weekly floor from the restart volume of a runner back from a break', () => {
+    const state = makeState({
+      longestM: 0,
+      longestSec: 0,
+      weeklyKm: 0,
+      weekMin: 0,
+      typicalWeekMin: 120,
+    })
+    const goal = half({ goalType: 'time', expectedDurationSec: 6600 })
+    const slow = (6600 / 21.097) * P.macroDesign.trainingPaceFactor.value
+    const weekly = d4Weeks((120 * 60) / slow, 32, 2)
+    expect(feasibility(goal, state, TODAY).weeksNeeded).toBeGreaterThanOrEqual(weekly)
+    expect(weekly).toBeLessThan(d4Weeks(0.5, 32, 2))
   })
 })
 

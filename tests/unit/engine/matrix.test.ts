@@ -1,10 +1,11 @@
-// The plan matrix [design section 9]: nine synthetic athletes with their goals. For each plan the
+// The plan matrix [design section 9]: ten synthetic athletes with their goals. For each plan the
 // checklist is asserted item by item and every limit is re-derived here from the finished
 // sessions, in every week, without calling the code that enforces it. Determinism is asserted too.
 import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { buildPlan, explain } from '../../../shared/engine/index.ts'
+import { ownWindow, windowViolations } from '../../../shared/engine/postRace.ts'
 import type { PlanDraft, SessionKind, SessionSpec } from '../../../shared/engine/types.ts'
 import type { Weekday } from '../../../shared/types.ts'
 import { athletes, TODAY, type MatrixAthlete } from './matrix-fixtures.ts'
@@ -25,6 +26,15 @@ const RUNNING: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'b2b',
 ])
 const ANY_RUN: ReadonlySet<SessionKind> = new Set<SessionKind>([...RUNNING, 'hike'])
+
+/**
+ * A session set by a ladder or injury-return programme [rules E6, g-3]: a run-walk session, an
+ * injury-return run, or a continuous run of the upper rungs, which opens with the framing walk.
+ */
+const isStartSession = (s: SessionSpec): boolean =>
+  s.flags.includes('run-walk') ||
+  s.flags.includes('injury-return') ||
+  (s.kind === 'easy' && s.structure[0]?.kind === 'warmup')
 const HARD: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'threshold',
   'intervals',
@@ -46,12 +56,14 @@ const CHECKLIST_IDS = [
   'tid',
   'taper',
   'level-differentiation',
+  'ladder-steps',
   'break-restart',
   'spike-guard',
   'availability',
   'spacing',
   'ultra-caps',
   'race-day',
+  'post-race-window',
   'reds-hold',
   'bone-pain-hold',
 ]
@@ -109,17 +121,21 @@ describe.each(all)('plan matrix: $label', (a) => {
       'race',
     ])
     const raceWeek = mondayOf(a.input.goal.date)
+    // the days after the race are rest days in the hold, then easy runs of the first return step
+    // within its caps [H12]
     const after = plan.sessions.filter(
       (s) => mondayOf(s.date) === raceWeek && s.date > a.input.goal.date,
     )
-    expect(after).toEqual([])
+    const runsAfter = after.filter((s) => s.kind !== 'rest')
+    expect(runsAfter.every((s) => s.flags.includes('post-race'))).toBe(true)
+    expect(windowViolations(after, [ownWindow(a.input)], addDays(a.input.goal.date, 1))).toEqual([])
     expect(plan.paramsVersion).toMatch(/^\d{4}-\d{2}-\d{2}/)
   })
 
   it('keeps no session on an unavailable day or above the day limit', () => {
     const bad: string[] = []
     for (const s of plan.sessions) {
-      if (s.kind === 'race') continue
+      if (s.kind === 'race' || s.kind === 'rest') continue
       const day = a.input.profile.availability[WEEKDAYS[daysBetween(mondayOf(s.date), s.date)]!]
       if (!day.available) bad.push(`${s.date} ${s.kind} on a closed day`)
       else if (day.maxMin !== null && ANY_RUN.has(s.kind) && s.durationMin > day.maxMin) {
@@ -138,6 +154,8 @@ describe.each(all)('plan matrix: $label', (a) => {
     const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
     for (const w of planWeeks(plan)) {
       const total = at(w.weekStart, 0)
+      // the weeks after the race are exempt from G-2, as a return to an established base [H12]
+      if (w.flags.includes('post-race')) continue
       if (floor !== undefined && w.weekStart === floor.weekStart) {
         // exempt from G-2 only up to the floor
         if (total > floor.targetRunMin + 1) {
@@ -173,12 +191,17 @@ describe.each(all)('plan matrix: $label', (a) => {
     const completed = a.input.activities
       .filter((x) => x.type === 'run' || x.type === 'race')
       .map((x) => ({ date: x.date, min: x.durationSec / 60, distanceM: x.distanceM }))
-    const earlier: Array<{ date: string; min: number; distanceM: number | null }> = []
+    const earlier: Array<{ date: string; min: number; distanceM: number | null; step: boolean }> =
+      []
     const runs = plan.sessions
       .filter((s) => ANY_RUN.has(s.kind))
       .sort((x, y) => (x.date < y.date ? -1 : 1))
     for (const s of runs) {
-      const window = [...completed, ...earlier].filter((r) => {
+      // G-1 is checked against completed runs: a session of a run-walk or injury-return ladder is a
+      // programme step, compared with the completed and the plain runs but not with another step
+      // [rules E6]; the plain runs after the ladder see its sessions too
+      const step = isStartSession(s)
+      const window = [...completed, ...earlier.filter((r) => !step || !r.step)].filter((r) => {
         const ago = daysBetween(r.date, s.date)
         return ago >= 1 && ago <= 30
       })
@@ -186,11 +209,13 @@ describe.each(all)('plan matrix: $label', (a) => {
       const refDist = Math.max(0, ...window.map((r) => r.distanceM ?? 0))
       if (refMin > 0) {
         const ratio = s.durationMin / refMin
+        // the band is 1.10x, or the reference plus the 3-minute duration step where that is more
+        const warnLimit = refMin + Math.max(refMin * 0.1, 3)
         if (ratio > 2) bad.push(`${s.date} ${s.kind} is ${ratio.toFixed(2)}x by time`)
-        if (ratio > 1.1 + 1e-9 && !s.flags.includes('spike-warn')) {
+        if (s.durationMin > warnLimit + 1e-9 && !s.flags.includes('spike-warn')) {
           bad.push(`${s.date} ${s.kind} is ${ratio.toFixed(2)}x by time without a warning`)
         }
-        if (state.risk.recentInjury && ratio > 1.1 + 1e-9) {
+        if (state.risk.recentInjury && s.durationMin > warnLimit + 1e-9) {
           bad.push(`${s.date} ${s.kind} passes the hard limit (${ratio.toFixed(2)}x)`)
         }
       }
@@ -202,7 +227,7 @@ describe.each(all)('plan matrix: $label', (a) => {
         }
       }
       expect(s.flags).not.toContain('override-required')
-      earlier.push({ date: s.date, min: s.durationMin, distanceM: s.distanceM })
+      earlier.push({ date: s.date, min: s.durationMin, distanceM: s.distanceM, step })
     }
     expect(bad).toEqual([])
   })
@@ -284,6 +309,11 @@ describe.each(all)('plan matrix: $label', (a) => {
     let last = null as null | { target: number }
     const bad: string[] = []
     for (const w of weeks) {
+      // the weeks of the run-walk ladder follow its own steps and repeats [rules E6]
+      if (w.flags.some((f) => f.startsWith('ladder-'))) {
+        run = 0
+        continue
+      }
       if (w.isRecovery) {
         if (last !== null && w.targetRunMin > last.target * 0.8 + 1) {
           bad.push(`${w.weekStart}: recovery week ${w.targetRunMin} vs ${last.target}`)
@@ -393,9 +423,12 @@ describe('plan matrix: per-athlete expectations', () => {
     for (let i = 1; i < day1.length; i++) {
       expect(daysBetween(day1[i - 1]!.date, day1[i]!.date)).toBeGreaterThanOrEqual(14)
     }
+    // a 100-mile race: the first week after it is inside the hold, so it holds rest days only
     const rest = plan.weeks.find((w) => w.flags.includes('post-race'))!
     expect(rest.targetRunMin).toBe(0)
-    expect(plan.sessions.filter((s) => mondayOf(s.date) === rest.weekStart)).toEqual([])
+    const inRest = plan.sessions.filter((s) => mondayOf(s.date) === rest.weekStart)
+    expect(inRest.length).toBeGreaterThan(0)
+    expect(inRest.every((s) => s.kind === 'rest')).toBe(true)
   })
 
   it('50 km trail: climbing grows toward the course gain and sessions carry gain', () => {
@@ -416,7 +449,7 @@ describe('plan matrix: per-athlete expectations', () => {
     for (const set of days.values()) expect(set.size).toBeLessThanOrEqual(6)
     for (const s of plan.sessions) {
       const weekday = WEEKDAYS[daysBetween(mondayOf(s.date), s.date)]
-      if (s.kind !== 'race') expect(['mon', 'wed']).not.toContain(weekday)
+      if (s.kind !== 'race' && s.kind !== 'rest') expect(['mon', 'wed']).not.toContain(weekday)
     }
   })
 
@@ -508,7 +541,10 @@ describe.each(all)('plan adequacy: $label', (a) => {
       if (state.experience === 'novice') days = Math.min(days, 3)
       if (state.age !== null && state.age >= 40) days = Math.min(days, 6)
       const walking = runs.some((s) => s.flags.includes('run-walk'))
-      const fit = Math.floor(w.targetRunMin / (walking ? RUN_WALK_MIN : MIN_RUN))
+      // a ladder or injury-return session is exempt from the run day minimum: 5 minutes at least
+      const programme =
+        runs.some(isStartSession) || w.flags.some((f) => /^ladder-|^injury-/.test(f))
+      const fit = Math.floor(w.targetRunMin / (programme ? 5 : walking ? RUN_WALK_MIN : MIN_RUN))
       const lowest = w.isRecovery || w.isTaper ? 1 : Math.min(2, days)
       const expected = Math.min(days, open, Math.max(lowest, fit))
       if (cut.has(w.weekStart)) {
@@ -528,7 +564,7 @@ describe.each(all)('plan adequacy: $label', (a) => {
   it('keeps every run at the session minimum outside run-walk, and the long run the longest', () => {
     const bad: string[] = []
     for (const s of plan.sessions) {
-      if (!RUNNING.has(s.kind) || s.flags.includes('run-walk')) continue
+      if (!RUNNING.has(s.kind) || isStartSession(s)) continue
       if (s.durationMin < MIN_RUN) bad.push(`${s.date} ${s.kind} ${s.durationMin} min`)
     }
     for (const w of fullWeeks(plan)) {
@@ -543,6 +579,19 @@ describe.each(all)('plan adequacy: $label', (a) => {
           `${w.weekStart}: ${longer.kind} ${longer.durationMin} min is longer than the long run`,
         )
       }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('holds at least one run in every week that has a running target, a ladder or injury-return week included', () => {
+    const bad: string[] = []
+    for (const w of fullWeeks(plan)) {
+      if (w.targetRunMin <= 0) continue
+      const runs = plan.sessions.filter(
+        (s) => mondayOf(s.date) === w.weekStart && RUNNING.has(s.kind),
+      )
+      if (runs.length === 0)
+        bad.push(`${w.weekStart}: a target of ${w.targetRunMin} min and no run`)
     }
     expect(bad).toEqual([])
   })

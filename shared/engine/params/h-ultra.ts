@@ -50,24 +50,61 @@ export const hUltra = {
     ),
   },
   h2: {
-    longestRunCapHours: param('h2.longestRunCapHours', 6, 'D', 'H2', [], {
-      unit: 'h',
-      note: 'Default: longest single training run is capped at the lesser of this and 60% of expected race duration. No study sets this number; it limits exposure without evidence of benefit.',
-    }),
-    longestRunCapRaceFraction: param('h2.longestRunCapRaceFraction', 0.6, 'D', 'H2', [], {
-      unit: 'fraction of expected race duration',
-      note: 'Default: no study sets this number.',
-    }),
-    raceSimulationMaxHours: param('h2.raceSimulationMaxHours', 8, 'D', 'H2', [], {
-      unit: 'h',
-      note: 'Default: one opt-in race simulation of up to this length is allowed, and only within G-1.',
-    }),
+    longestRunCapHours: param(
+      'h2.longestRunCapHours',
+      6,
+      'D',
+      'H2',
+      [
+        'outside-2023-strava-utmb',
+        'outside-2023-strava-western-states',
+        'outside-2015-orton-koop-100-miles',
+        'viljoen-2022-trail-risk-factors',
+      ],
+      {
+        unit: 'h',
+        note: "Default: longest single training run is capped at the lesser of this and 60% of expected race duration. No study sets this number and no study links any long-run length to injury; the cap lies inside the 3-5 h to 6-7 h range of named-coach conventions and below finishers' race-inclusive longest runs.",
+      },
+    ),
+    longestRunCapRaceFraction: param(
+      'h2.longestRunCapRaceFraction',
+      0.6,
+      'D',
+      'H2',
+      ['outside-2015-orton-koop-100-miles'],
+      {
+        unit: 'fraction of expected race duration',
+        note: 'Default: no study sets this number. It binds only for races expected under 10 h (for example a 50 km goal).',
+      },
+    ),
+    raceSimulationMaxHours: param(
+      'h2.raceSimulationMaxHours',
+      8,
+      'D',
+      'H2',
+      [
+        'outside-2023-strava-western-states',
+        'outside-2023-strava-utmb',
+        'outside-2015-orton-koop-100-miles',
+      ],
+      {
+        unit: 'h',
+        note: 'Default: design intent for one race simulation of up to this length, within G-1 (an entered tune-up race could serve). Not read by any code yet, so the plan and the app do not offer the simulation.',
+      },
+    ),
   },
   h3: {
-    b2bMinGapWeeks: param('h3.b2bMinGapWeeks', 2, 'D', 'H3', ['frandsen-2025-session-spike'], {
-      unit: 'weeks',
-      note: 'Default: at most one back-to-back pair every 2 weeks, in build or specific phases only, never in the taper.',
-    }),
+    b2bMinGapWeeks: param(
+      'h3.b2bMinGapWeeks',
+      2,
+      'D',
+      'H3',
+      ['frandsen-2025-session-spike', 'viljoen-2022-trail-risk-factors'],
+      {
+        unit: 'weeks',
+        note: "Default: at most one back-to-back pair every 2 weeks, in build or specific phases only, never in the taper. No study measures back-to-backs; the review's double-session factor is same-day doubles, which are a different structure.",
+      },
+    ),
     b2bDay2MaxRatioOfDay1: param(
       'h3.b2bDay2MaxRatioOfDay1',
       1.0,
@@ -76,12 +113,12 @@ export const hUltra = {
       ['frandsen-2025-session-spike'],
       {
         unit: 'ratio',
-        note: 'Default: day 2 is no longer than day 1.',
+        note: 'Default: day 2 is no longer than day 1 (the micro-cycle default is 0.6 of day 1). No study measures back-to-backs.',
       },
     ),
     b2bTwoDayRatio: param('h3.b2bTwoDayRatio', 1.1, 'D', 'H3', ['frandsen-2025-session-spike'], {
       unit: 'ratio to the largest 2-day total in the last 30 days',
-      note: 'Default: the pair is no more than 1.10x the largest 2-day total in the last 30 days; extends G-1 by analogy.',
+      note: 'Default: the pair is no more than 1.10x the largest 2-day total in the last 30 days; extends G-1 by analogy, which is the only basis.',
     }),
   },
   h4: {
@@ -380,17 +417,219 @@ export const hUltra = {
     }),
   },
   h12: {
-    thresholdKm: param('h12.thresholdKm', 100, 'D', 'H12', ['byrne-2024-elite-24h-training'], {
-      unit: 'km',
-      note: 'Default: the post-race recovery rule applies after a race of this distance or more.',
-    }),
-    restDays: param('h12.restDays', 7, 'D', 'H12', ['byrne-2024-elite-24h-training'], {
+    reducedDays: param(
+      'h12.reducedDays',
+      7,
+      'D',
+      'H12',
+      ['skurka-2017-roche-100-recovery', 'cts-2025-koop-ultra-recovery'],
+      {
+        unit: 'days',
+        note: 'Default: each return step after the hold lasts this many days; coach plans describe weekly stages and the evidence has no finer resolution than the day-9 and day-16 milestones.',
+      },
+    ),
+    step1RunMaxMin: param(
+      'h12.step1RunMaxMin',
+      40,
+      'D',
+      'H12',
+      [
+        'martinez-navarro-2021-marathon-week-rct',
+        'irunfar-2016-powell-post-100-return',
+        'cts-2025-koop-ultra-recovery',
+      ],
+      {
+        unit: 'min per run',
+        note: 'Default. The marathon first step is the dose of one small randomised trial of recreational runners (40 min at first-threshold heart rate), grade B there; the value is graded D because it also caps the first step after 50 km and longer races, where it extrapolates to the 25-45 min jogs coaches describe.',
+      },
+    ),
+    step1MaxRuns: param(
+      'h12.step1MaxRuns',
+      3,
+      'D',
+      'H12',
+      [
+        'martinez-navarro-2021-marathon-week-rct',
+        'irunfar-2016-powell-post-100-return',
+        'cts-2025-koop-ultra-recovery',
+      ],
+      {
+        unit: 'runs',
+        note: 'Default. The marathon first step is the schedule of one small randomised trial (days 2, 4 and 6, three runs on non-consecutive days), grade B there; the value is graded D because it also caps the first step after 50 km and longer races, where it is an extrapolation.',
+      },
+    ),
+    step2RunMaxMin: param(
+      'h12.step2RunMaxMin',
+      60,
+      'D',
+      'H12',
+      ['cts-2025-koop-ultra-recovery', 'skurka-2017-roche-100-recovery'],
+      {
+        unit: 'min per run',
+        note: 'Default: runs in the second step stay under an hour, the recovery-pace weeks a 100-mile coaching plan describes.',
+      },
+    ),
+    laterStepLongRunMaxMin: param(
+      'h12.laterStepLongRunMaxMin',
+      90,
+      'D',
+      'H12',
+      ['cts-2025-koop-ultra-recovery', 'skurka-2017-roche-100-recovery'],
+      {
+        unit: 'min',
+        note: 'Default: from the third step on, the longest run of a week is at most this long; an engineering default with no study behind it.',
+      },
+    ),
+    modifierMultiplier: param(
+      'h12.modifierMultiplier',
+      1.5,
+      'D',
+      'H12',
+      [
+        'garciavaliente-2026-trail-damage-review',
+        'easthope-2010-trail55km-masters',
+        'irunfar-2014-uhan-ultra-recovery-rules',
+        'skurka-2017-roche-100-recovery',
+        'irunfar-2023-torrence-post-ultra-downtime',
+      ],
+      {
+        note: 'Default: the hold is multiplied by this (rounded up), once, for a steep-descent race, a runner of 40 or older, or a first finish in the class. The direction follows the damage and masters data; the value is a convention.',
+      },
+    ),
+    hillyDescentMPerKm: param(
+      'h12.hillyDescentMPerKm',
+      30,
+      'D',
+      'H12',
+      ['garciavaliente-2026-trail-damage-review'],
+      {
+        unit: 'm of descent per km',
+        note: 'Default: a race that descended at least this much per kilometre lengthens the hold; eccentric load drives the damage, and no study sets the threshold.',
+      },
+    ),
+    advanceCleanCheckins: param(
+      'h12.advanceCleanCheckins',
+      2,
+      'D',
+      'H12',
+      [
+        'hoffman-2017-161km-recovery-determinants',
+        'saw-2016-subjective-vs-objective-monitoring',
+        'gaudino-2019-recovery-stress-ultra',
+      ],
+      {
+        unit: 'check-ins',
+        note: 'Default: a stage advances only when the last this-many check-ins before its boundary are not poor and report no pain or illness; the direction (check-ins can only delay) is graded B, the count mirrors j3.persistenceDays.',
+      },
+    ),
+    ownBaselineMinCheckins: param(
+      'h12.ownBaselineMinCheckins',
+      14,
+      'D',
+      'H12',
+      ['gaudino-2019-recovery-stress-ultra', 'saw-2016-subjective-vs-objective-monitoring'],
+      {
+        unit: 'check-ins in the 28 days before the race',
+        note: 'Default: with this many check-ins before the race, a post-race check-in also counts as poor when it is worse than the own pre-race median by the J2 margin; the personal comparison only adds caution.',
+      },
+    ),
+    gateStaleDays: param('h12.gateStaleDays', 3, 'D', 'H12', [], {
       unit: 'days',
-      note: 'Default: days without running after the race.',
+      note: 'Default: a check-in older than this many days before a stage boundary neither delays nor releases it, so a poor rating followed by no ratings holds a step for at most this long; with no recent check-in the default schedule runs.',
     }),
-    reducedDays: param('h12.reducedDays', 7, 'D', 'H12', ['byrne-2024-elite-24h-training'], {
-      unit: 'days',
-      note: 'Default: at least this many days of reduced running afterwards, scaled up by race load.',
+    gateEscalationDays: param(
+      'h12.gateEscalationDays',
+      14,
+      'D',
+      'H12',
+      ['meeusen-2013-overtraining-consensus'],
+      {
+        unit: 'days',
+        note: 'Default: after the check-in gate has delayed the return this many days, the J8 clinician checklist is shown (the same 14 days as j8.deloadSuggestDays).',
+      },
+    ),
+    goalRaceDistanceTolerancePct: param('h12.goalRaceDistanceTolerancePct', 10, 'D', 'H12', [], {
+      unit: '% of the goal distance',
+      note: 'Default: a race logged on the goal date is the goal race itself, and has no window of its own, when its distance is within this share of the goal distance; a GPS track seldom equals the entered distance.',
     }),
+  },
+  h12HoldDays: {
+    marathon: param(
+      'h12HoldDays.marathon',
+      2,
+      'B',
+      'H12',
+      [
+        'martinez-navarro-2021-marathon-week-rct',
+        'takayama-2017-marathon-one-week',
+        'bernat-adell-2021-marathon-biomarkers',
+      ],
+      {
+        unit: 'days',
+        note: 'Grade B rests on one small randomised trial of recreational runners that started running 48 h after the finish; nothing supports a run at 24 h, and a longer full stop is not required by that evidence.',
+      },
+    ),
+    ultra50: param(
+      'h12HoldDays.ultra50',
+      4,
+      'D',
+      'H12',
+      [
+        'irunfar-2014-uhan-ultra-recovery-rules',
+        'easthope-2010-trail55km-masters',
+        'garciavaliente-2026-trail-damage-review',
+      ],
+      {
+        unit: 'days',
+        note: 'Default: days without running after a race of 42.2 to 80.5 km; a coach rule of a day per 10 miles gives 3 to 5 days and 4 is the class middle.',
+      },
+    ),
+    ultra100k: param(
+      'h12HoldDays.ultra100k',
+      7,
+      'D',
+      'H12',
+      [
+        'martinez-navarro-2021-118km-inflammation-activity',
+        'martinez-navarro-2019-118km-cardiac-hrv',
+        'irunfar-2014-uhan-ultra-recovery-rules',
+        'skurka-2017-roche-100-recovery',
+      ],
+      {
+        unit: 'days',
+        note: 'Default: days without running after a race of 80.5 to 130 km; no 100 km time course exists, and 118 km data show raised damage markers at days 3 and 7.',
+      },
+    ),
+    ultra100mi: param(
+      'h12HoldDays.ultra100mi',
+      10,
+      'D',
+      'H12',
+      [
+        'millet-2011-ultramarathon-neuromuscular',
+        'hoffman-2017-161km-recovery-determinants',
+        'paech-2021-100mile-hrv',
+        'irunfar-2014-uhan-ultra-recovery-rules',
+      ],
+      {
+        unit: 'days',
+        note: 'Default: days without running after a race of 130 to 170 km; after 166 km neuromuscular function was mostly back by day 9 and fully by day 16, and the coach rule of a day per 10 miles gives 10.',
+      },
+    ),
+    beyond: param(
+      'h12HoldDays.beyond',
+      14,
+      'D',
+      'H12',
+      [
+        'saugy-2013-330km-neuromuscular',
+        'besson-2020-single-vs-multistage-ultra',
+        'irunfar-2014-uhan-ultra-recovery-rules',
+      ],
+      {
+        unit: 'days',
+        note: 'Default: a judgement cap for races above 170 km; damage did not scale with distance up to 330 km and no recovery data exist above 100 miles.',
+      },
+    ),
   },
 } satisfies ParamGroups

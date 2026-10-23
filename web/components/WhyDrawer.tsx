@@ -3,6 +3,7 @@ import { useResearchParams } from '../api/research.ts'
 import { GradeBadge } from './GradeBadge.tsx'
 import { PaperCard } from './PaperCard.tsx'
 import { Sheet } from './Sheet.tsx'
+import { RATING_WHY_NOTE } from './engineText.ts'
 import { ruleTitle } from './ruleTitles.ts'
 import styles from './WhyDrawer.module.css'
 import { useCorpus, useToggleSet } from './researchCorpus.ts'
@@ -14,9 +15,12 @@ export interface WhyDrawerProps {
   onClose: () => void
 }
 
-/** Same matching as `explain()`: case and hyphens do not matter. */
+/**
+ * Case does not matter, hyphens do (as in `paramsForRule`): `g-3` is the tightened profiles and
+ * `G3` the third global principle.
+ */
 function ruleKey(id: string): string {
-  return id.toLowerCase().replace(/-/g, '')
+  return id.toLowerCase()
 }
 
 function formatScalar(value: unknown): string {
@@ -27,10 +31,55 @@ function formatScalar(value: unknown): string {
   return ''
 }
 
+interface FactRow {
+  label: string
+  text: string
+  /** A row of its own line, for a long value. */
+  wide?: boolean
+}
+
+const LADDER_PARAM_ID = 'noviceLadder.rungs'
+
+/** Rungs of sessions of alternating run and walk minutes, the shape of `noviceLadder.rungs`. */
+function isLadder(value: unknown): value is number[][][] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (rung) =>
+        Array.isArray(rung) &&
+        rung.every(
+          (session) => Array.isArray(session) && session.every((v) => typeof v === 'number'),
+        ),
+    )
+  )
+}
+
+/** "3 run, 1.5 walk, 5 run": a session's minutes, starting with a run and then alternating. */
+function describeSession(session: number[]): string {
+  return session
+    .map((minutes, i) => `${String(minutes)} ${i % 2 === 0 ? 'run' : 'walk'}`)
+    .join(', ')
+}
+
+/** One row per rung and session, so the ladder keeps its structure. */
+function ladderRows(rungs: number[][][], unit: string | undefined): FactRow[] {
+  const rows = rungs.flatMap((sessions, r) =>
+    sessions.map((session, s) => ({
+      label: sessions.length === 1 ? `Rung ${r + 1}` : `Rung ${r + 1}, session ${s + 1}`,
+      text: describeSession(session),
+      wide: true,
+    })),
+  )
+  return unit === undefined ? rows : [...rows, { label: 'Unit', text: unit, wide: true }]
+}
+
 /** The parameter's value with its unit, and its range when it has one. */
-function describeParam(param: Param<unknown>): Array<{ label: string; text: string }> {
+function describeParam(param: Param<unknown>): FactRow[] {
+  if (param.id === LADDER_PARAM_ID && isLadder(param.value)) {
+    return ladderRows(param.value, param.unit)
+  }
   const unit = param.unit === undefined ? '' : ` ${param.unit}`
-  const rows = [{ label: 'Value', text: `${formatScalar(param.value)}${unit}` }]
+  const rows: FactRow[] = [{ label: 'Value', text: `${formatScalar(param.value)}${unit}` }]
   if (param.range) {
     rows.push({
       label: 'Range',
@@ -53,7 +102,10 @@ function ParamRow({ param }: { param: Param<unknown> }) {
       <p className={styles.sentence}>{param.note ?? paramLabel(param.id)}</p>
       <dl className={styles.facts}>
         {describeParam(param).map((row) => (
-          <div key={row.label} className={styles.fact}>
+          <div
+            key={row.label}
+            className={row.wide === true ? `${styles.fact} ${styles.factWide}` : styles.fact}
+          >
             <dt>{row.label}</dt>
             <dd>{row.text}</dd>
           </div>
@@ -105,6 +157,9 @@ function DrawerBody({ rules }: { rules: string[] }) {
         return (
           <section key={rule} className={styles.rule} aria-label={title ?? `Rule ${rule}`}>
             <h3 className={styles.ruleTitle}>{title ?? `Rule ${rule}`}</h3>
+            {matched.some((param) => param.id.startsWith('effort.')) ? (
+              <p className={styles.note}>{RATING_WHY_NOTE}</p>
+            ) : null}
             {matched.length === 0 ? (
               <p className={styles.note}>No parameter is recorded for {title ?? rule}.</p>
             ) : (

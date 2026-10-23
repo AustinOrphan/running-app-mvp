@@ -80,6 +80,7 @@ export function state(over: Partial<AthleteState> = {}): AthleteState {
     efficiency: { current: null, trendPct: null, samples: 0 },
     durability: { decouplingMedianPct: null, samples: 0 },
     risk: { recentInjury: false, priorBsi: false, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
+    lowFrequency: false,
     heatAcclimation: 0,
     ...over,
   }

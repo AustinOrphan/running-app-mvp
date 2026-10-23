@@ -67,6 +67,14 @@ export function checkinOn(input: EngineInput, date: string): Checkin | null {
   return row ? checkinOfRow(row) : null
 }
 
+/** Every check-in in the input, in the order of the wellness rows; rows with no check-in field are left out. */
+export function checkinsOf(input: EngineInput): Checkin[] {
+  return input.wellness.flatMap((row) => {
+    const checkin = checkinOfRow(row)
+    return checkin === null ? [] : [checkin]
+  })
+}
+
 function checkinOfRow(row: WellnessRow): Checkin | null {
   const has =
     row.fatigue != null ||
@@ -303,6 +311,10 @@ function recentPain(input: EngineInput, date: string): number | null {
   return worst
 }
 
+/** The clinician checklist of the J8 deload suggestion; the post-race gate reuses it (H12). */
+export const J8_CHECKLIST =
+  'Worth checking with a clinician: energy intake, iron, illness and sleep.'
+
 function redFlagsOn(ctx: Ctx, date: string, streak: number): RedFlag[] {
   const flags: RedFlag[] = []
   if (focalBoneActive(ctx.input, date)) {
@@ -341,7 +353,7 @@ function redFlagsOn(ctx: Ctx, date: string, streak: number): RedFlag[] {
   } else if (streak >= P.j8.deloadSuggestDays.value) {
     flags.push({
       code: 'suppression-deload',
-      message: `Readiness has stayed lower than usual for ${streak} days with no clear explanation. A lighter week may help. Worth checking with a clinician: energy intake, iron, illness and sleep.`,
+      message: `Readiness has stayed lower than usual for ${streak} days with no clear explanation. A lighter week may help. ${J8_CHECKLIST}`,
       rules: ['J8', 'n-6'],
     })
   }

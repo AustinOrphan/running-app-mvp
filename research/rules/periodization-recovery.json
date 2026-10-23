@@ -30,7 +30,7 @@
   },
   {
     "id": "periodization-min-spacing-high-intensity",
-    "statement": "Allow at least 48 h between a high-intensity session and the next hard session; 24-48 h after threshold-intensity work; no spacing needed after easy running. Use the 48 h end for novices or when readiness is low. Evidence reflects autonomic recovery only.",
+    "statement": "Allow at least 48 h between a high-intensity session and the next hard session; 24-48 h after threshold-intensity work; no spacing needed after easy running. Use the 48 h end for novices or when readiness is low. Evidence reflects autonomic recovery only; it does not cover recovery after a race (see the periodization-post-race rules).",
     "parameter": "min_hours_between_quality_sessions",
     "value": "48 (high intensity); 24-48 (threshold)",
     "unit": "hours",
@@ -63,9 +63,9 @@
   },
   {
     "id": "periodization-recovery-week-interval",
-    "statement": "No study compares 3:1 with 2:1 cycles. Default to 3 build weeks plus 1 recovery week, and use 2:1 for novices, older runners, post-injury returns or when a fatigue flag is active. These are conventions, not evidence-based values.",
+    "statement": "No study compares 3:1 with 2:1 cycles. Default to 3 build weeks plus 1 recovery week, and use 2:1 for novices, post-injury returns or when a fatigue flag is active (age alone does not select 2:1, per E3). These are conventions, not evidence-based values.",
     "parameter": "build_weeks_per_recovery_week",
-    "value": "3 (default); 2 (novice, masters, post-injury, flagged)",
+    "value": "3 (default); 2 (novice, post-injury, flagged)",
     "unit": "weeks",
     "appliesTo": "All runners",
     "grade": "D",
@@ -100,16 +100,17 @@
   },
   {
     "id": "periodization-subjective-checkin",
-    "statement": "Collect a brief subjective check-in (fatigue, sleep, soreness, mood, readiness) as a first-class load-adjustment input, weighted at least equal to wearable-derived metrics; do not use mood questionnaires alone to separate overreaching from ordinary fatigue.",
+    "statement": "Collect a brief subjective check-in (fatigue, sleep, soreness, mood, readiness, illness, pain) as a first-class load-adjustment input, weighted at least equal to wearable-derived metrics; do not use mood questionnaires alone to separate overreaching from ordinary fatigue. After a race a normal check-in is not evidence of muscle recovery (soreness and fatigue cleared by day 5 after 161 km while 400 m speed was still 12% slower), so it can delay but never shorten a post-race return.",
     "parameter": "subjective_checkin_frequency",
-    "value": "daily or per run",
+    "value": "daily or per run; daily throughout a post-race window",
     "unit": null,
     "appliesTo": "All runners",
     "grade": "A",
     "confidence": "moderate",
     "evidence": [
       "saw-2016-subjective-vs-objective-monitoring",
-      "roete-2021-functional-overreaching-markers"
+      "roete-2021-functional-overreaching-markers",
+      "hoffman-2017-161km-recovery-determinants"
     ]
   },
   {
@@ -128,7 +129,7 @@
   },
   {
     "id": "periodization-no-hrv-sole-trigger",
-    "statement": "Never use resting HRV, post-exercise HRV or HR recovery alone to trigger or clear a recovery week or to declare good adaptation; they rise in both adaptation and overreaching. Do not use VO2max estimates for overreaching detection.",
+    "statement": "Never use resting HRV, post-exercise HRV or HR recovery alone to trigger or clear a recovery week, to declare good adaptation, or to shorten or advance a post-race return; they rise in both adaptation and overreaching, and after a 100-mile race 24 h HRV was still depressed at 1 week and tracks autonomic state rather than muscle damage. Do not use VO2max estimates for overreaching detection.",
     "parameter": "hrv_as_sole_trigger",
     "value": "disallowed",
     "unit": null,
@@ -138,7 +139,8 @@
     "evidence": [
       "bellenger-2016-autonomic-hr-meta-analysis",
       "roete-2021-functional-overreaching-markers",
-      "nuuttila-2021-intensity-vs-volume-monitoring"
+      "nuuttila-2021-intensity-vs-volume-monitoring",
+      "paech-2021-100mile-hrv"
     ]
   },
   {
@@ -154,7 +156,7 @@
   },
   {
     "id": "periodization-ramp-cap",
-    "statement": "Cap non-recovery-week increases in weekly running distance at about 10% as a conservative default (design choice) and never exceed 30%; the only direct evidence is an exploratory, non-significant novice-runner association. Do not claim injury prevention, and do not use ACWR bands as hard rules; display ACWR only as a descriptive metric if at all.",
+    "statement": "Cap non-recovery-week increases in weekly running distance at about 10% as a conservative default (design choice) and never exceed 30%; the only direct evidence is an exploratory, non-significant novice-runner association. Do not claim injury prevention, and do not use ACWR bands as hard rules; display ACWR only as a descriptive metric if at all. Post-race return steps are a return to an established base and are exempt from the ramp, like the restart floor, but not from the session spike guard.",
     "parameter": "max_weekly_volume_increase",
     "value": "10 (default); 30 (hard ceiling)",
     "unit": "percent week-over-week",
@@ -188,5 +190,196 @@
     "grade": "D",
     "confidence": "moderate",
     "evidence": ["meeusen-2013-overtraining-consensus", "weakley-2022-ots-systematic-review"]
+  },
+  {
+    "id": "periodization-post-race-window-structure",
+    "statement": "Count the post-race window in days from the race (day 0), not in Monday plan weeks; days left in the race week belong to the hold. The window has three stages: a hold without running, 7-day steps of easy running at fractions of the pre-taper reference week, then the normal plan restarted through J7 with the hold length as the layoff.",
+    "parameter": "h12.reducedDays",
+    "value": "hold, then 7-day steps",
+    "unit": "days",
+    "appliesTo": "Every goal race",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "millet-2011-ultramarathon-neuromuscular",
+      "skurka-2017-roche-100-recovery",
+      "irunfar-2014-uhan-ultra-recovery-rules"
+    ]
+  },
+  {
+    "id": "periodization-post-race-marathon-return",
+    "statement": "After a marathon-class race (32-42.2 km): no running on days 0-1; from day 2 (at least 48 h after the finish), up to 3 easy runs in the first 7-day step, on non-consecutive days, each at most 40 min at or below first-threshold heart rate (Z1, conversational). Easy running at this dose did not slow CK or LDH recovery and improved squat-jump recovery at 96 h against rest. The step volume fractions (0.5 then 0.75 of the reference week) are defaults.",
+    "parameter": "h12HoldDays.marathon",
+    "value": "2 days hold; first step at most 3 runs of at most 40 min",
+    "unit": "days; min per run",
+    "appliesTo": "Marathon-class races; recreational runners finishing in about 3-4 h (RCT population)",
+    "grade": "B",
+    "confidence": "moderate",
+    "evidence": [
+      "martinez-navarro-2021-marathon-week-rct",
+      "takayama-2017-marathon-one-week",
+      "bernat-adell-2021-marathon-biomarkers"
+    ]
+  },
+  {
+    "id": "periodization-post-race-ultra-hold",
+    "statement": "Hold running after an ultra for 4 days (50 km class, above 42.2 to 80.5 km), 7 days (100 km class, to 130 km), 10 days (100-mile class, to 170 km) or 14 days (beyond 170 km). These are defaults: the 100-mile value follows the one-day-per-10-miles convention and sits inside the measured time course (neuromuscular function mostly back by day 9, fully by day 16 after 166 km; 400 m speed still 12% down at day 5 after 161 km); damage did not scale with distance up to 330 km, so the 14-day value for longer events is a judgement cap. Walking and light cross-training are allowed during the hold.",
+    "parameter": "h12HoldDays",
+    "value": "ultra50 4; ultra100k 7; ultra100mi 10; beyond 14",
+    "unit": "days",
+    "appliesTo": "Ultra goal races by D1 class",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "millet-2011-ultramarathon-neuromuscular",
+      "hoffman-2017-161km-recovery-determinants",
+      "irunfar-2014-uhan-ultra-recovery-rules",
+      "skurka-2017-roche-100-recovery",
+      "saugy-2013-330km-neuromuscular",
+      "besson-2020-single-vs-multistage-ultra",
+      "easthope-2010-trail55km-masters"
+    ]
+  },
+  {
+    "id": "periodization-post-race-light-activity",
+    "statement": "During the hold, walking and light non-impact activity are allowed and need not be planned; light activity in the week after a 118 km mountain race was not linked to worse marker recovery (observational), and elliptical work did not slow recovery after a marathon.",
+    "parameter": null,
+    "value": "allowed",
+    "unit": null,
+    "appliesTo": "All post-race holds",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "martinez-navarro-2021-118km-inflammation-activity",
+      "martinez-navarro-2021-marathon-week-rct",
+      "cts-2025-koop-ultra-recovery"
+    ]
+  },
+  {
+    "id": "periodization-post-race-return-steps",
+    "statement": "After the hold, return through 7-day steps of easy running capped at fractions of the pre-taper reference week: 0.5 then 0.75 for marathon and 50 km classes; 0.25, 0.5 then 0.75 for the 100 km class and longer. Run caps: first step at most 3 runs on non-consecutive days, each at most 40 min, no gain target; second step runs at most 60 min, short uphills allowed; later steps longest run at most 90 min. All running in Z1. Races of 5 km to half marathon keep the existing single 7-day step at 0.5. Fractions and caps are defaults except the marathon first step (see periodization-post-race-marathon-return).",
+    "parameter": "macroDesign.postRaceLongFractions",
+    "value": "marathon/50 km: [0.5, 0.75]; 100 km and longer: [0.25, 0.5, 0.75]; caps 40/60/90 min",
+    "unit": "fraction of reference week; min per run",
+    "appliesTo": "Marathon and ultra goal races",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "skurka-2017-roche-100-recovery",
+      "cts-2025-koop-ultra-recovery",
+      "irunfar-2016-powell-post-100-return",
+      "irunfar-2014-uhan-ultra-recovery-rules",
+      "millet-2011-ultramarathon-neuromuscular"
+    ]
+  },
+  {
+    "id": "periodization-post-race-no-intensity",
+    "statement": "Plan no intervals, threshold, race-pace, strides, plyometric or downhill sessions until every return step has ended (marathon from day 16, 50 km class day 18, 100 km class day 28, 100 miles day 31, beyond day 35, later with modifiers or gate extensions). Speed and jump power recover more slowly than soreness and aerobic capacity, CRP stays raised beyond 8 days after a marathon, and eccentric load drives damage.",
+    "parameter": "rule-only",
+    "value": "no quality until the steps end",
+    "unit": null,
+    "appliesTo": "Marathon and ultra goal races",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "hoffman-2017-161km-recovery-determinants",
+      "petersen-2007-marathon-muscle-mechanics",
+      "bernat-adell-2021-marathon-biomarkers",
+      "millet-2011-ultramarathon-neuromuscular",
+      "garciavaliente-2026-trail-damage-review"
+    ]
+  },
+  {
+    "id": "periodization-post-race-modifiers",
+    "statement": "Multiply the hold by 1.5, rounded up, once (not cumulatively) when any of these applies: the race descended at least 30 m per km, the runner is 40 or older, or the race history shows no earlier finish in this distance class. Eccentric load, masters age and first-time 100-mile racing go with slower or riskier recovery; the threshold and multiplier are defaults.",
+    "parameter": "h12.modifierMultiplier",
+    "value": "1.5 (descent >= 30 m/km, age >= 40, first finish in class)",
+    "unit": "multiplier on hold days",
+    "appliesTo": "Marathon and ultra goal races",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "garciavaliente-2026-trail-damage-review",
+      "easthope-2010-trail55km-masters",
+      "irunfar-2014-uhan-ultra-recovery-rules",
+      "skurka-2017-roche-100-recovery",
+      "irunfar-2023-torrence-post-ultra-downtime",
+      "millet-2011-ultramarathon-neuromuscular"
+    ]
+  },
+  {
+    "id": "periodization-post-race-checkin-gate",
+    "statement": "In the post-race window, check-ins can only delay the return. A stage (hold to first step, step to step, last step to the normal plan) advances only when the last 2 check-ins before the boundary are not poor and report no pain or illness; otherwise the boundary moves one day at a time. A normal check-in never shortens the hold or skips a step. Without ratings the default schedule runs unchanged and the app says that ratings are needed for adjustments. After 14 days of extension, show the J8 clinician checklist. The direction (subjective measures first, delay only) is grade B; the count of 2 and the 14 days are defaults, so the parameters carry grade D.",
+    "parameter": "h12.advanceCleanCheckins",
+    "value": "2",
+    "unit": "check-ins",
+    "appliesTo": "All post-race windows; runners who rate",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "hoffman-2017-161km-recovery-determinants",
+      "saw-2016-subjective-vs-objective-monitoring",
+      "takayama-2017-marathon-one-week",
+      "cts-2025-koop-ultra-recovery"
+    ]
+  },
+  {
+    "id": "periodization-post-race-own-baseline",
+    "statement": "When the runner has at least 14 check-ins in the 28 days before the race, a post-race check-in is also poor when it is worse than the runner's own pre-race median by the J2 margin; a check-in poor by either the fixed scale or the own baseline counts as poor, so the comparison can only add caution. The direction is grade C; the count of 14 is a default, so the parameter carries grade D.",
+    "parameter": "h12.ownBaselineMinCheckins",
+    "value": "14",
+    "unit": "check-ins in the 28 days before the race",
+    "appliesTo": "Runners with a pre-race check-in history",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "gaudino-2019-recovery-stress-ultra",
+      "saw-2016-subjective-vs-objective-monitoring"
+    ]
+  },
+  {
+    "id": "periodization-post-race-wearables",
+    "statement": "HRV and resting HR keep their J3 and J4 roles in the post-race window: they can delay a run or a stage, never advance one. Expect HRV below baseline for more than a week after a 100-mile race and say so; do not treat HRV as a measure of muscle recovery.",
+    "parameter": "rule-only",
+    "value": "delay only",
+    "unit": null,
+    "appliesTo": "Runners with wearable HRV or resting HR",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "paech-2021-100mile-hrv",
+      "martinez-navarro-2019-118km-cardiac-hrv",
+      "tiller-2025-ultramarathon-muscle-damage",
+      "bellenger-2016-autonomic-hr-meta-analysis"
+    ]
+  },
+  {
+    "id": "periodization-post-race-pain-illness",
+    "statement": "Ask about pain and illness daily through the post-race window. Pain that changes gait or focal bone pain applies red flags n1/n2 and holds the current stage; illness applies n3. Do not lengthen holds on immune 'open window' grounds; a runner who reported illness in the 3 weeks before the race gets caution copy (post-race infection 33% vs 16%).",
+    "parameter": "rule-only",
+    "value": "n1-n3 apply; caution copy after pre-race illness",
+    "unit": null,
+    "appliesTo": "All post-race windows",
+    "grade": "C",
+    "confidence": "moderate",
+    "evidence": [
+      "ekblom-2006-infection-marathon",
+      "irunfar-2023-torrence-post-ultra-downtime",
+      "irunfar-2016-powell-post-100-return"
+    ]
+  },
+  {
+    "id": "periodization-post-race-spike-reference",
+    "statement": "A completed race of marathon distance or longer (42.195 km or more) does not count toward the 30-day reference, in the check and in the generator alike; shorter races count as runs. Otherwise a 100-mile finish would allow training runs up to 1.10 times the race. The reference falls back to the longest remaining completed run of the 30 days.",
+    "parameter": "rule-only",
+    "value": "races of 42.195 km or more excluded from the 30-day reference",
+    "unit": null,
+    "appliesTo": "The G-1 check and the generator, after a marathon or longer race",
+    "grade": "D",
+    "confidence": "moderate",
+    "evidence": [
+      "hoffman-2017-161km-recovery-determinants",
+      "millet-2011-ultramarathon-neuromuscular"
+    ]
   }
 ]

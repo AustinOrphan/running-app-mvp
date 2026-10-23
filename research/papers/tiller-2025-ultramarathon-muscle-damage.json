@@ -1,0 +1,33 @@
+{
+  "id": "tiller-2025-ultramarathon-muscle-damage",
+  "title": "Decoding Ultramarathon: Muscle Damage as the Main Impediment to Performance",
+  "authors": "Tiller NB, Millet GY",
+  "year": 2025,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-024-02127-9",
+  "pmid": "39405022",
+  "url": "https://doi.org/10.1007/s40279-024-02127-9",
+  "design": "narrative-review",
+  "population": "Current Opinion on ultramarathon physiology (events 50 to 5000 km); no new participants",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Authors argue that muscle damage and associated fatigue is the main impediment to performance in long ultramarathons, more performance-limiting than aerobic capacity, running economy or gastrointestinal distress.",
+    "They propose a lab protocol of downhill running with pre- to post-exercise contractile measures (electrical or magnetic stimulation of the quadriceps or central nerves), muscle damage biomarkers (CK, LDH, myoglobin) and muscle imaging.",
+    "They close with training and racing advice on mitigating the deleterious effects of muscle damage; the abstract gives no recovery-duration numbers."
+  ],
+  "limitations": "Expert opinion without new data; abstract only (full text not read); about performance limitation during races, not post-race recovery; year is the print year (Sports Med 2025;55), online 2024-10-15.",
+  "implications": [
+    "Gives a rationale, by extrapolation, for basing the post-race hold and return on muscle-damage recovery (impact load, downhill, repeated loading) and not on aerobic or cardiovascular signals, which is why HRV and resting HR can only be advisory.",
+    "Not a source of numbers: do not cite for any day count or fraction."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (online 2024-10-15, Tiller and Millet) and Europe PMC abstract (PMID 39405022, Review, pubYear 2025) re-read. Second author is Millet GY (Guillaume), corrected from GP. Added the limitation that the paper concerns in-race performance, not post-race recovery.",
+    "checkedAt": "2026-10-22"
+  }
+}

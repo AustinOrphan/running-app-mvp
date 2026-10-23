@@ -1,0 +1,37 @@
+{
+  "id": "garciavaliente-2026-trail-damage-review",
+  "title": "Muscle, Neuromuscular, and Cardiac Damage in Trail Running: A Systematic Review",
+  "authors": "García-Valiente I, Pradas F, Ortega-Zayas MÁ, Castellar-Otín C, García-Giménez A, Lecina M",
+  "year": 2026,
+  "journal": "Muscles",
+  "doi": "10.3390/muscles5010009",
+  "pmid": "41718076",
+  "url": "https://doi.org/10.3390/muscles5010009",
+  "design": "systematic-review",
+  "population": "Healthy adolescent and adult runners across 15 observational, longitudinal, prospective and case studies in the review's tables: mostly 30 km to about 220 km trail and ultra events, plus a 330 km race, a 768 km multi-stage case study (n=4), a 48 and 66 km adventure-race study in young athletes, and a 30-min lab downhill treadmill run (Coratella 2024); female athletes underrepresented",
+  "sampleSize": 247,
+  "evidenceLevel": "B",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "PRISMA 2020 systematic review, PROSPERO CRD420251135043; five databases searched to 31 Aug 2025; 15 studies, 247 participants in total; synthesis was qualitative only, with no pooled estimate or meta-analysis.",
+    "Abstract: post-race analyses consistently showed marked increases in muscle damage biomarkers (CK, ALT) and significant reductions in neuromuscular performance (squat jump, knee-extensor MVIC); the conclusion is that stress is substantial, particularly in events with high eccentric loading.",
+    "Abstract: transient elevations in cardiac biomarkers (CK-MB, troponins, NT-proBNP) suggest acute but reversible cardiac stress. Example from the review's table (Birat 2020, adventure races of 48.2 and 66 km): cTnI 0.004 pre, 0.143 post, 0.033 at 24 h, 0.013 at 48 h ng/mL.",
+    "Time-course values the review tabulates from primary studies (not independently checked against those studies): Rubio-Arias 2019 CK after a 54 km race was 886.6 pre (SD 2187.9, an odd value), 2214 post, 1015 at 24 h, 496 at 48 h and 309 U/L at 72 h; after a 111 km race, 6174 pre, 8976 post, 2133 at 24 h, 1278 at 48 h and 604 U/L at 72 h. In both, 72 h CK was below the tabulated pre-race mean, so the table does not show CK still above baseline at 72 h.",
+    "Lecina 2022 (768 km multi-stage case study, n=4): CK 98.5 pre, 974 post, 475 at 48 h and 88 U/L at 9 days, but ALT stayed elevated at 9 days (208 vs 17 U/L pre). Birat 2020: squat jump was still depressed 48 h after the race (the review's text). The review cites Coratella 2024 for about an 18% fall in knee-extensor MVIC; that study was a 30-min downhill treadmill run, not a race.",
+    "Authors cite methodological heterogeneity, small samples and underrepresentation of female athletes as limits, and conclude that monitoring biochemical and neuromuscular markers may support training load optimisation, recovery strategies and injury prevention."
+  ],
+  "limitations": "Qualitative synthesis with no pooled time-course; included studies are mostly single small cohorts and case studies of widely varying distance (30 km lab run to 768 km), so the table values cannot be read as one race-distance time course. The review does not cover HRV, resting HR, immune markers, running economy or return-to-running protocols. Abstract and PMC full text were read; the quoted table values are the review's report of the primary studies and were not checked against them. It does not test the 7/15/22-day tier timings.",
+  "implications": [
+    "Supports a conservative no-intensity, reduced-impact window after trail ultras. It does not validate day 15 and day 22 intensity re-entry points: the review has no pooled recovery duration, so those points rest on other time-course cohorts and judgement (grade C or D).",
+    "Marker data suggest CK returns near baseline within 72 h to 9 days in the tabulated studies (the 9-day value comes from a single 768 km case study, n=4, and ALT was still elevated then), while neuromuscular deficits can persist beyond 48 h. The app cannot measure CK or jump height, so a symptom check-in cannot confirm tissue recovery. Keep check-ins as cautious-only gates that can hold or extend a step, never release one early (a design inference, not tested by the review).",
+    "The review's conclusion that damage is largest in events with high eccentric loading supports a downhill-heavy race modifier (elevation loss per km) at grade C."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (title, Muscles, issued 2026-01-29, first author García-Valiente) and the Europe PMC core abstract (PMID 41718076), then the PMC12921809 full-text XML and searched its tables. Birat cTnI values, Rubio-Arias CK values (post/24/48/72 h), Lecina CK values and Birat SJ-at-48 h text were confirmed. Corrected: the original claim that CK at 72 h was above the 54 km pre-race level is wrong (table pre-race mean 886.6 vs 309 at 72 h); Coratella's 18% MVIC fall is from a 30-min downhill treadmill run; the included studies extend to 330 km and 768 km, not just 45 to 100 km+; ALT remained elevated at 9 days in Lecina, so 'CK normalises by 9 days' is a single n=4 case study. Table cell mapping is the review's, not checked against primary studies.",
+    "checkedAt": "2026-10-22"
+  }
+}

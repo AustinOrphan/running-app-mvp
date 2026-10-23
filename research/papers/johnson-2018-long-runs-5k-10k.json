@@ -1,0 +1,34 @@
+{
+  "id": "johnson-2018-long-runs-5k-10k",
+  "title": "Long Runs Are Not Just For Marathoners (Jay Johnson)",
+  "authors": "Johnson J",
+  "year": 2018,
+  "journal": "Active.com",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.active.com/running/articles/long-runs-are-not-just-for-marathoners",
+  "design": "book-or-guideline",
+  "population": "Recreational 5K to marathon runners; author is a former University of Colorado collegiate coach who has coached U.S. national champions",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["volume-performance"],
+  "findings": [
+    "5K goal: at least five miles on the long run, progressing up to 10 miles for the more serious runner chasing a 5K PR.",
+    "10K goal: minimum of seven to eight miles; a serious 10K runner should aim for a maximum of 10 miles.",
+    "Half marathon: about 10 miles for a 'just finish' goal, around 16 miles for serious runners; marathon at least 18 miles, up to 22.",
+    "No minutes and no percentage of weekly mileage are given; the page shows an updated date of 2 January 2018."
+  ],
+  "limitations": "Coaching opinion; distances only (no time or weekly share); the 5K maximum of 10 miles is for serious recreational runners. Convention, not evidence.",
+  "implications": [
+    "Coach-level ceilings of about 10 miles (roughly 90-100 min at easy pace, estimate) for both 5K and 10K goals are the upper bound for the high-volume tier; engine caps below this are conservative.",
+    "The 5-mile floor for 5K (about 45-50 min, estimate) and 7-8 miles for 10K (about 65-80 min, estimate) suggest medium-tier values near 45-60 min for 5K and 60-75 min for 10K; these are the auditor's pace conversions, not stated by the source."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched active.com page 2026-10-22: minimum and maximum miles for 5K, 10K, half marathon and marathon, 'Updated January 2, 2018' and the University of Colorado / national champions bio confirmed. Pace conversions flagged as estimates. Published coaching convention, not evidence.",
+    "checkedAt": "2026-10-22"
+  }
+}

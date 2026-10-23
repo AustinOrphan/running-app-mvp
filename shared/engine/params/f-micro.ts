@@ -150,13 +150,13 @@ export const fMicro = {
     ),
     runWalkWeeks: param(
       'flib.runWalkWeeks',
-      6,
+      9,
       'D',
       'F-lib',
       ['kluitenberg-2015-nlstart2run', 'hottenrott-2016-run-walk-marathon'],
       {
         unit: 'weeks',
-        note: 'Default: novice run-walk programme lasts 6 weeks.',
+        note: 'Default: the novice run-walk ladder (E6) has nine rungs, one plan week each; a repeated rung makes it longer.',
       },
     ),
     runWalkRunUnits: param(
@@ -167,7 +167,7 @@ export const fMicro = {
       ['kluitenberg-2015-nlstart2run', 'hottenrott-2016-run-walk-marathon'],
       {
         unit: 'parts run',
-        note: 'Default: run:walk ratio 1:2, run part.',
+        note: 'Default: run:walk ratio 1:2, run part; the ratio of rung 1 of the novice ladder (E6), which holds the other rungs as data.',
       },
     ),
     runWalkWalkUnits: param(
@@ -178,7 +178,7 @@ export const fMicro = {
       ['kluitenberg-2015-nlstart2run', 'hottenrott-2016-run-walk-marathon'],
       {
         unit: 'parts walk',
-        note: 'Default: run:walk ratio 1:2, walk part.',
+        note: 'Default: run:walk ratio 1:2, walk part; the ratio of rung 1 of the novice ladder (E6), which holds the other rungs as data.',
       },
     ),
   },
@@ -257,10 +257,21 @@ export const fMicro = {
     ),
   },
   f5: {
-    noviceRunDays: param('f5.noviceRunDays', 3, 'D', 'F5', ['kluitenberg-2015-nlstart2run'], {
-      unit: 'days per week',
-      note: 'Default: novices run 3 non-consecutive days per week; the rule gives no grade.',
-    }),
+    noviceRunDays: param(
+      'f5.noviceRunDays',
+      3,
+      'D',
+      'F5',
+      [
+        'kluitenberg-2015-nlstart2run',
+        'pollock-1977-frequency-duration-injury',
+        'kluitenberg-2016-nlstart2run-training-factors',
+      ],
+      {
+        unit: 'days per week',
+        note: 'Default: novices and runners in the start weeks run at most 3 non-consecutive days per week (2 by choice). The ceiling has trial direction (three days had fewer injuries than five in a 1977 trial; three versus two was not significant), so the grade stays D.',
+      },
+    ),
     fourDaysFromWeeklyMin: param('f5.fourDaysFromWeeklyMin', 180, 'D', 'F5', [], {
       unit: 'min per week',
       note: 'Default: from 3 h of weekly running at least 4 run days when the days are available.',

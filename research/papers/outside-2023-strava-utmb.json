@@ -1,0 +1,37 @@
+{
+  "id": "outside-2023-strava-utmb",
+  "title": "What Strava Data Tells Us About How Runners Train for UTMB (Outside Online, 31 Aug 2023)",
+  "authors": "Rom Z",
+  "year": 2023,
+  "journal": "Outside Online (also Trail Runner Magazine)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.outsideonline.com/running/strava-data-utmb/",
+  "design": "book-or-guideline",
+  "population": "UTMB 2022 runners analysed on Strava (2,300-plus runners, 68% finished); number analysed and test method not stated.",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["ultra-training"],
+  "findings": [
+    "Finishers and non-finishers had no statistically significant training difference, 'nearly identical across all measures including training volume, vertical feet accumulated, and median longest run'; test method and sample not stated.",
+    "Over a 24-week cycle: 931 miles, 140 hours and more than 130,000 ft of gain (38 miles per week, just under 6 hours per week); average start about 30 miles per week building to a peak week averaging 79 miles (majority 66-97), usually three weeks before the race, with 16,000 ft of gain.",
+    "39% had a longest run of 100K or more, 62% a run over 50 miles, 24% more than one run of 50 miles or longer; 57% raced in the build.",
+    "Controlling for very long runs and races, the median long run in the two months before the race was 14 miles; the median number of weeks with a 20-mile or longer run was six.",
+    "The article says 100-mile training recommendations are 'trending towards not overemphasizing the long run which risks injury, and has diminishing returns' (an assertion without data) and cites Courtney Dauwalter (exact data not public) as doing long runs of three to four hours for UTMB 2022, seeing that the cost of going over five hours outweighed the benefit. 2023 finishing rates: Western States 81%, Leadville 43%.",
+    "Back-to-backs are not mentioned."
+  ],
+  "limitations": "Strava self-selected sample, no analysed sample size or test details, not peer reviewed, race efforts inflate longest-run figures, a null difference does not establish no effect.",
+  "implications": [
+    "The only finisher vs non-finisher comparison found at scale shows no separation by median longest run, so no longest-run threshold is supported as associated with finishing at about 100 miles; keep feasibility numbers as defaults, not requirements.",
+    "Observed longest runs (62% over 50 miles, including races) are far above a 6 h cap, but the median non-race long run of 14 miles and Dauwalter's 3-5 h bound support a cap well below the 6-7 h in the Orton article; treat the cap at the lesser of 6 h or 60% of expected race time as a conservative default, grade D.",
+    "Average training of about 6 h per week over 24 weeks with a peak of about 79 miles gives a time-on-feet context for weekly ceilings."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched https://www.outsideonline.com/running/strava-data-utmb/ (published 2023-08-31, byline Zoë Rom) and checked all figures (68% of 2,300-plus, 931 mi, 140 h, 38 mi/wk, 30 to 79 mi, 66-97, 16,000 ft, 39%, 62%, 24%, 57%, 14 miles, six weeks, Dauwalter, 81%/43%). Set sampleSize to null because the page gives only the starter count, not the analysed N. Added that the 'long run risks injury' line is the article's assertion, not data. Reworded the cap implication, which overstated consistency. Practice source, grade D. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

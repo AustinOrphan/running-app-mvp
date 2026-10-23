@@ -1,0 +1,34 @@
+{
+  "id": "irunfar-2014-uhan-ultra-recovery-rules",
+  "title": "Recover Better: 10 Rules For Optimal Ultramarathon Recovery (iRunFar, 2014-09-09)",
+  "authors": "Uhan J",
+  "year": 2014,
+  "journal": "iRunFar",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.irunfar.com/recover-better-10-rules-for-optimal-ultramarathon-recovery",
+  "design": "book-or-guideline",
+  "population": "Coach and physical therapist guidance for ultramarathon recovery",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Rule 2: one day off running for every 10 miles raced (credited on the page to Pam Smith); for a heavy-vertical or high-altitude race, one day off for every 10 kilometres raced. Derived, not stated: 100 miles gives about 10 days by the miles rule, about 16 days by the km rule, and 50 km (about 31 miles) about 3 days.",
+    "Rule 3: commit to rest and recovery for a finite period of time, fixed in advance.",
+    "Rule 6: sleep one extra hour per night for every 10 miles raced, and for at least 10 days after a 100-mile race (as summarised on the page).",
+    "Rule 9: have the stride checked before resuming. Rule 10: start easy and slow; Pam Smith is quoted suggesting reversing taper mileage without the speed work, i.e. rebuilding weekly mileage before speed work."
+  ],
+  "limitations": "One practitioner's rule of thumb quoted from another coach; derived day counts for 50 km and 100 miles are the reader's arithmetic, not on the page; no data cited; the Rule 6 wording is ambiguous in the summary fetched.",
+  "implications": [
+    "A distance-scaled hold rule exists in convention: about 10 days (miles rule) or about 16 days (km rule, hilly) off after a 100-mile race, about 3 days after 50 km, which is a useful comparator for the engine's own holds.",
+    "The return shape is the reverse of a taper, easy, no speed, mileage before intensity; consistent with the engine's low-intensity return."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the page twice (WebFetch): author Joe Uhan, 'September 9, 2014'; rules 2, 3, 6, 9 and 10 and the Pam Smith attributions confirmed. Derived day counts kept and marked derived. Rule 6 sleep wording flagged as ambiguous. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

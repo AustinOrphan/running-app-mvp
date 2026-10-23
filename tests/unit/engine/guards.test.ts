@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { applyGuards, nextWeekCap } from '../../../shared/engine/guards.ts'
+import {
+  completedReference,
+  countsTowardReference,
+  referenceAt,
+  runCaps,
+  twoDayReference,
+  weeklyGain,
+} from '../../../shared/engine/limits.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { SessionSpec } from '../../../shared/engine/types.ts'
-import type { WeekRow } from '../../../shared/types.ts'
+import type { Activity, WeekRow } from '../../../shared/types.ts'
 import { run, session, state } from './e6-fixtures.ts'
 
 // asOf is Sunday 2026-11-01; the plan starts Monday 2026-11-02.
@@ -192,6 +200,16 @@ describe('applyGuards: session spike guard (G-1)', () => {
     expect(flags({ gainM: 301 })).toEqual(['spike-warn'])
     expect(P.g1.minStepDistanceM.value).toBe(500)
     expect(P.h4.minStepGainM.value).toBe(100)
+    // duration has its own minimum step, so a return built on 5-min runs can rise
+    expect(P.g1.minStepMin.value).toBe(3)
+    const tinyRef = state({
+      longest30d: { distanceM: 800, durationSec: 300, gainM: 0, lossM: 0, twoDaySec: 0 },
+    })
+    const minutes = (durationMin: number) =>
+      applyGuards([session({ date: '2026-11-03', durationMin, distanceM: null })], tinyRef, [])
+        .sessions[0]!.flags
+    expect(minutes(8)).toEqual([])
+    expect(minutes(9)).toEqual(['spike-warn'])
   })
 
   it('uses the history, within the 30 days before the run, completed runs only', () => {
@@ -211,6 +229,124 @@ describe('applyGuards: session spike guard (G-1)', () => {
       run('2026-10-20', 300, { duplicateOfId: 'x', duplicateStatus: 'confirmed' }),
     ]
     expect(applyGuards(planned(300), state(), unfinished).sessions[0]!.flags).toEqual([])
+  })
+
+  describe('races in the 30-day reference [rules g-1]', () => {
+    const planned = (durationMin: number) => [
+      session({ date: '2026-11-03', kind: 'long', durationMin }),
+    ]
+    const flags = (history: Activity[], durationMin: number) =>
+      applyGuards(planned(durationMin), state(), history).sessions[0]!.flags
+
+    it('does not let a 100-mile race 10 days ago raise the reference', () => {
+      const history = [
+        run('2026-10-10', 60, { distanceKm: 10 }),
+        run('2026-10-22', 1800, { type: 'race', distanceKm: 161 }),
+      ]
+      // 1.10 x 60 min = 66 min; the 30 h race would allow a run of 33 h
+      expect(flags(history, 66)).toEqual([])
+      expect(flags(history, 67)).toEqual(['spike-warn'])
+      expect(flags(history, 3000)).toEqual(['override-required'])
+    })
+
+    it('lets a 10 km race raise the reference like any other run', () => {
+      const history = [
+        run('2026-10-10', 40, { distanceKm: 8 }),
+        run('2026-10-22', 50, { type: 'race', distanceKm: 10 }),
+      ]
+      expect(flags(history, 55)).toEqual([])
+      expect(flags(history, 56)).toEqual(['spike-warn'])
+    })
+
+    it('draws the line at the marathon distance and counts a race without distance', () => {
+      const race = (distanceKm: number | undefined) => [
+        run('2026-10-10', 60, { distanceKm: 10 }),
+        run('2026-10-22', 240, { type: 'race', distanceKm }),
+      ]
+      const longest = (history: Activity[]) =>
+        referenceAt(completedReference(history, state()).runs, '2026-11-03').min
+      expect(P.g1.referenceRaceMaxM.value).toBe(42_195)
+      expect(longest(race(42.194))).toBe(240)
+      expect(longest(race(42.195))).toBe(60)
+      expect(longest(race(50))).toBe(60)
+      expect(longest(race(undefined))).toBe(240)
+    })
+
+    it('counts a race without a distance only up to 4 h, so a long ultra is no reference run', () => {
+      const hours = P.g1.referenceRaceMaxHours.value
+      expect(hours).toBe(4)
+      expect(P.g1.referenceRaceMaxHours.grade).toBe('D')
+      expect(P.g1.referenceRaceMaxHours.note).toMatch(/default/i)
+      const race = (durationMin: number) =>
+        run('2026-10-22', durationMin, { type: 'race', distanceKm: undefined })
+      expect(countsTowardReference(race(60))).toBe(true)
+      expect(countsTowardReference(race(240))).toBe(true)
+      expect(countsTowardReference(race(241))).toBe(false)
+      // a race with a distance is judged by the distance, whatever its duration
+      expect(countsTowardReference(run('2026-10-22', 1200, { type: 'race', distanceKm: 10 }))).toBe(
+        true,
+      )
+      // the cap that a 20-hour race logged without a distance would have set: 22 hours
+      const history = [run('2026-10-24', 30, { distanceKm: 5 }), race(1200)]
+      const caps = runCaps(referenceAt(completedReference(history, state()).runs, '2026-11-03'))
+      expect(caps.min).toBe(Math.floor(30 * 1.1 + 1e-9))
+      const short = [run('2026-10-24', 30, { distanceKm: 5 }), race(180)]
+      expect(runCaps(referenceAt(completedReference(short, state()).runs, '2026-11-03')).min).toBe(
+        Math.floor(180 * 1.1 + 1e-9),
+      )
+    })
+
+    it('keeps a long race out of the largest 2-day total', () => {
+      const history = [
+        run('2026-10-10', 60, { distanceKm: 10 }),
+        run('2026-10-22', 600, { type: 'race', distanceKm: 100 }),
+      ]
+      const { runs, virtualTwoDay } = completedReference(history, state())
+      expect(runs.map((r) => r.min)).toEqual([60])
+      expect(twoDayReference(runs, virtualTwoDay, '2026-11-03')).toBe(60)
+    })
+  })
+
+  describe('duplicates in the reference [rules g-1]', () => {
+    const base = run('2026-10-10', 60, { distanceKm: 10, elevationGainM: 100, elevationLossM: 100 })
+    // the owner dismissed the duplicate flag: the run stays, with the id of its look-alike
+    const dismissed = run('2026-10-24', 150, {
+      distanceKm: 25,
+      elevationGainM: 400,
+      elevationLossM: 400,
+      duplicateOfId: 'other',
+      duplicateStatus: 'dismissed',
+    })
+    const flagged = (status: 'possible' | 'confirmed') => ({
+      ...dismissed,
+      id: `${dismissed.id}-${status}`,
+      duplicateStatus: status,
+    })
+    const longest = (history: Activity[]) =>
+      referenceAt(completedReference(history, state()).runs, '2026-11-03')
+
+    it('counts a dismissed duplicate as a run, like the athlete state does', () => {
+      expect(longest([base, dismissed])).toMatchObject({ min: 150, distanceM: 25000, gainM: 400 })
+      expect(runCaps(longest([base, dismissed])).min).toBe(165)
+    })
+
+    it('leaves a possible or a confirmed duplicate out', () => {
+      expect(longest([base, flagged('possible')]).min).toBe(60)
+      expect(longest([base, flagged('confirmed')]).min).toBe(60)
+    })
+
+    it('counts a dismissed duplicate alone, from the history and not from the state maxima', () => {
+      const alone = completedReference([dismissed], state())
+      expect(alone.runs.map((r) => r.min)).toEqual([150])
+      expect(alone.virtualTwoDay).toEqual([])
+    })
+
+    it('counts the climbing of a dismissed duplicate in the weekly gain', () => {
+      const week = mondayOf('2026-10-24')
+      expect(weeklyGain([base, dismissed]).get(week)).toBe(400)
+      expect(weeklyGain([base, flagged('confirmed')]).get(week)).toBeUndefined()
+      expect(weeklyGain([base, flagged('possible')]).get(week)).toBeUndefined()
+    })
   })
 
   it('compares gain with a flat history, and says so when no run records gain', () => {
@@ -667,7 +803,7 @@ describe('applyGuards: restart floor', () => {
 
   it('exempts the floor week from G-2, says so, and holds the weeks after it to the ramp', () => {
     const plan = floorPlan()
-    const result = applyGuards(plan, sparse(), [], { restartFloor: FLOOR })
+    const result = applyGuards(plan, sparse(), [], { startPath: FLOOR })
     expect(weekMinutes(result.sessions, '2026-11-02')).toBe(weekMinutes(plan, '2026-11-02'))
     expect(result.warnings.find((w) => w.code === 'restart-floor')?.severity).toBe('info')
     // the floor week is the ceiling baseline of the week after it
@@ -679,7 +815,7 @@ describe('applyGuards: restart floor', () => {
   it('does not exempt the floor week without the option, nor anything above the floor', () => {
     const plain = applyGuards(floorPlan(), sparse(), [])
     expect(weekMinutes(plain.sessions, '2026-11-02')).toBeLessThanOrEqual(39)
-    const above = applyGuards(planWeek('2026-11-02', 100), sparse(), [], { restartFloor: FLOOR })
+    const above = applyGuards(planWeek('2026-11-02', 100), sparse(), [], { startPath: FLOOR })
     expect(weekMinutes(above.sessions, '2026-11-02')).toBeLessThanOrEqual(60)
   })
 
@@ -687,8 +823,112 @@ describe('applyGuards: restart floor', () => {
     const history = [run('2026-10-28', 35)]
     const plan = [session({ date: '2026-11-03', kind: 'long', durationMin: 80 })]
     const result = applyGuards(plan, sparse(), history, {
-      restartFloor: { weekStart: '2026-11-02', minutes: 80 },
+      startPath: { weekStart: '2026-11-02', minutes: 80 },
     })
     expect(result.sessions[0]!.flags).toContain('override-required')
+  })
+})
+
+describe('applyGuards: post-race return weeks (H12)', () => {
+  const st = () => withWeeks([200, 200, 200])
+
+  it('leaves an exempt week above the ramp as planned, and cuts the same week otherwise', () => {
+    const plan = planWeek('2026-11-02', 400)
+    const exempt = applyGuards(plan, st(), [], { exemptWeeks: ['2026-11-02'] })
+    expect(weekMinutes(exempt.sessions, '2026-11-02')).toBe(weekMinutes(plan, '2026-11-02'))
+    expect(exempt.warnings.some((w) => w.code.startsWith('ramp'))).toBe(false)
+    const cut = applyGuards(plan, st(), [])
+    expect(weekMinutes(cut.sessions, '2026-11-02')).toBeLessThan(weekMinutes(plan, '2026-11-02'))
+  })
+
+  it('still applies the session spike guard (G-1) in an exempt week', () => {
+    const history = [run('2026-10-28', 35)]
+    const plan = [session({ date: '2026-11-03', kind: 'long', durationMin: 80 })]
+    const result = applyGuards(plan, st(), history, { exemptWeeks: ['2026-11-02'] })
+    expect(result.sessions[0]!.flags).toContain('override-required')
+  })
+})
+
+describe('applyGuards: ladder weeks [rules E6, g-2]', () => {
+  const FIRST = { weekStart: '2026-11-02', minutes: 63, kind: 'ladder' as const }
+  const EXEMPT = new Map<string, 'soft'>([
+    ['2026-11-09', 'soft'],
+    ['2026-11-16', 'soft'],
+  ])
+  const sparse = () => withWeeks([0, 30, 28], { typicalWeekMin: 27 })
+  /** Three run-walk sessions of `each` minutes on Tuesday, Thursday and Saturday. */
+  const ladderWeek = (weekStart: string, each: number) =>
+    [1, 3, 5].map((d) =>
+      session({ date: addDays(weekStart, d), durationMin: each, flags: ['run-walk'] }),
+    )
+  const plan = (second: number, third: number) => [
+    ...ladderWeek('2026-11-02', 21),
+    ...ladderWeek('2026-11-09', second),
+    ...ladderWeek('2026-11-16', third),
+  ]
+
+  it('warns of a step above the soft 10% only outside the ladder weeks', () => {
+    // 63 -> 75 min is +19%: over the soft step, under the 30% ceiling
+    const rise = plan(21, 25)
+    const exempt = applyGuards(rise, sparse(), [], { startPath: FIRST, exempt: EXEMPT })
+    expect(exempt.warnings.some((w) => w.code === 'ramp-soft')).toBe(false)
+    expect(exempt.warnings.some((w) => w.code === 'ramp-ceiling')).toBe(false)
+    const plain = applyGuards(rise, sparse(), [], { startPath: FIRST })
+    expect(plain.warnings.some((w) => w.code === 'ramp-soft')).toBe(true)
+  })
+
+  it('still holds a ladder week to the 30% ceiling over two weeks', () => {
+    // 90 min against 63 two weeks earlier is +43%
+    const jump = plan(21, 30)
+    const result = applyGuards(jump, sparse(), [], { startPath: FIRST, exempt: EXEMPT })
+    expect(result.warnings.some((w) => w.code === 'ramp-ceiling')).toBe(true)
+    expect(weekMinutes(result.sessions, '2026-11-16')).toBeLessThanOrEqual(
+      Math.floor(1.3 * 63 + 1e-9),
+    )
+  })
+
+  it('words the first week of the ladder without a word of blame', () => {
+    const result = applyGuards(plan(21, 21), sparse(), [], { startPath: FIRST, exempt: EXEMPT })
+    const note = result.warnings.find((w) => w.code === 'restart-floor')
+    expect(note?.severity).toBe('info')
+    expect(note?.rules).toContain('E6')
+    expect(note?.message).toMatch(/run-walk/)
+    expect(note?.message).not.toMatch(/behind|missed|streak|failed/i)
+  })
+
+  it('keeps the injury-return weeks out of the weekly ramp: each run is held to G-1 instead', () => {
+    const injured = withWeeks([0, 0, 0], {
+      typicalWeekMin: 0,
+      risk: { recentInjury: true, priorBsi: false, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
+    })
+    const level = (weekStart: string, each: number) =>
+      [1, 4].map((d) =>
+        session({
+          date: addDays(weekStart, d),
+          durationMin: each,
+          flags: ['injury-return'],
+        }),
+      )
+    const steps = [
+      ...level('2026-11-02', 10),
+      ...level('2026-11-09', 10),
+      ...level('2026-11-16', 11),
+    ]
+    const exempt = new Map<string, 'ramp'>([
+      ['2026-11-09', 'ramp'],
+      ['2026-11-16', 'ramp'],
+    ])
+    const free = applyGuards(steps, injured, [], {
+      startPath: { weekStart: '2026-11-02', minutes: 20, kind: 'injury-return' },
+      exempt,
+    })
+    // 20 -> 22 min is +10%, above the 5-7% of the profile, and passes the 2-week ceiling; each run
+    // is 1.10x the one before, the hard limit of G-3
+    expect(weekMinutes(free.sessions, '2026-11-16')).toBe(22)
+    expect(free.warnings.some((w) => w.code === 'ramp-tightened')).toBe(false)
+    const tight = applyGuards(steps, injured, [], {
+      startPath: { weekStart: '2026-11-02', minutes: 20, kind: 'injury-return' },
+    })
+    expect(tight.warnings.some((w) => w.code === 'ramp-tightened')).toBe(true)
   })
 })

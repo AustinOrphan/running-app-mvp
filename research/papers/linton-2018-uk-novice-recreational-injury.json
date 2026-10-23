@@ -1,0 +1,36 @@
+{
+  "id": "linton-2018-uk-novice-recreational-injury",
+  "title": "Running with injury: A study of UK novice and recreational runners and factors associated with running related injury",
+  "authors": "Linton L, Valentin S",
+  "year": 2018,
+  "journal": "Journal of Science and Medicine in Sport",
+  "doi": "10.1016/j.jsams.2018.05.021",
+  "pmid": "29853263",
+  "url": "https://doi.org/10.1016/j.jsams.2018.05.021",
+  "design": "cross-sectional",
+  "population": "UK parkrun runners who completed a web survey (novice and recreational)",
+  "sampleSize": 1145,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return", "volume-performance"],
+  "findings": [
+    "Retrospective cross-sectional web survey of 1145 respondents; 570 had a current injury and 86% kept running despite pain.",
+    "In the first year of running, runners using a self-devised training programme were more likely to be injured than those using a structured programme such as Couch to 5K.",
+    "Running experience of over 2 years was protective (OR 0.578-0.65); males were 1.45 times more likely to be injured; wearing orthotics OR 1.88; lack of previous injuries in the past 12 months OR 1.44 (as printed in the abstract, an unexplained direction).",
+    "Authors: a novice runner should use a recognised structured training programme; graduated loading is important for novices."
+  ],
+  "limitations": "Retrospective, self-selected, self-reported, cross-sectional (cannot show cause); structured plans were not compared with each other or with continuous 3 x 20; one reported association (no prior injury OR 1.44) is counter-intuitive.",
+  "implications": [
+    "Supports giving a novice a structured, graded plan rather than leaving the first weeks unplanned, at grade C.",
+    "Experience of over 2 years is a candidate threshold for treating a returner as experienced; below that, keep a gentler start.",
+    "Supports a structured, graded Couch-to-5K-style start for new runners rather than a free-form first block.",
+    "Engine inference, not stated in the source: in the first year a new runner's long run is better set as a gradual extension of the longest recent continuous run than as a share-of-week target."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (JSAMS, first author Linton, issued 2018-12) and Europe PMC abstract (PMID 29853263). All numbers match. Reworded the final finding to the conclusion's wording.",
+    "checkedAt": "2026-10-22"
+  }
+}

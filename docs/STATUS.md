@@ -7,47 +7,76 @@ Last update: 2026-10-22.
 
 ## Where things stand
 
-- **PR #528** (`rewrite/v2` → `main`): the clean rewrite, rebase-merged 2026-10-22.
-- **PR #529** (`feat/evidence-engine` → `main`): the verified research corpus (300 papers), the
-  data foundation (files, intervals.icu, Strava, experimental Garmin, Apple Health, watched
-  folder, weather, profile, wellness, activity detail, feedback) and the evidence-based training
-  engine. The rebase merge of #528 gave its commits new hashes, so the branch still carries the
-  pre-rebase copies; a no-op merge of `main` (tree unchanged) makes the diff exact, and GitHub
-  reports the branch mergeable but not rebaseable. Squash-merge it: a merge commit would add
-  the 96 pre-rebase duplicates of #528's commits to `main`.
-- Gates on `feat/evidence-engine` (2026-10-22): `npm run check` (lint, Prettier, typecheck,
-  `research:check`, 2331 Vitest tests), `npm run build`, `npm run test:e2e` (18 Playwright
-  specs), `npm audit --omit=dev` at 0, Docker image builds (602 MB), applies all three
-  migrations on a fresh volume and serves health, setup and the Research page.
-- A local validation against the owner's real history (kept outside the repository) builds the
-  100-mile plan with 0 warnings and all 13 checklist items passing.
+- **On `main`:** the clean rewrite (#528, rebase-merged) and the evidence engine, data
+  foundation and research corpus (#529, squash-merged as `2e17f23a`); the CodeQL escaping fix
+  (#536).
+- **PR `feat/engine-defaults-round2` → `main`:** the owner's answers to the eight section-10
+  builder calls (`docs/superpowers/specs/2026-10-22-training-engine-design.md`), backed by a
+  second evidence pass on five questions (70 new sources, corpus 370; `research/README.md`
+  method entry 7): four start paths (E6: a 9-rung run-walk ladder, a 3 × 20-30 floor sized from
+  the runner's own recent run, ladder entry by the longest recent bout, an injury-return
+  ladder), 5 km and 10 km long-run tiers with a 16 km cap (D7), the day-counted post-race
+  window with a delay-only check-in gate (H12), marathon-plus races out of the 30-day session
+  reference, a 3-min duration step for G-1, the weekly ramp relabelled grade D, a
+  low-frequency profile, the ratings-required copy, and one 150-hour activity limit.
+  `PARAMS_VERSION` is `2026-10-22.2`.
+- Gates on the branch (2026-10-22): `npm run check` (lint, Prettier, typecheck,
+  `research:check` with 370 papers and 373 cited ids, Vitest), `npm run build`,
+  `npm run test:e2e`; the local validation against the owner's real history (kept outside the
+  repository) builds the 100-mile plan with 0 checklist failures of 15, label "tight" (33 of 33
+  weeks, the weekly path governs by one week), a 3 × 20 first week and a 9.2 h peak, and
+  projects a 15-day hold after the race (10 days × 1.5 for a first finish in the class) followed
+  by three 7-day steps.
+- An adversarial review of the branch (six lenses, two independent refuters per finding) confirmed
+  32 findings and disputed 18; the confirmed ones and the accepted disputed ones are fixed on the
+  branch (start paths read only the runs the 30-day reference counts; the injury ladder advances
+  by minutes run, not by weeks; tightened profiles take the ladder; the post-race lead-in obeys
+  G-1 and the steps start inside the race week; the 16 km cap at the carried pace; one duplicate
+  predicate; the half and marathon long-run floors reconciled with the planner; web labels and
+  rule text aligned). Re-plan sweeps (0-37 days, logged and unlogged) pass for the reviewed
+  fixtures.
 
 ## Decisions for the owner
 
-The engine design (`docs/superpowers/specs/2026-10-22-training-engine-design.md`, section 10)
-lists eight builder calls made during validation (restart floor, generated runs kept in the
-normal spike band, baseline rules, post-race weeks, ultra feasibility targets, run length
-following the long run, no trims from unrated runs, multi-day files up to 240 h). Each is a
-labelled default in `shared/engine/params`.
+None pending. The section-10 items are confirmed; the builder calls the second pass added are
+listed there (experienced returner after 90 days off restarts at 3 × 20; ladder weeks exempt from
+the soft ramp warning only; BMI > 30 holds rung 1 for three weeks; the ultra weekly feasibility
+path measures toward the long-run week, not the class peak; the check-in gate is computed, not
+stored, and a check-in older than 3 days neither delays nor releases a step).
 
 ## Open follow-ups (none blocks a merge)
 
 1. The weekly decision's "first days of heat" and "sleep efficiency drop" holds are not derived
    from data yet, so those two J5 signals never fire.
-2. Manual activity entry still stops at 48 hours (file imports allow 240); a one-line change in
-   the activity schema and form.
-3. A session the engine trims after a hold decision is stored without its untrimmed version.
-4. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
-   Health push skips the range checks the parsed import applies; the JSON body parsers for
-   ingest and imports run before authentication; Garmin wellness that runs out of request budget
-   records a successful run; Goals reads "1:45" as minutes and seconds; a few engine tests
-   assert conditionally.
-5. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
+2. Contrived re-plans (sessions marked completed for weeks with no activity behind them) can
+   ramp from a zero baseline and collapse to zero-minute weeks or a zero taper (19 of 2310 fuzzed
+   re-plans); the app marks a session completed only through activity matching, so no real path
+   produces this input. A repeated floor week after a clipped restart carries no flags and is
+   placed as a plain week.
+3. A true novice with a 5 km time goal 12 weeks away reads "not reachable within default limits"
+   (the ladder alone takes 9 weeks and a 30-min run is under 5 km at a novice pace); the label is
+   honest but conservative, and the plan still builds.
+4. The 8 h race-simulation opt-in (H2) and the "no later than 3 weeks before race day" timing are
+   design intent: no code reads `h2.raceSimulationMaxHours`.
+5. A declared longest run (A3) has no profile field; a runner with no logs starts at rung 1 or, if
+   experienced and unflagged, at 3 × 20. The n1 walk-jog stages for bone stress injuries are not
+   implemented: a recent bone stress injury takes the same injury-return ladder.
+6. Post-race: strength sessions stay at 0 through the window with no evidence either way; the
+   first-finish modifier applies to a runner with no race history at all; the window trigger for a
+   new plan uses the D1 class (so a 40 km race counts as a marathon) while G-1 uses the literal
+   42,195 m.
+7. A session the engine trims after a hold decision is stored without its untrimmed version.
+8. Lower-ranked review findings not yet addressed: nested sheets share the Escape key; Apple
+   Health push skips the range checks the parsed import applies; the JSON body parsers for ingest
+   and imports run before authentication; Garmin wellness that runs out of request budget records
+   a successful run; Goals reads "1:45" as minutes and seconds; a few engine tests assert
+   conditionally.
+9. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
    design: the environment variables are fixed).
-6. "Make active" on a goal other than the plan's goal leaves the plan on the old goal.
-7. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run
-   lab and fueling logs, strength programming; Polar, WHOOP, Oura and Google Health providers.
-8. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
+10. "Make active" on a goal other than the plan's goal leaves the plan on the old goal.
+11. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run lab
+    and fueling logs, strength programming; Polar, WHOOP, Oura and Google Health providers.
+12. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
 
 ## Clean-up after the merges
 
@@ -57,15 +86,18 @@ labelled default in `shared/engine/params`.
   `feature/refactor-async-handlers-39`, `fix/footer-css-classes-issue-155`,
   `fix/issue-113-api-mocking-standardization`, `fix/limit-pace-decimal-places-108`,
   `issue-105-fix-unreachable-catch-stats`, `lint-react-hooks`).
-- Delete the local `task/*` and `review/*` branches from the parallel agents, and remove the
-  agent worktrees under `.claude/worktrees/wf_*` plus the stale `build e2e integration linting
-unit-tests` worktrees; check `_main` out on `main`.
+- Delete the local `task/*` and `review/*` branches from the parallel agents (including
+  `task/round2-B`, `task/round2-C`, `task/round2-D`), remove the agent worktrees under
+  `.claude/worktrees/wf_*` and `.claude/worktrees/agent-*`, the stale `build e2e integration
+linting unit-tests` worktrees and the detached comparison worktree the start-path task left
+  in its job directory (`git worktree prune` after the directory is gone); check `_main` out on
+  `main`.
 - Unset `core.hooksPath` in the bare repository; it points at a removed `.husky/_`.
 
 ## Environment notes
 
 - Bare repository with worktrees (`~/src/BARE-REPO-WORKFLOW.md`). Isolated agent worktrees
-  branch from `origin/main` and have no `node_modules`.
+  branch from `origin/main` and have no `node_modules`; agents run `npm ci` first.
 - Port 3101 is reserved by the Playwright web server, which also clears `test-results/`.
 - The owner's intervals.icu account goes dormant without a login; Garmin's official API is
   closed to new applicants (October 2026).

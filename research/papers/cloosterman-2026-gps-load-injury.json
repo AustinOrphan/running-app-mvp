@@ -1,0 +1,39 @@
+{
+  "id": "cloosterman-2026-gps-load-injury",
+  "title": "Association Between Global Positioning System-Based Training Load and Injury Risk in Recreational Runners: A Large Prospective Study",
+  "authors": "Cloosterman KLA, de Vos RJ, Willemsen S, van Oeveren B, Visser E, Bierma-Zeinstra SMA, et al.",
+  "year": 2026,
+  "journal": "Journal of Athletic Training",
+  "doi": "10.4085/1062-6050-0030.25",
+  "pmid": "42181776",
+  "url": "https://doi.org/10.4085/1062-6050-0030.25",
+  "design": "prospective-cohort",
+  "population": "Adult recreational runners in the Netherlands registered for 10-42.195 km events, a cohort within an injury-prevention RCT; GPS data shared; mean age 43.8 y, 72.9% men",
+  "sampleSize": 461,
+  "evidenceLevel": "B",
+  "topics": ["injury-load", "volume-performance"],
+  "findings": [
+    "461 runners with 20,425 GPS training sessions; 42.3% reported a new running-related injury (RRI) during follow-up.",
+    "ACWR was computed per session from distance, duration or speed; Cox regression gave a positive association with RRI onset for distance (HR 1.32, 95% CI 1.00-1.74) and duration (HR 1.39, 95% CI 1.07-1.79).",
+    "In analyses adjusted for confounders only the duration-based ACWR remained positively associated with RRI onset (HR 1.33, 95% CI 1.02-1.74).",
+    "No significant association between ACWR and RRI onset when runners with an RRI at baseline (15.8%) were excluded.",
+    "Authors call the clinical relevance questionable given the small HRs and inconsistent outcomes, which makes the role of general training-load advice in RRI prevention uncertain.",
+    "461 participants (72.9% men, mean age 43.8 +/- 12.4 years), 20,425 training sessions; 42.3% reported a new RRI during follow-up."
+  ],
+  "limitations": "Abstract-level verification only; the ACWR window lengths are not in the abstract. Lower CI bounds sit at 1.00-1.02, results are not robust to excluding runners injured at baseline, event-registered Dutch runners (73% men) only, self-reported injury. The RCT is not about progression rules, so this is cohort evidence.",
+  "implications": [
+    "A duration exposure shows an association of similar size to distance in a second GPS cohort, so a session-spike guard can be stated on distance or duration; this is weak support (adjusted HR 1.33) and is not a basis for a new numeric threshold.",
+    "Do not give the acute:chronic ratio the weight of a hard rule; the association disappears when runners with baseline injury are excluded. A soft warning at most, and only with the injured-at-baseline caveat.",
+    "Supports keeping the existing Frandsen 30-day longest-run guard as the primary session rule and treating any ACWR rule as secondary.",
+    "Weak support for limiting abrupt increases in time; keep progression gradual but do not treat a spike ratio as a hard cap on long-run length.",
+    "Only the duration-based ratio stayed associated after adjustment, a weak hint in favour of specifying load in minutes."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (J Athl Train, first author Cloosterman, 7 authors, issued 2026-05, title matches) and the Europe PMC core abstract (PMID 42181776). All numbers match the abstract. Corrected: the abstract does not label the first HRs 'unadjusted'; rewritten as 'positive association' followed by 'in adjusted analyses'. Relevant to duration exposure and ACWR reference window.",
+    "checkedAt": "2026-10-22"
+  }
+}

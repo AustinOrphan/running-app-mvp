@@ -1,0 +1,34 @@
+{
+  "id": "skurka-2017-roche-100-recovery",
+  "title": "Training program for UTMB: interview with David Roche (Andrew Skurka)",
+  "authors": "Roche D",
+  "year": 2017,
+  "journal": "andrewskurka.com",
+  "doi": null,
+  "pmid": null,
+  "url": "https://andrewskurka.com/utmb-100-ultra-training-program-david-roche/",
+  "design": "book-or-guideline",
+  "population": "Coach guidance for athletes recovering from a 100-mile race",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "A full-throttle 100 'takes around a full month to recover from for most athletes': a week of rest, a week of slow running, a week of slow running plus a couple of short hills, a week of easy running.",
+    "Full fitness and recovery around 2 months.",
+    "Returning too soon can manifest similarly to overtraining syndrome.",
+    "It is especially risky for athletes doing their first 100."
+  ],
+  "limitations": "One coach's convention from an interview; no data cited; no per-distance figures for 50 km or 100 km. The page's illness details (cough, mononucleosis-like symptoms) were not re-confirmed and were dropped.",
+  "implications": [
+    "A four-week staged return after a 100-mile race (rest, slow, slow with short hills, easy) is a comparator for the engine's 100-mile ramp, and about 2 months to full fitness.",
+    "Supports a more conservative return for first-time 100-milers; first-timer status is a plausible input if the engine has race-history data."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Re-fetched the page (WebFetch): page dated August 27, 2017 (year now confirmed); week structure, 2-month figure, overtraining resemblance and first-100 risk quotes present. Removed the earlier 'a week or two of solid running, then lethargy, illness' detail, which the fetch did not confirm. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-22"
+  }
+}

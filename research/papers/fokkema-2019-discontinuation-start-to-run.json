@@ -1,0 +1,36 @@
+{
+  "id": "fokkema-2019-discontinuation-start-to-run",
+  "title": "Reasons and predictors of discontinuation of running after a running program for novice runners",
+  "authors": "Fokkema T, Hartgens F, Kluitenberg B, Verhagen E, Backx FJG, van der Worp H, Bierma-Zeinstra SMA, Koes BW, van Middelkoop M",
+  "year": 2019,
+  "journal": "Journal of Science and Medicine in Sport",
+  "doi": "10.1016/j.jsams.2018.06.003",
+  "pmid": "29934211",
+  "url": "https://doi.org/10.1016/j.jsams.2018.06.003",
+  "design": "prospective-cohort",
+  "population": "Participants of Start to Run, a 6-week novice programme (Netherlands), followed 26 weeks",
+  "sampleSize": 774,
+  "evidenceLevel": "B",
+  "topics": ["beginners-return"],
+  "findings": [
+    "29.5% (n=225) of 774 novices had stopped running within 26 weeks of starting a 6-week programme.",
+    "The main reason for stopping was a running-related injury (n=108, 48% of those who stopped).",
+    "Higher chance of discontinuation: female (OR 1.74, 95% CI 1.13-2.68), unsure about continuing after the programme (OR 2.06, 1.31-3.24), (almost) no alcohol use (OR 1.62, 1.11-2.37).",
+    "Lower chance: previous running experience 'less than one year previously' (OR 0.46, 0.26-0.83) and a higher RAND-36 physical functioning score (OR 0.98, 0.96-0.99).",
+    "Authors: women with low perceived physical functioning and without running experience were prone to discontinue."
+  ],
+  "limitations": "Self-report questionnaires with follow-up loss; the wording of the experience variable is ambiguous in the abstract (previous running experience less than one year previously), so it should be read as 'some recent running experience' only with caution; no dose contrast.",
+  "implications": [
+    "Injury is the leading cause of quitting, so the start dose should favour avoiding an early injury over reaching 3 x 20 quickly.",
+    "Recent running experience is associated with lower dropout, which supports a separate returner path rather than a full novice ladder (direction only).",
+    "Low self-rated physical function is a candidate input for a gentler start (grade C)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (JSAMS, first author Fokkema, issued 2019-01) and Europe PMC abstract (PMID 29934211). All numbers match the abstract verbatim. No substantive change.",
+    "checkedAt": "2026-10-22"
+  }
+}

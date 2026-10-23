@@ -1,0 +1,34 @@
+{
+  "id": "petersen-2007-marathon-muscle-mechanics",
+  "title": "Muscle mechanical characteristics in fatigue and recovery from a marathon race in highly trained runners",
+  "authors": "Petersen K, Hansen CB, Aagaard P, Madsen K",
+  "year": 2007,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-007-0504-x",
+  "pmid": "17661071",
+  "url": "https://doi.org/10.1007/s00421-007-0504-x",
+  "design": "prospective-cohort",
+  "population": "8 elite marathon runners (2:34:40 +/- 0:04:13), tested 1 week before and 30 min, 2 and 5 days after",
+  "sampleSize": 8,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Energy expenditure at marathon pace rose 4% post-marathon (4,465 +/- 91 to 4,638 +/- 91 J/kg/km, P < 0.05) but was 6% and 9.5% lower two and five days post-marathon than pre-marathon.",
+    "Countermovement jump power fell 13% post-marathon (21.5 to 18.9 W/kg) and remained depressed at two (18%) and five (12%) days; CMJ force was unaltered.",
+    "Knee extensor MVC fell from 176.6 to 136.7 Nm (22%) and plantar flexor MVC from 144.9 to 119.2 Nm (17%) post-marathon.",
+    "No significant change in evoked contractile properties except a 25% increase in force at 5 Hz, and low frequency fatigue was not observed; authors infer central rather than peripheral mechanisms and that leg muscle power recovered very slowly."
+  ],
+  "limitations": "n = 8 elite runners; no testing beyond day 5; the later drop in energy expenditure at marathon pace is as reported and not explained as readiness; findings may not generalise to recreational runners.",
+  "implications": [
+    "Jump power is still about 12% down on day 5 after a marathon in well-trained runners, so a return that adds speed, strides or plyometrics inside the first week after a marathon is not supported; keep the first week easy and low-impact.",
+    "Do not read the later drop in energy cost as readiness: the abstract does not interpret it as such and the sample is 8."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref (2007-07-28, authors match) and abstract re-read (PMID 17661071); all numbers match. Added CMJ force unaltered and low-frequency-fatigue-not-observed to findings.",
+    "checkedAt": "2026-10-22"
+  }
+}

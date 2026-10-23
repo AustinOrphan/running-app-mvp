@@ -1,0 +1,35 @@
+{
+  "id": "pollock-1977-frequency-duration-injury",
+  "title": "Effects of frequency and duration of training on attrition and incidence of injury",
+  "authors": "Pollock ML, Gettman LR, Milesis CA, Bah MD, Durstine L, Johnson RB",
+  "year": 1977,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/00005768-197721000-00005",
+  "pmid": "870782",
+  "url": "https://doi.org/10.1249/00005768-197721000-00005",
+  "design": "rct",
+  "population": "157 male prison inmates aged 20 to 35 y, 20-week jogging programme at 85 to 90% of maximum HR",
+  "sampleSize": 157,
+  "evidenceLevel": "C",
+  "topics": ["beginners-return"],
+  "findings": [
+    "Subjects were randomly assigned to a control or exercise group: 87 male state-prison inmates trained 3 days a week for 15, 30 or 45 min, and 70 county-jail inmates trained 30 min for 1, 3 or 5 days a week, for 20 weeks at 85 to 90% of maximum heart rate.",
+    "Injury occurred in 22%, 24% and 54% of the 15, 30 and 45 min duration groups, and in 0%, 12% and 39% of the 1, 3 and 5 day per week groups.",
+    "Attrition from injury was 0%, 0% and 17% (duration groups) and 0%, 4% and 6% (frequency groups); attrition from lack of interest was similar in all training groups (25%) and significantly lower in controls (10%).",
+    "Fitness improved in direct proportion to frequency and duration, but the 45 min and 5 days per week programmes are not recommended for beginning joggers because of the significantly greater injury rate."
+  ],
+  "limitations": "Young male prisoners, continuous jogging at a hard 85-90% HRmax (not an easy novice pace), 1970s footwear and surfaces, small arms; no run-walk arm; durations tested were 15, 30 and 45 min, so 20 min was not tested.",
+  "implications": [
+    "At 3 sessions a week, 15 and 30 min sessions had similar injury rates (22% vs 24%) while 45 min had 54%; this supports 30 min as the ceiling for a starting block and 45 min as too much, but says nothing specific about 20 min.",
+    "Three days a week (12% injury) is a sensible start frequency; 5 days (39%) is not for beginners.",
+    "Because intensity was high (85-90% HRmax), do not carry these rates across to an easy-paced plan; use as direction only, grade C."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref resolves 10.1249/00005768-197721000-00005 (MSSE, first author Pollock, 1977); Europe PMC DOI search did not return it, so the abstract was fetched by PMID 870782 (EXT_ID) and all percentages and group sizes match. Corrected the garbled first finding (it contained a stray '30 min sessions? no:') and removed the claim that 3 x 20 to 3 x 30 is defensible, since 20 min was not tested.",
+    "checkedAt": "2026-10-22"
+  }
+}

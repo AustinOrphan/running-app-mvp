@@ -176,21 +176,57 @@ export const dGoal = {
     }),
   },
   d4LongRun: {
-    ultra50: param('d4LongRun.ultra50', 180, 'D', 'D4', [], {
+    ultra50: param(
+      'd4LongRun.ultra50',
+      180,
+      'D',
+      'D4',
+      [
+        'outside-2023-strava-western-states',
+        'outside-2015-orton-koop-100-miles',
+        'tan-2017-finishers-161km',
+        'taksaudom-2017-66km-predictors',
+      ],
+      {
+        unit: 'min',
+        note: 'Default: longest single run the feasibility check works toward for a 50 km ultra (about a marathon-length run, the common convention); back-to-back days (H3) add time on feet beyond it, and the H2 cap stays the ceiling. It sits at or below observed practice, and no study links any longest run to finishing.',
+      },
+    ),
+    ultra100k: param(
+      'd4LongRun.ultra100k',
+      240,
+      'D',
+      'D4',
+      [
+        'outside-2023-strava-western-states',
+        'outside-2023-strava-utmb',
+        'tan-2017-finishers-161km',
+      ],
+      {
+        unit: 'min',
+        note: 'Default: longest single run the feasibility check works toward for 100 km (about a 20-24 mile trail run); back-to-backs add time on feet, H2 caps it. It sits at or below observed practice, and no study links any longest run to finishing.',
+      },
+    ),
+    ultra100mi: param(
+      'd4LongRun.ultra100mi',
+      240,
+      'D',
+      'D4',
+      [
+        'outside-2023-strava-western-states',
+        'outside-2023-strava-utmb',
+        'outside-2015-orton-koop-100-miles',
+        'tan-2017-finishers-161km',
+        'baldea-2009-leadville-training',
+      ],
+      {
+        unit: 'min',
+        note: 'Default: longest single run the feasibility check works toward for 100 miles; back-to-backs add time on feet, H2 caps it. UTMB finishers and non-finishers had nearly identical median longest runs, so no study ties a longest run to finishing; raising the target toward the 6-7 h coaching convention would add load on convention alone.',
+      },
+    ),
+    beyond: param('d4LongRun.beyond', 270, 'D', 'D4', ['daniel-2024-217km-sleep-training'], {
       unit: 'min',
-      note: 'Default: longest single run the feasibility check works toward for a 50 km ultra; back-to-back days (H3) add time on feet beyond it, and the H2 cap stays the ceiling. No study sets it.',
-    }),
-    ultra100k: param('d4LongRun.ultra100k', 240, 'D', 'D4', [], {
-      unit: 'min',
-      note: 'Default: longest single run the feasibility check works toward for 100 km; back-to-backs add time on feet, H2 caps it. No study sets it.',
-    }),
-    ultra100mi: param('d4LongRun.ultra100mi', 240, 'D', 'D4', [], {
-      unit: 'min',
-      note: 'Default: longest single run the feasibility check works toward for 100 miles; back-to-backs add time on feet, H2 caps it. No study sets it.',
-    }),
-    beyond: param('d4LongRun.beyond', 270, 'D', 'D4', [], {
-      unit: 'min',
-      note: 'Default: longest single run the feasibility check works toward beyond 100 miles; back-to-backs add time on feet, H2 caps it. No study sets it.',
+      note: 'Default: longest single run the feasibility check works toward beyond 100 miles; back-to-backs add time on feet, H2 caps it. One questionnaire study beyond 100 miles (217 km, n = 38) reports training frequency, which correlates with race time; no study there tests long-run size, so this is an extrapolation.',
     }),
   },
   d4Label: {

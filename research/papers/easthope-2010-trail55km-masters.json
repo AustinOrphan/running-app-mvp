@@ -1,0 +1,35 @@
+{
+  "id": "easthope-2010-trail55km-masters",
+  "title": "Effects of a trail running competition on muscular performance and efficiency in well-trained young and master athletes",
+  "authors": "Easthope CS, Hausswirth C, Louis J, Lepers R, Vercruyssen F, Brisswalter J",
+  "year": 2010,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-010-1597-1",
+  "pmid": "20703499",
+  "url": "https://doi.org/10.1007/s00421-010-1597-1",
+  "design": "prospective-cohort",
+  "population": "23 well-trained athletes: 10 young (30.5 ± 7 years) and 13 masters (45.9 ± 5.9 years) in a 55 km trail running competition",
+  "sampleSize": 23,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery"],
+  "findings": [
+    "Abstract: intervention-style study with pre, post 1, 24, 48 and 72 h measurements of blood tests, ergometer cycling, maximal isometric voluntary contractions (MVC), twitch and M-wave properties, vastus lateralis EMG (RMS), two locomotion-efficiency calculations, and CK and LDH.",
+    "Abstract: post-race increases in CK and LDH; MVC fell by 32% in young and 40% in masters (P < 0.01), with decreases in EMG, increases in contraction time and decreases in peak twitch.",
+    "Abstract: locomotion efficiency fell by 4.6% in young and 6.3% in masters (P < 0.05). The abstract gives no efficiency values at 24 to 72 h.",
+    "Abstract: masters showed similar fatigue and muscle damage to young runners, but recuperation was slowed in masters; no recovery magnitude at 72 h is given in the abstract."
+  ],
+  "limitations": "Only the abstract was accessible (paywalled), so the 24, 48 and 72 h values and the age-by-time statistics are unseen. Efficiency was measured by ergometer cycling, not running, so it is a proxy for running economy; 55 km is below the 65 km+ ultra tiers; no control group; small age groups (10 and 13); no HRV, resting HR or immune measures; follow-up ends at 72 h, so full recovery time is unknown. The central versus peripheral interpretation (EMG, twitch changes) is an inference from the abstract's measures.",
+  "implications": [
+    "Gives the only running-economy-like recovery source in the proposal, with the caveat that it is cycling efficiency. It supports a lower-impact early window with no intensity, because efficiency and force were reduced after a 55 km race (post-race values only are in the abstract).",
+    "Supports a masters modifier that lengthens the hold or the re-entry steps for athletes aged about 40 and over (mean 46 years, slower recuperation). The size of the extension is not supported by this paper and should stay a grade D default, noting that it is a default.",
+    "Use the 72 h follow-up only as the design's last measurement, not as evidence of where deficits end or of recovery by 72 h."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Re-fetched Crossref (title, EJAP, issued 2010-08-12, first author Easthope) and the Europe PMC core abstract (PMID 20703499). All numbers (23 subjects, ages, 55 km, MVC -32/-40%, efficiency -4.6/-6.3%, slowed masters recuperation) match the abstract. Corrected: design changed from experimental-crossover to prospective-cohort (single event, repeated measures, no crossover); the 'indicating central and peripheral fatigue' wording was the previous writer's interpretation, not stated in the abstract, and was softened; the implication that deficits were 'still impaired' at 72 h was not in the abstract and was reworded. Full text not accessible.",
+    "checkedAt": "2026-10-22"
+  }
+}
