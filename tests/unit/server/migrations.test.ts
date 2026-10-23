@@ -401,6 +401,170 @@ function verifySyncLog(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT count(*) AS n FROM "Integration"')).toEqual([{ n: 2 }])
 }
 
+/** A previous-release prediction row; `createdAt` is whatever storage type the case wants. */
+function predictionRow(
+  id: string,
+  inputs: string,
+  createdAt: string | number,
+): Record<string, SQLInputValue> {
+  return {
+    id,
+    userId: 'u1',
+    goalId: 'g1',
+    createdAt,
+    method: 'synthetic',
+    predictedSec: 12_000,
+    lowSec: 11_500,
+    highSec: 12_600,
+    inputs,
+  }
+}
+
+const withToday = (today: string) => JSON.stringify({ today, conditions: [], rules: ['l-1'] })
+
+/**
+ * The previous release's prediction log: one row per generate or re-plan, with the day in
+ * "inputs". The first four rows are the design's: a Wednesday and a Sunday `inputs.today`, then a
+ * text and an integer "createdAt" with no day in "inputs". The rest exercise the fallback. 19
+ * October 2026 is a Monday.
+ */
+function seedPredictionLog(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic marathon',
+    priority: 'A',
+    targetDate: '2027-04-18',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Activity', {
+    id: 'a1',
+    userId: 'u1',
+    date: '2026-10-06',
+    type: 'run',
+    durationSec: 2700,
+    distanceM: 8000,
+    updatedAt: STAMP,
+  })
+  // A Wednesday and a Sunday of one week; "createdAt" disagrees, so "inputs" is what decides.
+  const iso = (day: string, time: string) => `${day}T${time}.000+00:00`
+  insert(
+    db,
+    'PredictionLog',
+    predictionRow('wed', withToday('2026-10-21'), iso('2026-10-23', '06:00:00')),
+  )
+  insert(
+    db,
+    'PredictionLog',
+    predictionRow('sun', withToday('2026-10-25'), iso('2026-10-26', '01:00:00')),
+  )
+  // No day in "inputs": the UTC day of "createdAt", as SQL text and as milliseconds since the epoch.
+  insert(db, 'PredictionLog', predictionRow('text', '{}', '2026-10-22 08:30:00'))
+  insert(db, 'PredictionLog', predictionRow('int', '{}', Date.UTC(2026, 9, 26, 5)))
+  // The driver's ISO text late on a Sunday; "inputs" that are not JSON; a day that is a number.
+  insert(db, 'PredictionLog', predictionRow('late', '{}', iso('2026-10-25', '23:30:00')))
+  insert(db, 'PredictionLog', predictionRow('junk', 'not json', iso('2026-10-27', '09:00:00')))
+  insert(db, 'PredictionLog', predictionRow('number', '{"today":5}', Date.UTC(2026, 10, 1, 12)))
+}
+
+function verifyRaceResults(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Every row is kept, the several of one week included: the log collapses on read.
+  const rows = rowsOf(db, 'SELECT * FROM "PredictionLog" ORDER BY id')
+  expect(rows.map((r) => r.id)).toEqual(['int', 'junk', 'late', 'number', 'sun', 'text', 'wed'])
+  expect(Object.fromEntries(rows.map((r) => [r.id, [r.loggedOn, r.weekStart]]))).toEqual({
+    wed: ['2026-10-21', '2026-10-19'],
+    sun: ['2026-10-25', '2026-10-19'],
+    text: ['2026-10-22', '2026-10-19'],
+    int: ['2026-10-26', '2026-10-26'],
+    late: ['2026-10-25', '2026-10-19'],
+    junk: ['2026-10-27', '2026-10-26'],
+    number: ['2026-11-01', '2026-10-26'],
+  })
+
+  // No database default: both columns are required, so a writer that forgets one fails loudly.
+  const columns = rowsOf(db, 'PRAGMA table_info("PredictionLog")')
+  for (const name of ['weekStart', 'loggedOn']) {
+    expect(
+      columns.find((c) => c.name === name),
+      name,
+    ).toMatchObject({
+      notnull: 1,
+      dflt_value: null,
+    })
+  }
+  expect(() => {
+    insert(db, 'PredictionLog', {
+      id: 'x',
+      userId: 'u1',
+      goalId: 'g1',
+      method: 'synthetic',
+      predictedSec: 1,
+      lowSec: 1,
+      highSec: 1,
+    })
+  }).toThrow(/NOT NULL/)
+  expectIndex(db, 'PredictionLog', ['userId', 'goalId', 'createdAt'], false)
+  expectIndex(db, 'PredictionLog', ['userId', 'goalId', 'weekStart'], false)
+  const keys = rowsOf(db, `PRAGMA foreign_key_list("PredictionLog")`).map((k) => ({
+    from: k.from,
+    table: k.table,
+    onDelete: k.on_delete,
+  }))
+  expect(keys).toContainEqual({ from: 'userId', table: 'User', onDelete: 'CASCADE' })
+  expect(keys).toContainEqual({ from: 'goalId', table: 'Goal', onDelete: 'CASCADE' })
+
+  // The result table starts empty; its goal and its activity are each unique.
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "RaceResult"')).toEqual([{ n: 0 }])
+  expectIndex(db, 'RaceResult', ['goalId'], true)
+  expectIndex(db, 'RaceResult', ['activityId'], true)
+  const required = {
+    userId: 'u1',
+    goalId: 'g1',
+    date: '2027-04-18',
+    distanceM: 42_195,
+    outcome: 'finished',
+    timeSec: 12_000,
+    updatedAt: STAMP,
+  }
+  insert(db, 'RaceResult', { id: 'r1', ...required, activityId: 'a1' })
+  expect(rowsOf(db, `SELECT * FROM "RaceResult" WHERE id = 'r1'`)[0]).toMatchObject({
+    gainM: null,
+    note: null,
+  })
+  insert(db, 'Goal', {
+    id: 'g2',
+    userId: 'u1',
+    name: 'Another synthetic race',
+    priority: 'B',
+    targetDate: '2027-06-01',
+    updatedAt: STAMP,
+  })
+  expect(() => {
+    insert(db, 'RaceResult', { id: 'r2', ...required })
+  }).toThrow(/UNIQUE/)
+  expect(() => {
+    insert(db, 'RaceResult', { id: 'r2', ...required, goalId: 'g2', activityId: 'a1' })
+  }).toThrow(/UNIQUE/)
+
+  // Deleting the activity keeps the result; deleting the goal takes the result and its predictions.
+  db.exec(`DELETE FROM "Activity" WHERE id = 'a1'`)
+  expect(rowsOf(db, `SELECT "activityId" FROM "RaceResult" WHERE id = 'r1'`)).toEqual([
+    { activityId: null },
+  ])
+  db.exec(`DELETE FROM "Goal" WHERE id = 'g1'`)
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "RaceResult"')).toEqual([{ n: 0 }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "PredictionLog"')).toEqual([{ n: 0 }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -411,6 +575,11 @@ const CASES: FixtureCase[] = [
     migration: 'foundation_sync_log',
     seed: seedSyncState,
     verify: verifySyncLog,
+  },
+  {
+    migration: 'race_results',
+    seed: seedPredictionLog,
+    verify: verifyRaceResults,
   },
 ]
 

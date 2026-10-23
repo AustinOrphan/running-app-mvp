@@ -14,6 +14,7 @@ import type {
   WeeklyReview as WeeklyReviewRow,
   WellnessDay as WellnessDayRow,
 } from './db.ts'
+import type { CourseSnapshot, LoggedPrediction } from '../shared/engine/backtest.ts'
 import type {
   ChecklistResult,
   EngineWarning,
@@ -441,11 +442,40 @@ export function toPredictionLogEntry(row: PredictionLogRow): PredictionView['log
     id: row.id,
     goalId: row.goalId,
     createdAt: row.createdAt.toISOString(),
+    weekStart: row.weekStart,
+    loggedOn: row.loggedOn,
     method: row.method,
     predictedSec: row.predictedSec,
     lowSec: row.lowSec,
     highSec: row.highSec,
     actualSec: row.actualSec,
+  }
+}
+
+/**
+ * A log row as the back-test scorer reads it. `course` comes from the `inputs.course` snapshot and
+ * is null for a row logged before snapshots existed, which the scorer takes as comparable; a figure
+ * the snapshot lacks is null as well.
+ */
+export function toLoggedPrediction(row: PredictionLogRow): LoggedPrediction {
+  const inputs = parseJson<{ course?: unknown }>(row.inputs, {})
+  const stored = inputs.course
+  const figure = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isFinite(value) ? value : null
+  const course: CourseSnapshot | null =
+    typeof stored === 'object' && stored !== null
+      ? {
+          distanceM: figure((stored as Record<string, unknown>).distanceM),
+          gainM: figure((stored as Record<string, unknown>).gainM),
+        }
+      : null
+  return {
+    weekStart: row.weekStart,
+    loggedOn: row.loggedOn,
+    predictedSec: row.predictedSec,
+    lowSec: row.lowSec,
+    highSec: row.highSec,
+    course,
   }
 }
 

@@ -20,7 +20,6 @@ import type {
   ChecklistResult,
   EngineInput,
   PlanChange,
-  PlanDraft,
   SessionKind,
   SessionSpec,
   WeekDraft,
@@ -57,11 +56,10 @@ import { loadAthleteContext } from './athleteState.ts'
 import { assessSessionById } from './execution.ts'
 import { currentZones, gatherContextInput, gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
+import { recordPrediction } from './predictionLog.ts'
 
 /** A plan's rows are written in one transaction; long plans have a thousand sessions. */
 const WRITE_TIMEOUT_MS = 60_000
-
-type DbClient = Pick<PrismaClient, 'planRevision' | 'predictionLog'>
 
 function json(value: unknown): string {
   return JSON.stringify(value)
@@ -167,30 +165,6 @@ export async function writeRevision(
   return toPlanRevision(row)
 }
 
-async function logPrediction(
-  db: DbClient & Pick<PrismaClient, 'predictionLog'>,
-  args: { userId: string; goalId: string; draft: PlanDraft; today: string },
-): Promise<void> {
-  const { prediction } = args.draft
-  if (prediction === null) return
-  await db.predictionLog.create({
-    data: {
-      userId: args.userId,
-      goalId: args.goalId,
-      method: prediction.method,
-      predictedSec: Math.round(prediction.predictedSec),
-      lowSec: Math.round(prediction.lowSec),
-      highSec: Math.round(prediction.highSec),
-      inputs: json({
-        today: args.today,
-        conditions: prediction.conditions,
-        rules: prediction.rules,
-        paramsVersion: args.draft.paramsVersion,
-      }),
-    },
-  })
-}
-
 function failedChecklist(checklist: ChecklistResult[]): HttpError | null {
   const failed = checklist.filter((item) => !item.ok)
   if (failed.length === 0) return null
@@ -275,7 +249,7 @@ export async function generateEnginePlan(
         `Plan generated for ${goal.name}: ${draft.weeks.length} weeks, ${draft.sessions.length} sessions.`,
         [],
       )
-      await logPrediction(tx, { userId, goalId: goal.id, draft, today })
+      await recordPrediction(tx, { userId, goal, draft, input, today, mode: 'refresh' })
       return tx.plan.findUniqueOrThrow({
         where: { id: plan.id },
         include: {
@@ -569,7 +543,7 @@ export async function replanActivePlan(
           checklist: json(draft.checklist),
         },
       })
-      await logPrediction(tx, { userId, goalId: plan.goalId, draft, today })
+      await recordPrediction(tx, { userId, goal: plan.goal, draft, input, today, mode: 'refresh' })
       return writeRevision(tx, plan.id, reason, summary, changes)
     },
     { timeout: WRITE_TIMEOUT_MS },

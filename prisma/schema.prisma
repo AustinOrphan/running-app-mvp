@@ -31,6 +31,7 @@ model User {
   predictions   PredictionLog[]
   screenings    Screening[]
   syncRuns      SyncRun[]
+  raceResults   RaceResult[]
 }
 
 model Activity {
@@ -81,6 +82,7 @@ model Activity {
   stream      ActivityStream?
   file        ActivityFile?
   planSession PlanSession?
+  raceResult  RaceResult?
 
   @@unique([userId, providerKey])
   @@index([userId, date])
@@ -134,6 +136,7 @@ model Goal {
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   plans       Plan[]
   predictions PredictionLog[]
+  raceResult  RaceResult?
 
   @@index([userId])
 }
@@ -246,13 +249,35 @@ model PredictionLog {
   predictedSec Int
   lowSec       Int
   highSec      Int
-  inputs       String   @default("{}") // JSON text
+  inputs       String   @default("{}") // JSON text: today, conditions, rules, paramsVersion, course
   actualSec    Int?
+  weekStart    String // Monday of the local week the prediction belongs to, YYYY-MM-DD
+  loggedOn     String // runner's local day the prediction was made, YYYY-MM-DD
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([userId, goalId, createdAt])
+  @@index([userId, goalId, weekStart])
+}
+
+model RaceResult {
+  id         String   @id @default(cuid())
+  userId     String
+  goalId     String   @unique
+  activityId String?  @unique
+  date       String // YYYY-MM-DD, race day
+  distanceM  Int
+  gainM      Int?
+  outcome    String // 'finished' | 'did-not-finish'
+  timeSec    Int? // official finish time; null for a did-not-finish
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal     Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
 }
 
 model Screening {
