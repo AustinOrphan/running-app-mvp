@@ -1,5 +1,5 @@
-// Bounds for one activity, shared by the manual form schema and the importers, and the paging bounds
-// of the activity list.
+// Bounds for one activity, shared by the manual form schema and the importers, the paging bounds
+// of the activity list and the bounds of the fuel lab's products and logs.
 
 /**
  * Longest activity, in seconds: 150 hours. The Cocodona 250 cutoff is 125 hours and six-day races
@@ -17,3 +17,24 @@ export const ACTIVITY_PAGE_DEFAULT = 100
 export const ACTIVITY_PAGE_MAX = 500
 /** The furthest `offset` a list request may name; far beyond any history, and inside SQLite's range. */
 export const ACTIVITY_OFFSET_MAX = 1_000_000
+
+// The fuel lab (phase 3a design 10.3 and 10.4). These are sanity bounds on what a form can send,
+// not training guidance: no fluid or carbohydrate target comes from here.
+
+/** Live products one runner may hold; archived products do not count. */
+export const FUEL_PRODUCTS_MAX = 100
+/** Steps of the replayed ladder that an answer carries: the latest ones. */
+export const FUEL_LADDER_STEPS_SHOWN = 40
+export const FUEL_NAME_MAX = 60
+export const FUEL_SERVING_LABEL_MAX = 40
+/** Most items in one log. */
+export const FUEL_ITEMS_MAX = 40
+/** Most servings of one item in one log. */
+export const FUEL_SERVINGS_MAX = 50
+/** Largest amounts in one serving of a product. */
+export const FUEL_SERVING_CARBS_MAX_G = 300
+export const FUEL_SERVING_SODIUM_MAX_MG = 5000
+export const FUEL_SERVING_KCAL_MAX = 1500
+/** Largest fluid and sodium totals a log may record (a 150-hour event is the longest activity). */
+export const FUEL_FLUID_MAX_ML = 100_000
+export const FUEL_SODIUM_MAX_MG = 200_000

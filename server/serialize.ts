@@ -1,6 +1,9 @@
 import type {
   Activity as ActivityRow,
   AthleteProfile as AthleteProfileRow,
+  FuelLog as FuelLogRow,
+  FuelProduct as FuelProductRow,
+  FuelSettings as FuelSettingsRow,
   Goal as GoalRow,
   ImportBatch as ImportBatchRow,
   Integration as IntegrationRow,
@@ -20,6 +23,7 @@ import type {
   EngineWarning,
   ExecutionAssessment,
   Feasibility,
+  LadderStep,
   PlanChange,
   SessionFlag,
   SessionKind,
@@ -29,6 +33,7 @@ import type {
   WeeklyDecision,
 } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
+import { countsLine } from '../shared/engine/fuelCopy.ts'
 import { P } from '../shared/engine/params/index.ts'
 import type {
   Activity,
@@ -42,6 +47,11 @@ import type {
   DataStatus,
   DuplicateStatus,
   Feel,
+  FuelLogItem,
+  FuelLogView,
+  FuelProduct,
+  FuelProductKind,
+  FuelSettings,
   Goal,
   GoalPriority,
   GoalStatus,
@@ -484,6 +494,58 @@ export function toScreening(row: ScreeningRow): Screening {
     answers: parseJson<Screening['answers']>(row.answers, {}),
     flags: row.flags,
     createdAt: row.createdAt.toISOString(),
+  }
+}
+
+export function toFuelProduct(row: FuelProductRow): FuelProduct {
+  return {
+    id: row.id,
+    name: row.name,
+    kind: row.kind as FuelProductKind,
+    servingLabel: row.servingLabel,
+    carbsG: row.carbsG,
+    sodiumMg: row.sodiumMg,
+    kcal: row.kcal,
+    multiCarb: row.multiCarb,
+    archived: row.archived,
+  }
+}
+
+/** The switches before the runner has saved any: no opt-in, no condition, the block on. */
+export function defaultFuelSettings(): FuelSettings {
+  return { optIn90: false, optInAdvanced: false, giDisease: false, gutBlock: true }
+}
+
+export function toFuelSettings(row: FuelSettingsRow | null): FuelSettings {
+  if (row === null) return defaultFuelSettings()
+  return {
+    optIn90: row.optIn90,
+    optInAdvanced: row.optInAdvanced,
+    giDisease: row.giDisease,
+    gutBlock: row.gutBlock,
+  }
+}
+
+/** The items snapshot of a log row. */
+export function parseFuelItems(text: string): FuelLogItem[] {
+  return parseJson<FuelLogItem[]>(text, [])
+}
+
+/** A fuel log with the step the replay gave its run. */
+export function toFuelLogView(row: FuelLogRow, step: LadderStep): FuelLogView {
+  return {
+    id: row.id,
+    activityId: row.activityId,
+    skipped: row.skipped,
+    items: parseFuelItems(row.items),
+    fluidMl: row.fluidMl,
+    sodiumMg: row.sodiumMg,
+    gut: row.gut,
+    nausea: row.nausea,
+    hot: row.hotOverride,
+    notes: row.notes,
+    step,
+    counts: countsLine(step),
   }
 }
 

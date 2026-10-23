@@ -13,6 +13,7 @@ import { createLogger } from './logger.ts'
 import { activitiesRouter } from './routes/activities.ts'
 import { checkinsRouter } from './routes/checkins.ts'
 import { explainRouter } from './routes/explain.ts'
+import { fuelRouter } from './routes/fuel.ts'
 import { goalsRouter } from './routes/goals.ts'
 import { healthRouter } from './routes/health.ts'
 import { importsRouter } from './routes/imports.ts'
@@ -107,6 +108,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/state', stateRouter(deps))
   app.use('/api/stats', statsRouter(deps))
   app.use('/api/explain', explainRouter(deps))
+  app.use('/api/fuel', fuelRouter(deps))
   app.use('/api/activities', activitiesRouter(deps))
   app.use('/api/imports', importsRouter(deps))
   app.use('/api/goals', goalsRouter(deps))

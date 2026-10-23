@@ -893,6 +893,103 @@ function verifyWeatherCache(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT count(*) AS n FROM "ClimateCache"')).toEqual([{ n: 3 }])
 }
 
+/**
+ * The previous release's runs: two users, each with a long run and a strength session. The fuel
+ * tables are new, so nothing exists to carry over; the case checks that the runs survive, that the
+ * tables start empty, and that each new table ties to its owner as the schema says.
+ */
+function seedFuelRuns(db: DatabaseSync): void {
+  for (const [id, email] of [
+    ['u1', 'runner@example.com'],
+    ['u2', 'other@example.com'],
+  ] as const) {
+    insert(db, 'User', { id, email, passwordHash: 'not-a-real-hash', updatedAt: STAMP })
+  }
+  // [id, user, type, date, duration]
+  const activities: Array<[string, string, string, string, number]> = [
+    ['a1', 'u1', 'run', '2026-10-03', 3 * 3600],
+    ['a2', 'u1', 'strength', '2026-10-04', 2400],
+    ['a3', 'u2', 'run', '2026-10-03', 7500],
+  ]
+  for (const [id, userId, type, date, durationSec] of activities) {
+    insert(db, 'Activity', { id, userId, type, date, durationSec, updatedAt: STAMP })
+  }
+}
+
+function verifyFuelLab(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  for (const table of ['FuelProduct', 'FuelLog', 'FuelSettings']) {
+    expect(tableNames(db)).toContain(table)
+    expect(rowsOf(db, `SELECT count(*) AS n FROM "${table}"`)).toEqual([{ n: 0 }])
+  }
+  expectIndex(db, 'FuelProduct', ['userId', 'archived'], false)
+  expectIndex(db, 'FuelLog', ['activityId'], true)
+  expectIndex(db, 'FuelLog', ['userId'], false)
+
+  // A product needs a name, a kind, a serving and its carbohydrate; the rest has defaults. Names are
+  // not unique in the table: the service keeps live names apart, because an archived product frees
+  // its name.
+  const product = {
+    userId: 'u1',
+    name: 'Synthetic gel',
+    kind: 'gel',
+    servingLabel: '1 gel',
+    carbsG: 25,
+  }
+  insert(db, 'FuelProduct', { id: 'p1', ...product, updatedAt: STAMP })
+  insert(db, 'FuelProduct', { id: 'p2', ...product, archived: 1, updatedAt: STAMP })
+  expect(rowsOf(db, `SELECT * FROM "FuelProduct" WHERE id = 'p1'`)[0]).toMatchObject({
+    sodiumMg: null,
+    kcal: null,
+    multiCarb: 0,
+    archived: 0,
+  })
+
+  // One log per activity. Its answers are optional columns (a skipped run has none), and the
+  // runner's "it was hot" is null until chosen.
+  insert(db, 'FuelLog', { id: 'l1', userId: 'u1', activityId: 'a1', gut: 1, updatedAt: STAMP })
+  expect(rowsOf(db, `SELECT * FROM "FuelLog" WHERE id = 'l1'`)[0]).toMatchObject({
+    skipped: 0,
+    items: '[]',
+    fluidMl: null,
+    sodiumMg: null,
+    nausea: null,
+    hotOverride: null,
+    notes: null,
+  })
+  insert(db, 'FuelLog', { id: 'l2', userId: 'u1', activityId: 'a2', skipped: 1, updatedAt: STAMP })
+  expect(rowsOf(db, `SELECT gut FROM "FuelLog" WHERE id = 'l2'`)).toEqual([{ gut: null }])
+  expect(() => {
+    insert(db, 'FuelLog', { id: 'l3', userId: 'u1', activityId: 'a1', updatedAt: STAMP })
+  }).toThrow(/UNIQUE/)
+  expect(() => {
+    insert(db, 'FuelLog', { id: 'l4', userId: 'u1', activityId: 'missing', updatedAt: STAMP })
+  }).toThrow(/FOREIGN KEY/)
+
+  // One settings row per user, with the switches off and the gut-training block on.
+  insert(db, 'FuelSettings', { userId: 'u1', updatedAt: STAMP })
+  expect(rowsOf(db, `SELECT * FROM "FuelSettings" WHERE "userId" = 'u1'`)[0]).toMatchObject({
+    optIn90: 0,
+    optInAdvanced: 0,
+    giDisease: 0,
+    gutBlock: 1,
+  })
+  expect(() => {
+    insert(db, 'FuelSettings', { userId: 'u1', updatedAt: STAMP })
+  }).toThrow(/UNIQUE/)
+
+  // A log goes with its run, and everything goes with the runner.
+  db.exec(`DELETE FROM "Activity" WHERE id = 'a1'`)
+  expect(rowsOf(db, `SELECT id FROM "FuelLog" ORDER BY id`)).toEqual([{ id: 'l2' }])
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  for (const table of ['FuelProduct', 'FuelLog', 'FuelSettings']) {
+    expect(rowsOf(db, `SELECT count(*) AS n FROM "${table}"`), table).toEqual([{ n: 0 }])
+  }
+  expect(rowsOf(db, `SELECT id FROM "Activity" ORDER BY id`)).toEqual([{ id: 'a3' }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -923,6 +1020,11 @@ const CASES: FixtureCase[] = [
     migration: 'foundation_weather_cache',
     seed: seedPlaces,
     verify: verifyWeatherCache,
+  },
+  {
+    migration: 'fuel_lab',
+    seed: seedFuelRuns,
+    verify: verifyFuelLab,
   },
 ]
 
