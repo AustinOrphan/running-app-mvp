@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
   addDays,
   daysBetween,
@@ -10,8 +10,10 @@ import {
   formatWeekdayName,
   isIsoDate,
   isoDateInZone,
+  localWallTime,
   mondayOf,
   todayIso,
+  wallClockFormatter,
   weekStartsBetween,
 } from '../../../shared/dates.ts'
 
@@ -187,5 +189,47 @@ describe('isoDateInZone', () => {
     expect(() => isoDateInZone(at('2026-10-22T03:30:00Z'), 'Mars/Olympus_Mons')).toThrow(RangeError)
     expect(() => isoDateInZone(at('2026-10-22T03:30:00Z'), '')).toThrow(RangeError)
     expect(() => isoDateInZone(new Date(Number.NaN), 'UTC')).toThrow(RangeError)
+  })
+})
+
+describe('localWallTime', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  test('writes the hour of an instant in the zone, on a 24-hour clock', () => {
+    expect(localWallTime('2026-10-21T18:30:00Z', 'America/Chicago')).toBe('2026-10-21T13:00:00')
+    expect(localWallTime('2026-10-21T05:10:00Z', 'America/Chicago')).toBe('2026-10-21T00:00:00')
+    expect(localWallTime('2026-10-21T23:59:00Z', 'Asia/Kolkata')).toBe('2026-10-22T05:00:00')
+  })
+
+  test('reads an unknown zone as UTC and returns an unreadable instant as it is', () => {
+    expect(localWallTime('2026-10-21T18:30:00Z', 'Nowhere/Land')).toBe('2026-10-21T18:00:00')
+    expect(localWallTime('not a time', 'America/Chicago')).toBe('not a time')
+  })
+
+  test('builds one formatter per zone, however many hours a forecast has', () => {
+    const construct = vi.spyOn(Intl, 'DateTimeFormat')
+    const zone = 'Pacific/Auckland'
+    const start = Date.parse('2026-10-21T00:00:00Z')
+    for (let hour = 0; hour < 168; hour += 1) {
+      localWallTime(new Date(start + hour * 3_600_000).toISOString(), zone)
+    }
+    expect(construct).toHaveBeenCalledTimes(1)
+
+    // A second forecast of the same zone builds nothing.
+    localWallTime('2026-10-28T00:00:00Z', zone)
+    expect(construct).toHaveBeenCalledTimes(1)
+  })
+
+  test('hands out the same formatter for a zone, and a zone that does not exist keeps its fallback', () => {
+    expect(wallClockFormatter('Europe/Zurich')).toBe(wallClockFormatter('Europe/Zurich'))
+    expect(wallClockFormatter('Europe/Zurich')).not.toBe(wallClockFormatter('Europe/Lisbon'))
+
+    const construct = vi.spyOn(Intl, 'DateTimeFormat')
+    const first = wallClockFormatter('Nowhere/Else')
+    const built = construct.mock.calls.length
+    expect(wallClockFormatter('Nowhere/Else')).toBe(first)
+    expect(construct).toHaveBeenCalledTimes(built)
   })
 })

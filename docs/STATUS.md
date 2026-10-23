@@ -187,7 +187,8 @@ Fixed on the integration branch before `wave/3a-2` was cut (`task/3a-W2-fix-revi
 
 Accepted from the disputed list and fixed with them: `safeMessage`-style publish failure
 sentences are templates (`shared/copy/publish.ts`); a null `external_id` echo falls back to
-positional matching; the `noNetwork` guard records refused calls and every suite asserts none;
+positional matching; the `noNetwork` guard records refused calls and ten of the 43 API suites
+assert none with `expectNoRefusedFetches` (the others are not yet probed);
 the publisher's global-fetch guard covers `withdraw` and `globalThis.fetch`; `ensureClimate`
 returns at once when a usable climate value exists.
 

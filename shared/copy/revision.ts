@@ -324,9 +324,15 @@ export const REVISION_TEMPLATES = {
     'This update followed a safety rule that still applies ({topics}), so it stays.',
     { topics: 'text' },
   ),
+  // The ids of the checks that failed are machine ids: they travel in `items` and `details`, never
+  // in a sentence.
   'revision.undo.checklist': tpl(
-    'The restored plan does not pass the quality checklist ({items}), so the plan stays as it is.',
-    { items: 'text' },
+    'The earlier plan no longer meets the plan checks, so it cannot be restored.',
+  ),
+
+  // Why a new plan was not published (Generate, Regenerate, Make active and a re-plan).
+  'revision.checklist-refused': tpl(
+    'The plan did not pass the plan checks, so it was not published.',
   ),
 
   // The summary of an undo, and the answer to a preview that no longer matches the plan.
@@ -506,6 +512,7 @@ export function describeUndoFinding(finding: UndoFinding, undoWindowDays: number
     ...(finding.weekStart === undefined ? {} : { weekStart: finding.weekStart }),
     ...(finding.disruptionId === undefined ? {} : { disruptionId: finding.disruptionId }),
     ...(finding.rules === undefined ? {} : { rules: finding.rules }),
+    ...(finding.items === undefined ? {} : { items: finding.items }),
   })
   const plain = () =>
     reason(render(REVISION_TEMPLATES['revision.undo.edited-since.plan'], {}, STORED_UNITS))
@@ -554,19 +561,18 @@ export function describeUndoFinding(finding: UndoFinding, undoWindowDays: number
         ),
       )
     case 'checklist':
-      return reason(
-        render(
-          REVISION_TEMPLATES['revision.undo.checklist'],
-          { items: (finding.items ?? []).join(', ') },
-          STORED_UNITS,
-        ),
-      )
+      return reason(render(REVISION_TEMPLATES['revision.undo.checklist'], {}, STORED_UNITS))
   }
 }
 
 /** The summary of an undo: the summary of the update it reverted. */
 export function undoneSummary(reverted: string): string {
   return render(REVISION_TEMPLATES['revision.undone'], { summary: reverted }, STORED_UNITS)
+}
+
+/** The sentence of the 422 that refuses a plan the quality checklist blocks. */
+export function checklistRefusedMessage(): string {
+  return render(REVISION_TEMPLATES['revision.checklist-refused'], {}, STORED_UNITS)
 }
 
 /** The sentence of a 409 that asks the caller to look at the preview again. */

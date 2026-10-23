@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import { resultRefusal } from '../../shared/copy/trackRecord.ts'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
 import { MAX_DURATION_SEC } from '../../shared/limits.ts'
 import type { Deps } from '../app.ts'
@@ -149,12 +150,12 @@ const resultBody = z
       ctx.addIssue({
         code: 'custom',
         path: ['timeSec'],
-        message: 'Enter the official finish time.',
+        message: resultRefusal('time-required'),
       })
     }
     // A date that is not a real day has its own issue; it is not also called a future date.
     if (isIsoDate(body.date) && body.date > todayIso()) {
-      ctx.addIssue({ code: 'custom', path: ['date'], message: 'Use a race date that has passed.' })
+      ctx.addIssue({ code: 'custom', path: ['date'], message: resultRefusal('date-passed') })
     }
   })
 

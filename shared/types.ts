@@ -567,6 +567,8 @@ export interface UndoReason {
   weekStart?: string
   disruptionId?: string
   rules?: string[]
+  /** For `checklist`: the ids of the checks the restored plan does not pass, for tools and tests. */
+  items?: string[]
 }
 export interface UndoState {
   available: boolean

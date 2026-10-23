@@ -10,7 +10,7 @@
 // zero means the result matched. The difference has a direction and is never pass or fail.
 //
 // What is scored, and what is not:
-//   - only predictions logged before race day (`daysBefore >= 1`); a prediction made on or after
+//   - only predictions logged before race day (`loggedBeforeRaceDay`); a prediction made on or after
 //     the day, or after the fact, is never scored;
 //   - only predictions for a comparable course (`isComparableCourse`);
 //   - a did-not-finish is recorded and not scored.
@@ -114,6 +114,14 @@ export function daysBefore(raceDate: string, loggedOn: string): number {
   return daysBetween(loggedOn, raceDate)
 }
 
+/**
+ * Whether a prediction logged on `loggedOn` counts as made before race day: at least one whole day
+ * before. The scorer and the `actualSec` column of the log both use this one rule.
+ */
+export function loggedBeforeRaceDay(raceDate: string, loggedOn: string): boolean {
+  return daysBefore(raceDate, loggedOn) >= 1
+}
+
 /** Calendar weeks (Monday to Monday) from the week of `loggedOn` to the race week. */
 export function weeksBefore(raceDate: string, loggedOn: string): number {
   return Math.round(daysBetween(mondayOf(loggedOn), mondayOf(raceDate)) / DAYS_PER_WEEK)
@@ -184,7 +192,7 @@ function beforeRaceDay(
   result: RaceResultInput,
 ): LoggedPrediction[] {
   return predictions
-    .filter((p) => daysBefore(result.date, p.loggedOn) >= 1)
+    .filter((p) => loggedBeforeRaceDay(result.date, p.loggedOn))
     .sort((a, b) => (a.loggedOn < b.loggedOn ? -1 : a.loggedOn > b.loggedOn ? 1 : 0))
 }
 

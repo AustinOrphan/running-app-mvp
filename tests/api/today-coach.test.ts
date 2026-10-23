@@ -959,6 +959,92 @@ describe('GET /api/today: health', () => {
     }
     expect((await view(u)).coach.health.notes).toEqual([])
   })
+
+  test('says when sync is paused, and the tag moves when the latest sync run changes', async () => {
+    const { u } = await planWith('health-sync@example.com', [])
+    const syncRun = (status: string, minutesAgo: number) =>
+      ctx.prisma.syncRun.create({
+        data: {
+          userId: u.id,
+          provider: 'sync',
+          channel: 'job',
+          trigger: 'schedule',
+          startedAt: new Date(NOON.getTime() - minutesAgo * 60_000),
+          finishedAt: NOON,
+          status,
+        },
+      })
+    const tagOf = (res: { headers: Record<string, unknown> }) => String(res.headers.etag)
+    const notesOf = (res: { body: unknown }) => (res.body as TodayView).coach.health.notes
+
+    await syncRun('ok', 120)
+    const quiet = await getToday(u)
+    expect(notesOf(quiet)).toEqual([])
+
+    // SyncRun is outside the data version: only the stamp lets the new run through the tag.
+    await syncRun('paused', 60)
+    const paused = await getToday(u).set('If-None-Match', tagOf(quiet))
+    expect(paused.status).toBe(200)
+    expect(notesOf(paused)).toEqual([
+      {
+        code: 'sync-paused',
+        template: 'today.health.sync-paused',
+        slots: {},
+        href: '/integrations',
+      },
+    ])
+    assertCleanCopy(renderFact(notesOf(paused)[0]!, 'mi'), 'sync-paused')
+    expect(renderFact(notesOf(paused)[0]!, 'mi')).toBe(
+      "Sync is paused to stay within the service's limits, and picks up again on its own.",
+    )
+    expect((await getToday(u).set('If-None-Match', tagOf(paused))).status).toBe(304)
+
+    // A later run that ended ok takes the note away.
+    await syncRun('ok', 5)
+    const resumed = await getToday(u).set('If-None-Match', tagOf(paused))
+    expect(resumed.status).toBe(200)
+    expect(notesOf(resumed)).toEqual([])
+    expect(tagOf(resumed)).not.toBe(tagOf(paused))
+  })
+
+  test('says when the weekly update has not run, and the tag moves when the slot comes', async () => {
+    // Monday, a minute before the 03:00 slot of the weekly update.
+    vi.setSystemTime(new Date(2026, 9, 19, 2, 59))
+    const { u, plan } = await planWith('health-weekly@example.com', [])
+    await ctx.prisma.plan.update({
+      where: { id: plan.id },
+      data: { createdAt: new Date(2026, 9, 12, 12) },
+    })
+    const tagOf = (res: { headers: Record<string, unknown> }) => String(res.headers.etag)
+    const notesOf = (res: { body: unknown }) => (res.body as TodayView).coach.health.notes
+
+    const early = await getToday(u)
+    expect(notesOf(early)).toEqual([])
+
+    // The slot has come and nothing was written: the tag moves by itself.
+    vi.setSystemTime(new Date(2026, 9, 19, 3, 1))
+    const due = await getToday(u).set('If-None-Match', tagOf(early))
+    expect(due.status).toBe(200)
+    expect(notesOf(due)).toEqual([
+      {
+        code: 'weekly-update-not-run',
+        template: 'today.health.update-not-run',
+        slots: {},
+        href: '/plan',
+      },
+    ])
+    expect(renderFact(notesOf(due)[0]!, 'mi')).toBe("This week's plan update has not run yet.")
+    assertCleanCopy(renderFact(notesOf(due)[0]!, 'mi'), 'weekly-update-not-run')
+    expect((await getToday(u).set('If-None-Match', tagOf(due))).status).toBe(304)
+
+    // The update runs: its revision is a state write, and the note goes.
+    await ctx.prisma.planRevision.create({
+      data: { planId: plan.id, reason: 'weekly', summary: 'Synthetic.' },
+    })
+    const done = await getToday(u).set('If-None-Match', tagOf(due))
+    expect(done.status).toBe(200)
+    expect(notesOf(done)).toEqual([])
+  })
 })
 
 // ---------------------------------------------------------------------------------------------
@@ -1070,7 +1156,12 @@ describe('GET /api/today: the validator', () => {
     const res = await getToday(u).set('If-None-Match', tag)
     expect(res.status).toBe(304)
     expect(log.models.sort()).toEqual(
-      ['athleteProfile.findUnique', 'forecastCache.findUnique', 'user.findUnique'].sort(),
+      [
+        'athleteProfile.findUnique',
+        'forecastCache.findUnique',
+        'syncRun.findFirst',
+        'user.findUnique',
+      ].sort(),
     )
     expect(log.count('activity.findMany')).toBe(0)
   })
@@ -1096,7 +1187,8 @@ describe('GET /api/today: cost', () => {
     expect(cold.count('activity.findMany')).toBe(1)
     expect(cold.count('plan.findFirst')).toBe(2)
     expect(cold.count('planSession.findMany')).toBe(0)
-    expect(cold.count('planRevision.findFirst')).toBe(1)
+    // The change line, and the weekly-update note.
+    expect(cold.count('planRevision.findFirst')).toBe(2)
     expect(cold.count('forecastCache.findUnique')).toBe(2)
     const coldTotal = cold.models.length
     vi.restoreAllMocks()
@@ -1104,25 +1196,29 @@ describe('GET /api/today: cost', () => {
     // Warm: the same request with no write in between.
     const warm = trackQueries(ctx.prisma)
     expect((await getToday(u)).status).toBe(200)
-    // The session lookup of the auth middleware, the forecast stamp (home, then the cache row) and
-    // the cached forecast hours: nothing else.
+    // The session lookup of the auth middleware, the forecast stamp (home, then the cache row), the
+    // cached forecast hours, the stamp of the job notes and the three reads of the job notes
+    // themselves (the latest runs, the last weekly revision, the plans due): nothing else.
     expect(warm.models.sort()).toEqual(
       [
         'athleteProfile.findUnique',
         'forecastCache.findUnique',
         'forecastCache.findUnique',
+        'plan.findMany',
+        'planRevision.findFirst',
+        'syncRun.findFirst',
+        'syncRun.groupBy',
         'user.findUnique',
       ].sort(),
     )
     expect(warm.count('activity.findMany')).toBe(0)
     expect(warm.count('plan.findFirst')).toBe(0)
-    expect(warm.count('planRevision.findFirst')).toBe(0)
     // Pinned so that a query added to the request path is a decision, not an accident: cold is
-    // 16 reads (the session lookup, the forecast stamp, the snapshot's ten, the cached forecast,
-    // the race climate and the change line), warm is 4, and the data version is read three times
-    // (the tag, the snapshot, the change-line memo).
-    expect(coldTotal).toBe(16)
-    expect(warm.models).toHaveLength(4)
+    // 20 reads (the session lookup, the forecast stamp, the job-notes stamp, the snapshot's ten,
+    // the cached forecast, the race climate, the change line and the three of the job notes), warm
+    // is 8, and the data version is read three times (the tag, the snapshot, the change-line memo).
+    expect(coldTotal).toBe(20)
+    expect(warm.models).toHaveLength(8)
     expect(warm.raw).toBe(3)
   })
 

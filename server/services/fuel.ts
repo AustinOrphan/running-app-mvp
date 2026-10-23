@@ -5,7 +5,7 @@
 //
 // Writes go through the data-versioned client and never raise the version themselves: the three
 // models are state (`server/dataVersion.ts`).
-import { todayIso } from '../../shared/dates.ts'
+import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { fuelRungs, replayLadder, type LadderInput } from '../../shared/engine/fuel.ts'
 import {
   advancedLockedMessage,
@@ -32,7 +32,6 @@ import type { Deps } from '../app.ts'
 import type { FuelLog as FuelLogRow, PrismaClient } from '../db.ts'
 import { conflict, notFound, validationError } from '../errors.ts'
 import { toFuelLogView, toFuelProduct, toFuelSettings } from '../serialize.ts'
-import { loadAthleteContext } from './athleteState.ts'
 
 /** What the fuel service needs from the app: the data-versioned client. */
 export type FuelDeps = Pick<Deps, 'prisma'>
@@ -120,29 +119,42 @@ const RUN_COLUMNS = {
 
 /**
  * Replays the ladder from every fuel log of the user's runs. The weather is read from the
- * activities now, so a fill that arrived after the log was saved judges that run; the flags of the
- * linked session and the gut-training weeks come from the stored plan in the athlete snapshot.
- * Runs are joined with their activities and nothing is cached here.
+ * activities now, so a fill that arrived after the log was saved judges that run. The flags of the
+ * linked session come from the session in whichever plan holds the link, and the gut-training
+ * weeks from `gutTrainingWeeksOf`, so replacing the active plan (Make active, Regenerate) leaves
+ * the credit of earlier runs as it was. Runs are joined with their activities and nothing is
+ * cached here.
  */
 export async function loadFuelState(deps: FuelDeps, userId: string): Promise<FuelState> {
   const { prisma } = deps
-  const [settings, rows, athlete] = await Promise.all([
+  const [settings, rows, weekRows] = await Promise.all([
     loadFuelSettings(prisma, userId),
     prisma.fuelLog.findMany({
       where: { userId, activity: { type: { in: [...FUEL_RUN_TYPES] } } },
       include: { activity: { select: RUN_COLUMNS } },
     }),
-    loadAthleteContext(deps, { userId, today: todayIso() }),
+    // Every week of the active plan, and the gut-training weeks of every plan.
+    prisma.planWeek.findMany({
+      where: {
+        plan: { userId },
+        OR: [{ plan: { status: 'active' } }, { flags: { contains: GUT_TRAINING_FLAG } }],
+      },
+      select: { weekStart: true, flags: true, plan: { select: { status: true, updatedAt: true } } },
+    }),
   ])
+  // A session keeps its activity link in the plan that was active when it was linked.
+  const sessionRows = await prisma.planSession.findMany({
+    where: { plan: { userId }, activityId: { in: rows.map((row) => row.activityId) } },
+    select: { activityId: true, flags: true },
+  })
 
-  const plan = athlete.existing()
   const flagsByRun = new Map<string, readonly SessionFlag[]>()
-  for (const session of plan?.sessions ?? []) {
-    if (session.activityId !== null) flagsByRun.set(session.activityId, session.flags)
+  for (const session of sessionRows) {
+    if (session.activityId !== null) {
+      flagsByRun.set(session.activityId, parseFlags<SessionFlag>(session.flags))
+    }
   }
-  const gutTrainingWeeks = (plan?.weeks ?? [])
-    .filter((week) => week.flags.includes('gut-training'))
-    .map((week) => week.weekStart)
+  const gutTrainingWeeks = gutTrainingWeeksOf(weekRows)
 
   const runs: FuelRunInput[] = rows.map((row) => ({
     activityId: row.activityId,
@@ -191,6 +203,46 @@ function parseItems(text: string): FuelLogItem[] {
   } catch {
     return []
   }
+}
+
+function parseFlags<T extends string>(text: string): T[] {
+  try {
+    const flags: unknown = JSON.parse(text)
+    return Array.isArray(flags) ? (flags as T[]) : []
+  } catch {
+    return []
+  }
+}
+
+const GUT_TRAINING_FLAG = 'gut-training'
+
+/**
+ * The Mondays of the weeks that count as a gut-training block for a run the app did not link. The
+ * active plan decides every week it holds. A plan that was replaced decides only the weeks the
+ * active plan does not hold and that began no later than the week it was replaced in, because
+ * its later weeks were never run under it. Without this, replacing the plan would take the block
+ * credit away from the runs it had already earned.
+ */
+function gutTrainingWeeksOf(
+  weeks: readonly {
+    weekStart: string
+    flags: string
+    plan: { status: string; updatedAt: Date }
+  }[],
+): string[] {
+  const held = new Set(weeks.filter((w) => w.plan.status === 'active').map((w) => w.weekStart))
+  const result = new Set<string>()
+  for (const week of weeks) {
+    if (!parseFlags(week.flags).includes(GUT_TRAINING_FLAG)) continue
+    if (week.plan.status === 'active') result.add(week.weekStart)
+    else if (
+      !held.has(week.weekStart) &&
+      week.weekStart <= mondayOf(todayIso(week.plan.updatedAt))
+    ) {
+      result.add(week.weekStart)
+    }
+  }
+  return [...result]
 }
 
 /** The ladder as an answer carries it: the latest steps only, the rest is history. */

@@ -6,9 +6,10 @@
 // An insight is computed in three places: lazily, the first time a run is read; by the pipeline
 // when a recent activity is stored, edited or rated (`refreshInsightsQuietly`, called after the
 // activity is matched to the plan); and by the nightly sweep over the last 7 days. The inputs are
-// the athlete snapshot, the memoised heart-rate model and the stored assessment of the session the
-// run fulfils; no history or plan query runs beside them. `ActivityInsight` is non-state, so none
-// of these writes moves the data version.
+// the athlete snapshot, the memoised heart-rate model, the stored assessment of the session the
+// run fulfils and the pain fields of the check-in of the run's day (one row, read by its key, which
+// also tells a stored insight that the check-in changed); no history or plan query runs beside
+// them. `ActivityInsight` is non-state, so none of these writes moves the data version.
 import { createHash } from 'node:crypto'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import { rankStandouts, standoutFacts, STANDOUT_VERSION } from '../../shared/engine/standout.ts'
@@ -33,8 +34,9 @@ import { hrModelOf, loadAthleteContext } from './athleteState.ts'
 export const INSIGHT_EAGER_DAYS = 7
 
 /**
- * What `ActivityInsight.facts` holds. `basis` names the stored assessment the facts were computed
- * with, so linking or unlinking a session, or a new assessment of it, makes the insight stale.
+ * What `ActivityInsight.facts` holds. `basis` names the stored assessment and the day's check-in
+ * pain fields the facts were computed with, so linking or unlinking a session, a new assessment of
+ * it, or an edit of the pain score or the bone flag makes the insight stale.
  */
 interface StoredInsight {
   basis: string
@@ -88,6 +90,19 @@ async function linkOf(deps: DepsWithPrisma, userId: string, activityId: string):
   }
 }
 
+/**
+ * The part of the day's check-in that the findings read: the pain score and the bone flag of the
+ * run's date. One row by its unique key, so the freshness test still builds no snapshot. A run
+ * whose day has no check-in has the same basis as one whose check-in leaves both empty.
+ */
+async function checkinBasis(deps: DepsWithPrisma, userId: string, date: string): Promise<string> {
+  const row = await deps.prisma.wellnessDay.findUnique({
+    where: { userId_date: { userId, date } },
+    select: { painScore: true, painFocalBone: true },
+  })
+  return `pain=${row?.painScore ?? '-'},bone=${row?.painFocalBone === true ? '1' : '0'}`
+}
+
 function parseStored(text: string): StoredInsight | null {
   try {
     const value = JSON.parse(text) as Partial<StoredInsight> | null
@@ -106,9 +121,10 @@ const isRun = (type: string): boolean => type === 'run' || type === 'race'
 /**
  * The insight of a run: the stored one while it is fresh, else computed from the snapshot and
  * stored. Stale when the version differs from `STANDOUT_VERSION`, the activity changed after the
- * insight was computed, or the stored assessment is not the one it was computed with; `force`
- * computes it again whatever the row says. A strength or cross activity and a duplicate have no
- * insight and nothing is stored for them. Null when the user has no such activity.
+ * insight was computed, or the stored assessment or the day's check-in pain fields are not the
+ * ones it was computed with; `force` computes it again whatever the row says. A strength or cross
+ * activity and a duplicate have no insight and nothing is stored for them. Null when the user has
+ * no such activity.
  */
 export async function activityInsight(
   deps: DepsWithPrisma,
@@ -130,6 +146,7 @@ export async function activityInsight(
   }
 
   const link = await linkOf(deps, userId, activityId)
+  const basis = `${link.basis}|${await checkinBasis(deps, userId, row.date)}`
   if (args.force !== true) {
     const stored = await prisma.activityInsight.findUnique({ where: { activityId } })
     const parsed = stored === null ? null : parseStored(stored.facts)
@@ -138,7 +155,7 @@ export async function activityInsight(
       parsed !== null &&
       stored.version === STANDOUT_VERSION &&
       row.updatedAt.getTime() <= stored.computedAt.getTime() &&
-      parsed.basis === link.basis
+      parsed.basis === basis
     ) {
       return { facts: parsed.items, computedAt: stored.computedAt }
     }
@@ -158,7 +175,7 @@ export async function activityInsight(
     session: link.session,
     checkin: checkinOn({ wellness: context.wellness }, row.date),
   })
-  const stored: StoredInsight = { basis: link.basis, items: facts }
+  const stored: StoredInsight = { basis, items: facts }
   const data = { version: STANDOUT_VERSION, facts: JSON.stringify(stored), computedAt }
   await prisma.activityInsight.upsert({
     where: { activityId },

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
 import {
   acceptedZoneSummary,
+  checklistRefusedMessage,
   declinedZoneSummary,
   generatedSummary,
   goalSwitchSummary,
@@ -173,12 +174,7 @@ export function sessionRow(planId: string, spec: SessionSpec, externalId: string
 export function failedChecklist(checklist: ChecklistResult[]): HttpError | null {
   const failed = checklist.filter((item) => !item.ok)
   if (failed.length === 0) return null
-  return new HttpError(
-    422,
-    'validation',
-    `The plan did not pass the quality checklist (${failed.map((item) => item.id).join(', ')}), so it was not published.`,
-    { checklist },
-  )
+  return new HttpError(422, 'validation', checklistRefusedMessage(), { checklist })
 }
 
 /**

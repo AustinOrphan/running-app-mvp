@@ -2007,7 +2007,10 @@ describe('POST /api/plan/revisions/:id/undo', () => {
       .body as PlanPreview
     expect(preview.blocked).toBe(true)
     expect(preview.reasons).toMatchObject([{ code: 'checklist' }])
-    expect(preview.reasons[0]!.message).toContain('availability')
+    expect(preview.reasons[0]!.message).toBe(
+      'The earlier plan no longer meets the plan checks, so it cannot be restored.',
+    )
+    expect(preview.reasons[0]!.items).toContain('availability')
     assertCleanCopy(preview.reasons[0]!.message, 'checklist')
     expect(preview.diff.empty).toBe(false)
 

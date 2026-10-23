@@ -187,6 +187,21 @@ export const TRACK_RECORD_TEMPLATES = {
   'track-record.toast.saved-not-finished': tpl(
     'Result saved. Nothing to compare for a race not finished.',
   ),
+
+  // Why the result routes refuse a request: the message of the 400, 404 and 409, field by field.
+  'track-record.refused.not-a-run': tpl('Choose a run or a race.'),
+  'track-record.refused.activity-window': tpl(
+    'Choose an activity within {days} days of the race date.',
+    { days: 'count' },
+    { fallback: 'Choose an activity close to the race date.' },
+  ),
+  'track-record.refused.distance': tpl('Enter the distance that was raced.'),
+  'track-record.refused.activity-taken': tpl(
+    'That activity is already linked to the result of another race.',
+  ),
+  'track-record.refused.no-result': tpl('No result is recorded for this goal.'),
+  'track-record.refused.time-required': tpl('Enter the official finish time.'),
+  'track-record.refused.date-passed': tpl('Use a race date that has passed.'),
 } satisfies Record<string, Template>
 
 export type TrackRecordTemplateId = keyof typeof TRACK_RECORD_TEMPLATES
@@ -375,4 +390,25 @@ export function savedToast(
   return result.scoredPredictions === 1
     ? render(t['track-record.toast.saved-one'], {}, units)
     : render(t['track-record.toast.saved'], { count: count(result.scoredPredictions) }, units)
+}
+
+/** The refusals of the result routes that carry no figure. */
+export type ResultRefusal =
+  'not-a-run' | 'distance' | 'activity-taken' | 'no-result' | 'time-required' | 'date-passed'
+
+/**
+ * The message of a refused result request. The server writes it before it knows the runner's
+ * units, and no refusal names a distance or a pace, so any units give the same text.
+ */
+export function resultRefusal(kind: ResultRefusal): string {
+  return render(TRACK_RECORD_TEMPLATES[`track-record.refused.${kind}`], {}, 'km')
+}
+
+/** The refusal of a linked activity that lies too far from the race date. */
+export function activityWindowRefusal(days: number): string {
+  return render(
+    TRACK_RECORD_TEMPLATES['track-record.refused.activity-window'],
+    { days: count(days) },
+    'km',
+  )
 }

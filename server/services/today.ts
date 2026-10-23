@@ -50,7 +50,7 @@ import {
 } from './athleteState.ts'
 import { inputFromContext, loadForecast, sessionSpec } from './engineInput.ts'
 import { EMPTY_DIFF_MARK } from './replan.ts'
-import { todayHealth } from './todayHealth.ts'
+import { jobNotesStamp, todayHealth } from './todayHealth.ts'
 import { buildSlots } from './todaySlots.ts'
 import { forecastStamp } from './weatherCache.ts'
 
@@ -108,6 +108,9 @@ export function registerTodayStamp(stamp: ChangeStamp): () => void {
     if (at >= 0) stamps.splice(at, 1)
   }
 }
+
+// The sync-paused and weekly-update notes read `SyncRun`, which the data version does not cover.
+registerTodayStamp(jobNotesStamp)
 
 /**
  * What the payload for a user, a day and a viewed date is valid for. Reads the data version, the

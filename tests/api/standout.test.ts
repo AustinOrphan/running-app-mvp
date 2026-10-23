@@ -357,6 +357,47 @@ describe('when the stored insight is stale', () => {
     expect(vi.mocked(standoutFacts)).not.toHaveBeenCalled()
   })
 
+  test('after the check-in of the run s day changes, the pain finding follows it', async () => {
+    const u = await newUser()
+    const run = await addRun(u.id, 1)
+    const put = (body: object) => client(ctx, u).put(`/api/checkins/${run.date}`).send(body)
+    expect(await viewOf(u, run.id)).toEqual({ items: [], more: 0 })
+
+    // A pain score for that day arrives after the insight was stored.
+    expect((await put({ painScore: 7 })).status).toBe(200)
+    vi.mocked(standoutFacts).mockClear()
+    const pain = await viewOf(u, run.id)
+    expect(templates(pain)).toEqual(['standout.pain'])
+    expect(pain.items[0]?.slots).toEqual({ pain: { kind: 'count', n: 7 } })
+    expect(vi.mocked(standoutFacts)).toHaveBeenCalledTimes(1)
+
+    // Nothing changed: the stored insight is served as it is.
+    await viewOf(u, run.id)
+    expect(vi.mocked(standoutFacts)).toHaveBeenCalledTimes(1)
+
+    // The score is corrected below the warning score, then raised to the bone flag.
+    expect((await put({ painScore: 2 })).status).toBe(200)
+    expect(await viewOf(u, run.id)).toEqual({ items: [], more: 0 })
+    expect((await put({ painFocalBone: true })).status).toBe(200)
+    expect(templates(await viewOf(u, run.id))).toEqual(['standout.pain-bone'])
+
+    // The runner clears it, and the finding goes with it.
+    expect((await put({ painScore: null, painFocalBone: false })).status).toBe(200)
+    expect(await viewOf(u, run.id)).toEqual({ items: [], more: 0 })
+  })
+
+  test('a check-in field the findings do not read leaves the stored insight alone', async () => {
+    const u = await newUser()
+    const run = await addRun(u.id, 1, { pain: 6 })
+    expect(templates(await viewOf(u, run.id))).toEqual(['standout.pain'])
+    vi.mocked(standoutFacts).mockClear()
+    expect(
+      (await client(ctx, u).put(`/api/checkins/${run.date}`).send({ fatigue: 4 })).status,
+    ).toBe(200)
+    expect(templates(await viewOf(u, run.id))).toEqual(['standout.pain'])
+    expect(vi.mocked(standoutFacts)).not.toHaveBeenCalled()
+  })
+
   test('after a change of version', async () => {
     const u = await newUser()
     const run = await addRun(u.id, 1, { pain: 6 })
@@ -593,9 +634,9 @@ describe('ActivityInsight is non-state', () => {
     expect(source).toMatch(/hrModelOf/)
     expect(source).not.toMatch(/gatherEngineInput|gatherContextInput|currentGoalFor/)
     expect(source).not.toMatch(/loadActivities|loadActivityCores|loadProfile/)
-    expect(source).not.toMatch(
-      /prisma\.(activity|wellnessDay|weeklyReview|screening|goal)\.find(Many|Unique)/,
-    )
+    expect(source).not.toMatch(/prisma\.(activity|weeklyReview|screening|goal)\.find(Many|Unique)/)
+    // The one check-in row of the run's day is read by its key, for the basis; never a history.
+    expect(source).not.toMatch(/prisma\.wellnessDay\.find(Many|First)/)
     expect(source).not.toMatch(/\$queryRaw|\$executeRaw/)
   })
 })
