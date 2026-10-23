@@ -166,6 +166,9 @@ describe('publishForUser', () => {
     const stored = await rowsOf(u)
 
     fake.forget()
+    // The clock is frozen, so a rewrite in the same instant would keep `updatedAt`; one minute on
+    // makes any write to a row move it.
+    vi.setSystemTime(at(1))
     const again = await publish(u)
 
     expect(again).toMatchObject({ ran: true, status: 'ok', sent: 0, unchanged: 2, withdrawn: 0 })

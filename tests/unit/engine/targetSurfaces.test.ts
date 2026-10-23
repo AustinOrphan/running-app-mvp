@@ -53,7 +53,7 @@ import { toWorkoutPlan } from '../../../shared/workouts/plan.ts'
 import type { WorkoutPlan } from '../../../shared/workouts/types.ts'
 import { renderIntervalsDescription } from '../../../server/providers/intervalsPublish.ts'
 import type { PublishReference } from '../../../server/providers/types.ts'
-import { encodeWorkoutFit } from '../../../server/services/workoutFit.ts'
+import { encodeWorkoutFit, FIT_NOTES_MAX_BYTES } from '../../../server/services/workoutFit.ts'
 import { SessionTargets } from '../../../web/components/today/SessionTargets.tsx'
 import { expandWorkout, readWorkout, type ExpandedStep } from '../../fixtures/fit/readWorkout.ts'
 import { prescribed, SESSION_KINDS, zoneSetFixture } from './fixtures.ts'
@@ -610,23 +610,40 @@ describe('cross-surface fuel line', () => {
     line: string | null
   }
 
+  /**
+   * What a surface shows of the line. `dropped` is set only by a surface that left the line out on
+   * purpose, with the reason; a line that is simply missing is a failure.
+   */
+  interface FuelRead {
+    line: string | null
+    dropped?: string
+  }
+
   interface FuelSurface {
     name: string
     covers(kind: SessionKind): boolean
-    read(c: FuelCase): string | null
+    read(c: FuelCase): FuelRead
   }
 
-  const lineOf = (lines: readonly string[]): string | null =>
-    lines.findLast((line) => line.startsWith('Fuel ')) ?? null
+  const lineOf = (lines: readonly string[]): FuelRead => ({
+    line: lines.findLast((line) => line.startsWith('Fuel ')) ?? null,
+  })
+
+  const byteLength = (text: string): number => new TextEncoder().encode(text).length
+
+  /** The notes of the first step of a workout, as the file stores them. */
+  const firstNote = (plan: WorkoutPlan): string =>
+    expandWorkout(readWorkout(encodeWorkoutFit(plan, { createdAt: FIT_CREATED })))[0]?.notes ?? ''
 
   const FUEL_SURFACES: readonly FuelSurface[] = [
     {
-      // Today's target line reads the target itself and words it.
+      // Today's target line reads the target itself and words it. The slot the API serves is
+      // asserted against the same words in tests/api/fuelLab.test.ts.
       name: 'today',
       covers: () => true,
       read: (c) => {
         const target = fuelTargetFor(c.ctx, fuelInput(c.planned, c.source, c.status))
-        return target === null ? null : describeFuelTarget(target).watch
+        return { line: target === null ? null : describeFuelTarget(target).watch }
       },
     },
     {
@@ -639,17 +656,24 @@ describe('cross-surface fuel line', () => {
       covers: publishable,
       read: (c) => {
         const plan = workoutOf(c.source, c.line, c.eased)
-        const file = encodeWorkoutFit(plan, { createdAt: FIT_CREATED })
-        const notes = expandWorkout(readWorkout(file))[0]?.notes ?? ''
+        const notes = firstNote(plan)
         // The note joins whole sentences, and the fuel line is the last of them.
         const at = notes.indexOf('Fuel ')
-        if (at >= 0) return notes.slice(at)
-        // A note holds 49 bytes. When the eased line or the effort mark takes the room the file
-        // leaves the line out whole, never cut (E1-3); the description still carries it. Any
-        // other note without the line is a bug.
-        const competes = c.eased || plan.targets.mode === 'effort'
-        if (c.line !== null && !competes) throw new Error(`The note lost the line: ${notes}`)
-        return c.line
+        if (at >= 0) return { line: notes.slice(at) }
+        if (c.line === null) return { line: null }
+        // A note holds 49 bytes, and a sentence that does not fit is left out whole, never cut
+        // (E1-3); the description still carries the line. So the line may be missing only when the
+        // rest of the note, joined as the encoder joins it, leaves it no room. The file then
+        // reports the drop; any other note without the line is a bug.
+        const rest = firstNote({ ...plan, fuelLine: null })
+        const joined = rest === '' ? c.line : `${rest}${rest.endsWith('.') ? ' ' : '. '}${c.line}`
+        if (byteLength(joined) <= FIT_NOTES_MAX_BYTES) {
+          throw new Error(`The note lost the line: ${notes}`)
+        }
+        return {
+          line: null,
+          dropped: `${String(byteLength(joined))} bytes in a ${String(FIT_NOTES_MAX_BYTES)}-byte note`,
+        }
       },
     },
     {
@@ -701,17 +725,48 @@ describe('cross-surface fuel line', () => {
   })
 
   it.each(FUEL_SURFACES.map((s) => [s.name, s] as const))(
-    '%s carries the line the pure function gives',
+    '%s carries the line the pure function gives, or reports that it left the line out',
     (_name, surface) => {
       const wrong: string[] = []
       for (const c of cases()) {
         if (!surface.covers(c.planned.kind)) continue
         const read = surface.read(c)
-        if (read !== c.line) wrong.push(`${c.label}: ${String(read)} instead of ${String(c.line)}`)
+        // A surface that dropped the line says so, and only where there was a line to drop.
+        if (read.dropped !== undefined) {
+          if (read.line !== null || c.line === null) {
+            wrong.push(`${c.label}: reports a drop with no line missing`)
+          }
+          continue
+        }
+        if (read.line !== c.line) {
+          wrong.push(`${c.label}: ${String(read.line)} instead of ${String(c.line)}`)
+        }
       }
       expect(wrong).toEqual([])
     },
   )
+
+  it('reports a dropped line on the FIT file for every eased run, and on no other surface', () => {
+    const droppedBy = new Map<string, string[]>(FUEL_SURFACES.map((s) => [s.name, []]))
+    const eased: string[] = []
+    for (const c of cases()) {
+      for (const surface of FUEL_SURFACES) {
+        if (!surface.covers(c.planned.kind)) continue
+        const read = surface.read(c)
+        if (read.dropped !== undefined) droppedBy.get(surface.name)!.push(c.label)
+        // "Eased for today" and the shortest line are over 49 bytes together (E1-3).
+        if (surface.name === 'fit' && c.eased && c.line !== null) {
+          eased.push(c.label)
+          expect(read.dropped, c.label).toBeDefined()
+        }
+      }
+    }
+    expect(eased.length).toBeGreaterThan(0)
+    expect(droppedBy.get('fit')!.length).toBeGreaterThanOrEqual(eased.length)
+    for (const surface of FUEL_SURFACES.filter((s) => s.name !== 'fit')) {
+      expect(droppedBy.get(surface.name), surface.name).toEqual([])
+    }
+  })
 
   it('names the grams of the target on every surface, the floor held on a hot day', () => {
     for (const { stepped, hot, grams } of [
@@ -733,7 +788,7 @@ describe('cross-surface fuel line', () => {
       }
       for (const surface of FUEL_SURFACES) {
         const read = surface.read(c)
-        expect(read, surface.name).toMatch(
+        expect(read.line, surface.name).toMatch(
           new RegExp(`^Fuel ${String(grams)}(?: to \\d+)? g/h carbs\\. Drink to thirst\\.$`),
         )
       }
@@ -776,7 +831,7 @@ describe('cross-surface fuel line', () => {
       ctx,
       line: 'Fuel 45 g/h carbs. Drink to thirst.',
     }
-    const stale = FUEL_SURFACES.filter((s) => s.name !== 'today').map((s) => s.read(c))
+    const stale = FUEL_SURFACES.filter((s) => s.name !== 'today').map((s) => s.read(c).line)
     expect(
       stale.every(
         (read) => read === fuelLineForSession(ctx, fuelInput(planned, planned, 'planned')),
