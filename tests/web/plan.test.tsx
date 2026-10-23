@@ -77,6 +77,8 @@ function makeWeek(index: number, over: Partial<PlanWeek> = {}): PlanWeek {
     tid: null,
     flags: [],
     gainTargetM: null,
+    qualitySessions: 0,
+    isRecovery: false,
     updatedAt: '2026-12-01T10:00:00.000Z',
     ...over,
   }
