@@ -13,6 +13,7 @@ import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
 import { FeedbackCard } from '../components/today/FeedbackCard.tsx'
 import { HealthNotes } from '../components/today/HealthNotes.tsx'
 import { History } from '../components/today/History.tsx'
+import { OfflineNote } from '../components/today/OfflineNote.tsx'
 import { PlanNotice } from '../components/today/PlanNotice.tsx'
 import { RaceCountdown } from '../components/today/RaceCountdown.tsx'
 import { ReadinessRead } from '../components/today/ReadinessRead.tsx'
@@ -117,6 +118,7 @@ export function DashboardPage() {
     <>
       {header(formatWeekdayDate(view.date))}
       <div className={styles.page}>
+        <OfflineNote view={view} units={units} />
         <HealthNotes flags={view.readiness.redFlags} notes={coach.health.notes} units={units} />
         <div className={styles.columns} data-layout={twoColumns ? 'two' : 'one'}>
           <div className={styles.column}>
