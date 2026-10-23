@@ -11,7 +11,7 @@ import {
   type GoalInput,
 } from '../api/goals.ts'
 import { useArchivedPlans, usePlan, useRestorePlan } from '../api/plan.ts'
-import { usePredictions } from '../api/predictions.ts'
+import { usePredictions, useTrackRecord } from '../api/predictions.ts'
 import { useSettings } from '../api/settings.ts'
 import { ActivateConfirm } from '../components/ActivateConfirm.tsx'
 import { Button } from '../components/Button.tsx'
@@ -20,11 +20,20 @@ import { localiseEngineText } from '../components/engineText.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { PredictionTrackRecord } from '../components/PredictionTrackRecord.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Sheet } from '../components/Sheet.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { formatLongDate } from '../components/format.ts'
+import {
+  blankToNull,
+  distanceInputText,
+  parseCoordinate,
+  parseDistance,
+  parseMetres,
+  parseTime,
+} from '../components/goalFormat.ts'
 import {
   RESTORE_BUTTON_LABEL,
   RESTORE_DONE_TEXT,
@@ -32,15 +41,9 @@ import {
   activateBuiltText,
   restoreNoteText,
 } from '../../shared/copy/goals.ts'
+import { outlookLine, resultButtonLabel, resultButtonName } from '../../shared/copy/trackRecord.ts'
 import { todayIso } from '../../shared/dates.ts'
-import {
-  formatDistance,
-  formatDuration,
-  kmToM,
-  milesToM,
-  mToKm,
-  mToMiles,
-} from '../../shared/units.ts'
+import { formatDistance, formatDuration } from '../../shared/units.ts'
 import type {
   ActivateRequiresPlan,
   ArchivedPlanView,
@@ -50,8 +53,10 @@ import type {
   GoalSurface,
   GoalType,
   SupportLevel,
+  TrackRecordRace,
   Units,
 } from '../../shared/types.ts'
+import { RaceResultSheet } from './RaceResultSheet.tsx'
 import styles from './GoalsPage.module.css'
 
 interface Preset {
@@ -136,49 +141,14 @@ function presetFor(distanceM: number | null): Preset | undefined {
   return distanceM === null ? undefined : PRESETS.find((p) => p.distanceM === distanceM)
 }
 
+/** The custom-distance field's text: a preset is shown as its button, so it has no text. */
 function distanceText(distanceM: number | null, units: Units): string {
   if (distanceM === null || presetFor(distanceM)) return ''
-  const value = units === 'mi' ? mToMiles(distanceM) : mToKm(distanceM)
-  return String(Number(value.toFixed(2)))
-}
-
-/** Metres from text typed in the user's units; null when it is not a positive number. */
-function parseDistance(text: string, units: Units): number | null {
-  const value = Number(text.trim().replace(',', '.'))
-  if (!Number.isFinite(value) || value <= 0) return null
-  return Math.round(units === 'mi' ? milesToM(value) : kmToM(value))
+  return distanceInputText(distanceM, units)
 }
 
 function defaultGoalType(distanceM: number | null): GoalType {
   return distanceM !== null && distanceM > ULTRA_THRESHOLD_M ? 'finish' : 'time'
-}
-
-/** Whole metres from text; blank is null, anything else that is not a whole number is undefined. */
-function parseMetres(text: string): number | null | undefined {
-  const trimmed = text.trim()
-  if (trimmed === '') return null
-  return /^\d{1,5}$/.test(trimmed) ? Number(trimmed) : undefined
-}
-
-/** Seconds from `h:mm:ss` or `m:ss`; null when the text is not a time. */
-function parseTime(text: string): number | null {
-  const match = /^(?:(\d{1,3}):)?([0-5]?\d):([0-5]\d)$/.exec(text.trim())
-  if (!match) return null
-  const seconds = (Number(match[1] ?? 0) * 60 + Number(match[2])) * 60 + Number(match[3])
-  return seconds > 0 ? seconds : null
-}
-
-/** A coordinate kept to 0.01 degrees; null when the text is not a number in range. */
-function parseCoordinate(text: string, limit: number): number | null {
-  const value = Number(text.trim().replace(',', '.'))
-  if (text.trim() === '' || !Number.isFinite(value) || Math.abs(value) > limit) return null
-  const rounded = Math.round(value * 100) / 100
-  return rounded === 0 ? 0 : rounded
-}
-
-function blankToNull(text: string): string | null {
-  const trimmed = text.trim()
-  return trimmed === '' ? null : trimmed
 }
 
 interface GoalFormProps {
@@ -576,7 +546,7 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
 }
 
 /** Feasibility, the predicted time with its range and method, and race-day heat of the active goal. */
-function GoalOutlook({ goal }: { goal: Goal }) {
+function GoalOutlook({ goal, hasResult }: { goal: Goal; hasResult: boolean }) {
   const plan = usePlan()
   const units = useSettings().data?.units
   const predictions = usePredictions(goal.id)
@@ -599,6 +569,8 @@ function GoalOutlook({ goal }: { goal: Goal }) {
   const conditions = (prediction?.conditions.filter((line) => !isHeat(line)) ?? []).map((line) =>
     localiseEngineText(line, units),
   )
+  // Once the result is recorded the weekly predictions are compared in the track record instead.
+  const logged = hasResult ? null : outlookLine(predictions.data.log.length, units ?? 'mi')
 
   return (
     <div className={styles.outlook}>
@@ -646,6 +618,7 @@ function GoalOutlook({ goal }: { goal: Goal }) {
             No prediction yet. A recent race or a hard effort gives it something to start from.
           </p>
         )}
+        {logged !== null ? <p className={styles.note}>{logged}</p> : null}
       </section>
       {heatLines.length > 0 ? (
         <section className={styles.outlookBlock} aria-label="Race-day heat">
@@ -667,10 +640,16 @@ interface GoalRowProps {
   units: Units
   /** The newest archived plan of this goal that can come back, when the goal's plan is gone. */
   archived: ArchivedPlanView | null
+  /**
+   * What the track record holds for this goal's race: the recorded result, or null when there is
+   * none. Undefined while the record is not loaded, when neither button is offered.
+   */
+  result: TrackRecordRace | null | undefined
   onEdit: () => void
+  onRecordResult: () => void
 }
 
-function GoalRow({ goal, units, archived, onEdit }: GoalRowProps) {
+function GoalRow({ goal, units, archived, result, onEdit, onRecordResult }: GoalRowProps) {
   const nameId = useId()
   const noteId = useId()
   const activate = useActivateGoal()
@@ -766,7 +745,7 @@ function GoalRow({ goal, units, archived, onEdit }: GoalRowProps) {
           </a>
         </p>
       ) : null}
-      {goal.isActive ? <GoalOutlook goal={goal} /> : null}
+      {goal.isActive ? <GoalOutlook goal={goal} hasResult={result != null} /> : null}
       {confirming ? (
         <div className={styles.confirm}>
           <p className={styles.confirmText}>Delete {goal.name}?</p>
@@ -815,6 +794,16 @@ function GoalRow({ goal, units, archived, onEdit }: GoalRowProps) {
                 Make active
               </Button>
             )}
+            {/* A result is recorded once the race day has come; a recorded one can always be edited. */}
+            {result !== undefined && (result !== null || goal.targetDate <= todayIso()) ? (
+              <Button
+                variant="secondary"
+                aria-label={resultButtonName(result !== null, goal.name, units)}
+                onClick={onRecordResult}
+              >
+                {resultButtonLabel(result !== null, units)}
+              </Button>
+            ) : null}
             <Button variant="quiet" aria-label={`Edit ${goal.name}`} onClick={onEdit}>
               Edit
             </Button>
@@ -863,7 +852,15 @@ export function GoalsPage() {
   const plan = usePlan()
   const archivedPlans = useArchivedPlans()
   const units: Units = settings.data?.units ?? 'mi'
+  const record = useTrackRecord()
   const [editing, setEditing] = useState<Goal | 'new' | null>(null)
+  const [recording, setRecording] = useState<Goal | null>(null)
+
+  /** The goal's recorded result; null when it has none, undefined while the record is unread. */
+  function resultFor(goal: Goal): TrackRecordRace | null | undefined {
+    if (record.data === undefined) return undefined
+    return record.data.races.find((race) => race.goalId === goal.id) ?? null
+  }
 
   /** The newest archived plan of a goal that can come back, unless the goal has the plan now. */
   function restorableFor(goal: Goal): ArchivedPlanView | null {
@@ -905,8 +902,12 @@ export function GoalsPage() {
             goal={goal}
             units={units}
             archived={restorableFor(goal)}
+            result={resultFor(goal)}
             onEdit={() => {
               setEditing(goal)
+            }}
+            onRecordResult={() => {
+              setRecording(goal)
             }}
           />
         ))}
@@ -929,6 +930,7 @@ export function GoalsPage() {
         }
       />
       {body}
+      {hasGoals ? <PredictionTrackRecord units={units} /> : null}
       {editing !== null ? (
         <GoalSheet
           key={editing === 'new' ? 'new' : editing.id}
@@ -936,6 +938,17 @@ export function GoalsPage() {
           units={units}
           onClose={() => {
             setEditing(null)
+          }}
+        />
+      ) : null}
+      {recording !== null ? (
+        <RaceResultSheet
+          key={recording.id}
+          goal={recording}
+          result={resultFor(recording) ?? null}
+          units={units}
+          onClose={() => {
+            setRecording(null)
           }}
         />
       ) : null}

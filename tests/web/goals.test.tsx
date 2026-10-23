@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
+import { addDays, todayIso } from '../../shared/dates.ts'
 import { GoalsPage } from '../../web/pages/GoalsPage.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import type {
@@ -17,6 +18,7 @@ import {
   renderWithProviders,
   type MockRoutes,
 } from './helpers.tsx'
+import { makeRace, makeRecord } from './track-record-fixtures.ts'
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -68,6 +70,7 @@ function routes(goals: Goal[], user: UserSettings, extra: MockRoutes = {}): Mock
     'GET /api/plan': () => null,
     'GET /api/plan/archived': () => [],
     'GET /api/predictions': () => ({ prediction: null, log: [] }),
+    'GET /api/predictions/record': () => makeRecord(),
     ...extra,
   }
 }
@@ -830,5 +833,122 @@ describe('Restore this plan', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The race date has passed, so this plan cannot be restored.',
     )
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Record result on the goal row, and the predictions logged so far (design 11.6)
+// ---------------------------------------------------------------------------------------------
+
+describe('Record result on a goal', () => {
+  const today = todayIso()
+  const past = addDays(today, -10)
+  const future = addDays(today, 30)
+
+  test('is offered once the race day has come, named for its goal, and not before', async () => {
+    mockApi(
+      routes(
+        [
+          makeGoal({ id: 'g1', name: 'Spring half', targetDate: past }),
+          makeGoal({ id: 'g2', name: 'Autumn 10K', targetDate: future }),
+          makeGoal({ id: 'g3', name: 'Race day', targetDate: today }),
+        ],
+        miUser,
+      ),
+    )
+    renderWithToasts()
+
+    expect(
+      await screen.findByRole('button', { name: 'Record result for Spring half' }),
+    ).toHaveTextContent('Record result')
+    expect(screen.getByRole('button', { name: 'Record result for Race day' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Record result for Autumn 10K/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Edit result for/ })).toBeNull()
+  })
+
+  test('is not offered while the track record is unread, so a recorded result is not shadowed', async () => {
+    mockApi(
+      routes([makeGoal({ targetDate: past })], miUser, {
+        'GET /api/predictions/record': () => ({
+          status: 400,
+          body: { error: { code: 'validation', message: 'Not today.' } },
+        }),
+      }),
+    )
+    renderWithToasts()
+
+    expect(await screen.findByRole('article', { name: 'Spring half' })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The track record did not load. Reload the page to try again.',
+    )
+    expect(screen.queryByRole('button', { name: /Record result/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Edit result/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Edit Spring half' })).toBeInTheDocument()
+  })
+
+  test('becomes Edit result when the goal has a result, even before its listed date', async () => {
+    mockApi(
+      routes([makeGoal({ id: 'g1', targetDate: future })], miUser, {
+        'GET /api/predictions/record': () => makeRecord([makeRace({ goalId: 'g1' })]),
+      }),
+    )
+    renderWithToasts()
+
+    expect(
+      await screen.findByRole('button', { name: 'Edit result for Spring half' }),
+    ).toHaveTextContent('Edit result')
+    expect(screen.queryByRole('button', { name: /Record result/ })).toBeNull()
+  })
+
+  const logEntry = (n: number) => ({
+    id: `l${String(n)}`,
+    goalId: 'g1',
+    createdAt: '2026-10-01T10:00:00.000Z',
+    weekStart: '2026-09-28',
+    loggedOn: '2026-09-29',
+    method: 'Critical speed',
+    predictedSec: 6300,
+    lowSec: 6000,
+    highSec: 6700,
+    actualSec: null,
+  })
+
+  test('the active goal says how many predictions are logged, until its result is recorded', async () => {
+    const logged = {
+      'GET /api/predictions': () => ({ prediction: null, log: [1, 2, 3].map(logEntry) }),
+    }
+    mockApi(routes([makeGoal({ isActive: true, targetDate: future })], miUser, logged))
+    const first = renderWithToasts()
+    expect(
+      await screen.findByText(
+        '3 predictions logged so far, one a week. After the race, add the result to see how they compared.',
+      ),
+    ).toBeInTheDocument()
+    expectCleanCopy(first.container)
+    first.unmount()
+
+    mockApi(
+      routes([makeGoal({ isActive: true, targetDate: past })], miUser, {
+        ...logged,
+        'GET /api/predictions/record': () => makeRecord([makeRace({ goalId: 'g1' })]),
+      }),
+    )
+    renderWithToasts()
+    expect(await screen.findByText(/No prediction yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/predictions logged so far/)).toBeNull()
+  })
+
+  test('says "1 prediction" for one, and nothing for none', async () => {
+    mockApi(
+      routes([makeGoal({ isActive: true, targetDate: future })], miUser, {
+        'GET /api/predictions': () => ({ prediction: null, log: [logEntry(1)] }),
+      }),
+    )
+    renderWithToasts()
+    expect(
+      await screen.findByText(
+        '1 prediction logged so far. After the race, add the result to see how it compared.',
+      ),
+    ).toBeInTheDocument()
   })
 })
