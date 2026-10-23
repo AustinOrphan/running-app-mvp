@@ -15,6 +15,7 @@ import type { DisruptionIssue, DisruptionIssueCode, WindowPlan } from '../engine
 import { RUN_CAP_MAX_MIN } from '../engine/disruption.ts'
 import { P } from '../engine/params/index.ts'
 import type { Quantity } from '../engine/types.ts'
+import type { ZoneBoundary } from '../engine/zoneChange.ts'
 import type { DisruptionReason, Units } from '../types.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -267,6 +268,17 @@ export const REVISION_TEMPLATES = {
     otherDate: 'date',
   }),
 
+  // The summary of the owner's decision on a zone proposal. The proposed values are in the
+  // revision's changes, which the page shows in the runner's units.
+  'revision.zone.accepted': tpl('Accepted the proposed {boundary} on {date}.', {
+    boundary: 'text',
+    date: 'date',
+  }),
+  'revision.zone.declined': tpl('Declined the proposed {boundary} on {date}.', {
+    boundary: 'text',
+    date: 'date',
+  }),
+
   // The summary of a new plan.
   'revision.generated': tpl('Plan generated for {goal}: {weeks} weeks, {sessions} sessions.', {
     goal: 'text',
@@ -347,6 +359,33 @@ export function swappedSummary(
   return render(
     REVISION_TEMPLATES['revision.owner.swapped'],
     { title, date: day(date), other, otherDate: day(otherDate) },
+    STORED_UNITS,
+  )
+}
+
+/** The zone boundaries as the summary of a zone decision names them. */
+const ZONE_BOUNDARY_WORDS: Record<ZoneBoundary, string> = {
+  cs: 'critical speed',
+  lt1Pace: 'easy pace limit',
+  thresholdPace: 'threshold pace',
+  lt1Hr: 'easy heart rate limit',
+  hrMax: 'maximum heart rate',
+}
+
+/** "Accepted the proposed threshold pace on Fri 23 Oct." */
+export function acceptedZoneSummary(boundary: ZoneBoundary, date: string): string {
+  return render(
+    REVISION_TEMPLATES['revision.zone.accepted'],
+    { boundary: ZONE_BOUNDARY_WORDS[boundary], date: day(date) },
+    STORED_UNITS,
+  )
+}
+
+/** "Declined the proposed threshold pace on Fri 23 Oct." */
+export function declinedZoneSummary(boundary: ZoneBoundary, date: string): string {
+  return render(
+    REVISION_TEMPLATES['revision.zone.declined'],
+    { boundary: ZONE_BOUNDARY_WORDS[boundary], date: day(date) },
     STORED_UNITS,
   )
 }

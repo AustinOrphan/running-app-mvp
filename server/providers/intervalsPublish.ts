@@ -6,6 +6,12 @@
 // Network goes through `ctx.fetch`. The API key is read from `ctx.secret` for the Authorization
 // header and nowhere else: no message, outcome or return value carries it, and a remote answer is
 // stripped of any echo of it before it is kept.
+import {
+  httpStatusSentence,
+  publishSentence,
+  rejectedReasonSentence,
+  rejectedSentence,
+} from '../../shared/copy/publish.ts'
 import { formatQuantity, quantityParts } from '../../shared/copy/quantity.ts'
 import type { Quantity } from '../../shared/engine/types.ts'
 import type { Units } from '../../shared/types.ts'
@@ -203,8 +209,9 @@ interface Credentials {
   apiKey: string
 }
 
-const NOT_CONNECTED = 'intervals.icu is not connected.'
-const UNREACHABLE = 'intervals.icu could not be reached.'
+const NOT_CONNECTED = publishSentence('publish.not-connected')
+const UNREACHABLE = publishSentence('publish.unreachable')
+const NO_EVENT = publishSentence('publish.no-event')
 
 function credentialsOrNull(ctx: ProviderCtx): Credentials | null {
   try {
@@ -228,11 +235,17 @@ function clean(text: string, apiKey: string): string {
   for (const secret of secrets) {
     if (secret !== '') out = out.split(secret).join('[removed]')
   }
-  out = out
-    .replace(/\p{Cc}+/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return out.length > MESSAGE_MAX ? `${out.slice(0, MESSAGE_MAX - 1).trimEnd()}…` : out
+  return capped(
+    out
+      .replace(/\p{Cc}+/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  )
+}
+
+/** A text cut to the longest message kept. */
+function capped(text: string): string {
+  return text.length > MESSAGE_MAX ? `${text.slice(0, MESSAGE_MAX - 1).trimEnd()}…` : text
 }
 
 interface Call {
@@ -276,17 +289,13 @@ function retryAfterSec(response: Response): number {
   return Number.isFinite(seconds) && seconds > 0 ? seconds : DEFAULT_RETRY_AFTER_SEC
 }
 
-/** The message of a 400 or 422: the remote's own words when it gives any. */
-async function remoteMessage(
-  response: Response,
-  apiKey: string,
-  fallback: string,
-): Promise<string> {
+/** The reason of a 400 or 422: the remote's own words, or null when it gives none. */
+async function remoteReason(response: Response, apiKey: string): Promise<string | null> {
   let text = ''
   try {
     text = await response.text()
   } catch {
-    return fallback
+    return null
   }
   try {
     const parsed = JSON.parse(text) as unknown
@@ -302,7 +311,7 @@ async function remoteMessage(
   } catch {
     // Not JSON: the text itself is the message.
   }
-  return clean(text, apiKey) || fallback
+  return clean(text, apiKey) || null
 }
 
 /**
@@ -316,29 +325,23 @@ async function problemOf(
 ): Promise<{ code: PublishFailCode; message: string }> {
   const status = response.status
   if (status === 429) {
-    throw new RateLimitPause('intervals.icu asked the app to wait.', {
+    throw new RateLimitPause(publishSentence('publish.rate-limited'), {
       retryAfterSec: retryAfterSec(response),
     })
   }
   if (status === 401 || status === 403) {
-    return {
-      code: 'auth',
-      message: 'intervals.icu did not accept the API key. Reconnect it on the Integrations page.',
-    }
+    return { code: 'auth', message: publishSentence('publish.auth') }
   }
   if (status === 400 || status === 422) {
+    const reason = await remoteReason(response, apiKey)
     return {
       code: 'rejected',
-      message: await remoteMessage(
-        response,
-        apiKey,
-        `intervals.icu did not accept the workout (HTTP ${String(status)}).`,
-      ),
+      message: reason === null ? rejectedSentence(status) : capped(rejectedReasonSentence(reason)),
     }
   }
   return {
     code: status >= 500 ? 'network' : 'rejected',
-    message: `intervals.icu answered HTTP ${String(status)}.`,
+    message: httpStatusSentence(status),
   }
 }
 
@@ -360,7 +363,7 @@ async function readJson(response: Response): Promise<unknown> {
 async function requireJson(response: Response): Promise<unknown> {
   const body = await readJson(response)
   if (body === null) {
-    throw new PublishError('rejected', 'intervals.icu answered with text that could not be read.')
+    throw new PublishError('rejected', publishSentence('publish.unreadable'))
   }
   return body
 }
@@ -481,7 +484,7 @@ function succeeded(
   const { externalId, remoteId: known } = item.workout
   const remoteId = remoteIdOf(event?.['id']) ?? known
   if (remoteId === null) {
-    return failure(item.workout, 'rejected', 'intervals.icu did not say which event it created.')
+    return failure(item.workout, 'rejected', NO_EVENT)
   }
   // An unreadable answer says nothing about the steps, so only a readable one can warn.
   const warnings =
@@ -503,7 +506,11 @@ const failure = (
   message: string,
 ): UpsertOutcome => ({ externalId: workout.externalId, ok: false, code, message })
 
-/** The created events of a bulk answer, matched to the chunk by `external_id`, then by position. */
+/**
+ * The created events of a bulk answer, matched to the chunk by `external_id`, then by position. An
+ * event that echoes no `external_id` (absent or null) takes its position; one that echoes some other
+ * id never does.
+ */
 function matchCreated(chunk: Prepared[], answer: unknown): Array<Record<string, unknown> | null> {
   const events = Array.isArray(answer) ? answer.filter(isRecord) : []
   const byExternalId = new Map<string, Record<string, unknown>>()
@@ -515,7 +522,7 @@ function matchCreated(chunk: Prepared[], answer: unknown): Array<Record<string, 
     const matched = byExternalId.get(item.workout.externalId)
     if (matched !== undefined) return matched
     const same = positional ? events[i] : undefined
-    return same !== undefined && same['external_id'] === undefined ? same : null
+    return same !== undefined && (same['external_id'] ?? null) === null ? same : null
   })
 }
 
@@ -567,7 +574,7 @@ async function upsert(
         outcomes.set(
           item.index,
           event === null || event === undefined
-            ? failure(item.workout, 'rejected', 'intervals.icu did not say which event it created.')
+            ? failure(item.workout, 'rejected', NO_EVENT)
             : succeeded(item, event, apiKey),
         )
       })
@@ -588,7 +595,7 @@ async function upsert(
         break
       }
       if (response.status === 404) {
-        const message = 'The event was removed in intervals.icu.'
+        const message = publishSentence('publish.event-removed')
         outcomes.set(item.index, failure(item.workout, 'owner-removed', message))
         continue
       }

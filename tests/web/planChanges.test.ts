@@ -80,6 +80,18 @@ describe('describeChange', () => {
     expect(describeChange(change('zones.unknown', 1, 2)).text).toBe('zones.unknown 1 to 2')
   })
 
+  test('names a declined zone proposal with the values that were proposed', () => {
+    expect(describeChange(change('zones.thresholdPace.declined', 300, 294))).toEqual({
+      label: 'Declined proposal for threshold pace',
+      from: '5:00 /km',
+      to: '4:54 /km',
+      text: 'Declined proposal for threshold pace 5:00 /km to 4:54 /km',
+    })
+    expect(describeChange(change('zones.hrMax.declined', 185, 188)).text).toBe(
+      'Declined proposal for maximum heart rate 185 bpm to 188 bpm',
+    )
+  })
+
   test('falls back to the field name and a plain value for a field it does not know', () => {
     expect(describeChange(change('mystery', 1, { a: 2 })).text).toBe('mystery 1 to {"a":2}')
   })

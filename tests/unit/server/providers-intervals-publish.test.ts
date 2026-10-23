@@ -19,6 +19,8 @@ import {
   type PublishReference,
   type UpsertOutcome,
 } from '../../../server/providers/types.ts'
+import { lintText } from '../../../shared/copy/lint.ts'
+import { httpStatusSentence, publishSentence } from '../../../shared/copy/publish.ts'
 import { easedSession } from '../../../shared/engine/readiness.ts'
 import { prescribe } from '../../../shared/engine/sessions.ts'
 import { rungSessions, sessionMin } from '../../../shared/engine/startWeeks.ts'
@@ -383,6 +385,39 @@ describe('intervals.icu reference', () => {
     expect((error as RateLimitPause).retryAfterSec).toBe(120)
   })
 
+  it('words the failures it stores from the publish templates, and each passes the lint', async () => {
+    const reference = async (
+      route: FakeRoute,
+      over: Partial<ProviderCtx> = {},
+    ): Promise<string> => {
+      const ctx = makeCtx({ [`GET ${BASE}/athlete/i1001/sport-settings`]: route }, over)
+      const result = await intervalsPublish.reference(ctx).catch((e: unknown) => e)
+      return result instanceof Error ? result.message : ''
+    }
+    const upsert = async (ctx: ProviderCtx): Promise<string> => {
+      const [outcome] = await intervalsPublish.upsert([outbound(1)], REF, ctx)
+      return outcome && !outcome.ok ? outcome.message : ''
+    }
+    const down = () => Promise.reject(new TypeError('down'))
+    const stored: Array<[string, string]> = [
+      ['publish.unreadable', await reference(() => new Response('<html>'))],
+      ['publish.rate-limited', await reference(() => json({}, 429))],
+      ['publish.not-connected', await reference(() => json([]), { secret: {} })],
+      ['publish.http-status', await reference(() => json({}, 404))],
+      ['publish.unreachable', await upsert(makeCtx({}, { fetch: down }))],
+      ['publish.no-event', await upsert(makeCtx({ [`POST ${EVENTS}/bulk`]: () => json([]) }))],
+    ]
+    expect(stored).toEqual([
+      ['publish.unreadable', publishSentence('publish.unreadable')],
+      ['publish.rate-limited', publishSentence('publish.rate-limited')],
+      ['publish.not-connected', publishSentence('publish.not-connected')],
+      ['publish.http-status', httpStatusSentence(404)],
+      ['publish.unreachable', publishSentence('publish.unreachable')],
+      ['publish.no-event', publishSentence('publish.no-event')],
+    ])
+    for (const [id, message] of stored) expect(lintText(message), id).toEqual([])
+  })
+
   it('is not-connected without a key, and network when nothing answers', async () => {
     const notConnected = await intervalsPublish
       .reference(makeCtx({}, { secret: {} }))
@@ -642,6 +677,25 @@ describe('intervals.icu upsert', () => {
     ])
   })
 
+  it('reads an echoed null external id as a missing one and matches by position', async () => {
+    const ctx = makeCtx({
+      [`POST ${EVENTS}/bulk`]: () =>
+        json([
+          { id: 51, external_id: null, workout_doc: { steps: [{}] } },
+          { id: 52, external_id: null },
+        ]),
+    })
+    const outcomes = await intervalsPublish.upsert([outbound(1), outbound(2)], REF, ctx)
+    expect(outcomes.map((o) => (o.ok ? o.remoteId : o.code))).toEqual(['51', '52'])
+
+    // An id that names some other event is not a missing one: it is not taken by position.
+    const other = makeCtx({
+      [`POST ${EVENTS}/bulk`]: () => json([{ id: 61, external_id: 'rl-other-ext9' }]),
+    })
+    const [foreign] = await intervalsPublish.upsert([outbound(1)], REF, other)
+    expect(foreign).toMatchObject({ ok: false, code: 'rejected' })
+  })
+
   it('asks for a reconnect on 401 and stops, without sending the rest', async () => {
     let calls = 0
     const ctx = makeCtx({
@@ -673,7 +727,7 @@ describe('intervals.icu upsert', () => {
     expect(outcomes.map((o) => !o.ok && o.code)).toEqual(['auth', 'auth'])
   })
 
-  it('marks a 400 and a 422 rejected with the remote words, and sends the others on', async () => {
+  it('marks a 400 and a 422 rejected with the remote words quoted, and sends the others on', async () => {
     const answers = [
       json({ error: 'Cannot read step 3' }, 400),
       json({ message: 'start_date_local is not valid' }, 422),
@@ -689,14 +743,47 @@ describe('intervals.icu upsert', () => {
     expect(outcomes[0]).toMatchObject({
       ok: false,
       code: 'rejected',
-      message: 'Cannot read step 3',
+      message: 'intervals.icu did not accept the workout: Cannot read step 3',
     })
     expect(outcomes[1]).toMatchObject({
       ok: false,
       code: 'rejected',
-      message: 'start_date_local is not valid',
+      message: 'intervals.icu did not accept the workout: start_date_local is not valid',
     })
     expect(outcomes[2]).toMatchObject({ ok: true, remoteId: '3' })
+  })
+
+  it('words a rejection that gives no reason, and a status it does not know, from the templates', async () => {
+    const ctx = makeCtx({
+      [`PUT ${EVENTS}/1`]: () => new Response('  ', { status: 422 }),
+      [`PUT ${EVENTS}/2`]: () => new Response('', { status: 400 }),
+      [`PUT ${EVENTS}/3`]: () => json({ error: 'Gone' }, 410),
+      [`PUT ${EVENTS}/4`]: () => json({}, 502),
+    })
+    const outcomes = await intervalsPublish.upsert(
+      [1, 2, 3, 4].map((i) => outbound(i, { remoteId: String(i) })),
+      REF,
+      ctx,
+    )
+    expect(outcomes.map((o) => !o.ok && [o.code, o.message])).toEqual([
+      ['rejected', 'intervals.icu did not accept the workout (HTTP 422).'],
+      ['rejected', 'intervals.icu did not accept the workout (HTTP 400).'],
+      ['rejected', 'intervals.icu answered HTTP 410.'],
+      ['network', 'intervals.icu answered HTTP 502.'],
+    ])
+  })
+
+  it('keeps a rejection with a long reason within the stored length', async () => {
+    const ctx = makeCtx({
+      [`POST ${EVENTS}/bulk`]: () => json({ error: 'Too many steps. '.repeat(40) }, 422),
+    })
+    const [outcome] = await intervalsPublish.upsert([outbound(1)], REF, ctx)
+    const message = outcome && !outcome.ok ? outcome.message : ''
+    expect(message.startsWith('intervals.icu did not accept the workout: Too many steps.')).toBe(
+      true,
+    )
+    expect(message.length).toBe(200)
+    expect(message.endsWith('…')).toBe(true)
   })
 
   it('strips an echo of the key from a rejection and caps its length', async () => {

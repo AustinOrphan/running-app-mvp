@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { P } from '../../shared/engine/params/index.ts'
 import type { ExecutionAssessment } from '../../shared/engine/types.ts'
 import type {
   ParsedActivity,
@@ -726,14 +727,25 @@ describe('zone proposals', () => {
     expect(profile.thresholdPaceSecPerKm).toBe(proposal.to)
     const revisions = (await c.get('/api/plan/revisions')).body as PlanRevision[]
     expect(revisions[0]).toMatchObject({ reason: 'owner' })
-    expect(revisions[0]!.summary).toMatch(/Accepted zone proposal/)
+    // The summary is a template with a plain label and a date; the paces are in the change.
+    expect(revisions[0]!.summary).toMatch(
+      /^Accepted the proposed threshold pace on [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}\.$/,
+    )
+    expect(revisions[0]!.changes).toEqual([
+      expect.objectContaining({ field: 'zones.thresholdPace', from: 300, to: proposal.to }),
+    ])
     expect((await c.post(`/api/zones/proposals/${proposal.id}/accept`).send({})).status).toBe(404)
 
-    // The same observations never move the boundary a second time.
+    // The same observations never move the boundary a second time. The acceptance is found by its
+    // stored change, whatever its summary says.
+    await ctx.prisma.planRevision.updateMany({
+      where: { reason: 'owner', plan: { userId: u.id } },
+      data: { summary: 'Reworded.' },
+    })
     expect((await c.get('/api/zones/proposals')).body).toEqual([])
     // Dating the acceptance before all three of them is what brings the proposal back.
     await ctx.prisma.planRevision.updateMany({
-      where: { summary: { startsWith: 'Accepted zone proposal ' }, plan: { userId: u.id } },
+      where: { reason: 'owner', plan: { userId: u.id } },
       data: { createdAt: new Date(Date.now() - 10 * 86_400_000) },
     })
     expect(((await c.get('/api/zones/proposals')).body as ZoneProposalView[]).length).toBe(1)
@@ -749,6 +761,34 @@ describe('zone proposals', () => {
     const profile = await ctx.prisma.athleteProfile.findUniqueOrThrow({ where: { userId: u.id } })
     expect(profile.thresholdPaceSecPerKm).toBe(300)
     expect((await c.post('/api/zones/proposals/unknown/decline').send({})).status).toBe(404)
+
+    // The decline is a revision with a template summary and the declined proposal as its change.
+    const [revision] = (await c.get('/api/plan/revisions')).body as PlanRevision[]
+    expect(revision).toMatchObject({ reason: 'owner' })
+    expect(revision!.summary).toMatch(
+      /^Declined the proposed threshold pace on [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}\.$/,
+    )
+    expect(revision!.changes).toEqual([
+      expect.objectContaining({
+        field: 'zones.thresholdPace.declined',
+        from: 300,
+        to: proposal!.to,
+      }),
+    ])
+    // It is found by that change, whatever its summary says, and a decline does not read as an
+    // accepted change of the boundary.
+    await ctx.prisma.planRevision.updateMany({
+      where: { reason: 'owner', plan: { userId: u.id } },
+      data: { summary: 'Reworded.' },
+    })
+    expect((await c.get('/api/zones/proposals')).body).toEqual([])
+    await ctx.prisma.planRevision.updateMany({
+      where: { reason: 'owner', plan: { userId: u.id } },
+      data: {
+        createdAt: new Date(Date.now() - (P.zoneProposal.windowDays.value + 1) * 86_400_000),
+      },
+    })
+    expect(((await c.get('/api/zones/proposals')).body as ZoneProposalView[]).length).toBe(1)
   })
 
   test('mixed feedback makes no proposal, and the zone set is readable', async () => {
