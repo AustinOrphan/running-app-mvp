@@ -20,6 +20,7 @@ import {
 } from './garminSso.ts'
 import {
   RateLimitPause,
+  WellnessTruncated,
   type FileFormat,
   type ProviderCtx,
   type PullProvider,
@@ -36,7 +37,7 @@ const PAGE_SIZE = 100
 const MAX_FIT_BYTES = 64 * 1024 * 1024
 const DAY_MS = 86_400_000
 
-/** A run that used its request budget. Wellness returns what it has; activities pause. */
+/** A run that used its request budget. Wellness throws `WellnessTruncated`; activities pause. */
 class BudgetExhausted extends RateLimitPause {}
 
 const ack = z.literal(true, {
@@ -433,47 +434,66 @@ async function json(res: Response, what: string): Promise<Record<string, unknown
   return record(await res.json().catch(() => null))
 }
 
+/** One day's wellness, or null when Garmin holds nothing for it. */
+async function readWellnessDay(ctx: ProviderCtx, date: string): Promise<WellnessInput | null> {
+  const sleepBody = await json(
+    await apiGet(ctx, `/sleep-service/sleep/dailySleepData?date=${date}`),
+    'sleep',
+  )
+  if (!sleepBody) return null
+  const dto = record(sleepBody.dailySleepDTO)
+  const sleepSec = positive(dto.sleepTimeSeconds)
+  const score = positive(record(record(dto.sleepScores).overall).value)
+  const restingHr = positive(sleepBody.restingHeartRate)
+  let hrv = positive(sleepBody.avgOvernightHrv)
+  if (hrv === null && (sleepSec !== null || restingHr !== null)) {
+    const hrvBody = await json(await apiGet(ctx, `/hrv-service/hrv/${date}`), 'HRV')
+    hrv = positive(record(hrvBody?.hrvSummary).lastNightAvg)
+  }
+  if (sleepSec === null && restingHr === null && hrv === null) return null
+  return {
+    date,
+    restingHr: restingHr === null ? null : Math.round(restingHr),
+    hrvRmssd: hrv,
+    hrvSdnn: null,
+    sleepSec: sleepSec === null ? null : Math.round(sleepSec),
+    sleepScore: score === null ? null : Math.round(score),
+    weightKg: null,
+    vo2max: null,
+  }
+}
+
+/**
+ * Reads newest first, because readiness needs the latest days and a spent request budget should
+ * cost the oldest ones, and returns the days ascending. A spent budget throws `WellnessTruncated`
+ * with the days read so far: the sync stores them and records a paused run, never a complete one.
+ * `daysRead` counts the days finished, with or without data (none when activities used the budget).
+ */
 async function listWellness(from: string, to: string, ctx: ProviderCtx): Promise<WellnessInput[]> {
   if (!dateOnly.test(from) || !dateOnly.test(to)) {
     throw validationError('Wellness dates must be YYYY-MM-DD.')
   }
   const last = Date.parse(`${to}T00:00:00Z`)
   const first = Math.max(Date.parse(`${from}T00:00:00Z`), last - (WELLNESS_DAYS - 1) * DAY_MS)
+  const daysTotal = first > last ? 0 : Math.round((last - first) / DAY_MS) + 1
   const days: WellnessInput[] = []
+  let daysRead = 0
   try {
-    for (let ms = first; ms <= last; ms += DAY_MS) {
-      const date = isoDay(ms)
-      const sleepBody = await json(
-        await apiGet(ctx, `/sleep-service/sleep/dailySleepData?date=${date}`),
-        'sleep',
-      )
-      if (!sleepBody) continue
-      const dto = record(sleepBody.dailySleepDTO)
-      const sleepSec = positive(dto.sleepTimeSeconds)
-      const score = positive(record(record(dto.sleepScores).overall).value)
-      const restingHr = positive(sleepBody.restingHeartRate)
-      let hrv = positive(sleepBody.avgOvernightHrv)
-      if (hrv === null && (sleepSec !== null || restingHr !== null)) {
-        const hrvBody = await json(await apiGet(ctx, `/hrv-service/hrv/${date}`), 'HRV')
-        hrv = positive(record(hrvBody?.hrvSummary).lastNightAvg)
-      }
-      if (sleepSec === null && restingHr === null && hrv === null) continue
-      days.push({
-        date,
-        restingHr: restingHr === null ? null : Math.round(restingHr),
-        hrvRmssd: hrv,
-        hrvSdnn: null,
-        sleepSec: sleepSec === null ? null : Math.round(sleepSec),
-        sleepScore: score === null ? null : Math.round(score),
-        weightKg: null,
-        vo2max: null,
-      })
+    for (let ms = last; ms >= first; ms -= DAY_MS) {
+      const day = await readWellnessDay(ctx, isoDay(ms))
+      daysRead += 1
+      if (day) days.push(day)
     }
   } catch (error) {
-    // A spent request budget is not a failure: hand back the days read so far.
     if (!(error instanceof BudgetExhausted)) throw error
+    throw new WellnessTruncated(error.message, {
+      retryAfterSec: error.retryAfterSec,
+      rows: days.reverse(),
+      daysRead,
+      daysTotal,
+    })
   }
-  return days
+  return days.reverse()
 }
 
 export const garminProvider: PullProvider = {

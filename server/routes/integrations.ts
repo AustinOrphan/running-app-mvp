@@ -21,6 +21,12 @@ import {
   syncProvider,
   trackBackground,
 } from '../services/sync.ts'
+import {
+  RUNS_DEFAULT_LIMIT,
+  RUNS_MAX_LIMIT,
+  listSyncRuns,
+  safeMessage,
+} from '../services/syncLog.ts'
 import type { IntegrationStatus } from '../../shared/types.ts'
 
 const syncBody = z
@@ -31,6 +37,21 @@ const syncBody = z
       .optional(),
   })
   .strict()
+
+const runsQuery = z.object({
+  limit: z
+    .string()
+    .regex(/^\d+$/, `Use a whole number from 1 to ${RUNS_MAX_LIMIT}.`)
+    .transform(Number)
+    .pipe(
+      z
+        .number()
+        .int()
+        .min(1, `Use a whole number from 1 to ${RUNS_MAX_LIMIT}.`)
+        .max(RUNS_MAX_LIMIT, `Use a whole number from 1 to ${RUNS_MAX_LIMIT}.`),
+    )
+    .optional(),
+})
 
 const folderBody = z.object({ path: z.string().trim().min(1, 'Enter the folder path.') }).strict()
 
@@ -213,6 +234,13 @@ export function integrationsRouter(deps: Deps): Router {
     }
   })
 
+  router.get('/:provider/runs', async (req, res) => {
+    const provider = String(req.params.provider)
+    getProvider(provider)
+    const { limit } = parse(runsQuery, req.query)
+    res.json(await listSyncRuns(prisma, req.userId, provider, limit ?? RUNS_DEFAULT_LIMIT))
+  })
+
   router.post('/:provider/sync', async (req, res) => {
     const provider = String(req.params.provider)
     const registered = getProvider(provider)
@@ -224,8 +252,8 @@ export function integrationsRouter(deps: Deps): Router {
     if (!row) throw conflict(`Connect ${registered.info.label} first.`)
     if (row.status === 'needs_auth') throw conflict(`Reconnect ${registered.info.label} first.`)
     if (provider === 'folder') {
-      trackBackground(scanFolderIntegration(deps, userId), (error) =>
-        logger.warn({ err: error, provider }, 'folder scan failed'),
+      trackBackground(scanFolderIntegration(deps, userId, { trigger: 'manual' }), (error) =>
+        logger.warn({ reason: safeMessage(error), provider }, 'folder scan failed'),
       )
     } else if (registered.pull) {
       if (row.pausedUntil && row.pausedUntil.getTime() > Date.now()) {
@@ -235,8 +263,11 @@ export function integrationsRouter(deps: Deps): Router {
       }
       if (!isSyncing(userId, provider)) {
         trackBackground(
-          syncProvider(deps, userId, provider, body.from ? { from: body.from } : {}),
-          (error) => logger.warn({ err: error, provider }, 'sync failed'),
+          syncProvider(deps, userId, provider, {
+            trigger: 'manual',
+            ...(body.from ? { from: body.from } : {}),
+          }),
+          (error) => logger.warn({ reason: safeMessage(error), provider }, 'sync failed'),
         )
       }
     } else {

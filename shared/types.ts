@@ -205,6 +205,51 @@ export interface IntegrationStatus {
   lastSyncStatus: string | null
   lastError: string | null
 }
+
+// The sync and job log (spec 4.7): one finished run per row.
+export type SyncChannel = 'pull' | 'push' | 'folder' | 'publish' | 'job'
+export type SyncTrigger = 'schedule' | 'manual' | 'push' | 'catchup'
+export type SyncStatus = 'ok' | 'partial' | 'paused' | 'error'
+export type WellnessStatus = 'none' | 'read' | 'truncated' | 'waiting' | 'error'
+/** An item a run could not import: what it was, and the service's own words for why. */
+export interface SyncFailure {
+  ref: string
+  reason: string
+}
+export interface SyncRunView {
+  id: string
+  /** The provider key; for channel `job`, the job name. */
+  provider: string
+  channel: SyncChannel
+  trigger: SyncTrigger
+  startedAt: string
+  finishedAt: string
+  status: SyncStatus
+  accepted: number
+  duplicate: number
+  failed: number
+  wellnessStatus: WellnessStatus
+  /** Days read; for `truncated`, the days read before the service's limit. Null when not tried. */
+  wellnessDays: number | null
+  /** Days the run meant to read; set only for `truncated`. */
+  wellnessTotal: number | null
+  /** What the service or the system said, scrubbed of secrets and cut at 300 characters. */
+  message: string | null
+  /** The first 10 items that could not be imported. */
+  failures: SyncFailure[]
+  importBatchId: string | null
+}
+/** Whether this week's automatic plan update has run, for Today's health note. */
+export interface WeeklyUpdateStatus {
+  due: boolean
+  lastRevisionAt: string | null
+}
+/** `GET /api/jobs`: the latest run of each scheduled job. */
+export interface JobsView {
+  jobs: SyncRunView[]
+  weeklyUpdate: WeeklyUpdateStatus
+}
+
 export interface ActivityDetail {
   activity: Activity
   stream: (ActivityStreamData & { sampleSec: number }) | null
