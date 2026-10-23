@@ -1,9 +1,9 @@
 // Today as one coach payload (phase 3a design 7.4, ADR 0009). `todayView` composes everything the
-// page shows from the athlete snapshot (`loadAthleteContext`), memoised values (`memoByVersion`)
-// and the cached home forecast; it reads no table of the history window or of the stored plan
-// itself and never the network. The pieces that decide are pure and live in `shared/`
-// (`readinessSignals`, `readinessVerdict`, `easedSession`, `resolveTargets`, `weekStrip`,
-// `rangeLabel`); this module gathers their inputs and assembles the answer.
+// page shows from the athlete snapshot (`loadAthleteContext`) and the cached home forecast; it
+// reads no table of the history window or of the stored plan itself and never the network. The
+// pieces that decide are pure and live in `shared/` (`readinessSignals`, `readinessVerdict`,
+// `easedSession`, `resolveTargets`, `weekStrip`, `rangeLabel`); this module gathers their inputs
+// and assembles the answer.
 //
 // The payload keeps the fields the page read before the rebuild (`sessions`, `heat`, `checkin`,
 // `readiness`, `unrated`) and adds `tz` and `coach`. Later epics add fields under `TodayCoach`
@@ -29,7 +29,6 @@ import {
 import { climbNote, resolveTargets } from '../../shared/engine/targets.ts'
 import type { EngineInput } from '../../shared/engine/types.ts'
 import type {
-  ChangeLine,
   PlanSession,
   TodayCoach,
   TodayHero,
@@ -41,16 +40,10 @@ import type {
 import type { Deps } from '../app.ts'
 import { dataVersionKey } from '../dataVersion.ts'
 import { validationError } from '../errors.ts'
-import { toChangeLine } from '../serialize.ts'
-import {
-  athleteKey,
-  loadAthleteContext,
-  memoByVersion,
-  type AthleteContext,
-} from './athleteState.ts'
+import { athleteKey, loadAthleteContext, type AthleteContext } from './athleteState.ts'
+import { briefStamp } from './brief.ts'
 import { todayDisruptions } from './disruptions.ts'
 import { inputFromContext, loadForecast, sessionSpec } from './engineInput.ts'
-import { EMPTY_DIFF_MARK } from './replan.ts'
 import { jobNotesStamp, todayHealth } from './todayHealth.ts'
 import { buildSlots } from './todaySlots.ts'
 import { forecastStamp } from './weatherCache.ts'
@@ -59,10 +52,6 @@ import { forecastStamp } from './weatherCache.ts'
 export const TODAY_RANGE_MESSAGE = 'Use today or one of the next two days.'
 /** How many days ahead the page may preview (tomorrow's session is cached the evening before). */
 export const PREVIEW_DAYS = 2
-/** The change line shows an update of this many days at most, today included. */
-export const CHANGE_LINE_DAYS = 7
-/** The revision reasons the change line reports; owner edits and undos are not "what changed". */
-const CHANGE_LINE_REASONS = ['weekly', 'break', 'review']
 
 const UNRATED_DAYS = 7
 const UNRATED_LIMIT = 5
@@ -91,7 +80,7 @@ export function assertViewable(date: string, today: string): void {
 // The validator of the payload
 // ---------------------------------------------------------------------------------------------
 
-type ChangeStamp = (args: { deps: Deps; userId: string }) => Promise<string> | string
+type ChangeStamp = (args: { deps: Deps; userId: string; today: string }) => Promise<string> | string
 
 const stamps: ChangeStamp[] = []
 
@@ -112,6 +101,10 @@ export function registerTodayStamp(stamp: ChangeStamp): () => void {
 
 // The sync-paused and weekly-update notes read `SyncRun`, which the data version does not cover.
 registerTodayStamp(jobNotesStamp)
+// The brief slot reads `WeeklyBrief`, which it does not cover either. The stamp is called through
+// an arrow because `brief.ts` reaches this module through `planEngine.ts`: its binding is read at
+// the first request, not while the modules load.
+registerTodayStamp((args) => briefStamp(args))
 
 /**
  * What the payload for a user, a day and a viewed date is valid for. Reads the data version, the
@@ -126,7 +119,9 @@ export async function todayKey(
   const [version, forecast, others] = await Promise.all([
     dataVersionKey(prisma),
     forecastStamp(prisma, args.userId),
-    Promise.all(stamps.map(async (stamp) => stamp({ deps, userId: args.userId }))),
+    Promise.all(
+      stamps.map(async (stamp) => stamp({ deps, userId: args.userId, today: args.today })),
+    ),
   ])
   return [athleteKey(version, args.today), args.date, forecast, ...others].join('~')
 }
@@ -145,38 +140,6 @@ function nextSession(sessions: readonly PlanSession[], date: string): PlanSessio
   const ahead = sessions.filter((s) => s.date > date && s.kind !== 'rest' && isToRun(s.status))
   const first = ahead[0]
   return first === undefined ? null : mainSession(ahead.filter((s) => s.date === first.date))
-}
-
-/**
- * The newest weekly, break or review update of the last `CHANGE_LINE_DAYS` days that changed
- * something and was not undone, as the plan stored it. Memoised: it moves with the data version
- * (every revision is a state write) and the day.
- */
-async function changeLine(deps: Deps, context: AthleteContext): Promise<ChangeLine | null> {
-  const plan = context.plan
-  if (plan === null) return null
-  const today = context.asOf
-  return memoByVersion(
-    deps,
-    { userId: context.userId, name: 'today.change-line', today },
-    async () => {
-      // Local midnight of the first day of the window; a date-time without an offset is local time.
-      const since = new Date(`${addDays(today, 1 - CHANGE_LINE_DAYS)}T00:00:00`)
-      const row = await deps.prisma.planRevision.findFirst({
-        where: {
-          planId: plan.id,
-          reason: { in: CHANGE_LINE_REASONS },
-          createdAt: { gte: since },
-          undoneAt: null,
-          // The plan page leaves out an update that changed nothing, and so does this line.
-          OR: [{ diff: null }, { NOT: { diff: { contains: EMPTY_DIFF_MARK } } }],
-        },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        select: { id: true, createdAt: true, reason: true, summary: true },
-      })
-      return row === null ? null : toChangeLine(row)
-    },
-  )
 }
 
 /**
@@ -358,8 +321,7 @@ export async function todayView(
         sessionKinds: sessions.map((s) => s.kind),
       })
 
-  const [change, race, health, slots] = await Promise.all([
-    changeLine(deps, context),
+  const [race, health, slots] = await Promise.all([
     raceBlock(context, date),
     todayHealth({ deps, userId, date, context }),
     buildSlots({ deps, userId, date, today, preview, context, forecast }),
@@ -374,7 +336,6 @@ export async function todayView(
     next: nextSession(context.planSessions, date),
     weekStrip: stripFor(context, date),
     race,
-    change,
     health,
     disruptions: todayDisruptions(context, date),
     slots,

@@ -12,8 +12,12 @@ import type { PrismaClient, WristPublication } from '../db.ts'
 import { toWristItem, wristItemStatus } from '../serialize.ts'
 import type { AthleteContext } from './athleteState.ts'
 
-/** The `WristPublication.channel` of the intervals.icu publisher. */
-const CHANNEL = 'intervals'
+/**
+ * The `DeliveryChannel.channel` and `WristPublication.channel` of the intervals.icu publisher: the
+ * one place the name is written. This module imports neither `publish.ts` nor `today.ts`, so
+ * `publish.ts` and `todayHealth.ts` can take the name from here.
+ */
+export const WRIST_CHANNEL = 'intervals'
 
 /** What the items of a range depend on besides the plan and the stored rows. */
 export interface WristItemsArgs {
@@ -40,7 +44,7 @@ async function publicationsOf(
   return prisma.wristPublication.findMany({
     where: {
       userId: args.userId,
-      channel: CHANNEL,
+      channel: WRIST_CHANNEL,
       OR: [
         { date: { gte: args.range.from, lte: args.range.to } },
         { externalId: { in: sessions.map((s) => s.externalId) } },
@@ -127,7 +131,7 @@ export async function todayWatchSlot(
   const { userId, date, today, context } = args
   if (!context.planSessions.some((s) => s.date === date && publishable(s.kind))) return null
   const channel = await prisma.deliveryChannel.findUnique({
-    where: { userId_channel: { userId, channel: CHANNEL } },
+    where: { userId_channel: { userId, channel: WRIST_CHANNEL } },
     select: { enabled: true, garminLinked: true },
   })
   if (channel?.enabled !== true) return null

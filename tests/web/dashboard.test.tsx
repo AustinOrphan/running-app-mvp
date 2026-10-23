@@ -180,8 +180,6 @@ describe('DashboardPage: the history below the first screen', () => {
         }),
       ),
     'GET /api/plan': () => makePlan(),
-    // The brief line (E4) is asked for once its slot is near, as the history is.
-    'GET /api/briefs': () => ({ briefs: [] }),
   }
 
   test('asks for nothing until the foot of the page comes near', async () => {

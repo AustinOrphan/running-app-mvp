@@ -194,7 +194,6 @@ export function makeCoach(over: Partial<TodayCoach> = {}): TodayCoach {
     next: null,
     weekStrip: null,
     race: null,
-    change: null,
     health: { possibleDuplicates: 0, pastUnconfirmedWeeks: 0, lastWeekReady: false, notes: [] },
     disruptions: [],
     slots: { disruption: null, fuel: null, watch: null, brief: null, fuelPrompt: null },

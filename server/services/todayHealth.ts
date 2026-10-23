@@ -14,6 +14,7 @@ import { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus } from '../jobs/weeklyUp
 import { createLogger } from '../logger.ts'
 import { latestJobRuns, safeMessage } from './syncLog.ts'
 import type { AthleteContext } from './athleteState.ts'
+import { readWristItems } from './wristItems.ts'
 
 /** Days of activities the duplicate count looks at: the window the Today page used to request. */
 export const HEALTH_ACTIVITY_DAYS = 90
@@ -94,32 +95,37 @@ export function registerHealthNoteProducer(producer: HealthNoteProducer): () => 
 
 /**
  * E1: tomorrow's run is not on the watch. Reads the publications of the sessions the plan has for
- * tomorrow (a table the data version does not cover, so `publish.ts` registers a change stamp for
- * it) and notes one that failed, is waiting for a retry or was sent with a Garmin Connect error.
- * Nothing is said for a session the runner deleted in intervals.icu, or for one that has not been
- * tried yet (the next run, within minutes, does that). Turning publishing off marks every row
- * withdrawn, so a runner who is not publishing has no row that qualifies and costs no extra read
- * when tomorrow holds no run.
+ * tomorrow through `readWristItems`, the read the Plan page and Today's watch line use, so the note
+ * and the strip word a session alike: the note is made for a session whose item is `waiting` (a
+ * pending send, a failure that will be retried, a send that moved with the session) or
+ * `not-delivered` (a failure that waits for "Send again", a send with a Garmin Connect error). The
+ * rows are in a table the data version does not cover, so `publish.ts` registers a change stamp
+ * for it. Nothing is said for a session the runner deleted in intervals.icu, or for one that has
+ * not been tried yet (the next run, within minutes, does that). Turning publishing off marks every
+ * row withdrawn, so a runner who is not publishing has no row that qualifies and costs no extra
+ * read when tomorrow holds no run.
  */
 export const tomorrowNotOnWatch: HealthNoteProducer = async ({ deps, userId, context }) => {
-  const { prisma } = deps
-  // The channel name of the intervals.icu publisher (`CHANNEL` in `publish.ts`, which imports this
-  // module and so cannot be imported here).
-  const channel = 'intervals'
   const tomorrow = addDays(context.asOf, 1)
   const sessions = context.planSessions.filter(
     (s) => s.date === tomorrow && publishable(s.kind) && isToRun(s.status),
   )
   if (sessions.length === 0) return []
-  const rows = await prisma.wristPublication.findMany({
-    where: { userId, channel, externalId: { in: sessions.map((s) => s.externalId) } },
-    select: { state: true, deviceMessage: true },
+  const items = await readWristItems(deps.prisma, {
+    userId,
+    planSessions: context.planSessions,
+    range: { from: tomorrow, to: tomorrow },
+    today: context.asOf,
+    // No item for a session that has no publication yet, and no read of the channel: the Garmin
+    // tick only tells `sent` from `on-watch`, and neither is a problem.
+    enabled: false,
+    garminLinked: false,
+    now: new Date(),
   })
-  const problem = rows.some(
-    (row) =>
-      row.state === 'failed' ||
-      row.state === 'pending' ||
-      (row.state === 'sent' && row.deviceMessage !== null),
+  const stuck = new Set(sessions.map((s) => s.externalId))
+  const problem = items.some(
+    (item) =>
+      stuck.has(item.externalId) && (item.status === 'waiting' || item.status === 'not-delivered'),
   )
   return problem
     ? [

@@ -10,6 +10,7 @@ import type {
   BriefView,
   PlanRevisionView,
   PlanWithSessions,
+  TodayView,
 } from '../../shared/types.ts'
 import type { Deps } from '../../server/app.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
@@ -701,6 +702,125 @@ describe('GET /api/briefs', () => {
     const rows = ((await r.c.get('/api/briefs')).body as { briefs: BriefListItem[] }).briefs
     expect(rows.map((b) => b.weekStart)).toEqual([monday])
     expect(await getBrief(r, `?weekStart=${lastMonday}`)).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+
+describe('GET /api/today: the brief slot', () => {
+  const today = (r: Runner) => r.c.get('/api/today')
+  const slotOf = (res: { body: unknown }) => (res.body as TodayView).coach.slots.brief
+  const tagOf = (res: { headers: Record<string, unknown> }) => String(res.headers.etag)
+  const listed = async (r: Runner) =>
+    ((await r.c.get('/api/briefs')).body as { briefs: BriefListItem[] }).briefs
+
+  test('is the stored brief of the current week, in the shape the brief list serves', async () => {
+    const r = await updated(email())
+    const res = await today(r)
+    expect(res.status).toBe(200)
+    expect(slotOf(res)).toEqual((await listed(r))[0])
+    expect(slotOf(res)).toMatchObject({
+      weekStart: monday,
+      provisional: false,
+      seen: false,
+      undone: false,
+    })
+  })
+
+  test('is null without a stored brief, and the request composes none', async () => {
+    const r = await runner(email())
+    expect(slotOf(await today(r))).toBeNull()
+    expect(await briefOf(r.u.id)).toBeNull()
+    // the brief page builds the current week's; Today then carries it
+    await getBrief(r)
+    expect(slotOf(await today(r))).toMatchObject({ weekStart: monday, provisional: true })
+  })
+
+  test('is the server’s current week: the week that turns brings its own, or none', async () => {
+    const r = await updated(email())
+    // Sunday evening is still last week, which has no brief
+    vi.setSystemTime(SUNDAY_EVENING)
+    const sunday = await today(r)
+    expect(slotOf(sunday)).toBeNull()
+    // the server’s midnight: the same request now carries the new week’s brief
+    vi.setSystemTime(MONDAY_NOON)
+    const turned = await today(r).set('If-None-Match', tagOf(sunday))
+    expect(turned.status).toBe(200)
+    expect(slotOf(turned)).toMatchObject({ weekStart: monday })
+    // and the Monday after has none yet: the old brief is not carried into it
+    vi.setSystemTime(new Date(2026, 9, 26, 0, 30))
+    expect(slotOf(await today(r))).toBeNull()
+  })
+
+  test('moves the page tag when the row is written, with no state write', async () => {
+    const r = await runner(email())
+    const first = await today(r)
+    expect((await today(r).set('If-None-Match', tagOf(first))).status).toBe(304)
+
+    // a request builds the provisional brief: not state
+    const version = (await dataVersionKey(ctx.prisma)).key
+    await getBrief(r)
+    expect((await dataVersionKey(ctx.prisma)).key).toBe(version)
+    const built = await today(r).set('If-None-Match', tagOf(first))
+    expect(built.status).toBe(200)
+    expect(slotOf(built)).toMatchObject({ provisional: true })
+    expect((await today(r).set('If-None-Match', tagOf(built))).status).toBe(304)
+
+    // the row is written again, a minute later
+    await ctx.prisma.weeklyBrief.updateMany({
+      where: { userId: r.u.id },
+      data: { generatedAt: new Date(MONDAY_NOON.getTime() + 60_000) },
+    })
+    expect((await dataVersionKey(ctx.prisma)).key).toBe(version)
+    const written = await today(r).set('If-None-Match', tagOf(built))
+    expect(written.status).toBe(200)
+    expect(slotOf(written)?.generatedAt).toBe(
+      new Date(MONDAY_NOON.getTime() + 60_000).toISOString(),
+    )
+  })
+
+  test('reads the revision’s state: seen once opened, undone after an undo', async () => {
+    const r = await updated(email())
+    const first = await today(r)
+    expect(slotOf(first)).toMatchObject({ seen: false, undone: false })
+    expect((await r.c.post(`/api/briefs/${monday}/seen`)).status).toBe(204)
+    const seen = await today(r).set('If-None-Match', tagOf(first))
+    expect(seen.status).toBe(200)
+    expect(slotOf(seen)).toMatchObject({ seen: true, undone: false })
+    await ctx.prisma.planRevision.update({
+      where: { id: r.revisionId },
+      data: { undoneAt: new Date() },
+    })
+    const undone = await today(r).set('If-None-Match', tagOf(seen))
+    expect(undone.status).toBe(200)
+    expect(slotOf(undone)).toMatchObject({ undone: true })
+  })
+
+  test('leaves out a key session whose day has passed, as the brief list does', async () => {
+    const r = await updated(email())
+    const row = (await briefOf(r.u.id))!
+    const facts = readFacts(row.facts)!
+    const kind = facts.keySession!.kind
+    const keyOn = (date: string) =>
+      ctx.prisma.weeklyBrief.update({
+        where: { id: row.id },
+        data: { facts: JSON.stringify({ ...facts, keySession: { ...facts.keySession!, date } }) },
+      })
+    // Thursday noon: the brief of the Monday still describes the week
+    const thursday = addDays(monday, 3)
+    vi.setSystemTime(new Date(2026, 9, 22, 12))
+    const nextKey = async () => {
+      const [item] = await listed(r)
+      expect(slotOf(await today(r))).toEqual(item)
+      return item!.nextKey
+    }
+
+    await keyOn(addDays(thursday, -1))
+    expect(await nextKey()).toBeNull()
+    await keyOn(thursday)
+    expect(await nextKey()).toEqual({ date: thursday, kind })
+    await keyOn(addDays(thursday, 1))
+    expect(await nextKey()).toEqual({ date: addDays(thursday, 1), kind })
   })
 })
 

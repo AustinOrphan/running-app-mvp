@@ -494,19 +494,16 @@ export async function briefView(
 }
 
 /**
- * `GET /api/briefs`: the newest briefs, slim, for the history strip and Today's line. Reads only;
- * the revision rows of the page come in one query.
+ * The slim items of stored rows, in the order of the rows; a row that cannot be read is left out.
+ * The revision rows come in one query. A frozen key session is not "next" once its day has passed:
+ * `nextKey` is null from the day after it, whichever surface asks, so the brief list and Today's
+ * line say the same.
  */
-export async function briefList(
+async function listItems(
   deps: Deps,
-  args: { userId: string; limit: number; today?: string },
+  rows: readonly WeeklyBriefRow[],
+  today: string,
 ): Promise<BriefListItem[]> {
-  const today = args.today ?? todayIso()
-  const rows = await deps.prisma.weeklyBrief.findMany({
-    where: { userId: args.userId },
-    orderBy: { weekStart: 'desc' },
-    take: args.limit,
-  })
   const ids = rows.flatMap((row) => (row.revisionId === null ? [] : [row.revisionId]))
   const revisions: Array<{ id: string; seenAt: Date | null; undoneAt: Date | null }> =
     ids.length === 0
@@ -522,6 +519,7 @@ export async function briefList(
     if (stored === null) continue
     const facts = presentedFacts(row, stored, today)
     const revision = row.revisionId === null ? null : (byId.get(row.revisionId) ?? null)
+    const key = facts.keySession
     items.push({
       weekStart: row.weekStart,
       provisional: row.provisional && !isStale(row, today),
@@ -531,13 +529,70 @@ export async function briefList(
       replan: facts.replan,
       changeCount: facts.changes?.count ?? 0,
       undone: revision?.undoneAt != null,
-      nextKey:
-        facts.keySession === null
-          ? null
-          : { date: facts.keySession.date, kind: facts.keySession.kind },
+      nextKey: key === null || key.date < today ? null : { date: key.date, kind: key.kind },
     })
   }
   return items
+}
+
+/**
+ * `GET /api/briefs`: the newest briefs, slim, for the brief page's history. Reads only; the
+ * revision rows of the page come in one query.
+ */
+export async function briefList(
+  deps: Deps,
+  args: { userId: string; limit: number; today?: string },
+): Promise<BriefListItem[]> {
+  const today = args.today ?? todayIso()
+  const rows = await deps.prisma.weeklyBrief.findMany({
+    where: { userId: args.userId },
+    orderBy: { weekStart: 'desc' },
+    take: args.limit,
+  })
+  return listItems(deps, rows, today)
+}
+
+/** The key of the row of the week that `today` falls in. */
+const currentWeek = (userId: string, today: string) => ({
+  userId_weekStart: { userId, weekStart: mondayOf(today) },
+})
+
+/**
+ * `GET /api/today` slot `brief` (design 7.6): the stored brief of the server's current week, in the
+ * shape `GET /api/briefs` serves it, or null when the week has none. It reads and never composes:
+ * the weekly job writes the row on Monday and the brief page's `GET /api/brief` builds a
+ * provisional one, so Today never waits for a brief. When the week turns, the slot is null until
+ * one of those writes the new week's row. The row is in a table the data version does not cover,
+ * so `briefStamp` follows it in the page's tag (`today.ts`).
+ */
+export async function todayBriefSlot(
+  deps: Deps,
+  args: { userId: string; today: string },
+): Promise<BriefListItem | null> {
+  const row = await deps.prisma.weeklyBrief.findUnique({
+    where: currentWeek(args.userId, args.today),
+  })
+  return row === null ? null : ((await listItems(deps, [row], args.today))[0] ?? null)
+}
+
+/**
+ * What moves the page's tag for the brief slot: the current week's row. Every write sets
+ * `generatedAt`, and the job's brief differs from a provisional one in the other two columns, so a
+ * rewrite changes the stamp. What the item takes from the revision (seen, undone) is state, which
+ * the data version already covers. One indexed row.
+ */
+export async function briefStamp(args: {
+  deps: Deps
+  userId: string
+  today: string
+}): Promise<string> {
+  const row = await args.deps.prisma.weeklyBrief.findUnique({
+    where: currentWeek(args.userId, args.today),
+    select: { id: true, generatedAt: true, provisional: true, revisionId: true },
+  })
+  if (row === null) return 'brief:none'
+  const kind = row.provisional ? 'provisional' : 'weekly'
+  return `brief:${row.id}:${String(row.generatedAt.getTime())}:${kind}:${row.revisionId ?? 'none'}`
 }
 
 /**

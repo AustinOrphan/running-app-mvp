@@ -52,7 +52,6 @@ import type {
   ActivityListItem,
   ActivityListPage,
   ActivityType,
-  ChangeLine,
   Checkin,
   AthleteProfile,
   Availability,
@@ -592,19 +591,6 @@ export function toDisruption(row: DisruptionRow): Disruption {
     status: row.status as DisruptionStatus,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-  }
-}
-
-/** The three columns of a revision that the Today change line reads. */
-export type ChangeLineRow = Pick<PlanRevisionRow, 'id' | 'createdAt' | 'reason' | 'summary'>
-
-/** A revision as the Today change line shows it: its stored summary and nothing else. */
-export function toChangeLine(row: ChangeLineRow): ChangeLine {
-  return {
-    id: row.id,
-    createdAt: row.createdAt.toISOString(),
-    reason: row.reason as PlanRevisionReason,
-    summary: row.summary,
   }
 }
 

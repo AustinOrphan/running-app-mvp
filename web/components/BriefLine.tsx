@@ -6,11 +6,11 @@ import styles from './BriefLine.module.css'
 
 /**
  * Today's line on the weekly brief: how many sessions the update changed and the next key session,
- * worded by `renderBriefLine` from the fields of `GET /api/briefs`. The whole line is the link to
- * the brief, so the tap target is the 52 px the `brief` slot allows, and one quiet "New" marker
- * stands in front of it until the brief has been opened (`seen`, which follows the `seenAt` of the
- * revision the brief describes). An update that was undone changed nothing now, so it reads as no
- * changes.
+ * worded by `renderBriefLine` from the `brief` slot of the Today payload (the item of
+ * `GET /api/briefs`). The whole line is the link to the brief, so the tap target is the 52 px the
+ * `brief` slot allows, and one quiet "New" marker stands in front of it until the brief has been
+ * opened (`seen`, which follows the `seenAt` of the revision the brief describes). An update that
+ * was undone changed nothing now, so it reads as no changes.
  */
 export function BriefLine({ item, units }: { item: BriefListItem; units: Units }) {
   const sentence = renderBriefLine(

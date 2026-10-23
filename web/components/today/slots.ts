@@ -33,8 +33,8 @@
  * slot costs no height. A page places a slot without content and the epic that owns it registers a
  * mount for it in `slotMounts.tsx` (E6 does for `fuel` and `fuelPrompt`, E1 for `watch`, E4 for
  * `brief`), so filling a slot edits no page: `DashboardPage.tsx` and `SessionHero.tsx` stay as they
- * are. The `brief` mount asks for the newest brief only once the slot is near the viewport, so the
- * first screen keeps to its two requests. A slot whose data is missing offline renders nothing.
+ * are. Every mount reads the Today payload (`coach.slots.<name>`), the `brief` mount included, so
+ * the first screen keeps to its two requests. A slot whose data is missing offline renders nothing.
  *
  * **Above and below the fold.** `disruption`, `fuel`, `watch` and `brief` are budgeted because they
  * sit on or near the first screen. `fuelPrompt` sits below the fold in the week group and has no
