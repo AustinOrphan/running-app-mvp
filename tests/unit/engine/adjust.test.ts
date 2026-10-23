@@ -1036,8 +1036,11 @@ describe('adjusted is still to run for every reader of a status', () => {
   })
 
   // Every pure reader of `PlanSession.status` that decides "still to be run", with the question it
-  // asks. The server readers (workout download, Today's next session, the re-plan) are in
-  // tests/api/adjust.test.ts. A reader added later joins this list.
+  // asks. The server readers are tested through the API: the workout download, Today's next
+  // session and the re-plan in tests/api/adjusted.test.ts, the calendar feed in
+  // tests/api/calendarFeed.test.ts and the fuel targets in tests/api/fuelLab.test.ts. The wrist
+  // status route (the 'not-sent' item, server/services/publish.ts) has no case with an adjusted
+  // session in tests/api/wristRoutes.test.ts yet. A reader added later joins this list.
   const readers: Array<{ name: string; reads: (status: PlanSessionStatus) => boolean }> = [
     { name: 'isToRun', reads: (status) => isToRun(status) },
     {

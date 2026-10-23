@@ -424,13 +424,20 @@ describe('a guard that refuses', () => {
       data: { activityId: run.id, linkSource: 'owner', status: 'completed' },
     })
     expect((await adjustAt(f, skipped.id, { adjustment: { type: 'skip' } })).status).toBe(200)
-    const past = f.plan.sessions.find((s) => s.date < today)
+    // The engine plans nothing before today, so a session is put in the past by hand: next week's
+    // long run, moved to yesterday with the week it belongs to.
+    const past = only(f, 'long')
+    const yesterday = addDays(today, -1)
+    await ctx.prisma.planSession.update({
+      where: { id: past.id },
+      data: { date: yesterday, weekStart: mondayOf(yesterday) },
+    })
     const cases: Array<[string, PlanAdjustment, string]> = [
       [linked.id, { type: 'move', date: addDays(linked.date, 1) }, 'linked'],
       [linked.id, { type: 'skip' }, 'linked'],
       [skipped.id, { type: 'shorten', durationMin: 25 }, 'skipped'],
+      [past.id, { type: 'move', date: today }, 'past-session'],
     ]
-    if (past !== undefined) cases.push([past.id, { type: 'move', date: today }, 'past-session'])
     for (const [id, adjustment, code] of cases) {
       const res = await adjustAt(f, id, { adjustment })
       expect(res.status, code).toBe(409)

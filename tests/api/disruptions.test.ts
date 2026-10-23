@@ -592,19 +592,30 @@ describe('the commit of a window action', () => {
 
   test('a limited window caps the days and shows it: runs up to the cap, none longer', async () => {
     const f = await fixture('commit-limited@example.com')
+    // Friday to the Sunday after. Friday to Sunday alone holds one long run, which the engine drops
+    // instead of capping; next week holds several runs longer than the cap, which stay as capped
+    // runs, so the window reaches over it and the cap has days to act on.
+    const lastDay = addDays(SUNDAY, 7)
+    const runsInWindow = async () =>
+      (await sessionsOf(f.plan.id)).filter(
+        (s) => s.date >= FRIDAY && s.date <= lastDay && RUN_KINDS.has(s.kind),
+      )
+    expect((await runsInWindow()).some((s) => s.durationMin > 30)).toBe(true)
     const { disruption } = await createWindow(f, {
       reason: 'travel',
       mode: 'limited',
       maxRunMin: 30,
       startDate: FRIDAY,
-      endDate: SUNDAY,
+      endDate: lastDay,
     })
     expect(disruption).toMatchObject({ phase: 'upcoming', runFrom: FRIDAY, qualityFrom: FRIDAY })
-    const rows = await sessionsOf(f.plan.id)
-    for (const row of rows.filter((s) => s.date >= FRIDAY && s.date <= SUNDAY)) {
-      if (RUN_KINDS.has(row.kind))
-        expect(row.durationMin, `${row.date} ${row.kind}`).toBeLessThanOrEqual(30)
+    const runs = await runsInWindow()
+    expect(runs.length).toBeGreaterThan(0)
+    for (const row of runs) {
+      expect(row.durationMin, `${row.date} ${row.kind}`).toBeLessThanOrEqual(30)
     }
+    // up to the cap: the runs that were longer are cut to it, not dropped
+    expect(Math.max(...runs.map((s) => s.durationMin))).toBe(30)
   })
 
   test('a stale hash is a 409 with the new preview, and writes nothing', async () => {
@@ -678,14 +689,36 @@ describe('PATCH /api/plan/disruptions/:id', () => {
       cold({ startDate: addDays(MONDAY, -5), endDate: FRIDAY }),
     )
     expect(disruption.endDate).toBe(FRIDAY)
-    const before = await ctx.prisma.planWeek.findMany({ where: { planId: f.plan.id } })
+    // Rest through the symptom-free Saturday: the first run is Sunday, the only day of the return
+    // week left, and the return week is capped for that one day.
+    expect(disruption.runFrom).toBe(addDays(FRIDAY, 2))
+    expect(disruption.returnWeekMin).toBeGreaterThan(0)
+    const runsFrom = async (date: string) =>
+      (await sessionsOf(f.plan.id)).filter(
+        (s) => s.date >= date && s.date <= SUNDAY && RUN_KINDS.has(s.kind),
+      )
+    const kindsOn = async (date: string) =>
+      (await sessionsOf(f.plan.id)).filter((s) => s.date === date).map((s) => s.kind)
+    expect(await kindsOn(SATURDAY)).toEqual(['rest'])
+
     const res = await api(f)
       .patch(`/api/plan/disruptions/${disruption.id}`)
       .send({ endDate: THURSDAY })
     expect(res.status, JSON.stringify(res.body)).toBe(200)
-    expect((res.body as DisruptionResult).disruption.runFrom).toBe(addDays(THURSDAY, 2))
-    const after = await ctx.prisma.planWeek.findMany({ where: { planId: f.plan.id } })
-    expect(after.length).toBe(before.length)
+    const better = (res.body as DisruptionResult).disruption
+    expect(better.runFrom).toBe(addDays(THURSDAY, 2))
+    // Saturday is given back: the return week has two days to run in now, and its cap grows with
+    // them. The runs of those days stay within it.
+    expect(better.returnWeekMin).toBeGreaterThan(disruption.returnWeekMin!)
+    expect(await kindsOn(FRIDAY)).toEqual(['rest'])
+    const restored = await kindsOn(SATURDAY)
+    expect(restored.some((kind) => RUN_KINDS.has(kind))).toBe(true)
+    expect(restored).not.toContain('rest')
+    const returned = await runsFrom(better.runFrom)
+    expect(returned.length).toBeGreaterThan(0)
+    expect(returned.reduce((sum, s) => sum + s.durationMin, 0)).toBeLessThanOrEqual(
+      better.returnWeekMin!,
+    )
   })
 
   test('extends a window, and the rest sessions follow it', async () => {
@@ -1159,8 +1192,10 @@ describe('DELETE /api/plan/disruptions/:id', () => {
       .patch(`/api/plan/disruptions/${disruption.id}`)
       .send({ endDate: SATURDAY })
       .expect(200)
-    const later = (await sessionsOf(f.plan.id)).find((s) => s.date === SUNDAY && s.kind !== 'rest')
-    if (later) await api(f).put(`/api/plan/sessions/${later.id}`).send({ skip: true }).expect(200)
+    // Saturday is the last day of the window now, and the plan holds it with a rest session.
+    const held = (await sessionsOf(f.plan.id)).find((s) => s.date === SATURDAY && s.kind === 'rest')
+    expect(held, 'a rest session on the last day of the window').toBeDefined()
+    await api(f).put(`/api/plan/sessions/${held!.id}`).send({ skip: true }).expect(200)
     // the undo of the creation is refused: the window changed since
     const listed = (await api(f).get('/api/plan/revisions')).body as PlanRevisionView[]
     const creation = listed.find((r) => r.id === created.id)!
