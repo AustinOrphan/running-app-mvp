@@ -54,7 +54,7 @@ import type { WorkoutPlan } from '../../../shared/workouts/types.ts'
 import { renderIntervalsDescription } from '../../../server/providers/intervalsPublish.ts'
 import type { PublishReference } from '../../../server/providers/types.ts'
 import { encodeWorkoutFit, FIT_NOTES_MAX_BYTES } from '../../../server/services/workoutFit.ts'
-import { SheetTargets } from '../../../web/components/SessionSheet.tsx'
+import { SheetTargets, StoredTargets } from '../../../web/components/SessionSheet.tsx'
 import { SessionTargets } from '../../../web/components/today/SessionTargets.tsx'
 import { expandWorkout, readWorkout, type ExpandedStep } from '../../fixtures/fit/readWorkout.ts'
 import { prescribed, SESSION_KINDS, zoneSetFixture } from './fixtures.ts'
@@ -71,7 +71,7 @@ interface SurfaceReading {
 }
 
 interface SurfaceContext {
-  zones: ZoneSet
+  zones: ZoneSet | null
   hot: boolean
   units: Units
 }
@@ -380,6 +380,23 @@ const ics: SurfaceAdapter = {
   },
 }
 
+// ---------------------------------------------------------------------------------------------
+// The session sheet when the resolved targets cannot be read (the workout request failed):
+// `StoredTargets` shows the targets stored with the session. It is not a surface of the registry,
+// because it has no zones and no heat to resolve with and so cannot meet the matrix's hot and
+// zone cases; but it words the figures through the same resolver (no zones) and the same rows as
+// the hero, so it cannot keep a formatter of its own. This checks it kind by kind against the
+// resolver's stored figures, in both units.
+// ---------------------------------------------------------------------------------------------
+
+const storedSheet: SurfaceAdapter = {
+  name: 'stored-sheet',
+  read(session, ctx) {
+    const markup = renderToStaticMarkup(createElement(StoredTargets, { session, units: ctx.units }))
+    return readTargetLines(termLines(markup), ctx.units)
+  },
+}
+
 /** The registry. Later tasks append their adapters here. */
 const SURFACES: readonly SurfaceAdapter[] = [hero, sheet, briefKey, fit, intervals, ics]
 
@@ -479,6 +496,27 @@ describe('cross-surface targets', () => {
       expect(mismatchesOf(adapter)).toEqual([])
     },
   )
+
+  it('the sheet’s stored-target fallback words the stored figures as the hero does, for every kind', () => {
+    for (const kind of SESSION_KINDS) {
+      for (const units of UNITS) {
+        const session = prescribed(kind, zones)
+        const expected = reference(session, { zones: null, hot: false, units })
+        const got = storedSheet.read(session, { zones, hot: false, units })
+        expect(got, `${kind} ${units}`).toEqual(expected)
+        // the same words, row for row, as the hero prints for the same figures
+        const targets = resolveTargets(session, null, { hot: false })
+        expect(
+          termLines(renderToStaticMarkup(createElement(StoredTargets, { session, units }))),
+          `${kind} ${units}`,
+        ).toEqual(
+          termLines(
+            renderToStaticMarkup(createElement(SessionTargets, { targets, units, day: 'other' })),
+          ),
+        )
+      }
+    }
+  })
 
   it('covers every kind in both units, hot and not, eased and not', () => {
     // 16 kinds x hot x eased x 2 units; guards against a matrix that quietly shrinks.

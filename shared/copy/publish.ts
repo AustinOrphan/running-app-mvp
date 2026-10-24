@@ -40,7 +40,9 @@ export const PUBLISH_TEMPLATES = {
   'publish.wrist.remove-failed': tpl(
     'The sessions already sent could not be removed from intervals.icu, so it stays connected. Try again, or disconnect without removing them.',
   ),
-  'publish.wrist.range': tpl('Ask for at most 60 days, ending on or after the start.'),
+  'publish.wrist.range': tpl('Ask for at most {days} days, ending on or after the start.', {
+    days: 'count',
+  }),
   'publish.wrist.not-found': tpl('That session is not in the active plan.'),
   'publish.wrist.note-tomorrow': tpl(
     "Tomorrow's run is not on the watch yet. Open the plan to send it again or to download the workout file.",
@@ -234,11 +236,19 @@ export type WristSentenceId =
   | 'publish.wrist.reconnect'
   | 'publish.wrist.off'
   | 'publish.wrist.remove-failed'
-  | 'publish.wrist.range'
   | 'publish.wrist.not-found'
 
 export function wristSentence(id: WristSentenceId): string {
   return render(PUBLISH_TEMPLATES[id], {}, STORED_UNITS)
+}
+
+/** The 400 of a status range that is too long: "Ask for at most 60 days, ending on or after the start." */
+export function wristRangeSentence(maxDays: number): string {
+  return render(
+    PUBLISH_TEMPLATES['publish.wrist.range'],
+    { days: { kind: 'count', n: maxDays } },
+    STORED_UNITS,
+  )
 }
 
 /** "intervals.icu answered HTTP 502." */

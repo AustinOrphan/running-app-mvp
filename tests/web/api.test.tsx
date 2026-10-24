@@ -38,6 +38,13 @@ import { useStats } from '../../web/api/stats.ts'
 import { useToday } from '../../web/api/today.ts'
 import { useWeeks } from '../../web/api/weeks.ts'
 import {
+  useCreateCalendarLink,
+  useDisconnectIntervals,
+  useRevokeCalendarLink,
+  useSendAgain,
+  useSetPublishing,
+} from '../../web/api/wrist.ts'
+import {
   useAcceptZoneProposal,
   useDeclineZoneProposal,
   useZoneProposals,
@@ -579,6 +586,22 @@ describe('invalidation', () => {
   })
 })
 
+/** The roots of the queries a write invalidated, once each, sorted. */
+async function rootsAfter<T>(
+  routes: MockRoutes,
+  hook: () => T,
+  write: (mutation: T) => Promise<unknown>,
+): Promise<string[]> {
+  mockApi(routes)
+  const { queryClient, wrapper } = setup()
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+  const { result } = renderHook(hook, { wrapper })
+  await act(() => write(result.current))
+  return [...new Set(invalidate.mock.calls.map(([filter]) => (filter?.queryKey as string[])[0]))]
+    .filter((root): root is string => root !== undefined)
+    .sort()
+}
+
 describe('the plan readers', () => {
   /** The roots of the queries that were invalidated, once each, sorted. */
   const rootsOf = (invalidate: MockInstance<QueryClient['invalidateQueries']>) =>
@@ -666,6 +689,73 @@ describe('the plan readers', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     await act(() => invalidateNewPlan(queryClient))
     expect(rootsOf(invalidate)).toEqual(expect.arrayContaining([keys.wrist, keys.fuel, keys.plan]))
+  })
+
+  // A goal write leaves the plan's revisions alone, but the prediction is computed from the goal's
+  // distance, climb and surface, and the race block of Today and the brief's countdown come from
+  // the goal, so all three are read again with the goals and the plan.
+  const GOAL_READERS = [keys.brief, keys.goals, keys.plan, keys.predictions, keys.today].sort()
+
+  test('creating a goal reads the prediction, Today and the brief again', async () => {
+    expect(await rootsAfter(allRoutes(), useCreateGoal, (r) => r.mutateAsync(goalInput))).toEqual(
+      GOAL_READERS,
+    )
+  })
+
+  test('editing a goal reads the prediction, Today and the brief again', async () => {
+    const roots = await rootsAfter(allRoutes(), useUpdateGoal, (r) =>
+      r.mutateAsync({ id: 'g1', input: goalInput }),
+    )
+    expect(roots).toEqual(GOAL_READERS)
+  })
+
+  test('deleting a goal reads the prediction, Today and the brief again', async () => {
+    expect(await rootsAfter(allRoutes(), useDeleteGoal, (r) => r.mutateAsync('g1'))).toEqual(
+      GOAL_READERS,
+    )
+  })
+
+  test('making a goal active reads the prediction, Today and the brief again', async () => {
+    const roots = await rootsAfter(allRoutes(), useActivateGoal, (r) => r.mutateAsync({ id: 'g1' }))
+    expect(roots).toEqual(GOAL_READERS)
+  })
+})
+
+describe('the channel to the watch', () => {
+  const routes = (): MockRoutes =>
+    allRoutes({
+      'POST /api/wrist/publish': () => ({}),
+      'PUT /api/wrist/intervals': () => ({}),
+      'DELETE /api/integrations/intervals': () => ({ status: 204, body: undefined }),
+      'POST /api/wrist/calendar/token': () => ({ token: 't', url: 'u', madeOn: '2026-03-01' }),
+      'DELETE /api/wrist/calendar/token': () => ({ status: 204, body: undefined }),
+    })
+
+  // Today's watch line is the `watch` slot of the Today payload, empty while sending is off, so a
+  // change of the channel has to read Today again as well as the watch status.
+  test('Send again reads the watch status and Today again', async () => {
+    const roots = await rootsAfter(routes(), useSendAgain, (r) => r.mutateAsync({}))
+    expect(roots).toEqual([keys.today, keys.wrist].sort())
+  })
+
+  test('turning sending off reads the watch status and Today again', async () => {
+    const roots = await rootsAfter(routes(), useSetPublishing, (r) =>
+      r.mutateAsync({ enabled: false, garminLinked: false, removeSent: true }),
+    )
+    expect(roots).toEqual([keys.today, keys.wrist].sort())
+  })
+
+  test('disconnecting intervals.icu reads the integrations, the watch status and Today again', async () => {
+    const roots = await rootsAfter(routes(), useDisconnectIntervals, (r) =>
+      r.mutateAsync({ removeSent: false }),
+    )
+    expect(roots).toEqual([keys.integrations, keys.today, keys.wrist].sort())
+  })
+
+  test('the calendar link moves the watch status only: the Today payload holds no part of it', async () => {
+    const make = await rootsAfter(routes(), useCreateCalendarLink, (r) => r.mutateAsync())
+    const end = await rootsAfter(routes(), useRevokeCalendarLink, (r) => r.mutateAsync())
+    expect([make, end]).toEqual([[keys.wrist], [keys.wrist]])
   })
 })
 

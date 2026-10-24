@@ -12,8 +12,8 @@ import {
 } from '../../shared/copy/revision.ts'
 import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
-import { RUN_KINDS } from '../../shared/engine/adjust.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import { compatible } from '../../shared/engine/execution.ts'
 import {
   buildPlan,
   keptByReplan,
@@ -483,16 +483,6 @@ export async function ownedSession(deps: Deps, userId: string, id: string) {
   return row
 }
 
-/** Compatibility of an activity with a session kind, as the matcher defines it [design 4.1]. */
-function compatible(kind: SessionKind, type: string, subtype: string | null): boolean {
-  const sub = (subtype ?? '').toLowerCase()
-  if (RUN_KINDS.has(kind) && kind !== 'hike') return type === 'run' || type === 'race'
-  if (kind === 'hike') return type === 'cross' && (sub === 'hike' || sub === 'walk')
-  if (kind === 'strength') return type === 'strength'
-  if (kind === 'mobility' || kind === 'cross') return type === 'cross'
-  return false
-}
-
 /** Links, relinks (`activityId`) or unlinks (`null`) the activity that fulfils a session. */
 export async function linkPlanSession(
   deps: Deps,
@@ -519,7 +509,7 @@ export async function linkPlanSession(
 
   const activity = await prisma.activity.findFirst({ where: { id: args.activityId, userId } })
   if (!activity) throw notFound('Activity not found.')
-  if (!compatible(row.kind as SessionKind, activity.type, activity.subtype)) {
+  if (!compatible(row.kind as SessionKind, activity)) {
     throw conflict(`A ${activity.type} activity cannot fulfil a ${row.kind} session.`)
   }
   const taken = await prisma.planSession.findFirst({

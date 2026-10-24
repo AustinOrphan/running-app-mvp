@@ -29,6 +29,11 @@ export interface ActivityInput {
   date: string
   startTime?: string | null
   type: ActivityType
+  /**
+   * The sub-type the plan matcher reads: a hike session is fulfilled only by a cross-training
+   * activity of sub-type `hike` or `walk`. Left out, an edit keeps the stored one.
+   */
+  subtype?: string | null
   durationSec: number
   distanceM?: number | null
   rpe?: number | null

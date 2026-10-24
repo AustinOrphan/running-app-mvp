@@ -47,6 +47,25 @@ function optionalKeepInt(min: number, max: number) {
   return z.number().int().min(min).max(max).nullable().optional()
 }
 
+/**
+ * The sub-types an activity may carry (`Activity.subtype`): the surface of a run and the sport of
+ * a cross-training entry. The plan matcher reads it: a hike session is fulfilled only by a `cross`
+ * activity of sub-type `hike` or `walk` (`compatible`, `shared/engine/execution.ts`).
+ */
+const SUBTYPES = [
+  'road',
+  'trail',
+  'track',
+  'treadmill',
+  'bike',
+  'hike',
+  'walk',
+  'swim',
+  'ski',
+  'elliptical',
+  'other',
+] as const
+
 const activitySchema = z.object({
   date: dateSchema,
   startTime: z
@@ -55,6 +74,8 @@ const activitySchema = z.object({
     .nullish()
     .transform((value) => value ?? null),
   type: z.enum(['run', 'race', 'strength', 'cross']),
+  /** Absent leaves the stored sub-type alone (an edit from the form never sends one); null clears it. */
+  subtype: z.enum(SUBTYPES).nullable().optional(),
   durationSec: z.number().int().min(1).max(MAX_DURATION_SEC),
   distanceM: optionalInt(0, MAX_DISTANCE_M),
   rpe: optionalInt(1, 10),
@@ -310,9 +331,14 @@ export function activitiesRouter(deps: Deps): Router {
       released.push(...(await releaseStaleConfirmed(req.userId, id)))
       await markDuplicates(prisma, req.userId, [id, ...released])
     }
-    // A new date or type may no longer fit the session this activity fulfils.
+    // A new date, type or sub-type may no longer fit the session this activity fulfils.
+    const subtypeChanged = body.subtype !== undefined && body.subtype !== existing.subtype
     const reconsider =
-      body.date !== existing.date ? 'date' : body.type !== existing.type ? 'type' : undefined
+      body.date !== existing.date
+        ? 'date'
+        : body.type !== existing.type || subtypeChanged
+          ? 'type'
+          : undefined
     await runExecutionQuietly(deps, { userId: req.userId, activityId: id, reconsider })
     res.json(toActivity(await findOwned(req.userId, id)))
   })

@@ -367,7 +367,14 @@ describe('the session sheet', () => {
         body: { error: { code: 'internal', message: 'Down.' } },
       }),
     })
+    // the stored band, worded by the rows the hero uses: its terms, its "about" guide for a pace
+    // and its "out of 10", not a formatter of the sheet's own
     expect(await within(dialog).findByText('158 to 168 bpm')).toBeInTheDocument()
+    expect(within(dialog).getByText('Heart rate')).toBeInTheDocument()
+    expect(within(dialog).getByText('about 5:10 to 5:30 /km')).toBeInTheDocument()
+    expect(within(dialog).getByText('6 to 7 out of 10')).toBeInTheDocument()
+    expect(within(dialog).queryByText(/of 10$/)).toHaveTextContent('out of 10')
+    expectCleanCopy(dialog)
   })
 
   test('holds the targets back until they are read, so no old figure flashes first', async () => {

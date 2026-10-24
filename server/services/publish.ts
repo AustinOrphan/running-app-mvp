@@ -26,7 +26,7 @@
 // (`publishChangeKey`), a retry that is due and a 30-minute backstop; there is no other watermark.
 import { createHash } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, todayIso } from '../../shared/dates.ts'
-import { publishSentence, wristSentence } from '../../shared/copy/publish.ts'
+import { publishSentence, wristRangeSentence, wristSentence } from '../../shared/copy/publish.ts'
 import { workoutExternalId } from '../../shared/domain/sessionIdentity.ts'
 import type {
   PlanSession,
@@ -35,7 +35,7 @@ import type {
   WristSettings,
   WristStatus,
 } from '../../shared/types.ts'
-import { PUBLISH_HORIZON_DAYS } from '../../shared/workouts/horizon.ts'
+import { PUBLISH_HORIZON_DAYS, STATUS_MAX_DAYS } from '../../shared/workouts/horizon.ts'
 import type { WorkoutPlan } from '../../shared/workouts/types.ts'
 import type { Deps } from '../app.ts'
 import { SecretError, userTagOf } from '../crypto.ts'
@@ -99,8 +99,6 @@ const RUN_RETRY_MIN = 5
 export const REMOVE_TIMEOUT_MS = 20_000
 /** Withdrawn and owner-removed rows older than this are deleted (design 6.3). */
 const PRUNE_DAYS = 60
-/** Days a status request may span (design 6.4). */
-export const STATUS_MAX_DAYS = 60
 
 const MIN_MS = 60_000
 
@@ -1294,7 +1292,7 @@ export async function prepareDisconnect(
 export function statusRangeIssue(from: string, to: string): string | null {
   if (!isIsoDate(from) || !isIsoDate(to)) return null
   const span = daysBetween(from, to) + 1
-  return span < 1 || span > STATUS_MAX_DAYS ? wristSentence('publish.wrist.range') : null
+  return span < 1 || span > STATUS_MAX_DAYS ? wristRangeSentence(STATUS_MAX_DAYS) : null
 }
 
 /**

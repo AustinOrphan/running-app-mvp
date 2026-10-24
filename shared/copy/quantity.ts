@@ -161,6 +161,8 @@ export function quantityParts(q: Quantity, units: Units): QuantityParts | null {
     case 'count':
       return { num: formatNumber(q.n), suffix: '' }
     case 'temp':
+      // A WBGT reading or a heat threshold: the heat rules (section I) state both in °C, so they
+      // read °C with miles too. An air temperature follows the units (`formatAirTemperature`).
       return { num: formatNumber(q.c), suffix: ' °C' }
     case 'date':
       return dateParts(q)
@@ -180,6 +182,19 @@ export function quantityParts(q: Quantity, units: Units): QuantityParts | null {
 export function formatQuantity(q: Quantity, units: Units): string {
   const parts = quantityParts(q, units)
   return parts === null ? NO_VALUE : `${parts.num}${parts.suffix}`
+}
+
+/**
+ * An air temperature in the runner's units, to whole degrees: "50 °F" with miles, "10 °C" with
+ * kilometres. The one rule for the air: the activity page's weather and Today's cooler start both
+ * word it here. A `temp` quantity is the other kind of temperature, a WBGT reading or a heat
+ * threshold, and reads °C in either unit system (see `quantityParts`).
+ */
+export function formatAirTemperature(c: number, units: Units): string {
+  if (!Number.isFinite(c)) return NO_VALUE
+  return units === 'mi'
+    ? `${String(Math.round((c * 9) / 5 + 32))} °F`
+    : `${String(Math.round(c))} °C`
 }
 
 /**

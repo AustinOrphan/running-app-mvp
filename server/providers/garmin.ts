@@ -5,6 +5,7 @@
 import { unzipSync } from 'fflate'
 import { z } from 'zod'
 import { HttpError, parse, unauthorized, validationError } from '../errors.ts'
+import { count, providerMessage } from '../../shared/copy/pageCopy.ts'
 import type { ParsedActivity, WellnessInput } from '../../shared/types.ts'
 import {
   API_BASE,
@@ -337,7 +338,9 @@ async function* listActivities(since: string, ctx: ProviderCtx): AsyncGenerator<
       endDate,
     })
     const res = await apiGet(ctx, `/activitylist-service/activities/search/activities?${query}`)
-    if (!res.ok) throw new Error(`Garmin activity list failed (HTTP ${res.status}).`)
+    if (!res.ok) {
+      throw new Error(providerMessage('provider.garmin.list', { status: count(res.status) }))
+    }
     const page: unknown = await res.json()
     if (!Array.isArray(page)) throw new Error('Garmin activity list was not an array.')
     for (const item of page as Array<Record<string, unknown>>) {
@@ -404,7 +407,11 @@ async function fetchActivity(
     throw error
   }
   if (res.status === 404 || res.status === 204) return null
-  if (!res.ok) throw new Error(`Garmin download failed for ${ref.id} (HTTP ${res.status}).`)
+  if (!res.ok) {
+    throw new Error(
+      providerMessage('provider.garmin.download', { id: ref.id, status: count(res.status) }),
+    )
+  }
 
   const fit = extractFit(ref.id, new Uint8Array(await res.arrayBuffer()))
   if (!fit) return null
@@ -430,7 +437,9 @@ function positive(value: unknown): number | null {
 /** A wellness answer's body; null for a day without data (404 or 204), throws on other failures. */
 async function json(res: Response, what: string): Promise<Record<string, unknown> | null> {
   if (res.status === 404 || res.status === 204) return null
-  if (!res.ok) throw new Error(`Garmin ${what} request failed (HTTP ${res.status}).`)
+  if (!res.ok) {
+    throw new Error(providerMessage('provider.garmin.request', { what, status: count(res.status) }))
+  }
   return record(await res.json().catch(() => null))
 }
 

@@ -2751,6 +2751,7 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'design-4.2',
   'design-4.3',
   'design-revisions',
+  'design-review',
 ])
 
 const lower = (rule: string) => rule.toLowerCase()

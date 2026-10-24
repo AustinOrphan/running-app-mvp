@@ -8,6 +8,7 @@ import {
   type StravaRef,
 } from '../../../server/providers/strava.ts'
 import { RateLimitPause, type ProviderCtx } from '../../../server/providers/types.ts'
+import { lintText } from '../../../shared/copy/lint.ts'
 import { fakeFetch, type FakeRoute } from '../../fakeFetch.ts'
 
 const NOW = new Date('2026-10-22T10:07:00Z')
@@ -213,7 +214,8 @@ describe('refreshIfNeeded', () => {
     )
     const error = await refreshIfNeeded(ctx).catch((e: unknown) => e)
     expect(error).toBeInstanceOf(Error)
-    expect((error as Error).message).toMatch(/HTTP 503/)
+    expect((error as Error).message).toBe('Strava answered the token request with HTTP 503.')
+    expect(lintText((error as Error).message)).toEqual([])
     expect((error as Error).message).not.toMatch(/reconnect/i)
     expect(ctx.saved).toEqual([])
   })
@@ -353,9 +355,11 @@ describe('listActivities', () => {
     const broken = ctxWith({
       [`GET ${API}/athlete/activities`]: () => new Response('{}', { status: 500 }),
     })
-    await expect(
-      collect(stravaProvider.listActivities('2026-10-01T00:00:00Z', broken)),
-    ).rejects.toThrow(/HTTP 500/)
+    const error = await collect(
+      stravaProvider.listActivities('2026-10-01T00:00:00Z', broken),
+    ).catch((e: unknown) => e)
+    expect((error as Error).message).toBe('Strava answered the request with HTTP 500.')
+    expect(lintText((error as Error).message)).toEqual([])
   })
 })
 

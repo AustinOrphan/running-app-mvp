@@ -5,7 +5,13 @@ import type { ZoneSet } from '../../shared/engine/types.ts'
 import type { AthleteProfile, Availability, Screening, Units, Weekday } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ProfilePage } from '../../web/pages/ProfilePage.tsx'
-import { explainOf, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  explainOf,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -151,6 +157,7 @@ describe('ProfilePage', () => {
     expect(screen.getByRole('textbox', { name: /Threshold pace/ })).toHaveValue('5:30')
     expect(screen.getByRole('combobox', { name: 'Long-run day' })).toHaveValue('sun')
     expect(screen.getByRole('radio', { name: 'A lot' })).toBeChecked()
+    expectCleanCopy(document.body)
   })
 
   test('saves edited numbers, pace and selects with a full profile body', async () => {
@@ -369,6 +376,7 @@ describe('ProfilePage', () => {
     renderWithProviders(<ProfilePage />)
     expect(await screen.findByRole('alert')).toHaveTextContent(/did not load/)
     expect(within(document.body).queryByRole('button', { name: 'Save profile' })).toBeNull()
+    expectCleanCopy(document.body)
   })
 
   describe('zones', () => {
@@ -410,6 +418,7 @@ describe('ProfilePage', () => {
       expect(within(z2).getByText('149 to 168 bpm')).toBeInTheDocument()
       expect(within(z2).getByText('5:59 to 5:35 /km')).toBeInTheDocument()
       expect(within(z2).getByText('4 to 6')).toBeInTheDocument()
+      expectCleanCopy(section)
 
       await user.click(within(section).getByRole('button', { name: 'Why: zones' }))
       const drawer = await screen.findByRole('dialog', { name: 'Evidence' })
@@ -495,6 +504,7 @@ describe('ProfilePage', () => {
       const prompt = await within(section).findByText(/Two or more signs/)
       expect(prompt).toHaveTextContent('clinician')
       expect(prompt).toHaveTextContent('not a diagnosis')
+      expectCleanCopy(section)
     })
 
     test('saving posts every answer as yes or no, toasts and refreshes the last screen', async () => {
@@ -508,6 +518,12 @@ describe('ProfilePage', () => {
       })
       await user.click(await screen.findByRole('button', { name: 'Start screen' }))
       const dialog = await screen.findByRole('dialog', { name: 'Energy availability screen' })
+      expect(
+        within(dialog).getByRole('checkbox', {
+          name: 'Periods that have stopped or become irregular, or other changes to the cycle',
+        }),
+      ).toBeInTheDocument()
+      expectCleanCopy(dialog)
       await user.click(within(dialog).getByRole('checkbox', { name: /Unintended weight loss/ }))
       await user.click(
         within(dialog).getByRole('checkbox', { name: /Tiredness that does not lift/ }),
@@ -550,6 +566,7 @@ describe('ProfilePage', () => {
       expect(await within(dialog).findByRole('alert')).toHaveTextContent(
         'Screen not saved. The database is busy.',
       )
+      expectCleanCopy(dialog)
     })
   })
 })

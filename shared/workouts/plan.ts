@@ -36,8 +36,14 @@ interface Context {
   units: Units
 }
 
-const isWalk = (step: Step, ctx: Context): boolean =>
-  ctx.walking && (step.kind === 'recover' || step.kind === 'warmup' || step.kind === 'cooldown')
+/** A run-walk ladder session: its breaks and the two framing steps are walks, not runs. */
+const isWalking = (session: WorkoutSource): boolean =>
+  isLadderSession(session) || session.flags.includes('run-walk')
+
+const isWalkStep = (step: Step, walking: boolean): boolean =>
+  walking && (step.kind === 'recover' || step.kind === 'warmup' || step.kind === 'cooldown')
+
+const isWalk = (step: Step, ctx: Context): boolean => isWalkStep(step, ctx.walking)
 
 type StepName = Extract<keyof typeof WORKOUT_TEMPLATES, `workout.step.${string}`>
 
@@ -66,6 +72,17 @@ function nameOf(step: Step, kind: SessionKind, walk: boolean): StepName {
 /** A short name for a step; the same on every surface. */
 const labelOf = (step: Step, walk: boolean, ctx: Context): string =>
   render(WORKOUT_TEMPLATES[nameOf(step, ctx.session.kind, walk)], {}, ctx.units)
+
+/**
+ * The name a step of `session.structure` takes on every surface: the watch, the workout file, the
+ * intervals.icu text, the calendar outline and the session sheet's list of steps. The sheet lists
+ * the engine's steps, not a workout, and asks here for each word, so it never keeps a list of its
+ * own. A step name holds no figure, so the units cannot change it.
+ */
+export function stepName(step: Step, session: WorkoutSource): string {
+  const walk = isWalkStep(step, isWalking(session))
+  return render(WORKOUT_TEMPLATES[nameOf(step, session.kind, walk)], {}, 'km')
+}
 
 /**
  * The target of one step, from the resolved targets of the session [rule O1]:
@@ -279,7 +296,7 @@ export function toWorkoutPlan(
   const ctx: Context = {
     session,
     targets,
-    walking: isLadderSession(session) || session.flags.includes('run-walk'),
+    walking: isWalking(session),
     units: options.units,
   }
   const plannedSec = Math.round(session.durationMin * 60)

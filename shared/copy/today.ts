@@ -233,7 +233,9 @@ export const TODAY_TEMPLATES = {
   'today.target.note-hot-hr': tpl('It runs high in heat.'),
 
   // The cooler start: the hour, and the index then and at the peak. Without a WBGT reading the
-  // peak figure is not known, so the air-temperature line names the cooler hour only.
+  // peak figure is not known, so the air-temperature line names the cooler hour only. The WBGT is
+  // a `temp` quantity (°C in either unit system); the air temperature arrives as text, written
+  // by `formatAirTemperature`, which follows the units.
   'today.cooler.wbgt': tpl('Cooler start: {time}. WBGT about {then} then, {peak} around {hour}.', {
     time: 'text',
     then: 'temp',
@@ -242,7 +244,7 @@ export const TODAY_TEMPLATES = {
   }),
   'today.cooler.air': tpl('Cooler start: {time}. Air temperature about {then} then.', {
     time: 'text',
-    then: 'temp',
+    then: 'text',
   }),
 
   // The hero: what was planned when the day is eased or rested, the run that was logged, the
