@@ -57,7 +57,8 @@ export const PRODUCTION_API_LIMIT = 1000
 /**
  * Requests per window and IP of the API limiter outside production. The Playwright server runs
  * with `NODE_ENV=development` and the suite sends one IP's whole run through the window (942 of
- * 1000 requests at wave 5, about 1,170 of 20000 at wave 6), so a spec added later must not exhaust it.
+ * 1000 requests at wave 5, about 1,170 of 20000 at wave 6, about 1,450 at wave 7), so a spec added
+ * later must not exhaust it.
  */
 export const NON_PRODUCTION_API_LIMIT = 20_000
 

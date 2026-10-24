@@ -31,7 +31,7 @@ export default defineConfig({
       PORT: String(E2E_PORT),
       // The readiness line above is an info-level log; `NODE_ENV=test` or a quieter `LOG_LEVEL`
       // inherited from the shell would silence it. Any NODE_ENV but `production` also gives the
-      // `/api` limiter its 20000-request budget (`apiLimitFor`); the suite spends about 1,170
+      // `/api` limiter its 20000-request budget (`apiLimitFor`); the suite spends about 1,450
       // (read the `RateLimit` header of a request made after the last spec).
       NODE_ENV: 'development',
       LOG_LEVEL: 'info',

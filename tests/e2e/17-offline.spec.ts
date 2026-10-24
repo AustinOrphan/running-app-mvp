@@ -176,8 +176,9 @@ test('the first visit installs the shell and keeps the answers Today needs', asy
   expect(names.filter((name) => name.startsWith('rl-shell-'))).toHaveLength(1)
   expect(names).toEqual(expect.arrayContaining([API_CACHE, 'rl-meta']))
   // The page, its entry chunk, the chunk of every sheet that opens on a tap (read from
-  // `lazySheets.tsx`, so a sheet added later is held to it), the chart and the corpus that the
-  // Explain drawer reads.
+  // `lazySheets.tsx`, so a sheet added later is held to it), the chunk of every chart (read from
+  // `lazyCharts.tsx` the same way) with the library they share, and the corpus that the Explain
+  // drawer reads.
   const shell = await kept(names.find((name) => name.startsWith('rl-shell-')) ?? '')
   expect(shell).toContain('/index.html')
   expect(shell).toContain('/manifest.webmanifest')
@@ -187,7 +188,13 @@ test('the first visit installs the shell and keeps the answers Today needs', asy
     ),
   ].map((match) => match[1] ?? '')
   expect(sheets.length).toBeGreaterThanOrEqual(7)
-  for (const chunk of ['index', 'charts', 'researchBundle', ...sheets]) {
+  const charts = [
+    ...readFileSync('web/components/charts/lazyCharts.tsx', 'utf8').matchAll(
+      /import\('\.\/(\w+)\.tsx'\)/g,
+    ),
+  ].map((match) => match[1] ?? '')
+  expect(charts.length).toBeGreaterThanOrEqual(4)
+  for (const chunk of ['index', 'charts', 'researchBundle', ...sheets, ...charts]) {
     expect(
       shell.some((path) => new RegExp(`^/assets/${chunk}-[^/]*\\.js$`).test(path)),
       chunk,
