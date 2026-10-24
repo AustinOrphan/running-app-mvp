@@ -8,7 +8,6 @@ import {
   type RestoreBlock,
 } from '../../shared/copy/goals.ts'
 import { planRestoredSummary } from '../../shared/copy/revision.ts'
-import type { EngineInput } from '../../shared/engine/types.ts'
 import type {
   ActivateRequiresPlan,
   ArchivedPlanView,
@@ -17,26 +16,12 @@ import type {
 } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { conflict, HttpError, notFound } from '../errors.ts'
-import { toGoal } from '../serialize.ts'
+import { parsePlanOptions, toGoal } from '../serialize.ts'
 import { generateEnginePlan } from './planEngine.ts'
 import { recordPlanWrite, replanActivePlan } from './replan.ts'
 
 /** How many archived plans `GET /api/plan/archived` lists. */
 export const ARCHIVED_PLANS_LISTED = 5
-
-/**
- * The engine options of a stored plan. They are the runner's preferences (recovery cycle, strength
- * sessions, intensity model), so a plan built for another goal keeps them. Text that is not an
- * object gives none.
- */
-function storedOptions(text: string): EngineInput['options'] {
-  try {
-    const value: unknown = JSON.parse(text)
-    return typeof value === 'object' && value !== null && !Array.isArray(value) ? value : {}
-  } catch {
-    return {}
-  }
-}
 
 /**
  * Makes one goal the active goal, and returns it.
@@ -78,7 +63,8 @@ export async function activateGoal(
       userId,
       goalId: goal.id,
       today: args.today,
-      options: storedOptions(plan.options),
+      // The runner's preferences carry over to a plan built for another goal.
+      options: parsePlanOptions(plan.options),
       reason: 'goal-switch',
     })
   } else {

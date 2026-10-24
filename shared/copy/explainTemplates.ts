@@ -699,6 +699,11 @@ export const EXPLAIN_TEMPLATES = {
     'Your typical week is {typical}, which caps the longest run for this goal at {cap}.',
     { typical: 'minutes', cap: 'minutes' },
   ),
+  // After a break of 7 days or more the plan restarts from a lower typical week [rules J7].
+  'explain.d7-tier-break': tpl(
+    'After your break the plan restarts from a typical week of {typical}, which caps the longest run for this goal at {cap}.',
+    { typical: 'minutes', cap: 'minutes' },
+  ),
   'explain.d7-gap': tpl(
     'The longest run for a 5 km or 10 km goal comes from your typical week; no weeks with a run are on file.',
   ),
@@ -723,6 +728,11 @@ export const EXPLAIN_TEMPLATES = {
     'The next recovery week in your plan starts on {week}, with up to {minutes} of running.',
     { week: 'date', minutes: 'minutes' },
   ),
+  // A recovery week that a rest window holds whole has no minutes to state.
+  'explain.e3-next-none': tpl(
+    'The next recovery week in your plan starts on {week}, with no running set.',
+    { week: 'date' },
+  ),
   'explain.e4-week': tpl(
     'The week of {week} is a {phase} week, with about {z1} of running time in zone 1, {z2} in zone 2 and {z3} in zone 3.',
     { week: 'date', phase: 'text', z1: 'percent', z2: 'percent', z3: 'percent' },
@@ -743,10 +753,8 @@ export const EXPLAIN_TEMPLATES = {
     'You already run enough to skip a start path: the plan builds from your start level of {level} a week.',
     { level: 'minutes' },
   ),
-  'explain.e6-gap': tpl(
-    'No run is on file in the last {days} days, so the plan starts from the first rung of the run-walk ladder.',
-    { days: 'count' },
-  ),
+  // The gap names what is missing only; the path sentence beside it says where the plan starts.
+  'explain.e6-gap': tpl('No run is on file in the last {days} days.', { days: 'count' }),
 
   // H2 to H13: ultra, course and fuel
   'explain.h2-cap': tpl(
@@ -836,5 +844,7 @@ export const EXPLAIN_TEMPLATES = {
     week: 'date',
     minutes: 'minutes',
   }),
+  // A taper week that a rest window holds whole has no minutes to state.
+  'explain.k2-week-none': tpl('The taper week of {week} has no running set.', { week: 'date' }),
   'explain.k2-gap': tpl('No taper weeks are in the plan yet.'),
 } satisfies Record<string, Template>

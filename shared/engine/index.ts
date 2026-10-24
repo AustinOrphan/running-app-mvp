@@ -5,7 +5,7 @@
 import { addDays, mondayOf } from '../dates.ts'
 import { isToRun } from '../domain/sessionStatus.ts'
 import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
-import { breakRestart, trimQuality } from './adapt.ts'
+import { afterBreak, trimQuality } from './adapt.ts'
 import { estimateState } from './athlete.ts'
 import { runChecklist } from './checklist.ts'
 import {
@@ -58,7 +58,6 @@ import {
   startSessionMinMin,
 } from './startWeeks.ts'
 import type {
-  AthleteState,
   EngineInput,
   EngineWarning,
   PlanChange,
@@ -71,7 +70,7 @@ import type {
 } from './types.ts'
 import { buildZones } from './zones.ts'
 
-export { zoneProposals, weeklyDecision } from './adapt.ts'
+export { afterBreak, zoneProposals, weeklyDecision } from './adapt.ts'
 export {
   daysBefore,
   isComparableCourse,
@@ -369,21 +368,6 @@ function reduceWeek(week: WeekDraft, lastLoad: WeekDraft | undefined): WeekDraft
     isRecovery: true,
     focus: 'Recovery week: lighter volume, frequency kept',
     flags: capped.flags.includes('recovery') ? capped.flags : [...capped.flags, 'recovery'],
-  }
-}
-
-/**
- * A break of 7 days or more restarts below the volume before it [rules J7]: the typical week the
- * macrocycle grows from is the restart volume, not the pre-break one, and the recent level of E6
- * does not lift the start above it.
- */
-export function afterBreak(state: AthleteState): AthleteState {
-  if (state.layoffDays < P.j7.tier1Days.value || state.typicalWeekMin <= 0) return state
-  const restart = breakRestart(state.layoffDays, state.typicalWeekMin)
-  return {
-    ...state,
-    typicalWeekMin: Math.min(state.typicalWeekMin, restart.restartMin),
-    recentWeekMin: Math.min(state.recentWeekMin, restart.restartMin),
   }
 }
 

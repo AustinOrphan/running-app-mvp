@@ -602,6 +602,20 @@ describe('prediction and the stored plan', () => {
     expect((await load(bare.id)).planSessions).toEqual([])
   })
 
+  test('planOptions are the stored plan options, and none when the text is not an object', async () => {
+    const user = await seedUser()
+    expect((await load(user.id)).planOptions).toEqual({})
+    const goal = await prisma.goal.create({ data: goalRow(user.id) })
+    const plan = await prisma.plan.create({
+      data: { ...planRow(user.id, goal.id), options: '{"recoveryCycle":"2:1"}' },
+    })
+    expect((await load(user.id)).planOptions).toEqual({ recoveryCycle: '2:1' })
+    for (const text of ['not json', '["2:1"]', 'null', '7']) {
+      await prisma.plan.update({ where: { id: plan.id }, data: { options: text } })
+      expect((await load(user.id)).planOptions, text).toEqual({})
+    }
+  })
+
   test('a version-1 plan is not the stored plan the engine keeps', async () => {
     const user = await seedUser()
     const goal = await prisma.goal.create({ data: goalRow(user.id) })

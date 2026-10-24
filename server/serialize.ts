@@ -30,6 +30,7 @@ import type {
   ChecklistResult,
   EngineWarning,
   ExecutionAssessment,
+  EngineInput,
   Feasibility,
   LadderStep,
   PlanChange,
@@ -431,6 +432,16 @@ export function toWeeklyReview(row: WeeklyReviewRow): WeeklyReview {
   }
 }
 
+/**
+ * The engine options of a stored plan: the runner's preferences (recovery cycle, strength sessions,
+ * intensity model), kept when a plan is built for another goal and read by Explain. Text that is
+ * absent, unreadable or not a JSON object gives none.
+ */
+export function parsePlanOptions(text: string | null | undefined): EngineInput['options'] {
+  const parsed = parseJson<unknown>(text ?? null, {})
+  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {}
+}
+
 /** The version-2 columns of a plan that `toPlan` leaves out. */
 export function toPlanEngineFields(row: PlanRow): {
   feasibility: Feasibility | null
@@ -442,7 +453,7 @@ export function toPlanEngineFields(row: PlanRow): {
     feasibility: parseJson<Feasibility | null>(row.feasibility, null),
     warnings: parseJson<EngineWarning[]>(row.warnings, []),
     checklist: parseJson<ChecklistResult[]>(row.checklist, []),
-    options: parseJson<Record<string, unknown>>(row.options, {}),
+    options: parsePlanOptions(row.options),
   }
 }
 

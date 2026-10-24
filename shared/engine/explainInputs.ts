@@ -12,7 +12,7 @@ import type { TEMPLATES, TemplateId } from '../copy/templates.ts'
 import { addDays, daysBetween, isIsoDate, mondayOf } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, DisruptionReason, Goal } from '../types.ts'
-import { breakRestart, weekEvidence } from './adapt.ts'
+import { afterBreak, breakRestart, weekEvidence } from './adapt.ts'
 import { bmiOf, csEffortsOf, durabilityRuns, efficiencySamples, hrAnchors } from './athlete.ts'
 import type { HrModel } from './execution.ts'
 import { feasibility, FLOOR_WEEKS, meanWeeklyKm, peakLongRunMin, trainingPace } from './goal.ts'
@@ -2048,6 +2048,14 @@ function floorFacts(scope: Scope): InputFact[] {
   ]
 }
 
+/**
+ * The state the plan was drawn from. A break of 7 days or more restarts the plan below the volume
+ * before it [rules J7], so the start path, the outlook, the cap of the longest run and the length
+ * of the taper are read from the restart volume, as the generator reads them. The snapshot keeps
+ * the runner's own typical week; `afterBreak` is pure and changes nothing else.
+ */
+const planState = (ctx: ExplainContext): AthleteState => afterBreak(ctx.state)
+
 const FEASIBILITY_WORDS: Readonly<Record<Feasibility['label'], string>> = {
   comfortable: 'comfortable',
   tight: 'tight',
@@ -2058,9 +2066,10 @@ function outlookFacts(scope: Scope): InputFact[] {
   const { ctx } = scope
   const { race } = ctx
   if (race === null) return noGoal('D4')
-  // The label the plan was generated with: the same start path and the same day.
+  // The label the plan was generated with: the same start path, the same day and the same state.
   const input: EngineInput = { ...ctx.input, today: ctx.asOf, goal: race }
-  const outlook = feasibility(race, ctx.state, ctx.asOf, startPath(input, ctx.state))
+  const state = planState(ctx)
+  const outlook = feasibility(race, state, ctx.asOf, startPath(input, state))
   return [
     make('D4', 'label', 'explain.d4-label', {
       label: FEASIBILITY_WORDS[outlook.label],
@@ -2136,19 +2145,24 @@ function raceHeatFacts(rule: 'D6' | 'I2' | 'I3'): Builder {
 
 function longRunTierFacts(scope: Scope): InputFact[] {
   const { ctx } = scope
-  const { race, state } = ctx
+  const { race } = ctx
   if (race === null) return noGoal('D7')
   if (race.distanceClass !== '5k' && race.distanceClass !== '10k') return []
-  if (state.typicalWeekMin <= 0) return [gap('D7', 'explain.d7-gap', {})]
+  if (ctx.state.typicalWeekMin <= 0) return [gap('D7', 'explain.d7-gap', {})]
+  // The tier comes from the typical week the plan grew from, which a break lowers [rules J7].
+  const state = planState(ctx)
   // The cap is measured at the pace the long run is carried at, as the plan measures it.
   const pace = trainingPace(state, race)
   const z1 = ctx.zones.pace?.z1 ?? null
   const runPace = z1 === null ? pace : (z1[0] + z1[1]) / 2
+  const slots = {
+    typical: minutes(state.typicalWeekMin),
+    cap: minutes(peakLongRunMin(race, pace, state, runPace)),
+  }
   return [
-    make('D7', 'tier', 'explain.d7-tier', {
-      typical: minutes(state.typicalWeekMin),
-      cap: minutes(peakLongRunMin(race, pace, state, runPace)),
-    }),
+    state.typicalWeekMin === ctx.state.typicalWeekMin
+      ? make('D7', 'tier', 'explain.d7-tier', slots)
+      : make('D7', 'tier', 'explain.d7-tier-break', slots),
   ]
 }
 
@@ -2215,14 +2229,18 @@ function recoveryCycleFacts(scope: Scope): InputFact[] {
   const weeks = planWeeks(ctx)
   const recovery = weeks.find((w) => w.isRecovery && w.weekStart >= next)
   if (recovery !== undefined) {
+    const window = { window: weekWindow(recovery.weekStart) }
+    // A recovery week that a rest window holds whole is stored at no running, not "up to 0 min".
     facts.push(
-      make(
-        'E3',
-        'next',
-        'explain.e3-next',
-        { week: weekOf(recovery.weekStart), minutes: minutes(recovery.targetRunMin) },
-        { window: weekWindow(recovery.weekStart) },
-      ),
+      Math.round(recovery.targetRunMin) <= 0
+        ? make('E3', 'next', 'explain.e3-next-none', { week: weekOf(recovery.weekStart) }, window)
+        : make(
+            'E3',
+            'next',
+            'explain.e3-next',
+            { week: weekOf(recovery.weekStart), minutes: minutes(recovery.targetRunMin) },
+            window,
+          ),
     )
   }
   if (weeks.length === 0) facts.push(gap('E3', 'explain.plan-gap', {}))
@@ -2256,17 +2274,13 @@ function startPathFacts(scope: Scope): InputFact[] {
   if (ctx.state.lastRunDate === null) {
     facts.push(gap('E6', 'explain.e6-gap', { days: count(P.a5.historyWindowDays.value) }))
   }
-  const path = startPath({ ...ctx.input, today: ctx.asOf }, ctx.state)
+  // The path is chosen from the restart volume after a break [rules J7], as the plan chose it.
+  const state = planState(ctx)
+  const path = startPath({ ...ctx.input, today: ctx.asOf }, state)
   const sources = lastRunSources(ctx)
   if (path === null) {
     facts.push(
-      make(
-        'E6',
-        'path',
-        'explain.e6-none',
-        { level: minutes(startLevelMin(ctx.state)) },
-        { sources },
-      ),
+      make('E6', 'path', 'explain.e6-none', { level: minutes(startLevelMin(state)) }, { sources }),
     )
   } else if (path.kind === 'ladder') {
     facts.push(
@@ -2299,7 +2313,7 @@ function taperLengthFacts(scope: Scope): InputFact[] {
   const { ctx } = scope
   const { race } = ctx
   if (race === null) return noGoal('K1')
-  const days = taperDays(race, ctx.state)
+  const days = taperDays(race, planState(ctx))
   const first = planWeeks(ctx).find((w) => w.isTaper)
   return [
     first === undefined
@@ -2320,17 +2334,20 @@ function taperVolumeFacts(scope: Scope): InputFact[] {
   if (weeks.length === 0) return [gap('K2', 'explain.plan-gap', {})]
   const taper = weeks.filter((w) => w.isTaper)
   if (taper.length === 0) return [gap('K2', 'explain.k2-gap', {})]
-  return taper
-    .slice(0, EXPLAIN_MAX_SOURCES)
-    .map((w, index) =>
-      make(
-        'K2',
-        `week-${String(index)}`,
-        'explain.k2-week',
-        { week: weekOf(w.weekStart), minutes: minutes(w.targetRunMin) },
-        { window: weekWindow(w.weekStart) },
-      ),
-    )
+  return taper.slice(0, EXPLAIN_MAX_SOURCES).map((w, index) => {
+    const name = `week-${String(index)}`
+    const window = { window: weekWindow(w.weekStart) }
+    // A taper week that a rest window holds whole is stored at no running, not "up to 0 min".
+    return Math.round(w.targetRunMin) <= 0
+      ? make('K2', name, 'explain.k2-week-none', { week: weekOf(w.weekStart) }, window)
+      : make(
+          'K2',
+          name,
+          'explain.k2-week',
+          { week: weekOf(w.weekStart), minutes: minutes(w.targetRunMin) },
+          window,
+        )
+  })
 }
 
 // ---------------------------------------------------------------------------------------------

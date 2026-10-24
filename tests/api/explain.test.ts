@@ -13,7 +13,14 @@ import type { ExplainView, InputFact, Quantity } from '../../shared/engine/types
 import type { PlanWithSessions, PredictionView } from '../../shared/types.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
 import { weeklyDecisions } from '../../server/services/planEngine.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // The heart-rate model, the weekly decision and the Explain builder are counted, not replaced: the
 // real functions run.
@@ -46,6 +53,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  expectNoRefusedFetches(ctx)
   await ctx.close()
 })
 
@@ -297,7 +305,6 @@ describe('GET /api/explain: the answer', () => {
       kind: 'count',
       n: plan.feasibility!.weeksAvailable,
     })
-    expect(ctx.refusedFetches).toEqual([])
   })
 
   test('the recovery cycle is the one the plan was generated with', async () => {
@@ -313,6 +320,43 @@ describe('GET /api/explain: the answer', () => {
     expect(short!.template).toBe('explain.e3-short')
     expect(renderFact(short!, 'mi')).toBe(
       'The cycle is shorter than the usual 3 weeks because of the 2:1 cycle you chose.',
+    )
+  })
+
+  test('the start path is the one the plan restarted with after a break', async () => {
+    // Two runs a week of 75 min in all, the last one 20 days ago: the plan restarts at 56 min.
+    const rows = []
+    for (let w = 1; w <= 12; w += 1) {
+      for (const [dow, min] of [
+        [1, 37],
+        [3, 38],
+      ] as const) {
+        const date = addDays(thisMonday, -7 * w + dow)
+        if (date > addDays(today, -20)) continue
+        rows.push({
+          userId: user.id,
+          date,
+          type: 'run',
+          durationSec: min * 60,
+          movingSec: min * 60,
+          distanceM: min * 180,
+          rpe: 3,
+          source: 'manual',
+        })
+      }
+    }
+    await ctx.prisma.activity.createMany({ data: rows })
+    const goal = await seedGoal(user.id)
+    const plan = await generatePlan(user, goal.id)
+    expect(plan.weeks[0]!.flags).toContain('restart-floor')
+    const view = await explained('subject=rules&rules=E6')
+    const facts = factsOf(view, 'E6')
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-floor'])
+    // the floor session is the length of the plan's first run
+    const first = [...plan.sessions].sort((a, b) => a.date.localeCompare(b.date))[0]!
+    expect(slot(facts[0]!, 'session')).toEqual({ kind: 'minutes', min: first.durationMin })
+    expect(renderFact(facts[0]!, 'km')).toBe(
+      `You start with 3 runs of ${String(first.durationMin)} min a week, then build from there.`,
     )
   })
 
