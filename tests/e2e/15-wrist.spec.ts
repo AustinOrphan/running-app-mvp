@@ -14,11 +14,12 @@ import { RUNNER, relativeDates, resetData, signedInApi, toast, type Api } from '
 // calendar app that has no cookie, and revoked. Connecting intervals.icu needs the network, so the
 // line is shown from rows the publisher would have written, put in the database directly.
 //
-// The server counts every API request against one budget of 1000 per 15 minutes for the whole e2e
-// run, and the specs before this one leave about 50 of it. This spec therefore shares one signed-in
-// page and one plan, loads each page once where it can, and leaves the finer cases (every state of
-// the line, the failures of the dialog) to the web and API tests. No service worker may stand
-// between the page and the server.
+// The e2e server runs with NODE_ENV=development, which allows 20000 `/api` requests per 15 minutes
+// per IP (1000 in production; static files are outside the count), and the whole suite spends about
+// 1,170 of them. This spec shares one signed-in page and one plan and loads each page once where it
+// can, to keep the run short, and leaves the finer cases (every state of the line, the failures of
+// the dialog) to the web and API tests. No service worker may stand between the page and the
+// server.
 test.describe.configure({ mode: 'serial' })
 
 let page: Page

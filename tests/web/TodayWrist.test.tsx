@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { TodayCoach, TodayView, WristItem } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
@@ -139,9 +139,16 @@ describe('Today: the watch line', () => {
     expect(within(slot).queryByRole('status')).not.toBeInTheDocument()
     expect(loaded.parentElement).not.toHaveAttribute('role')
 
-    // the same state again (a refetch on focus): still quiet
-    view = dayWith([makeWristItem({ status: 'waiting' })])
+    // the same state again (a refetch on focus): still quiet. The new payload differs from the
+    // first only in the retry time, which the line's title carries and its state does not, and the
+    // wait is for that title. A payload equal to the first keeps the cached object and renders
+    // nothing, and the request alone is made before the refetched payload has rendered.
+    view = dayWith([makeWristItem({ status: 'waiting', retryAt: '2027-01-13T14:20:00.000Z' })])
     await refocus()
+    await waitFor(() => {
+      expect(loaded.parentElement).toHaveAttribute('title', expect.stringContaining('tries again'))
+    })
+    expect(within(slot).getByText('Not on the watch yet: waiting to send.')).toBeInTheDocument()
     expect(within(slot).queryByRole('status')).not.toBeInTheDocument()
 
     view = dayWith([makeWristItem({ status: 'on-watch' })])

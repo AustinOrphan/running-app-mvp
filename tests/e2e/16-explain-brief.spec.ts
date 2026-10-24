@@ -7,14 +7,19 @@ import type {
   PlanRevisionView,
   PlanWithSessions,
 } from '../../shared/types.ts'
-import { spawn, type ChildProcess } from 'node:child_process'
-import { createServer, type AddressInfo } from 'node:net'
 import type { Deps } from '../../server/app.ts'
 import { loadConfig } from '../../server/config.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { runReplanJob } from '../../server/jobs/scheduler.ts'
 import { E2E_DATABASE_URL } from './env.ts'
-import { relativeDates, resetData, signedInApi, toast, type Api } from './helpers.ts'
+import {
+  E2E_SESSION_SECRET,
+  relativeDates,
+  resetData,
+  signedInApi,
+  toast,
+  type Api,
+} from './helpers.ts'
 
 // The Monday brief the way a runner meets it: what the weekly update changed, with its cause, in
 // one column on a phone and two from 900 px; the undo previewed before it is done; the undo refused
@@ -26,85 +31,41 @@ import { relativeDates, resetData, signedInApi, toast, type Api } from './helper
 // reported this week makes it a lighter week with a decision that cites rule n-3, rows to show and
 // an earlier plan that still passes the plan checks.
 //
-// The server counts every API request against one budget of 1000 per 15 minutes for the whole
-// suite, and the specs before this one leave about 40 of it. So this spec starts a server of its
-// own (the same build on the same database file, so a budget of its own) instead of using the
-// suite's, and reads the plan and the brief through it. No service worker may stand between the
-// page and it.
+// The job runs in this process, on the suite's database file (`E2E_DATABASE_URL`); the suite's
+// server reads what it wrote, as it does for `resetData()`. Everything else goes through that
+// server, from one signed-in page. No service worker may stand between the page and it.
 test.describe.configure({ mode: 'serial' })
-
-const SESSION_SECRET = 'e2e-test-only-secret-0123456789abcdef!!'
 
 let page: Page
 let api: Api
 let deps: Deps
-let app: ChildProcess
 /** The plan as generated, to compare with the plan after an undo. */
 let original: string
 
-/** Starts `dist/server/index.js` on a free port and resolves with its origin once it listens. */
-async function startApp(): Promise<string> {
-  const port = await new Promise<number>((found, failed) => {
-    const probe = createServer()
-    probe.once('error', failed)
-    probe.listen(0, '127.0.0.1', () => {
-      const { port: free } = probe.address() as AddressInfo
-      probe.close(() => {
-        found(free)
-      })
-    })
-  })
-  app = spawn(process.execPath, ['dist/server/index.js'], {
-    env: {
-      ...process.env,
-      DATABASE_URL: E2E_DATABASE_URL,
-      SESSION_SECRET,
-      PORT: String(port),
-      NODE_ENV: 'development',
-      LOG_LEVEL: 'info',
-    },
-    stdio: ['ignore', 'pipe', 'inherit'],
-  })
-  await new Promise<void>((ready, failed) => {
-    app.once('exit', (code) => {
-      failed(new Error(`The app exited with code ${String(code)} before it listened.`))
-    })
-    app.stdout?.on('data', (chunk: Buffer) => {
-      if (chunk.toString().includes('"msg":"server listening"')) ready()
-    })
-  })
-  return `http://localhost:${String(port)}`
-}
-
-test.beforeAll(async ({ browser }) => {
+test.beforeAll(async ({ browser, baseURL }) => {
   const prisma = createPrisma(E2E_DATABASE_URL)
   await initSqlite(prisma)
   const config = loadConfig({
     DATABASE_URL: E2E_DATABASE_URL,
-    SESSION_SECRET,
+    SESSION_SECRET: E2E_SESSION_SECRET,
     NODE_ENV: 'development',
     LOG_LEVEL: 'silent',
   })
   // The update reads cached weather only; a request for more fails the spec loudly.
   deps = { prisma, config, fetch: () => Promise.reject(new Error('The e2e spec has no network.')) }
-  const origin = await startApp()
   const context = await browser.newContext({
-    baseURL: origin,
+    baseURL,
     serviceWorkers: 'block',
     viewport: { width: 360, height: 740 },
   })
   page = await context.newPage()
-  api = await signedInApi(page, origin)
+  api = await signedInApi(page, baseURL ?? '')
   await seedPlan(api)
   original = await planState()
 })
 
 test.afterAll(async () => {
   await page.context().close()
-  await new Promise((stopped) => {
-    app.once('exit', stopped)
-    app.kill('SIGTERM')
-  })
   await deps.prisma.$disconnect()
 })
 

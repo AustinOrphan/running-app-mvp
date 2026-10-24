@@ -7,7 +7,7 @@ import { relativeDates, resetData, signedInApi, toast, type Api } from './helper
 // Today as the runner uses it: Not today and Done on the session's hero, then the one-tap check-in
 // that survives a lost connection and a reload. The e2e server runs with NODE_ENV=development, which
 // allows 20000 `/api` requests per 15 minutes per IP (1000 in production; static files are outside
-// the count) and the whole suite spends about 940 of them, so the specs share one signed-in page
+// the count) and the whole suite spends about 1,170 of them, so the specs share one signed-in page
 // (its cache keeps the assets), one plan, and as few page loads as the flows need to keep the run
 // short and the count low. The fold and layout tests come before Done, because a logged run takes
 // the Done button away.
