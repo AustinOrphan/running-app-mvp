@@ -1051,3 +1051,52 @@ describe('the source', () => {
     expect(TEMPLATE).not.toMatch(/importScripts|workbox|\bwindow\b|\bdocument\b|localStorage/)
   })
 })
+
+// ---- Which answers are kept ------------------------------------------------------------------
+
+describe('no answer but a 200 is kept, in a page read or in the warm', () => {
+  /** An answer that the server could give with this status; the null-body statuses carry none. */
+  const answeredWith = (status: number): Response =>
+    new Response(status === 204 || status === 304 ? null : JSON.stringify({ units: 'mi' }), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  const STATUSES = [201, 202, 204, 206, 304, 422]
+
+  test.each(STATUSES)(
+    'a %s answer to a read is returned as it is, and is neither kept nor put over a kept copy',
+    async (status) => {
+      const sw = loadWorker()
+      sw.setNetwork(() => answeredWith(status))
+      const read = sw.request('/api/settings')
+      expect((await answer(read)).status).toBe(status)
+      await read.settle()
+      expect(await sw.kept('rl-api-v1')).toEqual([])
+
+      await sw.keep('rl-api-v1', '/api/settings', { units: 'km' }, START)
+      const again = sw.request('/api/settings')
+      expect((await answer(again)).status).toBe(status)
+      await again.settle()
+      expect(await sw.read('rl-api-v1', '/api/settings')).toEqual({ units: 'km' })
+    },
+  )
+
+  test.each(STATUSES)(
+    'a %s answer to a read of the warm is not kept; the 200 of Today is',
+    async (status) => {
+      const sw = loadWorker()
+      sw.setNetwork((url) =>
+        url.pathname === '/api/today' && url.search === ''
+          ? json(today('2026-10-22'))
+          : answeredWith(status),
+      )
+      const read = sw.request('/api/today')
+      await answer(read)
+      await read.settle()
+      // The warm asked for the rest of the allowlist and for tomorrow, and kept none of it.
+      expect(sw.requested).toContain(`${ORIGIN}/api/settings`)
+      expect(sw.requested).toContain(`${ORIGIN}/api/today?date=2026-10-23`)
+      expect(await sw.kept('rl-api-v1')).toEqual(['/api/today'])
+    },
+  )
+})
