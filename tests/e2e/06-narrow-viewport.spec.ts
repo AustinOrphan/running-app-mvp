@@ -587,6 +587,14 @@ test('the Plan page keeps the watch strip, its chips and the sheet section insid
       expect(box).not.toBeNull()
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewportWidth + 0.5)
     }
+    // The current week opens to its days by itself; a run in a later week shows its chip only
+    // once its week is opened, which a run of the suite late in the week would otherwise miss.
+    for (const weekStart of new Set(runs.map((s) => s.weekStart))) {
+      const toggle = page
+        .locator(`tr[data-week="${weekStart}"]`)
+        .getByRole('button', { name: /^Days for week of/ })
+      if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click()
+    }
     // A chip sits inside the card of its session, not beside it.
     const chips = page.locator('span[data-status]')
     await expect(chips.first()).toBeVisible()
