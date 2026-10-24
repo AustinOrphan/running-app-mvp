@@ -17,7 +17,7 @@ import type { StandoutSession } from '../../shared/engine/standout.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { checkinOn } from '../../shared/engine/readiness.ts'
 import type {
-  ExecutionAssessment,
+  ExecutionFindings,
   ExplainGroup,
   ExplainView,
   InputFact,
@@ -51,10 +51,10 @@ export interface InsightRecord {
 
 type DepsWithPrisma = Pick<Deps, 'prisma' | 'config'>
 
-function parseAssessment(text: string | null): ExecutionAssessment | null {
+function parseAssessment(text: string | null): ExecutionFindings | null {
   if (text === null) return null
   try {
-    return JSON.parse(text) as ExecutionAssessment
+    return JSON.parse(text) as ExecutionFindings
   } catch {
     return null
   }

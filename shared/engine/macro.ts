@@ -1325,7 +1325,10 @@ function planWeeks(
   return { weeks, raceWeekTail: raceWeekTail ?? null }
 }
 
-/** A week counts as a window week when this many of its days come before the window ends. */
+/**
+ * A week counts as a window week when this many of its days come before the window ends: the
+ * majority of a seven-day week, a count and not a tunable threshold, so it is not a Param.
+ */
 const WINDOW_MAJORITY_DAYS = 4
 
 /**

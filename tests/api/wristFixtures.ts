@@ -76,7 +76,9 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
  * upsert flag does for the app that made it), updated by id (404 for an unknown id), listed by day
  * and deleted in bulk. Every call is recorded; `hooks` take over one kind of call.
  */
-export function fakeIntervals(): FakeIntervals {
+export function fakeIntervals(athleteId: string = ATHLETE_ID): FakeIntervals {
+  const athleteBase = `${BASE}/athlete/${athleteId}`
+  const eventsUrl = `${athleteBase}/events`
   const events = new Map<number, RemoteEvent>()
   const calls: IntervalsCall[] = []
   let nextId = 5001
@@ -88,7 +90,7 @@ export function fakeIntervals(): FakeIntervals {
     settings: [{ types: ['Run'], max_hr: 190, lthr: 170, threshold_pace: 3.8 }],
     made: (method, part) =>
       calls.filter(
-        (call) => call.method === method && call.path.startsWith(`/athlete/${ATHLETE_ID}/${part}`),
+        (call) => call.method === method && call.path.startsWith(`/athlete/${athleteId}/${part}`),
       ),
     forget: () => {
       calls.length = 0
@@ -124,11 +126,18 @@ export function fakeIntervals(): FakeIntervals {
   })
 
   fake.fetch = fakeFetch({
-    [`GET ${BASE}/athlete/${ATHLETE_ID}/sport-settings`]: async (req) => {
+    // the connect check of the provider reads the athlete itself
+    [`GET ${athleteBase}`]: (req) => {
+      if (new URL(req.url).pathname !== `/api/v1/athlete/${athleteId}`) {
+        throw new Error(`fakeFetch: no route for GET ${req.url}`)
+      }
+      return json({ id: athleteId })
+    },
+    [`GET ${athleteBase}/sport-settings`]: async (req) => {
       const body = await record(req)
       return (await fake.hooks.settings?.(req, body)) ?? json(fake.settings)
     },
-    [`GET ${EVENTS}`]: async (req) => {
+    [`GET ${eventsUrl}`]: async (req) => {
       const body = await record(req)
       const hooked = await fake.hooks.list?.(req, body)
       if (hooked) return hooked
@@ -143,7 +152,7 @@ export function fakeIntervals(): FakeIntervals {
           .map(view),
       )
     },
-    [`POST ${EVENTS}/bulk`]: async (req) => {
+    [`POST ${eventsUrl}/bulk`]: async (req) => {
       const body = await record(req)
       const hooked = await fake.hooks.create?.(req, body)
       if (hooked) return hooked
@@ -153,7 +162,7 @@ export function fakeIntervals(): FakeIntervals {
       })
       return json(created)
     },
-    [`PUT ${EVENTS}/bulk-delete`]: async (req) => {
+    [`PUT ${eventsUrl}/bulk-delete`]: async (req) => {
       const body = await record(req)
       const hooked = await fake.hooks.remove?.(req, body)
       if (hooked) return hooked
@@ -171,7 +180,7 @@ export function fakeIntervals(): FakeIntervals {
       }
       return json({ deleted: removed })
     },
-    [`PUT ${EVENTS}/`]: async (req) => {
+    [`PUT ${eventsUrl}/`]: async (req) => {
       const body = await record(req)
       const hooked = await fake.hooks.update?.(req, body)
       if (hooked) return hooked

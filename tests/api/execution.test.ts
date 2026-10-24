@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import type { ExecutionAssessment } from '../../shared/engine/types.ts'
+import { renderFact } from '../../shared/copy/templates.ts'
+import type { ExecutionAssessment, StoredAssessment } from '../../shared/engine/types.ts'
 import type {
   ParsedActivity,
   PlanRevision,
@@ -179,9 +180,39 @@ describe('matching and assessing a stored activity', () => {
     )
     const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
     expect(row).toMatchObject({ activityId: run.id, linkSource: 'auto', status: 'completed' })
-    const execution = JSON.parse(row.execution!) as ExecutionAssessment
+    // stored as facts, never as sentences (ADR 0010)
+    const execution = JSON.parse(row.execution!) as StoredAssessment
     expect(execution.completion).toBe('completed')
-    expect(execution.lines.length).toBeGreaterThan(0)
+    expect(execution.facts.length).toBeGreaterThan(0)
+    expect(execution).not.toHaveProperty('lines')
+    // served with the sentences written from the facts when the plan is read
+    const served = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    const session = served.sessions.find((candidate) => candidate.id === rows[0]!.id)!
+    expect(session.execution?.lines).toEqual(execution.facts.map((fact) => renderFact(fact, 'km')))
+    expect(session.execution?.lines[0]).toBe('58 min against 60 min planned (97%).')
+    expect(session.execution).not.toHaveProperty('facts')
+  })
+
+  test('an assessment stored before the sentences became facts is served with its own lines', async () => {
+    const { u, rows } = await planWith('legacy-lines@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const run = await addRun(u.id, today, { durationSec: 58 * 60 })
+    await runExecutionForActivity(
+      { prisma: ctx.prisma, config: ctx.config },
+      { userId: u.id, activityId: run.id },
+    )
+    const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    const { facts: _facts, ...findings } = JSON.parse(row.execution!) as StoredAssessment
+    await ctx.prisma.planSession.update({
+      where: { id: row.id },
+      data: {
+        execution: JSON.stringify({ ...findings, lines: ['58 min against 60 planned (97%).'] }),
+      },
+    })
+    const served = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    const session = served.sessions.find((candidate) => candidate.id === row.id)!
+    expect(session.execution?.lines).toEqual(['58 min against 60 planned (97%).'])
   })
 
   test('a short run is a partial session', async () => {

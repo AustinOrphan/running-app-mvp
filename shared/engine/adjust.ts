@@ -23,7 +23,7 @@ import {
   swappedSummary,
 } from '../copy/revision.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
-import { isToRun } from '../domain/sessionStatus.ts'
+import { isToRun, isTrimmed } from '../domain/sessionStatus.ts'
 import type {
   AdjustGuardCode,
   Availability,
@@ -91,8 +91,6 @@ const NO_QUALITY_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
 const HELD_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([...RUN_KINDS, 'strength'])
 
 const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-/** The rule id that marks a trimmed session; a trim keeps its status when a restore puts it back. */
-const TRIM_RULE = 'design-4.3'
 /** The rule a shorten cites: the minutes it takes out are not made up [rule G-6]. */
 const NEVER_MAKE_UP = 'g-6'
 /** One minute of rounding in a week's total, as the quality checklist allows. */
@@ -640,7 +638,7 @@ function restoredStatus(session: PlanSession): PlanSessionStatus {
   if (first.date !== undefined && first.date !== session.date) return 'moved'
   if (first.kind !== undefined && first.kind !== session.kind) return 'moved'
   if (first.durationMin !== undefined && first.durationMin !== session.durationMin) {
-    return session.rules.includes(TRIM_RULE) ? 'downgraded' : 'adjusted'
+    return isTrimmed(session.rules) ? 'downgraded' : 'adjusted'
   }
   return 'planned'
 }

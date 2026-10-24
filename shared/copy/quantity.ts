@@ -194,3 +194,27 @@ export function formatRange(first: Quantity, second: Quantity, units: Units): st
   }
   return `${from.num} to ${to.num}${to.suffix}`
 }
+
+const NUMBER_WORDS = [
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+]
+
+/**
+ * "one symptom-free day", "3 easy days": a count in words up to ten, then in digits, with the noun
+ * in the plural unless the count is one. For a sentence that states a rule number from the Params.
+ */
+export function countPhrase(n: number, noun: string): string {
+  const word =
+    Number.isInteger(n) && n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n]! : String(n)
+  return `${word} ${noun}${n === 1 ? '' : 's'}`
+}

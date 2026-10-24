@@ -15,7 +15,7 @@ import { checkinOn, isQualityKind } from '../../shared/engine/readiness.ts'
 import type {
   AthleteState,
   EngineInput,
-  ExecutionAssessment,
+  ExecutionFindings,
   ZoneSet,
 } from '../../shared/engine/types.ts'
 import { buildZones } from '../../shared/engine/zones.ts'
@@ -63,7 +63,7 @@ async function activePlan(deps: Deps, userId: string) {
   })
 }
 
-function statusOf(assessment: ExecutionAssessment): 'completed' | 'partial' {
+function statusOf(assessment: ExecutionFindings): 'completed' | 'partial' {
   return assessment.completion === 'partial' ? 'partial' : 'completed'
 }
 
@@ -74,7 +74,7 @@ function statusOf(assessment: ExecutionAssessment): 'completed' | 'partial' {
 async function trimNextQuality(
   deps: Deps,
   row: PlanSessionRow,
-  assessment: ExecutionAssessment,
+  assessment: ExecutionFindings,
 ): Promise<void> {
   if (!isQualityKind(row.kind as PlanSession['kind'])) return
   if (assessment.flags.includes('pain') || assessment.flags.includes('focal-bone-pain')) return
@@ -138,7 +138,7 @@ async function trimNextQuality(
  * How strongly an assessment calls for a trim of the next quality session: 0 for none (no score, no rating
  * from the runner, easier than expected, or pain), 1 for a harder-than-expected session, 2 for much harder.
  */
-function trimLevel(assessment: ExecutionAssessment | null): number {
+function trimLevel(assessment: ExecutionFindings | null): number {
   if (assessment === null || assessment.effort.score === null) return 0
   if (!hasSubjectivePart(assessment.effort.parts)) return 0
   if (assessment.flags.includes('pain') || assessment.flags.includes('focal-bone-pain')) return 0
@@ -169,8 +169,7 @@ async function assessRow(
     hrModel: ctx.hrModel,
     checkin: checkinOn(ctx.input, activity.date),
   })
-  const previous =
-    row.execution === null ? null : (JSON.parse(row.execution) as ExecutionAssessment)
+  const previous = row.execution === null ? null : (JSON.parse(row.execution) as ExecutionFindings)
   const updated = await deps.prisma.planSession.update({
     where: { id: row.id },
     data: { execution: JSON.stringify(assessment), status: statusOf(assessment) },

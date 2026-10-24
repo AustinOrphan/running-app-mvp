@@ -9,7 +9,10 @@
 //   subjective score [J3]. Sleep is a weekly signal (J5) and never flags a single day.
 // - HRV uses rMSSD only (hrvSdnn is Apple's measure and is never mixed in), on the ln scale.
 import { SIGNAL_LIMIT } from '../copy/limits.ts'
+import { countPhrase } from '../copy/quantity.ts'
+import { render } from '../copy/template.ts'
 import type { TemplateId } from '../copy/templates.ts'
+import { TODAY_TEMPLATES } from '../copy/today.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type {
   PlanSession,
@@ -29,6 +32,9 @@ import type {
   SessionSpec,
   ZoneSet,
 } from './types.ts'
+
+/** The sentences written here state counts of days only, which read the same in either unit. */
+const UNITS = 'km'
 
 type WellnessRow = EngineInput['wellness'][number]
 type Advice = TodayView['sessions'][number]['advice']
@@ -400,8 +406,12 @@ function redFlagsOn(ctx: Ctx, date: string, streak: number): RedFlag[] {
       code: 'illness',
       message:
         gate.phase === 'rest'
-          ? 'Illness was reported. Intensity is suspended; easy running resumes after a symptom-free day.'
-          : 'Returning from illness. Keep to easy running for three days before any intensity.',
+          ? render(TODAY_TEMPLATES['today.note.illness-rest'], { free: illnessWaits().free }, UNITS)
+          : render(
+              TODAY_TEMPLATES['today.note.illness-return'],
+              { easy: illnessWaits().easy },
+              UNITS,
+            ),
       rules: ['n-3'],
     })
   }
@@ -454,13 +464,29 @@ export function readinessSnapshot(input: EngineInput, date: string): ReadinessSn
   }
 }
 
-/** Masters gate [rules J6]: still worse than the own median two days after a hard session. */
+/**
+ * The waits of the n-3 return from illness as the sentences name them, in words from the Params:
+ * the symptom-free days, then the easy days before intensity.
+ */
+function illnessWaits(): { free: string; easy: string } {
+  return {
+    free: countPhrase(P.n3.illnessSymptomFreeDays.value, 'symptom-free day'),
+    easy: countPhrase(P.n3.illnessEasyDaysBeforeIntensity.value, 'day'),
+  }
+}
+
+/** The days after a hard session that the masters gate waits before it reads the check-ins [J6]. */
+function mastersWaitDays(): number {
+  return Math.ceil((P.j6.recoveryHours.value * P.j6.recoveryMultiplier.value) / 24)
+}
+
+/** Masters gate [rules J6]: still worse than the own median the wait days after a hard session. */
 function mastersGate(ctx: Ctx, date: string): boolean {
   const { input } = ctx
   if (input.profile.birthYear === null) return false
   const age = Number(date.slice(0, 4)) - input.profile.birthYear
   if (age < P.j6.mastersAgeYears.value) return false
-  const waitDays = Math.ceil((P.j6.recoveryHours.value * P.j6.recoveryMultiplier.value) / 24)
+  const waitDays = mastersWaitDays()
   const hardDone = (input.existing?.sessions ?? []).some(
     (s) =>
       isQualityKind(s.kind) &&
@@ -527,9 +553,23 @@ export function todayAdvice(
     if (s.kind !== 'rest') {
       const quality = isQualityKind(s.kind)
       if (illness.phase === 'rest') {
-        raise('rest', 'Illness was reported: rest until a symptom-free day has passed.')
+        raise(
+          'rest',
+          render(
+            TODAY_TEMPLATES['today.signal.illness-rest'],
+            { free: illnessWaits().free },
+            UNITS,
+          ),
+        )
       } else if (illness.phase === 'easy-only' && quality) {
-        raise('downgrade-easy', 'Returning from illness: easy running only for three days.')
+        raise(
+          'downgrade-easy',
+          render(
+            TODAY_TEMPLATES['today.reason.illness-return'],
+            { easy: illnessWaits().easy },
+            UNITS,
+          ),
+        )
       }
       if (focalBone && !NOT_RUNNING.has(s.kind)) {
         raise('rest', 'Focal bone pain was reported: no running until it has been assessed.')
@@ -546,7 +586,11 @@ export function todayAdvice(
       if (quality && masters) {
         raise(
           'downgrade-easy',
-          'Soreness, fatigue or motivation is still worse than your usual two days after a hard session.',
+          render(
+            TODAY_TEMPLATES['today.reason.masters'],
+            { wait: countPhrase(mastersWaitDays(), 'day') },
+            UNITS,
+          ),
         )
       }
     }
@@ -705,7 +749,7 @@ export function readinessSignals(input: EngineInput, date: string): ReadinessSig
   }
 
   const gate = illnessPhase(input, date)
-  if (gate.phase === 'rest') add('illness', true, T.illnessRest)
+  if (gate.phase === 'rest') add('illness', true, T.illnessRest, { free: illnessWaits().free })
   if (gate.phase === 'easy-only') add('illness', true, T.illnessEasy)
 
   if (focalBoneActive(input, date)) {

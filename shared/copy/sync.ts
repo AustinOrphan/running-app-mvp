@@ -5,6 +5,13 @@
 // verbatim inside the app's own sentence and is outside the lint (spec 4.5).
 import { tpl, type Template } from './template.ts'
 
+/** "Wellness could not be read: <the service's words>", for the history of a run and for `lastError`. */
+const WELLNESS_ERROR_DETAIL = tpl(
+  'Wellness could not be read: {message}',
+  { message: 'text' },
+  { shape: 'label', fallback: 'Wellness could not be read.' },
+)
+
 export const SYNC_TEMPLATES = {
   // The heading of a run: "22 Oct, 06:00 · Scheduled".
   'sync.when': tpl(
@@ -55,11 +62,7 @@ export const SYNC_TEMPLATES = {
   'sync.wellness.none-yet': tpl('No wellness days read yet; they follow on the next run.'),
   'sync.wellness.waiting': tpl('Wellness waits until the activity backfill finishes.'),
   'sync.wellness.error': tpl('Wellness could not be read.'),
-  'sync.wellness.error-detail': tpl(
-    'Wellness could not be read: {message}',
-    { message: 'text' },
-    { shape: 'label', fallback: 'Wellness could not be read.' },
-  ),
+  'sync.wellness.error-detail': WELLNESS_ERROR_DETAIL,
 
   // Sessions sent to a calendar (the publish channel).
   'sync.sent.one': tpl('Sent 1 session, {unchanged} unchanged.', { unchanged: 'count' }),
@@ -97,6 +100,18 @@ export const SYNC_TEMPLATES = {
     { shape: 'label', fallback: 'Some files could not be imported.' },
   ),
   'sync.msg.file-unreadable': tpl('The file could not be read.'),
+  // The intake of a pull run: what stopped it, or what it could not store.
+  'sync.msg.wellness-stopped': tpl(
+    'Wellness stopped after {read} of {total} days: {message}',
+    { read: 'count', total: 'count', message: 'text' },
+    { shape: 'label', fallback: 'Wellness stopped before every day was read.' },
+  ),
+  'sync.msg.wellness-error': WELLNESS_ERROR_DETAIL,
+  'sync.msg.activities-failed.one': tpl('1 activity could not be imported; see the import report.'),
+  'sync.msg.activities-failed.many': tpl(
+    '{n} activities could not be imported; see the import report.',
+    { n: 'count' },
+  ),
 
   // The disclosure and its states.
   'sync.summary': tpl('Recent syncs', {}, { shape: 'label' }),

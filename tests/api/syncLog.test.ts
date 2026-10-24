@@ -473,6 +473,69 @@ describe('Garmin wellness that stops early', () => {
   })
 })
 
+describe('what the next run reads of wellness', () => {
+  /** intervals.icu with one wellness answer; the `oldest` day of each wellness request is kept. */
+  function wellnessRoute(asked: string[], status = 200, remote: Remote[] = []) {
+    return intervals(remote, {
+      [`GET ${BASE}/athlete/i1001/wellness.json`]: (req) => {
+        asked.push(new URL(req.url).searchParams.get('oldest') ?? '')
+        return status === 200 ? json([]) : json({}, status)
+      },
+    })
+  }
+  const dayOffset = (day: string): number =>
+    Math.round((Date.now() - Date.parse(`${day}T12:00:00Z`)) / DAY_MS)
+
+  test('starts late after a run that read wellness, and at the backfill after one that could not', async () => {
+    await connect()
+    const asked: string[] = []
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked) })
+    expect(dayOffset(asked[0]!)).toBeGreaterThan(300)
+    // the first run read it all: the next starts a week before it
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked) })
+    expect(dayOffset(asked[1]!)).toBeLessThan(10)
+    // a run whose wellness read failed leaves the next one at the full backfill
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked, 500) })
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked) })
+    expect(dayOffset(asked[3]!)).toBeGreaterThan(300)
+    // and that one read it, so the next is late again
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked) })
+    expect(dayOffset(asked[4]!)).toBeLessThan(10)
+  })
+
+  test('does not depend on the words of lastError', async () => {
+    await connect()
+    const asked: string[] = []
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked, 500) })
+    expect((await ctx.prisma.integration.findFirstOrThrow()).lastSyncStatus).toBe('partial')
+    // the sentence is reworded: the stored wellness status of the run still decides
+    await ctx.prisma.integration.updateMany({ data: { lastError: 'Something else entirely.' } })
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked) })
+    expect(dayOffset(asked[1]!)).toBeGreaterThan(300)
+  })
+
+  test('starts late after a partial run that failed on an activity and read wellness', async () => {
+    await connect()
+    const asked: string[] = []
+    const failing = [{ id: 'i1', startUtc: '2026-03-02T07:00:00Z', fail: 'stream unreadable' }]
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked, 200, failing) })
+    const row = await ctx.prisma.integration.findFirstOrThrow()
+    expect(row.lastSyncStatus).toBe('partial')
+    expect(row.lastError).toBe('1 activity could not be imported; see the import report.')
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked, 200, failing) })
+    expect(dayOffset(asked[1]!)).toBeLessThan(10)
+  })
+
+  test('reads the whole backfill when the run that set lastSyncAt is gone', async () => {
+    await connect()
+    const asked: string[] = []
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked) })
+    await ctx.prisma.syncRun.deleteMany()
+    await syncProvider(deps(), user.id, 'intervals', { fetch: wellnessRoute(asked) })
+    expect(dayOffset(asked[1]!)).toBeGreaterThan(300)
+  })
+})
+
 describe('a folder scan writes one run', () => {
   let dir: string
 

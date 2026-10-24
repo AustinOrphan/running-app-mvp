@@ -308,7 +308,8 @@ export interface ReadinessSnapshot {
   state: 'normal' | 'possible-fatigue' | 'persistent-suppression'
   redFlags: Array<{ code: string; message: string; rules: string[] }>
 }
-export interface ExecutionAssessment {
+/** What the engine found about one session: the part of an assessment that is not prose. */
+export interface ExecutionFindings {
   completion: 'completed' | 'partial' | 'extended' | 'modified'
   intensity: 'below' | 'on' | 'above' | 'unknown'
   effort: {
@@ -323,6 +324,28 @@ export interface ExecutionAssessment {
   }
   conditions: { wbgtC: number | null; heatAdjusted: boolean; gradeAdjusted: boolean }
   flags: Array<'pain' | 'focal-bone-pain' | 'heat' | 'hr-unqualified' | 'spike'>
+}
+
+/**
+ * One sentence about a session as data (ADR 0010): a template id of `shared/copy/execution.ts` and
+ * its slots. `renderFact` writes the words.
+ */
+export type ExecutionLine = Pick<InputFact, 'template' | 'slots'>
+
+/**
+ * An assessment as the engine returns it and `PlanSession.execution` stores it: the findings and
+ * the sentences about them as templates and slots, never as prose. A row stored before the
+ * sentences became facts has `lines` in place of `facts`.
+ */
+export interface StoredAssessment extends ExecutionFindings {
+  facts: ExecutionLine[]
+}
+
+/**
+ * An assessment as the API serves it: the findings and their sentences, written from the stored
+ * facts when the session is read (`executionOf` in `server/serialize.ts`).
+ */
+export interface ExecutionAssessment extends ExecutionFindings {
   lines: string[]
 }
 export interface WeeklyDecision {

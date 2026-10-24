@@ -9,7 +9,7 @@ import type { JobsView, SyncRunView } from '../../shared/types.ts'
 import { describeRun } from '../../web/components/syncText.ts'
 import { runSyncJob } from '../../server/jobs/scheduler.ts'
 import { garminProvider } from '../../server/providers/garmin.ts'
-import type { RemoteActivityRef } from '../../server/providers/types.ts'
+import { WellnessTruncated, type RemoteActivityRef } from '../../server/providers/types.ts'
 import { scanFolderIntegration } from '../../server/services/folder.ts'
 import { sealSecret, syncProvider } from '../../server/services/sync.ts'
 import { syncMessage, type SyncMessageId } from '../../server/services/syncLog.ts'
@@ -152,6 +152,43 @@ function failingList(failure: Error): AsyncIterable<RemoteActivityRef> {
   }
 }
 
+/** A Garmin activity list that holds `ids`, each starting on its own day. */
+function listing(ids: string[]): AsyncIterable<RemoteActivityRef> {
+  const refs = ids.map((id, i) => ({ id, startUtc: `2026-03-0${String(i + 2)}T07:00:00Z` }))
+  return {
+    [Symbol.asyncIterator]: () => {
+      let next = 0
+      return {
+        next: () =>
+          Promise.resolve(
+            next < refs.length
+              ? { done: false as const, value: refs[next++]! }
+              : { done: true as const, value: undefined },
+          ),
+      }
+    },
+  }
+}
+
+/** Connects Garmin; the activity list is `ids` and downloading any of them fails. */
+async function garminWithFailingActivities(ids: string[]): Promise<void> {
+  await connect('garmin', { accessToken: 'synthetic-access-0123456', refreshToken: 'x'.repeat(12) })
+  vi.spyOn(garminProvider, 'listActivities').mockImplementation(() => listing(ids))
+  vi.spyOn(garminProvider, 'fetchActivity').mockRejectedValue(new Error('the download was refused'))
+  vi.spyOn(garminProvider, 'listWellness').mockResolvedValue([])
+  await syncProvider(deps(), user.id, 'garmin')
+}
+
+/** Connects Garmin with no new activities; reading wellness ends as `wellness` says. */
+async function garminWithWellness(wellness: () => Promise<never>): Promise<void> {
+  await connect('garmin', { accessToken: 'synthetic-access-0123456', refreshToken: 'x'.repeat(12) })
+  vi.spyOn(garminProvider, 'listActivities').mockImplementation(() => listing([]))
+  vi.spyOn(garminProvider, 'listWellness').mockImplementation(wellness)
+  await syncProvider(deps(), user.id, 'garmin')
+}
+
+const count = (n: number) => ({ kind: 'count', n }) as const
+
 interface Outcome {
   /** The text the path stored. */
   stored: string | null | undefined
@@ -258,6 +295,64 @@ const scenarios: Record<SyncMessageId, () => Promise<Outcome>> = {
         n: { kind: 'count', n: 2 },
         reason: 'a.fit: disk full',
       }),
+    }
+  },
+
+  // The three sentences of a pull run's intake are the integration's `lastError`; the run's own
+  // history line is linted as the page prints it.
+  'sync.msg.wellness-stopped': async () => {
+    const budget = 'Garmin request budget (200) used up for this run.'
+    await garminWithWellness(() =>
+      Promise.reject(
+        new WellnessTruncated(budget, {
+          retryAfterSec: 3600,
+          rows: [],
+          daysRead: 12,
+          daysTotal: 30,
+        }),
+      ),
+    )
+    const [run] = await runsOf('garmin')
+    return {
+      stored: (await ctx.prisma.integration.findFirstOrThrow()).lastError,
+      run,
+      expected: syncMessage('sync.msg.wellness-stopped', {
+        read: count(12),
+        total: count(30),
+        message: budget,
+      }),
+    }
+  },
+
+  'sync.msg.wellness-error': async () => {
+    await garminWithWellness(() => Promise.reject(new Error('the wellness service is unavailable')))
+    const [run] = await runsOf('garmin')
+    return {
+      stored: (await ctx.prisma.integration.findFirstOrThrow()).lastError,
+      run,
+      expected: syncMessage('sync.msg.wellness-error', {
+        message: 'the wellness service is unavailable',
+      }),
+    }
+  },
+
+  'sync.msg.activities-failed.one': async () => {
+    await garminWithFailingActivities(['g1'])
+    const [run] = await runsOf('garmin')
+    return {
+      stored: (await ctx.prisma.integration.findFirstOrThrow()).lastError,
+      run,
+      expected: syncMessage('sync.msg.activities-failed.one', {}),
+    }
+  },
+
+  'sync.msg.activities-failed.many': async () => {
+    await garminWithFailingActivities(['g1', 'g2', 'g3'])
+    const [run] = await runsOf('garmin')
+    return {
+      stored: (await ctx.prisma.integration.findFirstOrThrow()).lastError,
+      run,
+      expected: syncMessage('sync.msg.activities-failed.many', { n: count(3) }),
     }
   },
 
