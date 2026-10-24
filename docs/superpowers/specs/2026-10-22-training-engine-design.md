@@ -7,7 +7,7 @@ beyond, and learn from how each planned session actually went. Decisions are the
 unless marked **owner**.
 
 The rules and numbers live in `research/engine-rules.md` (cited below as **[rules §x]**),
-derived from the verified corpus in `research/` (285 papers, every DOI checked against
+derived from the verified corpus in `research/` (370 papers, every DOI checked against
 Crossref on 2026-10-22). This document decides architecture, data, flows and UI; it does
 not restate numbers.
 

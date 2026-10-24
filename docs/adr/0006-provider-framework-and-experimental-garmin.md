@@ -2,7 +2,8 @@
 
 Status: Accepted 2026-10-22 (#529)
 
-Extended by ADR 0008 (outbound publish channel).
+Extended by ADR 0008 (outbound publish channel), which puts a source's `publish` implementation in
+a second module beside its pull module, under the same registry entry.
 
 ## Context
 

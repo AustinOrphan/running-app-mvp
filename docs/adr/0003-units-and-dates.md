@@ -38,3 +38,10 @@ Alternatives:
 - A server running in a different timezone from the runner computes the wrong current week;
   the Docker setup passes `TZ` through for that reason.
 - Sorting by date is a plain string sort.
+- Two stored values are exceptions to "derived numbers are never stored", both recorded 2026-10-23
+  (phase 3a close review). `WeeklyBrief.facts` keeps last week's `ranMin` and `plannedMin`
+  (`BriefLastWeek`): a brief is the record of what the app said on that Monday, built once and read
+  as stored, and `BRIEF_VERSION` versions its shape (ADR 0010). `PlanWeek.qualitySessions` and
+  `isRecovery` keep the engine's own count and flag for a planned week, so that a re-plan diffs them
+  and stops reporting a phantom change (#541); they are plan outputs, not totals of what was run.
+  Weekly totals, completion and streaks of logged activity are still computed on read.

@@ -44,10 +44,21 @@ A revision can be undone in one action while all of these hold:
 Undo restores sessions dated today or later and leaves the past as it is, except the back-dated
 skips of a rest window that the undone revision created. An undo is itself a revision; it has no
 undo of its own. Undo restores the plan, not the data: the next re-plan can make the same change
-when the data still supports it, and the confirm text says so. Targets and sessions the owner set by
-hand (week overrides, moved, shortened and skipped sessions, rest windows) are not overwritten by a
-re-plan; a re-plan may still lower a week below an owner's target when a limit requires it (G6).
-Each revision has one `seenAt` marker, which Today, the Plan page and the weekly brief share.
+when the data still supports it, and the confirm text says so. Targets the owner set by hand (week
+overrides) and rest windows are not overwritten by a re-plan; a re-plan may still lower a week below
+an owner's target when a limit requires it (G6). Sessions the owner moved, adjusted (shortened or
+swapped) or skipped are kept for `macroDesign.keepOwnerEditsDays` (14 days, a grade D default) from
+today, and the rest of those weeks is planned around them; a session dated later is rebuilt with its
+week, and the revision shows it and can be undone (`keptByReplan` in `shared/engine/index.ts`). A
+rest window releases the edits that fall on a day it holds (rule J9). Each revision has one `seenAt`
+marker, which Today, the Plan page and the weekly brief share.
+
+Amended 2026-10-23 (phase 3a close review): the paragraph first said that moved, shortened and
+skipped sessions "are not overwritten by a re-plan". The shipped rule has the 14-day horizon, which
+the engine already carried when this ADR was written (#529), so the text is brought to the code.
+The horizon is a default that no evidence picks (**Preference**: grade D). The anti-goal holds
+beyond it (**Fact**: checked 2026-10-23 in `server/services/planEngine.ts` and `replan.ts`): the
+rebuilt session is in the revision's diff and the undo payload is built from the rows written.
 
 The anti-goal is amended to: "Any change to a training target that the owner cannot see and
 reverse. Changes the engine makes on schedule are shown as revisions and can be undone; targets the
@@ -115,3 +126,5 @@ Alternatives:
   no weekly revision exists for the current week.
 - The rewrite design's anti-goal and the training-engine design section 5 are edited in the same
   change as this ADR's acceptance.
+- A change to the 14-day horizon is a change to `macroDesign.keepOwnerEditsDays` through
+  `research-update`, and amends the Decision above.

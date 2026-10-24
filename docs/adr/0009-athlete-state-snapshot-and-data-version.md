@@ -41,8 +41,9 @@ through it.
   model, the weekly decision, undo availability) under the same key and freezes them too. Concurrent
   readers of one key share one build, and a client keeps at most 8 snapshots and 64 memoised
   values. `GET /api/state` serves the snapshot with an ETag built from the key.
-- Open-Meteo is reached only by the scheduler, which fills two cache tables; request handlers read
-  them.
+- The scheduler's weather job fills two cache tables, and request handlers read them. A profile or
+  goal write that changes a place, a stale forecast read and plan generation on a stale climate
+  cell start a background refresh (phase 3a design 5.8); no other request starts one.
 - Nothing about the snapshot is persisted.
 
 Reasons:
