@@ -17,10 +17,12 @@
  *
  * **What a budget is.** The tallest the content may be, in CSS pixels, at a 360 px viewport (a
  * 328 px column), whatever state it shows. Content that could be taller stays inside its box
- * (`BriefLine` clamps its text to two lines inside one link); it never grows the box. The
- * budget is the height of the slot's own `<div data-slot data-budget-px>`; the space between a slot
- * and its neighbours belongs to the page, so content carries no margin of its own. The owning
- * epic's e2e asserts that its real content fits its budget at 360 px.
+ * (`BriefLine` clamps its text to two lines inside one link); it never grows the box. The one
+ * exception is the `disruption` banner at a raised text size: its buttons change the plan, so it
+ * wraps them and grows instead of clipping one (`disruption.module.css`); at the default size it is
+ * the 64 px. The budget is the height of the slot's own `<div data-slot data-budget-px>`; the space
+ * between a slot and its neighbours belongs to the page, so content carries no margin of its own.
+ * The owning epic's e2e asserts that its real content fits its budget at 360 px.
  *
  * **Why they are fixed.** The first screen is measured, not estimated (`tests/e2e/12-today.spec.ts`,
  * the fold tests): with every budget filled and the check-in unanswered, Done's bottom edge is at

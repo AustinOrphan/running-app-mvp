@@ -19,9 +19,11 @@ export interface DisruptionBannerProps {
   /** Called with the button the runner pressed. The caller opens the sheet (`DisruptionBanners`). */
   onAction: (action: BannerAction) => void
   /**
-   * The form that fits Today's `disruption` slot: 64 px at 360 px (`slots.ts`). The sentence is
-   * clamped to two lines and the buttons are small; the words, the buttons and what they do are
-   * the Plan page's. Every button opens a preview first, so a small one costs a look, not a change.
+   * The form that fits Today's `disruption` slot: 64 px at 360 px and the default text size
+   * (`slots.ts`). The sentence takes two lines and the buttons are small; the words, the buttons
+   * and what they do are the Plan page's. At a larger text size the box grows and the buttons wrap,
+   * so nothing is clipped. Every button opens a preview first, so a small one costs a look, not a
+   * change.
    */
   compact?: boolean
 }

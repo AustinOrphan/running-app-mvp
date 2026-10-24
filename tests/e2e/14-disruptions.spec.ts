@@ -278,6 +278,8 @@ test('Not today carries the Not 100% entry, which opens the window sheet from th
   expect(await windowsOf()).toEqual([])
 })
 
+const ASK = 'Set a rest window and a return plan?'
+
 test('after an illness check-in Today offers a window, creates nothing, and the window fits the slot at 360 px', async () => {
   const { today } = relativeDates()
   await page.setViewportSize({ width: 360, height: 740 })
@@ -288,22 +290,31 @@ test('after an illness check-in Today offers a window, creates nothing, and the 
     await expect(hurts).toBeVisible()
     await expect(slot).toHaveCount(0)
 
+    // The offer is announced by a live region; nothing says the question before it arrives.
+    const announced = page.getByRole('status').filter({ hasText: ASK })
+    await expect(announced).toHaveCount(0)
+
     await hurts.click()
     const checkin = page.getByRole('dialog', { name: 'Check-in' })
     await checkin.getByLabel('Feeling ill').check()
     await checkin.getByRole('button', { name: 'Save check-in' }).click()
 
-    // The offer: one question, two answers, within the budget, and nothing created by asking.
+    // The offer: one question, two answers, within the budget, and nothing created by asking. A
+    // screen reader hears the question from the live region.
     const offer = slot.getByRole('region', { name: 'Rest window offer' })
-    await expect(offer.getByText('Set a rest window and a return plan?')).toBeVisible()
+    await expect(offer.getByText(ASK)).toBeVisible()
+    await expect(announced).toHaveCount(1)
     await expect(offer.getByRole('button', { name: 'Set one up' })).toBeVisible()
     await expect(offer.getByRole('button', { name: 'Not now' })).toBeVisible()
     expect(await heightOf(slot)).toBeLessThanOrEqual(64.5)
     expect(await windowsOf()).toEqual([])
 
-    // "Not now" puts it away for this visit, and a new visit asks again.
-    await offer.getByRole('button', { name: 'Not now' }).click()
+    // "Not now" puts it away for this visit, and a new visit asks again. It is pressed from the
+    // keyboard, and focus goes to the main landmark rather than to the page behind the offer.
+    await offer.getByRole('button', { name: 'Not now' }).press('Enter')
     await expect(slot).toHaveCount(0)
+    await expect(announced).toHaveCount(0)
+    await expect(page.getByRole('main')).toBeFocused()
     await page.reload()
     await expect(offer).toBeVisible()
     expect(await windowsOf()).toEqual([])
@@ -334,13 +345,21 @@ test('after an illness check-in Today offers a window, creates nothing, and the 
   }
 })
 
-/** The windows whose banner line is the longest for their phase, and the line each one reads. */
+/**
+ * The windows whose banner line is the longest for their phase, the line each one reads and the
+ * buttons it carries. The two `resting` windows started two days ago, so "I'm better" or "Finish
+ * early" joins Extend and Remove window: the widest the row gets, and the state that a window
+ * running since yesterday is in.
+ */
 const PHASES: Array<{
+  name: string
   phase: DisruptionPhase
   window: (today: string) => DisruptionInput
   line: RegExp
+  buttons: string[]
 }> = [
   {
+    name: 'rest-gate phase',
     phase: 'rest-gate',
     window: (t) => ({
       reason: 'illness-above-neck',
@@ -349,8 +368,10 @@ const PHASES: Array<{
       endDate: addDays(t, -1),
     }),
     line: /^One symptom-free day first, then easy running from /,
+    buttons: ['Extend', 'Remove window'],
   },
   {
+    name: 'easy-only phase',
     phase: 'easy-only',
     window: (t) => ({
       reason: 'illness-above-neck',
@@ -359,8 +380,10 @@ const PHASES: Array<{
       endDate: addDays(t, -2),
     }),
     line: /^Easy running only until .+\. Hard sessions return on /,
+    buttons: ['Extend', 'Remove window'],
   },
   {
+    name: 'limited phase',
     phase: 'limited',
     window: (t) => ({
       reason: 'travel',
@@ -370,8 +393,10 @@ const PHASES: Array<{
       endDate: addDays(t, 2),
     }),
     line: /^Travelling: runs up to 30 min until /,
+    buttons: ['Extend', 'Remove window'],
   },
   {
+    name: 'upcoming phase',
     phase: 'upcoming',
     window: (t) => ({
       reason: 'short-on-time',
@@ -380,11 +405,64 @@ const PHASES: Array<{
       endDate: addDays(t, 3),
     }),
     line: /^A window starts on .+ and lasts until /,
+    buttons: ['Extend', 'Remove window'],
+  },
+  {
+    name: 'resting phase, three buttons (illness, started two days ago)',
+    phase: 'resting',
+    window: (t) => ({
+      reason: 'illness-above-neck',
+      mode: 'rest',
+      startDate: addDays(t, -2),
+      endDate: addDays(t, 2),
+    }),
+    line: /^Resting for illness until /,
+    buttons: ["I'm better", 'Extend', 'Remove window'],
+  },
+  {
+    name: 'resting phase, three buttons (short on time, started two days ago)',
+    phase: 'resting',
+    window: (t) => ({
+      reason: 'short-on-time',
+      mode: 'rest',
+      startDate: addDays(t, -2),
+      endDate: addDays(t, 2),
+    }),
+    line: /^No running while short on time until /,
+    buttons: ['Finish early', 'Extend', 'Remove window'],
   },
 ]
 
+/** Whether the page scrolls sideways. */
+const scrollsSideways = () =>
+  page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+
+/** Every button of the banner is inside its box, and the box holds what it was given. */
+async function expectWithinBanner(banner: Locator, buttons: string[]) {
+  const shown = banner.getByRole('button')
+  await expect(shown).toHaveText(buttons)
+  const box = (await banner.boundingBox())!
+  for (const button of await shown.all()) {
+    await expect(button).toBeVisible()
+    const at = (await button.boundingBox())!
+    expect(at.y).toBeGreaterThanOrEqual(box.y - 0.5)
+    expect(at.x).toBeGreaterThanOrEqual(box.x - 0.5)
+    expect(at.y + at.height).toBeLessThanOrEqual(box.y + box.height + 0.5)
+    expect(at.x + at.width).toBeLessThanOrEqual(box.x + box.width + 0.5)
+  }
+  // Nothing inside is cut off: the box and the sentence are as tall and as wide as their content.
+  const cut = await banner.evaluate((section) => {
+    const line = section.querySelector('p')!
+    return [section, line].some(
+      (element) =>
+        element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth,
+    )
+  })
+  expect(cut).toBe(false)
+}
+
 for (const scenario of PHASES) {
-  test(`the banner of a window in its ${scenario.phase} phase fits the slot at 360 px`, async () => {
+  test(`the banner of a window in its ${scenario.name} fits the slot at 360 px`, async () => {
     const { today } = relativeDates()
     await page.setViewportSize({ width: 360, height: 740 })
     const made = (await api.post('/plan/disruptions', {
@@ -401,29 +479,58 @@ for (const scenario of PHASES) {
       // The slot and the banner are no taller than the budget, and every button is inside it.
       expect(await heightOf(slot)).toBeLessThanOrEqual(64.5)
       expect(await heightOf(banner)).toBeLessThanOrEqual(64.5)
-      const box = (await banner.boundingBox())!
-      for (const button of await banner.getByRole('button').all()) {
-        const at = (await button.boundingBox())!
-        expect(at.y + at.height).toBeLessThanOrEqual(box.y + box.height + 0.5)
-        expect(at.x + at.width).toBeLessThanOrEqual(box.x + box.width + 0.5)
-      }
+      await expectWithinBanner(banner, scenario.buttons)
       await test.info().attach(`today-360x740-${scenario.phase}`, {
         body: await page.screenshot(),
         contentType: 'image/png',
       })
-      // The sentence is not cut: unclamped, it takes no more than two lines of 18 px.
-      const sentence = banner.locator('p')
-      const whole = await sentence.evaluate((element) => {
-        element.style.display = 'block'
-        return element.getBoundingClientRect().height
-      })
-      expect(whole).toBeLessThanOrEqual(36.5)
+      // The sentence takes no more than two lines of 18 px. `scrollHeight` is the height its text
+      // needs, whatever the box does with the rest: the height of the paragraph is not that (a
+      // box that clips or shrinks it still reports 36 px).
+      const needed = await banner.locator('p').evaluate((element) => element.scrollHeight)
+      expect(needed).toBeLessThanOrEqual(36.5)
       // And nothing scrolls sideways.
-      expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-        ),
-      ).toBe(true)
+      expect(await scrollsSideways()).toBe(false)
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 720 })
+      await api.delete(`/plan/disruptions/${made.disruption.id}`)
+    }
+  })
+}
+
+// A raised default text size (browser or system settings) scales every rem, and the 360 px
+// viewport stays what it is. The banner has to give up its 64 px, not its buttons or its words:
+// the buttons wrap onto a second row and the sentence takes the lines it needs. The stylesheet
+// stands in for the setting; a media query in rem would not follow it, and the page has none that
+// matters at this width.
+for (const percent of [150, 200]) {
+  test(`the three-button banner shows every word and button at ${String(percent)}% text at 360 px`, async () => {
+    const { today } = relativeDates()
+    await page.setViewportSize({ width: 360, height: 740 })
+    const made = (await api.post('/plan/disruptions', {
+      reason: 'short-on-time',
+      mode: 'rest',
+      startDate: addDays(today, -2),
+      endDate: addDays(today, 2),
+    })) as DisruptionResult
+    try {
+      await page.goto('/')
+      const banner = page
+        .locator('[data-slot="disruption"]')
+        .getByRole('region', { name: 'Rest window' })
+      await expect(banner.getByText(/^No running while short on time until /)).toBeVisible()
+      // The visually hidden copy of a chart (a table that is clipped, not narrow) grows with the
+      // text and widens the page by itself; it is left out so the page measures what a runner sees.
+      await page.addStyleTag({
+        content: `html { font-size: ${String(percent)}%; } .visually-hidden { display: none !important; }`,
+      })
+
+      await expectWithinBanner(banner, ['Finish early', 'Extend', 'Remove window'])
+      await test.info().attach(`today-360x740-${String(percent)}pct`, {
+        body: await page.screenshot(),
+        contentType: 'image/png',
+      })
+      expect(await scrollsSideways()).toBe(false)
     } finally {
       await page.setViewportSize({ width: 1280, height: 720 })
       await api.delete(`/plan/disruptions/${made.disruption.id}`)
