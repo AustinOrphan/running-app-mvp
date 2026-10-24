@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
-import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
-import { relativeDates, resetData, signedInApi, type Api } from './helpers.ts'
+import type { PlanSession } from '../../shared/types.ts'
+import { planWithRunToday, queued, relativeDates, signedInApi, type Api } from './helpers.ts'
 
 // The installed app with no connection (phase 3a design 7.6, ADR 0012): the service worker keeps the
 // shell and the answers Today needs, the page opens with the network off, a check-in tapped there is
@@ -14,7 +14,6 @@ import { relativeDates, resetData, signedInApi, type Api } from './helpers.ts'
 // the state the one before left (the worker installed, the answers kept).
 test.describe.configure({ mode: 'serial' })
 
-const RUN_KINDS = ['easy', 'recovery', 'long', 'threshold', 'intervals', 'hills', 'race-pace']
 const API_CACHE = 'rl-api-v1'
 /** Time for the worker to install, take the page over and fill its cache. */
 const WARM_TIMEOUT = 20_000
@@ -23,42 +22,6 @@ let page: Page
 let api: Api
 let origin = ''
 let planned: PlanSession
-
-/** A few weeks of history, an active goal and a plan, with a run planned for today. */
-async function planWithRunToday(): Promise<PlanSession> {
-  const { today, lastWednesday, raceDate } = relativeDates()
-  await resetData()
-  for (let i = 0; i < 4; i += 1) {
-    await api.post('/activities', {
-      date: addDays(lastWednesday, -3 * i),
-      type: 'run',
-      durationSec: (30 + 5 * i) * 60,
-      distanceM: 5000 + i * 500,
-    })
-  }
-  const goal = (await api.post('/goals', {
-    name: 'Offline marathon',
-    priority: 'A',
-    targetDate: raceDate,
-    distanceM: 42_195,
-  })) as { id: string }
-  await api.post(`/goals/${goal.id}/activate`)
-  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 0 })
-
-  const plan = (await api.get('/plan')) as PlanWithSessions
-  const isRun = (session: PlanSession) => RUN_KINDS.includes(session.kind)
-  const found = plan.sessions.find((session) => session.date === today && isRun(session))
-  if (found !== undefined) return found
-  // No run falls on today in this plan: move the next one here, the way the runner would.
-  for (const candidate of plan.sessions.filter((s) => s.date > today && isRun(s))) {
-    const response = await page.request.put(`/api/plan/sessions/${candidate.id}`, {
-      headers: { Origin: origin },
-      data: { date: today },
-    })
-    if (response.ok()) return (await response.json()) as PlanSession
-  }
-  throw new Error(`The plan has no run for ${today} and none could be moved there.`)
-}
 
 /** The names in Cache Storage, read from the page's own origin. */
 function cacheNames(): Promise<string[]> {
@@ -75,31 +38,6 @@ function kept(name: string): Promise<string[]> {
       return `${url.pathname}${url.search}`
     })
   }, name)
-}
-
-/** How many writes wait in the outbox, read from the IndexedDB the page itself keeps. */
-function queued(): Promise<number> {
-  return page.evaluate(async () => {
-    const databases = await indexedDB.databases()
-    if (!databases.some((database) => database.name === 'rl-outbox')) return 0
-    return new Promise<number>((resolve, reject) => {
-      const open = indexedDB.open('rl-outbox')
-      open.onerror = () => {
-        reject(open.error ?? new Error('IndexedDB did not open.'))
-      }
-      open.onsuccess = () => {
-        const db = open.result
-        const count = db.transaction('entries').objectStore('entries').count()
-        count.onsuccess = () => {
-          db.close()
-          resolve(count.result)
-        }
-        count.onerror = () => {
-          reject(count.error ?? new Error('IndexedDB did not count.'))
-        }
-      }
-    })
-  })
 }
 
 /** Waits until the worker controls the page and has filled its cache for offline use. */
@@ -126,7 +64,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL, serviceWorkers: 'allow' })
   page = await context.newPage()
   api = await signedInApi(page, origin)
-  planned = await planWithRunToday()
+  planned = await planWithRunToday(api, page, origin, 'Offline marathon')
 })
 
 test.afterAll(async () => {
@@ -252,7 +190,7 @@ test('a check-in tapped with no connection is kept on the phone and sent when it
   const read = page.getByRole('region', { name: 'Readiness' })
   await read.getByRole('radio', { name: 'Tired' }).click()
   await expect(read.getByText('Checked in: tired. Saved on this phone.')).toBeVisible()
-  expect(await queued()).toBe(1)
+  expect(await queued(page)).toBe(1)
   expect(await api.get(`/checkins/${today}`)).toBeNull()
 
   // It is on the device, not in the page: a reload with the network still off finds it.
@@ -262,10 +200,10 @@ test('a check-in tapped with no connection is kept on the phone and sent when it
       .getByRole('region', { name: 'Readiness' })
       .getByText('Checked in: tired. Saved on this phone.'),
   ).toBeVisible()
-  expect(await queued()).toBe(1)
+  expect(await queued(page)).toBe(1)
 
   await page.context().setOffline(false)
-  await expect.poll(queued).toBe(0)
+  await expect.poll(() => queued(page)).toBe(0)
   expect(((await api.get(`/checkins/${today}`)) as { fatigue: number }).fatigue).toBe(4)
   // The fresh answer replaces the phone's copy, and the note goes with it.
   await expect(page.getByText(/^Offline\./)).toBeHidden()
@@ -288,10 +226,10 @@ test('a check-in tapped just after the connection went, on a page that stays ope
   await page.context().setOffline(true)
   await read.getByRole('radio', { name: 'Drained' }).click()
   await expect(read.getByText('Checked in: drained. Saved on this phone.')).toBeVisible()
-  await expect.poll(queued).toBe(1)
+  await expect.poll(() => queued(page)).toBe(1)
 
   await page.context().setOffline(false)
-  await expect.poll(queued).toBe(0)
+  await expect.poll(() => queued(page)).toBe(0)
   expect(((await api.get(`/checkins/${today}`)) as { fatigue: number }).fatigue).toBe(5)
   await api.put(`/checkins/${today}`, { fatigue: null })
 })
@@ -324,13 +262,13 @@ test('signing out empties the cache and the queue, and leaves the shell', async 
     .getByRole('region', { name: 'Readiness' })
     .getByRole('radio', { name: 'Drained' })
     .click()
-  await expect.poll(queued).toBe(1)
+  await expect.poll(() => queued(page)).toBe(1)
 
   await page.goto('/settings')
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/login$/)
 
-  await expect.poll(queued).toBe(0)
+  await expect.poll(() => queued(page)).toBe(0)
   const left = await kept(API_CACHE)
   for (const path of left) expect(path, 'health data left in the cache').toBe('/api/setup')
   const names = await cacheNames()
