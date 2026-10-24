@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
+  formatAirTemperature,
   formatNumber,
   formatQuantity,
   formatRange,
@@ -92,6 +93,22 @@ describe('formatQuantity', () => {
     expect(formatQuantity({ kind: 'share', fraction: 1 }, 'km')).toBe('100%')
     expect(formatQuantity({ kind: 'count', n: 212 }, 'km')).toBe('212')
     expect(formatQuantity({ kind: 'temp', c: 24.5 }, 'km')).toBe('24.5 °C')
+  })
+
+  test('a temp quantity is a WBGT reading or a heat threshold and reads in °C in either system', () => {
+    expect(formatQuantity({ kind: 'temp', c: 24.5 }, 'mi')).toBe('24.5 °C')
+    expect(formatQuantity({ kind: 'temp', c: 25 }, 'km')).toBe('25 °C')
+  })
+
+  test('an air temperature follows the units, to whole degrees', () => {
+    expect(formatAirTemperature(10, 'km')).toBe('10 °C')
+    expect(formatAirTemperature(10, 'mi')).toBe('50 °F')
+    expect(formatAirTemperature(5, 'mi')).toBe('41 °F')
+    expect(formatAirTemperature(15.6, 'km')).toBe('16 °C')
+    expect(formatAirTemperature(15.6, 'mi')).toBe('60 °F')
+    expect(formatAirTemperature(-3.4, 'km')).toBe('-3 °C')
+    expect(formatAirTemperature(-0.2, 'km')).toBe('0 °C')
+    expect(formatAirTemperature(Number.NaN, 'mi')).toBe(NO_VALUE)
   })
 
   test('dates and weekdays never print the ISO form', () => {

@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import type { Units } from '../../shared/types.ts'
 import { ApiError } from '../api/client.ts'
 import { useImportFile, useImportFiles, useImportParsed } from '../api/imports.ts'
@@ -32,6 +34,8 @@ const UNIT_OPTIONS: Array<{ value: Units; label: string }> = [
 
 /** The CSV API rejects bodies above 10 MB; say so before reading the file. */
 const MAX_FILE_BYTES = 10 * 1024 * 1024
+/** No import sentence holds a distance or a pace, so the unit system cannot change a word of it. */
+const WORDS_UNITS: Units = 'km'
 /** A re-import lists every skipped row; show a screenful and say how many more there are. */
 const MAX_REASONS_SHOWN = 50
 
@@ -99,7 +103,13 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
 
   async function submitCsv(file: File) {
     if (file.size > MAX_FILE_BYTES) {
-      setError('Import failed. The file is larger than 10 MB. Split it and import the parts.')
+      setError(
+        render(
+          TEMPLATES['import.error.too-large'],
+          { mb: { kind: 'count', n: MAX_FILE_BYTES / (1024 * 1024) } },
+          WORDS_UNITS,
+        ),
+      )
       return
     }
     try {
@@ -121,7 +131,7 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
       })
     } catch (err) {
       const reason = err instanceof ApiError ? err.message : 'The file could not be read.'
-      setError(`Import failed. ${reason} Nothing was imported; try again.`)
+      setError(render(TEMPLATES['import.error.csv'], { reason }, WORDS_UNITS))
     }
   }
 
@@ -163,8 +173,11 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
       if (controller.signal.aborted) return
       const reason = err instanceof ApiError ? err.message : 'The files could not be read.'
       setError(
-        `Import failed. ${reason} ${done} of ${found} files were imported before it stopped; ` +
-          'files already imported are skipped when the same selection is imported again.',
+        render(
+          TEMPLATES['import.error.files'],
+          { reason, done: { kind: 'count', n: done }, found: { kind: 'count', n: found } },
+          WORDS_UNITS,
+        ),
       )
     }
   }
@@ -221,7 +234,7 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
         err instanceof ApiError || err instanceof Error
           ? err.message
           : 'The export could not be read.'
-      setError(`Import failed. ${reason} Files already imported are skipped when you try again.`)
+      setError(render(TEMPLATES['import.error.apple'], { reason }, WORDS_UNITS))
     }
   }
 

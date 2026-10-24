@@ -1,7 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
+import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { PlanRevisionView, PlanWithSessions } from '../../shared/types.ts'
 import {
+  FOLDER_INTERVAL_MS,
   PUBLISH_INTERVAL_MS,
   PUBLISH_MORNING_SLOT,
   runPublishJob,
@@ -630,5 +632,11 @@ describe('the scheduler runs the publisher', () => {
     await vi.advanceTimersByTimeAsync(20 * MINUTE)
     expect(reads()).toBe(2)
     stop()
+  })
+})
+
+describe('the folder scan interval', () => {
+  test('is the number of minutes the Integrations page names in its sentence', () => {
+    expect(FOLDER_INTERVAL_MS).toBe(FOLDER_SCAN_MINUTES * 60_000)
   })
 })

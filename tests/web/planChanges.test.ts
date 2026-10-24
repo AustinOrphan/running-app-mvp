@@ -23,6 +23,13 @@ describe('describeChange', () => {
     expect(describeChange(change('strengthSessions', 2, 1)).text).toBe('Strength sessions 2 to 1')
     expect(describeChange(change('qualitySessions', 1, 0)).text).toBe('Quality sessions 1 to 0')
     expect(describeChange(change('gainTargetM', 400, 350)).text).toBe('Gain target 400 m to 350 m')
+    // the climb follows the runner's units like every other figure
+    expect(describeChange(change('gainTargetM', 400, 350), 'mi').text).toBe(
+      'Gain target 1312 ft to 1148 ft',
+    )
+    expect(describeChange(change('gainTargetM', null, 300), 'mi').text).toBe(
+      'Gain target none to 984 ft',
+    )
     expect(describeChange(change('plannedMin', 200, 180)).text).toBe(
       'Planned minutes 200 min to 180 min',
     )

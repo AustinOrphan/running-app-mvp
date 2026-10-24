@@ -81,8 +81,15 @@ function counts(activity: Activity): boolean {
   return activity.duplicateStatus === 'none' || activity.duplicateStatus === 'dismissed'
 }
 
-/** Whether an activity can fulfil a session of this kind. */
-function compatible(kind: SessionKind, activity: Activity): boolean {
+/**
+ * Whether an activity can fulfil a session of this kind: the one rule of the matcher, also used by
+ * the explicit link of a session (`linkPlanSession`). A hike session takes only a cross-training
+ * activity of sub-type `hike` or `walk`, so a manual entry that should fulfil one carries it.
+ */
+export function compatible(
+  kind: SessionKind,
+  activity: { readonly type: string; readonly subtype: string | null },
+): boolean {
   const subtype = (activity.subtype ?? '').toLowerCase()
   if (RUN_KINDS.has(kind)) return activity.type === 'run' || activity.type === 'race'
   if (kind === 'hike') {

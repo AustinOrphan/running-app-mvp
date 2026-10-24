@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { useLogin } from '../api/auth.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
@@ -23,7 +25,7 @@ function loginMessage(error: unknown): string {
       return 'The server did not respond. Your entries are still in the form; try again.'
     }
   }
-  return 'Sign-in failed. Check the details and try again.'
+  return render(TEMPLATES['auth.sign-in.error'], {}, 'km')
 }
 
 export function LoginPage() {

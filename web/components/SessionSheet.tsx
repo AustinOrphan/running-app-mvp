@@ -4,14 +4,16 @@ import type {
   ExecutionAssessment,
   ResolvedTargets,
   SessionFlag,
-  SessionTarget,
   Step,
   ZoneKey,
 } from '../../shared/engine/types.ts'
+import { formatQuantity } from '../../shared/copy/quantity.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { addDays } from '../../shared/dates.ts'
 import { hasSubjectivePart } from '../../shared/engine/execution.ts'
-import { formatDistance, formatPace } from '../../shared/units.ts'
+import { resolveTargets } from '../../shared/engine/targets.ts'
+import { formatDistance } from '../../shared/units.ts'
+import { stepName } from '../../shared/workouts/plan.ts'
 import type { ActivityListItem, PlanSession, Units } from '../../shared/types.ts'
 import { useActivities } from '../api/activities.ts'
 import { useLinkPlanSession, useSessionWorkout } from '../api/plan.ts'
@@ -48,14 +50,6 @@ const ZONE_LABELS: Record<ZoneKey, string> = {
   strides: 'Strides',
   strength: 'Strength',
   rest: 'Rest',
-}
-
-const STEP_LABELS: Record<Step['kind'], string> = {
-  warmup: 'Warm-up',
-  work: 'work',
-  recover: 'recover',
-  cooldown: 'Cool-down',
-  steady: 'Steady',
 }
 
 const FLAG_LABELS: Record<SessionFlag, string> = {
@@ -120,8 +114,9 @@ function minutesText(sec: number): string {
   return `${String(Number.isInteger(min) ? min : Math.round(min * 10) / 10)} min`
 }
 
-function stepText(step: Step): string {
-  const label = STEP_LABELS[step.kind]
+/** One engine step: "Warm up 15 min, Zone 1", "3 x Fast 8 min, Zone 3". The name is the workout's. */
+function stepText(step: Step, session: PlanSession): string {
+  const label = stepName(step, session)
   const amount =
     step.durationSec !== null
       ? minutesText(step.durationSec)
@@ -130,18 +125,7 @@ function stepText(step: Step): string {
         : ''
   const zone = ZONE_LABELS[step.zone]
   if (step.reps > 1) return `${String(step.reps)} x ${label} ${amount}, ${zone}`
-  return `${label.charAt(0).toUpperCase()}${label.slice(1)} ${amount}, ${zone}`
-}
-
-function rangeText(range: [number, number], unit: string): string {
-  const [a, b] = range[0] <= range[1] ? range : [range[1], range[0]]
-  return `${String(a)} to ${String(b)}${unit}`
-}
-
-function paceText(range: [number, number], units: Units): string {
-  const [fast, slow] = range[0] <= range[1] ? range : [range[1], range[0]]
-  const value = (secPerKm: number) => formatPace(secPerKm, 1000, units).replace(/ \/\w+$/, '')
-  return `${value(fast)} to ${value(slow)} /${units}`
+  return `${label} ${amount}, ${zone}`
 }
 
 function activityLabel(activity: ActivityListItem, units: Units | undefined): string {
@@ -166,19 +150,22 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * The targets stored with the session. They are older than the zones when a zone change was
- * accepted after the plan was written, so they stand in only when the resolved ones cannot be read.
+ * The targets stored with the session, for when the resolved ones cannot be read (the workout
+ * request failed). They are older than the zones when a zone change was accepted after the plan was
+ * written, so they stand in only then. They go through the resolver with no zones and the same rows
+ * as the hero and the resolved sheet (`SessionTargets`), so the words, the order and the rounding
+ * are the hero's and only the figures can be older. The day's heat is not known here: the plan-time
+ * heat note is shown beside the targets.
  */
-function StoredTargets({ target, units }: { target: SessionTarget; units: Units | undefined }) {
-  return (
-    <dl className={styles.facts}>
-      <Row label="Effort">{`${rangeText(target.rpe, '')} of 10`}</Row>
-      {target.hr !== null ? <Row label="Heart rate">{rangeText(target.hr, ' bpm')}</Row> : null}
-      {target.paceSecPerKm !== null && units !== undefined ? (
-        <Row label="Pace">{paceText(target.paceSecPerKm, units)}</Row>
-      ) : null}
-    </dl>
-  )
+export function StoredTargets({
+  session,
+  units,
+}: {
+  session: Pick<PlanSession, 'kind' | 'target'>
+  units: Units
+}) {
+  const targets = resolveTargets(session, null, { hot: false })
+  return <SessionTargets targets={targets} units={units} day="other" />
 }
 
 /**
@@ -199,9 +186,11 @@ export function SheetTargets({ targets, units }: { targets: ResolvedTargets; uni
 function Assessment({
   execution,
   activityId,
+  units,
 }: {
   execution: ExecutionAssessment
   activityId: string | null
+  units: Units | undefined
 }) {
   const { effort, conditions } = execution
   const effortText =
@@ -209,8 +198,11 @@ function Assessment({
       ? 'Effort not assessed'
       : `${EFFORT_LABELS[String(effort.score) as keyof typeof EFFORT_LABELS]}, ${effort.confidence} confidence`
   const conditionParts: string[] = []
-  if (conditions.wbgtC !== null)
-    conditionParts.push(`WBGT ${String(Math.round(conditions.wbgtC))} °C`)
+  if (conditions.wbgtC !== null) {
+    // A WBGT reads in °C in either unit system (`formatQuantity`), so the units cannot change it.
+    const wbgt = formatQuantity({ kind: 'temp', c: Math.round(conditions.wbgtC) }, units ?? 'km')
+    conditionParts.push(`WBGT ${wbgt}`)
+  }
   return (
     <section className={styles.section} aria-labelledby="assessment-title">
       <h3 id="assessment-title" className={styles.heading}>
@@ -405,8 +397,8 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
               units !== undefined ? (
                 <SheetTargets targets={workout.data.targets} units={units} />
               ) : null
-            ) : workout.isError ? (
-              <StoredTargets target={session.target} units={units} />
+            ) : workout.isError && units !== undefined ? (
+              <StoredTargets session={session} units={units} />
             ) : null}
             {session.target.heatNote !== null ? (
               <p className={styles.note}>{session.target.heatNote}</p>
@@ -423,7 +415,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
                 <h4 className={styles.subheading}>Steps</h4>
                 <ul className={styles.steps}>
                   {session.structure.map((step, index) => (
-                    <li key={`${step.kind}-${String(index)}`}>{stepText(step)}</li>
+                    <li key={`${step.kind}-${String(index)}`}>{stepText(step, session)}</li>
                   ))}
                 </ul>
               </>
@@ -445,7 +437,11 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
           <FuelSessionSection session={session} />
           <WristSection session={session} workout={workout.data} />
           {session.execution !== null ? (
-            <Assessment execution={session.execution} activityId={session.activityId} />
+            <Assessment
+              execution={session.execution}
+              activityId={session.activityId}
+              units={units}
+            />
           ) : null}
           <LinkSection session={session} units={units} />
           <AdjustSection session={session} />

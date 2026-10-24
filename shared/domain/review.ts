@@ -1,4 +1,5 @@
 import { addDays } from '../dates.ts'
+import { P } from '../engine/params/index.ts'
 import type { Phase, SuggestedAction, WeekRow, WeeklyReview } from '../types.ts'
 
 export interface SuggestInput {
@@ -56,7 +57,13 @@ function chooseAction(input: SuggestInput): { action: SuggestedAction; reason?: 
   if (review.fatigue === null || review.symptoms === null) {
     return { action: 'needs_recovery_review' }
   }
-  if (review.symptoms === 'mild' || review.fatigue >= 6 || week.runMin * 100 < 85 * targetRunMin) {
+  // Below the line the review holds the target; the run-time meter calls the week "near" from it.
+  const nearTargetPct = P.weeklyReview.nearTargetPct.value
+  if (
+    review.symptoms === 'mild' ||
+    review.fatigue >= 6 ||
+    week.runMin * 100 < nearTargetPct * targetRunMin
+  ) {
     return { action: 'hold' }
   }
   return { action: 'progress' }

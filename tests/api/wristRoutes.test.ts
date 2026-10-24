@@ -1,8 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import { lintText } from '../../shared/copy/lint.ts'
+import { wristRangeSentence } from '../../shared/copy/publish.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
 import type { TodayView, WristSettings, WristStatus } from '../../shared/types.ts'
+import { STATUS_MAX_DAYS } from '../../shared/workouts/horizon.ts'
 import {
   REMOVE_TIMEOUT_MS,
   prepareDisconnect,
@@ -237,22 +239,25 @@ describe('GET /api/wrist/status', () => {
     ])
   })
 
-  test('refuses a range that is malformed, backwards or longer than 60 days', async () => {
+  test('refuses a range that is malformed, backwards or longer than the most days a request may span', async () => {
     const { u } = await runner('status-range@example.com')
     const get = (query: string) => client(ctx, u).get(`/api/wrist/status${query}`)
     for (const query of [
       '?from=2026-13-40',
       '?from=yesterday',
       `?from=${today}&to=${addDays(today, -1)}`,
-      `?from=${today}&to=${addDays(today, 60)}`,
+      `?from=${today}&to=${addDays(today, STATUS_MAX_DAYS)}`,
       '?unknown=1',
     ]) {
       const res = await get(query)
       expect(res.status, query).toBe(400)
       expect(res.body).toMatchObject({ error: { code: 'validation' } })
     }
-    // 60 days inclusive is fine
-    expect((await get(`?from=${today}&to=${addDays(today, 59)}`)).status).toBe(200)
+    // the sentence names the number the route enforces
+    const tooLong = await get(`?from=${today}&to=${addDays(today, STATUS_MAX_DAYS)}`)
+    expect(JSON.stringify(tooLong.body)).toContain(wristRangeSentence(STATUS_MAX_DAYS))
+    // the maximum, counted inclusively, is fine
+    expect((await get(`?from=${today}&to=${addDays(today, STATUS_MAX_DAYS - 1)}`)).status).toBe(200)
   })
 
   test('says "on your watch" only with the tick, no device message and 15 minutes', async () => {

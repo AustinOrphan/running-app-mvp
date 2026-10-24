@@ -343,17 +343,33 @@ describe('Today: the targets', () => {
 })
 
 describe('Today: the cooler start and the notes', () => {
-  test('an air-temperature day names the cooler hour only', async () => {
-    renderToday(
-      dayOf(
-        {},
-        {
-          heat: makeHeat({ coolerHour: '06:00', coolerValue: 15.6, index: 'air-temperature' }),
-        },
-      ),
-    )
+  test("an air-temperature day names the cooler hour only, in the runner's units", async () => {
+    const heat = makeHeat({ coolerHour: '06:00', coolerValue: 15.6, index: 'air-temperature' })
+    renderToday(dayOf({}, { heat }), {}, 'mi')
+    expect(
+      await screen.findByText('Cooler start: 06:00. Air temperature about 61 °F then.'),
+    ).toBeInTheDocument()
+  })
+
+  test('a runner using kilometres reads the same air temperature in °C', async () => {
+    const heat = makeHeat({ coolerHour: '06:00', coolerValue: 15.6, index: 'air-temperature' })
+    renderToday(dayOf({}, { heat }), {}, 'km')
     expect(
       await screen.findByText('Cooler start: 06:00. Air temperature about 16 °C then.'),
+    ).toBeInTheDocument()
+  })
+
+  test('a WBGT reads in °C with miles too: the heat rules state it so', async () => {
+    const heat = makeHeat({
+      coolerHour: '06:00',
+      coolerValue: 17,
+      index: 'wbgt',
+      wbgtC: 25,
+      peakHour: 15,
+    })
+    renderToday(dayOf({}, { heat }), {}, 'mi')
+    expect(
+      await screen.findByText('Cooler start: 06:00. WBGT about 17 °C then, 25 °C around 15:00.'),
     ).toBeInTheDocument()
   })
 

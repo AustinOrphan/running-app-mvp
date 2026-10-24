@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { createElement, type ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, test, vi } from 'vitest'
-import { useLogin, useLogout, useSetup } from '../../web/api/auth.ts'
+import { useLogin, useLogout, useMe, useSetup } from '../../web/api/auth.ts'
 import { UNAUTHORIZED_EVENT, keys } from '../../web/api/client.ts'
 import { App } from '../../web/App.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
@@ -124,6 +124,57 @@ describe('a 401 while the app is open', () => {
     })
     expect(draftKeys()).toEqual([])
     expect(window.localStorage.getItem('theme')).toBe('dark')
+  })
+})
+
+describe('opening the app with a session that has ended', () => {
+  // `api()` raises no unauthorized event for `/auth/me` (a wrong password is a 401 too), and the
+  // listener of `useOutboxReplay` runs only with a signed-in user, so `useMe` purges itself.
+  const signedOut = { status: 401, body: { error: { code: 'unauthorized', message: 'Sign in.' } } }
+
+  test('a 401 on /auth/me empties the queue and removes the drafts, and nothing else', async () => {
+    seedDevice()
+    const outbox = await queuedOutbox()
+    mockApi({ 'GET /api/auth/me': () => signedOut })
+    const { result } = renderHook(() => useMe(), { wrapper: withClient(new QueryClient()) })
+    await waitFor(() => {
+      expect(result.current.data).toBeNull()
+    })
+    await waitFor(() => {
+      expect(outbox.getState().entries).toEqual([])
+    })
+    expect(draftKeys()).toEqual([])
+    expect(window.localStorage.getItem('theme')).toBe('dark')
+  })
+
+  test('a signed-in session leaves the queue and the drafts alone', async () => {
+    seedDevice()
+    const outbox = await queuedOutbox()
+    const user = { id: 'u-a', email: 'a@example.com', displayName: null, units: 'km' }
+    mockApi({ 'GET /api/auth/me': () => user })
+    const { result } = renderHook(() => useMe(), { wrapper: withClient(new QueryClient()) })
+    await waitFor(() => {
+      expect(result.current.data).toEqual(user)
+    })
+    expect(outbox.getState().entries).toHaveLength(1)
+    expect(draftKeys()).toHaveLength(3)
+  })
+
+  test('a server that cannot answer is not an expired session: nothing is purged', async () => {
+    seedDevice()
+    const outbox = await queuedOutbox()
+    mockApi({
+      'GET /api/auth/me': () => ({
+        status: 503,
+        body: { error: { code: 'internal', message: 'Try again.' } },
+      }),
+    })
+    const { result } = renderHook(() => useMe(), { wrapper: withClient(new QueryClient()) })
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true)
+    })
+    expect(outbox.getState().entries).toHaveLength(1)
+    expect(draftKeys()).toHaveLength(3)
   })
 })
 

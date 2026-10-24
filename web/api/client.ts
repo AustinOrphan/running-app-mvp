@@ -18,7 +18,11 @@ export class ApiError extends Error {
 /** Window event fired when a signed-in request comes back 401, so the app can go to /login. */
 export const UNAUTHORIZED_EVENT = 'rl:unauthorized'
 
-/** Paths where a 401 is an expected answer (wrong password, no account yet), not an expiry. */
+/**
+ * Paths where a 401 is an expected answer (wrong password, no account yet), not an expiry, so it
+ * raises no `UNAUTHORIZED_EVENT`. `GET /auth/me` is the exception that is an expiry: `useMe` turns
+ * its 401 into "signed out" and purges the device's data itself.
+ */
 function isAuthFlow(path: string): boolean {
   return path === '/setup' || path.startsWith('/auth/')
 }

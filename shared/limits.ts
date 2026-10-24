@@ -18,6 +18,12 @@ export const ACTIVITY_PAGE_MAX = 500
 /** The furthest `offset` a list request may name; far beyond any history, and inside SQLite's range. */
 export const ACTIVITY_OFFSET_MAX = 1_000_000
 
+/**
+ * Minutes between two scans of the watched folder. The scheduler runs the scan at this interval
+ * and the Integrations page names it in a sentence, so neither types its own number.
+ */
+export const FOLDER_SCAN_MINUTES = 5
+
 // The fuel lab (phase 3a design 10.3 and 10.4). These are sanity bounds on what a form can send,
 // not training guidance: no fluid or carbohydrate target comes from here.
 

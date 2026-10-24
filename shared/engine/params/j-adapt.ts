@@ -563,6 +563,13 @@ export const jAdapt = {
       },
     ),
   },
+  weeklyReview: {
+    nearTargetPct: param('weeklyReview.nearTargetPct', 85, 'D', 'design-review', [], {
+      range: [50, 100],
+      unit: '%',
+      note: 'Default: a week at 85% or more of its minutes target counts as near it. Below that the review holds the target and the run-time meter calls the week under it; no study sets the line.',
+    }),
+  },
   revision: {
     undoWindowDays: param('revision.undoWindowDays', 7, 'D', 'design-revisions', [], {
       range: [1, 28],

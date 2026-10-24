@@ -2,6 +2,7 @@ import { zipSync, strToU8 } from 'fflate'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HttpError } from '../../../server/errors.ts'
 import { garminProvider } from '../../../server/providers/garmin.ts'
+import { lintText } from '../../../shared/copy/lint.ts'
 import {
   RateLimitPause,
   WellnessTruncated,
@@ -116,6 +117,13 @@ function zipWith(files: Record<string, string>): Uint8Array<ArrayBuffer> {
 }
 
 const ref: RemoteActivityRef = { id: '1001', startUtc: '2026-10-20T06:30:00.000Z' }
+
+/** The message of the error a call rejects with. */
+async function collectMessage(call: () => Promise<unknown>): Promise<string> {
+  const error = await call().catch((e: unknown) => e)
+  if (!(error instanceof Error)) throw new Error('The call did not reject')
+  return error.message
+}
 const loginInput = {
   mode: 'login',
   username: 'runner@example.com',
@@ -676,6 +684,45 @@ describe('garmin connect: wellness', () => {
     expect(dates.at(-1)).toBe('2026-09-23')
     expect(days?.[0]?.date).toBe('2026-09-23')
     expect(days?.at(-1)?.date).toBe('2026-10-22')
+  })
+
+  it("words a service error in the app's own sentences, which pass the G5 lint", async () => {
+    const messages: string[] = []
+    const listing = makeCtx(
+      {
+        [`GET ${API}/activitylist-service/activities/search/activities`]: () =>
+          new Response('boom', { status: 503 }),
+      },
+      { secret: secretFor('msg-list') },
+    )
+    messages.push(
+      await collectMessage(async () => {
+        for await (const r of garminProvider.listActivities('2026-08-01', listing.ctx)) void r
+      }),
+    )
+    const download = makeCtx(
+      {
+        [`GET ${API}/download-service/files/activity/1001`]: () =>
+          new Response('boom', { status: 502 }),
+      },
+      { secret: secretFor('msg-dl') },
+    )
+    messages.push(await collectMessage(() => garminProvider.fetchActivity(ref, download.ctx)))
+    const wellness = makeCtx(
+      { [`${sleepUrl}?date=2026-10-21`]: () => new Response('boom', { status: 500 }) },
+      { secret: secretFor('msg-well') },
+    )
+    messages.push(
+      await collectMessage(() =>
+        garminProvider.listWellness!('2026-10-21', '2026-10-21', wellness.ctx),
+      ),
+    )
+    expect(messages).toEqual([
+      'Garmin answered the activity list request with HTTP 503.',
+      'Garmin answered the download of activity 1001 with HTTP 502.',
+      'Garmin answered the sleep request with HTTP 500.',
+    ])
+    for (const message of messages) expect(lintText(message), message).toEqual([])
   })
 
   it('skips days without data but fails on a server error', async () => {

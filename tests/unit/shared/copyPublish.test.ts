@@ -12,6 +12,7 @@ import {
   wristItemSentence,
   wristLineSentence,
   wristPlain,
+  wristRangeSentence,
   wristSendLabel,
   wristSentence,
   wristShortReason,
@@ -30,6 +31,7 @@ import {
   workoutLinkLabel,
 } from '../../../shared/copy/workouts.ts'
 import type { WristItemStatus } from '../../../shared/types.ts'
+import { STATUS_MAX_DAYS } from '../../../shared/workouts/horizon.ts'
 
 const ids = Object.keys(PUBLISH_TEMPLATES) as PublishTemplateId[]
 
@@ -75,12 +77,18 @@ describe('the publish templates', () => {
       'publish.wrist.off': 'Sending to your watch is off. Turn it on under Integrations.',
       'publish.wrist.remove-failed':
         'The sessions already sent could not be removed from intervals.icu, so it stays connected. Try again, or disconnect without removing them.',
-      'publish.wrist.range': 'Ask for at most 60 days, ending on or after the start.',
       'publish.wrist.not-found': 'That session is not in the active plan.',
     }
     for (const [id, text] of Object.entries(fixed)) {
       expect(wristSentence(id as WristSentenceId), id).toBe(text)
     }
+  })
+
+  it('names the number of days the status route enforces, whatever it is', () => {
+    expect(wristRangeSentence(STATUS_MAX_DAYS)).toBe(
+      `Ask for at most ${String(STATUS_MAX_DAYS)} days, ending on or after the start.`,
+    )
+    expect(wristRangeSentence(31)).toBe('Ask for at most 31 days, ending on or after the start.')
   })
 
   it('shows the service words as a slot, outside the lint', () => {

@@ -1,5 +1,7 @@
 import { useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import type { Boundary, ZoneSet } from '../../shared/engine/types.ts'
 import type {
@@ -902,7 +904,7 @@ function ZonesSection({ units }: { units: Units }) {
 /** One question per sign of low energy availability [rules n-4]; ticking a box means "yes". */
 const SCREEN_QUESTIONS = [
   { key: 'unintendedWeightLoss', label: 'Unintended weight loss in the last few months' },
-  { key: 'menstrualChanges', label: 'Missed or absent periods, or other changes to the cycle' },
+  { key: 'menstrualChanges', label: render(TEMPLATES['profile.screening.cycle'], {}, 'km') },
   { key: 'recurrentInjuryOrIllness', label: 'Repeated bone stress injuries, or frequent illness' },
   { key: 'persistentFatigue', label: 'Tiredness that does not lift with rest' },
   { key: 'giSymptoms', label: 'Stomach or gut symptoms that keep coming back' },

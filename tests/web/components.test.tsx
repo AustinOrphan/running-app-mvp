@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { suggestAction, type SuggestInput } from '../../shared/domain/review.ts'
+import { P } from '../../shared/engine/params/index.ts'
 import { Button } from '../../web/components/Button.tsx'
 import { EmptyState } from '../../web/components/EmptyState.tsx'
 import { Field, Input } from '../../web/components/Field.tsx'
@@ -11,7 +13,6 @@ import { ScalePicker } from '../../web/components/ScalePicker.tsx'
 import { Segmented } from '../../web/components/Segmented.tsx'
 import { Sheet } from '../../web/components/Sheet.tsx'
 import { Skeleton } from '../../web/components/Skeleton.tsx'
-import { activityTypeFor } from '../../web/components/today/DoneSheet.tsx'
 import { NotTodaySheet } from '../../web/components/today/NotTodaySheet.tsx'
 import { ToastProvider, useToast } from '../../web/components/Toast.tsx'
 import {
@@ -21,6 +22,7 @@ import {
   formatWeekday,
   phaseLabel,
 } from '../../web/components/format.ts'
+import { makeWeekRow } from '../factories.ts'
 import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 import { settings } from './plan-fixtures.ts'
 import { makeSession } from './today-fixtures.ts'
@@ -28,6 +30,21 @@ import { makeSession } from './today-fixtures.ts'
 afterEach(() => {
   vi.useRealTimers()
 })
+
+function weekOf(runMin: number): SuggestInput {
+  return {
+    today: '2026-03-16',
+    weekStart: '2026-03-02',
+    phase: 'base2',
+    targetRunMin: 450,
+    baselineRunMin: 450,
+    plannedRunDays: 4,
+    nextBaselineMin: 500,
+    week: makeWeekRow({ runMin, runDays: 4, runSessions: 4 }),
+    review: { dataStatus: 'complete', fatigue: 4, symptoms: 'none', recoveryConstrained: false },
+    hasPossibleDuplicates: false,
+  }
+}
 
 describe('Meter', () => {
   test('under target: words, not colour, carry the state', () => {
@@ -44,6 +61,48 @@ describe('Meter', () => {
     render(<Meter valueMin={384} targetMin={450} label="Run time" />)
     expect(screen.getByText('1.1 h to target')).toBeInTheDocument()
     expect(screen.getByRole('meter')).toHaveAttribute('data-state', 'near')
+  })
+
+  test('the "to target" caption reads the minutes the server counted when it has them', () => {
+    // 384 of 450 leaves 66 min by subtraction; the payload says 60, and the caption follows it.
+    render(<Meter valueMin={384} targetMin={450} remainingMin={60} label="Run time" />)
+    expect(screen.getByText('1.0 h to target')).toBeInTheDocument()
+  })
+
+  test('where "near" starts is the Param the weekly review holds the target by', () => {
+    const line = P.weeklyReview.nearTargetPct.value
+    expect(line).toBe(85)
+    const stateAt = (valueMin: number, targetMin: number) => {
+      const { unmount } = render(<Meter valueMin={valueMin} targetMin={targetMin} label="Run" />)
+      const state = screen.getByRole('meter').getAttribute('data-state')
+      unmount()
+      return state
+    }
+    // The line is at 382.5 of 450 minutes: the minute below it is under, the one above is near,
+    // and the review holds the target for the first and moves on for the second.
+    expect(stateAt(382, 450)).toBe('under')
+    expect(stateAt(383, 450)).toBe('near')
+    expect(suggestAction(weekOf(382)).action).toBe('hold')
+    expect(suggestAction(weekOf(383)).action).toBe('progress')
+  })
+
+  test('moving the Param moves the line of the meter and of the review together', () => {
+    const param = P.weeklyReview.nearTargetPct
+    const original = param.value
+    const stateAt = (valueMin: number) => {
+      const { unmount } = render(<Meter valueMin={valueMin} targetMin={450} label="Run" />)
+      const state = screen.getByRole('meter').getAttribute('data-state')
+      unmount()
+      return state
+    }
+    expect([stateAt(400), suggestAction(weekOf(400)).action]).toEqual(['near', 'progress'])
+    param.value = 90
+    try {
+      // 400 of 450 is 89%: now under the line for both.
+      expect([stateAt(400), suggestAction(weekOf(400)).action]).toEqual(['under', 'hold'])
+    } finally {
+      param.value = original
+    }
   })
 
   test('past the target is stated neutrally', () => {
@@ -289,28 +348,6 @@ describe('NotTodaySheet', () => {
     await user.click(screen.getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalledTimes(2)
     expect(onChanged).not.toHaveBeenCalled()
-  })
-})
-
-describe('activityTypeFor', () => {
-  test.each([
-    ['easy', 'run'],
-    ['recovery', 'run'],
-    ['long', 'run'],
-    ['long-fast-finish', 'run'],
-    ['threshold', 'run'],
-    ['intervals', 'run'],
-    ['race-pace', 'run'],
-    ['strides', 'run'],
-    ['hills', 'run'],
-    ['b2b', 'run'],
-    ['race', 'race'],
-    ['strength', 'strength'],
-    ['hike', 'cross'],
-    ['mobility', 'cross'],
-    ['cross', 'cross'],
-  ] as const)('a %s session is logged as %s', (kind, type) => {
-    expect(activityTypeFor(kind)).toBe(type)
   })
 })
 

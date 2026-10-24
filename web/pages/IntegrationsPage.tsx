@@ -1,5 +1,8 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { IntegrationStatus } from '../../shared/types.ts'
 import {
   useConnectIntegration,
@@ -476,7 +479,7 @@ function PushSetup({ provider, pushEnabled }: { provider: string; pushEnabled: b
       await navigator.clipboard.writeText(token)
       toast.show('Token copied')
     } catch {
-      toast.show('Copy failed; select the token and copy it by hand')
+      toast.show(render(TEMPLATES['integrations.token.copy-failed'], {}, 'km'))
     }
   }
 
@@ -704,7 +707,13 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
       {channels.includes('publish') && usable ? <WristSettings /> : null}
 
       {isFolder && usable ? (
-        <p className={styles.note}>The folder is scanned every 5 minutes.</p>
+        <p className={styles.note}>
+          {render(
+            TEMPLATES['integrations.folder.interval'],
+            { minutes: { kind: 'count', n: FOLDER_SCAN_MINUTES } },
+            'km',
+          )}
+        </p>
       ) : null}
 
       {hasConnection ? <SyncHistory provider={provider} /> : null}

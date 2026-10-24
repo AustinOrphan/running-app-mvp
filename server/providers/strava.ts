@@ -1,6 +1,7 @@
 // Strava (spec 2.6.3): OAuth with the owner's own API application, activities by `after`
 // paging, and one streams call per activity. Every request goes through the injected `fetch`.
 import { z } from 'zod'
+import { count, providerMessage } from '../../shared/copy/pageCopy.ts'
 import type { ActivityType, ParsedActivity } from '../../shared/types.ts'
 import { parse, validationError } from '../errors.ts'
 import {
@@ -111,7 +112,7 @@ async function tokenRequest(
   })
   // 4xx means Strava refused the grant; anything else is an outage, not a reason to reconnect.
   if (response.status >= 500 || response.status === 429) {
-    throw new Error(`Strava token request failed: HTTP ${response.status}`)
+    throw new Error(providerMessage('provider.strava.token', { status: count(response.status) }))
   }
   if (!response.ok) return null
   const parsed = tokenSchema.safeParse(await response.json().catch(() => null))
@@ -219,7 +220,9 @@ async function get(
   }
   if (response.status === 401) throw new Error(`Strava rejected the access token. ${RECONNECT}`)
   if (response.status === 404) return { body: null, pause: null }
-  if (!response.ok) throw new Error(`Strava request failed: HTTP ${response.status}`)
+  if (!response.ok) {
+    throw new Error(providerMessage('provider.strava.request', { status: count(response.status) }))
+  }
   const body: unknown = await response.json().catch(() => null)
   return { body, pause: pauseSeconds(response.headers, ctx.now()) }
 }
