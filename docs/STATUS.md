@@ -7,6 +7,35 @@ Last update: 2026-10-23.
 
 ## Where things stand
 
+- **Phase 3a implemented (2026-10-23).** Seven implementation waves landed through PRs #542,
+  #544, #546, #549, #551, #552, #553 and #554 (with the fix PRs #538, #540, #541, #543, #545, #547,
+  #548 and #550), each wave gated by `npm run check`, `npm run build`, `npm run test:e2e`, a Docker
+  build where a migration or the image changed, the owner validation (byte-identical from wave 0 to
+  the close: 39 weeks, 210 sessions, no checklist failure) and a six-lens adversarial review with
+  two refuters per finding, whose confirmed and accepted findings were fixed before each wave was
+  cut; the close adds a whole-phase contract-drift review (43 findings, 24 confirmed and 15 accepted disputed ones fixed before the close PR, four recorded below). What shipped: Today as one
+  coach payload (the readiness read, the one-row check-in with the outbox, the session hero with
+  its targets, Done and Not today as one-tap sheets, the brief line, the watch line, the disruption
+  slot, the week strip, the race countdown, the offline note; two columns from 900 px; the fold
+  measured); the Plan page with preview-then-apply actions (Not 100%, the window banners, the adjust
+  section for move, swap, shorten, skip and restore, "Update plan from latest data", undo for every
+  revision with its causes, the wrist strip and downloads); the weekly brief page and its API; the
+  Why drawer on the runner's numbers with every rule explained by a builder or a policy entry; the
+  Fuel lab (the ladder, products, the 20-second log, the gut-training block, the EAH card); race
+  results and the prediction track record; watch delivery through FIT files, intervals.icu
+  publishing and the private calendar feed; disruption windows in the engine and on the server;
+  the offline shell (ADR 0012); ADRs 0007 to 0012 accepted; fourteen migrations; `PARAMS_VERSION`
+  `2026-10-23.3` after the close added two grade D Params with the values the code already used.
+  Final gates on the merged branch after the close fixes: `npm run check` (227 files, 10896
+  tests), `npm run build` (`sw.js` with 45 files kept, entry chunk 358 kB), `npm run test:e2e`
+  (77), `docker build .` with the database files excluded from the image. Manual checks still open: the FIT files on
+  the owner's watch, one live intervals.icu run, a real calendar app on the `webcal://` link, which
+  Garmin model and manual route the help text should name (Q6), a two-release shell update on a
+  device and iOS cache eviction. Owner questions still open: "Decisions for the owner" below
+  (the section-13 defaults, the wave-7 items, the API limiter outside production). Next: the
+  phase 3b design, starting with the distance estimate beside the minutes (follow-up 17) and then
+  strength programming with the runner's equipment and lifting history captured in the app
+  (follow-up 18).
 - **On `main`:** the clean rewrite (#528, rebase-merged) and the evidence engine, data
   foundation and research corpus (#529, squash-merged as `2e17f23a`); the CodeQL escaping fix
   (#536); the second evidence pass (#537); the eight phase 3a wave pull requests, merged on
@@ -453,6 +482,67 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   and new when a re-plan changes its day or kind, so E1 publishes under
   `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
   and derives no id from the date, the kind or the order.
+
+## Phase 3a close: whole-phase contract-drift review (2026-10-23)
+
+Six lenses over the whole repository at the wave-7 head, one per contract family (engine, copy and
+explain, server and delivery, web, ADRs and documents, public repository and safety), each
+searching for second implementations of a section 4 contract, bypasses, contradictions between a
+document and the code, and personal data; 43 findings, each tried by two independent refuters:
+24 confirmed, 19 disputed.
+
+Fixed on the integration branch before the close PR (`task/3a-C1-fix-server`, `task/3a-C1-fix-web`,
+`task/3a-C1-fix-docs`, and two direct commits):
+
+1. Safety and the public repository: the Docker ignore list named a top-level `data` folder but not
+   `prisma/data`, so an image build copied the development database; the engine plan's task E16
+   described a real recent history and now describes the synthetic shape it was derived from; the
+   overshoot-week fixture's race date moved away from a real date.
+2. Engine and explain: the Why drawer built the weekly decision from a goal-less input, so a
+   post-race week contradicted the stored decision (the plan's goal model is passed); readiness,
+   checklist and execution sentences restated Param numbers as literals and some thresholds were
+   unnamed numbers (built from `P`, new grade D Params with the same values, a Param-swap copy
+   test); the execution assessment was worded twice with raw kind codes (codes and slots rendered
+   through templates); the link-conflict message printed raw kind codes.
+3. Server and delivery: the intake sync status text was hand-built prose used as control flow
+   (templates and a structured signal); changing the intervals.icu connection to another athlete
+   made every sent publication read as deleted by the runner with nothing to revive it (the rows
+   reset on an athlete change; switching sending on and "Send again" revive them); a past-dated
+   failed publication kept the two-minute tick running a full publish forever (bounded to rows a run
+   can act on); trim detection used `isTrimmed()` everywhere; the intervals.icu rejection text goes
+   through `safeMessage`.
+4. Web: banned G5 words on the import, sign-in, setup, profile and integrations pages that no
+   linted test rendered (reworded; the pages are linted); the session sheet's step names differed
+   from the watch's (one map); two metric figures bypassed the runner's units; Done on a hike
+   session logged an activity the matcher could never link (manual activities carry a subtype and
+   the second `compatible` copy is gone); a 401 on `GET /api/auth/me` did not purge the drafts and
+   the outbox; editing a goal left its prediction and Today's race block stale; the wrist write
+   hooks did not refresh the Today payload that carries the watch slot; the session sheet's second
+   target-row formatter joins the cross-surface registry; the Meter's threshold is a Param and its
+   hours come from the payload; the wrist range and the folder scan interval are filled from the
+   constants the code uses; app-authored provider failure texts are templates.
+5. Documents: CLAUDE.md's Open-Meteo bullet says what is true (handlers start background refreshes
+   and never wait, except the forecast route and `ensureClimate`); "Where things stand" no longer
+   describes the pre-wave state; the spec records that idle scheduled sync runs are not stored;
+   ADR 0010 records `PlanRevision.summary` as a template output fixed at write time; the rewrite
+   design's item 19 lists the shipped routes; the engine design counts 370 papers; ADR 0007 and
+   spec 4.2 state the 14-day rule for owner edits; spec 4.4's `PublishFailCode` has
+   `owner-removed`; ADR 0003 records the brief's stored minutes; the documents say where
+   `PublishProvider` lives; ADR 0012 keeps approximate sizes without a build id; the phase spec's
+   status reads Implemented.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- `PARAMS_VERSION` was not bumped for the #548 rule change [the version marks Param changes; #548
+  changed a rule, not a Param].
+- Derived athlete values are recomputed in `server/services/execution.ts` outside the snapshot and
+  memo [reads of the snapshot's own rows; no second query of the history window].
+- The real goal date stays in the published git history (three commits before the wave-3 fix)
+  [history is never rewritten; the tip has been clean since wave 3].
+- The access log writes the Strava OAuth callback's code and state [the line is written on the
+  response's finish, after the code is exchanged and spent].
+- Five commit subjects of this phase exceed 72 characters [pushed history; the template is shorter
+  from here on].
 
 ## Wave 7 adversarial review (2026-10-23)
 

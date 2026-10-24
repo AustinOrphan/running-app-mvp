@@ -1,6 +1,6 @@
 # Coach phase 3a — design
 
-Status: Proposed 2026-10-22. Written under the owner's phase 3 mandate (section 1) from seven epic
+Status: Implemented 2026-10-23 (phase 3a; see `docs/STATUS.md`). Proposed 2026-10-22. Written under the owner's phase 3 mandate (section 1) from seven epic
 designs, each revised after a principal-engineer review, and from the review itself. Decisions are
 the builder's unless marked **owner**; section 12 lists every decision with its reason, and section
 13 lists what the owner still has to settle.
