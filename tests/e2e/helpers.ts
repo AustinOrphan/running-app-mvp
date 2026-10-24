@@ -56,7 +56,7 @@ export function apiFor(page: Page, origin: string) {
 export type Api = ReturnType<typeof apiFor>
 
 /** `SESSION_SECRET` of the e2e server; keep in step with `webServer.env` in playwright.config.ts. */
-const E2E_SESSION_SECRET = 'e2e-test-only-secret-0123456789abcdef!!'
+export const E2E_SESSION_SECRET = 'e2e-test-only-secret-0123456789abcdef!!'
 
 /**
  * Makes the page signed in as the runner without driving the UI: creates the account on a fresh
