@@ -26,7 +26,7 @@
 // (`publishChangeKey`), a retry that is due and a 30-minute backstop; there is no other watermark.
 import { createHash } from 'node:crypto'
 import { addDays, daysBetween, isIsoDate, todayIso } from '../../shared/dates.ts'
-import { publishSentence, wristSentence } from '../../shared/copy/publish.ts'
+import { publishSentence, wristRangeSentence, wristSentence } from '../../shared/copy/publish.ts'
 import { workoutExternalId } from '../../shared/domain/sessionIdentity.ts'
 import type {
   PlanSession,
@@ -35,7 +35,7 @@ import type {
   WristSettings,
   WristStatus,
 } from '../../shared/types.ts'
-import { PUBLISH_HORIZON_DAYS } from '../../shared/workouts/horizon.ts'
+import { PUBLISH_HORIZON_DAYS, STATUS_MAX_DAYS } from '../../shared/workouts/horizon.ts'
 import type { WorkoutPlan } from '../../shared/workouts/types.ts'
 import type { Deps } from '../app.ts'
 import { SecretError, userTagOf } from '../crypto.ts'
@@ -99,10 +99,11 @@ const RUN_RETRY_MIN = 5
 export const REMOVE_TIMEOUT_MS = 20_000
 /** Withdrawn and owner-removed rows older than this are deleted (design 6.3). */
 const PRUNE_DAYS = 60
-/** Days a status request may span (design 6.4). */
-export const STATUS_MAX_DAYS = 60
 
 const MIN_MS = 60_000
+
+/** The states of a row whose send has not gone through: waiting for its time or failed. */
+const UNSENT_STATES = ['pending', 'failed'] as const
 
 /** Failure codes that wait for a reconnect, not for the clock: retried as soon as one is possible. */
 const RECONNECT_CODES: ReadonlySet<string> = new Set<PublishFailCode>(['auth', 'not-connected'])
@@ -423,11 +424,17 @@ async function runOnce(deps: Deps, userId: string, opts: PublishOptions): Promis
 
     const remote = await publish.list({ from: today, to }, ctx)
     const desiredIds = new Set(desired.map((d) => d.externalId))
+    // The rows of today and later, those of sessions to send, and the waiting or failed ones of any
+    // day: a past day's row can no longer be sent, and `decide` closes it.
     const rows = await prisma.wristPublication.findMany({
       where: {
         userId,
         channel: CHANNEL,
-        OR: [{ date: { gte: today } }, { externalId: { in: [...desiredIds] } }],
+        OR: [
+          { date: { gte: today } },
+          { externalId: { in: [...desiredIds] } },
+          { state: { in: [...UNSENT_STATES] } },
+        ],
       },
     })
 
@@ -686,6 +693,19 @@ function rowWriter(prisma: Deps['prisma'], userId: string): RowWriter {
 // Deciding
 // ---------------------------------------------------------------------------------------------
 
+/** What a row holds once it is closed or withdrawn: no failure, no retry, nothing on the calendar. */
+const CLOSED = {
+  state: 'withdrawn',
+  failCode: null,
+  failMessage: null,
+  deviceMessage: null,
+  attempts: 0,
+  nextAttemptAt: null,
+} as const
+
+const isUnsent = (row: Pick<WristPublication, 'state'>): boolean =>
+  row.state === 'pending' || row.state === 'failed'
+
 interface Plan {
   sends: SendItem[]
   /** Rows whose event is to come off intervals.icu (or be marked so, when it was never sent). */
@@ -836,7 +856,12 @@ function decide(args: {
     // Past days and sessions the runner has done stay as they are: intervals.icu pairs a done
     // session with its planned workout.
     const settled = session?.status === 'completed' || session?.status === 'partial'
-    if (settled || row.date < today) continue
+    if (settled || row.date < today) {
+      // A send that never went through can no longer be made, so its row is closed. Left waiting or
+      // failed, it would keep every tick of the scheduler running the publisher for nothing.
+      if (isUnsent(row)) facts.push(() => writer.save(row.externalId, row, null, CLOSED))
+      continue
+    }
     if (row.state === 'withdrawn') {
       // Only an event that is still there (connection dropped without removing it) needs a call.
       if (row.remoteId !== null && remoteById.has(row.remoteId)) plan.withdrawals.push(row)
@@ -989,14 +1014,7 @@ async function withdrawRows(args: {
   )
   if (refs.length > 0) await publish.withdraw(refs, ctx)
   for (const row of rows) {
-    await writer.save(row.externalId, row, null, {
-      state: 'withdrawn',
-      failCode: null,
-      failMessage: null,
-      deviceMessage: null,
-      attempts: 0,
-      nextAttemptAt: null,
-    })
+    await writer.save(row.externalId, row, null, CLOSED)
   }
 }
 
@@ -1025,11 +1043,14 @@ export async function isPublishDue(
   if (channel.lastRunAt === null) return true
   if (now.getTime() - channel.lastRunAt.getTime() >= PUBLISH_BACKSTOP_MS) return true
   if (channel.dataKey !== (await publishChangeKey(deps, channel.userId, todayIso(now)))) return true
+  // Only a row a run can act on counts: one of today or later. The run closes a waiting row of a
+  // day that has passed, or of a session the runner has done, so none keeps the tick running it.
   const waiting = await prisma.wristPublication.count({
     where: {
       userId: channel.userId,
       channel: CHANNEL,
-      state: { in: ['pending', 'failed'] },
+      state: { in: [...UNSENT_STATES] },
+      date: { gte: todayIso(now) },
       OR: [{ nextAttemptAt: { lte: now } }, { failCode: { in: [...RECONNECT_CODES] } }],
     },
   })
@@ -1121,6 +1142,67 @@ async function removeSentEvents(
   )
 }
 
+/**
+ * Makes the sessions the runner removed from intervals.icu sendable again: their rows become
+ * withdrawn, which the next run sends afresh (a create, or an update when the event is back). All of
+ * them, or the one `externalId`.
+ */
+async function reviveRemoved(
+  prisma: Deps['prisma'],
+  userId: string,
+  externalId?: string,
+): Promise<void> {
+  await prisma.wristPublication.updateMany({
+    where: {
+      userId,
+      channel: CHANNEL,
+      state: 'owner-removed',
+      ...(externalId === undefined ? {} : { externalId }),
+    },
+    data: { ...CLOSED, sentHash: null, remoteId: null },
+  })
+}
+
+/** The athlete id a stored connection names, or null when it names none. */
+function athleteIdOf(config: string): string | null {
+  try {
+    const value = (JSON.parse(config) as Record<string, unknown> | null)?.['athleteId']
+    return typeof value === 'string' && value !== '' ? value : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The intervals.icu connection is being replaced (`PUT /api/integrations/intervals`, before the new
+ * connection is saved). When it names another athlete, the stored publications describe another
+ * calendar: their event ids are not in the new one, and each would read as an event the runner
+ * deleted and stay deleted. Every row becomes withdrawn without its ids or hashes, the cached
+ * reference (another account's heart-rate figures) goes, and the next run sends the horizon afresh.
+ * Publishing stays on if it was on. The same account with a new key changes nothing. Returns whether
+ * the publications were reset.
+ */
+export async function resetForNewAthlete(
+  deps: Deps,
+  userId: string,
+  connection: { stored: string; next: Record<string, unknown> },
+): Promise<boolean> {
+  const before = athleteIdOf(connection.stored)
+  const after = connection.next['athleteId']
+  if (before === null || typeof after !== 'string' || after === before) return false
+  await exclusive(userId, async () => {
+    await deps.prisma.wristPublication.updateMany({
+      where: { userId, channel: CHANNEL },
+      data: { ...CLOSED, sentHash: null, remoteId: null },
+    })
+    await deps.prisma.deliveryChannel.updateMany({
+      where: { userId, channel: CHANNEL },
+      data: { dataKey: null, pausedUntil: null, referenceJson: null },
+    })
+  })
+  return true
+}
+
 /** Turns the channel off: the rows that were on the calendar become withdrawn, ids kept. */
 async function switchOff(deps: Deps, userId: string, garminLinked: boolean | null): Promise<void> {
   const { prisma } = deps
@@ -1169,6 +1251,9 @@ export async function setPublishing(
     if (input.enabled) {
       await connectedIntegration(deps, userId)
       const wasEnabled = before?.enabled === true
+      // Switching sending on starts afresh: what the runner removed from the calendar earlier is sent
+      // again, as the first send of a connection would send it.
+      if (!wasEnabled) await reviveRemoved(prisma, userId)
       await prisma.deliveryChannel.upsert({
         where: { userId_channel: { userId, channel: CHANNEL } },
         create: { userId, channel: CHANNEL, enabled: true, garminLinked: input.garminLinked },
@@ -1233,17 +1318,20 @@ export async function requestPublish(
     externalId = session.externalId
   }
   // After the run in progress, whose rows would otherwise write the old back-off over this one.
-  await exclusive(userId, () =>
-    prisma.wristPublication.updateMany({
+  await exclusive(userId, async () => {
+    // Asking for one session again is an explicit request, so a session the runner removed from the
+    // calendar is sent too; the whole list is not, since it would undo removals made on purpose.
+    if (externalId !== undefined) await reviveRemoved(prisma, userId, externalId)
+    await prisma.wristPublication.updateMany({
       where: {
         userId,
         channel: CHANNEL,
-        state: { in: ['pending', 'failed'] },
+        state: { in: [...UNSENT_STATES] },
         ...(externalId === undefined ? {} : { externalId }),
       },
       data: { nextAttemptAt: opts.now ?? new Date(), attempts: 0 },
-    }),
-  )
+    })
+  })
   startBackgroundRun(deps, userId, opts)
   return wristSettings(deps, userId)
 }
@@ -1294,7 +1382,7 @@ export async function prepareDisconnect(
 export function statusRangeIssue(from: string, to: string): string | null {
   if (!isIsoDate(from) || !isIsoDate(to)) return null
   const span = daysBetween(from, to) + 1
-  return span < 1 || span > STATUS_MAX_DAYS ? wristSentence('publish.wrist.range') : null
+  return span < 1 || span > STATUS_MAX_DAYS ? wristRangeSentence(STATUS_MAX_DAYS) : null
 }
 
 /**

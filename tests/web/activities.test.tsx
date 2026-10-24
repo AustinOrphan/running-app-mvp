@@ -700,6 +700,16 @@ describe('Import dialog', () => {
       text: csv,
       distanceUnit: 'mi',
     })
+    expectCleanCopy(dialog)
+  })
+
+  test('the form reads cleanly for every source', async () => {
+    renderDialog({})
+    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    for (const source of ['Smashrun', 'Generic CSV', 'Activity files', 'Apple Health']) {
+      await userEvent.click(within(dialog).getByRole('radio', { name: source }))
+      expectCleanCopy(dialog)
+    }
   })
 
   test('the unit defaults to the user setting and can be changed', async () => {
@@ -757,9 +767,10 @@ describe('Import dialog', () => {
     ).toBeInTheDocument()
     expect(within(dialog).getByText('Line 3: Distance must be above 0')).toBeInTheDocument()
     expect(within(dialog).getByText('already imported (smashrun:1001)')).toBeInTheDocument()
+    expectCleanCopy(dialog)
   })
 
-  test('a failed import says so and keeps the chosen file', async () => {
+  test('an import that did not finish says so and keeps the chosen file', async () => {
     renderDialog({
       'POST /api/imports/smashrun': () => ({
         status: 400,
@@ -769,9 +780,24 @@ describe('Import dialog', () => {
     const dialog = await screen.findByRole('dialog')
     await chooseFile(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-      'Import failed. The file has no rows.',
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert).toHaveTextContent(
+      'The import did not finish. The file has no rows. Nothing was imported; try again.',
     )
     expect(within(dialog).getByRole('button', { name: 'Import file' })).toBeEnabled()
+    expectCleanCopy(dialog)
+  })
+
+  test('a file over 10 MB is refused before it is read, and the message says how to go on', async () => {
+    const api = renderDialog({})
+    const dialog = await screen.findByRole('dialog')
+    const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'big.csv', { type: 'text/csv' })
+    await userEvent.upload(within(dialog).getByLabelText('CSV file'), big)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'The import did not finish. The file is larger than 10 MB. Split it and import the parts.',
+    )
+    expect(api.calls.filter((c) => c.method === 'POST')).toEqual([])
+    expectCleanCopy(dialog)
   })
 })

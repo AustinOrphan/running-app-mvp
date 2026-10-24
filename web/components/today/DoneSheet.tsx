@@ -1,8 +1,9 @@
 import { useId, useState, type FormEvent } from 'react'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
+import { doneEntryFor } from '../../../shared/domain/doneEntry.ts'
 import type { SessionKind } from '../../../shared/engine/types.ts'
-import type { ActivityType, Feel, Units } from '../../../shared/types.ts'
+import type { Feel, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
 import { useCreateActivity, type ActivityInput } from '../../api/activities.ts'
 import { useCachedUserId } from '../../api/auth.ts'
@@ -37,25 +38,6 @@ export interface DoneSheetProps {
   onClose: () => void
   /** Called once the run is saved, in place of `onClose`. */
   onSaved: () => void
-}
-
-/**
- * The activity type a session of this kind is logged as: the type the server links to it (a run,
- * a race, a strength session) or, for a hike, a walk or mobility work, a cross-training entry.
- */
-export function activityTypeFor(kind: SessionKind): ActivityType {
-  switch (kind) {
-    case 'race':
-      return 'race'
-    case 'strength':
-      return 'strength'
-    case 'hike':
-    case 'mobility':
-    case 'cross':
-      return 'cross'
-    default:
-      return 'run'
-  }
 }
 
 interface DoneForm {
@@ -131,7 +113,8 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
   const online = useOnline()
   const create = useCreateActivity()
   const key = draftKey(date, useCachedUserId())
-  const type = activityTypeFor(plan.kind)
+  const entry = doneEntryFor(plan.kind)
+  const type = entry.type
   const isRun = type === 'run' || type === 'race'
   const hasDistance = type !== 'strength'
   const planned = distanceText(plan.distanceM, units)
@@ -168,6 +151,8 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
     }
     if (durationSec === null || Object.keys(found).length > 0) return { errors: found }
     const input: ActivityInput = { date, type, durationSec }
+    // A hike is logged as `cross` with sub-type `hike`; without it the server cannot link the entry.
+    if (entry.subtype !== undefined) input.subtype = entry.subtype
     if (distanceM !== null) input.distanceM = distanceM
     if (form.rpe !== null) input.rpe = form.rpe
     if (form.feel !== null) input.feel = form.feel

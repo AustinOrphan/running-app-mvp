@@ -23,11 +23,13 @@ its own decision rather than as an edit to ADR 0006.
 
 ## Decision
 
-A provider may declare a fourth channel, `publish`, implemented as a `PublishProvider` beside its
-other channels in the same module: `reference(ctx)` reads the remote settings needed to write
-targets (maximum heart rate, threshold heart rate, threshold pace), `upsert(workouts, reference,
-ctx)` creates or updates events, `withdraw(refs, ctx)` removes them and `list(range, ctx)` reads back
-what the remote holds, including delivery errors.
+A provider may declare a fourth channel, `publish`, implemented as a `PublishProvider` (the
+interface is in `server/providers/types.ts`) in a second module beside the provider's pull module,
+`server/providers/<key>Publish.ts`, and set as `publish` on the same registry entry. The first is
+`server/providers/intervalsPublish.ts`, next to `intervals.ts`. `reference(ctx)` reads the remote
+settings needed to write targets (maximum heart rate, threshold heart rate, threshold pace),
+`upsert(workouts, reference, ctx)` creates or updates events, `withdraw(refs, ctx)` removes them and
+`list(range, ctx)` reads back what the remote holds, including delivery errors.
 
 - The rules of ADR 0006 carry over: network only through `ctx.fetch`, secrets only through
   `server/crypto.ts` and never logged or returned, refreshed secrets through `ctx.saveSecret`, no new
@@ -67,8 +69,9 @@ Reasons:
   obtainable; ADR 0006 keeps the experimental provider read-only.
 - **Rule:** ADR 0005 and rule G1 keep session choice in rule code; the publish channel moves a
   finished prescription and chooses nothing.
-- **Rule:** ADR 0006 already requires one module per source, injected `fetch` and encrypted secrets;
-  a fourth channel keeps those properties instead of adding a second integration pattern.
+- **Rule:** ADR 0006 already requires a provider module per source, injected `fetch` and encrypted
+  secrets; a fourth channel keeps those properties instead of adding a second integration pattern,
+  and the publish module shares the pull module's credentials under the one registry entry.
 - **Opinion:** writing to a calendar the runner already uses is visible and reversible (withdraw),
   which an unofficial Garmin write is not.
 - **Opinion:** two fallbacks that need no third party (a FIT file and a calendar feed) keep a dormant

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import type { CalendarTokenIssued, WristSettings, WristStatus } from '../../shared/types.ts'
 import { useOnline } from '../components/useOnline.ts'
 import { api, ApiError, keys, qs } from './client.ts'
@@ -53,13 +53,24 @@ export function useWristStatus(range?: WristRange): WristStatusState {
   return { status: usable ? query.data : undefined, isPending: query.isPending }
 }
 
+/**
+ * Reads the watch status and Today again after the channel changed. Today's line takes its item
+ * from the `watch` slot of the Today payload, which the server leaves empty while sending is off
+ * and fills from the sessions on their way, so a change of the channel moves Today as well.
+ */
+function invalidateChannel(queryClient: QueryClient): Promise<unknown> {
+  return Promise.all(
+    [keys.wrist, keys.today].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+  )
+}
+
 /** "Send again": clears the back-off of one session (or of all) and starts a send. */
 export function useSendAgain() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: { sessionId?: string } = {}) =>
       api<WristSettings>('POST', '/wrist/publish', input),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [keys.wrist] }),
+    onSettled: () => invalidateChannel(queryClient),
   })
 }
 
@@ -74,7 +85,7 @@ export function useSetPublishing() {
   return useMutation({
     mutationFn: (input: { enabled: boolean; garminLinked: boolean; removeSent?: boolean }) =>
       api<WristSettings>('PUT', '/wrist/intervals', input),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [keys.wrist] }),
+    onSettled: () => invalidateChannel(queryClient),
   })
 }
 
@@ -103,7 +114,7 @@ export function useDisconnectIntervals() {
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [keys.integrations] }),
-        queryClient.invalidateQueries({ queryKey: [keys.wrist] }),
+        invalidateChannel(queryClient),
       ]),
   })
 }

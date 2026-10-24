@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { formatAirTemperature } from '../../shared/copy/quantity.ts'
 import type { Activity, ActivityDetail, HrHistogram, Lap, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import { useActivityDetail, useDeleteActivity, useSaveFeedback } from '../api/activities.ts'
@@ -54,12 +55,6 @@ function Figure({ label, value }: { label: string; value: string }) {
 
 function elevation(metres: number, units: Units): string {
   return units === 'mi' ? `${String(Math.round(metres / M_PER_FOOT))} ft` : `${String(metres)} m`
-}
-
-function temperature(celsius: number, units: Units): string {
-  return units === 'mi'
-    ? `${String(Math.round((celsius * 9) / 5 + 32))} °F`
-    : `${String(Math.round(celsius))} °C`
 }
 
 function wind(kph: number, units: Units): string {
@@ -233,9 +228,11 @@ function Weather({ activity, units }: { activity: Activity; units: Units }) {
   return (
     <Section title="Weather">
       <dl className={styles.figures}>
-        {tempC !== null ? <Figure label="Temperature" value={temperature(tempC, units)} /> : null}
+        {tempC !== null ? (
+          <Figure label="Temperature" value={formatAirTemperature(tempC, units)} />
+        ) : null}
         {dewPointC !== null ? (
-          <Figure label="Dew point" value={temperature(dewPointC, units)} />
+          <Figure label="Dew point" value={formatAirTemperature(dewPointC, units)} />
         ) : null}
         {humidityPct !== null ? (
           <Figure label="Humidity" value={`${String(humidityPct)}%`} />

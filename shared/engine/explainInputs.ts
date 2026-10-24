@@ -15,7 +15,7 @@ import type { Activity, DisruptionReason, Goal } from '../types.ts'
 import { afterBreak, breakRestart, weekEvidence } from './adapt.ts'
 import { bmiOf, csEffortsOf, durabilityRuns, efficiencySamples, hrAnchors } from './athlete.ts'
 import type { HrModel } from './execution.ts'
-import { feasibility, FLOOR_WEEKS, meanWeeklyKm, peakLongRunMin, trainingPace } from './goal.ts'
+import { feasibility, meanWeeklyKm, peakLongRunMin, trainingPace } from './goal.ts'
 import { nextWeekCap } from './guards.ts'
 import {
   countsTowardReference,
@@ -2021,10 +2021,10 @@ function floorFacts(scope: Scope): InputFact[] {
   if (race === null) return noGoal('D3')
   const half = race.distanceClass === 'half'
   if (race.goalType !== 'time' || (!half && race.distanceClass !== 'marathon')) return []
-  const weekly = meanWeeklyKm(state, ctx.asOf, FLOOR_WEEKS)
+  const weekly = meanWeeklyKm(state, ctx.asOf, P.d3.weeklyFloorWeeks.value)
   const longest = state.longest30d.distanceM
   if (weekly <= 0 && longest <= 0) {
-    return [gap('D3', 'explain.d3-gap', { weeks: count(FLOOR_WEEKS) })]
+    return [gap('D3', 'explain.d3-gap', { weeks: count(P.d3.weeklyFloorWeeks.value) })]
   }
   const floorWeekly = half ? P.d3.halfMinWeeklyKm.value : P.d3.marathonMinWeeklyKm.value
   const floorLong = half ? P.d3.halfMinLongRunKm.value : P.d3.marathonMinLongRunKm.value
@@ -2038,7 +2038,7 @@ function floorFacts(scope: Scope): InputFact[] {
       'now',
       'explain.d3-now',
       {
-        weeks: count(FLOOR_WEEKS),
+        weeks: count(P.d3.weeklyFloorWeeks.value),
         weekly: distance(weekly * 1000),
         days: count(P.a3.longestRunWindowDays.value),
         long: distance(longest),
@@ -2751,6 +2751,7 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'design-4.2',
   'design-4.3',
   'design-revisions',
+  'design-review',
 ])
 
 const lower = (rule: string) => rule.toLowerCase()

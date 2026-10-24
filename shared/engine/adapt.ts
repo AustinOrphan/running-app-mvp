@@ -4,6 +4,7 @@
 // Convention: an efficiency-index trend below zero is a decline (the index rises when pace at a
 // fixed HR improves).
 import { addDays } from '../dates.ts'
+import { isTrimmed, TRIM_RULE } from '../domain/sessionStatus.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
 import { efficiencyIndex } from './athlete.ts'
@@ -26,7 +27,7 @@ import { isProgrammeWeek } from './startWeeks.ts'
 import type {
   AthleteState,
   EngineInput,
-  ExecutionAssessment,
+  ExecutionFindings,
   SessionKind,
   SessionSpec,
   WeeklyDecision,
@@ -37,7 +38,7 @@ import type {
 export interface ExecutionRecord {
   date: string
   kind: SessionKind
-  assessment: ExecutionAssessment
+  assessment: ExecutionFindings
 }
 
 /** What the engine state adds to the weekly decision; every field is optional. */
@@ -71,7 +72,7 @@ const RUN_KINDS: ReadonlySet<SessionKind> = new Set([
   'b2b',
   'race',
 ])
-const POOR_EFFORT_FLAGS: ReadonlySet<ExecutionAssessment['flags'][number]> = new Set([
+const POOR_EFFORT_FLAGS: ReadonlySet<ExecutionFindings['flags'][number]> = new Set([
   'pain',
   'focal-bone-pain',
   'heat',
@@ -624,7 +625,7 @@ export function zoneProposals(input: EngineInput, executions?: ExecutionRecord[]
       to,
       observations: recent.length,
       reason: `The last ${recent.length} threshold and interval sessions felt ${felt} than expected. Moving the threshold pace from ${formatPace(from)} to ${formatPace(to)} per km would match them; confirm or decline.`,
-      rules: ['C8', 'design-4.3'],
+      rules: ['C8', TRIM_RULE],
     },
   ]
 }
@@ -705,6 +706,6 @@ export function trimQuality(session: SessionSpec, reason: string): SessionSpec {
     distanceM: session.distanceM === null ? null : Math.round(session.distanceM * ratio),
     gainM: session.gainM === null ? null : Math.round(session.gainM * ratio),
     purpose: `${session.purpose} Trimmed: ${reason}`,
-    rules: session.rules.includes('design-4.3') ? session.rules : [...session.rules, 'design-4.3'],
+    rules: isTrimmed(session.rules) ? session.rules : [...session.rules, TRIM_RULE],
   }
 }

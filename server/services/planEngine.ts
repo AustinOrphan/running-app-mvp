@@ -4,16 +4,19 @@
 import { randomUUID } from 'node:crypto'
 import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
 import {
+  ACTIVITY_TYPE_WORDS,
   acceptedZoneSummary,
+  adjustText,
   checklistRefusedMessage,
   declinedZoneSummary,
   generatedSummary,
   goalSwitchSummary,
+  zoneNotStoredText,
 } from '../../shared/copy/revision.ts'
 import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
-import { RUN_KINDS } from '../../shared/engine/adjust.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import { compatible } from '../../shared/engine/execution.ts'
 import {
   buildPlan,
   keptByReplan,
@@ -22,6 +25,7 @@ import {
   zoneProposals,
 } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
+import { sessionTitle } from '../../shared/engine/sessions.ts'
 import type {
   ChecklistResult,
   EngineInput,
@@ -40,6 +44,7 @@ import {
   type ZoneOutcome,
 } from '../../shared/engine/zoneChange.ts'
 import type {
+  ActivityType,
   PlanRevisionReason,
   PlanSession,
   PlanWithSessions,
@@ -483,16 +488,6 @@ export async function ownedSession(deps: Deps, userId: string, id: string) {
   return row
 }
 
-/** Compatibility of an activity with a session kind, as the matcher defines it [design 4.1]. */
-function compatible(kind: SessionKind, type: string, subtype: string | null): boolean {
-  const sub = (subtype ?? '').toLowerCase()
-  if (RUN_KINDS.has(kind) && kind !== 'hike') return type === 'run' || type === 'race'
-  if (kind === 'hike') return type === 'cross' && (sub === 'hike' || sub === 'walk')
-  if (kind === 'strength') return type === 'strength'
-  if (kind === 'mobility' || kind === 'cross') return type === 'cross'
-  return false
-}
-
 /** Links, relinks (`activityId`) or unlinks (`null`) the activity that fulfils a session. */
 export async function linkPlanSession(
   deps: Deps,
@@ -519,15 +514,24 @@ export async function linkPlanSession(
 
   const activity = await prisma.activity.findFirst({ where: { id: args.activityId, userId } })
   if (!activity) throw notFound('Activity not found.')
-  if (!compatible(row.kind as SessionKind, activity.type, activity.subtype)) {
-    throw conflict(`A ${activity.type} activity cannot fulfil a ${row.kind} session.`)
+  if (!compatible(row.kind as SessionKind, activity)) {
+    const words = ACTIVITY_TYPE_WORDS[activity.type as ActivityType] ?? 'activity'
+    throw conflict(
+      adjustText('adjust.link-kind', {
+        activity: words,
+        title: sessionTitle(row.kind as SessionKind),
+      }),
+    )
   }
   const taken = await prisma.planSession.findFirst({
     where: { activityId: activity.id, id: { not: row.id } },
   })
   if (taken) {
     throw conflict(
-      `That activity already fulfils ${taken.title} on ${taken.date}. Unlink it there first.`,
+      adjustText('adjust.link-taken', {
+        title: taken.title,
+        date: { kind: 'date', iso: taken.date, style: 'weekday' },
+      }),
     )
   }
   await prisma.planSession.update({
@@ -654,7 +658,7 @@ export async function decideZoneProposal(
       data: { hrMax: proposal.to, hrMaxSource: 'measured' },
     })
   } else {
-    throw conflict(`The ${proposal.boundary} boundary has no stored value to update.`)
+    throw conflict(zoneNotStoredText(proposal.boundary))
   }
   if (plan) {
     // The profile is not a plan row, so there is nothing for a diff to show or an undo to restore.

@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { doneEntryFor } from '../../shared/domain/doneEntry.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import type { ExecutionAssessment } from '../../shared/engine/types.ts'
+import { renderFact } from '../../shared/copy/templates.ts'
+import type { ExecutionAssessment, StoredAssessment } from '../../shared/engine/types.ts'
 import type {
   ParsedActivity,
   PlanRevision,
@@ -21,6 +23,7 @@ import { storeParsed } from '../../server/services/activityStore.ts'
 import { runExecutionForActivity, runNightlyMatching } from '../../server/services/execution.ts'
 import { refreshWeatherCaches } from '../../server/services/weatherCache.ts'
 import { fakeFetch } from '../fakeFetch.ts'
+import { SESSION_KINDS } from '../unit/engine/fixtures.ts'
 import {
   blockNetwork,
   client,
@@ -179,9 +182,39 @@ describe('matching and assessing a stored activity', () => {
     )
     const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
     expect(row).toMatchObject({ activityId: run.id, linkSource: 'auto', status: 'completed' })
-    const execution = JSON.parse(row.execution!) as ExecutionAssessment
+    // stored as facts, never as sentences (ADR 0010)
+    const execution = JSON.parse(row.execution!) as StoredAssessment
     expect(execution.completion).toBe('completed')
-    expect(execution.lines.length).toBeGreaterThan(0)
+    expect(execution.facts.length).toBeGreaterThan(0)
+    expect(execution).not.toHaveProperty('lines')
+    // served with the sentences written from the facts when the plan is read
+    const served = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    const session = served.sessions.find((candidate) => candidate.id === rows[0]!.id)!
+    expect(session.execution?.lines).toEqual(execution.facts.map((fact) => renderFact(fact, 'km')))
+    expect(session.execution?.lines[0]).toBe('58 min against 60 min planned (97%).')
+    expect(session.execution).not.toHaveProperty('facts')
+  })
+
+  test('an assessment stored before the sentences became facts is served with its own lines', async () => {
+    const { u, rows } = await planWith('legacy-lines@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    const run = await addRun(u.id, today, { durationSec: 58 * 60 })
+    await runExecutionForActivity(
+      { prisma: ctx.prisma, config: ctx.config },
+      { userId: u.id, activityId: run.id },
+    )
+    const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    const { facts: _facts, ...findings } = JSON.parse(row.execution!) as StoredAssessment
+    await ctx.prisma.planSession.update({
+      where: { id: row.id },
+      data: {
+        execution: JSON.stringify({ ...findings, lines: ['58 min against 60 planned (97%).'] }),
+      },
+    })
+    const served = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    const session = served.sessions.find((candidate) => candidate.id === row.id)!
+    expect(session.execution?.lines).toEqual(['58 min against 60 planned (97%).'])
   })
 
   test('a short run is a partial session', async () => {
@@ -239,6 +272,60 @@ describe('matching and assessing a stored activity', () => {
     await expect(
       runExecutionForActivity(deps, { userId: bare.id, activityId: 'missing' }),
     ).resolves.toBeUndefined()
+  })
+
+  // The Done button posts `doneEntryFor(kind)` with the planned minutes. The session it was tapped
+  // on has to end up linked, whatever its kind: a hike used to be logged as cross-training with
+  // no sub-type, which the matcher never links to a hike session.
+  test.each(SESSION_KINDS.filter((kind) => kind !== 'rest'))(
+    'the entry Done posts for a %s session is linked to that session',
+    async (kind) => {
+      const { u, rows } = await planWith(`done-${kind}@example.com`, [
+        { date: today, kind, min: 60 },
+      ])
+      const res = await client(ctx, u)
+        .post('/api/activities')
+        .send({ date: today, ...doneEntryFor(kind), durationSec: 3600 })
+      expect(res.status).toBe(201)
+      const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+      expect(row).toMatchObject({ activityId: (res.body as { id: string }).id, linkSource: 'auto' })
+      expect(['completed', 'partial']).toContain(row.status)
+    },
+  )
+
+  test('a cross-training entry with no sub-type is not linked to a hike session', async () => {
+    const { u, rows } = await planWith('done-hike-bare@example.com', [
+      { date: today, kind: 'hike', min: 60 },
+    ])
+    const res = await client(ctx, u)
+      .post('/api/activities')
+      .send({ date: today, type: 'cross', durationSec: 3600 })
+    expect(res.status).toBe(201)
+    const row = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: rows[0]!.id } })
+    expect(row.activityId).toBeNull()
+  })
+
+  test('the sub-type of a manual entry is kept, can be cleared, and is limited to the vocabulary', async () => {
+    const u = await seedUser(ctx, { email: 'subtype@example.com' })
+    const created = await client(ctx, u)
+      .post('/api/activities')
+      .send({ date: today, type: 'cross', subtype: 'hike', durationSec: 3600 })
+    expect(created.status).toBe(201)
+    expect(created.body).toMatchObject({ type: 'cross', subtype: 'hike' })
+    const id = (created.body as { id: string }).id
+    // an edit that leaves the sub-type out keeps it
+    const edited = await client(ctx, u)
+      .put(`/api/activities/${id}`)
+      .send({ date: today, type: 'cross', durationSec: 4000 })
+    expect(edited.body).toMatchObject({ subtype: 'hike', durationSec: 4000 })
+    const cleared = await client(ctx, u)
+      .put(`/api/activities/${id}`)
+      .send({ date: today, type: 'cross', subtype: null, durationSec: 4000 })
+    expect(cleared.body).toMatchObject({ subtype: null })
+    const refused = await client(ctx, u)
+      .post('/api/activities')
+      .send({ date: today, type: 'cross', subtype: 'skydiving', durationSec: 3600 })
+    expect(refused.status).toBe(400)
   })
 
   test('storing a parsed activity runs the hook, and a failing hook never fails the store', async () => {

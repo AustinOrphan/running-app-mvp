@@ -1,9 +1,10 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { PUBLISH_TEMPLATES } from '../../shared/copy/publish.ts'
+import { PUBLISH_TEMPLATES, wristRangeSentence } from '../../shared/copy/publish.ts'
 import { render } from '../../shared/copy/template.ts'
 import type { Goal, IntegrationStatus, WeekRow } from '../../shared/types.ts'
+import { STATUS_MAX_DAYS } from '../../shared/workouts/horizon.ts'
 import { HealthNotes } from '../../web/components/today/HealthNotes.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
@@ -50,7 +51,10 @@ interface Row {
 }
 
 const sentence = (id: keyof typeof PUBLISH_TEMPLATES): string =>
-  render(PUBLISH_TEMPLATES[id], {}, 'km')
+  // the one sentence that names the number the route enforces
+  id === 'publish.wrist.range'
+    ? wristRangeSentence(STATUS_MAX_DAYS)
+    : render(PUBLISH_TEMPLATES[id], {}, 'km')
 
 function intervals(over: Partial<IntegrationStatus>): IntegrationStatus {
   return {

@@ -290,6 +290,53 @@ describe('Goals page', () => {
     })
   })
 
+  test('editing the active goal reads its prediction again, so the card never keeps the old time', async () => {
+    const user = userEvent.setup()
+    let goal = makeGoal({ isActive: true, distanceM: 15000 })
+    // The server predicts from the goal as it is stored: a longer race, a longer time.
+    const predictionOf = (g: Goal): PredictionView => {
+      const sec = g.distanceM === 15000 ? 4500 : 7200
+      return {
+        prediction: {
+          method: 'Critical speed',
+          predictedSec: sec,
+          lowSec: sec - 300,
+          highSec: sec + 300,
+          conditions: [],
+          rules: ['L1'],
+        },
+        log: [],
+      }
+    }
+    const { calls } = mockApi(
+      routes([], miUser, {
+        'GET /api/goals': () => [goal],
+        'GET /api/predictions': () => predictionOf(goal),
+        'PUT /api/goals/g1': (req) => {
+          goal = makeGoal({ ...goal, ...(req.body as Partial<Goal>) })
+          return goal
+        },
+      }),
+    )
+    renderWithProviders(<GoalsPage />)
+
+    const card = await screen.findByRole('article', { name: 'Spring half' })
+    expect(await within(card).findByText('1:15:00')).toBeInTheDocument()
+    const predictionReads = () =>
+      calls.filter((c) => c.method === 'GET' && c.url.startsWith('/api/predictions?')).length
+    const before = predictionReads()
+
+    await user.click(within(card).getByRole('button', { name: 'Edit Spring half' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit goal' })
+    await user.clear(within(dialog).getByLabelText('Distance (mi)'))
+    await user.type(within(dialog).getByLabelText('Distance (mi)'), '13.1')
+    await user.click(within(dialog).getByRole('button', { name: 'Save goal' }))
+
+    expect(await within(card).findByText('2:00:00')).toBeInTheDocument()
+    expect(within(card).queryByText('1:15:00')).not.toBeInTheDocument()
+    expect(predictionReads()).toBeGreaterThan(before)
+  })
+
   test('the form carries the race descriptors and posts them: gain, loss, surface, finish goal, start time, support', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(

@@ -78,8 +78,8 @@ export async function explainView(
   }
   const today = args.today ?? todayIso()
   const context = await loadAthleteContext(deps, { userId, today })
-  // The same input the stored decision was made from, rest windows included: a week a window
-  // touches has to give the same decision here as in the review.
+  // The athlete's data and the stored plan, rest windows included, with the neutral goal the
+  // reads about the athlete use. The weekly decision is made from the plan's own goal below.
   const input = inputFromContext(context, { existing: true, options: context.planOptions })
   const goal = goalFor(context, request)
   const shell: ExplainContext = {
@@ -104,14 +104,22 @@ export async function explainView(
     const hrModel = needs.hrModel ? await hrModelOf(deps, context) : null
 
     // A decision exists only for a week the stored plan covers, as `weeklyDecisions` has it.
-    const planId = context.plan?.id ?? null
+    const plan = context.plan
     const covered = input.existing?.weeks.some((week) => week.weekStart === last) ?? false
     const decision =
-      needs.decision && planId !== null && covered
+      needs.decision && plan !== null && covered
         ? await memoByVersion(deps, { ...memo, name: `explain:decision:${last}` }, async () => {
             const executions =
-              (await executionRecordsByWeek(deps.prisma, planId, [last])).get(last) ?? []
-            return weeklyDecision(input, last, {
+              (await executionRecordsByWeek(deps.prisma, plan.id, [last])).get(last) ?? []
+            // The decision depends on the goal (the goal race's own post-race window sets the
+            // weeks after it), so it is made from the plan's goal model, as the stored one and
+            // `weeklyDecisions` are; a read about the athlete would use the neutral goal.
+            const decisionInput = inputFromContext(context, {
+              goal: await goalModelFor(context, plan.goalId, { climate: false }),
+              existing: true,
+              options: context.planOptions,
+            })
+            return weeklyDecision(decisionInput, last, {
               executions,
               redsFlags: input.screeningFlags,
               ramp: weeklyRamp(context.state),

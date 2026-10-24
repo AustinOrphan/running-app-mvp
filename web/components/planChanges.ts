@@ -1,3 +1,4 @@
+import { formatQuantity } from '../../shared/copy/quantity.ts'
 import type { PlanChange } from '../../shared/engine/types.ts'
 import { zoneChangeOf } from '../../shared/engine/zoneChange.ts'
 import type { PlanPhase, Units } from '../../shared/types.ts'
@@ -76,7 +77,6 @@ const FIELDS: Record<string, { label: string; format: Format }> = {
   isRecovery: { label: 'Recovery week', format: yesNo },
   strengthSessions: { label: 'Strength sessions', format: plain },
   qualitySessions: { label: 'Quality sessions', format: plain },
-  gainTargetM: { label: 'Gain target', format: withUnit('m') },
   plannedMin: { label: 'Planned minutes', format: withUnit('min') },
   // Owner edits of single sessions, as revisions written before the revision model stored a diff
   // (an edit through `POST /api/plan/sessions/:id/adjust` stores one and is worded by the diff).
@@ -84,6 +84,16 @@ const FIELDS: Record<string, { label: string; format: Format }> = {
   'session.date': { label: 'Session date', format: day },
   'session.kind': { label: 'Session type', format: kind },
   'session.durationMin': { label: 'Session length', format: withUnit('min') },
+}
+
+/** The gain target (`gainTargetM`, metres in the engine) in the runner's unit: metres or feet. */
+function gainField(field: string, units: Units): { label: string; format: Format } | null {
+  if (field !== 'gainTargetM') return null
+  return {
+    label: 'Gain target',
+    format: (value) =>
+      typeof value === 'number' ? formatQuantity({ kind: 'climb', m: value }, units) : plain(value),
+  }
 }
 
 /**
@@ -110,8 +120,8 @@ function zoneField(field: string, units: Units): { label: string; format: Format
  * is worded by `shared/copy/revisionView.ts` through `RevisionDiff`; no other formatter of plan
  * changes exists. A whole week that appears or goes
  * (field `week`, the values being its phase) reads as added or removed; session and zone changes
- * (`session.*`, `zones.*`) are named too, zone values in `units`; a field the helper does not know
- * keeps its name and a plain value.
+ * (`session.*`, `zones.*`) are named too, zone values and the gain target in `units`; a field the
+ * helper does not know keeps its name and a plain value.
  */
 export function describeChange(change: PlanChange, units: Units = 'km'): ChangeText {
   if (change.field === 'week') {
@@ -120,7 +130,8 @@ export function describeChange(change: PlanChange, units: Units = 'km'): ChangeT
     const text = `Week ${added ? 'added' : 'removed'}${name === NONE ? '' : ` (${name})`}`
     return { label: 'Week', from: phase(change.from), to: phase(change.to), text }
   }
-  const known = FIELDS[change.field] ?? zoneField(change.field, units)
+  const known =
+    FIELDS[change.field] ?? gainField(change.field, units) ?? zoneField(change.field, units)
   const label = known?.label ?? change.field
   const format = known?.format ?? plain
   const from = format(change.from)

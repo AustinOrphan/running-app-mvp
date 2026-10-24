@@ -983,6 +983,29 @@ describe('Today: Done', () => {
     })
   })
 
+  test('a hike is logged as cross-training of sub-type hike, the entry the server links to it', async () => {
+    const user = userEvent.setup()
+    const session = makeSession({ kind: 'hike', title: 'Hike', durationMin: 120 })
+    const { api } = render(
+      makeToday({
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({ hero: makeHero({ session, target: null }) }),
+      }),
+      { 'POST /api/activities': () => ({}) },
+    )
+    const card = await screen.findByRole('article', { name: 'Hike' })
+    await user.click(within(card).getByRole('button', { name: 'Done' }))
+    const sheet = await screen.findByRole('dialog', { name: "Log today's session" })
+    await user.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Session saved')).toBeInTheDocument()
+    expect(api.calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+      date: TODAY,
+      type: 'cross',
+      subtype: 'hike',
+      durationSec: 7200,
+    })
+  })
+
   test('an eased day logs the easy run the hero shows, not the planned session', async () => {
     const user = userEvent.setup()
     const planned = makeSession({ kind: 'threshold', title: 'Threshold', durationMin: 50 })

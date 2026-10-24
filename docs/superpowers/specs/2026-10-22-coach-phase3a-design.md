@@ -1,6 +1,6 @@
 # Coach phase 3a — design
 
-Status: Proposed 2026-10-22. Written under the owner's phase 3 mandate (section 1) from seven epic
+Status: Implemented 2026-10-23 (phase 3a; see `docs/STATUS.md`). Proposed 2026-10-22. Written under the owner's phase 3 mandate (section 1) from seven epic
 designs, each revised after a principal-engineer review, and from the review itself. Decisions are
 the builder's unless marked **owner**; section 12 lists every decision with its reason, and section
 13 lists what the owner still has to settle.
@@ -331,8 +331,13 @@ fields to `PlanRevisionView` (causes) but not change its shape.
 
 **ADR 0007** records the decision (owner decision 1) and amends the rewrite design's anti-goal to:
 "Any change to a training target that the owner cannot see and reverse. Changes the engine makes on
-schedule are shown as revisions and can be undone; targets the owner set by hand are never
-overwritten." R0-1 accepts it; no other task writes it.
+schedule are shown as revisions and can be undone; targets the owner set by hand are kept unless a
+safety limit requires a lower week, and the change is shown as a revision." R0-1 accepts it; no
+other task writes it. **Amended 2026-10-23 (phase 3a close review):** this section first read
+"never overwritten". The rule in code (`keptByReplan`, `shared/engine/index.ts`) keeps a session the
+owner moved, adjusted or skipped for `macroDesign.keepOwnerEditsDays` (14 days, grade D) from today
+and plans the rest of those weeks around it; a session dated later is rebuilt with its week, and the
+revision shows it and can be undone. ADR 0007 carries the same amendment.
 
 ### 4.3 State cache and data-version counter (owner: E3-1, E3-2; ADR 0009)
 
@@ -390,8 +395,10 @@ overwritten." R0-1 accepts it; no other task writes it.
 
 ### 4.4 Publish channel (owner: E1-4; ADR 0008)
 
-A provider may declare a fourth channel, `publish`, implemented as a `PublishProvider` beside its
-other channels in the same module:
+A provider may declare a fourth channel, `publish`, implemented as a `PublishProvider` (the
+interface is in `server/providers/types.ts`) in a second module beside the provider's pull module,
+`server/providers/<key>Publish.ts`, and set as `publish` on the same registry entry; the first is
+`server/providers/intervalsPublish.ts`, next to `intervals.ts`:
 
 ```ts
 interface PublishReference {
@@ -407,7 +414,14 @@ interface OutboundWorkout {
   remoteId: string | null
 }
 type PublishFailCode =
-  'auth' | 'rate-limit' | 'no-threshold' | 'rejected' | 'network' | 'device' | 'not-connected'
+  | 'auth'
+  | 'rate-limit'
+  | 'no-threshold'
+  | 'rejected'
+  | 'network'
+  | 'device'
+  | 'not-connected'
+  | 'owner-removed' /* a PUT answered 404: the runner deleted the event (amended 2026-10-23) */
 type UpsertOutcome =
   | {
       externalId: string
@@ -441,7 +455,9 @@ provider, and stores every failure per session. Change detection is the composed
 plus a 30-minute refresh as backstop; there is no second watermark. Each run is recorded in
 `SyncRun` with channel `publish` (section 4.7). The private calendar feed is not a provider: it has
 no account to connect, sync or disconnect, so it is a route behind a hashed token stored on
-`DeliveryChannel`. Only intervals.icu implements `publish` in this release.
+`DeliveryChannel`. `upsert` reports a PUT answered 404 (the runner deleted the event) as
+`owner-removed`, and the service leaves that session alone until its content changes (section 6.6).
+Only intervals.icu implements `publish` in this release.
 
 ### 4.5 Copy system and the G5 lint (owner: E4-1; ADR 0010)
 
@@ -532,10 +548,17 @@ absorbs E1's first task) defines:
 
 - `SyncRun` (migration C, non-state) is the one run history: channels `pull`, `push`, `folder`,
   `publish` (E1) and `job` (the scheduler's replan, matching, weather, sync, predictions and publish
-  jobs). Every run is stored, idle ones too, through `syncLog.recordSyncRun`, which never throws and
-  prunes to the newest 200 rows and 90 days per user and provider. `message` and failure reasons
-  pass `safeMessage` (strips bearer tokens, `access_token` and `client_secret` values and query
-  strings; cuts at 300 characters).
+  jobs). Every run is stored through `syncLog.recordSyncRun`, which never throws and prunes to the
+  newest 200 rows and 90 days per user and provider. `message` and failure reasons pass
+  `safeMessage` (strips bearer tokens, `access_token` and `client_secret` values and query strings;
+  cuts at 300 characters). **Amended 2026-10-23 (phase 3a close review):** the jobs that wake every
+  few minutes (the folder scan, the weather job, the publish job) store through
+  `recordSyncRunUnlessIdle`. A scheduled run with nothing to report is not stored while the newest
+  stored run of that provider ended ok, because one idle row every 2 to 10 minutes would replace
+  the 200 kept rows within a day or two and push out the runs that did something. A manual run, a
+  run with a count or an error, and the first idle run after one that did not end ok (or the first
+  run ever) are stored, so the newest row shows a recovery. The publish job also does not store a
+  scheduled retry of a failure that is already its newest stored run.
 - `GET /api/integrations/:provider/runs` serves a provider's runs (both directions on one card);
   `GET /api/jobs` returns the latest run per job and `weeklyUpdate: { due, lastRevisionAt }`. E2's
   `TodayHealth` builds "This week's plan update has not run yet" and "Sync is paused" from them.
@@ -612,7 +635,8 @@ E3 owns sections 4.1, 4.3, 4.7, the conflict helper, `isToRun`'s home, the model
 - When Garmin runs out of its request budget, the card says "Read 12 of 30 wellness days" instead of
   a green "ok"; when wellness was not attempted because the backfill is still going, it says so.
 - Each source's card lists its recent syncs (time, trigger, what was stored, what could not be
-  imported and why), idle runs included.
+  imported and why). Amended 2026-10-23: a scheduled idle run of the folder scan, the weather job or
+  the publish job is stored only when the newest stored run did not end ok (section 4.7).
 - If the server was down at 03:00 on Monday, the week's update still runs when it comes back.
 - "Make active" on another goal asks once, then builds the plan for that goal; the archived plan can
   be restored.
@@ -1418,7 +1442,9 @@ is run and while a warning sign is active; What stood out; miles.
   activity explanations are frozen.
 - The read-side undo state cannot predict the checklist, so a shown button can answer with a muted
   line; accepted over running the checklist on every list request.
-- Stored `PlanRevision.summary` survives for old rows; new UI renders structured data.
+- Stored `PlanRevision.summary` is still written for every revision, new ones included, as a
+  template output fixed at write time (ADR 0010, Consequences, amended 2026-10-23); the UI renders
+  structured data and shows the summary as the revision's lead line.
 - The brief could become a guilt surface; one quiet marker, no counts, "eases" for reductions, and
   the lint and a reading pass guard it.
 
@@ -2040,7 +2066,8 @@ Ranked by how much they change behaviour. Each has a default that the plan imple
 14. **Prediction duplicates (Q14):** keep pre-migration duplicates and collapse on read (default),
     or delete them and add a unique index.
 15. **Recording a result marks the goal done? (Q15)** Default no; a toast prompt is the middle path.
-16. **Smaller defaults to confirm:** sync log retention (200 runs, 90 days, idle runs kept); offset
+16. **Smaller defaults to confirm:** sync log retention (200 runs, 90 days; amended 2026-10-23: a
+    scheduled idle run is kept only after a run that did not end ok, section 4.7); offset
     pagination; a required end date for windows; moves stay within the week; the snapshot freeze in
     production; the 28-day bar strip removed from Today; tomorrow's preview cached on the device;
     the theme colour moved to the paper surface; briefs kept forever; hike sessions published as

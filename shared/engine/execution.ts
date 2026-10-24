@@ -1,14 +1,19 @@
 // Planned versus actual (design sections 4.1 and 4.2): which activity fulfils which session, and
 // how the session went against expectation. Pure; every threshold is a parameter in
 // params/m-execution.ts.
+import type { TemplateId } from '../copy/templates.ts'
 import { daysBetween } from '../dates.ts'
 import { isToRun } from '../domain/sessionStatus.ts'
 import type { Activity, Checkin, PlanSessionStatus } from '../types.ts'
 import { liljegrenWbgt } from './heat.ts'
 import { P } from './params/index.ts'
+import { sessionTitle } from './sessions.ts'
 import type {
   AthleteState,
-  ExecutionAssessment,
+  ExecutionFindings,
+  ExecutionLine,
+  StoredAssessment,
+  Quantity,
   SessionKind,
   SessionSpec,
   ZoneSet,
@@ -76,8 +81,15 @@ function counts(activity: Activity): boolean {
   return activity.duplicateStatus === 'none' || activity.duplicateStatus === 'dismissed'
 }
 
-/** Whether an activity can fulfil a session of this kind. */
-function compatible(kind: SessionKind, activity: Activity): boolean {
+/**
+ * Whether an activity can fulfil a session of this kind: the one rule of the matcher, also used by
+ * the explicit link of a session (`linkPlanSession`). A hike session takes only a cross-training
+ * activity of sub-type `hike` or `walk`, so a manual entry that should fulfil one carries it.
+ */
+export function compatible(
+  kind: SessionKind,
+  activity: { readonly type: string; readonly subtype: string | null },
+): boolean {
   const subtype = (activity.subtype ?? '').toLowerCase()
   if (RUN_KINDS.has(kind)) return activity.type === 'run' || activity.type === 'race'
   if (kind === 'hike') {
@@ -407,7 +419,7 @@ function midpoint(range: [number, number]): number {
 function completionOf(
   session: SessionSpec,
   activity: Activity,
-): { completion: ExecutionAssessment['completion']; ratio: number | null } {
+): { completion: ExecutionFindings['completion']; ratio: number | null } {
   if (!compatible(session.kind, activity)) return { completion: 'modified', ratio: null }
   if (session.durationMin <= 0) return { completion: 'completed', ratio: null }
   const ratio = activity.durationSec / SEC_PER_MIN / session.durationMin
@@ -433,7 +445,7 @@ function intensityOf(
   ctx: ExecutionContext,
   hrQualified: boolean,
   wbgtC: number | null,
-): ExecutionAssessment['intensity'] {
+): ExecutionFindings['intensity'] {
   if (hasWorkSteps(session)) return 'unknown'
   const zone = bandZone(session)
   const hrBand = session.target.hr ?? (zone ? (ctx.zones.hr?.[zone] ?? null) : null)
@@ -487,13 +499,13 @@ function spikeOf(activity: Activity, state: AthleteState): boolean {
  * True when the owner's own rating (RPE or the feel) is among the parts. Heart rate and pace alone
  * are inferences about effort, so a score built from them is a guess [rules J2].
  */
-export function hasSubjectivePart(parts: ExecutionAssessment['effort']['parts']): boolean {
+export function hasSubjectivePart(parts: ExecutionFindings['effort']['parts']): boolean {
   return parts.rpeDelta !== null || parts.feel !== null
 }
 
 function effortScore(
-  parts: ExecutionAssessment['effort']['parts'],
-): Pick<ExecutionAssessment['effort'], 'score' | 'confidence'> {
+  parts: ExecutionFindings['effort']['parts'],
+): Pick<ExecutionFindings['effort'], 'score' | 'confidence'> {
   const E = P.effort
   const terms: Array<{ weight: number; units: number }> = []
   if (parts.rpeDelta !== null) {
@@ -534,12 +546,18 @@ function round1(x: number): number {
   return Math.round(x * 10) / 10
 }
 
+/** The templates this module builds, checked against the registry at compile time. */
+type ExecutionTemplate = Extract<TemplateId, `execution.${string}`>
+
+const minutes = (min: number): Quantity => ({ kind: 'minutes', min })
+const count = (n: number): Quantity => ({ kind: 'count', n })
+
 /** Completion, intensity and effort of an activity against the session it fulfils. */
 export function assessExecution(
   session: SessionSpec,
   activity: Activity,
   ctx: ExecutionContext,
-): ExecutionAssessment {
+): StoredAssessment {
   const { completion, ratio } = completionOf(session, activity)
   const modified = completion === 'modified'
   const wbgtC = wbgtOf(activity)
@@ -578,57 +596,59 @@ export function assessExecution(
 
   const pain = Math.max(activity.pain ?? 0, ctx.checkin?.painScore ?? 0)
   const focalBone = ctx.checkin?.painFocalBone === true
-  const flags: ExecutionAssessment['flags'] = []
+  const flags: ExecutionFindings['flags'] = []
   if (pain >= P.pain.flagScore.value) flags.push('pain')
   if (focalBone) flags.push('focal-bone-pain')
   if (heatAdjusted) flags.push('heat')
   if (hrPresent && !hrQualified) flags.push('hr-unqualified')
   if (spikeOf(activity, ctx.state)) flags.push('spike')
 
-  const lines: string[] = []
+  const facts: ExecutionLine[] = []
+  const say = (template: ExecutionTemplate, slots: ExecutionLine['slots'] = {}) => {
+    facts.push({ template, slots })
+  }
   const actualMin = Math.round(activity.durationSec / SEC_PER_MIN)
   if (modified) {
-    lines.push(`A different kind of activity than the planned ${session.kind} session.`)
+    say('execution.other-kind', { session: sessionTitle(session.kind) })
   } else if (ratio !== null) {
-    lines.push(
-      `${actualMin} min against ${session.durationMin} planned (${Math.round(ratio * 100)}%).`,
-    )
+    say('execution.minutes-of-plan', {
+      actual: minutes(actualMin),
+      planned: minutes(session.durationMin),
+      share: { kind: 'percent', pct: Math.round(ratio * 100) },
+    })
   } else {
-    lines.push(`${actualMin} min done.`)
+    say('execution.minutes-done', { actual: minutes(actualMin) })
   }
-  if (intensity === 'on') lines.push('Intensity stayed in the target range.')
-  else if (intensity === 'above') lines.push('Intensity ran above the target range.')
-  else if (intensity === 'below') lines.push('Intensity stayed below the target range.')
+  if (intensity === 'on') say('execution.intensity-on')
+  else if (intensity === 'above') say('execution.intensity-above')
+  else if (intensity === 'below') say('execution.intensity-below')
   if (score !== null && score >= 1) {
-    const detail =
-      rpeDelta !== null
-        ? ` RPE ${activity.rpe} against ${expected[0]}-${expected[1]} expected for this kind.`
-        : ''
-    lines.push(`Effort felt ${score === 2 ? 'much ' : ''}harder than expected.${detail}`)
+    const much = score === 2
+    if (rpeDelta !== null && activity.rpe !== null) {
+      say(much ? 'execution.effort-much-harder-rpe' : 'execution.effort-harder-rpe', {
+        rpe: count(activity.rpe),
+        low: count(expected[0]),
+        high: count(expected[1]),
+      })
+    } else {
+      say(much ? 'execution.effort-much-harder' : 'execution.effort-harder')
+    }
   } else if (score !== null && score <= -1) {
-    lines.push(`Effort felt ${score === -2 ? 'much ' : ''}easier than expected.`)
+    say(score === -2 ? 'execution.effort-much-easier' : 'execution.effort-easier')
   } else if (score === 0) {
-    lines.push('Effort matched expectation.')
+    say('execution.effort-matched')
   }
   if (heatAdjusted && wbgtC !== null) {
-    lines.push(
-      `Warm conditions (WBGT about ${Math.round(wbgtC)} C): the heart-rate expectation was raised and pace was not judged.`,
-    )
+    say('execution.warm', { wbgt: { kind: 'temp', c: Math.round(wbgtC) } })
   }
-  if (flags.includes('hr-unqualified')) {
-    lines.push('Heart rate was not used: it does not qualify for this kind of run.')
-  }
+  if (flags.includes('hr-unqualified')) say('execution.hr-unqualified')
   if (flags.includes('focal-bone-pain')) {
-    lines.push('Focal bone pain reported. Rest and see the guidance on warning signs.')
+    say('execution.pain-bone')
   } else if (flags.includes('pain')) {
-    lines.push(
-      `Pain ${pain} of 10 reported. See the guidance on warning signs before the next run.`,
-    )
+    say('execution.pain', { score: count(pain) })
   }
   if (flags.includes('spike')) {
-    lines.push(
-      'Longer or steeper than the longest run of the last 30 days by more than the usual step.',
-    )
+    say('execution.spike', { days: count(P.a3.longestRunWindowDays.value) })
   }
 
   return {
@@ -637,6 +657,6 @@ export function assessExecution(
     effort: { score, confidence, parts },
     conditions: { wbgtC, heatAdjusted, gradeAdjusted: activity.gapDistanceM !== null },
     flags,
-    lines,
+    facts,
   }
 }

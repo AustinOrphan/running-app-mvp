@@ -1,7 +1,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
+import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { PlanRevisionView, PlanWithSessions } from '../../shared/types.ts'
 import {
+  FOLDER_INTERVAL_MS,
   PUBLISH_INTERVAL_MS,
   PUBLISH_MORNING_SLOT,
   runPublishJob,
@@ -434,6 +436,63 @@ describe('runPublishJob', () => {
     })
   })
 
+  test('a send that can no longer be made does not keep the tick running the publisher', async () => {
+    const { u, planId } = await runner('publish-job-stale-row@example.com')
+    await job()
+    expect(fake.events.size).toBe(1)
+    const stuck = (externalId: string, date: string) =>
+      ctx.prisma.wristPublication.create({
+        data: {
+          userId: u.id,
+          channel: 'intervals',
+          externalId,
+          date,
+          kind: 'easy',
+          title: 'Easy run',
+          state: 'failed',
+          desiredHash: 'old',
+          failCode: 'auth',
+          failMessage: 'intervals.icu did not accept the API key.',
+          attempts: 1,
+        },
+      })
+
+    // A 401 left the send of yesterday failed for a reconnect that came a day later. It waits for
+    // nothing a run can do, so two minutes on the tick finds nothing due and reads nothing.
+    await stuck('yesterday-session', addDays(wednesday, -1))
+    fake.forget()
+    vi.setSystemTime(new Date(WEDNESDAY.getTime() + 2 * MINUTE))
+    await job()
+    expect(fake.calls).toEqual([])
+
+    // A session that was run while its send failed is due once: the run closes both rows.
+    const [done] = await place(ctx, planId, [
+      { date: wednesday, kind: 'easy', status: 'completed' },
+    ])
+    await stuck(done!.externalId, wednesday)
+    vi.setSystemTime(new Date(WEDNESDAY.getTime() + 4 * MINUTE))
+    await job()
+    expect(reads()).toBe(1)
+    expect(
+      await ctx.prisma.wristPublication.findMany({
+        where: { userId: u.id, externalId: { in: ['yesterday-session', done!.externalId] } },
+        orderBy: { date: 'asc' },
+      }),
+    ).toMatchObject([
+      { state: 'withdrawn', failCode: null, nextAttemptAt: null },
+      { state: 'withdrawn', failCode: null, nextAttemptAt: null },
+    ])
+    expect(
+      await ctx.prisma.wristPublication.count({ where: { userId: u.id, state: 'failed' } }),
+    ).toBe(0)
+
+    // and the next tick is quiet again
+    fake.forget()
+    vi.setSystemTime(new Date(WEDNESDAY.getTime() + 6 * MINUTE))
+    await job()
+    expect(fake.calls).toEqual([])
+  })
+
   test('the forced run reads the calendar though nothing changed, and still respects a pause', async () => {
     const { u } = await runner('publish-job-force@example.com')
     await job()
@@ -573,5 +632,11 @@ describe('the scheduler runs the publisher', () => {
     await vi.advanceTimersByTimeAsync(20 * MINUTE)
     expect(reads()).toBe(2)
     stop()
+  })
+})
+
+describe('the folder scan interval', () => {
+  test('is the number of minutes the Integrations page names in its sentence', () => {
+    expect(FOLDER_INTERVAL_MS).toBe(FOLDER_SCAN_MINUTES * 60_000)
   })
 })

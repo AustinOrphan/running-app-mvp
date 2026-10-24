@@ -53,7 +53,7 @@ function history(monday: string): Activity[] {
 }
 
 /**
- * A recreational runner with a 30-minute typical week and a 100-mile goal 33 weeks out, who runs
+ * A recreational runner with a 30-minute typical week and a 100-mile goal 36 weeks out, who runs
  * on Monday, Wednesday and the weekend: the plan opens on the 3 x 20 restart floor week (60 min).
  */
 function floorRunner(today: string): EngineInput {
@@ -65,7 +65,7 @@ function floorRunner(today: string): EngineInput {
     goal: {
       ...goal(),
       name: 'Synthetic 100 miles',
-      date: '2027-06-13',
+      date: '2027-07-03',
       distanceM: 160_934,
       gainM: 4500,
       lossM: 4500,

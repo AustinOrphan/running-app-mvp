@@ -95,7 +95,12 @@ export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units
       {strip.targetRunMin === null ? (
         <p className={styles.caption}>{`${minutesToHours1(strip.runMin)} h run this week`}</p>
       ) : (
-        <Meter valueMin={strip.runMin} targetMin={strip.targetRunMin} label="Run time this week" />
+        <Meter
+          valueMin={strip.runMin}
+          targetMin={strip.targetRunMin}
+          remainingMin={advice?.remainingMin ?? null}
+          label="Run time this week"
+        />
       )}
       {advice === null || advice.perDayMin === null ? null : (
         <p className={styles.advisory}>

@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
+import { assertCleanCopy } from '../../../shared/copy/lint.ts'
+import { renderFact, TEMPLATES } from '../../../shared/copy/templates.ts'
 import type { Activity } from '../../../shared/types.ts'
-import type { AthleteState, SessionSpec, ZoneSet } from '../../../shared/engine/types.ts'
+import { P } from '../../../shared/engine/params/index.ts'
+import type {
+  AthleteState,
+  StoredAssessment,
+  SessionSpec,
+  ZoneSet,
+} from '../../../shared/engine/types.ts'
 import {
   assessExecution,
   fitHrModel,
@@ -91,6 +99,10 @@ const STATE = {
   longest30d: { distanceM: 0, durationSec: 0, gainM: 0, lossM: 0, twoDaySec: 0 },
 } as AthleteState
 const CTX: ExecutionContext = { zones: ZONES, state: STATE }
+
+/** The sentences of an assessment, written from its stored facts as the API writes them. */
+const sentences = (record: StoredAssessment): string[] =>
+  record.facts.map((fact) => renderFact(fact, 'km'))
 
 describe('matchSessions', () => {
   it('prefers a same-day run of similar length over a shorter run the day after', () => {
@@ -412,7 +424,7 @@ describe('assessExecution conditions and flags', () => {
       checkin: { painScore: 2, painFocalBone: true },
     })
     expect(focal.flags).toContain('focal-bone-pain')
-    expect(focal.lines.join(' ')).toMatch(/pain/i)
+    expect(sentences(focal).join(' ')).toMatch(/pain/i)
     const both = assessExecution(session(), activity({ pain: 6 }), {
       ...CTX,
       checkin: { painScore: 6, painFocalBone: true },
@@ -441,9 +453,140 @@ describe('assessExecution conditions and flags', () => {
     expect(assessExecution(session(), long, ctx).flags).not.toContain('spike')
   })
 
-  it('writes plain lines without deficit wording', () => {
-    const out = assessExecution(session(), activity({ rpe: 7, durationSec: 40 * 60, pain: 5 }), CTX)
-    expect(out.lines.length).toBeGreaterThan(1)
-    for (const line of out.lines) expect(line).not.toMatch(/\b(behind|missed|failed|red)\b/i)
+  it('states the window of the longest run from the Param', () => {
+    const state = {
+      longest30d: { distanceM: 10000, durationSec: 3600, gainM: 0, lossM: 0, twoDaySec: 3600 },
+    } as AthleteState
+    const long = activity({ distanceM: 13000, durationSec: 3900 })
+    const spike = () => sentences(assessExecution(session(), long, { zones: ZONES, state })).at(-1)
+    expect(spike()).toBe(
+      `Longer or steeper than the longest run of the last ${String(P.a3.longestRunWindowDays.value)} days by more than the usual step.`,
+    )
+    const before = P.a3.longestRunWindowDays.value
+    P.a3.longestRunWindowDays.value = 45
+    try {
+      expect(spike()).toContain('of the last 45 days')
+    } finally {
+      P.a3.longestRunWindowDays.value = before
+    }
+  })
+})
+
+describe('the sentences of an assessment are stored as facts', () => {
+  const state = {
+    longest30d: { distanceM: 10000, durationSec: 3600, gainM: 0, lossM: 0, twoDaySec: 3600 },
+  } as AthleteState
+  const hard = (over: Partial<Activity> = {}) => activity({ rpe: 8, ...over })
+  const warm = { tempC: 26, humidityPct: 60 }
+
+  /** Real assessments that between them reach every sentence the engine writes. */
+  const scenarios: Array<{ name: string; record: StoredAssessment }> = [
+    { name: 'on plan', record: assessExecution(session(), activity({ rpe: 3 }), CTX) },
+    { name: 'no rating', record: assessExecution(session(), activity(), CTX) },
+    {
+      name: 'a rest-length plan',
+      record: assessExecution(session({ durationMin: 0 }), activity({ rpe: 1 }), CTX),
+    },
+    {
+      name: 'short and easier',
+      record: assessExecution(session(), activity({ durationSec: 30 * 60, rpe: 1, feel: -2 }), CTX),
+    },
+    {
+      name: 'much easier',
+      record: assessExecution(
+        session({ kind: 'threshold', target: { ...session().target, rpe: [5, 6] } }),
+        activity({ rpe: 2, feel: -2, distanceM: null }),
+        CTX,
+      ),
+    },
+    { name: 'harder', record: assessExecution(session(), activity({ rpe: 5 }), CTX) },
+    { name: 'harder, no RPE', record: assessExecution(session(), activity({ feel: 1 }), CTX) },
+    {
+      name: 'much harder with pain',
+      record: assessExecution(session(), hard({ pain: 6, feel: 2 }), CTX),
+    },
+    {
+      name: 'much harder, no RPE',
+      record: assessExecution(session(), activity({ feel: 2, distanceM: null }), CTX),
+    },
+    {
+      name: 'above the band, heart rate not usable, warm, long',
+      record: assessExecution(
+        session(),
+        hard({ ...warm, avgHr: 150, durationSec: 80 * 60, distanceM: 16000, gapDistanceM: 16000 }),
+        { zones: ZONES, state },
+      ),
+    },
+    {
+      name: 'below the band',
+      record: assessExecution(
+        session(),
+        activity({ durationSec: 4500, gapDistanceM: 10000, rpe: 1 }),
+        CTX,
+      ),
+    },
+    {
+      name: 'focal bone pain',
+      record: assessExecution(session(), activity(), {
+        ...CTX,
+        checkin: { painScore: 2, painFocalBone: true },
+      }),
+    },
+  ]
+  // A different kind of activity for each kind of session that can be logged as another.
+  const kinds: SessionSpec['kind'][] = ['b2b', 'long-fast-finish', 'race-pace', 'easy']
+  for (const kind of kinds) {
+    scenarios.push({
+      name: `${kind} logged as strength`,
+      record: assessExecution(session({ kind }), activity({ type: 'strength' }), CTX),
+    })
+  }
+
+  it('keeps facts and no prose on the record', () => {
+    for (const { name, record } of scenarios) {
+      expect(record, name).not.toHaveProperty('lines')
+      expect(record.facts.length, name).toBeGreaterThan(0)
+      for (const fact of record.facts) {
+        expect(Object.keys(TEMPLATES), name).toContain(fact.template)
+        expect(fact.template, name).toMatch(/^execution\./)
+      }
+    }
+  })
+
+  it('writes every sentence through the shared copy lint', () => {
+    for (const { name, record } of scenarios) {
+      for (const line of sentences(record)) assertCleanCopy(line, `${name}: an assessment line`)
+    }
+  })
+
+  it('reaches every execution template', () => {
+    const reached = new Set(scenarios.flatMap(({ record }) => record.facts.map((f) => f.template)))
+    const ids = Object.keys(TEMPLATES).filter((id) => id.startsWith('execution.'))
+    expect(ids.filter((id) => !reached.has(id))).toEqual([])
+  })
+
+  it('names the session by its title and never by its kind code', () => {
+    for (const kind of ['b2b', 'long-fast-finish', 'race-pace'] as const) {
+      const text = sentences(
+        assessExecution(session({ kind }), activity({ type: 'strength' }), CTX),
+      )
+      expect(text[0], kind).toMatch(/^A different kind of activity than the one planned \(/)
+      expect(text.join(' '), kind).not.toContain(kind)
+    }
+    expect(
+      sentences(assessExecution(session({ kind: 'b2b' }), activity({ type: 'strength' }), CTX))[0],
+    ).toBe('A different kind of activity than the one planned (Back-to-back run).')
+  })
+
+  it('states the minutes against the plan and the share', () => {
+    const [line] = sentences(assessExecution(session(), activity({ durationSec: 54 * 60 }), CTX))
+    expect(line).toBe('54 min against 60 min planned (90%).')
+  })
+
+  it('states the warm conditions in degrees', () => {
+    const text = sentences(assessExecution(session(), activity(warm), CTX))
+    expect(text).toContain(
+      'Warm conditions (WBGT about 26 °C): the heart-rate expectation was raised and pace was not judged.',
+    )
   })
 })

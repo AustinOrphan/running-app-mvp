@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { assertCleanCopy } from '../../../shared/copy/lint.ts'
 import { addDays, daysBetween } from '../../../shared/dates.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { illnessPhase, readinessSnapshot, todayAdvice } from '../../../shared/engine/readiness.ts'
@@ -29,6 +30,23 @@ function adviceFor(i: EngineInput, ...kinds: Array<'threshold' | 'easy' | 'long'
     i,
     kinds.map((kind, n) => ({ ...spec(TODAY, kind, { order: n }), id: `s${n}` })),
   ).map((r) => r.advice)
+}
+
+/** A masters-age runner whose check-ins sit at the median, with a hard session done `hardDaysAgo` ago. */
+function masters(birthYear: number, todayFatigue: number, hardDaysAgo = 2) {
+  const history = Array.from({ length: 14 }, (_, n) =>
+    wellnessDay(addDays(TODAY, -(n + 1)), { ...NORMAL }),
+  )
+  return input({
+    profile: profile({ birthYear }),
+    wellness: [...history, wellnessDay(TODAY, { ...NORMAL, fatigue: todayFatigue })],
+    existing: {
+      weeks: [],
+      sessions: [
+        planned('hard', addDays(TODAY, -hardDaysAgo), 'threshold', { status: 'completed' }),
+      ],
+    },
+  })
 }
 
 describe('HRV flag (J4)', () => {
@@ -346,20 +364,6 @@ describe('pain red flags (n-1, n-2)', () => {
 })
 
 describe('masters recovery gate (J6)', () => {
-  function masters(birthYear: number, todayFatigue: number) {
-    const history = Array.from({ length: 14 }, (_, n) =>
-      wellnessDay(addDays(TODAY, -(n + 1)), { ...NORMAL }),
-    )
-    return input({
-      profile: profile({ birthYear }),
-      wellness: [...history, wellnessDay(TODAY, { ...NORMAL, fatigue: todayFatigue })],
-      existing: {
-        weeks: [],
-        sessions: [planned('hard', addDays(TODAY, -2), 'threshold', { status: 'completed' })],
-      },
-    })
-  }
-
   it('converts the next quality session when fatigue is above the own median 48 h after', () => {
     expect(adviceFor(masters(1975, 4), 'threshold', 'easy')).toEqual([
       'downgrade-easy',
@@ -440,5 +444,84 @@ describe('fatigue states (J8)', () => {
       wellnessDay(addDays(TODAY, -n), n === 6 ? { ...POOR, illness: true } : POOR),
     )
     expect(readinessSnapshot(input({ wellness }), TODAY).state).not.toBe('persistent-suppression')
+  })
+})
+
+describe('the sentences state their rule numbers from the Params', () => {
+  /** Runs `fn` with a Param set to `value`, then puts it back. */
+  function withValue<T>(param: { value: number }, value: number, fn: () => T): T {
+    const before = param.value
+    param.value = value
+    try {
+      return fn()
+    } finally {
+      param.value = before
+    }
+  }
+
+  const ill = (daysAgo: number) =>
+    input({ wellness: [wellnessDay(addDays(TODAY, -daysAgo), { illness: true })] })
+  const note = (i: EngineInput) =>
+    readinessSnapshot(i, TODAY).redFlags.find((flag) => flag.code === 'illness')!.message
+  const reasonOf = (i: EngineInput) =>
+    todayAdvice(i, [{ ...spec(TODAY, 'threshold'), id: 's' }])[0]!
+
+  it('names the symptom-free days of an illness in the note and the reason', () => {
+    expect(note(ill(0))).toBe(
+      'Illness was reported. Intensity is suspended; easy running resumes after one symptom-free day.',
+    )
+    expect(reasonOf(ill(0)).reasons).toEqual([
+      'Illness was reported: rest until you have had one symptom-free day.',
+    ])
+    // two symptom-free days: the second day after the report is still rest
+    const free = () => ({ note: note(ill(2)), reasons: reasonOf(ill(2)).reasons })
+    const two = withValue(P.n3.illnessSymptomFreeDays, 2, free)
+    expect(two.note).toContain('after two symptom-free days')
+    expect(two.reasons).toEqual([
+      'Illness was reported: rest until you have had two symptom-free days.',
+    ])
+  })
+
+  it('names the easy days after an illness in the note and the reason', () => {
+    expect(note(ill(2))).toBe(
+      'Returning from illness. Keep to easy running for three days before any intensity.',
+    )
+    expect(reasonOf(ill(2)).reasons).toEqual([
+      'Returning from illness: easy running only for three days.',
+    ])
+    const five = withValue(P.n3.illnessEasyDaysBeforeIntensity, 5, () => ({
+      note: note(ill(6)),
+      reasons: reasonOf(ill(6)).reasons,
+    }))
+    expect(five.note).toContain('for five days before any intensity')
+    expect(five.reasons).toEqual(['Returning from illness: easy running only for five days.'])
+  })
+
+  it('names the wait after a hard session that the masters gate uses', () => {
+    const reasons = (daysAgo: number) =>
+      todayAdvice(masters(1975, 4, daysAgo), [{ ...spec(TODAY, 'threshold'), id: 's' }])[0]!.reasons
+    expect(reasons(2)).toEqual([
+      'Soreness, fatigue or motivation is still worse than your usual two days after a hard session.',
+    ])
+    // 72 hours is three days: the gate waits that long, and the sentence says so
+    withValue(P.j6.recoveryHours, 72, () => {
+      expect(reasons(3)[0]).toContain('your usual three days after a hard session')
+    })
+    // 48 hours at the top of the multiplier range (1.25) is 60 hours: three days
+    withValue(P.j6.recoveryMultiplier, 1.25, () => {
+      expect(reasons(3)[0]).toContain('your usual three days after a hard session')
+    })
+  })
+
+  it('keeps every sentence inside the copy lint', () => {
+    for (const text of [
+      note(ill(0)),
+      note(ill(2)),
+      ...reasonOf(ill(0)).reasons,
+      ...reasonOf(ill(2)).reasons,
+      ...todayAdvice(masters(1975, 4), [{ ...spec(TODAY, 'threshold'), id: 's' }])[0]!.reasons,
+    ]) {
+      assertCleanCopy(text, 'a readiness sentence')
+    }
   })
 })

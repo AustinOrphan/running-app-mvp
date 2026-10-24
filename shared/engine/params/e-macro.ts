@@ -494,6 +494,10 @@ export const eMacro = {
         note: 'Default: the long run of a 5K or 10K goal never exceeds this distance (10 miles, the longest long run of the cited plans for both distances), so a fast runner is capped below the minutes of the tier. A coaching convention, not an injury limit.',
       },
     ),
+    trainingPaceWeeks: param('macroDesign.trainingPaceWeeks', 4, 'D', 'design-macro', [], {
+      unit: 'weeks',
+      note: 'Default: the average training pace is the median of the weekly paces over the last this many weeks, leaving out a week without a run.',
+    }),
     trainingPaceFactor: param('macroDesign.trainingPaceFactor', 1.15, 'D', 'design-macro', [], {
       note: 'Default: average training pace is this multiple of the goal pace when no recent pace exists.',
     }),

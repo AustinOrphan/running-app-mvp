@@ -3,7 +3,13 @@ import type { SessionUser } from '../../shared/types.ts'
 import { purgeDeviceData } from '../pwa/outbox.ts'
 import { api, ApiError, dropUserQueries, keys } from './client.ts'
 
-/** The signed-in user, or null when there is no valid session. */
+/**
+ * The signed-in user, or null when there is no valid session. A 401 here is the expired session
+ * that meets the app when it opens: `api()` raises no `UNAUTHORIZED_EVENT` for an `/auth/` path
+ * (a wrong password is a 401 too), and no listener runs with nobody signed in, so the purge is made
+ * here. The check-in queue and the drafts of the session that ended leave the device now, not at
+ * the next sign-in (ADR 0012, spec 7.6). A network failure is not a 401 and purges nothing.
+ */
 export function useMe() {
   return useQuery({
     queryKey: [keys.me],
@@ -11,7 +17,10 @@ export function useMe() {
       try {
         return await api<SessionUser>('GET', '/auth/me')
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) return null
+        if (error instanceof ApiError && error.status === 401) {
+          void purgeDeviceData()
+          return null
+        }
         throw error
       }
     },

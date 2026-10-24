@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
-import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, formatWeekdayDate, mondayOf, todayIso } from '../../shared/dates.ts'
 import type {
   Checkin,
   PlanRevision,
@@ -634,12 +634,25 @@ describe('linking sessions to activities', () => {
     expect(['completed', 'partial']).toContain(session.status)
 
     // The activity fulfils one session at a time, and a strength activity fulfils no run.
-    expect(
-      (await c.post(`/api/plan/sessions/${b!.id}/link`).send({ activityId: run.id })).status,
-    ).toBe(409)
-    expect(
-      (await c.post(`/api/plan/sessions/${b!.id}/link`).send({ activityId: strength.id })).status,
-    ).toBe(409)
+    const taken = await c.post(`/api/plan/sessions/${b!.id}/link`).send({ activityId: run.id })
+    expect(taken.status).toBe(409)
+    expect((taken.body as { error: { message: string } }).error.message).toBe(
+      `That activity already fulfils ${a!.title} on ${formatWeekdayDate(a!.date)}. Unlink it there first.`,
+    )
+    const wrongKind = await c
+      .post(`/api/plan/sessions/${b!.id}/link`)
+      .send({ activityId: strength.id })
+    expect(wrongKind.status).toBe(409)
+    expect((wrongKind.body as { error: { message: string } }).error.message).toBe(
+      'A strength session cannot fulfil Easy run.',
+    )
+    // a kind is named by its title, never by its code
+    await ctx.prisma.planSession.update({ where: { id: b!.id }, data: { kind: 'b2b' } })
+    const b2b = await c.post(`/api/plan/sessions/${b!.id}/link`).send({ activityId: strength.id })
+    expect((b2b.body as { error: { message: string } }).error.message).toBe(
+      'A strength session cannot fulfil Back-to-back run.',
+    )
+    await ctx.prisma.planSession.update({ where: { id: b!.id }, data: { kind: 'easy' } })
     expect(
       (await c.post(`/api/plan/sessions/${b!.id}/link`).send({ activityId: 'nope' })).status,
     ).toBe(404)

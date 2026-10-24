@@ -1,8 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import { lintText } from '../../shared/copy/lint.ts'
+import { wristRangeSentence } from '../../shared/copy/publish.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
 import type { TodayView, WristSettings, WristStatus } from '../../shared/types.ts'
+import { STATUS_MAX_DAYS } from '../../shared/workouts/horizon.ts'
 import {
   REMOVE_TIMEOUT_MS,
   prepareDisconnect,
@@ -237,22 +239,25 @@ describe('GET /api/wrist/status', () => {
     ])
   })
 
-  test('refuses a range that is malformed, backwards or longer than 60 days', async () => {
+  test('refuses a range that is malformed, backwards or longer than the most days a request may span', async () => {
     const { u } = await runner('status-range@example.com')
     const get = (query: string) => client(ctx, u).get(`/api/wrist/status${query}`)
     for (const query of [
       '?from=2026-13-40',
       '?from=yesterday',
       `?from=${today}&to=${addDays(today, -1)}`,
-      `?from=${today}&to=${addDays(today, 60)}`,
+      `?from=${today}&to=${addDays(today, STATUS_MAX_DAYS)}`,
       '?unknown=1',
     ]) {
       const res = await get(query)
       expect(res.status, query).toBe(400)
       expect(res.body).toMatchObject({ error: { code: 'validation' } })
     }
-    // 60 days inclusive is fine
-    expect((await get(`?from=${today}&to=${addDays(today, 59)}`)).status).toBe(200)
+    // the sentence names the number the route enforces
+    const tooLong = await get(`?from=${today}&to=${addDays(today, STATUS_MAX_DAYS)}`)
+    expect(JSON.stringify(tooLong.body)).toContain(wristRangeSentence(STATUS_MAX_DAYS))
+    // the maximum, counted inclusively, is fine
+    expect((await get(`?from=${today}&to=${addDays(today, STATUS_MAX_DAYS - 1)}`)).status).toBe(200)
   })
 
   test('says "on your watch" only with the tick, no device message and 15 minutes', async () => {
@@ -460,6 +465,29 @@ describe('PUT /api/wrist/intervals', () => {
     expect(await rowsOf(u)).toMatchObject([{ state: 'sent', remoteId: String(event!.id) }])
   })
 
+  test('switching sending on sends again what the runner removed in intervals.icu', async () => {
+    const { u, planId } = await runner('put-revive@example.com')
+    await place(ctx, planId, [{ date: tomorrow, kind: 'easy' }])
+    await sentOnce(u)
+    // the runner deletes the event; the app respects that as long as sending stays on
+    fake.events.clear()
+    for (const minutes of [0, 5]) {
+      vi.setSystemTime(at(minutes))
+      await publishForUser(ctx, u.id, { fetch: fake.fetch, trigger: 'schedule' })
+      expect(await rowsOf(u)).toMatchObject([{ state: 'owner-removed' }])
+      expect(fake.events.size).toBe(0)
+    }
+
+    online()
+    await put(u, { enabled: false, garminLinked: false })
+    expect(await rowsOf(u)).toMatchObject([{ state: 'owner-removed' }])
+    await put(u, { enabled: true, garminLinked: false })
+    await settleBackground()
+
+    expect(fake.events.size).toBe(1)
+    expect(await rowsOf(u)).toMatchObject([{ state: 'sent', failCode: null }])
+  })
+
   test('disabling with removeSent takes the sent sessions off intervals.icu', async () => {
     const { u, planId } = await runner('put-remove@example.com')
     await place(ctx, planId, [
@@ -566,6 +594,32 @@ describe('POST /api/wrist/publish', () => {
     expect(fake.events.size).toBe(2)
   })
 
+  test('sends a session the runner removed when it is asked for by name, and leaves the others removed', async () => {
+    const { u, planId } = await runner('post-revive@example.com')
+    const [first, second] = await place(ctx, planId, [
+      { date: addDays(today, 1), kind: 'easy' },
+      { date: addDays(today, 2), kind: 'easy' },
+    ])
+    await sentOnce(u)
+    fake.events.clear()
+    vi.setSystemTime(at(5))
+    await publishForUser(ctx, u.id, { fetch: fake.fetch, trigger: 'schedule' })
+    expect(await rowsOf(u)).toMatchObject([{ state: 'owner-removed' }, { state: 'owner-removed' }])
+    online()
+
+    // the whole list is back-off business: a removal made on purpose is not undone by it
+    expect((await post(u)).status).toBe(202)
+    await settleBackground()
+    expect(fake.events.size).toBe(0)
+
+    expect((await post(u, { sessionId: first!.id })).status).toBe(202)
+    await settleBackground()
+    const byExt = Object.fromEntries((await rowsOf(u)).map((row) => [row.externalId, row]))
+    expect(byExt[first!.externalId]).toMatchObject({ state: 'sent' })
+    expect(byExt[second!.externalId]).toMatchObject({ state: 'owner-removed' })
+    expect(fake.events.size).toBe(1)
+  })
+
   test('answers 404 for a session outside the active plan, and 409 when it cannot send', async () => {
     const { u, planId } = await runner('post-404@example.com')
     const other = await runner('post-404-other@example.com')
@@ -599,6 +653,78 @@ describe('POST /api/wrist/publish', () => {
       error: { details: { requires: 'connect-intervals' } },
     })
     expect(fake.calls).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// PUT /api/integrations/intervals: a new connection
+// ---------------------------------------------------------------------------------------------
+
+describe('PUT /api/integrations/intervals with publishing on', () => {
+  const change = (u: TestUser, athleteId: string, apiKey: string) =>
+    client(ctx, u).put('/api/integrations/intervals').send({ athleteId, apiKey })
+
+  async function published(email: string) {
+    const { u, planId } = await runner(email)
+    await place(ctx, planId, [
+      { date: tomorrow, kind: 'easy' },
+      { date: addDays(today, 3), kind: 'easy' },
+    ])
+    await sentOnce(u)
+    expect(await rowsOf(u)).toMatchObject([{ state: 'sent' }, { state: 'sent' }])
+    return u
+  }
+
+  test('another athlete starts the publications over: the new calendar gets every session, none reads as removed', async () => {
+    const u = await published('connection-athlete@example.com')
+    const oldEvents = fake.events.size
+    const next = fakeIntervals('i2002')
+    ctx.fetch = next.fetch
+
+    const res = await change(u, 'i2002', 'second-account-key-777')
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+
+    // the rows describe the old calendar no longer: no ids, no hashes, nothing owner-removed
+    expect(await rowsOf(u)).toMatchObject([
+      { state: 'withdrawn', remoteId: null, sentHash: null },
+      { state: 'withdrawn', remoteId: null, sentHash: null },
+    ])
+    const channel = await ctx.prisma.deliveryChannel.findFirstOrThrow({ where: { userId: u.id } })
+    expect(channel).toMatchObject({ enabled: true, dataKey: null, referenceJson: null })
+
+    const result = await publishForUser(ctx, u.id, { fetch: next.fetch, trigger: 'schedule' })
+    expect(result).toMatchObject({ status: 'ok', sent: 2 })
+    expect(next.events.size).toBe(2)
+    expect(await rowsOf(u)).toMatchObject([{ state: 'sent' }, { state: 'sent' }])
+    // the old account's calendar was never touched
+    expect(fake.events.size).toBe(oldEvents)
+    expect(next.calls.filter((call) => call.path.includes('/athlete/i1001'))).toEqual([])
+  })
+
+  test('the same athlete with a new key keeps the publications as they are', async () => {
+    const u = await published('connection-key@example.com')
+    const before = await rowsOf(u)
+    online()
+    fake.forget()
+
+    const res = await change(u, 'i1001', 'rotated-key-888')
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+
+    expect(await rowsOf(u)).toMatchObject(
+      before.map((row) => ({ state: 'sent', remoteId: row.remoteId, sentHash: row.sentHash })),
+    )
+    await publishForUser(ctx, u.id, { fetch: fake.fetch, trigger: 'schedule' })
+    expect(writes()).toEqual([])
+  })
+
+  test('a connection that intervals.icu refuses changes nothing', async () => {
+    const u = await published('connection-refused@example.com')
+    // the new athlete is unknown to intervals.icu: the connect check answers 404 for it
+    ctx.fetch = () => Promise.resolve(json({}, 404))
+
+    const res = await change(u, 'i3003', 'third-key-999')
+    expect(res.status).toBe(400)
+    expect(await rowsOf(u)).toMatchObject([{ state: 'sent' }, { state: 'sent' }])
   })
 })
 

@@ -16,7 +16,7 @@ import {
   uploadActivityFiles,
 } from '../../web/import/files.ts'
 import { ImportDialog } from '../../web/pages/ImportDialog.tsx'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
 const exportXml = readFileSync(join(process.cwd(), 'tests/fixtures/apple/export.xml'), 'utf8')
 
@@ -296,6 +296,7 @@ describe('Import dialog, activity files', () => {
     expect(
       within(dialog).getByText('notes.txt: not a FIT, GPX, TCX, ZIP or GZ file'),
     ).toBeInTheDocument()
+    expectCleanCopy(dialog)
     const post = api.calls.find((c) => c.url === '/api/imports/files')
     expect(post?.body).toEqual({
       files: [
@@ -320,9 +321,11 @@ describe('Import dialog, activity files', () => {
     )
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import files' }))
     const alert = await within(dialog).findByRole('alert')
-    expect(alert).toHaveTextContent('Database is busy.')
-    expect(alert).toHaveTextContent('0 of 1 files')
+    expect(alert).toHaveTextContent(
+      'The import did not finish. Database is busy. 0 of 1 files were imported. Importing the same selection again skips them.',
+    )
     expect(within(dialog).getByRole('button', { name: 'Import files' })).toBeEnabled()
+    expectCleanCopy(dialog)
   })
 })
 
@@ -412,6 +415,7 @@ describe('Import dialog, Apple Health', () => {
       await within(dialog).findByText('2 imported, 0 already imported, 0 skipped'),
     ).toBeInTheDocument()
     expect(within(dialog).getByText(/wellness days/)).toBeInTheDocument()
+    expectCleanCopy(dialog)
     await waitFor(() => {
       expect(api.calls.some((c) => c.url === '/api/imports/parsed')).toBe(true)
     })
@@ -428,5 +432,22 @@ describe('Import dialog, Apple Health', () => {
       0,
     )
     expect(wellnessSent).toBeGreaterThan(0)
+  })
+
+  test('an export that cannot be read says so, and that the files already imported are skipped', async () => {
+    const api = renderDialog({})
+    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Apple Health' }))
+    await userEvent.upload(
+      within(dialog).getByLabelText('Apple Health export (export.zip)'),
+      fileOf('export.zip', zipSync({ 'notes.txt': strToU8('x') })),
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Import export' }))
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert).toHaveTextContent(
+      /^The import did not finish\. .+ Files already imported are skipped when you try again\.$/,
+    )
+    expect(api.calls.filter((c) => c.url === '/api/imports/parsed')).toEqual([])
+    expectCleanCopy(dialog)
   })
 })

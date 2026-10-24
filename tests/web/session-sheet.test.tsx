@@ -2,6 +2,9 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { resolveTargets } from '../../shared/engine/targets.ts'
+import { publishable } from '../../shared/workouts/labels.ts'
+import { toWorkoutPlan } from '../../shared/workouts/plan.ts'
+import type { WorkoutPlan } from '../../shared/workouts/types.ts'
 import type { PlanSession } from '../../shared/types.ts'
 import { SessionSheet } from '../../web/components/SessionSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
@@ -21,6 +24,7 @@ import {
   makeSession,
   settings,
 } from './plan-fixtures.ts'
+import { prescribed, SESSION_KINDS, zoneSetFixture } from '../unit/engine/fixtures.ts'
 import { makeWorkoutView, sheetRoutes } from './wrist-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -89,10 +93,11 @@ describe('SessionSheet', () => {
     const steps = within(dialog)
       .getAllByRole('listitem')
       .map((li) => li.textContent)
-    expect(steps).toContain('Warm-up 15 min, Zone 1')
-    expect(steps).toContain('3 x work 8 min, Zone 3')
-    expect(steps).toContain('3 x recover 2 min, Zone 1')
-    expect(steps).toContain('Cool-down 10 min, Zone 1')
+    // the words are the workout's: what the watch, the file and the calendar call these steps
+    expect(steps).toContain('Warm up 15 min, Zone 1')
+    expect(steps).toContain('3 x Threshold 8 min, Zone 3')
+    expect(steps).toContain('3 x Recover 2 min, Zone 1')
+    expect(steps).toContain('Cool down 10 min, Zone 1')
   })
 
   test('a hot-day note on a session of another day does not say today', async () => {
@@ -107,14 +112,14 @@ describe('SessionSheet', () => {
     expect(within(dialog).queryByText('Go by this today.')).not.toBeInTheDocument()
   })
 
-  test('a single work step starts with a capital letter', async () => {
+  test('a single work step is named as the workout names it', async () => {
     renderSheet(
       makeSession({
         structure: [{ kind: 'work', reps: 1, durationSec: 1200, distanceM: null, zone: 'z3' }],
       }),
     )
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText('Work 20 min, Zone 3')).toBeInTheDocument()
+    expect(within(dialog).getByText('Threshold 20 min, Zone 3')).toBeInTheDocument()
   })
 
   test('converts distance and pace to miles when the runner uses miles', async () => {
@@ -443,5 +448,69 @@ describe('SessionSheet', () => {
     expect(
       within(dialog).getByText(/First planned: Threshold intervals, 55 min/),
     ).toBeInTheDocument()
+  })
+})
+
+// The sheet lists the engine's steps; the watch, the workout file, the intervals.icu text and the
+// calendar outline list the steps of the workout built from the same session. A step has one name
+// on every surface (`stepName`, shared/workouts/plan.ts), so this renders the sheet for each kind
+// the engine prescribes and compares its words with the workout's.
+describe('SessionSheet: the names of the steps', () => {
+  const zones = zoneSetFixture()
+
+  function stepNames(workout: WorkoutPlan): Set<string> {
+    return new Set(
+      workout.nodes.flatMap((node) =>
+        node.type === 'step' ? [node.label] : node.steps.map((step) => step.label),
+      ),
+    )
+  }
+
+  async function sheetNames(session: PlanSession): Promise<string[]> {
+    renderSheet(session)
+    const dialog = await screen.findByRole('dialog')
+    const list = within(dialog).getByRole('heading', { name: 'Steps' }).nextElementSibling
+    expect(list).not.toBeNull()
+    return within(list as HTMLElement)
+      .getAllByRole('listitem')
+      .map((item) => /^(?:\d+ x )?(.+?) [\d.]+ (?:min|m), /.exec(item.textContent)?.[1] ?? '?')
+  }
+
+  test.each(
+    SESSION_KINDS.filter((kind) => publishable(kind) && prescribed(kind).structure.length > 0),
+  )('a %s session lists the steps by the names its workout gives them', async (kind) => {
+    const spec = prescribed(kind, zones)
+    const session = makeSession({ ...spec, id: 's-names' })
+    const workout = toWorkoutPlan(spec, resolveTargets(spec, zones, { hot: false }), {
+      units: 'km',
+    })
+    const names = await sheetNames(session)
+    expect(names.length).toBeGreaterThan(0)
+    const known = stepNames(workout)
+    // every word on the sheet is one the workout uses ...
+    for (const name of names) expect(known, `${kind}: ${name}`).toContain(name)
+    // ... and every word of the workout is on the sheet, bar the cool-down the workout adds to
+    // fill the planned minutes
+    for (const name of known) {
+      if (name !== 'Cool down') expect(names, `${kind}: ${name}`).toContain(name)
+    }
+  })
+
+  test('the breaks and the framing steps of a run-walk session are walks, as on the watch', async () => {
+    const spec = prescribed('easy', zones, {
+      flags: ['run-walk'],
+      structure: [
+        { kind: 'warmup', reps: 1, durationSec: 300, distanceM: null, zone: 'z1' },
+        { kind: 'work', reps: 4, durationSec: 60, distanceM: null, zone: 'z1' },
+        { kind: 'recover', reps: 4, durationSec: 120, distanceM: null, zone: 'z1' },
+        { kind: 'cooldown', reps: 1, durationSec: 300, distanceM: null, zone: 'z1' },
+      ],
+    })
+    const workout = toWorkoutPlan(spec, resolveTargets(spec, zones, { hot: false }), {
+      units: 'km',
+    })
+    const names = await sheetNames(makeSession({ ...spec, id: 's-walk' }))
+    expect(names).toEqual(['Walk', 'Run', 'Walk', 'Walk'])
+    expect([...stepNames(workout)].sort()).toEqual(['Run', 'Walk'])
   })
 })

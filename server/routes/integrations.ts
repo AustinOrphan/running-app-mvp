@@ -12,7 +12,7 @@ import { PROVIDERS, getProvider } from '../providers/registry.ts'
 import { authorizeUrl, exchangeCode, type StravaConfig } from '../providers/strava.ts'
 import { toIntegrationStatus } from '../serialize.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
-import { prepareDisconnect } from '../services/publish.ts'
+import { prepareDisconnect, resetForNewAthlete } from '../services/publish.ts'
 import {
   SECRET_CHANGED,
   isSyncing,
@@ -159,6 +159,11 @@ export function integrationsRouter(deps: Deps): Router {
       connected = { config: resultConfig, secret: result.secret as Record<string, unknown> }
     } else {
       throw validationError(`${registered.info.label} connects with a push token, not a form.`)
+    }
+
+    // Another athlete's calendar is another account: what was sent to the old one is not on it.
+    if (existing && registered.publish) {
+      await resetForNewAthlete(deps, userId, { stored: existing.config, next: connected.config })
     }
 
     // Strava stays unauthorised until the OAuth callback brings the tokens.

@@ -11,8 +11,10 @@ import type { Units } from '../types.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { BRIEF_TEMPLATES } from './briefTemplates.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
+import { EXECUTION_TEMPLATES } from './execution.ts'
 import { FUEL_UI_TEMPLATES } from './fuelUi.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
+import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
 import { SESSION_STATUS_TEMPLATES } from './sessionStatus.ts'
@@ -30,6 +32,7 @@ export const TEMPLATES = {
   ...REVISION_TEMPLATES,
   ...REVISION_VIEW_TEMPLATES,
   ...TODAY_TEMPLATES,
+  ...EXECUTION_TEMPLATES,
   ...SESSION_STATUS_TEMPLATES,
   ...DATA_IN_USE_TEMPLATES,
   ...FUEL_TEMPLATES,
@@ -45,6 +48,8 @@ export const TEMPLATES = {
   ...STANDOUT_TEMPLATES,
   ...TRACK_RECORD_TEMPLATES,
   ...BRIEF_TEMPLATES,
+  ...PAGE_TEMPLATES,
+  ...PROVIDER_TEMPLATES,
   // The why drawer
   'why.intro': tpl(
     'Every number in the plan comes from a rule. Grade A is the strongest evidence; grade D is a conservative default.',

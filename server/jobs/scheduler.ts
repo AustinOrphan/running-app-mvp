@@ -1,4 +1,5 @@
 import { todayIso } from '../../shared/dates.ts'
+import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type { PrismaClient } from '../db.ts'
@@ -25,7 +26,7 @@ export { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus, type DailySlot } from '
 
 const MINUTE_MS = 60_000
 export const SYNC_INTERVAL_MS = 60 * MINUTE_MS
-export const FOLDER_INTERVAL_MS = 5 * MINUTE_MS
+export const FOLDER_INTERVAL_MS = FOLDER_SCAN_MINUTES * MINUTE_MS
 export const WEATHER_INTERVAL_MS = 10 * MINUTE_MS
 /** How often the weekly catch-up looks for a plan whose Monday update never ran. */
 export const CATCHUP_INTERVAL_MS = 6 * 60 * MINUTE_MS

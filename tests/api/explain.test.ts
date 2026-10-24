@@ -11,6 +11,7 @@ import { VOLUME_KINDS } from '../../shared/engine/limits.ts'
 import { resolveTargets } from '../../shared/engine/targets.ts'
 import type { ExplainView, InputFact, Quantity } from '../../shared/engine/types.ts'
 import type { PlanWithSessions, PredictionView } from '../../shared/types.ts'
+import { signSession } from '../../server/auth/session.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
 import { weeklyDecisions } from '../../server/services/planEngine.ts'
 import {
@@ -540,6 +541,41 @@ describe('GET /api/explain: one fit per data version', () => {
     // one signal, the window's own, and no completion figure the held days would have fed
     expect(signals.map((fact) => fact.id)).toEqual(['j5.signal-disruption'])
     expect(signals[0]!.template).toBe('explain.j5-signal')
+  })
+
+  test('a post-race week gives the stored decision before the race run is imported', async () => {
+    await seedHistory(user.id)
+    const goal = await seedGoal(user.id)
+    const plan = await generatePlan(user, goal.id)
+    const week = plan.weeks.find((candidate) => candidate.flags.includes('post-race'))!.weekStart
+    // Three days into the week after the race; the race run is not among the activities yet.
+    vi.setSystemTime(new Date(2027, 1, 3, 12))
+    const later = todayIso()
+    // the session cookie of the first day has expired by now
+    const signedIn: TestUser = {
+      ...user,
+      cookie: `rl_session=${signSession(user.id, ctx.config.sessionSecret)}`,
+    }
+    expect(later >= week && later <= addDays(week, 6)).toBe(true)
+    expect(goal.targetDate < week).toBe(true)
+
+    // The decision the reviews and the brief are made from: the plan's goal sets the window.
+    const stored = (
+      await weeklyDecisions(
+        { prisma: ctx.prisma, config: ctx.config },
+        { userId: user.id, today: later, weekStarts: [week] },
+      )
+    ).get(week)!
+    expect(stored.postRace).toBeDefined()
+    expect(stored.signals.map((signal) => signal.code)).toEqual(['post-race-stage'])
+
+    const res = await explain(`subject=decision&weekStart=${week}`, signedIn)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const [decision, ...signals] = factsOf(res.body as ExplainView, 'J5')
+    expect(decision!.template).toBe('explain.j5-post-race')
+    expect(slot(decision!, 'week')).toMatchObject({ iso: week })
+    // the stage is the only signal: no completion figure of a week the plan holds for recovery
+    expect(signals).toEqual([])
   })
 
   test('a repeated request is served from the memo, and a write or a new day rebuilds it', async () => {

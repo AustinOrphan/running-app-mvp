@@ -163,7 +163,8 @@ describe('hero copy', () => {
     expect(say('today.cooler.wbgt', slots)).toBe(
       'Cooler start: 06:00. WBGT about 17 °C then, 25 °C around 15:00.',
     )
-    expect(say('today.cooler.air', { time: '06:00', then: { kind: 'temp', c: 17 } })).toBe(
+    // the air temperature arrives as text, written by `formatAirTemperature` in the runner's units
+    expect(say('today.cooler.air', { time: '06:00', then: '17 °C' })).toBe(
       'Cooler start: 06:00. Air temperature about 17 °C then.',
     )
   })

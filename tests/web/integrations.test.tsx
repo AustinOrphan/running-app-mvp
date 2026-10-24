@@ -2,9 +2,18 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
 import type { IntegrationStatus, ProviderInfo } from '../../shared/types.ts'
+import { providerMessage, count } from '../../shared/copy/pageCopy.ts'
+import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import { SYNC_POLL_MS } from '../../web/api/integrations.ts'
+import { ToastProvider } from '../../web/components/Toast.tsx'
 import { IntegrationsPage } from '../../web/pages/IntegrationsPage.tsx'
-import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  activityPage,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import { makeInputs, makeStateView } from './state-fixtures.ts'
 import { wristRoutes } from './wrist-fixtures.ts'
 
@@ -103,6 +112,8 @@ describe('IntegrationsPage', () => {
       'Calendar link',
     ])
     expect(within(card('intervals.icu')).getByText('Not connected')).toBeInTheDocument()
+    // every card, form and note of the page
+    expectCleanCopy(document.body)
   })
 
   test('says what the training advice reads above the cards', async () => {
@@ -522,6 +533,34 @@ describe('IntegrationsPage', () => {
     expect(within(apple).getByText(/\/api\/ingest\/apple-health/)).toBeInTheDocument()
     expect(within(apple).getByText(/Health Auto Export/)).toBeInTheDocument()
     expect(calls.some((c) => c.method === 'POST')).toBe(true)
+    expectCleanCopy(apple)
+  })
+
+  test('Apple Health says how to go on when the token cannot be copied', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(allStatuses(), {
+        'POST /api/integrations/apple-health/push-token': () => ({ token: 'tok_synthetic_123' }),
+      }),
+    )
+    renderWithProviders(
+      <ToastProvider>
+        <IntegrationsPage />
+      </ToastProvider>,
+    )
+    const apple = await screen.findByRole('region', { name: 'Apple Health' })
+    await user.click(within(apple).getByRole('button', { name: 'Create push token' }))
+    await within(apple).findByText('tok_synthetic_123')
+    // user-event installs its own clipboard on setup(); replace it with one that refuses
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error('Not allowed.')) },
+    })
+    await user.click(within(apple).getByRole('button', { name: 'Copy token' }))
+    expect(
+      await screen.findByText('The token could not be copied. Select it and copy it by hand.'),
+    ).toBeInTheDocument()
+    expectCleanCopy(document.body)
   })
 
   test('Apple Health with push on offers a replacement token', async () => {
@@ -559,6 +598,13 @@ describe('IntegrationsPage', () => {
 
     const folder = await screen.findByRole('region', { name: 'Watched folder' })
     expect(within(folder).getByText('/data/inbox')).toBeInTheDocument()
+    // the sentence names the interval the scheduler runs the scan at
+    expect(
+      within(folder).getByText(
+        `The folder is scanned every ${String(FOLDER_SCAN_MINUTES)} minutes.`,
+      ),
+    ).toBeInTheDocument()
+    expectCleanCopy(folder)
   })
 
   test('announces a finished Strava authorisation or its error from the address', async () => {
@@ -589,6 +635,19 @@ describe('IntegrationsPage', () => {
     expect(within(intervals).getByText('intervals.icu answered HTTP 500.')).toBeInTheDocument()
     expect(within(intervals).getByRole('button', { name: 'Sync now' })).toBeInTheDocument()
     expect(within(intervals).queryByLabelText('API key')).not.toBeInTheDocument()
+    expectCleanCopy(intervals)
+  })
+
+  test("a run that stopped on a service error names it in the app's own words", async () => {
+    const lastError = providerMessage('provider.garmin.list', { status: count(503) })
+    mockApi(routes(allStatuses({ garmin: { status: 'error', lastError } })))
+    renderWithProviders(<IntegrationsPage />)
+
+    const garmin = await screen.findByRole('region', { name: 'Garmin Connect' })
+    expect(
+      within(garmin).getByText('Garmin answered the activity list request with HTTP 503.'),
+    ).toBeInTheDocument()
+    expectCleanCopy(garmin)
   })
 
   test('a field error for a field the form does not show goes in the alert', async () => {

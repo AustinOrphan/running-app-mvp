@@ -30,6 +30,8 @@ import type {
   ChecklistResult,
   EngineWarning,
   ExecutionAssessment,
+  ExecutionFindings,
+  ExecutionLine,
   EngineInput,
   Feasibility,
   LadderStep,
@@ -42,6 +44,7 @@ import type {
   WeeklyDecision,
 } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
+import { renderFact } from '../shared/copy/templates.ts'
 import { mondayOf, todayIso } from '../shared/dates.ts'
 import { countsLine } from '../shared/engine/fuelCopy.ts'
 import { P } from '../shared/engine/params/index.ts'
@@ -457,15 +460,26 @@ export function toPlanEngineFields(row: PlanRow): {
   }
 }
 
-/** The rule id that marks a session the engine or an execution trim eased [design 4.3]. */
-const TRIM_RULE = 'design-4.3'
+// The one derivation of `PlanSession.trimmed` lives in `shared/domain/sessionStatus.ts`, so the
+// engine asks the same question; every write of `rules` sets the column through it.
+export { isTrimmed } from '../shared/domain/sessionStatus.ts'
 
 /**
- * Whether a session's rule ids mark it as trimmed. The one derivation of `PlanSession.trimmed`: every
- * write of `rules` sets the column through this function, and nothing scans the stored JSON text.
+ * A stored assessment as the API serves it: the findings, and the sentences written from the stored
+ * facts now (ADR 0010), so a copy fix reaches assessments stored earlier. The sentences state minutes,
+ * percentages and counts only, which read the same in either unit system. A row stored before the
+ * sentences became facts keeps the lines it was stored with, until the session is assessed again.
  */
-export function isTrimmed(rules: readonly string[]): boolean {
-  return rules.includes(TRIM_RULE)
+export function executionOf(text: string | null): ExecutionAssessment | null {
+  const stored = parseJson<
+    (ExecutionFindings & { facts?: ExecutionLine[]; lines?: string[] }) | null
+  >(text, null)
+  if (stored === null) return null
+  const { facts, lines, ...findings } = stored
+  return {
+    ...findings,
+    lines: facts === undefined ? (lines ?? []) : facts.map((fact) => renderFact(fact, 'km')),
+  }
 }
 
 export function toPlanSession(row: PlanSessionRow): PlanSession {
@@ -495,7 +509,7 @@ export function toPlanSession(row: PlanSessionRow): PlanSession {
     status: row.status as PlanSessionStatus,
     activityId: row.activityId,
     linkSource: row.linkSource as PlanSession['linkSource'],
-    execution: parseJson<ExecutionAssessment | null>(row.execution, null),
+    execution: executionOf(row.execution),
     original: parseJson<Partial<SessionSpec> | null>(row.original, null),
     updatedAt: row.updatedAt.toISOString(),
   }

@@ -19,6 +19,7 @@ import {
   type PublishReference,
   type UpsertOutcome,
 } from '../../../server/providers/types.ts'
+import { safeMessage } from '../../../server/services/syncLog.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { httpStatusSentence, publishSentence } from '../../../shared/copy/publish.ts'
 import { easedSession } from '../../../shared/engine/readiness.ts'
@@ -815,6 +816,23 @@ describe('intervals.icu upsert', () => {
     expect(message).not.toContain(AUTH.slice('Basic '.length))
     expect(message.length).toBeLessThanOrEqual(200)
     expect(message).toContain('[removed]')
+  })
+
+  it.each([
+    ['a bearer token', 'Retry with Bearer synthetic-bearer-abcdef012345 now.', 'synthetic-bearer'],
+    ['a cookie', 'Sent cookie: session=synthetic-cookie-value-123', 'synthetic-cookie'],
+    ['a query string', 'See /events?api_key=synthetic-query-key-4567 for it.', 'synthetic-query'],
+    ['a token pair', 'Rejected token=synthetic-pair-token-89 as expired.', 'synthetic-pair'],
+  ])('strips %s from a rejection as the sync log does', async (_name, echo, credential) => {
+    const ctx = makeCtx({
+      [`POST ${EVENTS}/bulk`]: () => new Response(echo, { status: 422 }),
+    })
+    const [outcome] = await intervalsPublish.upsert([outbound(1)], REF, ctx)
+    expect(outcome?.ok).toBe(false)
+    const message = outcome && !outcome.ok ? outcome.message : ''
+    expect(message).not.toContain(credential)
+    // what the service said around the credential stays, quoted in the app's sentence
+    expect(message).toContain(safeMessage(echo))
   })
 
   it('names a server fault and an unreachable host network, to be retried', async () => {

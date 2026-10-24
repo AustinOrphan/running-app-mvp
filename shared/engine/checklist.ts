@@ -498,7 +498,7 @@ function ladderSteps(draft: PlanDraft, input: EngineInput): ChecklistResult {
   )
 }
 
-/** J7: after a break of 7 days or more the first weeks start from the restart volume. */
+/** J7: after a break of `j7.tier1Days` days or more the first weeks start from the restart volume. */
 function breakRestartItem(
   draft: PlanDraft,
   input: EngineInput,
@@ -514,7 +514,12 @@ function breakRestartItem(
     )
   }
   if (state.layoffDays < P.j7.tier1Days.value || state.typicalWeekMin <= 0) {
-    return result('break-restart', true, 'No break of 7 days or more before the plan.', rules)
+    return result(
+      'break-restart',
+      true,
+      `No break of ${P.j7.tier1Days.value} days or more before the plan.`,
+      rules,
+    )
   }
   const { restartMin, fraction } = breakRestart(state.layoffDays, state.typicalWeekMin)
   const first = sortedWeeks(draft).find((w) => w.weekStart >= mondayOf(input.today))
@@ -775,11 +780,16 @@ function heldProgression(draft: PlanDraft, input: EngineInput): string[] {
   return failures
 }
 
-/** N-4: two or more REDs flags hold progression. */
+/** N-4: `j5.redsHoldFlags` or more REDs flags hold progression. */
 function redsHoldItem(draft: PlanDraft, input: EngineInput, state: AthleteState): ChecklistResult {
   const rules = ['n-4', 'J5']
   if (!redsHold(state)) {
-    return result('reds-hold', true, 'No energy-availability hold: fewer than 2 flags.', rules)
+    return result(
+      'reds-hold',
+      true,
+      `No energy-availability hold: fewer than ${P.j5.redsHoldFlags.value} flags.`,
+      rules,
+    )
   }
   const failures = heldProgression(draft, input)
   return result(

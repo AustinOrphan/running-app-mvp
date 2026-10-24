@@ -152,6 +152,8 @@ interface WellnessOutcome {
 
 const WELLNESS_NONE: WellnessOutcome = { status: 'none', days: null, total: null }
 
+const count = (n: number) => ({ kind: 'count', n }) as const
+
 /**
  * Pulls new activities and wellness from one provider and advances its cursor. Runs one at a time
  * per user and provider: a second call while one is running returns null and records nothing.
@@ -379,13 +381,19 @@ async function run(
     fatal !== null
       ? safe(message(fatal))
       : pause instanceof WellnessTruncated
-        ? `Wellness stopped after ${pause.daysRead} of ${pause.daysTotal} days: ${safe(pause.message)}`
+        ? syncMessage('sync.msg.wellness-stopped', {
+            read: count(pause.daysRead),
+            total: count(pause.daysTotal),
+            message: safe(pause.message),
+          })
         : pause !== null
           ? safe(pause.message)
           : wellnessError !== null
-            ? `Wellness could not be read: ${safe(message(wellnessError))}`
+            ? syncMessage('sync.msg.wellness-error', { message: safe(message(wellnessError)) })
             : failures > 0
-              ? `${failures} ${failures === 1 ? 'activity' : 'activities'} could not be imported; see the import report.`
+              ? failures === 1
+                ? syncMessage('sync.msg.activities-failed.one', {})
+                : syncMessage('sync.msg.activities-failed.many', { n: count(failures) })
               : null
   const lastSyncStatus = failedHard
     ? 'error'
@@ -464,11 +472,19 @@ async function pullWellness(
   if (!pull?.listWellness) return WELLNESS_NONE
   const { timezone } = ctx
   const dayOf = (ms: number): string => localDateTime(isoZ(ms), null, timezone).date
-  // Only a run that read wellness successfully lets the next one start late.
+  // Only a run that read wellness successfully lets the next one start late. The run is the one
+  // that wrote `lastSyncAt`, and what it did about wellness is its stored status, not a reading of
+  // `lastError`. Without that run (pruned, or never written) the next one reads the whole backfill.
+  const lastRun =
+    row.lastSyncAt === null
+      ? null
+      : await deps.prisma.syncRun.findFirst({
+          where: { userId, provider, channel: 'pull', startedAt: row.lastSyncAt },
+          select: { wellnessStatus: true },
+        })
   const current =
-    row.lastSyncAt !== null &&
-    (row.lastSyncStatus === 'ok' || row.lastSyncStatus === 'partial') &&
-    !row.lastError?.startsWith('Wellness')
+    lastRun?.wellnessStatus === 'read' &&
+    (row.lastSyncStatus === 'ok' || row.lastSyncStatus === 'partial')
   const start = from
     ? from.slice(0, 10)
     : current && row.lastSyncAt

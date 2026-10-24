@@ -123,9 +123,6 @@ function completedWeeks(state: AthleteState, today: string, count: number) {
   return state.weeks.filter((w) => w.weekStart < thisMonday).slice(-count)
 }
 
-/** The weeks the weekly floor of a time goal is compared with (D3, D4). */
-export const FLOOR_WEEKS = 4
-
 /** The mean weekly distance of the last `weeks` completed weeks, in km. */
 export function meanWeeklyKm(state: AthleteState, today: string, weeks: number): number {
   const rows = completedWeeks(state, today, weeks)
@@ -158,7 +155,7 @@ function median(values: number[]): number {
 /** Average training pace in sec/km: recent weeks, else the goal pace slowed, else a default. */
 export function trainingPace(state: AthleteState, goal: GoalModel): number {
   const paces = state.weeks
-    .slice(-4)
+    .slice(-P.macroDesign.trainingPaceWeeks.value)
     .filter((w) => w.runM > 0 && w.runMin > 0)
     .map((w) => (w.runMin * SEC_PER_MIN) / (w.runM / M_PER_KM))
   if (paces.length > 0) return median(paces)
@@ -412,7 +409,7 @@ export function feasibility(
     // the weekly path grows from the week the plan starts at, in km at the training pace (E6, J7)
     const startKm = (startWeekMin(state, start) * SEC_PER_MIN) / pace
     const currentKm = Math.max(
-      meanWeeklyKm(state, today, FLOOR_WEEKS),
+      meanWeeklyKm(state, today, P.d3.weeklyFloorWeeks.value),
       startKm,
       P.g1.minStepDistanceM.value / M_PER_KM,
     )

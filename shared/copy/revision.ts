@@ -17,7 +17,8 @@ import { P } from '../engine/params/index.ts'
 import type { Quantity } from '../engine/types.ts'
 import type { SafetyRule, UndoFinding } from '../engine/undoGuard.ts'
 import type { ZoneBoundary } from '../engine/zoneChange.ts'
-import type { DisruptionReason, UndoReason, Units } from '../types.ts'
+import type { ActivityType, DisruptionReason, UndoReason, Units } from '../types.ts'
+import { countPhrase } from './quantity.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const WINDOW_TEMPLATES = {
@@ -96,27 +97,6 @@ export type WindowTemplateId = keyof typeof WINDOW_TEMPLATES
 export interface WindowFact {
   template: WindowTemplateId
   slots: Record<string, Quantity | string>
-}
-
-const NUMBER_WORDS = [
-  'zero',
-  'one',
-  'two',
-  'three',
-  'four',
-  'five',
-  'six',
-  'seven',
-  'eight',
-  'nine',
-  'ten',
-]
-
-/** "one symptom-free day", "3 easy days": a count in words up to ten, then in digits. */
-function countPhrase(n: number, noun: string): string {
-  const word =
-    Number.isInteger(n) && n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n]! : String(n)
-  return `${word} ${noun}${n === 1 ? '' : 's'}`
 }
 
 const count = (n: number) => ({ kind: 'count', n }) as const
@@ -291,6 +271,18 @@ export const ADJUST_TEMPLATES = {
     'There is no {title} left this week to swap with. A swap never adds a session or raises load.',
     { title: 'text' },
   ),
+  // Linking an activity to a session that cannot take it.
+  'adjust.link-kind': tpl('A {activity} cannot fulfil {title}.', {
+    activity: 'text',
+    title: 'text',
+  }),
+  'adjust.link-taken': tpl(
+    'That activity already fulfils {title} on {date}. Unlink it there first.',
+    {
+      title: 'text',
+      date: 'date',
+    },
+  ),
   'adjust.partner-unavailable': tpl(
     'That session cannot be swapped with. It must be in the same week, still to run and not linked to an activity.',
   ),
@@ -443,6 +435,10 @@ export const REVISION_TEMPLATES = {
   'revision.zone.declined': tpl('Declined the proposed {boundary} on {date}.', {
     boundary: 'text',
     date: 'date',
+  }),
+  // The refusal to apply a boundary the profile does not store.
+  'revision.zone.not-stored': tpl('The {boundary} has no stored value to update.', {
+    boundary: 'text',
   }),
 
   // The summary of a new plan.
@@ -627,6 +623,23 @@ export function acceptedZoneSummary(boundary: ZoneBoundary, date: string): strin
     { boundary: ZONE_BOUNDARY_WORDS[boundary], date: day(date) },
     STORED_UNITS,
   )
+}
+
+/** "The easy pace limit has no stored value to update." */
+export function zoneNotStoredText(boundary: ZoneBoundary): string {
+  return render(
+    REVISION_TEMPLATES['revision.zone.not-stored'],
+    { boundary: ZONE_BOUNDARY_WORDS[boundary] },
+    STORED_UNITS,
+  )
+}
+
+/** The words for the kind of an activity in a sentence about linking it to a session. */
+export const ACTIVITY_TYPE_WORDS: Record<ActivityType, string> = {
+  run: 'run',
+  race: 'race',
+  strength: 'strength session',
+  cross: 'cross-training activity',
 }
 
 /** "Declined the proposed threshold pace on Fri 23 Oct." */

@@ -33,11 +33,17 @@ export interface GoalInput {
   supportLevel?: SupportLevel
 }
 
-/** The active goal decides which plan is shown, so goal changes refresh the plan too. */
+/**
+ * What a goal write moves. The active goal decides which plan is shown, so the plan is read again.
+ * The goal's distance, climb, surface, place and date are what the race prediction is computed
+ * from, and the countdown on Today and in the weekly brief is built from the goal, so those are
+ * read again too. A goal edit records no plan revision, so this stays apart from
+ * `invalidatePlanReaders`.
+ */
+const GOAL_KEYS = [keys.goals, keys.plan, keys.predictions, keys.today, keys.brief] as const
+
 function invalidateGoalData(queryClient: QueryClient): Promise<unknown> {
-  return Promise.all(
-    [keys.goals, keys.plan].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
-  )
+  return Promise.all(GOAL_KEYS.map((key) => queryClient.invalidateQueries({ queryKey: [key] })))
 }
 
 export function useGoals() {

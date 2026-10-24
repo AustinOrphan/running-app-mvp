@@ -245,7 +245,7 @@ GET  /api/setup                          {needsSetup:boolean}
 POST /api/setup                          create first user, sets cookie
 POST /api/auth/login | /logout           ; GET /api/auth/me
 GET/PUT /api/settings                    units, displayName
-GET  /api/activities?from&to&type        ; POST ; GET/PUT/DELETE /:id
+GET  /api/activities?from&to&type&limit&offset  paged (item 19) ; POST ; GET/PUT/DELETE /:id
 POST /api/activities/:id/duplicate       {status:'confirmed'|'dismissed'}
 POST /api/imports/smashrun (multipart)   returns ImportBatch with per-row report
 GET  /api/imports                        list batches
@@ -257,6 +257,10 @@ PUT  /api/plan/weeks/:weekStart          edit a week (sets overrideNote)
 GET  /api/reviews?from&to ; PUT /api/reviews/:weekStart
 GET  /api/weeks?from&to                  computed weekly rows (server-side aggregate)
 ```
+
+Amended 2026-10-23 (phase 3a close review): `GET /api/activities` returns a paged envelope, not
+the whole list, and phase 3a added routes that this list does not show; section 7, item 19 lists
+them and wins.
 
 Errors: `{error:{code, message, details?}}` with codes `validation`, `unauthorized`,
 `not_found`, `conflict`, `internal`. Zod on every body and query. Request id header.
@@ -421,11 +425,14 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
     GET  /api/today?date=                    coach payload: verdict, hero session, week strip, slots
     GET/PUT /api/checkins/:date              the daily check-in (pain, illness, sleep, mood)
     GET  /api/state ; GET /api/jobs          the athlete snapshot (ETag); job runs and sync health
+    GET  /api/stats                          monthly, yearly, fastest efforts, longest runs
     GET  /api/explain?subject=               the figures behind a Why: session, week, decision,
                                              readiness, zone, prediction, rules, brief, activity
     GET  /api/brief?weekStart= ; GET /api/briefs?limit= ; POST /api/briefs/:weekStart/seen
     GET  /api/activities/:id/standout        up to three neutral facts about one run
     POST /api/plan/replan | /preview         update the plan from the latest data; preview a change
+    GET  /api/plan/archived                  up to five archived plans and whether each can return
+    POST /api/plan/archived/:id/restore      archive the current plan and bring one back
     GET  /api/plan/revisions ; POST /api/plan/revisions/:id/undo | /seen
     GET/POST /api/plan/disruptions ; PATCH/DELETE /api/plan/disruptions/:id   rest windows
     POST /api/plan/sessions/:id/adjust | /link   move, swap, shorten, skip a session; link a run
@@ -433,6 +440,7 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
     GET  /api/wrist/status ; PUT /api/wrist/intervals ; POST /api/wrist/publish
     POST/DELETE /api/wrist/calendar/token ; GET /api/calendar/:token/plan.ics   (token only)
     POST /api/ingest/:provider               pushed workouts (token only, 16 MB parser after it)
+    GET  /api/integrations/:provider/runs    a provider's recent sync runs, newest first
     GET  /api/fuel ; GET /api/fuel/targets ; PUT /api/fuel/settings
     CRUD /api/fuel/products ; PUT/DELETE /api/fuel/logs/:activityId ; POST .../skip
     GET  /api/zones ; GET /api/zones/proposals ; POST /api/zones/proposals/:id/accept | /decline
@@ -442,6 +450,11 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
 
     The state, brief and explain reads are cached per data version (ADR 0009); a brief and a run
     insight are stored in non-state tables, so reading one never moves the data version.
+
+    `GET /api/activities?from&to&type&limit&offset` is a breaking change to section 4.6: it returns
+    `{ items, total, limit, offset, nextOffset }`, with `limit` 1 to 500 (default 100), `offset`
+    from 0 and `nextOffset` null on the last page. Items carry no heart-rate histogram; `/:id`,
+    `/:id/detail` and the CSV export are unchanged. The Activities page loads 50 at a time.
 20. **Phase 3a pages (4.7).** `DashboardPage` stays the route `/` and composes the pieces of
     `web/components/today/`; the other routes are added or changed as follows. Copy for every page is
     a typed template (`shared/copy/`), checked by the one G5 lint.

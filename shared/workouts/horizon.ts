@@ -7,3 +7,6 @@ export const PUBLISH_HORIZON_DAYS = 14
 
 /** Days the private calendar feed lists, today included: a month, where the watch gets two weeks. */
 export const CALENDAR_DAYS = 28
+
+/** The most days one status request may span (design 6.4); the 400 sentence names the same number. */
+export const STATUS_MAX_DAYS = 60

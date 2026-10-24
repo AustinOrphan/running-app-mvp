@@ -6,7 +6,7 @@ import { ToastProvider } from '../../web/components/Toast.tsx'
 import { LoginPage } from '../../web/pages/LoginPage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
 import { SetupPage } from '../../web/pages/SetupPage.tsx'
-import { mockApi, renderWithProviders } from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 
 const user = { id: 'u1', email: 'runner@example.com', displayName: null, units: 'mi' as const }
 
@@ -26,7 +26,7 @@ function Pages() {
 describe('SetupPage', () => {
   test('setup: mismatched confirmation shows "Passwords do not match" and posts nothing', async () => {
     const { calls } = mockApi({ 'GET /api/setup': () => ({ needsSetup: true }) })
-    renderWithProviders(<Pages />, { route: '/setup' })
+    const { container } = renderWithProviders(<Pages />, { route: '/setup' })
     const typist = userEvent.setup()
 
     await screen.findByRole('heading', { name: 'Set up your training log' })
@@ -36,6 +36,7 @@ describe('SetupPage', () => {
     await typist.click(screen.getByRole('button', { name: 'Create account' }))
 
     expect(await screen.findByText('Passwords do not match')).toBeInTheDocument()
+    expectCleanCopy(container)
     expect(calls.filter((c) => c.method === 'POST')).toEqual([])
   })
 
@@ -157,9 +158,31 @@ describe('LoginPage', () => {
       await screen.findByText('Too many attempts. Try again in 15 minutes.'),
     ).toBeInTheDocument()
     expect(screen.queryByText('Invalid email or password')).not.toBeInTheDocument()
+    expectCleanCopy(document.body)
 
     await typist.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(await screen.findByText('Home page')).toBeInTheDocument()
+  })
+
+  test('login: any other answer says the sign-in did not work, and the form reads cleanly', async () => {
+    mockApi({
+      'POST /api/auth/login': () => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'Something went wrong.' } },
+      }),
+    })
+    const { container } = renderWithProviders(<Pages />, { route: '/login' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Sign in' })
+    expectCleanCopy(container)
+    await typist.type(screen.getByLabelText('Email'), 'runner@example.com')
+    await typist.type(screen.getByLabelText('Password'), 'wrong-password-here')
+    await typist.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Sign-in did not work. Check the details and try again.',
+    )
+    expectCleanCopy(container)
   })
 
   test('login: a retry time under a minute rounds up to one minute', async () => {
@@ -239,6 +262,7 @@ describe('SettingsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Settings not saved.')
     expect(screen.getByRole('radio', { name: 'Miles' })).toBeChecked()
     expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
+    expectCleanCopy(document.body)
   })
 
   test('settings: saving a display name sends only the changed field', async () => {
@@ -285,5 +309,6 @@ describe('SettingsPage', () => {
       '/api/activities/export.csv',
     )
     expect(screen.getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument()
+    expectCleanCopy(container)
   })
 })

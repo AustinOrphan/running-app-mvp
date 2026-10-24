@@ -161,6 +161,8 @@ export function quantityParts(q: Quantity, units: Units): QuantityParts | null {
     case 'count':
       return { num: formatNumber(q.n), suffix: '' }
     case 'temp':
+      // A WBGT reading or a heat threshold: the heat rules (section I) state both in °C, so they
+      // read °C with miles too. An air temperature follows the units (`formatAirTemperature`).
       return { num: formatNumber(q.c), suffix: ' °C' }
     case 'date':
       return dateParts(q)
@@ -183,6 +185,19 @@ export function formatQuantity(q: Quantity, units: Units): string {
 }
 
 /**
+ * An air temperature in the runner's units, to whole degrees: "50 °F" with miles, "10 °C" with
+ * kilometres. The one rule for the air: the activity page's weather and Today's cooler start both
+ * word it here. A `temp` quantity is the other kind of temperature, a WBGT reading or a heat
+ * threshold, and reads °C in either unit system (see `quantityParts`).
+ */
+export function formatAirTemperature(c: number, units: Units): string {
+  if (!Number.isFinite(c)) return NO_VALUE
+  return units === 'mi'
+    ? `${String(Math.round((c * 9) / 5 + 32))} °F`
+    : `${String(Math.round(c))} °C`
+}
+
+/**
  * Two quantities of one kind as a range that prints the unit once: "4:10 to 4:00 /km", "140 to 150
  * bpm". A pair that cannot be shown as parts reads in full, with a dash for what cannot be shown.
  */
@@ -193,4 +208,28 @@ export function formatRange(first: Quantity, second: Quantity, units: Units): st
     return `${formatQuantity(first, units)} to ${formatQuantity(second, units)}`
   }
   return `${from.num} to ${to.num}${to.suffix}`
+}
+
+const NUMBER_WORDS = [
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+]
+
+/**
+ * "one symptom-free day", "3 easy days": a count in words up to ten, then in digits, with the noun
+ * in the plural unless the count is one. For a sentence that states a rule number from the Params.
+ */
+export function countPhrase(n: number, noun: string): string {
+  const word =
+    Number.isInteger(n) && n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n]! : String(n)
+  return `${word} ${noun}${n === 1 ? '' : 's'}`
 }
