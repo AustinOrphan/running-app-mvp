@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { EXPLAIN_MAX_SOURCES } from '../../shared/copy/limits.ts'
 import { render } from '../../shared/copy/template.ts'
@@ -12,6 +12,8 @@ export interface InputFactsProps {
   units: Units
   /** A source link was followed: the drawer closes, because the page behind it changes. */
   onNavigate: () => void
+  /** A control under a figure and its sources (the brief's Why); absent in the drawer. */
+  action?: (fact: InputFact) => ReactNode
 }
 
 /**
@@ -100,7 +102,7 @@ function Sources({
  * records it rests on. A figure the rule could not compute says what is missing, behind a
  * "Not enough data yet:" label.
  */
-export function InputFacts({ facts, units, onNavigate }: InputFactsProps) {
+export function InputFacts({ facts, units, onNavigate, action }: InputFactsProps) {
   return (
     <ul className={styles.list}>
       {facts.map((fact) => (
@@ -116,6 +118,7 @@ export function InputFacts({ facts, units, onNavigate }: InputFactsProps) {
             {renderFact(fact, units)}
           </p>
           <Sources fact={fact} units={units} onNavigate={onNavigate} />
+          {action?.(fact)}
         </li>
       ))}
     </ul>

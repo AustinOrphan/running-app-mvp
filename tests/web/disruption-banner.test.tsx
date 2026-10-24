@@ -52,9 +52,12 @@ function renderBanners(windows: DisruptionView[], extra: MockRoutes = {}) {
     'GET /api/plan/disruptions': () => windows,
     ...extra,
   })
+  // The layout supplies the landmark in the app.
   renderWithProviders(
     <ToastProvider>
-      <Live />
+      <main id="main" tabIndex={-1}>
+        <Live />
+      </main>
     </ToastProvider>,
   )
   return { calls }
@@ -381,6 +384,33 @@ describe('DisruptionBanner, Remove window', () => {
     })
     expect(screen.getByRole('dialog', { name: 'Remove this window' })).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
+  })
+
+  test('closing the sheet after the banner has gone leaves focus on the page, not on the body', async () => {
+    const user = userEvent.setup()
+    let removed = false
+    renderBanners([illness()], {
+      'GET /api/plan/disruptions': () => (removed ? [] : [illness()]),
+      'POST /api/plan/preview': () =>
+        makePreview({ action: { type: 'disruption-remove', id: 'w1' }, hash: 'f'.repeat(64) }),
+      'DELETE /api/plan/disruptions/w1': () => {
+        removed = true
+        return applied('Removed the window (illness) from Mon 16 Mar to Fri 20 Mar.')
+      },
+      'POST /api/plan/revisions/r8/seen': () => ({ status: 204, body: undefined }),
+    })
+    await user.click(await screen.findByRole('button', { name: 'Remove window' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove this window' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Apply to my plan' }))
+    await within(dialog).findByRole('heading', { name: 'Window removed' })
+    // The button that opened the sheet went with the banner.
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Remove window' })).not.toBeInTheDocument()
+    })
+
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveFocus()
   })
 
   test('a preview that went stale shows the new one, then applies it', async () => {

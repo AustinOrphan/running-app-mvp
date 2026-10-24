@@ -1,0 +1,62 @@
+/* One column of sections on a phone, in reading order. From 900 px the target, prompts, ladder and
+   history stand on the left and the products, gut training, settings and safety card on the right;
+   the disclaimer runs under both. `min-width: 0` lets a long line wrap inside a flex or grid child
+   instead of widening the page at 360 px. */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: var(--page-max);
+}
+
+.page > * {
+  min-width: 0;
+}
+
+.columns {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.column > * {
+  min-width: 0;
+}
+
+/* The safety card is a section of its own: the hairline and space the others have. */
+.eah {
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+
+.disclaimer {
+  margin: 0;
+  max-width: var(--prose-max);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+@media (min-width: 900px) {
+  .columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 0 var(--space-6);
+    align-items: start;
+  }
+}

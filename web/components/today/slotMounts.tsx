@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ComponentType, ReactNode } from 'react'
 import { addDays } from '../../../shared/dates.ts'
-import type { TodayView, UserSettings } from '../../../shared/types.ts'
+import type { TodayView, UserSettings, WristItem } from '../../../shared/types.ts'
 import { keys } from '../../api/client.ts'
+import { BriefLine } from '../BriefLine.tsx'
+import { useOnline } from '../useOnline.ts'
+import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
 import { FuelTargetLine } from '../fuel/FuelTargetLine.tsx'
 import { SlotFrame } from './SlotFrame.tsx'
@@ -55,12 +58,58 @@ function FuelPromptMount() {
   )
 }
 
+/** The line itself, in its frame: the frame appears only while the line has something to say. */
+function WatchLine({ item }: { item: WristItem | undefined }) {
+  const line = useWristLine(item)
+  return <SlotFrame name="watch">{line === null ? null : <WristLineText line={line} />}</SlotFrame>
+}
+
+/**
+ * E1: one line about the hero's run on the watch, under the session's actions (24 px). The item
+ * is the hero's entry in the payload's `watch` slot, so the line adds no request. Offline the
+ * payload may come from the device's copy, and a saved "On your watch" would be false, so the
+ * line renders nothing then. Keyed by the session, so the "state changed since the page loaded"
+ * rule starts over for each run.
+ */
+function WatchMount() {
+  const today = useLoaded<TodayView>(keys.today)
+  const online = useOnline()
+  const sessionId = today?.coach.hero?.session.id
+  if (!online || sessionId === undefined) return null
+  const item = today?.coach.slots.watch?.items.find((i) => i.sessionId === sessionId)
+  return <WatchLine key={sessionId} item={item} />
+}
+
+/**
+ * E4: the weekly brief line, under the week strip (52 px). The item is the payload's `brief` slot,
+ * the stored brief of the server's current week, so the line adds no request and never describes a
+ * week that is gone: the page asks for Today again when the server's day turns (`useServerToday`),
+ * and the new payload carries the new week's brief or none. Nothing is drawn before the settings,
+ * which give the units, are in the cache. The brief page is not cached offline, so the line
+ * renders nothing then, as the wrist line does.
+ */
+function BriefMount() {
+  const today = useLoaded<TodayView>(keys.today)
+  const settings = useLoaded<UserSettings>(keys.settings)
+  const online = useOnline()
+  const item = today?.coach.slots.brief ?? null
+  if (!online || item === null || settings === undefined) return null
+  return (
+    <SlotFrame name="brief">
+      <BriefLine item={item} units={settings.units} />
+    </SlotFrame>
+  )
+}
+
 /**
  * What fills a slot that its page places without content. An epic that fills its slot from the
- * Today payload adds its mount here; a slot whose content depends on the page's own state (the
- * brief line) is filled by the page and has no entry.
+ * Today payload adds its mount here; a slot whose content depends on the page's own state is
+ * filled by the page and has no entry. A page that passes content to a slot keeps the mount out of
+ * it, so the brief slot takes the brief line only where the page leaves it without content.
  */
 export const SLOT_MOUNTS: Partial<Record<SlotName, ComponentType>> = {
+  brief: BriefMount,
   fuel: FuelTargetMount,
+  watch: WatchMount,
   fuelPrompt: FuelPromptMount,
 }

@@ -6,7 +6,9 @@ import { keys, UNAUTHORIZED_EVENT } from './api/client.ts'
 import { Layout } from './components/Layout.tsx'
 import { ActivitiesPage } from './pages/ActivitiesPage.tsx'
 import { ActivityDetailPage } from './pages/ActivityDetailPage.tsx'
+import { BriefPage } from './pages/BriefPage.tsx'
 import { DashboardPage } from './pages/DashboardPage.tsx'
+import { FuelLabPage } from './pages/FuelLabPage.tsx'
 import { GoalsPage } from './pages/GoalsPage.tsx'
 import { IntegrationsPage } from './pages/IntegrationsPage.tsx'
 import { LoginPage } from './pages/LoginPage.tsx'
@@ -62,12 +64,15 @@ export function App() {
           <Route path="/activities/:id" element={<ActivityDetailPage />} />
           <Route path="/plan" element={<PlanPage />} />
           <Route path="/review" element={<ReviewPage />} />
+          <Route path="/brief" element={<BriefPage />} />
+          <Route path="/brief/:weekStart" element={<BriefPage />} />
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/research" element={<ResearchPage />} />
+          <Route path="/fuel" element={<FuelLabPage />} />
           <Route path="/more" element={<MorePage />} />
         </Route>
       </Route>

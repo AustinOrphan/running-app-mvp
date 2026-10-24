@@ -1,0 +1,22 @@
+/* A product's name with the label that says it holds several kinds of carbohydrate. */
+.name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.tag {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 600;
+}

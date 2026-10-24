@@ -103,6 +103,12 @@ export const TEMPLATES = {
     'Decision support for one runner, not medical advice. Stop and see a clinician for pain that persists or worsens.',
   ),
 
+  // The line under the Research heading, and the note of the Research link on the More page
+  'research.context': tpl('The papers and rules the plan rests on', {}, { shape: 'label' }),
+
+  // The place of a chart whose code could not be loaded
+  'charts.unavailable': tpl('The chart did not load. Reload the page to try again.'),
+
   // The sync history on the Integrations page
   ...SYNC_TEMPLATES,
 } satisfies Record<string, Template>

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DataStatus, ReviewView, SavedReview, Symptoms } from '../../shared/types.ts'
-import { api, keys, qs } from './client.ts'
+import { api, invalidatePlanReaders, keys, qs } from './client.ts'
 
 export interface ReviewPatch {
   dataStatus?: DataStatus
@@ -25,18 +25,14 @@ export function useReviews(params: { from: string; to: string }) {
 
 /**
  * A final decision can write next week's target, and a decided review of a version-2 plan
- * re-plans, so the plan, its revisions ("What changed") and Today refresh with the reviews.
+ * re-plans, so the readers of the plan (`invalidatePlanReaders`: the plan, its revisions, the
+ * reviews, the brief, Today) refresh with the reviews.
  */
 export function useSaveReview() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ weekStart, patch }: { weekStart: string; patch: ReviewPatch }) =>
       api<SavedReview>('PUT', `/reviews/${encodeURIComponent(weekStart)}`, patch),
-    onSuccess: () =>
-      Promise.all(
-        [keys.reviews, keys.plan, keys.planRevisions, keys.today].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
-      ),
+    onSuccess: () => invalidatePlanReaders(queryClient),
   })
 }

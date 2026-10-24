@@ -1,9 +1,11 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { App } from '../../web/App.tsx'
 import { Layout, useTheme } from '../../web/components/Layout.tsx'
 import { Nav } from '../../web/components/Nav.tsx'
 import { MorePage } from '../../web/pages/MorePage.tsx'
-import { renderWithProviders } from './helpers.tsx'
+import { makeUpdate, makeView } from './brief-fixtures.ts'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 
 function primaryLinks() {
   return within(screen.getByRole('navigation', { name: 'Primary' })).getAllByRole('link')
@@ -130,6 +132,16 @@ describe('MorePage', () => {
     expect(settings).not.toHaveTextContent(/import/i)
   })
 
+  test('every link and note in the navigation passes the copy lint', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    const nav = screen.getByRole('navigation', { name: 'More pages' })
+    expectCleanCopy(nav)
+    // The Research note is the template's words, in the same wording as the Research page.
+    expect(within(nav).getByRole('link', { name: /^Research/ })).toHaveTextContent(
+      'The papers and rules the plan rests on',
+    )
+  })
+
   test('links to Integrations and Profile', () => {
     renderWithProviders(<MorePage />, { route: '/more' })
     const nav = within(screen.getByRole('navigation', { name: 'More pages' }))
@@ -138,5 +150,54 @@ describe('MorePage', () => {
       '/integrations',
     )
     expect(nav.getByRole('link', { name: /^Profile/ })).toHaveAttribute('href', '/profile')
+  })
+})
+
+describe('Weekly brief navigation', () => {
+  test('More lists Weekly brief, and the link goes to /brief', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    const nav = within(screen.getByRole('navigation', { name: 'More pages' }))
+    const link = nav.getByRole('link', { name: /^Weekly brief/ })
+    expect(link).toHaveAttribute('href', '/brief')
+    expectCleanCopy(link)
+  })
+
+  test.each(['/brief', '/brief/2027-01-04'])('More is the one current item on %s', (route) => {
+    renderWithProviders(<Nav />, { route })
+    const current = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page')
+    expect(current.map((link) => link.textContent)).toEqual(['More'])
+  })
+
+  test.each([
+    ['/brief', '/api/brief'],
+    ['/brief/2027-01-04', '/api/brief?weekStart=2027-01-04'],
+  ])('the app routes %s to the brief page, inside the layout', async (route, url) => {
+    const { calls } = mockApi({
+      'GET /api/setup': () => ({ needsSetup: false }),
+      'GET /api/auth/me': () => ({
+        id: 'u1',
+        email: 'runner@example.com',
+        displayName: null,
+        units: 'km',
+      }),
+      'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'km' }),
+      'GET /api/brief': () => ({
+        brief: makeView({
+          seen: true,
+          revision: makeUpdate({ seenAt: '2027-01-12T08:00:00.000Z' }),
+        }),
+      }),
+    })
+    renderWithProviders(<App />, { route })
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Weekly brief' }),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'What changed and why' }),
+    ).toBeInTheDocument()
+    expect(calls.map((call) => call.url)).toContain(url)
+    expect(screen.getByRole('main')).toBeInTheDocument()
   })
 })

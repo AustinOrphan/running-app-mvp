@@ -159,21 +159,65 @@ export const keys = {
   wrist: 'wrist',
 } as const
 
-/** Everything that reads the plan or the goal it follows, after a new plan replaces the old one. */
-export function invalidateNewPlan(queryClient: QueryClient): Promise<unknown> {
+/**
+ * Every query that reads the plan or what a change to it moves: the plan and its sessions (the
+ * session workout sits under its key), the revision list, the rest windows, the reviews, the weekly
+ * brief, the athlete state, Today, the watch status (the sessions it lists are the plan's) and the
+ * fuel targets (the run targets they follow are the plan's).
+ */
+const PLAN_READER_KEYS = [
+  keys.plan,
+  keys.planRevisions,
+  keys.disruptions,
+  keys.reviews,
+  keys.brief,
+  keys.state,
+  keys.today,
+  keys.wrist,
+  keys.fuel,
+] as const
+
+/**
+ * Reads those queries again after a write to the plan (an undo, a re-plan, an adjusted session, a
+ * rest window, a week edit, a new plan, a zone decision, a run linked to a session). `skip` leaves
+ * out the queries it names (the dry run of the edit that was just applied, which would read
+ * "nothing to change"); `also` adds the keys that only some writes move (a new plan also changes the
+ * goals and the archived plans, a zone decision the zones and their proposals, a link the
+ * activities).
+ *
+ * Deliberately not routed through here, each with its own list: the writes to activity data (a run
+ * added, edited, deleted, imported or synced; `invalidateActivityData`), which link and assess
+ * sessions against what was run but record no revision; a profile save (`useUpdateProfile`) and a
+ * goal edit that leaves the plan alone, which record no revision; and the "seen" stamps, which move
+ * only the revision list, the brief and Today. A new write that records a revision or changes what
+ * a session asks for goes through this function.
+ */
+export function invalidatePlanReaders(
+  queryClient: QueryClient,
+  skip?: (queryKey: readonly unknown[]) => boolean,
+  also: readonly string[] = [],
+): Promise<unknown> {
   return Promise.all(
-    [
-      keys.goals,
-      keys.plan,
-      keys.planRevisions,
-      keys.planArchived,
-      keys.reviews,
-      keys.today,
-      keys.predictions,
-      keys.state,
-      keys.fuel,
-      // The sessions on the way to the watch are the plan's.
-      keys.wrist,
-    ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+    [...PLAN_READER_KEYS, ...also].map((key) =>
+      queryClient.invalidateQueries({
+        queryKey: [key],
+        predicate: skip === undefined ? undefined : (query) => !skip(query.queryKey),
+      }),
+    ),
   )
+}
+
+/**
+ * What a new plan moves beyond the readers of the plan: the goals (the plan's goal becomes the
+ * active goal), the archived plans (the old plan is archived) and the predictions.
+ */
+export const NEW_PLAN_KEYS = [keys.goals, keys.planArchived, keys.predictions] as const
+
+/**
+ * Everything that reads the plan or the goal it follows, after a new plan replaces the old one
+ * (a restored plan, an activated goal that replaces it). The readers of the plan include the weekly
+ * brief, which describes the plan it was built from.
+ */
+export function invalidateNewPlan(queryClient: QueryClient): Promise<unknown> {
+  return invalidatePlanReaders(queryClient, undefined, NEW_PLAN_KEYS)
 }

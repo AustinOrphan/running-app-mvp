@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom'
 import type { ReadinessVerdict, TodayCoach } from '../../shared/types.ts'
 import { useSettings } from '../api/settings.ts'
 import { checkinUrl } from '../api/checkins.ts'
-import { useToday } from '../api/today.ts'
+import { useServerToday } from '../api/today.ts'
 import buttonStyles from '../components/Button.module.css'
 import { formatWeekdayDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
-import { ChangeLine } from '../components/today/ChangeLine.tsx'
 import { CheckinRow } from '../components/today/CheckinRow.tsx'
 import { DataHealth } from '../components/today/DataHealth.tsx'
 import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
@@ -22,6 +21,7 @@ import { TodaySkeleton } from '../components/today/TodaySkeleton.tsx'
 import { TodaySlot } from '../components/today/TodaySlot.tsx'
 import { WeekStrip } from '../components/today/WeekStrip.tsx'
 import { useToast } from '../components/Toast.tsx'
+import { useMediaQuery } from '../components/useMediaQuery.ts'
 import { useOutboxState } from '../pwa/outbox.ts'
 import styles from './DashboardPage.module.css'
 
@@ -51,13 +51,22 @@ const SAVED_ON_PHONE: ReadinessVerdict = {
   slots: {},
 }
 
+/** Two columns from the width at which the side rail replaces the tab bar (spec 7.6). */
+const TWO_COLUMNS = '(min-width: 900px)'
+
 /**
  * Today: one coach payload (`GET /api/today`) and the settings render the first screen. The
  * readiness read and the session lead; the week, the update line, the race and the rest follow.
  * The history sections read their own data once they come near the viewport.
+ *
+ * The sections sit in two groups that stack on a phone in the order below and stand side by side
+ * from 900 px: the session group (slot, readiness, hero) on the left and the week group on the
+ * right. The groups stay in one order in the DOM at every width and nothing is placed with CSS
+ * `order`, so tab order follows the picture: the whole session group first, then the week.
  */
 export function DashboardPage() {
-  const todayView = useToday()
+  const todayView = useServerToday()
+  const twoColumns = useMediaQuery(TWO_COLUMNS)
   const settings = useSettings()
   const toast = useToast()
   const outbox = useOutboxState()
@@ -67,6 +76,7 @@ export function DashboardPage() {
     <PageHeader
       title="Today"
       context={context}
+      inlineActions
       actions={
         <Link
           to="/activities?new=1"
@@ -78,7 +88,12 @@ export function DashboardPage() {
     />
   )
 
-  if (todayView.isError || settings.isError) {
+  // A read that fails after one that worked (the midnight refetch with the connection down) keeps
+  // the last payload on the page; the error replaces the page only when there is nothing to show.
+  if (
+    (todayView.isError && todayView.data === undefined) ||
+    (settings.isError && settings.data === undefined)
+  ) {
     return (
       <>
         {header()}
@@ -108,53 +123,59 @@ export function DashboardPage() {
       {header(formatWeekdayDate(view.date))}
       <div className={styles.page}>
         <HealthNotes flags={view.readiness.redFlags} notes={coach.health.notes} units={units} />
-        <TodaySlot name="disruption" />
+        <div className={styles.columns} data-layout={twoColumns ? 'two' : 'one'}>
+          <div className={styles.column}>
+            <TodaySlot name="disruption" />
 
-        <ReadinessRead
-          verdict={verdictShown}
-          signals={coach.signals}
-          units={units}
-          verdictRef={verdict}
-        >
-          {coach.preview ? undefined : (
-            <CheckinRow
-              key={view.date}
-              date={view.date}
-              checkin={view.checkin}
-              boneActive={view.readiness.redFlags.some((flag) => flag.code === 'focal-bone-pain')}
+            <ReadinessRead
+              verdict={verdictShown}
+              signals={coach.signals}
               units={units}
-              onAnswered={() => {
-                verdict.current?.focus()
+              verdictRef={verdict}
+            >
+              {coach.preview ? undefined : (
+                <CheckinRow
+                  key={view.date}
+                  date={view.date}
+                  checkin={view.checkin}
+                  boneActive={view.readiness.redFlags.some(
+                    (flag) => flag.code === 'focal-bone-pain',
+                  )}
+                  units={units}
+                  onAnswered={() => {
+                    verdict.current?.focus()
+                  }}
+                />
+              )}
+            </ReadinessRead>
+            {coach.hero !== null ? (
+              <SessionHero hero={coach.hero} heat={view.heat} next={coach.next} units={units} />
+            ) : planned ? (
+              <NoSession next={coach.next} units={units} />
+            ) : null}
+            <PlanNotice
+              hasPlan={planned}
+              weekInPlan={coach.weekStrip?.targetRunMin != null}
+              hasGoal={coach.race !== null}
+            />
+          </div>
+
+          <div className={styles.column}>
+            {coach.weekStrip === null ? null : <WeekStrip strip={coach.weekStrip} units={units} />}
+            <TodaySlot name="brief" />
+            <TodaySlot name="fuelPrompt" />
+
+            <FeedbackCard
+              unrated={view.unrated}
+              units={units}
+              onSaved={() => {
+                toast.show('Feedback saved')
               }}
             />
-          )}
-        </ReadinessRead>
-        {coach.hero !== null ? (
-          <SessionHero hero={coach.hero} heat={view.heat} next={coach.next} units={units} />
-        ) : planned ? (
-          <NoSession next={coach.next} units={units} />
-        ) : null}
-        <PlanNotice
-          hasPlan={planned}
-          weekInPlan={coach.weekStrip?.targetRunMin != null}
-          hasGoal={coach.race !== null}
-        />
-
-        {coach.weekStrip === null ? null : <WeekStrip strip={coach.weekStrip} units={units} />}
-        <TodaySlot name="brief">
-          {coach.change === null ? null : <ChangeLine change={coach.change} units={units} />}
-        </TodaySlot>
-        <TodaySlot name="fuelPrompt" />
-
-        <FeedbackCard
-          unrated={view.unrated}
-          units={units}
-          onSaved={() => {
-            toast.show('Feedback saved')
-          }}
-        />
-        {coach.race === null ? null : <RaceCountdown race={coach.race} units={units} />}
-        <DataHealth health={coach.health} />
+            {coach.race === null ? null : <RaceCountdown race={coach.race} units={units} />}
+            <DataHealth health={coach.health} />
+          </div>
+        </div>
         <History today={view.date} units={units} />
         <DisclaimerNote />
       </div>

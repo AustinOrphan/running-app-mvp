@@ -830,6 +830,194 @@ describe('the health note about tomorrow', () => {
   })
 })
 
+describe('the health note and the Plan strip', () => {
+  // Both read a session's publication through `readWristItems`, so the note is made exactly when
+  // the strip says `waiting` or `not-delivered`: a failed send is one case among the stored states.
+  const getToday = (u: TestUser) => client(ctx, u).get('/api/today')
+  const notes = async (u: TestUser) => {
+    const res = await getToday(u)
+    expect(res.status).toBe(200)
+    return (res.body as TodayView).coach.health.notes
+  }
+  const publication = (u: TestUser, session: { externalId: string }, row: object) =>
+    ctx.prisma.wristPublication.create({
+      data: {
+        userId: u.id,
+        channel: 'intervals',
+        externalId: session.externalId,
+        date: tomorrow,
+        kind: 'easy',
+        title: 'Easy run, 1 h',
+        desiredHash: 'h',
+        ...(row as { state: string }),
+      },
+    })
+
+  test.each<[string, string, Record<string, unknown>, string, boolean]>([
+    ['pending', 'a send waiting for its first try', { state: 'pending' }, 'waiting', true],
+    [
+      'retry',
+      'a failed send that is tried again by itself',
+      { state: 'failed', failCode: 'network', failMessage: 'x', nextAttemptAt: new Date(NOW) },
+      'waiting',
+      true,
+    ],
+    [
+      'rejected',
+      'a failed send that waits for "Send again"',
+      { state: 'failed', failCode: 'rejected', failMessage: 'x', nextAttemptAt: null },
+      'not-delivered',
+      true,
+    ],
+    [
+      'refused',
+      'a send that Garmin Connect refused',
+      { state: 'sent', sentHash: 'h', sentAt: new Date(NOW), deviceMessage: 'Refused.' },
+      'not-delivered',
+      true,
+    ],
+    [
+      'moved',
+      'a send for the day the session has left',
+      { state: 'sent', sentHash: 'h', sentAt: new Date(NOW), date: addDays(today, 3) },
+      'waiting',
+      true,
+    ],
+    [
+      'sent',
+      'a send that went through',
+      { state: 'sent', sentHash: 'h', sentAt: new Date(NOW) },
+      'sent',
+      false,
+    ],
+    [
+      'owner-removed',
+      'an event the runner deleted',
+      { state: 'owner-removed', sentHash: 'h' },
+      'removed',
+      false,
+    ],
+    ['withdrawn', 'a withdrawn send', { state: 'withdrawn' }, 'withdrawn', false],
+  ])('%s, %s: the note and the strip agree', async (key, _name, row, expected, noted) => {
+    const { u, planId } = await runner(`agree-${key}@example.com`)
+    const [session] = await place(ctx, planId, [{ date: tomorrow, kind: 'easy' }])
+    await publication(u, session!, row)
+    const [item] = (await status(u, `?from=${tomorrow}&to=${tomorrow}`)).items
+    expect(item?.status).toBe(expected)
+    expect(await notes(u)).toHaveLength(noted ? 1 : 0)
+  })
+
+  test('says nothing for a session that is no longer to run or gone from the plan', async () => {
+    const { u, planId } = await runner('agree-gone@example.com')
+    const [session] = await place(ctx, planId, [{ date: tomorrow, kind: 'easy' }])
+    await publication(u, session!, {
+      state: 'failed',
+      failCode: 'rejected',
+      failMessage: 'x',
+      nextAttemptAt: null,
+    })
+    expect(await notes(u)).toHaveLength(1)
+    await ctx.prisma.planSession.update({ where: { id: session!.id }, data: { status: 'skipped' } })
+    expect(await notes(u)).toEqual([])
+    await ctx.prisma.planSession.delete({ where: { id: session!.id } })
+    expect(await notes(u)).toEqual([])
+  })
+})
+
+describe('the watch slot of Today', () => {
+  const getToday = (u: TestUser, query = '') => client(ctx, u).get(`/api/today${query}`)
+  const slotOf = async (u: TestUser, query = '') => {
+    const res = await getToday(u, query)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    return (res.body as TodayView).coach.slots.watch
+  }
+
+  test('is empty while sending is off, and on a day with no run', async () => {
+    const { u, planId } = await runner('slot-off@example.com', { enabled: false })
+    await place(ctx, planId, [{ date: today, kind: 'easy' }])
+    expect(await slotOf(u)).toBeNull()
+
+    await enablePublishing(ctx, u.id)
+    expect(await slotOf(u)).not.toBeNull()
+    // tomorrow has no session at all
+    expect(await slotOf(u, `?date=${tomorrow}`)).toBeNull()
+    // and a day with no run (strength) has no line
+    await place(ctx, planId, [{ date: tomorrow, kind: 'strength' }])
+    expect(await slotOf(u, `?date=${tomorrow}`)).toBeNull()
+  })
+
+  test('lists the runs of the viewed day as the status does, and no other day', async () => {
+    const { u, planId } = await runner('slot-items@example.com', { garminLinked: true })
+    const [first, second] = await place(ctx, planId, [
+      { date: today, kind: 'easy' },
+      { date: tomorrow, kind: 'easy' },
+    ])
+    // before any run: announced as not sent yet
+    expect((await slotOf(u))?.items.map((i) => [i.sessionId, i.status])).toEqual([
+      [first!.id, 'not-sent'],
+    ])
+
+    await sentOnce(u)
+    const slot = await slotOf(u)
+    expect(slot?.items.map((i) => [i.sessionId, i.status])).toEqual([[first!.id, 'sent']])
+    const listed = await status(u, `?from=${today}&to=${today}`)
+    expect(slot?.items).toEqual(listed.items)
+
+    const preview = await slotOf(u, `?date=${tomorrow}`)
+    expect(preview?.items.map((i) => i.sessionId)).toEqual([second!.id])
+  })
+
+  test('says on your watch fifteen minutes after the send, and the page tag follows the clock', async () => {
+    const { u, planId } = await runner('slot-clock@example.com', { garminLinked: true })
+    const [run] = await place(ctx, planId, [{ date: today, kind: 'easy' }])
+    await sentOnce(u)
+
+    const first = await getToday(u)
+    expect((first.body as TodayView).coach.slots.watch?.items[0]).toMatchObject({
+      sessionId: run!.id,
+      status: 'sent',
+    })
+    const tag = String(first.headers.etag)
+    expect((await getToday(u).set('If-None-Match', tag)).status).toBe(304)
+
+    // no row is written: only the time has passed
+    vi.setSystemTime(at(16))
+    const later = await getToday(u).set('If-None-Match', tag)
+    expect(later.status).toBe(200)
+    expect((later.body as TodayView).coach.slots.watch?.items[0]?.status).toBe('on-watch')
+    expect((await getToday(u).set('If-None-Match', String(later.headers.etag))).status).toBe(304)
+  })
+
+  test('changes the page tag when sending is switched on or the upload is ticked, with no row written', async () => {
+    const { u, planId } = await runner('slot-switch@example.com', { enabled: false })
+    await place(ctx, planId, [{ date: today, kind: 'easy' }])
+    const off = await getToday(u)
+    const offTag = String(off.headers.etag)
+    expect((await getToday(u).set('If-None-Match', offTag)).status).toBe(304)
+
+    await enablePublishing(ctx, u.id, false)
+    const on = await getToday(u).set('If-None-Match', offTag)
+    expect(on.status).toBe(200)
+    expect((on.body as TodayView).coach.slots.watch?.items[0]?.status).toBe('not-sent')
+    const onTag = String(on.headers.etag)
+    expect((await getToday(u).set('If-None-Match', onTag)).status).toBe(304)
+
+    await enablePublishing(ctx, u.id, true)
+    expect((await getToday(u).set('If-None-Match', onTag)).status).toBe(200)
+    expect(await ctx.prisma.wristPublication.count({ where: { userId: u.id } })).toBe(0)
+  })
+
+  test('words a stuck run the same on Today as on Plan, and names no reason for an easier day', async () => {
+    const { u, planId } = await runner('slot-stuck@example.com')
+    await place(ctx, planId, [{ date: today, kind: 'easy' }])
+    fake.hooks.create = () => json({ error: 'Unreadable steps' }, 422)
+    await publishForUser(ctx, u.id, { fetch: fake.fetch, trigger: 'manual' })
+    const item = (await slotOf(u))?.items[0]
+    expect(item).toMatchObject({ failCode: 'rejected' })
+    expect(JSON.stringify(item)).not.toMatch(/readiness|injury|illness|pain/i)
+  })
+})
+
 // ---------------------------------------------------------------------------------------------
 // Secrets
 // ---------------------------------------------------------------------------------------------

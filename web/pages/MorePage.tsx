@@ -1,15 +1,19 @@
 import { Link } from 'react-router-dom'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { Segmented } from '../components/Segmented.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import styles from './MorePage.module.css'
 
 const links = [
+  { to: '/brief', label: 'Weekly brief', note: 'What changed and the next key session' },
   { to: '/goals', label: 'Goals', note: 'Races you are training for' },
   { to: '/stats', label: 'Stats', note: 'Fastest efforts, monthly and yearly totals' },
   { to: '/integrations', label: 'Integrations', note: 'Sync activities from other services' },
   { to: '/profile', label: 'Profile', note: 'Heart rate, availability and injury history' },
-  { to: '/research', label: 'Research', note: 'The papers and rules behind the plan' },
+  { to: '/research', label: 'Research', note: render(TEMPLATES['research.context'], {}, 'km') },
+  { to: '/fuel', label: 'Fuel lab', note: 'Fuel targets, products and gut training' },
   { to: '/settings', label: 'Settings', note: 'Units, display name, export' },
 ]
 

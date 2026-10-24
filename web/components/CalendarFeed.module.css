@@ -1,0 +1,62 @@
+/* The section is set like a provider card of the Integrations page: its page passes that card's
+   class for the frame, and the heading and notes below match the card's. */
+.heading {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 600;
+}
+
+.state {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.note {
+  margin: 0;
+  max-width: var(--prose-max);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.shown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The address is long and unbroken: it scrolls inside its own box and never widens the page. */
+.address {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+}
+
+.link {
+  color: var(--accent);
+  font-weight: 600;
+}

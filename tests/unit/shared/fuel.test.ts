@@ -6,11 +6,13 @@ import {
   fuelTotals,
   minutesOf,
   multiCarbShare,
+  normalisedFuelSettings,
   ratePerHour,
   SECONDS_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../../shared/domain/fuel.ts'
 import type { FuelItem } from '../../../shared/engine/types.ts'
+import type { FuelSettings } from '../../../shared/types.ts'
 
 function item(overrides: Partial<FuelItem> = {}): FuelItem {
   return {
@@ -111,6 +113,69 @@ describe('the rate per hour', () => {
   })
 })
 
+describe('normalisedFuelSettings', () => {
+  const ALL_ON: FuelSettings = {
+    optIn90: true,
+    optInAdvanced: true,
+    giDisease: false,
+    gutBlock: true,
+  }
+
+  it('leaves a consistent combination as it is', () => {
+    expect(normalisedFuelSettings(ALL_ON)).toEqual(ALL_ON)
+    expect(normalisedFuelSettings({ ...ALL_ON, optInAdvanced: false })).toEqual({
+      ...ALL_ON,
+      optInAdvanced: false,
+    })
+    const none: FuelSettings = {
+      optIn90: false,
+      optInAdvanced: false,
+      giDisease: false,
+      gutBlock: false,
+    }
+    expect(normalisedFuelSettings(none)).toEqual(none)
+  })
+
+  it('turns every other switch off under a gut condition', () => {
+    expect(normalisedFuelSettings({ ...ALL_ON, giDisease: true })).toEqual({
+      optIn90: false,
+      optInAdvanced: false,
+      giDisease: true,
+      gutBlock: false,
+    })
+  })
+
+  it('clears the highest tier when the first higher tier is off, and keeps the gut block', () => {
+    expect(normalisedFuelSettings({ ...ALL_ON, optIn90: false })).toEqual({
+      optIn90: false,
+      optInAdvanced: false,
+      giDisease: false,
+      gutBlock: true,
+    })
+  })
+
+  it('is idempotent over all sixteen combinations, and never keeps the highest tier without the first', () => {
+    for (let bits = 0; bits < 16; bits++) {
+      const requested: FuelSettings = {
+        optIn90: (bits & 1) !== 0,
+        optInAdvanced: (bits & 2) !== 0,
+        giDisease: (bits & 4) !== 0,
+        gutBlock: (bits & 8) !== 0,
+      }
+      const once = normalisedFuelSettings(requested)
+      expect(normalisedFuelSettings(once), JSON.stringify(requested)).toEqual(once)
+      if (once.optInAdvanced) expect(once.optIn90).toBe(true)
+      if (once.giDisease) expect(once).toMatchObject({ optIn90: false, gutBlock: false })
+    }
+  })
+
+  it('does not change the object it is given', () => {
+    const requested = Object.freeze({ ...ALL_ON, giDisease: true })
+    expect(() => normalisedFuelSettings(requested)).not.toThrow()
+    expect(requested).toEqual({ ...ALL_ON, giDisease: true })
+  })
+})
+
 describe('shared/domain/fuel.ts', () => {
   const source = readFileSync(join(import.meta.dirname, '../../../shared/domain/fuel.ts'), 'utf8')
 
@@ -119,8 +184,11 @@ describe('shared/domain/fuel.ts', () => {
     expect(source).not.toMatch(/params\/|\bP\./)
   })
 
-  it('imports only a type', () => {
+  it('imports only types', () => {
     const imports = [...source.matchAll(/^import (.+) from '(.+)'$/gm)].map((m) => [m[1], m[2]])
-    expect(imports).toEqual([['type { FuelItem }', '../engine/types.ts']])
+    expect(imports).toEqual([
+      ['type { FuelItem }', '../engine/types.ts'],
+      ['type { FuelSettings }', '../types.ts'],
+    ])
   })
 })

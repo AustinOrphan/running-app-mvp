@@ -1,28 +1,34 @@
 import { useState } from 'react'
 import { wristLineSentence } from '../../shared/copy/publish.ts'
 import { workoutLinkLabel } from '../../shared/copy/workouts.ts'
-import { sessionFileHref, useWristStatus } from '../api/wrist.ts'
+import type { WristItem } from '../../shared/types.ts'
+import { sessionFileHref } from '../api/wrist.ts'
 import { itemSentence } from './WristStatus.tsx'
 import styles from './WristLine.module.css'
 
+/** What Today's line says about one session. */
+export interface WristLineModel {
+  sessionId: string
+  /** The sentence: "On your watch.", "Not on the watch yet: waiting to send." */
+  sentence: string
+  /** The longer sentence behind it, as the `title`. */
+  detail: string
+  /** The run is not on the watch yet, so the workout file is offered. */
+  offerFile: boolean
+  /** The state differs from the one the page loaded with: announce it. */
+  changed: boolean
+}
+
 /**
- * Today's one line about the run on the watch, for the `watch` slot (24 px at 360 px): "On your
- * watch.", "Sent to intervals.icu.", "The watch has the easy version of this run." or "Not on the
- * watch yet: <short reason>." with the workout file one tap away. It reads the same status as the
- * Plan page through the same hook and keeps no state of its own about the watch, so it is mounted
- * with a session id and nothing else.
+ * The state of Today's watch line for the hero's item, or null while the line has nothing to say:
+ * no item (sending is off, the run is outside the next 14 days) or a run the app took off the
+ * watch. The item is the page's own data (the `watch` slot of `GET /api/today`), so the line asks
+ * for nothing and keeps no state of its own about the watch.
  *
- * It says nothing while sending is off, for a run the app took off the watch, offline and while the
- * status is unknown: a stale "On your watch" would be false. `role="status"` is set only when the
- * state differs from the one the page loaded with, so a screen reader hears a change and not the
- * page.
+ * `changed` is true only when the state differs from the one the page first showed, so a screen
+ * reader hears a change and not the page.
  */
-export function WristLine({ sessionId }: { sessionId: string }) {
-  const { status } = useWristStatus()
-  const item =
-    status?.settings.enabled === true
-      ? status.items.find((i) => i.sessionId === sessionId)
-      : undefined
+export function useWristLine(item: WristItem | undefined): WristLineModel | null {
   const sentence = item === undefined ? null : wristLineSentence(item)
   const state =
     item === undefined || sentence === null
@@ -33,15 +39,31 @@ export function WristLine({ sessionId }: { sessionId: string }) {
   // to keep a value from an earlier render: it runs once, when the first state arrives.
   const [loadedWith, setLoadedWith] = useState<string | null>(null)
   if (loadedWith === null && state !== null) setLoadedWith(state)
-  const changed = loadedWith !== null && state !== null && state !== loadedWith
 
-  if (item === undefined || sentence === null) return null
-  const notYet = item.status !== 'on-watch' && item.status !== 'sent'
+  if (item === undefined || item.sessionId === null || sentence === null) return null
+  return {
+    sessionId: item.sessionId,
+    sentence,
+    detail: itemSentence(item),
+    offerFile: item.status !== 'on-watch' && item.status !== 'sent',
+    changed: loadedWith !== null && state !== null && state !== loadedWith,
+  }
+}
+
+/**
+ * Today's one line about the run on the watch, for the `watch` slot (24 px at 360 px): "On your
+ * watch.", "Sent to intervals.icu.", "The watch has the easy version of this run." or "Not on the
+ * watch yet: <short reason>." with the workout file one tap away. One row of 24 px, the file link
+ * beside the sentence when the run is not there. The slot's mount (`today/slotMounts.tsx`) calls
+ * `useWristLine` itself and renders this inside the slot's frame, so the frame appears only while
+ * the line has something to say.
+ */
+export function WristLineText({ line }: { line: WristLineModel }) {
   return (
-    <p className={styles.line} role={changed ? 'status' : undefined} title={itemSentence(item)}>
-      <span className={styles.text}>{sentence}</span>
-      {notYet ? (
-        <a href={sessionFileHref(sessionId)} download className={styles.link}>
+    <p className={styles.line} role={line.changed ? 'status' : undefined} title={line.detail}>
+      <span className={styles.text}>{line.sentence}</span>
+      {line.offerFile ? (
+        <a href={sessionFileHref(line.sessionId)} download className={styles.link}>
           {workoutLinkLabel('workout.link.file')}
         </a>
       ) : null}

@@ -15,7 +15,7 @@ import {
 import { render } from '../../shared/copy/template.ts'
 import type { TrackRecordRace, TrackRecordView, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration } from '../../shared/units.ts'
-import { PredictionTrackChart } from './charts/PredictionTrackChart.tsx'
+import { PredictionTrackChart } from './charts/lazyCharts.tsx'
 import { formatLongDate } from './format.ts'
 import styles from './PredictionTrackRecord.module.css'
 

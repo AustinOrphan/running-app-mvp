@@ -210,7 +210,7 @@ describe('shared/workouts', () => {
   it('imports nothing from Node', () => {
     const dir = join(import.meta.dirname, '../../../shared/workouts')
     const files = readdirSync(dir).filter((name) => name.endsWith('.ts'))
-    expect(files.sort()).toEqual(['labels.ts', 'plan.ts', 'types.ts'])
+    expect(files.sort()).toEqual(['horizon.ts', 'labels.ts', 'plan.ts', 'types.ts'])
     for (const name of files) {
       const text = readFileSync(join(dir, name), 'utf8')
       expect(text, name).not.toMatch(/from 'node:|require\(|from 'fs'|from 'path'|from 'crypto'/)

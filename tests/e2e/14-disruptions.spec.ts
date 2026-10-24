@@ -13,7 +13,7 @@ import { relativeDates, resetData, signedInApi, toast, type Api } from './helper
 //
 // The e2e server runs with NODE_ENV=development, which allows 20000 `/api` requests per 15 minutes
 // per IP (1000 in production; static files are outside the count), and the whole suite spends about
-// 940 of them. This spec shares one browser context (the built assets are cached for a year, so
+// 1,170 of them. This spec shares one browser context (the built assets are cached for a year, so
 // only the first page load fetches them) and one plan to keep that count low, each test puts back
 // what it changed, and it stays small: the shorten, the banner's three buttons and the re-plan
 // sheet are covered by the web tests against mocked routes. No service worker may stand between

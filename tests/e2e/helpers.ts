@@ -56,7 +56,7 @@ export function apiFor(page: Page, origin: string) {
 export type Api = ReturnType<typeof apiFor>
 
 /** `SESSION_SECRET` of the e2e server; keep in step with `webServer.env` in playwright.config.ts. */
-const E2E_SESSION_SECRET = 'e2e-test-only-secret-0123456789abcdef!!'
+export const E2E_SESSION_SECRET = 'e2e-test-only-secret-0123456789abcdef!!'
 
 /**
  * Makes the page signed in as the runner without driving the UI: creates the account on a fresh
@@ -111,4 +111,50 @@ export async function resetData() {
  */
 export function toast(page: Page, message: string | RegExp) {
   return page.getByRole('status').getByText(message)
+}
+
+/** One weekly prediction as the log holds it: made `daysBefore` days before the race. */
+export interface SeededPrediction {
+  daysBefore: number
+  predictedSec: number
+  lowSec: number
+  highSec: number
+}
+
+/**
+ * Writes `PredictionLog` rows for a goal whose race day has passed, straight through Prisma. The
+ * API cannot produce them: only the plan writers and the ensure job write the log, on the day a
+ * prediction is made, and `recordPrediction` writes nothing on or after race day. A spec that needs
+ * the weekly history of a finished race can neither wait for it nor ask for it, so the rows are
+ * written as the app would have written them then: `loggedOn` and `weekStart` from the day, and
+ * `inputs` left at its default, so the course is unrecorded and counts as comparable (rule L7).
+ * The account must exist, so call this after `signedInApi()`.
+ */
+export async function seedPredictionLogs(
+  goalId: string,
+  raceDay: string,
+  predictions: readonly SeededPrediction[],
+) {
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
+    for (const prediction of predictions) {
+      const loggedOn = addDays(raceDay, -prediction.daysBefore)
+      await prisma.predictionLog.create({
+        data: {
+          userId: user.id,
+          goalId,
+          method: 'Critical speed',
+          predictedSec: prediction.predictedSec,
+          lowSec: prediction.lowSec,
+          highSec: prediction.highSec,
+          weekStart: mondayOf(loggedOn),
+          loggedOn,
+        },
+      })
+    }
+  } finally {
+    await prisma.$disconnect()
+  }
 }

@@ -72,6 +72,81 @@ Last update: 2026-10-23.
   0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
   to `2026-10-23.1`.
 
+- **Phase 3a wave 6 (branch `feat/coach-phase3`, PR from `wave/3a-6`, 2026-10-23):** the pages
+  around the coach. E2-7: Today in two columns from 900 px (`useMediaQuery` sets `data-layout`
+  on the page; both column groups stay mounted, so crossing 900 px never remounts the hero; the
+  hero group comes before the week group in DOM and tab order with no CSS `order`); the page
+  fills no slot itself, every slot renders the mount registered in
+  `web/components/today/slotMounts.tsx`, and `slots.ts` documents each slot's budget, the fold
+  limits and how a slot is filled; `RecentWeeks` lazy-loads its chart; `useServerToday` asks for
+  the new day at midnight in the server zone (the 25-hour day on 1 Nov, a server still on the old
+  day retried each minute, no timer for a preview day); the fold measured in Playwright with every
+  slot filled to its budget (Done's bottom 729 px at 390×844 unanswered against a 788 limit, 681
+  at 390×707 answered against 707, inside the viewport at 360×740, the strip in the right column at
+  1280×800, screenshots attached), which took `PageHeader.inlineActions` ("Log activity" beside the
+  title on a phone) and tighter hero and readiness spacing. E1-8: the Today watch slot is filled
+  from the payload (`TodaySlots.watch` from `todayWatchSlot`; `readWristItems` in
+  `server/services/wristItems.ts` is the one reader for Plan and Today; `WristLine` takes the item;
+  `WatchMount` renders a frame only with content and hides offline), because spec 7.6 allows no
+  request above the fold but Today and the settings; the Today stamp covers the channel's switches
+  and the sends inside the 15 minutes before "On your watch" (pins warm 13, cold 29); the
+  intervals.icu card (both switches off by default, last send, "Send now", an inline remove-sent
+  offer when a session is sent or on the watch), Disconnect with its question and the
+  `remove-failed` fallback, the Calendar link card (token shown once in a sheet, held only in
+  component state, `webcal://`, Copy, replace, turn off; the 28-day and 14-day sentence from
+  `shared/workouts/horizon.ts`); e2e `15-wrist.spec.ts`; CLAUDE.md Providers names the publish
+  channel, README describes the three delivery routes, the engine design points to Delivery.
+  E4-6: `/brief` and `/brief/:weekStart` (`web/pages/BriefPage.tsx`: every section of spec 8.6 in
+  order, one column at 360 px and two from 900 px, the exact copy for loading, error, no plan, not
+  yet, none, provisional and the five replan notes, `role="alert"` only on a real error, "Earlier
+  brief" and "Later brief"); `BriefLine` in the `brief` slot within 52 px with one "New" marker
+  from `seenAt`, mounted as `BriefMount`, which fetches `GET /api/briefs?limit=1` once the slot
+  nears the viewport; "Weekly brief" first in More; `TargetList` extracted from `SessionTargets`
+  so the key session reads like the hero; `tests/web/brief-invalidation.test.tsx` holds every
+  plan-changing hook to the brief; e2e `16-explain-brief.spec.ts` (a change with its cause and
+  undo, undo refused after a run, undo refused while an illness is reported). E6-7: `/fuel`
+  (`web/pages/FuelLabPage.tsx`, `web/components/fuel/*`: every section of spec 10.6 in phone
+  order and two columns from 900 px; the ladder with state words, an evidence grade per rung and
+  `aria-current="step"`; "Fuel history, newest first" as a scrollable labelled region; products
+  with exact bodies and the 409 beside the field; the four switches in one PUT, a gut condition
+  forcing the others off, the 400 on the advanced opt-in unticking and focusing the box; the gut
+  block in its four states; the EAH card standard and stronger with `role="note"` and hours from
+  `P.n7.eahStrongerAlertHours`; the opt-in labels read "above 60 g/h, up to 90 g/h" and "above
+  90 g/h, up to 120 g/h" because `P.h7.carbAdvancedGPerH` is [90, 120]); reached from More; a
+  source scan asserts the lab components import no engine fuel function. E10s-5: the track-record
+  e2e (`13-track-record.spec.ts`: record with a linked run, persist, edit with a re-score, remove;
+  the summary turning on with the third race; 360 px) with `seedPredictionLogs` in the e2e helpers
+  writing the log through Prisma, because nothing is logged on or after race day; the engine design
+  points to L7. Merge: `BriefLine` replaces `ChangeLine`, so `ChangeLine` and `ChangeSheet` are
+  deleted with their styles and tests (the Sheet focus fallback is tested through "Remove window"
+  on the banner); `PLAN_READER_KEYS`, `invalidatePlanReaders` and `NEW_PLAN_KEYS` live in
+  `web/api/client.ts`, and `invalidateNewPlan` and `useSaveReview` go through them; `fuel.ts`
+  holds the outbox save and the product and settings hooks together. Gates on the merged branch:
+  `npm run check` (220 files, 9900 tests), `npm run build` (entry chunk 352 kB, charts no longer preloaded), `npm run test:e2e` (53), owner validation byte-identical to wave 5; no migration, so no Docker build. Adversarial review: see below.
+- Wave 6 left for later tasks: the fold holds for up to one readiness signal (three signals push
+  Done past 788 px at 390×844 by arithmetic); the spec's 788 and 707 limits are not both
+  "viewport minus the tab bar", and at 360×740 unanswered Done sits inside the viewport but
+  behind the tab bar; the brief line reads "no key session this week" once the week's first key
+  session has passed, although a later one may remain (a "none left" template or a live next key
+  from the plan would fix it); the brief line draws nothing offline, as the watch line does, since
+  the brief page is not cached; `RevisionDiff` shows a Why only for revision-level rules, so a
+  state-driven update has no Why where spec 8.6 gives each changed session one; spec 8.6's
+  undo-reason examples differ from the shipped server copy; with no running logged the brief
+  reads "next week is up to 0 min" and "Restart after a break" (E4-8's reading pass);
+  `BriefLine` can clip "Open the brief" inside its two-line clamp; the fuel settings form's
+  "opens after" hint reads the ladder replayed under the saved settings and can understate what
+  the server would allow (the server stays the authority and the sentence appears after any
+  refusal); focus drops to the page after a successful fuel settings save, because the lab page
+  remounts the form; the manual watch checks of E1 (three FIT files on the owner's watch, one live
+  intervals.icu run for the sport-settings field names, percent-pace parsing, the 40 bpm floor,
+  `external_id` and a date change by PUT, which Garmin model and manual route the help text should
+  name, a real calendar app subscribed to the `webcal://` link) all stay open, and "On your watch"
+  stays an inference because the app cannot see the Garmin tick; the E2-8 offline shell must
+  precache the lazy sheet chunks and strip or mark `slots.watch` in a cached Today; the "N
+  predictions logged so far" line shows only on the active goal; `PredictionLog` is non-state and
+  E10 must reclassify it as state in the PR where it reads the record into the engine; the
+  prediction job still records idle runs; dark mode, real devices and screen readers were not
+  checked by hand on the new pages.
 - **Phase 3a wave 5 (branch `feat/coach-phase3`, PR from `wave/3a-5`, 2026-10-23):** the one-tap
   surfaces, the plan sheets and the brief. E2-6: the check-in is one row under the readiness verdict
   ("How do you feel today?", five answers in a radiogroup; one tap saves the fatigue score, folds the
@@ -129,8 +204,8 @@ Last update: 2026-10-23.
   `13-record-result` and `14-disruptions`; `NotTodaySheet` mounts `AdjustSection` and closes after an
   applied change (`onApplied`); one `useOnline`; Today pins unchanged (26 cold, 10 warm, 5
   data-version reads). Gates on the merged branch: `npm run check` (212 files, 9260 tests), `npm run build` (entry chunk 324 kB), `npm run test:e2e` (40), `docker build .` (fourteen migrations apply), owner validation byte-identical to wave 4. Adversarial review: see below.
-- Wave 5 left for later tasks: the Today slots for the disruption banner and the watch line are
-  wired by E5-8 and E1-8; the Not today sheet closes after an applied change, so its undo is on
+- Wave 5 left for later tasks: the Today slot for the disruption banner is wired by E5-8; the
+  Not today sheet closes after an applied change, so its undo is on
   Today's change line and in the toast rather than in the sheet; a re-plan keeps owner edits for
   `keepOwnerEditsDays` (14 days), so a shortened run further out is rebuilt by "Update plan from
   latest data" and the preview shows it; the legacy `PUT /api/plan/sessions/:id` stays for API
@@ -318,6 +393,67 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   and new when a re-plan changes its day or kind, so E1 publishes under
   `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
   and derives no id from the date, the kind or the order.
+
+## Wave 6 adversarial review (2026-10-23)
+
+Six lenses over the wave-6 diff against the wave-5 tip (90 files); 38 findings, each tried by two
+independent refuters: 15 confirmed, 23 disputed. The confirmed mediums were a brief line that
+called a key session "next" after its day had passed, two focus losses on the Integrations page,
+and a lazy chart that saved nothing.
+
+Fixed on the integration branch before `wave/3a-6` was cut (`task/3a-W6-fix-server`,
+`task/3a-W6-fix-web-a`, `task/3a-W6-fix-web-b`, `task/3a-W6-fix-tests`):
+
+1. The brief line fetched `GET /api/briefs` at first paint and compared the week with the device
+   clock, so the Monday rollover on an open page never reached it; the `brief` slot is now part of
+   the Today payload (the stored row of the server's current week, a non-state stamp on the ETag),
+   the mount makes no request, and the Today refetch at the server's midnight carries the new week.
+   A key session whose day has passed is no longer called "next".
+2. Nothing read `coach.change` after `ChangeLine` was deleted; the field, its memo and its
+   serializer are gone and the Today pins fell with them.
+3. The zone decisions and the session link changed the plan outside `invalidatePlanReaders`; both
+   go through it. A failed background refetch replaced the whole Today page with the load error;
+   the last payload stays on screen. `msUntilDayEnds` had a dead branch, a wrong comment and a
+   one-minute retry loop for a payload date ahead of the device's day.
+4. The calendar-link dialog returned focus to the body because the Create button was disabled
+   while pending; wrist settings controls lost focus while saving and when the remove-sent offer
+   or the disconnect choice opened; the one-time token's sheet was hidden whenever the status
+   read failed or the browser went offline. The highest-tier hint of the fuel settings stayed
+   beside an unlocked box and read "opens after" for an open tier; a refused advanced opt-in
+   dropped the other edits silently (the rest is saved and the sentence says so).
+5. The More and Research pages carried "behind" and no linted test rendered them (reworded;
+   the navigation and the Research header are linted). The lazy chart in `RecentWeeks` saved
+   nothing while `StatsPage`, `StreamChart` and `PredictionTrackChart` imported recharts
+   statically; the chart-bearing pages are lazy and the `charts` chunk is no longer preloaded.
+6. Tests: the brief e2e spawned a second server for a request budget that no longer exists and
+   its teardown could skip killing it (it runs on the suite's server); the TodayWrist "same state
+   again" check could run before the refetch landed (it now waits for the refetched payload to
+   render); the request-count comments are corrected to the measured figure, about 1,170 `/api`
+   requests for the 53-spec suite against the 20000 budget.
+
+Accepted from the disputed list and fixed with them: the `brief` slot from the payload (above);
+the dead `coach.change`; `useLinkPlanSession` in the invalidation test; `FuelSettingsForm`'s copy of
+the server's settings rule moved to `shared/domain/fuel.ts`; `tomorrowNotOnWatch` reads through
+`readWristItems` and the channel name is one constant; the day timer's dead branch; the unused
+`WristLine` component.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- Today's brief line counts an undone update as "no changes" while the brief page keeps the stored
+  count [the spec gives the slim item `undone` for the line; the page is the record].
+- `BriefLine` says "no changes" for a provisional or failed update [the spec defines the line's
+  inputs; `changes` is null in those states].
+- The `NotTodaySheet` `children` prop had no caller [E5-8 fills it in wave 7].
+- The `webcal://` link drops the page's scheme [no client shown to downgrade; the https address is
+  beside it with Copy].
+- The fold assertions at 360×740 and 390×707 do not subtract the tab bar [the numbers are the
+  spec's; recorded under wave 6 as a spec-wording question].
+- The 12-today fold tests share one page in sequence [the file's recorded design].
+- The Today stamp costs two reads per request for the watch slot [a recorded trade-off; the pins
+  hold it].
+- A mid-week review re-plan is not surfaced on Today until the brief shows it [the brief line
+  replaced the change line by design; the brief page and the toast carry it].
+- Three readiness signals push Done past the fold limit [recorded under wave 6].
 
 ## Wave 5 adversarial review (2026-10-23)
 

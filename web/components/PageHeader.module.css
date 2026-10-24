@@ -5,6 +5,16 @@
   padding: var(--space-5) 0 var(--space-4);
 }
 
+/* The actions stay beside the title on a phone, and the header is a little shorter: the page
+   saves the row the actions would take. */
+.inline {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+
 .text {
   min-width: 0;
 }
