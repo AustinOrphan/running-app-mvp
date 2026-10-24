@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from './Button.tsx'
+import { focusMain, isFocusLost } from './focusMain.ts'
 import styles from './Sheet.module.css'
 
 export interface SheetProps {
@@ -13,11 +14,6 @@ export interface SheetProps {
 
 const focusable =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-
-/** True when nothing holds focus any more, as after the focused control unmounts. */
-function isFocusLost(): boolean {
-  return document.activeElement === null || document.activeElement === document.body
-}
 
 /**
  * A modal dialog: a bottom sheet below 900px, a right-hand panel above. Escape and a click on the
@@ -64,7 +60,7 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
         // The opener went with the sheet (removing the rest window that the Today banner opened
         // takes the banner away), and so did the focused control. The main landmark is the one
         // stable place left, and it keeps the page where it is.
-        document.getElementById('main')?.focus({ preventScroll: true })
+        focusMain()
       }
     }
   }, [open])
