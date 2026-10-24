@@ -44,11 +44,12 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
   `server/providers/registry.ts` with its `ProviderInfo` (key, label, channels, wellness,
   `experimental`). A provider implements only the channels it declares: `pull`, `push`, `upload` or
   `publish`; `folder` has no module because the scheduler scans it. Adding a source means one module
-  plus one registry entry.
-- `publish` is the one outbound channel (ADR 0008): a `PublishProvider` beside the provider's other
-  channels in its module (only intervals.icu, `server/providers/intervalsPublish.ts`) keeps the next
-  14 days of run sessions in the runner's calendar. It is off until the runner turns it on, never
-  writes to the database and never goes through the experimental Garmin provider.
+  plus one registry entry (a source with a `publish` channel has a second module, below).
+- `publish` is the one outbound channel (ADR 0008): a `PublishProvider` (the interface is in
+  `server/providers/types.ts`) in a second module beside the provider's pull module, set as
+  `publish` on the same registry entry (only intervals.icu, `server/providers/intervalsPublish.ts`),
+  keeps the next 14 days of run sessions in the runner's calendar. It is off until the runner turns
+  it on, never writes to the database and never goes through the experimental Garmin provider.
   `server/services/publish.ts` owns the `WristPublication` rows and the `DeliveryChannel` settings.
   `buildDeliverables` (`server/services/workouts.ts`) is the one builder of what goes out: the
   intervals.icu events, the FIT files and the calendar feed render the same `WorkoutPlan`. The
@@ -62,14 +63,17 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
   `server/services/sync.ts` drives pull providers.
 - Network access goes only through `ctx.fetch`, never a global `fetch` or an HTTP client of its own,
   so tests inject synthetic responses and no test touches the network.
-- Request handlers never call Open-Meteo. It stays outside the registry: the weather job
-  (`refreshWeatherCaches`, every 10 minutes) fills `ForecastCache` and `ClimateCache`, and engine
-  input, predictions, zones and Today read them, so a miss gives no forecast and no race heat, never
-  a wait. The two waits that remain are the forecast route on a never-filled cell (5 s, then 502)
-  and `ensureClimate` in plan generation (8 s). `ForecastCache` is not state: a change key that
-  depends on the forecast adds `forecastStamp(prisma, userId)`. Its fetch is `Deps.fetch`, read at
-  each call (the global `fetch` when unset); tests inject one through the API helpers' `ctx.fetch`
-  and never stub the global.
+- Open-Meteo stays outside the registry: the weather job (`refreshWeatherCaches`, every 10 minutes)
+  fills `ForecastCache` and `ClimateCache`. No request handler waits on it except the forecast route
+  on a never-filled cell (5 s, then 502) and `ensureClimate` in plan generation on a cell with
+  nothing usable (8 s). A profile write that changes the home place, a goal write that creates a
+  goal or changes a `CLIMATE_FIELDS` value (`warmWeatherCaches`), a stale forecast read and
+  `ensureClimate` on a stale cell start a background refresh. Every other read (engine input,
+  predictions, zones, Today) uses the cache only, so a miss gives no forecast and no race heat,
+  never a wait. `ForecastCache` is not state: a change key that depends on the forecast adds
+  `forecastStamp(prisma, userId)`. The fetch is `Deps.fetch`, read at each call (the global `fetch`
+  when unset); tests inject one through the API helpers' `ctx.fetch` and never stub the global, and
+  settle a background refresh with `settleWeatherCache`.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.

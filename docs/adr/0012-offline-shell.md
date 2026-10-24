@@ -90,11 +90,12 @@ Reasons:
 - **Rule:** The design (7.6) calls for a hand-written worker with no workbox, and the plan's task E2-8
   (`docs/superpowers/plans/2026-10-22-coach-phase3a.md`) allows no new dependency, which also means
   the PNG icons are rendered with the Chromium that Playwright already installs.
-- **Fact:** The precache is 45 files, 3.29 MB (3,294,695 bytes), about 1.02 MB gzipped, of which the
-  research corpus is 1.69 MB (0.49 MB gzipped). Measured on the build of 2026-10-23 with the
-  waves 0 to 7 code: `npm run build` printed `sw.js written: build 54eb1a593f90, 45 files kept`, and
-  the sizes are those of the files in the worker's list (gzip at level 9). The entry chunk is
-  356.55 kB, under the 500 kB bound of `vite.config.ts`.
+- **Fact:** The precache is 45 files, about 3.3 MB, about 1.02 MB gzipped, of which the research
+  corpus is 1.69 MB (0.49 MB gzipped). Measured on 2026-10-23 with `npm run build` on the merged
+  waves 0 to 7 code: the sizes are those of the files in the worker's list (gzip at level 9), and
+  the entry chunk is about 357 kB, under the 500 kB bound of `vite.config.ts`. The figures are
+  approximate: the byte count moves with every build, and so does the build id (a hash of the
+  worker and every kept file), so neither is pinned here.
 - **Fact:** The Explain drawer shows its rules from `/api/research/params` and its papers from the
   corpus chunk, and its figures from `/api/explain`, which is not kept. Offline it shows the sentence
   that the figures could not be loaded and the rule and papers beneath it

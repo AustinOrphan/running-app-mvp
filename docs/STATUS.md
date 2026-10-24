@@ -9,7 +9,10 @@ Last update: 2026-10-23.
 
 - **On `main`:** the clean rewrite (#528, rebase-merged) and the evidence engine, data
   foundation and research corpus (#529, squash-merged as `2e17f23a`); the CodeQL escaping fix
-  (#536).
+  (#536); the second evidence pass (#537); the eight phase 3a wave pull requests, merged on
+  2026-10-23 (#542 wave 0, #544 wave 1, #546 wave 2, #549 wave 3, #551 wave 4, #552 wave 5, #553
+  wave 6, #554 wave 7); and the fix pull requests #538, #539, #540, #541, #543, #545, #547, #548
+  and #550.
 - **Merged (#537, 2026-10-22):** the owner's answers to the eight section-10
   builder calls (`docs/superpowers/specs/2026-10-22-training-engine-design.md`), backed by a
   second evidence pass on five questions (70 new sources, corpus 370; `research/README.md`
@@ -36,17 +39,18 @@ Last update: 2026-10-23.
   rule text aligned). Re-plan sweeps (0-37 days, logged and unlogged) pass for the reviewed
   fixtures.
 
-- **Phase 3a (branch `feat/coach-phase3`, integration branch; one PR per wave to `main`):**
+- **Phase 3a (integration branch `feat/coach-phase3`; one PR per wave to `main`, #542 to #554):**
   the owner's mandate of 2026-10-22 ("a professional, research-informed, self-adjusting coach and
   tracker, better than Strava and Runna") after an audit of the app and the market
   (`docs/superpowers/specs/2026-10-22-coach-phase3a-design.md`, plan
-  `docs/superpowers/plans/2026-10-22-coach-phase3a.md`, ADRs 0007-0009 proposed). Seven epics in
-  eight waves: the foundation (cached athlete state, data version, one session identity, one
-  revision model, sync log), sessions on the wrist (intervals.icu publish, FIT download, ICS
-  feed), Today rebuilt as a phone-first coach with an offline shell, explanations from the
-  runner's own numbers and a Monday brief, disruptions (dial-back, what-if, moves, undoable
-  re-plans), the fuel lab and gut training, and the prediction back-test. The owner's spreadsheet
-  plan is a placeholder; only the goal race is firm, and the engine owns the plan.
+  `docs/superpowers/plans/2026-10-22-coach-phase3a.md`; ADRs 0007-0012 Accepted 2026-10-23: 0010 in
+  #542, 0009 and 0011 in #544, 0007 and 0008 in #546, 0012 in #554). Seven epics in eight waves:
+  the foundation (cached athlete state, data version, one session identity, one revision model,
+  sync log), sessions on the wrist (intervals.icu publish, FIT download, ICS feed), Today rebuilt
+  as a phone-first coach with an offline shell, explanations from the runner's own numbers and a
+  Monday brief, disruptions (dial-back, what-if, moves, undoable re-plans), the fuel lab and gut
+  training, and the prediction back-test. The owner's spreadsheet plan is a placeholder; only the
+  goal race is firm, and the engine owns the plan.
 - **Phase 3a wave 0 (branch `feat/coach-phase3`, PR from `wave/3a-0`, 2026-10-23):** the contracts
   every later task imports. E3-1: the data version (`server/dataVersion.ts`, raised by the Prisma
   client after every state write and at the end of every transaction, model classification tested
@@ -60,17 +64,13 @@ Last update: 2026-10-23.
   Gates on the merged branch: `npm run check` (123 files, 3336 tests), `npm run build`,
   `npm run test:e2e` (18), `docker build .` (the migration applies), owner validation unchanged
   apart from the date. Adversarial review: see below.
-- Known from E4-1, to fix in wave 1: four Param notes (`h8.weightLossToleranceMaxPct`,
-  `pain.flagScore`, `h12.laterStepLongRunMaxMin`, `l1.sameDistanceTolerancePct`) and the G-6 rule
-  title ("Never make up missed volume") fail the G5 lint; a drawer test that opens them with
-  `expectCleanCopy` will fail until they are reworded through `research-update`.
-- Fix PRs against `main` from the same day: #538 (dev proxy), #539 (plan form labels, merged),
-  #540 (start level from the last two complete weeks, `PARAMS_VERSION` `2026-10-22.3` on `main`),
-  #541 (persist `qualitySessions` and `isRecovery` on `PlanWeek` so a re-plan stops reporting a
-  phantom change), #543 (a Playwright port per checkout), #545 (an overshot week is taken as it
-  is). The integration branch takes `main` after they merge; the two `2026-10-22.3` versions (wave
-  0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
-  to `2026-10-23.1`.
+- Fix pull requests against `main`, all merged: #538 (dev proxy), #539 (plan form labels), #540
+  (start level from the last two complete weeks), #541 (persist `qualitySessions` and
+  `isRecovery` on `PlanWeek` so a re-plan stops reporting a phantom change), #543 (a Playwright
+  port per checkout), #545 (an overshot week is taken as it is), #547 (the restart floor week is
+  kept when a mid-week re-plan ends its path), #548 (a fresh plan mid-week is built from the weeks
+  actually run), #550 (static assets stay out of the global rate limit). `PARAMS_VERSION` is
+  `2026-10-23.2`.
 
 - **Phase 3a wave 7 (branch `feat/coach-phase3`, PR from `wave/3a-7`, 2026-10-23):** the offline
   shell, the last explain builders, the disruption wiring and the fuel e2e. E2-8: a hand-written
@@ -377,9 +377,10 @@ Last update: 2026-10-23.
   undo payload; `GET /api/plan/revisions` pages and hides empty diffs; `revision.undoWindowDays`
   7 days; ADR 0007 accepted and the rewrite design's anti-goal amended). E3-3: Open-Meteo moves
   behind two caches (`ForecastCache` non-state, `ClimateCache` state) filled by the weather job
-  with a 15-minute back-off and a 20 s request timeout; no request path calls Open-Meteo
-  (`Deps.fetch` is injected and the test context's default fetch refuses the network);
-  `ensureClimate` before plan generation; `forecastStamp` for the publisher. E3-5:
+  with a 15-minute back-off and a 20 s request timeout; no request path waits on Open-Meteo
+  except the forecast route and `ensureClimate` before plan generation (a profile or goal write
+  and a stale forecast read only start a background refresh); `Deps.fetch` is injected and the
+  test context's default fetch refuses the network; `forecastStamp` for the publisher. E3-5:
   `GET /api/activities` is a paged envelope without the heart-rate histogram and `GET /api/stats`
   serves the statistics from six-column rows memoised by data version; the Activities page loads
   50 at a time. E1-4: the publish channel (`DeliveryChannel`, `WristPublication`, both
@@ -479,7 +480,8 @@ Fixed on the integration branch before `wave/3a-7` was cut (`task/3a-W7-fix-offl
 3. A failed shell install left an empty cache that counted as a generation and could evict the real
    previous build; the cache is deleted when the precache rejects. The 36-hour TTL bounds how long a
    copy is served, not how long it is stored; the ADR says so and expired API entries are swept on
-   the first fetch of each worker lifetime. The ADR's sizes are re-measured on the merged build.
+   the first fetch of each worker lifetime. The ADR's sizes are approximate figures, measured on
+   the merged build (no build id or exact byte count is pinned).
 4. The offline note added height above Done that no fold test measured; the note moved below the
    session, where the fold limits hold with the connection gone (a new 12-today case measures it),
    and `slots.ts` records that it is not a slot. The note is an always-mounted live region, so its

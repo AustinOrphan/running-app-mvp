@@ -105,3 +105,12 @@ Alternatives:
   sentence, not to add an exception.
 - A future model-written commentary needs its own ADR for data handling (ADR 0005), and its output
   would be shown as commentary beside the rendered facts, not stored in place of them.
+- One stored sentence remains, and it is an exception to the Decision, not a precedent:
+  `PlanRevision.summary` is written by `recordPlanWrite` (`server/services/replan.ts`) for every
+  revision, new ones included, as a template output of `shared/copy/revision.ts` fixed at write
+  time. The Plan page shows it as the lead line of a revision (units localised at read by
+  `localiseEngineText`), and `undoneSummary` builds the undo revision's summary from it. The
+  structured `diff` is the record the rest of the revision view renders from. A wording fix reaches
+  new revisions only, and the stored line of an older one keeps its words. Recorded 2026-10-23
+  (phase 3a close review); rendering the line from the diff at read, and so dropping the column's
+  prose, is not built.
