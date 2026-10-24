@@ -1,0 +1,8 @@
+/* One muted line above Today while the figures on screen are the phone's copy. It takes no height
+   when the connection is there, so the measured fold is unchanged. */
+.note {
+  margin: 0 0 var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

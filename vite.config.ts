@@ -1,9 +1,11 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { serviceWorkerPlugin } from './web/sw/buildSw.ts'
 
 export default defineConfig({
   root: 'web',
-  plugins: [react()],
+  // The service worker is written into the build after the bundle (ADR 0012).
+  plugins: [react(), serviceWorkerPlugin()],
   build: {
     outDir: '../dist/web',
     emptyOutDir: true,

@@ -1024,6 +1024,11 @@ export interface TodayView {
   unrated: Activity[]
   /** The coach view: readiness, hero, week, race, health and slots. */
   coach: TodayCoach
+  /**
+   * Set by the service worker, never by the server: this answer is the phone's saved copy, served
+   * because the network did not answer in time (ADR 0012). The page says so (`OfflineNote`).
+   */
+  servedFromCache?: true
 }
 // ---- Today as a coach (phase 3a, section 7) ----------------------------------------------------
 // The pure pieces are `readinessSignals`, `readinessVerdict`, `rangeLabel`, `weekStrip` and

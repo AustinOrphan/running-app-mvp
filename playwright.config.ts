@@ -11,6 +11,10 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${E2E_PORT}`,
     trace: 'retain-on-failure',
+    // The build registers the service worker (a production build does, whatever NODE_ENV the server
+    // has). A worker warms caches and spends the shared request budget in every spec, so none runs
+    // except in `17-offline.spec.ts`, which allows it for itself (ADR 0012).
+    serviceWorkers: 'block',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

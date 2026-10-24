@@ -121,6 +121,24 @@ export const TODAY_TEMPLATES = {
     'This part of the app did not load. Reload the page to try again.',
   ),
 
+  // Offline (E2-8, ADR 0012): the line above Today while the numbers on screen are the phone's
+  // copy. The time is the hour the server composed the payload, in the server's zone; the date is
+  // the day of the session, for a copy older than today.
+  'today.offline.saved': tpl(
+    'Offline. Showing the session saved at {time}.',
+    { time: 'text' },
+    { fallback: 'Offline. Showing the session saved on this phone.' },
+  ),
+  'today.offline.older': tpl(
+    "Offline. This session was saved on {date}. Today's is not loaded yet.",
+    { date: 'date' },
+    { fallback: "Offline. This session was saved earlier. Today's is not loaded yet." },
+  ),
+  // Settings: whether the installed app can open with no connection (a worker needs https).
+  'today.offline.use-ready': tpl('Offline use: ready.'),
+  'today.offline.use-installing': tpl('Offline use: installing.'),
+  'today.offline.use-unavailable': tpl('Offline use: not available (needs https).'),
+
   // The Done sheet: the planned figures are the prefill, so the sentence says to change what
   // differs. A session of another kind than a run is logged as the same activity it will link to.
   'today.done.title-run': tpl("Log today's run", {}, { shape: 'label' }),
