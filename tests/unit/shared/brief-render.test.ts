@@ -102,6 +102,27 @@ describe('the headline', () => {
     expect(briefHeadline(specFacts({ lastWeek: null, decision: null }), 'km')).toEqual([])
   })
 
+  test('never says "of 0 planned minutes", even for a brief stored with a zero plan', () => {
+    const [line] = briefHeadline(
+      specFacts({ lastWeek: { weekStart: LAST_MONDAY, ranMin: 25, plannedMin: 0 } }),
+      'km',
+    )
+    expect(line).toBe('Last week you ran 25 min.')
+  })
+
+  test('leaves the number out when the suggested minutes are zero', () => {
+    const line = (kind: 'progress' | 'hold' | 'reduce' | 'post-race') =>
+      briefHeadline(specFacts({ decision: { kind, nextWeekTargetMin: 0 } }), 'km')[1]
+    expect(line('progress')).toBe('The plan moves on to next week.')
+    expect(line('hold')).toBe('The plan holds steady for next week.')
+    expect(line('reduce')).toBe('The plan eases next week.')
+    expect(line('post-race')).toBe('The weeks after your race follow a set return schedule.')
+    for (const kind of ['progress', 'hold', 'reduce', 'post-race'] as const) {
+      expect(line(kind)).not.toMatch(/\b0 min\b/)
+      assertCleanCopy(line(kind) ?? '', kind)
+    }
+  })
+
   test('counts down to the race in weeks from two weeks out, then in days', () => {
     const line = (days: number) =>
       briefContext(

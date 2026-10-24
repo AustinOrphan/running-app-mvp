@@ -189,13 +189,25 @@ interface PhasePlan {
   isRecovery: boolean
 }
 
+/**
+ * Why the recovery cycle is the shorter 2:1 and not the default 3:1 [rules E3, G-3]: a recent
+ * injury, the cycle the runner chose, or a new or low-frequency runner. Null for the default.
+ */
+export function cycleShortReason(
+  input: Pick<EngineInput, 'options'>,
+  state: AthleteState,
+): 'recent-injury' | 'chosen' | 'new-runner' | null {
+  if (state.risk.recentInjury) return 'recent-injury'
+  if (input.options.recoveryCycle === '2:1') return 'chosen'
+  if (input.options.recoveryCycle === '3:1') return null
+  return noviceRamp(state) ? 'new-runner' : null
+}
+
 /** Work weeks per recovery cycle [rules E3, G-3]. */
-function cycleWorkWeeks(input: EngineInput, state: AthleteState): number {
-  const flagged = P.e3.flaggedCycleWorkWeeks.value
-  if (state.risk.recentInjury) return flagged
-  if (input.options.recoveryCycle === '2:1') return flagged
-  if (input.options.recoveryCycle === '3:1') return P.e3.defaultCycleWorkWeeks.value
-  return noviceRamp(state) ? flagged : P.e3.defaultCycleWorkWeeks.value
+export function cycleWorkWeeks(input: EngineInput, state: AthleteState): number {
+  return cycleShortReason(input, state) === null
+    ? P.e3.defaultCycleWorkWeeks.value
+    : P.e3.flaggedCycleWorkWeeks.value
 }
 
 /**

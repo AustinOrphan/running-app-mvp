@@ -131,6 +131,12 @@ export interface AthleteContext {
   /** The active version-2 plan, without its weeks and sessions. */
   readonly plan: Plan | null
   /**
+   * The engine options the active plan was generated with (`Plan.options`): the recovery cycle, the
+   * intensity model, the strength sessions, the gut-training switch. Empty without a plan. A reader
+   * that explains the plan reads them, so it describes the plan that was made and not a default.
+   */
+  readonly planOptions: EngineInput['options']
+  /**
    * The active plan's sessions as the API serves them (identity, execution and the original
    * prescription included), by date then order. Empty without a version-2 plan. `existing()` holds
    * the same rows in the engine's shape (with the `externalId` the workout builder needs): the
@@ -407,6 +413,17 @@ function zoneChangesOf(
   return changes
 }
 
+/** The options of a stored plan: its JSON text, or the empty options when it is absent or unreadable. */
+function planOptionsOf(text: string | undefined): EngineInput['options'] {
+  if (text === undefined) return {}
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
 /** The goal model for one of the context's goals; null when the goal is unknown or has no distance. */
 export async function goalModelFor(
   ctx: Pick<AthleteContext, 'goals' | 'state' | 'climate'>,
@@ -562,6 +579,7 @@ async function buildContext(
     goals,
     goal,
     plan: planRow ? toPlan(planRow) : null,
+    planOptions: planOptionsOf(planRow?.options),
     planSessions,
     state,
     zones,

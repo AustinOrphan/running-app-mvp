@@ -359,7 +359,7 @@ export function focalBoneActive(input: EngineInput, date: string): boolean {
   return newest?.painFocalBone === true
 }
 
-function recentPain(input: EngineInput, date: string): number | null {
+export function recentPain(input: EngineInput, date: string): number | null {
   let worst: number | null = null
   const consider = (v: number | null | undefined) => {
     if (typeof v === 'number' && (worst === null || v > worst)) worst = v

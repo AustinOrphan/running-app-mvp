@@ -19,6 +19,7 @@ import type { ExplainRequest, ExplainView } from '../../shared/engine/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound } from '../errors.ts'
 import {
+  goalModelFor,
   hrModelOf,
   loadAthleteContext,
   memoByVersion,
@@ -79,7 +80,7 @@ export async function explainView(
   const context = await loadAthleteContext(deps, { userId, today })
   // The same input the stored decision was made from, rest windows included: a week a window
   // touches has to give the same decision here as in the review.
-  const input = inputFromContext(context, { existing: true })
+  const input = inputFromContext(context, { existing: true, options: context.planOptions })
   const goal = goalFor(context, request)
   const shell: ExplainContext = {
     asOf: today,
@@ -91,6 +92,7 @@ export async function explainView(
     prediction: null,
     hrModel: null,
     decision: null,
+    race: null,
   }
   const rules = explainRules(request, shell)
   if (rules === null) throw notFound(NOT_FOUND[request.subject])
@@ -120,6 +122,11 @@ export async function explainView(
     // Built once per picture by the snapshot; null without a goal, a distance or a usable source.
     const prediction = needs.prediction && goal !== null ? await context.prediction(goal.id) : null
 
-    return explainInputs(request, { ...shell, hrModel, decision, prediction })
+    // The goal as the engine models it, race-day climate included: read from the snapshot's goal
+    // and the cached climate (never fetched), as the prediction above is.
+    const race =
+      needs.race && goal !== null ? await goalModelFor(context, goal.id, { climate: true }) : null
+
+    return explainInputs(request, { ...shell, hrModel, decision, prediction, race })
   })
 }

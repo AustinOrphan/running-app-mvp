@@ -179,7 +179,7 @@ function longestRuns(runs: Activity[], today: string): AthleteState['longest30d'
 }
 
 /** HR anchors for TRIMP: measured HRmax, else the age prior [rules C3]; zones.ts refines both. */
-function hrAnchors(profile: AthleteProfile, age: number | null): LoadContext['zones'] {
+export function hrAnchors(profile: AthleteProfile, age: number | null): LoadContext['zones'] {
   let hrMax: LoadContext['zones']['hrMax'] = null
   if (profile.hrMax !== null) {
     hrMax = {

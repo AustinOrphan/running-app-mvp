@@ -265,6 +265,57 @@ describe('GET /api/explain: the answer', () => {
     )
   })
 
+  test('the rules about the goal read it as the engine models it, and fetch nothing', async () => {
+    await seedHistory(user.id)
+    const goal = await seedGoal(user.id)
+    const plan = await generatePlan(user, goal.id)
+    const view = await explained('subject=rules&rules=D1,D2,D4,D6,E2,K1,n-7,H12')
+    expect(view.rest).toEqual([])
+    expect(slot(factsOf(view, 'D1')[0]!, 'distance')).toEqual({ kind: 'distance', m: 21_097 })
+    expect(factsOf(view, 'D1')[1]!.template).toBe('explain.d1-not-ultra')
+    expect(factsOf(view, 'D2')[0]!.template).toBe('explain.d2-finish')
+    // the plan's own outlook, from the same state and start path
+    const [outlook] = factsOf(view, 'D4')
+    expect(slot(outlook!, 'available')).toEqual({
+      kind: 'count',
+      n: plan.feasibility!.weeksAvailable,
+    })
+    // no climate is cached for this goal: the heat rules say what they lack
+    expect(factsOf(view, 'D6')[0]).toMatchObject({
+      template: 'explain.heat-gap',
+      state: 'insufficient',
+    })
+    const taper = plan.weeks.find((w) => w.flags.includes('taper'))!
+    expect(slot(factsOf(view, 'K1')[0]!, 'week')).toEqual({
+      kind: 'date',
+      iso: taper.weekStart,
+      style: 'short',
+    })
+    expect(factsOf(view, 'n-7')[0]!.template).toBe('explain.n7-event')
+    expect(factsOf(view, 'H12')[0]!.template).toBe('explain.h12-steps')
+    expect(slot(factsOf(view, 'E2')[1]!, 'weeks')).toEqual({
+      kind: 'count',
+      n: plan.feasibility!.weeksAvailable,
+    })
+    expect(ctx.refusedFetches).toEqual([])
+  })
+
+  test('the recovery cycle is the one the plan was generated with', async () => {
+    await seedHistory(user.id)
+    const goal = await seedGoal(user.id)
+    const made = await client(ctx, user)
+      .post('/api/plan/generate')
+      .send({ goalId: goal.id, options: { recoveryCycle: '2:1' } })
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    const view = await explained('subject=rules&rules=E3')
+    const [cycle, short] = factsOf(view, 'E3')
+    expect(slot(cycle!, 'n')).toEqual({ kind: 'count', n: 2 })
+    expect(short!.template).toBe('explain.e3-short')
+    expect(renderFact(short!, 'mi')).toBe(
+      'The cycle is shorter than the usual 3 weeks because of the 2:1 cycle you chose.',
+    )
+  })
+
   test('is data: metric quantities and template ids, and every fact reads in both units', async () => {
     await seedHistory(user.id)
     const goal = await seedGoal(user.id)
@@ -400,7 +451,8 @@ describe('GET /api/explain: one fit per data version', () => {
     await explained(`subject=decision&weekStart=${first!.weekStart}`)
     expect(weeklyDecision).toHaveBeenCalledTimes(1)
     const [decision] = factsOf(a, 'J5')
-    expect(decision!.template).toMatch(/^explain\.j5-(progress|hold|reduce)$/)
+    // a week with nothing run suggests no minutes: that sentence leaves the number out
+    expect(decision!.template).toMatch(/^explain\.j5-(progress|hold|reduce)(-bare)?$/)
     expect(slot(decision!, 'week')).toMatchObject({ iso: first!.weekStart })
 
     await explained(`subject=decision&weekStart=${second!.weekStart}`)
