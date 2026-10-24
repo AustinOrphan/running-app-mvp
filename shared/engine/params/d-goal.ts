@@ -75,6 +75,10 @@ export const dGoal = {
     ),
   },
   d3: {
+    weeklyFloorWeeks: param('d3.weeklyFloorWeeks', 4, 'D', 'D3', [], {
+      unit: 'weeks',
+      note: 'Default: the weekly floor of a time goal is compared with the mean weekly distance of this many completed weeks.',
+    }),
     halfMinWeeklyKm: param(
       'd3.halfMinWeeklyKm',
       32,

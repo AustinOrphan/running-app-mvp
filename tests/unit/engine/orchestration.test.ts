@@ -5,6 +5,7 @@ import * as adapt from '../../../shared/engine/adapt.ts'
 import * as engine from '../../../shared/engine/index.ts'
 import { buildPlan, explain, replan, runChecklist } from '../../../shared/engine/index.ts'
 import * as execution from '../../../shared/engine/execution.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import * as predict from '../../../shared/engine/predict.ts'
 import * as readiness from '../../../shared/engine/readiness.ts'
 import type {
@@ -533,6 +534,24 @@ describe('the checklist fails on a plan that breaks its rule', () => {
     expect(hold.rules).toContain('n-4')
     // the same plan passes with one flag only
     expect(failed(runChecklist(grown, { ...a.input, screeningFlags: 1 }))).toEqual([])
+  })
+
+  it('states the break length and the flag count of its pass lines from the Params', () => {
+    const a = athlete('half')
+    const plan = buildPlan(a.input)
+    const detail = (id: string) => runChecklist(plan, a.input).find((c) => c.id === id)!.detail
+    expect(detail('break-restart')).toBe('No break of 7 days or more before the plan.')
+    expect(detail('reds-hold')).toBe('No energy-availability hold: fewer than 2 flags.')
+    const before = { tier1Days: P.j7.tier1Days.value, redsHoldFlags: P.j5.redsHoldFlags.value }
+    try {
+      P.j7.tier1Days.value = 10
+      P.j5.redsHoldFlags.value = 3
+      expect(detail('break-restart')).toBe('No break of 10 days or more before the plan.')
+      expect(detail('reds-hold')).toBe('No energy-availability hold: fewer than 3 flags.')
+    } finally {
+      P.j7.tier1Days.value = before.tier1Days
+      P.j5.redsHoldFlags.value = before.redsHoldFlags
+    }
   })
 
   it('returns a result per item with the rules it rests on', () => {

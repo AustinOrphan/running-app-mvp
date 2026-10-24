@@ -25,9 +25,10 @@ export const TODAY_TEMPLATES = {
   'today.verdict.no-signals': tpl('No readiness signals yet. One tap below adds the first.'),
 
   // The signals: the two or three readings behind the verdict.
-  'today.signal.illness-rest': tpl(
-    'Illness was reported: rest until a symptom-free day has passed.',
-  ),
+  // {free} is the n-3 wait in words ("one symptom-free day"), written from the Param.
+  'today.signal.illness-rest': tpl('Illness was reported: rest until you have had {free}.', {
+    free: 'text',
+  }),
   'today.signal.illness-easy': tpl('Returning from illness: easy running only for now.'),
   'today.signal.pain': tpl('Pain of {score} out of 10 was reported.', { score: 'count' }),
   'today.signal.pain-bone': tpl('Focal bone pain was reported.'),
@@ -70,6 +71,24 @@ export const TODAY_TEMPLATES = {
   'today.signal.checkin-drained': tpl('Check-in: feeling drained.'),
   'today.signal.checkin-items': tpl('Check-in recorded today.'),
   'today.signal.checkin-items-low': tpl('Some check-in answers are away from normal today.'),
+
+  // The red-flag notes under the verdict and the reasons beside an eased session. Each states the
+  // number of days a rule waits, so the engine fills it from the Param, as words ("three days").
+  'today.note.illness-rest': tpl(
+    'Illness was reported. Intensity is suspended; easy running resumes after {free}.',
+    { free: 'text' },
+  ),
+  'today.note.illness-return': tpl(
+    'Returning from illness. Keep to easy running for {easy} before any intensity.',
+    { easy: 'text' },
+  ),
+  'today.reason.illness-return': tpl('Returning from illness: easy running only for {easy}.', {
+    easy: 'text',
+  }),
+  'today.reason.masters': tpl(
+    'Soreness, fatigue or motivation is still worse than your usual {wait} after a hard session.',
+    { wait: 'text' },
+  ),
 
   // The check-in row (E2-6): the question, the five answers of the fatigue scale, the line the row
   // folds into and, when the connection is down, the same line saying where the answer is kept.

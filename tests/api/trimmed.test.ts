@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import * as domain from '../../shared/domain/sessionStatus.ts'
 import type { SessionSpec } from '../../shared/engine/types.ts'
 import type { PlanWithSessions } from '../../shared/types.ts'
 import { runExecutionForActivity } from '../../server/services/execution.ts'
@@ -71,6 +74,34 @@ describe('isTrimmed', () => {
     expect(isTrimmed(['design-4.1', 'design-4.2'])).toBe(false)
     expect(isTrimmed(['design-4.30'])).toBe(false)
     expect(isTrimmed(['xdesign-4.3'])).toBe(false)
+  })
+})
+
+describe('the one derivation of a trim', () => {
+  test('the server and the engine ask the same function', () => {
+    expect(isTrimmed).toBe(domain.isTrimmed)
+  })
+
+  test('no other file names the trim rule id', () => {
+    // The rule id is written once, in `domain/sessionStatus.ts`. The parameters cite it as a rule
+    // and the Why drawer lists it as a rule with no figure of its own; neither detects a trim.
+    const allowed = new Set(['shared/domain/sessionStatus.ts', 'shared/engine/explainInputs.ts'])
+    const files = ['server', 'shared']
+      .flatMap((dir) =>
+        readdirSync(join(process.cwd(), dir), { recursive: true, encoding: 'utf8' }).map((path) =>
+          join(dir, path),
+        ),
+      )
+      .filter(
+        (path) => path.endsWith('.ts') && !path.startsWith(join('shared', 'engine', 'params')),
+      )
+    expect(files.length).toBeGreaterThan(50)
+    const offenders = files.filter(
+      (file) =>
+        !allowed.has(file) &&
+        /['"`]design-4\.3['"`]/.test(readFileSync(join(process.cwd(), file), 'utf8')),
+    )
+    expect(offenders).toEqual([])
   })
 })
 

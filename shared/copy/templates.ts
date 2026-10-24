@@ -11,6 +11,7 @@ import type { Units } from '../types.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { BRIEF_TEMPLATES } from './briefTemplates.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
+import { EXECUTION_TEMPLATES } from './execution.ts'
 import { FUEL_UI_TEMPLATES } from './fuelUi.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
@@ -30,6 +31,7 @@ export const TEMPLATES = {
   ...REVISION_TEMPLATES,
   ...REVISION_VIEW_TEMPLATES,
   ...TODAY_TEMPLATES,
+  ...EXECUTION_TEMPLATES,
   ...SESSION_STATUS_TEMPLATES,
   ...DATA_IN_USE_TEMPLATES,
   ...FUEL_TEMPLATES,

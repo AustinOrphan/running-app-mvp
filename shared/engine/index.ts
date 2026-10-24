@@ -3,7 +3,7 @@
 // prediction in that order; replan keeps the past and recomputes the future. The other entry
 // points delegate to the module that owns the rule.
 import { addDays, mondayOf } from '../dates.ts'
-import { isToRun } from '../domain/sessionStatus.ts'
+import { isToRun, isTrimmed } from '../domain/sessionStatus.ts'
 import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
 import { afterBreak, trimQuality } from './adapt.ts'
 import { estimateState } from './athlete.ts'
@@ -191,7 +191,7 @@ const OWNER_EDITS: ReadonlySet<string> = new Set(['moved', 'skipped', 'adjusted'
 const RELEASED_ON_HOLD: ReadonlySet<string> = new Set([...OWNER_EDITS, 'downgraded'])
 
 const isTrim = (s: { status: string; rules: string[] }) =>
-  s.status === 'downgraded' && s.rules.includes('design-4.3')
+  s.status === 'downgraded' && isTrimmed(s.rules)
 
 /**
  * True for a session a re-plan keeps as it is: the past, the finished sessions of the current
@@ -678,7 +678,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         ? place(planWeek, profile, weekRules, ceiling)
         : []
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].
-    const trimmedAlready = kept.some((s) => inWeek(s) && s.rules.includes('design-4.3'))
+    const trimmedAlready = kept.some((s) => inWeek(s) && isTrimmed(s.rules))
     if (keep.decisions[week.weekStart] === 'hold' && !trimmedAlready) {
       const next = sessions.find((s) => s.date >= today && isQualityKind(s.kind))
       if (next !== undefined) {

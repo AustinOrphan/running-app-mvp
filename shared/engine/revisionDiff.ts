@@ -12,6 +12,7 @@
 //
 // Pure: no I/O, no clock, no randomness.
 import { addDays, mondayOf } from '../dates.ts'
+import { isTrimmed } from '../domain/sessionStatus.ts'
 import type {
   CauseCode,
   PlanDiff,
@@ -57,9 +58,6 @@ const DISRUPTION_FLAGS: ReadonlySet<string> = new Set([
   'rest-window',
 ])
 const RESTART_FLAGS: ReadonlySet<string> = new Set(['restart-floor'])
-
-/** The rule that marks a session the engine trimmed (`TRIM_RULE` in `server/serialize.ts`). */
-const TRIM_RULE = 'design-4.3'
 
 /** What the stored revision says about itself. */
 export interface RevisionFacts {
@@ -172,7 +170,7 @@ export function attributeChange(
   ) {
     found.add('post-race')
   }
-  if (rules.has(TRIM_RULE)) found.add('trim')
+  if (isTrimmed(session?.rules ?? [])) found.add('trim')
   // The decision of a week inside the post-race window reads "hold" for callers that look only at
   // that word; it is the window's, not a hold of the runner's week.
   if (inDecisionWeek && !postRaceDecision) {

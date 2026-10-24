@@ -1,5 +1,6 @@
 // What a plan session's status says about running it. One exhaustive map, so a status added to
-// `PlanSessionStatus` is a compile error here until it is classified.
+// `PlanSessionStatus` is a compile error here until it is classified. Also the one derivation of
+// whether a session is trimmed, from its rule ids.
 import type { PlanSessionStatus } from '../types.ts'
 
 /** True for a status whose session is still to be run; false for a settled one. */
@@ -21,4 +22,16 @@ const TO_RUN: Record<PlanSessionStatus, boolean> = {
  */
 export function isToRun(status: PlanSessionStatus): boolean {
   return TO_RUN[status] === true
+}
+
+/** The rule id that marks a session the engine or an execution trim eased [design 4.3]. */
+export const TRIM_RULE = 'design-4.3'
+
+/**
+ * Whether a session's rule ids mark it as trimmed. The one derivation of a trim: `PlanSession.trimmed`
+ * is set through it on every write of `rules` (`server/serialize.ts` re-exports it), and the engine
+ * asks it of a session in memory. Nothing else compares the rule id or scans the stored JSON text.
+ */
+export function isTrimmed(rules: readonly string[]): boolean {
+  return rules.includes(TRIM_RULE)
 }

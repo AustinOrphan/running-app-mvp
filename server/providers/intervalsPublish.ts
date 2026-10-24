@@ -20,6 +20,7 @@ import type {
   WorkoutPlan,
   WorkoutStep,
 } from '../../shared/workouts/types.ts'
+import { safeMessage } from '../services/syncLog.ts'
 import { authHeader, BASE_URL, credentials } from './intervals.ts'
 import {
   PublishError,
@@ -225,20 +226,15 @@ function credentialsOf(ctx: ProviderCtx): Credentials {
   return found
 }
 
-/** A remote text with the key (and the header built from it) removed, on one line, capped. */
+/**
+ * A remote text with every credential removed, on one line, capped. The scrubbing is `safeMessage`'s,
+ * the one scrubber of stored and returned text, so a bearer token, a cookie or a query string the
+ * service echoes goes with the key; the forms of this one key (the header built from it and its
+ * base64) are handed to it as secrets, longest first so a header is removed whole.
+ */
 function clean(text: string, apiKey: string): string {
-  let out = text
-  // The longest forms first, so a header is removed whole and not just its encoded key.
   const secrets = [authHeader(apiKey), Buffer.from(`API_KEY:${apiKey}`).toString('base64'), apiKey]
-  for (const secret of secrets) {
-    if (secret !== '') out = out.split(secret).join('[removed]')
-  }
-  return capped(
-    out
-      .replace(/\p{Cc}+/gu, ' ')
-      .replace(/\s+/g, ' ')
-      .trim(),
-  )
+  return capped(safeMessage(text.replace(/\p{Cc}+/gu, ' '), secrets))
 }
 
 /** A text cut to the longest message kept. */

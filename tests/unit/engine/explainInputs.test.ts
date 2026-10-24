@@ -1918,7 +1918,7 @@ describe('D1 to D7: the goal', () => {
     expect(slot(floors!, 'weekly', 'distance').m).toBe(P.d3.marathonMinWeeklyKm.value * 1000)
     expect(slot(floors!, 'long', 'distance').m).toBe(P.d3.marathonMinLongRunKm.value * 1000)
     expect(slot(now!, 'long', 'distance').m).toBe(ctx.state.longest30d.distanceM)
-    expect(slot(now!, 'weeks', 'count').n).toBe(4)
+    expect(slot(now!, 'weeks', 'count').n).toBe(P.d3.weeklyFloorWeeks.value)
     const half = factsOf('D3', ctxOf('half'))
     expect(slot(half[0]!, 'weekly', 'distance').m).toBe(P.d3.halfMinWeeklyKm.value * 1000)
     // a finish goal, a 5 km goal and an ultra have no floor

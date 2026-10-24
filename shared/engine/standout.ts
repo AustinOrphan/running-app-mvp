@@ -42,7 +42,7 @@ import {
 } from './explainInputs.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
-import type { ExecutionAssessment, InputFact, SessionKind, SourceRef } from './types.ts'
+import type { ExecutionFindings, InputFact, SessionKind, SourceRef } from './types.ts'
 
 /**
  * The version of the findings: the selections, their thresholds' wiring and their templates. A
@@ -57,7 +57,7 @@ export interface StandoutSession {
   date: string
   kind: SessionKind
   durationMin: number
-  assessment: ExecutionAssessment
+  assessment: ExecutionFindings
 }
 
 export interface StandoutInput {

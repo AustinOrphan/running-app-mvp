@@ -634,6 +634,51 @@ describe('feasibility: the long-run floor follows the planner [D3, D4]', () => {
   })
 })
 
+describe("the windows over the runner's weeks are Params [D3, D4]", () => {
+  /** Runs `fn` with a Param set to `value`, then puts it back. */
+  function withValue<T>(param: { value: number }, value: number, fn: () => T): T {
+    const before = param.value
+    param.value = value
+    try {
+      return fn()
+    } finally {
+      param.value = before
+    }
+  }
+
+  /** Sixteen weeks of 36 km, the last two completed weeks changed by `last`. */
+  function recentWeeks(last: { runM: number; runMin: number }) {
+    const state = makeState({ longestM: 24000, weeklyKm: 36, weekMin: 198 })
+    for (const i of [14, 15]) Object.assign(state.weeks[i]!, last)
+    return state
+  }
+
+  it('compares the weekly floor with the last weeks the Param names', () => {
+    expect(P.d3.weeklyFloorWeeks).toMatchObject({ value: 4, grade: 'D', rule: 'D3', unit: 'weeks' })
+    const state = recentWeeks({ runM: 20_000, runMin: 198 })
+    const weeks = () => feasibility(makeModel(), state, TODAY).weeksNeeded
+    // the mean of the last four completed weeks is 28 km, of the last two 20 km
+    expect(weeks()).toBe(d4Weeks(28, 40, 3))
+    expect(withValue(P.d3.weeklyFloorWeeks, 2, weeks)).toBe(d4Weeks(20, 40, 3))
+  })
+
+  it('takes the training pace from the last weeks the Param names', () => {
+    expect(P.macroDesign.trainingPaceWeeks).toMatchObject({
+      value: 4,
+      grade: 'D',
+      rule: 'design-macro',
+      unit: 'weeks',
+    })
+    // 600 s/km in the two weeks before the last, 300 s/km in the last completed week
+    const state = makeState({ weeklyKm: 20, weekMin: 200 })
+    Object.assign(state.weeks[15]!, { runM: 40_000, runMin: 200 })
+    const pace = () => trainingPace(state, makeModel())
+    expect(pace()).toBeCloseTo(600, 6)
+    // the current week has no run, so a window of two weeks holds the last completed week alone
+    expect(withValue(P.macroDesign.trainingPaceWeeks, 2, pace)).toBeCloseTo(300, 6)
+  })
+})
+
 describe('feasibility: the start of the plan [E6, J7]', () => {
   // 33:00 for 5 km: no recent run, so the training pace is the goal pace slowed by 15%
   const five = (over: Partial<GoalModel> = {}) =>
