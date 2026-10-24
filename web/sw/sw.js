@@ -13,11 +13,14 @@
 //   answer, else the copy kept on the phone when the request fails, answers 502 to 504 or is not
 //   answered in time. A navigation falls back to the kept page.
 // - The API reads are exactly the allowlist below. Only a 200 answer to a GET is kept, in
-//   `rl-api-v1`, for 36 hours (14 days for the research parameters). A 401 empties the cache,
-//   because the session is gone and the copies are health data of that session.
+//   `rl-api-v1`, and served for 36 hours (14 days for the research parameters). The time limit
+//   bounds how long a copy is served; an expired one is deleted when a read meets it, when Today is
+//   saved, and at the first request of each worker's life. A 401 empties the cache, because the
+//   session is gone and the copies are health data of that session.
 // - Today's copy is picked by the server's day: the kept answer whose date is today in the
 //   `tz` it carries, else the newest older one. The page marks that answer `servedFromCache`. The
-//   watch slot is stripped from every kept copy, because a saved "On your watch" would be false.
+//   watch slot and the health note about the watch are stripped from every kept copy, because a
+//   saved "On your watch" or "not on the watch yet" would be false.
 // - A throttled warm (once in ten minutes) keeps the allowlist filled and fetches tomorrow's
 //   preview, so the app opens offline at a trailhead with the next day's session.
 //
@@ -255,9 +258,44 @@ async function dropExpiredToday(cache) {
   }
 }
 
+let swept = false
+
 /**
- * Keeps a 200 answer under its URL, stamped with the time. Today's payload loses its watch slot
- * first. Resolves to the parsed payload of Today, else undefined; a cache that will not take the
+ * Drops every expired answer from `rl-api-v1`. A time limit bounds how long a copy is served, not
+ * how long it is stored: nothing wakes a worker to delete, so a copy that no read touches stays on
+ * the phone. The sweep runs at the first request of each worker's life, which is when the app next
+ * opens (a browser stops an idle worker and starts a new one for the next request). A phone that
+ * is not opened again keeps its copies until the next 401, a sign-out or the browser clears the
+ * site's data (ADR 0012).
+ */
+async function sweepExpired() {
+  if (!(await caches.keys()).includes(API_CACHE)) return
+  const cache = await caches.open(API_CACHE)
+  for (const key of await cache.keys()) {
+    const route = apiRoute(new URL(key.url))
+    await fresh(cache, key.url, route === null ? API_TTL_MS : route.ttlMs)
+  }
+}
+
+/** Starts the sweep on the first request of this worker's life; never rejects. */
+function sweepOnce(event) {
+  if (swept) return
+  swept = true
+  event.waitUntil(sweepExpired().catch(() => {}))
+}
+
+/**
+ * The codes of the health notes (`coach.health.notes`) that state where tomorrow's run stands on
+ * the watch. They say the same thing as the watch slot, so a saved copy cannot keep them either.
+ * The server writes the code in `server/services/todayHealth.ts`; `tests/unit/shared/sw.test.ts`
+ * checks the two agree.
+ */
+const WATCH_NOTE_CODES = ['wrist-tomorrow']
+
+/**
+ * Keeps a 200 answer under its URL, stamped with the time. Today's payload loses its watch slot and
+ * the health note about the watch first: both state the watch's present state, which a copy cannot
+ * know. Resolves to the parsed payload of Today, else undefined; a cache that will not take the
  * answer (storage full) leaves the page unaffected.
  */
 async function save(key, response, route) {
@@ -267,8 +305,15 @@ async function save(key, response, route) {
     let body
     if (route.path === TODAY_PATH) {
       body = await response.json()
-      const slots = body && body.coach && body.coach.slots
+      const coach = body && body.coach
+      const slots = coach && coach.slots
       if (slots && slots.watch !== undefined) slots.watch = null
+      const health = coach && coach.health
+      if (health && Array.isArray(health.notes)) {
+        health.notes = health.notes.filter(
+          (note) => !(note && WATCH_NOTE_CODES.includes(note.code)),
+        )
+      }
       payload = JSON.stringify(body)
     } else {
       payload = await response.arrayBuffer()
@@ -401,16 +446,41 @@ function warmIfDue(todayDate) {
 
 // ---- Events ----------------------------------------------------------------------------------
 
+/**
+ * Keeps every file of the build or nothing: when a file does not load, the cache is deleted before
+ * the install is reported failed. An empty or half-filled `rl-shell-<build id>` would otherwise
+ * count as a generation at the next activation and could push out the last complete build.
+ */
 async function install() {
   const cache = await caches.open(SHELL_CACHE)
-  await cache.addAll(PRECACHE.map(absolute))
+  try {
+    await cache.addAll(PRECACHE.map(absolute))
+  } catch (error) {
+    await caches.delete(SHELL_CACHE)
+    throw error
+  }
   await self.skipWaiting()
 }
 
+/** Whether a shell cache holds the page, which every complete build does. */
+async function holdsPage(name) {
+  return (await (await caches.open(name)).match(absolute('/index.html'))) !== undefined
+}
+
+/**
+ * Drops the oldest builds beyond `SHELL_GENERATIONS`, and every shell cache that holds no page (the
+ * leftover of an install that did not finish, which must not count as a generation).
+ */
 async function activate() {
   const names = (await caches.keys()).filter((name) => name.startsWith(SHELL_PREFIX))
-  const older = names.filter((name) => name !== SHELL_CACHE)
-  const dropped = older.slice(0, Math.max(0, older.length - (SHELL_GENERATIONS - 1)))
+  const others = names.filter((name) => name !== SHELL_CACHE)
+  const complete = []
+  const dropped = []
+  for (const name of others) {
+    if (await holdsPage(name)) complete.push(name)
+    else dropped.push(name)
+  }
+  dropped.push(...complete.slice(0, Math.max(0, complete.length - (SHELL_GENERATIONS - 1))))
   await Promise.all(dropped.map((name) => caches.delete(name)))
   await self.clients.claim()
 }
@@ -424,6 +494,7 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
+  sweepOnce(event)
   const { request } = event
   if (request.method !== 'GET') return
   const url = new URL(request.url)

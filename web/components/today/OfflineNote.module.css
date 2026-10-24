@@ -1,5 +1,10 @@
-/* One muted line above Today while the figures on screen are the phone's copy. It takes no height
-   when the connection is there, so the measured fold is unchanged. */
+/* The live region is always on the page and has no height while it is empty. The note is one or two
+   muted lines under the session while the figures on screen are the phone's copy. It sits below
+   Done, so it takes no part in the fold (`web/components/today/slots.ts`). */
+.region {
+  min-width: 0;
+}
+
 .note {
   margin: 0 0 var(--space-4);
   color: var(--text-muted);

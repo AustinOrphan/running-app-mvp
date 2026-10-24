@@ -15,11 +15,14 @@ import { useToast } from '../components/Toast.tsx'
 import { useOfflineStatus, type OfflineStatus } from '../pwa/register.ts'
 import styles from './SettingsPage.module.css'
 
-/** The sentence of the "Offline use" row for each state of the service worker. */
+/** The sentence of the "Offline use" row for each state of the service worker, by cause. */
 const OFFLINE_USE = {
   ready: TEMPLATES['today.offline.use-ready'],
   installing: TEMPLATES['today.offline.use-installing'],
-  unavailable: TEMPLATES['today.offline.use-unavailable'],
+  development: TEMPLATES['today.offline.use-development'],
+  'no-https': TEMPLATES['today.offline.use-no-https'],
+  unsupported: TEMPLATES['today.offline.use-unsupported'],
+  refused: TEMPLATES['today.offline.use-refused'],
 } satisfies Record<OfflineStatus, (typeof TEMPLATES)['today.offline.use-ready']>
 
 function SettingsForm({ initial }: { initial: UserSettings }) {

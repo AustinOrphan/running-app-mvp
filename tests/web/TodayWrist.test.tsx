@@ -122,6 +122,13 @@ describe('Today: the watch line', () => {
     expect(screen.queryByText('On your watch.')).not.toBeInTheDocument()
   })
 
+  test('has no slot for a copy the worker served, with the browser online', async () => {
+    renderToday({ ...dayWith([makeWristItem({ status: 'on-watch' })]), servedFromCache: true })
+    await slotOf()
+    expect(document.querySelector('[data-slot="watch"]')).toBeNull()
+    expect(screen.queryByText('On your watch.')).not.toBeInTheDocument()
+  })
+
   test('announces a change of state after the page loaded, and only a change', async () => {
     let view = dayWith([makeWristItem({ status: 'waiting' })])
     mockApi({

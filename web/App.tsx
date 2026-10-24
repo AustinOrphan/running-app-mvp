@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useMe, useSetupStatus } from './api/auth.ts'
-import { keys, UNAUTHORIZED_EVENT } from './api/client.ts'
+import { dropUserQueries, keys, UNAUTHORIZED_EVENT } from './api/client.ts'
 import { Layout } from './components/Layout.tsx'
 import { ActivitiesPage } from './pages/ActivitiesPage.tsx'
 import { ActivityDetailPage } from './pages/ActivityDetailPage.tsx'
@@ -40,6 +40,15 @@ function AuthGate() {
       window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
     }
   }, [queryClient])
+
+  // No session: what the page holds of the last one goes too, so the next account that signs in on
+  // this tab is not shown the previous one's Today while its own loads. This runs once the gate
+  // has sent the pages away, not in the 401 handler: a query that is removed under a page that is
+  // still mounted is made again by that page, which asks the server again and meets another 401.
+  const signedOut = me.data === null
+  useEffect(() => {
+    if (signedOut) dropUserQueries(queryClient)
+  }, [signedOut, queryClient])
 
   if (setup.isError || me.isError) {
     return <p role="alert">The server did not respond. Reload the page to try again.</p>

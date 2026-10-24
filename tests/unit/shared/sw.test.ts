@@ -287,7 +287,14 @@ type Worker = ReturnType<typeof loadWorker>
 /** A Today payload as the server composes one, for the fields the worker reads. */
 function today(
   date: string,
-  options: { tz?: string; preview?: boolean; watch?: boolean; mark?: string } = {},
+  options: {
+    tz?: string
+    preview?: boolean
+    watch?: boolean
+    mark?: string
+    /** The codes of the health notes the payload carries. */
+    notes?: string[]
+  } = {},
 ) {
   return {
     date,
@@ -299,6 +306,14 @@ function today(
       slots: {
         watch: options.watch === true ? { items: [{ sessionId: 's1', state: 'on-watch' }] } : null,
         brief: null,
+      },
+      health: {
+        notes: (options.notes ?? []).map((code) => ({
+          code,
+          template: 'x',
+          slots: {},
+          href: null,
+        })),
       },
     },
   }
@@ -341,6 +356,47 @@ describe('the shell cache', () => {
     await expect(sw.install().settle()).rejects.toThrow()
     expect(await sw.kept('rl-shell-b7')).toEqual([])
     expect(sw.state.skipped).toBe(0)
+  })
+
+  test('a failed install leaves no cache behind, so it never counts as a generation', async () => {
+    const sw = loadWorker({ buildId: 'b7', precache: ['/index.html', '/assets/a.js'] })
+    sw.setNetwork(() => {
+      throw new TypeError('The network dropped.')
+    })
+    await expect(sw.install().settle()).rejects.toThrow('The network dropped.')
+    expect(sw.caches.caches.has('rl-shell-b7')).toBe(false)
+  })
+
+  test('a failed install between two deploys does not push out the last complete build', async () => {
+    // Build A and B are installed. C's install fails; D is the next deploy.
+    const failing = loadWorker({ buildId: 'c', precache: ['/index.html'] })
+    failing.setNetwork(() => {
+      throw new TypeError('The network dropped.')
+    })
+    await failing.keep('rl-shell-a', '/index.html', 'a')
+    await failing.keep('rl-shell-b', '/index.html', 'b')
+    await expect(failing.install().settle()).rejects.toThrow()
+    expect([...failing.caches.caches.keys()]).toEqual(['rl-shell-a', 'rl-shell-b'])
+
+    const next = loadWorker({ buildId: 'd', precache: ['/index.html'] })
+    next.setNetwork(() => new Response('file'))
+    await next.keep('rl-shell-a', '/index.html', 'a')
+    await next.keep('rl-shell-b', '/index.html', 'b')
+    await next.install().settle()
+    await next.activate().settle()
+    expect([...next.caches.caches.keys()]).toEqual(['rl-shell-b', 'rl-shell-d'])
+  })
+
+  test('activation also drops an empty shell cache that an earlier worker left behind', async () => {
+    const sw = loadWorker({ buildId: 'd', precache: ['/index.html'] })
+    sw.setNetwork(() => new Response('file'))
+    await sw.keep('rl-shell-a', '/index.html', 'a')
+    await sw.keep('rl-shell-b', '/index.html', 'b')
+    // The worker that was installing C was stopped before it could delete its cache.
+    await sw.caches.open('rl-shell-c')
+    await sw.install().settle()
+    await sw.activate().settle()
+    expect([...sw.caches.caches.keys()].sort()).toEqual(['rl-shell-b', 'rl-shell-d'])
   })
 
   test('two builds are kept: the third install removes the oldest and nothing else', async () => {
@@ -655,6 +711,68 @@ describe('time limits of a kept copy', () => {
     await sw.request('/api/today').settle()
     expect(await sw.kept('rl-api-v1')).toEqual(['/api/today'])
   })
+
+  describe('an expired copy is deleted at the first request of the worker, read or not', () => {
+    const day = 24 * HOUR
+
+    /** A cache that holds copies of every age, as a phone left alone for two days would. */
+    async function agedWorker() {
+      const sw = loadWorker()
+      await sw.keep('rl-api-v1', '/api/auth/me', { email: 'runner@example.com' }, START - 40 * HOUR)
+      await sw.keep('rl-api-v1', '/api/settings', { units: 'km' }, START - 37 * HOUR)
+      await sw.keep('rl-api-v1', '/api/today', today('2026-10-20'), START - 50 * HOUR)
+      await sw.keep(
+        'rl-api-v1',
+        '/api/today?date=2026-10-21',
+        today('2026-10-21'),
+        START - 40 * HOUR,
+      )
+      await sw.keep('rl-api-v1', '/api/research/params', { params: [] }, START - 15 * day)
+      await sw.keep('rl-api-v1', '/api/setup', { needsSetup: false })
+      return sw
+    }
+
+    test('whatever the request: expired answers of every route and unstamped ones are gone', async () => {
+      const sw = await agedWorker()
+      await sw.keep('rl-api-v1', '/api/today?date=2026-10-23', today('2026-10-23'), START - HOUR)
+      // A request the worker leaves alone is still the worker's first.
+      const first = sw.request('/anything-else.json')
+      expect(first.responded).toBe(false)
+      await first.settle()
+      expect(await sw.kept('rl-api-v1')).toEqual(['/api/today?date=2026-10-23'])
+    })
+
+    test('a copy that is still inside its limit stays, the research parameters for 14 days', async () => {
+      const sw = loadWorker()
+      await sw.keep('rl-api-v1', '/api/settings', { units: 'km' }, START - 35 * HOUR)
+      await sw.keep('rl-api-v1', '/api/research/params', { params: [] }, START - 13 * day)
+      const first = sw.request('/anything-else.json')
+      await first.settle()
+      expect(await sw.kept('rl-api-v1')).toEqual(['/api/settings', '/api/research/params'])
+    })
+
+    test('once in a worker life: the second request sweeps nothing', async () => {
+      const sw = await agedWorker()
+      await sw.request('/anything-else.json').settle()
+      await sw.keep('rl-api-v1', '/api/settings', { units: 'mi' }, START - 99 * HOUR)
+      await sw.request('/anything-else.json').settle()
+      expect(await sw.kept('rl-api-v1')).toEqual(['/api/settings'])
+    })
+
+    test('a worker with no kept answers makes no cache for them', async () => {
+      const sw = loadWorker()
+      await sw.request('/anything-else.json').settle()
+      expect(sw.caches.caches.has('rl-api-v1')).toBe(false)
+    })
+
+    test('a sweep that cannot read the cache leaves the request alone', async () => {
+      const sw = await agedWorker()
+      sw.caches.keys = () => Promise.reject(new Error('storage is blocked'))
+      const request = sw.request('/anything-else.json')
+      expect(request.responded).toBe(false)
+      await expect(request.settle()).resolves.toBeUndefined()
+    })
+  })
 })
 
 describe('a 401 empties the kept answers', () => {
@@ -713,6 +831,43 @@ describe("Today's copy", () => {
     expect(offline.servedFromCache).toBe(true)
     expect(offline.coach.slots.watch).toBeNull()
     expect(offline.date).toBe('2026-10-22')
+  })
+
+  test('the health note about the watch is stripped from what is kept, the other notes stay', async () => {
+    const sw = loadWorker()
+    const notes = ['wrist-tomorrow', 'sync-paused']
+    sw.setNetwork(answering({ '/api/today': today('2026-10-22', { watch: true, notes }) }))
+    const online = sw.request('/api/today')
+    const live = (await (await answer(online)).json()) as ReturnType<typeof today>
+    // The page that has the server's answer still sees the note, as it sees the watch slot.
+    expect(live.coach.health.notes.map((note) => note.code)).toEqual(notes)
+    await online.settle()
+    const kept = (await sw.read('rl-api-v1', '/api/today')) as ReturnType<typeof today>
+    expect(kept.coach.health.notes.map((note) => note.code)).toEqual(['sync-paused'])
+
+    sw.setNetwork(() => {
+      throw new TypeError('offline')
+    })
+    const offline = (await (await answer(sw.request('/api/today'))).json()) as ReturnType<
+      typeof today
+    >
+    expect(offline.coach.health.notes.map((note) => note.code)).toEqual(['sync-paused'])
+  })
+
+  test('a payload with no health block is kept as it is', async () => {
+    const sw = loadWorker()
+    const bare = { date: '2026-10-22', tz: CHICAGO, coach: { preview: false, slots: {} } }
+    sw.setNetwork(answering({ '/api/today': bare }))
+    const online = sw.request('/api/today')
+    await answer(online)
+    await online.settle()
+    expect(await sw.read('rl-api-v1', '/api/today')).toEqual(bare)
+  })
+
+  test('the code of the note the worker strips is the one the server writes', () => {
+    const server = readFileSync('server/services/todayHealth.ts', 'utf8')
+    expect(server).toContain("code: 'wrist-tomorrow'")
+    expect(TEMPLATE).toContain("const WATCH_NOTE_CODES = ['wrist-tomorrow']")
   })
 
   test('the other answers are served as they were kept, with no mark', async () => {

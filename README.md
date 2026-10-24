@@ -423,15 +423,19 @@ docker compose exec app node dist/scripts/reset-password.js you@example.com
 
 The web app has a manifest and icons, so a phone or desktop browser can add it to the home screen.
 The installed app keeps its shell, and the last answers for Today, the settings and the research
-parameters, on the device. With no connection it opens, shows today's session and its explanation,
-and keeps a check-in until the connection returns. Logging a run, editing the plan and every other
-page need the server. Signing out, or a 401 from the server, empties what the device kept
-(`docs/adr/0012-offline-shell.md`).
+parameters, on the device. With no connection it opens, shows today's session with the rule and the
+papers behind it under Explain (the figures from your own numbers need a connection, and the page
+says so), and keeps a check-in until the connection returns. The page says when it is showing the
+phone's copy and when that copy was saved. Logging a run, editing the plan and every other page need
+the server. Signing out, signing in and a 401 from the server empty what the device kept: the saved
+answers, the unsent drafts and the check-ins waiting to go out (`docs/adr/0012-offline-shell.md`).
 
 The offline shell needs https or localhost: browsers run a service worker only on a secure origin, so
 an install reached over plain http (a home server by IP address, say) works online only, and
-Settings says "Offline use: not available (needs https)". `npm run icons` renders the PNG icons in
-`web/public` from `icon.svg` again after a change to the artwork.
+Settings says "Offline use: not available (needs https)". A browser with no service workers, a
+browser that does not let this one register and a build that is not a production build each get
+their own sentence there. `npm run icons` renders the PNG icons in `web/public` from `icon.svg`
+again after a change to the artwork.
 
 ## Design documents
 

@@ -13,10 +13,17 @@ export const API_CACHE_NAME = 'rl-api-v1'
 /** The worker's small bookkeeping cache (the time of its last warm). Emptied with the answers. */
 export const META_CACHE_NAME = 'rl-meta'
 
-/** Whether the app can open with no connection: the worker is active, still installing, or not possible. */
-export type OfflineStatus = 'ready' | 'installing' | 'unavailable'
+/**
+ * Whether the app can open with no connection: the worker is active, or still installing, or it is
+ * not possible and the reason is named, so Settings can say what to change. `development`: the
+ * build is not a production build. `no-https`: the page is not on https or localhost, where a
+ * browser runs no worker. `unsupported`: a secure page in a browser with no service workers.
+ * `refused`: the browser has them and did not let this one register.
+ */
+export type OfflineStatus =
+  'ready' | 'installing' | 'development' | 'no-https' | 'unsupported' | 'refused'
 
-let status: OfflineStatus = 'unavailable'
+let status: OfflineStatus = 'development'
 const listeners = new Set<() => void>()
 
 function setStatus(next: OfflineStatus): void {
@@ -39,14 +46,14 @@ export function useOfflineStatus(): OfflineStatus {
 
 /** Back to the state before any registration, so one test's status does not reach the next. */
 export function resetOfflineStatusForTests(): void {
-  status = 'unavailable'
+  status = 'development'
 }
 
 /**
  * Registers the worker. Only a production build does: the development server serves modules the
  * worker would hold on to. A browser without `navigator.serviceWorker` (a page that is not on
  * https or localhost, an old browser) and a registration that is refused (a blocked worker) leave
- * the status at `unavailable` and the app works as it did before.
+ * the app working as it did before; the status says which of them it was.
  *
  * Registration waits for the page's `load` so it does not compete with the first paint. Once the
  * worker is active the page asks it to warm its cache (the worker throttles that itself), because
@@ -55,8 +62,18 @@ export function resetOfflineStatusForTests(): void {
  */
 export function registerServiceWorker(options: { production?: boolean } = {}): void {
   const { production = import.meta.env.PROD } = options
-  if (!production || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
-    setStatus('unavailable')
+  if (!production) {
+    setStatus('development')
+    return
+  }
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+    // A page that is not on https or localhost has no `navigator.serviceWorker`; so does an old
+    // browser. `isSecureContext` tells the two apart.
+    setStatus(
+      typeof window !== 'undefined' && window.isSecureContext === false
+        ? 'no-https'
+        : 'unsupported',
+    )
     return
   }
   setStatus('installing')
@@ -73,7 +90,7 @@ export function registerServiceWorker(options: { production?: boolean } = {}): v
         })
       })
       .catch(() => {
-        setStatus('unavailable')
+        setStatus('refused')
       })
   }
   if (document.readyState === 'complete') start()
@@ -85,6 +102,10 @@ export function registerServiceWorker(options: { production?: boolean } = {}): v
  * that ended on the server; this covers one the runner ended, and a sign-in, so nothing of an
  * earlier session is served to the next. Cache Storage is missing outside https and localhost,
  * where there is nothing to empty.
+ *
+ * Only `purgeDeviceData` in `outbox.ts` calls this, together with the drafts and the outbox: a page
+ * that needs the device emptied calls that one, so there is a single purge to extend
+ * (`tests/web/deviceData.test.tsx` checks that no other module imports this).
  */
 export async function purgeApiCache(): Promise<void> {
   if (typeof caches === 'undefined') return

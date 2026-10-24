@@ -82,6 +82,9 @@ async function queued(): Promise<number> {
 
 const CHECKIN_WRITES = '**/api/checkins/*'
 
+/** The slots that draw nothing while the page shows the phone's copy: they need the server. */
+const OFFLINE_EMPTY_SLOTS = ['watch', 'brief']
+
 /** A connection that fails: the page believes it is online, the writes to the check-in never land. */
 async function dropCheckinWrites(): Promise<void> {
   await page.route(CHECKIN_WRITES, async (route) => {
@@ -142,11 +145,14 @@ async function restoreDesktop(): Promise<void> {
  * may take at 360 px. A slot that already holds content gets the budget as its minimum height and
  * must not be taller than it; a slot nobody has mounted yet gets a stub of exactly the budget, in
  * the place the page gives it. Both measure alike, so this test keeps holding as E1, E4 and E5
- * mount their content.
+ * mount their content. `except` names slots that draw nothing in the state under test (the watch
+ * and brief lines need the server, so they are empty while the page shows the phone's copy).
  */
-async function fillSlotsToBudget(): Promise<void> {
+async function fillSlotsToBudget(except: readonly string[] = []): Promise<void> {
   const all: Array<[string, number | null]> = Object.entries(SLOT_BUDGETS_PX)
-  const budgets = all.filter((entry): entry is [string, number] => entry[1] !== null)
+  const budgets = all.filter(
+    (entry): entry is [string, number] => entry[1] !== null && !except.includes(entry[0]),
+  )
   await page.evaluate((entries) => {
     const columns = document.querySelector('[data-layout]')
     const hero = document.querySelector('article')
@@ -330,6 +336,66 @@ test('once the check-in is answered Done is inside the viewport at 360 x 740 and
     )
     .toBe(3)
   await expect.poll(queued).toBe(0)
+  await api.put(`/checkins/${today}`, { fatigue: null })
+})
+
+test('with the connection gone and the offline note on the page Done keeps both limits', async () => {
+  const { today } = relativeDates()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  const card = page.getByRole('article', { name: planned.title })
+  const read = page.getByRole('region', { name: 'Readiness' })
+  await expect(read.getByRole('radiogroup', { name: 'How do you feel today?' })).toBeVisible()
+  await expect(card.getByText(/^Cooler start: /)).toBeVisible()
+
+  // The signal goes after the page has loaded, as it does in a pocket: the page keeps what it has
+  // and says so under the session.
+  await page.context().setOffline(true)
+  try {
+    const note = page.getByText(/^Offline\. Showing the session saved at \d{2}:\d{2}\.$/)
+    await expect(note).toBeVisible()
+    await fillSlotsToBudget(OFFLINE_EMPTY_SLOTS)
+
+    const tall = await doneBottom()
+    await attachScreenshot('today-390x844-offline-unanswered', tall)
+    expect(tall).toBeLessThanOrEqual(844 - TAB_BAR_PX)
+    // The note is below Done, never above it, and its first line is on the first screen.
+    const noteBox = await note.boundingBox()
+    if (noteBox === null) throw new Error('The offline note has no box on the page.')
+    expect(noteBox.y).toBeGreaterThanOrEqual(tall)
+    expect(noteBox.y).toBeLessThan(844 - TAB_BAR_PX)
+
+    await page.setViewportSize({ width: 360, height: 740 })
+    const narrow = await doneBottom()
+    await attachScreenshot('today-360x740-offline-unanswered', narrow)
+    expect(narrow).toBeLessThanOrEqual(740)
+    expect(await scrollsSideways()).toBe(false)
+
+    // The answer is kept on the phone, and the page measures again with the folded line.
+    await read.getByRole('radio', { name: 'Normal' }).click()
+    await expect(read.getByText('Checked in: normal. Saved on this phone.')).toBeVisible()
+    await expect(read.getByRole('radiogroup')).toBeHidden()
+    await fillSlotsToBudget(OFFLINE_EMPTY_SLOTS)
+    const answered = await doneBottom()
+    await attachScreenshot('today-360x740-offline-answered', answered)
+    expect(answered).toBeLessThanOrEqual(740)
+
+    await page.setViewportSize({ width: 390, height: 707 })
+    const installed = await doneBottom()
+    await attachScreenshot('today-390x707-offline-answered', installed)
+    expect(installed).toBeLessThanOrEqual(707)
+    expect(await scrollsSideways()).toBe(false)
+  } finally {
+    await page.context().setOffline(false)
+  }
+
+  // The connection is back: the kept answer goes out, and is cleared again for the tests after this.
+  await expect.poll(queued).toBe(0)
+  await expect
+    .poll(
+      async () => ((await api.get(`/checkins/${today}`)) as { fatigue: number } | null)?.fatigue,
+    )
+    .toBe(3)
   await api.put(`/checkins/${today}`, { fatigue: null })
 })
 
