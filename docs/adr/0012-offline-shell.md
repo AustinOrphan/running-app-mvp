@@ -1,6 +1,6 @@
 # 0012. The installed app opens offline from a hand-written service worker that keeps five reads, and the device's copy of health data is purged with the session
 
-Status: Proposed 2026-10-23
+Status: Accepted 2026-10-23 (#554)
 
 ## Context
 
