@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SessionUser } from '../../shared/types.ts'
 import { getOutbox, purgeDeviceData } from '../pwa/outbox.ts'
+import { purgeApiCache } from '../pwa/register.ts'
 import { api, ApiError, keys } from './client.ts'
 
 /** The signed-in user, or null when there is no valid session. */
@@ -46,14 +47,15 @@ export function useCachedUserId(): string | null {
 
 /**
  * Signs in; the returned user goes straight into the `me` cache. A new session starts with an
- * empty outbox: whatever is waiting there was queued under the session that ended.
+ * empty outbox and an empty copy of the server's answers on the device: whatever is there belongs
+ * to the session that ended.
  */
 export function useLogin() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: LoginRequest) => api<SessionUser>('POST', '/auth/login', request),
     onSuccess: async (user) => {
-      await getOutbox().clear()
+      await Promise.all([getOutbox().clear(), purgeApiCache()])
       queryClient.setQueryData([keys.me], user)
     },
   })
@@ -65,7 +67,7 @@ export function useSetup() {
   return useMutation({
     mutationFn: (request: SetupRequest) => api<SessionUser>('POST', '/setup', request),
     onSuccess: async (user) => {
-      await getOutbox().clear()
+      await Promise.all([getOutbox().clear(), purgeApiCache()])
       queryClient.setQueryData([keys.me], user)
       queryClient.setQueryData([keys.setup], { needsSetup: false })
     },
@@ -73,8 +75,8 @@ export function useSetup() {
 }
 
 /**
- * Signs out and drops every cached query, every unsent draft and every write waiting in the
- * outbox, so no data outlives the session.
+ * Signs out and drops every cached query, every unsent draft, every write waiting in the outbox and
+ * the device's copy of the server's answers, so no data outlives the session.
  */
 export function useLogout() {
   const queryClient = useQueryClient()

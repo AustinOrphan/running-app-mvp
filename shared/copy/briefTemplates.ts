@@ -61,6 +61,12 @@ export const BRIEF_TEMPLATES = {
     'The weeks after your race follow a set return schedule: next week is up to {minutes}.',
     { minutes: 'minutes' },
   ),
+  // The same four when the suggested minutes are zero (a week with nothing run before it, a week
+  // held by a rest window): "up to 0 min" would read as a plan with nothing in it.
+  'brief.decision-progress-bare': tpl('The plan moves on to next week.'),
+  'brief.decision-hold-bare': tpl('The plan holds steady for next week.'),
+  'brief.decision-reduce-bare': tpl('The plan eases next week.'),
+  'brief.decision-post-race-bare': tpl('The weeks after your race follow a set return schedule.'),
 
   // The goal race.
   'brief.countdown-weeks': tpl('Weeks until {name}: {n}.', { name: 'text', n: 'count' }),

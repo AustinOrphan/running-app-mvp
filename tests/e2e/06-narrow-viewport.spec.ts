@@ -627,3 +627,165 @@ test('the Plan page keeps the watch strip, its chips and the sheet section insid
     await page.unroute('**/api/wrist/status')
   }
 })
+
+test('the Fuel lab and an open fuel log fit 360 px, with every control reachable', async () => {
+  const { lastWednesday, raceDate, today } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Narrow fuel marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+    goalType: 'finish',
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+  // A product with a long name, two logged long runs (so the history has rows and the ladder has
+  // stepped) and a third waiting for a log.
+  const product = (await api.post('/fuel/products', {
+    name: 'Synthetic electrolyte drink mix with a very long name',
+    kind: 'drink',
+    servingLabel: 'One scoop in a 500 mL bottle, shaken',
+    carbsG: 40,
+    sodiumMg: 300,
+    multiCarb: true,
+  })) as { id: string }
+  const runIds: string[] = []
+  for (const daysAgo of [5, 3, 1]) {
+    const run = (await api.post('/activities', {
+      date: addDays(today, -daysAgo),
+      type: 'run',
+      durationSec: 3 * 3600,
+      distanceM: 30_000,
+    })) as { id: string }
+    runIds.push(run.id)
+  }
+  for (const [index, id] of runIds.slice(0, 2).entries()) {
+    await api.put(`/fuel/logs/${id}`, {
+      items: [{ productId: product.id, servings: 4 + index }],
+      fluidMl: 1500,
+      gut: index,
+      nausea: index,
+    })
+  }
+
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/fuel')
+  await expect(page.getByRole('heading', { name: 'Fuel lab', level: 1 })).toBeVisible()
+  const history = page.getByRole('region', { name: 'Fuel history, newest first' })
+  await expect(history.getByRole('row')).toHaveCount(3)
+  const width = page.viewportSize()?.width ?? 0
+  const height = page.viewportSize()?.height ?? 0
+
+  /** What sticks out past the right edge of the screen, leaving out the table that scrolls inside. */
+  async function pastRightEdge(root: ReturnType<Page['locator']>): Promise<string[]> {
+    return root.evaluate(
+      (el, limit) =>
+        [...el.querySelectorAll('*')]
+          .filter((node) => {
+            if (node.closest('[role="region"][tabindex="0"]') !== null) return false
+            const box = node.getBoundingClientRect()
+            return box.width > 0 && box.right > limit + 0.5
+          })
+          .map((node) => `${node.tagName.toLowerCase()} "${node.textContent?.slice(0, 40) ?? ''}"`),
+      width,
+    )
+  }
+
+  // The page: nothing pushes it sideways, and the history table scrolls inside its own box.
+  expect(await pageOverflow(), 'the lab page').toBeLessThanOrEqual(0)
+  expect(await pastRightEdge(page.getByRole('main')), 'past the right edge').toEqual([])
+  const historyBox = await history.boundingBox()
+  expect((historyBox?.x ?? -1) + (historyBox?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
+  expect(historyBox?.x ?? -1).toBeGreaterThanOrEqual(0)
+  expect(await history.evaluate((el) => el.scrollWidth > el.clientWidth), 'table scrolls').toBe(
+    true,
+  )
+
+  // Every button of the lab is on screen when scrolled to and is at least 44 px tall.
+  for (const name of ['Add a product', 'Save settings']) {
+    const button = page.getByRole('button', { name, exact: true })
+    await button.scrollIntoViewIfNeeded()
+    const box = await button.boundingBox()
+    expect(box, name).not.toBeNull()
+    expect((box?.x ?? 0) + (box?.width ?? 0), `${name} right edge`).toBeLessThanOrEqual(width + 0.5)
+    expect(box?.height ?? 0, `${name} height`).toBeGreaterThanOrEqual(43.5)
+    expect(await isUncovered(button), name).toBe(true)
+  }
+
+  // The product form opens inside the screen, with Save product in reach.
+  await page.getByRole('button', { name: 'Add a product' }).click()
+  const productForm = page.getByRole('form', { name: 'Add a product' })
+  await expect(productForm).toBeVisible()
+  const save = productForm.getByRole('button', { name: 'Save product' })
+  await save.scrollIntoViewIfNeeded()
+  expect(await pastRightEdge(productForm), 'product form past the right edge').toEqual([])
+  expect(await isUncovered(save), 'Save product').toBe(true)
+  await productForm.getByRole('button', { name: 'Cancel' }).click()
+  await expect(productForm).toBeHidden()
+
+  // The log form of the run still waiting for a log, opened from the lab's own prompt.
+  await page.getByRole('button', { name: /^Log fuel for / }).click()
+  const sheet = page.getByRole('dialog', { name: 'Fuel log' })
+  await expect(sheet).toBeVisible()
+  // Measure after the slide-up animation ends.
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  const chip = sheet.getByRole('button', { name: /^Add one Synthetic electrolyte/ })
+  await chip.click()
+  await chip.click()
+  await expect(sheet.getByRole('status')).toContainText('You took 80 g of carbohydrate')
+  expect(await pageOverflow(), 'the page with the sheet open').toBeLessThanOrEqual(0)
+  expect(
+    await sheet.evaluate((el) => el.scrollWidth - el.clientWidth),
+    'the sheet',
+  ).toBeLessThanOrEqual(0)
+  expect(await pastRightEdge(sheet), 'sheet past the right edge').toEqual([])
+  for (const button of [chip, sheet.getByRole('button', { name: /^Remove one Synthetic/ })]) {
+    const box = await button.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(43.5)
+  }
+
+  // Both scales: five answers each, inside their group, none under 44 px.
+  for (const scale of ['Gut', 'Nausea (optional)']) {
+    const group = sheet.getByRole('radiogroup', { name: scale })
+    await group.scrollIntoViewIfNeeded()
+    const groupBox = await group.boundingBox()
+    const radios = await group.getByRole('radio').all()
+    expect(radios.length, scale).toBe(5)
+    for (const radio of radios) {
+      const box = await radio.boundingBox()
+      const label = `${scale} ${(await radio.textContent()) ?? ''}`
+      expect(box, label).not.toBeNull()
+      expect(box?.x ?? -1, `${label} left edge`).toBeGreaterThanOrEqual((groupBox?.x ?? 0) - 0.5)
+      expect((box?.x ?? 0) + (box?.width ?? 0), `${label} right edge`).toBeLessThanOrEqual(
+        (groupBox?.x ?? 0) + (groupBox?.width ?? 0) + 0.5,
+      )
+      expect(box?.height ?? 0, `${label} height`).toBeGreaterThanOrEqual(43.5)
+      expect(
+        await radio.evaluate((el) => el.scrollWidth - el.clientWidth),
+        label,
+      ).toBeLessThanOrEqual(0)
+    }
+  }
+
+  // The end of the form: Save and Not this time are fully on screen and not under the tab bar.
+  for (const name of ['Save fuel log', 'Not this time']) {
+    const button = sheet.getByRole('button', { name, exact: true })
+    await button.scrollIntoViewIfNeeded()
+    const box = await button.boundingBox()
+    expect(box, name).not.toBeNull()
+    expect((box?.x ?? 0) + (box?.width ?? 0), `${name} right edge`).toBeLessThanOrEqual(width + 0.5)
+    expect((box?.y ?? 0) + (box?.height ?? 0), `${name} bottom edge`).toBeLessThanOrEqual(height)
+    expect(await isUncovered(button), name).toBe(true)
+  }
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+})

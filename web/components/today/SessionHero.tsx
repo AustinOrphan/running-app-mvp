@@ -8,8 +8,9 @@ import type { PlanSession, TodayHeat, TodayHero, Units } from '../../../shared/t
 import { formatDistance } from '../../../shared/units.ts'
 import { WhyDrawer } from '../WhyDrawer.tsx'
 import { CoolerStart } from './CoolerStart.tsx'
-import { DoneSheet } from '../lazySheets.tsx'
+import { DoneSheet, NotFullSheet } from '../lazySheets.tsx'
 import { KnowToday } from './KnowToday.tsx'
+import { NotFullEntry } from './NotFullEntry.tsx'
 import { NotTodaySheet } from './NotTodaySheet.tsx'
 import { SessionActions } from './SessionActions.tsx'
 import styles from './SessionHero.module.css'
@@ -69,19 +70,21 @@ export interface SessionHeroProps {
  * Today's session as the page's hero: its title, the duration as the display figure, the targets
  * to run by, the cooler start, the disclosure and the actions. Done opens the sheet that logs the
  * run, filled in with what the hero shows, and Not today the sheet that moves or skips the
- * session. When readiness eases the day the easy run is the hero and the planned session sits
- * above it, muted; on a rest day the hero says so and keeps the planned session beside it. Every
- * figure comes from the payload.
+ * session. That sheet carries the "Not 100%" entry, which swaps it for the sheet that makes a rest
+ * window, dated from the day of this session (the server's day). When readiness eases the day the
+ * easy run is the hero and the planned session sits above it, muted; on a rest day the hero says
+ * so and keeps the planned session beside it. Every figure comes from the payload.
  */
 export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
   const titleId = useId()
   const title = useRef<HTMLHeadingElement>(null)
   const settled = useRef(false)
   const [whyOpen, setWhyOpen] = useState(false)
-  const [sheet, setSheet] = useState<'done' | 'not-today' | null>(null)
+  const [sheet, setSheet] = useState<'done' | 'not-today' | 'not-full' | null>(null)
 
-  // After a run is saved or the session is moved or skipped, the button that opened the sheet is
-  // gone with the rest of the actions; focus goes to the title, where the new state reads.
+  // After a run is saved, the session is moved or skipped, or a window is made, the button that
+  // opened the sheet is gone with the rest of the actions; focus goes to the title, where the new
+  // state reads.
   useEffect(() => {
     if (sheet === null && settled.current) {
       settled.current = false
@@ -219,6 +222,24 @@ export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
             setSheet(null)
           }}
           onChanged={() => {
+            settled.current = true
+            setSheet(null)
+          }}
+        >
+          <NotFullEntry
+            units={units}
+            onOpen={() => {
+              setSheet('not-full')
+            }}
+          />
+        </NotTodaySheet>
+      ) : null}
+      {sheet === 'not-full' ? (
+        <NotFullSheet
+          today={session.date}
+          onClose={() => {
+            // The Not today button is gone with the sheet that held the entry, so focus goes to
+            // the title, as after the other sheets.
             settled.current = true
             setSheet(null)
           }}

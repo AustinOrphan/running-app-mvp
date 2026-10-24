@@ -16,10 +16,20 @@ function findWebRoot(): string | null {
   return null
 }
 
-/** Serves the built SPA with an index.html fallback; does nothing when there is no build. */
-export function mountStatic(app: Express): void {
-  const root = findWebRoot()
+/**
+ * The files in the root that a browser must ask the server about every time: the page (it names
+ * the hashed assets), the service worker (a stale copy would hold an old build in place) and the
+ * manifest. Everything else in the root is served with the default validators.
+ */
+const REVALIDATED = ['index.html', 'sw.js', 'manifest.webmanifest']
+
+/**
+ * Serves the built SPA with an index.html fallback; does nothing when there is no build. `root`
+ * is the build folder, found beside the server when not given (a test gives its own).
+ */
+export function mountStatic(app: Express, root: string | null = findWebRoot()): void {
   if (!root) return
+  const revalidated = new Set(REVALIDATED.map((name) => resolve(root, name)))
 
   app.use(
     '/assets',
@@ -29,7 +39,7 @@ export function mountStatic(app: Express): void {
     express.static(root, {
       index: false,
       setHeaders: (res, path) => {
-        if (path.endsWith('index.html')) res.setHeader('Cache-Control', 'no-cache')
+        if (revalidated.has(resolve(path))) res.setHeader('Cache-Control', 'no-cache')
       },
     }),
   )

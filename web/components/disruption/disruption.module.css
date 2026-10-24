@@ -204,6 +204,55 @@
   gap: var(--space-1);
 }
 
+/* In Today's `disruption` slot (64 px at 360 px, `web/components/today/slots.ts`) the banner is one
+   box of exactly that height, with no margin of its own: the sentence in at most two lines, then
+   the buttons in one row. What does not fit is clipped, never taller. The rows add up to the box:
+   two lines of 18 px, a row of 26 px and 1 px above and below. The buttons are small because
+   every one opens a preview before anything changes. The focus ring is drawn inside the button,
+   or the box would clip it. */
+.compact {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0;
+  box-sizing: border-box;
+  height: 4rem;
+  margin-bottom: 0;
+  padding: 1px var(--space-3);
+  overflow: hidden;
+}
+
+.compact .bannerLine {
+  display: -webkit-box;
+  flex: 0 1 auto;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  line-height: 1.125rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.compact .bannerActions {
+  flex: none;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+}
+
+.compact .compactAction {
+  min-height: 1.625rem;
+  height: 1.625rem;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.compact .compactAction:focus-visible {
+  outline-offset: -2px;
+}
+
 /* The adjust section. */
 .adjustControls {
   display: flex;

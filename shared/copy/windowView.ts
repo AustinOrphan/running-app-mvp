@@ -42,6 +42,16 @@ export const WINDOW_VIEW_TEMPLATES = {
     to: 'date',
   }),
 
+  // Today's offer after a check-in that reports illness or pain, when no window is in effect: one
+  // question and two answers. It creates nothing; "Set one up" opens the "Not 100%" sheet.
+  'window-view.prompt.ask': tpl('Set a rest window and a return plan?'),
+  'window-view.prompt.yes': tpl('Set one up', {}, { shape: 'label' }),
+  'window-view.prompt.later': tpl('Not now', {}, { shape: 'label' }),
+
+  // The entry to the same sheet from the "Not today" sheet, for a runner who is not 100% today.
+  'window-view.entry.label': tpl('Not 100%', {}, { shape: 'label' }),
+  'window-view.entry.hint': tpl('Tell the plan if you are ill, hurt, short on time or travelling.'),
+
   // The preview of a window: the running time it changes, and what it cannot decide for the runner.
   'window-view.minutes-less': tpl(
     'Running time over the next four weeks: {before} becomes {after}. The minutes you rest are not added back.',
@@ -238,4 +248,21 @@ export function offlineLine(units: Units): string {
 /** The button that removes a window when its undo is refused because the window changed since. */
 export function removeInsteadLabel(units: Units): string {
   return render(t['window-view.remove-instead'], {}, units)
+}
+
+/** Today's offer of a rest window: the question, and the answers that open the sheet or wait. */
+export function restPromptWords(units: Units): { ask: string; yes: string; later: string } {
+  return {
+    ask: render(t['window-view.prompt.ask'], {}, units),
+    yes: render(t['window-view.prompt.yes'], {}, units),
+    later: render(t['window-view.prompt.later'], {}, units),
+  }
+}
+
+/** The "Not 100%" entry of the "Not today" sheet: its button and the line under it. */
+export function notFullEntryWords(units: Units): { label: string; hint: string } {
+  return {
+    label: render(t['window-view.entry.label'], {}, units),
+    hint: render(t['window-view.entry.hint'], {}, units),
+  }
 }

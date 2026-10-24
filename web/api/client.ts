@@ -111,17 +111,26 @@ export function fieldErrors(err: unknown): Record<string, string> {
   return result
 }
 
+/**
+ * The app's query client. `networkMode: 'always'` for queries and mutations: the library's default
+ * pauses a request while the browser says it is offline, and a paused request never reaches what
+ * can answer it. A read then never reaches the service worker, which answers an allowlisted one from
+ * the phone's copy, and a check-in tapped after the connection went never reaches the outbox, which
+ * keeps it on the phone: it would wait in memory and be lost with the page. Both now run, fail fast
+ * and say so (ADR 0012).
+ */
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
+        networkMode: 'always',
         staleTime: 30_000,
         refetchOnWindowFocus: false,
         retry: (failureCount, error) =>
           failureCount < 2 &&
           !(error instanceof ApiError && error.status >= 400 && error.status < 500),
       },
-      mutations: { retry: false },
+      mutations: { networkMode: 'always', retry: false },
     },
   })
 }

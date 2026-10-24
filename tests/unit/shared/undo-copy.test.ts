@@ -150,6 +150,15 @@ describe('cause sentences', () => {
     expect([...CAUSE_ORDER].sort()).toEqual(Object.keys(all).sort())
   })
 
+  it('does not say the runner was away: a plan can open at a low level for a runner who never stopped', () => {
+    for (const units of UNITS) {
+      expect(causeSentence('break-restart', units)).toBe(
+        'The plan restarts gently from where your running is now.',
+      )
+      expect(causeSentence('break-restart', units)).not.toMatch(/\baway\b/i)
+    }
+  })
+
   it('falls back to the plain cause for one a newer server adds', () => {
     expect(causeSentence('later' as CauseCode, 'km')).toBe(causeSentence('state-update', 'km'))
   })

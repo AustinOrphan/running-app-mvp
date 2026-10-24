@@ -51,6 +51,21 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   {
+    // The service worker is a classic script in a worker scope: its globals are the worker's, and a
+    // reference to the page's (`window`, `document`, storage) is a bug, so those are switched off.
+    files: ['web/sw/**/*.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        ...globals.serviceworker,
+        window: 'off',
+        document: 'off',
+        localStorage: 'off',
+        sessionStorage: 'off',
+      },
+    },
+  },
+  {
     files: ['tests/web/**'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
