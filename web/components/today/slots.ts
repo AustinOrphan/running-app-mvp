@@ -39,6 +39,11 @@
  * `brief` mount included, so the first screen keeps to its two requests. A slot whose data is missing
  * offline renders nothing.
  *
+ * **The offline note is not a slot.** `OfflineNote` shows one or two lines (38 to 60 px with its
+ * space) only while the page has the phone's copy, and the page puts it under the hero, so it takes
+ * no part in the budgets: above Done it would add its height to everything the limits count. The
+ * fold test measures the same two limits again with the connection gone and the note on the page.
+ *
  * **Above and below the fold.** `disruption`, `fuel`, `watch` and `brief` are budgeted because they
  * sit on or near the first screen. `fuelPrompt` sits below the fold in the week group and has no
  * budget. On a screen wider than 900 px the page stands in two columns, the session group on the

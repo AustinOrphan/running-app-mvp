@@ -138,11 +138,13 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
   `/api/setup`, `/api/settings`, `/api/today` with or without `?date=`, `/api/research/params`), 200
   GETs only, in `rl-api-v1`; a new cached read is a change to the allowlist in `web/sw/sw.js`, to
   `tests/unit/shared/sw.test.ts` and to the ADR. Health data on the device (`rl-api-v1`, the outbox,
-  the drafts) is emptied only through `purgeDeviceData()` in `web/pwa/outbox.ts`, which sign-out and
-  every 401 call; extend it rather than adding a second purge. The worker is registered in a
-  production build only. A date in the worker is the server's (`tz` of the payload), never the
-  phone's. `createQueryClient()` runs queries and mutations in `networkMode: 'always'`, so a request
-  made while the browser says it is offline still reaches the worker or the outbox.
+  the drafts) is emptied only through `purgeDeviceData()` in `web/pwa/outbox.ts`, which sign-out,
+  sign-in, account creation and every 401 call; extend it rather than adding a second purge. The
+  page's own cached answers go with `dropUserQueries()` in `web/api/client.ts`. The worker is
+  registered in a production build only. A date in the worker is the server's (`tz` of the
+  payload), never the phone's. `createQueryClient()` runs queries and mutations in
+  `networkMode: 'always'`, so a request made while the browser says it is offline still reaches the
+  worker or the outbox.
 
 ## Testing
 

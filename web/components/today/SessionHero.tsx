@@ -64,6 +64,11 @@ export interface SessionHeroProps {
   /** The next session after today, shown once today's is settled or is a rest day. */
   next: PlanSession | null
   units: Units
+  /**
+   * The session is of a day that is over (the phone's copy of an earlier day): Done and Not today
+   * are not offered, because they would act on that day. Explain still is.
+   */
+  readOnly?: boolean
 }
 
 /**
@@ -75,7 +80,7 @@ export interface SessionHeroProps {
  * easy run is the hero and the planned session sits above it, muted; on a rest day the hero says
  * so and keeps the planned session beside it. Every figure comes from the payload.
  */
-export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
+export function SessionHero({ hero, heat, next, units, readOnly = false }: SessionHeroProps) {
   const titleId = useId()
   const title = useRef<HTMLHeadingElement>(null)
   const settled = useRef(false)
@@ -174,7 +179,7 @@ export function SessionHero({ hero, heat, next, units }: SessionHeroProps) {
       {nextText === null ? null : <p className={styles.muted}>{nextText}</p>}
 
       <SessionActions
-        canAct={!rest && toRun}
+        canAct={!rest && toRun && !readOnly}
         canExplain={rules.length > 0}
         onDone={() => {
           setSheet('done')

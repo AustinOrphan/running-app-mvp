@@ -169,6 +169,20 @@ export const keys = {
 } as const
 
 /**
+ * Drops every cached answer except `me` and `setup`, which the caller sets itself: the answers of
+ * one account are not shown to the next in the same tab (a 401, then another account signs in; the
+ * cache would otherwise hand the second account the first one's Today for up to five minutes).
+ * Reads still in flight are cancelled. The two kept queries stay in the cache because their
+ * observers (the auth gate, the login page) stay mounted, and a query removed under an observer is
+ * no longer the one the observer reads.
+ */
+export function dropUserQueries(queryClient: QueryClient): void {
+  queryClient.removeQueries({
+    predicate: (query) => query.queryKey[0] !== keys.me && query.queryKey[0] !== keys.setup,
+  })
+}
+
+/**
  * Every query that reads the plan or what a change to it moves: the plan and its sessions (the
  * session workout sits under its key), the revision list, the rest windows, the reviews, the weekly
  * brief, the athlete state, Today, the watch status (the sessions it lists are the plan's) and the
