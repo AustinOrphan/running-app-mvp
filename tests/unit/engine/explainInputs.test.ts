@@ -8,7 +8,12 @@ import { COPY_MAX_CHARS, EXPLAIN_MAX_SOURCES } from '../../../shared/copy/limits
 import { lintText } from '../../../shared/copy/lint.ts'
 import { TEMPLATES, renderFact } from '../../../shared/copy/templates.ts'
 import { addDays, isIsoDate, mondayOf } from '../../../shared/dates.ts'
-import { breakRestart, weekEvidence, weeklyDecision } from '../../../shared/engine/adapt.ts'
+import {
+  afterBreak,
+  breakRestart,
+  weekEvidence,
+  weeklyDecision,
+} from '../../../shared/engine/adapt.ts'
 import {
   csEffortsOf,
   durabilityRuns,
@@ -33,6 +38,7 @@ import {
   SIGNAL_WORDS,
   type ExplainContext,
 } from '../../../shared/engine/explainInputs.ts'
+import { feasibility, peakLongRunMin, trainingPace } from '../../../shared/engine/goal.ts'
 import { buildPlan } from '../../../shared/engine/index.ts'
 import {
   spikeOverrideLimit,
@@ -42,7 +48,7 @@ import {
   weeklyRamp,
 } from '../../../shared/engine/limits.ts'
 import { criticalSpeed } from '../../../shared/engine/load.ts'
-import { taperDays } from '../../../shared/engine/macro.ts'
+import { startPath, taperDays } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { postRaceWindows } from '../../../shared/engine/postRace.ts'
 import { predictFromState } from '../../../shared/engine/predict.ts'
@@ -1979,6 +1985,145 @@ describe('D1 to D7: the goal', () => {
   })
 })
 
+describe('after a break: E6, D4, D7 and K1 read the state the plan was drawn from [rules J7]', () => {
+  type Pattern = ReadonlyArray<readonly [number, number]>
+  /** Tuesday and Thursday runs: a typical week of 75 min. */
+  const WEEK_75: Pattern = [
+    [1, 37],
+    [3, 38],
+  ]
+
+  /**
+   * A matrix athlete whose weeks hold `pattern` (weekday from Monday = 0, minutes), the last run
+   * `layoffDays` ago, with the plan the engine makes for them stored, as the server holds it.
+   */
+  function afterLayoff(
+    id: string,
+    pattern: Pattern,
+    layoffDays: number,
+    goal: Partial<EngineInput['goal']> = {},
+  ): ExplainContext {
+    const base = matrix(id).input
+    const last = addDays(TODAY, -layoffDays)
+    const activities: Activity[] = []
+    for (let week = 1; week <= 12; week += 1) {
+      for (const [dow, min] of pattern) {
+        const date = addDays(mondayOf(TODAY), -7 * week + dow)
+        if (date > last) continue
+        activities.push(
+          activity(date, {
+            id: `run-${date}`,
+            durationSec: min * 60,
+            movingSec: min * 60,
+            distanceM: min * 180,
+            rpe: 3,
+          }),
+        )
+      }
+    }
+    return contextOf(withPlan({ ...base, goal: { ...base.goal, ...goal }, activities }))
+  }
+
+  /** The first run the stored plan holds from today on. */
+  const firstRun = (ctx: ExplainContext) =>
+    ctx.input
+      .existing!.sessions.filter((s) => s.date >= TODAY)
+      .sort((a, b) => a.date.localeCompare(b.date))[0]!
+
+  test('E6 names the floor start of a plan that restarted at 56 min, not "enough to skip"', () => {
+    const ctx = afterLayoff('half', WEEK_75, 20)
+    // the snapshot keeps the runner's own week; the plan restarted at round(75 x 0.75) = 56 min
+    expect(ctx.state.typicalWeekMin).toBe(75)
+    expect(ctx.state.layoffDays).toBeGreaterThanOrEqual(15)
+    expect(ctx.input.existing!.weeks[0]!.flags).toContain('restart-floor')
+    const facts = factsOf('E6', ctx)
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-floor'])
+    expect(text(facts[0]!)).toBe('You start with 3 runs of 30 min a week, then build from there.')
+    expect(slot(facts[0]!, 'session', 'minutes').min).toBe(firstRun(ctx).durationMin)
+  })
+
+  test('E6 names the rung of a plan that restarted on the ladder', () => {
+    const ctx = afterLayoff('half', WEEK_75, 36)
+    const flag = ctx.input.existing!.weeks[0]!.flags.find((f) => f.startsWith('ladder-'))!
+    const facts = factsOf('E6', ctx)
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-ladder'])
+    expect(slot(facts[0]!, 'rung', 'count').n).toBe(Number(flag.slice('ladder-'.length)))
+  })
+
+  test('E6 keeps "enough to skip" for a break under 7 days', () => {
+    const ctx = afterLayoff('half', WEEK_75, 5)
+    expect(ctx.state.layoffDays).toBeLessThan(P.j7.tier1Days.value)
+    const facts = factsOf('E6', ctx)
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-none'])
+    expect(slot(facts[0]!, 'level', 'minutes').min).toBe(75)
+  })
+
+  test('D4 gives the weeks the plan needed from the restart volume', () => {
+    const ctx = afterLayoff('half', WEEK_75, 36)
+    const plan = buildPlan(ctx.input)
+    const raw = feasibility(
+      ctx.race!,
+      ctx.state,
+      TODAY,
+      startPath({ ...ctx.input, today: TODAY }, ctx.state),
+    )
+    // the raw state would say 21 weeks; the plan restarted lower and needs more
+    expect(raw.weeksNeeded).not.toBe(plan.feasibility.weeksNeeded)
+    const [outlook] = factsOf('D4', ctx)
+    expect(slot(outlook!, 'needed', 'count').n).toBe(plan.feasibility.weeksNeeded)
+    expect(slot(outlook!, 'available', 'count').n).toBe(plan.feasibility.weeksAvailable)
+  })
+
+  test('D7 gives the typical week the long-run cap was drawn from', () => {
+    const week: Pattern = [
+      [1, 60],
+      [3, 70],
+      [5, 70],
+    ]
+    const ctx = afterLayoff('half', week, 20, { distanceClass: '10k', distanceM: 10_000 })
+    expect(ctx.state.typicalWeekMin).toBe(200)
+    const [tier] = factsOf('D7', ctx)
+    // round(200 x 0.75): the tier below 180 min, as the plan used it
+    expect(tier!.template).toBe('explain.d7-tier-break')
+    expect(slot(tier!, 'typical', 'minutes').min).toBe(150)
+    expect(text(tier!)).toMatch(
+      /^After your break the plan restarts from a typical week of 150 min/,
+    )
+    // the cap the plan held its longest run to, not the one the unadjusted week would give
+    const capFor = (state: ExplainContext['state']) => {
+      const pace = trainingPace(state, ctx.race!)
+      const z1 = ctx.zones.pace?.z1 ?? null
+      return peakLongRunMin(ctx.race!, pace, state, z1 === null ? pace : (z1[0] + z1[1]) / 2)
+    }
+    const cap = slot(tier!, 'cap', 'minutes').min
+    expect(cap).toBe(capFor(afterBreak(ctx.state)))
+    expect(cap).not.toBe(capFor(ctx.state))
+    const longest = Math.max(...ctx.input.existing!.weeks.map((w) => w.longRunMin))
+    expect(longest).toBeLessThanOrEqual(cap)
+    // without a break the sentence is the plain one, with the runner's own week
+    const rested = afterLayoff('half', week, 3, { distanceClass: '10k', distanceM: 10_000 })
+    expect(factsOf('D7', rested)[0]!.template).toBe('explain.d7-tier')
+  })
+
+  test('K1 gives the taper length of the plan, from the restart volume', () => {
+    const week: Pattern = [
+      [0, 45],
+      [1, 60],
+      [3, 60],
+      [4, 40],
+      [5, 120],
+    ]
+    const ctx = afterLayoff('marathon', week, 36)
+    // 325 min a week is not low volume; the restart at 163 min is
+    expect(taperDays(ctx.race!, ctx.state)).toBe(P.k1.marathonDays.value)
+    const [k1] = factsOf('K1', ctx)
+    expect(slot(k1!, 'days', 'count').n).toBe(P.k1.marathonLowVolumeDays.value)
+    const taper = ctx.input.existing!.weeks.filter((w) => w.isTaper)
+    expect(taper.length * 7).toBe(P.k1.marathonLowVolumeDays.value)
+    expect(slot(k1!, 'week', 'date').iso).toBe(taper[0]!.weekStart)
+  })
+})
+
 describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
   test('E2 counts the weeks of each phase of the stored plan and the weeks to the race', () => {
     const ctx = ctxOf('marathon')
@@ -2067,6 +2212,34 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
     expect(text(factsOf('E6', injured).at(-1)!)).toBe(
       'You start on the return ladder at runs of 5 min, because of an injury in your profile.',
     )
+  })
+
+  test('E6 says what is missing and then where the plan starts, whatever the path is', () => {
+    const missing = 'No run is on file in the last 365 days.'
+    const novice = contextOf({ ...emptyInput(), profile: profileOf({ runningSinceYear: null }) })
+    const injured = contextOf({
+      ...emptyInput(),
+      profile: profileOf({
+        injuries: [{ kind: 'muscle', year: 2026, month: 9 } as never],
+        runningSinceYear: 2015,
+      }),
+    })
+    const experienced = contextOf({
+      ...emptyInput(),
+      profile: profileOf({ runningSinceYear: 2015 }),
+    })
+    expect(sentences(factsOf('E6', novice), 'km')).toEqual([
+      missing,
+      'You start on rung 1 of 9 of a run-walk ladder, because of your recent running.',
+    ])
+    expect(sentences(factsOf('E6', injured), 'km')).toEqual([
+      missing,
+      'You start on the return ladder at runs of 5 min, because of an injury in your profile.',
+    ])
+    expect(sentences(factsOf('E6', experienced), 'km')).toEqual([
+      missing,
+      'You start with 3 runs of 20 min a week, then build from there.',
+    ])
   })
 
   test('H7, H10, K1 and K2 give the fuel weeks, the strength sessions and the taper of the plan', () => {
@@ -2274,6 +2447,55 @@ describe('zero minutes are not a number to state', () => {
     const week = facts.find((f) => f.id === 'g-2.plan-week')!
     expect(week.template).toBe('explain.g2-plan-week-none')
     expect(text(week)).toBe('The plan sets no running for the week of 19 Oct.')
+  })
+
+  /** The stored plan of `rich` with `change` applied to the weeks that `pick` selects. */
+  function withWeeks(pick: (w: WeekDraft) => boolean, change: (w: WeekDraft) => WeekDraft) {
+    const base = richCtx.input.existing!
+    const input: EngineInput = {
+      ...rich,
+      existing: { ...base, weeks: base.weeks.map((w) => (pick(w) ? change(w) : w)) },
+    }
+    return contextOf(input)
+  }
+
+  test('E3 does not state a recovery week held whole as "up to 0 min"', () => {
+    const recovery = richCtx.input.existing!.weeks.find(
+      (w) => w.isRecovery && w.weekStart >= MONDAY,
+    )!
+    // a rest window over the whole week stores it at no running and keeps its flag
+    for (const targetRunMin of [0, 0.4]) {
+      const ctx = withWeeks(
+        (w) => w.weekStart === recovery.weekStart,
+        (w) => ({ ...w, targetRunMin }),
+      )
+      const next = factsOf('E3', ctx).find((f) => f.id === 'e3.next')!
+      expect(next.template).toBe('explain.e3-next-none')
+      expect(text(next)).toBe(
+        'The next recovery week in your plan starts on 2 Nov, with no running set.',
+      )
+      expect(text(next)).not.toMatch(/\b0 min\b/)
+      expect(next.window).toEqual({ from: recovery.weekStart, to: addDays(recovery.weekStart, 6) })
+    }
+    expect(recovery.weekStart).toBe('2026-11-02')
+    expect(factsOf('E3', richCtx).find((f) => f.id === 'e3.next')!.template).toBe('explain.e3-next')
+  })
+
+  test('K2 does not state a taper week held whole as "up to 0 min"', () => {
+    const taper = richCtx.input.existing!.weeks.filter((w) => w.isTaper)
+    const held = taper[0]!
+    const ctx = withWeeks(
+      (w) => w.weekStart === held.weekStart,
+      (w) => ({ ...w, targetRunMin: 0 }),
+    )
+    const facts = factsOf('K2', ctx)
+    expect(facts[0]!.template).toBe('explain.k2-week-none')
+    expect(held.weekStart).toBe('2027-02-22')
+    expect(text(facts[0]!)).toBe('The taper week of 22 Feb has no running set.')
+    expect(text(facts[0]!)).not.toMatch(/\b0 min\b/)
+    // the other taper weeks keep their minutes
+    for (const fact of facts.slice(1)) expect(fact.template).toBe('explain.k2-week')
+    expect(facts).toHaveLength(Math.min(taper.length, EXPLAIN_MAX_SOURCES))
   })
 
   /** Two stored weeks, last week's and this week's, and no run in either. */

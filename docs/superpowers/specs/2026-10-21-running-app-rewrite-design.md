@@ -448,8 +448,9 @@ A fresh reader of sections 1–6 raised these; each answer refines the section n
 
     - **Today (`/`).** The hero is today's session with its targets and the readiness read; the
       week strip, the brief line, the fuel and watch lines, the disruption banner and the race
-      countdown fill budgeted slots. Done, Explain and Not today are the actions; Not 100% opens the
-      rest-window sheet.
+      countdown fill budgeted slots. Done, Explain and Not today are the actions. The Not today
+      sheet also holds the Not 100% entry, which opens the rest-window sheet; after an illness or
+      pain check-in the disruption slot offers the same sheet.
     - **Plan (`/plan`).** Adds "What changed" (revisions with from-and-to lines, causes and a
       one-tap undo with a preview), "Update plan from latest data" (a preview before any write),
       the rest-window banner and chips, the adjust section of the session sheet, and the strip

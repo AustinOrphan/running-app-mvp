@@ -120,7 +120,7 @@ export interface HoldReasons {
   firstInClass: boolean
 }
 
-export function holdReasons(
+function holdReasons(
   race: PostRaceRace,
   athlete: PostRaceAthlete,
   history: ReadonlyArray<PostRaceHistoryRace>,

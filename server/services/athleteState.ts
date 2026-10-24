@@ -48,6 +48,7 @@ import {
 import {
   loadActivities,
   loadProfile,
+  parsePlanOptions,
   toDisruption,
   toGoal,
   toPlan,
@@ -413,17 +414,6 @@ function zoneChangesOf(
   return changes
 }
 
-/** The options of a stored plan: its JSON text, or the empty options when it is absent or unreadable. */
-function planOptionsOf(text: string | undefined): EngineInput['options'] {
-  if (text === undefined) return {}
-  try {
-    const parsed: unknown = JSON.parse(text)
-    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {}
-  } catch {
-    return {}
-  }
-}
-
 /** The goal model for one of the context's goals; null when the goal is unknown or has no distance. */
 export async function goalModelFor(
   ctx: Pick<AthleteContext, 'goals' | 'state' | 'climate'>,
@@ -579,7 +569,7 @@ async function buildContext(
     goals,
     goal,
     plan: planRow ? toPlan(planRow) : null,
-    planOptions: planOptionsOf(planRow?.options),
+    planOptions: parsePlanOptions(planRow?.options),
     planSessions,
     state,
     zones,
