@@ -10,3 +10,7 @@ test-results
 docs
 tests
 generated
+prisma/data
+**/*.db
+**/*.db-wal
+**/*.db-shm

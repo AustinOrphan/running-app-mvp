@@ -315,9 +315,9 @@ evidence-graded engine, LLM text only) and ADR 0006 (provider framework, experim
 
 ### Task E16: Plan adequacy — projection, recovery baselines, restart floor, session minimums
 
-A plan generated from a real, sparse recent history (one run of about 30 minutes most weeks,
-an 84-minute run seven weeks earlier, a 10-day gap; goal 100 miles on trail, finish-first,
-33 weeks away) passed every checklist item yet was unusable: 30 minutes in week 1 split into
+A plan generated from a sparse recent history (a synthetic runner with one short run most
+weeks, one longer run some weeks earlier and a gap of over a week; goal 100 miles on trail,
+finish-first, about 30 weeks away) passed every checklist item yet was unusable: 30 minutes in week 1 split into
 runs of 10-13 minutes, a peak of 3.7 h with a 72-minute long run, and from week 12 on a
 single session per week. Causes and required behaviour:
 
