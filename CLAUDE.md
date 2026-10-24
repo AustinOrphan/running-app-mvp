@@ -126,7 +126,7 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
 - `PlanSession.externalId` (a uuid, unique per plan) is a session's identity outside the database.
   Session rows are built only by `sessionRow()` in `server/services/planEngine.ts`, which sets
   `externalId` (fresh unless carried) and `trimmed`, the indexed form of `rules` holding
-  `design-4.3`. `isTrimmed()` in `server/serialize.ts` is the one derivation: set `trimmed` with it
+  `design-4.3`. `isTrimmed()` in `shared/domain/sessionStatus.ts` (re-exported by `server/serialize.ts`) is the one derivation: set `trimmed` with it
   on every write of `rules`, and never filter the stored `rules` text with `contains`.
 - A re-plan and a `PlanRevision` are written only through `computeReplan` (reads, decides, writes
   nothing), `applyReplan` and `recordPlanWrite` in `server/services/replan.ts` (ADR 0007);
