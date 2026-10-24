@@ -13,7 +13,14 @@ import type { ExplainView, InputFact, Quantity } from '../../shared/engine/types
 import type { PlanWithSessions, PredictionView } from '../../shared/types.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
 import { weeklyDecisions } from '../../server/services/planEngine.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 
 // The heart-rate model, the weekly decision and the Explain builder are counted, not replaced: the
 // real functions run.
@@ -46,6 +53,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  expectNoRefusedFetches(ctx)
   await ctx.close()
 })
 
@@ -265,6 +273,93 @@ describe('GET /api/explain: the answer', () => {
     )
   })
 
+  test('the rules about the goal read it as the engine models it, and fetch nothing', async () => {
+    await seedHistory(user.id)
+    const goal = await seedGoal(user.id)
+    const plan = await generatePlan(user, goal.id)
+    const view = await explained('subject=rules&rules=D1,D2,D4,D6,E2,K1,n-7,H12')
+    expect(view.rest).toEqual([])
+    expect(slot(factsOf(view, 'D1')[0]!, 'distance')).toEqual({ kind: 'distance', m: 21_097 })
+    expect(factsOf(view, 'D1')[1]!.template).toBe('explain.d1-not-ultra')
+    expect(factsOf(view, 'D2')[0]!.template).toBe('explain.d2-finish')
+    // the plan's own outlook, from the same state and start path
+    const [outlook] = factsOf(view, 'D4')
+    expect(slot(outlook!, 'available')).toEqual({
+      kind: 'count',
+      n: plan.feasibility!.weeksAvailable,
+    })
+    // no climate is cached for this goal: the heat rules say what they lack
+    expect(factsOf(view, 'D6')[0]).toMatchObject({
+      template: 'explain.heat-gap',
+      state: 'insufficient',
+    })
+    const taper = plan.weeks.find((w) => w.flags.includes('taper'))!
+    expect(slot(factsOf(view, 'K1')[0]!, 'week')).toEqual({
+      kind: 'date',
+      iso: taper.weekStart,
+      style: 'short',
+    })
+    expect(factsOf(view, 'n-7')[0]!.template).toBe('explain.n7-event')
+    expect(factsOf(view, 'H12')[0]!.template).toBe('explain.h12-steps')
+    expect(slot(factsOf(view, 'E2')[1]!, 'weeks')).toEqual({
+      kind: 'count',
+      n: plan.feasibility!.weeksAvailable,
+    })
+  })
+
+  test('the recovery cycle is the one the plan was generated with', async () => {
+    await seedHistory(user.id)
+    const goal = await seedGoal(user.id)
+    const made = await client(ctx, user)
+      .post('/api/plan/generate')
+      .send({ goalId: goal.id, options: { recoveryCycle: '2:1' } })
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    const view = await explained('subject=rules&rules=E3')
+    const [cycle, short] = factsOf(view, 'E3')
+    expect(slot(cycle!, 'n')).toEqual({ kind: 'count', n: 2 })
+    expect(short!.template).toBe('explain.e3-short')
+    expect(renderFact(short!, 'mi')).toBe(
+      'The cycle is shorter than the usual 3 weeks because of the 2:1 cycle you chose.',
+    )
+  })
+
+  test('the start path is the one the plan restarted with after a break', async () => {
+    // Two runs a week of 75 min in all, the last one 20 days ago: the plan restarts at 56 min.
+    const rows = []
+    for (let w = 1; w <= 12; w += 1) {
+      for (const [dow, min] of [
+        [1, 37],
+        [3, 38],
+      ] as const) {
+        const date = addDays(thisMonday, -7 * w + dow)
+        if (date > addDays(today, -20)) continue
+        rows.push({
+          userId: user.id,
+          date,
+          type: 'run',
+          durationSec: min * 60,
+          movingSec: min * 60,
+          distanceM: min * 180,
+          rpe: 3,
+          source: 'manual',
+        })
+      }
+    }
+    await ctx.prisma.activity.createMany({ data: rows })
+    const goal = await seedGoal(user.id)
+    const plan = await generatePlan(user, goal.id)
+    expect(plan.weeks[0]!.flags).toContain('restart-floor')
+    const view = await explained('subject=rules&rules=E6')
+    const facts = factsOf(view, 'E6')
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-floor'])
+    // the floor session is the length of the plan's first run
+    const first = [...plan.sessions].sort((a, b) => a.date.localeCompare(b.date))[0]!
+    expect(slot(facts[0]!, 'session')).toEqual({ kind: 'minutes', min: first.durationMin })
+    expect(renderFact(facts[0]!, 'km')).toBe(
+      `You start with 3 runs of ${String(first.durationMin)} min a week, then build from there.`,
+    )
+  })
+
   test('is data: metric quantities and template ids, and every fact reads in both units', async () => {
     await seedHistory(user.id)
     const goal = await seedGoal(user.id)
@@ -400,7 +495,8 @@ describe('GET /api/explain: one fit per data version', () => {
     await explained(`subject=decision&weekStart=${first!.weekStart}`)
     expect(weeklyDecision).toHaveBeenCalledTimes(1)
     const [decision] = factsOf(a, 'J5')
-    expect(decision!.template).toMatch(/^explain\.j5-(progress|hold|reduce)$/)
+    // a week with nothing run suggests no minutes: that sentence leaves the number out
+    expect(decision!.template).toMatch(/^explain\.j5-(progress|hold|reduce)(-bare)?$/)
     expect(slot(decision!, 'week')).toMatchObject({ iso: first!.weekStart })
 
     await explained(`subject=decision&weekStart=${second!.weekStart}`)

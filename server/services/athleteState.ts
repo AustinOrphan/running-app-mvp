@@ -48,6 +48,7 @@ import {
 import {
   loadActivities,
   loadProfile,
+  parsePlanOptions,
   toDisruption,
   toGoal,
   toPlan,
@@ -130,6 +131,12 @@ export interface AthleteContext {
   readonly goal: Goal | null
   /** The active version-2 plan, without its weeks and sessions. */
   readonly plan: Plan | null
+  /**
+   * The engine options the active plan was generated with (`Plan.options`): the recovery cycle, the
+   * intensity model, the strength sessions, the gut-training switch. Empty without a plan. A reader
+   * that explains the plan reads them, so it describes the plan that was made and not a default.
+   */
+  readonly planOptions: EngineInput['options']
   /**
    * The active plan's sessions as the API serves them (identity, execution and the original
    * prescription included), by date then order. Empty without a version-2 plan. `existing()` holds
@@ -562,6 +569,7 @@ async function buildContext(
     goals,
     goal,
     plan: planRow ? toPlan(planRow) : null,
+    planOptions: parsePlanOptions(planRow?.options),
     planSessions,
     state,
     zones,

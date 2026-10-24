@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import type { Units, UserSettings } from '../../shared/types.ts'
 import { useLogout } from '../api/auth.ts'
 import { fieldErrors } from '../api/client.ts'
@@ -10,7 +12,18 @@ import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { useToast } from '../components/Toast.tsx'
+import { useOfflineStatus, type OfflineStatus } from '../pwa/register.ts'
 import styles from './SettingsPage.module.css'
+
+/** The sentence of the "Offline use" row for each state of the service worker, by cause. */
+const OFFLINE_USE = {
+  ready: TEMPLATES['today.offline.use-ready'],
+  installing: TEMPLATES['today.offline.use-installing'],
+  development: TEMPLATES['today.offline.use-development'],
+  'no-https': TEMPLATES['today.offline.use-no-https'],
+  unsupported: TEMPLATES['today.offline.use-unsupported'],
+  refused: TEMPLATES['today.offline.use-refused'],
+} satisfies Record<OfflineStatus, (typeof TEMPLATES)['today.offline.use-ready']>
 
 function SettingsForm({ initial }: { initial: UserSettings }) {
   const navigate = useNavigate()
@@ -18,6 +31,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const { theme, setTheme } = useTheme()
   const update = useUpdateSettings()
   const logout = useLogout()
+  const offline = useOfflineStatus()
 
   // What the server holds, as of the last successful save; the form sends only the differences.
   const [saved, setSaved] = useState(initial)
@@ -131,6 +145,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             Export activities
           </a>
         </p>
+        <p className={styles.note}>{render(OFFLINE_USE[offline], {}, units)}</p>
       </section>
 
       <section className={styles.section} aria-labelledby="session-heading">

@@ -204,6 +204,53 @@
   gap: var(--space-1);
 }
 
+/* In Today's `disruption` slot (64 px at 360 px, `web/components/today/slots.ts`) the banner is one
+   box with no margin of its own: the sentence in two lines, then the buttons in one row. The rows
+   add up to the budget at the default text size: two lines of 18 px, a row of 26 px and 1 px above
+   and below, and `tests/e2e/14-disruptions.spec.ts` holds every phase's sentence to them. The
+   buttons are small because every one opens a preview before anything changes.
+
+   Nothing is clipped. The box is a minimum height, the sentence takes the lines it needs and the
+   buttons wrap onto a second row, so a raised text size (rem scales, the 360 px viewport does not)
+   or a narrower screen makes the box taller where a fixed one would cut off a button that edits the
+   plan. The focus ring is drawn inside the button to keep it off the sentence above. */
+.compact {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0;
+  box-sizing: border-box;
+  min-height: 4rem;
+  margin-bottom: 0;
+  padding: 1px var(--space-3);
+}
+
+.compact .bannerLine {
+  flex: 0 0 auto;
+  font-size: var(--text-sm);
+  line-height: 1.125rem;
+}
+
+.compact .bannerActions {
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.compact .compactAction {
+  min-height: 1.625rem;
+  height: 1.625rem;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.compact .compactAction:focus-visible {
+  outline-offset: -2px;
+}
+
 /* The adjust section. */
 .adjustControls {
   display: flex;

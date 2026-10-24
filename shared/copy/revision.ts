@@ -393,6 +393,8 @@ export const REVISION_TEMPLATES = {
     decision: 'text',
     minutes: 'minutes',
   }),
+  // Zero minutes is "no running set", not "up to 0 min".
+  'revision.decision-bare': tpl("Last week's decision: {decision}.", { decision: 'text' }),
 
   // The summary of the owner's edit of one session.
   'revision.owner.skipped': tpl('Skipped {title} on {date}.', { title: 'text', date: 'date' }),
@@ -532,6 +534,9 @@ export function changesSummary(changes: number, weeks: number): string {
 
 /** The weekly decision a re-plan acted on, and the target it set for the week after. */
 export function decisionSummary(decision: string, nextWeekTargetMin: number): string {
+  if (Math.round(nextWeekTargetMin) <= 0) {
+    return render(REVISION_TEMPLATES['revision.decision-bare'], { decision }, STORED_UNITS)
+  }
   return render(
     REVISION_TEMPLATES['revision.decision'],
     { decision, minutes: { kind: 'minutes', min: nextWeekTargetMin } },
@@ -607,7 +612,7 @@ export function adjustText(
 }
 
 /** The zone boundaries as the summary of a zone decision names them. */
-const ZONE_BOUNDARY_WORDS: Record<ZoneBoundary, string> = {
+export const ZONE_BOUNDARY_WORDS: Record<ZoneBoundary, string> = {
   cs: 'critical speed',
   lt1Pace: 'easy pace limit',
   thresholdPace: 'threshold pace',

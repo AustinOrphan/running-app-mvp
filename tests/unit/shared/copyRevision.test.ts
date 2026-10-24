@@ -6,6 +6,7 @@ import {
   checklistRefusedMessage,
   ADJUST_TEMPLATES,
   declinedZoneSummary,
+  decisionSummary,
   describeUndoFinding,
   REVISION_TEMPLATES,
 } from '../../../shared/copy/revision.ts'
@@ -41,6 +42,14 @@ describe('revision summaries', () => {
         expect(unitBound, `${id} slot ${slot}`).not.toContain(kind)
       }
     }
+  })
+
+  it('states the minutes of the weekly decision, and leaves out a zero', () => {
+    expect(decisionSummary('hold', 270)).toBe(
+      "Last week's decision: hold, next week up to 270 min.",
+    )
+    expect(decisionSummary('reduce', 0)).toBe("Last week's decision: reduce.")
+    expect(decisionSummary('progress', 0.4)).toBe("Last week's decision: progress.")
   })
 
   it('writes a zone decision with a plain label of the boundary and a date', () => {

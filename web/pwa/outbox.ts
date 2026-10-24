@@ -28,6 +28,7 @@ import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { api, ApiError, keys, UNAUTHORIZED_EVENT } from '../api/client.ts'
 import { purgeDrafts } from './drafts.ts'
+import { purgeApiCache } from './register.ts'
 
 /** A write the outbox may hold: an idempotent PUT to a URL this route matches. */
 export interface OutboxRoute {
@@ -690,14 +691,15 @@ export function refreshAfterSend(
 }
 
 /**
- * Everything this device keeps for the signed-in session: the unsent drafts in local storage and
- * the writes waiting in the outbox. Sign-out and a 401 call it, so no health data outlives the
- * session (ADR 0012). Local storage is purged first and synchronously, because it cannot fail
- * halfway; the outbox clear follows.
+ * Everything this device keeps for the signed-in session: the unsent drafts in local storage, the
+ * writes waiting in the outbox and the service worker's copy of the server's answers
+ * (`rl-api-v1`). Sign-out and a 401 call it, so no health data outlives the session (ADR 0012).
+ * Local storage is purged first and synchronously, because it cannot fail halfway; the outbox and
+ * the cache follow side by side, and neither waits on the other.
  */
 export async function purgeDeviceData(): Promise<void> {
   purgeDrafts()
-  await getOutbox().clear()
+  await Promise.all([getOutbox().clear(), purgeApiCache()])
 }
 
 /**

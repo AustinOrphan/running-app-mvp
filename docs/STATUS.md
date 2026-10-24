@@ -72,6 +72,69 @@ Last update: 2026-10-23.
   0's registry and `main`'s) are reconciled to `2026-10-22.4` on `wave/3a-0`, and wave 1 moves on
   to `2026-10-23.1`.
 
+- **Phase 3a wave 7 (branch `feat/coach-phase3`, PR from `wave/3a-7`, 2026-10-23):** the offline
+  shell, the last explain builders, the disruption wiring and the fuel e2e. E2-8: a hand-written
+  service worker (`web/sw/sw.js`, rendered into the build by `web/sw/buildSw.ts` with the build id
+  and the precache list of every emitted script and style chunk, the lazy sheets, the charts and
+  the research corpus included, about 3.3 MB and 1 MB gzipped; two shell generations kept) keeps
+  five allowlisted GET reads network first with a 2.5 s limit for 36 h (14 days for the research
+  params) in `rl-api-v1`; a 401 and `purgeDeviceData()` (sign-out, sign-in, setup) empty the cache
+  with the outbox and the drafts; Today's kept copy is chosen by the server's day, marked
+  `servedFromCache` and stripped of the watch slot; a throttled warm fetches tomorrow's preview;
+  `main.tsx` reloads once on a preload error; registration only in production builds; `sw.js` and
+  the manifest served with `no-cache` (`mountStatic(app, root?)`); PNG icons from
+  `scripts/make-icons.ts` with no new dependency (`npm run icons`), the manifest with id, scope and
+  the Plan and Log activity shortcuts, the iOS head tags; `OfflineNote` on Today ("Saved at
+  HH:MM" in the server zone) and the Settings "Offline use" row; `createQueryClient` is
+  `networkMode: 'always'`, because a check-in tapped after the browser's offline event was
+  otherwise paused in memory and never reached the outbox; Playwright blocks workers except in
+  `17-offline.spec.ts` (Today offline, the shell cache holding every lazy chunk, Explain offline, a
+  check-in kept and sent on reconnect, a 401 and sign-out emptying cache and queue); the Docker
+  image builds and its healthcheck passes; ADR 0012. E4-8: `explainInputs.ts` has a builder with a
+  gap sentence for 46 more rules and 29 policy entries with their reasons, the PENDING list is gone
+  and the coverage test fails on a rule title with neither or with both; `ExplainContext.race`
+  carries the goal as the engine models it, read from the snapshot and the cached climate and never
+  fetched; `AthleteContext.planOptions` carries the options the plan was generated with; the
+  reading pass over the owner's live brief and cards found no banned or alarming sentence and fixed
+  "up to 0 min" (the brief headline, the stored decision summary, J5, g-2), "of 0 planned minutes"
+  (the renderer, g-6) and a restart cause that said the runner had been away; the rewrite design
+  (items 19 and 20, sections 4.6, 4.7 and 6) lists the phase 3a routes and pages and the engine
+  design points to `explainInputs`. E5-8: the Today `disruption` slot is `DisruptionSlot`
+  (registered in `slotMounts.tsx`, from `coach.slots.disruption`, no request): a window in effect,
+  else the next one, as the compact `DisruptionBanners` (64 px at 360 px: two lines of text and a
+  row of small buttons, each previewing first); with no window and an illness or pain check-in the
+  slot offers "Set a rest window and a return plan?" ("Set one up" opens `NotFullSheet`, "Not now"
+  lasts until the page is left and is not stored); `DisruptionBanners` takes a `frame` that wraps
+  only the banners, so a removed window leaves no frame and keeps its sheet; the Not today sheet
+  carries a "Not 100%" entry (`NotFullEntry`) that swaps it for `NotFullSheet` dated from the
+  server's day; the fold test holds with the banner present (Done at 737 px of 788 unanswered and
+  689 of 707 answered); `wristPublish.test.ts` pins that a window withdraws the days it holds on the
+  next publish, that its undo sends them again, and that Today, the session sheet and the publish
+  set agree on a rest-window day. E6-8: `18-fuel.spec.ts` (a product added, a 3-hour run logged
+  through the sheet, the target stepping up, two runs scored 2 holding then falling back to the
+  last rate that went well, the stronger EAH card for a 100-mile goal) and the 360 px case for
+  the lab and an open log form; the E1 seam (`loadFuelContext` once per build, `fuelLineFor` per
+  session, at most 60 characters) and the E11/E12 surface (`GET /api/fuel`, `GET /api/fuel/targets`,
+  the pure functions in `shared/engine/fuel.ts`) are recorded as stable. Gates on the merged
+  branch: `npm run check` (226 files, 10661 tests), `npm run build` (`sw.js` with 45 files kept, entry chunk 357 kB), `npm run test:e2e` (77), `docker build .` with a healthy healthcheck, owner validation byte-identical to the phase start. Adversarial review: see below.
+- Wave 7 left for later tasks: a real two-release shell update on a device and iOS cache eviction
+  are untested; a read in flight at sign-out can finish and write after the purge (the next 401 or
+  sign-in clears it; ADR 0012); Explain offline waits about 3 s on the explain query's retries
+  before showing the rules; the "online but the server does not answer" marker path is covered in
+  unit tests only (Playwright cannot intercept a worker's own fetches); the sync-paused and
+  weekly-update health notes in the kept Today copy may be stale (only the watch note is
+  stripped); `useServerToday` arms no rollover timer for a payload flagged as a preview, so a
+  preview that has become today's copy waits for the next focus or reconnect refetch; the compact banner's buttons are 26 px high inside the 64 px budget
+  (every action previews first; raising the budget is the owner's call) and the box grows with the
+  text size, the one slot whose content grows its box; the always-mounted live region that
+  announces the rest-window offer may read the question twice in a screen reader's browse mode;
+  the visually hidden chart table of the recent strip makes Today scroll sideways at 125% text
+  size and above (pre-existing; a `visually-hidden` table does not collapse); the slot shows one
+  window; `explainInputs.ts` is about 2.9k lines and the builder families could be split from the
+  registry; the fuel e2e depends on the generated plan holding an eligible future run; the "three
+  generated briefs" reading pass ran on one live brief, because the replay of the owner's history
+  into a throwaway database was refused by the session's permission layer (the owner can run it);
+  the G5 line for `research/engine-rules.md` waits for the owner.
 - **Phase 3a wave 6 (branch `feat/coach-phase3`, PR from `wave/3a-6`, 2026-10-23):** the pages
   around the coach. E2-7: Today in two columns from 900 px (`useMediaQuery` sets `data-layout`
   on the page; both column groups stay mounted, so crossing 900 px never remounts the hero; the
@@ -131,9 +194,7 @@ Last update: 2026-10-23.
   from the plan would fix it); the brief line draws nothing offline, as the watch line does, since
   the brief page is not cached; `RevisionDiff` shows a Why only for revision-level rules, so a
   state-driven update has no Why where spec 8.6 gives each changed session one; spec 8.6's
-  undo-reason examples differ from the shipped server copy; with no running logged the brief
-  reads "next week is up to 0 min" and "Restart after a break" (E4-8's reading pass);
-  `BriefLine` can clip "Open the brief" inside its two-line clamp; the fuel settings form's
+  undo-reason examples differ from the shipped server copy; `BriefLine` can clip "Open the brief" inside its two-line clamp; the fuel settings form's
   "opens after" hint reads the ladder replayed under the saved settings and can understate what
   the server would allow (the server stays the authority and the sentence appears after any
   refusal); focus drops to the page after a successful fuel settings save, because the lab page
@@ -141,8 +202,7 @@ Last update: 2026-10-23.
   intervals.icu run for the sport-settings field names, percent-pace parsing, the 40 bpm floor,
   `external_id` and a date change by PUT, which Garmin model and manual route the help text should
   name, a real calendar app subscribed to the `webcal://` link) all stay open, and "On your watch"
-  stays an inference because the app cannot see the Garmin tick; the E2-8 offline shell must
-  precache the lazy sheet chunks and strip or mark `slots.watch` in a cached Today; the "N
+  stays an inference because the app cannot see the Garmin tick; the "N
   predictions logged so far" line shows only on the active goal; `PredictionLog` is non-state and
   E10 must reclassify it as state in the PR where it reads the record into the engine; the
   prediction job still records idle runs; dark mode, real devices and screen readers were not
@@ -204,8 +264,7 @@ Last update: 2026-10-23.
   `13-record-result` and `14-disruptions`; `NotTodaySheet` mounts `AdjustSection` and closes after an
   applied change (`onApplied`); one `useOnline`; Today pins unchanged (26 cold, 10 warm, 5
   data-version reads). Gates on the merged branch: `npm run check` (212 files, 9260 tests), `npm run build` (entry chunk 324 kB), `npm run test:e2e` (40), `docker build .` (fourteen migrations apply), owner validation byte-identical to wave 4. Adversarial review: see below.
-- Wave 5 left for later tasks: the Today slot for the disruption banner is wired by E5-8; the
-  Not today sheet closes after an applied change, so its undo is on
+- Wave 5 left for later tasks: the Not today sheet closes after an applied change, so its undo is on
   Today's change line and in the toast rather than in the sheet; a re-plan keeps owner edits for
   `keepOwnerEditsDays` (14 days), so a shortened run further out is rebuilt by "Update plan from
   latest data" and the preview shows it; the legacy `PUT /api/plan/sessions/:id` stays for API
@@ -393,6 +452,72 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   and new when a re-plan changes its day or kind, so E1 publishes under
   `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
   and derives no id from the date, the kind or the order.
+
+## Wave 7 adversarial review (2026-10-23)
+
+Six lenses over the wave-7 diff against the wave-6 tip (74 files); 35 findings, each tried by two
+independent refuters: 16 confirmed, 19 disputed. The confirmed mediums were a second purge at
+sign-in that skipped the drafts, four explain builders reading the athlete state before the break
+restart the plan applies, a kept copy of today treated as a preview offline, a gap sentence that
+contradicted the fact beside it, a compact banner that clipped at larger text, and a banner test
+that could not fail.
+
+Fixed on the integration branch before `wave/3a-7` was cut (`task/3a-W7-fix-offline`,
+`task/3a-W7-fix-explain`, `task/3a-W7-fix-disruption`, `task/3a-W7-fix-tests`):
+
+1. Sign-in and setup hand-built their own purge (the outbox and the API cache) and left the unsent
+   drafts that ADR 0012 says are emptied; both go through `purgeDeviceData()`, and a 401 or a
+   sign-in also clears the page's in-memory query cache, so a second account in the same tab never
+   sees the previous account's Today first.
+2. The brief line hid on the browser's online flag alone, so a worker-served copy still showed it;
+   one "showing the phone's copy" predicate (online and not `servedFromCache`) drives the offline
+   note, the brief line and the watch line. A kept copy of today was treated as a preview offline
+   (no check-in, yesterday's time as "saved at"); a payload is a preview only when its date is
+   later than the server's today, a copy of the day that has arrived renders the check-in and the
+   verdict, a copy of an older day is read-only and the note names the date. The kept copy also
+   drops the watch health note beside the stripped watch slot.
+3. A failed shell install left an empty cache that counted as a generation and could evict the real
+   previous build; the cache is deleted when the precache rejects. The 36-hour TTL bounds how long a
+   copy is served, not how long it is stored; the ADR says so and expired API entries are swept on
+   the first fetch of each worker lifetime. The ADR's sizes are re-measured on the merged build.
+4. The offline note added height above Done that no fold test measured; the note moved below the
+   session, where the fold limits hold with the connection gone (a new 12-today case measures it),
+   and `slots.ts` records that it is not a slot. The note is an always-mounted live region, so its
+   arrival is announced. Sign-in, account creation and a 401 also drop the previous account's
+   queries (`dropUserQueries`), and `startSession()` is the one entry point for a new session. The Settings "Offline use" sentence names the real cause instead of https for every
+   unavailable state. The README no longer promises the session's figures offline.
+5. The explain builders for E6, D4, D7 and K1 read the raw athlete state while the plan reads it
+   after the break restart; the context is built from `afterBreak`. The "next recovery week" and
+   taper-week sentences said "up to 0 min" for a week a rest window holds whole (bare variants).
+   The E6 gap sentence promised the run-walk ladder while the path fact beside it said otherwise;
+   it states only what is missing. `planOptionsOf` used `planSwitch.storedOptions`; the unused
+   `holdReasons` and `clockTimeIn` exports are gone.
+6. The compact disruption banner clipped its buttons and the date at larger text sizes and its
+   three-button state was never measured; the row wraps when it does not fit and the e2e covers the
+   three-button state and an enlarged font. Dismissing the rest-window offer dropped focus and the
+   offer's arrival was not announced; focus goes to a stable element and the offer is a live region.
+   The 14-disruptions "sentence is not cut" check could not fail; it measures the content height.
+7. Tests and docs: the offline e2e copied helpers verbatim (moved to `tests/e2e/helpers.ts`); the
+   worker's "only a 200 answer is kept" rule is pinned; `tests/api/explain.test.ts` ends its
+   `afterEach` with `expectNoRefusedFetches`; the rewrite design's item 20 places the "Not 100%"
+   entry inside the Not today sheet.
+
+Accepted from the disputed list and fixed with them: the watch health note in the kept copy, the
+older-day copy's check-in and Done, the note's date, the offline note as a live region, the
+Settings sentence by cause, `planOptionsOf`, the unused exports, the copied e2e helpers, the kept
+answers pin, the explain suite's network guard, the rewrite design wording and the README sentence.
+
+Disputed and recorded (not fixed; reason in brackets):
+
+- The Plan watch-strip e2e timed out on a Saturday or Sunday [fixed before this record, in
+  4ca65500 on the integration branch: the case opens the weeks of its routed runs].
+- ADR 0012 was left Proposed and STATUS untouched by the tasks [the wave close stamps the ADR with
+  the PR number and writes STATUS; the tasks were told to].
+- The 26 px compact-banner buttons are recorded only in a CSS comment [recorded here and under
+  "Decisions for the owner"; every action previews first].
+- The server sends the precache uncompressed, so a first install is 3.3 MB rather than the 1 MB
+  gzipped the ADR quotes [the app has no compression middleware and a reverse proxy usually
+  compresses; adding a dependency for it is the owner's call; the ADR states both sizes].
 
 ## Wave 6 adversarial review (2026-10-23)
 
@@ -816,6 +941,17 @@ the soft ramp warning only; BMI > 30 holds rung 1 for three weeks; the ultra wee
 path measures toward the long-run week, not the class peak; the check-in gate is computed, not
 stored, and a check-in older than 3 days neither delays nor releases a step).
 
+Wave 7 adds: (a) E2-8 precaches the 1.69 MB research corpus so Explain works offline; the
+alternative is to cache it after first use. (b) The manifest shortcuts are Plan and Log activity.
+(c) `createQueryClient` uses `networkMode: 'always'` so an offline tap reaches the outbox instead
+of pausing; offline reads fail after about 3 s instead of waiting. (d) The G5 sentence proposed
+for `research/engine-rules.md`: "A single lint (`shared/copy/lint.ts`) checks these words,
+exclamation marks and injury-probability phrases in every sentence the app writes from a
+template; text a provider returns is quoted, not linted, and a runner's own words (a goal name)
+are shown as typed." (e) The countdown reads "Weeks until {name}: {n}.", which reads oddly when
+a goal name ends in punctuation; "{name} is {n} weeks away" is the alternative. (f) The compact
+disruption banner's buttons are 26 px high inside the 64 px slot budget.
+
 ## Open follow-ups (none blocks a merge)
 
 1. The weekly decision's "first days of heat" and "sleep efficiency drop" holds are not derived
@@ -843,9 +979,30 @@ stored, and a check-in older than 3 days neither delays nor releases a step).
    and seconds; a few engine tests assert conditionally.
 9. Behind a reverse proxy, rate limits key on the proxy's address (no trust-proxy setting by
    design: the environment variables are fixed).
-10. Spec non-goals still open: readiness and race-decision gates as stored decisions, long-run lab
-    and fueling logs, strength programming; Polar, WHOOP, Oura and Google Health providers.
+10. Spec non-goals still open: readiness and race-decision gates as stored decisions, strength
+    programming; Polar, WHOOP, Oura and Google Health providers. The Fuel lab shipped in phase
+    3a (the ladder, products, logs, the gut-training block and the EAH card; `18-fuel.spec.ts`).
 11. Enable branch protection on `main` requiring the `ci` and `analyze` checks.
+12. Prediction widening for planned windows: a rest window does not widen the race prediction
+    range.
+13. Moves across weeks: a move stays in its week (`adjust.ts`); moving a session to another week
+    is not offered.
+14. Merge-style undo: undoing a window or an adjustment restores rows by the undo payload and is
+    refused once a neighbour changed (`edited-since`); a merge that keeps later edits is not built.
+15. Open-ended windows: a window needs an end date (at most `j9.maxWindowDays`); "until further
+    notice" is not offered.
+16. Travel across time zones: a window and Today follow the server's day (`TodayView.tz`); a trip
+    that crosses zones is a recorded limitation.
+17. A distance estimate beside the minutes (the owner's direction, 2026-10-23: distance before
+    strength): a derived "about N mi at your easy pace" on the session, the week and the brief,
+    computed by the server from the runner's recent easy pace, labelled an estimate and never
+    scored; the plan's currency stays minutes (ADR 0003) and speeds stay per-session guides.
+18. Strength programming as the first phase 3b epic (the owner's direction, 2026-10-23): an
+    exercise library and session templates by phase from rules H10 and F4 (heavy lifting at 80%
+    or more of one-rep max, 2-4 exercises of 3-4 sets of 3-6 reps, calf raises and plyometrics,
+    eccentric-biased work in the block, one session a week to maintain), per-set weight, reps
+    and reps-in-reserve logging, rule-based next-session suggestions, and the runner's equipment
+    and lifting history captured in the app.
 
 ## Clean-up after the merges
 

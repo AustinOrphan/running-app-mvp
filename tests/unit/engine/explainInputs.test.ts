@@ -7,8 +7,13 @@ import { describe, expect, test } from 'vitest'
 import { COPY_MAX_CHARS, EXPLAIN_MAX_SOURCES } from '../../../shared/copy/limits.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { TEMPLATES, renderFact } from '../../../shared/copy/templates.ts'
-import { addDays, isIsoDate } from '../../../shared/dates.ts'
-import { breakRestart, weekEvidence, weeklyDecision } from '../../../shared/engine/adapt.ts'
+import { addDays, isIsoDate, mondayOf } from '../../../shared/dates.ts'
+import {
+  afterBreak,
+  breakRestart,
+  weekEvidence,
+  weeklyDecision,
+} from '../../../shared/engine/adapt.ts'
 import {
   csEffortsOf,
   durabilityRuns,
@@ -20,6 +25,7 @@ import { fitHrModel } from '../../../shared/engine/execution.ts'
 import {
   ANCHOR_WORDS,
   builderFor,
+  checkinSource,
   explainInputs,
   explainNeeds,
   explainRules,
@@ -32,15 +38,19 @@ import {
   SIGNAL_WORDS,
   type ExplainContext,
 } from '../../../shared/engine/explainInputs.ts'
+import { feasibility, peakLongRunMin, trainingPace } from '../../../shared/engine/goal.ts'
 import { buildPlan } from '../../../shared/engine/index.ts'
 import {
   spikeOverrideLimit,
   spikeWarnLimit,
+  ultraRunCapMin,
   VOLUME_KINDS,
   weeklyRamp,
 } from '../../../shared/engine/limits.ts'
 import { criticalSpeed } from '../../../shared/engine/load.ts'
+import { startPath, taperDays } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import { postRaceWindows } from '../../../shared/engine/postRace.ts'
 import { predictFromState } from '../../../shared/engine/predict.ts'
 import { readinessSnapshot } from '../../../shared/engine/readiness.ts'
 import { resolveTargets } from '../../../shared/engine/targets.ts'
@@ -51,6 +61,7 @@ import type {
   ExplainView,
   InputFact,
   Quantity,
+  WeekDraft,
 } from '../../../shared/engine/types.ts'
 import { buildZones } from '../../../shared/engine/zones.ts'
 import type { Activity, AthleteProfile, Units, WellnessDay } from '../../../shared/types.ts'
@@ -100,6 +111,7 @@ function contextOf(input: EngineInput, over: Partial<ExplainContext> = {}): Expl
     }),
     hrModel: fitHrModel(input.activities, input.today),
     decision: null,
+    race: g,
     ...over,
   }
 }
@@ -1435,16 +1447,1141 @@ describe('L1 to L6: the prediction', () => {
 // Insufficient states, subjects and coverage
 // ---------------------------------------------------------------------------------------------
 
-describe('insufficient states', () => {
-  test('every builder has a gap sentence for a runner with no data', () => {
-    const goals: Record<string, Partial<EngineInput['goal']>> = {
-      L2: { distanceM: 42_195 },
-      L4: { distanceM: 160_934 },
-      L5: { surface: 'trail', gainM: 2000 },
+// ---------------------------------------------------------------------------------------------
+// The remaining rules (E4-8): history and profile, signs, the goal, the plan, heat
+// ---------------------------------------------------------------------------------------------
+
+const matrix = (id: string) => athletes().find((a) => a.id === id)!
+/** The context of a matrix athlete with the plan the engine makes for them stored. */
+const ctxOf = (id: string, over: Partial<EngineInput> = {}) =>
+  contextOf(withPlan({ ...matrix(id).input, ...over }))
+const idOf = (facts: InputFact[], name: string) => facts.find((f) => f.id.endsWith(`.${name}`))!
+const sentences = (facts: InputFact[], units: Units = 'mi') => facts.map((f) => text(f, units))
+
+/** A day's check-in over the wellness rows. */
+const checkinRow = (date: string, over: Partial<Checkin> = {}) =>
+  wellnessDay(date, { fatigue: 3, soreness: 3, mood: 3, stress: 3, sleepQuality: 3, ...over })
+
+describe('A4, A9, B1 to B3, m-age and m-sex: history and profile', () => {
+  test('A4 counts the stretches without a run the state counts, with the runs it rests on', () => {
+    const ctx = ctxOf('sparse-100-mile')
+    const facts = factsOf('A4', ctx)
+    const gaps = idOf(facts, 'gaps')
+    expect(slot(gaps, 'n', 'count').n).toBe(ctx.state.gaps16w)
+    expect(ctx.state.gaps16w).toBeGreaterThan(0)
+    expect(slot(gaps, 'days', 'count').n).toBe(P.a4.gapMinDays.value)
+    expect(slot(gaps, 'weeks', 'count').n).toBe(P.a4.gapWindowWeeks.value)
+    expect(gaps.window).toEqual({ from: addDays(TODAY, -(16 * 7 - 1)), to: TODAY })
+    expect(gaps.sources.length).toBeGreaterThan(0)
+    expect(text(idOf(facts, 'years'))).toMatch(/^Your profile says you have been running since 20/)
+    expect(factsOf('A4', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.a4-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('A9 names what makes the start gentler, and says when age or body mass is missing', () => {
+    const bsi = factsOf('A9', ctxOf('prior-bsi'))
+    expect(sentences(bsi)[0]).toBe(
+      'These details make the start gentler: an injury in your profile in the last 12 months and an earlier bone stress injury.',
+    )
+    expect(bsi.every((f) => f.state === 'used')).toBe(true)
+    expect(text(factsOf('A9', ctxOf('masters'))[0]!)).toBe(
+      'These details make the start gentler: your age.',
+    )
+    const complete = { heightCm: 180, weightKg: 70, injuries: [], birthYear: 1990 }
+    const clean = contextOf({
+      ...matrix('half').input,
+      profile: profileOf(complete),
+    })
+    expect(factsOf('A9', clean).map((f) => f.template)).toEqual(['explain.a9-none'])
+    const noHeight = contextOf({ ...matrix('half').input, profile: profileOf({ birthYear: 1990 }) })
+    expect(factsOf('A9', noHeight).map((f) => f.template)).toEqual(['explain.a9-gap'])
+  })
+
+  test('B1 counts the rated runs of the window the load metric is chosen from', () => {
+    const ctx = ctxOf('marathon')
+    const [rated] = factsOf('B1', ctx)
+    const runs = ctx.input.activities.filter(
+      (a) => a.type !== 'strength' && a.date >= addDays(TODAY, -41),
+    )
+    expect(slot(rated!, 'total', 'count').n).toBe(runs.length)
+    expect(slot(rated!, 'n', 'count').n).toBe(runs.filter((a) => a.rpe !== null).length)
+    expect(slot(rated!, 'share', 'share').fraction).toBe(P.b4.metricMinCoverage.value)
+    expect(ctx.state.load.metric).toBe('srpe')
+    // unrated runs: the share falls under the coverage and the state counts minutes
+    const bare = contextOf({
+      ...matrix('marathon').input,
+      activities: matrix('marathon').input.activities.map((a) => ({ ...a, rpe: null })),
+    })
+    expect(slot(factsOf('B1', bare)[0]!, 'n', 'count').n).toBe(0)
+    expect(bare.state.load.metric).toBe('minutes')
+    expect(factsOf('B1', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.b1-gap',
+      state: 'insufficient',
+    })
+  })
+
+  /** Runs on a chest strap with heart rate and no rating: the state counts heart-rate load. */
+  function strapInput(sex: 'female' | 'male' | null, hrMax: number | null = 190): EngineInput {
+    const strap = (n: number) =>
+      activity(addDays(TODAY, -n), {
+        id: `strap-${String(n)}`,
+        durationSec: 3000,
+        distanceM: 8000,
+        avgHr: 140,
+        deviceName: 'Polar H10 chest strap',
+      })
+    return {
+      ...emptyInput(),
+      profile: profileOf({ sex, hrMax, hrMaxSource: 'measured', hrRest: 50, birthYear: 1990 }),
+      activities: [2, 5, 9, 12, 16].map(strap),
     }
+  }
+
+  test('B2 counts the runs whose heart rate passes the sample checks, and names the metric', () => {
+    const ctx = contextOf(strapInput('male'))
+    expect(ctx.state.load.metric).toBe('trimp')
+    const facts = factsOf('B2', ctx)
+    expect(text(idOf(facts, 'hr'))).toBe(
+      '5 of the 5 runs in the last 42 days have heart-rate data that passes the sample checks.',
+    )
+    expect(text(idOf(facts, 'metric'))).toBe(
+      'Load is counted in heart-rate load, one measure for the whole series.',
+    )
+    expect(factsOf('B2', contextOf(emptyInput()))[0]).toMatchObject({ state: 'insufficient' })
+  })
+
+  test('B3 states the weights of the profile sex when heart-rate load is the metric', () => {
+    expect(text(factsOf('B3', contextOf(strapInput('female')))[0]!)).toBe(
+      'Heart-rate load uses the weights for female runners, from your profile.',
+    )
+    expect(text(factsOf('B3', contextOf(strapInput(null)))[0]!)).toBe(
+      'Your profile gives no sex, so heart-rate load uses the default weights.',
+    )
+    // session effort is the metric: the weights are not used
+    expect(
+      text(factsOf('B3', ctxOf('half', { profile: profileOf({ hrMax: 188, hrRest: 50 }) }))[0]!),
+    ).toMatch(/^Load is counted in session effort, so the heart-rate weights are not used/)
+    // without a maximum heart rate or an age to estimate it from, there is no heart-rate load
+    const unanchored = strapInput('male', null)
+    const noAnchor = contextOf({
+      ...unanchored,
+      profile: { ...unanchored.profile, birthYear: null },
+    })
+    expect(factsOf('B3', noAnchor)[0]).toMatchObject({
+      template: 'explain.b3-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('m-age reads the age of the state and the masters age; m-sex the profile sex', () => {
+    const [age] = factsOf('m-age', ctxOf('masters'))
+    expect(slot(age!, 'age', 'count').n).toBe(ctxOf('masters').state.age)
+    expect(slot(age!, 'masters', 'count').n).toBe(P.f5.mastersMinAge.value)
+    expect(factsOf('m-age', contextOf(emptyInput()))[0]!.template).toBe('explain.mage-gap')
+    expect(text(factsOf('m-sex', ctxOf('masters'))[0]!)).toMatch(/gives your sex as female/)
+    expect(text(factsOf('m-sex', ctxOf('masters'))[0]!)).toMatch(/not your volume\.$/)
+    const unset = contextOf({ ...matrix('half').input, profile: profileOf({ sex: null }) })
+    expect(factsOf('m-sex', unset)[0]).toMatchObject({
+      template: 'explain.msex-gap',
+      state: 'insufficient',
+    })
+  })
+})
+
+describe('C6 to C8: intervals, ranges and updates', () => {
+  test('C6 gives the distance above critical speed and the share of the time a rep may take', () => {
+    const [budget] = factsOf('C6')
+    expect(slot(budget!, 'distance', 'distance').m).toBe(richCtx.state.fitness.dPrimeM)
+    expect(slot(budget!, 'share', 'share').fraction).toBe(P.c6.repFractionOfTte.value)
+    expect(budget!.sources.length).toBeGreaterThan(0)
+    const [gapFact] = factsOf('C6', contextOf(emptyInput()))
+    expect(gapFact).toMatchObject({ template: 'explain.cs-gap', state: 'insufficient' })
+  })
+
+  test('C7 gives the band of every boundary the zones hold, faster end first for a pace', () => {
+    const facts = factsOf('C7')
+    const { zones } = richCtx
+    const hr = idOf(facts, 'hrmax')
+    expect(slot(hr, 'low', 'bpm').bpm).toBe(zones.hrMax!.band[0])
+    expect(slot(hr, 'high', 'bpm').bpm).toBe(zones.hrMax!.band[1])
+    const lt1 = zones.lt1PaceSecPerKm
+    if (lt1 !== null) {
+      const pace = idOf(facts, 'lt1-pace')
+      expect(slot(pace, 'fast', 'pace').secPerKm).toBe(lt1.band[0])
+      expect(slot(pace, 'slow', 'pace').secPerKm).toBe(lt1.band[1])
+    }
+    expect(factsOf('C7', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.c7-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('C8 gives the break that clears paces, the changes the runner accepted and the rule', () => {
+    const ctx = ctxOf('returning', {
+      zoneChanges: { thresholdPace: '2026-09-30', hrMax: '2026-10-05' },
+    })
+    const facts = factsOf('C8', ctx)
+    expect(facts.map((f) => f.id)).toEqual([
+      'c8.break',
+      'c8.change-hrMax',
+      'c8.change-thresholdPace',
+      'c8.rule',
+    ])
+    expect(text(facts[1]!)).toBe(
+      'The last change you accepted to maximum heart rate was on Mon 5 Oct. Only efforts after it count toward the next one.',
+    )
+    expect(slot(facts[3]!, 'n', 'count').n).toBe(P.c8.minObservations.value)
+    // a break of the length that clears the paces
+    const away = contextOf({
+      ...matrix('half').input,
+      activities: matrix('half').input.activities.filter((a) => a.date <= addDays(TODAY, -20)),
+    })
+    const [brk] = factsOf('C8', away)
+    expect(brk).toMatchObject({ id: 'c8.break' })
+    expect(slot(brk!, 'days', 'count').n).toBe(away.state.layoffDays)
+    expect(slot(brk!, 'limit', 'count').n).toBe(P.c8.breakDays.value)
+    expect(brk!.sources).toHaveLength(1)
+    expect(factsOf('C8', contextOf(emptyInput()))[0]!.template).toBe('explain.c8-gap')
+  })
+})
+
+describe('F5, g-3, J6 and J8: run days, tightened profiles, the masters check, fatigue', () => {
+  test('F5 gives the days the plan sets, the days available and the caps that apply', () => {
+    const ctx = ctxOf('masters')
+    const facts = factsOf('F5', ctx)
+    const week = ctx.input.existing!.weeks.find((w) => w.weekStart === MONDAY)!
+    expect(slot(idOf(facts, 'plan'), 'n', 'count').n).toBe(week.runDays)
+    expect(slot(idOf(facts, 'available'), 'n', 'count').n).toBe(5)
+    expect(text(idOf(facts, 'masters'))).toBe(
+      'From age 58 the plan keeps run days to 6 a week or fewer.',
+    )
+    expect(facts.some((f) => f.state === 'insufficient')).toBe(false)
+    const novice = factsOf('F5', ctxOf('novice-5k'))
+    expect(text(idOf(novice, 'novice'))).toBe(
+      'A new runner keeps to 3 run days a week or fewer, not on consecutive days.',
+    )
+    // no plan: the days available are still stated, with the missing plan
+    const noPlan = factsOf('F5', contextOf(matrix('half').input))
+    expect(noPlan.map((f) => f.id)).toEqual(['f5.available', 'f5.gap'])
+  })
+
+  test('g-3 gives the ramp of the tightened profile and what tightens it', () => {
+    const ctx = ctxOf('prior-bsi')
+    const [ramp] = factsOf('g-3', ctx)
+    expect(slot(ramp!, 'pct', 'percent').pct).toBeCloseTo(weeklyRamp(ctx.state) * 100, 9)
+    expect(slot(ramp!, 'soft', 'percent').pct).toBeCloseTo(P.g2.rampSoft.value * 100, 9)
+    expect(text(ramp!)).toContain('an earlier bone stress injury')
+    expect(text(ramp!)).toContain('two or more bone-stress factors')
+    // a niggle the runner reported
+    const reported = {
+      ...ctxOf('half'),
+      state: {
+        ...ctxOf('half').state,
+        risk: { ...ctxOf('half').state.risk, injuryReport: true },
+      },
+    }
+    expect(text(factsOf('g-3', reported)[0]!)).toContain('a niggle you reported')
+    // the default profile, and a low run frequency
+    expect(factsOf('g-3', ctxOf('half')).map((f) => f.template)).toEqual(['explain.g3-none'])
+    expect(factsOf('g-3', ctxOf('returning')).map((f) => f.template)).toEqual([
+      'explain.g3-none',
+      'explain.g3-low',
+    ])
+    expect(factsOf('g-3', contextOf(emptyInput())).at(-1)).toMatchObject({
+      template: 'explain.g3-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('J6 states the masters check, the check-ins it needs and who it does not apply to', () => {
+    expect(factsOf('J6', ctxOf('half'))[0]).toMatchObject({ template: 'explain.j6-under' })
+    expect(factsOf('J6', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.j6-gap',
+      state: 'insufficient',
+    })
+    const days = (from: number, to: number) =>
+      Array.from({ length: to - from + 1 }, (_, i) => checkinRow(addDays(TODAY, -(from + i))))
+    const withCheckins = (rows: ReturnType<typeof days>) =>
+      contextOf({ ...matrix('masters').input, wellness: rows })
+    const enough = factsOf('J6', withCheckins(days(1, 10)))
+    expect(enough.map((f) => [f.id, f.state])).toEqual([
+      ['j6.on', 'used'],
+      ['j6.checkins', 'used'],
+    ])
+    expect(text(enough[0]!)).toBe(
+      'At age 58 the plan compares your fatigue, soreness and mood 48 hours after a hard session with your own median of the last 28 days.',
+    )
+    expect(slot(enough[1]!, 'found', 'count').n).toBe(10)
+    const few = factsOf('J6', withCheckins(days(1, 3)))
+    expect(few[1]).toMatchObject({ id: 'j6.gap', state: 'insufficient' })
+    expect(slot(few[1]!, 'found', 'count').n).toBe(3)
+  })
+
+  test('J8 and n-6 read the fatigue state of the readiness snapshot, with its two escalations', () => {
+    const base = ctxOf('half', { wellness: [checkinRow(TODAY)] })
+    const flag = (code: string) => ({ code, message: 'x', rules: ['J8'] })
+    const state = (readiness: Partial<ExplainContext['readiness']>): [InputFact[], InputFact[]] => {
+      const ctx = { ...base, readiness: { ...base.readiness, ...readiness } }
+      return [factsOf('J8', ctx), factsOf('n-6', ctx)]
+    }
+    const normal = state({})
+    expect(normal[0][0]!.template).toBe('explain.j8-normal')
+    expect(normal[0][0]!.sources).toEqual([checkinSource(TODAY)])
+    expect(state({ state: 'possible-fatigue' })[0][0]!.template).toBe('explain.j8-watch')
+    const deload = state({
+      state: 'persistent-suppression',
+      redFlags: [flag('suppression-deload')],
+    })
+    expect(deload[0][0]!.template).toBe('explain.j3-suppression')
+    expect(slot(deload[0][0]!, 'days', 'count').n).toBe(P.j8.deloadSuggestDays.value)
+    const review = state({
+      state: 'persistent-suppression',
+      redFlags: [flag('suppression-medical-review')],
+    })
+    expect(text(review[0][0]!)).toBe(
+      'Readiness has stayed lower than usual for 28 days or more as of Wed 21 Oct. A medical review is worth considering.',
+    )
+    // n-6 is the same state under its own rule
+    for (const [j8, n6] of [normal, deload, review]) {
+      expect(text(n6[0]!)).toBe(text(j8[0]!))
+      expect(n6[0]!.id.startsWith('n-6.')).toBe(true)
+    }
+    expect(factsOf('J8', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.j8-gap',
+      state: 'insufficient',
+    })
+  })
+})
+
+describe('n-1 to n-4, n-7 and J9: signs, the fluid-safety card and rest windows', () => {
+  const withRows = (rows: Array<WellnessDay & Partial<Checkin>>, over: Partial<EngineInput> = {}) =>
+    contextOf({ ...matrix('half').input, wellness: rows, ...over })
+
+  test('n-1 follows the newest check-in: active until a later one does not report it', () => {
+    const bone = checkinRow(addDays(TODAY, -3), { painFocalBone: true, painScore: 4 })
+    const active = factsOf('n-1', withRows([bone, checkinRow(addDays(TODAY, -5))]))
+    expect(active.map((f) => [f.id, f.sources[0]?.date])).toEqual([
+      ['n-1.active', addDays(TODAY, -3)],
+    ])
+    const cleared = factsOf('n-1', withRows([bone, checkinRow(addDays(TODAY, -1))]))
+    expect(text(cleared[0]!)).toBe(
+      'No focal bone pain is reported in your latest check-in, of Tue 20 Oct.',
+    )
+    expect(factsOf('n-1', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.n1-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('n-2 gives the worst pain of the last two days against the score that holds progression', () => {
+    const score = P.pain.flagScore.value
+    const pain = (n: number) =>
+      factsOf('n-2', withRows([checkinRow(addDays(TODAY, -1), { painScore: n })]))
+    expect(pain(score)[0]).toMatchObject({ template: 'explain.n2-pain' })
+    expect(pain(score - 1)[0]).toMatchObject({ template: 'explain.n2-below' })
+    expect(slot(pain(score)[0]!, 'score', 'count').n).toBe(score)
+    expect(pain(0)[0]).toMatchObject({ template: 'explain.n2-none' })
+    expect(pain(score)[0]!.sources).toEqual([checkinSource(addDays(TODAY, -1))])
+    // a rating on a run counts too
+    const run = activity(TODAY, { id: 'sore-run', pain: score + 1 })
+    const ofRun = factsOf('n-2', withRows([], { activities: [run] }))
+    expect(slot(ofRun[0]!, 'pain', 'count').n).toBe(score + 1)
+    expect(ofRun[0]!.sources.map((s) => s.id)).toEqual(['sore-run'])
+    expect(factsOf('n-2', contextOf(emptyInput()))[0]!.state).toBe('insufficient')
+  })
+
+  test('n-3 follows the return gate: rest, then easy running, then clear', () => {
+    const ill = (ago: number) => checkinRow(addDays(TODAY, -ago), { illness: true })
+    expect(factsOf('n-3', withRows([ill(0)]))[0]).toMatchObject({ template: 'explain.n3-rest' })
+    const easy = factsOf('n-3', withRows([ill(3)]))[0]!
+    expect(easy.template).toBe('explain.n3-easy')
+    expect(slot(easy, 'days', 'count').n).toBe(P.n3.illnessEasyDaysBeforeIntensity.value)
+    expect(easy.sources).toEqual([checkinSource(addDays(TODAY, -3))])
+    expect(factsOf('n-3', withRows([ill(30)]))[0]).toMatchObject({ template: 'explain.n3-clear' })
+    expect(factsOf('n-3', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.n3-gap',
+      state: 'insufficient',
+    })
+    // a window counts as the report, and is the source
+    const window = {
+      id: 'w1',
+      reason: 'illness-below-neck' as const,
+      mode: 'rest' as const,
+      startDate: addDays(TODAY, -2),
+      endDate: addDays(TODAY, 1),
+      maxRunMin: null,
+      pain: null,
+      gaitChange: false,
+    }
+    const covered = factsOf('n-3', withRows([], { disruptions: [window] }))[0]!
+    expect(covered.template).toBe('explain.n3-rest')
+    expect(covered.sources).toEqual([
+      { kind: 'disruption', id: 'w1', date: window.startDate, label: 'Rest window' },
+    ])
+  })
+
+  test('n-4 gives the signs of the screen and the count that holds progression', () => {
+    const signs = (screeningFlags?: number) =>
+      factsOf('n-4', contextOf({ ...matrix('half').input, screeningFlags }))[0]!
+    expect(text(signs(2))).toBe(
+      'Signs on the latest energy-availability screen: 2. Progression holds at 2 or more.',
+    )
+    expect(slot(signs(1), 'hold', 'count').n).toBe(P.j5.redsHoldFlags.value)
+    expect(signs(0).template).toBe('explain.n4-none')
+    expect(signs(undefined)).toMatchObject({ template: 'explain.n4-gap', state: 'insufficient' })
+  })
+
+  test('n-7 sizes the card for the goal time, else the prediction, as the fluid card does', () => {
+    const [event] = factsOf('n-7', ctxOf('marathon'))
+    expect(slot(event!, 'duration', 'duration').sec).toBe(
+      matrix('marathon').input.goal.targetTimeSec,
+    )
+    expect(slot(event!, 'hours', 'count').n).toBe(P.n7.eahStrongerAlertHours.value)
+    const noTarget = contextOf(matrix('marathon').input, {
+      race: { ...matrix('marathon').input.goal, targetTimeSec: null },
+    })
+    expect(slot(factsOf('n-7', noTarget)[0]!, 'duration', 'duration').sec).toBe(
+      noTarget.prediction!.predictedSec,
+    )
+    expect(factsOf('n-7', contextOf(emptyInput(), { race: null }))[0]).toMatchObject({
+      template: 'explain.n7-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('J9 lists the windows, newest first, with the cap of a limited one', () => {
+    const window = (id: string, over: Record<string, unknown> = {}) => ({
+      id,
+      reason: 'niggle' as const,
+      mode: 'rest' as const,
+      startDate: addDays(TODAY, -5),
+      endDate: addDays(TODAY, 2),
+      maxRunMin: null,
+      pain: 3,
+      gaitChange: false,
+      ...over,
+    })
+    const ctx = withRows([], {
+      disruptions: [
+        window('old'),
+        window('new', { reason: 'travel', mode: 'limited', maxRunMin: 30, startDate: TODAY }),
+      ],
+    })
+    const facts = factsOf('J9', ctx)
+    expect(facts.map((f) => f.id)).toEqual(['j9.window-0', 'j9.window-1'])
+    expect(text(facts[0]!)).toBe(
+      'Travel: from Wed 21 Oct to Fri 23 Oct, with runs of 30 min or less. The minutes of those days are not added back.',
+    )
+    expect(text(facts[1]!)).toMatch(/^A niggle: from Fri 16 Oct to Fri 23 Oct\./)
+    expect(facts[0]!.sources).toEqual([
+      { kind: 'disruption', id: 'new', date: TODAY, label: 'Rest window' },
+    ])
+    expect(factsOf('J9', contextOf(matrix('half').input))[0]).toMatchObject({
+      template: 'explain.j9-gap',
+      state: 'insufficient',
+    })
+  })
+})
+
+describe('D1 to D7: the goal', () => {
+  test('D1 gives the distance, the course, the climb and the date, and whether the ultra rules apply', () => {
+    const trail = factsOf('D1', ctxOf('trail-50k'))
+    expect(text(trail[0]!, 'mi')).toBe(
+      'Your goal is 31.1 mi on a trail course, with 7218 ft of climb, on Sat 6 Mar.',
+    )
+    expect(text(trail[1]!, 'mi')).toBe(
+      'At more than 26.2 mi this counts as an ultra, so the ultra rules apply.',
+    )
+    const road = factsOf('D1', ctxOf('half'))
+    expect(text(road[0]!, 'km')).toBe('Your goal is 21.1 km on a road course, on Sun 28 Feb.')
+    expect(road[1]!.template).toBe('explain.d1-not-ultra')
+    expect(sentences(factsOf('D1', ctxOf('trail-50k')), 'km')[0]).toContain('2200 m of climb')
+  })
+
+  test('D2 gives the goal type: a time, a time not yet set, or to finish', () => {
+    expect(text(factsOf('D2', ctxOf('marathon'))[0]!)).toBe(
+      'Your goal is a time goal of 3 h 30 min.',
+    )
+    expect(factsOf('D2', ctxOf('trail-50k'))[0]!.template).toBe('explain.d2-finish')
+    expect(factsOf('D2', ctxOf('first-100-mile'))[0]!.template).toBe('explain.d2-finish-long')
+    const open = ctxOf('marathon', {
+      goal: { ...matrix('marathon').input.goal, targetTimeSec: null },
+    })
+    expect(factsOf('D2', open)[0]!.template).toBe('explain.d2-time-open')
+  })
+
+  test('D3 sets the floors of a time goal against the last weeks of running', () => {
+    const ctx = ctxOf('marathon')
+    const [floors, now] = factsOf('D3', ctx)
+    expect(slot(floors!, 'weekly', 'distance').m).toBe(P.d3.marathonMinWeeklyKm.value * 1000)
+    expect(slot(floors!, 'long', 'distance').m).toBe(P.d3.marathonMinLongRunKm.value * 1000)
+    expect(slot(now!, 'long', 'distance').m).toBe(ctx.state.longest30d.distanceM)
+    expect(slot(now!, 'weeks', 'count').n).toBe(4)
+    const half = factsOf('D3', ctxOf('half'))
+    expect(slot(half[0]!, 'weekly', 'distance').m).toBe(P.d3.halfMinWeeklyKm.value * 1000)
+    // a finish goal, a 5 km goal and an ultra have no floor
+    expect(factsOf('D3', ctxOf('trail-50k'))).toEqual([])
+    expect(factsOf('D3', ctxOf('novice-5k'))).toEqual([])
+    expect(factsOf('D3', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.d3-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('D4 gives the label and the weeks of the plan own outlook', () => {
+    for (const id of ['marathon', 'trail-50k', 'novice-5k', 'sparse-100-mile']) {
+      const ctx = ctxOf(id)
+      const plan = buildPlan(matrix(id).input)
+      const [outlook] = factsOf('D4', ctx)
+      expect(slot(outlook!, 'needed', 'count').n, id).toBe(plan.feasibility.weeksNeeded)
+      expect(slot(outlook!, 'available', 'count').n, id).toBe(plan.feasibility.weeksAvailable)
+      expect(text(outlook!), id).toContain(
+        `reads ${{ comfortable: 'comfortable', tight: 'tight', 'not-reachable': 'not reachable within the default limits' }[plan.feasibility.label]}:`,
+      )
+    }
+  })
+
+  test('D5 gives the weekly average and the years of running, for an ultra only', () => {
+    const ctx = ctxOf('trail-50k')
+    const [weekly, years] = factsOf('D5', ctx)
+    expect(slot(weekly!, 'weeks', 'count').n).toBe(P.d5.lowWeeklyWindowWeeks.value)
+    expect(slot(weekly!, 'low', 'distance').m).toBe(P.d5.lowWeeklyKm.value * 1000)
+    expect(slot(years!, 'years', 'count').n).toBe(ctx.state.yearsRunning)
+    expect(slot(years!, 'min', 'count').n).toBe(P.d5.minYearsRunning.value)
+    expect(factsOf('D5', ctxOf('marathon'))).toEqual([])
+    const ultraNoRuns = contextOf(emptyInput({ distanceM: 160_934, isUltra: true }))
+    expect(factsOf('D5', ultraNoRuns)[0]).toMatchObject({
+      template: 'explain.d5-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('D7 gives the typical week and the cap it sets for a 5 km or 10 km goal', () => {
+    const ctx = ctxOf('prior-bsi')
+    const [tier] = factsOf('D7', ctx)
+    expect(slot(tier!, 'typical', 'minutes').min).toBe(ctx.state.typicalWeekMin)
+    // the cap is the one the plan holds its longest run to
+    const longest = Math.max(...ctx.input.existing!.weeks.map((w) => w.longRunMin))
+    expect(longest).toBeLessThanOrEqual(slot(tier!, 'cap', 'minutes').min)
+    expect(factsOf('D7', ctxOf('marathon'))).toEqual([])
+    expect(
+      factsOf('D7', contextOf(emptyInput({ distanceClass: '5k', distanceM: 5000 })))[0],
+    ).toMatchObject({
+      template: 'explain.d7-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('every goal rule says there is no goal when the runner has none', () => {
+    const none = contextOf(emptyInput(), { goal: null, race: null })
+    for (const rule of ['D1', 'D2', 'D3', 'D4', 'D5', 'D7', 'H2', 'H4', 'H5', 'H6', 'H12', 'K1']) {
+      expect(factsOf(rule, none)[0], rule).toMatchObject({
+        template: 'explain.goal-gap',
+        state: 'insufficient',
+      })
+    }
+  })
+})
+
+describe('after a break: E6, D4, D7 and K1 read the state the plan was drawn from [rules J7]', () => {
+  type Pattern = ReadonlyArray<readonly [number, number]>
+  /** Tuesday and Thursday runs: a typical week of 75 min. */
+  const WEEK_75: Pattern = [
+    [1, 37],
+    [3, 38],
+  ]
+
+  /**
+   * A matrix athlete whose weeks hold `pattern` (weekday from Monday = 0, minutes), the last run
+   * `layoffDays` ago, with the plan the engine makes for them stored, as the server holds it.
+   */
+  function afterLayoff(
+    id: string,
+    pattern: Pattern,
+    layoffDays: number,
+    goal: Partial<EngineInput['goal']> = {},
+  ): ExplainContext {
+    const base = matrix(id).input
+    const last = addDays(TODAY, -layoffDays)
+    const activities: Activity[] = []
+    for (let week = 1; week <= 12; week += 1) {
+      for (const [dow, min] of pattern) {
+        const date = addDays(mondayOf(TODAY), -7 * week + dow)
+        if (date > last) continue
+        activities.push(
+          activity(date, {
+            id: `run-${date}`,
+            durationSec: min * 60,
+            movingSec: min * 60,
+            distanceM: min * 180,
+            rpe: 3,
+          }),
+        )
+      }
+    }
+    return contextOf(withPlan({ ...base, goal: { ...base.goal, ...goal }, activities }))
+  }
+
+  /** The first run the stored plan holds from today on. */
+  const firstRun = (ctx: ExplainContext) =>
+    ctx.input
+      .existing!.sessions.filter((s) => s.date >= TODAY)
+      .sort((a, b) => a.date.localeCompare(b.date))[0]!
+
+  test('E6 names the floor start of a plan that restarted at 56 min, not "enough to skip"', () => {
+    const ctx = afterLayoff('half', WEEK_75, 20)
+    // the snapshot keeps the runner's own week; the plan restarted at round(75 x 0.75) = 56 min
+    expect(ctx.state.typicalWeekMin).toBe(75)
+    expect(ctx.state.layoffDays).toBeGreaterThanOrEqual(15)
+    expect(ctx.input.existing!.weeks[0]!.flags).toContain('restart-floor')
+    const facts = factsOf('E6', ctx)
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-floor'])
+    expect(text(facts[0]!)).toBe('You start with 3 runs of 30 min a week, then build from there.')
+    expect(slot(facts[0]!, 'session', 'minutes').min).toBe(firstRun(ctx).durationMin)
+  })
+
+  test('E6 names the rung of a plan that restarted on the ladder', () => {
+    const ctx = afterLayoff('half', WEEK_75, 36)
+    const flag = ctx.input.existing!.weeks[0]!.flags.find((f) => f.startsWith('ladder-'))!
+    const facts = factsOf('E6', ctx)
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-ladder'])
+    expect(slot(facts[0]!, 'rung', 'count').n).toBe(Number(flag.slice('ladder-'.length)))
+  })
+
+  test('E6 keeps "enough to skip" for a break under 7 days', () => {
+    const ctx = afterLayoff('half', WEEK_75, 5)
+    expect(ctx.state.layoffDays).toBeLessThan(P.j7.tier1Days.value)
+    const facts = factsOf('E6', ctx)
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-none'])
+    expect(slot(facts[0]!, 'level', 'minutes').min).toBe(75)
+  })
+
+  test('D4 gives the weeks the plan needed from the restart volume', () => {
+    const ctx = afterLayoff('half', WEEK_75, 36)
+    const plan = buildPlan(ctx.input)
+    const raw = feasibility(
+      ctx.race!,
+      ctx.state,
+      TODAY,
+      startPath({ ...ctx.input, today: TODAY }, ctx.state),
+    )
+    // the raw state would say 21 weeks; the plan restarted lower and needs more
+    expect(raw.weeksNeeded).not.toBe(plan.feasibility.weeksNeeded)
+    const [outlook] = factsOf('D4', ctx)
+    expect(slot(outlook!, 'needed', 'count').n).toBe(plan.feasibility.weeksNeeded)
+    expect(slot(outlook!, 'available', 'count').n).toBe(plan.feasibility.weeksAvailable)
+  })
+
+  test('D7 gives the typical week the long-run cap was drawn from', () => {
+    const week: Pattern = [
+      [1, 60],
+      [3, 70],
+      [5, 70],
+    ]
+    const ctx = afterLayoff('half', week, 20, { distanceClass: '10k', distanceM: 10_000 })
+    expect(ctx.state.typicalWeekMin).toBe(200)
+    const [tier] = factsOf('D7', ctx)
+    // round(200 x 0.75): the tier below 180 min, as the plan used it
+    expect(tier!.template).toBe('explain.d7-tier-break')
+    expect(slot(tier!, 'typical', 'minutes').min).toBe(150)
+    expect(text(tier!)).toMatch(
+      /^After your break the plan restarts from a typical week of 150 min/,
+    )
+    // the cap the plan held its longest run to, not the one the unadjusted week would give
+    const capFor = (state: ExplainContext['state']) => {
+      const pace = trainingPace(state, ctx.race!)
+      const z1 = ctx.zones.pace?.z1 ?? null
+      return peakLongRunMin(ctx.race!, pace, state, z1 === null ? pace : (z1[0] + z1[1]) / 2)
+    }
+    const cap = slot(tier!, 'cap', 'minutes').min
+    expect(cap).toBe(capFor(afterBreak(ctx.state)))
+    expect(cap).not.toBe(capFor(ctx.state))
+    const longest = Math.max(...ctx.input.existing!.weeks.map((w) => w.longRunMin))
+    expect(longest).toBeLessThanOrEqual(cap)
+    // without a break the sentence is the plain one, with the runner's own week
+    const rested = afterLayoff('half', week, 3, { distanceClass: '10k', distanceM: 10_000 })
+    expect(factsOf('D7', rested)[0]!.template).toBe('explain.d7-tier')
+  })
+
+  test('K1 gives the taper length of the plan, from the restart volume', () => {
+    const week: Pattern = [
+      [0, 45],
+      [1, 60],
+      [3, 60],
+      [4, 40],
+      [5, 120],
+    ]
+    const ctx = afterLayoff('marathon', week, 36)
+    // 325 min a week is not low volume; the restart at 163 min is
+    expect(taperDays(ctx.race!, ctx.state)).toBe(P.k1.marathonDays.value)
+    const [k1] = factsOf('K1', ctx)
+    expect(slot(k1!, 'days', 'count').n).toBe(P.k1.marathonLowVolumeDays.value)
+    const taper = ctx.input.existing!.weeks.filter((w) => w.isTaper)
+    expect(taper.length * 7).toBe(P.k1.marathonLowVolumeDays.value)
+    expect(slot(k1!, 'week', 'date').iso).toBe(taper[0]!.weekStart)
+  })
+})
+
+describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
+  test('E2 counts the weeks of each phase of the stored plan and the weeks to the race', () => {
+    const ctx = ctxOf('marathon')
+    const [phases, race] = factsOf('E2', ctx)
+    const weeks = ctx.input.existing!.weeks
+    const inPhase = (...p: string[]) => weeks.filter((w) => p.includes(w.phase)).length
+    expect(slot(phases!, 'base', 'count').n).toBe(inPhase('base'))
+    expect(slot(phases!, 'build', 'count').n).toBe(inPhase('build'))
+    expect(slot(phases!, 'specific', 'count').n).toBe(inPhase('specific'))
+    expect(slot(phases!, 'taper', 'count').n).toBe(inPhase('taper', 'race'))
+    expect(slot(race!, 'weeks', 'count').n).toBe(
+      Math.floor((Date.parse('2027-03-14') - Date.parse(TODAY)) / 86_400_000 / 7),
+    )
+    expect(factsOf('E2', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.plan-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('E3 gives the cycle, why it is shorter, and the next recovery week', () => {
+    const usual = factsOf('E3', ctxOf('marathon'))
+    expect(text(usual[0]!)).toBe('The plan puts a recovery week after every 3 weeks of work.')
+    const next = idOf(usual, 'next')
+    const recovery = ctxOf('marathon').input.existing!.weeks.find(
+      (w) => w.isRecovery && w.weekStart >= MONDAY,
+    )!
+    expect(slot(next, 'minutes', 'minutes').min).toBe(recovery.targetRunMin)
+    expect(usual.some((f) => f.id === 'e3.short')).toBe(false)
+    const injured = factsOf('E3', ctxOf('prior-bsi'))
+    expect(text(injured[0]!)).toContain('every 2 weeks')
+    expect(text(idOf(injured, 'short'))).toBe(
+      'The cycle is shorter than the usual 3 weeks because of an injury in your profile in the last 12 months.',
+    )
+    const chosen = factsOf('E3', ctxOf('marathon', { options: { recoveryCycle: '2:1' } }))
+    expect(text(idOf(chosen, 'short'))).toContain('the 2:1 cycle you chose')
+    const novice = factsOf('E3', ctxOf('novice-5k'))
+    expect(text(idOf(novice, 'short'))).toContain('your running level')
+    expect(factsOf('E3', contextOf(emptyInput())).at(-1)).toMatchObject({
+      template: 'explain.plan-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('E4 gives the phase and the shares of the week it is asked about', () => {
+    const ctx = ctxOf('marathon')
+    const [week] = factsOf('E4', ctx)
+    const stored = ctx.input.existing!.weeks.find((w) => w.weekStart === MONDAY)!
+    expect(slot(week!, 'z1', 'percent').pct).toBe(stored.tid.z1)
+    expect(slot(week!, 'z2', 'percent').pct).toBe(stored.tid.z2)
+    expect(slot(week!, 'z3', 'percent').pct).toBe(stored.tid.z3)
+    expect(text(week!)).toContain(`is a base week`)
+    // a session reads the week it falls in
+    const later = ctx.input.existing!.sessions.find(
+      (s) => s.date >= addDays(MONDAY, 14) && s.rules.includes('E4'),
+    )!
+    const monday = addDays(mondayOf(later.date), 0)
+    const forSession = view({ subject: 'session', id: later.id }, ctx).groups.find(
+      (g) => g.rule === 'E4',
+    )!.facts[0]!
+    const storedLater = ctx.input.existing!.weeks.find((w) => w.weekStart === monday)!
+    expect(forSession.window).toEqual({ from: monday, to: addDays(monday, 6) })
+    expect(slot(forSession, 'z1', 'percent').pct).toBe(storedLater.tid.z1)
+  })
+
+  test('E6 names the start path the plan was drawn with', () => {
+    expect(text(factsOf('E6', ctxOf('marathon'))[0]!)).toMatch(
+      /^You already run enough to skip a start path/,
+    )
+    expect(text(factsOf('E6', ctxOf('novice-5k')).at(-1)!)).toBe(
+      'You start on rung 1 of 9 of a run-walk ladder, because of your recent running.',
+    )
+    expect(text(factsOf('E6', ctxOf('sparse-100-mile'))[0]!)).toBe(
+      'You start with 3 runs of 30 min a week, then build from there.',
+    )
+    const empty = factsOf('E6', contextOf(emptyInput()))
+    expect(empty[0]).toMatchObject({ id: 'e6.gap', state: 'insufficient' })
+    expect(empty).toHaveLength(2)
+    // the injury-return ladder
+    const injured = contextOf({
+      ...emptyInput(),
+      profile: profileOf({
+        injuries: [{ kind: 'muscle', year: 2026, month: 9 } as never],
+        runningSinceYear: 2015,
+      }),
+    })
+    expect(text(factsOf('E6', injured).at(-1)!)).toBe(
+      'You start on the return ladder at runs of 5 min, because of an injury in your profile.',
+    )
+  })
+
+  test('E6 says what is missing and then where the plan starts, whatever the path is', () => {
+    const missing = 'No run is on file in the last 365 days.'
+    const novice = contextOf({ ...emptyInput(), profile: profileOf({ runningSinceYear: null }) })
+    const injured = contextOf({
+      ...emptyInput(),
+      profile: profileOf({
+        injuries: [{ kind: 'muscle', year: 2026, month: 9 } as never],
+        runningSinceYear: 2015,
+      }),
+    })
+    const experienced = contextOf({
+      ...emptyInput(),
+      profile: profileOf({ runningSinceYear: 2015 }),
+    })
+    expect(sentences(factsOf('E6', novice), 'km')).toEqual([
+      missing,
+      'You start on rung 1 of 9 of a run-walk ladder, because of your recent running.',
+    ])
+    expect(sentences(factsOf('E6', injured), 'km')).toEqual([
+      missing,
+      'You start on the return ladder at runs of 5 min, because of an injury in your profile.',
+    ])
+    expect(sentences(factsOf('E6', experienced), 'km')).toEqual([
+      missing,
+      'You start with 3 runs of 20 min a week, then build from there.',
+    ])
+  })
+
+  test('H7, H10, K1 and K2 give the fuel weeks, the strength sessions and the taper of the plan', () => {
+    const ctx = ctxOf('first-100-mile')
+    const weeks = ctx.input.existing!.weeks
+    const gut = weeks.filter((w) => w.flags.includes('gut-training'))
+    const [gutWeeks, fuel] = factsOf('H7', ctx)
+    expect(slot(gutWeeks!, 'n', 'count').n).toBe(gut.length)
+    expect(slot(gutWeeks!, 'week', 'date').iso).toBe(gut[0]!.weekStart)
+    const flagged = ctx.input.existing!.sessions.filter(
+      (s) =>
+        s.date >= gut[0]!.weekStart &&
+        s.date <= addDays(gut[0]!.weekStart, 6) &&
+        s.flags.includes('fuel-practice'),
+    )
+    expect(slot(fuel!, 'n', 'count').n).toBe(flagged.length)
+    expect(fuel!.sources.map((s) => s.id).sort()).toEqual(flagged.map((s) => s.id).sort())
+    expect(factsOf('H7', ctxOf('novice-5k'))[0]!.template).toBe('explain.h7-none')
+
+    const strength = factsOf(
+      'H10',
+      ctxOf('first-100-mile', { profile: profileOf({ strengthPreference: 2 }) }),
+    )
+    expect(strength.map((f) => f.id)).toEqual(['h10.week', 'h10.wanted'])
+    expect(text(strength[1]!)).toBe('Your profile asks for 2 strength sessions a week.')
+
+    const taper = weeks.filter((w) => w.isTaper)
+    const [k1] = factsOf('K1', ctx)
+    expect(slot(k1!, 'days', 'count').n).toBe(taperDays(ctx.race!, ctx.state))
+    expect(slot(k1!, 'week', 'date').iso).toBe(taper[0]!.weekStart)
+    const k2 = factsOf('K2', ctx)
+    expect(k2.map((f) => slot(f, 'minutes', 'minutes').min)).toEqual(
+      taper.slice(0, EXPLAIN_MAX_SOURCES).map((w) => Math.round(w.targetRunMin)),
+    )
+    for (const rule of ['H7', 'H10', 'K2']) {
+      expect(factsOf(rule, contextOf(emptyInput())).at(-1), rule).toMatchObject({
+        template: 'explain.plan-gap',
+        state: 'insufficient',
+      })
+    }
+  })
+})
+
+describe('the goal on the course: H2, H4 to H6, H12 and O1', () => {
+  test('H2 caps the longest run at the lesser of six hours and 60% of the race', () => {
+    const ctx = ctxOf('first-100-mile')
+    const [cap] = factsOf('H2', ctx)
+    expect(slot(cap!, 'cap', 'duration').sec).toBe(
+      ultraRunCapMin(ctx.race!.expectedDurationSec)! * 60,
+    )
+    expect(slot(cap!, 'race', 'duration').sec).toBe(ctx.race!.expectedDurationSec)
+    expect(slot(cap!, 'hours', 'count').n).toBe(P.h2.longestRunCapHours.value)
+    expect(factsOf('H2', ctxOf('marathon'))).toEqual([])
+  })
+
+  test('H4 and H5 give the climb, the descent and the climbing of the week', () => {
+    const ctx = ctxOf('trail-50k')
+    const [climb, week] = factsOf('H4', ctx)
+    expect(slot(climb!, 'gain', 'climb').m).toBe(2200)
+    expect(slot(climb!, 'ramp', 'percent').pct).toBe(P.h4.weeklyGainRamp.value * 100)
+    const stored = ctx.input.existing!.weeks.find((w) => w.weekStart === MONDAY)!
+    expect(slot(week!, 'gain', 'climb').m).toBe(stored.gainTargetM)
+    const [descent] = factsOf('H5', ctx)
+    expect(slot(descent!, 'loss', 'climb').m).toBe(2200)
+    expect(slot(descent!, 'weeks', 'count').n).toBe(P.h5.downhillStartWeeksBeforeRace.value)
+    expect(factsOf('H4', ctxOf('marathon'))).toEqual([])
+    expect(factsOf('H5', ctxOf('marathon'))).toEqual([])
+    const trailNoClimb = contextOf(emptyInput({ surface: 'trail', gainM: 0, lossM: 0 }))
+    expect(factsOf('H4', trailNoClimb)[0]).toMatchObject({
+      template: 'explain.h4-gap',
+      state: 'insufficient',
+    })
+    expect(factsOf('H5', trailNoClimb)[0]).toMatchObject({
+      template: 'explain.h5-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('H6 says whether the race runs into darkness and how many headlamp runs that adds', () => {
+    const dark = factsOf('H6', ctxOf('first-100-mile'))[0]!
+    expect(dark.template).toBe('explain.h6-dark')
+    expect(slot(dark, 'low', 'count').n).toBe(P.h6.headlampRehearsalRuns.value[0])
+    expect(slot(dark, 'high', 'count').n).toBe(P.h6.headlampRehearsalRuns.value[1])
+    expect(factsOf('H6', ctxOf('half'))[0]!.template).toBe('explain.h6-day')
+  })
+
+  test('H12 gives the hold and the steps after the goal race, and why a hold is longer', () => {
+    const ctx = ctxOf('first-100-mile')
+    const { own } = postRaceWindows({ ...ctx.input, goal: ctx.race! })
+    const [hold, modified] = factsOf('H12', ctx)
+    expect(slot(hold!, 'days', 'count').n).toBe(own.holdDays)
+    expect(slot(hold!, 'steps', 'count').n).toBe(own.stages.length)
+    expect(slot(modified!, 'base', 'count').n).toBe(own.baseHoldDays)
+    expect(text(modified!)).toContain('because of your age and a first race of this length')
+    // a short race has one step and no hold; no reason is given when nothing lengthens it
+    const short = factsOf('H12', ctxOf('half'))
+    expect(short.map((f) => f.template)).toEqual(['explain.h12-steps'])
+    // a race inside its window follows the window it is in
+    const raced = ctxOf('half', {
+      activities: [
+        ...matrix('half').input.activities,
+        activity(addDays(TODAY, -4), {
+          id: 'marathon-race',
+          type: 'race',
+          distanceM: 42_195,
+          durationSec: 14_400,
+        }),
+      ],
+    })
+    const past = factsOf('H12', raced).find((f) => f.id === 'h12.past')!
+    expect(slot(past, 'date', 'date').iso).toBe(addDays(TODAY, -4))
+    expect(past.window!.from).toBe(addDays(TODAY, -4))
+  })
+
+  test('O1 gives the ceiling a watch alerts above, from the zones, and the floor of the band', () => {
+    const [ceiling] = factsOf('O1')
+    expect(slot(ceiling!, 'bpm', 'bpm').bpm).toBe(richCtx.zones.hr!.z1[1])
+    expect(slot(ceiling!, 'floor', 'bpm').bpm).toBe(P.o1.hrFloorBpm.value)
+    expect(factsOf('O1', contextOf(emptyInput()))[0]).toMatchObject({
+      template: 'explain.o1-gap',
+      state: 'insufficient',
+    })
+  })
+})
+
+describe('heat: D6, I2, I3, I8 and H13', () => {
+  const withWbgt = (wbgtC: number | null) =>
+    ctxOf('half', { goal: { ...matrix('half').input.goal, raceWbgtC: wbgtC } })
+
+  test('D6 says whether the race heat triggers an acclimation block', () => {
+    const hot = factsOf('D6', ctxOf('hot-race'))[0]!
+    expect(hot.template).toBe('explain.d6-hot')
+    expect(slot(hot, 'trigger', 'temp').c).toBe(P.d6.raceWbgtAcclimationC.value)
+    expect(factsOf('D6', withWbgt(12))[0]!.template).toBe('explain.d6-cool')
+    expect(factsOf('D6', withWbgt(null))[0]).toMatchObject({
+      template: 'explain.heat-gap',
+      state: 'insufficient',
+    })
+  })
+
+  test('I2 and I3 give the band without a penalty and the slope above it', () => {
+    const [low, high] = P.i2.wbgtOptimumC.value
+    expect(factsOf('I2', withWbgt(12))[0]!.template).toBe('explain.i2-band')
+    expect(factsOf('I3', withWbgt(low - 2))[0]!.template).toBe('explain.i2-cool')
+    expect(factsOf('I3', withWbgt(high))[0]!.template).toBe('explain.i2-band')
+    const slope = factsOf('I3', withWbgt(22))[0]!
+    expect(slot(slope, 'low', 'percent').pct).toBeCloseTo(P.i3.slopePctPerC.value, 9)
+    expect(slot(slope, 'high', 'percent').pct).toBeCloseTo(P.i3.slopePctPerC.value * 2, 9)
+    expect(slot(slope, 'end', 'temp').c).toBe(P.i3.noExtrapolationAboveC.value)
+    expect(text(slope)).toBe(
+      'The race-day WBGT is about 22 °C. From 15 °C to 25 °C the estimate adds 0.35% to 0.7% for each degree, more for a slower runner.',
+    )
+    expect(factsOf('I3', withWbgt(null))[0]!.state).toBe('insufficient')
+  })
+
+  test('I8 and H13 give the heat adaptation of the hot runs of the last weeks', () => {
+    const hotRun = (n: number) =>
+      activity(addDays(TODAY, -n), { id: `hot-${String(n)}`, tempC: 28, durationSec: 40 * 60 })
+    const ctx = contextOf({
+      ...matrix('half').input,
+      activities: [...matrix('half').input.activities, ...[1, 2, 3].map(hotRun)],
+    })
+    expect(ctx.state.heatAcclimation).toBeGreaterThan(0)
+    for (const rule of ['I8', 'H13']) {
+      const [credit] = factsOf(rule, ctx)
+      expect(credit!.id).toBe(`${rule.toLowerCase()}.credit`)
+      expect(slot(credit!, 'share', 'share').fraction).toBe(
+        Math.round(ctx.state.heatAcclimation * 100) / 100,
+      )
+      expect(credit!.sources.map((s) => s.id).sort()).toEqual(['hot-1', 'hot-2', 'hot-3'])
+    }
+    expect(factsOf('I8', ctxOf('half'))[0]).toMatchObject({
+      template: 'explain.i8-gap',
+      state: 'insufficient',
+    })
+  })
+})
+
+describe('zero minutes are not a number to state', () => {
+  const zeroDecision = (kind: 'progress' | 'hold' | 'reduce'): ExplainContext => ({
+    ...richCtx,
+    decision: { decision: kind, signals: [], nextWeekTargetMin: 0 },
+  })
+
+  test('J5 leaves the minutes out of a decision that suggests none', () => {
+    for (const kind of ['progress', 'hold', 'reduce'] as const) {
+      const out = view({ subject: 'decision', weekStart: MONDAY }, zeroDecision(kind))
+      const fact = out.groups.find((g) => g.rule === 'J5')!.facts[0]!
+      expect(fact.template).toBe(`explain.j5-${kind}-bare`)
+      expect(text(fact)).not.toMatch(/\b0 min\b/)
+      expect(text(fact)).toMatch(/^For the week of 19 Oct the plan /)
+    }
+  })
+
+  test('g-2 does not state a week set at no running as "up to 0 min"', () => {
+    const base = richCtx.input.existing!
+    const input: EngineInput = {
+      ...rich,
+      existing: {
+        ...base,
+        weeks: base.weeks.map((w) => (w.weekStart === MONDAY ? { ...w, targetRunMin: 0 } : w)),
+      },
+    }
+    const facts = factsOf('g-2', contextOf(input))
+    const week = facts.find((f) => f.id === 'g-2.plan-week')!
+    expect(week.template).toBe('explain.g2-plan-week-none')
+    expect(text(week)).toBe('The plan sets no running for the week of 19 Oct.')
+  })
+
+  /** The stored plan of `rich` with `change` applied to the weeks that `pick` selects. */
+  function withWeeks(pick: (w: WeekDraft) => boolean, change: (w: WeekDraft) => WeekDraft) {
+    const base = richCtx.input.existing!
+    const input: EngineInput = {
+      ...rich,
+      existing: { ...base, weeks: base.weeks.map((w) => (pick(w) ? change(w) : w)) },
+    }
+    return contextOf(input)
+  }
+
+  test('E3 does not state a recovery week held whole as "up to 0 min"', () => {
+    const recovery = richCtx.input.existing!.weeks.find(
+      (w) => w.isRecovery && w.weekStart >= MONDAY,
+    )!
+    // a rest window over the whole week stores it at no running and keeps its flag
+    for (const targetRunMin of [0, 0.4]) {
+      const ctx = withWeeks(
+        (w) => w.weekStart === recovery.weekStart,
+        (w) => ({ ...w, targetRunMin }),
+      )
+      const next = factsOf('E3', ctx).find((f) => f.id === 'e3.next')!
+      expect(next.template).toBe('explain.e3-next-none')
+      expect(text(next)).toBe(
+        'The next recovery week in your plan starts on 2 Nov, with no running set.',
+      )
+      expect(text(next)).not.toMatch(/\b0 min\b/)
+      expect(next.window).toEqual({ from: recovery.weekStart, to: addDays(recovery.weekStart, 6) })
+    }
+    expect(recovery.weekStart).toBe('2026-11-02')
+    expect(factsOf('E3', richCtx).find((f) => f.id === 'e3.next')!.template).toBe('explain.e3-next')
+  })
+
+  test('K2 does not state a taper week held whole as "up to 0 min"', () => {
+    const taper = richCtx.input.existing!.weeks.filter((w) => w.isTaper)
+    const held = taper[0]!
+    const ctx = withWeeks(
+      (w) => w.weekStart === held.weekStart,
+      (w) => ({ ...w, targetRunMin: 0 }),
+    )
+    const facts = factsOf('K2', ctx)
+    expect(facts[0]!.template).toBe('explain.k2-week-none')
+    expect(held.weekStart).toBe('2027-02-22')
+    expect(text(facts[0]!)).toBe('The taper week of 22 Feb has no running set.')
+    expect(text(facts[0]!)).not.toMatch(/\b0 min\b/)
+    // the other taper weeks keep their minutes
+    for (const fact of facts.slice(1)) expect(fact.template).toBe('explain.k2-week')
+    expect(facts).toHaveLength(Math.min(taper.length, EXPLAIN_MAX_SOURCES))
+  })
+
+  /** Two stored weeks, last week's and this week's, and no run in either. */
+  function twoWeeks(lastTarget: number, nextTarget: number): ExplainContext {
+    const week = (weekStart: string, targetRunMin: number): WeekDraft => ({
+      weekStart,
+      index: 0,
+      phase: 'build',
+      focus: 'Build',
+      targetRunMin,
+      longRunMin: Math.floor(targetRunMin / 2),
+      longRunM: null,
+      gainTargetM: null,
+      runDays: 3,
+      qualitySessions: 0,
+      strengthSessions: 0,
+      tid: { z1: 80, z2: 10, z3: 10 },
+      flags: [],
+      isRecovery: false,
+      isTaper: false,
+    })
+    return contextOf({
+      ...emptyInput(),
+      profile: profileOf({}),
+      existing: {
+        weeks: [week(addDays(MONDAY, -7), lastTarget), week(MONDAY, nextTarget)],
+        sessions: [],
+      },
+    })
+  }
+
+  test('g-6 reads a week planned at zero as one with nothing planned to compare with', () => {
+    expect(weekEvidence(twoWeeks(0, 110).input, addDays(MONDAY, -7)).plannedMin).toBe(0)
+    const [fact] = factsOf('g-6', twoWeeks(0, 110))
+    expect(fact).toMatchObject({ template: 'explain.g6-gap', state: 'insufficient' })
+  })
+
+  test('g-6 leaves the cap out when nothing was run to build on', () => {
+    const facts = factsOf('g-6', twoWeeks(100, 110))
+    expect(facts.map((f) => f.id)).toEqual(['g-6.completion'])
+    expect(text(facts[0]!)).toBe('In the week of 12 Oct you ran 0 min of 100 min planned.')
+  })
+})
+
+describe('insufficient states', () => {
+  /**
+   * The runner with no data that each rule is asked about. The rules about the goal answer "no
+   * goal" when there is none; a rule that applies to one kind of goal gets that kind; the
+   * profile rules get a profile without the detail they read.
+   */
+  function emptyContextFor(rule: string): ExplainContext {
+    const noGoal = { goal: null, race: null }
+    switch (rule) {
+      case 'D1':
+      case 'D2':
+      case 'D4':
+      case 'H2':
+      case 'H4':
+      case 'H5':
+      case 'H6':
+      case 'H12':
+      case 'K1':
+      case 'n-7':
+        return contextOf(emptyInput(), noGoal)
+      case 'D5':
+        return contextOf(emptyInput({ distanceM: 160_934, isUltra: true }))
+      case 'D7':
+        return contextOf(emptyInput({ distanceClass: '5k', distanceM: 5000 }))
+      case 'L2':
+        return contextOf(emptyInput({ distanceM: 42_195 }))
+      case 'L4':
+        return contextOf(emptyInput({ distanceM: 160_934 }))
+      case 'L5':
+        return contextOf(emptyInput({ surface: 'trail', gainM: 2000 }))
+      case 'm-sex': {
+        const input = emptyInput()
+        return contextOf({ ...input, profile: { ...input.profile, sex: null } })
+      }
+      default:
+        return contextOf(emptyInput())
+    }
+  }
+
+  test('every builder has a gap sentence for a runner with no data', () => {
     for (const rule of Object.keys(INPUT_BUILDERS)) {
-      const ctx = contextOf(emptyInput(goals[rule] ?? {}))
-      const facts = factsOf(rule, ctx)
+      const facts = factsOf(rule, emptyContextFor(rule))
       expect(facts.length, rule).toBeGreaterThan(0)
       expect(
         facts.some((f) => f.state === 'insufficient'),
@@ -1538,98 +2675,80 @@ describe('subjects', () => {
       hrModel: false,
       decision: false,
       prediction: false,
+      race: false,
     })
     expect(explainNeeds(['a8'])).toMatchObject({ hrModel: true })
     expect(explainNeeds(['J5'])).toMatchObject({ decision: true })
     expect(explainNeeds(['L3'])).toMatchObject({ prediction: true })
-    expect(explainNeeds(['F-lib'])).toEqual({ hrModel: false, decision: false, prediction: false })
+    expect(explainNeeds(['F-lib'])).toEqual({
+      hrModel: false,
+      decision: false,
+      prediction: false,
+      race: false,
+    })
+    // the rules about the goal read the goal model; n-7 also the goal time or the prediction
+    expect(explainNeeds(['D1', 'k1'])).toMatchObject({ race: true, prediction: false })
+    expect(explainNeeds(['n-7'])).toMatchObject({ race: true, prediction: true })
+    expect(explainNeeds(['H4', 'I3', 'H12', 'D6'])).toMatchObject({ race: true })
+    // the heat adaptation reads the runs, not the goal
+    expect(explainNeeds(['I8', 'H13'])).toMatchObject({ race: false })
   })
 })
 
 describe('coverage of the rule titles', () => {
-  /**
-   * Rules that still have neither a builder nor a policy entry. Empty by E4-8: a rule leaves this
-   * list by gaining a builder in `INPUT_BUILDERS` or an entry in `POLICY_ONLY_RULES`.
-   */
-  // prettier-ignore
-  const PENDING: readonly string[] = [
-    'A4', 'A9', 'B1', 'B2', 'B3', 'B5', 'B6', 'B7', 'C6', 'C7', 'C8',
-    'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'E2', 'E3', 'E4', 'E6', 'F5', 'g-3',
-    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13',
-    'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8', 'I9', 'I10', 'I11', 'I12',
-    'J6', 'J8', 'J9', 'K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7', 'L7',
-    'm-age', 'm-sex', 'n-1', 'n-2', 'n-3', 'n-4', 'n-5', 'n-6', 'n-7', 'O1',
-    'design-3.2', 'design-4.1', 'design-4.2', 'design-4.3', 'design-revisions',
-  ]
-
   const lower = (ids: readonly string[]) => new Set(ids.map((id) => id.toLowerCase()))
   const built = lower(Object.keys(INPUT_BUILDERS))
   const policy = lower([...POLICY_ONLY_RULES])
-  const pending = lower(PENDING)
 
-  test('puts every title in exactly one of built, policy-only and pending', () => {
-    const wrong = Object.keys(RULE_TITLES).flatMap((id) => {
+  /** The titles that are in neither the builders nor the policy entries, or in both. */
+  function misfiled(titles: readonly string[]): string[] {
+    return titles.flatMap((id) => {
       const key = id.toLowerCase()
-      const homes = [built.has(key), policy.has(key), pending.has(key)].filter(Boolean).length
-      return homes === 1
-        ? []
-        : [
-            `${id} is in ${String(homes)} of INPUT_BUILDERS, POLICY_ONLY_RULES and PENDING; a rule ` +
-              'title belongs in exactly one (a new title goes to PENDING until it has a builder).',
-          ]
+      const homes = [built.has(key), policy.has(key)].filter(Boolean).length
+      if (homes === 1) return []
+      return [
+        homes === 0
+          ? `${id} has neither a builder in INPUT_BUILDERS nor a policy entry in POLICY_ONLY_RULES; give it one (a rule that reads the runner's numbers gets a builder with a gap sentence, any other a policy entry and a reason).`
+          : `${id} is in both INPUT_BUILDERS and POLICY_ONLY_RULES; a rule title belongs in exactly one.`,
+      ]
     })
-    expect(wrong).toEqual([])
+  }
+
+  test('puts every title in exactly one of the builders and the policy entries', () => {
+    expect(misfiled(Object.keys(RULE_TITLES))).toEqual([])
+  })
+
+  test('fails on a rule with neither a builder nor a policy entry', () => {
+    const wrong = misfiled([...Object.keys(RULE_TITLES), 'zz-9'])
+    expect(wrong).toHaveLength(1)
+    expect(wrong[0]).toMatch(/^zz-9 has neither a builder/)
+  })
+
+  test('covers the rules the later epics added: the device targets, the windows, the fuel rules and the record', () => {
+    for (const rule of ['O1', 'J9', 'H7', 'H8', 'H9', 'n-7', 'L7']) {
+      expect(built.has(rule.toLowerCase()) || policy.has(rule.toLowerCase()), rule).toBe(true)
+    }
+    expect(Object.keys(RULE_TITLES).filter((id) => id.toLowerCase() === 'l7')).toHaveLength(1)
   })
 
   test('lists nothing that is not a title, and no id twice', () => {
     const titles = new Set(Object.keys(RULE_TITLES).map((id) => id.toLowerCase()))
-    for (const list of [Object.keys(INPUT_BUILDERS), [...POLICY_ONLY_RULES], PENDING]) {
+    for (const list of [Object.keys(INPUT_BUILDERS), [...POLICY_ONLY_RULES]]) {
       const keys = list.map((id) => id.toLowerCase())
       expect(new Set(keys).size).toBe(keys.length)
       expect(keys.filter((k) => !titles.has(k))).toEqual([])
     }
   })
 
-  test('a pending or unknown rule rests on the rule alone', () => {
-    expect(builderFor('H4')).toBeUndefined()
-    const out = view({ subject: 'rules', rules: ['H4', 'F-lib', 'zz-9'] }, richCtx)
+  test('a policy or unknown rule rests on the rule alone', () => {
+    expect(builderFor('I1')).toBeUndefined()
+    const out = view({ subject: 'rules', rules: ['I1', 'F-lib', 'zz-9'] }, richCtx)
     expect(out.groups).toEqual([])
-    expect(out.rest).toEqual(['H4', 'F-lib', 'zz-9'])
+    expect(out.rest).toEqual(['I1', 'F-lib', 'zz-9'])
     expect(isPolicyOnly('f-LIB')).toBe(true)
+    expect(isPolicyOnly('i1')).toBe(true)
     expect(isPolicyOnly('H4')).toBe(false)
     expect(builderFor('G-6')).toBe(builderFor('g-6'))
     expect(builderFor('g1')).toBeUndefined()
-  })
-
-  test('builds the rules the plan names', () => {
-    expect(Object.keys(INPUT_BUILDERS).sort()).toEqual(
-      [
-        'g-1',
-        'g-2',
-        'g-6',
-        'A2',
-        'A3',
-        'A5',
-        'A6',
-        'A7',
-        'A8',
-        'C1',
-        'C2',
-        'C3',
-        'C4',
-        'C5',
-        'J2',
-        'J3',
-        'J4',
-        'J5',
-        'J7',
-        'L1',
-        'L2',
-        'L3',
-        'L4',
-        'L5',
-        'L6',
-      ].sort(),
-    )
   })
 })

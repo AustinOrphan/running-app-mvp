@@ -111,17 +111,26 @@ export function fieldErrors(err: unknown): Record<string, string> {
   return result
 }
 
+/**
+ * The app's query client. `networkMode: 'always'` for queries and mutations: the library's default
+ * pauses a request while the browser says it is offline, and a paused request never reaches what
+ * can answer it. A read then never reaches the service worker, which answers an allowlisted one from
+ * the phone's copy, and a check-in tapped after the connection went never reaches the outbox, which
+ * keeps it on the phone: it would wait in memory and be lost with the page. Both now run, fail fast
+ * and say so (ADR 0012).
+ */
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
+        networkMode: 'always',
         staleTime: 30_000,
         refetchOnWindowFocus: false,
         retry: (failureCount, error) =>
           failureCount < 2 &&
           !(error instanceof ApiError && error.status >= 400 && error.status < 500),
       },
-      mutations: { retry: false },
+      mutations: { networkMode: 'always', retry: false },
     },
   })
 }
@@ -158,6 +167,20 @@ export const keys = {
   stats: 'stats',
   wrist: 'wrist',
 } as const
+
+/**
+ * Drops every cached answer except `me` and `setup`, which the caller sets itself: the answers of
+ * one account are not shown to the next in the same tab (a 401, then another account signs in; the
+ * cache would otherwise hand the second account the first one's Today for up to five minutes).
+ * Reads still in flight are cancelled. The two kept queries stay in the cache because their
+ * observers (the auth gate, the login page) stay mounted, and a query removed under an observer is
+ * no longer the one the observer reads.
+ */
+export function dropUserQueries(queryClient: QueryClient): void {
+  queryClient.removeQueries({
+    predicate: (query) => query.queryKey[0] !== keys.me && query.queryKey[0] !== keys.setup,
+  })
+}
 
 /**
  * Every query that reads the plan or what a change to it moves: the plan and its sessions (the

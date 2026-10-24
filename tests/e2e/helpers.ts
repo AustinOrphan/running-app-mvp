@@ -1,5 +1,6 @@
 import { expect, type APIResponse, type Page } from '@playwright/test'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
 import { SESSION_COOKIE, signSession } from '../../server/auth/session.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { clearUserData } from '../schemaModels.ts'
@@ -157,4 +158,90 @@ export async function seedPredictionLogs(
   } finally {
     await prisma.$disconnect()
   }
+}
+
+/** The kinds of plan session that are a run, as opposed to rest, strength or cross-training. */
+export const RUN_KINDS = [
+  'easy',
+  'recovery',
+  'long',
+  'threshold',
+  'intervals',
+  'hills',
+  'race-pace',
+]
+
+/**
+ * Empties the log, then gives it four weeks of history, an active goal called `goalName` and a
+ * plan with a run on today, and returns that run. When the plan has no run today, the next one is
+ * moved here, the way the runner would. `page` must be the signed-in page that `api` was made
+ * from, and `origin` its base URL (the server's same-origin guard requires it on a write).
+ */
+export async function planWithRunToday(
+  api: Api,
+  page: Page,
+  origin: string,
+  goalName: string,
+): Promise<PlanSession> {
+  const { today, lastWednesday, raceDate } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 4; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (30 + 5 * i) * 60,
+      distanceM: 5000 + i * 500,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: goalName,
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 0 })
+
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const isRun = (session: PlanSession) => RUN_KINDS.includes(session.kind)
+  const found = plan.sessions.find((session) => session.date === today && isRun(session))
+  if (found !== undefined) return found
+  // No run falls on today in this plan: move the next one here, the way the runner would.
+  for (const candidate of plan.sessions.filter((s) => s.date > today && isRun(s))) {
+    const response = await page.request.put(`/api/plan/sessions/${candidate.id}`, {
+      headers: { Origin: origin },
+      data: { date: today },
+    })
+    if (response.ok()) return (await response.json()) as PlanSession
+  }
+  throw new Error(`The plan has no run for ${today} and none could be moved there.`)
+}
+
+/**
+ * How many writes wait in the outbox, read from the IndexedDB the page itself keeps. The database
+ * and store names are those of `web/pwa/outbox.ts` (`rl-outbox`, `entries`); a browser context
+ * cannot import them, so they are written out here, once for every spec.
+ */
+export function queued(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const databases = await indexedDB.databases()
+    if (!databases.some((database) => database.name === 'rl-outbox')) return 0
+    return new Promise<number>((resolve, reject) => {
+      const open = indexedDB.open('rl-outbox')
+      open.onerror = () => {
+        reject(open.error ?? new Error('IndexedDB did not open.'))
+      }
+      open.onsuccess = () => {
+        const db = open.result
+        const count = db.transaction('entries').objectStore('entries').count()
+        count.onsuccess = () => {
+          db.close()
+          resolve(count.result)
+        }
+        count.onerror = () => {
+          reject(count.error ?? new Error('IndexedDB did not count.'))
+        }
+      }
+    })
+  })
 }

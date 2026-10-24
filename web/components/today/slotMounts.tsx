@@ -4,10 +4,11 @@ import { addDays } from '../../../shared/dates.ts'
 import type { TodayView, UserSettings, WristItem } from '../../../shared/types.ts'
 import { keys } from '../../api/client.ts'
 import { BriefLine } from '../BriefLine.tsx'
-import { useOnline } from '../useOnline.ts'
 import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
 import { FuelTargetLine } from '../fuel/FuelTargetLine.tsx'
+import { DisruptionSlot } from './DisruptionSlot.tsx'
+import { usePhoneCopy } from './phoneCopy.ts'
 import { SlotFrame } from './SlotFrame.tsx'
 import type { SlotName } from './slots.ts'
 
@@ -44,6 +45,19 @@ function FuelTargetMount() {
   return <SlotFrame name="fuel">{today === undefined ? null : fuelLine(today)}</SlotFrame>
 }
 
+/**
+ * E5: the rest-window banner, or the offer of one after a check-in that reports illness or pain
+ * (64 px). The payload's `disruption` slot says which; nothing is drawn before the settings, which
+ * give the units, are in the cache. `DisruptionSlot` keeps the sheets of a window it has shown.
+ */
+function DisruptionMount() {
+  const today = useLoaded<TodayView>(keys.today)
+  const settings = useLoaded<UserSettings>(keys.settings)
+  return today === undefined || settings === undefined ? null : (
+    <DisruptionSlot view={today} units={settings.units} />
+  )
+}
+
 /** E6: the fuel log card below the fold, for the recent runs that have no log yet. */
 function FuelPromptMount() {
   const today = useLoaded<TodayView>(keys.today)
@@ -66,16 +80,16 @@ function WatchLine({ item }: { item: WristItem | undefined }) {
 
 /**
  * E1: one line about the hero's run on the watch, under the session's actions (24 px). The item
- * is the hero's entry in the payload's `watch` slot, so the line adds no request. Offline the
- * payload may come from the device's copy, and a saved "On your watch" would be false, so the
- * line renders nothing then. Keyed by the session, so the "state changed since the page loaded"
- * rule starts over for each run.
+ * is the hero's entry in the payload's `watch` slot, so the line adds no request. While the page
+ * shows the phone's copy (`usePhoneCopy`: no connection, or the worker answered from its cache) a
+ * saved "On your watch" would be false, so the line renders nothing then. Keyed by the session, so
+ * the "state changed since the page loaded" rule starts over for each run.
  */
 function WatchMount() {
   const today = useLoaded<TodayView>(keys.today)
-  const online = useOnline()
+  const phoneCopy = usePhoneCopy(today)
   const sessionId = today?.coach.hero?.session.id
-  if (!online || sessionId === undefined) return null
+  if (phoneCopy || sessionId === undefined) return null
   const item = today?.coach.slots.watch?.items.find((i) => i.sessionId === sessionId)
   return <WatchLine key={sessionId} item={item} />
 }
@@ -85,15 +99,16 @@ function WatchMount() {
  * the stored brief of the server's current week, so the line adds no request and never describes a
  * week that is gone: the page asks for Today again when the server's day turns (`useServerToday`),
  * and the new payload carries the new week's brief or none. Nothing is drawn before the settings,
- * which give the units, are in the cache. The brief page is not cached offline, so the line
- * renders nothing then, as the wrist line does.
+ * which give the units, are in the cache. The brief page is not cached, and a copy of Today may
+ * hold the brief of a week that is gone, so the line renders nothing while the page shows the
+ * phone's copy (`usePhoneCopy`), as the wrist line does.
  */
 function BriefMount() {
   const today = useLoaded<TodayView>(keys.today)
   const settings = useLoaded<UserSettings>(keys.settings)
-  const online = useOnline()
+  const phoneCopy = usePhoneCopy(today)
   const item = today?.coach.slots.brief ?? null
-  if (!online || item === null || settings === undefined) return null
+  if (phoneCopy || item === null || settings === undefined) return null
   return (
     <SlotFrame name="brief">
       <BriefLine item={item} units={settings.units} />
@@ -109,6 +124,7 @@ function BriefMount() {
  */
 export const SLOT_MOUNTS: Partial<Record<SlotName, ComponentType>> = {
   brief: BriefMount,
+  disruption: DisruptionMount,
   fuel: FuelTargetMount,
   watch: WatchMount,
   fuelPrompt: FuelPromptMount,

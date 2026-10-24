@@ -33,6 +33,13 @@
   align-items: start;
 }
 
+/* The space under the disruption slot is the page's: its content has no margin of its own
+   (`web/components/today/slots.ts`), and the verdict below it has no space above. The fold test
+   puts its stand-in for the slot in the same place, so the space is measured with it. */
+.column > [data-slot='disruption'] {
+  margin-bottom: var(--space-2);
+}
+
 /* The quiet link sits at the right of the title on a phone and carries a button's padding; pull it
    back so its text lines up with the page's edge. */
 @media (max-width: 899px) {

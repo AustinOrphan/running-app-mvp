@@ -3,7 +3,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { BriefListItem, UserSettings } from '../../shared/types.ts'
+import type { BriefListItem, TodayView, UserSettings } from '../../shared/types.ts'
 import { keys } from '../../web/api/client.ts'
 import { BriefLine } from '../../web/components/BriefLine.tsx'
 import { SLOT_BUDGETS_PX } from '../../web/components/today/slots.ts'
@@ -105,12 +105,14 @@ function renderSlot(
   brief: BriefListItem | null,
   settings: UserSettings | null = SETTINGS,
   children?: ReactNode,
+  /** Fields of the payload that differ from a live answer (`servedFromCache`). */
+  payload: Partial<TodayView> = {},
 ) {
   const api = mockApi({})
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  queryClient.setQueryData([keys.today], todayWith(brief))
+  queryClient.setQueryData([keys.today], { ...todayWith(brief), ...payload })
   if (settings !== null) queryClient.setQueryData([keys.settings], settings)
   const view = render(
     <QueryClientProvider client={queryClient}>
@@ -188,6 +190,17 @@ describe('the brief slot', () => {
     const { container } = renderSlot(makeItem())
     expect(container.querySelector('[data-slot]')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
+  })
+
+  test("a copy the worker served draws nothing either, with the browser online and the week's brief maybe gone", () => {
+    const { container } = renderSlot(makeItem(), SETTINGS, undefined, { servedFromCache: true })
+    expect(container.querySelector('[data-slot]')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
+  })
+
+  test("the server's own answer, with no mark, draws it", () => {
+    renderSlot(makeItem(), SETTINGS)
+    expect(screen.getByRole('region', { name: 'Weekly brief' })).toBeInTheDocument()
   })
 
   test('content a page passes to the slot is kept, and the mount is not used', () => {

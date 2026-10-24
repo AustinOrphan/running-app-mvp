@@ -13,14 +13,17 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
 - `npm run research:check` (offline corpus and citation check) and `npm run research:verify`
   (online, Crossref, by hand).
 - `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`.
+- `npm run icons`: renders the PNG icons in `web/public` from `icon.svg` with Playwright's chromium
+  (no image library); commit the four PNGs it writes.
 - `npx prettier --check .` is the formatting gate in CI; run `npm run format` to fix it.
 
 ## Gates
 
 CI (`.github/workflows/ci.yml`) runs `npm ci`, the chromium install, `npm run check`,
 `npm run build` and `npm run test:e2e`, and uploads the Playwright report on failure. The Docker
-image must still build (`docker build .`) after a change to dependencies, the `Dockerfile` or a
-migration; its build runs `prisma migrate deploy` as a smoke test.
+image must still build (`docker build .`) after a change to dependencies, the `Dockerfile`, a
+migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
+`prisma migrate deploy` as a smoke test.
 
 ## Structure
 
@@ -29,6 +32,10 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   SQLite schema and committed migrations.
 - `shared/engine/` is the training engine: pure, deterministic, no I/O. `research/` is the paper
   corpus and `engine-rules.md`; the project skill `research-update` covers changing either.
+- `web/pwa/` holds what the page keeps on the device (the outbox, the drafts) and the service worker
+  registration. `web/sw/sw.js` is the worker: plain JavaScript, no import, no library;
+  `web/sw/buildSw.ts` is the Vite plugin that writes it into `dist/web` with the build id and the list
+  of files to keep.
 - `tests/unit`, `tests/api`, `tests/web` (Vitest) and `tests/e2e` (Playwright).
 
 ## Providers
@@ -127,6 +134,17 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   reads the database once for all of them (`executionRecordsByWeek`).
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
   `devDependencies`, so the Docker image installs without them.
+- Offline shell (ADR 0012): the worker keeps the shell and exactly five API reads (`/api/auth/me`,
+  `/api/setup`, `/api/settings`, `/api/today` with or without `?date=`, `/api/research/params`), 200
+  GETs only, in `rl-api-v1`; a new cached read is a change to the allowlist in `web/sw/sw.js`, to
+  `tests/unit/shared/sw.test.ts` and to the ADR. Health data on the device (`rl-api-v1`, the outbox,
+  the drafts) is emptied only through `purgeDeviceData()` in `web/pwa/outbox.ts`, which sign-out,
+  sign-in, account creation and every 401 call; extend it rather than adding a second purge. The
+  page's own cached answers go with `dropUserQueries()` in `web/api/client.ts`. The worker is
+  registered in a production build only. A date in the worker is the server's (`tz` of the
+  payload), never the phone's. `createQueryClient()` runs queries and mutations in
+  `networkMode: 'always'`, so a request made while the browser says it is offline still reaches the
+  worker or the outbox.
 
 ## Testing
 
@@ -145,6 +163,10 @@ migration; its build runs `prisma migrate deploy` as a smoke test.
   table needs no edit there.
   `signedInApi()` signs in with a minted session cookie once the account exists, because the
   sign-in route allows 10 attempts per window and the suite would exhaust it.
+  Playwright blocks service workers (`serviceWorkers: 'block'` in the config, which makes
+  `register` do nothing); only `17-offline.spec.ts` allows them, with
+  `browser.newContext({ serviceWorkers: 'allow' })`. The worker's rules are tested by running
+  `sw.js` in a `vm` sandbox with a fake Cache Storage (`tests/unit/shared/sw.test.ts`).
 - Every migration adds a case to `tests/unit/server/migrations.test.ts`: it seeds the previous
   release's rows with raw SQL (sessions linked to activities included), applies the migration and
   asserts nothing was lost. The same file runs `prisma migrate diff --exit-code` against

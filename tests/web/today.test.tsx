@@ -3,11 +3,21 @@ import { join } from 'node:path'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { Checkin, TodayView } from '../../shared/types.ts'
+import type { Checkin, DisruptionSlot, DisruptionView, TodayView } from '../../shared/types.ts'
 import { getOutbox } from '../../web/pwa/outbox.ts'
 import { makeActivity } from '../factories.ts'
 import { explainOf, expectCleanCopy, type MockRoutes } from './helpers.tsx'
-import { AVAILABLE, makeBrief, makeDiff, makeLine, makeRevision } from './plan-fixtures.ts'
+import {
+  AVAILABLE,
+  makeBrief,
+  makeDiff,
+  makeLine,
+  makePreview,
+  makeRevision,
+  makeV2Plan,
+  makeWeekLine,
+  makeWindow,
+} from './plan-fixtures.ts'
 import {
   makeCoach,
   makeHeat,
@@ -1119,5 +1129,222 @@ describe('Today: How did it go? toast', () => {
       expect(screen.queryByRole('region', { name: 'How did it go?' })).not.toBeInTheDocument()
     })
     expect(screen.getByText('Feedback saved')).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Rest windows on Today (design 9.6, task E5-8)
+// ---------------------------------------------------------------------------------------------
+
+/** An illness window from Monday 16 to Friday 20 March; Wednesday 18 March is inside it. */
+function resting(over: Partial<DisruptionView> = {}): DisruptionView {
+  return makeWindow({
+    id: 'w1',
+    startDate: '2026-03-16',
+    endDate: '2026-03-20',
+    runFrom: '2026-03-22',
+    qualityFrom: '2026-03-25',
+    phase: 'resting',
+    ...over,
+  })
+}
+
+/** The Today payload with the `disruption` slot as the server fills it. */
+function withDisruption(slot: DisruptionSlot | null, over: Partial<TodayView> = {}): TodayView {
+  const base = withEasyRun()
+  return {
+    ...base,
+    coach: {
+      ...base.coach,
+      disruptions: slot?.window == null ? [] : [slot.window],
+      slots: { ...base.coach.slots, disruption: slot },
+    },
+    ...over,
+  }
+}
+
+/** The routes the "Not 100%" sheet reads besides the two of the first screen. */
+function sheetRoutes(today: () => TodayView): MockRoutes {
+  return {
+    'GET /api/today': today,
+    'GET /api/plan': () => makeV2Plan(),
+    'GET /api/plan/disruptions': () => [],
+  }
+}
+
+const writesOf = (calls: Array<{ method: string }>) => calls.filter((call) => call.method !== 'GET')
+
+describe('Today: the disruption slot', () => {
+  test('a window in effect fills it with the banner, first in the session group, within 64 px', async () => {
+    const { container } = render(withDisruption({ window: resting(), offer: false }))
+    const banner = await screen.findByRole('region', { name: 'Rest window' })
+    const slot = banner.closest('[data-slot]')
+    expect(slot).toHaveAttribute('data-slot', 'disruption')
+    expect(slot).toHaveAttribute('data-budget-px', '64')
+    // the top of the first column, over the readiness read
+    expect(slot?.parentElement?.firstElementChild).toBe(slot)
+    expect(within(banner).getByText('Resting for illness until Fri 20 Mar.')).toBeInTheDocument()
+    expect(
+      within(banner)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(["I'm better", 'Extend', 'Remove window'])
+    expect(container.querySelectorAll('[data-slot="disruption"]')).toHaveLength(1)
+    expectCleanCopy(banner)
+  })
+
+  test('a window that starts later fills it too, and says when it starts', async () => {
+    render(
+      withDisruption({
+        window: resting({ phase: 'upcoming', startDate: '2026-03-23', endDate: '2026-03-25' }),
+        offer: false,
+      }),
+    )
+    const banner = await screen.findByRole('region', { name: 'Rest window' })
+    expect(
+      within(banner).getByText('A window starts on Mon 23 Mar and lasts until Wed 25 Mar.'),
+    ).toBeInTheDocument()
+  })
+
+  test('with no window and no offer there is no slot, so it takes no height', async () => {
+    const { container } = render(withDisruption(null))
+    await screen.findByRole('article', { name: 'Easy run' })
+    expect(container.querySelector('[data-slot="disruption"]')).toBeNull()
+    expect(screen.queryByRole('region', { name: /Rest window/ })).not.toBeInTheDocument()
+  })
+
+  test('an offer asks once, creates nothing, and "Not now" takes it away', async () => {
+    const user = userEvent.setup()
+    const { api, container } = render(withDisruption({ window: null, offer: true }))
+    const offer = await screen.findByRole('region', { name: 'Rest window offer' })
+    expect(offer.closest('[data-slot]')).toHaveAttribute('data-slot', 'disruption')
+    expect(offer.closest('[data-slot]')).toHaveAttribute('data-budget-px', '64')
+    expect(within(offer).getByText('Set a rest window and a return plan?')).toBeInTheDocument()
+    expect(
+      within(offer)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Set one up', 'Not now'])
+    expectCleanCopy(offer)
+    // Showing it wrote nothing
+    expect(writesOf(api.calls)).toEqual([])
+
+    await user.click(within(offer).getByRole('button', { name: 'Not now' }))
+    expect(screen.queryByRole('region', { name: 'Rest window offer' })).not.toBeInTheDocument()
+    expect(container.querySelector('[data-slot="disruption"]')).toBeNull()
+    expect(writesOf(api.calls)).toEqual([])
+  })
+
+  test('"Set one up" opens Not 100% dated from the server day, not the device clock', async () => {
+    const user = userEvent.setup()
+    const { api } = render(
+      withDisruption({ window: null, offer: true }),
+      sheetRoutes(() => withDisruption({ window: null, offer: true })),
+    )
+    await user.click(await screen.findByRole('button', { name: 'Set one up' }))
+    // the phone says it is 2 April; the server's day is Wednesday 18 March
+    vi.setSystemTime(new Date(2026, 3, 2, 9, 0, 0))
+    const dialog = await screen.findByRole('dialog', { name: 'Not 100%' })
+    await user.click(await within(dialog).findByRole('radio', { name: /Ill, above the neck/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Next' }))
+    expect(await within(dialog).findByLabelText('From')).toHaveValue('2026-03-18')
+    expect(within(dialog).getByLabelText('From')).toHaveAttribute('min', '2026-02-18')
+    // Asking and reading the options created nothing
+    expect(writesOf(api.calls)).toEqual([])
+  })
+
+  test('the sheet of a window outlives the banner: removing it leaves the slot, not the preview', async () => {
+    const user = userEvent.setup()
+    let removed = false
+    const view = () => withDisruption(removed ? null : { window: resting(), offer: false })
+    const { container } = render(view(), {
+      ...sheetRoutes(view),
+      'POST /api/plan/preview': () =>
+        makePreview({
+          action: { type: 'disruption-remove', id: 'w1' },
+          summary: 'Removed the window (illness) from Mon 16 Mar to Fri 20 Mar.',
+          hash: 'f'.repeat(64),
+        }),
+      'DELETE /api/plan/disruptions/w1': () => {
+        removed = true
+        return {
+          disruption: resting(),
+          revision: makeRevision({
+            id: 'r8',
+            reason: 'disruption',
+            auto: false,
+            summary: 'Removed the window (illness) from Mon 16 Mar to Fri 20 Mar.',
+            diff: makeDiff([], [makeWeekLine({ weekStart: '2026-03-16', runMinAfter: 280 })]),
+            undo: AVAILABLE,
+            seenAt: null,
+            disruptionId: 'w1',
+          }),
+        }
+      },
+      'POST /api/plan/revisions/r8/seen': () => ({ status: 204, body: undefined }),
+    })
+    await user.click(await screen.findByRole('button', { name: 'Remove window' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remove this window' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Apply to my plan' }))
+    await within(dialog).findByRole('heading', { name: 'Window removed' })
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Rest window' })).not.toBeInTheDocument()
+    })
+    // the slot has left the payload and takes no height; the sheet and its undo are still there
+    expect(container.querySelector('[data-slot="disruption"]')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Remove this window' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
+  })
+})
+
+describe('Today: Not 100%', () => {
+  async function openNotToday(user: ReturnType<typeof userEvent.setup>) {
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    await user.click(within(card).getByRole('button', { name: 'Not today' }))
+    return screen.findByRole('dialog', { name: 'Not today' })
+  }
+
+  test('the Not today sheet hosts the entry above the move, swap, shorten and skip controls', async () => {
+    const user = userEvent.setup()
+    render(
+      withEasyRun(),
+      sheetRoutes(() => withEasyRun()),
+    )
+    const sheet = await openNotToday(user)
+    const entry = within(sheet).getByRole('button', { name: 'Not 100%' })
+    const section = within(sheet).getByRole('heading', { name: 'Change this session' })
+    expect(entry.compareDocumentPosition(section)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(
+      within(sheet).getByText('Tell the plan if you are ill, hurt, short on time or travelling.'),
+    ).toBeInTheDocument()
+    expect(within(sheet).getByLabelText('Move to')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Skip session' })).toBeInTheDocument()
+    expectCleanCopy(sheet)
+  })
+
+  test('Not 100% swaps the sheet for the window sheet, dated from the server day', async () => {
+    const user = userEvent.setup()
+    const { api } = render(
+      withEasyRun(),
+      sheetRoutes(() => withEasyRun()),
+    )
+    const sheet = await openNotToday(user)
+    // the phone says it is 2 April; the server's day is Wednesday 18 March
+    vi.setSystemTime(new Date(2026, 3, 2, 9, 0, 0))
+    await user.click(within(sheet).getByRole('button', { name: 'Not 100%' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Not 100%' })
+    expect(screen.queryByRole('dialog', { name: 'Not today' })).not.toBeInTheDocument()
+    await user.click(await within(dialog).findByRole('radio', { name: /Ill, above the neck/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Next' }))
+    expect(await within(dialog).findByLabelText('From')).toHaveValue('2026-03-18')
+    expect(writesOf(api.calls)).toEqual([])
+
+    // closing it puts focus on the title, as after the other sheets: the Not today button is gone
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('heading', { level: 2, name: 'Easy run' })).toHaveFocus()
   })
 })

@@ -131,7 +131,9 @@ export const REVISION_VIEW_TEMPLATES = {
   'cause.decision-hold': tpl('Last week called for holding steady, so the plan did not step up.'),
   'cause.decision-reduce': tpl('Last week called for an easier week, so this week eases.'),
   'cause.owner-target-kept': tpl("You set this week's target, so the plan works inside it."),
-  'cause.break-restart': tpl('You have been away from running, so the plan restarts gently.'),
+  // A restart is also a plan that opens at a low level for a runner who never stopped, so the
+  // sentence does not say the runner was away.
+  'cause.break-restart': tpl('The plan restarts gently from where your running is now.'),
   'cause.post-race': tpl('These days follow your race, which has a set way back.'),
   'cause.disruption': tpl('A rest window you reported changes these days.'),
   'cause.trim': tpl('The next quality session is a little shorter.'),

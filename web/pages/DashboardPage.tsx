@@ -13,6 +13,8 @@ import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
 import { FeedbackCard } from '../components/today/FeedbackCard.tsx'
 import { HealthNotes } from '../components/today/HealthNotes.tsx'
 import { History } from '../components/today/History.tsx'
+import { OfflineNote } from '../components/today/OfflineNote.tsx'
+import { dayState, usePhoneCopy } from '../components/today/phoneCopy.ts'
 import { PlanNotice } from '../components/today/PlanNotice.tsx'
 import { RaceCountdown } from '../components/today/RaceCountdown.tsx'
 import { ReadinessRead } from '../components/today/ReadinessRead.tsx'
@@ -70,6 +72,7 @@ export function DashboardPage() {
   const settings = useSettings()
   const toast = useToast()
   const outbox = useOutboxState()
+  const phoneCopy = usePhoneCopy(todayView.data)
   const verdict = useRef<HTMLParagraphElement>(null)
 
   const header = (context?: string) => (
@@ -114,6 +117,9 @@ export function DashboardPage() {
   const { coach } = view
   const units = settings.data.units
   const planned = hasPlan(coach)
+  // Which day the payload is for: a day ahead has no check-in yet, and a copy of a day that is
+  // over is read-only (an answer would be filed under that day, and Done would log against it).
+  const day = dayState(view, phoneCopy)
   const waiting = outbox.entries.some((entry) => entry.url === checkinUrl(view.date))
   const verdictShown =
     waiting && coach.verdict?.code === 'no-signals' ? SAVED_ON_PHONE : coach.verdict
@@ -133,7 +139,7 @@ export function DashboardPage() {
               units={units}
               verdictRef={verdict}
             >
-              {coach.preview ? undefined : (
+              {day !== 'today' ? undefined : (
                 <CheckinRow
                   key={view.date}
                   date={view.date}
@@ -149,10 +155,19 @@ export function DashboardPage() {
               )}
             </ReadinessRead>
             {coach.hero !== null ? (
-              <SessionHero hero={coach.hero} heat={view.heat} next={coach.next} units={units} />
+              <SessionHero
+                hero={coach.hero}
+                heat={view.heat}
+                next={coach.next}
+                units={units}
+                readOnly={day === 'past'}
+              />
             ) : planned ? (
               <NoSession next={coach.next} units={units} />
             ) : null}
+            {/* Under the session, not over it: the note has no height budget, and above Done it
+                would push Done past the fold (ADR 0012). */}
+            <OfflineNote view={view} units={units} />
             <PlanNotice
               hasPlan={planned}
               weekInPlan={coach.weekStrip?.targetRunMin != null}

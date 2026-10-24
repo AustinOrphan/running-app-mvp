@@ -11,6 +11,10 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${E2E_PORT}`,
     trace: 'retain-on-failure',
+    // The build registers the service worker (a production build does, whatever NODE_ENV the server
+    // has). A worker warms caches and spends the shared request budget in every spec, so none runs
+    // except in `17-offline.spec.ts`, which allows it for itself (ADR 0012).
+    serviceWorkers: 'block',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
@@ -27,7 +31,7 @@ export default defineConfig({
       PORT: String(E2E_PORT),
       // The readiness line above is an info-level log; `NODE_ENV=test` or a quieter `LOG_LEVEL`
       // inherited from the shell would silence it. Any NODE_ENV but `production` also gives the
-      // `/api` limiter its 20000-request budget (`apiLimitFor`); the suite spends about 1,170
+      // `/api` limiter its 20000-request budget (`apiLimitFor`); the suite spends about 1,450
       // (read the `RateLimit` header of a request made after the last spec).
       NODE_ENV: 'development',
       LOG_LEVEL: 'info',

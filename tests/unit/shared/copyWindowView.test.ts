@@ -5,9 +5,11 @@ import {
   WINDOW_VIEW_TEMPLATES,
   betterWords,
   isHealthWindow,
+  notFullEntryWords,
   offlineLine,
   raceDayLine,
   removeInsteadLabel,
+  restPromptWords,
   runningTimeLine,
   stalePreviewLine,
   totalMinutesText,
@@ -202,5 +204,26 @@ describe('the action that ends a window yesterday', () => {
       expect(lintText(words.intro), reason).toEqual([])
       expect(betterWords(reason, 'mi'), reason).toEqual(words)
     }
+  })
+})
+
+describe('the offer on Today and the entry in the Not today sheet', () => {
+  it('asks the question of the design and gives two answers', () => {
+    const words = restPromptWords('km')
+    expect(words).toEqual({
+      ask: 'Set a rest window and a return plan?',
+      yes: 'Set one up',
+      later: 'Not now',
+    })
+    expect(restPromptWords('mi')).toEqual(words)
+    for (const text of Object.values(words)) expect(lintText(text), text).toEqual([])
+  })
+
+  it('names the entry for the sheet it opens and says who it is for', () => {
+    const words = notFullEntryWords('km')
+    expect(words.label).toBe('Not 100%')
+    expect(words.hint).toBe('Tell the plan if you are ill, hurt, short on time or travelling.')
+    expect(notFullEntryWords('mi')).toEqual(words)
+    for (const text of Object.values(words)) expect(lintText(text), text).toEqual([])
   })
 })

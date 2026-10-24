@@ -6,6 +6,7 @@ import { CAUSE_ORDER } from '../engine/revisionDiff.ts'
 import type {
   BriefFacts,
   BriefKeySession,
+  BriefLastWeek,
   InputFact,
   SessionKind,
   SourceRef,
@@ -46,27 +47,30 @@ export function briefWeekLabel(weekStart: string, units: Units): string {
 // Parts
 // ---------------------------------------------------------------------------------------------
 
+/** The sentence about last week's running. */
+function lastWeekLine(lastWeek: BriefLastWeek, units: Units): string {
+  if (lastWeek.ranMin <= 0) return briefText('brief.last-week-none', units)
+  // A week planned at zero minutes was not planned to run: "of 0 planned minutes" is no sentence,
+  // and a brief stored before the builder left it out may still hold one.
+  if (lastWeek.plannedMin === null || lastWeek.plannedMin <= 0) {
+    return render(
+      BRIEF_TEMPLATES['brief.last-week-ran'],
+      { actual: minutes(lastWeek.ranMin) },
+      units,
+    )
+  }
+  return render(
+    BRIEF_TEMPLATES['brief.last-week-ran-of'],
+    { actual: count(lastWeek.ranMin), planned: count(lastWeek.plannedMin) },
+    units,
+  )
+}
+
 /** Last week and the weekly decision about it: the two sentences the brief opens with. */
 export function briefHeadline(facts: BriefFacts, units: Units): string[] {
   const lines: string[] = []
   const { lastWeek, decision } = facts
-  if (lastWeek !== null) {
-    lines.push(
-      lastWeek.ranMin <= 0
-        ? briefText('brief.last-week-none', units)
-        : lastWeek.plannedMin === null
-          ? render(
-              BRIEF_TEMPLATES['brief.last-week-ran'],
-              { actual: minutes(lastWeek.ranMin) },
-              units,
-            )
-          : render(
-              BRIEF_TEMPLATES['brief.last-week-ran-of'],
-              { actual: count(lastWeek.ranMin), planned: count(lastWeek.plannedMin) },
-              units,
-            ),
-    )
-  }
+  if (lastWeek !== null) lines.push(lastWeekLine(lastWeek, units))
   if (decision !== null) {
     const id = {
       progress: 'brief.decision-progress',
@@ -74,8 +78,22 @@ export function briefHeadline(facts: BriefFacts, units: Units): string[] {
       reduce: 'brief.decision-reduce',
       'post-race': 'brief.decision-post-race',
     } as const
-    const slots = { minutes: minutes(decision.nextWeekTargetMin) }
-    lines.push(render(BRIEF_TEMPLATES[id[decision.kind]], slots, units))
+    const bare = {
+      progress: 'brief.decision-progress-bare',
+      hold: 'brief.decision-hold-bare',
+      reduce: 'brief.decision-reduce-bare',
+      'post-race': 'brief.decision-post-race-bare',
+    } as const
+    // Zero minutes is "no running set", not "up to 0 min".
+    lines.push(
+      decision.nextWeekTargetMin <= 0
+        ? briefText(bare[decision.kind], units)
+        : render(
+            BRIEF_TEMPLATES[id[decision.kind]],
+            { minutes: minutes(decision.nextWeekTargetMin) },
+            units,
+          ),
+    )
   }
   return lines
 }
