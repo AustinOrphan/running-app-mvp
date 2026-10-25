@@ -15,14 +15,23 @@
 // function body, so the cycle never sees an uninitialised binding.
 import { createHash } from 'node:crypto'
 import { addDays, mondayOf } from '../../shared/dates.ts'
-import { changesSummary, decisionSummary, stalePreviewMessage } from '../../shared/copy/revision.ts'
+import {
+  changesSummary,
+  decisionSummary,
+  stalePreviewMessage,
+  targetsSummary,
+} from '../../shared/copy/revision.ts'
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import { draftRamp } from '../../shared/engine/checklist.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
+import { targetLimit, type TargetLimit } from '../../shared/engine/limits.ts'
+import { progressionHold } from '../../shared/engine/macro.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import type {
+  AthleteState,
   EngineInput,
   PlanChange,
   PlanDraft,
@@ -34,6 +43,7 @@ import type {
   PlanRevisionReason,
   PlanRevisionView,
   RunMinutes,
+  TargetDiffLine,
 } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import {
@@ -70,6 +80,12 @@ export interface WeekWriteSet {
   deleted: PlanWeekRow[]
   /** Only the rows with a changed column; `before` and `after` are full rows. */
   updated: Array<{ id: string; before: PlanWeekRow; after: PlanWeekRow }>
+  /**
+   * The raised week targets of the runner that the write kept or lowered, whether or not the row
+   * changed (a kept target leaves its row as it was). Not rows: nothing here is restored by an undo,
+   * which restores the rows above.
+   */
+  targets: TargetDiffLine[]
 }
 
 type WeekData = ReturnType<typeof weekRow>
@@ -79,22 +95,35 @@ export interface WeekWritePlan {
   created: WeekData[]
   updated: Array<{ before: PlanWeekRow; data: WeekData }>
   deleted: PlanWeekRow[]
+  /** What became of each week target the runner raised above the plan's own figure. */
+  targets: TargetDiffLine[]
 }
 
 /**
  * The week rows a re-plan writes. The draft's weeks from the current Monday on are created when
  * missing and updated when a column differs; stored weeks from the current Monday on that the draft
- * no longer has are deleted. Earlier weeks are never touched. The owner's working target stays
- * while it is within the engine's limit [rules g-2].
+ * no longer has are deleted. Earlier weeks are never touched.
+ *
+ * The owner's working target stays [rules g-2, ADR 0007]. A target at or under the plan's own
+ * figure stays as set, and a review's target stays only so. A target the runner raised by hand
+ * (`targetSource` override) above the plan's figure stays up to `limits` for its week, the largest
+ * the engine allows any week (`targetLimit`): a higher one is lowered to that limit. A raised
+ * target without a limit is replaced by the plan's figure. Each raised target the write kept or
+ * lowered is named in `targets`, from the row as it is written.
  */
 export function planWeekWrites(
   rows: readonly PlanWeekRow[],
-  args: { today: string; weeks: readonly WeekDraft[] },
+  args: {
+    today: string
+    weeks: readonly WeekDraft[]
+    /** The limit of each week whose target the runner raised (`raisedTargetLimits`), by Monday. */
+    limits?: ReadonlyMap<string, TargetLimit>
+  },
 ): WeekWritePlan {
   const currentMonday = mondayOf(args.today)
   const byStart = new Map(rows.map((row) => [row.weekStart, row]))
   const future = args.weeks.filter((week) => week.weekStart >= currentMonday)
-  const planned: WeekWritePlan = { created: [], updated: [], deleted: [] }
+  const planned: WeekWritePlan = { created: [], updated: [], deleted: [], targets: [] }
   for (const week of future) {
     const data = weekRow(week)
     const old = byStart.get(week.weekStart)
@@ -102,17 +131,36 @@ export function planWeekWrites(
       planned.created.push(data)
       continue
     }
-    const keep =
+    let keptMin: number | null = null
+    if (
       (old.targetSource === 'override' || old.targetSource === 'review') &&
       old.targetRunMin <= week.targetRunMin
-    const set: WeekData = keep
-      ? {
-          ...data,
-          targetRunMin: old.targetRunMin,
-          targetSource: old.targetSource,
-          overrideNote: old.overrideNote,
-        }
-      : data
+    ) {
+      keptMin = old.targetRunMin
+    } else if (old.targetSource === 'override') {
+      const limit = args.limits?.get(week.weekStart)
+      if (limit !== undefined) {
+        keptMin = Math.min(old.targetRunMin, limit.max)
+        planned.targets.push({
+          weekStart: week.weekStart,
+          outcome: keptMin === old.targetRunMin ? 'kept' : 'clipped',
+          askedMin: old.targetRunMin,
+          keptMin,
+          engineMin: week.targetRunMin,
+          limit: limit.kind,
+          ramp: limit.ramp,
+        })
+      }
+    }
+    const set: WeekData =
+      keptMin === null
+        ? data
+        : {
+            ...data,
+            targetRunMin: keptMin,
+            targetSource: old.targetSource,
+            overrideNote: old.overrideNote,
+          }
     if ((Object.keys(set) as Array<keyof WeekData>).some((column) => old[column] !== set[column])) {
       planned.updated.push({ before: old, data: set })
     }
@@ -127,11 +175,21 @@ export function planWeekWrites(
 /** Writes a re-plan's weeks row by row and returns what was written. */
 export async function writeReplannedWeeks(
   tx: Pick<PrismaClient, 'planWeek'>,
-  args: { planId: string; today: string; weeks: readonly WeekDraft[] },
+  args: {
+    planId: string
+    today: string
+    weeks: readonly WeekDraft[]
+    limits?: ReadonlyMap<string, TargetLimit>
+  },
 ): Promise<WeekWriteSet> {
   const rows = await tx.planWeek.findMany({ where: { planId: args.planId } })
   const planned = planWeekWrites(rows, args)
-  const written: WeekWriteSet = { created: [], deleted: planned.deleted, updated: [] }
+  const written: WeekWriteSet = {
+    created: [],
+    deleted: planned.deleted,
+    updated: [],
+    targets: planned.targets,
+  }
   for (const data of planned.created) {
     written.created.push(await tx.planWeek.create({ data: { ...data, planId: args.planId } }))
   }
@@ -291,7 +349,12 @@ export function revisionParts(writes: {
 } {
   const sessions: RowWrites<PlanSessionRow> = writes.sessions ?? noWrites()
   const weeks: RowWrites<PlanWeekRow> = writes.weeks ?? noWrites()
-  const diff = diffPlans({ sessions, weeks, ...(writes.holds ? { holds: writes.holds } : {}) })
+  const diff = diffPlans({
+    sessions,
+    weeks,
+    ...(writes.holds ? { holds: writes.holds } : {}),
+    ...(writes.weeks ? { targets: writes.weeks.targets } : {}),
+  })
   const disruptions = writes.disruptions ?? { created: [], updated: [] }
   // A window written without any session or week changing still has something to restore.
   const touched = disruptions.created.length + disruptions.updated.length > 0
@@ -464,10 +527,18 @@ export interface ReplanResult {
   /** The reason the revision is written with: a weekly update after a long break reads 'break'. */
   reason: PlanRevisionReason
   auto: boolean
+  /** What a preview shows: `baseSummary`, then the sentences for the raised week targets. */
   summary: string
+  /**
+   * The summary without the raised week targets. `applyReplan` adds the sentences for the targets
+   * as it writes them, so the stored summary names what was written.
+   */
+  baseSummary: string
   changes: PlanChange[]
   decision: WeeklyDecision | null
   draft: PlanDraft
+  /** The limit of each week whose target the runner raised above the plan's own figure. */
+  targetLimits: ReadonlyMap<string, TargetLimit>
   raceWeekStart: string
   /** The days the windows hold: an owner edit on one is released, so the write must know them. */
   holdDates: string[]
@@ -516,6 +587,7 @@ function previewWrites(
     settle: readonly SettleWrite[]
     holdDates: ReadonlySet<string>
     holds: PlanDiff['holds']
+    limits: ReadonlyMap<string, TargetLimit>
   },
 ): PlanWrites {
   // The write pairs the rows after the skips, and so does this. The skipped rows lie in the past,
@@ -530,7 +602,11 @@ function previewWrites(
     sessions: args.draft.sessions,
     heldDates: args.holdDates,
   })
-  const weeks = planWeekWrites(rows.weeks, { today: args.today, weeks: args.draft.weeks })
+  const weeks = planWeekWrites(rows.weeks, {
+    today: args.today,
+    weeks: args.draft.weeks,
+    limits: args.limits,
+  })
   return {
     sessions: {
       created: sessions.created.map((spec) => ({ id: null, ...sessionRow(planId, spec, '') })),
@@ -546,6 +622,7 @@ function previewWrites(
       updated: weeks.updated.map(({ before, data }) => ({ before, after: { ...before, ...data } })),
     },
     holds: args.holds,
+    targets: weeks.targets,
   }
 }
 
@@ -596,6 +673,64 @@ function settledInput(input: EngineInput, settle: readonly SettleWrite[]): Engin
       ),
     },
   }
+}
+
+/** A summary followed by the sentences for the raised week targets the write kept or lowered. */
+function withTargets(summary: string, targets: readonly TargetDiffLine[]): string {
+  return targets.length === 0 ? summary : `${summary} ${targetsSummary(targets)}`
+}
+
+/**
+ * The limit of each week whose target the runner raised above the plan's own figure, by Monday
+ * [rules g-2, g-3, ADR 0007]. A week counts when its row is an override above the draft's target
+ * and the draft still has the week. The limit is `targetLimit` over the ramp of the draft, as the
+ * checklist reads it (`draftRamp`). The weeks are taken in order, and the target each override at
+ * or above the plan's figure keeps enters the minutes of the weeks after it, so the ramp of a later
+ * raised week is measured from the weeks as the runner holds them, as it is from weeks that were
+ * run. An override that an earlier re-plan lowered to the plan's own figure stays in that count, so
+ * two re-plans in a row read the same minutes.
+ */
+export function raisedTargetLimits(args: {
+  rows: readonly PlanWeekRow[]
+  draft: PlanDraft
+  input: EngineInput
+  state: AthleteState
+  /** The Monday the weekly decision (hold or reduce) caps, when it did. */
+  decidedWeek: string | null
+}): Map<string, TargetLimit> {
+  const { rows, draft, input, state, decidedWeek } = args
+  const currentMonday = mondayOf(input.today)
+  const drawn = new Map(draft.weeks.map((week) => [week.weekStart, week]))
+  const owned = rows
+    .filter((row) => {
+      const week = drawn.get(row.weekStart)
+      return (
+        row.targetSource === 'override' &&
+        row.weekStart >= currentMonday &&
+        week !== undefined &&
+        row.targetRunMin >= week.targetRunMin
+      )
+    })
+    .sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1))
+  const limits = new Map<string, TargetLimit>()
+  if (!owned.some((row) => row.targetRunMin > drawn.get(row.weekStart)!.targetRunMin)) return limits
+  const { ctx } = draftRamp(draft, input, state)
+  const held = progressionHold(input, state)
+  const logged = state.weeks.find((week) => week.weekStart === currentMonday)?.runMin ?? 0
+  for (const row of owned) {
+    const week = drawn.get(row.weekStart)!
+    const limit = targetLimit(ctx, row.weekStart, {
+      engineMin: week.targetRunMin,
+      week,
+      held,
+      decided: row.weekStart === decidedWeek,
+      loggedMin: row.weekStart === currentMonday ? logged : 0,
+    })
+    if (row.targetRunMin > week.targetRunMin) limits.set(row.weekStart, limit)
+    const kept = Math.min(row.targetRunMin, limit.max)
+    ctx.volumes.set(row.weekStart, Math.max(ctx.volumes.get(row.weekStart) ?? 0, kept))
+  }
+  return limits
 }
 
 /**
@@ -659,28 +794,34 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
         ramp: weeklyRamp(state),
       })
     : null
+  // The week a hold or a reduce caps: the week that follows the one the decision reviewed.
+  const decidedWeek =
+    decision !== null && decision.decision !== 'progress' ? addDays(lastWeek, 7) : null
   const weekCaps: Record<string, number> = {}
-  if (decision !== null && decision.decision !== 'progress') {
-    weekCaps[addDays(lastWeek, 7)] = decision.nextWeekTargetMin
+  if (decision !== null && decidedWeek !== null) {
+    weekCaps[decidedWeek] = decision.nextWeekTargetMin
   }
   for (const week of weekRows) {
     if (
       week.weekStart >= currentMonday &&
       (week.targetSource === 'override' || week.targetSource === 'review')
     ) {
-      weekCaps[week.weekStart] = week.targetRunMin
+      // A target the runner raised above the weekly decision's cap leaves that cap in place: a hold
+      // or a reduce is a limit of the week, and the raised target stays within it [rules J5, g-2].
+      const decided = week.targetSource === 'override' ? weekCaps[week.weekStart] : undefined
+      weekCaps[week.weekStart] =
+        decided === undefined ? week.targetRunMin : Math.min(decided, week.targetRunMin)
     }
   }
   // A hold trims the next quality session of the week it caps; a reduce makes it a recovery week.
   const decisions: Record<string, WeeklyDecision['decision']> =
-    decision !== null && decision.decision !== 'progress'
-      ? { [addDays(lastWeek, 7)]: decision.decision }
-      : {}
+    decision !== null && decidedWeek !== null ? { [decidedWeek]: decision.decision } : {}
   const { draft, changes } = replan({ ...input, weekCaps }, { decisions })
+  const targetLimits = raisedTargetLimits({ rows: weekRows, draft, input, state, decidedWeek })
 
   const reason: PlanRevisionReason =
     args.reason === 'weekly' && state.layoffDays >= P.j7.tier1Days.value ? 'break' : args.reason
-  const summary =
+  const baseSummary =
     args.window?.summary ??
     [
       describeChanges(changes),
@@ -693,7 +834,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   const writes = previewWrites(
     plan.id,
     { sessions: sessionRows, weeks: weekRows },
-    { today, draft, settle, holdDates: new Set(holdDates), holds },
+    { today, draft, settle, holdDates: new Set(holdDates), holds, limits: targetLimits },
   )
 
   return {
@@ -707,10 +848,12 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     reason,
     // The scheduler asks for 'weekly' and nothing else does; a request never writes an automatic revision.
     auto: args.reason === 'weekly',
-    summary,
+    summary: withTargets(baseSummary, writes.targets ?? []),
+    baseSummary,
     changes,
     decision,
     draft,
+    targetLimits,
     raceWeekStart: mondayOf(plan.goal.targetDate),
     holdDates,
     settle,
@@ -767,7 +910,12 @@ export async function applyReplan(
       sessions.created.push(...replanned.created)
       sessions.deleted.push(...replanned.deleted)
       sessions.updated.push(...replanned.updated)
-      const weeks = await writeReplannedWeeks(tx, { planId, today, weeks: draft.weeks })
+      const weeks = await writeReplannedWeeks(tx, {
+        planId,
+        today,
+        weeks: draft.weeks,
+        limits: result.targetLimits,
+      })
       await tx.plan.update({
         where: { id: planId },
         data: {
@@ -797,7 +945,7 @@ export async function applyReplan(
         planId,
         userId: result.userId,
         reason: result.reason,
-        summary: result.summary,
+        summary: withTargets(result.baseSummary, weeks.targets),
         changes: result.changes,
         diff,
         undo,

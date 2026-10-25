@@ -3,12 +3,14 @@
 // total of the back-to-back rule, the weekly ramp with its baselines, the tightened profiles, the
 // weekly gain ramp and the ultra cap on a single run. The macrocycle and the week placement plan
 // inside these numbers and the guards and the checklist check against the same ones, so a
-// generated plan needs no trimming. Pure: no I/O, no clock.
+// generated plan needs no trimming. The most a week target the runner raised by hand may stay at
+// is read from the same ramp (`targetLimit`). Pure: no I/O, no clock.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
-import type { Activity } from '../types.ts'
+import type { Activity, TargetLimitKind } from '../types.ts'
+import { isDisruptedWeek } from './disruption.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
-import { isLadderSession, startWeek, type StartPath } from './startWeeks.ts'
+import { isLadderSession, startKind, startWeek, type StartPath } from './startWeeks.ts'
 import type { AthleteState, SessionKind, SessionSpec, WeekDraft } from './types.ts'
 
 /** Guards float noise (100 * 1.1 = 110.00000000000001) before rounding down. */
@@ -466,6 +468,69 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
     isFloorWeek,
     exempt,
     plan: exempt ? allowed : Math.min(soft, allowed),
+  }
+}
+
+/** What `targetLimit` needs to know of a week besides the ramp around it. */
+export interface TargetGates {
+  /** The plan's own target for the week: where a rule that sets the week's figure leaves it. */
+  engineMin: number
+  /** The week as the plan draws it. */
+  week: { readonly flags: readonly string[] } & Pick<WeekDraft, 'isRecovery' | 'isTaper' | 'phase'>
+  /** A progression hold applies (REDs flags or focal bone pain) [rules n-4, n-1, J5]. */
+  held: boolean
+  /** The weekly decision called for holding steady or an easier week for this very week [rule J5]. */
+  decided: boolean
+  /** The running already logged in the week; a limit never falls under what has been run. */
+  loggedMin: number
+}
+
+/** The most a week target the runner raised by hand may stay at, and the limit that set it. */
+export interface TargetLimit {
+  /** Whole minutes; never under the plan's own figure or the minutes already run. */
+  max: number
+  kind: TargetLimitKind
+  /**
+   * The growth the limit allows, as a fraction: the 2-week ceiling for `ceiling`, the profile's
+   * weekly ramp for `profile`; null where a rule sets the week's figure itself.
+   */
+  ramp: number | null
+}
+
+/**
+ * The largest target a week may hold at a re-plan when the runner raised it above the plan's own
+ * [rules g-2, g-3, J5, J9, H12, n-1, n-4, ADR 0007]: the limit the engine enforces on any week,
+ * not the soft step. It reads `rampLimits`, so the generator, the guards, the checklist and this
+ * agree on the 2-week ceiling and on the tightened profiles. A week that a rule draws on its own
+ * (the weeks after a race, a rest window, a start programme, a recovery, taper or race week, the
+ * weekly decision, a progression hold) has no ramp to read: its limit is the plan's own figure, so
+ * a raise there is lowered back to it. The checks run in that order, most specific first. Those
+ * rules stay where the generator applies them; this reads their outcome from the drawn week, so
+ * `rampLimits` and the three readers of it are unchanged.
+ */
+export function targetLimit(ctx: RampContext, weekStart: string, gates: TargetGates): TargetLimit {
+  const { engineMin, week, held, decided, loggedMin } = gates
+  const own = (kind: TargetLimitKind): TargetLimit => ({
+    max: Math.max(engineMin, loggedMin),
+    kind,
+    ramp: null,
+  })
+  if (week.flags.includes('post-race') || week.flags.includes('post-race-restart')) {
+    return own('post-race')
+  }
+  if (isDisruptedWeek(week.flags)) return own('window')
+  if (startKind(week.flags) !== null) return own('programme')
+  if (week.isRecovery || week.isTaper || week.phase === 'taper' || week.phase === 'race') {
+    return own('structure')
+  }
+  if (decided) return own('decision')
+  if (held) return own('hold')
+  const limits = rampLimits(ctx, weekStart)
+  if (limits === null) return own('ceiling')
+  return {
+    max: Math.max(engineMin, loggedMin, wholeMinutes(limits.allowed)),
+    kind: limits.tightened ? 'profile' : 'ceiling',
+    ramp: limits.tightened ? limits.tightRamp : P.g2.rampCeilingTwoWeeks.value,
   }
 }
 
