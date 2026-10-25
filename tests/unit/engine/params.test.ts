@@ -27,7 +27,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-24.1')
+    expect(PARAMS_VERSION).toBe('2026-10-25.1')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -437,5 +437,82 @@ describe('parameter registry', () => {
     // the rule has its own heading in the document
     expect(engineRules).toMatch(/^## \(o\) Delivery to devices$/m)
     expect(engineRules).toMatch(/\*\*O1 Targets on the device\.\*\*/)
+  })
+
+  it('carries the history-informed rebuild G-8 as five labelled defaults, with its evidence', () => {
+    const g8 = [
+      P.g8.blockWeeks,
+      P.g8.blockWeeksDropped,
+      P.g8.creditWindowWeeks,
+      P.g8.creditTaperEndWeeks,
+      P.g8.creditTaperFloor,
+    ]
+    expect(g8.map((p) => [p.id, p.value, p.unit, p.grade, p.rule])).toEqual([
+      ['g8.blockWeeks', 4, 'weeks', 'D', 'g-8'],
+      ['g8.blockWeeksDropped', 1, 'weeks', 'D', 'g-8'],
+      ['g8.creditWindowWeeks', 12, 'weeks', 'D', 'g-8'],
+      ['g8.creditTaperEndWeeks', 12, 'weeks', 'D', 'g-8'],
+      ['g8.creditTaperFloor', 0.5, 'fraction', 'D', 'g-8'],
+    ])
+    expect(paramsForRule('g-8').map((p) => p.id)).toEqual(g8.map((p) => p.id))
+    for (const p of g8) expect(p.note, p.id).toMatch(/^Default:/)
+    expect(P.g8.blockWeeks.evidence).toEqual([
+      'mujika-2000-detraining-part1',
+      'mujika-2000-detraining-part2',
+      'bohm-2015-tendon-adaptation-meta',
+    ])
+    expect(P.g8.blockWeeksDropped.evidence).toEqual([])
+    expect(P.g8.creditTaperFloor.evidence).toEqual([])
+    for (const p of [P.g8.creditWindowWeeks, P.g8.creditTaperEndWeeks]) {
+      expect(p.evidence, p.id).toEqual([
+        'coyle-1984-detraining-time-course',
+        'zheng-2022-detraining-vo2max',
+        'feely-2022-training-disruptions',
+        'deboer-2007-ulls-tendon-time-course',
+        'kubo-2012-achilles-training-detraining',
+      ])
+    }
+    // the two windows: 12 weeks, or 16 with the older four weeks on a taper
+    expect(P.g8.creditTaperEndWeeks.range).toEqual([12, 16])
+    expect(P.g8.creditTaperEndWeeks.value).toBe(P.g8.creditWindowWeeks.value)
+    // the 12-week window fits the 16 weeks the athlete state shows
+    expect(P.g8.creditWindowWeeks.value + P.g8.blockWeeks.value).toBeLessThanOrEqual(16)
+    expect(P.g8.blockWeeksDropped.value).toBeLessThan(P.g8.blockWeeks.value)
+    // the block is the weeks of a typical week, and the least runs a week is the low-frequency line
+    expect(P.g8.blockWeeks.value).toBe(P.a5.typicalWeekCount.value)
+    // the 3 x 30 start reads a block of 3 sessions of the longest floor session
+    expect(P.restartFloor.sessions.value * P.restartFloor.sessionMaxMin.value).toBe(90)
+  })
+
+  it('states rule G-8 in engine-rules.md with its parameters, evidence and table rows', () => {
+    const start = engineRules.indexOf('- **G-8 ')
+    const end = engineRules.indexOf('## (h) Ultra-specific rules')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const g8Text = engineRules.slice(start, end)
+    for (const p of paramsForRule('g-8')) {
+      expect(g8Text, p.id).toContain(`\`${p.id}\``)
+      expect(
+        p.evidence.filter((id) => !g8Text.includes(id)),
+        p.id,
+      ).toEqual([])
+    }
+    expect(g8Text).toMatch(/Grade D as a whole/)
+    // the parts built later are marked as such, with their provisional values
+    for (const part of ['built in task L3)', 'built in task L3b)', 'provisional']) {
+      expect(g8Text, part).toContain(part)
+    }
+    for (const row of [
+      'History block \\(G-8\\)',
+      'History credit window \\(G-8\\)',
+      'History credit taper floor \\(G-8\\)',
+      '3 × 30 start from a block \\(E6, G-8\\)',
+    ]) {
+      expect(engineRules, row).toMatch(new RegExp(`^\\| ${row} `, 'm'))
+    }
+    // E6 path 2 names the second route, and G-5 points at the rule that sets the ceiling
+    const e6 = engineRules.slice(engineRules.indexOf('- **E6 '), engineRules.indexOf('## (f) '))
+    expect(e6).toContain('**Block (G-8).**')
+    expect(engineRules).toMatch(/rule G-8 sets it, with its Params/)
   })
 })

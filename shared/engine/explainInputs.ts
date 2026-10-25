@@ -29,7 +29,7 @@ import {
   wholeMinutes,
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
-import { cycleShortReason, cycleWorkWeeks, startPath, taperDays } from './macro.ts'
+import { cycleShortReason, cycleWorkWeeks, startLift, startPath, taperDays } from './macro.ts'
 import { P } from './params/index.ts'
 import { ownHoldReasons, postRaceWindows } from './postRace.ts'
 import { rangeLabel } from './predict.ts'
@@ -2276,7 +2276,8 @@ function startPathFacts(scope: Scope): InputFact[] {
   }
   // The path is chosen from the restart volume after a break [rules J7], as the plan chose it.
   const state = planState(ctx)
-  const path = startPath({ ...ctx.input, today: ctx.asOf }, state)
+  const input = { ...ctx.input, today: ctx.asOf }
+  const path = startPath(input, state)
   const sources = lastRunSources(ctx)
   if (path === null) {
     facts.push(
@@ -2299,6 +2300,25 @@ function startPathFacts(scope: Scope): InputFact[] {
         { sources },
       ),
     )
+    // a floor session above the floor itself was lifted by one of two routes: name the one taken
+    const route = path.sessionMin > P.restartFloor.sessionMin.value ? startLift(input, state) : null
+    if (route === 'years') {
+      facts.push(
+        make('E6', 'route', 'explain.e6-lift-years', {
+          floor: minutes(P.restartFloor.sessionMin.value),
+          years: count(P.a5.trainedMinYears.value),
+        }),
+      )
+    } else if (route === 'block') {
+      facts.push(
+        make('E6', 'route', 'explain.e6-lift-block', {
+          floor: minutes(P.restartFloor.sessionMin.value),
+          blocks: count(P.g8.blockWeeks.value),
+          minimum: minutes(P.restartFloor.sessions.value * P.restartFloor.sessionMaxMin.value),
+          weeks: count(P.g8.creditWindowWeeks.value),
+        }),
+      )
+    }
   } else {
     facts.push(
       make('E6', 'path', 'explain.e6-injury', {
@@ -2709,6 +2729,10 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'g-4',
   'g-5',
   'g-7',
+  // the history block is in the athlete state and the E6 facts name the route it opens; its own
+  // facts (the block, the zone, the setting) come with the builder of task L5, which moves this
+  // entry to INPUT_BUILDERS
+  'g-8',
   // adaptation inputs
   'J1',
   // ultra structure and fuel wording: the rule fixes the shape of the plan or the words of the

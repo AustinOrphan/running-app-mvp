@@ -745,6 +745,15 @@ export const EXPLAIN_TEMPLATES = {
     n: 'count',
     session: 'minutes',
   }),
+  // The route that let the floor session rise above the 20-minute floor [rules E6, g-8].
+  'explain.e6-lift-years': tpl(
+    'Sessions longer than {floor} are allowed at the start because of {years} or more years of running and no flag that holds a start back.',
+    { floor: 'minutes', years: 'count' },
+  ),
+  'explain.e6-lift-block': tpl(
+    'Sessions longer than {floor} are allowed at the start: a year of running and {blocks} steady weeks of at least {minimum} a week, ended within {weeks} weeks.',
+    { floor: 'minutes', blocks: 'count', minimum: 'minutes', weeks: 'count' },
+  ),
   'explain.e6-injury': tpl(
     'You start on the return ladder at runs of {session}, because of an injury in your profile.',
     { session: 'minutes' },

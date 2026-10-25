@@ -9,8 +9,9 @@ import { runChecklist } from '../../../shared/engine/checklist.ts'
 import { feasibility } from '../../../shared/engine/goal.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
 import { afterBreak, buildPlan, replan, weeklyDecision } from '../../../shared/engine/index.ts'
-import { macroPlan, startPath } from '../../../shared/engine/macro.ts'
+import { macroPlan, startLift, startPath } from '../../../shared/engine/macro.ts'
 import { isProgramme, startLevelMin, startWeekMin } from '../../../shared/engine/limits.ts'
+import { blockLift, loadPosition, type LoadHold } from '../../../shared/engine/loadSetting.ts'
 import { placeWeek } from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { prescribe } from '../../../shared/engine/sessions.ts'
@@ -24,10 +25,35 @@ import {
   startWeek,
   stepAt,
 } from '../../../shared/engine/startWeeks.ts'
-import type { EngineInput, SessionSpec, WeekDraft } from '../../../shared/engine/types.ts'
+import type {
+  Checkin,
+  DisruptionWindow,
+  EngineInput,
+  LoadAppetite,
+  SessionSpec,
+  WeekDraft,
+} from '../../../shared/engine/types.ts'
 import type { Activity, AthleteProfile } from '../../../shared/types.ts'
 import { ZONES } from './e6-fixtures.ts'
 import { activity, input, planned, profile, TODAY, wellnessDay } from './e8-fixtures.ts'
+import {
+  at,
+  h1,
+  h26,
+  h5,
+  h6,
+  h7,
+  h7Twice,
+  HISTORY_TODAY,
+  s3Runs,
+  s4Runs,
+  s5Runs,
+  scenario,
+  SPARSE,
+  summer,
+  weeks,
+  withTaperEnd,
+} from './history-fixtures.ts'
 
 const MONDAY = mondayOf(TODAY) // 2026-10-19; TODAY is the Wednesday of its week
 
@@ -1779,5 +1805,356 @@ describe('the start level: the last two complete weeks [rules E6, G-2]', () => {
     expect(state.typicalWeekMin).toBeLessThan(79)
     // the start level is the restart volume, not the 79 minutes before the break
     expect(startLevelMin(state)).toBe(state.typicalWeekMin)
+  })
+})
+
+describe('the 3 x 30 start from a block of weeks [rules E6, g-8]', () => {
+  const FLOOR_20 = { kind: 'floor', sessionMin: 20 }
+  const FLOOR_30 = { kind: 'floor', sessionMin: 30 }
+  const LIFTED = ['standard', 'upper'] as const
+  const pathAt = (base: EngineInput, position?: LoadAppetite) => {
+    const inp = at(base, position)
+    return startPath(inp, estimateState(inp))
+  }
+  const planAt = (base: EngineInput, position?: LoadAppetite) => buildPlan(at(base, position))
+  const positionAt = (base: EngineInput, position: LoadAppetite) => {
+    const inp = at(base, position)
+    return loadPosition(inp, estimateState(inp))
+  }
+  /** The draft at standard and upper is the steady one: nothing but the lift differs in this task. */
+  const sameAtEveryPosition = (base: EngineInput) => {
+    const steady = planAt(base, 'steady')
+    expect(planAt(base)).toEqual(steady)
+    for (const position of LIFTED) expect(planAt(base, position), position).toEqual(steady)
+  }
+  const cleanPlan = (plan: ReturnType<typeof buildPlan>) => {
+    expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+    const flags = plan.sessions.flatMap((s) => s.flags)
+    expect(flags).not.toContain('spike-warn')
+    expect(flags).not.toContain('override-required')
+    // 'spike-no-reference' only says that no run of the last 30 days gives a reference; the
+    // others say a run was cut, dropped or left at its hard limit
+    const cuts = ['spike-hard-limit', 'spike-shortened', 'spike-run-dropped']
+    expect(plan.warnings.map((w) => w.code).filter((code) => cuts.includes(code))).toEqual([])
+  }
+
+  it('H1: the runner of appendix A starts on 3 x 20 at steady and 3 x 30 at standard and upper', () => {
+    expect(pathAt(h1())).toEqual(FLOOR_20)
+    expect(pathAt(h1(), 'steady')).toEqual(FLOOR_20)
+    for (const position of LIFTED) expect(pathAt(h1(), position), position).toEqual(FLOOR_30)
+
+    const steady = planAt(h1())
+    const standard = planAt(h1(), 'standard')
+    expect(steady.weeks[0]!.targetRunMin).toBe(60)
+    expect(standard.weeks[0]!.targetRunMin).toBe(90)
+    expect(standard.weeks[0]!.flags).toContain('restart-floor')
+    // the only difference between the positions is the lift
+    expect(planAt(h1(), 'upper')).toEqual(standard)
+    expect(planAt(h1(), 'steady')).toEqual(steady)
+    cleanPlan(steady)
+    cleanPlan(standard)
+  })
+
+  it('H2: three years of running start on 3 x 30 at every position, and the drafts are the same', () => {
+    for (const position of ['steady', ...LIFTED] as const) {
+      expect(pathAt(h1(3), position), position).toEqual(FLOOR_30)
+    }
+    sameAtEveryPosition(h1(3))
+    expect(planAt(h1(3)).weeks[0]!.targetRunMin).toBe(90)
+  })
+
+  it('S4 and S5 have no start path at any position, and the drafts are the same', () => {
+    const control = scenario(s4Runs(), { years: 3 })
+    const layoff = scenario(s5Runs())
+    for (const base of [control, layoff]) {
+      for (const position of ['steady', ...LIFTED] as const) {
+        expect(pathAt(base, position)).toBeNull()
+      }
+      sameAtEveryPosition(base)
+    }
+  })
+
+  it('passes the checklist and cuts no run on every case at every position', () => {
+    const bases = [
+      h1(),
+      h1(3),
+      scenario(s4Runs(), { years: 3 }),
+      scenario(s5Runs()),
+      h5(),
+      h6([30, 35, 35]),
+      h6([20, 20, 20]),
+      h7(),
+      h7Twice(),
+      h26(60, 2),
+      h26(100, 2),
+      scenario(s3Runs(), { profile: { birthYear: 1980 } }),
+    ]
+    for (const [i, base] of bases.entries()) {
+      for (const position of ['steady', ...LIFTED] as const) {
+        const plan = planAt(base, position)
+        expect(
+          plan.checklist.filter((c) => !c.ok).map((c) => c.id),
+          `case ${String(i)} at ${position}`,
+        ).toEqual([])
+        expect(
+          plan.sessions.flatMap((s) => s.flags).filter((f) => f === 'spike-warn'),
+          `case ${String(i)} at ${position}`,
+        ).toEqual([])
+      }
+    }
+  })
+
+  it('H5, H7 and a modest H6 lift nothing: no block, so the drafts are the steady ones', () => {
+    for (const base of [h5(), h7(), h6([20, 20, 20])]) {
+      for (const position of LIFTED) expect(pathAt(base, position)).toEqual(FLOOR_20)
+      sameAtEveryPosition(base)
+    }
+  })
+
+  it('H6: the steady weeks set the block, not the 600-minute week among them', () => {
+    // 100-minute weeks lift at standard; the window with the big week would read 250 either way
+    expect(pathAt(h6([30, 35, 35]), 'standard')).toEqual(FLOOR_30)
+    expect(pathAt(h6([30, 35, 35]))).toEqual(FLOOR_20)
+    // 60-minute weeks around the same big week do not, though a plain mean would be 195
+    expect(pathAt(h6([20, 20, 20]), 'upper')).toEqual(FLOOR_20)
+  })
+
+  it('H7: two runs a week make the block, one does not', () => {
+    expect(pathAt(h7Twice(), 'standard')).toEqual(FLOOR_30)
+    expect(pathAt(h7Twice())).toEqual(FLOOR_20)
+    expect(pathAt(h7(), 'standard')).toEqual(FLOOR_20)
+  })
+
+  it('needs a block of at least 3 x 30 minutes a week: 90 lifts, 89 does not', () => {
+    const block = (minutes: number[]) => scenario([...weeks(20, 8, minutes), ...SPARSE])
+    expect(pathAt(block([45, 45]), 'standard')).toEqual(FLOOR_30)
+    expect(pathAt(block([45, 44]), 'standard')).toEqual(FLOOR_20)
+    expect(P.restartFloor.sessions.value * P.restartFloor.sessionMaxMin.value).toBe(90)
+  })
+
+  it('needs a year of running: under a year the block route stays shut', () => {
+    const young = scenario(s3Runs(), { profile: { runningSinceYear: 2026 } })
+    expect(estimateState(young).yearsRunning).toBe(0)
+    for (const position of LIFTED) expect(pathAt(young, position)).not.toEqual(FLOOR_30)
+  })
+
+  it('keeps N at the longest run of the last 30 days, rounded down to 5, and G-1 bounds it', () => {
+    // S3 with no run of the last weeks longer than `cap` minutes
+    const short = (cap: number) =>
+      scenario([...summer(), ...SPARSE.map((r) => ({ ...r, min: Math.min(r.min, cap) }))])
+    // a longest run of 25 minutes gives 3 x 25; of 32 minutes gives 3 x 30
+    expect(pathAt(short(25), 'standard')).toEqual({ kind: 'floor', sessionMin: 25 })
+    expect(pathAt(short(25))).toEqual(FLOOR_20)
+    expect(pathAt(short(32), 'standard')).toEqual(FLOOR_30)
+    // under 20 minutes there is no floor session to lift
+    expect(pathAt(short(18), 'standard')).not.toEqual(FLOOR_30)
+  })
+
+  describe('H8: held at steady under every excluded profile', () => {
+    const injury = {
+      area: 'knee',
+      side: 'left' as const,
+      year: 2026,
+      month: 6,
+      kind: 'joint' as const,
+      notes: null,
+    }
+    const bsi = { ...injury, year: 2022, kind: 'bone-stress' as const }
+    const checkin = (over: Partial<Checkin>) =>
+      wellnessDay(addDays(HISTORY_TODAY, -2), {
+        fatigue: 3,
+        soreness: 3,
+        mood: 3,
+        stress: 3,
+        sleepQuality: 3,
+        ...over,
+      })
+    const windowOf = (over: Partial<DisruptionWindow>): DisruptionWindow => ({
+      id: 'w1',
+      reason: 'illness-above-neck',
+      mode: 'rest',
+      startDate: '2026-10-22',
+      endDate: '2026-10-26',
+      maxRunMin: null,
+      pain: null,
+      gaitChange: false,
+      ...over,
+    })
+    const race = activity('2026-10-16', {
+      id: 'marathon',
+      type: 'race',
+      durationSec: 4 * 3600,
+      movingSec: 4 * 3600,
+      distanceM: 42_195,
+    })
+    const withRace = () => {
+      const base = h1()
+      return { ...base, activities: [...base.activities, race] }
+    }
+    const cases: Array<[string, EngineInput, LoadHold]> = [
+      [
+        'an injury in the last 12 months',
+        scenario(s3Runs(), { profile: { injuries: [injury] } }),
+        'recent-injury',
+      ],
+      [
+        'an earlier bone stress injury',
+        scenario(s3Runs(), { profile: { injuries: [bsi] } }),
+        'bone-stress',
+      ],
+      [
+        'two BSI factors (an earlier injury and a low BMI)',
+        scenario(s3Runs(), {
+          profile: { injuries: [bsi], sex: 'female', heightCm: 168, weightKg: 50 },
+        }),
+        'bone-stress',
+      ],
+      ['a REDs hold', scenario(s3Runs(), { screeningFlags: 2 }), 'reds-hold'],
+      [
+        'focal bone pain',
+        scenario(s3Runs(), { wellness: [checkin({ painFocalBone: true, painScore: 4 })] }),
+        'bone-pain',
+      ],
+      ['a rest window', scenario(s3Runs(), { disruptions: [windowOf({})] }), 'rest-window'],
+      [
+        'an injury report',
+        scenario(s3Runs(), {
+          disruptions: [windowOf({ reason: 'niggle', pain: 6 })],
+        }),
+        'recent-injury',
+      ],
+      ['the window after a past race', withRace(), 'post-race'],
+    ]
+
+    it.each(cases)('%s', (_name, base, reason) => {
+      for (const position of LIFTED) {
+        const inp = at(base, position)
+        const state = estimateState(inp)
+        expect(loadPosition(inp, state)).toEqual({
+          requested: position,
+          position: 'steady',
+          held: reason,
+          ageCapped: false,
+        })
+        expect(blockLift(inp, state)).toBe(false)
+        expect(startPath(inp, state), position).toEqual(pathAt(base, 'steady'))
+      }
+      sameAtEveryPosition(base)
+    })
+
+    it('holds a low-frequency runner at steady (the profile that needs no start path)', () => {
+      // one 70-minute run a week for 12 weeks: a start level above 3 x 20, under 2 runs a week
+      const base = scenario(weeks(12, 1, [70]))
+      const state = estimateState(base)
+      expect(state.lowFrequency).toBe(true)
+      expect(positionAt(base, 'standard')).toMatchObject({
+        position: 'steady',
+        held: 'low-frequency',
+      })
+      expect(positionAt(base, 'upper')).toMatchObject({ position: 'steady', held: 'low-frequency' })
+      sameAtEveryPosition(base)
+    })
+
+    it('holds a profile that two BSI factors tighten, without an earlier injury', () => {
+      const inp = at(h1(), 'standard')
+      const state = estimateState(inp)
+      const tight = { ...state, risk: { ...state.risk, bsiFactors: P.g3.bsiFactorsForCap.value } }
+      expect(loadPosition(inp, tight)).toMatchObject({ position: 'steady', held: 'bsi-factors' })
+      expect(blockLift(inp, tight)).toBe(false)
+    })
+
+    it('names the first reason that applies, and lets a held position resume when it ends', () => {
+      const both = scenario(s3Runs(), { screeningFlags: 2, profile: { injuries: [injury] } })
+      expect(positionAt(both, 'standard').held).toBe('recent-injury')
+      // the window ended: the position is back
+      const over = scenario(s3Runs(), {
+        disruptions: [windowOf({ endDate: '2026-10-01', startDate: '2026-09-28' })],
+      })
+      expect(positionAt(over, 'standard')).toMatchObject({ position: 'standard', held: null })
+      // a window that has not begun does not hold it
+      const ahead = scenario(s3Runs(), {
+        disruptions: [windowOf({ startDate: '2026-11-02', endDate: '2026-11-05' })],
+      })
+      expect(positionAt(ahead, 'standard')).toMatchObject({ position: 'standard', held: null })
+    })
+
+    it('reads steady and an absent option the same way, with nothing to hold', () => {
+      for (const [, base] of cases) {
+        const state = estimateState(base)
+        expect(loadPosition(base, state)).toEqual({
+          requested: 'steady',
+          position: 'steady',
+          held: null,
+          ageCapped: false,
+        })
+        expect(loadPosition(at(base, 'steady'), state)).toEqual(loadPosition(base, state))
+      }
+    })
+  })
+
+  describe('H11 and Q12: age 45 or over', () => {
+    const aged = { birthYear: 1980 } // 46 in 2026
+    it('leaves the block route open, reads upper as standard and keeps the years route shut', () => {
+      const base = scenario(s3Runs(), { profile: aged })
+      expect(estimateState(base).risk.noviceFlags).toEqual(['age-45-plus'])
+      expect(pathAt(base)).toEqual(FLOOR_20)
+      expect(pathAt(base, 'standard')).toEqual(FLOOR_30)
+      expect(pathAt(base, 'upper')).toEqual(FLOOR_30)
+      expect(positionAt(base, 'standard')).toEqual({
+        requested: 'standard',
+        position: 'standard',
+        held: null,
+        ageCapped: false,
+      })
+      expect(positionAt(base, 'upper')).toEqual({
+        requested: 'upper',
+        position: 'standard',
+        held: null,
+        ageCapped: true,
+      })
+      expect(planAt(base, 'upper')).toEqual(planAt(base, 'standard'))
+      expect(planAt(base, 'standard').weeks[0]!.targetRunMin).toBe(90)
+
+      // the years route keeps its age rule: three years and no block still start on 3 x 20 ...
+      const noBlock = scenario(SPARSE, { years: 3, profile: aged })
+      for (const position of ['steady', ...LIFTED] as const) {
+        expect(pathAt(noBlock, position), position).toEqual(FLOOR_20)
+      }
+      // ... where the same runner at 40 is lifted by the years
+      expect(pathAt(scenario(SPARSE, { years: 3 }))).toEqual(FLOOR_30)
+    })
+
+    it('leaves an upper request at 45 the way it is under 45', () => {
+      expect(positionAt(h1(), 'upper')).toMatchObject({ position: 'upper', ageCapped: false })
+    })
+  })
+
+  it('holds the block route back for the other soft start flags', () => {
+    const heavy = scenario(s3Runs(), { profile: { heightCm: 170, weightKg: 95 } })
+    expect(estimateState(heavy).risk.noviceFlags).toEqual(['bmi-over-30'])
+    for (const position of LIFTED) expect(pathAt(heavy, position)).toEqual(FLOOR_20)
+  })
+
+  it('H26: the lift reads a block that ended within 12 weeks, whichever window ships', () => {
+    // the peak ended 14 weeks ago; modest weeks of 60 minutes since are under 3 x 30
+    for (const end of [12, 16]) {
+      withTaperEnd(end, () => {
+        expect(pathAt(h26(60, 2), 'standard'), String(end)).toEqual(FLOOR_20)
+        // a recent block of 100 minutes lifts, though at 16 weeks the tapered peak outranks it
+        expect(pathAt(h26(100, 2), 'standard'), String(end)).toEqual(FLOOR_30)
+        expect(pathAt(h26(100, 2)), String(end)).toEqual(FLOOR_20)
+      })
+    }
+    withTaperEnd(16, () => {
+      const state = estimateState(h26(100, 2))
+      expect(state.history).toMatchObject({ blockMin: 280, taper: 0.75, fullCreditMin: 100 })
+    })
+  })
+
+  it('names the route taken: the years, the block, or neither', () => {
+    expect(startLift(at(h1(), 'standard'), estimateState(h1()))).toBe('block')
+    expect(startLift(at(h1(3), 'standard'), estimateState(h1(3)))).toBe('years')
+    expect(startLift(h1(3), estimateState(h1(3)))).toBe('years')
+    expect(startLift(h1(), estimateState(h1()))).toBeNull()
   })
 })

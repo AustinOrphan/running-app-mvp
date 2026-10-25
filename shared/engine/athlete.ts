@@ -16,7 +16,7 @@ import {
   type LoadMetric,
 } from './load.ts'
 import { P } from './params/index.ts'
-import type { AthleteState, EngineInput } from './types.ts'
+import type { AthleteState, EngineInput, HistoryBlock } from './types.ts'
 
 const WEEKS_SHOWN = 16
 const DAYS_PER_WEEK = 7
@@ -35,6 +35,9 @@ function median(values: number[]): number {
 function yearOf(date: string): number {
   return Number(date.slice(0, 4))
 }
+
+/** The soft start flag of age, as `risk.noviceFlags` names it [rules A9]. */
+export const ageFlag = (): string => `age-${P.a9.noviceFlagAgeMin.value}-plus`
 
 /** Body mass index from the profile height and weight; null when either is missing. */
 export function bmiOf(profile: AthleteProfile): number | null {
@@ -439,7 +442,7 @@ function riskOf(
   // returner to 30-minute sessions (E6), and they only ever make the start gentler.
   const noviceFlags: string[] = []
   if (age !== null && age >= P.a9.noviceFlagAgeMin.value) {
-    noviceFlags.push(`age-${P.a9.noviceFlagAgeMin.value}-plus`)
+    noviceFlags.push(ageFlag())
   }
   if (bmi !== null && bmi > P.a9.noviceFlagBmiAbove.value) {
     noviceFlags.push(`bmi-over-${P.a9.noviceFlagBmiAbove.value}`)
@@ -491,6 +494,55 @@ function lowFrequencyOf(runs: Activity[], today: string, startLevel: number): bo
   return inWindow.length / weeks < P.a5.lowFrequencyRunsPerWeek.value
 }
 
+/**
+ * The steadiest recent block of weeks [rules g-8]. `rows` are the weekly rows, oldest first, the
+ * last one the current week, which is part of a week and never counts. A block is
+ * `g8.blockWeeks` consecutive complete weeks that each hold at least `a5.lowFrequencyRunsPerWeek`
+ * runs (races are not runs here, and their minutes are not in `runMin`). It is scored by the mean
+ * of its weeks without the `g8.blockWeeksDropped` highest, so one big week cannot set it. Only a
+ * block whose last week began no more than `taperEndWeeks` weeks before the current Monday counts:
+ * in full within `g8.creditWindowWeeks`, then by a factor that falls in a straight line from 1 to
+ * `g8.creditTaperFloor` at `taperEndWeeks`. The block with the highest score after the factor
+ * wins, the newer one on a tie. Null when no window qualifies. Pure: nothing outside `rows` is read.
+ */
+export function historyBlock(
+  rows: readonly WeekRow[],
+  taperEndWeeks: number = P.g8.creditTaperEndWeeks.value,
+): HistoryBlock | null {
+  const length = P.g8.blockWeeks.value
+  const kept = Math.max(1, length - P.g8.blockWeeksDropped.value)
+  const minRuns = P.a5.lowFrequencyRunsPerWeek.value
+  const windowWeeks = P.g8.creditWindowWeeks.value
+  const floor = P.g8.creditTaperFloor.value
+  const taperEnd = Math.max(taperEndWeeks, windowWeeks)
+  const current = rows.length - 1
+  let best: HistoryBlock | null = null
+  let bestCredited = 0
+  let fullCreditMin = 0
+  for (let end = current - 1; end >= length - 1; end -= 1) {
+    const weeksAgo = current - end
+    if (weeksAgo > taperEnd) break
+    const block = rows.slice(end - length + 1, end + 1)
+    if (block.some((w) => w.runSessions < minRuns)) continue
+    const lowest = block
+      .map((w) => w.runMin)
+      .sort((a, b) => a - b)
+      .slice(0, kept)
+    const score = lowest.reduce((sum, v) => sum + v, 0) / lowest.length
+    if (score <= 0) continue
+    const taper =
+      weeksAgo <= windowWeeks
+        ? 1
+        : 1 - ((1 - floor) * (weeksAgo - windowWeeks)) / (taperEnd - windowWeeks)
+    if (weeksAgo <= windowWeeks) fullCreditMin = Math.max(fullCreditMin, score)
+    if (score * taper > bestCredited) {
+      bestCredited = score * taper
+      best = { blockMin: score, endWeek: rows[end]!.weekStart, weeksAgo, taper, fullCreditMin: 0 }
+    }
+  }
+  return best === null ? null : { ...best, fullCreditMin }
+}
+
 /** Athlete state from the input history [rules section a]. */
 export function estimateState(input: EngineInput): AthleteState {
   const { today, profile } = input
@@ -502,10 +554,18 @@ export function estimateState(input: EngineInput): AthleteState {
     profile.runningSinceYear === null ? null : Math.max(0, yearOf(today) - profile.runningSinceYear)
 
   const currentMonday = mondayOf(today)
-  const weekStarts = Array.from({ length: WEEKS_SHOWN }, (_, i) =>
-    addDays(currentMonday, -DAYS_PER_WEEK * (WEEKS_SHOWN - 1 - i)),
+  const mondays = (count: number) =>
+    Array.from({ length: count }, (_, i) =>
+      addDays(currentMonday, -DAYS_PER_WEEK * (count - 1 - i)),
+    )
+  const weeks = aggregateWeeks(acts, mondays(WEEKS_SHOWN))
+  // The history block reaches back from the current Monday to the end of the taper and then the
+  // block itself; the screens still show WEEKS_SHOWN weeks, and the rows come from the same
+  // activities, so the snapshot's contract holds (no query of its own).
+  const historyRows = Math.max(WEEKS_SHOWN, P.g8.creditTaperEndWeeks.value + P.g8.blockWeeks.value)
+  const history = historyBlock(
+    historyRows === WEEKS_SHOWN ? weeks : aggregateWeeks(acts, mondays(historyRows)),
   )
-  const weeks = aggregateWeeks(acts, weekStarts)
   const typical = weeks
     .slice(0, -1)
     .reverse()
@@ -552,6 +612,7 @@ export function estimateState(input: EngineInput): AthleteState {
     fitness: fitnessOf(runs, input, today),
     efficiency: efficiencyIndex(acts, today),
     durability: durabilityOf(runs),
+    history,
     risk: riskOf(input, weeks, age, lastRunDate, yearsRunning),
     lowFrequency: lowFrequencyOf(runs, today, Math.max(typicalWeekMin, recentWeekMin)),
     heatAcclimation: heatCredit(acts, today),
