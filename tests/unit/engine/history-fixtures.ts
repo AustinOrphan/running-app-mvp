@@ -7,7 +7,7 @@ import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, GoalModel } from '../../../shared/engine/types.ts'
 import type { Activity, AthleteProfile } from '../../../shared/types.ts'
-import { activity, goal, input, profile } from './e8-fixtures.ts'
+import { activity, goal, input, profile, wellnessDay } from './e8-fixtures.ts'
 
 /**
  * Runs `fn` with `g8.creditTaperEndWeeks` set to `value` (12 or 16, the two credit windows), then
@@ -292,3 +292,116 @@ export const h15 = (weeksAhead = 12, years: 1 | 3 = 1): EngineInput =>
       expectedDurationSec: 1500,
     },
   })
+
+// ---- more shapes of the H cases and the registry of every case (task L6) ----
+
+/** Runs `fn` with `g8.creditTaperFloor` set to `value`, then restores it. */
+export function withTaperFloor<T>(value: number, fn: () => T): T {
+  const before = P.g8.creditTaperFloor.value
+  P.g8.creditTaperFloor.value = value
+  try {
+    return fn()
+  } finally {
+    P.g8.creditTaperFloor.value = before
+  }
+}
+
+/** H12: a novice with no run at all, so there is no history and the run-walk ladder is all there is. */
+export const h12 = (): EngineInput => scenario([], { profile: { runningSinceYear: 2026 } })
+
+/**
+ * H12: a novice whose only history is four weeks of two 15-minute outings, ended 5 weeks ago: a
+ * block of 30 minutes a week exists, but it is under 3 x 30 and the reference run is under 20
+ * minutes, so the ladder is the start and nothing credits it.
+ */
+export const h12Short = (): EngineInput =>
+  scenario(weeks(8, 5, [15, 15]), { profile: { runningSinceYear: 2026 } })
+
+/** A joint injury in the 12 months before the fixed day: the recent-injury flag (H8). */
+const RECENT_INJURY = {
+  area: 'knee',
+  side: 'left' as const,
+  year: 2026,
+  month: 6,
+  kind: 'joint' as const,
+  notes: null,
+}
+
+/**
+ * H8, two BSI factors without an earlier injury: a female runner with a BMI under 21 who ran 13
+ * hours a week over the last four weeks (a9.bsiWeeklyHours is 12).
+ */
+export const h8BsiFactors = (): EngineInput =>
+  scenario(weeks(8, 1, [200, 200, 200, 200]), {
+    profile: { sex: 'female', heightCm: 168, weightKg: 50 },
+  })
+
+/** One case of the registry: a name, the input at the option's default, and its oracle digest name. */
+export interface HistoryCase {
+  name: string
+  input: EngineInput
+  /** The key of its digest in `history-oracle.json`, when the oracle holds the same input. */
+  oracle?: string
+}
+
+/**
+ * Every shape of the H cases that builds a plan from the fixed day, once each (the cases of the
+ * re-plan chains, H14 to H25, are built from these by their tests). A case with an `oracle` is an
+ * input of the oracle of steady (`history-oracle.ts`) under that name.
+ */
+export function historyCases(): HistoryCase[] {
+  const checkin = wellnessDay(addDays(HISTORY_TODAY, -2), {
+    fatigue: 3,
+    soreness: 3,
+    mood: 3,
+    stress: 3,
+    sleepQuality: 3,
+    painFocalBone: true,
+    painScore: 4,
+  })
+  return [
+    { name: 'H1 one year', input: h1(), oracle: 'h1 one year' },
+    { name: 'H2 three years', input: h1(3), oracle: 'h1 three years' },
+    { name: 'H3 layoff', input: scenario(s5Runs()), oracle: 's5 layoff' },
+    { name: 'H3 back on three runs', input: h3Back(), oracle: 'h3 back' },
+    { name: 'H4 no gap', input: h4(), oracle: 'h4 no gap' },
+    { name: 'H5 old block', input: h5(), oracle: 'h5 old block' },
+    { name: 'H6 one big week', input: h6([30, 35, 35]), oracle: 'h6 one big week' },
+    { name: 'H6 modest', input: h6([20, 20, 20]), oracle: 'h6 modest' },
+    { name: 'H7 single runs', input: h7(), oracle: 'h7 single runs' },
+    { name: 'H7 twice a week', input: h7Twice(), oracle: 'h7 twice' },
+    {
+      name: 'H8 recent injury',
+      input: scenario(s3Runs(), { profile: { injuries: [RECENT_INJURY] } }),
+    },
+    {
+      name: 'H8 bone stress injury',
+      input: scenario(s3Runs(), {
+        profile: { injuries: [{ ...RECENT_INJURY, year: 2022, kind: 'bone-stress' }] },
+      }),
+    },
+    { name: 'H8 two BSI factors', input: h8BsiFactors() },
+    { name: 'H9 REDs hold', input: scenario(s3Runs(), { screeningFlags: 2 }), oracle: 'reds hold' },
+    { name: 'H9 focal bone pain', input: scenario(s3Runs(), { wellness: [checkin] }) },
+    { name: 'H10 low frequency', input: h10(), oracle: 'h10 low frequency' },
+    {
+      name: 'H11 age 46',
+      input: scenario(s3Runs(), { profile: { birthYear: 1980 } }),
+      oracle: 'age 46',
+    },
+    { name: 'H12 ladder, no history', input: h12() },
+    { name: 'H12 ladder, short runs', input: h12Short() },
+    { name: 'H13 race window', input: h13Race(), oracle: 'h13 race window' },
+    { name: 'H13 rest window', input: h13Window(), oracle: 'h13 rest window' },
+    { name: 'H15 race 12 weeks away', input: h15(), oracle: 'h15 short horizon' },
+    {
+      name: 'H15 race 12 weeks away, three years',
+      input: h15(12, 3),
+      oracle: 'h15 short horizon three years',
+    },
+    { name: 'H26 modest block of 60', input: h26(60, 2), oracle: 'h26 modest 60' },
+    { name: 'H26 modest block of 100', input: h26(100, 2), oracle: 'h26 modest 100' },
+    { name: 'H26 one run a week since', input: h26(60, 1) },
+    { name: 'S4 control', input: scenario(s4Runs(), { years: 3 }), oracle: 's4 control' },
+  ]
+}

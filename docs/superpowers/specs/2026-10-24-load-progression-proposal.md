@@ -1040,6 +1040,68 @@ next free number) driving the form and the drawer text with dates from the clock
 `expectCleanCopy` on every new string; the params test (grade D notes, rule heading in
 `engine-rules.md`, `PARAMS_VERSION`); the rule-title and explain coverage tests; the research check.
 
+**5.6 Results (2026-10-25).** Task L6 ran the validation of 5.2 to 5.4 on the integration branch (L2,
+L3, L3b, L3c and L4 merged). The owner validation at steady is byte-identical to the baseline: 39
+weeks, 210 sessions, 0 of 15 checklist failures. The owner replay, the own-tolerance check and the
+back-test of 5.2 ran on the owner's history outside the repository. Their figures are not recorded
+here, because a weekly total taken from that history is run history and the repository holds none
+(`CLAUDE.md`, Public repository); they are in the report of task L6, which carries the recommendation
+on questions 3 and 7. What follows comes from the committed synthetic cases only.
+
+_Cases and properties._ All 26 cases of 5.3 exist and pass (`history-rebuild.test.ts`,
+`start-paths.test.ts`, `athlete.test.ts`, `tests/api/raised-target.test.ts`). L6 added H5 and H6 at
+both windows, H8 (the three held profiles, with no response either), H10 and H13 without a response,
+H12, H14 as one chain, H15 at six horizons and H26 at both windows, and a registry of 27 case shapes
+(`historyCases()`) over which the property checks of 5.3 run at the three positions: the 30% ceiling,
+spike flags and load items, the zone step against the ceiling's weekly rate, cumulative minutes
+against steady, the G-1 floor, steady against the oracle, the taper line (windows 12 to 20, floors
+0.25 and 0.5), the bounds of the response along heavy chains, and a raised target clipped to its
+limit at standard and upper. They hold, with one exception recorded as finding 1. The added tests
+take about 7 s.
+
+_Criteria of 5.4 on the committed cases._ Criteria 1 and 2 hold at both positions on every case that
+has a lift or a zone: the appendix runner reaches R in week 12 at standard and upper (steady: 18 and
+22) and a long run of 80% of the block's longest in week 18 (steady 26). Criteria 3 and 6 hold in
+every case, in the 150 seeded runners and in the weekly chains. On the 150 seeded runners neither
+position reached a long run later than steady in any of 294 comparisons. Criterion 5 holds: steady
+equals the oracle, and every held profile shows its reason.
+
+_Findings that need an engine decision (reported, not patched)._
+
+1. **A re-plan loses the credit while the rebuild is under way.** The block leaves the credit window
+   at some re-plan, the weeks run since form a new, lower block, and R falls to a share of that. On
+   the appendix runner run exactly as planned, the re-plans equal the first plan until the block is
+   12 weeks old (week 6) and then plan 5% (standard) and 8% (upper) fewer minutes over 32 weeks than
+   the first plan showed; at upper the realized week of 285 minutes is week 17, where the first plan
+   said 14. The 16-week window moves the first difference to week 8 and shrinks the gap to 3% and 6%,
+   and gives about 2% more minutes over the 32 weeks than the 12-week window. The property "a runner
+   who runs as planned gets the first plan's weeks" is written in `history-rebuild.test.ts` as
+   `it.fails` for that reason. An engine change would keep the credit of the plan's own block (store
+   `history` with the plan) until R is reached.
+2. **The response lifts after a hold.** In the H14 chain at standard a held week (85% of its stored
+   target) is followed, after the recovery week, by a loading week 30% above that stored target (the
+   ceiling over two weeks), because the mean of the weeks run is far above the plan; the hold wins
+   for the week it covers only. The unit case of L3b (150, 150, 60, 60) is the same pattern.
+   Switching the response off for the loading week after a hold or reduce, or while the latest week
+   ran under plan, would remove it and leave the lifts after weeks run above plan as they are. 4.9
+   sketches a second change, a cap on the response at the position's step over the planned
+   baseline.
+3. **G-1 can hold every run of a week at one cap.** With a short reference run the weekly target is
+   then not placed and the long run does not take the remainder, so a plan with the larger weekly
+   target can have a slightly shorter long run than steady's in the same week. No seeded runner and
+   no committed case shows it; it appeared on a real history, whose figures are in the report. An
+   engine change would let the long run take what the other runs cannot.
+4. **The low-frequency flag arms when the start level passes 60 minutes** with fewer than two runs a
+   week in the window. In a chain with every week run 1.6 times its plan the appendix runner's
+   position is held for one re-plan, which plans the same weeks 27% lower and returns to the zone at
+   the next (case H3 in a chain, `history-rebuild.test.ts`). The flag is A5 and applies at steady
+   too; at the standard and upper positions it also switches the zone, the lift and the response off.
+
+_Questions 3 and 7 on the committed cases._ Nothing here moves 0.70 and 12% or 0.85 and 14.0%: no
+case misses criterion 1 or 2 at either position, and 14.0% is the ceiling's own weekly rate. On the
+appendix runner run as planned, 16 weeks instead of 12 gives about 2% more minutes over 32 weeks and
+reaches the block level one week sooner at upper, without closing the gap of finding 1.
+
 ## 6. Decisions and open questions for the owner
 
 Ranked by how much they change behaviour. Each has a default that the tasks implement. All twelve

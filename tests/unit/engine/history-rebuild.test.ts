@@ -8,7 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
-import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { draftRamp } from '../../../shared/engine/checklist.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
@@ -23,15 +23,25 @@ import {
   type RampContext,
   type RebuildZone,
 } from '../../../shared/engine/limits.ts'
-import { loadPosition, rebuildZone, responseBasis } from '../../../shared/engine/loadSetting.ts'
+import {
+  blockLift,
+  loadPosition,
+  rebuildZone,
+  responseBasis,
+} from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
+import type { PlanWeek as PlanWeekRow } from '../../../server/db.ts'
+import { weekRow } from '../../../server/services/planEngine.ts'
+import { planWeekWrites, raisedTargetLimits } from '../../../server/services/replan.ts'
 import { mulberry32, windowOf } from './disruption-fixtures.ts'
 import { activity, wellnessDay } from './e8-fixtures.ts'
 import {
   at,
   h1,
   h10,
+  h12,
+  h12Short,
   h13Race,
   h13Window,
   h15,
@@ -39,8 +49,10 @@ import {
   h3Back,
   h4,
   h5,
+  h6,
   h7,
   HISTORY_MONDAY,
+  historyCases,
   runsOn,
   s3Runs,
   s4Runs,
@@ -52,17 +64,22 @@ import {
   weeks,
   withResponseWeeks,
   withTaperEnd,
+  withTaperFloor,
   NO_RESPONSE,
+  type HistoryCase,
   type Run,
 } from './history-fixtures.ts'
+import { planDigest } from './history-oracle.ts'
 import {
   ceilingProblems,
   cumulative,
   eligibleWeeks,
   expectedResponse,
+  expectedZone,
   planProblems,
   POSITIONS,
   UPPER_STEP,
+  weeklyTotals,
   weeksToLong,
   weeksToWeekly,
   windowWeeksOf,
@@ -70,7 +87,7 @@ import {
   type Position,
 } from './history-properties.ts'
 import { athletes } from './matrix-fixtures.ts'
-import { replanSteps } from './replan-steps.ts'
+import { replanChain, replanSteps } from './replan-steps.ts'
 
 const LIFTED = ['standard', 'upper'] as const
 const floorEps = (v: number) => Math.floor(v + 1e-9)
@@ -1554,4 +1571,674 @@ describe('the control floor over the appendix runner and other races', () => {
       }
     }
   })
+})
+
+// ---- task L6: the remaining cases of section 5.3 and the property checks over every case ----
+
+describe('H5 and H6: an old block and one big week give no extra room [rules g-8]', () => {
+  it('H5: a block older than either window gives no history and the steady drafts, at both windows', () => {
+    for (const end of [12, 16]) {
+      withTaperEnd(end, () => {
+        expect(estimateState(h5()).history, String(end)).toBeNull()
+        for (const position of LIFTED) {
+          expect(zoneAt(h5(), position), `${String(end)} ${position}`).toBeNull()
+          expect(planAt(h5(), position), `${String(end)} ${position}`).toEqual(
+            planAt(h5(), 'steady'),
+          )
+        }
+      })
+    }
+  })
+
+  it('H6: the three steady weeks set the block, so R is a share of them and the big week adds no zone', () => {
+    const base = h6([30, 35, 35])
+    // four weeks that hold the big one are 600, 100, 100 and 100 minutes: the highest is dropped
+    expect(estimateState(base).history).toMatchObject({ blockMin: 100, weeksAgo: 8 })
+    expect(zoneAt(base, 'standard')!.ceilingMin).toBeCloseTo(70, 9)
+    expect(zoneAt(base, 'upper')!.ceilingMin).toBeCloseTo(85, 9)
+    // the lift starts the plan at 90, above both: the weeks that follow take the usual 10% step,
+    // where a plain mean of the four weeks (225) would have put R at 157 and a zone under it
+    for (const position of LIFTED) {
+      const plan = planAt(base, position)
+      expect(plan.weeks[0]!.targetRunMin).toBe(90)
+      const seq = loading(plan).map((w) => w.targetRunMin)
+      for (let i = 1; i < 10; i += 1)
+        expect(seq[i], `${position} ${String(i)}`).toBe(nextOf(seq[i - 1]!, null))
+      expect(zoneReport(at(base, position), plan).problems).toEqual([])
+    }
+  })
+})
+
+describe('H8: a held profile reads steady with its reason, and has no response either [rules g-8, g-3]', () => {
+  const held = historyCases().filter((c) => c.name.startsWith('H8 '))
+  const reasons = ['recent-injury', 'bone-stress', 'bsi-factors']
+
+  it('has the three profiles of the case, each with its own reason', () => {
+    expect(held.map((c) => c.name)).toEqual([
+      'H8 recent injury',
+      'H8 bone stress injury',
+      'H8 two BSI factors',
+    ])
+  })
+
+  it.each([0, 1, 2])(
+    'profile %i: no zone, no lift, and the steady draft at standard and upper',
+    (i) => {
+      const { input: base } = held[i]!
+      const steady = planAt(base, 'steady')
+      for (const position of LIFTED) {
+        const input = at(base, position)
+        const state = estimateState(input)
+        expect(loadPosition(input, state), position).toMatchObject({
+          position: 'steady',
+          held: reasons[i],
+        })
+        expect(rebuildZone(input, state), position).toBeNull()
+        expect(blockLift(input, state), position).toBe(false)
+        expect(buildPlan(input), position).toEqual(steady)
+      }
+    },
+  )
+
+  it('two BSI factors: weeks run far above the plan lift nothing', () => {
+    const profile = { sex: 'female' as const, heightCm: 168, weightKg: 50 }
+    const input = continued([800, 800, 800, 800], 'standard', 100, { profile })
+    const state = estimateState(input)
+    expect(state.risk.bsiFactors).toBe(2)
+    expect(loadPosition(input, state).held).toBe('bsi-factors')
+    expect(responseBasis(input, state)).toBeNull()
+    expect(expectedResponse(input)).toBeNull()
+  })
+})
+
+describe('H10 and H13: no response for a low-frequency runner or inside the window after a race', () => {
+  /** The input a weekly re-plan would see: the steady plan stored, and a run this week. */
+  const withStoredPlan = (base: EngineInput): EngineInput => ({
+    ...at(base, 'standard'),
+    existing: asExisting(buildPlan(at(base, 'steady')), base.today),
+  })
+
+  it.each([
+    [
+      'a low-frequency runner',
+      scenario([...summer(), ...weeks(7, 1, [70]), ...week(0, [70])]),
+      'low-frequency',
+    ],
+    ['the window after a race', h13Race(), 'post-race'],
+  ] as const)(
+    '%s: the position is held, so the mean of the weeks run is not read',
+    (_name, base, reason) => {
+      const input = withStoredPlan(base)
+      const state = estimateState(input)
+      // the stored plan holds the week, and the layoff is under a week: only the hold stops the response
+      expect(input.existing!.weeks.some((w) => w.weekStart === mondayOf(input.today))).toBe(true)
+      expect(state.layoffDays).toBeLessThan(P.j7.tier1Days.value)
+      expect(loadPosition(input, state).held).toBe(reason)
+      expect(responseBasis(input, state)).toBeNull()
+      expect(expectedResponse(input)).toBeNull()
+    },
+  )
+})
+
+describe('H12: a ladder novice with no history', () => {
+  it('has no history without a run, and a block under 3 x 30 with short runs', () => {
+    expect(estimateState(h12()).history).toBeNull()
+    expect(estimateState(h12Short()).history).toMatchObject({ blockMin: 30, weeksAgo: 5 })
+  })
+
+  it.each([
+    ['no run at all', h12],
+    ['four weeks of 15-minute outings', h12Short],
+  ] as const)('%s: the ladder is unchanged at standard and upper', (_name, build) => {
+    const base = build()
+    const steady = planAt(base, 'steady')
+    const ladder = steady.weeks.filter((w) => w.flags.some((f) => f.startsWith('ladder-')))
+    expect(ladder.length).toBeGreaterThanOrEqual(5)
+    for (const position of LIFTED) {
+      const input = at(base, position)
+      const state = estimateState(input)
+      // the position applies, but nothing lifts the start and the zone leaves the ladder weeks out
+      expect(loadPosition(input, state).held, position).toBeNull()
+      expect(blockLift(input, state), position).toBe(false)
+      expect(buildPlan(input), position).toEqual(steady)
+      expect(zoneReport(input, buildPlan(input)).zoneWeeks, position).toBe(0)
+    }
+    expect(steady.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+})
+
+describe('H14 as one chain: weeks run above plan, a hold, a reduce, then progress', () => {
+  const base = scenario([...summer(5), ...weeks(4, 1, [40])])
+  const heavy: Step = { scale: 1.6 }
+  // steps 1 to 4 run 1.6 times the plan, the week of step 5 is held, the week of step 7 is reduced
+  // (each run 1.6 times its plan as well), and steps 8 to 10 run as planned
+  const script: Step[] = [
+    heavy,
+    heavy,
+    heavy,
+    heavy,
+    { ...heavy, decision: 'hold' },
+    heavy,
+    { ...heavy, decision: 'reduce' },
+    {},
+    {},
+    {},
+  ]
+  const chains = new Map<Position, Array<{ input: EngineInput; plan: PlanDraft }>>()
+  const chainAt = (position: Position) => {
+    if (!chains.has(position)) chains.set(position, runChain(at(base, position), script))
+    return chains.get(position)!
+  }
+
+  it('at steady an overshot week lifts nothing: each step is the 10% step from the planned baseline', () => {
+    const chain = chainAt('steady')
+    for (const [k, { input }] of chain.entries()) {
+      expect(responseBasis(input, estimateState(input)), `step ${String(k)}`).toBeNull()
+    }
+    // the steps with no decision on a loading week: 2, 3, 4 (before the hold) and 8, 9, 10 (after)
+    for (const k of [2, 3, 4, 8, 9, 10]) {
+      const { input, plan } = chain[k]!
+      const monday = mondayOf(input.today)
+      const planned = lastLoadingAt(chain[k - 1]!.plan, monday).targetRunMin
+      expect(nextLoading(plan, monday).targetRunMin, `step ${String(k)}`).toBe(
+        nextOf(planned, null),
+      )
+    }
+  })
+
+  it.each(LIFTED)('%s: every plan of the chain keeps every limit', (position) => {
+    for (const [k, { input, plan }] of chainAt(position).entries()) {
+      expect(planProblems(plan), `step ${String(k)}`).toEqual([])
+      expect(zoneReport(input, plan).problems, `step ${String(k)}`).toEqual([])
+      expect(ceilingProblems(input, plan), `step ${String(k)}`).toEqual([])
+    }
+  })
+
+  it.each(LIFTED)(
+    '%s: the response lifts after the overshot weeks, inside the bounds of its mean',
+    (position) => {
+      const chain = chainAt(position)
+      const zone = zoneAt(base, position)
+      let lifted = 0
+      for (let k = 2; k <= 6; k += 1) {
+        const { input, plan } = chain[k]!
+        const monday = mondayOf(input.today)
+        const planned = lastLoadingAt(chain[k - 1]!.plan, monday).targetRunMin
+        const mean = expectedResponse(input)!.meanMin!
+        const next = nextLoading(plan, monday).targetRunMin
+        expect(next, `step ${String(k)}`).toBeGreaterThanOrEqual(nextOf(planned, zone))
+        expect(next, `step ${String(k)}`).toBeLessThanOrEqual(nextOf(Math.max(planned, mean), zone))
+        if (next > nextOf(planned, zone)) lifted += 1
+      }
+      expect(lifted).toBeGreaterThan(0)
+    },
+  )
+
+  it.each(LIFTED)(
+    '%s: the hold and the reduce win over the response, and the zone resumes after them',
+    (position) => {
+      const chain = chainAt(position)
+      const zone = zoneAt(base, position)
+      // the hold: the week is 85% of its plan, below the mean of the weeks run that would lift it
+      const hold = chain[5]!
+      const holdMonday = mondayOf(hold.input.today)
+      const stored = weekOf(chain[4]!.plan, holdMonday).targetRunMin
+      expect(expectedResponse(hold.input)!.meanMin!).toBeGreaterThan(stored)
+      expect(weekOf(hold.plan, holdMonday).targetRunMin).toBeLessThanOrEqual(
+        floorEps(stored * 0.85),
+      )
+      // the reduce: a recovery week, 75% of the loading week before it at most
+      const reduce = chain[7]!
+      const reduceMonday = mondayOf(reduce.input.today)
+      const before = lastLoadingAt(
+        {
+          ...chain[6]!.plan,
+          weeks: chain[6]!.plan.weeks.filter((w) => w.weekStart < reduceMonday),
+        },
+        reduceMonday,
+      )
+      expect(weekOf(reduce.plan, reduceMonday).isRecovery).toBe(true)
+      expect(weekOf(reduce.plan, reduceMonday).targetRunMin).toBeLessThanOrEqual(
+        floorEps(before.targetRunMin * 0.75),
+      )
+      // progress: from step 8 the runner runs as planned, the mean falls under the planned baseline,
+      // and consecutive loading weeks of a plan step by the rule again
+      for (const k of [8, 9, 10]) {
+        const { input, plan } = chain[k]!
+        const planned = lastLoadingAt(chain[k - 1]!.plan, mondayOf(input.today)).targetRunMin
+        expect(expectedResponse(input)!.meanMin!, `step ${String(k)}`).toBeLessThanOrEqual(planned)
+        const ahead = {
+          ...plan,
+          weeks: plan.weeks.filter((w) => w.weekStart >= mondayOf(input.today)),
+        }
+        const seq = loading(ahead).map((w) => w.targetRunMin)
+        for (let i = 1; i < 4; i += 1) {
+          expect(seq[i], `step ${String(k)} week ${String(i)}`).toBe(nextOf(seq[i - 1]!, zone))
+        }
+      }
+    },
+  )
+})
+
+describe('H15 at other short horizons', () => {
+  it.each([6, 8, 10, 12, 14, 16])(
+    'a race %i weeks away: every limit holds, the peak is the class peak at most, and the taper is the same',
+    (weeksAhead) => {
+      const base = h15(weeksAhead)
+      const steady = planAt(base, 'steady')
+      const peakOf = (p: PlanDraft) =>
+        Math.max(
+          ...p.weeks.filter((w) => !w.isTaper && w.phase !== 'race').map((w) => w.targetRunMin),
+        )
+      for (const position of LIFTED) {
+        const input = at(base, position)
+        const plan = buildPlan(input)
+        expect(planProblems(plan, steady), position).toEqual([])
+        expect(zoneReport(input, plan).problems, position).toEqual([])
+        expect(ceilingProblems(input, plan), position).toEqual([])
+        // R (315 or 383) is far above the 180-minute peak of the plan: the zone runs to the peak
+        expect(peakOf(plan), position).toBeLessThanOrEqual(180)
+        expect(peakOf(plan), position).toBeGreaterThanOrEqual(peakOf(steady))
+        expect(
+          plan.weeks.filter((w) => w.isTaper),
+          position,
+        ).toHaveLength(steady.weeks.filter((w) => w.isTaper).length)
+        expect(cumulative(plan, plan.weeks.length), position).toBeGreaterThanOrEqual(
+          cumulative(steady, steady.weeks.length),
+        )
+      }
+      // from twelve weeks on the zone reaches the peak, which steady does not before sixteen
+      if (weeksAhead >= 12) {
+        for (const position of LIFTED) expect(peakOf(planAt(base, position))).toBe(180)
+      }
+    },
+  )
+})
+
+describe('H26 as the owner described it: a peak that ended 14 weeks ago, at both windows', () => {
+  // the weeks since are one run a week of 60 minutes: not a block (fewer than two runs a week)
+  it('12 weeks: the weeks since are no block, so there is no history and the steady drafts', () => {
+    withTaperEnd(12, () => {
+      expect(estimateState(h26(60, 1)).history).toBeNull()
+      for (const position of LIFTED) {
+        expect(zoneAt(h26(60, 1), position), position).toBeNull()
+        expect(planAt(h26(60, 1), position), position).toEqual(planAt(h26(60, 1), 'steady'))
+      }
+    })
+  })
+
+  it('16 weeks: the peak counts at 0.75, scales R, lifts nothing, and the zone goes ahead of steady', () => {
+    withTaperEnd(16, () => {
+      expect(estimateState(h26(60, 1)).history).toMatchObject({
+        blockMin: 280,
+        weeksAgo: 14,
+        taper: 0.75,
+        fullCreditMin: 0,
+      })
+      const steady = planAt(h26(60, 1), 'steady')
+      for (const [position, credit] of [
+        ['standard', 0.7],
+        ['upper', 0.85],
+      ] as const) {
+        const zone = zoneAt(h26(60, 1), position)!
+        expect(zone.ceilingMin, position).toBeCloseTo(credit * 0.75 * 280, 9)
+        const plan = planAt(h26(60, 1), position)
+        // no lift by a block that ended more than 12 weeks ago: the start is still 3 x 20
+        expect(plan.weeks[0]!.targetRunMin, position).toBe(steady.weeks[0]!.targetRunMin)
+        // the rule's step for the first seven weeks; later the session guard (G-1) may bind first
+        const seq = loading(plan).map((w) => w.targetRunMin)
+        for (let i = 1; i < 10; i += 1) {
+          const rule = nextOf(seq[i - 1]!, zone)
+          if (i < 8) expect(seq[i], `${position} ${String(i)}`).toBe(rule)
+          else expect(seq[i], `${position} ${String(i)}`).toBeLessThanOrEqual(rule)
+        }
+        expect(cumulative(plan, 10), position).toBeGreaterThan(cumulative(steady, 10))
+        expect(planProblems(plan, steady), position).toEqual([])
+        expect(zoneReport(at(h26(60, 1), position), plan).problems, position).toEqual([])
+      }
+    })
+  })
+})
+
+// ---- the property checks of section 5.3 over every case and position ----
+
+describe('the property checks of section 5.3 over every case and position', () => {
+  const cases = historyCases()
+  const golden = JSON.parse(
+    readFileSync(join(import.meta.dirname, 'history-oracle.json'), 'utf8'),
+  ) as Record<string, string>
+  const plans = new Map<string, PlanDraft>()
+  const planOf = (c: HistoryCase, position: Position): PlanDraft => {
+    const key = `${c.name}|${position}`
+    if (!plans.has(key)) plans.set(key, buildPlan(at(c.input, position)))
+    return plans.get(key)!
+  }
+  /** The problems of `check` over every case at every position, each named by its case and position. */
+  const everyCase = (check: (c: HistoryCase, position: Position) => string[]): string[] =>
+    cases.flatMap((c) => POSITIONS.flatMap((p) => check(c, p).map((m) => `${c.name} ${p}: ${m}`)))
+
+  it('lists each case once', () => {
+    expect(new Set(cases.map((c) => c.name)).size).toBe(cases.length)
+    expect(cases.length).toBeGreaterThanOrEqual(26)
+  })
+
+  it('steady equals the oracle where the oracle holds the case, and the option absent everywhere else', () => {
+    for (const c of cases) {
+      if (c.oracle === undefined) {
+        expect(planOf(c, 'steady'), c.name).toEqual(buildPlan(c.input))
+      } else {
+        expect(golden[c.oracle], c.name).toBeDefined()
+        expect(planDigest(planOf(c, 'steady')), c.name).toBe(golden[c.oracle])
+      }
+    }
+  })
+
+  it('no week passes the 30% ceiling over two weeks', () => {
+    expect(everyCase((c, p) => ceilingProblems(at(c.input, p), planOf(c, p)))).toEqual([])
+  })
+
+  it('no run is flagged spike-warn or needs an override, and the load items of the checklist pass', () => {
+    expect(everyCase((c, p) => planProblems(planOf(c, p), planOf(c, 'steady')))).toEqual([])
+  })
+
+  it('the zone step is never above the weekly rate of the ceiling, and no week passes its limit', () => {
+    let zoneWeeks = 0
+    const bad = everyCase((c, p) => {
+      const input = at(c.input, p)
+      const report = zoneReport(input, planOf(c, p))
+      zoneWeeks += report.zoneWeeks
+      const zone = expectedZone(input)
+      const over = zone !== null && zone.step > ceilingWeeklyRate() + 1e-12
+      return [
+        ...report.problems,
+        ...(over ? [`zone step ${String(zone.step)} is above the ceiling`] : []),
+      ]
+    })
+    expect(bad).toEqual([])
+    // a registry that never enters the zone would pass for nothing
+    expect(zoneWeeks).toBeGreaterThan(5)
+  })
+
+  it('standard and upper plan at least the minutes of steady up to the week R is reached', () => {
+    const bad = everyCase((c, p) => {
+      if (p === 'steady') return []
+      const plan = planOf(c, p)
+      const steady = planOf(c, 'steady')
+      const zone = expectedZone(at(c.input, p))
+      const reached =
+        zone === null ? -1 : plan.weeks.findIndex((w) => w.targetRunMin >= zone.ceilingMin)
+      const count =
+        reached < 0
+          ? plan.weeks.filter((w) => !w.isTaper && w.phase !== 'race').length
+          : reached + 1
+      return cumulative(plan, count) + 1 < cumulative(steady, count)
+        ? [
+            `${String(cumulative(plan, count))} min against steady's ${String(cumulative(steady, count))} over ${String(count)} weeks`,
+          ]
+        : []
+    })
+    expect(bad).toEqual([])
+  })
+
+  it('the first long run never comes sooner than with weekly time not limiting (the G-1 floor)', () => {
+    const controls = new Map<string, PlanDraft>()
+    let compared = 0
+    const bad = everyCase((c, p) => {
+      const longest = Math.round(estimateState(c.input).longest30d.durationSec / 60)
+      // with no run in the last 30 days G-1 has no reference, and the J7 fraction stands in
+      if (longest <= 0) return []
+      const key = `${String(longest)}|${c.input.goal.date}|${c.input.goal.distanceClass}`
+      if (!controls.has(key)) {
+        const runs = weeks(
+          8,
+          1,
+          Array.from({ length: 5 }, () => longest),
+        )
+        controls.set(key, buildPlan(scenario(runs, { years: 3, goal: c.input.goal })))
+      }
+      const out: string[] = []
+      for (const multiple of [2, 3]) {
+        const target = longest * multiple
+        const floor = weeksToLong(controls.get(key)!, HISTORY_MONDAY, target)
+        if (floor === null) continue
+        compared += 1
+        const got = weeksToLong(planOf(c, p), HISTORY_MONDAY, target)
+        if (got !== null && got < floor)
+          out.push(`${String(target)} min in week ${String(got)}, the control in ${String(floor)}`)
+      }
+      return out
+    })
+    expect(bad).toEqual([])
+    expect(compared).toBeGreaterThan(cases.length)
+  })
+})
+
+describe('the taper factor of an older block [rules g-8]', () => {
+  /** A block of 280 minutes a week in four runs that ended `ended` weeks ago, and nothing since. */
+  const blockEnded = (ended: number) => scenario(weeks(ended + 3, ended, [70, 70, 70, 70]))
+
+  it.each([
+    [12, 0.5],
+    [14, 0.5],
+    [16, 0.5],
+    [16, 0.25],
+    [20, 0.5],
+  ])(
+    'window %i, floor %f: 1 up to 12 weeks, a straight line to the floor, nothing after',
+    (end, floor) => {
+      withTaperEnd(end, () =>
+        withTaperFloor(floor, () => {
+          const window = P.g8.creditWindowWeeks.value
+          const tapers: number[] = []
+          for (let ended = 1; ended <= end + 2; ended += 1) {
+            const history = estimateState(blockEnded(ended)).history
+            if (ended > end) {
+              expect(history, `ended ${String(ended)}`).toBeNull()
+              continue
+            }
+            const expected =
+              ended <= window ? 1 : 1 - ((1 - floor) * (ended - window)) / (end - window)
+            expect(history!.taper, `ended ${String(ended)}`).toBeCloseTo(expected, 12)
+            expect(history!.blockMin, `ended ${String(ended)}`).toBe(280)
+            expect(history!.weeksAgo).toBe(ended)
+            if (ended >= window) tapers.push(history!.taper)
+          }
+          // it reaches the floor at the end of the window, in equal steps
+          if (end > window) {
+            expect(tapers.at(-1)).toBeCloseTo(floor, 12)
+            const steps = tapers.slice(1).map((t, i) => tapers[i]! - t)
+            for (const step of steps) expect(step).toBeCloseTo((1 - floor) / (end - window), 12)
+          }
+        }),
+      )
+    },
+  )
+})
+
+describe('a runner who runs as planned [rules g-8, g-2]', () => {
+  const weeksFrom = (plan: PlanDraft, monday: string) =>
+    plan.weeks
+      .filter((w) => w.weekStart >= monday)
+      .map((w) => [w.weekStart, w.targetRunMin, w.isRecovery])
+  const chainAt = (position: Position, maxSteps: number) =>
+    replanChain(at(h1(), position), { maxSteps })
+
+  it.each(LIFTED)(
+    '%s: the response adds nothing, so every re-plan is the plan of the zone alone',
+    (position) => {
+      for (const [k, { input, draft }] of chainAt(position, 6).entries()) {
+        if (k === 0) continue
+        expect(draft, `step ${String(k)}`).toEqual(
+          withResponseWeeks(NO_RESPONSE, () => replan(input).draft),
+        )
+      }
+    },
+  )
+
+  it.each(LIFTED)(
+    '%s: while the block is credited in full, every re-plan repeats the weeks of the first plan',
+    (position) => {
+      const chain = chainAt(position, 5)
+      const block = estimateState(chain[0]!.input).history!
+      let checked = 0
+      for (const [k, { input, draft }] of chain.entries()) {
+        const monday = mondayOf(input.today)
+        if (k === 0 || daysBetween(block.endWeek, monday) / 7 > P.g8.creditWindowWeeks.value)
+          continue
+        expect(weeksFrom(draft, monday), `step ${String(k)}`).toEqual(
+          weeksFrom(chain[0]!.draft, monday),
+        )
+        checked += 1
+      }
+      expect(checked).toBeGreaterThanOrEqual(4)
+    },
+  )
+
+  // Known gap, reported in the proposal (5.6): the block leaves the credit window while the
+  // rebuild is under way, the weeks run since form a new, lower block, R falls to a share of that,
+  // and the re-plans from then on plan fewer minutes than the first plan showed for the same weeks.
+  // The test states the property as written in 5.3 and is expected to fail until the engine keeps
+  // the credit of the plan's own block (or the 5.6 recommendation is taken); it then fails as
+  // passing, which says to turn `it.fails` into `it`.
+  it.fails(
+    'standard: and beyond the window too, every re-plan repeats the weeks of the first plan',
+    () => {
+      const chain = chainAt('standard', 8)
+      for (const [k, { input, draft }] of chain.entries()) {
+        const monday = mondayOf(input.today)
+        if (k === 0) continue
+        expect(weeksFrom(draft, monday), `step ${String(k)}`).toEqual(
+          weeksFrom(chain[0]!.draft, monday),
+        )
+      }
+    },
+  )
+})
+
+describe('H3 inside a chain: the low-frequency hold arms when the start level passes 60 minutes [rules A5, g-8]', () => {
+  it('holds the setting at steady for the one re-plan in which a week run 1.6 times the plan lifts the start level over 60', () => {
+    const chain = replanChain(at(h1(), 'standard'), { scale: 1.6, maxSteps: 4 })
+    const held = chain.map(({ input }) => loadPosition(input, estimateState(input)).held)
+    // the runs a week of the window are still under two when the start level reaches 60 (A5)
+    expect(held).toEqual([null, null, 'low-frequency', null, null])
+    // that re-plan is the steady plan's, as H3 says: the zone and the response are off while the
+    // flag holds, so the weeks ahead fall back, and the next re-plan returns to the zone
+    const { input, draft } = chain[2]!
+    expect(draft).toEqual(replan(at(input, 'steady')).draft)
+    const monday = mondayOf(input.today)
+    expect(
+      nextLoading(chain[1]!.draft, mondayOf(chain[1]!.input.today)).targetRunMin,
+    ).toBeGreaterThan(nextLoading(draft, monday).targetRunMin)
+  })
+})
+
+describe('weeks run 1.6 times the plan, along the chains of three cases [rules g-8]', () => {
+  it.each(LIFTED)(
+    '%s: the first loading week after a re-plan is inside the bounds of the response',
+    (position) => {
+      // runners who are not low-frequency when their start level passes 60 (h1 is: the hold would
+      // switch the zone and the response off for a week, which the next test of this file states)
+      const bases = [scenario([...summer(5), ...weeks(4, 1, [40])]), h3Back(), h4()]
+      let engaged = 0
+      for (const base of bases) {
+        const chain = replanChain(at(base, position), { scale: 1.6, maxSteps: 4 })
+        for (const [k, { input, draft }] of chain.entries()) {
+          if (k === 0) continue
+          const monday = mondayOf(input.today)
+          const zone = rebuildZone(input, estimateState(input))
+          const planned = lastLoadingAt(chain[k - 1]!.draft, monday).targetRunMin
+          const next = nextLoading(draft, monday).targetRunMin
+          // never below the step from the planned baseline (the response lifts a baseline and never
+          // lowers one), never above the step from the largest week of its window, which the mean
+          // of those weeks cannot pass
+          const largest = expectedResponse(input)?.maxWeekMin ?? 0
+          expect(next, `${position} step ${String(k)}`).toBeGreaterThanOrEqual(
+            nextOf(planned, zone),
+          )
+          expect(next, `${position} step ${String(k)}`).toBeLessThanOrEqual(
+            nextOf(Math.max(planned, largest), zone),
+          )
+          if (next > nextOf(planned, zone)) engaged += 1
+        }
+      }
+      expect(engaged).toBeGreaterThan(0)
+    },
+  )
+})
+
+describe('a week target raised by hand along the chain at standard and upper [rules g-2, g-8, ADR 0007]', () => {
+  /** The stored rows of a draft's weeks from the current Monday, with the targets in `raised`. */
+  function rowsOf(draft: PlanDraft, today: string, raised: Record<string, number>) {
+    return draft.weeks
+      .filter((w) => w.weekStart >= mondayOf(today))
+      .map((week, i): PlanWeekRow => {
+        const row = {
+          ...weekRow(week),
+          id: `w${String(i)}`,
+          planId: 'plan',
+          updatedAt: new Date(0),
+        } as PlanWeekRow
+        return {
+          ...row,
+          targetRunMin: raised[week.weekStart] ?? row.baselineRunMin,
+          targetSource: 'override',
+          overrideNote: 'Synthetic note.',
+        }
+      })
+  }
+
+  it.each(LIFTED)(
+    '%s: a target far above the limit is clipped to it, and the limit is not past the ceiling of the weeks before',
+    (position) => {
+      const steps = replanChain(at(h1(), position), { maxSteps: 8 }).filter((_, i) => i % 4 === 0)
+      let checked = 0
+      for (const step of steps) {
+        const state = estimateState(step.input)
+        const totals = weeklyTotals(step.input, step.draft)
+        const future = step.draft.weeks.filter(
+          (w) => w.weekStart >= mondayOf(step.input.today) && w.targetRunMin > 0 && !w.isTaper,
+        )
+        for (const week of [future[1]!, future[Math.floor(future.length / 2)]!, future.at(-2)!]) {
+          const asked = week.targetRunMin * 10 + 1000
+          const rows = rowsOf(step.draft, step.input.today, { [week.weekStart]: asked })
+          const limits = raisedTargetLimits({
+            rows,
+            draft: step.draft,
+            input: step.input,
+            state,
+            decidedWeek: null,
+          })
+          const planned = planWeekWrites(rows, {
+            today: step.input.today,
+            weeks: step.draft.weeks,
+            limits,
+          })
+          const where = `${position} ${week.weekStart} of the plan of ${step.input.today}`
+          const limit = limits.get(week.weekStart)!
+          const named = planned.targets.find((t) => t.weekStart === week.weekStart)!
+          expect(named.outcome, where).toBe('clipped')
+          expect(named.keptMin, where).toBeLessThanOrEqual(limit.max)
+          expect(named.keptMin, where).toBeGreaterThanOrEqual(week.targetRunMin)
+          const written = planned.updated.find((u) => u.before.weekStart === week.weekStart)
+          if (written !== undefined) {
+            expect(written.data.targetRunMin, where).toBeLessThanOrEqual(limit.max)
+          }
+          if (limit.kind === 'ceiling') {
+            // the ceiling reads two earlier weeks of the plan, so it is under the largest week before
+            const before = Math.max(
+              0,
+              ...[...totals]
+                .filter(([monday]) => monday < week.weekStart)
+                .map(([, minutes]) => minutes),
+            )
+            expect(limit.max, where).toBeLessThanOrEqual(
+              Math.floor(before * (1 + P.g2.rampCeilingTwoWeeks.value)) + 1,
+            )
+          }
+          checked += 1
+        }
+      }
+      expect(checked).toBe(9)
+    },
+  )
 })
