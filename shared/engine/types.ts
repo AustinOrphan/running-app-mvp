@@ -64,10 +64,11 @@ export interface DistanceEstimate {
   distanceM: number
   /**
    * What the minutes were run at: `pace` is the session's own pace target (the work of a threshold
-   * session, intervals or race-pace blocks); `easy` is the runner's easy pace, for a run led by
-   * heart rate or effort.
+   * session, intervals or race-pace blocks); `easy` is the easy pace of the runner's zones, for a
+   * run led by heart rate or effort; `recent` is the pace of the runner's recent logged runs, the
+   * stand-in when the zones hold no pace.
    */
-  basis: 'pace' | 'easy'
+  basis: 'pace' | 'easy' | 'recent'
 }
 export interface SessionTarget {
   zone: ZoneKey

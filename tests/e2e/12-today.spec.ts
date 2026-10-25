@@ -582,11 +582,14 @@ test('the check-in sheet takes the full check-in, and queues it with no connecti
   expect(((await api.get(`/checkins/${today}`)) as { mood: number }).mood).toBe(2)
 })
 
-test('once the zones hold a pace, Today words a distance estimate beside the minutes and for the week', async () => {
-  // A tested threshold pace gives the zones a pace; the estimate is worked out from them on the
-  // server and read, never recomputed, by the page.
+test('Today words a distance estimate beside the minutes and for the week, from the recent pace until the zones hold one', async () => {
+  // Four logged runs and no tested threshold pace: the zones hold no pace, so the recent logged
+  // pace stands in. A tested threshold pace then gives the zones one, and the easy pace takes over.
+  const recent = (await api.get('/today')) as TodayView
+  expect(recent.coach.next?.distanceEstimate?.basis).toBe('recent')
   await api.put('/profile', { thresholdPaceSecPerKm: 330 })
   const view = (await api.get('/today')) as TodayView
+  expect(view.coach.next?.distanceEstimate?.basis).not.toBe('recent')
   expect(view.coach.weekStrip?.distanceEstimateM ?? 0).toBeGreaterThan(0)
 
   await page.goto('/')

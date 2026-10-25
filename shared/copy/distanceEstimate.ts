@@ -24,6 +24,14 @@ export const DISTANCE_ESTIMATE_TEMPLATES = {
       shape: 'label',
     },
   ),
+  // The same run when the zones hold no pace: its minutes at the pace of the recent logged runs.
+  'estimate.about-recent': tpl(
+    'about {distance} at your recent pace',
+    { distance: 'distance' },
+    {
+      shape: 'label',
+    },
+  ),
   // A run with a pace target of its own, and a week: the figure alone.
   'estimate.about': tpl('about {distance}', { distance: 'distance' }, { shape: 'label' }),
   // The caption under the week strip's meter.
@@ -54,12 +62,20 @@ export function estimateQuantity(
   return { kind: 'distance', m: rounded * unitM }
 }
 
-/** "about 9 mi at your easy pace" for a run led by heart rate or effort, "about 9 mi" for a paced one. */
+/**
+ * "about 9 mi at your easy pace" for a run led by heart rate or effort, "about 9 mi at your recent
+ * pace" when the zones hold no pace and the recent logged runs stand in, "about 9 mi" for a paced one.
+ */
 export function estimateText(estimate: DistanceEstimate, units: Units): string {
   const distance = estimateQuantity(estimate.distanceM, units)
-  return estimate.basis === 'easy'
-    ? render(DISTANCE_ESTIMATE_TEMPLATES['estimate.about-easy'], { distance }, units)
-    : render(DISTANCE_ESTIMATE_TEMPLATES['estimate.about'], { distance }, units)
+  switch (estimate.basis) {
+    case 'easy':
+      return render(DISTANCE_ESTIMATE_TEMPLATES['estimate.about-easy'], { distance }, units)
+    case 'recent':
+      return render(DISTANCE_ESTIMATE_TEMPLATES['estimate.about-recent'], { distance }, units)
+    case 'pace':
+      return render(DISTANCE_ESTIMATE_TEMPLATES['estimate.about'], { distance }, units)
+  }
 }
 
 /** "about 19 mi": a week's runs, or a session where the pace need not be named. */

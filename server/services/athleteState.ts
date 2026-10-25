@@ -5,7 +5,7 @@
 // and midnight, all make the next read build a fresh picture. Nothing here raises the data version.
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
-import { withDistanceEstimate } from '../../shared/engine/distanceEstimate.ts'
+import { recentPaceSecPerKm, withDistanceEstimate } from '../../shared/engine/distanceEstimate.ts'
 import { fitHrModel, type HrModel } from '../../shared/engine/execution.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
 import { isDuplicate } from '../../shared/engine/load.ts'
@@ -150,6 +150,11 @@ export interface AthleteContext {
   /** The state the engine estimates from the data above (it does not depend on a goal). */
   readonly state: AthleteState
   readonly zones: ZoneSet
+  /**
+   * The pace of the runner's recent easier runs in sec/km (`recentPaceSecPerKm`), the stand-in for
+   * the easy pace of the zones when they hold none; null without a logged run to read it from.
+   */
+  readonly recentPaceSecPerKm: number | null
   /** Readiness for `asOf`, computed with the stored plan so the masters gate sees done sessions. */
   readonly readiness: ReadinessSnapshot
   readonly inputs: StateInputs
@@ -536,8 +541,10 @@ async function buildContext(
   const state = estimateState(base)
   const zones = buildZones(profile, state, today)
   const readiness = readinessSnapshot({ ...base, existing }, today)
-  // The estimate follows the zones as they are now; the stored sessions and `existing` do not.
-  const planSessions = storedSessions.map((session) => withDistanceEstimate(session, zones))
+  // The estimate follows the paces as they are now; the stored sessions and `existing` do not.
+  const recentPace = recentPaceSecPerKm({ activities, state, zones })
+  const paces = { zones, recentPaceSecPerKm: recentPace }
+  const planSessions = storedSessions.map((session) => withDistanceEstimate(session, paces))
 
   const counted = activities.filter((activity) => !isDuplicate(activity))
   const inputs: StateInputs = {
@@ -578,6 +585,7 @@ async function buildContext(
     planSessions,
     state,
     zones,
+    recentPaceSecPerKm: recentPace,
     readiness,
     inputs,
     existing: () => existing,

@@ -575,6 +575,42 @@ describe('GET /api/today: the distance estimate', () => {
     expect(after).toBe(metresAt(60, middleOf(zones.pace!.z1)))
   })
 
+  test('a runner with logged runs and no zone pace gets the recent pace, and the week follows it', async () => {
+    const { u } = await planWith('estimate-recent@example.com', [
+      { date: today, kind: 'easy', min: 45 },
+      { date: tomorrow, kind: 'long', min: 90 },
+      { date: addDays(today, 2), kind: 'strength', min: 30 },
+    ])
+    // Four runs of 40 min over 6 km in the last two weeks: 400 s/km, with no heart rate to judge by.
+    for (const back of [3, 5, 9, 12]) {
+      await ctx.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date: addDays(today, -back),
+          type: 'run',
+          durationSec: 40 * 60,
+          distanceM: 6000,
+          source: 'manual',
+        },
+      })
+    }
+    expect((await zonesOf(u)).pace).toBeNull()
+
+    const { coach, sessions } = await view(u)
+    expect(coach.hero!.session.distanceEstimate).toEqual({
+      distanceM: metresAt(45, 400),
+      basis: 'recent',
+    })
+    expect(sessions[0]!.session.distanceEstimate).toEqual(coach.hero!.session.distanceEstimate)
+    expect(coach.next!.distanceEstimate).toEqual({ distanceM: metresAt(90, 400), basis: 'recent' })
+    expect(coach.weekStrip!.distanceEstimateM).toBe(metresAt(45, 400) + metresAt(90, 400))
+    // The snapshot holds it: no read beyond the ones the page already makes.
+    const warm = trackQueries(ctx.prisma)
+    await view(u)
+    expect(warm.count('activity.findMany')).toBe(0)
+    vi.restoreAllMocks()
+  })
+
   test('a runner with no pace data has no estimate anywhere, never a guess', async () => {
     const { u } = await planWith('estimate-none@example.com', [
       { date: today, kind: 'easy', min: 45 },

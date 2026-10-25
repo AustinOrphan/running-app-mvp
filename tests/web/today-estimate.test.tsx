@@ -42,6 +42,27 @@ describe('Today: the hero', () => {
     expectCleanCopy(container)
   })
 
+  test('names the recent pace when the zones hold no pace and the recent logged runs stand in', async () => {
+    const { container } = renderToday(
+      dayOf(makeSession({ distanceEstimate: { distanceM: 14_480, basis: 'recent' } })),
+    )
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    expect(within(card).getByText('about 9 mi at your recent pace')).toBeInTheDocument()
+    expect(within(card).queryByText(/easy pace/)).not.toBeInTheDocument()
+    expect(within(card).queryByText('5.00 mi')).not.toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
+  test('words the recent pace in kilometres for a runner of kilometres', async () => {
+    renderToday(
+      dayOf(makeSession({ distanceEstimate: { distanceM: 14_480, basis: 'recent' } })),
+      {},
+      'km',
+    )
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    expect(within(card).getByText('about 14 km at your recent pace')).toBeInTheDocument()
+  })
+
   test('is the figure alone for a session with a pace target of its own', async () => {
     renderToday(
       dayOf(makeSession({ kind: 'threshold', title: 'Threshold', distanceEstimate: PACED_7 })),

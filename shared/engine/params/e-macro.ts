@@ -498,6 +498,21 @@ export const eMacro = {
       unit: 'weeks',
       note: 'Default: the average training pace is the median of the weekly paces over the last this many weeks, leaving out a week without a run.',
     }),
+    recentPaceFastestShare: param(
+      'macroDesign.recentPaceFastestShare',
+      0.25,
+      'D',
+      'design-macro',
+      [],
+      {
+        unit: 'fraction of recent runs',
+        note: 'Default: the recent pace shown when the zones hold no pace is the median of the logged runs of the training-pace weeks, races left out, after the fastest share of the runs with no heart rate (and every run above the easy heart-rate limit) is left out, so hard sessions do not pull the figure down.',
+      },
+    ),
+    recentPaceMinRuns: param('macroDesign.recentPaceMinRuns', 3, 'D', 'design-macro', [], {
+      unit: 'runs',
+      note: 'Default: the recent pace of the easier runs needs at least this many runs; with fewer, the median of the weekly paces over the same weeks stands in.',
+    }),
     trainingPaceFactor: param('macroDesign.trainingPaceFactor', 1.15, 'D', 'design-macro', [], {
       note: 'Default: average training pace is this multiple of the goal pace when no recent pace exists.',
     }),

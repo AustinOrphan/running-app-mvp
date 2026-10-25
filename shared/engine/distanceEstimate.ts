@@ -1,24 +1,33 @@
 // The distance estimate beside a session's minutes (STATUS follow-up 17). The plan's currency stays
 // minutes (ADR 0003) and nothing is scored against distance: this is a figure to picture the run
-// by, derived on the server from the zones as they are now and carried in the payloads, never
-// stored and never recomputed in the browser. Pure: zones arrive as an argument.
+// by, derived on the server from the paces the runner has now and carried in the payloads, never
+// stored and never recomputed in the browser. Pure: the paces arrive as an argument.
 //
-// Two bases, worded apart in `shared/copy/distanceEstimate.ts`:
+// Where the easy pace comes from, in order:
+// 1. the zones: the middle of the Z1 pace range (the same pace the engine turns minutes into
+//    distance with when it builds a plan, `distanceFor` in `sessions.ts`). That range's slow edge
+//    is the grade D `c2.z1PaceSlowFactor`.
+// 2. the runner's recent logged runs (`recentPaceSecPerKm`), when the zones hold no pace, which is
+//    a runner with no tested threshold pace and too little critical-speed data.
+// 3. none: a missing pace is never replaced by a guess.
+//
+// Three bases, worded apart in `shared/copy/distanceEstimate.ts`:
 // - `pace`: a session with a pace target of its own (a threshold session, intervals, race-pace
 //   blocks) covers its work minutes at the middle of that pace band; the minutes around the work
 //   (warm-up, cool-down, recoveries) are easy running.
-// - `easy`: a run led by heart rate or effort covers its minutes at the runner's easy pace, the
-//   middle of the Z1 pace range of the zones (the same pace the engine turns minutes into distance
-//   with when it builds a plan, `distanceFor` in `sessions.ts`). That range's slow edge is the
-//   grade D `c2.z1PaceSlowFactor`; the estimate adds no number of its own.
+// - `easy`: a run led by heart rate or effort covers its minutes at the easy pace of the zones.
+// - `recent`: the same run, at the recent logged pace, because the zones hold none.
 //
 // No estimate (null) for a session that is not a run (a hike, strength, mobility, cross-training,
-// rest), for the race (its distance is the goal's), for a run-walk session (its minutes mix
-// walking and running, so no single pace fits), and for a runner with no pace data: a missing pace
-// is never replaced by a guess.
+// rest), for the race (its distance is the goal's), and for a run-walk session (its minutes mix
+// walking and running, so no single pace fits).
+import { isDuplicate } from './load.ts'
+import { median, recentWeeklyPace } from './goal.ts'
+import { P } from './params/index.ts'
 import { RUN_KINDS } from './sessions.ts'
 import { resolveTargets } from './targets.ts'
-import type { DistanceEstimate, SessionSpec, ZoneSet } from './types.ts'
+import type { Activity } from '../types.ts'
+import type { AthleteState, DistanceEstimate, SessionSpec, ZoneSet } from './types.ts'
 
 const SEC_PER_MIN = 60
 const M_PER_KM = 1000
@@ -37,12 +46,72 @@ export interface WeekEstimateSource {
   distanceEstimate: DistanceEstimate | null
 }
 
+/** The paces an estimate is worked out from: the zones, and the recent logged pace behind them. */
+export interface EstimatePaces {
+  zones: ZoneSet | null
+  /** `recentPaceSecPerKm`; null when the runner has no logged run with a distance in the window. */
+  recentPaceSecPerKm: number | null
+}
+
 const middle = (range: readonly [number, number]): number => (range[0] + range[1]) / 2
 
 /** The runner's easy pace in seconds per km: the middle of the Z1 pace range; null without one. */
 export function easyPaceSecPerKm(zones: ZoneSet | null): number | null {
   const z1 = zones?.pace?.z1 ?? null
   return z1 !== null && middle(z1) > 0 ? middle(z1) : null
+}
+
+/** The easy pace and where it came from: the zones first, then the recent logged runs. */
+function easyPace(paces: EstimatePaces): { secPerKm: number; from: 'zones' | 'recent' } | null {
+  const fromZones = easyPaceSecPerKm(paces.zones)
+  if (fromZones !== null) return { secPerKm: fromZones, from: 'zones' }
+  const recent = paces.recentPaceSecPerKm
+  return recent !== null && recent > 0 ? { secPerKm: recent, from: 'recent' } : null
+}
+
+/**
+ * The runner's recent pace in sec/km, for when the zones hold none; null when nothing logged can
+ * say. It reads the same weeks as `trainingPace` (`macroDesign.trainingPaceWeeks`), and prefers the
+ * easy runs among them: logged runs (not races, not flagged duplicates, with a distance) of at least
+ * the shortest session the engine plans (`restartFloor.sessionMin`). Hard sessions are left out:
+ * a run whose average heart rate is above the easy limit (the top of Z1) when the zones hold one,
+ * and, among the runs with no heart rate to judge by, the fastest `macroDesign.recentPaceFastestShare`.
+ * With at least `macroDesign.recentPaceMinRuns` runs left, the median of their paces; with fewer,
+ * the median of the weekly paces of the window, as `trainingPace` takes it (`recentWeeklyPace`).
+ */
+export function recentPaceSecPerKm(args: {
+  activities: readonly Activity[]
+  state: Pick<AthleteState, 'weeks'>
+  zones: ZoneSet | null
+}): number | null {
+  const window = args.state.weeks.slice(-P.macroDesign.trainingPaceWeeks.value)
+  const from = window[0]?.weekStart
+  if (from !== undefined) {
+    const minSec = P.restartFloor.sessionMin.value * SEC_PER_MIN
+    const ceiling = args.zones?.lt1Hr?.value ?? null
+    const runs = args.activities
+      .filter(
+        (a) =>
+          a.type === 'run' &&
+          !isDuplicate(a) &&
+          a.date >= from &&
+          a.durationSec >= minSec &&
+          (a.distanceM ?? 0) > 0,
+      )
+      .map((a) => ({ secPerKm: a.durationSec / ((a.distanceM ?? 0) / M_PER_KM), avgHr: a.avgHr }))
+    // Heart rate judges the runs that have one, when there is a limit to judge by.
+    const judged = (run: { avgHr: number | null }) => ceiling !== null && run.avgHr !== null
+    const easyByHr = runs.filter((run) => judged(run) && run.avgHr! <= ceiling!)
+    const unjudged = runs.filter((run) => !judged(run)).sort((a, b) => a.secPerKm - b.secPerKm)
+    const keptUnjudged = unjudged.slice(
+      Math.floor(unjudged.length * P.macroDesign.recentPaceFastestShare.value),
+    )
+    const easy = [...easyByHr, ...keptUnjudged]
+    if (easy.length >= P.macroDesign.recentPaceMinRuns.value) {
+      return median(easy.map((run) => run.secPerKm))
+    }
+  }
+  return recentWeeklyPace(args.state)
 }
 
 /** Seconds of the steps of the work kind, at most the session's own seconds; zero without steps. */
@@ -61,7 +130,7 @@ function workSeconds(session: EstimateSource, totalSec: number): number {
  */
 export function estimateDistance(
   session: EstimateSource,
-  zones: ZoneSet | null,
+  paces: EstimatePaces,
 ): DistanceEstimate | null {
   if (!RUN_KINDS.has(session.kind) || !(session.durationMin > 0)) return null
   if (session.flags.includes('run-walk')) return null
@@ -69,8 +138,8 @@ export function estimateDistance(
   // that cannot be read costs that session its estimate and nothing more.
   if (!Array.isArray(session.target?.rpe)) return null
 
-  const easy = easyPaceSecPerKm(zones)
-  const targets = resolveTargets(session, zones, { hot: false })
+  const easy = easyPace(paces)
+  const targets = resolveTargets(session, paces.zones, { hot: false })
   const totalSec = session.durationMin * SEC_PER_MIN
 
   let meters: number
@@ -83,12 +152,13 @@ export function estimateDistance(
     const easySec = totalSec - workSec
     // The minutes around the work are easy running, and need the easy pace to be counted.
     if (easySec > 0 && easy === null) return null
-    meters = (workSec / pace) * M_PER_KM + (easy === null ? 0 : (easySec / easy) * M_PER_KM)
+    meters =
+      (workSec / pace) * M_PER_KM + (easy === null ? 0 : (easySec / easy.secPerKm) * M_PER_KM)
     basis = 'pace'
   } else {
     if (easy === null) return null
-    meters = (totalSec / easy) * M_PER_KM
-    basis = 'easy'
+    meters = (totalSec / easy.secPerKm) * M_PER_KM
+    basis = easy.from === 'zones' ? 'easy' : 'recent'
   }
   const distanceM = Math.round(meters)
   return distanceM > 0 ? { distanceM, basis } : null
@@ -97,9 +167,9 @@ export function estimateDistance(
 /** A session with its estimate attached, as a screen is served it. */
 export function withDistanceEstimate<S extends EstimateSource>(
   session: S,
-  zones: ZoneSet | null,
+  paces: EstimatePaces,
 ): S & { distanceEstimate: DistanceEstimate | null } {
-  return { ...session, distanceEstimate: estimateDistance(session, zones) }
+  return { ...session, distanceEstimate: estimateDistance(session, paces) }
 }
 
 /**
@@ -107,6 +177,7 @@ export function withDistanceEstimate<S extends EstimateSource>(
  * the plan (a skipped session is not). Null when no session has one, and null when a run of the
  * week has none (the race, a run-walk session, a runner with no pace data), because a partial sum
  * would read as the whole week. Sessions that are not runs, and runs of no minutes, add nothing.
+ * The sum takes each session's estimate as it is, so a week follows the paces its sessions did.
  */
 export function weekDistanceEstimateM(sessions: readonly WeekEstimateSource[]): number | null {
   let total = 0

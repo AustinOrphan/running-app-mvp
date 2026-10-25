@@ -567,7 +567,7 @@ describe('the key session', () => {
     for (const kind of SESSION_KINDS) {
       for (const hot of [false, true]) {
         const session = { ...sessions[0]!, kind }
-        const key = keySessionFacts(session, zones, hot)
+        const key = keySessionFacts(session, zones, hot, null)
         const t = resolveTargets(session, zones, { hot })
         expect(key.target, `${kind} hot=${String(hot)}`).toEqual({
           zone: t.zone,
@@ -588,10 +588,10 @@ describe('the key session', () => {
       }
     }
     // hot weather puts effort first for a run and never for a strength day
-    expect(keySessionFacts({ ...sessions[1]! }, zones, true).target.mode).toBe('effort')
-    expect(keySessionFacts({ ...sessions[1]!, kind: 'strength' }, zones, true).target.hot).toBe(
-      false,
-    )
+    expect(keySessionFacts({ ...sessions[1]! }, zones, true, null).target.mode).toBe('effort')
+    expect(
+      keySessionFacts({ ...sessions[1]!, kind: 'strength' }, zones, true, null).target.hot,
+    ).toBe(false)
   })
 
   test('is read through the forecast the caller supplies and stored with the facts', () => {

@@ -73,6 +73,13 @@ describe('estimateText', () => {
     expect(estimateText(easy, 'mi')).toBe('about 9 mi at your easy pace')
   })
 
+  test('names the recent pace when the zones hold none and the recent logged runs stand in', () => {
+    const recent = { distanceM: 14_480, basis: 'recent' } as const
+    expect(estimateText(recent, 'km')).toBe('about 14 km at your recent pace')
+    expect(estimateText(recent, 'mi')).toBe('about 9 mi at your recent pace')
+    expect(estimateText(recent, 'mi')).not.toMatch(/easy|target/)
+  })
+
   test('is the figure alone for a session with a pace target of its own', () => {
     const paced = { distanceM: 10_932, basis: 'pace' } as const
     expect(estimateText(paced, 'km')).toBe('about 11 km')
@@ -90,7 +97,7 @@ describe('estimateText', () => {
 
   test('says nothing a lint would flag', () => {
     for (const units of ['km', 'mi'] as const) {
-      for (const basis of ['easy', 'pace'] as const) {
+      for (const basis of ['easy', 'recent', 'pace'] as const) {
         expect(lintText(estimateText({ distanceM: 9_000, basis }, units))).toEqual([])
       }
     }
@@ -122,10 +129,16 @@ describe('one figure, every wording', () => {
   const figure = /about ([0-9.]+ (?:mi|km|m))\b/
 
   test.each([800, 2_400, 4_900, 5_100, 9_863, 21_097, 42_195, 160_934])(
-    'reads %i m the same on every surface, in both unit systems',
+    'reads %i m the same on every surface, in both unit systems and on every basis',
     (distanceM) => {
-      for (const units of ['km', 'mi'] as const) {
-        const estimate = { distanceM, basis: 'easy' } as const
+      for (const [units, basis] of [
+        ['km', 'easy'],
+        ['mi', 'easy'],
+        ['km', 'recent'],
+        ['mi', 'recent'],
+        ['mi', 'pace'],
+      ] as const) {
+        const estimate = { distanceM, basis } as const
         const key = {
           sessionId: 's1',
           externalId: null,

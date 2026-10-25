@@ -60,7 +60,10 @@ interface Seed {
  * A runner with a version-2 plan of hand-made sessions. With `pace`, the profile holds a tested
  * threshold pace and a run three days ago stands in the history, so the zones carry pace.
  */
-async function runner(sessions: Seed[], opts: { pace: boolean; generatorVersion?: number }) {
+async function runner(
+  sessions: Seed[],
+  opts: { pace: boolean; recentRuns?: boolean; generatorVersion?: number },
+) {
   const u = await seedUser(ctx, { email: `estimate-${String(nextUser++)}@example.com` })
   await ctx.prisma.athleteProfile.create({
     data: {
@@ -82,6 +85,21 @@ async function runner(sessions: Seed[], opts: { pace: boolean; generatorVersion?
         source: 'manual',
       },
     })
+  }
+  if (opts.recentRuns === true) {
+    // Four runs of 40 min over 6 km in the last two weeks: 400 s/km, no heart rate to judge by.
+    for (const back of [3, 5, 9, 12]) {
+      await ctx.prisma.activity.create({
+        data: {
+          userId: u.id,
+          date: addDays(today, -back),
+          type: 'run',
+          durationSec: 40 * 60,
+          distanceM: 6000,
+          source: 'manual',
+        },
+      })
+    }
   }
   const goal = await ctx.prisma.goal.create({
     data: {
@@ -206,6 +224,31 @@ describe('GET /api/plan: the distance estimate', () => {
     expect(plan.zones?.pace ?? null).toBeNull()
     expect(plan.sessions.map((s) => s.distanceEstimate)).toEqual([null, null])
     expect(plan.weeks.map((w) => w.distanceEstimateM)).toEqual([null, null])
+  })
+
+  test('a runner with logged runs and no zone pace gets the recent pace on every run, and the weeks add up', async () => {
+    const { u } = await runner(
+      [
+        { date: addDays(thisMonday, 1), kind: 'easy', min: 40 },
+        { date: addDays(thisMonday, 3), kind: 'threshold', min: 50 },
+        { date: addDays(thisMonday, 4), kind: 'strength', min: 30 },
+        { date: addDays(thisMonday, 5), kind: 'long', min: 90 },
+      ],
+      { pace: false, recentRuns: true },
+    )
+    const plan = await planOf(u)
+    expect(plan.zones?.pace ?? null).toBeNull()
+    // The threshold session keeps its stored band (320 s/km) for the work; with no steps it is run
+    // wholly at that pace. The other runs are the recent 400 s/km.
+    expect(plan.sessions.map((s) => [s.kind, s.distanceEstimate])).toEqual([
+      ['easy', { distanceM: metresAt(40, 400), basis: 'recent' }],
+      ['threshold', { distanceM: metresAt(50, 320), basis: 'pace' }],
+      ['strength', null],
+      ['long', { distanceM: metresAt(90, 400), basis: 'recent' }],
+    ])
+    expect(plan.weeks[0]!.distanceEstimateM).toBe(
+      metresAt(40, 400) + metresAt(50, 320) + metresAt(90, 400),
+    )
   })
 
   test('a version-1 plan has no sessions and no estimate', async () => {

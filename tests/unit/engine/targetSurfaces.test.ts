@@ -183,6 +183,7 @@ const briefKey: SurfaceAdapter = {
       { ...session, id: 'brief-session', status: 'planned', activityId: null },
       ctx.zones,
       ctx.hot,
+      null,
     )
     // The stored figures are plain data: they come back from the JSON column as written.
     const stored = JSON.parse(JSON.stringify(key)) as typeof key

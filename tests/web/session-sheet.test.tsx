@@ -147,6 +147,15 @@ describe('SessionSheet', () => {
       )
     })
 
+    test('names the recent pace when the recent logged runs stand in for the zones', async () => {
+      renderSheet(makeSession({ distanceEstimate: { distanceM: 8400, basis: 'recent' } }), {
+        'GET /api/settings': () => ({ ...settings, units: 'km' }),
+      })
+      const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+      expect(await within(dialog).findByText('about 8 km at your recent pace')).toBeInTheDocument()
+      expect(within(dialog).queryByText(/easy pace/)).not.toBeInTheDocument()
+    })
+
     test('is the figure alone for a session with a pace target of its own, in miles for a runner of miles', async () => {
       renderSheet(makeSession({ distanceEstimate: { distanceM: 10_900, basis: 'pace' } }), {
         'GET /api/settings': () => ({ ...settings, units: 'mi' }),

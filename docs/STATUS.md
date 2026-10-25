@@ -9,31 +9,43 @@ Last update: 2026-10-24.
 
 - **Distance estimate beside the minutes (2026-10-24, `feat/distance-estimate`, follow-up 17).** A
   run session carries `distanceEstimate` (`{ distanceM, basis }`) and a plan week
-  `distanceEstimateM`, worked out on the server from the zones as they are now
-  (`shared/engine/distanceEstimate.ts`) and never stored. A run led by heart rate or effort covers
-  its minutes at the middle of the Z1 pace range (`basis: 'easy'`; the range's slow edge is the
-  existing grade D `c2.z1PaceSlowFactor`, so no new Param); a threshold, interval or race-pace
-  session covers its work minutes at the middle of its own pace band and the rest at the easy pace
-  (`basis: 'pace'`). Null for a hike, strength, mobility, cross-training or rest session, the race,
-  a run-walk session, and a runner whose zones hold no pace. The payload types are
-  `PlanSessionView` and `PlanWeekView`, so a producer that omits the field does not compile;
-  `WeekStrip.distanceEstimateM`, `BriefKeySession.distanceEstimate` (kept in the brief's facts,
-  absent in older briefs) and `BriefListItem.nextKey.distanceEstimate` carry the rest. The words
-  are in `shared/copy/distanceEstimate.ts` ("about 9 mi at your easy pace", "about 9 mi"; half unit
-  below 5, whole unit above) and appear on the Today hero and next line, the week strip, the
-  session sheet, the Plan day cards and week rows, the brief's key session and Today's brief line.
-  Where an estimate exists it replaces the plan's own unlabelled `SessionSpec.distanceM` on those
-  surfaces; an eased session carries neither. Plan output is byte-identical (owner validation: 39
-  weeks, 210 sessions, 0 failing checks, identical to the phase 3a close), and Today's request
-  pins are unchanged (30 reads cold, 15 warm). Gates: `npm run check` (232 files, 11033 tests),
-  `npm run build`, `npm run test:e2e` (78). Open: the owner's own zones hold no pace on
-  2026-10-23 (one critical-speed effort, no tested threshold pace), so the owner sees no estimate
-  until a threshold pace is entered or a fallback is chosen ("Decisions for the owner" below). The
-  hero's extent column wraps beside the minutes, so the phrase costs no height at 360 px (measured
-  with a payload patched in Playwright: 0 px against the plain distance). The e2e fold test has no
-  pace zones: with a tested threshold pace set before the plan is made, Done ends at 766 px at
-  360 x 740, with the estimate or without it, so the fold is unproven for a runner whose zones
-  hold pace.
+  `distanceEstimateM`, worked out on the server (`shared/engine/distanceEstimate.ts`) and never
+  stored. The easy pace comes from the zones when they hold a pace (the middle of the Z1 range,
+  `basis: 'easy'`; its slow edge is the existing grade D `c2.z1PaceSlowFactor`), else from the
+  runner's recent logged runs (`basis: 'recent'`, "about 9 mi at your recent pace"), else there is
+  no estimate. The recent pace (`recentPaceSecPerKm`) is the median pace of the logged runs of the
+  last `macroDesign.trainingPaceWeeks` weeks (the window of `trainingPace`) that are at least
+  `restartFloor.sessionMin` long, not races, not flagged duplicates and with a distance, after the
+  hard ones are left out: runs above the easy heart-rate limit (the top of Z1) when the zones hold
+  one, and the fastest `macroDesign.recentPaceFastestShare` of the runs with no heart rate to judge
+  by. With fewer than `macroDesign.recentPaceMinRuns` runs left it is the median of the weekly
+  paces of the window (`recentWeeklyPace`, factored out of `trainingPace`). It is computed once per
+  snapshot (`AthleteContext.recentPaceSecPerKm`, no new query), so the plan, Today and the brief
+  share it. Two new grade D Params (`PARAMS_VERSION` `2026-10-24.1`); the 20-minute floor and the
+  window reuse existing ones. A threshold, interval or race-pace session covers its work minutes at
+  the middle of its own pace band and the rest at the easy pace (`basis: 'pace'`). Null for a hike,
+  strength, mobility, cross-training or rest session, the race, a run-walk session, and a runner
+  with neither a zone pace nor a usable logged run. The payload types are `PlanSessionView` and
+  `PlanWeekView`, so a producer that omits the field does not compile; `WeekStrip.distanceEstimateM`,
+  `BriefKeySession.distanceEstimate` (kept in the brief's facts, absent in older briefs) and
+  `BriefListItem.nextKey.distanceEstimate` carry the rest. The words are in
+  `shared/copy/distanceEstimate.ts` (half unit below 5, whole unit above) and appear on the Today
+  hero and next line, the week strip, the session sheet, the Plan day cards and week rows, the
+  brief's key session and Today's brief line. Where an estimate exists it replaces the plan's own
+  unlabelled `SessionSpec.distanceM` on those surfaces; an eased session carries neither. Plan
+  output is byte-identical (owner validation: 39 weeks, 210 sessions, 0 failing checks, identical to
+  the phase 3a close); the owner's zones hold no pace on 2026-10-23, and the same plan with the
+  estimates worked out against the owner's history reads a recent pace of 359.8 s/km (9:39 per
+  mile) and gives 152 of 210 sessions an estimate (a 30-minute run: about 3.1 mi at the recent
+  pace; the first week: about 6.2 mi), the rest being strength, mobility, rest and the race. A
+  threshold pace entered on the Profile page still gives the better figure: it is the easy pace of
+  the zones, not an average that includes hard days. Today's request pins are unchanged (30 reads
+  cold, 15 warm). Gates: `npm run check` (232 files, 11056 tests), `npm run build`,
+  `npm run test:e2e` (78). The hero's extent column wraps beside the minutes, so the phrase costs no
+  height at 360 px (measured with a payload patched in Playwright: 0 px against the plain
+  distance). The e2e fold test passes with an estimate in the payload, but it has no pace zones: with
+  a tested threshold pace set before the plan is made, Done ended at 766 px at 360 x 740, with the
+  estimate or without it, so the fold is unproven for a runner whose zones hold pace.
 - **Phase 3a implemented (2026-10-23).** Seven implementation waves landed through PRs #542,
   #544, #546, #549, #551, #552, #553 and #554 (with the fix PRs #538, #540, #541, #543, #545, #547,
   #548 and #550), each wave gated by `npm run check`, `npm run build`, `npm run test:e2e`, a Docker
@@ -1071,16 +1083,18 @@ are shown as typed." (e) The countdown reads "Weeks until {name}: {n}.", which r
 a goal name ends in punctuation; "{name} is {n} weeks away" is the alternative. (f) The compact
 disruption banner's buttons are 26 px high inside the 64 px slot budget.
 
-The distance estimate adds: (a) the owner's zones hold no pace on 2026-10-23, so the estimate is
-null for the owner. Either a threshold pace is entered on the Profile page (the zones then hold
-pace and every estimate appears), or the estimate falls back to the median pace of the last
-`macroDesign.trainingPaceWeeks` weeks of logged runs (`trainingPace` in `shared/engine/goal.ts`,
-grade D, already how the engine turns minutes into distance for its caps), worded "at your recent
-pace". The fallback is not built: it averages hard runs in, and the scope of this change fixed that a
-runner with no pace data gets no estimate. (b) The estimate replaces the plan's own unlabelled
-distance on the screens above; the Done sheet still words the plan's `distanceM` ("Planned: 40
-min, 6.2 mi") and pre-fills the log with it. (c) The race and run-walk sessions have no estimate,
-so a race week or a ladder week has none for the week.
+The distance estimate adds: (a) the owner's zones hold no pace on 2026-10-23 (one critical-speed
+effort, no tested threshold pace), so the estimate falls back to the pace of the recent logged runs
+and reads "at your recent pace". The fallback exists; a threshold pace entered on the Profile page
+still gives the better figure, because the zones then hold a pace of the easy kind, where the
+recent pace is a median that a hard run can still lift (the fastest quarter and the runs above the
+easy heart-rate limit are left out, but a runner with no heart rate and fewer than four runs in
+the four weeks has nothing to leave out). Quality sessions with no pace target (a threshold or
+interval session in a plan made before any pace existed) are counted at the recent pace too, which
+reads a little short. (b) The estimate replaces the plan's own unlabelled distance on the screens
+above; the Done sheet still words the plan's `distanceM` ("Planned: 40 min, 6.2 mi") and pre-fills
+the log with it. (c) The race and run-walk sessions have no estimate, so a race week or a ladder
+week has none for the week.
 
 ## Open follow-ups (none blocks a merge)
 
@@ -1128,8 +1142,8 @@ so a race week or a ladder week has none for the week.
     derived "about N mi at your easy pace" on the session, the week and the brief, computed by the
     server from the zones, labelled an estimate and never scored; the plan's currency stays minutes
     (ADR 0003) and speeds stay per-session guides. The easy pace is the middle of the Z1 pace range
-    of the current zones, not the recent logged pace; see "Decisions for the owner" for the
-    consequence.
+    of the current zones; with no pace in the zones the recent logged pace stands in ("about N mi
+    at your recent pace"); see "Decisions for the owner".
 18. Strength programming as the first phase 3b epic (the owner's direction, 2026-10-23): an
     exercise library and session templates by phase from rules H10 and F4 (heavy lifting at 80%
     or more of one-rep max, 2-4 exercises of 3-4 sets of 3-6 reps, calf raises and plyometrics,

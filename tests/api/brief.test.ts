@@ -818,13 +818,10 @@ describe('GET /api/today: the brief slot', () => {
     await keyOn(addDays(thursday, -1))
     expect(await nextKey()).toBeNull()
     await keyOn(thursday)
-    expect(await nextKey()).toEqual({ date: thursday, kind, distanceEstimate: null })
+    const distanceEstimate = facts.keySession!.distanceEstimate ?? null
+    expect(await nextKey()).toEqual({ date: thursday, kind, distanceEstimate })
     await keyOn(addDays(thursday, 1))
-    expect(await nextKey()).toEqual({
-      date: addDays(thursday, 1),
-      kind,
-      distanceEstimate: null,
-    })
+    expect(await nextKey()).toEqual({ date: addDays(thursday, 1), kind, distanceEstimate })
   })
 })
 
@@ -993,16 +990,20 @@ describe('the distance estimate on the key session', () => {
     expect(expected.distanceEstimate).not.toBeNull()
   })
 
-  test('is served on the brief page, and is null for a runner with no pace data', async () => {
+  test('is served on the brief page; with no zone pace the recent logged pace stands in', async () => {
     const r = await withPace(email())
     const brief = (await getBrief(r))!
-    expect(brief.facts.keySession!.distanceEstimate).not.toBeNull()
+    expect(brief.facts.keySession!.distanceEstimate).toMatchObject({
+      basis: expect.stringMatching(/^(easy|pace)$/) as string,
+    })
 
+    // Twelve weeks of runs and no tested threshold pace: the zones hold no pace, the runs do.
     const bare = await updated(email())
     const key = readFacts((await briefOf(bare.u.id))!.facts)!.keySession!
-    expect(key.distanceEstimate).toBeNull()
+    expect(key.distanceEstimate).toMatchObject({ basis: 'recent' })
+    expect(key.distanceEstimate!.distanceM).toBeGreaterThan(0)
     const [item] = ((await bare.c.get('/api/briefs')).body as { briefs: BriefListItem[] }).briefs
-    expect(item!.nextKey).toMatchObject({ distanceEstimate: null })
+    expect(item!.nextKey).toMatchObject({ distanceEstimate: { basis: 'recent' } })
   })
 
   test('is absent from a brief stored before the estimate, which reads as no estimate', async () => {
