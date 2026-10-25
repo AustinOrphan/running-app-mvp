@@ -48,6 +48,21 @@ export const injuryLevel = (flags: readonly string[]): number | null =>
 export const isProgrammeWeek = (flags: readonly string[]): boolean =>
   ladderRung(flags) !== null || flags.includes('injury-return')
 
+/**
+ * A loading week: not a recovery, taper, race, post-race or programme week. The weeks that keep
+ * their target when they are run past it, the only weeks the rebuild zone can name, and the weeks
+ * the response to weeks run above plan is stepped into (`explainInputs` reads it from here too).
+ */
+export function isLoadingWeek(week: WeekDraft): boolean {
+  return (
+    !week.isRecovery &&
+    !week.isTaper &&
+    week.phase !== 'race' &&
+    !week.flags.includes('post-race') &&
+    !isProgrammeWeek(week.flags)
+  )
+}
+
 /** The kind of start path a week belongs to; the floor week is the first week of a 3 x N start. */
 export function startKind(flags: readonly string[]): StartKind | null {
   if (ladderRung(flags) !== null) return 'ladder'

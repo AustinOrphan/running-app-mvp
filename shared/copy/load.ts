@@ -27,7 +27,8 @@ export const LOAD_TEMPLATES = {
     'Adds up to {pct} a week while rebuilding toward a level held in the last {weeks} weeks.',
     { pct: 'percent', weeks: 'count' },
   ),
-  'load.hint.standard-response': tpl(
+  // The response to weeks run above the plan applies at Standard and Upper band alike.
+  'load.hint.response': tpl(
     'Weeks run above the plan raise the starting point of the next week, within the same limits.',
   ),
   'load.hint.upper': tpl(
@@ -103,8 +104,11 @@ const UNITS: Units = 'km'
 /** The positions in the order the form offers them. */
 export const LOAD_POSITIONS: readonly LoadAppetite[] = ['steady', 'standard', 'upper']
 
-/** A fraction as a percentage to one decimal ("14%" for 0.1402, "12%" for 0.12). */
-const percent = (fraction: number) =>
+/**
+ * A weekly step or ceiling as a percentage to one decimal ("14%" for 0.1402, "12%" for 0.12). The
+ * one reading of a step, for the hints, the trade-off and the Why drawer's g-2, g-6 and g-8 facts.
+ */
+export const stepPercent = (fraction: number) =>
   ({ kind: 'percent', pct: Math.round(fraction * 1000) / 10 }) as const
 
 const count = (n: number) => ({ kind: 'count', n }) as const
@@ -125,26 +129,27 @@ export function loadPanelTitle(): string {
 }
 
 /**
- * The hint of a position, a sentence to a line: what the step is, and for Standard the response to
- * weeks run above the plan. Every figure is a Param.
+ * The hint of a position, a sentence to a line: what the step is, and for Standard and Upper band
+ * the response to weeks run above the plan. Every figure is a Param.
  */
 export function loadHintLines(position: LoadAppetite): string[] {
-  const pct = percent(positionStep(position))
+  const pct = stepPercent(positionStep(position))
   switch (position) {
     case 'steady':
       return [render(T['load.hint.steady'], { pct }, UNITS)]
     case 'standard':
       return [
         render(T['load.hint.standard'], { pct, weeks: count(P.g8.creditWindowWeeks.value) }, UNITS),
-        render(T['load.hint.standard-response'], {}, UNITS),
+        render(T['load.hint.response'], {}, UNITS),
       ]
     case 'upper':
       return [
         render(
           T['load.hint.upper'],
-          { pct, ceiling: percent(P.g2.rampCeilingTwoWeeks.value) },
+          { pct, ceiling: stepPercent(P.g2.rampCeilingTwoWeeks.value) },
           UNITS,
         ),
+        render(T['load.hint.response'], {}, UNITS),
       ]
   }
 }
@@ -160,7 +165,7 @@ export function loadTradeoff(): string {
     render(T['load.tradeoff.speed'], {}, UNITS),
     render(T['load.tradeoff.studies'], {}, UNITS),
     render(T['load.tradeoff.unknown'], {}, UNITS),
-    render(T['load.tradeoff.cautious'], { pct: percent(positionStep('steady')) }, UNITS),
+    render(T['load.tradeoff.cautious'], { pct: stepPercent(positionStep('steady')) }, UNITS),
   ].join(' ')
 }
 

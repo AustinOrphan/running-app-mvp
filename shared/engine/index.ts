@@ -53,6 +53,7 @@ import { predictRace } from './predict.ts'
 import { focalBoneActive, isQualityKind } from './readiness.ts'
 import { prescribe } from './sessions.ts'
 import {
+  isLoadingWeek,
   isProgrammeWeek,
   placedFocus,
   startExemptions,
@@ -329,20 +330,6 @@ function holdWeek(week: WeekDraft, cap: number): WeekDraft {
 /** The week without its long run: a window holds the day the plan had it on, and it is not moved. */
 function withoutLongRun(week: WeekDraft): WeekDraft {
   return { ...week, longRunMin: 0, longRunM: week.longRunM === null ? null : 0 }
-}
-
-/**
- * A loading week: not a recovery, taper, race, post-race or programme week. The weeks that keep
- * their target when they are run past it, and the only weeks the rebuild zone can name.
- */
-function isLoadingWeek(week: WeekDraft): boolean {
-  return (
-    !week.isRecovery &&
-    !week.isTaper &&
-    week.phase !== 'race' &&
-    !week.flags.includes('post-race') &&
-    !isProgrammeWeek(week.flags)
-  )
 }
 
 /**

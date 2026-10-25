@@ -6,7 +6,7 @@
 // nothing reads a clock, the network or the database. The server hands over the snapshot, the
 // heart-rate model, the weekly decision and the prediction it has already computed.
 import { EXPLAIN_CHECKIN_DAYS, EXPLAIN_MAX_SOURCES } from '../copy/limits.ts'
-import { loadHoldReason, loadName } from '../copy/load.ts'
+import { loadHoldReason, loadName, stepPercent } from '../copy/load.ts'
 import { countPhrase } from '../copy/quantity.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
 import type { SlotValues } from '../copy/template.ts'
@@ -34,7 +34,7 @@ import {
   wholeMinutes,
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
-import { loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
+import { blockLiftMin, loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
 import { cycleShortReason, cycleWorkWeeks, startLift, startPath, taperDays } from './macro.ts'
 import { P } from './params/index.ts'
 import { ownHoldReasons, postRaceWindows } from './postRace.ts'
@@ -47,7 +47,7 @@ import {
   recentPain,
   sleepAverageH,
 } from './readiness.ts'
-import { rungCount } from './startWeeks.ts'
+import { isLoadingWeek, rungCount } from './startWeeks.ts'
 import { resolveTargets } from './targets.ts'
 import type {
   AthleteState,
@@ -96,6 +96,12 @@ export interface ExplainContext {
   hrModel: HrModel | null
   /** The weekly decision about `explainWeeks(...).last`, or null when no plan covers that week. */
   decision: WeeklyDecision | null
+  /**
+   * The input with the goal and the options of the plan itself, which the load setting is read
+   * from (`loadInputOf`): the post-race hold depends on the goal race, and `input` carries a
+   * neutral goal. Absent or null without a plan, and the setting is then read from `input`.
+   */
+  planInput?: EngineInput | null
   /**
    * The goal as the engine reads it (distance class, expected time, race-day heat), or null
    * without a goal. `input.goal` is a neutral stand-in for reads about the athlete.
@@ -354,6 +360,14 @@ function decisionRunMin(ctx: ExplainContext, weekStart: string): number {
   return aggregateWeeks(ctx.input.activities, [weekStart])[0]!.runMin
 }
 
+/**
+ * The input the load setting is read from [rules g-8]: the plan's own goal and options, so that
+ * the position, the zone and the response are the ones the Plan page shows and the next re-plan
+ * applies (`loadPlanWithSessions`). A held reason depends on the goal race, which the neutral goal
+ * of `input` does not carry.
+ */
+const loadInputOf = (ctx: ExplainContext): EngineInput => ctx.planInput ?? ctx.input
+
 function weeklyRampFacts(scope: Scope): InputFact[] {
   const { ctx, last, next } = scope
   if (!ctx.state.weeks.some((w) => w.runMin > 0 || w.raceMin > 0)) {
@@ -374,8 +388,8 @@ function weeklyRampFacts(scope: Scope): InputFact[] {
     // "at most": under the rebuild zone of a plan at standard or upper [rules g-8] a week under its
     // ceiling may add the zone's step, which is more than the usual one
     make('g-2', 'ramp', 'explain.g2-ramp', {
-      pct: percent(
-        Math.max(weeklyRamp(ctx.state), rebuildZone(ctx.input, ctx.state)?.step ?? 0) * 100,
+      pct: stepPercent(
+        Math.max(weeklyRamp(ctx.state), rebuildZone(loadInputOf(ctx), ctx.state)?.step ?? 0),
       ),
     }),
   ]
@@ -433,7 +447,7 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
   if (target !== undefined) {
     const ramp = weeklyRamp(ctx.state)
     // under the rebuild zone [rules g-8] the cap grows by the zone's step, as the decision does
-    const rebuild = rebuildZone(ctx.input, ctx.state)
+    const rebuild = rebuildZone(loadInputOf(ctx), ctx.state)
     const cap = wholeMinutes(nextWeekCap(target, actual, ramp, rebuild))
     const grown =
       rebuild !== null && actual > 0 ? rebuildStep(actual, ramp, false, rebuild) / actual - 1 : ramp
@@ -445,7 +459,7 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
           'g-6',
           'cap',
           'explain.g6-cap',
-          { week: weekOf(next), minutes: minutes(cap), pct: percent(grown * 100) },
+          { week: weekOf(next), minutes: minutes(cap), pct: stepPercent(grown) },
           { window: weekWindow(next) },
         ),
       )
@@ -457,9 +471,6 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
 // ---------------------------------------------------------------------------------------------
 // g-8: the history-informed rebuild
 // ---------------------------------------------------------------------------------------------
-
-/** A fraction as a percentage to one decimal, as the load setting's hints read it (14%, not 14.02%). */
-const stepPercent = (fraction: number) => percent(Math.round(fraction * 1000) / 10)
 
 /** "four steady weeks": the block's length from its Param, in words up to ten. */
 const blockPhrase = () => countPhrase(P.g8.blockWeeks.value, 'steady week')
@@ -477,23 +488,26 @@ const blockPhrase = () => countPhrase(P.g8.blockWeeks.value, 'steady week')
  * has no loading week ahead, or does not pass the planned baseline.
  */
 function responseFacts(ctx: ExplainContext): InputFact[] {
-  const basis = responseBasis(ctx.input, ctx.state)
+  const input = loadInputOf(ctx)
+  const basis = responseBasis(input, ctx.state)
   const mean = basis?.meanMin ?? null
-  if (mean === null || ctx.input.existing === null) return []
-  const currentMonday = mondayOf(ctx.input.today)
-  const loading = (w: WeekDraft) =>
-    !w.isRecovery && !w.isTaper && w.phase !== 'race' && !w.flags.includes('post-race')
-  const stored = [...ctx.input.existing.weeks].sort((a, b) =>
+  if (mean === null || input.existing === null) return []
+  const currentMonday = mondayOf(input.today)
+  const stored = [...input.existing.weeks].sort((a, b) =>
     a.weekStart < b.weekStart ? -1 : a.weekStart > b.weekStart ? 1 : 0,
   )
   const current = stored.find((w) => w.weekStart === currentMonday)
+  // The anchor is the generator's `replanAnchor` (macro.ts) without its step cap: the current week
+  // of the stored plan, or the last loading week before it when the current one is a recovery
+  // week. `replanAnchor` returns minutes held to the step the recent weeks allow, and the fact
+  // states the planned ones, so the rule is repeated here and not called.
   const anchor =
     current === undefined || current.isTaper || current.phase === 'race'
       ? undefined
       : current.isRecovery
-        ? stored.filter((w) => w.weekStart < currentMonday && loading(w)).at(-1)
+        ? stored.filter((w) => w.weekStart < currentMonday && isLoadingWeek(w)).at(-1)
         : current
-  const next = stored.find((w) => w.weekStart > currentMonday && loading(w))
+  const next = stored.find((w) => w.weekStart > currentMonday && isLoadingWeek(w))
   if (anchor === undefined || next === undefined) return []
   const planned = plannedMinOf(anchor)
   const from = responseBaseline(planned, basis, noviceRamp(ctx.state))
@@ -522,7 +536,8 @@ function responseFacts(ctx: ExplainContext): InputFact[] {
  */
 function rebuildFacts(scope: Scope): InputFact[] {
   const { ctx } = scope
-  const { input, state } = ctx
+  const { state } = ctx
+  const input = loadInputOf(ctx)
   const load = loadPosition(input, state)
   // the block the zone reads: a plan being continued keeps the one it opened with (`zoneBlock`)
   const credited = zoneBlock(input, state)
@@ -2469,7 +2484,10 @@ function startPathFacts(scope: Scope): InputFact[] {
       ),
     )
     // a floor session above the floor itself was lifted by one of two routes: name the one taken
-    const route = path.sessionMin > P.restartFloor.sessionMin.value ? startLift(input, state) : null
+    const route =
+      path.sessionMin > P.restartFloor.sessionMin.value
+        ? startLift({ ...loadInputOf(ctx), today: ctx.asOf }, state)
+        : null
     if (route === 'years') {
       facts.push(
         make('E6', 'route', 'explain.e6-lift-years', {
@@ -2481,8 +2499,11 @@ function startPathFacts(scope: Scope): InputFact[] {
       facts.push(
         make('E6', 'route', 'explain.e6-lift-block', {
           floor: minutes(P.restartFloor.sessionMin.value),
+          years: countPhrase(P.a5.noviceMaxYears.value, 'year'),
+        }),
+        make('E6', 'block', 'explain.e6-lift-block-weeks', {
           blocks: count(P.g8.blockWeeks.value),
-          minimum: minutes(P.restartFloor.sessions.value * P.restartFloor.sessionMaxMin.value),
+          minimum: minutes(blockLiftMin()),
           weeks: count(P.g8.creditWindowWeeks.value),
         }),
       )
@@ -3087,17 +3108,22 @@ const RACE_RULES: ReadonlySet<string> = new Set(
   ].map(lower),
 )
 
+/** The rules that read the load setting (`ExplainContext.planInput`): the ramp, the cap, the start and g-8. */
+const LOAD_SETTING_RULES: ReadonlySet<string> = new Set(['g-2', 'g-6', 'g-8', 'e6'])
+
 /** Which values beyond the snapshot a set of rules reads, so the server computes only those. */
 export function explainNeeds(rules: readonly string[]): {
   hrModel: boolean
   decision: boolean
   prediction: boolean
   race: boolean
+  planInput: boolean
 } {
   const keys = new Set(rules.map(lower))
   return {
     hrModel: keys.has('a8'),
     decision: keys.has('j5'),
+    planInput: [...keys].some((key) => LOAD_SETTING_RULES.has(key)),
     // n-7 sizes the fluid-safety card from the goal time, else from the prediction
     prediction: EXPLAIN_RULES.prediction.some((rule) => keys.has(lower(rule))) || keys.has('n-7'),
     race: [...keys].some((key) => RACE_RULES.has(key)),

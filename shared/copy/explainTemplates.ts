@@ -64,11 +64,16 @@ export const EXPLAIN_TEMPLATES = {
   // g-8: the history-informed rebuild [rules g-8, proposal 4.6]. The block and the gap name the
   // count of weeks from the Param ("Four steady weeks") in a text slot, and the held and capped
   // lines say what `load.held` and `load.capped` say on the Plan page.
-  'explain.g8-block': tpl('{blocks} ending {ago} ago averaged {minutes} a week.', {
-    blocks: 'text',
-    ago: 'text',
-    minutes: 'minutes',
-  }),
+  // The figure is the block's score: the mean of its weeks without the highest, which is not the
+  // mean of all four (`HistoryBlock.blockMin`).
+  'explain.g8-block': tpl(
+    '{blocks} ending {ago} ago; without the highest, they averaged {minutes} a week.',
+    {
+      blocks: 'text',
+      ago: 'text',
+      minutes: 'minutes',
+    },
+  ),
   'explain.g8-taper': tpl(
     'The block ended {weeks} weeks ago, so it counts for {share} of its size.',
     {
@@ -100,8 +105,10 @@ export const EXPLAIN_TEMPLATES = {
     'No {blocks} in the last {weeks} weeks, so the plan builds from recent weeks.',
     { blocks: 'text', weeks: 'count' },
   ),
+  // The start and return weeks are exempt from the ceiling (rules E6, G-3, H12, J7), so the line
+  // says "stays within" and names the exception.
   'explain.g8-limits': tpl(
-    'Long runs keep the {days}-day rule, and growth never passes {pct} over {span}.',
+    'Long runs keep the {days}-day rule, and weekly growth stays within {pct} over {span} apart from the start and return weeks.',
     { days: 'count', pct: 'percent', span: 'text' },
   ),
 
@@ -794,9 +801,17 @@ export const EXPLAIN_TEMPLATES = {
     'Sessions longer than {floor} are allowed at the start because of {years} or more years of running and no flag that holds a start back.',
     { floor: 'minutes', years: 'count' },
   ),
+  // The route of the block, in two sentences to stay within the 160 characters of a template
+  // (`COPY_MAX_CHARS`). {years} is `a5.noviceMaxYears` in words ("one year"); {minimum} is the
+  // threshold of `blockLiftMin`, the mean of the block's weeks without the highest
+  // (`HistoryBlock.blockMin`), and {weeks} the credit window.
   'explain.e6-lift-block': tpl(
-    'Sessions longer than {floor} are allowed at the start: a year of running and {blocks} steady weeks of at least {minimum} a week, ended within {weeks} weeks.',
-    { floor: 'minutes', blocks: 'count', minimum: 'minutes', weeks: 'count' },
+    'Sessions longer than {floor} are allowed at the start: at least {years} of running and a recent block of steady weeks.',
+    { floor: 'minutes', years: 'text' },
+  ),
+  'explain.e6-lift-block-weeks': tpl(
+    'That block is {blocks} steady weeks that, without the highest, averaged at least {minimum} a week and ended within {weeks} weeks.',
+    { blocks: 'count', minimum: 'minutes', weeks: 'count' },
   ),
   'explain.e6-injury': tpl(
     'You start on the return ladder at runs of {session}, because of an injury in your profile.',

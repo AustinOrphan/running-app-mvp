@@ -258,9 +258,18 @@ export function responseBasis(input: EngineInput, state: AthleteState): Response
 }
 
 /**
+ * The weekly minutes a history block must reach for the second route to a start of 3 x 30 minutes:
+ * `restartFloor.sessions` x `restartFloor.sessionMaxMin`. The one place the threshold is written,
+ * for the route (`blockLift`) and the sentence that states it.
+ */
+export const blockLiftMin = (): number =>
+  P.restartFloor.sessions.value * P.restartFloor.sessionMaxMin.value
+
+/**
  * The second route to a start of 3 x 30 minutes [rules E6, g-8]: a year of running and a block of
- * steady weeks that averaged at least 3 x 30 minutes a week and ended within `g8.creditWindowWeeks`
- * (`HistoryBlock.fullCreditMin`, whichever credit window ships), at a position other than steady.
+ * steady weeks whose mean without the highest (`g8.blockWeeksDropped`) is at least 3 x 30 minutes a
+ * week and that ended within `g8.creditWindowWeeks` (`HistoryBlock.fullCreditMin`, whichever credit
+ * window ships), at a position other than steady.
  * Soft start flags other than age hold it back, as do all the profiles `loadPosition` holds at
  * steady; at age 45 or over it stays open (the years route keeps its age rule). It lifts nothing
  * else: the start still takes the runner's own longest run of the last 30 days, and G-1 bounds it.
@@ -269,6 +278,5 @@ export function blockLift(input: EngineInput, state: AthleteState): boolean {
   if (loadPosition(input, state).position === 'steady') return false
   if (state.yearsRunning === null || state.yearsRunning < P.a5.noviceMaxYears.value) return false
   if (state.risk.noviceFlags.some((flag) => flag !== ageFlag())) return false
-  const needed = P.restartFloor.sessions.value * P.restartFloor.sessionMaxMin.value
-  return state.history !== null && state.history.fullCreditMin >= needed
+  return state.history !== null && state.history.fullCreditMin >= blockLiftMin()
 }
