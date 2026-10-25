@@ -70,8 +70,9 @@ Last update: 2026-10-25.
   and section 18 of the strength design, and both specs are amended to follow them. The ADR for
   strength is 0014, because 0013 records the load-progression decision (the G-5 amendment
   included). The phase 3a leftovers are decided under "Decisions for the owner"; the work they leave
-  is follow-ups 18 and 19 and follow-up 22 (load progression, since shipped, the entry above), and
-  follow-ups 20 and 21 shipped in #561.
+  is follow-up 18, follow-up 19 (the Today disruption presentation, since shipped in #567) and
+  follow-up 22 (load progression, since shipped, the entry above), and follow-ups 20 and 21
+  shipped in #561.
 - **Distance estimate beside the minutes (2026-10-24, `feat/distance-estimate`, follow-up 17).** A
   run session carries `distanceEstimate` (`{ distanceM, basis }`) and a plan week
   `distanceEstimateM`, worked out on the server (`shared/engine/distanceEstimate.ts`) and never
@@ -137,9 +138,9 @@ Last update: 2026-10-25.
   Garmin model and manual route the help text should name (Q6), a two-release shell update on a
   device and iOS cache eviction. Owner questions still open: "Decisions for the owner" below
   (the section-13 defaults; the wave-7 items and the API limiter were decided on 2026-10-24). Next:
-  strength programming (the design is merged, PR #559, follow-up 18) and the Today disruption
-  presentation (follow-up 19); the distance estimate (follow-up 17) shipped on 2026-10-24 (#560)
-  and load progression (follow-up 22) on 2026-10-25, the entries above.
+  strength programming (the design is merged, PR #559, follow-up 18); the distance estimate
+  (follow-up 17) shipped on 2026-10-24 (#560), load progression (follow-up 22) on 2026-10-25 (the
+  entries above) and the Today disruption presentation (follow-up 19) in #567.
 - **On `main`:** the clean rewrite (#528, rebase-merged) and the evidence engine, data
   foundation and research corpus (#529, squash-merged as `2e17f23a`); the CodeQL escaping fix
   (#536); the second evidence pass (#537); the eight phase 3a wave pull requests, merged on
