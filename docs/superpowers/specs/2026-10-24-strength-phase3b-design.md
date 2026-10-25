@@ -1,11 +1,12 @@
 # Strength programming (phase 3b, E14) — design
 
-Status: Proposed 2026-10-24. Written under the owner's direction of 2026-10-23 (section 1.1) as the
-first epic of phase 3b, after the phase 3a close (`docs/STATUS.md`, follow-up 18). Decisions are the
-builder's unless marked **owner**; section 15 lists every decision with its reason and section 16
-lists what the owner still has to settle. The task list is section 17; phase 3a kept its plan in a
-file of its own, and this list moves to `docs/superpowers/plans/` unchanged when the epic is
-scheduled.
+Status: Proposed 2026-10-24; owner decisions recorded 2026-10-24 (section 18). Written under the
+owner's direction of 2026-10-23 (section 1.1) as the first epic of phase 3b, after the phase 3a
+close (`docs/STATUS.md`, follow-up 18). Decisions are the builder's unless marked **owner**;
+section 15 lists every decision with its reason and section 16 lists the questions that the owner
+has since answered. Section 18 records the answers and the changes they made. The task list is
+section 17; phase 3a kept its plan in a file of its own, and this list moves to
+`docs/superpowers/plans/` unchanged when the epic is scheduled.
 
 This document decides rules, data, flows, copy and tests for strength programming. It does not
 restate the rule numbers in `research/engine-rules.md`; where it adds a number, the number is a
@@ -24,6 +25,11 @@ should be able to select equipment and provide history and that kinda stuff." Th
 the distance estimate first (STATUS follow-up 17), then strength as the first phase 3b epic
 (follow-up 18). The standing mandate of 2026-10-22 applies: a professional, research-informed,
 self-adjusting coach, better than Strava and Runna.
+
+On 2026-10-24 the owner answered the 16 open questions of section 16 (section 18). Two of the
+answers set requirements that run through the design: equipment is a setting that can be changed at
+any time (section 6.5), and the logging and the history must be good enough to replace a dedicated
+lifting app (section 1.4).
 
 ### 1.2 What exists today
 
@@ -89,6 +95,29 @@ Checked on `main` at `bfb6c9f2`:
 4. **Honest and evidence-graded.** Every number has a grade; the thin ones say so; no promise of
    speed, no injury-prevention claim, and nothing blames (G5).
 
+### 1.4 The bar (owner, 2026-10-24)
+
+The owner has used Strong and may use it again unless the logging and the history here are good
+enough to skip it (section 18, question 4). So v1 has no importer (section 2.2), and the logging and the history must
+be good enough that a runner can leave a dedicated lifting app for this programme. That bar needs
+four things, each already in this design and each an acceptance criterion:
+
+1. **Pre-filled sets.** The sheet opens filled with the suggestion, with "As suggested" and "Same as
+   last time" (section 9.1).
+2. **Sub-minute logging.** A session logged as suggested takes at most 3 interactions, and at most
+   12 with two changed sets and one reps-left value per lift (sections 9.1 and 13).
+3. **A per-lift history with the estimated maximum.** A table by date and a line of the estimated
+   maximum, labelled an estimate (section 11.3).
+4. **Suggestions with reasons.** The next load follows from the runner's own sets by written rules,
+   and the Why drawer shows the sets behind it (section 10).
+
+What this design does not have, and a dedicated app does: a rest timer, a plate calculator, logged
+warm-up sets (the sheet says they are not logged), upper-body lifts and any exercise outside the
+catalogue (question 11). The bar therefore holds for the lower-body programme of this epic, and a
+runner who also lifts other things keeps an app for those. Whether the bar is met is the owner's
+judgement after a month of use (task C2). If it is not, the first additions are a rest timer and a
+plate calculator, in a later task that this design does not plan.
+
 ## 2. Scope and non-goals
 
 ### 2.1 In scope
@@ -111,13 +140,15 @@ Checked on `main` at `bfb6c9f2`:
   programmes, no sharing. The catalogue serves one purpose: lower-body and trunk strength for a
   runner, with an ultra runner in mind (the owner's goal race is a 100-mile trail race).
 - **A video or image library.** Each exercise has a name and one or two sentences of text cues.
-- **Free-text exercises in v1.** The reasons are in section 7.5; an exercise outside the catalogue
-  is a question for the owner (section 16).
+- **Free-text exercises in v1.** The reasons are in section 7.5; the owner decided on 2026-10-24
+  that an exercise outside the catalogue stays out of v1 (section 18, question 11).
 - **A maximal-effort test.** The app never asks for a one-rep-max attempt. A maximum is estimated
   from submaximal sets, or entered by a runner who already knows one (section 6.3).
 - **Strength on the watch or in the calendar feed.** Publishing carries run sessions only
   (CLAUDE.md, Providers).
-- **Importing another lifting app in v1.** Past sessions can be entered by hand (section 6.4).
+- **Importing another lifting app in v1.** Past sessions can be entered by hand (section 6.4). The
+  owner decided on 2026-10-24 that there is no importer in v1 (question 4); the bar that replaces it
+  is in section 1.4.
 - **A change to running load.** No rule here touches the weekly ramp, the session spike guard or any
   run minute. Strength minutes are not running time (`isRunningTime` in `shared/engine/index.ts`).
 - **A promise.** No race-time gain, no VO2max or threshold claim, no injury-prevention claim
@@ -283,6 +314,11 @@ verifies. The gaps are numbered for reference.
 | 11  | Repetitions to a one-rep maximum        | No paper validates a repetitions-to-maximum equation                                                                                                                                                              | A validation of repetition-based maximum prediction in runners and recreational lifters                                             | The linear form `load x (1 + (reps + RIR) / 30)`, used for starting loads, a 90% ceiling and display, labelled an estimate                               |
 | 12  | Barbell lifting by recreational runners | No injury or technique data                                                                                                                                                                                       | A cohort of recreational runners starting barbell lifts                                                                             | Barbell lifts only for a runner who describes themself as experienced (section 6.2)                                                                      |
 
+Amended by the owner's decisions of 2026-10-24 (section 18): the default of gap 6 also steps the
+dose only after a completed running week (section 8.2), and the default of gap 12 is replaced:
+barbell lifts are offered after the ramp-in to any lifting level that has the equipment (section
+7.2), which the owner chose over the experienced-only default. The gaps themselves stand.
+
 ### 4.5 What the app says about benefit
 
 One sentence, on the Strength page and in the Why drawer, with its numbers interpolated from
@@ -392,7 +428,8 @@ loads and efforts appear.
 - **The unit.** `User.weightUnit` (`'lb'` or `'kg'`) is a per-runner display setting next to
   `User.units`, returned by `/api/settings` and edited in Settings. It is not derived from the
   distance unit, because miles with kilograms is common. The migration backfills it from the
-  distance unit (`km` gives `kg`, otherwise `lb`), and the owner can change it (section 16).
+  distance unit (`km` gives `kg`, otherwise `lb`). The owner chose pounds on 2026-10-24 (section 18, question 3), and any runner
+  can switch in Settings or in the first sheet of the setup.
 - **Display rounding** follows the equipment, not the number of decimals: pounds to the nearest 0.5,
   kilograms to the nearest 0.25. A value typed in pounds converts to the nearest gram and shows
   back as typed.
@@ -475,6 +512,13 @@ each grade D value carries a note that says it is a default. "Evidence" lists id
 | `f9.lowReadinessSetsCut`     | 1                | D     | Sets removed from each lift on a low-readiness day (at least 2 remain)                                                                              |
 | `f9.countPromptWeeks`        | 3                | D     | Finished weeks with fewer strength sessions than planned before the page asks about a lower weekly count (section 12.4)                             |
 
+Amended by section 18: `f7.plyoStepEveryWeeks` is the earliest cadence and not the whole rule. A
+step of contacts, and a move to the next rung (`f7.plyoRungWeeks`), is taken only after a completed
+running week, defined in section 8.2 with `j5.completionHoldShare`; no new Param is added. The
+owner confirmed the budgets (`f7.blockSessionMin` 40 and `f7.maintenanceSessionMin` 25), the start
+of 40 contacts, the cap `flib.plyoContactsMax` (200) and the smaller defaults (question 16) as
+grade D defaults with notes that say so.
+
 Existing Params that change role: `fplace.strengthSessionMin` is retired in E14-3 (replaced by
 `f7.blockSessionMin` and `f7.maintenanceSessionMin`); `flib.heavyMinPct1rm` becomes the floor shown
 beside a load and its range maximum (90) the ceiling no suggestion passes; `flib.plyoEmphasisPaceKmh`
@@ -529,11 +573,13 @@ Five parts, each its own short sheet, each skippable; parts 2 to 5 are saved by
 3. **Lifting history**, two questions. "Lifting level": new (not lifted regularly, or for under a
    year), some (lifted for a while but not consistently), or experienced (lifted consistently for a
    year or more and comfortable with squat and hinge movements under load). "Lifting now": at
-   least once a week in the last month, yes or no. They set the ramp-in length and whether barbell
-   lifts are offered (sections 7.2 and 8.2). Reason: the topic rule asks for a technique base before heavy
-   loading (`research/topics/strength-plyometrics.md`, `strength-primary-method-heavy`), and the
-   corpus holds no safety data on barbell lifting by recreational runners (gap 12), so G6 requires
-   the runner to say so before the app offers it.
+   least once a week in the last month, yes or no. They set the ramp-in length (section 8.2). The
+   level no longer gates the barbell (owner, question 7): the barbell is offered to any runner who
+   has a bar, once the ramp-in is done (section 7.2). Reason: the topic rule asks for a technique
+   base before heavy loading (`research/topics/strength-plyometrics.md`,
+   `strength-primary-method-heavy`), and the ramp-in on other lifts is that base. The corpus holds
+   no safety data on barbell lifting by recreational runners (gap 12); the first version of this
+   design kept the barbell for the level "experienced" (G6), and the owner chose the wider rule.
 4. **Exercises to leave out**, a list of the catalogue with a switch on each, and a note that
    nothing reads (stored only so the runner sees it again). Injuries are not asked here: the
    Profile already records them (`AthleteProfile.injuries`), the Strength page shows them with a
@@ -557,7 +603,8 @@ latest logged session. It is used for three things only: a first load (70% of it
 `f8.startPctOf1rm`), the ceiling no suggestion passes (90%, the range maximum of
 `flib.heavyMinPct1rm`) and a figure beside a load ("about 83% of the estimated maximum, heavy work
 asks for 80% or more"). It is labelled "estimated maximum", never "max" or "1RM test", and never
-appears on Today. The corpus has no validation of the equation (gap 11).
+appears on Today. The owner confirmed it for the history view on 2026-10-24 (question 10), always
+labelled an estimate. The corpus has no validation of the equation (gap 11).
 
 ### 6.4 History
 
@@ -569,9 +616,27 @@ table exists, so the history cannot disagree with the logs.
 
 ### 6.5 What a change does
 
-The workout is derived on read, so a saved change shows on the next read and nothing is re-planned.
-Taking equipment away makes the next workout use the next feasible exercise of each slot; the
-loads of the new exercise start from section 10.3, and the old exercise's history stays.
+Equipment is a setting of the runner and not a fact about the plan, and it can be changed at any
+time: a gym membership that starts, a week away with dumbbells only, a bar sold. The workout is
+derived on read, so a saved change shows on the next read, which makes it the workout of the next
+session. Nothing is re-planned, and the block position and the ramp-in do not restart, because both
+belong to the block (section 8.3). A session already open in the logging sheet keeps the workout it
+was opened with; a future session shown "as of today" (section 11.2) updates.
+
+- **Taking equipment away** makes the next workout use the next feasible exercise of each slot; the
+  loads of the new exercise start from section 10.3, and the old exercise's history stays.
+- **Adding equipment** makes the better-supported lifts of each ladder feasible (section 7.2). A
+  barbell lift is offered after the ramp-in only, so a runner who gets a bar during the ramp-in
+  keeps the ramp-in lifts until it ends. The first session of an exercise with no history is a
+  ramp-in structure session at a conservative load, whatever the week (section 10.3); the history
+  of the dumbbell or kettlebell lift is not converted.
+- **The owner's case** (question 1): dumbbells and kettlebells at home now, and full gym access
+  from the week of 2026-10-26. The setup is saved with the dumbbells and kettlebells and edited on
+  the Strength page ("Equipment and units", section 11.3) when the gym access starts; the workouts
+  from the next session on use the gym equipment.
+- **"Switchable"** is read as editable at any time (section 18). Named equipment sets chosen per
+  day, such as "home" and "gym", are not in v1; "Swap" (section 7.3) changes one exercise for one
+  session.
 
 ## 7. The exercise library
 
@@ -634,7 +699,7 @@ posterior-chain work from age 40). What the choices serve:
 - **Trunk and hip movements** are the hip and core row of F-lib (`leppanen-2024-hip-core-novice`,
   B for novices; D beyond). They are a finisher of two movements, not a block of their own. The
   novice pre-run hip and core block that the row describes, and the unplaced `mobility` kind, stay
-  out of scope (section 16, question 12).
+  out of scope (decided: later; section 18, question 12).
 - **No nordic or supramaximal eccentric exercise** is in the catalogue: H5 and gap 7 give no dose,
   and the repeated-bout literature (`mchugh-2003-repeated-bout`) describes damage from unaccustomed
   eccentric work.
@@ -656,15 +721,24 @@ dumbbells run out (section 10.2).
 
 `pickLift(slot, context)` returns the first exercise that is feasible (its implement is in the
 saved equipment, or it needs none; anything else it needs is there), allowed (the runner has not
-left it out; the barbell as an implement needs the lifting level "experienced"), and, if the runner
-pinned one for the slot and it is feasible, the pinned one instead. Bodyweight is always feasible,
-so every slot has an answer: with no equipment the knee slot gives `tempo-squat`, the hip slot
-`hip-thrust` as a glute bridge, the calf slot `standing-calf-raise` on the floor; if the runner has
-left out every feasible exercise of a slot, its floor exercise (these three) is used and the sheet
-says so. Both weekly sessions use the
-same knee and hip exercise, so each has one history that moves twice a week; the calf slot takes
-the first ladder entry on session A and the second feasible entry on session B (the first again
-when only one is feasible).
+left it out; the barbell as an implement is allowed only after the ramp-in, at any lifting level),
+and, if the runner pinned one for the slot and it is feasible, the pinned one instead. Bodyweight
+is always feasible, so every slot has an answer: with no equipment the knee slot gives
+`tempo-squat`, the hip slot `hip-thrust` as a glute bridge, the calf slot `standing-calf-raise` on
+the floor; if the runner has left out every feasible exercise of a slot, its floor exercise (these
+three) is used and the sheet says so. Both weekly sessions use the same knee and hip exercise, so
+each has one history that moves twice a week; the calf slot takes the first ladder entry on session
+A and the second feasible entry on session B (the first again when only one is feasible).
+
+**The barbell** (owner, question 7). A barbell exercise is feasible when the saved equipment has the
+bar, plates and a rack. It is allowed in the heavy, lighter-week, maintenance and taper templates
+and not in the ramp-in or return templates, whatever the lifting level. The lead lift is the first
+exercise of its slot's ladder, so the back squat and the Romanian deadlift lead for anyone with a
+bar once the ramp-in is over, and the goblet squat, the leg press or the dumbbell lifts lead before
+that. The first barbell session is a ramp-in structure session (section 10.3). Against: the corpus
+holds no safety data on barbell lifting by recreational runners (gap 12). The controls are the
+safety line (section 7.6), the absence of any maximal attempt and the 3 or more reps left in the
+first session.
 
 ### 7.3 Substitutions and swaps
 
@@ -697,8 +771,8 @@ evidence and does not call the path heavy.
 - **The cost is small and bounded.** A missing lift is a data change plus a catalogue test; a
   session note (the activity's `notes`) records anything else.
 - **Against.** A runner who lifts other things, or whose gym has a machine not in the list, loses a
-  place to keep that history, and "specific exercises" is the owner's own word. Question 11 asks
-  whether to add an "other lift" that is logged but never progressed.
+  place to keep that history, and "specific exercises" is the owner's own word. The owner decided on
+  2026-10-24 (question 11) not to add an "other lift", logged but never progressed, in v1.
 
 ### 7.6 Cues
 
@@ -758,14 +832,25 @@ week of a 3-week ramp-in); side plank and dead bug, 2 sets each.
   `strength-heavy-dose-and-ramp-in`, `flib.heavyRampInWeeks`, grade D). The length R is 3 weeks by
   default (`flib.heavyRampInWeeks`), 2 for a runner who is experienced and lifting now, and 4 for a
   runner whose lifting level is new or who is 40 or older (`f5.mastersMinAge`; the topic rule
-  `strength-masters`, C, low). Without a saved setup it is the default.
+  `strength-masters`, C, low). Without a saved setup it is the default. The ramp-in uses no barbell
+  lift (section 7.2). For the owner (level "some", not lifting now, no anchors) it is 3 weeks, with
+  conservative first loads from section 10.3 and double progression (question 2).
 - **Heavy.** The method with the best support: loads at 80% of the estimated maximum or more, in
   low reps (`llanoslagos-2024-economy-speeds`, `eihara-2022-heavy-vs-plyo`), with the plyometric
   dose at the same time because combined methods have the largest effect (low certainty). The
-  plyometric dose is `min(cap, 40 + 20 x floor((h - 1) / 2))` contacts, where h counts the heavy
-  weeks from 1 and the cap is `flib.plyoContactsMax` (200); it moves one rung of the
-  four-movement ladder every `f7.plyoRungWeeks` (3) weeks. Ramp-in weeks hold 40 contacts on the
-  first rung. After a ramp-in of 3 weeks the dose ends a 12-week block at 120 contacts: the cap
+  plyometric dose is `min(cap, 40 + 20 x s)` contacts, where s counts the steps taken and the cap
+  is `flib.plyoContactsMax` (200); it moves one rung of the four-movement ladder every
+  `f7.plyoRungWeeks` (3) weeks on the same condition. The ladder starts at 40 contacts (owner,
+  question 13). A step, of contacts or of rung, is taken only after a **completed running week**: a
+  step is due when `f7.plyoStepEveryWeeks` (2) heavy weeks have passed since the last one, and it is
+  taken only if the week just finished was a completed running week; otherwise the dose holds, and
+  the step is taken at the first week that follows a completed one. A completed running week is a
+  finished week in which the runner ran at least `j5.completionHoldShare` (80%) of the run minutes
+  planned for it, the test that J5 already applies to the weekly volume; a week inside a rest window
+  is not completed. So s is derived on read from the finished weeks of the snapshot
+  (`StrengthContext` carries each finished week's run minutes and target) and no counter is stored.
+  Ramp-in weeks hold 40 contacts on the first rung. After a ramp-in of 3 weeks, a 12-week block in
+  which every week was completed ends at 120 contacts at most: the cap
   binds only in a longer block, on purpose, because 200 is the highest dose observed in trials and
   not a target (gap 6). The dose is multiplied by `f7.reducedPlyoShare` (0.5) when the goal pace
   is faster than `flib.plyoEmphasisPaceKmh` (12 km/h, from the goal's distance and expected
@@ -828,11 +913,19 @@ adds:
 | Never directly before the long run | Excludes the day before the first long-run day of the week                                                                       | None                                                                                                 |
 | Capacity                           | Needs `capMin - run minutes >= minutes` on the day                                                                               | `minutes` is 40 in a block week and 25 otherwise (`f7.*SessionMin`), not 30                          |
 
-Two things the planner does not do and this design leaves alone, listed for the owner (section 16):
+Two things the planner does not do and this design leaves alone, which the owner decided on
+2026-10-24 to leave allowed (section 18, question 8):
 a session may fall on the day after the long run, and the day before a quality session is not
 avoided. F4 does not ask for either, and the corpus has no paper that does. A session that a runner
 moves or logs outside the plan is not blocked; the Strength page notes a logged session on the day
 before a long run once, in plain words, and changes nothing.
+
+**Lifts and runs** (owner, questions 5 and 6). A lift on the same day as an easy run is the
+preferred placement: the order of preference above puts a session on a day that already holds a
+run, ordered after the run and at least `f4.strengthSeparationHours` from it, so two sessions in a
+day, a run and a lift, are the norm and not the exception. A lift never displaces a run:
+`planStrength` places strength after the runs, and when no legal day exists the week holds fewer
+lifts and never fewer runs. The budgets are 40 minutes in a block week and 25 otherwise.
 
 ### 8.5 How the `strength` kind becomes a real session
 
@@ -1233,6 +1326,8 @@ it, so the first screen and the fold budgets of `slots.ts` are unchanged.
 - **Offline** the hero and the sheet work from the kept payload (section 9.6).
 - **The fold** is measured by `tests/e2e/12-today.spec.ts`; E14-8 adds a case for a strength-only
   day at 390 x 844 and at 360 px, with the check-in unanswered.
+- **The estimated maximum** is never shown on Today, in the hero or in the "Also today" line (owner,
+  question 10).
 
 ### 11.2 The session sheet and the Plan page
 
@@ -1260,7 +1355,8 @@ model:
 5. **History of one lift** (chosen from the list): a table by date (load and reps of each set, reps
    left, the mode) and a line of the estimated maximum by session, drawn by the lazy chart module
    with the table as the accessible form; no colour carries meaning alone, and the line is labelled
-   "Estimated maximum, from submaximal sets".
+   "Estimated maximum, from submaximal sets". This history, with its estimated maximum, is part of
+   the bar of section 1.4.
 6. **Recent sessions**: the last 30 with edit and delete.
 7. **Equipment and units**: the weight unit, the equipment, the exercises left out and the injuries
    from the Profile with a link.
@@ -1393,9 +1489,12 @@ ladder ends in a feasible bodyweight answer; `harder` links form no cycle; every
 template exists and passes the lint; every rule id used exists in `engine-rules.md`.
 `strength.ts`: the template of every combination of block week, recovery flag, taper and return;
 the block position and ramp-in length (lifting level, age 40, no setup); `pickLift` over every
-subset of the eight equipment ids (a workout always exists; the barbell never appears below
-"experienced"; avoided and pinned exercises are honoured); the plyometric dose by week, pace, bone
-stress history and lighter week; `suggestLoad` row by row for F8.1 to F8.7 and F9 including each
+subset of the eight equipment ids (a workout always exists; the barbell appears only when the bar is in the
+equipment and never in a ramp-in or return week, at any lifting level; avoided and pinned
+exercises are honoured); a change of equipment between two reads changes the next workout and not
+the block position; the plyometric dose by week, pace, bone stress history and lighter week, with a
+step taken only after a completed running week (a finished week at 79% and at 80% of its planned
+run minutes, a week in a rest window, a run of incomplete weeks that holds the dose); `suggestLoad` row by row for F8.1 to F8.7 and F9 including each
 boundary (a set one rep short, RIR exactly at the thresholds, a step exactly at the maximum, a gap
 of 27 and 28 days, an unrecorded count, ties in the working load); order independence of the
 history; no suggestion above the 90% ceiling; `estimateOneRm`; the replay of a synthetic six-week
@@ -1427,7 +1526,8 @@ Strength page in each state; the setup parts; the weight unit row; the activity 
 the count prompt.
 
 **E2E** (`NN-strength.spec.ts`, the next free number at merge; `resetData()` and `signedInApi()`;
-dates from the clock; no sleeps): save the setup with a barbell and dumbbells; log a strength-only
+dates from the clock; no sleeps): save the setup with a barbell and dumbbells; change the equipment and the weight unit and see the
+next workout follow; log a strength-only
 session as suggested in three interactions; see the next session's load rise by one step after a
 session at the top of the range with reps left; log a session with a set short of the range and see
 the lighter next load and its reason in the Why drawer; the bodyweight path for a runner with no
@@ -1449,20 +1549,31 @@ returns.
 - **Grade D numbers read as precision.** Mitigation: every Param says it is a default, the page
   says which numbers are, and the Why drawer shows the grade; a replay test records the behaviour
   so a change is deliberate.
-- **Heavy lifting without technique** can hurt. Mitigation: the barbell needs the self-described
-  level "experienced", ramp-in with 3 or more reps left, the safety line, and no maximal attempt
-  (gap 12).
+- **Heavy lifting without technique** can hurt. The barbell leads for anyone with a bar after the
+  ramp-in (owner, question 7), so the self-described level no longer limits it. Mitigation: the
+  ramp-in on other lifts first, a first barbell session in the ramp-in structure at a conservative
+  load with 3 or more reps left, the safety line, and no maximal attempt. Residual: the corpus holds
+  no safety data on barbell lifting by recreational runners (gap 12), and G6 would have kept the
+  barbell for the experienced.
 - **The block anchor changes plan output.** Weeks flagged `strength-block` differ for a re-planned
   runner. Mitigation: the owner validation (E14-3), the tests of section 13, and the STATUS note.
 - **A 40-minute budget changes placement.** A day with less than 40 free minutes after its run no
   longer takes a block session, so a tight week may hold fewer strength sessions than before.
   Mitigation: the matrix tests count strength sessions per week before and after; a week that loses
-  one is listed in the PR; question 6 lets the owner keep 30.
+  one is listed in the PR; the owner confirmed 40 and 25 minutes (question 6).
 - **A catalogue gap.** A runner's gym has a machine the catalogue lacks. Mitigation: bodyweight is
   always feasible, any catalogue exercise can be added to a session, and question 11.
 - **Plyometrics add impact for a runner with 100-mile mileage.** Mitigation: low-amplitude movements
   only, a dose that ends well under the cap, a halved dose and a two-rung limit with a bone stress
   history, none in the taper, and the gap (6) stated.
+- **Equipment changes mid-block.** A runner whose gym access starts after the ramp-in meets the
+  barbell lifts at once (owner, question 1). Mitigation: the first session of an exercise with no
+  history is a ramp-in structure session at a conservative load whatever the week (section 10.3),
+  the history of related lifts is not converted, the block position does not restart, and the
+  change shows only from the next session.
+- **The bar of section 1.4 is not met.** A dedicated lifting app has features this design leaves
+  out, and the owner may keep using one. Mitigation: the four requirements of section 1.4 are
+  acceptance criteria, and the owner judges the result after a month of use.
 - **Duplicates with imports.** A Strava or Apple Health strength activity and a manual log of the
   same session. Mitigation: the existing duplicate flow, with the log following the original.
 - **Offline replay of a save after the activity was deleted.** The outbox shows its one-time
@@ -1524,16 +1635,19 @@ arguable claim) and **Preference** (taste).
    `Plan.options` would be a second record of the same fact.
 10. **Session budgets of 40 and 25 minutes** (sections 5.4 and 8.4). Reason: **Opinion:** 9 to 10
     heavy sets with full rests plus jumps take about 40 minutes; 30 forces fewer lifts than the
-    template. It changes placement (risks), so it is question 6.
+    template. It changes placement (risks); the owner confirmed it on 2026-10-24 (question 6).
 11. **Until the setup is saved the workout is bodyweight-only** (section 6.1). Reason: **Rule:** G6.
-12. **The barbell as an implement needs the self-described level "experienced"** (section 6.2).
-    Reason: **Rule:** G6; **Fact:** the corpus holds no safety data (gap 12). Against: it restricts a
-    capable lifter who chose "some"; the lifter can pin an exercise only if it is feasible, so
-    question 7 asks.
+12. **The barbell leads for anyone with a bar, after the ramp-in** (sections 6.2 and 7.2). The
+    builder's first version required the self-described level "experienced"; the **owner** chose
+    the wider rule on 2026-10-24 (question 7), with no reason recorded. Reasons: **Opinion:** the
+    ramp-in on other lifts is the technique base that the topic rule asks for, and the barbell
+    squat and hinge are the best-supported lifts of the ladders. Against: **Fact:** the corpus holds
+    no safety data (gap 12), and **Rule:** G6 would have kept the barbell for the experienced.
 13. **A four-rung ladder of low-amplitude movements, halved for a pace above 12 km/h, a bone stress
     history, a recent injury and a lighter week** (section 8.2). Reasons: **Fact:**
     `flib.plyoEmphasisPaceKmh` is graded A and nothing reads it; **Rule:** G6 for the injury cases. The dose, steps and rungs
-    are grade D (gap 6).
+    are grade D (gap 6). The owner confirmed the start at 40 contacts and the cap of 200 and added that a
+    step is taken only after a completed running week (question 13).
 14. **The taper keeps one light session a week and the race week none** (section 8.2). Reason: this
     is what the engine plans today (`macro.ts`), kept; rule K3 keeps intensity and frequency in a
     taper. Grade D (gap 8).
@@ -1547,7 +1661,8 @@ arguable claim) and **Preference** (taste).
     is a new fact kind under `BRIEF_VERSION`.
 18. **Today gets no new budgeted slot** (section 11.1). Reason: the fold is measured to the pixel
     (`slots.ts`); the hero and the "Also today" line already have room.
-19. **Rule ids F7, F8 and F9, Params in `f-micro.ts`, ADR 0013.** Reason: **Rule:** a Param's rule
+19. **Rule ids F7, F8 and F9, Params in `f-micro.ts`, ADR 0014** (0013 went to the load-progression
+    decision on 2026-10-24). Reason: **Rule:** a Param's rule
     id must be a heading in `engine-rules.md` (`params.test.ts`); the numbers follow the registry's
     convention of a group per rule.
 20. **Ultra goals read the `h10` Params** (section 8.2). Reason: **Fact:** they are registered and
@@ -1571,11 +1686,14 @@ arguable claim) and **Preference** (taste).
     names the value. Tasks that change Params: E14-1, E14-3.
 27. **The task list is part of this document** (section 17). Reason: **Preference:** one file to
     review for one epic; it moves to `docs/superpowers/plans/` unchanged when scheduled.
+28. **The owner's answers to section 16 are in section 18.** Where one replaced a default of the
+    builder, the decision above says so (10, 12, 13 and 19).
 
 ## 16. Open questions for the owner
 
 Ranked by how much they change behaviour. Each has a default that the plan implements, and none
-blocks a task.
+blocks a task. All sixteen were answered on 2026-10-24. Section 18 records the answers; where an
+answer differs from a default below, the sections above and the tasks follow the answer.
 
 1. **Equipment.** Which of the eight items does the owner have, where (home or a gym), and with what
    weights: the bar weight and the smallest plate; the dumbbell range and step; the kettlebell
@@ -1633,7 +1751,7 @@ number at merge.
 
 ### Wave 0
 
-#### Task E14-1: Research update: rules F7 to F9, the Params, the gap pass, ADR 0013 (draft)
+#### Task E14-1: Research update: rules F7 to F9, the Params, the gap pass, ADR 0014 (draft)
 
 Size M. Depends on: nothing. **Validation** (Params only: the output is identical except
 `paramsVersion`). Contract: sections 4 and 5.4.
@@ -1642,7 +1760,7 @@ Size M. Depends on: nothing. **Validation** (Params only: the output is identica
   `research/papers/*.json`, `research/topics/strength-plyometrics.md` and
   `research/rules/strength-plyometrics.json` (only if papers are added),
   `shared/engine/params/{f-micro,index}.ts`, `tests/unit/engine/params.test.ts`,
-  `docs/adr/0013-strength-prescription-derived-on-read.md`.
+  `docs/adr/0014-strength-prescription-derived-on-read.md`.
 - **Acceptance:** rules F7, F8 and F9 are added to section (f) with grades and `[ids]`, and E5, F4,
   F-lib, H5 and H10 are amended as in section 5.3; the six topic rules of section 4.3 are folded
   in and the evidence ids of section 4.3 are added to the matching rows and Params; the numeric
@@ -1654,8 +1772,9 @@ Size M. Depends on: nothing. **Validation** (Params only: the output is identica
   result kept outside the repository; each paper added is looked up (Crossref for metadata, Europe
   PMC or PubMed for the abstract) and passes `npm run research:verify -- <id>`; a paper that does
   not verify is left out, and if none does the rule text says the gap stands. No id, DOI or number
-  is invented. `PARAMS_VERSION` is bumped. ADR 0013 is drafted as "Proposed 2026-10-24" with
-  labelled reasons and the alternatives of decisions 2, 4, 5 and 7.
+  is invented. `PARAMS_VERSION` is bumped. ADR 0014 is drafted as "Proposed 2026-10-24" with
+  labelled reasons and the alternatives of decisions 2, 4, 5, 7 and 12; it is numbered 0014 because
+  0013 records the load-progression decision of 2026-10-24.
 - **Tests:** `params.test.ts` (headings, evidence ids, grade D notes); `npm run research:check`.
 
 ### Wave 1
@@ -1711,7 +1830,9 @@ Size L. Depends on: E14-1, E14-2. Contract: sections 5.1, 8, 10.
   `suggestLoad`, `estimateOneRm` and `summariseHistory` exist with the inputs of sections 8 and 10;
   they import `P`, types and the catalogue only, read no clock, and make no call; every row of
   sections 10.2 and 10.4 has a test, with the boundaries listed in section 13; `pickLift` yields a
-  workout for all 256 subsets of the eight equipment ids; the history is order-independent; no
+  workout for all 256 subsets of the eight equipment ids, with the barbell only after the ramp-in and
+  only with a bar; the plyometric dose steps only after a completed running week (section 8.2); the
+  history is order-independent; no
   suggestion passes the 90% ceiling; every fact the module emits is a registered template and
   renders in both units; the two source scans of section 3 pass (no literal equal to a value of the
   `f7`, `f8` and `f9` groups, no figure inside a copy string); the replay of a six-week synthetic
@@ -1773,7 +1894,8 @@ sections 9.1, 9.2, 9.6, 11.7.
   `next` loads for a toast; the draft is kept under `strength-draft:<logId>` inside `try`, is
   cleared on save, and `purgeDrafts()` removes it; the `strength log` entry is in `OUTBOX_ROUTES`
   and a save made offline queues and replays; the sheet is lazy; pages and sheet pass
-  `expectCleanCopy`.
+  `expectCleanCopy`. A session logged as suggested takes at most 3 interactions (the bar of section
+  1.4).
 - **Tests:** the web tests listed in section 13.
 
 ### Wave 4
@@ -1805,7 +1927,9 @@ Size M. Depends on: E14-6, E14-7. Contract: sections 6, 11.3, 11.4.
   900 px, reachable from More and highlighted in the navigation; the five setup parts save as in
   section 6.2 and the workout changes on the next read; the lift history is a labelled table with a
   lazy line of the estimated maximum; empty, loading and error states use the exact copy; Settings
-  saves the weight unit through `PUT /api/settings`; the entry chunk stays under its budget.
+  saves the weight unit through `PUT /api/settings` (pounds by default for the owner, switchable by
+  any runner); the equipment can be edited at any time and the next workout follows it (section
+  6.5); the entry chunk stays under its budget.
 - **Tests:** the web tests above.
 
 ### Wave 5
@@ -1830,7 +1954,8 @@ Size S. Depends on: E14-10.
 
 - **Files:** `tests/e2e/NN-strength.spec.ts`, `tests/e2e/17-offline.spec.ts`,
   `tests/e2e/06-narrow-viewport.spec.ts`, `tests/e2e/helpers.ts`, `docs/STATUS.md`.
-- **Acceptance:** the e2e flows of section 13; the sheet and the page fit 360 px; a strength save
+- **Acceptance:** the e2e flows of section 13, including the interaction counts of section 9.1 (the bar of section
+  1.4); the sheet and the page fit 360 px; a strength save
   made offline is sent when the connection returns; STATUS records the stable surface for the later
   epics (`StrengthView` and the workout, which an ultra-readiness epic can read) and closes
   follow-up 18.
@@ -1840,7 +1965,7 @@ Size S. Depends on: E14-10.
 Size S. Depends on: every task above.
 
 - **Files:** `docs/STATUS.md`, `CLAUDE.md` (Structure and Conventions, only where a convention
-  changed), this document (the status line), `docs/adr/0013-...` (Accepted).
+  changed), this document (the status line), `docs/adr/0014-...` (Accepted).
 - **Acceptance:** full gates on `main`; a final owner validation compared with the epic's start,
   differences explained; `docker build .`; a last review for contract drift (a repository search
   for a second weight formatter, estimator, block counter or exercise list); CLAUDE.md names the
@@ -1848,7 +1973,8 @@ Size S. Depends on: every task above.
   loads are grams; no free-text exercise; strength logs are saved through
   `server/services/strength.ts`; the strength draft is purged with the others); the status reads
   "Implemented <date>"; STATUS lists what shipped, the manual checks still open (a real session
-  logged on a phone in a gym, with and without a connection) and the owner questions still open.
+  logged on a phone in a gym, with and without a connection), the owner questions still open and a
+  note that the owner judges the bar of section 1.4 after a month of use.
 
 ### Wave summary
 
@@ -1865,5 +1991,75 @@ E14-1 (wave 0) and E14-3 (wave 1) are the only tasks that change Params; each ta
 `PARAMS_VERSION` suffix at rebase. Two tasks in a wave that touch one file in different functions
 (E14-6 and E14-5 on `server/services/strength.ts` and `server/routes/strength.ts`, E14-8 and E14-9
 on `ProfilePage.tsx` and `MorePage.tsx`) rebase onto each other; neither redefines the other's
-code. The owner can answer section 16 questions 1 to 3 in the app once E14-9 merges; none of them
-is needed to build or merge any task.
+code. The owner answered section 16 on 2026-10-24 (section 18). Questions 1 to 3 are saved in the
+app once E14-9 merges, and none of them is needed to build or merge any task.
+
+## 18. Owner decisions (2026-10-24)
+
+Recorded from the owner's walkthrough of section 16 on the evening of 2026-10-24 (PR #559). Each
+entry gives the answer, the owner's reason where one was given, and where the body applies it. "No
+reason recorded" means the owner answered without one and the reasoning of sections 15 and 16
+stands. The questions stay in section 16 as asked.
+
+1. **Q1, equipment: a per-user setting that can be changed at any time.** The owner has dumbbells
+   and kettlebells at home now and full gym access from the week of 2026-10-26. Requirement, in the
+   owner's words: equipment is "customizable for any user and switchable", and the workout, which
+   is derived on read, follows the current equipment from the next session. Section 6.5; tasks
+   E14-4, E14-9 and E14-11.
+2. **Q2, lifting level: "some"**, with lifting on and off and no current working weights.
+   Consequence: a 3-week ramp-in, conservative first loads and double progression. Sections 8.2
+   and 10.3.
+3. **Q3, weight unit: pounds by default for the owner, with a switch between lb and kg for any
+   user.** No reason recorded. Sections 5.2 and 11.4.
+4. **Q4, import: none in v1**, because the owner has no recent data to bring. Reason: the owner used
+   Strong and may use it again unless the logging and the history here are good enough to skip it,
+   so they have to be that good. Sections 1.4, 9.1 and 11.3.
+5. **Q5, blocks and runs: a lift never displaces a run;** when no legal day exists the week holds
+   fewer lifts. The owner asked for "two a day": a lift on the same day as an easy run, three hours
+   apart, is already F4's preferred placement, so doubles stay the norm. Section 8.4.
+6. **Q6, session budgets: 40 minutes in a block week and 25 in maintenance.** No reason recorded.
+   Sections 5.4 and 8.4.
+7. **Q7, barbell lifts: for anyone with a bar, after the ramp-in.** No reason recorded. Sections
+   6.2, 7.2 and 14, and decision 12.
+8. **Q8, placement: both stay allowed**, the day after the long run and the day before a quality
+   run. No reason recorded. Section 8.4.
+9. **Q9, session templates: alternate A (squat-led) and B (hinge-led).** No reason recorded.
+   Section 8.1.
+10. **Q10, the estimated one-rep maximum: yes in the history view, labelled an estimate, never on
+    Today.** No reason recorded. Sections 6.3, 11.1 and 11.3.
+11. **Q11, an "other lift" outside the catalogue: not in v1.** No reason recorded. Sections 2.2
+    and 7.5.
+12. **Q12, the novice hip and core block and mobility sessions: later.** No reason recorded.
+    Section 7.1.
+13. **Q13, the plyometric ladder: start at 40 contacts, step up only after a completed running
+    week, cap 200.** No reason recorded. Section 8.2.
+14. **Q14, the taper: one light session a week until the race week, none in the race week.** No
+    reason recorded. Section 8.2.
+15. **Q15, the prompt after three weeks of fewer lifts: keep it**, as a choice and within the slot
+    budget. No reason recorded. Section 12.4.
+16. **Q16, the smaller defaults: accept all, as grade D Params.** They are the working-load tie
+    rule, the 28-day gap, the 5% reduction, the 15% step limit, the history windows, a year of
+    backdating and the four-week quiet period after "Not now". No reason recorded. Section 5.4.
+
+### Readings of the answers
+
+Some answers leave a point open. The body adopts the readings below, each the smallest reading of
+the owner's words, and the owner may overrule any of them.
+
+1. **"Switchable" (Q1) means editable at any time.** Named equipment sets chosen per day, such as
+   "home" and "gym", are not in v1; "Swap" (section 7.3) changes one exercise for one session.
+2. **"Per profile" (Q3) means per runner:** `User.weightUnit`, changed in Settings and in the first
+   sheet of the setup. The body weight on the Profile stays in kilograms (decision 24). With pounds
+   as the default a kilogram field on the Profile reads oddly, and a unit-aware Profile is a small
+   follow-up that the owner may want.
+3. **The "history view" (Q10) is the Strength page:** the Lifts list and one lift's history, each
+   labelled an estimate. The percentage of the estimated maximum beside a load in the logging sheet
+   and the Why drawer stays, because the question's default included it and the answer accepted the
+   question. Nothing about it appears on Today, in the hero or in the "Also today" line.
+4. **A "completed running week" (Q13) is a finished week in which the runner ran at least
+   `j5.completionHoldShare` (80%) of the planned run minutes,** the test that J5 already applies to
+   the weekly volume. The condition gates both a step of contacts and a move to the next rung.
+5. **"After the ramp-in" (Q7) excludes return weeks:** the ramp-in and return templates use no
+   barbell lift (section 7.2).
+6. **The bar (Q4) is judged on the lower-body programme.** A rest timer, a plate calculator, logged
+   warm-up sets and upper-body lifts are not in v1 (section 1.4).
