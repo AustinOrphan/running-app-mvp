@@ -323,5 +323,22 @@
       "hulme-2017-risk-protective",
       "videbaek-2015-incidence"
     ]
+  },
+  {
+    "id": "injury-tissue-capacity-no-rate",
+    "statement": "Tissue-capacity papers justify caution after a reduction in running, not a number. In young non-runners, patellar tendon stiffness fell 29.3% within 23 days of complete unloading and an Achilles stiffness gain of 50.3% was gone one month after training stopped; bone damage and repair take weeks to months. No paper gives a retraining rate for runners returning to an earlier weekly level. A faster rebuild after a reduction is a grade D default bounded by G-1, the 2-week ceiling and the tightened profiles, never described as safe or as an injury limit.",
+    "parameter": null,
+    "value": "no value; evidence for caution only",
+    "unit": null,
+    "appliesTo": "Any rule that credits earlier training after a reduction in running",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "deboer-2007-ulls-tendon-time-course",
+      "kubo-2012-achilles-training-detraining",
+      "warden-2014-bsi-long-distance-runners",
+      "warden-2021-bsi-optimal-workload",
+      "bertelsen-2017-rri-etiology-framework"
+    ]
   }
 ]

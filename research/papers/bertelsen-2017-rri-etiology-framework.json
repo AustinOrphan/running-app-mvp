@@ -1,0 +1,33 @@
+{
+  "id": "bertelsen-2017-rri-etiology-framework",
+  "title": "A framework for the etiology of running-related injuries",
+  "authors": "Bertelsen ML, Hulme A, Petersen J, Brund RK, Sorensen H, Finch CF, Parner ET, Nielsen RO",
+  "year": 2017,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.12883",
+  "pmid": "28329441",
+  "url": "https://doi.org/10.1111/sms.12883",
+  "design": "narrative-review",
+  "population": "Runners in general; an evidence-informed conceptual framework with no original data and no sample",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "The article presents a conceptual framework for the multifactorial etiology of running-related injury in four mutually exclusive parts: (a) structure-specific capacity when entering a running session; (b) structure-specific cumulative load per running session; (c) reduction in the structure-specific capacity during a session; and (d) exceeding the structure-specific capacity.",
+    "The authors propose that the framework inform the design of prevention studies, including research questions, hypotheses and the monitoring of participation-related and non-participation-related exposures.",
+    "They state that future research should address how changes in one or more exposures influence injury risk, which needs study of how different factors affect structure-specific load and load capacity, and of the dose-response relationship between running participation and injury risk, so as to move beyond traditional risk-factor identification."
+  ],
+  "limitations": "A conceptual framework, not a study: it has no data, no thresholds and no estimate of how capacity changes over time or after a break, and it is not tested in the abstract. Its value is a way of stating the question (capacity against load, per structure), not an answer. Abstract read; full text not read.",
+  "implications": [
+    "Gives the frame in which a past training block can be discussed: it may bear on the capacity of a structure, while the load of a session is what that capacity is set against. A runner's total minutes do not show the capacity of any one structure.",
+    "No rule, rate or Param follows from it; the authors themselves call the dose-response relationship between running participation and injury risk a matter for future research."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Scand J Med Sci Sports 27(11):1170-1180, 2017-11 (online 2017-04-20), eight authors and DOI match. Europe PMC abstract (PMID 28329441) read; the four parts are listed there. Full text not read.",
+    "checkedAt": "2026-10-25"
+  }
+}
