@@ -289,6 +289,34 @@ describe('diffPlans', () => {
     expect(JSON.stringify(diff)).not.toContain('"empty":true')
   })
 
+  it('names the raised week targets by week, outside the totals and without making the diff non-empty', () => {
+    const later = {
+      weekStart: '2026-11-02',
+      outcome: 'kept',
+      askedMin: 230,
+      keptMin: 230,
+      engineMin: 209,
+      limit: 'ceiling',
+      ramp: 0.3,
+    } as const
+    const earlier = {
+      weekStart: '2026-10-26',
+      outcome: 'clipped',
+      askedMin: 400,
+      keptMin: 247,
+      engineMin: 209,
+      limit: 'ceiling',
+      ramp: 0.3,
+    } as const
+    const diff = diffPlans({ ...NONE, targets: [later, earlier] })
+    expect(diff.targets).toEqual([earlier, later])
+    expect(diff.empty).toBe(true)
+    expect(diff.totals.weeksChanged).toBe(0)
+    // a diff that met none carries no key at all, so it reads as it did before
+    expect('targets' in diffPlans(NONE)).toBe(false)
+    expect('targets' in diffPlans({ ...NONE, targets: [] })).toBe(false)
+  })
+
   it('does not change what it is given', () => {
     const writes: PlanWrites = {
       sessions: {

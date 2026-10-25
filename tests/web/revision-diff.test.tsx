@@ -3,10 +3,12 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { targetsSummary } from '../../shared/copy/revision.ts'
 import type {
   PlanPreview,
   PlanRevisionReason,
   PlanRevisionView,
+  TargetDiffLine,
   UndoReasonCode,
   UndoResult,
 } from '../../shared/types.ts'
@@ -262,6 +264,40 @@ describe('RevisionDiff', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Why this update' })).toBeInTheDocument()
+    expectCleanCopy(document.body)
+  })
+
+  test('words a raised week target that was kept and one that was lowered, in clean copy', () => {
+    mockApi({})
+    const targets: TargetDiffLine[] = [
+      {
+        weekStart: '2027-01-11',
+        outcome: 'kept',
+        askedMin: 230,
+        keptMin: 230,
+        engineMin: 209,
+        limit: 'ceiling',
+        ramp: 0.3,
+      },
+      {
+        weekStart: '2027-01-18',
+        outcome: 'clipped',
+        askedMin: 400,
+        keptMin: 247,
+        engineMin: 220,
+        limit: 'ceiling',
+        ramp: 0.3,
+      },
+    ]
+    const revision = revisionWithDiff({
+      summary: `1 change across 1 week. ${targetsSummary(targets)}`,
+      diff: { ...revisionWithDiff().diff!, targets },
+    })
+    renderWithProviders(<RevisionDiff revision={revision} units="km" />)
+    const summary = screen.getByText(/the target set by hand, 230 min, stays/)
+    expect(summary).toHaveTextContent(
+      "Week of Mon 11 Jan: the target set by hand, 230 min, stays; the plan's own figure would be 209 min. Week of Mon 18 Jan: the target set by hand, 400 min, is lowered to 247 min, the most the limits allow that week (growth over two weeks stays within 30%).",
+    )
     expectCleanCopy(document.body)
   })
 

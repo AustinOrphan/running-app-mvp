@@ -641,11 +641,41 @@ export interface WeekDiffLine {
   flagsAdded: string[]
   flagsRemoved: string[]
 }
+/**
+ * What bounded a week target the runner raised above the plan's own at a re-plan (`targetLimit`,
+ * `shared/engine/limits.ts`): the 2-week ceiling, a tightened injury profile, or a rule that sets
+ * the week's figure itself (a progression hold, the weekly decision, the weeks after a race, a rest
+ * window, a start programme, a recovery, taper or race week).
+ */
+export type TargetLimitKind =
+  'ceiling' | 'profile' | 'hold' | 'decision' | 'post-race' | 'window' | 'programme' | 'structure'
+/**
+ * A week target the runner raised by hand, as one re-plan left it: kept as set, or lowered to the
+ * limit of the week. Built from the week row as written, so it describes what the revision did.
+ */
+export interface TargetDiffLine {
+  weekStart: string
+  outcome: 'kept' | 'clipped'
+  /** The target the runner set. */
+  askedMin: number
+  /** The target the week holds after the write: `askedMin` when kept, the limit when clipped. */
+  keptMin: number
+  /** The plan's own figure for the week. */
+  engineMin: number
+  limit: TargetLimitKind
+  /**
+   * The growth the limit allows, as a fraction: the 2-week ceiling for `ceiling`, the profile's
+   * weekly ramp for `profile`; null where a rule sets the week's figure itself.
+   */
+  ramp: number | null
+}
 export interface PlanDiff {
   v: 1
   sessions: SessionDiffLine[]
   weeks: WeekDiffLine[]
   holds: Array<{ from: string; to: string; label: string; disruptionId: string | null }>
+  /** The raised week targets of the write, kept or clipped; absent when the write met none. */
+  targets?: TargetDiffLine[]
   totals: {
     added: number
     removed: number
