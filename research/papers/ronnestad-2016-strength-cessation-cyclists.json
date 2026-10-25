@@ -1,0 +1,34 @@
+{
+  "id": "ronnestad-2016-strength-cessation-cyclists",
+  "title": "Impairment of Performance Variables After In-Season Strength-Training Cessation in Elite Cyclists",
+  "authors": "Rønnestad BR, Hansen J, Hollan I, Spencer M, Ellefsen S",
+  "year": 2016,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.2015-0372",
+  "pmid": "26641569",
+  "url": "https://doi.org/10.1123/ijspp.2015-0372",
+  "design": "rct",
+  "population": "14 elite cyclists (VO2max 77 +/- 6 and 73 +/- 5 mL/kg/min) randomised to 25 weeks of endurance plus heavy strength training (n = 7) or endurance only (n = 7), then 8 weeks of endurance only for both. Cyclists, not runners.",
+  "sampleSize": 14,
+  "evidenceLevel": "B",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "The strength group trained 3 x 4-10RM, 1 to 2 days a week for 25 weeks, then both groups trained endurance only for 8 weeks at the start of the competition season.",
+    "During the 25 weeks the strength group had larger gains than the control group in maximal isometric half-squat force, squat jump, maximal aerobic power, power at 4 mmol/L lactate and mean power in a 30-second Wingate test (ES 0.46-0.74).",
+    "During the 8 weeks without strength training the strength group lost squat jump height, maximal aerobic power and Wingate mean power relative to the control group (ES 0.49-0.84).",
+    "The authors read this as a rapid decline of the adaptations on termination of strength training in the first 8 weeks of the competition period in elite cyclists. Data were assessed by magnitude-based inferences."
+  ],
+  "limitations": "Seven cyclists per group, elite cyclists and not runners, and a magnitude-based inference analysis; the lifting dose was 1 to 2 days a week and the stop lasted 8 weeks. The abstract does not state the absolute losses. Abstract read; full text not read.",
+  "implications": [
+    "After 8 weeks without strength work the strength group of elite cyclists fell behind the control group in squat jump height, maximal aerobic power and Wingate power, so a long gap in lifting may not be harmless in a different sport. It is a reason for the plan to keep one light session through the specific phase and the taper as a default, not as a requirement.",
+    "The runners' result over 4 weeks points the other way (berryman-2020-strength-cessation-runners); the two differ in sport, length of stop and type of training, and neither tests a taper."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Int J Sports Physiol Perform 11(6):727-735, 2016-09, five authors and DOI match. Europe PMC abstract (PMID 26641569) read; every figure above is in it.",
+    "checkedAt": "2026-10-25"
+  }
+}

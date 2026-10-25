@@ -1,0 +1,34 @@
+{
+  "id": "robinson-2024-proximity-failure-meta",
+  "title": "Exploring the Dose-Response Relationship Between Estimated Resistance Training Proximity to Failure, Strength Gain, and Muscle Hypertrophy: A Series of Meta-Regressions",
+  "authors": "Robinson ZP, Pelland JC, Remmert JF, Refalo MC, Jukic I, Steele J, Zourdos MC",
+  "year": 2024,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-024-02069-2",
+  "pmid": "38970765",
+  "url": "https://doi.org/10.1007/s40279-024-02069-2",
+  "design": "meta-analysis",
+  "population": "Resistance training trials in which proximity to failure could be estimated as repetitions in reserve (RIR); mixed training status. Not runners; the abstract gives no count of studies or participants.",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "A series of exploratory multilevel meta-regressions of strength and hypertrophy outcomes against the estimated repetitions in reserve of each intervention, adjusted for load, method of volume equating, duration and training status. The RIR of each effect was estimated from the description of the training in each study.",
+    "In all best-fit models for strength, the confidence intervals of the marginal slopes for estimated RIR contained the null, which the authors read as a negligible relationship with strength gains.",
+    "In all best-fit models for muscle hypertrophy the slopes were negative with intervals that excluded the null: muscle size increased as sets ended closer to failure.",
+    "The authors conclude that strength gains were similar across a wide range of RIR, while hypertrophy improves closer to failure, and they caution that the analysis is exploratory and the RIR estimates are indirect."
+  ],
+  "limitations": "Exploratory, with modest model fit and RIR values inferred by the authors from the training descriptions, not measured; the outcomes are maximal strength and muscle size in lifting trials, not running economy or performance. The abstract gives neither the number of studies nor the RIR range covered. Abstract read; full text not read.",
+  "implications": [
+    "A block that leaves repetitions in reserve (the engine's target is 1-3 for heavy work and 3 or more for a ramp-in, a taper and a return) is not shown to cost strength, because the strength gain did not depend on RIR across the range studied. The values themselves are not tested here and stay grade D.",
+    "Gives no support for working to failure to build strength, and none for the opposite; hypertrophy is not a goal of the strength block."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title (en dash in Crossref), Sports Med 54:2209-2231, issued 2024-07-06, seven authors and DOI match. Europe PMC abstract (PMID 38970765) read; every statement above is in it. The abstract states neither study count, participants nor the RIR range, so none is given.",
+    "checkedAt": "2026-10-25"
+  }
+}

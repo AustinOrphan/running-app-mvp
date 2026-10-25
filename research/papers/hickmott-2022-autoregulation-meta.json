@@ -1,0 +1,34 @@
+{
+  "id": "hickmott-2022-autoregulation-meta",
+  "title": "The Effect of Load and Volume Autoregulation on Muscular Strength and Hypertrophy: A Systematic Review and Meta-Analysis",
+  "authors": "Hickmott LM, Chilibeck PD, Shaw KA, Butcher SJ",
+  "year": 2022,
+  "journal": "Sports Medicine - Open",
+  "doi": "10.1186/s40798-021-00404-9",
+  "pmid": "35038063",
+  "url": "https://doi.org/10.1186/s40798-021-00404-9",
+  "design": "meta-analysis",
+  "population": "Resistance-trained individuals; 15 studies, 6 on load autoregulation (repetitions-in-reserve rated exertion or velocity-based training against percentage-based prescription) and 9 on volume autoregulation (velocity-loss thresholds). Not runners.",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Searched MEDLINE, Embase, Scopus and SPORTDiscus under PRISMA; the protocol was registered (PROSPERO CRD42021240506).",
+    "Autoregulated load prescription (repetitions-in-reserve based rating of perceived exertion, or velocity-based training) and standardised percentage-based prescription did not differ for 1RM strength (MD 2.07 kg, 95% CI -0.32 to 4.46, p = 0.09, SMD 0.21).",
+    "With sets and relative intensity equated, velocity-loss thresholds of 25% or less gave greater 1RM strength than thresholds above 25% (MD 2.32 kg, 95% CI 0.33-4.31, p = 0.02, SMD 0.23) and less hypertrophy (MD 0.61 cm2, p = 0.03).",
+    "The authors conclude that autoregulated and standardised load prescription produced similar improvements in strength."
+  ],
+  "limitations": "The abstract gives the number of studies, not the number of participants; resistance-trained lifters, not runners or novices; the comparison is of prescription methods over short interventions on 1RM and muscle size, with no running, economy or injury outcome. Abstract read; full text not read.",
+  "implications": [
+    "The only synthesis in the corpus that compares ways of choosing the load: an effort-based (repetitions-in-reserve) prescription and a percentage-of-maximum prescription gave similar strength gains in trained lifters. It supports an effort target as no worse than a percentage, not as better, and says nothing about double progression or about runners.",
+    "No evidence here on the novice or recreational lifter, who is the usual user of the strength page; the load-progression rule stays a default (grade D)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Sports Med Open 8:9, issued 2022-01-15, four authors and DOI match. Europe PMC abstract (PMID 35038063, PMC8762534) read; every figure above is in it. The velocity-loss findings are kept only as context; they are not used for any engine value.",
+    "checkedAt": "2026-10-25"
+  }
+}

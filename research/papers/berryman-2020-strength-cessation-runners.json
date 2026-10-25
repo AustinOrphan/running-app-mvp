@@ -1,0 +1,34 @@
+{
+  "id": "berryman-2020-strength-cessation-runners",
+  "title": "Effects of Short-Term Concurrent Training Cessation on the Energy Cost of Running and Neuromuscular Performances in Middle-Distance Runners",
+  "authors": "Berryman N, Mujika I, Bosquet L",
+  "year": 2020,
+  "journal": "Sports",
+  "doi": "10.3390/sports9010001",
+  "pmid": "33374897",
+  "url": "https://doi.org/10.3390/sports9010001",
+  "design": "observational-pre-post",
+  "population": "8 middle-distance runners who completed an 8-week concurrent programme (4 added plyometric training, 4 added dynamic weight training) and then 4 weeks without explosive strength training while running was maintained",
+  "sampleSize": 8,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "The energy cost of running fell by 5.75% (95% CI -8.47 to -3.03) after the 8-week concurrent programme and was still lower after 4 weeks without explosive strength training (-6.31%, 95% CI -10.30 to -2.32).",
+    "Neuromuscular performances were maintained after the 4 weeks of cessation, especially in tests that were specific to the training intervention.",
+    "A 3000 m time trial improved after the concurrent mesocycle (-2.40%, 95% CI -4.65 to -0.16) and again after the cessation (-4.43%, 95% CI -6.83 to -2.03); only trivial changes were seen in aerobic endurance and VO2peak.",
+    "The authors suggest that short-term explosive strength training cessation could be considered as a taper strategy for middle-distance runners, and they caution that the sample is small and the literature very limited."
+  ],
+  "limitations": "Eight runners, a case-report-type study with no control group, middle-distance runners and an explosive (not heavy) programme that was either plyometric or dynamic weights in four runners each; only 4 weeks of cessation, while running continued. Abstract read on Europe PMC (open access); full text not read.",
+  "implications": [
+    "The only evidence in the corpus from runners on stopping strength work: the economy gain from an 8-week programme was kept for 4 weeks without it. It means a taper does not need a strength session to keep the gain over that span, and it does not support a cut of the lifting dose for a longer break or for heavy lifting.",
+    "Points the other way from the cyclists' result (ronnestad-2016-strength-cessation-cyclists); the taper rule keeps one light session as a default, not as a requirement."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Sports 9(1):1, 2020-12-22, three authors and DOI match. Europe PMC abstract (PMID 33374897, PMC7821917) read; every figure above is in it. Design set to observational-pre-post: the abstract describes a case report with before, after and after-cessation tests and no control group.",
+    "checkedAt": "2026-10-25"
+  }
+}

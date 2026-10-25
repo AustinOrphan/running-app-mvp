@@ -1,0 +1,34 @@
+{
+  "id": "bickel-2011-maintenance-dosing-retention",
+  "title": "Exercise Dosing to Retain Resistance Training Adaptations in Young and Older Adults",
+  "authors": "Bickel CS, Cross JM, Bamman MM",
+  "year": 2011,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e318207c15d",
+  "pmid": "21131862",
+  "url": "https://doi.org/10.1249/mss.0b013e318207c15d",
+  "design": "rct",
+  "population": "70 adults, young (20-35 years) and older (60-75 years); resistance training 3 days a week for 16 weeks, then 32 weeks of detraining or one of two maintenance doses. Not athletes, not runners.",
+  "sampleSize": 70,
+  "evidenceLevel": "B",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Phase 1 was resistance training 3 days a week for 16 weeks; phase 2 lasted 32 weeks with random assignment to detraining or to a maintenance dose reduced to one third or one ninth of the phase 1 dose.",
+    "Both maintenance doses preserved the phase 1 muscle hypertrophy in the young but not in the older adults; in the young the one-third dose led to additional myofiber hypertrophy.",
+    "Strength gained in phase 1 was largely retained throughout detraining, with only a slight reduction at the final time point.",
+    "The authors conclude that older adults need a higher weekly dose than the young to keep the myofiber hypertrophy gained, while their gains in specific strength were well preserved."
+  ],
+  "limitations": "Untrained adults who trained for 16 weeks, not athletes in a racing season; the outcomes are muscle mass, fibre size and strength, with no running outcome; the abstract does not give the sizes of the groups or the strength figures. Abstract read; full text not read.",
+  "implications": [
+    "Evidence for the direction of a maintenance rule: a cut to a third or a ninth of the training dose kept the muscle gained in young adults, and strength held through 32 weeks of detraining in both ages. It supports a low maintenance dose and a conservative return, not a particular number of sets or sessions.",
+    "Older adults needed more than younger ones to keep muscle size, a reason not to cut the maintenance dose by age and to leave the age-related ramp-in as a default."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Med Sci Sports Exerc 43(7):1177-1187, 2011-07, three authors (upper-case names) and DOI match. Europe PMC abstract (PMID 21131862) read; every statement above is in it.",
+    "checkedAt": "2026-10-25"
+  }
+}

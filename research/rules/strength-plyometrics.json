@@ -76,7 +76,8 @@
       "llanoslagos-2024-economy-speeds",
       "balsalobre-2016-running-economy-highly-trained",
       "zanini-2025-strength-economy-durability-rct",
-      "giovanelli-2017-ultra-sep"
+      "giovanelli-2017-ultra-sep",
+      "ramirezcampillo-2021-jump-training-runners"
     ]
   },
   {
@@ -93,7 +94,8 @@
       "llanoslagos-2024-economy-speeds",
       "llanoslagos-2024-performance-methods",
       "blagrove-2018-strength-determinants",
-      "eihara-2024-middle-aged-pt-rt"
+      "eihara-2024-middle-aged-pt-rt",
+      "vikmoen-2016-female-heavy-strength-running"
     ]
   },
   {
@@ -105,7 +107,13 @@
     "appliesTo": "All runners after the main block and at peak mileage",
     "grade": "D",
     "confidence": "low",
-    "evidence": ["lauersen-2018-strength-dose-dependent", "wilson-2012-concurrent-interference"]
+    "evidence": [
+      "lauersen-2018-strength-dose-dependent",
+      "wilson-2012-concurrent-interference",
+      "spiering-2021-minimal-dose",
+      "bickel-2011-maintenance-dosing-retention",
+      "androulakis-2019-minimum-effective-dose"
+    ]
   },
   {
     "id": "strength-run-separation",
@@ -168,7 +176,8 @@
       "piacentini-2013-masters-runners",
       "eihara-2024-middle-aged-pt-rt",
       "schumann-2022-concurrent-compatibility",
-      "llanoslagos-2024-performance-methods"
+      "llanoslagos-2024-performance-methods",
+      "louis-2011-master-athletes-strength-cycling"
     ]
   },
   {
@@ -195,6 +204,118 @@
     "appliesTo": "Recreational and middle-aged runners",
     "grade": "C",
     "confidence": "low",
-    "evidence": ["eihara-2024-middle-aged-pt-rt"]
+    "evidence": ["eihara-2024-middle-aged-pt-rt", "kinoshita-2023-standing-seated-calf-raise"]
+  },
+  {
+    "id": "strength-load-progression-double",
+    "statement": "Progress each lift by double progression inside its repetition range: raise the load by one step the equipment can make when every set reaches the top of the range with repetitions in reserve and a recorded count, lower it after a set below the range, and hold it otherwise. The closest published convention is a 2-10% increase when the lifter can do the current workload for one to two repetitions over the desired number; no paper compares ways of progressing a load in runners, so the rule is a default.",
+    "parameter": "strength_load_step",
+    "value": "one step; at most 15% of the load",
+    "unit": "% of the load",
+    "appliesTo": "Every loaded lift of the strength block",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["acsm-2009-progression-models-resistance", "hickmott-2022-autoregulation-meta"]
+  },
+  {
+    "id": "strength-reps-in-reserve-target",
+    "statement": "Set the effort of a lift by the repetitions to leave in reserve (1-3 in the block, 3 or more in a ramp-in, a taper and a return), treat the count as imprecise by about one repetition, and never raise a load on a missing count. Strength gains did not depend on the estimated repetitions in reserve over a wide range, so leaving repetitions is not shown to cost strength.",
+    "parameter": "strength_reps_in_reserve",
+    "value": "1-3 in the block; 3 or more otherwise",
+    "unit": "repetitions in reserve",
+    "appliesTo": "Every loaded lift",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "zourdos-2016-rir-rpe-scale",
+      "halperin-2021-rir-prediction-accuracy",
+      "robinson-2024-proximity-failure-meta"
+    ]
+  },
+  {
+    "id": "strength-estimated-maximum-is-an-estimate",
+    "statement": "Estimate the one-repetition maximum from submaximal sets, label it an estimate, use it only for a first load, a ceiling and a figure beside a load, and never ask for a maximal attempt. The repetitions possible at a percentage of the maximum vary between people and exercises, and a linear equation was advised only up to 10 repetitions; no paper validates an equation in runners.",
+    "parameter": "strength_e1rm_divisor",
+    "value": "linear form with a divisor of 30",
+    "unit": null,
+    "appliesTo": "Strength suggestions and the history view",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": ["nuzzo-2023-reps-at-percent-1rm", "reynolds-2006-1rm-prediction"]
+  },
+  {
+    "id": "strength-taper-and-stopping-mixed",
+    "statement": "Keep one light lifting session a week until the race week as a default and not a requirement. No trial tests resistance training in a taper; 8 middle-distance runners kept an economy gain over 4 weeks without explosive strength work, and 14 elite cyclists fell behind a control group over 8 weeks without strength work.",
+    "parameter": "strength_taper_sessions",
+    "value": "1 light session a week; none in the race week",
+    "unit": "sessions/week",
+    "appliesTo": "Taper weeks",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "bosquet-2007-taper-meta-analysis",
+      "berryman-2020-strength-cessation-runners",
+      "ronnestad-2016-strength-cessation-cyclists"
+    ]
+  },
+  {
+    "id": "strength-women-small-mixed-evidence",
+    "statement": "Do not change the strength dose by sex, and say that the evidence in women is small and mixed: two small randomised trials of 19 women each found no change in running economy or a 40-minute run in one and a better 5-minute run after prolonged running in the other.",
+    "parameter": null,
+    "value": "no sex adjustment",
+    "unit": null,
+    "appliesTo": "Women runners",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "vikmoen-2016-female-heavy-strength-running",
+      "vikmoen-2017-female-duathletes-strength",
+      "storen-2008-maximal-strength-economy"
+    ]
+  },
+  {
+    "id": "strength-calf-position-and-dose-defaults",
+    "statement": "The calf dose and the choice between straight-knee and bent-knee raises are defaults. In 14 untrained adults, standing raises grew the gastrocnemius more and the soleus about as much as seated raises (muscle volume only), and an exhausting calf-raise protocol did not change modelled tibial stress in the next run in 14 recreational runners. No paper gives sets, repetitions, load or tempo for calf raises in runners.",
+    "parameter": null,
+    "value": "no calf-specific dose",
+    "unit": null,
+    "appliesTo": "Calf and plantar-flexor work",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "eihara-2024-middle-aged-pt-rt",
+      "kinoshita-2023-standing-seated-calf-raise",
+      "rice-2020-calf-raise-tibial-stress"
+    ]
+  },
+  {
+    "id": "strength-no-depth-jumps",
+    "statement": "Do not prescribe depth jumps, drops or bounds to recreational runners: the corpus has no dose or bone-stress data for them, and landing force was higher for depth drops and jumps from 60 to 90 cm than for a vertical jump in elite power athletes. Use low-amplitude movements on the spot with a graded number of contacts.",
+    "parameter": "plyometric_contacts",
+    "value": "start at 40 contacts, add 20 every 2 weeks after a completed running week, cap 200",
+    "unit": "contacts/session",
+    "appliesTo": "The jump ladder of the strength block",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "wallace-2010-plyometric-grf",
+      "llanoslagos-2024-economy-speeds",
+      "balsalobre-2016-running-economy-highly-trained",
+      "ramirezcampillo-2021-jump-training-runners"
+    ]
+  },
+  {
+    "id": "strength-barbell-no-runner-safety-data",
+    "statement": "No paper gives injury or technique data for recreational runners starting barbell lifts; injury rates in competitive weightlifting and powerlifting (2.4-3.3 and 1.0-4.4 injuries per 1000 hours of training) are in the range of other non-contact sports. Offer the barbell after a ramp-in on other lifts, ask for no maximal attempt, leave repetitions in reserve in the first session, and make no claim that barbell lifting is safe for runners.",
+    "parameter": null,
+    "value": "no safety claim",
+    "unit": null,
+    "appliesTo": "Barbell exercises",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "aasa-2016-weightlifter-powerlifter-injuries",
+      "keogh-2016-weight-training-injuries"
+    ]
   }
 ]

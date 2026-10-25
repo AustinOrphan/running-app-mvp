@@ -1,0 +1,34 @@
+{
+  "id": "vikmoen-2017-female-duathletes-strength",
+  "title": "Heavy strength training improves running and cycling performance following prolonged submaximal work in well-trained female athletes",
+  "authors": "Vikmoen O, Rønnestad BR, Ellefsen S, Raastad T",
+  "year": 2017,
+  "journal": "Physiological Reports",
+  "doi": "10.14814/phy2.13149",
+  "pmid": "28292885",
+  "url": "https://doi.org/10.14814/phy2.13149",
+  "design": "rct",
+  "population": "19 well-trained female duathletes (VO2max cycling 54 +/- 3, running 53 +/- 3 ml/kg/min), randomised to endurance training alone (n = 8) or endurance plus strength training (n = 11)",
+  "sampleSize": 19,
+  "evidenceLevel": "B",
+  "topics": ["strength-plyometrics", "sex-female-athlete"],
+  "findings": [
+    "The strength training was four lower-body exercises of 3 sets of 4-10 repetition maximum, twice a week for 11 weeks, added to normal endurance training.",
+    "The strength group raised half-squat 1RM by 45 +/- 22% and leg lean mass by 3.1 +/- 4.0%, more than the control group.",
+    "Performance in a 5-minute all-out test, taken immediately after prolonged submaximal work (3 h of cycling or 1.5 h of running), rose by 7.0 +/- 4.5% in cycling and 4.7 +/- 6.0% in running in the strength group and did not change in the control group; the running change differed between the groups.",
+    "In the strength group oxygen consumption and heart rate fell during the final 2 h of prolonged cycling, and no changes occurred during the prolonged running in either group."
+  ],
+  "limitations": "Nineteen duathletes (the same sample size and group split as the 2016 trial of the same group; the abstract does not say whether the participants overlap); the outcome is a 5-minute all-out test after prolonged work, not a race; running gains had a wide spread (4.7 +/- 6.0%). Abstract read; full text not read.",
+  "implications": [
+    "In women, heavy strength training improved running performance when it was tested after 1.5 hours of running, but the same group found no change in economy or a 40-minute run when tested fresh (vikmoen-2016-female-heavy-strength-running). Consistent in direction with the durability trial in men (zanini-2025-strength-economy-durability-rct), and again a small sample.",
+    "Duathletes are not runners alone; the claim is limited to 'may help late in a long effort' and is not extended to race time."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title (en dash in Crossref), Physiol Rep 5(5), issued 2017-03, four authors and DOI match. Europe PMC abstract (PMID 28292885, PMC5350167) read; every figure above is in it. The Europe PMC abstract text omits the p-values of its between-group statements; none is used.",
+    "checkedAt": "2026-10-25"
+  }
+}

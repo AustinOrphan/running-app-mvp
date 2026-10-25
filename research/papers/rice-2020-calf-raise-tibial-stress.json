@@ -1,0 +1,33 @@
+{
+  "id": "rice-2020-calf-raise-tibial-stress",
+  "title": "Tibial stress during running following a repeated calf-raise protocol",
+  "authors": "Rice HM, Kenny M, Ellison MA, Fulford J, Meardon SA, Derrick TR, Hamill J",
+  "year": 2020,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.13794",
+  "pmid": "32757284",
+  "url": "https://doi.org/10.1111/sms.13794",
+  "design": "experimental-repeated-measures",
+  "population": "14 recreational runners analysed; tibial stress estimated from a participant-specific model of the tibia (MRI geometry, inverse dynamics, musculoskeletal modelling)",
+  "sampleSize": 14,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics", "injury-load"],
+  "findings": [
+    "Tibial stress was estimated at the distal third of the tibia during overground running before and after an exhaustive, weighted calf-raise protocol of repeated plantar-flexor contractions.",
+    "There was no difference in stress at the anterior, posterior, medial or lateral periphery of the tibia after the protocol compared with before.",
+    "The authors conclude that an exhaustive, repeated calf-raise protocol did not alter tibial stress during running."
+  ],
+  "limitations": "Fourteen recreational runners; one session, measured straight after the protocol, so it says nothing about repeated weeks of calf loading; the outcome is a modelled estimate of tibial stress, not a bone stress injury; the abstract does not give the load or the repetitions of the protocol. Abstract read; full text not read.",
+  "implications": [
+    "An acute reassurance only: exhausting the plantar flexors with a weighted calf-raise protocol did not raise the modelled stress on the tibia during a run that followed. It does not show that calf loading is safe for the Achilles tendon or the bone over weeks, gives no dose, and does not replace the separation from key runs (F4).",
+    "Bone stress history still halves the plyometric dose (F7); this paper concerns calf raises, not jumps."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title (hyphen non-breaking in Crossref), Scand J Med Sci Sports 30(12):2382-2389, 2020, seven authors and DOI match. Europe PMC abstract (PMID 32757284) read; every statement above is in it.",
+    "checkedAt": "2026-10-25"
+  }
+}

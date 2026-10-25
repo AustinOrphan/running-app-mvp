@@ -1,0 +1,34 @@
+{
+  "id": "kinoshita-2023-standing-seated-calf-raise",
+  "title": "Triceps surae muscle hypertrophy is greater after standing versus seated calf-raise training",
+  "authors": "Kinoshita M, Maeo S, Kobayashi Y, Eihara Y, Ono M, Sato M, Sugiyama T, Kanehisa H, Isaka T",
+  "year": 2023,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2023.1272106",
+  "pmid": "38156065",
+  "url": "https://doi.org/10.3389/fphys.2023.1272106",
+  "design": "controlled-trial",
+  "population": "14 untrained adults; one leg trained with standing (knee-extended) calf raises and the other with seated (knee 90 degrees flexed) calf raises. Not runners.",
+  "sampleSize": 14,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Each leg did calf-raise training at 70% of one-repetition maximum, 10 repetitions a set, 5 sets a session, 2 sessions a week for 12 weeks; muscle volume was measured by magnetic resonance imaging before and after.",
+    "Muscle volume rose in all three triceps surae muscles and in the whole muscle group on both legs, except in the gastrocnemius muscles of the seated leg (p = 0.147-0.508).",
+    "The rise was greater on the standing than on the seated leg in the lateral gastrocnemius (12.4% against 1.7%), the medial gastrocnemius (9.2% against 0.6%) and the whole triceps surae (5.6% against 2.1%), and similar in the soleus (2.1% against 2.9%, p = 0.410).",
+    "The authors recommend standing over seated calf raises for gastrocnemius and total triceps surae hypertrophy, and read the similar soleus result as a sign that training at long muscle lengths promotes hypertrophy."
+  ],
+  "limitations": "Fourteen untrained adults, a brief report; the outcome is muscle volume, not strength, running economy, Achilles tolerance or injury; one leg against the other in the same person, with allocation of the leg to the position not described in the abstract. Abstract read; full text not read.",
+  "implications": [
+    "The only trial in the corpus that compares the two calf-raise positions: standing raises grew the gastrocnemius far more, and the soleus grew about as much in either position. It gives no support for alternating the positions to load both muscles, and the engine's alternation of straight-knee and bent-knee raises stays a design choice (grade D) that this trial does not back.",
+    "No calf-raise dose for runners (sets, reps, load, tempo) comes from it; the calf dose stays a default."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Front Physiol 14, issued 2023-12-13, nine authors and DOI match. Europe PMC abstract (PMID 38156065, PMC10753835) read; every figure above is in it. Design set to controlled-trial: the abstract names the two legs of each person as the conditions and does not describe randomisation.",
+    "checkedAt": "2026-10-25"
+  }
+}

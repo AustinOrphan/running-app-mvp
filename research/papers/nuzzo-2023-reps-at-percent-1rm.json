@@ -1,0 +1,34 @@
+{
+  "id": "nuzzo-2023-reps-at-percent-1rm",
+  "title": "Maximal Number of Repetitions at Percentages of the One Repetition Maximum: A Meta-Regression and Moderator Analysis of Sex, Age, Training Status, and Exercise",
+  "authors": "Nuzzo JL, Pinto MD, Nosaka K, Steele J",
+  "year": 2023,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-023-01937-7",
+  "pmid": "37792272",
+  "url": "https://doi.org/10.1007/s40279-023-01937-7",
+  "design": "meta-analysis",
+  "population": "952 repetitions-to-failure tests in 7289 individuals in 452 groups from 269 studies; 66% male, 97% healthy, 92% under 59 years, 60% resistance trained; the bench press (42%) and the leg press (14%) were the most studied exercises",
+  "sampleSize": 7289,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "A meta-regression estimated the mean and the between-individuals standard deviation of the number of repetitions completed to failure at each percentage of the one repetition maximum (1RM).",
+    "The mean repetitions were best described by natural cubic splines and the standard deviation by a linear model, and both fell as the percentage of 1RM rose.",
+    "More repetitions were completed in the leg press than the bench press across the loading range, so separate tables were built for these two exercises; the authors found little influence of sex, age or training status and so give one general table for all other exercises.",
+    "The authors note that more data are needed for tables of other exercises."
+  ],
+  "limitations": "Few studies cover lower-body free-weight lifts such as the squat or the Romanian deadlift; the abstract gives no table values; the tests were to failure in healthy, mostly young adults. Abstract read on Europe PMC (open access); the tables were not read.",
+  "implications": [
+    "The number of repetitions possible at a given percentage of the maximum is not linear and varies between people and exercises, so an equation that converts repetitions to a maximum is an approximation. The engine uses the linear form only for a starting load, a ceiling and a labelled estimate (f8.e1rmDivisor), never for a test.",
+    "No sex, age or training-status adjustment is supported by this analysis, consistent with the rule that sex never changes the dose."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Sports Med 54:303-321, issued online 2023-10-04 (Europe PMC year 2024), four authors and DOI match. Europe PMC abstract (PMID 37792272, PMC10933212) read; every figure above is in it.",
+    "checkedAt": "2026-10-25"
+  }
+}
