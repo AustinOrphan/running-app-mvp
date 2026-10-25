@@ -630,10 +630,10 @@ was opened with; a future session shown "as of today" (section 11.2) updates.
   keeps the ramp-in lifts until it ends. The first session of an exercise with no history is a
   ramp-in structure session at a conservative load, whatever the week (section 10.3); the history
   of the dumbbell or kettlebell lift is not converted.
-- **The owner's case** (question 1): dumbbells and kettlebells at home now, and full gym access
-  from the week of 2026-10-26. The setup is saved with the dumbbells and kettlebells and edited on
-  the Strength page ("Equipment and units", section 11.3) when the gym access starts; the workouts
-  from the next session on use the gym equipment.
+- **A typical change** (question 1): a runner with a few dumbbells or kettlebells at home who gains
+  gym access later. The setup is saved with the home items and edited on the Strength page
+  ("Equipment and units", section 11.3) when the gym access starts; the workouts from the next
+  session on use the gym equipment.
 - **"Switchable"** is read as editable at any time (section 18). Named equipment sets chosen per
   day, such as "home" and "gym", are not in v1; "Swap" (section 7.3) changes one exercise for one
   session.
@@ -2001,9 +2001,9 @@ entry gives the answer, the owner's reason where one was given, and where the bo
 reason recorded" means the owner answered without one and the reasoning of sections 15 and 16
 stands. The questions stay in section 16 as asked.
 
-1. **Q1, equipment: a per-user setting that can be changed at any time.** The owner has dumbbells
-   and kettlebells at home now and full gym access from the week of 2026-10-26. Requirement, in the
-   owner's words: equipment is "customizable for any user and switchable", and the workout, which
+1. **Q1, equipment: a per-user setting that can be changed at any time.** The owner's own setup is
+   a small home set that a gym will soon replace, which is the change section 6.5 describes.
+   Requirement, in the owner's words: equipment is "customizable for any user and switchable", and the workout, which
    is derived on read, follows the current equipment from the next session. Section 6.5; tasks
    E14-4, E14-9 and E14-11.
 2. **Q2, lifting level: "some"**, with lifting on and off and no current working weights.
