@@ -1,0 +1,34 @@
+{
+  "id": "kubo-2012-achilles-training-detraining",
+  "title": "Time course of changes in the human Achilles tendon properties and metabolism during training and detraining in vivo",
+  "authors": "Kubo K, Ikebukuro T, Maki A, Yata H, Tsunoda N",
+  "year": 2012,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-011-2248-x",
+  "pmid": "22105708",
+  "url": "https://doi.org/10.1007/s00421-011-2248-x",
+  "design": "experimental-repeated-measures",
+  "population": "Nine men aged 21-27 y who completed 3 months of isometric plantar-flexion training and then 3 months of detraining, measured at baseline and monthly. One group, no control group. Not runners.",
+  "sampleSize": 9,
+  "evidenceLevel": "C",
+  "topics": ["injury-load", "beginners-return"],
+  "findings": [
+    "Achilles tendon stiffness did not change until 2 months of training; the increase (50.3%) reached statistical significance at the end of the 3-month training period.",
+    "After 1 month of detraining, tendon stiffness had already decreased to the pre-training level.",
+    "A marker of type 1 collagen synthesis (serum P1P) rose after 2 months of training, echointensity rose 9.1% after 2 months and stayed high throughout, and MRI signal intensity rose 24.2% at 2 months and 21.4% at 3 months and returned to the pre-training level during detraining.",
+    "Tendon blood circulation (blood volume and oxygen saturation) did not change during the experiment. The authors suggest the sudden fall in stiffness during detraining may relate to changes in the structure of collagen fibres."
+  ],
+  "limitations": "Nine young men, no control group, isometric plantar-flexion training (not running). The stiffness gain was built by 3 months of a single training type, and the abstract does not say what activity continued during detraining. Measurements were monthly, so the loss between 0 and 1 month is not dated. No retraining phase (no rate of regain), no injury or running outcome. Abstract read; full text not read.",
+  "implications": [
+    "In nine young men a stiffness gain that took 3 months of isometric training to show was gone after 1 month of detraining: tissue capacity built slowly can be lost faster than it was built, in this tendon and with this stimulus.",
+    "It does not show that a runner's tendon behaves the same way after a partial reduction in running, does not date the loss for runners, and says nothing about how quickly capacity returns; no plan number rests on it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Eur J Appl Physiol 112(7):2679-2691, five authors and DOI match. Crossref dates the item 2011 (online 2011-11-22) and prints it in July 2012 (volume 112); the id and year follow the volume year 2012, as Europe PMC does, and research:verify tolerates one year. Europe PMC abstract (PMID 22105708) read; every figure above is in it.",
+    "checkedAt": "2026-10-25"
+  }
+}

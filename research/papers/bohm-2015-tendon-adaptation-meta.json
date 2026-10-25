@@ -1,0 +1,34 @@
+{
+  "id": "bohm-2015-tendon-adaptation-meta",
+  "title": "Human tendon adaptation in response to mechanical loading: a systematic review and meta-analysis of exercise intervention studies on healthy adults",
+  "authors": "Bohm S, Mersmann F, Arampatzis A",
+  "year": 2015,
+  "journal": "Sports Medicine - Open",
+  "doi": "10.1186/s40798-015-0009-9",
+  "pmid": "27747846",
+  "url": "https://doi.org/10.1186/s40798-015-0009-9",
+  "design": "meta-analysis",
+  "population": "Healthy adults aged 18-50 y in 27 exercise-intervention studies (37 interventions on the Achilles or patellar tendon, 264 participants), each lasting 8 weeks or more. Not specific to runners; no unloading or detraining arm.",
+  "sampleSize": 264,
+  "evidenceLevel": "B",
+  "topics": ["injury-load"],
+  "findings": [
+    "Pooled over 37 interventions (27 studies, 264 participants), the standardised mean difference was 0.70 (95% CI 0.51-0.88) for tendon stiffness, 0.69 (0.36-1.03) for Young's modulus (17 interventions) and 0.24 (0.07-0.42) for cross-sectional area (33 interventions); the overall effects were significant (p < 0.05).",
+    "Heterogeneity was I2 = 30% for stiffness, 57% for Young's modulus and 21% for cross-sectional area.",
+    "In the subgroup analysis stiffness adaptation depended significantly (p < 0.05) on loading intensity, not on muscle contraction type. The effect was larger, but not significantly, for interventions of 12 weeks or more.",
+    "Mean methodological quality was 71 +/- 9%. The authors conclude that tendons respond to diverse loading regimens, that loading magnitude plays a key role, and that changes in stiffness are attributed more to material than to morphological properties."
+  ],
+  "limitations": "Only interventions of 8 weeks or more were included, so the review cannot say whether shorter loading is ineffective, and it contains no unloading, detraining or retraining arm, so it says nothing about how fast capacity falls or returns after a break. Healthy adults aged 18-50, not runners; the outcomes are tendon properties, not injury or performance. Moderate heterogeneity for Young's modulus, English-language studies only, and the 12-week difference was not significant. Abstract read; full text not read.",
+  "implications": [
+    "Supports the statement that tendon stiffness adapts to loading in healthy adults and depends on how large the load is; it dates no loss and no regain, and it cannot say that a build shorter than 8 weeks does nothing.",
+    "Gives no retraining rate for runners and no Param value; it bears on the load-capacity framework in which a tendon's capacity is built by loading over weeks."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Sports Med Open 1(1), article number 7, published 2015-03-27, three authors and DOI match. Europe PMC abstract (PMID 27747846, PMC4532714) read; every figure above is in it. Level B rather than A: a meta-analysis of 27 small intervention studies of mean quality 71%, with a tendon-property outcome and no injury or performance outcome.",
+    "checkedAt": "2026-10-25"
+  }
+}

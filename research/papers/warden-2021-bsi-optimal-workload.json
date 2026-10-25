@@ -1,0 +1,35 @@
+{
+  "id": "warden-2021-bsi-optimal-workload",
+  "title": "Preventing Bone Stress Injuries in Runners with Optimal Workload",
+  "authors": "Warden SJ, Edwards WB, Willy RW",
+  "year": 2021,
+  "journal": "Current Osteoporosis Reports",
+  "doi": "10.1007/s11914-021-00666-y",
+  "pmid": "33635519",
+  "url": "https://doi.org/10.1007/s11914-021-00666-y",
+  "design": "narrative-review",
+  "population": "Runners and athletes at risk of bone stress injury (BSI); a narrative review with no original data, citing military recruit, athlete, imaging and animal studies",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "The authors state that all BSIs in runners occur due to an error in workload, in which the interaction between the number and magnitude of bone loading cycles exceeds the ability of the tissue to resist the repetitive loads.",
+    "They state that there is not a single optimal bone workload but a range that depends on the situation, and that in the mature skeleton optimal workload minimises damage accumulation by sensibly progressing training, particularly training intensity.",
+    "On timing, the text states that osteoclast resorption in cortical bone takes about 4 weeks, that replacement with new bone can take 3 months and up to a year for full mineralisation, that resorption creates porosity and lowers fatigue resistance, and that BSIs began appearing about 3-4 weeks after a major workload error in military recruits moving from a sedentary life to basic training (citing a recruit study).",
+    "They note that the 10% rule and the acute:chronic workload ratio have been proposed to guide progression, that tolerance to changes in load varies much between individuals, that a single rule is unlikely to apply uniformly, and that different skeletal sites may respond differently; they advise objective monitoring of training load.",
+    "They advise raising training duration before intensity, because injury risk is described as rising linearly with the number of loading cycles and faster with speed (a probabilistic model in which running the same distance at 2.5 instead of 3.5 m/s halved tibial BSI likelihood), and a lead-in with progressive bone loading before a return from an off-season."
+  ],
+  "limitations": "Narrative review (evidence level D): the time-course and model statements are the review's summaries of other sources (a cell-biology review, a military recruit study, a probabilistic tibial model), not results of this paper. It contains no recreational-runner rate, no retraining rate after a break and no threshold for a safe weekly increase; the 10% rule and the workload ratio are described, not tested. Abstract and the open-access author manuscript on PubMed Central (PMC8316280) read.",
+  "implications": [
+    "Supports a general statement of the bone side of load progression: damage and its repair run on a time scale of weeks to months, so a workload error can show weeks later and a build is better paced than jumped; duration before intensity.",
+    "Gives no number for the engine: it neither dates how much bone capacity a runner loses in a few weeks of reduced running nor how fast it returns, and it cautions against reading any single progression rule as universal."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Curr Osteoporos Rep 19(3):298-307, 2021-06, three authors and DOI match. Europe PMC abstract (PMID 33635519) read, then the open-access author manuscript (PMC8316280) for the remodelling timeline (4 weeks, 3 months, up to a year, 3-4 weeks to first BSIs in recruits), the progression and individual-variability passages and the 2.5 versus 3.5 m/s model. Those figures are stated in the text and attributed there to other sources; they are not this paper's own data.",
+    "checkedAt": "2026-10-25"
+  }
+}

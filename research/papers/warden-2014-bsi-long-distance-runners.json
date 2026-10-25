@@ -1,0 +1,34 @@
+{
+  "id": "warden-2014-bsi-long-distance-runners",
+  "title": "Management and prevention of bone stress injuries in long-distance runners",
+  "authors": "Warden SJ, Davis IS, Fredericson M",
+  "year": 2014,
+  "journal": "Journal of Orthopaedic & Sports Physical Therapy",
+  "doi": "10.2519/jospt.2014.5334",
+  "pmid": "25103133",
+  "url": "https://doi.org/10.2519/jospt.2014.5334",
+  "design": "narrative-review",
+  "population": "Long-distance runners with, or at risk of, bone stress injury; a clinical commentary (level of evidence 5) with no original data",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["injury-load"],
+  "findings": [
+    "Bone stress injury (BSI) is the inability of bone to withstand repetitive loading, which results in structural fatigue and localised bone pain and tenderness. It lies on a continuum from stress reaction to stress fracture and, ultimately, a complete bone fracture.",
+    "Most BSIs heal following a period of modified loading and a progressive return to running, but they tend to recur, which the authors read as a need to address the underlying causes.",
+    "A BSI results from disruption of the balance between microdamage formation and its removal. Microdamage accumulation, and so the risk of a BSI, relates both to the load applied to a bone and to the ability of the bone to resist load.",
+    "The authors call the applied load the more amenable factor and name training-program design, lowering impact forces (for example a higher stride rate) and strengthening local muscles as ways to change it; they also point to malalignment and abnormal movement patterns."
+  ],
+  "limitations": "Clinical commentary at level of evidence 5 (expert opinion): no new data, and the abstract states no search method. The abstract gives no time course of bone adaptation and no safe rate of increase in running. Abstract read; the full text is behind a paywall and was not read.",
+  "implications": [
+    "Supplies the framework for bone stress injury (microdamage against its removal, load against the bone's ability to resist it); it frames why load changes matter, with no threshold.",
+    "States nothing the engine can turn into a number: no time course of adaptation, no weekly increase, no credit for earlier training."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, JOSPT 44(10):749-765, 2014-10, three authors and DOI match. Europe PMC abstract (PMID 25103133) read; the level of evidence (therapy, level 5) is in it. Full text not read, so no claim beyond the abstract is made.",
+    "checkedAt": "2026-10-25"
+  }
+}

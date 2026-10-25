@@ -1,6 +1,6 @@
 # Research base
 
-The evidence behind the training engine: 370 papers, 20 topic syntheses, the rules derived from
+The evidence behind the training engine: 376 papers, 20 topic syntheses, the rules derived from
 them and the one document that turns the rules into engine behaviour. It is decision support for
 one recreational runner, not medical advice.
 
@@ -62,6 +62,18 @@ time for the Research page and the "why" drawer.
    no new paper: illness follows n-3, the restart after a long hold follows J7, and the tightened
    profile after a reported niggle follows G-3. The rule is grade D as a whole, and its three
    parameters (window length, back-dating, easy days after a niggle) are labelled defaults.
+9. **Tissue and load-change papers (2026-10-25).** Six papers were added for the load-progression
+   work, from a list of sixteen candidates narrowed to these six on 2026-10-24 (decision 11 of
+   `docs/superpowers/specs/2026-10-24-load-progression-proposal.md`): two tendon studies of
+   unloading and detraining in young non-runners, a meta-analysis of tendon adaptation to loading,
+   two reviews of bone stress injury in runners and a conceptual framework of running injury
+   (capacity against load). Each was looked up in Crossref and its abstract read on Europe PMC that
+   day (the second bone review also from its open-access author manuscript); the corpus went from
+   370 to 376 papers, and `npm run research:verify` found no mismatch. The papers support a caution
+   after a reduction in running and no number: no paper gives a retraining rate for runners, and no
+   paper dates tendon or bone capacity in runners after a partial reduction. No rule, `Param` or
+   `PARAMS_VERSION` changed. The evidence is in `topics/injury-load.md`, the rule
+   `injury-tissue-capacity-no-rate`, G-2 and J7 of `engine-rules.md`.
 
 ## Evidence levels and grades
 

@@ -1,0 +1,33 @@
+{
+  "id": "deboer-2007-ulls-tendon-time-course",
+  "title": "Time course of muscular, neural and tendinous adaptations to 23 day unilateral lower-limb suspension in young men",
+  "authors": "De Boer MD, Maganaris CN, Seynnes OR, Rennie MJ, Narici MV",
+  "year": 2007,
+  "journal": "The Journal of Physiology",
+  "doi": "10.1113/jphysiol.2007.135392",
+  "pmid": "17656438",
+  "url": "https://doi.org/10.1113/jphysiol.2007.135392",
+  "design": "controlled-trial",
+  "population": "17 healthy young men (mean age 22.3 y): 9 underwent 23 days of unilateral lower-limb suspension (ULLS, the leg is not loaded), 8 acted as controls. Not runners. The abstract does not state how the men were allocated to the two groups.",
+  "sampleSize": 17,
+  "evidenceLevel": "C",
+  "topics": ["injury-load", "beginners-return"],
+  "findings": [
+    "Patellar tendon stiffness fell by 9.8 +/- 8.2% (P < 0.05) after 14 days of suspension and by 29.3 +/- 11.5% (P < 0.005) after 23 days; Young's modulus fell by 9.2 +/- 8.2% and 30.1 +/- 11.9%. The controls did not change.",
+    "Knee-extensor torque fell by 14.8 +/- 5.5% after 14 days and by 21.0 +/- 7.1% after 23 days, and quadriceps cross-sectional area by 5.2 +/- 0.7% and 10.0 +/- 2.0%. Voluntary activation did not change.",
+    "The authors state that tendon mechanical properties deteriorated significantly within 2 weeks and more in the third week, and that rehabilitation to limit muscle and tendon deterioration should probably start within 2 weeks of unloading."
+  ],
+  "limitations": "Complete unloading of one leg, not a reduction in running: a result for a partial reduction cannot be read from it. Nine suspended young men who were not runners, one tendon (patellar), ultrasonography end points, no retraining phase (so no rate of regain), no injury outcome. The abstract does not state the allocation method. Abstract read; full text not read.",
+  "implications": [
+    "Evidence from complete unloading that a tendon's stiffness can fall measurably within 2 weeks and by about 30% within 23 days. In relative terms that is larger than the 7% fall in VO2max at day 21 after endurance athletes stopped training (coyle-1984-detraining-time-course); the two come from different people, methods and kinds of unloading, so the comparison is a prompt for caution, not a result.",
+    "It dates no loss for a runner who keeps running a little, shows nothing about how fast stiffness returns, and gives no number a plan could use; at most it supports caution about how much of a past block is credited to tissue after a break."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, J Physiol 583(3):1079-1091, 2007-09, five authors and DOI match. Europe PMC abstract (PMID 17656438) read; every figure above is in it. The abstract's fascicle-length and pennation figures are not used because the sentence is garbled in the Europe PMC text. Design set to controlled-trial because the abstract names a suspended group and a control group without stating randomisation.",
+    "checkedAt": "2026-10-25"
+  }
+}
