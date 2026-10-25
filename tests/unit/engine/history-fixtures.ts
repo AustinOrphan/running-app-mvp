@@ -23,6 +23,24 @@ export function withTaperEnd<T>(value: number, fn: () => T): T {
   }
 }
 
+/**
+ * Runs `fn` with `g8.responseWeeks` set to `value`, then restores it. A value above the weeks the
+ * athlete state holds leaves the response without a mean (`recentRunMean`), so the same input gives
+ * the plan with the zone and without the response: it isolates what the response adds.
+ */
+export function withResponseWeeks<T>(value: number, fn: () => T): T {
+  const before = P.g8.responseWeeks.value
+  P.g8.responseWeeks.value = value
+  try {
+    return fn()
+  } finally {
+    P.g8.responseWeeks.value = before
+  }
+}
+
+/** The weeks the response reads, set far above the 16 the state holds: no response. */
+export const NO_RESPONSE = 99
+
 /** A Saturday; the week of the plan starts on Monday 2026-10-19. */
 export const HISTORY_TODAY = '2026-10-24'
 export const HISTORY_MONDAY = mondayOf(HISTORY_TODAY)

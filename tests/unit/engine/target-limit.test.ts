@@ -31,6 +31,7 @@ const context = (over: Partial<RampContext> = {}): RampContext => ({
   novice: false,
   tight: null,
   rebuild: null,
+  response: null,
   ...over,
 })
 

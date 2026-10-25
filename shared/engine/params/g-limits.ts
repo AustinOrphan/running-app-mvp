@@ -331,5 +331,9 @@ export const gLimits = {
       unit: 'fraction per week',
       note: 'Default: provisional until the replay on real history, and a preference (taste, no claim that it is better). The weekly step below the rebuild ceiling at the standard position, between the soft step g2.rampSoft and the weekly rate at which two weeks meet g2.rampCeilingTwoWeeks. The upper position takes that rate itself, derived from the ceiling, so it is no Param of this group. No study compares weekly steps for a return after a break.',
     }),
+    responseWeeks: param('g8.responseWeeks', 4, 'D', 'g-8', [], {
+      unit: 'weeks',
+      note: 'Default: the response to weeks run above plan reads the mean of the minutes run over this many eligible weeks, the length of the typical week (a5.typicalWeekCount) and the length chosen in question 5 of the proposal (section 7). A race week and a week inside a rest window are skipped, not counted as zero, and the window reaches back to the next eligible week. No study sets the length; it is a preference (taste, no claim that it is better).',
+    }),
   },
 } satisfies ParamGroups

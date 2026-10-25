@@ -1,6 +1,7 @@
-// The property checks of the rebuild zone [rules g-8, proposal section 5.3], written from the
-// finished plan and the Params alone: none of them calls the code that enforces the limit it
-// checks (`rampLimits`, `rebuildZone`), so a mistake there cannot hide behind itself.
+// The property checks of the rebuild zone and the response to weeks run above plan [rules g-8,
+// proposal section 5.3], written from the finished plan, the raw activities and the Params alone:
+// none of them calls the code that enforces the limit it checks (`rampLimits`, `rebuildZone`,
+// `responseBasis`), so a mistake there cannot hide behind itself.
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { loadPosition } from '../../../shared/engine/loadSetting.ts'
@@ -61,6 +62,64 @@ export function expectedZone(input: EngineInput): { ceilingMin: number; step: nu
   }
 }
 
+/**
+ * The weeks of the response, from the raw activities: the minutes run in each of the last
+ * `g8.responseWeeks` complete weeks that hold no race and fall in none of the `skip` weeks (a
+ * reported rest window), newest first. A week holds the whole minutes of its runs, as the athlete
+ * state counts them; races and duplicates are not runs.
+ */
+export function eligibleWeeks(input: EngineInput, skip: ReadonlySet<string> = new Set()): number[] {
+  const seconds = new Map<string, number>()
+  const raced = new Set<string>()
+  for (const a of input.activities) {
+    if (a.duplicateStatus === 'possible' || a.duplicateStatus === 'confirmed') continue
+    const monday = mondayOf(a.date)
+    if (a.type === 'race') raced.add(monday)
+    if (a.type === 'run') seconds.set(monday, (seconds.get(monday) ?? 0) + a.durationSec)
+  }
+  const current = mondayOf(input.today)
+  const out: number[] = []
+  for (let k = 1; k <= 16 && out.length < P.g8.responseWeeks.value; k += 1) {
+    const monday = addDays(current, -7 * k)
+    if (raced.has(monday) || skip.has(monday)) continue
+    out.push(Math.round((seconds.get(monday) ?? 0) / 60))
+  }
+  return out
+}
+
+/**
+ * The weeks a window of `[startDate, endDate]` touches, for the windows whose days end with the
+ * window (a limited window): the tail days of an illness or a niggle are not counted here.
+ */
+export function windowWeeksOf(input: EngineInput): Set<string> {
+  const out = new Set<string>()
+  for (const w of input.disruptions ?? []) {
+    for (let day = w.startDate; day <= w.endDate; day = addDays(day, 1)) out.add(mondayOf(day))
+  }
+  return out
+}
+
+/**
+ * What the response to weeks run above plan gives this runner, from the raw activities and the
+ * Params: null when it does not apply (steady or held at steady, a new plan or one that restarts
+ * after a break, which have no plan to run above), else the mean of the minutes run over the
+ * eligible weeks (null when fewer than `g8.responseWeeks` exist) and the largest of those weeks.
+ */
+export function expectedResponse(
+  input: EngineInput,
+): { meanMin: number | null; maxWeekMin: number | null } | null {
+  const state = estimateState(input)
+  const continued = input.existing?.weeks.some((w) => w.weekStart === mondayOf(input.today))
+  if (continued !== true || state.layoffDays >= P.j7.tier1Days.value) return null
+  if (loadPosition(input, state).position === 'steady') return null
+  const weeks = eligibleWeeks(input, windowWeeksOf(input))
+  if (weeks.length < P.g8.responseWeeks.value) return { meanMin: null, maxWeekMin: null }
+  return {
+    meanMin: weeks.reduce((sum, m) => sum + m, 0) / weeks.length,
+    maxWeekMin: Math.max(...weeks),
+  }
+}
+
 /** A week the plan loads: not a recovery, taper, race, post-race or start-programme week. */
 const isLoading = (w: WeekDraft): boolean =>
   !w.isRecovery &&
@@ -80,7 +139,8 @@ export interface ZoneReport {
 }
 
 /**
- * Each loading week against its baseline, the highest of the two loading weeks before it: at most
+ * Each loading week against its baseline, the highest of the two loading weeks before it (or, at
+ * standard and upper in a continued plan, the mean of the weeks run when that is higher): at most
  * the usual 10% step, or in the zone max(10% step, min(the position's step, R)) over a baseline
  * under R, and never more than the weekly rate of the hard ceiling. A tolerance of two minutes
  * covers the whole-minute rounding and the novice minimum step.
@@ -88,6 +148,8 @@ export interface ZoneReport {
 export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
   const totals = weeklyTotals(input, plan)
   const zone = expectedZone(input)
+  // at standard and upper in a continued plan the baseline may be the mean of the weeks run
+  const lift = expectedResponse(input)?.meanMin ?? 0
   const currentMonday = mondayOf(input.today)
   const loading = plan.weeks.filter((w) => w.weekStart > currentMonday && isLoading(w))
   const report: ZoneReport = { checked: 0, zoneWeeks: 0, problems: [] }
@@ -98,6 +160,7 @@ export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
     const base = Math.max(
       totals.get(loading[i - 1]!.weekStart) ?? 0,
       totals.get(loading[i - 2]!.weekStart) ?? 0,
+      lift,
     )
     const usual = base * (1 + P.g2.rampSoft.value)
     const limit =

@@ -2,6 +2,9 @@
 // digest of the plan the engine built at steady for a set of runners, taken from the engine as it
 // stood before the rebuild zone (82240355, the history block and the lift without the zone). The
 // test compares the plans of this checkout with those digests, at steady and with the option absent.
+// The chains with every week run above its plan (`OVERSHOT_CHAINS`, rule G-2: at steady a week run
+// above its plan lifts nothing) come from the engine as it stood before the response to weeks run
+// above plan (8d668404, the rebuild zone without the response).
 //
 // The digests change only when the plans of a runner who asked for nothing change. When that is
 // intended, check the owner validation first (`data/validate-owner.ts`, same output as before), then
@@ -42,6 +45,19 @@ export const ORACLE_SWEEP = { seed: 20_261_025, count: 40 } as const
 
 /** The weekly re-plan chains of the oracle: a half marathon and a first 100 miler. */
 export const ORACLE_CHAINS = ['half', 'first-100-mile'] as const
+
+/**
+ * The same two chains for their first weeks with every session run half as long again as planned:
+ * at steady the weeks run above plan lift nothing, so the plans must stay what they were.
+ */
+export const OVERSHOT_CHAINS = [
+  { id: 'half', scale: 1.5, maxSteps: 10 },
+  { id: 'first-100-mile', scale: 1.5, maxSteps: 10 },
+] as const
+
+/** The name of the digest of one plan of an overshot chain. */
+export const overshotKey = (chain: (typeof OVERSHOT_CHAINS)[number], i: number): string =>
+  `chain ${chain.id} x${String(chain.scale)} ${String(i)}`
 
 /**
  * A short digest of a plan. The version of the Params is left out: it is stored with every plan
@@ -94,6 +110,11 @@ export function steadyDigests(): Record<string, string> {
   for (const id of ORACLE_CHAINS) {
     replanSteps(id).forEach((step, i) => {
       out[`chain ${id} ${String(i)}`] = planDigest(step.draft)
+    })
+  }
+  for (const chain of OVERSHOT_CHAINS) {
+    replanSteps(chain.id, chain).forEach((step, i) => {
+      out[overshotKey(chain, i)] = planDigest(step.draft)
     })
   }
   return out

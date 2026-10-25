@@ -4,8 +4,10 @@
 // weekly gain ramp and the ultra cap on a single run. The macrocycle and the week placement plan
 // inside these numbers and the guards and the checklist check against the same ones, so a
 // generated plan needs no trimming. The rebuild zone of rule g-8 (a larger soft step below a
-// ceiling taken from the runner's recent weeks) is part of that ramp (`RampContext.rebuild`). The
-// most a week target the runner raised by hand may stay at is read from the same ramp
+// ceiling taken from the runner's recent weeks) is part of that ramp (`RampContext.rebuild`), and so
+// is the response to weeks run above plan (`RampContext.response`): the one function
+// `responseBaseline` gives the baseline the step applies to, to the generator and to the limits
+// alike. The most a week target the runner raised by hand may stay at is read from the same ramp
 // (`targetLimit`). Pure: no I/O, no clock.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity, TargetLimitKind } from '../types.ts'
@@ -398,6 +400,22 @@ export function rebuildStep(
   return Math.max(usual, Math.min(rampStep(from, rebuild.step, novice), rebuild.ceilingMin))
 }
 
+/**
+ * The response to weeks run above plan [rules g-8], as the generator and the limits read it: the
+ * mean of the minutes the runner ran over the last eligible weeks. It is a fact of the athlete
+ * state at the day of the plan, the same for every week the plan draws; the chain of planned weeks
+ * overtakes it within a few weeks. A `RampContext` holds null at steady and wherever the load
+ * setting is held at steady (`responseBasis`, loadSetting.ts, is the one place that builds it).
+ */
+export interface ResponseBasis {
+  /**
+   * The mean of the minutes run in the last `g8.responseWeeks` eligible complete weeks, or null
+   * when the state holds fewer than that many: the position applies and the response has nothing
+   * to read (`recentRunMean`).
+   */
+  meanMin: number | null
+}
+
 /** What the weekly ramp of a plan is computed from. */
 export interface RampContext {
   /** Running minutes by Monday: the completed weeks, then the planned ones. */
@@ -421,29 +439,77 @@ export interface RampContext {
    * and `targetLimit` read one zone.
    */
   rebuild: RebuildZone | null
+  /**
+   * The response to weeks run above plan [rules g-8], or null (steady, a held setting). Set through
+   * `rampBasis` like the zone; `responseBaseline` is the one function that reads it.
+   */
+  response: ResponseBasis | null
 }
 
 /**
  * The parts of a `RampContext` that come from the athlete and the plan's load setting: the typical
- * week, the novice minimum step, the tightened profile's ramp and the rebuild zone. The one
- * function every builder of a context calls (the macrocycle, the week placement, the guards and
- * the checklist), so that they cannot disagree about which ramp a week is measured against.
+ * week, the novice minimum step, the tightened profile's ramp, the rebuild zone and the response
+ * to weeks run above plan. The one function every builder of a context calls (the macrocycle, the
+ * week placement, the guards and the checklist), so that they cannot disagree about which ramp a
+ * week is measured against.
  */
 export function rampBasis(
   state: AthleteState,
   rebuild: RebuildZone | null,
-): Pick<RampContext, 'typicalWeekMin' | 'novice' | 'tight' | 'rebuild'> {
+  response: ResponseBasis | null,
+): Pick<RampContext, 'typicalWeekMin' | 'novice' | 'tight' | 'rebuild' | 'response'> {
   return {
     typicalWeekMin: state.typicalWeekMin,
     novice: noviceRamp(state),
     tight: tightRamp(state),
     rebuild,
+    response,
   }
+}
+
+/**
+ * The mean of the minutes run in the last `g8.responseWeeks` eligible weeks [rules g-8]: the
+ * complete weeks before `before` (the Monday of the current week), newest first, a week in
+ * `excluded` skipped, not counted as zero, and the next older one read in its place; recovery weeks
+ * count as run. `rows` are the weeks of the athlete state, so nothing new is queried (ADR 0009).
+ * Null when the rows do not reach back to that many eligible weeks: a state with fewer has no
+ * response. It reads minutes only and forms no ratio [rules G-5].
+ */
+export function recentRunMean(
+  rows: ReadonlyArray<{ weekStart: string; runMin: number }>,
+  excluded: ReadonlySet<string>,
+  before: string,
+): number | null {
+  const count = P.g8.responseWeeks.value
+  const eligible = rows
+    .filter((row) => row.weekStart < before && !excluded.has(row.weekStart))
+    .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))
+    .slice(0, count)
+  if (eligible.length < count) return null
+  return eligible.reduce((sum, row) => sum + row.runMin, 0) / count
+}
+
+/**
+ * The baseline the step of a loading week applies to [rules g-8, g-2]: the planned baseline
+ * `planned`, or, at standard and upper (`response` set), the mean of the minutes run over the last
+ * eligible weeks when that is higher. It lifts a baseline and never lowers one, and the most it can
+ * give is the largest week of that window. Steady (`response` null) returns `planned` as it is.
+ * The generator (`planWeeks`) and the limits (`rampLimits`, so the guards, the checklist and the
+ * limit of a raised target) read the baseline here and nowhere else. The hard ceiling and G-1 are
+ * applied to the week after it, and a hold or reduce decision caps the week it covers afterwards
+ * (`weekCaps`), so both win over the response.
+ */
+export function responseBaseline(planned: number, response: ResponseBasis | null): number {
+  if (response === null || response.meanMin === null) return planned
+  return response.meanMin > planned + EPS ? response.meanMin : planned
 }
 
 /** The limits of one week. */
 export interface WeekRampLimits {
-  /** Highest of the previous loading weeks, or the typical week. */
+  /**
+   * Highest of the previous loading weeks, or the typical week; at standard and upper the mean of
+   * the minutes run in the last eligible weeks when that is higher (`responseBaseline`).
+   */
   base: number
   /** Above this the week carries a soft-ramp warning: the zone's limit in the rebuild zone. */
   soft: number
@@ -507,8 +573,10 @@ const positive = (value: number | null): number | null =>
 /** The ramp limits of the week of `weekStart`; null when nothing gives a baseline. */
 export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits | null {
   const typical = ctx.typicalWeekMin > 0 ? ctx.typicalWeekMin : null
-  const base = positive(highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor)) ?? typical
-  if (base === null) return null
+  const planned =
+    positive(highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor)) ?? typical
+  if (planned === null) return null
+  const base = responseBaseline(planned, ctx.response)
   // The floor week is the ceiling baseline of the week right after it too, which would otherwise be
   // held to 130% of the weeks before the floor.
   const window = P.g2.ceilingWindowWeeks.value
@@ -522,7 +590,7 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
         highestBaseline(ctx.volumes, ctx.skip, weekStart, window, ctx.floor) ?? 0,
         afterFloor ? Math.max(ctx.volumes.get(ctx.floor!.weekStart) ?? 0, ctx.floor!.minutes) : 0,
       ),
-    ) ?? base
+    ) ?? planned
   const usualSoft = rampStep(base, P.g2.rampSoft.value, ctx.novice)
   const soft = rebuildStep(base, P.g2.rampSoft.value, ctx.novice, ctx.rebuild)
   const ceiling = rampStep(ceilingBase, P.g2.rampCeilingTwoWeeks.value, ctx.novice)

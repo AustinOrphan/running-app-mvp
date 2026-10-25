@@ -29,7 +29,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-25.2')
+    expect(PARAMS_VERSION).toBe('2026-10-25.3')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -441,7 +441,7 @@ describe('parameter registry', () => {
     expect(engineRules).toMatch(/\*\*O1 Targets on the device\.\*\*/)
   })
 
-  it('carries the history-informed rebuild G-8 as eight labelled defaults, with its evidence', () => {
+  it('carries the history-informed rebuild G-8 as nine labelled defaults, with its evidence', () => {
     const g8 = [
       P.g8.blockWeeks,
       P.g8.blockWeeksDropped,
@@ -451,6 +451,7 @@ describe('parameter registry', () => {
       P.g8.creditStandard,
       P.g8.creditUpper,
       P.g8.stepStandard,
+      P.g8.responseWeeks,
     ]
     expect(g8.map((p) => [p.id, p.value, p.unit, p.grade, p.rule])).toEqual([
       ['g8.blockWeeks', 4, 'weeks', 'D', 'g-8'],
@@ -461,6 +462,7 @@ describe('parameter registry', () => {
       ['g8.creditStandard', 0.7, 'fraction', 'D', 'g-8'],
       ['g8.creditUpper', 0.85, 'fraction', 'D', 'g-8'],
       ['g8.stepStandard', 0.12, 'fraction per week', 'D', 'g-8'],
+      ['g8.responseWeeks', 4, 'weeks', 'D', 'g-8'],
     ])
     expect(paramsForRule('g-8').map((p) => p.id)).toEqual(g8.map((p) => p.id))
     for (const p of g8) expect(p.note, p.id).toMatch(/^Default:/)
@@ -503,6 +505,12 @@ describe('parameter registry', () => {
       'buist-2008-graded-training',
       'fredette-2022-training-parameters-injury-review',
     ])
+    // the response reads the weeks of a typical week; no study sets the length, and the note says
+    // that it is a default and passes the G5 lint
+    expect(P.g8.responseWeeks.evidence).toEqual([])
+    expect(P.g8.responseWeeks.value).toBe(P.a5.typicalWeekCount.value)
+    expect(P.g8.responseWeeks.note).toMatch(/^Default: /)
+    expect(lintText(P.g8.responseWeeks.note ?? '')).toEqual([])
     // the credits are shares of the block, the upper above the standard; the standard step sits
     // between the soft step and the weekly rate at which two weeks meet the hard ceiling
     expect(P.g8.creditStandard.value).toBeLessThan(P.g8.creditUpper.value)
@@ -538,12 +546,20 @@ describe('parameter registry', () => {
       ).toEqual([])
     }
     expect(g8Text).toMatch(/Grade D as a whole/)
-    // the parts built later are marked as such, with their provisional values
-    for (const part of ['built in task L3b)', 'provisional']) {
-      expect(g8Text, part).toContain(part)
-    }
+    // the values that wait for the replay are marked provisional; every part is built
+    expect(g8Text).toContain('provisional')
     expect(g8Text).toContain('Rebuild ceiling and zone')
-    expect(g8Text).not.toContain('(built in task L3)')
+    expect(g8Text).toContain('**Response to weeks run above plan.**')
+    expect(g8Text).toMatch(/applies to a plan the runner is following/)
+    expect(g8Text).not.toMatch(/built in task L3/)
+    // G-2 and G-6 no longer say that a week run above its plan lifts nothing, without the
+    // qualification that standard and upper lift the baseline from the mean of the weeks run
+    const g2 = engineRules.slice(engineRules.indexOf('- **G-2 '), engineRules.indexOf('- **G-3 '))
+    const g6 = engineRules.slice(engineRules.indexOf('- **G-6 '), engineRules.indexOf('- **G-7 '))
+    expect(g2).toMatch(/at steady one week above the ramp lifts nothing after it/)
+    expect(g2).toMatch(/At standard and upper the trailing mean of the minutes run/)
+    expect(g6).toMatch(/At steady a week run above its plan lifts nothing/)
+    expect(g6).toMatch(/At standard and upper the mean of the minutes run/)
     for (const row of [
       'History block \\(G-8\\)',
       'History credit window \\(G-8\\)',
@@ -553,6 +569,7 @@ describe('parameter registry', () => {
       'Rebuild ceiling, upper \\(G-8\\)',
       'Rebuild step, standard \\(G-8\\)',
       'Rebuild step, upper \\(G-8\\)',
+      'Response to weeks run above plan \\(G-8\\)',
     ]) {
       expect(engineRules, row).toMatch(new RegExp(`^\\| ${row} `, 'm'))
     }
