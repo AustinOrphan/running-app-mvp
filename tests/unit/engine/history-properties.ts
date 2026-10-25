@@ -6,8 +6,10 @@ import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { loadPosition } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import { plannedMinOf } from '../../../shared/engine/limits.ts'
 import type {
   EngineInput,
+  HistoryBlock,
   PlanDraft,
   SessionKind,
   WeekDraft,
@@ -47,17 +49,64 @@ export function weeklyTotals(input: EngineInput, plan: PlanDraft): Map<string, n
   return out
 }
 
+/** Running minutes by Monday, from the raw activities alone (races and duplicates are not runs). */
+function runMinutesByWeek(input: EngineInput): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const a of input.activities) {
+    if (a.duplicateStatus === 'possible' || a.duplicateStatus === 'confirmed') continue
+    if (a.type === 'run') {
+      out.set(mondayOf(a.date), (out.get(mondayOf(a.date)) ?? 0) + a.durationSec / 60)
+    }
+  }
+  return out
+}
+
+/**
+ * The first Monday of the plan being continued, from the stored plan alone: the earliest week of
+ * the plan when it holds the current week and the break is shorter than `j7.tier1Days`; null for a
+ * new plan or one that restarts after a break.
+ */
+export function continuedSince(input: EngineInput): string | null {
+  const weeks = input.existing?.weeks ?? []
+  const current = mondayOf(input.today)
+  if (!weeks.some((w) => w.weekStart === current)) return null
+  if (estimateState(input).layoffDays >= P.j7.tier1Days.value) return null
+  return weeks.map((w) => w.weekStart).reduce((a, b) => (a < b ? a : b))
+}
+
+/**
+ * The block the rebuild zone reads at a `credit` [rules g-8]: for a plan being continued, the block
+ * of the athlete state on the plan's first Monday (the same input dated there), until a complete
+ * week since that Monday has run at or above credit x taper x H of it; else the block of the state
+ * today. The first Monday is found by running the state estimate on that date, and the weeks run
+ * are summed from the raw activities, so nothing here calls the code that chooses the block.
+ */
+export function expectedBlock(input: EngineInput, credit: number): HistoryBlock | null {
+  const own = estimateState(input).history
+  const first = continuedSince(input)
+  const current = mondayOf(input.today)
+  if (first === null || first >= current) return own
+  const opened = estimateState({ ...input, today: first }).history
+  if (opened === null) return own
+  const ceiling = credit * opened.taper * opened.blockMin
+  const minutes = runMinutesByWeek(input)
+  for (let monday = first; monday < current; monday = addDays(monday, 7)) {
+    if ((minutes.get(monday) ?? 0) >= ceiling) return own
+  }
+  return opened
+}
+
 /** The rebuild ceiling and step the rule gives this runner at a position, from the Params. */
 export function expectedZone(input: EngineInput): { ceilingMin: number; step: number } | null {
   const state = estimateState(input)
   const { position } = loadPosition(input, state)
-  if (position === 'steady' || state.history === null) return null
+  if (position === 'steady') return null
   const upper = position === 'upper'
+  const credit = upper ? P.g8.creditUpper.value : P.g8.creditStandard.value
+  const block = expectedBlock(input, credit)
+  if (block === null) return null
   return {
-    ceilingMin:
-      (upper ? P.g8.creditUpper.value : P.g8.creditStandard.value) *
-      state.history.taper *
-      state.history.blockMin,
+    ceilingMin: credit * block.taper * block.blockMin,
     step: upper ? UPPER_STEP : P.g8.stepStandard.value,
   }
 }
@@ -69,6 +118,14 @@ export function expectedZone(input: EngineInput): { ceilingMin: number; step: nu
  * state counts them; races and duplicates are not runs.
  */
 export function eligibleWeeks(input: EngineInput, skip: ReadonlySet<string> = new Set()): number[] {
+  return eligibleWeekList(input, skip).map((w) => w.runMin)
+}
+
+/** `eligibleWeeks` with the Monday of each week, newest first. */
+export function eligibleWeekList(
+  input: EngineInput,
+  skip: ReadonlySet<string> = new Set(),
+): Array<{ weekStart: string; runMin: number }> {
   const seconds = new Map<string, number>()
   const raced = new Set<string>()
   for (const a of input.activities) {
@@ -78,11 +135,11 @@ export function eligibleWeeks(input: EngineInput, skip: ReadonlySet<string> = ne
     if (a.type === 'run') seconds.set(monday, (seconds.get(monday) ?? 0) + a.durationSec)
   }
   const current = mondayOf(input.today)
-  const out: number[] = []
+  const out: Array<{ weekStart: string; runMin: number }> = []
   for (let k = 1; k <= 16 && out.length < P.g8.responseWeeks.value; k += 1) {
     const monday = addDays(current, -7 * k)
     if (raced.has(monday) || skip.has(monday)) continue
-    out.push(Math.round((seconds.get(monday) ?? 0) / 60))
+    out.push({ weekStart: monday, runMin: Math.round((seconds.get(monday) ?? 0) / 60) })
   }
   return out
 }
@@ -102,22 +159,44 @@ export function windowWeeksOf(input: EngineInput): Set<string> {
 /**
  * What the response to weeks run above plan gives this runner, from the raw activities and the
  * Params: null when it does not apply (steady or held at steady, a new plan or one that restarts
- * after a break, which have no plan to run above), else the mean of the minutes run over the
- * eligible weeks (null when fewer than `g8.responseWeeks` exist) and the largest of those weeks.
+ * after a break, which have no plan to run above), else `meanMin`, the mean of the minutes run over
+ * the eligible weeks, and the largest of those weeks. `meanMin` is null when fewer than
+ * `g8.responseWeeks` weeks exist and when the newest of them was run under the minutes the stored
+ * plan held for it (or the plan held none): a week run under its target is never a reason to lift.
+ * `weeksMean` is the mean of the weeks whatever the newest week did, null only without four weeks.
  */
-export function expectedResponse(
-  input: EngineInput,
-): { meanMin: number | null; maxWeekMin: number | null } | null {
+export function expectedResponse(input: EngineInput): {
+  meanMin: number | null
+  maxWeekMin: number | null
+  weeksMean: number | null
+} | null {
   const state = estimateState(input)
-  const continued = input.existing?.weeks.some((w) => w.weekStart === mondayOf(input.today))
-  if (continued !== true || state.layoffDays >= P.j7.tier1Days.value) return null
+  if (continuedSince(input) === null) return null
   if (loadPosition(input, state).position === 'steady') return null
-  const weeks = eligibleWeeks(input, windowWeeksOf(input))
-  if (weeks.length < P.g8.responseWeeks.value) return { meanMin: null, maxWeekMin: null }
-  return {
-    meanMin: weeks.reduce((sum, m) => sum + m, 0) / weeks.length,
-    maxWeekMin: Math.max(...weeks),
+  const weeks = eligibleWeekList(input, windowWeeksOf(input))
+  if (weeks.length < P.g8.responseWeeks.value) {
+    return { meanMin: null, maxWeekMin: null, weeksMean: null }
   }
+  const mean = weeks.reduce((sum, w) => sum + w.runMin, 0) / weeks.length
+  const newest = weeks[0]!
+  const stored = input.existing!.weeks.find((w) => w.weekStart === newest.weekStart)
+  const atTarget = stored !== undefined && newest.runMin >= plannedMinOf(stored)
+  return {
+    meanMin: atTarget ? mean : null,
+    maxWeekMin: Math.max(...weeks.map((w) => w.runMin)),
+    weeksMean: mean,
+  }
+}
+
+/**
+ * The baseline a loading week is stepped from when the response reads `meanMin` over the planned
+ * baseline `planned` [rules g-8]: the mean when it is higher, and never more than the planned
+ * baseline stepped by the ceiling of two weeks (the novice minimum step is left to the tolerance of
+ * the callers).
+ */
+export function expectedBaseline(planned: number, meanMin: number | null): number {
+  if (meanMin === null || meanMin <= planned) return planned
+  return Math.min(meanMin, planned * (1 + P.g2.rampCeilingTwoWeeks.value))
 }
 
 /** A week the plan loads: not a recovery, taper, race, post-race or start-programme week. */
@@ -149,7 +228,7 @@ export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
   const totals = weeklyTotals(input, plan)
   const zone = expectedZone(input)
   // at standard and upper in a continued plan the baseline may be the mean of the weeks run
-  const lift = expectedResponse(input)?.meanMin ?? 0
+  const mean = expectedResponse(input)?.meanMin ?? null
   const currentMonday = mondayOf(input.today)
   const loading = plan.weeks.filter((w) => w.weekStart > currentMonday && isLoading(w))
   const report: ZoneReport = { checked: 0, zoneWeeks: 0, problems: [] }
@@ -157,11 +236,11 @@ export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
   for (let i = 2; i < loading.length; i += 1) {
     const week = loading[i]!
     const total = totals.get(week.weekStart) ?? 0
-    const base = Math.max(
+    const planned = Math.max(
       totals.get(loading[i - 1]!.weekStart) ?? 0,
       totals.get(loading[i - 2]!.weekStart) ?? 0,
-      lift,
     )
+    const base = expectedBaseline(planned, mean)
     const usual = base * (1 + P.g2.rampSoft.value)
     const limit =
       zone !== null && base < zone.ceilingMin

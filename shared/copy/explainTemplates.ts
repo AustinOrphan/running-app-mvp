@@ -76,6 +76,10 @@ export const EXPLAIN_TEMPLATES = {
       share: 'share',
     },
   ),
+  'explain.g8-kept': tpl(
+    'This plan began with that block, counted at {share} of its size, and keeps it until a week reaches {minutes}.',
+    { share: 'share', minutes: 'minutes' },
+  ),
   'explain.g8-zone': tpl(
     'While a week is under {minutes}, the plan adds up to {pct} a week; past that it adds up to {soft}.',
     { minutes: 'minutes', pct: 'percent', soft: 'percent' },
@@ -89,8 +93,8 @@ export const EXPLAIN_TEMPLATES = {
     age: 'count',
   }),
   'explain.g8-response': tpl(
-    'The last {n} weeks averaged {mean} a week, above the {planned} planned, so the next week builds from {mean}.',
-    { n: 'count', mean: 'minutes', planned: 'minutes' },
+    'The last {n} weeks averaged {mean} a week, above the {planned} planned, so the next week builds from {from}.',
+    { n: 'count', mean: 'minutes', planned: 'minutes', from: 'minutes' },
   ),
   'explain.g8-none': tpl(
     'No {blocks} in the last {weeks} weeks, so the plan builds from recent weeks.',

@@ -1139,7 +1139,7 @@ function planWeeks(
             ? lastWork
             : floorEps(
                 rebuildStep(
-                  responseBaseline(lastWork, rampCtx.response),
+                  responseBaseline(lastWork, rampCtx.response, rampNovice),
                   ramp,
                   rampNovice,
                   rampCtx.rebuild,

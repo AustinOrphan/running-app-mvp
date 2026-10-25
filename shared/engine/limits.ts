@@ -410,8 +410,10 @@ export function rebuildStep(
 export interface ResponseBasis {
   /**
    * The mean of the minutes run in the last `g8.responseWeeks` eligible complete weeks, or null
-   * when the state holds fewer than that many: the position applies and the response has nothing
-   * to read (`recentRunMean`).
+   * when the response has nothing to read: the state holds fewer than that many weeks, or the
+   * newest of them was run under its stored target, or the plan holds no target for it (the
+   * position applies all the same). The first window of that mean is `recentRunMean`; the gate on
+   * the newest week is `responseBasis`'s.
    */
   meanMin: number | null
 }
@@ -468,12 +470,29 @@ export function rampBasis(
 }
 
 /**
- * The mean of the minutes run in the last `g8.responseWeeks` eligible weeks [rules g-8]: the
- * complete weeks before `before` (the Monday of the current week), newest first, a week in
- * `excluded` skipped, not counted as zero, and the next older one read in its place; recovery weeks
- * count as run. `rows` are the weeks of the athlete state, so nothing new is queried (ADR 0009).
- * Null when the rows do not reach back to that many eligible weeks: a state with fewer has no
- * response. It reads minutes only and forms no ratio [rules G-5].
+ * The eligible weeks of the response [rules g-8], newest first: the complete weeks before `before`
+ * (the Monday of the current week), a week in `excluded` skipped, not counted as zero, and the next
+ * older one read in its place, up to `g8.responseWeeks` of them. Recovery weeks count as run.
+ * `rows` are the weeks of the athlete state, so nothing new is queried (ADR 0009). Fewer than
+ * `g8.responseWeeks` rows come back when the rows do not reach back that far. The first is the
+ * newest eligible week, whose result the response checks against its stored target
+ * (`responseBasis`, loadSetting.ts).
+ */
+export function eligibleWeeks<T extends { weekStart: string }>(
+  rows: ReadonlyArray<T>,
+  excluded: ReadonlySet<string>,
+  before: string,
+): T[] {
+  return rows
+    .filter((row) => row.weekStart < before && !excluded.has(row.weekStart))
+    .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))
+    .slice(0, P.g8.responseWeeks.value)
+}
+
+/**
+ * The mean of the minutes run in the last `g8.responseWeeks` eligible weeks [rules g-8]
+ * (`eligibleWeeks`). Null when the rows do not reach back to that many eligible weeks: a state with
+ * fewer has no response. It reads minutes only and forms no ratio [rules G-5].
  */
 export function recentRunMean(
   rows: ReadonlyArray<{ weekStart: string; runMin: number }>,
@@ -481,10 +500,7 @@ export function recentRunMean(
   before: string,
 ): number | null {
   const count = P.g8.responseWeeks.value
-  const eligible = rows
-    .filter((row) => row.weekStart < before && !excluded.has(row.weekStart))
-    .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))
-    .slice(0, count)
+  const eligible = eligibleWeeks(rows, excluded, before)
   if (eligible.length < count) return null
   return eligible.reduce((sum, row) => sum + row.runMin, 0) / count
 }
@@ -492,23 +508,33 @@ export function recentRunMean(
 /**
  * The baseline the step of a loading week applies to [rules g-8, g-2]: the planned baseline
  * `planned`, or, at standard and upper (`response` set), the mean of the minutes run over the last
- * eligible weeks when that is higher. It lifts a baseline and never lowers one, and the most it can
- * give is the largest week of that window. Steady (`response` null) returns `planned` as it is.
- * The generator (`planWeeks`) and the limits (`rampLimits`, so the guards, the checklist and the
- * limit of a raised target) read the baseline here and nowhere else. The hard ceiling and G-1 are
- * applied to the week after it, and a hold or reduce decision caps the week it covers afterwards
- * (`weekCaps`), so both win over the response.
+ * eligible weeks when that is higher, and never past the planned baseline stepped by the two-week
+ * ceiling (`g2.rampCeilingTwoWeeks`, through `rampStep` with the novice minimum step): one outlier
+ * week cannot lift a plan by more than the ceiling the engine already allows over two weeks. It
+ * lifts a baseline and never lowers one. Steady (`response` null) and a response without a mean
+ * (fewer than four eligible weeks, or a newest eligible week run under its stored target:
+ * `responseBasis`, loadSetting.ts) return `planned` as it is. The generator (`planWeeks`) and the
+ * limits (`rampLimits`, so the guards, the checklist and the limit of a raised target) read the
+ * baseline here and nowhere else. The hard ceiling and G-1 are applied to the week after it, and a
+ * hold or reduce decision caps the week it covers afterwards (`weekCaps`), so both win over the
+ * response.
  */
-export function responseBaseline(planned: number, response: ResponseBasis | null): number {
+export function responseBaseline(
+  planned: number,
+  response: ResponseBasis | null,
+  novice: boolean,
+): number {
   if (response === null || response.meanMin === null) return planned
-  return response.meanMin > planned + EPS ? response.meanMin : planned
+  if (response.meanMin <= planned + EPS) return planned
+  return Math.min(response.meanMin, rampStep(planned, P.g2.rampCeilingTwoWeeks.value, novice))
 }
 
 /** The limits of one week. */
 export interface WeekRampLimits {
   /**
    * Highest of the previous loading weeks, or the typical week; at standard and upper the mean of
-   * the minutes run in the last eligible weeks when that is higher (`responseBaseline`).
+   * the minutes run in the last eligible weeks when that is higher, up to the two-week ceiling over
+   * the planned baseline (`responseBaseline`).
    */
   base: number
   /** Above this the week carries a soft-ramp warning: the zone's limit in the rebuild zone. */
@@ -576,7 +602,7 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
   const planned =
     positive(highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor)) ?? typical
   if (planned === null) return null
-  const base = responseBaseline(planned, ctx.response)
+  const base = responseBaseline(planned, ctx.response, ctx.novice)
   // The floor week is the ceiling baseline of the week right after it too, which would otherwise be
   // held to 130% of the weeks before the floor.
   const window = P.g2.ceilingWindowWeeks.value

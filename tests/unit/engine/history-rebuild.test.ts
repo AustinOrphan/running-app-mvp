@@ -28,6 +28,7 @@ import {
   loadPosition,
   rebuildZone,
   responseBasis,
+  zoneBlock,
 } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
@@ -73,7 +74,10 @@ import { planDigest } from './history-oracle.ts'
 import {
   ceilingProblems,
   cumulative,
+  eligibleWeekList,
   eligibleWeeks,
+  expectedBaseline,
+  expectedBlock,
   expectedResponse,
   expectedZone,
   planProblems,
@@ -342,12 +346,19 @@ describe('one function builds the ramp context of the generator, the guards and 
 
   it('reads the baseline of a loading week through responseBaseline in the generator and in rampLimits, and nowhere else', () => {
     const files = readdirSync(ENGINE).filter((file) => file.endsWith('.ts'))
+    // the explanation names the baseline a lifted week is built from through the same function
     expect(files.filter((file) => /\bresponseBaseline\(/.test(read(file)))).toEqual([
+      'explainInputs.ts',
       'limits.ts',
       'macro.ts',
     ])
-    expect(read('macro.ts')).toMatch(/responseBaseline\(lastWork, rampCtx\.response\)/)
-    expect(read('limits.ts')).toMatch(/responseBaseline\(planned, ctx\.response\)/)
+    expect(read('macro.ts')).toMatch(/responseBaseline\(lastWork, rampCtx\.response, rampNovice\)/)
+    expect(read('limits.ts')).toMatch(/responseBaseline\(planned, ctx\.response, ctx\.novice\)/)
+    // the block is found in one function, which the zone calls once more for the plan's own Monday
+    expect(files.filter((file) => /\bhistoryBlock\(/.test(read(file)))).toEqual([
+      'athlete.ts',
+      'loadSetting.ts',
+    ])
     // the mean is computed in one place and built into the response in one place
     expect(files.filter((file) => /\brecentRunMean\(/.test(read(file)))).toEqual([
       'limits.ts',
@@ -969,35 +980,67 @@ describe('the mean of the weeks run [rules g-8, G-5]', () => {
     expect(recentRunMean(rowsOf([120, 132, 145, 91]), new Set(), MON)).toBeCloseTo(122, 9)
   })
 
-  it('lifts a baseline to the mean and never lowers one, whatever the weeks hold', () => {
+  it('lifts a baseline to the mean, never lowers one and never passes the two-week ceiling over the planned baseline', () => {
     const rnd = mulberry32(20_261_025)
+    let bounded = 0
     for (let n = 0; n < 300; n += 1) {
       const count = 3 + Math.floor(rnd() * 10)
       const rows = rowsOf(Array.from({ length: count }, () => Math.floor(rnd() * 400)))
       const excluded = new Set(rows.filter(() => rnd() < 0.25).map((r) => r.weekStart))
       const planned = Math.floor(rnd() * 400)
+      const novice = rnd() < 0.3
       const eligible = rows.filter((r) => !excluded.has(r.weekStart)).slice(-4)
       const mean = recentRunMean(rows, excluded, MON)
       if (eligible.length < 4) {
         expect(mean).toBeNull()
-        expect(responseBaseline(planned, { meanMin: mean })).toBe(planned)
+        expect(responseBaseline(planned, { meanMin: mean }, novice)).toBe(planned)
         continue
       }
       const expected = eligible.reduce((sum, r) => sum + r.runMin, 0) / 4
       expect(mean).toBeCloseTo(expected, 9)
-      const baseline = responseBaseline(planned, { meanMin: mean })
+      const baseline = responseBaseline(planned, { meanMin: mean }, novice)
+      // a newest week under its target leaves no mean to read, whatever the other weeks hold
+      expect(responseBaseline(planned, { meanMin: null }, novice)).toBe(planned)
+      const bound = rampStep(planned, P.g2.rampCeilingTwoWeeks.value, novice)
       expect(baseline).toBeGreaterThanOrEqual(planned)
-      // never past the larger of the planned baseline and the largest week of the window
+      // never past the larger of the planned baseline and the largest week of the window ...
       expect(baseline).toBeLessThanOrEqual(Math.max(planned, ...eligible.map((r) => r.runMin)))
-      expect(baseline).toBeCloseTo(Math.max(planned, expected), 9)
+      // ... nor past the planned baseline stepped by the ceiling of two weeks
+      expect(baseline).toBeLessThanOrEqual(bound + 1e-9)
+      expect(baseline).toBeCloseTo(Math.max(planned, Math.min(expected, bound)), 9)
+      if (expected > bound) bounded += 1
     }
+    // a property that never met the bound would test nothing
+    expect(bounded).toBeGreaterThan(20)
+  })
+
+  it('has nothing to lift when the newest eligible week was run under its stored target', () => {
+    // the null case of the response: the position applies and the mean is not read
+    expect(responseBaseline(100, { meanMin: null }, false)).toBe(100)
+    expect(responseBaseline(100, { meanMin: null }, true)).toBe(100)
   })
 
   it('leaves the baseline as it is at steady and where the state has no mean', () => {
-    expect(responseBaseline(121, null)).toBe(121)
-    expect(responseBaseline(121, { meanMin: null })).toBe(121)
-    expect(responseBaseline(121, { meanMin: 121 })).toBe(121)
-    expect(responseBaseline(121, { meanMin: 100 })).toBe(121)
+    expect(responseBaseline(121, null, false)).toBe(121)
+    expect(responseBaseline(121, { meanMin: null }, false)).toBe(121)
+    expect(responseBaseline(121, { meanMin: 121 }, false)).toBe(121)
+    expect(responseBaseline(121, { meanMin: 100 }, false)).toBe(121)
+  })
+
+  it('stops a lift at the planned baseline stepped by the two-week ceiling, the novice minimum step included', () => {
+    const ceiling = P.g2.rampCeilingTwoWeeks.value
+    // one week of 500 minutes after weeks of about 100: a mean of 185 against a planned 70 is 2.6
+    // times the plan, and the lift stops at 1.3 times it
+    expect(responseBaseline(70, { meanMin: 185 }, false)).toBeCloseTo(70 * (1 + ceiling), 9)
+    // a mean inside the bound is taken whole, as before
+    expect(responseBaseline(121, { meanMin: 126.75 }, false)).toBeCloseTo(126.75, 9)
+    // the minimum step of a novice raises the bound of a small baseline
+    const step = P.g2.noviceMinStepMin.value
+    expect(responseBaseline(10, { meanMin: 100 }, true)).toBeCloseTo(
+      10 + Math.max(10 * ceiling, step),
+      9,
+    )
+    expect(responseBaseline(10, { meanMin: 100 }, false)).toBeCloseTo(10 * (1 + ceiling), 9)
   })
 })
 
@@ -1029,17 +1072,23 @@ describe('rampLimits with the response [rules g-8, g-2]', () => {
     // the hard ceiling reads the weeks two and three back, never the mean
     expect(lifted.allowed).toBe(plain.allowed)
     expect(lifted.allowed).toBeCloseTo(130, 9)
-    // a mean far above the weeks cannot take the planned week past the ceiling
+    // a mean far above the weeks lifts the baseline no further than the ceiling of two weeks over
+    // the planned one, and cannot take the planned week past the hard ceiling either
     const far = rampLimits(context({ response: { meanMin: 250 } }), WEEK)!
-    expect(far.soft).toBeCloseTo(275, 9)
+    expect(far.base).toBeCloseTo(130, 9)
+    expect(far.soft).toBeCloseTo(143, 9)
     expect(far.plan).toBeCloseTo(130, 9)
   })
 
   it('takes the zone step from the lifted baseline, and a mean under the baseline changes nothing', () => {
     const zone: RebuildZone = { ceilingMin: 196, step: 0.12 }
-    const lifted = rampLimits(context({ rebuild: zone, response: { meanMin: 150 } }), WEEK)!
-    expect(lifted.soft).toBeCloseTo(168, 9)
+    const lifted = rampLimits(context({ rebuild: zone, response: { meanMin: 120 } }), WEEK)!
+    expect(lifted.soft).toBeCloseTo(134.4, 9)
     expect(lifted.rebuild).toEqual(zone)
+    // a mean past the bound steps from the bound: 100 x 1.30, then the zone's 12%
+    const capped = rampLimits(context({ rebuild: zone, response: { meanMin: 150 } }), WEEK)!
+    expect(capped.base).toBeCloseTo(130, 9)
+    expect(capped.soft).toBeCloseTo(145.6, 9)
     const under = rampLimits(context({ rebuild: zone, response: { meanMin: 90 } }), WEEK)!
     expect(under).toEqual(rampLimits(context({ rebuild: zone }), WEEK))
     expect(rampLimits(context({ response: { meanMin: null } }), WEEK)).toEqual(
@@ -1070,7 +1119,7 @@ describe('H16: weeks run above plan lift the baseline to their mean, then the po
       HISTORY_MONDAY,
     )!
     expect(mean).toBeCloseTo(126.75, 9)
-    const baseline = responseBaseline(121, { meanMin: mean })
+    const baseline = responseBaseline(121, { meanMin: mean }, false)
     expect(baseline).toBeCloseTo(126.75, 9)
     // 4.8% above the planned baseline, and the position's step applies to it
     expect(baseline / 121 - 1).toBeCloseTo(0.0475, 3)
@@ -1099,10 +1148,12 @@ describe('H16: weeks run above plan lift the baseline to their mean, then the po
         expect(next, `step ${String(k)}`).toBeGreaterThanOrEqual(nextOf(planned, zone))
         if (response.meanMin !== null && response.meanMin > planned) {
           engaged += 1
-          // and never above the step from the mean
-          expect(next, `step ${String(k)}`).toBeLessThanOrEqual(nextOf(response.meanMin, zone))
+          // and never above the step from the mean, which stops at the ceiling of two weeks over
+          // the planned baseline
+          const lifted = expectedBaseline(planned, response.meanMin)
+          expect(next, `step ${String(k)}`).toBeLessThanOrEqual(nextOf(lifted, zone))
           if (next > nextOf(planned, zone)) {
-            expect(next, `step ${String(k)}`).toBe(nextOf(response.meanMin, zone))
+            expect(next, `step ${String(k)}`).toBe(nextOf(lifted, zone))
           }
         } else {
           expect(next, `step ${String(k)}`).toBe(nextOf(planned, zone))
@@ -1458,18 +1509,27 @@ describe('two weeks under the plan after two above it [rules g-2, g-8]', () => {
     },
   )
 
+  // The four weeks average 105, above the planned baseline, but the newest ran under its stored
+  // target: missed training lowers the plan and is never a reason to lift it (G-2, G-6; proposal 5.6
+  // finding 2). Without the rule the weeks after the opening week were lifted from 78 to 101.
   it.each(LIFTED)(
-    '%s: the weeks after it step from the mean when it is higher, inside the ceiling',
+    '%s: nothing lifts the weeks after it, and they are the plan without a response',
     (position) => {
       const input = dip(position)
-      expect(expectedResponse(input)!.meanMin).toBe(105)
+      expect(expectedResponse(input)!.weeksMean).toBe(105)
+      expect(expectedResponse(input)!.meanMin).toBeNull()
+      expect(responseBasis(input, estimateState(input))).toEqual({ meanMin: null })
       const plan = replan(input).draft
-      const zoneOnly = withResponseWeeks(NO_RESPONSE, () => replan(input).draft)
-      expect(cumulative(plan, 8)).toBeGreaterThan(cumulative(zoneOnly, 8))
+      expect(plan).toEqual(withResponseWeeks(NO_RESPONSE, () => replan(input).draft))
       expect(planProblems(plan)).toEqual([])
       expect(zoneReport(input, plan).problems).toEqual([])
-      // the week right after the opening week meets the 30% ceiling over the two weeks of 60
-      expect(weekOf(plan, addDays(HISTORY_MONDAY, 7)).targetRunMin).toBe(floorEps(60 * 1.3))
+      // each week after the opening week is the rule's step from the week planned before it, and
+      // none reaches the mean of 105 that the old rule stepped from
+      const zone = zoneAt(input, position)
+      const open = weekOf(plan, HISTORY_MONDAY).targetRunMin
+      const next = weekOf(plan, addDays(HISTORY_MONDAY, 7)).targetRunMin
+      expect(next).toBe(nextOf(open, zone))
+      expect(next).toBeLessThan(floorEps(105 * (1 + P.g8.stepStandard.value)))
     },
   )
 })
@@ -1478,8 +1538,19 @@ describe('H21: a mean far above the plan meets the ceiling and the session guard
   const NEXT = addDays(HISTORY_MONDAY, 7)
 
   it.each(LIFTED)('%s: the week is cut to the 30% ceiling and no run is flagged', (position) => {
-    // two big weeks, then two of 100: the mean is 250 and the ceiling reads the weeks two and three back
-    const input = continued([400, 400, 100, 100], position, 110)
+    // two big weeks, then two of 100: the mean is 250 and the ceiling reads the weeks two and three
+    // back. The newest week was run as planned (100), so the response applies; the bound holds the
+    // baseline at 1.3 times the planned 110, and the ceiling cuts the week to 1.3 times the 100.
+    const stored = continued([400, 400, 100, 100], position, 110)
+    const input: EngineInput = {
+      ...stored,
+      existing: {
+        ...stored.existing!,
+        weeks: stored.existing!.weeks.map((w) =>
+          w.weekStart === addDays(HISTORY_MONDAY, -7) ? { ...w, targetRunMin: 100 } : w,
+        ),
+      },
+    }
     expect(responseBasis(input, estimateState(input))!.meanMin).toBe(250)
     const plan = replan(input).draft
     const next = weekOf(plan, NEXT)
@@ -2094,25 +2165,435 @@ describe('a runner who runs as planned [rules g-8, g-2]', () => {
     },
   )
 
-  // Known gap, reported in the proposal (5.6): the block leaves the credit window while the
-  // rebuild is under way, the weeks run since form a new, lower block, R falls to a share of that,
-  // and the re-plans from then on plan fewer minutes than the first plan showed for the same weeks.
-  // The test states the property as written in 5.3 and is expected to fail until the engine keeps
-  // the credit of the plan's own block (or the 5.6 recommendation is taken); it then fails as
-  // passing, which says to turn `it.fails` into `it`.
-  it.fails(
-    'standard: and beyond the window too, every re-plan repeats the weeks of the first plan',
-    () => {
-      const chain = chainAt('standard', 8)
-      for (const [k, { input, draft }] of chain.entries()) {
-        const monday = mondayOf(input.today)
-        if (k === 0) continue
-        expect(weeksFrom(draft, monday), `step ${String(k)}`).toEqual(
-          weeksFrom(chain[0]!.draft, monday),
-        )
-      }
+  // The plan keeps the block it opened with (g-8): the block leaves the credit window about six
+  // weeks into the rebuild, and every re-plan still plans the weeks of the first plan, at both
+  // windows and both positions, until the end of the chain (32 weeks of the plan).
+  it.each(LIFTED.flatMap((position) => [12, 16].map((end) => [position, end] as const)))(
+    '%s, window %i: beyond the credit window too, every re-plan repeats the weeks of the first plan',
+    (position, end) => {
+      withTaperEnd(end, () => {
+        const chain = chainAt(position, 14)
+        for (const [k, { input, draft }] of chain.entries()) {
+          const monday = mondayOf(input.today)
+          if (k === 0) continue
+          expect(weeksFrom(draft, monday), `step ${String(k)}`).toEqual(
+            weeksFrom(chain[0]!.draft, monday),
+          )
+        }
+      })
     },
   )
+})
+
+describe('H27: a continued plan keeps the block it opened with, until a week has reached R [rules g-8]', () => {
+  const chains = new Map<string, ReturnType<typeof replanChain>>()
+  const chainFor = (position: Position, end: number, maxSteps = 16) => {
+    const key = `${position} ${String(end)} ${String(maxSteps)}`
+    if (!chains.has(key)) {
+      chains.set(
+        key,
+        withTaperEnd(end, () => replanChain(at(h1(), position), { maxSteps })),
+      )
+    }
+    return chains.get(key)!
+  }
+  const creditOf = (position: Position) =>
+    position === 'upper' ? P.g8.creditUpper.value : P.g8.creditStandard.value
+  const firstMondayOf = (input: EngineInput) =>
+    input.existing === null
+      ? mondayOf(input.today)
+      : input.existing.weeks.map((w) => w.weekStart).reduce((a, b) => (a < b ? a : b))
+
+  it.each(LIFTED.flatMap((position) => [12, 16].map((end) => [position, end] as const)))(
+    '%s, window %i: the zone reads the block of the first Monday up to the week that reaches R, and the state after it',
+    (position, end) => {
+      withTaperEnd(end, () => {
+        const chain = chainFor(position, end)
+        const opened = estimateState(chain[0]!.input).history!
+        const ceiling = creditOf(position) * opened.taper * opened.blockMin
+        let kept = 0
+        let own = 0
+        let reachedAt: number | null = null
+        for (const [k, { input }] of chain.entries()) {
+          const state = estimateState(input)
+          const credited = zoneBlock(input, state)!
+          const monday = mondayOf(input.today)
+          // the week since the first Monday that reached R, by the weeks as run (summed from the
+          // raw activities, not from the code under test)
+          const ran = new Map<string, number>()
+          for (const a of input.activities) {
+            if (a.type === 'run')
+              ran.set(mondayOf(a.date), (ran.get(mondayOf(a.date)) ?? 0) + a.durationSec / 60)
+          }
+          const first = firstMondayOf(chain[0]!.input)
+          let reached = false
+          for (let w = first; w < monday; w = addDays(w, 7)) {
+            if ((ran.get(w) ?? 0) >= ceiling) reached = true
+          }
+          if (!reached) {
+            // the block as the first plan read it, with its taper, whatever the state says today
+            expect(credited.keptSince, `step ${String(k)}`).toBe(k === 0 ? null : first)
+            expect(credited.block, `step ${String(k)}`).toEqual(opened)
+            kept += 1
+          } else {
+            expect(credited.keptSince, `step ${String(k)}`).toBeNull()
+            expect(credited.block, `step ${String(k)}`).toEqual(state.history)
+            own += 1
+            reachedAt ??= k
+          }
+          // and the zone is the one of the block read
+          const zone = rebuildZone(input, state)!
+          expect(zone.ceilingMin, `step ${String(k)}`).toBeCloseTo(
+            creditOf(position) * credited.block.taper * credited.block.blockMin,
+            9,
+          )
+          expect(zone, `step ${String(k)}`).toEqual(expectedZone(input))
+          expect(credited.block, `step ${String(k)}`).toEqual(
+            expectedBlock(input, creditOf(position)),
+          )
+        }
+        // a chain that never left the first block, or never reached R, would test nothing
+        expect(kept).toBeGreaterThan(P.g8.creditWindowWeeks.value / 2)
+        expect(own).toBeGreaterThan(0)
+        expect(reachedAt).not.toBeNull()
+      })
+    },
+  )
+
+  it('the block leaves the 12-week window with the plan under way, and the state alone would have lost it', () => {
+    const chain = chainFor('standard', 12)
+    const opened = estimateState(chain[0]!.input).history!
+    const lost = chain.findIndex(({ input }) => {
+      const monday = mondayOf(input.today)
+      return daysBetween(opened.endWeek, monday) / 7 > P.g8.creditWindowWeeks.value
+    })
+    expect(lost).toBeGreaterThan(0)
+    // from that re-plan on the state's own block is another one, or none ...
+    const { input } = chain[lost + 1]!
+    const state = estimateState(input)
+    expect(state.history === null || state.history.blockMin < opened.blockMin).toBe(true)
+    // ... and the zone still reads the first plan's
+    expect(rebuildZone(input, state)!.ceilingMin).toBeCloseTo(
+      P.g8.creditStandard.value * opened.blockMin,
+      9,
+    )
+  })
+
+  it('a block of 13 to 16 weeks keeps the taper found on the first Monday', () => {
+    withTaperEnd(16, () => {
+      const base = h26(60, 2)
+      const first = at(base, 'standard')
+      const found = estimateState(first).history
+      expect(found).not.toBeNull()
+      expect(found!.taper).toBeLessThan(1)
+      const chain = replanChain(first, { maxSteps: 6 })
+      for (const [k, { input }] of chain.entries()) {
+        const credited = zoneBlock(input, estimateState(input))
+        if (credited === null || credited.keptSince === null) continue
+        expect(credited.block.taper, `step ${String(k)}`).toBe(found!.taper)
+        expect(credited.block.weeksAgo, `step ${String(k)}`).toBe(found!.weeksAgo)
+      }
+    })
+  })
+
+  describe('reads the state at today, as before', () => {
+    const late = () => chainFor('standard', 12)[8]!.input
+    const ceilingOf = (input: EngineInput) => rebuildZone(input, estimateState(input))?.ceilingMin
+
+    it('a new plan', () => {
+      const input = { ...late(), existing: null }
+      const state = estimateState(input)
+      expect(zoneBlock(input, state)?.keptSince ?? null).toBeNull()
+      expect(zoneBlock(input, state)?.block ?? null).toEqual(state.history)
+      expect(ceilingOf(input)).not.toBe(ceilingOf(late()))
+    })
+
+    it('a plan that restarts after a break', () => {
+      const input = late()
+      const cut = addDays(input.today, -P.j7.tier1Days.value)
+      const idle: EngineInput = {
+        ...input,
+        activities: input.activities.filter((a) => a.date < cut),
+      }
+      const state = estimateState(idle)
+      expect(state.layoffDays).toBeGreaterThanOrEqual(P.j7.tier1Days.value)
+      expect(zoneBlock(idle, state)?.keptSince ?? null).toBeNull()
+      expect(zoneBlock(idle, state)?.block ?? null).toEqual(state.history)
+    })
+
+    it('a plan that opens in the current week', () => {
+      const input = chainFor('standard', 12)[0]!.input
+      const mine = zoneBlock(input, estimateState(input))!
+      expect(mine.keptSince).toBeNull()
+      // a stored plan whose first week is the current one
+      const stored: EngineInput = {
+        ...input,
+        existing: {
+          weeks: buildPlan(input).weeks,
+          sessions: [],
+        },
+      }
+      expect(zoneBlock(stored, estimateState(stored))!.keptSince).toBeNull()
+    })
+
+    it('a plan older than the activities reach, which has no block in reach', () => {
+      const input = late()
+      const weeksOf = input.existing!.weeks
+      const ancient = { ...weeksOf[0]!, weekStart: addDays(weeksOf[0]!.weekStart, -7 * 60) }
+      const old: EngineInput = {
+        ...input,
+        existing: { ...input.existing!, weeks: [ancient, ...weeksOf] },
+      }
+      const state = estimateState(old)
+      expect(zoneBlock(old, state)?.keptSince ?? null).toBeNull()
+      expect(zoneBlock(old, state)?.block ?? null).toEqual(state.history)
+    })
+
+    it('a plan that found no block on its first Monday', () => {
+      const base = at(scenario(SPARSE), 'standard')
+      expect(estimateState(base).history).toBeNull()
+      let blocks = 0
+      for (const [k, { input }] of replanChain(base, { maxSteps: 10 }).entries()) {
+        const state = estimateState(input)
+        const credited = zoneBlock(input, state)
+        expect(credited?.keptSince ?? null, `step ${String(k)}`).toBeNull()
+        expect(credited?.block ?? null, `step ${String(k)}`).toEqual(state.history)
+        if (state.history !== null) blocks += 1
+      }
+      // the runs of the plan itself form a block in the end, and then it applies
+      expect(blocks).toBeGreaterThan(0)
+    })
+  })
+
+  describe('a week at R ends it', () => {
+    const credit = P.g8.creditStandard.value
+    /** The chain input of re-plan 8 and `minutes` more running in the first week of the plan. */
+    const withExtra = (extraMin: number): EngineInput => {
+      const input = chainFor('standard', 12)[8]!.input
+      const first = firstMondayOf(input)
+      const extra = activity(addDays(first, 3), {
+        id: 'extra-run',
+        durationSec: Math.round(extraMin * 60),
+        movingSec: Math.round(extraMin * 60),
+        distanceM: Math.round(extraMin * 170),
+      })
+      return { ...input, activities: [...input.activities, extra] }
+    }
+
+    it('one minute under R keeps the first block, and a week at R passes to the state', () => {
+      const input = chainFor('standard', 12)[8]!.input
+      const first = firstMondayOf(input)
+      const opened = estimateState(chainFor('standard', 12)[0]!.input).history!
+      const ceiling = credit * opened.taper * opened.blockMin
+      const ran = estimateState(input).weeks.find((w) => w.weekStart === first)!.runMin
+      // no week since the first Monday has reached R yet
+      expect(ran).toBeLessThan(ceiling)
+      const need = Math.ceil(ceiling - ran)
+      const under = withExtra(need - 1)
+      const over = withExtra(need)
+      expect(zoneBlock(under, estimateState(under))!.keptSince).toBe(first)
+      expect(zoneBlock(over, estimateState(over))!.keptSince).toBeNull()
+      expect(zoneBlock(over, estimateState(over))!.block).toEqual(estimateState(over).history)
+      expect(expectedBlock(under, credit)).toEqual(opened)
+    })
+  })
+})
+
+describe('H28: the response needs the newest eligible week run at or above its stored target [rules g-8, g-2, g-6]', () => {
+  const NEXT = addDays(HISTORY_MONDAY, 7)
+  const BACK1 = addDays(HISTORY_MONDAY, -7)
+  /** The input with the stored plan's week of `monday` set to `minutes` (and `flags` added). */
+  const storedAt = (
+    input: EngineInput,
+    monday: string,
+    minutes: number,
+    flags: readonly string[] = [],
+  ): EngineInput => ({
+    ...input,
+    existing: {
+      ...input.existing!,
+      weeks: input.existing!.weeks.map((w) =>
+        w.weekStart === monday ? { ...w, targetRunMin: minutes, flags: [...w.flags, ...flags] } : w,
+      ),
+    },
+  })
+  const zoneOnly = (input: EngineInput) => withResponseWeeks(NO_RESPONSE, () => replan(input).draft)
+
+  it.each(LIFTED)(
+    '%s: a week run at its target lifts, a week one minute under it lifts nothing',
+    (position) => {
+      const input = continued([100, 100, 100, 150], position, 100)
+      expect(responseBasis(input, estimateState(input))!.meanMin).toBe(112.5)
+      const at150 = storedAt(input, BACK1, 150)
+      expect(responseBasis(at150, estimateState(at150))!.meanMin).toBe(112.5)
+      const at151 = storedAt(input, BACK1, 151)
+      expect(responseBasis(at151, estimateState(at151))).toEqual({ meanMin: null })
+      expect(expectedResponse(at151)!.meanMin).toBeNull()
+      expect(expectedResponse(at151)!.weeksMean).toBe(112.5)
+      // the plan is the one without a response, week for week
+      expect(replan(at151).draft).toEqual(zoneOnly(at151))
+      // while the lifting week is higher than that plan
+      expect(weekOf(replan(at150).draft, NEXT).targetRunMin).toBeGreaterThan(
+        weekOf(replan(at151).draft, NEXT).targetRunMin,
+      )
+    },
+  )
+
+  it('a week taken as run past its plan counts at the minutes it was planned at, not at the minutes run', () => {
+    // weeks hold whole minutes: 150.4 is 150, under the 151 the stored week was rounded up to
+    const input = continued([100, 100, 100, 150.4], 'standard', 100)
+    // the stored week holds the minutes run rounded up and the minutes it was planned at
+    const taken = storedAt(
+      { ...input, existing: { ...input.existing!, weeks: input.existing!.weeks } },
+      BACK1,
+      151,
+      ['overshoot', 'planned-100'],
+    )
+    const stored = taken.existing!.weeks.find((w) => w.weekStart === BACK1)!
+    expect(stored.targetRunMin).toBe(151)
+    expect(plannedMinOf(stored)).toBe(stored.flags.includes('overshoot') ? 100 : 151)
+    // 150.4 minutes run are under 151 and above 100: the week was run above its plan
+    const state = estimateState(taken)
+    expect(state.weeks.find((w) => w.weekStart === BACK1)!.runMin).toBe(150)
+    expect(responseBasis(taken, state)!.meanMin).toBe(112.5)
+    expect(expectedResponse(taken)!.meanMin).toBe(112.5)
+    // read at the stored minutes alone (151), the week would count as run under its target
+    expect(150).toBeLessThan(stored.targetRunMin)
+  })
+
+  it('a newest week that the stored plan did not hold gives no response either', () => {
+    const input = continued([100, 100, 100, 150], 'standard', 100)
+    const plain: EngineInput = {
+      ...input,
+      existing: {
+        ...input.existing!,
+        weeks: input.existing!.weeks.filter((w) => w.weekStart !== BACK1),
+      },
+    }
+    expect(plain.existing!.weeks.some((w) => w.weekStart === HISTORY_MONDAY)).toBe(true)
+    expect(responseBasis(plain, estimateState(plain))).toEqual({ meanMin: null })
+    expect(expectedResponse(plain)!.meanMin).toBeNull()
+    expect(replan(plain).draft).toEqual(zoneOnly(plain))
+  })
+
+  it('the newest eligible week is the one before a race week, whose target the plan may not hold', () => {
+    const input = continued([100, 100, 100, 150], 'standard', 100)
+    const race = activity(addDays(BACK1, 5), {
+      id: 'race-b1',
+      type: 'race',
+      durationSec: 50 * 60,
+      movingSec: 50 * 60,
+      distanceM: 10_000,
+    })
+    const raced: EngineInput = { ...input, activities: [...input.activities, race] }
+    const state = estimateState(raced)
+    // the race week is skipped, so the newest eligible week is the one before it, which the plan
+    // that began a week ago did not hold
+    expect(eligibleWeekList(raced)[0]!.weekStart).toBe(addDays(BACK1, -7))
+    expect(responseBasis(raced, state)).toEqual({ meanMin: null })
+  })
+
+  it('agrees with the rule over random weeks and stored targets', () => {
+    const rnd = mulberry32(20_261_026)
+    let applied = 0
+    let gated = 0
+    for (let n = 0; n < 40; n += 1) {
+      const lastWeeks = Array.from({ length: 4 }, () => 40 + Math.floor(rnd() * 200))
+      const input = continued(lastWeeks, 'standard', 100)
+      const stored = Math.floor(rnd() * 260)
+      const probe = storedAt(input, BACK1, stored)
+      const basis = responseBasis(probe, estimateState(probe))!
+      const expected = expectedResponse(probe)!
+      expect(basis.meanMin === null, `case ${String(n)}`).toBe(expected.meanMin === null)
+      if (basis.meanMin !== null) {
+        expect(basis.meanMin, `case ${String(n)}`).toBeCloseTo(expected.meanMin!, 9)
+        applied += 1
+        // the newest week was run at or above its target
+        expect(lastWeeks[3]!, `case ${String(n)}`).toBeGreaterThanOrEqual(stored)
+      } else {
+        gated += 1
+        expect(lastWeeks[3]!, `case ${String(n)}`).toBeLessThan(stored)
+      }
+    }
+    expect(applied).toBeGreaterThan(5)
+    expect(gated).toBeGreaterThan(5)
+  })
+
+  describe('a hold after weeks run well above the plan, the held week run under its target', () => {
+    const base = scenario([...summer(5), ...weeks(4, 1, [40])])
+    const heavy: Step[] = [
+      { scale: 1.6 },
+      { scale: 1.6 },
+      { scale: 1.6 },
+      { scale: 1.6 },
+      { scale: 1.6, decision: 'hold' },
+    ]
+    const nextAfter = (chain: ReturnType<typeof runChain>, k: number) => {
+      const { input, plan } = chain[k]!
+      return nextLoading(plan, mondayOf(input.today)).targetRunMin
+    }
+
+    it.each(LIFTED)(
+      '%s: the week after it is the plan without a response; run at 1.6 times its plan it is lifted',
+      (position) => {
+        const under = runChain(at(base, position), [...heavy, { scale: 0.8 }])
+        const over = runChain(at(base, position), [...heavy, { scale: 1.6 }])
+        const k = heavy.length + 1
+        // the held week is run under its stored (held) target in one chain, far above it in the other
+        const held = mondayOf(under[k]!.input.today)
+        const heldWeek = addDays(held, -7)
+        const stored = weekOf(under[k - 1]!.plan, heldWeek).targetRunMin
+        const ranUnder = estimateState(under[k]!.input).weeks.find((w) => w.weekStart === heldWeek)!
+        const ranOver = estimateState(over[k]!.input).weeks.find((w) => w.weekStart === heldWeek)!
+        expect(ranUnder.runMin).toBeLessThan(stored)
+        expect(ranOver.runMin).toBeGreaterThan(stored)
+        // the mean of the four weeks is above the planned baseline in both, as finding 2 had it
+        expect(expectedResponse(under[k]!.input)!.weeksMean!).toBeGreaterThan(
+          lastLoadingAt(under[k - 1]!.plan, held).targetRunMin,
+        )
+        expect(expectedResponse(under[k]!.input)!.meanMin).toBeNull()
+        expect(under[k]!.plan).toEqual(zoneOnly(under[k]!.input))
+        expect(nextAfter(over, k)).toBeGreaterThan(nextAfter(under, k))
+        expect(planProblems(under[k]!.plan)).toEqual([])
+      },
+    )
+  })
+})
+
+describe('H29: the lift of the response stops at the two-week ceiling over the planned baseline [rules g-8, g-2]', () => {
+  const NEXT = addDays(HISTORY_MONDAY, 7)
+  const bound = (planned: number) => planned * (1 + P.g2.rampCeilingTwoWeeks.value)
+
+  it.each(LIFTED)(
+    '%s: one week of 500 minutes lifts the baseline to 1.3 times the plan, not 2.6 times',
+    (position) => {
+      // four weeks of 50, 70, 120 and 500 minutes: a mean of 185 against a planned baseline of 70
+      const input = continued([50, 70, 120, 500], position, 70)
+      const state = estimateState(input)
+      expect(responseBasis(input, state)!.meanMin).toBeCloseTo(185, 9)
+      const plan = replan(input).draft
+      // the baseline is the planned 70 stepped by the ceiling of two weeks: 91, not 185
+      const basis = responseBasis(input, state)
+      expect(responseBaseline(70, basis, false)).toBeCloseTo(bound(70), 9)
+      expect(responseBaseline(70, basis, false) / 70).toBeLessThanOrEqual(
+        1 + P.g2.rampCeilingTwoWeeks.value + 1e-9,
+      )
+      const zone = zoneAt(input, position)
+      expect(weekOf(plan, NEXT).targetRunMin).toBe(nextOf(bound(70), zone))
+      // against the 203 minutes (2.9 times the plan) that the mean gave without the bound
+      expect(weekOf(plan, NEXT).targetRunMin).toBeLessThan(120)
+      expect(planProblems(plan)).toEqual([])
+      expect(ceilingProblems(input, plan)).toEqual([])
+    },
+  )
+
+  it('leaves the example of the proposal alone: 112.5 is inside the bound of 130', () => {
+    const input = continued([100, 100, 100, 150], 'standard', 100)
+    const basis = responseBasis(input, estimateState(input))
+    expect(responseBaseline(100, basis, false)).toBe(112.5)
+    expect(112.5).toBeLessThan(bound(100))
+    expect(weekOf(replan(input).draft, NEXT).targetRunMin).toBe(126)
+  })
 })
 
 describe('H3 inside a chain: the low-frequency hold arms when the start level passes 60 minutes [rules A5, g-8]', () => {
@@ -2157,6 +2638,10 @@ describe('weeks run 1.6 times the plan, along the chains of three cases [rules g
           )
           expect(next, `${position} step ${String(k)}`).toBeLessThanOrEqual(
             nextOf(Math.max(planned, largest), zone),
+          )
+          // and never above the step from the planned baseline stepped by the two-week ceiling
+          expect(next, `${position} step ${String(k)}`).toBeLessThanOrEqual(
+            nextOf(expectedBaseline(planned, expectedResponse(input)?.meanMin ?? null), zone),
           )
           if (next > nextOf(planned, zone)) engaged += 1
         }
