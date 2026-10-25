@@ -290,7 +290,7 @@
   },
   {
     "id": "strength-no-depth-jumps",
-    "statement": "Do not prescribe depth jumps, drops or bounds to recreational runners: the corpus has no dose or bone-stress data for them, and landing force was higher for depth drops and jumps from 60 to 90 cm than for a vertical jump in elite power athletes. Use low-amplitude movements on the spot with a graded number of contacts.",
+    "statement": "Do not prescribe depth jumps, drops or bounds to recreational runners: the corpus has no dose or bone-stress data for them, and landing force was higher for depth drops and jumps from 60 to 90 cm than for a vertical jump in collegiate and national-level power athletes. Use low-amplitude movements on the spot with a graded number of contacts.",
     "parameter": "plyometric_contacts",
     "value": "start at 40 contacts, add 20 every 2 weeks after a completed running week, cap 200",
     "unit": "contacts/session",
