@@ -1431,7 +1431,11 @@ describe('two weeks under the plan after two above it [rules g-2, g-8]', () => {
       const input = dip(position)
       const plan = replan(input).draft
       const zoneOnly = withResponseWeeks(NO_RESPONSE, () => replan(input).draft)
-      expect(weekOf(plan, HISTORY_MONDAY)).toEqual(weekOf(zoneOnly, HISTORY_MONDAY))
+      // The focus is left out: it names the rebuild ceiling on the weeks the checklist counts as
+      // zone weeks, and the checklist measures the opening week from the lifted baseline when the
+      // response is on, where the week of 60-odd minutes is within the usual step.
+      const cut = (draft: PlanDraft) => ({ ...weekOf(draft, HISTORY_MONDAY), focus: '' })
+      expect(cut(plan)).toEqual(cut(zoneOnly))
       // 60 minutes in the weeks before it: not the mean of 105 that the four weeks give
       expect(weekOf(plan, HISTORY_MONDAY).targetRunMin).toBeLessThan(75)
     },

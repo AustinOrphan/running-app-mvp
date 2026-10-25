@@ -22,6 +22,7 @@ import {
   rampBasis,
   rampLimits,
   rampSkipWeeks,
+  rebuildZoneUsed,
   ultraRunCapMin,
   type RampContext,
   type RebuildZone,
@@ -223,9 +224,12 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
         )
       } else takenAsRun.push(`${weekStart} (${Math.round(total)} min)`)
     } else if (!limits.exempt && total > limits.soft + EPS) soft += 1
-    else if (limits.rebuild !== null && total > limits.usualSoft + EPS) {
-      zoneWeeks += 1
-      zone = limits.rebuild
+    else {
+      const used = rebuildZoneUsed(limits, total, EPS)
+      if (used !== null) {
+        zoneWeeks += 1
+        zone = used
+      }
     }
   }
   if (failures.length > 0) return result('progression', false, failures.join('; '), rules)
@@ -248,7 +252,8 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
     detail = `Every planned week is within the ${soft === 0 ? withNotes('weekly ramp') : `ceiling; ${notes.join('; ')}`}; the week of ${takenAsRun.join(', ')} was run above its limit and is taken as run.`
   } else if (soft === 0) detail = `Every week is within the ${withNotes('weekly ramp')}.`
   else detail = `Every week is within the ceiling; ${notes.join('; ')}.`
-  return result('progression', true, detail, rules)
+  // the item that names the zone step answers to g-8 too, so its Why opens the facts of the zone
+  return result('progression', true, detail, zone === null ? rules : [...rules, 'g-8'])
 }
 
 /** E3: no more than the cycle's loading weeks in a row, and recovery weeks cut the volume. */

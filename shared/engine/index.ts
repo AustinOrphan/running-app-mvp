@@ -2,6 +2,7 @@
 // buildPlan runs state, zones, goal, feasibility, macro, micro, guards, race day, checklist and
 // prediction in that order; replan keeps the past and recomputes the future. The other entry
 // points delegate to the module that owns the rule.
+import { loadFocus } from '../copy/load.ts'
 import { addDays, mondayOf } from '../dates.ts'
 import { isToRun, isTrimmed } from '../domain/sessionStatus.ts'
 import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
@@ -31,6 +32,7 @@ import {
   rampBasis,
   rampLimits,
   rampSkipWeeks,
+  rebuildZoneUsed,
   recordOf,
   referenceAt,
   runCaps,
@@ -330,6 +332,20 @@ function withoutLongRun(week: WeekDraft): WeekDraft {
 }
 
 /**
+ * A loading week: not a recovery, taper, race, post-race or programme week. The weeks that keep
+ * their target when they are run past it, and the only weeks the rebuild zone can name.
+ */
+function isLoadingWeek(week: WeekDraft): boolean {
+  return (
+    !week.isRecovery &&
+    !week.isTaper &&
+    week.phase !== 'race' &&
+    !week.flags.includes('post-race') &&
+    !isProgrammeWeek(week.flags)
+  )
+}
+
+/**
  * A loading week already run past its target is taken as run [rules g-2, g-6]: the minutes logged
  * are a fact the engine cannot change, so the target rises to them and the week is flagged
  * `overshoot`. The rest of the week holds no more running (`remainingOfWeek`), and the weeks after
@@ -339,13 +355,7 @@ function withoutLongRun(week: WeekDraft): WeekDraft {
  * logged with its walks.
  */
 function takenAsRun(week: WeekDraft, ranMin: number): WeekDraft {
-  const loading =
-    !week.isRecovery &&
-    !week.isTaper &&
-    week.phase !== 'race' &&
-    !week.flags.includes('post-race') &&
-    !isProgrammeWeek(week.flags)
-  if (!loading || ranMin <= week.targetRunMin) return week
+  if (!isLoadingWeek(week) || ranMin <= week.targetRunMin) return week
   return {
     ...week,
     targetRunMin: Math.ceil(ranMin - 1e-9),
@@ -810,7 +820,8 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
 
     // The week enters the baselines and its runs the 30-day reference, as the guards count them.
     const ahead = [...inside, ...afterRace, ...keptToRun].filter((s) => s.date >= today)
-    volumes.set(week.weekStart, done.minutes + runningMinutes(ahead))
+    const weekMin = done.minutes + runningMinutes(ahead)
+    volumes.set(week.weekStart, weekMin)
     gains.set(week.weekStart, done.gain + runningGain(ahead))
     // The current week's logged minutes are taken as they are, after the weeks that follow were
     // drawn and capped from the planned week [rules g-2, g-6].
@@ -825,6 +836,17 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         macro[w] = taken
       }
     }
+    // A loading week as placed that uses the rebuild zone says what it rebuilds toward. It is the
+    // week the checklist's progression item counts as a zone week (`rebuildZoneUsed`), measured on
+    // the minutes placed in it [rules g-8].
+    const zone =
+      weekMin > 0 &&
+      isLoadingWeek(macro[w]!) &&
+      !startDrawn &&
+      !afterRaceWeeks.includes(week.weekStart)
+        ? rebuildZoneUsed(rampLimits(rampCtx, week.weekStart), weekMin)
+        : null
+    if (zone !== null) macro[w] = { ...macro[w]!, focus: loadFocus(zone.ceilingMin) }
     for (const s of ahead.sort(bySlot)) {
       if (!VOLUME_KINDS.has(s.kind)) continue
       records.push(recordOf(s))
