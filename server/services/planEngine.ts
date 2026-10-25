@@ -16,6 +16,12 @@ import {
 import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import {
+  recentPaceSecPerKm,
+  weekDistanceEstimateM,
+  withDistanceEstimate,
+  type EstimatePaces,
+} from '../../shared/engine/distanceEstimate.ts'
 import { compatible } from '../../shared/engine/execution.ts'
 import {
   buildPlan,
@@ -35,7 +41,6 @@ import type {
   WeekDraft,
   WeeklyDecision,
   ZoneProposal,
-  ZoneSet,
 } from '../../shared/engine/types.ts'
 import {
   ZONE_CHANGE_MARK,
@@ -60,7 +65,8 @@ import type {
 import { conflict, HttpError, notFound, validationError } from '../errors.ts'
 import { isTrimmed, toPlan, toPlanEngineFields, toPlanSession, toPlanWeek } from '../serialize.ts'
 import { assessSessionById } from './execution.ts'
-import { currentZones, gatherContextInput, gatherEngineInput } from './engineInput.ts'
+import { gatherContextInput, gatherEngineInput } from './engineInput.ts'
+import { loadAthleteContext } from './athleteState.ts'
 import { withGutTrainingOption } from './fuel.ts'
 import { ensureClimate } from './weatherCache.ts'
 import { MAX_PLAN_WEEKS } from './plan.ts'
@@ -79,16 +85,29 @@ function json(value: unknown): string {
   return JSON.stringify(value)
 }
 
-/** The plan with its weeks and sessions in the API shape. Zones are not stored: they follow the data. */
+/**
+ * The plan with its weeks and sessions in the API shape. Zones are not stored: they follow the
+ * data, and so do the distance estimates of the sessions and the weeks, which are worked out here
+ * from the zones and the recent logged pace (`estimateDistance`) and never written.
+ */
 function present(
   plan: PlanRow & { weeks: PlanWeekRow[]; sessions: PlanSessionRow[] },
-  zones: ZoneSet | null,
+  paces: EstimatePaces,
 ): PlanWithSessions {
+  const { zones } = paces
   const engine = plan.generatorVersion >= 2 ? toPlanEngineFields(plan) : null
+  const sessions = plan.sessions.map((row) => withDistanceEstimate(toPlanSession(row), paces))
+  const byWeek = new Map<string, typeof sessions>()
+  for (const session of sessions) {
+    byWeek.set(session.weekStart, [...(byWeek.get(session.weekStart) ?? []), session])
+  }
   return {
     ...toPlan(plan),
-    weeks: plan.weeks.map(toPlanWeek),
-    sessions: plan.sessions.map(toPlanSession),
+    weeks: plan.weeks.map((row) => {
+      const week = toPlanWeek(row)
+      return { ...week, distanceEstimateM: weekDistanceEstimateM(byWeek.get(week.weekStart) ?? []) }
+    }),
+    sessions,
     feasibility: engine?.feasibility ?? null,
     warnings: engine?.warnings ?? [],
     checklist: engine?.checklist ?? [],
@@ -112,8 +131,13 @@ export async function loadPlanWithSessions(
   })
   if (!plan) return null
   // A version-1 plan has no sessions and no engine fields; its zones are not derived.
-  const zones = plan.generatorVersion >= 2 ? await currentZones(deps, { userId, today }) : null
-  return present(plan, zones)
+  // Zones and the recent pace come from the snapshot, with no read of their own.
+  const context =
+    plan.generatorVersion >= 2 ? await loadAthleteContext(deps, { userId, today }) : null
+  return present(plan, {
+    zones: context?.zones ?? null,
+    recentPaceSecPerKm: context?.recentPaceSecPerKm ?? null,
+  })
 }
 
 /** The columns of a stored week that the engine derives from a draft week. */
@@ -282,7 +306,13 @@ export async function generateEnginePlan(
     },
     { timeout: WRITE_TIMEOUT_MS },
   )
-  return present(created, draft.zones)
+  // The zones of the draft, and the recent pace from the same input the draft was built on.
+  const recentPace = recentPaceSecPerKm({
+    activities: input.activities,
+    state: estimateState(input),
+    zones: draft.zones,
+  })
+  return present(created, { zones: draft.zones, recentPaceSecPerKm: recentPace })
 }
 
 /** The rows a re-plan wrote to a plan's sessions: what the revision diff and the undo payload read. */

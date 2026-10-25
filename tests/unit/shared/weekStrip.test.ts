@@ -5,7 +5,7 @@ import { isToRun } from '../../../shared/domain/sessionStatus.ts'
 import { weekStrip } from '../../../shared/domain/weekStrip.ts'
 import { aggregateWeeks } from '../../../shared/domain/weeks.ts'
 import type { SessionKind } from '../../../shared/engine/types.ts'
-import type { PlanSession, PlanSessionStatus, WeekStripMark } from '../../../shared/types.ts'
+import type { PlanSessionStatus, PlanSessionView, WeekStripMark } from '../../../shared/types.ts'
 import { makeActivityCore } from '../../factories.ts'
 import { makeSession } from '../../web/today-fixtures.ts'
 
@@ -21,8 +21,8 @@ function session(
   date: string,
   kind: SessionKind = 'easy',
   status: PlanSessionStatus = 'planned',
-  over: Partial<PlanSession> = {},
-): PlanSession {
+  over: Partial<PlanSessionView> = {},
+): PlanSessionView {
   counter += 1
   return makeSession({ id: `s${String(counter)}`, date, kind, status, weekStart: WEEK, ...over })
 }
@@ -31,7 +31,7 @@ const run = (date: string, minutes: number, over = {}) =>
   makeActivityCore({ date, type: 'run', durationSec: minutes * 60, ...over })
 
 function strip(
-  sessions: PlanSession[] = [],
+  sessions: PlanSessionView[] = [],
   activities: ReturnType<typeof run>[] = [],
   over: { today?: string; targetRunMin?: number | null } = {},
 ) {
@@ -228,6 +228,40 @@ describe('weekStrip: run time', () => {
     expect(strip([], [run(MON, 30)]).remaining).toBeNull()
     const done = strip([], [run(MON, 200)], { targetRunMin: 180 })
     expect(done.remaining).toEqual({ remainingMin: 0, remainingDays: 5, perDayMin: 0 })
+  })
+})
+
+describe('weekStrip: the distance of the week', () => {
+  const estimated = (date: string, kind: SessionKind, distanceM: number | null, over = {}) =>
+    session(date, kind, 'planned', {
+      distanceEstimate: distanceM === null ? null : { distanceM, basis: 'easy' },
+      ...over,
+    })
+
+  test('is the sum of the estimates of the week’s runs, and ignores a day outside the week', () => {
+    const s = strip([
+      estimated(MON, 'easy', 7000),
+      estimated(THU, 'long', 16_000),
+      estimated(THU, 'strength', null),
+      estimated(addDays(SUN, 1), 'easy', 9000, { weekStart: addDays(WEEK, 7) }),
+    ])
+    expect(s.distanceEstimateM).toBe(23_000)
+  })
+
+  test('leaves out a skipped run, as the plan does', () => {
+    const s = strip([
+      estimated(MON, 'easy', 7000),
+      estimated(THU, 'easy', 7000, { status: 'skipped' }),
+    ])
+    expect(s.distanceEstimateM).toBe(7000)
+  })
+
+  test('is null when a run of the week has none, and when the week has no run', () => {
+    expect(
+      strip([estimated(MON, 'easy', 7000), estimated(THU, 'long', null)]).distanceEstimateM,
+    ).toBeNull()
+    expect(strip([estimated(MON, 'strength', null)]).distanceEstimateM).toBeNull()
+    expect(strip().distanceEstimateM).toBeNull()
   })
 })
 

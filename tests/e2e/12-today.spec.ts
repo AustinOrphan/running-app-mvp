@@ -582,6 +582,26 @@ test('the check-in sheet takes the full check-in, and queues it with no connecti
   expect(((await api.get(`/checkins/${today}`)) as { mood: number }).mood).toBe(2)
 })
 
+test('Today words a distance estimate beside the minutes and for the week, from the recent pace until the zones hold one', async () => {
+  // Four logged runs and no tested threshold pace: the zones hold no pace, so the recent logged
+  // pace stands in. A tested threshold pace then gives the zones one, and the easy pace takes over.
+  const recent = (await api.get('/today')) as TodayView
+  expect(recent.coach.next?.distanceEstimate?.basis).toBe('recent')
+  await api.put('/profile', { thresholdPaceSecPerKm: 330 })
+  const view = (await api.get('/today')) as TodayView
+  expect(view.coach.next?.distanceEstimate?.basis).not.toBe('recent')
+  expect(view.coach.weekStrip?.distanceEstimateM ?? 0).toBeGreaterThan(0)
+
+  await page.goto('/')
+  const week = page.getByRole('region', { name: 'This week' })
+  await expect(
+    week.getByText(/^The week's planned runs come to about \d+(\.\d)? (mi|km)\.$/),
+  ).toBeVisible()
+  // The earlier cases left the day a rest day (an illness check-in), so the hero names the next
+  // session instead, with its estimate after the minutes.
+  await expect(page.getByText(/^Next: .+, about \d+(\.\d)? (mi|km)\.$/)).toBeVisible()
+})
+
 test('signing out empties the outbox', async () => {
   await dropCheckinWrites()
   await page.getByRole('button', { name: "Something hurts, or I'm ill" }).click()

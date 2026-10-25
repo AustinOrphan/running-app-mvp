@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { weekStripEstimateText } from '../../../shared/copy/distanceEstimate.ts'
 import { render } from '../../../shared/copy/template.ts'
 import { renderFact, TEMPLATES } from '../../../shared/copy/templates.ts'
 import type {
-  PlanSession,
+  PlanSessionView,
   Units,
   WeekStrip as WeekStripView,
   WeekStripDay,
@@ -14,9 +15,9 @@ import { SessionSheet } from '../SessionSheet.tsx'
 import styles from './WeekStrip.module.css'
 
 /** Kinds that sit beside the day's main session; a tap on the day opens the main one. */
-const SUPPORTING = new Set<PlanSession['kind']>(['strength', 'mobility'])
+const SUPPORTING = new Set<PlanSessionView['kind']>(['strength', 'mobility'])
 
-function mainSession(sessions: readonly PlanSession[]): PlanSession | null {
+function mainSession(sessions: readonly PlanSessionView[]): PlanSessionView | null {
   return sessions.find((s) => !SUPPORTING.has(s.kind)) ?? sessions[0] ?? null
 }
 
@@ -59,10 +60,12 @@ function DayFace({ day, units }: { day: WeekStripDay; units: Units }) {
  * past day with a run still to do reads "planned, no run logged".
  */
 export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units }) {
-  const [open, setOpen] = useState<PlanSession | null>(null)
+  const [open, setOpen] = useState<PlanSessionView | null>(null)
   const empty = strip.days.every((d) => d.mark === 'free' && d.runMin === 0)
   if (empty && strip.targetRunMin === null) return null
   const advice = strip.remaining
+  // `?? null`: an answer the phone kept from before the estimate existed has no field.
+  const weekEstimateM = strip.distanceEstimateM ?? null
 
   return (
     <section aria-label="This week" className={styles.week}>
@@ -101,6 +104,9 @@ export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units
           remainingMin={advice?.remainingMin ?? null}
           label="Run time this week"
         />
+      )}
+      {weekEstimateM === null ? null : (
+        <p className={styles.caption}>{weekStripEstimateText(weekEstimateM, units)}</p>
       )}
       {advice === null || advice.perDayMin === null ? null : (
         <p className={styles.advisory}>

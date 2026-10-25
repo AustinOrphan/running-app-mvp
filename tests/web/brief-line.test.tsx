@@ -3,7 +3,12 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { BriefListItem, TodayView, UserSettings } from '../../shared/types.ts'
+import type {
+  BriefListItem,
+  DistanceEstimate,
+  TodayView,
+  UserSettings,
+} from '../../shared/types.ts'
 import { keys } from '../../web/api/client.ts'
 import { BriefLine } from '../../web/components/BriefLine.tsx'
 import { SLOT_BUDGETS_PX } from '../../web/components/today/slots.ts'
@@ -52,6 +57,46 @@ describe('BriefLine', () => {
     const { container } = line({ changeCount, nextKey: null })
     expect(screen.getByRole('region', { name: 'Weekly brief' })).toHaveTextContent(sentence)
     expectCleanCopy(container)
+  })
+
+  describe('the distance estimate', () => {
+    const next = (distanceEstimate: DistanceEstimate | null) => ({
+      date: '2027-01-16',
+      kind: 'long' as const,
+      distanceEstimate,
+    })
+
+    test('follows the kind of the next key session, in the runner’s units', () => {
+      const { container } = line({ nextKey: next({ distanceM: 16_100, basis: 'easy' }) })
+      expect(screen.getByRole('region', { name: 'Weekly brief' })).toHaveTextContent(
+        'Since last week: 3 changes, next key session Saturday (long run, about 16 km).',
+      )
+      expectCleanCopy(container)
+    })
+
+    test('reads in miles for a runner of miles', () => {
+      renderWithProviders(
+        <BriefLine
+          item={makeItem({ nextKey: next({ distanceM: 16_100, basis: 'easy' }) })}
+          units="mi"
+        />,
+      )
+      expect(screen.getByRole('region', { name: 'Weekly brief' })).toHaveTextContent(
+        'next key session Saturday (long run, about 10 mi).',
+      )
+    })
+
+    test('is left out when there is none, and when an older answer has no field', () => {
+      line({ nextKey: next(null) })
+      expect(screen.getByRole('region', { name: 'Weekly brief' })).toHaveTextContent(
+        'next key session Saturday (long run).',
+      )
+      const stale = { date: '2027-01-16', kind: 'long' } as unknown as BriefListItem['nextKey']
+      line({ nextKey: stale })
+      for (const region of screen.getAllByRole('region', { name: 'Weekly brief' })) {
+        expect(region).not.toHaveTextContent('about')
+      }
+    })
   })
 
   test('an update that was undone changed nothing now', () => {

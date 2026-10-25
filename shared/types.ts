@@ -6,6 +6,7 @@ import type {
   BriefFacts,
   BriefReplanCode,
   Checkin,
+  DistanceEstimate,
   EahCard,
   EngineWarning,
   ChecklistResult,
@@ -33,7 +34,7 @@ import type {
   ZoneSet,
 } from './engine/types.ts'
 
-export type { Checkin }
+export type { Checkin, DistanceEstimate }
 
 export type ActivityType = 'run' | 'race' | 'strength' | 'cross'
 /** `manual`, `smashrun`, `csv`, `file`, or a provider registry key such as `intervals`. */
@@ -447,6 +448,13 @@ export interface PlanWeek {
   isRecovery: boolean
   updatedAt: string
 }
+/**
+ * A week as a screen is served it: the stored week and the distance of its runs, the sum of the
+ * session estimates (`weekDistanceEstimateM`). Null when a run of the week has none.
+ */
+export interface PlanWeekView extends PlanWeek {
+  distanceEstimateM: number | null
+}
 export type DataStatus = 'unconfirmed' | 'complete' | 'missing'
 export type Symptoms = 'none' | 'mild' | 'persistent'
 export type SuggestedAction =
@@ -588,6 +596,15 @@ export interface PlanSession {
   /** The prescription before a downgrade or move. */
   original: Partial<SessionSpec> | null
   updatedAt: string
+}
+/**
+ * A session as a screen is served it: the stored session and the distance estimate beside its
+ * minutes (`estimateDistance`), derived from the zones as they are now and never stored. Null
+ * when the session is not a run, or the runner has no pace data. Every payload a screen reads a
+ * session from is typed with this, so a producer that forgets the estimate does not compile.
+ */
+export interface PlanSessionView extends PlanSession {
+  distanceEstimate: DistanceEstimate | null
 }
 export type PlanRevisionReason =
   'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch'
@@ -753,7 +770,7 @@ export interface BriefListItem {
   changeCount: number
   /** The revision was undone. */
   undone: boolean
-  nextKey: { date: string; kind: SessionKind } | null
+  nextKey: { date: string; kind: SessionKind; distanceEstimate: DistanceEstimate | null } | null
 }
 /**
  * One owner edit of one session (phase 3a design 9.4, 9.5): the six things the session sheet can
@@ -890,7 +907,8 @@ export interface AdjustResult {
   hash: string
 }
 export interface PlanWithSessions extends PlanWithWeeks {
-  sessions: PlanSession[]
+  weeks: PlanWeekView[]
+  sessions: PlanSessionView[]
   feasibility: Feasibility | null
   warnings: EngineWarning[]
   checklist: ChecklistResult[]
@@ -1017,7 +1035,7 @@ export interface TodayView {
   date: string
   /** The server's IANA zone: "today" is its calendar day, whatever the device clock says. */
   tz: string
-  sessions: Array<{ session: PlanSession; advice: TodayAdvice; reasons: string[] }>
+  sessions: Array<{ session: PlanSessionView; advice: TodayAdvice; reasons: string[] }>
   heat: TodayHeat
   checkin: Checkin | null
   readiness: ReadinessSnapshot
@@ -1067,17 +1085,20 @@ export interface TodayTarget extends ResolvedTargets {
 }
 export interface TodayHero {
   /** The session as planned. */
-  session: PlanSession
+  session: PlanSessionView
   advice: TodayAdvice
   reasons: string[]
-  /** The J3 downgrade of `session`; set only for the advice `downgrade-easy`. */
-  eased: PlanSession | null
+  /**
+   * The J3 downgrade of `session`; set only for the advice `downgrade-easy`. It carries no
+   * distance estimate, as it carries no distance: an eased day is run by time.
+   */
+  eased: PlanSessionView | null
   /** Targets of the session as it will be run (the eased one when there is one); null for rest. */
   target: TodayTarget | null
   /** The logged run linked to the session. */
   linkedRun: Activity | null
   /** The day's other sessions (strength, mobility). */
-  others: PlanSession[]
+  others: PlanSessionView[]
 }
 /**
  * How a day of the week strip reads. A past day whose run is still to be done and has no logged
@@ -1091,7 +1112,7 @@ export interface WeekStripDay {
   /** Run minutes logged on the day. */
   runMin: number
   /** Every session of the day, in order; a tap on the day opens them. */
-  sessions: PlanSession[]
+  sessions: PlanSessionView[]
 }
 export interface WeekStrip {
   /** Monday. */
@@ -1104,6 +1125,8 @@ export interface WeekStrip {
   targetRunMin: number | null
   /** The advisory split of what is left through Sunday; null without a target. */
   remaining: { remainingMin: number; remainingDays: number; perDayMin: number | null } | null
+  /** The distance of the week's planned runs (`weekDistanceEstimateM`); null when none can be said. */
+  distanceEstimateM: number | null
 }
 export interface TodayRace {
   goalId: string
@@ -1185,7 +1208,7 @@ export interface TodayCoach {
   /** Null when the day has no session. */
   hero: TodayHero | null
   /** The next session after the viewed day. */
-  next: PlanSession | null
+  next: PlanSessionView | null
   weekStrip: WeekStrip | null
   race: TodayRace | null
   health: TodayHealth

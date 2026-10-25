@@ -5,12 +5,13 @@ import { resolveTargets } from '../../shared/engine/targets.ts'
 import { publishable } from '../../shared/workouts/labels.ts'
 import { toWorkoutPlan } from '../../shared/workouts/plan.ts'
 import type { WorkoutPlan } from '../../shared/workouts/types.ts'
-import type { PlanSession } from '../../shared/types.ts'
+import type { PlanSession, PlanSessionView } from '../../shared/types.ts'
 import { SessionSheet } from '../../web/components/SessionSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { makeActivity } from '../factories.ts'
 import {
   activityPage,
+  expectCleanCopy,
   explainOf,
   mockApi,
   renderWithProviders,
@@ -54,7 +55,7 @@ const nearby = [
   makeActivity({ id: 'act2', date: '2027-01-12', durationSec: 1800, distanceM: 5000 }),
 ]
 
-function renderSheet(session: PlanSession, extra: MockRoutes = {}) {
+function renderSheet(session: PlanSessionView, extra: MockRoutes = {}) {
   const onClose = vi.fn()
   const api = mockApi({
     'GET /api/settings': () => settings,
@@ -130,6 +131,69 @@ describe('SessionSheet', () => {
     // The climb follows the setting too: 60 m is 197 ft.
     expect(within(dialog).getByText('197 ft')).toBeInTheDocument()
     expect(within(dialog).queryByText('60 m')).not.toBeInTheDocument()
+  })
+
+  describe('the distance estimate', () => {
+    test('replaces the plan’s distance with "about", naming the easy pace for an easy-paced run', async () => {
+      renderSheet(makeSession({ distanceEstimate: { distanceM: 8400, basis: 'easy' } }), {
+        'GET /api/settings': () => ({ ...settings, units: 'km' }),
+      })
+      const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+      expect(await within(dialog).findByText('about 8 km at your easy pace')).toBeInTheDocument()
+      // One distance, not two: the plan's own 9.00 km gives way to the estimate.
+      expect(within(dialog).queryByText('9.00 km')).not.toBeInTheDocument()
+      expect(within(dialog).getByText('Distance').nextElementSibling).toHaveTextContent(
+        'about 8 km at your easy pace',
+      )
+    })
+
+    test('names the recent pace when the recent logged runs stand in for the zones', async () => {
+      renderSheet(makeSession({ distanceEstimate: { distanceM: 8400, basis: 'recent' } }), {
+        'GET /api/settings': () => ({ ...settings, units: 'km' }),
+      })
+      const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+      expect(await within(dialog).findByText('about 8 km at your recent pace')).toBeInTheDocument()
+      expect(within(dialog).queryByText(/easy pace/)).not.toBeInTheDocument()
+    })
+
+    test('is the figure alone for a session with a pace target of its own, in miles for a runner of miles', async () => {
+      renderSheet(makeSession({ distanceEstimate: { distanceM: 10_900, basis: 'pace' } }), {
+        'GET /api/settings': () => ({ ...settings, units: 'mi' }),
+      })
+      const dialog = await screen.findByRole('dialog')
+      expect(await within(dialog).findByText('about 7 mi')).toBeInTheDocument()
+      expect(within(dialog).queryByText(/easy pace/)).not.toBeInTheDocument()
+    })
+
+    test('without an estimate the plan’s own distance stands, and a session without either shows none', async () => {
+      renderSheet(makeSession({ distanceEstimate: null }))
+      const dialog = await screen.findByRole('dialog')
+      expect(await within(dialog).findByText('9.00 km')).toBeInTheDocument()
+      expect(within(dialog).queryByText(/about/)).not.toBeInTheDocument()
+    })
+
+    test('reads an answer the phone kept from before the estimate existed as no estimate', async () => {
+      const stale = makeSession() as Partial<PlanSessionView>
+      delete stale.distanceEstimate
+      renderSheet(stale as PlanSessionView)
+      const dialog = await screen.findByRole('dialog')
+      expect(await within(dialog).findByText('9.00 km')).toBeInTheDocument()
+    })
+
+    test('never grades: it is an estimate, with no target and no comparison with what was run', async () => {
+      renderSheet(
+        makeSession({
+          status: 'completed',
+          activityId: 'act1',
+          distanceEstimate: { distanceM: 8400, basis: 'easy' },
+        }),
+      )
+      const dialog = await screen.findByRole('dialog')
+      const estimate = await within(dialog).findByText('about 8 km at your easy pace')
+      expect(estimate.textContent).not.toMatch(/target|ahead|behind|short|over/i)
+      expect(within(dialog).getByText('Distance')).toBeInTheDocument()
+      expectCleanCopy(dialog)
+    })
   })
 
   test('the why button opens the drawer on the session and its rule ids', async () => {
@@ -466,7 +530,7 @@ describe('SessionSheet: the names of the steps', () => {
     )
   }
 
-  async function sheetNames(session: PlanSession): Promise<string[]> {
+  async function sheetNames(session: PlanSessionView): Promise<string[]> {
     renderSheet(session)
     const dialog = await screen.findByRole('dialog')
     const list = within(dialog).getByRole('heading', { name: 'Steps' }).nextElementSibling

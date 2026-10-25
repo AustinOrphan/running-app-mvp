@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { BriefReplanCode } from '../../shared/engine/types.ts'
+import type { BriefFacts, BriefReplanCode } from '../../shared/engine/types.ts'
 import type { BriefView, Units } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { BriefPage } from '../../web/pages/BriefPage.tsx'
@@ -336,6 +336,44 @@ describe('Brief page: a brief', () => {
         'Readiness can only make this session easier on the day, never harder.',
       ),
     ).toBeInTheDocument()
+  })
+
+  describe('the distance estimate on the key session', () => {
+    const withEstimate = (
+      distanceEstimate: NonNullable<BriefFacts['keySession']>['distanceEstimate'],
+    ) => {
+      const facts = makeFacts()
+      return served(
+        makeView({ facts: { ...facts, keySession: { ...facts.keySession!, distanceEstimate } } }),
+      )
+    }
+
+    test('reads in place of the plan’s distance, naming the easy pace', async () => {
+      renderBrief('/brief', withEstimate({ distanceM: 16_100, basis: 'easy' }), SEEN)
+      const section = await screen.findByRole('region', { name: 'Next key session' })
+      expect(
+        within(section).getByText('Sat 16 Jan: long run, 105 min, about 16 km at your easy pace.'),
+      ).toBeInTheDocument()
+      expect(within(section).queryByText(/, 16 km\./)).not.toBeInTheDocument()
+    })
+
+    test('is the figure alone for a session with a pace target of its own, in miles for miles', async () => {
+      const { container } = renderBrief(
+        '/brief',
+        withEstimate({ distanceM: 16_100, basis: 'pace' }),
+        SEEN,
+        'mi',
+      )
+      expect(
+        await screen.findByText('Sat 16 Jan: long run, 105 min, about 10 mi.'),
+      ).toBeInTheDocument()
+      expectCleanCopy(container)
+    })
+
+    test('leaves the plan’s distance in place for a brief without an estimate', async () => {
+      renderBrief('/brief', withEstimate(null), SEEN)
+      expect(await screen.findByText('Sat 16 Jan: long run, 105 min, 16 km.')).toBeInTheDocument()
+    })
   })
 
   test('a week without a key session says the week is easy running', async () => {

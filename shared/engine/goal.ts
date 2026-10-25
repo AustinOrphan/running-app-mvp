@@ -145,20 +145,30 @@ function taperWeeks(distanceClass: DistanceClass): number {
   return Math.ceil(days / DAYS_PER_WEEK)
 }
 
-function median(values: number[]): number {
+/** The median of a list; 0 for an empty one. */
+export function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b)
   const mid = Math.floor(sorted.length / 2)
   const hi = sorted[mid] ?? 0
   return sorted.length % 2 === 1 ? hi : ((sorted[mid - 1] ?? hi) + hi) / 2
 }
 
-/** Average training pace in sec/km: recent weeks, else the goal pace slowed, else a default. */
-export function trainingPace(state: AthleteState, goal: GoalModel): number {
+/**
+ * The median of the weekly paces over the last `macroDesign.trainingPaceWeeks` weeks, leaving out a
+ * week without a run, in sec/km; null when no week of the window holds a run with a distance.
+ */
+export function recentWeeklyPace(state: Pick<AthleteState, 'weeks'>): number | null {
   const paces = state.weeks
     .slice(-P.macroDesign.trainingPaceWeeks.value)
     .filter((w) => w.runM > 0 && w.runMin > 0)
     .map((w) => (w.runMin * SEC_PER_MIN) / (w.runM / M_PER_KM))
-  if (paces.length > 0) return median(paces)
+  return paces.length > 0 ? median(paces) : null
+}
+
+/** Average training pace in sec/km: recent weeks, else the goal pace slowed, else a default. */
+export function trainingPace(state: AthleteState, goal: GoalModel): number {
+  const recent = recentWeeklyPace(state)
+  if (recent !== null) return recent
   if (goal.expectedDurationSec > 0 && goal.distanceM > 0) {
     return (
       (goal.expectedDurationSec / (goal.distanceM / M_PER_KM)) *

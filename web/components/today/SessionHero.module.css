@@ -69,6 +69,11 @@
 }
 
 .extent {
+  /* The distance estimate is a phrase ("about 9 mi at your easy pace"): it wraps inside its own
+     column beside the minutes instead of dropping to a line of its own and taking the fold. */
+  flex: 1 1 10rem;
+  align-self: center;
+  min-width: 0;
   margin: 0;
   color: var(--text-muted);
   font-size: var(--text-sm);

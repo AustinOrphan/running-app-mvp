@@ -7,6 +7,7 @@ import type {
   Step,
   ZoneKey,
 } from '../../shared/engine/types.ts'
+import { estimateAboutText, estimateText } from '../../shared/copy/distanceEstimate.ts'
 import { formatQuantity } from '../../shared/copy/quantity.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { addDays } from '../../shared/dates.ts'
@@ -14,7 +15,7 @@ import { hasSubjectivePart } from '../../shared/engine/execution.ts'
 import { resolveTargets } from '../../shared/engine/targets.ts'
 import { formatDistance } from '../../shared/units.ts'
 import { stepName } from '../../shared/workouts/plan.ts'
-import type { ActivityListItem, PlanSession, Units } from '../../shared/types.ts'
+import type { ActivityListItem, PlanSession, PlanSessionView, Units } from '../../shared/types.ts'
 import { useActivities } from '../api/activities.ts'
 import { useLinkPlanSession, useSessionWorkout } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
@@ -38,7 +39,7 @@ import {
 import styles from './SessionSheet.module.css'
 
 export interface SessionSheetProps {
-  session: PlanSession
+  session: PlanSessionView
   onClose: () => void
 }
 
@@ -99,12 +100,21 @@ const ASSESSMENT_FLAG_LABELS: Record<ExecutionAssessment['flags'][number], strin
 
 const NBSP = ' '
 
-/** Duration, distance and the like for a one-line summary; rest days have none. */
-export function sessionSummary(session: PlanSession, units: Units | undefined): string {
+/**
+ * Duration, distance and the like for a one-line summary; rest days have none. The distance is the
+ * estimate the server worked out, worded as one; a session with none keeps the plan's own distance.
+ */
+export function sessionSummary(session: PlanSessionView, units: Units | undefined): string {
   const parts: string[] = []
   if (session.durationMin > 0) parts.push(`${String(session.durationMin)}${NBSP}min`)
-  if (session.distanceM !== null && units !== undefined) {
-    parts.push(formatDistance(session.distanceM, units))
+  if (units !== undefined) {
+    // `?? null`: a Today answer the phone kept from before the estimate existed has no field.
+    const estimate = session.distanceEstimate ?? null
+    if (estimate !== null) {
+      parts.push(estimateAboutText(estimate.distanceM, units))
+    } else if (session.distanceM !== null) {
+      parts.push(formatDistance(session.distanceM, units))
+    }
   }
   return parts.join(', ')
 }
@@ -357,6 +367,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const workout = useSessionWorkout(session.id)
   const [whyOpen, setWhyOpen] = useState(false)
   const original = session.original
+  const estimate = session.distanceEstimate ?? null
 
   return (
     <>
@@ -385,7 +396,9 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
               {session.durationMin > 0 ? (
                 <Row label="Time">{`${String(session.durationMin)}${NBSP}min`}</Row>
               ) : null}
-              {session.distanceM !== null && units !== undefined ? (
+              {units === undefined ? null : estimate !== null ? (
+                <Row label="Distance">{estimateText(estimate, units)}</Row>
+              ) : session.distanceM !== null ? (
                 <Row label="Distance">{formatDistance(session.distanceM, units)}</Row>
               ) : null}
               {session.gainM !== null && units !== undefined ? (

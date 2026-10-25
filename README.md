@@ -309,6 +309,12 @@ chooses a session. Every number it uses is a record in a parameter registry, tie
   the days you have free. A goal carries distance, climb, surface, start time and support level, and
   gets a feasibility label (comfortable, tight, or not reachable within default limits) and a
   predicted time with a range.
+- Shows a distance estimate beside the minutes of a run, on Today, the Plan page and the weekly
+  brief: "about 9 mi at your easy pace", or "about 9 mi" for a threshold, interval or race-pace
+  session, whose work minutes use the pace it sets. With no pace in your zones it uses the pace of
+  your recent easier runs instead ("about 9 mi at your recent pace"). The minutes stay the plan's
+  currency; the estimate is worked out on the server, never scored against what you ran, and left
+  out when neither your zones nor your recent runs give a pace.
 - Holds every session and every week inside safety limits: a cap on the jump from your recent
   longest run, a weekly ramp, no make-up of missed volume, and caps on time on feet for ultras. A
   plan that would break a limit is not published; the page says which check failed.

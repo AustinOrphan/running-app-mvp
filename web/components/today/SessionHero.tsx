@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import { formatQuantity } from '../../../shared/copy/quantity.ts'
+import { estimateText, nextWithEstimateText } from '../../../shared/copy/distanceEstimate.ts'
 import { sessionStatusLabel } from '../../../shared/copy/sessionStatus.ts'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { isToRun } from '../../../shared/domain/sessionStatus.ts'
-import type { PlanSession, TodayHeat, TodayHero, Units } from '../../../shared/types.ts'
+import type { PlanSessionView, TodayHeat, TodayHero, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
 import { WhyDrawer } from '../WhyDrawer.tsx'
 import { CoolerStart } from './CoolerStart.tsx'
@@ -19,9 +20,15 @@ import { TodaySlot } from './TodaySlot.tsx'
 
 const minutes = (min: number) => ({ kind: 'minutes', min }) as const
 
-/** "Next: Thu 22 Oct, Long run, 1 h 30 min", or nothing when no session is planned after today. */
-function nextLine(next: PlanSession | null, units: Units): string | null {
+/**
+ * "Next: Thu 22 Oct, Long run, 1 h 30 min", with "about 9 mi" after the minutes when the payload
+ * carries an estimate, or nothing when no session is planned after today.
+ */
+function nextLine(next: PlanSessionView | null, units: Units): string | null {
   if (next === null) return null
+  // `?? null`: an answer the phone kept from before the estimate existed has no field.
+  const estimate = next.distanceEstimate ?? null
+  if (estimate !== null) return nextWithEstimateText(next, estimate.distanceM, units)
   return render(
     TEMPLATES['today.hero.next'],
     {
@@ -46,7 +53,7 @@ function loggedLine(run: NonNullable<TodayHero['linkedRun']>, units: Units): str
 }
 
 /** What a day with no session says, and the next session when there is one. */
-export function NoSession({ next, units }: { next: PlanSession | null; units: Units }) {
+export function NoSession({ next, units }: { next: PlanSessionView | null; units: Units }) {
   const line = nextLine(next, units)
   return (
     <section aria-label="Today's session" className={styles.empty}>
@@ -62,7 +69,7 @@ export interface SessionHeroProps {
   hero: TodayHero
   heat: TodayHeat
   /** The next session after today, shown once today's is settled or is a rest day. */
-  next: PlanSession | null
+  next: PlanSessionView | null
   units: Units
   /**
    * The session is of a day that is over (the phone's copy of an earlier day): Done and Not today
@@ -112,8 +119,15 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
       : eased !== null
         ? render(TEMPLATES['today.hero.planned'], planned, units)
         : null
+  // The estimate is the distance the hero shows when it has one ("about 9 mi at your easy pace");
+  // otherwise the plan's own distance, which an eased session does not carry.
+  const estimate = shown.distanceEstimate ?? null
   const extent = [
-    shown.distanceM === null ? null : formatDistance(shown.distanceM, units),
+    estimate !== null
+      ? estimateText(estimate, units)
+      : shown.distanceM === null
+        ? null
+        : formatDistance(shown.distanceM, units),
     shown.gainM === null || shown.gainM <= 0
       ? null
       : render(TEMPLATES['today.hero.climb'], { climb: { kind: 'climb', m: shown.gainM } }, units),

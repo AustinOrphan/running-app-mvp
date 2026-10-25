@@ -21,6 +21,7 @@ import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, CauseCode, PlanDiff, PlanSessionStatus, RevisionCauses } from '../types.ts'
 import { roundEstimateSec } from '../units.ts'
 import { weekEvidence } from './adapt.ts'
+import { estimateDistance, recentPaceSecPerKm } from './distanceEstimate.ts'
 import { efficiencySamples } from './athlete.ts'
 import {
   activitySource,
@@ -162,6 +163,7 @@ export function keySessionFacts(
   session: SessionRow,
   zones: ZoneSet | null,
   hot: boolean,
+  recentPace: number | null,
 ): BriefKeySession {
   const t = resolveTargets(session, zones, { hot })
   return {
@@ -172,6 +174,7 @@ export function keySessionFacts(
     durationMin: session.durationMin,
     distanceM: session.distanceM,
     gainM: session.gainM,
+    distanceEstimate: estimateDistance(session, { zones, recentPaceSecPerKm: recentPace }),
     target: {
       zone: t.zone,
       mode: t.mode,
@@ -560,7 +563,19 @@ export function buildBriefFacts(args: BriefArgs): BriefFacts {
     replan: args.replan,
     changes: changesOf(args.revision),
     noticed: noticedFacts(args),
-    keySession: session === null ? null : keySessionFacts(session, args.zones, args.isHot(session)),
+    keySession:
+      session === null
+        ? null
+        : keySessionFacts(
+            session,
+            args.zones,
+            args.isHot(session),
+            recentPaceSecPerKm({
+              activities: args.input.activities,
+              state: args.state,
+              zones: args.zones,
+            }),
+          ),
     countdown: countdownOf(args.goal, args.asOf),
     prediction: predictionOf(args),
   }
