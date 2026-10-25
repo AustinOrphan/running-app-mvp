@@ -30,7 +30,7 @@ import {
   weeklyRamp,
   zoneProposals,
 } from '../../shared/engine/index.ts'
-import { rebuildZone } from '../../shared/engine/loadSetting.ts'
+import { loadPosition, rebuildZone, type LoadPosition } from '../../shared/engine/loadSetting.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { sessionTitle } from '../../shared/engine/sessions.ts'
 import type {
@@ -96,11 +96,14 @@ function json(value: unknown): string {
 /**
  * The plan with its weeks and sessions in the API shape. Zones are not stored: they follow the
  * data, and so do the distance estimates of the sessions and the weeks, which are worked out here
- * from the zones and the recent logged pace (`estimateDistance`) and never written.
+ * from the zones and the recent logged pace (`estimateDistance`) and never written. `load` is the
+ * plan's load setting as `loadPosition` reads it today (null for a version-1 plan), the one source
+ * of the position in effect and of why it differs from the one chosen.
  */
 function present(
   plan: PlanRow & { weeks: PlanWeekRow[]; sessions: PlanSessionRow[] },
   paces: EstimatePaces,
+  load: LoadPosition | null,
 ): PlanWithSessions {
   const { zones } = paces
   const engine = plan.generatorVersion >= 2 ? toPlanEngineFields(plan) : null
@@ -120,6 +123,7 @@ function present(
     warnings: engine?.warnings ?? [],
     checklist: engine?.checklist ?? [],
     zones,
+    load,
   }
 }
 
@@ -142,10 +146,28 @@ export async function loadPlanWithSessions(
   // Zones and the recent pace come from the snapshot, with no read of their own.
   const context =
     plan.generatorVersion >= 2 ? await loadAthleteContext(deps, { userId, today }) : null
-  return present(plan, {
-    zones: context?.zones ?? null,
-    recentPaceSecPerKm: context?.recentPaceSecPerKm ?? null,
-  })
+  // The position is read from the plan's own goal, options and the snapshot's state, as the weekly
+  // decision is, so that it is the one the next re-plan will apply.
+  const load =
+    context === null
+      ? null
+      : loadPosition(
+          await gatherContextInput(deps, {
+            userId,
+            today,
+            goalId: plan.goalId,
+            options: context.planOptions,
+          }),
+          context.state,
+        )
+  return present(
+    plan,
+    {
+      zones: context?.zones ?? null,
+      recentPaceSecPerKm: context?.recentPaceSecPerKm ?? null,
+    },
+    load,
+  )
 }
 
 /** The columns of a stored week that the engine derives from a draft week. */
@@ -315,12 +337,17 @@ export async function generateEnginePlan(
     { timeout: WRITE_TIMEOUT_MS },
   )
   // The zones of the draft, and the recent pace from the same input the draft was built on.
+  const state = estimateState(input)
   const recentPace = recentPaceSecPerKm({
     activities: input.activities,
-    state: estimateState(input),
+    state,
     zones: draft.zones,
   })
-  return present(created, { zones: draft.zones, recentPaceSecPerKm: recentPace })
+  return present(
+    created,
+    { zones: draft.zones, recentPaceSecPerKm: recentPace },
+    loadPosition(input, state),
+  )
 }
 
 /** The rows a re-plan wrote to a plan's sessions: what the revision diff and the undo payload read. */

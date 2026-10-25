@@ -94,6 +94,7 @@ function makePlan(over: Partial<PlanWithSessions> = {}): PlanWithSessions {
     warnings: [],
     checklist: [],
     zones: null,
+    load: { requested: 'steady', position: 'steady', held: null, ageCapped: false },
     ...over,
   }
 }

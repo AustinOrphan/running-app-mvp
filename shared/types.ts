@@ -1,5 +1,6 @@
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
+import type { LoadPosition } from './engine/loadSetting.ts'
 import type {
   AthleteState,
   BriefDecision,
@@ -944,6 +945,13 @@ export interface PlanWithSessions extends PlanWithWeeks {
   warnings: EngineWarning[]
   checklist: ChecklistResult[]
   zones: ZoneSet | null
+  /**
+   * The load setting of the plan [rules g-8]: the position the plan was set to, the one that
+   * applies today, and why they differ (held at steady, or capped at standard by age). Worked out
+   * by the server from the plan's options and the runner's state, so a page shows it and never
+   * recomputes it. Null for a version-1 plan.
+   */
+  load: LoadPosition | null
 }
 /** The `details` of the 409 that `POST /api/goals/:id/activate` answers while a plan follows another goal. */
 export interface ActivateRequiresPlan {

@@ -989,6 +989,89 @@ describe('the load setting option (options.loadAppetite)', () => {
     )
   })
 
+  test('the plan payload names the position in effect, from generate and from the plan read', async () => {
+    const u = await seedRunner('load-payload@example.com')
+    const goal = await seedGoal({ userId: u.id })
+    const steady = { requested: 'steady', position: 'steady', held: null, ageCapped: false }
+    // no option reads as steady
+    const none = await generateAs(u, goal.id)
+    expect((none.body as PlanWithSessions).load).toEqual(steady)
+    expect(((await client(ctx, u).get('/api/plan')).body as PlanWithSessions).load).toEqual(steady)
+    for (const loadAppetite of ['standard', 'upper'] as const) {
+      const res = await generateAs(u, goal.id, { loadAppetite })
+      const expected = {
+        requested: loadAppetite,
+        position: loadAppetite,
+        held: null,
+        ageCapped: false,
+      }
+      expect((res.body as PlanWithSessions).load).toEqual(expected)
+      const read = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+      expect(read.load).toEqual(expected)
+    }
+    // the re-plan keeps the chosen position, and the payload still names it
+    expect((await client(ctx, u).post('/api/plan/replan').send({})).status).toBe(200)
+    expect(((await client(ctx, u).get('/api/plan')).body as PlanWithSessions).load).toEqual({
+      requested: 'upper',
+      position: 'upper',
+      held: null,
+      ageCapped: false,
+    })
+  })
+
+  test('the payload says upper is read as standard from age 45, and why a position is held at steady', async () => {
+    const u = await seedRunner('load-reasons@example.com')
+    const goal = await seedGoal({ userId: u.id })
+    const year = Number(today.slice(0, 4))
+
+    // age 45 or over: upper is read as standard
+    await client(ctx, u)
+      .put('/api/profile')
+      .send({ birthYear: year - 50 })
+      .expect(200)
+    const aged = await generateAs(u, goal.id, { loadAppetite: 'upper' })
+    expect(aged.status, JSON.stringify(aged.body)).toBe(201)
+    expect((aged.body as PlanWithSessions).load).toEqual({
+      requested: 'upper',
+      position: 'standard',
+      held: null,
+      ageCapped: true,
+    })
+    // standard is not capped at that age
+    const standard = await generateAs(u, goal.id, { loadAppetite: 'standard' })
+    expect((standard.body as PlanWithSessions).load).toMatchObject({
+      position: 'standard',
+      ageCapped: false,
+    })
+
+    // a recent injury on file holds the plan at steady; the chosen position is still named. The
+    // read follows the profile at once: the injury ends the hold when it is removed.
+    await client(ctx, u)
+      .put('/api/profile')
+      .send({
+        birthYear: year - 40,
+        injuries: [{ area: 'knee', side: null, year, month: 1, kind: 'joint', notes: null }],
+      })
+      .expect(200)
+    const injured = await generateAs(u, goal.id, { loadAppetite: 'standard' })
+    expect(injured.status, JSON.stringify(injured.body)).toBe(201)
+    const held = {
+      requested: 'standard',
+      position: 'steady',
+      held: 'recent-injury',
+      ageCapped: false,
+    }
+    expect((injured.body as PlanWithSessions).load).toEqual(held)
+    expect(((await client(ctx, u).get('/api/plan')).body as PlanWithSessions).load).toEqual(held)
+    await client(ctx, u).put('/api/profile').send({ injuries: [] }).expect(200)
+    expect(((await client(ctx, u).get('/api/plan')).body as PlanWithSessions).load).toEqual({
+      requested: 'standard',
+      position: 'standard',
+      held: null,
+      ageCapped: false,
+    })
+  })
+
   test('a stored value that is not a position is dropped, which reads as steady', () => {
     expect(parsePlanOptions('{"loadAppetite":"upper","recoveryCycle":"2:1"}')).toEqual({
       loadAppetite: 'upper',

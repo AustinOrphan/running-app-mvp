@@ -159,6 +159,7 @@ export function makeV2Plan(over: Partial<PlanWithSessions> = {}): PlanWithSessio
       { id: 'taper', ok: false, detail: 'Taper is one week long.', rules: ['k-1'] },
     ],
     zones: null,
+    load: { requested: 'steady', position: 'steady', held: null, ageCapped: false },
     ...over,
   }
 }
