@@ -1,12 +1,22 @@
-import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { distanceClassOf, generatePlan } from '../../shared/domain/plan.ts'
 import type { PlanWeek, PlanWithSessions, PlanWithWeeks } from '../../shared/types.ts'
 import { computeBaselineRunMin } from '../../server/services/baseline.ts'
 import { HttpError } from '../../server/errors.ts'
 import { generatePlanForGoal } from '../../server/services/plan.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import { replanActivePlan } from '../../server/services/planEngine.ts'
+import { parsePlanOptions } from '../../server/serialize.ts'
+import {
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 import { makeActivityCore } from '../factories.ts'
+import { runsOn, s3Runs } from '../unit/engine/history-fixtures.ts'
 
 let ctx: TestCtx
 let user: TestUser
@@ -20,6 +30,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await ctx.close()
+})
+
+afterEach(() => {
+  expectNoRefusedFetches(ctx)
 })
 
 const today = todayIso()
@@ -835,5 +849,122 @@ describe('GET /api/plan/revisions', () => {
         'undoOf',
       ].sort(),
     )
+  })
+})
+
+describe('the load setting option (options.loadAppetite)', () => {
+  /**
+   * A runner with one year of running and the history of appendix A of the load-progression
+   * proposal (a summer block, then sparse weeks), placed against this week's Monday.
+   */
+  async function seedRunner(email: string) {
+    const u = await seedUser(ctx, { email })
+    await client(ctx, u)
+      .put('/api/profile')
+      .send({ birthYear: 1985, runningSinceYear: Number(today.slice(0, 4)) - 1 })
+      .expect(200)
+    await ctx.prisma.activity.createMany({
+      data: runsOn(thisMonday, s3Runs()).map((a) => ({
+        userId: u.id,
+        date: a.date,
+        type: 'run',
+        durationSec: a.durationSec,
+        movingSec: a.movingSec,
+        distanceM: a.distanceM,
+        rpe: 3,
+        source: 'manual',
+      })),
+    })
+    return u
+  }
+  const generateAs = (u: TestUser, goalId: string, options?: Record<string, unknown>) =>
+    generate({ goalId, ...(options === undefined ? {} : { options }) }, u)
+  const storedOptions = async (planId: string): Promise<unknown> =>
+    JSON.parse(
+      (await ctx.prisma.plan.findUniqueOrThrow({ where: { id: planId } })).options,
+    ) as unknown
+  const firstWeek = (plan: unknown) => (plan as PlanWithSessions).weeks[0]!
+
+  test('is accepted at each position, stored with the plan, and lifts the start at standard and upper', async () => {
+    const u = await seedRunner('load-positions@example.com')
+    const goal = await seedGoal({ userId: u.id })
+    const target: Record<string, number> = {}
+    for (const loadAppetite of ['steady', 'standard', 'upper'] as const) {
+      const res = await generateAs(u, goal.id, { loadAppetite })
+      expect(res.status, JSON.stringify(res.body)).toBe(201)
+      expect(await storedOptions((res.body as { id: string }).id)).toEqual({ loadAppetite })
+      target[loadAppetite] = firstWeek(res.body).targetRunMin
+    }
+    // 3 x 20 at steady; 3 x 30 from the block at standard and upper
+    expect(target).toEqual({ steady: 60, standard: 90, upper: 90 })
+    // no option is steady
+    const none = await generateAs(u, goal.id)
+    expect(none.status).toBe(201)
+    expect(firstWeek(none.body).targetRunMin).toBe(60)
+    expect(await storedOptions((none.body as { id: string }).id)).toEqual({})
+  })
+
+  test('is rejected when it is not one of the three positions, and nothing is written', async () => {
+    const u = await seedRunner('load-invalid@example.com')
+    const goal = await seedGoal({ userId: u.id })
+    for (const loadAppetite of ['extreme', 'Standard', '', 1, null, ['upper']]) {
+      const res = await generateAs(u, goal.id, { loadAppetite })
+      expect(res.status, JSON.stringify(loadAppetite)).toBe(400)
+    }
+    expect(await ctx.prisma.plan.count({ where: { userId: u.id } })).toBe(0)
+  })
+
+  test('is kept by the re-plan from the plan screen and by the weekly re-plan', async () => {
+    const u = await seedRunner('load-replan@example.com')
+    const goal = await seedGoal({ userId: u.id })
+    const created = await generateAs(u, goal.id, { loadAppetite: 'standard' })
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    const planId = (created.body as { id: string }).id
+    expect(firstWeek(created.body).targetRunMin).toBe(90)
+
+    // "Update plan from latest data": the plan is drawn again with the stored option
+    const replan = await client(ctx, u).post('/api/plan/replan').send({})
+    expect(replan.status, JSON.stringify(replan.body)).toBe(200)
+    expect(await storedOptions(planId)).toEqual({ loadAppetite: 'standard' })
+    const afterOwner = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    expect(afterOwner.id).toBe(planId)
+    expect(afterOwner.weeks[0]!.targetRunMin).toBe(90)
+
+    // the weekly job
+    await replanActivePlan(
+      { prisma: ctx.prisma, config: ctx.config },
+      {
+        userId: u.id,
+        reason: 'weekly',
+        today,
+      },
+    )
+    expect(await storedOptions(planId)).toEqual({ loadAppetite: 'standard' })
+    const afterWeekly = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    expect(afterWeekly.weeks[0]!.targetRunMin).toBe(90)
+  })
+
+  test('a plan made at steady stays at steady through a re-plan', async () => {
+    const u = await seedRunner('load-steady-replan@example.com')
+    const goal = await seedGoal({ userId: u.id })
+    const created = await generateAs(u, goal.id, { loadAppetite: 'steady' })
+    const planId = (created.body as { id: string }).id
+    expect((await client(ctx, u).post('/api/plan/replan').send({})).status).toBe(200)
+    expect(await storedOptions(planId)).toEqual({ loadAppetite: 'steady' })
+    const after = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    expect(after.weeks[0]!.targetRunMin).toBe(60)
+  })
+
+  test('a stored value that is not a position is dropped, which reads as steady', () => {
+    expect(parsePlanOptions('{"loadAppetite":"upper","recoveryCycle":"2:1"}')).toEqual({
+      loadAppetite: 'upper',
+      recoveryCycle: '2:1',
+    })
+    expect(parsePlanOptions('{"loadAppetite":"extreme","recoveryCycle":"2:1"}')).toEqual({
+      recoveryCycle: '2:1',
+    })
+    expect(parsePlanOptions('{"loadAppetite":3}')).toEqual({})
+    expect(parsePlanOptions('not json')).toEqual({})
+    expect(parsePlanOptions(null)).toEqual({})
   })
 })

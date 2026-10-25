@@ -59,6 +59,7 @@ function state(over: Partial<AthleteState> = {}): AthleteState {
     durability: { decouplingMedianPct: null, samples: 0 },
     risk: { recentInjury: false, priorBsi: false, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
     lowFrequency: false,
+    history: null,
     heatAcclimation: 0,
     ...over,
   }

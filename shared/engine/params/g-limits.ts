@@ -9,6 +9,16 @@ const RAMP = [
   'damsted-2018-training-load-change',
 ]
 const BSI = ['barrack-2014-bone-stress-triad', 'stennett-2025-bsi-female-offroad-runners']
+// How long a reduction in running leaves the earlier weeks worth crediting: fitness fell slowly and
+// levelled off, tendon stiffness fell faster under complete unloading (young non-runners), and a
+// disruption is counted over 16 weeks. None of it dates a runner's own loss.
+const CREDIT_WINDOW = [
+  'coyle-1984-detraining-time-course',
+  'zheng-2022-detraining-vo2max',
+  'feely-2022-training-disruptions',
+  'deboer-2007-ulls-tendon-time-course',
+  'kubo-2012-achilles-training-detraining',
+]
 const INJURY_FACTOR = [
   'hulme-2017-risk-protective',
   'vanderworp-2015-risk-factors',
@@ -251,5 +261,40 @@ export const gLimits = {
         note: 'Share with a reported problem beforehand, so check-ins never replace load guards.',
       },
     ),
+  },
+  g8: {
+    blockWeeks: param(
+      'g8.blockWeeks',
+      4,
+      'D',
+      'g-8',
+      [
+        'mujika-2000-detraining-part1',
+        'mujika-2000-detraining-part2',
+        'bohm-2015-tendon-adaptation-meta',
+      ],
+      {
+        unit: 'weeks',
+        note: 'Default: the history block is 4 consecutive complete weeks, the length of the typical week (a5.typicalWeekCount). The detraining reviews split short-term (under 4 weeks) from long-term reductions, and tendon adaptation is read over 8 weeks or more, so a block shows what the runner sustained and not that tissue adapted. No study sets the length.',
+      },
+    ),
+    blockWeeksDropped: param('g8.blockWeeksDropped', 1, 'D', 'g-8', [], {
+      unit: 'weeks',
+      note: 'Default: the block is scored by the mean of its weeks without this many of the highest, so one big week cannot set it (the same idea as the start level of E6, where one big week alone does not set the level). No study sets the count.',
+    }),
+    creditWindowWeeks: param('g8.creditWindowWeeks', 12, 'D', 'g-8', CREDIT_WINDOW, {
+      unit: 'weeks',
+      note: 'Default: a block that ended within this many weeks of the current Monday counts in full. It sits between the plateau of fitness after a stop (about 8 weeks) and the 16 weeks over which a disruption is counted, and no study dates it for a runner who kept running a little.',
+    }),
+    creditTaperEndWeeks: param('g8.creditTaperEndWeeks', 12, 'D', 'g-8', CREDIT_WINDOW, {
+      range: [12, 16],
+      unit: 'weeks',
+      note: 'Default: 12, the same as g8.creditWindowWeeks, so a block older than the window counts for nothing. 16 reaches blocks that ended 13 to 16 weeks ago, whose credit falls in a straight line from full at the window to g8.creditTaperFloor at this many weeks; the replay on real history chooses between the two. The lift to a start of 3 x 30 never reads a block older than the window.',
+    }),
+    creditTaperFloor: param('g8.creditTaperFloor', 0.5, 'D', 'g-8', [], {
+      range: [0, 1],
+      unit: 'fraction',
+      note: 'Default: the share of its size that a block keeps at the end of the taper, a preference (taste, no claim that it is better). No study sets it.',
+    }),
   },
 } satisfies ParamGroups

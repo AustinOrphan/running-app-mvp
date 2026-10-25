@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest'
 import { addDays } from '../../../shared/dates.ts'
-import { efficiencyIndex, estimateState, experienceClass } from '../../../shared/engine/athlete.ts'
+import {
+  efficiencyIndex,
+  estimateState,
+  experienceClass,
+  historyBlock,
+} from '../../../shared/engine/athlete.ts'
 import { completedReference } from '../../../shared/engine/limits.ts'
 import { ewma } from '../../../shared/engine/load.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -8,6 +13,24 @@ import type { EngineInput, GoalModel } from '../../../shared/engine/types.ts'
 import type { Activity, AthleteProfile, WellnessDay } from '../../../shared/types.ts'
 import { makeActivity, makeWeekRow } from '../../factories.ts'
 import { profileFixture, steadyHistogram } from './fixtures.ts'
+import {
+  at,
+  h1,
+  h26Runs,
+  h5,
+  h6,
+  h7,
+  h7Twice,
+  s3Runs,
+  s4Runs,
+  s5Runs,
+  scenario,
+  SPARSE,
+  summer,
+  weeks,
+  withTaperEnd,
+  type Run,
+} from './history-fixtures.ts'
 
 const TODAY = '2026-06-17' // a Wednesday; the current week starts 2026-06-15
 
@@ -723,5 +746,223 @@ describe('estimateState: purity', () => {
     const b = estimateState(input(acts))
     expect(a).toEqual(b)
     expect(acts).toEqual(frozen)
+  })
+})
+
+describe('the history block [rules g-8]', () => {
+  const MONDAY = '2026-10-19' // the current week of the history fixtures
+  /** Weekly rows ending with the current week, one entry per week, oldest first. */
+  const rowsOf = (entries: Array<[runMin: number, runSessions: number]>) =>
+    entries.map(([runMin, runSessions], i) =>
+      makeWeekRow({
+        weekStart: addDays(MONDAY, -7 * (entries.length - 1 - i)),
+        runMin,
+        runSessions,
+      }),
+    )
+  const historyOf = (runs: readonly Run[], taperEnd = 12) =>
+    withTaperEnd(taperEnd, () => estimateState(scenario(runs)).history)
+
+  test('carries the Params of the rule as grade D defaults', () => {
+    expect([
+      P.g8.blockWeeks.value,
+      P.g8.blockWeeksDropped.value,
+      P.g8.creditWindowWeeks.value,
+      P.g8.creditTaperEndWeeks.value,
+      P.g8.creditTaperFloor.value,
+    ]).toEqual([4, 1, 12, 12, 0.5])
+  })
+
+  test('H1: the runner of appendix A has a block of 280 minutes that ended 8 weeks ago', () => {
+    expect(estimateState(h1()).history).toEqual({
+      blockMin: 280,
+      endWeek: '2026-08-24',
+      weeksAgo: 8,
+      taper: 1,
+      fullCreditMin: 280,
+    })
+    // the sparse weeks after the summer form no block of their own
+    expect(estimateState(scenario(SPARSE)).history).toBeNull()
+  })
+
+  test('S4: five 45-minute runs a week for eight weeks is a block of 225 that ended last week', () => {
+    expect(estimateState(scenario(s4Runs())).history).toEqual({
+      blockMin: 225,
+      endWeek: '2026-10-12',
+      weeksAgo: 1,
+      taper: 1,
+      fullCreditMin: 225,
+    })
+  })
+
+  test('S5: a 41-day layoff after the same summer keeps the block', () => {
+    const state = estimateState(scenario(s5Runs()))
+    expect(state.layoffDays).toBe(41)
+    expect(state.history).toMatchObject({ blockMin: 280, weeksAgo: 8, taper: 1 })
+  })
+
+  test('H5: a block that ended 17 weeks ago counts at neither window', () => {
+    expect(estimateState(h5()).history).toBeNull()
+    expect(withTaperEnd(16, () => estimateState(h5()).history)).toBeNull()
+    // one week sooner, the 16-week option sees it and the 12-week option does not
+    const sixteenAgo = [...summer(16), ...SPARSE]
+    expect(historyOf(sixteenAgo, 16)).toMatchObject({ weeksAgo: 16, taper: 0.5 })
+    expect(historyOf(sixteenAgo, 12)).toBeNull()
+  })
+
+  test('H6: one 600-minute week cannot set the block; the three lowest weeks do', () => {
+    // 100-minute weeks around the big one: a plain mean of its window would be 250
+    expect(estimateState(h6([30, 35, 35])).history).toMatchObject({
+      blockMin: 100,
+      fullCreditMin: 100,
+    })
+    expect(estimateState(h6([20, 20, 20])).history).toMatchObject({ blockMin: 60 })
+  })
+
+  test('H7: weeks of one run each are not a block, however long the run', () => {
+    expect(estimateState(h7()).history).toBeNull()
+    // two runs a week is the least that makes one
+    expect(estimateState(h7Twice()).history).toMatchObject({ blockMin: 120, weeksAgo: 8 })
+  })
+
+  test('a race is not a run for the block, and its minutes are not in the week', () => {
+    const race = makeActivity({
+      date: addDays(MONDAY, -14 + 5),
+      type: 'race',
+      durationSec: 3600,
+      distanceM: 10_000,
+    })
+    // four weeks of two runs; the last has one run and a race
+    const runs = [...weeks(5, 3, [60, 60]), ...weeks(2, 2, [60])]
+    const withRace = scenario(runs)
+    expect(estimateState({ ...withRace, activities: [...withRace.activities, race] }).history).toBe(
+      null,
+    )
+    // control: the same weeks with a second run in the last one are a block
+    expect(historyOf(weeks(5, 2, [60, 60]))).toMatchObject({ blockMin: 120, weeksAgo: 2 })
+  })
+
+  test('scores a window by the mean of its three lowest weeks', () => {
+    const rows = rowsOf([
+      [0, 0],
+      [0, 0],
+      [100, 3],
+      [100, 3],
+      [100, 3],
+      [700, 3],
+      [0, 0],
+    ])
+    expect(historyBlock(rows)).toMatchObject({ blockMin: 100, weeksAgo: 1 })
+    // a window with a one-run week does not count, whatever its minutes
+    const sparse = rowsOf([
+      [300, 4],
+      [300, 4],
+      [300, 1],
+      [300, 4],
+      [0, 0],
+    ])
+    expect(historyBlock(sparse)).toBeNull()
+  })
+
+  test('takes the highest score, and the newer block on a tie', () => {
+    const rows = rowsOf([
+      [200, 3],
+      [200, 3],
+      [200, 3],
+      [200, 3],
+      [0, 0],
+      [150, 3],
+      [150, 3],
+      [150, 3],
+      [150, 3],
+      [0, 0],
+    ])
+    expect(historyBlock(rows)).toMatchObject({ blockMin: 200, weeksAgo: 6 })
+    const tie = rowsOf([
+      [200, 3],
+      [200, 3],
+      [200, 3],
+      [200, 3],
+      [0, 0],
+      [200, 3],
+      [200, 3],
+      [200, 3],
+      [200, 3],
+      [0, 0],
+    ])
+    expect(historyBlock(tie)).toMatchObject({ blockMin: 200, weeksAgo: 1 })
+  })
+
+  test('never reads the current week, which is part of a week', () => {
+    // four rows end with the current week: only three complete weeks, so no block
+    const rows = rowsOf([
+      [100, 3],
+      [100, 3],
+      [100, 3],
+      [100, 3],
+    ])
+    expect(historyBlock(rows)).toBeNull()
+  })
+
+  test('the taper is 1 within the window and falls in a straight line to the floor at 16 weeks', () => {
+    const taperAt = (weeksAgo: number, taperEnd: number) => {
+      // a block of four weeks whose last week began `weeksAgo` weeks before the current Monday
+      const rows = Array.from({ length: weeksAgo + 4 }, (_, i) => {
+        const back = weeksAgo + 3 - i
+        const inBlock = back >= weeksAgo
+        return makeWeekRow({
+          weekStart: addDays(MONDAY, -7 * back),
+          runMin: inBlock ? 200 : 0,
+          runSessions: inBlock ? 3 : 0,
+        })
+      })
+      return historyBlock(rows, taperEnd)?.taper ?? null
+    }
+    expect([1, 6, 12].map((w) => taperAt(w, 16))).toEqual([1, 1, 1])
+    expect([13, 14, 15, 16].map((w) => taperAt(w, 16))).toEqual([0.875, 0.75, 0.625, 0.5])
+    expect(taperAt(17, 16)).toBeNull()
+    // with the window and the taper end equal, an older block counts for nothing
+    expect(taperAt(12, 12)).toBe(1)
+    expect(taperAt(13, 12)).toBeNull()
+  })
+
+  test('H26: a peak that ended 14 weeks ago is invisible at 12 weeks and tapers at 16', () => {
+    // modest weeks of 60 minutes in two runs since the peak, an empty week keeping them apart
+    expect(historyOf(h26Runs(60, 2))).toMatchObject({ blockMin: 60, taper: 1 })
+    const sixteen = historyOf(h26Runs(60, 2), 16)
+    expect(sixteen).toMatchObject({
+      blockMin: 280,
+      endWeek: '2026-07-13',
+      weeksAgo: 14,
+      taper: 0.75,
+    })
+    // the credit is the peak's, but the 3 x 30 start reads only the block inside the window
+    expect(sixteen?.fullCreditMin).toBe(60)
+
+    // modest weeks of one run each form no block: nothing at 12 weeks, the tapered peak at 16
+    expect(historyOf(h26Runs(60, 1))).toBeNull()
+    expect(historyOf(h26Runs(60, 1), 16)).toMatchObject({
+      blockMin: 280,
+      taper: 0.75,
+      fullCreditMin: 0,
+    })
+
+    // a modest block above the tapered peak (280 x 0.75 = 210) outranks it
+    expect(historyOf(h26Runs(240, 2), 16)).toMatchObject({ blockMin: 240, taper: 1 })
+  })
+
+  test('the 16-week option reads 20 weeks of the activities the state holds, and shows 16', () => {
+    const base = scenario(h26Runs(60, 2))
+    const twelve = estimateState(base)
+    const sixteen = withTaperEnd(16, () => estimateState(base))
+    expect(twelve.weeks).toHaveLength(16)
+    expect(sixteen.weeks).toEqual(twelve.weeks)
+    // nothing else in the state moves with the option
+    expect({ ...sixteen, history: null }).toEqual({ ...twelve, history: null })
+  })
+
+  test('the plan option does not change the block', () => {
+    expect(estimateState(at(h1(), 'upper')).history).toEqual(estimateState(h1()).history)
+    expect(estimateState(h1()).history).toEqual(estimateState(scenario(s3Runs())).history)
   })
 })

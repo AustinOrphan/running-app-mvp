@@ -161,6 +161,35 @@ export interface ZoneSet {
   /** CR-10 */
   rpe: Record<'z1' | 'z2' | 'z3', [number, number]>
 }
+/**
+ * The steadiest recent block of weeks [rules g-8]: four consecutive complete weeks of at least
+ * `a5.lowFrequencyRunsPerWeek` runs each, scored by the mean of the three lowest, so one big week
+ * cannot set it. Weeks count by their Monday, `weeksAgo` counting from the current week's Monday.
+ */
+export interface HistoryBlock {
+  /** The score `H`: the mean run minutes of the block's lowest `blockWeeks - blockWeeksDropped` weeks. */
+  blockMin: number
+  /** Monday of the block's last week, `YYYY-MM-DD`. */
+  endWeek: string
+  /** Whole weeks from `endWeek` to the Monday of the current week; at least 1. */
+  weeksAgo: number
+  /**
+   * 1 for a block that ended within `g8.creditWindowWeeks`; from there it falls in a straight line
+   * to `g8.creditTaperFloor` at `g8.creditTaperEndWeeks`. With the window and the taper end equal
+   * it is always 1.
+   */
+  taper: number
+  /**
+   * The best score among the blocks that ended within `g8.creditWindowWeeks`, 0 when none did.
+   * The 3 x 30 start reads it (a block older than the window never lifts a start), so it differs
+   * from `blockMin` only when an older block outranks every recent one after the taper.
+   */
+  fullCreditMin: number
+}
+
+/** The load setting of a plan [rules g-8]: steady is the engine without a history credit. */
+export type LoadAppetite = 'steady' | 'standard' | 'upper'
+
 export interface AthleteState {
   asOf: string
   age: number | null
@@ -202,6 +231,12 @@ export interface AthleteState {
   }
   efficiency: { current: number | null; trendPct: number | null; samples: number }
   durability: { decouplingMedianPct: number | null; samples: number }
+  /**
+   * The steadiest recent block of weeks that counts toward a rebuild [rules g-8], or null when no
+   * four consecutive weeks qualify. Computed from the weeks the state already holds (the snapshot's
+   * activities, no query of its own).
+   */
+  history: HistoryBlock | null
   risk: {
     recentInjury: boolean
     /**
@@ -453,6 +488,12 @@ export interface EngineInput {
     recoveryCycle?: '3:1' | '2:1'
     strengthSessions?: 0 | 1 | 2
     tidModel?: 'pyramidal' | 'polarized'
+    /**
+     * How fast the plan rebuilds toward a level the runner held recently [rules g-8]. Absent means
+     * `steady`, today's engine. `standard` and `upper` allow the 3 x 30 start from a block of
+     * weeks (E6) and are held to steady under the profiles `loadPosition` (loadSetting.ts) lists.
+     */
+    loadAppetite?: LoadAppetite
     /**
      * `false` leaves the gut-training block out of the plan: no `gut-training` week flag and no
      * `fuel-practice` session flag [rules H7]. Absent or `true` keeps the block. The server sets

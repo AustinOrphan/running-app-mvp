@@ -18,6 +18,7 @@ import type {
   InputFact,
   LadderResult,
   LadderStep,
+  LoadAppetite,
   Param,
   PlanChange,
   Prediction,
@@ -34,7 +35,7 @@ import type {
   ZoneSet,
 } from './engine/types.ts'
 
-export type { Checkin, DistanceEstimate }
+export type { Checkin, DistanceEstimate, LoadAppetite }
 
 export type ActivityType = 'run' | 'race' | 'strength' | 'cross'
 /** `manual`, `smashrun`, `csv`, `file`, or a provider registry key such as `intervals`. */

@@ -1,0 +1,95 @@
+// The load setting of a plan [rules g-8]: which position applies to a runner today, and why a
+// requested one does not, plus the 3 x 30 start from a block of weeks (the second route of E6
+// path 2). Pure: the same input gives the same answer. It reads the athlete state and the input's
+// windows and imports no macro code, so the generator, the guards, the checklist and the
+// explanations can all read it.
+import { ageFlag } from './athlete.ts'
+import { disruptionPlan, windowPhase } from './disruption.ts'
+import { injuryTight } from './limits.ts'
+import { P } from './params/index.ts'
+import { postRaceWindows } from './postRace.ts'
+import { focalBoneActive } from './readiness.ts'
+import type { AthleteState, EngineInput, LoadAppetite } from './types.ts'
+
+/**
+ * Why a requested position does not apply: the plan is held at steady for as long as it lasts, and
+ * the setting returns when it ends. The first that applies is named, in this order.
+ */
+export type LoadHold =
+  | 'recent-injury'
+  | 'bone-stress'
+  | 'bsi-factors'
+  | 'reds-hold'
+  | 'bone-pain'
+  | 'rest-window'
+  | 'post-race'
+  | 'low-frequency'
+
+export interface LoadPosition {
+  /** What the plan asks for (`options.loadAppetite`); steady when the option is absent. */
+  requested: LoadAppetite
+  /** What applies today. */
+  position: LoadAppetite
+  /** Why `requested` was held at steady; null when it was not, and always null for steady itself. */
+  held: LoadHold | null
+  /** Upper band was requested and is read as standard because of age (45 or over). */
+  ageCapped: boolean
+}
+
+/** True while a reported rest or limited-running window has started and its return is not over. */
+function restWindowActive(input: EngineInput): boolean {
+  const plan = disruptionPlan(input.disruptions ?? [])
+  return plan.windows.some((w) => {
+    const phase = windowPhase(w, input.today)
+    return phase !== 'upcoming' && phase !== 'done'
+  })
+}
+
+/** The first reason that holds the setting at steady for this runner today, or null. */
+function holdOf(input: EngineInput, state: AthleteState): LoadHold | null {
+  if (injuryTight(state)) return 'recent-injury'
+  if (state.risk.priorBsi) return 'bone-stress'
+  if (state.risk.bsiFactors >= P.g3.bsiFactorsForCap.value) return 'bsi-factors'
+  if (state.risk.redsFlags >= P.j5.redsHoldFlags.value) return 'reds-hold'
+  if (focalBoneActive(input, input.today)) return 'bone-pain'
+  if (restWindowActive(input)) return 'rest-window'
+  // a plan built inside the window of a past race: the goal race's own window is ahead of the plan
+  if (postRaceWindows(input).past !== null) return 'post-race'
+  if (state.lowFrequency) return 'low-frequency'
+  return null
+}
+
+/**
+ * The position that applies to this runner today [rules g-8]. Steady is today's engine. Standard
+ * and upper are held at steady under a recent injury (or a window's injury report), an earlier
+ * bone stress injury or two BSI factors, a REDs hold or focal bone pain, a rest window, a plan
+ * built inside the window of a past race, and a low-frequency runner. At age 45 or over upper is
+ * read as standard. Absent options and steady give the same answer.
+ */
+export function loadPosition(input: EngineInput, state: AthleteState): LoadPosition {
+  const requested = input.options.loadAppetite ?? 'steady'
+  if (requested === 'steady') {
+    return { requested, position: 'steady', held: null, ageCapped: false }
+  }
+  const held = holdOf(input, state)
+  if (held !== null) return { requested, position: 'steady', held, ageCapped: false }
+  const aged = state.age !== null && state.age >= P.a9.noviceFlagAgeMin.value
+  const ageCapped = requested === 'upper' && aged
+  return { requested, position: ageCapped ? 'standard' : requested, held: null, ageCapped }
+}
+
+/**
+ * The second route to a start of 3 x 30 minutes [rules E6, g-8]: a year of running and a block of
+ * steady weeks that averaged at least 3 x 30 minutes a week and ended within `g8.creditWindowWeeks`
+ * (`HistoryBlock.fullCreditMin`, whichever credit window ships), at a position other than steady.
+ * Soft start flags other than age hold it back, as do all the profiles `loadPosition` holds at
+ * steady; at age 45 or over it stays open (the years route keeps its age rule). It lifts nothing
+ * else: the start still takes the runner's own longest run of the last 30 days, and G-1 bounds it.
+ */
+export function blockLift(input: EngineInput, state: AthleteState): boolean {
+  if (loadPosition(input, state).position === 'steady') return false
+  if (state.yearsRunning === null || state.yearsRunning < P.a5.noviceMaxYears.value) return false
+  if (state.risk.noviceFlags.some((flag) => flag !== ageFlag())) return false
+  const needed = P.restartFloor.sessions.value * P.restartFloor.sessionMaxMin.value
+  return state.history !== null && state.history.fullCreditMin >= needed
+}

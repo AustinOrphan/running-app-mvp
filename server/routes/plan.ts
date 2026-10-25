@@ -40,6 +40,7 @@ const generateBody = z.object({
       recoveryCycle: z.enum(['3:1', '2:1']).optional(),
       strengthSessions: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
       tidModel: z.enum(['pyramidal', 'polarized']).optional(),
+      loadAppetite: z.enum(['steady', 'standard', 'upper']).optional(),
     })
     .optional(),
 })

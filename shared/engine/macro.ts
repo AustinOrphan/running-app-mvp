@@ -35,6 +35,7 @@ import {
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
+import { blockLift } from './loadSetting.ts'
 import { P } from './params/index.ts'
 import {
   ownWindow,
@@ -474,6 +475,30 @@ function ladderEntry(ref: number, bound: number): number {
   return rung
 }
 
+/** The years route of E6 path 2: 2 years of running and no soft start flag. */
+function experiencedStart(state: AthleteState): boolean {
+  return (
+    state.yearsRunning !== null &&
+    state.yearsRunning >= P.a5.trainedMinYears.value &&
+    state.risk.noviceFlags.length === 0
+  )
+}
+
+/** Which route lifts a start above 3 x 20 [rules E6, g-8]. */
+export type StartLift = 'years' | 'block'
+
+/**
+ * The route that lets a 3 x N start rise above 20 minutes, or null when N stays 20 [rules E6]:
+ * the years route (2 years of running, no soft flag, no tightened profile), else the block route
+ * of g-8 (`blockLift`, loadSetting.ts: a year of running and a recent block of at least 3 x 30
+ * minutes a week at the standard and upper positions). Whether N actually rises also depends on
+ * the longest run of the last 30 days.
+ */
+export function startLift(input: EngineInput, state: AthleteState): StartLift | null {
+  if (experiencedStart(state) && tightRamp(state) === null) return 'years'
+  return blockLift(input, state) ? 'block' : null
+}
+
 /**
  * Where a runner starts, from history [rules E6, G-3, A9]: the run-walk ladder, 3 sessions of N
  * minutes, the injury-return ladder, or null when the start level (`startLevelMin`, limits.ts:
@@ -486,7 +511,7 @@ function ladderEntry(ref: number, bound: number): number {
  *    30 days.
  *  - A continuous run of 20 minutes or more in the last 30 days: 3 x N, N the longest such run
  *    rounded down to 5 minutes and held between 20 and 30, and never above what G-1 lets a
- *    session hold; above 20 only with 2 years of running and no soft flag. A tightened profile
+ *    session hold; above 20 only by one of the two routes of `startLift`. A tightened profile
  *    (an earlier bone stress injury, the BSI factors) counts as a flag: it takes the path but
  *    is never lifted.
  *  - Otherwise, with a run in the last 90 days: the J7 fraction (by layoff) times that run, when
@@ -514,12 +539,9 @@ export function startPath(input: EngineInput, state: AthleteState): StartPath | 
     return { kind: 'injury-return', level }
   }
 
-  const experienced =
-    state.yearsRunning !== null &&
-    state.yearsRunning >= P.a5.trainedMinYears.value &&
-    state.risk.noviceFlags.length === 0
+  const experienced = experiencedStart(state)
   // a tightened profile takes the path like any runner, but never the lift above 20 minutes
-  const lifts = experienced && tightRamp(state) === null
+  const lifts = startLift(input, state) !== null
   const bmi = bmiOf(input.profile)
   const heavy = bmi !== null && bmi > P.a9.noviceFlagBmiAbove.value
   const floor = (minutes: number): StartPath => ({ kind: 'floor', sessionMin: minutes })
@@ -1417,6 +1439,9 @@ export function macroPlanDraft(
       ...state,
       typicalWeekMin: lead.restartMin,
       recentWeekMin: Math.min(state.recentWeekMin, lead.restartMin),
+      // the plan restarts from the J7 volume after the window: no history credit, as the position
+      // is held at steady inside a post-race window (`loadPosition`), which this call no longer sees
+      history: null,
     },
     goal,
     feasibility,

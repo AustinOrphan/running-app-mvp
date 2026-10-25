@@ -49,6 +49,7 @@ function makeState(
     durability: { decouplingMedianPct, samples: decouplingMedianPct === null ? 0 : 5 },
     risk: { recentInjury: false, priorBsi: false, bsiFactors: 0, redsFlags: 0, noviceFlags: [] },
     lowFrequency: false,
+    history: null,
     heatAcclimation: 0,
   }
 }

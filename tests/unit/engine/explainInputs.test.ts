@@ -75,6 +75,7 @@ import {
   wellnessDay,
 } from './e8-fixtures.ts'
 import { steadyHistogram } from './fixtures.ts'
+import { at, h1, s3Runs, scenario } from './history-fixtures.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
 
 const MONDAY = '2026-10-19'
@@ -2037,9 +2038,34 @@ describe('after a break: E6, D4, D7 and K1 read the state the plan was drawn fro
     expect(ctx.state.layoffDays).toBeGreaterThanOrEqual(15)
     expect(ctx.input.existing!.weeks[0]!.flags).toContain('restart-floor')
     const facts = factsOf('E6', ctx)
-    expect(facts.map((f) => f.template)).toEqual(['explain.e6-floor'])
+    // the 30 min come from the years of running, which the second fact names
+    expect(facts.map((f) => f.template)).toEqual(['explain.e6-floor', 'explain.e6-lift-years'])
     expect(text(facts[0]!)).toBe('You start with 3 runs of 30 min a week, then build from there.')
     expect(slot(facts[0]!, 'session', 'minutes').min).toBe(firstRun(ctx).durationMin)
+    expect(text(facts[1]!)).toBe(
+      'Sessions longer than 20 min are allowed at the start because of 2 or more years of running and no flag that holds a start back.',
+    )
+  })
+
+  test('E6 names the block that lifted a one-year runner to 3 x 30 at standard, and no route at steady', () => {
+    const standard = factsOf('E6', contextOf(at(h1(), 'standard')))
+    expect(standard.map((f) => f.template)).toEqual(['explain.e6-floor', 'explain.e6-lift-block'])
+    expect(text(standard[0]!)).toBe(
+      'You start with 3 runs of 30 min a week, then build from there.',
+    )
+    expect(text(standard[1]!)).toBe(
+      'Sessions longer than 20 min are allowed at the start: a year of running and 4 steady weeks of at least 90 min a week, ended within 12 weeks.',
+    )
+    // steady is the start of 3 x 20 with no lift to name
+    const steady = factsOf('E6', contextOf(h1()))
+    expect(steady.map((f) => f.template)).toEqual(['explain.e6-floor'])
+    expect(text(steady[0]!)).toBe('You start with 3 runs of 20 min a week, then build from there.')
+    // a block route that leaves N at 20 (the longest run of the last 30 days is 20 to 24 min) names nothing
+    const short = scenario(
+      s3Runs().map((r) => (r.weeksBack <= 7 ? { ...r, min: Math.min(r.min, 22) } : r)),
+      { options: { loadAppetite: 'standard' } },
+    )
+    expect(factsOf('E6', contextOf(short)).map((f) => f.template)).toEqual(['explain.e6-floor'])
   })
 
   test('E6 names the rung of a plan that restarted on the ladder', () => {
