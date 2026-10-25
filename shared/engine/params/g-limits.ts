@@ -321,7 +321,7 @@ export const gLimits = {
     }),
     creditStandard: param('g8.creditStandard', 0.7, 'D', 'g-8', STANDARD_CREDIT, {
       unit: 'fraction',
-      note: 'Default: provisional until the replay on real history. At the standard position the rebuild ceiling is this share of the history block. It is about the fall in patellar tendon stiffness at day 23 of complete unloading and the cautious end of the J7 table, values for young non-runners who stopped running altogether, so no study sets it for a runner.',
+      note: 'Default: provisional until the replay on real history. At the standard position the rebuild ceiling is this share of the history block. It is close to the share of patellar tendon stiffness left at day 23 of complete unloading (about 71%, in young non-runners who stopped using one leg altogether) and near the 75% tier of the J7 table (a convention for a layoff), so no study sets it for a runner.',
     }),
     creditUpper: param('g8.creditUpper', 0.85, 'D', 'g-8', UPPER_CREDIT, {
       unit: 'fraction',
