@@ -10,7 +10,8 @@ import { raisedTargetLimits, planWeekWrites } from '../../../server/services/rep
 import { weekRow } from '../../../server/services/planEngine.ts'
 import { activity } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
-import { replanSteps, type ReplanStep } from './replan-steps.ts'
+import { at, h1, h10 } from './history-fixtures.ts'
+import { replanChain, replanSteps, type ReplanStep } from './replan-steps.ts'
 
 type Existing = NonNullable<EngineInput['existing']>
 
@@ -379,3 +380,77 @@ describe.each(['half', 'first-100-mile', 'marathon'])(
     })
   },
 )
+
+describe('the re-plan on which the low-frequency flag changes the recovery cycle [rules E3, A5]', () => {
+  const runningMin = (draft: PlanDraft, weekStart: string): number =>
+    draft.sessions
+      .filter((s) => s.date >= weekStart && s.date < addDays(weekStart, 7))
+      .filter((s) => !['strength', 'race', 'mobility', 'rest'].includes(s.kind))
+      .reduce((sum, s) => sum + s.durationMin, 0)
+
+  // `step` is the re-plan on which the flag changes, `flagged` the flag before it and on it
+  const cases = [
+    {
+      name: 'the flag ends: H10 at steady, run as planned',
+      first: at(h10(), 'steady'),
+      options: { maxSteps: 4 },
+      step: 3,
+      flagged: [true, false],
+    },
+    {
+      name: 'the flag arms: H3 at standard, every week run 1.6 times its plan',
+      first: at(h1(), 'standard'),
+      options: { scale: 1.6, maxSteps: 4 },
+      step: 2,
+      flagged: [false, true],
+    },
+  ]
+
+  describe.each(cases)('$name', ({ first, options, step, flagged }) => {
+    const steps = replanChain(first, options)
+    const changed = steps[step]!
+    const monday = mondayOf(changed.input.today)
+    // the weeks of the plan before the taper: the weeks after the race are recovery weeks of their own
+    const weeks = changed.draft.weeks.filter(
+      (w) =>
+        w.weekStart >= monday && !w.isTaper && w.phase !== 'race' && !w.flags.includes('post-race'),
+    )
+
+    it('is the re-plan on which the flag changes, with a recovery week stored on its first Monday', () => {
+      expect(
+        steps.slice(step - 1, step + 1).map((s) => estimateState(s.input).lowFrequency),
+      ).toEqual(flagged)
+      const stored = changed.input.existing!.weeks.find((w) => w.weekStart === monday)
+      expect(stored?.isRecovery).toBe(true)
+    })
+
+    // Known gap, reported in the low-frequency proposal (shape c, task F25a): the cycle changes
+    // between 2:1 and 3:1 with the flag, so the recovery weeks `planPhases` counts back from the
+    // peak no longer fall on the recovery week the replaced plan stored on the first Monday. That
+    // week becomes a loading week drawn a step above the sequence, `keepCadenceAcrossReplan` counts
+    // it as one more loading week and forces a recovery week after it, and the sessions of the
+    // week stay the recovery week's (`remainingOfWeek`, G-6), so the ramp of the week after the
+    // forced recovery week steps from those minutes. The tests state what the comment of
+    // `planPhases` says (a re-plan keeps the first week a recovery week when the plan it replaces
+    // had it so) and are expected to fail until the re-plan does; they then fail as passing, which
+    // says to turn `it.fails` into `it`.
+    it.fails('keeps the recovery week the replaced plan stored on its first Monday', () => {
+      expect(weeks[0]!.isRecovery).toBe(true)
+    })
+
+    it.fails('plans its first week at the minutes it places in it', () => {
+      expect(runningMin(changed.draft, monday)).toBe(weeks[0]!.targetRunMin)
+    })
+
+    it.fails('plans every loading week after a recovery week above that recovery week', () => {
+      let checked = 0
+      for (const [i, week] of weeks.entries()) {
+        const before = weeks[i - 1]
+        if (before?.isRecovery !== true || week.isRecovery) continue
+        expect(week.targetRunMin, week.weekStart).toBeGreaterThan(before.targetRunMin)
+        checked += 1
+      }
+      expect(checked).toBeGreaterThan(4)
+    })
+  })
+})

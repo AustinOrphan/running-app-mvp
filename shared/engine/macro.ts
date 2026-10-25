@@ -238,7 +238,11 @@ function planPhases(
       carried[i] ?? (i < base ? 'base' : i < base + build ? 'build' : 'specific')
     // counted back from the last pre-taper week, which is always a work week (the peak); a new
     // plan never opens with a recovery week, so its first cycle may run one work week longer. A
-    // re-plan keeps the first week a recovery week when the plan it replaces had it so.
+    // re-plan keeps the first week a recovery week when the plan it replaces had it so. Known gap
+    // (`it.fails` in replan-chain.test.ts, task F25a): that holds only where the count lands on the
+    // first week. Where the cycle has changed (the low-frequency flag ended, 2:1 to 3:1) it does
+    // not, the week becomes a loading week, `replanAnchor` still reports it `paused`, and
+    // `keepCadenceAcrossReplan` forces a recovery week right after it.
     const fromEnd = weeksBeforeTaper - 1 - i
     out.push({
       phase,
