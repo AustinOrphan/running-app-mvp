@@ -859,9 +859,11 @@ describe('the load setting option (options.loadAppetite)', () => {
    */
   async function seedRunner(email: string) {
     const u = await seedUser(ctx, { email })
+    // 41 years old this year, whatever year the clock reads: under the age rule of upper
+    const year = Number(today.slice(0, 4))
     await client(ctx, u)
       .put('/api/profile')
-      .send({ birthYear: 1985, runningSinceYear: Number(today.slice(0, 4)) - 1 })
+      .send({ birthYear: year - 41, runningSinceYear: year - 1 })
       .expect(200)
     await ctx.prisma.activity.createMany({
       data: runsOn(thisMonday, s3Runs()).map((a) => ({
