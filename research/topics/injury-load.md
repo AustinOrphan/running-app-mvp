@@ -60,7 +60,7 @@ No trial tests a session-spike or ramp rule. Nothing compares reference windows.
 3. No loosening by experience. Treat a logged average under 2 runs a week as conservative (novice ramp and 2:1 recovery).
 4. Starter plans size sessions with G-1 (the start paths of the beginners-return topic) and let the runner repeat a week.
 5. Copy says "associated with", never "causes" or "prevents", and never computes a personal injury risk.
-6. The tissue papers are a reason for caution after a reduction in running, not a source of values. A faster rebuild toward a level the runner held earlier is a grade D default and leaves G-1 and the 2-week ceiling in force.
+6. The tissue papers are a reason for caution after a reduction in running, not a source of values. A faster rebuild toward a level the runner held earlier is a grade D default and leaves G-1 and the 2-week ceiling in force. It may use a personal ceiling in minutes taken from the runner's own steady weeks, which is not a load ratio (G-5, ADR 0013); a ratio stays display-only.
 
 ## Caveats
 
