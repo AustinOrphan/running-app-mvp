@@ -3,10 +3,17 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-10-24.
+Last update: 2026-10-25.
 
 ## Where things stand
 
+- **Owner decisions of 2026-10-24 (documents only, no code).** The load-progression proposal
+  (PR #558) and the strength design (PR #559) merged with their open questions unanswered. The
+  owner answered all 28 on the evening of 2026-10-24: the answers are in section 7 of the proposal
+  and section 18 of the strength design, and both specs are amended to follow them. The ADR for
+  strength is 0014, because 0013 records the load-progression decision (the G-5 amendment
+  included). The phase 3a leftovers are decided under "Decisions for the owner"; the work they leave
+  is follow-ups 18, 19 and 22, and follow-ups 20 and 21 shipped in #561.
 - **Distance estimate beside the minutes (2026-10-24, `feat/distance-estimate`, follow-up 17).** A
   run session carries `distanceEstimate` (`{ distanceM, basis }`) and a plan week
   `distanceEstimateM`, worked out on the server (`shared/engine/distanceEstimate.ts`) and never
@@ -71,10 +78,10 @@ Last update: 2026-10-24.
   the owner's watch, one live intervals.icu run, a real calendar app on the `webcal://` link, which
   Garmin model and manual route the help text should name (Q6), a two-release shell update on a
   device and iOS cache eviction. Owner questions still open: "Decisions for the owner" below
-  (the section-13 defaults, the wave-7 items, the API limiter outside production). Next: the
-  phase 3b design, starting with strength programming with the runner's equipment and lifting
-  history captured in the app (follow-up 18); the distance estimate (follow-up 17) shipped on
-  2026-10-24, the entry above.
+  (the section-13 defaults; the wave-7 items and the API limiter were decided on 2026-10-24). Next:
+  strength programming (the design is merged, PR #559, follow-up 18), load progression (the
+  proposal is merged, PR #558, follow-up 22) and the Today disruption presentation (follow-up 19);
+  the distance estimate (follow-up 17) shipped on 2026-10-24 (#560), the entry above.
 - **On `main`:** the clean rewrite (#528, rebase-merged) and the evidence engine, data
   foundation and research corpus (#529, squash-merged as `2e17f23a`); the CodeQL escaping fix
   (#536); the second evidence pass (#537); the eight phase 3a wave pull requests, merged on
@@ -1072,16 +1079,22 @@ the soft ramp warning only; BMI > 30 holds rung 1 for three weeks; the ultra wee
 path measures toward the long-run week, not the class peak; the check-in gate is computed, not
 stored, and a check-in older than 3 days neither delays nor releases a step).
 
-Wave 7 adds: (a) E2-8 precaches the 1.69 MB research corpus so Explain works offline; the
-alternative is to cache it after first use. (b) The manifest shortcuts are Plan and Log activity.
-(c) `createQueryClient` uses `networkMode: 'always'` so an offline tap reaches the outbox instead
-of pausing; offline reads fail after about 3 s instead of waiting. (d) The G5 sentence proposed
-for `research/engine-rules.md`: "A single lint (`shared/copy/lint.ts`) checks these words,
-exclamation marks and injury-probability phrases in every sentence the app writes from a
-template; text a provider returns is quoted, not linted, and a runner's own words (a goal name)
-are shown as typed." (e) The countdown reads "Weeks until {name}: {n}.", which reads oddly when
-a goal name ends in punctuation; "{name} is {n} weeks away" is the alternative. (f) The compact
-disruption banner's buttons are 26 px high inside the 64 px slot budget.
+Wave 7 items, decided by the owner on 2026-10-24: (a) the offline precache of the 1.69 MB
+research corpus stays, so Explain works offline (the alternative was to cache it after first use).
+(b) The manifest shortcuts stay Plan and Log activity. (c) `createQueryClient` keeps
+`networkMode: 'always'`, so an offline tap reaches the outbox instead of pausing; offline reads
+fail after about 3 s instead of waiting. (d) The G5 sentence for `research/engine-rules.md` is
+approved as quoted: "A single lint (`shared/copy/lint.ts`) checks these words, exclamation marks
+and injury-probability phrases in every sentence the app writes from a template; text a provider
+returns is quoted, not linted, and a runner's own words (a goal name) are shown as typed." It is
+applied to rule G5 of `research/engine-rules.md` (follow-up 21, done in #561). (e) The countdown
+wording changes from "Weeks until {name}: {n}.", which reads oddly when a goal name ends in
+punctuation, to "{name} is {n} weeks away" (follow-up 20, done in #561). (f) The compact
+disruption banner's 26 px buttons are parked: the owner saw screenshots and the button size is
+decided inside the Today disruption presentation task (follow-up 19), together with the rest of
+the owner's feedback on Today during an illness window. The API limiter that allows 20000
+requests per 15 minutes outside `NODE_ENV=production` is fine as it is. Compression of the
+precache is left to the reverse proxy for now, and the app adds no compression middleware.
 
 The distance estimate adds: (a) the owner's zones hold no pace on 2026-10-23 (one critical-speed
 effort, no tested threshold pace), so the estimate falls back to the pace of the recent logged runs
@@ -1143,13 +1156,49 @@ week has none for the week.
     server from the zones, labelled an estimate and never scored; the plan's currency stays minutes
     (ADR 0003) and speeds stay per-session guides. The easy pace is the middle of the Z1 pace range
     of the current zones; with no pace in the zones the recent logged pace stands in ("about N mi
-    at your recent pace"); see "Decisions for the owner".
+    at your recent pace"); see "Decisions for the owner". Merged as #560 on 2026-10-24.
 18. Strength programming as the first phase 3b epic (the owner's direction, 2026-10-23): an
     exercise library and session templates by phase from rules H10 and F4 (heavy lifting at 80%
     or more of one-rep max, 2-4 exercises of 3-4 sets of 3-6 reps, calf raises and plyometrics,
     eccentric-biased work in the block, one session a week to maintain), per-set weight, reps
     and reps-in-reserve logging, rule-based next-session suggestions, and the runner's equipment
-    and lifting history captured in the app.
+    and lifting history captured in the app. Designed in
+    `docs/superpowers/specs/2026-10-24-strength-phase3b-design.md` (PR #559, merged), and the owner
+    answered its 16 questions on 2026-10-24 (section 18 there): equipment editable at any time,
+    pounds by default, no importer in v1 with logging good enough to skip a dedicated lifting app,
+    the barbell for anyone with a bar after the ramp-in, a plyometric ladder that steps only after a
+    completed running week. The ADR is 0014. Next: its task list (section 17, E14-1 to E14-11 and
+    C2), which moves to `docs/superpowers/plans/` when the epic is scheduled.
+19. Today disruption presentation (one task, from the owner's feedback of 2026-10-24 on Today with
+    an illness window, after screenshots of the compact banner). Four points: (a) one illness
+    message instead of three, because the verdict card, the lilac band and the signal line under
+    "Ready as planned" say the same fact and "Ready as planned" reads as a contradiction; the band
+    owns the window and its actions; (b) an inline info icon (a circle "i") at the right end of a
+    note's line in place of the full-width "Why" line after it, with the same accessible name; (c)
+    the band lists each open window on its own line with its actions, because illness and injury
+    are independent overlapping windows with their own dates (the data model allows it; the band
+    shows only the window in effect today), and this decides the button size, so the compact
+    banner's 26 px buttons are decided here; (d) the check-in link "Something hurts, or I'm ill"
+    invites a second illness report while a window is open, so it reads as adding a pain or
+    illness window. Screenshots at 360 px before merge. The owner's other remark, that Done was not
+    visible in the screenshot, was a rest day: no change.
+20. Done in #561: the countdown reads "{name} is {n} weeks away." (`brief.countdown-weeks` in
+    `shared/copy/briefTemplates.ts`), because "Weeks until {name}: {n}." reads oddly when a goal
+    name ends in punctuation. The owner named the weeks form; the days form
+    (`brief.countdown-days`) took the same shape, "{name} is {n} days away.". No other countdown
+    template exists in `shared/copy` (searched on 2026-10-25), so the hero and the plan header need
+    no further edit.
+21. Done in #561: the approved G5 sentence is in rule G5 of `research/engine-rules.md`, as quoted
+    under "Decisions for the owner" (d).
+22. Load progression from the runner's history (the owner's report of 2026-10-24). Proposed in
+    `docs/superpowers/specs/2026-10-24-load-progression-proposal.md` (PR #558, merged), and the
+    owner answered its 12 questions on 2026-10-24 (section 7 there): the 3 × 30 start from a
+    demonstrated block, a load setting (steady by default, standard, upper band) with a rebuild
+    ceiling taken from the runner's recent steady weeks, a response to weeks run above plan, a
+    raised week target that survives a re-plan, both credit windows built behind a Param, and the
+    values provisional until the own-tolerance replay on the owner's data. Next: tasks L0 to L7
+    (section 8 there, with L3b and L3c added): L0 (research-update: the six tissue papers first,
+    the other ten reviewed afterwards) and L1 (ADR 0013, with the G-5 amendment) come first.
 
 ## Clean-up after the merges
 
