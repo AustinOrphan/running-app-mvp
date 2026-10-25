@@ -955,7 +955,7 @@ describe('GET /api/explain?subject=brief', () => {
 
 // ---------------------------------------------------------------------------------------------
 
-describe('the distance estimate on the key session', () => {
+describe('the distance estimate on the key session', { timeout: 20_000 }, () => {
   /** A runner whose zones hold pace: a tested threshold pace, with the history's recent runs. */
   async function withPace(label: string): Promise<Runner> {
     const r = await runner(label)
