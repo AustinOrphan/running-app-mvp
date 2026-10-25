@@ -167,6 +167,43 @@ describe('the sentences of a week target raised by hand', () => {
     )
   })
 
+  it('names the plan’s own figure when it is what the ceiling or the profile leaves, not the most the limits allow', () => {
+    expect(targetSummary(line({ bound: 'plan', keptMin: 209 }))).toBe(
+      "Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 209 min, the plan's own figure that week, which the limits do not go under.",
+    )
+    expect(targetSummary(line({ limit: 'profile', ramp: 0.05, bound: 'plan', keptMin: 209 }))).toBe(
+      "Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 209 min, the plan's own figure that week, which the tightened step does not go under.",
+    )
+  })
+
+  it('names the minutes already run when they are what the ceiling or the profile leaves', () => {
+    expect(targetSummary(line({ bound: 'logged', keptMin: 262 }))).toBe(
+      'Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 262 min, the minutes already run that week, which the limits do not go under.',
+    )
+    expect(
+      targetSummary(line({ limit: 'profile', ramp: 0.05, bound: 'logged', keptMin: 262 })),
+    ).toBe(
+      'Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 262 min, the minutes already run that week, which the tightened step does not go under.',
+    )
+  })
+
+  it('reads a line stored without a bound, and a bound of the limit, as the most the limits allow', () => {
+    const stored = targetSummary(line())
+    expect(stored).toContain('the most the limits allow that week')
+    expect(targetSummary(line({ bound: 'limit' }))).toBe(stored)
+    expect(targetSummary(line({ limit: 'profile', ramp: 0.05, bound: 'limit' }))).toContain(
+      'the most the tightened weekly step allows that week',
+    )
+  })
+
+  it('ignores the bound where a rule draws the week, which names the plan’s own figure', () => {
+    for (const bound of ['limit', 'plan', 'logged'] as const) {
+      expect(targetSummary(line({ limit: 'hold', ramp: null, bound }))).toMatch(
+        /the plan's own figure while progression is on hold\.$/,
+      )
+    }
+  })
+
   it.each(KINDS.filter((k) => k !== 'ceiling' && k !== 'profile'))(
     'names a week that a rule draws: %s',
     (limit) => {
@@ -177,14 +214,16 @@ describe('the sentences of a week target raised by hand', () => {
 
   it.each(KINDS)('passes the G5 lint, fits one sentence and claims no safety: %s', (limit) => {
     for (const outcome of ['kept', 'clipped'] as const) {
-      // large figures, so the longest rendering is the one checked
-      const text = targetSummary(
-        line({ limit, outcome, askedMin: 1234.5, keptMin: 1000.5, engineMin: 999.5 }),
-      )
-      expect(lintText(text), text).toEqual([])
-      expect(text.length, text).toBeLessThanOrEqual(COPY_MAX_CHARS)
-      expect(text, text).not.toMatch(/\b(safe|unsafe|protect|injur\w*|risk)\b/i)
-      expect(text, text).not.toMatch(/\b(you|your|we)\b/i)
+      for (const bound of ['limit', 'plan', 'logged'] as const) {
+        // large figures, so the longest rendering is the one checked
+        const text = targetSummary(
+          line({ limit, outcome, bound, askedMin: 1234.5, keptMin: 1000.5, engineMin: 999.5 }),
+        )
+        expect(lintText(text), text).toEqual([])
+        expect(text.length, text).toBeLessThanOrEqual(COPY_MAX_CHARS)
+        expect(text, text).not.toMatch(/\b(safe|unsafe|protect|injur\w*|risk)\b/i)
+        expect(text, text).not.toMatch(/\b(you|your|we)\b/i)
+      }
     }
   })
 
