@@ -3,10 +3,37 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-10-23.
+Last update: 2026-10-24.
 
 ## Where things stand
 
+- **Distance estimate beside the minutes (2026-10-24, `feat/distance-estimate`, follow-up 17).** A
+  run session carries `distanceEstimate` (`{ distanceM, basis }`) and a plan week
+  `distanceEstimateM`, worked out on the server from the zones as they are now
+  (`shared/engine/distanceEstimate.ts`) and never stored. A run led by heart rate or effort covers
+  its minutes at the middle of the Z1 pace range (`basis: 'easy'`; the range's slow edge is the
+  existing grade D `c2.z1PaceSlowFactor`, so no new Param); a threshold, interval or race-pace
+  session covers its work minutes at the middle of its own pace band and the rest at the easy pace
+  (`basis: 'pace'`). Null for a hike, strength, mobility, cross-training or rest session, the race,
+  a run-walk session, and a runner whose zones hold no pace. The payload types are
+  `PlanSessionView` and `PlanWeekView`, so a producer that omits the field does not compile;
+  `WeekStrip.distanceEstimateM`, `BriefKeySession.distanceEstimate` (kept in the brief's facts,
+  absent in older briefs) and `BriefListItem.nextKey.distanceEstimate` carry the rest. The words
+  are in `shared/copy/distanceEstimate.ts` ("about 9 mi at your easy pace", "about 9 mi"; half unit
+  below 5, whole unit above) and appear on the Today hero and next line, the week strip, the
+  session sheet, the Plan day cards and week rows, the brief's key session and Today's brief line.
+  Where an estimate exists it replaces the plan's own unlabelled `SessionSpec.distanceM` on those
+  surfaces; an eased session carries neither. Plan output is byte-identical (owner validation: 39
+  weeks, 210 sessions, 0 failing checks, identical to the phase 3a close), and Today's request
+  pins are unchanged (30 reads cold, 15 warm). Gates: `npm run check` (232 files, 11033 tests),
+  `npm run build`, `npm run test:e2e` (78). Open: the owner's own zones hold no pace on
+  2026-10-23 (one critical-speed effort, no tested threshold pace), so the owner sees no estimate
+  until a threshold pace is entered or a fallback is chosen ("Decisions for the owner" below). The
+  hero's extent column wraps beside the minutes, so the phrase costs no height at 360 px (measured
+  with a payload patched in Playwright: 0 px against the plain distance). The e2e fold test has no
+  pace zones: with a tested threshold pace set before the plan is made, Done ends at 766 px at
+  360 x 740, with the estimate or without it, so the fold is unproven for a runner whose zones
+  hold pace.
 - **Phase 3a implemented (2026-10-23).** Seven implementation waves landed through PRs #542,
   #544, #546, #549, #551, #552, #553 and #554 (with the fix PRs #538, #540, #541, #543, #545, #547,
   #548 and #550), each wave gated by `npm run check`, `npm run build`, `npm run test:e2e`, a Docker
@@ -33,9 +60,9 @@ Last update: 2026-10-23.
   Garmin model and manual route the help text should name (Q6), a two-release shell update on a
   device and iOS cache eviction. Owner questions still open: "Decisions for the owner" below
   (the section-13 defaults, the wave-7 items, the API limiter outside production). Next: the
-  phase 3b design, starting with the distance estimate beside the minutes (follow-up 17) and then
-  strength programming with the runner's equipment and lifting history captured in the app
-  (follow-up 18).
+  phase 3b design, starting with strength programming with the runner's equipment and lifting
+  history captured in the app (follow-up 18); the distance estimate (follow-up 17) shipped on
+  2026-10-24, the entry above.
 - **On `main`:** the clean rewrite (#528, rebase-merged) and the evidence engine, data
   foundation and research corpus (#529, squash-merged as `2e17f23a`); the CodeQL escaping fix
   (#536); the second evidence pass (#537); the eight phase 3a wave pull requests, merged on
@@ -1044,6 +1071,17 @@ are shown as typed." (e) The countdown reads "Weeks until {name}: {n}.", which r
 a goal name ends in punctuation; "{name} is {n} weeks away" is the alternative. (f) The compact
 disruption banner's buttons are 26 px high inside the 64 px slot budget.
 
+The distance estimate adds: (a) the owner's zones hold no pace on 2026-10-23, so the estimate is
+null for the owner. Either a threshold pace is entered on the Profile page (the zones then hold
+pace and every estimate appears), or the estimate falls back to the median pace of the last
+`macroDesign.trainingPaceWeeks` weeks of logged runs (`trainingPace` in `shared/engine/goal.ts`,
+grade D, already how the engine turns minutes into distance for its caps), worded "at your recent
+pace". The fallback is not built: it averages hard runs in, and the scope of this change fixed that a
+runner with no pace data gets no estimate. (b) The estimate replaces the plan's own unlabelled
+distance on the screens above; the Done sheet still words the plan's `distanceM` ("Planned: 40
+min, 6.2 mi") and pre-fills the log with it. (c) The race and run-walk sessions have no estimate,
+so a race week or a ladder week has none for the week.
+
 ## Open follow-ups (none blocks a merge)
 
 1. The weekly decision's "first days of heat" and "sleep efficiency drop" holds are not derived
@@ -1085,10 +1123,13 @@ disruption banner's buttons are 26 px high inside the 64 px slot budget.
     notice" is not offered.
 16. Travel across time zones: a window and Today follow the server's day (`TodayView.tz`); a trip
     that crosses zones is a recorded limitation.
-17. A distance estimate beside the minutes (the owner's direction, 2026-10-23: distance before
-    strength): a derived "about N mi at your easy pace" on the session, the week and the brief,
-    computed by the server from the runner's recent easy pace, labelled an estimate and never
-    scored; the plan's currency stays minutes (ADR 0003) and speeds stay per-session guides.
+17. Done 2026-10-24 (`feat/distance-estimate`, entry under "Where things stand"). A distance
+    estimate beside the minutes (the owner's direction, 2026-10-23: distance before strength): a
+    derived "about N mi at your easy pace" on the session, the week and the brief, computed by the
+    server from the zones, labelled an estimate and never scored; the plan's currency stays minutes
+    (ADR 0003) and speeds stay per-session guides. The easy pace is the middle of the Z1 pace range
+    of the current zones, not the recent logged pace; see "Decisions for the owner" for the
+    consequence.
 18. Strength programming as the first phase 3b epic (the owner's direction, 2026-10-23): an
     exercise library and session templates by phase from rules H10 and F4 (heavy lifting at 80%
     or more of one-rep max, 2-4 exercises of 3-4 sets of 3-6 reps, calf raises and plyometrics,
