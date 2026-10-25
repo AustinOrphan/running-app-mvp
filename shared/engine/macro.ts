@@ -26,6 +26,7 @@ import {
   rampSkipWeeks,
   rebuildStep,
   referenceBetween,
+  responseBaseline,
   runCaps,
   startLevelMin,
   tightRamp,
@@ -36,7 +37,7 @@ import {
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
-import { blockLift, rebuildZone } from './loadSetting.ts'
+import { blockLift, rebuildZone, responseBasis } from './loadSetting.ts'
 import { P } from './params/index.ts'
 import {
   ownWindow,
@@ -336,6 +337,10 @@ function carriedPhases(
  * recovery week the sequence continues from the work week before it (`paused`). The start is held
  * to the step the recent weeks allow (`stepCap`, never below the minutes already run in the week),
  * so missed training still lowers it. A break of a week or more restarts from the typical week.
+ * The response to weeks run above plan [rules g-8] does not lift this start: the week in progress
+ * keeps the minutes the plan gave it (a re-plan adds none to a settled week, `remainingOfWeek`),
+ * and the weeks after it step from the higher of these minutes and the mean of the weeks run
+ * (`responseBaseline`, read where each loading week is drawn).
  */
 function replanAnchor(
   input: EngineInput,
@@ -850,7 +855,7 @@ function planWeeks(
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),
     exempt,
-    ...rampBasis(state, rebuildZone(input, state)),
+    ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
   // The minutes already logged in the week the plan opens in. The ceiling of G-2 limits what a plan
   // adds to the weeks two and three before it; it cannot take back minutes already run, so the cap
@@ -1119,10 +1124,22 @@ function planWeeks(
       record(i, weekStart, true)
       continue
     }
+    // The step applies to the baseline of the week: the minutes of the last loading week, or at
+    // standard and upper the mean of the minutes run over the last eligible weeks when that is
+    // higher (`responseBaseline`, the one function the limits read too). A hold stops growth.
     const wanted = haveWork
       ? Math.min(
           ceiling,
-          hold ? lastWork : floorEps(rebuildStep(lastWork, ramp, rampNovice, rampCtx.rebuild)),
+          hold
+            ? lastWork
+            : floorEps(
+                rebuildStep(
+                  responseBaseline(lastWork, rampCtx.response),
+                  ramp,
+                  rampNovice,
+                  rampCtx.rebuild,
+                ),
+              ),
         )
       : start
     let t = Math.max(0, Math.min(wanted, stepCap(weekStart)))

@@ -1,11 +1,19 @@
 // The load setting of a plan [rules g-8]: which position applies to a runner today, and why a
-// requested one does not, the rebuild zone it sets, plus the 3 x 30 start from a block of weeks (the
-// second route of E6 path 2). Pure: the same input gives the same answer. It reads the athlete
-// state and the input's windows and imports no macro code, so the generator, the guards, the
-// checklist and the explanations can all read it.
+// requested one does not, the rebuild zone it sets, the mean of the weeks run that its response to
+// weeks run above plan reads, plus the 3 x 30 start from a block of weeks (the second route of E6
+// path 2). Pure: the same input gives the same answer. It reads the athlete state and the input's
+// windows and imports no macro code, so the generator, the guards, the checklist and the
+// explanations can all read it.
+import { addDays, mondayOf } from '../dates.ts'
 import { ageFlag } from './athlete.ts'
 import { disruptionPlan, windowPhase } from './disruption.ts'
-import { ceilingWeeklyRate, injuryTight, type RebuildZone } from './limits.ts'
+import {
+  ceilingWeeklyRate,
+  injuryTight,
+  recentRunMean,
+  type RebuildZone,
+  type ResponseBasis,
+} from './limits.ts'
 import { P } from './params/index.ts'
 import { postRaceWindows } from './postRace.ts'
 import { focalBoneActive } from './readiness.ts'
@@ -98,6 +106,46 @@ export function rebuildZone(input: EngineInput, state: AthleteState): RebuildZon
     ceilingMin: credit * state.history.taper * state.history.blockMin,
     step: upper ? ceilingWeeklyRate() : P.g8.stepStandard.value,
   }
+}
+
+/**
+ * The Mondays of the weeks a reported rest window touches [rules J9]: every week that holds a day of
+ * a window (its rest, its limited running and the easy days after it) or of an injury report. The
+ * windows of the input are read whether they lie in the past or ahead.
+ */
+function restWindowWeeks(input: EngineInput): Set<string> {
+  const plan = disruptionPlan(input.disruptions ?? [])
+  const weeks = new Set<string>()
+  for (const day of plan.days) weeks.add(mondayOf(day.date))
+  for (const report of plan.injuryReports) {
+    for (let week = mondayOf(report.from); week <= report.until; week = addDays(week, 7)) {
+      weeks.add(week)
+    }
+  }
+  return weeks
+}
+
+/**
+ * The response to weeks run above plan [rules g-8]: the mean of the minutes run over the last
+ * `g8.responseWeeks` eligible complete weeks, or null when the response does not apply. It applies
+ * to a plan that is being continued, that is a re-plan whose stored plan holds the current week
+ * after a break shorter than `j7.tier1Days`: a new plan, or one that restarts after a break,
+ * starts from the weeks as run (E6, J7) and has no planned minutes to be run above. Null at steady
+ * and wherever `loadPosition` holds the setting at steady (so a plan inside an active window or a
+ * post-race window, under a progression hold or for a low-frequency runner has no response). Weeks
+ * that never count: those that hold a race (`raceMin`) and those inside a rest window or an injury
+ * report, skipped and not zeroed; the current week is not complete. It needs no history block. The
+ * one place the response is built: the macrocycle, the week placement, the guards and the
+ * checklist all receive it from here.
+ */
+export function responseBasis(input: EngineInput, state: AthleteState): ResponseBasis | null {
+  const currentMonday = mondayOf(input.today)
+  const continued = input.existing?.weeks.some((week) => week.weekStart === currentMonday)
+  if (continued !== true || state.layoffDays >= P.j7.tier1Days.value) return null
+  if (loadPosition(input, state).position === 'steady') return null
+  const excluded = restWindowWeeks(input)
+  for (const row of state.weeks) if (row.raceMin > 0) excluded.add(row.weekStart)
+  return { meanMin: recentRunMean(state.weeks, excluded, currentMonday) }
 }
 
 /**

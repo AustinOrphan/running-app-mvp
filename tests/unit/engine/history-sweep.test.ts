@@ -6,19 +6,32 @@
 // sooner than with weekly time not limiting (S4), and the older credit window and its taper are
 // checked on the block itself.
 //
+// A second part of the sweep runs weekly re-plan chains of the same runners at standard and upper,
+// each week run above its plan by a seeded factor, for the response to weeks run above plan [rule
+// g-8]: every plan of the chain must pass the same checks, and the response may add minutes where
+// the mean of the weeks run passes the planned baseline and must change nothing elsewhere.
+//
 // The seed picks a sample; a failure names the runner by its index to replay it.
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState, historyBlock } from '../../../shared/engine/athlete.ts'
-import { buildPlan } from '../../../shared/engine/index.ts'
+import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { PlanDraft } from '../../../shared/engine/types.ts'
 import { aggregateWeeks } from '../../../shared/domain/weeks.ts'
 import { mulberry32 } from './disruption-fixtures.ts'
-import { at, HISTORY_MONDAY, scenario, weeks as repeatWeeks } from './history-fixtures.ts'
+import {
+  at,
+  HISTORY_MONDAY,
+  NO_RESPONSE,
+  scenario,
+  weeks as repeatWeeks,
+  withResponseWeeks,
+} from './history-fixtures.ts'
 import {
   ceilingProblems,
   cumulative,
+  expectedResponse,
   expectedZone,
   planProblems,
   POSITIONS,
@@ -27,12 +40,16 @@ import {
   type Position,
 } from './history-properties.ts'
 import { sweepCases } from './history-sweep.ts'
+import { replanChain } from './replan-steps.ts'
 
 const SEED = 20_261_025
 const COUNT = 150
 // The budget of the phase 3a design: the sweep runs in under 60 s. The test timeout is twice that,
 // so a slow machine fails the assertion with the elapsed time instead of a bare timeout.
 const BUDGET_MS = 60_000
+/** The runners and the re-plans of the response part of the sweep. */
+const RESPONSE_COUNT = 12
+const RESPONSE_STEPS = 5
 
 const started = Date.now()
 const cases = sweepCases(SEED, COUNT)
@@ -218,6 +235,50 @@ describe('the rebuild zone over a seeded sweep of synthetic runners', () => {
       expect(block.blockMin).toBeCloseTo(minutes, 6)
     }
   })
+
+  it(
+    'the response over weekly re-plan chains run above plan keeps every limit and adds only where it applies',
+    () => {
+      const rnd = mulberry32(SEED + 1)
+      const bad: string[] = []
+      let applied = 0
+      let steps = 0
+      for (const c of cases.slice(0, RESPONSE_COUNT)) {
+        // each week of the chain is run 1.2 to 2.2 times its plan
+        const factors = Array.from({ length: RESPONSE_STEPS + 1 }, () => 1.2 + rnd())
+        for (const position of ['standard', 'upper'] as const) {
+          const chain = replanChain(at(c.input, position), {
+            scale: (step) => factors[step]!,
+            maxSteps: RESPONSE_STEPS,
+          })
+          for (const [k, { input, draft }] of chain.entries()) {
+            const where = `${c.name} ${position} step ${String(k)}`
+            for (const problem of planProblems(draft)) bad.push(`${where}: ${problem}`)
+            for (const problem of ceilingProblems(input, draft)) bad.push(`${where}: ${problem}`)
+            for (const problem of zoneReport(input, draft).problems)
+              bad.push(`${where}: ${problem}`)
+            if (k === 0) continue
+            steps += 1
+            // the zone alone, from the same input: the response adds to it where the mean of the weeks
+            // run passes the planned baseline, and leaves it as it is where it does not
+            const mean = expectedResponse(input)?.meanMin ?? null
+            const zoneOnly = withResponseWeeks(NO_RESPONSE, () => replan(input).draft)
+            if (cumulative(draft, 10) + 1 < cumulative(zoneOnly, 10))
+              bad.push(`${where}: below the zone alone`)
+            if (cumulative(draft, 10) > cumulative(zoneOnly, 10) + 1) {
+              applied += 1
+              if (mean === null) bad.push(`${where}: lifted with no mean of the weeks run`)
+            }
+          }
+        }
+      }
+      expect(bad).toEqual([])
+      // a sweep in which the response never added a minute would pass the checks above for nothing
+      expect(steps).toBeGreaterThan(RESPONSE_COUNT)
+      expect(applied).toBeGreaterThan(RESPONSE_COUNT / 4)
+    },
+    2 * BUDGET_MS,
+  )
 
   it(
     'runs in under 60 seconds',

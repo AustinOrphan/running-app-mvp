@@ -26,7 +26,7 @@ import {
   type RampContext,
   type RebuildZone,
 } from './limits.ts'
-import { rebuildZone } from './loadSetting.ts'
+import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { redsHold } from './macro.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
@@ -174,7 +174,7 @@ export function draftRamp(
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
     exempt: startExemptions(draft.weeks, returnWeeks(disruptionPlan(input.disruptions ?? []))),
-    ...rampBasis(state, rebuildZone(input, state)),
+    ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
   const weeks: DraftWeekTotal[] = []
   for (const weekStart of starts) {

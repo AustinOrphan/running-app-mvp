@@ -42,7 +42,7 @@ import {
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
-import { rebuildZone } from './loadSetting.ts'
+import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath } from './macro.ts'
 import { holdSessions, placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
@@ -439,7 +439,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
     exempt: startExemptions([...pastWeeks, ...macro], returnWeeks(dplan)),
-    ...rampBasis(state, rebuildZone(input, state)),
+    ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
   const doneGain = gains.get(currentMonday) ?? 0
@@ -844,6 +844,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         : { ...rampCtx.floor, kind: startKind(floorWeek.flags) ?? 'floor' },
     exempt: rampCtx.exempt,
     rebuild: rampCtx.rebuild,
+    response: rampCtx.response,
     fixed: kept.filter((s) => keep.toRun.has(s) && s.date >= today),
   })
 

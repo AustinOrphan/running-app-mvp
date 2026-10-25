@@ -28,6 +28,7 @@ import {
   type RampContext,
   type RampExemption,
   type RebuildZone,
+  type ResponseBasis,
   type SpikeReference,
 } from './limits.ts'
 import { intensityMinutes } from './micro.ts'
@@ -75,6 +76,13 @@ export interface GuardOptions {
    * against the step it was drawn with. Absent at steady and for a caller that has no plan options.
    */
   rebuild?: RebuildZone | null
+  /**
+   * The response to weeks run above plan [rules g-8] (`responseBasis`, loadSetting.ts), which lifts
+   * the baseline of a week from the mean of the minutes run: the generator's own, so that the
+   * guards check the plan against the baseline it was drawn from. Absent at steady and for a caller
+   * that has no plan options.
+   */
+  response?: ResponseBasis | null
   /**
    * For a generated plan: a run above the normal band (1.10x the 30-day reference, or the minimum
    * step) on any dimension is shortened to that limit (and left out when it would fall under the
@@ -192,7 +200,7 @@ export function applyGuards(
     skip: rampSkipWeeks(asOf, options.lowWeeks ?? []),
     floor,
     exempt: options.exempt,
-    ...rampBasis(state, options.rebuild ?? null),
+    ...rampBasis(state, options.rebuild ?? null, options.response ?? null),
   }
   const pairStarts: string[] = items
     .filter((s): s is SessionSpec => s !== null && s.date < asOf && s.flags.includes('b2b-day1'))

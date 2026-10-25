@@ -564,6 +564,10 @@ export function weeklyDecision(
   const decision: WeeklyDecision['decision'] = reduce ? 'reduce' : hold ? 'hold' : 'progress'
 
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
+  // The response to weeks run above plan [rules g-8] has no part in it: a hold or reduce caps the
+  // week it covers by the planned week and the step from the week run, and the week a progress
+  // decision names is the one the re-plan keeps, so the mean of the weeks run lifts the weeks the
+  // plan draws after them (`responseBaseline`) and not these figures.
   const plannedThis = plannedFull ?? actual
   const nextWeek = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
   const nextPlanned =
