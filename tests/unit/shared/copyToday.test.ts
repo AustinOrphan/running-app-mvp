@@ -57,6 +57,13 @@ describe('Today templates', () => {
     }
   })
 
+  test('the check-in link reads as adding a window while one is open', () => {
+    const words = (id: 'today.checkin.hurt' | 'today.checkin.hurt-window') =>
+      render(TEMPLATES[id], {}, 'km')
+    expect(words('today.checkin.hurt')).toBe("Something hurts, or I'm ill")
+    expect(words('today.checkin.hurt-window')).toBe('Add a pain or illness window')
+  })
+
   test('a sentence that restates a rule number takes it from the Params', () => {
     const building = renderFact(
       {

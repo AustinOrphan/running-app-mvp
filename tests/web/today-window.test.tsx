@@ -11,13 +11,13 @@ import type {
   TodayView,
   TodayVerdict,
 } from '../../shared/types.ts'
-import { expectCleanCopy } from './helpers.tsx'
-import { makePreview, makeWindow } from './plan-fixtures.ts'
+import { expectCleanCopy, type MockRoutes } from './helpers.tsx'
+import { makePreview, makeV2Plan, makeWindow } from './plan-fixtures.ts'
 import { makeCoach, makeHero, makeSession, makeToday } from './today-fixtures.ts'
 import { renderToday as render, startToday } from './today-render.tsx'
 
 // STATUS follow-up 19: a window is stated once (the band), the verdict names the day instead of
-// "Ready as planned.", and every open window has its own line with its own buttons. The fixed clock is
+// "Ready as planned.", every open window has its own line with its own buttons, and the check-in link reads as adding a window while one is open. The fixed clock is
 // Wednesday 2026-03-18; the payloads are what the server sends (`tests/api/disruptions.test.ts`
 // pins that it composes them so).
 
@@ -115,6 +115,15 @@ function insideWindows(
       ...over,
     }),
   })
+}
+
+/** The routes the "Not 100%" sheet reads besides the two of the first screen. */
+function sheetRoutes(today: () => TodayView): MockRoutes {
+  return {
+    'GET /api/today': today,
+    'GET /api/plan': () => makeV2Plan(),
+    'GET /api/plan/disruptions': () => [],
+  }
 }
 
 describe('Today inside an illness window: the window is stated once', () => {
@@ -249,5 +258,53 @@ describe('Today: every window open today has its own line', () => {
     expect(action).toMatch(/padding:\s*0\s+var\(--space-2\)/)
     // the row takes 28 px of the 64 px budget: 44 px less 6 px up and 10 px down
     expect(rule('.compact .bannerActions')).toMatch(/margin:\s*-0\.375rem\s+0\s+-0\.625rem/)
+  })
+})
+
+describe('Today: the check-in link', () => {
+  test('reads "Something hurts, or I\'m ill" with no window open', async () => {
+    render(makeToday())
+    expect(
+      await screen.findByRole('button', { name: "Something hurts, or I'm ill" }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add a pain or illness window' })).toBeNull()
+  })
+
+  test('a window ahead is not open: the link keeps its words', async () => {
+    render(insideWindows([illness({ phase: 'upcoming', startDate: '2026-03-23' })]))
+    expect(
+      await screen.findByRole('button', { name: "Something hurts, or I'm ill" }),
+    ).toBeInTheDocument()
+  })
+
+  test('reads "Add a pain or illness window" while any window is open', async () => {
+    render(insideWindows([niggle()]))
+    expect(
+      await screen.findByRole('button', { name: 'Add a pain or illness window' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: "Something hurts, or I'm ill" })).toBeNull()
+  })
+
+  test('with a window open it opens the sheet that makes a window, not a second illness report', async () => {
+    const user = userEvent.setup()
+    const view = insideWindows([illness()])
+    const { api } = render(
+      view,
+      sheetRoutes(() => view),
+    )
+    await user.click(await screen.findByRole('button', { name: 'Add a pain or illness window' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Not 100%' })
+    expect(within(sheet).getByRole('radio', { name: /A niggle or pain/ })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Check-in' })).not.toBeInTheDocument()
+    // opening it writes nothing
+    expect(api.calls.filter((call) => call.method !== 'GET')).toEqual([])
+  })
+
+  test('with no window the link still opens the check-in at pain and illness', async () => {
+    const user = userEvent.setup()
+    render(makeToday())
+    await user.click(await screen.findByRole('button', { name: "Something hurts, or I'm ill" }))
+    expect(await screen.findByRole('dialog', { name: 'Check-in' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Not 100%' })).not.toBeInTheDocument()
   })
 })

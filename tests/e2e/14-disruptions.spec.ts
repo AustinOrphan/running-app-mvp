@@ -299,6 +299,20 @@ test('after an illness check-in Today offers a window, creates nothing, and the 
     await checkin.getByLabel('Feeling ill').check()
     await checkin.getByRole('button', { name: 'Save check-in' }).click()
 
+    // The note the check-in raises ends in an info icon, not a line of its own: the icon keeps the
+    // name the Why button had, is a 44 px box (never under 24 px), and stands at the end of the line.
+    const note = page.getByRole('region', { name: 'Health notes' }).getByRole('listitem')
+    const why = note.getByRole('button', { name: 'Why: this note' })
+    await expect(note.getByText(/^Illness was reported\./)).toBeVisible()
+    const whyBox = (await why.boundingBox())!
+    const noteBox = (await note.boundingBox())!
+    expect(whyBox.width).toBeGreaterThanOrEqual(44 - 0.5)
+    expect(whyBox.height).toBeGreaterThanOrEqual(44 - 0.5)
+    expect(whyBox.x + whyBox.width).toBeGreaterThan(noteBox.x + noteBox.width - 24)
+    expect(whyBox.y).toBeLessThan(noteBox.y + 24)
+    await why.focus()
+    await expect(why).toBeFocused()
+
     // The offer: one question, two answers, within the budget, and nothing created by asking. A
     // screen reader hears the question from the live region.
     const offer = slot.getByRole('region', { name: 'Rest window offer' })
@@ -345,6 +359,12 @@ test('after an illness check-in Today offers a window, creates nothing, and the 
     const verdict = page.getByRole('region', { name: 'Readiness' }).getByRole('status')
     await expect(verdict).toHaveText('A rest day of the window.')
     await expect(page.getByText('Ready as planned.')).toHaveCount(0)
+    // With a window open the check-in link adds a window, and opens the sheet that makes one.
+    await expect(hurts).toBeHidden()
+    await page.getByRole('button', { name: 'Add a pain or illness window' }).click()
+    await expect(page.getByRole('dialog', { name: 'Not 100%' })).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByRole('dialog', { name: 'Not 100%' })).toBeHidden()
     expect(await windowsOf()).toMatchObject([{ reason: 'illness-above-neck', endDate: today }])
   } finally {
     await page.setViewportSize({ width: 1280, height: 720 })

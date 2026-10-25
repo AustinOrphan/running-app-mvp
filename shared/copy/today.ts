@@ -101,6 +101,10 @@ export const TODAY_TEMPLATES = {
   // folds into and, when the connection is down, the same line saying where the answer is kept.
   // One template per answer, so no word is picked in code.
   'today.checkin.question': tpl('How do you feel today?'),
+  // The second button of the row. While a window is open the plan already knows about the illness
+  // or the pain, so the button reads as what it then does: it adds another window.
+  'today.checkin.hurt': tpl("Something hurts, or I'm ill", {}, { shape: 'label' }),
+  'today.checkin.hurt-window': tpl('Add a pain or illness window', {}, { shape: 'label' }),
   'today.checkin.answer-fresh': tpl('Fresh', {}, { shape: 'label' }),
   'today.checkin.answer-good': tpl('Good', {}, { shape: 'label' }),
   'today.checkin.answer-normal': tpl('Normal', {}, { shape: 'label' }),
