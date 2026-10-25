@@ -7,13 +7,71 @@ Last update: 2026-10-25.
 
 ## Where things stand
 
+- **Load progression from the runner's history (2026-10-25, `feat/load-progression`, PR #NNN,
+  follow-up 22).** Tasks L0 to L7 of
+  `docs/superpowers/specs/2026-10-24-load-progression-proposal.md`, built on the owner's answers of
+  2026-10-24 (section 7 there); L0 and L1 (the six tissue papers, 376 papers in the corpus, and ADR
+  0013 with the G-5 amendment) merged in #564. A runner with a year of running and a block of
+  steady weeks (four consecutive complete weeks of at least two runs each, scored by the mean
+  without the highest, ended within 12 weeks) starts a plan on 3 × 30 minutes in place of 3 × 20 at
+  the Standard and Upper band positions (E6 path 2, second route); the session length stays the
+  longest run of the last 30 days, G-1 bounds every session, and age 45 or over does not close the
+  route. The Generate form offers the load setting: Steady (the default, the engine byte for
+  byte), Standard and Upper band. A position is held at steady, with the reason shown, under a
+  recent injury, an earlier bone stress injury or two risk factors for one, flags from the energy
+  availability screening, focal bone pain, a rest window, a plan built in the weeks after a race
+  and recent weeks of fewer than two runs a week; at age 45 or over Upper band is read as Standard.
+  The Plan page's Load panel names the position in effect, why a chosen one does not apply, and
+  the trade-off of a faster step (the effect on a return after a break is not known); the Why
+  drawer carries no trade-off by decision, because it states facts of the plan and not the choice.
+
+  The engine. The rebuild zone: `R` is the credit (0.70 at Standard, 0.85 at Upper band) times the
+  taper of the block's age times the block's score `H`, taken from the runner's own weeks. A loading
+  week whose baseline is under `R` takes the position's step (12% at Standard, 14.0% at Upper band)
+  in place of 10%, clamped so that it never plans a week above `R` except by the usual 10%; a
+  continued plan keeps the block it opened with until a week reaches `R` (L3d). The response to
+  weeks run above plan (Standard and Upper band): the baseline of a loading week is the higher of
+  the planned baseline and the mean of the minutes run in the last four eligible weeks, with two
+  bounds (L3d): the newest of those weeks must have been run at or above its stored target, and the
+  lifted baseline never passes the planned baseline stepped by the two-week ceiling. A raised week
+  target is kept at a re-plan within the limit the engine itself allows for that week
+  (`targetLimit`), clipped above it, and the revision's diff names each kept and each clipped week
+  and the bound that set the kept figure (the limit, the plan's own figure or the minutes already
+  run; the `logged` bound is a safeguard that no API fixture reaches, covered by unit and copy
+  tests). A clip by a hold, a decision, a window, a programme or the structure of the plan is
+  written as the plan's own figure with no override, so the week is free again once the rule has
+  passed. The Why drawer's g-8 facts (the block and its age, the zone, the setting, the held or
+  capped reason, the response and the limits that stay) read the input with the plan's own goal, and
+  a week in the zone says what it rebuilds toward.
+
+  Params, values and validation. Rule g-8 of `research/engine-rules.md` has nine Params in group
+  `g8`, every one grade D with a default note; the upper step is not a Param: it is the weekly rate
+  at which two weeks meet `g2.rampCeilingTwoWeeks`, derived from the grade C ceiling so that it
+  cannot pass it. Shipped values, provisional and grade D: 0.70 and 12% at Standard, 0.85 and the
+  ceiling's own rate, 14.0%, at Upper band; `g8.creditTaperEndWeeks` 12 (the 16-week window with a
+  taper to one half stays available by Param); `g8.responseWeeks` 4; `PARAMS_VERSION`
+  `2026-10-25.3`. Validation at Steady: byte-identical to the baseline at every merge (39 weeks, 210 sessions, 0 of 15 checklist
+  failures). Owner replay (L6, outside the repository, where the full figures are kept): over the 53
+  Mondays of the last year the setting changed the plan on 7 (a block in the 12-week window and the
+  plan opening on the start path); the low-frequency flag held the position on 30; on the 7, the
+  opening week was 90 minutes instead of 60, the block level came 6.6 (Standard) and 7.2 (Upper
+  band) weeks sooner than at Steady, of which the 3 × 30 lift alone gave 5.8 weeks and the zone 0.8
+  and 1.4; checklist failures and spike flags 0 everywhere. The 16-week credit window changed 1 of
+  53 plans (by 1.5% at Standard and 6% at Upper band over 12 weeks). In a back-test of 32 weekly
+  re-plans the response lifted a baseline in 16 (14 after a week run above plan, 2 after a dip
+  following a held week; the first bound of L3d removes the 2); one outlier week lifted a plan 3.1
+  times (the second bound limits it to 1.3). The own-tolerance record holds no weekly step between 0
+  and 14% and no pain or fatigue flags, so it neither confirms nor refutes 12% or 14.0%. The close
+  review is the next section; the decisions and the open item are under "Decisions for the owner".
+
 - **Owner decisions of 2026-10-24 (documents only, no code).** The load-progression proposal
   (PR #558) and the strength design (PR #559) merged with their open questions unanswered. The
   owner answered all 28 on the evening of 2026-10-24: the answers are in section 7 of the proposal
   and section 18 of the strength design, and both specs are amended to follow them. The ADR for
   strength is 0014, because 0013 records the load-progression decision (the G-5 amendment
   included). The phase 3a leftovers are decided under "Decisions for the owner"; the work they leave
-  is follow-ups 18, 19 and 22, and follow-ups 20 and 21 shipped in #561.
+  is follow-ups 18 and 19 and follow-up 22 (load progression, since shipped, the entry above), and
+  follow-ups 20 and 21 shipped in #561.
 - **Distance estimate beside the minutes (2026-10-24, `feat/distance-estimate`, follow-up 17).** A
   run session carries `distanceEstimate` (`{ distanceM, basis }`) and a plan week
   `distanceEstimateM`, worked out on the server (`shared/engine/distanceEstimate.ts`) and never
@@ -79,9 +137,9 @@ Last update: 2026-10-25.
   Garmin model and manual route the help text should name (Q6), a two-release shell update on a
   device and iOS cache eviction. Owner questions still open: "Decisions for the owner" below
   (the section-13 defaults; the wave-7 items and the API limiter were decided on 2026-10-24). Next:
-  strength programming (the design is merged, PR #559, follow-up 18), load progression (the
-  proposal is merged, PR #558, follow-up 22) and the Today disruption presentation (follow-up 19);
-  the distance estimate (follow-up 17) shipped on 2026-10-24 (#560), the entry above.
+  strength programming (the design is merged, PR #559, follow-up 18) and the Today disruption
+  presentation (follow-up 19); the distance estimate (follow-up 17) shipped on 2026-10-24 (#560)
+  and load progression (follow-up 22) on 2026-10-25, the entries above.
 - **On `main`:** the clean rewrite (#528, rebase-merged) and the evidence engine, data
   foundation and research corpus (#529, squash-merged as `2e17f23a`); the CodeQL escaping fix
   (#536); the second evidence pass (#537); the eight phase 3a wave pull requests, merged on
@@ -528,6 +586,90 @@ check` (142 files, 4337 tests), `npm run build`, `npm run test:e2e` (18), `docke
   and new when a re-plan changes its day or kind, so E1 publishes under
   `workoutExternalId(externalId, userTag)`, creates the new event before it withdraws the old one
   and derives no id from the date, the kind or the order.
+
+## Load progression close: adversarial review (2026-10-25)
+
+Six lenses over the merged diff of the integration branch against `main` (L2 to L6 and L3d, at
+`47c9984b`): engine contracts, evidence honesty (the lens L7 added: no sentence or Param note claims
+more than grade D, none says that a limit prevents an injury or that the response or a raised
+target is safe, G-5 and G-1 unchanged), copy and explanation, server and API, web and e2e, and
+tests, documents and the public repository. 42 findings, each tried by two independent refuters:
+30 confirmed, 12 disputed (both refuters refuted each) and 0 unverified. The 30 confirmed findings
+are 21 distinct defects after merging duplicates, plus one more that is deferred (the kept-target
+warning). Tasks L7a (engine, server and tests) and L7b (copy, explanation, documents and research)
+fixed them on the integration branch.
+
+Fixed (the numbers are those of the review):
+
+1. Fixed in L7b. The block line and the 3 × 30 route line said "averaged" for the block's score,
+   which is the mean without the highest week; both now say "without the highest", with a test of
+   unequal weeks (280, 280, 280 and 400 give 280).
+2. Fixed in L7a. `Plan.options` was read raw by two paths, and the three positions were listed
+   three times; one reader and one list.
+3. Fixed in L7b. The Why drawer read the position and the zone from the neutral-goal input, so a
+   plan whose goal race had been run could differ from the Plan page; it reads the plan's own input.
+4. Fixed in L7b. A second loading-week predicate in the response facts; one shared predicate.
+5. Fixed in L7b. The 0.70 credit was called "the fall" in tendon stiffness and "the cautious end of
+   the J7 table"; it is close to the share left at day 23 (about 71%) and near the 75% J7 tier
+   (rule, Param note and spec; no value or grade change).
+6. Fixed in L7a. The clipped-target sentences claimed "the most the limits allow" when the kept
+   figure could be the plan's own or the minutes already run; they now say which bound set it.
+7. Fixed in L7b. The limits line said that growth never passes 30% over two weeks, though the
+   start and return weeks are exempt; it now says so.
+8. Fixed in L7b. "A year of running" was written into the 3 × 30 route line (it reads
+   `a5.noviceMaxYears`), its threshold was a second copy, and two documents said that the
+   calendar-year check "covers about 10 to 22 months", true only near late October.
+9. Fixed in L7b. The trade-off line was on the Generate form only; it is also in the Plan page's
+   Load panel, and the Why drawer carries no trade-off by decision (it states facts of the plan,
+   not the choice).
+10. Fixed in L7b. The step printed as 14.02% in the g-2 and g-6 facts and 14% elsewhere; one step
+    formatter.
+11. Fixed in L7a. A literal "10%" in the ramp-soft summary, and a checklist soft note that used the
+    usual step for a zone week; the note names each soft week's own step.
+12. Fixed in L7b. The Upper band hint omitted the sentence on weeks run above plan.
+13. Fixed in L7b. Spec 4.6 stated two things the code contradicts (the explain templates use no
+    "you" because the existing ones use none; a revision line for a change of position that no
+    action produces yet).
+14. Fixed in L7a. A raised target clipped by a temporary limit became a standing hand-set cap at
+    the next re-plan; those clips are now written as the plan's own figure with no override.
+15. Fixed in L7a. API tests seeded a birth year that makes the runner 45 from 2030.
+16. Fixed in L7a. Nothing reached rule g-8 through the real explain path; an API test now does.
+17. Fixed in L7b. Rule g-8, ADR 0013 and spec 4.3 said that the setting changes only the step below
+    `R` and that the response is off above `R`; above `R` the response still lifts the baseline and
+    the usual 10% applies to it.
+18. Fixed in L7b. ADR 0013 and spec section 7 stated the response without a bound, and L3d shipped
+    two bounds without a recorded approval; both documents carry an "Amended 2026-10-25"
+    paragraph, and the decision is listed under "Decisions for the owner".
+19. Fixed in L7b. Spec 4.6 named `{mean}` where the template names `{from}`.
+20. Fixed in L7b. Spec section 8 named an ADR file and a page test that do not exist.
+21. Fixed in L7b. ADR 0013 cited section 4.7 for the 20-week G-1 figure; it is in sections 2.7
+    and 4.9.
+
+Deferred (follow-ups 23 to 26, no code change):
+
+- Deferred to follow-up 23. Spec 4.8 said that a kept target above the soft step carries the
+  `progression` warning; it does not (the checklist comes from the engine draft, which never holds
+  the runner's raised figure). Spec 4.8 now says so (L7b).
+- Deferred to follow-up 24. G-1 can hold every run of a week at one cap, so the long run does not
+  take the remainder.
+- Deferred to follow-up 25. The A5 low-frequency flag arms at a start level over 60 minutes with
+  fewer than two runs a week.
+- Deferred to follow-up 26. After a hold decision one re-plan placed sessions under 80% of target in
+  25 of 57 future weeks of one replayed chain.
+
+Disputed and recorded (not fixed; both refuters refuted each): the upper-step row graded C
+"inherited" (D1, D4; recorded in spec 4.5); `holdOf` restating the hold conditions (D2, shared
+primitives); ADR 0009 wording for the plan's own block (D3, no new query); the trade-off sentence
+against the corpus (D5, it matches damsted-2018 and nielsen-2014 and the lines beside it hedge it);
+"conservative" scoped to cessation values (D6); spec 4.3 "observed bands" (D7, text from main, a
+derivation statement); the standard hint as a conditional (D8); checklist and guard sentences as
+literals (D9, the repository's mechanism for engine messages); g8-held copying `load.held` (D10,
+tied by tests); a kept-only re-plan stored as an empty revision (D11, deliberate: the week shows
+its target); follow-up 22 stale (D12, rewritten below).
+
+Gates at `47c9984b` (the integrator replaces these with the final run): the owner validation at
+Steady identical to the baseline; `Test Files 239 passed (239)`, `Tests 11730 passed (11730)`;
+`npm run build` ok; `npm run test:e2e` `79 passed`.
 
 ## Phase 3a close: whole-phase contract-drift review (2026-10-23)
 
@@ -1109,6 +1251,34 @@ above; the Done sheet still words the plan's `distanceM` ("Planned: 40 min, 6.2 
 the log with it. (c) The race and run-walk sessions have no estimate, so a race week or a ladder
 week has none for the week.
 
+Load progression (2026-10-25), decisions taken in the build session. Each is an engine or copy
+choice taken inside the owner's answers of 2026-10-24, and the third awaits confirmation.
+
+- Question 3, the values: kept as proposed, provisional and grade D (0.70 and 12% at Standard, 0.85
+  and the ceiling's own rate, 14.0%, at Upper band). Reason: the own-tolerance record holds no
+  weekly step between 0 and 14% and no pain or fatigue flags, so the replay neither confirms nor
+  refutes 12% or 14.0%, and a change toward more load needs stronger evidence than a change toward
+  less (G6). Taken in task L6 (spec 5.6).
+- Question 7, the credit window: `g8.creditTaperEndWeeks` ships at 12, and the 16-week window with
+  a taper to one half stays available by Param. Reason: the 16-week window changed 1 of 53
+  replayed plans (by 1.5% at Standard and 6% at Upper band over 12 weeks). Taken in task L6.
+- Awaiting the owner's confirmation, two engine changes of task L3d, taken on the findings of the
+  replay (spec 5.6): (a) the rebuild zone reads the block the plan opened with, until a complete
+  week has run at `R`, so that a runner who runs as planned gets the first plan's weeks; (b) the
+  response to weeks run above plan has two bounds, written into ADR 0013 and spec section 7 as
+  "Amended 2026-10-25". Reason for (b): in a back-test of 32 weekly re-plans the unbounded response
+  lifted a baseline in 16 (2 of them after a dip that followed a held week) and one outlier week
+  lifted a plan 3.1 times; the bounds remove the 2 and limit the outlier to 1.3. The owner's
+  answer to question 5 was "in a bounded form"; the bounds are the build session's reading of it.
+- The trade-off line is on the Generate form and in the Plan page's Load panel, and not in the Why
+  drawer. Reason: the drawer states facts of the plan and not the choice; the trade-off belongs
+  where the choice is made and where the position in effect is read. Taken in the L7 review
+  (finding 9), and spec 4.6 and the L5 acceptance say so.
+
+Open for the owner: whether the owner-derived replay figures go into spec 5.6. They are kept
+outside the repository, and the spec holds the synthetic results only; the summary under "Where
+things stand" gives counts and percentages without a weekly total or a date.
+
 ## Open follow-ups (none blocks a merge)
 
 1. The weekly decision's "first days of heat" and "sleep efficiency drop" holds are not derived
@@ -1190,15 +1360,36 @@ week has none for the week.
     no further edit.
 21. Done in #561: the approved G5 sentence is in rule G5 of `research/engine-rules.md`, as quoted
     under "Decisions for the owner" (d).
-22. Load progression from the runner's history (the owner's report of 2026-10-24). Proposed in
-    `docs/superpowers/specs/2026-10-24-load-progression-proposal.md` (PR #558, merged), and the
-    owner answered its 12 questions on 2026-10-24 (section 7 there): the 3 × 30 start from a
-    demonstrated block, a load setting (steady by default, standard, upper band) with a rebuild
-    ceiling taken from the runner's recent steady weeks, a response to weeks run above plan, a
-    raised week target that survives a re-plan, both credit windows built behind a Param, and the
-    values provisional until the own-tolerance replay on the owner's data. Next: tasks L0 to L7
-    (section 8 there, with L3b and L3c added): L0 (research-update: the six tissue papers first,
-    the other ten reviewed afterwards) and L1 (ADR 0013, with the G-5 amendment) come first.
+22. Done 2026-10-25 (the integration branch, PR #NNN; entry under "Where things stand"). Load
+    progression from the runner's history (the owner's report of 2026-10-24), proposed in
+    `docs/superpowers/specs/2026-10-24-load-progression-proposal.md` (PR #558) and answered on
+    2026-10-24 (section 7 there). Shipped: the history block and the 3 × 30 start from it (L2), the
+    rebuild zone (L3), the response to weeks run above plan (L3b), a raised week target that
+    survives a re-plan (L3c), the plan's own block and the response's two bounds (L3d), the load
+    setting on the Generate form and the Plan page (L4), the copy and the Why drawer's g-8 facts
+    (L5), the fixtures, the sweep and the replay on real history (L6), and the close review (L7),
+    with rule g-8, nine grade D Params and ADR 0013. Still open: the confirmation of L3d's two
+    changes and the figures question under "Decisions for the owner", and follow-ups 23 to 26. Not
+    built: a plan action that changes the position once the plan exists (L4b, optional, decision 6
+    of the proposal), so no revision line for a change of position exists. Not proposed, by
+    decision 10: a G-1 history reference.
+23. The kept-target warning of spec 4.8. A raised week target kept at a re-plan above the soft step
+    carries no `progression` warning: the checklist is built from the engine draft, which never
+    holds the runner's raised figure. Case: a loading week whose target the runner raised above the
+    soft step and a re-plan keeps; the revision diff and the Plan page show the kept figure, and
+    the checklist does not name the week. Spec 4.8 now describes the shipped behaviour; the warning
+    would need the checklist to read the kept figure.
+24. G-1 can hold every run of a week at one cap, so the long run does not take the remainder of the
+    week's minutes. Case: seen on a real history (no committed case); with a short reference run
+    the weekly target is not placed, and a plan with the larger weekly target can have a slightly
+    shorter long run than Steady's in the same week. Baseline behaviour at Steady too.
+25. The A5 low-frequency flag arms when the start level passes 60 minutes with fewer than two runs
+    a week. Case: "H3 inside a chain" of the replay fixtures; on the replayed real history it held
+    the position at Steady on 30 of the 53 Mondays, which matters more to the setting's reach than
+    the values of question 3. Baseline behaviour at Steady too.
+26. After a hold decision a re-plan can place sessions under 80% of target. Case: one replayed
+    chain, 25 of 57 future weeks after one re-plan following a hold decision; the cause is
+    untraced. Baseline behaviour at Steady too.
 
 ## Clean-up after the merges
 
