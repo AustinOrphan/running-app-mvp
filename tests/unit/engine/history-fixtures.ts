@@ -7,7 +7,7 @@ import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, GoalModel } from '../../../shared/engine/types.ts'
 import type { Activity, AthleteProfile } from '../../../shared/types.ts'
-import { activity, input, profile } from './e8-fixtures.ts'
+import { activity, goal, input, profile } from './e8-fixtures.ts'
 
 /**
  * Runs `fn` with `g8.creditTaperEndWeeks` set to `value` (12 or 16, the two credit windows), then
@@ -207,3 +207,70 @@ export const h26Runs = (since: number, runsSince: number): Run[] => [
 
 export const h26 = (since: number, runsSince: number): EngineInput =>
   scenario(h26Runs(since, runsSince))
+
+// ---- more shapes of the H cases (rebuild zone, task L3) ----
+
+/** H4: no gap: 20 weeks of four 60-minute runs, so the recent weeks are the block itself. */
+export const h4 = (): EngineInput => scenario(weeks(20, 1, [60, 60, 60, 60]))
+
+/**
+ * H10: the summer block, then one 70-minute run a week for seven weeks: a start level above 3 x 20
+ * and under two runs a week, so the runner is low frequency (A5) with a block behind.
+ */
+export const h10 = (): EngineInput => scenario([...summer(), ...weeks(7, 1, [70])])
+
+/**
+ * H3 once the runner is back: S5 (a 41-day layoff after the summer), then three weeks of three
+ * 40-minute runs, which lifts the average past two runs a week and ends the low-frequency flag.
+ */
+export const h3Back = (): EngineInput =>
+  scenario([...summer(), ...SPARSE.slice(0, 3), ...weeks(3, 1, [40, 40, 40])])
+
+/** H13: S3 plus a marathon raced on 2026-10-16, so the plan is built inside the window after it. */
+export function h13Race(): EngineInput {
+  const base = h1()
+  const race = activity('2026-10-16', {
+    id: 'marathon',
+    type: 'race',
+    durationSec: 4 * 3600,
+    movingSec: 4 * 3600,
+    distanceM: 42_195,
+  })
+  return { ...base, activities: [...base.activities, race] }
+}
+
+/** H13: S3 with a rest window that began two days ago and ends in two days. */
+export const h13Window = (): EngineInput => ({
+  ...h1(),
+  disruptions: [
+    {
+      id: 'w1',
+      reason: 'illness-above-neck',
+      mode: 'rest',
+      startDate: '2026-10-22',
+      endDate: '2026-10-26',
+      maxRunMin: null,
+      pain: null,
+      gaitChange: false,
+    },
+  ],
+})
+
+/**
+ * H15: a strong block (four weeks of five 90-minute runs, 450 minutes a week, ended 8 weeks ago),
+ * S3's sparse weeks since, and a 5 km race `weeksAhead` weeks after the first Monday: a short
+ * horizon with a low peak week (180 minutes), which the zone reaches at standard and upper.
+ */
+export const h15 = (weeksAhead = 12, years: 1 | 3 = 1): EngineInput =>
+  scenario([...weeks(11, 8, [90, 90, 90, 90, 90]), ...SPARSE], {
+    years,
+    goal: {
+      ...goal(),
+      goalId: 'g-5k',
+      name: 'Synthetic 5 km',
+      date: addDays(HISTORY_MONDAY, 7 * weeksAhead + 5),
+      distanceM: 5000,
+      distanceClass: '5k',
+      expectedDurationSec: 1500,
+    },
+  })

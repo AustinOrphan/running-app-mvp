@@ -30,6 +30,7 @@ const context = (over: Partial<RampContext> = {}): RampContext => ({
   typicalWeekMin: 200,
   novice: false,
   tight: null,
+  rebuild: null,
   ...over,
 })
 

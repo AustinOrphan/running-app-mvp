@@ -21,9 +21,10 @@ import {
   injuryTight,
   noviceRamp,
   plannedMinOf,
+  rampBasis,
   rampLimits,
   rampSkipWeeks,
-  rampStep,
+  rebuildStep,
   referenceBetween,
   runCaps,
   startLevelMin,
@@ -35,7 +36,7 @@ import {
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
-import { blockLift } from './loadSetting.ts'
+import { blockLift, rebuildZone } from './loadSetting.ts'
 import { P } from './params/index.ts'
 import {
   ownWindow,
@@ -849,9 +850,7 @@ function planWeeks(
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),
     exempt,
-    typicalWeekMin: state.typicalWeekMin,
-    novice: rampNovice,
-    tight: tightRamp(state),
+    ...rampBasis(state, rebuildZone(input, state)),
   }
   // The minutes already logged in the week the plan opens in. The ceiling of G-2 limits what a plan
   // adds to the weeks two and three before it; it cannot take back minutes already run, so the cap
@@ -865,7 +864,9 @@ function planWeeks(
     const lim = rampLimits(rampCtx, weekStart)
     if (lim === null) return Infinity
     if (lim.isFloorWeek) return floorEps(lim.plan)
-    const cap = floorEps(Math.min(lim.plan, rampStep(lim.base, ramp, rampNovice)))
+    const cap = floorEps(
+      Math.min(lim.plan, rebuildStep(lim.base, ramp, rampNovice, rampCtx.rebuild)),
+    )
     return weekStart === firstMonday ? Math.max(cap, loggedOpening) : cap
   }
   const runs: RunRecord[] = [...completedReference(input.activities, state).runs]
@@ -1119,7 +1120,10 @@ function planWeeks(
       continue
     }
     const wanted = haveWork
-      ? Math.min(ceiling, hold ? lastWork : floorEps(rampStep(lastWork, ramp, rampNovice)))
+      ? Math.min(
+          ceiling,
+          hold ? lastWork : floorEps(rebuildStep(lastWork, ramp, rampNovice, rampCtx.rebuild)),
+        )
       : start
     let t = Math.max(0, Math.min(wanted, stepCap(weekStart)))
     const days = Math.max(prevDays, daysFor(t))

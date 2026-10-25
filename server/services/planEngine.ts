@@ -30,6 +30,7 @@ import {
   weeklyRamp,
   zoneProposals,
 } from '../../shared/engine/index.ts'
+import { rebuildZone } from '../../shared/engine/loadSetting.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { sessionTitle } from '../../shared/engine/sessions.ts'
 import type {
@@ -63,7 +64,14 @@ import type {
   PrismaClient,
 } from '../db.ts'
 import { conflict, HttpError, notFound, validationError } from '../errors.ts'
-import { isTrimmed, toPlan, toPlanEngineFields, toPlanSession, toPlanWeek } from '../serialize.ts'
+import {
+  isTrimmed,
+  parsePlanOptions,
+  toPlan,
+  toPlanEngineFields,
+  toPlanSession,
+  toPlanWeek,
+} from '../serialize.ts'
 import { assessSessionById } from './execution.ts'
 import { gatherContextInput, gatherEngineInput } from './engineInput.ts'
 import { loadAthleteContext } from './athleteState.ts'
@@ -477,15 +485,24 @@ export async function weeklyDecisions(
     orderBy: { createdAt: 'desc' },
   })
   if (!plan || args.weekStarts.length === 0) return decisions
+  // The plan's own options carry the load setting, so the suggested week grows as the plan does.
   const input = await gatherContextInput(
     deps,
-    { userId: args.userId, today: args.today, goalId: plan.goalId },
+    {
+      userId: args.userId,
+      today: args.today,
+      goalId: plan.goalId,
+      options: parsePlanOptions(plan.options),
+    },
     { existing: true },
   )
-  // The tightened ramp of an injury or bone-stress profile caps the suggested week too. The first
-  // hot days (heatFirstDays) and the sleep-efficiency drop are not derived from the data yet, so
-  // those two holds of rule J5 do not fire.
-  const ramp = weeklyRamp(estimateState(input))
+  // The tightened ramp of an injury or bone-stress profile caps the suggested week too, and so
+  // does the rebuild zone of a plan at standard or upper [rules g-8]. The first hot days
+  // (heatFirstDays) and the sleep-efficiency drop are not derived from the data yet, so those two
+  // holds of rule J5 do not fire.
+  const state = estimateState(input)
+  const ramp = weeklyRamp(state)
+  const rebuild = rebuildZone(input, state)
   const planned = args.weekStarts.filter((weekStart) =>
     input.existing?.weeks.some((w) => w.weekStart === weekStart),
   )
@@ -497,6 +514,7 @@ export async function weeklyDecisions(
         executions: executions.get(weekStart) ?? [],
         redsFlags: input.screeningFlags,
         ramp,
+        rebuild,
       }),
     )
   }

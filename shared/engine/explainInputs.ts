@@ -20,6 +20,7 @@ import { nextWeekCap } from './guards.ts'
 import {
   countsTowardReference,
   plannedMinOf,
+  rebuildStep,
   spikeOverrideLimit,
   spikeWarnLimit,
   startLevelMin,
@@ -29,6 +30,7 @@ import {
   wholeMinutes,
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
+import { rebuildZone } from './loadSetting.ts'
 import { cycleShortReason, cycleWorkWeeks, startLift, startPath, taperDays } from './macro.ts'
 import { P } from './params/index.ts'
 import { ownHoldReasons, postRaceWindows } from './postRace.ts'
@@ -365,7 +367,13 @@ function weeklyRampFacts(scope: Scope): InputFact[] {
       { week: weekOf(last), minutes: minutes(ran.runMin) },
       { sources: weekRuns(ctx, last).map(activitySource), window: weekWindow(last) },
     ),
-    make('g-2', 'ramp', 'explain.g2-ramp', { pct: percent(weeklyRamp(ctx.state) * 100) }),
+    // "at most": under the rebuild zone of a plan at standard or upper [rules g-8] a week under its
+    // ceiling may add the zone's step, which is more than the usual one
+    make('g-2', 'ramp', 'explain.g2-ramp', {
+      pct: percent(
+        Math.max(weeklyRamp(ctx.state), rebuildZone(ctx.input, ctx.state)?.step ?? 0) * 100,
+      ),
+    }),
   ]
   const planned = plannedWeek(ctx, next)
   if (planned !== null) {
@@ -420,7 +428,11 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
   const target = nextWeek === null ? undefined : plannedMinOf(nextWeek)
   if (target !== undefined) {
     const ramp = weeklyRamp(ctx.state)
-    const cap = wholeMinutes(nextWeekCap(target, actual, ramp))
+    // under the rebuild zone [rules g-8] the cap grows by the zone's step, as the decision does
+    const rebuild = rebuildZone(ctx.input, ctx.state)
+    const cap = wholeMinutes(nextWeekCap(target, actual, ramp, rebuild))
+    const grown =
+      rebuild !== null && actual > 0 ? rebuildStep(actual, ramp, false, rebuild) / actual - 1 : ramp
     // A cap of zero minutes (a week with nothing planned, or nothing run before it) is no
     // sentence: "capped at 0 min" says nothing the completion line does not.
     if (cap > 0) {
@@ -429,7 +441,7 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
           'g-6',
           'cap',
           'explain.g6-cap',
-          { week: weekOf(next), minutes: minutes(cap), pct: percent(ramp * 100) },
+          { week: weekOf(next), minutes: minutes(cap), pct: percent(grown * 100) },
           { window: weekWindow(next) },
         ),
       )

@@ -19,6 +19,29 @@ const CREDIT_WINDOW = [
   'deboer-2007-ulls-tendon-time-course',
   'kubo-2012-achilles-training-detraining',
 ]
+// The credit of the standard position: fitness after a stop, and the tissue side of complete unloading
+// (young non-runners). None of it measures a runner who kept running a little.
+const STANDARD_CREDIT = [
+  'coyle-1984-detraining-time-course',
+  'mujika-2000-detraining-part2',
+  'deboer-2007-ulls-tendon-time-course',
+  'kubo-2012-achilles-training-detraining',
+]
+// The credit of the upper position: fitness kept after a stop or a reduction in training.
+const UPPER_CREDIT = [
+  'coyle-1984-detraining-time-course',
+  'zheng-2022-detraining-vo2max',
+  'hickson-1981-reduced-frequency',
+  'spiering-2021-minimal-dose',
+]
+// The weekly step of the standard position: cohorts and reviews of weekly increases, mostly in new
+// runners, none of a return after a break.
+const STANDARD_STEP = [
+  'nielsen-2013-gps-progression',
+  'damsted-2018-training-load-change',
+  'buist-2008-graded-training',
+  'fredette-2022-training-parameters-injury-review',
+]
 const INJURY_FACTOR = [
   'hulme-2017-risk-protective',
   'vanderworp-2015-risk-factors',
@@ -295,6 +318,18 @@ export const gLimits = {
       range: [0, 1],
       unit: 'fraction',
       note: 'Default: the share of its size that a block keeps at the end of the taper, a preference (taste, no claim that it is better). No study sets it.',
+    }),
+    creditStandard: param('g8.creditStandard', 0.7, 'D', 'g-8', STANDARD_CREDIT, {
+      unit: 'fraction',
+      note: 'Default: provisional until the replay on real history. At the standard position the rebuild ceiling is this share of the history block. It is about the fall in patellar tendon stiffness at day 23 of complete unloading and the cautious end of the J7 table, values for young non-runners who stopped running altogether, so no study sets it for a runner.',
+    }),
+    creditUpper: param('g8.creditUpper', 0.85, 'D', 'g-8', UPPER_CREDIT, {
+      unit: 'fraction',
+      note: 'Default: provisional until the replay on real history. At the upper position the rebuild ceiling is this share of the history block. It is the share of VO2max kept at day 56 of complete cessation (1 minus 0.16), a value for fitness and not for tissue, so no study sets it for a runner.',
+    }),
+    stepStandard: param('g8.stepStandard', 0.12, 'D', 'g-8', STANDARD_STEP, {
+      unit: 'fraction per week',
+      note: 'Default: provisional until the replay on real history, and a preference (taste, no claim that it is better). The weekly step below the rebuild ceiling at the standard position, between the soft step g2.rampSoft and the weekly rate at which two weeks meet g2.rampCeilingTwoWeeks. The upper position takes that rate itself, derived from the ceiling, so it is no Param of this group. No study compares weekly steps for a return after a break.',
     }),
   },
 } satisfies ParamGroups

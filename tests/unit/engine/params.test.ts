@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { lintText } from '../../../shared/copy/lint.ts'
+import { ceilingWeeklyRate } from '../../../shared/engine/limits.ts'
 import {
   allParams,
   P,
@@ -27,7 +29,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-25.1')
+    expect(PARAMS_VERSION).toBe('2026-10-25.2')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -439,13 +441,16 @@ describe('parameter registry', () => {
     expect(engineRules).toMatch(/\*\*O1 Targets on the device\.\*\*/)
   })
 
-  it('carries the history-informed rebuild G-8 as five labelled defaults, with its evidence', () => {
+  it('carries the history-informed rebuild G-8 as eight labelled defaults, with its evidence', () => {
     const g8 = [
       P.g8.blockWeeks,
       P.g8.blockWeeksDropped,
       P.g8.creditWindowWeeks,
       P.g8.creditTaperEndWeeks,
       P.g8.creditTaperFloor,
+      P.g8.creditStandard,
+      P.g8.creditUpper,
+      P.g8.stepStandard,
     ]
     expect(g8.map((p) => [p.id, p.value, p.unit, p.grade, p.rule])).toEqual([
       ['g8.blockWeeks', 4, 'weeks', 'D', 'g-8'],
@@ -453,6 +458,9 @@ describe('parameter registry', () => {
       ['g8.creditWindowWeeks', 12, 'weeks', 'D', 'g-8'],
       ['g8.creditTaperEndWeeks', 12, 'weeks', 'D', 'g-8'],
       ['g8.creditTaperFloor', 0.5, 'fraction', 'D', 'g-8'],
+      ['g8.creditStandard', 0.7, 'fraction', 'D', 'g-8'],
+      ['g8.creditUpper', 0.85, 'fraction', 'D', 'g-8'],
+      ['g8.stepStandard', 0.12, 'fraction per week', 'D', 'g-8'],
     ])
     expect(paramsForRule('g-8').map((p) => p.id)).toEqual(g8.map((p) => p.id))
     for (const p of g8) expect(p.note, p.id).toMatch(/^Default:/)
@@ -472,6 +480,38 @@ describe('parameter registry', () => {
         'kubo-2012-achilles-training-detraining',
       ])
     }
+    // the rebuild ceiling and the zone's step are provisional until the replay on real history
+    for (const p of [P.g8.creditStandard, P.g8.creditUpper, P.g8.stepStandard]) {
+      expect(p.note, p.id).toMatch(/^Default: provisional until the replay on real history/)
+      expect(lintText(p.note ?? ''), p.id).toEqual([])
+    }
+    expect(P.g8.creditStandard.evidence).toEqual([
+      'coyle-1984-detraining-time-course',
+      'mujika-2000-detraining-part2',
+      'deboer-2007-ulls-tendon-time-course',
+      'kubo-2012-achilles-training-detraining',
+    ])
+    expect(P.g8.creditUpper.evidence).toEqual([
+      'coyle-1984-detraining-time-course',
+      'zheng-2022-detraining-vo2max',
+      'hickson-1981-reduced-frequency',
+      'spiering-2021-minimal-dose',
+    ])
+    expect(P.g8.stepStandard.evidence).toEqual([
+      'nielsen-2013-gps-progression',
+      'damsted-2018-training-load-change',
+      'buist-2008-graded-training',
+      'fredette-2022-training-parameters-injury-review',
+    ])
+    // the credits are shares of the block, the upper above the standard; the standard step sits
+    // between the soft step and the weekly rate at which two weeks meet the hard ceiling
+    expect(P.g8.creditStandard.value).toBeLessThan(P.g8.creditUpper.value)
+    expect(P.g8.creditUpper.value).toBeLessThan(1)
+    expect(P.g8.stepStandard.value).toBeGreaterThan(P.g2.rampSoft.value)
+    expect(P.g8.stepStandard.value).toBeLessThan(ceilingWeeklyRate())
+    // the upper step is derived, not a number: two weeks at it meet the ceiling exactly
+    expect(ceilingWeeklyRate()).toBeCloseTo(0.14, 3)
+    expect((1 + ceilingWeeklyRate()) ** 2).toBeCloseTo(1 + P.g2.rampCeilingTwoWeeks.value, 12)
     // the two windows: 12 weeks, or 16 with the older four weeks on a taper
     expect(P.g8.creditTaperEndWeeks.range).toEqual([12, 16])
     expect(P.g8.creditTaperEndWeeks.value).toBe(P.g8.creditWindowWeeks.value)
@@ -499,14 +539,20 @@ describe('parameter registry', () => {
     }
     expect(g8Text).toMatch(/Grade D as a whole/)
     // the parts built later are marked as such, with their provisional values
-    for (const part of ['built in task L3)', 'built in task L3b)', 'provisional']) {
+    for (const part of ['built in task L3b)', 'provisional']) {
       expect(g8Text, part).toContain(part)
     }
+    expect(g8Text).toContain('Rebuild ceiling and zone')
+    expect(g8Text).not.toContain('(built in task L3)')
     for (const row of [
       'History block \\(G-8\\)',
       'History credit window \\(G-8\\)',
       'History credit taper floor \\(G-8\\)',
       '3 × 30 start from a block \\(E6, G-8\\)',
+      'Rebuild ceiling, standard \\(G-8\\)',
+      'Rebuild ceiling, upper \\(G-8\\)',
+      'Rebuild step, standard \\(G-8\\)',
+      'Rebuild step, upper \\(G-8\\)',
     ]) {
       expect(engineRules, row).toMatch(new RegExp(`^\\| ${row} `, 'm'))
     }

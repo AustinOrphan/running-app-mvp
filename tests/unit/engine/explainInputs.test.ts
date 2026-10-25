@@ -50,6 +50,7 @@ import {
 import { criticalSpeed } from '../../../shared/engine/load.ts'
 import { startPath, taperDays } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import { rebuildZone } from '../../../shared/engine/loadSetting.ts'
 import { postRaceWindows } from '../../../shared/engine/postRace.ts'
 import { predictFromState } from '../../../shared/engine/predict.ts'
 import { readinessSnapshot } from '../../../shared/engine/readiness.ts'
@@ -622,6 +623,57 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
     expect(slot(cap, 'minutes', 'minutes').min).toBe(192)
     expect(text(cap)).toContain('capped at 192 min')
     expect(text(j5[0]!)).toContain('up to 192 min')
+  })
+
+  test('g-6 and J5 give the same cap under the rebuild zone of a plan at standard [rules g-8]', () => {
+    // 75 min run in the week of 12 Oct, 100 planned; the zone is R = 196 min and a step of 12%
+    const base = at(h1(), 'standard')
+    const input: EngineInput = {
+      ...base,
+      existing: {
+        weeks: [week('2026-10-12', 100), week(MONDAY, 250)],
+        sessions: [
+          planned('p1', '2026-10-14', 'easy', { durationMin: 50 }),
+          planned('p2', '2026-10-18', 'long', { durationMin: 50 }),
+        ],
+      },
+    }
+    const ctx = contextOf(input)
+    const zone = rebuildZone(input, ctx.state)!
+    expect(zone.ceilingMin).toBeCloseTo(196, 9)
+    const decision = weeklyDecision(input, '2026-10-12', {
+      redsFlags: 0,
+      ramp: weeklyRamp(ctx.state),
+      rebuild: zone,
+    })
+    const groups = view(
+      { subject: 'decision', weekStart: '2026-10-12' },
+      { ...ctx, decision },
+    ).groups
+    const cap = groups.find((g) => g.rule === 'g-6')!.facts.find((f) => f.id === 'g-6.cap')!
+    // min(250 planned, 75 run + 12%) = 84, where the usual 10% would give 82
+    expect(decision.nextWeekTargetMin).toBe(84)
+    expect(slot(cap, 'minutes', 'minutes').min).toBe(84)
+    expect(slot(cap, 'pct', 'percent').pct).toBeCloseTo(12, 9)
+    expect(lintText(text(cap))).toEqual([])
+    // the ramp fact says the most a week may add, which is the zone's step here
+    const [, ramp] = factsOf('g-2', ctx)
+    expect(slot(ramp!, 'pct', 'percent').pct).toBeCloseTo(12, 9)
+    // at steady the cap is the usual one, and says 10%
+    const steady = contextOf({ ...input, options: {} })
+    const usual = weeklyDecision(steady.input, '2026-10-12', {
+      redsFlags: 0,
+      ramp: weeklyRamp(steady.state),
+    })
+    const steadyCap = view(
+      { subject: 'decision', weekStart: '2026-10-12' },
+      { ...steady, decision: usual },
+    )
+      .groups.find((g) => g.rule === 'g-6')!
+      .facts.find((f) => f.id === 'g-6.cap')!
+    expect(usual.nextWeekTargetMin).toBe(82)
+    expect(slot(steadyCap, 'minutes', 'minutes').min).toBe(82)
+    expect(slot(steadyCap, 'pct', 'percent').pct).toBeCloseTo(10, 9)
   })
 
   test('g-6 and J5 cap a week run past its target from the minutes it was planned at', () => {

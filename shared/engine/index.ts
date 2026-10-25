@@ -27,8 +27,8 @@ import {
   completedReference,
   gainLimit,
   isProgramme,
-  noviceRamp,
   overshootFlags,
+  rampBasis,
   rampLimits,
   rampSkipWeeks,
   recordOf,
@@ -36,13 +36,13 @@ import {
   runCaps,
   runningGain,
   runningMinutes,
-  tightRamp,
   VOLUME_KINDS,
   weeklyGain,
   type RampContext,
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
+import { rebuildZone } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath } from './macro.ts'
 import { holdSessions, placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
@@ -439,9 +439,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
     exempt: startExemptions([...pastWeeks, ...macro], returnWeeks(dplan)),
-    typicalWeekMin: state.typicalWeekMin,
-    novice: noviceRamp(state),
-    tight: tightRamp(state),
+    ...rampBasis(state, rebuildZone(input, state)),
   }
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
   const doneGain = gains.get(currentMonday) ?? 0
@@ -845,6 +843,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         ? null
         : { ...rampCtx.floor, kind: startKind(floorWeek.flags) ?? 'floor' },
     exempt: rampCtx.exempt,
+    rebuild: rampCtx.rebuild,
     fixed: kept.filter((s) => keep.toRun.has(s) && s.date >= today),
   })
 
