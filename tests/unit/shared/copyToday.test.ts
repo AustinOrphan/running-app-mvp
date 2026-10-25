@@ -5,7 +5,7 @@ import { renderFact, TEMPLATES } from '../../../shared/copy/templates.ts'
 import { raceEstimateSlots, TODAY_TEMPLATES } from '../../../shared/copy/today.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { rangeLabel } from '../../../shared/engine/predict.ts'
-import type { ReadinessVerdict, WeekStripMark } from '../../../shared/types.ts'
+import type { ReadinessVerdict, WeekStripMark, WindowVerdictCode } from '../../../shared/types.ts'
 import { formatEstimate } from '../../../shared/units.ts'
 
 const ids = Object.keys(TODAY_TEMPLATES) as Array<keyof typeof TODAY_TEMPLATES>
@@ -40,6 +40,20 @@ describe('Today templates', () => {
     }
     for (const [code, sentence] of Object.entries(verdicts)) {
       expect(renderFact({ template: `today.verdict.${code}`, slots: {} }, 'km')).toBe(sentence)
+    }
+  })
+
+  test('the verdicts under a window name the day, and none says "Ready as planned."', () => {
+    const verdicts: Record<WindowVerdictCode, string> = {
+      'window-rest': 'A rest day of the window.',
+      'window-limited': 'A day of limited running.',
+      'window-easy': 'Easy running only today.',
+      'window-return': 'A day of the return week.',
+    }
+    for (const [code, sentence] of Object.entries(verdicts)) {
+      const text = renderFact({ template: `today.verdict.${code}`, slots: {} }, 'km')
+      expect(text).toBe(sentence)
+      expect(text).not.toMatch(/Ready as planned/)
     }
   })
 

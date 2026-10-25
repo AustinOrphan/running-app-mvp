@@ -30,7 +30,7 @@ function Harness({ initial }: { initial: DisruptionSlotData | null }) {
 describe('the Today disruption slot: focus and announcement', () => {
   test('"Not now" moves focus to the main landmark instead of dropping it to the page', async () => {
     const user = userEvent.setup()
-    renderWithProviders(<Harness initial={{ window: null, offer: true }} />)
+    renderWithProviders(<Harness initial={{ windows: [], offer: true }} />)
     const notNow = await screen.findByRole('button', { name: 'Not now' })
     notNow.focus()
     expect(notNow).toHaveFocus()
@@ -41,7 +41,7 @@ describe('the Today disruption slot: focus and announcement', () => {
   })
 
   test('"Not now" leaves focus alone when it is already somewhere else', async () => {
-    renderWithProviders(<Harness initial={{ window: null, offer: true }} />)
+    renderWithProviders(<Harness initial={{ windows: [], offer: true }} />)
     const offer = await screen.findByRole('region', { name: 'Rest window offer' })
     const before = screen.getByRole('button', { name: 'Before' })
     // A pointer press on a button that does not take focus (Safari) leaves it where it was.
@@ -61,7 +61,7 @@ describe('the Today disruption slot: focus and announcement', () => {
 
     // A check-in that reports illness is saved and Today is read again.
     act(() => {
-      arrive({ window: null, offer: true })
+      arrive({ windows: [], offer: true })
     })
     expect(await screen.findByRole('region', { name: 'Rest window offer' })).toBeInTheDocument()
     expect(screen.getByRole('status')).toBe(status)
@@ -81,7 +81,7 @@ describe('the Today disruption slot: focus and announcement', () => {
       runFrom: '2026-03-22',
       qualityFrom: '2026-03-25',
     })
-    renderWithProviders(<Harness initial={{ window, offer: false }} />)
+    renderWithProviders(<Harness initial={{ windows: [window], offer: false }} />)
     const banner = await screen.findByRole('region', { name: 'Rest window' })
     const status = screen.getByRole('status')
     expect(status).toBeEmptyDOMElement()

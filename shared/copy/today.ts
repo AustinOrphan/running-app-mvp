@@ -23,6 +23,13 @@ export const TODAY_TEMPLATES = {
     'Recent signals have stayed low for several days. A lighter week may help.',
   ),
   'today.verdict.no-signals': tpl('No readiness signals yet. One tap below adds the first.'),
+  // While a window is open the band states it, and the verdict names the day instead of "Ready as
+  // planned." (`windowVerdict`): a rest day, a day of limited running, the easy tail, the return
+  // week. Each is a state of the day, so none repeats the window's dates or limits.
+  'today.verdict.window-rest': tpl('A rest day of the window.'),
+  'today.verdict.window-limited': tpl('A day of limited running.'),
+  'today.verdict.window-easy': tpl('Easy running only today.'),
+  'today.verdict.window-return': tpl('A day of the return week.'),
 
   // The signals: the two or three readings behind the verdict.
   // {free} is the n-3 wait in words ("one symptom-free day"), written from the Param.

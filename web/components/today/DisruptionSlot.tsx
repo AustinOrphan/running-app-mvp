@@ -8,11 +8,13 @@ import { NotFullSheet } from '../lazySheets.tsx'
 import { SlotFrame } from './SlotFrame.tsx'
 
 /**
- * E5: the `disruption` slot (64 px) at the top of the session group. It holds the window in effect
- * on the day (else the next one ahead) as the compact banner, or, with no window and a check-in
- * that reports illness or pain, the offer of one. Both come from the Today payload
+ * E5: the `disruption` slot at the top of the session group (`SLOT_BUDGETS_PX`: one line of the
+ * band, and each further open window adds a line). It holds every window open on the day, one line
+ * each with its own actions (else the next one ahead), as the compact banner, or, with no window
+ * and a check-in that reports illness or pain, the offer of one. Both come from the Today payload
  * (`coach.slots.disruption`), so the slot asks the server for nothing, and it takes no height
- * while the payload holds neither.
+ * while the payload holds neither. The band is the one place Today states a window: the verdict,
+ * the illness note and the illness signal leave it to the band (`shared/domain/windowDay.ts`).
  *
  * The sheets stay out of the frame. A window that is removed leaves the payload and a window that
  * is made turns the offer into a banner, and each sheet has to stay open for its undo and its
@@ -29,7 +31,7 @@ import { SlotFrame } from './SlotFrame.tsx'
  */
 export function DisruptionSlot({ view, units }: { view: TodayView; units: Units }) {
   const slot = view.coach.slots.disruption
-  const window = slot?.window ?? null
+  const windows = slot?.windows ?? []
   const [later, setLater] = useState(false)
   const [sheet, setSheet] = useState(false)
 
@@ -53,7 +55,7 @@ export function DisruptionSlot({ view, units }: { view: TodayView; units: Units 
   return (
     <>
       <DisruptionBanners
-        windows={window === null ? [] : [window]}
+        windows={windows}
         today={view.date}
         units={units}
         compact
