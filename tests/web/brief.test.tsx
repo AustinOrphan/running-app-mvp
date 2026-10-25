@@ -228,7 +228,7 @@ describe('Brief page: a brief', () => {
     expect(
       screen.getByText('The plan holds steady: next week is up to 220 min.'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Weeks until Synthetic half: 8.')).toBeInTheDocument()
+    expect(screen.getByText('Synthetic half is 8 weeks away.')).toBeInTheDocument()
     expectCleanCopy(container)
   })
 

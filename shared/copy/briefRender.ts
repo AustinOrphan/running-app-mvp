@@ -107,6 +107,8 @@ export function briefContext(facts: BriefFacts, units: Units): string[] {
   if (countdown !== null) {
     if (countdown.days <= 0) {
       lines.push(render(BRIEF_TEMPLATES['brief.countdown-today'], { name: countdown.name }, units))
+    } else if (countdown.days === 1) {
+      lines.push(render(BRIEF_TEMPLATES['brief.countdown-day'], { name: countdown.name }, units))
     } else if (countdown.days >= 14) {
       lines.push(
         render(
