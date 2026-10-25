@@ -8,6 +8,7 @@ import { estimateState } from '../../../shared/engine/athlete.ts'
 import {
   EPS,
   rampLimits,
+  targetKept,
   targetLimit,
   type RampContext,
   type TargetGates,
@@ -51,6 +52,7 @@ describe('targetLimit on a loading week', () => {
     const limit = targetLimit(context(), WEEK, gates())
     expect(limit).toEqual({
       max: Math.floor(200 * (1 + P.g2.rampCeilingTwoWeeks.value) + EPS),
+      bound: 'limit',
       kind: 'ceiling',
       ramp: P.g2.rampCeilingTwoWeeks.value,
     })
@@ -74,6 +76,7 @@ describe('targetLimit on a loading week', () => {
     const limit = targetLimit(context({ tight }), WEEK, gates({ engineMin: 205 }))
     expect(limit).toEqual({
       max: Math.floor(200 * (1 + tight) + EPS),
+      bound: 'limit',
       kind: 'profile',
       ramp: tight,
     })
@@ -83,6 +86,37 @@ describe('targetLimit on a loading week', () => {
     const ceiling = Math.floor(200 * (1 + P.g2.rampCeilingTwoWeeks.value) + EPS)
     expect(targetLimit(context(), WEEK, gates({ engineMin: ceiling + 40 })).max).toBe(ceiling + 40)
     expect(targetLimit(context(), WEEK, gates({ loggedMin: ceiling + 25 })).max).toBe(ceiling + 25)
+  })
+
+  it('says which of the three set the figure: the limit, the plan’s own figure or the minutes run', () => {
+    const ceiling = Math.floor(200 * (1 + P.g2.rampCeilingTwoWeeks.value) + EPS)
+    const at = (over: Partial<TargetGates>, ctx = context()) => targetLimit(ctx, WEEK, gates(over))
+    expect(at({})).toMatchObject({ max: ceiling, bound: 'limit' })
+    expect(at({ engineMin: ceiling + 40 })).toMatchObject({ max: ceiling + 40, bound: 'plan' })
+    expect(at({ loggedMin: ceiling + 25 })).toMatchObject({ max: ceiling + 25, bound: 'logged' })
+    // the plan's figure and the minutes run both above the limit: the larger sets it
+    expect(at({ engineMin: ceiling + 40, loggedMin: ceiling + 25 }).bound).toBe('plan')
+    expect(at({ engineMin: ceiling + 25, loggedMin: ceiling + 40 }).bound).toBe('logged')
+    // a tie goes to the limit, which allows the figure whatever else reaches it
+    expect(at({ engineMin: ceiling, loggedMin: ceiling }).bound).toBe('limit')
+    // the tightened profile reads the same way
+    const tight = P.g3.priorBsiRampMax.value
+    const step = Math.floor(200 * (1 + tight) + EPS)
+    expect(at({ engineMin: 205 }, context({ tight }))).toMatchObject({
+      kind: 'profile',
+      max: step,
+      bound: 'limit',
+    })
+    expect(at({ engineMin: step + 9 }, context({ tight }))).toMatchObject({
+      kind: 'profile',
+      max: step + 9,
+      bound: 'plan',
+    })
+    expect(at({ engineMin: 205, loggedMin: step + 9 }, context({ tight }))).toMatchObject({
+      kind: 'profile',
+      max: step + 9,
+      bound: 'logged',
+    })
   })
 
   it('measures from the weeks that set a baseline, not from a recovery week', () => {
@@ -107,7 +141,7 @@ describe('targetLimit on a loading week', () => {
       WEEK,
       gates({ engineMin: 120 }),
     )
-    expect(limit).toEqual({ max: 120, kind: 'ceiling', ramp: null })
+    expect(limit).toEqual({ max: 120, bound: 'plan', kind: 'ceiling', ramp: null })
   })
 })
 
@@ -127,12 +161,22 @@ describe('targetLimit on a week a rule draws', () => {
     ['structure', { phase: 'taper' }],
     ['structure', { phase: 'race' }],
   ] as const)('is the plan’s own figure for %s (%j)', (kind, week) => {
-    expect(own({ week: { ...plainWeek, ...week } })).toEqual({ max: 215, kind, ramp: null })
+    expect(own({ week: { ...plainWeek, ...week } })).toEqual({
+      max: 215,
+      bound: 'plan',
+      kind,
+      ramp: null,
+    })
   })
 
   it('is the plan’s own figure under a hold and after a decision to hold or ease', () => {
-    expect(own({ held: true })).toEqual({ max: 215, kind: 'hold', ramp: null })
-    expect(own({ decided: true })).toEqual({ max: 215, kind: 'decision', ramp: null })
+    expect(own({ held: true })).toEqual({ max: 215, bound: 'plan', kind: 'hold', ramp: null })
+    expect(own({ decided: true })).toEqual({
+      max: 215,
+      bound: 'plan',
+      kind: 'decision',
+      ramp: null,
+    })
   })
 
   it('names the most specific rule first', () => {
@@ -152,8 +196,70 @@ describe('targetLimit on a week a rule draws', () => {
     expect(own({ held: true, decided: true }).kind).toBe('decision')
   })
 
-  it('keeps the minutes already run in the week', () => {
-    expect(own({ held: true, loggedMin: 240 }).max).toBe(240)
+  it('keeps the minutes already run in the week, and says they set the figure', () => {
+    expect(own({ held: true, loggedMin: 240 })).toMatchObject({ max: 240, bound: 'logged' })
+    expect(own({ held: true, loggedMin: 215 })).toMatchObject({ max: 215, bound: 'plan' })
+  })
+})
+
+describe('targetKept: what a week keeps of a raised target, and who owns the figure', () => {
+  const limit = (over: Partial<Parameters<typeof targetKept>[2]> = {}) => ({
+    max: 247,
+    kind: 'ceiling' as const,
+    bound: 'limit' as const,
+    ...over,
+  })
+
+  it('keeps a target within the limit as set, whatever the limit is', () => {
+    expect(targetKept(230, 209, limit())).toEqual({ keptMin: 230, released: false })
+    expect(targetKept(247, 209, limit())).toEqual({ keptMin: 247, released: false })
+    expect(targetKept(240, 209, limit({ kind: 'hold', max: 240, bound: 'logged' }))).toEqual({
+      keptMin: 240,
+      released: false,
+    })
+  })
+
+  it('lowers a target above the ramp’s own limit to the limit, which stays the runner’s', () => {
+    for (const kind of ['ceiling', 'profile'] as const) {
+      expect(targetKept(400, 209, limit({ kind }))).toEqual({ keptMin: 247, released: false })
+    }
+    // the minutes already run set the figure: it is the week's own fact, and stays the runner's
+    expect(targetKept(400, 209, limit({ max: 262, bound: 'logged' }))).toEqual({
+      keptMin: 262,
+      released: false,
+    })
+  })
+
+  it('gives the week back to the plan where a rule sets the figure at this moment', () => {
+    for (const kind of [
+      'hold',
+      'decision',
+      'post-race',
+      'window',
+      'programme',
+      'structure',
+    ] as const) {
+      expect(targetKept(400, 209, limit({ kind, max: 209, bound: 'plan' }))).toEqual({
+        keptMin: 209,
+        released: true,
+      })
+    }
+    // the minutes run in the week do not make the figure the runner's under such a rule
+    expect(targetKept(400, 209, limit({ kind: 'hold', max: 262, bound: 'logged' }))).toEqual({
+      keptMin: 209,
+      released: true,
+    })
+  })
+
+  it('gives the week back to the plan when the plan’s own figure is above the ceiling', () => {
+    expect(targetKept(400, 260, limit({ max: 260, bound: 'plan' }))).toEqual({
+      keptMin: 260,
+      released: true,
+    })
+    expect(targetKept(400, 260, limit({ kind: 'profile', max: 260, bound: 'plan' }))).toEqual({
+      keptMin: 260,
+      released: true,
+    })
   })
 })
 

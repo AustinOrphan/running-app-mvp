@@ -46,6 +46,7 @@ import { notFound } from '../errors.ts'
 import { existingFrom, loadAthleteContext } from './athleteState.ts'
 import { gatherEngineInput } from './engineInput.ts'
 import {
+  parsePlanOptions,
   revisionView,
   toDisruption,
   toPlanSession,
@@ -944,7 +945,7 @@ export async function planUndo(
       userId,
       goalId: plan.goalId,
       today,
-      options: readJson<EngineInput['options']>(plan.options, {}),
+      options: parsePlanOptions(plan.options),
     },
     { existing: false },
   )

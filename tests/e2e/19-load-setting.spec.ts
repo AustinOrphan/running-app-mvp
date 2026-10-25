@@ -11,10 +11,9 @@ import { relativeDates, resetData, signedInApi, toast, type Api } from './helper
 
 /** One synthetic runner, placed against this week's Monday. */
 async function seedRunner(api: Api, thisMonday: string) {
-  await api.put('/profile', {
-    birthYear: 1985,
-    runningSinceYear: Number(thisMonday.slice(0, 4)) - 1,
-  })
+  // 41 years old this year, under the age rule of upper whatever year the clock reads
+  const year = Number(thisMonday.slice(0, 4))
+  await api.put('/profile', { birthYear: year - 41, runningSinceYear: year - 1 })
   for (const run of runsOn(thisMonday, s3Runs())) {
     await api.post('/activities', {
       date: run.date,

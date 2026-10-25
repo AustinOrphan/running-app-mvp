@@ -27,7 +27,7 @@ import { draftRamp } from '../../shared/engine/checklist.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
-import { targetLimit, type TargetLimit } from '../../shared/engine/limits.ts'
+import { targetKept, targetLimit, type TargetLimit } from '../../shared/engine/limits.ts'
 import { rebuildZone } from '../../shared/engine/loadSetting.ts'
 import { progressionHold } from '../../shared/engine/macro.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -55,7 +55,7 @@ import {
   type PrismaClient,
 } from '../db.ts'
 import { conflict, notFound, validationError } from '../errors.ts'
-import { toPlanRevision, toPlanSession } from '../serialize.ts'
+import { parsePlanOptions, toPlanRevision, toPlanSession } from '../serialize.ts'
 import { gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { withGutTrainingOption } from './fuel.ts'
 import { recordPrediction, type PredictionGoal } from './predictionLog.ts'
@@ -108,9 +108,13 @@ export interface WeekWritePlan {
  * The owner's working target stays [rules g-2, ADR 0007]. A target at or under the plan's own
  * figure stays as set, and a review's target stays only so. A target the runner raised by hand
  * (`targetSource` override) above the plan's figure stays up to `limits` for its week, the largest
- * the engine allows any week (`targetLimit`): a higher one is lowered to that limit. A raised
+ * the engine allows any week (`targetLimit`): a higher one is lowered to that limit and stays the
+ * runner's there where the limit follows the week's ramp (`targetKept`). Where a rule sets the
+ * week's figure at this moment, the week is written as the plan's own (`baseline`, no note): kept
+ * as an override, that figure would cap every later re-plan once the rule has passed. A raised
  * target without a limit is replaced by the plan's figure. Each raised target the write kept or
- * lowered is named in `targets`, from the row as it is written.
+ * lowered is named in `targets`, with the figure the week holds after the write; an undo restores
+ * the target as the runner set it.
  */
 export function planWeekWrites(
   rows: readonly PlanWeekRow[],
@@ -141,14 +145,18 @@ export function planWeekWrites(
     } else if (old.targetSource === 'override') {
       const limit = args.limits?.get(week.weekStart)
       if (limit !== undefined) {
-        keptMin = Math.min(old.targetRunMin, limit.max)
+        const kept = targetKept(old.targetRunMin, week.targetRunMin, limit)
+        // A week the plan takes back is written as the plan's own, as if never raised: the ask and
+        // the limit stay in the diff line, and an undo restores the override.
+        keptMin = kept.released ? null : kept.keptMin
         planned.targets.push({
           weekStart: week.weekStart,
-          outcome: keptMin === old.targetRunMin ? 'kept' : 'clipped',
+          outcome: kept.keptMin === old.targetRunMin ? 'kept' : 'clipped',
           askedMin: old.targetRunMin,
-          keptMin,
+          keptMin: kept.keptMin,
           engineMin: week.targetRunMin,
           limit: limit.kind,
+          bound: kept.released ? 'plan' : limit.bound,
           ramp: limit.ramp,
         })
       }
@@ -688,8 +696,8 @@ function withTargets(summary: string, targets: readonly TargetDiffLine[]): strin
  * checklist reads it (`draftRamp`). The weeks are taken in order, and the target each override at
  * or above the plan's figure keeps enters the minutes of the weeks after it, so the ramp of a later
  * raised week is measured from the weeks as the runner holds them, as it is from weeks that were
- * run. An override that an earlier re-plan lowered to the plan's own figure stays in that count, so
- * two re-plans in a row read the same minutes.
+ * run. A week the plan takes back (`targetKept`) enters at the plan's own figure, which is what
+ * the next re-plan reads from its row, so two re-plans in a row read the same minutes.
  */
 export function raisedTargetLimits(args: {
   rows: readonly PlanWeekRow[]
@@ -728,8 +736,8 @@ export function raisedTargetLimits(args: {
       loggedMin: row.weekStart === currentMonday ? logged : 0,
     })
     if (row.targetRunMin > week.targetRunMin) limits.set(row.weekStart, limit)
-    const kept = Math.min(row.targetRunMin, limit.max)
-    ctx.volumes.set(row.weekStart, Math.max(ctx.volumes.get(row.weekStart) ?? 0, kept))
+    const { keptMin } = targetKept(row.targetRunMin, week.targetRunMin, limit)
+    ctx.volumes.set(row.weekStart, Math.max(ctx.volumes.get(row.weekStart) ?? 0, keptMin))
   }
   return limits
 }
@@ -761,11 +769,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // The gut-training switch is read from the stored fuel settings at every compute, so a change to
   // the switches shows up in the next re-plan's diff, and a preview and its commit agree (design
   // 10.5). `applyReplan` stores the options it was computed with.
-  const options = await withGutTrainingOption(
-    prisma,
-    userId,
-    JSON.parse(plan.options) as EngineInput['options'],
-  )
+  const options = await withGutTrainingOption(prisma, userId, parsePlanOptions(plan.options))
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },

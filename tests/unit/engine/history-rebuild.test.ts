@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { draftRamp } from '../../../shared/engine/checklist.ts'
+import { draftRamp, runChecklist } from '../../../shared/engine/checklist.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import {
   ceilingWeeklyRate,
@@ -18,6 +18,7 @@ import {
   rampStep,
   plannedMinOf,
   rebuildStep,
+  rebuildZoneUsed,
   recentRunMean,
   responseBaseline,
   type RampContext,
@@ -451,6 +452,46 @@ describe('H1: the appendix runner, a strong block and sparse weeks since (one ye
     // the checklist keeps its fifteen items
     for (const position of POSITIONS) expect(planAt(h1(), position).checklist).toHaveLength(15)
   })
+
+  it.each(LIFTED)(
+    '%s: the soft note of a zone week run above the zone step names the zone step, not the usual 10%',
+    (position) => {
+      const input = at(h1(), position)
+      const plan = buildPlan(input)
+      const zone = zoneAt(h1(), position)!
+      const { ctx, weeks } = draftRamp(plan, input, estimateState(input))
+      const zoneWeek = weeks.find(
+        ({ weekStart, total }) =>
+          weekStart >= mondayOf(input.today) &&
+          total > 0 &&
+          rampLimits(ctx, weekStart)?.rebuild != null &&
+          rebuildZoneUsed(rampLimits(ctx, weekStart), total, 1e-6) !== null,
+      )!
+      const limits = rampLimits(ctx, zoneWeek.weekStart)!
+      // the long run of that week grows until the week is a little above the zone's step and
+      // within the ceiling, as a week run above the plan would be
+      const extra = Math.ceil(limits.soft + 2 - zoneWeek.total)
+      expect(limits.soft + 2).toBeLessThan(limits.allowed)
+      const long = plan.sessions.find(
+        (s) => mondayOf(s.date) === zoneWeek.weekStart && s.kind === 'long',
+      )!
+      const grown = {
+        ...plan,
+        sessions: plan.sessions.map((s) =>
+          s === long ? { ...s, durationMin: s.durationMin + extra } : s,
+        ),
+      }
+      const detail = runChecklist(grown, input).find((c) => c.id === 'progression')!.detail
+      const pct = Math.round(zone.step * 100)
+      expect(detail).toMatch(
+        new RegExp(
+          `^Every week is within the ceiling; 1 week\\(s\\) step above the soft ${String(pct)}% and carry a warning; `,
+        ),
+      )
+      expect(detail).not.toContain('soft 10%')
+      expect(lintText(detail)).toEqual([])
+    },
+  )
 
   it('brings the weekly level and the long run sooner than steady, and not sooner than G-1 allows', () => {
     const standard = planAt(h1(), 'standard')

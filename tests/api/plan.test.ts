@@ -859,9 +859,11 @@ describe('the load setting option (options.loadAppetite)', () => {
    */
   async function seedRunner(email: string) {
     const u = await seedUser(ctx, { email })
+    // 41 years old this year, whatever year the clock reads: under the age rule of upper
+    const year = Number(today.slice(0, 4))
     await client(ctx, u)
       .put('/api/profile')
-      .send({ birthYear: 1985, runningSinceYear: Number(today.slice(0, 4)) - 1 })
+      .send({ birthYear: year - 41, runningSinceYear: year - 1 })
       .expect(200)
     await ctx.prisma.activity.createMany({
       data: runsOn(thisMonday, s3Runs()).map((a) => ({
@@ -1070,6 +1072,36 @@ describe('the load setting option (options.loadAppetite)', () => {
       held: null,
       ageCapped: false,
     })
+  })
+
+  test('a stored value that is not a position reads as steady in the plan and in the re-plan, and the re-plan drops it', async () => {
+    const u = await seedRunner('load-stored-unknown@example.com')
+    const goal = await seedGoal({ userId: u.id })
+    const created = await generateAs(u, goal.id, { loadAppetite: 'standard' })
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    const planId = (created.body as { id: string }).id
+    expect(firstWeek(created.body).targetRunMin).toBe(90)
+
+    // a value the route refuses, as a hand edit or another build could leave in the row
+    await ctx.prisma.plan.update({
+      where: { id: planId },
+      data: { options: JSON.stringify({ loadAppetite: 'extreme', recoveryCycle: '2:1' }) },
+    })
+    const read = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    expect(read.load).toEqual({
+      requested: 'steady',
+      position: 'steady',
+      held: null,
+      ageCapped: false,
+    })
+
+    // the re-plan draws the plan at steady and stores the options without the value
+    const replan = await client(ctx, u).post('/api/plan/replan').send({})
+    expect(replan.status, JSON.stringify(replan.body)).toBe(200)
+    expect(await storedOptions(planId)).toEqual({ recoveryCycle: '2:1' })
+    const after = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    expect(after.weeks[0]!.targetRunMin).toBe(60)
+    expect(after.load).toEqual(read.load)
   })
 
   test('a stored value that is not a position is dropped, which reads as steady', () => {

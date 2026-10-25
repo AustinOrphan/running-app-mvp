@@ -20,7 +20,13 @@ import {
 import { P } from './params/index.ts'
 import { postRaceWindows } from './postRace.ts'
 import { focalBoneActive } from './readiness.ts'
-import type { AthleteState, EngineInput, HistoryBlock, LoadAppetite } from './types.ts'
+import {
+  isLoadAppetite,
+  type AthleteState,
+  type EngineInput,
+  type HistoryBlock,
+  type LoadAppetite,
+} from './types.ts'
 
 /**
  * Why a requested position does not apply: the plan is held at steady for as long as it lasts, and
@@ -75,10 +81,12 @@ function holdOf(input: EngineInput, state: AthleteState): LoadHold | null {
  * and upper are held at steady under a recent injury (or a window's injury report), an earlier
  * bone stress injury or two BSI factors, a REDs hold or focal bone pain, a rest window, a plan
  * built inside the window of a past race, and a low-frequency runner. At age 45 or over upper is
- * read as standard. Absent options and steady give the same answer.
+ * read as standard. Absent options, steady and a value that is no position give the same answer.
  */
 export function loadPosition(input: EngineInput, state: AthleteState): LoadPosition {
-  const requested = input.options.loadAppetite ?? 'steady'
+  const requested = isLoadAppetite(input.options.loadAppetite)
+    ? input.options.loadAppetite
+    : 'steady'
   if (requested === 'steady') {
     return { requested, position: 'steady', held: null, ageCapped: false }
   }

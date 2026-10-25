@@ -236,6 +236,7 @@ describe.each(['half', 'first-100-mile', 'marathon'])(
 
     it('is lowered to the limit of its week, never under the plan’s own', () => {
       let clipped = 0
+      let released = 0
       for (const step of steps) {
         for (const week of futureWeeks(step)) {
           const rows = overrideRows(step.draft, step.input.today, {
@@ -244,31 +245,46 @@ describe.each(['half', 'first-100-mile', 'marathon'])(
           const { limits, planned } = plan(step, rows)
           const limit = limits.get(week.weekStart)!
           const at = `${week.weekStart} of the plan of ${step.input.today}`
+          // The limit of the ramp is the runner's figure; a rule that draws the week gives it back
+          // to the plan, whose own figure the week then holds.
+          const ownsLimit = limit.kind === 'ceiling' || limit.kind === 'profile'
+          expect(limit.max, at).toBeGreaterThanOrEqual(week.targetRunMin)
           expect(planned.targets, at).toEqual([
             {
               weekStart: week.weekStart,
               outcome: 'clipped',
               askedMin: week.targetRunMin * 10 + 1000,
-              keptMin: limit.max,
+              keptMin: ownsLimit ? limit.max : week.targetRunMin,
               engineMin: week.targetRunMin,
               limit: limit.kind,
+              bound: ownsLimit ? limit.bound : 'plan',
               ramp: limit.ramp,
             },
           ])
-          expect(limit.max, at).toBeGreaterThanOrEqual(week.targetRunMin)
-          // the row is written at the limit, with its note and its source
           const written = planned.updated.find((u) => u.before.weekStart === week.weekStart)
-          if (limit.max > week.targetRunMin) {
+          if (ownsLimit) {
+            // the row is written at the limit, with its note and its source
+            if (limit.max > week.targetRunMin) {
+              expect(written?.data, at).toMatchObject({
+                targetRunMin: limit.max,
+                targetSource: 'override',
+                overrideNote: 'Synthetic note.',
+              })
+            }
+          } else {
+            // the row is the plan's own again, as if never raised
             expect(written?.data, at).toMatchObject({
-              targetRunMin: limit.max,
-              targetSource: 'override',
-              overrideNote: 'Synthetic note.',
+              targetRunMin: week.targetRunMin,
+              targetSource: 'baseline',
+              overrideNote: null,
             })
+            released += 1
           }
           clipped += 1
         }
       }
       expect(clipped).toBeGreaterThan(15)
+      expect(released).toBeGreaterThan(0)
     })
 
     it('is kept as set at the limit and lowered one minute above it', () => {

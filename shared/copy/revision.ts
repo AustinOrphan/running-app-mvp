@@ -457,6 +457,24 @@ export const REVISION_TEMPLATES = {
     'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the most the tightened weekly step allows that week ({pct} a week).',
     { date: 'date', asked: 'minutes', kept: 'minutes', pct: 'share' },
   ),
+  // The limits never go under the plan's own figure or the minutes already run, so a target
+  // lowered to one of those is above what the ceiling or the tightened step alone would allow.
+  'revision.target.clipped.ceiling.plan': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure that week, which the limits do not go under.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.ceiling.logged': tpl(
+    'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the minutes already run that week, which the limits do not go under.',
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.profile.plan': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure that week, which the tightened step does not go under.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.profile.logged': tpl(
+    'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the minutes already run that week, which the tightened step does not go under.',
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
   'revision.target.clipped.hold': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure while progression is on hold.",
     { date: 'date', asked: 'minutes', kept: 'minutes' },
@@ -598,6 +616,13 @@ export function targetSummary(line: TargetDiffLine): string {
   const slots = { date, asked: minutes(line.askedMin), kept: minutes(line.keptMin) }
   switch (line.limit) {
     case 'ceiling':
+      if (line.bound === 'plan' || line.bound === 'logged') {
+        return render(
+          REVISION_TEMPLATES[`revision.target.clipped.ceiling.${line.bound}`],
+          slots,
+          STORED_UNITS,
+        )
+      }
       return render(
         REVISION_TEMPLATES['revision.target.clipped.ceiling'],
         {
@@ -607,6 +632,13 @@ export function targetSummary(line: TargetDiffLine): string {
         STORED_UNITS,
       )
     case 'profile':
+      if (line.bound === 'plan' || line.bound === 'logged') {
+        return render(
+          REVISION_TEMPLATES[`revision.target.clipped.profile.${line.bound}`],
+          slots,
+          STORED_UNITS,
+        )
+      }
       return render(
         REVISION_TEMPLATES['revision.target.clipped.profile'],
         { ...slots, pct: { kind: 'share', fraction: line.ramp ?? P.g2.rampSoft.value } },

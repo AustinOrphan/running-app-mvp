@@ -184,6 +184,7 @@ describe('H22: a target raised within the limit', () => {
         keptMin: 230,
         engineMin: engine,
         limit: 'ceiling',
+        bound: 'limit',
         ramp: 0.3,
       },
     ])
@@ -274,6 +275,7 @@ describe('H23: a target raised past the limit', () => {
         keptMin: 247,
         engineMin: 209,
         limit: 'ceiling',
+        bound: 'limit',
         ramp: 0.3,
       },
     ])
@@ -329,6 +331,50 @@ describe('H23: a target raised past the limit', () => {
       expect.objectContaining({ outcome: 'kept', askedMin: 247, keptMin: 247 }),
     ])
     expect(again.diff?.empty).toBe(true)
+  })
+
+  test('is lowered to the plan’s own figure when that is above the ceiling, and the sentence says so', async () => {
+    const f = await fourWeekPlan('raised-logged@example.com')
+    // 260 minutes run today, 13 above the 247 that two weeks of 190 allow: the week's own figure
+    // counts what has been run, so the plan's figure is 260 and no limit goes under it
+    await ctx.prisma.activity.create({
+      data: {
+        userId: f.u.id,
+        date: thisMonday,
+        type: 'run',
+        durationSec: 260 * 60,
+        movingSec: 260 * 60,
+        distanceM: 40_000,
+        rpe: 3,
+        source: 'manual',
+      },
+    })
+    await raise(f, thisMonday, 400)
+
+    const made = await weekly(f)
+
+    expect(made.diff?.targets).toEqual([
+      expect.objectContaining({
+        weekStart: thisMonday,
+        outcome: 'clipped',
+        askedMin: 400,
+        keptMin: 260,
+        engineMin: 260,
+        limit: 'ceiling',
+        bound: 'plan',
+        ramp: 0.3,
+      }),
+    ])
+    expect(made.summary).toContain(
+      "Week of Mon 19 Oct: the target set by hand, 400 min, is lowered to 260 min, the plan's own figure that week, which the limits do not go under.",
+    )
+    assertCleanCopy(made.summary, 'revision summary')
+    // the plan's own figure is not the ramp's limit, so the week is the plan's again
+    expect(await weekRow(f, thisMonday)).toMatchObject({
+      targetRunMin: 260,
+      targetSource: 'baseline',
+      overrideNote: null,
+    })
   })
 
   test('the route is unchanged: any whole number of minutes is accepted with a note', async () => {
@@ -388,9 +434,11 @@ describe('H25: a target raised where a rule draws the week', () => {
 
     const made = await weekly(f)
 
+    // The week is the plan's again, as if never raised; the diff keeps the ask and the limit.
     expect(await weekRow(f, afterRaceMonday)).toMatchObject({
       targetRunMin: engine,
-      targetSource: 'override',
+      targetSource: 'baseline',
+      overrideNote: null,
     })
     expect(made.diff?.targets).toEqual([
       expect.objectContaining({
@@ -399,6 +447,7 @@ describe('H25: a target raised where a rule draws the week', () => {
         askedMin: engine + 80,
         keptMin: engine,
         limit: 'post-race',
+        bound: 'plan',
         ramp: null,
       }),
     ])
@@ -516,6 +565,79 @@ describe('H25: a target raised where a rule draws the week', () => {
     expect(after.targetRunMin).toBe(after.baselineRunMin)
     expect(made.summary).toContain("the plan's own figure while progression is on hold.")
     assertCleanCopy(made.summary, 'revision summary')
+  })
+})
+
+describe('a week the plan takes back is the plan’s again', () => {
+  /** Two signs on the screening hold progression; a later screening without signs ends the hold. */
+  const screen = (f: Fixture, date: string, signs: boolean) =>
+    client(ctx, f.u)
+      .post('/api/screenings')
+      .send({ date, answers: { a: signs, b: signs } })
+      .expect(201)
+
+  test('is free again at the next re-plan once the hold has passed', async () => {
+    const f = await fourWeekPlan('raised-released@example.com')
+    const free = await weekRow(f, nextMonday)
+    await raise(f, nextMonday, 230)
+    await screen(f, addDays(today, -1), true)
+
+    const held = await weekly(f)
+
+    // The hold lowers the ask to the plan's own figure, and the week is the plan's, not a cap.
+    const heldRow = await weekRow(f, nextMonday)
+    expect(held.diff?.targets).toEqual([
+      expect.objectContaining({
+        weekStart: nextMonday,
+        outcome: 'clipped',
+        askedMin: 230,
+        keptMin: heldRow.targetRunMin,
+        limit: 'hold',
+        bound: 'plan',
+      }),
+    ])
+    expect(heldRow).toMatchObject({ targetSource: 'baseline', overrideNote: null })
+    expect(heldRow.targetRunMin).toBe(heldRow.baselineRunMin)
+    expect(heldRow.targetRunMin).toBeLessThan(free.baselineRunMin)
+
+    // The hold passes: the next re-plan draws the week as the plan would without the hold. A
+    // figure left as an override would have capped it at the held figure.
+    await screen(f, today, false)
+    const after = await weekly(f)
+    expect(await weekRow(f, nextMonday)).toMatchObject({
+      targetRunMin: free.baselineRunMin,
+      baselineRunMin: free.baselineRunMin,
+      targetSource: 'baseline',
+      overrideNote: null,
+    })
+    expect(after.diff?.targets).toBeUndefined()
+  })
+
+  test('the undo of the re-plan that took the week back restores the target as the runner set it', async () => {
+    const f = await fourWeekPlan('raised-released-undo@example.com')
+    const engine = (await weekRow(f, afterRaceMonday)).baselineRunMin
+    await raise(f, afterRaceMonday, engine + 80)
+    const made = await weekly(f)
+    expect(made.undo.available).toBe(true)
+    const week = await weekRow(f, afterRaceMonday)
+    expect(week).toMatchObject({ targetRunMin: engine, targetSource: 'baseline' })
+
+    // The payload holds the three columns the write changed, as the runner had them.
+    const stored = await ctx.prisma.planRevision.findUniqueOrThrow({ where: { id: made.id } })
+    const payload = JSON.parse(stored.undo!) as UndoPayload
+    expect(payload.weeks.updated.find((entry) => entry.id === week.id)?.before).toEqual({
+      targetRunMin: engine + 80,
+      targetSource: 'override',
+      overrideNote: 'Synthetic note.',
+    })
+
+    const undone = await client(ctx, f.u).post(`/api/plan/revisions/${made.id}/undo`).send({})
+    expect(undone.status, JSON.stringify(undone.body)).toBe(200)
+    expect(await weekRow(f, afterRaceMonday)).toMatchObject({
+      targetRunMin: engine + 80,
+      targetSource: 'override',
+      overrideNote: 'Synthetic note.',
+    })
   })
 })
 

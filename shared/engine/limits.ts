@@ -10,7 +10,7 @@
 // alike. The most a week target the runner raised by hand may stay at is read from the same ramp
 // (`targetLimit`). Pure: no I/O, no clock.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
-import type { Activity, TargetLimitKind } from '../types.ts'
+import type { Activity, TargetLimitBound, TargetLimitKind } from '../types.ts'
 import { isDisruptedWeek } from './disruption.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
@@ -675,6 +675,8 @@ export interface TargetGates {
 export interface TargetLimit {
   /** Whole minutes; never under the plan's own figure or the minutes already run. */
   max: number
+  /** Which of the three set `max`: the limit itself, the plan's own figure or the minutes run. */
+  bound: TargetLimitBound
   kind: TargetLimitKind
   /**
    * The growth the limit allows, as a fraction: the 2-week ceiling for `ceiling`, the profile's
@@ -698,6 +700,7 @@ export function targetLimit(ctx: RampContext, weekStart: string, gates: TargetGa
   const { engineMin, week, held, decided, loggedMin } = gates
   const own = (kind: TargetLimitKind): TargetLimit => ({
     max: Math.max(engineMin, loggedMin),
+    bound: loggedMin > engineMin ? 'logged' : 'plan',
     kind,
     ramp: null,
   })
@@ -713,11 +716,39 @@ export function targetLimit(ctx: RampContext, weekStart: string, gates: TargetGa
   if (held) return own('hold')
   const limits = rampLimits(ctx, weekStart)
   if (limits === null) return own('ceiling')
+  const allowed = wholeMinutes(limits.allowed)
+  const max = Math.max(engineMin, loggedMin, allowed)
   return {
-    max: Math.max(engineMin, loggedMin, wholeMinutes(limits.allowed)),
+    max,
+    // a tie goes to the limit: the limit allows the figure, whatever else reaches it
+    bound: allowed >= max ? 'limit' : engineMin >= loggedMin ? 'plan' : 'logged',
     kind: limits.tightened ? 'profile' : 'ceiling',
     ramp: limits.tightened ? limits.tightRamp : P.g2.rampCeilingTwoWeeks.value,
   }
+}
+
+/**
+ * What a re-plan makes of a raised week target against the limit of its week: the figure the week
+ * keeps, and whether that figure goes back to the plan (`released`). Within the limit the target
+ * is kept as set. Above it the week is lowered to the limit, and the lowered figure stays the
+ * runner's only where the ramp set it (`ceiling` or `profile`, bound by the limit or by the
+ * minutes run): it follows the ramp of the weeks around it. Where a rule sets the week's figure
+ * at this moment (a hold, a decision, a race, a window, a programme, the structure of the plan),
+ * or the plan's own figure is the bound, the week goes back to the plan's own figure. Held as the
+ * runner's, that figure would cap every later re-plan of the week once the rule has passed
+ * (`weekCaps`, ADR 0007).
+ */
+export function targetKept(
+  askedMin: number,
+  engineMin: number,
+  limit: Pick<TargetLimit, 'max' | 'kind' | 'bound'>,
+): { keptMin: number; released: boolean } {
+  if (askedMin <= limit.max) return { keptMin: askedMin, released: false }
+  const followsRamp =
+    (limit.kind === 'ceiling' || limit.kind === 'profile') && limit.bound !== 'plan'
+  return followsRamp
+    ? { keptMin: limit.max, released: false }
+    : { keptMin: engineMin, released: true }
 }
 
 /**

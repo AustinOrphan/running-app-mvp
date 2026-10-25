@@ -201,6 +201,8 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   const failures: string[] = []
   const takenAsRun: string[] = []
   let soft = 0
+  // the soft steps, in whole percents, of the weeks that passed them: the usual step, or the zone's
+  const softSteps = new Set<number>()
   // the weeks planned above the usual soft step that the rebuild zone allows [rules g-8]
   let zoneWeeks = 0
   let zone: RebuildZone | null = null
@@ -223,8 +225,11 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
           `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(limits.allowed)} min`,
         )
       } else takenAsRun.push(`${weekStart} (${Math.round(total)} min)`)
-    } else if (!limits.exempt && total > limits.soft + EPS) soft += 1
-    else {
+    } else if (!limits.exempt && total > limits.soft + EPS) {
+      soft += 1
+      // in the rebuild zone the soft step is the zone's, as the warning of the week says
+      softSteps.add(Math.round((limits.rebuild?.step ?? P.g2.rampSoft.value) * 100))
+    } else {
       const used = rebuildZoneUsed(limits, total, EPS)
       if (used !== null) {
         zoneWeeks += 1
@@ -236,9 +241,8 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   // the notes follow the weeks: the soft step first, then the rebuild zone when a week used it
   const notes: string[] = []
   if (soft > 0) {
-    notes.push(
-      `${soft} week(s) step above the soft ${Math.round(P.g2.rampSoft.value * 100)}% and carry a warning`,
-    )
+    const steps = [...softSteps].sort((a, b) => a - b).map((pct) => `${pct}%`)
+    notes.push(`${soft} week(s) step above the soft ${steps.join(' or ')} and carry a warning`)
   }
   if (zone !== null) {
     notes.push(
