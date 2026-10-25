@@ -47,6 +47,16 @@ import {
 } from '../components/format.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { estimateAboutText } from '../../shared/copy/distanceEstimate.ts'
+import {
+  LOAD_POSITIONS,
+  loadAgeRule,
+  loadFieldLabel,
+  loadHintLines,
+  loadName,
+  loadPanelText,
+  loadPanelTitle,
+  loadTradeoff,
+} from '../../shared/copy/load.ts'
 import { newMarker } from '../../shared/copy/revisionView.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { fileRefusalSentence, weekLinkLabel } from '../../shared/copy/workouts.ts'
@@ -55,7 +65,8 @@ import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import { groupWarnings, localiseEngineText } from '../components/engineText.ts'
-import type { EngineWarning } from '../../shared/engine/types.ts'
+import type { LoadPosition } from '../../shared/engine/loadSetting.ts'
+import type { EngineWarning, LoadAppetite } from '../../shared/engine/types.ts'
 import type {
   DisruptionView,
   Goal,
@@ -120,6 +131,10 @@ const CYCLE_OPTIONS: Array<{ value: '3:1' | '2:1'; label: string }> = [
   { value: '2:1', label: 'Every 3rd week' },
 ]
 
+const LOAD_OPTIONS: Array<{ value: LoadAppetite; label: string }> = LOAD_POSITIONS.map(
+  (position) => ({ value: position, label: loadName(position) }),
+)
+
 const POLARIZED_OPTIONS: Array<{ value: 'off' | 'on'; label: string }> = [
   { value: 'off', label: 'Off' },
   { value: 'on', label: 'On' },
@@ -128,10 +143,12 @@ const POLARIZED_OPTIONS: Array<{ value: 'off' | 'on'; label: string }> = [
 interface GenerateFormProps {
   goals: Goal[]
   initialGoalId?: string
+  /** The load position to start from: the one the plan being replaced was set to. */
+  initialLoad?: LoadAppetite | undefined
   onDone?: () => void
 }
 
-function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
+function GenerateForm({ goals, initialGoalId, initialLoad, onDone }: GenerateFormProps) {
   const toast = useToast()
   const generate = useGeneratePlan()
   const preferred =
@@ -139,6 +156,7 @@ function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
   const [goalId, setGoalId] = useState(preferred?.id ?? '')
   const [cycle, setCycle] = useState<'3:1' | '2:1'>('3:1')
   const [strength, setStrength] = useState<'0' | '1' | '2'>('2')
+  const [load, setLoad] = useState<LoadAppetite>(initialLoad ?? 'steady')
   const [polarized, setPolarized] = useState<'off' | 'on'>('off')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -154,6 +172,7 @@ function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
       options: {
         recoveryCycle: cycle,
         strengthSessions: Number(strength) as 0 | 1 | 2,
+        loadAppetite: load,
         ...(shortGoal && polarized === 'on' ? { tidModel: 'polarized' as const } : {}),
       },
     }
@@ -211,6 +230,17 @@ function GenerateForm({ goals, initialGoalId, onDone }: GenerateFormProps) {
         options={STRENGTH_OPTIONS}
         value={strength}
         onChange={setStrength}
+      />
+      <Segmented<LoadAppetite>
+        label={loadFieldLabel()}
+        hint={[
+          ...loadHintLines(load),
+          ...(load === 'upper' ? [loadAgeRule()] : []),
+          loadTradeoff(),
+        ]}
+        options={LOAD_OPTIONS}
+        value={load}
+        onChange={setLoad}
       />
       {shortGoal ? (
         <Segmented<'off' | 'on'>
@@ -639,7 +669,26 @@ function WhatChanged({
   )
 }
 
-/** Version-2 plans: feasibility, warnings, the plan checks and the revision list. */
+/**
+ * The load setting in effect, from the plan payload: the position that applies today with its hint,
+ * and, when the position the plan was set to does not apply, which one it was set to and why.
+ */
+function LoadPanel({ load }: { load: LoadPosition }) {
+  const text = loadPanelText(load)
+  return (
+    <section aria-labelledby="load-title" className={styles.panel}>
+      <h2 id="load-title" className={styles.panelTitle}>
+        {loadPanelTitle()}
+      </h2>
+      <p className={styles.setting}>
+        <strong>{text.name}</strong> <span className={styles.muted}>{text.hint.join(' ')}</span>
+      </p>
+      {text.reason.length > 0 ? <p className={styles.muted}>{text.reason.join(' ')}</p> : null}
+    </section>
+  )
+}
+
+/** Version-2 plans: feasibility, the load setting, warnings, the plan checks and the revision list. */
 function PlanOverview({
   plan,
   onWhy,
@@ -679,6 +728,7 @@ function PlanOverview({
           ) : null}
         </section>
       ) : null}
+      {plan.load !== null ? <LoadPanel load={plan.load} /> : null}
       {plan.warnings.length > 0 ? (
         <section aria-labelledby="warnings-title" className={styles.panel}>
           <h2 id="warnings-title" className={styles.panelTitle}>
@@ -1182,6 +1232,7 @@ export function PlanPage() {
             <GenerateForm
               goals={eligible}
               initialGoalId={plan.data.goalId}
+              initialLoad={plan.data.load?.requested}
               onDone={() => {
                 setRegenerating(false)
               }}

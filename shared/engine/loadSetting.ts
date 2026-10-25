@@ -79,6 +79,17 @@ export function loadPosition(input: EngineInput, state: AthleteState): LoadPosit
 }
 
 /**
+ * The most a week may add to the one before it at a position [rules g-8]: the soft step
+ * (`g2.rampSoft`) at steady, `g8.stepStandard` at standard and the weekly rate at which two weeks
+ * meet the hard ceiling at upper (`ceilingWeeklyRate`). The one place the three are named, for the
+ * rebuild zone and for the copy that states them next to the choice.
+ */
+export function positionStep(position: LoadAppetite): number {
+  if (position === 'upper') return ceilingWeeklyRate()
+  return position === 'standard' ? P.g8.stepStandard.value : P.g2.rampSoft.value
+}
+
+/**
  * The rebuild zone of the plan [rules g-8]: the ceiling R = credit x taper x H and the position's
  * weekly step, or null when there is none. Null at steady, wherever `loadPosition` holds the
  * setting at steady, and without a history block. At standard the credit is `g8.creditStandard` and
@@ -92,11 +103,10 @@ export function loadPosition(input: EngineInput, state: AthleteState): LoadPosit
 export function rebuildZone(input: EngineInput, state: AthleteState): RebuildZone | null {
   const { position } = loadPosition(input, state)
   if ((position !== 'standard' && position !== 'upper') || state.history === null) return null
-  const upper = position === 'upper'
-  const credit = upper ? P.g8.creditUpper.value : P.g8.creditStandard.value
+  const credit = position === 'upper' ? P.g8.creditUpper.value : P.g8.creditStandard.value
   return {
     ceilingMin: credit * state.history.taper * state.history.blockMin,
-    step: upper ? ceilingWeeklyRate() : P.g8.stepStandard.value,
+    step: positionStep(position),
   }
 }
 

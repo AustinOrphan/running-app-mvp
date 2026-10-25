@@ -344,7 +344,8 @@
   font-weight: 500;
 }
 
-.feasibility {
+.feasibility,
+.setting {
   margin: 0 0 var(--space-2);
 }
 
