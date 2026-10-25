@@ -68,9 +68,11 @@ export const BRIEF_TEMPLATES = {
   'brief.decision-reduce-bare': tpl('The plan eases next week.'),
   'brief.decision-post-race-bare': tpl('The weeks after your race follow a set return schedule.'),
 
-  // The goal race.
-  'brief.countdown-weeks': tpl('Weeks until {name}: {n}.', { name: 'text', n: 'count' }),
-  'brief.countdown-days': tpl('Days until {name}: {n}.', { name: 'text', n: 'count' }),
+  // The goal race. The name is the runner's own words, shown as typed: the sentence puts it first
+  // and ends after the number, so a name that ends in punctuation still reads as one.
+  'brief.countdown-weeks': tpl('{name} is {n} weeks away.', { name: 'text', n: 'count' }),
+  'brief.countdown-days': tpl('{name} is {n} days away.', { name: 'text', n: 'count' }),
+  'brief.countdown-day': tpl('{name} is 1 day away.', { name: 'text' }),
   'brief.countdown-today': tpl('{name} is today.', { name: 'text' }),
 
   // The finish estimate, once there are two weekly estimates to set side by side.

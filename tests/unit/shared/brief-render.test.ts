@@ -129,12 +129,25 @@ describe('the headline', () => {
         specFacts({ countdown: { name: 'The Half', date: addDays(MONDAY, days), days } }),
         'km',
       )[0]
-    expect(line(233)).toBe('Weeks until The Half: 33.')
-    expect(line(14)).toBe('Weeks until The Half: 2.')
-    expect(line(13)).toBe('Days until The Half: 13.')
-    expect(line(1)).toBe('Days until The Half: 1.')
+    expect(line(233)).toBe('The Half is 33 weeks away.')
+    expect(line(14)).toBe('The Half is 2 weeks away.')
+    expect(line(13)).toBe('The Half is 13 days away.')
+    expect(line(2)).toBe('The Half is 2 days away.')
+    expect(line(1)).toBe('The Half is 1 day away.')
     expect(line(0)).toBe('The Half is today.')
     expect(briefContext(specFacts(), 'km')).toEqual([])
+  })
+
+  test('shows a goal name as typed, with the punctuation it ends in, in every form of the countdown', () => {
+    const line = (days: number) =>
+      briefContext(
+        specFacts({ countdown: { name: 'Big Day!', date: addDays(MONDAY, days), days } }),
+        'km',
+      )[0]
+    expect(line(233)).toBe('Big Day! is 33 weeks away.')
+    expect(line(13)).toBe('Big Day! is 13 days away.')
+    expect(line(1)).toBe('Big Day! is 1 day away.')
+    expect(line(0)).toBe('Big Day! is today.')
   })
 
   test('sets the finish estimate beside last week’s, and says when it did not move', () => {

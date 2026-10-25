@@ -162,6 +162,18 @@ describe('every registered template', () => {
     if (shape === 'sentence') expect(fallback, id).toMatch(/[.?]$/)
   })
 
+  test("a text slot holds the runner's own words, shown as typed and never linted", () => {
+    // The registry checks above fill text slots with sample words; a goal name is the runner's
+    // choice, so an exclamation mark in it reaches the page unchanged.
+    expect(
+      render(
+        TEMPLATES['brief.countdown-weeks'],
+        { name: 'Big Day!', n: { kind: 'count', n: 8 } },
+        'km',
+      ),
+    ).toBe('Big Day! is 8 weeks away.')
+  })
+
   test('the generic fallbacks are clean too', () => {
     for (const text of [FALLBACK_TEXT, UNKNOWN_FACT_TEXT]) {
       expect(lintText(text), text).toEqual([])
