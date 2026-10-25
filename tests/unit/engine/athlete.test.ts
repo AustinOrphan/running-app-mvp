@@ -5,6 +5,8 @@ import {
   estimateState,
   experienceClass,
   historyBlock,
+  historyRowCount,
+  weekRowsBetween,
 } from '../../../shared/engine/athlete.ts'
 import { completedReference } from '../../../shared/engine/limits.ts'
 import { ewma } from '../../../shared/engine/load.ts'
@@ -902,6 +904,64 @@ describe('the history block [rules g-8]', () => {
       [100, 3],
     ])
     expect(historyBlock(rows)).toBeNull()
+  })
+
+  test('weekRowsBetween gives the weeks of the state for any run of Mondays, and the count the block reads', () => {
+    const input = h1()
+    const state = estimateState(input)
+    const first = state.weeks[0]!.weekStart
+    expect(weekRowsBetween(input, first, MONDAY)).toEqual(state.weeks)
+    // earlier Mondays hold what the activities hold, nothing queried
+    const back = weekRowsBetween(input, addDays(MONDAY, -7 * 25), MONDAY)
+    expect(back).toHaveLength(26)
+    expect(back.slice(-state.weeks.length)).toEqual(state.weeks)
+    expect(historyRowCount()).toBe(
+      Math.max(16, P.g8.creditTaperEndWeeks.value + P.g8.blockWeeks.value),
+    )
+    withTaperEnd(16, () => {
+      expect(historyRowCount()).toBe(20)
+    })
+  })
+
+  test('reads the block as it stood on a reference Monday, whatever comes after it', () => {
+    // a block of 200 minutes, then three modest weeks, an empty one and the current week
+    const rows = rowsOf([
+      [200, 3],
+      [200, 3],
+      [200, 3],
+      [200, 3],
+      [60, 3],
+      [60, 3],
+      [60, 3],
+      [0, 0],
+      [0, 0],
+    ])
+    // today the block ended 5 weeks ago; on the Monday of the row after the block it ended 1 week ago
+    expect(historyBlock(rows)).toMatchObject({ blockMin: 200, weeksAgo: 5 })
+    const reference = rows[4]!.weekStart
+    expect(historyBlock(rows, undefined, reference)).toMatchObject({
+      blockMin: 200,
+      weeksAgo: 1,
+      endWeek: rows[3]!.weekStart,
+    })
+    // the weeks after the reference are not read: a later block does not count then
+    const later = rowsOf([
+      [0, 0],
+      [0, 0],
+      [0, 0],
+      [0, 0],
+      [100, 3],
+      [100, 3],
+      [100, 3],
+      [100, 3],
+      [0, 0],
+    ])
+    expect(historyBlock(later)).toMatchObject({ blockMin: 100, weeksAgo: 1 })
+    expect(historyBlock(later, undefined, later[4]!.weekStart)).toBeNull()
+    // the last row as reference is the default
+    expect(historyBlock(later, undefined, later.at(-1)!.weekStart)).toEqual(historyBlock(later))
+    // a reference that is no row of the list gives no block
+    expect(historyBlock(rows, undefined, '2000-01-03')).toBeNull()
   })
 
   test('the taper is 1 within the window and falls in a straight line to the floor at 16 weeks', () => {

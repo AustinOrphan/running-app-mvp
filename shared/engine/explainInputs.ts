@@ -23,8 +23,10 @@ import {
   countsTowardReference,
   plannedMinOf,
   rebuildStep,
+  responseBaseline,
   spikeOverrideLimit,
   spikeWarnLimit,
+  noviceRamp,
   startLevelMin,
   ultraRunCapMin,
   VOLUME_KINDS,
@@ -32,7 +34,7 @@ import {
   wholeMinutes,
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
-import { loadPosition, rebuildZone, responseBasis } from './loadSetting.ts'
+import { loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
 import { cycleShortReason, cycleWorkWeeks, startLift, startPath, taperDays } from './macro.ts'
 import { P } from './params/index.ts'
 import { ownHoldReasons, postRaceWindows } from './postRace.ts'
@@ -465,16 +467,18 @@ const blockPhrase = () => countPhrase(P.g8.blockWeeks.value, 'steady week')
 /**
  * The response to weeks run above plan, when it lifts the next loading week of the stored plan
  * [rules g-8]: the mean of the minutes run in the last `g8.responseWeeks` eligible weeks against
- * the planned baseline that week is stepped from. A re-plan carries the loading sequence on from
- * the minutes the current week was planned at (from the last loading week before it, when this one
- * is a recovery week), and the response lifts that baseline when the mean is higher
- * (`responseBaseline`), so the planned baseline is read from the stored plan's weeks and not from
- * the weeks as run, which only bound the week (`rampLimits`). Nothing when the response is off
- * (steady, a held setting, a plan that restarts), has no mean, has no loading week ahead, or does
- * not pass the planned baseline.
+ * the planned baseline that week is stepped from, and the baseline it builds from, which is the
+ * mean up to the two-week ceiling over the planned baseline. A re-plan carries the loading
+ * sequence on from the minutes the current week was planned at (from the last loading week before
+ * it, when this one is a recovery week), and the response lifts that baseline when the mean is
+ * higher (`responseBaseline`), so the planned baseline is read from the stored plan's weeks and not
+ * from the weeks as run, which only bound the week (`rampLimits`). Nothing when the response is off
+ * (steady, a held setting, a plan that restarts, a newest week run under its target), has no mean,
+ * has no loading week ahead, or does not pass the planned baseline.
  */
 function responseFacts(ctx: ExplainContext): InputFact[] {
-  const mean = responseBasis(ctx.input, ctx.state)?.meanMin ?? null
+  const basis = responseBasis(ctx.input, ctx.state)
+  const mean = basis?.meanMin ?? null
   if (mean === null || ctx.input.existing === null) return []
   const currentMonday = mondayOf(ctx.input.today)
   const loading = (w: WeekDraft) =>
@@ -492,13 +496,19 @@ function responseFacts(ctx: ExplainContext): InputFact[] {
   const next = stored.find((w) => w.weekStart > currentMonday && loading(w))
   if (anchor === undefined || next === undefined) return []
   const planned = plannedMinOf(anchor)
-  if (Math.round(mean) <= Math.round(planned)) return []
+  const from = responseBaseline(planned, basis, noviceRamp(ctx.state))
+  if (Math.round(from) <= Math.round(planned)) return []
   return [
     make(
       'g-8',
       'response',
       'explain.g8-response',
-      { n: count(P.g8.responseWeeks.value), mean: minutes(mean), planned: minutes(planned) },
+      {
+        n: count(P.g8.responseWeeks.value),
+        mean: minutes(mean),
+        planned: minutes(planned),
+        from: minutes(from),
+      },
       { window: weekWindow(next.weekStart) },
     ),
   ]
@@ -514,9 +524,12 @@ function rebuildFacts(scope: Scope): InputFact[] {
   const { ctx } = scope
   const { input, state } = ctx
   const load = loadPosition(input, state)
-  const block = state.history
+  // the block the zone reads: a plan being continued keeps the one it opened with (`zoneBlock`)
+  const credited = zoneBlock(input, state)
+  const zone = rebuildZone(input, state)
   const facts: InputFact[] = []
-  if (block !== null) {
+  if (credited !== null) {
+    const { block } = credited
     const window = {
       from: addDays(block.endWeek, -7 * (P.g8.blockWeeks.value - 1)),
       to: addDays(block.endWeek, 6),
@@ -531,13 +544,23 @@ function rebuildFacts(scope: Scope): InputFact[] {
         'explain.g8-block',
         {
           blocks: titleCase(blockPhrase()),
-          ago: countPhrase(block.weeksAgo, 'week'),
+          ago: countPhrase(daysBetween(block.endWeek, mondayOf(input.today)) / 7, 'week'),
           minutes: minutes(block.blockMin),
         },
         { sources: runs.map(activitySource), window },
       ),
     )
-    if (block.taper < 1) {
+    if (credited.keptSince !== null) {
+      // the share is the one found at the plan's first Monday, so no line of its own for it
+      if (zone !== null) {
+        facts.push(
+          make('g-8', 'kept', 'explain.g8-kept', {
+            share: share(block.taper),
+            minutes: minutes(zone.ceilingMin),
+          }),
+        )
+      }
+    } else if (block.taper < 1) {
       facts.push(
         make('g-8', 'taper', 'explain.g8-taper', {
           weeks: count(block.weeksAgo),
@@ -546,7 +569,6 @@ function rebuildFacts(scope: Scope): InputFact[] {
       )
     }
   }
-  const zone = rebuildZone(input, state)
   if (zone !== null) {
     facts.push(
       make('g-8', 'zone', 'explain.g8-zone', {
@@ -566,7 +588,7 @@ function rebuildFacts(scope: Scope): InputFact[] {
     )
   }
   facts.push(...responseFacts(ctx))
-  if (block === null) {
+  if (credited === null) {
     facts.push(
       gap('g-8', 'explain.g8-none', {
         blocks: blockPhrase(),

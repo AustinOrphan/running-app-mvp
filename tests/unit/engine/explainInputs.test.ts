@@ -16,7 +16,7 @@ import {
 import { countPhrase } from '../../../shared/copy/quantity.ts'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES, renderFact } from '../../../shared/copy/templates.ts'
-import { addDays, isIsoDate, mondayOf } from '../../../shared/dates.ts'
+import { addDays, daysBetween, isIsoDate, mondayOf } from '../../../shared/dates.ts'
 import {
   afterBreak,
   breakRestart,
@@ -50,7 +50,9 @@ import {
 import { feasibility, peakLongRunMin, trainingPace } from '../../../shared/engine/goal.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import {
+  noviceRamp,
   plannedMinOf,
+  responseBaseline,
   spikeOverrideLimit,
   spikeWarnLimit,
   ultraRunCapMin,
@@ -64,6 +66,7 @@ import {
   loadPosition,
   rebuildZone,
   responseBasis,
+  zoneBlock,
   type LoadHold,
 } from '../../../shared/engine/loadSetting.ts'
 import { postRaceWindows } from '../../../shared/engine/postRace.ts'
@@ -94,6 +97,7 @@ import { steadyHistogram } from './fixtures.ts'
 import {
   at,
   h1,
+  h26,
   NO_RESPONSE,
   s3Runs,
   scenario,
@@ -884,6 +888,71 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
     })
   })
 
+  describe('a plan that keeps the block it opened with', () => {
+    const standard = () => replanChain(at(h1(), 'standard'), { maxSteps: 14 })
+
+    test('names the block it opened with and what it waits for, in place of a gap', () => {
+      const chain = standard()
+      const opened = estimateState(chain[0]!.input).history!
+      // the re-plan in which the first block is older than the credit window and still kept
+      const step = chain.find(
+        ({ input }) =>
+          mondayOf(input.today) > addDays(opened.endWeek, 7 * (P.g8.creditWindowWeeks.value + 1)) &&
+          zoneBlock(input, estimateState(input))!.keptSince !== null,
+      )!
+      const state = estimateState(step.input)
+      const zone = rebuildZone(step.input, state)!
+      const facts = g8(step.input)
+      expect(ids(facts)).toEqual(['g-8.block', 'g-8.kept', 'g-8.zone', 'g-8.setting', 'g-8.limits'])
+      const ago = countPhrase(daysBetween(opened.endWeek, mondayOf(step.input.today)) / 7, 'week')
+      expect(text(facts[0]!)).toBe(`Four steady weeks ending ${ago} ago averaged 280 min a week.`)
+      expect(text(facts[1]!)).toBe(
+        `This plan began with that block, counted at 100% of its size, and keeps it until a week reaches ${String(Math.round(zone.ceilingMin))} min.`,
+      )
+      expect(slot(facts[1]!, 'share', 'share').fraction).toBe(opened.taper)
+      expect(slot(facts[1]!, 'minutes', 'minutes').min).toBe(Math.round(zone.ceilingMin))
+      // the block of the state is another one, or none, and is not what the sentences state
+      expect(state.history === null || state.history.blockMin !== opened.blockMin).toBe(true)
+    })
+
+    test('says nothing of it once a week has reached R, and a new plan has none', () => {
+      const chain = standard()
+      const reached = chain.filter(
+        ({ input }) => zoneBlock(input, estimateState(input))!.keptSince === null,
+      )
+      expect(reached.length).toBeGreaterThan(1)
+      for (const { input } of reached.slice(1)) expect(ids(g8(input))).not.toContain('g-8.kept')
+      expect(ids(g8(chain[0]!.input))).not.toContain('g-8.kept')
+      expect(ids(g8({ ...chain[8]!.input, existing: null }))).not.toContain('g-8.kept')
+    })
+
+    test('counts a block of 13 to 16 weeks at the share found on the first Monday', () => {
+      withTaperEnd(16, () => {
+        const first = at(h26(60, 1), 'standard')
+        const found = estimateState(first).history!
+        expect(found.taper).toBeLessThan(1)
+        const chain = replanChain(first, { maxSteps: 4 })
+        const kept = chain.filter(
+          ({ input }) => zoneBlock(input, estimateState(input))!.keptSince !== null,
+        )
+        expect(kept.length).toBeGreaterThan(0)
+        for (const { input } of kept) {
+          const facts = g8(input)
+          // the share is that of the first Monday, whatever the block's age is today
+          expect(ids(facts)).toContain('g-8.kept')
+          expect(ids(facts)).not.toContain('g-8.taper')
+          expect(
+            slot(
+              facts.find((f) => f.id === 'g-8.kept')!,
+              'share',
+              'share',
+            ).fraction,
+          ).toBe(found.taper)
+        }
+      })
+    })
+  })
+
   test('with no block it says so, with the window the plan looked in', () => {
     for (const position of ['standard', 'steady'] as const) {
       const input = at(scenario(SPARSE), position)
@@ -1036,6 +1105,13 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
         expect(slot(fact, 'n', 'count').n).toBe(P.g8.responseWeeks.value)
         expect(slot(fact, 'mean', 'minutes').min).toBe(Math.round(mean!))
         expect(planned).toBeLessThan(Math.round(mean!))
+        // the week builds from the mean up to the two-week ceiling over the planned baseline
+        const from = slot(fact, 'from', 'minutes').min
+        expect(from).toBeGreaterThan(planned)
+        expect(from).toBeLessThanOrEqual(Math.round(mean!))
+        expect(from).toBeLessThanOrEqual(
+          Math.round(planned * (1 + P.g2.rampCeilingTwoWeeks.value)) + 1,
+        )
         // the planned baseline is the minutes of one week, never a sum of weeks
         const weekMinutes = [
           ...state.weeks.map((w) => Math.round(w.runMin)),
@@ -1043,7 +1119,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
         ]
         expect(weekMinutes, `step ${String(k)}`).toContain(planned)
         expect(text(fact)).toBe(
-          `The last ${String(P.g8.responseWeeks.value)} weeks averaged ${String(Math.round(mean!))} min a week, above the ${String(planned)} min planned, so the next week builds from ${String(Math.round(mean!))} min.`,
+          `The last ${String(P.g8.responseWeeks.value)} weeks averaged ${String(Math.round(mean!))} min a week, above the ${String(planned)} min planned, so the next week builds from ${String(from)} min.`,
         )
         expect(fact.state).toBe('used')
       }
@@ -1094,6 +1170,44 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
       expect(found.indexOf('g-8.response')).toBeLessThan(found.indexOf('g-8.limits'))
     })
 
+    test('builds from the baseline the response lifts to: the mean up to the two-week ceiling over the plan', () => {
+      // one week run at eight times its plan among three run as planned: the mean is far above the
+      // plan, so the baseline stops at the ceiling over the planned one
+      const outlier = replanChain(at(base, 'standard'), {
+        scale: (step) => (step === 3 ? 8 : 1),
+        maxSteps: 4,
+      })
+      let bounded = 0
+      for (const [k, { input }] of outlier.entries()) {
+        const fact = responseOf(input)
+        const basis = responseBasis(input, estimateState(input))
+        if (fact === undefined) continue
+        const mean = basis!.meanMin!
+        const planned = slot(fact, 'planned', 'minutes').min
+        const exact = responseBaseline(planned, basis, noviceRamp(estimateState(input)))
+        expect(slot(fact, 'from', 'minutes').min, `step ${String(k)}`).toBe(Math.round(exact))
+        if (Math.round(exact) < Math.round(mean)) bounded += 1
+      }
+      // a chain in which the bound never held would test nothing
+      expect(bounded).toBeGreaterThan(0)
+    })
+
+    test('is left out when the newest eligible week was run under its stored target', () => {
+      const engaged = chain.map((step) => step.input).find((i) => responseOf(i) !== undefined)!
+      const newest = addDays(mondayOf(engaged.today), -7)
+      const under: EngineInput = {
+        ...engaged,
+        existing: {
+          ...engaged.existing!,
+          weeks: engaged.existing!.weeks.map((w) =>
+            w.weekStart === newest ? { ...w, targetRunMin: 100_000 } : w,
+          ),
+        },
+      }
+      expect(responseBasis(under, estimateState(under))).toEqual({ meanMin: null })
+      expect(responseOf(under)).toBeUndefined()
+    })
+
     test('is left out at steady, without a stored plan, and without a mean to state', () => {
       const engaged = chain.map((step) => step.input).find((i) => responseOf(i) !== undefined)!
       expect(responseOf(at(engaged, 'steady'))).toBeUndefined()
@@ -1141,11 +1255,12 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
       ...g8(at(scenario(s3Runs(), { profile: { injuries: [injury] } }), 'standard')),
       ...afterTaper,
       ...chain.flatMap((step) => g8(step.input)),
+      ...replanChain(at(h1(), 'standard'), { maxSteps: 9 }).flatMap((step) => g8(step.input)),
     ]
     expect(all.length).toBeGreaterThan(30)
     // every template of the rule is produced by a builder here, and no fact uses another one
     const registered = Object.keys(EXPLAIN_TEMPLATES).filter((id) => id.startsWith('explain.g8-'))
-    expect(registered).toHaveLength(9)
+    expect(registered).toHaveLength(10)
     expect([...new Set(all.map((f) => f.template))].sort()).toEqual(registered.sort())
     for (const fact of all) {
       expect(fact.id.startsWith('g-8.'), fact.id).toBe(true)

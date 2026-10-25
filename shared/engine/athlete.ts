@@ -504,10 +504,16 @@ function lowFrequencyOf(runs: Activity[], today: string, startLevel: number): bo
  * in full within `g8.creditWindowWeeks`, then by a factor that falls in a straight line from 1 to
  * `g8.creditTaperFloor` at `taperEndWeeks`. The block with the highest score after the factor
  * wins, the newer one on a tie. Null when no window qualifies. Pure: nothing outside `rows` is read.
+ *
+ * `reference` names the Monday that plays the current week, when it is not the last row: the
+ * rows after it are not read and `weeksAgo` counts from it. It is how a plan that is being continued
+ * finds the block as it stood at its own first Monday (`creditedBlock`, loadSetting.ts). A
+ * `reference` that is not a row gives null.
  */
 export function historyBlock(
   rows: readonly WeekRow[],
   taperEndWeeks: number = P.g8.creditTaperEndWeeks.value,
+  reference?: string,
 ): HistoryBlock | null {
   const length = P.g8.blockWeeks.value
   const kept = Math.max(1, length - P.g8.blockWeeksDropped.value)
@@ -515,7 +521,9 @@ export function historyBlock(
   const windowWeeks = P.g8.creditWindowWeeks.value
   const floor = P.g8.creditTaperFloor.value
   const taperEnd = Math.max(taperEndWeeks, windowWeeks)
-  const current = rows.length - 1
+  const current =
+    reference === undefined ? rows.length - 1 : rows.findIndex((w) => w.weekStart === reference)
+  if (current < 0) return null
   let best: HistoryBlock | null = null
   let bestCredited = 0
   let fullCreditMin = 0
@@ -543,10 +551,38 @@ export function historyBlock(
   return best === null ? null : { ...best, fullCreditMin }
 }
 
+/**
+ * How many weekly rows the history block reads, the current week included: it reaches back from
+ * the current Monday to the end of the taper and then the block itself, and never fewer than the
+ * weeks the screens show [rules g-8].
+ */
+export function historyRowCount(): number {
+  return Math.max(WEEKS_SHOWN, P.g8.creditTaperEndWeeks.value + P.g8.blockWeeks.value)
+}
+
+/** The activities that count in the state of `input.today`: no duplicate, none after today. */
+function countedActivities(input: EngineInput): Activity[] {
+  return input.activities.filter((a) => !isDuplicate(a) && a.date <= input.today)
+}
+
+/**
+ * The weekly rows of the input's activities for every Monday from `from` through `through`, oldest
+ * first, aggregated exactly as the state's own weeks are. Both are Mondays. The activities are the
+ * snapshot's (ADR 0009), so a row before the first activity of the input is empty: nothing is
+ * queried.
+ */
+export function weekRowsBetween(input: EngineInput, from: string, through: string): WeekRow[] {
+  const mondays: string[] = []
+  for (let monday = from; monday <= through; monday = addDays(monday, DAYS_PER_WEEK)) {
+    mondays.push(monday)
+  }
+  return aggregateWeeks(countedActivities(input), mondays)
+}
+
 /** Athlete state from the input history [rules section a]. */
 export function estimateState(input: EngineInput): AthleteState {
   const { today, profile } = input
-  const acts = input.activities.filter((a) => !isDuplicate(a) && a.date <= today)
+  const acts = countedActivities(input)
   const runs = acts.filter(isRun)
 
   const age = profile.birthYear === null ? null : yearOf(today) - profile.birthYear
@@ -562,7 +598,7 @@ export function estimateState(input: EngineInput): AthleteState {
   // The history block reaches back from the current Monday to the end of the taper and then the
   // block itself; the screens still show WEEKS_SHOWN weeks, and the rows come from the same
   // activities, so the snapshot's contract holds (no query of its own).
-  const historyRows = Math.max(WEEKS_SHOWN, P.g8.creditTaperEndWeeks.value + P.g8.blockWeeks.value)
+  const historyRows = historyRowCount()
   const history = historyBlock(
     historyRows === WEEKS_SHOWN ? weeks : aggregateWeeks(acts, mondays(historyRows)),
   )
