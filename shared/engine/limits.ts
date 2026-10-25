@@ -615,6 +615,22 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
   }
 }
 
+/**
+ * The rebuild zone that a loading week of `minutes` used [rules g-8], or null: the week sits above
+ * the usual soft step and within what the zone allows (`plan`, the lesser of the zone's soft limit
+ * and the hard ceiling). The one test of a zone week: the checklist's progression item counts the
+ * weeks that pass it and the plan names them in the week's focus, so the two cannot disagree.
+ * `eps` is the slack of the caller's comparisons with a limit.
+ */
+export function rebuildZoneUsed(
+  limits: WeekRampLimits | null,
+  minutes: number,
+  eps = EPS,
+): RebuildZone | null {
+  if (limits === null || limits.rebuild === null) return null
+  return minutes > limits.usualSoft + eps && minutes <= limits.plan + eps ? limits.rebuild : null
+}
+
 /** What `targetLimit` needs to know of a week besides the ramp around it. */
 export interface TargetGates {
   /** The plan's own target for the week: where a rule that sets the week's figure leaves it. */

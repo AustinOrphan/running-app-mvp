@@ -1,8 +1,9 @@
 // The sentences of the load setting [rules g-8, proposal 4.6]: the three positions with their
-// hints and the trade-off line on the Generate form, and what the Plan page says about the position
-// in effect and why a chosen one does not apply. A step and the age of the cap are read from the
-// Params (`positionStep`, `a9.noviceFlagAgeMin`), never written here, and the page reads the
-// position in effect from the plan payload (`PlanWithSessions.load`), never from its own sums.
+// hints and the trade-off line on the Generate form, what the Plan page says about the position
+// in effect and why a chosen one does not apply, and the focus of a week in the rebuild zone. A
+// step and the age of the cap are read from the Params (`positionStep`, `a9.noviceFlagAgeMin`),
+// never written here, and the page reads the position in effect from the plan payload
+// (`PlanWithSessions.load`), never from its own sums.
 //
 // Ids are `load.<name>`; the set is spread into `TEMPLATES`.
 import type { LoadHold, LoadPosition } from '../engine/loadSetting.ts'
@@ -63,6 +64,13 @@ export const LOAD_TEMPLATES = {
     { fallback: 'The steady step applies for now.' },
   ),
   'load.capped': tpl('The setting is held at Standard: age {age} or over.', { age: 'count' }),
+
+  // The focus of a plan week in the rebuild zone, on the week table.
+  'load.focus': tpl(
+    'Rebuilding toward {minutes} a week',
+    { minutes: 'minutes' },
+    { shape: 'label', fallback: 'Rebuilding' },
+  ),
 
   // The reasons a position is held at steady, as the end of "applies for now: ...".
   'load.hold.recent-injury': tpl('a recent injury is on file', {}, { shape: 'label' }),
@@ -154,6 +162,18 @@ export function loadTradeoff(): string {
     render(T['load.tradeoff.unknown'], {}, UNITS),
     render(T['load.tradeoff.cautious'], { pct: percent(positionStep('steady')) }, UNITS),
   ].join(' ')
+}
+
+/**
+ * The focus of a plan week that uses the rebuild zone: what it rebuilds toward, the ceiling `R` in
+ * whole minutes. Only the weeks the checklist counts as zone weeks carry it.
+ */
+export function loadFocus(ceilingMin: number): string {
+  return render(
+    T['load.focus'],
+    { minutes: { kind: 'minutes', min: Math.round(ceilingMin) } },
+    UNITS,
+  )
 }
 
 /** Why a position is held at steady, as the end of "The steady step applies for now: ...". */
