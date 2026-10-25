@@ -866,7 +866,12 @@ function planWeeks(
   /** The most a loading week may hold: the planning limit, at the athlete's own ramp. */
   const stepCap = (weekStart: string): number => {
     if (restartWeeks.has(weekStart)) return Infinity
-    const lim = rampLimits(rampCtx, weekStart)
+    // The week the plan opens on is not stepped from a baseline, so the response does not lift its
+    // cap: after weeks run under the plan, missed training still lowers it [rules g-2, g-8].
+    const lim = rampLimits(
+      weekStart === firstMonday ? { ...rampCtx, response: null } : rampCtx,
+      weekStart,
+    )
     if (lim === null) return Infinity
     if (lim.isFloorWeek) return floorEps(lim.plan)
     const cap = floorEps(

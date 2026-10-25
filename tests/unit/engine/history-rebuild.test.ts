@@ -1421,6 +1421,38 @@ describe('a week run past its target in the week of the re-plan [rules G-2, g-8]
   )
 })
 
+describe('two weeks under the plan after two above it [rules g-2, g-8]', () => {
+  // weeks back 4 .. 1 of 150, 150, 60 and 60 minutes against a stored week of 150
+  const dip = (position: Position) => continued([150, 150, 60, 60], position, 150)
+
+  it.each(LIFTED)(
+    '%s: the week that opens is cut as it is without the response, since missed training still lowers it',
+    (position) => {
+      const input = dip(position)
+      const plan = replan(input).draft
+      const zoneOnly = withResponseWeeks(NO_RESPONSE, () => replan(input).draft)
+      expect(weekOf(plan, HISTORY_MONDAY)).toEqual(weekOf(zoneOnly, HISTORY_MONDAY))
+      // 60 minutes in the weeks before it: not the mean of 105 that the four weeks give
+      expect(weekOf(plan, HISTORY_MONDAY).targetRunMin).toBeLessThan(75)
+    },
+  )
+
+  it.each(LIFTED)(
+    '%s: the weeks after it step from the mean when it is higher, inside the ceiling',
+    (position) => {
+      const input = dip(position)
+      expect(expectedResponse(input)!.meanMin).toBe(105)
+      const plan = replan(input).draft
+      const zoneOnly = withResponseWeeks(NO_RESPONSE, () => replan(input).draft)
+      expect(cumulative(plan, 8)).toBeGreaterThan(cumulative(zoneOnly, 8))
+      expect(planProblems(plan)).toEqual([])
+      expect(zoneReport(input, plan).problems).toEqual([])
+      // the week right after the opening week meets the 30% ceiling over the two weeks of 60
+      expect(weekOf(plan, addDays(HISTORY_MONDAY, 7)).targetRunMin).toBe(floorEps(60 * 1.3))
+    },
+  )
+})
+
 describe('H21: a mean far above the plan meets the ceiling and the session guard', () => {
   const NEXT = addDays(HISTORY_MONDAY, 7)
 
