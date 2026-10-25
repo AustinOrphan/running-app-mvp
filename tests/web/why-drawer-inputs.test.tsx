@@ -2,6 +2,11 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
 import { EXPLAIN_MAX_SOURCES } from '../../shared/copy/limits.ts'
+import { renderFact } from '../../shared/copy/templates.ts'
+import { estimateState } from '../../shared/engine/athlete.ts'
+import { explainInputs, type ExplainContext } from '../../shared/engine/explainInputs.ts'
+import { readinessSnapshot } from '../../shared/engine/readiness.ts'
+import { buildZones } from '../../shared/engine/zones.ts'
 import type {
   ExplainView,
   InputFact,
@@ -20,6 +25,7 @@ import {
   type MockRequest,
   type MockRoutes,
 } from './helpers.tsx'
+import { at, h1, scenario, SPARSE } from '../unit/engine/history-fixtures.ts'
 
 // The drawer's "From your numbers": the figures come from GET /api/explain, are worded by
 // `renderFact` in the runner's units, and sit before the rule, its grade and its papers.
@@ -502,6 +508,67 @@ describe('WhyDrawer, from your numbers', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
     expect(opener).toHaveFocus()
+  })
+})
+
+describe('WhyDrawer, the history-informed rebuild [rules g-8]', () => {
+  /** The figures of g-8 for a runner, as the server builds them from the snapshot. */
+  function g8View(input: Parameters<typeof estimateState>[0]): ExplainView {
+    const state = estimateState(input)
+    const ctx: ExplainContext = {
+      asOf: input.today,
+      input,
+      state,
+      zones: buildZones(input.profile, state, input.today),
+      readiness: readinessSnapshot(input, input.today),
+      goal: null,
+      prediction: null,
+      hrModel: null,
+      decision: null,
+      race: null,
+    }
+    return explainInputs({ subject: 'rules', rules: ['g-8'] }, ctx)
+  }
+
+  test.each(['km', 'mi'] as const)(
+    'shows the block, the zone, the setting and the limits under the rule s title (%s)',
+    async (units) => {
+      const figures = g8View(at(h1(), 'standard'))
+      const facts = figures.groups[0]!.facts
+      expect(facts.map((fact) => fact.id)).toEqual([
+        'g-8.block',
+        'g-8.zone',
+        'g-8.setting',
+        'g-8.limits',
+      ])
+      mockApi(drawerRoutes(() => figures, units))
+      const { open } = renderButton({ subject: 'rules', rules: ['g-8'] }, ['g-8'])
+      await open()
+
+      const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+      const group = await within(dialog).findByRole('group', { name: 'History-informed rebuild' })
+      for (const fact of facts) {
+        expect(within(group).getByText(renderFact(fact, units))).toBeInTheDocument()
+      }
+      // the block lists the runs it rests on, as any other figure does
+      expect(within(group).getByRole('list', { name: 'Based on' })).toBeInTheDocument()
+      expect(within(group).queryByText('Not enough data yet:')).not.toBeInTheDocument()
+      expectCleanCopy(dialog)
+    },
+  )
+
+  test('says what is missing for a runner with no block, behind the label of a gap', async () => {
+    const figures = g8View(at(scenario(SPARSE), 'standard'))
+    const gap = figures.groups[0]!.facts.find((fact) => fact.state === 'insufficient')!
+    mockApi(drawerRoutes(() => figures))
+    const { open } = renderButton({ subject: 'rules', rules: ['g-8'] }, ['g-8'])
+    await open()
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const group = await within(dialog).findByRole('group', { name: 'History-informed rebuild' })
+    expect(within(group).getByText(renderFact(gap, 'km'))).toBeInTheDocument()
+    expect(within(group).getByText('Not enough data yet:')).toBeInTheDocument()
+    expectCleanCopy(dialog)
   })
 })
 

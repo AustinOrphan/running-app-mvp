@@ -6,6 +6,8 @@
 // nothing reads a clock, the network or the database. The server hands over the snapshot, the
 // heart-rate model, the weekly decision and the prediction it has already computed.
 import { EXPLAIN_CHECKIN_DAYS, EXPLAIN_MAX_SOURCES } from '../copy/limits.ts'
+import { loadHoldReason, loadName } from '../copy/load.ts'
+import { countPhrase } from '../copy/quantity.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
 import type { SlotValues } from '../copy/template.ts'
 import type { TEMPLATES, TemplateId } from '../copy/templates.ts'
@@ -30,7 +32,7 @@ import {
   wholeMinutes,
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
-import { rebuildZone } from './loadSetting.ts'
+import { loadPosition, rebuildZone, responseBasis } from './loadSetting.ts'
 import { cycleShortReason, cycleWorkWeeks, startLift, startPath, taperDays } from './macro.ts'
 import { P } from './params/index.ts'
 import { ownHoldReasons, postRaceWindows } from './postRace.ts'
@@ -447,6 +449,138 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
       )
     }
   }
+  return facts
+}
+
+// ---------------------------------------------------------------------------------------------
+// g-8: the history-informed rebuild
+// ---------------------------------------------------------------------------------------------
+
+/** A fraction as a percentage to one decimal, as the load setting's hints read it (14%, not 14.02%). */
+const stepPercent = (fraction: number) => percent(Math.round(fraction * 1000) / 10)
+
+/** "four steady weeks": the block's length from its Param, in words up to ten. */
+const blockPhrase = () => countPhrase(P.g8.blockWeeks.value, 'steady week')
+
+/**
+ * The response to weeks run above plan, when it lifts the next loading week of the stored plan
+ * [rules g-8]: the mean of the minutes run in the last `g8.responseWeeks` eligible weeks against
+ * the planned baseline that week is stepped from. A re-plan carries the loading sequence on from
+ * the minutes the current week was planned at (from the last loading week before it, when this one
+ * is a recovery week), and the response lifts that baseline when the mean is higher
+ * (`responseBaseline`), so the planned baseline is read from the stored plan's weeks and not from
+ * the weeks as run, which only bound the week (`rampLimits`). Nothing when the response is off
+ * (steady, a held setting, a plan that restarts), has no mean, has no loading week ahead, or does
+ * not pass the planned baseline.
+ */
+function responseFacts(ctx: ExplainContext): InputFact[] {
+  const mean = responseBasis(ctx.input, ctx.state)?.meanMin ?? null
+  if (mean === null || ctx.input.existing === null) return []
+  const currentMonday = mondayOf(ctx.input.today)
+  const loading = (w: WeekDraft) =>
+    !w.isRecovery && !w.isTaper && w.phase !== 'race' && !w.flags.includes('post-race')
+  const stored = [...ctx.input.existing.weeks].sort((a, b) =>
+    a.weekStart < b.weekStart ? -1 : a.weekStart > b.weekStart ? 1 : 0,
+  )
+  const current = stored.find((w) => w.weekStart === currentMonday)
+  const anchor =
+    current === undefined || current.isTaper || current.phase === 'race'
+      ? undefined
+      : current.isRecovery
+        ? stored.filter((w) => w.weekStart < currentMonday && loading(w)).at(-1)
+        : current
+  const next = stored.find((w) => w.weekStart > currentMonday && loading(w))
+  if (anchor === undefined || next === undefined) return []
+  const planned = plannedMinOf(anchor)
+  if (Math.round(mean) <= Math.round(planned)) return []
+  return [
+    make(
+      'g-8',
+      'response',
+      'explain.g8-response',
+      { n: count(P.g8.responseWeeks.value), mean: minutes(mean), planned: minutes(planned) },
+      { window: weekWindow(next.weekStart) },
+    ),
+  ]
+}
+
+/**
+ * The history block the plan read, the zone it sets, the load setting and why it holds, the
+ * response to weeks run above plan, and the limits that stay [rules g-8]. The block is stated
+ * whatever the setting, as the figure the engine read; the zone, the held and capped lines and
+ * the response only when they apply.
+ */
+function rebuildFacts(scope: Scope): InputFact[] {
+  const { ctx } = scope
+  const { input, state } = ctx
+  const load = loadPosition(input, state)
+  const block = state.history
+  const facts: InputFact[] = []
+  if (block !== null) {
+    const window = {
+      from: addDays(block.endWeek, -7 * (P.g8.blockWeeks.value - 1)),
+      to: addDays(block.endWeek, 6),
+    }
+    const runs = countedRuns(ctx).filter(
+      (a) => a.type === 'run' && a.date >= window.from && a.date <= window.to,
+    )
+    facts.push(
+      make(
+        'g-8',
+        'block',
+        'explain.g8-block',
+        {
+          blocks: titleCase(blockPhrase()),
+          ago: countPhrase(block.weeksAgo, 'week'),
+          minutes: minutes(block.blockMin),
+        },
+        { sources: runs.map(activitySource), window },
+      ),
+    )
+    if (block.taper < 1) {
+      facts.push(
+        make('g-8', 'taper', 'explain.g8-taper', {
+          weeks: count(block.weeksAgo),
+          share: share(block.taper),
+        }),
+      )
+    }
+  }
+  const zone = rebuildZone(input, state)
+  if (zone !== null) {
+    facts.push(
+      make('g-8', 'zone', 'explain.g8-zone', {
+        minutes: minutes(zone.ceilingMin),
+        pct: stepPercent(zone.step),
+        soft: stepPercent(P.g2.rampSoft.value),
+      }),
+    )
+  }
+  facts.push(make('g-8', 'setting', 'explain.g8-setting', { position: loadName(load.requested) }))
+  if (load.held !== null) {
+    facts.push(make('g-8', 'held', 'explain.g8-held', { reason: loadHoldReason(load.held) }))
+  }
+  if (load.ageCapped) {
+    facts.push(
+      make('g-8', 'capped', 'explain.g8-capped', { age: count(P.a9.noviceFlagAgeMin.value) }),
+    )
+  }
+  facts.push(...responseFacts(ctx))
+  if (block === null) {
+    facts.push(
+      gap('g-8', 'explain.g8-none', {
+        blocks: blockPhrase(),
+        weeks: count(P.g8.creditTaperEndWeeks.value),
+      }),
+    )
+  }
+  facts.push(
+    make('g-8', 'limits', 'explain.g8-limits', {
+      days: count(P.g1.windowDays.value),
+      pct: percent(P.g2.rampCeilingTwoWeeks.value * 100),
+      span: countPhrase(P.g2.ceilingWindowWeeks.value, 'week'),
+    }),
+  )
   return facts
 }
 
@@ -2633,6 +2767,7 @@ export const INPUT_BUILDERS: Readonly<Record<string, Builder>> = {
   'g-2': weeklyRampFacts,
   'g-3': tightenedFacts,
   'g-6': lostVolumeFacts,
+  'g-8': rebuildFacts,
   A2: loadFacts,
   A3: (scope) => longestRunFacts('A3', scope),
   A4: consistencyFacts,
@@ -2741,10 +2876,6 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'g-4',
   'g-5',
   'g-7',
-  // the history block is in the athlete state and the E6 facts name the route it opens; its own
-  // facts (the block, the zone, the setting) come with the builder of task L5, which moves this
-  // entry to INPUT_BUILDERS
-  'g-8',
   // adaptation inputs
   'J1',
   // ultra structure and fuel wording: the rule fixes the shape of the plan or the words of the
@@ -2849,6 +2980,17 @@ function plannedWeekStart(ctx: ExplainContext, weekStart: string): boolean {
 }
 
 /**
+ * `rules` with g-8 after the weekly ramp (g-2) when the plan was set to a position other than
+ * steady [rules g-8]: the setting, the zone and the response explain the weeks the ramp sets. A
+ * steady plan asks nothing of g-8, so its subjects list what they always did.
+ */
+function withLoadRule(rules: readonly string[], ctx: ExplainContext): string[] {
+  const at = rules.indexOf('g-2')
+  if (at < 0 || loadPosition(ctx.input, ctx.state).requested === 'steady') return [...rules]
+  return [...rules.slice(0, at + 1), 'g-8', ...rules.slice(at + 1)]
+}
+
+/**
  * The rule ids a request is about, in the order they are shown, or null when the request names a
  * record the context does not hold (an unknown session or week) or a subject whose figures are
  * stored with it (a brief, a run).
@@ -2859,10 +3001,10 @@ export function explainRules(req: ExplainRequest, ctx: ExplainContext): string[]
       const session = sessionOf(ctx, req.id)
       if (session === null) return null
       const run = VOLUME_KINDS.has(session.kind)
-      return dedupe([...(run ? EXPLAIN_RULES.run : []), ...session.rules])
+      return dedupe([...(run ? withLoadRule(EXPLAIN_RULES.run, ctx) : []), ...session.rules])
     }
     case 'week':
-      return plannedWeekStart(ctx, req.weekStart) ? [...EXPLAIN_RULES.week] : null
+      return plannedWeekStart(ctx, req.weekStart) ? withLoadRule(EXPLAIN_RULES.week, ctx) : null
     case 'decision':
       return plannedWeekStart(ctx, req.weekStart) ? [...EXPLAIN_RULES.decision] : null
     case 'readiness':

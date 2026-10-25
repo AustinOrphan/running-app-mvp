@@ -5,7 +5,16 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { COPY_MAX_CHARS, EXPLAIN_MAX_SOURCES } from '../../../shared/copy/limits.ts'
+import { EXPLAIN_TEMPLATES } from '../../../shared/copy/explainTemplates.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
+import {
+  loadHoldReason,
+  loadName,
+  loadPanelText,
+  LOAD_TEMPLATES,
+} from '../../../shared/copy/load.ts'
+import { countPhrase } from '../../../shared/copy/quantity.ts'
+import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES, renderFact } from '../../../shared/copy/templates.ts'
 import { addDays, isIsoDate, mondayOf } from '../../../shared/dates.ts'
 import {
@@ -39,8 +48,9 @@ import {
   type ExplainContext,
 } from '../../../shared/engine/explainInputs.ts'
 import { feasibility, peakLongRunMin, trainingPace } from '../../../shared/engine/goal.ts'
-import { buildPlan } from '../../../shared/engine/index.ts'
+import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import {
+  plannedMinOf,
   spikeOverrideLimit,
   spikeWarnLimit,
   ultraRunCapMin,
@@ -50,7 +60,12 @@ import {
 import { criticalSpeed } from '../../../shared/engine/load.ts'
 import { startPath, taperDays } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
-import { rebuildZone } from '../../../shared/engine/loadSetting.ts'
+import {
+  loadPosition,
+  rebuildZone,
+  responseBasis,
+  type LoadHold,
+} from '../../../shared/engine/loadSetting.ts'
 import { postRaceWindows } from '../../../shared/engine/postRace.ts'
 import { predictFromState } from '../../../shared/engine/predict.ts'
 import { readinessSnapshot } from '../../../shared/engine/readiness.ts'
@@ -76,8 +91,20 @@ import {
   wellnessDay,
 } from './e8-fixtures.ts'
 import { steadyHistogram } from './fixtures.ts'
-import { at, h1, s3Runs, scenario } from './history-fixtures.ts'
+import {
+  at,
+  h1,
+  NO_RESPONSE,
+  s3Runs,
+  scenario,
+  SPARSE,
+  summer,
+  weeks,
+  withResponseWeeks,
+  withTaperEnd,
+} from './history-fixtures.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
+import { replanChain } from './replan-steps.ts'
 
 const MONDAY = '2026-10-19'
 const UNITS: readonly Units[] = ['km', 'mi']
@@ -737,6 +764,472 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
     expect(ramp).toMatchObject({ state: 'insufficient', template: 'explain.g2-gap' })
     const [lost] = factsOf('g-6', empty)
     expect(lost).toMatchObject({ state: 'insufficient', template: 'explain.g6-gap' })
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// g-8: the history-informed rebuild
+// ---------------------------------------------------------------------------------------------
+
+/** Runs `fn` with a Param set to `value`, then restores it. */
+function withParam<T>(param: { value: number }, value: number, fn: () => T): T {
+  const before = param.value
+  param.value = value
+  try {
+    return fn()
+  } finally {
+    param.value = before
+  }
+}
+
+describe('g-8: the history block, the zone, the setting and the response', () => {
+  const injury = {
+    area: 'knee',
+    side: 'left' as const,
+    year: 2026,
+    month: 6,
+    kind: 'joint' as const,
+    notes: null,
+  }
+  const g8 = (input: EngineInput) => factsOf('g-8', contextOf(input))
+  const ids = (facts: InputFact[]) => facts.map((f) => f.id)
+  const sentences = (facts: InputFact[], units: Units = 'km') => facts.map((f) => text(f, units))
+  /** A fraction as the sentences print it: 12 for 0.12, 87.5 for 0.875. */
+  const pct = (fraction: number) => String(Math.round(fraction * 1000) / 10)
+  const setting = (name: string) =>
+    `Load setting: ${name}. It sets how fast the plan adds running time while rebuilding.`
+  const limits = () =>
+    `Long runs keep the ${String(P.g1.windowDays.value)}-day rule, and growth never passes ${pct(P.g2.rampCeilingTwoWeeks.value)}% over ${countPhrase(P.g2.ceilingWindowWeeks.value, 'week')}.`
+  const zoneSentence = (ceilingMin: number, step: number) =>
+    `While a week is under ${String(Math.round(ceilingMin))} min, the plan adds up to ${pct(step)}% a week; past that it adds up to ${pct(P.g2.rampSoft.value)}%.`
+  const gapSentence = (weeks: number) =>
+    `No four steady weeks in the last ${String(weeks)} weeks, so the plan builds from recent weeks.`
+  // A runner whose weeks after the summer block run at 1.6 times the plan, re-planned every Monday
+  // at standard: the later steps run above their plan, which is what the response reads.
+  const base = scenario([...summer(5), ...weeks(4, 1, [40])])
+  const chain = replanChain(at(base, 'standard'), { scale: 1.6, maxSteps: 5 })
+
+  test('a runner with a block at standard: the block, the zone, the setting and the limits', () => {
+    const input = at(h1(), 'standard')
+    const ctx = contextOf(input)
+    const facts = factsOf('g-8', ctx)
+    const history = ctx.state.history!
+    const zone = rebuildZone(input, ctx.state)!
+    expect(ids(facts)).toEqual(['g-8.block', 'g-8.zone', 'g-8.setting', 'g-8.limits'])
+    expect(sentences(facts)).toEqual([
+      'Four steady weeks ending eight weeks ago averaged 280 min a week.',
+      zoneSentence(P.g8.creditStandard.value * 280, P.g8.stepStandard.value),
+      setting('Standard'),
+      limits(),
+    ])
+    expect(facts.every((f) => f.state === 'used')).toBe(true)
+    // the figures are the ones the plan read
+    expect(history.blockMin).toBe(280)
+    expect(slot(facts[0]!, 'minutes', 'minutes').min).toBe(history.blockMin)
+    expect(slot(facts[1]!, 'minutes', 'minutes').min).toBe(Math.round(zone.ceilingMin))
+    expect(slot(facts[1]!, 'pct', 'percent').pct).toBeCloseTo(zone.step * 100, 0)
+    expect(slot(facts[1]!, 'soft', 'percent').pct).toBeCloseTo(P.g2.rampSoft.value * 100, 9)
+  })
+
+  test('the block rests on its own runs: the four weeks, newest first, capped, the rest counted', () => {
+    const input = at(h1(), 'standard')
+    const history = contextOf(input).state.history!
+    const [block] = g8(input)
+    const from = addDays(history.endWeek, -7 * (P.g8.blockWeeks.value - 1))
+    const to = addDays(history.endWeek, 6)
+    expect(block!.window).toEqual({ from, to })
+    const runs = input.activities.filter((a) => a.type === 'run' && a.date >= from && a.date <= to)
+    expect(runs).toHaveLength(16)
+    expect(block!.sources).toHaveLength(EXPLAIN_MAX_SOURCES)
+    expect(block!.moreSources).toBe(runs.length - EXPLAIN_MAX_SOURCES)
+    for (const source of block!.sources) {
+      expect(source.kind).toBe('activity')
+      expect(source.date >= from && source.date <= to, source.id).toBe(true)
+    }
+  })
+
+  test('a block older than the full-credit window counts for part of its size, and says so', () => {
+    withTaperEnd(16, () => {
+      const input = at(scenario([...summer(14), ...SPARSE]), 'standard')
+      const ctx = contextOf(input)
+      const facts = factsOf('g-8', ctx)
+      const window = P.g8.creditWindowWeeks.value
+      const taper =
+        1 -
+        ((1 - P.g8.creditTaperFloor.value) * (14 - window)) /
+          (P.g8.creditTaperEndWeeks.value - window)
+      expect(ids(facts)).toEqual([
+        'g-8.block',
+        'g-8.taper',
+        'g-8.zone',
+        'g-8.setting',
+        'g-8.limits',
+      ])
+      expect(text(facts[0]!)).toBe('Four steady weeks ending 14 weeks ago averaged 280 min a week.')
+      expect(text(facts[1]!)).toBe(
+        `The block ended 14 weeks ago, so it counts for ${pct(taper)}% of its size.`,
+      )
+      // the zone is the ceiling of the tapered block
+      expect(text(facts[2]!)).toBe(
+        zoneSentence(P.g8.creditStandard.value * taper * 280, P.g8.stepStandard.value),
+      )
+      expect(slot(facts[1]!, 'share', 'share').fraction).toBeCloseTo(taper, 9)
+    })
+  })
+
+  test('a block in full credit has no taper line', () => {
+    expect(ids(g8(at(h1(), 'upper')))).not.toContain('g-8.taper')
+    withTaperEnd(16, () => {
+      expect(ids(g8(at(h1(), 'standard')))).not.toContain('g-8.taper')
+    })
+  })
+
+  test('with no block it says so, with the window the plan looked in', () => {
+    for (const position of ['standard', 'steady'] as const) {
+      const input = at(scenario(SPARSE), position)
+      const facts = g8(input)
+      expect(ids(facts)).toEqual(['g-8.setting', 'g-8.gap', 'g-8.limits'])
+      expect(facts[1]).toMatchObject({ state: 'insufficient', template: 'explain.g8-none' })
+      expect(text(facts[1]!)).toBe(gapSentence(P.g8.creditTaperEndWeeks.value))
+    }
+    // a block that ended 14 weeks ago is no block while the window is 12 weeks, and the sentence
+    // names the window of the shipped value
+    const old = at(scenario([...summer(14), ...SPARSE]), 'standard')
+    expect(text(g8(old)[1]!)).toBe(gapSentence(12))
+    withTaperEnd(16, () => {
+      expect(ids(g8(old))).toContain('g-8.block')
+      expect(text(g8(at(scenario(SPARSE), 'standard'))[1]!)).toBe(gapSentence(16))
+    })
+  })
+
+  test('at steady the block is stated and nothing is said to be in use', () => {
+    const facts = g8(h1())
+    expect(ids(facts)).toEqual(['g-8.block', 'g-8.setting', 'g-8.limits'])
+    expect(text(facts[1]!)).toBe(setting('Steady'))
+  })
+
+  describe('a position held at steady', () => {
+    const cases: Array<[string, EngineInput, LoadHold]> = [
+      ['a recent injury', scenario(s3Runs(), { profile: { injuries: [injury] } }), 'recent-injury'],
+      ['a REDs hold', scenario(s3Runs(), { screeningFlags: 2 }), 'reds-hold'],
+    ]
+
+    test.each(cases)('%s: the request, the reason, and no zone', (_name, base, hold) => {
+      for (const position of ['standard', 'upper'] as const) {
+        const input = at(base, position)
+        const load = loadPosition(input, estimateState(input))
+        expect(load.held).toBe(hold)
+        const facts = g8(input)
+        expect(ids(facts)).toEqual(['g-8.block', 'g-8.setting', 'g-8.held', 'g-8.limits'])
+        expect(text(facts[1]!)).toBe(setting(loadName(position)))
+        // the reason is the one the Plan page gives
+        expect(text(facts[2]!)).toBe(loadPanelText(load).reason[1])
+        expect(text(facts[2]!)).toBe(`The steady step applies for now: ${loadHoldReason(hold)}.`)
+      }
+    })
+
+    test('every reason the engine can name reads as the Plan page reads it', () => {
+      const holds: LoadHold[] = [
+        'recent-injury',
+        'bone-stress',
+        'bsi-factors',
+        'reds-hold',
+        'bone-pain',
+        'rest-window',
+        'post-race',
+        'low-frequency',
+      ]
+      for (const hold of holds) {
+        for (const units of UNITS) {
+          const fact = { template: 'explain.g8-held', slots: { reason: loadHoldReason(hold) } }
+          const panel = render(LOAD_TEMPLATES['load.held'], { reason: loadHoldReason(hold) }, units)
+          expect(renderFact(fact, units), hold).toBe(panel)
+        }
+      }
+    })
+
+    test('a rest window, the weeks after a race and a low-frequency runner are held too', () => {
+      const window = {
+        id: 'w1',
+        reason: 'illness-above-neck' as const,
+        mode: 'rest' as const,
+        startDate: '2026-10-22',
+        endDate: '2026-10-26',
+        maxRunMin: null,
+        pain: null,
+        gaitChange: false,
+      }
+      const withWindow = { ...h1(), disruptions: [window] }
+      const race = activity('2026-10-16', {
+        id: 'marathon',
+        type: 'race',
+        durationSec: 4 * 3600,
+        movingSec: 4 * 3600,
+        distanceM: 42_195,
+      })
+      const afterRace = { ...h1(), activities: [...h1().activities, race] }
+      const lowFrequency = scenario([...summer(), ...weeks(7, 1, [70])])
+      for (const [base, hold] of [
+        [withWindow, 'rest-window'],
+        [afterRace, 'post-race'],
+        [lowFrequency, 'low-frequency'],
+      ] as const) {
+        const input = at(base, 'standard')
+        expect(loadPosition(input, estimateState(input)).held, hold).toBe(hold)
+        const found = ids(g8(input))
+        expect(found, hold).toContain('g-8.held')
+        expect(found, hold).not.toContain('g-8.zone')
+      }
+    })
+  })
+
+  test('age 45 or over: upper is shown as chosen, held at standard, with the zone of standard', () => {
+    const input = at(scenario(s3Runs(), { profile: { birthYear: 1980 } }), 'upper')
+    const ctx = contextOf(input)
+    const load = loadPosition(input, ctx.state)
+    expect(load.ageCapped).toBe(true)
+    const facts = factsOf('g-8', ctx)
+    expect(ids(facts)).toEqual(['g-8.block', 'g-8.zone', 'g-8.setting', 'g-8.capped', 'g-8.limits'])
+    expect(text(facts[1]!)).toBe(
+      zoneSentence(P.g8.creditStandard.value * 280, P.g8.stepStandard.value),
+    )
+    expect(text(facts[2]!)).toBe(setting('Upper band'))
+    expect(text(facts[3]!)).toBe(loadPanelText(load).reason[1])
+    expect(text(facts[3]!)).toBe(
+      `The setting is held at Standard: age ${String(P.a9.noviceFlagAgeMin.value)} or over.`,
+    )
+    // standard at the same age is not capped
+    expect(
+      ids(g8(at(scenario(s3Runs(), { profile: { birthYear: 1980 } }), 'standard'))),
+    ).not.toContain('g-8.capped')
+  })
+
+  test('upper: the zone is the larger credit and the step that meets the hard ceiling', () => {
+    const input = at(h1(), 'upper')
+    const facts = g8(input)
+    expect(text(facts[1]!)).toBe(
+      zoneSentence(P.g8.creditUpper.value * 280, Math.sqrt(1 + P.g2.rampCeilingTwoWeeks.value) - 1),
+    )
+    expect(text(facts[2]!)).toBe(setting('Upper band'))
+  })
+
+  describe('the response to weeks run above plan', () => {
+    const responseOf = (input: EngineInput) => g8(input).find((fact) => fact.id === 'g-8.response')
+    /** The week plans of a re-plan, one number per week: the targets. */
+    const targets = (input: EngineInput) => replan(input).draft.weeks.map((w) => w.targetRunMin)
+
+    test('is stated exactly when the response lifts the next week of the plan, with the figures it read', () => {
+      let engaged = 0
+      for (const [k, { input }] of chain.entries()) {
+        const state = estimateState(input)
+        const mean = responseBasis(input, state)?.meanMin ?? null
+        const fact = responseOf(input)
+        // the response is what the re-plan adds over the same input without it
+        const lifted =
+          input.existing !== null &&
+          JSON.stringify(targets(input)) !==
+            JSON.stringify(withResponseWeeks(NO_RESPONSE, () => targets(input)))
+        expect(fact !== undefined, `step ${String(k)}`).toBe(lifted)
+        if (fact === undefined) continue
+        engaged += 1
+        const planned = slot(fact, 'planned', 'minutes').min
+        expect(slot(fact, 'n', 'count').n).toBe(P.g8.responseWeeks.value)
+        expect(slot(fact, 'mean', 'minutes').min).toBe(Math.round(mean!))
+        expect(planned).toBeLessThan(Math.round(mean!))
+        // the planned baseline is the minutes of one week, never a sum of weeks
+        const weekMinutes = [
+          ...state.weeks.map((w) => Math.round(w.runMin)),
+          ...input.existing!.weeks.map((w) => Math.round(plannedMinOf(w))),
+        ]
+        expect(weekMinutes, `step ${String(k)}`).toContain(planned)
+        expect(text(fact)).toBe(
+          `The last ${String(P.g8.responseWeeks.value)} weeks averaged ${String(Math.round(mean!))} min a week, above the ${String(planned)} min planned, so the next week builds from ${String(Math.round(mean!))} min.`,
+        )
+        expect(fact.state).toBe('used')
+      }
+      // a chain that never passed its plan would test nothing
+      expect(engaged).toBeGreaterThan(0)
+    })
+
+    test('steps from the minutes the current week was planned at, not from the weeks as run', () => {
+      const input = chain.at(-1)!.input
+      const monday = mondayOf(input.today)
+      const current = input.existing!.weeks.find((w) => w.weekStart === monday)!
+      const fact = responseOf(input)!
+      expect(slot(fact, 'planned', 'minutes').min).toBe(Math.round(plannedMinOf(current)))
+      // the week before ran above the current week as planned, and does not set the figure: the
+      // re-plan carries the planned sequence on, and the weeks as run only bound a week
+      const before = estimateState(input).weeks.find((w) => w.weekStart === addDays(monday, -7))!
+      expect(before.runMin).toBeGreaterThan(plannedMinOf(current))
+      expect(slot(fact, 'planned', 'minutes').min).toBeLessThan(Math.round(before.runMin))
+    })
+
+    test('steps from the last loading week when the current week is a recovery week', () => {
+      const input = chain.at(-1)!.input
+      const monday = mondayOf(input.today)
+      const weeksOf = input.existing!.weeks
+      const recovery: EngineInput = {
+        ...input,
+        existing: {
+          ...input.existing!,
+          weeks: weeksOf.map((w) =>
+            w.weekStart === monday
+              ? { ...w, isRecovery: true, flags: [...w.flags, 'recovery'] }
+              : w,
+          ),
+        },
+      }
+      const lastLoading = weeksOf.filter((w) => w.weekStart < monday && !w.isRecovery).at(-1)!
+      const mean = responseBasis(recovery, estimateState(recovery))!.meanMin!
+      expect(mean).toBeGreaterThan(plannedMinOf(lastLoading))
+      expect(slot(responseOf(recovery)!, 'planned', 'minutes').min).toBe(
+        Math.round(plannedMinOf(lastLoading)),
+      )
+    })
+
+    test('comes after the setting and before the limits', () => {
+      const input = chain.map((step) => step.input).find((i) => responseOf(i) !== undefined)!
+      const found = ids(g8(input))
+      expect(found.indexOf('g-8.response')).toBeGreaterThan(found.indexOf('g-8.setting'))
+      expect(found.indexOf('g-8.response')).toBeLessThan(found.indexOf('g-8.limits'))
+    })
+
+    test('is left out at steady, without a stored plan, and without a mean to state', () => {
+      const engaged = chain.map((step) => step.input).find((i) => responseOf(i) !== undefined)!
+      expect(responseOf(at(engaged, 'steady'))).toBeUndefined()
+      expect(responseOf({ ...engaged, existing: null })).toBeUndefined()
+      withResponseWeeks(NO_RESPONSE, () => {
+        expect(responseOf(engaged)).toBeUndefined()
+      })
+      for (const { input } of replanChain(base, { scale: 1.6, maxSteps: 5 })) {
+        expect(responseOf(input)).toBeUndefined()
+      }
+    })
+  })
+
+  test('every number comes from a Param: the count of weeks, the window and the limits', () => {
+    const word = (n: number) => countPhrase(n, 'steady week')
+    withParam(P.g8.blockWeeks, 3, () => {
+      expect(text(g8(h1())[0]!)).toMatch(/^Three steady weeks ending /)
+      expect(word(3)).toBe('three steady weeks')
+      expect(text(g8(scenario(SPARSE))[1]!)).toBe(
+        `No ${word(3)} in the last 12 weeks, so the plan builds from recent weeks.`,
+      )
+    })
+    withParam(P.g2.rampCeilingTwoWeeks, 0.25, () => {
+      expect(text(g8(h1()).at(-1)!)).toContain('growth never passes 25% over two weeks')
+    })
+    withParam(P.g2.ceilingWindowWeeks, 3, () => {
+      expect(text(g8(h1()).at(-1)!)).toContain('over three weeks')
+    })
+    withParam(P.g1.windowDays, 21, () => {
+      expect(text(g8(h1()).at(-1)!)).toContain('the 21-day rule')
+    })
+    withParam(P.g2.rampSoft, 0.08, () => {
+      expect(text(g8(at(h1(), 'standard'))[1]!)).toContain('past that it adds up to 8%')
+    })
+  })
+
+  test('every sentence is clean, short, finished and free of a raw date in both unit systems', () => {
+    const afterTaper = withTaperEnd(16, () => g8(at(scenario([...summer(14), ...SPARSE]), 'upper')))
+    const all = [
+      ...g8(h1()),
+      ...g8(at(h1(), 'standard')),
+      ...g8(at(h1(), 'upper')),
+      ...g8(at(scenario(SPARSE), 'standard')),
+      ...g8(at(scenario(s3Runs(), { profile: { birthYear: 1980 } }), 'upper')),
+      ...g8(at(scenario(s3Runs(), { profile: { injuries: [injury] } }), 'standard')),
+      ...afterTaper,
+      ...chain.flatMap((step) => g8(step.input)),
+    ]
+    expect(all.length).toBeGreaterThan(30)
+    // every template of the rule is produced by a builder here, and no fact uses another one
+    const registered = Object.keys(EXPLAIN_TEMPLATES).filter((id) => id.startsWith('explain.g8-'))
+    expect(registered).toHaveLength(9)
+    expect([...new Set(all.map((f) => f.template))].sort()).toEqual(registered.sort())
+    for (const fact of all) {
+      expect(fact.id.startsWith('g-8.'), fact.id).toBe(true)
+      expect(fact.template.startsWith('explain.g8-'), fact.id).toBe(true)
+      for (const units of UNITS) {
+        const sentence = text(fact, units)
+        expect(lintText(sentence), `${fact.id}: ${sentence}`).toEqual([])
+        expect(sentence.length, sentence).toBeLessThanOrEqual(COPY_MAX_CHARS)
+        expect(sentence, fact.id).toMatch(/[.?]$/)
+        expect(sentence, fact.id).not.toMatch(/\d{4}-\d{2}-\d{2}|NaN|undefined|null|\{|\}/)
+        // the sentence states the rule and claims nothing about safety, injury or the runner
+        expect(sentence, sentence).not.toMatch(/\b(safe|unsafe|protect\w*|prevent\w*|you|your)\b/i)
+      }
+      // the same in miles and in kilometres: minutes, shares and counts have no unit system
+      expect(text(fact, 'km'), fact.id).toBe(text(fact, 'mi'))
+    }
+  })
+
+  describe('where the drawer lists g-8', () => {
+    const standard = withPlan(at(h1(), 'standard'))
+    const steady = withPlan(h1())
+    const standardCtx = contextOf(standard)
+    const steadyCtx = contextOf(steady)
+    const monday = standard.existing!.weeks[1]!.weekStart
+    const easy = standard.existing!.sessions.find((s) => VOLUME_KINDS.has(s.kind))!
+    const other = standard.existing!.sessions.find((s) => !VOLUME_KINDS.has(s.kind))
+
+    test('a week and a run of a plan set above steady read g-8 right after the weekly ramp', () => {
+      expect(explainRules({ subject: 'week', weekStart: monday }, standardCtx)).toEqual([
+        'g-2',
+        'g-8',
+        'g-6',
+        'J5',
+      ])
+      expect(explainRules({ subject: 'session', id: easy.id }, standardCtx)!.slice(0, 5)).toEqual([
+        'g-1',
+        'g-2',
+        'g-8',
+        'C1',
+        'C2',
+      ])
+    })
+
+    test('a session that is no run, and a plan at steady, list what they always did', () => {
+      expect(other, 'the plan has a session that is no run').toBeDefined()
+      expect(explainRules({ subject: 'session', id: other!.id }, standardCtx)).not.toContain('g-8')
+      expect(explainRules({ subject: 'week', weekStart: monday }, steadyCtx)).toEqual([
+        'g-2',
+        'g-6',
+        'J5',
+      ])
+      const run = steady.existing!.sessions.find((s) => VOLUME_KINDS.has(s.kind))!
+      expect(explainRules({ subject: 'session', id: run.id }, steadyCtx)!.slice(0, 4)).toEqual([
+        'g-1',
+        'g-2',
+        'C1',
+        'C2',
+      ])
+    })
+
+    test('the facts sit in their own group, among the rules of the week and of the run', () => {
+      for (const request of [
+        { subject: 'week', weekStart: monday },
+        { subject: 'session', id: easy.id },
+      ] as const) {
+        const out = view(request, standardCtx)
+        const rules = out.groups.map((group) => group.rule)
+        expect(rules, request.subject).toContain('g-8')
+        expect(rules.indexOf('g-8'), request.subject).toBe(rules.indexOf('g-2') + 1)
+        expect(out.rest, request.subject).not.toContain('g-8')
+        const group = out.groups.find((candidate) => candidate.rule === 'g-8')!
+        expect(group.facts.map((fact) => fact.template)).toContain('explain.g8-zone')
+      }
+    })
+  })
+
+  test('g-8 has a builder and no policy entry, and its title is the one the drawer shows', () => {
+    expect(builderFor('g-8')).toBe(INPUT_BUILDERS['g-8'])
+    expect(isPolicyOnly('g-8')).toBe(false)
+    expect(RULE_TITLES['g-8']).toBe('History-informed rebuild')
+    // never read-only: a runner with no data at all still gets a sentence
+    expect(factsOf('g-8', contextOf(emptyInput())).some((f) => f.state === 'insufficient')).toBe(
+      true,
+    )
   })
 })
 

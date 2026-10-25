@@ -61,6 +61,46 @@ export const EXPLAIN_TEMPLATES = {
     { week: 'date' },
   ),
 
+  // g-8: the history-informed rebuild [rules g-8, proposal 4.6]. The block and the gap name the
+  // count of weeks from the Param ("Four steady weeks") in a text slot, and the held and capped
+  // lines say what `load.held` and `load.capped` say on the Plan page.
+  'explain.g8-block': tpl('{blocks} ending {ago} ago averaged {minutes} a week.', {
+    blocks: 'text',
+    ago: 'text',
+    minutes: 'minutes',
+  }),
+  'explain.g8-taper': tpl(
+    'The block ended {weeks} weeks ago, so it counts for {share} of its size.',
+    {
+      weeks: 'count',
+      share: 'share',
+    },
+  ),
+  'explain.g8-zone': tpl(
+    'While a week is under {minutes}, the plan adds up to {pct} a week; past that it adds up to {soft}.',
+    { minutes: 'minutes', pct: 'percent', soft: 'percent' },
+  ),
+  'explain.g8-setting': tpl(
+    'Load setting: {position}. It sets how fast the plan adds running time while rebuilding.',
+    { position: 'text' },
+  ),
+  'explain.g8-held': tpl('The steady step applies for now: {reason}.', { reason: 'text' }),
+  'explain.g8-capped': tpl('The setting is held at Standard: age {age} or over.', {
+    age: 'count',
+  }),
+  'explain.g8-response': tpl(
+    'The last {n} weeks averaged {mean} a week, above the {planned} planned, so the next week builds from {mean}.',
+    { n: 'count', mean: 'minutes', planned: 'minutes' },
+  ),
+  'explain.g8-none': tpl(
+    'No {blocks} in the last {weeks} weeks, so the plan builds from recent weeks.',
+    { blocks: 'text', weeks: 'count' },
+  ),
+  'explain.g8-limits': tpl(
+    'Long runs keep the {days}-day rule, and growth never passes {pct} over {span}.',
+    { days: 'count', pct: 'percent', span: 'text' },
+  ),
+
   // A2: chronic and acute load
   'explain.a2-load': tpl(
     'Load over the last {acuteDays} days is {acute} and over the last {chronicDays} days {chronic}, counted in {metric}.',
