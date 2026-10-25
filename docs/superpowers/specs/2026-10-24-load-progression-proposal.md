@@ -816,8 +816,9 @@ Every string above was run through `lintText` (`shared/copy/lint.ts`) on 2026-10
 Plan week focus in the zone: "Rebuilding toward {minutes} a week". Revision summary on a change of
 the position, not built: no plan action changes the position yet (question 6, task L4b), so the
 line waits for that action: "Load setting changed to {position}: weeks ahead add up to {pct} while
-rebuilding." The checklist detail keeps its form: "{n} week(s) step above the soft {pct} and carry a warning", with the
-position's pct.
+rebuilding." The checklist detail keeps its form: "{n} week(s) step above the soft {pct} and carry
+a warning", with the position's pct. The soft note names each soft week's own step, so it can read
+"10% or 12%" when weeks inside and outside the zone mix (amended 2026-10-25).
 
 Added with the owner's decisions (run through `lintText` on 2026-10-25, no hit):
 
@@ -943,6 +944,14 @@ principle of section 4.1 does not extend to it.
   to the limit. The revision's diff names each kept week and each clipped week, and a clipped week
   says which limit applied (templates in section 4.6, ADR 0007: the diff and the undo are built from
   the rows actually written).
+- **Written as (amended 2026-10-25, review of L7).** A target clipped by a hold, a weekly decision, a
+  post-race or disruption window, a programme or the structure of the plan is written with the
+  engine's own figure, `targetSource: 'baseline'` and no note: that limit is the plan's figure at
+  that moment, and the week is free again once the rule has passed. The ask and the limit stay in
+  `PlanDiff.targets`, and the undo restores the override. A clip by the ceiling or by a tightened
+  profile stays an override at the limit only when the limit or the minutes already run set the kept
+  figure. `TargetDiffLine` has an optional `bound` (`limit`, `plan` or `logged`) that says which of
+  the limit, the plan's own figure or the minutes already run set the kept figure.
 - **Lowered targets are unchanged.** A target below the engine's is kept and caps the week
   (`weekCaps`), as today.
 - **Sessions.** The week's sessions are the engine's, as today; the override stays a target and adds
@@ -1108,8 +1117,11 @@ A result that satisfies 1 and 2 at upper but misses them at standard is a reason
 
 **5.5 Other tests.** API tests for the option (`tests/api`, own SQLite file per context): accepted,
 stored in `Plan.options`, reused by the weekly re-plan, rejected when unknown; a revision on change.
-Page tests by role and name for the form and the drawer; e2e spec `19-load-setting.spec.ts` (the
-next free number) driving the form and the drawer text with dates from the clock, no sleeps;
+Page tests by role and name for the form and the Plan panel; e2e spec `19-load-setting.spec.ts` (the
+next free number) driving the form and the Plan page with dates from the clock, no sleeps; the Why
+drawer's g-8 group is covered by the API test `tests/api/explain-load.test.ts` (`GET /api/explain`
+for a plan at Standard) and by the page tests, not by e2e spec 19 (amended 2026-10-25), and
+`tests/api/explain-plan-goal.test.ts` checks that the drawer and the Plan page read one position;
 `expectCleanCopy` on every new string; the params test (grade D notes, rule heading in
 `engine-rules.md`, `PARAMS_VERSION`); the rule-title and explain coverage tests; the research check.
 
