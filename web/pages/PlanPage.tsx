@@ -670,8 +670,11 @@ function WhatChanged({
 }
 
 /**
- * The load setting in effect, from the plan payload: the position that applies today with its hint,
- * and, when the position the plan was set to does not apply, which one it was set to and why.
+ * The load setting in effect, from the plan payload: the position that applies today with its hint
+ * and the trade-off of the choice (the effect of a faster step on a return is not known), and,
+ * when the position the plan was set to does not apply, which one it was set to and why. The Why
+ * drawer states facts of the plan; the trade-off belongs here and on the Generate form, where the
+ * position is chosen and read.
  */
 function LoadPanel({ load }: { load: LoadPosition }) {
   const text = loadPanelText(load)
@@ -683,6 +686,7 @@ function LoadPanel({ load }: { load: LoadPosition }) {
       <p className={styles.setting}>
         <strong>{text.name}</strong> <span className={styles.muted}>{text.hint.join(' ')}</span>
       </p>
+      <p className={styles.muted}>{loadTradeoff()}</p>
       {text.reason.length > 0 ? <p className={styles.muted}>{text.reason.join(' ')}</p> : null}
     </section>
   )
