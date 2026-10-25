@@ -3,8 +3,10 @@
 // total of the back-to-back rule, the weekly ramp with its baselines, the tightened profiles, the
 // weekly gain ramp and the ultra cap on a single run. The macrocycle and the week placement plan
 // inside these numbers and the guards and the checklist check against the same ones, so a
-// generated plan needs no trimming. The most a week target the runner raised by hand may stay at
-// is read from the same ramp (`targetLimit`). Pure: no I/O, no clock.
+// generated plan needs no trimming. The rebuild zone of rule g-8 (a larger soft step below a
+// ceiling taken from the runner's recent weeks) is part of that ramp (`RampContext.rebuild`). The
+// most a week target the runner raised by hand may stay at is read from the same ramp
+// (`targetLimit`). Pure: no I/O, no clock.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity, TargetLimitKind } from '../types.ts'
 import { isDisruptedWeek } from './disruption.ts'
@@ -357,6 +359,45 @@ export function plannedMinOf(week: Pick<WeekDraft, 'targetRunMin' | 'flags'>): n
  */
 export type RampExemption = 'soft' | 'ramp'
 
+/**
+ * The rebuild zone of a plan [rules g-8]: below `ceilingMin` the soft step of a loading week is
+ * `step` instead of the usual 10%. Absent at steady and wherever the load setting is held at
+ * steady (`rebuildZone`, loadSetting.ts, is the one place that builds it).
+ */
+export interface RebuildZone {
+  /** The rebuild ceiling R in minutes: the position's credit x the block's taper x the block. */
+  ceilingMin: number
+  /** The weekly step of a week whose baseline is under `ceilingMin`, as a fraction. */
+  step: number
+}
+
+/**
+ * The weekly rate at which two weeks meet the hard ceiling of G-2, `sqrt(1 + g2.rampCeilingTwoWeeks)
+ * - 1` (14.0%): the step of the upper position [rules g-8]. Derived from the ceiling, so it cannot
+ * pass it and moves with it.
+ */
+export function ceilingWeeklyRate(): number {
+  return Math.sqrt(1 + P.g2.rampCeilingTwoWeeks.value) - 1
+}
+
+/**
+ * The most a loading week may be planned at over a baseline `from` before the soft step warns
+ * [rules g-8, g-2]: `from` plus the usual `ramp`, and below the rebuild ceiling the larger of that
+ * and the zone's step, clamped so that the zone never plans a week above R except by the usual
+ * step: max(from x (1 + ramp), min(from x (1 + step), R)). Without a zone, and from R up, it is
+ * `rampStep` (the novice minimum step included).
+ */
+export function rebuildStep(
+  from: number,
+  ramp: number,
+  novice: boolean,
+  rebuild: RebuildZone | null,
+): number {
+  const usual = rampStep(from, ramp, novice)
+  if (rebuild === null || from >= rebuild.ceilingMin) return usual
+  return Math.max(usual, Math.min(rampStep(from, rebuild.step, novice), rebuild.ceilingMin))
+}
+
 /** What the weekly ramp of a plan is computed from. */
 export interface RampContext {
   /** Running minutes by Monday: the completed weeks, then the planned ones. */
@@ -374,14 +415,45 @@ export interface RampContext {
   novice: boolean
   /** `tightRamp(state)`. */
   tight: number | null
+  /**
+   * The rebuild zone of the plan [rules g-8], or null (steady, a held setting, no history). Every
+   * builder of a context sets it through `rampBasis`, so the generator, the guards, the checklist
+   * and `targetLimit` read one zone.
+   */
+  rebuild: RebuildZone | null
+}
+
+/**
+ * The parts of a `RampContext` that come from the athlete and the plan's load setting: the typical
+ * week, the novice minimum step, the tightened profile's ramp and the rebuild zone. The one
+ * function every builder of a context calls (the macrocycle, the week placement, the guards and
+ * the checklist), so that they cannot disagree about which ramp a week is measured against.
+ */
+export function rampBasis(
+  state: AthleteState,
+  rebuild: RebuildZone | null,
+): Pick<RampContext, 'typicalWeekMin' | 'novice' | 'tight' | 'rebuild'> {
+  return {
+    typicalWeekMin: state.typicalWeekMin,
+    novice: noviceRamp(state),
+    tight: tightRamp(state),
+    rebuild,
+  }
 }
 
 /** The limits of one week. */
 export interface WeekRampLimits {
   /** Highest of the previous loading weeks, or the typical week. */
   base: number
-  /** Above this the week carries a soft-ramp warning. */
+  /** Above this the week carries a soft-ramp warning: the zone's limit in the rebuild zone. */
   soft: number
+  /** The usual soft step over `base` (10%), whatever the zone: `soft` is never below it. */
+  usualSoft: number
+  /**
+   * The rebuild zone when it raised the week's soft step above the usual one [rules g-8], that is
+   * when the week's baseline is under R; null elsewhere (from R up, at steady, a start-path week).
+   */
+  rebuild: RebuildZone | null
   /** The 2-week ceiling and the tightened ramp: above this the week is cut. */
   allowed: number
   /** True when the tightened ramp, not the ceiling, sets `allowed`. */
@@ -451,7 +523,8 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
         afterFloor ? Math.max(ctx.volumes.get(ctx.floor!.weekStart) ?? 0, ctx.floor!.minutes) : 0,
       ),
     ) ?? base
-  const soft = rampStep(base, P.g2.rampSoft.value, ctx.novice)
+  const usualSoft = rampStep(base, P.g2.rampSoft.value, ctx.novice)
+  const soft = rebuildStep(base, P.g2.rampSoft.value, ctx.novice, ctx.rebuild)
   const ceiling = rampStep(ceilingBase, P.g2.rampCeilingTwoWeeks.value, ctx.novice)
   const tightLimit = ctx.tight === null ? Infinity : rampStep(base, ctx.tight, ctx.novice)
   const isFloorWeek = ctx.floor !== null && ctx.floor.weekStart === weekStart
@@ -462,6 +535,9 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
   return {
     base,
     soft,
+    usualSoft,
+    // a start-path week is the programme's, and takes no zone
+    rebuild: !exempt && soft > usualSoft + EPS ? ctx.rebuild : null,
     allowed,
     tightened: exemption !== 'ramp' && tightLimit <= ceiling,
     tightRamp: ctx.tight,

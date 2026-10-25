@@ -28,6 +28,7 @@ import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
 import { targetLimit, type TargetLimit } from '../../shared/engine/limits.ts'
+import { rebuildZone } from '../../shared/engine/loadSetting.ts'
 import { progressionHold } from '../../shared/engine/macro.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import type {
@@ -792,6 +793,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
         executions: (await executionRecordsByWeek(prisma, plan.id, [lastWeek])).get(lastWeek) ?? [],
         redsFlags: input.screeningFlags,
         ramp: weeklyRamp(state),
+        rebuild: rebuildZone(input, state),
       })
     : null
   // The week a hold or a reduce caps: the week that follows the one the decision reviewed.

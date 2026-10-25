@@ -955,6 +955,40 @@ describe('the load setting option (options.loadAppetite)', () => {
     expect(after.weeks[0]!.targetRunMin).toBe(60)
   })
 
+  test('rebuilds by the zone after the start at standard and upper, and a re-plan keeps it', async () => {
+    const u = await seedRunner('load-zone@example.com')
+    const goal = await seedGoal({ userId: u.id })
+    const second: Record<string, number> = {}
+    for (const loadAppetite of ['steady', 'standard', 'upper'] as const) {
+      const res = await generateAs(u, goal.id, { loadAppetite })
+      expect(res.status, JSON.stringify(res.body)).toBe(201)
+      second[loadAppetite] = (res.body as PlanWithSessions).weeks[1]!.targetRunMin
+    }
+    // week 1 is 60 at steady (3 x 20) and 90 at standard and upper (3 x 30); week 2 grows from it
+    // by 10% at steady, and at standard and upper by the zone's 12% or 14% up to what G-1 allows
+    expect(second.steady).toBeLessThanOrEqual(Math.floor(60 * 1.1 + 1e-9))
+    expect(second.standard).toBeGreaterThanOrEqual(Math.floor(90 * 1.1 + 1e-9))
+    expect(second.standard).toBeLessThanOrEqual(Math.floor(90 * 1.12 + 1e-9))
+    expect(second.upper).toBeGreaterThanOrEqual(second.standard!)
+    expect(second.upper).toBeLessThanOrEqual(Math.floor(90 * 1.15))
+
+    // the plan of the last position generated is the active one; the weekly re-plan draws it again
+    const before = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    await replanActivePlan(
+      { prisma: ctx.prisma, config: ctx.config },
+      { userId: u.id, reason: 'weekly', today },
+    )
+    const after = (await client(ctx, u).get('/api/plan')).body as PlanWithSessions
+    expect(after.id).toBe(before.id)
+    expect(after.weeks.slice(0, 4).map((w) => w.targetRunMin)).toEqual(
+      before.weeks.slice(0, 4).map((w) => w.targetRunMin),
+    )
+    expect(after.checklist.filter((c) => !c.ok)).toEqual([])
+    expect(after.checklist.find((c) => c.id === 'progression')!.detail).toMatch(
+      /use the rebuild step of 14% a week, up to 238 min/,
+    )
+  })
+
   test('a stored value that is not a position is dropped, which reads as steady', () => {
     expect(parsePlanOptions('{"loadAppetite":"upper","recoveryCycle":"2:1"}')).toEqual({
       loadAppetite: 'upper',

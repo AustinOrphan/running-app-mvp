@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { lintText } from '../../../shared/copy/lint.ts'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { applyGuards, nextWeekCap } from '../../../shared/engine/guards.ts'
 import {
@@ -55,6 +56,17 @@ describe('nextWeekCap (rules G-6)', () => {
     expect(nextWeekCap(300, 100, 0.1)).toBeCloseTo(110)
     expect(nextWeekCap(300, 0, 0.1)).toBe(0)
     expect(nextWeekCap(-5, 200, 0.1)).toBe(0)
+  })
+  it('grows by the step of the rebuild zone below its ceiling, as the plan does [rules g-8]', () => {
+    const zone = { ceilingMin: 300, step: 0.12 }
+    expect(nextWeekCap(400, 100, 0.1, zone)).toBeCloseTo(112)
+    // the zone never plans past R except by the usual step: 290 x 1.12 = 324.8, R = 300, 290 x 1.1 = 319
+    expect(nextWeekCap(400, 290, 0.1, zone)).toBeCloseTo(319)
+    // from R up the usual ramp applies
+    expect(nextWeekCap(400, 300, 0.1, zone)).toBeCloseTo(330)
+    // the plan's own figure is still the lesser number, and a zone of null is the plain cap
+    expect(nextWeekCap(105, 100, 0.1, zone)).toBe(105)
+    expect(nextWeekCap(400, 100, 0.1, null)).toBe(nextWeekCap(400, 100, 0.1))
   })
 })
 
@@ -487,6 +499,30 @@ describe('applyGuards: weekly ramp (G-2, G-3)', () => {
   it('does not warn at 10% or less', () => {
     const result = applyGuards(planWeek('2026-11-02', 220), withWeeks([200, 200, 200]), [])
     expect(result.warnings.filter((w) => w.code.startsWith('ramp'))).toEqual([])
+  })
+
+  it('reads the rebuild zone: its step does not warn, a week above it names the zone, the ceiling cuts', () => {
+    const st = withWeeks([200, 200, 200])
+    const zone = { ceilingMin: 300, step: 0.12 }
+    // 224 is +12%: inside the zone, above the usual 10%
+    const within = applyGuards(planWeek('2026-11-02', 224), st, [], { rebuild: zone })
+    expect(within.warnings.filter((w) => w.code.startsWith('ramp'))).toEqual([])
+    const without = applyGuards(planWeek('2026-11-02', 224), st, [])
+    expect(without.warnings.some((w) => w.code === 'ramp-soft')).toBe(true)
+    // above the zone's step the warning says which step it measured against
+    const above = applyGuards(planWeek('2026-11-02', 240), st, [], { rebuild: zone })
+    const warning = above.warnings.find((w) => w.code === 'ramp-soft')
+    expect(warning?.rules).toEqual(['g-2', 'g-8'])
+    expect(warning?.message).toContain('the 12% rebuild step toward 300 min')
+    expect(lintText(warning?.message ?? '')).toEqual([])
+    // the 2-week ceiling is the same with or without the zone
+    const cut = applyGuards(planWeek('2026-11-02', 400), st, [], { rebuild: zone })
+    expect(weekMinutes(cut.sessions, '2026-11-02')).toBeLessThanOrEqual(260)
+    expect(cut.warnings.some((w) => w.code === 'ramp-ceiling')).toBe(true)
+    // from R up the usual 10% applies again
+    const atR = withWeeks([300, 300, 300])
+    const over = applyGuards(planWeek('2026-11-02', 336), atR, [], { rebuild: zone })
+    expect(over.warnings.find((w) => w.code === 'ramp-soft')?.rules).toEqual(['g-2'])
   })
 
   it('cuts a week above the 2-week ceiling back to it', () => {

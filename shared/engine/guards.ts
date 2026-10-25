@@ -11,22 +11,23 @@ import {
   gainLimit,
   injuryTight,
   isProgramme,
-  noviceRamp,
+  rampBasis,
   rampLimits,
   rampSkipWeeks,
+  rebuildStep,
   recordOf,
   referenceAt,
   runningGain,
   runningMinutes,
   spikeOverrideLimit,
   spikeWarnLimit,
-  tightRamp,
   twoDayReference,
   ultraRunCapMin,
   VOLUME_KINDS,
   weeklyGain,
   type RampContext,
   type RampExemption,
+  type RebuildZone,
   type SpikeReference,
 } from './limits.ts'
 import { intensityMinutes } from './micro.ts'
@@ -69,6 +70,12 @@ export interface GuardOptions {
    */
   exempt?: ReadonlyMap<string, RampExemption>
   /**
+   * The rebuild zone of the plan [rules g-8] (`rebuildZone`, loadSetting.ts), which sets the soft
+   * step of a week under its ceiling: the generator's own zone, so that the guards check the plan
+   * against the step it was drawn with. Absent at steady and for a caller that has no plan options.
+   */
+  rebuild?: RebuildZone | null
+  /**
    * For a generated plan: a run above the normal band (1.10x the 30-day reference, or the minimum
    * step) on any dimension is shortened to that limit (and left out when it would fall under the
    * session minimum) instead of being flagged [rules g-1, G6]. A generated plan is built inside the
@@ -96,10 +103,20 @@ interface Dim {
   minStep: number
 }
 
-/** min(planned target, actual last week x (1 + ramp)); missed volume is never made up [rules g-6]. */
-export function nextWeekCap(plannedMin: number, actualLastWeekMin: number, ramp: number): number {
+/**
+ * min(planned target, actual last week x (1 + ramp)); missed volume is never made up [rules g-6].
+ * Under a rebuild zone the growth below its ceiling is the zone's [rules g-8].
+ */
+export function nextWeekCap(
+  plannedMin: number,
+  actualLastWeekMin: number,
+  ramp: number,
+  rebuild: RebuildZone | null = null,
+): number {
   const planned = Math.max(0, plannedMin)
-  const ceiling = Math.max(0, actualLastWeekMin) * (1 + ramp)
+  const actual = Math.max(0, actualLastWeekMin)
+  // below the rebuild ceiling the cap grows by the zone's step, as the plan does [rules g-8]
+  const ceiling = rebuild === null ? actual * (1 + ramp) : rebuildStep(actual, ramp, false, rebuild)
   return Math.min(planned, ceiling)
 }
 
@@ -175,9 +192,7 @@ export function applyGuards(
     skip: rampSkipWeeks(asOf, options.lowWeeks ?? []),
     floor,
     exempt: options.exempt,
-    typicalWeekMin: state.typicalWeekMin,
-    novice: noviceRamp(state),
-    tight: tightRamp(state),
+    ...rampBasis(state, options.rebuild ?? null),
   }
   const pairStarts: string[] = items
     .filter((s): s is SessionSpec => s !== null && s.date < asOf && s.flags.includes('b2b-day1'))
@@ -307,11 +322,16 @@ export function applyGuards(
         rules: limits.tightened ? ['g-2', 'g-3'] : ['g-2'],
       })
     } else if (!limits.exempt && total > limits.soft + 1e-6) {
+      // in the rebuild zone the soft limit is the zone's step, up to its ceiling
+      const step =
+        limits.rebuild === null
+          ? `a ${Math.round(P.g2.rampSoft.value * 100)}% step`
+          : `the ${Math.round(limits.rebuild.step * 100)}% rebuild step toward ${Math.round(limits.rebuild.ceilingMin)} min`
       warn(`ramp|${weekStart}`, {
         code: 'ramp-soft',
         severity: 'warn',
-        message: `Running time in the week of ${weekStart} is ${Math.round(total)} min, above a ${Math.round(P.g2.rampSoft.value * 100)}% step on the highest of the previous ${baselineWeeks} weeks (${Math.round(limits.base)} min). Keep it if it feels right.`,
-        rules: ['g-2'],
+        message: `Running time in the week of ${weekStart} is ${Math.round(total)} min, above ${step} on the highest of the previous ${baselineWeeks} weeks (${Math.round(limits.base)} min). Keep it if it feels right.`,
+        rules: limits.rebuild === null ? ['g-2'] : ['g-2', 'g-8'],
       })
     }
   }

@@ -1,11 +1,11 @@
 // The load setting of a plan [rules g-8]: which position applies to a runner today, and why a
-// requested one does not, plus the 3 x 30 start from a block of weeks (the second route of E6
-// path 2). Pure: the same input gives the same answer. It reads the athlete state and the input's
-// windows and imports no macro code, so the generator, the guards, the checklist and the
-// explanations can all read it.
+// requested one does not, the rebuild zone it sets, plus the 3 x 30 start from a block of weeks (the
+// second route of E6 path 2). Pure: the same input gives the same answer. It reads the athlete
+// state and the input's windows and imports no macro code, so the generator, the guards, the
+// checklist and the explanations can all read it.
 import { ageFlag } from './athlete.ts'
 import { disruptionPlan, windowPhase } from './disruption.ts'
-import { injuryTight } from './limits.ts'
+import { ceilingWeeklyRate, injuryTight, type RebuildZone } from './limits.ts'
 import { P } from './params/index.ts'
 import { postRaceWindows } from './postRace.ts'
 import { focalBoneActive } from './readiness.ts'
@@ -76,6 +76,28 @@ export function loadPosition(input: EngineInput, state: AthleteState): LoadPosit
   const aged = state.age !== null && state.age >= P.a9.noviceFlagAgeMin.value
   const ageCapped = requested === 'upper' && aged
   return { requested, position: ageCapped ? 'standard' : requested, held: null, ageCapped }
+}
+
+/**
+ * The rebuild zone of the plan [rules g-8]: the ceiling R = credit x taper x H and the position's
+ * weekly step, or null when there is none. Null at steady, wherever `loadPosition` holds the
+ * setting at steady, and without a history block. At standard the credit is `g8.creditStandard` and
+ * the step `g8.stepStandard`; at upper the credit is `g8.creditUpper` and the step the weekly rate
+ * at which two weeks meet the hard ceiling (`ceilingWeeklyRate`); upper read as standard because of
+ * age takes the standard values. H is the score of the winning block and the taper its factor
+ * (`HistoryBlock`), 1 for a block that ended within `g8.creditWindowWeeks`. The one place the zone
+ * is built: the macrocycle, the week placement, the guards, the checklist and the weekly decision
+ * all receive it from here.
+ */
+export function rebuildZone(input: EngineInput, state: AthleteState): RebuildZone | null {
+  const { position } = loadPosition(input, state)
+  if ((position !== 'standard' && position !== 'upper') || state.history === null) return null
+  const upper = position === 'upper'
+  const credit = upper ? P.g8.creditUpper.value : P.g8.creditStandard.value
+  return {
+    ceilingMin: credit * state.history.taper * state.history.blockMin,
+    step: upper ? ceilingWeeklyRate() : P.g8.stepStandard.value,
+  }
 }
 
 /**

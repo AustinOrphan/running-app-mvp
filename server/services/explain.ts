@@ -15,6 +15,7 @@ import {
   type ExplainContext,
 } from '../../shared/engine/explainInputs.ts'
 import { weeklyRamp } from '../../shared/engine/limits.ts'
+import { rebuildZone } from '../../shared/engine/loadSetting.ts'
 import type { ExplainRequest, ExplainView } from '../../shared/engine/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound } from '../errors.ts'
@@ -123,6 +124,7 @@ export async function explainView(
               executions,
               redsFlags: input.screeningFlags,
               ramp: weeklyRamp(context.state),
+              rebuild: rebuildZone(decisionInput, context.state),
             })
           })
         : null

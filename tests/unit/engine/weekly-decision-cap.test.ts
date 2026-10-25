@@ -82,3 +82,36 @@ describe('the tightened ramp of a bone stress history', () => {
     expect(weeklyDecision(i, WEEK, { efficiency: STABLE }).nextWeekTargetMin).toBe(110)
   })
 })
+
+describe('the rebuild zone of a plan at standard or upper [rules g-8, G-6]', () => {
+  const zone = { ceilingMin: 300, step: 0.12 }
+
+  it('lets the suggested week grow by the zone step below its ceiling, so the cap and the plan agree', () => {
+    // 161 min run: 161 x 1.1 = 177.1 without the zone, 161 x 1.12 = 180.3 with it
+    const i = week([40, 40, 40, 41], 160, 400)
+    expect(weeklyDecision(i, WEEK, { efficiency: STABLE }).nextWeekTargetMin).toBe(177)
+    expect(weeklyDecision(i, WEEK, { efficiency: STABLE, rebuild: zone }).nextWeekTargetMin).toBe(
+      180,
+    )
+    expect(weeklyDecision(i, WEEK, { efficiency: STABLE, rebuild: null }).nextWeekTargetMin).toBe(
+      177,
+    )
+  })
+
+  it('does the same for a held week, which stays under the week it was planned at', () => {
+    // 121 min run of 240 planned: a hold caps the next week at 121 x 1.1 = 133.1, or 135.5 in the zone
+    const i = week([40, 40, 41, 0], 240, 400)
+    expect(weeklyDecision(i, WEEK, { efficiency: STABLE }).decision).toBe('hold')
+    expect(weeklyDecision(i, WEEK, { efficiency: STABLE }).nextWeekTargetMin).toBe(133)
+    const held = weeklyDecision(i, WEEK, { efficiency: STABLE, rebuild: zone })
+    expect(held.decision).toBe('hold')
+    expect(held.nextWeekTargetMin).toBe(135)
+  })
+
+  it('never lifts the suggestion above the minutes the plan holds for the week', () => {
+    const i = week([40, 40, 40, 41], 160, 170)
+    expect(weeklyDecision(i, WEEK, { efficiency: STABLE, rebuild: zone }).nextWeekTargetMin).toBe(
+      170,
+    )
+  })
+})

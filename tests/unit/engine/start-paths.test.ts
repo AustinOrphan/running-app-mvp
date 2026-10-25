@@ -1821,7 +1821,7 @@ describe('the 3 x 30 start from a block of weeks [rules E6, g-8]', () => {
     const inp = at(base, position)
     return loadPosition(inp, estimateState(inp))
   }
-  /** The draft at standard and upper is the steady one: nothing but the lift differs in this task. */
+  /** The draft at standard and upper is the steady one: neither the lift nor the zone applies. */
   const sameAtEveryPosition = (base: EngineInput) => {
     const steady = planAt(base, 'steady')
     expect(planAt(base)).toEqual(steady)
@@ -1848,19 +1848,35 @@ describe('the 3 x 30 start from a block of weeks [rules E6, g-8]', () => {
     expect(steady.weeks[0]!.targetRunMin).toBe(60)
     expect(standard.weeks[0]!.targetRunMin).toBe(90)
     expect(standard.weeks[0]!.flags).toContain('restart-floor')
-    // the only difference between the positions is the lift
-    expect(planAt(h1(), 'upper')).toEqual(standard)
+    // the opening week is the lift's, the same at both positions; the weeks after it differ by the
+    // rebuild zone (history-rebuild.test.ts)
+    const upper = planAt(h1(), 'upper')
+    expect(upper.weeks[0]).toEqual(standard.weeks[0])
+    expect(upper.sessions.filter((s) => s.date < standard.weeks[1]!.weekStart)).toEqual(
+      standard.sessions.filter((s) => s.date < standard.weeks[1]!.weekStart),
+    )
     expect(planAt(h1(), 'steady')).toEqual(steady)
     cleanPlan(steady)
     cleanPlan(standard)
+    cleanPlan(upper)
   })
 
-  it('H2: three years of running start on 3 x 30 at every position, and the drafts are the same', () => {
+  it('H2: three years of running start on 3 x 30 at every position, on the same opening week', () => {
     for (const position of ['steady', ...LIFTED] as const) {
       expect(pathAt(h1(3), position), position).toEqual(FLOOR_30)
     }
-    sameAtEveryPosition(h1(3))
-    expect(planAt(h1(3)).weeks[0]!.targetRunMin).toBe(90)
+    const steady = planAt(h1(3))
+    expect(steady.weeks[0]!.targetRunMin).toBe(90)
+    expect(planAt(h1(3), 'steady')).toEqual(steady)
+    // the opening week is the steady one at every position; the zone then raises the weeks after it
+    for (const position of LIFTED) {
+      const plan = planAt(h1(3), position)
+      expect(plan.weeks[0], position).toEqual(steady.weeks[0])
+      expect(
+        plan.sessions.filter((s) => s.date < steady.weeks[1]!.weekStart),
+        position,
+      ).toEqual(steady.sessions.filter((s) => s.date < steady.weeks[1]!.weekStart))
+    }
   })
 
   it('S4 and S5 have no start path at any position, and the drafts are the same', () => {

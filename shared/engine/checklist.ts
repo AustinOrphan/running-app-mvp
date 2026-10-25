@@ -19,12 +19,14 @@ import {
 import {
   injuryTight,
   noviceRamp,
+  rampBasis,
   rampLimits,
   rampSkipWeeks,
-  tightRamp,
   ultraRunCapMin,
   type RampContext,
+  type RebuildZone,
 } from './limits.ts'
+import { rebuildZone } from './loadSetting.ts'
 import { redsHold } from './macro.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
@@ -172,9 +174,7 @@ export function draftRamp(
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
     exempt: startExemptions(draft.weeks, returnWeeks(disruptionPlan(input.disruptions ?? []))),
-    typicalWeekMin: state.typicalWeekMin,
-    novice: noviceRamp(state),
-    tight: tightRamp(state),
+    ...rampBasis(state, rebuildZone(input, state)),
   }
   const weeks: DraftWeekTotal[] = []
   for (const weekStart of starts) {
@@ -200,6 +200,9 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   const failures: string[] = []
   const takenAsRun: string[] = []
   let soft = 0
+  // the weeks planned above the usual soft step that the rebuild zone allows [rules g-8]
+  let zoneWeeks = 0
+  let zone: RebuildZone | null = null
   const { ctx, weeks } = draftRamp(draft, input, state)
   for (const { weekStart, planned, total } of weeks) {
     if (total <= 0) continue
@@ -220,14 +223,31 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
         )
       } else takenAsRun.push(`${weekStart} (${Math.round(total)} min)`)
     } else if (!limits.exempt && total > limits.soft + EPS) soft += 1
+    else if (limits.rebuild !== null && total > limits.usualSoft + EPS) {
+      zoneWeeks += 1
+      zone = limits.rebuild
+    }
   }
   if (failures.length > 0) return result('progression', false, failures.join('; '), rules)
-  const softNote = `${soft} week(s) step above the soft ${Math.round(P.g2.rampSoft.value * 100)}% and carry a warning`
+  // the notes follow the weeks: the soft step first, then the rebuild zone when a week used it
+  const notes: string[] = []
+  if (soft > 0) {
+    notes.push(
+      `${soft} week(s) step above the soft ${Math.round(P.g2.rampSoft.value * 100)}% and carry a warning`,
+    )
+  }
+  if (zone !== null) {
+    notes.push(
+      `${zoneWeeks} week(s) use the rebuild step of ${Math.round(zone.step * 100)}% a week, up to ${Math.round(zone.ceilingMin)} min`,
+    )
+  }
+  const withNotes = (clause: string) =>
+    notes.length === 0 ? clause : `${clause}; ${notes.join('; ')}`
   let detail: string
   if (takenAsRun.length > 0) {
-    detail = `Every planned week is within the ${soft === 0 ? 'weekly ramp' : `ceiling; ${softNote}`}; the week of ${takenAsRun.join(', ')} was run above its limit and is taken as run.`
-  } else if (soft === 0) detail = 'Every week is within the weekly ramp.'
-  else detail = `Every week is within the ceiling; ${softNote}.`
+    detail = `Every planned week is within the ${soft === 0 ? withNotes('weekly ramp') : `ceiling; ${notes.join('; ')}`}; the week of ${takenAsRun.join(', ')} was run above its limit and is taken as run.`
+  } else if (soft === 0) detail = `Every week is within the ${withNotes('weekly ramp')}.`
+  else detail = `Every week is within the ceiling; ${notes.join('; ')}.`
   return result('progression', true, detail, rules)
 }
 
