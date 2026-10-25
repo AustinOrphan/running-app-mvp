@@ -245,7 +245,7 @@
   },
   {
     "id": "strength-taper-and-stopping-mixed",
-    "statement": "Keep one light lifting session a week until the race week as a default and not a requirement. No trial tests resistance training in a taper; 8 middle-distance runners kept an economy gain over 4 weeks without explosive strength work, and 14 elite cyclists fell behind a control group over 8 weeks without strength work.",
+    "statement": "Keep one light lifting session a week until the race week as a default and not a requirement. No trial tests resistance training in a taper; 8 middle-distance runners kept an economy gain over 4 weeks without explosive strength work, and 14 elite cyclists lost ground against a control group over 8 weeks without strength work.",
     "parameter": "strength_taper_sessions",
     "value": "1 light session a week; none in the race week",
     "unit": "sessions/week",
