@@ -1,8 +1,6 @@
 # 0013. A history-informed load ceiling in minutes and a bounded load setting, never an acute-to-chronic ratio
 
-Status: Accepted 2026-10-24 (#TBD)
-
-The pull request number replaces `#TBD` when the pull request is opened.
+Status: Accepted 2026-10-24 (#564)
 
 Amends rule G-5 of `research/engine-rules.md`. Builds on ADR 0005, ADR 0007 and ADR 0009.
 
