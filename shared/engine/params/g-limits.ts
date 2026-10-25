@@ -9,6 +9,39 @@ const RAMP = [
   'damsted-2018-training-load-change',
 ]
 const BSI = ['barrack-2014-bone-stress-triad', 'stennett-2025-bsi-female-offroad-runners']
+// How long a reduction in running leaves the earlier weeks worth crediting: fitness fell slowly and
+// levelled off, tendon stiffness fell faster under complete unloading (young non-runners), and a
+// disruption is counted over 16 weeks. None of it dates a runner's own loss.
+const CREDIT_WINDOW = [
+  'coyle-1984-detraining-time-course',
+  'zheng-2022-detraining-vo2max',
+  'feely-2022-training-disruptions',
+  'deboer-2007-ulls-tendon-time-course',
+  'kubo-2012-achilles-training-detraining',
+]
+// The credit of the standard position: fitness after a stop, and the tissue side of complete unloading
+// (young non-runners). None of it measures a runner who kept running a little.
+const STANDARD_CREDIT = [
+  'coyle-1984-detraining-time-course',
+  'mujika-2000-detraining-part2',
+  'deboer-2007-ulls-tendon-time-course',
+  'kubo-2012-achilles-training-detraining',
+]
+// The credit of the upper position: fitness kept after a stop or a reduction in training.
+const UPPER_CREDIT = [
+  'coyle-1984-detraining-time-course',
+  'zheng-2022-detraining-vo2max',
+  'hickson-1981-reduced-frequency',
+  'spiering-2021-minimal-dose',
+]
+// The weekly step of the standard position: cohorts and reviews of weekly increases, mostly in new
+// runners, none of a return after a break.
+const STANDARD_STEP = [
+  'nielsen-2013-gps-progression',
+  'damsted-2018-training-load-change',
+  'buist-2008-graded-training',
+  'fredette-2022-training-parameters-injury-review',
+]
 const INJURY_FACTOR = [
   'hulme-2017-risk-protective',
   'vanderworp-2015-risk-factors',
@@ -251,5 +284,56 @@ export const gLimits = {
         note: 'Share with a reported problem beforehand, so check-ins never replace load guards.',
       },
     ),
+  },
+  g8: {
+    blockWeeks: param(
+      'g8.blockWeeks',
+      4,
+      'D',
+      'g-8',
+      [
+        'mujika-2000-detraining-part1',
+        'mujika-2000-detraining-part2',
+        'bohm-2015-tendon-adaptation-meta',
+      ],
+      {
+        unit: 'weeks',
+        note: 'Default: the history block is 4 consecutive complete weeks, the length of the typical week (a5.typicalWeekCount). The detraining reviews split short-term (under 4 weeks) from long-term reductions, and tendon adaptation is read over 8 weeks or more, so a block shows what the runner sustained and not that tissue adapted. No study sets the length.',
+      },
+    ),
+    blockWeeksDropped: param('g8.blockWeeksDropped', 1, 'D', 'g-8', [], {
+      unit: 'weeks',
+      note: 'Default: the block is scored by the mean of its weeks without this many of the highest, so one big week cannot set it (the same idea as the start level of E6, where one big week alone does not set the level). No study sets the count.',
+    }),
+    creditWindowWeeks: param('g8.creditWindowWeeks', 12, 'D', 'g-8', CREDIT_WINDOW, {
+      unit: 'weeks',
+      note: 'Default: a block that ended within this many weeks of the current Monday counts in full. It sits between the plateau of fitness after a stop (about 8 weeks) and the 16 weeks over which a disruption is counted, and no study dates it for a runner who kept running a little.',
+    }),
+    creditTaperEndWeeks: param('g8.creditTaperEndWeeks', 12, 'D', 'g-8', CREDIT_WINDOW, {
+      range: [12, 16],
+      unit: 'weeks',
+      note: 'Default: 12, the same as g8.creditWindowWeeks, so a block older than the window counts for nothing. 16 reaches blocks that ended 13 to 16 weeks ago, whose credit falls in a straight line from full at the window to g8.creditTaperFloor at this many weeks; the replay on real history chooses between the two. The lift to a start of 3 x 30 never reads a block older than the window.',
+    }),
+    creditTaperFloor: param('g8.creditTaperFloor', 0.5, 'D', 'g-8', [], {
+      range: [0, 1],
+      unit: 'fraction',
+      note: 'Default: the share of its size that a block keeps at the end of the taper, a preference (taste, no claim that it is better). No study sets it.',
+    }),
+    creditStandard: param('g8.creditStandard', 0.7, 'D', 'g-8', STANDARD_CREDIT, {
+      unit: 'fraction',
+      note: 'Default: provisional until the replay on real history. At the standard position the rebuild ceiling is this share of the history block. It is close to the share of patellar tendon stiffness left at day 23 of complete unloading (about 71%, in young non-runners who stopped using one leg altogether) and near the 75% tier of the J7 table (a convention for a layoff), so no study sets it for a runner.',
+    }),
+    creditUpper: param('g8.creditUpper', 0.85, 'D', 'g-8', UPPER_CREDIT, {
+      unit: 'fraction',
+      note: 'Default: provisional until the replay on real history. At the upper position the rebuild ceiling is this share of the history block. It is the share of VO2max kept at day 56 of complete cessation (1 minus 0.16), a value for fitness and not for tissue, so no study sets it for a runner.',
+    }),
+    stepStandard: param('g8.stepStandard', 0.12, 'D', 'g-8', STANDARD_STEP, {
+      unit: 'fraction per week',
+      note: 'Default: provisional until the replay on real history, and a preference (taste, no claim that it is better). The weekly step below the rebuild ceiling at the standard position, between the soft step g2.rampSoft and the weekly rate at which two weeks meet g2.rampCeilingTwoWeeks. The upper position takes that rate itself, derived from the ceiling, so it is no Param of this group. No study compares weekly steps for a return after a break.',
+    }),
+    responseWeeks: param('g8.responseWeeks', 4, 'D', 'g-8', [], {
+      unit: 'weeks',
+      note: 'Default: the response to weeks run above plan reads the mean of the minutes run over this many eligible weeks, the length of the typical week (a5.typicalWeekCount) and the length chosen in question 5 of the proposal (section 7). A race week and a week inside a rest window are skipped, not counted as zero, and the window reaches back to the next eligible week. No study sets the length; it is a preference (taste, no claim that it is better).',
+    }),
   },
 } satisfies ParamGroups

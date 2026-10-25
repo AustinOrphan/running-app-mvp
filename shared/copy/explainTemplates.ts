@@ -61,6 +61,57 @@ export const EXPLAIN_TEMPLATES = {
     { week: 'date' },
   ),
 
+  // g-8: the history-informed rebuild [rules g-8, proposal 4.6]. The block and the gap name the
+  // count of weeks from the Param ("Four steady weeks") in a text slot, and the held and capped
+  // lines say what `load.held` and `load.capped` say on the Plan page.
+  // The figure is the block's score: the mean of its weeks without the highest, which is not the
+  // mean of all four (`HistoryBlock.blockMin`).
+  'explain.g8-block': tpl(
+    '{blocks} ending {ago} ago; without the highest, they averaged {minutes} a week.',
+    {
+      blocks: 'text',
+      ago: 'text',
+      minutes: 'minutes',
+    },
+  ),
+  'explain.g8-taper': tpl(
+    'The block ended {weeks} weeks ago, so it counts for {share} of its size.',
+    {
+      weeks: 'count',
+      share: 'share',
+    },
+  ),
+  'explain.g8-kept': tpl(
+    'This plan began with that block, counted at {share} of its size, and keeps it until a week reaches {minutes}.',
+    { share: 'share', minutes: 'minutes' },
+  ),
+  'explain.g8-zone': tpl(
+    'While a week is under {minutes}, the plan adds up to {pct} a week; past that it adds up to {soft}.',
+    { minutes: 'minutes', pct: 'percent', soft: 'percent' },
+  ),
+  'explain.g8-setting': tpl(
+    'Load setting: {position}. It sets how fast the plan adds running time while rebuilding.',
+    { position: 'text' },
+  ),
+  'explain.g8-held': tpl('The steady step applies for now: {reason}.', { reason: 'text' }),
+  'explain.g8-capped': tpl('The setting is held at Standard: age {age} or over.', {
+    age: 'count',
+  }),
+  'explain.g8-response': tpl(
+    'The last {n} weeks averaged {mean} a week, above the {planned} planned, so the next week builds from {from}.',
+    { n: 'count', mean: 'minutes', planned: 'minutes', from: 'minutes' },
+  ),
+  'explain.g8-none': tpl(
+    'No {blocks} in the last {weeks} weeks, so the plan builds from recent weeks.',
+    { blocks: 'text', weeks: 'count' },
+  ),
+  // The start and return weeks are exempt from the ceiling (rules E6, G-3, H12, J7), so the line
+  // says "stays within" and names the exception.
+  'explain.g8-limits': tpl(
+    'Long runs keep the {days}-day rule, and weekly growth stays within {pct} over {span} apart from the start and return weeks.',
+    { days: 'count', pct: 'percent', span: 'text' },
+  ),
+
   // A2: chronic and acute load
   'explain.a2-load': tpl(
     'Load over the last {acuteDays} days is {acute} and over the last {chronicDays} days {chronic}, counted in {metric}.',
@@ -745,6 +796,23 @@ export const EXPLAIN_TEMPLATES = {
     n: 'count',
     session: 'minutes',
   }),
+  // The route that let the floor session rise above the 20-minute floor [rules E6, g-8].
+  'explain.e6-lift-years': tpl(
+    'Sessions longer than {floor} are allowed at the start because of {years} or more years of running and no flag that holds a start back.',
+    { floor: 'minutes', years: 'count' },
+  ),
+  // The route of the block, in two sentences to stay within the 160 characters of a template
+  // (`COPY_MAX_CHARS`). {years} is `a5.noviceMaxYears` in words ("one year"); {minimum} is the
+  // threshold of `blockLiftMin`, the mean of the block's weeks without the highest
+  // (`HistoryBlock.blockMin`), and {weeks} the credit window.
+  'explain.e6-lift-block': tpl(
+    'Sessions longer than {floor} are allowed at the start: at least {years} of running and a recent block of steady weeks.',
+    { floor: 'minutes', years: 'text' },
+  ),
+  'explain.e6-lift-block-weeks': tpl(
+    'That block is {blocks} steady weeks that, without the highest, averaged at least {minimum} a week and ended within {weeks} weeks.',
+    { blocks: 'count', minimum: 'minutes', weeks: 'count' },
+  ),
   'explain.e6-injury': tpl(
     'You start on the return ladder at runs of {session}, because of an injury in your profile.',
     { session: 'minutes' },

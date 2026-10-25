@@ -3,12 +3,18 @@
 // total of the back-to-back rule, the weekly ramp with its baselines, the tightened profiles, the
 // weekly gain ramp and the ultra cap on a single run. The macrocycle and the week placement plan
 // inside these numbers and the guards and the checklist check against the same ones, so a
-// generated plan needs no trimming. Pure: no I/O, no clock.
+// generated plan needs no trimming. The rebuild zone of rule g-8 (a larger soft step below a
+// ceiling taken from the runner's recent weeks) is part of that ramp (`RampContext.rebuild`), and so
+// is the response to weeks run above plan (`RampContext.response`): the one function
+// `responseBaseline` gives the baseline the step applies to, to the generator and to the limits
+// alike. The most a week target the runner raised by hand may stay at is read from the same ramp
+// (`targetLimit`). Pure: no I/O, no clock.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
-import type { Activity } from '../types.ts'
+import type { Activity, TargetLimitBound, TargetLimitKind } from '../types.ts'
+import { isDisruptedWeek } from './disruption.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
-import { isLadderSession, startWeek, type StartPath } from './startWeeks.ts'
+import { isLadderSession, startKind, startWeek, type StartPath } from './startWeeks.ts'
 import type { AthleteState, SessionKind, SessionSpec, WeekDraft } from './types.ts'
 
 /** Guards float noise (100 * 1.1 = 110.00000000000001) before rounding down. */
@@ -355,6 +361,63 @@ export function plannedMinOf(week: Pick<WeekDraft, 'targetRunMin' | 'flags'>): n
  */
 export type RampExemption = 'soft' | 'ramp'
 
+/**
+ * The rebuild zone of a plan [rules g-8]: below `ceilingMin` the soft step of a loading week is
+ * `step` instead of the usual 10%. Absent at steady and wherever the load setting is held at
+ * steady (`rebuildZone`, loadSetting.ts, is the one place that builds it).
+ */
+export interface RebuildZone {
+  /** The rebuild ceiling R in minutes: the position's credit x the block's taper x the block. */
+  ceilingMin: number
+  /** The weekly step of a week whose baseline is under `ceilingMin`, as a fraction. */
+  step: number
+}
+
+/**
+ * The weekly rate at which two weeks meet the hard ceiling of G-2, `sqrt(1 + g2.rampCeilingTwoWeeks)
+ * - 1` (14.0%): the step of the upper position [rules g-8]. Derived from the ceiling, so it cannot
+ * pass it and moves with it.
+ */
+export function ceilingWeeklyRate(): number {
+  return Math.sqrt(1 + P.g2.rampCeilingTwoWeeks.value) - 1
+}
+
+/**
+ * The most a loading week may be planned at over a baseline `from` before the soft step warns
+ * [rules g-8, g-2]: `from` plus the usual `ramp`, and below the rebuild ceiling the larger of that
+ * and the zone's step, clamped so that the zone never plans a week above R except by the usual
+ * step: max(from x (1 + ramp), min(from x (1 + step), R)). Without a zone, and from R up, it is
+ * `rampStep` (the novice minimum step included).
+ */
+export function rebuildStep(
+  from: number,
+  ramp: number,
+  novice: boolean,
+  rebuild: RebuildZone | null,
+): number {
+  const usual = rampStep(from, ramp, novice)
+  if (rebuild === null || from >= rebuild.ceilingMin) return usual
+  return Math.max(usual, Math.min(rampStep(from, rebuild.step, novice), rebuild.ceilingMin))
+}
+
+/**
+ * The response to weeks run above plan [rules g-8], as the generator and the limits read it: the
+ * mean of the minutes the runner ran over the last eligible weeks. It is a fact of the athlete
+ * state at the day of the plan, the same for every week the plan draws; the chain of planned weeks
+ * overtakes it within a few weeks. A `RampContext` holds null at steady and wherever the load
+ * setting is held at steady (`responseBasis`, loadSetting.ts, is the one place that builds it).
+ */
+export interface ResponseBasis {
+  /**
+   * The mean of the minutes run in the last `g8.responseWeeks` eligible complete weeks, or null
+   * when the response has nothing to read: the state holds fewer than that many weeks, or the
+   * newest of them was run under its stored target, or the plan holds no target for it (the
+   * position applies all the same). The first window of that mean is `recentRunMean`; the gate on
+   * the newest week is `responseBasis`'s.
+   */
+  meanMin: number | null
+}
+
 /** What the weekly ramp of a plan is computed from. */
 export interface RampContext {
   /** Running minutes by Monday: the completed weeks, then the planned ones. */
@@ -372,14 +435,117 @@ export interface RampContext {
   novice: boolean
   /** `tightRamp(state)`. */
   tight: number | null
+  /**
+   * The rebuild zone of the plan [rules g-8], or null (steady, a held setting, no history). Every
+   * builder of a context sets it through `rampBasis`, so the generator, the guards, the checklist
+   * and `targetLimit` read one zone.
+   */
+  rebuild: RebuildZone | null
+  /**
+   * The response to weeks run above plan [rules g-8], or null (steady, a held setting). Set through
+   * `rampBasis` like the zone; `responseBaseline` is the one function that reads it.
+   */
+  response: ResponseBasis | null
+}
+
+/**
+ * The parts of a `RampContext` that come from the athlete and the plan's load setting: the typical
+ * week, the novice minimum step, the tightened profile's ramp, the rebuild zone and the response
+ * to weeks run above plan. The one function every builder of a context calls (the macrocycle, the
+ * week placement, the guards and the checklist), so that they cannot disagree about which ramp a
+ * week is measured against.
+ */
+export function rampBasis(
+  state: AthleteState,
+  rebuild: RebuildZone | null,
+  response: ResponseBasis | null,
+): Pick<RampContext, 'typicalWeekMin' | 'novice' | 'tight' | 'rebuild' | 'response'> {
+  return {
+    typicalWeekMin: state.typicalWeekMin,
+    novice: noviceRamp(state),
+    tight: tightRamp(state),
+    rebuild,
+    response,
+  }
+}
+
+/**
+ * The eligible weeks of the response [rules g-8], newest first: the complete weeks before `before`
+ * (the Monday of the current week), a week in `excluded` skipped, not counted as zero, and the next
+ * older one read in its place, up to `g8.responseWeeks` of them. Recovery weeks count as run.
+ * `rows` are the weeks of the athlete state, so nothing new is queried (ADR 0009). Fewer than
+ * `g8.responseWeeks` rows come back when the rows do not reach back that far. The first is the
+ * newest eligible week, whose result the response checks against its stored target
+ * (`responseBasis`, loadSetting.ts).
+ */
+export function eligibleWeeks<T extends { weekStart: string }>(
+  rows: ReadonlyArray<T>,
+  excluded: ReadonlySet<string>,
+  before: string,
+): T[] {
+  return rows
+    .filter((row) => row.weekStart < before && !excluded.has(row.weekStart))
+    .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))
+    .slice(0, P.g8.responseWeeks.value)
+}
+
+/**
+ * The mean of the minutes run in the last `g8.responseWeeks` eligible weeks [rules g-8]
+ * (`eligibleWeeks`). Null when the rows do not reach back to that many eligible weeks: a state with
+ * fewer has no response. It reads minutes only and forms no ratio [rules G-5].
+ */
+export function recentRunMean(
+  rows: ReadonlyArray<{ weekStart: string; runMin: number }>,
+  excluded: ReadonlySet<string>,
+  before: string,
+): number | null {
+  const count = P.g8.responseWeeks.value
+  const eligible = eligibleWeeks(rows, excluded, before)
+  if (eligible.length < count) return null
+  return eligible.reduce((sum, row) => sum + row.runMin, 0) / count
+}
+
+/**
+ * The baseline the step of a loading week applies to [rules g-8, g-2]: the planned baseline
+ * `planned`, or, at standard and upper (`response` set), the mean of the minutes run over the last
+ * eligible weeks when that is higher, and never past the planned baseline stepped by the two-week
+ * ceiling (`g2.rampCeilingTwoWeeks`, through `rampStep` with the novice minimum step): one outlier
+ * week cannot lift a plan by more than the ceiling the engine already allows over two weeks. It
+ * lifts a baseline and never lowers one. Steady (`response` null) and a response without a mean
+ * (fewer than four eligible weeks, or a newest eligible week run under its stored target:
+ * `responseBasis`, loadSetting.ts) return `planned` as it is. The generator (`planWeeks`) and the
+ * limits (`rampLimits`, so the guards, the checklist and the limit of a raised target) read the
+ * baseline here and nowhere else. The hard ceiling and G-1 are applied to the week after it, and a
+ * hold or reduce decision caps the week it covers afterwards (`weekCaps`), so both win over the
+ * response.
+ */
+export function responseBaseline(
+  planned: number,
+  response: ResponseBasis | null,
+  novice: boolean,
+): number {
+  if (response === null || response.meanMin === null) return planned
+  if (response.meanMin <= planned + EPS) return planned
+  return Math.min(response.meanMin, rampStep(planned, P.g2.rampCeilingTwoWeeks.value, novice))
 }
 
 /** The limits of one week. */
 export interface WeekRampLimits {
-  /** Highest of the previous loading weeks, or the typical week. */
+  /**
+   * Highest of the previous loading weeks, or the typical week; at standard and upper the mean of
+   * the minutes run in the last eligible weeks when that is higher, up to the two-week ceiling over
+   * the planned baseline (`responseBaseline`).
+   */
   base: number
-  /** Above this the week carries a soft-ramp warning. */
+  /** Above this the week carries a soft-ramp warning: the zone's limit in the rebuild zone. */
   soft: number
+  /** The usual soft step over `base` (10%), whatever the zone: `soft` is never below it. */
+  usualSoft: number
+  /**
+   * The rebuild zone when it raised the week's soft step above the usual one [rules g-8], that is
+   * when the week's baseline is under R; null elsewhere (from R up, at steady, a start-path week).
+   */
+  rebuild: RebuildZone | null
   /** The 2-week ceiling and the tightened ramp: above this the week is cut. */
   allowed: number
   /** True when the tightened ramp, not the ceiling, sets `allowed`. */
@@ -433,8 +599,10 @@ const positive = (value: number | null): number | null =>
 /** The ramp limits of the week of `weekStart`; null when nothing gives a baseline. */
 export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits | null {
   const typical = ctx.typicalWeekMin > 0 ? ctx.typicalWeekMin : null
-  const base = positive(highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor)) ?? typical
-  if (base === null) return null
+  const planned =
+    positive(highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor)) ?? typical
+  if (planned === null) return null
+  const base = responseBaseline(planned, ctx.response, ctx.novice)
   // The floor week is the ceiling baseline of the week right after it too, which would otherwise be
   // held to 130% of the weeks before the floor.
   const window = P.g2.ceilingWindowWeeks.value
@@ -448,8 +616,9 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
         highestBaseline(ctx.volumes, ctx.skip, weekStart, window, ctx.floor) ?? 0,
         afterFloor ? Math.max(ctx.volumes.get(ctx.floor!.weekStart) ?? 0, ctx.floor!.minutes) : 0,
       ),
-    ) ?? base
-  const soft = rampStep(base, P.g2.rampSoft.value, ctx.novice)
+    ) ?? planned
+  const usualSoft = rampStep(base, P.g2.rampSoft.value, ctx.novice)
+  const soft = rebuildStep(base, P.g2.rampSoft.value, ctx.novice, ctx.rebuild)
   const ceiling = rampStep(ceilingBase, P.g2.rampCeilingTwoWeeks.value, ctx.novice)
   const tightLimit = ctx.tight === null ? Infinity : rampStep(base, ctx.tight, ctx.novice)
   const isFloorWeek = ctx.floor !== null && ctx.floor.weekStart === weekStart
@@ -460,6 +629,9 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
   return {
     base,
     soft,
+    usualSoft,
+    // a start-path week is the programme's, and takes no zone
+    rebuild: !exempt && soft > usualSoft + EPS ? ctx.rebuild : null,
     allowed,
     tightened: exemption !== 'ramp' && tightLimit <= ceiling,
     tightRamp: ctx.tight,
@@ -467,6 +639,116 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
     exempt,
     plan: exempt ? allowed : Math.min(soft, allowed),
   }
+}
+
+/**
+ * The rebuild zone that a loading week of `minutes` used [rules g-8], or null: the week sits above
+ * the usual soft step and within what the zone allows (`plan`, the lesser of the zone's soft limit
+ * and the hard ceiling). The one test of a zone week: the checklist's progression item counts the
+ * weeks that pass it and the plan names them in the week's focus, so the two cannot disagree.
+ * `eps` is the slack of the caller's comparisons with a limit.
+ */
+export function rebuildZoneUsed(
+  limits: WeekRampLimits | null,
+  minutes: number,
+  eps = EPS,
+): RebuildZone | null {
+  if (limits === null || limits.rebuild === null) return null
+  return minutes > limits.usualSoft + eps && minutes <= limits.plan + eps ? limits.rebuild : null
+}
+
+/** What `targetLimit` needs to know of a week besides the ramp around it. */
+export interface TargetGates {
+  /** The plan's own target for the week: where a rule that sets the week's figure leaves it. */
+  engineMin: number
+  /** The week as the plan draws it. */
+  week: { readonly flags: readonly string[] } & Pick<WeekDraft, 'isRecovery' | 'isTaper' | 'phase'>
+  /** A progression hold applies (REDs flags or focal bone pain) [rules n-4, n-1, J5]. */
+  held: boolean
+  /** The weekly decision called for holding steady or an easier week for this very week [rule J5]. */
+  decided: boolean
+  /** The running already logged in the week; a limit never falls under what has been run. */
+  loggedMin: number
+}
+
+/** The most a week target the runner raised by hand may stay at, and the limit that set it. */
+export interface TargetLimit {
+  /** Whole minutes; never under the plan's own figure or the minutes already run. */
+  max: number
+  /** Which of the three set `max`: the limit itself, the plan's own figure or the minutes run. */
+  bound: TargetLimitBound
+  kind: TargetLimitKind
+  /**
+   * The growth the limit allows, as a fraction: the 2-week ceiling for `ceiling`, the profile's
+   * weekly ramp for `profile`; null where a rule sets the week's figure itself.
+   */
+  ramp: number | null
+}
+
+/**
+ * The largest target a week may hold at a re-plan when the runner raised it above the plan's own
+ * [rules g-2, g-3, J5, J9, H12, n-1, n-4, ADR 0007]: the limit the engine enforces on any week,
+ * not the soft step. It reads `rampLimits`, so the generator, the guards, the checklist and this
+ * agree on the 2-week ceiling and on the tightened profiles. A week that a rule draws on its own
+ * (the weeks after a race, a rest window, a start programme, a recovery, taper or race week, the
+ * weekly decision, a progression hold) has no ramp to read: its limit is the plan's own figure, so
+ * a raise there is lowered back to it. The checks run in that order, most specific first. Those
+ * rules stay where the generator applies them; this reads their outcome from the drawn week, so
+ * `rampLimits` and the three readers of it are unchanged.
+ */
+export function targetLimit(ctx: RampContext, weekStart: string, gates: TargetGates): TargetLimit {
+  const { engineMin, week, held, decided, loggedMin } = gates
+  const own = (kind: TargetLimitKind): TargetLimit => ({
+    max: Math.max(engineMin, loggedMin),
+    bound: loggedMin > engineMin ? 'logged' : 'plan',
+    kind,
+    ramp: null,
+  })
+  if (week.flags.includes('post-race') || week.flags.includes('post-race-restart')) {
+    return own('post-race')
+  }
+  if (isDisruptedWeek(week.flags)) return own('window')
+  if (startKind(week.flags) !== null) return own('programme')
+  if (week.isRecovery || week.isTaper || week.phase === 'taper' || week.phase === 'race') {
+    return own('structure')
+  }
+  if (decided) return own('decision')
+  if (held) return own('hold')
+  const limits = rampLimits(ctx, weekStart)
+  if (limits === null) return own('ceiling')
+  const allowed = wholeMinutes(limits.allowed)
+  const max = Math.max(engineMin, loggedMin, allowed)
+  return {
+    max,
+    // a tie goes to the limit: the limit allows the figure, whatever else reaches it
+    bound: allowed >= max ? 'limit' : engineMin >= loggedMin ? 'plan' : 'logged',
+    kind: limits.tightened ? 'profile' : 'ceiling',
+    ramp: limits.tightened ? limits.tightRamp : P.g2.rampCeilingTwoWeeks.value,
+  }
+}
+
+/**
+ * What a re-plan makes of a raised week target against the limit of its week: the figure the week
+ * keeps, and whether that figure goes back to the plan (`released`). Within the limit the target
+ * is kept as set. Above it the week is lowered to the limit, and the lowered figure stays the
+ * runner's only where the ramp set it (`ceiling` or `profile`, bound by the limit or by the
+ * minutes run): it follows the ramp of the weeks around it. Where a rule sets the week's figure
+ * at this moment (a hold, a decision, a race, a window, a programme, the structure of the plan),
+ * or the plan's own figure is the bound, the week goes back to the plan's own figure. Held as the
+ * runner's, that figure would cap every later re-plan of the week once the rule has passed
+ * (`weekCaps`, ADR 0007).
+ */
+export function targetKept(
+  askedMin: number,
+  engineMin: number,
+  limit: Pick<TargetLimit, 'max' | 'kind' | 'bound'>,
+): { keptMin: number; released: boolean } {
+  if (askedMin <= limit.max) return { keptMin: askedMin, released: false }
+  const followsRamp =
+    (limit.kind === 'ceiling' || limit.kind === 'profile') && limit.bound !== 'plan'
+  return followsRamp
+    ? { keptMin: limit.max, released: false }
+    : { keptMin: engineMin, released: true }
 }
 
 /**

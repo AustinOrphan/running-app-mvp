@@ -21,10 +21,12 @@ import {
   injuryTight,
   noviceRamp,
   plannedMinOf,
+  rampBasis,
   rampLimits,
   rampSkipWeeks,
-  rampStep,
+  rebuildStep,
   referenceBetween,
+  responseBaseline,
   runCaps,
   startLevelMin,
   tightRamp,
@@ -35,6 +37,7 @@ import {
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
+import { blockLift, rebuildZone, responseBasis } from './loadSetting.ts'
 import { P } from './params/index.ts'
 import {
   ownWindow,
@@ -334,6 +337,10 @@ function carriedPhases(
  * recovery week the sequence continues from the work week before it (`paused`). The start is held
  * to the step the recent weeks allow (`stepCap`, never below the minutes already run in the week),
  * so missed training still lowers it. A break of a week or more restarts from the typical week.
+ * The response to weeks run above plan [rules g-8] does not lift this start: the week in progress
+ * keeps the minutes the plan gave it (a re-plan adds none to a settled week, `remainingOfWeek`),
+ * and the weeks after it step from the higher of these minutes and the mean of the weeks run
+ * (`responseBaseline`, read where each loading week is drawn).
  */
 function replanAnchor(
   input: EngineInput,
@@ -474,6 +481,30 @@ function ladderEntry(ref: number, bound: number): number {
   return rung
 }
 
+/** The years route of E6 path 2: 2 years of running and no soft start flag. */
+function experiencedStart(state: AthleteState): boolean {
+  return (
+    state.yearsRunning !== null &&
+    state.yearsRunning >= P.a5.trainedMinYears.value &&
+    state.risk.noviceFlags.length === 0
+  )
+}
+
+/** Which route lifts a start above 3 x 20 [rules E6, g-8]. */
+export type StartLift = 'years' | 'block'
+
+/**
+ * The route that lets a 3 x N start rise above 20 minutes, or null when N stays 20 [rules E6]:
+ * the years route (2 years of running, no soft flag, no tightened profile), else the block route
+ * of g-8 (`blockLift`, loadSetting.ts: a year of running and a recent block of at least 3 x 30
+ * minutes a week at the standard and upper positions). Whether N actually rises also depends on
+ * the longest run of the last 30 days.
+ */
+export function startLift(input: EngineInput, state: AthleteState): StartLift | null {
+  if (experiencedStart(state) && tightRamp(state) === null) return 'years'
+  return blockLift(input, state) ? 'block' : null
+}
+
 /**
  * Where a runner starts, from history [rules E6, G-3, A9]: the run-walk ladder, 3 sessions of N
  * minutes, the injury-return ladder, or null when the start level (`startLevelMin`, limits.ts:
@@ -486,7 +517,7 @@ function ladderEntry(ref: number, bound: number): number {
  *    30 days.
  *  - A continuous run of 20 minutes or more in the last 30 days: 3 x N, N the longest such run
  *    rounded down to 5 minutes and held between 20 and 30, and never above what G-1 lets a
- *    session hold; above 20 only with 2 years of running and no soft flag. A tightened profile
+ *    session hold; above 20 only by one of the two routes of `startLift`. A tightened profile
  *    (an earlier bone stress injury, the BSI factors) counts as a flag: it takes the path but
  *    is never lifted.
  *  - Otherwise, with a run in the last 90 days: the J7 fraction (by layoff) times that run, when
@@ -514,12 +545,9 @@ export function startPath(input: EngineInput, state: AthleteState): StartPath | 
     return { kind: 'injury-return', level }
   }
 
-  const experienced =
-    state.yearsRunning !== null &&
-    state.yearsRunning >= P.a5.trainedMinYears.value &&
-    state.risk.noviceFlags.length === 0
+  const experienced = experiencedStart(state)
   // a tightened profile takes the path like any runner, but never the lift above 20 minutes
-  const lifts = experienced && tightRamp(state) === null
+  const lifts = startLift(input, state) !== null
   const bmi = bmiOf(input.profile)
   const heavy = bmi !== null && bmi > P.a9.noviceFlagBmiAbove.value
   const floor = (minutes: number): StartPath => ({ kind: 'floor', sessionMin: minutes })
@@ -827,9 +855,7 @@ function planWeeks(
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),
     exempt,
-    typicalWeekMin: state.typicalWeekMin,
-    novice: rampNovice,
-    tight: tightRamp(state),
+    ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
   // The minutes already logged in the week the plan opens in. The ceiling of G-2 limits what a plan
   // adds to the weeks two and three before it; it cannot take back minutes already run, so the cap
@@ -840,10 +866,17 @@ function planWeeks(
   /** The most a loading week may hold: the planning limit, at the athlete's own ramp. */
   const stepCap = (weekStart: string): number => {
     if (restartWeeks.has(weekStart)) return Infinity
-    const lim = rampLimits(rampCtx, weekStart)
+    // The week the plan opens on is not stepped from a baseline, so the response does not lift its
+    // cap: after weeks run under the plan, missed training still lowers it [rules g-2, g-8].
+    const lim = rampLimits(
+      weekStart === firstMonday ? { ...rampCtx, response: null } : rampCtx,
+      weekStart,
+    )
     if (lim === null) return Infinity
     if (lim.isFloorWeek) return floorEps(lim.plan)
-    const cap = floorEps(Math.min(lim.plan, rampStep(lim.base, ramp, rampNovice)))
+    const cap = floorEps(
+      Math.min(lim.plan, rebuildStep(lim.base, ramp, rampNovice, rampCtx.rebuild)),
+    )
     return weekStart === firstMonday ? Math.max(cap, loggedOpening) : cap
   }
   const runs: RunRecord[] = [...completedReference(input.activities, state).runs]
@@ -1096,8 +1129,23 @@ function planWeeks(
       record(i, weekStart, true)
       continue
     }
+    // The step applies to the baseline of the week: the minutes of the last loading week, or at
+    // standard and upper the mean of the minutes run over the last eligible weeks when that is
+    // higher (`responseBaseline`, the one function the limits read too). A hold stops growth.
     const wanted = haveWork
-      ? Math.min(ceiling, hold ? lastWork : floorEps(rampStep(lastWork, ramp, rampNovice)))
+      ? Math.min(
+          ceiling,
+          hold
+            ? lastWork
+            : floorEps(
+                rebuildStep(
+                  responseBaseline(lastWork, rampCtx.response, rampNovice),
+                  ramp,
+                  rampNovice,
+                  rampCtx.rebuild,
+                ),
+              ),
+        )
       : start
     let t = Math.max(0, Math.min(wanted, stepCap(weekStart)))
     const days = Math.max(prevDays, daysFor(t))
@@ -1417,6 +1465,9 @@ export function macroPlanDraft(
       ...state,
       typicalWeekMin: lead.restartMin,
       recentWeekMin: Math.min(state.recentWeekMin, lead.restartMin),
+      // the plan restarts from the J7 volume after the window: no history credit, as the position
+      // is held at steady inside a post-race window (`loadPosition`), which this call no longer sees
+      history: null,
     },
     goal,
     feasibility,

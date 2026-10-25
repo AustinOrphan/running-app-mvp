@@ -6,7 +6,7 @@
 //
 // The inputs are the columns of the stored rows (JSON columns still as text), which a Prisma row
 // satisfies as it is; `shared/` does not import the database layer.
-import type { PlanDiff, SessionDiffLine, WeekDiffLine } from '../types.ts'
+import type { PlanDiff, SessionDiffLine, TargetDiffLine, WeekDiffLine } from '../types.ts'
 import type { SessionBrief, SessionKind } from './types.ts'
 
 /** The columns of a stored session that a diff reads. `id` is null for a session only previewed. */
@@ -44,11 +44,16 @@ export interface RowWrites<Row> {
   updated: Array<{ before: Row; after: Row }>
 }
 
-/** What one write did to the plan: the rows it created, deleted and updated, and the rest windows. */
+/**
+ * What one write did to the plan: the rows it created, deleted and updated, the rest windows and
+ * the week targets the runner raised that it kept or lowered. A target line describes a week row
+ * as written; it is no row of its own, so it counts neither as a write nor in the totals.
+ */
 export interface PlanWrites {
   sessions: RowWrites<DiffSessionRow>
   weeks: RowWrites<DiffWeekRow>
   holds?: PlanDiff['holds']
+  targets?: readonly TargetDiffLine[]
 }
 
 function textList(text: string): string[] {
@@ -177,17 +182,20 @@ function weekLines(writes: RowWrites<DiffWeekRow>): WeekDiffLine[] {
  * The diff of one write. Every row written is one line: `totals.added`, `removed` and `changed`
  * equal the sessions created, deleted and updated, and `totals.weeksChanged` the weeks written.
  * `runMinBefore` and `runMinAfter` sum the working targets of those weeks (a created week has none
- * before, a deleted week none after).
+ * before, a deleted week none after). `targets` is left out when the write met no raised target, so
+ * a diff without one reads as before.
  */
 export function diffPlans(writes: PlanWrites): PlanDiff {
   const sessions = sessionLines(writes.sessions)
   const weeks = weekLines(writes.weeks)
   const holds = [...(writes.holds ?? [])]
+  const targets = [...(writes.targets ?? [])].sort((a, b) => compareText(a.weekStart, b.weekStart))
   return {
     v: 1,
     sessions,
     weeks,
     holds,
+    ...(targets.length === 0 ? {} : { targets }),
     totals: {
       added: writes.sessions.created.length,
       removed: writes.sessions.deleted.length,

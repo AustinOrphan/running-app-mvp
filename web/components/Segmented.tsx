@@ -7,8 +7,11 @@ export interface SegmentedProps<T extends string> {
   options: Array<{ value: T; label: string }>
   value: T
   onChange: (v: T) => void
-  /** One line of help under the control; with it, the label is shown above like a field's. */
-  hint?: string
+  /**
+   * Help under the control, one paragraph per entry; with it, the label is shown above like a
+   * field's, and the group is described by all of the paragraphs.
+   */
+  hint?: string | readonly string[]
   /**
    * What the arrow keys do. `select` (the default) moves and selects, as a radio group does.
    * `focus` only moves focus, and Space or Enter selects: for a choice that is saved the moment it
@@ -67,13 +70,16 @@ export function Segmented<T extends string>({
     buttons.current[next]?.focus()
   }
 
-  const labelled = hint !== undefined
+  const lines = hint === undefined ? [] : typeof hint === 'string' ? [hint] : hint
+  const labelled = lines.length > 0
   const group = (
     <div
       role="radiogroup"
       aria-label={labelled ? undefined : label}
       aria-labelledby={labelled ? `${id}-label` : undefined}
-      aria-describedby={labelled ? `${id}-hint` : undefined}
+      aria-describedby={
+        labelled ? lines.map((_, index) => `${id}-hint-${String(index)}`).join(' ') : undefined
+      }
       className={`${styles.group} ${dense ? styles.dense : ''}`}
     >
       {options.map((option, index) => (
@@ -106,9 +112,15 @@ export function Segmented<T extends string>({
         {label}
       </span>
       {group}
-      <p id={`${id}-hint`} className={fieldStyles.hint}>
-        {hint}
-      </p>
+      {lines.map((line, index) => (
+        <p
+          key={`${String(index)}-${line}`}
+          id={`${id}-hint-${String(index)}`}
+          className={fieldStyles.hint}
+        >
+          {line}
+        </p>
+      ))}
     </div>
   )
 }

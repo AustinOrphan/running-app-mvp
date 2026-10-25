@@ -240,7 +240,7 @@ export const eMacro = {
       ],
       {
         unit: 'min per session',
-        note: 'Default: a returner with a continuous run of 20 minutes or more in the last 30 days restarts at 3 sessions of that run, rounded down to 5 minutes, up to this length. This is the only start rule that moves toward more load; the runner own completed run bounds it, and it needs at least 2 years of running, no soft flag and no recent injury. A 1977 trial found similar injury rates at 15 and 30 minutes three times a week (young men, hard jogging), so the grade stays D.',
+        note: 'Default: a returner with a continuous run of 20 minutes or more in the last 30 days restarts at 3 sessions of that run, rounded down to 5 minutes, up to this length. This is the only start rule that moves toward more load; the runner own completed run bounds it, and it needs either at least 2 years of running, no soft flag and no recent injury, or at the standard and upper load positions a year of running and a recent block of at least 3 x this length per week (g-8). A 1977 trial found similar injury rates at 15 and 30 minutes three times a week (young men, hard jogging), so the grade stays D.',
       },
     ),
     sessionStepMin: param(

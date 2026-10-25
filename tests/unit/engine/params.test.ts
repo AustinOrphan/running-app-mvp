@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { lintText } from '../../../shared/copy/lint.ts'
+import { ceilingWeeklyRate } from '../../../shared/engine/limits.ts'
 import {
   allParams,
   P,
@@ -27,7 +29,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-24.1')
+    expect(PARAMS_VERSION).toBe('2026-10-25.3')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -437,5 +439,143 @@ describe('parameter registry', () => {
     // the rule has its own heading in the document
     expect(engineRules).toMatch(/^## \(o\) Delivery to devices$/m)
     expect(engineRules).toMatch(/\*\*O1 Targets on the device\.\*\*/)
+  })
+
+  it('carries the history-informed rebuild G-8 as nine labelled defaults, with its evidence', () => {
+    const g8 = [
+      P.g8.blockWeeks,
+      P.g8.blockWeeksDropped,
+      P.g8.creditWindowWeeks,
+      P.g8.creditTaperEndWeeks,
+      P.g8.creditTaperFloor,
+      P.g8.creditStandard,
+      P.g8.creditUpper,
+      P.g8.stepStandard,
+      P.g8.responseWeeks,
+    ]
+    expect(g8.map((p) => [p.id, p.value, p.unit, p.grade, p.rule])).toEqual([
+      ['g8.blockWeeks', 4, 'weeks', 'D', 'g-8'],
+      ['g8.blockWeeksDropped', 1, 'weeks', 'D', 'g-8'],
+      ['g8.creditWindowWeeks', 12, 'weeks', 'D', 'g-8'],
+      ['g8.creditTaperEndWeeks', 12, 'weeks', 'D', 'g-8'],
+      ['g8.creditTaperFloor', 0.5, 'fraction', 'D', 'g-8'],
+      ['g8.creditStandard', 0.7, 'fraction', 'D', 'g-8'],
+      ['g8.creditUpper', 0.85, 'fraction', 'D', 'g-8'],
+      ['g8.stepStandard', 0.12, 'fraction per week', 'D', 'g-8'],
+      ['g8.responseWeeks', 4, 'weeks', 'D', 'g-8'],
+    ])
+    expect(paramsForRule('g-8').map((p) => p.id)).toEqual(g8.map((p) => p.id))
+    for (const p of g8) expect(p.note, p.id).toMatch(/^Default:/)
+    expect(P.g8.blockWeeks.evidence).toEqual([
+      'mujika-2000-detraining-part1',
+      'mujika-2000-detraining-part2',
+      'bohm-2015-tendon-adaptation-meta',
+    ])
+    expect(P.g8.blockWeeksDropped.evidence).toEqual([])
+    expect(P.g8.creditTaperFloor.evidence).toEqual([])
+    for (const p of [P.g8.creditWindowWeeks, P.g8.creditTaperEndWeeks]) {
+      expect(p.evidence, p.id).toEqual([
+        'coyle-1984-detraining-time-course',
+        'zheng-2022-detraining-vo2max',
+        'feely-2022-training-disruptions',
+        'deboer-2007-ulls-tendon-time-course',
+        'kubo-2012-achilles-training-detraining',
+      ])
+    }
+    // the rebuild ceiling and the zone's step are provisional until the replay on real history
+    for (const p of [P.g8.creditStandard, P.g8.creditUpper, P.g8.stepStandard]) {
+      expect(p.note, p.id).toMatch(/^Default: provisional until the replay on real history/)
+      expect(lintText(p.note ?? ''), p.id).toEqual([])
+    }
+    expect(P.g8.creditStandard.evidence).toEqual([
+      'coyle-1984-detraining-time-course',
+      'mujika-2000-detraining-part2',
+      'deboer-2007-ulls-tendon-time-course',
+      'kubo-2012-achilles-training-detraining',
+    ])
+    expect(P.g8.creditUpper.evidence).toEqual([
+      'coyle-1984-detraining-time-course',
+      'zheng-2022-detraining-vo2max',
+      'hickson-1981-reduced-frequency',
+      'spiering-2021-minimal-dose',
+    ])
+    expect(P.g8.stepStandard.evidence).toEqual([
+      'nielsen-2013-gps-progression',
+      'damsted-2018-training-load-change',
+      'buist-2008-graded-training',
+      'fredette-2022-training-parameters-injury-review',
+    ])
+    // the response reads the weeks of a typical week; no study sets the length, and the note says
+    // that it is a default and passes the G5 lint
+    expect(P.g8.responseWeeks.evidence).toEqual([])
+    expect(P.g8.responseWeeks.value).toBe(P.a5.typicalWeekCount.value)
+    expect(P.g8.responseWeeks.note).toMatch(/^Default: /)
+    expect(lintText(P.g8.responseWeeks.note ?? '')).toEqual([])
+    // the credits are shares of the block, the upper above the standard; the standard step sits
+    // between the soft step and the weekly rate at which two weeks meet the hard ceiling
+    expect(P.g8.creditStandard.value).toBeLessThan(P.g8.creditUpper.value)
+    expect(P.g8.creditUpper.value).toBeLessThan(1)
+    expect(P.g8.stepStandard.value).toBeGreaterThan(P.g2.rampSoft.value)
+    expect(P.g8.stepStandard.value).toBeLessThan(ceilingWeeklyRate())
+    // the upper step is derived, not a number: two weeks at it meet the ceiling exactly
+    expect(ceilingWeeklyRate()).toBeCloseTo(0.14, 3)
+    expect((1 + ceilingWeeklyRate()) ** 2).toBeCloseTo(1 + P.g2.rampCeilingTwoWeeks.value, 12)
+    // the two windows: 12 weeks, or 16 with the older four weeks on a taper
+    expect(P.g8.creditTaperEndWeeks.range).toEqual([12, 16])
+    expect(P.g8.creditTaperEndWeeks.value).toBe(P.g8.creditWindowWeeks.value)
+    // the 12-week window fits the 16 weeks the athlete state shows
+    expect(P.g8.creditWindowWeeks.value + P.g8.blockWeeks.value).toBeLessThanOrEqual(16)
+    expect(P.g8.blockWeeksDropped.value).toBeLessThan(P.g8.blockWeeks.value)
+    // the block is the weeks of a typical week, and the least runs a week is the low-frequency line
+    expect(P.g8.blockWeeks.value).toBe(P.a5.typicalWeekCount.value)
+    // the 3 x 30 start reads a block of 3 sessions of the longest floor session
+    expect(P.restartFloor.sessions.value * P.restartFloor.sessionMaxMin.value).toBe(90)
+  })
+
+  it('states rule G-8 in engine-rules.md with its parameters, evidence and table rows', () => {
+    const start = engineRules.indexOf('- **G-8 ')
+    const end = engineRules.indexOf('## (h) Ultra-specific rules')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const g8Text = engineRules.slice(start, end)
+    for (const p of paramsForRule('g-8')) {
+      expect(g8Text, p.id).toContain(`\`${p.id}\``)
+      expect(
+        p.evidence.filter((id) => !g8Text.includes(id)),
+        p.id,
+      ).toEqual([])
+    }
+    expect(g8Text).toMatch(/Grade D as a whole/)
+    // the values that wait for the replay are marked provisional; every part is built
+    expect(g8Text).toContain('provisional')
+    expect(g8Text).toContain('Rebuild ceiling and zone')
+    expect(g8Text).toContain('**Response to weeks run above plan.**')
+    expect(g8Text).toMatch(/applies to a plan the runner is following/)
+    expect(g8Text).not.toMatch(/built in task L3/)
+    // G-2 and G-6 no longer say that a week run above its plan lifts nothing, without the
+    // qualification that standard and upper lift the baseline from the mean of the weeks run
+    const g2 = engineRules.slice(engineRules.indexOf('- **G-2 '), engineRules.indexOf('- **G-3 '))
+    const g6 = engineRules.slice(engineRules.indexOf('- **G-6 '), engineRules.indexOf('- **G-7 '))
+    expect(g2).toMatch(/at steady one week above the ramp lifts nothing after it/)
+    expect(g2).toMatch(/At standard and upper the trailing mean of the minutes run/)
+    expect(g6).toMatch(/At steady a week run above its plan lifts nothing/)
+    expect(g6).toMatch(/At standard and upper the mean of the minutes run/)
+    for (const row of [
+      'History block \\(G-8\\)',
+      'History credit window \\(G-8\\)',
+      'History credit taper floor \\(G-8\\)',
+      '3 × 30 start from a block \\(E6, G-8\\)',
+      'Rebuild ceiling, standard \\(G-8\\)',
+      'Rebuild ceiling, upper \\(G-8\\)',
+      'Rebuild step, standard \\(G-8\\)',
+      'Rebuild step, upper \\(G-8\\)',
+      'Response to weeks run above plan \\(G-8\\)',
+    ]) {
+      expect(engineRules, row).toMatch(new RegExp(`^\\| ${row} `, 'm'))
+    }
+    // E6 path 2 names the second route, and G-5 points at the rule that sets the ceiling
+    const e6 = engineRules.slice(engineRules.indexOf('- **E6 '), engineRules.indexOf('## (f) '))
+    expect(e6).toContain('**Block (G-8).**')
+    expect(engineRules).toMatch(/rule G-8 sets it, with its Params/)
   })
 })

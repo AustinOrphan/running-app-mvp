@@ -6,6 +6,8 @@
 // nothing reads a clock, the network or the database. The server hands over the snapshot, the
 // heart-rate model, the weekly decision and the prediction it has already computed.
 import { EXPLAIN_CHECKIN_DAYS, EXPLAIN_MAX_SOURCES } from '../copy/limits.ts'
+import { loadHoldReason, loadName, stepPercent } from '../copy/load.ts'
+import { countPhrase } from '../copy/quantity.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
 import type { SlotValues } from '../copy/template.ts'
 import type { TEMPLATES, TemplateId } from '../copy/templates.ts'
@@ -20,8 +22,11 @@ import { nextWeekCap } from './guards.ts'
 import {
   countsTowardReference,
   plannedMinOf,
+  rebuildStep,
+  responseBaseline,
   spikeOverrideLimit,
   spikeWarnLimit,
+  noviceRamp,
   startLevelMin,
   ultraRunCapMin,
   VOLUME_KINDS,
@@ -29,7 +34,8 @@ import {
   wholeMinutes,
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
-import { cycleShortReason, cycleWorkWeeks, startPath, taperDays } from './macro.ts'
+import { blockLiftMin, loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
+import { cycleShortReason, cycleWorkWeeks, startLift, startPath, taperDays } from './macro.ts'
 import { P } from './params/index.ts'
 import { ownHoldReasons, postRaceWindows } from './postRace.ts'
 import { rangeLabel } from './predict.ts'
@@ -41,7 +47,7 @@ import {
   recentPain,
   sleepAverageH,
 } from './readiness.ts'
-import { rungCount } from './startWeeks.ts'
+import { isLoadingWeek, rungCount } from './startWeeks.ts'
 import { resolveTargets } from './targets.ts'
 import type {
   AthleteState,
@@ -90,6 +96,12 @@ export interface ExplainContext {
   hrModel: HrModel | null
   /** The weekly decision about `explainWeeks(...).last`, or null when no plan covers that week. */
   decision: WeeklyDecision | null
+  /**
+   * The input with the goal and the options of the plan itself, which the load setting is read
+   * from (`loadInputOf`): the post-race hold depends on the goal race, and `input` carries a
+   * neutral goal. Absent or null without a plan, and the setting is then read from `input`.
+   */
+  planInput?: EngineInput | null
   /**
    * The goal as the engine reads it (distance class, expected time, race-day heat), or null
    * without a goal. `input.goal` is a neutral stand-in for reads about the athlete.
@@ -348,6 +360,14 @@ function decisionRunMin(ctx: ExplainContext, weekStart: string): number {
   return aggregateWeeks(ctx.input.activities, [weekStart])[0]!.runMin
 }
 
+/**
+ * The input the load setting is read from [rules g-8]: the plan's own goal and options, so that
+ * the position, the zone and the response are the ones the Plan page shows and the next re-plan
+ * applies (`loadPlanWithSessions`). A held reason depends on the goal race, which the neutral goal
+ * of `input` does not carry.
+ */
+const loadInputOf = (ctx: ExplainContext): EngineInput => ctx.planInput ?? ctx.input
+
 function weeklyRampFacts(scope: Scope): InputFact[] {
   const { ctx, last, next } = scope
   if (!ctx.state.weeks.some((w) => w.runMin > 0 || w.raceMin > 0)) {
@@ -365,7 +385,13 @@ function weeklyRampFacts(scope: Scope): InputFact[] {
       { week: weekOf(last), minutes: minutes(ran.runMin) },
       { sources: weekRuns(ctx, last).map(activitySource), window: weekWindow(last) },
     ),
-    make('g-2', 'ramp', 'explain.g2-ramp', { pct: percent(weeklyRamp(ctx.state) * 100) }),
+    // "at most": under the rebuild zone of a plan at standard or upper [rules g-8] a week under its
+    // ceiling may add the zone's step, which is more than the usual one
+    make('g-2', 'ramp', 'explain.g2-ramp', {
+      pct: stepPercent(
+        Math.max(weeklyRamp(ctx.state), rebuildZone(loadInputOf(ctx), ctx.state)?.step ?? 0),
+      ),
+    }),
   ]
   const planned = plannedWeek(ctx, next)
   if (planned !== null) {
@@ -420,7 +446,11 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
   const target = nextWeek === null ? undefined : plannedMinOf(nextWeek)
   if (target !== undefined) {
     const ramp = weeklyRamp(ctx.state)
-    const cap = wholeMinutes(nextWeekCap(target, actual, ramp))
+    // under the rebuild zone [rules g-8] the cap grows by the zone's step, as the decision does
+    const rebuild = rebuildZone(loadInputOf(ctx), ctx.state)
+    const cap = wholeMinutes(nextWeekCap(target, actual, ramp, rebuild))
+    const grown =
+      rebuild !== null && actual > 0 ? rebuildStep(actual, ramp, false, rebuild) / actual - 1 : ramp
     // A cap of zero minutes (a week with nothing planned, or nothing run before it) is no
     // sentence: "capped at 0 min" says nothing the completion line does not.
     if (cap > 0) {
@@ -429,12 +459,165 @@ function lostVolumeFacts(scope: Scope): InputFact[] {
           'g-6',
           'cap',
           'explain.g6-cap',
-          { week: weekOf(next), minutes: minutes(cap), pct: percent(ramp * 100) },
+          { week: weekOf(next), minutes: minutes(cap), pct: stepPercent(grown) },
           { window: weekWindow(next) },
         ),
       )
     }
   }
+  return facts
+}
+
+// ---------------------------------------------------------------------------------------------
+// g-8: the history-informed rebuild
+// ---------------------------------------------------------------------------------------------
+
+/** "four steady weeks": the block's length from its Param, in words up to ten. */
+const blockPhrase = () => countPhrase(P.g8.blockWeeks.value, 'steady week')
+
+/**
+ * The response to weeks run above plan, when it lifts the next loading week of the stored plan
+ * [rules g-8]: the mean of the minutes run in the last `g8.responseWeeks` eligible weeks against
+ * the planned baseline that week is stepped from, and the baseline it builds from, which is the
+ * mean up to the two-week ceiling over the planned baseline. A re-plan carries the loading
+ * sequence on from the minutes the current week was planned at (from the last loading week before
+ * it, when this one is a recovery week), and the response lifts that baseline when the mean is
+ * higher (`responseBaseline`), so the planned baseline is read from the stored plan's weeks and not
+ * from the weeks as run, which only bound the week (`rampLimits`). Nothing when the response is off
+ * (steady, a held setting, a plan that restarts, a newest week run under its target), has no mean,
+ * has no loading week ahead, or does not pass the planned baseline.
+ */
+function responseFacts(ctx: ExplainContext): InputFact[] {
+  const input = loadInputOf(ctx)
+  const basis = responseBasis(input, ctx.state)
+  const mean = basis?.meanMin ?? null
+  if (mean === null || input.existing === null) return []
+  const currentMonday = mondayOf(input.today)
+  const stored = [...input.existing.weeks].sort((a, b) =>
+    a.weekStart < b.weekStart ? -1 : a.weekStart > b.weekStart ? 1 : 0,
+  )
+  const current = stored.find((w) => w.weekStart === currentMonday)
+  // The anchor is the generator's `replanAnchor` (macro.ts) without its step cap: the current week
+  // of the stored plan, or the last loading week before it when the current one is a recovery
+  // week. `replanAnchor` returns minutes held to the step the recent weeks allow, and the fact
+  // states the planned ones, so the rule is repeated here and not called.
+  const anchor =
+    current === undefined || current.isTaper || current.phase === 'race'
+      ? undefined
+      : current.isRecovery
+        ? stored.filter((w) => w.weekStart < currentMonday && isLoadingWeek(w)).at(-1)
+        : current
+  const next = stored.find((w) => w.weekStart > currentMonday && isLoadingWeek(w))
+  if (anchor === undefined || next === undefined) return []
+  const planned = plannedMinOf(anchor)
+  const from = responseBaseline(planned, basis, noviceRamp(ctx.state))
+  if (Math.round(from) <= Math.round(planned)) return []
+  return [
+    make(
+      'g-8',
+      'response',
+      'explain.g8-response',
+      {
+        n: count(P.g8.responseWeeks.value),
+        mean: minutes(mean),
+        planned: minutes(planned),
+        from: minutes(from),
+      },
+      { window: weekWindow(next.weekStart) },
+    ),
+  ]
+}
+
+/**
+ * The history block the plan read, the zone it sets, the load setting and why it holds, the
+ * response to weeks run above plan, and the limits that stay [rules g-8]. The block is stated
+ * whatever the setting, as the figure the engine read; the zone, the held and capped lines and
+ * the response only when they apply.
+ */
+function rebuildFacts(scope: Scope): InputFact[] {
+  const { ctx } = scope
+  const { state } = ctx
+  const input = loadInputOf(ctx)
+  const load = loadPosition(input, state)
+  // the block the zone reads: a plan being continued keeps the one it opened with (`zoneBlock`)
+  const credited = zoneBlock(input, state)
+  const zone = rebuildZone(input, state)
+  const facts: InputFact[] = []
+  if (credited !== null) {
+    const { block } = credited
+    const window = {
+      from: addDays(block.endWeek, -7 * (P.g8.blockWeeks.value - 1)),
+      to: addDays(block.endWeek, 6),
+    }
+    const runs = countedRuns(ctx).filter(
+      (a) => a.type === 'run' && a.date >= window.from && a.date <= window.to,
+    )
+    facts.push(
+      make(
+        'g-8',
+        'block',
+        'explain.g8-block',
+        {
+          blocks: titleCase(blockPhrase()),
+          ago: countPhrase(daysBetween(block.endWeek, mondayOf(input.today)) / 7, 'week'),
+          minutes: minutes(block.blockMin),
+        },
+        { sources: runs.map(activitySource), window },
+      ),
+    )
+    if (credited.keptSince !== null) {
+      // the share is the one found at the plan's first Monday, so no line of its own for it
+      if (zone !== null) {
+        facts.push(
+          make('g-8', 'kept', 'explain.g8-kept', {
+            share: share(block.taper),
+            minutes: minutes(zone.ceilingMin),
+          }),
+        )
+      }
+    } else if (block.taper < 1) {
+      facts.push(
+        make('g-8', 'taper', 'explain.g8-taper', {
+          weeks: count(block.weeksAgo),
+          share: share(block.taper),
+        }),
+      )
+    }
+  }
+  if (zone !== null) {
+    facts.push(
+      make('g-8', 'zone', 'explain.g8-zone', {
+        minutes: minutes(zone.ceilingMin),
+        pct: stepPercent(zone.step),
+        soft: stepPercent(P.g2.rampSoft.value),
+      }),
+    )
+  }
+  facts.push(make('g-8', 'setting', 'explain.g8-setting', { position: loadName(load.requested) }))
+  if (load.held !== null) {
+    facts.push(make('g-8', 'held', 'explain.g8-held', { reason: loadHoldReason(load.held) }))
+  }
+  if (load.ageCapped) {
+    facts.push(
+      make('g-8', 'capped', 'explain.g8-capped', { age: count(P.a9.noviceFlagAgeMin.value) }),
+    )
+  }
+  facts.push(...responseFacts(ctx))
+  if (credited === null) {
+    facts.push(
+      gap('g-8', 'explain.g8-none', {
+        blocks: blockPhrase(),
+        weeks: count(P.g8.creditTaperEndWeeks.value),
+      }),
+    )
+  }
+  facts.push(
+    make('g-8', 'limits', 'explain.g8-limits', {
+      days: count(P.g1.windowDays.value),
+      pct: percent(P.g2.rampCeilingTwoWeeks.value * 100),
+      span: countPhrase(P.g2.ceilingWindowWeeks.value, 'week'),
+    }),
+  )
   return facts
 }
 
@@ -2276,7 +2459,8 @@ function startPathFacts(scope: Scope): InputFact[] {
   }
   // The path is chosen from the restart volume after a break [rules J7], as the plan chose it.
   const state = planState(ctx)
-  const path = startPath({ ...ctx.input, today: ctx.asOf }, state)
+  const input = { ...ctx.input, today: ctx.asOf }
+  const path = startPath(input, state)
   const sources = lastRunSources(ctx)
   if (path === null) {
     facts.push(
@@ -2299,6 +2483,31 @@ function startPathFacts(scope: Scope): InputFact[] {
         { sources },
       ),
     )
+    // a floor session above the floor itself was lifted by one of two routes: name the one taken
+    const route =
+      path.sessionMin > P.restartFloor.sessionMin.value
+        ? startLift({ ...loadInputOf(ctx), today: ctx.asOf }, state)
+        : null
+    if (route === 'years') {
+      facts.push(
+        make('E6', 'route', 'explain.e6-lift-years', {
+          floor: minutes(P.restartFloor.sessionMin.value),
+          years: count(P.a5.trainedMinYears.value),
+        }),
+      )
+    } else if (route === 'block') {
+      facts.push(
+        make('E6', 'route', 'explain.e6-lift-block', {
+          floor: minutes(P.restartFloor.sessionMin.value),
+          years: countPhrase(P.a5.noviceMaxYears.value, 'year'),
+        }),
+        make('E6', 'block', 'explain.e6-lift-block-weeks', {
+          blocks: count(P.g8.blockWeeks.value),
+          minimum: minutes(blockLiftMin()),
+          weeks: count(P.g8.creditWindowWeeks.value),
+        }),
+      )
+    }
   } else {
     facts.push(
       make('E6', 'path', 'explain.e6-injury', {
@@ -2601,6 +2810,7 @@ export const INPUT_BUILDERS: Readonly<Record<string, Builder>> = {
   'g-2': weeklyRampFacts,
   'g-3': tightenedFacts,
   'g-6': lostVolumeFacts,
+  'g-8': rebuildFacts,
   A2: loadFacts,
   A3: (scope) => longestRunFacts('A3', scope),
   A4: consistencyFacts,
@@ -2813,6 +3023,17 @@ function plannedWeekStart(ctx: ExplainContext, weekStart: string): boolean {
 }
 
 /**
+ * `rules` with g-8 after the weekly ramp (g-2) when the plan was set to a position other than
+ * steady [rules g-8]: the setting, the zone and the response explain the weeks the ramp sets. A
+ * steady plan asks nothing of g-8, so its subjects list what they always did.
+ */
+function withLoadRule(rules: readonly string[], ctx: ExplainContext): string[] {
+  const at = rules.indexOf('g-2')
+  if (at < 0 || loadPosition(ctx.input, ctx.state).requested === 'steady') return [...rules]
+  return [...rules.slice(0, at + 1), 'g-8', ...rules.slice(at + 1)]
+}
+
+/**
  * The rule ids a request is about, in the order they are shown, or null when the request names a
  * record the context does not hold (an unknown session or week) or a subject whose figures are
  * stored with it (a brief, a run).
@@ -2823,10 +3044,10 @@ export function explainRules(req: ExplainRequest, ctx: ExplainContext): string[]
       const session = sessionOf(ctx, req.id)
       if (session === null) return null
       const run = VOLUME_KINDS.has(session.kind)
-      return dedupe([...(run ? EXPLAIN_RULES.run : []), ...session.rules])
+      return dedupe([...(run ? withLoadRule(EXPLAIN_RULES.run, ctx) : []), ...session.rules])
     }
     case 'week':
-      return plannedWeekStart(ctx, req.weekStart) ? [...EXPLAIN_RULES.week] : null
+      return plannedWeekStart(ctx, req.weekStart) ? withLoadRule(EXPLAIN_RULES.week, ctx) : null
     case 'decision':
       return plannedWeekStart(ctx, req.weekStart) ? [...EXPLAIN_RULES.decision] : null
     case 'readiness':
@@ -2887,17 +3108,22 @@ const RACE_RULES: ReadonlySet<string> = new Set(
   ].map(lower),
 )
 
+/** The rules that read the load setting (`ExplainContext.planInput`): the ramp, the cap, the start and g-8. */
+const LOAD_SETTING_RULES: ReadonlySet<string> = new Set(['g-2', 'g-6', 'g-8', 'e6'])
+
 /** Which values beyond the snapshot a set of rules reads, so the server computes only those. */
 export function explainNeeds(rules: readonly string[]): {
   hrModel: boolean
   decision: boolean
   prediction: boolean
   race: boolean
+  planInput: boolean
 } {
   const keys = new Set(rules.map(lower))
   return {
     hrModel: keys.has('a8'),
     decision: keys.has('j5'),
+    planInput: [...keys].some((key) => LOAD_SETTING_RULES.has(key)),
     // n-7 sizes the fluid-safety card from the goal time, else from the prediction
     prediction: EXPLAIN_RULES.prediction.some((rule) => keys.has(lower(rule))) || keys.has('n-7'),
     race: [...keys].some((key) => RACE_RULES.has(key)),

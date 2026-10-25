@@ -43,6 +43,7 @@ import type {
   Step,
   WeeklyDecision,
 } from '../shared/engine/types.ts'
+import { isLoadAppetite } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
 import { renderFact } from '../shared/copy/templates.ts'
 import { mondayOf, todayIso } from '../shared/dates.ts'
@@ -437,12 +438,15 @@ export function toWeeklyReview(row: WeeklyReviewRow): WeeklyReview {
 
 /**
  * The engine options of a stored plan: the runner's preferences (recovery cycle, strength sessions,
- * intensity model), kept when a plan is built for another goal and read by Explain. Text that is
- * absent, unreadable or not a JSON object gives none.
+ * intensity model, load setting), kept when a plan is built for another goal and read by Explain
+ * and by every re-plan. Text that is absent, unreadable or not a JSON object gives none. A stored
+ * load setting that is not one of the three positions is dropped, which reads as steady.
  */
 export function parsePlanOptions(text: string | null | undefined): EngineInput['options'] {
   const parsed = parseJson<unknown>(text ?? null, {})
-  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {}
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
+  const { loadAppetite, ...rest } = parsed as EngineInput['options']
+  return isLoadAppetite(loadAppetite) ? { ...rest, loadAppetite } : rest
 }
 
 /** The version-2 columns of a plan that `toPlan` leaves out. */

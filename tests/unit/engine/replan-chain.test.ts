@@ -2,10 +2,15 @@
 // keeps its progression, its peak and its race-specific weeks [rules E2, g-2].
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { estimateState } from '../../../shared/engine/athlete.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import type { DisruptionWindow, EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
+import type { PlanWeek as PlanWeekRow } from '../../../server/db.ts'
+import { raisedTargetLimits, planWeekWrites } from '../../../server/services/replan.ts'
+import { weekRow } from '../../../server/services/planEngine.ts'
 import { activity } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
+import { replanSteps, type ReplanStep } from './replan-steps.ts'
 
 type Existing = NonNullable<EngineInput['existing']>
 
@@ -175,6 +180,202 @@ describe.each(['half', 'first-100-mile', 'marathon'])(
       const firstSpecific = plain.first.weeks.find((w) => w.phase === 'specific')!.weekStart
       const late = last.weeks.filter((w) => w.weekStart >= firstSpecific && !w.isTaper)
       expect(late.filter((w) => w.phase !== 'race' && w.phase !== 'specific')).toEqual([])
+    })
+  },
+)
+
+/**
+ * The stored rows of a draft's weeks from the current Monday, each an override at the plan's own
+ * target except the weeks in `raised`, which hold the number given.
+ */
+function overrideRows(draft: PlanDraft, today: string, raised: Record<string, number> = {}) {
+  return draft.weeks
+    .filter((w) => w.weekStart >= mondayOf(today))
+    .map((week, i): PlanWeekRow => {
+      const row = {
+        ...weekRow(week),
+        id: `w${String(i)}`,
+        planId: 'plan',
+        updatedAt: new Date(0),
+      } as PlanWeekRow
+      return {
+        ...row,
+        targetRunMin: raised[week.weekStart] ?? row.baselineRunMin,
+        targetSource: 'override',
+        overrideNote: 'Synthetic note.',
+      }
+    })
+}
+
+/** What a re-plan makes of the rows: the limits it reads and the write it plans. */
+function plan(step: ReplanStep, rows: PlanWeekRow[]) {
+  const limits = raisedTargetLimits({
+    rows,
+    draft: step.draft,
+    input: step.input,
+    state: estimateState(step.input),
+    decidedWeek: null,
+  })
+  const planned = planWeekWrites(rows, {
+    today: step.input.today,
+    weeks: step.draft.weeks,
+    limits,
+  })
+  return { limits, planned }
+}
+
+describe.each(['half', 'first-100-mile', 'marathon'])(
+  'a week target raised by hand along the weekly re-plans of %s',
+  (id) => {
+    // every fourth Monday of the season: each re-plan reads every week ahead, so all of them are slow
+    const steps = replanSteps(id).filter((_, i) => i % 4 === 0)
+    const futureWeeks = (step: ReplanStep) =>
+      step.draft.weeks.filter(
+        (w) => w.weekStart >= mondayOf(step.input.today) && w.targetRunMin > 0,
+      )
+
+    it('is lowered to the limit of its week, never under the plan’s own', () => {
+      let clipped = 0
+      let released = 0
+      for (const step of steps) {
+        for (const week of futureWeeks(step)) {
+          const rows = overrideRows(step.draft, step.input.today, {
+            [week.weekStart]: week.targetRunMin * 10 + 1000,
+          })
+          const { limits, planned } = plan(step, rows)
+          const limit = limits.get(week.weekStart)!
+          const at = `${week.weekStart} of the plan of ${step.input.today}`
+          // The limit of the ramp is the runner's figure; a rule that draws the week gives it back
+          // to the plan, whose own figure the week then holds.
+          const ownsLimit = limit.kind === 'ceiling' || limit.kind === 'profile'
+          expect(limit.max, at).toBeGreaterThanOrEqual(week.targetRunMin)
+          expect(planned.targets, at).toEqual([
+            {
+              weekStart: week.weekStart,
+              outcome: 'clipped',
+              askedMin: week.targetRunMin * 10 + 1000,
+              keptMin: ownsLimit ? limit.max : week.targetRunMin,
+              engineMin: week.targetRunMin,
+              limit: limit.kind,
+              bound: ownsLimit ? limit.bound : 'plan',
+              ramp: limit.ramp,
+            },
+          ])
+          const written = planned.updated.find((u) => u.before.weekStart === week.weekStart)
+          if (ownsLimit) {
+            // the row is written at the limit, with its note and its source
+            if (limit.max > week.targetRunMin) {
+              expect(written?.data, at).toMatchObject({
+                targetRunMin: limit.max,
+                targetSource: 'override',
+                overrideNote: 'Synthetic note.',
+              })
+            }
+          } else {
+            // the row is the plan's own again, as if never raised
+            expect(written?.data, at).toMatchObject({
+              targetRunMin: week.targetRunMin,
+              targetSource: 'baseline',
+              overrideNote: null,
+            })
+            released += 1
+          }
+          clipped += 1
+        }
+      }
+      expect(clipped).toBeGreaterThan(15)
+      expect(released).toBeGreaterThan(0)
+    })
+
+    it('is kept as set at the limit and lowered one minute above it', () => {
+      let kept = 0
+      for (const step of steps) {
+        for (const week of futureWeeks(step)) {
+          const probe = plan(
+            step,
+            overrideRows(step.draft, step.input.today, {
+              [week.weekStart]: week.targetRunMin * 10 + 1000,
+            }),
+          ).limits.get(week.weekStart)!
+          const at = `${week.weekStart} of the plan of ${step.input.today}`
+          const atLimit = plan(
+            step,
+            overrideRows(step.draft, step.input.today, { [week.weekStart]: probe.max }),
+          )
+          const over = plan(
+            step,
+            overrideRows(step.draft, step.input.today, { [week.weekStart]: probe.max + 1 }),
+          )
+          expect(over.planned.targets, at).toEqual([
+            expect.objectContaining({
+              outcome: 'clipped',
+              askedMin: probe.max + 1,
+              keptMin: probe.max,
+            }),
+          ])
+          if (probe.max > week.targetRunMin) {
+            // a raised target at the limit is kept, and the row stays as it is
+            expect(atLimit.planned.targets, at).toEqual([
+              expect.objectContaining({ outcome: 'kept', askedMin: probe.max, keptMin: probe.max }),
+            ])
+            expect(atLimit.planned.updated, at).toEqual([])
+            kept += 1
+          } else {
+            // a week whose limit is the plan's own figure keeps nothing above it
+            expect(atLimit.planned.targets, at).toEqual([])
+          }
+        }
+      }
+      expect(kept).toBeGreaterThan(8)
+    })
+
+    it('lifts the limit of a later raised week by the minutes it keeps, as run weeks would', () => {
+      let lifted = 0
+      for (const step of steps) {
+        const weeks = futureWeeks(step)
+        for (const first of weeks) {
+          const second = weeks.find((w) => w.weekStart === addDays(first.weekStart, 14))
+          if (second === undefined) continue
+          const limitOf = (raised: Record<string, number>) =>
+            plan(step, overrideRows(step.draft, step.input.today, raised)).limits
+          const alone = limitOf({ [second.weekStart]: second.targetRunMin * 10 + 1000 })
+          const firstLimit = limitOf({ [first.weekStart]: first.targetRunMin * 10 + 1000 }).get(
+            first.weekStart,
+          )!
+          const both = limitOf({
+            [first.weekStart]: firstLimit.max,
+            [second.weekStart]: second.targetRunMin * 10 + 1000,
+          })
+          expect(both.get(second.weekStart)!.max).toBeGreaterThanOrEqual(
+            alone.get(second.weekStart)!.max,
+          )
+          if (both.get(second.weekStart)!.max > alone.get(second.weekStart)!.max) lifted += 1
+        }
+      }
+      expect(lifted).toBeGreaterThan(0)
+    })
+
+    it('is replaced by the plan’s own week when the limits are unknown, as a review’s target is', () => {
+      const { draft, input } = steps[1]!
+      const raised = Object.fromEntries(draft.weeks.map((w) => [w.weekStart, w.targetRunMin + 50]))
+      const rows = overrideRows(draft, input.today, raised)
+      const planned = planWeekWrites(rows, { today: input.today, weeks: draft.weeks })
+      expect(planned.targets).toEqual([])
+      const review = rows.map((row) => ({ ...row, targetSource: 'review' }))
+      const limits = raisedTargetLimits({
+        rows: review,
+        draft,
+        input,
+        state: estimateState(input),
+        decidedWeek: null,
+      })
+      expect(limits.size).toBe(0)
+      const replaced = planWeekWrites(review, { today: input.today, weeks: draft.weeks, limits })
+      expect(replaced.targets).toEqual([])
+      for (const { before, data } of replaced.updated) {
+        expect(data.targetRunMin).toBe(before.baselineRunMin)
+        expect(data.targetSource).toBe('baseline')
+      }
     })
   },
 )

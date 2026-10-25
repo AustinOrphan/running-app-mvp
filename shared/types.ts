@@ -1,5 +1,6 @@
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
+import type { LoadPosition } from './engine/loadSetting.ts'
 import type {
   AthleteState,
   BriefDecision,
@@ -18,6 +19,7 @@ import type {
   InputFact,
   LadderResult,
   LadderStep,
+  LoadAppetite,
   Param,
   PlanChange,
   Prediction,
@@ -34,7 +36,7 @@ import type {
   ZoneSet,
 } from './engine/types.ts'
 
-export type { Checkin, DistanceEstimate }
+export type { Checkin, DistanceEstimate, LoadAppetite }
 
 export type ActivityType = 'run' | 'race' | 'strength' | 'cross'
 /** `manual`, `smashrun`, `csv`, `file`, or a provider registry key such as `intervals`. */
@@ -641,11 +643,53 @@ export interface WeekDiffLine {
   flagsAdded: string[]
   flagsRemoved: string[]
 }
+/**
+ * What bounded a week target the runner raised above the plan's own at a re-plan (`targetLimit`,
+ * `shared/engine/limits.ts`): the 2-week ceiling, a tightened injury profile, or a rule that sets
+ * the week's figure itself (a progression hold, the weekly decision, the weeks after a race, a rest
+ * window, a start programme, a recovery, taper or race week).
+ */
+export type TargetLimitKind =
+  'ceiling' | 'profile' | 'hold' | 'decision' | 'post-race' | 'window' | 'programme' | 'structure'
+/**
+ * What set the figure of a limit (`TargetLimit.max`), the largest of three: `limit`, the ceiling or
+ * the profile's step; `plan`, the plan's own figure for the week; `logged`, the minutes already
+ * run in the week. A limit never falls under the last two, so a target lowered to it may be above
+ * what the ceiling or the profile's step alone allows.
+ */
+export type TargetLimitBound = 'limit' | 'plan' | 'logged'
+/**
+ * A week target the runner raised by hand, as one re-plan left it: kept as set, or lowered to the
+ * limit of the week. Built from the week row as written, so it describes what the revision did.
+ */
+export interface TargetDiffLine {
+  weekStart: string
+  outcome: 'kept' | 'clipped'
+  /** The target the runner set. */
+  askedMin: number
+  /** The target the week holds after the write: `askedMin` when kept, the limit when clipped. */
+  keptMin: number
+  /** The plan's own figure for the week. */
+  engineMin: number
+  limit: TargetLimitKind
+  /**
+   * What set the figure the week was lowered to. Absent on a line stored before it was recorded,
+   * which reads as `limit`.
+   */
+  bound?: TargetLimitBound
+  /**
+   * The growth the limit allows, as a fraction: the 2-week ceiling for `ceiling`, the profile's
+   * weekly ramp for `profile`; null where a rule sets the week's figure itself.
+   */
+  ramp: number | null
+}
 export interface PlanDiff {
   v: 1
   sessions: SessionDiffLine[]
   weeks: WeekDiffLine[]
   holds: Array<{ from: string; to: string; label: string; disruptionId: string | null }>
+  /** The raised week targets of the write, kept or clipped; absent when the write met none. */
+  targets?: TargetDiffLine[]
   totals: {
     added: number
     removed: number
@@ -913,6 +957,13 @@ export interface PlanWithSessions extends PlanWithWeeks {
   warnings: EngineWarning[]
   checklist: ChecklistResult[]
   zones: ZoneSet | null
+  /**
+   * The load setting of the plan [rules g-8]: the position the plan was set to, the one that
+   * applies today, and why they differ (held at steady, or capped at standard by age). Worked out
+   * by the server from the plan's options and the runner's state, so a page shows it and never
+   * recomputes it. Null for a version-1 plan.
+   */
+  load: LoadPosition | null
 }
 /** The `details` of the 409 that `POST /api/goals/:id/activate` answers while a plan follows another goal. */
 export interface ActivateRequiresPlan {

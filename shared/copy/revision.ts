@@ -17,7 +17,7 @@ import { P } from '../engine/params/index.ts'
 import type { Quantity } from '../engine/types.ts'
 import type { SafetyRule, UndoFinding } from '../engine/undoGuard.ts'
 import type { ZoneBoundary } from '../engine/zoneChange.ts'
-import type { ActivityType, DisruptionReason, UndoReason, Units } from '../types.ts'
+import type { ActivityType, DisruptionReason, TargetDiffLine, UndoReason, Units } from '../types.ts'
 import { countPhrase } from './quantity.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -441,6 +441,65 @@ export const REVISION_TEMPLATES = {
     boundary: 'text',
   }),
 
+  // A week target the runner raised by hand, as a re-plan left it (ADR 0007, rule g-2): kept as set,
+  // or lowered to the limit of the week and the limit named. A limit that is a ramp states its
+  // share; a rule that draws the week itself leaves the plan's own figure. Nothing here calls a
+  // target safe or unsafe: the sentences say what the limit is.
+  'revision.target.kept': tpl(
+    "Week of {date}: the target set by hand, {kept}, stays; the plan's own figure would be {engine}.",
+    { date: 'date', kept: 'minutes', engine: 'minutes' },
+  ),
+  'revision.target.clipped.ceiling': tpl(
+    'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the most the limits allow that week (growth over two weeks stays within {pct}).',
+    { date: 'date', asked: 'minutes', kept: 'minutes', pct: 'share' },
+  ),
+  'revision.target.clipped.profile': tpl(
+    'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the most the tightened weekly step allows that week ({pct} a week).',
+    { date: 'date', asked: 'minutes', kept: 'minutes', pct: 'share' },
+  ),
+  // The limits never go under the plan's own figure or the minutes already run, so a target
+  // lowered to one of those is above what the ceiling or the tightened step alone would allow.
+  'revision.target.clipped.ceiling.plan': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure that week, which the limits do not go under.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.ceiling.logged': tpl(
+    'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the minutes already run that week, which the limits do not go under.',
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.profile.plan': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure that week, which the tightened step does not go under.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.profile.logged': tpl(
+    'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the minutes already run that week, which the tightened step does not go under.',
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.hold': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure while progression is on hold.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.decision': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure after last week's decision.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.post-race': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure for the weeks after a race.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.window': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure for a week a rest window touches.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.programme': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure for a week of the start programme.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+  'revision.target.clipped.structure': tpl(
+    "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure for a recovery, taper or race week.",
+    { date: 'date', asked: 'minutes', kept: 'minutes' },
+  ),
+
   // The summary of a new plan.
   'revision.generated': tpl('Plan generated for {goal}: {weeks} weeks, {sessions} sessions.', {
     goal: 'text',
@@ -538,6 +597,74 @@ export function decisionSummary(decision: string, nextWeekTargetMin: number): st
     { decision, minutes: { kind: 'minutes', min: nextWeekTargetMin } },
     STORED_UNITS,
   )
+}
+
+/**
+ * The sentence for one raised week target of a re-plan: kept as the runner set it, or lowered to the
+ * limit of the week with the limit named. The figures are those of the stored diff line.
+ */
+export function targetSummary(line: TargetDiffLine): string {
+  const date = day(line.weekStart)
+  const minutes = (min: number) => ({ kind: 'minutes', min }) as const
+  if (line.outcome === 'kept') {
+    return render(
+      REVISION_TEMPLATES['revision.target.kept'],
+      { date, kept: minutes(line.keptMin), engine: minutes(line.engineMin) },
+      STORED_UNITS,
+    )
+  }
+  const slots = { date, asked: minutes(line.askedMin), kept: minutes(line.keptMin) }
+  switch (line.limit) {
+    case 'ceiling':
+      if (line.bound === 'plan' || line.bound === 'logged') {
+        return render(
+          REVISION_TEMPLATES[`revision.target.clipped.ceiling.${line.bound}`],
+          slots,
+          STORED_UNITS,
+        )
+      }
+      return render(
+        REVISION_TEMPLATES['revision.target.clipped.ceiling'],
+        {
+          ...slots,
+          pct: { kind: 'share', fraction: line.ramp ?? P.g2.rampCeilingTwoWeeks.value },
+        },
+        STORED_UNITS,
+      )
+    case 'profile':
+      if (line.bound === 'plan' || line.bound === 'logged') {
+        return render(
+          REVISION_TEMPLATES[`revision.target.clipped.profile.${line.bound}`],
+          slots,
+          STORED_UNITS,
+        )
+      }
+      return render(
+        REVISION_TEMPLATES['revision.target.clipped.profile'],
+        { ...slots, pct: { kind: 'share', fraction: line.ramp ?? P.g2.rampSoft.value } },
+        STORED_UNITS,
+      )
+    case 'hold':
+      return render(REVISION_TEMPLATES['revision.target.clipped.hold'], slots, STORED_UNITS)
+    case 'decision':
+      return render(REVISION_TEMPLATES['revision.target.clipped.decision'], slots, STORED_UNITS)
+    case 'post-race':
+      return render(REVISION_TEMPLATES['revision.target.clipped.post-race'], slots, STORED_UNITS)
+    case 'window':
+      return render(REVISION_TEMPLATES['revision.target.clipped.window'], slots, STORED_UNITS)
+    case 'programme':
+      return render(REVISION_TEMPLATES['revision.target.clipped.programme'], slots, STORED_UNITS)
+    case 'structure':
+      return render(REVISION_TEMPLATES['revision.target.clipped.structure'], slots, STORED_UNITS)
+  }
+}
+
+/** The sentences for the raised week targets of a re-plan, in week order, one after the other. */
+export function targetsSummary(lines: readonly TargetDiffLine[]): string {
+  return [...lines]
+    .sort((a, b) => (a.weekStart < b.weekStart ? -1 : a.weekStart > b.weekStart ? 1 : 0))
+    .map(targetSummary)
+    .join(' ')
 }
 
 export function skippedSummary(title: string, date: string): string {

@@ -2,6 +2,9 @@
 
 Status: Accepted 2026-10-24 (#564)
 
+Amended 2026-10-25: the response to weeks run above plan has two bounds, an engine decision awaiting
+the owner's confirmation (see the amendment under Decision).
+
 Amends rule G-5 of `research/engine-rules.md`. Builds on ADR 0005, ADR 0007 and ADR 0009.
 
 ## Context
@@ -39,7 +42,8 @@ default note, and bump `PARAMS_VERSION` with them. This ADR fixes the shape, not
   weeks the athlete state already holds (ADR 0009, no new query).
 - A load setting with three positions, Steady, Standard and Upper band, is a plan option chosen on
   the Generate form (later also a plan action with a preview and an undo, ADR 0007; decision 6). It
-  sets only the weekly step below the ceiling. The largest step is derived from the hard ceiling of
+  sets the weekly step below the ceiling and, through the response to weeks run above plan
+  (decision 5), the baseline that step is applied to. The largest step is derived from the hard ceiling of
   G-2 (30% over two weeks), so the setting cannot pass it. Above the ceiling the soft 10% resumes.
 - The default is Steady, which gives today's plan byte for byte (decision 2). A position is forced to
   Steady, with a stated reason, under a recent injury on file, a prior bone stress injury or two bone
@@ -69,6 +73,36 @@ tasks implement them:
 - The credit window is built both ways behind a Param, 12 weeks at full credit and 16 weeks with the
   credit tapering to half after 12, and the replay decides (decision 7).
 - The J7 pre-break proxy is left alone (decision 8).
+
+**Amended 2026-10-25 (task L3d): the response has two bounds.** The bullet on decision 5 above
+states the response without a bound. The replay on real history (task L6) showed two cases that the
+owner's wording "in a bounded form" (question 5) rules out, and task L3d shipped two bounds in the
+build session:
+
+- The response applies only when the newest eligible week was run at or above the minutes the
+  stored plan held for it. A week run under its target never lifts the plan, and the hold or reduce
+  decision after it keeps its effect.
+- The lifted baseline never passes the planned baseline stepped by the two-week ceiling
+  (`g2.rampCeilingTwoWeeks`). No new Param.
+
+This is an engine decision taken in the build session on the owner's wording of question 5, and it
+awaits the owner's confirmation (STATUS, "Decisions for the owner"). It is not part of decision 5 as
+the owner gave it. Rule G-8 and the code carry the bounds until the owner confirms or changes them.
+
+- **Fact:** In a back-test of 32 weekly re-plans on the owner's history, the response without the
+  bounds lifted a baseline in 16: 14 after a week run above plan and 2 after a dip that followed a
+  held week, and one outlier week lifted a plan 3.1 times. Known by the replay of task L6 on
+  2026-10-25; the full figures stay outside the repository, and only counts are stated here.
+- **Fact:** With the bounds the 2 lifts after a dip do not occur and the outlier week lifts the plan
+  by at most 1.3 times. On the synthetic runner, weeks of 150, 150, 60 and 60 minutes no longer lift
+  a week of 67 to 101, and one week of 500 minutes after 120 lifts a baseline of 70 to 91, not to
+  185 (proposal section 4.7; unit cases of task L3d).
+- **Rule:** Rule G6 (a change toward more load needs stronger evidence than a change toward less),
+  and rules G-2 and G-6: a week run under its target is missed training, which lowers the plan.
+- **Opinion:** The two-week ceiling is the limit the engine already holds on a rise, so reusing it
+  adds no number; it is a convention and not a measurement.
+- **Alternative, the response as first worded (unbounded).** For (**Opinion**): it follows the
+  runner exactly. Against (**Fact**): the 2 lifts after a dip and the outlier week of 3.1 times above.
 
 Reasons:
 
@@ -122,7 +156,8 @@ Reasons:
   above grade D, so the default is Steady, every guard stays and every Param says it is a default.
 - **Rule:** Copy discipline G5: no sentence says that a limit prevents injury or that passing one
   causes it, and none shows a personal injury probability. The setting's hint states that the effect
-  of a faster step on a return after a break is not known.
+  of a faster step on a return after a break is not known, on the Generate form and in the Plan
+  page's Load panel; the Why drawer states facts of the plan and not the choice.
 - **Rule:** ADR 0005 and rule G1: rule code chooses every session; the ceiling and the setting are
   rule code, and their explanations are templates over Param values.
 - **Rule:** ADR 0009: athlete data comes from the snapshot, so the block is computed from the weeks
@@ -153,7 +188,7 @@ Alternatives:
   Against (**Fact**): the guard rests on 5205 runners and its cohort never separated returns; the
   tissue papers give no support to crediting past training to a single session. For (**Opinion**): it
   would remove most of the early wait for a long run (on the synthetic runner, 20 weeks to a
-  150-minute long run from a 45-minute reference, proposal section 4.7). Decision 10 leaves G-1 as it
+  150-minute long run from a 45-minute reference, proposal sections 2.7 and 4.9). Decision 10 leaves G-1 as it
   is.
 - **An age or experience credit.** Against (**Fact**): runners with under 1 year or over 40 years of
   running had the most injuries [abrahamson-2025-self-reported-characteristics], and competitive

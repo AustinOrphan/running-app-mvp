@@ -87,7 +87,9 @@ const plural = (n: number, one: string, many: string) => `${String(n)} ${n === 1
 /** What several warnings of one code say together. Codes without an entry fall back to a count. */
 const SUMMARIES: Record<string, (n: number) => string> = {
   'gain-ramp-soft': (n) => `Climbing above the 10% step in ${plural(n, 'week', 'weeks')}`,
-  'ramp-soft': (n) => `Running time above the 10% step in ${plural(n, 'week', 'weeks')}`,
+  // no figure: the step is the plan's usual one or the rebuild step of the load setting, and the
+  // warnings of the group each name theirs
+  'ramp-soft': (n) => `Running time above the weekly step in ${plural(n, 'week', 'weeks')}`,
   'ramp-ceiling': (n) => `Running time held at the 2-week limit in ${plural(n, 'week', 'weeks')}`,
   'ramp-tightened': (n) =>
     `Running time held to the injury-profile ramp in ${plural(n, 'week', 'weeks')}`,

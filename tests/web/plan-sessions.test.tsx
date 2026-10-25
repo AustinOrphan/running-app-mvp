@@ -1,6 +1,8 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { loadTradeoff } from '../../shared/copy/load.ts'
+import type { LoadHold, LoadPosition } from '../../shared/engine/loadSetting.ts'
 import type {
   Goal,
   PlanPreview,
@@ -843,6 +845,167 @@ describe('Plan page, rest windows', () => {
     const skipped = screen.getByRole('button', { name: /Easy run/ })
     expect(skipped).toHaveTextContent('40 min, Skipped, Rest window')
     expectCleanCopy(document.body)
+  })
+})
+
+describe('Plan page, the load setting in effect', () => {
+  const load = (over: Partial<LoadPosition> = {}): LoadPosition => ({
+    requested: 'steady',
+    position: 'steady',
+    held: null,
+    ageCapped: false,
+    ...over,
+  })
+  const panel = () => screen.findByRole('region', { name: 'Load setting' })
+
+  test.each([
+    ['steady', 'steady'],
+    ['standard', 'standard'],
+    ['upper', 'upper'],
+  ] as const)(
+    'states the trade-off of the choice below the hint at %s, in the panel and not only on the form',
+    async (requested, position) => {
+      mockApi(routes(makeV2Plan({ load: load({ requested, position }) })))
+      renderPlan()
+      const region = await panel()
+      const tradeoff = within(region).getByText(
+        /^A faster step brings the earlier weekly level back/,
+      )
+      expect(tradeoff).toHaveTextContent(loadTradeoff())
+      expect(tradeoff).toHaveTextContent('the effect here is not known')
+      expect(tradeoff).toHaveTextContent('Staying with 10% is the more cautious choice.')
+      // it follows the hint in the panel
+      const hint = within(region).getByText(/^Adds up to /)
+      expect(hint.compareDocumentPosition(tradeoff) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+      expectCleanCopy(region)
+    },
+  )
+
+  test('keeps the trade-off before the reason when the chosen position is held', async () => {
+    mockApi(
+      routes(
+        makeV2Plan({ load: load({ requested: 'upper', position: 'steady', held: 'rest-window' }) }),
+      ),
+    )
+    renderPlan()
+    const region = await panel()
+    const tradeoff = within(region).getByText(/^A faster step brings the earlier weekly level back/)
+    const reason = within(region).getByText(/^The plan was set to Upper band\./)
+    expect(tradeoff.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+  })
+
+  test('names Steady and its hint for a plan at the default, with no reason', async () => {
+    mockApi(routes(makeV2Plan({ load: load() })))
+    renderPlan()
+    const region = await panel()
+    expect(within(region).getByText('Steady')).toBeInTheDocument()
+    expect(within(region).getByText("Adds up to 10% a week, the plan's usual step.")).toBeVisible()
+    expect(within(region).queryByText(/was set to/)).not.toBeInTheDocument()
+    expect(within(region).queryByText(/applies for now/)).not.toBeInTheDocument()
+    expectCleanCopy(region)
+  })
+
+  test.each([
+    [
+      'standard',
+      'Standard',
+      /^Adds up to \d+(\.\d+)?% a week while rebuilding toward a level held in the last 12 weeks\. /,
+    ],
+    [
+      'upper',
+      'Upper band',
+      /^Adds up to \d+(\.\d+)?% a week while rebuilding, the most the plan allows \(30% over two weeks\)\./,
+    ],
+  ] as const)(
+    'names %s when it applies as chosen, with no reason',
+    async (position, name, hint) => {
+      mockApi(routes(makeV2Plan({ load: load({ requested: position, position }) })))
+      renderPlan()
+      const region = await panel()
+      expect(within(region).getByText(name)).toBeInTheDocument()
+      expect(within(region).getByText(hint)).toBeInTheDocument()
+      expect(within(region).queryByText(/was set to/)).not.toBeInTheDocument()
+      expectCleanCopy(region)
+    },
+  )
+
+  const REASONS: Array<[LoadHold, string]> = [
+    ['recent-injury', 'a recent injury is on file'],
+    ['bone-stress', 'an earlier bone stress injury is on file'],
+    ['bsi-factors', 'at least two risk factors for bone stress injury apply'],
+    ['reds-hold', 'flags from the energy availability screening hold progression'],
+    ['bone-pain', 'focal bone pain holds progression'],
+    ['rest-window', 'a rest window is active'],
+    ['post-race', 'the plan is in the weeks after a race'],
+    ['low-frequency', 'recent weeks held fewer than two runs a week'],
+  ]
+
+  test.each(REASONS)(
+    'shows Steady in effect and the reason when %s holds the plan',
+    async (held, reason) => {
+      mockApi(
+        routes(makeV2Plan({ load: load({ requested: 'standard', position: 'steady', held }) })),
+      )
+      renderPlan()
+      const region = await panel()
+      expect(within(region).getByText('Steady')).toBeInTheDocument()
+      expect(
+        within(region).getByText(
+          `The plan was set to Standard. The steady step applies for now: ${reason}.`,
+        ),
+      ).toBeInTheDocument()
+      expectCleanCopy(region)
+    },
+  )
+
+  test('shows Standard in effect and the age when Upper band is read as Standard', async () => {
+    mockApi(
+      routes(
+        makeV2Plan({ load: load({ requested: 'upper', position: 'standard', ageCapped: true }) }),
+      ),
+    )
+    renderPlan()
+    const region = await panel()
+    expect(within(region).getByText('Standard')).toBeInTheDocument()
+    expect(
+      within(region).getByText(
+        'The plan was set to Upper band. The setting is held at Standard: age 45 or over.',
+      ),
+    ).toBeInTheDocument()
+    expectCleanCopy(region)
+  })
+
+  test('shows the position from the payload and no panel without one', async () => {
+    mockApi(routes(makeV2Plan({ load: null })))
+    renderPlan()
+    await screen.findByRole('region', { name: 'Feasibility' })
+    expect(screen.queryByRole('region', { name: 'Load setting' })).not.toBeInTheDocument()
+  })
+
+  test('Regenerate plan starts from the position the plan was set to, even while it is held', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(
+        makeV2Plan({
+          load: load({ requested: 'standard', position: 'steady', held: 'rest-window' }),
+        }),
+        { 'POST /api/plan/generate': () => ({ status: 201, body: makeV2Plan() }) },
+      ),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Regenerate plan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Regenerate plan' })
+    expect(within(dialog).getByRole('radio', { name: 'Standard' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST' && c.url === '/api/plan/generate')).toBe(true)
+    })
+    expect(calls.find((c) => c.url === '/api/plan/generate')?.body).toMatchObject({
+      options: { loadAppetite: 'standard' },
+    })
   })
 })
 

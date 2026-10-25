@@ -147,6 +147,28 @@ describe('groupWarnings', () => {
     })
   })
 
+  test('sums several soft-step warnings without a figure of its own, as each message names its step', () => {
+    const [group] = groupWarnings(
+      [
+        warning(
+          'ramp-soft',
+          'Running time in the week of 2026-10-19 is 150 min, above the 12% rebuild step toward 196 min on the highest of the previous 2 weeks (130 min). Keep it if it feels right.',
+          { rules: ['g-2', 'g-8'] },
+        ),
+        warning(
+          'ramp-soft',
+          'Running time in the week of 2026-10-26 is 215 min, above a 10% step on the highest of the previous 2 weeks (190 min). Keep it if it feels right.',
+          { rules: ['g-2'] },
+        ),
+      ],
+      'km',
+    )
+    expect(group!.summary).toBe('Running time above the weekly step in 2 weeks')
+    expect(group!.summary).not.toMatch(/\d+%/)
+    expect(group!.details[0]).toContain('12% rebuild step')
+    expect(group!.details[1]).toContain('a 10% step')
+  })
+
   test('uses the strongest severity of the group', () => {
     const [group] = groupWarnings(
       [

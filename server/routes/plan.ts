@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
+import { LOAD_APPETITES } from '../../shared/engine/types.ts'
 import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound, parse, validationError } from '../errors.ts'
@@ -40,6 +41,7 @@ const generateBody = z.object({
       recoveryCycle: z.enum(['3:1', '2:1']).optional(),
       strengthSessions: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
       tidModel: z.enum(['pyramidal', 'polarized']).optional(),
+      loadAppetite: z.enum(LOAD_APPETITES).optional(),
     })
     .optional(),
 })

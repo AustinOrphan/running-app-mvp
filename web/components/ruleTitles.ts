@@ -74,6 +74,7 @@ export const RULE_TITLES: Record<string, string> = {
   'g-5': 'Load ratio is never a gate',
   'g-6': 'Never make up lost volume',
   'g-7': 'Symptom check-ins are secondary',
+  'g-8': 'History-informed rebuild',
   'G-6': 'Never make up lost volume',
   // (h) ultra
   H1: 'Progression priority',

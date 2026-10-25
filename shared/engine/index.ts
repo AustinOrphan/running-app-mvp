@@ -2,6 +2,7 @@
 // buildPlan runs state, zones, goal, feasibility, macro, micro, guards, race day, checklist and
 // prediction in that order; replan keeps the past and recomputes the future. The other entry
 // points delegate to the module that owns the rule.
+import { loadFocus } from '../copy/load.ts'
 import { addDays, mondayOf } from '../dates.ts'
 import { isToRun, isTrimmed } from '../domain/sessionStatus.ts'
 import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
@@ -27,22 +28,23 @@ import {
   completedReference,
   gainLimit,
   isProgramme,
-  noviceRamp,
   overshootFlags,
+  rampBasis,
   rampLimits,
   rampSkipWeeks,
+  rebuildZoneUsed,
   recordOf,
   referenceAt,
   runCaps,
   runningGain,
   runningMinutes,
-  tightRamp,
   VOLUME_KINDS,
   weeklyGain,
   type RampContext,
   type RunRecord,
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
+import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath } from './macro.ts'
 import { holdSessions, placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
@@ -51,6 +53,7 @@ import { predictRace } from './predict.ts'
 import { focalBoneActive, isQualityKind } from './readiness.ts'
 import { prescribe } from './sessions.ts'
 import {
+  isLoadingWeek,
   isProgrammeWeek,
   placedFocus,
   startExemptions,
@@ -339,13 +342,7 @@ function withoutLongRun(week: WeekDraft): WeekDraft {
  * logged with its walks.
  */
 function takenAsRun(week: WeekDraft, ranMin: number): WeekDraft {
-  const loading =
-    !week.isRecovery &&
-    !week.isTaper &&
-    week.phase !== 'race' &&
-    !week.flags.includes('post-race') &&
-    !isProgrammeWeek(week.flags)
-  if (!loading || ranMin <= week.targetRunMin) return week
+  if (!isLoadingWeek(week) || ranMin <= week.targetRunMin) return week
   return {
     ...week,
     targetRunMin: Math.ceil(ranMin - 1e-9),
@@ -439,9 +436,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
     exempt: startExemptions([...pastWeeks, ...macro], returnWeeks(dplan)),
-    typicalWeekMin: state.typicalWeekMin,
-    novice: noviceRamp(state),
-    tight: tightRamp(state),
+    ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
   const doneRow = state.weeks.find((w) => w.weekStart === currentMonday)
   const doneGain = gains.get(currentMonday) ?? 0
@@ -812,7 +807,8 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
 
     // The week enters the baselines and its runs the 30-day reference, as the guards count them.
     const ahead = [...inside, ...afterRace, ...keptToRun].filter((s) => s.date >= today)
-    volumes.set(week.weekStart, done.minutes + runningMinutes(ahead))
+    const weekMin = done.minutes + runningMinutes(ahead)
+    volumes.set(week.weekStart, weekMin)
     gains.set(week.weekStart, done.gain + runningGain(ahead))
     // The current week's logged minutes are taken as they are, after the weeks that follow were
     // drawn and capped from the planned week [rules g-2, g-6].
@@ -827,6 +823,17 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         macro[w] = taken
       }
     }
+    // A loading week as placed that uses the rebuild zone says what it rebuilds toward. It is the
+    // week the checklist's progression item counts as a zone week (`rebuildZoneUsed`), measured on
+    // the minutes placed in it [rules g-8].
+    const zone =
+      weekMin > 0 &&
+      isLoadingWeek(macro[w]!) &&
+      !startDrawn &&
+      !afterRaceWeeks.includes(week.weekStart)
+        ? rebuildZoneUsed(rampLimits(rampCtx, week.weekStart), weekMin)
+        : null
+    if (zone !== null) macro[w] = { ...macro[w]!, focus: loadFocus(zone.ceilingMin) }
     for (const s of ahead.sort(bySlot)) {
       if (!VOLUME_KINDS.has(s.kind)) continue
       records.push(recordOf(s))
@@ -845,6 +852,8 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
         ? null
         : { ...rampCtx.floor, kind: startKind(floorWeek.flags) ?? 'floor' },
     exempt: rampCtx.exempt,
+    rebuild: rampCtx.rebuild,
+    response: rampCtx.response,
     fixed: kept.filter((s) => keep.toRun.has(s) && s.date >= today),
   })
 

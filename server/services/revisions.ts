@@ -46,6 +46,7 @@ import { notFound } from '../errors.ts'
 import { existingFrom, loadAthleteContext } from './athleteState.ts'
 import { gatherEngineInput } from './engineInput.ts'
 import {
+  parsePlanOptions,
   revisionView,
   toDisruption,
   toPlanSession,
@@ -523,9 +524,10 @@ export async function undoStates(
 /**
  * The Mondays of each plan's weeks whose target the runner set, by plan id, each with the time the
  * week row was last written: the weeks a re-plan keeps at the runner's number (`weekCaps` in
- * `computeReplan`). One query for the page, and none when no revision on it has a diff to
- * attribute. Read when the revisions are served, so a week the runner has since reset to the
- * baseline no longer counts.
+ * `computeReplan`). A target above the plan's own figure (`baselineRunMin`, which a cap lowers to
+ * the target) is no cap, so its week's sessions are the plan's own and the week is left out. One query for the page, and none when no revision on it has
+ * a diff to attribute. Read when the revisions are served, so a week the runner has since reset to
+ * the baseline no longer counts.
  */
 async function ownerWeeksByPlan(
   deps: Deps,
@@ -536,9 +538,16 @@ async function ownerWeeksByPlan(
   if (planIds.length === 0) return byPlan
   const weeks = await deps.prisma.planWeek.findMany({
     where: { planId: { in: planIds }, targetSource: { in: ['override', 'review'] } },
-    select: { planId: true, weekStart: true, updatedAt: true },
+    select: {
+      planId: true,
+      weekStart: true,
+      updatedAt: true,
+      targetRunMin: true,
+      baselineRunMin: true,
+    },
   })
   for (const week of weeks) {
+    if (week.targetRunMin > week.baselineRunMin) continue
     const map = byPlan.get(week.planId) ?? new Map<string, Date>()
     map.set(week.weekStart, week.updatedAt)
     byPlan.set(week.planId, map)
@@ -936,7 +945,7 @@ export async function planUndo(
       userId,
       goalId: plan.goalId,
       today,
-      options: readJson<EngineInput['options']>(plan.options, {}),
+      options: parsePlanOptions(plan.options),
     },
     { existing: false },
   )

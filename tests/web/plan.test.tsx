@@ -2,6 +2,8 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays } from '../../shared/dates.ts'
+import { ceilingWeeklyRate } from '../../shared/engine/limits.ts'
+import { P } from '../../shared/engine/params/index.ts'
 import type {
   Goal,
   Phase,
@@ -12,7 +14,7 @@ import type {
 } from '../../shared/types.ts'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeWeekRow } from '../factories.ts'
-import { mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { wristRoutes } from './wrist-fixtures.ts'
 
 const settings: UserSettings = { email: 'runner@example.com', displayName: null, units: 'mi' }
@@ -198,7 +200,7 @@ describe('Plan page', () => {
     const first = calls.find((c) => c.method === 'POST')?.body as Record<string, unknown>
     expect(first).toEqual({
       goalId: 'g1',
-      options: { recoveryCycle: '3:1', strengthSessions: 2 },
+      options: { recoveryCycle: '3:1', strengthSessions: 2, loadAppetite: 'steady' },
     })
 
     await user.click(screen.getByRole('radio', { name: 'Every 3rd week' }))
@@ -209,7 +211,7 @@ describe('Plan page', () => {
     })
     expect(calls.filter((c) => c.method === 'POST')[1]?.body).toEqual({
       goalId: 'g1',
-      options: { recoveryCycle: '2:1', strengthSessions: 1 },
+      options: { recoveryCycle: '2:1', strengthSessions: 1, loadAppetite: 'steady' },
     })
     expect(await screen.findByRole('button', { name: 'Regenerate plan' })).toBeInTheDocument()
   })
@@ -235,7 +237,7 @@ describe('Plan page', () => {
     })
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       goalId: 'g1',
-      options: { recoveryCycle: '3:1', strengthSessions: 2 },
+      options: { recoveryCycle: '3:1', strengthSessions: 2, loadAppetite: 'steady' },
     })
 
     await user.click(within(group).getByRole('radio', { name: 'On' }))
@@ -245,7 +247,12 @@ describe('Plan page', () => {
     })
     expect(calls.filter((c) => c.method === 'POST')[1]?.body).toEqual({
       goalId: 'g1',
-      options: { recoveryCycle: '3:1', strengthSessions: 2, tidModel: 'polarized' },
+      options: {
+        recoveryCycle: '3:1',
+        strengthSessions: 2,
+        loadAppetite: 'steady',
+        tidModel: 'polarized',
+      },
     })
   })
 
@@ -491,10 +498,106 @@ describe('Plan page', () => {
     })
     expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({
       goalId: 'g1',
-      options: { recoveryCycle: '2:1', strengthSessions: 2 },
+      options: { recoveryCycle: '2:1', strengthSessions: 2, loadAppetite: 'steady' },
     })
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
+  })
+})
+
+describe('Plan page, the load setting on the Generate form', () => {
+  /** A fraction as the copy writes it: 0.12 reads "12%". */
+  const pct = (fraction: number) => `${String(Math.round(fraction * 1000) / 10)}%`
+  const STEADY = "Adds up to 10% a week, the plan's usual step."
+  const STANDARD = `Adds up to ${pct(P.g8.stepStandard.value)} a week while rebuilding toward a level held in the last ${String(P.g8.creditWindowWeeks.value)} weeks.`
+  const RESPONSE =
+    'Weeks run above the plan raise the starting point of the next week, within the same limits.'
+  const UPPER = `Adds up to ${pct(ceilingWeeklyRate())} a week while rebuilding, the most the plan allows (30% over two weeks). Long runs and recovery weeks keep their usual rules.`
+  const AGE_RULE = 'At age 45 or over, Upper band is held at Standard.'
+  const TRADE_OFF =
+    'A faster step brings the earlier weekly level back sooner. Studies comparing weekly increases found no clear difference in injuries between steps of about 10% and about 24%. They followed mostly new runners, and none followed a return after a break, so the effect here is not known. Staying with 10% is the more cautious choice.'
+
+  test('offers Steady, Standard and Upper band, with Steady chosen, its hint and the trade-off line', async () => {
+    mockApi(routes(null))
+    const { container } = renderWithProviders(<PlanPage />)
+
+    const group = await screen.findByRole('radiogroup', { name: 'Load' })
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((radio) => radio.textContent),
+    ).toEqual(['Steady', 'Standard', 'Upper band'])
+    expect(within(group).getByRole('radio', { name: 'Steady' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(within(group).getByRole('radio', { name: 'Standard' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
+    expect(screen.getByText(STEADY)).toBeInTheDocument()
+    expect(screen.getByText(TRADE_OFF)).toBeInTheDocument()
+    expect(group).toHaveAccessibleDescription(`${STEADY} ${TRADE_OFF}`)
+    expect(screen.queryByText(STANDARD)).not.toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
+  test('each position shows its own hint, and Upper band adds the age rule', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(null))
+    const { container } = renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Load' })
+
+    await user.click(within(group).getByRole('radio', { name: 'Standard' }))
+    expect(screen.getByText(STANDARD)).toBeInTheDocument()
+    expect(screen.getByText(RESPONSE)).toBeInTheDocument()
+    expect(screen.queryByText(STEADY)).not.toBeInTheDocument()
+    expect(screen.queryByText(AGE_RULE)).not.toBeInTheDocument()
+    expect(screen.getByText(TRADE_OFF)).toBeInTheDocument()
+    expectCleanCopy(container)
+
+    await user.click(within(group).getByRole('radio', { name: 'Upper band' }))
+    expect(screen.getByText(UPPER)).toBeInTheDocument()
+    expect(screen.getByText(AGE_RULE)).toBeInTheDocument()
+    expect(screen.queryByText(STANDARD)).not.toBeInTheDocument()
+    expect(screen.getByText(TRADE_OFF)).toBeInTheDocument()
+    expectCleanCopy(container)
+
+    await user.click(within(group).getByRole('radio', { name: 'Steady' }))
+    expect(screen.getByText(STEADY)).toBeInTheDocument()
+    expect(screen.queryByText(AGE_RULE)).not.toBeInTheDocument()
+  })
+
+  test('the chosen position is sent as options.loadAppetite, steady by default', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(null, { 'POST /api/plan/generate': () => ({ status: 201, body: makePlan() }) }),
+    )
+    renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Load' })
+    const sent = () =>
+      calls.filter((c) => c.method === 'POST' && c.url === '/api/plan/generate').map((c) => c.body)
+
+    await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(sent()).toHaveLength(1)
+    })
+    await user.click(within(group).getByRole('radio', { name: 'Standard' }))
+    await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(sent()).toHaveLength(2)
+    })
+    await user.click(within(group).getByRole('radio', { name: 'Upper band' }))
+    await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(sent()).toHaveLength(3)
+    })
+    expect(sent()).toEqual(
+      (['steady', 'standard', 'upper'] as const).map((loadAppetite) => ({
+        goalId: 'g1',
+        options: { recoveryCycle: '3:1', strengthSessions: 2, loadAppetite },
+      })),
+    )
   })
 })

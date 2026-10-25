@@ -19,12 +19,15 @@ import {
 import {
   injuryTight,
   noviceRamp,
+  rampBasis,
   rampLimits,
   rampSkipWeeks,
-  tightRamp,
+  rebuildZoneUsed,
   ultraRunCapMin,
   type RampContext,
+  type RebuildZone,
 } from './limits.ts'
+import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { redsHold } from './macro.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
@@ -125,30 +128,40 @@ function weekMinutes(sessions: SessionSpec[], weekStart: string, from: string): 
     .reduce((sum, s) => sum + s.durationMin, 0)
 }
 
+/** The running time of one week of a draft as the progression item counts it. */
+export interface DraftWeekTotal {
+  weekStart: string
+  /** Run already: the current week only. */
+  done: number
+  /** The sessions still to run in the week. */
+  planned: number
+  total: number
+}
+
 /**
- * G-2, G-3: no week above the 2-week ceiling or the tightened ramp; the soft 10% only warns. The
- * minutes already run in the current week are a fact, not a plan: a week run above its limit with
- * nothing more planned in it is taken as run, and fails only if the sessions still to run take it
- * past the limit.
+ * The weekly ramp around a draft, as the progression item reads it: the completed weeks of the
+ * state, then each week of the draft from the current Monday on that holds a session, at the
+ * minutes already run plus the sessions still planned. The limits are the guards' (limits.ts): a
+ * recovery or taper week, and the current week when the plan starts after its Monday, set no
+ * baseline; the first week of a start path is exempt from G-2 up to its minutes and is a baseline
+ * at those minutes, and its later weeks are exempt from the soft ramp only [rules E6]. `rampLimits`
+ * of a week reads only the weeks before it, so every week may be asked in any order; a caller that
+ * keeps minutes of its own for a week sets them in `ctx.volumes`.
  */
-function progression(draft: PlanDraft, input: EngineInput, state: AthleteState): ChecklistResult {
-  const rules = ['g-2', 'g-3']
+export function draftRamp(
+  draft: PlanDraft,
+  input: EngineInput,
+  state: AthleteState,
+): { ctx: RampContext & { volumes: Map<string, number> }; weeks: DraftWeekTotal[] } {
   const volume = new Map<string, number>()
   for (const row of state.weeks) volume.set(row.weekStart, row.runMin)
   const currentMonday = mondayOf(input.today)
   const starts = [...new Set(draft.sessions.map((s) => mondayOf(s.date)))].sort()
-  const failures: string[] = []
   const ahead = toRun(draft, input)
-  const takenAsRun: string[] = []
-  let soft = 0
-  // The same limits the guards apply (limits.ts): a recovery or taper week, and the current week
-  // when the plan starts after its Monday, set no baseline; the first week of a start path is
-  // exempt from G-2 up to its minutes and is a baseline at those minutes, and its later weeks are
-  // exempt from the soft ramp only [rules E6].
   const floorWeek = sortedWeeks(draft)
     .filter((w) => w.flags.includes('restart-floor'))
     .at(-1)
-  const ctx: RampContext = {
+  const ctx = {
     volumes: volume,
     // the post-race weeks are baselines for the weeks after them, and exempt themselves [H12]
     skip: rampSkipWeeks(
@@ -162,10 +175,9 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
     exempt: startExemptions(draft.weeks, returnWeeks(disruptionPlan(input.disruptions ?? []))),
-    typicalWeekMin: state.typicalWeekMin,
-    novice: noviceRamp(state),
-    tight: tightRamp(state),
+    ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
+  const weeks: DraftWeekTotal[] = []
   for (const weekStart of starts) {
     if (weekStart < currentMonday) continue
     // The current week holds what was already run plus the sessions still planned.
@@ -173,6 +185,29 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
     const planned = weekMinutes(ahead, weekStart, input.today)
     const total = done + planned
     volume.set(weekStart, total)
+    weeks.push({ weekStart, done, planned, total })
+  }
+  return { ctx, weeks }
+}
+
+/**
+ * G-2, G-3: no week above the 2-week ceiling or the tightened ramp; the soft 10% only warns. The
+ * minutes already run in the current week are a fact, not a plan: a week run above its limit with
+ * nothing more planned in it is taken as run, and fails only if the sessions still to run take it
+ * past the limit.
+ */
+function progression(draft: PlanDraft, input: EngineInput, state: AthleteState): ChecklistResult {
+  const rules = ['g-2', 'g-3']
+  const failures: string[] = []
+  const takenAsRun: string[] = []
+  let soft = 0
+  // the soft steps, in whole percents, of the weeks that passed them: the usual step, or the zone's
+  const softSteps = new Set<number>()
+  // the weeks planned above the usual soft step that the rebuild zone allows [rules g-8]
+  let zoneWeeks = 0
+  let zone: RebuildZone | null = null
+  const { ctx, weeks } = draftRamp(draft, input, state)
+  for (const { weekStart, planned, total } of weeks) {
     if (total <= 0) continue
     if (
       draft.weeks.some(
@@ -190,16 +225,39 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
           `week of ${weekStart}: ${Math.round(total)} min is above ${Math.round(limits.allowed)} min`,
         )
       } else takenAsRun.push(`${weekStart} (${Math.round(total)} min)`)
-    } else if (!limits.exempt && total > limits.soft + EPS) soft += 1
+    } else if (!limits.exempt && total > limits.soft + EPS) {
+      soft += 1
+      // in the rebuild zone the soft step is the zone's, as the warning of the week says
+      softSteps.add(Math.round((limits.rebuild?.step ?? P.g2.rampSoft.value) * 100))
+    } else {
+      const used = rebuildZoneUsed(limits, total, EPS)
+      if (used !== null) {
+        zoneWeeks += 1
+        zone = used
+      }
+    }
   }
   if (failures.length > 0) return result('progression', false, failures.join('; '), rules)
-  const softNote = `${soft} week(s) step above the soft ${Math.round(P.g2.rampSoft.value * 100)}% and carry a warning`
+  // the notes follow the weeks: the soft step first, then the rebuild zone when a week used it
+  const notes: string[] = []
+  if (soft > 0) {
+    const steps = [...softSteps].sort((a, b) => a - b).map((pct) => `${pct}%`)
+    notes.push(`${soft} week(s) step above the soft ${steps.join(' or ')} and carry a warning`)
+  }
+  if (zone !== null) {
+    notes.push(
+      `${zoneWeeks} week(s) use the rebuild step of ${Math.round(zone.step * 100)}% a week, up to ${Math.round(zone.ceilingMin)} min`,
+    )
+  }
+  const withNotes = (clause: string) =>
+    notes.length === 0 ? clause : `${clause}; ${notes.join('; ')}`
   let detail: string
   if (takenAsRun.length > 0) {
-    detail = `Every planned week is within the ${soft === 0 ? 'weekly ramp' : `ceiling; ${softNote}`}; the week of ${takenAsRun.join(', ')} was run above its limit and is taken as run.`
-  } else if (soft === 0) detail = 'Every week is within the weekly ramp.'
-  else detail = `Every week is within the ceiling; ${softNote}.`
-  return result('progression', true, detail, rules)
+    detail = `Every planned week is within the ${soft === 0 ? withNotes('weekly ramp') : `ceiling; ${notes.join('; ')}`}; the week of ${takenAsRun.join(', ')} was run above its limit and is taken as run.`
+  } else if (soft === 0) detail = `Every week is within the ${withNotes('weekly ramp')}.`
+  else detail = `Every week is within the ceiling; ${notes.join('; ')}.`
+  // the item that names the zone step answers to g-8 too, so its Why opens the facts of the zone
+  return result('progression', true, detail, zone === null ? rules : [...rules, 'g-8'])
 }
 
 /** E3: no more than the cycle's loading weeks in a row, and recovery weeks cut the volume. */

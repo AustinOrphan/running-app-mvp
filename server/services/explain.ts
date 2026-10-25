@@ -15,7 +15,8 @@ import {
   type ExplainContext,
 } from '../../shared/engine/explainInputs.ts'
 import { weeklyRamp } from '../../shared/engine/limits.ts'
-import type { ExplainRequest, ExplainView } from '../../shared/engine/types.ts'
+import { rebuildZone } from '../../shared/engine/loadSetting.ts'
+import type { EngineInput, ExplainRequest, ExplainView } from '../../shared/engine/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound } from '../errors.ts'
 import {
@@ -106,23 +107,28 @@ export async function explainView(
     // A decision exists only for a week the stored plan covers, as `weeklyDecisions` has it.
     const plan = context.plan
     const covered = input.existing?.weeks.some((week) => week.weekStart === last) ?? false
+    // The input with the plan's own goal, which the weekly decision and the load setting read: the
+    // goal race's own post-race window sets the weeks after it and decides whether a past race
+    // holds the setting at steady, so a read about the athlete would use the neutral goal and
+    // could differ from the Plan page (`loadPlanWithSessions`) and the stored plan.
+    const planInputFor = async (goalId: string): Promise<EngineInput> =>
+      inputFromContext(context, {
+        goal: await goalModelFor(context, goalId, { climate: false }),
+        existing: true,
+        options: context.planOptions,
+      })
+    const planInput = needs.planInput && plan !== null ? await planInputFor(plan.goalId) : null
     const decision =
       needs.decision && plan !== null && covered
         ? await memoByVersion(deps, { ...memo, name: `explain:decision:${last}` }, async () => {
             const executions =
               (await executionRecordsByWeek(deps.prisma, plan.id, [last])).get(last) ?? []
-            // The decision depends on the goal (the goal race's own post-race window sets the
-            // weeks after it), so it is made from the plan's goal model, as the stored one and
-            // `weeklyDecisions` are; a read about the athlete would use the neutral goal.
-            const decisionInput = inputFromContext(context, {
-              goal: await goalModelFor(context, plan.goalId, { climate: false }),
-              existing: true,
-              options: context.planOptions,
-            })
+            const decisionInput = planInput ?? (await planInputFor(plan.goalId))
             return weeklyDecision(decisionInput, last, {
               executions,
               redsFlags: input.screeningFlags,
               ramp: weeklyRamp(context.state),
+              rebuild: rebuildZone(decisionInput, context.state),
             })
           })
         : null
@@ -135,6 +141,6 @@ export async function explainView(
     const race =
       needs.race && goal !== null ? await goalModelFor(context, goal.id, { climate: true }) : null
 
-    return explainInputs(request, { ...shell, hrModel, decision, prediction, race })
+    return explainInputs(request, { ...shell, hrModel, decision, prediction, race, planInput })
   })
 }

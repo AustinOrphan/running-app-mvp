@@ -11,7 +11,7 @@ import { efficiencyIndex } from './athlete.ts'
 import { dayRulesIn, disruptionPlan, heldDates, restartFraction } from './disruption.ts'
 import { hasSubjectivePart } from './execution.ts'
 import { nextWeekCap } from './guards.ts'
-import { plannedMinOf, wholeMinutes } from './limits.ts'
+import { plannedMinOf, wholeMinutes, type RebuildZone } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { lastWindowDay, postRaceWindows, stageLabel, windowDay } from './postRace.ts'
@@ -55,6 +55,12 @@ export interface WeeklyContext {
   sleepEfficiencyDropPp?: number | null
   /** Weekly ramp; defaults to the soft ramp, and the caller passes a tightened one by profile. */
   ramp?: number
+  /**
+   * The rebuild zone of the plan [rules g-8] (`rebuildZone`, loadSetting.ts): below its ceiling the
+   * cap on the next week grows by the zone's step, as the plan does, so the cap and the plan agree.
+   * Absent at steady.
+   */
+  rebuild?: RebuildZone | null
 }
 
 type Signal = WeeklyDecision['signals'][number]
@@ -377,6 +383,7 @@ export function weeklyDecision(
 ): WeeklyDecision {
   const weekEnd = addDays(weekStart, 6)
   const ramp = ctx.ramp ?? P.g2.rampSoft.value
+  const rebuild = ctx.rebuild ?? null
   const finished = input.today > weekEnd
   const asOf = finished ? weekEnd : input.today
   const inWindow = postRaceDecision(input, weekStart, asOf, ramp)
@@ -557,6 +564,10 @@ export function weeklyDecision(
   const decision: WeeklyDecision['decision'] = reduce ? 'reduce' : hold ? 'hold' : 'progress'
 
   // G-6: the target never exceeds last week's actual x (1 + ramp); missed minutes are not repeated.
+  // The response to weeks run above plan [rules g-8] has no part in it: a hold or reduce caps the
+  // week it covers by the planned week and the step from the week run, and the week a progress
+  // decision names is the one the re-plan keeps, so the mean of the weeks run lifts the weeks the
+  // plan draws after them (`responseBaseline`) and not these figures.
   const plannedThis = plannedFull ?? actual
   const nextWeek = input.existing?.weeks.find((w) => w.weekStart === addDays(weekStart, 7))
   const nextPlanned =
@@ -568,12 +579,12 @@ export function weeklyDecision(
     nextWeekTargetMin =
       nextWeek !== undefined && isProgrammeWeek(nextWeek.flags)
         ? wholeMinutes(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
-        : wholeMinutes(nextWeekCap(nextPlanned, actual, ramp))
+        : wholeMinutes(nextWeekCap(nextPlanned, actual, ramp, rebuild))
   } else if (decision === 'hold')
-    nextWeekTargetMin = wholeMinutes(nextWeekCap(plannedThis, actual, ramp))
+    nextWeekTargetMin = wholeMinutes(nextWeekCap(plannedThis, actual, ramp, rebuild))
   else {
     nextWeekTargetMin = Math.round(
-      nextWeekCap(plannedThis, actual, ramp) * (1 - P.e3.recoveryWeekCutPct.value / 100),
+      nextWeekCap(plannedThis, actual, ramp, rebuild) * (1 - P.e3.recoveryWeekCutPct.value / 100),
     )
   }
   return {

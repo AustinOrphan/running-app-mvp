@@ -93,6 +93,7 @@ function makeState(
       noviceFlags: [],
     },
     lowFrequency: false,
+    history: null,
     heatAcclimation: 0,
   }
 }
