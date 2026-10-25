@@ -7,7 +7,7 @@ Last update: 2026-10-25.
 
 ## Where things stand
 
-- **Load progression from the runner's history (2026-10-25, `feat/load-progression`, PR #NNN,
+- **Load progression from the runner's history (2026-10-25, `feat/load-progression`, PR #565,
   follow-up 22).** Tasks L0 to L7 of
   `docs/superpowers/specs/2026-10-24-load-progression-proposal.md`, built on the owner's answers of
   2026-10-24 (section 7 there); L0 and L1 (the six tissue papers, 376 papers in the corpus, and ADR
@@ -667,9 +667,9 @@ literals (D9, the repository's mechanism for engine messages); g8-held copying `
 tied by tests); a kept-only re-plan stored as an empty revision (D11, deliberate: the week shows
 its target); follow-up 22 stale (D12, rewritten below).
 
-Gates at `47c9984b` (the integrator replaces these with the final run): the owner validation at
-Steady identical to the baseline; `Test Files 239 passed (239)`, `Tests 11730 passed (11730)`;
-`npm run build` ok; `npm run test:e2e` `79 passed`.
+Gates at `f3a8991d` (the L7a and L7b merges): the owner validation at Steady identical to the
+baseline; `Test Files 241 passed (241)`, `Tests 11776 passed (11776)`; `npm run build` ok;
+`npm run test:e2e` `79 passed`; no migration, so no Docker gate.
 
 ## Phase 3a close: whole-phase contract-drift review (2026-10-23)
 
@@ -1360,7 +1360,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     no further edit.
 21. Done in #561: the approved G5 sentence is in rule G5 of `research/engine-rules.md`, as quoted
     under "Decisions for the owner" (d).
-22. Done 2026-10-25 (the integration branch, PR #NNN; entry under "Where things stand"). Load
+22. Done 2026-10-25 (the integration branch, PR #565; entry under "Where things stand"). Load
     progression from the runner's history (the owner's report of 2026-10-24), proposed in
     `docs/superpowers/specs/2026-10-24-load-progression-proposal.md` (PR #558) and answered on
     2026-10-24 (section 7 there). Shipped: the history block and the 3 × 30 start from it (L2), the
