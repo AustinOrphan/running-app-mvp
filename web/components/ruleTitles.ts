@@ -65,6 +65,9 @@ export const RULE_TITLES: Record<string, string> = {
   F4: 'Strength placement',
   F5: 'Run frequency and availability',
   F6: 'One lever at a time',
+  F7: 'Strength session structure',
+  F8: 'Strength load progression',
+  F9: 'Lighter days and the taper',
   'F-lib': 'Session library',
   // (g) limits
   'g-1': 'Session spike guard',

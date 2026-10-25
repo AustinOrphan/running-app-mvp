@@ -173,7 +173,12 @@ export const eMacro = {
       12,
       'A',
       'E5',
-      ['eihara-2022-heavy-vs-plyo'],
+      [
+        'eihara-2022-heavy-vs-plyo',
+        'denadai-2017-explosive-heavy-economy',
+        'balsalobre-2016-running-economy-highly-trained',
+        'zanini-2025-strength-economy-durability-rct',
+      ],
       {
         unit: 'weeks',
         range: [10, 14],
@@ -185,15 +190,22 @@ export const eMacro = {
       8,
       'A',
       'E5',
-      ['eihara-2022-heavy-vs-plyo'],
+      ['eihara-2022-heavy-vs-plyo', 'balsalobre-2016-running-economy-highly-trained'],
       {
         unit: 'weeks',
       },
     ),
-    strengthMaintenancePerWeek: param('e5.strengthMaintenancePerWeek', 1, 'D', 'E5', [], {
-      unit: 'sessions per week',
-      note: 'Default: one maintenance session per week after the strength block.',
-    }),
+    strengthMaintenancePerWeek: param(
+      'e5.strengthMaintenancePerWeek',
+      1,
+      'D',
+      'E5',
+      ['spiering-2021-minimal-dose', 'bickel-2011-maintenance-dosing-retention'],
+      {
+        unit: 'sessions per week',
+        note: 'Default: one maintenance session per week after the strength block.',
+      },
+    ),
   },
   // The start paths [E6]: the first weeks of a plan for a runner whose typical week is under
   // `sessions` x `sessionMin` minutes, or who has no logged run. The floor is 3 sessions of
