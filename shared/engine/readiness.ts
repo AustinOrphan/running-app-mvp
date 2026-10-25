@@ -529,11 +529,15 @@ function mastersGate(ctx: Ctx, date: string): boolean {
   )
 }
 
-/** Downgrade-only advice for today's sessions [rules J3]. */
+/**
+ * Downgrade-only advice for today's sessions [rules J3]. Each row holds the prescription as a plan
+ * session without the distance estimate, which only a caller that has the zones in hand attaches
+ * (`todayView` serves its own stored sessions).
+ */
 export function todayAdvice(
   input: EngineInput,
   sessions: Array<SessionSpec & { id: string }>,
-): TodayView['sessions'] {
+): Array<{ session: PlanSession; advice: Advice; reasons: string[] }> {
   const ctx = makeCtx(input)
   const date = input.today
   const focalBone = focalBoneActive(input, date)

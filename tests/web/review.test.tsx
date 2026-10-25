@@ -5,8 +5,8 @@ import { addDays, weekStartsBetween } from '../../shared/dates.ts'
 import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   Activity,
-  PlanSession,
-  PlanWeek,
+  PlanSessionView,
+  PlanWeekView,
   PlanWithSessions,
   WeekRow,
   WeeklyReview,
@@ -55,7 +55,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function planWeek(weekStart: string, over: Partial<PlanWeek> = {}): PlanWeek {
+function planWeek(weekStart: string, over: Partial<PlanWeekView> = {}): PlanWeekView {
   return {
     id: `pw-${weekStart}`,
     planId: 'p1',
@@ -77,11 +77,12 @@ function planWeek(weekStart: string, over: Partial<PlanWeek> = {}): PlanWeek {
     qualitySessions: 0,
     isRecovery: false,
     updatedAt: '2026-10-01T00:00:00.000Z',
+    distanceEstimateM: null,
     ...over,
   }
 }
 
-function makePlan(weeks: PlanWeek[], over: Partial<PlanWithSessions> = {}): PlanWithSessions {
+function makePlan(weeks: PlanWeekView[], over: Partial<PlanWithSessions> = {}): PlanWithSessions {
   return {
     id: 'p1',
     userId: 'u1',
@@ -104,7 +105,7 @@ function makePlan(weeks: PlanWeek[], over: Partial<PlanWithSessions> = {}): Plan
   }
 }
 
-function makeSession(over: Partial<PlanSession> = {}): PlanSession {
+function makeSession(over: Partial<PlanSessionView> = {}): PlanSessionView {
   return {
     id: 's1',
     externalId: 'ext-s1',
@@ -128,6 +129,7 @@ function makeSession(over: Partial<PlanSession> = {}): PlanSession {
     execution: null,
     original: null,
     updatedAt: '2026-10-01T00:00:00.000Z',
+    distanceEstimate: null,
     ...over,
   }
 }
@@ -146,7 +148,7 @@ function makeProposal(over: Partial<ZoneProposalView> = {}): ZoneProposalView {
 }
 
 /** A version-2 plan: the server's weekly decision arrives on the review row. */
-function v2Plan(sessions: PlanSession[] = []): PlanWithSessions {
+function v2Plan(sessions: PlanSessionView[] = []): PlanWithSessions {
   return makePlan(
     [planWeek(W, { tid: { z1: 80, z2: 12, z3: 8 } }), planWeek(CURRENT, { index: 2 })],
     { generatorVersion: 2, paramsVersion: '1', sessions },

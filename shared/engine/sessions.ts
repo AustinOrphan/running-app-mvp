@@ -159,7 +159,7 @@ export function sessionTitle(kind: SessionKind): string {
 }
 
 /** Kinds that are runs, so a distance and a gain share can be shown. */
-const RUN_KINDS = new Set<SessionKind>([
+export const RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'easy',
   'recovery',
   'long',

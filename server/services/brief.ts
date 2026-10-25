@@ -529,7 +529,10 @@ async function listItems(
       replan: facts.replan,
       changeCount: facts.changes?.count ?? 0,
       undone: revision?.undoneAt != null,
-      nextKey: key === null || key.date < today ? null : { date: key.date, kind: key.kind },
+      nextKey:
+        key === null || key.date < today
+          ? null
+          : { date: key.date, kind: key.kind, distanceEstimate: key.distanceEstimate ?? null },
     })
   }
   return items

@@ -5,11 +5,11 @@ import type {
   PlanDiff,
   PlanPreview,
   PlanRevisionView,
-  PlanSession,
+  PlanSessionView,
   SessionDiffLine,
   UndoState,
   WeekDiffLine,
-  PlanWeek,
+  PlanWeekView,
   PlanWithSessions,
   PlanWithWeeks,
   UserSettings,
@@ -21,7 +21,7 @@ export const settings: UserSettings = {
   units: 'km',
 }
 
-export function makeSession(over: Partial<PlanSession> = {}): PlanSession {
+export function makeSession(over: Partial<PlanSessionView> = {}): PlanSessionView {
   return {
     id: 's1',
     externalId: `ext-${over.id ?? 's1'}`,
@@ -56,11 +56,12 @@ export function makeSession(over: Partial<PlanSession> = {}): PlanSession {
     execution: null,
     original: null,
     updatedAt: '2027-01-10T10:00:00.000Z',
+    distanceEstimate: null,
     ...over,
   }
 }
 
-export function makeV2Week(index: number, over: Partial<PlanWeek> = {}): PlanWeek {
+export function makeV2Week(index: number, over: Partial<PlanWeekView> = {}): PlanWeekView {
   const start = ['2027-01-04', '2027-01-11', '2027-01-18'][index] ?? '2027-01-25'
   return {
     id: `v2w${index}`,
@@ -83,6 +84,7 @@ export function makeV2Week(index: number, over: Partial<PlanWeek> = {}): PlanWee
     qualitySessions: 0,
     isRecovery: false,
     updatedAt: '2027-01-01T10:00:00.000Z',
+    distanceEstimateM: null,
     ...over,
   }
 }

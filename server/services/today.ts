@@ -30,6 +30,7 @@ import { climbNote, resolveTargets } from '../../shared/engine/targets.ts'
 import type { EngineInput } from '../../shared/engine/types.ts'
 import type {
   PlanSession,
+  PlanSessionView,
   TodayCoach,
   TodayHero,
   TodayHeat,
@@ -136,7 +137,7 @@ function mainSession<S extends { kind: PlanSession['kind'] }>(sessions: readonly
 }
 
 /** The next day after `date` with a session still to run (not a rest day), as its main session. */
-function nextSession(sessions: readonly PlanSession[], date: string): PlanSession | null {
+function nextSession(sessions: readonly PlanSessionView[], date: string): PlanSessionView | null {
   const ahead = sessions.filter((s) => s.date > date && s.kind !== 'rest' && isToRun(s.status))
   const first = ahead[0]
   return first === undefined ? null : mainSession(ahead.filter((s) => s.date === first.date))
@@ -289,7 +290,9 @@ export async function todayView(
     const row = advice.find((entry) => entry.session.id === main.id)
     const mainAdvice = row?.advice ?? 'as-planned'
     const easedRun = mainAdvice === 'downgrade-easy' ? easedSession(main, context.zones) : null
-    const eased = easedRun === main ? null : easedRun
+    // An eased day is run by time, as `easedSession` leaves its distance out: no estimate either.
+    const eased: PlanSessionView | null =
+      easedRun === null || easedRun === main ? null : { ...easedRun, distanceEstimate: null }
     const runAs = eased ?? main
     const hot = isHotForSteering(heatOf(runAs)?.peak ?? null, runAs.flags)
     hero = {

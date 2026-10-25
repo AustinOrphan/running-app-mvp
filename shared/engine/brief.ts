@@ -21,6 +21,7 @@ import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, CauseCode, PlanDiff, PlanSessionStatus, RevisionCauses } from '../types.ts'
 import { roundEstimateSec } from '../units.ts'
 import { weekEvidence } from './adapt.ts'
+import { estimateDistance } from './distanceEstimate.ts'
 import { efficiencySamples } from './athlete.ts'
 import {
   activitySource,
@@ -172,6 +173,7 @@ export function keySessionFacts(
     durationMin: session.durationMin,
     distanceM: session.distanceM,
     gainM: session.gainM,
+    distanceEstimate: estimateDistance(session, zones),
     target: {
       zone: t.zone,
       mode: t.mode,

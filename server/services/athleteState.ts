@@ -5,6 +5,7 @@
 // and midnight, all make the next read build a fresh picture. Nothing here raises the data version.
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import { withDistanceEstimate } from '../../shared/engine/distanceEstimate.ts'
 import { fitHrModel, type HrModel } from '../../shared/engine/execution.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
 import { isDuplicate } from '../../shared/engine/load.ts'
@@ -32,6 +33,7 @@ import type {
   Plan,
   PlanPhase,
   PlanSession,
+  PlanSessionView,
   PlanWeek,
   StateInputs,
   StateView,
@@ -139,11 +141,12 @@ export interface AthleteContext {
   readonly planOptions: EngineInput['options']
   /**
    * The active plan's sessions as the API serves them (identity, execution and the original
-   * prescription included), by date then order. Empty without a version-2 plan. `existing()` holds
-   * the same rows in the engine's shape (with the `externalId` the workout builder needs): the
-   * surfaces that serve rows read this, the engine and the workout files read that.
+   * prescription included, and the distance estimate worked out from `zones`), by date then order.
+   * Empty without a version-2 plan. `existing()` holds the same rows in the engine's shape (with
+   * the `externalId` the workout builder needs): the surfaces that serve rows read this, the
+   * engine and the workout files read that.
    */
-  readonly planSessions: PlanSession[]
+  readonly planSessions: PlanSessionView[]
   /** The state the engine estimates from the data above (it does not depend on a goal). */
   readonly state: AthleteState
   readonly zones: ZoneSet
@@ -506,9 +509,9 @@ async function buildContext(
   const screeningFlags = screening?.flags ?? 0
   const zoneChanges = zoneChangesOf(revisions)
   const disruptions = disruptionRows.map(toDisruption)
-  const planSessions = planRow ? planRow.sessions.map(toPlanSession) : []
+  const storedSessions = planRow ? planRow.sessions.map(toPlanSession) : []
   const existing = deepFreeze(
-    planRow ? existingFrom(planRow.weeks.map(toPlanWeek), planSessions) : null,
+    planRow ? existingFrom(planRow.weeks.map(toPlanWeek), storedSessions) : null,
   )
 
   const base: EngineInput = {
@@ -533,6 +536,8 @@ async function buildContext(
   const state = estimateState(base)
   const zones = buildZones(profile, state, today)
   const readiness = readinessSnapshot({ ...base, existing }, today)
+  // The estimate follows the zones as they are now; the stored sessions and `existing` do not.
+  const planSessions = storedSessions.map((session) => withDistanceEstimate(session, zones))
 
   const counted = activities.filter((activity) => !isDuplicate(activity))
   const inputs: StateInputs = {

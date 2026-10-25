@@ -485,6 +485,158 @@ describe('GET /api/today: the coach payload', () => {
 })
 
 // ---------------------------------------------------------------------------------------------
+// The distance estimate beside the minutes (STATUS follow-up 17)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Gives the runner pace zones: a tested threshold pace, and a recent run so that the pace anchor
+ * is not dropped after a break (rule C8). Without both, the zones hold no pace and no estimate
+ * can be made.
+ */
+async function withPaceZones(userId: string): Promise<void> {
+  await ctx.prisma.athleteProfile.update({
+    where: { userId },
+    data: { thresholdPaceSecPerKm: 300 },
+  })
+  await ctx.prisma.activity.create({
+    data: {
+      userId,
+      date: addDays(today, -3),
+      type: 'run',
+      durationSec: 40 * 60,
+      distanceM: 7000,
+      source: 'manual',
+    },
+  })
+}
+
+const middleOf = (range: readonly [number, number]) => (range[0] + range[1]) / 2
+const metresAt = (minutes: number, secPerKm: number) =>
+  Math.round(((minutes * 60) / secPerKm) * 1000)
+
+describe('GET /api/today: the distance estimate', () => {
+  test('the hero, the next session and the week strip carry the estimate worked out from the current zones', async () => {
+    const { u } = await planWith('estimate@example.com', [
+      { date: today, kind: 'easy', min: 45 },
+      { date: tomorrow, kind: 'long', min: 90 },
+      { date: addDays(today, 2), kind: 'strength', min: 30 },
+    ])
+    await withPaceZones(u.id)
+    const zones = await zonesOf(u)
+    expect(zones.pace).not.toBeNull()
+    const easy = middleOf(zones.pace!.z1)
+
+    const { coach, sessions } = await view(u)
+    expect(coach.hero!.session.distanceEstimate).toEqual({
+      distanceM: metresAt(45, easy),
+      basis: 'easy',
+    })
+    expect(sessions[0]!.session.distanceEstimate).toEqual(coach.hero!.session.distanceEstimate)
+    expect(coach.next!.distanceEstimate).toEqual({ distanceM: metresAt(90, easy), basis: 'easy' })
+
+    // The strip: every session of the week carries its own, a strength session has none, and the
+    // week is the sum of its runs.
+    const strip = coach.weekStrip!
+    const planned = strip.days.flatMap((day) => day.sessions)
+    expect(planned.map((s) => [s.kind, s.distanceEstimate?.distanceM ?? null])).toEqual([
+      ['easy', metresAt(45, easy)],
+      ['long', metresAt(90, easy)],
+      ['strength', null],
+    ])
+    expect(strip.distanceEstimateM).toBe(metresAt(45, easy) + metresAt(90, easy))
+  })
+
+  test('a session with a pace target of its own is run at that pace, and says so', async () => {
+    const { u } = await planWith('estimate-pace@example.com', [
+      // The stored work pace is 330 to 310 s/km and the session holds no steps.
+      { date: today, kind: 'threshold', min: 50 },
+    ])
+    await withPaceZones(u.id)
+    const { coach } = await view(u)
+    expect(coach.hero!.session.distanceEstimate).toEqual({
+      distanceM: metresAt(50, 320),
+      basis: 'pace',
+    })
+  })
+
+  test('follows the zones as they are now: a faster threshold pace lengthens the same session', async () => {
+    const { u } = await planWith('estimate-follows@example.com', [
+      { date: today, kind: 'easy', min: 60 },
+    ])
+    await withPaceZones(u.id)
+    const before = (await view(u)).coach.hero!.session.distanceEstimate!.distanceM
+    await ctx.prisma.athleteProfile.update({
+      where: { userId: u.id },
+      data: { thresholdPaceSecPerKm: 270 },
+    })
+    const after = (await view(u)).coach.hero!.session.distanceEstimate!.distanceM
+    expect(after).toBeGreaterThan(before)
+    const zones = await zonesOf(u)
+    expect(after).toBe(metresAt(60, middleOf(zones.pace!.z1)))
+  })
+
+  test('a runner with no pace data has no estimate anywhere, never a guess', async () => {
+    const { u } = await planWith('estimate-none@example.com', [
+      { date: today, kind: 'easy', min: 45 },
+      { date: tomorrow, kind: 'long', min: 90 },
+    ])
+    expect((await zonesOf(u)).pace).toBeNull()
+    const { coach, sessions } = await view(u)
+    expect(coach.hero!.session.distanceEstimate).toBeNull()
+    expect(sessions[0]!.session.distanceEstimate).toBeNull()
+    expect(coach.next!.distanceEstimate).toBeNull()
+    expect(coach.weekStrip!.distanceEstimateM).toBeNull()
+    expect(coach.weekStrip!.days.flatMap((d) => d.sessions).map((s) => s.distanceEstimate)).toEqual(
+      [null, null],
+    )
+  })
+
+  test('an eased day is run by time: the eased run carries no estimate, as it carries no distance', async () => {
+    const { u } = await planWith('estimate-eased@example.com', [
+      { date: today, kind: 'threshold', min: 50 },
+    ])
+    await withPaceZones(u.id)
+    await checkin(u, today, { painScore: P.pain.flagScore.value + 1 })
+    const hero = (await view(u)).coach.hero!
+    expect(hero.advice).toBe('downgrade-easy')
+    expect(hero.eased!.distanceM).toBeNull()
+    expect(hero.eased!.distanceEstimate).toBeNull()
+    // The session as planned keeps its own.
+    expect(hero.session.distanceEstimate).toMatchObject({ basis: 'pace' })
+  })
+
+  test('a day ahead previews the same estimate, and a week with a race or a run-walk session has none', async () => {
+    const { u } = await planWith('estimate-week@example.com', [
+      { date: tomorrow, kind: 'easy', min: 40 },
+      { date: addDays(today, 2), kind: 'race', min: 120 },
+    ])
+    await withPaceZones(u.id)
+    const zones = await zonesOf(u)
+    const preview = (await view(u, `?date=${tomorrow}`)).coach
+    expect(preview.hero!.session.distanceEstimate).toEqual({
+      distanceM: metresAt(40, middleOf(zones.pace!.z1)),
+      basis: 'easy',
+    })
+    // The race has no estimate, so the week's runs do not add up to a figure.
+    expect(preview.weekStrip!.distanceEstimateM).toBeNull()
+  })
+
+  test('costs no read: the estimate comes from the snapshot', async () => {
+    const { u } = await planWith('estimate-cost@example.com', [
+      { date: today, kind: 'easy', min: 45 },
+    ])
+    await withPaceZones(u.id)
+    await view(u)
+    const warm = trackQueries(ctx.prisma)
+    await view(u)
+    expect(warm.count('activity.findMany')).toBe(0)
+    expect(warm.count('plan.findFirst')).toBe(0)
+    expect(warm.count('planSession.findMany')).toBe(0)
+    vi.restoreAllMocks()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
 // Readiness: verdict, signals, eased and rest cases
 // ---------------------------------------------------------------------------------------------
 

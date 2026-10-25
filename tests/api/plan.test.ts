@@ -105,7 +105,7 @@ describe('GET /api/plan', () => {
           kind,
           title: kind,
           durationMin: 40,
-          target: '{}',
+          target: JSON.stringify({ zone: 'z1', rpe: [3, 4], hr: null, paceSecPerKm: null }),
           purpose: 'Synthetic.',
         },
       })

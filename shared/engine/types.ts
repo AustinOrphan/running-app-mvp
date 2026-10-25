@@ -55,6 +55,20 @@ export interface Step {
   zone: ZoneKey
 }
 export type ZoneKey = 'z1' | 'z2' | 'z3' | 'race-pace' | 'strides' | 'strength' | 'rest'
+/**
+ * A distance derived from a session's minutes (`estimateDistance`): never stored, never a target.
+ * The plan's currency stays minutes (ADR 0003); this is the figure beside them.
+ */
+export interface DistanceEstimate {
+  /** Metres, whole. */
+  distanceM: number
+  /**
+   * What the minutes were run at: `pace` is the session's own pace target (the work of a threshold
+   * session, intervals or race-pace blocks); `easy` is the runner's easy pace, for a run led by
+   * heart rate or effort.
+   */
+  basis: 'pace' | 'easy'
+}
 export interface SessionTarget {
   zone: ZoneKey
   rpe: [number, number]
@@ -591,6 +605,11 @@ export interface BriefKeySession {
   durationMin: number
   distanceM: number | null
   gainM: number | null
+  /**
+   * The distance estimate beside the minutes, read from the zones the brief was built on. Absent
+   * in a brief stored before the estimate existed.
+   */
+  distanceEstimate?: DistanceEstimate | null
   /** From `resolveTargets`, the figures the hero and the watch show. */
   target: BriefTarget
 }

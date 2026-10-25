@@ -1124,7 +1124,12 @@ describe('adjusted is still to run for every reader of a status', () => {
         const past = '2026-10-19'
         const strip = weekStrip({
           today: TODAY,
-          sessions: [session('w', past, 'easy', 40, { status, weekStart: past })],
+          sessions: [
+            {
+              ...session('w', past, 'easy', 40, { status, weekStart: past }),
+              distanceEstimate: null,
+            },
+          ],
           activities: [],
           targetRunMin: null,
         })

@@ -16,6 +16,10 @@ import {
 import { carryExternalIds, pairSessions } from '../../shared/domain/sessionIdentity.ts'
 import { type ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
+import {
+  weekDistanceEstimateM,
+  withDistanceEstimate,
+} from '../../shared/engine/distanceEstimate.ts'
 import { compatible } from '../../shared/engine/execution.ts'
 import {
   buildPlan,
@@ -79,16 +83,28 @@ function json(value: unknown): string {
   return JSON.stringify(value)
 }
 
-/** The plan with its weeks and sessions in the API shape. Zones are not stored: they follow the data. */
+/**
+ * The plan with its weeks and sessions in the API shape. Zones are not stored: they follow the
+ * data, and so do the distance estimates of the sessions and the weeks, which are worked out here
+ * from them (`estimateDistance`) and never written.
+ */
 function present(
   plan: PlanRow & { weeks: PlanWeekRow[]; sessions: PlanSessionRow[] },
   zones: ZoneSet | null,
 ): PlanWithSessions {
   const engine = plan.generatorVersion >= 2 ? toPlanEngineFields(plan) : null
+  const sessions = plan.sessions.map((row) => withDistanceEstimate(toPlanSession(row), zones))
+  const byWeek = new Map<string, typeof sessions>()
+  for (const session of sessions) {
+    byWeek.set(session.weekStart, [...(byWeek.get(session.weekStart) ?? []), session])
+  }
   return {
     ...toPlan(plan),
-    weeks: plan.weeks.map(toPlanWeek),
-    sessions: plan.sessions.map(toPlanSession),
+    weeks: plan.weeks.map((row) => {
+      const week = toPlanWeek(row)
+      return { ...week, distanceEstimateM: weekDistanceEstimateM(byWeek.get(week.weekStart) ?? []) }
+    }),
+    sessions,
     feasibility: engine?.feasibility ?? null,
     warnings: engine?.warnings ?? [],
     checklist: engine?.checklist ?? [],

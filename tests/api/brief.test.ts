@@ -818,9 +818,13 @@ describe('GET /api/today: the brief slot', () => {
     await keyOn(addDays(thursday, -1))
     expect(await nextKey()).toBeNull()
     await keyOn(thursday)
-    expect(await nextKey()).toEqual({ date: thursday, kind })
+    expect(await nextKey()).toEqual({ date: thursday, kind, distanceEstimate: null })
     await keyOn(addDays(thursday, 1))
-    expect(await nextKey()).toEqual({ date: addDays(thursday, 1), kind })
+    expect(await nextKey()).toEqual({
+      date: addDays(thursday, 1),
+      kind,
+      distanceEstimate: null,
+    })
   })
 })
 
@@ -949,5 +953,68 @@ describe('GET /api/explain?subject=brief', () => {
       (await client(ctx, other).get(`/api/explain?subject=brief&weekStart=${monday}`)).status,
     ).toBe(404)
     expect((await r.c.get('/api/explain?subject=brief')).status).toBe(400)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+
+describe('the distance estimate on the key session', () => {
+  /** A runner whose zones hold pace: a tested threshold pace, with the history's recent runs. */
+  async function withPace(label: string): Promise<Runner> {
+    const r = await runner(label)
+    await ctx.prisma.athleteProfile.upsert({
+      where: { userId: r.u.id },
+      create: { userId: r.u.id, thresholdPaceSecPerKm: 300 },
+      update: { thresholdPaceSecPerKm: 300 },
+    })
+    await runReplanJob(deps(), { now: MONDAY_NOON })
+    return r
+  }
+
+  test('is stored with the key session, from the zones the brief was built on', async () => {
+    const r = await withPace(email())
+    const key = readFacts((await briefOf(r.u.id))!.facts)!.keySession!
+    expect(key.distanceEstimate).not.toBeNull()
+    expect(key.distanceEstimate!.distanceM).toBeGreaterThan(0)
+    // The plan's own payload carries the same figure for the same session.
+    const plan = (await r.c.get('/api/plan')).body as PlanWithSessions
+    const session = plan.sessions.find((s) => s.date === key.date && s.kind === key.kind)!
+    expect(key.distanceEstimate).toEqual(session.distanceEstimate)
+  })
+
+  test('is copied to the slim item of the list and of Today brief slot', async () => {
+    const r = await withPace(email())
+    const key = readFacts((await briefOf(r.u.id))!.facts)!.keySession!
+    const expected = { date: key.date, kind: key.kind, distanceEstimate: key.distanceEstimate }
+    const [item] = ((await r.c.get('/api/briefs')).body as { briefs: BriefListItem[] }).briefs
+    expect(item!.nextKey).toEqual(expected)
+    const slot = ((await r.c.get('/api/today')).body as TodayView).coach.slots.brief
+    expect(slot!.nextKey).toEqual(expected)
+    expect(expected.distanceEstimate).not.toBeNull()
+  })
+
+  test('is served on the brief page, and is null for a runner with no pace data', async () => {
+    const r = await withPace(email())
+    const brief = (await getBrief(r))!
+    expect(brief.facts.keySession!.distanceEstimate).not.toBeNull()
+
+    const bare = await updated(email())
+    const key = readFacts((await briefOf(bare.u.id))!.facts)!.keySession!
+    expect(key.distanceEstimate).toBeNull()
+    const [item] = ((await bare.c.get('/api/briefs')).body as { briefs: BriefListItem[] }).briefs
+    expect(item!.nextKey).toMatchObject({ distanceEstimate: null })
+  })
+
+  test('is absent from a brief stored before the estimate, which reads as no estimate', async () => {
+    const r = await withPace(email())
+    const row = (await briefOf(r.u.id))!
+    const facts = readFacts(row.facts)!
+    const { distanceEstimate: _dropped, ...older } = facts.keySession!
+    await ctx.prisma.weeklyBrief.update({
+      where: { id: row.id },
+      data: { facts: JSON.stringify({ ...facts, keySession: older }) },
+    })
+    const [item] = ((await r.c.get('/api/briefs')).body as { briefs: BriefListItem[] }).briefs
+    expect(item!.nextKey).toEqual({ date: older.date, kind: older.kind, distanceEstimate: null })
   })
 })

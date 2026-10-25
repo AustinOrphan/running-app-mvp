@@ -46,6 +46,7 @@ import {
   weekPhaseLabel,
 } from '../components/format.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
+import { estimateAboutText } from '../../shared/copy/distanceEstimate.ts'
 import { newMarker } from '../../shared/copy/revisionView.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { fileRefusalSentence, weekLinkLabel } from '../../shared/copy/workouts.ts'
@@ -59,8 +60,9 @@ import type {
   DisruptionView,
   Goal,
   PlanPhase,
-  PlanSession,
+  PlanSessionView,
   PlanWeek,
+  PlanWeekView,
   PlanWithSessions,
   Units,
   WristItem,
@@ -466,11 +468,15 @@ function EditWeekSheet({ week, onClose }: { week: PlanWeek; onClose: () => void 
   )
 }
 
-/** The target for a week, with how it got there: struck baseline and the note, or "from review". */
-function TargetCell({ week }: { week: PlanWeek }) {
+/**
+ * The target for a week, with how it got there: struck baseline and the note, or "from review".
+ * Under it, the distance of the week's runs as the server estimated it, when it could.
+ */
+function TargetCell({ week, units }: { week: PlanWeekView; units: Units | undefined }) {
   const noteId = useId()
   const [showNote, setShowNote] = useState(false)
   const edited = week.targetSource === 'override'
+  const estimateM = week.distanceEstimateM ?? null
 
   return (
     <>
@@ -509,6 +515,9 @@ function TargetCell({ week }: { week: PlanWeek }) {
         </>
       ) : null}
       {week.targetSource === 'review' ? <span className={styles.source}>from review</span> : null}
+      {estimateM !== null && units !== undefined ? (
+        <span className={styles.source}>{estimateAboutText(estimateM, units)}</span>
+      ) : null}
     </>
   )
 }
@@ -730,7 +739,7 @@ function PlanOverview({
  * window holds. A held day is planned rest, so the status adds nothing there; a session the window
  * back-dated to skipped says both.
  */
-function sessionMeta(session: PlanSession, units: Units | undefined): string {
+function sessionMeta(session: PlanSessionView, units: Units | undefined): string {
   const held = session.flags.includes('rest-window')
   const parts = [sessionSummary(session, units)]
   if (!(held && session.status === 'planned')) parts.push(sessionStatusLabel(session.status))
@@ -747,13 +756,13 @@ function DayCards({
   onOpen,
 }: {
   week: PlanWeek
-  sessions: PlanSession[]
+  sessions: PlanSessionView[]
   units: Units | undefined
   /** The state of each run in the next 14 days on its way to the watch, by session id. */
   wrist: ReadonlyMap<string, WristItem>
   onOpen: (id: string) => void
 }) {
-  const byDate = new Map<string, PlanSession[]>()
+  const byDate = new Map<string, PlanSessionView[]>()
   for (const session of sessions) {
     byDate.set(session.date, [...(byDate.get(session.date) ?? []), session])
   }
@@ -795,7 +804,7 @@ function DaysRow({
   onOpen,
 }: {
   week: PlanWeek
-  sessions: PlanSession[]
+  sessions: PlanSessionView[]
   onOpen: (id: string) => void
 }) {
   const settings = useSettings()
@@ -836,9 +845,10 @@ function PlanTable({
   onOpenSession,
 }: {
   plan: PlanWithSessions
-  sessions: PlanSession[]
+  sessions: PlanSessionView[]
   onOpenSession: (id: string) => void
 }) {
+  const units = useSettings().data?.units
   const [editing, setEditing] = useState<PlanWeek | null>(null)
   const currentMonday = mondayOf(todayIso())
   const isV2 = plan.generatorVersion >= 2
@@ -849,7 +859,7 @@ function PlanTable({
   const actual = new Map((weeks.data ?? []).map((w) => [w.weekStart, w.runMin]))
   // The current week opens to its days at first; other weeks open on request.
   const [open, setOpen] = useState<Set<string>>(() => new Set([currentMonday]))
-  const sessionsByWeek = new Map<string, PlanSession[]>()
+  const sessionsByWeek = new Map<string, PlanSessionView[]>()
   for (const session of sessions) {
     sessionsByWeek.set(session.weekStart, [
       ...(sessionsByWeek.get(session.weekStart) ?? []),
@@ -925,7 +935,7 @@ function PlanTable({
                     ) : null}
                   </td>
                   <td className={styles.target} data-cell="target">
-                    <TargetCell week={week} />
+                    <TargetCell week={week} units={units} />
                   </td>
                   <td className={styles.actual} data-cell="actual">
                     {runMin === undefined ? '' : hours(runMin)}

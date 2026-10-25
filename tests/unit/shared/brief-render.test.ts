@@ -256,6 +256,28 @@ describe('the key session', () => {
     expect(briefKeySession(null, 'km')).toBeNull()
   })
 
+  test('words the distance estimate as one, in the runner’s units, in place of the plan’s distance', () => {
+    const easy = { distanceM: 16_800, basis: 'easy' as const }
+    expect(briefKeySession(key({ distanceEstimate: easy }), 'km')?.line).toBe(
+      'Sat 24 Oct: long run, 105 min, about 17 km at your easy pace.',
+    )
+    expect(briefKeySession(key({ distanceEstimate: easy }), 'mi')?.line).toBe(
+      'Sat 24 Oct: long run, 105 min, about 10 mi at your easy pace.',
+    )
+    const paced = { distanceM: 10_900, basis: 'pace' as const }
+    expect(briefKeySession(key({ kind: 'threshold', distanceEstimate: paced }), 'km')?.line).toBe(
+      'Sat 24 Oct: threshold run, 105 min, about 11 km.',
+    )
+    // No estimate (a brief stored before it existed, or no pace data): the plan's own distance
+    // stands, else none.
+    expect(briefKeySession(key({ distanceEstimate: null }), 'km')?.line).toBe(
+      'Sat 24 Oct: long run, 105 min, 17 km.',
+    )
+    expect(briefKeySession(key({ distanceEstimate: null, distanceM: null }), 'km')?.line).toBe(
+      'Sat 24 Oct: long run, 105 min.',
+    )
+  })
+
   test('shows the hero’s target rows and the readiness sentence', () => {
     const rendered = briefKeySession(key(), 'km')!
     expect(rendered.targets.map((row) => `${row.term}: ${row.value}`)).toEqual([
@@ -326,6 +348,23 @@ describe('the brief line of Today', () => {
     expect(renderBriefLine({ changeCount: 0, nextKey: null }, 'km')).toBe(
       'Since last week: no changes, no key session this week.',
     )
+  })
+
+  test('adds the distance estimate to the next key session when there is one', () => {
+    const next = {
+      date: '2026-10-24',
+      kind: 'long' as SessionKind,
+      distanceEstimate: { distanceM: 16_800, basis: 'easy' as const },
+    }
+    expect(renderBriefLine({ changeCount: 3, nextKey: next }, 'km')).toBe(
+      'Since last week: 3 changes, next key session Saturday (long run, about 17 km).',
+    )
+    expect(renderBriefLine({ changeCount: 1, nextKey: next }, 'mi')).toBe(
+      'Since last week: 1 change, next key session Saturday (long run, about 10 mi).',
+    )
+    expect(
+      renderBriefLine({ changeCount: 0, nextKey: { ...next, distanceEstimate: null } }, 'km'),
+    ).toBe('Since last week: no changes, next key session Saturday (long run).')
   })
 })
 

@@ -582,6 +582,23 @@ test('the check-in sheet takes the full check-in, and queues it with no connecti
   expect(((await api.get(`/checkins/${today}`)) as { mood: number }).mood).toBe(2)
 })
 
+test('once the zones hold a pace, Today words a distance estimate beside the minutes and for the week', async () => {
+  // A tested threshold pace gives the zones a pace; the estimate is worked out from them on the
+  // server and read, never recomputed, by the page.
+  await api.put('/profile', { thresholdPaceSecPerKm: 330 })
+  const view = (await api.get('/today')) as TodayView
+  expect(view.coach.weekStrip?.distanceEstimateM ?? 0).toBeGreaterThan(0)
+
+  await page.goto('/')
+  const week = page.getByRole('region', { name: 'This week' })
+  await expect(
+    week.getByText(/^The week's planned runs come to about \d+(\.\d)? (mi|km)\.$/),
+  ).toBeVisible()
+  // The earlier cases left the day a rest day (an illness check-in), so the hero names the next
+  // session instead, with its estimate after the minutes.
+  await expect(page.getByText(/^Next: .+, about \d+(\.\d)? (mi|km)\.$/)).toBeVisible()
+})
+
 test('signing out empties the outbox', async () => {
   await dropCheckinWrites()
   await page.getByRole('button', { name: "Something hurts, or I'm ill" }).click()

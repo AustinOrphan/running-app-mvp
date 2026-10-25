@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { expect, request, test, type Page } from '@playwright/test'
 import { unzipSync } from 'fflate'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
-import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
+import type { PlanSessionView, PlanWithSessions } from '../../shared/types.ts'
 import { FILE_SLUGS, publishable } from '../../shared/workouts/labels.ts'
 import { createPrisma } from '../../server/db.ts'
 import { E2E_DATABASE_URL } from './env.ts'
@@ -25,7 +25,7 @@ test.describe.configure({ mode: 'serial' })
 let page: Page
 let api: Api
 let origin: string
-let hero: PlanSession
+let hero: PlanSessionView
 let plan: PlanWithSessions
 
 const RUN_KINDS = ['easy', 'recovery', 'long', 'threshold', 'intervals', 'hills', 'race-pace']
@@ -43,7 +43,7 @@ test.afterAll(async () => {
 })
 
 /** A little history, a goal and a plan with a run on today (moved there when the plan has none). */
-async function planWithRunToday(): Promise<PlanSession> {
+async function planWithRunToday(): Promise<PlanSessionView> {
   const { today, lastWednesday, raceDate } = relativeDates()
   await resetData()
   await api.post('/activities', {
@@ -64,7 +64,7 @@ async function planWithRunToday(): Promise<PlanSession> {
     strengthPreference: 0,
   })) as PlanWithSessions
 
-  const isRun = (session: PlanSession) => RUN_KINDS.includes(session.kind)
+  const isRun = (session: PlanSessionView) => RUN_KINDS.includes(session.kind)
   const found = plan.sessions.find((session) => session.date === today && isRun(session))
   if (found !== undefined) return found
   // No run falls on today in this plan: move the next one here, the way the runner would.
@@ -74,7 +74,7 @@ async function planWithRunToday(): Promise<PlanSession> {
       data: { date: today },
     })
     if (!response.ok()) continue
-    const moved = (await response.json()) as PlanSession
+    const moved = (await response.json()) as PlanSessionView
     plan = {
       ...plan,
       sessions: plan.sessions.map((s) => (s.id === moved.id ? moved : s)),

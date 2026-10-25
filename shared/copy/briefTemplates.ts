@@ -184,6 +184,13 @@ export const BRIEF_TEMPLATES = {
     { day: 'date', what: 'text', length: 'minutes', distance: 'distance' },
     { fallback: 'The next key session could not be shown.' },
   ),
+  // The estimate arrives worded ("about 9 mi at your easy pace", `estimateText`): one phrase for it
+  // in the app, and none of its own here.
+  'brief.key-session-estimate': tpl(
+    '{day}: {what}, {length}, {estimate}.',
+    { day: 'date', what: 'text', length: 'minutes', estimate: 'text' },
+    { fallback: 'The next key session could not be shown.' },
+  ),
   'brief.key-readiness': tpl(
     'Readiness can only make this session easier on the day, never harder.',
   ),

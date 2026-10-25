@@ -2,7 +2,7 @@ import { eahCard, fuelTargetFor, replayLadder } from '../../shared/engine/fuel.t
 import { describeFuelTarget } from '../../shared/engine/fuelCopy.ts'
 import type {
   FuelPrompt,
-  PlanSession,
+  PlanSessionView,
   TodayCoach,
   TodayFuel,
   TodayFuelPrompts,
@@ -17,7 +17,7 @@ import type {
 
 export const TODAY = '2026-03-18'
 
-export function makeSession(over: Partial<PlanSession> = {}): PlanSession {
+export function makeSession(over: Partial<PlanSessionView> = {}): PlanSessionView {
   return {
     id: 's1',
     externalId: `ext-${over.id ?? 's1'}`,
@@ -47,6 +47,7 @@ export function makeSession(over: Partial<PlanSession> = {}): PlanSession {
     execution: null,
     original: null,
     updatedAt: '2026-03-01T00:00:00.000Z',
+    distanceEstimate: null,
     ...over,
   }
 }
@@ -164,6 +165,7 @@ export function makeStrip(
     runMin: 0,
     targetRunMin: null,
     remaining: null,
+    distanceEstimateM: null,
     ...over,
   }
 }

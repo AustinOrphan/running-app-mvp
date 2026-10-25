@@ -161,7 +161,7 @@ export function makeItem(over: Partial<BriefListItem> = {}): BriefListItem {
     replan: null,
     changeCount: 3,
     undone: false,
-    nextKey: { date: '2027-01-16', kind: 'long' },
+    nextKey: { date: '2027-01-16', kind: 'long', distanceEstimate: null },
     ...over,
   }
 }

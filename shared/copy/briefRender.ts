@@ -7,12 +7,14 @@ import type {
   BriefFacts,
   BriefKeySession,
   BriefLastWeek,
+  DistanceEstimate,
   InputFact,
   SessionKind,
   SourceRef,
 } from '../engine/types.ts'
 import type { CauseCode, Units } from '../types.ts'
 import { BRIEF_KIND_IDS, BRIEF_REPLAN_IDS, BRIEF_TEMPLATES } from './briefTemplates.ts'
+import { estimateAboutText, estimateText } from './distanceEstimate.ts'
 import { causeSentence } from './revisionView.ts'
 import { render } from './template.ts'
 import { targetRows, type TargetRow } from './targetRows.ts'
@@ -231,14 +233,23 @@ export function briefKeySession(
     what: briefKindName(key.kind, units),
     length: minutes(key.durationMin),
   }
+  // The estimate is the distance the brief shows when it has one; a brief stored before the
+  // estimate, or for a runner with no pace data, keeps the plan's own distance, else none.
+  const estimate = key.distanceEstimate ?? null
   const line =
-    key.distanceM !== null && key.distanceM > 0
+    estimate !== null
       ? render(
-          BRIEF_TEMPLATES['brief.key-session-distance'],
-          { ...slots, distance: { kind: 'distance', m: key.distanceM } as const },
+          BRIEF_TEMPLATES['brief.key-session-estimate'],
+          { ...slots, estimate: estimateText(estimate, units) },
           units,
         )
-      : render(BRIEF_TEMPLATES['brief.key-session'], slots, units)
+      : key.distanceM !== null && key.distanceM > 0
+        ? render(
+            BRIEF_TEMPLATES['brief.key-session-distance'],
+            { ...slots, distance: { kind: 'distance', m: key.distanceM } as const },
+            units,
+          )
+        : render(BRIEF_TEMPLATES['brief.key-session'], slots, units)
   return {
     line,
     // The key session is on a day ahead, whatever the brief's own day: no note says "today".
@@ -323,7 +334,10 @@ export function renderedBriefTexts(rendered: RenderedBrief): string[] {
  * `changeCount` and `nextKey` are the fields of `GET /api/briefs`.
  */
 export function renderBriefLine(
-  item: { changeCount: number; nextKey: { date: string; kind: SessionKind } | null },
+  item: {
+    changeCount: number
+    nextKey: { date: string; kind: SessionKind; distanceEstimate?: DistanceEstimate | null } | null
+  },
   units: Units,
 ): string {
   const { changeCount, nextKey } = item
@@ -338,9 +352,12 @@ export function renderBriefLine(
       ? render(BRIEF_TEMPLATES[id.many], { n: count(changeCount) }, units)
       : briefText(id[size], units)
   }
+  // "(long run, about 9 mi)": the line is short, so the estimate names no pace.
+  const kind = briefKindName(nextKey.kind, units)
+  const estimate = nextKey.distanceEstimate ?? null
   const slots = {
     day: { kind: 'weekday', iso: nextKey.date, style: 'long' } as const,
-    what: briefKindName(nextKey.kind, units),
+    what: estimate === null ? kind : `${kind}, ${estimateAboutText(estimate.distanceM, units)}`,
   }
   return size === 'many'
     ? render(BRIEF_TEMPLATES['brief.line-many'], { ...slots, n: count(changeCount) }, units)

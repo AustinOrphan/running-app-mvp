@@ -4,10 +4,11 @@
 // The strip describes; it never grades. A past day with a run still to be done and no run logged
 // reads "planned, no run logged" (`unlogged`), and every mark is neutral.
 import { addDays, mondayOf } from '../dates.ts'
+import { weekDistanceEstimateM } from '../engine/distanceEstimate.ts'
 import type { SessionKind } from '../engine/types.ts'
 import type {
-  PlanSession,
   PlanSessionStatus,
+  PlanSessionView,
   WeekStrip,
   WeekStripDay,
   WeekStripMark,
@@ -70,7 +71,7 @@ export interface WeekStripInput {
   /** The runner's local day; the strip is the Monday to Sunday week that contains it. */
   today: string
   /** Sessions of the plan; those dated outside the week are ignored. */
-  sessions: readonly PlanSession[]
+  sessions: readonly PlanSessionView[]
   /** Activities; those outside the week and flagged duplicates are ignored. */
   activities: readonly WeekCore[]
   /** The plan week's run target in minutes, or null outside the plan. */
@@ -97,7 +98,7 @@ export function weekStrip(input: WeekStripInput): WeekStrip {
     runSecByDate.set(activity.date, (runSecByDate.get(activity.date) ?? 0) + activity.durationSec)
   }
 
-  const sessionsByDate = new Map<string, PlanSession[]>()
+  const sessionsByDate = new Map<string, PlanSessionView[]>()
   for (const session of input.sessions) {
     if (session.date < weekStart || session.date > weekEnd) continue
     const day = sessionsByDate.get(session.date) ?? []
@@ -128,5 +129,6 @@ export function weekStrip(input: WeekStripInput): WeekStrip {
       targetRunMin === null
         ? null
         : remainingPlan({ today, weekStart, targetRunMin, runMinSoFar: runMin }),
+    distanceEstimateM: weekDistanceEstimateM(days.flatMap((day) => day.sessions)),
   }
 }
