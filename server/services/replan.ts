@@ -55,7 +55,7 @@ import {
   type PrismaClient,
 } from '../db.ts'
 import { conflict, notFound, validationError } from '../errors.ts'
-import { toPlanRevision, toPlanSession } from '../serialize.ts'
+import { parsePlanOptions, toPlanRevision, toPlanSession } from '../serialize.ts'
 import { gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { withGutTrainingOption } from './fuel.ts'
 import { recordPrediction, type PredictionGoal } from './predictionLog.ts'
@@ -761,11 +761,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // The gut-training switch is read from the stored fuel settings at every compute, so a change to
   // the switches shows up in the next re-plan's diff, and a preview and its commit agree (design
   // 10.5). `applyReplan` stores the options it was computed with.
-  const options = await withGutTrainingOption(
-    prisma,
-    userId,
-    JSON.parse(plan.options) as EngineInput['options'],
-  )
+  const options = await withGutTrainingOption(prisma, userId, parsePlanOptions(plan.options))
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },

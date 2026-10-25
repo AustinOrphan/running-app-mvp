@@ -2106,6 +2106,26 @@ describe('the 3 x 30 start from a block of weeks [rules E6, g-8]', () => {
         expect(loadPosition(at(base, 'steady'), state)).toEqual(loadPosition(base, state))
       }
     })
+
+    it('reads a stored value that is no position as steady, in the position and in the plan', () => {
+      // h1 has a block, so standard and upper change its plan: a value read as one would show
+      const base = h1()
+      const state = estimateState(base)
+      expect(buildPlan(at(base, 'standard'))).not.toEqual(buildPlan(base))
+      for (const stored of ['extreme', 'Standard', '', 3, null, ['upper']]) {
+        const odd = {
+          ...base,
+          options: { ...base.options, loadAppetite: stored as unknown as LoadAppetite },
+        }
+        expect(loadPosition(odd, state), JSON.stringify(stored)).toEqual({
+          requested: 'steady',
+          position: 'steady',
+          held: null,
+          ageCapped: false,
+        })
+        expect(buildPlan(odd), JSON.stringify(stored)).toEqual(buildPlan(base))
+      }
+    })
   })
 
   describe('H11 and Q12: age 45 or over', () => {

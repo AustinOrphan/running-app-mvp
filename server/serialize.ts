@@ -35,7 +35,6 @@ import type {
   EngineInput,
   Feasibility,
   LadderStep,
-  LoadAppetite,
   PlanChange,
   SessionFlag,
   SessionKind,
@@ -44,6 +43,7 @@ import type {
   Step,
   WeeklyDecision,
 } from '../shared/engine/types.ts'
+import { isLoadAppetite } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
 import { renderFact } from '../shared/copy/templates.ts'
 import { mondayOf, todayIso } from '../shared/dates.ts'
@@ -436,8 +436,6 @@ export function toWeeklyReview(row: WeeklyReviewRow): WeeklyReview {
   }
 }
 
-const LOAD_APPETITES: readonly string[] = ['steady', 'standard', 'upper'] satisfies LoadAppetite[]
-
 /**
  * The engine options of a stored plan: the runner's preferences (recovery cycle, strength sessions,
  * intensity model, load setting), kept when a plan is built for another goal and read by Explain
@@ -448,9 +446,7 @@ export function parsePlanOptions(text: string | null | undefined): EngineInput['
   const parsed = parseJson<unknown>(text ?? null, {})
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
   const { loadAppetite, ...rest } = parsed as EngineInput['options']
-  return typeof loadAppetite === 'string' && LOAD_APPETITES.includes(loadAppetite)
-    ? { ...rest, loadAppetite }
-    : rest
+  return isLoadAppetite(loadAppetite) ? { ...rest, loadAppetite } : rest
 }
 
 /** The version-2 columns of a plan that `toPlan` leaves out. */

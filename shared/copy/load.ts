@@ -9,7 +9,7 @@
 import type { LoadHold, LoadPosition } from '../engine/loadSetting.ts'
 import { positionStep } from '../engine/loadSetting.ts'
 import { P } from '../engine/params/index.ts'
-import type { LoadAppetite } from '../engine/types.ts'
+import { LOAD_APPETITES, type LoadAppetite } from '../engine/types.ts'
 import type { Units } from '../types.ts'
 import { countPhrase } from './quantity.ts'
 import { render, tpl, type Template } from './template.ts'
@@ -101,7 +101,7 @@ const T = LOAD_TEMPLATES
 const UNITS: Units = 'km'
 
 /** The positions in the order the form offers them. */
-export const LOAD_POSITIONS: readonly LoadAppetite[] = ['steady', 'standard', 'upper']
+export const LOAD_POSITIONS: readonly LoadAppetite[] = LOAD_APPETITES
 
 /** A fraction as a percentage to one decimal ("14%" for 0.1402, "12%" for 0.12). */
 const percent = (fraction: number) =>

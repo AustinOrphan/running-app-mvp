@@ -187,8 +187,18 @@ export interface HistoryBlock {
   fullCreditMin: number
 }
 
+/**
+ * The positions of the load setting, in the order the form offers them [rules g-8]. The one list:
+ * the request schema, the reader of a stored plan's options and the form's choices derive from it.
+ */
+export const LOAD_APPETITES = ['steady', 'standard', 'upper'] as const
+
 /** The load setting of a plan [rules g-8]: steady is the engine without a history credit. */
-export type LoadAppetite = 'steady' | 'standard' | 'upper'
+export type LoadAppetite = (typeof LOAD_APPETITES)[number]
+
+/** Whether a stored or received value is one of the positions. */
+export const isLoadAppetite = (value: unknown): value is LoadAppetite =>
+  typeof value === 'string' && (LOAD_APPETITES as readonly string[]).includes(value)
 
 export interface AthleteState {
   asOf: string
