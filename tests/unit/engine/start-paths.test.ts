@@ -1874,6 +1874,36 @@ describe('the 3 x 30 start from a block of weeks [rules E6, g-8]', () => {
     }
   })
 
+  it('passes the checklist and cuts no run on every case at every position', () => {
+    const bases = [
+      h1(),
+      h1(3),
+      scenario(s4Runs(), { years: 3 }),
+      scenario(s5Runs()),
+      h5(),
+      h6([30, 35, 35]),
+      h6([20, 20, 20]),
+      h7(),
+      h7Twice(),
+      h26(60, 2),
+      h26(100, 2),
+      scenario(s3Runs(), { profile: { birthYear: 1980 } }),
+    ]
+    for (const [i, base] of bases.entries()) {
+      for (const position of ['steady', ...LIFTED] as const) {
+        const plan = planAt(base, position)
+        expect(
+          plan.checklist.filter((c) => !c.ok).map((c) => c.id),
+          `case ${String(i)} at ${position}`,
+        ).toEqual([])
+        expect(
+          plan.sessions.flatMap((s) => s.flags).filter((f) => f === 'spike-warn'),
+          `case ${String(i)} at ${position}`,
+        ).toEqual([])
+      }
+    }
+  })
+
   it('H5, H7 and a modest H6 lift nothing: no block, so the drafts are the steady ones', () => {
     for (const base of [h5(), h7(), h6([20, 20, 20])]) {
       for (const position of LIFTED) expect(pathAt(base, position)).toEqual(FLOOR_20)
