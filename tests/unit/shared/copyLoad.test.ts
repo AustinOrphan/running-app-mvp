@@ -8,6 +8,7 @@ import {
   loadName,
   loadPanelText,
   loadTradeoff,
+  stepPercent,
 } from '../../../shared/copy/load.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { COPY_MAX_CHARS } from '../../../shared/copy/limits.ts'
@@ -62,6 +63,30 @@ describe('the load setting copy', () => {
     expect(loadAgeRule()).toBe(
       `At age ${String(P.a9.noviceFlagAgeMin.value)} or over, Upper band is held at Standard.`,
     )
+  })
+
+  it('states the response to weeks run above the plan at Standard and Upper band, not at Steady', () => {
+    const response =
+      'Weeks run above the plan raise the starting point of the next week, within the same limits.'
+    expect(LOAD_TEMPLATES['load.hint.response'].text).toBe(response)
+    expect(loadHintLines('steady')).not.toContain(response)
+    for (const position of ['standard', 'upper'] as const) {
+      const lines = loadHintLines(position)
+      expect(lines, position).toContain(response)
+      expect(lintText(lines.join(' ')), position).toEqual([])
+      for (const line of lines) expect(line.length, line).toBeLessThanOrEqual(COPY_MAX_CHARS)
+    }
+    // the panel on the Plan page reads the same hint as the form
+    expect(
+      loadPanelText({ requested: 'upper', position: 'upper', held: null, ageCapped: false }).hint,
+    ).toEqual(loadHintLines('upper'))
+  })
+
+  it('reads a weekly step to one decimal everywhere: 14%, not 14.02%', () => {
+    expect(stepPercent(positionStep('upper'))).toEqual({ kind: 'percent', pct: 14 })
+    expect(stepPercent(0.12)).toEqual({ kind: 'percent', pct: 12 })
+    expect(stepPercent(0.1253)).toEqual({ kind: 'percent', pct: 12.5 })
+    expect(stepPercent(positionStep('steady'))).toEqual({ kind: 'percent', pct: 10 })
   })
 
   it('keeps every sentence of the trade-off within the length of a template', () => {

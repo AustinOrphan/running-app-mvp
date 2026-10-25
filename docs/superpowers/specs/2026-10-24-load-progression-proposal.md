@@ -86,7 +86,8 @@ named so that it can be checked again. Numbers in parentheses are `Param` values
    an injury in the last 12 months, no running history) and no tightened profile (`startPath`:
    `experienced`, `lifts`). A runner with fewer than two years takes N = 20, however long the recent
    runs were. `yearsRunning` is `yearOf(today) - runningSinceYear` (`athlete.ts`), a calendar-year
-   difference, so "1" covers anything from about 10 to about 22 months. This is owner decision 1 of
+   difference, so "1" covers anything from a few days to nearly 24 months of running, whenever in
+   the year the check is made. This is owner decision 1 of
    the engine design (section 10, "the 30-minute lift needs 2 years of running and no soft flag").
 3. **The floor week is a baseline.** It is exempt from G-2 up to its minutes and every later week is
    measured from it (`limits.ts` `rampLimits`, `RampContext.floor`). Ladder and injury-return weeks
@@ -616,10 +617,13 @@ engine's own convention resumes. Against: nothing in the corpus tests any such c
 and it relies on the fitness-side evidence for a quantity that tissue also carries (section 3.2).
 
 **What the credit fractions are.** 0.85 is the fitness retained at day 56 of complete cessation (1 −
-0.16, [coyle-1984-detraining-time-course]); 0.70 is the approximate fall in tendon stiffness at day
-23 of complete unloading (candidate C1) and the cautious end of the J7 table. Both are cessation
-values, so both are conservative for a runner who kept running a little; neither is a measurement
-for runners. Both are grade D and provisional (question 3).
+0.16, [coyle-1984-detraining-time-course]); 0.70 is close to the share of patellar tendon
+stiffness left at day 23 of complete unloading (about 71%: a fall of 29.3%, candidate C1) and near
+the 75% tier of the J7 table (a layoff of 15 to 28 days), which is a different quantity. Both are
+cessation values, so both are conservative for a runner who kept running a little; neither is a
+measurement for runners. Both are grade D and provisional (question 3). _Amended 2026-10-25: the
+text read "the approximate fall" and "the cautious end of the J7 table"; the fall is 29.3% and the
+table's lowest tier is 50-60%._
 
 ### 4.3 (b) The load setting
 
@@ -635,9 +639,10 @@ for runners. Both are grade D and provisional (question 3).
   the Generate form like the recovery cycle; a later task adds a plan action with a preview and an
   undo (question 6, decided).
 - **Default:** steady (decided, question 2): today's engine byte for byte.
-- **Never above the observed bands.** The setting reaches only the weekly step, and its largest
-  value is the weekly rate at which two weeks meet the existing hard ceiling, derived from the Param
-  so it can never exceed it. The bands in the engine are: a session more than 10% above the 30-day
+- **Never above the observed bands.** The setting reaches the weekly step and, through the response
+  (section 4.7), the baseline the step is applied to. The largest step is the weekly rate at which
+  two weeks meet the existing hard ceiling, derived from the Param so it can never exceed it, and
+  the hard ceiling and G-1 are applied after both. The bands in the engine are: a session more than 10% above the 30-day
   longest run [frandsen-2025-session-spike] (untouched), a weekly increase of 20% or more in one
   week [damsted-2019-weekly-distance-change] (14.0% is below it) and more than 30% over two weeks
   [nielsen-2014-weekly-progression] (equal to the ceiling at most, never above).
@@ -770,14 +775,17 @@ owner named and the typical-week length (`a5.typicalWeekCount`); the response us
 
 Rules: templates in `shared/copy/` (explain templates in `explainTemplates.ts`, the revision line in
 `revision.ts`), every number interpolated from a Param, `shared/copy/lint.ts` (G5) on all of it, no
-model-written text (ADR 0005), no "you" in explain copy (the existing templates use none), no
+model-written text (ADR 0005), no "you" in the g-8 explain templates (a choice: on 2026-10-25, 90 of the 228
+explain templates address the runner, and the g-8 lines use the third person beside them), no
 "behind", "missed" or red, no streaks, no probability on an injury. A rule `g-8` needs a title in
 `web/components/ruleTitles.ts` ("History-informed rebuild") and one builder in `explainInputs.ts`;
 the coverage test fails on a rule with neither or both.
 
 Why-drawer facts (`explain.g8-*`):
 
-- block: "Four steady weeks ending {weeks} ago averaged {minutes} a week."
+- block: "Four steady weeks ending {ago} ago; without the highest, they averaged {minutes} a
+  week." (The figure is the block's score, the mean of its weeks without the highest, not the mean
+  of the four; amended 2026-10-25.)
 - zone: "While a week is under {minutes}, the plan adds up to {pct} a week; past that it adds up to
   {soft}."
 - setting: "Load setting: {position}. It sets how fast the plan adds running time while rebuilding."
@@ -786,9 +794,14 @@ Why-drawer facts (`explain.g8-*`):
   fewer than two runs a week".
 - none (gap sentence): "No four steady weeks in the last 12 weeks, so the plan builds from recent
   weeks."
-- limits: "Long runs keep the 30-day rule, and growth never passes 30% over two weeks."
+- limits: "Long runs keep the 30-day rule, and weekly growth stays within 30% over two weeks apart
+  from the start and return weeks." (The floor, ladder and return weeks are exempt from the ceiling
+  by the rules E6, G-3, H12 and J7; amended 2026-10-25.)
 
-The choice (form hint and drawer):
+The choice (form hint and Plan panel): the Why drawer states facts of the plan and not the choice,
+so the trade-off line below is shown where the choice is made (the Generate form) and where the
+position in effect is read (the Load panel of the Plan page, below the hint; decision of the L7
+review, 2026-10-25).
 
 - Steady: "Adds up to {10%} a week, the plan's usual step."
 - Standard: "Adds up to {12%} a week while rebuilding toward a level held in the last 12 weeks."
@@ -800,17 +813,20 @@ The choice (form hint and drawer):
   is not known. Staying with {10%} is the more cautious choice."
 
 Every string above was run through `lintText` (`shared/copy/lint.ts`) on 2026-10-24 with no hit.
-Plan week focus in the zone: "Rebuilding toward {minutes} a week". Revision summary on a change:
-"Load setting changed to {position}: weeks ahead add up to {pct} while rebuilding." The checklist
-detail keeps its form: "{n} week(s) step above the soft {pct} and carry a warning", with the
-position's pct.
+Plan week focus in the zone: "Rebuilding toward {minutes} a week". Revision summary on a change of
+the position, not built: no plan action changes the position yet (question 6, task L4b), so the
+line waits for that action: "Load setting changed to {position}: weeks ahead add up to {pct} while
+rebuilding." The checklist detail keeps its form: "{n} week(s) step above the soft {pct} and carry
+a warning", with the position's pct. The soft note names each soft week's own step, so it can read
+"10% or 12%" when weeks inside and outside the zone mix (amended 2026-10-25).
 
 Added with the owner's decisions (run through `lintText` on 2026-10-25, no hit):
 
 - Window (taper): "The block ended {weeks} weeks ago, so it counts for {pct} of its size."
 - Response: "The last four weeks averaged {mean} a week, above the {planned} planned, so the next week
-  builds from {mean}."
-- Standard hint, added sentence: "Weeks run above the plan raise the starting point of the next week,
+  builds from {from}." ({from} is the bounded baseline of section 4.7: the mean, up to the planned
+  baseline stepped by the ceiling of two weeks.)
+- Standard and Upper band hints, added sentence: "Weeks run above the plan raise the starting point of the next week,
   within the same limits."
 - Age cap, drawer: "The setting is held at Standard: age 45 or over."
 - Age cap, form: "At age 45 or over, Upper band is held at Standard."
@@ -928,6 +944,14 @@ principle of section 4.1 does not extend to it.
   to the limit. The revision's diff names each kept week and each clipped week, and a clipped week
   says which limit applied (templates in section 4.6, ADR 0007: the diff and the undo are built from
   the rows actually written).
+- **Written as (amended 2026-10-25, review of L7).** A target clipped by a hold, a weekly decision, a
+  post-race or disruption window, a programme or the structure of the plan is written with the
+  engine's own figure, `targetSource: 'baseline'` and no note: that limit is the plan's figure at
+  that moment, and the week is free again once the rule has passed. The ask and the limit stay in
+  `PlanDiff.targets`, and the undo restores the override. A clip by the ceiling or by a tightened
+  profile stays an override at the limit only when the limit or the minutes already run set the kept
+  figure. `TargetDiffLine` has an optional `bound` (`limit`, `plan` or `logged`) that says which of
+  the limit, the plan's own figure or the minutes already run set the kept figure.
 - **Lowered targets are unchanged.** A target below the engine's is kept and caps the week
   (`weekCaps`), as today.
 - **Sessions.** The week's sessions are the engine's, as today; the override stays a target and adds
@@ -937,8 +961,9 @@ principle of section 4.1 does not extend to it.
 - **The route is unchanged.** `PUT /api/plan/weeks/:weekStart` still accepts any whole number of
   minutes with a note. The clip happens at the re-plan, where the revision can explain it. A newly
   generated plan still starts without the earlier overrides.
-- **Warning.** A kept target above the soft step carries the existing `progression` warning, like
-  any week above it.
+- **Warning.** Not implemented (review of 2026-10-25). The checklist comes from the engine draft,
+  which never holds the runner's raised figure, so a kept week is shown in the revision diff and on
+  the Plan page and carries no `progression` warning yet; STATUS records the follow-up.
 
 **Consequence.** At steady and at standard a raised week can exceed the position's own step, up to
 the ceiling, because the runner asked for it by hand; the position governs what the engine plans on
@@ -1092,8 +1117,11 @@ A result that satisfies 1 and 2 at upper but misses them at standard is a reason
 
 **5.5 Other tests.** API tests for the option (`tests/api`, own SQLite file per context): accepted,
 stored in `Plan.options`, reused by the weekly re-plan, rejected when unknown; a revision on change.
-Page tests by role and name for the form and the drawer; e2e spec `19-load-setting.spec.ts` (the
-next free number) driving the form and the drawer text with dates from the clock, no sleeps;
+Page tests by role and name for the form and the Plan panel; e2e spec `19-load-setting.spec.ts` (the
+next free number) driving the form and the Plan page with dates from the clock, no sleeps; the Why
+drawer's g-8 group is covered by the API test `tests/api/explain-load.test.ts` (`GET /api/explain`
+for a plan at Standard) and by the page tests, not by e2e spec 19 (amended 2026-10-25), and
+`tests/api/explain-plan-goal.test.ts` checks that the drawer and the Plan page read one position;
 `expectCleanCopy` on every new string; the params test (grade D notes, rule heading in
 `engine-rules.md`, `PARAMS_VERSION`); the rule-title and explain coverage tests; the research check.
 
@@ -1170,7 +1198,7 @@ default below, the body above and the tasks in section 8 follow the answer.
 1. **The 3 × 30 start from a demonstrated block (stage 1).** Default: yes at standard and upper, no
    at steady. It overturns the "2 years" detail of owner decision 1 and sits against the rule
    "nothing supports looser limits for experienced runners". The year count is a calendar-year
-   difference (10 to 22 months); the 365-day history could tighten it to "first run at least 40
+   difference (from a few days to 24 months of running); the 365-day history could tighten it to "first run at least 40
    weeks ago". Arguments for: it is worth about seven weeks and keeps every session inside the
    runner's own longest run and G-1. Against: grade D, and one more way to start higher.
    Alternative: amend E6 for everyone with no setting; simplest, but every default plan then changes
@@ -1231,7 +1259,11 @@ questions stay in section 6 as asked.
    actually run, then the position's step applies; race weeks and rest-window weeks are ignored. The
    owner asked whether the lift should be larger early and smaller late; the answer recorded is that
    the rebuild ceiling already gives that shape (the faster step below `R`, 10% above it), so no
-   calendar rule is added. Section 4.7; task L3b.
+   calendar rule is added. Section 4.7; task L3b. _Amended 2026-10-25 (task L3d): the response has
+   two bounds, taken in the build session on the owner's word "bounded" and awaiting the owner's
+   confirmation: it applies only when the newest eligible week was run at or above its stored
+   target, and the lifted baseline never passes the planned baseline stepped by the two-week
+   ceiling. Section 4.7; ADR 0013._
 6. **Q6, where the setting lives: a plan option on the Generate form**, with a plan action later. No
    reason recorded. Section 4.3; tasks L4 and L4b.
 7. **Q7, the credit window: build both behind a Param and let the owner's replay decide.** One is 12
@@ -1304,7 +1336,7 @@ the six tissue papers (C1, C2, C3, C6, C7, C8); a later one reviews the other te
 
 Size S. Depends on: L0.
 
-- **Files:** `docs/adr/0013-history-informed-rebuild-and-load-setting.md`, `docs/STATUS.md`.
+- **Files:** `docs/adr/0013-history-informed-load-ceiling.md`, `docs/STATUS.md`.
 - **Acceptance:** the status reads "Accepted 2026-10-24 (#<number of the pull request that adds
   it>)" (the owner decided on 2026-10-24; the merge shows who accepted); each reason carries a Fact,
   Rule, Opinion or Preference label; it records the answers to questions 1, 2, 4, 5, 6, 7, 9 and 12,
@@ -1402,7 +1434,7 @@ Size M. Depends on: L6 (the findings of 5.6). **Validation.**
 Size M. Depends on: L3. No Docker (no migration).
 
 - **Files:** `web/pages/PlanPage.tsx` (the Generate form), `web/api/plan.ts`, `shared/types.ts`,
-  `tests/web/PlanPage.test.tsx`, `tests/e2e/19-load-setting.spec.ts`.
+  `tests/web/plan.test.tsx`, `tests/web/plan-sessions.test.tsx`, `tests/e2e/19-load-setting.spec.ts`.
 - **Acceptance:** the form offers the three positions with their hints and the trade-off line; the
   chosen position reaches the plan and is kept by the weekly re-plan and the "Update plan from
   latest data" action; a position forced to steady, or capped at standard at age 45 or over, shows its reason; the e2e spec drives the form by
@@ -1420,8 +1452,9 @@ Size M. Depends on: L3, L3b and L3c (parallel with L4).
 - **Acceptance:** every string in section 4.6, the added ones included (window, response, age cap,
   kept and clipped targets), is a template over Param values, passes the G5 lint and
   `expectCleanCopy`; the drawer shows the block, the taper, the zone, the response, the position,
-  the held or capped reason, the limits line and the trade-off; `g-8` has a title and exactly one
-  builder.
+  the held or capped reason and the limits line; the Plan page's Load panel shows the trade-off
+  below the hint (amended 2026-10-25: the drawer states facts of the plan and not the choice);
+  `g-8` has a title and exactly one builder.
 
 ### Task L6: Fixtures, sweep and owner validation
 

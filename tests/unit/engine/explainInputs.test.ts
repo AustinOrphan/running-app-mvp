@@ -63,6 +63,7 @@ import { criticalSpeed } from '../../../shared/engine/load.ts'
 import { startPath, taperDays } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import {
+  blockLiftMin,
   loadPosition,
   rebuildZone,
   responseBasis,
@@ -707,6 +708,46 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
     expect(slot(steadyCap, 'pct', 'percent').pct).toBeCloseTo(10, 9)
   })
 
+  test('g-2, g-6 and g-8 print the upper step as the load hints do: 14%, not 14.02%', () => {
+    // the upper step is the weekly rate at which two weeks meet the ceiling, 14.016...%
+    const base = at(h1(), 'upper')
+    const input: EngineInput = {
+      ...base,
+      existing: {
+        weeks: [week('2026-10-12', 100), week(MONDAY, 250)],
+        sessions: [
+          planned('p1', '2026-10-14', 'easy', { durationMin: 50 }),
+          planned('p2', '2026-10-18', 'long', { durationMin: 50 }),
+        ],
+      },
+    }
+    const ctx = contextOf(input)
+    const zone = rebuildZone(input, ctx.state)!
+    expect(zone.step).toBeGreaterThan(0.14)
+    expect(zone.step).toBeLessThan(0.1402)
+    const decision = weeklyDecision(input, '2026-10-12', {
+      redsFlags: 0,
+      ramp: weeklyRamp(ctx.state),
+      rebuild: zone,
+    })
+    const groups = view(
+      { subject: 'decision', weekStart: '2026-10-12' },
+      { ...ctx, decision },
+    ).groups
+    const g2 = factsOf('g-2', ctx)
+      .map((fact) => text(fact))
+      .find((s) => s.startsWith('The plan adds'))!
+    const g6 = groups
+      .find((g) => g.rule === 'g-6')!
+      .facts.map((fact) => text(fact))
+      .find((s) => s.includes('capped'))!
+    expect(g2).toBe('The plan adds at most 14% to a week of running.')
+    expect(g6).toContain('plus 14%')
+    const g8 = factsOf('g-8', ctx).map((fact) => text(fact))
+    expect(g8.find((s) => s.startsWith('While a week'))).toContain('adds up to 14% a week')
+    for (const sentence of [g2, g6, ...g8]) expect(sentence).not.toMatch(/14\.\d/)
+  })
+
   test('g-6 and J5 cap a week run past its target from the minutes it was planned at', () => {
     // The week of 19 Oct was planned at 200 min and stored at the 250 min already run in it
     // (flags overshoot and planned-200). The decision draws the next week from the plan, so the
@@ -803,7 +844,10 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
   const setting = (name: string) =>
     `Load setting: ${name}. It sets how fast the plan adds running time while rebuilding.`
   const limits = () =>
-    `Long runs keep the ${String(P.g1.windowDays.value)}-day rule, and growth never passes ${pct(P.g2.rampCeilingTwoWeeks.value)}% over ${countPhrase(P.g2.ceilingWindowWeeks.value, 'week')}.`
+    `Long runs keep the ${String(P.g1.windowDays.value)}-day rule, and weekly growth stays within ${pct(P.g2.rampCeilingTwoWeeks.value)}% over ${countPhrase(P.g2.ceilingWindowWeeks.value, 'week')} apart from the start and return weeks.`
+  /** The block's score is the mean of its weeks without the highest, and the sentence says so. */
+  const blockSentence = (ago: string, minutes: number) =>
+    `Four steady weeks ending ${ago} ago; without the highest, they averaged ${String(minutes)} min a week.`
   const zoneSentence = (ceilingMin: number, step: number) =>
     `While a week is under ${String(Math.round(ceilingMin))} min, the plan adds up to ${pct(step)}% a week; past that it adds up to ${pct(P.g2.rampSoft.value)}%.`
   const gapSentence = (weeks: number) =>
@@ -821,7 +865,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
     const zone = rebuildZone(input, ctx.state)!
     expect(ids(facts)).toEqual(['g-8.block', 'g-8.zone', 'g-8.setting', 'g-8.limits'])
     expect(sentences(facts)).toEqual([
-      'Four steady weeks ending eight weeks ago averaged 280 min a week.',
+      blockSentence('eight weeks', 280),
       zoneSentence(P.g8.creditStandard.value * 280, P.g8.stepStandard.value),
       setting('Standard'),
       limits(),
@@ -852,6 +896,32 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
     }
   })
 
+  test('the block states its score, the mean without the highest week, not the mean of the four', () => {
+    // 280, 280, 280 and 400 minutes: the score drops the highest, so a plain mean (310) would
+    // state more than the plan read
+    const steadyRuns = [45, 50, 40]
+    const input = at(
+      scenario([
+        ...weeks(20, 9, [...steadyRuns, 145]),
+        ...weeks(8, 8, [...steadyRuns, 265]),
+        ...SPARSE,
+      ]),
+      'standard',
+    )
+    const ctx = contextOf(input)
+    const history = ctx.state.history!
+    const rows = ctx.state.weeks
+      .filter((w) => w.weekStart >= addDays(history.endWeek, -21) && w.weekStart <= history.endWeek)
+      .map((w) => w.runMin)
+    expect(rows).toEqual([280, 280, 280, 400])
+    expect(history.blockMin).toBe(280)
+    const [block] = factsOf('g-8', ctx)
+    expect(text(block!)).toBe(blockSentence('eight weeks', 280))
+    expect(text(block!)).toContain('without the highest')
+    expect(text(block!)).not.toContain('310')
+    expect(lintText(text(block!))).toEqual([])
+  })
+
   test('a block older than the full-credit window counts for part of its size, and says so', () => {
     withTaperEnd(16, () => {
       const input = at(scenario([...summer(14), ...SPARSE]), 'standard')
@@ -869,7 +939,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
         'g-8.setting',
         'g-8.limits',
       ])
-      expect(text(facts[0]!)).toBe('Four steady weeks ending 14 weeks ago averaged 280 min a week.')
+      expect(text(facts[0]!)).toBe(blockSentence('14 weeks', 280))
       expect(text(facts[1]!)).toBe(
         `The block ended 14 weeks ago, so it counts for ${pct(taper)}% of its size.`,
       )
@@ -905,7 +975,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
       const facts = g8(step.input)
       expect(ids(facts)).toEqual(['g-8.block', 'g-8.kept', 'g-8.zone', 'g-8.setting', 'g-8.limits'])
       const ago = countPhrase(daysBetween(opened.endWeek, mondayOf(step.input.today)) / 7, 'week')
-      expect(text(facts[0]!)).toBe(`Four steady weeks ending ${ago} ago averaged 280 min a week.`)
+      expect(text(facts[0]!)).toBe(blockSentence(ago, 280))
       expect(text(facts[1]!)).toBe(
         `This plan began with that block, counted at 100% of its size, and keeps it until a week reaches ${String(Math.round(zone.ceilingMin))} min.`,
       )
@@ -1049,6 +1119,41 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
         expect(found, hold).toContain('g-8.held')
         expect(found, hold).not.toContain('g-8.zone')
       }
+    })
+
+    test("is read from the input with the plan's own goal: a logged race that is the goal race holds nothing", () => {
+      const race = activity('2026-10-16', {
+        id: 'marathon',
+        type: 'race',
+        durationSec: 4 * 3600,
+        movingSec: 4 * 3600,
+        distanceM: 42_195,
+      })
+      const neutral = at({ ...h1(), activities: [...h1().activities, race] }, 'standard')
+      // the plan's goal is that marathon, so its window is the goal race's own, not a past race's
+      const own: EngineInput = {
+        ...neutral,
+        goal: {
+          ...neutral.goal,
+          date: '2026-10-16',
+          distanceM: 42_195,
+          distanceClass: 'marathon',
+          isUltra: false,
+          expectedDurationSec: 4 * 3600,
+        },
+      }
+      const state = estimateState(neutral)
+      expect(loadPosition(neutral, state).held).toBe('post-race')
+      expect(loadPosition(own, state).held).toBeNull()
+      // read about the athlete, the race is a past race and the drawer states the hold ...
+      const without = factsOf('g-8', contextOf(neutral))
+      expect(ids(without)).toContain('g-8.held')
+      expect(ids(without)).not.toContain('g-8.zone')
+      // ... and with the plan's own input it states what the Plan page states: no hold, the zone
+      const withPlan = factsOf('g-8', contextOf(neutral, { planInput: own }))
+      expect(ids(withPlan)).not.toContain('g-8.held')
+      expect(ids(withPlan)).toContain('g-8.zone')
+      expect(loadPanelText(loadPosition(own, state)).reason).toEqual([])
     })
   })
 
@@ -1231,7 +1336,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
       )
     })
     withParam(P.g2.rampCeilingTwoWeeks, 0.25, () => {
-      expect(text(g8(h1()).at(-1)!)).toContain('growth never passes 25% over two weeks')
+      expect(text(g8(h1()).at(-1)!)).toContain('weekly growth stays within 25% over two weeks')
     })
     withParam(P.g2.ceilingWindowWeeks, 3, () => {
       expect(text(g8(h1()).at(-1)!)).toContain('over three weeks')
@@ -2709,13 +2814,35 @@ describe('after a break: E6, D4, D7 and K1 read the state the plan was drawn fro
 
   test('E6 names the block that lifted a one-year runner to 3 x 30 at standard, and no route at steady', () => {
     const standard = factsOf('E6', contextOf(at(h1(), 'standard')))
-    expect(standard.map((f) => f.template)).toEqual(['explain.e6-floor', 'explain.e6-lift-block'])
+    expect(standard.map((f) => f.template)).toEqual([
+      'explain.e6-floor',
+      'explain.e6-lift-block',
+      'explain.e6-lift-block-weeks',
+    ])
     expect(text(standard[0]!)).toBe(
       'You start with 3 runs of 30 min a week, then build from there.',
     )
     expect(text(standard[1]!)).toBe(
-      'Sessions longer than 20 min are allowed at the start: a year of running and 4 steady weeks of at least 90 min a week, ended within 12 weeks.',
+      'Sessions longer than 20 min are allowed at the start: at least one year of running and a recent block of steady weeks.',
     )
+    // the block's score is the mean of its weeks without the highest, and the sentence says so
+    expect(text(standard[2]!)).toBe(
+      'That block is 4 steady weeks that, without the highest, averaged at least 90 min a week and ended within 12 weeks.',
+    )
+    for (const fact of standard) {
+      expect(lintText(text(fact)), fact.id).toEqual([])
+      expect(text(fact).length, fact.id).toBeLessThanOrEqual(COPY_MAX_CHARS)
+    }
+    // the year count and the minutes come from the Params, through the one threshold of the route
+    expect(slot(standard[2]!, 'minimum', 'minutes').min).toBe(blockLiftMin())
+    withParam(P.a5.noviceMaxYears, 3, () => {
+      // a runner of 46 with three years of running: the years route is closed by age, the block's is open
+      const aged = at(scenario(s3Runs(), { years: 3, profile: { birthYear: 1980 } }), 'standard')
+      const route = factsOf('E6', contextOf(aged)).find(
+        (f) => f.template === 'explain.e6-lift-block',
+      )
+      expect(text(route!)).toContain('at least three years of running')
+    })
     // steady is the start of 3 x 20 with no lift to name
     const steady = factsOf('E6', contextOf(h1()))
     expect(steady.map((f) => f.template)).toEqual(['explain.e6-floor'])
@@ -3362,6 +3489,7 @@ describe('subjects', () => {
       decision: false,
       prediction: false,
       race: false,
+      planInput: false,
     })
     expect(explainNeeds(['a8'])).toMatchObject({ hrModel: true })
     expect(explainNeeds(['J5'])).toMatchObject({ decision: true })
@@ -3371,7 +3499,14 @@ describe('subjects', () => {
       decision: false,
       prediction: false,
       race: false,
+      planInput: false,
     })
+    // the rules that read the load setting need the input with the plan's own goal
+    expect(explainNeeds(['g-2'])).toMatchObject({ planInput: true })
+    expect(explainNeeds(['G-6', 'a1'])).toMatchObject({ planInput: true })
+    expect(explainNeeds(['g-8'])).toMatchObject({ planInput: true })
+    expect(explainNeeds(['E6'])).toMatchObject({ planInput: true })
+    expect(explainNeeds(['g-1', 'J5'])).toMatchObject({ planInput: false })
     // the rules about the goal read the goal model; n-7 also the goal time or the prediction
     expect(explainNeeds(['D1', 'k1'])).toMatchObject({ race: true, prediction: false })
     expect(explainNeeds(['n-7'])).toMatchObject({ race: true, prediction: true })

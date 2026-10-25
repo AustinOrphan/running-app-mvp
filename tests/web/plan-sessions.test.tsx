@@ -1,6 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { loadTradeoff } from '../../shared/copy/load.ts'
 import type { LoadHold, LoadPosition } from '../../shared/engine/loadSetting.ts'
 import type {
   Goal,
@@ -856,6 +857,42 @@ describe('Plan page, the load setting in effect', () => {
     ...over,
   })
   const panel = () => screen.findByRole('region', { name: 'Load setting' })
+
+  test.each([
+    ['steady', 'steady'],
+    ['standard', 'standard'],
+    ['upper', 'upper'],
+  ] as const)(
+    'states the trade-off of the choice below the hint at %s, in the panel and not only on the form',
+    async (requested, position) => {
+      mockApi(routes(makeV2Plan({ load: load({ requested, position }) })))
+      renderPlan()
+      const region = await panel()
+      const tradeoff = within(region).getByText(
+        /^A faster step brings the earlier weekly level back/,
+      )
+      expect(tradeoff).toHaveTextContent(loadTradeoff())
+      expect(tradeoff).toHaveTextContent('the effect here is not known')
+      expect(tradeoff).toHaveTextContent('Staying with 10% is the more cautious choice.')
+      // it follows the hint in the panel
+      const hint = within(region).getByText(/^Adds up to /)
+      expect(hint.compareDocumentPosition(tradeoff) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+      expectCleanCopy(region)
+    },
+  )
+
+  test('keeps the trade-off before the reason when the chosen position is held', async () => {
+    mockApi(
+      routes(
+        makeV2Plan({ load: load({ requested: 'upper', position: 'steady', held: 'rest-window' }) }),
+      ),
+    )
+    renderPlan()
+    const region = await panel()
+    const tradeoff = within(region).getByText(/^A faster step brings the earlier weekly level back/)
+    const reason = within(region).getByText(/^The plan was set to Upper band\./)
+    expect(tradeoff.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+  })
 
   test('names Steady and its hint for a plan at the default, with no reason', async () => {
     mockApi(routes(makeV2Plan({ load: load() })))
