@@ -10,6 +10,7 @@
 // only: slots in `todaySlots.ts`, health notes in `todayHealth.ts`.
 import { addDays, daysBetween, isIsoDate, mondayOf } from '../../shared/dates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
+import { bandOwnsIllness, openWindows, windowVerdict } from '../../shared/domain/windowDay.ts'
 import { weekStrip as buildWeekStrip } from '../../shared/domain/weekStrip.ts'
 import {
   isHotForSteering,
@@ -17,10 +18,12 @@ import {
   trainingHeatAdvice,
   type TrainingHeatAdvice,
 } from '../../shared/engine/heat.ts'
+import { illnessDays, illnessGate } from '../../shared/engine/disruption.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { rangeLabel } from '../../shared/engine/predict.ts'
 import {
   easedSession,
+  illnessPhase,
   readinessSignals,
   readinessVerdict,
   strongestAdvice,
@@ -205,11 +208,20 @@ function unratedRuns(context: AthleteContext): TodayView['unrated'] {
     .slice(0, UNRATED_LIMIT)
 }
 
-/** The snapshot's readiness with the screening note, on a copy (the snapshot is frozen). */
-function readinessWithScreening(context: AthleteContext): TodayView['readiness'] {
+/**
+ * The snapshot's readiness with the screening note, on a copy (the snapshot is frozen). While the
+ * band holds the illness window (`bandOwnsIllness`) the illness note is left out: the band states
+ * the window and its actions, and the note would say it a second time.
+ */
+function readinessWithScreening(
+  context: AthleteContext,
+  bandHoldsIllness: boolean,
+): TodayView['readiness'] {
   const readiness: TodayView['readiness'] = {
     ...context.readiness,
-    redFlags: [...context.readiness.redFlags],
+    redFlags: context.readiness.redFlags.filter(
+      (flag) => !(bandHoldsIllness && flag.code === 'illness'),
+    ),
   }
   const reds = context.screeningFlags
   if (reds >= P.j5.redsHoldFlags.value) {
@@ -246,7 +258,17 @@ export async function todayView(
   const context = await loadAthleteContext(deps, { userId, today })
   const input = inputFromContext(context, { goal: null, forecast: null, existing: true })
   const sessions = context.planSessions.filter((s) => s.date === date)
-  const readiness = readinessWithScreening(context)
+  // The windows not over on the viewed day. The band lists the open ones, so the verdict, the
+  // illness note and the illness signal leave the window to it (follow-up 19). A day ahead has no
+  // readiness read, and its notes are today's, so the preview leaves them as they are.
+  const windows = todayDisruptions(context, date)
+  const bandHoldsIllness =
+    !preview &&
+    bandOwnsIllness(
+      illnessPhase(input, date),
+      illnessGate(illnessDays({ wellness: [], disruptions: input.disruptions }), date),
+    )
+  const readiness = readinessWithScreening(context, bandHoldsIllness)
 
   // The advice of the day, downgrade-only (J3). A preview has none: every session is as planned.
   const advice: TodayView['sessions'] = preview
@@ -314,15 +336,21 @@ export async function todayView(
 
   // Readiness is read for today only. The verdict needs the day's session kinds, and none when
   // nothing is planned.
-  const signals = preview ? [] : readinessSignals(input, date)
+  const readings = preview ? [] : readinessSignals(input, date)
+  const signals = readings.filter((signal) => !(bandHoldsIllness && signal.code === 'illness'))
   const verdict = preview
     ? null
-    : readinessVerdict({
-        advice: strongestAdvice(advice.map((entry) => entry.advice)),
-        state: context.readiness.state,
-        signalCount: signals.length,
-        sessionKinds: sessions.map((s) => s.kind),
-      })
+    : windowVerdict(
+        readinessVerdict({
+          advice: strongestAdvice(advice.map((entry) => entry.advice)),
+          state: context.readiness.state,
+          // The readings that exist, the illness one included: leaving it out of the list does not
+          // make the day one with no readings.
+          signalCount: readings.length,
+          sessionKinds: sessions.map((s) => s.kind),
+        }),
+        openWindows(windows),
+      )
 
   const [race, health, slots] = await Promise.all([
     raceBlock(context, date),
@@ -340,7 +368,7 @@ export async function todayView(
     weekStrip: stripFor(context, date),
     race,
     health,
-    disruptions: todayDisruptions(context, date),
+    disruptions: windows,
     slots,
   }
 
