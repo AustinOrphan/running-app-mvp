@@ -147,10 +147,11 @@ export type UndoStanding = 'as-left' | 'edited' | 'run'
 
 /**
  * A session or week the revision created, changed or deleted, dated today or later, or a rest
- * window it created or changed (a window has no date; it is checked whenever the revision is).
+ * window it created or changed (a window has no date; it is checked whenever the revision is), or
+ * the plan's load setting when the revision changed it (`id` is the plan's; it has no date either).
  */
 export interface UndoRowFact {
-  kind: 'session' | 'week' | 'disruption'
+  kind: 'session' | 'week' | 'disruption' | 'setting'
   /** The row's id. */
   id: string
   /** The week's Monday; null for a week row that no longer exists, whose Monday is unknown. */

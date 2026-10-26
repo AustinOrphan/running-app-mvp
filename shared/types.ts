@@ -936,6 +936,15 @@ export interface UndoResult {
   target: PlanRevisionView
 }
 /**
+ * The answer to `PUT /api/plan/load`: the position asked for, and the revision that recorded the
+ * change, or null when the plan already held that position and nothing was written. The position
+ * in effect, and why it differs from the one asked for, is read from the plan (`PlanWithSessions.load`).
+ */
+export interface LoadSettingResult {
+  loadAppetite: LoadAppetite
+  revision: PlanRevisionView | null
+}
+/**
  * The answer to `POST /api/plan/sessions/:id/adjust`. `allowed` is false when a guard blocks (a
  * dry run says so with 200; a commit answers 409 instead). `session` is the session as it stands
  * after a commit and as it would stand after a dry run; `revision` is null for a dry run and for an
