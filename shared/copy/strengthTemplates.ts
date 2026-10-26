@@ -283,6 +283,13 @@ export const STRENGTH_TEMPLATES = {
     { pct: 'percent' },
     { fallback: REASON_FALLBACK },
   ),
+  // Every set reached the top of the range but one had too few reps left to earn a step (rule F8.5
+  // asks for `f8.progressMinRir`); `reps` is that count in words ("one rep"), built from the Param.
+  'strength.reason.hold-effort': tpl(
+    'Every set of {exercise} reached {top} reps, but a set had fewer than {reps} left, so the load holds.',
+    { exercise: 'text', top: 'count', reps: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
   // For a set that ended at two reps or fewer, or none: a set that ended at one rep has its own
   // template, so the sentence never reads "1 reps".
   'strength.reason.reduce': tpl(
@@ -341,6 +348,12 @@ export const STRENGTH_TEMPLATES = {
   ),
   'strength.reason.taper': tpl(
     'The taper keeps the lead lift and the calf raise at the usual load, with {sets} of each.',
+    { sets: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
+  // Maintenance keeps the load the block reached (rule F7); `sets` is `f7.maintenanceSets` in words.
+  'strength.reason.maintenance': tpl(
+    'Maintenance keeps each lift at the usual load, with {sets} of each.',
     { sets: 'text' },
     { fallback: REASON_FALLBACK },
   ),

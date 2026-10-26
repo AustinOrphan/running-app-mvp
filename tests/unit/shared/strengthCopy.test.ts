@@ -422,6 +422,29 @@ describe('the sentences of design 11.6', () => {
     ).toBe('The next step up from 50 lb would be more than 15% of the load, so the load holds.')
   })
 
+  it('says why a set with too few reps left holds the load, with the count from the Param', () => {
+    const reps = countPhrase(P.f8.progressMinRir.value, 'rep')
+    expect(say('strength.reason.hold-effort', { exercise: squat, top: count(repsHi), reps })).toBe(
+      `Every set of Back squat reached ${String(repsHi)} reps, but a set had fewer than one rep left, so the load holds.`,
+    )
+    // a Param of two would change the sentence, not leave "one" in it
+    expect(
+      say('strength.reason.hold-effort', {
+        exercise: squat,
+        top: count(repsHi),
+        reps: countPhrase(2, 'rep'),
+      }),
+    ).toContain('fewer than two reps left')
+  })
+
+  it('says that maintenance keeps the load, with the sets from the Param', () => {
+    expect(
+      say('strength.reason.maintenance', {
+        sets: countPhrase(P.f7.maintenanceSets.value, 'set'),
+      }),
+    ).toBe('Maintenance keeps each lift at the usual load, with two sets of each.')
+  })
+
   it('counts the sets of a lighter week and of the taper from the Param', () => {
     const sets = countPhrase(P.f7.maintenanceSets.value, 'set')
     expect(say('strength.reason.lighter-week', { sets })).toBe(
