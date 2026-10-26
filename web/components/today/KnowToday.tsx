@@ -65,6 +65,7 @@ export function KnowToday({ reasons, climbNote, zonesNote, heatNote, units }: Kn
               subject="the heat note"
               rules={HEAT_RULES}
               explain={rulesRef(HEAT_RULES)}
+              icon
             />
           </div>
         )}

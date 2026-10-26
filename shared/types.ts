@@ -1119,6 +1119,15 @@ export interface ReadinessVerdict extends Pick<InputFact, 'template' | 'slots'> 
   code: ReadinessVerdictCode
 }
 /**
+ * What the verdict names while a window is open and readiness has nothing to add: the day's state,
+ * not "Ready as planned." (`windowVerdict`). The engine never produces these.
+ */
+export type WindowVerdictCode = 'window-rest' | 'window-limited' | 'window-easy' | 'window-return'
+/** The verdict Today's payload carries: the engine's, or the name of the day under a window. */
+export interface TodayVerdict extends Pick<InputFact, 'template' | 'slots'> {
+  code: ReadinessVerdictCode | WindowVerdictCode
+}
+/**
  * How wide a race prediction has to be (`rangeLabel`): the least half-width the interval may
  * have, the rules that set it and the evidence grade of that floor. `wide` marks the ultra floor
  * [L4], where the range is wide on purpose.
@@ -1210,14 +1219,18 @@ export interface DisruptionResult {
   revision: PlanRevisionView
 }
 /**
- * The disruption slot (design 9.6): the window the banner is about, else an offer to set one. Null
+ * The disruption slot (design 9.6): the windows the band is about, else an offer to set one. Null
  * when there is neither.
  */
 export interface DisruptionSlot {
-  /** The window in effect on the viewed day, else the next one ahead; null when there is none. */
-  window: DisruptionView | null
   /**
-   * True when no window is in effect and today's check-in reports illness or pain at or above
+   * Every window open on the viewed day, one line each in the band, oldest first (an illness and an
+   * injury are independent windows with their own dates); else the next one ahead; empty when
+   * there is none (`bandWindows`).
+   */
+  windows: DisruptionView[]
+  /**
+   * True when no window is open and today's check-in reports illness or pain at or above
    * `pain.flagScore`: the page offers a rest window and creates nothing by itself.
    */
   offer: boolean
@@ -1253,8 +1266,11 @@ export interface TodayCoach {
   generatedAt: string
   /** True for a day after today: no verdict, no signals, nothing written. */
   preview: boolean
-  verdict: ReadinessVerdict | null
-  /** At most `SIGNAL_LIMIT`, noted readings first. */
+  verdict: TodayVerdict | null
+  /**
+   * At most `SIGNAL_LIMIT`, noted readings first. The illness reading is left out while the band
+   * holds the illness window (`bandOwnsIllness`).
+   */
   signals: ReadinessSignal[]
   /** Null when the day has no session. */
   hero: TodayHero | null

@@ -12,6 +12,7 @@
 // - `disruptionViews` and `listDisruptions` say where each window stands, from the engine.
 // - `disruptionSlot` and `todayDisruptions` are the Today parts.
 import { addDays } from '../../shared/dates.ts'
+import { bandWindows } from '../../shared/domain/windowDay.ts'
 import {
   describeIssue,
   windowHoldLabel,
@@ -33,7 +34,6 @@ import type { AthleteState, DisruptionWindow, EngineInput } from '../../shared/e
 import type {
   Disruption,
   DisruptionInput,
-  DisruptionPhase,
   DisruptionSlot,
   DisruptionView,
   PlanAction,
@@ -82,15 +82,6 @@ export function isDisruptionAction(action: PlanAction): action is DisruptionActi
 
 /** The weeks the engine counts a runner's volume by, as `holdReference` reads them. */
 type StateWeeks = Pick<AthleteState, 'weeks'>
-
-/** The phases in which a window shapes the viewed day. `upcoming` is a window still ahead. */
-const IN_EFFECT: ReadonlySet<DisruptionPhase> = new Set([
-  'resting',
-  'rest-gate',
-  'limited',
-  'easy-only',
-  'returning',
-])
 
 /** The most the return week may hold after this window's hold, or null when no restart applies. */
 function returnWeekMin(
@@ -162,7 +153,8 @@ export function todayDisruptions(context: AthleteContext, date: string): Disrupt
 }
 
 /**
- * The Today slot of the disruption banner (design 9.6): the window in effect on the viewed day,
+ * The Today slot of the disruption band (design 9.6): every window open on the viewed day (an
+ * illness and an injury are separate windows with their own dates, and the band gives each a line),
  * else the next one ahead; with none, an offer when today's check-in reports illness or pain at or
  * above `pain.flagScore`. The offer creates nothing by itself, and a day ahead has none.
  */
@@ -172,18 +164,14 @@ export function disruptionSlot(args: {
   preview: boolean
 }): DisruptionSlot | null {
   const { context, date, preview } = args
-  const views = todayDisruptions(context, date)
-  const window =
-    views.find((view) => IN_EFFECT.has(view.phase)) ??
-    views.find((view) => view.phase === 'upcoming') ??
-    null
+  const windows = bandWindows(todayDisruptions(context, date))
   const checkin = context.wellness.find((day) => day.date === context.asOf)
   const reports =
     checkin !== undefined &&
     (checkin.illness === true ||
       (checkin.painScore != null && checkin.painScore >= P.pain.flagScore.value))
-  const offer = window === null && !preview && reports
-  return window === null && !offer ? null : { window, offer }
+  const offer = windows.length === 0 && !preview && reports
+  return windows.length === 0 && !offer ? null : { windows, offer }
 }
 
 /**

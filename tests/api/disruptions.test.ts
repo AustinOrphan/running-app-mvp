@@ -1005,7 +1005,7 @@ describe('GET /api/today', () => {
     expect(view.coach.disruptions.map((d) => d.id)).toEqual([disruption.id])
     expect(view.coach.disruptions[0]).toMatchObject({ phase: 'resting', status: 'active' })
     expect(view.coach.slots.disruption).toMatchObject({
-      window: { id: disruption.id },
+      windows: [{ id: disruption.id }],
       offer: false,
     })
     expect(view.sessions.map((entry) => entry.session.kind)).toEqual(['rest'])
@@ -1020,7 +1020,9 @@ describe('GET /api/today', () => {
       expect(res.status).toBe(200)
       const view = res.body as TodayView
       phases[date] = view.coach.disruptions[0]!.phase
-      expect(view.coach.slots.disruption!.window!.phase).toBe(phases[date])
+      expect(view.coach.slots.disruption!.windows.map((window) => window.phase)).toEqual([
+        phases[date],
+      ])
     }
     expect(phases).toEqual({
       [THURSDAY]: 'resting',
@@ -1038,9 +1040,87 @@ describe('GET /api/today', () => {
     const today = (await api(f).get('/api/today')).body as TodayView
     expect(today.coach.disruptions[0]).toMatchObject({ phase: 'upcoming' })
     expect(today.coach.slots.disruption).toMatchObject({
-      window: { phase: 'upcoming' },
+      windows: [{ phase: 'upcoming' }],
       offer: false,
     })
+  })
+
+  test('states an illness window once: the verdict names the day, and the note and the signal leave it to the band', async () => {
+    const f = await fixture('today-once@example.com')
+    const read = async () => (await api(f).get('/api/today')).body as TodayView
+    const codes = (view: TodayView) => ({
+      notes: view.readiness.redFlags.map((flag) => flag.code),
+      signals: view.coach.signals.map((signal) => signal.code),
+    })
+    // A check-in that reports illness, with no window: the note and the signal each state it.
+    await api(f).put(`/api/checkins/${THURSDAY}`).send({ illness: true }).expect(200)
+    const reported = await read()
+    expect(codes(reported)).toEqual({ notes: ['illness'], signals: ['illness'] })
+
+    // The window holds the same days: the band states it, and the page need not.
+    await createWindow(f, cold({ startDate: THURSDAY, endDate: THURSDAY }))
+    const view = await read()
+    expect(view.coach.disruptions[0]).toMatchObject({ phase: 'resting' })
+    expect(view.sessions.map((entry) => entry.session.kind)).toEqual(['rest'])
+    expect(codes(view)).toEqual({ notes: [], signals: [] })
+    expect(view.coach.verdict).toEqual({
+      code: 'window-rest',
+      template: 'today.verdict.window-rest',
+      slots: {},
+    })
+    expect(view.coach.slots.disruption?.windows).toHaveLength(1)
+  })
+
+  test('names the day by the phase of the window: "Ready as planned." is not said while one is open', async () => {
+    const f = await fixture('today-day-name@example.com')
+    await createWindow(f, cold({ startDate: THURSDAY, endDate: THURSDAY }))
+    const code = async (date: string) =>
+      ((await api(f).get(`/api/today?date=${date}`)).body as TodayView).coach.verdict?.code ?? null
+    expect(await code(THURSDAY)).toBe('window-rest')
+    // a day ahead has no verdict at all
+    expect(await code(FRIDAY)).toBeNull()
+    // with no window open the engine's own verdict is back
+    await ctx.prisma.disruption.deleteMany({ where: { userId: f.u.id } })
+    expect(await code(THURSDAY)).not.toMatch(/^window-/)
+  })
+
+  test('keeps the illness note and signal when a check-in holds the gate past what the window says', async () => {
+    const f = await fixture('today-gate-past@example.com')
+    // The window ends on the Wednesday; the Thursday's check-in reports illness again.
+    await createWindow(f, cold())
+    await api(f).put(`/api/checkins/${THURSDAY}`).send({ illness: true }).expect(200)
+    const view = (await api(f).get('/api/today')).body as TodayView
+    expect(view.coach.disruptions[0]).toMatchObject({ phase: 'rest-gate' })
+    expect(view.readiness.redFlags.map((flag) => flag.code)).toContain('illness')
+    expect(view.coach.signals.map((signal) => signal.code)).toContain('illness')
+  })
+
+  test('lists every open window in the slot, an illness and an injury one line each, oldest first', async () => {
+    const f = await fixture('today-two-windows@example.com')
+    const illness = await createWindow(f, cold({ startDate: WEDNESDAY, endDate: FRIDAY }))
+    const injury = await createWindow(f, {
+      reason: 'niggle',
+      mode: 'limited',
+      maxRunMin: 30,
+      area: 'left calf',
+      pain: 3,
+      startDate: THURSDAY,
+      endDate: SATURDAY,
+    })
+    const view = (await api(f).get('/api/today')).body as TodayView
+    expect(view.coach.slots.disruption).toMatchObject({ offer: false })
+    expect(view.coach.slots.disruption?.windows.map((window) => window.id)).toEqual([
+      illness.disruption.id,
+      injury.disruption.id,
+    ])
+    expect(view.coach.slots.disruption?.windows.map((window) => window.phase)).toEqual([
+      'resting',
+      'limited',
+    ])
+    // every window of the payload is on the slot's lines: nothing open is left out
+    expect(view.coach.disruptions.map((window) => window.id)).toEqual(
+      view.coach.slots.disruption?.windows.map((window) => window.id),
+    )
   })
 
   test('offers a window, and creates none, when a check-in reports illness or pain with no window in effect', async () => {
@@ -1058,15 +1138,15 @@ describe('GET /api/today', () => {
       .put(`/api/checkins/${THURSDAY}`)
       .send({ painScore: P.pain.flagScore.value })
       .expect(200)
-    expect(await slot()).toEqual({ window: null, offer: true })
+    expect(await slot()).toEqual({ windows: [], offer: true })
     await api(f).put(`/api/checkins/${THURSDAY}`).send({ painScore: 0, illness: true }).expect(200)
-    expect(await slot()).toEqual({ window: null, offer: true })
+    expect(await slot()).toEqual({ windows: [], offer: true })
     // a day ahead is read-only: no offer
     expect(await slot(FRIDAY)).toBeNull()
     expect(await ctx.prisma.disruption.count({ where: { userId: f.u.id } })).toBe(0)
     // with a window in effect the slot is the window, not the offer
     await createWindow(f, cold({ startDate: THURSDAY, endDate: THURSDAY }))
-    expect(await slot()).toMatchObject({ window: { phase: 'resting' }, offer: false })
+    expect(await slot()).toMatchObject({ windows: [{ phase: 'resting' }], offer: false })
   })
 })
 

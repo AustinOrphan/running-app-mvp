@@ -1179,7 +1179,7 @@ function withDisruption(slot: DisruptionSlot | null, over: Partial<TodayView> = 
     ...base,
     coach: {
       ...base.coach,
-      disruptions: slot?.window == null ? [] : [slot.window],
+      disruptions: slot?.windows ?? [],
       slots: { ...base.coach.slots, disruption: slot },
     },
     ...over,
@@ -1199,7 +1199,7 @@ const writesOf = (calls: Array<{ method: string }>) => calls.filter((call) => ca
 
 describe('Today: the disruption slot', () => {
   test('a window in effect fills it with the banner, first in the session group, within 64 px', async () => {
-    const { container } = render(withDisruption({ window: resting(), offer: false }))
+    const { container } = render(withDisruption({ windows: [resting()], offer: false }))
     const banner = await screen.findByRole('region', { name: 'Rest window' })
     const slot = banner.closest('[data-slot]')
     expect(slot).toHaveAttribute('data-slot', 'disruption')
@@ -1219,7 +1219,7 @@ describe('Today: the disruption slot', () => {
   test('a window that starts later fills it too, and says when it starts', async () => {
     render(
       withDisruption({
-        window: resting({ phase: 'upcoming', startDate: '2026-03-23', endDate: '2026-03-25' }),
+        windows: [resting({ phase: 'upcoming', startDate: '2026-03-23', endDate: '2026-03-25' })],
         offer: false,
       }),
     )
@@ -1238,7 +1238,7 @@ describe('Today: the disruption slot', () => {
 
   test('an offer asks once, creates nothing, and "Not now" takes it away', async () => {
     const user = userEvent.setup()
-    const { api, container } = render(withDisruption({ window: null, offer: true }))
+    const { api, container } = render(withDisruption({ windows: [], offer: true }))
     const offer = await screen.findByRole('region', { name: 'Rest window offer' })
     expect(offer.closest('[data-slot]')).toHaveAttribute('data-slot', 'disruption')
     expect(offer.closest('[data-slot]')).toHaveAttribute('data-budget-px', '64')
@@ -1261,8 +1261,8 @@ describe('Today: the disruption slot', () => {
   test('"Set one up" opens Not 100% dated from the server day, not the device clock', async () => {
     const user = userEvent.setup()
     const { api } = render(
-      withDisruption({ window: null, offer: true }),
-      sheetRoutes(() => withDisruption({ window: null, offer: true })),
+      withDisruption({ windows: [], offer: true }),
+      sheetRoutes(() => withDisruption({ windows: [], offer: true })),
     )
     await user.click(await screen.findByRole('button', { name: 'Set one up' }))
     // the phone says it is 2 April; the server's day is Wednesday 18 March
@@ -1279,7 +1279,7 @@ describe('Today: the disruption slot', () => {
   test('the sheet of a window outlives the banner: removing it leaves the slot, not the preview', async () => {
     const user = userEvent.setup()
     let removed = false
-    const view = () => withDisruption(removed ? null : { window: resting(), offer: false })
+    const view = () => withDisruption(removed ? null : { windows: [resting()], offer: false })
     const { container } = render(view(), {
       ...sheetRoutes(view),
       'POST /api/plan/preview': () =>

@@ -299,6 +299,20 @@ test('after an illness check-in Today offers a window, creates nothing, and the 
     await checkin.getByLabel('Feeling ill').check()
     await checkin.getByRole('button', { name: 'Save check-in' }).click()
 
+    // The note the check-in raises ends in an info icon, not a line of its own: the icon keeps the
+    // name the Why button had, is a 44 px box (never under 24 px), and stands at the end of the line.
+    const note = page.getByRole('region', { name: 'Health notes' }).getByRole('listitem')
+    const why = note.getByRole('button', { name: 'Why: this note' })
+    await expect(note.getByText(/^Illness was reported\./)).toBeVisible()
+    const whyBox = (await why.boundingBox())!
+    const noteBox = (await note.boundingBox())!
+    expect(whyBox.width).toBeGreaterThanOrEqual(44 - 0.5)
+    expect(whyBox.height).toBeGreaterThanOrEqual(44 - 0.5)
+    expect(whyBox.x + whyBox.width).toBeGreaterThan(noteBox.x + noteBox.width - 24)
+    expect(whyBox.y).toBeLessThan(noteBox.y + 24)
+    await why.focus()
+    await expect(why).toBeFocused()
+
     // The offer: one question, two answers, within the budget, and nothing created by asking. A
     // screen reader hears the question from the live region.
     const offer = slot.getByRole('region', { name: 'Rest window offer' })
@@ -337,6 +351,20 @@ test('after an illness check-in Today offers a window, creates nothing, and the 
     ).toBeVisible()
     await expect(offer).toBeHidden()
     expect(await heightOf(slot)).toBeLessThanOrEqual(64.5)
+    // The band states the window once: the note and the signal that said the illness are gone, and
+    // the verdict names the day instead of "Ready as planned." ("Resting" and "Illness was reported"
+    // are the same fact).
+    await expect(page.getByText(/Illness was reported/)).toHaveCount(0)
+    await expect(page.getByRole('region', { name: 'Health notes' })).toHaveCount(0)
+    const verdict = page.getByRole('region', { name: 'Readiness' }).getByRole('status')
+    await expect(verdict).toHaveText('A rest day of the window.')
+    await expect(page.getByText('Ready as planned.')).toHaveCount(0)
+    // With a window open the check-in link adds a window, and opens the sheet that makes one.
+    await expect(hurts).toBeHidden()
+    await page.getByRole('button', { name: 'Add a pain or illness window' }).click()
+    await expect(page.getByRole('dialog', { name: 'Not 100%' })).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByRole('dialog', { name: 'Not 100%' })).toBeHidden()
     expect(await windowsOf()).toMatchObject([{ reason: 'illness-above-neck', endDate: today }])
   } finally {
     await page.setViewportSize({ width: 1280, height: 720 })
@@ -437,25 +465,47 @@ const PHASES: Array<{
 const scrollsSideways = () =>
   page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
 
-/** Every button of the banner is inside its box, and the box holds what it was given. */
-async function expectWithinBanner(banner: Locator, buttons: string[]) {
+/**
+ * Every button of the banner is a 44 px touch target that fits across the box, reaches no more than
+ * 10 px past it (the row takes 28 px of the box and the 44 px boxes reach up into the line height
+ * and down into the gap), and answers a tap at its top and bottom edge: nothing of the verdict or
+ * of the next window covers it. The box holds what it was given. `scale` is the text size against
+ * the default (every rem, the 44 px and the 10 px too, follows it).
+ */
+async function expectWithinBanner(banner: Locator, buttons: string[], scale = 1) {
   const shown = banner.getByRole('button')
   await expect(shown).toHaveText(buttons)
   const box = (await banner.boundingBox())!
   for (const button of await shown.all()) {
     await expect(button).toBeVisible()
     const at = (await button.boundingBox())!
-    expect(at.y).toBeGreaterThanOrEqual(box.y - 0.5)
+    expect(at.height).toBeGreaterThanOrEqual(44 - 0.5)
+    expect(at.width).toBeGreaterThanOrEqual(44 - 0.5)
+    expect(at.y).toBeGreaterThanOrEqual(box.y - 8 * scale)
     expect(at.x).toBeGreaterThanOrEqual(box.x - 0.5)
-    expect(at.y + at.height).toBeLessThanOrEqual(box.y + box.height + 0.5)
+    expect(at.y + at.height).toBeLessThanOrEqual(box.y + box.height + 10.5 * scale)
     expect(at.x + at.width).toBeLessThanOrEqual(box.x + box.width + 0.5)
+    const hits = await button.evaluate((element) => {
+      const r = element.getBoundingClientRect()
+      const x = r.x + r.width / 2
+      return [r.y + 2, r.y + r.height / 2, r.y + r.height - 2].map(
+        (y) => document.elementFromPoint(x, y)?.closest('button') === element,
+      )
+    })
+    expect(hits, `${await button.innerText()} answers a tap along its box`).toEqual([
+      true,
+      true,
+      true,
+    ])
   }
-  // Nothing inside is cut off: the box and the sentence are as tall and as wide as their content.
+  // Nothing inside is cut off: the sentence is as tall and as wide as its text, and the box is as
+  // wide as its content (its height is not compared: the 44 px boxes reach past it by design).
   const cut = await banner.evaluate((section) => {
     const line = section.querySelector('p')!
-    return [section, line].some(
-      (element) =>
-        element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth,
+    return (
+      line.scrollHeight > line.clientHeight ||
+      line.scrollWidth > line.clientWidth ||
+      section.scrollWidth > section.clientWidth
     )
   })
   expect(cut).toBe(false)
@@ -498,6 +548,58 @@ for (const scenario of PHASES) {
   })
 }
 
+test('an illness and an injury window open on the same day have a line each at 360 px', async () => {
+  const { today } = relativeDates()
+  await page.setViewportSize({ width: 360, height: 740 })
+  const illness = (await api.post('/plan/disruptions', {
+    reason: 'illness-above-neck',
+    mode: 'rest',
+    startDate: addDays(today, -2),
+    endDate: addDays(today, 2),
+  })) as DisruptionResult
+  const injury = (await api.post('/plan/disruptions', {
+    reason: 'niggle',
+    mode: 'limited',
+    maxRunMin: 30,
+    area: 'left calf',
+    pain: 3,
+    startDate: addDays(today, -1),
+    endDate: addDays(today, 3),
+  })) as DisruptionResult
+  try {
+    await page.goto('/')
+    const slot = page.locator('[data-slot="disruption"]')
+    const bands = slot.getByRole('region', { name: 'Rest window' })
+    await expect(bands).toHaveCount(2)
+    await expect(bands.nth(0).getByText(/^Resting for illness until /)).toBeVisible()
+    await expect(bands.nth(1).getByText(/^Niggle: runs up to 30 min until /)).toBeVisible()
+    await expect(slot).toHaveAttribute('data-budget-px', '64')
+
+    // Each line is a band of its own, within the budget, and the slot is the two of them and the
+    // 12 px between them. Each has its own buttons, every one a 44 px target that answers a tap.
+    for (const band of await bands.all()) {
+      expect(await heightOf(band)).toBeLessThanOrEqual(64.5)
+      await expectWithinBanner(band, ["I'm better", 'Extend', 'Remove window'])
+    }
+    expect(await heightOf(slot)).toBeLessThanOrEqual(2 * 64 + 12 + 0.5)
+    expect(await scrollsSideways()).toBe(false)
+    await test.info().attach('today-360x740-two-windows', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+
+    // The second line's Extend acts on the second window.
+    await bands.nth(1).getByRole('button', { name: 'Extend' }).click()
+    await expect(page.getByRole('dialog', { name: 'Extend this window' })).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByRole('dialog', { name: 'Extend this window' })).toBeHidden()
+  } finally {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await api.delete(`/plan/disruptions/${injury.disruption.id}`)
+    await api.delete(`/plan/disruptions/${illness.disruption.id}`)
+  }
+})
+
 // A raised default text size (browser or system settings) scales every rem, and the 360 px
 // viewport stays what it is. The banner has to give up its 64 px, not its buttons or its words:
 // the buttons wrap onto a second row and the sentence takes the lines it needs. The stylesheet
@@ -525,7 +627,7 @@ for (const percent of [150, 200]) {
         content: `html { font-size: ${String(percent)}%; } .visually-hidden { display: none !important; }`,
       })
 
-      await expectWithinBanner(banner, ['Finish early', 'Extend', 'Remove window'])
+      await expectWithinBanner(banner, ['Finish early', 'Extend', 'Remove window'], percent / 100)
       await test.info().attach(`today-360x740-${String(percent)}pct`, {
         body: await page.screenshot(),
         contentType: 'image/png',
