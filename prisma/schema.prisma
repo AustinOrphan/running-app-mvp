@@ -16,6 +16,7 @@ model User {
   passwordHash String
   displayName  String?
   units        String   @default("mi") // 'mi' | 'km'
+  weightUnit   String   @default("lb") // 'lb' | 'kg'; strength loads are shown in it (the migration sets 'kg' where units = 'km')
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -39,6 +40,10 @@ model User {
   fuelSettings      FuelSettings?
   disruptions       Disruption[]
   weeklyBriefs      WeeklyBrief[]
+  strengthSettings  StrengthSettings?
+  strengthLifts     StrengthLift[]
+  strengthLogs      StrengthLog[]
+  strengthSets      StrengthSet[]
 }
 
 model Activity {
@@ -92,6 +97,7 @@ model Activity {
   planSession PlanSession?
   raceResult  RaceResult?
   fuelLog     FuelLog?
+  strengthLog StrengthLog?
 
   @@unique([userId, providerKey])
   @@index([userId, date])
@@ -687,4 +693,75 @@ model Disruption {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, status, endDate])
+}
+
+// The runner's equipment and lifting history (strength design 9.3; state: it decides which lifts a
+// workout holds). One row per user, created on the first PUT; a missing row means the defaults
+// below. `savedAt` stays null until the runner has saved the setup, which is what `setupSaved`
+// reads: until then the workout is built for bodyweight only.
+model StrengthSettings {
+  userId           String    @id
+  equipment        String    @default("[]") // JSON text: EquipmentConfig[]
+  level            String    @default("new") // 'new' | 'some' | 'experienced'
+  currentlyLifting Boolean   @default(false)
+  avoid            String    @default("[]") // JSON text: exercise ids left out
+  pinned           String    @default("{}") // JSON text: slot ('knee' | 'hip' | 'calf') to exercise id
+  note             String? // never read by the engine
+  savedAt          DateTime? // null until the runner saves the setup
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// A starting point the runner entered for one exercise (state: it sets a first load). One row per
+// exercise; a new entry replaces the previous one.
+model StrengthLift {
+  id         String   @id @default(cuid())
+  userId     String
+  exerciseId String
+  kind       String // 'set' | 'max'
+  loadG      Int
+  reps       Int // 1 for a max
+  rir        Int? // 0-5
+  asOf       String // YYYY-MM-DD
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exerciseId])
+}
+
+// One strength session's sets (state: the next suggestion and Today read it). `id` is chosen by the
+// client (a UUID), so the save is an idempotent PUT that the outbox may replay. The session's date,
+// minutes, effort, pain and note are the fields of the linked `Activity` (type 'strength').
+model StrengthLog {
+  id         String   @id
+  userId     String
+  activityId String   @unique
+  prescribed String // JSON text: the snapshot of what the sheet showed (strength design 9.3)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  sets     StrengthSet[]
+
+  @@index([userId])
+}
+
+model StrengthSet {
+  id         String @id @default(cuid())
+  logId      String
+  userId     String
+  exerciseId String
+  position   Int // order within the session
+  loadG      Int?
+  count      Int // reps, seconds or contacts, by the exercise's measure
+  rir        Int? // 0-5
+
+  log  StrengthLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([logId, position])
+  @@index([userId, exerciseId])
 }

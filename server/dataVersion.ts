@@ -36,6 +36,13 @@ export const STATE_MODELS = [
   'FuelProduct',
   'FuelLog',
   'FuelSettings',
+  // Strength (design 9.3): the equipment and level decide which lifts a workout holds, an anchor
+  // sets a first load and the logged sets set the next one, and Today reads the workout. The
+  // suggestion memo drops with a write to any of the four; none is written on a read path or by a job.
+  'StrengthSettings',
+  'StrengthLift',
+  'StrengthLog',
+  'StrengthSet',
   // The snapshot's prediction reads the race climate, so a refresh must drop a memoised prediction.
   'ClimateCache',
 ] as const
