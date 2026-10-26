@@ -3,9 +3,12 @@
   margin: 0;
 }
 
+/* The chart draws once at its initialDimension (640 px) before it measures this box; clipping keeps
+   that first frame from widening the page of a phone. */
 .chart {
   width: 100%;
   height: 11rem;
+  overflow: hidden;
 }
 
 .caption {
