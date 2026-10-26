@@ -87,8 +87,6 @@ export const KNOWN_UNRESOLVED: Record<string, string> = {
   'blythe-2016-runner-performance-prediction':
     'topics/ai-coaching.md; renamed blythe-2016-individual-prediction in the merge',
   'emig-2020-running-big-data': 'topics/ai-coaching.md; renamed emig-2020-big-data in the merge',
-  'zanini-2025-re-durability':
-    'topics/strength-plyometrics.md; one of the zanini-2024/2025/2026 papers, not determinable',
 }
 
 export function loadPaperFiles(root = RESEARCH_DIR): Array<{ file: string; data: unknown }> {

@@ -1,0 +1,34 @@
+{
+  "id": "louis-2011-master-athletes-strength-cycling",
+  "title": "Strength training improves cycling efficiency in master endurance athletes",
+  "authors": "Louis J, Hausswirth C, Easthope C, Brisswalter J",
+  "year": 2011,
+  "journal": "European Journal of Applied Physiology",
+  "doi": "10.1007/s00421-011-2013-1",
+  "pmid": "21638070",
+  "url": "https://doi.org/10.1007/s00421-011-2013-1",
+  "design": "observational-pre-post",
+  "population": "9 master endurance athletes (mean age 51.5 +/- 5.5 years) and 8 young endurance athletes (25.6 +/- 5.9 years) with similar training levels; cycling efficiency was measured, so not a running outcome",
+  "sampleSize": 17,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics", "age-masters"],
+  "findings": [
+    "Everyone trained the knee extensors for 3 consecutive weeks, three sessions a week of 10 x 10 knee extensions at 70% of maximal repetition with 3 minutes of rest, on a leg extension machine.",
+    "Before training, maximal voluntary contraction (MVC) torque, force endurance and cycling delta efficiency were lower in the masters than in the young athletes.",
+    "MVC torque rose in all athletes, more in the masters (+17.8%) than in the young (+5.9%, p < 0.05); cycling delta efficiency rose significantly in the masters and showed only a trend in the young.",
+    "In the masters the change in MVC torque correlated with delta efficiency in cycling (r = 0.79, p < 0.01). The authors conclude that the programme alleviated the age-related differences in strength and efficiency."
+  ],
+  "limitations": "Seventeen athletes, no control group, three weeks of one machine exercise, and cycling efficiency as the outcome, not running economy or performance. It is the only data in the corpus on endurance athletes with a mean age above 50, and it is not about runners. Abstract read; full text not read.",
+  "implications": [
+    "Endurance athletes of about 50 years gained knee-extensor strength from a short programme, more than younger athletes did, and efficiency on a bike followed in the masters. It is a reason not to cut the strength prescription by age, and no evidence on running or on the loads and exercises used by the engine.",
+    "Leaves a gap above about 50 years in runners; the ramp-in length for masters stays a design default."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Eur J Appl Physiol 112(2):631-640, issued online 2011-06-03 (Europe PMC year 2012), four authors and DOI match. Europe PMC abstract (PMID 21638070) read; every figure above is in it. Design set to observational-pre-post: every athlete had the same programme and the abstract names no control group.",
+    "checkedAt": "2026-10-25"
+  }
+}

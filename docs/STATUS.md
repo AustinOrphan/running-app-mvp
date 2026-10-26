@@ -1340,6 +1340,20 @@ things stand" gives counts and percentages without a weekly total or a date.
     the barbell for anyone with a bar after the ramp-in, a plyometric ladder that steps only after a
     completed running week. The ADR is 0014. Next: its task list (section 17, E14-1 to E14-11 and
     C2), which moves to `docs/superpowers/plans/` when the epic is scheduled.
+    Wave 0 done in #572 (2026-10-25): task E14-1 added rules F7 (session structure and exercise
+    selection, grade A for the method and D for every dose), F8 (load progression, D) and F9
+    (lighter days, the taper and the return after a gap, D) to `research/engine-rules.md`, with E5,
+    F4, F-lib, H5 and H10 amended; 20 papers from a gap pass on the design's twelve evidence gaps
+    (corpus 396, none closes a gap); the 34 Params of `f7`, `f8` and `f9` (`PARAMS_VERSION`
+    2026-10-25.4, every value grade D except `f7.expectedBenefitPct`, A); and ADR 0014, Proposed.
+    A five-lens review raised 46 findings: 19 applied as wording fixes, 27 refuted. Open for the
+    owner: (1) whether to keep the A/B alternation of straight-knee and bent-knee calf raises,
+    which `kinoshita-2023-standing-seated-calf-raise` does not back; (2) the two bodyweight
+    movements entered at no added load in `f8.startFractionBodyweight` (the single-leg box squat
+    and the single-leg calf raise); (3) spec 5.4 gives `f7.maintenanceSessionMin` to a lighter
+    session while 8.1 and 8.5 give a lighter week 40 minutes, and the Params follow 8.1 and 8.5.
+    Next: wave 1, tasks E14-2 (weights, the catalogue, the load quantity and the copy) and E14-3
+    (the anchored block, the session budgets and the rule ids in the engine).
 19. Done in #567: the Today disruption presentation, from the owner's feedback of 2026-10-24 on
     Today with an illness window. (a) The band owns the window and the verdict names the day: while
     the illness windows hold the n-3 gate, the payload leaves out the illness note and the illness

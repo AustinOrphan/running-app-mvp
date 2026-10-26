@@ -1,0 +1,34 @@
+{
+  "id": "ramirezcampillo-2021-jump-training-runners",
+  "title": "Effects of jump training on physical fitness and athletic performance in endurance runners: A meta-analysis",
+  "authors": "Ramirez-Campillo R, Andrade DC, García-Pinillos F, Negra Y, Boullosa D, Moran J",
+  "year": 2021,
+  "journal": "Journal of Sports Sciences",
+  "doi": "10.1080/02640414.2021.1916261",
+  "pmid": "33956587",
+  "url": "https://doi.org/10.1080/02640414.2021.1916261",
+  "design": "meta-analysis",
+  "population": "Healthy endurance runners of any age and sex in controlled studies; 21 moderate-to-high quality studies with 511 participants",
+  "sampleSize": 511,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Twenty-one controlled studies with 511 participants were pooled with a random-effects model (Hedge's g).",
+    "Jump training gave a significant moderate improvement in time-trial performance over 2.0-5.0 km (ES 0.88), without enhancement of VO2max, velocity at VO2max, velocity at submaximal lactate levels, heart rate or stride rate at submaximal velocities, stiffness, body mass or maximal strength.",
+    "Significant small-to-moderate improvements were found for jump performance, rate of force development, sprint performance, reactive strength and running economy (ES 0.36-0.73; p < 0.001 to 0.031; I2 = 0.0% to 49.3%).",
+    "The authors conclude that jump training is effective in improving physical fitness and athletic performance in endurance runners, and that the time-trial gain may be mediated by force generation and running economy."
+  ],
+  "limitations": "The time-trial gain is for distances of 2-5 km, not for marathons or ultras; the abstract gives no dose (contacts, frequency or duration), no moderator results and no certainty rating, and it pools runners of any age and sex without a result by group. Abstract read; full text not read.",
+  "implications": [
+    "Supports the plyometric half of the block in runners by a pooled analysis of jump training alone: better running economy and short time trials, no change in VO2max. A bodyweight programme of jumps is therefore not empty of evidence, and it should not be described as heavy.",
+    "Gives no starting dose, step or cap for ground contacts; the ladder keeps the 200 contacts of the earlier meta-analyses as its cap (A) and its starts and steps as defaults (D)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, J Sports Sci 39(17):2030-2050, 2021, six authors and DOI match. Europe PMC abstract (PMID 33956587) read; every figure above is in it.",
+    "checkedAt": "2026-10-25"
+  }
+}

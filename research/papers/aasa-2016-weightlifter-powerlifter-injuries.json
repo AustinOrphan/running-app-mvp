@@ -1,0 +1,34 @@
+{
+  "id": "aasa-2016-weightlifter-powerlifter-injuries",
+  "title": "Injuries among weightlifters and powerlifters: a systematic review",
+  "authors": "Aasa U, Svartholm I, Andersson F, Berglund L",
+  "year": 2016,
+  "journal": "British Journal of Sports Medicine",
+  "doi": "10.1136/bjsports-2016-096037",
+  "pmid": "27707741",
+  "url": "https://doi.org/10.1136/bjsports-2016-096037",
+  "design": "systematic-review",
+  "population": "Olympic weightlifters and powerlifters in 9 studies of injury incidence and prevalence; competitive lifters, not recreational runners",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Five databases were searched in March and April 2015 and 9 studies were included; the authors rate most of them as of low methodological quality.",
+    "The spine, shoulder and knee were the most common injury locations in both sports.",
+    "Injury incidence was 2.4-3.3 injuries per 1000 hours of training in weightlifting and 1.0-4.4 per 1000 hours in powerlifting. Only one retrospective study had analysed risk factors.",
+    "The authors conclude that the risk of injury in both sports was similar to other non-contact sports that require strength and power and low compared with contact sports, and that the severity of injuries differed between studies."
+  ],
+  "limitations": "Competitive lifters training for maximal lifts, not recreational runners lifting submaximal loads; nine studies, most of low quality, mostly retrospective; no data on a beginner learning a barbell lift. It describes the injury rate of a sport, not the risk of a first barbell session. Abstract read; full text not read.",
+  "implications": [
+    "The only injury-rate data for barbell lifting in the corpus, from competitive lifters. It lets the plan say that injury rates in these sports are in the range of other non-contact sports, and it says nothing about a recreational runner starting a squat or a hinge: the controls (a safety line, no maximal attempt, repetitions left in the first session) stay.",
+    "Upper limit of what the app can say: no statement that barbell lifts are safe for runners."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Br J Sports Med 51(4):211-219, issued online 2016-10-04 (Europe PMC year 2017), four authors and DOI match. Europe PMC abstract (PMID 27707741) read; every figure above is in it. Evidence level C because the review itself rates most included studies as low quality.",
+    "checkedAt": "2026-10-25"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "zourdos-2016-rir-rpe-scale",
+  "title": "Novel Resistance Training-Specific Rating of Perceived Exertion Scale Measuring Repetitions in Reserve",
+  "authors": "Zourdos MC, Klemp A, Dolan C, Quiles JM, Schau KA, Jo E, Helms E, Esgro B, Duncan S, Garcia Merino S, Blanco R",
+  "year": 2016,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000001049",
+  "pmid": "26049792",
+  "url": "https://doi.org/10.1519/jsc.0000000000001049",
+  "design": "cross-sectional",
+  "population": "29 adults (mean age 24.0 years) who squatted: 15 experienced squatters (training age 5.2 +/- 3.5 years) and 14 novice squatters (0.4 +/- 0.6 years). Not runners.",
+  "sampleSize": 29,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Each person performed a 1RM squat, then one repetition at 60, 75 and 90% of 1RM and an 8-repetition set at 70% 1RM, and rated each with an effort score that matched repetitions in reserve (RPE 10 = 0 reps in reserve, RPE 9 = 1 in reserve, and so on).",
+    "Average barbell velocity was slower in the experienced than in the novice squatters at 100% and 90% 1RM (p <= 0.05) and did not differ at 60 and 75% 1RM or on the first and eighth repetitions of the 70% set (p > 0.05). The experienced group rated the 1RM as harder (p = 0.023).",
+    "Average velocity and the effort score were strongly inversely related at all intensities, r = -0.88 in the experienced and r = -0.77 in the novice squatters.",
+    "The authors call the reps-in-reserve effort scale a practical method to regulate daily training load and to give feedback during a 1RM test."
+  ],
+  "limitations": "One lift (the barbell squat) in 29 young adults, mostly at single repetitions and one set of 8; it relates the effort rating to bar velocity and does not test whether a load prescribed by reps in reserve gives better strength or running results than another method. No runners, no women-only or older group stated in the abstract. Abstract read; full text not read.",
+  "implications": [
+    "Supports using a count of repetitions in reserve as a daily effort target for a squat, with a measurable link to bar speed in novice and experienced lifters. It does not validate the target values the engine uses (f7.heavyRir, f7.easyRir), which stay grade D.",
+    "The rating was checked against velocity, not against the true number of repetitions left; the accuracy of that count is the subject of the Halperin 2021 review."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title (en dash in Crossref, hyphen here), J Strength Cond Res 30(1):267-275, 2016, eleven authors and DOI match. Europe PMC abstract (PMID 26049792) read; every figure above is in it. Design set to cross-sectional because each person did the same tests once and two groups were compared.",
+    "checkedAt": "2026-10-25"
+  }
+}

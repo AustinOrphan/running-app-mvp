@@ -1,0 +1,33 @@
+{
+  "id": "wallace-2010-plyometric-grf",
+  "title": "Quantification of Vertical Ground Reaction Forces of Popular Bilateral Plyometric Exercises",
+  "authors": "Wallace BJ, Kernozek TW, White JM, Kline DE, Wright GA, Peng H, Huang C",
+  "year": 2010,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0b013e3181c3b841",
+  "pmid": "19924006",
+  "url": "https://doi.org/10.1519/jsc.0b013e3181c3b841",
+  "design": "experimental-repeated-measures",
+  "population": "14 power-oriented collegiate and national-level track and field men; not runners and not recreational athletes",
+  "sampleSize": 14,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Each man performed 3 trials of 9 bilateral plyometric exercises in one session: depth drops (DD) and depth jumps (DJ) from 30, 60 and 90 cm, a vertical jump (VJ), a standing long jump (SLJ) and 2 consecutive jumps (2CJ). Peak impact vertical ground reaction forces were normalised to body weight.",
+    "The 90 cm depth drop, the 90 cm depth jump, the 60 cm depth drop and the standing long jump peaked significantly higher than the vertical jump: 5.39, 4.93, 4.30 and 4.22 times body weight against 3.34 times body weight for the vertical jump.",
+    "The 30 cm depth jump peaked at 2.78 times body weight, insignificantly lower than the vertical jump, and the standing long jump peaked higher than the 2 consecutive jumps (p <= 0.05)."
+  ],
+  "limitations": "Fourteen collegiate and national-level power athletes in one session; peak impact force of landing only, not the rate of loading, the tissue load, the number of contacts or any injury outcome; none of the movements are the low-amplitude on-the-spot hops of a beginner ladder. Abstract read; full text not read.",
+  "implications": [
+    "Landing force rises steeply with drop height: depth drops from 60 and 90 cm and depth jumps from 90 cm peaked at about 4.3-5.4 times body weight against about 3.3 for a vertical jump. It supports leaving depth jumps and drops out of a plan for recreational runners, for which the corpus has no dose or bone-stress data, and it does not measure the engine's own movements.",
+    "No claim that a given movement is safe or unsafe follows from a peak force."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, J Strength Cond Res 24(1):207-212, 2010-01, seven authors and DOI match. Europe PMC abstract (PMID 19924006) read; every figure above is in it. The abstract lists the four significantly higher conditions in the order 90DD, 90DJ, 60DD, SLJ with 5.39, 4.93, 4.30 and 4.22 times body weight.",
+    "checkedAt": "2026-10-25"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "keogh-2016-weight-training-injuries",
+  "title": "The Epidemiology of Injuries Across the Weight-Training Sports",
+  "authors": "Keogh JWL, Winwood PW",
+  "year": 2016,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-016-0575-0",
+  "pmid": "27328853",
+  "url": "https://doi.org/10.1007/s40279-016-0575-0",
+  "design": "systematic-review",
+  "population": "Competitive athletes in weightlifting, powerlifting, bodybuilding, strongman, Highland Games and CrossFit; 20 eligible injury-epidemiology studies; not recreational runners",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Twenty studies were eligible; only five had a risk-of-bias score of 75% or more (low risk of bias), 14 had more than 100 participants and only four were prospective.",
+    "Bodybuilding had the lowest injury rates (0.12-0.7 injuries per lifter per year; 0.24-1 injury per 1000 hours); strongman (4.5-6.1 per 1000 hours) and Highland Games (7.5 per 1000 hours) had the highest.",
+    "The shoulder, lower back, knee, elbow and wrist or hand were generally the most common injury locations; strains, tendinitis and sprains were the most common types. Very few differences by age, sex, competitive standard or bodyweight class were found.",
+    "The authors conclude that the weight-training sports appear to have relatively low injury rates compared with common team sports, and that research is needed with prospective designs and measured exposure."
+  ],
+  "limitations": "Competitive athletes of sports that use heavy loads in competition, mostly retrospective studies; no recreational lifters and no runners; rates per 1000 hours differ widely between sports. Abstract read; full text not read.",
+  "implications": [
+    "Second source, with the Aasa 2016 review, for the statement that injury rates in the lifting sports are low next to team sports. The same limit applies: competitive lifters, not a recreational runner starting barbell work, so there is still no safety data for that group (the gap behind the barbell rule).",
+    "Lower back, knee and shoulder are the common sites in lifters; the engine's lower-body catalogue has no upper-body or overhead lift."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Sports Med 47:479-501, issued online 2016-06-21 (Europe PMC year 2017), two authors and DOI match. Europe PMC abstract (PMID 27328853) read; every figure above is in it. Evidence level C because only five of the 20 studies had a low risk of bias.",
+    "checkedAt": "2026-10-25"
+  }
+}

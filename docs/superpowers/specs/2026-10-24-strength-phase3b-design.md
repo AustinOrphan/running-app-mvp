@@ -1293,8 +1293,8 @@ from a lift's "Why" and from the hero's Explain. It shows, in the existing order
    for, and why a plyometric dose is half (pace above 12 km/h, a bone stress history).
 3. **The rules that rest on the rule alone** (E5, F4, F-lib), each with its grade and papers, as
    now.
-4. **The grade and the gap**: F8 and F9 show grade D with one sentence from section 4.4 ("No study
-   compares ways of choosing the next load; this is a default.").
+4. **The grade and the gap**: F8 and F9 show grade D with one sentence from section 4.4 ("No study in
+   runners compares ways of choosing the next load; this is a default.").
 
 Every sentence is a template over a fact (ADR 0010): the suggestion carries `basis`, a list of
 `{ template, slots }`, so the sheet's one-line reason, the drawer and the stored snapshot render

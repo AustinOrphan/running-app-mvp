@@ -2915,6 +2915,12 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'F4',
   'F6',
   'F-lib',
+  // strength prescription: F7 to F9 are derived on read from the runner's log (ADR 0014). They
+  // rest on the rule alone until their builders read the sets of an exercise (task E14-6), which
+  // then move each id to INPUT_BUILDERS
+  'F7',
+  'F8',
+  'F9',
   // limits that restate a principle
   'g-4',
   'g-5',

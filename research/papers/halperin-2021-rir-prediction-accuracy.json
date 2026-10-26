@@ -1,0 +1,35 @@
+{
+  "id": "halperin-2021-rir-prediction-accuracy",
+  "title": "Accuracy in Predicting Repetitions to Task Failure in Resistance Exercise: A Scoping Review and Exploratory Meta-analysis",
+  "authors": "Halperin I, Malleron T, Har-Nir I, Androulakis-Korakakis P, Wolf M, Fisher J, Steele J",
+  "year": 2021,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-021-01559-x",
+  "pmid": "34542869",
+  "url": "https://doi.org/10.1007/s40279-021-01559-x",
+  "design": "meta-analysis",
+  "population": "Healthy participants who predicted how many repetitions they could complete to task failure in resistance exercises; 13 publications covering 12 studies and 414 participants in the meta-analysis. Not runners.",
+  "sampleSize": 414,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "Searched PubMed, SPORTDiscus and Google Scholar in January 2021; 16 publications were eligible and 13 (12 studies, 414 participants) entered the meta-analysis.",
+    "Across 262 effect sizes in 12 clusters, participants tended to underpredict the number of repetitions to task failure by 0.95 repetitions (95% CI 0.17-1.73), with considerable heterogeneity (I2 = 97.9%).",
+    "Prediction accuracy improved slightly when the prediction was made closer to set failure (beta = -0.025, 95% CI -0.05 to 0.0014), in later sets (beta = -0.07, 95% CI -0.14 to -0.005) and when fewer repetitions were performed to failure (beta = 0.06 for sets of 12 repetitions or fewer, beta = 0.47 above 12).",
+    "Training status (beta = -0.006) and upper against lower body exercise (difference -0.58 repetitions, 95% CI -2.32 to 1.16) did not influence accuracy; the between-participant standard deviation was 1.45 repetitions (95% CI 0.99-2.12).",
+    "The authors conclude that participants were imperfect in predicting proximity to failure whatever their training background, and that accuracy can be improved closer to failure, with heavier loads or in later sets; whether this error is acceptable remains to be determined."
+  ],
+  "limitations": "A scoping review with an exploratory meta-analysis and very high heterogeneity; the studies differ in how task failure was explained and confirmed. Healthy participants, with age and sex mix not given in the abstract; no runners and no study that links the error to a training outcome or an injury. Abstract read; full text not read.",
+  "implications": [
+    "A runner's count of repetitions in reserve is an imprecise number: the typical error is about one repetition, with an individual spread of about one and a half, and it shrinks for heavier loads and sets that end closer to failure. A load rule that reads it should not treat 1 and 2 in reserve as different facts, and should hold the load when the count is missing.",
+    "The mean error is an underprediction of the repetitions left. The direction is not used to relax any engine threshold: the load rule stays conservative (grade D)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Sports Med 52:377-390, issued online 2021-09-20 (Europe PMC year 2022), seven authors and DOI match. Europe PMC abstract (PMID 34542869) read; every figure above is in it. The year is Crossref's online year.",
+    "checkedAt": "2026-10-25"
+  }
+}
