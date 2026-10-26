@@ -1009,6 +1009,161 @@ describe('Plan page, the load setting in effect', () => {
   })
 })
 
+describe('Plan page, changing the load setting', () => {
+  const load = (over: Partial<LoadPosition> = {}): LoadPosition => ({
+    requested: 'steady',
+    position: 'steady',
+    held: null,
+    ageCapped: false,
+    ...over,
+  })
+  const changed = (loadAppetite: string) => ({ loadAppetite, revision: null })
+  const putLoad = (calls: Array<{ method: string; url: string }>) =>
+    calls.filter((c) => c.method === 'PUT' && c.url === '/api/plan/load')
+
+  async function openSheet(user: ReturnType<typeof userEvent.setup>) {
+    const panel = await screen.findByRole('region', { name: 'Load setting' })
+    await user.click(within(panel).getByRole('button', { name: 'Change' }))
+    return screen.findByRole('dialog', { name: 'Change load setting' })
+  }
+
+  test('shows the panel for a plan with no stored option, as Steady, with its Change action', async () => {
+    // a plan whose options hold no position reads as Steady (`parsePlanOptions`), so the server
+    // names it and the panel shows
+    mockApi(routes(makeV2Plan()))
+    renderPlan()
+    const panel = await screen.findByRole('region', { name: 'Load setting' })
+    expect(within(panel).getByText('Steady')).toBeInTheDocument()
+    expect(within(panel).getByText("Adds up to 10% a week, the plan's usual step.")).toBeVisible()
+    expect(within(panel).getByRole('button', { name: 'Change' })).toBeEnabled()
+    expectCleanCopy(panel)
+  })
+
+  test('Change opens a sheet with the three positions, their hints, the age line and the trade-off', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(makeV2Plan()))
+    renderPlan()
+    const dialog = await openSheet(user)
+
+    // the Generate form's field: one radio group, the three positions, Steady chosen
+    const group = within(dialog).getByRole('radiogroup', { name: 'Load' })
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((radio) => radio.textContent),
+    ).toEqual(['Steady', 'Standard', 'Upper band'])
+    expect(within(group).getByRole('radio', { name: 'Steady' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(within(dialog).getByText("Adds up to 10% a week, the plan's usual step.")).toBeVisible()
+    expect(within(dialog).getByText(loadTradeoff())).toBeVisible()
+    expect(within(dialog).queryByText(/At age 45 or over/)).not.toBeInTheDocument()
+
+    await user.click(within(group).getByRole('radio', { name: 'Standard' }))
+    expect(
+      within(dialog).getByText(
+        /^Adds up to \d+(\.\d+)?% a week while rebuilding toward a level held in the last 12 weeks\./,
+      ),
+    ).toBeVisible()
+    await user.click(within(group).getByRole('radio', { name: 'Upper band' }))
+    expect(
+      within(dialog).getByText(/^Adds up to \d+(\.\d+)?% a week while rebuilding, the most/),
+    ).toBeVisible()
+    expect(
+      within(dialog).getByText('At age 45 or over, Upper band is held at Standard.'),
+    ).toBeVisible()
+    expectCleanCopy(dialog)
+  })
+
+  test('Apply sends the position in one request, reads the plan again and closes the sheet', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan(), { 'PUT /api/plan/load': () => changed('standard') }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Standard' }))
+    const before = calls.length
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Change load setting' })).not.toBeInTheDocument()
+    })
+    expect(putLoad(calls)).toHaveLength(1)
+    expect(putLoad(calls)[0]).toMatchObject({ body: { loadAppetite: 'standard' } })
+    // the plan, its revisions and the readers that follow the plan are asked for again
+    await waitFor(() => {
+      const after = calls.slice(before).map((c) => c.url)
+      expect(after).toContain('/api/plan')
+      expect(after).toContain('/api/plan/revisions')
+    })
+    expect(await screen.findByText('Load setting changed')).toBeInTheDocument()
+  })
+
+  test('the position the plan is set to disables Apply, also while it is held, and sends nothing', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(
+        makeV2Plan({
+          load: load({ requested: 'standard', position: 'steady', held: 'rest-window' }),
+        }),
+      ),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    const apply = within(dialog).getByRole('button', { name: 'Apply' })
+    // the sheet starts from what the plan was set to, not from what applies
+    expect(within(dialog).getByRole('radio', { name: 'Standard' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(apply).toBeDisabled()
+    await user.click(within(dialog).getByRole('radio', { name: 'Steady' }))
+    expect(apply).toBeEnabled()
+    await user.click(within(dialog).getByRole('radio', { name: 'Standard' }))
+    expect(apply).toBeDisabled()
+    await user.click(apply)
+    expect(putLoad(calls)).toHaveLength(0)
+  })
+
+  test('Cancel closes the sheet and sends nothing', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(routes(makeV2Plan()))
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Upper band' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog', { name: 'Change load setting' })).not.toBeInTheDocument()
+    expect(putLoad(calls)).toHaveLength(0)
+  })
+
+  test('a refusal is said in the sheet, which stays open', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan(), {
+        'PUT /api/plan/load': () => ({
+          status: 422,
+          body: {
+            error: {
+              code: 'validation',
+              message: 'The plan did not pass the plan checks, so it was not published.',
+            },
+          },
+        }),
+      }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Upper band' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert).toHaveTextContent('The plan did not pass the plan checks')
+    expect(screen.getByRole('dialog', { name: 'Change load setting' })).toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+})
+
 describe('Plan page, version-1 plans', () => {
   test('stay as before: no feasibility, no checks, no day cards, no revisions request', async () => {
     const { calls } = mockApi(routes(makeV1Plan()))

@@ -13,11 +13,13 @@
 import { addDays } from '../dates.ts'
 import type { DisruptionIssue, DisruptionIssueCode, WindowPlan } from '../engine/disruption.ts'
 import { RUN_CAP_MAX_MIN } from '../engine/disruption.ts'
+import { positionStep, type LoadPosition } from '../engine/loadSetting.ts'
 import { P } from '../engine/params/index.ts'
 import type { Quantity } from '../engine/types.ts'
 import type { SafetyRule, UndoFinding } from '../engine/undoGuard.ts'
 import type { ZoneBoundary } from '../engine/zoneChange.ts'
 import type { ActivityType, DisruptionReason, TargetDiffLine, UndoReason, Units } from '../types.ts'
+import { loadCappedLine, loadHeldLine, loadName, stepPercent } from './load.ts'
 import { countPhrase } from './quantity.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -500,6 +502,25 @@ export const REVISION_TEMPLATES = {
     { date: 'date', asked: 'minutes', kept: 'minutes' },
   ),
 
+  // The summary of a change of the load setting [rules g-8]: the position and the step the weeks
+  // ahead use. Steady has no zone to rebuild in, so its sentence is a plain weekly step. A position
+  // that is held, or read as Standard because of age, adds the reason (`load.held`, `load.capped`).
+  'revision.load.rebuilding': tpl(
+    'Load setting changed to {position}: weeks ahead add up to {pct} while rebuilding.',
+    { position: 'text', pct: 'percent' },
+    { fallback: 'Load setting changed.' },
+  ),
+  'revision.load.steady': tpl(
+    'Load setting changed to {position}: weeks ahead add up to {pct} a week.',
+    { position: 'text', pct: 'percent' },
+    { fallback: 'Load setting changed.' },
+  ),
+  'revision.load.changed': tpl(
+    'Load setting changed to {position}.',
+    { position: 'text' },
+    { fallback: 'Load setting changed.' },
+  ),
+
   // The summary of a new plan.
   'revision.generated': tpl('Plan generated for {goal}: {weeks} weeks, {sessions} sessions.', {
     goal: 'text',
@@ -597,6 +618,29 @@ export function decisionSummary(decision: string, nextWeekTargetMin: number): st
     { decision, minutes: { kind: 'minutes', min: nextWeekTargetMin } },
     STORED_UNITS,
   )
+}
+
+/**
+ * The summary of a change of the load setting: the position chosen and the step the weeks ahead
+ * take at the position in effect. A position held at steady says why and gives no step, since the
+ * steady step applies for now; Upper band read as Standard names the step of Standard and the age.
+ */
+export function loadSettingSummary(load: LoadPosition): string {
+  const position = loadName(load.requested)
+  if (load.held !== null) {
+    return [
+      render(REVISION_TEMPLATES['revision.load.changed'], { position }, STORED_UNITS),
+      loadHeldLine(load.held),
+    ].join(' ')
+  }
+  const lead = render(
+    REVISION_TEMPLATES[
+      load.position === 'steady' ? 'revision.load.steady' : 'revision.load.rebuilding'
+    ],
+    { position, pct: stepPercent(positionStep(load.position)) },
+    STORED_UNITS,
+  )
+  return load.ageCapped ? `${lead} ${loadCappedLine()}` : lead
 }
 
 /**

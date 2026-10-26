@@ -1391,10 +1391,10 @@ things stand" gives counts and percentages without a weekly total or a date.
     setting on the Generate form and the Plan page (L4), the copy and the Why drawer's g-8 facts
     (L5), the fixtures, the sweep and the replay on real history (L6), and the close review (L7),
     with rule g-8, nine grade D Params and ADR 0013. Still open: the confirmation of L3d's two
-    changes and the figures question under "Decisions for the owner", and follow-ups 23 to 26. Not
-    built: a plan action that changes the position once the plan exists (L4b, optional, decision 6
-    of the proposal), so no revision line for a change of position exists. Not proposed, by
-    decision 10: a G-1 history reference.
+    changes and the figures question under "Decisions for the owner", and follow-ups 23 to 26. The
+    plan action that changes the position once the plan exists (L4b, decision 6 of the proposal)
+    shipped in #575: `PUT /api/plan/load` records one revision with an undo and no preview. Not
+    proposed, by decision 10: a G-1 history reference.
 23. The kept-target warning of spec 4.8. A raised week target kept at a re-plan above the soft step
     carries no `progression` warning: the checklist is built from the engine draft, which never
     holds the runner's raised figure. Case: a loading week whose target the runner raised above the
