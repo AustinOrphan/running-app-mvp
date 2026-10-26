@@ -1699,7 +1699,11 @@ export interface WorkoutLift {
   /** The count to aim at in each set. */
   targets: number[]
   loadG: number | null
-  /** The loads the equipment can make, so a stepper and a suggestion stay on them; null without a load. */
+  /**
+   * The loads the equipment can make, so a stepper and a suggestion stay on them. Present for any
+   * implement that carries a load, also when the load starts at none (a movement that takes an
+   * added load if any); null for bodyweight, a band and a hold.
+   */
   steps: LoadSteps | null
   /** Reps in reserve to leave; null for exercises without an effort target. */
   rir: { min: number; max: number } | null
