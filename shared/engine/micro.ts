@@ -210,7 +210,12 @@ export function placeWeek(
   )
   const runs = planRuns(week, ctx, slots, before, caps, limits, windows)
   capIntensity(runs, week, ctx.zones)
-  const strength = planStrength(week, ctx.profile, slots, runs)
+  // The lifts the week already holds: finished or kept sessions on its closed days (a re-plan keeps
+  // them). They count against the week's lifts and the days beside them are not preferred [rule F4].
+  const heldLifts = before
+    .filter((s) => s.kind === 'strength' && s.date >= week.weekStart)
+    .map((s) => daysBetween(week.weekStart, s.date))
+  const strength = planStrength(week, ctx.profile, slots, runs, heldLifts)
 
   let specs = fitDistances(runs, slots, caps, ctx.zones, week)
   if (ctx.windowPlan === true) {
@@ -865,14 +870,19 @@ function strengthMinutes(week: WeekDraft): number {
  */
 const roomMin = (slot: Slot): number => (slot.bound ? slot.capMin : slot.availMin)
 
-/** Days for strength: easy or free days, never a hard day, the long day or the day before it. */
+/**
+ * Days for strength: easy or free days, never a hard day, the long day or the day before it. `held`
+ * are the days of the week that already hold a lift (finished, or kept by a re-plan): they count
+ * against the lifts the week wants, so a re-plan in mid-week adds only what is still to come.
+ */
 function planStrength(
   week: WeekDraft,
   profile: AthleteProfile,
   slots: Slot[],
   runs: RunPlan[],
+  held: readonly number[],
 ): number[] {
-  const wanted = Math.min(week.strengthSessions, profile.strengthPreference)
+  const wanted = Math.min(week.strengthSessions, profile.strengthPreference) - held.length
   if (wanted <= 0) return []
   const minutes = strengthMinutes(week)
   const longStart = runs
@@ -894,7 +904,7 @@ function planStrength(
     const left = candidates.filter((d) => !picked.includes(d))
     if (left.length === 0) break
     const keyOf = (d: number) => [
-      picked.some((p) => Math.abs(p - d) < 2) ? 1 : 0,
+      [...held, ...picked].some((p) => Math.abs(p - d) < 2) ? 1 : 0,
       runOn(d) ? 0 : 1,
       d,
     ]

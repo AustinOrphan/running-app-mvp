@@ -561,6 +561,58 @@ describe('placeWeek', () => {
       expect(run(['strength-block']).some((s) => s.kind === 'strength')).toBe(false)
     })
 
+    describe('the lifts a week already holds [rule F4]', () => {
+      // a re-plan keeps the finished sessions of the current week on its closed days: Tuesday is
+      // closed here, and a lift of the week stands on it
+      const noRuns = { targetRunMin: 0, longRunMin: 0, runDays: 0, qualitySessions: 0 }
+      const closed = (...days: Array<'mon' | 'tue' | 'wed'>) =>
+        availability(
+          Object.fromEntries(
+            days.map((d) => [d, { available: false, maxMin: null }]),
+          ) as Parameters<typeof availability>[0],
+        )
+      const lift = (date: string) => session({ date, kind: 'strength', durationMin: 40 })
+      const placed = (
+        planned: number,
+        held: SessionSpec[],
+        over: { preference?: 0 | 1 | 2; closedDays?: Array<'mon' | 'tue' | 'wed'> } = {},
+      ) =>
+        place(week({ ...noRuns, strengthSessions: planned, flags: ['strength-block'] }), {
+          profile: profile({
+            availability: closed(...(over.closedDays ?? ['tue'])),
+            strengthPreference: over.preference ?? 2,
+          }),
+          prev: held,
+        }).filter((s) => s.kind === 'strength')
+
+      it('places only the lifts still to come', () => {
+        expect(placed(2, [])).toHaveLength(2)
+        expect(placed(2, [lift('2026-11-03')])).toHaveLength(1)
+        expect(
+          placed(2, [lift('2026-11-02'), lift('2026-11-03')], { closedDays: ['mon', 'tue'] }),
+        ).toHaveLength(0)
+        expect(placed(1, [lift('2026-11-03')])).toHaveLength(0)
+      })
+
+      it('counts a lift that was finished and one that was kept alike, and never above the preference', () => {
+        const done = { ...lift('2026-11-03'), status: 'completed' }
+        expect(placed(2, [done as SessionSpec])).toHaveLength(1)
+        // the runner asked for one a week: a lift already held fills it
+        expect(placed(2, [lift('2026-11-03')], { preference: 1 })).toHaveLength(0)
+      })
+
+      it('prefers a day apart from the lift already held', () => {
+        const [added] = placed(2, [lift('2026-11-03')])
+        // Tuesday holds the lift: not Monday nor Wednesday while later days are free
+        expect([0, 2]).not.toContain(dayOf(added!))
+      })
+
+      it('ignores a lift of another week and a lift on an open day', () => {
+        expect(placed(2, [lift('2026-10-27')])).toHaveLength(2)
+        expect(placed(2, [lift('2026-11-04')], { closedDays: ['tue'] })).toHaveLength(2)
+      })
+    })
+
     describe('the room of a session on a day [rules F4, F7, G-1]', () => {
       // one 20-minute run in the last 30 days: the spike guard caps a run at 22 minutes on any day,
       // under both budgets, while the days themselves have no limit

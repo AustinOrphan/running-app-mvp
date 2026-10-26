@@ -565,6 +565,70 @@ describe('the strength block across plans [rule E5]', () => {
     expect(outside).toBeGreaterThan(0)
   })
 
+  describe('a re-plan in mid-week [rule F4]', () => {
+    // The week of the second plan holds two lifts. The re-plan comes the day after the first one
+    // (or after both) was finished: the lifts the week already holds count against its two.
+    const steps = replanChain(lifting('first-100-mile'), { maxSteps: 1 })
+    const stored = steps[1]!
+    const monday = mondayOf(stored.input.today)
+    const week = stored.draft.weeks.find((w) => w.weekStart === monday)!
+    const liftsOf = (draft: PlanDraft) =>
+      draft.sessions
+        .filter((s) => s.kind === 'strength' && mondayOf(s.date) === monday)
+        .sort((a, b) => (a.date < b.date ? -1 : 1))
+    const planned = liftsOf(stored.draft)
+
+    const replanOn = (today: string, finished: number) =>
+      replan({
+        ...stored.input,
+        today,
+        existing: {
+          weeks: stored.draft.weeks,
+          sessions: stored.draft.sessions.map((s, i) => ({
+            ...s,
+            id: `s${String(i)}`,
+            status:
+              s.date < today && planned.indexOf(s) < finished
+                ? 'completed'
+                : s.date < today
+                  ? 'skipped'
+                  : 'planned',
+            activityId: null,
+          })),
+        },
+      }).draft
+
+    it('starts from a week of two lifts, the second after the first', () => {
+      expect(week.strengthSessions).toBe(2)
+      expect(planned).toHaveLength(2)
+      expect(planned[1]!.date > planned[0]!.date).toBe(true)
+    })
+
+    it('adds only the lift still to come after one was finished', () => {
+      const first = planned[0]!
+      const out = replanOn(addDays(first.date, 1), 1)
+      const lifts = liftsOf(out)
+      expect(lifts.map((s) => s.date)).toContain(first.date)
+      expect(lifts).toHaveLength(week.strengthSessions)
+      expect(new Set(lifts.map((s) => s.date)).size).toBe(lifts.length)
+      // the lift that is still to come is on a day from today on
+      expect(lifts.filter((s) => s.date > first.date)).toHaveLength(1)
+    })
+
+    it('adds none when the week already holds its lifts', () => {
+      const today = addDays(planned[1]!.date, 1)
+      const out = replanOn(today, 2)
+      expect(liftsOf(out)).toHaveLength(week.strengthSessions)
+      expect(liftsOf(out).map((s) => s.date)).toEqual(planned.map((s) => s.date))
+    })
+
+    it('counts a lift of a past day that was not logged as part of the week, and makes it up nowhere', () => {
+      const first = planned[0]!
+      const out = replanOn(addDays(first.date, 1), 0)
+      expect(liftsOf(out)).toHaveLength(week.strengthSessions)
+    })
+  })
+
   it('does not cite H10 for a goal that is not an ultra', () => {
     const steps = replanChain(lifting('marathon'), { maxSteps: 3 })
     const strength = steps.at(-1)!.draft.sessions.filter((s) => s.kind === 'strength')
