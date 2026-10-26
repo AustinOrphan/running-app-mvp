@@ -25,6 +25,7 @@ const EXAMPLES: Record<Quantity['kind'], Quantity> = {
   share: { kind: 'share', fraction: 0.2 },
   count: { kind: 'count', n: 212 },
   temp: { kind: 'temp', c: 24.5 },
+  load: { kind: 'load', g: 52163 },
   date: { kind: 'date', iso: '2026-10-19' },
   weekday: { kind: 'weekday', iso: '2026-10-19' },
 }

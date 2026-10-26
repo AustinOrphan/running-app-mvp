@@ -23,6 +23,7 @@ import type {
   Param,
   PlanChange,
   Prediction,
+  Quantity,
   ReadinessSnapshot,
   ResolvedTargets,
   SessionBrief,
@@ -506,10 +507,21 @@ export type SavedReview = ReviewView & {
 }
 
 export type Units = 'mi' | 'km'
+/** The unit a strength load is shown in (design 5.2, ADR 0014); a load is stored in grams. */
+export type WeightUnit = 'lb' | 'kg'
 export interface UserSettings {
   email: string
   displayName: string | null
   units: Units
+  /**
+   * The weight unit of strength loads, a setting of its own beside `units` (strength design 5.2).
+   * Type only in task E14-2. The `User` column, the backfill and `GET` and `PUT /api/settings`
+   * arrive with E14-5, which makes the field required, and the Settings page with E14-9. Until
+   * then the field is optional so that no existing caller changes, and a missing value reads as
+   * pounds, the default decided 2026-10-24 (section 18, question 3; `DEFAULT_WEIGHT_UNIT` in
+   * `shared/domain/weight.ts`).
+   */
+  weightUnit?: WeightUnit
 }
 export interface SessionUser extends UserSettings {
   id: string
@@ -1585,4 +1597,99 @@ export interface ValidationIssue {
 }
 export interface ApiErrorBody {
   error: { code: ApiErrorCode; message: string; details?: unknown }
+}
+
+// ---- Strength (phase 3b, section 5.1; ADR 0014) -------------------------------------------------
+//
+// The prescription of a strength session is derived on every read by `workoutFor`
+// (`shared/engine/strength.ts`, task E14-4); nothing below is stored on a `PlanSession`. Every
+// surface renders the one `StrengthWorkout`.
+
+export type StrengthTemplate =
+  'ramp-in' | 'heavy' | 'lighter-week' | 'maintenance' | 'taper' | 'return'
+
+/** What a part of a strength session is for: the lifts take `knee`, `hip` and `calf`. */
+export type Slot = 'knee' | 'hip' | 'calf' | 'plyo' | 'trunk'
+
+/**
+ * An item of the equipment checklist (design 6.2), and the "implement" a load is for. Bodyweight
+ * needs no entry and is `null` where an implement is expected. One calf machine covers the standing
+ * and the seated raise, because the checklist asks for one.
+ */
+export type EquipmentKind =
+  | 'barbell'
+  | 'dumbbells'
+  | 'kettlebells'
+  | 'bands'
+  | 'step'
+  | 'leg-press'
+  | 'calf-machine'
+  | 'leg-curl'
+
+/** A uniform ladder (a barbell, a machine) or the list of loads there are (dumbbells, kettlebells). */
+export type LoadSteps = { minG: number; stepG: number; maxG: number | null } | { loadsG: number[] }
+
+/**
+ * One item of the saved equipment (design 6.2), in grams. `StrengthSettings.equipment` holds a JSON
+ * list of these, at most one of each kind.
+ *
+ * - `barbell`: the bar, and the smallest jump (a pair of the smallest plates); the bar, plates and a
+ *   rack count as one item.
+ * - `dumbbells`, `kettlebells`: the weights available, as a ladder or a list.
+ * - `leg-press`, `calf-machine`, `leg-curl`: the weight step and the top of the stack.
+ * - `bands`, `step`: nothing is tracked.
+ */
+export type EquipmentConfig =
+  | { kind: 'barbell'; barG: number; jumpG: number }
+  | { kind: 'dumbbells' | 'kettlebells'; loads: LoadSteps }
+  | { kind: 'leg-press' | 'calf-machine' | 'leg-curl'; stepG: number; maxG: number }
+  | { kind: 'bands' | 'step' }
+
+export interface StrengthWorkout {
+  sessionId: string
+  date: string
+  template: StrengthTemplate
+  variant: 'A' | 'B'
+  /** Week k of n of the block; null outside the block. */
+  block: { week: number; of: number; rampInWeeks: number } | null
+  /** The session's planned minutes, a budget; the workout may finish sooner. */
+  budgetMin: number
+  /** False until the runner has saved the setup: the workout is then built for bodyweight only. */
+  setupSaved: boolean
+  lifts: WorkoutLift[]
+  plyo: PlyoDose | null
+  trunk: WorkoutLift[]
+  rules: string[]
+}
+
+export interface WorkoutLift {
+  exerciseId: string
+  slot: Slot
+  /** The equipment the load is for; null for bodyweight. */
+  implement: EquipmentKind | null
+  sets: number
+  /** Reps, seconds or contacts, by the exercise's measure. */
+  range: { min: number; max: number }
+  /** The count to aim at in each set. */
+  targets: number[]
+  loadG: number | null
+  /** The loads the equipment can make, so a stepper and a suggestion stay on them; null without a load. */
+  steps: LoadSteps | null
+  /** Reps in reserve to leave; null for exercises without an effort target. */
+  rir: { min: number; max: number } | null
+  change: 'start' | 'increase' | 'hold' | 'reduce' | 'return' | 'variation' | 'lighter-day'
+  /** On a lighter day, the load the progression would otherwise have asked for. */
+  usualLoadG: number | null
+  basis: SuggestionBasis
+}
+
+export interface PlyoDose {
+  contacts: number
+  movements: string[]
+}
+
+/** The reason for a figure as data (ADR 0010): templates and slots, never prose. */
+export interface SuggestionBasis {
+  rule: 'F7' | 'F8' | 'F9'
+  facts: Array<{ template: string; slots: Record<string, Quantity | string> }>
 }
