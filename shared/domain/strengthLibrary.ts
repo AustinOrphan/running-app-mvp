@@ -535,9 +535,12 @@ export function isFeasible(
 }
 
 /**
- * The slot's ladder without the exercise, feasible entries only, in ladder order: what the "Swap"
- * list offers. A harder movement (a split squat) is not on a ladder, so its substitutes are the
- * whole ladder of its slot. The plyometric and trunk slots have no ladder and give an empty list.
+ * What the "Swap" list and the "Always use this" pin offer for an exercise: the feasible entries of
+ * the slot's ladder, in ladder order, then the feasible exercises of the slot that are not on the
+ * ladder (the harder movements: a split squat, a step-up, a single-leg box squat, a single-leg
+ * Romanian deadlift), in catalogue order, without the exercise itself. Design 7.2 says the harder
+ * movements are reached by their links and by a swap or a pin and not by the ladder, so a swap has
+ * to be able to name them. The plyometric and trunk slots have no ladder and give an empty list.
  */
 export function substitutes(
   id: ExerciseId,
@@ -546,7 +549,13 @@ export function substitutes(
 ): ExerciseId[] {
   const exercise = BY_ID.get(id)
   if (exercise === undefined) return []
-  return ladderFor(exercise.slot).filter(
+  const ladder = ladderFor(exercise.slot)
+  const [lead] = ladder
+  if (lead === undefined) return []
+  const harder = exercisesOfSlot(exercise.slot)
+    .map((other) => other.id)
+    .filter((other) => !ladder.includes(other))
+  return [...ladder, ...harder].filter(
     (other) => other !== id && isFeasible(other, equipment, options),
   )
 }

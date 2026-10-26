@@ -639,36 +639,75 @@ describe('isFeasible and usableImplements', () => {
 })
 
 describe('substitutes', () => {
-  it("is the slot's ladder without the exercise, feasible entries only, in ladder order", () => {
+  it("is the slot's feasible ladder entries, then its feasible harder movements, without the exercise", () => {
+    // knee: the ladder in order, then the split squat, the step-up and the single-leg box squat
     expect(substitutes('back-squat', have('barbell', 'leg-press', 'dumbbells'))).toEqual([
       'leg-press',
       'goblet-squat',
       'tempo-squat',
+      'split-squat',
     ])
-    expect(substitutes('back-squat', [])).toEqual(['tempo-squat'])
-    expect(substitutes('tempo-squat', have('dumbbells'))).toEqual(['goblet-squat'])
+    expect(substitutes('back-squat', [])).toEqual(['tempo-squat', 'split-squat'])
+    expect(substitutes('back-squat', have('step'))).toEqual([
+      'tempo-squat',
+      'split-squat',
+      'step-up',
+      'single-leg-box-squat',
+    ])
+    expect(substitutes('tempo-squat', have('dumbbells'))).toEqual(['goblet-squat', 'split-squat'])
     expect(substitutes('goblet-squat', have('dumbbells', 'barbell'))).toEqual([
       'back-squat',
       'tempo-squat',
+      'split-squat',
     ])
+    // hip: the single-leg Romanian deadlift follows the ladder
     expect(substitutes('romanian-deadlift', have('barbell', 'kettlebells'))).toEqual([
       'kettlebell-rdl',
       'hip-thrust',
+      'single-leg-rdl',
     ])
+    expect(substitutes('hip-thrust', [])).toEqual(['single-leg-rdl'])
+    // calf: the ladder holds all three, so there is no harder movement to add
     expect(substitutes('standing-calf-raise', have('step'))).toEqual(['single-leg-calf-raise'])
+    expect(substitutes('standing-calf-raise', have('dumbbells', 'step'))).toEqual([
+      'seated-calf-raise',
+      'single-leg-calf-raise',
+    ])
     expect(substitutes('standing-calf-raise', [])).toEqual([])
   })
 
-  it('offers the whole ladder to a harder movement, which is not on one', () => {
-    expect(substitutes('split-squat', have('dumbbells', 'barbell'))).toEqual([
+  it('lets a swap or a pin reach the harder movements, which the ladders do not (design 7.2)', () => {
+    const everything = have(...ALL_KINDS)
+    const harder = {
+      knee: ['split-squat', 'step-up', 'single-leg-box-squat'],
+      hip: ['single-leg-rdl'],
+    } as const
+    for (const slot of ['knee', 'hip'] as const) {
+      for (const id of SLOT_LADDERS[slot]) {
+        const list = substitutes(id, everything)
+        for (const move of harder[slot]) {
+          expect(list, `${id} -> ${move}`).toContain(move)
+        }
+        // ladder entries first, in ladder order, then the harder movements in catalogue order
+        const onLadder = SLOT_LADDERS[slot].filter((other) => other !== id)
+        expect(list, id).toEqual([...onLadder, ...harder[slot]])
+      }
+    }
+    // a harder movement is swapped for the ladder and for the other harder movements
+    expect(substitutes('split-squat', have('dumbbells', 'barbell', 'step'))).toEqual([
       'back-squat',
       'goblet-squat',
       'tempo-squat',
+      'step-up',
+      'single-leg-box-squat',
     ])
     expect(substitutes('single-leg-rdl', have('kettlebells'))).toEqual([
       'kettlebell-rdl',
       'hip-thrust',
     ])
+    // none of them is offered without the equipment it needs
+    expect(substitutes('back-squat', have('dumbbells'))).not.toContain('step-up')
+    expect(substitutes('back-squat', have('dumbbells'))).not.toContain('single-leg-box-squat')
   })
 
   it('has no ladder for the jumps and the trunk movements, and none for an unknown id', () => {
@@ -679,8 +718,11 @@ describe('substitutes', () => {
 
   it('follows the barbell option', () => {
     const gear = have('barbell', 'dumbbells')
-    expect(substitutes('goblet-squat', gear)).toEqual(['back-squat', 'tempo-squat'])
-    expect(substitutes('goblet-squat', gear, { barbell: false })).toEqual(['tempo-squat'])
+    expect(substitutes('goblet-squat', gear)).toEqual(['back-squat', 'tempo-squat', 'split-squat'])
+    expect(substitutes('goblet-squat', gear, { barbell: false })).toEqual([
+      'tempo-squat',
+      'split-squat',
+    ])
   })
 
   it('never offers the exercise itself or a candidate the equipment cannot do', () => {
