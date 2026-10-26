@@ -381,12 +381,35 @@ describe('prescribe: other quality and special sessions', () => {
         blockPosition: { week: 6, of: 12 },
       })
       expect(s.purpose).toBe(
-        'Strength block, week 6 of 12: heavy lifts and jumps for the legs and trunk, kept apart from the key runs.',
+        'Strength block, week 6 of 12: lifts for the legs and trunk, kept apart from the key runs.',
       )
       // the lifts, sets, loads and gaps are the workout's: none of them is written here
       expect(s.purpose).not.toMatch(/1RM|\bsets?\b|\breps?\b|calf|ramp|\d h\b|\d%/i)
       expect(lintText(s.purpose)).toEqual([])
       expect(s.purpose).not.toMatch(/behind|missed|streak/i)
+    })
+
+    it('names no dose in any week of the block: a ramp-in and a return week lift lighter and jump not at all', () => {
+      // the template of a week belongs to the workout (design 8.1, 8.2); the plan's sentence must hold
+      // for a heavy week, a ramp-in week and the ladder, injury-return and restart-floor weeks alike
+      const weeks: Array<Partial<WeekDraft>> = [
+        { flags: ['strength-block'] },
+        { flags: ['strength-block', 'recovery'], isRecovery: true },
+        { flags: ['strength-block', 'run-walk', 'ladder-4'] },
+        { flags: ['strength-block', 'injury-return', 'injury-level-1'] },
+        { flags: ['strength-block', 'restart-floor'] },
+      ]
+      const sentences = weeks.map(
+        (over, i) =>
+          prescribe('strength', 40, zones(), week(over), { blockPosition: { week: i + 1, of: 12 } })
+            .purpose,
+      )
+      sentences.forEach((purpose, i) => {
+        expect(purpose, String(i)).toBe(
+          `Strength block, week ${String(i + 1)} of 12: lifts for the legs and trunk, kept apart from the key runs.`,
+        )
+        expect(purpose, String(i)).not.toMatch(/heavy|jump|plyo|barbell|bar\b|load/i)
+      })
     })
 
     it('says only that it is a block week when the plan holds no position', () => {

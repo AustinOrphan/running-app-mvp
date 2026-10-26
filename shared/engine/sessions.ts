@@ -437,8 +437,9 @@ function describeBlueprint(blueprint: readonly number[]): string {
 }
 
 /**
- * The one sentence of a strength session: the block week it is, or the maintenance. The lifts, sets
- * and loads belong to the workout and not to the plan, and no Param is restated here [rules E5, F7].
+ * The one sentence of a strength session: the block week it is, or the maintenance. It names no
+ * dose, which the week's template sets in the workout (a ramp-in or return week lifts lighter and
+ * jumps not at all), and restates no Param [rules E5, F7].
  */
 function strengthPurpose(week: WeekDraft, ctx: PrescribeContext): string {
   if (!week.flags.includes('strength-block')) {
@@ -449,7 +450,7 @@ function strengthPurpose(week: WeekDraft, ctx: PrescribeContext): string {
     at === undefined || at === null
       ? 'Strength block'
       : `Strength block, week ${String(at.week)} of ${String(at.of)}`
-  return `${where}: heavy lifts and jumps for the legs and trunk, kept apart from the key runs.`
+  return `${where}: lifts for the legs and trunk, kept apart from the key runs.`
 }
 
 /** Distance of a session from its steps and paces; null without a pace to work from. */
