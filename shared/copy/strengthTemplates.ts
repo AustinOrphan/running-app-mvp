@@ -157,9 +157,11 @@ export const STRENGTH_TEMPLATES = {
   ),
 
   // ---- What strength work may do (design 4.5): the one sentence about benefit -------------------
-  // `lo` and `hi` are `f7.expectedBenefitPct`.
+  // `lo` and `hi` are `f7.expectedBenefitPct`. Design 4.5 and ADR 0014 ask for the three qualifiers
+  // of the figure in the same breath: it needs a full block, it is small, and it says nothing about
+  // race time.
   'strength.benefit': tpl(
-    'Strength work may lower the oxygen cost of running by about {lo} to {hi}. It says nothing about race time.',
+    'Strength work may lower the oxygen cost of running by about {lo} to {hi} after a full block. That is small, and it says nothing about race time.',
     { lo: 'count', hi: 'percent' },
   ),
 

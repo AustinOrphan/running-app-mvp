@@ -347,12 +347,19 @@ describe('the sentences of design 11.6', () => {
     )
   })
 
-  it('states the benefit with the numbers of its Param and says nothing about race time', () => {
+  it('states the benefit with the numbers of its Param, as small, after a full block, with no claim about race time', () => {
     const [lo, hi] = P.f7.expectedBenefitPct.value
     const sentence = say('strength.benefit', { lo: count(lo), hi: percent(hi) })
     expect(sentence).toBe(
-      'Strength work may lower the oxygen cost of running by about 2 to 4%. It says nothing about race time.',
+      'Strength work may lower the oxygen cost of running by about 2 to 4% after a full block. That is small, and it says nothing about race time.',
     )
+    // the three qualifiers of design 4.5 and ADR 0014 stay in the one sentence
+    expect(sentence).toMatch(/\bmay lower\b/)
+    expect(sentence).toContain('after a full block')
+    expect(sentence).toMatch(/\bThat is small\b/)
+    expect(sentence).toContain('says nothing about race time')
+    expect(sentence.length).toBeLessThanOrEqual(COPY_MAX_CHARS)
+    expect(lintText(sentence)).toEqual([])
     // the sentence and the registry read the range the same way
     expect(sentence).toContain(describeParamValue(P.f7.expectedBenefitPct, 'km'))
     expect(describeParamValue(P.f7.expectedBenefitPct, 'mi')).toBe(
