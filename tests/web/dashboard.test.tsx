@@ -36,6 +36,8 @@ function makePlan(): PlanWithWeeks {
     focus: null,
     baselineRunMin: 400,
     targetRunMin: 450,
+    plannedRunMin: 450,
+    overshoot: false,
     targetSource: 'baseline',
     longRunMin: 120,
     day2Min: null,

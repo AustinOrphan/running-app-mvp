@@ -14,6 +14,11 @@ export interface MeterProps {
   remainingMin?: number | null
   /** Skips the caption when it would only repeat a headline that already states value and target. */
   hideUnderCaption?: boolean
+  /**
+   * Words for the caption in place of the generated ones: a week run past its plan, whose target
+   * is the planned figure, says how far the minutes run lie over it (`overshootTodayLine`).
+   */
+  captionText?: string
 }
 
 type MeterState = 'under' | 'near' | 'over'
@@ -63,6 +68,7 @@ export function Meter({
   label,
   remainingMin,
   hideUnderCaption = false,
+  captionText,
 }: MeterProps) {
   const value = Number.isFinite(valueMin) ? Math.max(0, valueMin) : 0
   const target = Number.isFinite(targetMin) ? Math.max(0, targetMin) : 0
@@ -105,7 +111,9 @@ export function Meter({
           <span className={styles.tick} style={{ left: percent(target, scale) }} />
         ) : null}
       </div>
-      {hideUnderCaption && state === 'under' && target > 0 ? null : (
+      {captionText !== undefined ? (
+        <p className={styles.caption}>{captionText}</p>
+      ) : hideUnderCaption && state === 'under' && target > 0 ? null : (
         <p className={styles.caption}>{caption(state, value, target, remainingMin)}</p>
       )}
     </div>

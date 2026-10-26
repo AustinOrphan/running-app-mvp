@@ -65,6 +65,8 @@ function planWeek(weekStart: string, over: Partial<PlanWeekView> = {}): PlanWeek
     focus: null,
     baselineRunMin: 300,
     targetRunMin: 300,
+    plannedRunMin: over.targetRunMin ?? 300,
+    overshoot: false,
     targetSource: 'baseline',
     longRunMin: 90,
     day2Min: null,
@@ -274,6 +276,63 @@ describe('ReviewPage', () => {
     expect(screen.getByText('4 of 4 run days')).toBeInTheDocument()
     expect(screen.getByText('Longest run is 30% of the week')).toBeInTheDocument()
     expect(screen.getByText('2 of 2 strength sessions')).toBeInTheDocument()
+  })
+
+  describe('a week run past its plan', () => {
+    // The engine took the week as run: its stored target is the 300 minutes run, and the payload
+    // states the 200 it was planned at.
+    const overshotPlan = (over: Partial<PlanWeekView> = {}) =>
+      makePlan([
+        planWeek(W, {
+          targetRunMin: 300,
+          baselineRunMin: 300,
+          plannedRunMin: 200,
+          overshoot: true,
+          flags: ['overshoot', 'planned-200'],
+          ...over,
+        }),
+        planWeek(CURRENT, { baselineRunMin: 400, targetRunMin: 400, index: 2 }),
+      ])
+
+    test('sets the run time against the planned minutes and says how far it lies over them', async () => {
+      renderReview({ plan: overshotPlan(), weeks: { [W]: fullWeek } })
+      await ready()
+      const meter = screen.getByRole('meter', { name: 'Run time' })
+      expect(meter).toHaveAttribute('aria-valuenow', '300')
+      expect(meter).toHaveAttribute('aria-valuetext', '5.0 of 3.3 hours')
+      expect(screen.getByText('Ran 5.0 h of 3.3 h planned, 1.7 h over')).toBeInTheDocument()
+      expect(screen.queryByText(/past target/)).not.toBeInTheDocument()
+      expectCleanCopy(document.body)
+    })
+
+    test('keeps the usual caption when the run no longer lies over the plan', async () => {
+      renderReview({ plan: overshotPlan(), weeks: { [W]: { ...fullWeek, runMin: 150 } } })
+      await ready()
+      expect(screen.getByText('2.5 h of 3.3 h target')).toBeInTheDocument()
+      expect(screen.queryByText(/planned,/)).not.toBeInTheDocument()
+    })
+
+    test('leaves the suggestion to the stored target, as for any week', async () => {
+      const user = userEvent.setup()
+      renderReview({ plan: overshotPlan(), weeks: { [W]: fullWeek } })
+      await ready()
+      await user.click(screen.getByRole('radio', { name: 'Data complete' }))
+      await user.click(screen.getByRole('radio', { name: '4' }))
+      await user.click(screen.getByRole('radio', { name: 'None' }))
+      const region = screen.getByRole('region', { name: 'Suggested action' })
+      expect(within(region).getByText('Progress')).toBeInTheDocument()
+      expect(within(region).getByText('Suggested next week: 330 min (5.5 h)')).toBeInTheDocument()
+    })
+
+    test('a week that was not run past its plan reads as before', async () => {
+      renderReview({ weeks: { [W]: fullWeek } })
+      await ready()
+      expect(screen.getByRole('meter', { name: 'Run time' })).toHaveAttribute(
+        'aria-valuetext',
+        '5.0 of 5.0 hours',
+      )
+      expect(screen.queryByText(/planned,/)).not.toBeInTheDocument()
+    })
   })
 
   test('the suggestion updates live from the form using suggestAction: fatigue 8 -> Reduce with 70% next minutes; fatigue 4 + symptoms None + 300 of 300 min -> Progress 330', async () => {

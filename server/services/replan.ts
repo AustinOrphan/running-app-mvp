@@ -19,8 +19,10 @@ import {
   changesSummary,
   decisionSummary,
   loadSettingSummary,
+  overshootsSummary,
   stalePreviewMessage,
   targetsSummary,
+  type OvershootLine,
 } from '../../shared/copy/revision.ts'
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
@@ -28,7 +30,12 @@ import { draftRamp } from '../../shared/engine/checklist.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
-import { targetKept, targetLimit, type TargetLimit } from '../../shared/engine/limits.ts'
+import {
+  plannedMinOf,
+  targetKept,
+  targetLimit,
+  type TargetLimit,
+} from '../../shared/engine/limits.ts'
 import { loadPosition, rebuildZone } from '../../shared/engine/loadSetting.ts'
 import { progressionHold } from '../../shared/engine/macro.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -57,7 +64,7 @@ import {
   type PrismaClient,
 } from '../db.ts'
 import { conflict, notFound, validationError } from '../errors.ts'
-import { parsePlanOptions, toPlanRevision, toPlanSession } from '../serialize.ts'
+import { parsePlanOptions, toPlanRevision, toPlanSession, toPlanWeek } from '../serialize.ts'
 import { gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { withGutTrainingOption } from './fuel.ts'
 import { recordPrediction, type PredictionGoal } from './predictionLog.ts'
@@ -715,6 +722,32 @@ function settledInput(input: EngineInput, settle: readonly SettleWrite[]): Engin
   }
 }
 
+/**
+ * The weeks this re-plan takes as run: the draft's weeks from the current Monday on that carry the
+ * engine's `overshoot` flag (rules g-2, g-6) and are not already stored as the draft has them (the
+ * same flag and the same minutes run). The planned figure is `plannedMinOf` over the draft week's
+ * flags, so the wording reads the flag the engine set and works nothing out. The `PlanDiff` and the
+ * stored week rows are untouched by this: it only words the summary.
+ */
+export function weeksTakenAsRun(
+  rows: readonly PlanWeekRow[],
+  weeks: readonly WeekDraft[],
+  today: string,
+): OvershootLine[] {
+  const currentMonday = mondayOf(today)
+  const stored = new Map(rows.map((row) => [row.weekStart, toPlanWeek(row)]))
+  const lines: OvershootLine[] = []
+  for (const week of weeks) {
+    if (week.weekStart < currentMonday || !week.flags.includes('overshoot')) continue
+    const plannedMin = plannedMinOf(week)
+    if (plannedMin >= week.targetRunMin) continue
+    const old = stored.get(week.weekStart)
+    if (old?.overshoot === true && old.targetRunMin === week.targetRunMin) continue
+    lines.push({ weekStart: week.weekStart, ranMin: week.targetRunMin, plannedMin })
+  }
+  return lines
+}
+
 /** A summary followed by the sentences for the raised week targets the write kept or lowered. */
 function withTargets(summary: string, targets: readonly TargetDiffLine[]): string {
   return targets.length === 0 ? summary : `${summary} ${targetsSummary(targets)}`
@@ -864,16 +897,21 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   const reason: PlanRevisionReason =
     args.reason === 'weekly' && state.layoffDays >= P.j7.tier1Days.value ? 'break' : args.reason
   // A change of the load setting leads with the position and its step, in place of the count of
-  // week-level changes; the weekly decision follows as for any re-plan.
+  // week-level changes; the weekly decision follows as for any re-plan. A week taken as run is
+  // worded as run past its plan, after the lead of the summary.
   const lead =
     args.loadAppetite === undefined
       ? describeChanges(changes)
       : loadSettingSummary(loadPosition(input, state))
-  const baseSummary =
+  const baseSummary = [
     args.window?.summary ??
-    [lead, decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null]
-      .filter((line): line is string => line !== null)
-      .join(' ')
+      [lead, decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null]
+        .filter((line): line is string => line !== null)
+        .join(' '),
+    overshootsSummary(weeksTakenAsRun(weekRows, draft.weeks, today)),
+  ]
+    .filter((part) => part !== '')
+    .join(' ')
 
   // One write set describes the preview: the diff and the running time are read from it.
   const writes = previewWrites(

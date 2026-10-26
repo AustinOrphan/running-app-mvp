@@ -13,7 +13,7 @@ import type {
 } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
-import { makeActivity } from '../factories.ts'
+import { makeActivity, makeWeekRow } from '../factories.ts'
 import {
   activityPage,
   explainOf,
@@ -1006,6 +1006,192 @@ describe('Plan page, the load setting in effect', () => {
     expect(calls.find((c) => c.url === '/api/plan/generate')?.body).toMatchObject({
       options: { loadAppetite: 'standard' },
     })
+  })
+})
+
+// A loading week run past its plan is taken as run (rules g-2, g-6): the stored target and baseline
+// are the minutes run (144), and the payload states the plan (79). The page shows the plan in the
+// target column, the minutes run in the run column with a note, and edits at the planned figure.
+describe('Plan page, a week run past its plan', () => {
+  const CURRENT = '2027-01-11'
+  const overshot = (over: Parameters<typeof makeV2Week>[1] = {}) =>
+    makeV2Week(1, {
+      targetRunMin: 144,
+      baselineRunMin: 144,
+      plannedRunMin: 79,
+      overshoot: true,
+      flags: ['overshoot', 'planned-79'],
+      ...over,
+    })
+  const plan = (week = overshot()) => makeV2Plan({ weeks: [makeV2Week(0), week, makeV2Week(2)] })
+  const withRuns = (extra: MockRoutes = {}) =>
+    routes(plan(), {
+      'GET /api/weeks': () => [
+        makeWeekRow({ weekStart: '2027-01-04', runMin: 280 }),
+        makeWeekRow({ weekStart: CURRENT, runMin: 144 }),
+      ],
+      'PUT /api/plan/weeks/2027-01-11': () => overshot(),
+      ...extra,
+    })
+  const row = (weekStart: string) =>
+    document.querySelector<HTMLElement>(`tr[data-week="${weekStart}"]`)!
+  const cell = (weekStart: string, name: string) =>
+    row(weekStart).querySelector<HTMLElement>(`[data-cell="${name}"]`)!
+
+  test('shows the planned figure as the target, and the minutes run with how far they lie over it', async () => {
+    mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+    await waitFor(() => {
+      expect(cell(CURRENT, 'actual')).toHaveTextContent('2.4 h')
+    })
+
+    // 79 minutes is 1.3 hours; the raised target of 144 minutes (2.4 hours) is not shown as one.
+    expect(cell(CURRENT, 'target').textContent?.trim()).toBe('1.3\u00a0h')
+    expect(cell(CURRENT, 'target')).not.toHaveTextContent('2.4')
+    expect(cell(CURRENT, 'actual').textContent).toBe('2.4\u00a0h1.1 h over the plan')
+    expect(within(row(CURRENT)).getAllByText('1.1 h over the plan')).toHaveLength(1)
+    expect(screen.getAllByText(/over the plan/)).toHaveLength(1)
+    expectCleanCopy(document.body)
+  })
+
+  test('leaves a week that was not run past its plan exactly as it was', async () => {
+    mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+    await waitFor(() => {
+      expect(cell('2027-01-04', 'actual')).toHaveTextContent('4.7 h')
+    })
+
+    // The row text of a normal week, target and run beside each other: no note, no extra element.
+    expect(cell('2027-01-04', 'target').textContent?.trim()).toBe('5.0\u00a0h')
+    expect(cell('2027-01-04', 'actual').textContent).toBe('4.7\u00a0h')
+    expect(row('2027-01-04').textContent).toBe(
+      '4 JanBase 5.0\u00a0h4.7\u00a0hLong run 90\u00a0min, 4 run days, strength 190\u00a0min—41Week focus 0DaysEdit',
+    )
+    expect(cell('2027-01-18', 'target').textContent?.trim()).toBe('5.0\u00a0h')
+    expect(cell('2027-01-18', 'actual').textContent).toBe('')
+  })
+
+  test('says nothing more of the week once the minutes run no longer lie over the plan', async () => {
+    mockApi(
+      withRuns({
+        'GET /api/weeks': () => [makeWeekRow({ weekStart: CURRENT, runMin: 60 })],
+      }),
+    )
+    renderPlan()
+    await screen.findByText('Week focus 1')
+    await waitFor(() => {
+      expect(cell(CURRENT, 'actual')).toHaveTextContent('1.0 h')
+    })
+    expect(cell(CURRENT, 'target').textContent?.trim()).toBe('1.3\u00a0h')
+    expect(screen.queryByText(/over the plan/)).not.toBeInTheDocument()
+  })
+
+  test('the editor opens at the planned figure and words the baseline as the plan', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 11 Jan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 11 Jan' })
+    expect(within(dialog).getByLabelText('Target (minutes)')).toHaveValue(79)
+    expect(
+      within(dialog).getByText('Planned before the week was run: 1.3 h (79 min)'),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Generated baseline/)).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Reset to baseline' })).toBeDisabled()
+    expectCleanCopy(dialog)
+
+    // Saving what the sheet shows changes no target and asks for no note.
+    await user.clear(within(dialog).getByLabelText('Long run (minutes)'))
+    await user.type(within(dialog).getByLabelText('Long run (minutes)'), '95')
+    await user.click(within(dialog).getByRole('button', { name: 'Save week' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    expect(calls.find((c) => c.method === 'PUT')).toMatchObject({
+      url: '/api/plan/weeks/2027-01-11',
+      body: { longRunMin: 95 },
+    })
+    expect(calls.find((c) => c.method === 'PUT')?.body).not.toHaveProperty('targetRunMin')
+  })
+
+  test('a target typed over the planned figure is an override and needs its note, as for any week', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 11 Jan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 11 Jan' })
+    const target = within(dialog).getByLabelText('Target (minutes)')
+    await user.clear(target)
+    await user.type(target, '90')
+    await user.click(within(dialog).getByRole('button', { name: 'Save week' }))
+    expect(await within(dialog).findByText('Add a note explaining the change')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+
+    await user.type(within(dialog).getByLabelText('Override note'), 'Race on Saturday')
+    await user.click(within(dialog).getByRole('button', { name: 'Save week' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    expect(calls.find((c) => c.method === 'PUT')).toMatchObject({
+      url: '/api/plan/weeks/2027-01-11',
+      body: { targetRunMin: 90, overrideNote: 'Race on Saturday' },
+    })
+  })
+
+  test('an override on the week resets to the stored baseline, and the row still shows the plan', async () => {
+    const user = userEvent.setup()
+    const edited = overshot({
+      targetRunMin: 100,
+      plannedRunMin: 79,
+      targetSource: 'override',
+      overrideNote: 'Travel week',
+    })
+    const { calls } = mockApi(
+      routes(plan(edited), {
+        'GET /api/weeks': () => [makeWeekRow({ weekStart: CURRENT, runMin: 144 })],
+        'PUT /api/plan/weeks/2027-01-11': () => edited,
+      }),
+    )
+    renderPlan()
+    await screen.findByText('Week focus 1')
+    await waitFor(() => {
+      expect(cell(CURRENT, 'actual')).toHaveTextContent('2.4 h')
+    })
+
+    // The planned figure stands in the target column, with the "edited" marker and no struck
+    // baseline: the stored baseline is the minutes run, not a figure the plan ever held.
+    expect(cell(CURRENT, 'target')).toHaveTextContent('1.3 h')
+    expect(within(row(CURRENT)).getByRole('button', { name: 'edited' })).toBeInTheDocument()
+    expect(row(CURRENT).querySelector('s')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 11 Jan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 11 Jan' })
+    expect(within(dialog).getByLabelText('Target (minutes)')).toHaveValue(79)
+    await user.click(within(dialog).getByRole('button', { name: 'Reset to baseline' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    // The server compares with the stored baseline, so that is what is sent.
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ targetRunMin: 144 })
+  })
+
+  test('a normal week keeps its generated baseline in the editor', async () => {
+    const user = userEvent.setup()
+    mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 18 Jan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 18 Jan' })
+    expect(within(dialog).getByLabelText('Target (minutes)')).toHaveValue(300)
+    expect(within(dialog).getByText('Generated baseline: 5.0 h (300 min)')).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Planned before the week was run/)).not.toBeInTheDocument()
   })
 })
 

@@ -1,10 +1,11 @@
-import { act, renderHook, screen } from '@testing-library/react'
+import { act, renderHook, screen, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { isoDateInZone } from '../../shared/dates.ts'
 import type { TodayView } from '../../shared/types.ts'
 import { useServerToday } from '../../web/api/today.ts'
+import { RecentWeeks } from '../../web/components/today/RecentWeeks.tsx'
 import { useMediaQuery } from '../../web/components/useMediaQuery.ts'
 import { makeWeekRow } from '../factories.ts'
 import { makeItem } from './brief-fixtures.ts'
@@ -19,6 +20,7 @@ import {
   makeStrip,
   makeToday,
 } from './today-fixtures.ts'
+import { makeV2Plan, makeV2Week } from './plan-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
 
 // The order test stands one in for the disruption and watch slots: the banner is filled by the
@@ -461,6 +463,32 @@ describe('RecentWeeks: the chart and its data', () => {
     expect(weeks).toHaveLength(1)
     // Twelve weeks ending with this one (Monday 16 Mar 2026), from the server's date.
     expect(weeks[0]?.url).toBe('/api/weeks?from=2025-12-29&to=2026-03-16')
+  })
+
+  test('sets a week run past its plan against the planned figure, not the raised target', async () => {
+    const overshot = makeV2Week(0, {
+      weekStart: '2026-03-16',
+      targetRunMin: 144,
+      plannedRunMin: 79,
+      overshoot: true,
+    })
+    mockApi({
+      'GET /api/weeks': () => [
+        makeWeekRow({ weekStart: '2026-03-09', runMin: 240 }),
+        makeWeekRow({ weekStart: '2026-03-16', runMin: 144 }),
+      ],
+      'GET /api/plan': () =>
+        makeV2Plan({
+          weeks: [makeV2Week(0, { weekStart: '2026-03-09', targetRunMin: 300 }), overshot],
+        }),
+    })
+    renderWithProviders(<RecentWeeks today="2026-03-18" />)
+    const table = await screen.findByRole('table', {}, { timeout: 5000 })
+    const planned = (weekOf: string) =>
+      within(within(table).getByRole('row', { name: new RegExp(weekOf) })).getAllByRole('cell')[1]
+    // 79 minutes planned is 1.3 hours; the stored target of 144 minutes would read 2.4.
+    expect(planned('16 Mar')).toHaveTextContent('1.3')
+    expect(planned('9 Mar')).toHaveTextContent('5.0')
   })
 
   test('takes the chart through the lazy wrapper, so the page does not carry it', () => {

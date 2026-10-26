@@ -47,6 +47,7 @@ import { isLoadAppetite } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
 import { renderFact } from '../shared/copy/templates.ts'
 import { mondayOf, todayIso } from '../shared/dates.ts'
+import { plannedWeek } from '../shared/domain/plannedWeek.ts'
 import { countsLine } from '../shared/engine/fuelCopy.ts'
 import { P } from '../shared/engine/params/index.ts'
 import { causesOf } from '../shared/engine/revisionDiff.ts'
@@ -391,6 +392,7 @@ export function toPlan(row: PlanRow): Plan {
 }
 
 export function toPlanWeek(row: PlanWeekRow): PlanWeek {
+  const flags = parseJson<string[]>(row.flags, [])
   return {
     id: row.id,
     planId: row.planId,
@@ -400,6 +402,8 @@ export function toPlanWeek(row: PlanWeekRow): PlanWeek {
     focus: row.focus,
     baselineRunMin: row.baselineRunMin,
     targetRunMin: row.targetRunMin,
+    // What the week was planned at, read from its flags: every week payload states it here.
+    ...plannedWeek({ targetRunMin: row.targetRunMin, flags }),
     targetSource: row.targetSource as TargetSource,
     longRunMin: row.longRunMin,
     day2Min: row.day2Min,
@@ -407,7 +411,7 @@ export function toPlanWeek(row: PlanWeekRow): PlanWeek {
     strengthSessions: row.strengthSessions,
     overrideNote: row.overrideNote,
     tid: parseJson<PlanWeek['tid']>(row.tid, null),
-    flags: parseJson<string[]>(row.flags, []),
+    flags,
     gainTargetM: row.gainTargetM,
     qualitySessions: row.qualitySessions,
     isRecovery: row.isRecovery,

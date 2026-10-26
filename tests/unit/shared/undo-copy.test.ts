@@ -244,6 +244,44 @@ describe('the lines of a diff', () => {
     ).toEqual(['Week of 26 Oct: updated'])
   })
 
+  it('reads a week taken as run as run past its plan, not as a target that rose', () => {
+    const week: WeekDiffLine = {
+      weekStart: '2026-10-26',
+      runMinBefore: 79,
+      runMinAfter: 144,
+      flagsAdded: ['overshoot', 'planned-79'],
+      flagsRemoved: [],
+    }
+    expect(text([], 'km', [week])).toEqual([
+      'Week of 26 Oct: run past its plan, 144 min against 79 min',
+    ])
+    expect(text([], 'mi', [week])).toEqual([
+      'Week of 26 Oct: run past its plan, 144 min against 79 min',
+    ])
+    // The other flags of the line still read as before, after the words for the week as run.
+    expect(text([], 'km', [{ ...week, flagsAdded: [...week.flagsAdded, 'disrupted'] }])).toEqual([
+      'Week of 26 Oct: run past its plan, 144 min against 79 min, now touched by a rest window',
+    ])
+    for (const units of UNITS) {
+      assertCleanCopy(text([], units, [week])[0]!, 'overshoot diff line')
+    }
+  })
+
+  it('keeps the running-time line for a week whose flags do not say it was taken as run', () => {
+    const week: WeekDiffLine = {
+      weekStart: '2026-10-26',
+      runMinBefore: 79,
+      runMinAfter: 144,
+      flagsAdded: [],
+      flagsRemoved: [],
+    }
+    expect(text([], 'km', [week])).toEqual(['Week of 26 Oct: running time 79 min to 144 min'])
+    // A flag without the planned minutes, or a plan not under the minutes run, says nothing new.
+    expect(text([], 'km', [{ ...week, flagsAdded: ['overshoot'] }])).toEqual([
+      'Week of 26 Oct: running time 79 min to 144 min',
+    ])
+  })
+
   it('reads a session on another day as moved, the same way for a folded pair and a changed row', () => {
     const out = line({
       change: 'removed',

@@ -7,6 +7,7 @@ import type {
   PlanDiff,
   PlanRevisionView,
   PlanWithSessions,
+  TodayView,
   UndoResult,
 } from '../../shared/types.ts'
 import { weekHash, type UndoPayload } from '../../server/services/replan.ts'
@@ -699,5 +700,158 @@ describe('the weekly decision wins over a raised target', () => {
       targetSource: 'override',
     })
     expect(await plannedMinutes(f, nextMonday)).toBeLessThanOrEqual(90)
+  })
+})
+
+// A loading week run past its planned minutes is taken as run (rules g-2, g-6): the engine stores
+// the minutes run as the target and keeps the plan in the flags. The payloads state the plan, and
+// the summary and the diff word the week as run past it instead of a target that rose.
+describe('a week run past its plan', () => {
+  const friday = addDays(thisMonday, 4)
+
+  /**
+   * The current week run past its planned minutes: the sessions up to Thursday run as planned and
+   * linked, the Saturday long run taken on Thursday and a 60-minute run on Friday, then the re-plan
+   * of Friday that takes the week as run (190 planned, 250 run).
+   */
+  async function runPastPlan(email: string) {
+    const f = await fourWeekPlan(email)
+    const planned = (await weekRow(f, thisMonday)).targetRunMin
+    const log = (date: string, min: number) =>
+      ctx.prisma.activity.create({
+        data: {
+          userId: f.u.id,
+          date,
+          type: 'run',
+          durationSec: min * 60,
+          movingSec: min * 60,
+          distanceM: min * 160,
+          rpe: 3,
+          source: 'manual',
+        },
+      })
+    const thisWeek = f.plan.sessions.filter((s) => s.weekStart === thisMonday)
+    for (const session of thisWeek.filter((s) => s.date < friday && s.kind !== 'strength')) {
+      if (session.kind === 'long') continue
+      const run = await log(session.date, session.durationMin)
+      await ctx.prisma.planSession.update({
+        where: { id: session.id },
+        data: { status: 'completed', activityId: run.id },
+      })
+    }
+    const long = thisWeek.find((s) => s.kind === 'long')!
+    await log(addDays(thisMonday, 3), long.durationMin)
+    await log(friday, 60)
+    const ran = 250
+    vi.setSystemTime(new Date(2026, 9, 23, 12))
+    const made = await replanActivePlan(deps(), {
+      userId: f.u.id,
+      reason: 'owner',
+      today: friday,
+    })
+    return { f, planned, ran, made }
+  }
+
+  test('the stored target is the minutes run, and the payload states what was planned', async () => {
+    const { f, planned, ran } = await runPastPlan('overshoot-payload@example.com')
+
+    // The engine writes the minutes run as the target and keeps the plan in the flags.
+    const row = await weekRow(f, thisMonday)
+    expect(row.targetRunMin).toBe(ran)
+    expect(JSON.parse(row.flags) as string[]).toEqual(
+      expect.arrayContaining(['overshoot', `planned-${String(planned)}`]),
+    )
+
+    const res = await client(ctx, f.u).get('/api/plan')
+    expect(res.status).toBe(200)
+    const weeks = (res.body as PlanWithSessions).weeks
+    expect(weeks.find((w) => w.weekStart === thisMonday)).toMatchObject({
+      targetRunMin: ran,
+      plannedRunMin: planned,
+      overshoot: true,
+    })
+    // Any other week states its target as the plan.
+    for (const week of weeks.filter((w) => w.weekStart !== thisMonday)) {
+      expect(week.overshoot).toBe(false)
+      expect(week.plannedRunMin).toBe(week.targetRunMin)
+    }
+  })
+
+  test('Today draws the week against the planned minutes', async () => {
+    const { f, planned, ran } = await runPastPlan('overshoot-today@example.com')
+
+    const res = await client(ctx, f.u).get(`/api/today?date=${friday}`)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const strip = (res.body as TodayView).coach.weekStrip
+    expect(strip).toMatchObject({ weekStart: thisMonday, runMin: ran, overshoot: true })
+    expect(strip?.targetRunMin).toBe(planned)
+    expect(strip?.remaining?.remainingMin).toBe(0)
+  })
+
+  test('the summary and the diff word the week as run past its plan', async () => {
+    const { f, planned, ran, made } = await runPastPlan('overshoot-revision@example.com')
+
+    const sentence = `Week of Mon 19 Oct was run past its plan: ${String(ran)} min against ${String(planned)} min; the weeks after it are drawn from the plan.`
+    expect(made.summary).toContain(sentence)
+    assertCleanCopy(made.summary, 'revision summary')
+
+    // The diff records what it always did: the minutes before and after, and the flags added.
+    const line = made.diff?.weeks.find((week) => week.weekStart === thisMonday)
+    expect(line).toMatchObject({ runMinBefore: planned, runMinAfter: ran })
+    expect(line?.flagsAdded).toEqual(
+      expect.arrayContaining(['overshoot', `planned-${String(planned)}`]),
+    )
+    const served = (await client(ctx, f.u).get('/api/plan/revisions')).body as PlanRevisionView[]
+    expect(served.find((revision) => revision.id === made.id)?.summary).toContain(sentence)
+
+    // A second re-plan the same day takes nothing new as run, so it adds no sentence.
+    const again = await replanActivePlan(deps(), {
+      userId: f.u.id,
+      reason: 'owner',
+      today: friday,
+    })
+    expect(again.summary).not.toContain('was run past its plan')
+  })
+
+  test('saving a target on the week follows the rules of any week, against the stored baseline', async () => {
+    const { f, planned, ran } = await runPastPlan('overshoot-save@example.com')
+    const url = `/api/plan/weeks/${thisMonday}`
+    const row = await weekRow(f, thisMonday)
+    // The engine wrote the minutes run as the target and as the baseline.
+    expect(row).toMatchObject({ targetRunMin: ran, baselineRunMin: ran, targetSource: 'baseline' })
+
+    // The planned figure is not the baseline, so a target at the plan needs a note like any other.
+    const bare = await client(ctx, f.u).put(url).send({ targetRunMin: planned })
+    expect(bare.status).toBe(400)
+    expect(JSON.stringify(bare.body)).toContain('overrideNote')
+
+    // With a note it is an override. The response states the plan, and `plannedMinOf` takes the
+    // lower of the plan and the stored target, so a target above the plan leaves the plan as it was.
+    const above = await client(ctx, f.u)
+      .put(url)
+      .send({ targetRunMin: planned + 20, overrideNote: 'Synthetic note.' })
+    expect(above.status, JSON.stringify(above.body)).toBe(200)
+    expect(above.body).toMatchObject({
+      targetRunMin: planned + 20,
+      targetSource: 'override',
+      plannedRunMin: planned,
+      overshoot: true,
+    })
+
+    // A target below the plan is the new plan figure of the week.
+    const below = await client(ctx, f.u)
+      .put(url)
+      .send({ targetRunMin: planned - 30, overrideNote: 'Synthetic note.' })
+    expect(below.body).toMatchObject({ plannedRunMin: planned - 30, overshoot: true })
+
+    // The stored baseline resets the week: the minutes run again, still stating the plan.
+    const reset = await client(ctx, f.u).put(url).send({ targetRunMin: ran })
+    expect(reset.status, JSON.stringify(reset.body)).toBe(200)
+    expect(reset.body).toMatchObject({
+      targetRunMin: ran,
+      targetSource: 'baseline',
+      plannedRunMin: planned,
+      overshoot: true,
+    })
   })
 })
