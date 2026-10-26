@@ -5,6 +5,8 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import {
+  EXERCISES,
+  PLYO_LADDER,
   SLOT_LADDERS,
   exerciseById,
   isFeasible,
@@ -22,6 +24,9 @@ import {
   anchorEstimate,
   blockPosition,
   estimateOneRm,
+  liftFor,
+  liftTexts,
+  modeOf,
   percentOfMax,
   pickLift,
   rampInWeeks,
@@ -30,6 +35,7 @@ import {
   structuresFor,
   suggestLoad,
   waysFor,
+  workoutFor,
   type BlockPosition,
   type LoadRequest,
   type LoadSuggestion,
@@ -39,6 +45,8 @@ import type {
   LiftingLevel,
   StrengthContext,
   StrengthLogEntry,
+  StrengthReadiness,
+  StrengthSessionRef,
   StrengthWeek,
 } from '../../../shared/engine/types.ts'
 import type {
@@ -46,9 +54,12 @@ import type {
   EquipmentKind,
   LoadSteps,
   StrengthTemplate,
+  StrengthWorkout,
+  WorkoutLift,
 } from '../../../shared/types.ts'
 import {
   ALL_KINDS,
+  ITEM,
   context,
   have,
   lb,
@@ -56,6 +67,8 @@ import {
   log,
   monday,
   plan,
+  sessionRef,
+  setsOf,
   week,
   withSetup,
   type Row,
@@ -1661,5 +1674,1109 @@ describe('a suggestion asks only for a load the equipment can make and passes no
     expect(steps).toBeGreaterThan(CASES / 2)
     expect(increases).toBeGreaterThan(5)
     expect(reductions).toBeGreaterThan(5)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The derived workout (design 5.1, 8, 10)
+// ---------------------------------------------------------------------------------------------
+
+/** The session A (or B) of week `i`, the way the planner stores it. */
+const sessionOf = (i: number, rank: 0 | 1 = 0, over: Partial<StrengthSessionRef> = {}) =>
+  sessionRef(i, rank, over)
+
+/** A context whose today is the day of session A of week `i`, as the sheet opens it. */
+const onDayOf = (
+  i: number,
+  setup: Partial<StrengthContext['setup']>,
+  over: Partial<StrengthContext> = {},
+) => withSetup(setup, { today: sessionRef(i).date, ...over })
+
+const liftOf = (workout: StrengthWorkout, exerciseId: string) =>
+  workout.lifts.find((lift) => lift.exerciseId === exerciseId)
+
+describe('workoutFor: a dumbbell runner in week 3 of the block', () => {
+  // weeks 1 and 2 of the ramp-in were logged: the first session of each lift (2 sets) and a second
+  // with every set at the top of the ramp-in range and 2 reps left; the steps of this ladder are
+  // within the cap from 35 lb up (a 15 lb to 20 lb dumbbell is a third more load)
+  const first = (id: string, pounds: number) => setsOf(id, rows(pounds, [6, 6], [3, 3]))
+  const second = (id: string, pounds: number) => setsOf(id, rows(pounds, [8, 8, 8], [2, 2, 2]))
+  const logs = [
+    log('w1', sessionRef(0).date, {
+      sets: [
+        ...first('goblet-squat', 35),
+        ...first('dumbbell-rdl', 35),
+        ...first('standing-calf-raise', 40),
+      ],
+    }),
+    log('w2', sessionRef(1).date, {
+      sets: [
+        ...second('goblet-squat', 35),
+        ...second('dumbbell-rdl', 35),
+        ...second('standing-calf-raise', 40),
+      ],
+    }),
+  ]
+  const ctx = onDayOf(2, { equipment: have('dumbbells', 'step') }, { logs })
+  const workout = workoutFor(ctx, sessionOf(2))
+
+  it('is the ramp-in of week 3 of 12 with the planned minutes as its budget', () => {
+    expect(workout).toMatchObject({
+      sessionId: 's2a',
+      template: 'ramp-in',
+      variant: 'A',
+      block: { week: 3, of: 12, rampInWeeks: 3 },
+      budgetMin: 40,
+      setupSaved: true,
+      rules: ['F-lib', 'F4', 'E5', 'F7'],
+    })
+  })
+
+  it('has the knee, hip and calf lifts of the dumbbell ladder, 3 sets of 6 to 8 leaving 3', () => {
+    expect(workout.lifts.map((lift) => [lift.exerciseId, lift.slot, lift.implement])).toEqual([
+      ['goblet-squat', 'knee', 'dumbbells'],
+      ['dumbbell-rdl', 'hip', 'dumbbells'],
+      ['standing-calf-raise', 'calf', 'dumbbells'],
+    ])
+    for (const lift of workout.lifts) {
+      expect(lift.sets).toBe(3)
+      expect(lift.range).toEqual({ min: 6, max: 8 })
+      expect(lift.targets).toEqual([6, 6, 6])
+      expect(lift.rir).toEqual({ min: 3, max: 3 })
+      expect(lift.steps).toEqual({ loadsG: [10, 15, 20, 25, 30, 35, 40, 45, 50, 60].map(lb) })
+    }
+  })
+
+  it('steps each load up once, with the reason as a template and its slots', () => {
+    expect(workout.lifts.map((lift) => [lift.loadG, lift.change])).toEqual([
+      [lb(40), 'increase'],
+      [lb(40), 'increase'],
+      [lb(45), 'increase'],
+    ])
+    expect(liftOf(workout, 'goblet-squat')?.basis).toEqual({
+      rule: 'F8',
+      facts: [
+        {
+          template: 'strength.reason.increase',
+          slots: { exercise: 'Goblet squat', top: { kind: 'count', n: 8 } },
+        },
+      ],
+    })
+  })
+
+  it('holds the first rung of the jump ladder at 40 contacts and two trunk movements', () => {
+    expect(workout.plyo).toEqual({ contacts: 40, movements: ['pogo-hop'] })
+    expect(workout.trunk.map((lift) => [lift.exerciseId, lift.sets, lift.range])).toEqual([
+      ['side-plank', 2, { min: 30, max: 45 }],
+      ['dead-bug', 2, { min: 8, max: 12 }],
+    ])
+    expect(workout.trunk.every((lift) => lift.loadG === null && lift.rir === null)).toBe(true)
+  })
+})
+
+describe('workoutFor: a bar runner in week 6, after the ramp-in', () => {
+  const day = (rank: 0 | 1) => sessionRef(4, rank).date
+  const logs = [
+    log('a', day(0), {
+      sets: [
+        ...setsOf('back-squat', rows(110, [6, 6, 6, 6], [2, 2, 1, 1])),
+        ...setsOf('romanian-deadlift', rows(95, [6, 6, 6], [2, 2, 2])),
+        ...setsOf('standing-calf-raise', rows(80, [6, 6, 6], [null, null, null])),
+      ],
+    }),
+  ]
+  const ctx = onDayOf(5, { equipment: have('barbell') }, { logs })
+  const workout = workoutFor(ctx, sessionOf(5))
+
+  it('is a heavy session A in week 6 of 12', () => {
+    expect(workout).toMatchObject({
+      template: 'heavy',
+      variant: 'A',
+      block: { week: 6, of: 12, rampInWeeks: 3 },
+      budgetMin: 40,
+    })
+  })
+
+  it('leads with the back squat for 4 sets of 3 to 6 leaving 1 to 3, then the hinge and the calf raise for 3', () => {
+    expect(workout.lifts.map((lift) => [lift.exerciseId, lift.implement, lift.sets])).toEqual([
+      ['back-squat', 'barbell', 4],
+      ['romanian-deadlift', 'barbell', 3],
+      ['standing-calf-raise', 'barbell', 3],
+    ])
+    for (const lift of workout.lifts) {
+      expect(lift.range).toEqual({ min: 3, max: 6 })
+      expect(lift.rir).toEqual({ min: 1, max: 3 })
+    }
+  })
+
+  it('steps the squat and the hinge up and holds the calf raise, whose reps left were not recorded', () => {
+    expect(workout.lifts.map((lift) => [lift.loadG, lift.change])).toEqual([
+      [lb(115), 'increase'],
+      [lb(100), 'increase'],
+      [lb(80), 'hold'],
+    ])
+    expect(liftOf(workout, 'standing-calf-raise')?.basis.facts).toEqual([
+      { template: 'strength.reason.hold-unrecorded', slots: {} },
+    ])
+    expect(liftOf(workout, 'back-squat')?.targets).toEqual([3, 3, 3, 3])
+  })
+
+  it('gives 60 contacts of pogo hops in the third heavy week, after one step', () => {
+    expect(workout.plyo).toEqual({ contacts: 60, movements: ['pogo-hop'] })
+  })
+
+  it('finishes with the side plank and the dead bug, 2 sets each', () => {
+    expect(workout.trunk.map((lift) => [lift.exerciseId, lift.sets])).toEqual([
+      ['side-plank', 2],
+      ['dead-bug', 2],
+    ])
+  })
+
+  it('leads session B with the hinge for 4 sets, the squat for 3', () => {
+    const b = workoutFor(ctx, sessionOf(5, 1))
+    expect(b.variant).toBe('B')
+    expect(b.lifts.map((lift) => [lift.exerciseId, lift.sets])).toEqual([
+      ['romanian-deadlift', 4],
+      ['back-squat', 3],
+      ['standing-calf-raise', 3],
+    ])
+  })
+})
+
+describe('the templates of a workout', () => {
+  /** Every exercise a runner with a bar and dumbbells could be given has a working load of 50 lb. */
+  const seasoned = (at: string): StrengthLogEntry =>
+    log('seasoned', at, {
+      sets: [
+        'back-squat',
+        'romanian-deadlift',
+        'goblet-squat',
+        'dumbbell-rdl',
+        'standing-calf-raise',
+      ].flatMap((id, i) => setsOf(id, rows(50, [6, 6, 6, 6], [null, null, null, null]), i * 10)),
+    })
+  const base = plan(30, 12)
+  const withFlags = (index: number, flags: string[], over: Partial<StrengthWeek> = {}) =>
+    base.map((w, i) => (i === index ? { ...w, flags: [...w.flags, ...flags], ...over } : w))
+
+  interface Case {
+    name: string
+    week: number
+    weeks: StrengthWeek[]
+    template: StrengthTemplate
+    lifts: number
+    leadSets: number
+    otherSets: number
+    plyo: number | null
+    trunk: number
+  }
+  const [rampFirst, rampLater] = P.f7.rampInSets.value
+  const cases: Case[] = [
+    {
+      name: 'ramp-in, first week',
+      week: 0,
+      weeks: base,
+      template: 'ramp-in',
+      lifts: 3,
+      leadSets: rampFirst,
+      otherSets: rampFirst,
+      plyo: 40,
+      trunk: 2,
+    },
+    {
+      name: 'ramp-in, later week',
+      week: 1,
+      weeks: base,
+      template: 'ramp-in',
+      lifts: 3,
+      leadSets: rampLater,
+      otherSets: rampLater,
+      plyo: 40,
+      trunk: 2,
+    },
+    {
+      name: 'heavy',
+      week: 6,
+      weeks: base,
+      template: 'heavy',
+      lifts: 3,
+      leadSets: 4,
+      otherSets: 3,
+      plyo: 60,
+      trunk: 2,
+    },
+    {
+      name: 'lighter week',
+      week: 6,
+      weeks: withFlags(6, ['recovery']),
+      template: 'lighter-week',
+      lifts: 3,
+      leadSets: 2,
+      otherSets: 2,
+      plyo: 30,
+      trunk: 2,
+    },
+    {
+      name: 'maintenance',
+      week: 14,
+      weeks: base,
+      template: 'maintenance',
+      lifts: 3,
+      leadSets: 2,
+      otherSets: 2,
+      plyo: 60,
+      trunk: 2,
+    },
+    {
+      name: 'taper',
+      week: 25,
+      weeks: withFlags(25, ['taper']),
+      template: 'taper',
+      lifts: 2,
+      leadSets: 2,
+      otherSets: 2,
+      plyo: null,
+      trunk: 1,
+    },
+    {
+      name: 'return',
+      week: 6,
+      weeks: withFlags(6, ['injury-return']),
+      template: 'return',
+      lifts: 3,
+      leadSets: rampFirst,
+      otherSets: rampFirst,
+      plyo: null,
+      trunk: 2,
+    },
+  ]
+  it.each(cases)('$name', (c) => {
+    const session = sessionOf(c.week, 0, { durationMin: c.template === 'heavy' ? 40 : 25 })
+    const ctx = withSetup(
+      { equipment: have('barbell', 'dumbbells') },
+      { today: session.date, weeks: c.weeks, logs: [seasoned(addDays(session.date, -3))] },
+    )
+    const workout = workoutFor(ctx, session)
+    expect(workout.template).toBe(c.template)
+    expect(workout.lifts).toHaveLength(c.lifts)
+    expect(workout.lifts[0]?.sets).toBe(c.leadSets)
+    if (c.lifts > 1) expect(workout.lifts[1]?.sets).toBe(c.otherSets)
+    expect(workout.trunk).toHaveLength(c.trunk)
+    expect(workout.plyo?.contacts ?? null).toBe(c.plyo)
+    expect(workout.budgetMin).toBe(session.durationMin)
+  })
+
+  it('leaves the barbell out of the ramp-in and the return and brings it in after them', () => {
+    const implementsOf = (index: number, flags: string[] = []) => {
+      const session = sessionOf(index)
+      const ctx = withSetup(
+        { equipment: have('barbell') },
+        { today: session.date, weeks: flags.length > 0 ? withFlags(index, flags) : base },
+      )
+      return workoutFor(ctx, session).lifts.map((lift) => lift.implement)
+    }
+    expect(implementsOf(0)).not.toContain('barbell')
+    expect(implementsOf(2)).not.toContain('barbell')
+    expect(implementsOf(3)).toContain('barbell')
+    expect(implementsOf(8)).toContain('barbell')
+    expect(implementsOf(8, ['injury-return'])).not.toContain('barbell')
+    expect(implementsOf(8, ['recovery'])).toContain('barbell')
+    expect(implementsOf(14)).toContain('barbell')
+    expect(implementsOf(25, ['taper'])).toContain('barbell')
+  })
+
+  it('keeps the load of a lighter week, maintenance and the taper, however well the last session went', () => {
+    const great = (at: string) =>
+      log('great', at, {
+        sets: setsOf('back-squat', rows(110, [6, 6, 6, 6], [4, 4, 4, 4])),
+      })
+    const loadIn = (index: number, flags: string[]) => {
+      const session = sessionOf(index)
+      const ctx = withSetup(
+        { equipment: have('barbell') },
+        {
+          today: session.date,
+          weeks: withFlags(index, flags),
+          logs: [great(addDays(session.date, -3))],
+        },
+      )
+      return liftOf(workoutFor(ctx, session), 'back-squat')
+    }
+    // the heavy week earns two steps; the three that keep the load stay at 110 lb
+    expect(loadIn(6, [])?.loadG).toBe(lb(120))
+    for (const [index, flags, template] of [
+      [6, ['recovery'], 'strength.reason.lighter-week'],
+      [14, [], 'strength.reason.maintenance'],
+      [25, ['taper'], 'strength.reason.taper'],
+    ] as const) {
+      const lift = loadIn(index, [...flags])
+      expect(lift?.loadG, template).toBe(lb(110))
+      expect(lift?.change, template).toBe('hold')
+      expect(lift?.basis, template).toEqual({
+        rule: 'F9',
+        facts: [{ template, slots: { sets: 'two sets' } }],
+      })
+    }
+  })
+
+  it('gives a taper session the lead lift and the calf raise, two sets leaving 3 or more, and no jumps', () => {
+    const session = sessionOf(25, 0, { durationMin: 25 })
+    const ctx = withSetup(
+      { equipment: have('dumbbells') },
+      { today: session.date, weeks: withFlags(25, ['taper']) },
+    )
+    const a = workoutFor(ctx, session)
+    expect(a.lifts.map((lift) => lift.slot)).toEqual(['knee', 'calf'])
+    expect(a.plyo).toBeNull()
+    for (const lift of a.lifts) {
+      expect(lift.sets).toBe(P.f7.maintenanceSets.value)
+      expect(lift.rir?.min).toBeGreaterThanOrEqual(P.f7.easyRir.value)
+    }
+    const bSession = sessionOf(25, 1, { durationMin: 25 })
+    expect(
+      workoutFor({ ...ctx, today: bSession.date }, bSession).lifts.map((lift) => lift.slot),
+    ).toEqual(['hip', 'calf'])
+  })
+
+  it('starts the heavy template in the first block week after a regenerate that follows 4 logged weeks', () => {
+    const block = 10
+    const weeks = plan(40, 12).map((w, i) => ({
+      ...w,
+      flags: i >= block && i < block + 12 ? ['strength-block'] : [],
+    }))
+    const logs = [1, 2, 3, 4].map((back) =>
+      log(`c${String(back)}`, addDays(monday(block), -7 * back + 1), { template: 'ramp-in' }),
+    )
+    const session = sessionOf(block)
+    const ctx = withSetup({ equipment: have('dumbbells') }, { today: session.date, weeks, logs })
+    expect(workoutFor(ctx, session)).toMatchObject({
+      template: 'heavy',
+      block: { week: 1, of: 12, rampInWeeks: 0 },
+    })
+    expect(workoutFor({ ...ctx, logs: [] }, session).template).toBe('ramp-in')
+  })
+
+  it('follows the ramp-in length of the runner: 2 weeks when experienced and lifting, 4 when new', () => {
+    const templateAt = (setup: Partial<StrengthContext['setup']>, index: number) => {
+      const session = sessionOf(index)
+      return workoutFor(withSetup(setup, { today: session.date }), session).template
+    }
+    const experienced = { level: 'experienced', currentlyLifting: true } as const
+    expect([0, 1, 2].map((i) => templateAt(experienced, i))).toEqual([
+      'ramp-in',
+      'ramp-in',
+      'heavy',
+    ])
+    expect([2, 3, 4].map((i) => templateAt({ level: 'new' }, i))).toEqual([
+      'ramp-in',
+      'ramp-in',
+      'heavy',
+    ])
+    expect([2, 3].map((i) => templateAt({ level: 'some' }, i))).toEqual(['ramp-in', 'heavy'])
+  })
+})
+
+describe('workoutFor: before the setup is saved and when it changes', () => {
+  it('is a bodyweight workout, with no load and the default ramp-in, until the setup is saved', () => {
+    const session = sessionOf(1)
+    const ctx = withSetup(
+      { saved: false, equipment: have('barbell', 'dumbbells'), level: 'new' },
+      { today: session.date },
+    )
+    const workout = workoutFor(ctx, session)
+    expect(workout.setupSaved).toBe(false)
+    expect(workout.block?.rampInWeeks).toBe(P.flib.heavyRampInWeeks.value)
+    expect(
+      workout.lifts.map((lift) => [lift.exerciseId, lift.implement, lift.loadG, lift.steps]),
+    ).toEqual([
+      ['tempo-squat', null, null, null],
+      ['hip-thrust', null, null, null],
+      ['standing-calf-raise', null, null, null],
+    ])
+    for (const lift of workout.lifts) {
+      expect(lift.range).toEqual({
+        min: P.f7.bodyweightReps.value[0],
+        max: P.f7.bodyweightReps.value[1],
+      })
+      expect(lift.basis.facts[0]?.template).toBe('strength.reason.start-unloaded')
+    }
+  })
+
+  it('follows a change of equipment on the next read and leaves the block position alone', () => {
+    const session = sessionOf(7)
+    const before = withSetup({ equipment: have('dumbbells') }, { today: session.date })
+    const after = withSetup(
+      { equipment: have('dumbbells', 'barbell', 'leg-press') },
+      { today: session.date },
+    )
+    const one = workoutFor(before, session)
+    const two = workoutFor(after, session)
+    expect(one.lifts.map((lift) => lift.exerciseId)).toEqual([
+      'goblet-squat',
+      'dumbbell-rdl',
+      'standing-calf-raise',
+    ])
+    expect(two.lifts.map((lift) => lift.exerciseId)).toEqual([
+      'back-squat',
+      'romanian-deadlift',
+      'standing-calf-raise',
+    ])
+    expect(two.block).toEqual(one.block)
+    expect(two.template).toBe(one.template)
+    expect(two.plyo).toEqual(one.plyo)
+    // the exercise with no history starts again, as a ramp-in session at a conservative load
+    expect(two.lifts[0]).toMatchObject({ change: 'start', sets: P.f7.rampInSets.value[0] })
+  })
+
+  it('starts the exercise that replaces one the runner left out from its first load', () => {
+    const session = sessionOf(7)
+    const logs = [
+      log('a', addDays(session.date, -3), {
+        sets: setsOf('goblet-squat', rows(40, [5, 5, 5], [null, null, null])),
+      }),
+    ]
+    const ctx = withSetup(
+      { equipment: have('dumbbells'), avoid: ['goblet-squat'] },
+      { today: session.date, logs },
+    )
+    const lift = workoutFor(ctx, session).lifts[0]
+    expect(lift?.exerciseId).toBe('tempo-squat')
+    expect(lift?.change).toBe('start')
+  })
+})
+
+describe('workoutFor: the harder movement (rule F8.7)', () => {
+  const heavy = (index: number) => sessionOf(index)
+  const logsAt = (ids: string[], pounds: number, dates: string[], exercise = 'goblet-squat') =>
+    ids.map((id, i) =>
+      log(id, dates[i] ?? dates[0] ?? '', {
+        sets: setsOf(exercise, rows(pounds, [6, 6, 6], [1, 1, 1])),
+      }),
+    )
+  const session = heavy(8)
+  const days = [14, 8, 3].map((n) => addDays(session.date, -n))
+  // 50 lb to 60 lb is 20% of the load: no usable step
+  const equipment = [dumbbellsOf(30, 40, 50, 60), ITEM.step]
+  const goblet3 = logsAt(['a', 'b', 'c'], 50, days)
+
+  it('takes the harder movement after 3 sessions at the top with no usable step, as a first session', () => {
+    const ctx = withSetup({ equipment }, { today: session.date, logs: goblet3 })
+    const knee = workoutFor(ctx, session).lifts[0]
+    expect(knee).toMatchObject({
+      exerciseId: 'split-squat',
+      slot: 'knee',
+      change: 'variation',
+      sets: P.f7.rampInSets.value[0],
+      rir: { min: P.f7.easyRir.value, max: P.f7.easyRir.value },
+    })
+    expect(knee?.basis.facts.map((f) => f.template)).toEqual([
+      'strength.reason.variation',
+      'strength.reason.start-lightest',
+    ])
+    expect(knee?.basis.facts[0]?.slots).toMatchObject({
+      exercise: 'Goblet squat',
+      next: 'Split squat',
+    })
+  })
+
+  it('shows the harder movement by its own history once it has been logged', () => {
+    const split = log('d', addDays(session.date, -1), {
+      sets: setsOf('split-squat', rows(20, [6, 6, 6], [3, 3, 3])),
+    })
+    const ctx = withSetup({ equipment }, { today: session.date, logs: [...goblet3, split] })
+    const knee = workoutFor(ctx, session).lifts[0]
+    expect(knee?.exerciseId).toBe('split-squat')
+    expect(knee?.change).toBe('hold')
+  })
+
+  it('stays on an exercise the runner pinned, and where the harder movement was left out', () => {
+    const pinned = withSetup(
+      { equipment, pinned: { knee: 'goblet-squat' } },
+      { today: session.date, logs: goblet3 },
+    )
+    expect(workoutFor(pinned, session).lifts[0]?.exerciseId).toBe('goblet-squat')
+    const left = withSetup(
+      { equipment, avoid: ['split-squat'] },
+      { today: session.date, logs: goblet3 },
+    )
+    expect(workoutFor(left, session).lifts[0]?.exerciseId).toBe('goblet-squat')
+  })
+
+  it('does not change the exercise in a template that keeps the load', () => {
+    const maintenance = sessionOf(14)
+    const logs = logsAt(
+      ['a', 'b', 'c'],
+      50,
+      [14, 8, 3].map((n) => addDays(maintenance.date, -n)),
+    )
+    const ctx = withSetup({ equipment }, { today: maintenance.date, logs })
+    expect(workoutFor(ctx, maintenance).lifts[0]?.exerciseId).toBe('goblet-squat')
+  })
+})
+
+describe('workoutFor: the jump dose (rule F7)', () => {
+  const index = 9
+  const session = sessionOf(index)
+  /** Heavy weeks are weeks 4 to 12; week 10 has week 4 to 9 behind it, six heavy weeks. */
+  const runner = (
+    weeks: StrengthWeek[],
+    over: Partial<StrengthContext> = {},
+    setup: Partial<StrengthContext['setup']> = {},
+  ) => withSetup(setup, { today: session.date, weeks, ...over })
+  const dose = (
+    weeks: StrengthWeek[],
+    over: Partial<StrengthContext> = {},
+    setup: Partial<StrengthContext['setup']> = {},
+  ) => workoutFor(runner(weeks, over, setup), session).plyo
+  const ran = (share: Record<number, number>, flags: Record<number, string[]> = {}) =>
+    plan(30, 12).map((w, i) => ({
+      ...w,
+      plannedRunMin: 100,
+      runMin: share[i] ?? 100,
+      flags: [...w.flags, ...(flags[i] ?? [])],
+    }))
+
+  it('steps up 20 contacts every second heavy week and a rung every third, after completed weeks', () => {
+    // weeks 4 to 9 all run: steps after the 2nd, 4th and 6th, rungs after the 3rd and 6th
+    expect(dose(ran({}))).toEqual({ contacts: 100, movements: ['squat-jump'] })
+  })
+
+  it('counts a week at exactly 80% of its planned run minutes as completed and one at 79% as not', () => {
+    expect(P.j5.completionHoldShare.value).toBe(0.8)
+    expect(dose(ran({ 4: 80 }))).toEqual(dose(ran({})))
+    // week 5 at 79% holds the dose; the step is taken at the first completed week after it
+    expect(dose(ran({ 4: 79 }))).toEqual({ contacts: 80, movements: ['squat-jump'] })
+  })
+
+  it('does not step in a week a rest window touched, and holds through a run of incomplete weeks', () => {
+    expect(dose(ran({}, { 4: ['disrupted'] }))).toEqual({ contacts: 80, movements: ['squat-jump'] })
+    expect(dose(ran({}, { 4: ['disruption-return'] }))).toEqual({
+      contacts: 80,
+      movements: ['squat-jump'],
+    })
+    const poor = Object.fromEntries([3, 4, 5, 6, 7, 8].map((i) => [i, 50]))
+    expect(dose(ran(poor))).toEqual({ contacts: 40, movements: ['pogo-hop'] })
+  })
+
+  it('takes the step at the first completed week after a poor one, not all that were missed', () => {
+    // weeks 4 to 7 poor, 8 and 9 run: week 8 completes the step that was due, week 9 does not
+    const poor = Object.fromEntries([3, 4, 5, 6].map((i) => [i, 50]))
+    expect(dose(ran(poor))).toEqual({ contacts: 60, movements: ['line-hop'] })
+  })
+
+  it('holds the dose with no run minutes planned', () => {
+    const none = plan(30, 12).map((w) => ({ ...w, plannedRunMin: 0, runMin: 0 }))
+    expect(dose(none)).toEqual({ contacts: 40, movements: ['pogo-hop'] })
+  })
+
+  it('reads a session ahead as of today: a week still in progress or ahead counts for nothing', () => {
+    const weeks = ran({})
+    // on the Wednesday of week 9 the finished weeks are 1 to 8, whichever week the session is in
+    const asOf = { today: addDays(monday(8), 2) }
+    const expected = { contacts: 80, movements: ['line-hop'] }
+    expect(workoutFor(runner(weeks, asOf), session).plyo).toEqual(expected)
+    expect(workoutFor(runner(weeks, asOf), sessionOf(index + 2)).plyo).toEqual(expected)
+  })
+
+  it('holds 40 contacts on the first rung through the whole ramp-in', () => {
+    for (const i of [0, 1, 2]) {
+      const s = sessionOf(i)
+      const ctx = withSetup({}, { today: s.date, weeks: ran({}) })
+      expect(workoutFor(ctx, s).plyo).toEqual({ contacts: 40, movements: ['pogo-hop'] })
+    }
+  })
+
+  it('ends a 12-week block of completed weeks at 120 contacts, under the cap of 200', () => {
+    const s = sessionOf(11)
+    const ctx = withSetup({}, { today: s.date, weeks: ran({}) })
+    expect(workoutFor(ctx, s).plyo?.contacts).toBe(120)
+    expect(P.flib.plyoContactsMax.value).toBe(200)
+  })
+
+  it('stops at the cap and at the last rung in a longer block', () => {
+    const weeks = plan(40, 32).map((w) => ({ ...w, plannedRunMin: 100, runMin: 100 }))
+    const s = sessionOf(31)
+    const ctx = withSetup({}, { today: s.date, weeks })
+    expect(workoutFor(ctx, s).plyo).toEqual({ contacts: 200, movements: ['single-leg-hop'] })
+  })
+
+  it('halves the dose for a goal pace faster than 12 km/h, and only above it', () => {
+    const at = (paceKmh: number | null) => dose(ran({}), { goal: { paceKmh } })?.contacts
+    expect(P.flib.plyoEmphasisPaceKmh.value).toBe(12)
+    expect(at(null)).toBe(100)
+    expect(at(8)).toBe(100)
+    expect(at(12)).toBe(100)
+    expect(at(12.5)).toBe(50)
+    expect(at(16)).toBe(50)
+  })
+
+  it('halves the dose and stops at the second rung for a bone stress history or a recent injury', () => {
+    for (const risk of [
+      { priorBsi: true, recentInjury: false },
+      { priorBsi: false, recentInjury: true },
+      { priorBsi: true, recentInjury: true },
+    ]) {
+      expect(dose(ran({}), { athlete: { ...context().athlete, risk } })).toEqual({
+        contacts: 50,
+        movements: ['line-hop'],
+      })
+    }
+  })
+
+  it('halves the dose of a lighter week, and once only when several cases apply', () => {
+    const weeks = ran({}, { 9: ['recovery'] })
+    expect(dose(weeks)).toEqual({ contacts: 50, movements: ['squat-jump'] })
+    const everything = dose(weeks, {
+      goal: { paceKmh: 15 },
+      athlete: { ...context().athlete, risk: { priorBsi: true, recentInjury: true } },
+    })
+    expect(everything).toEqual({ contacts: 50, movements: ['line-hop'] })
+  })
+
+  it('gives maintenance 60 contacts on the rung reached, halved where a case applies', () => {
+    const s = sessionOf(14)
+    const maintenance = (over: Partial<StrengthContext> = {}) =>
+      workoutFor(withSetup({}, { today: s.date, weeks: ran({}), ...over }), s).plyo
+    // nine heavy weeks of the block, a rung every third: the last of the four movements
+    expect(maintenance()).toEqual({ contacts: 60, movements: ['single-leg-hop'] })
+    expect(maintenance({ goal: { paceKmh: 14 } })).toEqual({
+      contacts: 30,
+      movements: ['single-leg-hop'],
+    })
+  })
+
+  it('gives no jumps in the taper or a return week', () => {
+    const taper = withSetup({}, { today: sessionOf(25).date, weeks: ran({}, { 25: ['taper'] }) })
+    expect(workoutFor(taper, sessionOf(25)).plyo).toBeNull()
+    const back = withSetup({}, { today: session.date, weeks: ran({}, { 9: ['restart-floor'] }) })
+    expect(workoutFor(back, session).plyo).toBeNull()
+  })
+
+  it('takes the nearest easier movement when the one on the rung was left out, else a harder one', () => {
+    const without = (avoid: string[]) => dose(ran({}), {}, { avoid })
+    expect(without(['squat-jump'])?.movements).toEqual(['line-hop'])
+    expect(without(['squat-jump', 'line-hop', 'pogo-hop'])?.movements).toEqual(['single-leg-hop'])
+    expect(without([...PLYO_LADDER])).toBeNull()
+  })
+
+  it('does not depend on the order of the weeks', () => {
+    const weeks = ran({ 4: 79 })
+    expect(dose([...weeks].reverse())).toEqual(dose(weeks))
+  })
+})
+
+describe('workoutFor: the trunk finisher', () => {
+  const trunkOf = (
+    kinds: EquipmentKind[],
+    rank: 0 | 1,
+    over: Partial<StrengthContext['setup']> = {},
+  ) => {
+    const session = sessionOf(6, rank)
+    return workoutFor(
+      withSetup({ equipment: have(...kinds), ...over }, { today: session.date }),
+      session,
+    ).trunk
+  }
+
+  it('is the side plank and the dead bug on A, whatever the equipment', () => {
+    for (const kinds of [[], ['bands'], ['dumbbells', 'bands']] as EquipmentKind[][]) {
+      expect(trunkOf(kinds, 0).map((lift) => lift.exerciseId)).toEqual(['side-plank', 'dead-bug'])
+    }
+  })
+
+  it('is the banded walk and the Pallof press on B with bands, the carry and the plank with dumbbells', () => {
+    expect(trunkOf(['bands'], 1).map((lift) => lift.exerciseId)).toEqual([
+      'banded-lateral-walk',
+      'pallof-press',
+    ])
+    expect(trunkOf(['dumbbells'], 1).map((lift) => lift.exerciseId)).toEqual([
+      'farmer-carry',
+      'side-plank',
+    ])
+    expect(trunkOf([], 1).map((lift) => lift.exerciseId)).toEqual(['side-plank', 'dead-bug'])
+  })
+
+  it('counts a hold in seconds and a movement in reps, in the sets and ranges of the Params', () => {
+    const [plank, bug] = trunkOf([], 0)
+    expect(plank).toMatchObject({
+      sets: P.f7.trunkSets.value,
+      range: { min: 30, max: 45 },
+      targets: [30, 30],
+    })
+    expect(bug).toMatchObject({
+      sets: P.f7.trunkSets.value,
+      range: { min: 8, max: 12 },
+      targets: [8, 8],
+    })
+  })
+
+  it('loads the carry from the table and keeps the load, which has no reps left to read', () => {
+    const [carry] = trunkOf(['dumbbells'], 1)
+    // 70 kg x 0.15 = 10.5 kg = 23 lb: the 20 lb dumbbell
+    expect(carry).toMatchObject({
+      exerciseId: 'farmer-carry',
+      loadG: lb(20),
+      change: 'start',
+      rir: null,
+    })
+    expect(carry?.steps).not.toBeNull()
+  })
+
+  it('skips a movement the runner left out and takes the next of the order', () => {
+    expect(trunkOf([], 0, { avoid: ['side-plank'] }).map((lift) => lift.exerciseId)).toEqual([
+      'dead-bug',
+    ])
+    expect(trunkOf([], 0, { avoid: ['side-plank', 'dead-bug'] })).toEqual([])
+  })
+})
+
+describe('workoutFor: a lower-readiness day (rule F9)', () => {
+  const session = sessionOf(5)
+  const logs = [
+    log('a', addDays(session.date, -3), {
+      sets: [
+        ...setsOf('back-squat', rows(110, [6, 6, 6, 5], [2, 2, 2, 2])),
+        ...setsOf('romanian-deadlift', rows(95, [6, 6, 6], [2, 2, 2]), 10),
+        ...setsOf('standing-calf-raise', rows(80, [5, 5, 5], [2, 2, 2]), 20),
+      ],
+    }),
+  ]
+  const readiness = (over: Partial<StrengthReadiness> = {}): StrengthReadiness => ({
+    date: session.date,
+    state: 'possible-fatigue',
+    pain: null,
+    illness: 'clear',
+    ...over,
+  })
+  const run = (r: StrengthReadiness | null, date = session.date) =>
+    workoutFor(
+      withSetup({ equipment: have('barbell') }, { today: session.date, logs, readiness: r }),
+      { ...session, date },
+    )
+
+  it('takes one set from each lift and 10% from each load, rounded down to a step, and keeps the usual load', () => {
+    const usual = run(null)
+    const lighter = run(readiness())
+    expect(usual.lifts.map((lift) => [lift.sets, lift.loadG])).toEqual([
+      [4, lb(110)],
+      [3, lb(100)],
+      [3, lb(80)],
+    ])
+    // 110 lb less 10% is 99 lb: the 95 lb rung; 100 lb less 10% is 90 lb; 80 lb less 10% is 72 lb: 70 lb
+    expect(
+      lighter.lifts.map((lift) => [lift.sets, lift.loadG, lift.usualLoadG, lift.change]),
+    ).toEqual([
+      [3, lb(95), lb(110), 'lighter-day'],
+      [2, lb(90), lb(100), 'lighter-day'],
+      [2, lb(70), lb(80), 'lighter-day'],
+    ])
+    expect(P.f9.lowReadinessLoadPct.value).toBe(10)
+    expect(P.f9.lowReadinessSetsCut.value).toBe(1)
+    for (const lift of lighter.lifts) expect(lift.targets).toHaveLength(lift.sets)
+  })
+
+  it('states the F9 reason first and keeps the F8 reason for the usual load', () => {
+    const lift = run(readiness()).lifts[0]
+    expect(lift?.basis.rule).toBe('F9')
+    expect(lift?.basis.facts.map((f) => f.template)).toEqual([
+      'strength.reason.lighter-day',
+      'strength.reason.hold-range',
+    ])
+    expect(lift?.basis.facts[0]?.slots).toEqual({ sets: 'one set' })
+  })
+
+  it('never adds load or sets: the usual workout is the ceiling', () => {
+    const usual = run(null)
+    const lighter = run(readiness())
+    lighter.lifts.forEach((lift, i) => {
+      expect(lift.loadG ?? 0).toBeLessThanOrEqual(usual.lifts[i]?.loadG ?? 0)
+      expect(lift.sets).toBeLessThanOrEqual(usual.lifts[i]?.sets ?? 0)
+    })
+  })
+
+  it('leaves the jumps and the trunk movements as they are', () => {
+    const usual = run(null)
+    const lighter = run(readiness())
+    expect(lighter.plyo).toEqual(usual.plyo)
+    expect(lighter.trunk).toEqual(usual.trunk)
+    expect(lighter.template).toBe(usual.template)
+  })
+
+  it.each([
+    ['possible fatigue', readiness({ state: 'possible-fatigue' })],
+    ['persistent suppression', readiness({ state: 'persistent-suppression' })],
+    ['pain at the flag score', readiness({ state: 'normal', pain: P.pain.flagScore.value })],
+    ['pain above it', readiness({ state: 'normal', pain: P.pain.flagScore.value + 3 })],
+    ['illness in its easy-only phase', readiness({ state: 'normal', illness: 'easy-only' })],
+    ['illness in its rest phase', readiness({ state: 'normal', illness: 'rest' })],
+  ])('applies on %s', (_name, r) => {
+    expect(run(r).lifts.every((lift) => lift.change === 'lighter-day')).toBe(true)
+  })
+
+  it('does not apply to a normal read, pain under the flag score, or a clear illness', () => {
+    expect(run(readiness({ state: 'normal' })).lifts.some((l) => l.change === 'lighter-day')).toBe(
+      false,
+    )
+    expect(
+      run(readiness({ state: 'normal', pain: P.pain.flagScore.value - 1 })).lifts[0]?.change,
+    ).not.toBe('lighter-day')
+    expect(run(null).lifts[0]?.change).not.toBe('lighter-day')
+  })
+
+  it('applies to the viewed day only: a preview or a past day has no read', () => {
+    const tomorrow = addDays(session.date, 1)
+    expect(run(readiness(), tomorrow).lifts.some((l) => l.change === 'lighter-day')).toBe(false)
+    expect(run(readiness({ date: tomorrow })).lifts.some((l) => l.change === 'lighter-day')).toBe(
+      false,
+    )
+  })
+
+  it('keeps at least the fewest sets of a template, and lightens a lift that already has them', () => {
+    const maintenance = sessionOf(14)
+    const ctx = withSetup(
+      { equipment: have('barbell') },
+      {
+        today: maintenance.date,
+        logs: [
+          log('m', addDays(maintenance.date, -3), {
+            sets: setsOf('back-squat', rows(110, [5, 5], [null, null])),
+          }),
+        ],
+        readiness: { ...readiness(), date: maintenance.date },
+      },
+    )
+    const lift = workoutFor(ctx, maintenance).lifts[0]
+    expect(lift).toMatchObject({
+      sets: P.f7.maintenanceSets.value,
+      loadG: lb(95),
+      usualLoadG: lb(110),
+    })
+  })
+
+  it('cuts the sets of a movement with no added load and has no load to lower', () => {
+    const ctx = withSetup(
+      {},
+      {
+        today: session.date,
+        readiness: readiness(),
+        logs: [
+          log('t', addDays(session.date, -3), {
+            sets: setsOf('tempo-squat', [
+              [null, 10, 2],
+              [null, 10, 2],
+              [null, 10, 2],
+              [null, 10, 2],
+            ]),
+          }),
+        ],
+      },
+    )
+    const knee = workoutFor(ctx, session).lifts[0]
+    expect(knee).toMatchObject({
+      exerciseId: 'tempo-squat',
+      sets: 3,
+      loadG: null,
+      usualLoadG: null,
+      change: 'lighter-day',
+    })
+  })
+
+  it('shows the lighter day for a first session as well, which cannot go lower than the lightest load', () => {
+    const ctx = withSetup(
+      { equipment: have('barbell') },
+      { today: session.date, readiness: readiness() },
+    )
+    const squat = workoutFor(ctx, session).lifts[0]
+    // the first load is 50 lb, two sets, which a lighter day cannot cut; the load comes to the 45 lb bar
+    expect(squat).toMatchObject({
+      exerciseId: 'back-squat',
+      loadG: lb(45),
+      usualLoadG: lb(50),
+      sets: 2,
+    })
+  })
+
+  it('is logged as a lighter day, and modeOf names every mode', () => {
+    expect(modeOf(run(readiness()))).toBe('lighter-day')
+    expect(modeOf(run(null))).toBe('normal')
+    const w = (template: StrengthTemplate, changes: WorkoutLift['change'][] = ['hold']) => ({
+      template,
+      lifts: changes.map((change) => ({ ...run(null).lifts[0]!, change })),
+    })
+    expect(modeOf(w('heavy'))).toBe('normal')
+    expect(modeOf(w('ramp-in'))).toBe('normal')
+    expect(modeOf(w('maintenance'))).toBe('normal')
+    expect(modeOf(w('lighter-week'))).toBe('lighter-week')
+    expect(modeOf(w('taper'))).toBe('taper')
+    expect(modeOf(w('return'))).toBe('return')
+    expect(modeOf(w('heavy', ['hold', 'return']))).toBe('return')
+    expect(modeOf(w('heavy', ['hold', 'lighter-day']))).toBe('lighter-day')
+    expect(modeOf(w('taper', ['lighter-day']))).toBe('lighter-day')
+  })
+})
+
+describe('workoutFor: a gap (rule F9, F8.2)', () => {
+  it('comes back lighter after 4 weeks without a session, and is logged as a return', () => {
+    const session = sessionOf(8)
+    const logs = [
+      log('a', addDays(session.date, -P.f8.layoffDays.value), {
+        sets: setsOf('back-squat', rows(110, [6, 6, 6, 6], [2, 2, 2, 2])),
+      }),
+    ]
+    const ctx = withSetup({ equipment: have('barbell') }, { today: session.date, logs })
+    const workout = workoutFor(ctx, session)
+    const squat = liftOf(workout, 'back-squat')
+    expect(squat).toMatchObject({ change: 'return', loadG: lb(95), targets: [3, 3, 3, 3] })
+    expect(squat?.rir).toEqual({ min: P.f7.easyRir.value, max: P.f7.easyRir.value })
+    expect(modeOf(workout)).toBe('return')
+  })
+})
+
+describe('liftFor and liftTexts', () => {
+  const session = sessionOf(7)
+  const ctx = withSetup(
+    { equipment: have('barbell', 'dumbbells', 'leg-press', 'step') },
+    { today: session.date },
+  )
+
+  it('builds a lift for a swap: the exercise of the catalogue in the place of the session', () => {
+    const goblet = liftFor(ctx, session, 'goblet-squat')
+    expect(goblet).toMatchObject({
+      exerciseId: 'goblet-squat',
+      slot: 'knee',
+      implement: 'dumbbells',
+      change: 'start',
+    })
+    expect(goblet?.sets).toBe(P.f7.rampInSets.value[0])
+    // the lead lift of session A has the sets of a lead lift once it has a history
+    const logs = [
+      log('g', addDays(session.date, -3), {
+        sets: setsOf('goblet-squat', rows(40, [4, 4, 4, 4], [null, null, null, null])),
+      }),
+    ]
+    expect(liftFor({ ...ctx, logs }, session, 'goblet-squat')?.sets).toBe(4)
+    expect(liftFor({ ...ctx, logs }, sessionOf(7, 1), 'goblet-squat')?.sets).toBe(3)
+  })
+
+  it('reaches a harder movement and a trunk movement, and no jump', () => {
+    expect(liftFor(ctx, session, 'step-up')?.slot).toBe('knee')
+    expect(liftFor(ctx, session, 'farmer-carry')?.slot).toBe('trunk')
+    expect(liftFor(ctx, session, 'pogo-hop')).toBeNull()
+  })
+
+  it('gives none for an exercise the runner cannot do, or one the catalogue does not know', () => {
+    expect(
+      liftFor(
+        withSetup({ equipment: have('dumbbells') }, { today: session.date }),
+        session,
+        'back-squat',
+      ),
+    ).toBeNull()
+    expect(liftFor(ctx, session, 'not-a-lift' as ExerciseId)).toBeNull()
+    // no barbell in the ramp-in
+    const ramp = sessionOf(1)
+    expect(liftFor({ ...ctx, today: ramp.date }, ramp, 'back-squat')).toBeNull()
+  })
+
+  it('names an exercise, its cue and its note as templates and slots', () => {
+    const squat = liftTexts('back-squat')
+    expect(squat?.name).toEqual({ template: 'strength.name.back-squat', slots: {} })
+    expect(squat?.cue).toEqual({ template: 'strength.cue.back-squat', slots: {} })
+    expect(squat?.note).toEqual({
+      template: 'strength.note.lower-stand',
+      slots: { seconds: { kind: 'count', n: P.f7.lowerSeconds.value } },
+    })
+    expect(liftTexts('pogo-hop')?.note).toEqual({ template: 'strength.note.plyo', slots: {} })
+    expect(liftTexts('side-plank')?.note).toEqual({
+      template: 'strength.note.controlled',
+      slots: {},
+    })
+    expect(liftTexts('nothing')).toBeNull()
+  })
+
+  it('has a registered template behind every name, cue and note', () => {
+    for (const exercise of EXERCISES) {
+      const texts = liftTexts(exercise.id)
+      for (const part of [texts?.name, texts?.cue, texts?.note]) {
+        expect(Object.keys(STRENGTH_TEMPLATES), exercise.id).toContain(part?.template)
+      }
+    }
+  })
+})
+
+describe('every workout', () => {
+  it('exists for each of the 256 subsets of the eight kinds of equipment, in every template', () => {
+    let counted = 0
+    for (let mask = 0; mask < 1 << ALL_KINDS.length; mask += 1) {
+      const kinds = ALL_KINDS.filter((_, bit) => (mask >> bit) & 1)
+      const equipment = have(...kinds)
+      for (const [index, flags] of [
+        [0, []],
+        [2, []],
+        [6, []],
+        [6, ['recovery']],
+        [14, []],
+        [25, ['taper']],
+        [6, ['injury-return']],
+      ] as Array<[number, string[]]>) {
+        const session = sessionOf(index)
+        const weeks = plan(30, 12).map((w, i) =>
+          i === index ? { ...w, flags: [...w.flags, ...flags] } : w,
+        )
+        const workout = workoutFor(
+          withSetup({ equipment }, { today: session.date, weeks }),
+          session,
+        )
+        const label = `${kinds.join('+') || 'none'} ${workout.template}`
+        expect(workout.lifts.length, label).toBeGreaterThan(0)
+        for (const lift of [...workout.lifts, ...workout.trunk]) {
+          // an implement is one the runner has, the barbell only with a bar and after the ramp-in
+          if (lift.implement !== null) expect(kinds, label).toContain(lift.implement)
+          if (lift.implement === 'barbell') {
+            expect(['ramp-in', 'return'], label).not.toContain(workout.template)
+          }
+          // a load is on a rung of the equipment
+          if (lift.loadG !== null) {
+            expect(lift.steps, label).not.toBeNull()
+            expect(roundDownToStep(lift.steps as LoadSteps, lift.loadG, 'lb'), label).toBe(
+              lift.loadG,
+            )
+          }
+          expect(lift.targets, label).toHaveLength(lift.sets)
+          expect(lift.sets, label).toBeGreaterThan(0)
+        }
+        counted += 1
+      }
+    }
+    expect(counted).toBe(256 * 7)
+  })
+
+  it('gives the same workout twice, from a frozen context, in any order of its rows', () => {
+    const session = sessionOf(7)
+    const logs = [
+      log('a', addDays(session.date, -10), {
+        sets: setsOf('back-squat', rows(105, [6, 6, 6, 6], [2, 2, 2, 2])),
+      }),
+      log('b', addDays(session.date, -3), {
+        sets: [
+          ...setsOf('back-squat', rows(110, [6, 6, 6, 6], [2, 2, 1, 1])),
+          ...setsOf('standing-calf-raise', rows(60, [4, 4, 4], [null, null, null]), 10),
+        ],
+      }),
+    ]
+    const ctx = withSetup(
+      { equipment: have('barbell', 'dumbbells') },
+      { today: session.date, logs },
+    )
+    const reference = workoutFor(ctx, session)
+    expect(workoutFor(ctx, session)).toEqual(reference)
+    expect(workoutFor(deepFreeze(structuredClone(ctx)), session)).toEqual(reference)
+    const scrambled: StrengthContext = {
+      ...ctx,
+      logs: [...logs].reverse().map((entry) => ({ ...entry, sets: [...entry.sets].reverse() })),
+      weeks: [...ctx.weeks].reverse(),
+      sessions: [...ctx.sessions].reverse(),
+    }
+    expect(workoutFor(scrambled, session)).toEqual(reference)
   })
 })

@@ -17,6 +17,7 @@ import { STRENGTH_TEMPLATES, type StrengthTemplateId } from '../copy/strengthTem
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import {
   FLOOR_EXERCISE,
+  PLYO_LADDER,
   exerciseById,
   isExerciseId,
   ladderFor,
@@ -30,7 +31,10 @@ import type {
   EquipmentConfig,
   EquipmentKind,
   LoadSteps,
+  PlyoDose,
+  Slot,
   StrengthTemplate,
+  StrengthWorkout,
   SuggestionBasis,
   WeightUnit,
   WorkoutLift,
@@ -44,6 +48,7 @@ import type {
   StrengthContext,
   StrengthLogEntry,
   StrengthMode,
+  StrengthReadiness,
   StrengthSessionRef,
   StrengthWeek,
 } from './types.ts'
@@ -735,7 +740,8 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
   if (gap >= P.f8.layoffDays.value) {
     const returned =
       base === null ? null : onLadder(Math.round(base * P.f8.layoffLoadFraction.value))
-    const shape = { ...pick(req.template, loaded), rir: { min: easy, max: easy } }
+    const own = pick(req.template, loaded)
+    const shape = { ...own, rir: own.rir === null ? null : { min: easy, max: easy } }
     const facts = loaded
       ? [
           fact('strength.reason.return', {
@@ -806,6 +812,15 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
     )
   }
 
+  // a movement with no effort target (the trunk) has no reps left to read, so no step up: the
+  // load holds and each set aims one rep, or one second, above the last
+  const aimAbove = (): number[] =>
+    Array.from({ length: shape.sets }, (_, i) => {
+      const last = counts[Math.min(i, counts.length - 1)] ?? lo
+      return Math.max(lo, Math.min(hi, last + 1))
+    })
+  if (shape.rir === null) return make('F8.6', 'hold', held, 'template', shape, aimAbove(), [])
+
   // F8.4, F8.5, F8.7: every set at the top, with reps left, all recorded
   const allTop = counts.every((c) => c >= hi)
   const spare = lastNormal.sets.flatMap((set) => (set.rir === null ? [] : [set.rir]))
@@ -874,10 +889,7 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
   }
 
   // F8.6: the working load, each set aiming one rep above the last
-  const targets = Array.from({ length: shape.sets }, (_, i) => {
-    const last = counts[Math.min(i, counts.length - 1)] ?? lo
-    return Math.max(lo, Math.min(hi, last + 1))
-  })
+  const targets = aimAbove()
   let facts: Fact[]
   if (!allTop) {
     facts = [fact('strength.reason.hold-range', { exercise, top: count(hi) })]
@@ -904,4 +916,444 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
     facts = []
   }
   return make('F8.6', 'hold', held, 'template', shape, targets, facts)
+}
+
+// ---------------------------------------------------------------------------------------------
+// The jump dose (rule F7, design 8.2)
+// ---------------------------------------------------------------------------------------------
+
+/** Whether a finished week was a completed running week (design 8.2, rule J5). */
+function completedRunningWeek(week: StrengthWeek): boolean {
+  // a week a rest window touched is not completed; so is a week with nothing planned to complete
+  if (week.flags.includes('disrupted') || week.flags.includes('disruption-return')) return false
+  return (
+    week.plannedRunMin > 0 && week.runMin / week.plannedRunMin >= P.j5.completionHoldShare.value
+  )
+}
+
+/**
+ * The steps of contacts and the rung of the jump ladder reached before the week of `before`, read
+ * from the finished weeks of the stored plan and never stored. Each block week after the ramp-in
+ * counts toward the next step (`f7.plyoStepEveryWeeks`) and the next rung (`f7.plyoRungWeeks`), and
+ * a step or a move is taken only at the end of a completed running week; an incomplete week holds
+ * the dose and the step is taken at the first completed week after it. Return weeks and ramp-in
+ * weeks hold the dose and count toward nothing.
+ */
+function plyoLadder(ctx: StrengthContext, before: string): { steps: number; rung: number } {
+  const finished = ctx.weeks
+    .filter((w) => w.weekStart < before && addDays(w.weekStart, 6) < ctx.today)
+    .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+  let steps = 0
+  let rung = 0
+  let sinceStep = 0
+  let sinceRung = 0
+  for (const w of finished) {
+    const at = blockPosition(ctx, w.weekStart)
+    if (at === null || isReturnWeek(w) || at.week <= at.rampInWeeks) continue
+    sinceStep += 1
+    sinceRung += 1
+    if (!completedRunningWeek(w)) continue
+    if (sinceStep >= P.f7.plyoStepEveryWeeks.value) {
+      steps += 1
+      sinceStep = 0
+    }
+    if (sinceRung >= P.f7.plyoRungWeeks.value) {
+      rung += 1
+      sinceRung = 0
+    }
+  }
+  return { steps, rung: Math.min(rung, PLYO_LADDER.length - 1) }
+}
+
+/**
+ * The jump dose of a session (design 8.1, 8.2): none in a taper or a return; the start of the
+ * ladder in the ramp-in; `min(cap, start + step x steps)` contacts on the rung reached in the heavy
+ * weeks; half of that in a lighter week; `f7.maintenancePlyoContacts` on the rung reached in
+ * maintenance. The dose is multiplied by `f7.reducedPlyoShare` once, whichever of these applies: a
+ * goal pace faster than `flib.plyoEmphasisPaceKmh`, a bone stress history, a recent injury, or a
+ * lighter week (G6: the most conservative of the cases that collide, not their product). A bone
+ * stress history or a recent injury also stops the ladder at its second rung.
+ */
+function plyoFor(
+  ctx: StrengthContext,
+  template: StrengthTemplate,
+  weekStart: string,
+): PlyoDose | null {
+  if (template === 'taper' || template === 'return') return null
+  const cap = P.flib.plyoContactsMax.value
+  const { steps, rung } =
+    template === 'ramp-in' ? { steps: 0, rung: 0 } : plyoLadder(ctx, weekStart)
+  const injured = ctx.athlete.risk.priorBsi || ctx.athlete.risk.recentInjury
+  const reached = injured ? Math.min(rung, 1) : rung
+  const dose =
+    template === 'maintenance'
+      ? P.f7.maintenancePlyoContacts.value
+      : P.f7.plyoStartContacts.value + P.f7.plyoStepContacts.value * steps
+  const fast = ctx.goal.paceKmh !== null && ctx.goal.paceKmh > P.flib.plyoEmphasisPaceKmh.value
+  const reduced = fast || injured || template === 'lighter-week'
+  const contacts = Math.min(cap, reduced ? Math.round(dose * P.f7.reducedPlyoShare.value) : dose)
+  // the movement of the rung, or the nearest easier one the runner has not left out, else a harder
+  const avoided = avoidedBy(ctx)
+  const easier = [...PLYO_LADDER.slice(0, reached + 1)].reverse()
+  const movement = [...easier, ...PLYO_LADDER.slice(reached + 1)].find((id) => !avoided.has(id))
+  return movement === undefined ? null : { contacts, movements: [movement] }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lighter days and weeks, the taper and the return (rule F9, design 10.4)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Whether the viewed day's readiness is lower than usual (design 10.4): the readiness read is not
+ * `normal`, or a pain report at or above `pain.flagScore` is recent, or an illness is in its
+ * easy-only phase (the rest phase counts as well, for a caller that still shows the session). The
+ * tests are those rule J3 already applies to runs: no second test and no new threshold. Readiness
+ * never adds load. A preview or a past day has no read (`null`) and no reduction.
+ */
+export function isLowReadiness(readiness: StrengthReadiness | null): boolean {
+  if (readiness === null) return false
+  return (
+    readiness.state !== 'normal' ||
+    (readiness.pain !== null && readiness.pain >= P.pain.flagScore.value) ||
+    readiness.illness !== 'clear'
+  )
+}
+
+/** Templates that keep the load: it is never raised and the exercise never changes (G6). */
+const keepsLoad = (template: StrengthTemplate): boolean =>
+  template === 'lighter-week' ||
+  template === 'maintenance' ||
+  template === 'taper' ||
+  template === 'return'
+
+/** The reason a template that keeps the load gives for the unchanged load, as a fact. */
+function keptFact(template: StrengthTemplate): Fact | null {
+  const sets = countPhrase(P.f7.maintenanceSets.value, 'set')
+  switch (template) {
+    case 'lighter-week':
+      return fact('strength.reason.lighter-week', { sets })
+    case 'taper':
+      return fact('strength.reason.taper', { sets })
+    case 'maintenance':
+      return fact('strength.reason.maintenance', { sets })
+    case 'ramp-in':
+    case 'heavy':
+    case 'return':
+      return null
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The lifts of a workout
+// ---------------------------------------------------------------------------------------------
+
+/** What every lift of one session shares. */
+interface SessionPlan {
+  session: Pick<StrengthSessionRef, 'id' | 'date' | 'durationMin' | 'rules'>
+  weekStart: string
+  position: BlockPosition | null
+  template: StrengthTemplate
+  variant: 'A' | 'B'
+  /** The viewed day's readiness is lower than usual. */
+  lowReadiness: boolean
+}
+
+/** The harder movement of an exercise, as a lift, when the runner can do it and has not left it out. */
+function harderChoice(
+  ctx: StrengthContext,
+  plan: SessionPlan,
+  id: ExerciseId,
+  slot: Slot,
+): LiftChoice | null {
+  const harder = exerciseById(id)?.harder ?? null
+  if (harder === null || avoidedBy(ctx).has(harder)) return null
+  if (slot !== 'trunk' && slot !== 'plyo' && pinnedFor(ctx, slot) === id) return null
+  const way = waysFor(ctx, harder, barbellAllowed(plan.template))[0]
+  return way === undefined ? null : { exerciseId: harder, floor: false, ...way }
+}
+
+/** One lift of the workout from the way it is done and the suggestion for its load. */
+function liftFrom(
+  ctx: StrengthContext,
+  plan: SessionPlan,
+  choice: LiftChoice,
+  slot: Slot,
+  suggestion: LoadSuggestion,
+  trail: Fact[],
+): WorkoutLift {
+  const kept = suggestion.change === 'hold' ? keptFact(plan.template) : null
+  let change: WorkoutLift['change'] = suggestion.change
+  let facts = suggestion.facts
+  let rule: SuggestionBasis['rule'] = facts.length > 0 ? 'F8' : 'F7'
+  if (suggestion.change === 'start' && trail.length > 0) {
+    change = 'variation'
+    facts = [...trail, ...facts]
+  }
+  if (kept !== null) {
+    facts = [kept]
+    rule = 'F9'
+  }
+  let sets = suggestion.sets
+  let targets = suggestion.targets
+  let loadG = suggestion.loadG
+  let usualLoadG: number | null = null
+
+  // a lower-readiness day: one set fewer (at least the fewest sets of any template remain) and a
+  // lighter load, rounded down to a step; the usual load stays one tap away
+  if (plan.lowReadiness && slot !== 'trunk') {
+    const fewest = P.f7.maintenanceSets.value
+    const fewer = Math.max(sets - P.f9.lowReadinessSetsCut.value, Math.min(sets, fewest))
+    const lighter =
+      loadG === null || suggestion.steps === null
+        ? loadG
+        : Math.min(
+            loadG,
+            roundDownToStep(
+              suggestion.steps,
+              Math.round(loadG * (1 - P.f9.lowReadinessLoadPct.value / 100)),
+              ctx.weightUnit,
+            ) ?? loadG,
+          )
+    if (fewer !== sets || lighter !== loadG) {
+      usualLoadG = loadG
+      loadG = lighter
+      sets = fewer
+      targets = targets.slice(0, fewer)
+      change = 'lighter-day'
+      facts = [
+        fact('strength.reason.lighter-day', {
+          sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
+        }),
+        ...facts,
+      ]
+      rule = 'F9'
+    }
+  }
+  return {
+    exerciseId: choice.exerciseId,
+    slot,
+    implement: choice.implement,
+    sets,
+    range: suggestion.range,
+    targets,
+    loadG,
+    steps: suggestion.steps,
+    rir: suggestion.rir,
+    change,
+    usualLoadG,
+    basis: { rule, facts },
+  }
+}
+
+/** The request for the load of a lift of this session. */
+function requestFor(
+  ctx: StrengthContext,
+  plan: SessionPlan,
+  choice: LiftChoice,
+  slot: Slot,
+  role: LiftRole,
+): LoadRequest {
+  if (slot === 'trunk') {
+    const seconds = exerciseById(choice.exerciseId)?.measure === 'seconds'
+    const [min, max] = seconds ? P.f7.trunkHoldSec.value : P.f7.trunkReps.value
+    const shape: Structure = { range: { min, max }, sets: P.f7.trunkSets.value, rir: null }
+    const both = { loaded: shape, unloaded: shape }
+    return {
+      exerciseId: choice.exerciseId,
+      implement: choice.implement,
+      date: plan.session.date,
+      template: both,
+      first: both,
+      keepLoad: true,
+    }
+  }
+  const shapes = structuresFor(plan.template, role, plan.position?.week ?? null)
+  return {
+    exerciseId: choice.exerciseId,
+    implement: choice.implement,
+    date: plan.session.date,
+    ...shapes,
+    keepLoad: keepsLoad(plan.template),
+    canVary: harderChoice(ctx, plan, choice.exerciseId, slot) !== null,
+  }
+}
+
+/**
+ * The lift of a slot with its load. When the rules move an exercise on to its harder movement
+ * (F8.7) the harder movement takes the place: its own history decides its load, and its first
+ * session carries the reason for the move. A movement that carries no load and no effort target
+ * (a plank, a band) is counted and never loaded.
+ */
+function buildLift(
+  ctx: StrengthContext,
+  plan: SessionPlan,
+  start: LiftChoice,
+  slot: Slot,
+  role: LiftRole,
+): WorkoutLift {
+  let choice = start
+  let trail: Fact[] = []
+  const seen = new Set<ExerciseId>()
+  for (;;) {
+    seen.add(choice.exerciseId)
+    const request = requestFor(ctx, plan, choice, slot, role)
+    if (slot === 'trunk' && choice.steps === null) {
+      const shape = request.template.unloaded
+      return {
+        exerciseId: choice.exerciseId,
+        slot,
+        implement: choice.implement,
+        sets: shape.sets,
+        range: shape.range,
+        targets: Array.from({ length: shape.sets }, () => shape.range.min),
+        loadG: null,
+        steps: null,
+        rir: null,
+        change: 'hold',
+        usualLoadG: null,
+        basis: { rule: 'F7', facts: [] },
+      }
+    }
+    const suggestion = suggestLoad(ctx, request)
+    const next =
+      suggestion.change === 'variation' && suggestion.moveTo !== null
+        ? harderChoice(ctx, plan, choice.exerciseId, slot)
+        : null
+    if (next === null || seen.has(next.exerciseId)) {
+      return liftFrom(ctx, plan, choice, slot, suggestion, trail)
+    }
+    trail = [...trail, ...suggestion.facts]
+    choice = next
+  }
+}
+
+/** The trunk movements of a session: the preferred two of the variant, one in the taper. */
+const TRUNK_ORDER: Readonly<Record<'A' | 'B', readonly ExerciseId[]>> = {
+  A: ['side-plank', 'dead-bug', 'banded-lateral-walk', 'pallof-press', 'farmer-carry'],
+  B: ['banded-lateral-walk', 'pallof-press', 'farmer-carry', 'side-plank', 'dead-bug'],
+}
+
+function trunkOf(ctx: StrengthContext, plan: SessionPlan): WorkoutLift[] {
+  const avoided = avoidedBy(ctx)
+  const chosen = TRUNK_ORDER[plan.variant].flatMap((id): LiftChoice[] => {
+    const way = avoided.has(id) ? undefined : waysFor(ctx, id)[0]
+    return way === undefined ? [] : [{ exerciseId: id, floor: false, ...way }]
+  })
+  const [first, second] = chosen
+  const movements = plan.template === 'taper' ? [first] : [first, second]
+  return movements.flatMap((choice) =>
+    choice === undefined ? [] : [buildLift(ctx, plan, choice, 'trunk', 'other')],
+  )
+}
+
+/** The lifts of a session in order: the lead lift, the other lift of the pair, then the calf. */
+function liftsOf(ctx: StrengthContext, plan: SessionPlan): WorkoutLift[] {
+  const lead: LadderSlot = plan.variant === 'A' ? 'knee' : 'hip'
+  const other: LadderSlot = plan.variant === 'A' ? 'hip' : 'knee'
+  const taper = plan.template === 'taper'
+  const order: LadderSlot[] = taper ? [lead, 'calf', other] : [lead, other, 'calf']
+  const wanted = taper ? P.f7.taperLifts.value : P.flib.heavyExercises.value
+  return order.slice(0, wanted).map((slot) => {
+    const choice = pickLift(slot, ctx, {
+      barbell: barbellAllowed(plan.template),
+      variant: plan.variant,
+    })
+    return buildLift(ctx, plan, choice, slot, slot === lead ? 'lead' : 'other')
+  })
+}
+
+/** The plan of a session: its week, its place in the block, its template and its variant. */
+function planOf(ctx: StrengthContext, session: StrengthSessionRef): SessionPlan {
+  const weekStart = mondayOf(session.date)
+  const week = ctx.weeks.find((w) => w.weekStart === weekStart)
+  const position = blockPosition(ctx, weekStart)
+  const readiness = ctx.readiness
+  return {
+    session,
+    weekStart,
+    position,
+    template: strengthTemplate(week ?? { flags: [], phase: '', isRecovery: false }, position),
+    variant: sessionVariant(ctx, session),
+    lowReadiness:
+      readiness !== null && readiness.date === session.date && isLowReadiness(readiness),
+  }
+}
+
+/**
+ * The one derived workout of a strength session (design 5.1): the lifts with sets, repetitions,
+ * reps left and loads in grams, the jump dose, the trunk movements and the reasons, as templates
+ * and slots. A pure function of the stored plan, the saved setup and the logged sets; nothing is
+ * stored and the same inputs give the same workout. Every surface renders this object.
+ */
+export function workoutFor(ctx: StrengthContext, session: StrengthSessionRef): StrengthWorkout {
+  const plan = planOf(ctx, session)
+  return {
+    sessionId: session.id,
+    date: session.date,
+    template: plan.template,
+    variant: plan.variant,
+    block: plan.position === null ? null : { ...plan.position },
+    budgetMin: session.durationMin,
+    setupSaved: ctx.setup.saved,
+    lifts: liftsOf(ctx, plan),
+    plyo: plyoFor(ctx, plan.template, plan.weekStart),
+    trunk: trunkOf(ctx, plan),
+    rules: [...session.rules],
+  }
+}
+
+/**
+ * A lift of a catalogue exercise in this session's place, for a swap or an added lift (design
+ * 7.3, 9.1): the exercise's way of being done with the saved equipment and its load as the rules
+ * give it (a first session for an exercise with no history). Null for a jump, which is a dose, and
+ * for an exercise the runner cannot do.
+ */
+export function liftFor(
+  ctx: StrengthContext,
+  session: StrengthSessionRef,
+  exerciseId: ExerciseId,
+): WorkoutLift | null {
+  const exercise = exerciseById(exerciseId)
+  if (exercise === undefined || exercise.slot === 'plyo') return null
+  const plan = planOf(ctx, session)
+  const way = waysFor(ctx, exerciseId, barbellAllowed(plan.template))[0]
+  if (way === undefined) return null
+  const lead = plan.variant === 'A' ? 'knee' : 'hip'
+  return buildLift(
+    ctx,
+    plan,
+    { exerciseId, floor: false, ...way },
+    exercise.slot,
+    exercise.slot === lead ? 'lead' : 'other',
+  )
+}
+
+/**
+ * How the session is logged (design 9.3, 10.4): `lighter-day` when the readiness cut a lift,
+ * `return` in a return week or when a lift came back after a gap, `taper` and `lighter-week` in
+ * those templates, else `normal`. Only a `normal` session moves the working load of a lift.
+ */
+export function modeOf(workout: Pick<StrengthWorkout, 'template' | 'lifts'>): StrengthMode {
+  if (workout.template === 'return' || workout.lifts.some((lift) => lift.change === 'return')) {
+    return 'return'
+  }
+  if (workout.lifts.some((lift) => lift.change === 'lighter-day')) return 'lighter-day'
+  if (workout.template === 'taper') return 'taper'
+  if (workout.template === 'lighter-week') return 'lighter-week'
+  return 'normal'
+}
+
+/** The words of an exercise as templates and slots: its name, its cue and its tempo or effort note. */
+export function liftTexts(exerciseId: string): { name: Fact; cue: Fact; note: Fact } | null {
+  const exercise = exerciseById(exerciseId)
+  if (exercise === undefined) return null
+  const noteSlots = Object.keys(STRENGTH_TEMPLATES[exercise.note].slots)
+  return {
+    name: fact(exercise.name),
+    cue: fact(exercise.cue),
+    note: fact(
+      exercise.note,
+      noteSlots.includes('seconds') ? { seconds: count(P.f7.lowerSeconds.value) } : {},
+    ),
+  }
 }
