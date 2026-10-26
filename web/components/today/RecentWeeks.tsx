@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
+import { shownTargetMin } from '../../../shared/domain/plannedWeek.ts'
 import { usePlan } from '../../api/plan.ts'
 import { useWeeks } from '../../api/weeks.ts'
 import { WeeklyHoursChart, warmWeeklyHoursChart } from '../charts/lazyCharts.tsx'
@@ -28,7 +29,7 @@ export function RecentWeeks({ today }: { today: string }) {
         weeks={weeks.data}
         planned={(plan.data?.weeks ?? []).map((w) => ({
           weekStart: w.weekStart,
-          targetRunMin: w.targetRunMin,
+          targetRunMin: shownTargetMin(w),
         }))}
         ariaLabel={`Run hours per week, last ${String(CHART_WEEKS)} weeks`}
       />

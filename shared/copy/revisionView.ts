@@ -10,6 +10,7 @@
 // Ids are `<area>.<name>`; every template is spread into `TEMPLATES`, so the copy-lint test renders
 // each one in both unit systems.
 import { addDays, mondayOf } from '../dates.ts'
+import { plannedMinOf } from '../engine/limits.ts'
 import type { DiffEntry } from '../engine/revisionDiff.ts'
 import type { SessionBrief } from '../engine/types.ts'
 import type {
@@ -103,6 +104,13 @@ export const REVISION_VIEW_TEMPLATES = {
   'diff.week.minutes': tpl(
     'running time {before} to {after}',
     { before: 'minutes', after: 'minutes' },
+    { shape: 'label' },
+  ),
+  // A week the re-plan took as run (rules g-2, g-6): the plan stays what it was, and the minutes run
+  // are the record beside it, where the line would otherwise read as a target that rose.
+  'diff.week.overshoot': tpl(
+    'run past its plan, {ran} against {planned}',
+    { ran: 'minutes', planned: 'minutes' },
     { shape: 'label' },
   ),
   'diff.week.updated': tpl('updated', {}, { shape: 'label' }),
@@ -362,10 +370,30 @@ function flagPhrases(flags: readonly string[], units: Units): string[] {
   return [...seen].map((id) => text(id, units))
 }
 
+/**
+ * The minutes a week was planned at when the write took it as run: read from the flags the line
+ * says were added (`overshoot` and `planned-<n>`, through `plannedMinOf`), and null when the line
+ * adds no such flag or the planned minutes are not under the minutes run.
+ */
+function plannedWhenTakenAsRun(week: WeekDiffLine): number | null {
+  if (!week.flagsAdded.includes('overshoot')) return null
+  const planned = plannedMinOf({ targetRunMin: week.runMinAfter, flags: week.flagsAdded })
+  return planned < week.runMinAfter ? planned : null
+}
+
 function weekLine(week: WeekDiffLine, units: Units): string {
   const t = REVISION_VIEW_TEMPLATES
   const pieces: string[] = []
-  if (week.runMinBefore !== week.runMinAfter) {
+  const planned = plannedWhenTakenAsRun(week)
+  if (planned !== null) {
+    pieces.push(
+      render(
+        t['diff.week.overshoot'],
+        { ran: mins(week.runMinAfter), planned: mins(planned) },
+        units,
+      ),
+    )
+  } else if (week.runMinBefore !== week.runMinAfter) {
     pieces.push(
       render(
         t['diff.week.minutes'],

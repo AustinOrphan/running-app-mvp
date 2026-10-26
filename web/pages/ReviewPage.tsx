@@ -1,8 +1,10 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { overshootTodayLine } from '../../shared/copy/overshoot.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { addDays, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
+import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import {
   nextMinutesFor,
   suggestAction,
@@ -803,11 +805,25 @@ function plural(count: number, one: string, many: string): string {
   return `${String(count)} ${count === 1 ? one : many}`
 }
 
+/**
+ * The week's run time against its target. A week run past its plan is set against the planned
+ * minutes, not the minutes the engine raised the stored target to, and its caption says how far the
+ * run lies over them, as Today's week meter does. The suggestion above reads the stored target and
+ * is not changed by this.
+ */
 function WeekSummary({ row, planWeek }: { row: WeekRow; planWeek: PlanWeek | null }) {
+  const target = planWeek === null ? null : shownTargetMin(planWeek)
+  const overLine =
+    planWeek?.overshoot === true && target !== null ? overshootTodayLine(row.runMin, target) : null
   return (
     <div className={styles.summary}>
-      {planWeek ? (
-        <Meter valueMin={row.runMin} targetMin={planWeek.targetRunMin} label="Run time" />
+      {planWeek && target !== null ? (
+        <Meter
+          valueMin={row.runMin}
+          targetMin={target}
+          label="Run time"
+          captionText={overLine ?? undefined}
+        />
       ) : (
         <p className={styles.runTime}>{`${minutesToHours1(row.runMin)} h run time`}</p>
       )}

@@ -164,6 +164,7 @@ export function makeStrip(
     })),
     runMin: 0,
     targetRunMin: null,
+    overshoot: false,
     remaining: null,
     distanceEstimateM: null,
     ...over,

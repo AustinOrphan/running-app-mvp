@@ -502,6 +502,14 @@ export const REVISION_TEMPLATES = {
     { date: 'date', asked: 'minutes', kept: 'minutes' },
   ),
 
+  // A week the re-plan took as run (rules g-2, g-6): the minutes run are a fact, the plan stays what
+  // it was and the weeks after it are drawn from it. The sentence says so instead of a target that
+  // rose.
+  'revision.overshoot': tpl(
+    'Week of {date} was run past its plan: {ran} against {planned}; the weeks after it are drawn from the plan.',
+    { date: 'date', ran: 'minutes', planned: 'minutes' },
+  ),
+
   // The summary of a change of the load setting [rules g-8]: the position and the step the weeks
   // ahead use. Steady has no zone to rebuild in, so its sentence is a plain weekly step. A position
   // that is held, or read as Standard because of age, adds the reason (`load.held`, `load.capped`).
@@ -701,6 +709,37 @@ export function targetSummary(line: TargetDiffLine): string {
     case 'structure':
       return render(REVISION_TEMPLATES['revision.target.clipped.structure'], slots, STORED_UNITS)
   }
+}
+
+/** A week a re-plan took as run: the minutes run against the minutes it was planned at. */
+export interface OvershootLine {
+  weekStart: string
+  ranMin: number
+  plannedMin: number
+}
+
+/**
+ * "Week of Mon 26 Oct was run past its plan: 144 min against 79 min; the weeks after it are drawn
+ * from the plan." One sentence for a week a re-plan took as run, in place of a target that rose.
+ */
+export function overshootSummary(line: OvershootLine): string {
+  return render(
+    REVISION_TEMPLATES['revision.overshoot'],
+    {
+      date: day(line.weekStart),
+      ran: { kind: 'minutes', min: line.ranMin },
+      planned: { kind: 'minutes', min: line.plannedMin },
+    },
+    STORED_UNITS,
+  )
+}
+
+/** The sentences for the weeks a re-plan took as run, in week order, one after the other. */
+export function overshootsSummary(lines: readonly OvershootLine[]): string {
+  return [...lines]
+    .sort((a, b) => (a.weekStart < b.weekStart ? -1 : a.weekStart > b.weekStart ? 1 : 0))
+    .map(overshootSummary)
+    .join(' ')
 }
 
 /** The sentences for the raised week targets of a re-plan, in week order, one after the other. */

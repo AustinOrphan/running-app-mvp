@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { weekStripEstimateText } from '../../../shared/copy/distanceEstimate.ts'
+import { overshootTodayLine } from '../../../shared/copy/overshoot.ts'
 import { render } from '../../../shared/copy/template.ts'
 import { renderFact, TEMPLATES } from '../../../shared/copy/templates.ts'
 import type {
@@ -66,6 +67,12 @@ export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units
   const advice = strip.remaining
   // `?? null`: an answer the phone kept from before the estimate existed has no field.
   const weekEstimateM = strip.distanceEstimateM ?? null
+  // A week run past its plan: the meter's tick is the planned figure and the caption says how far
+  // the minutes run lie over it. An answer kept from before the field existed has no `overshoot`.
+  const overshootLine =
+    strip.targetRunMin !== null && (strip.overshoot ?? false)
+      ? overshootTodayLine(strip.runMin, strip.targetRunMin)
+      : null
 
   return (
     <section aria-label="This week" className={styles.week}>
@@ -103,6 +110,7 @@ export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units
           targetMin={strip.targetRunMin}
           remainingMin={advice?.remainingMin ?? null}
           label="Run time this week"
+          captionText={overshootLine ?? undefined}
         />
       )}
       {weekEstimateM === null ? null : (
