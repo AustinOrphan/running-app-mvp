@@ -17,12 +17,13 @@ import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { diffPlans } from '../../shared/engine/diff.ts'
 import { replan, runChecklist } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import type {
-  ChecklistResult,
-  EngineInput,
-  EngineWarning,
-  PlanChange,
-  WeeklyDecision,
+import {
+  isLoadAppetite,
+  type ChecklistResult,
+  type EngineInput,
+  type EngineWarning,
+  type PlanChange,
+  type WeeklyDecision,
 } from '../../shared/engine/types.ts'
 import {
   activeSafetyRules,
@@ -64,6 +65,7 @@ import {
   sessionHash,
   weekHash,
   EMPTY_DIFF_MARK,
+  type LoadSettingChange,
   type SessionContent,
   type UndoPayload,
   type WeekContent,
@@ -88,20 +90,42 @@ function isRowSets(value: unknown): boolean {
   return Array.isArray(sets.created) && Array.isArray(sets.deleted) && Array.isArray(sets.updated)
 }
 
+/** The load setting a stored payload records, or undefined when it holds none or an unreadable one. */
+function readSetting(value: unknown): UndoPayload['setting'] {
+  if (typeof value !== 'object' || value === null) return undefined
+  const change = (value as { loadAppetite?: { before?: unknown; after?: unknown } }).loadAppetite
+  const before = change?.before
+  if (!isLoadAppetite(change?.after)) return undefined
+  if (before !== null && !isLoadAppetite(before)) return undefined
+  return { loadAppetite: { before, after: change.after } }
+}
+
 /** The stored undo payload, or null when there is none or it cannot be read (nothing to restore). */
 export function readPayload(text: string | null): UndoPayload | null {
   const value = readJson<Record<string, unknown> | null>(text, null)
   if (value === null || value.v !== 1 || !isRowSets(value.sessions) || !isRowSets(value.weeks)) {
     return null
   }
+  const { setting: stored, ...rest } = value
   const windows = value.disruptions as UndoPayload['disruptions'] | undefined
+  const setting = readSetting(stored)
   return {
-    ...(value as unknown as UndoPayload),
+    ...(rest as unknown as UndoPayload),
     disruptions: {
       created: Array.isArray(windows?.created) ? windows.created : [],
       updated: Array.isArray(windows?.updated) ? windows.updated : [],
     },
+    ...(setting === undefined ? {} : { setting }),
   }
+}
+
+/**
+ * The plan's options text with the load setting put back as a payload recorded it: the position
+ * before the revision, or none when the plan stored none. Every other option is left as it is.
+ */
+export function optionsWithSetting(text: string | null, change: LoadSettingChange): string {
+  const { loadAppetite: _current, ...rest } = parsePlanOptions(text)
+  return JSON.stringify(change.before === null ? rest : { ...rest, loadAppetite: change.before })
 }
 
 /** A revision read once: its payload, its diff and the safety rules it cites. */
@@ -177,14 +201,18 @@ export interface PlanRowIndex {
   sessionByActivity: ReadonlyMap<string, SessionContent>
   weekById: ReadonlyMap<string, WeekContent>
   weekByStart: ReadonlyMap<string, WeekContent>
+  /** The stored `Plan.options` of the plans whose load setting a payload restores, by plan id. */
+  planOptions: ReadonlyMap<string, string | null>
 }
 
 export function indexRows(
   sessions: readonly SessionContent[],
   weeks: readonly WeekContent[],
   disruptions: readonly DisruptionRow[] = [],
+  planOptions: ReadonlyMap<string, string | null> = new Map(),
 ): PlanRowIndex {
   return {
+    planOptions,
     disruptionById: new Map(disruptions.map((row) => [row.id, row])),
     sessionById: new Map(sessions.map((row) => [row.id, row])),
     sessionByExternalId: new Map(sessions.map((row) => [row.externalId, row])),
@@ -207,12 +235,14 @@ export interface ScopedUndo {
  * current Monday on; everything when the revision created a rest window) and says how each stands:
  * a row linked to an activity is `run`, checked before its content; a row whose content hash is not
  * the one the revision left, or that is gone, is `edited`; a row the revision deleted whose place
- * is taken (its `externalId` or week, or its activity linked elsewhere) is `edited` or `run`.
+ * is taken (its `externalId` or week, or its activity linked elsewhere) is `edited` or `run`. A load
+ * setting the revision changed is restored only while the plan still holds the position the
+ * revision left; a later change of it reads as `edited`, as a row changed since does.
  */
 export function scopeUndo(
   payload: UndoPayload,
   index: PlanRowIndex,
-  args: { today: string; diff: PlanDiff | null },
+  args: { today: string; diff: PlanDiff | null; planId: string },
 ): ScopedUndo {
   // A revision that wrote a window also skipped the past days the window covers, on the runner's
   // word; undoing the window brings those sessions back.
@@ -274,6 +304,18 @@ export function scopeUndo(
   })
   for (const entry of [...payload.disruptions.created, ...payload.disruptions.updated]) {
     rows.push(windowFact(entry.id, index.disruptionById.get(entry.id), entry.hash))
+  }
+  if (payload.setting !== undefined) {
+    scoped.setting = payload.setting
+    const held = parsePlanOptions(index.planOptions.get(args.planId)).loadAppetite ?? 'steady'
+    rows.push({
+      kind: 'setting',
+      id: args.planId,
+      weekStart: null,
+      title: null,
+      date: null,
+      standing: held === payload.setting.loadAppetite.after ? 'as-left' : 'edited',
+    })
   }
 
   for (const entry of payload.sessions.created) {
@@ -357,7 +399,11 @@ function evaluate(
   if (own !== null || parsed.payload === null) {
     return { findings: [{ code: own ?? 'not-undoable' }], scoped: null }
   }
-  const scoped = scopeUndo(parsed.payload, args.index, { today: args.today, diff: parsed.diff })
+  const scoped = scopeUndo(parsed.payload, args.index, {
+    today: args.today,
+    diff: parsed.diff,
+    planId: parsed.row.planId,
+  })
   const findings = undoEligibility({
     revision: {
       ...facts,
@@ -392,9 +438,11 @@ async function loadTouchedRows(deps: Deps, revisions: readonly ParsedRevision[])
   const weekIds = new Set<string>()
   const weekStarts = new Set<string>()
   const windowIds = new Set<string>()
+  const settingPlanIds = new Set<string>()
   for (const { row, payload } of revisions) {
     if (payload === null) continue
     planIds.add(row.planId)
+    if (payload.setting !== undefined) settingPlanIds.add(row.planId)
     for (const entry of [...payload.disruptions.created, ...payload.disruptions.updated]) {
       windowIds.add(entry.id)
     }
@@ -416,7 +464,7 @@ async function loadTouchedRows(deps: Deps, revisions: readonly ParsedRevision[])
   }
   if (planIds.size === 0) return indexRows([], [])
   const planId = { in: [...planIds] }
-  const [sessions, weeks, windows] = await Promise.all([
+  const [sessions, weeks, windows, plans] = await Promise.all([
     deps.prisma.planSession.findMany({
       where: {
         OR: [
@@ -442,8 +490,15 @@ async function loadTouchedRows(deps: Deps, revisions: readonly ParsedRevision[])
             user: { plans: { some: { id: planId } } },
           },
         }),
+    // The options of the plans whose revisions restore a load setting.
+    settingPlanIds.size === 0
+      ? Promise.resolve([])
+      : deps.prisma.plan.findMany({
+          where: { id: { in: [...settingPlanIds] } },
+          select: { id: true, options: true },
+        }),
   ])
-  return indexRows(sessions, weeks, windows)
+  return indexRows(sessions, weeks, windows, new Map(plans.map((plan) => [plan.id, plan.options])))
 }
 
 /**
@@ -918,7 +973,7 @@ export async function planUndo(
     : []
   const { findings, scoped } = evaluate(parsed, {
     planActive,
-    index: indexRows(sessionRows, weekRows, windowRows),
+    index: indexRows(sessionRows, weekRows, windowRows, new Map([[plan.id, plan.options]])),
     today,
     nowMs,
     windowDays,
@@ -926,7 +981,13 @@ export async function planUndo(
   })
   if (findings.length > 0 || scoped === null) return refused(findings)
 
-  // Restore in memory and build the plan the engine and the checklist read.
+  // Restore in memory and build the plan the engine and the checklist read. A load setting the
+  // revision changed goes back with its rows, so the checklist reads the restored weeks at the
+  // position they were drawn for.
+  const restoredOptions =
+    scoped.payload.setting === undefined
+      ? plan.options
+      : optionsWithSetting(plan.options, scoped.payload.setting.loadAppetite)
   const writes = restoreWrites({ sessions: sessionRows, weeks: weekRows }, scoped.payload)
   const diff = restoreDiff(writes)
   const stored = existingFrom(
@@ -945,7 +1006,7 @@ export async function planUndo(
       userId,
       goalId: plan.goalId,
       today,
-      options: parsePlanOptions(plan.options),
+      options: parsePlanOptions(restoredOptions),
     },
     { existing: false },
   )

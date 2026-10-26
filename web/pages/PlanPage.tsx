@@ -28,6 +28,7 @@ import { useWristStatus, weekZipHref } from '../api/wrist.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
+import { LoadField } from '../components/LoadField.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { SessionSheet, sessionSummary } from '../components/SessionSheet.tsx'
@@ -38,7 +39,7 @@ import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { WristChip } from '../components/WristStatus.tsx'
 import { WristStrip, weekHasRuns } from '../components/WristStrip.tsx'
 import { DisruptionBanners } from '../components/disruption/DisruptionBanner.tsx'
-import { NotFullSheet, ReplanSheet } from '../components/lazySheets.tsx'
+import { LoadSettingSheet, NotFullSheet, ReplanSheet } from '../components/lazySheets.tsx'
 import {
   formatLongDate,
   formatShortDate,
@@ -48,11 +49,7 @@ import {
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { estimateAboutText } from '../../shared/copy/distanceEstimate.ts'
 import {
-  LOAD_POSITIONS,
-  loadAgeRule,
-  loadFieldLabel,
-  loadHintLines,
-  loadName,
+  loadChangeLabel,
   loadPanelText,
   loadPanelTitle,
   loadTradeoff,
@@ -130,10 +127,6 @@ const CYCLE_OPTIONS: Array<{ value: '3:1' | '2:1'; label: string }> = [
   { value: '3:1', label: 'Every 4th week' },
   { value: '2:1', label: 'Every 3rd week' },
 ]
-
-const LOAD_OPTIONS: Array<{ value: LoadAppetite; label: string }> = LOAD_POSITIONS.map(
-  (position) => ({ value: position, label: loadName(position) }),
-)
 
 const POLARIZED_OPTIONS: Array<{ value: 'off' | 'on'; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -231,17 +224,7 @@ function GenerateForm({ goals, initialGoalId, initialLoad, onDone }: GenerateFor
         value={strength}
         onChange={setStrength}
       />
-      <Segmented<LoadAppetite>
-        label={loadFieldLabel()}
-        hint={[
-          ...loadHintLines(load),
-          ...(load === 'upper' ? [loadAgeRule()] : []),
-          loadTradeoff(),
-        ]}
-        options={LOAD_OPTIONS}
-        value={load}
-        onChange={setLoad}
-      />
+      <LoadField value={load} onChange={setLoad} />
       {shortGoal ? (
         <Segmented<'off' | 'on'>
           label="Polarized specific phase"
@@ -678,16 +661,36 @@ function WhatChanged({
  */
 function LoadPanel({ load }: { load: LoadPosition }) {
   const text = loadPanelText(load)
+  const [changing, setChanging] = useState(false)
   return (
     <section aria-labelledby="load-title" className={styles.panel}>
-      <h2 id="load-title" className={styles.panelTitle}>
-        {loadPanelTitle()}
-      </h2>
+      <div className={styles.panelHead}>
+        <h2 id="load-title" className={styles.panelTitle}>
+          {loadPanelTitle()}
+        </h2>
+        <Button
+          variant="secondary"
+          aria-describedby="load-title"
+          onClick={() => {
+            setChanging(true)
+          }}
+        >
+          {loadChangeLabel()}
+        </Button>
+      </div>
       <p className={styles.setting}>
         <strong>{text.name}</strong> <span className={styles.muted}>{text.hint.join(' ')}</span>
       </p>
       <p className={styles.muted}>{loadTradeoff()}</p>
       {text.reason.length > 0 ? <p className={styles.muted}>{text.reason.join(' ')}</p> : null}
+      {changing ? (
+        <LoadSettingSheet
+          current={load.requested}
+          onClose={() => {
+            setChanging(false)
+          }}
+        />
+      ) : null}
     </section>
   )
 }

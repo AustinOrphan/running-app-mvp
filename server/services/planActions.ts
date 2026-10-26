@@ -15,10 +15,11 @@
 import { createHash } from 'node:crypto'
 import { changesSummary, stalePreviewMessage } from '../../shared/copy/revision.ts'
 import { diffPlans } from '../../shared/engine/diff.ts'
-import type { EngineWarning } from '../../shared/engine/types.ts'
+import type { EngineWarning, LoadAppetite } from '../../shared/engine/types.ts'
 import type {
   AdjustResult,
   DisruptionResult,
+  LoadSettingResult,
   PlanAction,
   PlanAdjustment,
   PlanDiff,
@@ -33,7 +34,7 @@ import type {
 import type { Deps } from '../app.ts'
 import type { PlanSession as PlanSessionRow, PlanWeek as PlanWeekRow } from '../db.ts'
 import { conflict, HttpError } from '../errors.ts'
-import { toPlanSession } from '../serialize.ts'
+import { parsePlanOptions, toPlanSession } from '../serialize.ts'
 import { applyAdjust, planAdjust, StaleAdjust, type PlannedAdjust } from './adjust.ts'
 import {
   isDisruptionAction,
@@ -54,6 +55,7 @@ import {
 } from './replan.ts'
 import {
   indexRows,
+  optionsWithSetting,
   planUndo,
   restoreDiff,
   restoreWrites,
@@ -311,6 +313,43 @@ export async function commitReplan(
 }
 
 /**
+ * Changes the load setting of the active plan and draws the weeks ahead again with it, as one
+ * revision whose undo puts the old position back (task L4b). The newest revision is read first and
+ * the write refuses (`StaleWrite`) when another has landed since; the change is then decided once
+ * more, and a second collision is a 409. A plan that already holds the position writes nothing and
+ * answers with no revision. 404 without an active plan, 422 with the checklist when the plan the
+ * setting gives does not pass it (nothing is written).
+ */
+export async function commitLoadSetting(
+  deps: Deps,
+  args: { userId: string; loadAppetite: LoadAppetite; today: string },
+): Promise<LoadSettingResult> {
+  const { userId, loadAppetite, today } = args
+  const plan = await deps.prisma.plan.findFirst({
+    where: { userId, status: 'active' },
+    orderBy: { createdAt: 'desc' },
+    select: { options: true },
+  })
+  // Absent options read as steady, so a plan that stores none already holds Steady.
+  if (plan !== null && (parsePlanOptions(plan.options).loadAppetite ?? 'steady') === loadAppetite) {
+    return { loadAppetite, revision: null }
+  }
+  for (let attempt = 1; ; attempt += 1) {
+    const result = await computeReplan(deps, { userId, reason: 'owner', today, loadAppetite })
+    try {
+      const written = await applyReplan(deps, result, { checkHead: true })
+      return {
+        loadAppetite,
+        revision: await viewRevision(deps, { userId, revisionId: written.id }),
+      }
+    } catch (error) {
+      if (!(error instanceof StaleWrite)) throw error
+      if (attempt >= 2) throw conflict(stalePreviewMessage())
+    }
+  }
+}
+
+/**
  * Creates, changes or removes a rest window: the window row, the past sessions it skips and the
  * re-plan it causes are one transaction and one revision with `disruptionId`. 409 `stale-preview`
  * when `expectHash` no longer matches or the plan or the window moved while it was written; 422
@@ -437,17 +476,19 @@ async function applyUndo(
         ...restore.payload.disruptions.created,
         ...restore.payload.disruptions.updated,
       ]
-      const [sessionRows, weekRows, windowRows] = await Promise.all([
+      const [sessionRows, weekRows, windowRows, planRow] = await Promise.all([
         tx.planSession.findMany({ where: { planId } }),
         tx.planWeek.findMany({ where: { planId } }),
         windowIds.length === 0
           ? Promise.resolve([])
           : tx.disruption.findMany({ where: { id: { in: windowIds.map((w) => w.id) }, userId } }),
+        tx.plan.findUniqueOrThrow({ where: { id: planId }, select: { options: true } }),
       ])
-      const scoped = scopeUndo(restore.payload, indexRows(sessionRows, weekRows, windowRows), {
-        today: args.today,
-        diff: null,
-      })
+      const scoped = scopeUndo(
+        restore.payload,
+        indexRows(sessionRows, weekRows, windowRows, new Map([[planId, planRow.options]])),
+        { today: args.today, diff: null, planId },
+      )
       if (scoped.rows.some((row) => row.standing !== 'as-left')) throw new StaleUndo()
       const writes = restoreWrites({ sessions: sessionRows, weeks: weekRows }, scoped.payload)
       if (canonicalJson(restoreDiff(writes)) !== canonicalJson(args.diff)) throw new StaleUndo()
@@ -520,7 +561,18 @@ async function applyUndo(
         await tx.disruption.updateMany({ where: { id, userId }, data })
       }
 
-      await tx.plan.update({ where: { id: planId }, data: restore.plan })
+      // The load setting goes back with the rows, from the options as they stand in this transaction.
+      await tx.plan.update({
+        where: { id: planId },
+        data: {
+          ...restore.plan,
+          ...(scoped.payload.setting === undefined
+            ? {}
+            : {
+                options: optionsWithSetting(planRow.options, scoped.payload.setting.loadAppetite),
+              }),
+        },
+      })
       const diff = diffPlans({
         sessions: { created: sessionsCreated, deleted: sessions.deleted, updated: sessionsUpdated },
         weeks: { created: weeksCreated, deleted: weeks.deleted, updated: weeksUpdated },

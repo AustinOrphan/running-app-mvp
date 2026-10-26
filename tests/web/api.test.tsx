@@ -24,6 +24,7 @@ import {
 } from '../../web/api/goals.ts'
 import { useImportFile, useImports } from '../../web/api/imports.ts'
 import {
+  useChangeLoadSetting,
   useGeneratePlan,
   useLinkPlanSession,
   usePlan,
@@ -627,6 +628,20 @@ describe('the plan readers', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useUpdatePlanWeek(), { wrapper })
     await act(() => result.current.mutateAsync({ weekStart: '2026-03-02', patch: { runDays: 4 } }))
+    expect(rootsOf(invalidate)).toEqual(READERS)
+  })
+
+  test('a change of the load setting sends the position and reads every reader of the plan again', async () => {
+    const { calls } = mockApi(
+      allRoutes({ 'PUT /api/plan/load': () => ({ loadAppetite: 'upper', revision: null }) }),
+    )
+    const { queryClient, wrapper } = setup()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useChangeLoadSetting(), { wrapper })
+    await act(() => result.current.mutateAsync('upper'))
+    expect(calls.filter((c) => c.method === 'PUT' && c.url === '/api/plan/load')).toEqual([
+      { method: 'PUT', url: '/api/plan/load', body: { loadAppetite: 'upper' } },
+    ])
     expect(rootsOf(invalidate)).toEqual(READERS)
   })
 

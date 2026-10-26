@@ -41,7 +41,8 @@ default note, and bump `PARAMS_VERSION` with them. This ADR fixes the shape, not
 - The ceiling is computed from a block of steady recent weeks that one big week cannot set, from the
   weeks the athlete state already holds (ADR 0009, no new query).
 - A load setting with three positions, Steady, Standard and Upper band, is a plan option chosen on
-  the Generate form (later also a plan action with a preview and an undo, ADR 0007; decision 6). It
+  the Generate form (also a plan action, shipped on 2026-10-25 in #575 with an undo and no preview,
+  ADR 0007; decision 6). It
   sets the weekly step below the ceiling and, through the response to weeks run above plan
   (decision 5), the baseline that step is applied to. The largest step is derived from the hard ceiling of
   G-2 (30% over two weeks), so the setting cannot pass it. Above the ceiling the soft 10% resumes.
