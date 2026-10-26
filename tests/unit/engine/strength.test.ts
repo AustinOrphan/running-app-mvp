@@ -3310,3 +3310,34 @@ describe('every function of the engine leaves a frozen context alone', () => {
     expect(summariseHistory(frozen)).toEqual(summariseHistory(ctx))
   })
 })
+
+describe('workoutFor: a harder movement that has stalled as well (rule F8.7)', () => {
+  it('passes on along the links and carries every reason for the move', () => {
+    const session = sessionOf(8)
+    const equipment = [dumbbellsOf(30, 40, 50, 60), ITEM.step]
+    const stuck = (exerciseId: string, tag: string, daysAgo: number[]) =>
+      daysAgo.map((d) =>
+        log(`${tag}${String(d)}`, addDays(session.date, -d), {
+          sets: setsOf(exerciseId, rows(50, [6, 6, 6, 6], [1, 1, 1, 1])),
+        }),
+      )
+    const logs = [
+      ...stuck('goblet-squat', 'g', [14, 12, 10]),
+      ...stuck('split-squat', 's', [8, 6, 3]),
+    ]
+    const knee = workoutFor(withSetup({ equipment }, { today: session.date, logs }), session)
+      .lifts[0]
+    // goblet squat to split squat to step-up, each after three sessions at the top with no usable step
+    expect(knee).toMatchObject({ exerciseId: 'step-up', slot: 'knee', change: 'variation' })
+    expect(knee?.basis.facts.map((f) => f.template)).toEqual([
+      'strength.reason.variation',
+      'strength.reason.variation',
+      'strength.reason.start-lightest',
+    ])
+    expect(knee?.basis.facts.map((f) => f.slots['next'] ?? null)).toEqual([
+      'Split squat',
+      'Step-up',
+      null,
+    ])
+  })
+})
