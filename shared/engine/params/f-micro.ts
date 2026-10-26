@@ -495,7 +495,7 @@ export const fMicro = {
   f8: {
     progressMinRir: param('f8.progressMinRir', 1, 'D', 'F8', [...PROGRESSION, ...REPS_IN_RESERVE], {
       unit: 'reps in reserve',
-      note: 'Default: repetitions in reserve on every set, at the top of the range, to add one step. No study compares ways of choosing the next load.',
+      note: 'Default: repetitions in reserve on every set, at the top of the range, to add one step. No study in runners compares ways of choosing the next load.',
     }),
     bigStepRir: param('f8.bigStepRir', 4, 'D', 'F8', PROGRESSION, {
       unit: 'reps in reserve',

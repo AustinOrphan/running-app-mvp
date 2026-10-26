@@ -74,9 +74,9 @@ Reasons:
 - **Fact:** `AthleteProfile.weightKg` is a `Float` (`prisma/schema.prisma`, read 2026-10-25), and 45 lb
   is 20 411.7 g, stored as 20 412 g. The tests of "same as last time" and the working-load rule
   compare loads, which would then depend on the rounding of a float.
-- **Fact:** The corpus has no paper that compares ways of progressing a load, validates a
-  repetitions-to-maximum equation in runners or gives safety data for recreational runners starting
-  barbell lifts. The gap pass of 2026-10-25 added the closest evidence, each paper checked on Crossref
+- **Fact:** The corpus has no paper that compares progression schemes (linear, double, percentage) in
+  runners or novices, validates a repetitions-to-maximum equation in runners or gives safety data for
+  recreational runners starting barbell lifts. The gap pass of 2026-10-25 added the closest evidence, each paper checked on Crossref
   and its abstract read on Europe PMC that day: a consensus step of 2-10% for healthy adults
   (`acsm-2009-progression-models-resistance`), similar strength gains from effort-based and
   percentage-based prescription in resistance-trained lifters (`hickmott-2022-autoregulation-meta`),
@@ -200,11 +200,12 @@ Alternatives:
   light first load takes to reach the heavy range.
 - The first loads are guesses. `f8.startFractionBodyweight` is light on purpose, and a real log will
   show where it is too cautious or too bold.
-- Copy states that no study compares ways of choosing the next load, that the benefit is a small
+- Copy states that no study in runners or novices compares ways of choosing the next load (one synthesis in resistance-trained lifters found effort-based and percentage-based prescription similar), that the benefit is a small
   lowering of the oxygen cost of running that says nothing about race time, and that no injury
   figure is given (G5).
 - F7 to F9 have titles in `web/components/ruleTitles.ts` and are policy-only entries in
-  `POLICY_ONLY_RULES` until task E14-6 gives each an explanation builder over the sets of the
-  exercise; the coverage test then forces the move.
+  `POLICY_ONLY_RULES` until task E14-6 gives each an explanation builder (F7 over the block position,
+  the template and the equipment; F8 over the sets of the exercise; F9 over the readiness read, the
+  week's flags and the gap); the coverage test then forces the move.
 - The 24 rows added to the numeric table, the twelve gaps S1 to S12 and the amended rules in
   `research/engine-rules.md` record what the evidence does and does not support.
