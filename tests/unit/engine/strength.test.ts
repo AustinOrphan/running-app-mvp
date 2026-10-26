@@ -607,9 +607,9 @@ describe('estimateOneRm', () => {
     expect(estimateOneRm(lb(100), 5, Number.NaN)).toBe(none)
   })
 
-  it('rises with the reps and with the reps left', () => {
+  it('rises with the reps and with the reps left, up to the limit', () => {
     let last = 0
-    for (let reps = 1; reps <= 12; reps += 1) {
+    for (let reps = 1; reps <= P.f8.e1rmMaxReps.value; reps += 1) {
       const estimate = estimateOneRm(lb(100), reps, 0) ?? 0
       expect(estimate).toBeGreaterThan(last)
       last = estimate
@@ -617,14 +617,29 @@ describe('estimateOneRm', () => {
     expect(estimateOneRm(lb(100), 5, 3) ?? 0).toBeGreaterThan(estimateOneRm(lb(100), 5, 2) ?? 0)
   })
 
-  it('gives the labelled estimate at 10 reps and above, since the registry holds no cutoff', () => {
-    // rule F8 advises the linear form to 10 reps; the cutoff would be a Param (`f8.e1rmMaxReps`,
-    // E14-4 report) and none exists, so the label alone covers a longer set
-    for (const reps of [10, 11, 12, 15]) {
-      expect(estimateOneRm(lb(100), reps, 0), String(reps)).toBe(
-        Math.round(lb(100) * (1 + reps / divisor)),
-      )
+  it('gives an estimate at 10 repetitions to the limit and none at 11 (rule F8, amended 2026-10-25)', () => {
+    expect(P.f8.e1rmMaxReps.value).toBe(10)
+    expect(estimateOneRm(lb(100), 10, 0)).toBe(Math.round(lb(100) * (1 + 10 / divisor)))
+    expect(estimateOneRm(lb(100), 11, 0)).toBeNull()
+    for (const reps of [12, 15, 20]) {
+      expect(estimateOneRm(lb(100), reps, 0), String(reps)).toBeNull()
     }
+  })
+
+  it('counts the reps left toward the limit: 7 and 3 left is 10, 8 and 3 left is 11', () => {
+    expect(estimateOneRm(lb(100), 7, 3)).toBe(Math.round(lb(100) * (1 + 10 / divisor)))
+    expect(estimateOneRm(lb(100), 8, 3)).toBeNull()
+    expect(estimateOneRm(lb(100), 6, 4)).not.toBeNull()
+    expect(estimateOneRm(lb(100), 6, 5)).toBeNull()
+    // a missing count is none left: 10 repetitions is within the limit and 11 is not
+    expect(estimateOneRm(lb(100), 10, null)).not.toBeNull()
+    expect(estimateOneRm(lb(100), 11, null)).toBeNull()
+  })
+
+  it('gives a block set an estimate and the top of the ramp-in range with the easy reps left none', () => {
+    const [, blockTop] = P.flib.heavyReps.range ?? [0, 0]
+    expect(estimateOneRm(lb(100), blockTop, P.f7.heavyRir.value[1])).not.toBeNull()
+    expect(estimateOneRm(lb(100), P.f7.rampInReps.value[1], P.f7.easyRir.value)).toBeNull()
   })
 
   it('gives none for a set that cannot be estimated', () => {
@@ -642,6 +657,9 @@ describe('estimateOneRm', () => {
       estimateOneRm(lb(100), 6, 2),
     )
     expect(anchorEstimate({ ...base, kind: 'max', loadG: 0 })).toBeNull()
+    // a set over the limit gives none, a known maximum stands whatever the reps
+    expect(anchorEstimate({ ...base, kind: 'set', loadG: lb(100), reps: 12, rir: null })).toBeNull()
+    expect(anchorEstimate({ ...base, kind: 'max', reps: 12 })).toBe(lb(200))
   })
 
   it('shows a load as a whole percent of the estimate', () => {
@@ -859,6 +877,21 @@ describe('F8.1: the first load of an exercise', () => {
     const logged = squat('a', 9, rows(100, [6, 6], [2, 2]))
     const s = ask(barbellRunner([logged], { anchors: [anchor] }))
     expect(s.rule).not.toBe('F8.1')
+  })
+
+  it('starts from the table when the anchor is a set over the limit of the estimate', () => {
+    // 12 repetitions give no estimate (f8.e1rmMaxReps), so the 70% of it is not made
+    const anchor = {
+      exerciseId: 'back-squat',
+      kind: 'set',
+      loadG: lb(120),
+      reps: 12,
+      rir: null,
+      asOf: ago(9),
+    } as const
+    const s = ask(barbellRunner([], { anchors: [anchor] }))
+    expect(s.loadG).toBe(lb(50))
+    expect(s.facts[0]?.template).toBe('strength.reason.start-bodyweight')
   })
 
   it('starts a movement with no added load without one, with the bodyweight range', () => {
@@ -1672,7 +1705,7 @@ describe('a suggestion asks only for a load the equipment can make and passes no
           ),
         )
         const top = P.flib.heavyMinPct1rm.range?.[1] ?? 0
-        expect(s.loadG ?? 0, label).toBeLessThanOrEqual((best * top) / 100 + 1)
+        if (best > 0) expect(s.loadG ?? 0, label).toBeLessThanOrEqual((best * top) / 100 + 1)
         // a template that keeps the load never raises it
         expect(keepLoad, label).toBe(false)
       }

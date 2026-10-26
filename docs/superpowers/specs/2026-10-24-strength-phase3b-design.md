@@ -507,6 +507,7 @@ each grade D value carries a note that says it is a default. "Evidence" lists id
 | `f8.layoffLoadFraction`      | 0.9              | D     | The return load as a share of the last base load                                                                                                    |
 | `f8.startPctOf1rm`           | 70 %             | D     | The first ramp-in load as a share of an entered or estimated maximum                                                                                |
 | `f8.e1rmDivisor`             | 30               | D     | The linear estimate `load x (1 + (reps + RIR) / divisor)` (gap 11)                                                                                  |
+| `f8.e1rmMaxReps`             | 10 reps          | D     | The most repetitions to the limit (reps plus RIR) in a set that gives an estimate; a default taken from `reynolds-2006-1rm-prediction` (amended 2026-10-25) |
 | `f8.startFractionBodyweight` | one per exercise | D     | A table (exercise id to fraction of body weight) for a first load with no history and no anchor                                                     |
 | `f9.lowReadinessLoadPct`     | 10 %             | D     | Load reduction on a low-readiness day; readiness never adds load (J3, G6)                                                                           |
 | `f9.lowReadinessSetsCut`     | 1                | D     | Sets removed from each lift on a low-readiness day (at least 2 remain)                                                                              |
@@ -597,7 +598,9 @@ the previous one. The estimated maximum is a derived number, never stored:
 estimateOneRm(loadG, reps, rir) = loadG x (1 + (reps + rir) / f8.e1rmDivisor)
 ```
 
-A set entered without a count of reps left is taken as 0 left, the lowest estimate (G6). The
+A set entered without a count of reps left is taken as 0 left, the lowest estimate (G6). A set
+whose reps plus reps left are more than `f8.e1rmMaxReps` (10) gives no estimate (amended
+2026-10-25), so a ramp-in set of 8 reps with 3 left gives none. The
 estimate for an exercise comes from its anchor until the first log, then from the best set of the
 latest logged session. It is used for three things only: a first load (70% of it,
 `f8.startPctOf1rm`), the ceiling no suggestion passes (90%, the range maximum of

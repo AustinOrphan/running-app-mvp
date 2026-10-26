@@ -531,6 +531,10 @@ export const fMicro = {
         note: 'Default: the divisor of the linear estimate, load x (1 + (reps + reps in reserve) / divisor). No paper validates it in runners; it is an estimate, never a test.',
       },
     ),
+    e1rmMaxReps: param('f8.e1rmMaxReps', 10, 'D', 'F8', ['reynolds-2006-1rm-prediction'], {
+      unit: 'reps',
+      note: 'Default: taken from the advice of one study of the leg press and chest press that a linear equation use no more than 10 repetitions, the most repetitions to the limit (repetitions done plus repetitions left) in a set that gives an estimate. A set above it gives none. No paper validates the figure in runners.',
+    }),
     startFractionBodyweight: param<Record<string, number>>(
       'f8.startFractionBodyweight',
       {

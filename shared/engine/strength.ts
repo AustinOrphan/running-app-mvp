@@ -279,21 +279,26 @@ export function pickLift(
  * with `f8.e1rmDivisor` (design 6.3, gap S11). A label and never a test: it is used for a first
  * load, for the ceiling no suggestion passes and for a figure beside a load, and the app never asks
  * for a maximal attempt. A set with no count of reps left is read as 0 left, the lowest estimate
- * (G6). Null for a set that gives none: no load, or fewer than one rep.
+ * (G6).
  *
- * The corpus advises a linear equation only up to 10 repetitions to the limit
- * (`reynolds-2006-1rm-prediction`, rule F8), which the label covers. No cutoff is applied here
- * because the registry holds no Param for one, and a number of the rules is a Param or it is not
- * used (E14-4 report: the cutoff needs `f8.e1rmMaxReps` through the research update).
+ * A linear equation was advised only up to a number of repetitions to the limit
+ * (`reynolds-2006-1rm-prediction`), so a set whose repetitions done plus repetitions left are more
+ * than `f8.e1rmMaxReps` gives no estimate (rule F8, amended 2026-10-25). A ramp-in set of the top
+ * of its range with the easy reps left is such a set. Null as well for a set with no load or fewer
+ * than one rep.
  */
 export function estimateOneRm(loadG: number, reps: number, rir: number | null): number | null {
   if (!Number.isFinite(loadG) || loadG <= 0) return null
   if (!Number.isInteger(reps) || reps < 1) return null
   const spare = rir !== null && Number.isFinite(rir) ? Math.max(rir, 0) : 0
+  if (reps + spare > P.f8.e1rmMaxReps.value) return null
   return Math.round(loadG * (1 + (reps + spare) / P.f8.e1rmDivisor.value))
 }
 
-/** The estimate an anchor gives: a known maximum stands as it is, a recent set is estimated. */
+/**
+ * The estimate an anchor gives: a known maximum stands as it is, a recent set is estimated (and
+ * gives none above `f8.e1rmMaxReps` repetitions to the limit, so the body-weight table starts it).
+ */
 export function anchorEstimate(anchor: StrengthAnchor): number | null {
   if (anchor.kind === 'max') {
     return Number.isFinite(anchor.loadG) && anchor.loadG > 0 ? Math.round(anchor.loadG) : null

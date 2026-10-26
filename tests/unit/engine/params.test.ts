@@ -29,7 +29,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-25.5')
+    expect(PARAMS_VERSION).toBe('2026-10-25.6')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -640,9 +640,11 @@ describe('parameter registry', () => {
     expect(f7.maintenanceSessionMin.value).toBeLessThan(f7.blockSessionMin.value)
     expect(f7.reducedPlyoShare.value).toBeGreaterThan(0)
     expect(f7.reducedPlyoShare.value).toBeLessThan(1)
-    // block sets stay inside the 10 repetitions up to which a linear estimate of a maximum was advised
+    // block sets stay inside the repetitions up to which a linear estimate of a maximum was advised,
+    // and a ramp-in set of the top of its range with the easy reps left does not (rule F8)
     const blockCount = (P.flib.heavyReps.range?.[1] ?? 0) + f7.heavyRir.value[1]
-    expect(blockCount).toBeLessThanOrEqual(10)
+    expect(blockCount).toBeLessThanOrEqual(P.f8.e1rmMaxReps.value)
+    expect(f7.rampInReps.value[1] + f7.easyRir.value).toBeGreaterThan(P.f8.e1rmMaxReps.value)
     // the budgets replaced the single placement default of 30 minutes, which is retired (E14-3)
     expect('strengthSessionMin' in P.fplace).toBe(false)
     expect(all.map((p) => p.id)).not.toContain('fplace.strengthSessionMin')
@@ -663,7 +665,7 @@ describe('parameter registry', () => {
   it('carries the load progression F8 as labelled defaults with its evidence', () => {
     const f8 = P.f8
     expect(paramsForRule('F8').map((p) => p.id)).toEqual(Object.values(f8).map((p) => p.id))
-    expect(Object.keys(f8)).toHaveLength(10)
+    expect(Object.keys(f8)).toHaveLength(11)
     for (const p of Object.values(f8)) {
       expect(p.rule, p.id).toBe('F8')
       expect(p.grade, p.id).toBe('D')
@@ -681,13 +683,18 @@ describe('parameter registry', () => {
         f8.layoffLoadFraction,
         f8.startPctOf1rm,
         f8.e1rmDivisor,
+        f8.e1rmMaxReps,
       ].map((p) => p.value),
-    ).toEqual([1, 4, 15, 5, 3, 28, 0.9, 70, 30])
+    ).toEqual([1, 4, 15, 5, 3, 28, 0.9, 70, 30, 10])
     expect(f8.maxStepPct.evidence).toEqual(['acsm-2009-progression-models-resistance'])
     expect(f8.e1rmDivisor.evidence).toEqual([
       'nuzzo-2023-reps-at-percent-1rm',
       'reynolds-2006-1rm-prediction',
     ])
+    // the most repetitions to the limit a linear estimate is made from, taken from one study's advice
+    expect(f8.e1rmMaxReps.evidence).toEqual(['reynolds-2006-1rm-prediction'])
+    expect(f8.e1rmMaxReps.unit).toBe('reps')
+    expect(f8.e1rmMaxReps.note).toMatch(/^Default: taken from the advice of one study/)
     expect(f8.layoffDays.evidence).toEqual(f8.layoffLoadFraction.evidence)
     expect(f8.layoffLoadFraction.evidence).toContain('mujika-2000-detraining-part2')
     // an increase needs fewer reps in reserve than a double step, and the larger step is the rarer

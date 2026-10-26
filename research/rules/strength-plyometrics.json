@@ -234,9 +234,9 @@
   },
   {
     "id": "strength-estimated-maximum-is-an-estimate",
-    "statement": "Estimate the one-repetition maximum from submaximal sets, label it an estimate, use it only for a first load, a ceiling and a figure beside a load, and never ask for a maximal attempt. The repetitions possible at a percentage of the maximum vary between people and exercises, and a linear equation was advised only up to 10 repetitions; no paper validates an equation in runners.",
+    "statement": "Estimate the one-repetition maximum from submaximal sets, label it an estimate, use it only for a first load, a ceiling and a figure beside a load, and never ask for a maximal attempt. The repetitions possible at a percentage of the maximum vary between people and exercises, and a linear equation was advised only up to 10 repetitions, so a set above 10 repetitions to the limit (done plus left) gives no estimate; no paper validates an equation in runners.",
     "parameter": "strength_e1rm_divisor",
-    "value": "linear form with a divisor of 30",
+    "value": "linear form with a divisor of 30; none above 10 repetitions to the limit",
     "unit": null,
     "appliesTo": "Strength suggestions and the history view",
     "grade": "D",
