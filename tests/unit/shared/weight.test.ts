@@ -244,14 +244,26 @@ describe('stepsFor', () => {
     for (const item of none) {
       expect(stepsFor([item], item.kind, 'lb'), item.kind).toBeNull()
     }
-    // a step smaller than the display grid collapses to nothing and is refused
+    // a step finer than one display step would show the same load on two rungs and is refused
     expect(stepsFor([{ kind: 'barbell', barG: 20000, jumpG: 50 }], 'barbell', 'lb')).toBeNull()
+    const bar = (jumpG: number): EquipmentConfig[] => [{ kind: 'barbell', barG: 20000, jumpG }]
+    expect(stepsFor(bar(226), 'barbell', 'lb')).toBeNull()
+    expect(stepsFor(bar(227), 'barbell', 'lb')).toEqual({ minG: 20000, stepG: 227, maxG: null })
+    expect(stepsFor(bar(249), 'barbell', 'kg')).toBeNull()
+    expect(stepsFor(bar(250), 'barbell', 'kg')).toEqual({ minG: 20000, stepG: 250, maxG: null })
   })
 
-  it('puts the entered values on the grid of the unit they are shown in', () => {
-    // 2.5 lb entered as 1134 g, shown in kilograms: the nearest quarter is 1.0 kg
-    const steps = stepsFor([{ kind: 'barbell', barG: 20000, jumpG: 1134 }], 'barbell', 'kg')
-    expect(steps).toEqual({ minG: 20000, stepG: 1250, maxG: null })
+  it("keeps the equipment's own grams, whatever the unit the loads are shown in", () => {
+    // a jump of 2.5 lb is 1134 g: the nearest quarter kilogram would be 1.25 kg, which is not what
+    // the plates weigh, so the ladder keeps 1134 g and only the rungs are rounded for display
+    const bar: EquipmentConfig[] = [{ kind: 'barbell', barG: 20000, jumpG: 1134 }]
+    expect(stepsFor(bar, 'barbell', 'kg')).toEqual({ minG: 20000, stepG: 1134, maxG: null })
+    expect(stepsFor(bar, 'barbell', 'lb')).toEqual({ minG: 20000, stepG: 1134, maxG: null })
+    // rungs: 20 kg, then 21.134 kg shown as 21.25, 22.268 kg as 22.25, 23.402 kg as 23.5
+    const steps = stepsFor(bar, 'barbell', 'kg') as LoadSteps
+    expect([1, 2, 3].map((count) => stepFrom(steps, 20000, count, 'kg'))).toEqual([
+      21250, 22250, 23500,
+    ])
   })
 })
 
@@ -374,5 +386,119 @@ describe('the steps of a ladder', () => {
     expect(formatLoad(stepFrom(kilosBar, toGrams(100, 'kg'), 1, 'kg') ?? 0, 'kg')).toBe('102.5 kg')
     expect(roundDownToStep(kilosBar, toGrams(101, 'kg'), 'kg')).toBe(toGrams(100, 'kg'))
     expect(stepFrom(kilosBar, toGrams(20, 'kg'), -1, 'kg')).toBeNull()
+  })
+})
+
+describe('equipment entered in one unit and used in the other', () => {
+  /** A load as the runner sees it: grams moved onto the display grid of `unit`. */
+  const shown = (grams: number, unit: WeightUnit): number => toGrams(fromGrams(grams, unit), unit)
+
+  // A 45 lb bar and a 5 lb jump (a pair of 2.5 lb plates), shown in kilograms.
+  const poundsBarInKg = stepsFor([POUNDS_BARBELL], 'barbell', 'kg') as LoadSteps
+  // A 20 kg bar and a 2.5 kg jump (a pair of 1.25 kg plates), shown in pounds.
+  const kilosBarInLb = stepsFor([KILOS_BARBELL], 'barbell', 'lb') as LoadSteps
+  const bar = toGrams(45, 'lb')
+
+  it('keeps the plates’ own grams and rounds only the rungs, to what the plates make', () => {
+    expect(poundsBarInKg).toEqual({ minG: bar, stepG: toGrams(5, 'lb'), maxG: null })
+    let previous = -1
+    for (let count = 0; count <= 60; count += 1) {
+      const rung = stepFrom(poundsBarInKg, bar, count, 'kg') ?? Number.NaN
+      const plates = bar + count * toGrams(5, 'lb')
+      // within half a quarter kilogram of the plates, so no rounded step accumulates
+      expect(Math.abs(rung - plates), `${String(count)} steps`).toBeLessThanOrEqual(125)
+      // on the display grid, and above the rung before it
+      expect(rung, `${String(count)} steps`).toBe(shown(rung, 'kg'))
+      expect(rung, `${String(count)} steps`).toBeGreaterThan(previous)
+      previous = rung
+    }
+    expect(stepFrom(poundsBarInKg, bar, 5, 'kg')).toBe(31750)
+    expect(formatLoad(stepFrom(poundsBarInKg, bar, 1, 'kg') ?? 0, 'kg')).toBe('22.75 kg')
+  })
+
+  it('reads a load logged in pounds on its rung once the runner shows kilograms', () => {
+    for (let count = 0; count <= 40; count += 1) {
+      const rung = stepFrom(poundsBarInKg, bar, count, 'kg')
+      const logged = toGrams(45 + 5 * count, 'lb')
+      expect(roundDownToStep(poundsBarInKg, logged, 'kg'), `${String(45 + 5 * count)} lb`).toBe(
+        rung,
+      )
+      expect(stepFrom(poundsBarInKg, logged, 0, 'kg'), `${String(45 + 5 * count)} lb`).toBe(rung)
+      if (count > 0) {
+        // a step down is a step down, not a no-op on the rung it started from
+        expect(stepFrom(poundsBarInKg, logged, -1, 'kg')).toBe(
+          stepFrom(poundsBarInKg, bar, count - 1, 'kg'),
+        )
+        expect(stepFrom(poundsBarInKg, logged, -1, 'kg')).toBeLessThan(rung ?? 0)
+      }
+      expect(stepFrom(poundsBarInKg, logged, 1, 'kg')).toBe(
+        stepFrom(poundsBarInKg, bar, count + 1, 'kg'),
+      )
+    }
+    // 50 lb is 22 680 g, shown as 22.75 kg: that is the second rung, not the one below it
+    expect(roundDownToStep(poundsBarInKg, toGrams(50, 'lb'), 'kg')).toBe(22750)
+  })
+
+  it('reads a load logged in kilograms on its rung once the runner shows pounds', () => {
+    const empty = toGrams(20, 'kg')
+    expect(kilosBarInLb).toEqual({ minG: empty, stepG: toGrams(2.5, 'kg'), maxG: null })
+    for (let count = 0; count <= 40; count += 1) {
+      const rung = stepFrom(kilosBarInLb, empty, count, 'lb') ?? Number.NaN
+      expect(Math.abs(rung - (empty + count * toGrams(2.5, 'kg')))).toBeLessThanOrEqual(114)
+      expect(rung).toBe(shown(rung, 'lb'))
+      const logged = toGrams(20 + 2.5 * count, 'kg')
+      expect(roundDownToStep(kilosBarInLb, logged, 'lb'), `${String(20 + 2.5 * count)} kg`).toBe(
+        rung,
+      )
+      if (count > 0) {
+        expect(stepFrom(kilosBarInLb, logged, -1, 'lb')).toBe(
+          stepFrom(kilosBarInLb, empty, count - 1, 'lb'),
+        )
+        expect(stepFrom(kilosBarInLb, logged, -1, 'lb')).toBeLessThan(rung)
+      }
+      expect(stepFrom(kilosBarInLb, logged, 1, 'lb')).toBe(
+        stepFrom(kilosBarInLb, empty, count + 1, 'lb'),
+      )
+    }
+  })
+
+  it('does the same for a list of dumbbells and for a stack with a top', () => {
+    const kettlebells = stepsFor(
+      [{ kind: 'kettlebells', loads: { loadsG: [16, 20, 24].map((kg) => toGrams(kg, 'kg')) } }],
+      'kettlebells',
+      'lb',
+    ) as LoadSteps
+    // 16 kg shows as 35.5 lb, 20 kg as 44 lb, 24 kg as 53 lb
+    expect([16, 20, 24].map((kg) => formatLoad(shown(toGrams(kg, 'kg'), 'lb'), 'lb'))).toEqual([
+      '35.5 lb',
+      '44 lb',
+      '53 lb',
+    ])
+    const twenty = toGrams(20, 'kg')
+    expect(roundDownToStep(kettlebells, twenty, 'lb')).toBe(shown(twenty, 'lb'))
+    expect(stepFrom(kettlebells, twenty, -1, 'lb')).toBe(shown(toGrams(16, 'kg'), 'lb'))
+    expect(stepFrom(kettlebells, twenty, 1, 'lb')).toBe(shown(toGrams(24, 'kg'), 'lb'))
+    expect(stepFrom(kettlebells, toGrams(24, 'kg'), 1, 'lb')).toBeNull()
+
+    const stack = stepsFor(
+      [{ kind: 'leg-press', stepG: toGrams(5, 'kg'), maxG: toGrams(100, 'kg') }],
+      'leg-press',
+      'lb',
+    ) as LoadSteps
+    const top = shown(toGrams(100, 'kg'), 'lb')
+    expect(roundDownToStep(stack, toGrams(100, 'kg'), 'lb')).toBe(top)
+    expect(roundDownToStep(stack, toGrams(120, 'kg'), 'lb')).toBe(top)
+    expect(stepFrom(stack, toGrams(100, 'kg'), 1, 'lb')).toBeNull()
+    expect(stepFrom(stack, toGrams(95, 'kg'), 1, 'lb')).toBe(top)
+    expect(stepFrom(stack, toGrams(100, 'kg'), -1, 'lb')).toBe(shown(toGrams(95, 'kg'), 'lb'))
+  })
+
+  it('reads any load as it is shown, so a hair under a rung is on the rung', () => {
+    // 49.9 lb shows as 50 lb, the second rung of a 45 lb bar with a 5 lb jump
+    const sevenGramsShort = toGrams(50, 'lb') - 7
+    expect(fromGrams(sevenGramsShort, 'lb')).toBe(50)
+    const poundsBar = stepsFor([POUNDS_BARBELL], 'barbell', 'lb') as LoadSteps
+    expect(roundDownToStep(poundsBar, sevenGramsShort, 'lb')).toBe(toGrams(50, 'lb'))
+    expect(stepFrom(poundsBar, sevenGramsShort, -1, 'lb')).toBe(toGrams(45, 'lb'))
   })
 })
