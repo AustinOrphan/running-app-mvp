@@ -71,6 +71,8 @@ function makeWeek(index: number, over: Partial<PlanWeek> = {}): PlanWeek {
     focus: `Focus ${index}`,
     baselineRunMin: 420,
     targetRunMin: 420,
+    plannedRunMin: over.targetRunMin ?? 420,
+    overshoot: false,
     targetSource: 'baseline',
     longRunMin: 100,
     day2Min: null,

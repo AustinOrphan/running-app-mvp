@@ -54,6 +54,15 @@ export const LOAD_TEMPLATES = {
 
   // The Plan page: the position in effect, and why the chosen one does not apply.
   'load.panel.title': tpl('Load setting', {}, { shape: 'label' }),
+  // The action on the panel and the sheet it opens.
+  'load.change': tpl('Change', {}, { shape: 'label' }),
+  'load.sheet.title': tpl('Change load setting', {}, { shape: 'label' }),
+  'load.sheet.note': tpl(
+    'Applying draws the weeks ahead again with this setting. A change to the weeks can be undone from What changed.',
+  ),
+  'load.sheet.apply': tpl('Apply', {}, { shape: 'label' }),
+  'load.sheet.cancel': tpl('Cancel', {}, { shape: 'label' }),
+  'load.sheet.saved': tpl('Load setting changed', {}, { shape: 'label' }),
   'load.panel.set': tpl(
     'The plan was set to {position}.',
     { position: 'text' },
@@ -206,6 +215,24 @@ export function loadHoldReason(hold: LoadHold): string {
   }
 }
 
+/** The heading, button and toast words of the Plan page's action that changes the position. */
+export const loadChangeLabel = (): string => render(T['load.change'], {}, UNITS)
+export const loadSheetTitle = (): string => render(T['load.sheet.title'], {}, UNITS)
+export const loadSheetNote = (): string => render(T['load.sheet.note'], {}, UNITS)
+export const loadApplyLabel = (): string => render(T['load.sheet.apply'], {}, UNITS)
+export const loadCancelLabel = (): string => render(T['load.sheet.cancel'], {}, UNITS)
+export const loadSavedToast = (): string => render(T['load.sheet.saved'], {}, UNITS)
+
+/** "The steady step applies for now: a rest window is active." */
+export function loadHeldLine(hold: LoadHold): string {
+  return render(T['load.held'], { reason: loadHoldReason(hold) }, UNITS)
+}
+
+/** "The setting is held at Standard: age 45 or over." */
+export function loadCappedLine(): string {
+  return render(T['load.capped'], { age: count(P.a9.noviceFlagAgeMin.value) }, UNITS)
+}
+
 /** What the Plan page says about the position in effect. */
 export interface LoadPanelText {
   /** The position in effect: "Steady", "Standard", "Upper band". */
@@ -225,12 +252,12 @@ export function loadPanelText(load: LoadPosition): LoadPanelText {
   if (load.held !== null) {
     lines.push(
       render(T['load.panel.set'], { position: loadName(load.requested) }, UNITS),
-      render(T['load.held'], { reason: loadHoldReason(load.held) }, UNITS),
+      loadHeldLine(load.held),
     )
   } else if (load.ageCapped) {
     lines.push(
       render(T['load.panel.set'], { position: loadName(load.requested) }, UNITS),
-      render(T['load.capped'], { age: count(P.a9.noviceFlagAgeMin.value) }, UNITS),
+      loadCappedLine(),
     )
   }
   return { name: loadName(load.position), hint: loadHintLines(load.position), reason: lines }

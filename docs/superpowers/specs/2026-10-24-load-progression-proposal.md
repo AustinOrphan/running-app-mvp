@@ -636,8 +636,10 @@ table's lowest tier is 50-60%._
 - **Stored** as a plan option (`options.loadAppetite`) in `Plan.options`, which is JSON text on the
   `Plan` row (`prisma/schema.prisma`); no migration, no new model, no `STATE_MODELS` change, no
   Docker rebuild. A re-plan reuses the plan's options (`athleteState.ts` `planOptions`). Changed on
-  the Generate form like the recovery cycle; a later task adds a plan action with a preview and an
-  undo (question 6, decided).
+  the Generate form like the recovery cycle, and on the Plan page by a plan action (task L4b,
+  question 6, decided): `PUT /api/plan/load` stores the option through the re-plan path as one
+  revision with an undo that puts the old option back. The action has no preview: one request
+  applies it.
 - **Default:** steady (decided, question 2): today's engine byte for byte.
 - **Never above the observed bands.** The setting reaches the weekly step and, through the response
   (section 4.7), the baseline the step is applied to. The largest step is the weekly rate at which
@@ -814,9 +816,11 @@ review, 2026-10-25).
 
 Every string above was run through `lintText` (`shared/copy/lint.ts`) on 2026-10-24 with no hit.
 Plan week focus in the zone: "Rebuilding toward {minutes} a week". Revision summary on a change of
-the position, not built: no plan action changes the position yet (question 6, task L4b), so the
-line waits for that action: "Load setting changed to {position}: weeks ahead add up to {pct} while
-rebuilding." The checklist detail keeps its form: "{n} week(s) step above the soft {pct} and carry
+the position (task L4b): "Load setting changed to {position}: weeks ahead add up to {pct} while
+rebuilding."; at Steady "Load setting changed to Steady: weeks ahead add up to {pct} a week."; a
+position held at steady says why in place of a step: "Load setting changed to {position}. The steady
+step applies for now: {reason}."; Upper band read as Standard adds "The setting is held at
+Standard: age 45 or over." after the sentence with the step of Standard. The checklist detail keeps its form: "{n} week(s) step above the soft {pct} and carry
 a warning", with the position's pct. The soft note names each soft week's own step, so it can read
 "10% or 12%" when weeks inside and outside the zone mix (amended 2026-10-25).
 

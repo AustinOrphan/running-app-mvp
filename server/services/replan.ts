@@ -18,8 +18,11 @@ import { addDays, mondayOf } from '../../shared/dates.ts'
 import {
   changesSummary,
   decisionSummary,
+  loadSettingSummary,
+  overshootsSummary,
   stalePreviewMessage,
   targetsSummary,
+  type OvershootLine,
 } from '../../shared/copy/revision.ts'
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
@@ -27,13 +30,19 @@ import { draftRamp } from '../../shared/engine/checklist.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
-import { targetKept, targetLimit, type TargetLimit } from '../../shared/engine/limits.ts'
-import { rebuildZone } from '../../shared/engine/loadSetting.ts'
+import {
+  plannedMinOf,
+  targetKept,
+  targetLimit,
+  type TargetLimit,
+} from '../../shared/engine/limits.ts'
+import { loadPosition, rebuildZone } from '../../shared/engine/loadSetting.ts'
 import { progressionHold } from '../../shared/engine/macro.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import type {
   AthleteState,
   EngineInput,
+  LoadAppetite,
   PlanChange,
   PlanDraft,
   WeekDraft,
@@ -55,7 +64,7 @@ import {
   type PrismaClient,
 } from '../db.ts'
 import { conflict, notFound, validationError } from '../errors.ts'
-import { parsePlanOptions, toPlanRevision, toPlanSession } from '../serialize.ts'
+import { parsePlanOptions, toPlanRevision, toPlanSession, toPlanWeek } from '../serialize.ts'
 import { gatherEngineInput, sessionSpec } from './engineInput.ts'
 import { withGutTrainingOption } from './fuel.ts'
 import { recordPrediction, type PredictionGoal } from './predictionLog.ts'
@@ -230,8 +239,19 @@ export interface UndoRows<Row> {
 }
 
 /**
+ * A change of the plan's load setting [rules g-8, task L4b]. `before` is null when the plan stored
+ * no position (read as steady). It is the one plan-level column an undo restores: the setting is the
+ * runner's choice, not derived from the rows.
+ */
+export interface LoadSettingChange {
+  before: LoadAppetite | null
+  after: LoadAppetite
+}
+
+/**
  * What it takes to reverse a revision (design 4.2), stored as JSON in `PlanRevision.undo`. It holds
- * rows, never plan-level derived columns (those are recomputed). Server only: no route sends it.
+ * rows, never plan-level derived columns (those are recomputed), and the load setting when the
+ * revision changed it. Server only: no route sends it.
  */
 export interface UndoPayload {
   v: 1
@@ -246,6 +266,12 @@ export interface UndoPayload {
     created: Array<{ id: string; hash: string }>
     updated: Array<{ id: string; before: Record<string, unknown>; hash: string }>
   }
+  /**
+   * The load setting the revision changed, absent on a revision that left it alone and on every
+   * payload stored before the setting had an action. An undo puts `before` back, and only while the
+   * plan still holds `after`: a later change of the setting is an edit since (`scopeUndo`).
+   */
+  setting?: { loadAppetite: LoadSettingChange }
 }
 
 /** The columns an undo restores: every scalar column of the table except `updatedAt`. */
@@ -352,6 +378,8 @@ export function revisionParts(writes: {
   /** The window rows the write created or changed (E5): they are part of what an undo restores. */
   disruptions?: UndoPayload['disruptions']
   holds?: PlanDiff['holds']
+  /** The load setting the write changed: it is part of what an undo restores. */
+  setting?: UndoPayload['setting']
 }): {
   diff: PlanDiff
   undo: UndoPayload | null
@@ -365,9 +393,10 @@ export function revisionParts(writes: {
     ...(writes.weeks ? { targets: writes.weeks.targets } : {}),
   })
   const disruptions = writes.disruptions ?? { created: [], updated: [] }
-  // A window written without any session or week changing still has something to restore.
+  // A window written without any session or week changing still has something to restore, and so
+  // does a load setting changed where no week moved.
   const touched = disruptions.created.length + disruptions.updated.length > 0
-  if (diff.empty && !touched) return { diff, undo: null }
+  if (diff.empty && !touched && !writes.setting) return { diff, undo: null }
   return {
     diff,
     undo: {
@@ -375,6 +404,7 @@ export function revisionParts(writes: {
       sessions: undoRows(sessions, SESSION_COLUMNS, SESSION_HASH_COLUMNS),
       weeks: undoRows(weeks, WEEK_COLUMNS, WEEK_COLUMNS),
       disruptions,
+      ...(writes.setting ? { setting: writes.setting } : {}),
     },
   }
 }
@@ -509,6 +539,12 @@ export interface ReplanArgs {
    * skipped before it writes (design 9.4), puts the window in the diff and takes the summary.
    */
   window?: WindowReplan
+  /**
+   * Set by the action that changes the load setting. The plan's stored options then take the new
+   * position, the re-plan is drawn with it, and the revision takes the summary of the change and
+   * records the old position for an undo.
+   */
+  loadAppetite?: LoadAppetite
 }
 
 /** A past session that a rest window skips, written before the re-plan's own rows. */
@@ -533,6 +569,8 @@ export interface ReplanResult {
    * stores them in `Plan.options`; absent, the stored options are left as they are.
    */
   options?: EngineInput['options']
+  /** The change of the load setting this re-plan stores; null when it leaves the setting alone. */
+  setting: UndoPayload['setting'] | null
   /** The reason the revision is written with: a weekly update after a long break reads 'break'. */
   reason: PlanRevisionReason
   auto: boolean
@@ -684,6 +722,32 @@ function settledInput(input: EngineInput, settle: readonly SettleWrite[]): Engin
   }
 }
 
+/**
+ * The weeks this re-plan takes as run: the draft's weeks from the current Monday on that carry the
+ * engine's `overshoot` flag (rules g-2, g-6) and are not already stored as the draft has them (the
+ * same flag and the same minutes run). The planned figure is `plannedMinOf` over the draft week's
+ * flags, so the wording reads the flag the engine set and works nothing out. The `PlanDiff` and the
+ * stored week rows are untouched by this: it only words the summary.
+ */
+export function weeksTakenAsRun(
+  rows: readonly PlanWeekRow[],
+  weeks: readonly WeekDraft[],
+  today: string,
+): OvershootLine[] {
+  const currentMonday = mondayOf(today)
+  const stored = new Map(rows.map((row) => [row.weekStart, toPlanWeek(row)]))
+  const lines: OvershootLine[] = []
+  for (const week of weeks) {
+    if (week.weekStart < currentMonday || !week.flags.includes('overshoot')) continue
+    const plannedMin = plannedMinOf(week)
+    if (plannedMin >= week.targetRunMin) continue
+    const old = stored.get(week.weekStart)
+    if (old?.overshoot === true && old.targetRunMin === week.targetRunMin) continue
+    lines.push({ weekStart: week.weekStart, ranMin: week.targetRunMin, plannedMin })
+  }
+  return lines
+}
+
 /** A summary followed by the sentences for the raised week targets the write kept or lowered. */
 function withTargets(summary: string, targets: readonly TargetDiffLine[]): string {
   return targets.length === 0 ? summary : `${summary} ${targetsSummary(targets)}`
@@ -769,7 +833,12 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // The gut-training switch is read from the stored fuel settings at every compute, so a change to
   // the switches shows up in the next re-plan's diff, and a preview and its commit agree (design
   // 10.5). `applyReplan` stores the options it was computed with.
-  const options = await withGutTrainingOption(prisma, userId, parsePlanOptions(plan.options))
+  const stored = parsePlanOptions(plan.options)
+  const options = await withGutTrainingOption(
+    prisma,
+    userId,
+    args.loadAppetite === undefined ? stored : { ...stored, loadAppetite: args.loadAppetite },
+  )
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },
@@ -827,14 +896,22 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
 
   const reason: PlanRevisionReason =
     args.reason === 'weekly' && state.layoffDays >= P.j7.tier1Days.value ? 'break' : args.reason
-  const baseSummary =
+  // A change of the load setting leads with the position and its step, in place of the count of
+  // week-level changes; the weekly decision follows as for any re-plan. A week taken as run is
+  // worded as run past its plan, after the lead of the summary.
+  const lead =
+    args.loadAppetite === undefined
+      ? describeChanges(changes)
+      : loadSettingSummary(loadPosition(input, state))
+  const baseSummary = [
     args.window?.summary ??
-    [
-      describeChanges(changes),
-      decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null,
-    ]
-      .filter((line): line is string => line !== null)
-      .join(' ')
+      [lead, decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null]
+        .filter((line): line is string => line !== null)
+        .join(' '),
+    overshootsSummary(weeksTakenAsRun(weekRows, draft.weeks, today)),
+  ]
+    .filter((part) => part !== '')
+    .join(' ')
 
   // One write set describes the preview: the diff and the running time are read from it.
   const writes = previewWrites(
@@ -851,6 +928,10 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     today,
     headRevisionId,
     options,
+    setting:
+      args.loadAppetite === undefined
+        ? null
+        : { loadAppetite: { before: stored.loadAppetite ?? null, after: args.loadAppetite } },
     reason,
     // The scheduler asks for 'weekly' and nothing else does; a request never writes an automatic revision.
     auto: args.reason === 'weekly',
@@ -946,6 +1027,7 @@ export async function applyReplan(
         weeks,
         ...(windowWrite ? { disruptions: windowWrite.undo } : {}),
         holds: result.holds,
+        ...(result.setting ? { setting: result.setting } : {}),
       })
       return recordPlanWrite(tx, {
         planId,

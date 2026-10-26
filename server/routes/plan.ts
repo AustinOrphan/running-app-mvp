@@ -11,6 +11,7 @@ import { listDisruptions } from '../services/disruptions.ts'
 import {
   commitAdjust,
   commitDisruption,
+  commitLoadSetting,
   commitReplan,
   commitUndo,
   previewAction,
@@ -117,6 +118,9 @@ const revisionsQuery = z.strictObject({
 const expectHash = z.string().length(64).optional()
 const replanBody = z.strictObject({ expectHash })
 const undoBody = z.strictObject({ expectHash })
+
+/** The load setting of the plan: one of the three positions of the Generate form. */
+const loadBody = z.strictObject({ loadAppetite: z.enum(LOAD_APPETITES) })
 
 const windowId = z.string().min(1).max(64)
 
@@ -234,6 +238,13 @@ export function planRouter(deps: Deps): Router {
         expectHash: body.expectHash,
       }),
     )
+  })
+
+  // Changes the load setting of the active plan and draws the weeks ahead again with it (one
+  // revision, with an undo). The same position writes nothing and answers `revision: null`.
+  router.put('/load', async (req, res) => {
+    const { loadAppetite } = parse(loadBody, req.body)
+    res.json(await commitLoadSetting(deps, { userId: req.userId, loadAppetite, today: todayIso() }))
   })
 
   router.get('/archived', async (req, res) => {

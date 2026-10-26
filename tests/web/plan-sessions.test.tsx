@@ -13,7 +13,7 @@ import type {
 } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
-import { makeActivity } from '../factories.ts'
+import { makeActivity, makeWeekRow } from '../factories.ts'
 import {
   activityPage,
   explainOf,
@@ -1006,6 +1006,347 @@ describe('Plan page, the load setting in effect', () => {
     expect(calls.find((c) => c.url === '/api/plan/generate')?.body).toMatchObject({
       options: { loadAppetite: 'standard' },
     })
+  })
+})
+
+// A loading week run past its plan is taken as run (rules g-2, g-6): the stored target and baseline
+// are the minutes run (144), and the payload states the plan (79). The page shows the plan in the
+// target column, the minutes run in the run column with a note, and edits at the planned figure.
+describe('Plan page, a week run past its plan', () => {
+  const CURRENT = '2027-01-11'
+  const overshot = (over: Parameters<typeof makeV2Week>[1] = {}) =>
+    makeV2Week(1, {
+      targetRunMin: 144,
+      baselineRunMin: 144,
+      plannedRunMin: 79,
+      overshoot: true,
+      flags: ['overshoot', 'planned-79'],
+      ...over,
+    })
+  const plan = (week = overshot()) => makeV2Plan({ weeks: [makeV2Week(0), week, makeV2Week(2)] })
+  const withRuns = (extra: MockRoutes = {}) =>
+    routes(plan(), {
+      'GET /api/weeks': () => [
+        makeWeekRow({ weekStart: '2027-01-04', runMin: 280 }),
+        makeWeekRow({ weekStart: CURRENT, runMin: 144 }),
+      ],
+      'PUT /api/plan/weeks/2027-01-11': () => overshot(),
+      ...extra,
+    })
+  const row = (weekStart: string) =>
+    document.querySelector<HTMLElement>(`tr[data-week="${weekStart}"]`)!
+  const cell = (weekStart: string, name: string) =>
+    row(weekStart).querySelector<HTMLElement>(`[data-cell="${name}"]`)!
+
+  test('shows the planned figure as the target, and the minutes run with how far they lie over it', async () => {
+    mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+    await waitFor(() => {
+      expect(cell(CURRENT, 'actual')).toHaveTextContent('2.4 h')
+    })
+
+    // 79 minutes is 1.3 hours; the raised target of 144 minutes (2.4 hours) is not shown as one.
+    expect(cell(CURRENT, 'target').textContent?.trim()).toBe('1.3\u00a0h')
+    expect(cell(CURRENT, 'target')).not.toHaveTextContent('2.4')
+    expect(cell(CURRENT, 'actual').textContent).toBe('2.4\u00a0h1.1 h over the plan')
+    expect(within(row(CURRENT)).getAllByText('1.1 h over the plan')).toHaveLength(1)
+    expect(screen.getAllByText(/over the plan/)).toHaveLength(1)
+    expectCleanCopy(document.body)
+  })
+
+  test('leaves a week that was not run past its plan exactly as it was', async () => {
+    mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+    await waitFor(() => {
+      expect(cell('2027-01-04', 'actual')).toHaveTextContent('4.7 h')
+    })
+
+    // The row text of a normal week, target and run beside each other: no note, no extra element.
+    expect(cell('2027-01-04', 'target').textContent?.trim()).toBe('5.0\u00a0h')
+    expect(cell('2027-01-04', 'actual').textContent).toBe('4.7\u00a0h')
+    expect(row('2027-01-04').textContent).toBe(
+      '4 JanBase 5.0\u00a0h4.7\u00a0hLong run 90\u00a0min, 4 run days, strength 190\u00a0min—41Week focus 0DaysEdit',
+    )
+    expect(cell('2027-01-18', 'target').textContent?.trim()).toBe('5.0\u00a0h')
+    expect(cell('2027-01-18', 'actual').textContent).toBe('')
+  })
+
+  test('says nothing more of the week once the minutes run no longer lie over the plan', async () => {
+    mockApi(
+      withRuns({
+        'GET /api/weeks': () => [makeWeekRow({ weekStart: CURRENT, runMin: 60 })],
+      }),
+    )
+    renderPlan()
+    await screen.findByText('Week focus 1')
+    await waitFor(() => {
+      expect(cell(CURRENT, 'actual')).toHaveTextContent('1.0 h')
+    })
+    expect(cell(CURRENT, 'target').textContent?.trim()).toBe('1.3\u00a0h')
+    expect(screen.queryByText(/over the plan/)).not.toBeInTheDocument()
+  })
+
+  test('the editor opens at the planned figure and words the baseline as the plan', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 11 Jan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 11 Jan' })
+    expect(within(dialog).getByLabelText('Target (minutes)')).toHaveValue(79)
+    expect(
+      within(dialog).getByText('Planned before the week was run: 1.3 h (79 min)'),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Generated baseline/)).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Reset to baseline' })).toBeDisabled()
+    expectCleanCopy(dialog)
+
+    // Saving what the sheet shows changes no target and asks for no note.
+    await user.clear(within(dialog).getByLabelText('Long run (minutes)'))
+    await user.type(within(dialog).getByLabelText('Long run (minutes)'), '95')
+    await user.click(within(dialog).getByRole('button', { name: 'Save week' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    expect(calls.find((c) => c.method === 'PUT')).toMatchObject({
+      url: '/api/plan/weeks/2027-01-11',
+      body: { longRunMin: 95 },
+    })
+    expect(calls.find((c) => c.method === 'PUT')?.body).not.toHaveProperty('targetRunMin')
+  })
+
+  test('a target typed over the planned figure is an override and needs its note, as for any week', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 11 Jan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 11 Jan' })
+    const target = within(dialog).getByLabelText('Target (minutes)')
+    await user.clear(target)
+    await user.type(target, '90')
+    await user.click(within(dialog).getByRole('button', { name: 'Save week' }))
+    expect(await within(dialog).findByText('Add a note explaining the change')).toBeInTheDocument()
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+
+    await user.type(within(dialog).getByLabelText('Override note'), 'Race on Saturday')
+    await user.click(within(dialog).getByRole('button', { name: 'Save week' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    expect(calls.find((c) => c.method === 'PUT')).toMatchObject({
+      url: '/api/plan/weeks/2027-01-11',
+      body: { targetRunMin: 90, overrideNote: 'Race on Saturday' },
+    })
+  })
+
+  test('an override on the week resets to the stored baseline, and the row still shows the plan', async () => {
+    const user = userEvent.setup()
+    const edited = overshot({
+      targetRunMin: 100,
+      plannedRunMin: 79,
+      targetSource: 'override',
+      overrideNote: 'Travel week',
+    })
+    const { calls } = mockApi(
+      routes(plan(edited), {
+        'GET /api/weeks': () => [makeWeekRow({ weekStart: CURRENT, runMin: 144 })],
+        'PUT /api/plan/weeks/2027-01-11': () => edited,
+      }),
+    )
+    renderPlan()
+    await screen.findByText('Week focus 1')
+    await waitFor(() => {
+      expect(cell(CURRENT, 'actual')).toHaveTextContent('2.4 h')
+    })
+
+    // The planned figure stands in the target column, with the "edited" marker and no struck
+    // baseline: the stored baseline is the minutes run, not a figure the plan ever held.
+    expect(cell(CURRENT, 'target')).toHaveTextContent('1.3 h')
+    expect(within(row(CURRENT)).getByRole('button', { name: 'edited' })).toBeInTheDocument()
+    expect(row(CURRENT).querySelector('s')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 11 Jan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 11 Jan' })
+    expect(within(dialog).getByLabelText('Target (minutes)')).toHaveValue(79)
+    await user.click(within(dialog).getByRole('button', { name: 'Reset to baseline' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    // The server compares with the stored baseline, so that is what is sent.
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ targetRunMin: 144 })
+  })
+
+  test('a normal week keeps its generated baseline in the editor', async () => {
+    const user = userEvent.setup()
+    mockApi(withRuns())
+    renderPlan()
+    await screen.findByText('Week focus 1')
+
+    await user.click(screen.getByRole('button', { name: 'Edit week of 18 Jan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit week of 18 Jan' })
+    expect(within(dialog).getByLabelText('Target (minutes)')).toHaveValue(300)
+    expect(within(dialog).getByText('Generated baseline: 5.0 h (300 min)')).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Planned before the week was run/)).not.toBeInTheDocument()
+  })
+})
+
+describe('Plan page, changing the load setting', () => {
+  const load = (over: Partial<LoadPosition> = {}): LoadPosition => ({
+    requested: 'steady',
+    position: 'steady',
+    held: null,
+    ageCapped: false,
+    ...over,
+  })
+  const changed = (loadAppetite: string) => ({ loadAppetite, revision: null })
+  const putLoad = (calls: Array<{ method: string; url: string }>) =>
+    calls.filter((c) => c.method === 'PUT' && c.url === '/api/plan/load')
+
+  async function openSheet(user: ReturnType<typeof userEvent.setup>) {
+    const panel = await screen.findByRole('region', { name: 'Load setting' })
+    await user.click(within(panel).getByRole('button', { name: 'Change' }))
+    return screen.findByRole('dialog', { name: 'Change load setting' })
+  }
+
+  test('shows the panel for a plan with no stored option, as Steady, with its Change action', async () => {
+    // a plan whose options hold no position reads as Steady (`parsePlanOptions`), so the server
+    // names it and the panel shows
+    mockApi(routes(makeV2Plan()))
+    renderPlan()
+    const panel = await screen.findByRole('region', { name: 'Load setting' })
+    expect(within(panel).getByText('Steady')).toBeInTheDocument()
+    expect(within(panel).getByText("Adds up to 10% a week, the plan's usual step.")).toBeVisible()
+    expect(within(panel).getByRole('button', { name: 'Change' })).toBeEnabled()
+    expectCleanCopy(panel)
+  })
+
+  test('Change opens a sheet with the three positions, their hints, the age line and the trade-off', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(makeV2Plan()))
+    renderPlan()
+    const dialog = await openSheet(user)
+
+    // the Generate form's field: one radio group, the three positions, Steady chosen
+    const group = within(dialog).getByRole('radiogroup', { name: 'Load' })
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((radio) => radio.textContent),
+    ).toEqual(['Steady', 'Standard', 'Upper band'])
+    expect(within(group).getByRole('radio', { name: 'Steady' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(within(dialog).getByText("Adds up to 10% a week, the plan's usual step.")).toBeVisible()
+    expect(within(dialog).getByText(loadTradeoff())).toBeVisible()
+    expect(within(dialog).queryByText(/At age 45 or over/)).not.toBeInTheDocument()
+
+    await user.click(within(group).getByRole('radio', { name: 'Standard' }))
+    expect(
+      within(dialog).getByText(
+        /^Adds up to \d+(\.\d+)?% a week while rebuilding toward a level held in the last 12 weeks\./,
+      ),
+    ).toBeVisible()
+    await user.click(within(group).getByRole('radio', { name: 'Upper band' }))
+    expect(
+      within(dialog).getByText(/^Adds up to \d+(\.\d+)?% a week while rebuilding, the most/),
+    ).toBeVisible()
+    expect(
+      within(dialog).getByText('At age 45 or over, Upper band is held at Standard.'),
+    ).toBeVisible()
+    expectCleanCopy(dialog)
+  })
+
+  test('Apply sends the position in one request, reads the plan again and closes the sheet', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan(), { 'PUT /api/plan/load': () => changed('standard') }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Standard' }))
+    const before = calls.length
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Change load setting' })).not.toBeInTheDocument()
+    })
+    expect(putLoad(calls)).toHaveLength(1)
+    expect(putLoad(calls)[0]).toMatchObject({ body: { loadAppetite: 'standard' } })
+    // the plan, its revisions and the readers that follow the plan are asked for again
+    await waitFor(() => {
+      const after = calls.slice(before).map((c) => c.url)
+      expect(after).toContain('/api/plan')
+      expect(after).toContain('/api/plan/revisions')
+    })
+    expect(await screen.findByText('Load setting changed')).toBeInTheDocument()
+  })
+
+  test('the position the plan is set to disables Apply, also while it is held, and sends nothing', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(
+        makeV2Plan({
+          load: load({ requested: 'standard', position: 'steady', held: 'rest-window' }),
+        }),
+      ),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    const apply = within(dialog).getByRole('button', { name: 'Apply' })
+    // the sheet starts from what the plan was set to, not from what applies
+    expect(within(dialog).getByRole('radio', { name: 'Standard' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(apply).toBeDisabled()
+    await user.click(within(dialog).getByRole('radio', { name: 'Steady' }))
+    expect(apply).toBeEnabled()
+    await user.click(within(dialog).getByRole('radio', { name: 'Standard' }))
+    expect(apply).toBeDisabled()
+    await user.click(apply)
+    expect(putLoad(calls)).toHaveLength(0)
+  })
+
+  test('Cancel closes the sheet and sends nothing', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(routes(makeV2Plan()))
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Upper band' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog', { name: 'Change load setting' })).not.toBeInTheDocument()
+    expect(putLoad(calls)).toHaveLength(0)
+  })
+
+  test('a refusal is said in the sheet, which stays open', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan(), {
+        'PUT /api/plan/load': () => ({
+          status: 422,
+          body: {
+            error: {
+              code: 'validation',
+              message: 'The plan did not pass the plan checks, so it was not published.',
+            },
+          },
+        }),
+      }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Upper band' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert).toHaveTextContent('The plan did not pass the plan checks')
+    expect(screen.getByRole('dialog', { name: 'Change load setting' })).toBeInTheDocument()
+    expectCleanCopy(dialog)
   })
 })
 

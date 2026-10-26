@@ -3,10 +3,16 @@ import {
   LOAD_POSITIONS,
   LOAD_TEMPLATES,
   loadAgeRule,
+  loadApplyLabel,
+  loadCancelLabel,
+  loadChangeLabel,
   loadHintLines,
   loadHoldReason,
   loadName,
   loadPanelText,
+  loadSavedToast,
+  loadSheetNote,
+  loadSheetTitle,
   loadTradeoff,
   stepPercent,
 } from '../../../shared/copy/load.ts'
@@ -102,6 +108,29 @@ describe('the load setting copy', () => {
       'at least two risk factors for bone stress injury apply',
     )
     expect(loadHoldReason('low-frequency')).toBe('recent weeks held fewer than two runs a week')
+  })
+
+  it('words the action that changes the setting: the button, the sheet and the toast', () => {
+    expect(loadChangeLabel()).toBe('Change')
+    expect(loadSheetTitle()).toBe('Change load setting')
+    expect(loadApplyLabel()).toBe('Apply')
+    expect(loadCancelLabel()).toBe('Cancel')
+    expect(loadSavedToast()).toBe('Load setting changed')
+    const note = loadSheetNote()
+    expect(note).toBe(
+      'Applying draws the weeks ahead again with this setting. A change to the weeks can be undone from What changed.',
+    )
+    expect(note.length).toBeLessThanOrEqual(COPY_MAX_CHARS)
+    const all = [
+      loadChangeLabel(),
+      loadSheetTitle(),
+      loadApplyLabel(),
+      loadCancelLabel(),
+      loadSavedToast(),
+      note,
+    ].join(' ')
+    expect(lintText(all)).toEqual([])
+    expect(all).not.toMatch(/\b(safe|safer|safest|aggressive)\b/i)
   })
 
   it('words the panel from the payload: nothing to explain when the position applies', () => {

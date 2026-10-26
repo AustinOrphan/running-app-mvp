@@ -336,6 +336,20 @@
   font-weight: 500;
 }
 
+/* A panel title with an action beside it: the action wraps under the title on a narrow screen. */
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+
+.panelHead .panelTitle {
+  margin: 0;
+}
+
 .panelTitle {
   margin: 0 0 var(--space-2);
   font-family: var(--font-serif);

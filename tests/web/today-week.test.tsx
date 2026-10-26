@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import type { WeekStripMark } from '../../shared/types.ts'
+import type { WeekStrip as WeekStripView, WeekStripMark } from '../../shared/types.ts'
 import { activityPage, explainOf, expectCleanCopy } from './helpers.tsx'
 import {
   makeCoach,
@@ -108,6 +108,42 @@ describe('Today: the week strip', () => {
     )
     const strip = await screen.findByRole('region', { name: 'This week' })
     expect(within(strip).getByText('Nothing left to plan this week')).toBeInTheDocument()
+    expect(within(strip).getByText('0.2 h past target')).toBeInTheDocument()
+  })
+
+  test('a week run past its plan reads against the planned figure, with how far the run lies over it', async () => {
+    const { container } = renderToday(
+      withWeek({
+        runMin: 144,
+        targetRunMin: 79,
+        overshoot: true,
+        remaining: { remainingMin: 0, remainingDays: 4, perDayMin: 0 },
+      }),
+    )
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    // The meter's tick is the planned figure (1.3 h), not the 2.4 h the stored target was raised to.
+    expect(within(strip).getByRole('meter', { name: 'Run time this week' })).toHaveAttribute(
+      'aria-valuetext',
+      '2.4 of 1.3 hours',
+    )
+    expect(within(strip).getByText('Ran 2.4 h of 1.3 h planned, 1.1 h over')).toBeInTheDocument()
+    expect(within(strip).queryByText(/past target/)).not.toBeInTheDocument()
+    expect(within(strip).getByText('Nothing left to plan this week')).toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
+  test('a flagged week whose run does not lie over the plan keeps the usual caption', async () => {
+    renderToday(withWeek({ runMin: 60, targetRunMin: 79, overshoot: true }))
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    expect(within(strip).getByText('1.0 h of 1.3 h target')).toBeInTheDocument()
+    expect(within(strip).queryByText(/planned, /)).not.toBeInTheDocument()
+  })
+
+  test('an answer kept from before the flag existed reads as before', async () => {
+    const stale = makeStrip({ runMin: 460, targetRunMin: 450 }, week) as Partial<WeekStripView>
+    delete stale.overshoot
+    renderToday(makeToday({ coach: makeCoach({ weekStrip: stale as WeekStripView }) }))
+    const strip = await screen.findByRole('region', { name: 'This week' })
     expect(within(strip).getByText('0.2 h past target')).toBeInTheDocument()
   })
 
