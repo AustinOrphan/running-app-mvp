@@ -1,0 +1,34 @@
+{
+  "id": "vikmoen-2016-female-heavy-strength-running",
+  "title": "Effects of Heavy Strength Training on Running Performance and Determinants of Running Performance in Female Endurance Athletes",
+  "authors": "Vikmoen O, Raastad T, Seynnes O, Bergstrøm K, Ellefsen S, Rønnestad BR",
+  "year": 2016,
+  "journal": "PLOS ONE",
+  "doi": "10.1371/journal.pone.0150799",
+  "pmid": "26953893",
+  "url": "https://doi.org/10.1371/journal.pone.0150799",
+  "design": "rct",
+  "population": "19 well-trained female endurance athletes (VO2max 53 +/- 3 ml/kg/min, 5.8 h of endurance training a week), randomised to endurance training alone (n = 8) or endurance plus strength training (n = 11)",
+  "sampleSize": 19,
+  "evidenceLevel": "B",
+  "topics": ["strength-plyometrics", "sex-female-athlete"],
+  "findings": [
+    "The strength training was four leg exercises of 3 sets of 4-10 repetition maximum, twice a week for 11 weeks, added to normal endurance training.",
+    "The strength group raised leg-exercise 1RM by 40 +/- 15% and counter movement jump height by 6 +/- 6% and squat jump height by 9 +/- 7% (p < 0.05), with larger fibre cross-sectional area in the vastus lateralis (type I 13 +/- 7%, type II 31 +/- 20%) and no change in capillary density or patellar tendon stiffness.",
+    "Neither group changed running economy, fractional utilisation of VO2max or VO2max, and neither changed the distance run in a 40-minute all-out test.",
+    "The authors conclude that adding heavy strength training to endurance training did not affect 40-minute all-out running performance or running economy compared with endurance training only."
+  ],
+  "limitations": "Nineteen women in two small groups; one test of running performance (a 40-minute all-out run) and a laboratory economy test; the athletes were endurance athletes in general (the abstract does not say how many were runners); 11 weeks. A null result in a small sample is not proof of no effect. Abstract read; full text not read.",
+  "implications": [
+    "The one women-only randomised trial in the corpus whose abstract reports running economy found large strength gains and no gain in economy or in a 40-minute run. It does not by itself overturn the pooled economy effect (a statement about those analyses that this abstract does not make), but it is a reason to word the benefit as 'may' and to say that the evidence in women is small.",
+    "Pairs with the same group's trial in female duathletes (vikmoen-2017-female-duathletes-strength), where performance improved after prolonged submaximal work."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, PLoS ONE 11(3):e0150799, 2016-03-08, six authors and DOI match. Europe PMC abstract (PMID 26953893, PMC4783109) read in full, including the results sentence that contains comparison signs; every figure above is in it.",
+    "checkedAt": "2026-10-25"
+  }
+}

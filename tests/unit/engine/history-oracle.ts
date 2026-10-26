@@ -13,6 +13,11 @@
 //   npx tsx -e "import('./tests/unit/engine/history-oracle.ts').then((m) =>
 //     console.log(JSON.stringify(m.steadyDigests(), null, 2)))" > tests/unit/engine/history-oracle.json
 //
+// Regenerated 2026-10-25 for the D4 count of weeks available (the plan's Monday weeks, rule D4):
+// in every plan only `feasibility.weeksAvailable` and the tight and not-reachable notes (their text,
+// or their presence where the label moved) differ from the digests before it; the sessions, the
+// weeks and the other warnings are the same.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

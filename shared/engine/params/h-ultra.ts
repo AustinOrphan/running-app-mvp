@@ -484,7 +484,11 @@ export const hUltra = {
       12,
       'C',
       'H10',
-      ['giovanelli-2017-ultra-sep', 'pastor-2022-trail-determinants-distances'],
+      [
+        'giovanelli-2017-ultra-sep',
+        'pastor-2022-trail-determinants-distances',
+        'zanini-2025-strength-economy-durability-rct',
+      ],
       {
         unit: 'weeks',
         note: 'Ultra strength block: slow-speed plyometric emphasis plus knee-extensor and plantar-flexor work.',
@@ -495,7 +499,11 @@ export const hUltra = {
       2,
       'C',
       'H10',
-      ['giovanelli-2017-ultra-sep', 'pastor-2022-trail-determinants-distances'],
+      [
+        'giovanelli-2017-ultra-sep',
+        'pastor-2022-trail-determinants-distances',
+        'zanini-2025-strength-economy-durability-rct',
+      ],
       {
         unit: 'sessions per week',
       },

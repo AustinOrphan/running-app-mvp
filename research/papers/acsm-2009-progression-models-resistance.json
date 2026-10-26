@@ -1,0 +1,34 @@
+{
+  "id": "acsm-2009-progression-models-resistance",
+  "title": "Progression Models in Resistance Training for Healthy Adults",
+  "authors": "American College of Sports Medicine",
+  "year": 2009,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0b013e3181915670",
+  "pmid": "19204579",
+  "url": "https://doi.org/10.1249/mss.0b013e3181915670",
+  "design": "consensus-statement",
+  "population": "Healthy adults, from novices to advanced lifters; a position stand on resistance training, not on runners or endurance athletes",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-plyometrics"],
+  "findings": [
+    "For novice training (no resistance training experience, or none for several years) the stand recommends loads that correspond to a repetition range of 8-12 repetition maximum (RM). For intermediate (about 6 months of consistent training) to advanced (years of training) lifters it recommends a wider range of 1-12 RM in a periodized fashion, with eventual emphasis on heavy loading (1-6 RM), 3- to 5-minute rests between sets and a moderate contraction velocity (1-2 s concentric, 1-2 s eccentric).",
+    "When training at a specific RM load, the stand recommends a 2-10% increase in load when the individual can perform the current workload for one to two repetitions over the desired number.",
+    "The recommended training frequency is 2-3 days per week for novice training, 3-4 for intermediate and 4-5 for advanced training.",
+    "The stand says that its recommendations should be applied in context and be contingent on an individual's target goals, physical capacity and training status."
+  ],
+  "limitations": "A consensus statement for healthy adults in general, not for runners; the abstract does not say how each recommendation was graded and it does not compare progression schemes. It supports a convention (raise the load when the target repetitions are exceeded by one or two), not a test of one. Abstract read on Europe PMC; the full text was not read.",
+  "implications": [
+    "The closest published convention for a double-progression rule: raise the load when the repetitions exceed the target by one or two, in steps of 2-10%. It is a consensus of practice for healthy adults and gives no evidence that this beats any other scheme, so the progression rule stays a default (grade D).",
+    "The engine's step cap (f8.maxStepPct) is above the 10% end of this range because loads move in the steps the equipment can make; the cap is the engine's own default, not a figure of the stand."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-10-25: title, Med Sci Sports Exerc 41(3):687-708, 2009 and DOI match; Crossref lists no author, and Europe PMC gives the American College of Sports Medicine as the author. Europe PMC abstract (PMID 19204579) read; every figure above is in it. The stand's recommendations for hypertrophy, power and local muscular endurance are not used.",
+    "checkedAt": "2026-10-25"
+  }
+}

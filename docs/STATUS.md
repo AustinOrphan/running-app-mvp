@@ -1340,6 +1340,20 @@ things stand" gives counts and percentages without a weekly total or a date.
     the barbell for anyone with a bar after the ramp-in, a plyometric ladder that steps only after a
     completed running week. The ADR is 0014. Next: its task list (section 17, E14-1 to E14-11 and
     C2), which moves to `docs/superpowers/plans/` when the epic is scheduled.
+    Wave 0 done in #572 (2026-10-25): task E14-1 added rules F7 (session structure and exercise
+    selection, grade A for the method and D for every dose), F8 (load progression, D) and F9
+    (lighter days, the taper and the return after a gap, D) to `research/engine-rules.md`, with E5,
+    F4, F-lib, H5 and H10 amended; 20 papers from a gap pass on the design's twelve evidence gaps
+    (corpus 396, none closes a gap); the 34 Params of `f7`, `f8` and `f9` (`PARAMS_VERSION`
+    2026-10-25.4, every value grade D except `f7.expectedBenefitPct`, A); and ADR 0014, Proposed.
+    A five-lens review raised 46 findings: 19 applied as wording fixes, 27 refuted. Open for the
+    owner: (1) whether to keep the A/B alternation of straight-knee and bent-knee calf raises,
+    which `kinoshita-2023-standing-seated-calf-raise` does not back; (2) the two bodyweight
+    movements entered at no added load in `f8.startFractionBodyweight` (the single-leg box squat
+    and the single-leg calf raise); (3) spec 5.4 gives `f7.maintenanceSessionMin` to a lighter
+    session while 8.1 and 8.5 give a lighter week 40 minutes, and the Params follow 8.1 and 8.5.
+    Next: wave 1, tasks E14-2 (weights, the catalogue, the load quantity and the copy) and E14-3
+    (the anchored block, the session budgets and the rule ids in the engine).
 19. Done in #567: the Today disruption presentation, from the owner's feedback of 2026-10-24 on
     Today with an illness window. (a) The band owns the window and the verdict names the day: while
     the illness windows hold the n-3 gate, the payload leaves out the illness note and the illness
@@ -1396,8 +1410,30 @@ things stand" gives counts and percentages without a weekly total or a date.
     the position at Steady on 30 of the 53 Mondays, which matters more to the setting's reach than
     the values of question 3. Baseline behaviour at Steady too.
 26. After a hold decision a re-plan can place sessions under 80% of target. Case: one replayed
-    chain, 25 of 57 future weeks after one re-plan following a hold decision; the cause is
-    untraced. Baseline behaviour at Steady too.
+    chain, 25 of 57 future weeks after one re-plan following a hold decision. Baseline behaviour at
+    Steady too. Open. The trace of follow-up 27 showed it is a different mechanism from the
+    recovery-week cadence. On the replayed real history, with a hold cap on the current week at 25
+    Mondays, 2 or fewer future weeks were under 80% except on four Mondays. On two of them 34 of
+    about 40 weeks were under with no decision at all (a return from a layoff). On the other two
+    the re-plan without a decision opens on a restart floor week (1 or 2 weeks under), and the cap
+    cuts that week below the floor (29 and 33 weeks under); the weeks after it sit between one and
+    two 20-minute runs or under a G-1 cap. The hold cap on a floor week is the candidate; the
+    cause is not yet traced to a line.
+27. Done in #570. A change of recovery cycle between two re-plans (the A5 low-frequency flag
+    arming or ending, 2:1 and 3:1) dropped the recovery week the replaced plan stored on the first
+    Monday: the count of `planPhases` missed it, the week became a loading week drawn a step above
+    the loading sequence with the recovery week's sessions (G-6), `keepCadenceAcrossReplan` forced
+    a second recovery week after it, and the next loading week stepped from the minutes placed
+    there. Case: `replan-chain.test.ts`, "the re-plan on which the low-frequency flag changes the
+    recovery cycle" (H10 at Steady on the re-plan where the flag ends, 82, 61r, 61, 45r; H3 at
+    Standard where it arms) and "a stored recovery week on the Monday a start path claims". Shipped:
+    the stored recovery week is kept, the count's own recovery week that would follow it is
+    dropped, and a start path (a 3 × N floor after a gap, a ladder) claims the opening week first
+    (`planWeeks`, `macro.ts`); H10 now plans 56r, 82, 90, 67r and the H3 chain equals the
+    unflagged chain. No rule text and no Param changed. 0 of 142 steady oracle digests moved, the
+    owner validation at 2026-10-23 is byte-identical, and 0 of 25 replayed re-plans of the real
+    history changed. Not changed: a stored recovery week that the count already places keeps
+    winning over a floor start (`lifts`).
 
 ## Clean-up after the merges
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { goalModel } from '../../../shared/engine/goal.ts'
+import { feasibility, goalModel } from '../../../shared/engine/goal.ts'
 import { buildPlan } from '../../../shared/engine/index.ts'
 import { spikeWarnLimit } from '../../../shared/engine/limits.ts'
 import { macroPlan, peakLongRunMin, redsHold } from '../../../shared/engine/macro.ts'
@@ -176,6 +176,23 @@ describe('macroPlan: calendar and phases', () => {
     const last = post[post.length - 1]
     expect((last?.weekStart ?? '') <= lastDay).toBe(true)
     expect(addDays(last?.weekStart ?? '', 6) >= lastDay).toBe(true)
+  })
+
+  it('holds as many weeks up to the race week as the D4 label counts as available', () => {
+    // from every day of the week in progress, for a race on every day of its week [D4]
+    for (let from = 0; from < 7; from++) {
+      for (let race = 0; race < 7; race++) {
+        const today = addDays(TODAY, from)
+        const g = goal('marathon', 20, { date: addDays(TODAY, 7 * 20 + race) })
+        const weeks = macroPlan({ ...input(g), today }, state(), g, FEASIBLE)
+        const toRace = weeks.filter((w) => w.weekStart <= mondayOf(g.date))
+        const label = `today +${String(from)}, race +${String(race)}`
+        expect(toRace, label).toHaveLength(feasibility(g, state(), today).weeksAvailable)
+        expect(toRace.length, label).toBe(21)
+        expect(toRace[0]?.weekStart, label).toBe(mondayOf(today))
+        expect(toRace.at(-1)?.phase, label).toBe('race')
+      }
+    }
   })
 
   it('builds backwards: base, build, specific, taper, race', () => {

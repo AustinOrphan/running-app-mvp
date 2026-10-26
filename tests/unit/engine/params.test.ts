@@ -29,7 +29,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-25.3')
+    expect(PARAMS_VERSION).toBe('2026-10-25.4')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -91,9 +91,14 @@ describe('parameter registry', () => {
   })
 
   it('has finite numeric values, ordered ranges and values inside their range', () => {
-    // a value is a number or a list of numbers, nested as deep as the data needs (the ladder rungs)
+    // a value is a number, a list of numbers or a record of numbers (the first loads by
+    // exercise), nested as deep as the data needs (the ladder rungs)
     const finite = (v: unknown): boolean =>
-      Array.isArray(v) ? v.every(finite) : typeof v === 'number' && Number.isFinite(v)
+      Array.isArray(v)
+        ? v.every(finite)
+        : v !== null && typeof v === 'object'
+          ? Object.values(v).every(finite)
+          : typeof v === 'number' && Number.isFinite(v)
     for (const p of all) {
       expect(finite(p.value), p.id).toBe(true)
       if (p.range) {
@@ -577,5 +582,274 @@ describe('parameter registry', () => {
     const e6 = engineRules.slice(engineRules.indexOf('- **E6 '), engineRules.indexOf('## (f) '))
     expect(e6).toContain('**Block (G-8).**')
     expect(engineRules).toMatch(/rule G-8 sets it, with its Params/)
+  })
+
+  it('carries the strength structure F7 as labelled defaults and one grade A planning figure', () => {
+    const f7 = P.f7
+    expect(paramsForRule('F7').map((p) => p.id)).toEqual(Object.values(f7).map((p) => p.id))
+    expect(Object.keys(f7)).toHaveLength(21)
+    for (const p of Object.values(f7)) {
+      expect(p.rule, p.id).toBe('F7')
+      if (p === f7.expectedBenefitPct) continue
+      expect(p.grade, p.id).toBe('D')
+      expect(p.note, p.id).toMatch(/^Default: /)
+      expect(lintText(p.note ?? ''), p.id).toEqual([])
+    }
+    expect(f7.expectedBenefitPct).toMatchObject({ value: [2, 4], grade: 'A', unit: '%' })
+    expect(f7.expectedBenefitPct.evidence).toEqual([
+      'denadai-2017-explosive-heavy-economy',
+      'llanoslagos-2024-economy-speeds',
+      'blagrove-2018-strength-determinants',
+    ])
+    expect(lintText(f7.expectedBenefitPct.note ?? '')).toEqual([])
+    expect([f7.blockSessionMin.value, f7.maintenanceSessionMin.value]).toEqual([40, 25])
+    expect([f7.rampInReps.value, f7.rampInSets.value, f7.easyRir.value, f7.heavyRir.value]).toEqual(
+      [[6, 8], [2, 3], 3, [1, 3]],
+    )
+    expect(
+      [
+        f7.plyoStartContacts,
+        f7.plyoStepContacts,
+        f7.plyoStepEveryWeeks,
+        f7.plyoRungWeeks,
+        f7.maintenancePlyoContacts,
+        f7.reducedPlyoShare,
+        f7.blockCreditWeeks,
+      ].map((p) => p.value),
+    ).toEqual([40, 20, 2, 3, 60, 0.5, 4])
+    expect([f7.trunkSets.value, f7.trunkReps.value, f7.trunkHoldSec.value]).toEqual([
+      2,
+      [8, 12],
+      [30, 45],
+    ])
+    expect([f7.bodyweightReps.value, f7.lowerSeconds.value, f7.taperLifts.value]).toEqual([
+      [8, 15],
+      3,
+      2,
+    ])
+    // the cap on the ladder is the highest dose observed (grade A) and the start sits well below it
+    expect(P.flib.plyoContactsMax.grade).toBe('A')
+    expect(f7.plyoStartContacts.value).toBeLessThan(P.flib.plyoContactsMax.value)
+    // the ramp-in is lighter and higher in repetitions than the heavy block, and leaves more in reserve
+    expect(f7.rampInReps.value[0]).toBeGreaterThanOrEqual(P.flib.heavyReps.range?.[1] ?? 0)
+    expect(f7.rampInSets.value[1]).toBeLessThanOrEqual(P.flib.heavySets.range?.[0] ?? 0)
+    expect(f7.easyRir.value).toBeGreaterThanOrEqual(f7.heavyRir.value[1])
+    // a lighter, maintenance or taper session has fewer sets and lifts than the block
+    expect(f7.maintenanceSets.value).toBeLessThan(P.flib.heavySets.range?.[0] ?? 0)
+    expect(f7.taperLifts.value).toBeLessThanOrEqual(P.flib.heavyExercises.value)
+    expect(f7.maintenanceSessionMin.value).toBeLessThan(f7.blockSessionMin.value)
+    expect(f7.reducedPlyoShare.value).toBeGreaterThan(0)
+    expect(f7.reducedPlyoShare.value).toBeLessThan(1)
+    // block sets stay inside the 10 repetitions up to which a linear estimate of a maximum was advised
+    const blockCount = (P.flib.heavyReps.range?.[1] ?? 0) + f7.heavyRir.value[1]
+    expect(blockCount).toBeLessThanOrEqual(10)
+    // the budgets replace the single placement default that the engine reads today
+    expect(f7.blockSessionMin.value).toBeGreaterThan(P.fplace.strengthSessionMin.value)
+    expect(f7.maintenanceSessionMin.value).toBeLessThan(P.fplace.strengthSessionMin.value)
+    // the values the strength epic reads from rules E5 and H10 are the registered ones, and equal
+    expect(P.h10.strengthBlockWeeks.value).toBe(P.e5.strengthBlockWeeks.value)
+    expect(P.h10.strengthSessionsPerWeek.value).toBe(P.flib.strengthPerWeek.value)
+    expect(P.h10.strengthBlockWeeks.evidence).toContain(
+      'zanini-2025-strength-economy-durability-rct',
+    )
+    expect(P.e5.strengthMaintenancePerWeek.evidence).toEqual([
+      'spiering-2021-minimal-dose',
+      'bickel-2011-maintenance-dosing-retention',
+    ])
+  })
+
+  it('carries the load progression F8 as labelled defaults with its evidence', () => {
+    const f8 = P.f8
+    expect(paramsForRule('F8').map((p) => p.id)).toEqual(Object.values(f8).map((p) => p.id))
+    expect(Object.keys(f8)).toHaveLength(10)
+    for (const p of Object.values(f8)) {
+      expect(p.rule, p.id).toBe('F8')
+      expect(p.grade, p.id).toBe('D')
+      expect(p.note, p.id).toMatch(/^Default: /)
+      expect(lintText(p.note ?? ''), p.id).toEqual([])
+    }
+    expect(
+      [
+        f8.progressMinRir,
+        f8.bigStepRir,
+        f8.maxStepPct,
+        f8.reducePct,
+        f8.ceilingSessions,
+        f8.layoffDays,
+        f8.layoffLoadFraction,
+        f8.startPctOf1rm,
+        f8.e1rmDivisor,
+      ].map((p) => p.value),
+    ).toEqual([1, 4, 15, 5, 3, 28, 0.9, 70, 30])
+    expect(f8.maxStepPct.evidence).toEqual(['acsm-2009-progression-models-resistance'])
+    expect(f8.e1rmDivisor.evidence).toEqual([
+      'nuzzo-2023-reps-at-percent-1rm',
+      'reynolds-2006-1rm-prediction',
+    ])
+    expect(f8.layoffDays.evidence).toEqual(f8.layoffLoadFraction.evidence)
+    expect(f8.layoffLoadFraction.evidence).toContain('mujika-2000-detraining-part2')
+    // an increase needs fewer reps in reserve than a double step, and the larger step is the rarer
+    expect(f8.progressMinRir.value).toBeLessThan(f8.bigStepRir.value)
+    // a reduction is smaller than the largest step, and a return load is lighter than the last base
+    expect(f8.reducePct.value).toBeLessThan(f8.maxStepPct.value)
+    expect(f8.layoffLoadFraction.value).toBeLessThan(1)
+    // the first load is a share of the maximum below the heavy floor, itself below the ceiling
+    expect(f8.startPctOf1rm.value).toBeLessThan(P.flib.heavyMinPct1rm.value)
+    expect(P.flib.heavyMinPct1rm.range?.[1]).toBe(90)
+  })
+
+  it('holds a light first load, as a fraction of body weight, for every loaded exercise', () => {
+    const table = P.f8.startFractionBodyweight
+    const NO_ADDED_LOAD: Record<string, true> = {
+      'single-leg-box-squat': true,
+      'single-leg-calf-raise': true,
+    }
+    // the exercises of the catalogue (design 7.1) whose load basis is a weight; the bodyweight
+    // movements, the jumps, the trunk holds and the banded movements have no entry
+    const loaded = [
+      'back-squat',
+      'dumbbell-rdl',
+      'farmer-carry',
+      'goblet-squat',
+      'hip-thrust',
+      'kettlebell-rdl',
+      'leg-curl',
+      'leg-press',
+      'romanian-deadlift',
+      'seated-calf-raise',
+      'single-leg-box-squat',
+      'single-leg-calf-raise',
+      'single-leg-rdl',
+      'split-squat',
+      'standing-calf-raise',
+      'step-up',
+    ]
+    expect(Object.keys(table.value).sort()).toEqual(loaded)
+    for (const [exercise, fraction] of Object.entries(table.value)) {
+      expect(fraction, exercise).toBeGreaterThanOrEqual(0)
+      expect(fraction, exercise).toBeLessThanOrEqual(0.5)
+    }
+    // the two movements of "added load, if any" start with no added load
+    for (const exercise of Object.keys(NO_ADDED_LOAD))
+      expect(table.value[exercise], exercise).toBe(0)
+    // every other entry is a real load
+    for (const exercise of loaded.filter((e) => !(e in NO_ADDED_LOAD))) {
+      expect(table.value[exercise], exercise).toBeGreaterThan(0)
+    }
+    expect(table.evidence).toEqual([])
+    expect(table.note).toMatch(/^Default: /)
+    expect(table.note).toMatch(/no paper gives a starting load/)
+  })
+
+  it('carries the lighter days F9 as three labelled defaults', () => {
+    const f9 = P.f9
+    expect(paramsForRule('F9').map((p) => p.id)).toEqual([
+      'f9.lowReadinessLoadPct',
+      'f9.lowReadinessSetsCut',
+      'f9.countPromptWeeks',
+    ])
+    expect(
+      [f9.lowReadinessLoadPct, f9.lowReadinessSetsCut, f9.countPromptWeeks].map((p) => [
+        p.value,
+        p.grade,
+        p.rule,
+      ]),
+    ).toEqual([
+      [10, 'D', 'F9'],
+      [1, 'D', 'F9'],
+      [3, 'D', 'F9'],
+    ])
+    for (const p of Object.values(f9)) {
+      expect(p.note, p.id).toMatch(/^Default: /)
+      expect(lintText(p.note ?? ''), p.id).toEqual([])
+    }
+    // a low-readiness day leaves at least two sets of the lift with the fewest block sets, and
+    // lowers the load: readiness never adds any
+    expect(
+      (P.flib.heavySets.range?.[0] ?? 0) - f9.lowReadinessSetsCut.value,
+    ).toBeGreaterThanOrEqual(2)
+    expect(f9.lowReadinessLoadPct.value).toBeGreaterThan(0)
+  })
+
+  it('states rules F7 to F9 in engine-rules.md with every parameter, its evidence and the table rows', () => {
+    const start = engineRules.indexOf('- **F7 ')
+    const f8At = engineRules.indexOf('- **F8 ')
+    const f9At = engineRules.indexOf('- **F9 ')
+    const end = engineRules.indexOf('## (g) Progression and safety limits')
+    expect(start).toBeGreaterThan(-1)
+    expect(f8At).toBeGreaterThan(start)
+    expect(f9At).toBeGreaterThan(f8At)
+    expect(end).toBeGreaterThan(f9At)
+    const texts = {
+      F7: engineRules.slice(start, f8At),
+      F8: engineRules.slice(f8At, f9At),
+      F9: engineRules.slice(f9At, end),
+    } as const
+    const all = engineRules.slice(start, end)
+    for (const rule of ['F7', 'F8', 'F9'] as const) {
+      for (const p of paramsForRule(rule)) {
+        expect(texts[rule], p.id).toContain(`\`${p.id}\``)
+        expect(
+          p.evidence.filter((id) => !all.includes(id)),
+          p.id,
+        ).toEqual([])
+      }
+    }
+    // the grades are stated: the method is A, the doses are D, F8 and F9 are D throughout
+    expect(texts.F7).toMatch(/Grade A for the method[^\n]*D for every dose/)
+    expect(texts.F8).toMatch(/Grade D throughout/)
+    expect(texts.F9).toMatch(/Grade D throughout/)
+    // the benefit and injury sentences keep to their grade: no performance or prevention promise
+    expect(texts.F7).toContain('says nothing about race time')
+    expect(texts.F7).toContain('no running-specific reduction in injuries')
+    expect(texts.F7).toContain('so no VO2max, threshold or pace change is ever projected')
+    // the text passes the G5 lint once the paper ids, which can contain a banned word, are left out
+    expect(lintText(all.replace(/\[[^\]\n]*\]/g, ''))).toEqual([])
+    // the table has a row for every parameter group, and the amended rules are dated
+    for (const row of [
+      'Strength expected benefit \\(F7\\)',
+      'Strength session budget \\(F7\\)',
+      'Strength maintenance sets \\(F7, F9\\)',
+      'Ramp-in reps and sets \\(F7\\)',
+      'Reps in reserve, easy sessions \\(F7\\)',
+      'Reps in reserve, block \\(F7\\)',
+      'Bodyweight movement reps \\(F7\\)',
+      'Slow lowering of a lift \\(F7, H5\\)',
+      'Jump ladder start and step \\(F7\\)',
+      'Maintenance jump contacts \\(F7\\)',
+      'Reduced jump share \\(F7\\)',
+      'Block credit \\(F7\\)',
+      'Trunk finisher \\(F7\\)',
+      'Taper lifts \\(F7, F9\\)',
+      'Load step \\(F8\\)',
+      'Largest single step \\(F8\\)',
+      'Reduction after a short set \\(F8\\)',
+      'Ceiling before a variation \\(F8\\)',
+      'Gap and return load \\(F8\\)',
+      'First load from an anchor \\(F8\\)',
+      'First load without an anchor \\(F8\\)',
+      'Estimated maximum \\(F8\\)',
+      'Low-readiness day \\(F9\\)',
+      'Count prompt \\(F9\\)',
+    ]) {
+      expect(engineRules, row).toMatch(new RegExp(`^\\| ${row} `, 'm'))
+    }
+    for (const [rule, next] of [
+      ['E5', '- **E6 '],
+      ['F4', '- **F5 '],
+      ['H5', '- **H6 '],
+      ['H10', '- **H11 '],
+    ] as const) {
+      const from = engineRules.indexOf(`- **${rule} `)
+      const text = engineRules.slice(from, engineRules.indexOf(next, from))
+      expect(text, rule).toContain('amended 2026-10-25')
+    }
+    // the strength gaps join the evidence-gap list, each with the default that stands
+    const gaps = engineRules.slice(
+      engineRules.indexOf('## Top evidence gaps'),
+      engineRules.indexOf('## What would change these rules'),
+    )
+    for (let i = 1; i <= 12; i += 1) expect(gaps, `S${String(i)}`).toContain(`**S${String(i)} `)
+    expect(gaps.match(/Default \(D\)/g)).toHaveLength(12)
   })
 })

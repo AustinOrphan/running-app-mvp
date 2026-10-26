@@ -238,7 +238,8 @@ function planPhases(
       carried[i] ?? (i < base ? 'base' : i < base + build ? 'build' : 'specific')
     // counted back from the last pre-taper week, which is always a work week (the peak); a new
     // plan never opens with a recovery week, so its first cycle may run one work week longer. A
-    // re-plan keeps the first week a recovery week when the plan it replaces had it so.
+    // re-plan keeps the first week a recovery week when the plan it replaces had it so, where the
+    // count lands on it; where it does not (the cycle changed), `planWeeks` keeps the week.
     const fromEnd = weeksBeforeTaper - 1 - i
     out.push({
       phase,
@@ -1000,6 +1001,17 @@ function planWeeks(
   // it open a new block, which the checklist counts the same way)
   const programmeWeeks = restart !== null && restart.kind !== 'floor' ? startWeeks : 0
   for (let i = 0; i < programmeWeeks && i < preCount; i++) phases[i]!.isRecovery = false
+  // The recovery week the replaced plan stored on this Monday stays a recovery week wherever the
+  // count falls, unless a start path claims the week (a 3 x N floor after a gap, a ladder: a rule
+  // drives that start, not the cadence). After a change of cycle (the low-frequency flag arming or
+  // ending, 2:1 and 3:1) the count misses the week, and a loading week there would be drawn a step
+  // above the loading sequence while its sessions stay the recovery week's (`remainingOfWeek`).
+  // The last pre-taper week is the peak, a work week, and the count's own recovery week would
+  // follow the kept one directly: one recovery week, not two.
+  if (openingRecovery && restart === null && preCount > 1) {
+    phases[0]!.isRecovery = true
+    phases[1]!.isRecovery = false
+  }
   keepCadenceAcrossReplan(
     phases,
     input,

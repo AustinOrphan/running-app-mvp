@@ -723,7 +723,7 @@ export const EXPLAIN_TEMPLATES = {
     { weeks: 'count' },
   ),
   'explain.d4-label': tpl(
-    'The outlook for this goal reads {label}: about {needed} weeks of building against {available} weeks to go.',
+    'The outlook for this goal reads {label}: about {needed} weeks of building against {available} weeks on the plan.',
     { label: 'text', needed: 'count', available: 'count' },
   ),
   'explain.d5-weekly': tpl(

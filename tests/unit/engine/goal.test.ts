@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const heat = vi.hoisted(() => ({ heatPenaltyPct: vi.fn() }))
 vi.mock('../../../shared/engine/heat.ts', () => heat)
 
-import { addDays } from '../../../shared/dates.ts'
+import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import {
   distanceClassOf,
   feasibility,
   goalModel,
   longRunFloor,
   peakLongRunMin,
+  planWeeksAvailable,
   trainingPace,
   ultraLongRunTargetMin,
 } from '../../../shared/engine/goal.ts'
@@ -154,6 +155,12 @@ function d4Weeks(l0: number, lt: number, taperWeeks: number, growth = 1.1): numb
   const steps = Math.ceil(Math.log(lt / l0) / Math.log(growth) - 1e-9)
   return Math.ceil(steps * (4 / 3) + taperWeeks - 1e-9)
 }
+
+/**
+ * The race date that leaves `weeks` plan weeks from TODAY (a Monday) [D4]: the week in progress is
+ * week 1 and the race week counts, so the race falls `weeks - 1` Mondays on.
+ */
+const raceAfterPlanWeeks = (weeks: number) => addDays(TODAY, (weeks - 1) * 7)
 
 beforeEach(() => {
   heat.heatPenaltyPct.mockReset()
@@ -314,7 +321,7 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
     const needed = d4Weeks(10000, 25000, 3)
     expect(needed).toBe(17)
     const at = (weeks: number) =>
-      feasibility(makeModel({ date: addDays(TODAY, weeks * 7) }), state, TODAY)
+      feasibility(makeModel({ date: raceAfterPlanWeeks(weeks) }), state, TODAY)
     expect(at(17)).toMatchObject({ weeksNeeded: 17, weeksAvailable: 17, label: 'tight' })
     expect(at(16).label).toBe('not-reachable')
     expect(at(22).label).toBe('comfortable')
@@ -509,7 +516,7 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
       const longRun = d4Weeks(1800, P.d4LongRun.ultra100mi.value * 60, 2)
       expect(weekly).toBeGreaterThan(longRun)
       const at = (weeks: number) =>
-        feasibility({ ...goal, date: addDays(TODAY, weeks * 7) }, state, TODAY)
+        feasibility({ ...goal, date: raceAfterPlanWeeks(weeks) }, state, TODAY)
       expect(at(weekly)).toMatchObject({
         weeksNeeded: weekly,
         weeksAvailable: weekly,
@@ -523,7 +530,7 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
 
     it('labels a 30-min typical week with 33 weeks to 100 miles tight by the weekly path', () => {
       const state = makeState({ longestSec: 1800, typicalWeekMin: 30, weeklyKm: 5 })
-      const goal = { ...ultra('ultra100mi', 108000), date: addDays(TODAY, 33 * 7) }
+      const goal = { ...ultra('ultra100mi', 108000), date: raceAfterPlanWeeks(33) }
       const needed = d4Weeks(60, 534, 2)
       const f = feasibility(goal, state, TODAY)
       expect(f.weeksNeeded).toBe(needed)
@@ -550,6 +557,98 @@ describe('feasibility: D4 weeks formula with cutbacks', () => {
     const f = feasibility(makeModel({ date: addDays(TODAY, -3) }), makeState(), TODAY)
     expect(f.weeksAvailable).toBe(0)
     expect(f.label).toBe('not-reachable')
+  })
+})
+
+describe('feasibility: the weeks available are the plan Monday weeks [D4]', () => {
+  // TODAY is a Monday. The race is a Saturday, 40 days on; its Monday is 5 weeks on, so the plan
+  // holds 6 weeks: the week in progress and the race week count.
+  const race = addDays(TODAY, 40)
+  const week = (offset: number) => addDays(TODAY, offset)
+
+  it('counts the same weeks on a Monday, a Wednesday, a Saturday and a Sunday', () => {
+    expect(mondayOf(race)).toBe(addDays(TODAY, 35))
+    // the whole days to the race are 40, 38, 35 and 34; the plan weeks stay 6 until the next Monday
+    for (const offset of [0, 2, 5, 6]) {
+      expect(planWeeksAvailable(week(offset), race), `day ${String(offset)}`).toBe(6)
+    }
+    expect(planWeeksAvailable(week(7), race)).toBe(5)
+  })
+
+  it('counts the race week, whichever day of it the race falls on', () => {
+    for (let day = 0; day < 7; day++) {
+      expect(planWeeksAvailable(TODAY, addDays(TODAY, 35 + day)), `race day ${String(day)}`).toBe(6)
+    }
+    expect(planWeeksAvailable(TODAY, addDays(TODAY, 42))).toBe(7)
+  })
+
+  it('counts the race week alone for a race in the week in progress', () => {
+    expect(planWeeksAvailable(TODAY, TODAY)).toBe(1)
+    expect(planWeeksAvailable(week(2), week(6))).toBe(1)
+    expect(planWeeksAvailable(week(6), week(6))).toBe(1)
+  })
+
+  it('is 0 for a race before today, even within the week in progress', () => {
+    expect(planWeeksAvailable(week(2), week(1))).toBe(0)
+    expect(planWeeksAvailable(week(6), week(0))).toBe(0)
+    expect(planWeeksAvailable(week(7), week(6))).toBe(0)
+  })
+
+  describe('against the label', () => {
+    // 30 typical minutes a week to 100 miles: 33 weeks needed, the weekly path governs
+    const state = makeState({ longestSec: 1800, typicalWeekMin: 30, weeklyKm: 5 })
+    const hundred = makeModel({
+      distanceClass: 'ultra100mi',
+      distanceM: 160934,
+      isUltra: true,
+      goalType: 'finish',
+      expectedDurationSec: 108000,
+    })
+
+    it('reads tight, not unreachable, on a Sunday with the race 32 weeks and 6 days away', () => {
+      const sunday = addDays(TODAY, 6)
+      const saturday = addDays(sunday, 32 * 7 + 6)
+      expect(daysBetween(sunday, saturday)).toBe(230)
+      const f = feasibility({ ...hundred, date: saturday }, state, sunday)
+      // whole weeks from today would be 32; the plan opens on the Monday before the Sunday and
+      // ends with the race week, 34 weeks
+      expect(Math.floor(230 / 7)).toBe(32)
+      expect(f.weeksNeeded).toBe(33)
+      expect(f.weeksAvailable).toBe(34)
+      expect(f.label).toBe('tight')
+      expect(f.notes.map((n) => n.code)).not.toContain('not-reachable')
+    })
+
+    it('changes the label only where the plan week count changes', () => {
+      // the race Saturday ends a plan of exactly 33 weeks from the week of TODAY
+      const date = addDays(raceAfterPlanWeeks(33), 5)
+      for (let offset = 0; offset < 7; offset++) {
+        const f = feasibility({ ...hundred, date }, state, week(offset))
+        expect(f, `day ${String(offset)}`).toMatchObject({
+          weeksNeeded: 33,
+          weeksAvailable: 33,
+          label: 'tight',
+        })
+      }
+      // the next Monday leaves 32 weeks, one fewer than needed
+      expect(feasibility({ ...hundred, date }, state, week(7))).toMatchObject({
+        weeksNeeded: 33,
+        weeksAvailable: 32,
+        label: 'not-reachable',
+      })
+      // and a race 33 weeks on from that Monday restores it
+      expect(feasibility({ ...hundred, date: addDays(date, 7) }, state, week(7)).label).toBe(
+        'tight',
+      )
+    })
+
+    it('puts the comfortable margin on the plan weeks', () => {
+      // 33 needed x 1.25 = 41.25, so 42 plan weeks are comfortable and 41 are tight
+      const at = (weeks: number) =>
+        feasibility({ ...hundred, date: raceAfterPlanWeeks(weeks) }, state, TODAY).label
+      expect(at(41)).toBe('tight')
+      expect(at(42)).toBe('comfortable')
+    })
   })
 })
 

@@ -1,6 +1,6 @@
 # Research base
 
-The evidence behind the training engine: 376 papers, 20 topic syntheses, the rules derived from
+The evidence behind the training engine: 396 papers, 20 topic syntheses, the rules derived from
 them and the one document that turns the rules into engine behaviour. It is decision support for
 one recreational runner, not medical advice.
 
@@ -74,6 +74,7 @@ time for the Research page and the "why" drawer.
    paper dates tendon or bone capacity in runners after a partial reduction. No rule, `Param` or
    `PARAMS_VERSION` changed. The evidence is in `topics/injury-load.md`, the rule
    `injury-tissue-capacity-no-rate`, G-2 and J7 of `engine-rules.md`.
+10. **Strength gap pass (2026-10-25).** Written for the strength epic (`docs/superpowers/specs/2026-10-24-strength-phase3b-design.md`, section 4.4 and task E14-1). The twelve gaps of that section were searched by hand on Crossref and Europe PMC, one query set per gap, because the topic `strength-plyometrics` already exists and the corpus workflow was not needed. Twenty papers were added (376 to 396): each was looked up on Crossref, its abstract was read on Europe PMC that day, and `npm run research:verify` found no mismatch. Candidates with no abstract in Europe PMC or PubMed, with no DOI, whose abstract held no result on the gap, or that studied patients under treatment were left out; several admitted papers give no dose, and their records say so. The papers add something on ten of the twelve gaps and close none: no paper compares ways of progressing a load in runners, validates an equation for a maximum in runners, or gives a calf, jump, maintenance or taper dose for runners, and none concerns runners over about 50, 100-mile runners or eccentric work in trail runners. Rules F7 to F9 of `engine-rules.md` (and the amended E5, F-lib, F4, H5 and H10), the numeric table, the eight new rules of `rules/strength-plyometrics.json` and the section of `topics/strength-plyometrics.md` carry the result. Every dose they set is grade D, and every `Param` of F7 to F9 says so. The raw search results are kept outside the repository.
 
 ## Evidence levels and grades
 
