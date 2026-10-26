@@ -566,11 +566,7 @@ describe('placeWeek', () => {
       // closed here, and a lift of the week stands on it
       const noRuns = { targetRunMin: 0, longRunMin: 0, runDays: 0, qualitySessions: 0 }
       const closed = (...days: Array<'mon' | 'tue' | 'wed'>) =>
-        availability(
-          Object.fromEntries(
-            days.map((d) => [d, { available: false, maxMin: null }]),
-          ) as Parameters<typeof availability>[0],
-        )
+        availability(Object.fromEntries(days.map((d) => [d, { available: false, maxMin: null }])))
       const lift = (date: string) => session({ date, kind: 'strength', durationMin: 40 })
       const placed = (
         planned: number,
