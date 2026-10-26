@@ -13,6 +13,10 @@
 //   npx tsx -e "import('./tests/unit/engine/history-oracle.ts').then((m) =>
 //     console.log(JSON.stringify(m.steadyDigests(), null, 2)))" > tests/unit/engine/history-oracle.json
 //
+// The digests of the re-plan chains were regenerated on 2026-10-25 for the anchored strength block
+// (task E14-3, rule E5): a re-plan continues the block and no longer starts a new one, so the
+// `strength-block` flag of the weeks differs from the second plan of a chain on. The plans are
+// otherwise the ones the digests held (checked by comparing the chains with the flag removed).
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

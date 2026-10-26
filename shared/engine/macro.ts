@@ -381,6 +381,26 @@ function gainShare(phase: PhaseV2): number {
   return P.macroDesign.gainShareSpecific.value
 }
 
+/**
+ * Where a week stands in its strength block, week k of n: the run of consecutive weeks that carry
+ * `strength-block` in `weeks` (the stored weeks and the planned ones) that contains it. Null for a
+ * week outside a block [rule E5].
+ */
+export function strengthBlockPosition(
+  weeks: ReadonlyArray<Pick<WeekDraft, 'weekStart' | 'flags'>>,
+  weekStart: string,
+): { week: number; of: number } | null {
+  const flagged = new Set(
+    weeks.filter((w) => w.flags.includes('strength-block')).map((w) => w.weekStart),
+  )
+  if (!flagged.has(weekStart)) return null
+  let first = weekStart
+  while (flagged.has(addDays(first, -7))) first = addDays(first, -7)
+  let last = weekStart
+  while (flagged.has(addDays(last, 7))) last = addDays(last, 7)
+  return { week: daysBetween(first, weekStart) / 7 + 1, of: daysBetween(first, last) / 7 + 1 }
+}
+
 /** The latest restart floor week of the plan a re-plan replaces, before `firstMonday`. */
 export function pastFloor(
   input: EngineInput,
@@ -1228,16 +1248,30 @@ function planWeeks(
     record(i, weekStart, true)
   }
 
-  // Strength: a heavy block in base and early build, then maintenance
+  // Strength: a heavy block in base and early build, then maintenance. An ultra goal reads the H10
+  // Params in place of the E5 and F-lib ones; their values are equal [rules E5, H10].
+  const blockWeeks = goal.isUltra ? P.h10.strengthBlockWeeks.value : P.e5.strengthBlockWeeks.value
   const requested =
     input.options.strengthSessions ??
-    Math.min(P.flib.strengthPerWeek.value, input.profile.strengthPreference)
+    Math.min(
+      goal.isUltra ? P.h10.strengthSessionsPerWeek.value : P.flib.strengthPerWeek.value,
+      input.profile.strengthPreference,
+    )
   const maintenance = Math.min(requested, P.e5.strengthMaintenancePerWeek.value)
   const nonSpecific = phases.filter((p, i) => i < preCount && p.phase !== 'specific').length
-  const blockLen =
-    nonSpecific >= P.e5.strengthBlockMinWeeks.value
-      ? Math.min(P.e5.strengthBlockWeeks.value, nonSpecific)
-      : 0
+  // The block belongs to the weeks and not to a plan: the past weeks of the plan being replaced
+  // that carry the flag are block weeks already served, so a re-plan continues the block with the
+  // weeks it has left (no more than the non-specific weeks that remain, and without the minimum,
+  // which only a block that has not started must meet). A plan with no stored weeks, a regenerate
+  // or a new plan, starts a block [rule E5].
+  const served = (input.existing?.weeks ?? []).filter(
+    (w) => w.weekStart < firstMonday && w.flags.includes('strength-block'),
+  ).length
+  let blockLen = 0
+  if (served > 0) blockLen = Math.min(Math.max(blockWeeks - served, 0), nonSpecific)
+  else if (nonSpecific >= P.e5.strengthBlockMinWeeks.value) {
+    blockLen = Math.min(blockWeeks, nonSpecific)
+  }
 
   // Flags for the fixed blocks
   const flagSets: Array<Set<string>> = phases.map(() => new Set<string>())

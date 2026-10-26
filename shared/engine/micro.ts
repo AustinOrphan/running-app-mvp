@@ -159,6 +159,13 @@ export function placeWeek(
     ceiling?: boolean
     /** No run of the week carries more than this: the 16 km of a 5 km or 10 km goal [rules D7]. */
     longRunMaxM?: number
+    /** The goal is an ultra: its strength sessions cite H10 beside F7 [rules E5, H10]. */
+    ultra?: boolean
+    /**
+     * The week's place in its strength block, week k of n, counted over the stored and planned weeks
+     * (`strengthBlockPosition`); null or absent outside a block [rule E5].
+     */
+    blockPosition?: { week: number; of: number } | null
   },
 ): SessionSpec[] {
   const limits = ctx.limits ?? defaultLimits(ctx.state, ctx.prevSessions)
@@ -232,7 +239,10 @@ export function placeWeek(
   }
   fillDistanceAndGain(sessions, week, (date) => caps[daysBetween(week.weekStart, date)]!.gainM)
   for (const day of strength) {
-    const spec = prescribe('strength', P.fplace.strengthSessionMin.value, ctx.zones, week)
+    const spec = prescribe('strength', strengthMinutes(week), ctx.zones, week, {
+      ultra: ctx.ultra === true,
+      blockPosition: ctx.blockPosition ?? null,
+    })
     const hasRun = runs.some((r) => r.day === day)
     sessions.push({ ...spec, date: slots[day]!.date, order: hasRun ? 1 : 0 })
   }
@@ -822,6 +832,16 @@ function planRuns(
 
 // ---- strength ----
 
+/**
+ * The time a strength session is given, and the room a day needs for it: the budget of a block
+ * week, or the smaller one of every other week [rules F7, F4].
+ */
+function strengthMinutes(week: WeekDraft): number {
+  return week.flags.includes('strength-block')
+    ? P.f7.blockSessionMin.value
+    : P.f7.maintenanceSessionMin.value
+}
+
 /** Days for strength: easy or free days, never a hard day, the long day or the day before it. */
 function planStrength(
   week: WeekDraft,
@@ -831,7 +851,7 @@ function planStrength(
 ): number[] {
   const wanted = Math.min(week.strengthSessions, profile.strengthPreference)
   if (wanted <= 0) return []
-  const minutes = P.fplace.strengthSessionMin.value
+  const minutes = strengthMinutes(week)
   const longStart = runs
     .filter((r) => r.kind === 'long' || r.kind === 'long-fast-finish' || r.kind === 'b2b')
     .map((r) => r.day)

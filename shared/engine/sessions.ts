@@ -43,6 +43,10 @@ export interface PrescribeContext {
    * run. The session is cut to its `minutes` when that is shorter.
    */
   blueprint?: readonly number[]
+  /** A strength session of an ultra goal also cites H10 [rules E5, H10]. */
+  ultra?: boolean
+  /** The week's place in its strength block, week k of n; null or absent outside a block. */
+  blockPosition?: { week: number; of: number } | null
 }
 
 interface LibraryEntry {
@@ -110,7 +114,7 @@ const LIBRARY: Record<SessionKind, LibraryEntry> = {
   strength: {
     zone: 'strength',
     purpose: 'Heavy strength work.',
-    rules: ['F-lib', 'F4', 'E5'],
+    rules: ['F-lib', 'F4', 'E5', 'F7'],
   },
   mobility: {
     zone: 'rest',
@@ -432,13 +436,20 @@ function describeBlueprint(blueprint: readonly number[]): string {
     .concat(' minutes')
 }
 
-function heavyStrengthPurpose(): string {
-  return (
-    `Heavy strength: ${P.flib.heavyExercises.value} exercises of ${P.flib.heavySets.value} sets of ` +
-    `${P.flib.heavyReps.value} reps at ${P.flib.heavyMinPct1rm.value}% of 1RM or more, with heavy ` +
-    `calf raises. Ramp in over ${P.flib.heavyRampInWeeks.value} weeks and keep it ` +
-    `${P.f4.strengthSeparationHours.value} h from a key run.`
-  )
+/**
+ * The one sentence of a strength session: the block week it is, or the maintenance. The lifts, sets
+ * and loads belong to the workout and not to the plan, and no Param is restated here [rules E5, F7].
+ */
+function strengthPurpose(week: WeekDraft, ctx: PrescribeContext): string {
+  if (!week.flags.includes('strength-block')) {
+    return 'Strength maintenance: a short session that keeps the strength of the legs and trunk while the running builds.'
+  }
+  const at = ctx.blockPosition
+  const where =
+    at === undefined || at === null
+      ? 'Strength block'
+      : `Strength block, week ${String(at.week)} of ${String(at.of)}`
+  return `${where}: heavy lifts and jumps for the legs and trunk, kept apart from the key runs.`
 }
 
 /** Distance of a session from its steps and paces; null without a pace to work from. */
@@ -522,7 +533,8 @@ export function prescribe(
       built = buildFastFinish(duration)
       break
     case 'strength':
-      purpose = heavyStrengthPurpose()
+      purpose = strengthPurpose(week, ctx)
+      if (ctx.ultra === true) rules.push('H10')
       break
     default:
       if (ctx.blueprint !== undefined && kind === 'easy') {
