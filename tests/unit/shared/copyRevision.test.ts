@@ -9,6 +9,8 @@ import {
   declinedZoneSummary,
   decisionSummary,
   describeUndoFinding,
+  overshootsSummary,
+  overshootSummary,
   REVISION_TEMPLATES,
   targetsSummary,
   targetSummary,
@@ -235,5 +237,33 @@ describe('the sentences of a week target raised by hand', () => {
     expect(text.indexOf('Mon 26 Oct')).toBeGreaterThanOrEqual(0)
     expect(text.indexOf('Mon 26 Oct')).toBeLessThan(text.indexOf('Mon 9 Nov'))
     expect(targetsSummary([])).toBe('')
+  })
+})
+
+describe('the sentence for a week the re-plan took as run', () => {
+  const line = { weekStart: '2026-10-26', ranMin: 144, plannedMin: 79 }
+
+  it('says the week was run past its plan, with the minutes run against the plan', () => {
+    expect(overshootSummary(line)).toBe(
+      'Week of Mon 26 Oct was run past its plan: 144 min against 79 min; the weeks after it are drawn from the plan.',
+    )
+  })
+
+  it('is a registered template, clean and within the length limit', () => {
+    expect(TEMPLATES['revision.overshoot']).toBe(REVISION_TEMPLATES['revision.overshoot'])
+    const text = overshootSummary(line)
+    expect(lintText(text)).toEqual([])
+    expect(text.length).toBeLessThanOrEqual(COPY_MAX_CHARS)
+    expect(text).not.toMatch(/\b(you|your|we)\b/i)
+  })
+
+  it('lists the weeks in order, one sentence each, and nothing for none', () => {
+    const text = overshootsSummary([
+      { weekStart: '2026-11-02', ranMin: 200, plannedMin: 150 },
+      line,
+    ])
+    expect(text.indexOf('Mon 26 Oct')).toBeGreaterThanOrEqual(0)
+    expect(text.indexOf('Mon 26 Oct')).toBeLessThan(text.indexOf('Mon 2 Nov'))
+    expect(overshootsSummary([])).toBe('')
   })
 })

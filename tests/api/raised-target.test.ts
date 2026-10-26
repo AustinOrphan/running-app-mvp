@@ -788,6 +788,31 @@ describe('a week run past its plan', () => {
     expect(strip?.remaining?.remainingMin).toBe(0)
   })
 
+  test('the summary and the diff word the week as run past its plan', async () => {
+    const { f, planned, ran, made } = await runPastPlan('overshoot-revision@example.com')
+
+    const sentence = `Week of Mon 19 Oct was run past its plan: ${String(ran)} min against ${String(planned)} min; the weeks after it are drawn from the plan.`
+    expect(made.summary).toContain(sentence)
+    assertCleanCopy(made.summary, 'revision summary')
+
+    // The diff records what it always did: the minutes before and after, and the flags added.
+    const line = made.diff?.weeks.find((week) => week.weekStart === thisMonday)
+    expect(line).toMatchObject({ runMinBefore: planned, runMinAfter: ran })
+    expect(line?.flagsAdded).toEqual(
+      expect.arrayContaining(['overshoot', `planned-${String(planned)}`]),
+    )
+    const served = (await client(ctx, f.u).get('/api/plan/revisions')).body as PlanRevisionView[]
+    expect(served.find((revision) => revision.id === made.id)?.summary).toContain(sentence)
+
+    // A second re-plan the same day takes nothing new as run, so it adds no sentence.
+    const again = await replanActivePlan(deps(), {
+      userId: f.u.id,
+      reason: 'owner',
+      today: friday,
+    })
+    expect(again.summary).not.toContain('was run past its plan')
+  })
+
   test('saving a target on the week follows the rules of any week, against the stored baseline', async () => {
     const { f, planned, ran } = await runPastPlan('overshoot-save@example.com')
     const url = `/api/plan/weeks/${thisMonday}`
