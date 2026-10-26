@@ -500,7 +500,7 @@ each grade D value carries a note that says it is a default. "Evidence" lists id
 | `f7.expectedBenefitPct`      | [2, 4] %         | A     | Oxygen-cost planning figure: `denadai-2017-explosive-heavy-economy`, `llanoslagos-2024-economy-speeds`, `blagrove-2018-strength-determinants`       |
 | `f8.progressMinRir`          | 1                | D     | Reps in reserve on every set, at the top of the range, to add one step                                                                              |
 | `f8.bigStepRir`              | 4                | D     | Reps in reserve on every set that earn two steps                                                                                                    |
-| `f8.maxStepPct`              | 15 %             | D     | The largest single step, as a share of the load, that a suggestion makes; a larger step is not offered (a 20 lb to 25 lb dumbbell is 25%)           |
+| `f8.maxStepPct`              | 15 %             | D     | The largest single step, as a share of the load, that a suggestion makes; a larger step is not offered (a 20 lb to 25 lb dumbbell is 25%), except the smallest step the equipment makes, which is always usable (amended 2026-10-25) |
 | `f8.reducePct`               | 5 %              | D     | Reduction after a set short of the range (at least one step)                                                                                        |
 | `f8.ceilingSessions`         | 3                | D     | Sessions at the top of the range with no usable step before the next variation of the exercise                                                      |
 | `f8.layoffDays`              | 28 days          | D     | A gap after which the return rule applies; `mujika-2000-detraining-part2` says force declines slowly                                                |
@@ -1210,8 +1210,8 @@ lifting it. The first rule that applies wins.
 | F8.1 | No logged session of the exercise                                                                            | The first load (section 10.3)                                               | `start`     | `lo` in every set; the ramp-in structure |
 | F8.2 | The latest session of any mode was `f8.layoffDays` (28) or more days ago                                     | The last base x `f8.layoffLoadFraction` (0.9), rounded down to a step       | `return`    | `lo`; reps left `f7.easyRir` or more     |
 | F8.3 | Any logged set in `last` has fewer than `lo` reps                                                            | Base less `f8.reducePct` (5%), rounded down to a step, at least one step    | `reduce`    | `lo` in every set                        |
-| F8.4 | Every logged set has `hi` or more, every count of reps left is recorded and at least `f8.bigStepRir` (4)     | Two steps up, if each step is within `f8.maxStepPct` (15%) of the base      | `increase`  | `lo` in every set                        |
-| F8.5 | Every logged set has `hi` or more, every count of reps left is recorded and at least `f8.progressMinRir` (1) | One step up, if the step is within `f8.maxStepPct` of the base              | `increase`  | `lo` in every set                        |
+| F8.4 | Every logged set has `hi` or more, every count of reps left is recorded and at least `f8.bigStepRir` (4)     | Two steps up, if each step is within `f8.maxStepPct` (15%) of the base, or is the smallest step the equipment makes | `increase`  | `lo` in every set                        |
+| F8.5 | Every logged set has `hi` or more, every count of reps left is recorded and at least `f8.progressMinRir` (1) | One step up, if the step is within `f8.maxStepPct` of the base, or is the smallest step the equipment makes | `increase`  | `lo` in every set                        |
 | F8.6 | Otherwise (reps in the range but not all at `hi`; or reps left not recorded; or no usable step)              | The base                                                                    | `hold`      | `min(hi, last count + 1)` for each set   |
 | F8.7 | F8.5 found no usable step in `f8.ceilingSessions` (3) sessions in a row                                      | The first load of the exercise's harder movement (section 7.1), if feasible | `variation` | `lo`; the ramp-in structure              |
 
@@ -1223,7 +1223,8 @@ Worked examples (barbell step 5 lb; range 3 to 6):
 - Sets of 6, 6, 2: F8.3, 5% of 110 lb is 5.5 lb, rounded down to a step, 105 lb.
 - Sets of 6, 6, 6, 6 with no count of reps left: F8.6, 110 lb, and the reason says the count was
   not recorded.
-- Goblet squat with 50 lb dumbbells and 60 lb the next weight (20%): no usable step; after 3
+- Goblet squat with 50 lb dumbbells and 60 lb the next weight (20%, in a set that also has 5 lb
+  steps): no usable step; after 3
   sessions at the top of the range with 1 or more left, F8.7 moves to the split squat.
 
 The ceilings: no suggestion exceeds 90% of the estimated maximum (the range maximum of

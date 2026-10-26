@@ -499,7 +499,7 @@ export const fMicro = {
     }),
     maxStepPct: param('f8.maxStepPct', 15, 'D', 'F8', ['acsm-2009-progression-models-resistance'], {
       unit: '%',
-      note: 'Default: the largest single step a suggestion makes, as a share of the load; a larger step is not offered. A consensus stand for healthy adults gives 2 to 10% per step, so this cap is looser only because equipment moves in whole steps.',
+      note: 'Default: the largest single step a suggestion makes, as a share of the load; a larger step is not offered, except the smallest step the equipment makes, which is always usable so that a light load can still move. A consensus stand for healthy adults gives 2 to 10% per step, so this cap is looser only because equipment moves in whole steps.',
     }),
     reducePct: param('f8.reducePct', 5, 'D', 'F8', [], {
       unit: '%',

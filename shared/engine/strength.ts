@@ -577,9 +577,25 @@ interface StepUp {
 }
 
 /**
+ * Whether the step from `from` to `to` is the smallest step the equipment makes (rule F8.5, amended
+ * 2026-10-25): a ladder or a stack has one step, so every step of it is the smallest, and a list of
+ * weights has its smallest gap between neighbours. Read in the runner's unit.
+ */
+function isSmallestStep(steps: LoadSteps, from: number, to: number, unit: WeightUnit): boolean {
+  if (!('loadsG' in steps)) return true
+  const shown = [...new Set(steps.loadsG.map((g) => fromGrams(g, unit)))].sort((a, b) => a - b)
+  let smallest = Infinity
+  for (let i = 1; i < shown.length; i += 1) {
+    smallest = Math.min(smallest, (shown[i] ?? 0) - (shown[i - 1] ?? 0))
+  }
+  return fromGrams(to, unit) - fromGrams(from, unit) <= smallest
+}
+
+/**
  * The step up from `base`: usable when the equipment has a heavier load, the step is within
- * `f8.maxStepPct` of the base and the load stays at or under the top of the range of
- * `flib.heavyMinPct1rm` of the estimated maximum. Two steps need each step within the cap.
+ * `f8.maxStepPct` of the base or is the smallest step the equipment makes (so a light load can
+ * still move), and the load stays at or under the top of the range of `flib.heavyMinPct1rm` of the
+ * estimated maximum. Two steps need each step usable.
  */
 function stepUp(
   steps: LoadSteps | null,
@@ -593,16 +609,19 @@ function stepUp(
   if (first === null) return { one: null, two: null, blocked: 'none' }
   const ceilingPct = P.flib.heavyMinPct1rm.range?.[1] ?? P.flib.heavyMinPct1rm.value
   const ceiling = estimateG === null ? Infinity : (estimateG * ceilingPct) / 100
-  // in the units the runner sees, where the half pound and the quarter kilogram are exact
+  // in the units the runner sees, where the half pound and the quarter kilogram are exact; a step
+  // is measured against the base, not against the load it starts from
   const within = (from: number, to: number): boolean =>
     (fromGrams(to, unit) - fromGrams(from, unit)) * 100 <=
     P.f8.maxStepPct.value * fromGrams(base, unit)
-  if (!within(base, first)) return { one: null, two: null, blocked: 'cap' }
+  const usable = (from: number, to: number): boolean =>
+    within(from, to) || isSmallestStep(steps, from, to, unit)
+  if (!usable(base, first)) return { one: null, two: null, blocked: 'cap' }
   if (first > ceiling) return { one: null, two: null, blocked: 'ceiling' }
   let two: number | null = null
   if (wantTwo) {
     const second = stepFrom(steps, first, 1, unit)
-    if (second !== null && within(first, second) && second <= ceiling) two = second
+    if (second !== null && usable(first, second) && second <= ceiling) two = second
   }
   return { one: first, two, blocked: null }
 }
@@ -667,6 +686,8 @@ function firstLoad(
  * 4. F8.4 every set at the top with at least `f8.bigStepRir` left, all recorded: two steps.
  * 5. F8.5 every set at the top with at least `f8.progressMinRir` left, all recorded: one step.
  * 6. F8.7 no usable step for `f8.ceilingSessions` sessions in a row: the harder movement.
+ *    A step is usable when it is within `f8.maxStepPct` of the working load or is the smallest
+ *    step the equipment makes, and stays under the ceiling of 90% of the estimated maximum.
  * 7. F8.6 otherwise: the working load, each set aiming one rep above the last.
  *
  * The working load is that of the latest `normal` session; a session in another mode neither

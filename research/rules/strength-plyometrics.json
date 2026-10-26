@@ -208,9 +208,9 @@
   },
   {
     "id": "strength-load-progression-double",
-    "statement": "Progress each lift by double progression inside its repetition range: raise the load by one step the equipment can make when every set reaches the top of the range with repetitions in reserve and a recorded count, lower it after a set below the range, and hold it otherwise. The closest published convention is a 2-10% increase when the lifter can do the current workload for one to two repetitions over the desired number; no paper compares ways of progressing a load in runners, so the rule is a default.",
+    "statement": "Progress each lift by double progression inside its repetition range: raise the load by one step the equipment can make when every set reaches the top of the range with repetitions in reserve and a recorded count, lower it after a set below the range, and hold it otherwise. The closest published convention is a 2-10% increase when the lifter can do the current workload for one to two repetitions over the desired number; a step larger than 15% of the load is not offered unless it is the smallest step the equipment makes, so a light load can still move. No paper compares ways of progressing a load in runners, so the rule is a default.",
     "parameter": "strength_load_step",
-    "value": "one step; at most 15% of the load",
+    "value": "one step; at most 15% of the load, or the smallest step the equipment makes",
     "unit": "% of the load",
     "appliesTo": "Every loaded lift of the strength block",
     "grade": "D",

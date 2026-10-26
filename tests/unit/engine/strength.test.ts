@@ -1252,7 +1252,7 @@ describe('F8.4 and F8.5: a step up', () => {
     const logs = (from: number) => [goblet('g', 5, rows(from, [6, 6, 6], [3, 3, 3]))]
     const exact = gobletAsk([100, 115, 130], logs(100))
     expect(exact).toMatchObject({ rule: 'F8.5', change: 'increase', loadG: lb(115) })
-    const over = gobletAsk([100, 116, 130], logs(100))
+    const over = gobletAsk([95, 100, 116], logs(100))
     expect(over).toMatchObject({ rule: 'F8.6', change: 'hold', loadG: lb(100) })
     expect(over.facts).toEqual([
       {
@@ -1260,6 +1260,73 @@ describe('F8.4 and F8.5: a step up', () => {
         slots: { load: { kind: 'load', g: lb(100) }, pct: { kind: 'percent', pct: 15 } },
       },
     ])
+  })
+
+  it('always offers the smallest step the equipment makes, however light the load (rule F8.5)', () => {
+    expect(P.f8.maxStepPct.value).toBe(15)
+    const press = (pounds: number, counts: number[], rirs: number[]) =>
+      suggestLoad(
+        withSetup(
+          { equipment: have('leg-press') },
+          { logs: [liftLog('p', ago(5), 'leg-press', rows(pounds, counts, rirs))] },
+        ),
+        {
+          exerciseId: 'leg-press',
+          implement: 'leg-press',
+          date: TODAY,
+          ...structuresFor('heavy', 'lead', 6),
+        },
+      )
+    // a 10 lb stack on a 50 lb load is 20%, over the cap, and the one step the stack makes; 8 reps
+    // with 3 left is 11 repetitions to the limit, so the set gives no estimate and no ceiling
+    expect(press(50, [8, 8, 8], [3, 3, 3])).toMatchObject({
+      rule: 'F8.5',
+      change: 'increase',
+      loadG: lb(60),
+    })
+    expect(press(60, [8, 8, 8], [3, 3, 3])).toMatchObject({ rule: 'F8.5', loadG: lb(70) })
+    // with 5 left on every set that is two smallest steps, each usable
+    expect(press(50, [6, 6, 6], [5, 5, 5])).toMatchObject({ rule: 'F8.4', loadG: lb(70) })
+    // 10 lb at a time from 50 lb, until 15% of the load is a step (from 67 lb the cap allows it)
+    for (let pounds = 50; pounds < 150; pounds += 10) {
+      expect(press(pounds, [8, 8, 8], [3, 3, 3]).loadG, String(pounds)).toBe(lb(pounds + 10))
+    }
+    // a barbell with a 10 lb jump from the 45 lb bar is a step of 22%
+    const bar = withSetup(
+      { equipment: [{ kind: 'barbell', barG: lb(45), jumpG: lb(10) }] },
+      { logs: [squat('b', 5, rows(45, [8, 8, 8, 8], [3, 3, 3, 3]))] },
+    )
+    expect(ask(bar)).toMatchObject({ rule: 'F8.5', loadG: lb(55) })
+  })
+
+  it('offers the smallest gap of a list of weights and not a larger jump (rule F8.5)', () => {
+    const weights = [10, 15, 20, 25, 30, 35, 40, 50, 60]
+    const at = (pounds: number) =>
+      gobletAsk(weights, [goblet('g', 5, rows(pounds, [8, 8, 8], [3, 3, 3]))])
+    // 25 lb to 30 lb is 20% of the load and the 5 lb the set goes up in
+    expect(at(25)).toMatchObject({ rule: 'F8.5', change: 'increase', loadG: lb(30) })
+    expect(at(10)).toMatchObject({ rule: 'F8.5', loadG: lb(15) })
+    // 40 lb to 50 lb is 25% and a 10 lb jump in a set that also has 5 lb gaps
+    const jump = at(40)
+    expect(jump).toMatchObject({ rule: 'F8.6', change: 'hold', loadG: lb(40) })
+    expect(jump.facts[0]?.template).toBe('strength.reason.hold-step')
+    // 50 lb to 60 lb is 20% and a 10 lb jump
+    expect(at(50)).toMatchObject({ rule: 'F8.6', change: 'hold' })
+  })
+
+  it('gives a set that gives no estimate no ceiling, and one that gives an estimate its ceiling', () => {
+    // 100 lb to 125 lb is the only step of the list, so it is usable; the ceiling decides
+    const at = (counts: number[], rirs: number[]) =>
+      gobletAsk([100, 125], [goblet('g', 5, rows(100, counts, rirs))])
+    // 6 reps and 1 left is an estimate of 123 lb and a ceiling of 111 lb
+    expect(at([6, 6, 6], [1, 1, 1])).toMatchObject({ rule: 'F8.6', change: 'hold' })
+    expect(at([6, 6, 6], [1, 1, 1]).facts[0]?.template).toBe('strength.reason.hold-ceiling')
+    // 8 reps and 3 left is 11 repetitions to the limit: no estimate, no ceiling for the session
+    expect(at([8, 8, 8], [3, 3, 3])).toMatchObject({
+      rule: 'F8.5',
+      change: 'increase',
+      loadG: lb(125),
+    })
   })
 
   it('offers one step when the second step is past the cap', () => {
@@ -1354,8 +1421,8 @@ describe('F8.7: the next movement', () => {
 
   it('moves to the harder movement after 3 sessions at the top with no usable step', () => {
     expect(P.f8.ceilingSessions.value).toBe(3)
-    // 50 lb to 60 lb is 20% of the load: no usable step
-    const s = gobletAsk([40, 50, 60], [row(15), row(8), row(2)], { canVary: true })
+    // 50 lb to 60 lb is 20% of the load and a 10 lb jump in a set that also has 5 lb gaps
+    const s = gobletAsk([40, 45, 50, 60], [row(15), row(8), row(2)], { canVary: true })
     expect(s).toMatchObject({
       rule: 'F8.7',
       change: 'variation',
@@ -1376,20 +1443,24 @@ describe('F8.7: the next movement', () => {
   })
 
   it('waits for the third session', () => {
-    const s = gobletAsk([40, 50, 60], [row(8), row(2)], { canVary: true })
+    const s = gobletAsk([40, 45, 50, 60], [row(8), row(2)], { canVary: true })
     expect(s).toMatchObject({ rule: 'F8.6', change: 'hold', moveTo: null })
   })
 
   it('needs the sessions in a row: a session short of the top or without reps left breaks the run', () => {
     const short = goblet('s', 8, rows(50, [6, 5, 6], [1, 1, 1]))
-    expect(gobletAsk([40, 50, 60], [row(15), short, row(2)], { canVary: true }).rule).toBe('F8.6')
+    expect(gobletAsk([40, 45, 50, 60], [row(15), short, row(2)], { canVary: true }).rule).toBe(
+      'F8.6',
+    )
     const tired = goblet('t', 8, rows(50, [6, 6, 6], [1, 0, 1]))
-    expect(gobletAsk([40, 50, 60], [row(15), tired, row(2)], { canVary: true }).rule).toBe('F8.6')
+    expect(gobletAsk([40, 45, 50, 60], [row(15), tired, row(2)], { canVary: true }).rule).toBe(
+      'F8.6',
+    )
   })
 
   it('does not count a lighter session, which neither breaks the run nor joins it', () => {
     const lighter = goblet('l', 5, rows(40, [6, 6, 6], [3, 3, 3]), { mode: 'lighter-day' })
-    const s = gobletAsk([40, 50, 60], [row(15), row(8), lighter, row(2)], { canVary: true })
+    const s = gobletAsk([40, 45, 50, 60], [row(15), row(8), lighter, row(2)], { canVary: true })
     expect(s.rule).toBe('F8.7')
   })
 
@@ -1401,10 +1472,10 @@ describe('F8.7: the next movement', () => {
 
   it('stays when the harder movement is not offered, the exercise is pinned, or the template keeps the load', () => {
     const logs = [row(15), row(8), row(2)]
-    expect(gobletAsk([40, 50, 60], logs, { canVary: false }).rule).toBe('F8.6')
-    expect(gobletAsk([40, 50, 60], logs).rule).toBe('F8.6')
+    expect(gobletAsk([40, 45, 50, 60], logs, { canVary: false }).rule).toBe('F8.6')
+    expect(gobletAsk([40, 45, 50, 60], logs).rule).toBe('F8.6')
     expect(
-      gobletAsk([40, 50, 60], logs, {
+      gobletAsk([40, 45, 50, 60], logs, {
         canVary: true,
         keepLoad: true,
         ...structuresFor('maintenance', 'other', null),
@@ -1554,6 +1625,7 @@ describe('a suggestion asks only for a load the equipment can make and passes no
     let steps = 0
     let increases = 0
     let reductions = 0
+    let pastTheCap = 0
     for (let seed = 1; seed <= CASES; seed += 1) {
       const next = seeded(seed)
       const between = (lo: number, hi: number) => lo + Math.floor(next() * (hi - lo + 1))
@@ -1673,7 +1745,8 @@ describe('a suggestion asks only for a load the equipment can make and passes no
       for (const fact of s.facts)
         expect(Object.keys(STRENGTH_TEMPLATES), label).toContain(fact.template)
 
-      // 4. an increase is within the step cap and under 90% of the estimated maximum
+      // 4. an increase is within the larger of the step cap and the smallest step the equipment
+      // makes, and under 90% of the estimated maximum
       if (s.change === 'increase') {
         increases += 1
         const normal = logs
@@ -1687,23 +1760,26 @@ describe('a suggestion asks only for a load the equipment can make and passes no
         const base = [...tally].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0
         const first = stepFrom(ladder as LoadSteps, base, 1, unit)
         const shown = (g: number) => fromGrams(g, unit)
+        // a ladder or a stack has one step; a list of weights has its smallest gap
+        const smallest =
+          kind === 1 ? Math.min(...rungs.slice(1).map((r, i) => r - (rungs[i] ?? 0))) : Infinity
+        const room = Math.max((P.f8.maxStepPct.value / 100) * shown(base), smallest)
         expect(first, label).not.toBeNull()
-        expect(shown(first ?? 0) - shown(base), label).toBeLessThanOrEqual(
-          (P.f8.maxStepPct.value / 100) * shown(base),
-        )
+        expect(shown(first ?? 0) - shown(base), label).toBeLessThanOrEqual(room)
+        if (shown(first ?? 0) - shown(base) > (P.f8.maxStepPct.value / 100) * shown(base)) {
+          pastTheCap += 1
+        }
         expect(s.loadG ?? 0, label).toBeGreaterThan(base)
-        const second = stepFrom(ladder as LoadSteps, base, 2, unit)
+        const second = stepFrom(ladder as LoadSteps, first ?? 0, 1, unit)
         expect(s.loadG === first || s.loadG === second, label).toBe(true)
         if (s.loadG === second) {
-          expect(shown(second ?? 0) - shown(first ?? 0), label).toBeLessThanOrEqual(
-            (P.f8.maxStepPct.value / 100) * shown(base),
-          )
+          expect(shown(second ?? 0) - shown(first ?? 0), label).toBeLessThanOrEqual(room)
         }
-        const best = Math.max(
-          ...(judged?.sets ?? []).map(
-            (set) => estimateOneRm(set.loadG ?? 0, set.count, set.rir) ?? 0,
-          ),
+        // the ceiling reads the best set that gives an estimate, and none when no set does
+        const estimates = (judged?.sets ?? []).map(
+          (set) => estimateOneRm(set.loadG ?? 0, set.count, set.rir) ?? 0,
         )
+        const best = Math.max(...estimates)
         const top = P.flib.heavyMinPct1rm.range?.[1] ?? 0
         if (best > 0) expect(s.loadG ?? 0, label).toBeLessThanOrEqual((best * top) / 100 + 1)
         // a template that keeps the load never raises it
@@ -1715,6 +1791,8 @@ describe('a suggestion asks only for a load the equipment can make and passes no
     expect(steps).toBeGreaterThan(CASES / 2)
     expect(increases).toBeGreaterThan(5)
     expect(reductions).toBeGreaterThan(5)
+    // and a step over the cap that is the smallest step of its equipment
+    expect(pastTheCap).toBeGreaterThan(5)
   })
 })
 
@@ -2196,8 +2274,8 @@ describe('workoutFor: the harder movement (rule F8.7)', () => {
     )
   const session = heavy(8)
   const days = [14, 8, 3].map((n) => addDays(session.date, -n))
-  // 50 lb to 60 lb is 20% of the load: no usable step
-  const equipment = [dumbbellsOf(30, 40, 50, 60), ITEM.step]
+  // 50 lb to 60 lb is 20% of the load and a 10 lb jump in a set that also has a 5 lb gap
+  const equipment = [dumbbellsOf(30, 35, 50, 60), ITEM.step]
   const goblet3 = logsAt(['a', 'b', 'c'], 50, days)
 
   it('takes the harder movement after 3 sessions at the top with no usable step, as a first session', () => {
@@ -3066,18 +3144,17 @@ describe('a light start over the weeks of a block', () => {
     }
   })
 
-  it('records the lifters a 10 lb step stalls: a step over 15% of the load is not offered', () => {
-    // a 55 kg lifter starts at 60 lb and 70 lb would be 17% more: the cap holds the load, and the
-    // leg press has no harder movement to move to (E14-4 report, for the owner)
-    for (const [max, kg, stalled] of [
-      [200, 55, 60],
-      [150, 50, 50],
-    ] as const) {
-      const shares = replay(max, kg, 12)
-      expect(firstHeavy(shares), `${String(max)} lb`).toBeNull()
-      expect(new Set(shares).size, `${String(max)} lb`).toBe(1)
-      expect((shares[0] ?? 0) * max, `${String(max)} lb`).toBeCloseTo(stalled, 5)
-    }
+  it('moves the lifters a 10 lb step used to stall, now that the smallest step is always usable', () => {
+    // recorded 2026-10-25. Before the amendment of rule F8.5 both held at their first load for all
+    // 12 weeks (60 lb and 50 lb): 10 lb is over 15% of a load under 67 lb.
+    const slight = replay(200, 55, 12)
+    expect((slight[0] ?? 0) * 200).toBeCloseTo(60, 5)
+    expect(firstHeavy(slight)).toBe(6)
+    const light = replay(150, 50, 12)
+    // two smallest steps a session while every set has 5 left, then single steps
+    expect(light.slice(0, 4).map((share) => Math.round(share * 150))).toEqual([50, 70, 90, 110])
+    expect(firstHeavy(light)).toBe(7)
+    expect(Math.max(...light)).toBeLessThanOrEqual(ceiling)
   })
 })
 
@@ -3124,7 +3201,7 @@ describe('the reasons the engine gives', () => {
         date: TODAY,
         ...structuresFor('heavy', 'lead', 6),
       }),
-      gobletAsk([100, 116], [goblet('g', 5, rows(100, [6, 6, 6], [3, 3, 3]))]),
+      gobletAsk([95, 100, 116], [goblet('g', 5, rows(100, [6, 6, 6], [3, 3, 3]))]),
       gobletAsk([100, 113], [goblet('g', 5, rows(100, [6, 6, 6], [1, 1, 1]))]),
       gobletAsk(
         [40, 50, 60],
@@ -3347,7 +3424,7 @@ describe('every function of the engine leaves a frozen context alone', () => {
 describe('workoutFor: a harder movement that has stalled as well (rule F8.7)', () => {
   it('passes on along the links and carries every reason for the move', () => {
     const session = sessionOf(8)
-    const equipment = [dumbbellsOf(30, 40, 50, 60), ITEM.step]
+    const equipment = [dumbbellsOf(30, 35, 50, 60), ITEM.step]
     const stuck = (exerciseId: string, tag: string, daysAgo: number[]) =>
       daysAgo.map((d) =>
         log(`${tag}${String(d)}`, addDays(session.date, -d), {
