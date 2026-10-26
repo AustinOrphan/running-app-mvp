@@ -742,10 +742,11 @@ first session.
 
 ### 7.3 Substitutions and swaps
 
-`substitutes(exerciseId, context)` is the slot's ladder without the exercise, feasible entries only.
-The logging sheet's "Swap" lists them; a swap holds for that session and is recorded in the log's
-snapshot. "Always use this" writes the choice to `pinned` in the settings. A swap to an exercise
-with no history starts it from section 10.3.
+`substitutes(exerciseId, context)` is the slot's ladder, then its feasible harder movements, without
+the exercise, feasible entries only (amended 2026-10-25: section 7.2 reaches the harder movements
+by a swap or a pin, so a swap has to list them). The logging sheet's "Swap" lists them; a swap
+holds for that session and is recorded in the log's snapshot. "Always use this" writes the choice
+to `pinned` in the settings. A swap to an exercise with no history starts it from section 10.3.
 
 ### 7.4 The bodyweight path
 
@@ -1407,7 +1408,7 @@ Examples of the templates (each a registered id, with its slots):
 - `strength.reason.reduce`: "Set {set} of {exercise} ended at {count} reps, below the {lo} to {hi} range, so the load comes down one step."
 - `strength.reason.lighter-day`: "Readiness is lower than usual today, so each lift has one set fewer at a lighter load."
 - `strength.hero.workout-row`: "{exercise}: {sets} x {lo} to {hi}, {load}, leave {rirLo} to {rirHi}."
-- `strength.benefit`: "Strength work may lower the oxygen cost of running by about {lo} to {hi}%. It says nothing about race time."
+- `strength.benefit`: "Strength work may lower the oxygen cost of running by about {lo} to {hi} after a full block. That is small, and it says nothing about race time." (`{hi}` is a percent quantity, so it reads "4%"; amended 2026-10-25 to carry the qualifiers of section 4.5.)
 
 Numbers that restate a Param (`{lo}`, `{hi}`, the reps left, the separation hours, the benefit
 range) are filled from `P`, and a copy test renders each template next to the Param. A sentence
