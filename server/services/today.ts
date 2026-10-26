@@ -9,9 +9,10 @@
 // `readiness`, `unrated`) and adds `tz` and `coach`. Later epics add fields under `TodayCoach`
 // only: slots in `todaySlots.ts`, health notes in `todayHealth.ts`.
 import { addDays, daysBetween, isIsoDate, mondayOf } from '../../shared/dates.ts'
+import { plannedWeek } from '../../shared/domain/plannedWeek.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
-import { bandOwnsIllness, openWindows, windowVerdict } from '../../shared/domain/windowDay.ts'
 import { weekStrip as buildWeekStrip } from '../../shared/domain/weekStrip.ts'
+import { bandOwnsIllness, openWindows, windowVerdict } from '../../shared/domain/windowDay.ts'
 import {
   isHotForSteering,
   NO_HEAT_NOTE_KINDS,
@@ -181,11 +182,14 @@ async function raceBlock(context: AthleteContext, date: string): Promise<TodayRa
 function stripFor(context: AthleteContext, date: string): WeekStrip {
   const weekStart = mondayOf(date)
   const planWeek = context.existing()?.weeks.find((week) => week.weekStart === weekStart)
+  // A week run past its plan is drawn against the planned minutes, not the raised stored target.
+  const planned = planWeek === undefined ? null : plannedWeek(planWeek)
   return buildWeekStrip({
     today: date,
     sessions: context.planSessions,
     activities: context.activities,
-    targetRunMin: planWeek?.targetRunMin ?? null,
+    targetRunMin: planned?.plannedRunMin ?? null,
+    overshoot: planned?.overshoot ?? false,
   })
 }
 

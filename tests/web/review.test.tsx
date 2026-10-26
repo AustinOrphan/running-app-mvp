@@ -65,6 +65,8 @@ function planWeek(weekStart: string, over: Partial<PlanWeekView> = {}): PlanWeek
     focus: null,
     baselineRunMin: 300,
     targetRunMin: 300,
+    plannedRunMin: over.targetRunMin ?? 300,
+    overshoot: false,
     targetSource: 'baseline',
     longRunMin: 90,
     day2Min: null,

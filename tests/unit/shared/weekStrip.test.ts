@@ -33,7 +33,7 @@ const run = (date: string, minutes: number, over = {}) =>
 function strip(
   sessions: PlanSessionView[] = [],
   activities: ReturnType<typeof run>[] = [],
-  over: { today?: string; targetRunMin?: number | null } = {},
+  over: { today?: string; targetRunMin?: number | null; overshoot?: boolean } = {},
 ) {
   return weekStrip({
     today: over.today ?? TODAY,
@@ -262,6 +262,22 @@ describe('weekStrip: the distance of the week', () => {
     ).toBeNull()
     expect(strip([estimated(MON, 'strength', null)]).distanceEstimateM).toBeNull()
     expect(strip().distanceEstimateM).toBeNull()
+  })
+})
+
+describe('weekStrip: a week run past its plan', () => {
+  test('states the flag and keeps the target it is given, the planned minutes', () => {
+    const s = strip([], [run(MON, 144)], { targetRunMin: 79, overshoot: true })
+    expect(s.overshoot).toBe(true)
+    expect(s.targetRunMin).toBe(79)
+    expect(s.runMin).toBe(144)
+    // Nothing is left of the planned week to split over the days.
+    expect(s.remaining).toMatchObject({ remainingMin: 0, perDayMin: 0 })
+  })
+
+  test('is not flagged unless the week is', () => {
+    expect(strip([], [run(MON, 144)], { targetRunMin: 79 }).overshoot).toBe(false)
+    expect(strip().overshoot).toBe(false)
   })
 })
 

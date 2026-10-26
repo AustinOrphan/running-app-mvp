@@ -428,7 +428,19 @@ export interface PlanWeek {
   phase: PlanPhase
   focus: string | null
   baselineRunMin: number
+  /**
+   * The working target as stored. A loading week run past its target is taken as run (rules g-2,
+   * g-6): the engine writes the minutes run here, so it reads as `plannedRunMin` raised. Screens show
+   * the planned figure of such a week (`shownTargetMin`).
+   */
   targetRunMin: number
+  /**
+   * The minutes the week was planned at, before it was taken as run (`plannedMinOf`): equal to
+   * `targetRunMin` for any week that was not run past its plan.
+   */
+  plannedRunMin: number
+  /** The week was run past its plan and taken as run: the flag `overshoot`, also in `flags`. */
+  overshoot: boolean
   targetSource: TargetSource
   longRunMin: number
   day2Min: number | null
@@ -1181,8 +1193,13 @@ export interface WeekStrip {
   days: WeekStripDay[]
   /** Run minutes logged this week. */
   runMin: number
-  /** The plan week's target; null outside the plan. */
+  /**
+   * The plan week's target; null outside the plan. For a week run past its plan this is the planned
+   * figure, not the minutes the engine raised the stored target to.
+   */
   targetRunMin: number | null
+  /** The week was run past its plan and taken as run (`PlanWeek.overshoot`). */
+  overshoot: boolean
   /** The advisory split of what is left through Sunday; null without a target. */
   remaining: { remainingMin: number; remainingDays: number; perDayMin: number | null } | null
   /** The distance of the week's planned runs (`weekDistanceEstimateM`); null when none can be said. */

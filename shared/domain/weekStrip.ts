@@ -74,8 +74,13 @@ export interface WeekStripInput {
   sessions: readonly PlanSessionView[]
   /** Activities; those outside the week and flagged duplicates are ignored. */
   activities: readonly WeekCore[]
-  /** The plan week's run target in minutes, or null outside the plan. */
+  /**
+   * The plan week's run target in minutes, or null outside the plan. A week run past its plan is
+   * given at the planned minutes, not the raised stored target (`plannedWeek`).
+   */
   targetRunMin: number | null
+  /** The plan week was run past its plan and taken as run. Defaults to false. */
+  overshoot?: boolean
 }
 
 /**
@@ -125,6 +130,7 @@ export function weekStrip(input: WeekStripInput): WeekStrip {
     days,
     runMin,
     targetRunMin,
+    overshoot: input.overshoot ?? false,
     remaining:
       targetRunMin === null
         ? null
