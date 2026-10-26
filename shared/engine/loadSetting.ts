@@ -40,7 +40,6 @@ export type LoadHold =
   | 'bone-pain'
   | 'rest-window'
   | 'post-race'
-  | 'low-frequency'
 
 export interface LoadPosition {
   /** What the plan asks for (`options.loadAppetite`); steady when the option is absent. */
@@ -72,16 +71,17 @@ function holdOf(input: EngineInput, state: AthleteState): LoadHold | null {
   if (restWindowActive(input)) return 'rest-window'
   // a plan built inside the window of a past race: the goal race's own window is ahead of the plan
   if (postRaceWindows(input).past !== null) return 'post-race'
-  if (state.lowFrequency) return 'low-frequency'
   return null
 }
 
 /**
  * The position that applies to this runner today [rules g-8]. Steady is today's engine. Standard
  * and upper are held at steady under a recent injury (or a window's injury report), an earlier
- * bone stress injury or two BSI factors, a REDs hold or focal bone pain, a rest window, a plan
- * built inside the window of a past race, and a low-frequency runner. At age 45 or over upper is
- * read as standard. Absent options, steady and a value that is no position give the same answer.
+ * bone stress injury or two BSI factors, a REDs hold or focal bone pain, a rest window, and a plan
+ * built inside the window of a past race. A low-frequency runner (A5) is not held: the flag keeps
+ * the 2:1 cadence and the time-based step, and the zone, the 3 x 30 lift and the response each
+ * ask for a block or eligible weeks of their own. At age 45 or over upper is read as standard.
+ * Absent options, steady and a value that is no position give the same answer.
  */
 export function loadPosition(input: EngineInput, state: AthleteState): LoadPosition {
   const requested = isLoadAppetite(input.options.loadAppetite)
@@ -238,10 +238,9 @@ function restWindowWeeks(input: EngineInput): Set<string> {
  * to a plan that is being continued (`continuedSince`): a new plan, or one that restarts after a
  * break, starts from the weeks as run (E6, J7) and has no planned minutes to be run above. Null at
  * steady and wherever `loadPosition` holds the setting at steady (so a plan inside an active
- * window or a post-race window, under a progression hold or for a low-frequency runner has no
- * response). Weeks that never count: those that hold a race (`raceMin`) and those inside a rest
- * window or an injury report, skipped and not zeroed; the current week is not complete. It needs
- * no history block.
+ * window or a post-race window, or under a progression hold, has no response). Weeks that never
+ * count: those that hold a race (`raceMin`) and those inside a rest window or an injury report,
+ * skipped and not zeroed; the current week is not complete. It needs no history block.
  *
  * The response applies only when the newest eligible week, the first of the mean's window, was run
  * at or above the minutes the stored plan held for it (`plannedMinOf`: a week taken as run past its

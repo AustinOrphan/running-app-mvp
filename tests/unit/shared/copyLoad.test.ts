@@ -31,7 +31,6 @@ const HOLDS: LoadHold[] = [
   'bone-pain',
   'rest-window',
   'post-race',
-  'low-frequency',
 ]
 
 describe('the load setting copy', () => {
@@ -107,7 +106,6 @@ describe('the load setting copy', () => {
     expect(loadHoldReason('bsi-factors')).toBe(
       'at least two risk factors for bone stress injury apply',
     )
-    expect(loadHoldReason('low-frequency')).toBe('recent weeks held fewer than two runs a week')
   })
 
   it('words the action that changes the setting: the button, the sheet and the toast', () => {

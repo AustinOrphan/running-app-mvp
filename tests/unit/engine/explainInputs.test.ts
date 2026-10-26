@@ -1076,7 +1076,6 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
         'bone-pain',
         'rest-window',
         'post-race',
-        'low-frequency',
       ]
       for (const hold of holds) {
         for (const units of UNITS) {
@@ -1087,7 +1086,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
       }
     })
 
-    test('a rest window, the weeks after a race and a low-frequency runner are held too', () => {
+    test('a rest window and the weeks after a race are held too', () => {
       const window = {
         id: 'w1',
         reason: 'illness-above-neck' as const,
@@ -1107,17 +1106,29 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
         distanceM: 42_195,
       })
       const afterRace = { ...h1(), activities: [...h1().activities, race] }
-      const lowFrequency = scenario([...summer(), ...weeks(7, 1, [70])])
       for (const [base, hold] of [
         [withWindow, 'rest-window'],
         [afterRace, 'post-race'],
-        [lowFrequency, 'low-frequency'],
       ] as const) {
         const input = at(base, 'standard')
         expect(loadPosition(input, estimateState(input)).held, hold).toBe(hold)
         const found = ids(g8(input))
         expect(found, hold).toContain('g-8.held')
         expect(found, hold).not.toContain('g-8.zone')
+      }
+    })
+
+    test('a low-frequency runner with a block is not held: the zone is stated and no reason is', () => {
+      // a summer block, then one 70 minute run a week: under two runs a week above the start-path
+      // floor, so the flag is on [rules A5] and keeps the cadence, not the setting [rules g-8]
+      const base = scenario([...summer(), ...weeks(7, 1, [70])])
+      expect(estimateState(base).lowFrequency).toBe(true)
+      for (const position of ['standard', 'upper'] as const) {
+        const input = at(base, position)
+        expect(loadPosition(input, estimateState(input))).toMatchObject({ position, held: null })
+        const found = ids(g8(input))
+        expect(found, position).toContain('g-8.zone')
+        expect(found, position).not.toContain('g-8.held')
       }
     })
 

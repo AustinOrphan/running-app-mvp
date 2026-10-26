@@ -5,6 +5,12 @@ Status: Accepted 2026-10-24 (#564)
 Amended 2026-10-25: the response to weeks run above plan has two bounds, an engine decision awaiting
 the owner's confirmation (see the amendment under Decision).
 
+Amended 2026-10-25 (#NNN): low running frequency no longer holds the load setting at Steady. The A5
+flag keeps the 2:1 recovery cadence and the time-based step (low-frequency flag proposal, option 4).
+**Fact:** the hold kept the setting off on 30 of 53 Mondays of one replayed history (STATUS,
+follow-up 25). **Opinion:** the zone, the 3 × 30 lift and the response each ask for a block or
+eligible weeks of their own, so the frequency hold added little.
+
 Amends rule G-5 of `research/engine-rules.md`. Builds on ADR 0005, ADR 0007 and ADR 0009.
 
 ## Context
@@ -48,8 +54,9 @@ default note, and bump `PARAMS_VERSION` with them. This ADR fixes the shape, not
   G-2 (30% over two weeks), so the setting cannot pass it. Above the ceiling the soft 10% resumes.
 - The default is Steady, which gives today's plan byte for byte (decision 2). A position is forced to
   Steady, with a stated reason, under a recent injury on file, a prior bone stress injury or two bone
-  stress factors, a REDs hold or focal bone pain, a rest window or an injury report, a post-race
-  window and low running frequency. At age 45 or over the soft flag caps the position at Standard
+  stress factors, a REDs hold or focal bone pain, a rest window or an injury report, and a post-race
+  window (low running frequency held it until 2026-10-25). At age 45 or over the soft flag caps the
+  position at Standard
   and does not block the 3 x 30 route below (decision 12).
 - Session length is not credited: G-1 stays as it is (decision 10).
 

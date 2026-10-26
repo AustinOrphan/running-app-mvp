@@ -39,6 +39,7 @@ import { activity, input, planned, profile, TODAY, wellnessDay } from './e8-fixt
 import {
   at,
   h1,
+  h10,
   h26,
   h5,
   h6,
@@ -1879,14 +1880,28 @@ describe('the 3 x 30 start from a block of weeks [rules E6, g-8]', () => {
     }
   })
 
-  it('S4 and S5 have no start path at any position, and the drafts are the same', () => {
+  it('S4 and S5 have no start path at any position; S4 drafts the same, S5 gets the zone', () => {
     const control = scenario(s4Runs(), { years: 3 })
     const layoff = scenario(s5Runs())
     for (const base of [control, layoff]) {
       for (const position of ['steady', ...LIFTED] as const) {
         expect(pathAt(base, position)).toBeNull()
       }
-      sameAtEveryPosition(base)
+    }
+    sameAtEveryPosition(control)
+    // S5 is a block and a 41-day layoff: the restart is the steady one, and the zone then raises
+    // the weeks after it (the runner is low frequency, which does not hold the position)
+    expect(estimateState(layoff).lowFrequency).toBe(true)
+    const steady = planAt(layoff, 'steady')
+    expect(planAt(layoff)).toEqual(steady)
+    for (const position of LIFTED) {
+      const plan = planAt(layoff, position)
+      expect(positionAt(layoff, position), position).toMatchObject({ position, held: null })
+      expect(plan.weeks[0], position).toEqual(steady.weeks[0])
+      expect(plan.weeks.at(-1)!.targetRunMin, position).toBeGreaterThanOrEqual(
+        steady.weeks.at(-1)!.targetRunMin,
+      )
+      expect(plan, position).not.toEqual(steady)
     }
   })
 
@@ -2058,17 +2073,25 @@ describe('the 3 x 30 start from a block of weeks [rules E6, g-8]', () => {
       sameAtEveryPosition(base)
     })
 
-    it('holds a low-frequency runner at steady (the profile that needs no start path)', () => {
-      // one 70-minute run a week for 12 weeks: a start level above 3 x 20, under 2 runs a week
+    it('does not hold a low-frequency runner: the start level is over the floor, so no start path', () => {
+      // one 70-minute run a week for 12 weeks: a start level above 3 x 20, under 2 runs a week,
+      // and no block of weeks with two runs each
       const base = scenario(weeks(12, 1, [70]))
-      const state = estimateState(base)
-      expect(state.lowFrequency).toBe(true)
-      expect(positionAt(base, 'standard')).toMatchObject({
-        position: 'steady',
-        held: 'low-frequency',
-      })
-      expect(positionAt(base, 'upper')).toMatchObject({ position: 'steady', held: 'low-frequency' })
+      expect(estimateState(base).lowFrequency).toBe(true)
+      for (const position of LIFTED) {
+        expect(positionAt(base, position), position).toMatchObject({ position, held: null })
+        expect(pathAt(base, position), position).toBeNull()
+      }
+      // the position applies, but without a block nothing lifts the start and no zone is built
       sameAtEveryPosition(base)
+      // with a block behind (the summer, then one 70-minute run a week) the lift reads the block as
+      // for any runner, and there is still no start for it to lift
+      const blocked = h10()
+      for (const position of LIFTED) {
+        const inp = at(blocked, position)
+        expect(blockLift(inp, estimateState(inp)), position).toBe(true)
+        expect(startPath(inp, estimateState(inp)), position).toBeNull()
+      }
     })
 
     it('holds a profile that two BSI factors tighten, without an earlier injury', () => {

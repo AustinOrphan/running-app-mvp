@@ -98,11 +98,6 @@ export const LOAD_TEMPLATES = {
   'load.hold.bone-pain': tpl('focal bone pain holds progression', {}, { shape: 'label' }),
   'load.hold.rest-window': tpl('a rest window is active', {}, { shape: 'label' }),
   'load.hold.post-race': tpl('the plan is in the weeks after a race', {}, { shape: 'label' }),
-  'load.hold.low-frequency': tpl(
-    'recent weeks held fewer than {runs} a week',
-    { runs: 'text' },
-    { shape: 'label', fallback: 'recent weeks held few runs' },
-  ),
 } satisfies Record<string, Template>
 
 const T = LOAD_TEMPLATES
@@ -204,12 +199,6 @@ export function loadHoldReason(hold: LoadHold): string {
       return render(
         T['load.hold.bsi-factors'],
         { factors: countPhrase(P.g3.bsiFactorsForCap.value, 'risk factor') },
-        UNITS,
-      )
-    case 'low-frequency':
-      return render(
-        T['load.hold.low-frequency'],
-        { runs: countPhrase(P.a5.lowFrequencyRunsPerWeek.value, 'run') },
         UNITS,
       )
   }
