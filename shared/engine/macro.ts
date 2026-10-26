@@ -232,23 +232,26 @@ function planPhases(
   const build = Math.min(remaining, P.macroDesign.buildWeeks.value)
   const base = remaining - build
   const cycle = workPerCycle + 1
+  // The last pre-taper week is the peak, a work week, so a single week has no room for a recovery.
+  const keepOpening = openingRecovery && weeksBeforeTaper > 1
   const out: PhasePlan[] = []
   for (let i = 0; i < weeksBeforeTaper; i++) {
     const phase: PhaseV2 =
       carried[i] ?? (i < base ? 'base' : i < base + build ? 'build' : 'specific')
     // counted back from the last pre-taper week, which is always a work week (the peak); a new
     // plan never opens with a recovery week, so its first cycle may run one work week longer. A
-    // re-plan keeps the first week a recovery week when the plan it replaces had it so. Known gap
-    // (`it.fails` in replan-chain.test.ts, task F25a): that holds only where the count lands on the
-    // first week. Where the cycle has changed (the low-frequency flag ended, 2:1 to 3:1) it does
-    // not, the week becomes a loading week, `replanAnchor` still reports it `paused`, and
-    // `keepCadenceAcrossReplan` forces a recovery week right after it.
+    // re-plan keeps the first week a recovery week when the plan it replaces had it so, wherever
+    // the count falls: after a change of cycle (the low-frequency flag arming or ending, 2:1 and
+    // 3:1) the count no longer lands on that week, and a loading week there would be drawn a step
+    // above the loading sequence while its sessions stay the recovery week's (`remainingOfWeek`).
     const fromEnd = weeksBeforeTaper - 1 - i
     out.push({
       phase,
-      isRecovery: (i > 0 || openingRecovery) && fromEnd % cycle === cycle - 1,
+      isRecovery: i === 0 ? keepOpening : fromEnd % cycle === cycle - 1,
     })
   }
+  // the count's own recovery week would follow the kept one directly: one recovery week, not two
+  if (keepOpening && out[1]?.isRecovery === true) out[1].isRecovery = false
   for (let i = 0; i < taperWeeks; i++) {
     out.push({ phase: i === taperWeeks - 1 ? 'race' : 'taper', isRecovery: false })
   }

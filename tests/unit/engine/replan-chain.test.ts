@@ -424,25 +424,21 @@ describe('the re-plan on which the low-frequency flag changes the recovery cycle
       expect(stored?.isRecovery).toBe(true)
     })
 
-    // Known gap, reported in the low-frequency proposal (shape c, task F25a): the cycle changes
-    // between 2:1 and 3:1 with the flag, so the recovery weeks `planPhases` counts back from the
-    // peak no longer fall on the recovery week the replaced plan stored on the first Monday. That
-    // week becomes a loading week drawn a step above the sequence, `keepCadenceAcrossReplan` counts
-    // it as one more loading week and forces a recovery week after it, and the sessions of the
-    // week stay the recovery week's (`remainingOfWeek`, G-6), so the ramp of the week after the
-    // forced recovery week steps from those minutes. The tests state what the comment of
-    // `planPhases` says (a re-plan keeps the first week a recovery week when the plan it replaces
-    // had it so) and are expected to fail until the re-plan does; they then fail as passing, which
-    // says to turn `it.fails` into `it`.
-    it.fails('keeps the recovery week the replaced plan stored on its first Monday', () => {
+    // The cycle changes between 2:1 and 3:1 with the flag, so the recovery weeks `planPhases`
+    // counts back from the peak no longer fall on the recovery week the replaced plan stored on the
+    // first Monday (task F25a). A re-plan keeps that week a recovery week: it had become a loading
+    // week drawn a step above the sequence with the recovery week's sessions, one more loading week
+    // for `keepCadenceAcrossReplan` and a forced recovery week after it, and the ramp of the week
+    // after that stepped from the minutes of those sessions.
+    it('keeps the recovery week the replaced plan stored on its first Monday', () => {
       expect(weeks[0]!.isRecovery).toBe(true)
     })
 
-    it.fails('plans its first week at the minutes it places in it', () => {
+    it('plans its first week at the minutes it places in it', () => {
       expect(runningMin(changed.draft, monday)).toBe(weeks[0]!.targetRunMin)
     })
 
-    it.fails('plans every loading week after a recovery week above that recovery week', () => {
+    it('plans every loading week after a recovery week above that recovery week', () => {
       let checked = 0
       for (const [i, week] of weeks.entries()) {
         const before = weeks[i - 1]
