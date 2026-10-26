@@ -125,6 +125,26 @@ describe('Goals page', () => {
     expect(await screen.findByRole('dialog', { name: 'Add goal' })).toBeInTheDocument()
   })
 
+  test('the priority choice shows its name and says what A, B and C mean', async () => {
+    mockApi(routes([], miUser))
+    renderWithProviders(<GoalsPage />)
+    const dialog = await openAddSheet(userEvent.setup())
+
+    const group = within(dialog).getByRole('radiogroup', { name: 'Priority' })
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((r) => r.textContent),
+    ).toEqual(['A', 'B', 'C'])
+    // the label is visible, not only read out, because the control carries help
+    expect(within(dialog).getByText('Priority')).toBeVisible()
+    const help = within(dialog).getByText(/A is the race the training builds toward/)
+    expect(help).toBeVisible()
+    expect(group).toHaveAccessibleDescription(/the letter is a label on the list/)
+    expectCleanCopy(help)
+    expectCleanCopy(within(dialog).getByText(/The plan follows the goal marked active/))
+  })
+
   test('the status and the race details read as one line with no stray full stop', async () => {
     mockApi(routes([makeGoal({ status: 'target' })], miUser))
     renderWithProviders(<GoalsPage />)
