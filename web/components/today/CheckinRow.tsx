@@ -7,7 +7,7 @@ import { getOutbox, useOutboxState } from '../../pwa/outbox.ts'
 import { Button } from '../Button.tsx'
 import { Segmented } from '../Segmented.tsx'
 import { useToast } from '../Toast.tsx'
-import { CheckinSheet } from '../lazySheets.tsx'
+import { CheckinSheet, NotFullSheet } from '../lazySheets.tsx'
 import styles from './CheckinRow.module.css'
 
 /** The fatigue row's answers, 1 (fresh) to 5 (drained): the word, then the line the row folds to. */
@@ -45,6 +45,12 @@ export interface CheckinRowProps {
   checkin: Checkin | null
   /** The engine still counts an earlier report of point tenderness on a bone. */
   boneActive: boolean
+  /**
+   * A window is open today (`isOpen`). The plan already holds the illness or the pain, so a second
+   * report would repeat it: the second button then reads as adding a window and opens the "Not
+   * 100%" sheet, where pain and illness get their own dates.
+   */
+  windowOpen: boolean
   units: Units
   /**
    * Called when an answer is tapped, before it is saved. The row folds away, and the focused
@@ -57,15 +63,24 @@ export interface CheckinRowProps {
  * The one-row check-in: "How do you feel today?" and five answers, Fresh to Drained. One tap saves
  * `{ fatigue }` through the outbox and folds the row into "Checked in: normal." with "Add more".
  * Pain and illness are one tap away at all times ("Something hurts, or I'm ill"), and both open
- * the check-in sheet. With no connection the answer is kept on this phone and the line says so.
+ * the check-in sheet; while a window is open the same place says "Add a pain or illness window" and
+ * opens the sheet that makes one. With no connection the answer is kept on this phone and the line
+ * says so.
  * The arrow keys move between the answers and Space or Enter chooses, because choosing saves.
  */
-export function CheckinRow({ date, checkin, boneActive, units, onAnswered }: CheckinRowProps) {
+export function CheckinRow({
+  date,
+  checkin,
+  boneActive,
+  windowOpen,
+  units,
+  onAnswered,
+}: CheckinRowProps) {
   const url = checkinUrl(date)
   const outbox = useOutboxState()
   const save = useSaveCheckin()
   const toast = useToast()
-  const [sheet, setSheet] = useState<'feel' | 'hurt' | null>(null)
+  const [sheet, setSheet] = useState<'feel' | 'hurt' | 'window' | null>(null)
   // The answer just tapped holds the fold until the server's own check-in arrives and replaces
   // it, unless the server turned the answer down after all (a notice for this day).
   const [chosen, setChosen] = useState<{ fatigue: number | null; seen: Checkin | null } | null>(
@@ -127,12 +142,17 @@ export function CheckinRow({ date, checkin, boneActive, units, onAnswered }: Che
     )
   }
 
-  function open(lead: 'feel' | 'hurt') {
+  function open(lead: 'feel' | 'hurt' | 'window') {
     dismissNotices()
     setSheet(lead)
   }
 
   const question = render(TEMPLATES['today.checkin.question'], {}, units)
+  const hurt = render(
+    TEMPLATES[windowOpen ? 'today.checkin.hurt-window' : 'today.checkin.hurt'],
+    {},
+    units,
+  )
   const failure = rejected ?? (save.isError ? 'Something went wrong.' : null)
 
   return (
@@ -171,10 +191,10 @@ export function CheckinRow({ date, checkin, boneActive, units, onAnswered }: Che
         <Button
           variant="quiet"
           onClick={() => {
-            open('hurt')
+            open(windowOpen ? 'window' : 'hurt')
           }}
         >
-          Something hurts, or I'm ill
+          {hurt}
         </Button>
       </div>
       {failure === null ? null : (
@@ -187,7 +207,15 @@ export function CheckinRow({ date, checkin, boneActive, units, onAnswered }: Che
           {notice.message}
         </p>
       ))}
-      {sheet === null ? null : (
+      {sheet === 'window' ? (
+        <NotFullSheet
+          today={date}
+          onClose={() => {
+            setSheet(null)
+          }}
+        />
+      ) : null}
+      {sheet === null || sheet === 'window' ? null : (
         <CheckinSheet
           date={date}
           checkin={effective}

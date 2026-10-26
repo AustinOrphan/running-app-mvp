@@ -19,11 +19,11 @@ export interface DisruptionBannerProps {
   /** Called with the button the runner pressed. The caller opens the sheet (`DisruptionBanners`). */
   onAction: (action: BannerAction) => void
   /**
-   * The form that fits Today's `disruption` slot: 64 px at 360 px and the default text size
-   * (`slots.ts`). The sentence takes two lines and the buttons are small; the words, the buttons
-   * and what they do are the Plan page's. At a larger text size the box grows and the buttons wrap,
-   * so nothing is clipped. Every button opens a preview first, so a small one costs a look, not a
-   * change.
+   * The form that fits Today's `disruption` slot (`slots.ts`): no margin of its own, the sentence in
+   * up to two lines and the buttons in one row at 360 px and the default text size. The words, the
+   * buttons and what they do are the Plan page's; only the layout is tighter. Every button keeps the
+   * 44 px touch target (`disruption.module.css`). At a larger text size the box grows and the
+   * buttons wrap, so nothing is clipped.
    */
   compact?: boolean
 }
@@ -33,7 +33,8 @@ export interface DisruptionBannerProps {
  * Oct.", "One symptom-free day first, then easy running from Sun 26 Oct.", "Return week: up to 240
  * min."), with the three things a runner does to it: say they are better (or back), extend it, or
  * remove it. A window that is over renders nothing. The same banner serves the Plan page and
- * Today's `disruption` slot (`compact`).
+ * Today's `disruption` slot (`compact`); one window is one banner, so windows that overlap each
+ * keep their own line and their own buttons.
  */
 export function DisruptionBanner({
   window,

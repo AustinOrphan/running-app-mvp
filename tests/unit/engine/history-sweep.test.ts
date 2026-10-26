@@ -12,7 +12,7 @@
 // the mean of the weeks run passes the planned baseline and must change nothing elsewhere.
 //
 // The seed picks a sample; a failure names the runner by its index to replay it.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState, historyBlock } from '../../../shared/engine/athlete.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
@@ -50,6 +50,9 @@ const COUNT = 150
 // The test timeout is twice the budget, so a slow machine fails the assertion with the elapsed time
 // instead of a bare timeout.
 const BUDGET_MS = 180_000
+// Every test of this file walks the 150 cases, so each one takes the budget's timeout in place of
+// the 5 s default: on a GitHub runner the cumulative-minutes case alone took 5.2 s on 2026-10-25.
+vi.setConfig({ testTimeout: 2 * BUDGET_MS })
 /** The runners and the re-plans of the response part of the sweep. */
 const RESPONSE_COUNT = 12
 const RESPONSE_STEPS = 5
