@@ -424,8 +424,10 @@ describe('prescribe: other quality and special sessions', () => {
         const s = prescribe('strength', P.f7.maintenanceSessionMin.value, zones(), week(over), {
           blockPosition: { week: 6, of: 12 },
         })
-        expect(s.purpose).toMatch(/^Strength maintenance: /)
-        expect(s.purpose).not.toMatch(/week \d/)
+        expect(s.purpose).toBe(
+          'Strength maintenance: a short session that keeps the strength of the legs and trunk.',
+        )
+        expect(s.purpose).not.toMatch(/week \d|build/i)
         expect(lintText(s.purpose)).toEqual([])
         expect(s.durationMin).toBe(P.f7.maintenanceSessionMin.value)
       }

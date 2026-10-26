@@ -443,7 +443,7 @@ function describeBlueprint(blueprint: readonly number[]): string {
  */
 function strengthPurpose(week: WeekDraft, ctx: PrescribeContext): string {
   if (!week.flags.includes('strength-block')) {
-    return 'Strength maintenance: a short session that keeps the strength of the legs and trunk while the running builds.'
+    return 'Strength maintenance: a short session that keeps the strength of the legs and trunk.'
   }
   const at = ctx.blockPosition
   const where =
