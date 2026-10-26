@@ -862,10 +862,20 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
   }
   const eligible = allTop && minRir !== null && minRir >= P.f8.progressMinRir.value
   const bigStep = minRir !== null && minRir >= P.f8.bigStepRir.value
-  // The ceiling reads the estimate of the session the rules judge, the latest normal one, so a
-  // lighter session after it, which neither raises nor lowers the base, cannot lower the ceiling.
-  // The estimate shown beside a load stays that of the latest session (design 6.3).
-  const move = stepUp(steps, base, lastNormal.estimate, unit, bigStep)
+  // The ceiling reads the latest estimate available (rule F8, amended 2026-10-25): that of the
+  // latest normal session up to the one judged that gave one, else the anchor's, so a lighter
+  // session after it, which neither raises nor lowers the base, cannot lower the ceiling, and a
+  // session whose sets all give none (over `f8.e1rmMaxReps`) does not lift it. A lift with no
+  // estimate at all has none. The estimate shown beside a load stays that of the latest session
+  // (design 6.3).
+  const ceilingEstimate = (upTo: LoggedSession): number | null => {
+    for (let i = normal.indexOf(upTo); i >= 0; i -= 1) {
+      const estimate = normal[i]?.estimate ?? null
+      if (estimate !== null) return estimate
+    }
+    return anchor === null ? null : anchorEstimate(anchor)
+  }
+  const move = stepUp(steps, base, ceilingEstimate(lastNormal), unit, bigStep)
   if (eligible && move.blocked === null && req.keepLoad !== true) {
     const next = move.two ?? move.one
     const twice = move.two !== null
@@ -891,7 +901,7 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
         (session, i) =>
           i === recent.length - 1 ||
           (atTop(session) &&
-            stepUp(steps, session.base, session.estimate, unit, false).blocked !== null),
+            stepUp(steps, session.base, ceilingEstimate(session), unit, false).blocked !== null),
       )
     if (stuck && harder !== null) {
       const next = pick(req.first, false)

@@ -1314,19 +1314,56 @@ describe('F8.4 and F8.5: a step up', () => {
     expect(at(50)).toMatchObject({ rule: 'F8.6', change: 'hold' })
   })
 
-  it('gives a set that gives no estimate no ceiling, and one that gives an estimate its ceiling', () => {
+  it('keeps the ceiling of the latest earlier estimate when a session gives none, and has none for a lift with no estimate yet', () => {
     // 100 lb to 125 lb is the only step of the list, so it is usable; the ceiling decides
-    const at = (counts: number[], rirs: number[]) =>
-      gobletAsk([100, 125], [goblet('g', 5, rows(100, counts, rirs))])
+    const at = (logs: StrengthLogEntry[], anchors: StrengthContext['anchors'] = []) =>
+      suggestLoad(withSetup({ equipment: [dumbbellsOf(100, 125)] }, { logs, anchors }), {
+        exerciseId: 'goblet-squat',
+        implement: 'dumbbells',
+        date: TODAY,
+        ...structuresFor('heavy', 'other', 6),
+      })
     // 6 reps and 1 left is an estimate of 123 lb and a ceiling of 111 lb
-    expect(at([6, 6, 6], [1, 1, 1])).toMatchObject({ rule: 'F8.6', change: 'hold' })
-    expect(at([6, 6, 6], [1, 1, 1]).facts[0]?.template).toBe('strength.reason.hold-ceiling')
-    // 8 reps and 3 left is 11 repetitions to the limit: no estimate, no ceiling for the session
-    expect(at([8, 8, 8], [3, 3, 3])).toMatchObject({
+    const within = goblet('w', 12, rows(100, [6, 6, 6], [1, 1, 1]))
+    expect(at([within])).toMatchObject({ rule: 'F8.6', change: 'hold' })
+    expect(at([within]).facts[0]?.template).toBe('strength.reason.hold-ceiling')
+    // 8 reps and 3 left is 11 repetitions to the limit: the session gives no estimate
+    const over = goblet('o', 5, rows(100, [8, 8, 8], [3, 3, 3]))
+    expect(estimateOneRm(lb(100), 8, 3)).toBeNull()
+    // a lift with no estimate yet has no ceiling
+    expect(at([over])).toMatchObject({ rule: 'F8.5', change: 'increase', loadG: lb(125) })
+    // the session over the limit does not lift the ceiling of the one before it
+    expect(at([within, over])).toMatchObject({ rule: 'F8.6', change: 'hold' })
+    expect(at([within, over]).facts[0]?.template).toBe('strength.reason.hold-ceiling')
+    // and neither does a lighter session, or a session that is not the latest
+    const lighter = goblet('l', 3, rows(80, [5, 5], [3, 3]), { mode: 'lighter-day' })
+    expect(at([within, over, lighter]).facts[0]?.template).toBe('strength.reason.hold-ceiling')
+    // an anchor stands in for the estimate until a session gives one
+    const anchor = {
+      exerciseId: 'goblet-squat',
+      kind: 'set',
+      loadG: lb(100),
+      reps: 6,
+      rir: 1,
+      asOf: ago(40),
+    } as const
+    expect(at([over], [anchor]).facts[0]?.template).toBe('strength.reason.hold-ceiling')
+    expect(at([over], [anchor])).toMatchObject({ rule: 'F8.6', loadG: lb(100) })
+  })
+
+  it('reads the most recent estimate, not the best or the oldest', () => {
+    const at = (logs: StrengthLogEntry[]) =>
+      gobletAsk([100, 112], [...logs, goblet('o', 2, rows(100, [8, 8, 8], [3, 3, 3]))])
+    // 80 lb for 6 with 1 left: a ceiling of 89 lb, under the 112 lb step; 100 lb for 6 with 3 left:
+    // a ceiling of 117 lb, over it
+    const low = (days: number) => goblet('a', days, rows(80, [6, 6, 6], [1, 1, 1]))
+    const high = (days: number) => goblet('b', days, rows(100, [6, 6, 6], [3, 3, 3]))
+    expect(at([low(20), high(10)])).toMatchObject({
       rule: 'F8.5',
       change: 'increase',
-      loadG: lb(125),
+      loadG: lb(112),
     })
+    expect(at([high(20), low(10)]).facts[0]?.template).toBe('strength.reason.hold-ceiling')
   })
 
   it('offers one step when the second step is past the cap', () => {
@@ -1468,6 +1505,21 @@ describe('F8.7: the next movement', () => {
     // 100 lb to 113 lb is within the cap but past 90% of the estimate with a rep left
     const logs = [15, 8, 2].map((d) => goblet(`c${String(d)}`, d, rows(100, [6, 6, 6], [1, 1, 1])))
     expect(gobletAsk([100, 113], logs, { canVary: true }).rule).toBe('F8.7')
+  })
+
+  it('counts a session over the limit of the estimate with the ceiling of the one before it', () => {
+    // 100 lb to 125 lb is the only step of the list; 6 reps with 1 left gives a ceiling of 111 lb,
+    // and the two sessions of 8 reps with 3 left give no estimate of their own
+    const logs = [
+      goblet('a', 14, rows(100, [6, 6, 6], [1, 1, 1])),
+      goblet('b', 8, rows(100, [8, 8, 8], [3, 3, 3])),
+      goblet('c', 3, rows(100, [8, 8, 8], [3, 3, 3])),
+    ]
+    expect(gobletAsk([100, 125], logs, { canVary: true })).toMatchObject({
+      rule: 'F8.7',
+      change: 'variation',
+      moveTo: 'split-squat',
+    })
   })
 
   it('stays when the harder movement is not offered, the exercise is pinned, or the template keeps the load', () => {
@@ -1775,11 +1827,20 @@ describe('a suggestion asks only for a load the equipment can make and passes no
         if (s.loadG === second) {
           expect(shown(second ?? 0) - shown(first ?? 0), label).toBeLessThanOrEqual(room)
         }
-        // the ceiling reads the best set that gives an estimate, and none when no set does
-        const estimates = (judged?.sets ?? []).map(
-          (set) => estimateOneRm(set.loadG ?? 0, set.count, set.rir) ?? 0,
-        )
-        const best = Math.max(...estimates)
+        // the ceiling reads the best set of the latest normal session that gave an estimate, else
+        // the anchor's, and there is none for a lift with no estimate at all
+        const bestOf = (entry: StrengthLogEntry) =>
+          Math.max(
+            0,
+            ...entry.sets.map((set) => estimateOneRm(set.loadG ?? 0, set.count, set.rir) ?? 0),
+          )
+        let best = 0
+        for (const entry of [...normal].reverse()) {
+          best = bestOf(entry)
+          if (best > 0) break
+        }
+        const anchor = anchors[0]
+        if (best === 0 && anchor !== undefined) best = anchorEstimate(anchor) ?? 0
         const top = P.flib.heavyMinPct1rm.range?.[1] ?? 0
         if (best > 0) expect(s.loadG ?? 0, label).toBeLessThanOrEqual((best * top) / 100 + 1)
         // a template that keeps the load never raises it
