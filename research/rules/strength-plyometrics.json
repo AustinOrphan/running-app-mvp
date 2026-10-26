@@ -82,7 +82,7 @@
   },
   {
     "id": "strength-expected-benefit",
-    "statement": "Present expected benefit as a small oxygen-cost improvement (planning figure 2-4% after a complete block; individual studies up to 6-8%), never as a VO2max, threshold or pace change. Treat SMD -1.42 and single-study figures (5-6%) as upper bounds. Derive VO2max and threshold estimates from running data only.",
+    "statement": "Present expected benefit as a small oxygen-cost improvement (planning figure 2-4% after a complete block; individual studies up to 6-8%), never as a VO2max, threshold or pace change. Treat SMD -1.42 and single-study figures (5-6%) as upper bounds. Derive VO2max and threshold estimates from running data only. In the one women-only randomised trial in the corpus whose abstract reports running economy, 11 weeks of heavy lower-body training raised 1RM by 40% and changed neither running economy nor a 40-minute run, so word the benefit as 'may' and say that the evidence in women is small.",
     "parameter": "expected_running_economy_gain",
     "value": "2-4 (planning), 8 (ceiling in literature)",
     "unit": "% oxygen cost",
@@ -290,7 +290,7 @@
   },
   {
     "id": "strength-no-depth-jumps",
-    "statement": "Do not prescribe depth jumps, drops or bounds to recreational runners: the corpus has no dose or bone-stress data for them, and landing force was higher for depth drops and jumps from 60 to 90 cm than for a vertical jump in collegiate and national-level power athletes. Use low-amplitude movements on the spot with a graded number of contacts.",
+    "statement": "Do not prescribe depth jumps, drops or bounds to recreational runners: the corpus has no dose or bone-stress data for them, and landing force was higher for depth drops from 60 and 90 cm and depth jumps from 90 cm than for a vertical jump in collegiate and national-level power athletes. Use low-amplitude movements on the spot with a graded number of contacts.",
     "parameter": "plyometric_contacts",
     "value": "start at 40 contacts, add 20 every 2 weeks after a completed running week, cap 200",
     "unit": "contacts/session",
