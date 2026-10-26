@@ -1388,8 +1388,30 @@ things stand" gives counts and percentages without a weekly total or a date.
     the position at Steady on 30 of the 53 Mondays, which matters more to the setting's reach than
     the values of question 3. Baseline behaviour at Steady too.
 26. After a hold decision a re-plan can place sessions under 80% of target. Case: one replayed
-    chain, 25 of 57 future weeks after one re-plan following a hold decision; the cause is
-    untraced. Baseline behaviour at Steady too.
+    chain, 25 of 57 future weeks after one re-plan following a hold decision. Baseline behaviour at
+    Steady too. Open. The trace of follow-up 27 showed it is a different mechanism from the
+    recovery-week cadence. On the replayed real history, with a hold cap on the current week at 25
+    Mondays, 2 or fewer future weeks were under 80% except on four Mondays. On two of them 34 of
+    about 40 weeks were under with no decision at all (a return from a layoff). On the other two
+    the re-plan without a decision opens on a restart floor week (1 or 2 weeks under), and the cap
+    cuts that week below the floor (29 and 33 weeks under); the weeks after it sit between one and
+    two 20-minute runs or under a G-1 cap. The hold cap on a floor week is the candidate; the
+    cause is not yet traced to a line.
+27. Done in #NNN. A change of recovery cycle between two re-plans (the A5 low-frequency flag
+    arming or ending, 2:1 and 3:1) dropped the recovery week the replaced plan stored on the first
+    Monday: the count of `planPhases` missed it, the week became a loading week drawn a step above
+    the loading sequence with the recovery week's sessions (G-6), `keepCadenceAcrossReplan` forced
+    a second recovery week after it, and the next loading week stepped from the minutes placed
+    there. Case: `replan-chain.test.ts`, "the re-plan on which the low-frequency flag changes the
+    recovery cycle" (H10 at Steady on the re-plan where the flag ends, 82, 61r, 61, 45r; H3 at
+    Standard where it arms) and "a stored recovery week on the Monday a start path claims". Shipped:
+    the stored recovery week is kept, the count's own recovery week that would follow it is
+    dropped, and a start path (a 3 × N floor after a gap, a ladder) claims the opening week first
+    (`planWeeks`, `macro.ts`); H10 now plans 56r, 82, 90, 67r and the H3 chain equals the
+    unflagged chain. No rule text and no Param changed. 0 of 142 steady oracle digests moved, the
+    owner validation at 2026-10-23 is byte-identical, and 0 of 25 replayed re-plans of the real
+    history changed. Not changed: a stored recovery week that the count already places keeps
+    winning over a floor start (`lifts`).
 
 ## Clean-up after the merges
 
