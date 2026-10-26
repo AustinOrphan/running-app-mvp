@@ -9,6 +9,7 @@ import {
   declinedZoneSummary,
   decisionSummary,
   describeUndoFinding,
+  loadSettingSummary,
   overshootsSummary,
   overshootSummary,
   REVISION_TEMPLATES,
@@ -17,6 +18,11 @@ import {
 } from '../../../shared/copy/revision.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { buildPlan } from '../../../shared/engine/index.ts'
+import {
+  positionStep,
+  type LoadHold,
+  type LoadPosition,
+} from '../../../shared/engine/loadSetting.ts'
 import type { ZoneBoundary } from '../../../shared/engine/zoneChange.ts'
 import type { TargetDiffLine, TargetLimitKind } from '../../../shared/types.ts'
 import { failedChecklist } from '../../../server/services/planEngine.ts'
@@ -77,6 +83,97 @@ describe('revision summaries', () => {
         expect(summary, summary).not.toMatch(/[a-z][A-Z]/)
         expect(summary.replace('23 Oct', ''), summary).not.toMatch(/\d/)
       }
+    }
+  })
+})
+
+describe('the summary of a change of the load setting', () => {
+  const position = (over: Partial<LoadPosition> = {}): LoadPosition => ({
+    requested: 'standard',
+    position: 'standard',
+    held: null,
+    ageCapped: false,
+    ...over,
+  })
+
+  it('states the position and its step, and says "while rebuilding" where there is a zone', () => {
+    expect(loadSettingSummary(position({ requested: 'standard', position: 'standard' }))).toBe(
+      'Load setting changed to Standard: weeks ahead add up to 12% while rebuilding.',
+    )
+    expect(loadSettingSummary(position({ requested: 'upper', position: 'upper' }))).toBe(
+      'Load setting changed to Upper band: weeks ahead add up to 14% while rebuilding.',
+    )
+  })
+
+  it('words Steady as a plain weekly step, without "while rebuilding"', () => {
+    const summary = loadSettingSummary(position({ requested: 'steady', position: 'steady' }))
+    expect(summary).toBe('Load setting changed to Steady: weeks ahead add up to 10% a week.')
+    expect(summary).not.toMatch(/rebuilding/)
+  })
+
+  it('reads each step from the Params, not from the words', () => {
+    for (const choice of ['steady', 'standard', 'upper'] as const) {
+      const pct = Math.round(positionStep(choice) * 1000) / 10
+      expect(
+        loadSettingSummary(position({ requested: choice, position: choice })),
+        choice,
+      ).toContain(`add up to ${String(pct)}%`)
+    }
+  })
+
+  it('says a held position was chosen and that the steady step applies, with the reason and no step', () => {
+    const holds: Array<[LoadHold, string]> = [
+      ['recent-injury', 'a recent injury is on file'],
+      ['bone-stress', 'an earlier bone stress injury is on file'],
+      ['bsi-factors', 'at least two risk factors for bone stress injury apply'],
+      ['reds-hold', 'flags from the energy availability screening hold progression'],
+      ['bone-pain', 'focal bone pain holds progression'],
+      ['rest-window', 'a rest window is active'],
+      ['post-race', 'the plan is in the weeks after a race'],
+      ['low-frequency', 'recent weeks held fewer than two runs a week'],
+    ]
+    for (const [held, reason] of holds) {
+      const summary = loadSettingSummary(position({ requested: 'upper', position: 'steady', held }))
+      expect(summary, held).toBe(
+        `Load setting changed to Upper band. The steady step applies for now: ${reason}.`,
+      )
+      expect(summary, held).not.toMatch(/\d+%/)
+    }
+  })
+
+  it('names the age rule when Upper band is read as Standard, with the step of Standard', () => {
+    expect(
+      loadSettingSummary(position({ requested: 'upper', position: 'standard', ageCapped: true })),
+    ).toBe(
+      'Load setting changed to Upper band: weeks ahead add up to 12% while rebuilding. The setting is held at Standard: age 45 or over.',
+    )
+  })
+
+  it('is lint-clean, and its sentences stay within a template length', () => {
+    const all: string[] = []
+    for (const requested of ['steady', 'standard', 'upper'] as const) {
+      all.push(loadSettingSummary(position({ requested, position: requested })))
+      all.push(loadSettingSummary(position({ requested, position: 'steady', held: 'rest-window' })))
+    }
+    all.push(
+      loadSettingSummary(position({ requested: 'upper', position: 'standard', ageCapped: true })),
+    )
+    for (const summary of all) {
+      expect(lintText(summary), summary).toEqual([])
+      for (const sentence of summary.split(/(?<=\.) /)) {
+        expect(sentence.length, sentence).toBeLessThanOrEqual(COPY_MAX_CHARS)
+      }
+    }
+  })
+
+  it('stores no unit-bound figure: the percentages read the same in kilometres and miles', () => {
+    for (const id of [
+      'revision.load.rebuilding',
+      'revision.load.steady',
+      'revision.load.changed',
+    ] as const) {
+      expect(Object.values(REVISION_TEMPLATES[id].slots), id).not.toContain('distance')
+      expect(TEMPLATES[id], id).toBe(REVISION_TEMPLATES[id])
     }
   })
 })
