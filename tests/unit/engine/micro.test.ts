@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addDays, daysBetween } from '../../../shared/dates.ts'
+import type { DayRule } from '../../../shared/engine/disruption.ts'
 import type { SessionKind, SessionSpec, WeekDraft } from '../../../shared/engine/types.ts'
 import { holdSessions, placeWeek } from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { postRaceWindow, windowWeeks } from '../../../shared/engine/postRace.ts'
-import { ZONES, availability, profile, session, state, week } from './e6-fixtures.ts'
+import { WEEKDAYS, ZONES, availability, profile, session, state, week } from './e6-fixtures.ts'
 
 // Task E5 owns `prescribe`; the placement is tested against a fake with the frozen signature.
 vi.mock('../../../shared/engine/sessions.ts', () => ({
@@ -456,7 +457,7 @@ describe('placeWeek', () => {
         expect(s.date).not.toBe(addDays(long.date, -1))
         const sameDay = sessions.filter((o) => o.date === s.date && o !== s)
         expect(sameDay.some((o) => HARD.includes(o.kind))).toBe(false)
-        expect(s.durationMin).toBe(P.fplace.strengthSessionMin.value)
+        expect(s.durationMin).toBe(P.f7.maintenanceSessionMin.value)
       }
       expect(Math.abs(dayOf(strength[0]!) - dayOf(strength[1]!))).toBeGreaterThanOrEqual(2)
     })
@@ -496,6 +497,184 @@ describe('placeWeek', () => {
       for (const s of sessions) perDay.set(dayOf(s), (perDay.get(dayOf(s)) ?? 0) + s.durationMin)
       for (const [d, total] of perDay)
         expect(total, `day ${d}`).toBeLessThanOrEqual(d === 5 ? 120 : 20)
+    })
+
+    it('gives a block week the block budget and every other week the maintenance budget', () => {
+      const block = place(week({ strengthSessions: 2, flags: ['strength-block'] }))
+      const strength = (sessions: SessionSpec[]) => sessions.filter((s) => s.kind === 'strength')
+      expect(strength(block)).toHaveLength(2)
+      for (const s of strength(block)) expect(s.durationMin).toBe(P.f7.blockSessionMin.value)
+      for (const flags of [[], ['taper'], ['recovery']]) {
+        const other = strength(place(week({ strengthSessions: 2, flags })))
+        expect(other, flags.join()).toHaveLength(2)
+        for (const s of other) expect(s.durationMin).toBe(P.f7.maintenanceSessionMin.value)
+      }
+    })
+
+    it('needs the budget of the week free on a day: 35 minutes take a maintenance session and not a block session', () => {
+      const days = Object.fromEntries(
+        WEEKDAYS.map((d) => [d, { available: true, maxMin: 35 }]),
+      ) as Parameters<typeof availability>[0]
+      const noRuns = { targetRunMin: 0, longRunMin: 0, runDays: 0, qualitySessions: 0 }
+      const strengthOn = (flags: string[], avail: ReturnType<typeof availability>) =>
+        place(week({ ...noRuns, strengthSessions: 2, flags }), {
+          profile: profile({ availability: avail }),
+        }).filter((s) => s.kind === 'strength')
+      const narrow = availability(days)
+      expect(strengthOn(['strength-block'], narrow)).toHaveLength(0)
+      expect(strengthOn([], narrow)).toHaveLength(2)
+      // a day with the block budget takes a block session, on that day only
+      const roomy = availability({ ...days, wed: { available: true, maxMin: 40 } })
+      const one = strengthOn(['strength-block'], roomy)
+      expect(one).toHaveLength(1)
+      expect(dayOf(one[0]!)).toBe(2)
+      expect(one[0]!.durationMin).toBe(P.f7.blockSessionMin.value)
+    })
+
+    it('leaves the minutes that the budget needs after a run of the same day', () => {
+      // Friday holds a 30-minute easy run and is capped at 55: 25 minutes are left after the run,
+      // which a maintenance session fills exactly and a block session does not fit
+      const avail = availability({
+        mon: { available: false, maxMin: null },
+        tue: { available: false, maxMin: null },
+        wed: { available: true, maxMin: 100 },
+        thu: { available: false, maxMin: null },
+        fri: { available: true, maxMin: 55 },
+        sat: { available: false, maxMin: null },
+        sun: { available: false, maxMin: null },
+      })
+      const run = (flags: string[]) =>
+        place(
+          week({
+            targetRunMin: 90,
+            longRunMin: 60,
+            runDays: 2,
+            qualitySessions: 0,
+            strengthSessions: 1,
+            flags,
+          }),
+          { profile: profile({ availability: avail, longRunDay: 'wed' }) },
+        )
+      const other = run([]).find((s) => s.kind === 'strength')
+      expect(other?.date).toBe(addDays('2026-11-02', 4))
+      expect(other?.durationMin).toBe(P.f7.maintenanceSessionMin.value)
+      expect(run(['strength-block']).some((s) => s.kind === 'strength')).toBe(false)
+    })
+
+    describe('the lifts a week already holds [rule F4]', () => {
+      // a re-plan keeps the finished sessions of the current week on its closed days: Tuesday is
+      // closed here, and a lift of the week stands on it
+      const noRuns = { targetRunMin: 0, longRunMin: 0, runDays: 0, qualitySessions: 0 }
+      const closed = (...days: Array<'mon' | 'tue' | 'wed'>) =>
+        availability(Object.fromEntries(days.map((d) => [d, { available: false, maxMin: null }])))
+      const lift = (date: string) => session({ date, kind: 'strength', durationMin: 40 })
+      const placed = (
+        planned: number,
+        held: SessionSpec[],
+        over: { preference?: 0 | 1 | 2; closedDays?: Array<'mon' | 'tue' | 'wed'> } = {},
+      ) =>
+        place(week({ ...noRuns, strengthSessions: planned, flags: ['strength-block'] }), {
+          profile: profile({
+            availability: closed(...(over.closedDays ?? ['tue'])),
+            strengthPreference: over.preference ?? 2,
+          }),
+          prev: held,
+        }).filter((s) => s.kind === 'strength')
+
+      it('places only the lifts still to come', () => {
+        expect(placed(2, [])).toHaveLength(2)
+        expect(placed(2, [lift('2026-11-03')])).toHaveLength(1)
+        expect(
+          placed(2, [lift('2026-11-02'), lift('2026-11-03')], { closedDays: ['mon', 'tue'] }),
+        ).toHaveLength(0)
+        expect(placed(1, [lift('2026-11-03')])).toHaveLength(0)
+      })
+
+      it('counts a lift that was finished and one that was kept alike, and never above the preference', () => {
+        const done = { ...lift('2026-11-03'), status: 'completed' }
+        expect(placed(2, [done as SessionSpec])).toHaveLength(1)
+        // the runner asked for one a week: a lift already held fills it
+        expect(placed(2, [lift('2026-11-03')], { preference: 1 })).toHaveLength(0)
+      })
+
+      it('prefers a day apart from the lift already held', () => {
+        const [added] = placed(2, [lift('2026-11-03')])
+        // Tuesday holds the lift: not Monday nor Wednesday while later days are free
+        expect([0, 2]).not.toContain(dayOf(added!))
+      })
+
+      it('ignores a lift of another week and a lift on an open day', () => {
+        expect(placed(2, [lift('2026-10-27')])).toHaveLength(2)
+        expect(placed(2, [lift('2026-11-04')], { closedDays: ['tue'] })).toHaveLength(2)
+      })
+    })
+
+    describe('the room of a session on a day [rules F4, F7, G-1]', () => {
+      // one 20-minute run in the last 30 days: the spike guard caps a run at 22 minutes on any day,
+      // under both budgets, while the days themselves have no limit
+      const reference = {
+        runs: [{ date: '2026-10-25', min: 20, distanceM: null, gainM: null, lossM: null }],
+        virtualTwoDay: [],
+      }
+      const noRuns = { targetRunMin: 0, longRunMin: 0, runDays: 0, qualitySessions: 0 }
+      const lifts = (
+        flags: string[],
+        extra: Partial<Parameters<typeof placeWeek>[1]> = {},
+      ): SessionSpec[] =>
+        placeWeek(week({ ...noRuns, strengthSessions: 2, flags }), {
+          profile: profile(),
+          zones: ZONES,
+          state: state(),
+          prevSessions: [],
+          limits: reference,
+          ...extra,
+        }).filter((s) => s.kind === 'strength')
+      const everyDay = (over: Partial<DayRule> = {}): DayRule[] =>
+        [0, 1, 2, 3, 4, 5, 6].map((i) => ({
+          date: addDays('2026-11-02', i),
+          held: false,
+          gate: false,
+          maxRunMin: null,
+          quality: false,
+          reason: 'niggle',
+          windowIds: [],
+          ...over,
+        }))
+
+      it('is the availability of the day: the reference of a run does not size the gym time', () => {
+        for (const flags of [['strength-block'], []]) {
+          expect(lifts(flags), flags.join()).toHaveLength(2)
+        }
+      })
+
+      it('still holds every part on a day a window rules and in a week a window touched', () => {
+        expect(lifts(['strength-block'], { dayRules: everyDay() })).toHaveLength(0)
+        expect(lifts([], { dayRules: everyDay() })).toHaveLength(0)
+        expect(lifts(['strength-block', 'disrupted'])).toHaveLength(0)
+        expect(lifts(['disruption-return'])).toHaveLength(0)
+      })
+
+      it('sizes the gym time of a start-path week by availability like any other week [spec 8.2, return]', () => {
+        for (const flags of [
+          ['strength-block', 'ladder-4'],
+          ['ladder-4'],
+          ['restart-floor'],
+          ['injury-return', 'injury-level-1'],
+        ]) {
+          expect(lifts(flags), flags.join()).toHaveLength(2)
+        }
+      })
+
+      it('puts no lift on a day a window holds or caps below the budget', () => {
+        const held = everyDay({ held: true, maxRunMin: 0 })
+        expect(lifts([], { dayRules: held, limits: undefined })).toHaveLength(0)
+        const capped = everyDay({ maxRunMin: 20 })
+        expect(lifts([], { dayRules: capped, limits: undefined })).toHaveLength(0)
+        // a cap that leaves the room of a maintenance session holds one
+        const roomy = everyDay({ maxRunMin: 30 })
+        expect(lifts([], { dayRules: roomy, limits: undefined })).toHaveLength(2)
+        expect(lifts(['strength-block'], { dayRules: roomy, limits: undefined })).toHaveLength(0)
+      })
     })
 
     it('can place strength in a week without runs', () => {

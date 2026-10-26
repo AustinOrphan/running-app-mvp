@@ -29,7 +29,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-25.4')
+    expect(PARAMS_VERSION).toBe('2026-10-25.5')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -643,9 +643,11 @@ describe('parameter registry', () => {
     // block sets stay inside the 10 repetitions up to which a linear estimate of a maximum was advised
     const blockCount = (P.flib.heavyReps.range?.[1] ?? 0) + f7.heavyRir.value[1]
     expect(blockCount).toBeLessThanOrEqual(10)
-    // the budgets replace the single placement default that the engine reads today
-    expect(f7.blockSessionMin.value).toBeGreaterThan(P.fplace.strengthSessionMin.value)
-    expect(f7.maintenanceSessionMin.value).toBeLessThan(P.fplace.strengthSessionMin.value)
+    // the budgets replaced the single placement default of 30 minutes, which is retired (E14-3)
+    expect('strengthSessionMin' in P.fplace).toBe(false)
+    expect(all.map((p) => p.id)).not.toContain('fplace.strengthSessionMin')
+    expect(f7.blockSessionMin.value).toBeGreaterThan(30)
+    expect(f7.maintenanceSessionMin.value).toBeLessThan(30)
     // the values the strength epic reads from rules E5 and H10 are the registered ones, and equal
     expect(P.h10.strengthBlockWeeks.value).toBe(P.e5.strengthBlockWeeks.value)
     expect(P.h10.strengthSessionsPerWeek.value).toBe(P.flib.strengthPerWeek.value)

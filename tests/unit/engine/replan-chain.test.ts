@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { afterBreak, buildPlan, replan } from '../../../shared/engine/index.ts'
-import { startPath } from '../../../shared/engine/macro.ts'
+import { startPath, strengthBlockPosition } from '../../../shared/engine/macro.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import type { DisruptionWindow, EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
 import type { PlanWeek as PlanWeekRow } from '../../../server/db.ts'
 import { raisedTargetLimits, planWeekWrites } from '../../../server/services/replan.ts'
@@ -483,5 +484,181 @@ describe('a stored recovery week on the Monday a start path claims [rules E3, E6
     const opening = replan(input).draft.weeks.find((w) => w.weekStart === monday)
     expect(opening?.flags).toContain('restart-floor')
     expect(opening?.isRecovery).toBe(false)
+  })
+})
+
+describe('the strength block across plans [rule E5]', () => {
+  const flagged = (weeks: PlanDraft['weeks']) =>
+    weeks.filter((w) => w.flags.includes('strength-block'))
+  const lifting = (id: string): EngineInput => {
+    const a = athletes().find((x) => x.id === id)!
+    return { ...a.input, profile: { ...a.input.profile, strengthPreference: 2 } }
+  }
+  const weekOf = (draft: PlanDraft, date: string) =>
+    draft.weeks.find((w) => date >= w.weekStart && date < addDays(w.weekStart, 7))!
+
+  // The probe of the design (section 1.2), taken on 2026-10-24 on the engine before the anchor:
+  // plans built from scratch, `today` moved forward. A plan built from scratch has no stored weeks,
+  // so it starts a block, and the block shrinks as the runway does.
+  it('starts a new block in a plan built from scratch, as long as 8 non-specific weeks remain', () => {
+    const a = athletes().find((x) => x.id === 'first-100-mile')!
+    const counts = [0, 7, 28, 56, 84].map(
+      (days) =>
+        flagged(buildPlan({ ...a.input, today: addDays(a.input.today, days) }).weeks).length,
+    )
+    expect(counts).toEqual([12, 12, 12, 11, 0])
+  })
+
+  // Before the anchor a plan re-planned every week met the first week of a block at each re-plan:
+  // 12, 13, 14, ... flagged weeks in the stored plan until fewer than 8 non-specific weeks remained.
+  it('holds the block at e5.strengthBlockWeeks flagged weeks through 12 weekly re-plans', () => {
+    const steps = replanSteps('first-100-mile', { maxSteps: 12 })
+    expect(steps).toHaveLength(13)
+    steps.forEach((step, i) => {
+      const block = flagged(step.draft.weeks)
+      expect(block, `plan ${String(i)}`).toHaveLength(P.e5.strengthBlockWeeks.value)
+      // the first 12 weeks of the plan, one run of consecutive weeks
+      expect(
+        block.map((w) => w.index),
+        `plan ${String(i)}`,
+      ).toEqual(block.map((_, k) => k))
+    })
+  })
+
+  it.each(athletes().map((a) => [a.id, a.label] as const))(
+    "keeps the length of the first plan's block through every weekly re-plan: %s",
+    (id) => {
+      const steps = replanSteps(id)
+      const first = flagged(steps[0]!.draft.weeks).length
+      expect(first).toBeLessThanOrEqual(P.e5.strengthBlockWeeks.value)
+      steps.forEach((step, i) => {
+        expect(flagged(step.draft.weeks), `plan ${String(i)}`).toHaveLength(first)
+      })
+    },
+  )
+
+  it('cites F7 and H10 and budgets the sessions of a re-planned ultra, as the block stands', () => {
+    const steps = replanChain(lifting('first-100-mile'), { maxSteps: 8 })
+    const last = steps.at(-1)!
+    const monday = mondayOf(last.input.today)
+    const ahead = last.draft.sessions.filter((s) => s.kind === 'strength' && s.date >= monday)
+    expect(ahead.length).toBeGreaterThan(10)
+    let inBlock = 0
+    let outside = 0
+    for (const s of ahead) {
+      const week = weekOf(last.draft, s.date)
+      expect(s.rules, s.date).toEqual(['F-lib', 'F4', 'E5', 'F7', 'H10'])
+      if (week.flags.includes('strength-block')) {
+        inBlock += 1
+        expect(s.durationMin, s.date).toBe(P.f7.blockSessionMin.value)
+        const at = strengthBlockPosition(last.draft.weeks, week.weekStart)!
+        expect(s.purpose, s.date).toMatch(
+          new RegExp(`^Strength block, week ${String(at.week)} of ${String(at.of)}: `),
+        )
+      } else {
+        outside += 1
+        expect(s.durationMin, s.date).toBe(P.f7.maintenanceSessionMin.value)
+        expect(s.purpose, s.date).toMatch(/^Strength maintenance: /)
+      }
+    }
+    expect(inBlock).toBeGreaterThan(0)
+    expect(outside).toBeGreaterThan(0)
+  })
+
+  describe('a re-plan in mid-week [rule F4]', () => {
+    // The week of the second plan holds two lifts. The re-plan comes the day after the first one
+    // (or after both) was finished: the lifts the week already holds count against its two.
+    const steps = replanChain(lifting('first-100-mile'), { maxSteps: 1 })
+    const stored = steps[1]!
+    const monday = mondayOf(stored.input.today)
+    const week = stored.draft.weeks.find((w) => w.weekStart === monday)!
+    const liftsOf = (draft: PlanDraft) =>
+      draft.sessions
+        .filter((s) => s.kind === 'strength' && mondayOf(s.date) === monday)
+        .sort((a, b) => (a.date < b.date ? -1 : 1))
+    const planned = liftsOf(stored.draft)
+
+    const replanOn = (today: string, finished: number) =>
+      replan({
+        ...stored.input,
+        today,
+        existing: {
+          weeks: stored.draft.weeks,
+          sessions: stored.draft.sessions.map((s, i) => ({
+            ...s,
+            id: `s${String(i)}`,
+            status:
+              s.date < today && planned.indexOf(s) < finished
+                ? 'completed'
+                : s.date < today
+                  ? 'skipped'
+                  : 'planned',
+            activityId: null,
+          })),
+        },
+      }).draft
+
+    it('starts from a week of two lifts, the second after the first', () => {
+      expect(week.strengthSessions).toBe(2)
+      expect(planned).toHaveLength(2)
+      expect(planned[1]!.date > planned[0]!.date).toBe(true)
+    })
+
+    it('adds only the lift still to come after one was finished', () => {
+      const first = planned[0]!
+      const out = replanOn(addDays(first.date, 1), 1)
+      const lifts = liftsOf(out)
+      expect(lifts.map((s) => s.date)).toContain(first.date)
+      expect(lifts).toHaveLength(week.strengthSessions)
+      expect(new Set(lifts.map((s) => s.date)).size).toBe(lifts.length)
+      // the lift that is still to come is on a day from today on
+      expect(lifts.filter((s) => s.date > first.date)).toHaveLength(1)
+    })
+
+    it('adds none when the week already holds its lifts', () => {
+      const today = addDays(planned[1]!.date, 1)
+      const out = replanOn(today, 2)
+      expect(liftsOf(out)).toHaveLength(week.strengthSessions)
+      expect(liftsOf(out).map((s) => s.date)).toEqual(planned.map((s) => s.date))
+    })
+
+    it('counts a lift of a past day that was not logged as part of the week, and makes it up nowhere', () => {
+      const first = planned[0]!
+      const out = replanOn(addDays(first.date, 1), 0)
+      expect(liftsOf(out)).toHaveLength(week.strengthSessions)
+    })
+  })
+
+  it('does not cite H10 for a goal that is not an ultra', () => {
+    const steps = replanChain(lifting('marathon'), { maxSteps: 3 })
+    const strength = steps.at(-1)!.draft.sessions.filter((s) => s.kind === 'strength')
+    expect(strength.length).toBeGreaterThan(0)
+    for (const s of strength) expect(s.rules).toEqual(['F-lib', 'F4', 'E5', 'F7'])
+  })
+
+  it('numbers a week of the block the same on every re-plan', () => {
+    const steps = replanChain(lifting('first-100-mile'), { maxSteps: 8 })
+    const weekStart = addDays(mondayOf(steps[0]!.input.today), 7 * 9)
+    const named = steps.map(
+      (step) =>
+        step.draft.sessions
+          .find(
+            (s) => s.kind === 'strength' && s.date >= weekStart && s.date < addDays(weekStart, 7),
+          )
+          ?.purpose.split(':')[0],
+    )
+    expect(named).toEqual(steps.map(() => 'Strength block, week 10 of 12'))
+  })
+
+  it('starts a new block when the stored plan is lost and the plan is built again', () => {
+    const steps = replanChain(lifting('first-100-mile'), { maxSteps: 6 })
+    const input = steps[6]!.input
+    expect(flagged(steps[6]!.draft.weeks)).toHaveLength(P.e5.strengthBlockWeeks.value)
+    const again = buildPlan({ ...input, existing: null })
+    const block = flagged(again.weeks)
+    expect(block).toHaveLength(P.e5.strengthBlockWeeks.value)
+    expect(block[0]!.weekStart).toBe(mondayOf(input.today))
+    const first = again.sessions.find((s) => s.kind === 'strength' && s.date >= input.today)!
+    expect(first.purpose).toMatch(/^Strength block, week 1 of 12: /)
   })
 })

@@ -344,10 +344,6 @@ export const fMicro = {
       unit: 'min',
       note: 'Default: a run day shorter than this is dropped and its minutes stay unplaced (never made up elsewhere); no study sets a minimum run length.',
     }),
-    strengthSessionMin: param('fplace.strengthSessionMin', 30, 'D', 'F4', [], {
-      unit: 'min',
-      note: 'Default: length of a strength session when it is placed in the week; the dose itself is in flib.heavy*.',
-    }),
     b2bDay2Fraction: param(
       'fplace.b2bDay2Fraction',
       0.6,
