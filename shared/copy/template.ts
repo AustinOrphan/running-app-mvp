@@ -5,7 +5,7 @@
 // Failure rule: a missing or mistyped slot throws under test and renders the template's fallback
 // everywhere else, so a page never shows "undefined" or "NaN".
 import type { Quantity } from '../engine/types.ts'
-import type { Units } from '../types.ts'
+import type { Units, WeightUnit } from '../types.ts'
 import { formatQuantity, quantityIssue } from './quantity.ts'
 
 /** What a slot holds: one kind of `Quantity`, or `text` for words that are not numbers. */
@@ -133,11 +133,14 @@ function slotIssue(kind: SlotKind, value: unknown): string | null {
  * Fills a template in the runner's units. `slots` is checked against the template at compile time;
  * values that arrive as data (a stored fact) are checked again here, including a `slots` that is
  * not an object at all (null, undefined, a string, an array), which counts as a bad record.
+ * `weightUnit` is the runner's unit for strength loads; only a `load` slot reads it, and it
+ * defaults to pounds, so every call that has no load slot is unchanged.
  */
 export function render<S extends SlotSpec>(
   template: Template<S>,
   slots: SlotValues<S>,
   units: Units,
+  weightUnit?: WeightUnit,
 ): string {
   const raw: unknown = slots
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
@@ -167,7 +170,9 @@ export function render<S extends SlotSpec>(
     }
     const value = values[name]
     if (slotIssue(kind, value) !== null) return '' // reported above
-    return kind === 'text' ? (value as string) : formatQuantity(value as Quantity, units)
+    return kind === 'text'
+      ? (value as string)
+      : formatQuantity(value as Quantity, units, weightUnit)
   })
 
   const strict = isCopyStrict()
@@ -190,6 +195,7 @@ const SAMPLES: { readonly [K in SlotKind]: SlotValue<K> } = {
   share: { kind: 'share', fraction: 0.825 },
   count: { kind: 'count', n: 240 },
   temp: { kind: 'temp', c: 24.5 },
+  load: { kind: 'load', g: 52163 },
   date: { kind: 'date', iso: '2026-10-19', style: 'long' },
   weekday: { kind: 'weekday', iso: '2026-10-19', style: 'long' },
   text: 'a short phrase of words',

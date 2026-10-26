@@ -8,8 +8,9 @@ import {
   formatWeekdayName,
   isIsoDate,
 } from '../dates.ts'
+import { DEFAULT_WEIGHT_UNIT, isWeightUnit, loadParts } from '../domain/weight.ts'
 import type { Quantity } from '../engine/types.ts'
-import type { Units } from '../types.ts'
+import type { Units, WeightUnit } from '../types.ts'
 import { FEET_PER_METRE, formatDuration, milesToM, NO_VALUE } from '../units.ts'
 
 export type { Quantity }
@@ -62,6 +63,7 @@ const NUMERIC_FIELDS = {
   share: { key: 'fraction', min: 'any' },
   count: { key: 'n', min: 'any' },
   temp: { key: 'c', min: 'any' },
+  load: { key: 'g', min: 'zero' },
 } as const satisfies Partial<Record<Quantity['kind'], { key: string; min: string }>>
 
 type NumericKind = keyof typeof NUMERIC_FIELDS
@@ -129,9 +131,14 @@ function dateParts(q: Extract<Quantity, { kind: 'date' }>): QuantityParts {
 
 /**
  * A quantity as a number and its unit text, or null when it cannot be shown. A range joins the
- * numbers and prints the unit once ("28 to 32 km").
+ * numbers and prints the unit once ("28 to 32 km"). `weightUnit` is read by a `load` only and
+ * defaults to pounds, the default of the setting.
  */
-export function quantityParts(q: Quantity, units: Units): QuantityParts | null {
+export function quantityParts(
+  q: Quantity,
+  units: Units,
+  weightUnit: WeightUnit = DEFAULT_WEIGHT_UNIT,
+): QuantityParts | null {
   if (quantityIssue(q) !== null) return null
   switch (q.kind) {
     case 'pace': {
@@ -164,6 +171,10 @@ export function quantityParts(q: Quantity, units: Units): QuantityParts | null {
       // A WBGT reading or a heat threshold: the heat rules (section I) state both in °C, so they
       // read °C with miles too. An air temperature follows the units (`formatAirTemperature`).
       return { num: formatNumber(q.c), suffix: ' °C' }
+    case 'load':
+      // A strength load is stored in grams; the weight unit is a setting of its own, not derived
+      // from the distance units (miles with kilograms is common).
+      return loadParts(q.g, isWeightUnit(weightUnit) ? weightUnit : DEFAULT_WEIGHT_UNIT)
     case 'date':
       return dateParts(q)
     case 'weekday':
@@ -176,11 +187,16 @@ export function quantityParts(q: Quantity, units: Units): QuantityParts | null {
 
 /**
  * A quantity in the runner's units: "8:51 /mi", "13.1 mi", "197 ft", "1 h 45 min", "20%",
- * "Mon 19 Oct". A value that cannot be shown (not finite, a malformed date, an unknown kind)
- * gives a dash, never "NaN", "undefined" or a raw ISO date; `quantityIssue` says why.
+ * "Mon 19 Oct", a strength load "115 lb" or "52.25 kg" (by `weightUnit`, which only a `load`
+ * reads). A value that cannot be shown (not finite, a malformed date, an unknown kind) gives a
+ * dash, never "NaN", "undefined" or a raw ISO date; `quantityIssue` says why.
  */
-export function formatQuantity(q: Quantity, units: Units): string {
-  const parts = quantityParts(q, units)
+export function formatQuantity(
+  q: Quantity,
+  units: Units,
+  weightUnit: WeightUnit = DEFAULT_WEIGHT_UNIT,
+): string {
+  const parts = quantityParts(q, units, weightUnit)
   return parts === null ? NO_VALUE : `${parts.num}${parts.suffix}`
 }
 
@@ -201,11 +217,16 @@ export function formatAirTemperature(c: number, units: Units): string {
  * Two quantities of one kind as a range that prints the unit once: "4:10 to 4:00 /km", "140 to 150
  * bpm". A pair that cannot be shown as parts reads in full, with a dash for what cannot be shown.
  */
-export function formatRange(first: Quantity, second: Quantity, units: Units): string {
-  const from = quantityParts(first, units)
-  const to = quantityParts(second, units)
+export function formatRange(
+  first: Quantity,
+  second: Quantity,
+  units: Units,
+  weightUnit: WeightUnit = DEFAULT_WEIGHT_UNIT,
+): string {
+  const from = quantityParts(first, units, weightUnit)
+  const to = quantityParts(second, units, weightUnit)
   if (from === null || to === null) {
-    return `${formatQuantity(first, units)} to ${formatQuantity(second, units)}`
+    return `${formatQuantity(first, units, weightUnit)} to ${formatQuantity(second, units, weightUnit)}`
   }
   return `${from.num} to ${to.num}${to.suffix}`
 }
