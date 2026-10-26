@@ -3257,3 +3257,56 @@ describe('shared/engine/strength.ts', () => {
     expect(text).not.toMatch(/strength-block/)
   })
 })
+
+describe('every function of the engine leaves a frozen context alone', () => {
+  it('reads a deep-frozen snapshot without writing to it', () => {
+    const session = sessionOf(7)
+    const logs = [
+      log('a', addDays(session.date, -10), {
+        sets: setsOf('back-squat', rows(105, [6, 6, 6, 6], [2, 2, 2, 2])),
+      }),
+      log('b', addDays(session.date, -3), {
+        sets: setsOf('goblet-squat', rows(40, [5, 5, 5], [null, null, null])),
+      }),
+    ]
+    const ctx = withSetup(
+      { equipment: have(...ALL_KINDS), pinned: { calf: 'seated-calf-raise' }, avoid: ['pogo-hop'] },
+      {
+        today: session.date,
+        logs,
+        anchors: [
+          {
+            exerciseId: 'leg-press',
+            kind: 'max',
+            loadG: lb(300),
+            reps: 1,
+            rir: null,
+            asOf: ago(40),
+          },
+        ],
+        readiness: { date: session.date, state: 'possible-fatigue', pain: 5, illness: 'easy-only' },
+      },
+    )
+    const frozen = deepFreeze(structuredClone(ctx))
+    expect(() => {
+      blockPosition(frozen, monday(7))
+      rampInWeeks(frozen, monday(7))
+      sessionVariant(frozen, session)
+      for (const slot of ['knee', 'hip', 'calf'] as const) pickLift(slot, frozen)
+      waysFor(frozen, 'goblet-squat')
+      workoutFor(frozen, session)
+      workoutFor(frozen, sessionOf(7, 1))
+      liftFor(frozen, session, 'step-up')
+      summariseHistory(frozen)
+      suggestLoad(frozen, {
+        exerciseId: 'back-squat',
+        implement: 'barbell',
+        date: session.date,
+        ...structuresFor('heavy', 'lead', 8),
+      })
+    }).not.toThrow()
+    // and the answer is the one the unfrozen context gives
+    expect(workoutFor(frozen, session)).toEqual(workoutFor(ctx, session))
+    expect(summariseHistory(frozen)).toEqual(summariseHistory(ctx))
+  })
+})
