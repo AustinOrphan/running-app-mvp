@@ -19,8 +19,8 @@ Last update: 2026-10-25.
   route. The Generate form offers the load setting: Steady (the default, the engine byte for
   byte), Standard and Upper band. A position is held at steady, with the reason shown, under a
   recent injury, an earlier bone stress injury or two risk factors for one, flags from the energy
-  availability screening, focal bone pain, a rest window, a plan built in the weeks after a race
-  and recent weeks of fewer than two runs a week; at age 45 or over Upper band is read as Standard.
+  availability screening, focal bone pain, a rest window and a plan built in the weeks after a
+  race; at age 45 or over Upper band is read as Standard.
   The Plan page's Load panel names the position in effect, why a chosen one does not apply, and
   the trade-off of a faster step (the effect on a return after a break is not known); the Why
   drawer carries no trade-off by decision, because it states facts of the plan and not the choice.
@@ -1427,7 +1427,9 @@ things stand" gives counts and percentages without a weekly total or a date.
 25. The A5 low-frequency flag arms when the start level passes 60 minutes with fewer than two runs
     a week. Case: "H3 inside a chain" of the replay fixtures; on the replayed real history it held
     the position at Steady on 30 of the 53 Mondays, which matters more to the setting's reach than
-    the values of question 3. Baseline behaviour at Steady too.
+    the values of question 3. Baseline behaviour at Steady too. Option 4 of the proposal shipped in
+    #579 (decided 2026-10-25): the flag keeps the 2:1 cadence and the time-based step and no longer
+    holds the load setting. The rest of the proposal stays open.
 26. After a hold decision a re-plan can place sessions under 80% of target. Case: one replayed
     chain, 25 of 57 future weeks after one re-plan following a hold decision. Baseline behaviour at
     Steady too. Open. The trace of follow-up 27 showed it is a different mechanism from the

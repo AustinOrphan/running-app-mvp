@@ -31,7 +31,6 @@ const HOLDS: LoadHold[] = [
   'bone-pain',
   'rest-window',
   'post-race',
-  'low-frequency',
 ]
 
 describe('the load setting copy', () => {
@@ -107,7 +106,6 @@ describe('the load setting copy', () => {
     expect(loadHoldReason('bsi-factors')).toBe(
       'at least two risk factors for bone stress injury apply',
     )
-    expect(loadHoldReason('low-frequency')).toBe('recent weeks held fewer than two runs a week')
   })
 
   it('words the action that changes the setting: the button, the sheet and the toast', () => {
@@ -133,7 +131,7 @@ describe('the load setting copy', () => {
     expect(all).not.toMatch(/\b(safe|safer|safest|aggressive)\b/i)
   })
 
-  it('words the panel from the payload: nothing to explain when the position applies', () => {
+  it('words the panel from the payload: no lead when the position applies as chosen', () => {
     const applies = loadPanelText({
       requested: 'standard',
       position: 'standard',
@@ -141,25 +139,64 @@ describe('the load setting copy', () => {
       ageCapped: false,
     })
     expect(applies.name).toBe('Standard')
-    expect(applies.reason).toEqual([])
+    expect(applies.lead).toBeNull()
+  })
 
-    expect(
-      loadPanelText({
-        requested: 'upper',
-        position: 'steady',
-        held: 'rest-window',
-        ageCapped: false,
-      }).reason,
-    ).toEqual([
-      'The plan was set to Upper band.',
-      'The steady step applies for now: a rest window is active.',
-    ])
-    expect(
-      loadPanelText({ requested: 'upper', position: 'standard', held: null, ageCapped: true })
-        .reason,
-    ).toEqual([
-      'The plan was set to Upper band.',
-      'The setting is held at Standard: age 45 or over.',
-    ])
+  it('leads with the choice and the reason in one sentence when the position is held', () => {
+    const held = loadPanelText({
+      requested: 'upper',
+      position: 'steady',
+      held: 'rest-window',
+      ageCapped: false,
+    })
+    // the position in effect keeps its name and hint; the lead names the choice
+    expect(held.name).toBe('Steady')
+    expect(held.hint).toEqual(loadHintLines('steady'))
+    expect(held.lead).toEqual({
+      choice: 'Upper band',
+      rest: ', held at the steady step for now: a rest window is active.',
+    })
+  })
+
+  it('leads with the choice and the age when Upper band is read as Standard', () => {
+    const capped = loadPanelText({
+      requested: 'upper',
+      position: 'standard',
+      held: null,
+      ageCapped: true,
+    })
+    expect(capped.name).toBe('Standard')
+    expect(capped.hint).toEqual(loadHintLines('standard'))
+    expect(capped.lead).toEqual({
+      choice: 'Upper band',
+      rest: ', read as Standard: age 45 or over.',
+    })
+  })
+
+  it('begins every lead with the choice, in one clean sentence within the length of a template', () => {
+    for (const requested of ['standard', 'upper'] as const) {
+      for (const hold of HOLDS) {
+        const lead = loadPanelText({
+          requested,
+          position: 'steady',
+          held: hold,
+          ageCapped: false,
+        }).lead!
+        const sentence = lead.choice + lead.rest
+        expect(lead.choice, hold).toBe(loadName(requested))
+        expect(sentence, hold).toBe(
+          `${loadName(requested)}, held at the steady step for now: ${loadHoldReason(hold)}.`,
+        )
+        expect(lintText(sentence), hold).toEqual([])
+        expect(sentence.length, hold).toBeLessThanOrEqual(COPY_MAX_CHARS)
+      }
+    }
+    const capped = loadPanelText({
+      requested: 'upper',
+      position: 'standard',
+      held: null,
+      ageCapped: true,
+    }).lead!
+    expect(lintText(capped.choice + capped.rest)).toEqual([])
   })
 })

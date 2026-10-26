@@ -63,7 +63,7 @@ export const EXPLAIN_TEMPLATES = {
 
   // g-8: the history-informed rebuild [rules g-8, proposal 4.6]. The block and the gap name the
   // count of weeks from the Param ("Four steady weeks") in a text slot, and the held and capped
-  // lines say what `load.held` and `load.capped` say on the Plan page.
+  // lines say what `load.held` and `load.capped` say in the summary of a revision.
   // The figure is the block's score: the mean of its weeks without the highest, which is not the
   // mean of all four (`HistoryBlock.blockMin`).
   'explain.g8-block': tpl(

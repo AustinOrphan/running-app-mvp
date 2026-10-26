@@ -198,7 +198,7 @@ can arm only from the days before the plan. It reads the engine's intent, not th
 skipped session must be excluded, and then it is the logged count again), and the cohort measured
 runs done.
 
-**4. Narrower effect: keep the cycle, drop the hold.** Delete the `low-frequency` line of `holdOf`.
+**4. Narrower effect: keep the cycle, drop the hold.** Done in #579 (decided 2026-10-25). Delete the `low-frequency` line of `holdOf`.
 Params: none; g-8, the zone paragraph, ADR 0013 and proposal 4.3 are amended. At Steady no change
 by construction (`holdOf` runs only when a position other than steady is requested): 0 of 142.
 (a): the re-plan plans 770 instead of 719 (1,081 unflagged), recovering 14% of the 8-week gap and
@@ -291,7 +291,7 @@ outside the repository) on the commit before the change, then after: 39 weeks, 2
 15 checklist failures, sessions identical apart from `externalId` (steady byte for byte). Rerun the
 53-Monday replay and quote counts only.
 
-If question 2 is answered "drop the hold": one S task in `holdOf`, `LoadHold`,
+If question 2 is answered "drop the hold" (done in #579): one S task in `holdOf`, `LoadHold`,
 `load.hold.low-frequency` (`copyLoad.test.ts`), g-8, ADR 0013 "Amended", the H10 cases in
 `start-paths.test.ts` and `history-rebuild.test.ts`; no new steady baseline. If hysteresis is
 chosen: an M task (two Params, a replayed reading in `athlete.ts`, a research-update, and a new

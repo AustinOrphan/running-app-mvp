@@ -91,7 +91,7 @@ test('choose Standard on the form, see it on the Plan page, and keep it through 
 
   // The Plan page shows the position in effect, with no reason, and the plan starts higher.
   await expect(panel.getByText('Standard', { exact: true })).toBeVisible()
-  await expect(panel.getByText(/was set to|applies for now|is held at/)).toHaveCount(0)
+  await expect(panel.getByText(/held at the steady step|read as Standard/)).toHaveCount(0)
   const standard = (await api.get('/plan')) as PlanWithSessions
   expect(standard.id).not.toBe(steady.id)
   expect(standard.load).toEqual({
@@ -139,7 +139,9 @@ test('choose Standard on the form, see it on the Plan page, and keep it through 
   await expect(change).toBeHidden()
 
   // The panel names Steady, the weeks ahead follow it, and "What changed" lists the revision.
-  await expect(toast(page, 'Load setting changed')).toBeVisible()
+  await expect(
+    toast(page, 'Load setting changed to Steady: weeks ahead add up to 10% a week.'),
+  ).toBeVisible()
   await expect(panel.getByText('Steady', { exact: true })).toBeVisible()
   const lowered = (await api.get('/plan')) as PlanWithSessions
   expect(lowered.id).toBe(standard.id)
