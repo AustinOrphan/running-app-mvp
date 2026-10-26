@@ -34,7 +34,6 @@ import {
   ladderRung,
   rungSessions,
   sessionMin,
-  startKind,
   startSessionMinMin,
   startWeek,
 } from './startWeeks.ts'
@@ -100,8 +99,9 @@ interface Slot {
    */
   availMin: number
   /**
-   * A window, a post-race return step or a start-path programme already limits the day or its week,
-   * so every part of `capMin` still bounds the room of any session there [rules H12, J9, E6].
+   * A window already limits the day or its week (a rest or limited window rules the day, a post-race
+   * return step covers it, or a window touched the week), so every part of `capMin` still bounds the
+   * room of any session there [rules H12, J9].
    */
   bound: boolean
   /** The most an ordinary run holds on a post-race return day; the longest run may take `capMin` [H12]. */
@@ -860,8 +860,8 @@ function strengthMinutes(week: WeekDraft): number {
 
 /**
  * The minutes a session that is not a run can take on a day: the runner's availability, and on a
- * day that a window, a post-race step or a start-path programme limits, every part of `capMin` as
- * before. The spike guard's 30-day reference limits a run, not the time in the gym [rules F4, F7].
+ * day that a window or a post-race step limits, every part of `capMin` as before. The spike guard's
+ * 30-day reference limits a run, not the time in the gym [rules F4, F7].
  */
 const roomMin = (slot: Slot): number => (slot.bound ? slot.capMin : slot.availMin)
 
@@ -917,7 +917,7 @@ function slotsOf(week: WeekDraft, profile: AthleteProfile, caps: RunCaps[]): Slo
       date: addDays(week.weekStart, day),
       open,
       availMin,
-      bound: startKind(week.flags) !== null || isDisruptedWeek(week.flags),
+      bound: isDisruptedWeek(week.flags),
       capMin: Math.min(availMin, caps[day]!.min),
     }
   })

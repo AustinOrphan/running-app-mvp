@@ -599,14 +599,22 @@ describe('placeWeek', () => {
         }
       })
 
-      it('still holds every part on a day a window rules, in a start-path week and in a week a window touched', () => {
+      it('still holds every part on a day a window rules and in a week a window touched', () => {
         expect(lifts(['strength-block'], { dayRules: everyDay() })).toHaveLength(0)
         expect(lifts([], { dayRules: everyDay() })).toHaveLength(0)
-        expect(lifts(['strength-block', 'ladder-4'])).toHaveLength(0)
-        expect(lifts(['restart-floor'])).toHaveLength(0)
-        expect(lifts(['injury-return', 'injury-level-1'])).toHaveLength(0)
         expect(lifts(['strength-block', 'disrupted'])).toHaveLength(0)
         expect(lifts(['disruption-return'])).toHaveLength(0)
+      })
+
+      it('sizes the gym time of a start-path week by availability like any other week [spec 8.2, return]', () => {
+        for (const flags of [
+          ['strength-block', 'ladder-4'],
+          ['ladder-4'],
+          ['restart-floor'],
+          ['injury-return', 'injury-level-1'],
+        ]) {
+          expect(lifts(flags), flags.join()).toHaveLength(2)
+        }
       })
 
       it('puts no lift on a day a window holds or caps below the budget', () => {

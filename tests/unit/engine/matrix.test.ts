@@ -763,12 +763,11 @@ describe.each(all)('plan matrix with a rest window: $label', (a) => {
 // and is placed after the runs, so it changes no run, no week's running minutes and nothing else in
 // the plan [rules F7, F4, E5]. A lift never displaces a run: a week with no day for it holds fewer
 // lifts and never fewer runs. The room of a lift on a day is the runner's availability; the 30-day
-// reference of G-1 limits a run and not the gym time, except on a day or in a week that a window, a
-// post-race step or a start-path programme already limits. The weeks that hold fewer than planned
-// are listed, by athlete: the first weeks of `post-marathon-short-run` and the restart-floor week of
-// `sparse-100-mile` are start-path weeks, where the reference still bounds the room, and `masters`
-// (five open days) holds one lift in the weeks whose hard days, long run and the day before it
-// leave a single legal day.
+// reference of G-1 limits a run and not the gym time, except on a day or in a week that a window or a
+// post-race step already limits. A start-path week (ladder, injury-return, restart floor) takes its
+// lifts like any other [design 8.2, return]. The weeks that hold fewer than planned are listed, by
+// athlete: `masters` (five open days) holds one lift in the weeks whose hard days, long run and the
+// day before it leave a single legal day.
 const SHORT_LIFT_WEEKS: Record<string, string[]> = {
   masters: [
     '2026-10-19: 1 of 2',
@@ -778,13 +777,6 @@ const SHORT_LIFT_WEEKS: Record<string, string[]> = {
     '2026-11-23: 1 of 2',
     '2026-11-30: 1 of 2',
     '2026-12-07: 1 of 2',
-  ],
-  'sparse-100-mile': ['2026-10-19: 0 of 2'],
-  'post-marathon-short-run': [
-    '2026-10-19: 0 of 1',
-    '2026-10-26: 0 of 1',
-    '2026-11-02: 0 of 1',
-    '2026-11-09: 0 of 1',
   ],
 }
 
