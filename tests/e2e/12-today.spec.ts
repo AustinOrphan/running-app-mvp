@@ -402,6 +402,9 @@ test('with the connection gone and the offline note on the page Done keeps both 
 test('at 1280 x 800 Today stands in two columns, the session first and the week beside it', async () => {
   try {
     await page.setViewportSize({ width: 1280, height: 800 })
+    // The page takes the two columns when the 900 px media query reports the change, a frame after
+    // the window has grown, so a measurement made at once can still see the one-column page.
+    await expect(page.locator('[data-layout="two"]')).toBeVisible()
     const card = page.getByRole('article', { name: planned.title })
     const strip = page.getByRole('region', { name: 'This week' })
     await expect(card).toBeVisible()
