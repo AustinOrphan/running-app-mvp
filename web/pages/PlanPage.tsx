@@ -57,12 +57,14 @@ import {
   loadPanelTitle,
   loadTradeoff,
 } from '../../shared/copy/load.ts'
+import { overshootNote, plannedBaselineLine } from '../../shared/copy/overshoot.ts'
 import { newMarker } from '../../shared/copy/revisionView.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { fileRefusalSentence, weekLinkLabel } from '../../shared/copy/workouts.ts'
 import { distanceClassOf } from '../../shared/engine/goal.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
+import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import { groupWarnings, localiseEngineText } from '../components/engineText.ts'
 import type { LoadPosition } from '../../shared/engine/loadSetting.ts'
@@ -287,7 +289,11 @@ function EditWeekSheet({ week, onClose }: { week: PlanWeek; onClose: () => void 
   const toast = useToast()
   const update = useUpdatePlanWeek()
   const label = formatShortDate(week.weekStart)
-  const [target, setTarget] = useState(String(week.targetRunMin))
+  // A week run past its plan is edited at the planned figure: the stored target is the minutes run.
+  const shownTarget = shownTargetMin(week)
+  // The figure the week is reset to, as the sheet words it: the planned minutes of such a week.
+  const baselineShown = week.overshoot ? week.plannedRunMin : week.baselineRunMin
+  const [target, setTarget] = useState(String(shownTarget))
   const [longRun, setLongRun] = useState(String(week.longRunMin))
   const [day2, setDay2] = useState(week.day2Min === null ? '' : String(week.day2Min))
   const [runDays, setRunDays] = useState(String(week.runDays))
@@ -332,10 +338,10 @@ function EditWeekSheet({ week, onClose }: { week: PlanWeek; onClose: () => void 
     if (strengthCount === null) local.strengthSessions = 'Enter a number from 0 to 7.'
 
     const trimmedNote = note.trim()
-    const targetChanged = targetMin !== week.targetRunMin
+    const targetChanged = targetMin !== shownTarget
     const needsNote =
       targetMin !== null &&
-      targetMin !== week.baselineRunMin &&
+      targetMin !== baselineShown &&
       (targetChanged || week.targetSource === 'override')
     if (needsNote && trimmedNote === '') local.overrideNote = 'Add a note explaining the change'
     setErrors(local)
@@ -348,10 +354,10 @@ function EditWeekSheet({ week, onClose }: { week: PlanWeek; onClose: () => void 
     // The server accepts a note on its own only for an override; a note on a review-sourced target
     // turns that target into an override, so the target goes with it.
     const pinsTarget = week.targetSource !== 'override' && trimmedNote !== ''
-    if (targetChanged || (targetMin !== week.baselineRunMin && noteChanged && pinsTarget)) {
+    if (targetChanged || (targetMin !== baselineShown && noteChanged && pinsTarget)) {
       patch.targetRunMin = targetMin
     }
-    if (targetMin !== week.baselineRunMin && (targetChanged || noteChanged)) {
+    if (targetMin !== baselineShown && (targetChanged || noteChanged)) {
       patch.overrideNote = trimmedNote
     }
     if (longRunMin !== week.longRunMin) patch.longRunMin = longRunMin
@@ -391,7 +397,9 @@ function EditWeekSheet({ week, onClose }: { week: PlanWeek; onClose: () => void 
     >
       <form id={formId} className={styles.form} onSubmit={submit} noValidate>
         <p className={styles.baseline}>
-          Generated baseline: {minutesToHours1(week.baselineRunMin)} h ({week.baselineRunMin} min)
+          {week.overshoot
+            ? plannedBaselineLine(week.plannedRunMin)
+            : `Generated baseline: ${minutesToHours1(week.baselineRunMin)} h (${String(week.baselineRunMin)} min)`}
         </p>
         <Field label="Target (minutes)" error={errors.targetRunMin}>
           {(a) => (
@@ -500,7 +508,9 @@ function EditWeekSheet({ week, onClose }: { week: PlanWeek; onClose: () => void 
 
 /**
  * The target for a week, with how it got there: struck baseline and the note, or "from review".
- * Under it, the distance of the week's runs as the server estimated it, when it could.
+ * Under it, the distance of the week's runs as the server estimated it, when it could. A week run
+ * past its plan shows the planned figure; the stored target is the minutes run, and a struck
+ * baseline would be that figure again.
  */
 function TargetCell({ week, units }: { week: PlanWeekView; units: Units | undefined }) {
   const noteId = useId()
@@ -510,8 +520,10 @@ function TargetCell({ week, units }: { week: PlanWeekView; units: Units | undefi
 
   return (
     <>
-      {edited ? <s className={styles.baselineValue}>{hours(week.baselineRunMin)}</s> : null}{' '}
-      <span className={styles.targetValue}>{hours(week.targetRunMin)}</span>
+      {edited && !week.overshoot ? (
+        <s className={styles.baselineValue}>{hours(week.baselineRunMin)}</s>
+      ) : null}{' '}
+      <span className={styles.targetValue}>{hours(shownTargetMin(week))}</span>
       {edited ? (
         <>
           {' '}
@@ -549,6 +561,16 @@ function TargetCell({ week, units }: { week: PlanWeekView; units: Units | undefi
         <span className={styles.source}>{estimateAboutText(estimateM, units)}</span>
       ) : null}
     </>
+  )
+}
+
+/** Beside the minutes run of a week run past its plan: how far they lie over the planned figure. */
+function OvershootNote({ ranMin, plannedMin }: { ranMin: number; plannedMin: number }) {
+  const note = overshootNote(ranMin, plannedMin)
+  return note === null ? null : (
+    <span className={styles.source} data-note="overshoot">
+      {note}
+    </span>
   )
 }
 
@@ -993,6 +1015,9 @@ function PlanTable({
                   </td>
                   <td className={styles.actual} data-cell="actual">
                     {runMin === undefined ? '' : hours(runMin)}
+                    {week.overshoot && runMin !== undefined ? (
+                      <OvershootNote ranMin={runMin} plannedMin={week.plannedRunMin} />
+                    ) : null}
                   </td>
                   <td className={styles.summary}>
                     Long run {longRunText(week.longRunMin)}, {week.runDays} run days, strength{' '}
