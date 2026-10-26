@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addDays, daysBetween } from '../../../shared/dates.ts'
+import type { DayRule } from '../../../shared/engine/disruption.ts'
 import type { SessionKind, SessionSpec, WeekDraft } from '../../../shared/engine/types.ts'
 import { holdSessions, placeWeek } from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -558,6 +559,66 @@ describe('placeWeek', () => {
       expect(other?.date).toBe(addDays('2026-11-02', 4))
       expect(other?.durationMin).toBe(P.f7.maintenanceSessionMin.value)
       expect(run(['strength-block']).some((s) => s.kind === 'strength')).toBe(false)
+    })
+
+    describe('the room of a session on a day [rules F4, F7, G-1]', () => {
+      // one 20-minute run in the last 30 days: the spike guard caps a run at 22 minutes on any day,
+      // under both budgets, while the days themselves have no limit
+      const reference = {
+        runs: [{ date: '2026-10-25', min: 20, distanceM: null, gainM: null, lossM: null }],
+        virtualTwoDay: [],
+      }
+      const noRuns = { targetRunMin: 0, longRunMin: 0, runDays: 0, qualitySessions: 0 }
+      const lifts = (
+        flags: string[],
+        extra: Partial<Parameters<typeof placeWeek>[1]> = {},
+      ): SessionSpec[] =>
+        placeWeek(week({ ...noRuns, strengthSessions: 2, flags }), {
+          profile: profile(),
+          zones: ZONES,
+          state: state(),
+          prevSessions: [],
+          limits: reference,
+          ...extra,
+        }).filter((s) => s.kind === 'strength')
+      const everyDay = (over: Partial<DayRule> = {}): DayRule[] =>
+        [0, 1, 2, 3, 4, 5, 6].map((i) => ({
+          date: addDays('2026-11-02', i),
+          held: false,
+          gate: false,
+          maxRunMin: null,
+          quality: false,
+          reason: 'niggle',
+          windowIds: [],
+          ...over,
+        }))
+
+      it('is the availability of the day: the reference of a run does not size the gym time', () => {
+        for (const flags of [['strength-block'], []]) {
+          expect(lifts(flags), flags.join()).toHaveLength(2)
+        }
+      })
+
+      it('still holds every part on a day a window rules, in a start-path week and in a week a window touched', () => {
+        expect(lifts(['strength-block'], { dayRules: everyDay() })).toHaveLength(0)
+        expect(lifts([], { dayRules: everyDay() })).toHaveLength(0)
+        expect(lifts(['strength-block', 'ladder-4'])).toHaveLength(0)
+        expect(lifts(['restart-floor'])).toHaveLength(0)
+        expect(lifts(['injury-return', 'injury-level-1'])).toHaveLength(0)
+        expect(lifts(['strength-block', 'disrupted'])).toHaveLength(0)
+        expect(lifts(['disruption-return'])).toHaveLength(0)
+      })
+
+      it('puts no lift on a day a window holds or caps below the budget', () => {
+        const held = everyDay({ held: true, maxRunMin: 0 })
+        expect(lifts([], { dayRules: held, limits: undefined })).toHaveLength(0)
+        const capped = everyDay({ maxRunMin: 20 })
+        expect(lifts([], { dayRules: capped, limits: undefined })).toHaveLength(0)
+        // a cap that leaves the room of a maintenance session holds one
+        const roomy = everyDay({ maxRunMin: 30 })
+        expect(lifts([], { dayRules: roomy, limits: undefined })).toHaveLength(2)
+        expect(lifts(['strength-block'], { dayRules: roomy, limits: undefined })).toHaveLength(0)
+      })
     })
 
     it('can place strength in a week without runs', () => {

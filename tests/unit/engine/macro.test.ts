@@ -900,6 +900,56 @@ describe('macroPlan: fixed blocks', () => {
       expect(later.some((w) => w.flags.includes('strength-block'))).toBe(false)
     })
 
+    describe('a stored plan that the first engine made', () => {
+      // stored plans made when every re-plan flagged its own week as the first of a block
+      const g = goal('ultra100mi', 60)
+      const flagWeeks = (weeks: WeekDraft[], on: (index: number) => boolean) =>
+        weeks.map((w) => ({
+          ...w,
+          flags: [
+            ...w.flags.filter((f) => f !== 'strength-block'),
+            ...(on(w.index) ? ['strength-block'] : []),
+          ],
+        }))
+      const replanAt = (weeks: WeekDraft[], at: number) =>
+        macroPlan(
+          { ...input(g), today: addDays(TODAY, 7 * at), existing: { weeks, sessions: [] } },
+          state(),
+          g,
+          FEASIBLE,
+        )
+
+      it('counts the run of weeks that ends the week before, not every flagged week', () => {
+        // a stray flag on the first week, a gap, then 4 weeks of a block that is under way
+        const weeks = flagWeeks(plan(g), (i) => i === 0 || (i >= 4 && i <= 7))
+        const out = replanAt(weeks, 8)
+        expect(blockWeeks(out)).toHaveLength(P.e5.strengthBlockWeeks.value - 4)
+        expect(blockWeeks(out).map((w) => w.index)).toEqual(blockWeeks(out).map((_, i) => i))
+      })
+
+      it('ends a block at its first re-plan when the run is already e5.strengthBlockWeeks weeks or more', () => {
+        const weeks = flagWeeks(plan(g), (i) => i < 15)
+        expect(blockWeeks(replanAt(weeks, 15))).toEqual([])
+        expect(
+          blockWeeks(
+            replanAt(
+              flagWeeks(plan(g), (i) => i < 12),
+              12,
+            ),
+          ),
+        ).toEqual([])
+      })
+
+      it('starts no block after one that ended, whatever the weeks that remain', () => {
+        // the run ended 10 weeks ago and 8 or more non-specific weeks remain
+        const weeks = flagWeeks(plan(g), (i) => i < 3)
+        const out = replanAt(weeks, 13)
+        const nonSpecific = out.filter((w) => w.phase === 'base' || w.phase === 'build').length
+        expect(nonSpecific).toBeGreaterThanOrEqual(P.e5.strengthBlockMinWeeks.value)
+        expect(blockWeeks(out)).toEqual([])
+      })
+    })
+
     it('starts a new block when a plan is regenerated, whatever the weeks before', () => {
       // the probe of the design (section 1.2): plans built from scratch with `today` moved on
       const g = goal('ultra100mi', 36)
