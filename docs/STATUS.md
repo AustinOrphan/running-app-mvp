@@ -1397,7 +1397,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     cuts that week below the floor (29 and 33 weeks under); the weeks after it sit between one and
     two 20-minute runs or under a G-1 cap. The hold cap on a floor week is the candidate; the
     cause is not yet traced to a line.
-27. Done in #NNN. A change of recovery cycle between two re-plans (the A5 low-frequency flag
+27. Done in #570. A change of recovery cycle between two re-plans (the A5 low-frequency flag
     arming or ending, 2:1 and 3:1) dropped the recovery week the replaced plan stored on the first
     Monday: the count of `planPhases` missed it, the week became a loading week drawn a step above
     the loading sequence with the recovery week's sessions (G-6), `keepCadenceAcrossReplan` forced
