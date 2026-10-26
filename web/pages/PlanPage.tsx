@@ -675,11 +675,13 @@ function WhatChanged({
 }
 
 /**
- * The load setting in effect, from the plan payload: the position that applies today with its hint
- * and the trade-off of the choice (the effect of a faster step on a return is not known), and,
- * when the position the plan was set to does not apply, which one it was set to and why. The Why
- * drawer states facts of the plan; the trade-off belongs here and on the Generate form, where the
- * position is chosen and read.
+ * The load setting in effect, from the plan payload. A position that applies as chosen leads with
+ * its name and hint. One that does not apply (held at steady, or read as Standard because of age)
+ * leads with the choice and the reason in one line, then the hint of the position in effect, so a
+ * runner who has just chosen it reads at once that it is not in use. The trade-off of the choice
+ * (the effect of a faster step on a return is not known) comes last. The Why drawer states facts
+ * of the plan; the trade-off belongs here and on the Generate form, where the position is chosen
+ * and read.
  */
 function LoadPanel({ load }: { load: LoadPosition }) {
   const text = loadPanelText(load)
@@ -700,11 +702,20 @@ function LoadPanel({ load }: { load: LoadPosition }) {
           {loadChangeLabel()}
         </Button>
       </div>
-      <p className={styles.setting}>
-        <strong>{text.name}</strong> <span className={styles.muted}>{text.hint.join(' ')}</span>
-      </p>
+      {text.lead === null ? (
+        <p className={styles.setting}>
+          <strong>{text.name}</strong> <span className={styles.muted}>{text.hint.join(' ')}</span>
+        </p>
+      ) : (
+        <>
+          <p className={styles.setting}>
+            <strong>{text.lead.choice}</strong>
+            {text.lead.rest}
+          </p>
+          <p className={styles.muted}>{text.hint.join(' ')}</p>
+        </>
+      )}
       <p className={styles.muted}>{loadTradeoff()}</p>
-      {text.reason.length > 0 ? <p className={styles.muted}>{text.reason.join(' ')}</p> : null}
       {changing ? (
         <LoadSettingSheet
           current={load.requested}

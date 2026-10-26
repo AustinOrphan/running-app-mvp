@@ -27,7 +27,7 @@ export interface LoadSettingSheetProps {
  * Changes the load setting of the plan: the Generate form's choice of a position, and "Apply",
  * which sends it in one request. The server draws the weeks ahead again with the position as one
  * revision that can be undone, so Apply stays off while the choice is the position the plan is set
- * to, and nothing is sent for it.
+ * to, and nothing is sent for it. The toast after Apply is the summary sentence of that revision.
  */
 export function LoadSettingSheet({ current, onClose }: LoadSettingSheetProps) {
   const toast = useToast()
@@ -41,8 +41,10 @@ export function LoadSettingSheet({ current, onClose }: LoadSettingSheetProps) {
     if (chosen === current) return
     setFailure(null)
     change.mutate(chosen, {
-      onSuccess: () => {
-        toast.show(loadSavedToast())
+      onSuccess: ({ revision }) => {
+        // the revision's own summary states what the plan does now, a held position and its reason
+        // included; a plan that already held the position wrote no revision
+        toast.show(revision?.summary ?? loadSavedToast())
         onClose()
       },
       onError: (error) => {

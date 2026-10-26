@@ -8,6 +8,8 @@ import { COPY_MAX_CHARS, EXPLAIN_MAX_SOURCES } from '../../../shared/copy/limits
 import { EXPLAIN_TEMPLATES } from '../../../shared/copy/explainTemplates.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
 import {
+  loadCappedLine,
+  loadHeldLine,
   loadHoldReason,
   loadName,
   loadPanelText,
@@ -1061,8 +1063,9 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
         const facts = g8(input)
         expect(ids(facts)).toEqual(['g-8.block', 'g-8.setting', 'g-8.held', 'g-8.limits'])
         expect(text(facts[1]!)).toBe(setting(loadName(position)))
-        // the reason is the one the Plan page gives
-        expect(text(facts[2]!)).toBe(loadPanelText(load).reason[1])
+        // the reason is the one the Plan page gives, and the drawer's line is the revision's line
+        expect(loadPanelText(load).lead!.rest).toContain(loadHoldReason(hold))
+        expect(text(facts[2]!)).toBe(loadHeldLine(hold))
         expect(text(facts[2]!)).toBe(`The steady step applies for now: ${loadHoldReason(hold)}.`)
       }
     })
@@ -1164,7 +1167,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
       const withPlan = factsOf('g-8', contextOf(neutral, { planInput: own }))
       expect(ids(withPlan)).not.toContain('g-8.held')
       expect(ids(withPlan)).toContain('g-8.zone')
-      expect(loadPanelText(loadPosition(own, state)).reason).toEqual([])
+      expect(loadPanelText(loadPosition(own, state)).lead).toBeNull()
     })
   })
 
@@ -1179,7 +1182,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
       zoneSentence(P.g8.creditStandard.value * 280, P.g8.stepStandard.value),
     )
     expect(text(facts[2]!)).toBe(setting('Upper band'))
-    expect(text(facts[3]!)).toBe(loadPanelText(load).reason[1])
+    expect(text(facts[3]!)).toBe(loadCappedLine())
     expect(text(facts[3]!)).toBe(
       `The setting is held at Standard: age ${String(P.a9.noviceFlagAgeMin.value)} or over.`,
     )
