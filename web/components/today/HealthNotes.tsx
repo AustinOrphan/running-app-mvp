@@ -6,9 +6,10 @@ import { ExplainButton } from '../ExplainButton.tsx'
 import styles from './HealthNotes.module.css'
 
 /**
- * The red-flag notes of the readiness read, each with its rules behind a Why, then the notes that
- * registered producers add (sync paused, a weekly update that did not run), each linking to where
- * it can be put right. A note states a fact; none of them is an alarm.
+ * The red-flag notes of the readiness read, each with its rules behind an info icon at the right
+ * end of its line (named "Why", as the button was), then the notes that registered producers add
+ * (sync paused, a weekly update that did not run), each linking to where it can be put right. A
+ * note states a fact; none of them is an alarm.
  */
 export function HealthNotes({
   flags,
@@ -26,7 +27,12 @@ export function HealthNotes({
         {flags.map((flag) => (
           <li key={flag.code} className={styles.note}>
             <p className={styles.noteText}>{flag.message}</p>
-            <ExplainButton subject="this note" rules={flag.rules} explain={rulesRef(flag.rules)} />
+            <ExplainButton
+              subject="this note"
+              rules={flag.rules}
+              explain={rulesRef(flag.rules)}
+              icon
+            />
           </li>
         ))}
         {notes.map((note) => {

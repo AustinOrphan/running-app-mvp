@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { isOpen } from '../../shared/domain/windowDay.ts'
 import type { ReadinessVerdict, TodayCoach } from '../../shared/types.ts'
 import { useSettings } from '../api/settings.ts'
 import { checkinUrl } from '../api/checkins.ts'
@@ -147,6 +148,7 @@ export function DashboardPage() {
                   boneActive={view.readiness.redFlags.some(
                     (flag) => flag.code === 'focal-bone-pain',
                   )}
+                  windowOpen={coach.disruptions.some(isOpen)}
                   units={units}
                   onAnswered={() => {
                     verdict.current?.focus()

@@ -204,16 +204,27 @@
   gap: var(--space-1);
 }
 
-/* In Today's `disruption` slot (64 px at 360 px, `web/components/today/slots.ts`) the banner is one
-   box with no margin of its own: the sentence in two lines, then the buttons in one row. The rows
-   add up to the budget at the default text size: two lines of 18 px, a row of 26 px and 1 px above
-   and below, and `tests/e2e/14-disruptions.spec.ts` holds every phase's sentence to them. The
-   buttons are small because every one opens a preview before anything changes.
+/* In Today's `disruption` slot (`web/components/today/slots.ts`) the band is one box per window with
+   no margin of its own: the sentence in up to two lines of 18 px, then the buttons in one row. Every
+   button is a 44 px touch target (the first version had 26 px boxes: each button changes the plan
+   once its preview is applied, and the runner taps them on a phone). The box is 44 px tall and 8 px
+   wider each side than its words, which are 15 px quiet text, with no gap between boxes: the Plan
+   page's 16 px side padding would not fit "Finish early", "Extend" and "Remove window", the widest
+   row, in the 328 px column (302 of 309 px), and at a larger text size the row wraps instead.
 
-   Nothing is clipped. The box is a minimum height, the sentence takes the lines it needs and the
-   buttons wrap onto a second row, so a raised text size (rem scales, the 360 px viewport does not)
-   or a narrower screen makes the box taller where a fixed one would cut off a button that edits the
-   plan. The focus ring is drawn inside the button to keep it off the sentence above. */
+   The row takes 28 px of the band, not 44: the first screen is measured (the fold tests in
+   `tests/e2e/12-today.spec.ts`), and a 44 px row would take 16 px from Done at 360 x 740. The
+   margins of the row pull the 44 px boxes 6 px up, into the line height under the sentence, and 10
+   px down, into the gap under the band; neither holds anything to tap. The band is the budget at
+   the default text size: two lines of 18 px and the row of 28 px, 64 px in all, and
+   `tests/e2e/14-disruptions.spec.ts` holds every phase's sentence to its two lines and every button
+   to 44 px. Windows that overlap are listed one under the other, 12 px apart, so the 10 px under
+   one band does not reach the sentence of the next.
+
+   Nothing is clipped. The sentence takes the lines it needs and the buttons wrap onto a second row,
+   so a raised text size (rem scales, the 360 px viewport does not) or a narrower screen makes the
+   box taller where a fixed one would cut off a button that edits the plan. The focus ring is drawn
+   inside the button, around the 44 px box. */
 .compact {
   display: flex;
   flex-direction: column;
@@ -222,9 +233,15 @@
   justify-content: space-between;
   gap: 0;
   box-sizing: border-box;
-  min-height: 4rem;
   margin-bottom: 0;
-  padding: 1px var(--space-3);
+  padding: 0 var(--space-3);
+  /* Above what follows, so the 2 px of a button's box that reach into the verdict are the button's. */
+  position: relative;
+  z-index: 1;
+}
+
+.compact + .compact {
+  margin-top: var(--space-3);
 }
 
 .compact .bannerLine {
@@ -236,14 +253,15 @@
 .compact .bannerActions {
   flex: none;
   flex-wrap: wrap;
-  gap: var(--space-1);
+  gap: 0;
+  /* Up 6 px and down 10 px; the first button's words line up with the sentence above them. */
+  margin: -0.375rem 0 -0.625rem calc(var(--space-2) * -1);
 }
 
 .compact .compactAction {
-  min-height: 1.625rem;
-  height: 1.625rem;
+  min-height: 2.75rem;
   padding: 0 var(--space-2);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   white-space: nowrap;
 }
 

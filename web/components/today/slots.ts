@@ -5,7 +5,7 @@
  *
  * | slot         | content                                 | owner | budget |
  * | ------------ | --------------------------------------- | ----- | ------ |
- * | `disruption` | disruption banner or rest-window prompt | E5    | 64 px  |
+ * | `disruption` | disruption band or rest-window prompt   | E5    | 64 px  |
  * | `fuel`       | fuel target line, beside the targets    | E6    | 26 px  |
  * | `watch`      | wrist line, under the session actions   | E1    | 24 px  |
  * | `brief`      | weekly brief line                       | E4    | 52 px  |
@@ -20,7 +20,11 @@
  * (`BriefLine` clamps its text to two lines inside one link); it never grows the box. The one
  * exception is the `disruption` banner at a raised text size: its buttons change the plan, so it
  * wraps them and grows instead of clipping one (`disruption.module.css`); at the default size it is
- * the 64 px. The budget is the height of the slot's own `<div data-slot data-budget-px>`; the space
+ * the 64 px. That is one window: the band lists every window open on the day, one line each, so a
+ * second window adds its own 64 px and a 12 px gap, and a day with two is taller than the budget by
+ * design (the fold tests measure one). The buttons of the band are 44 px touch targets whose boxes
+ * reach past the 28 px row they take, so the slot is no taller for them. The budget is the height
+ * of the slot's own `<div data-slot data-budget-px>`; the space
  * between a slot and its neighbours belongs to the page, so content carries no margin of its own.
  * The owning epic's e2e asserts that its real content fits its budget at 360 px.
  *
