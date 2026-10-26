@@ -1354,6 +1354,25 @@ things stand" gives counts and percentages without a weekly total or a date.
     session while 8.1 and 8.5 give a lighter week 40 minutes, and the Params follow 8.1 and 8.5.
     Next: wave 1, tasks E14-2 (weights, the catalogue, the load quantity and the copy) and E14-3
     (the anchored block, the session budgets and the rule ids in the engine).
+    Wave 1 done in #574 and #576 (2026-10-25): task E14-2 added the 25-exercise catalogue with its
+    ladders and the substitutes that reach the harder movements, weights in integer grams shown by
+    unit with the display grid, the `load` quantity, the strength templates and the benefit
+    sentence with its qualifiers. Task E14-3 anchored the block in the engine: the block is the
+    trailing run of flagged weeks (adjacent Mondays) of the stored plan, so a plan re-planned every
+    week holds 12 block weeks in all and a regenerate starts a new block; the budgets are 40 minutes
+    in a block week and 25 otherwise, `fplace.strengthSessionMin` is retired and `PARAMS_VERSION` is
+    2026-10-25.5; the room of a lift on a day is the runner's availability, with the days a window
+    or a post-race step limits still bound by every cap; a re-plan in mid-week counts the lifts the
+    week already holds; and the purpose of a strength session is one sentence that names the week of
+    the block or the maintenance and no dose. A four-lens review of the wave raised 15 findings: 8
+    confirmed and fixed, 7 refuted. The owner validation (today 2026-10-23, counts only) gives 39
+    weeks and 211 sessions, of which 44 are strength: the 12 block weeks hold 2 lifts of 40 minutes
+    (1 in the current, partial week) and the 21 maintenance weeks 1 lift of 25 minutes; the
+    oracle's 47 chain digests were regenerated for the block flag, the plans being otherwise as
+    before. Left for E14-6: the H10 explain builder (it should name the block week and cite H10 for
+    ultra goals only), and a block that is not continued across a post-race window
+    (`macroPlanDraft` passes no stored plan to the plan built after one). Next: wave 2, task E14-4
+    (the pure strength engine).
 19. Done in #567: the Today disruption presentation, from the owner's feedback of 2026-10-24 on
     Today with an illness window. (a) The band owns the window and the verdict names the day: while
     the illness windows hold the n-3 gate, the payload leaves out the illness note and the illness
