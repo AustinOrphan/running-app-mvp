@@ -5,7 +5,7 @@ Status: Accepted 2026-10-24 (#564)
 Amended 2026-10-25: the response to weeks run above plan has two bounds, an engine decision awaiting
 the owner's confirmation (see the amendment under Decision).
 
-Amended 2026-10-25 (#NNN): low running frequency no longer holds the load setting at Steady. The A5
+Amended 2026-10-25 (#579): low running frequency no longer holds the load setting at Steady. The A5
 flag keeps the 2:1 recovery cadence and the time-based step (low-frequency flag proposal, option 4).
 **Fact:** the hold kept the setting off on 30 of 53 Mondays of one replayed history (STATUS,
 follow-up 25). **Opinion:** the zone, the 3 × 30 lift and the response each ask for a block or

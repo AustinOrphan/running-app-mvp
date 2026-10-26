@@ -1409,7 +1409,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     a week. Case: "H3 inside a chain" of the replay fixtures; on the replayed real history it held
     the position at Steady on 30 of the 53 Mondays, which matters more to the setting's reach than
     the values of question 3. Baseline behaviour at Steady too. Option 4 of the proposal shipped in
-    #NNN (decided 2026-10-25): the flag keeps the 2:1 cadence and the time-based step and no longer
+    #579 (decided 2026-10-25): the flag keeps the 2:1 cadence and the time-based step and no longer
     holds the load setting. The rest of the proposal stays open.
 26. After a hold decision a re-plan can place sessions under 80% of target. Case: one replayed
     chain, 25 of 57 future weeks after one re-plan following a hold decision. Baseline behaviour at
