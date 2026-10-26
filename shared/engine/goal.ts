@@ -350,6 +350,19 @@ export function ultraLongRunTargetMin(
 }
 
 /**
+ * The weeks the plan holds up to the race [rule D4]: the Monday weeks from the one that contains
+ * `today` (the week in progress is week 1) through the one that contains the race, race week
+ * included. The generator opens on `mondayOf(today)` and ends with the race week (`planWeeks`,
+ * macro.ts), and `weeksNeeded` counts the same weeks, so the label and the plan agree. 0 when the
+ * race date is before `today`. The `+ 1` counts the race week as well as the Mondays between: it is
+ * arithmetic, not a tuned value.
+ */
+export function planWeeksAvailable(today: string, raceDate: string): number {
+  if (raceDate < today) return 0
+  return daysBetween(mondayOf(today), mondayOf(raceDate)) / DAYS_PER_WEEK + 1
+}
+
+/**
  * comfortable, tight or not reachable within default limits; never refuses [rules D3-D5].
  * D4: weeks needed = ceil(ln(Lt / L0) / ln(1.10)) x 4/3 (cutbacks) plus the taper, where L0 is the
  * 30-day longest run and Lt the target long run; the weekly floor of a time goal uses the same
@@ -360,6 +373,8 @@ export function ultraLongRunTargetMin(
  * injury-return programme adds its remaining weeks and counts its last session only after them, the
  * weekly floor grows from the start week, and the Lt of a half or marathon is the D3 floor or the
  * long run the planner schedules when that is shorter (`longRunFloor`).
+ * The weeks available are the plan's own Monday weeks, the current week through the race week
+ * (`planWeeksAvailable`), the same weeks `weeksNeeded` counts.
  * A label only: it changes no limit and no session.
  */
 export function feasibility(
@@ -369,7 +384,7 @@ export function feasibility(
   start?: StartPath | null,
 ): Feasibility {
   const notes: EngineWarning[] = []
-  const weeksAvailable = Math.max(0, Math.floor(daysBetween(today, goal.date) / DAYS_PER_WEEK))
+  const weeksAvailable = planWeeksAvailable(today, goal.date)
 
   // Target long run. Ultras count time on feet (H2); shorter goals count distance (D3). The pace
   // that turns the planner's minutes into distance is the training pace of the generator.
