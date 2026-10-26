@@ -124,4 +124,42 @@ test('choose Standard on the form, see it on the Plan page, and keep it through 
   expect(kept.id).toBe(standard.id)
   expect(kept.load).toEqual(standard.load)
   expect(kept.weeks[0]!.targetRunMin).toBeGreaterThan(steady.weeks[0]!.targetRunMin)
+
+  // Change the setting from the Plan page, without a new plan: the panel's Change action opens the
+  // form's field on the position the plan is set to, and Apply stays off until another is chosen.
+  await panel.getByRole('button', { name: 'Change' }).click()
+  const change = page.getByRole('dialog', { name: 'Change load setting' })
+  const field = change.getByRole('radiogroup', { name: 'Load' })
+  await expect(field.getByRole('radio')).toHaveText(['Steady', 'Standard', 'Upper band'])
+  await expect(field.getByRole('radio', { name: 'Standard' })).toBeChecked()
+  await expect(change.getByRole('button', { name: 'Apply' })).toBeDisabled()
+  await field.getByRole('radio', { name: 'Steady' }).click()
+  await expect(change.getByText("Adds up to 10% a week, the plan's usual step.")).toBeVisible()
+  await change.getByRole('button', { name: 'Apply' }).click()
+  await expect(change).toBeHidden()
+
+  // The panel names Steady, the weeks ahead follow it, and "What changed" lists the revision.
+  await expect(toast(page, 'Load setting changed')).toBeVisible()
+  await expect(panel.getByText('Steady', { exact: true })).toBeVisible()
+  const lowered = (await api.get('/plan')) as PlanWithSessions
+  expect(lowered.id).toBe(standard.id)
+  expect(lowered.load).toEqual(steady.load)
+  const targets = (plan: PlanWithSessions) => plan.weeks.map((week) => week.targetRunMin)
+  expect(targets(lowered)).not.toEqual(targets(kept))
+  const changed = page.getByRole('region', { name: 'What changed' })
+  await changed.getByText('What changed', { exact: true }).click()
+  const revision = changed
+    .locator('[data-revision]')
+    .filter({ hasText: 'Load setting changed to Steady: weeks ahead add up to 10% a week.' })
+  await expect(revision).toBeVisible()
+
+  // Undo puts the position and the weeks back.
+  await revision.getByRole('button', { name: 'Undo update' }).click()
+  const undo = page.getByRole('dialog', { name: 'Undo this update' })
+  await undo.getByRole('button', { name: 'Undo update' }).click()
+  await expect(undo).toBeHidden()
+  await expect(panel.getByText('Standard', { exact: true })).toBeVisible()
+  const restored = (await api.get('/plan')) as PlanWithSessions
+  expect(restored.load).toEqual(kept.load)
+  expect(targets(restored)).toEqual(targets(kept))
 })
