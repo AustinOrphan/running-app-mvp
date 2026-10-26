@@ -158,6 +158,10 @@ test('the Stats page does not scroll sideways at 360 px; wide tables scroll insi
 
   await page.goto('/stats')
   await expect(page.getByRole('heading', { name: 'Weekly history' })).toBeVisible()
+  // The charts are lazy chunks that draw after the tables, and a chart is 640 px wide for its first
+  // frame, before it measures its box. Measure with both in place, so a pass covers them.
+  await expect(page.getByRole('img', { name: 'Run hours per week, last 12 weeks' })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Run hours per month' })).toBeVisible()
   const pageOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   )
