@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { lintText } from '../../shared/copy/lint.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
-import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
 import { weeklyDecision } from '../../shared/engine/adapt.ts'
 import { explainInputs } from '../../shared/engine/explainInputs.ts'
 import { fitHrModel } from '../../shared/engine/execution.ts'
@@ -302,9 +302,11 @@ describe('GET /api/explain: the answer', () => {
     })
     expect(factsOf(view, 'n-7')[0]!.template).toBe('explain.n7-event')
     expect(factsOf(view, 'H12')[0]!.template).toBe('explain.h12-steps')
+    // E2 counts the whole weeks from today to the race; the outlook above counts the plan's Monday
+    // weeks, the week in progress and the race week included
     expect(slot(factsOf(view, 'E2')[1]!, 'weeks')).toEqual({
       kind: 'count',
-      n: plan.feasibility!.weeksAvailable,
+      n: Math.floor(daysBetween(today, goal.targetDate) / 7),
     })
   })
 
