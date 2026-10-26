@@ -34,22 +34,62 @@ describe('settings', () => {
     expect(res.status).toBe(401)
   })
 
-  test('GET returns email, displayName and units; PUT updates units and displayName', async () => {
+  test('GET returns email, displayName, units and weightUnit; PUT updates units and displayName', async () => {
     const before = await client(ctx, user).get('/api/settings')
     expect(before.status).toBe(200)
-    expect(before.body).toEqual({ email: 'runner@example.com', displayName: null, units: 'mi' })
+    expect(before.body).toEqual({
+      email: 'runner@example.com',
+      displayName: null,
+      units: 'mi',
+      weightUnit: 'lb',
+    })
 
     const put = await client(ctx, user)
       .put('/api/settings')
       .send({ units: 'km', displayName: '  Sam  ' })
     expect(put.status).toBe(200)
-    expect(put.body).toEqual({ email: 'runner@example.com', displayName: 'Sam', units: 'km' })
+    expect(put.body).toEqual({
+      email: 'runner@example.com',
+      displayName: 'Sam',
+      units: 'km',
+      weightUnit: 'lb',
+    })
 
     const after = await client(ctx, user).get('/api/settings')
     expect(after.body).toEqual(put.body)
 
     const partial = await client(ctx, user).put('/api/settings').send({ units: 'mi' })
-    expect(partial.body).toEqual({ email: 'runner@example.com', displayName: 'Sam', units: 'mi' })
+    expect(partial.body).toEqual({
+      email: 'runner@example.com',
+      displayName: 'Sam',
+      units: 'mi',
+      weightUnit: 'lb',
+    })
+  })
+
+  test('PUT saves the weight unit apart from the distance unit, and rejects any other value', async () => {
+    const kg = await client(ctx, user).put('/api/settings').send({ weightUnit: 'kg' })
+    expect(kg.status).toBe(200)
+    expect(kg.body).toMatchObject({ units: 'mi', weightUnit: 'kg' })
+    expect((await client(ctx, user).get('/api/settings')).body).toMatchObject({
+      units: 'mi',
+      weightUnit: 'kg',
+    })
+    // Changing the distance unit leaves the weight unit alone, and the other way round.
+    const km = await client(ctx, user).put('/api/settings').send({ units: 'km' })
+    expect(km.body).toMatchObject({ units: 'km', weightUnit: 'kg' })
+    const lb = await client(ctx, user).put('/api/settings').send({ weightUnit: 'lb' })
+    expect(lb.body).toMatchObject({ units: 'km', weightUnit: 'lb' })
+
+    const bad = await client(ctx, user).put('/api/settings').send({ weightUnit: 'stone' })
+    expect(bad.status).toBe(400)
+    expect(json(bad).error.code).toBe('validation')
+    expect(json(bad).error.details.issues[0]?.path).toBe('weightUnit')
+    expect((await client(ctx, user).get('/api/settings')).body).toMatchObject({ weightUnit: 'lb' })
+
+    // The session user the web app reads at start-up carries it too.
+    const me = await client(ctx, user).get('/api/auth/me')
+    expect(me.body).toMatchObject({ weightUnit: 'lb' })
   })
 
   test('PUT validates: units must be mi or km, displayName at most 80 characters (empty string becomes null), unknown keys such as email are rejected', async () => {

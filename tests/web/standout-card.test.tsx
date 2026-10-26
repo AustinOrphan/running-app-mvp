@@ -37,6 +37,7 @@ const settings = (units: Units) => ({
     email: 'runner@example.com',
     displayName: null,
     units,
+    weightUnit: 'lb',
   }),
 })
 

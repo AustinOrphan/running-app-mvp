@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
+import { createManualActivity } from '../services/activityStore.ts'
 import {
   markDuplicates,
   moveConfirmedLogs,
@@ -248,12 +249,7 @@ export function activitiesRouter(deps: Deps): Router {
 
   router.post('/', async (req, res) => {
     const body = parse(activitySchema, req.body)
-    const created = await prisma.activity.create({
-      data: { ...body, userId: req.userId, source: 'manual', duplicateStatus: 'none' },
-    })
-    await markDuplicates(prisma, req.userId, [created.id])
-    await runExecutionQuietly(deps, { userId: req.userId, activityId: created.id })
-    res.status(201).json(toActivity(await findOwned(req.userId, created.id)))
+    res.status(201).json(toActivity(await createManualActivity(deps, req.userId, body)))
   })
 
   router.get('/:id', async (req, res) => {

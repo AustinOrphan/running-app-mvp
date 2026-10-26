@@ -58,3 +58,23 @@ export const FUEL_SODIUM_MAX_MG = 200_000
  * inside it.
  */
 export const RESULT_ACTIVITY_WINDOW_DAYS = 3
+
+// Strength logs and the setup (strength design 6.4, 9.3 and 9.5). Sanity bounds on what a form can
+// send, not training guidance: no load, count or dose of the engine comes from here.
+
+/** The heaviest load the API stores, in grams: one tonne. */
+export const STRENGTH_LOAD_MAX_G = 1_000_000
+/** The most sets in one log. */
+export const STRENGTH_SETS_MAX = 80
+/** The largest count (reps, seconds or ground contacts) of one set. */
+export const STRENGTH_COUNT_MAX = 500
+/** The longest strength session a log may record, in minutes. */
+export const STRENGTH_DURATION_MAX_MIN = 300
+/** How far back a session may be dated: a year (design 6.4). */
+export const STRENGTH_BACKDATE_DAYS = 365
+/** The largest `prescribed` snapshot a log may carry, in characters of its JSON text. */
+export const STRENGTH_SNAPSHOT_MAX_CHARS = 16_384
+/** The most loads in a list of dumbbell or kettlebell weights. */
+export const STRENGTH_LOAD_LIST_MAX = 100
+/** The most days between `from` and `to` of one `GET /api/strength/logs` request. */
+export const STRENGTH_LOGS_MAX_DAYS = 366

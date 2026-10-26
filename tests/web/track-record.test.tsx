@@ -31,7 +31,12 @@ import { makeRace, makeRecord, makeScored } from './track-record-fixtures.ts'
 const today = todayIso()
 const raceDay = addDays(today, -10)
 
-const miUser: UserSettings = { email: 'runner@example.com', displayName: null, units: 'mi' }
+const miUser: UserSettings = {
+  email: 'runner@example.com',
+  displayName: null,
+  units: 'mi',
+  weightUnit: 'lb',
+}
 const kmUser: UserSettings = { ...miUser, units: 'km' }
 
 function makeGoal(over: Partial<Goal> = {}): Goal {

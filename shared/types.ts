@@ -526,14 +526,13 @@ export interface UserSettings {
   displayName: string | null
   units: Units
   /**
-   * The weight unit of strength loads, a setting of its own beside `units` (strength design 5.2).
-   * Type only in task E14-2. The `User` column, the backfill and `GET` and `PUT /api/settings`
-   * arrive with E14-5, which makes the field required, and the Settings page with E14-9. Until
-   * then the field is optional so that no existing caller changes, and a missing value reads as
-   * pounds, the default decided 2026-10-24 (section 18, question 3; `DEFAULT_WEIGHT_UNIT` in
-   * `shared/domain/weight.ts`).
+   * The weight unit of strength loads, a setting of its own beside `units` (strength design 5.2):
+   * miles with kilograms is common, so it is not derived from the distance unit. A load is stored
+   * in grams and only shown in this unit (`shared/domain/weight.ts`). A runner starts in pounds
+   * (`DEFAULT_WEIGHT_UNIT`, decided 2026-10-24, section 18, question 3); the migration set
+   * kilograms for a runner who had chosen kilometres.
    */
-  weightUnit?: WeightUnit
+  weightUnit: WeightUnit
 }
 export interface SessionUser extends UserSettings {
   id: string
@@ -1718,4 +1717,133 @@ export interface PlyoDose {
 export interface SuggestionBasis {
   rule: 'F7' | 'F8' | 'F9'
   facts: Array<{ template: string; slots: Record<string, Quantity | string> }>
+}
+
+// ---- Strength setup, starting points and logs (phase 3b, sections 6 and 9; E14-5) ---------------
+//
+// The payloads of `server/routes/strength.ts`. Loads are integer grams everywhere; the weight unit
+// is a display setting of the page (`UserSettings.weightUnit`). The server returns data and never
+// prose.
+
+/** The slots a runner can pin an exercise in: the lifts of a session (design 6.2). */
+export type PinnedSlot = 'knee' | 'hip' | 'calf'
+
+/**
+ * The saved setup (`StrengthSettings`, design 9.3). Until `savedAt` is set every other field is the
+ * default, and the workout is built for bodyweight only.
+ */
+export interface StrengthSettings {
+  /** At most one item of each kind. Bodyweight needs no entry. */
+  equipment: EquipmentConfig[]
+  /** The runner's own account of their lifting history (design 6.2, part 3). */
+  level: 'new' | 'some' | 'experienced'
+  /** Lifted at least once a week in the last month. */
+  currentlyLifting: boolean
+  /** Exercise ids the runner left out. */
+  avoid: string[]
+  /** Slot to the exercise id the runner always uses there. */
+  pinned: Partial<Record<PinnedSlot, string>>
+  /** Stored so the runner sees it again; no rule reads it. */
+  note: string | null
+  /** When the setup was first saved; null until then (the app then offers "Set up strength"). */
+  savedAt: string | null
+}
+
+/** A starting point the runner entered for one exercise (`StrengthLift`, design 6.3). */
+export interface StrengthLift {
+  exerciseId: string
+  /** `set` is a recent set; `max` is a maximum the runner already knows (one rep). */
+  kind: 'set' | 'max'
+  loadG: number
+  reps: number
+  /** Reps left, 0 to 5; null when the runner gave no count (read as 0, the lowest estimate). */
+  rir: number | null
+  /** YYYY-MM-DD. */
+  asOf: string
+}
+
+/** One logged set (`StrengthSet`). */
+export interface StrengthSet {
+  exerciseId: string
+  /** Order within the session. */
+  position: number
+  /** Grams; null for a movement with no added load. */
+  loadG: number | null
+  /** Reps, seconds or contacts, by the exercise's measure. */
+  count: number
+  /** Reps left, 0 to 5 (5 is five or more); null when not recorded. */
+  rir: number | null
+}
+
+/**
+ * How a session was run (design 9.3, 10.4). Only a `normal` session moves the working load of a
+ * lift; the others are lighter than the rules asked for, or came after a gap.
+ */
+export type StrengthLogMode = 'normal' | 'lighter-day' | 'lighter-week' | 'taper' | 'return'
+
+/** What the sheet showed for one lift, as the log kept it (design 9.3). */
+export interface StrengthSnapshotLift {
+  exerciseId: string
+  /** The equipment the load was for; null for bodyweight. */
+  implement: EquipmentKind | null
+  sets: number
+  range: { min: number; max: number }
+  rir: { min: number; max: number } | null
+  /** The load the rules asked for before the mode changed it (design 10.2, 10.4). */
+  baseLoadG: number | null
+  /** The load the sheet displayed. */
+  shownLoadG: number | null
+  change: WorkoutLift['change']
+  basis: SuggestionBasis
+}
+
+/**
+ * The snapshot a log stores in `prescribed` (design 9.3): what the sheet showed. The client writes
+ * it from the workout it displayed and the server keeps it as sent after checking its shape and
+ * size, so a replayed offline save records what was shown, not what the rules say now.
+ */
+export interface StrengthSnapshot {
+  template: StrengthTemplate
+  variant: 'A' | 'B'
+  /** The block week of the session (1 is the first); null outside the block. */
+  week: number | null
+  mode: StrengthLogMode
+  lifts: StrengthSnapshotLift[]
+}
+
+/**
+ * A strength log as the API serves it. The date, minutes, effort, pain and note are the fields of
+ * the linked activity, repeated here so one read can reopen the sheet.
+ */
+export interface StrengthLog {
+  /** Chosen by the client (a UUID); the save is an idempotent `PUT` keyed by it. */
+  id: string
+  activityId: string
+  date: string
+  durationMin: number
+  rpe: number | null
+  pain: number | null
+  notes: string | null
+  prescribed: StrengthSnapshot
+  sets: StrengthSet[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** The load now suggested for one lift of the session just saved (design 9.5). */
+export interface StrengthNextLoad {
+  exerciseId: string
+  change: WorkoutLift['change']
+  loadG: number | null
+}
+
+/** The answer to `PUT /api/strength/logs/:logId`. */
+export interface StrengthLogResult {
+  log: StrengthLog
+  activity: Activity
+  /**
+   * For each lift of the session, the suggestion for next time, so the client can say "Next time:
+   * back squat up to 115 lb" with a template. Empty until the read side (E14-6) fills it.
+   */
+  next: StrengthNextLoad[]
 }

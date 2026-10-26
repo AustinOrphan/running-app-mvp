@@ -11,34 +11,53 @@ import type { DuplicateStatus } from '../../shared/types.ts'
 const COUNTED_TYPES = ['run', 'race']
 
 /**
- * Hands the fuel log of a confirmed duplicate of `originalId` to the original, when the original
- * has none. A confirmed duplicate is the same run and the ladder counts a run once, so a log the
- * runner entered on the copy would otherwise drop out of the replay (design 10.7). When the
- * original already has a log, the copy's log stays where it is and the replay leaves it out. At
- * most one log moves, because an activity holds one. Returns whether a log moved.
+ * Hands the logs of a confirmed duplicate of `originalId` to the original, for each kind of log the
+ * original has none of. A confirmed duplicate is the same activity, so a log the runner entered on
+ * the copy would otherwise be read as a second session: the fuel ladder counts a run once (design
+ * 10.7) and the strength history counts a session once (strength design 9.4). When the original
+ * already has a log of the kind, the copy's log stays where it is. At most one log of each kind
+ * moves, because an activity holds one. Returns whether a log moved.
  */
 export async function moveConfirmedLogs(
-  prisma: Pick<PrismaClient, 'activity' | 'fuelLog'>,
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>,
   userId: string,
   originalId: string,
 ): Promise<boolean> {
-  const held = await prisma.fuelLog.findUnique({
-    where: { activityId: originalId },
-    select: { id: true },
-  })
-  if (held) return false
   const copies = await prisma.activity.findMany({
     where: { userId, duplicateOfId: originalId, duplicateStatus: 'confirmed' },
     select: { id: true },
     orderBy: { id: 'asc' },
   })
+  const fuel = await handOverLog(
+    copies,
+    originalId,
+    (activityId) => prisma.fuelLog.findUnique({ where: { activityId }, select: { id: true } }),
+    (id) => prisma.fuelLog.update({ where: { id }, data: { activityId: originalId } }),
+  )
+  const strength = await handOverLog(
+    copies,
+    originalId,
+    (activityId) => prisma.strengthLog.findUnique({ where: { activityId }, select: { id: true } }),
+    (id) => prisma.strengthLog.update({ where: { id }, data: { activityId: originalId } }),
+  )
+  return fuel || strength
+}
+
+/**
+ * One kind of log: when the original holds none, the first copy (by id) that holds one gives it up
+ * to the original. Returns whether a log moved.
+ */
+async function handOverLog(
+  copies: ReadonlyArray<{ id: string }>,
+  originalId: string,
+  find: (activityId: string) => Promise<{ id: string } | null>,
+  move: (logId: string) => Promise<unknown>,
+): Promise<boolean> {
+  if (await find(originalId)) return false
   for (const copy of copies) {
-    const log = await prisma.fuelLog.findUnique({
-      where: { activityId: copy.id },
-      select: { id: true },
-    })
+    const log = await find(copy.id)
     if (log) {
-      await prisma.fuelLog.update({ where: { id: log.id }, data: { activityId: originalId } })
+      await move(log.id)
       return true
     }
   }
@@ -63,7 +82,7 @@ function shiftDate(date: string, days: number): string {
  * `confirmed` when it now qualifies. Returns how many rows were newly flagged.
  */
 export async function markDuplicates(
-  prisma: Pick<PrismaClient, 'activity' | 'fuelLog'>,
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>,
   userId: string,
   activityIds: string[],
 ): Promise<number> {

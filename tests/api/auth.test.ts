@@ -57,6 +57,7 @@ test(
       email: 'runner@example.com',
       displayName: 'Sam',
       units: 'mi',
+      weightUnit: 'lb',
     })
     expect(JSON.stringify(res.body)).not.toContain('passwordHash')
 
@@ -329,6 +330,7 @@ test('me', async () => {
     email: 'runner@example.com',
     displayName: null,
     units: 'mi',
+    weightUnit: 'lb',
   })
 
   const noneToken = [
