@@ -1,11 +1,11 @@
 import type { ReactNode, Ref } from 'react'
 import { renderFact } from '../../../shared/copy/templates.ts'
-import type { ReadinessSignal, ReadinessVerdict, Units } from '../../../shared/types.ts'
+import type { ReadinessSignal, TodayVerdict, Units } from '../../../shared/types.ts'
 import styles from './ReadinessRead.module.css'
 
 export interface ReadinessReadProps {
   /** Null for a preview of a day ahead, which has no readiness read. */
-  verdict: ReadinessVerdict | null
+  verdict: TodayVerdict | null
   /** At most three readings, those the verdict leans on first. */
   signals: ReadinessSignal[]
   units: Units

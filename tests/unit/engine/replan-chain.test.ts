@@ -3,14 +3,16 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { buildPlan, replan } from '../../../shared/engine/index.ts'
+import { afterBreak, buildPlan, replan } from '../../../shared/engine/index.ts'
+import { startPath } from '../../../shared/engine/macro.ts'
 import type { DisruptionWindow, EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
 import type { PlanWeek as PlanWeekRow } from '../../../server/db.ts'
 import { raisedTargetLimits, planWeekWrites } from '../../../server/services/replan.ts'
 import { weekRow } from '../../../server/services/planEngine.ts'
 import { activity } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
-import { replanSteps, type ReplanStep } from './replan-steps.ts'
+import { at, h1, h10, scenario, summer, weeks as runWeeks } from './history-fixtures.ts'
+import { replanChain, replanSteps, type ReplanStep } from './replan-steps.ts'
 
 type Existing = NonNullable<EngineInput['existing']>
 
@@ -379,3 +381,107 @@ describe.each(['half', 'first-100-mile', 'marathon'])(
     })
   },
 )
+
+describe('the re-plan on which the low-frequency flag changes the recovery cycle [rules E3, A5]', () => {
+  const runningMin = (draft: PlanDraft, weekStart: string): number =>
+    draft.sessions
+      .filter((s) => s.date >= weekStart && s.date < addDays(weekStart, 7))
+      .filter((s) => !['strength', 'race', 'mobility', 'rest'].includes(s.kind))
+      .reduce((sum, s) => sum + s.durationMin, 0)
+
+  // `step` is the re-plan on which the flag changes, `flagged` the flag before it and on it
+  const cases = [
+    {
+      name: 'the flag ends: H10 at steady, run as planned',
+      first: at(h10(), 'steady'),
+      options: { maxSteps: 4 },
+      step: 3,
+      flagged: [true, false],
+    },
+    {
+      name: 'the flag arms: H3 at standard, every week run 1.6 times its plan',
+      first: at(h1(), 'standard'),
+      options: { scale: 1.6, maxSteps: 4 },
+      step: 2,
+      flagged: [false, true],
+    },
+  ]
+
+  describe.each(cases)('$name', ({ first, options, step, flagged }) => {
+    const steps = replanChain(first, options)
+    const changed = steps[step]!
+    const monday = mondayOf(changed.input.today)
+    // the weeks of the plan before the taper: the weeks after the race are recovery weeks of their own
+    const weeks = changed.draft.weeks.filter(
+      (w) =>
+        w.weekStart >= monday && !w.isTaper && w.phase !== 'race' && !w.flags.includes('post-race'),
+    )
+
+    it('is the re-plan on which the flag changes, with a recovery week stored on its first Monday', () => {
+      expect(
+        steps.slice(step - 1, step + 1).map((s) => estimateState(s.input).lowFrequency),
+      ).toEqual(flagged)
+      const stored = changed.input.existing!.weeks.find((w) => w.weekStart === monday)
+      expect(stored?.isRecovery).toBe(true)
+    })
+
+    // The cycle changes between 2:1 and 3:1 with the flag, so the recovery weeks `planPhases`
+    // counts back from the peak no longer fall on the recovery week the replaced plan stored on the
+    // first Monday (task F25a). A re-plan keeps that week a recovery week: it had become a loading
+    // week drawn a step above the sequence with the recovery week's sessions, one more loading week
+    // for `keepCadenceAcrossReplan` and a forced recovery week after it, and the ramp of the week
+    // after that stepped from the minutes of those sessions.
+    it('keeps the recovery week the replaced plan stored on its first Monday', () => {
+      expect(weeks[0]!.isRecovery).toBe(true)
+    })
+
+    it('plans its first week at the minutes it places in it', () => {
+      expect(runningMin(changed.draft, monday)).toBe(weeks[0]!.targetRunMin)
+    })
+
+    it('plans every loading week after a recovery week above that recovery week', () => {
+      let checked = 0
+      for (const [i, week] of weeks.entries()) {
+        const before = weeks[i - 1]
+        if (before?.isRecovery !== true || week.isRecovery) continue
+        expect(week.targetRunMin, week.weekStart).toBeGreaterThan(before.targetRunMin)
+        checked += 1
+      }
+      expect(checked).toBeGreaterThan(4)
+    })
+  })
+})
+
+describe('a stored recovery week on the Monday a start path claims [rules E3, E6]', () => {
+  // A 2:1 plan made for a runner on 45 minute runs (a 3 x 20 floor start), then three weeks with
+  // no run, then a re-plan at 3:1: the count of the new cycle misses the recovery week the plan
+  // stored on that Monday, and the runner is after a gap, on the floor.
+  const base = scenario([...summer(), ...runWeeks(7, 1, [45])])
+  const stored = buildPlan({ ...base, options: { ...base.options, recoveryCycle: '2:1' } })
+  const monday = addDays(mondayOf(base.today), 21)
+  const input: EngineInput = {
+    ...base,
+    today: monday,
+    options: { ...base.options, recoveryCycle: '3:1' },
+    existing: {
+      weeks: stored.weeks,
+      sessions: stored.sessions.map((s, i) => ({
+        ...s,
+        id: `s${i}`,
+        status: s.date < monday ? 'skipped' : 'planned',
+        activityId: null,
+      })),
+    },
+  }
+
+  it('is a floor start on the Monday of a stored recovery week', () => {
+    expect(stored.weeks.find((w) => w.weekStart === monday)?.isRecovery).toBe(true)
+    expect(startPath(input, afterBreak(estimateState(input)))?.kind).toBe('floor')
+  })
+
+  it('opens on the floor week, not on the stored recovery week', () => {
+    const opening = replan(input).draft.weeks.find((w) => w.weekStart === monday)
+    expect(opening?.flags).toContain('restart-floor')
+    expect(opening?.isRecovery).toBe(false)
+  })
+})
