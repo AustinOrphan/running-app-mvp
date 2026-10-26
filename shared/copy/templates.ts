@@ -20,6 +20,7 @@ import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
 import { SESSION_STATUS_TEMPLATES } from './sessionStatus.ts'
+import { STRENGTH_TEMPLATES } from './strengthTemplates.ts'
 import { WINDOW_VIEW_TEMPLATES } from './windowView.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
@@ -52,6 +53,7 @@ export const TEMPLATES = {
   ...STANDOUT_TEMPLATES,
   ...TRACK_RECORD_TEMPLATES,
   ...BRIEF_TEMPLATES,
+  ...STRENGTH_TEMPLATES,
   ...PAGE_TEMPLATES,
   ...PROVIDER_TEMPLATES,
   // The why drawer

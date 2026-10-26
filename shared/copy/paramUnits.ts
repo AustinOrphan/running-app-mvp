@@ -8,6 +8,7 @@ import type { Param, Quantity } from '../engine/types.ts'
 import type { Units } from '../types.ts'
 import { FEET_PER_METRE, milesToM, NO_VALUE } from '../units.ts'
 import { formatNumber, quantityParts, type QuantityParts } from './quantity.ts'
+import { STRENGTH_TEMPLATES } from './strengthTemplates.ts'
 import { CopyError, isCopyStrict } from './template.ts'
 
 type NumberStyle =
@@ -280,6 +281,12 @@ const PARAM_RULES: Readonly<Record<string, UnitRule>> = {
   'i12.altitudeFromM': style('climbM', '{value}'),
 }
 
+/**
+ * Parameters whose value is a table from an exercise id to a fraction (the first loads of the
+ * strength catalogue, as shares of body weight). The drawer reads the names, not the ids.
+ */
+const FRACTION_TABLES: ReadonlySet<string> = new Set(['f8.startFractionBodyweight'])
+
 /** Parameters whose two or more values are steps or edges in order, not the ends of a range. */
 const SEQUENCE_PARAMS: ReadonlySet<string> = new Set([
   'k2.twoWeekMultipliers',
@@ -351,6 +358,32 @@ function plainText(value: unknown): string {
   return JSON.stringify(value)
 }
 
+function isNumberRecord(value: unknown): value is Record<string, number> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every(isFiniteNumber)
+  )
+}
+
+/** The name of a catalogue exercise, or the id for one the copy has no name for. */
+function exerciseName(id: string): string {
+  const key = `strength.name.${id}`
+  return Object.hasOwn(STRENGTH_TEMPLATES, key)
+    ? STRENGTH_TEMPLATES[key as keyof typeof STRENGTH_TEMPLATES].text
+    : id
+}
+
+/** "Shares of body weight: Back squat 35%, Leg press 50%, ...". */
+function describeFractionTable(table: Record<string, number>, units: Units): string {
+  const rows = Object.entries(table).map(([id, fraction]) => {
+    const parts = partsFor('fraction', fraction, units)
+    return `${exerciseName(id)} ${parts === null ? NO_VALUE : `${parts.num}${parts.suffix}`}`
+  })
+  return `Shares of body weight: ${rows.join(', ')}`
+}
+
 function ruleFor(param: Param<unknown>): UnitRule | null {
   const own = Object.hasOwn(PARAM_RULES, param.id) ? PARAM_RULES[param.id] : undefined
   if (own !== undefined) return own
@@ -370,6 +403,9 @@ function describeValue(
   units: Units,
   asRange: boolean,
 ): string {
+  if (FRACTION_TABLES.has(param.id) && isNumberRecord(value)) {
+    return describeFractionTable(value, units)
+  }
   const rule = ruleFor(param)
   const numbers =
     typeof value === 'number'
