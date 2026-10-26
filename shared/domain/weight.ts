@@ -168,10 +168,10 @@ export function lightestLoad(steps: LoadSteps, unit: WeightUnit): number | null 
 
 /**
  * The heaviest load of `steps` at or below `loadG`; the lightest load when `loadG` is below it,
- * because no equipment makes less. Null when the steps make no load.
+ * because no equipment makes less. Null when the steps make no load or `loadG` is not a number.
  */
 export function roundDownToStep(steps: LoadSteps, loadG: number, unit: WeightUnit): number | null {
-  const ladder = ladderOf(steps, unit)
+  const ladder = Number.isFinite(loadG) ? ladderOf(steps, unit) : null
   return ladder === null ? null : ladder.at(Math.max(ladder.indexAtOrBelow(loadG), 0))
 }
 
@@ -179,7 +179,8 @@ export function roundDownToStep(steps: LoadSteps, loadG: number, unit: WeightUni
  * The load `count` steps above `loadG` (below when `count` is negative), or null when that is
  * past the lightest load or the top. A load that is not on the ladder (a typed 52 lb with steps of
  * 5 lb) sits between two rungs: one step up lands on the rung above it and one step down on the
- * rung below it. A count of zero rounds down, as `roundDownToStep` does.
+ * rung below it. A count of zero rounds down, as `roundDownToStep` does. Null as well for a load
+ * that is not a number and a count that is not a whole number.
  */
 export function stepFrom(
   steps: LoadSteps,
@@ -187,7 +188,7 @@ export function stepFrom(
   count: number,
   unit: WeightUnit,
 ): number | null {
-  const ladder = ladderOf(steps, unit)
+  const ladder = Number.isFinite(loadG) && Number.isInteger(count) ? ladderOf(steps, unit) : null
   if (ladder === null) return null
   if (count === 0) return roundDownToStep(steps, loadG, unit)
   const below = ladder.indexAtOrBelow(loadG)

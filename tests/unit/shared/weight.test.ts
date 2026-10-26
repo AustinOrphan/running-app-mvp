@@ -352,6 +352,15 @@ describe('the steps of a ladder', () => {
     expect(roundDownToStep({ minG: 0, stepG: 0, maxG: null }, 1000, 'lb')).toBeNull()
   })
 
+  it('answers null, not NaN or a loop, for a load or a count that is not a number', () => {
+    for (const grams of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(roundDownToStep(poundsBar, grams, 'lb'), String(grams)).toBeNull()
+      expect(stepFrom(poundsBar, grams, 1, 'lb'), String(grams)).toBeNull()
+    }
+    expect(stepFrom(poundsBar, toGrams(100, 'lb'), Number.NaN, 'lb')).toBeNull()
+    expect(stepFrom(poundsBar, toGrams(100, 'lb'), 1.5, 'lb')).toBeNull()
+  })
+
   it('knows the lightest load of a ladder and of a list', () => {
     expect(lightestLoad(poundsBar, 'lb')).toBe(toGrams(45, 'lb'))
     expect(lightestLoad({ loadsG: [toGrams(20, 'lb'), toGrams(10, 'lb')] }, 'lb')).toBe(
