@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { lintText } from '../../../shared/copy/lint.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { prescribe, sessionLibrary } from '../../../shared/engine/sessions.ts'
 import { rungSessions, sessionMin } from '../../../shared/engine/startWeeks.ts'
@@ -106,7 +107,7 @@ describe('sessionLibrary', () => {
     expect(sessionLibrary('threshold').rules).toContain('C5')
     expect(sessionLibrary('intervals').rules).toContain('C6')
     expect(sessionLibrary('b2b').rules).toContain('H3')
-    expect(sessionLibrary('strength').rules).toContain('F4')
+    expect(sessionLibrary('strength').rules).toEqual(['F-lib', 'F4', 'E5', 'F7'])
     for (const kind of KINDS.filter((k) => k !== 'rest')) {
       expect(sessionLibrary(kind).rules.length, kind).toBeGreaterThan(0)
     }
@@ -361,16 +362,95 @@ describe('prescribe: other quality and special sessions', () => {
     expect(s.flags).toContain('downhill')
   })
 
-  it('describes the heavy strength dose from the parameters', () => {
-    const s = prescribe('strength', 45, zones(), week())
-    expect(s.target.zone).toBe('strength')
-    expect(s.structure).toEqual([])
-    expect(s.target.hr).toBeNull()
-    expect(s.target.paceSecPerKm).toBeNull()
-    expect(s.distanceM).toBeNull()
-    expect(s.purpose).toContain(String(P.flib.heavyMinPct1rm.value))
-    expect(s.purpose).toContain(String(P.flib.heavySets.value))
-    expect(s.rules).toEqual(expect.arrayContaining(['F4', 'E5']))
+  describe('a strength session', () => {
+    const block = (over: Partial<WeekDraft> = {}) => week({ flags: ['strength-block'], ...over })
+
+    it('is a label with a zone, an effort and no steps', () => {
+      const s = prescribe('strength', P.f7.blockSessionMin.value, zones(), block())
+      expect(s.target.zone).toBe('strength')
+      expect(s.target.rpe).toEqual(P.expectedRpe.strength.value)
+      expect(s.structure).toEqual([])
+      expect(s.target.hr).toBeNull()
+      expect(s.target.paceSecPerKm).toBeNull()
+      expect(s.distanceM).toBeNull()
+      expect(s.durationMin).toBe(P.f7.blockSessionMin.value)
+    })
+
+    it('names the block week in one sentence and restates no Param', () => {
+      const s = prescribe('strength', 40, zones(), block(), {
+        blockPosition: { week: 6, of: 12 },
+      })
+      expect(s.purpose).toBe(
+        'Strength block, week 6 of 12: lifts for the legs and trunk, kept apart from the key runs.',
+      )
+      // the lifts, sets, loads and gaps are the workout's: none of them is written here
+      expect(s.purpose).not.toMatch(/1RM|\bsets?\b|\breps?\b|calf|ramp|\d h\b|\d%/i)
+      expect(lintText(s.purpose)).toEqual([])
+      expect(s.purpose).not.toMatch(/behind|missed|streak/i)
+    })
+
+    it('names no dose in any week of the block: a ramp-in and a return week lift lighter and jump not at all', () => {
+      // the template of a week belongs to the workout (design 8.1, 8.2); the plan's sentence must hold
+      // for a heavy week, a ramp-in week and the ladder, injury-return and restart-floor weeks alike
+      const weeks: Array<Partial<WeekDraft>> = [
+        { flags: ['strength-block'] },
+        { flags: ['strength-block', 'recovery'], isRecovery: true },
+        { flags: ['strength-block', 'run-walk', 'ladder-4'] },
+        { flags: ['strength-block', 'injury-return', 'injury-level-1'] },
+        { flags: ['strength-block', 'restart-floor'] },
+      ]
+      const sentences = weeks.map(
+        (over, i) =>
+          prescribe('strength', 40, zones(), week(over), { blockPosition: { week: i + 1, of: 12 } })
+            .purpose,
+      )
+      sentences.forEach((purpose, i) => {
+        expect(purpose, String(i)).toBe(
+          `Strength block, week ${String(i + 1)} of 12: lifts for the legs and trunk, kept apart from the key runs.`,
+        )
+        expect(purpose, String(i)).not.toMatch(/heavy|jump|plyo|barbell|bar\b|load/i)
+      })
+    })
+
+    it('says only that it is a block week when the plan holds no position', () => {
+      expect(prescribe('strength', 40, zones(), block()).purpose).toMatch(/^Strength block: /)
+      expect(prescribe('strength', 40, zones(), block(), { blockPosition: null }).purpose).toMatch(
+        /^Strength block: /,
+      )
+    })
+
+    it('names the maintenance outside the block, in a taper week too', () => {
+      for (const over of [{}, { isTaper: true, phase: 'taper' as const }]) {
+        const s = prescribe('strength', P.f7.maintenanceSessionMin.value, zones(), week(over), {
+          blockPosition: { week: 6, of: 12 },
+        })
+        expect(s.purpose).toBe(
+          'Strength maintenance: a short session that keeps the strength of the legs and trunk.',
+        )
+        expect(s.purpose).not.toMatch(/week \d|build/i)
+        expect(lintText(s.purpose)).toEqual([])
+        expect(s.durationMin).toBe(P.f7.maintenanceSessionMin.value)
+      }
+    })
+
+    it('cites F7 beside the rules it had, and H10 for an ultra goal', () => {
+      expect(prescribe('strength', 40, zones(), block()).rules).toEqual(['F-lib', 'F4', 'E5', 'F7'])
+      expect(prescribe('strength', 40, zones(), block(), { ultra: false }).rules).toEqual([
+        'F-lib',
+        'F4',
+        'E5',
+        'F7',
+      ])
+      expect(prescribe('strength', 40, zones(), block(), { ultra: true }).rules).toEqual([
+        'F-lib',
+        'F4',
+        'E5',
+        'F7',
+        'H10',
+      ])
+      expect(prescribe('easy', 40, zones(), block(), { ultra: true }).rules).not.toContain('H10')
+      expect(prescribe('easy', 40, zones(), week()).rules).not.toContain('F7')
+    })
   })
 
   it('has zero duration for a rest day and no targets', () => {

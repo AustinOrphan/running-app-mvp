@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { buildPlan, explain } from '../../../shared/engine/index.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import { ownWindow, windowViolations } from '../../../shared/engine/postRace.ts'
 import type { PlanDraft, SessionKind, SessionSpec } from '../../../shared/engine/types.ts'
 import type { Weekday } from '../../../shared/types.ts'
@@ -754,5 +755,67 @@ describe.each(all)('plan matrix with a rest window: $label', (a) => {
     for (const date of held) {
       expect(plan.sessions.filter((s) => s.date === date).map((s) => s.kind)).toEqual(['rest'])
     }
+  })
+})
+
+// The matrix profiles ask for no strength, so the plans above hold no lift. This variant asks for two
+// a week, the most a plan holds: a lift is budgeted at 40 minutes in a block week and 25 otherwise
+// and is placed after the runs, so it changes no run, no week's running minutes and nothing else in
+// the plan [rules F7, F4, E5]. A lift never displaces a run: a week with no day for it holds fewer
+// lifts and never fewer runs. The room of a lift on a day is the runner's availability; the 30-day
+// reference of G-1 limits a run and not the gym time, except on a day or in a week that a window or a
+// post-race step already limits. A start-path week (ladder, injury-return, restart floor) takes its
+// lifts like any other [design 8.2, return]. The weeks that hold fewer than planned are listed, by
+// athlete: `masters` (five open days) holds one lift in the weeks whose hard days, long run and the
+// day before it leave a single legal day.
+const SHORT_LIFT_WEEKS: Record<string, string[]> = {
+  masters: [
+    '2026-10-19: 1 of 2',
+    '2026-11-02: 1 of 2',
+    '2026-11-09: 1 of 2',
+    '2026-11-16: 1 of 2',
+    '2026-11-23: 1 of 2',
+    '2026-11-30: 1 of 2',
+    '2026-12-07: 1 of 2',
+  ],
+}
+
+describe.each(all)('strength sessions: $label', (a) => {
+  const asked = buildPlan({ ...a.input, profile: { ...a.input.profile, strengthPreference: 2 } })
+  const liftsOf = (plan: PlanDraft, weekStart: string) =>
+    plan.sessions.filter((s) => s.kind === 'strength' && mondayOf(s.date) === weekStart)
+
+  it('budgets a block week at 40 minutes and every other week at 25, and cites F7', () => {
+    for (const w of asked.weeks) {
+      for (const s of liftsOf(asked, w.weekStart)) {
+        const budget = w.flags.includes('strength-block')
+          ? P.f7.blockSessionMin.value
+          : P.f7.maintenanceSessionMin.value
+        expect(s.durationMin, s.date).toBe(budget)
+        expect(s.rules, s.date).toEqual(
+          a.isUltra ? ['F-lib', 'F4', 'E5', 'F7', 'H10'] : ['F-lib', 'F4', 'E5', 'F7'],
+        )
+      }
+    }
+    expect(asked.sessions.some((s) => s.kind === 'strength')).toBe(true)
+  })
+
+  it('holds no more lifts than a week plans, and the weeks with fewer are the listed ones', () => {
+    const short: string[] = []
+    for (const w of asked.weeks) {
+      const n = liftsOf(asked, w.weekStart).length
+      expect(n, w.weekStart).toBeLessThanOrEqual(w.strengthSessions)
+      if (n < w.strengthSessions) short.push(`${w.weekStart}: ${n} of ${w.strengthSessions}`)
+    }
+    expect(short).toEqual(SHORT_LIFT_WEEKS[a.id] ?? [])
+  })
+
+  it('changes no run and no week target against the plan with no strength asked', () => {
+    const none = planOf(a)
+    expect(asked.sessions.filter((s) => s.kind !== 'strength')).toEqual(
+      none.sessions.filter((s) => s.kind !== 'strength'),
+    )
+    const runWeek = ({ strengthSessions: _s, ...week }: PlanDraft['weeks'][number]) => week
+    expect(asked.weeks.map(runWeek)).toEqual(none.weeks.map(runWeek))
   })
 })

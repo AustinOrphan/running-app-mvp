@@ -7,7 +7,7 @@
 // their templates into `TEMPLATES`.
 import { FUEL_TEMPLATES } from '../engine/fuelCopy.ts'
 import type { InputFact } from '../engine/types.ts'
-import type { Units } from '../types.ts'
+import type { Units, WeightUnit } from '../types.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { BRIEF_TEMPLATES } from './briefTemplates.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
@@ -21,6 +21,7 @@ import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
 import { SESSION_STATUS_TEMPLATES } from './sessionStatus.ts'
+import { STRENGTH_TEMPLATES } from './strengthTemplates.ts'
 import { WINDOW_VIEW_TEMPLATES } from './windowView.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
@@ -54,6 +55,7 @@ export const TEMPLATES = {
   ...STANDOUT_TEMPLATES,
   ...TRACK_RECORD_TEMPLATES,
   ...BRIEF_TEMPLATES,
+  ...STRENGTH_TEMPLATES,
   ...PAGE_TEMPLATES,
   ...PROVIDER_TEMPLATES,
   // The why drawer
@@ -137,9 +139,13 @@ function isTemplateId(id: string): id is TemplateId {
  * The sentence for a stored fact, in the runner's units. A fact keeps a template id and its slots
  * (never prose), so a copy fix reaches old records. Under test an unknown template or a bad slot
  * throws; elsewhere an unknown template reads `UNKNOWN_FACT_TEXT` and a bad slot the template's
- * own fallback.
+ * own fallback. `weightUnit` is the runner's unit for strength loads, read only by a `load` slot.
  */
-export function renderFact(fact: Pick<InputFact, 'template' | 'slots'>, units: Units): string {
+export function renderFact(
+  fact: Pick<InputFact, 'template' | 'slots'>,
+  units: Units,
+  weightUnit?: WeightUnit,
+): string {
   if (!isTemplateId(fact.template)) {
     if (isCopyStrict()) {
       throw new CopyError(`Fact template ${JSON.stringify(fact.template)}`, ['not in TEMPLATES'])
@@ -147,5 +153,5 @@ export function renderFact(fact: Pick<InputFact, 'template' | 'slots'>, units: U
     return UNKNOWN_FACT_TEXT
   }
   const template: Template = TEMPLATES[fact.template]
-  return render(template, fact.slots, units)
+  return render(template, fact.slots, units, weightUnit)
 }

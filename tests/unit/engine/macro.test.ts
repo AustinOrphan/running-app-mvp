@@ -4,7 +4,12 @@ import { estimateState } from '../../../shared/engine/athlete.ts'
 import { feasibility, goalModel } from '../../../shared/engine/goal.ts'
 import { buildPlan } from '../../../shared/engine/index.ts'
 import { spikeWarnLimit } from '../../../shared/engine/limits.ts'
-import { macroPlan, peakLongRunMin, redsHold } from '../../../shared/engine/macro.ts'
+import {
+  macroPlan,
+  peakLongRunMin,
+  redsHold,
+  strengthBlockPosition,
+} from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { lastWindowDay, ownWindow, windowDay } from '../../../shared/engine/postRace.ts'
 import { buildZones } from '../../../shared/engine/zones.ts'
@@ -784,6 +789,281 @@ describe('macroPlan: fixed blocks', () => {
     ).toBe(true)
     const one = plan(goal('marathon', 36), state(), { strengthSessions: 1 })
     expect(Math.max(...one.map((w) => w.strengthSessions))).toBe(1)
+  })
+
+  describe('the anchored strength block [rule E5]', () => {
+    const blockWeeks = (weeks: WeekDraft[]) =>
+      weeks.filter((w) => w.flags.includes('strength-block'))
+
+    /**
+     * The stored plan after a re-plan on each of the next `steps` Mondays: the weeks before the
+     * Monday stay as stored and the weeks from it are the new ones, as the server keeps them.
+     */
+    function stored(g: GoalModel, steps: number, st: AthleteState = state()): WeekDraft[] {
+      let weeks = plan(g, st)
+      for (let k = 1; k <= steps; k++) {
+        const today = addDays(TODAY, 7 * k)
+        const fresh = macroPlan(
+          { ...input(g), today, existing: { weeks, sessions: [] } },
+          st,
+          g,
+          FEASIBLE,
+        )
+        const past = weeks.filter((w) => w.weekStart < mondayOf(today))
+        weeks = [...past, ...fresh.map((w) => ({ ...w, index: w.index + past.length }))]
+      }
+      return weeks
+    }
+
+    it('keeps the block at e5.strengthBlockWeeks flagged weeks in total across 12 weekly re-plans', () => {
+      const g = goal('marathon', 40)
+      expect(blockWeeks(plan(g))).toHaveLength(P.e5.strengthBlockWeeks.value)
+      for (let steps = 1; steps <= 14; steps++) {
+        const weeks = stored(g, steps)
+        const block = blockWeeks(weeks)
+        expect(block, `after ${String(steps)} re-plans`).toHaveLength(P.e5.strengthBlockWeeks.value)
+        // one run of consecutive weeks from the first week of the first plan
+        expect(block.map((w) => w.index)).toEqual(block.map((_, i) => i))
+      }
+    })
+
+    it('gives the weeks after the block the maintenance session and none in race week', () => {
+      const g = goal('marathon', 40)
+      const weeks = stored(g, 14)
+      const after = weeks.filter(
+        (w) => !w.flags.includes('strength-block') && !w.isTaper && w.phase !== 'race',
+      )
+      expect(after.length).toBeGreaterThan(0)
+      expect(after.every((w) => w.strengthSessions === P.e5.strengthMaintenancePerWeek.value)).toBe(
+        true,
+      )
+      expect(weeks.find((w) => w.phase === 'race')?.strengthSessions).toBe(0)
+    })
+
+    it('keeps the length of a block that the runway shortens, whatever the re-plans', () => {
+      // 20 weeks out leaves 8 to 11 non-specific weeks for a marathon
+      const g = goal('marathon', 20)
+      const first = blockWeeks(plan(g)).length
+      expect(first).toBeGreaterThanOrEqual(P.e5.strengthBlockMinWeeks.value)
+      expect(first).toBeLessThan(P.e5.strengthBlockWeeks.value)
+      for (let steps = 1; steps <= 10; steps++) {
+        expect(blockWeeks(stored(g, steps)), `after ${String(steps)} re-plans`).toHaveLength(first)
+      }
+    })
+
+    it('has no block for a goal fewer than e5.strengthBlockMinWeeks non-specific weeks away, at any re-plan', () => {
+      const g = goal('marathon', 14)
+      for (let steps = 0; steps <= 8; steps++) {
+        expect(blockWeeks(stored(g, steps)), `after ${String(steps)} re-plans`).toEqual([])
+      }
+    })
+
+    it('gives a goal 10 weeks out no block and a goal 40 weeks out the whole one', () => {
+      expect(blockWeeks(plan(goal('marathon', 10)))).toEqual([])
+      expect(blockWeeks(plan(goal('marathon', 40)))).toHaveLength(P.e5.strengthBlockWeeks.value)
+    })
+
+    it('counts only the weeks before the current Monday', () => {
+      // the stored plan flags the current week and the weeks after it, and nothing before: no
+      // block is under way, so the minimum still applies to a goal that is near
+      const near = goal('marathon', 14)
+      const out = macroPlan(
+        { ...input(near), existing: { weeks: plan(goal('marathon', 40)), sessions: [] } },
+        state(),
+        near,
+        FEASIBLE,
+      )
+      expect(blockWeeks(out)).toEqual([])
+    })
+
+    it('continues a block under way below the minimum, for the weeks it has left and the weeks that remain', () => {
+      const g = goal('marathon', 40)
+      const first = plan(g)
+      // 8 weeks on, the goal moves nearer: 8 block weeks are served, 4 are left, and fewer
+      // non-specific weeks than that may remain
+      const today = addDays(TODAY, 56)
+      const nearer = goal('marathon', 24) // 24 weeks from TODAY: 16 from `today`
+      const out = macroPlan(
+        { ...input(nearer), today, existing: { weeks: first, sessions: [] } },
+        state(),
+        nearer,
+        FEASIBLE,
+      )
+      const nonSpecific = out.filter(
+        (w) =>
+          !w.isTaper &&
+          w.phase !== 'race' &&
+          w.phase !== 'specific' &&
+          !w.flags.includes('post-race'),
+      ).length
+      expect(nonSpecific).toBeGreaterThan(0)
+      expect(nonSpecific).toBeLessThan(P.e5.strengthBlockMinWeeks.value)
+      const served = 8
+      expect(blockWeeks(out)).toHaveLength(
+        Math.min(P.e5.strengthBlockWeeks.value - served, nonSpecific),
+      )
+      expect(blockWeeks(out).map((w) => w.index)).toEqual(blockWeeks(out).map((_, i) => i))
+      // a regenerate of the same goal on the same day has no stored weeks and no block
+      expect(blockWeeks(macroPlan({ ...input(nearer), today }, state(), nearer, FEASIBLE))).toEqual(
+        [],
+      )
+    })
+
+    it('ends the block after e5.strengthBlockWeeks served weeks, however many weeks remain', () => {
+      const g = goal('ultra100mi', 60)
+      const weeks = stored(g, P.e5.strengthBlockWeeks.value + 2)
+      expect(blockWeeks(weeks)).toHaveLength(P.e5.strengthBlockWeeks.value)
+      const later = weeks.filter((w) => w.index >= P.e5.strengthBlockWeeks.value)
+      expect(later.some((w) => w.flags.includes('strength-block'))).toBe(false)
+    })
+
+    describe('a stored plan that the first engine made', () => {
+      // stored plans made when every re-plan flagged its own week as the first of a block
+      const g = goal('ultra100mi', 60)
+      const flagWeeks = (weeks: WeekDraft[], on: (index: number) => boolean) =>
+        weeks.map((w) => ({
+          ...w,
+          flags: [
+            ...w.flags.filter((f) => f !== 'strength-block'),
+            ...(on(w.index) ? ['strength-block'] : []),
+          ],
+        }))
+      const replanAt = (weeks: WeekDraft[], at: number) =>
+        macroPlan(
+          { ...input(g), today: addDays(TODAY, 7 * at), existing: { weeks, sessions: [] } },
+          state(),
+          g,
+          FEASIBLE,
+        )
+
+      it('counts the run of weeks that ends the week before, not every flagged week', () => {
+        // a stray flag on the first week, a gap, then 4 weeks of a block that is under way
+        const weeks = flagWeeks(plan(g), (i) => i === 0 || (i >= 4 && i <= 7))
+        const out = replanAt(weeks, 8)
+        expect(blockWeeks(out)).toHaveLength(P.e5.strengthBlockWeeks.value - 4)
+        expect(blockWeeks(out).map((w) => w.index)).toEqual(blockWeeks(out).map((_, i) => i))
+      })
+
+      it('ends a block at its first re-plan when the run is already e5.strengthBlockWeeks weeks or more', () => {
+        const weeks = flagWeeks(plan(g), (i) => i < 15)
+        expect(blockWeeks(replanAt(weeks, 15))).toEqual([])
+        expect(
+          blockWeeks(
+            replanAt(
+              flagWeeks(plan(g), (i) => i < 12),
+              12,
+            ),
+          ),
+        ).toEqual([])
+      })
+
+      it('starts no block after one that ended, whatever the weeks that remain', () => {
+        // the run ended 10 weeks ago and 8 or more non-specific weeks remain
+        const weeks = flagWeeks(plan(g), (i) => i < 3)
+        const out = replanAt(weeks, 13)
+        const nonSpecific = out.filter((w) => w.phase === 'base' || w.phase === 'build').length
+        expect(nonSpecific).toBeGreaterThanOrEqual(P.e5.strengthBlockMinWeeks.value)
+        expect(blockWeeks(out)).toEqual([])
+      })
+    })
+
+    it('starts a new block when a plan is regenerated, whatever the weeks before', () => {
+      // the probe of the design (section 1.2): plans built from scratch with `today` moved on
+      const g = goal('ultra100mi', 36)
+      const counts = [0, 7, 28, 56, 84, 140].map((days) => {
+        const weeks = macroPlan(
+          { ...input(g), today: addDays(TODAY, days), existing: null },
+          state(),
+          g,
+          FEASIBLE,
+        )
+        const nonSpecific = weeks.filter(
+          (w) =>
+            !w.isTaper &&
+            w.phase !== 'race' &&
+            w.phase !== 'specific' &&
+            !w.flags.includes('post-race'),
+        ).length
+        const expected =
+          nonSpecific >= P.e5.strengthBlockMinWeeks.value
+            ? Math.min(P.e5.strengthBlockWeeks.value, nonSpecific)
+            : 0
+        expect(blockWeeks(weeks), `${String(days)} days on`).toHaveLength(expected)
+        return expected
+      })
+      expect(counts[0]).toBe(P.e5.strengthBlockWeeks.value)
+      expect(counts.at(-1)).toBe(0)
+    })
+
+    it('reads the h10 Params for an ultra goal and the e5 and flib ones otherwise', () => {
+      const withValue = <T>(param: { value: number }, value: number, fn: () => T): T => {
+        const before = param.value
+        param.value = value
+        try {
+          return fn()
+        } finally {
+          param.value = before
+        }
+      }
+      const ultra = goal('ultra100mi', 40)
+      const road = goal('marathon', 40)
+      withValue(P.h10.strengthBlockWeeks, 10, () => {
+        expect(blockWeeks(plan(ultra))).toHaveLength(10)
+        expect(blockWeeks(plan(road))).toHaveLength(P.e5.strengthBlockWeeks.value)
+      })
+      withValue(P.h10.strengthSessionsPerWeek, 1, () => {
+        expect(Math.max(...blockWeeks(plan(ultra)).map((w) => w.strengthSessions))).toBe(1)
+        expect(Math.max(...blockWeeks(plan(road)).map((w) => w.strengthSessions))).toBe(
+          P.flib.strengthPerWeek.value,
+        )
+      })
+      withValue(P.e5.strengthBlockWeeks, 10, () => {
+        expect(blockWeeks(plan(road))).toHaveLength(10)
+        expect(blockWeeks(plan(ultra))).toHaveLength(P.h10.strengthBlockWeeks.value)
+      })
+    })
+  })
+
+  describe('strengthBlockPosition', () => {
+    const wk = (weekStart: string, flagged: boolean) => ({
+      weekStart,
+      flags: flagged ? ['strength-block'] : [],
+    })
+
+    it('numbers a week within its run of consecutive block weeks', () => {
+      const weeks = [
+        wk('2026-01-05', false),
+        wk('2026-01-12', true),
+        wk('2026-01-19', true),
+        wk('2026-01-26', true),
+        wk('2026-02-02', false),
+        wk('2026-02-09', true),
+      ]
+      expect(strengthBlockPosition(weeks, '2026-01-12')).toEqual({ week: 1, of: 3 })
+      expect(strengthBlockPosition(weeks, '2026-01-26')).toEqual({ week: 3, of: 3 })
+      expect(strengthBlockPosition(weeks, '2026-02-09')).toEqual({ week: 1, of: 1 })
+      expect(strengthBlockPosition(weeks, '2026-01-05')).toBeNull()
+      expect(strengthBlockPosition(weeks, '2026-03-01')).toBeNull()
+    })
+
+    it('reads the same position from a stored plan and from the plan it was re-planned into', () => {
+      const g = goal('marathon', 40)
+      const first = plan(g)
+      const today = addDays(TODAY, 35)
+      const second = macroPlan(
+        { ...input(g), today, existing: { weeks: first, sessions: [] } },
+        state(),
+        g,
+        FEASIBLE,
+      )
+      const merged = [...first.filter((w) => w.weekStart < mondayOf(today)), ...second]
+      for (const w of first.filter((x) => x.flags.includes('strength-block'))) {
+        expect(strengthBlockPosition(merged, w.weekStart)).toEqual(
+          strengthBlockPosition(first, w.weekStart),
+        )
+      }
+      expect(strengthBlockPosition(merged, mondayOf(today))).toEqual({ week: 6, of: 12 })
+    })
   })
 
   it('places a heat block before race week when the race WBGT is 18 C or higher', () => {

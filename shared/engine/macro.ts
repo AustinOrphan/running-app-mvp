@@ -381,6 +381,48 @@ function gainShare(phase: PhaseV2): number {
   return P.macroDesign.gainShareSpecific.value
 }
 
+/**
+ * Where a week stands in its strength block, week k of n: the run of consecutive weeks that carry
+ * `strength-block` in `weeks` (the stored weeks and the planned ones) that contains it. Null for a
+ * week outside a block [rule E5].
+ */
+export function strengthBlockPosition(
+  weeks: ReadonlyArray<Pick<WeekDraft, 'weekStart' | 'flags'>>,
+  weekStart: string,
+): { week: number; of: number } | null {
+  const flagged = new Set(
+    weeks.filter((w) => w.flags.includes('strength-block')).map((w) => w.weekStart),
+  )
+  if (!flagged.has(weekStart)) return null
+  let first = weekStart
+  while (flagged.has(addDays(first, -7))) first = addDays(first, -7)
+  let last = weekStart
+  while (flagged.has(addDays(last, 7))) last = addDays(last, 7)
+  return { week: daysBetween(first, weekStart) / 7 + 1, of: daysBetween(first, last) / 7 + 1 }
+}
+
+/**
+ * The latest run of consecutive weeks (adjacent Mondays) before `firstMonday` that carry
+ * `strength-block` in the plan a re-plan replaces: its length, and whether it ends on the Monday
+ * before `firstMonday`, which is a block under way. Null without such a week or without a stored
+ * plan. An earlier run is not counted, so a stray flag cannot shorten a block under way [rule E5].
+ */
+function pastStrengthBlock(
+  input: EngineInput,
+  firstMonday: string,
+): { weeks: number; underWay: boolean } | null {
+  const flagged = new Set(
+    (input.existing?.weeks ?? [])
+      .filter((w) => w.weekStart < firstMonday && w.flags.includes('strength-block'))
+      .map((w) => w.weekStart),
+  )
+  const last = [...flagged].sort().at(-1)
+  if (last === undefined) return null
+  let weeks = 1
+  for (let cursor = addDays(last, -7); flagged.has(cursor); cursor = addDays(cursor, -7)) weeks += 1
+  return { weeks, underWay: last === addDays(firstMonday, -7) }
+}
+
 /** The latest restart floor week of the plan a re-plan replaces, before `firstMonday`. */
 export function pastFloor(
   input: EngineInput,
@@ -1228,16 +1270,32 @@ function planWeeks(
     record(i, weekStart, true)
   }
 
-  // Strength: a heavy block in base and early build, then maintenance
+  // Strength: a heavy block in base and early build, then maintenance. An ultra goal reads the H10
+  // Params in place of the E5 and F-lib ones; their values are equal [rules E5, H10].
+  const blockWeeks = goal.isUltra ? P.h10.strengthBlockWeeks.value : P.e5.strengthBlockWeeks.value
   const requested =
     input.options.strengthSessions ??
-    Math.min(P.flib.strengthPerWeek.value, input.profile.strengthPreference)
+    Math.min(
+      goal.isUltra ? P.h10.strengthSessionsPerWeek.value : P.flib.strengthPerWeek.value,
+      input.profile.strengthPreference,
+    )
   const maintenance = Math.min(requested, P.e5.strengthMaintenancePerWeek.value)
   const nonSpecific = phases.filter((p, i) => i < preCount && p.phase !== 'specific').length
-  const blockLen =
-    nonSpecific >= P.e5.strengthBlockMinWeeks.value
-      ? Math.min(P.e5.strengthBlockWeeks.value, nonSpecific)
-      : 0
+  // The block belongs to the weeks and not to a plan [rule E5]. The plan being replaced says where
+  // it stands: a block that ends on the Monday before this week is under way, and the weeks it has
+  // left are the block's length less the run of weeks it has served (no more than the non-specific
+  // weeks that remain, and without the minimum, which only a block that has not started must meet).
+  // A block that ended earlier is over and starts no other. A plan with no stored block, a
+  // regenerate or a new plan, starts one.
+  const past = pastStrengthBlock(input, firstMonday)
+  let blockLen = 0
+  if (past === null) {
+    if (nonSpecific >= P.e5.strengthBlockMinWeeks.value) {
+      blockLen = Math.min(blockWeeks, nonSpecific)
+    }
+  } else if (past.underWay) {
+    blockLen = Math.min(Math.max(blockWeeks - past.weeks, 0), nonSpecific)
+  }
 
   // Flags for the fixed blocks
   const flagSets: Array<Set<string>> = phases.map(() => new Set<string>())

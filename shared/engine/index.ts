@@ -45,7 +45,7 @@ import {
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { rebuildZone, responseBasis } from './loadSetting.ts'
-import { macroPlanDraft, redsHold, startPath } from './macro.ts'
+import { macroPlanDraft, redsHold, startPath, strengthBlockPosition } from './macro.ts'
 import { holdSessions, placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { planWindows, postRaceWarnings } from './postRace.ts'
@@ -570,6 +570,8 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
           goal.distanceClass === '5k' || goal.distanceClass === '10k'
             ? P.macroDesign.peakLongRunKmMax.value * 1000
             : undefined,
+        ultra: goal.isUltra,
+        blockPosition: strengthBlockPosition([...pastWeeks, ...macro], week.weekStart),
         ...(rules.length > 0 ? { dayRules: rules } : {}),
         ...(dplan.days.length > 0 ? { windowPlan: true } : {}),
         ...(ceiling ? { ceiling: true } : {}),

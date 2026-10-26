@@ -4,7 +4,7 @@
 // decides when and how long.
 import { addDays, daysBetween } from '../dates.ts'
 import type { AthleteProfile, Weekday } from '../types.ts'
-import type { DayRule } from './disruption.ts'
+import { isDisruptedWeek, type DayRule } from './disruption.ts'
 import {
   recordOf,
   referenceAt,
@@ -86,8 +86,24 @@ interface Slot {
   day: number
   date: string
   open: boolean
-  /** Minutes the day can hold; Infinity when the day has no limit. */
+  /**
+   * The most a run holds on the day: the smallest of the runner's availability (`availMin`), the 30-day
+   * reference of the spike guard [rule G-1] and every cap a window puts on the day [rules H12, J9].
+   * Runs read this.
+   */
   capMin: number
+  /**
+   * The runner's availability limit for the day (`maxMin`); Infinity without one, 0 when the day is
+   * closed. The room of a session that is not a run reads this, never the spike guard's reference,
+   * which limits a run and not the time in the gym [rules F4, F7].
+   */
+  availMin: number
+  /**
+   * A window already limits the day or its week (a rest or limited window rules the day, a post-race
+   * return step covers it, or a window touched the week), so every part of `capMin` still bounds the
+   * room of any session there [rules H12, J9].
+   */
+  bound: boolean
   /** The most an ordinary run holds on a post-race return day; the longest run may take `capMin` [H12]. */
   runMaxMin?: number
   /** The post-race step the day is in, when it is in one. */
@@ -159,6 +175,13 @@ export function placeWeek(
     ceiling?: boolean
     /** No run of the week carries more than this: the 16 km of a 5 km or 10 km goal [rules D7]. */
     longRunMaxM?: number
+    /** The goal is an ultra: its strength sessions cite H10 beside F7 [rules E5, H10]. */
+    ultra?: boolean
+    /**
+     * The week's place in its strength block, week k of n, counted over the stored and planned weeks
+     * (`strengthBlockPosition`); null or absent outside a block [rule E5].
+     */
+    blockPosition?: { week: number; of: number } | null
   },
 ): SessionSpec[] {
   const limits = ctx.limits ?? defaultLimits(ctx.state, ctx.prevSessions)
@@ -187,7 +210,12 @@ export function placeWeek(
   )
   const runs = planRuns(week, ctx, slots, before, caps, limits, windows)
   capIntensity(runs, week, ctx.zones)
-  const strength = planStrength(week, ctx.profile, slots, runs)
+  // The lifts the week already holds: finished or kept sessions on its closed days (a re-plan keeps
+  // them). They count against the week's lifts and the days beside them are not preferred [rule F4].
+  const heldLifts = before
+    .filter((s) => s.kind === 'strength' && s.date >= week.weekStart)
+    .map((s) => daysBetween(week.weekStart, s.date))
+  const strength = planStrength(week, ctx.profile, slots, runs, heldLifts)
 
   let specs = fitDistances(runs, slots, caps, ctx.zones, week)
   if (ctx.windowPlan === true) {
@@ -232,7 +260,10 @@ export function placeWeek(
   }
   fillDistanceAndGain(sessions, week, (date) => caps[daysBetween(week.weekStart, date)]!.gainM)
   for (const day of strength) {
-    const spec = prescribe('strength', P.fplace.strengthSessionMin.value, ctx.zones, week)
+    const spec = prescribe('strength', strengthMinutes(week), ctx.zones, week, {
+      ultra: ctx.ultra === true,
+      blockPosition: ctx.blockPosition ?? null,
+    })
     const hasRun = runs.some((r) => r.day === day)
     sessions.push({ ...spec, date: slots[day]!.date, order: hasRun ? 1 : 0 })
   }
@@ -822,16 +853,38 @@ function planRuns(
 
 // ---- strength ----
 
-/** Days for strength: easy or free days, never a hard day, the long day or the day before it. */
+/**
+ * The time a strength session is given, and the room a day needs for it: the budget of a block
+ * week, or the smaller one of every other week [rules F7, F4].
+ */
+function strengthMinutes(week: WeekDraft): number {
+  return week.flags.includes('strength-block')
+    ? P.f7.blockSessionMin.value
+    : P.f7.maintenanceSessionMin.value
+}
+
+/**
+ * The minutes a session that is not a run can take on a day: the runner's availability, and on a
+ * day that a window or a post-race step limits, every part of `capMin` as before. The spike guard's
+ * 30-day reference limits a run, not the time in the gym [rules F4, F7].
+ */
+const roomMin = (slot: Slot): number => (slot.bound ? slot.capMin : slot.availMin)
+
+/**
+ * Days for strength: easy or free days, never a hard day, the long day or the day before it. `held`
+ * are the days of the week that already hold a lift (finished, or kept by a re-plan): they count
+ * against the lifts the week wants, so a re-plan in mid-week adds only what is still to come.
+ */
 function planStrength(
   week: WeekDraft,
   profile: AthleteProfile,
   slots: Slot[],
   runs: RunPlan[],
+  held: readonly number[],
 ): number[] {
-  const wanted = Math.min(week.strengthSessions, profile.strengthPreference)
+  const wanted = Math.min(week.strengthSessions, profile.strengthPreference) - held.length
   if (wanted <= 0) return []
-  const minutes = P.fplace.strengthSessionMin.value
+  const minutes = strengthMinutes(week)
   const longStart = runs
     .filter((r) => r.kind === 'long' || r.kind === 'long-fast-finish' || r.kind === 'b2b')
     .map((r) => r.day)
@@ -844,14 +897,14 @@ function planStrength(
       if (!slots[day]!.open) return false
       if (run && (HARD_KINDS.has(run.kind) || run.kind === 'long')) return false
       if (firstLong !== null && day === firstLong - 1) return false
-      return slots[day]!.capMin - (run?.minutes ?? 0) >= minutes
+      return roomMin(slots[day]!) - (run?.minutes ?? 0) >= minutes
     })
   const picked: number[] = []
   while (picked.length < wanted) {
     const left = candidates.filter((d) => !picked.includes(d))
     if (left.length === 0) break
     const keyOf = (d: number) => [
-      picked.some((p) => Math.abs(p - d) < 2) ? 1 : 0,
+      [...held, ...picked].some((p) => Math.abs(p - d) < 2) ? 1 : 0,
       runOn(d) ? 0 : 1,
       d,
     ]
@@ -868,13 +921,23 @@ function slotsOf(week: WeekDraft, profile: AthleteProfile, caps: RunCaps[]): Slo
   return WEEKDAYS.map((weekday, day) => {
     const a = profile.availability[weekday]
     const open = a.available && (a.maxMin === null || a.maxMin > 0)
+    const availMin = open ? (a.maxMin ?? Infinity) : 0
     return {
       day,
       date: addDays(week.weekStart, day),
       open,
-      capMin: open ? Math.min(a.maxMin ?? Infinity, caps[day]!.min) : 0,
+      availMin,
+      bound: isDisruptedWeek(week.flags),
+      capMin: Math.min(availMin, caps[day]!.min),
     }
   })
+}
+
+/** A closed day holds nothing: no run and no other session. */
+function closeDay(slot: Slot): void {
+  slot.open = false
+  slot.availMin = 0
+  slot.capMin = 0
 }
 
 /**
@@ -890,10 +953,10 @@ function applyWindowLimits(
     const limit = dayLimit(windows, slot.date)
     if (limit === null) continue
     if (limit.hold) {
-      slot.open = false
-      slot.capMin = 0
+      closeDay(slot)
       continue
     }
+    slot.bound = true
     slot.capMin = Math.min(slot.capMin, limit.longRunMaxMin)
     slot.runMaxMin = Math.min(slot.capMin, limit.runMaxMin)
     slot.step = limit.step
@@ -917,8 +980,7 @@ function applyWindowLimits(
         quota -= 1
         last = slot.date
       } else {
-        slot.open = false
-        slot.capMin = 0
+        closeDay(slot)
       }
     }
   }
@@ -934,10 +996,10 @@ function applyDayRules(slots: Slot[], rules: readonly DayRule[]): void {
     const slot = slots.find((s) => s.date === rule.date)
     if (slot === undefined) continue
     if (rule.held) {
-      slot.open = false
-      slot.capMin = 0
+      closeDay(slot)
       continue
     }
+    slot.bound = true
     if (rule.maxRunMin !== null) {
       slot.capMin = Math.min(slot.capMin, rule.maxRunMin)
       if (slot.runMaxMin !== undefined) slot.runMaxMin = Math.min(slot.runMaxMin, rule.maxRunMin)

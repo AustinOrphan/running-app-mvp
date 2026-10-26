@@ -13,6 +13,11 @@
 //   npx tsx -e "import('./tests/unit/engine/history-oracle.ts').then((m) =>
 //     console.log(JSON.stringify(m.steadyDigests(), null, 2)))" > tests/unit/engine/history-oracle.json
 //
+// The digests of the re-plan chains were regenerated on 2026-10-25 for the anchored strength block
+// (task E14-3, rule E5): a re-plan continues the block and no longer starts a new one, so the
+// `strength-block` flag of the weeks differs from the second plan of a chain on. The plans are
+// otherwise the ones the digests held (checked by comparing the chains with the flag removed).
+//
 // Regenerated 2026-10-25 for the D4 count of weeks available (the plan's Monday weeks, rule D4):
 // in every plan only `feasibility.weeksAvailable` and the tight and not-reachable notes (their text,
 // or their presence where the label moved) differ from the digests before it; the sessions, the
