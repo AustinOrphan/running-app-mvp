@@ -3,14 +3,15 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { buildPlan, replan } from '../../../shared/engine/index.ts'
+import { afterBreak, buildPlan, replan } from '../../../shared/engine/index.ts'
+import { startPath } from '../../../shared/engine/macro.ts'
 import type { DisruptionWindow, EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
 import type { PlanWeek as PlanWeekRow } from '../../../server/db.ts'
 import { raisedTargetLimits, planWeekWrites } from '../../../server/services/replan.ts'
 import { weekRow } from '../../../server/services/planEngine.ts'
 import { activity } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
-import { at, h1, h10 } from './history-fixtures.ts'
+import { at, h1, h10, scenario, summer, weeks as runWeeks } from './history-fixtures.ts'
 import { replanChain, replanSteps, type ReplanStep } from './replan-steps.ts'
 
 type Existing = NonNullable<EngineInput['existing']>
@@ -448,5 +449,39 @@ describe('the re-plan on which the low-frequency flag changes the recovery cycle
       }
       expect(checked).toBeGreaterThan(4)
     })
+  })
+})
+
+describe('a stored recovery week on the Monday a start path claims [rules E3, E6]', () => {
+  // A 2:1 plan made for a runner on 45 minute runs (a 3 x 20 floor start), then three weeks with
+  // no run, then a re-plan at 3:1: the count of the new cycle misses the recovery week the plan
+  // stored on that Monday, and the runner is after a gap, on the floor.
+  const base = scenario([...summer(), ...runWeeks(7, 1, [45])])
+  const stored = buildPlan({ ...base, options: { ...base.options, recoveryCycle: '2:1' } })
+  const monday = addDays(mondayOf(base.today), 21)
+  const input: EngineInput = {
+    ...base,
+    today: monday,
+    options: { ...base.options, recoveryCycle: '3:1' },
+    existing: {
+      weeks: stored.weeks,
+      sessions: stored.sessions.map((s, i) => ({
+        ...s,
+        id: `s${i}`,
+        status: s.date < monday ? 'skipped' : 'planned',
+        activityId: null,
+      })),
+    },
+  }
+
+  it('is a floor start on the Monday of a stored recovery week', () => {
+    expect(stored.weeks.find((w) => w.weekStart === monday)?.isRecovery).toBe(true)
+    expect(startPath(input, afterBreak(estimateState(input)))?.kind).toBe('floor')
+  })
+
+  it('opens on the floor week, not on the stored recovery week', () => {
+    const opening = replan(input).draft.weeks.find((w) => w.weekStart === monday)
+    expect(opening?.flags).toContain('restart-floor')
+    expect(opening?.isRecovery).toBe(false)
   })
 })
