@@ -309,6 +309,10 @@ function GoalSheet({ goal, units, onClose }: GoalFormProps) {
           options={PRIORITY_OPTIONS}
           value={priority}
           onChange={setPriority}
+          hint={[
+            'How much the race matters: A is the race the training builds toward, B a race on the way, C a training race.',
+            'The plan follows the goal marked active; the letter is a label on the list.',
+          ]}
         />
         <Field label="Status" error={errors.status}>
           {(a) => (
