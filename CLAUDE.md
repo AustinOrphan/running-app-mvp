@@ -179,6 +179,9 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
 - The e2e server port is 3101 plus a per-checkout offset (`E2E_PORT` in `tests/e2e/env.ts`), so
   worktrees can run e2e at the same time. Never hard-code it; use `baseURL` or `E2E_PORT`. Print it
   with `node -e "import('./tests/e2e/env.ts').then((m) => console.log(m.E2E_PORT))"`.
+- `tests/e2e/globalSetup.ts` holds a run back until the next local day when fewer than three minutes
+  are left before midnight, and prints the wait. The specs take their dates from the clock at the
+  start, so a run that crossed midnight would leave a page on a day its plan was not built for.
 
 ## Public repository
 

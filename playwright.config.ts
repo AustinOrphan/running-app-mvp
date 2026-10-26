@@ -3,6 +3,8 @@ import { E2E_DATABASE_URL, E2E_PORT } from './tests/e2e/env.ts'
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Holds the start back in the last minutes before local midnight, so no spec crosses the day.
+  globalSetup: './tests/e2e/globalSetup.ts',
   workers: 1,
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
