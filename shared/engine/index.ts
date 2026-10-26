@@ -145,6 +145,44 @@ export { PARAMS_VERSION, P } from './params/index.ts'
 export { predictRace, rangeLabel } from './predict.ts'
 export { readinessSignals, readinessVerdict, strongestAdvice, todayAdvice } from './readiness.ts'
 export { weeklyRamp } from './macro.ts'
+export {
+  anchorEstimate,
+  barbellAllowed,
+  blockPosition,
+  estimateOneRm,
+  isLowReadiness,
+  liftFor,
+  liftTexts,
+  modeOf,
+  percentOfMax,
+  pickLift,
+  rampInWeeks,
+  sessionVariant,
+  strengthTemplate,
+  structuresFor,
+  suggestLoad,
+  summariseHistory,
+  waysFor,
+  workoutFor,
+} from './strength.ts'
+export type {
+  BlockPosition,
+  F8Rule,
+  HistorySession,
+  HistorySet,
+  HistorySummary,
+  LiftChoice,
+  LiftHistory,
+  LiftRole,
+  LiftWay,
+  LoadRequest,
+  LoadSuggestion,
+  PickOptions,
+  Structure,
+  StructureKind,
+  StructureSet,
+  WeekHistory,
+} from './strength.ts'
 
 const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 /** Session kinds that make a week's long run, alone or as a back-to-back pair. */

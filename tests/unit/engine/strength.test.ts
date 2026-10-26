@@ -2,7 +2,13 @@
 // lift of each slot, the load of each lift (rules F8.1 to F8.7, F9), the estimated maximum, the
 // derived workout and the history behind it. Every figure comes from a synthetic runner: no
 // real history, equipment or names.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { COPY_MAX_CHARS } from '../../../shared/copy/limits.ts'
+import { lintText } from '../../../shared/copy/lint.ts'
+import type { Template } from '../../../shared/copy/template.ts'
+import { renderFact } from '../../../shared/copy/templates.ts'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import {
   EXERCISES,
@@ -34,6 +40,7 @@ import {
   strengthTemplate,
   structuresFor,
   suggestLoad,
+  summariseHistory,
   waysFor,
   workoutFor,
   type BlockPosition,
@@ -68,6 +75,7 @@ import {
   monday,
   plan,
   sessionRef,
+  sessionsOf,
   setsOf,
   week,
   withSetup,
@@ -2778,5 +2786,474 @@ describe('every workout', () => {
       sessions: [...ctx.sessions].reverse(),
     }
     expect(workoutFor(scrambled, session)).toEqual(reference)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// History and the tracking behind it (design 6.4, 12)
+// ---------------------------------------------------------------------------------------------
+
+describe('summariseHistory', () => {
+  // back squat: three normal sessions rising, then a lighter day; one goblet squat session
+  const a = squat('a', 20, rows(100, [5, 5, 5, 5], [null, null, null, null]))
+  const b = squat('b', 13, rows(105, [6, 6, 5, 5], [2, 2, 2, 2]))
+  const c = squat('c', 6, rows(110, [6, 6, 6, 6], [2, 2, 1, 1]))
+  const d = squat('d', 2, rows(100, [5, 5], [3, 3]), { mode: 'lighter-day' })
+  const g = goblet('g', 9, rows(40, [5, 5, 5], [null, null, null]))
+  const ctx = barbellRunner([a, b, c, d, g])
+  const summary = summariseHistory(ctx)
+  const squats = summary.lifts.find((lift) => lift.exerciseId === 'back-squat')
+
+  it('lists the exercises with a logged set, the latest first', () => {
+    expect(summary.lifts.map((lift) => lift.exerciseId)).toEqual(['back-squat', 'goblet-squat'])
+  })
+
+  it('gives the sessions of an exercise newest first, with the sets, mode and heaviest set', () => {
+    expect(squats?.sessions.map((s) => [s.logId, s.mode, s.sets.length])).toEqual([
+      ['d', 'lighter-day', 2],
+      ['c', 'normal', 4],
+      ['b', 'normal', 4],
+      ['a', 'normal', 4],
+    ])
+    expect(squats?.sessions[1]?.heaviest).toEqual({ loadG: lb(110), count: 6 })
+    expect(squats?.sessions[1]?.sets[2]).toEqual({ position: 2, loadG: lb(110), count: 6, rir: 1 })
+    expect(squats?.sessions[1]?.workingLoadG).toBe(lb(110))
+    expect(squats?.sessions[1]?.estimateG).toBe(estimateOneRm(lb(110), 6, 2))
+  })
+
+  it('takes the heaviest set as the greatest load and, of equals, the most reps', () => {
+    const mixed = log('m', ago(3), {
+      sets: [
+        { exerciseId: 'back-squat', position: 0, loadG: lb(100), count: 8, rir: null },
+        { exerciseId: 'back-squat', position: 1, loadG: lb(115), count: 3, rir: null },
+        { exerciseId: 'back-squat', position: 2, loadG: lb(115), count: 5, rir: null },
+        { exerciseId: 'back-squat', position: 3, loadG: lb(110), count: 9, rir: null },
+      ],
+    })
+    const lift = summariseHistory(barbellRunner([mixed])).lifts[0]
+    expect(lift?.sessions[0]?.heaviest).toEqual({ loadG: lb(115), count: 5 })
+    const bodyweight = log('t', ago(3), { sets: setsOf('tempo-squat', [[null, 10, 2]]) })
+    expect(
+      summariseHistory(context({ logs: [bodyweight] })).lifts[0]?.sessions[0]?.heaviest,
+    ).toBeNull()
+  })
+
+  it('reads the estimated maximum from the best set of the latest session, with a label and never a test', () => {
+    // the lighter day is the latest session: 100 lb for 5 with 3 left
+    expect(squats?.estimateG).toBe(estimateOneRm(lb(100), 5, 3))
+    expect(summary.lifts[1]?.estimateG).toBe(estimateOneRm(lb(40), 5, null))
+  })
+
+  it('names the working load of the latest normal session, and the last move of it', () => {
+    expect(squats?.workingLoadG).toBe(lb(110))
+    expect(squats?.lastChange).toEqual({ fromG: lb(105), toG: lb(110), date: ago(6) })
+    // an exercise with one session, or one that has not moved, has none
+    expect(summary.lifts[1]?.lastChange).toBeNull()
+    const flat = summariseHistory(
+      barbellRunner([a, squat('e', 5, rows(100, [5, 5], [null, null]))]),
+    )
+    expect(flat.lifts[0]?.lastChange).toBeNull()
+  })
+
+  it('counts the days since the latest session of any mode', () => {
+    expect(squats?.gapDays).toBe(2)
+    expect(squats?.lastDate).toBe(ago(2))
+    expect(summary.lifts[1]?.gapDays).toBe(9)
+  })
+
+  it('does not depend on the order of the logs or of the sets', () => {
+    const scrambled = [g, d, b, a, c].map((entry) => ({
+      ...entry,
+      sets: [...entry.sets].reverse(),
+    }))
+    expect(summariseHistory(barbellRunner(scrambled))).toEqual(summary)
+  })
+
+  it('leaves a frozen context alone', () => {
+    expect(summariseHistory(deepFreeze(structuredClone(ctx)))).toEqual(summary)
+  })
+
+  describe('by week', () => {
+    const week = (monday: string) => summary.weeks.find((w) => w.weekStart === monday)
+
+    it('counts the sessions planned and logged and the sets of each week', () => {
+      const cWeek = week(mondayOf(c.date))
+      expect(cWeek).toMatchObject({ planned: 2, logged: 2, sets: 7 })
+      // the squat of the week and the goblet squat are the week's two logs
+      const logged = summary.weeks.reduce((total, w) => total + w.logged, 0)
+      expect(logged).toBe(5)
+    })
+
+    it('names the lifts whose working load moved from the one before the week', () => {
+      expect(week(mondayOf(c.date))?.moved).toEqual([
+        { exerciseId: 'back-squat', fromG: lb(105), toG: lb(110) },
+      ])
+      expect(week(mondayOf(b.date))?.moved).toEqual([
+        { exerciseId: 'back-squat', fromG: lb(100), toG: lb(105) },
+      ])
+      // the first session of an exercise has nothing to move from, and a lighter day moves nothing
+      expect(week(mondayOf(a.date))?.moved).toEqual([])
+      expect(week(mondayOf(d.date))?.moved ?? []).toEqual([])
+    })
+
+    it('lists the weeks oldest first, planned or logged', () => {
+      const starts = summary.weeks.map((w) => w.weekStart)
+      expect([...starts].sort()).toEqual(starts)
+      expect(starts).toContain(mondayOf(a.date))
+    })
+  })
+
+  describe('the count prompt (design 12.4)', () => {
+    // two sessions a week are planned in every week of the fixture plan; today is in week 6
+    const full = (i: number) => [
+      log(`f${String(i)}a`, sessionRef(i, 0).date),
+      log(`f${String(i)}b`, sessionRef(i, 1).date),
+    ]
+    const one = (i: number) => [log(`o${String(i)}`, sessionRef(i, 0).date)]
+    const read = (logs: StrengthLogEntry[]) => summariseHistory(context({ logs }))
+
+    it('asks after 3 finished weeks in a row with fewer sessions logged than planned', () => {
+      expect(P.f9.countPromptWeeks.value).toBe(3)
+      const three = read([...full(0), ...full(1), ...one(2), ...one(3), ...one(4)])
+      expect(three).toMatchObject({ lowCountWeeks: 3, countPrompt: true })
+    })
+
+    it('does not ask after 2, or when a full week comes between', () => {
+      expect(read([...full(0), ...full(1), ...full(2), ...one(3), ...one(4)])).toMatchObject({
+        lowCountWeeks: 2,
+        countPrompt: false,
+      })
+      expect(read([...one(0), ...one(1), ...full(2), ...one(3), ...one(4)])).toMatchObject({
+        lowCountWeeks: 2,
+        countPrompt: false,
+      })
+    })
+
+    it('counts a week with no session at all as one fewer than planned', () => {
+      expect(read([...full(0), ...full(1), ...one(2)]).lowCountWeeks).toBe(3)
+    })
+
+    it('does not count the week in progress, and a week with nothing planned ends the run', () => {
+      // today is a Wednesday of week 6: week 6 is not finished
+      expect(read(full(0)).lowCountWeeks).toBe(4)
+      const none = context({ sessions: sessionsOf(30).filter((s) => !s.id.startsWith('s4')) })
+      expect(summariseHistory(none).lowCountWeeks).toBe(0)
+    })
+
+    it('counts a session saved without sets, which is a log with none', () => {
+      const without = [0, 1, 2, 3, 4].flatMap((i) => full(i))
+      expect(read(without).lowCountWeeks).toBe(0)
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The replay of a light start (design 10.3)
+// ---------------------------------------------------------------------------------------------
+
+describe('a light start over the weeks of a block', () => {
+  /**
+   * A synthetic lifter on a leg-press stack (10 lb steps to 500 lb) who works every set to the low
+   * end of the reps left the workout asks for, up to the top of the range, and so stops short of
+   * what the rules ask for only when the load is nearly too heavy. His capacity at a load is
+   * 30 x (maximum / load - 1) repetitions to the limit. Returns, per session, the share of the
+   * true maximum the suggested load was.
+   */
+  function replay(trueMaxLb: number, weightKg: number, weeks: number): number[] {
+    const equipment: EquipmentConfig = { kind: 'leg-press', stepG: lb(10), maxG: lb(500) }
+    const logs: StrengthLogEntry[] = []
+    const shares: number[] = []
+    for (let i = 0; i < weeks; i += 1) {
+      for (const rank of [0, 1] as const) {
+        const session = sessionRef(i, rank)
+        const ctx = withSetup(
+          { equipment: [equipment] },
+          { today: session.date, logs, athlete: { ...context().athlete, weightKg } },
+        )
+        const workout = workoutFor(ctx, session)
+        const lift = workout.lifts.find((l) => l.exerciseId === 'leg-press')
+        expect(lift?.loadG).not.toBeNull()
+        const pounds = fromGrams(lift?.loadG ?? 0, 'lb')
+        const capacity = Math.floor(30 * (trueMaxLb / pounds - 1))
+        const sets = (lift?.targets ?? []).map((_, position) => {
+          const count = Math.max(
+            0,
+            Math.min(lift?.range.max ?? 0, capacity - (lift?.rir?.min ?? 0)),
+          )
+          return {
+            exerciseId: 'leg-press',
+            position,
+            loadG: lift?.loadG ?? null,
+            count,
+            rir: Math.max(0, Math.min(5, capacity - count)),
+          }
+        })
+        logs.push(
+          log(`r${String(i)}${String(rank)}`, session.date, { sets, template: workout.template }),
+        )
+        shares.push(pounds / trueMaxLb)
+      }
+    }
+    return shares
+  }
+  const floor = P.flib.heavyMinPct1rm.value / 100
+  const ceiling = (P.flib.heavyMinPct1rm.range?.[1] ?? 0) / 100
+  /** The 1-based number of the first session at or over the heavy floor, or null. */
+  const firstHeavy = (shares: number[]) => {
+    const at = shares.findIndex((share) => share >= floor)
+    return at < 0 ? null : at + 1
+  }
+
+  it('reaches the heavy range in the 11th session for a 70 kg lifter with a 320 lb leg press', () => {
+    const shares = replay(320, 70, 12)
+    // recorded 2026-10-25: 22% of the maximum at the start, 81% at session 11 (week 6, session A)
+    expect(shares[0]).toBeCloseTo(70 / 320, 5)
+    expect(firstHeavy(shares)).toBe(11)
+    expect(firstHeavy(shares.slice(0, 12))).toBe(11)
+  })
+
+  it('reaches it in the 15th session for a 90 kg lifter with a 450 lb leg press', () => {
+    expect(firstHeavy(replay(450, 90, 12))).toBe(15)
+  })
+
+  it('never asks for more than 90% of the true maximum, and never takes a step down on the way up', () => {
+    for (const [max, kg] of [
+      [320, 70],
+      [450, 90],
+      [260, 80],
+    ] as const) {
+      const shares = replay(max, kg, 12)
+      expect(Math.max(...shares), `${String(max)} lb`).toBeLessThanOrEqual(ceiling)
+      shares.forEach((share, i) => {
+        if (i > 0)
+          expect(share, `${String(max)} lb session ${String(i + 1)}`).toBeGreaterThanOrEqual(
+            shares[i - 1] ?? 0,
+          )
+      })
+    }
+  })
+
+  it('records the lifters a 10 lb step stalls: a step over 15% of the load is not offered', () => {
+    // a 55 kg lifter starts at 60 lb and 70 lb would be 17% more: the cap holds the load, and the
+    // leg press has no harder movement to move to (E14-4 report, for the owner)
+    for (const [max, kg, stalled] of [
+      [200, 55, 60],
+      [150, 50, 50],
+    ] as const) {
+      const shares = replay(max, kg, 12)
+      expect(firstHeavy(shares), `${String(max)} lb`).toBeNull()
+      expect(new Set(shares).size, `${String(max)} lb`).toBe(1)
+      expect((shares[0] ?? 0) * max, `${String(max)} lb`).toBeCloseTo(stalled, 5)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The words (ADR 0010) and the source (design 3)
+// ---------------------------------------------------------------------------------------------
+
+describe('the reasons the engine gives', () => {
+  const factsOf = (suggestions: LoadSuggestion[]) => suggestions.flatMap((s) => s.facts)
+  const squatRun = (sets: Row[], over: Partial<LoadRequest> = {}, extra: StrengthLogEntry[] = []) =>
+    ask(barbellRunner([squat('a', 5, sets), ...extra]), over)
+
+  /** A suggestion that reaches each reason of the registry, and the workouts of the F9 cases. */
+  const reached = (): Array<{ template: string; slots: Record<string, unknown> }> => {
+    const session = sessionOf(5)
+    const suggestions = [
+      squatRun(rows(110, [6, 6, 6, 6], [1, 1, 1, 1])),
+      squatRun(rows(110, [6, 6, 6, 6], [4, 4, 4, 4])),
+      squatRun(rows(110, [6, 6, 6, 6], [null, null, null, null])),
+      squatRun(rows(110, [6, 5, 6, 6], [2, 2, 2, 2])),
+      squatRun(rows(110, [6, 6, 6, 6], [2, 0, 2, 2])),
+      squatRun(rows(110, [6, 6, 2], [null, null, null])),
+      squatRun(rows(110, [6, 1], [null, null])),
+      ask(barbellRunner()),
+      ask(barbellRunner([], { athlete: { ...context().athlete, weightKg: null } })),
+      ask(barbellRunner([squat('a', 40, rows(110, [6, 6], [2, 2]))])),
+      ask(
+        barbellRunner([], {
+          anchors: [
+            {
+              exerciseId: 'back-squat',
+              kind: 'max',
+              loadG: lb(200),
+              reps: 1,
+              rir: null,
+              asOf: ago(5),
+            },
+          ],
+        }),
+      ),
+      suggestLoad(context(), {
+        exerciseId: 'tempo-squat',
+        implement: null,
+        date: TODAY,
+        ...structuresFor('heavy', 'lead', 6),
+      }),
+      gobletAsk([100, 116], [goblet('g', 5, rows(100, [6, 6, 6], [3, 3, 3]))]),
+      gobletAsk([100, 113], [goblet('g', 5, rows(100, [6, 6, 6], [1, 1, 1]))]),
+      gobletAsk(
+        [40, 50, 60],
+        [15, 8, 2].map((d) => goblet(`v${String(d)}`, d, rows(50, [6, 6, 6], [1, 1, 1]))),
+        { canVary: true },
+      ),
+    ]
+    const workouts = [
+      workoutFor(
+        withSetup(
+          { equipment: have('barbell') },
+          {
+            today: session.date,
+            logs: [squat('a', 20, rows(110, [6, 6, 6, 6], [2, 2, 2, 2]))],
+            readiness: {
+              date: session.date,
+              state: 'possible-fatigue',
+              pain: null,
+              illness: 'clear',
+            },
+          },
+        ),
+        session,
+      ),
+      ...(
+        [
+          { index: 6, flags: ['recovery'] },
+          { index: 14, flags: [] },
+          { index: 25, flags: ['taper'] },
+        ] as const
+      ).map(({ index, flags }) => {
+        const s = sessionOf(index)
+        const weeks = plan(30, 12).map((w, i) =>
+          i === index ? { ...w, flags: [...w.flags, ...flags] } : w,
+        )
+        const logs = [
+          log('k', addDays(s.date, -3), {
+            sets: setsOf('back-squat', rows(110, [6, 6, 6, 6], [2, 2, 2, 2])),
+          }),
+        ]
+        return workoutFor(
+          withSetup({ equipment: have('barbell') }, { today: s.date, weeks, logs }),
+          s,
+        )
+      }),
+    ]
+    return [
+      ...factsOf(suggestions),
+      ...workouts.flatMap((w) => w.lifts.flatMap((lift) => lift.basis.facts)),
+    ]
+  }
+
+  it('reaches every reason template of the registry', () => {
+    const used = new Set(reached().map((f) => f.template))
+    const registered = Object.keys(STRENGTH_TEMPLATES).filter((id) =>
+      id.startsWith('strength.reason.'),
+    )
+    expect([...used].filter((id) => id.startsWith('strength.reason.')).sort()).toEqual(
+      registered.sort(),
+    )
+  })
+
+  it('names only registered templates, with the slots each declares', () => {
+    for (const fact of reached()) {
+      const template = (STRENGTH_TEMPLATES as Record<string, Template | undefined>)[fact.template]
+      expect(template, fact.template).toBeDefined()
+      expect(Object.keys(fact.slots).sort(), fact.template).toEqual(
+        Object.keys(template?.slots ?? {}).sort(),
+      )
+    }
+  })
+
+  it('renders every fact in both distance units and both weight units, clean and finished', () => {
+    for (const fact of reached()) {
+      for (const units of ['km', 'mi'] as const) {
+        for (const weightUnit of ['lb', 'kg'] as const) {
+          const text = renderFact(fact as never, units, weightUnit)
+          expect(lintText(text), text).toEqual([])
+          expect(text.length, text).toBeLessThanOrEqual(COPY_MAX_CHARS)
+          expect(text, text).toMatch(/\.$/)
+          expect(text, text).not.toMatch(/\{|\}|NaN|undefined|null|This could not be shown/)
+        }
+      }
+    }
+  })
+
+  it('writes the same grams in the runner’s unit, so a change of unit reaches an old reason', () => {
+    const cap = reached().find((f) => f.template === 'strength.reason.hold-step')
+    expect(renderFact(cap as never, 'km', 'lb')).toContain('from 100 lb')
+    expect(renderFact(cap as never, 'km', 'kg')).toContain('from 45.25 kg')
+  })
+})
+
+describe('shared/engine/strength.ts', () => {
+  const dir = join(import.meta.dirname, '../../../shared')
+
+  /** The source with its comments removed, so a figure in a comment is not counted. */
+  function code(name: string): string {
+    return readFileSync(join(dir, name), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:'"`])\/\/.*$/gm, '$1')
+  }
+
+  it('has no hard-coded value of the f7, f8 and f9 groups', () => {
+    const values = new Set<number>()
+    const collect = (value: unknown): void => {
+      if (typeof value === 'number') values.add(value)
+      else if (Array.isArray(value)) value.forEach(collect)
+      else if (typeof value === 'object' && value !== null) Object.values(value).forEach(collect)
+    }
+    for (const group of [P.f7, P.f8, P.f9]) {
+      for (const param of Object.values(group) as Array<{ value: unknown }>) collect(param.value)
+    }
+    // 0 and 1 are counting, not rules: the first, the next, the one before
+    values.delete(0)
+    values.delete(1)
+    expect(values.size).toBeGreaterThan(20)
+    const found: string[] = []
+    for (const match of code('engine/strength.ts').matchAll(/(?<![\w$.])\d+(?:\.\d+)?(?![\w$])/g)) {
+      if (values.has(Number(match[0]))) found.push(match[0])
+    }
+    expect(found).toEqual([])
+  })
+
+  it('has no figure inside a string of the strength copy', () => {
+    const literals = [
+      ...code('copy/strengthTemplates.ts').matchAll(
+        /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g,
+      ),
+    ].map((match) => match[0])
+    expect(literals.length).toBeGreaterThan(100)
+    expect(literals.filter((literal) => /\d/.test(literal))).toEqual([])
+  })
+
+  it('reads no clock, does no I/O and imports nothing from Node', () => {
+    const text = code('engine/strength.ts')
+    expect(text).not.toMatch(/\bDate\b|Math\.random|performance\.now|\bprocess\b|\bfetch\(/)
+    expect(text).not.toMatch(/\bnode:|\brequire\(|\bfs\b|\bsetTimeout\b|\bawait\b|\basync\b/)
+  })
+
+  it('imports the registry, the catalogue, the weight helpers, the block counter and types only', () => {
+    const imports = [...code('engine/strength.ts').matchAll(/from '([^']+)'/g)]
+      .map((m) => m[1] ?? '')
+      .sort()
+    expect(imports).toEqual(
+      [
+        '../copy/quantity.ts',
+        '../copy/strengthTemplates.ts',
+        '../dates.ts',
+        '../domain/strengthLibrary.ts',
+        '../domain/weight.ts',
+        '../types.ts',
+        './macro.ts',
+        './params/index.ts',
+        './types.ts',
+      ].sort(),
+    )
+  })
+
+  it('counts the block with the one counter and writes no second', () => {
+    const text = code('engine/strength.ts')
+    expect(text).toContain('strengthBlockPosition(')
+    expect(text).not.toMatch(/strength-block/)
   })
 })

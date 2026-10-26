@@ -596,7 +596,7 @@ function stepUp(
   if (first > ceiling) return { one: null, two: null, blocked: 'ceiling' }
   let two: number | null = null
   if (wantTwo) {
-    const second = stepFrom(steps, base, 2, unit)
+    const second = stepFrom(steps, first, 1, unit)
     if (second !== null && within(first, second) && second <= ceiling) two = second
   }
   return { one: first, two, blocked: null }
@@ -941,7 +941,7 @@ function completedRunningWeek(week: StrengthWeek): boolean {
  */
 function plyoLadder(ctx: StrengthContext, before: string): { steps: number; rung: number } {
   const finished = ctx.weeks
-    .filter((w) => w.weekStart < before && addDays(w.weekStart, 6) < ctx.today)
+    .filter((w) => w.weekStart < before && addDays(w.weekStart, 7) <= ctx.today)
     .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
   let steps = 0
   let rung = 0
@@ -1355,5 +1355,179 @@ export function liftTexts(exerciseId: string): { name: Fact; cue: Fact; note: Fa
       exercise.note,
       noteSlots.includes('seconds') ? { seconds: count(P.f7.lowerSeconds.value) } : {},
     ),
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// History and the tracking behind it (design 6.4, 12.1, 12.2, 12.4)
+// ---------------------------------------------------------------------------------------------
+
+/** One set as the history shows it. */
+export interface HistorySet {
+  position: number
+  loadG: number | null
+  count: number
+  rir: number | null
+}
+
+/** One logged session of one exercise: the line of the history table. */
+export interface HistorySession {
+  logId: string
+  date: string
+  mode: StrengthMode
+  sets: HistorySet[]
+  /** The heaviest set: the greatest load, and of equals the most reps; null with no loaded set. */
+  heaviest: { loadG: number; count: number } | null
+  /** The load used in most sets, the lower on a tie; null for a movement with no added load. */
+  workingLoadG: number | null
+  /** The estimated maximum of the session's best set, a label and never a test. */
+  estimateG: number | null
+}
+
+/** One exercise of the Lifts list and its history. */
+export interface LiftHistory {
+  exerciseId: string
+  /** Newest first. */
+  sessions: HistorySession[]
+  /** The date of the latest session of any mode. */
+  lastDate: string
+  /** Days from the latest session to today; the gap rule counts from here (F8.2). */
+  gapDays: number
+  /** The working load of the latest normal session. */
+  workingLoadG: number | null
+  /** From the anchor until the first log, then from the best set of the latest session. */
+  estimateG: number | null
+  /** The last move of the working load between two normal sessions; null when it has not moved. */
+  lastChange: { fromG: number; toG: number; date: string } | null
+}
+
+/** One week of the review: sessions planned and logged, sets, and the lifts that moved. */
+export interface WeekHistory {
+  weekStart: string
+  planned: number
+  logged: number
+  sets: number
+  /** Lifts whose working load differs from the one before the week ("Back squat 110 lb to 115 lb"). */
+  moved: Array<{ exerciseId: string; fromG: number; toG: number }>
+}
+
+export interface HistorySummary {
+  /** Exercises with a logged set, the latest first. */
+  lifts: LiftHistory[]
+  /** Weeks with a planned or a logged session, oldest first. */
+  weeks: WeekHistory[]
+  /** Finished weeks in a row, the latest first, with fewer sessions logged than planned. */
+  lowCountWeeks: number
+  /** The page may ask whether to plan fewer a week (`f9.countPromptWeeks`, design 12.4). */
+  countPrompt: boolean
+}
+
+function historySession(session: LoggedSession): HistorySession {
+  const loaded = session.sets.filter((set) => set.loadG !== null && set.loadG > 0)
+  const heaviest = [...loaded].sort(
+    (a, b) => (b.loadG ?? 0) - (a.loadG ?? 0) || b.count - a.count || a.position - b.position,
+  )[0]
+  return {
+    logId: session.logId,
+    date: session.date,
+    mode: session.mode,
+    sets: session.sets.map((set) => ({
+      position: set.position,
+      loadG: set.loadG,
+      count: set.count,
+      rir: set.rir,
+    })),
+    heaviest:
+      heaviest === undefined || heaviest.loadG === null
+        ? null
+        : { loadG: heaviest.loadG, count: heaviest.count },
+    workingLoadG: session.base,
+    estimateG: session.estimate,
+  }
+}
+
+/**
+ * What the Strength page and the weekly review read, computed from the logs and the stored plan on
+ * every read (design 6.4, 12): the sessions of each exercise with their heaviest set and estimated
+ * maximum, the last move of each working load, and for each week the sessions planned and logged,
+ * the sets and the lifts that moved. The history of an exercise is every session of it, whatever
+ * implement it was done with. A session counts as a log, so the history cannot disagree with it.
+ * Nothing is stored; the order of the rows does not matter.
+ */
+export function summariseHistory(ctx: StrengthContext): HistorySummary {
+  const ids = [...new Set(ctx.logs.flatMap((entry) => entry.sets.map((set) => set.exerciseId)))]
+  const lifts: LiftHistory[] = []
+  for (const exerciseId of ids) {
+    const sessions = loggedSessions(ctx.logs, exerciseId, undefined, null)
+    const latest = sessions.at(-1)
+    if (latest === undefined) continue
+    const normal = sessions.filter((session) => session.mode === 'normal')
+    const lastNormal = normal.at(-1)
+    const before = normal.slice(0, -1).at(-1)
+    const from = before?.base ?? null
+    const to = lastNormal?.base ?? null
+    lifts.push({
+      exerciseId,
+      sessions: sessions.map(historySession).reverse(),
+      lastDate: latest.date,
+      gapDays: daysBetween(latest.date, ctx.today),
+      workingLoadG: to,
+      estimateG: latest.estimate,
+      lastChange:
+        lastNormal !== undefined && from !== null && to !== null && from !== to
+          ? { fromG: from, toG: to, date: lastNormal.date }
+          : null,
+    })
+  }
+  lifts.sort(
+    (a, b) => b.lastDate.localeCompare(a.lastDate) || a.exerciseId.localeCompare(b.exerciseId),
+  )
+
+  const mondays = new Set([
+    ...ctx.sessions.map((session) => mondayOf(session.date)),
+    ...ctx.logs.map((entry) => mondayOf(entry.date)),
+  ])
+  const weeks: WeekHistory[] = [...mondays].sort().map((weekStart) => {
+    const inWeek = ctx.logs.filter((entry) => mondayOf(entry.date) === weekStart)
+    const moved: WeekHistory['moved'] = []
+    for (const exerciseId of ids) {
+      const all = loggedSessions(ctx.logs, exerciseId, undefined, null).filter(
+        (session) => session.mode === 'normal',
+      )
+      const during = all.filter((session) => mondayOf(session.date) === weekStart).at(-1)
+      const earlier = all.filter((session) => session.date < weekStart).at(-1)
+      const to = during?.base ?? null
+      const from = earlier?.base ?? null
+      if (to !== null && from !== null && to !== from)
+        moved.push({ exerciseId, fromG: from, toG: to })
+    }
+    return {
+      weekStart,
+      planned: ctx.sessions.filter((session) => mondayOf(session.date) === weekStart).length,
+      logged: inWeek.length,
+      sets: inWeek.reduce((total, entry) => total + entry.sets.length, 0),
+      moved,
+    }
+  })
+
+  // Finished weeks in a row, the latest first, with fewer sessions logged than planned (design
+  // 12.4). The calendar is walked back from the week before this one, so a week with nothing
+  // planned ends the run instead of being skipped.
+  let lowCountWeeks = 0
+  const earliest = weeks[0]?.weekStart
+  for (
+    let start = addDays(mondayOf(ctx.today), -7);
+    earliest !== undefined && start >= earliest;
+    start = addDays(start, -7)
+  ) {
+    const week = weeks.find((w) => w.weekStart === start)
+    if (week === undefined || !(week.planned > 0 && week.logged < week.planned)) break
+    lowCountWeeks += 1
+  }
+  return {
+    lifts,
+    weeks,
+    lowCountWeeks,
+    countPrompt: lowCountWeeks >= P.f9.countPromptWeeks.value,
   }
 }
