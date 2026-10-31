@@ -1,8 +1,8 @@
 // The weekly re-plan chains of the twelve matrix athletes at every method preset [rules P1 to P4,
 // task M5 of the sources, methods and evaluation proposal]: the first plan and a re-plan on every
-// Monday to the race week, each week run exactly as planned, three ways: with no window, with a rest
-// window that opens and closes in the middle of the plan, and with a painful niggle, which is a
-// persistent hold. At every step of every chain:
+// Monday to the race week, each week run exactly as planned, four ways: with no window, with a rest
+// window that opens and closes in the middle of the plan, with a painful niggle, which is a
+// persistent hold, and with a mild niggle that opens on a Monday. At every step of every chain:
 // - the plan passes the checklist, keeps the race and the day rules of the windows;
 // - no week target, no planned week and no peak is above the default plan of the same input [G6];
 // - the preset applies exactly as the resolver says: a rest window (transient) leaves it in place,
@@ -11,12 +11,13 @@
 // - a re-plan with nothing new returns the plan it replaces (the fixed point of RF1,
 //   `sim-athlete.test.ts`), step 0 left out as there.
 // Two things do not hold, found by M5 and not fixed (see the lists in the file): the weeks after a
-// window plan a small share of the plan before it for one athlete at the default and for another at
-// `three-run-days`, and the second is the one place a re-plan does not give its plan back.
+// window plan a small share of the plan before it, at the default and at both presets, and a re-plan
+// with nothing new gives its plan back at every step but two, one for each preset.
 //
 // The windows are shapes of the rest-window sweep (`rest-window-sweep.ts`): an illness above the
 // neck of 7 days and a niggle of 3 days, each starting on the Saturday before the fifth Monday of
-// the chain, so the re-plan of that Monday reports the window open and the next one finds it closed.
+// the chain, so the re-plan of that Monday reports the window open and the next one finds it closed,
+// and a niggle of 3 days that starts on that Monday itself.
 //
 // Every preset is grade D, a choice and not a better plan: the chains check that a preset plan is a
 // plan inside every limit, never that it is better than the default's.
@@ -77,10 +78,21 @@ const NIGGLE = windowOf({
   gaitChange: false,
 })
 
+/** A niggle with no pain at the flag score, rest for 3 days from the fifth Monday: a rest window. */
+const MONDAY = windowOf({
+  ...kindOf('niggle', 'rest'),
+  id: 'chain-monday',
+  startDate: OPENING,
+  endDate: addDays(OPENING, REST_SWEEP_LENGTHS[1] - 1),
+  pain: P.pain.flagScore.value - 1,
+  gaitChange: false,
+})
+
 const SCENARIOS = {
   plain: [] as DisruptionWindow[],
   illness: [ILLNESS],
   niggle: [NIGGLE],
+  monday: [MONDAY],
 }
 type Scenario = keyof typeof SCENARIOS
 const SCENARIO_NAMES = Object.keys(SCENARIOS) as Scenario[]
@@ -179,18 +191,26 @@ function returnWeeks(method: Method, scenario: Scenario): Case[] {
 
 /**
  * The cases of the weeks after a window that plan under the share above, found by M5 (2026-10-31)
- * and not fixed here. At the re-plan that reports the 7-day illness open, every week after the
- * window plans 16 to 29 minutes where the plan before had 190 to 330: `hot-race` at the default, and
- * with it at both presets (`three-run-days` does not name its marathon goal, and `longer-base`
- * reads the same weeks), and the half-marathon athlete at `three-run-days` alone. The checklist
- * passes, as no item reads a week against the plan before it, and the next re-plan draws the weeks
- * again, so the plan is back one step later. The default method on the same input plans the same
- * weeks as the preset (a test below), so the defect is in the return from a window, not in a preset.
+ * and not fixed here; the default has all but one. At the re-plan that reports the 7-day illness
+ * open, every week after the window plans 16 to 29 minutes where the plan before had 190 to 330:
+ * `hot-race` at the default, and with it at both presets (`three-run-days` does not name its
+ * marathon goal, and `longer-base` reads the same weeks), and the half-marathon athlete at
+ * `three-run-days` alone. At the re-plan that reports a 3-day mild niggle open, the weeks after the
+ * window plan 33% to 38% of the plan before for `half`, `returning` and `sparse-100-mile`, at every
+ * method. The checklist passes, as no item reads a week against the plan before it, and the next
+ * re-plan draws the weeks again, so the plan is back one step later. The default method on the same
+ * input plans the same weeks as the preset (a test below), so the defect is in the return from a
+ * window, not in a preset.
  */
+const MONDAY_RETURNS = [
+  'monday: half step 4',
+  'monday: returning step 4',
+  'monday: sparse-100-mile step 4',
+]
 const RETURN_COLLAPSES: Record<Method, string[]> = {
-  default: ['illness: hot-race step 4'],
-  'three-run-days': ['illness: half step 4', 'illness: hot-race step 4'],
-  'longer-base': ['illness: hot-race step 4'],
+  default: ['illness: hot-race step 4', ...MONDAY_RETURNS],
+  'three-run-days': ['illness: half step 4', 'illness: hot-race step 4', ...MONDAY_RETURNS],
+  'longer-base': ['illness: hot-race step 4', ...MONDAY_RETURNS],
 }
 
 describe.each(METHODS)('the weeks after a window at %s', (method) => {
@@ -462,24 +482,28 @@ const drifts = new Map<Method, () => { cases: Case[]; steps: number }>(
 
 /**
  * The cases where a re-plan with nothing new does not return the plan it replaces, over the steps of
- * the three chains of every athlete at each method (step 0 left out, as in RF1). Found by M5
- * (2026-10-31) and not fixed here. It is the collapse above seen from the other side: the plan the
- * step stored is the one that is wrong, and the second pass draws the weeks again from the minutes
- * it finds. `hot-race` collapses at every method and gives its plan back, since the weeks it stored
- * are the weeks it draws again.
+ * the four chains of every athlete at each method (step 0 left out, as in RF1). Found by M5
+ * (2026-10-31) and not fixed here. The first is the collapse above seen from the other side: the plan
+ * the step stored is the one that is wrong, and the second pass draws the weeks again from the
+ * minutes it finds; `hot-race` collapses at every method and gives its plan back, since the weeks it
+ * stored are the weeks it draws again. The second is small: at the re-plan that reports a mild niggle
+ * open from that Monday, a second pass of `longer-base` on the 50 km trail athlete moves 2 to 7
+ * minutes between the sessions of the current week (the easy runs 27 to 25, the long run 162 to 169,
+ * the strides run 27 to 24) where the default gives its week back; the cause is
+ * not traced, and no other athlete does it.
  */
 const DRIFTS: Record<Method, string[]> = {
   default: [],
   'three-run-days': ['illness: half step 4'],
-  'longer-base': [],
+  'longer-base': ['monday: trail-50k step 4'],
 }
 
 describe.each(METHODS)('a re-plan with nothing new, at %s [RF1 relation]', (method) => {
   const result = drifts.get(method)!
 
   it('gives the plan back at every step of every chain, but the listed cases', () => {
-    // 3 chains of the 249 plans of the twelve athletes, the first plan of each left out
-    expect(result().steps).toBe(3 * (249 - 12))
+    // 4 chains of the 249 plans of the twelve athletes, the first plan of each left out
+    expect(result().steps).toBe(4 * (249 - 12))
     expect(result().cases.map((c) => c.id)).toEqual(DRIFTS[method])
   })
 

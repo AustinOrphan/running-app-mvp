@@ -1,6 +1,7 @@
-// What the tests of the method presets [rules P1 to P4] share: the presets that are offered, a
-// matrix input asked for a preset, the plan as the digests read it, the run days of a plan, and the
-// check that a preset plans no more than the default plan of the same input [rule G6].
+// What the tests of the method presets [rules P1 to P4] share: the presets that are offered, what the
+// resolver says of each matrix athlete at each, a matrix input asked for a preset, the plan as the
+// digests read it, the run days of a plan, and the check that a preset plans no more than the
+// default plan of the same input [rule G6].
 import { mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { resolveMethod, type MethodPosition } from '../../../shared/engine/methods.ts'
