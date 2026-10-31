@@ -45,6 +45,7 @@ import type {
 import type { ActivityInput } from '../../api/activities.ts'
 import type { StrengthLogBody, StrengthSetBody } from '../../api/strength.ts'
 import type { OutboxEntry } from '../../pwa/outbox.ts'
+import { usualLoadOf } from './workoutRows.ts'
 
 /** How far a count stepper moves in one press: by one rep, five seconds, ten ground contacts. */
 export const COUNT_STEP: Readonly<Record<Measure, number>> = { reps: 1, seconds: 5, contacts: 10 }
@@ -330,7 +331,7 @@ export function sameAsLast(
 
 /** "Use the usual load" on a lighter day: every set of the lift at the load the rules would have asked for. */
 export function withUsualLoad(block: Block, unit: WeightUnit): Block {
-  const { usualLoadG } = block.shown
+  const usualLoadG = usualLoadOf(block.shown)
   if (usualLoadG === null) return block
   return {
     ...block,

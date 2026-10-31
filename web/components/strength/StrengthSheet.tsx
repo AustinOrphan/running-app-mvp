@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { StrengthWorkout } from '../../../shared/types.ts'
 import { useStrengthUnits } from '../../api/strength.ts'
 import { Sheet } from '../Sheet.tsx'
@@ -23,6 +24,11 @@ export interface StrengthSheetProps {
   sessionId?: string | null
   /** An owned strength activity that has no log yet (an import): the sets attach to it. */
   activityId?: string | null
+  /**
+   * Open with the usual load of a lighter day in every set that has one, as the lift's "Use the
+   * usual load" does (the Today hero's switch). A draft kept on the device wins over it.
+   */
+  usualLoads?: boolean
   onClose: () => void
   /** The log was saved, or kept on this phone, or saved without sets. The caller closes the sheet. */
   onSaved: (saved: StrengthSaved) => void
@@ -38,13 +44,18 @@ export interface StrengthSheetProps {
  * sheet opens with no connection (ADR 0012).
  */
 export function StrengthSheet({
-  workout,
+  workout: given,
   date,
   sessionId,
   activityId,
+  usualLoads,
   onClose,
   onSaved,
 }: StrengthSheetProps) {
+  // The workout the sheet was opened with is the one it keeps (ADR 0014): a read of Today that
+  // lands while it is open changes the loads the rules suggest, and the sets entered, the draft and
+  // the snapshot the log stores must stay those of what the runner was shown.
+  const [workout] = useState(given)
   const units = useStrengthUnits()
   const title = strengthWords('km', 'lb').heading(workout.template, workout.variant)
   return (
@@ -61,6 +72,7 @@ export function StrengthSheet({
           date={date}
           sessionId={sessionId === undefined ? workout.sessionId : sessionId}
           activityId={activityId ?? null}
+          usualLoads={usualLoads === true}
           weightUnit={units.data.weightUnit}
           units={units.data.units}
           onSaved={onSaved}

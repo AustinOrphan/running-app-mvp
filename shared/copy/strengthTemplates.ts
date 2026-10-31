@@ -214,11 +214,51 @@ export const STRENGTH_TEMPLATES = {
     'Lighter today: {sets} fewer and {pct} less. The usual load is one tap away.',
     { sets: 'text', pct: 'percent' },
   ),
+  // The same day for a workout in which no lift has a load to lower (a bodyweight runner, the
+  // lightest load): only the sets are cut, so the sentence says no more than that.
+  'strength.lighter-today-sets': tpl('Lighter today: {sets} fewer.', { sets: 'text' }),
   'strength.use-usual': tpl('Use the usual load', {}, { shape: 'label' }),
   // `hours` is `f4.strengthSeparationHours`.
   'strength.separation': tpl('Lift at least {hours} hours before or after a run.', {
     hours: 'count',
   }),
+  // What the hero says once the usual load is taken (design 11.1): the loads are the usual ones,
+  // the set cut of a lighter day (`f9.lowReadinessSetsCut`, "one set") still stands.
+  'strength.hero.usual-on': tpl('Usual loads, with {sets} fewer.', { sets: 'text' }),
+  // The "Also today" item of a day with a run (design 11.1): the accessible name of the button that
+  // opens the workout. `minutes` is the planned time in words ("40 minutes").
+  'strength.hero.open-workout': tpl(
+    'Strength, {minutes}: open the workout',
+    { minutes: 'text' },
+    { shape: 'label', fallback: 'Strength: open the workout' },
+  ),
+
+  // ---- The session sheet (design 11.2) ----------------------------------------------------------
+  // `week` and `of` are the place of the session in the block (`e5.strengthBlockWeeks`).
+  'strength.session.week': tpl('Week {week} of {of} of the strength block.', {
+    week: 'count',
+    of: 'count',
+  }),
+  // A session ahead is worked out from the logs there are now, so its loads can still move.
+  'strength.session.as-of-today': tpl(
+    'As of today: the loads can change with the sessions before this one.',
+  ),
+  'strength.session.unavailable': tpl('The workout could not be loaded.'),
+
+  // ---- The Profile (design 11.2) ---------------------------------------------------------------
+  // `sessions` reads "two strength sessions" (`flib.strengthPerWeek`), `time` is the budget of a
+  // block session (`f7.blockSessionMin`) and `hours` the gap of rule F4.
+  'strength.profile.count': tpl(
+    'The plan asks for at most {sessions} a week, each up to about {time}.',
+    {
+      sessions: 'text',
+      time: 'minutes',
+    },
+  ),
+  'strength.profile.double': tpl(
+    'A double is a lift and an easy run on one day, at least {hours} hours apart.',
+    { hours: 'count' },
+  ),
 
   // ---- Where a session stands in the block (design 8.1, 9.1, 11.3) ------------------------------
   'strength.heading': tpl(

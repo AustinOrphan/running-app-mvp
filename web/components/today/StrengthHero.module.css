@@ -1,0 +1,66 @@
+/* The workout in the hero: sentences, one to a row, as quiet as the targets they stand in for. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* A lighter day: the line, and the switch to the usual load beside it. */
+.lighter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-3);
+}
+
+.note {
+  flex: 1 1 14rem;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.usual {
+  flex: none;
+}
+
+.usual[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* The strength item of "Also today": a word in the line that is a button. The 44 px target is the
+   box the pseudo-element draws around the words, so the line stays one line of its own height. The
+   hero's column gap (`--space-2`) is all the room there is above the line, between it and the
+   buttons of the action row, so the box reaches up by the gap less 1 px (the browser snaps a box to
+   whole pixels and a box that reaches the row's last pixel takes it) and takes the rest of its
+   height below the line: the line of `--lh-sm`, 7 px above and 15 below make 44 px. */
+.also {
+  position: relative;
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.also::after {
+  content: '';
+  position: absolute;
+  inset: calc(1px - var(--space-2)) calc(var(--space-2) * -1)
+    calc(var(--lh-sm) + var(--space-2) - 2.75rem - 1px);
+}

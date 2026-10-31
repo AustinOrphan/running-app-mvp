@@ -5,12 +5,18 @@ import { resolveTargets } from '../../shared/engine/targets.ts'
 import { publishable } from '../../shared/workouts/labels.ts'
 import { toWorkoutPlan } from '../../shared/workouts/plan.ts'
 import type { WorkoutPlan } from '../../shared/workouts/types.ts'
-import type { PlanSession, PlanSessionView } from '../../shared/types.ts'
+import type {
+  PlanSession,
+  PlanSessionView,
+  StrengthWorkout,
+  TodayView,
+} from '../../shared/types.ts'
 import { SessionSheet } from '../../web/components/SessionSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { makeActivity } from '../factories.ts'
 import {
   activityPage,
+  delayResponses,
   expectCleanCopy,
   explainOf,
   mockApi,
@@ -26,6 +32,8 @@ import {
   settings,
 } from './plan-fixtures.ts'
 import { prescribed, SESSION_KINDS, zoneSetFixture } from '../unit/engine/fixtures.ts'
+import { SESSION_ID, makeView, makeWorkout, savedLog } from './strength-fixtures.ts'
+import { makeCoach, makeHero, makeToday } from './today-fixtures.ts'
 import { makeWorkoutView, sheetRoutes } from './wrist-fixtures.ts'
 
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -576,5 +584,349 @@ describe('SessionSheet: the names of the steps', () => {
     const names = await sheetNames(makeSession({ ...spec, id: 's-walk' }))
     expect(names).toEqual(['Walk', 'Run', 'Walk', 'Walk'])
     expect([...stepNames(workout)].sort()).toEqual(['Run', 'Walk'])
+  })
+})
+
+// The Strength section (strength design 11.2): the workout of a strength session opened from the Plan
+// page or the week strip, in the words of the Today hero, with "Why" for each lift and "Log sets" for
+// a session on today's date or an earlier one. The clock is Wednesday 13 January 2027.
+describe('SessionSheet: the Strength section', () => {
+  const LOG_ID = '3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+  const strengthSession = (over: Partial<PlanSessionView> = {}) =>
+    makeSession({
+      id: SESSION_ID,
+      kind: 'strength',
+      title: 'Strength',
+      durationMin: 40,
+      distanceM: null,
+      gainM: null,
+      structure: [],
+      flags: [],
+      target: { zone: 'strength', rpe: [5, 6], hr: null, paceSecPerKm: null, heatNote: null },
+      purpose: 'Heavy lifts and jumps for a stronger stride.',
+      rules: ['F7'],
+      ...over,
+    })
+  const unreachable = {
+    status: 503,
+    body: { error: { code: 'internal', message: 'No connection.' } },
+  }
+
+  /** The Today payload the page holds: the server's day and, in its slot, one workout. */
+  const todayOf = (workout: StrengthWorkout | null, over: Partial<TodayView> = {}): TodayView =>
+    makeToday({
+      date: '2027-01-13',
+      coach: makeCoach({
+        slots: {
+          disruption: null,
+          fuel: null,
+          watch: null,
+          brief: null,
+          fuelPrompt: null,
+          strength: workout,
+        },
+      }),
+      ...over,
+    })
+
+  function renderStrength(
+    session: PlanSessionView,
+    routes: MockRoutes = {},
+    workout: StrengthWorkout | null = makeWorkout({ date: session.date }),
+  ) {
+    return renderSheet(session, {
+      'GET /api/today': () => todayOf(workout),
+      'GET /api/strength': () => makeView(),
+      ...routes,
+    })
+  }
+
+  const section = async (name = 'Strength, heavy A') =>
+    within(await screen.findByRole('dialog', { name: 'Strength' })).findByRole('region', { name })
+
+  test("shows the template and week, the lifts, the jumps and the trunk work, from the page's own payload", async () => {
+    const { calls } = renderStrength(strengthSession())
+    const strength = await section()
+    expect(within(strength).getByText('Week 6 of 12 of the strength block.')).toBeVisible()
+    expect(
+      within(strength)
+        .getAllByRole('listitem')
+        .map((item) => item.firstElementChild?.textContent),
+    ).toEqual([
+      'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
+      'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
+      'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
+      'Pogo hops, 40 contacts.',
+      'Side plank, 2 sets.',
+    ])
+    expect(within(strength).getByText('Lift at least 3 hours before or after a run.')).toBeVisible()
+    expect(within(strength).getByRole('button', { name: 'Log sets' })).toBeVisible()
+    // a session on today's day is not "as of today", and its workout is the one Today holds
+    expect(within(strength).queryByText(/^As of today/)).not.toBeInTheDocument()
+    expect(calls.some((call) => call.url.startsWith('/api/strength/workouts'))).toBe(false)
+    expectCleanCopy(strength)
+  })
+
+  test('has a "Why" for each lift, on the lift of the session with its rule, and none for the jumps', async () => {
+    renderStrength(strengthSession())
+    const strength = await section()
+    expect(within(strength).getAllByRole('button', { name: /^Why: / })).toHaveLength(3)
+    const user = userEvent.setup()
+    await user.click(within(strength).getByRole('button', { name: 'Why: Back squat' }))
+    const drawer = await screen.findByRole('complementary', { name: 'Why drawer' })
+    expect(drawer).toHaveTextContent('F8')
+    expect(explainOf(drawer)).toEqual({
+      subject: 'strength',
+      id: SESSION_ID,
+      exercise: 'back-squat',
+    })
+  })
+
+  test('reads the loads in the weight unit of the settings', async () => {
+    renderStrength(strengthSession(), {
+      'GET /api/settings': () => ({ ...settings, weightUnit: 'kg' }),
+    })
+    const strength = await section()
+    expect(within(strength).getByText('Back squat: 4 x 3 to 6, 50 kg, leave 1 to 3.')).toBeVisible()
+  })
+
+  test('a session ahead reads the workouts of its own day, says it is as of today and offers no Log sets', async () => {
+    const ahead = strengthSession({ date: '2027-01-15' })
+    const { calls } = renderStrength(
+      ahead,
+      { 'GET /api/strength/workouts': () => [makeWorkout({ date: '2027-01-15' })] },
+      null,
+    )
+    const strength = await section()
+    expect(
+      within(strength).getByText(
+        'As of today: the loads can change with the sessions before this one.',
+      ),
+    ).toBeVisible()
+    expect(
+      within(strength).getByText('Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.'),
+    ).toBeVisible()
+    expect(within(strength).queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
+    expect(calls.map((call) => call.url)).toContain(
+      '/api/strength/workouts?from=2027-01-15&to=2027-01-15',
+    )
+  })
+
+  test('an earlier session still to be done offers Log sets, and the sheet logs it on its own day', async () => {
+    vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+    const earlier = strengthSession({ date: '2027-01-11' })
+    const { calls } = renderStrength(
+      earlier,
+      {
+        'GET /api/strength/workouts': () => [makeWorkout({ date: '2027-01-11' })],
+        [`PUT /api/strength/logs/${LOG_ID}`]: () => savedLog(LOG_ID),
+      },
+      null,
+    )
+    const strength = await section()
+    expect(within(strength).queryByText(/^As of today/)).not.toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(within(strength).getByRole('button', { name: 'Log sets' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    await user.click(await within(sheet).findByRole('button', { name: 'As suggested' }))
+    await user.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+    })
+    expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+      date: '2027-01-11',
+      sessionId: SESSION_ID,
+    })
+    // the session sheet is still open under it
+    expect(screen.getByRole('dialog', { name: 'Strength' })).toBeVisible()
+  })
+
+  test('Log sets opens the logging sheet on the workout the section shows', async () => {
+    const user = userEvent.setup()
+    renderStrength(strengthSession())
+    const strength = await section()
+    await user.click(within(strength).getByRole('button', { name: 'Log sets' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    expect(
+      await within(sheet).findByRole('textbox', { name: 'Back squat, set 1, load' }),
+    ).toHaveValue('110')
+  })
+
+  test('a settled session shows its workout and no Log sets', async () => {
+    renderStrength(strengthSession({ status: 'completed', activityId: 'act1' }))
+    const strength = await section()
+    expect(
+      within(strength).getByText('Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.'),
+    ).toBeVisible()
+    expect(within(strength).queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
+  })
+
+  test('says so when the workout cannot be read, and keeps the rest of the sheet', async () => {
+    renderStrength(
+      strengthSession({ date: '2027-01-15' }),
+      { 'GET /api/strength/workouts': () => unreachable },
+      null,
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Strength' })
+    expect(await within(dialog).findByText('The workout could not be loaded.')).toBeVisible()
+    expect(within(dialog).getByRole('button', { name: 'Why this session' })).toBeVisible()
+  })
+
+  test('after a save the section says so and no longer offers Log sets', async () => {
+    vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+    const user = userEvent.setup()
+    renderStrength(strengthSession(), {
+      [`PUT /api/strength/logs/${LOG_ID}`]: () => savedLog(LOG_ID),
+    })
+    const strength = await section()
+    await user.click(within(strength).getByRole('button', { name: 'Log sets' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    await user.click(await within(sheet).findByRole('button', { name: 'As suggested' }))
+    await user.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+    })
+    expect(within(strength).getByText('Strength log saved.')).toBeVisible()
+    expect(within(strength).queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
+  })
+
+  test('after a save kept on the phone it says that, and a second tap is not on offer either', async () => {
+    vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+    const user = userEvent.setup()
+    renderStrength(strengthSession(), { [`PUT /api/strength/logs/${LOG_ID}`]: () => unreachable })
+    const strength = await section()
+    await user.click(within(strength).getByRole('button', { name: 'Log sets' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    await user.click(await within(sheet).findByRole('button', { name: 'As suggested' }))
+    await user.click(within(sheet).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+    })
+    expect(
+      within(strength).getByText(
+        'Strength log saved on this phone. It is sent when a connection returns.',
+      ),
+    ).toBeVisible()
+    expect(within(strength).queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
+  })
+
+  test('does not say the workout is unavailable while it is still being read', async () => {
+    const { calls } = renderStrength(
+      strengthSession({ date: '2027-01-15' }),
+      {
+        // Today's own read fails, which is why the workouts of the day are asked for
+        'GET /api/today': () => unreachable,
+        'GET /api/strength/workouts': () => [makeWorkout({ date: '2027-01-15' })],
+      },
+      null,
+    )
+    delayResponses(80)
+    await waitFor(() => {
+      expect(calls.some((call) => call.url.startsWith('/api/strength/workouts'))).toBe(true)
+    })
+    // Today has failed and the workouts are on their way: nothing is wrong yet
+    expect(screen.queryByText('The workout could not be loaded.')).not.toBeInTheDocument()
+    expect(await section()).toBeVisible()
+    expect(screen.queryByText('The workout could not be loaded.')).not.toBeInTheDocument()
+  })
+
+  test("takes the day from the server's zone, not from the phone's calendar, for a copy kept on the phone", async () => {
+    // 10:30 UTC on 13 January is 00:30 on the 14th in Kiritimati, where the server is: the payload
+    // the phone kept is of the 13th, which is yesterday there, and the session is today's. A phone
+    // anywhere else is still on the 13th (or earlier) by its own calendar.
+    vi.setSystemTime(new Date('2027-01-13T10:30:00Z'))
+    renderStrength(
+      strengthSession({ date: '2027-01-14' }),
+      {
+        'GET /api/today': () =>
+          todayOf(makeWorkout({ date: '2027-01-14' }), {
+            date: '2027-01-13',
+            tz: 'Pacific/Kiritimati',
+            servedFromCache: true,
+          }),
+      },
+      makeWorkout({ date: '2027-01-14' }),
+    )
+    const strength = await section()
+    expect(within(strength).getByRole('button', { name: 'Log sets' })).toBeVisible()
+    expect(within(strength).queryByText(/^As of today/)).not.toBeInTheDocument()
+  })
+
+  test('a live preview of a day ahead cannot tell today, so it offers no Log sets', async () => {
+    renderStrength(
+      strengthSession({ date: '2027-01-14' }),
+      {
+        'GET /api/today': () =>
+          makeToday({
+            date: '2027-01-14',
+            coach: makeCoach({
+              preview: true,
+              slots: {
+                disruption: null,
+                fuel: null,
+                watch: null,
+                brief: null,
+                fuelPrompt: null,
+                strength: makeWorkout({ date: '2027-01-14' }),
+              },
+            }),
+          }),
+      },
+      makeWorkout({ date: '2027-01-14' }),
+    )
+    const strength = await section()
+    expect(
+      within(strength).getByText('Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.'),
+    ).toBeVisible()
+    expect(within(strength).queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
+  })
+
+  test('a strength session with no workout in the answer shows no section and no complaint', async () => {
+    const { calls } = renderStrength(
+      strengthSession({ date: '2027-01-15' }),
+      { 'GET /api/strength/workouts': () => [] },
+      null,
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Strength' })
+    await waitFor(() => {
+      expect(calls.some((call) => call.url.startsWith('/api/strength/workouts'))).toBe(true)
+    })
+    await within(dialog).findByRole('button', { name: 'Why this session' })
+    expect(screen.queryByRole('region', { name: /^Strength, / })).not.toBeInTheDocument()
+    expect(screen.queryByText('The workout could not be loaded.')).not.toBeInTheDocument()
+  })
+
+  test("a run's sheet on a day with strength has no Strength section and asks for no workout", async () => {
+    const run = makeSession({ id: 'run1', date: '2027-01-13' })
+    const hero = { ...makeHero(), session: run, others: [strengthSession()] }
+    const { calls } = renderSheet(run, {
+      'GET /api/today': () =>
+        makeToday({
+          date: '2027-01-13',
+          coach: makeCoach({
+            hero,
+            slots: {
+              disruption: null,
+              fuel: null,
+              watch: null,
+              brief: null,
+              fuelPrompt: null,
+              strength: makeWorkout({ date: '2027-01-13' }),
+            },
+          }),
+        }),
+    })
+    await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(screen.queryByRole('region', { name: /^Strength/ })).not.toBeInTheDocument()
+    expect(calls.some((call) => call.url.startsWith('/api/strength'))).toBe(false)
+    expect(calls.some((call) => call.url === '/api/today')).toBe(false)
+  })
+
+  test('a run has no Strength section and asks for no workout', async () => {
+    const { calls } = renderSheet(makeSession())
+    await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(screen.queryByRole('region', { name: /^Strength/ })).not.toBeInTheDocument()
+    expect(calls.some((call) => call.url.startsWith('/api/strength'))).toBe(false)
+    expect(calls.some((call) => call.url === '/api/today')).toBe(false)
   })
 })

@@ -36,6 +36,7 @@ import {
   parseMinutes,
   sameAsLast,
   stateFromBody,
+  withUsualLoad,
   type Block,
   type FormState,
   type LogIssues,
@@ -49,6 +50,7 @@ import {
   writeDraft,
 } from './strengthDraft.ts'
 import { strengthWords } from './strengthText.ts'
+import { usualLoadOf } from './workoutRows.ts'
 import styles from './StrengthSheet.module.css'
 
 /** What a save came to, for the surface that opened the sheet. */
@@ -65,6 +67,8 @@ export interface StrengthFormProps {
   /** The planned session the log links to; null for none. */
   sessionId: string | null
   activityId: string | null
+  /** Start every set that has a usual load at it (design 11.1). */
+  usualLoads?: boolean
   weightUnit: WeightUnit
   units: Units
   onSaved: (saved: StrengthSaved) => void
@@ -81,6 +85,7 @@ export function StrengthForm({
   date,
   sessionId,
   activityId,
+  usualLoads = false,
   weightUnit,
   units,
   onSaved,
@@ -105,7 +110,10 @@ export function StrengthForm({
   // replays as two logs; the draft of that id, if the runner went on editing, is newer than its body.
   // Otherwise the draft brings its id back, so the save it was kept for is the same save.
   const [boot] = useState(() => {
-    const fresh = initialState(workout, weightUnit)
+    const start = initialState(workout, weightUnit)
+    const fresh = usualLoads
+      ? { ...start, blocks: start.blocks.map((block) => withUsualLoad(block, weightUnit)) }
+      : start
     const draft = readDraft(context)
     const queued = queuedLogOf(getOutbox().getState().entries, { sessionId, date, activityId })
     if (queued !== null) {
@@ -165,6 +173,8 @@ export function StrengthForm({
   const addable = canAddSet(state.blocks)
   const hasEffort = state.blocks.some((block) => block.shown.rir !== null)
   const lighterDay = state.blocks.some((block) => block.shown.change === 'lighter-day')
+  // "the usual load is one tap away" is true only where some lift has a usual load to go back to
+  const anyUsual = state.blocks.some((block) => usualLoadOf(block.shown) !== null)
   const minutesWrong =
     parseMinutes(state.minutes) === null && (attempted || problems?.minutes === true)
   const sheetNeedsServer = view.isError && view.data === undefined
@@ -276,10 +286,14 @@ export function StrengthForm({
         </p>
         {lighterDay ? (
           <p className={styles.note}>
-            {words.say('strength.lighter-today', {
-              sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
-              pct: { kind: 'percent', pct: P.f9.lowReadinessLoadPct.value },
-            })}
+            {anyUsual
+              ? words.say('strength.lighter-today', {
+                  sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
+                  pct: { kind: 'percent', pct: P.f9.lowReadinessLoadPct.value },
+                })
+              : words.say('strength.lighter-today-sets', {
+                  sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
+                })}
           </p>
         ) : null}
         <p className={styles.muted}>{words.say('strength.safety')}</p>
