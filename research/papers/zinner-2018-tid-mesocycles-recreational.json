@@ -1,0 +1,61 @@
+{
+  "id": "zinner-2018-tid-mesocycles-recreational",
+  "title": "Mesocycles with Different Training Intensity Distribution in Recreational Runners",
+  "authors": "Zinner C, Schäfer Olstad D, Sperlich B",
+  "year": 2018,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000001599",
+  "pmid": "29509644",
+  "url": "https://doi.org/10.1249/mss.0000000000001599",
+  "design": "controlled-trial",
+  "population": "Forty-two recreational runners (VO2peak 45.2 ± 5.8 mL/min/kg), 8 weeks",
+  "sampleSize": 42,
+  "evidenceLevel": "C",
+  "topics": ["training-methods", "intensity-distribution"],
+  "findings": [
+    "Forty-two recreational runners were 'systematically parallelized' to one of three groups. All did a 4-week mesocycle with equal intensity distribution (two to four sessions), then a 3-week mesocycle with the weekly training impulse raised by 50% as either high-intensity work (HIGH, above 4 mmol/L blood lactate), low-intensity work (LOW, below 2 mmol/L) or a combination called polarized (POL), then one week of tapering.",
+    "The 5000 m time fell in all three groups from the start to week 7 and week 8. VO2peak rose in all three groups (HIGH from the start to weeks 7 and 8, P < 0.03; LOW to week 7, P = 0.02; POL to week 8, P = 0.006).",
+    "Running economy improved only with LOW (from week 4 to week 8 and from week 7 to week 8, P < 0.04).",
+    "An individual mean response analysis counted 13 of 16 responders in LOW, 6 of 13 in HIGH and 8 of 16 in POL; the authors conclude that the relative risk of non-responding is greater with HIGH and POL than with LOW."
+  ],
+  "limitations": "Only the abstract was read (closed access; OpenAlex lists no open copy on 2026-10-31). Allocation is 'systematically parallelized', which the abstract does not call randomised. The group sizes in the responder counts (16, 13 and 16) add up to 45 and the abstract gives 42 runners, so which outcome the responder analysis used is not known from the abstract. A 3-week block per intensity, 5000 m time as the only performance outcome, and a responder label from one block each, which G4 and Hecksteden 2015 (hecksteden-2015-individual-response) warn against. Two comments on the paper are listed in Europe PMC (Medicine & Science in Sports & Exercise 2019;51(9):1973-1975: a letter by Boullosa, Esteve-Lanao and Seiler titled 'Potential Confounding Effects of Intensity on Training Response', and the authors' response); neither has an abstract and neither was read. One coauthor's affiliation is Polar Electro Oy, a maker of heart-rate monitors.",
+  "implications": [
+    "A direction in one small study of recreational runners: after a 4-week common block, a 3-week low-intensity block gave more responders and an economy gain, and high-intensity and polarized blocks did not. It does not show that a low-intensity method is better for a runner, and G4 forbids responder labels from one block.",
+    "No rule, Param or preset cites it; it does not select a method for a runner (4.2 of the methods proposal: no characteristic of the runner is shown to predict the better method)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. Crossref: title, Med Sci Sports Exerc 50(8):1641-1648, August 2018, three authors, no updated-by notice. Abstract read on Europe PMC (PMID 29509644; publication types Journal Article and Research Support, Non-U.S. Gov't). The two 2019 comments are listed in Europe PMC (PMIDs 31415025 and 31415026) as comments, not corrections, and have no abstract. The full text is closed access and was not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 29509644) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice; the two comment letters were noted and not read. The full text was not read, and nothing beyond the abstract is claimed."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Three named authors with the affiliations PubMed and Europe PMC hold: Institute for Sport Sciences, Julius-Maximilian University Wurzburg (Zinner, Sperlich); University of Applied Sciences for Police and Administration of Hesse (Zinner); Polar Electro Oy, Kempele, Finland (Schäfer Olstad). No separate university record was fetched. Interest: one author works for a heart-rate monitor maker; the abstract states no conflict."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published August 2018; two comments in 2019 and no correction. Later corpus papers (rosenblat-2025-tid-ipd-nma, oliveira-2024-pol-meta, filipas-2022-pyr-pol-periodization) compare the same distributions in more studies; none supersedes the direction here."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "One small trial. festa-2019-polarized-vs-focused-recreational, in recreational runners, found equal gains from a polarized and a focused arm, and the network meta-analysis found no overall difference, so the economy and responder finding has no second source. Conservative reading: no use."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: recreational runners with a VO2peak of about 45 mL/min/kg, an 8-week 5000 m aim. Use for other distances or longer plans is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small controlled trial, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "M1 2026-10-31, one reading pass (abstract only); second pass or owner sign-off pending at merge"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "casado-2023-lactate-guided-threshold",
+  "title": "Does Lactate-Guided Threshold Interval Training within a High-Volume Low-Intensity Approach Represent the \"Next Step\" in the Evolution of Distance Running Training?",
+  "authors": "Casado A, Foster C, Bakken M, Tjelta LI",
+  "year": 2023,
+  "journal": "International Journal of Environmental Research and Public Health",
+  "doi": "10.3390/ijerph20053782",
+  "pmid": "36900796",
+  "url": "https://doi.org/10.3390/ijerph20053782",
+  "design": "narrative-review",
+  "population": "No participants: a description of the training of some world-class 1500 m to 10,000 m runners (Norwegian), with a review of mechanisms; the sample week is one runner's",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["training-methods", "intensity-distribution"],
+  "findings": [
+    "The paper describes, and does not test, a training model of three to four lactate-guided threshold interval sessions and one session at VO2max intensity a week, with low-intensity running up to 150 to 180 km a week; the pace of a threshold session is set by a blood lactate target of about 2 to 4.5 mmol/L, measured every one to three repetitions.",
+    "A coauthor (Bakken, a 5000 m runner with a personal best of 13:06.39) began testing the model on himself in the late 1990s by trial and error; the paper reports that the Ingebrigtsen brothers and other Norwegian runners train this way, often with two threshold sessions in one day. Its sample week (Table 2, adapted from Bakken's website) puts two threshold sessions on each of Tuesday and Thursday, one in the morning and one in the evening, with easy runs of 5 to 21 km and the longest run at 21 km; the text gives 157 to 185 km a week.",
+    "The authors state the limits: the article rests on observational studies and reports, no controlled study has tested the efficacy of the model, the characteristics were described only in 1500 m and 5000 m runners, and applicability to other events such as the marathon remains uncertain.",
+    "It restates the zone models it works with: pyramidal as 70 to 80% of volume in zone 1 and the rest in zones 2 and 3, polarized as about 80% in zone 1 with most of the rest in zone 3, threshold as more than 35% in zone 2; it cites reviews saying polarized or pyramidal improved performance more than other models, and a high-volume low-intensity approach sits in both.",
+    "It gives a history of distance-running training, including Lydiard's three periods as cited to his 1997 book: a 10 to 12 week preparation period of easy continuous running towards 100 miles (160 km) a week, a 6 to 8 week period of hill running and a 10 to 12 week competition period of track intervals; this is a secondary account, and the book was not read."
+  ],
+  "limitations": "A narrative review with no search method, written partly by the runner whose self-experiment it describes; the evidence for the model is observation of a few elite runners and a few lactate sessions of one runner (Figure 2). The authors state that no controlled study tests it, and that it is described only in 1500 m and 5000 m runners at 150 to 185 km a week. The conflicts statement says none are relevant; the paper has no funding statement. The Lydiard figures are the authors' account of a 1997 book. The proposal's abstract-only reading said the paper mentions neither double days nor controlled trials; the full text mentions both (the sample week and two threshold sessions in one day, and that no controlled study exists).",
+  "implications": [
+    "Use it to say what the Norwegian lactate-guided family prescribes and that no controlled study tests it. It supports no number of the engine and no preset: the model needs blood lactate testing, double days and weeks of 150 km or more, none of which the engine offers.",
+    "As a secondary account it agrees with the order base first, then hills, then faster running; the lengths it quotes for Lydiard's periods are not a source for a base length (the 1997 book is S3's)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. Crossref: title, Int J Environ Res Public Health 20(5):3782, published 2023-02-21, four authors, CC BY 4.0, no updated-by notice. Abstract and the full text were read on Europe PMC (PMC10000870, open access): sections 1 to 7, Tables 1 and 2 and the captions of Figures 1 to 3 (the figures were not viewed). Findings are the text's own statements.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC10000870, CC BY) on 2026-10-31: the model's description, section 6 (the sample week and the double sessions), section 7 (the limits) and section 2 (the Lydiard periods). The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Four named authors with the affiliations the publisher deposit holds: Rey Juan Carlos University, Madrid (Casado); University of Wisconsin-La Crosse (Foster); Søm Medical Center, Kristiansand (Bakken); University of Stavanger (Tjelta, who died before publication, per the acknowledgements). No separate university record was fetched. Interests: Bakken is the runner who developed the model, and Casado and Foster co-wrote the 2022 commentary 'Polarized Training Is Optimal for Endurance Athletes' (authors read on Crossref); the conflicts statement declares none relevant."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2023-02-21; no later edition and no Crossref notice. Later corpus papers do not supersede it; casado-2022-elite-runners-review (same lead author) describes the pyramidal pattern of elite runners without this model."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "No second source describes or tests the model: the only data are the authors' observations and one runner's lactate sessions. The authors cite Tjelta 2019 and Bakken's website for the Ingebrigtsen training; neither was read. Conservative reading: description only."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "World-class 1500 m and 5000 m runners at 150 to 185 km a week; the authors call applicability to the marathon uncertain. Use for a recreational runner is extrapolated and the record gives it no use."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a narrative review, level D); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "M1 2026-10-31, one reading pass; second pass or owner sign-off pending at merge"
+  }
+}

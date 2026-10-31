@@ -1,0 +1,61 @@
+{
+  "id": "seiler-2010-best-practice-tid",
+  "title": "What is Best Practice for Training Intensity and Duration Distribution in Endurance Athletes?",
+  "authors": "Seiler S",
+  "year": 2010,
+  "journal": "International Journal of Sports Physiology and Performance",
+  "doi": "10.1123/ijspp.5.3.276",
+  "pmid": "20861519",
+  "url": "https://doi.org/10.1123/ijspp.5.3.276",
+  "design": "narrative-review",
+  "population": "Nationally and internationally competitive endurance athletes training 10 to 13 times a week (descriptive studies), and already well-trained athletes (intensification studies); the abstract names no sport or sample size",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["training-methods", "intensity-distribution"],
+  "findings": [
+    "Descriptive studies of nationally or internationally competitive endurance athletes who train 10 to 13 times a week seem to converge on a typical intensity distribution in which about 80% of training sessions are performed at low intensity (2 mM blood lactate), with about 20% dominated by periods of high-intensity work, such as intervals at about 90% VO2max.",
+    "Endurance athletes appear to self-organize toward a high-volume training approach with careful application of high-intensity training incorporated throughout the training cycle.",
+    "Training intensification studies in already well-trained athletes do not give convincing evidence that a greater emphasis on high-intensity interval training brings long-term performance gains in that population.",
+    "The author concludes that a predominance of low-intensity, long-duration training combined with fewer, highly intensive bouts may be complementary for adaptive signalling and technical mastery at an acceptable level of stress."
+  ],
+  "limitations": "Only the abstract was read: the full text is closed access (OpenAlex lists no open copy on 2026-10-31) and the athletes, studies and numbers behind the pattern are unknown here. A narrative review that describes what competitive athletes seem to do, not what works. The 80/20 split is a share of sessions, not of time, in athletes who train 10 to 13 times a week, so it is neither a time share (E4 counts time) nor a prescription for recreational runners. The author co-wrote the 2022 invited commentary 'Polarized Training Is Optimal for Endurance Athletes' (authors read on Crossref), so the paper comes from an advocate of the polarized pattern; the abstract states no conflict.",
+  "implications": [
+    "Cite it only for the description that most sessions of competitive endurance athletes are easy and a minority are hard. It does not support a time share, a recreational runner's plan or a choice between polarized and pyramidal.",
+    "No rule, Param or preset cites it for a number. Where a rule needs the low-intensity floor, its grade comes from the papers that count time (E4)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. Crossref: title, International Journal of Sports Physiology and Performance 5(3):276-291, September 2010, one author, no updated-by notice. Abstract read on Europe PMC (PMID 20861519; publication type Review). The full text is behind the publisher's paywall and was not read or fetched. Findings are the abstract's own statements.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 20861519) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access, not fetched), and nothing beyond the abstract is claimed."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "One named author, Stephen Seiler, with the affiliation PubMed and Europe PMC hold (Faculty of Health and Sport Sciences, University of Agder, Kristiansand, Norway; ORCID 0000-0001-8024-5232). No separate university record was fetched. Interests: co-author of the 2022 'Polarized Training Is Optimal for Endurance Athletes' commentary, so an academic stake in the polarized pattern."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published September 2010 and not corrected. Later corpus papers describe the same low-intensity dominance by time and qualify it for runners: sperlich-2023-tid-phases, haugen-2022-world-class-runners and casado-2022-elite-runners-review (elite runners mostly pyramidal). The description stands; the 2025 network meta-analysis (rosenblat-2025-tid-ipd-nma) finds no performance difference between polarized and pyramidal."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "For the description only: sperlich-2023-tid-phases (more than 80% in zone 1 with under 12% in zone 2 in running) is by a different group and agrees on low-intensity dominance. haugen-2022-world-class-runners agrees too, but Seiler co-wrote it, so it counts as the same group. No source read tests the 80/20 split for performance."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "The population is competitive athletes training 10 to 13 times a week, across endurance sports. Use for a recreational runner of 3 to 5 runs a week is extrapolated, and the record limits its implications to a description."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a narrative review, level D); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "M1 2026-10-31, one reading pass (abstract only); second pass or owner sign-off pending at merge"
+  }
+}
