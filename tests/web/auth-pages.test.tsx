@@ -282,6 +282,71 @@ describe('SettingsPage', () => {
     ])
   })
 
+  test('settings: Weight units sits beside Distance units, reads pounds by default, and saves the choice by itself', async () => {
+    const { calls } = mockApi({
+      ...settingsRoutes((body) => ({
+        email: user.email,
+        displayName: null,
+        units: 'mi',
+        weightUnit: 'lb',
+        ...(body as object),
+      })),
+    })
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    // an answer kept from before the unit existed has none: it reads as pounds, the default
+    expect(screen.getByRole('radiogroup', { name: 'Weight units' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Pounds' })).toBeChecked()
+    expect(
+      screen
+        .getAllByRole('radiogroup')
+        .slice(0, 2)
+        .map((group) => group.getAttribute('aria-label')),
+    ).toEqual(['Distance units', 'Weight units'])
+
+    await typist.click(screen.getByRole('radio', { name: 'Kilograms' }))
+    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
+      { weightUnit: 'kg' },
+    ])
+    expect(screen.getByRole('radio', { name: 'Kilograms' })).toBeChecked()
+    // the distance unit is the one the server had, untouched
+    expect(screen.getByRole('radio', { name: 'Miles' })).toBeChecked()
+
+    // choosing the unit that is already chosen sends nothing
+    await typist.click(screen.getByRole('radio', { name: 'Kilograms' }))
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    expectCleanCopy(document.body)
+  })
+
+  test('settings: a runner who chose kilograms sees them chosen, and a failed change puts them back', async () => {
+    mockApi({
+      'GET /api/settings': () => ({
+        email: user.email,
+        displayName: null,
+        units: 'km',
+        weightUnit: 'kg',
+      }),
+      'PUT /api/settings': () => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'Something went wrong.' } },
+      }),
+      'GET /api/auth/me': () => user,
+    })
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    expect(screen.getByRole('radio', { name: 'Kilograms' })).toBeChecked()
+    await typist.click(screen.getByRole('radio', { name: 'Pounds' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Settings not saved.')
+    expect(screen.getByRole('radio', { name: 'Kilograms' })).toBeChecked()
+    expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
+  })
+
   test('settings: Sign out posts /api/auth/logout and returns to /login', async () => {
     const { calls } = mockApi({
       ...settingsRoutes(() => ({})),
