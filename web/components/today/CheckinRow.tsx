@@ -3,6 +3,7 @@ import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import type { Checkin, Units } from '../../../shared/types.ts'
 import { checkinUrl, useSaveCheckin, type CheckinInput } from '../../api/checkins.ts'
+import { useStrengthLogNotices } from '../../api/strength.ts'
 import { getOutbox, useOutboxState } from '../../pwa/outbox.ts'
 import { Button } from '../Button.tsx'
 import { Segmented } from '../Segmented.tsx'
@@ -78,6 +79,7 @@ export function CheckinRow({
 }: CheckinRowProps) {
   const url = checkinUrl(date)
   const outbox = useOutboxState()
+  const strengthNotices = useStrengthLogNotices()
   const save = useSaveCheckin()
   const toast = useToast()
   const [sheet, setSheet] = useState<'feel' | 'hurt' | 'window' | null>(null)
@@ -202,10 +204,29 @@ export function CheckinRow({
           {render(TEMPLATES['today.checkin.not-saved'], { reason: failure }, units)}
         </p>
       )}
+      {/* What the outbox sent later and the server refused, one time each: the check-in's own go
+          when the runner answers again; a strength log has no such next step (the sheet that made
+          it is closed), so its notice has a control of its own (design 9.6). */}
       {notices.map((notice) => (
         <p key={notice.id} role="alert" className={styles.notice}>
           {notice.message}
         </p>
+      ))}
+      {strengthNotices.notices.map((notice) => (
+        <div key={notice.id} className={styles.dismissable}>
+          <p role="alert" className={styles.notice}>
+            {notice.message}
+          </p>
+          <Button
+            variant="quiet"
+            className={styles.dismiss}
+            onClick={() => {
+              strengthNotices.dismiss(notice.id)
+            }}
+          >
+            {render(TEMPLATES['today.outbox.dismiss'], {}, units)}
+          </Button>
+        </div>
       ))}
       {sheet === 'window' ? (
         <NotFullSheet

@@ -143,6 +143,9 @@ export const TODAY_TEMPLATES = {
     'A {what} saved on this phone was not accepted and was removed. Enter it again if it still applies.',
     { what: 'text' },
   ),
+  // The control that clears such a notice when nothing the runner does next clears it by itself
+  // (a strength log refused on replay, design 9.6).
+  'today.outbox.dismiss': tpl('Dismiss', {}, { shape: 'label' }),
 
   // A sheet whose code could not be loaded (no connection and no copy kept, or a release replaced
   // the file): the page itself still works.
