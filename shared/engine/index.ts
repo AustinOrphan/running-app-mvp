@@ -1176,11 +1176,15 @@ export function replan(
     // minutes its sessions placed: those fall short of the figure by what the placement cannot use
     // (the run on the day of the race, a trimmed session, rounding), and held to them each
     // re-plan of the same Monday would take the shortfall again [rule G-6]. The sessions stay the
-    // bound where a window touches the week: its cap charges the held days against them.
+    // bound where a window touches the week, as its cap charges the held days against them, but
+    // never above the figure: a closed day must not hold a week to more than it was without it.
     if (unstartedWeek(oldWeek, oldSessions, input)) {
       figure.set(weekStart, oldWeek.targetRunMin)
       const touched = dayRulesIn(plan, { from: weekStart, to: addDays(weekStart, 6) }).length > 0
-      stillPlanned.set(weekStart, touched ? planned : oldWeek.targetRunMin)
+      stillPlanned.set(
+        weekStart,
+        touched ? Math.min(planned, oldWeek.targetRunMin) : oldWeek.targetRunMin,
+      )
     } else {
       stillPlanned.set(weekStart, planned)
     }

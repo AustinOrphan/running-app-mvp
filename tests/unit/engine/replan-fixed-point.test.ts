@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { HOLD_TRIM_RULE, isTrimmed, TRIM_RULE } from '../../../shared/domain/sessionStatus.ts'
-import { keptByReplan, replan } from '../../../shared/engine/index.ts'
+import { buildPlan, keptByReplan, replan } from '../../../shared/engine/index.ts'
 import type { EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
 import { athletes } from './matrix-fixtures.ts'
 import { replanSteps } from './replan-steps.ts'
@@ -148,5 +148,70 @@ describe('keptByReplan and the trim of the weekly decision [rules J5, design 4.3
     const rules = ['C5', TRIM_RULE, HOLD_TRIM_RULE]
     expect(keptByReplan(row('completed', rules), today)).toBe(true)
     expect(keptByReplan(row('downgraded', rules, '2026-10-25'), today)).toBe(true)
+  })
+})
+
+describe('a day closed to running never raises a week [rule G-6, relation 5.3]', () => {
+  // A week the replaced plan has not started is held to its figure; the week a window touches is held
+  // to the minutes the plan placed. Where the plan placed more than its figure (a session under the
+  // shortest run is raised to it), closing one day moved the bound of the week from the figure to the
+  // minutes, and the week rose: a closed day gave the runner more running.
+  const half = athletes().find((a) => a.id === 'half')!
+  const plan = buildPlan(half.input)
+  const monday = addDays(mondayOf(half.input.today), 7)
+  const placed = plan.sessions
+    .filter((s) => mondayOf(s.date) === monday && !['strength', 'race', 'rest'].includes(s.kind))
+    .reduce((sum, s) => sum + s.durationMin, 0)
+  const existing: NonNullable<EngineInput['existing']> = {
+    weeks: plan.weeks.map((w) =>
+      w.weekStart === monday ? { ...w, targetRunMin: Math.round(placed * 0.6) } : w,
+    ),
+    sessions: plan.sessions.map((s, i) => ({
+      ...s,
+      id: `s${String(i)}`,
+      status: s.date < monday ? 'completed' : 'planned',
+      activityId: null,
+    })),
+  }
+  const input: EngineInput = { ...half.input, today: monday, existing }
+  const minutes = (draft: PlanDraft, week: string) =>
+    draft.sessions
+      .filter((s) => mondayOf(s.date) === week && !['strength', 'race', 'rest'].includes(s.kind))
+      .reduce((sum, s) => sum + s.durationMin, 0)
+
+  it('holds the week to its figure, under the minutes the plan placed', () => {
+    const base = replan(input).draft
+    expect(minutes(base, monday)).toBeLessThanOrEqual(
+      existing.weeks.find((w) => w.weekStart === monday)!.targetRunMin,
+    )
+    expect(placed).toBeGreaterThan(existing.weeks.find((w) => w.weekStart === monday)!.targetRunMin)
+  })
+
+  it.each([1, 3, 5])('raises no week when day %i of it is closed to running', (day) => {
+    const base = replan(input).draft
+    const date = addDays(monday, day)
+    const variant = replan({
+      ...input,
+      disruptions: [
+        {
+          id: 'closed',
+          reason: 'travel',
+          mode: 'rest',
+          startDate: date,
+          endDate: date,
+          maxRunMin: null,
+          pain: null,
+          gaitChange: false,
+        },
+      ],
+    }).draft
+    for (const week of variant.weeks) {
+      const before = base.weeks.find((w) => w.weekStart === week.weekStart)
+      if (before === undefined) continue
+      expect(week.targetRunMin, `target ${week.weekStart}`).toBeLessThanOrEqual(before.targetRunMin)
+      expect(minutes(variant, week.weekStart), `minutes ${week.weekStart}`).toBeLessThanOrEqual(
+        minutes(base, week.weekStart),
+      )
+    }
   })
 })
