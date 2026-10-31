@@ -4178,7 +4178,7 @@ describe('F7, F8 and F9: a strength session', () => {
       const facts = groupOf(ask(strength, heavy, 'back-squat'), 'F9')
       const since = facts.find((f) => f.id === 'f9.since-back-squat')!
       expect(text(since)).toBe(
-        'Back squat: 3 days since the last session. After 28 days the load comes back to about 90% of the last one.',
+        'Back squat: three days since the last session. After 28 days the load comes back to about 90% of the last one.',
       )
       expect(since.sources).toEqual([
         { kind: 'activity', id: 'act-log-1', date: addDays(heavy.date, -3), label: 'Strength' },
@@ -4222,7 +4222,7 @@ describe('F7, F8 and F9: a strength session', () => {
         f.id.startsWith('f9.since-'),
       )!
       // today is four days before the session, and the session was two days before today
-      expect(text(since)).toMatch(/^Back squat: 2 days since the last session\./)
+      expect(text(since)).toMatch(/^Back squat: two days since the last session\./)
     })
   })
 
@@ -4394,7 +4394,7 @@ describe('F7, F8 and F9: a strength session', () => {
       )
       // and the gap is counted to the day of the session
       const since = groupOf(out, 'F9').find((f) => f.id === 'f9.since-back-squat')!
-      expect(text(since)).toMatch(/^Back squat: 3 days since the last session\./)
+      expect(text(since)).toMatch(/^Back squat: three days since the last session\./)
     })
 
     test('names the session that set the load, and counts the gap from the latest session of any mode', () => {
@@ -4425,8 +4425,60 @@ describe('F7, F8 and F9: a strength session', () => {
         'The last session of Back squat was on Sat 31 Jan: four sets, heaviest set 110 lb x 6.',
       )
       const since = groupOf(out, 'F9').find((f) => f.id === 'f9.since-back-squat')!
-      expect(text(since)).toMatch(/^Back squat: 2 days since the last session\./)
+      expect(text(since)).toMatch(/^Back squat: two days since the last session\./)
       expect(since.sources.map((s) => s.id)).toEqual(['act-lighter'])
+    })
+  })
+
+  describe('the gap and the illness, in words', () => {
+    const lastBack = (daysBack: number) =>
+      liftLog('gap-log', addDays(heavy.date, -daysBack), 'back-squat', [[110, 6, 2]], {
+        implement: 'barbell',
+        baseLb: 110,
+      })
+
+    test('says one day, not "1 days", and keeps the figures of the rule', () => {
+      const one = ask(equipped({ logs: [lastBack(1)] }), heavy, 'back-squat')
+      expect(said(groupOf(one, 'F9'))).toContain(
+        'Back squat: one day since the last session. After 28 days the load comes back to about 90% of the last one.',
+      )
+      const twelve = ask(equipped({ logs: [lastBack(12)] }), heavy, 'back-squat')
+      expect(said(groupOf(twelve, 'F9'))).toContain(
+        'Back squat: 12 days since the last session. After 28 days the load comes back to about 90% of the last one.',
+      )
+    })
+
+    test('has no gap fact for a lift with no load, which the return rule has no load for', () => {
+      const bodyweight = withSetup({ equipment: have('step') }, { today: heavy.date })
+      const log = liftLog('split', addDays(heavy.date, -3), 'split-squat', [
+        [null, 8, 2],
+        [null, 8, 2],
+      ])
+      const out = ask({ ...bodyweight, logs: [log] }, heavy, 'split-squat')
+      expect(groupOf(out, 'F9').some((f) => f.id.startsWith('f9.since-'))).toBe(false)
+    })
+
+    test('words the rest phase of an illness as rest, and the easy phase as easy effort', () => {
+      const day = (illness: 'rest' | 'easy-only') =>
+        said(
+          groupOf(
+            ask(
+              equipped({
+                logs: [lastBack(3)],
+                readiness: { date: heavy.date, state: 'normal', pain: null, illness },
+              }),
+              heavy,
+              'back-squat',
+            ),
+            'F9',
+          ),
+        )
+      expect(day('easy-only')).toContain('A recent illness limits the day to easy effort.')
+      const rest = day('rest')
+      expect(rest).toContain(
+        'A recent illness asks for rest, so the lifts are lighter if the session is done.',
+      )
+      expect(rest).not.toContain('A recent illness limits the day to easy effort.')
     })
   })
 })

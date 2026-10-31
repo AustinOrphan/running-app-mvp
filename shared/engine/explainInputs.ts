@@ -3066,7 +3066,11 @@ function strengthLighterFacts(scope: Scope): InputFact[] {
     if (readiness.pain !== null && readiness.pain >= P.pain.flagScore.value) {
       facts.push(make('F9', 'pain', 'explain.f9-pain', { score: count(readiness.pain) }))
     }
-    if (readiness.illness !== 'clear') facts.push(make('F9', 'illness', 'explain.f9-illness', {}))
+    if (readiness.illness === 'easy-only') {
+      facts.push(make('F9', 'illness', 'explain.f9-illness', {}))
+    }
+    if (readiness.illness === 'rest')
+      facts.push(make('F9', 'illness', 'explain.f9-illness-rest', {}))
   }
   for (const lift of lifts) {
     const exercise = exerciseName(lift.exerciseId)
@@ -3078,9 +3082,10 @@ function strengthLighterFacts(scope: Scope): InputFact[] {
         }),
       )
     }
-    // the gap is counted from the latest session of any mode, as rule F8.2 counts it
+    // the gap is counted from the latest session of any mode, as rule F8.2 counts it, and the
+    // return rule has a load to bring back only for a lift that carries one
     const last = lift.evidence.latest
-    if (last !== null) {
+    if (last !== null && lift.loadG !== null) {
       facts.push(
         make(
           'F9',
@@ -3088,7 +3093,7 @@ function strengthLighterFacts(scope: Scope): InputFact[] {
           'explain.f9-since',
           {
             exercise,
-            days: count(last.gapDays),
+            days: countPhrase(last.gapDays, 'day'),
             layoff: count(P.f8.layoffDays.value),
             share: share(P.f8.layoffLoadFraction.value),
           },

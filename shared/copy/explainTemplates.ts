@@ -955,14 +955,18 @@ export const EXPLAIN_TEMPLATES = {
     score: 'count',
   }),
   'explain.f9-illness': tpl('A recent illness limits the day to easy effort.'),
+  'explain.f9-illness-rest': tpl(
+    'A recent illness asks for rest, so the lifts are lighter if the session is done.',
+  ),
   'explain.f9-usual': tpl('The usual load of {exercise} is {load}.', {
     exercise: 'text',
     load: 'load',
   }),
-  // `layoff` is `f8.layoffDays` and `share` is `f8.layoffLoadFraction`.
+  // `days` is the days since the last session in words ("one day", "12 days"); `layoff` is
+  // `f8.layoffDays` and `share` is `f8.layoffLoadFraction`.
   'explain.f9-since': tpl(
-    '{exercise}: {days} days since the last session. After {layoff} days the load comes back to about {share} of the last one.',
-    { exercise: 'text', days: 'count', layoff: 'count', share: 'share' },
+    '{exercise}: {days} since the last session. After {layoff} days the load comes back to about {share} of the last one.',
+    { exercise: 'text', days: 'text', layoff: 'count', share: 'share' },
   ),
   'explain.h12-hold': tpl(
     'After your goal race the plan holds {days} days without running, then returns in {steps} steps.',
