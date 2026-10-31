@@ -1718,6 +1718,39 @@ export interface WorkoutLift {
   /** On a lighter day, the load the progression would otherwise have asked for. */
   usualLoadG: number | null
   basis: SuggestionBasis
+  /**
+   * What the rules read to give this load (design 10.5): the sessions of the exercise in the lift's
+   * implement and window, and the estimate. An explanation names these and no other history, so it
+   * cannot differ from the number beside it.
+   */
+  evidence: LiftEvidence
+}
+
+/** One logged session of the lift's exercise, as the rules read it. */
+export interface EvidenceSession {
+  logId: string
+  date: string
+  mode: StrengthLogMode
+  sets: number
+  /** The greatest load, and of equals the most reps; null with no loaded set. */
+  heaviest: { loadG: number; count: number } | null
+  /** The most reps, seconds or contacts in any one set. */
+  best: number
+  /** Days from the session to the day the rules counted to: the viewed session's day, or today for a session ahead. */
+  gapDays: number
+}
+
+/**
+ * The history behind a load. A session of another implement is not in it (a change of equipment
+ * starts the lift again, design 6.5), nor is one the rules do not read for this day.
+ */
+export interface LiftEvidence {
+  /** The latest session of any mode: the gap of rule F8.2 counts from it. */
+  latest: EvidenceSession | null
+  /** The latest `normal` session, whose sets the rules judged; null when there is none. */
+  judged: EvidenceSession | null
+  /** The estimated maximum the share beside the load reads: that of `latest`, else the starting point's. */
+  estimateG: number | null
 }
 
 export interface PlyoDose {

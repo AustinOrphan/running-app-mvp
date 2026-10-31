@@ -4086,3 +4086,146 @@ describe('summariseHistory: the last change of a working load', () => {
     expect(lift([...logs].reverse())?.lastChange).toEqual(lift(logs)?.lastChange)
   })
 })
+
+// ---------------------------------------------------------------------------------------------
+// The evidence behind a load (design 10.5)
+// ---------------------------------------------------------------------------------------------
+
+describe('the evidence behind a load', () => {
+  const session = sessionOf(5)
+  const before = (days: number) => addDays(session.date, -days)
+  const at = (id: string, days: number, pounds: number, counts: number[], over: LogOver = {}) =>
+    liftLog(
+      id,
+      before(days),
+      'back-squat',
+      rows(
+        pounds,
+        counts,
+        counts.map(() => 2),
+      ),
+      {
+        implement: 'barbell',
+        baseLb: pounds,
+        ...over,
+      },
+    )
+  const runner = (logs: StrengthLogEntry[]) => onDayOf(5, { equipment: have('barbell') }, { logs })
+  const asked = (ctx: StrengthContext) => ask(ctx, { date: session.date })
+
+  it('names the sessions the rules read: the latest of any mode, the latest normal one, the estimate', () => {
+    const logs = [
+      at('old', 20, 100, [6, 6, 6, 6]),
+      at('light', 3, 90, [6, 5], { mode: 'lighter-day' }),
+    ]
+    const { evidence, estimateG } = asked(runner(logs))
+    expect(evidence.latest).toEqual({
+      logId: 'light',
+      date: before(3),
+      mode: 'lighter-day',
+      sets: 2,
+      heaviest: { loadG: lb(90), count: 6 },
+      best: 6,
+      gapDays: 3,
+    })
+    expect(evidence.judged).toMatchObject({ logId: 'old', mode: 'normal', sets: 4, gapDays: 20 })
+    // the estimate is the engine's own: that of the latest session
+    expect(evidence.estimateG).toBe(estimateG)
+    expect(evidence.estimateG).toBe(estimateOneRm(lb(90), 6, 2))
+  })
+
+  it('leaves out a session of another implement and one after the day of the session', () => {
+    const logs = [
+      at('kept', 40, 100, [6, 6]),
+      at('machine', 2, 200, [6, 6], { implement: 'leg-press' }),
+      liftLog('later', addDays(session.date, 2), 'back-squat', rows(120, [6, 6], [2, 2]), {
+        implement: 'barbell',
+      }),
+      goblet('other-lift', 1, rows(25, [8, 8], [2, 2]), { implement: 'dumbbells' }),
+    ]
+    const { evidence } = asked(runner(logs))
+    expect(evidence.latest).toMatchObject({ logId: 'kept', gapDays: 40 })
+    expect(evidence.judged).toMatchObject({ logId: 'kept' })
+    expect(evidence.estimateG).toBe(estimateOneRm(lb(100), 6, 2))
+  })
+
+  it('has no session and no estimate for a lift whose equipment changed, and the start of a new lift', () => {
+    const logs = [goblet('kb', 3, rows(26, [8, 8, 8], [2, 2, 2]), { implement: 'kettlebells' })]
+    const ctx = withSetup({ equipment: [dumbbellsOf(20, 25, 30)] }, { today: TODAY, logs })
+    const now = suggestLoad(ctx, {
+      exerciseId: 'goblet-squat',
+      implement: 'dumbbells',
+      date: TODAY,
+      ...structuresFor('heavy', 'other', 6),
+    })
+    expect(now.rule).toBe('F8.1')
+    expect(now.evidence).toEqual({ latest: null, judged: null, estimateG: null })
+    // the same log is the history of a lift done with a kettlebell
+    const kettlebells = withSetup({ equipment: have('kettlebells') }, { today: TODAY, logs })
+    const was = suggestLoad(kettlebells, {
+      exerciseId: 'goblet-squat',
+      implement: 'kettlebells',
+      date: TODAY,
+      ...structuresFor('heavy', 'other', 6),
+    })
+    expect(was.evidence.latest).toMatchObject({ logId: 'kb', sets: 3 })
+  })
+
+  it('counts a session ahead to today, and starts from the starting point when nothing is logged', () => {
+    const ahead = sessionOf(8)
+    const logs = [
+      liftLog('near', addDays(ahead.date, -6), 'back-squat', rows(110, [6, 6], [2, 2]), {
+        implement: 'barbell',
+      }),
+    ]
+    const ctx = withSetup({ equipment: have('barbell') }, { today: addDays(ahead.date, -4), logs })
+    // the session is four days off: the gap is counted to today, two days after the log
+    expect(ask(ctx, { date: ahead.date }).evidence.latest).toMatchObject({ gapDays: 2 })
+
+    const anchored = withSetup(
+      { equipment: have('barbell') },
+      {
+        today: ahead.date,
+        anchors: [
+          {
+            exerciseId: 'back-squat',
+            kind: 'max',
+            loadG: lb(150),
+            reps: 1,
+            rir: null,
+            asOf: monday(0),
+          },
+        ],
+      },
+    )
+    const first = ask(anchored, { date: ahead.date })
+    expect(first.evidence).toEqual({ latest: null, judged: null, estimateG: lb(150) })
+  })
+
+  it('reaches the lift of a workout as the suggestion gave it, trunk movements included', () => {
+    const logs = [
+      at('old', 12, 100, [6, 6, 6, 6]),
+      liftLog('plank', before(4), 'side-plank', [
+        [null, 30, null],
+        [null, 40, null],
+      ]),
+    ]
+    const ctx = runner(logs)
+    const workout = workoutFor(ctx, session)
+    const lift = liftOf(workout, 'back-squat')!
+    expect(lift.evidence).toEqual(asked(ctx).evidence)
+    expect(lift.evidence.judged).toMatchObject({ logId: 'old', gapDays: 12 })
+    // a movement with no load is not judged, but the sessions the rules would read are named
+    const plank = workout.trunk.find((l) => l.exerciseId === 'side-plank')!
+    expect(plank.evidence.latest).toMatchObject({ logId: 'plank', sets: 2, best: 40, gapDays: 4 })
+    expect(plank.evidence.estimateG).toBeNull()
+    // a lift the log never named has nothing to name
+    for (const other of workout.lifts.filter((l) => l.exerciseId !== 'back-squat')) {
+      expect(other.evidence, other.exerciseId).toEqual({
+        latest: null,
+        judged: null,
+        estimateG: null,
+      })
+    }
+  })
+})

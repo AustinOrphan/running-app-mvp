@@ -2725,3 +2725,89 @@ describe('PUT /api/strength/logs/:logId: next', () => {
     expect(resultOf(await save(user, 607, SETS)).next.length).toBeGreaterThan(0)
   })
 })
+
+describe('PUT /api/strength/logs/:logId: next, a harder movement', () => {
+  const DUMBBELL_LIST = {
+    kind: 'dumbbells',
+    // 50 lb to 60 lb is a fifth of the load in a list that also has 5 lb gaps: no usable step
+    loads: { loadsG: [30, 35, 50, 60].map(LB) },
+  }
+
+  test('names the harder movement and the variation when the load has stalled at the ceiling', async () => {
+    const { nextMonday } = days()
+    const user = await newUser()
+    await seedProfile(user)
+    await setup(user, { equipment: [DUMBBELL_LIST, { kind: 'step' }], level: 'some' })
+    // two lifts next week, so the first is session A, which leads with the knee lift
+    await seedPlan(user, [{ date: addDays(nextMonday, 1) }, { date: addDays(nextMonday, 3) }])
+    // two sessions at the top of the range with a rep left, 50 lb, on the dumbbells
+    for (const [i, back] of [15, 8].entries()) {
+      await seedLog(user, {
+        id: uuid(700 + i),
+        date: addDays(todayIso(), -back),
+        sets: [0, 1, 2].map(() => ['goblet-squat', LB(50), 6, 1] as const),
+        implement: { 'goblet-squat': 'dumbbells' },
+      })
+    }
+    // the third, saved now: the load has no usable step for three sessions in a row
+    const res = await putLog(
+      user,
+      uuid(702),
+      logBody({
+        prescribed: snapshot({ lifts: [] }),
+        sets: [0, 1, 2].map(() => ({
+          exerciseId: 'goblet-squat',
+          loadG: LB(50),
+          count: 6,
+          rir: 1,
+        })),
+      }),
+    )
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    const { next } = resultOf(res)
+    expect(next).toHaveLength(1)
+    // the lift the rules move on to, not the one that was logged
+    expect(next[0]).toMatchObject({ exerciseId: 'split-squat', change: 'variation' })
+    expect(next[0]!.loadG).not.toBeNull()
+
+    // and the next planned session shows the same movement
+    const tuesday = addDays(nextMonday, 1)
+    const workouts = await client(ctx, user).get(
+      `/api/strength/workouts?from=${tuesday}&to=${tuesday}`,
+    )
+    const lift = (workouts.body as StrengthWorkout[])[0]!.lifts.find(
+      (l) => l.exerciseId === 'split-squat',
+    )
+    expect(lift).toMatchObject({ change: 'variation', loadG: next[0]!.loadG })
+  })
+
+  test('a lift with a usable step moves up and keeps its own name', async () => {
+    const { nextMonday } = days()
+    const user = await newUser()
+    await seedProfile(user)
+    await setup(user, {
+      equipment: [
+        { kind: 'dumbbells', loads: { loadsG: [30, 35, 40, 45, 50, 55, 60].map(LB) } },
+        { kind: 'step' },
+      ],
+      level: 'some',
+    })
+    await seedPlan(user, [{ date: addDays(nextMonday, 1) }, { date: addDays(nextMonday, 3) }])
+    const res = await putLog(
+      user,
+      uuid(703),
+      logBody({
+        prescribed: snapshot({ lifts: [] }),
+        sets: [0, 1, 2].map(() => ({
+          exerciseId: 'goblet-squat',
+          loadG: LB(50),
+          count: 6,
+          rir: 1,
+        })),
+      }),
+    )
+    expect(resultOf(res).next).toEqual([
+      { exerciseId: 'goblet-squat', change: 'increase', loadG: LB(55) },
+    ])
+  })
+})
