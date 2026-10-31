@@ -65,14 +65,7 @@ import {
   sleepAverageH,
 } from './readiness.ts'
 import { isLoadingWeek, rungCount } from './startWeeks.ts'
-import {
-  anchorEstimate,
-  liftFor,
-  percentOfMax,
-  summariseHistory,
-  workoutFor,
-  type HistorySummary,
-} from './strength.ts'
+import { liftFor, percentOfMax, workoutFor } from './strength.ts'
 import { resolveTargets } from './targets.ts'
 import type {
   AthleteState,
@@ -2791,7 +2784,6 @@ interface StrengthRead {
   ctx: StrengthContext
   ref: StrengthSessionRef
   workout: StrengthWorkout
-  history: HistorySummary
 }
 
 /** A planned session as the strength engine reads it. */
@@ -2822,12 +2814,7 @@ function strengthRead(scope: Scope): StrengthRead | null {
     session.kind === 'strength'
   ) {
     const ref = strengthRef(session)
-    read = {
-      ctx: strength,
-      ref,
-      workout: workoutFor(strength, ref),
-      history: summariseHistory(strength),
-    }
+    read = { ctx: strength, ref, workout: workoutFor(strength, ref) }
   }
   strengthReads.set(scope, read)
   return read
@@ -2887,21 +2874,7 @@ const F9_REASONS: ReadonlySet<string> = new Set([
   'strength.reason.maintenance',
 ])
 
-/** The day a session reads its history up to: its own day, or today for a session ahead. */
-const historyRef = (read: StrengthRead): string =>
-  read.ref.date <= read.ctx.today ? read.ref.date : read.ctx.today
-
-/** The latest logged session of an exercise before the one explained, as the rules read it. */
-function lastSession(read: StrengthRead, exerciseId: string) {
-  const ahead = read.ref.date > read.ctx.today
-  return read.history.lifts
-    .find((lift) => lift.exerciseId === exerciseId)
-    ?.sessions.find((session) =>
-      ahead ? session.date <= read.ctx.today : session.date < read.ref.date,
-    )
-}
-
-/** The log of a history session as a source: the activity page shows its sets. */
+/** The log of a session the rules read, as a source: the activity page shows its sets. */
 function logSource(read: StrengthRead, logId: string, date: string): SourceRef[] {
   const activityId = read.ctx.logs.find((entry) => entry.id === logId)?.activityId
   return activityId === undefined
@@ -3009,39 +2982,36 @@ function strengthLoadFacts(scope: Scope): InputFact[] {
   for (const lift of liftsToExplain(scope, read)) {
     const id = lift.exerciseId
     const exercise = exerciseName(id)
-    const last = lastSession(read, id)
-    if (last !== undefined) {
+    // the session whose sets the rules judged (else the only kind there is: a lighter one), in the
+    // lift's implement and before the day of the session: what the rules read, and no other history
+    const last = lift.evidence.judged ?? lift.evidence.latest
+    if (last !== null) {
       const sources = logSource(read, last.logId, last.date)
       const date = { kind: 'date', iso: last.date, style: 'weekday' } as const
-      const sets = countPhrase(last.sets.length, 'set')
-      if (last.heaviest === null) {
-        const most = Math.max(...last.sets.map((set) => set.count))
-        facts.push(
-          make(
-            'F8',
-            `last-${id}`,
-            'explain.f8-last-unloaded',
-            { exercise, date, sets, count: count(most) },
-            { sources },
-          ),
-        )
-      } else {
-        facts.push(
-          make(
-            'F8',
-            `last-${id}`,
-            'explain.f8-last',
-            {
-              exercise,
-              date,
-              sets,
-              load: loadOf(last.heaviest.loadG),
-              count: count(last.heaviest.count),
-            },
-            { sources },
-          ),
-        )
-      }
+      const sets = countPhrase(last.sets, 'set')
+      const fact =
+        last.heaviest === null
+          ? make(
+              'F8',
+              `last-${id}`,
+              'explain.f8-last-unloaded',
+              { exercise, date, sets, count: count(last.best) },
+              { sources },
+            )
+          : make(
+              'F8',
+              `last-${id}`,
+              'explain.f8-last',
+              {
+                exercise,
+                date,
+                sets,
+                load: loadOf(last.heaviest.loadG),
+                count: count(last.heaviest.count),
+              },
+              { sources },
+            )
+      facts.push(fact)
     }
     lift.basis.facts
       .filter((reason) => !F9_REASONS.has(reason.template))
@@ -3052,11 +3022,9 @@ function strengthLoadFacts(scope: Scope): InputFact[] {
         facts.push(rawFact('F8', `${id}-${String(i)}`, reason.template, reason.slots))
       })
     if (lift.loadG !== null) {
-      const kept = read.history.lifts.find((history) => history.exerciseId === id)
-      const anchor = read.ctx.anchors.find((candidate) => candidate.exerciseId === id)
-      const estimate =
-        kept !== undefined ? kept.estimateG : anchor === undefined ? null : anchorEstimate(anchor)
-      const pct = estimate === null ? null : percentOfMax(lift.loadG, estimate)
+      // the estimate the engine used for this lift: its latest session's, else the starting point's
+      const { estimateG } = lift.evidence
+      const pct = estimateG === null ? null : percentOfMax(lift.loadG, estimateG)
       if (pct !== null) {
         facts.push(
           rawFact('F8', `share-${id}`, 'strength.max-share', {
@@ -3110,8 +3078,9 @@ function strengthLighterFacts(scope: Scope): InputFact[] {
         }),
       )
     }
-    const last = lastSession(read, lift.exerciseId)
-    if (last !== undefined) {
+    // the gap is counted from the latest session of any mode, as rule F8.2 counts it
+    const last = lift.evidence.latest
+    if (last !== null) {
       facts.push(
         make(
           'F9',
@@ -3119,7 +3088,7 @@ function strengthLighterFacts(scope: Scope): InputFact[] {
           'explain.f9-since',
           {
             exercise,
-            days: count(daysBetween(last.date, historyRef(read))),
+            days: count(last.gapDays),
             layoff: count(P.f8.layoffDays.value),
             share: share(P.f8.layoffLoadFraction.value),
           },

@@ -30,6 +30,8 @@ import { fromGrams, lightestLoad, roundDownToStep, stepFrom, stepsFor } from '..
 import type {
   EquipmentConfig,
   EquipmentKind,
+  EvidenceSession,
+  LiftEvidence,
   LoadSteps,
   PlyoDose,
   Slot,
@@ -580,6 +582,36 @@ export interface LoadSuggestion {
   moveTo: ExerciseId | null
   /** The estimated maximum the ceiling and the share beside a load read; null when none. */
   estimateG: number | null
+  /** The sessions and the estimate this suggestion was read from, for the explanation of it. */
+  evidence: LiftEvidence
+}
+
+/** A logged session as an explanation names it. */
+function evidenceSession(session: LoggedSession, ref: string): EvidenceSession {
+  return {
+    logId: session.logId,
+    date: session.date,
+    mode: session.mode,
+    sets: session.sets.length,
+    heaviest: historySession(session).heaviest,
+    best: Math.max(0, ...session.sets.map((set) => set.count)),
+    gapDays: daysBetween(session.date, ref),
+  }
+}
+
+/** What a load is read from: the sessions the rules saw (`loggedSessions`, in the window of `ref`). */
+function liftEvidence(
+  sessions: readonly LoggedSession[],
+  ref: string,
+  estimateG: number | null,
+): LiftEvidence {
+  const latest = sessions.at(-1)
+  const judged = sessions.filter((session) => session.mode === 'normal').at(-1)
+  return {
+    latest: latest === undefined ? null : evidenceSession(latest, ref),
+    judged: judged === undefined ? null : evidenceSession(judged, ref),
+    estimateG,
+  }
 }
 
 /**
@@ -798,6 +830,7 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
     facts,
     moveTo,
     estimateG,
+    evidence: liftEvidence(sessions, window.ref, estimateG),
   })
   const fill = (shape: Structure, at: number): number[] =>
     Array.from({ length: shape.sets }, () => at)
@@ -1272,6 +1305,7 @@ function liftFrom(
     change,
     usualLoadG,
     basis: { rule, facts },
+    evidence: suggestion.evidence,
   }
 }
 
@@ -1329,6 +1363,9 @@ function buildLift(
     const request = requestFor(ctx, plan, choice, slot, role)
     if (slot === 'trunk' && choice.steps === null) {
       const shape = request.template.unloaded
+      // nothing is judged for a movement with no load and no effort target, but the sessions of it
+      // that the rules would read for this day are still the ones to name
+      const window = historyWindow(ctx, plan.session.date)
       return {
         exerciseId: choice.exerciseId,
         slot,
@@ -1342,6 +1379,11 @@ function buildLift(
         change: 'hold',
         usualLoadG: null,
         basis: { rule: 'F7', facts: [] },
+        evidence: liftEvidence(
+          loggedSessions(ctx.logs, choice.exerciseId, choice.implement, window),
+          window.ref,
+          null,
+        ),
       }
     }
     const suggestion = suggestLoad(ctx, request)
