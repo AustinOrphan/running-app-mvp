@@ -1373,6 +1373,30 @@ things stand" gives counts and percentages without a weekly total or a date.
     ultra goals only), and a block that is not continued across a post-race window
     (`macroPlanDraft` passes no stored plan to the plan built after one). Next: wave 2, task E14-4
     (the pure strength engine).
+    Wave 2 done in #580 and #581 (2026-10-31): task E14-4 added the pure strength engine,
+    `shared/engine/strength.ts`, derived on read (ADR 0014): the templates by phase; the block
+    position, which reuses the planner's counter; the ramp-in by level, with the regenerate credit
+    of four logged block weeks; lift selection from the equipment, with the pins and the barbell
+    after the ramp-in; the one derived workout; load suggestions by rules F8.1 to F8.7, with the
+    worked examples of the design as tests; the estimated maximum, labelled as an estimate and
+    limited by the new Param `f8.e1rmMaxReps` (10, grade D); the F9 reads; and the history summary.
+    Rule F8 was amended so that the smallest step the equipment makes is always usable (a light
+    start on a lift with no harder movement could otherwise never progress), and the 90% ceiling
+    reads the latest estimate available; `PARAMS_VERSION` is 2026-10-25.6. A four-lens review raised
+    9 confirmed defects, all fixed, among them a recovery week inside the ramp-in that let the
+    barbell in. Task E14-5 added the migration `strength`: `User.weightUnit`, backfilled by distance
+    unit (kg for km, lb otherwise), and the state models `StrengthSettings`, `StrengthLift`,
+    `StrengthLog` and `StrengthSet`; `PUT /api/settings` takes `weightUnit`; and the strength
+    settings, lifts and logs routes store a log by an idempotent replace on the log id.
+    `createManualActivity` was extracted from the activity route. Its review found that strength
+    activities were never considered for duplicates, so a session logged in the app and imported
+    later would have shown twice; they now pair by start instant or by same-day duration, the log is
+    handed to a strength original on confirm, and a type change away from strength is refused while
+    a log exists. Validation (counts only): the plan on a real history is unchanged, because the
+    workout is derived on read. Left for E14-6: the duplicated payload and engine types to map in
+    `loadStrengthContext`; logs on duplicate activities counted once; `next` after a save (empty
+    until the engine fills it); the H10 explain builder. Next: wave 3, task E14-6 (the server read
+    side), then E14-7 to E14-9 (the web).
 19. Done in #567: the Today disruption presentation, from the owner's feedback of 2026-10-24 on
     Today with an illness window. (a) The band owns the window and the verdict names the day: while
     the illness windows hold the n-3 gate, the payload leaves out the illness note and the illness
