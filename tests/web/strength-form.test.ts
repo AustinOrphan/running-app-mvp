@@ -351,6 +351,8 @@ describe('a swap', () => {
       loadG: lb(10),
       change: 'start',
       usualLoadG: null,
+      // the sheet read no session for it
+      evidence: { latest: null, judged: null, estimateG: null },
     })
     expect(lift?.steps).toEqual(stepsFor(equipment, 'dumbbells', 'lb'))
     expect(lift?.basis).toEqual({

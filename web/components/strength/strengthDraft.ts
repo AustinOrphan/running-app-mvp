@@ -90,7 +90,8 @@ function isLift(value: unknown): value is WorkoutLift {
     (rir === null || isRange(rir)) &&
     typeof value['change'] === 'string' &&
     isNumberOrNull(value['usualLoadG']) &&
-    isBasis(value['basis'])
+    isBasis(value['basis']) &&
+    isRecord(value['evidence'])
   )
 }
 

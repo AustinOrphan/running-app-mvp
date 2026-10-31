@@ -5,6 +5,7 @@ import { toGrams } from '../../shared/domain/weight.ts'
 import { workoutFor } from '../../shared/engine/strength.ts'
 import type {
   Activity,
+  LiftEvidence,
   StrengthLog,
   StrengthLogResult,
   StrengthNextLoad,
@@ -22,6 +23,9 @@ import { have, sessionRef, withSetup } from '../unit/engine/strength-fixtures.ts
 export const lb = (pounds: number): number => toGrams(pounds, 'lb')
 
 const count = (n: number) => ({ kind: 'count', n }) as const
+
+/** A lift that was never logged: the rules read no session for it. */
+const NO_EVIDENCE: LiftEvidence = { latest: null, judged: null, estimateG: null }
 
 /** The session the fixtures stand on, and the day it is logged on. */
 export const SESSION_ID = 's5a'
@@ -50,6 +54,7 @@ export function squat(over: Partial<WorkoutLift> = {}): WorkoutLift {
         },
       ],
     },
+    evidence: NO_EVIDENCE,
     ...over,
   }
 }
@@ -72,6 +77,7 @@ export function rdl(over: Partial<WorkoutLift> = {}): WorkoutLift {
       rule: 'F8',
       facts: [{ template: 'strength.reason.hold-unrecorded', slots: {} }],
     },
+    evidence: NO_EVIDENCE,
     ...over,
   }
 }
@@ -99,6 +105,7 @@ export function calf(over: Partial<WorkoutLift> = {}): WorkoutLift {
         },
       ],
     },
+    evidence: NO_EVIDENCE,
     ...over,
   }
 }
@@ -118,6 +125,7 @@ export function plank(over: Partial<WorkoutLift> = {}): WorkoutLift {
     change: 'hold',
     usualLoadG: null,
     basis: { rule: 'F7', facts: [] },
+    evidence: NO_EVIDENCE,
     ...over,
   }
 }

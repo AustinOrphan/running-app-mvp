@@ -32,6 +32,7 @@ import {
 } from '../../../shared/limits.ts'
 import type {
   EquipmentConfig,
+  LiftEvidence,
   StrengthLog,
   StrengthSet,
   StrengthSnapshot,
@@ -155,6 +156,13 @@ export function rowsOf(lift: WorkoutLift, unit: WeightUnit, rir: number | null):
 }
 
 /**
+ * The history behind a load that the sheet itself made: none. A jump dose and a swapped lift were
+ * not read from the logs here, so the sheet names no session for them (the server's explanation
+ * of a swapped lift reads its own).
+ */
+const NO_EVIDENCE: LiftEvidence = { latest: null, judged: null, estimateG: null }
+
+/**
  * The jump dose as a lift of one set: the count is the contacts of the dose, and there is no load
  * and no effort target. Only the sheet reads it; a log snapshot holds no jumps.
  */
@@ -172,6 +180,7 @@ function jumpLift(movement: string, contacts: number): WorkoutLift {
     change: 'hold',
     usualLoadG: null,
     basis: { rule: 'F7', facts: [] },
+    evidence: NO_EVIDENCE,
   }
 }
 
@@ -440,6 +449,7 @@ export function swappedLift(
       rule: 'F8',
       facts: [{ template, slots: { exercise: STRENGTH_TEMPLATES[exercise.name].text } }],
     },
+    evidence: NO_EVIDENCE,
   }
 }
 
