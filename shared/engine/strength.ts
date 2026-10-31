@@ -867,11 +867,13 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
   if (lowest < lo) {
     let lowered = held
     let moved = false
+    let removed = 0
     if (steps !== null && base !== null) {
       const reduced = reduceFrom(steps, base, unit)
       if (reduced !== null) {
         lowered = reduced.loadG
         moved = true
+        removed = reduced.steps
       }
     }
     const set = count(counts.indexOf(lowest) + 1)
@@ -884,6 +886,7 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
               exercise,
               lo: count(lo),
               hi: count(hi),
+              steps: countPhrase(removed, 'step'),
             }),
           ]
         : [
@@ -893,6 +896,7 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
               count: count(lowest),
               lo: count(lo),
               hi: count(hi),
+              steps: countPhrase(removed, 'step'),
             }),
           ]
     return make(

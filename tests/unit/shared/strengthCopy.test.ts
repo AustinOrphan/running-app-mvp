@@ -264,13 +264,26 @@ describe('the sentences of design 11.6', () => {
   })
 
   it('says why the load comes down: a set short of the range, never "failed"', () => {
-    const slots = { set: count(3), exercise: squat, lo: count(repsLo), hi: count(repsHi) }
+    const slots = {
+      set: count(3),
+      exercise: squat,
+      lo: count(repsLo),
+      hi: count(repsHi),
+      steps: countPhrase(1, 'step'),
+    }
     expect(say('strength.reason.reduce', { ...slots, count: count(2) })).toBe(
       `Set 3 of Back squat ended at 2 reps, below the ${String(repsLo)} to ${String(repsHi)} range, so the load comes down one step.`,
     )
     // one rep has its own template, so the sentence never reads "1 reps"
     expect(say('strength.reason.reduce-one', slots)).toBe(
       `Set 3 of Back squat ended at one rep, below the ${String(repsLo)} to ${String(repsHi)} range, so the load comes down one step.`,
+    )
+    // the steps are the ones removed: several read as a count, never "one step"
+    expect(
+      say('strength.reason.reduce', { ...slots, count: count(2), steps: countPhrase(3, 'step') }),
+    ).toMatch(/so the load comes down three steps\.$/)
+    expect(say('strength.reason.reduce-one', { ...slots, steps: countPhrase(2, 'step') })).toMatch(
+      /so the load comes down two steps\.$/,
     )
     expect(say('strength.reason.reduce', { ...slots, count: count(0) })).toContain(
       'ended at 0 reps',

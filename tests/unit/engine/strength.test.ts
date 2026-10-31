@@ -1137,9 +1137,43 @@ describe('F8.3: a set short of the range', () => {
           count: { kind: 'count', n: 2 },
           lo: { kind: 'count', n: 3 },
           hi: { kind: 'count', n: 6 },
+          steps: 'one step',
         },
       },
     ])
+  })
+
+  it('words the reason with the steps the load actually came down, one or several', () => {
+    const sentence = (s: LoadSuggestion) => renderFact(s.facts[0] as never, 'km', 'lb')
+    // 110 lb to 105 lb is one step
+    const one = ask(barbellRunner([squat('a', 5, rows(110, [6, 6, 2], [null, null, null]))]))
+    expect(sentence(one)).toContain('so the load comes down one step.')
+    // 300 lb less 5% is 15 lb, three steps of 5 lb: 285 lb
+    const three = ask(barbellRunner([squat('a', 5, rows(300, [6, 6, 2], [null, null, null]))]))
+    expect(three.loadG).toBe(lb(285))
+    expect(three.facts[0]?.slots['steps']).toBe('three steps')
+    expect(sentence(three)).toBe(
+      'Set 3 of Back squat ended at 2 reps, below the 3 to 6 range, so the load comes down three steps.',
+    )
+    // the same for a set that ended at one rep
+    const single = ask(barbellRunner([squat('a', 5, rows(300, [6, 6, 1], [null, null, null]))]))
+    expect(sentence(single)).toBe(
+      'Set 3 of Back squat ended at one rep, below the 3 to 6 range, so the load comes down three steps.',
+    )
+    // a 10 lb stack takes one step of 10 lb from 150 lb, 5% being 7.5 lb
+    const press = suggestLoad(
+      withSetup(
+        { equipment: have('leg-press') },
+        { logs: [liftLog('p', ago(5), 'leg-press', rows(150, [2], [null]))] },
+      ),
+      {
+        exerciseId: 'leg-press',
+        implement: 'leg-press',
+        date: TODAY,
+        ...structuresFor('heavy', 'lead', 6),
+      },
+    )
+    expect(press.facts[0]?.slots['steps']).toBe('one step')
   })
 
   it('applies to a set one rep short and not to one at the low end of the range', () => {

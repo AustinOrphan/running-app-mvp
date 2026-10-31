@@ -1411,7 +1411,7 @@ Examples of the templates (each a registered id, with its slots):
 
 - `strength.reason.increase`: "Every set of {exercise} reached {top} reps with reps left, so the load goes up one step."
 - `strength.reason.hold-unrecorded`: "The count of reps left was not recorded, so the load holds."
-- `strength.reason.reduce`: "Set {set} of {exercise} ended at {count} reps, below the {lo} to {hi} range, so the load comes down one step."
+- `strength.reason.reduce`: "Set {set} of {exercise} ended at {count} reps, below the {lo} to {hi} range, so the load comes down {steps}." (`{steps}` reads "one step", "three steps": the rungs removed; amended 2026-10-25)
 - `strength.reason.lighter-day`: "Readiness is lower than usual today, so each lift has one set fewer at a lighter load."
 - `strength.hero.workout-row`: "{exercise}: {sets} x {lo} to {hi}, {load}, leave {rirLo} to {rirHi}."
 - `strength.benefit`: "Strength work may lower the oxygen cost of running by about {lo} to {hi} after a full block. That is small, and it says nothing about race time." (`{hi}` is a percent quantity, so it reads "4%"; amended 2026-10-25 to carry the qualifiers of section 4.5.)
