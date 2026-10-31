@@ -28,7 +28,7 @@ export const pMethods = {
       {
         range: [3, 6],
         unit: 'days per week',
-        note: 'Default: the three-run-days preset caps the run days of a week at 3 for goals from 5 km to the half marathon; the default cap (`f5.mastersMaxRunDays`) is 6, and a preset may lower it to 3 and never raises it. A choice, not a better plan: no study holds volume equal and varies the run days in recreational runners over these distances, so the figure is extrapolated from direction (grade C) and from published three-day programmes (practice, grade D).',
+        note: 'Default: the three-run-days preset caps the run days of a week at 3 for goals from 5 km to the half marathon; the default cap (`f5.mastersMaxRunDays`) is 6, and a preset may lower it to 3 and never raises it. A choice, not a better plan: no study holds volume equal and varies the run days in recreational runners over these distances, so the figure is extrapolated from direction (grade C) and from published three-day programmes (practice, grade D). No week of the plan is above the same week of the default plan (rule G6).',
       },
     ),
   },
@@ -50,7 +50,7 @@ export const pMethods = {
       {
         range: [4, 6],
         unit: 'weeks',
-        note: 'Default: the longer-base preset ends the build phase after at most 4 weeks, where the default is 6 (`macroDesign.buildWeeks`), so base takes up to 2 weeks more of the weeks before the specific phase; a preset may shorten it to 4 and never lengthens it. A choice, not a better plan: nothing read shows a longer base to be better (reverse periodization is no more effective than traditional), so the figure follows the order of Lydiard as practice (grade D).',
+        note: 'Default: the longer-base preset ends the build phase after at most 4 weeks, where the default is 6 (`macroDesign.buildWeeks`), so base takes up to 2 weeks more of the weeks before the specific phase; a preset may shorten it to 4 and never lengthens it. A choice, not a better plan: nothing read shows a longer base to be better (reverse periodization is no more effective than traditional), so the figure follows the order of Lydiard as practice (grade D). No week of the plan is above the same week of the default plan (rule G6).',
       },
     ),
   },

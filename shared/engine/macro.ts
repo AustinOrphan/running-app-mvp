@@ -38,7 +38,7 @@ import {
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { blockLift, rebuildZone, responseBasis } from './loadSetting.ts'
-import { effective, resolveMethod } from './methods.ts'
+import { effective, overrides, resolveMethod } from './methods.ts'
 import { P } from './params/index.ts'
 import {
   ownWindow,
@@ -825,6 +825,11 @@ function planWeeks(
     runs: RunRecord[]
     restart: string | null
   } = { volumes: new Map(), runs: [], restart: null },
+  /**
+   * Draw the phases anew from the race and the goal, ignoring the ones the plan being replaced
+   * carries: the default plan a method preset is held to does not inherit the preset's phases.
+   */
+  freshPhases = false,
 ): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
   const firstMonday = mondayOf(input.today)
   const raceMonday = mondayOf(goal.date)
@@ -856,7 +861,7 @@ function planWeeks(
     cycleWorkWeeks(input, state),
     openingRecovery,
     method,
-    carriedPhases(input, firstMonday, raceMonday, preCount),
+    freshPhases ? [] : carriedPhases(input, firstMonday, raceMonday, preCount),
   )
   const raceIdx = total - 1
 
@@ -1445,6 +1450,7 @@ function planWeeks(
     reference,
     referenceRunDays: refDays,
     longRunShare: effective(method, 'macroDesign.longRunShareOfWeek'),
+    ...runDayCap(method),
     limits: { runs, today: input.today },
   })
   weeks.push(...afterWeeks)
@@ -1456,6 +1462,12 @@ function planWeeks(
  * majority of a seven-day week, a count and not a tunable threshold, so it is not a Param.
  */
 const WINDOW_MAJORITY_DAYS = 4
+
+/** The run-day cap a preset that lowers it gives the weeks after a past race (`windowWeeks`), else none. */
+const runDayCap = (method: PresetId): { runDayCap?: number } =>
+  overrides(method, 'f5.mastersMaxRunDays')
+    ? { runDayCap: effective(method, 'f5.mastersMaxRunDays') }
+    : {}
 
 /**
  * The weeks of a plan built inside the window of a past race [rules H12, J7]: the Monday weeks that
@@ -1495,6 +1507,7 @@ function windowLeadIn(
     reference,
     referenceRunDays,
     longRunShare: effective(method, 'macroDesign.longRunShareOfWeek'),
+    ...runDayCap(method),
     limits: { runs: completedReference(input.activities, state).runs, today: input.today },
   })
 
@@ -1526,18 +1539,22 @@ export function macroPlan(
 /**
  * The weeks of the plan (`macroPlan`) and the days of the race week after the goal race as a week
  * of their own: the race week keeps its taper row, and these days carry the first return step
- * [rule H12]. Null where the plan has no race week or the goal race is not ahead.
+ * [rule H12]. Null where the plan has no race week or the goal race is not ahead. `freshPhases` draws
+ * the phases anew and ignores the ones the plan being replaced carries (see `planWeeks`).
  */
 export function macroPlanDraft(
   input: EngineInput,
   state: AthleteState,
   goal: GoalModel,
   feasibility: Feasibility,
+  freshPhases = false,
 ): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
   // one resolution for the whole plan, so the lead-in and the weeks after it agree on the preset
   const method = resolveMethod(input, state).effective
   const lead = windowLeadIn(input, state, goal, method)
-  if (lead === null) return planWeeks(input, state, goal, feasibility, method)
+  if (lead === null) {
+    return planWeeks(input, state, goal, feasibility, method, undefined, freshPhases)
+  }
   const normalStart = addDays(mondayOf(input.today), 7 * lead.weeks.length)
   // The plan it replaces is not read: its weeks at the shifted start are weeks of the normal plan
   // and would anchor the restart above the J7 volume.

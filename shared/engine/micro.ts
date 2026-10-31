@@ -16,7 +16,7 @@ import {
   type RunCaps,
   type RunRecord,
 } from './limits.ts'
-import { effective } from './methods.ts'
+import { effective, overrides } from './methods.ts'
 import { P } from './params/index.ts'
 import {
   afterRaceTitle,
@@ -477,7 +477,12 @@ function planRuns(
   const spaced = novice || floorWeek || step1Week
 
   let runDays = Math.max(0, Math.min(7, Math.floor(week.runDays)))
-  if (state.age !== null && state.age >= P.f5.mastersMinAge.value) {
+  // the cap is the masters' under the default, and every runner's under a preset that lowers it
+  // [rules F5, P2]: the weeks after a past race take their run days from the reference week
+  if (
+    overrides(method, 'f5.mastersMaxRunDays') ||
+    (state.age !== null && state.age >= P.f5.mastersMinAge.value)
+  ) {
     runDays = Math.min(runDays, effective(method, 'f5.mastersMaxRunDays'))
   }
   if (novice) runDays = Math.min(runDays, P.f5.noviceRunDays.value)

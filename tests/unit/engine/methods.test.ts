@@ -11,10 +11,15 @@ import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { persistentHoldOf } from '../../../shared/engine/holds.ts'
-import { buildPlan } from '../../../shared/engine/index.ts'
+import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import { loadPosition } from '../../../shared/engine/loadSetting.ts'
 import { startPath } from '../../../shared/engine/macro.ts'
-import { appliesToClass, effective, resolveMethod } from '../../../shared/engine/methods.ts'
+import {
+  appliesToClass,
+  effective,
+  overrides,
+  resolveMethod,
+} from '../../../shared/engine/methods.ts'
 import { QUALITY_BY_PRESET } from '../../../shared/engine/micro.ts'
 import { allParams, P, paramsForRule } from '../../../shared/engine/params/index.ts'
 import {
@@ -32,9 +37,12 @@ import {
   type PresetId,
   type SessionKind,
 } from '../../../shared/engine/types.ts'
-import { problemsOf, windowOf } from './disruption-fixtures.ts'
-import { wellnessDay } from './e8-fixtures.ts'
+import { planMinutes, problemsOf, windowOf } from './disruption-fixtures.ts'
+import { activity, wellnessDay } from './e8-fixtures.ts'
 import { h13Race } from './history-fixtures.ts'
+import { oracleInputs } from './history-oracle.ts'
+import { SWEEP_COUNT, SWEEP_SEED, sweepCases } from './history-sweep.ts'
+import { replanSteps } from './replan-steps.ts'
 import { athletes, TODAY, type MatrixAthlete } from './matrix-fixtures.ts'
 
 const ROOT = join(import.meta.dirname, '../../..')
@@ -87,6 +95,28 @@ function maxRunDays(plan: PlanDraft): number {
     days.set(monday, (days.get(monday) ?? new Set<string>()).add(s.date))
   }
   return Math.max(0, ...[...days.values()].map((d) => d.size))
+}
+
+/**
+ * What a plan holds above the default plan [rule G6]: a week target, the running minutes planned in
+ * a week and the peak week. Empty when the plan plans no more than the default in any week.
+ */
+function aboveDefault(base: PlanDraft, plan: PlanDraft): string[] {
+  const problems: string[] = []
+  for (const week of plan.weeks) {
+    const before = base.weeks.find((w) => w.weekStart === week.weekStart)
+    if (before !== undefined && week.targetRunMin > before.targetRunMin) {
+      problems.push(`target ${week.weekStart}: ${week.targetRunMin} against ${before.targetRunMin}`)
+    }
+  }
+  const baseline = planMinutes(base)
+  for (const [week, minutes] of planMinutes(plan)) {
+    const before = baseline.get(week) ?? 0
+    if (minutes > before) problems.push(`planned ${week}: ${minutes} against ${before}`)
+  }
+  const peak = (p: PlanDraft) => Math.max(0, ...p.weeks.map((w) => w.targetRunMin))
+  if (peak(plan) > peak(base)) problems.push(`peak ${peak(plan)} against ${peak(base)}`)
+  return problems
 }
 
 /** The state with one more risk fact set, as the load setting's own tests do. */
@@ -600,22 +630,30 @@ describe('the default and the absent method are the same plan [rule P1]', () => 
 
 describe('the offered presets on the twelve matrix athletes', () => {
   const defaults = new Map(all.map((a) => [a.id, buildPlan(a.input)]))
+  // the runners of the oracle: the twelve matrix athletes, the H cases and 40 of the sweep
+  const runners: MatrixAthlete[] = oracleInputs().map((c) => ({
+    id: c.name,
+    label: c.name,
+    input: c.input,
+    isUltra: c.input.goal.isUltra,
+  }))
+  const runnerDefaults = new Map(runners.map((a) => [a.id, buildPlan(a.input)]))
 
   describe.each(OFFERED)('%s', (method) => {
-    it.each(all.map((a) => [a.id, a] as const))(
+    it.each(runners.map((a) => [a.id, a] as const))(
       '%s passes the checklist and adds no load',
       (id, a) => {
         const input = withMethod(a.input, method)
         const plan = buildPlan(input)
-        const base = defaults.get(id)!
-        // the checklist, no minutes added to any week, no week target raised, the race kept [G6]
-        expect(problemsOf(a, [], plan, base)).toEqual([])
+        const base = runnerDefaults.get(id)!
+        // the checklist, no minutes added to any week, no week target raised, the race kept [G6];
+        // what the default plan already fails (three sweep runners fail the spacing item at
+        // default) is not the preset's
+        const windows = input.disruptions ?? []
+        const inherited = problemsOf(a, windows, base, base)
+        expect(problemsOf(a, windows, plan, base).filter((p) => !inherited.includes(p))).toEqual([])
+        expect(aboveDefault(base, plan)).toEqual([])
         expect(plan.weeks).toHaveLength(base.weeks.length)
-        plan.weeks.forEach((week, i) => {
-          expect(week.targetRunMin, `week ${String(i)}`).toBeLessThanOrEqual(
-            base.weeks[i]!.targetRunMin,
-          )
-        })
         // the plan is the default's whenever the resolver reads the preset as the default
         const position = resolveMethod(input, estimateState(input), plan.weeks)
         if (position.effective === 'default') expect(text(plan)).toBe(text(base))
@@ -639,6 +677,28 @@ describe('the offered presets on the twelve matrix athletes', () => {
     }
     // the cap is a choice: the default plan of the same athletes runs more days somewhere
     expect(maxRunDays(defaults.get('half')!)).toBeGreaterThan(P.p2.runDays.value)
+  })
+
+  it('longer-base applies to nine of the twelve and reads the default for the other three', () => {
+    const position = (a: MatrixAthlete) => {
+      const input = withMethod(a.input, 'longer-base')
+      return resolveMethod(input, estimateState(input), buildPlan(input).weeks)
+    }
+    const applied = all.filter((a) => position(a).effective === 'longer-base').map((a) => a.id)
+    expect(applied.sort()).toEqual([
+      'first-100-mile',
+      'half',
+      'hot-race',
+      'marathon',
+      'masters',
+      'post-marathon-short-run',
+      'returning',
+      'sparse-100-mile',
+      'trail-50k',
+    ])
+    expect(position(byId('novice-5k')).reason).toBe('no-base')
+    expect(position(byId('prior-bsi')).reason).toBe('held:recent-injury')
+    expect(position(byId('reds-hold')).reason).toBe('held:reds-hold')
   })
 
   it('longer-base keeps intensity out of the base and intervals out of the build', () => {
@@ -674,6 +734,126 @@ describe('the offered presets on the twelve matrix athletes', () => {
     expect(count(after, 'build')).toBeLessThan(count(before, 'build'))
     expect(count(after, 'build')).toBeLessThanOrEqual(P.p4.buildWeeks.value)
     expect(count(after, 'base')).toBeGreaterThan(count(before, 'base'))
+  })
+})
+
+describe('a preset never plans more than the default [rule G6]', () => {
+  /** The first plan of every case, at the preset, against the default plan of the same input. */
+  function firstPlans(
+    cases: ReadonlyArray<{ name: string; input: EngineInput }>,
+    method: PresetId,
+  ): number {
+    let differing = 0
+    for (const c of cases) {
+      const base = buildPlan(c.input)
+      const plan = buildPlan(withMethod(c.input, method))
+      expect(aboveDefault(base, plan), `${c.name} at ${method}`).toEqual([])
+      if (text(plan) !== text(base)) differing += 1
+    }
+    return differing
+  }
+
+  it.each(OFFERED)(
+    '%s: no week target, no planned week and no peak above the default on the sweep runners',
+    (method) => {
+      const cases = sweepCases(SWEEP_SEED, SWEEP_COUNT)
+      expect(cases).toHaveLength(SWEEP_COUNT)
+      // the check is not vacuous: the preset changes plans
+      expect(firstPlans(cases, method)).toBeGreaterThan(0)
+    },
+    300_000,
+  )
+
+  it.each(OFFERED)(
+    '%s: no week target, no planned week and no peak above the default in the weekly re-plan chains',
+    (method) => {
+      let steps = 0
+      for (const a of all) {
+        const base = replanSteps(a.id)
+        const chain = replanSteps(a.id, { method })
+        expect(chain, a.id).toHaveLength(base.length)
+        chain.forEach((step, i) => {
+          steps += 1
+          expect(aboveDefault(base[i]!.draft, step.draft), `${a.id} step ${String(i)}`).toEqual([])
+        })
+      }
+      expect(steps).toBeGreaterThan(200)
+    },
+    300_000,
+  )
+
+  it.each(OFFERED)(
+    '%s: at every step of a default chain, the preset applied to that step plans no more than the default',
+    (method) => {
+      for (const a of all) {
+        replanSteps(a.id).forEach((step, i) => {
+          const held = replan(withMethod(step.input, method)).draft
+          expect(aboveDefault(step.draft, held), `${a.id} step ${String(i)}`).toEqual([])
+        })
+      }
+    },
+    300_000,
+  )
+
+  it('holds longer-base to what the default places where a session of the default places short', () => {
+    // the returning runner of the matrix: in the build the default's threshold session places short
+    // of its share, and a strides-only base would place the whole week and lift the ramp after it
+    const [first, second] = replanSteps('returning', { method: 'longer-base' })
+    const [baseFirst, baseSecond] = replanSteps('returning')
+    expect(aboveDefault(baseFirst!.draft, first!.draft)).toEqual([])
+    expect(aboveDefault(baseSecond!.draft, second!.draft)).toEqual([])
+    // the plan is still a different plan: its weeks are filed under base where the default's are build
+    expect(text(first!.draft)).not.toBe(text(baseFirst!.draft))
+  })
+})
+
+describe('the run-day cap after a past race [rule P2]', () => {
+  // a runner of 36 on five run days a week, in the window of a marathon run 15 days ago, read as a
+  // half-marathon plan: the weeks of the window take their run days from the reference week
+  const hot = byId('hot-race')
+  const race = activity('2026-10-06', {
+    id: 'race-late',
+    type: 'race',
+    durationSec: 14_400,
+    movingSec: 14_400,
+    distanceM: 42_195,
+    rpe: 9,
+  })
+  const inWindow = (method?: PresetId): EngineInput => ({
+    ...hot.input,
+    goal: { ...hot.input.goal, distanceClass: 'half' },
+    activities: [...hot.input.activities, race],
+    options: method === undefined ? {} : { method },
+  })
+
+  it('caps every run week at three days for a runner under 40, in the window of a past race too', () => {
+    const state = estimateState(inWindow('three-run-days'))
+    expect(state.age).toBeLessThan(P.f5.mastersMinAge.value)
+    const base = buildPlan(inWindow())
+    const plan = buildPlan(inWindow('three-run-days'))
+    // the window weeks are post-race weeks, and the default holds four runs in the first of them
+    expect(plan.weeks[0]!.flags).toContain('post-race')
+    expect(maxRunDays(base)).toBeGreaterThan(P.p2.runDays.value)
+    expect(base.weeks.filter((w) => w.flags.includes('post-race')).some((w) => w.runDays > 3)).toBe(
+      true,
+    )
+    expect(maxRunDays(plan)).toBeLessThanOrEqual(P.p2.runDays.value)
+    for (const week of plan.weeks) expect(week.runDays, week.weekStart).toBeLessThanOrEqual(3)
+    expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+
+  it('leaves the default and longer-base on the run days they had', () => {
+    expect(text(buildPlan(withMethod(inWindow(), 'default')))).toBe(text(buildPlan(inWindow())))
+    const longer = buildPlan(inWindow('longer-base'))
+    expect(maxRunDays(longer)).toBe(maxRunDays(buildPlan(inWindow())))
+  })
+
+  it('says which presets override the run-day cap', () => {
+    expect(overrides('three-run-days', 'f5.mastersMaxRunDays')).toBe(true)
+    expect(overrides('three-run-days', 'macroDesign.buildWeeks')).toBe(false)
+    expect(overrides('longer-base', 'macroDesign.buildWeeks')).toBe(true)
+    expect(overrides('longer-base', 'f5.mastersMaxRunDays')).toBe(false)
+    for (const id of NUMERIC_OVERRIDE_IDS) expect(overrides('default', id), id).toBe(false)
   })
 })
 

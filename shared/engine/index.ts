@@ -417,8 +417,17 @@ function reduceWeek(week: WeekDraft, lastLoad: WeekDraft | undefined): WeekDraft
  * run and placed: the weekly ramp and gain ramp over the previous loading weeks, and the 30-day
  * reference of every run. The macrocycle draws its weeks inside the same limits, so this changes
  * nothing for a plan placed as drawn, and the guards that follow find nothing to cut.
+ *
+ * A method preset that applies [rules P1 to P4] is held week by week to what the default plan of the
+ * same input does, so it never plans more than the default [rule G6]: see `WeekLimit`. `record`
+ * collects those figures for the default run.
  */
-function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft {
+function generate(
+  input: EngineInput,
+  keep: Keep,
+  weekOffset: number,
+  record?: Map<string, WeekLimit>,
+): PlanDraft {
   const { today, goal } = input
   const kept = keep.sessions
   const state = afterBreak(estimateState(input))
@@ -436,8 +445,16 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
   const currentMonday = mondayOf(today)
   const pastWeeks = (input.existing?.weeks ?? []).filter((w) => w.weekStart < currentMonday)
   const macro: WeekDraft[] = []
-  const { weeks: macroWeeks, raceWeekTail } = macroPlanDraft(input, state, goal, feas)
+  // the default run a preset is held to draws its phases anew: it does not inherit the preset's
+  const { weeks: macroWeeks, raceWeekTail } = macroPlanDraft(
+    input,
+    state,
+    goal,
+    feas,
+    record !== undefined,
+  )
   const method = resolveMethod(input, state, [...pastWeeks, ...macroWeeks]).effective
+  const limits = method === 'default' ? null : defaultWeeks(input, keep, weekOffset)
   for (const w of macroWeeks) {
     let week: WeekDraft = {
       ...capWeek(w, input.weekCaps?.[w.weekStart]),
@@ -695,6 +712,13 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       // a window that holds the day of the long run takes it; the run is not moved
       if (longLost) planWeek = withoutLongRun(planWeek)
     }
+    // A preset never plans more than the default plan of the same input [rule G6]: the week's
+    // target is held to the default's (the long run and the climbing shrink with it), and the week
+    // is placed against no more than the minutes the default places, which are fewer where a
+    // session of the default places short of its share (`placingWeek` below). The weeks after it
+    // read the minutes placed, so the ramp cannot rise on a preset's weeks.
+    const limit = limits?.get(week.weekStart)
+    if (limit !== undefined) planWeek = capWeek(planWeek, limit.target)
     if (!isCurrent && keptAhead.length === 0) {
       // the week as placed is the week of record
       macro[w] = {
@@ -720,9 +744,14 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
       dplan.days.length > 0 &&
       week.weekStart >= mondayOf(dplan.days[0]!.date) &&
       planWeek.targetRunMin < week.targetRunMin
+    // the sessions keep the long run and share what is left, as a window's hold does (`holdWeek`)
+    const placingWeek =
+      limit !== undefined && planWeek.targetRunMin > limit.placed
+        ? holdWeek(planWeek, limit.placed)
+        : planWeek
     let sessions =
       planWeek.targetRunMin > 0 || planWeek.strengthSessions > 0
-        ? place(planWeek, profile, weekRules, ceiling)
+        ? place(placingWeek, profile, weekRules, ceiling)
         : []
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].
     const trimmedAlready = kept.some((s) => inWeek(s) && isTrimmed(s.rules))
@@ -857,6 +886,10 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
           )
     placed.push(...inside, ...rest, ...afterRace, ...windowRest)
     history.push(...inside, ...afterRace)
+    record?.set(week.weekStart, {
+      target: planWeek.targetRunMin,
+      placed: runningMinutes([...inside, ...afterRace]),
+    })
 
     // The week enters the baselines and its runs the 30-day reference, as the guards count them.
     const ahead = [...inside, ...afterRace, ...keptToRun].filter((s) => s.date >= today)
@@ -986,6 +1019,28 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
     zones,
     paramsVersion: PARAMS_VERSION,
   }
+}
+
+/**
+ * What the default plan does in one week, in the units `generate` places a week in: `target` is the
+ * running minutes the week is placed against (what is left of the week, after the caps) and `placed`
+ * the running minutes the placement gives it, which are fewer when a session places short of its
+ * share. A method preset is held to both [rule G6].
+ */
+interface WeekLimit {
+  target: number
+  placed: number
+}
+
+/** The weeks of the default plan of `input`, as `generate` places them. */
+function defaultWeeks(
+  input: EngineInput,
+  keep: Keep,
+  weekOffset: number,
+): ReadonlyMap<string, WeekLimit> {
+  const record = new Map<string, WeekLimit>()
+  generate({ ...input, options: { ...input.options, method: 'default' } }, keep, weekOffset, record)
+  return record
 }
 
 function raceSession(input: EngineInput, zones: ZoneSet, week: WeekDraft): SessionSpec {

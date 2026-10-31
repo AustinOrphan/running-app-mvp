@@ -526,6 +526,12 @@ export function windowWeeks(
      * method preset (`effective`, methods.ts). Absent means the default.
      */
     longRunShare?: number
+    /**
+     * The most run days a week holds, when a method preset lowers the run-day cap [rule P2]: the
+     * weeks take their run days from the reference week, which a preset's cap does not reach
+     * otherwise. Absent means no cap here, as before.
+     */
+    runDayCap?: number
     /** The runs of the 30-day reference (completed or planned) and the first day a run can fall on. */
     limits?: { runs: readonly RunRecord[]; today: string }
   },
@@ -589,6 +595,7 @@ export function windowWeeks(
             openDays,
             spacing,
             step1 ? P.h12.step1MaxRuns.value : Infinity,
+            args.runDayCap ?? Infinity,
           )
     // what the caps let the week hold: every run at the run cap, one of them at the long cap; a
     // run is not shorter than the shortest run, so a small week holds fewer runs, as placed

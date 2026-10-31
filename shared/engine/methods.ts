@@ -35,6 +35,11 @@ export function effective(method: PresetId, id: NumericOverrideId): number {
   return (PRESET_OVERRIDES[method][id] ?? DEFAULTS[id]).value
 }
 
+/** Whether a preset overrides the id at all, whatever the value: the default overrides nothing. */
+export function overrides(method: PresetId, id: NumericOverrideId): boolean {
+  return PRESET_OVERRIDES[method][id] !== undefined
+}
+
 type DistanceClass = GoalModel['distanceClass']
 
 /**
