@@ -33,6 +33,7 @@ import {
   newLogId,
   parseMinutes,
   sameAsLast,
+  withUsualLoad,
   type Block,
   type FormState,
   type LogIssues,
@@ -62,6 +63,8 @@ export interface StrengthFormProps {
   /** The planned session the log links to; null for none. */
   sessionId: string | null
   activityId: string | null
+  /** Start every set that has a usual load at it (design 11.1). */
+  usualLoads?: boolean
   weightUnit: WeightUnit
   units: Units
   onSaved: (saved: StrengthSaved) => void
@@ -78,6 +81,7 @@ export function StrengthForm({
   date,
   sessionId,
   activityId,
+  usualLoads = false,
   weightUnit,
   units,
   onSaved,
@@ -100,7 +104,10 @@ export function StrengthForm({
   // The draft is read once, when the sheet opens: it brings its id back, so the save it was
   // kept for is the same save.
   const [boot] = useState(() => {
-    const fresh = initialState(workout, weightUnit)
+    const start = initialState(workout, weightUnit)
+    const fresh = usualLoads
+      ? { ...start, blocks: start.blocks.map((block) => withUsualLoad(block, weightUnit)) }
+      : start
     const draft = readDraft(context)
     return draft === null
       ? { logId: newLogId(), state: fresh, restored: false }

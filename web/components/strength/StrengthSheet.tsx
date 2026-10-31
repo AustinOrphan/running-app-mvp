@@ -23,6 +23,11 @@ export interface StrengthSheetProps {
   sessionId?: string | null
   /** An owned strength activity that has no log yet (an import): the sets attach to it. */
   activityId?: string | null
+  /**
+   * Open with the usual load of a lighter day in every set that has one, as the lift's "Use the
+   * usual load" does (the Today hero's switch). A draft kept on the device wins over it.
+   */
+  usualLoads?: boolean
   onClose: () => void
   /** The log was saved, or kept on this phone, or saved without sets. The caller closes the sheet. */
   onSaved: (saved: StrengthSaved) => void
@@ -42,6 +47,7 @@ export function StrengthSheet({
   date,
   sessionId,
   activityId,
+  usualLoads,
   onClose,
   onSaved,
 }: StrengthSheetProps) {
@@ -61,6 +67,7 @@ export function StrengthSheet({
           date={date}
           sessionId={sessionId === undefined ? workout.sessionId : sessionId}
           activityId={activityId ?? null}
+          usualLoads={usualLoads === true}
           weightUnit={units.data.weightUnit}
           units={units.data.units}
           onSaved={onSaved}

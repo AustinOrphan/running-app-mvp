@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
-import { formatQuantity } from '../../../shared/copy/quantity.ts'
 import { estimateText, nextWithEstimateText } from '../../../shared/copy/distanceEstimate.ts'
 import { sessionStatusLabel } from '../../../shared/copy/sessionStatus.ts'
 import { render } from '../../../shared/copy/template.ts'
@@ -9,13 +8,16 @@ import type { PlanSessionView, TodayHeat, TodayHero, Units } from '../../../shar
 import { formatDistance } from '../../../shared/units.ts'
 import { WhyDrawer } from '../WhyDrawer.tsx'
 import { CoolerStart } from './CoolerStart.tsx'
-import { DoneSheet, NotFullSheet } from '../lazySheets.tsx'
+import { DoneSheet, NotFullSheet, StrengthSheet } from '../lazySheets.tsx'
+import { strengthWords } from '../strength/strengthText.ts'
+import { useTodayStrength } from '../strength/strengthToday.ts'
 import { KnowToday } from './KnowToday.tsx'
 import { NotFullEntry } from './NotFullEntry.tsx'
 import { NotTodaySheet } from './NotTodaySheet.tsx'
 import { SessionActions } from './SessionActions.tsx'
 import styles from './SessionHero.module.css'
 import { SessionTargets } from './SessionTargets.tsx'
+import { AlsoToday, LighterDay, StrengthRows } from './StrengthHero.tsx'
 import { TodaySlot } from './TodaySlot.tsx'
 
 const minutes = (min: number) => ({ kind: 'minutes', min }) as const
@@ -92,7 +94,10 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
   const title = useRef<HTMLHeadingElement>(null)
   const settled = useRef(false)
   const [whyOpen, setWhyOpen] = useState(false)
-  const [sheet, setSheet] = useState<'done' | 'not-today' | 'not-full' | null>(null)
+  const [sheet, setSheet] = useState<'done' | 'not-today' | 'not-full' | 'strength' | null>(null)
+  // The lighter day's usual load is chosen on the hero and carried into the logging sheet.
+  const [usual, setUsual] = useState(false)
+  const { workout: strength, weightUnit, day } = useTodayStrength()
 
   // After a run is saved, the session is moved or skipped, or a window is made, the button that
   // opened the sheet is gone with the rest of the actions; focus goes to the title, where the new
@@ -110,7 +115,16 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
   const planned = { title: session.title, duration: minutes(session.durationMin) }
   const status = session.status === 'planned' ? null : sessionStatusLabel(session.status)
   const toRun = isToRun(session.status)
-  const rules = [...new Set([...shown.rules, ...(advice === 'as-planned' ? [] : ['J3'])])]
+  // A day whose hero is a strength session shows its workout in place of the targets, and "Log sets"
+  // in place of Done (design 11.1). Without a workout in the payload it is the plain session.
+  const strengthHero =
+    strength !== null &&
+    weightUnit !== undefined &&
+    session.kind === 'strength' &&
+    strength.sessionId === session.id
+  const rules = strengthHero
+    ? strength.rules
+    : [...new Set([...shown.rules, ...(advice === 'as-planned' ? [] : ['J3'])])]
   const showNext = rest || !toRun
 
   const plannedLine =
@@ -132,9 +146,14 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
       ? null
       : render(TEMPLATES['today.hero.climb'], { climb: { kind: 'climb', m: shown.gainM } }, units),
   ].filter((part): part is string => part !== null)
-  const also = others.map(
-    (other) => `${other.title} (${formatQuantity(minutes(other.durationMin), units)})`,
-  )
+  // The day's other strength session is a button when the payload carries its workout.
+  const alsoStrength =
+    strength !== null &&
+    weightUnit !== undefined &&
+    others.some((other) => other.kind === 'strength' && other.id === strength.sessionId)
+      ? strength.sessionId
+      : null
+  const canLog = !readOnly && day === 'today'
   const nextText = showNext ? nextLine(next, units) : null
 
   return (
@@ -168,7 +187,11 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
           {linkedRun === null ? null : (
             <p className={styles.muted}>{loggedLine(linkedRun, units)}</p>
           )}
-          {target === null ? null : <SessionTargets targets={target} units={units} />}
+          {strengthHero ? (
+            <StrengthRows workout={strength} units={units} weightUnit={weightUnit} usual={usual} />
+          ) : target === null ? null : (
+            <SessionTargets targets={target} units={units} />
+          )}
           <TodaySlot name="fuel" />
           <CoolerStart heat={heat} units={units} />
           <KnowToday
@@ -178,7 +201,8 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
             heatNote={heat.note}
             units={units}
           />
-          <p className={styles.purpose}>{shown.purpose}</p>
+          {/* The workout says what the session is; the sentence of its purpose is for the sheet. */}
+          {strengthHero ? null : <p className={styles.purpose}>{shown.purpose}</p>}
         </>
       )}
       {rest ? (
@@ -193,10 +217,13 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
       {nextText === null ? null : <p className={styles.muted}>{nextText}</p>}
 
       <SessionActions
-        canAct={!rest && toRun && !readOnly}
+        canAct={!rest && toRun && (strengthHero ? canLog : !readOnly)}
         canExplain={rules.length > 0}
+        primaryLabel={
+          strengthHero ? strengthWords(units, weightUnit).say('strength.label.log-sets') : undefined
+        }
         onDone={() => {
-          setSheet('done')
+          setSheet(strengthHero ? 'strength' : 'done')
         }}
         onExplain={() => {
           setWhyOpen(true)
@@ -206,14 +233,32 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
         }}
       />
       <TodaySlot name="watch" />
-      {also.length === 0 ? null : (
-        <p className={styles.muted}>
-          {render(TEMPLATES['today.hero.also'], { sessions: also.join(', ') }, units)}
-        </p>
+      {strengthHero && toRun ? (
+        <LighterDay
+          workout={strength}
+          units={units}
+          weightUnit={weightUnit}
+          usual={usual}
+          onUsual={setUsual}
+        />
+      ) : null}
+      {others.length === 0 ? null : (
+        <AlsoToday
+          others={others}
+          units={units}
+          strengthId={alsoStrength}
+          onOpenStrength={() => {
+            setSheet('strength')
+          }}
+        />
       )}
 
       <WhyDrawer
-        explain={{ subject: 'session', id: session.id }}
+        explain={
+          strengthHero
+            ? { subject: 'strength', id: strength.sessionId }
+            : { subject: 'session', id: session.id }
+        }
         rules={rules}
         open={whyOpen}
         onClose={() => {
@@ -225,6 +270,20 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
           plan={shown}
           date={session.date}
           units={units}
+          onClose={() => {
+            setSheet(null)
+          }}
+          onSaved={() => {
+            settled.current = true
+            setSheet(null)
+          }}
+        />
+      ) : null}
+      {sheet === 'strength' && strength !== null ? (
+        <StrengthSheet
+          workout={strength}
+          date={session.date}
+          usualLoads={strengthHero && usual}
           onClose={() => {
             setSheet(null)
           }}

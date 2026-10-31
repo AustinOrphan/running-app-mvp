@@ -7,9 +7,9 @@
 // and compares what comes back with the workout. A second implementation of the rules, or a number
 // typed into a surface, fails here.
 //
-// Registered now:  the workout rows of the Today hero (E14-8 renders them with the same templates),
-// the logging sheet of "As suggested" (E14-7, the real builder and the line it shows) and the
-// snapshot a log stores (E14-5).
+// Registered now:  the workout rows of the Today hero and the session sheet (E14-8, `workoutRows`,
+// the real builder), the logging sheet of "As suggested" (E14-7, the real builder and the line it
+// shows) and the snapshot a log stores (E14-5).
 // To add one: write a `SurfaceAdapter` whose `read` renders from the workout (or from the shared
 // builder that reads it) and parses the figures back, then append it to `SURFACES`.
 import { describe, expect, it } from 'vitest'
@@ -25,6 +25,7 @@ import type { Quantity, StrengthContext } from '../../../shared/engine/types.ts'
 import type { StrengthWorkout, Units, WeightUnit, WorkoutLift } from '../../../shared/types.ts'
 import { asSuggested, blocksOf } from '../../../web/components/strength/strengthForm.ts'
 import { strengthWords } from '../../../web/components/strength/strengthText.ts'
+import { workoutRows } from '../../../web/components/strength/workoutRows.ts'
 import {
   have,
   lb,
@@ -75,38 +76,20 @@ const count = (n: number): Quantity => ({ kind: 'count', n })
 // and a range "2 to 2" reads "leave 2 or more" (E14-6).
 const ROW = /^(.+): (\d+) x (\d+) to (\d+), (?:(.+), )?leave (?:(\d+) to (\d+)|(\d+) or more)\.$/
 
+/**
+ * The Today hero as E14-8 builds it (`workoutRows`, also the rows of the session sheet's Strength
+ * section): the lift rows, read back out of the sentences the hero shows. The jumps and the trunk
+ * movements are rows of their own, which `tests/web/workout-rows.test.ts` reads.
+ */
 const hero: SurfaceAdapter = {
   name: 'Today hero',
   read(workout, units, weightUnit) {
-    return workout.lifts.map((lift) => {
-      const base = {
-        exercise: nameOf(lift.exerciseId),
-        sets: count(lift.sets),
-        lo: count(lift.range.min),
-        hi: count(lift.range.max),
-      }
-      const rir = lift.rir ?? { min: 0, max: 0 }
-      const same = rir.min === rir.max
-      const efforts: Record<string, Quantity> = same
-        ? { rir: count(rir.min) }
-        : { rirLo: count(rir.min), rirHi: count(rir.max) }
-      const loaded = lift.loadG === null ? null : { kind: 'load' as const, g: lift.loadG }
-      const id: StrengthTemplateId =
-        loaded === null
-          ? same
-            ? 'strength.hero.workout-row-bodyweight-leave-min'
-            : 'strength.hero.workout-row-bodyweight'
-          : same
-            ? 'strength.hero.workout-row-leave-min'
-            : 'strength.hero.workout-row'
-      const text = say(
-        id,
-        loaded === null ? { ...base, ...efforts } : { ...base, ...efforts, load: loaded },
-        units,
-        weightUnit,
-      )
-      const match = ROW.exec(text)
-      expect(match, text).not.toBeNull()
+    const rows = workoutRows(workout, units, weightUnit).filter((row) => row.exerciseId !== null)
+    expect(rows.length).toBe(workout.lifts.length)
+    return rows.map((row, index) => {
+      const lift = workout.lifts[index] as WorkoutLift
+      const match = ROW.exec(row.text)
+      expect(match, row.text).not.toBeNull()
       const [, exercise, sets, lo, hi, load, rirLo, rirHi, rirMin] = match ?? []
       return {
         exercise: exercise ?? '',

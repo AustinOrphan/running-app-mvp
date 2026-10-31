@@ -27,6 +27,7 @@ import {
   makeToday,
   TODAY,
 } from './today-fixtures.ts'
+import { SESSION_ID, makeView, makeWorkout } from './strength-fixtures.ts'
 import { renderToday as render, startToday } from './today-render.tsx'
 
 // Stands in for the real drawer (Task E14) so the wiring is visible: which rules it was opened with.
@@ -112,6 +113,40 @@ describe("Today: today's session", () => {
     const drawer = await screen.findByRole('dialog', { name: 'Why' })
     expect(drawer).toHaveTextContent('rules: f-1, g-1')
     expect(explainOf(drawer)).toEqual({ subject: 'session', id: 's1' })
+  })
+
+  test("Explain on a strength day opens the drawer on the strength subject, with the workout's rules", async () => {
+    const user = userEvent.setup()
+    const session = makeSession({
+      id: SESSION_ID,
+      kind: 'strength',
+      title: 'Strength',
+      durationMin: 40,
+      distanceM: null,
+      gainM: null,
+    })
+    render(
+      makeToday({
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({
+          hero: makeHero({ session, target: null }),
+          slots: {
+            disruption: null,
+            fuel: null,
+            watch: null,
+            brief: null,
+            fuelPrompt: null,
+            strength: makeWorkout(),
+          },
+        }),
+      }),
+      { 'GET /api/strength': () => makeView() },
+    )
+    const card = await screen.findByRole('article', { name: 'Strength' })
+    await user.click(within(card).getByRole('button', { name: 'Explain' }))
+    const drawer = await screen.findByRole('dialog', { name: 'Why' })
+    expect(drawer).toHaveTextContent('rules: F-lib, F4, E5, F7')
+    expect(explainOf(drawer)).toEqual({ subject: 'strength', id: SESSION_ID })
   })
 
   test('a completed session is labelled and shows the run that was logged', async () => {
