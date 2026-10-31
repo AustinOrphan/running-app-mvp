@@ -5,9 +5,9 @@ import { lintText } from '../../../shared/copy/lint.ts'
 import {
   defaultGrade,
   longRunShare,
+  longRunShareId,
   METHOD_TEMPLATES,
   methodReasonText,
-  openDaysOf,
   overrideGrade,
   PLAN_SHAPES,
   planShapeFitNote,
@@ -25,7 +25,10 @@ import {
   presetRule,
 } from '../../../shared/copy/method.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
+import { daysBetween, mondayOf } from '../../../shared/dates.ts'
+import { isOpenDay, openDayCount } from '../../../shared/domain/availability.ts'
 import type { PersistentHold } from '../../../shared/engine/holds.ts'
+import { buildPlan } from '../../../shared/engine/index.ts'
 import {
   effective,
   type MethodPosition,
@@ -35,6 +38,7 @@ import { QUALITY_BY_PRESET } from '../../../shared/engine/micro.ts'
 import { allParams, P } from '../../../shared/engine/params/index.ts'
 import { PRESET_OVERRIDES } from '../../../shared/engine/params/p-methods.ts'
 import type { Availability, Weekday } from '../../../shared/types.ts'
+import { athletes } from '../engine/matrix-fixtures.ts'
 
 const DAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
@@ -139,13 +143,19 @@ describe('the plan shape copy', () => {
       'f5.mastersMaxRunDays',
       'macroDesign.buildWeeks',
       'macroDesign.longRunShareOfWeek',
+      'macroDesign.longRunShareOfWeekUltra',
     ] as const
     const registry = new Map(allParams().map((param) => [param.id, param.grade]))
     for (const id of ids) {
       expect(registry.has(id), id).toBe(true)
       expect(defaultGrade(id), id).toBe(registry.get(id))
     }
-    expect(longRunShare()).toBe(P.macroDesign.longRunShareOfWeek.value)
+    // the long run's share is the plan's own: an ultra goal places the ultra Param's share
+    expect(longRunShare(false)).toBe(P.macroDesign.longRunShareOfWeek.value)
+    expect(longRunShare(true)).toBe(P.macroDesign.longRunShareOfWeekUltra.value)
+    expect(longRunShare(true)).toBeGreaterThan(longRunShare(false))
+    expect(longRunShareId(false)).toBe('macroDesign.longRunShareOfWeek')
+    expect(longRunShareId(true)).toBe('macroDesign.longRunShareOfWeekUltra')
   })
 
   it('uses words that claim nothing better, faster or safer for any shape', () => {
@@ -190,10 +200,40 @@ describe('the choice on the Generate form', () => {
     expect(planShapeRows(null, null).some((row) => row.disabled)).toBe(false)
   })
 
-  it('counts the days the runner marked available', () => {
-    expect(openDaysOf(availability(0))).toBe(0)
-    expect(openDaysOf(availability(5))).toBe(5)
-    expect(openDaysOf(availability(7))).toBe(7)
+  it('counts the days the runner has open, as the engine does', () => {
+    expect(openDayCount(availability(0))).toBe(0)
+    expect(openDayCount(availability(5))).toBe(5)
+    expect(openDayCount(availability(7))).toBe(7)
+    // a day marked available with a limit of 0 minutes holds no run: it is not open
+    const limited = availability(5)
+    limited.tue = { available: true, maxMin: 0 }
+    limited.wed = { available: true, maxMin: 45 }
+    expect(isOpenDay(limited.tue)).toBe(false)
+    expect(isOpenDay(limited.wed)).toBe(true)
+    expect(isOpenDay({ available: false, maxMin: 45 })).toBe(false)
+    expect(openDayCount(limited)).toBe(4)
+    const row = planShapeRows('10k', limited).find((r) => r.value === 'three-run-days')!
+    expect(row.notes).toEqual(['You have 4 days open; three run days leave one free.'])
+  })
+
+  it('agrees with the placement: a day available with a limit of 0 holds no session', () => {
+    const athlete = athletes().find((a) => a.id === 'half')!
+    const withWednesday = (wed: Availability['wed']) => ({
+      ...athlete.input,
+      profile: {
+        ...athlete.input.profile,
+        availability: { ...athlete.input.profile.availability, wed },
+      },
+    })
+    const onWednesday = (input: ReturnType<typeof withWednesday>) =>
+      buildPlan(input).sessions.filter((s) => daysBetween(mondayOf(s.date), s.date) === 2)
+    // the same plan uses the weekday when it is open, and nothing lands on it at a limit of 0
+    expect(onWednesday(withWednesday({ available: true, maxMin: null })).length).toBeGreaterThan(0)
+    expect(onWednesday(withWednesday({ available: true, maxMin: 0 }))).toEqual([])
+    const closed = withWednesday({ available: true, maxMin: 0 }).profile.availability
+    expect(openDayCount(closed)).toBe(
+      openDayCount({ ...closed, wed: { available: false, maxMin: null } }),
+    )
   })
 
   it('states what the days open say about three run days, as a fact and never a score', () => {

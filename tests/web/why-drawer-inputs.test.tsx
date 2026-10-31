@@ -6,7 +6,11 @@ import { describe, expect, test, vi } from 'vitest'
 import { EXPLAIN_MAX_SOURCES } from '../../shared/copy/limits.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
-import { explainInputs, type ExplainContext } from '../../shared/engine/explainInputs.ts'
+import {
+  explainInputs,
+  explainNeeds,
+  type ExplainContext,
+} from '../../shared/engine/explainInputs.ts'
 import { buildPlan } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { readinessSnapshot } from '../../shared/engine/readiness.ts'
@@ -704,7 +708,7 @@ describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
     expect(sentencesOf(figures, 'P1')).toEqual([
       "This plan has the plan's own shape; no other shape was chosen.",
       "The plan's own shape caps run days at 6 (grade D).",
-      "The plan's own build phase is 6 weeks (grade D), and the base comes before it.",
+      "The plan's own shape builds for up to 6 weeks (grade D), after any base.",
       "The plan's own long run is about 35% of a week's running (grade D).",
       GRADE,
     ])
@@ -713,6 +717,43 @@ describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
       expect(within(group).getByText(sentence)).toBeInTheDocument()
     }
     expectCleanCopy(dialog)
+  })
+
+  test.each(['first-100-mile', 'trail-50k'])(
+    'P1 and P3 state the ultra share of the week for an ultra plan (%s), as the plan places it',
+    async (id) => {
+      const input = planOf(id)
+      expect(input.goal.isUltra).toBe(true)
+      const { dialog, figures } = await openOn(input, ['P1', 'P3'])
+      const ultra = `${String(Math.round(P.macroDesign.longRunShareOfWeekUltra.value * 100))}%`
+      expect(ultra).toBe('45%')
+      expect(sentencesOf(figures, 'P1')).toContain(
+        `The plan's own long run is about 45% of a week's running (grade ${P.macroDesign.longRunShareOfWeekUltra.grade}).`,
+      )
+      expect(sentencesOf(figures, 'P3')).toEqual([
+        "Every plan shape keeps the long run at about 45% of a week's running; a shorter share is not offered.",
+      ])
+      expect(within(dialog).queryByText(/about 35% of a week/)).not.toBeInTheDocument()
+      expectCleanCopy(dialog)
+    },
+  )
+
+  test('P3 states 35% for a half marathon plan, and the plan asks the server for the plan input', async () => {
+    const { figures } = await openOn(planOf('half'), ['P3'])
+    expect(sentencesOf(figures, 'P3')).toEqual([
+      "Every plan shape keeps the long run at about 35% of a week's running; a shorter share is not offered.",
+    ])
+    expect(explainNeeds(['P3'])).toMatchObject({ planInput: true })
+  })
+
+  test('P1 claims no base for a plan that has none: the build is a limit, after any base', () => {
+    const input = planOf('novice-5k')
+    expect(input.existing!.weeks.some((week) => week.phase === 'base')).toBe(false)
+    const sentences = sentencesOf(shapeView(input, ['P1']), 'P1')
+    expect(sentences).toContain(
+      "The plan's own shape builds for up to 6 weeks (grade D), after any base.",
+    )
+    expect(sentences.join(' ')).not.toMatch(/base comes before/)
   })
 
   test("a shape that reads as the plan's own gives the reason on P1 and on its own rule, and no override", async () => {
