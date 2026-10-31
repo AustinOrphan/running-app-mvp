@@ -52,6 +52,8 @@ export function explainPath(ref: ExplainRef): string {
       return `/explain${qs({ subject: ref.subject, boundary: ref.boundary })}`
     case 'prediction':
       return `/explain${qs({ subject: ref.subject, goalId: ref.goalId })}`
+    case 'strength':
+      return `/explain${qs({ subject: ref.subject, id: ref.id, exercise: ref.exercise })}`
     case 'rules':
       return `/explain${qs({ subject: ref.subject, rules: ref.rules.join(',') })}`
   }

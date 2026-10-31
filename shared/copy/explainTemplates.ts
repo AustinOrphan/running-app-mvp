@@ -868,6 +868,102 @@ export const EXPLAIN_TEMPLATES = {
     n: 'count',
   }),
   'explain.h10-pref': tpl('Your profile asks for {n} strength sessions a week.', { n: 'count' }),
+  'explain.h10-block': tpl('The week of {week} is week {k} of {n} of the strength block.', {
+    week: 'date',
+    k: 'count',
+    n: 'count',
+  }),
+  'explain.h10-outside': tpl('The week of {week} is outside the strength block.', {
+    week: 'date',
+  }),
+
+  // ---------------------------------------------------------------------------------------------
+  // F7 to F9: strength sessions and loads (strength design 10.5, ADR 0014). The reasons behind a
+  // load are the `strength.reason.*` templates themselves; the ones below add what they read: the
+  // block position, the template, the equipment, the last session, the readiness read and the gap.
+  // `exercise` is the rendered name of the exercise.
+  // ---------------------------------------------------------------------------------------------
+  'explain.f7-gap': tpl(
+    'A strength session of your plan is needed to show how it is built, and none was named.',
+  ),
+  'explain.f7-no-setup': tpl(
+    'The strength setup is not saved yet, so the session is built for body weight only.',
+  ),
+  // `ramp` is the weeks of the ramp-in in words ("three weeks"), from `flib.heavyRampInWeeks`.
+  'explain.f7-block': tpl(
+    'This is week {week} of {of} of the strength block, and heavy work follows a ramp-in of {ramp}.',
+    { week: 'count', of: 'count', ramp: 'text' },
+  ),
+  // `weeks` is `f7.blockCreditWeeks`: the weeks before the block in which a block session was logged.
+  'explain.f7-block-credit': tpl(
+    'This is week {week} of {of} of the strength block. A session was logged in each of the {weeks} weeks before it, so it has no ramp-in.',
+    { week: 'count', of: 'count', weeks: 'count' },
+  ),
+  'explain.f7-outside': tpl('This week is outside the strength block.'),
+  'explain.f7-template': tpl('The session is a {template} session, variant {variant}.', {
+    template: 'text',
+    variant: 'text',
+  }),
+  'explain.f7-why-lighter-week': tpl(
+    'The week is a recovery week of your running plan, so strength keeps the usual load with fewer sets.',
+  ),
+  'explain.f7-why-taper': tpl(
+    'The week is in the taper, so strength keeps only the lead lift and the calf raise.',
+  ),
+  'explain.f7-why-return': tpl('The week is a return week of your plan, so strength starts light.'),
+  // `equipment` is the item the load is for ("a barbell"), from the saved setup.
+  'explain.f7-equipment': tpl('{exercise} is done with {equipment}, from your saved setup.', {
+    exercise: 'text',
+    equipment: 'text',
+  }),
+  'explain.f7-bodyweight': tpl('{exercise} is done with body weight.', { exercise: 'text' }),
+  'explain.f7-plyo': tpl('The jump dose is {contacts} contacts.', { contacts: 'count' }),
+  // `pace` is `flib.plyoEmphasisPaceKmh` and `share` is `f7.reducedPlyoShare`.
+  'explain.f7-plyo-pace': tpl(
+    'Your goal pace is faster than {pace}, so the jump dose is cut to {share}.',
+    { pace: 'speed', share: 'share' },
+  ),
+  'explain.f7-plyo-bsi': tpl(
+    'A bone stress injury is in your profile, so the jump dose is cut to {share} and stops at the second rung.',
+    { share: 'share' },
+  ),
+  'explain.f7-plyo-injury': tpl(
+    'An injury in your profile in the last {months} months cuts the jump dose to {share} and stops it at the second rung.',
+    { months: 'count', share: 'share' },
+  ),
+  'explain.f7-plyo-lighter': tpl('A lighter week cuts the jump dose to {share}.', {
+    share: 'share',
+  }),
+
+  'explain.f8-gap': tpl(
+    'The next load is read from your logged sets, and a strength session of your plan is needed to say which lifts.',
+  ),
+  'explain.f8-last': tpl(
+    'The last session of {exercise} was on {date}: {sets}, heaviest set {load} x {count}.',
+    { exercise: 'text', date: 'date', sets: 'text', load: 'load', count: 'count' },
+  ),
+  'explain.f8-last-unloaded': tpl(
+    'The last session of {exercise} was on {date}: {sets}, the most in a set {count}.',
+    { exercise: 'text', date: 'date', sets: 'text', count: 'count' },
+  ),
+
+  'explain.f9-gap': tpl(
+    'Lighter days and the return after a gap are read from a strength session of your plan, and none was named.',
+  ),
+  'explain.f9-state': tpl('The readiness read for the day is lower than usual.'),
+  'explain.f9-pain': tpl('A pain score of {score} was reported in the last two days.', {
+    score: 'count',
+  }),
+  'explain.f9-illness': tpl('A recent illness limits the day to easy effort.'),
+  'explain.f9-usual': tpl('The usual load of {exercise} is {load}.', {
+    exercise: 'text',
+    load: 'load',
+  }),
+  // `layoff` is `f8.layoffDays` and `share` is `f8.layoffLoadFraction`.
+  'explain.f9-since': tpl(
+    '{exercise}: {days} days since the last session. After {layoff} days the load comes back to about {share} of the last one.',
+    { exercise: 'text', days: 'count', layoff: 'count', share: 'share' },
+  ),
   'explain.h12-hold': tpl(
     'After your goal race the plan holds {days} days without running, then returns in {steps} steps.',
     { days: 'count', steps: 'count' },

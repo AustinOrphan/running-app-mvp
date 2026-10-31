@@ -10,7 +10,7 @@ import { fitHrModel } from '../../shared/engine/execution.ts'
 import { VOLUME_KINDS } from '../../shared/engine/limits.ts'
 import { resolveTargets } from '../../shared/engine/targets.ts'
 import type { ExplainView, InputFact, Quantity } from '../../shared/engine/types.ts'
-import type { PlanWithSessions, PredictionView } from '../../shared/types.ts'
+import type { PlanWithSessions, PredictionView, StrengthWorkout } from '../../shared/types.ts'
 import { signSession } from '../../server/auth/session.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
 import { weeklyDecisions } from '../../server/services/planEngine.ts'
@@ -654,5 +654,208 @@ describe('the explain service', () => {
     }
     expect(cacheSizes(ctx.prisma).snapshots).toBe(1)
     expect(findMany).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('GET /api/explain: a strength session', () => {
+  const BARBELL = { kind: 'barbell', barG: 20_412, jumpG: 2268 }
+  const DUMBBELLS = { kind: 'dumbbells', loads: { minG: 4536, stepG: 2268, maxG: 45_359 } }
+
+  /** A runner with a plan: the first strength session still ahead, and its workout. */
+  async function planned() {
+    await seedHistory(user.id)
+    const goal = await seedGoal(user.id)
+    const plan = await generatePlan(user, goal.id)
+    const session = plan.sessions.find((s) => s.kind === 'strength' && s.date >= today)!
+    expect(session, 'a strength session ahead in the generated plan').toBeDefined()
+    return { plan, session, goal }
+  }
+
+  const workoutOf = async (session: { id: string; date: string }) => {
+    const res = await client(ctx, user).get(
+      `/api/strength/workouts?from=${session.date}&to=${session.date}`,
+    )
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    return (res.body as StrengthWorkout[]).find((w) => w.sessionId === session.id)!
+  }
+
+  const setup = (as: TestUser = user) =>
+    client(ctx, as)
+      .put('/api/strength/settings')
+      .send({ equipment: [BARBELL, DUMBBELLS, { kind: 'step' }], level: 'some' })
+
+  test('gives the load, the lighter day and the structure, then the rules that rest on the rule alone', async () => {
+    const { session } = await planned()
+    const view = await explained(`subject=strength&id=${session.id}`)
+    expect(view).toMatchObject({ subject: 'strength', asOf: today, frozen: false })
+    expect(view.rules).toEqual(['F8', 'F9', 'F7', ...session.rules.filter((rule) => rule !== 'F7')])
+    expect(view.rules.slice(0, 3)).toEqual(['F8', 'F9', 'F7'])
+    // No log and no lighter day yet: the first loads are F8's, the session's structure is F7's, and
+    // F9 and the policy rules rest on the rule alone.
+    expect(view.groups.map((g) => g.rule)).toEqual(['F8', 'F7'])
+    expect(view.rest).toEqual(['F9', ...session.rules.filter((rule) => rule !== 'F7')])
+    expect(factsOf(view, 'F8').every((f) => f.template.startsWith('strength.reason.'))).toBe(true)
+    // the setup is not saved, and the structure says so
+    expect(factsOf(view, 'F7')[0]).toMatchObject({ id: 'f7.gap', state: 'insufficient' })
+  })
+
+  test('the session subject of a strength session lists its own rules and no run rule', async () => {
+    const { session } = await planned()
+    const view = await explained(`subject=session&id=${session.id}`)
+    expect(view.rules).toEqual(session.rules)
+    for (const rule of ['g-1', 'g-2', 'C1', 'C2']) expect(view.rules).not.toContain(rule)
+    expect(view.groups.map((g) => g.rule)).toEqual(['F7'])
+    expect(view.rest).toEqual(session.rules.filter((rule) => rule !== 'F7'))
+  })
+
+  test('names the last session of a lift once it is logged, with its activity as a source', async () => {
+    const { session } = await planned()
+    expect((await setup()).status).toBe(200)
+    const workout = await workoutOf(session)
+    const lift = workout.lifts.find((l) => l.loadG !== null)!
+    expect(lift, 'a lift with a load in the workout').toBeDefined()
+    const logged = await client(ctx, user)
+      .put(`/api/strength/logs/${'00000000-0000-4000-8000-000000000901'}`)
+      .send({
+        date: today,
+        durationMin: 40,
+        rpe: 6,
+        prescribed: { template: 'heavy', variant: 'A', week: 4, mode: 'normal', lifts: [] },
+        sets: Array.from({ length: lift.sets }, () => ({
+          exerciseId: lift.exerciseId,
+          loadG: lift.loadG,
+          count: lift.range.max,
+          rir: 2,
+        })),
+      })
+    expect(logged.status, JSON.stringify(logged.body)).toBe(201)
+    const activityId = (logged.body as { activity: { id: string } }).activity.id
+
+    const view = await explained(`subject=strength&id=${session.id}&exercise=${lift.exerciseId}`)
+    const [last] = factsOf(view, 'F8')
+    expect(last).toMatchObject({ id: `f8.last-${lift.exerciseId}`, template: 'explain.f8-last' })
+    expect(slot(last!, 'load')).toEqual({ kind: 'load', g: lift.loadG })
+    expect(last!.sources).toEqual([
+      { kind: 'activity', id: activityId, date: today, label: 'Strength' },
+    ])
+    // the reasons that follow are the ones the lift of the workout carries now, F8's and F9's
+    const now = (await workoutOf(session)).lifts.find((l) => l.exerciseId === lift.exerciseId)!
+    const reasons = ['F8', 'F9']
+      .flatMap((rule) => factsOf(view, rule))
+      .filter((f) => f.template.startsWith('strength.reason.'))
+    expect(reasons.map((f) => f.template).sort()).toEqual(
+      now.basis.facts.map((f) => f.template).sort(),
+    )
+    expect(reasons.length).toBeGreaterThan(0)
+    // it reads in either weight unit from the one number of grams
+    for (const weight of ['lb', 'kg'] as const) {
+      const sentence = renderFact(last!, 'km', weight)
+      expect(lintText(sentence)).toEqual([])
+      expect(sentence).toMatch(
+        new RegExp(`heaviest set [\\d.]+ ${weight} x ${String(lift.range.max)}\\.$`),
+      )
+    }
+  })
+
+  test('is rebuilt after a write: the answer follows the logs and the setup', async () => {
+    const { session } = await planned()
+    const before = await explained(`subject=strength&id=${session.id}`)
+    expect(factsOf(before, 'F7')[0]).toMatchObject({ id: 'f7.gap' })
+    expect((await setup()).status).toBe(200)
+    const after = await explained(`subject=strength&id=${session.id}`)
+    expect(factsOf(after, 'F7').some((f) => f.id === 'f7.gap')).toBe(false)
+    expect(factsOf(after, 'F7').some((f) => f.id.startsWith('f7.equipment-'))).toBe(true)
+  })
+
+  test('answers 404 for a session of another runner, a run, an unknown session and a lift the session cannot do', async () => {
+    const { session, plan } = await planned()
+    const other = await seedUser(ctx, { email: 'other-lifter@example.com' })
+    const run = plan.sessions.find((s) => s.kind === 'easy')!
+    for (const query of [
+      `subject=strength&id=${session.id}&exercise=pogo-hop`,
+      `subject=strength&id=${session.id}&exercise=leg-press`,
+      `subject=strength&id=${run.id}`,
+      'subject=strength&id=nope',
+    ]) {
+      expect((await explain(query)).status, query).toBe(404)
+    }
+    expect((await explain(`subject=strength&id=${session.id}`, other)).status).toBe(404)
+    // the session that is a strength session answers for its own runner
+    expect((await explain(`subject=strength&id=${session.id}`)).status).toBe(200)
+  })
+
+  test('answers 400 for an exercise outside the catalogue and for a parameter of another subject', async () => {
+    const { session } = await planned()
+    for (const query of [
+      `subject=strength&id=${session.id}&exercise=bench-press`,
+      `subject=strength&id=${session.id}&weekStart=${thisMonday}`,
+      'subject=strength',
+      `subject=session&id=${session.id}&exercise=back-squat`,
+    ]) {
+      const res = await explain(query)
+      expect(res.status, query).toBe(400)
+      expect(res.body, query).toMatchObject({ error: { code: 'validation' } })
+    }
+  })
+
+  test('is data: every fact reads in both unit systems and both weight units', async () => {
+    const { session } = await planned()
+    expect((await setup()).status).toBe(200)
+    const view = await explained(`subject=strength&id=${session.id}`)
+    expect(view.groups.length).toBeGreaterThanOrEqual(2)
+    for (const fact of view.groups.flatMap((g) => g.facts)) {
+      for (const units of ['km', 'mi'] as const) {
+        for (const weight of ['lb', 'kg'] as const) {
+          const sentence = renderFact(fact, units, weight)
+          expect(lintText(sentence), `${fact.id}: ${sentence}`).toEqual([])
+        }
+      }
+    }
+  })
+
+  test('is read from the memo: a repeat adds nothing to the caches', async () => {
+    const { session } = await planned()
+    await explained(`subject=strength&id=${session.id}`)
+    const sizes = cacheSizes(ctx.prisma)
+    await explained(`subject=strength&id=${session.id}`)
+    expect(cacheSizes(ctx.prisma)).toEqual(sizes)
+  })
+})
+
+describe('GET /api/explain: a strength session of an ultra goal', () => {
+  test('cites H10 beside F7 and names the week of the block', async () => {
+    await seedHistory(user.id)
+    const goal = await ctx.prisma.goal.create({
+      data: {
+        userId: user.id,
+        name: 'Synthetic ultra',
+        priority: 'A',
+        targetDate: addDays(thisMonday, 7 * 30 + 5),
+        distanceM: 160_934,
+        goalType: 'finish',
+        isActive: false,
+      },
+    })
+    const plan = await generatePlan(user, goal.id)
+    const session = plan.sessions.find((s) => s.kind === 'strength' && s.date >= today)!
+    expect(session.rules).toContain('H10')
+
+    const view = await explained(`subject=strength&id=${session.id}`)
+    expect(view.rules).toEqual(['F8', 'F9', 'F7', ...session.rules.filter((rule) => rule !== 'F7')])
+    expect(view.rules).toContain('H10')
+    const block = factsOf(view, 'H10').find((f) => f.id === 'h10.block')
+    expect(block, 'the H10 builder names the block week').toBeDefined()
+    expect(lintText(renderFact(block!, 'km'))).toEqual([])
+    expect(renderFact(block!, 'mi')).toMatch(
+      /^The week of .+ is (week \d+ of \d+ of|outside) the strength block\.$/,
+    )
+
+    // a goal that is not an ultra has no H10 to cite
+    const half = await seedUser(ctx, { email: 'half-lifter@example.com' })
+    await seedHistory(half.id)
+    const halfGoal = await seedGoal(half.id)
+    const halfPlan = await generatePlan(half, halfGoal.id)
+    const halfSession = halfPlan.sessions.find((s) => s.kind === 'strength')!
+    expect(halfSession.rules).not.toContain('H10')
   })
 })

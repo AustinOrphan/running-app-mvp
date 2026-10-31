@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { isIsoDate, mondayOf } from '../../shared/dates.ts'
 import { EXPLAIN_MAX_RULES } from '../../shared/copy/limits.ts'
+import { isExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import type { ExplainRequest } from '../../shared/engine/types.ts'
 import type { Deps } from '../app.ts'
 import { parse } from '../errors.ts'
@@ -24,6 +25,9 @@ const rules = z
 
 const recordId = z.string().min(1).max(64)
 
+/** An exercise of the catalogue: the lift a strength "Why" opens on. */
+const exerciseId = z.string().refine(isExerciseId, 'Use an exercise of the catalogue.')
+
 /**
  * What the drawer is opened on. A discriminated union on `subject`, strict so a parameter that
  * belongs to another subject is a mistake worth a 400 and not a silent ignore.
@@ -41,12 +45,14 @@ const query = z.discriminatedUnion('subject', [
   z.strictObject({ subject: z.literal('rules'), rules }),
   z.strictObject({ subject: z.literal('brief'), weekStart }),
   z.strictObject({ subject: z.literal('activity'), id: recordId }),
+  z.strictObject({ subject: z.literal('strength'), id: recordId, exercise: exerciseId.optional() }),
 ])
 
 /**
  * GET /api/explain: the figures the engine read for a session, a week, a decision, readiness, the
- * zones, a prediction or a list of rules, as `ExplainView` (phase 3a design 8.4). Authentication
- * runs before the query is parsed. A record of another user answers 404, as an unknown one does.
+ * zones, a prediction, a strength session or a list of rules, as `ExplainView` (phase 3a design
+ * 8.4, strength design 10.5). Authentication runs before the query is parsed. A record of another
+ * user answers 404, as an unknown one does.
  */
 export function explainRouter(deps: Deps): Router {
   const router = Router()

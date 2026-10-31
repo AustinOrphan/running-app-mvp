@@ -931,6 +931,12 @@ export type ExplainRequest =
   | { subject: 'brief'; weekStart: string }
   /** A run: the figures stored with its insights. */
   | { subject: 'activity'; id: string }
+  /**
+   * A strength session of the active plan by id, with the lift the drawer opens on when it opens
+   * from a lift's "Why" (strength design 10.5): the F8 and F9 facts of that lift (of every lift of
+   * the session without one), the F7 facts of the session, then the rules that rest on the rule alone.
+   */
+  | { subject: 'strength'; id: string; exercise?: string }
 
 export type ExplainSubject = ExplainRequest['subject']
 
