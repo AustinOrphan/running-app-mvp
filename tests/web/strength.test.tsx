@@ -2860,11 +2860,24 @@ describe('the Strength page: equipment and units (design 11.3, 6.5, 11.4)', () =
     ).toBeVisible()
   })
 
-  test('the weight unit is saved by the settings route and every load follows it at once', async () => {
+  test('the weight unit is saved by the settings route, and the view is read again so every load follows it at once', async () => {
     let settings = SETTINGS
+    // the server builds the prescribed loads on the grid of the runner's unit: 110 lb on the pound
+    // grid, and on the kilogram grid a load that is not the same grams (a 52 kg squat)
+    const viewFor = (unit: 'lb' | 'kg') =>
+      pageView({
+        next: [
+          makeWorkout({
+            lifts: [squat({ loadG: unit === 'kg' ? toGrams(52, 'kg') : lb(110) })],
+            plyo: null,
+            trunk: [],
+          }),
+        ],
+      })
     const { calls } = openPage({
       routes: {
         'GET /api/settings': () => settings,
+        'GET /api/strength': () => viewFor(settings.weightUnit),
         'PUT /api/settings': ({ body }) => {
           settings = { ...settings, ...(body as object) }
           return settings
@@ -2874,6 +2887,8 @@ describe('the Strength page: equipment and units (design 11.3, 6.5, 11.4)', () =
     await page('Equipment and units')
     const user = userEvent.setup()
     expect(region('Next session').getByText(/Suggested 110 lb, four sets/)).toBeVisible()
+    const reads = () => calls.filter((call) => call.url === '/api/strength').length
+    expect(reads()).toBe(1)
     const group = screen.getByRole('radiogroup', { name: 'Weight units' })
     expect(within(group).getByRole('radio', { name: 'Pounds' })).toBeChecked()
     await user.click(within(group).getByRole('radio', { name: 'Kilograms' }))
@@ -2882,8 +2897,10 @@ describe('the Strength page: equipment and units (design 11.3, 6.5, 11.4)', () =
       { weightUnit: 'kg' },
     ])
     expect(within(group).getByRole('radio', { name: 'Kilograms' })).toBeChecked()
-    // the workout, the lifts and the history are the same grams in the new unit
-    expect(region('Next session').getByText(/Suggested 50 kg, four sets/)).toBeVisible()
+    // the view was read again, so the workout is the one the kilogram grid gives, not the old one
+    // shown in the new unit (which would read 50 kg)
+    expect(reads()).toBe(2)
+    expect(region('Next session').getByText(/Suggested 52 kg, four sets/)).toBeVisible()
     expect(region('Lifts').getByText('about 56.75 kg')).toBeVisible()
     expect(screen.queryByText(/ lb\b/)).not.toBeInTheDocument()
   })

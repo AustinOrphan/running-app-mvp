@@ -16,14 +16,24 @@ export function useSettings() {
   })
 }
 
+/**
+ * Saves a change to the runner's settings. The settings and the session are read again; and when
+ * the patch carries the weight unit, so are the strength readers and Today: the server builds every
+ * prescribed load on the grid of the runner's unit (half a pound, a quarter of a kilogram), so a
+ * workout read before the change is made of loads the other unit's grid would not give, and a
+ * stepper or a suggestion in the logging sheet would start from them.
+ */
 export function useUpdateSettings() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (patch: SettingsPatch) => api<UserSettings>('PUT', '/settings', patch),
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: [keys.settings] }),
-        queryClient.invalidateQueries({ queryKey: [keys.me] }),
-      ]),
+    onSuccess: (_saved, patch) =>
+      Promise.all(
+        [
+          keys.settings,
+          keys.me,
+          ...(patch.weightUnit === undefined ? [] : [keys.strength, keys.today]),
+        ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+      ),
   })
 }
