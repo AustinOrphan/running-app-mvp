@@ -8,7 +8,10 @@ import {
 } from '../../shared/domain/duplicates.ts'
 import type { DuplicateStatus } from '../../shared/types.ts'
 
-const COUNTED_TYPES = ['run', 'race']
+/** The activity types the pass compares, each only with its own kind (`findPossibleDuplicate`). */
+const COUNTED_TYPES = ['run', 'race', 'strength']
+
+type LogHandOverDb = Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>
 
 /**
  * Hands the logs of a confirmed duplicate of `originalId` to the original, for each kind of log the
@@ -16,10 +19,14 @@ const COUNTED_TYPES = ['run', 'race']
  * the copy would otherwise be read as a second session: the fuel ladder counts a run once (design
  * 10.7) and the strength history counts a session once (strength design 9.4). When the original
  * already has a log of the kind, the copy's log stays where it is. At most one log of each kind
- * moves, because an activity holds one. Returns whether a log moved.
+ * moves, because an activity holds one.
+ *
+ * A strength log moves only onto a strength activity (anything else is refused and nothing is
+ * written), and takes the effort, the pain and the note of the copy along where the original has
+ * none, because the sheet that saved the log entered them on the copy. Returns whether a log moved.
  */
 export async function moveConfirmedLogs(
-  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>,
+  prisma: LogHandOverDb,
   userId: string,
   originalId: string,
 ): Promise<boolean> {
@@ -34,34 +41,67 @@ export async function moveConfirmedLogs(
     (activityId) => prisma.fuelLog.findUnique({ where: { activityId }, select: { id: true } }),
     (id) => prisma.fuelLog.update({ where: { id }, data: { activityId: originalId } }),
   )
-  const strength = await handOverLog(
-    copies,
-    originalId,
-    (activityId) => prisma.strengthLog.findUnique({ where: { activityId }, select: { id: true } }),
-    (id) => prisma.strengthLog.update({ where: { id }, data: { activityId: originalId } }),
-  )
+  const original = await prisma.activity.findFirst({
+    where: { id: originalId, userId },
+    select: { type: true },
+  })
+  const strength =
+    original?.type === 'strength'
+      ? await handOverLog(
+          copies,
+          originalId,
+          (activityId) =>
+            prisma.strengthLog.findUnique({ where: { activityId }, select: { id: true } }),
+          async (id, copyId) => {
+            await prisma.strengthLog.update({ where: { id }, data: { activityId: originalId } })
+            await copyEffort(prisma, copyId, originalId)
+          },
+        )
+      : false
   return fuel || strength
 }
 
 /**
  * One kind of log: when the original holds none, the first copy (by id) that holds one gives it up
- * to the original. Returns whether a log moved.
+ * to the original. `move` gets the log and the activity it came from. Returns whether a log moved.
  */
 async function handOverLog(
   copies: ReadonlyArray<{ id: string }>,
   originalId: string,
   find: (activityId: string) => Promise<{ id: string } | null>,
-  move: (logId: string) => Promise<unknown>,
+  move: (logId: string, copyId: string) => Promise<unknown>,
 ): Promise<boolean> {
   if (await find(originalId)) return false
   for (const copy of copies) {
     const log = await find(copy.id)
     if (log) {
-      await move(log.id)
+      await move(log.id, copy.id)
       return true
     }
   }
   return false
+}
+
+/** The runner's own words about a session: what the copy has and the original lacks is copied. */
+async function copyEffort(
+  prisma: Pick<PrismaClient, 'activity'>,
+  copyId: string,
+  originalId: string,
+): Promise<void> {
+  const fields = { rpe: true, pain: true, notes: true } as const
+  const [copy, original] = await Promise.all([
+    prisma.activity.findUnique({ where: { id: copyId }, select: fields }),
+    prisma.activity.findUnique({ where: { id: originalId }, select: fields }),
+  ])
+  if (!copy || !original) return
+  const data = {
+    ...(original.rpe === null && copy.rpe !== null ? { rpe: copy.rpe } : {}),
+    ...(original.pain === null && copy.pain !== null ? { pain: copy.pain } : {}),
+    ...(original.notes === null && copy.notes !== null ? { notes: copy.notes } : {}),
+  }
+  if (Object.keys(data).length > 0) {
+    await prisma.activity.update({ where: { id: originalId }, data })
+  }
 }
 
 /** `date` (YYYY-MM-DD) moved by `days`; calendar arithmetic in UTC, so no DST effects. */
@@ -72,8 +112,9 @@ function shiftDate(date: string, days: number): string {
 }
 
 /**
- * The cross-source duplicate pass (spec 2.4). For each id (a run or race) the runs of the same
- * user that could match are compared with `findPossibleDuplicate`: the same date, or, when the
+ * The cross-source duplicate pass (spec 2.4). For each id (a run, a race or a strength session) the
+ * activities of the same user and kind that could match are compared with `findPossibleDuplicate`
+ * (a run never with a strength session): the same date, or, when the
  * row has a start instant, the day before and after too. Of each pair the lower-ranked source
  * gets `duplicateOfId` pointing at the other, whichever row arrived first, and anything that
  * pointed at the demoted row is re-pointed at the survivor. The status is `confirmed` for two
@@ -166,4 +207,46 @@ export async function releaseDuplicatesOf(
   activityId: string,
 ): Promise<void> {
   await releaseDuplicates(prisma, userId, activityId, ['possible', 'confirmed'])
+}
+
+/**
+ * Confirmed rows pointing at an edited original stay confirmed while the pair still matches; the
+ * others go back to `none`, so their totals recover. Returns the released ids.
+ */
+export async function releaseStaleConfirmed(
+  prisma: PrismaClient,
+  userId: string,
+  originalId: string,
+): Promise<string[]> {
+  const row = await prisma.activity.findFirst({ where: { id: originalId, userId } })
+  if (!row) return []
+  const original = toActivity(row)
+  const confirmed = await prisma.activity.findMany({
+    where: { userId, duplicateOfId: originalId, duplicateStatus: 'confirmed' },
+  })
+  const stale = confirmed
+    .filter((copy) => findPossibleDuplicate(toActivity(copy), [original]) === null)
+    .map((copy) => copy.id)
+  if (stale.length === 0) return []
+  await prisma.activity.updateMany({
+    where: { id: { in: stale } },
+    data: { duplicateStatus: 'none', duplicateOfId: null },
+  })
+  return stale
+}
+
+/**
+ * The pass again for an activity whose date, distance, duration or type was edited, after the
+ * caller has cleared the activity's own flag: rows flagged `possible` against it go back to
+ * `none`, so do `confirmed` rows that no longer match it, and the pass runs over the activity and
+ * every row it released.
+ */
+export async function rematchDuplicates(
+  prisma: PrismaClient,
+  userId: string,
+  activityId: string,
+): Promise<void> {
+  const released = await releaseDuplicates(prisma, userId, activityId, ['possible'])
+  released.push(...(await releaseStaleConfirmed(prisma, userId, activityId)))
+  await markDuplicates(prisma, userId, [activityId, ...released])
 }

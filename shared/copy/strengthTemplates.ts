@@ -18,7 +18,7 @@
 //
 // The catalogue itself (ids, slots, equipment) is `shared/domain/strengthLibrary.ts`; it points at
 // the `name`, `cue` and `note` templates below by id, and a test keeps the two in step.
-import { tpl, type Template } from './template.ts'
+import { render, tpl, type Template } from './template.ts'
 
 /** Shown for a reason whose slots could not be read: it names no figure. */
 const REASON_FALLBACK = 'The load follows the sets logged so far.'
@@ -344,6 +344,19 @@ export const STRENGTH_TEMPLATES = {
     { sets: 'text' },
     { fallback: REASON_FALLBACK },
   ),
+
+  // ---- What the API says when it refuses (design 9.4); the activity form shows it as it is ------
+  'strength.api.type-locked': tpl(
+    'This activity has sets logged, so its type stays strength. Remove the sets to change it.',
+  ),
 } satisfies Record<string, Template>
 
 export type StrengthTemplateId = keyof typeof STRENGTH_TEMPLATES
+
+/**
+ * What `PUT /api/activities/:id` answers (409) to a change of type on a strength activity that has
+ * a log. The sentence holds no distance, pace or climb, so one fixed system serves every runner.
+ */
+export function strengthTypeLockedMessage(): string {
+  return render(STRENGTH_TEMPLATES['strength.api.type-locked'], {}, 'km')
+}

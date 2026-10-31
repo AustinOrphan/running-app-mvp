@@ -21,6 +21,7 @@ import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { conflict, notFound } from '../errors.ts'
 import { toActivity, toStrengthLift, toStrengthLog, toStrengthSettings } from '../serialize.ts'
 import { createManualActivity, type ManualActivityDb } from './activityStore.ts'
+import { rematchDuplicates } from './duplicates.ts'
 import { runExecutionQuietly } from './execution.ts'
 import { assertLinkable, linkPlanSession, ownedSession } from './planEngine.ts'
 
@@ -161,11 +162,16 @@ async function createLogRows(
   await writeSets(tx, userId, logId, input.sets)
 }
 
-/** The fields of the activity that a save writes. */
-function activityFields(input: StrengthLogInput) {
+/**
+ * The fields of an activity that already exists that a save writes. The duration is written only
+ * when the minutes differ from the whole minutes the activity shows, so an imported duration is not
+ * rounded for nothing.
+ */
+function activityFields(input: StrengthLogInput, existing: ActivityRow) {
+  const minutesChanged = Math.round(existing.durationSec / 60) !== input.durationMin
   return {
     date: input.date,
-    durationSec: input.durationMin * 60,
+    ...(minutesChanged ? { durationSec: input.durationMin * 60 } : {}),
     ...(input.rpe === undefined ? {} : { rpe: input.rpe }),
     ...(input.pain === undefined ? {} : { pain: input.pain }),
     ...(input.notes === undefined ? {} : { notes: input.notes }),
@@ -250,8 +256,17 @@ async function attemptSave(
     await assertLinkable(deps, session, activity)
   }
 
+  // A new day or a new duration is a new answer to "is this the same session as the import?".
+  const fields = activityFields(input, activity)
+  const matchChanged = fields.date !== activity.date || 'durationSec' in fields
   await prisma.$transaction(async (tx) => {
-    await tx.activity.update({ where: { id: activityId }, data: activityFields(input) })
+    await tx.activity.update({
+      where: { id: activityId },
+      data: {
+        ...fields,
+        ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
+      },
+    })
     if (existing) {
       await tx.strengthLog.update({
         where: { id: logId },
@@ -263,6 +278,7 @@ async function attemptSave(
       await createLogRows(tx, { userId, logId, activityId, input })
     }
   })
+  if (matchChanged) await rematchDuplicates(prisma, userId, activityId)
   await tieToPlan(deps, userId, activity, input)
   return { result: await readResult(prisma, userId, logId), created: !existing }
 }
