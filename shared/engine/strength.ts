@@ -582,11 +582,43 @@ export interface LoadSuggestion {
   estimateG: number | null
 }
 
-/** The rung at or above a load: the load itself on a rung, else the next one up. */
-function rungAtOrAbove(steps: LoadSteps, loadG: number, unit: WeightUnit): number | null {
-  const down = roundDownToStep(steps, loadG, unit)
-  if (down === null) return null
-  return fromGrams(down, unit) === fromGrams(loadG, unit) ? down : stepFrom(steps, loadG, 1, unit)
+/**
+ * The highest rung at or below a load, counted in exact grams (rules F8.1, F8.2, F9: "rounded down
+ * to a step"). `roundDownToStep` reads a load on the display grid, which rounds a product within a
+ * quarter pound of a rung up to that rung; a rung over the load, beyond the whole gram a load is
+ * stored to, steps down once. The lightest rung stands for a load under it, as there. Null when the
+ * steps make no load.
+ */
+function rungAtOrBelow(steps: LoadSteps, loadG: number, unit: WeightUnit): number | null {
+  const rung = roundDownToStep(steps, loadG, unit)
+  if (rung === null || rung <= loadG + 1) return rung
+  return stepFrom(steps, rung, -1, unit) ?? rung
+}
+
+/**
+ * The load after a set below the range (rule F8.3, design 10.2): from the highest rung at or below
+ * the working load, the whole steps that fit in `f8.reducePct` of it, and at least one, counted in
+ * exact grams. A step is the gap to the next rung down, so a list of weights is walked rung by rung.
+ * Null when there is no rung below.
+ */
+function reduceFrom(
+  steps: LoadSteps,
+  base: number,
+  unit: WeightUnit,
+): { loadG: number; steps: number } | null {
+  const start = rungAtOrBelow(steps, base, unit)
+  if (start === null) return null
+  const drop = (base * P.f8.reducePct.value) / 100
+  let rung = start
+  let taken = 0
+  for (;;) {
+    const lower = stepFrom(steps, rung, -1, unit)
+    // a load is stored to the whole gram, so a drop that is a whole number of steps may read one gram short
+    if (lower === null || (taken > 0 && start - lower > drop + 1)) break
+    rung = lower
+    taken += 1
+  }
+  return taken === 0 ? null : { loadG: rung, steps: taken }
 }
 
 /** What one step up from the working load comes to (rules F8.4, F8.5, design 10.2). */
@@ -686,10 +718,10 @@ function firstLoad(
   const anchor = anchorOf(ctx, exerciseId)
   const estimate = anchor === null ? null : anchorEstimate(anchor)
   if (estimate !== null) {
-    const target = Math.round((estimate * P.f8.startPctOf1rm.value) / 100)
+    const target = (estimate * P.f8.startPctOf1rm.value) / 100
     if (target < lightest) return { loadG: lightest, facts: [lightestFact] }
     return {
-      loadG: roundDownToStep(steps, target, unit) ?? lightest,
+      loadG: rungAtOrBelow(steps, target, unit) ?? lightest,
       facts: [
         fact('strength.reason.start-anchor', { exercise, pct: percent(P.f8.startPctOf1rm.value) }),
       ],
@@ -703,10 +735,10 @@ function firstLoad(
   if (fraction === undefined || weightKg === null || !(weightKg > 0)) {
     return { loadG: lightest, facts: [lightestFact] }
   }
-  const target = Math.round(weightKg * 1000 * fraction)
+  const target = weightKg * 1000 * fraction
   if (target < lightest) return { loadG: lightest, facts: [lightestFact] }
   return {
-    loadG: roundDownToStep(steps, target, unit) ?? lightest,
+    loadG: rungAtOrBelow(steps, target, unit) ?? lightest,
     facts: [fact('strength.reason.start-bodyweight', { exercise })],
   }
 }
@@ -801,7 +833,9 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
   // F8.2: a gap
   if (gap >= P.f8.layoffDays.value) {
     const returned =
-      base === null ? null : onLadder(Math.round(base * P.f8.layoffLoadFraction.value))
+      base === null || steps === null
+        ? null
+        : rungAtOrBelow(steps, base * P.f8.layoffLoadFraction.value, unit)
     const own = pick(req.template, loaded)
     const shape = { ...own, rir: own.rir === null ? null : { min: easy, max: easy } }
     const facts = loaded
@@ -834,11 +868,9 @@ export function suggestLoad(ctx: StrengthContext, req: LoadRequest): LoadSuggest
     let lowered = held
     let moved = false
     if (steps !== null && base !== null) {
-      const oneDown = stepFrom(steps, base, -1, unit)
-      if (oneDown !== null) {
-        const pct = 1 - P.f8.reducePct.value / 100
-        const rounded = rungAtOrAbove(steps, Math.round(base * pct), unit)
-        lowered = Math.min(oneDown, rounded ?? oneDown)
+      const reduced = reduceFrom(steps, base, unit)
+      if (reduced !== null) {
+        lowered = reduced.loadG
         moved = true
       }
     }
@@ -1192,9 +1224,9 @@ function liftFrom(
         ? loadG
         : Math.min(
             loadG,
-            roundDownToStep(
+            rungAtOrBelow(
               suggestion.steps,
-              Math.round(loadG * (1 - P.f9.lowReadinessLoadPct.value / 100)),
+              loadG * (1 - P.f9.lowReadinessLoadPct.value / 100),
               ctx.weightUnit,
             ) ?? loadG,
           )

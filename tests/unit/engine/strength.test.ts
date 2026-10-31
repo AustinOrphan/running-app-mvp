@@ -3677,3 +3677,93 @@ describe('a running recovery week inside the ramp-in (rule F7)', () => {
     expect(strengthTemplate(flagged, null)).toBe('maintenance')
   })
 })
+
+describe('rounding in exact grams, not on the display grid (rules F8.1, F8.2, F8.3, F9)', () => {
+  /** A barbell from the 45 lb bar with this jump, which puts a product between two rungs. */
+  const barbell = (jump: number): EquipmentConfig => ({
+    kind: 'barbell',
+    barG: lb(45),
+    jumpG: lb(jump),
+  })
+  const fine = (logs: StrengthLogEntry[], over: Partial<StrengthContext> = {}) =>
+    withSetup({ equipment: [barbell(2.5)] }, { logs, ...over })
+
+  it('F8.3 takes the whole steps that fit in the reduction: 97.5 lb less 5% is 95 lb, one step', () => {
+    // 5% of 97.5 lb is 4.875 lb, one step of 2.5 lb and not two; the grid would read the product
+    // 92.625 lb as 92.5 lb and call the rung at hand
+    const s = ask(fine([squat('a', 5, rows(97.5, [6, 6, 2], [null, null, null]))]))
+    expect(s).toMatchObject({ rule: 'F8.3', change: 'reduce', loadG: lb(95) })
+  })
+
+  it('F8.3 counts the steps the same way for a drop of several: 300 lb less 5% is 285 lb', () => {
+    expect(ask(barbellRunner([squat('a', 5, rows(300, [2], [null]))])).loadG).toBe(lb(285))
+    // 10 lb stack: 5% of 150 lb is 7.5 lb, which is not a whole step, so one step of 10 lb
+    const press = withSetup(
+      { equipment: have('leg-press') },
+      { logs: [liftLog('p', ago(5), 'leg-press', rows(150, [2], [null]))] },
+    )
+    const s = suggestLoad(press, {
+      exerciseId: 'leg-press',
+      implement: 'leg-press',
+      date: TODAY,
+      ...structuresFor('heavy', 'lead', 6),
+    })
+    expect(s.loadG).toBe(lb(140))
+  })
+
+  it('F8.2 returns to the highest rung at or below 90%: 52.5 lb comes back to 45 lb, not 47.5 lb', () => {
+    // 90% of 52.5 lb is 47.25 lb, under the 47.5 lb rung that the grid would round it up to
+    const s = ask(fine([squat('a', 40, rows(52.5, [6, 6, 6, 6], [2, 2, 2, 2]))]))
+    expect(s).toMatchObject({ rule: 'F8.2', change: 'return', loadG: lb(45) })
+  })
+
+  it('F8.2 keeps a product that falls exactly on a rung on that rung: 150 lb comes back to 135 lb', () => {
+    const s = ask(barbellRunner([squat('a', 40, rows(150, [6, 6, 6, 6], [2, 2, 2, 2]))]))
+    expect(s.loadG).toBe(lb(135))
+  })
+
+  it('F8.1 starts at the highest rung at or below 70% of the anchor, in kilograms as in pounds', () => {
+    // 70% of 71.4 kg is 49.98 kg, under the 50 kg rung that the quarter-kilogram grid rounds it up to
+    const bar: EquipmentConfig = {
+      kind: 'barbell',
+      barG: toGrams(20, 'kg'),
+      jumpG: toGrams(2.5, 'kg'),
+    }
+    const anchor = {
+      exerciseId: 'back-squat',
+      kind: 'max',
+      loadG: 71400,
+      reps: 1,
+      rir: null,
+      asOf: ago(9),
+    } as const
+    const ctx = withSetup({ equipment: [bar] }, { weightUnit: 'kg', anchors: [anchor] })
+    expect(ask(ctx).loadG).toBe(toGrams(47.5, 'kg'))
+    // 70% of 71.5 kg is 50.05 kg: the 50 kg rung
+    expect(ask({ ...ctx, anchors: [{ ...anchor, loadG: 71500 }] }).loadG).toBe(toGrams(50, 'kg'))
+  })
+
+  it('F9 lowers a load to the highest rung at or below 90% of it: 52.5 lb goes to 45 lb', () => {
+    const session = sessionRef(5)
+    const run = (readiness: StrengthContext['readiness']) =>
+      workoutFor(
+        fine(
+          [
+            log('k', addDays(session.date, -3), {
+              sets: setsOf('back-squat', rows(52.5, [6, 6, 6, 5], [2, 2, 2, 2])),
+            }),
+          ],
+          { today: session.date, readiness },
+        ),
+        session,
+      ).lifts[0]
+    const lighter = run({
+      date: session.date,
+      state: 'possible-fatigue',
+      pain: null,
+      illness: 'clear',
+    })
+    expect(run(null)?.loadG).toBe(lb(52.5))
+    expect(lighter).toMatchObject({ exerciseId: 'back-squat', loadG: lb(45), usualLoadG: lb(52.5) })
+  })
+})
