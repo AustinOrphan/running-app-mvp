@@ -1,6 +1,6 @@
 # 0015. Sources outside the journals: caps by class, the vetting rubric, book fields on paper records
 
-Status: Proposed 2026-10-31
+Status: Accepted 2026-10-31 (#602)
 
 Builds on ADR 0005. Adds the section "Sources outside the journals" to `research/README.md` and a
 section of the same name to the skill `research-update`. The reasoning is section 3 of
