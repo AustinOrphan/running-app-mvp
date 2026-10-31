@@ -388,6 +388,263 @@ export const STRENGTH_TEMPLATES = {
     { fallback: REASON_FALLBACK },
   ),
 
+  // ---- The logging sheet (design 9.1, 9.5, 9.6, 11.6, 11.7) ------------------------------------
+  // A name an assistive technology reads is a label too ("Back squat, set 2, load"), so each
+  // control has the template of its visible words and, where several share them, one that adds the
+  // exercise ("Swap: Back squat"), after the pattern of the Why button. No digit in a text: every
+  // count (the top of the reps-left scale, the bounds of a field) is a slot.
+  'strength.sheet.date-unit': tpl(
+    '{date}. Loads are in {unit}.',
+    { date: 'date', unit: 'text' },
+    { fallback: 'Loads are in the unit chosen in Settings.' },
+  ),
+  'strength.unit.lb': tpl('pounds', {}, { shape: 'label' }),
+  'strength.unit.kg': tpl('kilograms', {}, { shape: 'label' }),
+  'strength.sheet.warmup': tpl('Warm-up sets are not logged.'),
+  // `max` is the top of the reps-left scale, where the top value means that many or more.
+  'strength.sheet.reps-left-hint': tpl(
+    'Reps left in reserve: {max} means {max} or more. Tap a value again to clear it.',
+    { max: 'count' },
+  ),
+  'strength.sheet.as-suggested': tpl('As suggested', {}, { shape: 'label' }),
+  'strength.sheet.same-as-last': tpl('Same as last time', {}, { shape: 'label' }),
+  'strength.sheet.same-as-last-for': tpl(
+    'Same as last time: {exercise}',
+    { exercise: 'text' },
+    { shape: 'label', fallback: 'Same as last time' },
+  ),
+  'strength.sheet.needs-connection': tpl('Same as last time and Swap need a connection.'),
+
+  // The one-line suggestion of a lift: `sets` reads "four sets", `amount` "3 to 6", `measure` "reps",
+  // `effort` "leave 1 to 3 in reserve". A lift with no effort target or no load has its own line.
+  'strength.sheet.suggested': tpl(
+    'Suggested {load}, {sets} of {amount} {measure}, {effort}.',
+    { load: 'load', sets: 'text', amount: 'text', measure: 'text', effort: 'text' },
+    { fallback: 'The suggestion is in the workout.' },
+  ),
+  'strength.sheet.suggested-bodyweight': tpl(
+    'Suggested {sets} of {amount} {measure}, {effort}.',
+    { sets: 'text', amount: 'text', measure: 'text', effort: 'text' },
+    { fallback: 'The suggestion is in the workout.' },
+  ),
+  'strength.sheet.suggested-plain': tpl(
+    'Suggested {load}, {sets} of {amount} {measure}.',
+    { load: 'load', sets: 'text', amount: 'text', measure: 'text' },
+    { fallback: 'The suggestion is in the workout.' },
+  ),
+  'strength.sheet.suggested-plain-bodyweight': tpl(
+    'Suggested {sets} of {amount} {measure}.',
+    { sets: 'text', amount: 'text', measure: 'text' },
+    { fallback: 'The suggestion is in the workout.' },
+  ),
+  'strength.sheet.amount-range': tpl(
+    '{lo} to {hi}',
+    { lo: 'count', hi: 'count' },
+    { shape: 'label' },
+  ),
+  'strength.sheet.amount-one': tpl('{n}', { n: 'count' }, { shape: 'label' }),
+  'strength.sheet.effort-range': tpl(
+    'leave {lo} to {hi} in reserve',
+    { lo: 'count', hi: 'count' },
+    { shape: 'label' },
+  ),
+  // An easy template asks for the same count in every set, so a range "2 to 2" reads "2 or more".
+  'strength.sheet.effort-min': tpl(
+    'leave {n} or more in reserve',
+    { n: 'count' },
+    { shape: 'label' },
+  ),
+
+  // What a set counts, and the words of its controls.
+  'strength.measure.reps': tpl('reps', {}, { shape: 'label' }),
+  'strength.measure.seconds': tpl('seconds', {}, { shape: 'label' }),
+  'strength.measure.contacts': tpl('contacts', {}, { shape: 'label' }),
+  'strength.measure.load': tpl('load', {}, { shape: 'label' }),
+  'strength.measure.reps-left': tpl('reps left', {}, { shape: 'label' }),
+  'strength.sheet.stepper-group': tpl(
+    '{exercise}, set {set}, {what}',
+    { exercise: 'text', set: 'count', what: 'text' },
+    { shape: 'label', fallback: 'Set' },
+  ),
+  'strength.sheet.set-title': tpl('Set {set}', { set: 'count' }, { shape: 'label' }),
+  'strength.sheet.lower-load': tpl('Lower the load by one step', {}, { shape: 'label' }),
+  'strength.sheet.raise-load': tpl('Raise the load by one step', {}, { shape: 'label' }),
+  'strength.sheet.lower-count': tpl(
+    'Lower the {measure} by {amount}',
+    { measure: 'text', amount: 'count' },
+    { shape: 'label', fallback: 'Lower' },
+  ),
+  'strength.sheet.raise-count': tpl(
+    'Raise the {measure} by {amount}',
+    { measure: 'text', amount: 'count' },
+    { shape: 'label', fallback: 'Raise' },
+  ),
+  'strength.sheet.all-sets': tpl('All sets', {}, { shape: 'label' }),
+  'strength.sheet.all-sets-for': tpl(
+    'All sets, {exercise}, reps left',
+    { exercise: 'text' },
+    { shape: 'label', fallback: 'All sets' },
+  ),
+  'strength.sheet.add-set': tpl('Add a set', {}, { shape: 'label' }),
+  'strength.sheet.add-set-for': tpl(
+    'Add a set: {exercise}',
+    { exercise: 'text' },
+    { shape: 'label', fallback: 'Add a set' },
+  ),
+  'strength.sheet.remove': tpl('Remove', {}, { shape: 'label' }),
+  'strength.sheet.remove-for': tpl(
+    'Remove: {exercise}, set {set}',
+    { exercise: 'text', set: 'count' },
+    { shape: 'label', fallback: 'Remove' },
+  ),
+  'strength.sheet.no-sets-lift': tpl('No sets for this exercise yet.'),
+
+  // Swap (design 7.3): a swap holds for one session; "Always use this" pins the choice.
+  'strength.sheet.swap': tpl('Swap', {}, { shape: 'label' }),
+  'strength.sheet.swap-for': tpl(
+    'Swap: {exercise}',
+    { exercise: 'text' },
+    { shape: 'label', fallback: 'Swap' },
+  ),
+  'strength.sheet.swap-choices': tpl(
+    'Swap {exercise} for',
+    { exercise: 'text' },
+    { shape: 'label', fallback: 'Swap for' },
+  ),
+  'strength.sheet.swap-original': tpl(
+    '{exercise}, as suggested',
+    { exercise: 'text' },
+    { shape: 'label', fallback: 'As suggested' },
+  ),
+  'strength.sheet.swap-note': tpl(
+    'A swap holds for this session. The swapped lift starts with the sets of a first session, at the lightest load the equipment makes.',
+  ),
+  'strength.sheet.swap-none': tpl('No other exercise fits the equipment in the setup.'),
+  'strength.sheet.always-use': tpl('Always use this', {}, { shape: 'label' }),
+  'strength.sheet.always-use-for': tpl(
+    'Always use this: {exercise}',
+    { exercise: 'text' },
+    { shape: 'label', fallback: 'Always use this' },
+  ),
+  'strength.sheet.pinned': tpl('This choice is kept for later sessions.'),
+  'strength.sheet.not-pinned': tpl('The choice could not be saved. Try again.'),
+
+  // A lighter day (design 10.4): the usual load is one tap away.
+  'strength.sheet.usual-load': tpl('Usual load: {load}.', { load: 'load' }),
+  'strength.sheet.use-usual-for': tpl(
+    'Use the usual load: {exercise}',
+    { exercise: 'text' },
+    { shape: 'label', fallback: 'Use the usual load' },
+  ),
+
+  // The footer: minutes, effort, and under "More details" pain and a note.
+  'strength.sheet.minutes': tpl('Minutes', {}, { shape: 'label' }),
+  'strength.sheet.minutes-invalid': tpl('Enter whole minutes from {lo} to {hi}.', {
+    lo: 'count',
+    hi: 'count',
+  }),
+  'strength.sheet.effort': tpl('Effort', {}, { shape: 'label' }),
+  'strength.sheet.effort-hint': tpl('{lo} is very easy, {hi} is all out. Tap again to clear.', {
+    lo: 'count',
+    hi: 'count',
+  }),
+  'strength.sheet.more-details': tpl('More details', {}, { shape: 'label' }),
+  'strength.sheet.pain': tpl('Pain', {}, { shape: 'label' }),
+  'strength.sheet.pain-hint': tpl('{lo} is none, {hi} is the worst. Tap again to clear.', {
+    lo: 'count',
+    hi: 'count',
+  }),
+  'strength.sheet.note': tpl('Note', {}, { shape: 'label' }),
+  'strength.sheet.save': tpl('Save', {}, { shape: 'label' }),
+  'strength.sheet.save-without-sets': tpl('Save without sets', {}, { shape: 'label' }),
+  'strength.sheet.check-fields': tpl(
+    'Check the marked sets: a load is a number, and a count is a whole number of one or more.',
+  ),
+  'strength.sheet.no-sets': tpl('Add at least one set before saving.'),
+
+  // What a save says (design 9.5, 9.6). `lines` joins the loads of "Next time" ("Back squat up to
+  // 115 lb, Dumbbell Romanian deadlift stays at 50 lb").
+  'strength.sheet.saved': tpl('Strength log saved.'),
+  'strength.sheet.saved-next': tpl(
+    'Strength log saved. Next time: {lines}.',
+    { lines: 'text' },
+    { fallback: 'Strength log saved.' },
+  ),
+  'strength.sheet.saved-queued': tpl(
+    'Strength log saved on this phone. It is sent when a connection returns.',
+  ),
+  'strength.sheet.not-saved': tpl(
+    'Strength log not saved. {reason} The sets stay on this phone. Try again.',
+    { reason: 'text' },
+    { fallback: 'Strength log not saved. Try again.' },
+  ),
+  'strength.sheet.not-saved-bare': tpl(
+    'The session was not saved. {reason} Try again.',
+    { reason: 'text' },
+    { fallback: 'The session was not saved. Try again.' },
+  ),
+  // With no connection the save is kept on the phone (the outbox); a save without sets is a new
+  // activity, which is not an idempotent write and so is never queued.
+  'strength.sheet.offline': tpl(
+    'No connection. Save keeps the sets on this phone and sends them when a connection returns.',
+  ),
+  'strength.sheet.bare-offline': tpl('Save without sets needs a connection.'),
+  'strength.sheet.settings-error': tpl(
+    'The weight unit could not be read. Close this and try again.',
+  ),
+
+  // "Next time" for one lift, by the change the rules made (design 9.5).
+  'strength.next.increase': tpl(
+    '{exercise} up to {load}',
+    { exercise: 'text', load: 'load' },
+    { shape: 'label' },
+  ),
+  'strength.next.hold': tpl(
+    '{exercise} stays at {load}',
+    { exercise: 'text', load: 'load' },
+    { shape: 'label' },
+  ),
+  'strength.next.reduce': tpl(
+    '{exercise} comes down to {load}',
+    { exercise: 'text', load: 'load' },
+    { shape: 'label' },
+  ),
+  'strength.next.return': tpl(
+    '{exercise} comes back to {load}',
+    { exercise: 'text', load: 'load' },
+    { shape: 'label' },
+  ),
+  'strength.next.start': tpl(
+    '{exercise} starts at {load}',
+    { exercise: 'text', load: 'load' },
+    { shape: 'label' },
+  ),
+  'strength.next.at': tpl(
+    '{exercise} at {load}',
+    { exercise: 'text', load: 'load' },
+    { shape: 'label' },
+  ),
+  'strength.next.variation': tpl('move on to {exercise}', { exercise: 'text' }, { shape: 'label' }),
+  'strength.next.no-load': tpl(
+    '{exercise} with no added load',
+    { exercise: 'text' },
+    { shape: 'label' },
+  ),
+
+  // The reason of a lift swapped in for one session, which the sheet makes itself and the engine
+  // never does (so these are not `strength.reason.*`: a test holds those to what the engine reaches).
+  // It starts light: the sheet has no history to read a load from.
+  'strength.sheet.swap-start': tpl(
+    '{exercise} was swapped in for this session, so it starts at the lightest load the equipment makes.',
+    { exercise: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
+  'strength.sheet.swap-start-unloaded': tpl(
+    '{exercise} was swapped in for this session, so it starts with no added load.',
+    { exercise: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
+
   // ---- What the API says when it refuses (design 9.4); the activity form shows it as it is ------
   'strength.api.type-locked': tpl(
     'This activity has sets logged, so its type stays strength. Remove the sets to change it.',

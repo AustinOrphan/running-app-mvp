@@ -194,8 +194,8 @@ Alternatives:
   activation. Hashed files are served with `Cache-Control: immutable` (`server/static.ts`), so the
   browser can take an unchanged one from its own cache at install; that is not measured.
 - Offline, pages other than Today, Settings and Research parameters show their error states after a
-  few seconds, and forms that need the server say so. The outbox keeps only the check-in and the fuel
-  log (design 4.8).
+  few seconds, and forms that need the server say so. The outbox keeps only the check-in, the fuel
+  log (design 4.8) and the strength log (strength design 9.6).
 - Query failures offline cost a few seconds of retries before they show, where the library would have
   paused them without a message.
 - `rl-meta` holds one number, the time of the last warm, and is emptied with the answers.

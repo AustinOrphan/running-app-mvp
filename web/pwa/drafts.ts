@@ -8,6 +8,15 @@ export const DONE_DRAFT_PREFIX = 'rl_done_draft_'
 /** The fuel log form's draft: `fuel-draft:<activity id>`. */
 export const FUEL_DRAFT_PREFIX = 'fuel-draft:'
 
+/**
+ * The strength logging sheet's draft: `strength-draft:<log id>`. The log id is the sheet's own
+ * (a UUID it chose when it first opened) and the idempotency key of its save, so the sheet finds
+ * its draft again by the prefix and what the draft says it is for (strength design 9.1).
+ */
+export const STRENGTH_DRAFT_PREFIX = 'strength-draft:'
+
+const DRAFT_PREFIXES = [DONE_DRAFT_PREFIX, FUEL_DRAFT_PREFIX, STRENGTH_DRAFT_PREFIX]
+
 /** Removes every draft. Storage can be blocked (a private window); then there is nothing to remove. */
 export function purgeDrafts(): void {
   try {
@@ -16,7 +25,7 @@ export function purgeDrafts(): void {
     for (let index = 0; index < storage.length; index += 1) {
       const key = storage.key(index)
       if (key === null) continue
-      if (key.startsWith(DONE_DRAFT_PREFIX) || key.startsWith(FUEL_DRAFT_PREFIX)) keys.push(key)
+      if (DRAFT_PREFIXES.some((prefix) => key.startsWith(prefix))) keys.push(key)
     }
     for (const key of keys) storage.removeItem(key)
   } catch {

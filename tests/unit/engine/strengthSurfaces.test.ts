@@ -8,7 +8,8 @@
 // typed into a surface, fails here.
 //
 // Registered now:  the workout rows of the Today hero (E14-8 renders them with the same templates),
-// the pre-filled sheet of "As suggested" (E14-7) and the snapshot a log stores (E14-5).
+// the logging sheet of "As suggested" (E14-7, the real builder and the line it shows) and the
+// snapshot a log stores (E14-5).
 // To add one: write a `SurfaceAdapter` whose `read` renders from the workout (or from the shared
 // builder that reads it) and parses the figures back, then append it to `SURFACES`.
 import { describe, expect, it } from 'vitest'
@@ -22,6 +23,8 @@ import { formatLoad } from '../../../shared/domain/weight.ts'
 import { modeOf, workoutFor } from '../../../shared/engine/strength.ts'
 import type { Quantity, StrengthContext } from '../../../shared/engine/types.ts'
 import type { StrengthWorkout, Units, WeightUnit, WorkoutLift } from '../../../shared/types.ts'
+import { asSuggested, blocksOf } from '../../../web/components/strength/strengthForm.ts'
+import { strengthWords } from '../../../web/components/strength/strengthText.ts'
 import {
   have,
   lb,
@@ -120,44 +123,63 @@ const hero: SurfaceAdapter = {
   },
 }
 
-// ---- the sheet: "As suggested" fills every set with the load, the target and the lowest reps left -
+// ---- the sheet: the one-line suggestion, and the sets "As suggested" fills ------------------------
 
-interface SheetRow {
-  exercise: string
-  load: string | null
-  count: number
-  rirLeft: number | null
-}
+// The suggestion line of a lift in the sheet: "Suggested 110 lb, four sets of 3 to 6 reps, leave 1 to 3
+// in reserve." A lift with no load has no load part and one with no effort target no effort part;
+// an easy template reads "leave 2 or more in reserve", and a count that does not vary one number.
+const SUGGESTION =
+  /^Suggested (?:(.+?), )?(\w+) sets? of (\d+)(?: to (\d+))? (?:reps|seconds|contacts)(?:, leave (\d+)(?: to (\d+))?(?: or more)? in reserve)?\.$/
+const NUMBER_WORDS = [
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+]
 
-/** The rows "As suggested" fills (design 9.1): the suggested load, the target reps, the low RIR. */
-function sheetRows(workout: StrengthWorkout, weightUnit: WeightUnit): SheetRow[] {
-  return workout.lifts.flatMap((lift) =>
-    lift.targets.map((target) => ({
-      exercise: nameOf(lift.exerciseId),
-      load: lift.loadG === null ? null : formatLoad(lift.loadG, weightUnit),
-      count: target,
-      rirLeft: lift.rir?.min ?? null,
-    })),
-  )
-}
-
+/**
+ * The sheet as E14-7 builds it (`web/components/strength/`): `blocksOf` fills each lift from the
+ * workout and `asSuggested` puts the load, the target and the lowest reps left in every set. The
+ * figures are read back from the suggestion line it shows and from the sets it holds.
+ */
 const sheet: SurfaceAdapter = {
   name: 'logging sheet',
-  read(workout, _units, weightUnit) {
-    const rows = sheetRows(workout, weightUnit)
-    return workout.lifts.map((lift) => {
-      const own = rows.filter((row) => row.exercise === nameOf(lift.exerciseId))
-      return {
-        exercise: nameOf(lift.exerciseId),
-        sets: own.length,
-        lo: lift.range.min,
-        hi: lift.range.max,
-        load: own[0]?.load ?? null,
-        rirLo: own[0]?.rirLeft ?? null,
-        rirHi: lift.rir?.max ?? null,
-        targets: own.map((row) => row.count),
-      }
-    })
+  read(workout, units, weightUnit) {
+    const words = strengthWords(units, weightUnit)
+    return asSuggested(blocksOf(workout, weightUnit), weightUnit)
+      .filter((block) => block.kind === 'lift')
+      .map((block) => {
+        const lift = block.shown
+        const line = words.suggestion(lift)
+        const match = SUGGESTION.exec(line)
+        expect(match, line).not.toBeNull()
+        const [, load, sets, lo, hi, rirLo, rirHi] = match ?? []
+        const first = block.rows[0]
+        // the sets the sheet holds carry the load the line states, in the field's own text
+        expect(first?.load === '' ? null : `${first?.load ?? ''} ${weightUnit}`, line).toBe(
+          load ?? null,
+        )
+        // the line names as many sets as the sheet holds
+        const spoken = NUMBER_WORDS.indexOf(sets ?? '')
+        expect(block.rows.length, line).toBe(spoken)
+        return {
+          exercise: words.name(lift.exerciseId),
+          sets: spoken,
+          lo: Number(lo),
+          hi: Number(hi ?? lo),
+          load: load ?? null,
+          rirLo: first?.rir ?? null,
+          rirHi: rirHi === undefined ? (rirLo === undefined ? null : Number(rirLo)) : Number(rirHi),
+          targets: block.rows.map((row) => Number(row.count)),
+        }
+      })
   },
 }
 

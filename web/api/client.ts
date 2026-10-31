@@ -160,6 +160,7 @@ export const keys = {
   disruptions: 'disruptions',
   brief: 'brief',
   fuel: 'fuel',
+  strength: 'strength',
   today: 'today',
   zones: 'zones',
   zoneProposals: 'zoneProposals',
@@ -189,8 +190,9 @@ export function dropUserQueries(queryClient: QueryClient): void {
 /**
  * Every query that reads the plan or what a change to it moves: the plan and its sessions (the
  * session workout sits under its key), the revision list, the rest windows, the reviews, the weekly
- * brief, the athlete state, Today, the watch status (the sessions it lists are the plan's) and the
- * fuel targets (the run targets they follow are the plan's).
+ * brief, the athlete state, Today, the watch status (the sessions it lists are the plan's), the
+ * fuel targets (the run targets they follow are the plan's) and the strength readers (the workouts
+ * are derived from the stored plan's strength sessions).
  */
 const PLAN_READER_KEYS = [
   keys.plan,
@@ -202,6 +204,7 @@ const PLAN_READER_KEYS = [
   keys.today,
   keys.wrist,
   keys.fuel,
+  keys.strength,
 ] as const
 
 /**

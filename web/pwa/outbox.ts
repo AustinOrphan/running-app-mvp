@@ -26,6 +26,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { ACTIVITY_DATA_KEYS } from '../api/activities.ts'
 import { api, ApiError, keys, UNAUTHORIZED_EVENT } from '../api/client.ts'
 import { purgeDrafts } from './drafts.ts'
 import { purgeApiCache } from './register.ts'
@@ -64,6 +65,16 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
     matches: (url) => /^\/api\/fuel\/logs\/[\w%-]+$/.test(url),
     combine: 'replace',
     invalidates: [keys.fuel, keys.today],
+  },
+  {
+    // `PUT /api/strength/logs/:logId` stores the whole session under the id the sheet chose, so a
+    // second write replaces the first and a replay changes nothing (strength design 9.6). The log
+    // creates an activity linked to the planned session, so the readers of activity data (the strength
+    // readers and Today among them) are read again.
+    label: 'strength log',
+    matches: (url) => /^\/api\/strength\/logs\/[\w-]{8,64}$/.test(url),
+    combine: 'replace',
+    invalidates: [...ACTIVITY_DATA_KEYS],
   },
 ]
 

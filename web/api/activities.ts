@@ -59,26 +59,33 @@ export interface ActivityParams {
 }
 
 /**
- * Activities feed the week rows, the statistics, the review suggestions and the detail page, and
- * the server links, assesses and re-evaluates plan sessions on every change (so the plan, today's
- * advice and the predictions move too), and so does the athlete state they all read: all go stale
- * together.
+ * The queries that read activities or what the server derives from them: the week rows, the
+ * statistics, the review suggestions, the detail page, and the plan, today's advice, the
+ * predictions and the athlete state, which link, assess and re-evaluate sessions on every change.
+ * A write that adds, changes or removes an activity moves them all together (a strength log is one:
+ * it creates the activity).
  */
+export const ACTIVITY_DATA_KEYS = [
+  keys.activities,
+  keys.activityDetail,
+  keys.weeks,
+  keys.reviews,
+  keys.today,
+  keys.plan,
+  keys.predictions,
+  keys.state,
+  keys.stats,
+  // The strength readers: a deleted activity takes its log with it, and a log's sessions, weeks and
+  // next loads are derived from the activities and the stored plan.
+  keys.strength,
+  // A run's fuel log is read against its elapsed time and weather, and the ladder against its logs.
+  keys.fuel,
+] as const
+
+/** Reads `ACTIVITY_DATA_KEYS` again after a write to activity data. */
 export function invalidateActivityData(queryClient: QueryClient): Promise<unknown> {
   return Promise.all(
-    [
-      keys.activities,
-      keys.activityDetail,
-      keys.weeks,
-      keys.reviews,
-      keys.today,
-      keys.plan,
-      keys.predictions,
-      keys.state,
-      keys.stats,
-      // A run's fuel log is read against its elapsed time and weather, and the ladder against its logs.
-      keys.fuel,
-    ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+    ACTIVITY_DATA_KEYS.map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
   )
 }
 
