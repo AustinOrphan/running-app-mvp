@@ -15,6 +15,10 @@ import type {
   PredictionLog as PredictionLogRow,
   RaceResult as RaceResultRow,
   Screening as ScreeningRow,
+  StrengthLift as StrengthLiftRow,
+  StrengthLog as StrengthLogRow,
+  StrengthSet as StrengthSetRow,
+  StrengthSettings as StrengthSettingsRow,
   PrismaClient,
   WeeklyReview as WeeklyReviewRow,
   WellnessDay as WellnessDayRow,
@@ -45,6 +49,7 @@ import type {
 } from '../shared/engine/types.ts'
 import { isLoadAppetite } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
+import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../shared/domain/weight.ts'
 import { renderFact } from '../shared/copy/templates.ts'
 import { mondayOf, todayIso } from '../shared/dates.ts'
 import { plannedWeek } from '../shared/domain/plannedWeek.ts'
@@ -67,6 +72,7 @@ import type {
   DisruptionReason,
   DisruptionStatus,
   DuplicateStatus,
+  EquipmentConfig,
   Feel,
   FuelLogItem,
   FuelLogView,
@@ -94,8 +100,14 @@ import type {
   PredictionView,
   RaceResultView,
   Screening,
+  StrengthLift,
+  StrengthLog,
+  StrengthSet,
+  StrengthSettings,
+  StrengthSnapshot,
   SupportLevel,
   ProviderInfo,
+  PinnedSlot,
   SuggestedAction,
   Symptoms,
   TargetSource,
@@ -103,6 +115,7 @@ import type {
   UndoState,
   Weekday,
   WeeklyReview,
+  WeightUnit,
   WellnessDay,
   WristItem,
   WristItemStatus,
@@ -714,6 +727,94 @@ export function toFuelLogView(row: FuelLogRow, step: LadderStep): FuelLogView {
     notes: row.notes,
     step,
     counts: countsLine(step),
+  }
+}
+
+// ---- Strength (phase 3b, section 9.3; E14-5) ----------------------------------------------------
+
+/** A stored weight unit, or the default for a value this build does not know. */
+export function toWeightUnit(value: string): WeightUnit {
+  return isWeightUnit(value) ? value : DEFAULT_WEIGHT_UNIT
+}
+
+/** The setup of a runner who has saved none: no equipment, level "new", nothing left out. */
+export function defaultStrengthSettings(): StrengthSettings {
+  return {
+    equipment: [],
+    level: 'new',
+    currentlyLifting: false,
+    avoid: [],
+    pinned: {},
+    note: null,
+    savedAt: null,
+  }
+}
+
+export function toStrengthSettings(row: StrengthSettingsRow | null): StrengthSettings {
+  if (row === null) return defaultStrengthSettings()
+  return {
+    equipment: parseJson<EquipmentConfig[]>(row.equipment, []),
+    level: row.level as StrengthSettings['level'],
+    currentlyLifting: row.currentlyLifting,
+    avoid: parseJson<string[]>(row.avoid, []),
+    pinned: parseJson<Partial<Record<PinnedSlot, string>>>(row.pinned, {}),
+    note: row.note,
+    savedAt: row.savedAt === null ? null : row.savedAt.toISOString(),
+  }
+}
+
+export function toStrengthLift(row: StrengthLiftRow): StrengthLift {
+  return {
+    exerciseId: row.exerciseId,
+    kind: row.kind as StrengthLift['kind'],
+    loadG: row.loadG,
+    reps: row.reps,
+    rir: row.rir,
+    asOf: row.asOf,
+  }
+}
+
+export function toStrengthSet(row: StrengthSetRow): StrengthSet {
+  return {
+    exerciseId: row.exerciseId,
+    position: row.position,
+    loadG: row.loadG,
+    count: row.count,
+    rir: row.rir,
+  }
+}
+
+/**
+ * What stands in for a snapshot the server cannot read. The save validates the snapshot, so this is
+ * only a row edited by hand; it holds no lift, so nothing reads a load from it.
+ */
+const UNREADABLE_SNAPSHOT: StrengthSnapshot = {
+  template: 'maintenance',
+  variant: 'A',
+  week: null,
+  mode: 'normal',
+  lifts: [],
+}
+
+/** The activity fields a log repeats. */
+type LoggedActivity = Pick<ActivityRow, 'date' | 'durationSec' | 'rpe' | 'pain' | 'notes'>
+
+/** A log with its sets (in the order of the session) and the fields of its activity. */
+export function toStrengthLog(
+  row: StrengthLogRow & { sets: StrengthSetRow[]; activity: LoggedActivity },
+): StrengthLog {
+  return {
+    id: row.id,
+    activityId: row.activityId,
+    date: row.activity.date,
+    durationMin: Math.round(row.activity.durationSec / 60),
+    rpe: row.activity.rpe,
+    pain: row.activity.pain,
+    notes: row.activity.notes,
+    prescribed: parseJson<StrengthSnapshot>(row.prescribed, UNREADABLE_SNAPSHOT),
+    sets: [...row.sets].sort((a, b) => a.position - b.position).map(toStrengthSet),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   }
 }
 

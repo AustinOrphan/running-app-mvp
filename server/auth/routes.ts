@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express'
 import { z } from 'zod'
+import { toWeightUnit } from '../serialize.ts'
 import type { SessionUser, Units } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { conflict, parse, unauthorized } from '../errors.ts'
@@ -26,6 +27,7 @@ interface UserRow {
   email: string
   displayName: string | null
   units: string
+  weightUnit: string
 }
 
 function toSessionUser(row: UserRow): SessionUser {
@@ -34,6 +36,7 @@ function toSessionUser(row: UserRow): SessionUser {
     email: row.email,
     displayName: row.displayName,
     units: row.units as Units,
+    weightUnit: toWeightUnit(row.weightUnit),
   }
 }
 

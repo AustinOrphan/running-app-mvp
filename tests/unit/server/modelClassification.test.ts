@@ -88,6 +88,13 @@ describe('model classification (ADR 0009)', () => {
     expect(models[1]).toMatchObject({ hasUserId: true, parents: ['Alpha'], delegate: 'beta' })
   })
 
+  test('all four strength tables are state: the suggestion memo and Today read them (strength design 9.3)', () => {
+    for (const name of ['StrengthSettings', 'StrengthLift', 'StrengthLog', 'StrengthSet']) {
+      expect(STATE_MODELS, name).toContain(name)
+      expect(NON_STATE_MODELS, name).not.toContain(name)
+    }
+  })
+
   test('keeps what the snapshot reads as state and what is written on a read as non-state', () => {
     // Spec 4.3: a snapshot reads these; a write must invalidate it.
     for (const name of [

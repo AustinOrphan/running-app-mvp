@@ -1,13 +1,14 @@
 import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import type { Deps } from '../app.ts'
-import type { PrismaClient } from '../db.ts'
+import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
 import { markDuplicates } from './duplicates.ts'
-import { runExecutionForActivity } from './execution.ts'
+import { runExecutionForActivity, runExecutionQuietly } from './execution.ts'
+import { linkPlanSession } from './planEngine.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
-import type { ParsedActivity, WellnessInput } from '../../shared/types.ts'
+import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 
 export interface StoreOptions {
   source: string
@@ -195,6 +196,75 @@ export async function storeParsed(
     }
   }
   return stored
+}
+
+/**
+ * The fields of an activity the runner enters by hand, as `POST /api/activities` validates them
+ * (`activitySchema`). A field the form does not send is left out or null.
+ */
+export interface ManualActivityInput {
+  date: string
+  startTime: string | null
+  type: ActivityType
+  subtype?: string | null | undefined
+  durationSec: number
+  distanceM: number | null
+  rpe: number | null
+  avgHr: number | null
+  maxHr: number | null
+  elevationGainM: number | null
+  feel?: number | null | undefined
+  pain?: number | null | undefined
+  notes: string | null
+}
+
+/** The tables a write beside a manual activity may use inside its transaction. */
+export type ManualActivityDb = Pick<PrismaClient, 'activity' | 'strengthLog' | 'strengthSet'>
+
+export interface ManualActivityOptions {
+  /**
+   * Writes that must stand or fall with the activity, in its transaction: a strength log and its
+   * sets. The activity is stored only if this resolves.
+   */
+  within?: (tx: ManualActivityDb, activity: ActivityRow) => Promise<void>
+  /**
+   * The planned session the activity fulfils, set as the owner's choice. Without it the matcher
+   * ties the activity to a session as for any other. The caller has checked the pair
+   * (`assertLinkable`).
+   */
+  sessionId?: string
+}
+
+/**
+ * The only writer of an activity the runner enters by hand (source `manual`): `POST
+ * /api/activities` and the first save of a strength log. It stores the row, flags a possible
+ * duplicate, then ties the activity to the plan: to `sessionId` when given, else by the matcher
+ * (which never fails the request, because the activity is saved by then). Returns the row as it
+ * stands after both.
+ */
+export async function createManualActivity(
+  deps: Deps,
+  userId: string,
+  input: ManualActivityInput,
+  opts: ManualActivityOptions = {},
+): Promise<ActivityRow> {
+  const { prisma } = deps
+  const data = { ...input, userId, source: 'manual', duplicateStatus: 'none' }
+  const { within } = opts
+  const created = within
+    ? await prisma.$transaction(async (tx) => {
+        const row = await tx.activity.create({ data })
+        await within(tx, row)
+        return row
+      })
+    : await prisma.activity.create({ data })
+  await markDuplicates(prisma, userId, [created.id])
+  if (opts.sessionId === undefined) {
+    await runExecutionQuietly(deps, { userId, activityId: created.id })
+  } else {
+    await linkPlanSession(deps, { userId, sessionId: opts.sessionId, activityId: created.id })
+  }
+  return prisma.activity.findFirstOrThrow({ where: { id: created.id, userId } })
 }
 
 const WELLNESS_FIELDS = [

@@ -11,7 +11,7 @@ import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 const FIRST_WEEK = '2025-09-22'
 
 function settings(units: Units): UserSettings {
-  return { email: 'runner@example.com', displayName: null, units }
+  return { email: 'runner@example.com', displayName: null, units, weightUnit: 'lb' }
 }
 
 function history(): WeekRow[] {

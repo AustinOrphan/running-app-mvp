@@ -80,6 +80,64 @@ describe('matchActivities', () => {
   })
 })
 
+describe('matchActivities for strength sessions', () => {
+  const strength = {
+    type: 'strength',
+    date: '2026-03-02',
+    startUtc: T0,
+    distanceM: null,
+    durationSec: 2400,
+  }
+
+  test('with a start instant on both sides: within 120 s, whatever the duration', () => {
+    expect(matchActivities(strength, { ...strength, startUtc: at(120) })).toBe('start')
+    expect(matchActivities(strength, { ...strength, startUtc: at(-120) })).toBe('start')
+    expect(matchActivities(strength, { ...strength, startUtc: at(121) })).toBeNull()
+    // The same date and the same duration do not make two sessions that started apart one.
+    expect(matchActivities(strength, { ...strength, startUtc: at(3600) })).toBeNull()
+    expect(matchActivities(strength, { ...strength, startUtc: at(30), durationSec: 3600 })).toBe(
+      'start',
+    )
+  })
+
+  test('without a start instant on both sides: the same date and durations within 5%', () => {
+    const manual = { ...strength, startUtc: null }
+    expect(matchActivities(manual, { ...strength, durationSec: 2400 })).toBe('date')
+    expect(matchActivities(manual, { ...strength, durationSec: 2526 })).toBe('date')
+    expect(matchActivities(manual, { ...strength, durationSec: 2527 })).toBeNull()
+    expect(matchActivities(manual, { ...strength, durationSec: 2280 })).toBe('date')
+    expect(matchActivities(manual, { ...strength, durationSec: 2279 })).toBeNull()
+    expect(matchActivities(manual, { ...manual, durationSec: 2400 })).toBe('date')
+    expect(matchActivities(manual, { ...strength, date: '2026-03-03' })).toBeNull()
+  })
+
+  test('a distance on a row changes nothing: strength is compared without one', () => {
+    const manual = { ...strength, startUtc: null }
+    expect(matchActivities(manual, { ...strength, distanceM: 5000 })).toBe('date')
+    expect(matchActivities({ ...manual, distanceM: 1000 }, { ...strength, distanceM: 9000 })).toBe(
+      'date',
+    )
+  })
+
+  test('a strength session never matches a run or a race, in either order', () => {
+    const run = {
+      type: 'run',
+      date: '2026-03-02',
+      startUtc: T0,
+      distanceM: 5000,
+      durationSec: 2400,
+    }
+    expect(matchActivities(strength, run)).toBeNull()
+    expect(matchActivities(run, strength)).toBeNull()
+    expect(matchActivities({ ...strength, startUtc: null }, { ...run, type: 'race' })).toBeNull()
+  })
+
+  test('a pair without a type is compared as runs, as it always was', () => {
+    const base = { date: '2026-03-02', startUtc: T0, distanceM: 5000, durationSec: 1800 }
+    expect(matchActivities(base, { ...base, startUtc: at(30) })).toBe('start')
+  })
+})
+
 describe('duplicateStatusFor', () => {
   test('confirmed needs a start match between two automated sources', () => {
     expect(duplicateStatusFor('start', { source: 'file' }, { source: 'strava' })).toBe('confirmed')

@@ -51,6 +51,7 @@ const drawerRoutes = (units: Units = 'mi') => ({
     email: 'runner@example.com',
     displayName: null,
     units,
+    weightUnit: 'lb',
   }),
   'GET /api/explain': (): ExplainView => ({
     subject: 'rules',

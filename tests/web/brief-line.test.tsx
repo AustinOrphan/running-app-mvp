@@ -127,7 +127,12 @@ describe('BriefLine', () => {
   })
 })
 
-const SETTINGS: UserSettings = { email: 'runner@example.com', displayName: null, units: 'km' }
+const SETTINGS: UserSettings = {
+  email: 'runner@example.com',
+  displayName: null,
+  units: 'km',
+  weightUnit: 'lb',
+}
 
 /** `navigator.onLine` as the test needs it. */
 function setOnline(online: boolean): void {

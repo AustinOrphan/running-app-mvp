@@ -32,15 +32,60 @@ describe('findPossibleDuplicate', () => {
     ).toBeNull()
   })
 
-  test('candidate without distance, or of type strength or cross, never matches', () => {
+  test('a run without distance, or a cross-training entry, never matches', () => {
     const other = makeActivity({ source: 'smashrun', distanceM: 5000 })
     expect(findPossibleDuplicate(makeActivity({ distanceM: null }), [other])).toBeNull()
     expect(
-      findPossibleDuplicate(makeActivity({ type: 'strength', distanceM: 5000 }), [other]),
-    ).toBeNull()
-    expect(
       findPossibleDuplicate(makeActivity({ type: 'cross', distanceM: 5000 }), [other]),
     ).toBeNull()
+    const cross = makeActivity({ source: 'smashrun', type: 'cross', distanceM: 5000 })
+    expect(findPossibleDuplicate(candidate, [cross])).toBeNull()
+  })
+
+  test('a strength candidate never matches a run, whatever its numbers', () => {
+    const run = makeActivity({ source: 'smashrun', distanceM: 5000, durationSec: 1800 })
+    const strength = makeActivity({ type: 'strength', distanceM: null, durationSec: 1800 })
+    expect(findPossibleDuplicate(strength, [run])).toBeNull()
+    expect(findPossibleDuplicate(candidate, [{ ...strength, source: 'smashrun' }])).toBeNull()
+    // Even a strength row that carries a distance equal to the run's is not that run.
+    const odd = makeActivity({ type: 'strength', source: 'smashrun', distanceM: 5000 })
+    expect(findPossibleDuplicate(candidate, [odd])).toBeNull()
+    expect(findPossibleDuplicate(odd, [makeActivity({ distanceM: 5000 })])).toBeNull()
+  })
+
+  test('a strength candidate matches a strength session by duration, with no distance', () => {
+    const manual = makeActivity({
+      id: 's',
+      type: 'strength',
+      source: 'manual',
+      distanceM: null,
+      durationSec: 2400,
+    })
+    const near = makeActivity({
+      id: 'near',
+      type: 'strength',
+      source: 'file',
+      distanceM: null,
+      durationSec: 2520,
+    })
+    const far = makeActivity({
+      id: 'far',
+      type: 'strength',
+      source: 'file',
+      distanceM: null,
+      durationSec: 2530,
+    })
+    expect(findPossibleDuplicate(manual, [near])).toBe(near)
+    expect(findPossibleDuplicate(manual, [far])).toBeNull()
+    // The closest duration wins; ties keep the first.
+    const closer = makeActivity({
+      id: 'closer',
+      type: 'strength',
+      source: 'strava',
+      distanceM: null,
+      durationSec: 2430,
+    })
+    expect(findPossibleDuplicate(manual, [near, closer])).toBe(closer)
   })
 
   test('a race candidate can match a run', () => {
@@ -48,10 +93,11 @@ describe('findPossibleDuplicate', () => {
     expect(findPossibleDuplicate(makeActivity({ type: 'race', distanceM: 5000 }), [run])).toBe(run)
   })
 
-  test('non-run rows and rows without distance are ignored', () => {
+  test('rows of another kind and runs without distance are ignored', () => {
     expect(
       findPossibleDuplicate(candidate, [
         makeActivity({ source: 'smashrun', type: 'strength', distanceM: 5000 }),
+        makeActivity({ source: 'smashrun', type: 'cross', distanceM: 5000 }),
         makeActivity({ source: 'smashrun', distanceM: null }),
       ]),
     ).toBeNull()

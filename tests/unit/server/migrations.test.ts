@@ -1375,6 +1375,225 @@ function verifyWeeklyBrief(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, `SELECT id FROM "WeeklyBrief" ORDER BY id`)).toEqual([{ id: 'b5' }])
 }
 
+/**
+ * The previous release's rows: three runners (one reads distances in kilometres, two in miles), a
+ * plan with a strength session linked to a strength activity, a run linked to a session, and an
+ * unlinked strength activity of another runner. The strength tables are new, so nothing carries
+ * over; the case checks that every row survives the redefine of `User` (the plan rows hang on it
+ * through cascading keys), that `weightUnit` is backfilled per row from the distance unit, that the
+ * four tables start empty, and what each row defaults to, which keys and indexes it has, and how
+ * the cascades behave.
+ */
+function seedStrengthRelease(db: DatabaseSync): void {
+  for (const [id, email, units, displayName] of [
+    ['u1', 'runner@example.com', 'km', 'Sam'],
+    ['u2', 'other@example.com', 'mi', null],
+    ['u3', 'third@example.com', 'mi', 'Alex'],
+  ] as const) {
+    insert(db, 'User', {
+      id,
+      email,
+      passwordHash: 'not-a-real-hash',
+      units,
+      displayName,
+      updatedAt: STAMP,
+    })
+  }
+  insert(db, 'Goal', {
+    id: 'g1',
+    userId: 'u1',
+    name: 'Synthetic half',
+    priority: 'A',
+    targetDate: '2026-12-05',
+    updatedAt: STAMP,
+  })
+  insert(db, 'Plan', {
+    id: 'p1',
+    userId: 'u1',
+    goalId: 'g1',
+    name: 'Synthetic plan',
+    startDate: '2026-10-19',
+    raceWeekStart: '2026-11-30',
+    status: 'active',
+    generatorVersion: 2,
+    updatedAt: STAMP,
+  })
+  // [id, user, type, date, duration]
+  const activities: Array<[string, string, string, string, number]> = [
+    ['a1', 'u1', 'run', '2026-10-20', 2700],
+    ['a2', 'u1', 'strength', '2026-10-21', 2400],
+    ['a3', 'u2', 'strength', '2026-10-21', 1800],
+  ]
+  for (const [id, userId, type, date, durationSec] of activities) {
+    insert(db, 'Activity', { id, userId, type, date, durationSec, updatedAt: STAMP })
+  }
+  // [id, kind, date, activity]: a run and a strength session, each fulfilled by its activity.
+  const sessions: Array<[string, string, string, string]> = [
+    ['s1', 'easy', '2026-10-20', 'a1'],
+    ['s2', 'strength', '2026-10-21', 'a2'],
+  ]
+  sessions.forEach(([id, kind, date, activityId], i) => {
+    insert(db, 'PlanSession', {
+      id,
+      planId: 'p1',
+      externalId: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+      weekStart: '2026-10-19',
+      date,
+      order: 0,
+      kind,
+      title: `Synthetic session ${id}`,
+      durationMin: 40,
+      target: TARGET,
+      purpose: 'Synthetic.',
+      status: 'completed',
+      activityId,
+      linkSource: 'owner',
+      updatedAt: STAMP,
+    })
+  })
+}
+
+function verifyStrength(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // The redefine of User kept the plan, the session links and the activities that hang on it.
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "Activity"')).toEqual([{ n: 3 }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "Plan"')).toEqual([{ n: 1 }])
+  expect(rowsOf(db, `SELECT id, "activityId" FROM "PlanSession" ORDER BY id`)).toEqual([
+    { id: 's1', activityId: 'a1' },
+    { id: 's2', activityId: 'a2' },
+  ])
+  expectIndex(db, 'User', ['email'], true)
+
+  // The unit follows the distance unit, per row: kilometres give kilograms, anything else pounds.
+  expect(rowsOf(db, 'SELECT id, units, "weightUnit" FROM "User" ORDER BY id')).toEqual([
+    { id: 'u1', units: 'km', weightUnit: 'kg' },
+    { id: 'u2', units: 'mi', weightUnit: 'lb' },
+    { id: 'u3', units: 'mi', weightUnit: 'lb' },
+  ])
+  // A runner added afterwards, who chose nothing, reads pounds.
+  insert(db, 'User', {
+    id: 'u4',
+    email: 'new@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  expect(rowsOf(db, `SELECT "weightUnit" FROM "User" WHERE id = 'u4'`)).toEqual([
+    { weightUnit: 'lb' },
+  ])
+
+  // No strength row exists: the strength activity of the previous release has no sets.
+  for (const table of ['StrengthSettings', 'StrengthLift', 'StrengthLog', 'StrengthSet']) {
+    expect(tableNames(db)).toContain(table)
+    expect(rowsOf(db, `SELECT count(*) AS n FROM "${table}"`), table).toEqual([{ n: 0 }])
+  }
+  expectIndex(db, 'StrengthLift', ['userId', 'exerciseId'], true)
+  expectIndex(db, 'StrengthLog', ['activityId'], true)
+  expectIndex(db, 'StrengthLog', ['userId'], false)
+  expectIndex(db, 'StrengthSet', ['logId', 'position'], false)
+  expectIndex(db, 'StrengthSet', ['userId', 'exerciseId'], false)
+
+  // One settings row per user. A row written with nothing else takes the defaults, and `savedAt`
+  // stays empty until the runner saves the setup.
+  insert(db, 'StrengthSettings', { userId: 'u1', updatedAt: STAMP })
+  expect(rowsOf(db, `SELECT * FROM "StrengthSettings" WHERE "userId" = 'u1'`)[0]).toMatchObject({
+    equipment: '[]',
+    level: 'new',
+    currentlyLifting: 0,
+    avoid: '[]',
+    pinned: '{}',
+    note: null,
+    savedAt: null,
+  })
+  expect(() => {
+    insert(db, 'StrengthSettings', { userId: 'u1', updatedAt: STAMP })
+  }).toThrow(/UNIQUE/)
+  expect(() => {
+    insert(db, 'StrengthSettings', { userId: 'missing', updatedAt: STAMP })
+  }).toThrow(/FOREIGN KEY/)
+
+  // One starting point per exercise and runner.
+  const lift = {
+    userId: 'u1',
+    exerciseId: 'back-squat',
+    kind: 'set',
+    loadG: 61235,
+    reps: 5,
+    asOf: '2026-10-20',
+    updatedAt: STAMP,
+  }
+  insert(db, 'StrengthLift', { id: 'l1', ...lift })
+  expect(rowsOf(db, `SELECT rir FROM "StrengthLift" WHERE id = 'l1'`)).toEqual([{ rir: null }])
+  expect(() => {
+    insert(db, 'StrengthLift', { id: 'l2', ...lift })
+  }).toThrow(/UNIQUE/)
+  insert(db, 'StrengthLift', { id: 'l3', ...lift, exerciseId: 'goblet-squat' })
+  insert(db, 'StrengthLift', { id: 'l4', ...lift, userId: 'u2' })
+
+  // A log belongs to one runner and one activity, and its id is the client's. A second log for the
+  // same activity is refused whatever its id.
+  const log = { userId: 'u1', activityId: 'a2', prescribed: '{}', updatedAt: STAMP }
+  insert(db, 'StrengthLog', { id: 'client-chosen-uuid-0001', ...log })
+  expect(() => {
+    insert(db, 'StrengthLog', { id: 'client-chosen-uuid-0002', ...log })
+  }).toThrow(/UNIQUE/)
+  expect(() => {
+    insert(db, 'StrengthLog', { id: 'client-chosen-uuid-0003', ...log, activityId: 'missing' })
+  }).toThrow(/FOREIGN KEY/)
+  insert(db, 'StrengthLog', {
+    id: 'client-chosen-uuid-0004',
+    ...log,
+    userId: 'u2',
+    activityId: 'a3',
+  })
+  expect(
+    rowsOf(db, `SELECT "createdAt" FROM "StrengthLog" WHERE id = 'client-chosen-uuid-0001'`)[0]
+      ?.createdAt,
+    'createdAt defaults to now',
+  ).not.toBeNull()
+
+  // Sets: a bodyweight set has no load and a set may leave the reps left empty.
+  const set = { logId: 'client-chosen-uuid-0001', userId: 'u1', exerciseId: 'back-squat', count: 5 }
+  insert(db, 'StrengthSet', { id: 'x1', ...set, position: 0, loadG: 61235, rir: 2 })
+  insert(db, 'StrengthSet', { id: 'x2', ...set, position: 1, exerciseId: 'dead-bug', count: 10 })
+  expect(rowsOf(db, `SELECT "loadG", rir FROM "StrengthSet" WHERE id = 'x2'`)).toEqual([
+    { loadG: null, rir: null },
+  ])
+  expect(() => {
+    insert(db, 'StrengthSet', { id: 'x3', ...set, logId: 'missing', position: 2 })
+  }).toThrow(/FOREIGN KEY/)
+
+  const keys = (table: string) =>
+    rowsOf(db, `PRAGMA foreign_key_list("${table}")`)
+      .map((k) => ({ from: k.from, table: k.table, onDelete: k.on_delete }))
+      .sort((a, b) => String(a.from).localeCompare(String(b.from)))
+  expect(keys('StrengthLog')).toEqual([
+    { from: 'activityId', table: 'Activity', onDelete: 'CASCADE' },
+    { from: 'userId', table: 'User', onDelete: 'CASCADE' },
+  ])
+  expect(keys('StrengthSet')).toEqual([
+    { from: 'logId', table: 'StrengthLog', onDelete: 'CASCADE' },
+    { from: 'userId', table: 'User', onDelete: 'CASCADE' },
+  ])
+
+  // Deleting an activity deletes its log and the log's sets; the session keeps its row.
+  db.exec(`DELETE FROM "Activity" WHERE id = 'a2'`)
+  expect(rowsOf(db, `SELECT id FROM "StrengthLog" ORDER BY id`)).toEqual([
+    { id: 'client-chosen-uuid-0004' },
+  ])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "StrengthSet"')).toEqual([{ n: 0 }])
+  expect(rowsOf(db, `SELECT "activityId" FROM "PlanSession" WHERE id = 's2'`)).toEqual([
+    { activityId: null },
+  ])
+
+  // Everything goes with the runner; the other runner's rows stay.
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, 'SELECT "userId" FROM "StrengthLift" ORDER BY id')).toEqual([{ userId: 'u2' }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "StrengthSettings"')).toEqual([{ n: 0 }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "StrengthLog"')).toEqual([{ n: 1 }])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -1430,6 +1649,11 @@ const CASES: FixtureCase[] = [
     migration: 'weekly_brief',
     seed: seedPlansForWindows,
     verify: verifyWeeklyBrief,
+  },
+  {
+    migration: 'strength',
+    seed: seedStrengthRelease,
+    verify: verifyStrength,
   },
 ]
 

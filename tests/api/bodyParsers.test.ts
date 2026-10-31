@@ -31,7 +31,7 @@ interface Answer {
 }
 
 /**
- * One POST over a plain socket. Superagent asks for `Connection: close`, and a server that answers
+ * One POST (or another `method`) over a plain socket. Superagent asks for `Connection: close`, and a server that answers
  * before it has read a large body then closes the socket under the writer (`EPIPE`); an ordinary
  * client keeps the connection alive and receives the answer. These tests need the answer.
  */
@@ -40,6 +40,7 @@ function post(
   text: string,
   headers: Record<string, string> = {},
   sameOrigin = true,
+  method = 'POST',
 ): Promise<Answer> {
   const body = Buffer.from(text)
   return new Promise((resolve, reject) => {
@@ -47,7 +48,7 @@ function post(
     const request = http.request(
       {
         port: (server.address() as AddressInfo).port,
-        method: 'POST',
+        method,
         path,
         headers: {
           'content-type': 'application/json',
@@ -90,6 +91,20 @@ describe('request pipeline: parsers run after authentication', () => {
     expect(res.status).toBe(401)
     expect(res.body.error?.code).toBe('unauthorized')
   })
+
+  test.each([
+    ['PUT', '/api/strength/settings'],
+    ['PUT', '/api/strength/logs/00000000-0000-4000-8000-000000000001'],
+  ])(
+    'an anonymous %s %s with a body of 2 MB is 401, and a signed-in one 413',
+    async (method, path) => {
+      const anonymous = await post(path, json(2 * MB), {}, true, method)
+      expect(anonymous.status).toBe(401)
+      expect(anonymous.body.error?.code).toBe('unauthorized')
+      const signedIn = await post(path, json(2 * MB), { cookie: user.cookie }, true, method)
+      expect(signedIn.status).toBe(413)
+    },
+  )
 
   test('an anonymous body that is not JSON is 401, and a signed-in one is 400', async () => {
     const anonymous = await post('/api/activities', '{"date":')

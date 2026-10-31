@@ -30,7 +30,12 @@ vi.mock('../../web/components/WhyDrawer.tsx', () => ({
     ) : null,
 }))
 
-const miUser: UserSettings = { email: 'runner@example.com', displayName: null, units: 'mi' }
+const miUser: UserSettings = {
+  email: 'runner@example.com',
+  displayName: null,
+  units: 'mi',
+  weightUnit: 'lb',
+}
 const kmUser: UserSettings = { ...miUser, units: 'km' }
 
 function makeGoal(over: Partial<Goal> = {}): Goal {
