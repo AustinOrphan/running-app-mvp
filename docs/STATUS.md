@@ -1328,7 +1328,8 @@ things stand" gives counts and percentages without a weekly total or a date.
     (ADR 0003) and speeds stay per-session guides. The easy pace is the middle of the Z1 pace range
     of the current zones; with no pace in the zones the recent logged pace stands in ("about N mi
     at your recent pace"); see "Decisions for the owner". Merged as #560 on 2026-10-24.
-18. Strength programming as the first phase 3b epic (the owner's direction, 2026-10-23): an
+18. Done 2026-10-31 in #NNN (task C2; the closing paragraph is the last of this item). Strength
+    programming as the first phase 3b epic (the owner's direction, 2026-10-23): an
     exercise library and session templates by phase from rules H10 and F4 (heavy lifting at 80%
     or more of one-rep max, 2-4 exercises of 3-4 sets of 3-6 reps, calf raises and plyometrics,
     eccentric-biased work in the block, one session a week to maintain), per-set weight, reps
@@ -1533,6 +1534,63 @@ things stand" gives counts and percentages without a weekly total or a date.
     what every write of a strength model drops. This closes the test line of follow-up 18. Gates:
     `npm run check` (267 files and 15266 tests), `npm run build` (entry chunk 376.17 kB),
     `npm run test:e2e` (100, twice in a row). Next: task C2.
+    C2 done in #NNN (2026-10-31): the epic is closed. What shipped, by wave: wave 0 (#572) the
+    research base, rules F7 to F9 with their Params and ADR 0014; wave 1 (#574, #576) the
+    25-exercise catalogue with weights in grams and the copy, and the block anchored in the engine
+    with budgets of 40 and 25 minutes; wave 2 (#580, #581) the pure strength engine and the
+    `strength` migration with its routes; wave 3 (#584, #586) the server read side (the
+    `strength.state` memo, the explain subject, Today's `coach.slots.strength`) and the web
+    foundations with the logging sheet; wave 4 (#588, #589) the strength hero and the session sheet
+    on Today, and the Strength page with the setup, Settings and More; wave 5 (#592, #593, #594,
+    #595) the Review lines and the count prompt, the day-workout read with Swap and Add a lift, the
+    Today setup card and the sets on the activity page, the sets count in the list and the note for
+    a day with no heavy lifting, and the e2e, narrow-viewport and offline cases. ADR 0014 is
+    Accepted and the design reads Implemented. Contract-drift review (repository searches, read-only
+    first): no second weight formatter or arithmetic on grams in `web/` beside
+    `shared/domain/weight.ts`, no second estimated-maximum formula beside `estimateOneRm`, no second
+    block counter beside `strengthBlockPosition` (the planner's `pastStrengthBlock` counts the run
+    before a re-plan, not a position, and both are in `macro.ts`), no second exercise list beside
+    `shared/domain/strengthLibrary.ts`, no second budget rule beside `strengthMinutes`, no second
+    derivation of the workout beside `workoutFor` and `liftFor`, and no second purge beside
+    `purgeDeviceData` and `purgeDrafts`. The one leftover was the Why drawer's loads, which read in
+    the default unit (recorded under wave 3): the drawer now takes the weight unit from
+    `useStrengthUnits()` and passes it through `InputFacts`, with a test in kilograms, in pounds and
+    on a settings payload without the unit. CLAUDE.md names the six conventions of the epic (the one
+    derivation of the workout, grams and the one formatter, the closed catalogue, the one save of a
+    log with the drafts purged together, the `strength.state` memo, the stack-aware `Sheet`). Final
+    gates, on `main` at `2c7aabcc` with this task's commits: `npm run check` (269 test files, 15428
+    tests; `research:check ok: 396 papers, 398 cited ids all resolve`), `npm run build` (entry chunk
+    376.68 kB), `npm run test:e2e` (100 passed), `npx prettier --check .` and `docker build .` (also
+    with `--no-cache`, so the `prisma migrate deploy` smoke step ran), all clean. Final owner
+    validation (run by the coordinator outside the repository, where the baselines are kept): the
+    steady plan on the real history at the epic's close is byte-identical to the load-progression
+    baseline taken after wave 1 (`owner-plan-c3`). Against the epic's start (`owner-plan-c2`, before
+    any strength change) the only differences are the ones task E14-3 made: the strength sessions of
+    block weeks are 40 minutes with rule F7 instead of 30 without it, one strength session was added
+    in the first block week (the anchored block starts at once), and the block weeks' strength days
+    moved one day earlier under F4's placement (never the day before the long run). Weekly run
+    minutes, long runs and every run session are unchanged. Manual checks still open: a real session
+    logged on a phone in a gym, with and without a connection (the e2e drives a browser with the
+    connection cut, not a phone); and the wrist path, which strength does not touch (no commit of
+    the epic changes the publish, workouts, workoutFit, wristItems or calendar service,
+    `shared/workouts/` or the intervals.icu and Garmin providers), stays on the phase 3a list: the
+    FIT files on the owner's watch and one live intervals.icu run. Owner questions still open: the
+    sixteen questions of section 18 of the spec are answered, and its six readings of the answers
+    stand as the smallest reading of the owner's words until overruled: reading 1, "switchable"
+    equipment means editable at any time (no named home and gym sets); reading 2, the weight unit is
+    per runner and the Profile's body weight stays in kilograms (a unit-aware Profile is a small
+    follow-up the owner may want); reading 3, the history view of the estimated maximum is the
+    Strength page; reading 4, a completed running week is 80% of the planned run minutes; reading 5,
+    "after the ramp-in" excludes the return weeks; reading 6, the bar is judged on the lower-body
+    programme. Three questions from wave 0 have no answer recorded: the A/B alternation of
+    straight-knee and bent-knee calf raises, the two bodyweight movements entered at no added load,
+    and the 40 minutes of a lighter week against the 25 of spec 5.4. Questions 1 to 3 (equipment,
+    lifting level, weight unit) are entered in the app by the owner; this file records no such
+    entry. The owner judges the bar of spec section 1.4 (pre-filled sets, sub-minute logging, a
+    per-lift history with the estimated maximum, suggestions with reasons) after a month of use; the
+    e2e asserts the interaction counts (3 as suggested, 12 with two changed sets and a reps-left
+    value per lift), which is not the judgement. If the bar is not met, the first additions are a
+    rest timer and a plate calculator, in a later task that the design does not plan.
 19. Done in #567: the Today disruption presentation, from the owner's feedback of 2026-10-24 on
     Today with an illness window. (a) The band owns the window and the verdict names the day: while
     the illness windows hold the n-3 gate, the payload leaves out the illness note and the illness
