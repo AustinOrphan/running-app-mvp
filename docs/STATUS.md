@@ -3,7 +3,7 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-10-25.
+Last update: 2026-10-31.
 
 ## Where things stand
 
