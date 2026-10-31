@@ -1,9 +1,9 @@
-// The strength API, the write side and the list of logs (strength design 9.4 and 9.5; ADR 0014):
-// the setup, the runner's starting points and the logs of their sessions. Mounted under
-// `requireAuth` and under the general JSON parser, which sits below it (CLAUDE.md, request order):
-// an anonymous request is a 401 before any byte of a body is read. Zod parses every body and query
-// (400 with a path per field); another runner's record is 404; a conflict is 409. The read side of
-// the epic (`GET /api/strength`, workouts, one exercise's history) is task E14-6.
+// The strength API (strength design 9.4 and 9.5; ADR 0014): the setup, the runner's starting
+// points, the logs of their sessions, and the three reads of the epic (the page view, the workouts
+// of a span of days, the history of one exercise). Mounted under `requireAuth` and under the
+// general JSON parser, which sits below it (CLAUDE.md, request order): an anonymous request is a
+// 401 before any byte of a body is read. Zod parses every body and query (400 with a path per
+// field); another runner's record is 404; a conflict is 409.
 import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
@@ -22,6 +22,7 @@ import {
   STRENGTH_LOGS_MAX_DAYS,
   STRENGTH_SETS_MAX,
   STRENGTH_SNAPSHOT_MAX_CHARS,
+  STRENGTH_WORKOUTS_MAX_DAYS,
 } from '../../shared/limits.ts'
 import type {
   EquipmentKind,
@@ -37,6 +38,9 @@ import {
   saveStrengthLift,
   saveStrengthLog,
   saveStrengthSettings,
+  strengthExerciseView,
+  strengthView,
+  strengthWorkouts,
   type StrengthLiftInput,
   type StrengthLogInput,
   type StrengthLogQuery,
@@ -367,6 +371,24 @@ const logsQuerySchema = z
     return { from: query.from, to: query.to }
   })
 
+/** The reads that take no query: an unknown parameter is a mistake worth a 400. */
+const noQuery = z.strictObject({})
+
+/** The span of the workouts: both ends, in order, and at most `STRENGTH_WORKOUTS_MAX_DAYS` apart. */
+const workoutsQuerySchema = z
+  .strictObject({ from: dayText, to: dayText })
+  .transform((query, ctx) => {
+    const fail = (path: string, message: string) => {
+      ctx.issues.push({ code: 'custom', path: [path], message, input: query })
+      return z.NEVER
+    }
+    if (query.from > query.to) return fail('from', 'Use a start day on or before the end day.')
+    if (daysBetween(query.from, query.to) > STRENGTH_WORKOUTS_MAX_DAYS) {
+      return fail('to', `Ask for at most ${String(STRENGTH_WORKOUTS_MAX_DAYS)} days at a time.`)
+    }
+    return query
+  })
+
 // ---------------------------------------------------------------------------------------------
 // The router
 // ---------------------------------------------------------------------------------------------
@@ -374,6 +396,24 @@ const logsQuerySchema = z
 export function strengthRouter(deps: Deps): Router {
   const { prisma } = deps
   const router = Router()
+
+  router.get('/', async (req, res) => {
+    parse(noQuery, req.query)
+    res.json(await strengthView(deps, { userId: req.userId, today: todayIso() }))
+  })
+
+  router.get('/workouts', async (req, res) => {
+    const { from, to } = parse(workoutsQuerySchema, req.query)
+    res.json(await strengthWorkouts(deps, { userId: req.userId, today: todayIso(), from, to }))
+  })
+
+  router.get('/exercises/:exerciseId', async (req, res) => {
+    parse(noQuery, req.query)
+    const { exerciseId: id } = parse(z.object({ exerciseId }), req.params)
+    res.json(
+      await strengthExerciseView(deps, { userId: req.userId, today: todayIso(), exerciseId: id }),
+    )
+  })
 
   router.put('/settings', async (req, res) => {
     const body = parse(settingsSchema, req.body)

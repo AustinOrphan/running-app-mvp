@@ -5,25 +5,72 @@
 // log keeps a snapshot of what the sheet showed and the sets that were done.
 //
 // Writes go through the data-versioned client and never raise the version themselves: all four
-// strength models are state (`server/dataVersion.ts`). The read side (the workout, the page view,
-// `loadStrengthContext`) is task E14-6.
+// strength models are state (`server/dataVersion.ts`). The read side (the strength state through
+// `memoByVersion`, the workouts, the page view, the Today slot, the suggestions after a save) is at
+// the end of the file (E14-6).
+import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { isToRun } from '../../shared/domain/sessionStatus.ts'
+import { isExerciseId } from '../../shared/domain/strengthLibrary.ts'
+import { aggregateWeeks } from '../../shared/domain/weeks.ts'
+import { plannedMinOf } from '../../shared/engine/limits.ts'
+import { P } from '../../shared/engine/params/index.ts'
+import { illnessPhase, recentPain } from '../../shared/engine/readiness.ts'
+import {
+  blockPosition,
+  liftFor,
+  strengthTemplate,
+  summariseHistory,
+  workoutFor,
+  type LiftHistory,
+} from '../../shared/engine/strength.ts'
+import type {
+  StrengthContext,
+  StrengthLogEntry,
+  StrengthReadiness,
+  StrengthSessionRef,
+  StrengthWeek,
+} from '../../shared/engine/types.ts'
+import { STRENGTH_HISTORY_MAX_SESSIONS } from '../../shared/limits.ts'
 import type {
   EquipmentConfig,
   PinnedSlot,
+  PlanSessionView,
+  StrengthBlockView,
+  StrengthExerciseView,
   StrengthLift,
+  StrengthLiftSummary,
   StrengthLog,
   StrengthLogResult,
+  StrengthNextLoad,
   StrengthSettings,
   StrengthSnapshot,
+  StrengthView,
+  StrengthWorkout,
 } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { conflict, notFound } from '../errors.ts'
-import { toActivity, toStrengthLift, toStrengthLog, toStrengthSettings } from '../serialize.ts'
+import { createLogger } from '../logger.ts'
+import {
+  toActivity,
+  toStrengthLift,
+  toStrengthLog,
+  toStrengthSettings,
+  toWeightUnit,
+} from '../serialize.ts'
 import { createManualActivity, type ManualActivityDb } from './activityStore.ts'
+import {
+  goalModelFor,
+  loadAthleteContext,
+  memoByVersion,
+  type AthleteContext,
+  type SnapshotDeps,
+} from './athleteState.ts'
 import { rematchDuplicates } from './duplicates.ts'
+import { inputFromContext } from './engineInput.ts'
 import { runExecutionQuietly } from './execution.ts'
 import { assertLinkable, linkPlanSession, ownedSession } from './planEngine.ts'
+import { safeMessage } from './syncLog.ts'
 
 // ---------------------------------------------------------------------------------------------
 // Settings and starting points
@@ -183,17 +230,17 @@ function notStrength(): never {
   throw conflict('Sets can be logged only on a strength activity.')
 }
 
-async function readResult(
-  prisma: PrismaClient,
-  userId: string,
-  logId: string,
-): Promise<StrengthLogResult> {
-  const row = await prisma.strengthLog.findFirstOrThrow({
+async function readResult(deps: Deps, userId: string, logId: string): Promise<StrengthLogResult> {
+  const row = await deps.prisma.strengthLog.findFirstOrThrow({
     where: { id: logId, userId },
     include: { sets: true, activity: true },
   })
-  // `next` is the read side's (E14-6): it needs the suggestion rules over the log just saved.
-  return { log: toStrengthLog(row), activity: toActivity(row.activity), next: [] }
+  const log = toStrengthLog(row)
+  return {
+    log,
+    activity: toActivity(row.activity),
+    next: await suggestionsAfterSave(deps, userId, log),
+  }
 }
 
 /** One try at a save; `saveStrengthLog` repeats it once after a race on the same `logId`. */
@@ -241,7 +288,7 @@ async function attemptSave(
           createLogRows(tx, { userId, logId, activityId: activity.id, input }),
       },
     )
-    return { result: await readResult(prisma, userId, logId), created: true }
+    return { result: await readResult(deps, userId, logId), created: true }
   }
 
   const activity = await prisma.activity.findFirst({ where: { id: activityId, userId } })
@@ -280,7 +327,7 @@ async function attemptSave(
   })
   if (matchChanged) await rematchDuplicates(prisma, userId, activityId)
   await tieToPlan(deps, userId, activity, input)
-  return { result: await readResult(prisma, userId, logId), created: !existing }
+  return { result: await readResult(deps, userId, logId), created: !existing }
 }
 
 /**
@@ -363,4 +410,366 @@ export async function listStrengthLogs(
     orderBy: [{ activity: { date: 'desc' } }, { createdAt: 'desc' }],
   })
   return rows.map(toStrengthLog)
+}
+
+// ---------------------------------------------------------------------------------------------
+// The read side (design 5.1, 9.5, 11, 12; E14-6)
+// ---------------------------------------------------------------------------------------------
+//
+// Everything below is derived on read from the logs, the setup and the stored plan, and nothing is
+// stored (ADR 0014). The state the rules read is one memo per data version and day (`strength.state`),
+// so a log, a change of equipment or of unit, or midnight rebuilds it and nothing else does.
+
+/** Weeks of logs the state reads: more than the history windows the rules look back over. */
+export const STRENGTH_STATE_WEEKS = 26
+/** The logged sessions the page lists (design 11.3, part 6). */
+export const STRENGTH_RECENT_LOGS = 30
+/** The weeks of `StrengthView.weeks`, this one included (design 12.2). */
+export const STRENGTH_VIEW_WEEKS = 12
+/** The workouts of `StrengthView.next`. */
+export const STRENGTH_NEXT_WORKOUTS = 3
+
+/**
+ * What the strength reads stand on: the engine's input and the rows it was built from, as the API
+ * serves them. A session counts once (design 9.4): the log of a duplicate, confirmed or possible, is
+ * left out when its original has a log of its own, because the original carries the session. A
+ * confirmation moves the copy's log to the original when that has none, so the log of a confirmed
+ * copy that is read here is one that nothing else stands for, and is counted. Frozen, as every
+ * memoised value is.
+ */
+export interface StrengthState {
+  context: StrengthContext
+  settings: StrengthSettings
+  anchors: StrengthLift[]
+  /** Newest first. */
+  logs: StrengthLog[]
+}
+
+type CountedRow = {
+  activityId: string
+  activity: Pick<ActivityRow, 'duplicateStatus' | 'duplicateOfId'>
+}
+
+/**
+ * The logs that stand for a session of their own (decided 2026-10-31, E14-6; design 9.4). A copy
+ * flagged as a possible or a confirmed duplicate of an activity that has a log is skipped: the
+ * original's log is the session. A copy whose original has none (the runner has not decided, or the
+ * original is not a strength activity) keeps its log, so no session is dropped for want of another
+ * log to stand for it; a dismissed duplicate is a session of its own.
+ */
+function countedOnce<T extends CountedRow>(rows: readonly T[]): T[] {
+  const logged = new Set(rows.map((row) => row.activityId))
+  return rows.filter(({ activity }) => {
+    const copy = activity.duplicateStatus === 'confirmed' || activity.duplicateStatus === 'possible'
+    return !(copy && activity.duplicateOfId !== null && logged.has(activity.duplicateOfId))
+  })
+}
+
+/** The strength sessions of the stored plan, by date and order. */
+export function strengthSessions(athlete: Pick<AthleteContext, 'planSessions'>): PlanSessionView[] {
+  return athlete.planSessions.filter((session) => session.kind === 'strength')
+}
+
+/** A stored session as the strength engine reads it. */
+export function sessionRefOf(
+  session: Pick<PlanSessionView, 'id' | 'date' | 'order' | 'durationMin' | 'rules'>,
+): StrengthSessionRef {
+  return {
+    id: session.id,
+    date: session.date,
+    order: session.order,
+    durationMin: session.durationMin,
+    rules: session.rules,
+  }
+}
+
+/** The goal's pace in km/h (distance over expected duration), without the race-day climate. */
+async function goalPaceKmh(athlete: AthleteContext): Promise<number | null> {
+  if (athlete.goal === null) return null
+  const model = await goalModelFor(athlete, athlete.goal.id, { climate: false })
+  if (model === null || !(model.expectedDurationSec > 0) || !(model.distanceM > 0)) return null
+  return model.distanceM / 1000 / (model.expectedDurationSec / 3600)
+}
+
+/** The stored plan's weeks as the engine reads them, with the run minutes of each week. */
+function strengthWeeks(athlete: AthleteContext): StrengthWeek[] {
+  const weeks = athlete.existing()?.weeks ?? []
+  const rows = aggregateWeeks(
+    athlete.activities,
+    weeks.map((week) => week.weekStart),
+  )
+  return weeks.map((week, i) => ({
+    weekStart: week.weekStart,
+    flags: [...week.flags],
+    phase: week.phase,
+    isRecovery: week.isRecovery,
+    plannedRunMin: plannedMinOf(week),
+    runMin: rows[i]?.runMin ?? 0,
+  }))
+}
+
+/**
+ * The readiness of today as the rules of lighter days read it (design 10.4): the readiness read's
+ * state, the worst recent pain score and the illness phase, the tests J3 applies to runs. The engine
+ * applies it to a session on that day only, so a preview or a past day has no reduction.
+ */
+function strengthReadiness(athlete: AthleteContext): StrengthReadiness {
+  const input = inputFromContext(athlete)
+  return {
+    date: athlete.asOf,
+    state: athlete.readiness.state,
+    pain: recentPain(input, athlete.asOf),
+    illness: illnessPhase(input, athlete.asOf).phase,
+  }
+}
+
+async function buildStrengthState(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string },
+): Promise<StrengthState> {
+  const { prisma } = deps
+  const { userId, today } = args
+  // One round: the four reads of this state and the picture of the runner start together.
+  const [user, settingsRow, liftRows, logRows, athlete] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { weightUnit: true } }),
+    prisma.strengthSettings.findUnique({ where: { userId } }),
+    prisma.strengthLift.findMany({ where: { userId } }),
+    prisma.strengthLog.findMany({
+      where: { userId, activity: { date: { gte: addDays(today, -7 * STRENGTH_STATE_WEEKS) } } },
+      include: { sets: true, activity: true },
+    }),
+    loadAthleteContext(deps, { userId, today }),
+  ])
+  const settings = toStrengthSettings(settingsRow)
+  const anchors = liftRows
+    .map(toStrengthLift)
+    .sort((a, b) => a.exerciseId.localeCompare(b.exerciseId))
+  const logs = countedOnce(logRows)
+    .map(toStrengthLog)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+
+  const { profile } = athlete
+  const context: StrengthContext = {
+    today,
+    weightUnit: toWeightUnit(user?.weightUnit ?? ''),
+    setup: {
+      saved: settings.savedAt !== null,
+      equipment: settings.equipment,
+      level: settings.level,
+      currentlyLifting: settings.currentlyLifting,
+      avoid: settings.avoid,
+      pinned: settings.pinned,
+    },
+    anchors,
+    logs: logs.map((log): StrengthLogEntry => ({
+      id: log.id,
+      activityId: log.activityId,
+      date: log.date,
+      mode: log.prescribed.mode,
+      template: log.prescribed.template,
+      sets: log.sets,
+      lifts: log.prescribed.lifts.map((lift) => ({
+        exerciseId: lift.exerciseId,
+        implement: lift.implement,
+        baseLoadG: lift.baseLoadG,
+      })),
+    })),
+    weeks: strengthWeeks(athlete),
+    sessions: strengthSessions(athlete).map(({ id, date, order }) => ({ id, date, order })),
+    athlete: {
+      age: profile.birthYear === null ? null : Number(today.slice(0, 4)) - profile.birthYear,
+      weightKg: profile.weightKg,
+      risk: {
+        priorBsi: athlete.state.risk.priorBsi,
+        recentInjury: athlete.state.risk.recentInjury,
+      },
+    },
+    goal: { paceKmh: await goalPaceKmh(athlete) },
+    readiness: strengthReadiness(athlete),
+  }
+  return { context, settings, anchors, logs }
+}
+
+/**
+ * The strength state of a runner for a day: the setup, the starting points and the logs of the last
+ * `STRENGTH_STATE_WEEKS` weeks, with the stored plan and the day's readiness from the snapshot,
+ * computed once per data version (`memoByVersion`, `strength.state`). Every write of a strength
+ * model is state, so a save, a delete, a change of equipment or of the weight unit drops it.
+ */
+export function loadStrengthState(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string },
+): Promise<StrengthState> {
+  return memoByVersion(deps, { ...args, name: 'strength.state' }, () =>
+    buildStrengthState(deps, args),
+  )
+}
+
+/** What `workoutFor`, `suggestLoad` and `summariseHistory` read (`loadStrengthState(...).context`). */
+export async function loadStrengthContext(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string },
+): Promise<StrengthContext> {
+  return (await loadStrengthState(deps, args)).context
+}
+
+/** The workouts of the active plan's strength sessions from `from` to `to`, by date and order. */
+export async function strengthWorkouts(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string; from: string; to: string },
+): Promise<StrengthWorkout[]> {
+  const { userId, today } = args
+  const [athlete, context] = await Promise.all([
+    loadAthleteContext(deps, { userId, today }),
+    loadStrengthContext(deps, { userId, today }),
+  ])
+  return strengthSessions(athlete)
+    .filter((session) => session.date >= args.from && session.date <= args.to)
+    .map((session) => workoutFor(context, sessionRefOf(session)))
+}
+
+function liftSummary(lift: LiftHistory): StrengthLiftSummary {
+  return {
+    exerciseId: lift.exerciseId,
+    lastDate: lift.lastDate,
+    gapDays: lift.gapDays,
+    workingLoadG: lift.workingLoadG,
+    estimateG: lift.estimateG,
+    lastChange: lift.lastChange,
+    sessionCount: lift.sessions.length,
+  }
+}
+
+/** The benefit and the separation sentences, as facts over their Params (design 11.6). */
+function pageFacts(): StrengthView['facts'] {
+  const [lo, hi] = P.f7.expectedBenefitPct.value
+  return [
+    {
+      template: 'strength.benefit',
+      slots: { lo: { kind: 'count', n: lo }, hi: { kind: 'percent', pct: hi } },
+    },
+    {
+      template: 'strength.separation',
+      slots: { hours: { kind: 'count', n: P.f4.strengthSeparationHours.value } },
+    },
+  ]
+}
+
+/** `GET /api/strength`: the page of design 11.3 and the weeks of the review (12.2). */
+export async function strengthView(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string },
+): Promise<StrengthView> {
+  const { userId, today } = args
+  const [athlete, state] = await Promise.all([
+    loadAthleteContext(deps, { userId, today }),
+    loadStrengthState(deps, { userId, today }),
+  ])
+  const { context } = state
+  const history = summariseHistory(context)
+  const thisWeek = mondayOf(today)
+  const position = blockPosition(context, thisWeek)
+  const week = context.weeks.find((candidate) => candidate.weekStart === thisWeek)
+  const block: StrengthBlockView | null =
+    position === null
+      ? null
+      : {
+          ...position,
+          template: strengthTemplate(week ?? { flags: [], phase: '', isRecovery: false }, position),
+        }
+  const first = addDays(thisWeek, -7 * (STRENGTH_VIEW_WEEKS - 1))
+  return {
+    asOf: today,
+    settings: state.settings,
+    anchors: [...state.anchors],
+    setupSaved: state.settings.savedAt !== null,
+    block,
+    next: strengthSessions(athlete)
+      .filter((session) => session.date >= today && isToRun(session.status))
+      .slice(0, STRENGTH_NEXT_WORKOUTS)
+      .map((session) => workoutFor(context, sessionRefOf(session))),
+    recent: state.logs.slice(0, STRENGTH_RECENT_LOGS),
+    lifts: history.lifts.map(liftSummary),
+    weeks: history.weeks.filter((w) => w.weekStart >= first && w.weekStart <= thisWeek),
+    lowCountWeeks: history.lowCountWeeks,
+    countPrompt: history.countPrompt,
+    facts: pageFacts(),
+  }
+}
+
+/** `GET /api/strength/exercises/:id`: every logged session of one exercise, newest first. */
+export async function strengthExerciseView(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string; exerciseId: string },
+): Promise<StrengthExerciseView> {
+  const state = await loadStrengthState(deps, args)
+  const lift = summariseHistory(state.context).lifts.find(
+    (candidate) => candidate.exerciseId === args.exerciseId,
+  )
+  return {
+    exerciseId: args.exerciseId,
+    anchor: state.anchors.find((anchor) => anchor.exerciseId === args.exerciseId) ?? null,
+    summary: lift === undefined ? null : liftSummary(lift),
+    sessions: lift === undefined ? [] : lift.sessions.slice(0, STRENGTH_HISTORY_MAX_SESSIONS),
+  }
+}
+
+/**
+ * The suggestion for next time for each exercise with sets in the log just saved (design 9.5): the
+ * next planned strength session that is still to be done, else the maintenance of the day after
+ * today, as the rules give its lifts now. A lift the rules move to a harder movement names that one.
+ */
+async function nextLoads(
+  deps: Deps,
+  userId: string,
+  log: StrengthLog,
+): Promise<StrengthNextLoad[]> {
+  const today = todayIso()
+  const [athlete, context] = await Promise.all([
+    loadAthleteContext(deps, { userId, today }),
+    loadStrengthContext(deps, { userId, today }),
+  ])
+  const ahead = strengthSessions(athlete).find(
+    (session) => session.date > log.date && session.date >= today && isToRun(session.status),
+  )
+  const ref: StrengthSessionRef =
+    ahead !== undefined
+      ? sessionRefOf(ahead)
+      : {
+          id: log.id,
+          date: addDays(log.date > today ? log.date : today, 1),
+          order: 0,
+          durationMin: P.f7.maintenanceSessionMin.value,
+          rules: [],
+        }
+  const seen = new Set<string>()
+  const next: StrengthNextLoad[] = []
+  for (const set of log.sets) {
+    if (seen.has(set.exerciseId) || !isExerciseId(set.exerciseId)) continue
+    seen.add(set.exerciseId)
+    const lift = liftFor(context, ref, set.exerciseId)
+    if (lift !== null)
+      next.push({ exerciseId: lift.exerciseId, change: lift.change, loadG: lift.loadG })
+  }
+  return next
+}
+
+/**
+ * `nextLoads`, or none when they cannot be worked out: the save is stored by now, and a refusal
+ * after the write would show the runner an error for a session that is saved.
+ */
+async function suggestionsAfterSave(
+  deps: Deps,
+  userId: string,
+  log: StrengthLog,
+): Promise<StrengthNextLoad[]> {
+  try {
+    return await nextLoads(deps, userId, log)
+  } catch (error) {
+    createLogger(deps.config).warn(
+      { reason: safeMessage(error) },
+      'the suggestions after a strength save could not be worked out',
+    )
+    return []
+  }
 }

@@ -1,6 +1,7 @@
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
+import type { HistorySession, LiftHistory, WeekHistory } from './engine/strength.ts'
 import type {
   AthleteState,
   BriefDecision,
@@ -1846,8 +1847,92 @@ export interface StrengthLogResult {
   log: StrengthLog
   activity: Activity
   /**
-   * For each lift of the session, the suggestion for next time, so the client can say "Next time:
-   * back squat up to 115 lb" with a template. Empty until the read side (E14-6) fills it.
+   * For each exercise with sets in the log, the suggestion for the next planned strength session
+   * as the rules give it now (design 9.5), so the client can say "Next time: back squat up to 115
+   * lb" with a template. A lift the rules move to a harder movement names that movement. Empty
+   * when the suggestions could not be worked out; the save is stored either way.
    */
   next: StrengthNextLoad[]
+}
+
+// ---- Strength reads (phase 3b, section 9.5; E14-6) ----------------------------------------------
+//
+// What `GET /api/strength`, `GET /api/strength/workouts` and `GET /api/strength/exercises/:id`
+// answer. Everything is derived on read from the logs and the stored plan (design 12.1): nothing is
+// stored, loads are grams and the server sends data, never prose.
+
+/** Where the current week stands in its strength block (design 8.3, 11.3). */
+export interface StrengthBlockView {
+  /** Week k of n of the block. */
+  week: number
+  of: number
+  /** The weeks of the ramp-in; zero when a regenerate skipped it (design 8.3). */
+  rampInWeeks: number
+  /** The template of the current week. */
+  template: StrengthTemplate
+}
+
+/** One exercise of the Lifts list (design 11.3, part 4); its sessions are `StrengthExerciseView`. */
+export interface StrengthLiftSummary {
+  exerciseId: string
+  /** The day of the latest session of any mode. */
+  lastDate: string
+  /** Days from that session to the server's day. */
+  gapDays: number
+  /** The working load of the latest `normal` session; null for a movement with no added load. */
+  workingLoadG: number | null
+  /** The estimated maximum: a label, never a test, and never shown on Today (design 6.3). */
+  estimateG: number | null
+  /** The last move of the working load between two `normal` sessions; null when it has not moved. */
+  lastChange: LiftHistory['lastChange']
+  /** How many sessions of the exercise are in the logs read (the last 26 weeks). */
+  sessionCount: number
+}
+
+/** The answer to `GET /api/strength` (design 9.5, 11.3, 12.2). */
+export interface StrengthView {
+  /** The server's day the view is for. */
+  asOf: string
+  settings: StrengthSettings
+  /** The starting points the runner entered. */
+  anchors: StrengthLift[]
+  /** False until the runner has saved the setup: the page then offers "Set up strength". */
+  setupSaved: boolean
+  /** Null in a week outside a block. */
+  block: StrengthBlockView | null
+  /**
+   * The workouts of the next planned strength sessions (today's included while it is still to be
+   * done), soonest first, each as the rules give it now: a future session is "as of today".
+   */
+  next: StrengthWorkout[]
+  /** The logged sessions of the last 26 weeks, newest first, at most 30, with their sets. */
+  recent: StrengthLog[]
+  /** The exercises with a logged set, the latest first. */
+  lifts: StrengthLiftSummary[]
+  /**
+   * The weeks with a planned or a logged session from 11 weeks before this one to this one, oldest
+   * first: the sessions planned and logged, the sets, and the lifts whose load moved (the weekly
+   * review's lines, design 12.2).
+   */
+  weeks: WeekHistory[]
+  /** Finished weeks in a row with fewer sessions logged than planned (design 12.4). */
+  lowCountWeeks: number
+  /** The page may ask whether to plan fewer a week (`f9.countPromptWeeks`). */
+  countPrompt: boolean
+  /**
+   * The facts of the sentences that restate a Param (design 11.6): the benefit sentence and the
+   * separation from a run. The page renders them with `renderFact`, in the runner's units.
+   */
+  facts: SuggestionBasis['facts']
+}
+
+/** The answer to `GET /api/strength/exercises/:id`: the history of one exercise (design 11.3, part 5). */
+export interface StrengthExerciseView {
+  exerciseId: string
+  /** The starting point the runner entered for it, if any. */
+  anchor: StrengthLift | null
+  /** Null while the exercise has no logged set. */
+  summary: StrengthLiftSummary | null
+  /** Newest first, at most 60, each with its sets and its estimated maximum. */
+  sessions: HistorySession[]
 }

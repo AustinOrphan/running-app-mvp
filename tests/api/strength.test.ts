@@ -1,10 +1,14 @@
+import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { strengthTypeLockedMessage } from '../../shared/copy/strengthTemplates.ts'
+import { renderFact } from '../../shared/copy/templates.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { EXERCISES } from '../../shared/domain/strengthLibrary.ts'
+import { P } from '../../shared/engine/params/index.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
-import { memoByVersion } from '../../server/services/athleteState.ts'
+import { loadAthleteContext } from '../../server/services/athleteState.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
+import { loadStrengthContext, loadStrengthState } from '../../server/services/strength.ts'
 import type {
   Activity,
   EquipmentConfig,
@@ -12,8 +16,11 @@ import type {
   StrengthLift,
   StrengthLog,
   StrengthLogResult,
+  StrengthExerciseView,
   StrengthSettings,
   StrengthSnapshot,
+  StrengthView,
+  StrengthWorkout,
 } from '../../shared/types.ts'
 import { days, only, planFixture, type Fixture } from './adjustFixture.ts'
 import {
@@ -25,8 +32,9 @@ import {
   type TestUser,
 } from './helpers.ts'
 
-// The write side of the strength API (strength design 9.4 and 9.5): the setup, the starting points
-// and the idempotent log save. The read side is task E14-6.
+// The strength API (strength design 9.4 and 9.5): the setup, the starting points, the idempotent log
+// save, and the read side (E14-6): the strength state, the workouts, the page view, one lift's
+// history, the Today slot and the suggestions after a save.
 
 let ctx: TestCtx
 let seeded = 0
@@ -463,8 +471,9 @@ describe('PUT /api/strength/logs/:logId, a new session', () => {
       prescribed: snapshot(),
     })
     expect(log.sets).toEqual(SETS.map((set, position) => ({ ...set, position })))
-    // The read side fills the suggestions (E14-6); the save has none to give yet.
-    expect(next).toEqual([])
+    // The suggestions for the next session have their own tests (`the suggestions after a save`).
+    // No barbell is saved, so the squat is not one the rules can suggest; the calf raise is.
+    expect(next.map((entry) => entry.exerciseId)).toEqual(['standing-calf-raise'])
 
     expect(await ctx.prisma.activity.count({ where: { userId: user.id } })).toBe(1)
     const sets = await ctx.prisma.strengthSet.findMany({
@@ -1032,14 +1041,10 @@ describe('GET /api/strength/logs', () => {
 })
 
 describe('the data version', () => {
-  test('moves on every write, so a memo of the strength state drops', async () => {
+  test('moves on every write, so the memo of the strength state drops', async () => {
     const user = await newUser()
-    let computed = 0
-    const read = () =>
-      memoByVersion(ctx, { userId: user.id, name: 'strength.state', today: todayIso() }, () => {
-        computed += 1
-        return computed
-      })
+    // The state is one object per version: a read that finds the memo returns the same one.
+    const read = () => loadStrengthState(ctx, { userId: user.id, today: todayIso() })
     const writes: Array<[string, () => Promise<unknown>]> = [
       ['the setup', () => client(ctx, user).put('/api/strength/settings').send({ level: 'some' })],
       [
@@ -1065,7 +1070,7 @@ describe('the data version', () => {
       expect(res.status, name).toBeLessThan(300)
       expect((await dataVersionKey(ctx.prisma)).key, name).not.toBe(before)
       const next = await read()
-      expect(next, `${name} drops the memo`).toBeGreaterThan(seen)
+      expect(next, `${name} drops the memo`).not.toBe(seen)
       seen = next
     }
     // Nothing moved between two reads: the memo holds.
@@ -1451,5 +1456,1075 @@ describe('the catalogue and the API agree', () => {
         .send({ kind: 'max', loadG: 1000 })
       expect(res.status, exercise.id).toBe(200)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The read side (E14-6): the strength state, the workouts, the page view and one lift's history
+// ---------------------------------------------------------------------------------------------
+
+const PLAN_TARGET = JSON.stringify({
+  zone: 'z1',
+  rpe: [2, 3],
+  hr: null,
+  paceSecPerKm: null,
+  heatNote: null,
+})
+const STRENGTH_RULES = ['F-lib', 'F4', 'E5', 'F7']
+
+interface SeedSession {
+  date: string
+  kind?: string
+  min?: number
+  status?: string
+  rules?: string[]
+  activityId?: string
+}
+
+/**
+ * A version-2 plan of 16 weeks (six behind this one, nine ahead) with hand-made sessions, so each
+ * test controls what is planned. The first `block` weeks carry the strength block flag: the current
+ * week is week 7 of 12 by default, after a ramp-in of three weeks, so its template is `heavy`.
+ */
+async function seedPlan(
+  user: TestUser,
+  sessions: SeedSession[],
+  seed: { block?: number; distanceM?: number; targetTimeSec?: number } = {},
+) {
+  const { thisMonday } = days()
+  const goal = await ctx.prisma.goal.create({
+    data: {
+      userId: user.id,
+      name: 'Synthetic race',
+      priority: 'A',
+      targetDate: addDays(thisMonday, 7 * 14 + 5),
+      distanceM: seed.distanceM ?? 21_097,
+      ...(seed.targetTimeSec === undefined
+        ? {}
+        : { goalType: 'time', targetTimeSec: seed.targetTimeSec }),
+    },
+  })
+  const starts = Array.from({ length: 16 }, (_, i) => addDays(thisMonday, 7 * (i - 6)))
+  const plan = await ctx.prisma.plan.create({
+    data: {
+      userId: user.id,
+      goalId: goal.id,
+      name: goal.name,
+      startDate: starts[0]!,
+      raceWeekStart: mondayOf(goal.targetDate),
+      generatorVersion: 2,
+      weeks: {
+        create: starts.map((weekStart, index) => ({
+          weekStart,
+          index,
+          phase: 'build',
+          baselineRunMin: 200,
+          targetRunMin: 200,
+          longRunMin: 70,
+          runDays: 4,
+          strengthSessions: 2,
+          flags: JSON.stringify(index < (seed.block ?? 12) ? ['strength-block'] : []),
+        })),
+      },
+    },
+  })
+  const rows = []
+  for (const [i, s] of sessions.entries()) {
+    const kind = s.kind ?? 'strength'
+    rows.push(
+      await ctx.prisma.planSession.create({
+        data: {
+          planId: plan.id,
+          externalId: randomUUID(),
+          weekStart: mondayOf(s.date),
+          date: s.date,
+          order: i,
+          kind,
+          title: kind === 'strength' ? 'Strength' : `${kind} session`,
+          durationMin: s.min ?? (kind === 'strength' ? 40 : 45),
+          structure: '[]',
+          target: PLAN_TARGET,
+          purpose: 'Synthetic.',
+          rules: JSON.stringify(s.rules ?? (kind === 'strength' ? STRENGTH_RULES : [])),
+          status: s.status ?? 'planned',
+          activityId: s.activityId ?? null,
+        },
+      }),
+    )
+  }
+  return { plan, goal, rows }
+}
+
+/** The runner's profile: a body weight and a birth year, as the first load and the age read them. */
+const seedProfile = (user: TestUser, over: Record<string, unknown> = {}) =>
+  ctx.prisma.athleteProfile.create({
+    data: { userId: user.id, weightKg: 70, birthYear: 1988, timezone: 'UTC', ...over },
+  })
+
+const setup = (user: TestUser, body: Record<string, unknown>) =>
+  client(ctx, user)
+    .put('/api/strength/settings')
+    .send(body)
+    .then((res) => {
+      expect(res.status, JSON.stringify(res.body)).toBe(200)
+      return res
+    })
+
+/** One set of a seeded log: exercise, load in grams, count, reps left. */
+type SeedSet = readonly [
+  exerciseId: string,
+  loadG: number | null,
+  count: number,
+  rir: number | null,
+]
+
+interface SeedLog {
+  id: string
+  date: string
+  sets: readonly SeedSet[]
+  mode?: StrengthSnapshot['mode']
+  template?: StrengthSnapshot['template']
+  /** The implement each exercise was done with; bodyweight when absent. */
+  implement?: Record<string, 'barbell' | 'dumbbells' | 'leg-press' | null>
+  activity?: Record<string, unknown>
+}
+
+/** A log on a new strength activity, written straight to the tables (the data version still moves). */
+async function seedLog(user: TestUser, log: SeedLog) {
+  const activity = await ctx.prisma.activity.create({
+    data: {
+      userId: user.id,
+      date: log.date,
+      type: 'strength',
+      durationSec: 2400,
+      source: 'manual',
+      ...log.activity,
+    },
+  })
+  const exercises = [...new Set(log.sets.map(([id]) => id))]
+  const prescribed: StrengthSnapshot = {
+    template: log.template ?? 'heavy',
+    variant: 'A',
+    week: 4,
+    mode: log.mode ?? 'normal',
+    lifts: exercises.map((exerciseId) => {
+      const own = log.sets.filter(([id]) => id === exerciseId)
+      const load = own[0]?.[1] ?? null
+      return {
+        exerciseId,
+        implement: log.implement?.[exerciseId] ?? null,
+        sets: own.length,
+        range: { min: 3, max: 6 },
+        rir: { min: 1, max: 3 },
+        baseLoadG: load,
+        shownLoadG: load,
+        change: 'hold' as const,
+        basis: { rule: 'F8' as const, facts: [] },
+      }
+    }),
+  }
+  await ctx.prisma.strengthLog.create({
+    data: {
+      id: log.id,
+      userId: user.id,
+      activityId: activity.id,
+      prescribed: JSON.stringify(prescribed),
+      sets: {
+        create: log.sets.map(([exerciseId, loadG, count, rir], position) => ({
+          userId: user.id,
+          exerciseId,
+          position,
+          loadG,
+          count,
+          rir,
+        })),
+      },
+    },
+  })
+  return activity
+}
+
+/** Back squat, 110 lb for the given counts, 4 sets of 6 with 2 reps left by default. */
+const squat = (counts: number[] = [6, 6, 6, 6], rir: number | null = 2): SeedSet[] =>
+  counts.map((count) => ['back-squat', LB(110), count, rir] as const)
+const LB = (pounds: number) => Math.round(pounds * 453.59237)
+
+const strengthState = (user: TestUser, today = todayIso()) =>
+  loadStrengthState(ctx, { userId: user.id, today })
+
+describe('the strength state', () => {
+  test('carries the setup, the starting points, the logs, the plan and the readiness the engine reads', async () => {
+    const user = await newUser()
+    const { today, thisMonday } = days()
+    await seedProfile(user)
+    await setup(user, {
+      equipment: [BARBELL, DUMBBELLS],
+      level: 'some',
+      currentlyLifting: true,
+      avoid: ['split-squat'],
+      pinned: { calf: 'standing-calf-raise' },
+    })
+    await client(ctx, user)
+      .put('/api/strength/lifts/back-squat')
+      .send({ kind: 'max', loadG: 100_000 })
+    await client(ctx, user).put('/api/settings').send({ weightUnit: 'kg' })
+    const { rows } = await seedPlan(user, [
+      { date: today },
+      { date: addDays(today, 2) },
+      { date: addDays(today, 1), kind: 'easy' },
+    ])
+    // Two runs of 60 minutes last week: the minutes of a finished week, from the history.
+    await ctx.prisma.activity.createMany({
+      data: [1, 3].map((offset) => ({
+        userId: user.id,
+        date: addDays(thisMonday, -7 + offset),
+        type: 'run',
+        durationSec: 3600,
+        distanceM: 10_000,
+        source: 'manual',
+      })),
+    })
+    await seedLog(user, {
+      id: uuid(200),
+      date: addDays(today, -5),
+      sets: [...squat(), ['standing-calf-raise', null, 12, null]],
+      implement: { 'back-squat': 'barbell' },
+    })
+    await seedLog(user, {
+      id: uuid(201),
+      date: addDays(today, -2),
+      sets: squat([6, 5]),
+      mode: 'lighter-day',
+      template: 'lighter-week',
+      implement: { 'back-squat': 'barbell' },
+    })
+
+    const context = await loadStrengthContext(ctx, { userId: user.id, today })
+
+    expect(context.today).toBe(today)
+    expect(context.weightUnit).toBe('kg')
+    expect(context.setup).toEqual({
+      saved: true,
+      equipment: [BARBELL, DUMBBELLS],
+      level: 'some',
+      currentlyLifting: true,
+      avoid: ['split-squat'],
+      pinned: { calf: 'standing-calf-raise' },
+    })
+    expect(context.anchors).toEqual([
+      { exerciseId: 'back-squat', kind: 'max', loadG: 100_000, reps: 1, rir: null, asOf: today },
+    ])
+    // Newest first, with the mode and the template the sheet recorded and each lift's implement.
+    expect(context.logs.map((l) => [l.id, l.date, l.mode, l.template])).toEqual([
+      [uuid(201), addDays(today, -2), 'lighter-day', 'lighter-week'],
+      [uuid(200), addDays(today, -5), 'normal', 'heavy'],
+    ])
+    expect(context.logs[1]).toMatchObject({
+      sets: [
+        { exerciseId: 'back-squat', position: 0, loadG: LB(110), count: 6, rir: 2 },
+        { exerciseId: 'back-squat', position: 1, loadG: LB(110), count: 6, rir: 2 },
+        { exerciseId: 'back-squat', position: 2, loadG: LB(110), count: 6, rir: 2 },
+        { exerciseId: 'back-squat', position: 3, loadG: LB(110), count: 6, rir: 2 },
+        { exerciseId: 'standing-calf-raise', position: 4, loadG: null, count: 12, rir: null },
+      ],
+      lifts: [
+        { exerciseId: 'back-squat', implement: 'barbell', baseLoadG: LB(110) },
+        { exerciseId: 'standing-calf-raise', implement: null, baseLoadG: null },
+      ],
+    })
+    // The plan: the weeks with their flags and minutes, and only the strength sessions.
+    expect(context.weeks).toHaveLength(16)
+    expect(context.weeks.filter((w) => w.flags.includes('strength-block'))).toHaveLength(12)
+    expect(context.weeks.find((w) => w.weekStart === addDays(thisMonday, -7))).toMatchObject({
+      plannedRunMin: 200,
+      runMin: 120,
+    })
+    expect(context.weeks.find((w) => w.weekStart === thisMonday)).toMatchObject({ runMin: 0 })
+    expect(context.sessions.map((s) => s.id)).toEqual([rows[0]!.id, rows[1]!.id])
+    expect(context.athlete).toEqual({
+      age: Number(today.slice(0, 4)) - 1988,
+      weightKg: 70,
+      risk: { priorBsi: false, recentInjury: false },
+    })
+    expect(context.goal.paceKmh).toBeGreaterThan(0)
+    expect(context.readiness).toEqual({
+      date: today,
+      state: 'normal',
+      pain: null,
+      illness: 'clear',
+    })
+    // Memoised values are shared, so the whole of it is frozen.
+    expect(Object.isFrozen(context)).toBe(true)
+    expect(Object.isFrozen(context.logs)).toBe(true)
+  })
+
+  test('reads a runner with nothing saved as the defaults: bodyweight, no logs, no plan', async () => {
+    const user = await newUser()
+    const context = await loadStrengthContext(ctx, { userId: user.id, today: todayIso() })
+    expect(context.setup).toEqual({
+      saved: false,
+      equipment: [],
+      level: 'new',
+      currentlyLifting: false,
+      avoid: [],
+      pinned: {},
+    })
+    expect(context).toMatchObject({
+      weightUnit: 'lb',
+      anchors: [],
+      logs: [],
+      weeks: [],
+      sessions: [],
+      athlete: { age: null, weightKg: null },
+      goal: { paceKmh: null },
+    })
+  })
+
+  test('takes the goal pace from a time goal: its distance over its time', async () => {
+    const user = await newUser()
+    await seedPlan(user, [], { distanceM: 10_000, targetTimeSec: 3000 })
+    const context = await loadStrengthContext(ctx, { userId: user.id, today: todayIso() })
+    // 10 km in 50 minutes is 12 km/h
+    expect(context.goal.paceKmh).toBeCloseTo(12, 5)
+  })
+
+  test('reads the readiness of today: the pain reported and the illness phase', async () => {
+    const user = await newUser()
+    const { today } = days()
+    await client(ctx, user)
+      .put(`/api/checkins/${today}`)
+      .send({ painScore: P.pain.flagScore.value + 1 })
+    expect((await loadStrengthContext(ctx, { userId: user.id, today })).readiness).toMatchObject({
+      date: today,
+      pain: P.pain.flagScore.value + 1,
+      illness: 'clear',
+    })
+    const ill = await newUser()
+    await client(ctx, ill).put(`/api/checkins/${today}`).send({ illness: true })
+    expect((await loadStrengthContext(ctx, { userId: ill.id, today })).readiness).toMatchObject({
+      illness: 'rest',
+    })
+  })
+
+  test('reads the weeks of logs from 26 back, not one day earlier', async () => {
+    const user = await newUser()
+    const { today } = days()
+    const edge = addDays(today, -7 * 26)
+    await seedLog(user, { id: uuid(210), date: edge, sets: squat() })
+    await seedLog(user, { id: uuid(211), date: addDays(edge, -1), sets: squat() })
+    const state = await strengthState(user)
+    expect(state.logs.map((log) => log.id)).toEqual([uuid(210)])
+    expect(state.context.logs.map((log) => log.id)).toEqual([uuid(210)])
+  })
+
+  describe('the queries', () => {
+    type Delegate = Record<string, (...args: unknown[]) => PromiseLike<unknown>>
+    const watched = [
+      ['user', 'findUnique'],
+      ['strengthSettings', 'findUnique'],
+      ['strengthLift', 'findMany'],
+      ['strengthLog', 'findMany'],
+    ] as const
+    // The snapshot's own reads: the strength state adds none of them.
+    const athleteReads = [
+      ['activity', 'findMany'],
+      ['wellnessDay', 'findMany'],
+      ['weeklyReview', 'findMany'],
+      ['plan', 'findFirst'],
+      ['athleteProfile', 'findUnique'],
+    ] as const
+
+    function watch(models: ReadonlyArray<readonly [string, string]>) {
+      const events: string[] = []
+      for (const [model, method] of models) {
+        const delegate = (ctx.prisma as unknown as Record<string, Delegate>)[model]!
+        const original = delegate[method]!.bind(delegate)
+        vi.spyOn(delegate, method).mockImplementation((...args: unknown[]) => {
+          const name = `${model}.${method}`
+          events.push(`start ${name}`)
+          const result = original(...args)
+          void Promise.resolve(result).then(() => events.push(`end ${name}`))
+          return result
+        })
+      }
+      return events
+    }
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    test('is one round of four reads, started together, once per data version and day', async () => {
+      const user = await newUser()
+      const { today } = days()
+      await seedPlan(user, [{ date: today }])
+      await seedLog(user, { id: uuid(220), date: addDays(today, -3), sets: squat() })
+      // The snapshot is built first, so what is left for the state is its own round.
+      await loadAthleteContext(ctx, { userId: user.id, today })
+      const events = watch(watched)
+
+      const first = await strengthState(user)
+      const starts = events.filter((event) => event.startsWith('start')).sort()
+      expect(starts).toEqual(watched.map(([model, method]) => `start ${model}.${method}`).sort())
+      // Every read is started before the first one finishes: no read waits for another.
+      const firstEnd = events.findIndex((event) => event.startsWith('end'))
+      expect(events.slice(0, firstEnd).filter((event) => event.startsWith('start'))).toHaveLength(
+        watched.length,
+      )
+
+      // The same version and day: the memo answers, with the one object and no query.
+      events.length = 0
+      expect(await strengthState(user)).toBe(first)
+      expect(await loadStrengthContext(ctx, { userId: user.id, today })).toBe(first.context)
+      expect(events).toEqual([])
+
+      // Another day is another memo (the window moves with it), and so is a write.
+      await strengthState(user, addDays(today, 1))
+      expect(events.filter((event) => event.startsWith('start'))).toHaveLength(watched.length)
+      await setup(user, { level: 'some' })
+      events.length = 0
+      const after = await strengthState(user)
+      expect(after).not.toBe(first)
+      expect(events.filter((event) => event.startsWith('start'))).toHaveLength(watched.length)
+    })
+
+    test('reads no row of the history window or of the stored plan itself', async () => {
+      const user = await newUser()
+      const { today } = days()
+      await seedPlan(user, [{ date: today }])
+      await loadAthleteContext(ctx, { userId: user.id, today })
+      const events = watch(athleteReads)
+      await strengthState(user)
+      expect(events).toEqual([])
+    })
+  })
+
+  describe('a session that two activities stand for', () => {
+    const stateIds = async (user: TestUser) => (await strengthState(user)).logs.map((l) => l.id)
+
+    test('is counted once: a confirmed copy’s log is left out, the original’s stands', async () => {
+      const user = await newUser()
+      const { copyId, originalId } = await (async () => {
+        const saved = await putLog(user, uuid(230), logBody())
+        const copy = resultOf(saved).activity.id
+        const original = await importStrength(user)
+        return { copyId: copy, originalId: original }
+      })()
+      // Possible: nothing is decided, and the one log stands.
+      expect(await reloadActivity(copyId)).toMatchObject({ duplicateStatus: 'possible' })
+      expect(await stateIds(user)).toEqual([uuid(230)])
+
+      // Confirmed: the log moves to the original, and is counted there once.
+      expect((await confirm(user, copyId, 'confirmed')).status).toBe(200)
+      expect(
+        (await ctx.prisma.strengthLog.findUniqueOrThrow({ where: { id: uuid(230) } })).activityId,
+      ).toBe(originalId)
+      expect(await stateIds(user)).toEqual([uuid(230)])
+    })
+
+    test('a confirmed copy that keeps a log because the original has its own is skipped', async () => {
+      const user = await newUser()
+      const saved = await putLog(user, uuid(231), logBody())
+      const copyId = resultOf(saved).activity.id
+      const originalId = await importStrength(user)
+      await putLog(user, uuid(232), logBody({ activityId: originalId }))
+      expect((await confirm(user, copyId, 'confirmed')).status).toBe(200)
+      // Both logs are still stored, on their own activities; the copy's is not a second session.
+      expect(await ctx.prisma.strengthLog.count({ where: { userId: user.id } })).toBe(2)
+      expect(await stateIds(user)).toEqual([uuid(232)])
+    })
+
+    test('a log is kept when nothing else stands for its session: a copy of an activity that is not a strength session', async () => {
+      const user = await newUser()
+      const original = await ctx.prisma.activity.create({
+        data: {
+          userId: user.id,
+          date: todayIso(),
+          type: 'run',
+          durationSec: 2400,
+          distanceM: 5000,
+        },
+      })
+      const activity = await seedLog(user, {
+        id: uuid(235),
+        date: todayIso(),
+        sets: squat(),
+        activity: { duplicateStatus: 'confirmed', duplicateOfId: original.id },
+      })
+      expect(activity.duplicateStatus).toBe('confirmed')
+      expect(await stateIds(user)).toEqual([uuid(235)])
+    })
+
+    test('a possible copy is counted when the original has no log, and skipped when it has one', async () => {
+      const user = await newUser()
+      const saved = await putLog(user, uuid(233), logBody())
+      const copyId = resultOf(saved).activity.id
+      const originalId = await importStrength(user)
+      expect(await reloadActivity(copyId)).toMatchObject({
+        duplicateStatus: 'possible',
+        duplicateOfId: originalId,
+      })
+      expect(await stateIds(user)).toEqual([uuid(233)])
+      // The runner adds the sets to the export as well: one session, one count.
+      await putLog(user, uuid(234), logBody({ activityId: originalId }))
+      expect(await ctx.prisma.strengthLog.count({ where: { userId: user.id } })).toBe(2)
+      expect(await stateIds(user)).toEqual([uuid(234)])
+      // Dismissed, they are two sessions again.
+      expect((await confirm(user, copyId, 'dismissed')).status).toBe(200)
+      expect((await stateIds(user)).sort()).toEqual([uuid(233), uuid(234)])
+    })
+  })
+})
+
+describe('GET /api/strength/workouts', () => {
+  const workoutsOf = async (user: TestUser, from: string, to: string) => {
+    const res = await client(ctx, user).get(`/api/strength/workouts?from=${from}&to=${to}`)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    return res.body as StrengthWorkout[]
+  }
+
+  test('derives the workout of each strength session of the span, by date', async () => {
+    const user = await newUser()
+    const { thisMonday, nextMonday } = days()
+    await seedProfile(user)
+    await setup(user, { equipment: [BARBELL, DUMBBELLS, { kind: 'step' }], level: 'some' })
+    // Next week is week 8 of the block of 12, whatever day it is today.
+    const tuesday = addDays(nextMonday, 1)
+    const thursday = addDays(nextMonday, 3)
+    const { rows } = await seedPlan(user, [
+      { date: thursday },
+      { date: tuesday },
+      { date: addDays(nextMonday, 2), kind: 'easy' },
+      { date: addDays(nextMonday, 40) },
+    ])
+    const out = await workoutsOf(user, thisMonday, addDays(nextMonday, 30))
+    expect(out.map((w) => w.sessionId)).toEqual([rows[1]!.id, rows[0]!.id])
+    expect(out.map((w) => w.date)).toEqual([tuesday, thursday])
+    const [first] = out
+    expect(first).toMatchObject({
+      template: 'heavy',
+      block: { week: 8, of: 12, rampInWeeks: 3 },
+      budgetMin: 40,
+      setupSaved: true,
+      rules: STRENGTH_RULES,
+    })
+    expect(first!.lifts.length).toBeGreaterThan(0)
+    // Loads are whole grams on the rungs the equipment makes, never prose.
+    for (const lift of first!.lifts) {
+      if (lift.loadG !== null) expect(Number.isInteger(lift.loadG)).toBe(true)
+      expect(lift.basis.facts.every((f) => typeof f.template === 'string')).toBe(true)
+    }
+    expect(first!.lifts.some((lift) => lift.implement === 'barbell')).toBe(true)
+  })
+
+  test('is the workout as of today: a log moves the next session’s load, a change of equipment moves its lifts', async () => {
+    const user = await newUser()
+    const { today, thisMonday, nextMonday } = days()
+    await seedProfile(user)
+    await setup(user, { equipment: [BARBELL], level: 'some' })
+    await seedPlan(user, [{ date: addDays(nextMonday, 1) }])
+    const span = [thisMonday, addDays(nextMonday, 7)] as const
+    const before = (await workoutsOf(user, ...span))[0]!
+    const lead = before.lifts.find((lift) => lift.exerciseId === 'back-squat')!
+    expect(lead.loadG).not.toBeNull()
+
+    // A session at the top of the range with reps left moves the load up (rule F8.5).
+    await seedLog(user, {
+      id: uuid(240),
+      date: addDays(today, -3),
+      sets: squat([6, 6, 6, 6], 2).map(([id, , count, rir]): SeedSet => [
+        id,
+        lead.loadG,
+        count,
+        rir,
+      ]),
+      implement: { 'back-squat': 'barbell' },
+    })
+    const after = (await workoutsOf(user, ...span))[0]!
+    const moved = after.lifts.find((lift) => lift.exerciseId === 'back-squat')!
+    expect(moved.change).toBe('increase')
+    expect(moved.loadG).toBeGreaterThan(lead.loadG!)
+    // The block position is the plan's, so equipment does not move it.
+    await setup(user, { equipment: [DUMBBELLS, { kind: 'step' }] })
+    const swapped = (await workoutsOf(user, ...span))[0]!
+    expect(swapped.block).toEqual(before.block)
+    expect(swapped.lifts.some((lift) => lift.implement === 'barbell')).toBe(false)
+  })
+
+  test('is bodyweight only until the setup is saved', async () => {
+    const user = await newUser()
+    const { today } = days()
+    await seedPlan(user, [{ date: today }])
+    const [workout] = await workoutsOf(user, today, today)
+    expect(workout).toMatchObject({ setupSaved: false })
+    expect(workout!.lifts.every((lift) => lift.loadG === null && lift.implement === null)).toBe(
+      true,
+    )
+  })
+
+  test('is empty without a plan, and never shows another runner’s sessions', async () => {
+    const planned = await newUser()
+    const other = await newUser()
+    const { today } = days()
+    await seedPlan(planned, [{ date: today }])
+    expect(await workoutsOf(planned, today, today)).toHaveLength(1)
+    expect(await workoutsOf(other, today, addDays(today, 30))).toEqual([])
+  })
+
+  test.each([
+    ['no span', ''],
+    ['no end', '?from=2026-01-01'],
+    ['an end before the start', '?from=2026-02-01&to=2026-01-01'],
+    ['a span of 63 days', '?from=2026-01-01&to=2026-03-05'],
+    ['a date that is not a day', '?from=2026-02-30&to=2026-03-01'],
+    ['an unknown parameter', '?from=2026-01-01&to=2026-01-02&units=lb'],
+  ])('refuses %s with the issue', async (_name, query) => {
+    const user = await newUser()
+    const res = await client(ctx, user).get(`/api/strength/workouts${query}`)
+    expect(res.status).toBe(400)
+    expect(issuePaths(res).length).toBeGreaterThan(0)
+  })
+
+  test('takes a span of 62 days and no more', async () => {
+    const user = await newUser()
+    const res = await client(ctx, user).get('/api/strength/workouts?from=2026-01-01&to=2026-03-04')
+    expect(res.status).toBe(200)
+  })
+})
+
+describe('GET /api/strength', () => {
+  const view = async (user: TestUser) => {
+    const res = await client(ctx, user).get('/api/strength')
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    return res.body as StrengthView
+  }
+
+  test('is the empty page for a runner with nothing saved', async () => {
+    const user = await newUser()
+    const body = await view(user)
+    expect(body).toMatchObject({
+      asOf: todayIso(),
+      setupSaved: false,
+      block: null,
+      next: [],
+      recent: [],
+      lifts: [],
+      weeks: [],
+      anchors: [],
+      lowCountWeeks: 0,
+      countPrompt: false,
+    })
+    expect(body.settings).toMatchObject({ equipment: [], level: 'new', savedAt: null })
+  })
+
+  test('names the setup, the starting points, the block, the next sessions and the lifts', async () => {
+    const user = await newUser()
+    const { today } = days()
+    await seedProfile(user)
+    await setup(user, { equipment: [BARBELL], level: 'some' })
+    await client(ctx, user)
+      .put('/api/strength/lifts/back-squat')
+      .send({ kind: 'max', loadG: 100_000 })
+    const { rows } = await seedPlan(user, [
+      { date: addDays(today, -1), status: 'completed' },
+      { date: addDays(today, 1) },
+      { date: addDays(today, 3) },
+      { date: addDays(today, 5) },
+      { date: addDays(today, 7) },
+    ])
+    await seedLog(user, {
+      id: uuid(250),
+      date: addDays(today, -8),
+      sets: squat([6, 6, 5, 5]),
+      implement: { 'back-squat': 'barbell' },
+    })
+    await seedLog(user, {
+      id: uuid(251),
+      date: addDays(today, -1),
+      sets: squat([6, 6, 6, 6]),
+      implement: { 'back-squat': 'barbell' },
+    })
+
+    const body = await view(user)
+    expect(body.setupSaved).toBe(true)
+    expect(body.settings).toMatchObject({ equipment: [BARBELL], level: 'some' })
+    expect(body.anchors).toEqual([
+      { exerciseId: 'back-squat', kind: 'max', loadG: 100_000, reps: 1, rir: null, asOf: today },
+    ])
+    expect(body.block).toEqual({ week: 7, of: 12, rampInWeeks: 3, template: 'heavy' })
+    // Today's, then the ones after it that are still to do, at most three, never the settled one.
+    expect(body.next.map((w) => w.sessionId)).toEqual([rows[1]!.id, rows[2]!.id, rows[3]!.id])
+    expect(body.recent.map((log) => log.id)).toEqual([uuid(251), uuid(250)])
+    expect(body.recent[0]).toMatchObject({ date: addDays(today, -1), durationMin: 40 })
+    expect(body.recent[0]!.sets).toHaveLength(4)
+    expect(body.lifts).toEqual([
+      {
+        exerciseId: 'back-squat',
+        lastDate: addDays(today, -1),
+        gapDays: 1,
+        workingLoadG: LB(110),
+        estimateG: expect.any(Number) as number,
+        lastChange: null,
+        sessionCount: 2,
+      },
+    ])
+    expect(body.facts.map((fact) => fact.template)).toEqual([
+      'strength.benefit',
+      'strength.separation',
+    ])
+    const [lo, hi] = P.f7.expectedBenefitPct.value
+    expect(renderFact(body.facts[0]!, 'km')).toBe(
+      `Strength work may lower the oxygen cost of running by about ${String(lo)} to ${String(hi)}% after a full block. That is small, and it says nothing about race time.`,
+    )
+    expect(renderFact(body.facts[1]!, 'mi')).toBe(
+      `Lift at least ${String(P.f4.strengthSeparationHours.value)} hours before or after a run.`,
+    )
+  })
+
+  test('lists the weeks of the last twelve with the sessions planned and logged, the sets and the lifts that moved', async () => {
+    const user = await newUser()
+    const { thisMonday } = days()
+    await seedProfile(user)
+    await setup(user, { equipment: [BARBELL], level: 'some' })
+    // Two a week for the last four weeks, none logged in the last three: a run of low weeks.
+    const sessions = [-4, -3, -2, -1].flatMap((w) => [
+      { date: addDays(thisMonday, 7 * w + 1) },
+      { date: addDays(thisMonday, 7 * w + 4) },
+    ])
+    await seedPlan(user, sessions)
+    await seedLog(user, {
+      id: uuid(260),
+      date: addDays(thisMonday, -28 + 1),
+      sets: squat([6, 6, 6, 6]),
+      implement: { 'back-squat': 'barbell' },
+    })
+    await seedLog(user, {
+      id: uuid(261),
+      date: addDays(thisMonday, -28 + 4),
+      sets: squat([6, 6, 6, 6]).map(([id, , count, rir]): SeedSet => [id, LB(115), count, rir]),
+      implement: { 'back-squat': 'barbell' },
+    })
+    // A log from 14 weeks back is in the state, where the move of the load starts from, but it is
+    // not in the twelve weeks of the view.
+    await seedLog(user, {
+      id: uuid(262),
+      date: addDays(thisMonday, -7 * 14),
+      sets: squat(),
+      implement: { 'back-squat': 'barbell' },
+    })
+
+    const body = await view(user)
+    // The weeks that hold a planned or a logged session, from 11 weeks back to this one.
+    expect(body.weeks.map((w) => w.weekStart)).toEqual(
+      [-4, -3, -2, -1].map((w) => addDays(thisMonday, 7 * w)),
+    )
+    expect(body.weeks[0]).toMatchObject({
+      weekStart: addDays(thisMonday, -28),
+      planned: 2,
+      logged: 2,
+      sets: 8,
+      moved: [{ exerciseId: 'back-squat', fromG: LB(110), toG: LB(115) }],
+    })
+    expect(body.weeks[1]).toMatchObject({ planned: 2, logged: 0, sets: 0, moved: [] })
+    expect(body.lowCountWeeks).toBe(3)
+    expect(body.countPrompt).toBe(true)
+  })
+
+  test('lists the last 30 sessions of the state, newest first', async () => {
+    const user = await newUser()
+    const { today } = days()
+    const stamps = Array.from({ length: 32 }, (_, i) => i)
+    for (const i of stamps) {
+      await seedLog(user, {
+        id: uuid(300 + i),
+        date: addDays(today, -i * 5),
+        sets: [['standing-calf-raise', null, 10, null]],
+      })
+    }
+    const body = await view(user)
+    // 32 logs, one every five days, all inside the 26 weeks the state reads: the newest 30 are listed.
+    expect(body.recent).toHaveLength(30)
+    expect(body.recent.map((log) => log.date)).toEqual(
+      stamps.slice(0, 30).map((i) => addDays(today, -i * 5)),
+    )
+  })
+
+  test('never shows another runner’s logs', async () => {
+    const mine = await newUser()
+    const theirs = await newUser()
+    await seedLog(theirs, { id: uuid(340), date: todayIso(), sets: squat() })
+    const body = await view(mine)
+    expect(body.recent).toEqual([])
+    expect(body.lifts).toEqual([])
+  })
+
+  test('refuses a query parameter', async () => {
+    const user = await newUser()
+    expect((await client(ctx, user).get('/api/strength?week=1')).status).toBe(400)
+  })
+})
+
+describe('GET /api/strength/exercises/:exerciseId', () => {
+  const history = async (user: TestUser, id: string) => {
+    const res = await client(ctx, user).get(`/api/strength/exercises/${id}`)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    return res.body as StrengthExerciseView
+  }
+
+  test('lists every session of the exercise, newest first, with its sets and estimated maximum', async () => {
+    const user = await newUser()
+    const { today } = days()
+    await client(ctx, user)
+      .put('/api/strength/lifts/back-squat')
+      .send({ kind: 'max', loadG: 100_000 })
+    await seedLog(user, {
+      id: uuid(350),
+      date: addDays(today, -10),
+      sets: squat([6, 5, 5]),
+      implement: { 'back-squat': 'barbell' },
+    })
+    await seedLog(user, {
+      id: uuid(351),
+      date: addDays(today, -3),
+      sets: [...squat([6, 6, 6, 6]), ['standing-calf-raise', null, 12, null]],
+      implement: { 'back-squat': 'barbell' },
+    })
+    const body = await history(user, 'back-squat')
+    expect(body.exerciseId).toBe('back-squat')
+    expect(body.anchor).toMatchObject({ kind: 'max', loadG: 100_000 })
+    expect(body.summary).toMatchObject({ lastDate: addDays(today, -3), sessionCount: 2 })
+    expect(body.sessions.map((s) => [s.logId, s.date, s.mode])).toEqual([
+      [uuid(351), addDays(today, -3), 'normal'],
+      [uuid(350), addDays(today, -10), 'normal'],
+    ])
+    // Only the exercise's own sets, in order, with the load as grams.
+    expect(body.sessions[0]!.sets).toEqual(
+      [0, 1, 2, 3].map((position) => ({
+        position,
+        loadG: LB(110),
+        count: 6,
+        rir: 2,
+      })),
+    )
+    expect(body.sessions[0]).toMatchObject({
+      heaviest: { loadG: LB(110), count: 6 },
+      workingLoadG: LB(110),
+    })
+    expect(body.sessions[0]!.estimateG).toBeGreaterThan(LB(110))
+  })
+
+  test('is empty for an exercise with no sets, with the starting point if there is one', async () => {
+    const user = await newUser()
+    await client(ctx, user)
+      .put('/api/strength/lifts/goblet-squat')
+      .send({ kind: 'set', loadG: 20_000, reps: 8, rir: 2 })
+    const body = await history(user, 'goblet-squat')
+    expect(body).toMatchObject({ summary: null, sessions: [] })
+    expect(body.anchor).toMatchObject({ exerciseId: 'goblet-squat', loadG: 20_000 })
+    expect(await history(user, 'back-squat')).toMatchObject({ anchor: null, sessions: [] })
+  })
+
+  test('lists at most 60 sessions', async () => {
+    const user = await newUser()
+    const { today } = days()
+    const logs = Array.from({ length: 62 }, (_, i) => i)
+    const activities = logs.map((i) => ({
+      id: `act-limit-${String(user.id)}-${String(i)}`,
+      userId: user.id,
+      date: addDays(today, -i * 2),
+      type: 'strength',
+      durationSec: 1800,
+      source: 'manual',
+    }))
+    await ctx.prisma.activity.createMany({ data: activities })
+    await ctx.prisma.strengthLog.createMany({
+      data: logs.map((i) => ({
+        id: uuid(400 + i),
+        userId: user.id,
+        activityId: activities[i]!.id,
+        prescribed: JSON.stringify(snapshot({ lifts: [] })),
+      })),
+    })
+    await ctx.prisma.strengthSet.createMany({
+      data: logs.map((i) => ({
+        logId: uuid(400 + i),
+        userId: user.id,
+        exerciseId: 'standing-calf-raise',
+        position: 0,
+        loadG: null,
+        count: 10,
+        rir: null,
+      })),
+    })
+    const body = await history(user, 'standing-calf-raise')
+    expect(body.summary?.sessionCount).toBe(62)
+    expect(body.sessions).toHaveLength(60)
+    expect(body.sessions[0]!.date).toBe(today)
+  })
+
+  test('refuses an exercise outside the catalogue and a query parameter', async () => {
+    const user = await newUser()
+    expect((await client(ctx, user).get('/api/strength/exercises/bench-press')).status).toBe(400)
+    expect((await client(ctx, user).get('/api/strength/exercises/back-squat?limit=3')).status).toBe(
+      400,
+    )
+  })
+})
+
+describe('the reads need a session', () => {
+  test.each([
+    '/api/strength',
+    '/api/strength/workouts?from=2026-01-01&to=2026-01-02',
+    '/api/strength/exercises/back-squat',
+  ])('get %s', async (url) => {
+    expect((await client(ctx).get(url)).status).toBe(401)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The suggestions after a save
+// ---------------------------------------------------------------------------------------------
+
+describe('PUT /api/strength/logs/:logId: next', () => {
+  /** A runner with a barbell and two lifts planned next week, and the workout the first shows. */
+  async function readyToLift() {
+    const { nextMonday, thisMonday } = days()
+    const user = await newUser()
+    await seedProfile(user)
+    await setup(user, { equipment: [BARBELL, DUMBBELLS, { kind: 'step' }], level: 'some' })
+    const { rows } = await seedPlan(user, [
+      { date: addDays(nextMonday, 1) },
+      { date: addDays(nextMonday, 3) },
+    ])
+    const workouts = async () =>
+      (
+        await client(ctx, user).get(
+          `/api/strength/workouts?from=${thisMonday}&to=${addDays(nextMonday, 7)}`,
+        )
+      ).body as StrengthWorkout[]
+    return { user, rows, workouts }
+  }
+
+  const squatLift = (workout: StrengthWorkout) =>
+    workout.lifts.find((lift) => lift.exerciseId === 'back-squat')!
+
+  type SetBody = Array<{
+    exerciseId: string
+    loadG: number | null
+    count: number
+    rir: number | null
+  }>
+  const save = (user: TestUser, id: number, sets: SetBody, over: Record<string, unknown> = {}) =>
+    putLog(user, uuid(id), logBody({ prescribed: snapshot({ lifts: [] }), sets, ...over }))
+
+  test('a session at the top of the range with reps left raises the load, as the next workout will show', async () => {
+    const { user, workouts } = await readyToLift()
+    const lead = squatLift((await workouts())[0]!)
+    const sets = Array.from({ length: lead.sets }, () => ({
+      exerciseId: 'back-squat',
+      loadG: lead.loadG,
+      count: lead.range.max,
+      rir: 2,
+    }))
+    const res = await save(user, 600, sets)
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    const entry = resultOf(res).next.find((next) => next.exerciseId === 'back-squat')!
+    expect(entry.change).toBe('increase')
+    expect(entry.loadG).toBeGreaterThan(lead.loadG!)
+
+    // The suggestion is the load the next planned session asks for now.
+    const next = squatLift((await workouts())[0]!)
+    expect(next).toMatchObject({ change: 'increase', loadG: entry.loadG })
+  })
+
+  test('a set short of the range lowers the load', async () => {
+    const { user, workouts } = await readyToLift()
+    // 60 kg is well above the empty bar, so there is a step to come down to.
+    const loadG = 60_000
+    const [lo, hi] = P.flib.heavyReps.range!
+    const counts = [hi, hi, lo - 1]
+    const res = await save(
+      user,
+      601,
+      counts.map((count) => ({ exerciseId: 'back-squat', loadG, count, rir: 1 })),
+    )
+    const entry = resultOf(res).next.find((next) => next.exerciseId === 'back-squat')!
+    expect(entry.change).toBe('reduce')
+    expect(entry.loadG).toBeLessThan(loadG)
+    expect(squatLift((await workouts())[0]!)).toMatchObject({
+      change: 'reduce',
+      loadG: entry.loadG,
+    })
+  })
+
+  test('names each exercise of the log once, in the order of its sets, and leaves out the jumps', async () => {
+    const { user } = await readyToLift()
+    const res = await save(user, 602, [
+      { exerciseId: 'standing-calf-raise', loadG: null, count: 12, rir: 3 },
+      { exerciseId: 'back-squat', loadG: 40_000, count: 5, rir: 2 },
+      { exerciseId: 'pogo-hop', loadG: null, count: 40, rir: null },
+      { exerciseId: 'standing-calf-raise', loadG: null, count: 12, rir: 3 },
+      { exerciseId: 'back-squat', loadG: 40_000, count: 5, rir: 2 },
+    ])
+    expect(resultOf(res).next.map((next) => next.exerciseId)).toEqual([
+      'standing-calf-raise',
+      'back-squat',
+    ])
+  })
+
+  test('without a planned session ahead, reads the maintenance of the day after', async () => {
+    const user = await newUser()
+    await setup(user, { equipment: [BARBELL], level: 'some' })
+    const res = await save(user, 603, [
+      { exerciseId: 'back-squat', loadG: 40_000, count: 5, rir: 2 },
+    ])
+    const [entry] = resultOf(res).next
+    expect(entry).toMatchObject({ exerciseId: 'back-squat' })
+    expect(entry!.loadG).not.toBeNull()
+  })
+
+  test('a session logged for an earlier day suggests for the next session still to do', async () => {
+    const { user, workouts } = await readyToLift()
+    const lead = squatLift((await workouts())[0]!)
+    const res = await save(
+      user,
+      604,
+      Array.from({ length: lead.sets }, () => ({
+        exerciseId: 'back-squat',
+        loadG: lead.loadG,
+        count: lead.range.max,
+        rir: 3,
+      })),
+      { date: addDays(todayIso(), -20) },
+    )
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    const entry = resultOf(res).next.find((next) => next.exerciseId === 'back-squat')!
+    expect(entry.loadG).toBe(squatLift((await workouts())[0]!).loadG)
+  })
+
+  test('a save without sets has none, and a replay gives the same as the first', async () => {
+    const { user, workouts } = await readyToLift()
+    expect(resultOf(await save(user, 605, [])).next).toEqual([])
+    const lead = squatLift((await workouts())[0]!)
+    const sets = [{ exerciseId: 'back-squat', loadG: lead.loadG, count: lead.range.min, rir: 2 }]
+    const first = await save(user, 606, sets)
+    const replay = await save(user, 606, sets)
+    expect(first.status).toBe(201)
+    expect(replay.status).toBe(200)
+    expect(resultOf(replay).next).toEqual(resultOf(first).next)
+    expect(resultOf(first).next.length).toBeGreaterThan(0)
+  })
+
+  test('is empty, and the save stands, when the suggestions cannot be worked out', async () => {
+    const { user } = await readyToLift()
+    const broken = vi
+      .spyOn(ctx.prisma.strengthLift, 'findMany')
+      .mockRejectedValueOnce(new Error('the lifts could not be read'))
+    const res = await save(user, 607, SETS)
+    broken.mockRestore()
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    expect(resultOf(res).next).toEqual([])
+    expect(await ctx.prisma.strengthLog.count({ where: { id: uuid(607) } })).toBe(1)
+    // The next save has them again.
+    expect(resultOf(await save(user, 607, SETS)).next.length).toBeGreaterThan(0)
   })
 })

@@ -1027,6 +1027,8 @@ export interface LoggedLift {
 /** One logged session (`StrengthLog` with its sets and snapshot). */
 export interface StrengthLogEntry {
   id: string
+  /** The activity the log stands on, so an explanation can name it as a source (no rule reads it). */
+  activityId?: string
   /** YYYY-MM-DD. */
   date: string
   mode: StrengthMode
