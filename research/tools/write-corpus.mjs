@@ -20,6 +20,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+// Optional fields of a record (see paperSchema in scripts/research-check.ts), written after
+// `verification` in this order when a record has them. A book record carries them, so a rewrite of
+// research/papers must keep them.
+const OPTIONAL_FIELDS = ['edition', 'isbn', 'pagesRead', 'interests', 'vetting']
 const args = process.argv.slice(2)
 const writeEngineRules = args.includes('--engine-rules')
 const [resultPath, extraPath] = args.filter((arg) => !arg.startsWith('--'))
@@ -106,6 +111,7 @@ for (const [id, p] of [...papers].sort(([a], [b]) => a.localeCompare(b))) {
     implications: p.implications,
     verification: { ...p.verification, checkedAt: p.verification.checkedAt ?? today },
   }
+  for (const field of OPTIONAL_FIELDS) if (p[field] !== undefined) out[field] = p[field]
   fs.writeFileSync(path.join(ROOT, 'papers', `${id}.json`), JSON.stringify(out, null, 2) + '\n')
 }
 

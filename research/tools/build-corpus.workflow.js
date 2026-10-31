@@ -152,6 +152,16 @@ const TOPICS = [
   },
 ]
 
+// One gate of the vetting rubric (research/README.md, "Sources outside the journals").
+const GATE = {
+  type: 'object',
+  properties: {
+    result: { type: 'string', enum: ['pass', 'fail', 'hold', 'n/a'] },
+    note: { type: 'string', description: 'the reason in a line' },
+  },
+  required: ['result', 'note'],
+}
+
 const PAPER = {
   type: 'object',
   properties: {
@@ -230,6 +240,28 @@ const PAPER = {
         notes: { type: 'string' },
       },
       required: ['doiResolved', 'metadataMatches', 'abstractSource', 'findingsSupported', 'notes'],
+    },
+    // Optional, as in paperSchema (scripts/research-check.ts). The four book fields are for
+    // design 'book-or-guideline' only. A book record is written by hand in the session that reads
+    // the pages, so a workflow run leaves all five out (an agent's pass signs nothing off); the
+    // writer keeps them on the records that have them.
+    edition: { type: 'string' },
+    isbn: { type: 'string', description: 'ISBN-10 or ISBN-13, hyphens allowed, check digit right' },
+    pagesRead: { type: 'string', description: 'the pages or sections read' },
+    interests: { type: 'string', description: 'what the author sells or holds a stake in' },
+    vetting: {
+      type: 'object',
+      description: 'leave out: only the owner or two independent reading passes sign off a source',
+      properties: {
+        r1: GATE,
+        r2: GATE,
+        r3: GATE,
+        r4: GATE,
+        r5: GATE,
+        r6: GATE,
+        signedOff: { type: 'string', description: 'who signed off, and the date (YYYY-MM-DD)' },
+      },
+      required: ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'signedOff'],
     },
   },
   required: [
