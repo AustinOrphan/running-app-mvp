@@ -41,8 +41,8 @@
       "note": "Three named authors with the affiliations PubMed and Europe PMC hold: Institute for Sport Sciences, Julius-Maximilian University Wurzburg (Zinner, Sperlich); University of Applied Sciences for Police and Administration of Hesse (Zinner); Polar Electro Oy, Kempele, Finland (Schäfer Olstad). No separate university record was fetched. Interest: one author works for a heart-rate monitor maker; the abstract states no conflict."
     },
     "r3": {
-      "result": "pass",
-      "note": "Published August 2018; two comments in 2019 and no correction. Later corpus papers (rosenblat-2025-tid-ipd-nma, oliveira-2024-pol-meta, filipas-2022-pyr-pol-periodization) compare the same distributions in more studies; none supersedes the direction here."
+      "result": "hold",
+      "note": "Published August 2018; two comments in 2019 and no correction. Later corpus papers (rosenblat-2025-tid-ipd-nma, oliveira-2024-pol-meta, filipas-2022-pyr-pol-periodization) compare the same distributions in more studies; none supersedes the direction here. second pass: held. The two 2019 comment letters (Europe PMC PMIDs 31415025, titled 'Potential Confounding Effects of Intensity on Training Response', and 31415026) and the authors' response have no abstract and were read by neither pass, so whether the responder and economy finding stands after them is not known. A 2020 cross-over of 13 recreational runners from the same group (Europe PMC PMID 32918588, abstract read on 2026-10-31, not in the corpus) gave no group-level change in most markers and called the responses highly individual."
     },
     "r4": {
       "result": "hold",
@@ -56,6 +56,6 @@
       "result": "n/a",
       "note": "A journal paper keeps the level of its design (a small controlled trial, level C); the caps by class are for sources outside the journals."
     },
-    "signedOff": "M1 2026-10-31, one reading pass (abstract only); second pass or owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, M1 and M1b, 2026-10-31 (abstract only)"
   }
 }
