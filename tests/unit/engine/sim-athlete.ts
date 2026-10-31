@@ -26,6 +26,10 @@
 // No level sets wellness (no check-ins, HRV or sleep): a step's `wellness` is the first input's, as in
 // `replanChain`; an illness reaches the engine as a window, not as a check-in.
 //
+// A chain runs at a method preset [rules P1 to P4] when `SimOptions.method` says so: the athlete's
+// days do not depend on the plan, so the chain of a preset and the chain of the default differ only
+// where the plans do. The `fidelity` figure reads what the athlete finished, week by week.
+//
 // By hand, at each `PARAMS_VERSION` bump (decision 11): the chain figures are read, not asserted, with
 // `SIM_FIGURES=1 npx vitest run tests/unit/engine/sim-athlete.test.ts -t "printed by hand"`. What
 // `sim-athlete.test.ts` keeps in `npm run check` are the two metamorphic relations, which are rules
@@ -44,8 +48,10 @@ import type {
   EngineInput,
   LoadAppetite,
   PlanDraft,
+  PresetId,
   SessionKind,
   SessionSpec,
+  WeekDraft,
   WeeklyDecision,
 } from '../../../shared/engine/types.ts'
 import type { Activity, Availability, Weekday } from '../../../shared/types.ts'
@@ -169,6 +175,18 @@ export const MIN_OPEN_DAYS = 4
 /** The kinds the athlete runs; a race is the last day of the chain and is never run in it. */
 const RAN_KINDS: ReadonlySet<SessionKind> = new Set([...RUN_KINDS].filter((k) => k !== 'race'))
 
+/** The kinds of the table of quality kinds by phase (`QUALITY_BY_PRESET`, `micro.ts`) [rule F2]. */
+const QUALITY_RAN: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'threshold',
+  'intervals',
+  'race-pace',
+  'hills',
+  'strides',
+])
+
+/** The kinds that are a week's long run. */
+const LONG_RAN: ReadonlySet<SessionKind> = new Set<SessionKind>(['long', 'long-fast-finish', 'b2b'])
+
 const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
 // ---------------------------------------------------------------------------------------------
@@ -246,6 +264,15 @@ export interface SimWeek {
   ranMin: number
   /** Count of the week's planned run sessions by outcome (`completion.partialBelow`, `.extendedAbove`). */
   sessions: Record<SessionOutcome, number>
+  /** The sessions the athlete ran, with the minutes run; absent in a week made by hand. */
+  finished?: FinishedSession[]
+}
+
+/** One session the athlete ran: its day, its kind in the plan and the minutes run. */
+export interface FinishedSession {
+  date: string
+  kind: SessionKind
+  minutes: number
 }
 
 /** The first Monday on or after a date: the day the weekly re-plan learns of a window starting then. */
@@ -423,6 +450,8 @@ export class SimAthlete {
 export interface SimOptions {
   /** The position of the load setting, left out of the input when absent. */
   loadAppetite?: LoadAppetite
+  /** The method preset [rules P1 to P4], left out of the input when absent. */
+  method?: PresetId
   /** Stop after this many re-plans (default: until the race week), as `replanChain`. */
   maxSteps?: number
 }
@@ -561,6 +590,7 @@ function runWeek(
     skipped: 0,
   }
   const activities: Activity[] = []
+  const finished: FinishedSession[] = []
   const statuses = new Map<SessionSpec, string>()
   let plannedMin = 0
   let ranMin = 0
@@ -588,6 +618,7 @@ function runWeek(
     plannedMin += s.durationMin
     ranMin += minutes
     if (minutes > 0) {
+      finished.push({ date: s.date, kind: s.kind, minutes })
       activities.push(
         activity(s.date, {
           id: `done-${s.date}-${s.order}`,
@@ -602,7 +633,7 @@ function runWeek(
   }
   const target = draft.weeks.find((w) => w.weekStart === weekStart)?.targetRunMin ?? null
   return {
-    week: { weekStart, targetMin: target, plannedMin, ranMin, sessions: outcomes },
+    week: { weekStart, targetMin: target, plannedMin, ranMin, sessions: outcomes, finished },
     activities,
     statuses,
   }
@@ -619,9 +650,18 @@ export function simulateChain(
   first: EngineInput,
   options: SimOptions = {},
 ): SimChain {
-  const { loadAppetite, maxSteps = Infinity } = options
+  const { loadAppetite, method, maxSteps = Infinity } = options
   const start: EngineInput =
-    loadAppetite === undefined ? first : { ...first, options: { ...first.options, loadAppetite } }
+    loadAppetite === undefined && method === undefined
+      ? first
+      : {
+          ...first,
+          options: {
+            ...first.options,
+            ...(loadAppetite === undefined ? {} : { loadAppetite }),
+            ...(method === undefined ? {} : { method }),
+          },
+        }
   const calendar = athlete.calendar(start)
   let draft = buildPlan(start)
   let activities = start.activities
@@ -741,6 +781,30 @@ export interface Delivered {
   share: number | null
 }
 
+/** One week as it was finished, against the plan in force when it began [rules P2, P4, F2, F5]. */
+export interface FidelityWeek {
+  weekStart: string
+  /** The phase the plan in force gave the week; null when that plan had no such week. */
+  phase: WeekDraft['phase'] | null
+  /** Days on which a run was finished. */
+  runDays: number
+  /** The finished sessions of the kinds of the table of quality kinds, by kind. */
+  quality: Partial<Record<SessionKind, number>>
+  /** Minutes of the finished long runs over the minutes of every finished run; null with no running. */
+  longRunShare: number | null
+}
+
+export interface Fidelity {
+  /** The weeks with a finished run, one for each step after the first. */
+  weeks: FidelityWeek[]
+  /** The most run days in a week, null without a week. */
+  maxRunDays: number | null
+  /** Quality sessions finished in a week, mean over the weeks. */
+  meanQualitySessions: number | null
+  /** Mean over the weeks that have a long run. */
+  meanLongRunShare: number | null
+}
+
 export interface ChainScore {
   /** `weeks` with at least `j5.completionHoldShare` of the planned minutes run. */
   atHoldShare: Figure<WeekCount>
@@ -752,7 +816,49 @@ export interface ChainScore {
   peakDrift: Figure<PeakDrift>
   conformance: Figure<Conformance>
   delivered: Figure<Delivered>
+  /** What the sessions finished held, week by week: run days, quality sessions, long-run share. */
+  fidelity: Figure<Fidelity>
 }
+
+/**
+ * The finished sessions of each week read against the plan in force when it began: the plan of the
+ * step before (the first plan for the first week run).
+ */
+function fidelityOf(steps: readonly ScoredStep[]): Fidelity {
+  const weeks: FidelityWeek[] = []
+  steps.forEach((step, k) => {
+    const ran = step.week?.finished
+    if (k === 0 || step.week === null || ran === undefined || ran.length === 0) return
+    const quality: Partial<Record<SessionKind, number>> = {}
+    for (const s of ran) {
+      if (QUALITY_RAN.has(s.kind)) quality[s.kind] = (quality[s.kind] ?? 0) + 1
+    }
+    const total = ran.reduce((sum, s) => sum + s.minutes, 0)
+    const long = ran.filter((s) => LONG_RAN.has(s.kind)).reduce((sum, s) => sum + s.minutes, 0)
+    weeks.push({
+      weekStart: step.week.weekStart,
+      phase:
+        steps[k - 1]!.draft.weeks.find((w) => w.weekStart === step.week!.weekStart)?.phase ?? null,
+      runDays: new Set(ran.map((s) => s.date)).size,
+      quality,
+      longRunShare: ran.some((s) => LONG_RAN.has(s.kind)) && total > 0 ? long / total : null,
+    })
+  })
+  const shares = present(weeks.map((w) => w.longRunShare))
+  const sum = (values: readonly number[]) => values.reduce((a, b) => a + b, 0)
+  return {
+    weeks,
+    maxRunDays: weeks.length === 0 ? null : Math.max(...weeks.map((w) => w.runDays)),
+    meanQualitySessions:
+      weeks.length === 0
+        ? null
+        : sum(weeks.map((w) => sum(Object.values(w.quality)))) / weeks.length,
+    meanLongRunShare: shares.length === 0 ? null : sum(shares) / shares.length,
+  }
+}
+
+const present = (values: ReadonlyArray<number | null>): number[] =>
+  values.flatMap((v) => (v === null ? [] : [v]))
 
 /** Sessions of a draft in the weeks from `first` to before `until` that the athlete would run. */
 const plannedRunMin = (draft: PlanDraft, from: string, until: string): number =>
@@ -856,5 +962,6 @@ export function scoreChain(chain: ScorableChain): ChainScore {
       firstPlanMin,
       share: firstPlanMin > 0 ? ranMin / firstPlanMin : null,
     }),
+    fidelity: figure(fidelityOf(steps), [P.p2.runDays, P.macroDesign.longRunShareOfWeek]),
   }
 }

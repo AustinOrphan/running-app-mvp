@@ -57,6 +57,7 @@ import {
   simulateChain,
   withStoredPlan,
   type ScorableChain,
+  type FinishedSession,
   type SimChain,
   type SimLevel,
   type SimOptions,
@@ -715,6 +716,54 @@ describe('scoreChain', () => {
     expect(score.delivered.value.share).toBeCloseTo(235 / 330, 10)
   })
 
+  it('reads the run days, quality sessions and long-run share of the sessions finished, week by week, with its label', () => {
+    const finished = (...sessions: Array<[number, SessionKind, number]>): FinishedSession[] =>
+      sessions.map(([day, kind, minutes]) => ({ date: addDays(W(1), day), kind, minutes }))
+    // week 1: easy 20 on Tuesday and Thursday, the long run of 40 on Sunday: 3 days, no quality, 40 / 80
+    // week 2: a week later, easy 21, strides 21, hills 21 and a long run of 42: 4 days, 2 quality, 42 / 105
+    const ran = (n: number, sessions: FinishedSession[]): SimWeek => ({
+      ...weekRun(n, 100, 100),
+      finished: sessions,
+    })
+    const week2 = finished(
+      [8, 'easy', 21],
+      [10, 'strides', 21],
+      [12, 'hills', 21],
+      [13, 'long', 42],
+    )
+    const read = scoreChain({
+      steps: [
+        { draft: first, input: context(W(1)), decision: null, week: null },
+        {
+          draft: replan1,
+          input: context(W(2)),
+          decision: null,
+          week: ran(1, finished([1, 'easy', 20], [3, 'easy', 20], [6, 'long', 40])),
+        },
+        { draft: replan2, input: context(W(3)), decision: null, week: ran(2, week2) },
+        // nothing finished in week 3, and a week made by hand with no list at all: neither is read
+        { draft: replan3, input: context(W(4)), decision: null, week: ran(3, []) },
+        { draft: replan3, input: context(W(5)), decision: null, week: weekRun(4, 100, 100) },
+      ],
+    }).fidelity
+    expect(read.value.weeks).toEqual([
+      { weekStart: W(1), phase: 'base', runDays: 3, quality: {}, longRunShare: 0.5 },
+      {
+        weekStart: W(2),
+        phase: 'base',
+        runDays: 4,
+        quality: { strides: 1, hills: 1 },
+        longRunShare: 42 / 105,
+      },
+    ])
+    expect(read.value.maxRunDays).toBe(4)
+    expect(read.value.meanQualitySessions).toBe(1)
+    expect(read.value.meanLongRunShare).toBeCloseTo((0.5 + 42 / 105) / 2, 10)
+    // labelled with the Params its figures are read against: P2 for the run days, the share of the week
+    expect(read.grade).toBe('D')
+    expect(read.rule).toBe(`${P.p2.runDays.rule}, ${P.macroDesign.longRunShareOfWeek.rule}`)
+  })
+
   it('gives figures only: no overall score, and no word of the rules G5 keeps out', () => {
     expect(Object.keys(score).sort()).toEqual([
       'aboveWeeks',
@@ -722,6 +771,7 @@ describe('scoreChain', () => {
       'churn',
       'conformance',
       'delivered',
+      'fidelity',
       'holdFlips',
       'peakDrift',
     ])
@@ -781,7 +831,8 @@ describe('a held plan under the weekly decision [rules n-4, J5]', () => {
 // Each line is one chain: weeks at `j5.completionHoldShare` of the planned minutes (of the weeks
 // read) and weeks above the weekly ratio; minutes the re-plans moved; weekly decisions (progress,
 // hold, reduce) and hold-progress-hold flips; the peak week's target and position in the first plan
-// and the last; steps with a failed item of the checklist; minutes run over the first plan's.
+// and the last; steps with a failed item of the checklist; minutes run over the first plan's; the
+// most run days in a week, the quality sessions a week and the long run's share of the sessions finished.
 describe.skipIf(process.env.SIM_FIGURES === undefined)(
   'the figures of the chains, printed by hand',
   () => {
@@ -792,6 +843,7 @@ describe.skipIf(process.env.SIM_FIGURES === undefined)(
         p === null ? '-' : `${String(p.targetMin)}@${String(p.position)}`
       const counts = score.holdFlips.value.counts
       const share = score.delivered.value.share
+      const finished = score.fidelity.value
       return [
         id.padEnd(34),
         `at share ${String(score.atHoldShare.value.weeks)}/${String(score.atHoldShare.value.of)}`.padEnd(
@@ -806,7 +858,8 @@ describe.skipIf(process.env.SIM_FIGURES === undefined)(
         `checklist ${String(score.conformance.value.stepsWithFailure)}/${String(chain.steps.length)}`.padEnd(
           17,
         ),
-        `run ${share === null ? '-' : share.toFixed(2)} of the first plan`,
+        `run ${share === null ? '-' : share.toFixed(2)} of the first plan`.padEnd(26),
+        `finished: up to ${String(finished.maxRunDays ?? '-')} run days, ${finished.meanQualitySessions?.toFixed(2) ?? '-'} quality a week, long run ${finished.meanLongRunShare?.toFixed(2) ?? '-'} of the week`,
       ].join('  ')
     }
 
