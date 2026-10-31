@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import {
   strengthLogUrl,
   useSaveStrengthLog,
+  useStrengthLogNotices,
   useStrengthView,
   type StrengthLogBody,
 } from '../../web/api/strength.ts'
@@ -202,6 +203,86 @@ describe('a strength log saved through the outbox', () => {
   })
 })
 
+describe('a strength log the server refuses when it is replayed', () => {
+  const OTHER = '0a1b2c3d-1111-4222-8333-444455556666'
+  const CHECKIN = '/api/checkins/2026-03-18'
+  const offline = { status: 503, body: { error: { code: 'internal', message: 'Offline.' } } }
+  const dropped =
+    'A strength log saved on this phone was not accepted and was removed. Enter it again if it still applies.'
+
+  test('is gone from the phone with one notice for each, listed apart from the other entries', async () => {
+    let connected = false
+    mockApi({
+      'GET /api/strength': () => makeView(),
+      [`PUT ${strengthLogUrl(LOG_ID)}`]: () =>
+        connected
+          ? {
+              status: 409,
+              body: { error: { code: 'conflict', message: 'That activity already has a log.' } },
+            }
+          : offline,
+      [`PUT ${strengthLogUrl(OTHER)}`]: () =>
+        connected
+          ? {
+              status: 400,
+              body: {
+                error: { code: 'validation', message: 'Use an exercise of the catalogue.' },
+              },
+            }
+          : offline,
+      [`PUT ${CHECKIN}`]: () =>
+        connected
+          ? { status: 400, body: { error: { code: 'validation', message: 'Not a day.' } } }
+          : offline,
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result } = renderHook(
+      () => {
+        useOutboxReplay('u1')
+        return { save: useSaveStrengthLog(), strength: useStrengthLogNotices() }
+      },
+      {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children),
+      },
+    )
+    await act(async () => {
+      await result.current.save.mutateAsync({ logId: LOG_ID, body: BODY })
+      await result.current.save.mutateAsync({ logId: OTHER, body: { ...BODY, date: '2026-03-17' } })
+      await getOutbox().save(CHECKIN, { fatigue: 3 })
+    })
+    expect(getOutbox().getState().entries).toHaveLength(3)
+    expect(result.current.strength.notices).toEqual([])
+
+    connected = true
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+    await waitFor(() => {
+      expect(getOutbox().getState().entries).toEqual([])
+    })
+    // both logs were refused (a 409 and a 400) and are not queued again
+    await waitFor(() => {
+      expect(result.current.strength.notices).toHaveLength(2)
+    })
+    expect(result.current.strength.notices.map((notice) => [notice.url, notice.message])).toEqual([
+      [`/api/strength/logs/${LOG_ID}`, dropped],
+      [`/api/strength/logs/${OTHER}`, dropped],
+    ])
+    // the check-in's notice is the check-in's, and stays out of this list
+    expect(getOutbox().getState().notices).toHaveLength(3)
+
+    const [first] = result.current.strength.notices
+    act(() => {
+      result.current.strength.dismiss(first?.id ?? -1)
+    })
+    expect(result.current.strength.notices.map((notice) => notice.url)).toEqual([
+      `/api/strength/logs/${OTHER}`,
+    ])
+    expect(getOutbox().getState().notices).toHaveLength(2)
+  })
+})
+
 describe('the strength sheet with no connection', () => {
   const OTHER_ID = 'ffffffff-0000-4000-8000-000000000000'
   const offline = {
@@ -284,6 +365,92 @@ describe('the strength sheet with no connection', () => {
     ])
     // the replay is the body that was queued, not a new one
     expect(puts[1]?.body).toEqual(queuedBody)
+  })
+
+  test('reopened after a queued save, takes it back under its id, so a second save replaces it', async () => {
+    const { calls } = mockApi({
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/strength': () => makeView(),
+      'GET /api/today': () => ({}),
+      [`PUT ${strengthLogUrl(LOG_ID)}`]: () => offline,
+    })
+    openSheet()
+    await screen.findByRole('region', { name: 'Back squat' })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(getOutbox().getState().entries).toHaveLength(1)
+    })
+    const first = getOutbox().getState().entries[0]?.body as unknown as StrengthLogBody
+    expect(window.localStorage.getItem(`${STRENGTH_DRAFT_PREFIX}${LOG_ID}`)).toBeNull()
+
+    // the sheet is opened again for the same session, which would choose another id
+    cleanup()
+    vi.stubGlobal('crypto', { randomUUID: () => OTHER_ID })
+    openSheet()
+    await screen.findByRole('region', { name: 'Back squat' })
+    // it holds what was saved: the reps left of "As suggested", not the bare suggestion
+    expect(screen.getByRole('button', { name: 'Back squat, set 1, reps left 1' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await user.click(
+      within(screen.getByRole('group', { name: 'Back squat, set 2, reps' })).getByRole('button', {
+        name: 'Raise the reps by 1',
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(
+        (getOutbox().getState().entries[0]?.body as unknown as StrengthLogBody).sets[1]?.count,
+      ).toBe(6)
+    })
+
+    // one entry, under the first id, with the changed set and every other set as it was
+    const entries = getOutbox().getState().entries
+    expect(entries.map((entry) => entry.url)).toEqual([`/api/strength/logs/${LOG_ID}`])
+    const second = entries[0]?.body as unknown as StrengthLogBody
+    expect(second.sets).toEqual(first.sets.map((set, i) => (i === 1 ? { ...set, count: 6 } : set)))
+    expect(calls.some((call) => call.url.endsWith(OTHER_ID))).toBe(false)
+  })
+
+  test('reopened after a queued save of a swapped lift, keeps its sets and its loads', async () => {
+    mockApi({
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/strength': () => makeView(),
+      'GET /api/today': () => ({}),
+      [`PUT ${strengthLogUrl(LOG_ID)}`]: () => offline,
+    })
+    openSheet()
+    await screen.findByRole('region', { name: 'Back squat' })
+    const user = userEvent.setup()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(getOutbox().getState().entries).toHaveLength(1)
+    })
+    const first = getOutbox().getState().entries[0]?.body as unknown as StrengthLogBody
+
+    cleanup()
+    vi.stubGlobal('crypto', { randomUUID: () => OTHER_ID })
+    openSheet()
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    expect(screen.queryByRole('region', { name: 'Back squat' })).toBeNull()
+    // its loads are in view and can be typed, whatever the equipment says
+    expect(screen.getByRole('textbox', { name: 'Goblet squat, set 1, load' })).toHaveValue('10')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(getOutbox().getState().entries).toHaveLength(1)
+    })
+    const [entry] = getOutbox().getState().entries
+    expect(entry?.url).toBe(`/api/strength/logs/${LOG_ID}`)
+    // the body that was queued, sent again: no set of the swapped lift is lost
+    expect((entry?.body as unknown as StrengthLogBody).sets).toEqual(first.sets)
   })
 
   test('keeps the draft over a reload, so the save that follows is the one it was kept for', async () => {
