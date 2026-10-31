@@ -11,9 +11,8 @@ import type { StrengthView } from '../../../shared/types.ts'
 export const COUNT_PROMPT_FEWER = 1
 
 /**
- * How long "Not now" keeps the question away: four weeks (design 12.4; the owner accepted the
- * default on 2026-10-24, question 16). It is a convenience of this browser and not a Param, because
- * no rule of the engine reads it.
+ * How long "Not now" keeps the question away: four weeks (design 12.4; section 18, question 16). It
+ * is a convenience of this browser and not a Param, because no rule of the engine reads it.
  */
 export const COUNT_QUIET_WEEKS = 4
 
