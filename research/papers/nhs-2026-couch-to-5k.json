@@ -31,6 +31,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the NHS page this session and read weeks 1-9 from the HTML. Corrected two errors in the earlier record: (1) the quoted phrase 'or longer as you go through the plan' does not appear (the page says 'run further and for longer'), removed; (2) the implication claimed about 24-27 min of running time by week 4, but week 4 is 16 min of running (31.5 min is the session total). Added per-week running minutes. Page metadata: published 24 Jun 2025, modified 4 Sep 2026. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Public body; no commercial stake found. The page promotes the free NHS app and parkrun.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "Weeks 1 to 9 (run, walk and total times of every session), the 5-minute warm-up and cool-down walks, the rest-day advice, the GP advice and the repeat-a-week line located on the page fetched 2026-10-31 (published 24 Jun 2025, modified 4 Sep 2026)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Body named (NHS England, Better Health). GOV.UK (read 2026-10-31) describes the NHS Couch to 5K app as a free running plan provided by the Office for Health Improvement and Disparities in partnership with the BBC. Interests recorded."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "The version read is the one the record cites (modified 4 Sep 2026). No corpus paper supersedes it; relph-2023-couch-to-5k-injury studies a modified 9-week plan."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "The Clark original and this plan share one lineage (Wikipedia), so they count as one source. Galloway's start is lower, and relph-2023-couch-to-5k-injury (grade C, n=110) links the progressive design to drop-out and injury. Conservative reading: Galloway's lower floor and the page's own repeat-a-week allowance."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "Population stated (general adult beginners, no outcome data). restartFloor.sessions and macroDesign.startFloorWeekMin apply it to runners restarting after a break, which their notes do not label as extrapolated."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

@@ -30,6 +30,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the page twice with WebFetch: author Jason Koop, 'April 22, 2025', the 20 minute week-1 limit, weeks 2-3 under 1 hour, sleep, walking, cross-training and readiness quotes all present. 'Do not cut calories' reworded to the page's 'adequate energy intake is essential'; 'paddling' corrected to kayaking and paddle boarding. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "CTS sells coaching, training plans, camps and testing; the page's author is CTS's head ultrarunning coach, and the site promotes his book Training Essentials for Ultrarunning.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The week-1 limit of 20 minutes, weeks 2 and 3 under 1 hour, 8 to 10 hours of sleep for two weeks, energy intake, other activities in the month after and the readiness line all located on the page fetched 2026-10-31 (published 2025-04-15, updated 2025-04-22)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Author named on the page (Jason Koop, CTS head ultrarunning coach). Independent record: Outside Run's 2015 article (read 2026-10-31) describes him as director of coaching at Carmichael Training Systems; the CTS bio is the employer's page. Interests recorded: CTS sells coaching and Koop's book."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "The version read is the one updated 2025-04-22, the date in the record. No later corpus paper gives a return-to-run protocol (millet-2011, hoffman-2017 and garciavaliente-2026 describe damage and recovery time only)."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Weeks of reduced running agree in shape with Roche (skurka-2017) and Powell (irunfar-2016), independent coaches, and function data (millet-2011, hoffman-2017) show recovery by days 5 to 16. Roche and Powell differ on the week-1 dose (rest versus short jogs); the conservative reading is the shorter run."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "Population is coach guidance for ultramarathoners, mainly after a 100-mile race; the record states there are no figures for 50 km, and the H12 Param notes label the extension to other classes as a default. second pass: h12.step2RunMaxMin and h12.reducedDays apply this 100-mile advice to the later steps after a marathon or a 50K, and their notes name the 100-mile plans without calling that extension an extrapolation."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

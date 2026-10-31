@@ -18,7 +18,7 @@
     "Evidence level was 1b (individual RCT) for two investigations and 2b (individual cohort) for the remainder; mean PEDro 4.9 (range 0-7).",
     "Reverse periodization appears no more effective than other forms; more comparative studies are needed across a range of endurance sports."
   ],
-  "limitations": "Small number of moderate-to-low quality studies across mixed sports; few running studies and none on ultra-distance events.",
+  "limitations": "Small number of moderate-to-low quality studies across mixed sports; few running studies and none on ultra-distance events. Three of the 11 studies are classed as running (16, 35 and 30 athletes; 12, 12 and 8 weeks, the last in amateur triathletes), and the review says most studies did not equalise volume or intensity between arms; its text and its Table 3 disagree on the distance of one running test (1000 m and 2000 m). The abstract counts 200 athletes and the Results text 230 (the record keeps the abstract's figure).",
   "implications": [
     "Do not make reverse periodization (intensity first, volume later) a default; use a traditional base-build-specific-taper sequence.",
     "Allow reverse sequencing only as a user-selected option and make no performance-benefit claim."
@@ -28,7 +28,7 @@
     "metadataMatches": true,
     "abstractSource": "pubmed",
     "findingsSupported": true,
-    "notes": "Crossref and PubMed match (Sports Med Open 2022;8(1):56). Added 17-remaining-studies detail. Evidence level downgraded A to B because of low-moderate primary-study quality (PEDro 4.9).",
-    "checkedAt": "2026-10-22"
+    "notes": "Crossref and PubMed match (Sports Med Open 2022;8(1):56). Added 17-remaining-studies detail. Evidence level downgraded A to B because of low-moderate primary-study quality (PEDro 4.9). Re-read on 2026-10-31 for task M1 (abstract and full text on Europe PMC, PMC9023617, open access; Crossref lists no updated-by notice): the findings above match the text, and the limitations gained the 200 against 230 count and the running studies; no finding, level or implication changed.",
+    "checkedAt": "2026-10-31"
   }
 }

@@ -32,6 +32,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the page (HTTP 200, published 2023-06-14 per page metadata, byline Zoë Rom) and checked every figure: 81 mi/16 h/13.5K ft, 22/19/11%, median 50 mi, 57%, 43%, 65%, 20-mile runs, 97% 50K, 32-mile peak-week long run, 32% 50-mile race, 37 mi base/2,700 ft/12-mile run, no-significant-variation statement. Removed the comparison to a '25-35% typical long-run share', which is not in the source. Practice source, grade D. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Column 'in partnership with Strava' (stated on the page); Strava supplied the data and is a commercial activity platform.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "Peak week (81 miles, 16 hours, 13.5K ft), peak timing 22%, 19% and 11%, median longest run 50 miles, 57%, 43%, 65%, the 20-mile and 50K counts, the 32-mile peak-week long run, 32% with a 50-mile race, the 37-mile base and the no-significant-variation sentence located on the page fetched 2026-10-31 (published 2023-06-14). The page's title is 'What Strava Data Can Tell Us About How to Run a Fast 100-Miler'; the record's title differs."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Byline Zoë Rom, editor in chief of Trail Runner (page bio). Strava data scientists compiled the numbers and are not named. The Strava partnership is stated on the page. Interests recorded."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2023-06-14 with no later modification date; data are finishers of 2018 to 2022. No corpus paper supersedes it."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Same author and data supplier as the UTMB column, so one source. It disagrees with baldea-2009 and tan-2017 (small studies relating longer longest runs to finishing) and is not corroborated by a second dataset. Conservative reading: no longest-run target tied to finishing, as the d4LongRun note says."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "Population stated (Western States finishers 2018 to 2022); N, age and sex not stated, and finishers only. d4LongRun.ultra50, ultra100k and the h2 caps use it for other classes without labelling the extension as extrapolated."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

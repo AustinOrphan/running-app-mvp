@@ -29,6 +29,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched active.com page 2026-10-22: minimum and maximum miles for 5K, 10K, half marathon and marathon, 'Updated January 2, 2018' and the University of Colorado / national champions bio confirmed. Pace conversions flagged as estimates. Published coaching convention, not evidence.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Runs a coaching business, an email list and a podcast (Active.com bio); Active.com sells race registrations.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "5K minimum of five miles and up to ten for a serious runner, 10K minimum of seven to eight miles with a maximum of ten, half marathon 10 or 16 miles and marathon 18 to 22 located on the page fetched 2026-10-31 (updated 2018-01-02)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Author named (Jay Johnson). University of Colorado Athletics' staff page (employer, read 2026-10-31) lists him as a track and field coach at his alma mater from 2002; the claim that he coached national champions rests on the Active.com bio only. Interests recorded."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2016-02-18, updated 2018-01-02 (the record's year is the update year); the version read is the current page. fokkema-2020-half-marathon-volume-long-run, a later corpus paper, relates a longest run above 21 km to faster half marathons and does not contradict the distances."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "The 10-mile maxima for 5K and 10K agree with Higdon's advanced 10K plan (higdon-2024-advanced-10k), an independent author. Johnson gives distances only, no time or share of the week."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated (recreational 5K to marathon runners); the 5K and 10K use stays inside it, and the 10-mile maximum is for serious runners."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

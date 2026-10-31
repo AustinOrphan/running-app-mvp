@@ -29,6 +29,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the page (WebFetch): Bryon Powell, August 3, 2016; run lengths, 2-of-3 days, third-week normal schedule, 8 h sleep and warning signs confirmed. Removed 'volume still below baseline / no training efforts' and 'more days off' phrasings that the fetch did not confirm. The old URL (irunfar.com/2016/08/...html) now redirects to the stored one; the page is dated 2016-08-03 in its metadata. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Founding editor of iRunFar (the page carries an affiliate-link notice and gear reviews run on the site), author of two books and a coach (bio).",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The 25 to 45 minute first runs, running two days in three, runs of an hour or less, a normal schedule about the third week after a 100 miler with volume below baseline, about 8 hours of sleep and the warning signs located on the page fetched 2026-10-31 (published 2016-08-03, modified 2026-03-13)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Author named (Bryon Powell). Hardrock's official results (read 2026-10-31) list him as a finisher in 2015 and 2016. He is the site's founding editor, so the publisher is not independent of him; the record is his own personal practice."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Page modified 2026-03-13 after publication on 2016-08-03; the passage on returning to running is present in the version read. Later corpus papers (hoffman-2017, garciavaliente-2026) give no return protocol."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "The shape (short easy runs in the first week, a normal schedule from about week 3) agrees with Koop (cts-2025) and Roche (skurka-2017), independent coaches. One runner's personal approach, so the agreement is on shape, not on dose."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population is one experienced ultrarunner after the Hardrock 100, recorded as personal practice; the H12 notes label the extension to other classes."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

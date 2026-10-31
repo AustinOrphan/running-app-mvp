@@ -118,7 +118,7 @@ the delta of the scorecards (the diff of the two outputs) into the pull request 
 
 `research:check` fails on a schema error, an unknown topic, a duplicate DOI, a book field on a record
 that is not a `book-or-guideline`, a `book-or-guideline` record without R1 and R2 `pass` in `vetting`
-(the records in `PREDATES_RUBRIC` are exempt until task S4 re-vets them), or a cited id with no
+(the records still in `PREDATES_RUBRIC` are exempt until their R1 and R2 both pass), or a cited id with no
 paper. The few known stale ids in topic syntheses are listed in `scripts/research-check.ts`
 (`KNOWN_UNRESOLVED`); fix the text when you touch the synthesis and remove the entry. The parameter
 test also fails when a grade D parameter has no default note or a rule id has no heading in

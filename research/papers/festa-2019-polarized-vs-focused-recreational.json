@@ -1,0 +1,62 @@
+{
+  "id": "festa-2019-polarized-vs-focused-recreational",
+  "title": "Effects of Different Training Intensity Distribution in Recreational Runners",
+  "authors": "Festa L, Tarperi C, Skroce K, La Torre A, Schena F",
+  "year": 2019,
+  "journal": "Frontiers in Sports and Active Living",
+  "doi": "10.3389/fspor.2019.00070",
+  "pmid": "33344993",
+  "url": "https://doi.org/10.3389/fspor.2019.00070",
+  "design": "rct",
+  "population": "Recreational runners, mean age about 41, VO2max about 53 mL/min/kg, more than 4 years of training and about 3.2 h of running a week before the study; 43 recruited, 38 analysed (19 per arm; 31 men and 7 women)",
+  "sampleSize": 38,
+  "evidenceLevel": "C",
+  "topics": ["training-methods", "intensity-distribution"],
+  "findings": [
+    "Recruited runners were randomly assigned for 8 weeks to a polarized endurance plan (PET, zones 1, 2 and 3 at 77/3/20%) or a focused endurance plan (FOC, 40/50/10%), with the total training impulse matched (PET 2464 ± 124 and FOC 2558 ± 11 TRIMP in all; about 308 and 320 a week). Zones came from a treadmill test (first ventilatory threshold and respiratory-compensation point).",
+    "PET held four sessions a week (two hard interval or repetition sessions, one at moderate intensity and one easy run); FOC held three sessions a week, all with medium and long repetitions at moderate intensity. The plan was 2 introductory weeks and two 3-week microcycles on a 2:1 load pattern; no strength training. Achieved time in zones was 78/3/19% (PET) and 39/49/13% (FOC).",
+    "Both arms improved velocity at VO2max (3.2% PET, 4.0% FOC), at the first ventilatory threshold (4.0%, 3.2%), at the respiratory-compensation point (5.7%, 3.4%), average 2 km velocity (3.5%, 3.0%) and running economy (-5.3%, -8.7%); VO2max did not change. No parameter differed between arms.",
+    "Total training time differed: 29.9 ± 3.1 h for PET and 24.8 ± 2.0 h for FOC, about 17% less for FOC; the authors conclude that focused training gives similar improvements in recreational runners with 17% less time.",
+    "Dropout was 21% in FOC (two excluded for adherence below 96%, two left for personal reasons) and 5% in PET (one)."
+  ],
+  "limitations": "Eight weeks, a 2 km time trial and laboratory markers, no half-marathon or marathon outcome (the authors say so). 'No difference' with 19 runners an arm shows no detected difference, not equivalence. The arms differ in intensity distribution and in sessions a week (four against three), so the trial does not isolate run frequency. How the runners were randomised is not described, allocation numbers before dropout are not given, and the dropout was unequal. The text is inconsistent in places: the abstract counts 38 runners and the Methods 43 recruited; the Results text and Table 2 give different hours in zones 1 and 2 for FOC; Table 4's standard deviations for the FOC arm (for example 2.5 kg for body weight) are far smaller than Table 1's (10.1 kg). The authors declare no conflict of interest.",
+  "implications": [
+    "In recreational runners, an 8-week plan of three moderate-intensity sessions a week gave improvements similar to a four-session polarized plan on matched training impulse and less time. It supports only the statement that three run days are not shown to be worse over 8 weeks; the contrast is intensity and frequency together.",
+    "No rule, Param or preset cites it for a number; it carries no weight against the pyramidal default (E4) and none for a run-day cap."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. Crossref: title, Frontiers in Sports and Active Living 1:70, online 2020-01-15 (Crossref issued 2020), five authors, CC BY 4.0, no updated-by notice; Europe PMC and the volume carry 2019, which the record uses. Abstract and full text read on Europe PMC (PMC7739641, open access): Methods, Tables 1 to 4, Results and Discussion.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC7739641, CC BY) on 2026-10-31, with the tables; the counts, the weekly schedule and the dropout come from the Methods and Tables 1 and 2. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Five named authors with the affiliations the publisher deposit holds: Department of Neuroscience, Biomedicine and Movement Sciences, University of Verona (Festa, Tarperi, Skroce, Schena); University of Turin (Tarperi); University of Milan (La Torre). No separate university record was fetched. The authors declare no commercial or financial relationships."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published online 2020-01-15 in volume 1 (2019); no correction. The recreational-runner network meta-analysis (rosenblat-2025-tid-ipd-nma) postdates it and finds no polarized-versus-pyramidal difference overall; the same direction as here. Crossref issued year 2020, record year 2019 (volume year, as Europe PMC)."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "A second recreational-runner trial, munoz-2014-polarized-recreational, also found no significant difference between polarized and a moderate-intensity arm on its primary outcome; the pooled work in rosenblat-2025-tid-ipd-nma is consistent. The finding of equal gains has agreement in direction, but this trial alone cannot show equivalence, so the gate is held."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: recreational runners of about 41 years who trained about 3.2 h a week, 8 weeks, 2 km outcome. Use for a half marathon or a marathon plan, and for runners of a different volume, is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small randomised trial, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, M1 and M1b, 2026-10-31"
+  }
+}

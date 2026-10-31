@@ -30,6 +30,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the page this session and read the week 1-4 schedule and the paragraph on weeks 5-10. Block lengths, run/walk ratios, the stay-at-week-4 quote and the injury claim match. No publication date found in page metadata. Clarified that the run-walk figures are run/walk ratios inside a block, not minutes of running. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Sells books, custom coaching, a Run Walk Run app, training groups, retreats and nutrition courses (site navigation); runDisney's training consultant (page bio). Died 2026-02-25 (Olympedia); the site continues.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The week 1 to 4 schedule, the run-walk ratios, the stay-at-week-4 line, the 15/45, 20/40 and 30/30 steps for weeks 5 to 10 and the injury claim all located on the page fetched 2026-10-31."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Author named (Jeff Galloway). Olympedia (read 2026-10-31) records him on the 1972 US Olympic team in the 10,000 m, and a Wesleyan University athletics notice (read 2026-10-31) confirms the Olympic team and the run-walk method; his own site is second. Interests recorded."
+    },
+    "r3": {
+      "result": "hold",
+      "note": "Page undated (no publication date in its metadata); the text speaks of the past 20 years of growth in running, so it predates 2026, and the edition of the book it is compiled from is not named. The author died 2026-02-25. No corpus paper compares run-walk starts with continuous starts."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Single source for a run/walk-ratio start; the zero-injury claim has no data on the page. It differs from the C25K lineage (5 s of running per minute at the start); the conservative reading is the lower floor, used as a floor only."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population is general adult beginners and come-backers; the record is cited only by noviceLadder.rungs, a beginner use."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

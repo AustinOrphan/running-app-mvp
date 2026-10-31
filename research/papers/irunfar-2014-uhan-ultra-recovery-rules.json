@@ -29,6 +29,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the page twice (WebFetch): author Joe Uhan, 'September 9, 2014'; rules 2, 3, 6, 9 and 10 and the Pam Smith attributions confirmed. Derived day counts kept and marked derived. Rule 6 sleep wording flagged as ambiguous. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Owns Uhan Performance Physiotherapy and offers online coaching (iRunFar bio); the day-off rule is credited to Pam Smith.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "Rules 2, 3, 6, 9 and 10 and the Pam Smith attributions located on the page fetched 2026-10-31 (published 2014-09-09, modified 2021-12-24); the day counts for 50 km and 100 miles are derived, as the record states."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Author named (Joe Uhan). Western States' official 2012 results (read 2026-10-31) list Joe Uhan of Eugene OR in 9th place in 16:13:14; his doctorate in physical therapy and USATF Level II coaching rest on the iRunFar bio only. Interests recorded."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2014-09-09, modified 2021-12-24; the version read is the current page. Later corpus papers (hoffman-2017, garciavaliente-2026) describe recovery of function over days to weeks and do not supersede a days-off rule."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "A day off per 10 miles raced agrees in direction with Torrence (irunfar-2023: two to three weeks) and Roche (skurka-2017: a staged month) for a 100-mile effort, and hoffman-2017 and millet-2011 show function back by days 5 to 16. Roche's complete-rest week is shorter than Uhan's ten days; the conservative reading is the longer."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population is ultramarathoners after hard races, with the rule stated per miles raced; the H12 notes label the class mapping as derived."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }
