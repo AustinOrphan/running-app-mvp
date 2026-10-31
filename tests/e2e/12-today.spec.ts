@@ -1,7 +1,17 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { createPrisma, initSqlite } from '../../server/db.ts'
 import { addDays } from '../../shared/dates.ts'
-import type { PlanSession, PlanWithSessions, TodayHeat, TodayView } from '../../shared/types.ts'
+import type {
+  PlanSession,
+  PlanWithSessions,
+  StrengthView,
+  StrengthWorkout,
+  TodayHeat,
+  TodayView,
+} from '../../shared/types.ts'
 import { SLOT_BUDGETS_PX } from '../../web/components/today/slots.ts'
+import { lb, makeWorkout, plank, rdl, squat } from '../web/strength-fixtures.ts'
+import { E2E_DATABASE_URL } from './env.ts'
 import { relativeDates, resetData, signedInApi, toast, type Api } from './helpers.ts'
 
 // Today as the runner uses it: Not today and Done on the session's hero, then the one-tap check-in
@@ -156,14 +166,15 @@ async function fillSlotsToBudget(except: readonly string[] = []): Promise<void> 
   await page.evaluate((entries) => {
     const columns = document.querySelector('[data-layout]')
     const hero = document.querySelector('article')
-    const done = Array.from(hero?.querySelectorAll('button') ?? []).find(
-      (button) => button.textContent.trim() === 'Done',
+    // The primary button of the hero: Done for a run, "Log sets" for a strength session.
+    const done = Array.from(hero?.querySelectorAll('button') ?? []).find((button) =>
+      ['Done', 'Log sets'].includes(button.textContent.trim()),
     )
-    // Where the page puts each slot: the top of the session group, under the targets, under the
-    // actions, under the week strip.
+    // Where the page puts each slot: the top of the session group, under the targets (or, on a
+    // strength day, under the workout's rows), under the actions, under the week strip.
     const place: Record<string, (stub: HTMLElement) => void> = {
       disruption: (stub) => columns?.firstElementChild?.prepend(stub),
-      fuel: (stub) => hero?.querySelector('dl')?.after(stub),
+      fuel: (stub) => hero?.querySelector('dl, ul[aria-label^="Strength, "]')?.after(stub),
       watch: (stub) => done?.parentElement?.after(stub),
       brief: (stub) => document.querySelector('section[aria-label="This week"]')?.after(stub),
     }
@@ -192,13 +203,16 @@ async function settled(read: Locator): Promise<void> {
   await expect(read.getByRole('list', { name: 'Readiness signals' })).toBeVisible()
 }
 
-/** The bottom edge of the hero's Done button, in pixels from the top of the viewport. */
-async function doneBottom(): Promise<number> {
+/**
+ * The bottom edge of the hero's primary button, in pixels from the top of the viewport: Done on the
+ * day's run, or the button of whichever session is the hero (`Log sets` on a strength day).
+ */
+async function doneBottom(title = planned.title, label = 'Done'): Promise<number> {
   const box = await page
-    .getByRole('article', { name: planned.title })
-    .getByRole('button', { name: 'Done', exact: true })
+    .getByRole('article', { name: title })
+    .getByRole('button', { name: label, exact: true })
     .boundingBox()
-  if (box === null) throw new Error('Done has no box on the page.')
+  if (box === null) throw new Error(`${label} has no box on the page.`)
   return box.y + box.height
 }
 
@@ -617,5 +631,183 @@ test('signing out empties the outbox', async () => {
   await page.goto('/settings')
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL(/\/login$/)
+  expect(await queued()).toBe(0)
+})
+
+// ---- A strength day (strength design 11.1, 13) ---------------------------------------------------
+// The last cases of the file: they start over from an empty log (`resetData`) with a plan that holds
+// strength, and the one before them signed out.
+
+/**
+ * A plan with strength sessions, and the first of them on today as the day's only session. The move
+ * is a write through Prisma, as `seedPredictionLogs` does: the plan's own move is guarded by the
+ * rules of F4 and may refuse the day, and the page only ever shows today. The server reads the
+ * change on its next request (`PRAGMA data_version`).
+ */
+async function strengthOnlyToday(origin: string): Promise<PlanSession> {
+  const { today, thisMonday, lastWednesday, raceDate } = relativeDates()
+  await resetData()
+  api = await signedInApi(page, origin)
+  for (let i = 0; i < 4; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (30 + 5 * i) * 60,
+      distanceM: 5000 + i * 500,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Strength marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 2 })
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const strength = plan.sessions.find((session) => session.kind === 'strength')
+  if (strength === undefined) throw new Error('The plan has no strength session.')
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    await prisma.planSession.deleteMany({
+      where: { planId: strength.planId, date: today, NOT: { id: strength.id } },
+    })
+    await prisma.planSession.update({
+      where: { id: strength.id },
+      data: { date: today, weekStart: thisMonday },
+    })
+  } finally {
+    await prisma.$disconnect()
+  }
+  return { ...strength, date: today, weekStart: thisMonday }
+}
+
+/**
+ * Serves `GET /api/today` with the tallest strength day: the session's own payload with five rows
+ * (three lifts with long names, the jumps and three trunk movements) on a day of lower readiness,
+ * which adds the line and the switch to the usual load. The fold has to hold for it too.
+ */
+async function serveTallestStrengthDay(session: PlanSession): Promise<StrengthWorkout> {
+  const tallest = makeWorkout({
+    sessionId: session.id,
+    date: session.date,
+    lifts: [
+      squat({
+        sets: 3,
+        targets: [5, 5, 4],
+        loadG: lb(100),
+        usualLoadG: lb(110),
+        change: 'lighter-day',
+      }),
+      rdl({ sets: 2, targets: [6, 6] }),
+      rdl({ exerciseId: 'standing-calf-raise', slot: 'calf', sets: 2, targets: [12, 12] }),
+    ],
+    plyo: { contacts: 60, movements: ['pogo-hop', 'line-hop'] },
+    trunk: [plank(), plank({ exerciseId: 'dead-bug' }), plank({ exerciseId: 'pallof-press' })],
+  })
+  await page.route(TODAY_REQUEST, async (route) => {
+    // The browser revalidates with the tag it holds; a 304 has no body to change.
+    const headers = { ...route.request().headers() }
+    delete headers['if-none-match']
+    const response = await route.fetch({ headers })
+    const view = (await response.json()) as TodayView
+    const slots = { ...view.coach.slots, strength: tallest }
+    await route.fulfill({ response, json: { ...view, coach: { ...view.coach, slots } } })
+  })
+  return tallest
+}
+
+let strengthDay: PlanSession
+
+test('a day with only strength lists its workout in the hero, with Log sets in place of Done', async ({
+  baseURL,
+}) => {
+  strengthDay = await strengthOnlyToday(baseURL ?? '')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  const card = page.getByRole('article', { name: strengthDay.title })
+  await expect(card.getByRole('heading', { level: 2 })).toBeVisible()
+  // the workout the server derived: one row per lift, then the jumps and the trunk work
+  const rows = card.getByRole('list', { name: /^Strength, / }).getByRole('listitem')
+  await expect(rows.first()).toBeVisible()
+  expect(await rows.count()).toBeGreaterThanOrEqual(3)
+  expect(await rows.count()).toBeLessThanOrEqual(5)
+  await expect(rows.first()).toHaveText(/^.+: \d+ x \d+ to \d+, .*leave \d/)
+  await expect(card.getByRole('button', { name: 'Log sets' })).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Explain' })).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Not today' })).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Done' })).toBeHidden()
+  // the estimated maximum is never on Today
+  await expect(card).not.toContainText(/maximum/i)
+  expect(await scrollsSideways()).toBe(false)
+})
+
+test('at 390 x 844 and 360 x 740 Log sets is inside the fold on a strength day, the tallest included', async () => {
+  const card = page.getByRole('article', { name: strengthDay.title })
+  await expect(page.getByRole('radiogroup', { name: 'How do you feel today?' })).toBeVisible()
+  await fillSlotsToBudget()
+  await expect(page.locator('[data-slot][data-budget-px]')).toHaveCount(4)
+
+  // the day as the server derived it
+  await page.setViewportSize({ width: 390, height: 844 })
+  const tall = await doneBottom(strengthDay.title, 'Log sets')
+  await attachScreenshot('strength-390x844-unanswered', tall)
+  await expect(card.getByRole('heading', { level: 2 })).toBeInViewport()
+  expect(tall).toBeLessThanOrEqual(844 - TAB_BAR_PX)
+  await page.setViewportSize({ width: 360, height: 740 })
+  const narrow = await doneBottom(strengthDay.title, 'Log sets')
+  await attachScreenshot('strength-360x740-unanswered', narrow)
+  expect(narrow).toBeLessThanOrEqual(740)
+  expect(await scrollsSideways()).toBe(false)
+
+  // the tallest it can be: five rows with long names, and a lighter day's line and switch
+  try {
+    await serveTallestStrengthDay(strengthDay)
+    await page.reload()
+    await expect(card.getByRole('list', { name: /^Strength, / }).getByRole('listitem')).toHaveCount(
+      5,
+    )
+    await expect(card.getByRole('button', { name: 'Use the usual load' })).toBeVisible()
+    await expect(page.getByRole('radiogroup', { name: 'How do you feel today?' })).toBeVisible()
+    await fillSlotsToBudget()
+    await page.setViewportSize({ width: 390, height: 844 })
+    const tallest = await doneBottom(strengthDay.title, 'Log sets')
+    await attachScreenshot('strength-390x844-tallest', tallest)
+    expect(tallest).toBeLessThanOrEqual(844 - TAB_BAR_PX)
+    await page.setViewportSize({ width: 360, height: 740 })
+    const tallestNarrow = await doneBottom(strengthDay.title, 'Log sets')
+    await attachScreenshot('strength-360x740-tallest', tallestNarrow)
+    expect(tallestNarrow).toBeLessThanOrEqual(740)
+    expect(await scrollsSideways()).toBe(false)
+  } finally {
+    await page.unroute(TODAY_REQUEST)
+    await page.setViewportSize({ width: 1280, height: 720 })
+  }
+})
+
+test('Log sets opens the logging sheet from the hero; logging as suggested is three interactions and the hero says it is done', async () => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  const card = page.getByRole('article', { name: strengthDay.title })
+  // 1: the tap that opens the sheet
+  await card.getByRole('button', { name: 'Log sets' }).click()
+  const sheet = page.getByRole('dialog', { name: /^Strength, / })
+  await expect(sheet.getByRole('button', { name: 'As suggested' })).toBeVisible()
+  // 2 and 3
+  await sheet.getByRole('button', { name: 'As suggested' }).click()
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(toast(page, /^Strength log saved/)).toBeVisible()
+  await expect(sheet).toBeHidden()
+  await expect(card.getByText('Completed')).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Log sets' })).toBeHidden()
+  await expect(card.getByRole('heading', { level: 2 })).toBeFocused()
+
+  // the server holds the log, linked to the planned session, with sets in it
+  const view = (await api.get('/strength')) as StrengthView
+  expect(view.recent).toHaveLength(1)
+  expect(view.recent[0]?.sets.length).toBeGreaterThan(0)
+  const after = (await api.get('/plan')) as PlanWithSessions
+  expect(after.sessions.find((session) => session.id === strengthDay.id)?.status).toBe('completed')
   expect(await queued()).toBe(0)
 })
