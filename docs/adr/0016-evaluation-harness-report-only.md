@@ -63,15 +63,15 @@ that keeps G-5 consistent with it.
   runs of up to half a minute each is about ten minutes of waiting in all, and none changed it from
   2026-10-26 to 2026-10-31. Known by `git log -G"PARAMS_VERSION = "` on
   `shared/engine/params/index.ts`, 2026-10-31.
-- **Fact:** No figure of the harness is validated against an outcome. The reference bands come from
-  92 marathon plans with no outcome data, so effectiveness and injury safety are unknown
+- **Fact:** No source read for the harness puts an outcome behind one of its figures. The reference
+  bands come from 92 marathon plans with no outcome data, so effectiveness and injury safety are unknown
   [knopp-2024-marathon-plans]; Treff's 2.00 cut-off is called objective but not physiological by its
-  authors, who add that values from 0 to 2.00 must not be read as degrees of polarization, and no
-  outcome tests it [treff-2019-polarization-index]; the 5% plateau tolerance is a named preference
+  authors, who add that values from 0 to 2.00 must not be read as degrees of polarization, and the
+  paper tests it against no outcome [treff-2019-polarization-index]; the 5% plateau tolerance is a named preference
   of the code (`PLATEAU_TOLERANCE`, `tests/unit/engine/plan-metrics.ts`). Known by the corpus records
   and the source read on 2026-10-31.
-- **Fact:** No outcome validates a weighting of many plan criteria. The corpus study in which coaches
-  rated plans used 22 criteria, rated three plans from one chatbot version on a 1-5 scale, and
+- **Fact:** The one corpus study in which coaches rated plans validates no weighting of its
+  criteria. It used 22 criteria, rated three plans from one chatbot version on a 1-5 scale, and
   measured no outcome and no injury [duking-2024-chatgpt-running-plans]. Known by the corpus record,
   read 2026-10-31.
 - **Fact:** Acute:chronic ratios disagree on direction and on what they flag. In 435 runners the
@@ -104,7 +104,7 @@ that keeps G-5 consistent with it.
 - **Rule:** ADR 0005 and G1: rule code chooses every session. The `plan-review` skill ends in a
   list headed "Unvalidated", never in a plan edit.
 - **Opinion:** A gated figure becomes a target. The cheapest way to turn a failing build green is to
-  move the plan until the figure passes, and since no figure is validated against an outcome (Fact
+  move the plan until the figure passes, and since no figure has an outcome behind it in the sources read (Fact
   above), a pass shows nothing about the plan. A description that nothing waits on can still be read
   wrongly, but it cannot be tuned against by accident.
 - **Opinion:** The delta belongs in the pull request text. A reviewer reads the change beside the
@@ -138,7 +138,7 @@ that keeps G-5 consistent with it.
   and section 8, task RU2). Against (**Opinion**): a rule change should show what it did to the plans, and a repeatable
   report shows that where a one-off script does not.
 - **An overall score or ranking of plans.** For (**Opinion**): one number is easy to compare.
-  Against (**Fact**): no outcome validates a weighting (Duking, above), and a score would hide which
+  Against (**Fact**): the one study of rated plans validates no weighting (Duking, above), and a score would hide which
   figure moved.
 - **An acute:chronic ratio in the report, as description.** For (**Rule**): G-5 allows a ratio shown
   as description. Against (**Fact**): the cohorts above disagree on direction. Against (**Opinion**):
