@@ -28,6 +28,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched halhigdon.com novice 5K page 2026-10-22: full week table (1.5 to 3 mi, Thursday 1.5-2 mi, Sunday walk 30-60 min, 'Longest workout 3 miles') confirmed. Corrected the day layout wording. Published convention, not evidence.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Sells books and a paid training app and interactive plans (the page links both); the program page is free.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The week table (Tuesday and Saturday runs 1.5 to 3 miles, Thursday 1.5 to 2, Sunday walk 30 to 60 minutes, race in week 8) and 'longest workout 3 miles' located in the Wayback copy of 2026-10-12, read 2026-10-31. The live site dropped the connection of a plain HTTP client on 2026-10-31, and no other route was tried."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Author named (Hal Higdon). Penguin Random House's author page (read 2026-10-31) lists him as author of thirty-five books, a founder of the Road Runners Club of America and a winner of the American Society of Journalists and Authors' Career Achievement Award. Interests recorded."
+    },
+    "r3": {
+      "result": "hold",
+      "note": "Copy dated 2026-10-12; page metadata gives published 2018-04-09 and modified 2018-07-18, so the record's year 2024 is an access year. The live page was not read; the copy matches the record's 2026-10-22 read."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "No Param cites this record. A single author's plan with no second source; it agrees only with the same author's other 5K plans, which count as one source."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated (beginning runners, or a low-mileage approach)."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
   }
 }

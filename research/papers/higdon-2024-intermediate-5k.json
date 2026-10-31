@@ -28,6 +28,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched halhigdon.com intermediate 5K page 2026-10-22: Sunday entries 5/5/6/test/6/7/7/race, 'Longest workout 7 miles' and both audience quotes confirmed. Corrected: removed the unsupported '36-39% of scheduled miles' and the 'share near 30-35%' implication, which contradicted the 15-20 mpw audience (7/15-20 = 35-47%); weekly volume restated as roughly 2.5-3.5 h (earlier 3-4 h). Published convention, not evidence.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Sells books and a paid training app and interactive plans (the page links both); the program page is free.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "Sunday runs 5, 5, 6, 5K test, 6, 7, 7 miles, five run days with Monday and Friday rest, the 3 to 5 mile runs, tempo and 400 m sessions, 'longest workout 7 miles' and both audience statements located in the Wayback copy of 2026-04-07, read 2026-10-31. The live site dropped the connection of a plain HTTP client on 2026-10-31, and no other route was tried."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Author named (Hal Higdon). Penguin Random House's author page (read 2026-10-31) lists him as author of thirty-five books, a founder of the Road Runners Club of America and a winner of the American Society of Journalists and Authors' Career Achievement Award. Interests recorded."
+    },
+    "r3": {
+      "result": "hold",
+      "note": "Copy dated 2026-04-07; page metadata gives published 2018-04-09 and modified 2018-07-12, so the record's year 2024 is an access year. The live page was not read; the copy matches the record's 2026-10-22 read."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "The 7-mile peak long run agrees with Jay Johnson (johnson-2018: at least five miles for a 5K, up to ten for a serious runner), an independent coach. Daniels's reported 30% of weekly distance is lower than this plan's 35 to 47% (the record's arithmetic); the conservative reading is the lower share."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated (has raced a 5K, runs 3 to 4 days and 15 to 20 miles a week); use for the 5K and 10K tiers stays inside it."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
   }
 }
