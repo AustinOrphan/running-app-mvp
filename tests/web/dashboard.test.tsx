@@ -14,6 +14,7 @@ import type {
 } from '../../shared/types.ts'
 import { WeeklyHoursChart } from '../../web/components/charts/WeeklyHoursChart.tsx'
 import { getOutbox } from '../../web/pwa/outbox.ts'
+import { refocus, sheetRoutes } from './wrist-fixtures.ts'
 import { makeActivity, makeWeekRow } from '../factories.ts'
 import { loggedRun, makeLab, saved } from './fuel-fixtures.ts'
 import { activityPage, expectCleanCopy, type MockRoutes } from './helpers.tsx'
@@ -22,6 +23,7 @@ import {
   bodyweightWorkout,
   lb,
   lighterDayWorkout,
+  lightestRungWorkout,
   makeView,
   makeWorkout,
   plank,
@@ -568,8 +570,11 @@ describe('DashboardPage: a strength session', () => {
   }
 
   /** A day with an easy run and a strength session beside it: the run is the hero. */
-  function runAndStrength(workout: StrengthWorkout | null = makeWorkout()): TodayView {
-    const hero = makeHero({ others: [strengthSession()] })
+  function runAndStrength(
+    workout: StrengthWorkout | null = makeWorkout(),
+    other: PlanSessionView = strengthSession(),
+  ): TodayView {
+    const hero = makeHero({ others: [other] })
     return makeToday({
       sessions: [{ session: hero.session, advice: 'as-planned', reasons: [] }],
       coach: makeCoach({
@@ -687,6 +692,43 @@ describe('DashboardPage: a strength session', () => {
     expect(within(card).getByRole('button', { name: 'Log sets' })).toHaveFocus()
   })
 
+  test('a read of Today that lands while the sheet is open leaves the sheet as it was opened', async () => {
+    const user = userEvent.setup()
+    // the second answer moves the squat from 110 lb to 120 lb
+    const heavier = makeWorkout({
+      lifts: [squat({ loadG: lb(120) }), ...makeWorkout().lifts.slice(1)],
+    })
+    let reads = 0
+    const { api } = renderToday(
+      strengthDay(),
+      routes({
+        'GET /api/today': () => {
+          reads += 1
+          return strengthDay(reads === 1 ? makeWorkout() : heavier)
+        },
+      }),
+    )
+    const card = await screen.findByRole('article', { name: 'Strength' })
+    await user.click(within(card).getByRole('button', { name: 'Log sets' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const load = await within(dialog).findByRole('textbox', { name: 'Back squat, set 1, load' })
+    expect(load).toHaveValue('110')
+
+    await refocus()
+    await waitFor(() => {
+      expect(api.calls.filter((call) => call.url === '/api/today')).toHaveLength(2)
+    })
+    // the hero behind the sheet has the new answer ...
+    await waitFor(() => {
+      expect(rowsOf(card)[0]).toBe('Back squat: 4 x 3 to 6, 120 lb, leave 1 to 3.')
+    })
+    // ... and the sheet in front keeps the loads, and the sets entered, it was opened with
+    expect(within(dialog).getByRole('textbox', { name: 'Back squat, set 1, load' })).toHaveValue(
+      '110',
+    )
+    expect(within(dialog).getByText(/^Suggested 110 lb, four sets of 3 to 6 reps/)).toBeVisible()
+  })
+
   test('without a workout in the payload the session is the plain one, with Done', async () => {
     renderToday(strengthDay(null), routes())
     const card = await screen.findByRole('article', { name: 'Strength' })
@@ -702,6 +744,52 @@ describe('DashboardPage: a strength session', () => {
     expect(within(card).getByText('Completed')).toBeVisible()
     expect(within(card).queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
     expect(within(card).getByRole('button', { name: 'Explain' })).toBeVisible()
+  })
+
+  test('the week strip opens the session as Today holds it now: a save that settles it shows in the sheet', async () => {
+    vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+    const user = userEvent.setup()
+    // a strength-only day whose strip lists the same session, as the server sends it
+    const dayWith = (session: PlanSessionView): TodayView => {
+      const view = strengthDay(makeWorkout(), {}, session)
+      view.coach.weekStrip = makeStrip(
+        { targetRunMin: 450 },
+        { '2026-03-18': { mark: 'planned', sessions: [session] } },
+      )
+      return view
+    }
+    let saved = false
+    renderToday(
+      dayWith(strengthSession()),
+      routes({
+        ...sheetRoutes([strengthSession()]),
+        'GET /api/activities': () => activityPage([]),
+        [`PUT /api/strength/logs/${LOG_ID}`]: () => {
+          saved = true
+          return savedLog(LOG_ID)
+        },
+        'GET /api/today': () =>
+          dayWith(strengthSession(saved ? { status: 'completed', activityId: 'a1' } : {})),
+      }),
+    )
+    await screen.findByRole('article', { name: 'Strength' })
+    await user.click(screen.getByRole('button', { name: 'Wednesday 18 Mar, Planned' }))
+    const sessionSheet = await screen.findByRole('dialog', { name: 'Strength' })
+    expect(within(sessionSheet).getByText('Planned')).toBeVisible()
+    const section = await within(sessionSheet).findByRole('region', { name: 'Strength, heavy A' })
+    await user.click(within(section).getByRole('button', { name: 'Log sets' }))
+    const logging = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    await user.click(await within(logging).findByRole('button', { name: 'As suggested' }))
+    await user.click(within(logging).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+    })
+    // the sheet under it is the session as the next read of Today holds it, not the one it opened on
+    await waitFor(() => {
+      expect(within(sessionSheet).getByText('Completed')).toBeVisible()
+    })
+    expect(within(sessionSheet).queryByText('Planned')).not.toBeInTheDocument()
+    expect(within(sessionSheet).queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
   })
 
   describe('on a lighter day', () => {
@@ -811,6 +899,25 @@ describe('DashboardPage: a strength session', () => {
       ).toHaveValue('100')
     })
 
+    test('the engine at the lightest rung cut sets and no load: no switch, no usual load in the hero or the sheet', async () => {
+      const user = userEvent.setup()
+      const workout = { ...lightestRungWorkout(), sessionId: SESSION_ID }
+      renderToday(strengthDay(workout), routes())
+      const card = await screen.findByRole('article', { name: 'Strength' })
+      expect(within(card).getByText('Lighter today: one set fewer.')).toBeVisible()
+      expect(
+        within(card).queryByRole('button', { name: 'Use the usual load' }),
+      ).not.toBeInTheDocument()
+      expect(card.textContent).not.toMatch(/usual load|10% less/i)
+      await user.click(within(card).getByRole('button', { name: 'Log sets' }))
+      const dialog = await screen.findByRole('dialog', { name: /^Strength, / })
+      await within(dialog).findByRole('button', { name: 'As suggested' })
+      expect(dialog.textContent).not.toMatch(/usual load/i)
+      expect(
+        within(dialog).queryByRole('button', { name: /^Use the usual load/ }),
+      ).not.toBeInTheDocument()
+    })
+
     test('a day that only cut sets has no switch and does not promise one', async () => {
       const setsOnly = makeWorkout({
         lifts: [
@@ -887,6 +994,132 @@ describe('DashboardPage: a strength session', () => {
       expect(
         within(other).queryByRole('button', { name: /open the workout/ }),
       ).not.toBeInTheDocument()
+    })
+
+    test.each([
+      ['completed', { status: 'completed', activityId: 'a1' }],
+      ['skipped', { status: 'skipped' }],
+      ['partly done', { status: 'partial', activityId: 'a1' }],
+    ] as const)(
+      'is plain text for a strength session that is %s, so it cannot be logged twice',
+      async (_name, over) => {
+        renderToday(runAndStrength(makeWorkout(), strengthSession(over)), routes())
+        const card = await screen.findByRole('article', { name: 'Easy run' })
+        // the slot still carries the workout of the day's strength session; the item is only a word
+        expect(within(card).getByText('Also today: Strength (40 min).')).toBeVisible()
+        expect(
+          within(card).queryByRole('button', { name: /open the workout/ }),
+        ).not.toBeInTheDocument()
+      },
+    )
+
+    test('is plain text on a copy of a day that is over, and on a day ahead', async () => {
+      // the fixed clock is Wednesday 2026-03-18
+      renderToday({ ...runAndStrength(), date: '2026-03-16', servedFromCache: true }, routes())
+      const past = await screen.findByRole('article', { name: 'Easy run' })
+      expect(within(past).getByText('Also today: Strength (40 min).')).toBeVisible()
+      expect(
+        within(past).queryByRole('button', { name: /open the workout/ }),
+      ).not.toBeInTheDocument()
+      cleanup()
+
+      const ahead = runAndStrength()
+      ahead.coach.preview = true
+      renderToday({ ...ahead, date: '2026-03-19' }, routes())
+      const card = await screen.findByRole('article', { name: 'Easy run' })
+      expect(within(card).getByText('Also today: Strength (40 min).')).toBeVisible()
+      expect(
+        within(card).queryByRole('button', { name: /open the workout/ }),
+      ).not.toBeInTheDocument()
+    })
+
+    test('turns to plain text once the read after a save settles the session, and a second tap cannot log it again', async () => {
+      vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+      const user = userEvent.setup()
+      let saved = false
+      const { api } = renderToday(
+        runAndStrength(),
+        routes({
+          [`PUT /api/strength/logs/${LOG_ID}`]: () => {
+            saved = true
+            return savedLog(LOG_ID)
+          },
+          // the server's next answer: the session is completed, and its slot still holds the workout
+          'GET /api/today': () =>
+            saved
+              ? runAndStrength(
+                  makeWorkout(),
+                  strengthSession({ status: 'completed', activityId: 'a1' }),
+                )
+              : runAndStrength(),
+        }),
+      )
+      const card = await screen.findByRole('article', { name: 'Easy run' })
+      await user.click(
+        within(card).getByRole('button', { name: 'Strength, 40 minutes: open the workout' }),
+      )
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => {
+        expect(
+          within(card).queryByRole('button', { name: /open the workout/ }),
+        ).not.toBeInTheDocument()
+      })
+      expect(within(card).getByText('Also today: Strength (40 min).')).toBeVisible()
+      expect(api.calls.filter((call) => call.method === 'PUT')).toHaveLength(1)
+    })
+
+    test('focus returns to the item after a save from it, which is still on the page', async () => {
+      vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+      const user = userEvent.setup()
+      renderToday(runAndStrength(), routes())
+      const card = await screen.findByRole('article', { name: 'Easy run' })
+      const item = within(card).getByRole('button', {
+        name: 'Strength, 40 minutes: open the workout',
+      })
+      await user.click(item)
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      })
+      // the run's title is not where focus goes: the sheet gives it back to the item
+      expect(item).toHaveFocus()
+      expect(within(card).getByRole('heading', { level: 2 })).not.toHaveFocus()
+    })
+
+    test('focus goes to the title when the read after the save takes the item away', async () => {
+      vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+      const user = userEvent.setup()
+      let saved = false
+      renderToday(
+        runAndStrength(),
+        routes({
+          [`PUT /api/strength/logs/${LOG_ID}`]: () => {
+            saved = true
+            return savedLog(LOG_ID)
+          },
+          'GET /api/today': () =>
+            saved
+              ? runAndStrength(
+                  makeWorkout(),
+                  strengthSession({ status: 'completed', activityId: 'a1' }),
+                )
+              : runAndStrength(),
+        }),
+      )
+      const card = await screen.findByRole('article', { name: 'Easy run' })
+      await user.click(
+        within(card).getByRole('button', { name: 'Strength, 40 minutes: open the workout' }),
+      )
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => {
+        expect(within(card).getByRole('heading', { level: 2 })).toHaveFocus()
+      })
     })
 
     test('names a second session beside the button, in the same sentence', async () => {

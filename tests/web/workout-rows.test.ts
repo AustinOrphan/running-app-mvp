@@ -2,9 +2,11 @@ import { describe, expect, test } from 'vitest'
 import { lintText } from '../../shared/copy/lint.ts'
 import { COPY_MAX_CHARS } from '../../shared/copy/limits.ts'
 import type { Units, WeightUnit } from '../../shared/types.ts'
+import { blocksOf, withUsualLoad } from '../../web/components/strength/strengthForm.ts'
 import {
   WORKOUT_ROWS_MAX,
   minutesPhrase,
+  usualLoadOf,
   workoutRows,
 } from '../../web/components/strength/workoutRows.ts'
 import {
@@ -13,6 +15,7 @@ import {
   engineWorkout,
   lb,
   lighterDayWorkout,
+  lightestRungWorkout,
   makeWorkout,
   plank,
   rdl,
@@ -155,6 +158,41 @@ describe('workoutRows', () => {
         })
       }
     }
+  })
+})
+
+// The engine keeps the load it started from in `usualLoadG` whenever a lighter day changed anything,
+// so a cut that took sets and no load (a lift already at the lightest load the equipment makes) has
+// `usualLoadG` equal to `loadG`. This is the engine's own output for that day, not a hand-made one.
+describe('a lighter day with no load to lower', () => {
+  const workout = lightestRungWorkout()
+
+  test('is what the engine derives at the lightest rung: lighter-day lifts whose usual load is their load', () => {
+    expect(workout.lifts.length).toBeGreaterThan(0)
+    for (const lift of workout.lifts) {
+      expect(lift.change, lift.exerciseId).toBe('lighter-day')
+      expect(lift.loadG, lift.exerciseId).toBe(lb(10))
+      expect(lift.usualLoadG, lift.exerciseId).toBe(lift.loadG)
+    }
+  })
+
+  test('offers no usual load for any lift, and the rows do not change when it is asked for', () => {
+    for (const lift of workout.lifts) expect(usualLoadOf(lift), lift.exerciseId).toBeNull()
+    expect(texts(workoutRows(workout, 'km', 'lb', { usual: true }))).toEqual(
+      texts(workoutRows(workout, 'km', 'lb')),
+    )
+  })
+
+  test('leaves the sheet as it was when the usual load is taken', () => {
+    for (const block of blocksOf(workout, 'lb')) {
+      expect(withUsualLoad(block, 'lb'), block.key).toBe(block)
+    }
+  })
+
+  test('a lift that did lower its load has one', () => {
+    const [lowered] = lighterDayWorkout().lifts
+    expect(lowered && usualLoadOf(lowered)).toBe(lb(110))
+    expect(usualLoadOf({ loadG: null, usualLoadG: null })).toBeNull()
   })
 })
 

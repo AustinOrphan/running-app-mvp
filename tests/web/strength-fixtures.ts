@@ -1,6 +1,7 @@
 // Synthetic fixtures of the strength web tests (E14-7): a workout of three lifts, a trunk movement
 // and a jump dose; the same for a runner with no equipment; the Strength page view; and the answers
 // of the settings and log routes. No real history, equipment or names.
+import { addDays } from '../../shared/dates.ts'
 import { toGrams } from '../../shared/domain/weight.ts'
 import { workoutFor } from '../../shared/engine/strength.ts'
 import type {
@@ -19,7 +20,13 @@ import type {
   WorkoutLift,
 } from '../../shared/types.ts'
 import { activity } from '../unit/engine/e8-fixtures.ts'
-import { have, sessionRef, withSetup } from '../unit/engine/strength-fixtures.ts'
+import {
+  have,
+  log as engineLog,
+  sessionRef,
+  setsOf as engineSetsOf,
+  withSetup,
+} from '../unit/engine/strength-fixtures.ts'
 
 /** Whole pounds as grams, the way a stored load is. */
 export const lb = (pounds: number): number => toGrams(pounds, 'lb')
@@ -193,6 +200,41 @@ export function lighterDayWorkout(): StrengthWorkout {
 export function engineWorkout(variant: 0 | 1 = 0): StrengthWorkout {
   const ctx = withSetup({ equipment: have('barbell', 'dumbbells', 'bands', 'step') })
   return workoutFor(ctx, sessionRef(5, variant))
+}
+
+/**
+ * What the engine derives for a lighter day when the lifts are already at the lightest load the
+ * dumbbells make: the cut can take sets and no load, so each lift keeps `usualLoadG` equal to
+ * `loadG` and there is no usual load to go back to. A runner with two dumbbells (10 and 15 lb) held
+ * every lift at 10 lb in the session before; the readiness read of the day is lower than usual.
+ */
+export function lightestRungWorkout(): StrengthWorkout {
+  const ref = sessionRef(5)
+  const rows = (reps: number) => Array.from({ length: 4 }, () => [10, reps, 2] as const)
+  const ctx = {
+    ...withSetup(
+      {
+        equipment: [
+          ...have('step'),
+          { kind: 'dumbbells', loads: { loadsG: [lb(10), lb(15)] } },
+        ] as never,
+      },
+      {
+        today: ref.date,
+        logs: [
+          engineLog('seed', addDays(ref.date, -3), {
+            sets: [
+              ...engineSetsOf('goblet-squat', rows(4)),
+              ...engineSetsOf('dumbbell-rdl', rows(4), 10),
+              ...engineSetsOf('standing-calf-raise', rows(8), 20),
+            ],
+          }),
+        ],
+      },
+    ),
+    readiness: { date: ref.date, state: 'possible-fatigue', pain: null, illness: 'clear' },
+  } as never
+  return workoutFor(ctx, ref)
 }
 
 export const SETTINGS: UserSettings = {

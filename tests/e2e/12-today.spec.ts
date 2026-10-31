@@ -639,12 +639,13 @@ test('signing out empties the outbox', async () => {
 // strength, and the one before them signed out.
 
 /**
- * A plan with strength sessions, and the first of them on today as the day's only session. The move
+ * A plan with strength sessions, and the first of them on today as the day's only session, or, with
+ * `withRun`, beside the first run that is still ahead, moved here too. The move
  * is a write through Prisma, as `seedPredictionLogs` does: the plan's own move is guarded by the
  * rules of F4 and may refuse the day, and the page only ever shows today. The server reads the
  * change on its next request (`PRAGMA data_version`).
  */
-async function strengthOnlyToday(origin: string): Promise<PlanSession> {
+async function strengthOnlyToday(origin: string, withRun = false): Promise<PlanSession> {
   const { today, thisMonday, lastWednesday, raceDate } = relativeDates()
   await resetData()
   api = await signedInApi(page, origin)
@@ -667,16 +668,27 @@ async function strengthOnlyToday(origin: string): Promise<PlanSession> {
   const plan = (await api.get('/plan')) as PlanWithSessions
   const strength = plan.sessions.find((session) => session.kind === 'strength')
   if (strength === undefined) throw new Error('The plan has no strength session.')
+  const run = withRun
+    ? plan.sessions.find((session) => RUN_KINDS.includes(session.kind) && session.date >= today)
+    : undefined
+  if (withRun && run === undefined) throw new Error('The plan has no run to put beside it.')
   const prisma = createPrisma(E2E_DATABASE_URL)
   try {
     await initSqlite(prisma)
     await prisma.planSession.deleteMany({
-      where: { planId: strength.planId, date: today, NOT: { id: strength.id } },
+      where: {
+        planId: strength.planId,
+        date: today,
+        NOT: { id: { in: [strength.id, ...(run === undefined ? [] : [run.id])] } },
+      },
     })
-    await prisma.planSession.update({
-      where: { id: strength.id },
-      data: { date: today, weekStart: thisMonday },
-    })
+    for (const moved of [strength, run]) {
+      if (moved === undefined) continue
+      await prisma.planSession.update({
+        where: { id: moved.id },
+        data: { date: today, weekStart: thisMonday },
+      })
+    }
   } finally {
     await prisma.$disconnect()
   }
@@ -872,4 +884,55 @@ test('a strength log the server refuses when it is finally sent leaves a notice 
     await page.unroute('**/api/strength/logs/*')
     await page.setViewportSize({ width: 1280, height: 720 })
   }
+})
+
+test('the "Also today" item of a run day is a 44 px target that stays off the action row', async ({
+  baseURL,
+}) => {
+  await strengthOnlyToday(baseURL ?? '', true)
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/')
+  const item = page.getByRole('button', { name: /^Strength, \d+ minutes: open the workout$/ })
+  await expect(item).toBeVisible()
+  const hero = page.getByRole('article').first()
+  await expect(hero.getByRole('button', { name: 'Done', exact: true })).toBeVisible()
+
+  // which points of a column through the item answer to it, and whether the points of the action
+  // row's own buttons, down to their last pixel, answer to those buttons
+  const reach = await item.evaluate((el) => {
+    const box = el.getBoundingClientRect()
+    const x = box.left + box.width / 2
+    const hit = (y: number) => document.elementFromPoint(x, y)?.closest('button') === el
+    let top = Infinity
+    let bottom = -Infinity
+    for (let y = Math.floor(box.top) - 40; y <= Math.ceil(box.bottom) + 40; y += 0.5) {
+      if (hit(y)) {
+        top = Math.min(top, y)
+        bottom = Math.max(bottom, y)
+      }
+    }
+    const article = el.closest('article')
+    const stolen: string[] = []
+    for (const label of ['Done', 'Explain', 'Not today']) {
+      const button = [...(article?.querySelectorAll('button') ?? [])].find(
+        (candidate) => candidate.textContent.trim() === label,
+      )
+      if (button === undefined) continue
+      const rect = button.getBoundingClientRect()
+      const cx = rect.left + rect.width / 2
+      for (let y = rect.bottom - 4; y < rect.bottom; y += 0.5) {
+        if (document.elementFromPoint(cx, y)?.closest('button') !== button) {
+          stolen.push(`${label} at ${String(y - rect.bottom)} px`)
+        }
+      }
+    }
+    return { reach: bottom - top + 0.5, stolen }
+  })
+  expect(reach.reach).toBeGreaterThanOrEqual(44)
+  expect(reach.stolen).toEqual([])
+  await item.click()
+  await expect(page.getByRole('dialog', { name: /^Strength, / })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(item).toBeFocused()
+  await page.setViewportSize({ width: 1280, height: 720 })
 })
