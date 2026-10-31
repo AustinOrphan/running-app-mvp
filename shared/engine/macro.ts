@@ -38,6 +38,7 @@ import {
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { blockLift, rebuildZone, responseBasis } from './loadSetting.ts'
+import { effective, overrides, resolveMethod } from './methods.ts'
 import { P } from './params/index.ts'
 import {
   ownWindow,
@@ -68,6 +69,7 @@ import type {
   Feasibility,
   GoalModel,
   PhaseV2,
+  PresetId,
   SessionSpec,
   WeekDraft,
 } from './types.ts'
@@ -223,13 +225,14 @@ function planPhases(
   taperWeeks: number,
   workPerCycle: number,
   openingRecovery: boolean,
+  method: PresetId,
   carried: ReadonlyArray<PhaseV2 | null> = [],
 ): PhasePlan[] {
   const specificMin = P.e2.specificWeeksMin.value
   const specific =
     weeksBeforeTaper >= specificMin ? Math.min(P.e2.specificWeeksMax.value, weeksBeforeTaper) : 0
   const remaining = weeksBeforeTaper - specific
-  const build = Math.min(remaining, P.macroDesign.buildWeeks.value)
+  const build = Math.min(remaining, effective(method, 'macroDesign.buildWeeks'))
   const base = remaining - build
   const cycle = workPerCycle + 1
   const out: PhasePlan[] = []
@@ -816,6 +819,8 @@ function planWeeks(
   state: AthleteState,
   goal: GoalModel,
   _feasibility: Feasibility,
+  /** The method preset that applies to the plan [rules P1 to P4]: `resolveMethod`, once per plan. */
+  method: PresetId,
   /**
    * A plan built inside a post-race window [H12]: the planned minutes of the window weeks before
    * its first week (ramp baselines), and the first loading week after them, which restarts from
@@ -826,6 +831,11 @@ function planWeeks(
     runs: RunRecord[]
     restart: string | null
   } = { volumes: new Map(), runs: [], restart: null },
+  /**
+   * Draw the phases anew from the race and the goal, ignoring the ones the plan being replaced
+   * carries: the default plan a method preset is held to does not inherit the preset's phases.
+   */
+  freshPhases = false,
   /** The cap of the first week when the weekly decision holds it [rule J5]. */
   heldCap?: number,
 ): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
@@ -845,7 +855,7 @@ function planWeeks(
   const pace = trainingPace(state, goal)
   const share = goal.isUltra
     ? P.macroDesign.longRunShareOfWeekUltra.value
-    : P.macroDesign.longRunShareOfWeek.value
+    : effective(method, 'macroDesign.longRunShareOfWeek')
   const cut = P.e3.recoveryWeekCutPct.value / 100
 
   // Phases
@@ -858,14 +868,16 @@ function planWeeks(
     taperCount,
     cycleWorkWeeks(input, state),
     openingRecovery,
-    carriedPhases(input, firstMonday, raceMonday, preCount),
+    method,
+    freshPhases ? [] : carriedPhases(input, firstMonday, raceMonday, preCount),
   )
   const raceIdx = total - 1
 
-  // Run days: novices keep the three-day rhythm, others follow the minutes, never above six
+  // Run days: novices keep the three-day rhythm, others follow the minutes, never above the cap (six,
+  // or the method preset's, which only lowers it) [rules F5, P2]
   const sessionMin = (P.d3.typicalSessionKm.value * pace) / 60
   const minDays = P.f5.noviceRunDays.value
-  const maxDays = P.f5.mastersMaxRunDays.value
+  const maxDays = effective(method, 'f5.mastersMaxRunDays')
   const daysFor = (target: number) => {
     if (target <= 0) return 0
     if (novice) return minDays
@@ -1447,6 +1459,8 @@ function planWeeks(
     firstIndex: total - 1,
     reference,
     referenceRunDays: refDays,
+    longRunShare: effective(method, 'macroDesign.longRunShareOfWeek'),
+    ...runDayCap(method),
     limits: { runs, today: input.today },
   })
   weeks.push(...afterWeeks)
@@ -1459,6 +1473,12 @@ function planWeeks(
  */
 const WINDOW_MAJORITY_DAYS = 4
 
+/** The run-day cap a preset that lowers it gives the weeks after a past race (`windowWeeks`), else none. */
+const runDayCap = (method: PresetId): { runDayCap?: number } =>
+  overrides(method, 'f5.mastersMaxRunDays')
+    ? { runDayCap: effective(method, 'f5.mastersMaxRunDays') }
+    : {}
+
 /**
  * The weeks of a plan built inside the window of a past race [rules H12, J7]: the Monday weeks that
  * follow the rest of the window, and the volume the normal plan restarts from. Null when no past
@@ -1468,6 +1488,7 @@ function windowLeadIn(
   input: EngineInput,
   state: AthleteState,
   goal: GoalModel,
+  method: PresetId,
 ): { window: PostRaceWindow; weeks: WeekDraft[]; restartMin: number } | null {
   if (goal.date < input.today) return null
   const { past } = postRaceWindows(input)
@@ -1495,6 +1516,8 @@ function windowLeadIn(
     firstIndex: 0,
     reference,
     referenceRunDays,
+    longRunShare: effective(method, 'macroDesign.longRunShareOfWeek'),
+    ...runDayCap(method),
     limits: { runs: completedReference(input.activities, state).runs, today: input.today },
   })
 
@@ -1526,7 +1549,8 @@ export function macroPlan(
 /**
  * The weeks of the plan (`macroPlan`) and the days of the race week after the goal race as a week
  * of their own: the race week keeps its taper row, and these days carry the first return step
- * [rule H12]. Null where the plan has no race week or the goal race is not ahead.
+ * [rule H12]. Null where the plan has no race week or the goal race is not ahead. `freshPhases` draws
+ * the phases anew and ignores the ones the plan being replaced carries (see `planWeeks`).
  */
 export function macroPlanDraft(
   input: EngineInput,
@@ -1534,9 +1558,14 @@ export function macroPlanDraft(
   goal: GoalModel,
   feasibility: Feasibility,
   heldCap?: number,
+  freshPhases = false,
 ): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
-  const lead = windowLeadIn(input, state, goal)
-  if (lead === null) return planWeeks(input, state, goal, feasibility, undefined, heldCap)
+  // one resolution for the whole plan, so the lead-in and the weeks after it agree on the preset
+  const method = resolveMethod(input, state).effective
+  const lead = windowLeadIn(input, state, goal, method)
+  if (lead === null) {
+    return planWeeks(input, state, goal, feasibility, method, undefined, freshPhases, heldCap)
+  }
   const normalStart = addDays(mondayOf(input.today), 7 * lead.weeks.length)
   // The plan it replaces is not read: its weeks at the shifted start are weeks of the normal plan
   // and would anchor the restart above the J7 volume.
@@ -1552,6 +1581,7 @@ export function macroPlanDraft(
     },
     goal,
     feasibility,
+    method,
     {
       volumes: new Map(lead.weeks.map((w) => [w.weekStart, w.targetRunMin])),
       runs: windowRuns(lead.window, lead.weeks),

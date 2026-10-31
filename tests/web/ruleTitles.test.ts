@@ -84,6 +84,20 @@ describe('RULE_TITLES', () => {
     for (const p of params) expect(ruleTitle(p.rule), p.id).toBe('What stood out on a run')
   })
 
+  test('titles the method presets, and their Params resolve to a title', () => {
+    expect([RULE_TITLES['P1'], RULE_TITLES['P2'], RULE_TITLES['P3'], RULE_TITLES['P4']]).toEqual([
+      'Default method',
+      'Three run days',
+      'Shorter long run',
+      'Longer base',
+    ])
+    expect(ruleTitle('p2')).toBe('Three run days')
+    for (const rule of ['P2', 'P4']) {
+      expect(paramsForRule(rule)).toHaveLength(1)
+      for (const p of paramsForRule(rule)) expect(ruleTitle(p.rule), p.id).not.toBeNull()
+    }
+  })
+
   test('tells g-1 from G1, ignoring case but not hyphens', () => {
     expect(ruleTitle('g-1')).not.toBe(ruleTitle('G1'))
     expect(ruleTitle('G-1')).toBe('Session spike guard')

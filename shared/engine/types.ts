@@ -205,6 +205,22 @@ export const isLoadAppetite = (value: unknown): value is LoadAppetite =>
   typeof value === 'string' && (LOAD_APPETITES as readonly string[]).includes(value)
 
 /**
+ * The method presets of a plan [rules P1 to P4], in the order the form offers them: a named choice,
+ * made when the plan is generated, among the four values of `OverrideId` (`params/p-methods.ts`).
+ * `default` overrides nothing. The id of rule P3, `shorter-long-run`, is not offered and not a
+ * member (decision 6 of the methods proposal). The one list: the request schema, the reader of a
+ * stored plan's options and the form's choices derive from it.
+ */
+export const PRESET_IDS = ['default', 'three-run-days', 'longer-base'] as const
+
+/** A method preset of a plan [rules P1 to P4]; `default` is today's engine. */
+export type PresetId = (typeof PRESET_IDS)[number]
+
+/** Whether a stored or received value is one of the presets. */
+export const isPresetId = (value: unknown): value is PresetId =>
+  typeof value === 'string' && (PRESET_IDS as readonly string[]).includes(value)
+
+/**
  * The recovery cycles a runner can choose [rules E3]: that many building weeks, then one lighter
  * week. `options.recoveryCycle` holds a choice only; absent, the plan decides (`cycleShortReason`,
  * macro.ts), so a form never sends the default as if it had been chosen.
@@ -515,6 +531,12 @@ export interface EngineInput {
      * weeks (E6) and are held to steady under the profiles `loadPosition` (loadSetting.ts) lists.
      */
     loadAppetite?: LoadAppetite
+    /**
+     * The method preset the plan was generated with [rules P1 to P4]. Absent means `default`, today's
+     * engine. A preset applies to the goal classes it names and is held at the default under a
+     * persistent hold of the load setting; `resolveMethod` (methods.ts) says which one applies.
+     */
+    method?: PresetId
     /**
      * `false` leaves the gut-training block out of the plan: no `gut-training` week flag and no
      * `fuel-practice` session flag [rules H7]. Absent or `true` keeps the block. The server sets

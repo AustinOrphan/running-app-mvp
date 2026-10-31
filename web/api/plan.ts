@@ -32,7 +32,7 @@ export interface GeneratePlanRequest {
   baselineRunMin?: number
   startDate?: string
   strengthPreference?: 0 | 1 | 2
-  /** Version-2 engine options: recovery cycle, strength sessions, TID model. */
+  /** Version-2 engine options: recovery cycle, strength sessions, TID model, load setting, method preset. */
   options?: EngineInput['options']
 }
 

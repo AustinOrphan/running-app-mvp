@@ -110,6 +110,16 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
 - Every number in `shared/engine/` is a `Param` from `shared/engine/params/`, with a grade, a rule
   id and cited paper ids that exist in `research/papers/`. A grade D value carries a note that
   says it is a default. A language model never chooses a session (ADR 0005).
+- Method presets (ADR 0017, rules P1 to P4): `options.method` (`PresetId`, absent means `default`)
+  overrides only the four values of `PRESET_OVERRIDES` (`shared/engine/params/p-methods.ts`): the
+  run-day cap, the long-run share, the build length and the table of quality kinds. The readers never
+  read those Params directly: `resolveMethod` (`shared/engine/methods.ts`) says which preset applies
+  (goal class, persistent holds, novice, a plan with no base week; the transient holds do not hold
+  one) and `effective(method, id)` gives the value, as `tidFor` takes `polarized`. A test scans for a
+  direct read. The default is today's plan byte for byte (the oracle). A preset that applies is held
+  week by week to the default plan of the same input (`WeekLimit`, `generate` in
+  `shared/engine/index.ts`), so it never plans more. A new overridable value needs an id, a reader, a
+  bound in `methods.test.ts` and a grade D Param under its rule.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`

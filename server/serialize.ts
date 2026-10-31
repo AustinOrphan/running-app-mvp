@@ -47,7 +47,7 @@ import type {
   Step,
   WeeklyDecision,
 } from '../shared/engine/types.ts'
-import { isLoadAppetite } from '../shared/engine/types.ts'
+import { isLoadAppetite, isPresetId } from '../shared/engine/types.ts'
 import { undoReasonMessage } from '../shared/copy/revision.ts'
 import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../shared/domain/weight.ts'
 import { renderFact } from '../shared/copy/templates.ts'
@@ -467,15 +467,20 @@ export function toWeeklyReview(row: WeeklyReviewRow): WeeklyReview {
 
 /**
  * The engine options of a stored plan: the runner's preferences (recovery cycle, strength sessions,
- * intensity model, load setting), kept when a plan is built for another goal and read by Explain
- * and by every re-plan. Text that is absent, unreadable or not a JSON object gives none. A stored
- * load setting that is not one of the three positions is dropped, which reads as steady.
+ * intensity model, load setting, method preset), kept when a plan is built for another goal and
+ * read by Explain and by every re-plan. Text that is absent, unreadable or not a JSON object gives
+ * none. A stored load setting that is not one of the three positions is dropped, which reads as
+ * steady, and a stored method that is not one of the presets is dropped, which reads as the default.
  */
 export function parsePlanOptions(text: string | null | undefined): EngineInput['options'] {
   const parsed = parseJson<unknown>(text ?? null, {})
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
-  const { loadAppetite, ...rest } = parsed as EngineInput['options']
-  return isLoadAppetite(loadAppetite) ? { ...rest, loadAppetite } : rest
+  const { loadAppetite, method, ...rest } = parsed as EngineInput['options']
+  return {
+    ...rest,
+    ...(isPresetId(method) ? { method } : {}),
+    ...(isLoadAppetite(loadAppetite) ? { loadAppetite } : {}),
+  }
 }
 
 /** The version-2 columns of a plan that `toPlan` leaves out. */

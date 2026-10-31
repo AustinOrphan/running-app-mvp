@@ -16,6 +16,7 @@ import {
   type RunCaps,
   type RunRecord,
 } from './limits.ts'
+import { effective, overrides } from './methods.ts'
 import { P } from './params/index.ts'
 import {
   afterRaceTitle,
@@ -39,6 +40,7 @@ import {
 } from './startWeeks.ts'
 import type {
   AthleteState,
+  PresetId,
   SessionFlag,
   SessionKind,
   SessionSpec,
@@ -73,13 +75,36 @@ const RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'race',
 ])
 
-/** Quality kinds by phase, in the order they are used. */
-const QUALITY_BY_PHASE: Record<WeekDraft['phase'], SessionKind[]> = {
+type QualityTable = Readonly<Record<WeekDraft['phase'], readonly SessionKind[]>>
+
+/** Quality kinds by phase, in the order they are used [rule F2]. */
+const QUALITY_BY_PHASE: QualityTable = {
   base: ['strides', 'hills'],
   build: ['threshold', 'intervals'],
   specific: ['race-pace', 'threshold'],
   taper: ['race-pace', 'strides'],
   race: ['strides'],
+}
+
+/**
+ * The table of quality kinds by phase, by preset [rules F2, P4]: one of the four values a preset
+ * may override. It holds kinds, which a Param cannot (a Param is a number), so it is a code table
+ * keyed by preset id, and `PRESET_OVERRIDES` flags the presets that have a row of their own
+ * (`qualityByPhase`). The kinds are the ones the default already uses; the specific, taper and race
+ * rows are the default's in every row.
+ *
+ * `longer-base` [rule P4]: the base holds strides only and the build holds hills and threshold, in
+ * the order the section gives them, so intervals leave the build and the first quality session of a
+ * build week is hills. Every other preset uses the default's table.
+ */
+export const QUALITY_BY_PRESET: Readonly<Record<PresetId, QualityTable>> = {
+  default: QUALITY_BY_PHASE,
+  'three-run-days': QUALITY_BY_PHASE,
+  'longer-base': {
+    ...QUALITY_BY_PHASE,
+    base: ['strides'],
+    build: ['hills', 'threshold'],
+  },
 }
 
 interface Slot {
@@ -177,6 +202,11 @@ export function placeWeek(
     longRunMaxM?: number
     /** The goal is an ultra: its strength sessions cite H10 beside F7 [rules E5, H10]. */
     ultra?: boolean
+    /**
+     * The method preset that applies to the plan [rules P1 to P4], as `resolveMethod` says
+     * (`effective`, after the class, hold and base rules); absent means the default.
+     */
+    method?: PresetId
     /**
      * The week's place in its strength block, week k of n, counted over the stored and planned weeks
      * (`strengthBlockPosition`); null or absent outside a block [rule E5].
@@ -420,6 +450,7 @@ function planRuns(
     zones: ZoneSet
     ceiling?: boolean
     windowPlan?: boolean
+    method?: PresetId
   },
   slots: Slot[],
   before: SessionSpec[],
@@ -428,6 +459,7 @@ function planRuns(
   windows: readonly PostRaceWindow[],
 ): RunPlan[] {
   const { profile, state } = ctx
+  const method = ctx.method ?? 'default'
   const novice = state.experience === 'novice'
   const floorWeek = week.flags.includes('restart-floor')
   const rung = ladderRung(week.flags)
@@ -445,8 +477,13 @@ function planRuns(
   const spaced = novice || floorWeek || step1Week
 
   let runDays = Math.max(0, Math.min(7, Math.floor(week.runDays)))
-  if (state.age !== null && state.age >= P.f5.mastersMinAge.value) {
-    runDays = Math.min(runDays, P.f5.mastersMaxRunDays.value)
+  // the cap is the masters' under the default, and every runner's under a preset that lowers it
+  // [rules F5, P2]: the weeks after a past race take their run days from the reference week
+  if (
+    overrides(method, 'f5.mastersMaxRunDays') ||
+    (state.age !== null && state.age >= P.f5.mastersMinAge.value)
+  ) {
+    runDays = Math.min(runDays, effective(method, 'f5.mastersMaxRunDays'))
   }
   if (novice) runDays = Math.min(runDays, P.f5.noviceRunDays.value)
   if (runDays === 0 || week.targetRunMin <= 0) return []
@@ -610,7 +647,7 @@ function planRuns(
   if (gentle) quality = 0
   if (pair !== null) quality = Math.min(quality, 1)
   if (fixed[0]?.kind === 'long-fast-finish') quality -= 1
-  const kinds = QUALITY_BY_PHASE[week.phase]
+  const kinds = QUALITY_BY_PRESET[method][week.phase]
   // none before the end of a post-race window [H12]
   const qualityDays = others.filter((d) => !quiet[d])
   quality = Math.max(0, Math.min(quality, qualityDays.length, kinds.length))

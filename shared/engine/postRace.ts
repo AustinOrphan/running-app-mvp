@@ -10,6 +10,7 @@ import type { Activity } from '../types.ts'
 import { distanceClassOf } from './goal.ts'
 import { referenceBetween, runCaps, type RunRecord } from './limits.ts'
 import { isDuplicate } from './load.ts'
+import { effective } from './methods.ts'
 import { P } from './params/index.ts'
 import { checkinsOf, J8_CHECKLIST, poorSubjective } from './readiness.ts'
 import type {
@@ -520,11 +521,23 @@ export function windowWeeks(
     reference: number
     /** Run days of the reference week. */
     referenceRunDays: number
+    /**
+     * The long run's share of the week [rule design-macro]: the effective value under the plan's
+     * method preset (`effective`, methods.ts). Absent means the default.
+     */
+    longRunShare?: number
+    /**
+     * The most run days a week holds, when a method preset lowers the run-day cap [rule P2]: the
+     * weeks take their run days from the reference week, which a preset's cap does not reach
+     * otherwise. Absent means no cap here, as before.
+     */
+    runDayCap?: number
     /** The runs of the 30-day reference (completed or planned) and the first day a run can fall on. */
     limits?: { runs: readonly RunRecord[]; today: string }
   },
 ): WeekDraft[] {
   const { reference, referenceRunDays } = args
+  const longRunShare = args.longRunShare ?? effective('default', 'macroDesign.longRunShareOfWeek')
   const runs = args.limits === undefined ? null : [...args.limits.runs]
   return args.weekStarts.map((weekStart, k) => {
     let minutes = 0
@@ -582,6 +595,7 @@ export function windowWeeks(
             openDays,
             spacing,
             step1 ? P.h12.step1MaxRuns.value : Infinity,
+            args.runDayCap ?? Infinity,
           )
     // what the caps let the week hold: every run at the run cap, one of them at the long cap; a
     // run is not shorter than the shortest run, so a small week holds fewer runs, as placed
@@ -598,10 +612,7 @@ export function windowWeeks(
         ? 0
         : Math.min(
             longMax,
-            Math.max(
-              Math.floor(target * P.macroDesign.longRunShareOfWeek.value + EPS),
-              Math.ceil(target / runDays),
-            ),
+            Math.max(Math.floor(target * longRunShare + EPS), Math.ceil(target / runDays)),
           )
     const week: WeekDraft = {
       weekStart,

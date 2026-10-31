@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { isIsoDate, mondayOf, todayIso } from '../../shared/dates.ts'
-import { LOAD_APPETITES } from '../../shared/engine/types.ts'
+import { LOAD_APPETITES, PRESET_IDS } from '../../shared/engine/types.ts'
 import type { PlanWeek } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound, parse, validationError } from '../errors.ts'
@@ -43,6 +43,8 @@ const generateBody = z.object({
       strengthSessions: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
       tidModel: z.enum(['pyramidal', 'polarized']).optional(),
       loadAppetite: z.enum(LOAD_APPETITES).optional(),
+      // the method preset [rules P1 to P4]; absent means the default, an unknown id is a 400
+      method: z.enum(PRESET_IDS).optional(),
     })
     .optional(),
 })

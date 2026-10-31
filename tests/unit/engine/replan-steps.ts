@@ -3,7 +3,12 @@
 // the race week. Shared by the tests that read a plan at every step of a season.
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
-import type { EngineInput, LoadAppetite, PlanDraft } from '../../../shared/engine/types.ts'
+import type {
+  EngineInput,
+  LoadAppetite,
+  PlanDraft,
+  PresetId,
+} from '../../../shared/engine/types.ts'
 import { activity } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
 
@@ -26,6 +31,8 @@ export interface ReplanChainOptions {
 export interface ReplanStepsOptions extends ReplanChainOptions {
   /** The position of the load setting, left out of the input when absent. */
   loadAppetite?: LoadAppetite
+  /** The method preset [rules P1 to P4], left out of the input when absent. */
+  method?: PresetId
 }
 
 /** The first plan of `first` and a re-plan on every Monday after it, until the race week. */
@@ -77,11 +84,15 @@ export function replanChain(first: EngineInput, options: ReplanChainOptions = {}
 
 /** The first plan and every Monday re-plan of the matrix athlete `id` until the race week. */
 export function replanSteps(id: string, options: ReplanStepsOptions = {}): ReplanStep[] {
-  const { loadAppetite, ...chain } = options
+  const { loadAppetite, method, ...chain } = options
   const a = athletes().find((x) => x.id === id)!
-  const first: EngineInput =
-    loadAppetite === undefined
-      ? a.input
-      : { ...a.input, options: { ...a.input.options, loadAppetite } }
+  const first: EngineInput = {
+    ...a.input,
+    options: {
+      ...a.input.options,
+      ...(loadAppetite === undefined ? {} : { loadAppetite }),
+      ...(method === undefined ? {} : { method }),
+    },
+  }
   return replanChain(first, chain)
 }
