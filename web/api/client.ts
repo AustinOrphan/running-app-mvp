@@ -160,6 +160,7 @@ export const keys = {
   disruptions: 'disruptions',
   brief: 'brief',
   fuel: 'fuel',
+  strength: 'strength',
   today: 'today',
   zones: 'zones',
   zoneProposals: 'zoneProposals',

@@ -10,7 +10,12 @@ import { useLogin, useLogout, useMe, useSetup } from '../../web/api/auth.ts'
 import { UNAUTHORIZED_EVENT, keys } from '../../web/api/client.ts'
 import { App } from '../../web/App.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
-import { DONE_DRAFT_PREFIX, FUEL_DRAFT_PREFIX, purgeDrafts } from '../../web/pwa/drafts.ts'
+import {
+  DONE_DRAFT_PREFIX,
+  FUEL_DRAFT_PREFIX,
+  purgeDrafts,
+  STRENGTH_DRAFT_PREFIX,
+} from '../../web/pwa/drafts.ts'
 import {
   OUTBOX_ROUTES,
   createOutbox,
@@ -39,19 +44,28 @@ async function queuedOutbox() {
   return outbox
 }
 
-/** What a day of use leaves in local storage: both drafts, and two keys that are not data. */
+/** What a day of use leaves in local storage: the three drafts, and two keys that are not data. */
 function seedDevice(): void {
   window.localStorage.clear()
   window.localStorage.setItem(`${DONE_DRAFT_PREFIX}2026-03-18`, '{"duration":"52"}')
   window.localStorage.setItem(`${DONE_DRAFT_PREFIX}u-a_2026-03-19`, '{"duration":"40"}')
   window.localStorage.setItem(`${FUEL_DRAFT_PREFIX}run9`, '{"items":[],"fluid":"600"}')
+  window.localStorage.setItem(
+    `${STRENGTH_DRAFT_PREFIX}3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10`,
+    '{"minutes":"40"}',
+  )
   window.localStorage.setItem('rl_today_more', 'open')
   window.localStorage.setItem('theme', 'dark')
 }
 
 function draftKeys(): string[] {
   return Object.keys(window.localStorage)
-    .filter((key) => key.startsWith(DONE_DRAFT_PREFIX) || key.startsWith(FUEL_DRAFT_PREFIX))
+    .filter(
+      (key) =>
+        key.startsWith(DONE_DRAFT_PREFIX) ||
+        key.startsWith(FUEL_DRAFT_PREFIX) ||
+        key.startsWith(STRENGTH_DRAFT_PREFIX),
+    )
     .sort()
 }
 
@@ -61,7 +75,7 @@ function withClient(queryClient: QueryClient) {
 }
 
 describe('purging the drafts', () => {
-  test('removes the Done and fuel drafts and nothing else', () => {
+  test('removes the Done, fuel and strength drafts and nothing else', () => {
     seedDevice()
     purgeDrafts()
     expect(draftKeys()).toEqual([])
@@ -157,7 +171,7 @@ describe('opening the app with a session that has ended', () => {
       expect(result.current.data).toEqual(user)
     })
     expect(outbox.getState().entries).toHaveLength(1)
-    expect(draftKeys()).toHaveLength(3)
+    expect(draftKeys()).toHaveLength(4)
   })
 
   test('a server that cannot answer is not an expired session: nothing is purged', async () => {
@@ -174,7 +188,7 @@ describe('opening the app with a session that has ended', () => {
       expect(result.current.isError).toBe(true)
     })
     expect(outbox.getState().entries).toHaveLength(1)
-    expect(draftKeys()).toHaveLength(3)
+    expect(draftKeys()).toHaveLength(4)
   })
 })
 

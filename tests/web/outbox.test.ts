@@ -26,6 +26,7 @@ const DAY = '2026-03-18'
 const URL = `/api/checkins/${DAY}`
 const OTHER_URL = '/api/checkins/2026-03-17'
 const FUEL_URL = '/api/fuel/logs/cm1abc2def'
+const STRENGTH_URL = '/api/strength/logs/3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
 
 interface Rig {
   outbox: Outbox
@@ -65,8 +66,12 @@ afterEach(() => {
 describe('the allowlist', () => {
   const route = (label: string) => OUTBOX_ROUTES.find((candidate) => candidate.label === label)
 
-  test('holds the check-in of a day and the fuel log of a run, and nothing else', () => {
-    expect(OUTBOX_ROUTES.map((entry) => entry.label)).toEqual(['check-in', 'fuel log'])
+  test('holds the check-in of a day, the fuel log of a run and the strength log of a session, and nothing else', () => {
+    expect(OUTBOX_ROUTES.map((entry) => entry.label)).toEqual([
+      'check-in',
+      'fuel log',
+      'strength log',
+    ])
   })
 
   test('the check-in route matches one day and nothing near it', () => {
@@ -101,9 +106,38 @@ describe('the allowlist', () => {
     }
   })
 
+  test('the strength log route matches the PUT of one log id and not its siblings', () => {
+    expect(route('strength log')?.matches(STRENGTH_URL)).toBe(true)
+    expect(route('strength log')?.matches('/api/strength/logs/log_2026-0318')).toBe(true)
+    for (const url of [
+      '/api/strength/logs',
+      '/api/strength/logs/',
+      '/api/strength/logs/short',
+      `/api/strength/logs/${'a'.repeat(65)}`,
+      `${STRENGTH_URL}/extra`,
+      `${STRENGTH_URL}?x=1`,
+      '/api/strength',
+      '/api/strength/settings',
+      '/api/strength/lifts/back-squat',
+      '/api/strength/exercises/back-squat',
+      FUEL_URL,
+      URL,
+    ]) {
+      expect(route('strength log')?.matches(url), url).toBe(false)
+    }
+    // the check-in and fuel routes leave it alone
+    expect(route('check-in')?.matches(STRENGTH_URL)).toBe(false)
+    expect(route('fuel log')?.matches(STRENGTH_URL)).toBe(false)
+  })
+
   test('a write to a URL outside it is refused before anything is stored', async () => {
     const { outbox, store, send } = rig()
-    for (const url of ['/api/activities', `${FUEL_URL}/skip`]) {
+    for (const url of [
+      '/api/activities',
+      `${FUEL_URL}/skip`,
+      '/api/strength/settings',
+      '/api/strength/lifts/back-squat',
+    ]) {
       await expect(outbox.save(url, { durationSec: 60 })).rejects.toThrow(/allowlist/)
     }
     expect(await store.read()).toEqual([])

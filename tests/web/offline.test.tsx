@@ -14,7 +14,11 @@ import { useSettings } from '../../web/api/settings.ts'
 import { OfflineNote } from '../../web/components/today/OfflineNote.tsx'
 import { dayState, isPhoneCopy } from '../../web/components/today/phoneCopy.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
-import { DONE_DRAFT_PREFIX, FUEL_DRAFT_PREFIX } from '../../web/pwa/drafts.ts'
+import {
+  DONE_DRAFT_PREFIX,
+  FUEL_DRAFT_PREFIX,
+  STRENGTH_DRAFT_PREFIX,
+} from '../../web/pwa/drafts.ts'
 import {
   createOutbox,
   memoryStore,
@@ -627,7 +631,11 @@ describe("emptying the copy of the server's answers", () => {
   test('a new session also starts without the unsent drafts and the queue of the one that ended', async () => {
     stubCaches()
     mockApi({ 'POST /api/auth/login': () => user, 'POST /api/setup': () => user })
-    const draftKeys = [`${DONE_DRAFT_PREFIX}u-a_2026-03-19`, `${FUEL_DRAFT_PREFIX}run9`]
+    const draftKeys = [
+      `${DONE_DRAFT_PREFIX}u-a_2026-03-19`,
+      `${FUEL_DRAFT_PREFIX}run9`,
+      `${STRENGTH_DRAFT_PREFIX}3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10`,
+    ]
     const seed = async () => {
       for (const key of draftKeys) window.localStorage.setItem(key, '{"notes":"left"}')
       window.localStorage.setItem('theme', 'dark')
@@ -640,7 +648,7 @@ describe("emptying the copy of the server's answers", () => {
     await act(async () => {
       await login.result.current.mutateAsync({ email: user.email, password: 'a long password' })
     })
-    expect(draftKeys.map((key) => window.localStorage.getItem(key))).toEqual([null, null])
+    expect(draftKeys.map((key) => window.localStorage.getItem(key))).toEqual([null, null, null])
     expect(outbox.getState().entries).toEqual([])
     expect(window.localStorage.getItem('theme')).toBe('dark')
 
@@ -649,7 +657,7 @@ describe("emptying the copy of the server's answers", () => {
     await act(async () => {
       await setup.result.current.mutateAsync({ email: user.email, password: 'a long password' })
     })
-    expect(draftKeys.map((key) => window.localStorage.getItem(key))).toEqual([null, null])
+    expect(draftKeys.map((key) => window.localStorage.getItem(key))).toEqual([null, null, null])
     expect(outbox.getState().entries).toEqual([])
   })
 })
