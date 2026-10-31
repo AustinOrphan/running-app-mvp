@@ -1107,8 +1107,8 @@ function plannedMinutes(sessions: SessionSpec[], weekStart: string, from: string
 /**
  * Whether the replaced plan has not started `oldWeek`: today is its Monday, every session of it is
  * still planned (or trimmed by the weekly decision, which the re-plan draws again), and nothing has
- * been run since. The weeks of a start path are left out: their
- * minutes are their programme's, and the floor week is the baseline the ramp measures from.
+ * been run since. The weeks of a start path are left out: their minutes are their programme's, and
+ * the floor week is the baseline the ramp measures from.
  */
 function unstartedWeek(
   oldWeek: WeekDraft,
@@ -1163,7 +1163,7 @@ export function replan(
   ])
   const stillPlanned = new Map<string, number>()
   const figure = new Map<string, number>()
-  const plan = disruptionPlan(input.disruptions ?? [])
+  const windowPlan = disruptionPlan(input.disruptions ?? [])
   for (const weekStart of settled) {
     const oldWeek = oldWeeks.find((w) => w.weekStart === weekStart)
     if (oldWeek === undefined) continue
@@ -1180,7 +1180,8 @@ export function replan(
     // never above the figure: a closed day must not hold a week to more than it was without it.
     if (unstartedWeek(oldWeek, oldSessions, input)) {
       figure.set(weekStart, oldWeek.targetRunMin)
-      const touched = dayRulesIn(plan, { from: weekStart, to: addDays(weekStart, 6) }).length > 0
+      const touched =
+        dayRulesIn(windowPlan, { from: weekStart, to: addDays(weekStart, 6) }).length > 0
       stillPlanned.set(
         weekStart,
         touched ? Math.min(planned, oldWeek.targetRunMin) : oldWeek.targetRunMin,

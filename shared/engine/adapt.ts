@@ -392,7 +392,7 @@ function layoffAt(input: EngineInput, asOf: string): number {
  * the first week then). A plan under the floor has no first week to set: no floor, and the cap of
  * G-6 stands.
  */
-function restartFloor(plannedMin: number, layoffDays: number): number {
+function restartCapFloor(plannedMin: number, layoffDays: number): number {
   const floor = P.macroDesign.startFloorWeekMin.value
   const restart = Math.round(plannedMin * restartFraction(layoffDays))
   if (restart >= floor) return restart
@@ -609,7 +609,7 @@ export function weeklyDecision(
     // would hold the next week empty too: the break rules size the restart [rules J7, E6].
     const stepped = nextWeekCap(plannedThis, actual, ramp, rebuild)
     const cap =
-      actual > 0 ? stepped : Math.max(stepped, restartFloor(plannedThis, layoffAt(input, asOf)))
+      actual > 0 ? stepped : Math.max(stepped, restartCapFloor(plannedThis, layoffAt(input, asOf)))
     nextWeekTargetMin =
       decision === 'hold'
         ? wholeMinutes(cap)
