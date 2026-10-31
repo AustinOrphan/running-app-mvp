@@ -46,6 +46,8 @@ export interface LiftSectionProps {
   attempted: boolean
   /** The saved equipment, which "Swap" reads; null until the page view has loaded (or offline). */
   equipment: readonly EquipmentConfig[] | null
+  /** The exercises left out in the setup: "Swap" does not offer them, so none can be pinned. */
+  avoid: readonly string[]
   /** The exercise the runner always uses in this lift's slot, if any. */
   pinned: string | undefined
   /** "Same as last time" has a session of this lift to copy. */
@@ -72,6 +74,7 @@ export function LiftSection({
   weightUnit,
   attempted,
   equipment,
+  avoid,
   pinned,
   hasLast,
   editing,
@@ -97,7 +100,7 @@ export function LiftSection({
   const usualLoadG = usualLoadOf(shown)
   // a saved log being edited was not made on a lighter day of the plan that is read now
   const lighterDay = !editing && shown.change === 'lighter-day' && usualLoadG !== null
-  const choices = equipment === null ? [] : swapChoices(block, equipment, barbellOf(workout))
+  const choices = equipment === null ? [] : swapChoices(block, equipment, barbellOf(workout), avoid)
   const pinnable = !editing && swapped && PINNABLE.has(shown.slot)
   const reachedBy = (index: number, update: (row: SetRow) => SetRow) => {
     onChange((current) => ({

@@ -357,6 +357,7 @@ export function StrengthForm({
             weightUnit={weightUnit}
             attempted={attempted}
             equipment={equipment}
+            avoid={view.data?.settings.avoid ?? []}
             pinned={pinned?.[block.shown.slot as PinnedSlot]}
             hasLast={!editing && hasLast(block, lastOf)}
             editing={editing}

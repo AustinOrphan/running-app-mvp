@@ -516,17 +516,36 @@ export function barbellOf(workout: Pick<StrengthWorkout, 'template' | 'block'>):
 }
 
 /**
+ * The exercises of `ids` that the runner has not left out (design 6.2, part 4). Every place that
+ * offers or saves an always-use choice reads the list through this: the setup's pins and the logging
+ * sheet's Swap and "Always use this". A pin on an exercise that is left out is a pin the rules
+ * ignore (the engine lets "left out" win), and the setup drops it when an exercise is left out, so
+ * the two writers keep one invariant. `keep` names exercises that stay whatever the list says: one
+ * already chosen, so a saved choice is never hidden.
+ */
+export function withoutAvoided(
+  ids: readonly ExerciseId[],
+  avoid: readonly string[] | ReadonlySet<string>,
+  keep: readonly string[] = [],
+): ExerciseId[] {
+  const left = new Set(avoid)
+  return ids.filter((id) => keep.includes(id) || !left.has(id))
+}
+
+/**
  * The exercises a lift can be swapped for: the one the workout held (to return to), then the slot's
- * feasible substitutes with the saved equipment (design 7.3), without the one now shown.
+ * feasible substitutes with the saved equipment (design 7.3), without the one now shown and without
+ * those the runner left out, so "Always use this" cannot pin one of them.
  */
 export function swapChoices(
   block: Block,
   equipment: readonly EquipmentConfig[],
   barbell: boolean,
+  avoid: readonly string[] = [],
 ): ExerciseId[] {
   const original = exerciseById(block.original.exerciseId)
   if (original === undefined) return []
-  const others = substitutes(original.id, equipment, { barbell })
+  const others = withoutAvoided(substitutes(original.id, equipment, { barbell }), avoid)
   return [original.id, ...others].filter((id) => id !== block.shown.exerciseId)
 }
 

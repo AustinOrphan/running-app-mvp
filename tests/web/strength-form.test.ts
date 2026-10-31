@@ -3,7 +3,7 @@ import { fromGrams, stepsFor, toGrams } from '../../shared/domain/weight.ts'
 import { structuresFor } from '../../shared/engine/strength.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { STRENGTH_COUNT_MAX, STRENGTH_SETS_MAX } from '../../shared/limits.ts'
-import type { StrengthLog } from '../../shared/types.ts'
+import type { StrengthLog, StrengthSettings } from '../../shared/types.ts'
 import {
   applyDraft,
   clearDraft,
@@ -41,11 +41,13 @@ import {
   withAllRir,
   withLift,
   withUsualLoad,
+  withoutAvoided,
   withoutSet,
   workoutOfLog,
   type Block,
   type SetRow,
 } from '../../web/components/strength/strengthForm.ts'
+import { formOfExercises, pinChoices } from '../../web/components/strength/setupForm.ts'
 import { STRENGTH_DRAFT_PREFIX } from '../../web/pwa/drafts.ts'
 import type { OutboxEntry } from '../../web/pwa/outbox.ts'
 import { have } from '../unit/engine/strength-fixtures.ts'
@@ -63,6 +65,7 @@ import {
   set,
   snapLift,
   squat,
+  STRENGTH_SETTINGS,
 } from './strength-fixtures.ts'
 
 afterEach(() => {
@@ -349,6 +352,42 @@ describe('a swap', () => {
       'step-up',
       'single-leg-box-squat',
     ])
+  })
+
+  test('does not offer an exercise the runner left out, and keeps the one the workout held', () => {
+    const start = block('back-squat')
+    expect(swapChoices(start, equipment, true, ['goblet-squat', 'step-up'])).toEqual([
+      'tempo-squat',
+      'split-squat',
+      'single-leg-box-squat',
+    ])
+    // the original is what the engine put there, even when it is left out (the floor stands in)
+    const swapped = withLift(
+      start,
+      swappedLift(workout, 'goblet-squat', equipment, 'lb') as never,
+      'lb',
+    )
+    expect(swapChoices(swapped, equipment, true, ['back-squat'])).toContain('back-squat')
+  })
+
+  test('the setup pins and the sheet swaps through one function: an exercise left out is offered by neither', () => {
+    expect(withoutAvoided(['back-squat', 'leg-press', 'tempo-squat'], ['leg-press'])).toEqual([
+      'back-squat',
+      'tempo-squat',
+    ])
+    expect(
+      withoutAvoided(['back-squat', 'leg-press'], new Set(['leg-press']), ['leg-press']),
+    ).toEqual(['back-squat', 'leg-press'])
+    const avoid = ['goblet-squat', 'tempo-squat']
+    const settings: StrengthSettings = { ...STRENGTH_SETTINGS, avoid }
+    const pins = pinChoices('knee', equipment, formOfExercises(settings))
+    const swaps = swapChoices(block('back-squat'), equipment, true, avoid)
+    for (const id of avoid) {
+      expect(pins, id).not.toContain(id)
+      expect(swaps, id).not.toContain(id)
+    }
+    // whatever the sheet can swap to, the setup can pin: the two lists cannot disagree
+    for (const id of swaps) expect(pins, id).toContain(id)
   })
 
   test('starts a dumbbell lift as the first session of an exercise, at the lightest dumbbell', () => {

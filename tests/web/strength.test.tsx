@@ -691,6 +691,43 @@ describe('adding and removing sets', () => {
 })
 
 describe('"Swap" and "Always use this"', () => {
+  test('does not offer an exercise left out in the setup, so "Always use this" cannot pin it', async () => {
+    const { calls } = open({
+      view: makeView({
+        settings: { ...STRENGTH_SETTINGS, avoid: ['goblet-squat', 'dumbbell-rdl'] },
+      }),
+      routes: {
+        'PUT /api/strength/settings': ({ body }) => ({ ...STRENGTH_SETTINGS, ...(body as object) }),
+      },
+    })
+    await sheet()
+    const user = userEvent.setup()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    const choices = within(screen.getByRole('group', { name: 'Swap Back squat for' }))
+    expect(choices.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Tempo squat',
+      'Split squat',
+      'Step-up',
+      'Single-leg box squat',
+    ])
+    await user.click(choices.getByRole('button', { name: 'Tempo squat' }))
+    await user.click(screen.getByRole('button', { name: 'Always use this: Tempo squat' }))
+    await waitFor(() => {
+      expect(
+        calls.some((call) => call.method === 'PUT' && call.url === '/api/strength/settings'),
+      ).toBe(true)
+    })
+    // what was pinned is not on the list of the exercises left out
+    const sent = calls.find((call) => call.method === 'PUT')?.body as {
+      pinned: Record<string, string>
+    }
+    expect(sent.pinned).toEqual({ knee: 'tempo-squat' })
+    expect(['goblet-squat', 'dumbbell-rdl']).not.toContain(sent.pinned['knee'])
+  })
+
   test('lists the exercises the equipment makes for the slot, and swaps one for the session', async () => {
     const { calls } = open({
       routes: {

@@ -28,7 +28,7 @@ import type {
   WeightUnit,
 } from '../../../shared/types.ts'
 import type { StrengthLiftBody, StrengthSettingsBody } from '../../api/strength.ts'
-import { loadText, parseLoad } from './strengthForm.ts'
+import { loadText, parseLoad, withoutAvoided } from './strengthForm.ts'
 
 /** The five parts of the setup (design 6.2), each its own short sheet. */
 export type SetupPart = 'unit' | 'equipment' | 'history' | 'exercises' | 'anchors'
@@ -390,9 +390,10 @@ export function pinChoices(
     .map((exercise) => exercise.id)
     .filter((id) => !ladder.includes(id))
   const current = form.pinned[slot]
-  return [...ladder, ...others].filter(
-    (id) => id === current || (!form.avoid.has(id) && isFeasible(id, equipment)),
+  const feasible = [...ladder, ...others].filter(
+    (id) => id === current || isFeasible(id, equipment),
   )
+  return withoutAvoided(feasible, form.avoid, current === undefined ? [] : [current])
 }
 
 /** The part of the settings the exercises sheet saves; an empty note clears it. */
