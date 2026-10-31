@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { StrengthWorkout } from '../../../shared/types.ts'
 import { useStrengthUnits } from '../../api/strength.ts'
 import { Sheet } from '../Sheet.tsx'
@@ -43,7 +44,7 @@ export interface StrengthSheetProps {
  * sheet opens with no connection (ADR 0012).
  */
 export function StrengthSheet({
-  workout,
+  workout: given,
   date,
   sessionId,
   activityId,
@@ -51,6 +52,10 @@ export function StrengthSheet({
   onClose,
   onSaved,
 }: StrengthSheetProps) {
+  // The workout the sheet was opened with is the one it keeps (ADR 0014): a read of Today that
+  // lands while it is open changes the loads the rules suggest, and the sets entered, the draft and
+  // the snapshot the log stores must stay those of what the runner was shown.
+  const [workout] = useState(given)
   const units = useStrengthUnits()
   const title = strengthWords('km', 'lb').heading(workout.template, workout.variant)
   return (
