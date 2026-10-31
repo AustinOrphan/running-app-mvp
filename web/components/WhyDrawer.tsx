@@ -3,10 +3,10 @@ import { describeParamRange, describeParamValue } from '../../shared/copy/paramU
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import type { ExplainView, Param } from '../../shared/engine/types.ts'
-import type { Units } from '../../shared/types.ts'
+import type { Units, WeightUnit } from '../../shared/types.ts'
 import { rulesRef, useExplain, type ExplainRef } from '../api/explain.ts'
 import { useResearchParams } from '../api/research.ts'
-import { useSettings } from '../api/settings.ts'
+import { useStrengthUnits } from '../api/strength.ts'
 import { GradeBadge } from './GradeBadge.tsx'
 import { InputFacts } from './InputFacts.tsx'
 import { PaperCard } from './PaperCard.tsx'
@@ -154,10 +154,12 @@ function ruleName(rule: string): string {
 function NumbersSection({
   view,
   units,
+  weightUnit,
   onNavigate,
 }: {
   view: ExplainView
   units: Units
+  weightUnit: WeightUnit | undefined
   onNavigate: () => void
 }) {
   const headingId = useId()
@@ -189,7 +191,12 @@ function NumbersSection({
             {group === undefined ? (
               <p className={styles.note}>{render(TEMPLATES['why.rule-alone'], {}, units)}</p>
             ) : (
-              <InputFacts facts={group.facts} units={units} onNavigate={onNavigate} />
+              <InputFacts
+                facts={group.facts}
+                units={units}
+                weightUnit={weightUnit}
+                onNavigate={onNavigate}
+              />
             )}
           </div>
         )
@@ -286,12 +293,15 @@ function DrawerBody({
   onClose: () => void
 }) {
   const view = useExplain(explain, { enabled: true })
-  const settings = useSettings()
+  const settings = useStrengthUnits()
   const rulesHeadingId = useId()
   // Parameter values and figures read in the runner's units. The setting is not waited for: the
   // drawer shows the server's default until it arrives, as the pages do, so a slow or failing
   // settings request never holds the figures back.
   const units: Units = settings.data?.units ?? DEFAULT_UNITS
+  // A strength load reads in the weight unit of the settings, as on the strength surfaces (a kept
+  // answer from before the unit existed reads as pounds); until they arrive it is the default.
+  const weightUnit = settings.data?.weightUnit
   // The registry and the papers do not depend on the figures, so they are asked for now and the
   // three requests overlap. `RuleSections` reads the same queries once the figures are in.
   useResearchParams()
@@ -312,7 +322,12 @@ function DrawerBody({
           </p>
         </section>
       ) : (
-        <NumbersSection view={view.data} units={units} onNavigate={onClose} />
+        <NumbersSection
+          view={view.data}
+          units={units}
+          weightUnit={weightUnit}
+          onNavigate={onClose}
+        />
       )}
       <section aria-labelledby={rulesHeadingId} className={styles.rules}>
         <h3 id={rulesHeadingId} className={styles.sectionTitle}>

@@ -4,12 +4,14 @@ import { EXPLAIN_MAX_SOURCES } from '../../shared/copy/limits.ts'
 import { render } from '../../shared/copy/template.ts'
 import { renderFact, TEMPLATES } from '../../shared/copy/templates.ts'
 import type { InputFact, SourceRef } from '../../shared/engine/types.ts'
-import type { Units } from '../../shared/types.ts'
+import type { Units, WeightUnit } from '../../shared/types.ts'
 import styles from './InputFacts.module.css'
 
 export interface InputFactsProps {
   facts: InputFact[]
   units: Units
+  /** The unit a strength load reads in; absent, the default (pounds). Only the strength facts carry a load. */
+  weightUnit?: WeightUnit
   /** A source link was followed: the drawer closes, because the page behind it changes. */
   onNavigate: () => void
   /** A control under a figure and its sources (the brief's Why); absent in the drawer. */
@@ -102,7 +104,7 @@ function Sources({
  * records it rests on. A figure the rule could not compute says what is missing, behind a
  * "Not enough data yet:" label.
  */
-export function InputFacts({ facts, units, onNavigate, action }: InputFactsProps) {
+export function InputFacts({ facts, units, weightUnit, onNavigate, action }: InputFactsProps) {
   return (
     <ul className={styles.list}>
       {facts.map((fact) => (
@@ -115,7 +117,7 @@ export function InputFacts({ facts, units, onNavigate, action }: InputFactsProps
                 </span>{' '}
               </>
             ) : null}
-            {renderFact(fact, units)}
+            {renderFact(fact, units, weightUnit)}
           </p>
           <Sources fact={fact} units={units} onNavigate={onNavigate} />
           {action?.(fact)}
