@@ -18,7 +18,7 @@
     "A new REDs Clinical Assessment Tool-Version 2 (REDs CAT2) is introduced to support detection and clinical diagnosis of REDs based on accumulated severity and risk stratification, with associated training and competition recommendations.",
     "Guidelines for safe body composition assessment, prevention and treatment principles, and methodological best practices for REDs research are outlined."
   ],
-  "limitations": "Consensus statement, not a quantitative synthesis; the abstract gives no numeric energy-availability thresholds or screening accuracy. Built for clinicians with access to labs and DXA, not for self-tracking recreational athletes. The colour-coded structure of CAT2 is not described in the abstract and was not verified.",
+  "limitations": "Consensus statement, not a quantitative synthesis; the abstract gives no numeric energy-availability thresholds or screening accuracy. Built for clinicians with access to labs and DXA, not for self-tracking recreational athletes. The colour-coded structure of CAT2 is not described in the abstract and was not verified. Crossref lists a correction (10.1136/bjsports-2023-106994corr1, 2024-02-07, Br J Sports Med 58(3):e4), contents not read.",
   "implications": [
     "Treat REDs as a risk-flagging domain, not a computed diagnosis: collect a short non-diagnostic REDs-risk screen (unintended weight loss, menstrual dysfunction in females, recurrent bone stress injury, recurrent illness, persistent fatigue or underperformance, GI symptoms, disordered eating) and prompt a clinician visit when flags accumulate.",
     "When flags are present, hold progression (no week-on-week volume increase, no added high-intensity sessions) until the user clears the flag. The statement ties training recommendations to risk stratification; the specific hold rule and the 2-flag threshold are design choices, not values from the abstract.",
@@ -29,7 +29,7 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref (title, BJSM, 2023-09, first author Mountjoy) matches. Europe PMC abstract (PMID 37752011) supports all findings. Removed the researcher's 'traffic-light' wording as unsupported by the abstract.",
+    "notes": "Crossref (title, BJSM, 2023-09, first author Mountjoy) matches. Europe PMC abstract (PMID 37752011) supports all findings. Removed the researcher's 'traffic-light' wording as unsupported by the abstract. Correction notice 10.1136/bjsports-2023-106994corr1 added to the record on 2026-10-31: Crossref's update-to relation types it as a correction and Europe PMC lists it as an erratum (PMID 38325885), but the publisher's page answered with a bot check and Europe PMC holds no abstract or text for it, so its text was not read, what it changed is unknown and the findings above rest on the abstract alone.",
     "checkedAt": "2026-10-22"
   }
 }
