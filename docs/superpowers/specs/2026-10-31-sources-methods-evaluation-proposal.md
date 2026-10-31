@@ -1,6 +1,7 @@
 # Sources beyond the corpus, a methods layer and an evaluation harness — proposal
 
-Status: Proposed 2026-10-31. Changes no code, Param, rule text or research record. It answers the
+Status: Proposed 2026-10-31; owner decisions recorded 2026-10-31 (section 7), one part open
+(decision 6). Changes no code, Param, rule text or research record. It answers the
 owner's three requests: which sources beyond the corpus should inform plans and how they are vetted;
 how plans could follow different methods; which tools would test and evaluate plans. Baseline:
 `main` at `bb63e675` (`PARAMS_VERSION` `2026-10-25.6`, 396 papers, 632 Params), re-read at
@@ -419,39 +420,84 @@ the owner, never a plan edit (ADR 0005), and an unvalidated judgement that vouch
 
 1. **Book records.** Default: option B and a `training-methods` topic. Against: a strict schema
    grows for a few records; C makes methods first-class but needs a citation and display path.
+   **Answered 2026-10-31:** B, the default: optional `edition`, `isbn`, `pagesRead`, `interests`
+   and `vetting` fields on `book-or-guideline` records, and a `training-methods` topic.
 2. **Rubric and corrections.** Default: R1 to R6 in the README and the skill, `updated-by` in
    `research:verify`, the Tyler and Mountjoy records annotated, the 19 practice records marked as
    predating the rubric and re-vetted when next touched. Against: more steps per source.
+   **Answered 2026-10-31:** the default for the rubric R1 to R6 in the README and the skill,
+   `updated-by` read by `research:verify` (done in #596), and the Tyler and Mountjoy records
+   annotated. Beyond the default, all 19 practice records are re-vetted now (S4), not marked and
+   left until next touched. Reason: the owner chose one standard across the corpus over the
+   cheaper mark-and-wait.
 3. **Daniels citation.** Default: relabel it "as reported by Running Magazine" in the record and the
    Param note; 0.35 stays, held by three D sources. Against: cosmetic until a page is read.
+   **Answered 2026-10-31:** the default: relabel it "as reported by Running Magazine"; 0.35
+   stays; S3 reads the page.
 4. **Other classes.** Default: columns are finding aids; preprints and registrations on a watch list
    in `docs/research/watch-list.md`; abstracts and theses at C at most; data reports outside
    journals at D; model-written text never a source. Against: a strong preprint waits.
+   **Answered 2026-10-31:** the default: the 3.1 caps; preprints and registrations on the watch
+   list; model-written text never a source.
 5. **Build the methods layer?** Default: yes, option B, after H0 and H1, at most four presets with
    the default. Against: no matching evidence (4.2); each preset adds tests and copy.
+   **Answered 2026-10-31:** yes, option B (a typed preset overlay), after H0 and H1, at most four
+   presets with the default.
 6. **Which presets.** Default: P1, P4, and P2 for 5 km to half-marathon goals only, whose class
    ceilings in the matrix (180, 210, 270 minutes) three runs carry at 60 to 90 minutes each; P3 out,
    as it moves the long run further below the grade B D3 floor while the outlook shortens. Against:
    P3 is one value near the Hansons page's 25-30%; a weekly cap for P2 (less load, which G6 allows)
    would serve marathoners too, at the cost of a new grade D Param on the whitelist.
+   **Answered 2026-10-31:** the default: P1, P4, and P2 for 5 km to half-marathon goals only; P3
+   out. Open: whether P2 is extended to marathon goals with a weekly-minutes cap or a
+   cross-training session kind; the owner has not yet said.
 7. **Finding 5.** Default: fix the form only (an Automatic state; `recoveryCycle` sent only when
    picked; an explicit 3:1 still honoured; stored plans untouched). Against: plans stored with the
    form's 3:1 keep the rule off until regenerated. Alternative: read `'3:1'` as no choice in
    `cycleShortReason` and `recoveryCadence`, reaching stored plans at the next re-plan (less load),
    which drops an explicit 3:1 and reverses `macro.test.ts` and a `replan-chain.test.ts` premise.
+   **Answered 2026-10-31:** done in #587.
 8. **Changing a preset later.** Default: at generation only. Against: a change is a regeneration,
    not one undoable revision; M6 adds that action, as the load setting has.
+   **Answered 2026-10-31:** M6 now, not the default: an in-place change action like the load
+   setting's, through `computeReplan` with the current week held, as one undoable revision. The
+   mid-plan run-day switch (follow-up 27) is guarded as the transient holds are (4.5). Reason:
+   consistency with the load setting's in-place change.
 9. **Report-only harness.** Default: yes, `npm run check` unchanged, the scan test, an ADR with the
    G-5 sentence. Against: a report nobody reads protects nothing.
+   **Answered 2026-10-31:** the default: report-only; `npm run check` unchanged; the scan test;
+   the ADR with the G-5 sentence. One habit is added: `research-update` and the kickoff require
+   `npm run plan:report` at every `PARAMS_VERSION` bump, and its scorecard delta in the PR.
 10. **The plateau.** Default: report it; no engine change (G6). Alternative: a `research-update`
     pass on progressive builds against early plateaus. Against: the shape stays unexplained.
+    **Answered 2026-10-31:** the alternative, not the default (R2): a `research-update` pass on
+    progressive builds against early plateaus, asking whether the ceiling is the evidence,
+    whether the class `peakWeeklyMin` or the history-informed ceiling (ADR 0013) should bind, and
+    what the literature says about volume inside a plateau. It ends in a rule change or a stated
+    reason in the Why drawer. Reason: the plateau is the shape the runner sees, and a report
+    without a reason explains nothing.
 11. **Simulator.** Default: three stress levels (compliant, ragged, overshooting), ragged first, by
     hand and at each `PARAMS_VERSION` bump. Against: chain time is unmeasured.
+    **Answered 2026-10-31:** the default: compliant, ragged and overshooting; ragged first; by
+    hand at each `PARAMS_VERSION` bump. The two metamorphic invariants may enter `npm run check`
+    as plain invariants if H2 measures their chain time under a minute (they are rules, not
+    metrics).
 12. **Outcome learning.** Default: descriptive; baseline and interval score as back-test figures; no
     pooled data. Against: "which method works" stays unanswerable for one runner.
+    **Answered 2026-10-31:** the default: descriptive; the baseline and the interval score as
+    back-test figures; no pooled data.
 13. **Qin 2025.** Default: watch list. Alternative: admit as C, cited by no rule.
+    **Answered 2026-10-31:** the alternative, not the default: read Qin 2025 in full (Scientific
+    Reports, open access) in a `research-update` session and admit it at its design level if R1
+    to R6 pass, cited by no rule until a rule exists. No reason recorded.
 
 **Question of fact.** Which books of 3.2 does the owner hold? S3 and band (c) wait for the answer.
+**Answered 2026-10-31:** the owner will buy or borrow any title not held, so S3 and band (c)
+proceed as though every book of 3.2 is held, with the owner reading the pages a record needs.
+
+Owner decisions recorded 2026-10-31 (this session's walk-through). Also decided 2026-10-31 on
+the strength side: the logging sheet keeps reps left (reps in reserve) and a `research-update`
+pass grounds the RIR Params (`f7.heavyRir`, `f8.progressMinRir`, `f8.bigStepRir`, grade D).
 
 ## 8. Task list
 
@@ -462,17 +508,22 @@ Opinion or Preference; each corpus change adds a README method entry.
 
 - **S0. Three record edits.** S. Skill `research-update`: the Daniels citation in its record and
   the note of `longRunShareOfWeek`; the Tyler and Mountjoy corrections. No value or grade changes.
-- **S1. Corrections check.** S. `scripts/research-verify.ts`: a pure function over a stored Crossref
-  message, tested in `tests/unit/research/` without network; a run by hand reports four notices.
+- **S1. Corrections check.** S. Done in #596. `scripts/research-verify.ts`: a pure function over a
+  stored Crossref message, tested in `tests/unit/research/` without network; a run by hand reports
+  four notices.
 - **S2. Rubric and book fields.** M. Decisions 1, 2, 4. `research/README.md` (R1 to R6, sign-off,
   the 19 records predate it), the skill ("add a source outside the journals"), optional fields in
   `paperSchema`, the workflow's paper schema and `write-corpus.mjs` with tests; a `params.test.ts`
   case that a Param citing only practice sources is D; `PaperCard` shows `url`; the watch list; ADR.
+- **S4. Re-vet the 19 practice records.** M. Decision 2. Depends S2. Each of the 19 is read against
+  R1 to R6 (3.3) and states its gate results in `vetting` (3.4, B). A change to a Param's value or
+  grade is not part of this task and goes through `research-update`.
 - **S3. First book records.** M each. Depends S2 and the question of fact. From read pages only:
   works a preset would credit (Pierce, Murr and Moss; Lydiard), then corpus gaps (Koop 2nd ed.,
   Daniels 4th, Pfitzinger 4th); topic `training-methods`.
-- **H0. Plan metrics.** S to M. `plan-metrics.ts` and `plan-metrics.test.ts` with hand-computed
-  cases, reusing `monotonyStrain`, `RUN_KINDS` and `pairSessions`; no engine file changes.
+- **H0. Plan metrics.** S to M. Done in #597. `plan-metrics.ts` and `plan-metrics.test.ts` with
+  hand-computed cases, reusing `monotonyStrain`, `RUN_KINDS` and `pairSessions`; no engine file
+  changes.
 - **H1. Report, bands, scorecard, scan.** M. Depends H0. `tests/reports/plan-report.ts` (outside
   the Vitest include; `scripts/` imports nothing from `tests/`), run by a new `npm run plan:report`
   with a CLAUDE.md Commands line: the 5.1 table over matrix and sweep; Knopp's marathon bands as a
@@ -482,9 +533,10 @@ Opinion or Preference; each corpus change adds a README method entry.
 - **H3 to H5.** S each. H3: `.claude/skills/plan-review/SKILL.md`, output headed unvalidated. H4: the
   back-test in `data/`, counts only, with baseline skill and interval score; no change to L7,
   `backtest.ts` or `trackRecord.ts`. H5: the G-5 sentence through `research-update`, and the ADR.
-- **M0. Finding 5.** S. Default: `PlanPage.tsx` (an Automatic state), `GeneratePlanRequest`,
-  `tests/web/plan.test.tsx`; no engine change, so the oracle holds. The alternative adds `macro.ts`,
-  `checklist.ts`, the two reversed tests and a stored-3:1 chain case, naming each moved digest.
+- **M0. Finding 5.** S. Done in #587. Default: `PlanPage.tsx` (an Automatic state),
+  `GeneratePlanRequest`, `tests/web/plan.test.tsx`; no engine change, so the oracle holds. The
+  alternative adds `macro.ts`, `checklist.ts`, the two reversed tests and a stored-3:1 chain case,
+  naming each moved digest.
 - **M1. Research update for methods.** M. Skill `research-update`: the candidates of 4.1 and 4.2
   read in that session, topic `training-methods`, section (p) with `**P1 ` to `**P4 ` headings.
 - **M2. Preset type and override points.** M. Depends M1, H1. `shared/engine/types.ts`,
@@ -500,10 +552,20 @@ Opinion or Preference; each corpus change adds a README method entry.
 - **M5. Presets across matrix and chains.** L. Depends M3, H1. `matrix.test.ts` at every preset;
   `replanChain` per preset, with a rest window opening and closing mid-plan; the fixed-point
   relation; fidelity from finished sessions (run days, quality count, long-run share); an H1 column.
-- **M6. Change action (optional).** M. Decision 8. A `PUT` in `server/routes/plan.ts`, a commit in
-  `planActions.ts` like `commitLoadSetting`, a `method` argument through `computeReplan` with its
-  diff and undo `setting`, `PlanRevisionReason`, `shared/copy/revision.ts`, `web/api/plan.ts`, a
-  sheet; API, page and chain tests.
+- **M6. Change action.** M. Decision 8. Decided: ships with M3 to M5. A `PUT` in
+  `server/routes/plan.ts`, a commit in `planActions.ts` like `commitLoadSetting`, a `method`
+  argument through `computeReplan` with the current week held, its diff and undo `setting`,
+  `PlanRevisionReason`, `shared/copy/revision.ts`, `web/api/plan.ts`, a sheet; the run-day switch
+  of follow-up 27 guarded as the transient holds are (4.5); API, page and chain tests.
+- **R1. RIR research update.** S. Skill `research-update`: the Params `f7.heavyRir`,
+  `f8.progressMinRir` and `f8.bigStepRir` (grade D); Zourdos 2016 and the RIR-based RPE
+  literature, read in that session; gap 2 of the strength spec (no paper mentions RIR).
+- **R2. Plateau research update.** M. Decision 10. Skill `research-update`: progressive builds
+  against early plateaus (Finding 3: six of twelve matrix plans reach their class ceiling within
+  nine weeks); whether the ceiling is the evidence, whether the class `peakWeeklyMin` or the
+  history-informed ceiling (ADR 0013) should bind, and what the literature says about volume
+  inside a plateau. It ends in a rule change, which names each moved oracle digest, or a stated
+  reason in the Why drawer.
 - **C. Close.** S, after each wave: a `docs/STATUS.md` entry with counts and the oracle result.
 
 S1, H0 and H3 need no decision. S0 waits for decisions 2 and 3; S2 for 1, 2 and 4; H1 and H5 for 9;
