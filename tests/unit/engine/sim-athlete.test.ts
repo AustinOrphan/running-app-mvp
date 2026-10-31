@@ -323,6 +323,24 @@ describe('the ragged level', () => {
     }
   })
 
+  // Found by H2 (2026-10-31) and fixed by RF1: a week with no running gave a cap of 0 minutes on the
+  // week after it, which a hold or a reduce applies (rule G-6 steps from the minutes run). The break
+  // rules size the restart (J7, E6), so a week planned at the start floor or more is not capped at 0.
+  it('does not cap the week after a week with no running at 0 minutes, where the plan held the floor', () => {
+    let after = 0
+    for (const { athlete, chain } of ragged) {
+      for (const step of chain.steps) {
+        const { week, decision } = step
+        if (week === null || decision === null || decision.postRace !== undefined) continue
+        if (week.ranMin > 0 || week.plannedMin < P.macroDesign.startFloorWeekMin.value) continue
+        if (decision.decision === 'progress') continue
+        after += 1
+        expect(decision.nextWeekTargetMin, `${athlete.id} ${step.settled.today}`).toBeGreaterThan(0)
+      }
+    }
+    expect(after).toBeGreaterThan(0)
+  })
+
   it('reports its windows through the real disruption path and the plan answers them', () => {
     let reported = 0
     for (const { athlete, chain } of ragged) {

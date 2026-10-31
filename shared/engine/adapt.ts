@@ -3,7 +3,7 @@
 //
 // Convention: an efficiency-index trend below zero is a decline (the index rises when pace at a
 // fixed HR improves).
-import { addDays } from '../dates.ts'
+import { addDays, daysBetween } from '../dates.ts'
 import { isTrimmed, TRIM_RULE } from '../domain/sessionStatus.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity } from '../types.ts'
@@ -375,6 +375,30 @@ export function weekEvidence(input: EngineInput, weekStart: string): WeekEvidenc
   }
 }
 
+/** Days from the last run on or before `asOf` to `asOf`; the history window when there is none. */
+function layoffAt(input: EngineInput, asOf: string): number {
+  const last = input.activities
+    .filter((a) => (a.type === 'run' || a.type === 'race') && !isDuplicate(a) && a.date <= asOf)
+    .map((a) => a.date)
+    .sort()
+    .at(-1)
+  return last === undefined ? P.a5.historyWindowDays.value : daysBetween(last, asOf)
+}
+
+/**
+ * The least a hold or a reduce leaves the next week after a week with no running [rules J7, E6]:
+ * the J7 share of the planned week for the days since the last run, and, where that share falls
+ * under the 3 x 20 min of the start floor, the floor itself when the plan holds that much (E6 sets
+ * the first week then). A plan under the floor has no first week to set: no floor, and the cap of
+ * G-6 stands.
+ */
+function restartFloor(plannedMin: number, layoffDays: number): number {
+  const floor = P.macroDesign.startFloorWeekMin.value
+  const restart = Math.round(plannedMin * restartFraction(layoffDays))
+  if (restart >= floor) return restart
+  return plannedMin >= floor ? floor : 0
+}
+
 /** Progress, hold or reduce from execution, check-ins, efficiency, sleep and HRV [rules J5, G-6]. */
 export function weeklyDecision(
   input: EngineInput,
@@ -580,12 +604,16 @@ export function weeklyDecision(
       nextWeek !== undefined && isProgrammeWeek(nextWeek.flags)
         ? wholeMinutes(nextWeekCap(nextPlanned, actual, P.g2.rampCeilingTwoWeeks.value))
         : wholeMinutes(nextWeekCap(nextPlanned, actual, ramp, rebuild))
-  } else if (decision === 'hold')
-    nextWeekTargetMin = wholeMinutes(nextWeekCap(plannedThis, actual, ramp, rebuild))
-  else {
-    nextWeekTargetMin = Math.round(
-      nextWeekCap(plannedThis, actual, ramp, rebuild) * (1 - P.e3.recoveryWeekCutPct.value / 100),
-    )
+  } else {
+    // G-6 steps from the minutes run. A week with none leaves no step to take, and a cap of 0
+    // would hold the next week empty too: the break rules size the restart [rules J7, E6].
+    const stepped = nextWeekCap(plannedThis, actual, ramp, rebuild)
+    const cap =
+      actual > 0 ? stepped : Math.max(stepped, restartFloor(plannedThis, layoffAt(input, asOf)))
+    nextWeekTargetMin =
+      decision === 'hold'
+        ? wholeMinutes(cap)
+        : Math.round(cap * (1 - P.e3.recoveryWeekCutPct.value / 100))
   }
   return {
     decision,
