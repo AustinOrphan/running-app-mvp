@@ -609,7 +609,8 @@ describe('the plan readers', () => {
     [...new Set(invalidate.mock.calls.map(([filter]) => (filter?.queryKey as string[])[0]))].sort()
 
   // What a change to the plan moves: the plan and its sessions, the revisions, the rest windows,
-  // the reviews, the brief, the athlete state, Today, the watch status and the fuel targets.
+  // the reviews, the brief, the athlete state, Today, the watch status, the fuel targets and the
+  // strength readers (the workouts follow the stored plan).
   const READERS = [
     keys.brief,
     keys.disruptions,
@@ -618,6 +619,7 @@ describe('the plan readers', () => {
     keys.planRevisions,
     keys.reviews,
     keys.state,
+    keys.strength,
     keys.today,
     keys.wrist,
   ]

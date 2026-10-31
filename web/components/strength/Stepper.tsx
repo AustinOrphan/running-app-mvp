@@ -15,6 +15,8 @@ export interface StepperProps {
   raiseEnds?: boolean
   /** The unit shown after the field and read as its description: "lb". */
   unit?: string
+  /** The id of another element that describes the field: what a load means. */
+  describedBy?: string | undefined
   /** The field holds something the save cannot read. */
   invalid?: boolean
   onType: (text: string) => void
@@ -37,6 +39,7 @@ export function Stepper({
   lowerEnds = false,
   raiseEnds = false,
   unit,
+  describedBy,
   invalid = false,
   onType,
   onLower,
@@ -62,7 +65,10 @@ export function Stepper({
         inputMode={inputMode}
         autoComplete="off"
         aria-label={label}
-        aria-describedby={unit === undefined ? undefined : unitId}
+        aria-describedby={
+          [unit === undefined ? undefined : unitId, describedBy].filter(Boolean).join(' ') ||
+          undefined
+        }
         aria-invalid={invalid ? true : undefined}
         value={value}
         onChange={(event) => {

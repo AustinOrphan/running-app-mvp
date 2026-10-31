@@ -18,6 +18,7 @@ import { Button } from '../Button.tsx'
 import { Field, Input, Textarea } from '../Field.tsx'
 import { ScalePicker } from '../ScalePicker.tsx'
 import { useToast } from '../Toast.tsx'
+import { getOutbox } from '../../pwa/outbox.ts'
 import { useOnline } from '../useOnline.ts'
 import { LiftSection } from './LiftSection.tsx'
 import {
@@ -32,8 +33,10 @@ import {
   initialState,
   lastSetsOf,
   newLogId,
+  queuedLogOf,
   parseMinutes,
   sameAsLast,
+  stateFromBody,
   stateOfLog,
   type Block,
   type FormState,
@@ -102,15 +105,27 @@ export function StrengthForm({
     [workoutSession, date, activityId],
   )
 
-  // The draft is read once, when the sheet opens: it brings its id back, so the save it was
-  // kept for is the same save.
+  // The sheet opens on what is kept for its session, and chooses an id only when nothing is. A save
+  // still in the outbox is found first: its id is the one a second save has to use, or one session
+  // replays as two logs; the draft of that id, if the runner went on editing, is newer than its body.
+  // Otherwise the draft brings its id back, so the save it was kept for is the same save.
   const [boot] = useState(() => {
     const fresh =
       log === undefined ? initialState(workout, weightUnit) : stateOfLog(workout, log, weightUnit)
     const draft = readDraft(context)
+    const queued = queuedLogOf(getOutbox().getState().entries, { sessionId, date, activityId })
+    if (queued !== null) {
+      return {
+        logId: queued.logId,
+        state:
+          draft?.logId === queued.logId
+            ? applyDraft(fresh, draft, weightUnit)
+            : stateFromBody(fresh, queued.body, weightUnit),
+      }
+    }
     return draft === null
-      ? { logId: log?.id ?? newLogId(), state: fresh, restored: false }
-      : { logId: draft.logId, state: applyDraft(fresh, draft), restored: true }
+      ? { logId: log?.id ?? newLogId(), state: fresh }
+      : { logId: draft.logId, state: applyDraft(fresh, draft, weightUnit) }
   })
   const { logId } = boot
   const [state, setState] = useState<FormState>(boot.state)
@@ -131,8 +146,8 @@ export function StrengthForm({
   }
 
   useEffect(() => {
-    if (dirty.current) writeDraft(draftOf(logId, context, state, Date.now()))
-  }, [logId, context, state])
+    if (dirty.current) writeDraft(draftOf(logId, context, state, Date.now(), weightUnit))
+  }, [logId, context, state, weightUnit])
 
   // The sheet focuses its first control when it opens. When the settings arrived after that, focus
   // is still on the dialog itself, so it goes to the first control here.

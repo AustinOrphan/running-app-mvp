@@ -5,9 +5,10 @@
 // Every access is inside `try`: storage can be blocked or full, and the sheet then keeps no draft
 // and works as before. The key's prefix is in `web/pwa/drafts.ts`, so `purgeDrafts` removes it.
 import { isExerciseId } from '../../../shared/domain/strengthLibrary.ts'
-import type { LoadSteps, StrengthWorkout, WorkoutLift } from '../../../shared/types.ts'
+import { isWeightUnit } from '../../../shared/domain/weight.ts'
+import type { LoadSteps, StrengthWorkout, WeightUnit, WorkoutLift } from '../../../shared/types.ts'
 import { STRENGTH_DRAFT_PREFIX } from '../../pwa/drafts.ts'
-import { REPS_LEFT_MAX, type Block, type FormState, type SetRow } from './strengthForm.ts'
+import { REPS_LEFT_MAX, inUnit, type Block, type FormState, type SetRow } from './strengthForm.ts'
 
 /** What a draft is for: the session of the workout, the day, and the activity the sets attach to. */
 export interface DraftContext {
@@ -28,6 +29,11 @@ export interface StrengthDraft extends DraftContext {
   logId: string
   /** When it was last written, in epoch milliseconds: the newest of two drafts for one session wins. */
   at: number
+  /**
+   * The unit the loads were typed in. A row holds its load as text, so a runner who switched unit
+   * between the write and the restore would read every load in the wrong one.
+   */
+  weightUnit: WeightUnit
   minutes: string
   effort: number | null
   pain: number | null
@@ -121,13 +127,14 @@ const isScale = (value: unknown, max: number): value is number | null =>
 /** A draft from storage, or null when it is not one this sheet wrote. */
 function parseDraft(value: unknown): StrengthDraft | null {
   if (!isRecord(value) || !Array.isArray(value['blocks'])) return null
-  const { logId, sessionId, date, activityId, at, minutes, effort, pain, notes } = value
+  const { logId, sessionId, date, activityId, at, weightUnit, minutes, effort, pain, notes } = value
   if (
     typeof logId !== 'string' ||
     typeof sessionId !== 'string' ||
     typeof date !== 'string' ||
     (activityId !== null && typeof activityId !== 'string') ||
     typeof at !== 'number' ||
+    !isWeightUnit(weightUnit) ||
     typeof minutes !== 'string' ||
     !isScale(effort, 10) ||
     !isScale(pain, 10) ||
@@ -143,6 +150,7 @@ function parseDraft(value: unknown): StrengthDraft | null {
     date,
     activityId,
     at,
+    weightUnit,
     minutes,
     effort,
     pain,
@@ -159,11 +167,13 @@ export function draftOf(
   context: DraftContext,
   state: FormState,
   at: number,
+  weightUnit: WeightUnit,
 ): StrengthDraft {
   return {
     ...context,
     logId,
     at,
+    weightUnit,
     minutes: state.minutes,
     effort: state.effort,
     pain: state.pain,
@@ -234,14 +244,19 @@ export function clearDraft(logId: string): void {
  * The state a draft puts back over the sheet a workout opens as: the sets, the swaps and the
  * footer the runner had entered. A block the workout no longer has is dropped, and one the draft
  * did not reach keeps its suggestion, so a workout that changed since the draft was kept still opens.
+ * Loads kept in another unit than `unit` are put back as the same grams, in the unit now chosen.
  */
-export function applyDraft(fresh: FormState, draft: StrengthDraft): FormState {
+export function applyDraft(fresh: FormState, draft: StrengthDraft, unit: WeightUnit): FormState {
   const kept = new Map(draft.blocks.map((block) => [block.key, block]))
   return {
     blocks: fresh.blocks.map((block): Block => {
       const own = kept.get(block.key)
       if (own === undefined) return block
-      return { ...block, shown: own.swapped ?? block.original, rows: own.rows }
+      return {
+        ...block,
+        shown: own.swapped ?? block.original,
+        rows: own.rows.map((row) => inUnit(row, draft.weightUnit, unit)),
+      }
     }),
     minutes: draft.minutes,
     effort: draft.effort,

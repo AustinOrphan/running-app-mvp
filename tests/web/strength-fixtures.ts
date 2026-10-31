@@ -5,12 +5,14 @@ import { toGrams } from '../../shared/domain/weight.ts'
 import { workoutFor } from '../../shared/engine/strength.ts'
 import type {
   Activity,
+  EquipmentKind,
   LiftEvidence,
   StrengthLog,
   StrengthLogResult,
   StrengthNextLoad,
   StrengthSet,
   StrengthSettings,
+  StrengthSnapshotLift,
   StrengthView,
   StrengthWorkout,
   UserSettings,
@@ -221,8 +223,35 @@ export function set(
   return { exerciseId, position, loadG: pounds === null ? null : lb(pounds), count: reps, rir }
 }
 
-/** A saved log of the squat and the deadlift, as the page's `recent` list holds it. */
-export function makeLog(id: string, date: string, sets: StrengthSet[]): StrengthLog {
+/** What a log's snapshot shows of a lift: the exercise and the equipment its load was for. */
+export function snapLift(
+  exerciseId: string,
+  implement: EquipmentKind | null,
+  pounds: number | null,
+): StrengthSnapshotLift {
+  return {
+    exerciseId,
+    implement,
+    sets: 3,
+    range: { min: 3, max: 6 },
+    rir: { min: 1, max: 3 },
+    baseLoadG: pounds === null ? null : lb(pounds),
+    shownLoadG: pounds === null ? null : lb(pounds),
+    change: 'hold',
+    basis: { rule: 'F8', facts: [] },
+  }
+}
+
+/**
+ * A saved log, as the page's `recent` list holds it. `lifts` is what its snapshot shows: the
+ * default shows none, which the rules read as "any implement".
+ */
+export function makeLog(
+  id: string,
+  date: string,
+  sets: StrengthSet[],
+  lifts: StrengthSnapshotLift[] = [],
+): StrengthLog {
   return {
     id,
     activityId: `a-${id}`,
@@ -231,7 +260,7 @@ export function makeLog(id: string, date: string, sets: StrengthSet[]): Strength
     rpe: null,
     pain: null,
     notes: null,
-    prescribed: { template: 'heavy', variant: 'A', week: 5, mode: 'normal', lifts: [] },
+    prescribed: { template: 'heavy', variant: 'A', week: 5, mode: 'normal', lifts },
     sets,
     createdAt: `${date}T10:00:00.000Z`,
     updatedAt: `${date}T10:00:00.000Z`,

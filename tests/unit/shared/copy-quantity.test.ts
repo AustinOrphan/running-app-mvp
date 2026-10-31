@@ -4,6 +4,7 @@ import {
   formatNumber,
   formatQuantity,
   formatRange,
+  ordinal,
   quantityIssue,
 } from '../../../shared/copy/quantity.ts'
 import type { Quantity } from '../../../shared/engine/types.ts'
@@ -217,5 +218,26 @@ describe('formatNumber', () => {
     expect(formatNumber(1000)).toBe('1000')
     expect(formatNumber(0)).toBe('0')
     expect(formatNumber(-0)).toBe('0')
+  })
+})
+
+describe('ordinal', () => {
+  test.each([
+    [1, '1st'],
+    [2, '2nd'],
+    [3, '3rd'],
+    [4, '4th'],
+    [10, '10th'],
+    [11, '11th'],
+    [12, '12th'],
+    [13, '13th'],
+    [21, '21st'],
+    [22, '22nd'],
+    [23, '23rd'],
+    [101, '101st'],
+    [111, '111th'],
+    [112, '112th'],
+  ])('writes %i as %s', (n, text) => {
+    expect(ordinal(n)).toBe(text)
   })
 })

@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { describe, expect, test } from 'vitest'
-import { keys } from '../../web/api/client.ts'
+import { ACTIVITY_DATA_KEYS, invalidateActivityData } from '../../web/api/activities.ts'
+import { invalidatePlanReaders, keys } from '../../web/api/client.ts'
 import {
   strengthLogUrl,
   useDeleteStrengthLift,
@@ -183,25 +184,53 @@ describe('the strength writes', () => {
     expect(calls[0]?.body).toEqual({ kind: 'max', loadG: 100000 })
   })
 
-  test('removing a log reads the strength readers, Today and the activity data again', async () => {
-    mockApi({ 'DELETE /api/strength/logs/log-0001': () => undefined })
-    const { wrap, queryClient } = wrapper()
-    const stale: string[] = []
-    for (const key of [keys.strength, keys.today, keys.activities, keys.plan, keys.weeks]) {
-      queryClient.setQueryData([key, 'seed'], {})
-    }
+  /** The roots of the queries a call marks stale, once each, sorted. */
+  async function staleAfter(
+    roots: readonly string[],
+    run: (queryClient: QueryClient) => Promise<unknown>,
+  ): Promise<string[]> {
+    const { queryClient } = wrapper()
+    const stale = new Set<string>()
+    for (const key of roots) queryClient.setQueryData([key, 'seed'], {})
     queryClient.getQueryCache().subscribe((event) => {
       if (event.type === 'updated' && event.action.type === 'invalidate') {
-        stale.push(String((event.query.queryKey as readonly unknown[])[0]))
+        stale.add(String((event.query.queryKey as readonly unknown[])[0]))
+      }
+    })
+    await run(queryClient)
+    return [...stale].sort()
+  }
+
+  test('removing a log reads the strength readers, Today and every reader of activity data again', async () => {
+    mockApi({ 'DELETE /api/strength/logs/log-0001': () => undefined })
+    const { wrap, queryClient } = wrapper()
+    const stale = new Set<string>()
+    for (const key of ACTIVITY_DATA_KEYS) queryClient.setQueryData([key, 'seed'], {})
+    queryClient.getQueryCache().subscribe((event) => {
+      if (event.type === 'updated' && event.action.type === 'invalidate') {
+        stale.add(String((event.query.queryKey as readonly unknown[])[0]))
       }
     })
     const { result } = renderHook(() => useDeleteStrengthLog(), { wrapper: wrap })
     await act(async () => {
       await result.current.mutateAsync('log-0001')
     })
-    expect(stale.sort()).toEqual(
-      [keys.strength, keys.today, keys.activities, keys.plan, keys.weeks].sort(),
+    expect([...stale].sort()).toEqual([...ACTIVITY_DATA_KEYS].sort())
+    expect(stale).toContain(keys.strength)
+  })
+
+  test('a write to activity data reads the strength readers again: a deleted activity takes its log', async () => {
+    const stale = await staleAfter([keys.strength, keys.today, keys.activities], (queryClient) =>
+      invalidateActivityData(queryClient),
     )
+    expect(stale).toEqual([keys.activities, keys.strength, keys.today].sort())
+  })
+
+  test('a write to the plan reads the strength readers again: the workouts follow the stored plan', async () => {
+    const stale = await staleAfter([keys.strength, keys.today, keys.plan], (queryClient) =>
+      invalidatePlanReaders(queryClient),
+    )
+    expect(stale).toEqual([keys.plan, keys.strength, keys.today].sort())
   })
 })
 
@@ -212,8 +241,10 @@ describe('the outbox route of a strength log', () => {
     expect(route?.matches(strengthLogUrl('3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'))).toBe(true)
   })
 
-  test('refreshes the strength readers and everything an activity moves', () => {
+  test('refreshes what activity data moves, the strength readers among them and listed once', () => {
     expect(route?.combine).toBe('replace')
+    expect(route?.invalidates).toEqual([...ACTIVITY_DATA_KEYS])
+    expect(route?.invalidates.filter((key) => key === keys.strength)).toHaveLength(1)
     expect(route?.invalidates).toEqual(
       expect.arrayContaining([keys.strength, keys.today, keys.activities, keys.plan, keys.weeks]),
     )

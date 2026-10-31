@@ -1,5 +1,9 @@
 import { useId, useState } from 'react'
-import type { ExerciseId } from '../../../shared/domain/strengthLibrary.ts'
+import {
+  isExerciseId,
+  loadMeaning,
+  type ExerciseId,
+} from '../../../shared/domain/strengthLibrary.ts'
 import type {
   EquipmentConfig,
   PinnedSlot,
@@ -80,13 +84,20 @@ export function LiftSection({
   onPin,
 }: LiftSectionProps) {
   const headingId = useId()
+  const meaningId = useId()
   const [swapOpen, setSwapOpen] = useState(false)
   const [pinFailed, setPinFailed] = useState(false)
   const { shown, rows } = block
   const exercise = words.name(shown.exerciseId)
   const measure = measureOf(shown.exerciseId)
   const measureWord = words.measure(measure)
-  const loaded = shown.steps !== null
+  // a lift with loads in its sets shows the field, whatever the equipment says (a log of a swapped
+  // lift that was kept on the phone has its loads and not its steps)
+  const loaded = shown.steps !== null || rows.some((row) => row.load !== '')
+  const meaning =
+    loaded && isExerciseId(shown.exerciseId)
+      ? loadMeaning(shown.exerciseId, shown.implement)
+      : 'none'
   const swapped = shown !== block.original
   const reason = words.reason(shown)
   const lighterDay = !editing && shown.change === 'lighter-day' && shown.usualLoadG !== null
@@ -104,7 +115,7 @@ export function LiftSection({
     const lift =
       id === block.original.exerciseId
         ? block.original
-        : swappedLift(block.original, id, equipment, weightUnit, barbellOf(workout))
+        : swappedLift(workout, id, equipment, weightUnit)
     if (lift === null) return
     onChange((current) => withLift(current, lift, weightUnit))
     setSwapOpen(false)
@@ -125,7 +136,10 @@ export function LiftSection({
           {exercise}
         </h3>
         <div className={styles.liftTools}>
-          {block.kind === 'lift' && !editing ? (
+          {/* A swapped lift has no explanation yet: the server reads the figures of a lift in the
+              session's place (E14-10), and the drawer would explain another suggestion. A saved
+              log being edited was not made from the plan the drawer would explain. */}
+          {block.kind === 'lift' && !swapped && !editing ? (
             <ExplainButton
               subject={exercise}
               rules={[shown.basis.rule]}
@@ -159,6 +173,12 @@ export function LiftSection({
 
       <p className={styles.suggestion}>{words.suggestion(shown)}</p>
       {reason === null ? null : <p className={styles.muted}>{reason}</p>}
+      {/* what the load means is fixed by the equipment and shown beside the field (design 5.2) */}
+      {meaning === 'none' ? null : (
+        <p id={meaningId} className={styles.muted}>
+          {words.say(`strength.basis.${meaning}`)}
+        </p>
+      )}
 
       {lighterDay ? (
         <div className={styles.usual}>
@@ -296,6 +316,7 @@ export function LiftSection({
                       value={row.load}
                       inputMode="decimal"
                       unit={weightUnit}
+                      describedBy={meaning === 'none' ? undefined : meaningId}
                       lowerLabel={words.say('strength.sheet.lower-load')}
                       raiseLabel={words.say('strength.sheet.raise-load')}
                       lowerEnds={stepRowLoad(row, shown, -1, weightUnit) === row}
