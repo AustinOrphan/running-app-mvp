@@ -942,9 +942,18 @@ export const EXPLAIN_TEMPLATES = {
     'The last session of {exercise} was on {date}: {sets}, heaviest set {load} x {count}.',
     { exercise: 'text', date: 'date', sets: 'text', load: 'load', count: 'count' },
   ),
+  // A hold or a carry is a time, so `time` is the seconds of the set as a duration.
+  'explain.f8-last-seconds': tpl(
+    'The last session of {exercise} was on {date}: {sets}, heaviest set {load} for {time}.',
+    { exercise: 'text', date: 'date', sets: 'text', load: 'load', time: 'duration' },
+  ),
   'explain.f8-last-unloaded': tpl(
-    'The last session of {exercise} was on {date}: {sets}, the most in a set {count}.',
+    'The last session of {exercise} was on {date}: {sets}, most reps in a set {count}.',
     { exercise: 'text', date: 'date', sets: 'text', count: 'count' },
+  ),
+  'explain.f8-last-hold': tpl(
+    'The last session of {exercise} was on {date}: {sets}, longest hold {time}.',
+    { exercise: 'text', date: 'date', sets: 'text', time: 'duration' },
   ),
 
   'explain.f9-gap': tpl(

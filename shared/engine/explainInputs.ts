@@ -2989,28 +2989,52 @@ function strengthLoadFacts(scope: Scope): InputFact[] {
       const sources = logSource(read, last.logId, last.date)
       const date = { kind: 'date', iso: last.date, style: 'weekday' } as const
       const sets = countPhrase(last.sets, 'set')
+      // a hold or a carry is counted in seconds, and every other lift in reps
+      const timed = exerciseById(id)?.measure === 'seconds'
       const fact =
         last.heaviest === null
-          ? make(
-              'F8',
-              `last-${id}`,
-              'explain.f8-last-unloaded',
-              { exercise, date, sets, count: count(last.best) },
-              { sources },
-            )
-          : make(
-              'F8',
-              `last-${id}`,
-              'explain.f8-last',
-              {
-                exercise,
-                date,
-                sets,
-                load: loadOf(last.heaviest.loadG),
-                count: count(last.heaviest.count),
-              },
-              { sources },
-            )
+          ? timed
+            ? make(
+                'F8',
+                `last-${id}`,
+                'explain.f8-last-hold',
+                { exercise, date, sets, time: duration(last.best) },
+                { sources },
+              )
+            : make(
+                'F8',
+                `last-${id}`,
+                'explain.f8-last-unloaded',
+                { exercise, date, sets, count: count(last.best) },
+                { sources },
+              )
+          : timed
+            ? make(
+                'F8',
+                `last-${id}`,
+                'explain.f8-last-seconds',
+                {
+                  exercise,
+                  date,
+                  sets,
+                  load: loadOf(last.heaviest.loadG),
+                  time: duration(last.heaviest.count),
+                },
+                { sources },
+              )
+            : make(
+                'F8',
+                `last-${id}`,
+                'explain.f8-last',
+                {
+                  exercise,
+                  date,
+                  sets,
+                  load: loadOf(last.heaviest.loadG),
+                  count: count(last.heaviest.count),
+                },
+                { sources },
+              )
       facts.push(fact)
     }
     lift.basis.facts

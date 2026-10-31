@@ -4481,4 +4481,54 @@ describe('F7, F8 and F9: a strength session', () => {
       expect(rest).not.toContain('A recent illness limits the day to easy effort.')
     })
   })
+
+  describe('a timed exercise and a bodyweight one have their own units', () => {
+    const trunk = (
+      id: string,
+      rows: Array<readonly [number | null, number, number | null]>,
+      implement?: 'dumbbells',
+    ) =>
+      liftLog(`trunk-${id}`, addDays(heavy.date, -3), id, rows, {
+        ...(implement === undefined ? {} : { implement }),
+        activityId: `act-${id}`,
+      })
+
+    test('a hold is a time: the longest hold of a side plank, the time of a carry', () => {
+      const plank = ask(
+        equipped({
+          logs: [
+            trunk('side-plank', [
+              [null, 30, null],
+              [null, 40, null],
+            ]),
+          ],
+        }),
+        heavy,
+        'side-plank',
+      )
+      expect(said(groupOf(plank, 'F8'))).toContain(
+        'The last session of Side plank was on Sat 7 Feb: two sets, longest hold 40 s.',
+      )
+      const carry = ask(
+        equipped({ logs: [trunk('farmer-carry', [[50, 30, null]], 'dumbbells')] }),
+        heavy,
+        'farmer-carry',
+      )
+      expect(said(groupOf(carry, 'F8'))).toContain(
+        'The last session of Farmer carry was on Sat 7 Feb: one set, heaviest set 50 lb for 30 s.',
+      )
+    })
+
+    test('a bodyweight lift counts reps, and says so', () => {
+      const bodyweight = withSetup({ equipment: have('step') }, { today: heavy.date })
+      const log = liftLog('split', addDays(heavy.date, -3), 'split-squat', [
+        [null, 8, 2],
+        [null, 7, 2],
+      ])
+      const out = ask({ ...bodyweight, logs: [log] }, heavy, 'split-squat')
+      expect(said(groupOf(out, 'F8'))).toContain(
+        'The last session of Split squat was on Sat 7 Feb: two sets, most reps in a set 8.',
+      )
+    })
+  })
 })
