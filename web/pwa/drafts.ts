@@ -48,12 +48,17 @@ export function readCountNotNow(): string | null {
   }
 }
 
-/** Keeps the day of "Not now". With storage blocked or full nothing is kept and the question returns. */
-export function writeCountNotNow(day: string): void {
+/**
+ * Keeps the day of "Not now" and says whether it did: false when storage is blocked or full, so no
+ * wait can be promised. The page that asked is then quiet only until it is left, and the question
+ * comes back at the next visit.
+ */
+export function writeCountNotNow(day: string): boolean {
   try {
     window.localStorage.setItem(COUNT_QUIET_KEY, day)
+    return true
   } catch {
-    // Blocked or full: the prompt is quiet until the page reloads.
+    return false
   }
 }
 

@@ -16,8 +16,11 @@ export interface CountPromptProps {
 /** "two" as "Two": the sentence starts with the count. */
 const capitalised = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1)
 
-/** What the runner answered; the answer takes the question's place and says what follows. */
-type Answer = 'planned' | 'kept'
+/**
+ * What the runner answered; the answer takes the question's place and says what follows. `not-kept`
+ * is "Not now" with no place in this browser to keep it, so no wait can be promised.
+ */
+type Answer = 'planned' | 'kept' | 'not-kept'
 
 function Question({ view, words }: CountPromptProps) {
   const textId = useId()
@@ -42,7 +45,9 @@ function Question({ view, words }: CountPromptProps) {
             ? words.say('strength.count.planned', {
                 sessions: countPhrase(COUNT_PROMPT_FEWER, 'strength session'),
               })
-            : words.say('strength.count.kept', { weeks: countPhrase(COUNT_QUIET_WEEKS, 'week') })}
+            : answer === 'kept'
+              ? words.say('strength.count.kept', { weeks: countPhrase(COUNT_QUIET_WEEKS, 'week') })
+              : words.say('strength.count.not-kept')}
         </p>
       </div>
     )
@@ -79,9 +84,9 @@ function Question({ view, words }: CountPromptProps) {
   }
 
   const later = (): void => {
-    writeCountNotNow(view.asOf)
+    const kept = writeCountNotNow(view.asOf)
     setNotNowOn(view.asOf)
-    setAnswer('kept')
+    setAnswer(kept ? 'kept' : 'not-kept')
   }
 
   return (

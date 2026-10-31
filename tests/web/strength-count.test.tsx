@@ -12,7 +12,12 @@ import { summariseHistory } from '../../shared/engine/strength.ts'
 import type { StrengthLogEntry } from '../../shared/engine/types.ts'
 import type { AthleteProfile, StrengthView, UserSettings } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
-import { STRENGTH_PROMPT_PREFIX, purgeDrafts, readCountNotNow } from '../../web/pwa/drafts.ts'
+import {
+  STRENGTH_PROMPT_PREFIX,
+  purgeDrafts,
+  readCountNotNow,
+  writeCountNotNow,
+} from '../../web/pwa/drafts.ts'
 import { StrengthPage } from '../../web/pages/StrengthPage.tsx'
 import { context, log, monday, sessionRef, sessionsOf } from '../unit/engine/strength-fixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
@@ -265,7 +270,7 @@ describe('the count prompt (design 12.4)', () => {
     expect(await screen.findByRole('group', { name: QUESTION })).toBeInTheDocument()
   })
 
-  test('works with the browser storage blocked: the question is asked, and "Not now" holds until the page reloads', async () => {
+  test('works with the browser storage blocked: the question is asked, and "Not now" holds until the page is left', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('Blocked.', 'SecurityError')
     })
@@ -279,6 +284,32 @@ describe('the count prompt (design 12.4)', () => {
     await user.click(within(group).getByRole('button', { name: 'Not now' }))
     expect(await screen.findByText(/^Nothing changes\./)).toBeInTheDocument()
     expect(prompt()).not.toBeInTheDocument()
+  })
+
+  test('does not promise four weeks when the browser could not keep the answer', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Full.', 'QuotaExceededError')
+    })
+    const user = userEvent.setup()
+    openPage(viewFor(lowWeeks(LOW_WEEKS)))
+    await page()
+    const group = await screen.findByRole('group', { name: QUESTION })
+    await user.click(within(group).getByRole('button', { name: 'Not now' }))
+    const line = await screen.findByText(/^Nothing changes\./)
+    expect(line).toHaveTextContent(
+      'Nothing changes. This browser could not keep the answer, so the question may come back.',
+    )
+    expect(line.textContent).not.toMatch(/four weeks|\d+ weeks/)
+    expectCleanCopy(document.body)
+  })
+
+  test('keeps the day of "Not now" and says whether it did', () => {
+    expect(writeCountNotNow(TODAY)).toBe(true)
+    expect(readCountNotNow()).toBe(TODAY)
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Blocked.', 'SecurityError')
+    })
+    expect(writeCountNotNow(addDays(TODAY, 1))).toBe(false)
   })
 
   test('is wiped with the drafts when a session ends', () => {

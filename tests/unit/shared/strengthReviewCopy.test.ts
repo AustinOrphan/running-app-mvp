@@ -113,6 +113,11 @@ describe('the words of the count prompt', () => {
     expect(words.say('strength.count.kept', { weeks: countPhrase(4, 'week') })).toBe(
       'Nothing changes. The question stays away for four weeks.',
     )
+    // with nowhere to keep the answer no wait is promised
+    expect(words.say('strength.count.not-kept')).toBe(
+      'Nothing changes. This browser could not keep the answer, so the question may come back.',
+    )
+    expect(words.say('strength.count.not-kept')).not.toMatch(/week/)
     expect(words.say('strength.count.error')).toBe('The choice was not saved. Try again.')
   })
 

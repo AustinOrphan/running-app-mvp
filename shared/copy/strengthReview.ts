@@ -47,6 +47,10 @@ export const STRENGTH_REVIEW_TEMPLATES = {
     { weeks: 'text' },
     { fallback: 'Nothing changes. The question stays away for a while.' },
   ),
+  // "Not now" when the browser could not keep it: the question is quiet only until the page is left.
+  'strength.count.not-kept': tpl(
+    'Nothing changes. This browser could not keep the answer, so the question may come back.',
+  ),
   'strength.count.error': tpl('The choice was not saved. Try again.'),
 
   // ---- More sessions than planned (design 12.4) -----------------------------------------------------
