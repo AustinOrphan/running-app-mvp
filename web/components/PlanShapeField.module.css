@@ -14,18 +14,17 @@
   margin-bottom: var(--space-1);
 }
 
-/* One choice: the radio, its name, a line of help and any notes. The whole row is the target. */
+/* One choice, one label: the radio, its name, a line of help and any notes. The whole row is the target. */
 .row {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1.25rem 1fr;
-  column-gap: var(--space-3);
-  row-gap: var(--space-1);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
   min-height: var(--control-h);
   padding: var(--space-3);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
+  cursor: pointer;
 }
 
 .row[data-checked='true'] {
@@ -37,11 +36,16 @@
 .row[data-disabled='true'] {
   border-style: dashed;
   color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.row:has(.input:focus-visible) {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .input {
-  grid-row: 1 / span 6;
-  align-self: start;
+  flex: none;
   width: 1.25rem;
   height: 1.25rem;
   margin: 0.125rem 0 0;
@@ -52,28 +56,20 @@
   cursor: not-allowed;
 }
 
-.label {
-  grid-column: 2;
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.name {
   font-size: var(--text-base);
   line-height: var(--lh-base);
   font-weight: 600;
-  cursor: pointer;
-}
-
-/* The label's box covers the row, so a tap anywhere on it chooses. */
-.label::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-}
-
-.row[data-disabled='true'] .label {
-  cursor: not-allowed;
 }
 
 .text {
-  grid-column: 2;
-  margin: 0;
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   color: var(--text-muted);
@@ -81,9 +77,4 @@
 
 .row[data-checked='true'] .text {
   color: var(--text);
-}
-
-.row:has(.input:focus-visible) {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-offset);
 }

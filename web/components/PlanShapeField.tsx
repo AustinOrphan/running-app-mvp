@@ -16,6 +16,9 @@ import styles from './PlanShapeField.module.css'
  * from what it already has (the days open, a goal the shape is not for, a persistent hold). A shape
  * that is not for the goal stays in the list, disabled, with its reason. Every shape is a choice and
  * not a better plan, and the one line that says so sits under the group.
+ *
+ * Each row is one label around its radio, so a tap anywhere on it chooses; the radio is named by the
+ * shape's own name and described by the help and the notes.
  */
 export function PlanShapeField({
   rows,
@@ -45,19 +48,19 @@ export function PlanShapeField({
         {planShapeFieldLabel()}
       </legend>
       {rows.map((row) => (
-        <div
+        <label
           key={row.value}
           className={styles.row}
           data-checked={row.value === value ? 'true' : undefined}
           data-disabled={row.disabled ? 'true' : undefined}
         >
           <input
-            id={`${id}-${row.value}`}
             type="radio"
             name={`${id}-shape`}
             value={row.value}
             checked={row.value === value}
             disabled={row.disabled}
+            aria-labelledby={`${id}-${row.value}-name`}
             aria-describedby={[
               `${id}-${row.value}-help`,
               ...row.notes.map((_, index) => `${id}-${row.value}-note-${String(index)}`),
@@ -67,18 +70,24 @@ export function PlanShapeField({
               onChange(row.value)
             }}
           />
-          <label htmlFor={`${id}-${row.value}`} className={styles.label}>
-            {row.label}
-          </label>
-          <p id={`${id}-${row.value}-help`} className={styles.text}>
-            {row.help}
-          </p>
-          {row.notes.map((note, index) => (
-            <p key={note} id={`${id}-${row.value}-note-${String(index)}`} className={styles.text}>
-              {note}
-            </p>
-          ))}
-        </div>
+          <span className={styles.body}>
+            <span id={`${id}-${row.value}-name`} className={styles.name}>
+              {row.label}
+            </span>
+            <span id={`${id}-${row.value}-help`} className={styles.text}>
+              {row.help}
+            </span>
+            {row.notes.map((note, index) => (
+              <span
+                key={note}
+                id={`${id}-${row.value}-note-${String(index)}`}
+                className={styles.text}
+              >
+                {note}
+              </span>
+            ))}
+          </span>
+        </label>
       ))}
       {lines.map((line, index) => (
         <p key={line} id={`${id}-line-${String(index)}`} className={fieldStyles.hint}>
