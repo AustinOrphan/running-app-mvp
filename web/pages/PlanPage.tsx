@@ -63,7 +63,14 @@ import {
   loadPanelTitle,
   loadTradeoff,
 } from '../../shared/copy/load.ts'
-import { planShapeHold, planShapeRows } from '../../shared/copy/method.ts'
+import {
+  planShapeHold,
+  planShapePanelText,
+  planShapePanelTitle,
+  planShapeRows,
+  planShapeWhyLabel,
+  planShapeWhyRules,
+} from '../../shared/copy/method.ts'
 import { overshootNote, plannedBaselineLine } from '../../shared/copy/overshoot.ts'
 import { newMarker } from '../../shared/copy/revisionView.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
@@ -76,6 +83,7 @@ import { minutesToHours1 } from '../../shared/units.ts'
 import { groupWarnings, localiseEngineText } from '../components/engineText.ts'
 import type { PersistentHold } from '../../shared/engine/holds.ts'
 import type { LoadPosition } from '../../shared/engine/loadSetting.ts'
+import type { MethodPosition } from '../../shared/engine/methods.ts'
 import type {
   EngineWarning,
   LoadAppetite,
@@ -769,6 +777,47 @@ function LoadPanel({ load }: { load: LoadPosition }) {
   )
 }
 
+/**
+ * The plan shape in effect [rules P1 to P4]: the shape the plan has, one line of what it does and
+ * the grade line. A shape chosen that reads as the plan's own (a goal it is not for, a persistent
+ * hold, a novice's start weeks, no base to lengthen) leads with the choice and the reason, as the
+ * load setting's panel does. The plan payload says which applies (`PlanWithSessions.method`); the
+ * page never works it out. A change to the shape is made on the Generate form.
+ */
+function ShapePanel({
+  method,
+  onWhy,
+}: {
+  method: MethodPosition
+  onWhy: (why: WhyTarget) => void
+}) {
+  const text = planShapePanelText(method)
+  return (
+    <section aria-labelledby="shape-title" className={styles.panel}>
+      <div className={styles.panelHead}>
+        <h2 id="shape-title" className={styles.panelTitle}>
+          {planShapePanelTitle()}
+        </h2>
+        <WhyButton rules={planShapeWhyRules(method)} label={planShapeWhyLabel()} onOpen={onWhy} />
+      </div>
+      {text.lead === null ? (
+        <p className={styles.setting}>
+          <strong>{text.name}</strong> <span className={styles.muted}>{text.help}</span>
+        </p>
+      ) : (
+        <>
+          <p className={styles.setting}>
+            <strong>{text.lead.choice}</strong>
+            {text.lead.rest}
+          </p>
+          <p className={styles.muted}>{text.help}</p>
+        </>
+      )}
+      <p className={styles.muted}>{text.grade}</p>
+    </section>
+  )
+}
+
 /** Version-2 plans: feasibility, the load setting, warnings, the plan checks and the revision list. */
 function PlanOverview({
   plan,
@@ -810,6 +859,7 @@ function PlanOverview({
         </section>
       ) : null}
       {plan.load !== null ? <LoadPanel load={plan.load} /> : null}
+      {plan.method !== null ? <ShapePanel method={plan.method} onWhy={onWhy} /> : null}
       {plan.warnings.length > 0 ? (
         <section aria-labelledby="warnings-title" className={styles.panel}>
           <h2 id="warnings-title" className={styles.panelTitle}>
