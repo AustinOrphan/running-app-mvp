@@ -19,6 +19,13 @@ export interface CorpusPaper {
   findings: string[]
   limitations: string
   implications: string[]
+  /** Only on a `book-or-guideline` record (`paperSchema` in `scripts/research-check.ts`). */
+  edition?: string
+  isbn?: string
+  pagesRead?: string
+  interests?: string
+  /** The sign-off of the vetting, who and when; the gate results stay in the JSON. */
+  vetting?: { signedOff: string }
 }
 
 /** One rule of `research/rules/<topic>.json`. */

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { BOOK_DESIGN, loadPaperFiles } from '../../../scripts/research-check.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { ceilingWeeklyRate } from '../../../shared/engine/limits.ts'
 import {
@@ -21,6 +22,17 @@ const papers = new Set(
 )
 const engineRules = readFileSync(join(RESEARCH, 'engine-rules.md'), 'utf8')
 const all = allParams()
+
+/**
+ * Practice sources: the records of design `book-or-guideline` (programme pages, columns, books,
+ * clinical documents). README method step 7 and "Sources outside the journals" cap them at D.
+ */
+const practiceSources = new Set(
+  loadPaperFiles()
+    .map(({ data }) => data as { id: string; design: string })
+    .filter((paper) => paper.design === BOOK_DESIGN)
+    .map((paper) => paper.id),
+)
 
 /** Rule ids that are not headings of engine-rules.md. */
 function isDocumentedRule(rule: string): boolean {
@@ -88,6 +100,17 @@ describe('parameter registry', () => {
   it('backs every grade A, B or C parameter with at least one paper', () => {
     const bare = all.filter((p) => p.grade !== 'D' && p.evidence.length === 0).map((p) => p.id)
     expect(bare).toEqual([])
+  })
+
+  it('gives a parameter that cites only practice sources grade D (README step 7)', () => {
+    // A practice source may set a default and never raise a grade; a parameter with any other
+    // paper among its evidence is graded by that paper.
+    const practiceOnly = all.filter(
+      (p) => p.evidence.length > 0 && p.evidence.every((id) => practiceSources.has(id)),
+    )
+    expect(practiceSources.size).toBeGreaterThan(0)
+    expect(practiceOnly.length).toBeGreaterThan(0)
+    expect(practiceOnly.filter((p) => p.grade !== 'D').map((p) => p.id)).toEqual([])
   })
 
   it('has finite numeric values, ordered ranges and values inside their range', () => {
