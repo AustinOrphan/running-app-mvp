@@ -38,7 +38,11 @@
 }
 
 /* The strength item of "Also today": a word in the line that is a button. The 44 px target is the
-   box the pseudo-element draws around the words, so the line stays one line of its own height. */
+   box the pseudo-element draws around the words, so the line stays one line of its own height. The
+   hero's column gap (`--space-2`) is all the room there is above the line, between it and the
+   buttons of the action row, so the box reaches up by the gap less 1 px (the browser snaps a box to
+   whole pixels and a box that reaches the row's last pixel takes it) and takes the rest of its
+   height below the line: the line of `--lh-sm`, 7 px above and 15 below make 44 px. */
 .also {
   position: relative;
   display: inline;
@@ -57,5 +61,6 @@
 .also::after {
   content: '';
   position: absolute;
-  inset: calc((var(--lh-sm) - 2.75rem) / 2) calc(var(--space-2) * -1);
+  inset: calc(1px - var(--space-2)) calc(var(--space-2) * -1)
+    calc(var(--lh-sm) + var(--space-2) - 2.75rem - 1px);
 }
