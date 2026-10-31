@@ -12,6 +12,7 @@ import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
+import { ActivitySets } from '../components/strength/ActivitySets.tsx'
 import { ratingCounts, unratedEffortNote } from '../components/engineText.ts'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -483,6 +484,7 @@ export function ActivityDetailPage() {
       </p>
 
       <Summary activity={activity} units={units} />
+      {activity.type === 'strength' ? <ActivitySets activity={activity} /> : null}
       <Charts detail={detail.data} units={units} />
       {laps !== null && laps.length > 0 ? (
         <LapsTable laps={laps} units={units} hasPace={hasPace} />

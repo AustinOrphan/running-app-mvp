@@ -1,15 +1,20 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { Route, Routes } from 'react-router-dom'
-import { describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { stepNote } from '../../shared/engine/fuelCopy.ts'
 import type { ExecutionAssessment } from '../../shared/engine/types.ts'
+import { fromGrams } from '../../shared/domain/weight.ts'
 import type {
   ActivityDetail,
   Feel,
   FuelLogView,
   PlanWithSessions,
+  StrengthLog,
   Units,
+  UserSettings,
 } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
@@ -17,6 +22,17 @@ import { makeActivity } from '../factories.ts'
 import { loggedRun, logOf, makeLab, saved } from './fuel-fixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { makeSession, makeV2Plan } from './plan-fixtures.ts'
+import {
+  DAY,
+  SETTINGS as STRENGTH_USER_SETTINGS,
+  dayRoute,
+  lb,
+  makeLog,
+  makeView,
+  makeWorkout,
+  savedLog,
+  set,
+} from './strength-fixtures.ts'
 
 function makeDetail(over: Partial<ActivityDetail> = {}): ActivityDetail {
   const t = Array.from({ length: 12 }, (_, i) => i * 10)
@@ -130,6 +146,8 @@ function renderDetail(
     'GET /api/activities/a1/detail': () => detail,
     'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
     'GET /api/plan': () => opts.plan ?? null,
+    'GET /api/strength': () => makeView(),
+    'GET /api/strength/logs': () => [],
     ...opts.routes,
   })
   renderWithProviders(
@@ -754,5 +772,258 @@ describe('ActivityDetailPage: the Fuel section', () => {
     expect(await within(section).findByText('Counted toward your ladder.')).toBeInTheDocument()
     expect(within(section).queryByText('Mild, 1 of 4')).not.toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Edit fuel log' })).toHaveFocus()
+  })
+})
+
+// ---- The sets of a strength activity (strength design 11.4) -----------------------------------
+
+describe('ActivityDetailPage: a strength activity', () => {
+  const LOG_ID = '3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+  const strengthDetail = (): ActivityDetail =>
+    makeDetail({
+      activity: makeActivity({
+        id: 'a1',
+        date: DAY,
+        type: 'strength',
+        startTime: null,
+        durationSec: 2400,
+        distanceM: null,
+        source: 'manual',
+      }),
+      stream: null,
+      laps: null,
+      hasFile: false,
+    })
+  /** Three sets of the squat, two of the deadlift, a calf raise with nothing added, a plank hold. */
+  const sets = [
+    set('back-squat', 0, 105, 5, 2),
+    set('back-squat', 1, 105, 5, 2),
+    set('back-squat', 2, 105, 4, 1),
+    set('dumbbell-rdl', 3, 35, 6, null),
+    set('dumbbell-rdl', 4, 35, 6, null),
+    set('standing-calf-raise', 5, null, 12, 3),
+    set('side-plank', 6, null, 30, null),
+  ]
+  const logged = (over: Partial<StrengthLog> = {}): StrengthLog => ({
+    ...makeLog(LOG_ID, DAY, sets),
+    activityId: 'a1',
+    ...over,
+  })
+  const sectionOf = () => screen.findByRole('region', { name: 'Sets' })
+  const rowsOf = (table: HTMLElement) =>
+    within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => [...row.querySelectorAll('th, td')].map((cell) => cell.textContent))
+
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+  afterEach(() => {
+    window.localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  test('shows its sets as a labelled table: exercise, set, load in the runner’s unit, reps and reps left', async () => {
+    renderDetail({
+      detail: strengthDetail(),
+      routes: { 'GET /api/strength/logs': () => [logged()] },
+    })
+    const section = await sectionOf()
+    const table = await within(section).findByRole('table')
+    expect(
+      within(within(section).getByRole('region', { name: 'Sets of this session' })).getByRole(
+        'table',
+      ),
+    ).toBe(table)
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Exercise', 'Set', 'Load', 'Reps', 'Reps left'])
+    expect(rowsOf(table)).toEqual([
+      ['Back squat', '1', '105 lb', '5', '2'],
+      ['Back squat', '2', '105 lb', '5', '2'],
+      ['Back squat', '3', '105 lb', '4', '1'],
+      ['Dumbbell Romanian deadlift', '1', '35 lb', '6', 'Not recorded'],
+      ['Dumbbell Romanian deadlift', '2', '35 lb', '6', 'Not recorded'],
+      ['Standing calf raise', '1', 'No added load', '12', '3'],
+      ['Side plank', '1', 'No added load', '30 seconds', 'Not recorded'],
+    ])
+    expect(within(section).getByRole('button', { name: 'Edit sets' })).toBeVisible()
+    expect(within(section).queryByRole('button', { name: 'Add the sets' })).not.toBeInTheDocument()
+    expectCleanCopy(section)
+  })
+
+  test('shows the loads in kilograms for a runner who chose them, on the same grams', async () => {
+    const kg: UserSettings = { ...STRENGTH_USER_SETTINGS, weightUnit: 'kg', units: 'km' }
+    renderDetail({
+      detail: strengthDetail(),
+      units: 'km',
+      routes: {
+        'GET /api/settings': () => kg,
+        'GET /api/strength/logs': () => [logged()],
+      },
+    })
+    const table = await within(await sectionOf()).findByRole('table')
+    expect(rowsOf(table)[0]?.[2]).toBe(`${String(fromGrams(lb(105), 'kg'))} kg`)
+  })
+
+  test('"Edit sets" opens the sheet on the log as it was saved, and saving it replaces the sets', async () => {
+    const user = userEvent.setup()
+    let current = logged()
+    const api = renderDetail({
+      detail: strengthDetail(),
+      routes: {
+        'GET /api/strength/logs': () => [current],
+        [`PUT /api/strength/logs/${LOG_ID}`]: ({ body }) => {
+          const sent = body as { sets: Array<{ exerciseId: string; count: number }> }
+          current = {
+            ...current,
+            sets: current.sets.map((s, i) => ({ ...s, count: sent.sets[i]?.count ?? s.count })),
+          }
+          return { ...savedLog(LOG_ID), log: current }
+        },
+      },
+    })
+    const section = await sectionOf()
+    await user.click(await within(section).findByRole('button', { name: 'Edit sets' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    // the sets as they were logged, with the rules' own steps for the saved equipment
+    const reps = await within(dialog).findByRole('textbox', { name: 'Back squat, set 3, reps' })
+    expect(reps).toHaveValue('4')
+    await user.click(
+      within(within(dialog).getByRole('group', { name: 'Back squat, set 3, reps' })).getByRole(
+        'button',
+        { name: /^Raise the reps by/ },
+      ),
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+    })
+    const put = api.calls.find((call) => call.method === 'PUT')
+    expect(put?.url).toBe(`/api/strength/logs/${LOG_ID}`)
+    expect(put?.body).toMatchObject({ date: DAY, activityId: 'a1' })
+    expect(put?.body).not.toHaveProperty('sessionId')
+    // and the table reads again
+    await waitFor(() => {
+      expect(rowsOf(within(section).getByRole('table'))[2]?.[3]).toBe('5')
+    })
+  })
+
+  test('says so when the activity has no sets, and "Add the sets" starts from the next planned session', async () => {
+    const user = userEvent.setup()
+    let current: StrengthLog | null = null
+    const ahead = makeWorkout({ sessionId: 's9z', date: '2026-03-20' })
+    const api = renderDetail({
+      detail: strengthDetail(),
+      routes: {
+        'GET /api/strength/logs': () => (current === null ? [] : [current]),
+        'GET /api/strength/workout': dayRoute(ahead, 'next-planned'),
+        [`PUT /api/strength/logs/${LOG_ID}`]: () => {
+          current = logged()
+          return { ...savedLog(LOG_ID), log: current }
+        },
+      },
+    })
+    const section = await sectionOf()
+    expect(await within(section).findByText('No sets are logged for this session.')).toBeVisible()
+    expect(within(section).queryByRole('table')).not.toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: 'Edit sets' })).not.toBeInTheDocument()
+    expectCleanCopy(section)
+
+    // an import brought no sets: the sheet starts from the day's own start, off the plan
+    vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+    await user.click(within(section).getByRole('button', { name: 'Add the sets' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    expect(await within(dialog).findByText('From the next planned session.')).toBeVisible()
+    expect(
+      api.calls.filter((call) => call.url.startsWith('/api/strength/workout')).map((c) => c.url),
+    ).toEqual([`/api/strength/workout?date=${DAY}`])
+    await user.click(within(dialog).getByRole('button', { name: 'As suggested' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+    })
+    // the sets attach to this activity, on its own day, and link no other session
+    const put = api.calls.find((call) => call.method === 'PUT')
+    expect(put?.body).toMatchObject({ date: DAY, activityId: 'a1' })
+    expect(put?.body).not.toHaveProperty('sessionId')
+    expect(await within(section).findByRole('table')).toBeVisible()
+    expect(within(section).getByRole('button', { name: 'Edit sets' })).toBeVisible()
+  })
+
+  test('"Add the sets" starts from the session the activity is linked to, which is the day’s own workout', async () => {
+    const user = userEvent.setup()
+    const session = makeSession({
+      id: 's1',
+      kind: 'strength',
+      title: 'Strength',
+      date: DAY,
+      weekStart: '2026-03-16',
+      status: 'completed',
+      activityId: 'a1',
+      execution: null,
+    })
+    const api = renderDetail({
+      detail: strengthDetail(),
+      plan: makeV2Plan({ sessions: [session] }),
+      routes: {
+        'GET /api/strength/workout': dayRoute(makeWorkout({ sessionId: 's1', date: DAY })),
+      },
+    })
+    const section = await sectionOf()
+    // the plan has to be in before the button knows the session
+    await waitFor(() => {
+      expect(api.calls.some((call) => call.url === '/api/plan')).toBe(true)
+    })
+    await settle()
+    await user.click(await within(section).findByRole('button', { name: 'Add the sets' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    expect(
+      api.calls.filter((call) => call.url.startsWith('/api/strength/workout')).map((c) => c.url),
+    ).toEqual([`/api/strength/workout?date=${DAY}&sessionId=s1`])
+    // the workout is the session’s own, so the header names no other session
+    expect(within(dialog).queryByText(/^From /)).not.toBeInTheDocument()
+    expect(within(dialog).getByText(`Wed 18 Mar. Loads are in pounds.`)).toBeVisible()
+  })
+
+  test('says so when the sets did not load, and reads them again on request', async () => {
+    const user = userEvent.setup()
+    let connected = false
+    renderDetail({
+      detail: strengthDetail(),
+      routes: {
+        'GET /api/strength/logs': () =>
+          connected
+            ? [logged()]
+            : { status: 503, body: { error: { code: 'internal', message: 'No connection.' } } },
+      },
+    })
+    const section = await sectionOf()
+    expect(await within(section).findByRole('alert')).toHaveTextContent('The sets did not load.')
+    connected = true
+    await user.click(within(section).getByRole('button', { name: 'Try again' }))
+    expect(await within(section).findByRole('table')).toBeVisible()
+  })
+
+  test('is not on the page of any other kind of activity, which asks nothing about sets', async () => {
+    const api = renderDetail()
+    await screen.findByRole('region', { name: 'How did it go?' })
+    expect(screen.queryByRole('region', { name: 'Sets' })).not.toBeInTheDocument()
+    expect(api.calls.some((call) => call.url.startsWith('/api/strength'))).toBe(false)
+  })
+
+  test('keeps the buttons at 44 px and the table inside 360 px: the exercise wraps instead of scrolling', () => {
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/strength/ActivitySets.module.css'),
+      'utf8',
+    )
+    expect(css).toMatch(/\.exercise \{[^}]*overflow-wrap: anywhere;/s)
+    expect(css).not.toMatch(/white-space: nowrap/)
+    expect(css).not.toMatch(/min-width: \d/)
+    const button = readFileSync(join(process.cwd(), 'web/components/Button.module.css'), 'utf8')
+    expect(button).toMatch(/min-height: var\(--control-h\)/)
   })
 })

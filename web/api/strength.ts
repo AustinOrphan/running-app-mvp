@@ -6,6 +6,7 @@ import type {
   StrengthDayWorkout,
   StrengthExerciseView,
   StrengthLift,
+  StrengthLog,
   StrengthNextLoad,
   StrengthSettings,
   StrengthSnapshot,
@@ -73,6 +74,21 @@ export function useStrengthWorkoutFor(
     queryFn: () =>
       api<StrengthDayWorkout>('GET', `/strength/workout${qs({ date, sessionId, swap })}`),
     enabled: read.enabled ?? true,
+  })
+}
+
+/**
+ * The log of one activity (`GET /api/strength/logs?activityId=`): its sets, or none when the
+ * activity has no log. The activity page shows them as a table.
+ */
+export function useStrengthLogOf(activityId: string | undefined) {
+  return useQuery({
+    queryKey: [keys.strength, 'log-of', activityId],
+    queryFn: () =>
+      api<StrengthLog[]>('GET', `/strength/logs${qs({ activityId })}`).then(
+        (logs) => logs[0] ?? null,
+      ),
+    enabled: activityId !== undefined && activityId !== '',
   })
 }
 

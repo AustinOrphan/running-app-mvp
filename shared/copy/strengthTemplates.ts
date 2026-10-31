@@ -305,6 +305,7 @@ export const STRENGTH_TEMPLATES = {
   'strength.label.load-holds': tpl('The load holds', {}, { shape: 'label' }),
   'strength.label.log-sets': tpl('Log sets', {}, { shape: 'label' }),
   'strength.label.add-sets': tpl('Add the sets', {}, { shape: 'label' }),
+  'strength.label.edit-sets': tpl('Edit sets', {}, { shape: 'label' }),
 
   // ---- Reasons (design 10.2 to 10.4, 11.6): the facts of a `SuggestionBasis` ---------------------
   // A reason stored on a log is a template id with slots, so a wording fix and a change of unit

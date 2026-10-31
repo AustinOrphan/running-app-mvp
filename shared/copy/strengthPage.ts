@@ -90,6 +90,17 @@ export const STRENGTH_PAGE_TEMPLATES = {
   'strength.page.past-invalid': tpl('Choose a day in the last year, up to today.'),
   'strength.page.past-continue': tpl('Continue', {}, { shape: 'label' }),
 
+  // ---- The activity page (design 11.4): the sets of a strength activity -----------------------
+  'strength.page.sets-heading': tpl('Sets', {}, { shape: 'label' }),
+  'strength.page.sets-label': tpl('Sets of this session', {}, { shape: 'label' }),
+  'strength.page.sets-none': tpl('No sets are logged for this session.'),
+  'strength.page.sets-error': tpl('The sets did not load.'),
+  'strength.page.col-exercise': tpl('Exercise', {}, { shape: 'label' }),
+  'strength.page.col-set': tpl('Set', {}, { shape: 'label' }),
+  'strength.page.col-load': tpl('Load', {}, { shape: 'label' }),
+  'strength.page.col-reps': tpl('Reps', {}, { shape: 'label' }),
+  'strength.page.sets-not-recorded': tpl('Not recorded', {}, { shape: 'label' }),
+
   // ---- 3. This block (design 8.1, 8.3, 11.3) -----------------------------------------------------
   'strength.page.block-heading': tpl('This block', {}, { shape: 'label' }),
   'strength.page.block-position': tpl(
