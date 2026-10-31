@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { EXERCISES } from '../../shared/domain/strengthLibrary.ts'
+import { EXERCISES, exerciseById } from '../../shared/domain/strengthLibrary.ts'
 import { fromGrams, stepsFor, toGrams } from '../../shared/domain/weight.ts'
 import { estimateOneRm } from '../../shared/engine/strength.ts'
 import { STRENGTH_LOAD_LIST_MAX } from '../../shared/limits.ts'
@@ -12,6 +12,7 @@ import {
   anchorBody,
   anchorEstimateOf,
   anchorExercises,
+  anchorImplement,
   bodyOfExercises,
   equipmentOfForm,
   formOfEquipment,
@@ -25,6 +26,7 @@ import {
   type EquipmentForm,
 } from '../../web/components/strength/setupForm.ts'
 import { ALL_KINDS, ITEM, have } from '../unit/engine/strength-fixtures.ts'
+import { loadMeaningLine, strengthWords } from '../../web/components/strength/strengthText.ts'
 import { STRENGTH_SETTINGS, lb } from './strength-fixtures.ts'
 
 const everything = have(...ALL_KINDS)
@@ -304,6 +306,30 @@ describe('the exercises form (design 6.2, part 4)', () => {
   })
 })
 
+describe('what a load means (design 5.2)', () => {
+  const words = strengthWords('km', 'lb')
+
+  test('is one line for the logging sheet and the starting points, by implement', () => {
+    expect(loadMeaningLine(words, 'back-squat', 'barbell')).toBe(
+      words.say('strength.basis.total-with-bar'),
+    )
+    expect(loadMeaningLine(words, 'leg-press', 'leg-press')).toBe(words.say('strength.basis.stack'))
+    expect(loadMeaningLine(words, 'goblet-squat', 'dumbbells')).toBe(
+      words.say('strength.basis.one-implement'),
+    )
+    // the same movement with weight added to the body
+    expect(loadMeaningLine(words, 'single-leg-calf-raise', 'dumbbells')).toBe(
+      words.say('strength.basis.added'),
+    )
+  })
+
+  test('is nothing for a load there is none of, and for an exercise the catalogue does not hold', () => {
+    expect(loadMeaningLine(words, 'tempo-squat', null)).toBeNull()
+    expect(loadMeaningLine(words, 'banded-lateral-walk', 'bands')).toBeNull()
+    expect(loadMeaningLine(words, 'free-weights', null)).toBeNull()
+  })
+})
+
 describe('the starting points form (design 6.2 part 5, 6.3)', () => {
   const set = (over: Partial<AnchorForm> = {}): AnchorForm => ({
     ...EMPTY_ANCHOR,
@@ -314,20 +340,26 @@ describe('the starting points form (design 6.2 part 5, 6.3)', () => {
     ...over,
   })
 
-  test('offers the exercises that carry a load, and none that is bodyweight or a band', () => {
+  test('offers the exercises that carry a load and are counted in reps, and none that is bodyweight, a band or timed', () => {
     const ids = anchorExercises()
-    for (const id of [
-      'back-squat',
-      'leg-press',
-      'dumbbell-rdl',
-      'standing-calf-raise',
-      'farmer-carry',
-    ]) {
+    for (const id of ['back-squat', 'leg-press', 'dumbbell-rdl', 'standing-calf-raise']) {
       expect(ids, id).toContain(id)
     }
     for (const id of ['tempo-squat', 'pogo-hop', 'side-plank', 'banded-lateral-walk', 'dead-bug']) {
       expect(ids, id).not.toContain(id)
     }
+    // the estimated maximum reads reps (design 6.3): the carry, a load held for seconds, has none
+    expect(ids).not.toContain('farmer-carry')
+    for (const id of ids) expect(exerciseById(id)?.measure, id).toBe('reps')
+  })
+
+  test('says which implement the weight is for: what the saved equipment can do the exercise with, else what the exercise names', () => {
+    expect(anchorImplement('back-squat', have('barbell'))).toBe('barbell')
+    expect(anchorImplement('back-squat', have('dumbbells'))).toBe('barbell')
+    expect(anchorImplement('goblet-squat', have('kettlebells'))).toBe('kettlebells')
+    expect(anchorImplement('goblet-squat', [])).toBe('dumbbells')
+    expect(anchorImplement('leg-press', have('leg-press'))).toBe('leg-press')
+    expect(anchorImplement('free-weights', everything)).toBeNull()
   })
 
   test('sends a recent set with its reps and reps left, and a maximum as one rep with nothing left', () => {

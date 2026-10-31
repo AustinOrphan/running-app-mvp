@@ -41,6 +41,7 @@ import {
   anchorBody,
   anchorEstimateOf,
   anchorExercises,
+  anchorImplement,
   bodyOfExercises,
   equipmentOfForm,
   formOfEquipment,
@@ -61,6 +62,7 @@ import {
 } from './setupForm.ts'
 import { REPS_LEFT_MAX } from './strengthForm.ts'
 import { pageWords, type PageWords } from './strengthPageText.ts'
+import { loadMeaningLine } from './strengthText.ts'
 import styles from './SetupSheets.module.css'
 
 export interface StrengthSetupSheetProps {
@@ -299,7 +301,8 @@ function LoadsFields({
             <Input
               {...control}
               type="text"
-              inputMode="decimal"
+              // the list is separated by commas, which a decimal keypad has not got
+              inputMode="text"
               autoComplete="off"
               value={draft.list.text}
               onChange={(event) => {
@@ -669,6 +672,16 @@ function AnchorsPart({ words, view, weightUnit }: PartProps) {
   const [problems, setProblems] = useState<AnchorProblems | null>(null)
   const exercises = useMemo(() => anchorExercises(), [])
   const estimate = anchorEstimateOf(form, weightUnit)
+  // what the weight means is fixed by the implement and shown beside the field (design 5.2), in the
+  // words of the logging sheet's load field
+  const meaning =
+    form.exerciseId === ''
+      ? null
+      : loadMeaningLine(
+          words,
+          form.exerciseId,
+          anchorImplement(form.exerciseId, view.settings.equipment),
+        )
   const formRef = useRef<HTMLFormElement>(null)
   useFocusFirstInvalid(formRef, problems)
 
@@ -761,6 +774,7 @@ function AnchorsPart({ words, view, weightUnit }: PartProps) {
         />
         <Field
           label={words.say('strength.page.anchor-load', { unit: words.unitName() })}
+          hint={meaning ?? undefined}
           error={problems?.load === true ? words.say('strength.page.err-weight') : undefined}
         >
           {(control) => (

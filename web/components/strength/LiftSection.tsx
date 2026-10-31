@@ -1,9 +1,5 @@
 import { useId, useState } from 'react'
-import {
-  isExerciseId,
-  loadMeaning,
-  type ExerciseId,
-} from '../../../shared/domain/strengthLibrary.ts'
+import type { ExerciseId } from '../../../shared/domain/strengthLibrary.ts'
 import type {
   EquipmentConfig,
   PinnedSlot,
@@ -34,7 +30,7 @@ import {
   type Block,
   type SetRow,
 } from './strengthForm.ts'
-import { measureOf, type StrengthWords } from './strengthText.ts'
+import { loadMeaningLine, measureOf, type StrengthWords } from './strengthText.ts'
 import styles from './StrengthSheet.module.css'
 
 /** The slots a runner can pin an exercise in (design 6.2): the lifts of a session. */
@@ -94,10 +90,7 @@ export function LiftSection({
   // a lift with loads in its sets shows the field, whatever the equipment says (a log of a swapped
   // lift that was kept on the phone has its loads and not its steps)
   const loaded = shown.steps !== null || rows.some((row) => row.load !== '')
-  const meaning =
-    loaded && isExerciseId(shown.exerciseId)
-      ? loadMeaning(shown.exerciseId, shown.implement)
-      : 'none'
+  const meaning = loaded ? loadMeaningLine(words, shown.exerciseId, shown.implement) : null
   const swapped = shown !== block.original
   const reason = words.reason(shown)
   const lighterDay = !editing && shown.change === 'lighter-day' && shown.usualLoadG !== null
@@ -174,9 +167,9 @@ export function LiftSection({
       <p className={styles.suggestion}>{words.suggestion(shown)}</p>
       {reason === null ? null : <p className={styles.muted}>{reason}</p>}
       {/* what the load means is fixed by the equipment and shown beside the field (design 5.2) */}
-      {meaning === 'none' ? null : (
+      {meaning === null ? null : (
         <p id={meaningId} className={styles.muted}>
-          {words.say(`strength.basis.${meaning}`)}
+          {meaning}
         </p>
       )}
 
@@ -316,7 +309,7 @@ export function LiftSection({
                       value={row.load}
                       inputMode="decimal"
                       unit={weightUnit}
-                      describedBy={meaning === 'none' ? undefined : meaningId}
+                      describedBy={meaning === null ? undefined : meaningId}
                       lowerLabel={words.say('strength.sheet.lower-load')}
                       raiseLabel={words.say('strength.sheet.raise-load')}
                       lowerEnds={stepRowLoad(row, shown, -1, weightUnit) === row}

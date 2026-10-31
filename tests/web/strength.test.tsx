@@ -2458,6 +2458,10 @@ describe('the Strength page: the setup (design 6.2, 6.5)', () => {
     // kettlebells as a list
     await user.click(sheet.getByRole('checkbox', { name: 'Kettlebells' }))
     await user.type(sheet.getByLabelText('Weights in pounds'), '18, 26, 35')
+    // a list is typed with commas, which a decimal keypad has not got; a single weight is decimal
+    expect(sheet.getByLabelText('Weights in pounds')).toHaveAttribute('inputmode', 'text')
+    expect(sheet.getByLabelText('Bar weight in pounds')).toHaveAttribute('inputmode', 'decimal')
+    expect(sheet.getByLabelText('Step in pounds')).toHaveAttribute('inputmode', 'decimal')
     // bands and a step carry no load, and a machine has a step and a top
     await user.click(sheet.getByRole('checkbox', { name: 'Bands' }))
     await user.click(sheet.getByRole('checkbox', { name: 'A step or box' }))
@@ -2761,6 +2765,47 @@ describe('the Strength page: the setup (design 6.2, 6.5)', () => {
     expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.url)).toEqual([
       '/api/strength/lifts/back-squat',
     ])
+  })
+
+  test('the weight of a starting point says what it means, in the words of the logging sheet', async () => {
+    openPage()
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit starting points' }))
+    const sheet = await setupSheet('Starting points')
+    const weight = sheet.getByLabelText('Weight in pounds')
+    // nothing is said before an exercise is chosen
+    expect(weight).not.toHaveAccessibleDescription()
+    for (const [exercise, meaning] of [
+      ['back-squat', 'Total, including the bar'],
+      ['goblet-squat', 'Weight of one dumbbell or kettlebell'],
+      ['leg-press', 'Stack or plate total'],
+    ] as const) {
+      await user.selectOptions(sheet.getByLabelText('Exercise'), exercise)
+      expect(weight, exercise).toHaveAccessibleDescription(meaning)
+      expect(sheet.getByText(meaning), exercise).toBeVisible()
+    }
+    // the sheet that logs the same lift names the same load in the same words
+    expect(strengthWords('km', 'lb').say('strength.basis.total-with-bar')).toBe(
+      'Total, including the bar',
+    )
+    await user.selectOptions(sheet.getByLabelText('Exercise'), '')
+    expect(weight).not.toHaveAccessibleDescription()
+  })
+
+  test('the starting point picker offers only exercises counted in reps', async () => {
+    openPage()
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit starting points' }))
+    const sheet = await setupSheet('Starting points')
+    const names = within(sheet.getByLabelText('Exercise'))
+      .getAllByRole('option')
+      .map((option) => option.textContent)
+    expect(names).toContain('Back squat')
+    // the carry is held for seconds, which the estimated maximum cannot read
+    expect(names).not.toContain('Farmer carry')
+    expect(names).not.toContain('Side plank')
   })
 
   test('marks what a starting point is missing and sends nothing', async () => {

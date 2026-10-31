@@ -12,6 +12,7 @@ import {
   exercisesOfSlot,
   isFeasible,
   ladderFor,
+  usableImplements,
   type ExerciseId,
 } from '../../../shared/domain/strengthLibrary.ts'
 import { stepsFor } from '../../../shared/domain/weight.ts'
@@ -427,12 +428,35 @@ export const EMPTY_ANCHOR: AnchorForm = {
   rir: null,
 }
 
-/** The exercises that carry a load, which a starting point can be for (not bodyweight or a band). */
+/**
+ * The exercises a starting point can be for: those that carry a load (not bodyweight or a band) and
+ * are counted in reps. The estimated maximum reads reps and reps left (design 6.3), so a movement
+ * counted in seconds or contacts, a loaded carry, has no starting point to give.
+ */
 export function anchorExercises(): ExerciseId[] {
   return EXERCISES.filter(
     (exercise) =>
-      exercise.retired !== true && exercise.basis !== 'bodyweight' && exercise.basis !== 'band',
+      exercise.retired !== true &&
+      exercise.measure === 'reps' &&
+      exercise.basis !== 'bodyweight' &&
+      exercise.basis !== 'band',
   ).map((exercise) => exercise.id)
+}
+
+/**
+ * The implement the weight of a starting point is for: the first the saved equipment can do the
+ * exercise with, else the first the exercise names (the runner may not have it yet), else none (a
+ * bodyweight movement with weight added). It decides what the weight means, the line beside the
+ * field (design 5.2).
+ */
+export function anchorImplement(
+  exerciseId: string,
+  equipment: readonly EquipmentConfig[],
+): EquipmentKind | null {
+  const exercise = exerciseById(exerciseId)
+  if (exercise === undefined) return null
+  const [usable] = usableImplements(exercise.id, equipment)
+  return usable ?? exercise.implements[0] ?? null
 }
 
 export type AnchorField = 'exercise' | 'load' | 'reps'
