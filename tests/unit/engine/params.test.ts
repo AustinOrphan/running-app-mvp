@@ -884,4 +884,28 @@ describe('parameter registry', () => {
     for (let i = 1; i <= 12; i += 1) expect(gaps, `S${String(i)}`).toContain(`**S${String(i)} `)
     expect(gaps.match(/Default \(D\)/g)).toHaveLength(12)
   })
+  it('carries the method presets P2 and P4 as two grade D defaults, cited in section (p)', () => {
+    const section = engineRules.slice(
+      engineRules.indexOf('## (p) Methods (presets)'),
+      engineRules.indexOf('## Numeric parameter table'),
+    )
+    expect(section.length).toBeGreaterThan(0)
+    expect(sectionParams('p-methods').map((p) => p.id)).toEqual(['p2.runDays', 'p4.buildWeeks'])
+    for (const [p, rule] of [
+      [P.p2.runDays, 'P2'],
+      [P.p4.buildWeeks, 'P4'],
+    ] as const) {
+      expect(p.grade, p.id).toBe('D')
+      expect(p.rule, p.id).toBe(rule)
+      // the evidence is the papers the rule itself cites, and the rule says where the value is
+      expect(
+        p.evidence.filter((id) => !section.includes(id)),
+        p.id,
+      ).toEqual([])
+      expect(section, p.id).toContain(`\`${p.id}\``)
+    }
+    expect(section).toContain('**Every preset is grade D: a choice, not a better plan.**')
+    expect(engineRules).toMatch(/^\| Run days, three-run-days preset \(P2\) /m)
+    expect(engineRules).toMatch(/^\| Build weeks, longer-base preset \(P4\) /m)
+  })
 })
