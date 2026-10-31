@@ -41,9 +41,10 @@ import type {
 export const PLATEAU_TOLERANCE = 0.05
 
 /**
- * Treff et al. 2019 (doi 10.3389/fphys.2019.00707), Eq. 2: an empty zone 2 is set to 0.01, as a
- * fraction, so that the ratio of zone 1 to zone 2 stays finite. Treff is a hypothesis paper and is
- * not in `research/papers`; the index has no engine rule.
+ * Treff et al. 2019 [treff-2019-polarization-index], Eq. 2: an empty zone 2 is set to 0.01, as a
+ * fraction, so that the ratio of zone 1 to zone 2 stays finite. Eq. 2 also takes the 0.01 from
+ * zone 3 (its Table 1 gives 3.18 for 80/0/20); this module leaves zone 3 as it is and gives 3.20.
+ * Treff is a hypothesis paper (grade D); the index has no engine rule.
  */
 export const TREFF_EMPTY_ZONE_FLOOR = 0.01
 
@@ -276,8 +277,12 @@ export interface PlanDescription {
 
 const GRADES_BEST_FIRST: readonly Grade[] = ['A', 'B', 'C', 'D']
 
-/** Wraps `value` with the weakest grade and the rule ids of `params`; no params, no label. */
-function figure<T>(value: T, params: ReadonlyArray<Param<unknown>> = []): Figure<T> {
+/**
+ * Wraps `value` with the weakest grade and the rule ids of `params`; no params, no label. Exported
+ * for the simulator's scorer (`sim-athlete.ts`), so every figure of the harness is labelled the
+ * same way.
+ */
+export function figure<T>(value: T, params: ReadonlyArray<Param<unknown>> = []): Figure<T> {
   if (params.length === 0) return { value, grade: null, rule: null }
   const grade = params
     .map((p) => p.grade)
@@ -370,11 +375,12 @@ function zoneMinutes(session: SessionSpec, goalClass: GoalClass): ZoneShares {
 }
 
 /**
- * Treff's polarization index [Treff et al. 2019, Eq. 2]: log10((Z1 / Z2) × Z3 × 100) on fractions,
- * with an empty zone 2 set to `TREFF_EMPTY_ZONE_FLOOR`. The shares are normalised to fractions, so
- * percent, minutes and fractions give one value. A value, never a label: its 2.00 cut-off has no
- * engine rule, and Treff calls a distribution polarized only when Z1 > Z3 > Z2, which `order`
- * shows. `value` is null when zone 1 or zone 3 is empty (the logarithm of zero), or all are.
+ * Treff's polarization index [treff-2019-polarization-index, Eq. 1]: log10((Z1 / Z2) × Z3 × 100)
+ * on fractions, with an empty zone 2 set to `TREFF_EMPTY_ZONE_FLOOR`. The shares are normalised to
+ * fractions, so percent, minutes and fractions give one value. A value, never a label: its 2.00
+ * cut-off has no engine rule, and Treff calls a distribution polarized only when Z1 > Z3 > Z2,
+ * which `order` shows. `value` is null when zone 1 or zone 3 is empty (the logarithm of zero), or
+ * all are.
  */
 export function polarizationIndex(shares: ZoneShares): PolarizationIndex {
   const total = shares.z1 + shares.z2 + shares.z3

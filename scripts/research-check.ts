@@ -134,7 +134,7 @@ export type Paper = z.infer<typeof paperSchema>
  * The practice records admitted before the vetting rubric (README method step 7) that do not yet
  * carry `vetting` with R1 and R2 `pass`. Task S4 of
  * docs/superpowers/specs/2026-10-31-sources-methods-evaluation-proposal.md re-vetted all 19
- * (README method step 13) and removed each that passed both hard gates; an entry leaves this list
+ * (README method step 14) and removed each that passed both hard gates; an entry leaves this list
  * once both pass. A listed id that passes, or that is not a `book-or-guideline` record, is an
  * error, so the list cannot go stale.
  */
