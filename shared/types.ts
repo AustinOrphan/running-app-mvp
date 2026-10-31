@@ -1,6 +1,7 @@
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
+import type { MethodPosition } from './engine/methods.ts'
 import type { HistorySession, LiftHistory, WeekHistory } from './engine/strength.ts'
 import type {
   AthleteState,
@@ -1005,6 +1006,15 @@ export interface PlanWithSessions extends PlanWithWeeks {
    * recomputes it. Null for a version-1 plan.
    */
   load: LoadPosition | null
+  /**
+   * The method preset of the plan [rules P1 to P4]: the one it was generated with (`requested`,
+   * `default` when none was chosen), the one that applies today (`effective`) and why they differ
+   * (`reason`: a goal class the preset does not name, a persistent hold of the load setting, a
+   * novice, or a plan with no base week). Worked out by the server from the plan's options, goal
+   * and stored weeks and the runner's state, as `load` is, so a page shows it and never recomputes
+   * it. Null for a version-1 plan.
+   */
+  method: MethodPosition | null
   /**
    * The recovery cycle the runner chose for the plan [rules E3]. Null when none was chosen, so the
    * plan decides it (2:1 for a new or low-frequency runner, 3:1 otherwise), and for a version-1

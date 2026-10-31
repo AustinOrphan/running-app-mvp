@@ -31,6 +31,7 @@ import {
   zoneProposals,
 } from '../../shared/engine/index.ts'
 import { loadPosition, rebuildZone, type LoadPosition } from '../../shared/engine/loadSetting.ts'
+import { resolveMethod, type MethodPosition } from '../../shared/engine/methods.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { sessionTitle } from '../../shared/engine/sessions.ts'
 import type {
@@ -98,12 +99,14 @@ function json(value: unknown): string {
  * data, and so do the distance estimates of the sessions and the weeks, which are worked out here
  * from the zones and the recent logged pace (`estimateDistance`) and never written. `load` is the
  * plan's load setting as `loadPosition` reads it today (null for a version-1 plan), the one source
- * of the position in effect and of why it differs from the one chosen.
+ * of the position in effect and of why it differs from the one chosen; `method` is the same for the
+ * method preset (`resolveMethod`).
  */
 function present(
   plan: PlanRow & { weeks: PlanWeekRow[]; sessions: PlanSessionRow[] },
   paces: EstimatePaces,
   load: LoadPosition | null,
+  method: MethodPosition | null,
 ): PlanWithSessions {
   const { zones } = paces
   const engine = plan.generatorVersion >= 2 ? toPlanEngineFields(plan) : null
@@ -125,6 +128,7 @@ function present(
     checklist: engine?.checklist ?? [],
     zones,
     load,
+    method,
     // a stored value that is neither cycle is not a choice, as the engine reads it
     recoveryCycle: chosenCycle === '2:1' || chosenCycle === '3:1' ? chosenCycle : null,
   }
@@ -149,20 +153,20 @@ export async function loadPlanWithSessions(
   // Zones and the recent pace come from the snapshot, with no read of their own.
   const context =
     plan.generatorVersion >= 2 ? await loadAthleteContext(deps, { userId, today }) : null
-  // The position is read from the plan's own goal, options and the snapshot's state, as the weekly
-  // decision is, so that it is the one the next re-plan will apply.
-  const load =
-    context === null
-      ? null
-      : loadPosition(
-          await gatherContextInput(deps, {
-            userId,
-            today,
-            goalId: plan.goalId,
-            options: context.planOptions,
-          }),
-          context.state,
-        )
+  // The load setting and the method preset are read from the plan's own goal, options and the
+  // snapshot's state, as the weekly decision is, so that they are the ones the next re-plan applies.
+  let load: LoadPosition | null = null
+  let method: MethodPosition | null = null
+  if (context !== null) {
+    const input = await gatherContextInput(deps, {
+      userId,
+      today,
+      goalId: plan.goalId,
+      options: context.planOptions,
+    })
+    load = loadPosition(input, context.state)
+    method = resolveMethod(input, context.state, plan.weeks)
+  }
   return present(
     plan,
     {
@@ -170,6 +174,7 @@ export async function loadPlanWithSessions(
       recentPaceSecPerKm: context?.recentPaceSecPerKm ?? null,
     },
     load,
+    method,
   )
 }
 
@@ -350,6 +355,7 @@ export async function generateEnginePlan(
     created,
     { zones: draft.zones, recentPaceSecPerKm: recentPace },
     loadPosition(input, state),
+    resolveMethod(input, state, created.weeks),
   )
 }
 

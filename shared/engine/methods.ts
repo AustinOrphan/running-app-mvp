@@ -17,7 +17,6 @@ import {
   type GoalModel,
   type Param,
   type PresetId,
-  type WeekDraft,
 } from './types.ts'
 
 /** The default of each numeric overridable value: the only reads of these Params outside the registry. */
@@ -90,7 +89,7 @@ export interface MethodPosition {
 export function resolveMethod(
   input: EngineInput,
   state: AthleteState,
-  weeks?: ReadonlyArray<Pick<WeekDraft, 'phase'>>,
+  weeks?: ReadonlyArray<{ readonly phase: string }>,
 ): MethodPosition {
   const requested = isPresetId(input.options.method) ? input.options.method : 'default'
   const reads = (reason: MethodReason): MethodPosition => ({

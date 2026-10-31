@@ -163,6 +163,7 @@ export function makeV2Plan(over: Partial<PlanWithSessions> = {}): PlanWithSessio
     ],
     zones: null,
     load: { requested: 'steady', position: 'steady', held: null, ageCapped: false },
+    method: { requested: 'default', effective: 'default', reason: null },
     recoveryCycle: null,
     ...over,
   }
