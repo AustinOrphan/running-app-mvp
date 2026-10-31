@@ -453,7 +453,9 @@ export const STRENGTH_TEMPLATES = {
     { exercise: 'text' },
     { shape: 'label', fallback: 'Same as last time' },
   ),
-  'strength.sheet.needs-connection': tpl('Same as last time and Swap need a connection.'),
+  'strength.sheet.needs-connection': tpl(
+    'Same as last time, Swap and Add a lift need a connection.',
+  ),
 
   // The one-line suggestion of a lift: `sets` reads "four sets", `amount` "3 to 6", `measure` "reps",
   // `effort` "leave 1 to 3 in reserve". A lift with no effort target or no load has its own line.
@@ -557,7 +559,7 @@ export const STRENGTH_TEMPLATES = {
     { shape: 'label', fallback: 'As suggested' },
   ),
   'strength.sheet.swap-note': tpl(
-    'A swap holds for this session. The swapped lift starts with the sets of a first session, at the lightest load the equipment makes.',
+    'A swap holds for this session. A new exercise starts with the sets of a first session; a logged one goes on from its history.',
   ),
   'strength.sheet.swap-none': tpl('No other exercise fits the equipment in the setup.'),
   'strength.sheet.always-use': tpl('Always use this', {}, { shape: 'label' }),
@@ -623,6 +625,44 @@ export const STRENGTH_TEMPLATES = {
     { reason: 'text' },
     { fallback: 'The session was not saved. Try again.' },
   ),
+  // Where a log made with no planned session of its day starts from (design 9.1), and the sheet
+  // while that workout is read, and when it cannot be. `date` is the Monday of the week.
+  'strength.sheet.from-next': tpl('From the next planned session.'),
+  'strength.sheet.from-maintenance': tpl("From this week's maintenance session."),
+  'strength.sheet.from-maintenance-week': tpl(
+    'From the maintenance session of the week of {date}.',
+    { date: 'date' },
+    { fallback: 'From a maintenance session.' },
+  ),
+  'strength.sheet.title-plain': tpl('Strength', {}, { shape: 'label' }),
+  'strength.sheet.workout-reading': tpl('Reading the workout.'),
+  'strength.sheet.workout-error': tpl(
+    'The workout could not be read. A session with no plan needs a connection.',
+  ),
+  'strength.sheet.try-again': tpl('Try again', {}, { shape: 'label' }),
+
+  // A lift the server works out for Swap and Add a lift (design 7.3, 9.1, 10.3): the rules give its
+  // sets and load, so the sheet waits for the answer and says so when it cannot have it.
+  'strength.sheet.lift-reading': tpl(
+    'Working out {exercise} for this session.',
+    { exercise: 'text' },
+    { fallback: 'Working out the lift.' },
+  ),
+  'strength.sheet.lift-error': tpl(
+    'The lift could not be read. Swap and Add a lift need a connection.',
+  ),
+  'strength.sheet.lift-unavailable': tpl(
+    '{exercise} does not fit the equipment in the setup.',
+    { exercise: 'text' },
+    { fallback: 'That exercise does not fit the equipment in the setup.' },
+  ),
+  'strength.sheet.add-lift': tpl('Add a lift', {}, { shape: 'label' }),
+  'strength.sheet.add-choices': tpl('Lifts to add', {}, { shape: 'label' }),
+  'strength.sheet.add-note': tpl(
+    'An added lift is logged after the others. A new exercise starts with the sets of a first session.',
+  ),
+  'strength.sheet.add-none': tpl('No other exercise fits the equipment in the setup.'),
+
   // With no connection the save is kept on the phone (the outbox); a save without sets is a new
   // activity, which is not an idempotent write and so is never queued.
   'strength.sheet.offline': tpl(
@@ -671,9 +711,9 @@ export const STRENGTH_TEMPLATES = {
     { shape: 'label' },
   ),
 
-  // The reason of a lift swapped in for one session, which the sheet makes itself and the engine
-  // never does (so these are not `strength.reason.*`: a test holds those to what the engine reaches).
-  // It starts light: the sheet has no history to read a load from.
+  // The reasons the sheet gave a lift swapped in for one session before the server read it
+  // (E14-10a): the engine's own reasons replace them. A log saved earlier keeps the fact in its
+  // snapshot, so the ids stay renderable; the sheet no longer makes either.
   'strength.sheet.swap-start': tpl(
     '{exercise} was swapped in for this session, so it starts at the lightest load the equipment makes.',
     { exercise: 'text' },

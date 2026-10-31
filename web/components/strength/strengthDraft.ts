@@ -8,7 +8,14 @@ import { isExerciseId } from '../../../shared/domain/strengthLibrary.ts'
 import { isWeightUnit } from '../../../shared/domain/weight.ts'
 import type { LoadSteps, StrengthWorkout, WeightUnit, WorkoutLift } from '../../../shared/types.ts'
 import { STRENGTH_DRAFT_PREFIX } from '../../pwa/drafts.ts'
-import { REPS_LEFT_MAX, inUnit, type Block, type FormState, type SetRow } from './strengthForm.ts'
+import {
+  REPS_LEFT_MAX,
+  blockKindOf,
+  inUnit,
+  type Block,
+  type FormState,
+  type SetRow,
+} from './strengthForm.ts'
 
 /** What a draft is for: the session of the workout, the day, and the activity the sets attach to. */
 export interface DraftContext {
@@ -17,10 +24,15 @@ export interface DraftContext {
   activityId: string | null
 }
 
-/** One block as kept: the lift a swap put in its place, if any, and the sets. */
+/**
+ * One block as kept: the lift a swap put in its place, if any, and the sets. A lift the runner added
+ * is kept whole in `added`, because the workout has no lift of its own to rebuild it from. A draft
+ * written before lifts could be added has no `added`, and reads as none.
+ */
 interface DraftBlock {
   key: string
   swapped: WorkoutLift | null
+  added: WorkoutLift | null
   rows: SetRow[]
 }
 
@@ -118,7 +130,9 @@ function parseBlock(value: unknown): DraftBlock | null {
   if (rows.some((row) => row === null)) return null
   const swapped = value['swapped']
   if (swapped !== null && !isLift(swapped)) return null
-  return { key: value['key'], swapped, rows: rows as SetRow[] }
+  const added = value['added'] ?? null
+  if (added !== null && !isLift(added)) return null
+  return { key: value['key'], swapped, added, rows: rows as SetRow[] }
 }
 
 const isScale = (value: unknown, max: number): value is number | null =>
@@ -181,6 +195,7 @@ export function draftOf(
     blocks: state.blocks.map((block) => ({
       key: block.key,
       swapped: block.shown === block.original ? null : block.shown,
+      added: block.added === true ? block.shown : null,
       rows: block.rows,
     })),
   }
@@ -241,23 +256,42 @@ export function clearDraft(logId: string): void {
 }
 
 /**
- * The state a draft puts back over the sheet a workout opens as: the sets, the swaps and the
- * footer the runner had entered. A block the workout no longer has is dropped, and one the draft
- * did not reach keeps its suggestion, so a workout that changed since the draft was kept still opens.
- * Loads kept in another unit than `unit` are put back as the same grams, in the unit now chosen.
+ * The state a draft puts back over the sheet a workout opens as: the sets, the swaps, the lifts the
+ * runner added and the footer they had entered. A block the workout no longer has is dropped, and
+ * one the draft did not reach keeps its suggestion, so a workout that changed since the draft was
+ * kept still opens. An added lift the workout has come to hold itself is not added twice. Loads
+ * kept in another unit than `unit` are put back as the same grams, in the unit now chosen.
  */
 export function applyDraft(fresh: FormState, draft: StrengthDraft, unit: WeightUnit): FormState {
   const kept = new Map(draft.blocks.map((block) => [block.key, block]))
+  const held = new Set(fresh.blocks.map((block) => block.key))
+  const added = draft.blocks.flatMap((block): Block[] =>
+    block.added === null || held.has(block.key)
+      ? []
+      : [
+          {
+            key: block.key,
+            kind: blockKindOf(block.added.slot),
+            shown: block.added,
+            original: block.added,
+            added: true,
+            rows: block.rows.map((row) => inUnit(row, draft.weightUnit, unit)),
+          },
+        ],
+  )
   return {
-    blocks: fresh.blocks.map((block): Block => {
-      const own = kept.get(block.key)
-      if (own === undefined) return block
-      return {
-        ...block,
-        shown: own.swapped ?? block.original,
-        rows: own.rows.map((row) => inUnit(row, draft.weightUnit, unit)),
-      }
-    }),
+    blocks: [
+      ...fresh.blocks.map((block): Block => {
+        const own = kept.get(block.key)
+        if (own === undefined) return block
+        return {
+          ...block,
+          shown: own.swapped ?? block.original,
+          rows: own.rows.map((row) => inUnit(row, draft.weightUnit, unit)),
+        }
+      }),
+      ...added,
+    ],
     minutes: draft.minutes,
     effort: draft.effort,
     pain: draft.pain,

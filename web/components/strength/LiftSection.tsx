@@ -1,15 +1,17 @@
-import { useId, useState } from 'react'
-import type { ExerciseId } from '../../../shared/domain/strengthLibrary.ts'
+import { useId, useRef, useState } from 'react'
 import type {
   EquipmentConfig,
   PinnedSlot,
   StrengthWorkout,
   WeightUnit,
+  WorkoutLift,
 } from '../../../shared/types.ts'
+import type { DayRead } from '../../api/strength.ts'
 import { Button } from '../Button.tsx'
 import { ExplainButton } from '../ExplainButton.tsx'
 import { ScalePicker } from '../ScalePicker.tsx'
 import { Stepper } from './Stepper.tsx'
+import { SwapChoices } from './SwapChoices.tsx'
 import {
   COUNT_STEP,
   REPS_LEFT_MAX,
@@ -20,7 +22,6 @@ import {
   stepRowCount,
   stepRowLoad,
   swapChoices,
-  swappedLift,
   withAddedSet,
   withAllRir,
   withLift,
@@ -54,6 +55,13 @@ export interface LiftSectionProps {
   hasLast: boolean
   /** A saved log is being edited: "Why", "Swap", "Always use this" and the usual load speak of a plan it was not made from. */
   editing: boolean
+  /**
+   * What the server is asked to read the lift a swap chooses in (the workout's day and session);
+   * null where it cannot be asked, and "Swap" is then off.
+   */
+  liftRead: DayRead | null
+  /** "Why" can open on a lift: the session is a stored one, which the explanation reads. */
+  explainable: boolean
   /** Another set fits in the log. */
   canAdd: boolean
   onChange: (update: (block: Block) => Block) => void
@@ -78,6 +86,8 @@ export function LiftSection({
   pinned,
   hasLast,
   editing,
+  liftRead,
+  explainable,
   canAdd,
   onChange,
   onSameAsLast,
@@ -87,6 +97,7 @@ export function LiftSection({
   const meaningId = useId()
   const [swapOpen, setSwapOpen] = useState(false)
   const [pinFailed, setPinFailed] = useState(false)
+  const swapButton = useRef<HTMLButtonElement>(null)
   const { shown, rows } = block
   const exercise = words.name(shown.exerciseId)
   const measure = measureOf(shown.exerciseId)
@@ -109,16 +120,12 @@ export function LiftSection({
     }))
   }
 
-  function swapTo(id: ExerciseId): void {
-    if (equipment === null) return
-    const lift =
-      id === block.original.exerciseId
-        ? block.original
-        : swappedLift(workout, id, equipment, weightUnit)
-    if (lift === null) return
+  /** A lift is in the block in place of what it showed: the choices close, and focus stays on "Swap". */
+  function putIn(lift: WorkoutLift): void {
     onChange((current) => withLift(current, lift, weightUnit))
     setSwapOpen(false)
     setPinFailed(false)
+    swapButton.current?.focus()
   }
 
   function pin(): void {
@@ -135,22 +142,24 @@ export function LiftSection({
           {exercise}
         </h3>
         <div className={styles.liftTools}>
-          {/* A swapped lift has no explanation yet: the server reads the figures of a lift in the
-              session's place (E14-10), and the drawer would explain another suggestion. A saved
-              log being edited was not made from the plan the drawer would explain. */}
-          {block.kind === 'lift' && !swapped && !editing ? (
+          {/* The figures of a swapped or an added lift are the rules' own, read from the server for
+              this session, so its drawer explains what the sheet shows. A saved log being edited was
+              not made from the plan the drawer would explain, and a maintenance session is no
+              stored session. */}
+          {block.kind === 'lift' && !editing && explainable ? (
             <ExplainButton
               subject={exercise}
               rules={[shown.basis.rule]}
               explain={{ subject: 'strength', id: workout.sessionId, exercise: shown.exerciseId }}
             />
           ) : null}
-          {block.kind === 'lift' && !editing ? (
+          {block.kind === 'lift' && !editing && block.added !== true ? (
             <Button
+              ref={swapButton}
               variant="quiet"
               aria-label={words.say('strength.sheet.swap-for', { exercise })}
               aria-expanded={swapOpen}
-              disabled={equipment === null}
+              disabled={equipment === null || liftRead === null}
               onClick={() => {
                 setSwapOpen((open) => !open)
               }}
@@ -199,33 +208,17 @@ export function LiftSection({
       ) : null}
 
       {swapOpen ? (
-        <div className={styles.swap}>
-          {choices.length === 0 ? (
-            <p className={styles.muted}>{words.say('strength.sheet.swap-none')}</p>
-          ) : (
-            <div
-              role="group"
-              aria-label={words.say('strength.sheet.swap-choices', { exercise })}
-              className={styles.choices}
-            >
-              {choices.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={styles.choice}
-                  onClick={() => {
-                    swapTo(id)
-                  }}
-                >
-                  {id === block.original.exerciseId && swapped
-                    ? words.say('strength.sheet.swap-original', { exercise: words.name(id) })
-                    : words.name(id)}
-                </button>
-              ))}
-            </div>
-          )}
-          <p className={styles.muted}>{words.say('strength.sheet.swap-note')}</p>
-        </div>
+        <SwapChoices
+          shownId={shown.exerciseId}
+          originalId={block.original.exerciseId}
+          choices={choices}
+          read={liftRead}
+          words={words}
+          onOriginal={() => {
+            putIn(block.original)
+          }}
+          onLift={putIn}
+        />
       ) : null}
 
       {pinnable ? (

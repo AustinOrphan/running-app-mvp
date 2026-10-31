@@ -3,6 +3,7 @@ import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../../shared/domain/weight.ts
 import type {
   EquipmentConfig,
   PinnedSlot,
+  StrengthDayWorkout,
   StrengthExerciseView,
   StrengthLift,
   StrengthNextLoad,
@@ -44,6 +45,34 @@ export function useStrengthWorkouts(from: string, to: string, options: { enabled
     queryKey: [keys.strength, 'workouts', from, to],
     queryFn: () => api<StrengthWorkout[]>('GET', `/strength/workouts${qs({ from, to })}`),
     enabled: options.enabled ?? true,
+  })
+}
+
+/** What `GET /api/strength/workout` is asked: the day of a log, and the planned session on it. */
+export interface DayRead {
+  /** The day of the log, or the day of the planned session (YYYY-MM-DD, the server's day). */
+  date: string
+  /** The planned strength session of that day; left out, the server picks the day's own or starts one. */
+  sessionId?: string
+}
+
+/**
+ * The workout a log made on `date` starts from (design 9.1): the planned session of the day, else
+ * the next planned one, else the maintenance session of the week, with where it came from. With
+ * `swap` the answer also carries that exercise as a lift of the same session (Swap and "Add a
+ * lift", design 7.3, 10.3), worked out by the rules. Not one of the reads the service worker keeps
+ * (ADR 0012): a session with no plan, a swap and an added lift need a connection, and the sheet says
+ * so; a planned session travels in the Today payload.
+ */
+export function useStrengthWorkoutFor(
+  read: DayRead & { swap?: string | undefined; enabled?: boolean | undefined },
+) {
+  const { date, sessionId, swap } = read
+  return useQuery({
+    queryKey: [keys.strength, 'workout', date, sessionId ?? null, swap ?? null],
+    queryFn: () =>
+      api<StrengthDayWorkout>('GET', `/strength/workout${qs({ date, sessionId, swap })}`),
+    enabled: read.enabled ?? true,
   })
 }
 

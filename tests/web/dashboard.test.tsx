@@ -1228,7 +1228,9 @@ describe('DashboardPage: a strength session', () => {
         await within(dialog).findByRole('textbox', { name: 'Back squat, set 1, load' }),
       ).toHaveValue('110')
       expect(
-        await within(dialog).findByText('Same as last time and Swap need a connection.'),
+        await within(dialog).findByText(
+          'Same as last time, Swap and Add a lift need a connection.',
+        ),
       ).toBeVisible()
       await user.click(within(dialog).getByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))

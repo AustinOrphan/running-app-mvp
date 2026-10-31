@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { countPhrase } from '../../../shared/copy/quantity.ts'
+import { mondayOf } from '../../../shared/dates.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type {
   PinnedSlot,
@@ -21,28 +22,33 @@ import { ScalePicker } from '../ScalePicker.tsx'
 import { useToast } from '../Toast.tsx'
 import { getOutbox } from '../../pwa/outbox.ts'
 import { useOnline } from '../useOnline.ts'
+import { AddLift } from './AddLift.tsx'
 import { LiftSection } from './LiftSection.tsx'
 import {
   EFFORT_SCALE,
   PAIN_SCALE,
   REPS_LEFT_MAX,
   asSuggested,
+  barbellOf,
   bareActivity,
   buildLogBody,
   canAddSet,
   hasLast,
   initialState,
   lastSetsOf,
+  liftReadOf,
   newLogId,
   queuedLogOf,
   parseMinutes,
   sameAsLast,
   stateFromBody,
   stateOfLog,
+  withAddedLift,
   withUsualLoad,
   type Block,
   type FormState,
   type LogIssues,
+  type WorkoutStart,
 } from './strengthForm.ts'
 import {
   applyDraft,
@@ -74,6 +80,12 @@ export interface StrengthFormProps {
   log?: StrengthLog
   /** Start every set that has a usual load at it (design 11.1); an edit opens as it was saved. */
   usualLoads?: boolean
+  /**
+   * Where the workout came from when its session is not the one the log is made for (design 9.1):
+   * the header says so, and a maintenance session has no stored session to explain or to read a
+   * lift in. Null for a planned session's own workout and for an edit.
+   */
+  start?: WorkoutStart | null
   weightUnit: WeightUnit
   units: Units
   onSaved: (saved: StrengthSaved) => void
@@ -92,6 +104,7 @@ export function StrengthForm({
   activityId,
   log,
   usualLoads = false,
+  start = null,
   weightUnit,
   units,
   onSaved,
@@ -182,6 +195,11 @@ export function StrengthForm({
   const addable = canAddSet(state.blocks)
   const hasEffort = state.blocks.some((block) => block.shown.rir !== null)
   const editing = log !== undefined
+  // A lift of another exercise is read from the server for the session the workout stands for; a
+  // saved log being edited stands for none.
+  const liftRead = editing ? null : liftReadOf(workout, start)
+  const explainable = start !== 'maintenance'
+  const asOf = view.data?.asOf
   // Until the setup is saved the workout is bodyweight only (design 6.1): the sheet says so and
   // offers it, on the surfaces that are not the Strength page, whose own card makes the offer.
   const onStrengthPage = useLocation().pathname === '/strength'
@@ -321,6 +339,17 @@ export function StrengthForm({
             </Link>
           </p>
         ) : null}
+        {start === null ? null : (
+          <p className={styles.muted}>
+            {start === 'next-planned'
+              ? words.say('strength.sheet.from-next')
+              : asOf !== undefined && mondayOf(asOf) === mondayOf(date)
+                ? words.say('strength.sheet.from-maintenance')
+                : words.say('strength.sheet.from-maintenance-week', {
+                    date: { kind: 'date', iso: mondayOf(date), style: 'short' },
+                  })}
+          </p>
+        )}
         <p className={styles.muted}>{words.say('strength.safety')}</p>
         <p className={styles.muted}>
           {words.say('strength.sheet.warmup')}
@@ -374,6 +403,8 @@ export function StrengthForm({
             pinned={pinned?.[block.shown.slot as PinnedSlot]}
             hasLast={!editing && hasLast(block, lastOf)}
             editing={editing}
+            liftRead={liftRead}
+            explainable={explainable}
             canAdd={addable}
             onChange={(update) => {
               changeBlock(block.key, update)
@@ -387,6 +418,20 @@ export function StrengthForm({
             onPin={pinChoice}
           />
         ))}
+        {editing ? null : (
+          <AddLift
+            blocks={state.blocks}
+            equipment={equipment}
+            avoid={view.data?.settings.avoid ?? []}
+            barbell={barbellOf(workout)}
+            canAdd={addable}
+            read={liftRead}
+            words={words}
+            onAdd={(lift) => {
+              change((current) => withAddedLift(current, lift, weightUnit))
+            }}
+          />
+        )}
       </div>
 
       <div className={styles.footer}>

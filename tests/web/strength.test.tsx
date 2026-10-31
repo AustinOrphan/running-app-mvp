@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { formatLoad, fromGrams, toGrams } from '../../shared/domain/weight.ts'
+import { renderFact } from '../../shared/copy/templates.ts'
+import { formatLoad, fromGrams, stepFrom, toGrams } from '../../shared/domain/weight.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { estimateOneRm, structuresFor } from '../../shared/engine/strength.ts'
 import type {
@@ -15,9 +16,13 @@ import type {
   UserSettings,
   WorkoutLift,
 } from '../../shared/types.ts'
-import { strengthLogUrl, type StrengthLogBody } from '../../web/api/strength.ts'
+import { strengthLogUrl, type DayRead, type StrengthLogBody } from '../../web/api/strength.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
-import { StrengthSheet, type StrengthSaved } from '../../web/components/strength/StrengthSheet.tsx'
+import {
+  StrengthSheet,
+  type StrengthSaved,
+  type WorkoutStart,
+} from '../../web/components/strength/StrengthSheet.tsx'
 import { STRENGTH_DRAFT_PREFIX } from '../../web/pwa/drafts.ts'
 import { measureOf, strengthWords } from '../../web/components/strength/strengthText.ts'
 import { StrengthPage } from '../../web/pages/StrengthPage.tsx'
@@ -38,6 +43,8 @@ import {
   STRENGTH_SETTINGS,
   bodyweightWorkout,
   calf,
+  dayRoute,
+  engineLift,
   engineWorkout,
   lb,
   lighterDayWorkout,
@@ -76,9 +83,11 @@ vi.mock('../../web/components/WhyDrawer.tsx', () => ({
     ) : null,
 }))
 
-// A lift swapped in is a first session of its exercise, in any template of the week (design 10.3).
+// A lift swapped in is a first session of its exercise, in any template of the week (design 10.3);
+// the server's rules give it, and the sheet shows what the server sends.
 const FIRST = structuresFor('heavy', 'other', 6).first.loaded
-const COUNT = String(FIRST.range.min)
+const GOBLET = engineLift('goblet-squat')
+const GOBLET_LOAD = String(fromGrams(GOBLET.loadG ?? 0, 'lb'))
 
 const LOG_ID = '3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
 const LOG_URL = `/api/strength/logs/${LOG_ID}`
@@ -101,6 +110,10 @@ interface Rig {
 
 interface Options {
   workout?: StrengthWorkout
+  /** Where the workout came from when it is not the planned session of the day (design 9.1). */
+  start?: WorkoutStart | null
+  /** The sheet reads its workout itself, as it does for a log with no planned session. */
+  read?: DayRead
   settings?: UserSettings
   /** The page view; `null` makes the read fail, as it does with no connection. */
   view?: StrengthView | null
@@ -121,6 +134,7 @@ function open(options: Options = {}): Rig {
   const { calls } = mockApi({
     'GET /api/settings': () => options.settings ?? SETTINGS,
     'GET /api/strength': () => (view === null ? unreachable : view),
+    'GET /api/strength/workout': dayRoute(options.workout),
     ...options.routes,
   })
   const onClose = vi.fn()
@@ -128,7 +142,12 @@ function open(options: Options = {}): Rig {
   renderWithProviders(
     <ToastProvider>
       <StrengthSheet
-        workout={options.workout ?? makeWorkout()}
+        {...(options.read === undefined
+          ? {
+              workout: options.workout ?? makeWorkout(),
+              ...(options.start === undefined ? {} : { start: options.start }),
+            }
+          : { read: options.read })}
         date={options.date ?? DAY}
         {...(options.sessionId === undefined ? {} : { sessionId: options.sessionId })}
         {...(options.activityId === undefined ? {} : { activityId: options.activityId })}
@@ -586,14 +605,16 @@ describe('"Same as last time"', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Same as last time' })).toBeDisabled()
     })
-    expect(screen.queryByText('Same as last time and Swap need a connection.')).toBeNull()
+    expect(
+      screen.queryByText('Same as last time, Swap and Add a lift need a connection.'),
+    ).toBeNull()
   })
 
   test('is off, with a note, when the page view cannot be read; the sheet still works', async () => {
     open({ view: null })
     const dialog = await sheet()
     expect(
-      await within(dialog).findByText('Same as last time and Swap need a connection.'),
+      await within(dialog).findByText('Same as last time, Swap and Add a lift need a connection.'),
     ).toBeVisible()
     expect(screen.getByRole('button', { name: 'Same as last time' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeDisabled()
@@ -752,7 +773,7 @@ describe('"Swap" and "Always use this"', () => {
       'Single-leg box squat',
     ])
     await user.click(choices.getByRole('button', { name: 'Tempo squat' }))
-    await user.click(screen.getByRole('button', { name: 'Always use this: Tempo squat' }))
+    await user.click(await screen.findByRole('button', { name: 'Always use this: Tempo squat' }))
     await waitFor(() => {
       expect(
         calls.some((call) => call.method === 'PUT' && call.url === '/api/strength/settings'),
@@ -790,23 +811,34 @@ describe('"Swap" and "Always use this"', () => {
     ])
     await user.click(choices.getByRole('button', { name: 'Goblet squat' }))
 
-    // it takes the place of the squat as the first session of the exercise: the ramp-in sets and
-    // counts, starting at the lightest dumbbell, and no explanation until the server reads one
+    // it takes the place of the squat as the rules give it for this session: the first session of
+    // the exercise, so the ramp-in sets and counts, at the load the server worked out
+    await screen.findByRole('region', { name: 'Goblet squat' })
     expect(screen.queryByRole('region', { name: 'Back squat' })).toBeNull()
-    expect(values('Goblet squat', 'load')).toEqual(Array(FIRST.sets).fill('10'))
-    expect(values('Goblet squat', 'reps')).toEqual(Array(FIRST.sets).fill(COUNT))
+    expect(values('Goblet squat', 'load')).toEqual(Array(FIRST.sets).fill(GOBLET_LOAD))
+    expect(values('Goblet squat', 'reps')).toEqual(GOBLET.targets.map(String))
     expect(FIRST.sets).not.toBe(squat().sets)
     expect(
       region('Goblet squat').getByText(
-        new RegExp(`^Suggested 10 lb, .* of ${COUNT} to ${String(FIRST.range.max)} reps, leave`),
+        new RegExp(
+          `^Suggested ${GOBLET_LOAD} lb, .* of ${String(FIRST.range.min)} to ${String(FIRST.range.max)} reps, leave`,
+        ),
       ),
     ).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Why: Goblet squat' })).toBeNull()
+    // the figures are the engine's, so the Why drawer is back
+    expect(screen.getByRole('button', { name: 'Why: Goblet squat' })).toBeVisible()
     expect(
-      region('Goblet squat').getByText(
-        'Goblet squat was swapped in for this session, so it starts at the lightest load the equipment makes.',
-      ),
+      region('Goblet squat').getByText(renderFact(GOBLET.basis.facts[0]!, 'mi', 'lb')),
     ).toBeVisible()
+
+    // the read named the day, the session and the exercise, and wrote nothing
+    expect(calls.filter((call) => call.url.startsWith('/api/strength/workout'))).toEqual([
+      {
+        method: 'GET',
+        url: `/api/strength/workout?date=${DAY}&sessionId=${SESSION_ID}&swap=goblet-squat`,
+        body: undefined,
+      },
+    ])
 
     // "Always use this" writes the choice to the pinned exercises of the slot
     await user.click(screen.getByRole('button', { name: 'Always use this: Goblet squat' }))
@@ -833,10 +865,10 @@ describe('"Swap" and "Always use this"', () => {
       range: FIRST.range,
       rir: FIRST.rir,
       change: 'start',
-      shownLoadG: lb(10),
-      baseLoadG: lb(10),
+      shownLoadG: GOBLET.loadG,
+      baseLoadG: GOBLET.loadG,
+      basis: GOBLET.basis,
     })
-    expect(shown?.basis.facts[0]?.template).toBe('strength.sheet.swap-start')
   })
 
   test('keeps the choice already pinned, and swaps back to the suggestion', async () => {
@@ -854,7 +886,7 @@ describe('"Swap" and "Always use this"', () => {
         name: 'Goblet squat',
       }),
     )
-    expect(screen.getByText('This choice is kept for later sessions.')).toBeVisible()
+    expect(await screen.findByText('This choice is kept for later sessions.')).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Always use this: Goblet squat' })).toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'Swap: Goblet squat' }))
@@ -873,10 +905,11 @@ describe('"Swap" and "Always use this"', () => {
     })
     await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
     await user.click(screen.getByRole('button', { name: 'Tempo squat' }))
+    await screen.findByRole('region', { name: 'Tempo squat' })
     expect(region('Tempo squat').queryByRole('group', { name: /load$/ })).toBeNull()
     expect(
       region('Tempo squat').getByText(
-        'Tempo squat was swapped in for this session, so it starts with no added load.',
+        renderFact(engineLift('tempo-squat').basis.facts[0]!, 'mi', 'lb'),
       ),
     ).toBeVisible()
   })
@@ -902,6 +935,479 @@ describe('"Swap" and "Always use this"', () => {
     await user.click(screen.getByRole('button', { name: 'Swap: Standing calf raise' }))
     expect(screen.getByText('No other exercise fits the equipment in the setup.')).toBeVisible()
     expect(screen.queryByRole('group', { name: 'Swap Standing calf raise for' })).toBeNull()
+  })
+})
+
+const dayReads = (calls: Rig['calls']) =>
+  calls.filter((call) => call.url.startsWith('/api/strength/workout')).map((call) => call.url)
+
+describe('the lift the server works out for "Swap" (design 7.3, 10.3)', () => {
+  async function swapRig(options: Options = {}) {
+    const rig = open(options)
+    await sheet()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    return { ...rig, user: userEvent.setup() }
+  }
+  const choose = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    await user.click(
+      within(screen.getByRole('group', { name: 'Swap Back squat for' })).getByRole('button', {
+        name,
+      }),
+    )
+  }
+
+  test('says the rules are working the lift out, keeps the lift until they answer, then puts it in place', async () => {
+    const { user, calls } = await swapRig()
+    delayResponses(300)
+    await choose(user, 'Goblet squat')
+    expect(await screen.findByText('Working out Goblet squat for this session.')).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Back squat' })).toBeVisible()
+    expect(screen.getByRole('group', { name: 'Swap Back squat for' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    )
+    // another choice while the first is read asks for nothing more
+    await user.click(screen.getByRole('button', { name: 'Tempo squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    expect(dayReads(calls)).toEqual([
+      `/api/strength/workout?date=${DAY}&sessionId=${SESSION_ID}&swap=goblet-squat`,
+    ])
+    // the choices close, the note goes, and focus is on Swap, which names the lift now in place
+    expect(screen.queryByText('Working out Goblet squat for this session.')).toBeNull()
+    expect(screen.queryByRole('group', { name: /^Swap .* for$/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Swap: Goblet squat' })).toHaveFocus()
+  })
+
+  test('shows the sets, the counts and the load the server sends, whatever they are', async () => {
+    // an exercise with a history: three sets of 3 to 6 at 35 lb, not the sets of a first session
+    const logged: WorkoutLift = {
+      ...GOBLET,
+      sets: 3,
+      range: { min: 3, max: 6 },
+      targets: [5, 5, 4],
+      loadG: lb(35),
+      rir: { min: 1, max: 3 },
+      change: 'increase',
+      basis: {
+        rule: 'F8',
+        facts: [
+          {
+            template: 'strength.reason.increase',
+            slots: { exercise: 'Goblet squat', top: { kind: 'count', n: 6 } },
+          },
+        ],
+      },
+    }
+    const { user } = await swapRig({
+      routes: {
+        'GET /api/strength/workout': dayRoute(makeWorkout(), 'planned', { 'goblet-squat': logged }),
+      },
+    })
+    await choose(user, 'Goblet squat')
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    expect(values('Goblet squat', 'load')).toEqual(['35', '35', '35'])
+    expect(values('Goblet squat', 'reps')).toEqual(['5', '5', '4'])
+    expect(
+      region('Goblet squat').getByText(
+        'Suggested 35 lb, three sets of 3 to 6 reps, leave 1 to 3 in reserve.',
+      ),
+    ).toBeVisible()
+    expect(
+      region('Goblet squat').getByText(
+        'Every set of Goblet squat reached 6 reps with reps left, so the load goes up one step.',
+      ),
+    ).toBeVisible()
+    // and it is the figures of the server that the log keeps
+    expect(screen.getByRole('button', { name: 'Why: Goblet squat' })).toBeVisible()
+  })
+
+  test('opens the Why drawer on the swapped lift, for the session it was read in', async () => {
+    const { user } = await swapRig()
+    await choose(user, 'Goblet squat')
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    await user.click(screen.getByRole('button', { name: 'Why: Goblet squat' }))
+    const drawer = screen.getByRole('complementary', { name: 'Why drawer' })
+    expect(explainOf(drawer)).toEqual({
+      subject: 'strength',
+      id: SESSION_ID,
+      exercise: 'goblet-squat',
+    })
+    expect(drawer).toHaveTextContent('F8')
+  })
+
+  test('says so when the lift cannot be read, keeps the lift as it was and tries again', async () => {
+    let connected = false
+    const day = dayRoute()
+    const { user, calls } = await swapRig({
+      routes: { 'GET /api/strength/workout': (req) => (connected ? day(req) : unreachable) },
+    })
+    await choose(user, 'Goblet squat')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The lift could not be read. Swap and Add a lift need a connection.',
+    )
+    expect(screen.getByRole('region', { name: 'Back squat' })).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Goblet squat' })).toBeNull()
+    connected = true
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(dayReads(calls)).toHaveLength(2)
+    expectCleanCopy(document.body)
+  })
+
+  test('says when the saved equipment cannot make the exercise, and leaves the lift as it was', async () => {
+    const { user } = await swapRig({
+      routes: {
+        'GET /api/strength/workout': dayRoute(makeWorkout(), 'planned', { 'goblet-squat': null }),
+      },
+    })
+    await choose(user, 'Goblet squat')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Goblet squat does not fit the equipment in the setup.',
+    )
+    expect(screen.getByRole('region', { name: 'Back squat' })).toBeVisible()
+    // another choice replaces the note
+    await user.click(screen.getByRole('button', { name: 'Tempo squat' }))
+    await screen.findByRole('region', { name: 'Tempo squat' })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  test('swaps back to the lift the workout held without asking the server', async () => {
+    const { user, calls } = await swapRig()
+    await choose(user, 'Goblet squat')
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    await user.click(screen.getByRole('button', { name: 'Swap: Goblet squat' }))
+    await user.click(screen.getByRole('button', { name: 'Back squat, as suggested' }))
+    expect(screen.getByRole('region', { name: 'Back squat' })).toBeVisible()
+    expect(dayReads(calls)).toHaveLength(1)
+  })
+
+  test('is off while the sheet cannot ask: no equipment is known, and the note says what needs a connection', async () => {
+    open({ view: null })
+    await sheet()
+    expect(
+      await screen.findByText('Same as last time, Swap and Add a lift need a connection.'),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add a lift' })).toBeDisabled()
+  })
+})
+
+describe('where a workout came from (design 9.1)', () => {
+  test('a log made for the next planned session says so, and its swap is read in that session', async () => {
+    const next = makeWorkout({ sessionId: 's9z', date: '2026-03-20' })
+    const { calls } = open({ workout: next, start: 'next-planned', sessionId: null })
+    const dialog = await sheet()
+    expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
+    // the session of that workout is the one the lift is read in, and its drawer is open
+    expect(screen.getByRole('button', { name: 'Why: Back squat' })).toBeVisible()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    expect(dayReads(calls)).toEqual([
+      '/api/strength/workout?date=2026-03-20&sessionId=s9z&swap=goblet-squat',
+    ])
+    expectCleanCopy(dialog)
+  })
+
+  test('a log started from this week’s maintenance session says so, reads its lifts by the day alone and offers no Why', async () => {
+    const maintenance = makeWorkout({ sessionId: `maintenance-${DAY}`, template: 'maintenance' })
+    const { calls } = open({ workout: maintenance, start: 'maintenance', sessionId: null })
+    const dialog = await sheet('Strength, maintenance A')
+    expect(await within(dialog).findByText("From this week's maintenance session.")).toBeVisible()
+    expect(screen.queryByRole('button', { name: /^Why:/ })).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    expect(dayReads(calls)).toEqual([`/api/strength/workout?date=${DAY}&swap=goblet-squat`])
+    // and there is still no drawer to open: the session names nothing in the plan
+    expect(screen.queryByRole('button', { name: /^Why:/ })).toBeNull()
+  })
+
+  test('names the week of a maintenance session logged in another week', async () => {
+    open({
+      workout: makeWorkout({ sessionId: 'maintenance-2026-03-04', date: '2026-03-04' }),
+      date: '2026-03-04',
+      start: 'maintenance',
+      sessionId: null,
+    })
+    const dialog = await sheet()
+    expect(
+      await within(dialog).findByText('From the maintenance session of the week of 2 Mar.'),
+    ).toBeVisible()
+  })
+
+  test('says nothing of a start for the planned session of the day', async () => {
+    open()
+    const dialog = await sheet()
+    expect(within(dialog).queryByText(/^From /)).toBeNull()
+  })
+})
+
+describe('a sheet that reads its workout (design 9.1)', () => {
+  const next = makeWorkout({ sessionId: 's9z', date: '2026-03-20' })
+
+  test('opens at once, says it is reading, then shows the start of the day with its header', async () => {
+    const { calls } = open({
+      read: { date: DAY },
+      sessionId: null,
+      routes: { 'GET /api/strength/workout': dayRoute(next, 'next-planned') },
+    })
+    // before the answer there is no workout to name: a plain title, a note and a placeholder
+    const loading = screen.getByRole('dialog', { name: 'Strength' })
+    expect(within(loading).getByText('Reading the workout.')).toBeVisible()
+    const dialog = await sheet()
+    expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
+    expect(within(dialog).getByText(`Wed 18 Mar. Loads are in pounds.`)).toBeVisible()
+    expect(dayReads(calls)).toEqual([`/api/strength/workout?date=${DAY}`])
+    expectCleanCopy(dialog)
+  })
+
+  test('logs the day with no planned session: the day it was asked for and no link to the one it started from', async () => {
+    const { calls } = open({
+      read: { date: '2026-03-10' },
+      date: '2026-03-10',
+      sessionId: null,
+      routes: {
+        'GET /api/strength/workout': dayRoute(next, 'next-planned'),
+        [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID),
+      },
+    })
+    await sheet()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(calls.some((call) => call.url === LOG_URL)).toBe(true)
+    })
+    const body = putBody(calls)
+    expect(body.date).toBe('2026-03-10')
+    expect(body).not.toHaveProperty('sessionId')
+    expect(body.sets.length).toBeGreaterThan(0)
+  })
+
+  test('the planned session of the day is the day’s own and says nothing of a start', async () => {
+    open({ read: { date: DAY }, routes: { 'GET /api/strength/workout': dayRoute() } })
+    const dialog = await sheet()
+    expect(within(dialog).queryByText(/^From /)).toBeNull()
+  })
+
+  test('a maintenance start reads its lifts by the day alone', async () => {
+    const maintenance = makeWorkout({ sessionId: `maintenance-${DAY}`, template: 'maintenance' })
+    const { calls } = open({
+      read: { date: DAY },
+      sessionId: null,
+      routes: { 'GET /api/strength/workout': dayRoute(maintenance, 'maintenance') },
+    })
+    const dialog = await sheet('Strength, maintenance A')
+    expect(within(dialog).getByText("From this week's maintenance session.")).toBeVisible()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    expect(dayReads(calls)).toEqual([
+      `/api/strength/workout?date=${DAY}`,
+      `/api/strength/workout?date=${DAY}&swap=goblet-squat`,
+    ])
+  })
+
+  test('says so when the workout cannot be read, and reads it again on request', async () => {
+    let connected = false
+    const day = dayRoute(next, 'next-planned')
+    open({
+      read: { date: DAY },
+      sessionId: null,
+      routes: { 'GET /api/strength/workout': (req) => (connected ? day(req) : unreachable) },
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The workout could not be read. A session with no plan needs a connection.',
+    )
+    expect(screen.getByRole('dialog', { name: 'Strength' })).toBeVisible()
+    connected = true
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }))
+    await sheet()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  test('keeps the first answer: a later read of the day does not change the sheet', async () => {
+    let answer = next
+    open({
+      read: { date: DAY },
+      sessionId: null,
+      routes: { 'GET /api/strength/workout': (req) => dayRoute(answer, 'next-planned')(req) },
+    })
+    await sheet()
+    expect(values('Back squat', 'load')).toEqual(['110', '110', '110', '110'])
+    answer = makeWorkout({ lifts: [squat({ loadG: lb(200) })], sessionId: 's9z', date: next.date })
+    // a swap asks the server again, and what the sheet shows of the other lifts stays as it was
+    const user = userEvent.setup()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    expect(values('Dumbbell Romanian deadlift', 'load')).toEqual(['40', '40', '40'])
+  })
+})
+
+describe('"Add a lift" (design 9.1)', () => {
+  async function addRig(options: Options = {}) {
+    const rig = open(options)
+    await sheet()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Add a lift' })).toBeEnabled()
+    })
+    return { ...rig, user: userEvent.setup() }
+  }
+
+  test('lists the exercises the equipment makes that the sheet does not hold, and adds the one chosen after the others', async () => {
+    const split = engineLift('split-squat')
+    const { user, calls } = await addRig({
+      routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) },
+    })
+    await user.click(screen.getByRole('button', { name: 'Add a lift' }))
+    const choices = within(screen.getByRole('group', { name: 'Lifts to add' }))
+    const names = choices.getAllByRole('button').map((button) => button.textContent)
+    expect(names).toEqual(expect.arrayContaining(['Split squat', 'Step-up', 'Dead bug']))
+    // what the sheet holds, a jump and a machine the setup lacks are not offered
+    for (const held of [
+      'Back squat',
+      'Dumbbell Romanian deadlift',
+      'Pogo hops',
+      'Side plank',
+      'Leg press',
+    ]) {
+      expect(names, held).not.toContain(held)
+    }
+    expect(
+      screen.getByText(
+        'An added lift is logged after the others. A new exercise starts with the sets of a first session.',
+      ),
+    ).toBeVisible()
+
+    await user.click(choices.getByRole('button', { name: 'Split squat' }))
+    await screen.findByRole('region', { name: 'Split squat' })
+    // it comes last, with the sets of a first session as the server sent them
+    expect(
+      screen
+        .getByRole('region', { name: 'Split squat' })
+        .compareDocumentPosition(screen.getByRole('region', { name: 'Side plank' })) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy()
+    expect(values('Split squat', 'reps')).toEqual(split.targets.map(String))
+    expect(screen.getByRole('button', { name: 'Why: Split squat' })).toBeVisible()
+    // no swap for a lift the runner added, and the choices are closed
+    expect(screen.queryByRole('button', { name: 'Swap: Split squat' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Lifts to add' })).toBeNull()
+    expect(dayReads(calls)).toEqual([
+      `/api/strength/workout?date=${DAY}&sessionId=${SESSION_ID}&swap=split-squat`,
+    ])
+
+    // it is saved with the others: the sets in order, and the lift as it was shown in the snapshot
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(calls.some((call) => call.url === LOG_URL)).toBe(true)
+    })
+    const body = putBody(calls)
+    expect(body.sets.filter((s) => s.exerciseId === 'split-squat')).toHaveLength(split.sets)
+    expect(body.sets.at(-1)?.exerciseId).toBe('split-squat')
+    expect(body.prescribed.lifts.at(-1)).toMatchObject({
+      exerciseId: 'split-squat',
+      change: 'start',
+      sets: split.sets,
+      basis: split.basis,
+    })
+  })
+
+  test('adds a trunk movement, which has no Why and no swap', async () => {
+    const { user } = await addRig()
+    await user.click(screen.getByRole('button', { name: 'Add a lift' }))
+    await user.click(screen.getByRole('button', { name: 'Dead bug' }))
+    await screen.findByRole('region', { name: 'Dead bug' })
+    expect(screen.queryByRole('button', { name: 'Why: Dead bug' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Swap: Dead bug' })).toBeNull()
+  })
+
+  test('does not offer an exercise left out in the setup', async () => {
+    const { user } = await addRig({
+      view: makeView({ settings: { ...STRENGTH_SETTINGS, avoid: ['split-squat'] } }),
+    })
+    await user.click(screen.getByRole('button', { name: 'Add a lift' }))
+    expect(screen.queryByRole('button', { name: 'Split squat' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Step-up' })).toBeVisible()
+  })
+
+  test('says so while the lift is worked out, when it cannot be read, and when it does not fit', async () => {
+    let state: 'slow' | 'down' | 'unfit' = 'down'
+    const day = dayRoute()
+    const { user } = await addRig({
+      routes: {
+        'GET /api/strength/workout': (req) =>
+          state === 'down'
+            ? unreachable
+            : state === 'unfit'
+              ? { source: 'planned', workout: makeWorkout(), lift: null }
+              : day(req),
+      },
+    })
+    await user.click(screen.getByRole('button', { name: 'Add a lift' }))
+    await user.click(screen.getByRole('button', { name: 'Split squat' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The lift could not be read. Swap and Add a lift need a connection.',
+    )
+    state = 'unfit'
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Split squat does not fit the equipment in the setup.',
+    )
+    expect(screen.queryByRole('region', { name: 'Split squat' })).toBeNull()
+    state = 'slow'
+    delayResponses(300)
+    await user.click(screen.getByRole('button', { name: 'Step-up' }))
+    expect(await screen.findByText('Working out Step-up for this session.')).toBeVisible()
+    await screen.findByRole('region', { name: 'Step-up' })
+  })
+
+  test('is kept in the draft: a reload brings the lift back with its sets', async () => {
+    const first = await addRig()
+    await first.user.click(screen.getByRole('button', { name: 'Add a lift' }))
+    await first.user.click(screen.getByRole('button', { name: 'Split squat' }))
+    await screen.findByRole('region', { name: 'Split squat' })
+    await first.user.click(
+      within(screen.getByRole('group', { name: 'Split squat, set 1, reps' })).getByRole('button', {
+        name: /^Raise the reps by/,
+      }),
+    )
+    const typed = values('Split squat', 'reps')
+
+    cleanup()
+    open({ routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) } })
+    await sheet()
+    expect(values('Split squat', 'reps')).toEqual(typed)
+    expect(screen.getByRole('button', { name: 'Why: Split squat' })).toBeVisible()
+    // and it is the last lift again
+    expect(
+      screen
+        .getByRole('region', { name: 'Split squat' })
+        .compareDocumentPosition(screen.getByRole('region', { name: 'Side plank' })) &
+        Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy()
   })
 })
 
@@ -980,10 +1486,15 @@ describe('what a load means, beside the field (design 5.2)', () => {
     })
     await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
     await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
-    expect(region('Goblet squat').getByText('Weight of one dumbbell or kettlebell')).toBeVisible()
+    expect(
+      await within(await screen.findByRole('region', { name: 'Goblet squat' })).findByText(
+        'Weight of one dumbbell or kettlebell',
+      ),
+    ).toBeVisible()
     expect(screen.queryAllByText('Total, including the bar')).toHaveLength(0)
     await user.click(screen.getByRole('button', { name: 'Swap: Goblet squat' }))
     await user.click(screen.getByRole('button', { name: 'Tempo squat' }))
+    await screen.findByRole('region', { name: 'Tempo squat' })
     expect(region('Tempo squat').queryByText(/Weight of one|Total, including/)).toBeNull()
   })
 })
@@ -1474,6 +1985,7 @@ describe('the draft', () => {
     })
     await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
     await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
     await user.click(
       within(screen.getByRole('group', { name: 'Goblet squat, set 2, load' })).getByRole('button', {
         name: 'Raise the load by one step',
@@ -1490,8 +2002,11 @@ describe('the draft', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'ffffffff-0000-4000-8000-000000000000' })
     const second = open({ routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) } })
     await sheet()
+    const raised = stepFrom(GOBLET.steps!, GOBLET.loadG ?? 0, 1, 'lb') ?? 0
     expect(values('Goblet squat', 'load')).toEqual(
-      Array.from({ length: FIRST.sets }, (_, i) => (i === 1 ? '15' : '10')),
+      Array.from({ length: FIRST.sets }, (_, i) =>
+        i === 1 ? String(fromGrams(raised, 'lb')) : GOBLET_LOAD,
+      ),
     )
     expect(repsLeft('Goblet squat')).toEqual(
       Array.from({ length: FIRST.sets }, (_, i) => (i === 0 ? 3 : null)),
@@ -1509,7 +2024,7 @@ describe('the draft', () => {
     expect(puts.map((call) => call.url)).toEqual([LOG_URL])
     expect((puts[0]?.body as StrengthLogBody).sets[1]).toMatchObject({
       exerciseId: 'goblet-squat',
-      loadG: lb(15),
+      loadG: raised,
     })
   })
 
@@ -1691,6 +2206,7 @@ describe('the copy', () => {
     await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
     expectCleanCopy(dialog)
     await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
     expectCleanCopy(dialog)
     await user.click(screen.getByRole('button', { name: 'More details' }))
     await user.click(screen.getByRole('button', { name: 'As suggested' }))
@@ -2547,6 +3063,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
       'As suggested',
       'Same as last time',
       'Swap: Back squat',
+      'Add a lift',
       'Save without sets',
     ]) {
       expect(screen.queryByRole('button', { name: gone }), gone).not.toBeInTheDocument()

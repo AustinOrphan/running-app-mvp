@@ -15,8 +15,11 @@ import { StrengthSheet } from '../../web/components/strength/StrengthSheet.tsx'
 import { STRENGTH_DRAFT_PREFIX } from '../../web/pwa/drafts.ts'
 import { getOutbox, useOutboxReplay } from '../../web/pwa/outbox.ts'
 import { delayResponses, mockApi, renderWithProviders } from './helpers.tsx'
+import { fromGrams } from '../../shared/domain/weight.ts'
 import {
   DAY,
+  dayRoute,
+  engineLift,
   lb,
   makeView,
   makeWorkout,
@@ -419,6 +422,7 @@ describe('the strength sheet with no connection', () => {
     mockApi({
       'GET /api/settings': () => SETTINGS,
       'GET /api/strength': () => makeView(),
+      'GET /api/strength/workout': dayRoute(),
       'GET /api/today': () => ({}),
       [`PUT ${strengthLogUrl(LOG_ID)}`]: () => offline,
     })
@@ -430,6 +434,7 @@ describe('the strength sheet with no connection', () => {
     })
     await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
     await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => {
       expect(getOutbox().getState().entries).toHaveLength(1)
@@ -442,7 +447,9 @@ describe('the strength sheet with no connection', () => {
     await screen.findByRole('region', { name: 'Goblet squat' })
     expect(screen.queryByRole('region', { name: 'Back squat' })).toBeNull()
     // its loads are in view and can be typed, whatever the equipment says
-    expect(screen.getByRole('textbox', { name: 'Goblet squat, set 1, load' })).toHaveValue('10')
+    expect(screen.getByRole('textbox', { name: 'Goblet squat, set 1, load' })).toHaveValue(
+      String(fromGrams(engineLift('goblet-squat').loadG ?? 0, 'lb')),
+    )
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => {
       expect(getOutbox().getState().entries).toHaveLength(1)
