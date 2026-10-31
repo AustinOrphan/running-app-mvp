@@ -17,7 +17,12 @@ import { makeWeekRow } from '../factories.ts'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { wristRoutes } from './wrist-fixtures.ts'
 
-const settings: UserSettings = { email: 'runner@example.com', displayName: null, units: 'mi' }
+const settings: UserSettings = {
+  email: 'runner@example.com',
+  displayName: null,
+  units: 'mi',
+  weightUnit: 'lb',
+}
 const START = '2026-12-28'
 const CURRENT_WEEK = '2027-01-11'
 

@@ -28,16 +28,23 @@ let seq = 0
 
 async function seed(
   source: string,
-  over: { startUtc?: string | null; distanceM?: number; date?: string; status?: string } = {},
+  over: {
+    startUtc?: string | null
+    distanceM?: number | null
+    date?: string
+    status?: string
+    type?: string
+    durationSec?: number
+  } = {},
 ) {
   seq += 1
   return ctx.prisma.activity.create({
     data: {
       userId: user.id,
       date: over.date ?? '2026-03-02',
-      type: 'run',
-      durationSec: 1800,
-      distanceM: over.distanceM ?? 5000,
+      type: over.type ?? 'run',
+      durationSec: over.durationSec ?? 1800,
+      distanceM: over.distanceM === undefined ? 5000 : over.distanceM,
       source,
       providerKey: source === 'manual' ? null : `${source}:${seq}`,
       startUtc: over.startUtc === undefined ? null : over.startUtc,
@@ -155,5 +162,76 @@ describe('markDuplicates across sources', () => {
     const strava = await seed('strava', { startUtc: at(20), date: '2026-03-03' })
     expect(await markDuplicates(ctx.prisma, user.id, [strava.id])).toBe(1)
     expect((await reload(strava.id)).duplicateOfId).toBe(file.id)
+  })
+})
+
+describe('markDuplicates for strength sessions', () => {
+  const session = (over: Parameters<typeof seed>[1] = {}) =>
+    ({ type: 'strength', distanceM: null, durationSec: 2400, ...over }) as const
+
+  test('a manual session and an import of the same day and length are a possible duplicate', async () => {
+    const manual = await seed('manual', session())
+    const file = await seed('file', session({ startUtc: T0, durationSec: 2500 }))
+    expect(await markDuplicates(ctx.prisma, user.id, [file.id])).toBe(1)
+    expect(await reload(manual.id)).toMatchObject({
+      duplicateStatus: 'possible',
+      duplicateOfId: file.id,
+    })
+    expect(await reload(file.id)).toMatchObject({ duplicateStatus: 'none', duplicateOfId: null })
+  })
+
+  test('two imports that start within two minutes are one session, confirmed', async () => {
+    const file = await seed('file', session({ startUtc: T0 }))
+    const strava = await seed('strava', session({ startUtc: at(90), durationSec: 3000 }))
+    expect(await markDuplicates(ctx.prisma, user.id, [strava.id])).toBe(1)
+    expect(await reload(strava.id)).toMatchObject({
+      duplicateStatus: 'confirmed',
+      duplicateOfId: file.id,
+    })
+  })
+
+  test('two imports that start three minutes apart are two sessions', async () => {
+    const file = await seed('file', session({ startUtc: T0 }))
+    const strava = await seed('strava', session({ startUtc: at(180) }))
+    expect(await markDuplicates(ctx.prisma, user.id, [file.id, strava.id])).toBe(0)
+    expect((await reload(strava.id)).duplicateStatus).toBe('none')
+  })
+
+  test('a session over 5% longer or on another day is not the same session', async () => {
+    const manual = await seed('manual', session())
+    const longer = await seed('file', session({ durationSec: 2530 }))
+    const nextDay = await seed('strava', session({ date: '2026-03-03' }))
+    expect(await markDuplicates(ctx.prisma, user.id, [longer.id, nextDay.id])).toBe(0)
+    expect((await reload(manual.id)).duplicateStatus).toBe('none')
+  })
+
+  test('two sessions of one source on a day, one hand-entered and one not, stay two', async () => {
+    const morning = await seed('manual', session())
+    const evening = await seed('manual', session())
+    expect(await markDuplicates(ctx.prisma, user.id, [morning.id, evening.id])).toBe(0)
+  })
+
+  test('a run and a strength session of the same day and length never pair, in either order', async () => {
+    // An import of one kind arrives with a hand-entered row of the other on the same day.
+    const run = await seed('file', { startUtc: T0, durationSec: 2400 })
+    const manualStrength = await seed('manual', session())
+    expect(await markDuplicates(ctx.prisma, user.id, [run.id, manualStrength.id])).toBe(0)
+
+    const strength = await seed('strava', session({ date: '2026-03-04', startUtc: at(172_800) }))
+    const manualRun = await seed('manual', { date: '2026-03-04', durationSec: 2400 })
+    expect(await markDuplicates(ctx.prisma, user.id, [strength.id, manualRun.id])).toBe(0)
+
+    for (const row of [run, manualStrength, strength, manualRun]) {
+      expect(await reload(row.id), row.id).toMatchObject({
+        duplicateStatus: 'none',
+        duplicateOfId: null,
+      })
+    }
+  })
+
+  test('cross-training is still compared with nothing', async () => {
+    const a = await seed('file', { type: 'cross', startUtc: T0, distanceM: null })
+    const b = await seed('strava', { type: 'cross', startUtc: T0, distanceM: null })
+    expect(await markDuplicates(ctx.prisma, user.id, [a.id, b.id])).toBe(0)
   })
 })

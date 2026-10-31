@@ -563,6 +563,39 @@ export async function ownedSession(deps: Deps, userId: string, id: string) {
   return row
 }
 
+/**
+ * Refuses (409) a link the matcher would not make: the session's kind does not take the activity's
+ * type, or the activity already fulfils another session. A null `activity.id` is an activity that
+ * is not stored yet, which fulfils nothing. Nothing is written.
+ */
+export async function assertLinkable(
+  deps: Deps,
+  session: { id: string; kind: string },
+  activity: { id: string | null; type: string; subtype: string | null },
+): Promise<void> {
+  if (!compatible(session.kind as SessionKind, activity)) {
+    const words = ACTIVITY_TYPE_WORDS[activity.type as ActivityType] ?? 'activity'
+    throw conflict(
+      adjustText('adjust.link-kind', {
+        activity: words,
+        title: sessionTitle(session.kind as SessionKind),
+      }),
+    )
+  }
+  if (activity.id === null) return
+  const taken = await deps.prisma.planSession.findFirst({
+    where: { activityId: activity.id, id: { not: session.id } },
+  })
+  if (taken) {
+    throw conflict(
+      adjustText('adjust.link-taken', {
+        title: taken.title,
+        date: { kind: 'date', iso: taken.date, style: 'weekday' },
+      }),
+    )
+  }
+}
+
 /** Links, relinks (`activityId`) or unlinks (`null`) the activity that fulfils a session. */
 export async function linkPlanSession(
   deps: Deps,
@@ -589,26 +622,7 @@ export async function linkPlanSession(
 
   const activity = await prisma.activity.findFirst({ where: { id: args.activityId, userId } })
   if (!activity) throw notFound('Activity not found.')
-  if (!compatible(row.kind as SessionKind, activity)) {
-    const words = ACTIVITY_TYPE_WORDS[activity.type as ActivityType] ?? 'activity'
-    throw conflict(
-      adjustText('adjust.link-kind', {
-        activity: words,
-        title: sessionTitle(row.kind as SessionKind),
-      }),
-    )
-  }
-  const taken = await prisma.planSession.findFirst({
-    where: { activityId: activity.id, id: { not: row.id } },
-  })
-  if (taken) {
-    throw conflict(
-      adjustText('adjust.link-taken', {
-        title: taken.title,
-        date: { kind: 'date', iso: taken.date, style: 'weekday' },
-      }),
-    )
-  }
+  await assertLinkable(deps, row, activity)
   await prisma.planSession.update({
     where: { id: row.id },
     data: { activityId: activity.id, linkSource: 'owner' },

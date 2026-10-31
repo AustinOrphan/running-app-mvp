@@ -53,6 +53,7 @@ const settingsRoute = (units: Units) => ({
     email: 'runner@example.com',
     displayName: null,
     units,
+    weightUnit: 'lb',
   }),
 })
 

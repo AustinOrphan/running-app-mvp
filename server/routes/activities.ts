@@ -4,15 +4,15 @@ import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
+import { createManualActivity } from '../services/activityStore.ts'
 import {
-  markDuplicates,
   moveConfirmedLogs,
-  releaseDuplicates,
+  rematchDuplicates,
   releaseDuplicatesOf,
 } from '../services/duplicates.ts'
 import { runExecutionQuietly } from '../services/execution.ts'
 import { standoutView } from '../services/insight.ts'
-import { findPossibleDuplicate } from '../../shared/domain/duplicates.ts'
+import { strengthTypeLockedMessage } from '../../shared/copy/strengthTemplates.ts'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
 import {
   ACTIVITY_OFFSET_MAX,
@@ -187,26 +187,6 @@ export function activitiesRouter(deps: Deps): Router {
     return row
   }
 
-  /**
-   * Confirmed rows pointing at an edited original stay confirmed while the pair still matches;
-   * the others go back to `none` so their totals recover. Returns the released ids.
-   */
-  async function releaseStaleConfirmed(userId: string, originalId: string): Promise<string[]> {
-    const original = toActivity(await findOwned(userId, originalId))
-    const confirmed = await prisma.activity.findMany({
-      where: { userId, duplicateOfId: originalId, duplicateStatus: 'confirmed' },
-    })
-    const stale = confirmed
-      .filter((row) => findPossibleDuplicate(toActivity(row), [original]) === null)
-      .map((row) => row.id)
-    if (stale.length === 0) return []
-    await prisma.activity.updateMany({
-      where: { id: { in: stale } },
-      data: { duplicateStatus: 'none', duplicateOfId: null },
-    })
-    return stale
-  }
-
   router.get('/', async (req, res) => {
     const query = parse(listSchema, req.query)
     if (query.from && query.to && query.from > query.to) {
@@ -248,12 +228,7 @@ export function activitiesRouter(deps: Deps): Router {
 
   router.post('/', async (req, res) => {
     const body = parse(activitySchema, req.body)
-    const created = await prisma.activity.create({
-      data: { ...body, userId: req.userId, source: 'manual', duplicateStatus: 'none' },
-    })
-    await markDuplicates(prisma, req.userId, [created.id])
-    await runExecutionQuietly(deps, { userId: req.userId, activityId: created.id })
-    res.status(201).json(toActivity(await findOwned(req.userId, created.id)))
+    res.status(201).json(toActivity(await createManualActivity(deps, req.userId, body)))
   })
 
   router.get('/:id', async (req, res) => {
@@ -315,10 +290,22 @@ export function activitiesRouter(deps: Deps): Router {
     const existing = await findOwned(req.userId, id)
     const body = parse(activitySchema, req.body)
 
+    // The sets of a strength log are tied to a strength activity (design 9.4): the type stays
+    // while a log exists, and the log has to go first.
+    if (existing.type === 'strength' && body.type !== 'strength') {
+      const log = await prisma.strengthLog.findUnique({
+        where: { activityId: id },
+        select: { id: true },
+      })
+      if (log) throw conflict(strengthTypeLockedMessage(), { logId: log.id })
+    }
+
+    // A strength session has no distance, so its duration is what the duplicate pass compares.
     const matchChanged =
       body.date !== existing.date ||
       body.distanceM !== existing.distanceM ||
-      body.type !== existing.type
+      body.type !== existing.type ||
+      (body.type === 'strength' && body.durationSec !== existing.durationSec)
     await prisma.activity.update({
       where: { id },
       data: {
@@ -326,11 +313,7 @@ export function activitiesRouter(deps: Deps): Router {
         ...(matchChanged ? { duplicateStatus: 'none', duplicateOfId: null } : {}),
       },
     })
-    if (matchChanged) {
-      const released = await releaseDuplicates(prisma, req.userId, id, ['possible'])
-      released.push(...(await releaseStaleConfirmed(req.userId, id)))
-      await markDuplicates(prisma, req.userId, [id, ...released])
-    }
+    if (matchChanged) await rematchDuplicates(prisma, req.userId, id)
     // A new date, type or sub-type may no longer fit the session this activity fulfils.
     const subtypeChanged = body.subtype !== undefined && body.subtype !== existing.subtype
     const reconsider =

@@ -2,10 +2,12 @@ import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { notFound, parse } from '../errors.ts'
+import { toWeightUnit } from '../serialize.ts'
 import type { Units, UserSettings } from '../../shared/types.ts'
 
 const updateSchema = z.strictObject({
   units: z.enum(['mi', 'km']).optional(),
+  weightUnit: z.enum(['lb', 'kg']).optional(),
   displayName: z
     .string()
     .trim()
@@ -19,11 +21,17 @@ export function settingsRouter(deps: Deps): Router {
   const { prisma } = deps
   const router = Router()
 
-  function toSettings(user: { email: string; displayName: string | null; units: string }) {
+  function toSettings(user: {
+    email: string
+    displayName: string | null
+    units: string
+    weightUnit: string
+  }) {
     const settings: UserSettings = {
       email: user.email,
       displayName: user.displayName,
       units: user.units as Units,
+      weightUnit: toWeightUnit(user.weightUnit),
     }
     return settings
   }
@@ -42,6 +50,7 @@ export function settingsRouter(deps: Deps): Router {
       where: { id: req.userId },
       data: {
         ...(body.units === undefined ? {} : { units: body.units }),
+        ...(body.weightUnit === undefined ? {} : { weightUnit: body.weightUnit }),
         ...(body.displayName === undefined ? {} : { displayName: body.displayName }),
       },
     })

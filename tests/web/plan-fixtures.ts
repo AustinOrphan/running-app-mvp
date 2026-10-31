@@ -19,6 +19,7 @@ export const settings: UserSettings = {
   email: 'runner@example.com',
   displayName: null,
   units: 'km',
+  weightUnit: 'lb',
 }
 
 export function makeSession(over: Partial<PlanSessionView> = {}): PlanSessionView {
