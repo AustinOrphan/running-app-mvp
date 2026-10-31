@@ -902,7 +902,7 @@ Consequences, each tested in E14-3:
 - **A regenerate starts a new block.** `generateEnginePlan` builds with no `existing` plan
   (`gatherEngineInput` without `existing: true`), so an accidental regenerate in week 6 would restart
   the ramp-in. The workout compensates: a runner who has logged heavy sessions
-  (`template` `heavy` or `ramp-in` in the snapshot) in each of the last 4 weeks starts the new block
+  (`template` `heavy`, `ramp-in` or `lighter-week` in the snapshot, amended 2026-10-25) in each of the last 4 weeks starts the new block
   at the heavy template (the ramp-in is skipped). No plan data changes. This is a design default
   (G6 is satisfied because the loads continue from the logs).
 - A weekly update therefore changes no strength flag unless the plan's weeks themselves change.

@@ -74,17 +74,24 @@ const isRecoveryWeek = (week: Pick<StrengthWeek, 'flags' | 'isRecovery'>): boole
 const isReturnWeek = (week: Pick<StrengthWeek, 'flags'>): boolean =>
   week.flags.some((flag) => RETURN_FLAG.test(flag)) || week.flags.includes('post-race')
 
+/** The templates of the weeks that carry the block flag (a return week is not counted). */
+const BLOCK_TEMPLATES: ReadonlySet<StrengthTemplate | null> = new Set<StrengthTemplate | null>([
+  'ramp-in',
+  'heavy',
+  'lighter-week',
+])
+
 /**
  * Whether a regenerate may skip the ramp-in of the block that starts on `blockStart` (design 8.3):
- * a block session (`heavy` or `ramp-in` in the snapshot) was logged in each of the
- * `f7.blockCreditWeeks` weeks before it, so the loads continue from the logs (G6 is met by that).
+ * a block session was logged in each of the `f7.blockCreditWeeks` weeks before it, so the loads
+ * continue from the logs (G6 is met by that). A block session is one of the templates of a week
+ * that carries the block flag: `ramp-in`, `heavy` or `lighter-week`, so a 3 to 1 cycle with its
+ * recovery week still earns the credit. A `return` session is not one.
  */
 function hasBlockCredit(ctx: StrengthContext, blockStart: string): boolean {
   const needed = P.f7.blockCreditWeeks.value
   const logged = new Set(
-    ctx.logs
-      .filter((log) => log.template === 'heavy' || log.template === 'ramp-in')
-      .map((log) => mondayOf(log.date)),
+    ctx.logs.filter((log) => BLOCK_TEMPLATES.has(log.template)).map((log) => mondayOf(log.date)),
   )
   for (let back = 1; back <= needed; back += 1) {
     if (!logged.has(addDays(blockStart, -7 * back))) return false

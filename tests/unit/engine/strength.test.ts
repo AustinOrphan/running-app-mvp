@@ -183,7 +183,26 @@ describe('rampInWeeks', () => {
       expect(rampInWeeks(regenerated(logged([1, 2, 3])), block)).toBe(3)
       expect(rampInWeeks(regenerated(logged([1, 2, 4])), block)).toBe(3)
       expect(rampInWeeks(regenerated(logged([1, 2, 3, 4], 'maintenance')), block)).toBe(3)
-      expect(rampInWeeks(regenerated(logged([1, 2, 3, 4], 'lighter-week')), block)).toBe(3)
+      expect(rampInWeeks(regenerated(logged([1, 2, 3, 4], 'return')), block)).toBe(3)
+      expect(rampInWeeks(regenerated(logged([1, 2, 3, 4], 'taper')), block)).toBe(3)
+    })
+
+    it('counts the lighter week of a 3 to 1 cycle as a block week, so the cycle still earns the credit', () => {
+      // three heavy weeks and a recovery week before the block: the week with a lighter-week session
+      // carries the block flag as the others do
+      const cycle = [...logged([4, 3, 2], 'heavy'), ...logged([1], 'lighter-week')]
+      const ctx = regenerated(cycle)
+      expect(rampInWeeks(ctx, block)).toBe(0)
+      expect(blockPosition(ctx, block)).toEqual({ week: 1, of: 12, rampInWeeks: 0 })
+      // and a lighter week in each of the weeks counts too, as the ramp-in and heavy ones do
+      expect(rampInWeeks(regenerated(logged([1, 2, 3, 4], 'lighter-week')), block)).toBe(0)
+      // a week with only a maintenance session is not a block week
+      expect(
+        rampInWeeks(
+          regenerated([...logged([4, 3, 2], 'heavy'), ...logged([1], 'maintenance')]),
+          block,
+        ),
+      ).toBe(3)
     })
 
     it('looks at the weeks before the block only, so logs inside it never change its ramp-in', () => {
