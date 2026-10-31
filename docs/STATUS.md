@@ -1444,6 +1444,64 @@ things stand" gives counts and percentages without a weekly total or a date.
     hero rows pick the "leave n or more" templates for easy sessions. Next: wave 4, tasks E14-8
     (Today and the session sheet) and E14-9 (the Strength page, the setup, Settings and More), both
     in review.
+    Wave 4 done in #588 and #589 (2026-10-31): task E14-8 added the strength surfaces on Today and
+    in the session sheet. The strength-only hero lists the lifts, the jumps and the trunk movements,
+    at most five rows from one builder (`workoutRows`), with loads in the runner's unit and "Log
+    sets" in place of Done. The lighter-day line and the "Use the usual load" switch sit under the
+    action row, and the purpose sentence is dropped: with it "Log sets" ended at 751 px at 360 x 740
+    (limit 740 px), and without it the button ends at 699 px at 390 x 844 and at 360 x 740 for the
+    day as the server derives it, and at 699 px and 721 px on the tallest day (five long rows plus
+    the lighter-day block), against limits of 788 px and 740 px, all measured in the e2e. The "Also
+    today" item on a run day is a button ("Strength, 40 minutes: open the workout", a 44 px target)
+    gated like "Log sets"; the session sheet has a Strength section; the Profile hint sits under the
+    strength choice; offline, the hero and the sheet open from the kept Today payload
+    (`coach.slots.strength`) and a save queues in the outbox; and a strength log refused at replay
+    shows its notice in the check-in row's list. `DashboardPage.tsx` and `SLOT_BUDGETS_PX` are
+    unchanged. A three-lens review confirmed 9 defects, all fixed: the "Also today" item was not
+    gated like "Log sets", so it could log a completed session a second time; the usual-load switch
+    was offered for a lift whose load was not lowered (`usualLoadOf` is now the one test); the
+    item's hit area overlapped the action buttons by 3 px; "Log sets" stayed on offer after a save
+    and the week strip held a stale session; two stacked sheets fought over Tab and Escape (`Sheet`
+    is now stack-aware: only the topmost answers and the ones under it are `inert`); the unavailable
+    message showed while the workouts read was in flight; the logging sheet took the live workout
+    instead of the one it was opened with (ADR 0014); the kept-copy branch, an empty workouts answer
+    and a run-plus-strength day had no tests; and focus after a save from the item went to the title
+    instead of the item. Task E14-9 added `/strength` (a static import, laid out in phone order and
+    in two columns from 900 px, reached from More and not in the tab bar): the Workout card (the
+    rows, "Log sets", and "Add a past session" as a date step checked against
+    `STRENGTH_BACKDATE_DAYS`), the Block card, the Lifts and History cards (a labelled table per
+    exercise and a lazy `EstimatedMaxChart`), and Edit and Delete of recent sessions through a `log`
+    edit path on `StrengthSheet` (the sheet opens on the saved log and saves under its id). The five
+    setup sheets of spec 6.2 (equipment, level, currently lifting, avoids, pins) and the anchors
+    each save their own body, with the estimated maximum shown as an estimate; the weight unit is
+    saved through `PUT /api/settings` from Settings and from the page (pounds by default); and the
+    page's states are templates in `shared/copy/strengthPage.ts`, registered in `templates.ts` and
+    rendered by the G5 lint. A three-lens review confirmed 8 defects, all fixed: a unit change
+    re-read neither the strength view nor Today; the logging sheet had no setup offer (spec 6.1) and
+    the Today card for the first strength session within 7 days had no owner, so it is now an "Also"
+    line under E14-10 in section 17 of the spec; the anchor weight field did not say what its load
+    means (it now uses the sheet's `loadMeaningLine`); the weights list field asked for commas on a
+    decimal keypad; "Always use this" could pin an avoided exercise (`withoutAvoided` is now behind
+    both `pinChoices` and `swapChoices`); the anchor picker offered the timed carry (it offers
+    rep-counted exercises only); an edit could not clear its effort, pain or note (it now sends
+    explicit nulls, which the server schema already accepted); and focus was lost after the
+    past-session flow. `StrengthLogNotices` moved out of the check-in row, which now shares it with
+    the page. Gates: `npm run check` (262 files and 14215 tests after E14-8; 264 files and 14930
+    tests after E14-9), `npm run build` (entry chunk 375.97 kB after E14-8 and 368.03 kB after
+    E14-9, against the 500 kB budget; the setup sheets, the logging sheet and the chart stay lazy),
+    `npm run test:e2e` (85 after each). No engine, server or schema change in either task (only copy
+    templates under `shared/copy/` changed), no migration, and no owner validation was needed. The
+    E14-9 screenshots were not retaken after the review's fixes. Left for E14-10: the day-workout
+    read for a log with no planned session (`view.next` and `GET /api/strength/workouts` list
+    planned sessions only, so with none planned the Workout card has no log button), the Swap read,
+    the Today setup card, the count prompt's slot (under the Block card), and "Edit sets" and "Add
+    the sets" on the activity page (both open `StrengthSheet`, with `log` or with `activityId`).
+    Left for E14-11: the e2e flows of spec section 13 for the page, and the move of
+    `strengthOnlyToday()` and `serveTallestStrengthDay()` from `12-today.spec.ts` to
+    `tests/e2e/helpers.ts`. The Lifts list also shows jumps and trunk movements (the server lists
+    any exercise with a logged set), each with "No added load". Next: wave 5, task E14-10 in two
+    halves (E14-10a: the day-workout read with Swap, the Today setup card, the activity page;
+    E14-10b: the Review lines, the count prompt, the notes, the list), then E14-11 and C2.
 19. Done in #567: the Today disruption presentation, from the owner's feedback of 2026-10-24 on
     Today with an illness window. (a) The band owns the window and the verdict names the day: while
     the illness windows hold the n-3 gate, the payload leaves out the illness note and the illness

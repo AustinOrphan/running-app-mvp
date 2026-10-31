@@ -245,14 +245,17 @@ const NUMBER_WORDS = [
   'ten',
 ]
 
+/** A count in words up to ten, then in digits: "two", "11". */
+export function numberWord(n: number): string {
+  return Number.isInteger(n) && n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n]! : String(n)
+}
+
 /**
  * "one symptom-free day", "3 easy days": a count in words up to ten, then in digits, with the noun
  * in the plural unless the count is one. For a sentence that states a rule number from the Params.
  */
 export function countPhrase(n: number, noun: string): string {
-  const word =
-    Number.isInteger(n) && n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n]! : String(n)
-  return `${word} ${noun}${n === 1 ? '' : 's'}`
+  return `${numberWord(n)} ${noun}${n === 1 ? '' : 's'}`
 }
 
 /**
