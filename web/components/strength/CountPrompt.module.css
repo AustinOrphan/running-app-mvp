@@ -1,0 +1,53 @@
+/* The question about a lower weekly count, and the note on a week with more sessions than planned.
+   Both stand in the frame of the Strength page's sections (a hairline above, `min-width: 0` so a long
+   line wraps at 360 px). A note is set apart by a bar, never by colour; only a failed save is
+   danger-coloured. */
+.prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+
+.text {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+/* The answer that replaces the question takes focus, so a keyboard does not lose its place. */
+.text:focus {
+  outline: none;
+}
+
+.text:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.note {
+  margin: 0 0 var(--space-5);
+  max-width: var(--prose-max);
+  min-width: 0;
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  border-left: 3px solid var(--border-strong);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

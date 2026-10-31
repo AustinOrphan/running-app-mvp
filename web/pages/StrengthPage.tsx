@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { renderFact } from '../../shared/copy/templates.ts'
+import { isExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import type {
   StrengthLog,
   StrengthView,
@@ -13,11 +15,13 @@ import { Skeleton } from '../components/Skeleton.tsx'
 import { StrengthSetupSheet, StrengthSheet } from '../components/lazySheets.tsx'
 import { AboutCard } from '../components/strength/AboutCard.tsx'
 import { BlockCard } from '../components/strength/BlockCard.tsx'
+import { CountPrompt } from '../components/strength/CountPrompt.tsx'
 import { LiftHistory } from '../components/strength/LiftHistory.tsx'
 import { LiftsList } from '../components/strength/LiftsList.tsx'
 import { RecentSessions } from '../components/strength/RecentSessions.tsx'
 import { SetupCard } from '../components/strength/SetupCard.tsx'
 import { StrengthLogNotices } from '../components/strength/StrengthLogNotices.tsx'
+import { StrengthNotes } from '../components/strength/StrengthNotes.tsx'
 import type { SetupPart } from '../components/strength/setupForm.ts'
 import { UnitsSection } from '../components/strength/UnitsSection.tsx'
 import { WorkoutCard } from '../components/strength/WorkoutCard.tsx'
@@ -46,7 +50,14 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
   const words = useMemo(() => pageWords(units, weightUnit), [units, weightUnit])
   const [part, setPart] = useState<SetupPart | null>(null)
   const [logging, setLogging] = useState<Logging | null>(null)
-  const [lift, setLift] = useState<string | null>(null)
+  // The Review page links here with `?lift=<exercise id>`: that lift's history is open on arrival.
+  // Any lift of the catalogue has a history to read, whether or not it is in the Lifts list yet; an
+  // id that is not one falls back to the chooser.
+  const [params] = useSearchParams()
+  const [lift, setLift] = useState<string | null>(() => {
+    const id = params.get('lift')
+    return id !== null && isExerciseId(id) ? id : null
+  })
 
   /** A sentence that restates a Param, worded from the fact the view carries (design 11.6). */
   const fact = (template: string): string | null => {
@@ -91,6 +102,7 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
             }}
           />
           <BlockCard block={view.block} benefit={benefit} words={words} />
+          <CountPrompt view={view} words={words} />
           <LiftsList
             lifts={view.lifts}
             selected={lift}
@@ -102,6 +114,7 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
         </div>
         <div className={styles.column}>
           <LiftHistory exerciseId={lift} words={words} units={units} weightUnit={weightUnit} />
+          <StrengthNotes view={view} words={words} />
           <RecentSessions
             logs={view.recent}
             words={words}

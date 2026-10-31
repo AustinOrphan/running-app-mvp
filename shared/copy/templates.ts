@@ -22,6 +22,7 @@ import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revisi
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
 import { SESSION_STATUS_TEMPLATES } from './sessionStatus.ts'
 import { STRENGTH_PAGE_TEMPLATES } from './strengthPage.ts'
+import { STRENGTH_REVIEW_TEMPLATES } from './strengthReview.ts'
 import { STRENGTH_TEMPLATES } from './strengthTemplates.ts'
 import { WINDOW_VIEW_TEMPLATES } from './windowView.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
@@ -58,6 +59,7 @@ export const TEMPLATES = {
   ...BRIEF_TEMPLATES,
   ...STRENGTH_TEMPLATES,
   ...STRENGTH_PAGE_TEMPLATES,
+  ...STRENGTH_REVIEW_TEMPLATES,
   ...PAGE_TEMPLATES,
   ...PROVIDER_TEMPLATES,
   // The why drawer
