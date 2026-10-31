@@ -24,7 +24,7 @@ function Unavailable() {
 /** A chart that loads on first use; `place` names the class that holds its height meanwhile. */
 function lazyChart<P extends object>(
   load: () => Promise<ComponentType<P>>,
-  place: 'weekly' | 'monthly' | 'stream' | 'track',
+  place: 'weekly' | 'monthly' | 'stream' | 'track' | 'estimate',
 ): ComponentType<P> {
   const Loaded = lazy(async () => {
     try {
@@ -57,6 +57,10 @@ export const StreamChart = lazyChart(
 export const PredictionTrackChart = lazyChart(
   () => import('./PredictionTrackChart.tsx').then((module) => module.PredictionTrackChart),
   'track',
+)
+export const EstimatedMaxChart = lazyChart(
+  () => import('./EstimatedMaxChart.tsx').then((module) => module.EstimatedMaxChart),
+  'estimate',
 )
 
 /**

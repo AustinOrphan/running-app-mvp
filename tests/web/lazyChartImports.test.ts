@@ -9,7 +9,13 @@ import { describe, expect, test } from 'vitest'
 // entry and fails on the first path that gets to recharts.
 
 const WEB = join(process.cwd(), 'web')
-const CHARTS = ['WeeklyHoursChart', 'MonthlyHoursChart', 'StreamChart', 'PredictionTrackChart']
+const CHARTS = [
+  'WeeklyHoursChart',
+  'MonthlyHoursChart',
+  'StreamChart',
+  'PredictionTrackChart',
+  'EstimatedMaxChart',
+]
 
 /** The module specifiers an `import` or `export ... from` statement loads when the app runs. */
 function staticSpecifiers(source: string): string[] {
