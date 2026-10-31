@@ -29,6 +29,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the page twice (WebFetch): Ian Torrence, October 3, 2023; formula, experienced vs newer runners, 'looking forward to running', two to three weeks, and pain quotes confirmed. The 'few take 3+ months off' point is only a rhetorical question on the page and is not used. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Co-runs Sundog Running, an online coaching business (iRunFar bio).",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The one-day-per-mile formula, the advice for experienced versus newer runners, 'looking forward to running', 'two to three weeks' and the pain advice located on the page fetched 2026-10-31 (published 2023-10-03, modified 2023-10-09)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Author named (Ian Torrence). Athletics Illustrated (2011 interview, read 2026-10-31) reports his 1994 ultra debut, 49 ultramarathon wins and his post heading McMillanRunning's ultramarathon coaching; his own coaching site is second. Interests recorded."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "The page is a 2023 update of an older article (editor's note on the page), and the athlete interviews inside date from about 2014 to 2015. The version read is the current one; no corpus paper supersedes advice to take time off."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Two to three weeks off for a runner not eager to run agrees with Roche (skurka-2017, a staged month) and Koop (cts-2025, a few weeks). The day-per-mile formula it rejects is the more conservative reading, as the record notes."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population is coach guidance on time off after an ultramarathon, stated without distance figures."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

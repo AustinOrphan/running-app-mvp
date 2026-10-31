@@ -131,32 +131,18 @@ export const paperSchema = z
 export type Paper = z.infer<typeof paperSchema>
 
 /**
- * The practice records admitted before the vetting rubric (README method step 7): the
- * `book-or-guideline` records that do not yet carry `vetting` with R1 and R2 `pass`. Task S4 of
- * docs/superpowers/specs/2026-10-31-sources-methods-evaluation-proposal.md re-vets them and
- * removes each from this list once both hard gates pass. A listed id that passes, or that is not a
- * `book-or-guideline` record, is an error, so the list cannot go stale.
+ * The practice records admitted before the vetting rubric (README method step 7) that do not yet
+ * carry `vetting` with R1 and R2 `pass`. Task S4 of
+ * docs/superpowers/specs/2026-10-31-sources-methods-evaluation-proposal.md re-vetted all 19
+ * (README method step 14) and removed each that passed both hard gates; an entry leaves this list
+ * once both pass. A listed id that passes, or that is not a `book-or-guideline` record, is an
+ * error, so the list cannot go stale.
  */
 export const PREDATES_RUBRIC: ReadonlySet<string> = new Set([
   'bjsm-2019-bone-stress-return-to-run',
   'clark-2026-couch-to-5k-original',
-  'cts-2025-koop-ultra-recovery',
-  'galloway-2026-beginner-run-walk',
-  'higdon-2024-advanced-10k',
   'higdon-2024-advanced-5k',
-  'higdon-2024-intermediate-5k',
-  'higdon-2024-novice-5k',
-  'irunfar-2014-uhan-ultra-recovery-rules',
-  'irunfar-2016-powell-post-100-return',
-  'irunfar-2023-torrence-post-ultra-downtime',
-  'johnson-2018-long-runs-5k-10k',
-  'nhs-2026-couch-to-5k',
-  'outside-2015-orton-koop-100-miles',
-  'outside-2023-strava-utmb',
-  'outside-2023-strava-western-states',
   'runningmagazine-2023-daniels-long-run-limit',
-  'sanford-2024-return-to-running',
-  'skurka-2017-roche-100-recovery',
 ])
 
 /**

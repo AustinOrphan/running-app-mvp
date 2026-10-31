@@ -30,6 +30,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-downloaded the one-page PDF and read it with pdftotext. Stages 1-4 and monitoring text match; PDF creation date is 7 May 2019. Softened the implications: protocol applies to bone stress injury only, and the 'floor exempt from ramp' point was not supported by the source. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "None found: a clinical table hosted on a journal's blog (BMJ); the hosting post's author is a physiotherapist and states no commercial stake.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "Every stage and the monitoring text located in the one-page PDF fetched 2026-10-31 (file created 2019-05-07, text layer read with pdftotext); the hosting BJSM blog post of 2019-05-08 was read to find the table's author and context."
+    },
+    "r2": {
+      "result": "hold",
+      "note": "The table is unsigned. The hosting post is by Anna Boniface, a physiotherapist and marathon runner per the BMJ blog's own bio, and credits Warden et al (Indiana University per Europe PMC). No independent record of Boniface's credential was found, and the original Warden table was not read (the JOSPT page answered with a bot check), so how much of the table is Warden's is unknown."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "PDF created 2019-05-07. The post links a later upload (Table C, created 2019-05-08) with the same stages 1 to 3, so this file is the earlier of two. The table cites Warden 2016 while the post's reference list gives Warden 2014 (JOSPT). Later corpus papers (warden-2021-bsi-optimal-workload, george-2024-tibial-bsi-return-to-run) give no durations and do not supersede it."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Structure (graded walk-run levels, rest day between runs, regress on symptoms) agrees with george-2024-tibial-bsi-return-to-run (graduated programme, symptom-led) and with the Sanford tendon table (sanford-2024). Durations have no second source; the conservative reading takes the lesser of the level and the G-3 limit, as the Param notes state."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "Population is athletes with bone stress injury; the record and the injuryReturn Param note label use for a generic injury flag as an extrapolation. second pass: injuryReturn.repeatsPerLevel and restDaysBetween apply this bone-stress table to any recent-injury flag, and their notes do not call that an extrapolation (only levelsMin does)."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

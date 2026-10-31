@@ -29,5 +29,33 @@
     "findingsSupported": true,
     "notes": "Re-fetched runningmagazine.ca/?p=99607 on 2026-10-22: byline Paul Baswick, title 'Is your long run too long?', date 2023-06-28, 30% under 64 km and 25%/150 min over 64 km quoted verbatim, no race-distance application. Removed the unsupported conversion of 3-6 h to 25-55 km. Daniels's rule as reported by Running Magazine: the article was read, the book was not checked. Provenance relabelled on 2026-10-31 without a new read of the article; checkedAt is the date of the last read. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
     "checkedAt": "2026-10-22"
+  },
+  "interests": "A magazine that sells subscriptions and advertising; Daniels, the rule's source, sells books and coaching.",
+  "vetting": {
+    "r1": {
+      "result": "fail",
+      "note": "The rule is located only in this magazine's report (30% under 64 km; 25% or 150 minutes above; byline Paul Baswick, 2023-06-28; re-read 2026-10-31). The article names no book, edition or page, and the book was not read, so the rule is known by report."
+    },
+    "r2": {
+      "result": "hold",
+      "note": "Byline Paul Baswick; no credential for him was confirmed in an independent record. The rule's author, Jack Daniels, is named but his work was not read, so his standing is not what the claim rests on."
+    },
+    "r3": {
+      "result": "hold",
+      "note": "Article dated 2023-06-28 with no modification date; the edition of Daniels's work the rule comes from is unknown, so the latest edition cannot be compared."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "A magazine quoting a book is one source. Higdon's intermediate 5K plan puts its long run at 35 to 47% of the stated weekly miles (the record's arithmetic), above the reported 30%; the conservative reading is the lower share."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population is general runners and the rule is stated by weekly distance with no race distance; the record's limitations label the 5K and 10K use as the engine's inference."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

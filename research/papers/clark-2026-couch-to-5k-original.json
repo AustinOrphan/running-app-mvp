@@ -30,5 +30,33 @@
     "findingsSupported": true,
     "notes": "Re-downloaded the University of Arizona PDF and read all weeks with pdftotext. Week-by-week prescriptions, the quoted advice and the 9-week length match. Year is the retrieval year because the PDF carries no date. Added jogging minutes for week 1. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
     "checkedAt": "2026-10-22"
+  },
+  "interests": "Created the plan in 1996 and later sold his stake in Cool Running and the plan (Wikipedia, read 2026-10-31); no current stake found.",
+  "vetting": {
+    "r1": {
+      "result": "hold",
+      "note": "Every finding located in the University of Arizona copy (4-page PDF fetched 2026-10-31, byline Josh Clark). The original page printed on the copy (coolrunning.com) no longer resolves, and the Wayback availability lookup (one try) holds no capture of that URL, so the copy's fidelity to Clark's text cannot be checked."
+    },
+    "r2": {
+      "result": "hold",
+      "note": "Author named (Josh Clark). No coaching credential is claimed, and the only independent record found is Wikipedia (plan created 1996, later sold), a tertiary source. The hosting page is a university program page, not a record of Clark's standing. second pass: authorship would pass, since CNN (2021-07-02, read 2026-10-31) reports that Clark designed the plan in 1996 and claims no training credential; the hold is kept as the stricter reading, because nothing shows that this copy reproduces his text."
+    },
+    "r3": {
+      "result": "hold",
+      "note": "Undated copy: PDF metadata gives creation 2013-08-08, the server's last-modified is 2023-07-24, and the edition is unknown. No corpus paper supersedes a run-walk start (relph-2023-couch-to-5k-injury studies a modified 9-week plan)."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "The NHS plan has the same 9-week shape (lineage per Wikipedia), so the two count as one source. Galloway's start is lower (5 s of running per minute), and relph-2023-couch-to-5k-injury (grade C, n=110) links the progressive design to drop-out and injury. Conservative reading: the lower floor and repeating a week, as the Param notes use."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "Population stated (general adult beginners). restartFloor.sessions and macroDesign.startFloorWeekMin apply it to runners restarting after a break, which their notes do not label as extrapolated."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }
