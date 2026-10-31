@@ -342,6 +342,18 @@ export const STRENGTH_TEMPLATES = {
     { sets: 'text' },
     { fallback: REASON_FALLBACK },
   ),
+  // A lift that lost only a set (a movement with no load to lower, or the lightest load) and a lift
+  // that lost only load (already at the fewest sets) each get the sentence for what changed.
+  'strength.reason.lighter-day-sets': tpl(
+    'Readiness is lower than usual today, so {exercise} has {sets} fewer.',
+    { exercise: 'text', sets: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
+  'strength.reason.lighter-day-load': tpl(
+    'Readiness is lower than usual today, so {exercise} is at a lighter load.',
+    { exercise: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
   'strength.reason.lighter-week': tpl(
     'This is a lighter week, so each lift has {sets} at the usual load.',
     { sets: 'text' },

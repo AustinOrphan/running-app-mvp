@@ -3353,6 +3353,12 @@ describe('the reasons the engine gives', () => {
         { canVary: true },
       ),
     ]
+    const lowDay = {
+      date: session.date,
+      state: 'possible-fatigue',
+      pain: null,
+      illness: 'clear',
+    } as const
     const workouts = [
       workoutFor(
         withSetup(
@@ -3360,14 +3366,34 @@ describe('the reasons the engine gives', () => {
           {
             today: session.date,
             logs: [squat('a', 20, rows(110, [6, 6, 6, 6], [2, 2, 2, 2]))],
-            readiness: {
-              date: session.date,
-              state: 'possible-fatigue',
-              pain: null,
-              illness: 'clear',
-            },
+            readiness: lowDay,
           },
         ),
+        session,
+      ),
+      // a lift with no load to lower loses only a set, a first session loses only load
+      workoutFor(
+        withSetup(
+          {},
+          {
+            today: session.date,
+            readiness: lowDay,
+            logs: [
+              log('t', addDays(session.date, -3), {
+                sets: setsOf('tempo-squat', [
+                  [null, 10, 2],
+                  [null, 10, 2],
+                  [null, 10, 2],
+                  [null, 10, 2],
+                ]),
+              }),
+            ],
+          },
+        ),
+        session,
+      ),
+      workoutFor(
+        withSetup({ equipment: have('barbell') }, { today: session.date, readiness: lowDay }),
         session,
       ),
       ...(
@@ -3799,5 +3825,126 @@ describe('rounding in exact grams, not on the display grid (rules F8.1, F8.2, F8
     })
     expect(run(null)?.loadG).toBe(lb(52.5))
     expect(lighter).toMatchObject({ exerciseId: 'back-squat', loadG: lb(45), usualLoadG: lb(52.5) })
+  })
+})
+
+describe('the reason of a lower-readiness day says what changed (rule F9)', () => {
+  const low = (session: StrengthSessionRef): StrengthReadiness => ({
+    date: session.date,
+    state: 'possible-fatigue',
+    pain: null,
+    illness: 'clear',
+  })
+  const sentences = (workout: StrengthWorkout, id: string) =>
+    (workout.lifts.find((lift) => lift.exerciseId === id)?.basis.facts ?? []).map((fact) =>
+      renderFact(fact as never, 'km', 'lb'),
+    )
+
+  it('says a set and a load for a lift that lost both', () => {
+    const session = sessionRef(5)
+    const ctx = withSetup(
+      { equipment: have('barbell') },
+      {
+        today: session.date,
+        readiness: low(session),
+        logs: [
+          log('k', addDays(session.date, -3), {
+            sets: setsOf('back-squat', rows(110, [6, 6, 6, 5], [2, 2, 2, 2])),
+          }),
+        ],
+      },
+    )
+    const squat = workoutFor(ctx, session).lifts[0]
+    expect(squat).toMatchObject({ change: 'lighter-day', sets: 3, loadG: lb(95) })
+    expect(squat?.basis.facts[0]).toEqual({
+      template: 'strength.reason.lighter-day',
+      slots: { sets: 'one set' },
+    })
+    expect(sentences(workoutFor(ctx, session), 'back-squat')[0]).toBe(
+      'Readiness is lower than usual today, so each lift has one set fewer at a lighter load.',
+    )
+  })
+
+  it('says only the set for a movement with no load to lower', () => {
+    const session = sessionRef(5)
+    const ctx = withSetup(
+      {},
+      {
+        today: session.date,
+        readiness: low(session),
+        logs: [
+          log('t', addDays(session.date, -3), {
+            sets: setsOf('tempo-squat', [
+              [null, 10, 2],
+              [null, 10, 2],
+              [null, 10, 2],
+              [null, 10, 2],
+            ]),
+          }),
+        ],
+      },
+    )
+    const knee = workoutFor(ctx, session).lifts[0]
+    expect(knee).toMatchObject({
+      exerciseId: 'tempo-squat',
+      change: 'lighter-day',
+      sets: 3,
+      loadG: null,
+    })
+    expect(knee?.basis.facts[0]).toEqual({
+      template: 'strength.reason.lighter-day-sets',
+      slots: { exercise: 'Tempo squat', sets: 'one set' },
+    })
+    expect(sentences(workoutFor(ctx, session), 'tempo-squat')[0]).toBe(
+      'Readiness is lower than usual today, so Tempo squat has one set fewer.',
+    )
+  })
+
+  it('says only the load for a lift that is already at the fewest sets', () => {
+    const session = sessionRef(5)
+    // a first session has the two sets of a ramp-in, so only the load can come down
+    const ctx = withSetup(
+      { equipment: have('barbell') },
+      { today: session.date, readiness: low(session) },
+    )
+    const squat = workoutFor(ctx, session).lifts[0]
+    expect(squat).toMatchObject({
+      change: 'lighter-day',
+      sets: 2,
+      loadG: lb(45),
+      usualLoadG: lb(50),
+    })
+    expect(squat?.basis.facts[0]).toEqual({
+      template: 'strength.reason.lighter-day-load',
+      slots: { exercise: 'Back squat' },
+    })
+    expect(sentences(workoutFor(ctx, session), 'back-squat')[0]).toBe(
+      'Readiness is lower than usual today, so Back squat is at a lighter load.',
+    )
+  })
+
+  it('drops the sentence about the usual load when the load was lowered', () => {
+    // maintenance keeps the usual load, and a lower-readiness day lowers it: the two do not stand together
+    const session = sessionOf(14, 0, { durationMin: 25 })
+    const ctx = withSetup(
+      { equipment: have('barbell') },
+      {
+        today: session.date,
+        readiness: low(session),
+        logs: [
+          log('m', addDays(session.date, -3), {
+            sets: setsOf('back-squat', rows(110, [5, 5], [null, null])),
+          }),
+        ],
+      },
+    )
+    const squat = workoutFor(ctx, session).lifts[0]
+    expect(squat).toMatchObject({ change: 'lighter-day', loadG: lb(95), usualLoadG: lb(110) })
+    const templates = squat?.basis.facts.map((fact) => fact.template) ?? []
+    expect(templates).toEqual(['strength.reason.lighter-day-load'])
+    expect(templates).not.toContain('strength.reason.maintenance')
+    // the same lift on a normal day keeps the sentence
+    const usual = workoutFor({ ...ctx, readiness: null }, session).lifts[0]
+    expect(usual?.basis.facts.map((fact) => fact.template)).toEqual(['strength.reason.maintenance'])
   })
 })

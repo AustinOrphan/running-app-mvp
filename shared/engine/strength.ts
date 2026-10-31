@@ -1235,17 +1235,22 @@ function liftFrom(
             ) ?? loadG,
           )
     if (fewer !== sets || lighter !== loadG) {
+      // the reason says what changed: a set, a load or both; and a load that was kept is not "usual"
+      const exercise = nameOf(choice.exerciseId)
+      const cut = countPhrase(sets - fewer, 'set')
+      const lowered = lighter !== loadG
+      const why =
+        fewer !== sets && lowered
+          ? fact('strength.reason.lighter-day', { sets: cut })
+          : fewer !== sets
+            ? fact('strength.reason.lighter-day-sets', { exercise, sets: cut })
+            : fact('strength.reason.lighter-day-load', { exercise })
       usualLoadG = loadG
       loadG = lighter
       sets = fewer
       targets = targets.slice(0, fewer)
       change = 'lighter-day'
-      facts = [
-        fact('strength.reason.lighter-day', {
-          sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
-        }),
-        ...facts,
-      ]
+      facts = [why, ...(lowered && kept !== null ? facts.filter((f) => f !== kept) : facts)]
       rule = 'F9'
     }
   }
