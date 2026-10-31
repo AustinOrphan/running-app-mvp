@@ -7,7 +7,7 @@ import { ordinal } from '../copy/quantity.ts'
 import { windowCheckLine } from '../copy/revision.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
-import { breakRestart } from './adapt.ts'
+import { afterBreak, breakRestart } from './adapt.ts'
 import { estimateState } from './athlete.ts'
 import {
   dayRuleOn,
@@ -800,8 +800,9 @@ function postRaceWindowItem(draft: PlanDraft, input: EngineInput): ChecklistResu
  * target do not grow, and no back-to-back pair is planned. Returns what breaks the hold.
  *
  * The level is the first loading week, or the runner's own level when the first week was capped
- * under it: the macrocycle holds every week at the start level (`startLevelMin`), the longest run
- * and the climb of the last 30 days, and the weekly decision of a held plan caps the week it covers
+ * under it: the macrocycle holds every week at the start level (`startLevelMin`, after the J7
+ * restart of a break), the longest run and the climb of the last 30 days, and the weekly decision of
+ * a held plan caps the week it covers
  * (after a recovery week, a sleep warning, a week run under the plan). The weeks that climb back by
  * the ramp to the level are the plan returning to it, not progressing beyond it [rules n-4, n-1, J5].
  */
@@ -820,7 +821,7 @@ function heldProgression(draft: PlanDraft, input: EngineInput, state: AthleteSta
   if (first !== undefined) {
     const floored = (x: number, step = 1) => Math.floor((x + 1e-9) / step) * step
     const held = {
-      min: Math.max(first.targetRunMin, startLevelMin(state)),
+      min: Math.max(first.targetRunMin, startLevelMin(afterBreak(state))),
       long: Math.max(first.longRunMin, floored(state.longest30d.durationSec / 60)),
       gain: Math.max(
         first.gainTargetM ?? 0,
