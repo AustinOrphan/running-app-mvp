@@ -35,3 +35,16 @@ export const TRIM_RULE = 'design-4.3'
 export function isTrimmed(rules: readonly string[]): boolean {
   return rules.includes(TRIM_RULE)
 }
+
+/** The rule id the weekly decision adds to the quality session it trims after a hold [rule J5]. */
+export const HOLD_TRIM_RULE = 'J5'
+
+/**
+ * Whether a trim is the weekly decision's own: a trimmed session that also cites the rule of the
+ * weekly decision. A trim from an assessed session (`server/services/execution.ts`) cites only the
+ * trim rule, and is the runner's record; the decision's trim is drawn again from the decision at
+ * every re-plan, so it is not kept as an edit.
+ */
+export function isHoldTrim(rules: readonly string[]): boolean {
+  return isTrimmed(rules) && rules.includes(HOLD_TRIM_RULE)
+}

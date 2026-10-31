@@ -3,11 +3,18 @@
 // sessions, in every week, without calling the code that enforces it. Determinism is asserted too.
 import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
+import { afterBreak } from '../../../shared/engine/adapt.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { buildPlan, explain } from '../../../shared/engine/index.ts'
+import { startLevelMin } from '../../../shared/engine/limits.ts'
+import { buildPlan, explain, runChecklist } from '../../../shared/engine/index.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { ownWindow, windowViolations } from '../../../shared/engine/postRace.ts'
-import type { PlanDraft, SessionKind, SessionSpec } from '../../../shared/engine/types.ts'
+import type {
+  EngineInput,
+  PlanDraft,
+  SessionKind,
+  SessionSpec,
+} from '../../../shared/engine/types.ts'
 import type { Weekday } from '../../../shared/types.ts'
 import { problemsOf, windowOf } from './disruption-fixtures.ts'
 import { athletes, TODAY, type MatrixAthlete } from './matrix-fixtures.ts'
@@ -724,6 +731,91 @@ describe('plan matrix: REDs hold', () => {
     expect(item.ok).toBe(true)
     expect(item.detail).toMatch(/hold/i)
   })
+
+  describe('with the first week capped under the level by the weekly decision [rules n-4, J5, E6]', () => {
+    // The weekly decision of a held plan caps the week it covers (a recovery week before it, a
+    // sleep warning, the minutes run), and the weeks after the cap climb back by the ramp to the
+    // level the hold keeps. That is the plan returning to its level, not progressing beyond it: the
+    // level is the runner's (`startLevelMin`, the macrocycle's own), not the dip of the first week.
+    const loading = planWeeks(plan).filter(
+      (w) => !w.isRecovery && !w.isTaper && !w.flags.includes('post-race'),
+    )
+    const level = loading[0]!.targetRunMin
+    const lowered = (cut: number, grow?: { index: number; by: number }): PlanDraft => ({
+      ...plan,
+      weeks: plan.weeks.map((w) => {
+        if (w.weekStart === loading[0]!.weekStart) {
+          return {
+            ...w,
+            targetRunMin: Math.round(level * cut),
+            longRunMin: Math.round(w.longRunMin * cut),
+          }
+        }
+        if (grow !== undefined && w.weekStart === loading[grow.index]!.weekStart) {
+          return { ...w, targetRunMin: level + grow.by }
+        }
+        return w
+      }),
+    })
+    const hold = (draft: PlanDraft) =>
+      runChecklist(draft, a.input).find((c) => c.id === 'reds-hold')!
+
+    it('does not fail the weeks that return to the level', () => {
+      const item = hold(lowered(0.75))
+      expect(item.ok, item.detail).toBe(true)
+      expect(item.detail).toMatch(/hold/i)
+    })
+
+    it('still fails a week above the level the hold keeps', () => {
+      const item = hold(lowered(0.75, { index: 3, by: 20 }))
+      expect(item.ok).toBe(false)
+      expect(item.detail).toMatch(/above the held/)
+    })
+  })
+
+  describe.each([10, 40])(
+    'after a layoff of %i days before the screening [rules n-4, J7]',
+    (gap) => {
+      // The macrocycle holds a progression-held plan at the level after the J7 restart (`afterBreak`):
+      // 90% of the typical week after a break of 7 to 14 days, 50% over 28. The item reads that
+      // level, not the one before the break, or it would let a plan grow back toward it.
+      const input: EngineInput = {
+        ...a.input,
+        activities: a.input.activities.filter((x) => x.date <= addDays(TODAY, -gap - 1)),
+      }
+      const state = estimateState(input)
+      const restart = startLevelMin(afterBreak(state))
+      const held = buildPlan(input)
+      const loading = planWeeks(held).filter(
+        (w) => !w.isRecovery && !w.isTaper && !w.flags.includes('post-race'),
+      )
+      const hold = (draft: PlanDraft) =>
+        runChecklist(draft, input).find((c) => c.id === 'reds-hold')!
+
+      it('holds the plan at the restart level, under the level before the break', () => {
+        expect(state.layoffDays).toBeGreaterThanOrEqual(P.j7.tier1Days.value)
+        expect(restart).toBeLessThan(startLevelMin(state))
+        expect(loading[0]!.targetRunMin).toBe(restart)
+        expect(hold(held).ok, hold(held).detail).toBe(true)
+      })
+
+      it('fails a week above the restart level, though it is under the level before the break', () => {
+        const above = restart + Math.round((startLevelMin(state) - restart) / 2)
+        expect(above).toBeLessThan(startLevelMin(state))
+        const grown: PlanDraft = {
+          ...held,
+          weeks: held.weeks.map((w) =>
+            w.weekStart === loading[2]!.weekStart ? { ...w, targetRunMin: above } : w,
+          ),
+        }
+        const item = hold(grown)
+        expect(item.ok).toBe(false)
+        expect(item.detail).toMatch(
+          new RegExp(`${String(above)} min is above the held ${String(restart)} min`),
+        )
+      })
+    },
+  )
 })
 
 describe.each(all)('plan matrix with a rest window: $label', (a) => {

@@ -31,6 +31,7 @@
 // `sim-athlete.test.ts` keeps in `npm run check` are the two metamorphic relations, which are rules
 // and not metrics [Segura 2016], and the tests of the athlete and the scorer.
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
+import { isHoldTrim } from '../../../shared/domain/sessionStatus.ts'
 import { weeklyDecision } from '../../../shared/engine/adapt.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { RUN_KINDS } from '../../../shared/engine/adjust.ts'
@@ -492,7 +493,11 @@ export function replanMonday(settled: EngineInput): MondayReplan {
 const sessionKey = (s: Pick<SessionSpec, 'date' | 'order'>): string =>
   `${s.date}|${String(s.order)}`
 
-/** A draft as the stored plan of a Monday: the sessions before it have the status `statusOf` gives. */
+/**
+ * A draft as the stored plan of a Monday: the sessions before it have the status `statusOf` gives,
+ * and a session the weekly decision trimmed is stored as downgraded, as `sessionRow`
+ * (`server/services/planEngine.ts`) stores it.
+ */
 function storedPlan(
   draft: PlanDraft,
   monday: string,
@@ -503,7 +508,7 @@ function storedPlan(
     sessions: draft.sessions.map((s, i) => ({
       ...s,
       id: `s${String(i)}`,
-      status: s.date < monday ? statusOf(s) : 'planned',
+      status: s.date < monday ? statusOf(s) : isHoldTrim(s.rules) ? 'downgraded' : 'planned',
       activityId: null,
     })),
   }

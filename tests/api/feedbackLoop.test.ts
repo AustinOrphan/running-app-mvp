@@ -440,6 +440,31 @@ describe('reviews of version-2 plans use the weekly decision and re-plan', () =>
     expect(trimmed).toHaveLength(1)
     expect(trimmed[0]!.status).toBe('downgraded')
     expect(quality).toContain(trimmed[0]!.kind)
+
+    // A second re-plan of the same Monday, with nothing new, draws the same week and the same weeks
+    // ahead: the stored trim is the decision's own, so the re-plan draws it again with its week and
+    // the cap the first re-plan stored is not read as the plan to continue [rules J5, G-6].
+    const shape = async () => {
+      const sessions = await ctx.prisma.planSession.findMany({
+        where: { planId: plan.id },
+        orderBy: [{ date: 'asc' }, { order: 'asc' }],
+      })
+      const weeks = await ctx.prisma.planWeek.findMany({
+        where: { planId: plan.id },
+        orderBy: { weekStart: 'asc' },
+      })
+      return {
+        sessions: sessions.map((s) => [s.date, s.order, s.kind, s.durationMin, s.status, s.rules]),
+        weeks: weeks.map((w) => [w.weekStart, w.targetRunMin, w.runDays, w.longRunMin]),
+      }
+    }
+    const first = await shape()
+    const again = await client(ctx, u).post('/api/plan/replan').send({})
+    expect(again.status, JSON.stringify(again.body)).toBe(200)
+    expect(await shape()).toEqual(first)
+    // and the revision it writes says so: the trim drawn again is not a change of planned minutes
+    expect((again.body as PlanRevision).changes).toEqual([])
+    expect((again.body as PlanRevision).summary).toMatch(/No changes to the plan\./)
   })
 
   test('a re-plan that cannot run does not fail the save', async () => {

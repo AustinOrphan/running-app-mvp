@@ -1931,7 +1931,6 @@ describe('H14 as one chain: weeks run above plan, a hold, a reduce, then progres
     '%s: the hold and the reduce win over the response, and the zone resumes after them',
     (position) => {
       const chain = chainAt(position)
-      const zone = zoneAt(base, position)
       // the hold: the week is 85% of its plan, below the mean of the weeks run that would lift it
       const hold = chain[5]!
       const holdMonday = mondayOf(hold.input.today)
@@ -1965,8 +1964,11 @@ describe('H14 as one chain: weeks run above plan, a hold, a reduce, then progres
           weeks: plan.weeks.filter((w) => w.weekStart >= mondayOf(input.today)),
         }
         const seq = loading(ahead).map((w) => w.targetRunMin)
+        // the zone of the state of the step: the block of the first plan has aged by then, and the
+        // zone it gave (R of 196 min at step 0) has fallen under the weeks of the chain (120 min)
+        const live = rebuildZone(input, estimateState(input))
         for (let i = 1; i < 4; i += 1) {
-          expect(seq[i], `step ${String(k)} week ${String(i)}`).toBe(nextOf(seq[i - 1]!, zone))
+          expect(seq[i], `step ${String(k)} week ${String(i)}`).toBe(nextOf(seq[i - 1]!, live))
         }
       }
     },

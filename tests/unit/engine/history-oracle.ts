@@ -28,6 +28,14 @@
 // only that text differs (checked by restoring "3th" before the digest: all 142 digests matched),
 // and the owner validation is byte for byte the same.
 //
+// Regenerated 2026-10-31 for the race week of a re-plan (task RF1): the re-plan of the race week
+// held the week to the minutes the earlier plan had placed, and that plan had lost the run on the
+// day of the race to the race, so each re-plan shortened the easy runs. A week the replaced plan has
+// not started is now held to its figure. Two of the 142 digests move, the last plan of the `half`
+// and the `first-100-mile` chains; only the easy runs of the race week differ (27 min in place of
+// 21, 20 and 20 min for the half; 48 min in place of 38 and 39 for the first 100 miles), the weeks
+// are the same.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'
