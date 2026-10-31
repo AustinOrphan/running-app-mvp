@@ -22,6 +22,7 @@ import { ReviewPage } from '../../web/pages/ReviewPage.tsx'
 import { makeActivity, makeWeekRow } from '../factories.ts'
 import {
   activityPage,
+  delayResponses,
   expectCleanCopy,
   explainOf,
   mockApi,
@@ -1342,9 +1343,39 @@ describe('ReviewPage: strength (design 12.2 and 12.4)', () => {
         ),
       ).toBeInTheDocument()
       expect(screen.queryByRole('group', { name: QUESTION })).not.toBeInTheDocument()
+      // one field: the rest of the Profile is the route's to keep
       expect(api.calls.filter((call) => call.method !== 'GET')).toEqual([
-        { method: 'PUT', url: '/api/profile', body: { ...PROFILE, strengthPreference: 1 } },
+        { method: 'PUT', url: '/api/profile', body: { strengthPreference: 1 } },
       ])
+    })
+
+    test('keeps the question on screen until the line that answers it is there', async () => {
+      const user = userEvent.setup()
+      renderReview(
+        { weeks: { [W]: fullWeek }, strength: low() },
+        { 'PUT /api/profile': ({ body }) => ({ ...PROFILE, ...(body as object) }) },
+      )
+      await ready()
+      const group = await screen.findByRole('group', { name: QUESTION })
+      const line = 'From the next weekly update the plan asks for one strength session a week.'
+
+      // the save lands, and the plan the Review page shows is read again before the call settles
+      delayResponses(150)
+      const frames: Array<{ question: boolean; answer: boolean }> = []
+      const observer = new MutationObserver(() => {
+        frames.push({
+          question: screen.queryByRole('group', { name: QUESTION }) !== null,
+          answer: screen.queryByText(line) !== null,
+        })
+      })
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+      await user.click(within(group).getByRole('button', { name: 'Plan 1 a week' }))
+      await screen.findByText(line)
+      observer.disconnect()
+
+      expect(frames.length).toBeGreaterThan(0)
+      // at no point is there neither the question nor its answer
+      expect(frames.filter((frame) => !frame.question && !frame.answer)).toEqual([])
     })
   })
 })

@@ -186,9 +186,10 @@ describe('the count prompt (design 12.4)', () => {
     expect(line).toHaveFocus()
     expect(prompt()).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Plan 1 a week' })).not.toBeInTheDocument()
-    // one write, the whole Profile as read with the one choice changed; it does not touch the plan
+    // one write with the one field, so a Profile edited elsewhere is not written back over; it does
+    // not touch the plan
     expect(writes(calls)).toEqual([
-      { method: 'PUT', url: '/api/profile', body: { ...PROFILE, strengthPreference: 1 } },
+      { method: 'PUT', url: '/api/profile', body: { strengthPreference: 1 } },
     ])
     // and no answer is kept in the browser: the question is settled by the Profile now
     expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull()

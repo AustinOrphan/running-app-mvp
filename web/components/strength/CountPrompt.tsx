@@ -25,6 +25,8 @@ function Question({ view, words }: CountPromptProps) {
   const update = useUpdateProfile()
   const [notNowOn, setNotNowOn] = useState(readCountNotNow)
   const [answer, setAnswer] = useState<Answer | null>(null)
+  // The count the question named when "Plan 1 a week" was pressed, until the save has settled.
+  const [saving, setSaving] = useState<number | null>(null)
   const answerLine = useRef<HTMLParagraphElement>(null)
 
   // The question's buttons are gone when it is answered; focus goes to the answer in their place.
@@ -47,8 +49,12 @@ function Question({ view, words }: CountPromptProps) {
   }
 
   const saved = profile.data
-  const planned = saved === undefined ? null : countToAsk(view, saved.strengthPreference, notNowOn)
-  if (saved === undefined || planned === null) return null
+  const asked = saved === undefined ? null : countToAsk(view, saved.strengthPreference, notNowOn)
+  // A saved choice shows in the Profile at once, a moment before the save has settled (the plan and
+  // Today are read again first), and the question would end with it. It stays, naming the count it
+  // asked about, until the line that answers it takes its place.
+  const planned = saving ?? asked
+  if (planned === null) return null
 
   const fewer = numberWord(COUNT_PROMPT_FEWER)
   const text = `${words.say('strength.count.line', {
@@ -57,14 +63,17 @@ function Question({ view, words }: CountPromptProps) {
   })} ${words.say('strength.count.ask', { fewer })}`
 
   const plan = (): void => {
-    // The Profile is the one place the choice lives; the plan follows it at the next weekly update
-    // as a revision the runner can read and undo (ADR 0007), so nothing else is written here.
-    update.mutateAsync({ ...saved, strengthPreference: COUNT_PROMPT_FEWER }).then(
+    // The Profile is the one place the choice lives, and the route keeps every field that is not
+    // sent, so the choice is the one field written. The plan follows it at the next weekly update as
+    // a revision the runner can read and undo (ADR 0007).
+    setSaving(planned)
+    update.mutateAsync({ strengthPreference: COUNT_PROMPT_FEWER }).then(
       () => {
         setAnswer('planned')
       },
       () => {
         // the failure shows under the question, and the choice stays as it was
+        setSaving(null)
       },
     )
   }
