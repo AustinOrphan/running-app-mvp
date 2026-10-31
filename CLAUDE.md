@@ -136,6 +136,27 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
 - Week and statistics code reads `ActivityCore` rows (`loadActivityCores`, six columns), from
   `activityLoadStart(first week)` to the last Sunday, never every whole activity. A loop over weeks
   reads the database once for all of them (`executionRecordsByWeek`).
+- The strength workout (lifts, sets, loads, efforts) is derived on read in `shared/engine/strength.ts`
+  only (`workoutFor`, `liftFor`; ADR 0014) and stored nowhere: `PlanSession` holds no exercise and the
+  server derives no second one. Every surface renders the one `StrengthWorkout`; a day with no
+  planned session reads it from `GET /api/strength/workout`.
+- Loads are integer grams on the wire and in the database. The runner's unit (`User.weightUnit`,
+  read with `useStrengthUnits()`, pounds when a cached payload lacks it) exists only on screen:
+  `shared/domain/weight.ts` is the one formatter and parser and holds the step grid per implement,
+  and nothing else converts grams.
+- No free-text exercise: an exercise is an id of the closed catalogue in
+  `shared/domain/strengthLibrary.ts` (never renamed or reused; a retired one stays), and a route that
+  takes one checks `isExerciseId`.
+- A strength log is saved only through `server/services/strength.ts` (`saveStrengthLog`, an
+  idempotent replace on the log id, with `createManualActivity` for its activity); the duplicate pass
+  alone hands a log to the original activity. The logging sheet's draft (`strength-draft:<logId>`) and
+  the count prompt's "Not now" (`strength-prompt:*`) are named in `web/pwa/drafts.ts` and purged with
+  the other drafts by `purgeDrafts()`, so by `purgeDeviceData()`.
+- The `strength.state` memo (`memoByVersion`) is the one read of the strength window (the setup, the
+  anchors and 26 weeks of logs), ADR 0009's rule applied: a rule or a surface asks for the memo and
+  never queries the strength tables.
+- `Sheet` (`web/components/Sheet.tsx`) is stack-aware: only the topmost open sheet answers Tab and
+  Escape, and the ones under it are `inert`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
   `devDependencies`, so the Docker image installs without them.
 - Offline shell (ADR 0012): the worker keeps the shell and exactly five API reads (`/api/auth/me`,

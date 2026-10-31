@@ -573,6 +573,62 @@ describe('WhyDrawer, the history-informed rebuild [rules g-8]', () => {
   })
 })
 
+describe('WhyDrawer, strength loads [rule F8]', () => {
+  // 52 163 g is 115 lb, and 52.25 kg on the display grid (a quarter of a kilogram).
+  const lastSession: InputFact = {
+    id: 'f8.last',
+    template: 'explain.f8-last',
+    slots: {
+      exercise: 'Back squat',
+      date: q.date('2026-10-17'),
+      sets: '3 sets',
+      load: { kind: 'load', g: 52_163 },
+      count: q.count(5),
+    },
+    rule: 'F8',
+    sources: [],
+    moreSources: 0,
+    state: 'used',
+  }
+  const strengthView = view({
+    subject: 'strength',
+    rules: ['F8'],
+    groups: [{ rule: 'F8', facts: [lastSession] }],
+  })
+
+  /** `GET /api/settings` with the weight unit, or without it: a payload kept before it existed. */
+  const settingsWith = (weightUnit: UserSettings['weightUnit'] | undefined): MockRoutes => ({
+    'GET /api/settings': () => ({
+      email: 'runner@example.com',
+      displayName: null,
+      units: 'mi',
+      ...(weightUnit === undefined ? {} : { weightUnit }),
+    }),
+  })
+
+  test.each([
+    { weightUnit: 'kg' as const, load: '52.25 kg' },
+    { weightUnit: 'lb' as const, load: '115 lb' },
+    { weightUnit: undefined, load: '115 lb' },
+  ])(
+    'reads a load in the weight unit of the settings ($weightUnit)',
+    async ({ weightUnit, load }) => {
+      mockApi(drawerRoutes(() => strengthView, 'mi', settingsWith(weightUnit)))
+      const { open } = renderButton({ subject: 'strength', id: 'p1' }, ['F8'])
+      await open()
+
+      const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+      const group = await within(dialog).findByRole('group', { name: 'Strength load progression' })
+      expect(
+        within(group).getByText(
+          `The last session of Back squat was on 17 Oct: 3 sets, heaviest set ${load} x 5.`,
+        ),
+      ).toBeInTheDocument()
+      expectCleanCopy(dialog)
+    },
+  )
+})
+
 describe('sourceHref', () => {
   test.each([
     ['activity', 'a 1', '/activities/a%201'],
