@@ -68,7 +68,9 @@ const count = (n: number): Quantity => ({ kind: 'count', n })
 
 // ---- the Today hero: one row a lift, in the sentences of design 11.6 ------------------------------
 
-const ROW = /^(.+): (\d+) x (\d+) to (\d+), (?:(.+), )?leave (\d+) to (\d+)\.$/
+// A range of reps left reads "leave 1 to 3"; an easy template asks for the same count in every set,
+// and a range "2 to 2" reads "leave 2 or more" (E14-6).
+const ROW = /^(.+): (\d+) x (\d+) to (\d+), (?:(.+), )?leave (?:(\d+) to (\d+)|(\d+) or more)\.$/
 
 const hero: SurfaceAdapter = {
   name: 'Today hero',
@@ -79,29 +81,38 @@ const hero: SurfaceAdapter = {
         sets: count(lift.sets),
         lo: count(lift.range.min),
         hi: count(lift.range.max),
-        rirLo: count(lift.rir?.min ?? 0),
-        rirHi: count(lift.rir?.max ?? 0),
       }
-      const text =
-        lift.loadG === null
-          ? say('strength.hero.workout-row-bodyweight', base, units, weightUnit)
-          : say(
-              'strength.hero.workout-row',
-              { ...base, load: { kind: 'load', g: lift.loadG } },
-              units,
-              weightUnit,
-            )
+      const rir = lift.rir ?? { min: 0, max: 0 }
+      const same = rir.min === rir.max
+      const efforts: Record<string, Quantity> = same
+        ? { rir: count(rir.min) }
+        : { rirLo: count(rir.min), rirHi: count(rir.max) }
+      const loaded = lift.loadG === null ? null : { kind: 'load' as const, g: lift.loadG }
+      const id: StrengthTemplateId =
+        loaded === null
+          ? same
+            ? 'strength.hero.workout-row-bodyweight-leave-min'
+            : 'strength.hero.workout-row-bodyweight'
+          : same
+            ? 'strength.hero.workout-row-leave-min'
+            : 'strength.hero.workout-row'
+      const text = say(
+        id,
+        loaded === null ? { ...base, ...efforts } : { ...base, ...efforts, load: loaded },
+        units,
+        weightUnit,
+      )
       const match = ROW.exec(text)
       expect(match, text).not.toBeNull()
-      const [, exercise, sets, lo, hi, load, rirLo, rirHi] = match ?? []
+      const [, exercise, sets, lo, hi, load, rirLo, rirHi, rirMin] = match ?? []
       return {
         exercise: exercise ?? '',
         sets: Number(sets),
         lo: Number(lo),
         hi: Number(hi),
         load: load ?? null,
-        rirLo: Number(rirLo),
-        rirHi: Number(rirHi),
+        rirLo: Number(rirLo ?? rirMin),
+        rirHi: Number(rirHi ?? rirMin),
         // the hero names the range and the sets; the aim of each set is the sheet's
         targets: lift.targets,
       }
@@ -307,6 +318,37 @@ function expected(lift: WorkoutLift, weightUnit: WeightUnit): SurfaceLift {
 
 describe('one workout on every surface', () => {
   const all = cases()
+
+  it('reads an easy template as "leave n or more", and a range of reps left as a range', () => {
+    const rows = all.flatMap((c) => c.workout.lifts.map((lift) => lift.rir))
+    expect(rows.some((rir) => rir !== null && rir.min === rir.max)).toBe(true)
+    expect(rows.some((rir) => rir !== null && rir.min !== rir.max)).toBe(true)
+    const ramp = all.find((c) => c.name === 'ramp-in on dumbbells')?.workout.lifts[0]
+    expect(ramp?.rir?.min).toBe(ramp?.rir?.max)
+    expect(
+      say(
+        'strength.hero.workout-row-leave-min',
+        {
+          exercise: 'Goblet squat',
+          sets: count(3),
+          lo: count(6),
+          hi: count(8),
+          load: { kind: 'load', g: lb(25) },
+          rir: count(2),
+        },
+        'km',
+        'lb',
+      ),
+    ).toBe('Goblet squat: 3 x 6 to 8, 25 lb, leave 2 or more.')
+    expect(
+      say(
+        'strength.hero.workout-row-bodyweight-leave-min',
+        { exercise: 'Split squat', sets: count(2), lo: count(6), hi: count(8), rir: count(2) },
+        'mi',
+        'kg',
+      ),
+    ).toBe('Split squat: 2 x 6 to 8, leave 2 or more.')
+  })
 
   it('registers the surfaces that show a workout today', () => {
     expect(SURFACES.map((s) => s.name)).toEqual(['Today hero', 'logging sheet', 'log snapshot'])

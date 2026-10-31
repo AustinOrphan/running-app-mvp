@@ -183,6 +183,23 @@ export const STRENGTH_TEMPLATES = {
     '{exercise}: {sets} x {lo} to {hi}, leave {rirLo} to {rirHi}.',
     { exercise: 'text', sets: 'count', lo: 'count', hi: 'count', rirLo: 'count', rirHi: 'count' },
   ),
+  // An easy template (the ramp-in, a first session, a return) asks for the same reps left in every
+  // set, so a range "2 to 2" reads as "2 or more": `rir` is `f7.easyRir`, the least to leave.
+  'strength.hero.workout-row-leave-min': tpl(
+    '{exercise}: {sets} x {lo} to {hi}, {load}, leave {rir} or more.',
+    {
+      exercise: 'text',
+      sets: 'count',
+      lo: 'count',
+      hi: 'count',
+      load: 'load',
+      rir: 'count',
+    },
+  ),
+  'strength.hero.workout-row-bodyweight-leave-min': tpl(
+    '{exercise}: {sets} x {lo} to {hi}, leave {rir} or more.',
+    { exercise: 'text', sets: 'count', lo: 'count', hi: 'count', rir: 'count' },
+  ),
   'strength.hero.plyo-row': tpl('{movement}, {contacts} contacts.', {
     movement: 'text',
     contacts: 'count',

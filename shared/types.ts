@@ -1298,6 +1298,13 @@ export interface TodaySlots {
   brief: BriefListItem | null
   /** Recent runs that wait for a fuel log (E6); null when none does. */
   fuelPrompt: TodayFuelPrompts | null
+  /**
+   * The workout of the viewed day's strength session (E14-6, strength design 11.1), derived on read
+   * from the plan, the saved setup and the logs: loads in grams, the reasons as data. Null on a day
+   * with no strength session and on a day of the illness rest phase, which withdraws the session as
+   * it does a run. It is no budgeted slot: the hero and the "Also today" line render it.
+   */
+  strength: StrengthWorkout | null
 }
 export interface TodayCoach {
   /** ISO instant the payload was composed. */

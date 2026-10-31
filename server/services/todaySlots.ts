@@ -1,8 +1,9 @@
 // The named slots of the Today payload (phase 3a design 7.4 and 7.6). Each owning epic gives its
 // slot a type in `TodaySlots` and a provider here: the disruption banner (E5), the fuel target
-// line and the fuel prompt (E6), the watch line (E1, `wristItems.ts`) and the brief line (E4,
-// `brief.ts`). Until its epic lands, a provider answers null and the slot takes no height. The
-// disruption slot (E5-5) holds the window in effect, else an offer to set one (`disruptionSlot`).
+// line and the fuel prompt (E6), the watch line (E1, `wristItems.ts`), the brief line (E4,
+// `brief.ts`) and the strength workout (E14, `strength.ts`). Until its epic lands, a provider
+// answers null and the slot takes no height. The disruption slot (E5-5) holds the window in effect,
+// else an offer to set one (`disruptionSlot`).
 //
 // The providers run side by side under `Promise.allSettled`. A provider that throws, or whose
 // promise rejects, leaves its slot null and is logged; the page still loads. A provider receives
@@ -15,6 +16,7 @@ import type { AthleteContext } from './athleteState.ts'
 import { todayBriefSlot } from './brief.ts'
 import { disruptionSlot } from './disruptions.ts'
 import { todayFuelPromptSlot, todayFuelSlot } from './fuel.ts'
+import { todayStrengthSlot } from './strength.ts'
 import { safeMessage } from './syncLog.ts'
 import { todayWatchSlot } from './wristItems.ts'
 
@@ -58,6 +60,10 @@ export const slotProviders: { [K in SlotName]: SlotProvider<K> } = {
   brief: ({ deps, userId, today }) => todayBriefSlot(deps, { userId, today }),
   fuelPrompt: ({ deps, userId, today, preview, context }) =>
     todayFuelPromptSlot(deps, { userId, today, preview, context }),
+  // Strength reads state only (the setup, the starting points, the logs, the plan and today's
+  // readiness read), so the data version in the page's ETag covers it: no stamp of its own.
+  strength: ({ deps, userId, date, today, preview, context }) =>
+    todayStrengthSlot(deps, { userId, today, date, preview, context }),
 }
 
 /** Every slot with its provider's answer; a failed provider's slot is null. */

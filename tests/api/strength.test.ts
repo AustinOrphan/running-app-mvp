@@ -21,6 +21,7 @@ import type {
   StrengthSnapshot,
   StrengthView,
   StrengthWorkout,
+  TodayView,
 } from '../../shared/types.ts'
 import { days, only, planFixture, type Fixture } from './adjustFixture.ts'
 import {
@@ -2377,6 +2378,202 @@ describe('the reads need a session', () => {
     '/api/strength/exercises/back-squat',
   ])('get %s', async (url) => {
     expect((await client(ctx).get(url)).status).toBe(401)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The Today slot
+// ---------------------------------------------------------------------------------------------
+
+/** A runner with a barbell, dumbbells and a step, in week 7 of a strength block of 12. */
+async function liftingUser(sessions: SeedSession[]) {
+  const user = await newUser()
+  await seedProfile(user)
+  await setup(user, { equipment: [BARBELL, DUMBBELLS, { kind: 'step' }], level: 'some' })
+  const { rows } = await seedPlan(user, sessions)
+  return { user, rows }
+}
+
+const todayView = async (user: TestUser, query = '') => {
+  const res = await client(ctx, user).get(`/api/today${query}`)
+  expect(res.status, JSON.stringify(res.body)).toBe(200)
+  return res.body as TodayView
+}
+
+const painDay = () => ({ painScore: P.pain.flagScore.value + 1 })
+
+describe('GET /api/today: coach.slots.strength', () => {
+  test('a day whose only session is strength: the hero is the session and the slot its workout', async () => {
+    const { today } = days()
+    const { user, rows } = await liftingUser([{ date: today }])
+    const body = await todayView(user)
+    const slot = body.coach.slots.strength
+    expect(body.coach.hero?.session).toMatchObject({ id: rows[0]!.id, kind: 'strength' })
+    expect(slot).toMatchObject({
+      sessionId: rows[0]!.id,
+      date: today,
+      template: 'heavy',
+      block: { week: 7, of: 12, rampInWeeks: 3 },
+      budgetMin: 40,
+      setupSaved: true,
+      rules: STRENGTH_RULES,
+    })
+    expect(slot!.lifts.length).toBeGreaterThan(0)
+    expect(slot!.lifts.every((lift) => lift.change !== 'lighter-day')).toBe(true)
+    // The workout of the Plan page and the sheet is this one: one function, one object.
+    const res = await client(ctx, user).get(`/api/strength/workouts?from=${today}&to=${today}`)
+    expect(res.body).toEqual([slot])
+  })
+
+  test('a run day with a double: the hero is the run, and the slot carries the workout of the lift', async () => {
+    const { today } = days()
+    const { user, rows } = await liftingUser([
+      { date: today, kind: 'easy', min: 40 },
+      { date: today },
+    ])
+    const body = await todayView(user)
+    expect(body.coach.hero?.session).toMatchObject({ id: rows[0]!.id, kind: 'easy' })
+    expect(body.coach.hero?.others.map((s) => s.id)).toEqual([rows[1]!.id])
+    expect(body.coach.slots.strength).toMatchObject({ sessionId: rows[1]!.id, date: today })
+  })
+
+  test('a preview day shows the workout read-only, as of today, and no day without a lift has one', async () => {
+    const { today } = days()
+    const tomorrow = addDays(today, 1)
+    const { user, rows } = await liftingUser([{ date: tomorrow }])
+    // today's readiness is low; tomorrow has no read, so no lighter day
+    await client(ctx, user).put(`/api/checkins/${today}`).send(painDay())
+
+    const preview = await todayView(user, `?date=${tomorrow}`)
+    expect(preview.coach.preview).toBe(true)
+    expect(preview.coach.slots.strength).toMatchObject({ sessionId: rows[0]!.id, date: tomorrow })
+    expect(preview.coach.slots.strength!.lifts.every((lift) => lift.change !== 'lighter-day')).toBe(
+      true,
+    )
+    const res = await client(ctx, user).get(
+      `/api/strength/workouts?from=${tomorrow}&to=${tomorrow}`,
+    )
+    expect(res.body).toEqual([preview.coach.slots.strength])
+
+    expect((await todayView(user)).coach.slots.strength).toBeNull()
+    expect((await todayView(user, `?date=${addDays(today, 2)}`)).coach.slots.strength).toBeNull()
+  })
+
+  test('a day whose run is eased gets the lighter lifts: one set fewer, the usual load kept', async () => {
+    const { today } = days()
+    const sessions: SeedSession[] = [{ date: today, kind: 'threshold', min: 50 }, { date: today }]
+    const usual = await liftingUser(sessions)
+    const eased = await liftingUser(sessions)
+    await client(ctx, eased.user).put(`/api/checkins/${today}`).send(painDay())
+
+    const base = (await todayView(usual.user)).coach.slots.strength!
+    const body = await todayView(eased.user)
+    expect(body.coach.hero).toMatchObject({ advice: 'downgrade-easy' })
+    const lighter = body.coach.slots.strength!
+
+    expect(base.lifts.every((lift) => lift.change !== 'lighter-day')).toBe(true)
+    expect(lighter.lifts.map((l) => l.exerciseId)).toEqual(base.lifts.map((l) => l.exerciseId))
+    expect(lighter.lifts.some((lift) => lift.change === 'lighter-day')).toBe(true)
+    lighter.lifts.forEach((lift, i) => {
+      const usualLift = base.lifts[i]!
+      // one set fewer, and never fewer than the two that stay
+      expect(lift.sets).toBe(
+        Math.max(usualLift.sets - P.f9.lowReadinessSetsCut.value, Math.min(usualLift.sets, 2)),
+      )
+      if (lift.change === 'lighter-day') {
+        expect(lift.basis.rule).toBe('F9')
+        expect(lift.loadG === null ? 0 : lift.loadG).toBeLessThanOrEqual(usualLift.loadG ?? 0)
+      }
+      // readiness never adds load
+      expect(lift.loadG ?? 0).toBeLessThanOrEqual(usualLift.loadG ?? 0)
+    })
+    // the load the rules asked for stays on the lift, for the tap that restores it
+    const cut = lighter.lifts.find((lift) => lift.usualLoadG !== null)
+    if (cut !== undefined) {
+      const same = base.lifts.find((lift) => lift.exerciseId === cut.exerciseId)
+      expect(cut.usualLoadG).toBe(same!.loadG)
+    }
+  })
+
+  test('the illness rest phase withdraws the session, as it does a run', async () => {
+    const { today } = days()
+    const { user } = await liftingUser([{ date: today }])
+    expect((await todayView(user)).coach.slots.strength).not.toBeNull()
+    await client(ctx, user).put(`/api/checkins/${today}`).send({ illness: true })
+    const body = await todayView(user)
+    expect(body.coach.hero?.advice).toBe('rest')
+    expect(body.coach.slots.strength).toBeNull()
+  })
+
+  test('is null for a runner with no plan', async () => {
+    const user = await newUser()
+    expect((await todayView(user)).coach.slots.strength).toBeNull()
+  })
+
+  test('a strength session already logged still has its workout, as the rules gave it', async () => {
+    const { today } = days()
+    const { user, rows } = await liftingUser([{ date: today }])
+    const before = (await todayView(user)).coach.slots.strength!
+    const saved = await putLog(user, uuid(500), logBody({ sessionId: rows[0]!.id }))
+    expect(saved.status, JSON.stringify(saved.body)).toBe(201)
+    // The log of the day is not history for the day itself, so the workout reads the same.
+    const after = await todayView(user)
+    expect(after.coach.hero?.session.status).not.toBe('planned')
+    expect(after.coach.slots.strength).toEqual(before)
+  })
+})
+
+describe('GET /api/today: the tag follows the strength state', () => {
+  const tagOf = (res: { headers: Record<string, unknown> }) => String(res.headers.etag)
+  const get = (user: TestUser, tag?: string) => {
+    const req = client(ctx, user).get('/api/today')
+    return tag === undefined ? req : req.set('If-None-Match', tag)
+  }
+
+  test('changes with a log, a change of equipment and of the unit, and with nothing else', async () => {
+    const { today } = days()
+    const { user } = await liftingUser([{ date: today }])
+    let tag = tagOf(await get(user))
+    expect((await get(user, tag)).status).toBe(304)
+
+    // Reads of the strength API change nothing.
+    expect((await client(ctx, user).get('/api/strength')).status).toBe(200)
+    expect(
+      (await client(ctx, user).get(`/api/strength/workouts?from=${today}&to=${today}`)).status,
+    ).toBe(200)
+    expect((await get(user, tag)).status).toBe(304)
+
+    const writes: Array<[string, () => Promise<unknown>]> = [
+      ['a log', () => putLog(user, uuid(510), logBody())],
+      ['the same log with other sets', () => putLog(user, uuid(510), logBody({ sets: [SETS[0]] }))],
+      ['the equipment', () => setup(user, { equipment: [DUMBBELLS] })],
+      [
+        'a starting point',
+        () =>
+          client(ctx, user)
+            .put('/api/strength/lifts/back-squat')
+            .send({ kind: 'max', loadG: 90_000 }),
+      ],
+      ['the weight unit', () => client(ctx, user).put('/api/settings').send({ weightUnit: 'kg' })],
+      ['a deleted log', () => client(ctx, user).delete(`/api/strength/logs/${uuid(510)}`)],
+    ]
+    for (const [name, write] of writes) {
+      const res = (await write()) as { status: number }
+      expect(res.status, name).toBeLessThan(300)
+      const changed = await get(user, tag)
+      expect(changed.status, `${name} changes the tag`).toBe(200)
+      expect(tagOf(changed), name).not.toBe(tag)
+      tag = tagOf(changed)
+      // and the new tag holds until the next write
+      expect((await get(user, tag)).status, name).toBe(304)
+    }
+  })
+
+  test('is the same for a refused save', async () => {
+    const { user } = await liftingUser([{ date: days().today }])
+    const tag = tagOf(await get(user))
+    expect((await putLog(user, uuid(511), logBody({ durationMin: 0 }))).status).toBe(400)
+    expect((await get(user, tag)).status).toBe(304)
   })
 })
 

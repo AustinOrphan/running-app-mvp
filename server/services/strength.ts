@@ -628,6 +628,25 @@ export async function strengthWorkouts(
     .map((session) => workoutFor(context, sessionRefOf(session)))
 }
 
+/**
+ * `coach.slots.strength`: the workout of the viewed day's strength session, or null for a day
+ * without one. The viewed day's readiness applies to today only (the engine reads it for a session
+ * on its own day), so a preview is the workout as of today. A day of the illness rest phase
+ * withdraws the session, as it withdraws a run (rule n-3, J3).
+ */
+export async function todayStrengthSlot(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string; date: string; preview: boolean; context: AthleteContext },
+): Promise<StrengthWorkout | null> {
+  const { context, date } = args
+  const onDay = strengthSessions(context).filter((session) => session.date === date)
+  const session = onDay.find((candidate) => isToRun(candidate.status)) ?? onDay[0]
+  if (session === undefined) return null
+  if (!args.preview && illnessPhase(inputFromContext(context), date).phase === 'rest') return null
+  const strength = await loadStrengthContext(deps, { userId: args.userId, today: args.today })
+  return workoutFor(strength, sessionRefOf(session))
+}
+
 function liftSummary(lift: LiftHistory): StrengthLiftSummary {
   return {
     exerciseId: lift.exerciseId,
