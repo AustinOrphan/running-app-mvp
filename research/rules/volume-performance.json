@@ -202,7 +202,7 @@
   },
   {
     "id": "volume-long-run-share",
-    "statement": "For non-ultra goals the long run is about 0.35 of the week's running time. Coach conventions range from 30% of weekly distance (Daniels, under 64 km/week) to about 35-47% implied by an intermediate 5K plan; measured in time, an easy long run is a slightly larger share than in distance, so 0.35 sits inside the range. Convention, labelled as a default.",
+    "statement": "For non-ultra goals the long run is about 0.35 of the week's running time. Coach conventions range from 30% of weekly distance (Daniels, as reported by Running Magazine, under 64 km/week) to about 35-47% implied by an intermediate 5K plan; measured in time, an easy long run is a slightly larger share than in distance, so 0.35 sits inside the range. Convention, labelled as a default.",
     "parameter": "macroDesign.longRunShareOfWeek",
     "value": "0.35",
     "unit": "fraction of weekly running time",

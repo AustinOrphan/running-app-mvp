@@ -19,7 +19,7 @@
     "Regimens lasting <14 days induce many beneficial adaptations and improve performance in the heat, but adaptation is greatest with regimens longer than 14 days.",
     "Large methodological differences leave uncertainty about the magnitude and time course of adaptation."
   ],
-  "limitations": "Heterogeneous protocols; mostly young trained men in labs; outcomes mostly time trials or capacity tests, not marathon or ultra racing; Hedges' g values not in the abstract; the study unit is the article, not the participant.",
+  "limitations": "Heterogeneous protocols; mostly young trained men in labs; outcomes mostly time trials or capacity tests, not marathon or ultra racing; Hedges' g values not in the abstract; the study unit is the article, not the participant. Crossref lists an erratum (10.1007/s40279-016-0572-3, 2016-06-21, Sports Med 46(11):1771, one page), contents not read.",
   "implications": [
     "Default acclimation block: 7-14 days of daily heat exposure, extended beyond 14 days when time allows because adaptation is greatest with longer regimens.",
     "Use acclimation as a conservative discount on the heat-pace penalty (shrink, do not remove); the abstract justifies no numeric discount.",
@@ -30,7 +30,7 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref (Sports Med online 2016-04, print 2016-11) and Europe PMC abstract re-fetched. Removed the researcher's 'prefer controlled-work-rate' implication, which the abstract does not support (it only reports that method as most common). The 5-day lower bound belongs to Daanen 2018.",
+    "notes": "Crossref (Sports Med online 2016-04, print 2016-11) and Europe PMC abstract re-fetched. Removed the researcher's 'prefer controlled-work-rate' implication, which the abstract does not support (it only reports that method as most common). The 5-day lower bound belongs to Daanen 2018. Correction notice 10.1007/s40279-016-0572-3 added to the record on 2026-10-31: Crossref's update-to relation types it as a correction and Europe PMC lists it as an erratum (PMID 27328851), but the publisher's page answered with a bot check and Europe PMC holds no abstract or text for it, so its text was not read, what it changed is unknown and the findings above rest on the abstract alone.",
     "checkedAt": "2026-10-22"
   }
 }
