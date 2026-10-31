@@ -6,6 +6,7 @@ import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { isToRun } from '../../../shared/domain/sessionStatus.ts'
 import type { PlanSessionView, TodayHeat, TodayHero, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
+import { isFocusLost } from '../focusMain.ts'
 import { WhyDrawer } from '../WhyDrawer.tsx'
 import { CoolerStart } from './CoolerStart.tsx'
 import { DoneSheet, NotFullSheet, StrengthSheet } from '../lazySheets.tsx'
@@ -94,7 +95,11 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
   const title = useRef<HTMLHeadingElement>(null)
   const settled = useRef(false)
   const [whyOpen, setWhyOpen] = useState(false)
-  const [sheet, setSheet] = useState<'done' | 'not-today' | 'not-full' | 'strength' | null>(null)
+  // `strength` is the sheet the primary button opens (Log sets); `strength-item` the one the "Also
+  // today" item opens, which leaves that item on the page and so leaves focus to the sheet.
+  const [sheet, setSheet] = useState<
+    'done' | 'not-today' | 'not-full' | 'strength' | 'strength-item' | null
+  >(null)
   // The lighter day's usual load is chosen on the hero and carried into the logging sheet.
   const [usual, setUsual] = useState(false)
   const { workout: strength, weightUnit, day } = useTodayStrength()
@@ -146,14 +151,33 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
       ? null
       : render(TEMPLATES['today.hero.climb'], { climb: { kind: 'climb', m: shown.gainM } }, units),
   ].filter((part): part is string => part !== null)
-  // The day's other strength session is a button when the payload carries its workout.
+  // Logging is for today's page alone: a copy of a day that is over and a preview offer no Log sets.
+  const canLog = !readOnly && day === 'today'
+  // The day's other strength session is a button when the payload carries its workout and the
+  // session is still to be done, as the hero's own Log sets is: a settled one would log it twice.
   const alsoStrength =
+    canLog &&
     strength !== null &&
     weightUnit !== undefined &&
-    others.some((other) => other.kind === 'strength' && other.id === strength.sessionId)
+    others.some(
+      (other) =>
+        other.kind === 'strength' && other.id === strength.sessionId && isToRun(other.status),
+    )
       ? strength.sessionId
       : null
-  const canLog = !readOnly && day === 'today'
+  // After a save from the "Also today" item the sheet gives focus back to the item, which is still on
+  // the page. The save also makes the session settled, and the next read of Today then turns the
+  // item into plain text; if that has taken focus with it, focus goes to the title, where the new
+  // state reads. `itemSaved` holds the wait for that read, `itemShown` what the page shows now.
+  const itemSaved = useRef(false)
+  const itemShown = useRef(false)
+  useEffect(() => {
+    itemShown.current = alsoStrength !== null
+    if (alsoStrength === null && itemSaved.current) {
+      itemSaved.current = false
+      if (isFocusLost()) title.current?.focus()
+    }
+  }, [alsoStrength])
   const nextText = showNext ? nextLine(next, units) : null
 
   return (
@@ -248,7 +272,8 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
           units={units}
           strengthId={alsoStrength}
           onOpenStrength={() => {
-            setSheet('strength')
+            itemSaved.current = false
+            setSheet('strength-item')
           }}
         />
       )}
@@ -279,16 +304,26 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
           }}
         />
       ) : null}
-      {sheet === 'strength' && strength !== null ? (
+      {(sheet === 'strength' || sheet === 'strength-item') && strength !== null ? (
         <StrengthSheet
           workout={strength}
           date={session.date}
-          usualLoads={strengthHero && usual}
+          usualLoads={sheet === 'strength' && strengthHero && usual}
           onClose={() => {
             setSheet(null)
           }}
           onSaved={() => {
-            settled.current = true
+            if (sheet === 'strength') {
+              // Log sets and its row are the hero's own: the save changes them, and focus goes to
+              // the title, as after Done.
+              settled.current = true
+            } else if (itemShown.current) {
+              // the item is on the page and the sheet gives focus back to it; if the read that
+              // follows the save takes the item away, the effect above moves focus to the title
+              itemSaved.current = true
+            } else {
+              settled.current = true
+            }
             setSheet(null)
           }}
         />
