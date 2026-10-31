@@ -35,6 +35,7 @@ import {
   type SetRow,
 } from './strengthForm.ts'
 import { measureOf, type StrengthWords } from './strengthText.ts'
+import { usualLoadOf } from './workoutRows.ts'
 import styles from './StrengthSheet.module.css'
 
 /** The slots a runner can pin an exercise in (design 6.2): the lifts of a session. */
@@ -97,7 +98,8 @@ export function LiftSection({
       : 'none'
   const swapped = shown !== block.original
   const reason = words.reason(shown)
-  const lighterDay = shown.change === 'lighter-day' && shown.usualLoadG !== null
+  const usualLoadG = usualLoadOf(shown)
+  const lighterDay = shown.change === 'lighter-day' && usualLoadG !== null
   const choices = equipment === null ? [] : swapChoices(block, equipment, barbellOf(workout))
   const pinnable = swapped && PINNABLE.has(shown.slot)
   const reachedBy = (index: number, update: (row: SetRow) => SetRow) => {
@@ -180,7 +182,7 @@ export function LiftSection({
         <div className={styles.usual}>
           <p className={styles.muted}>
             {words.say('strength.sheet.usual-load', {
-              load: { kind: 'load', g: shown.usualLoadG ?? 0 },
+              load: { kind: 'load', g: usualLoadG ?? 0 },
             })}
           </p>
           <Button

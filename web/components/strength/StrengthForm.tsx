@@ -50,6 +50,7 @@ import {
   writeDraft,
 } from './strengthDraft.ts'
 import { strengthWords } from './strengthText.ts'
+import { usualLoadOf } from './workoutRows.ts'
 import styles from './StrengthSheet.module.css'
 
 /** What a save came to, for the surface that opened the sheet. */
@@ -172,6 +173,8 @@ export function StrengthForm({
   const addable = canAddSet(state.blocks)
   const hasEffort = state.blocks.some((block) => block.shown.rir !== null)
   const lighterDay = state.blocks.some((block) => block.shown.change === 'lighter-day')
+  // "the usual load is one tap away" is true only where some lift has a usual load to go back to
+  const anyUsual = state.blocks.some((block) => usualLoadOf(block.shown) !== null)
   const minutesWrong =
     parseMinutes(state.minutes) === null && (attempted || problems?.minutes === true)
   const sheetNeedsServer = view.isError && view.data === undefined
@@ -283,10 +286,14 @@ export function StrengthForm({
         </p>
         {lighterDay ? (
           <p className={styles.note}>
-            {words.say('strength.lighter-today', {
-              sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
-              pct: { kind: 'percent', pct: P.f9.lowReadinessLoadPct.value },
-            })}
+            {anyUsual
+              ? words.say('strength.lighter-today', {
+                  sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
+                  pct: { kind: 'percent', pct: P.f9.lowReadinessLoadPct.value },
+                })
+              : words.say('strength.lighter-today-sets', {
+                  sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
+                })}
           </p>
         ) : null}
         <p className={styles.muted}>{words.say('strength.safety')}</p>

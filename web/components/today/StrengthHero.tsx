@@ -7,7 +7,7 @@ import { P } from '../../../shared/engine/params/index.ts'
 import type { PlanSessionView, StrengthWorkout, Units, WeightUnit } from '../../../shared/types.ts'
 import { Button } from '../Button.tsx'
 import { strengthWords } from '../strength/strengthText.ts'
-import { minutesPhrase, workoutRows } from '../strength/workoutRows.ts'
+import { minutesPhrase, usualLoadOf, workoutRows } from '../strength/workoutRows.ts'
 import heroStyles from './SessionHero.module.css'
 import styles from './StrengthHero.module.css'
 
@@ -54,7 +54,7 @@ export function LighterDay({
 }: WorkoutViewProps & { onUsual: (usual: boolean) => void }) {
   const words = strengthWords(units, weightUnit)
   if (!workout.lifts.some((lift) => lift.change === 'lighter-day')) return null
-  const hasUsual = workout.lifts.some((lift) => lift.usualLoadG !== null)
+  const hasUsual = workout.lifts.some((lift) => usualLoadOf(lift) !== null)
   // The Params that cut the day: one set fewer and 10% less, in the words of the template.
   const sets = countPhrase(P.f9.lowReadinessSetsCut.value, 'set')
   const line = !hasUsual

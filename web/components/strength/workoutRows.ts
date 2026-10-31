@@ -42,9 +42,19 @@ function joinNames(names: string[]): string {
   return lowered.length === 0 ? last : `${lowered.join(', ')} and ${last}`
 }
 
+/**
+ * The usual load of a lift on a lighter day, or null when there is none to offer. The engine keeps
+ * the load it started from in `usualLoadG` whenever the cut changed anything, so a cut that only
+ * took sets, or that found the lift already at its lightest rung, leaves `usualLoadG` equal to
+ * `loadG`: there is no other load to go back to.
+ */
+export function usualLoadOf(lift: Pick<WorkoutLift, 'loadG' | 'usualLoadG'>): number | null {
+  return lift.usualLoadG !== null && lift.usualLoadG !== lift.loadG ? lift.usualLoadG : null
+}
+
 /** The load a row states: the usual load of a lighter day when asked for and there is one. */
 function shownLoad(lift: WorkoutLift, usual: boolean): number | null {
-  return usual && lift.usualLoadG !== null ? lift.usualLoadG : lift.loadG
+  return (usual ? usualLoadOf(lift) : null) ?? lift.loadG
 }
 
 /**
