@@ -15,6 +15,8 @@ import {
   FUEL_DRAFT_PREFIX,
   purgeDrafts,
   STRENGTH_DRAFT_PREFIX,
+  STRENGTH_PROMPT_PREFIX,
+  writeCountNotNow,
 } from '../../web/pwa/drafts.ts'
 import {
   OUTBOX_ROUTES,
@@ -44,7 +46,10 @@ async function queuedOutbox() {
   return outbox
 }
 
-/** What a day of use leaves in local storage: the three drafts, and two keys that are not data. */
+/**
+ * What a day of use leaves in local storage: the three drafts, the answer to the strength count
+ * question, and two keys that are not data.
+ */
 function seedDevice(): void {
   window.localStorage.clear()
   window.localStorage.setItem(`${DONE_DRAFT_PREFIX}2026-03-18`, '{"duration":"52"}')
@@ -54,6 +59,7 @@ function seedDevice(): void {
     `${STRENGTH_DRAFT_PREFIX}3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10`,
     '{"minutes":"40"}',
   )
+  writeCountNotNow('2026-03-18')
   window.localStorage.setItem('rl_today_more', 'open')
   window.localStorage.setItem('theme', 'dark')
 }
@@ -64,7 +70,8 @@ function draftKeys(): string[] {
       (key) =>
         key.startsWith(DONE_DRAFT_PREFIX) ||
         key.startsWith(FUEL_DRAFT_PREFIX) ||
-        key.startsWith(STRENGTH_DRAFT_PREFIX),
+        key.startsWith(STRENGTH_DRAFT_PREFIX) ||
+        key.startsWith(STRENGTH_PROMPT_PREFIX),
     )
     .sort()
 }
@@ -75,7 +82,7 @@ function withClient(queryClient: QueryClient) {
 }
 
 describe('purging the drafts', () => {
-  test('removes the Done, fuel and strength drafts and nothing else', () => {
+  test("removes the Done, fuel and strength drafts, and the strength question's answer, and nothing else", () => {
     seedDevice()
     purgeDrafts()
     expect(draftKeys()).toEqual([])
@@ -171,7 +178,7 @@ describe('opening the app with a session that has ended', () => {
       expect(result.current.data).toEqual(user)
     })
     expect(outbox.getState().entries).toHaveLength(1)
-    expect(draftKeys()).toHaveLength(4)
+    expect(draftKeys()).toHaveLength(5)
   })
 
   test('a server that cannot answer is not an expired session: nothing is purged', async () => {
@@ -188,7 +195,7 @@ describe('opening the app with a session that has ended', () => {
       expect(result.current.isError).toBe(true)
     })
     expect(outbox.getState().entries).toHaveLength(1)
-    expect(draftKeys()).toHaveLength(4)
+    expect(draftKeys()).toHaveLength(5)
   })
 })
 

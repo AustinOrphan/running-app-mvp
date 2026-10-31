@@ -13,6 +13,7 @@ import { Skeleton } from '../components/Skeleton.tsx'
 import { StrengthSetupSheet, StrengthSheet } from '../components/lazySheets.tsx'
 import { AboutCard } from '../components/strength/AboutCard.tsx'
 import { BlockCard } from '../components/strength/BlockCard.tsx'
+import { CountPrompt } from '../components/strength/CountPrompt.tsx'
 import { LiftHistory } from '../components/strength/LiftHistory.tsx'
 import { LiftsList } from '../components/strength/LiftsList.tsx'
 import { RecentSessions } from '../components/strength/RecentSessions.tsx'
@@ -91,6 +92,7 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
             }}
           />
           <BlockCard block={view.block} benefit={benefit} words={words} />
+          <CountPrompt view={view} words={words} />
           <LiftsList
             lifts={view.lifts}
             selected={lift}
