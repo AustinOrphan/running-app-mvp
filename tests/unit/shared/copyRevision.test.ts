@@ -130,7 +130,6 @@ describe('the summary of a change of the load setting', () => {
       ['bone-pain', 'focal bone pain holds progression'],
       ['rest-window', 'a rest window is active'],
       ['post-race', 'the plan is in the weeks after a race'],
-      ['low-frequency', 'recent weeks held fewer than two runs a week'],
     ]
     for (const [held, reason] of holds) {
       const summary = loadSettingSummary(position({ requested: 'upper', position: 'steady', held }))

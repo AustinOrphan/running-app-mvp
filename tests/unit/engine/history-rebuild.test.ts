@@ -121,6 +121,17 @@ const loading = (plan: PlanDraft) =>
 
 const detailOf = (plan: PlanDraft) => plan.checklist.find((c) => c.id === 'progression')!.detail
 
+/** The most loading weeks in a row, recovery, taper and race weeks left out of the count. */
+function longestRun(plan: PlanDraft): number {
+  let run = 0
+  let longest = 0
+  for (const week of plan.weeks.filter((w) => !w.isTaper && w.phase !== 'race')) {
+    run = week.isRecovery ? 0 : run + 1
+    longest = Math.max(longest, run)
+  }
+  return longest
+}
+
 describe('rebuildStep and the weekly rate of the ceiling [rules g-8, g-2]', () => {
   const zone: RebuildZone = { ceilingMin: 196, step: 0.12 }
 
@@ -279,7 +290,6 @@ describe('rebuildZone [rules g-8]', () => {
       ['a REDs hold', scenario(s3Runs(), { screeningFlags: 2 })],
       ['a rest window', h13Window()],
       ['the window after a race', h13Race()],
-      ['a low-frequency runner', h10()],
     ]
     for (const [name, base] of held) {
       for (const position of LIFTED) {
@@ -306,7 +316,7 @@ describe('rebuildZone [rules g-8]', () => {
         [17, null],
       ])
       for (const [ended, taper] of expected) {
-        // sparse weeks since keep the runner out of the low-frequency hold
+        // sparse weeks since: no block after the old one
         const base = scenario([
           ...weeks(ended + 3, ended, [70, 70, 70, 70]),
           ...SPARSE.filter((r) => r.weeksBack <= 4),
@@ -557,19 +567,25 @@ describe('H2: three years of running change the start, not the zone', () => {
 
 describe('H3: a strong block, then a 41-day layoff (S5)', () => {
   it.each(LIFTED)(
-    '%s: the J7 restart is the steady one, and the zone is off while the flag holds',
+    '%s: the J7 restart is the steady one, and the zone is on though the runner is low frequency',
     (position) => {
       const base = scenario(s5Runs())
-      expect(positionAt(base, position)).toMatchObject({
-        position: 'steady',
-        held: 'low-frequency',
-      })
-      expect(zoneAt(base, position)).toBeNull()
+      expect(estimateState(base).lowFrequency).toBe(true)
+      expect(positionAt(base, position)).toMatchObject({ position, held: null })
+      // the block of 280 minutes ended eight weeks ago, inside the credit window
+      expect(zoneAt(base, position)).toEqual(expectedZone(at(base, position)))
+      expect(zoneAt(base, position)!.ceilingMin).toBeGreaterThan(estimateState(base).typicalWeekMin)
       const plan = planAt(base, position)
-      expect(plan).toEqual(planAt(base))
+      const steady = planAt(base)
+      expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
       expect(plan.checklist.find((c) => c.id === 'break-restart')!.ok).toBe(true)
-      // the restart is half the typical week, a floor of 3 x 30 at its largest
+      // the restart is half the typical week, a floor of 3 x 30 at its largest, the same week as
+      // at steady; the zone then goes ahead of steady
       expect(plan.weeks[0]!.targetRunMin).toBe(90)
+      expect(plan.weeks[0]!.targetRunMin).toBe(steady.weeks[0]!.targetRunMin)
+      expect(cumulative(plan, 8)).toBeGreaterThan(cumulative(steady, 8))
+      // the 2:1 cadence of the flag is kept at the position as at steady
+      expect(plan.checklist.find((c) => c.id === 'recovery-cadence')!.ok).toBe(true)
     },
   )
 
@@ -634,25 +650,41 @@ describe('H9: a progression hold (REDs flags, focal bone pain) switches the zone
 })
 
 describe('H10: a low-frequency runner above the floor', () => {
-  it('has no zone and keeps the 2:1 cadence', () => {
-    const base = h10()
-    expect(estimateState(base).lowFrequency).toBe(true)
-    const steady = planAt(base, 'steady')
-    for (const position of LIFTED) {
-      expect(positionAt(base, position).held).toBe('low-frequency')
-      expect(zoneAt(base, position)).toBeNull()
-      expect(planAt(base, position)).toEqual(steady)
-    }
+  it('keeps the 2:1 cadence at steady', () => {
+    const steady = planAt(h10(), 'steady')
+    expect(estimateState(h10()).lowFrequency).toBe(true)
     expect(steady.checklist.find((c) => c.id === 'recovery-cadence')!.ok).toBe(true)
     // never more than the flagged cycle's loading weeks in a row
-    let run = 0
-    let longest = 0
-    for (const week of steady.weeks.filter((w) => !w.isTaper && w.phase !== 'race')) {
-      run = week.isRecovery ? 0 : run + 1
-      longest = Math.max(longest, run)
-    }
-    expect(longest).toBeLessThanOrEqual(P.e3.flaggedCycleWorkWeeks.value + 1)
+    expect(longestRun(steady)).toBeLessThanOrEqual(P.e3.flaggedCycleWorkWeeks.value + 1)
   })
+
+  it.each(LIFTED)(
+    '%s: the position applies, the zone is built from the block and the cadence stays 2:1',
+    (position) => {
+      const base = h10()
+      expect(estimateState(base).lowFrequency).toBe(true)
+      expect(positionAt(base, position)).toMatchObject({ position, held: null })
+      // the block of 280 minutes ended eight weeks ago, inside the credit window
+      const zone = zoneAt(base, position)!
+      expect(zone).toEqual(expectedZone(at(base, position)))
+      expect(zone.ceilingMin).toBeGreaterThan(estimateState(base).typicalWeekMin)
+      // the 3 x 30 lift reads the same block; the start level is over the floor, so no start path
+      // exists for it to lift
+      const input = at(base, position)
+      expect(blockLift(input, estimateState(input))).toBe(true)
+      const plan = planAt(base, position)
+      const steady = planAt(base, 'steady')
+      expect(plan).not.toEqual(steady)
+      expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
+      expect(plan.checklist.find((c) => c.id === 'recovery-cadence')!.ok).toBe(true)
+      expect(longestRun(plan)).toBeLessThanOrEqual(P.e3.flaggedCycleWorkWeeks.value + 1)
+      // the zone goes ahead of steady, week by week
+      expect(cumulative(plan, 8)).toBeGreaterThan(cumulative(steady, 8))
+      const seq = loading(plan).map((w) => w.targetRunMin)
+      for (let i = 1; i < 6; i += 1) expect(seq[i]).toBe(nextOf(seq[i - 1]!, zone))
+      expect(zoneReport(input, plan).zoneWeeks).toBeGreaterThan(2)
+    },
+  )
 })
 
 describe('H13: the windows around a race and a rest window', () => {
@@ -936,21 +968,24 @@ describe('H14: a weekly re-plan chain', () => {
 
 /**
  * A plan being continued, as the weekly re-plan sees it on `HISTORY_MONDAY`: the summer block of
- * appendix A, then the weeks `lastWeeks` as run (the oldest first, two runs each, the last the week
- * that has just ended), and the plan made the Monday before from the weeks up to the one before
- * them, with its week of this Monday set to `stored` minutes when given. The week that opens is in
- * that plan, so the plan is one the runner is following.
+ * appendix A, then the weeks `lastWeeks` as run (the oldest first, `runsPerWeek` runs each, two by
+ * default, the last the week that has just ended), and the plan made the Monday before from the
+ * weeks up to the one before them, with its week of this Monday set to `stored` minutes when given.
+ * The week that opens is in that plan, so the plan is one the runner is following.
  */
 function continued(
   lastWeeks: readonly number[],
   position: Position,
   stored: number | null = null,
   over: Parameters<typeof scenario>[1] = {},
+  runsPerWeek = 2,
 ): EngineInput {
   const count = lastWeeks.length
   const runs: Run[] = [
     ...summer(count + 1),
-    ...lastWeeks.flatMap((minutes, i) => week(count - i, [minutes / 2, minutes / 2])),
+    ...lastWeeks.flatMap((minutes, i) =>
+      week(count - i, Array<number>(runsPerWeek).fill(minutes / runsPerWeek)),
+    ),
   ]
   const earlier = runs
     .filter((r) => r.weeksBack >= 2)
@@ -1763,33 +1798,39 @@ describe('H8: a held profile reads steady with its reason, and has no response e
   })
 })
 
-describe('H10 and H13: no response for a low-frequency runner or inside the window after a race', () => {
-  /** The input a weekly re-plan would see: the steady plan stored, and a run this week. */
-  const withStoredPlan = (base: EngineInput): EngineInput => ({
-    ...at(base, 'standard'),
-    existing: asExisting(buildPlan(at(base, 'steady')), base.today),
-  })
-
-  it.each([
-    [
-      'a low-frequency runner',
-      scenario([...summer(), ...weeks(7, 1, [70]), ...week(0, [70])]),
-      'low-frequency',
-    ],
-    ['the window after a race', h13Race(), 'post-race'],
-  ] as const)(
-    '%s: the position is held, so the mean of the weeks run is not read',
-    (_name, base, reason) => {
-      const input = withStoredPlan(base)
+describe('H10 and H13: the response for a low-frequency runner, and none inside the window after a race', () => {
+  it.each(LIFTED)(
+    '%s: a low-frequency runner on a continued plan has the position, so the weeks run are read',
+    (position) => {
+      // four weeks of one 70 minute run, run at the plan: under two runs a week above the floor
+      const input = continued([70, 70, 70, 70], position, null, {}, 1)
       const state = estimateState(input)
-      // the stored plan holds the week, and the layoff is under a week: only the hold stops the response
-      expect(input.existing!.weeks.some((w) => w.weekStart === mondayOf(input.today))).toBe(true)
-      expect(state.layoffDays).toBeLessThan(P.j7.tier1Days.value)
-      expect(loadPosition(input, state).held).toBe(reason)
-      expect(responseBasis(input, state)).toBeNull()
-      expect(expectedResponse(input)).toBeNull()
+      expect(state.lowFrequency).toBe(true)
+      expect(loadPosition(input, state)).toMatchObject({ position, held: null })
+      expect(responseBasis(input, state)).toEqual({ meanMin: 70 })
+      expect(expectedResponse(input)).toMatchObject({ meanMin: 70 })
+      // a week run 100 minutes past the plan lifts the next baseline for this runner, as for any
+      const over = continued([70, 70, 70, 130], position, 70, {}, 1)
+      expect(estimateState(over).lowFrequency).toBe(true)
+      expect(responseBasis(over, estimateState(over))!.meanMin).toBeCloseTo(85, 9)
+      expect(planProblems(replan(over).draft)).toEqual([])
     },
   )
+
+  it('the window after a race: the position is held, so the mean of the weeks run is not read', () => {
+    const base = h13Race()
+    const input: EngineInput = {
+      ...at(base, 'standard'),
+      existing: asExisting(buildPlan(at(base, 'steady')), base.today),
+    }
+    const state = estimateState(input)
+    // the stored plan holds the week, and the layoff is under a week: only the hold stops the response
+    expect(input.existing!.weeks.some((w) => w.weekStart === mondayOf(input.today))).toBe(true)
+    expect(state.layoffDays).toBeLessThan(P.j7.tier1Days.value)
+    expect(loadPosition(input, state).held).toBe('post-race')
+    expect(responseBasis(input, state)).toBeNull()
+    expect(expectedResponse(input)).toBeNull()
+  })
 })
 
 describe('H12: a ladder novice with no history', () => {
@@ -2637,20 +2678,30 @@ describe('H29: the lift of the response stops at the two-week ceiling over the p
   })
 })
 
-describe('H3 inside a chain: the low-frequency hold arms when the start level passes 60 minutes [rules A5, g-8]', () => {
-  it('holds the setting at steady for the one re-plan in which a week run 1.6 times the plan lifts the start level over 60', () => {
+describe('H3 inside a chain: the flag arms when the start level passes 60 minutes, and the setting is kept [rules A5, g-8]', () => {
+  it('keeps the position through the one re-plan in which a week run 1.6 times the plan lifts the start level over 60', () => {
     const chain = replanChain(at(h1(), 'standard'), { scale: 1.6, maxSteps: 4 })
-    const held = chain.map(({ input }) => loadPosition(input, estimateState(input)).held)
+    const states = chain.map(({ input }) => estimateState(input))
     // the runs a week of the window are still under two when the start level reaches 60 (A5)
-    expect(held).toEqual([null, null, 'low-frequency', null, null])
-    // that re-plan is the steady plan's, as H3 says: the zone and the response are off while the
-    // flag holds, so the weeks ahead fall back, and the next re-plan returns to the zone
+    expect(states.map((state) => state.lowFrequency)).toEqual([false, false, true, false, false])
+    // the flag keeps the cadence and the step; it does not hold the setting, so the zone and the
+    // response stay on for that re-plan and the weeks ahead do not fall back
+    expect(chain.map(({ input }, k) => loadPosition(input, states[k]!).held)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+    ])
     const { input, draft } = chain[2]!
-    expect(draft).toEqual(replan(at(input, 'steady')).draft)
+    const state = states[2]!
+    expect(rebuildZone(input, state)).not.toBeNull()
+    expect(responseBasis(input, state)!.meanMin).not.toBeNull()
+    expect(draft).not.toEqual(replan(at(input, 'steady')).draft)
     const monday = mondayOf(input.today)
-    expect(
+    expect(nextLoading(draft, monday).targetRunMin).toBeGreaterThanOrEqual(
       nextLoading(chain[1]!.draft, mondayOf(chain[1]!.input.today)).targetRunMin,
-    ).toBeGreaterThan(nextLoading(draft, monday).targetRunMin)
+    )
   })
 })
 
@@ -2658,8 +2709,8 @@ describe('weeks run 1.6 times the plan, along the chains of three cases [rules g
   it.each(LIFTED)(
     '%s: the first loading week after a re-plan is inside the bounds of the response',
     (position) => {
-      // runners who are not low-frequency when their start level passes 60 (h1 is: the hold would
-      // switch the zone and the response off for a week, which the next test of this file states)
+      // runners who are not low-frequency when their start level passes 60 (h1 is: the flag changes
+      // the cycle for a week, which the test above states)
       const bases = [scenario([...summer(5), ...weeks(4, 1, [40])]), h3Back(), h4()]
       let engaged = 0
       for (const base of bases) {

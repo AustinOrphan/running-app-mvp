@@ -63,10 +63,17 @@ export const LOAD_TEMPLATES = {
   'load.sheet.apply': tpl('Apply', {}, { shape: 'label' }),
   'load.sheet.cancel': tpl('Cancel', {}, { shape: 'label' }),
   'load.sheet.saved': tpl('Load setting changed', {}, { shape: 'label' }),
-  'load.panel.set': tpl(
-    'The plan was set to {position}.',
-    { position: 'text' },
-    { fallback: 'The plan was set to another position.' },
+  // The first line of the panel when the position chosen does not apply: the choice leads, so a
+  // runner who has just chosen it reads at once that it is not in use, and why.
+  'load.panel.held': tpl(
+    '{position}, held at the steady step for now: {reason}.',
+    { position: 'text', reason: 'text' },
+    { fallback: 'The setting is held at the steady step for now.' },
+  ),
+  'load.panel.capped': tpl(
+    '{position}, read as Standard: age {age} or over.',
+    { position: 'text', age: 'count' },
+    { fallback: 'The setting is read as Standard because of age.' },
   ),
   'load.held': tpl(
     'The steady step applies for now: {reason}.',
@@ -98,11 +105,6 @@ export const LOAD_TEMPLATES = {
   'load.hold.bone-pain': tpl('focal bone pain holds progression', {}, { shape: 'label' }),
   'load.hold.rest-window': tpl('a rest window is active', {}, { shape: 'label' }),
   'load.hold.post-race': tpl('the plan is in the weeks after a race', {}, { shape: 'label' }),
-  'load.hold.low-frequency': tpl(
-    'recent weeks held fewer than {runs} a week',
-    { runs: 'text' },
-    { shape: 'label', fallback: 'recent weeks held few runs' },
-  ),
 } satisfies Record<string, Template>
 
 const T = LOAD_TEMPLATES
@@ -206,12 +208,6 @@ export function loadHoldReason(hold: LoadHold): string {
         { factors: countPhrase(P.g3.bsiFactorsForCap.value, 'risk factor') },
         UNITS,
       )
-    case 'low-frequency':
-      return render(
-        T['load.hold.low-frequency'],
-        { runs: countPhrase(P.a5.lowFrequencyRunsPerWeek.value, 'run') },
-        UNITS,
-      )
   }
 }
 
@@ -233,6 +229,16 @@ export function loadCappedLine(): string {
   return render(T['load.capped'], { age: count(P.a9.noviceFlagAgeMin.value) }, UNITS)
 }
 
+/**
+ * The first line of the panel when the position the plan was set to does not apply: one sentence
+ * that begins with the choice. `choice` is the name the page sets in bold and `rest` is what
+ * follows it, so `choice + rest` is the sentence.
+ */
+export interface LoadPanelLead {
+  choice: string
+  rest: string
+}
+
 /** What the Plan page says about the position in effect. */
 export interface LoadPanelText {
   /** The position in effect: "Steady", "Standard", "Upper band". */
@@ -240,25 +246,36 @@ export interface LoadPanelText {
   /** The hint of that position, a sentence to a line. */
   hint: string[]
   /**
-   * Why the position chosen for the plan does not apply, with the choice named first; empty when it
-   * applies as chosen.
+   * Set when the position chosen for the plan does not apply: the choice and why, in one sentence
+   * ("Upper band, held at the steady step for now: a rest window is active."). Null when it
+   * applies as chosen; the panel then leads with `name` and `hint`.
    */
-  reason: string[]
+  lead: LoadPanelLead | null
 }
 
 /** The text of the Plan page's panel for the position the plan payload names. */
 export function loadPanelText(load: LoadPosition): LoadPanelText {
-  const lines: string[] = []
+  const choice = loadName(load.requested)
+  let sentence: string | null = null
   if (load.held !== null) {
-    lines.push(
-      render(T['load.panel.set'], { position: loadName(load.requested) }, UNITS),
-      loadHeldLine(load.held),
+    sentence = render(
+      T['load.panel.held'],
+      { position: choice, reason: loadHoldReason(load.held) },
+      UNITS,
     )
   } else if (load.ageCapped) {
-    lines.push(
-      render(T['load.panel.set'], { position: loadName(load.requested) }, UNITS),
-      loadCappedLine(),
+    sentence = render(
+      T['load.panel.capped'],
+      { position: choice, age: count(P.a9.noviceFlagAgeMin.value) },
+      UNITS,
     )
   }
-  return { name: loadName(load.position), hint: loadHintLines(load.position), reason: lines }
+  // A template that fell back to its generic sentence does not begin with the choice: nothing is bold.
+  const lead =
+    sentence === null
+      ? null
+      : sentence.startsWith(choice)
+        ? { choice, rest: sentence.slice(choice.length) }
+        : { choice: '', rest: sentence }
+  return { name: loadName(load.position), hint: loadHintLines(load.position), lead }
 }

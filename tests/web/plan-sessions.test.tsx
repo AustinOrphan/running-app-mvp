@@ -2,7 +2,9 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { loadTradeoff } from '../../shared/copy/load.ts'
+import { loadSettingSummary } from '../../shared/copy/revision.ts'
 import type { LoadHold, LoadPosition } from '../../shared/engine/loadSetting.ts'
+import type { LoadAppetite } from '../../shared/engine/types.ts'
 import type {
   Goal,
   PlanPreview,
@@ -881,7 +883,11 @@ describe('Plan page, the load setting in effect', () => {
     },
   )
 
-  test('keeps the trade-off before the reason when the chosen position is held', async () => {
+  /** The panel's paragraphs, in the order they read. */
+  const lines = (region: HTMLElement) =>
+    Array.from(region.querySelectorAll('p')).map((line) => line.textContent)
+
+  test('leads with the choice and the reason, then the hint in effect, and the trade-off last', async () => {
     mockApi(
       routes(
         makeV2Plan({ load: load({ requested: 'upper', position: 'steady', held: 'rest-window' }) }),
@@ -889,9 +895,27 @@ describe('Plan page, the load setting in effect', () => {
     )
     renderPlan()
     const region = await panel()
-    const tradeoff = within(region).getByText(/^A faster step brings the earlier weekly level back/)
-    const reason = within(region).getByText(/^The plan was set to Upper band\./)
-    expect(tradeoff.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(lines(region)).toEqual([
+      'Upper band, held at the steady step for now: a rest window is active.',
+      "Adds up to 10% a week, the plan's usual step.",
+      loadTradeoff(),
+    ])
+    // the choice is the bold part of the first line, and the position in effect is not named bold
+    const strong = Array.from(region.querySelectorAll('strong')).map((node) => node.textContent)
+    expect(strong).toEqual(['Upper band'])
+    expect(region.querySelector('strong')!.parentElement).toBe(region.querySelector('p'))
+  })
+
+  test('reads as before when the position applies as chosen: name and hint, then the trade-off', async () => {
+    mockApi(routes(makeV2Plan({ load: load({ requested: 'standard', position: 'standard' }) })))
+    renderPlan()
+    const region = await panel()
+    const [first, second, ...rest] = lines(region)
+    expect(first).toMatch(
+      /^Standard Adds up to \d+(\.\d+)?% a week while rebuilding toward a level held in the last 12 weeks\. /,
+    )
+    expect(second).toBe(loadTradeoff())
+    expect(rest).toEqual([])
   })
 
   test('names Steady and its hint for a plan at the default, with no reason', async () => {
@@ -900,8 +924,9 @@ describe('Plan page, the load setting in effect', () => {
     const region = await panel()
     expect(within(region).getByText('Steady')).toBeInTheDocument()
     expect(within(region).getByText("Adds up to 10% a week, the plan's usual step.")).toBeVisible()
-    expect(within(region).queryByText(/was set to/)).not.toBeInTheDocument()
-    expect(within(region).queryByText(/applies for now/)).not.toBeInTheDocument()
+    expect(
+      within(region).queryByText(/held at the steady step|read as Standard/),
+    ).not.toBeInTheDocument()
     expectCleanCopy(region)
   })
 
@@ -924,7 +949,9 @@ describe('Plan page, the load setting in effect', () => {
       const region = await panel()
       expect(within(region).getByText(name)).toBeInTheDocument()
       expect(within(region).getByText(hint)).toBeInTheDocument()
-      expect(within(region).queryByText(/was set to/)).not.toBeInTheDocument()
+      expect(
+        within(region).queryByText(/held at the steady step|read as Standard/),
+      ).not.toBeInTheDocument()
       expectCleanCopy(region)
     },
   )
@@ -937,28 +964,28 @@ describe('Plan page, the load setting in effect', () => {
     ['bone-pain', 'focal bone pain holds progression'],
     ['rest-window', 'a rest window is active'],
     ['post-race', 'the plan is in the weeks after a race'],
-    ['low-frequency', 'recent weeks held fewer than two runs a week'],
   ]
 
   test.each(REASONS)(
-    'shows Steady in effect and the reason when %s holds the plan',
+    'leads with the choice and the reason when %s holds the plan',
     async (held, reason) => {
       mockApi(
         routes(makeV2Plan({ load: load({ requested: 'standard', position: 'steady', held }) })),
       )
       renderPlan()
       const region = await panel()
-      expect(within(region).getByText('Steady')).toBeInTheDocument()
-      expect(
-        within(region).getByText(
-          `The plan was set to Standard. The steady step applies for now: ${reason}.`,
-        ),
-      ).toBeInTheDocument()
+      // the choice leads, then the step in effect; the position in effect is not in the lead
+      expect(lines(region)).toEqual([
+        `Standard, held at the steady step for now: ${reason}.`,
+        "Adds up to 10% a week, the plan's usual step.",
+        loadTradeoff(),
+      ])
+      expect(within(region).getByText('Standard', { selector: 'strong' })).toBeInTheDocument()
       expectCleanCopy(region)
     },
   )
 
-  test('shows Standard in effect and the age when Upper band is read as Standard', async () => {
+  test('leads with Upper band and the age when it is read as Standard', async () => {
     mockApi(
       routes(
         makeV2Plan({ load: load({ requested: 'upper', position: 'standard', ageCapped: true }) }),
@@ -966,12 +993,12 @@ describe('Plan page, the load setting in effect', () => {
     )
     renderPlan()
     const region = await panel()
-    expect(within(region).getByText('Standard')).toBeInTheDocument()
-    expect(
-      within(region).getByText(
-        'The plan was set to Upper band. The setting is held at Standard: age 45 or over.',
-      ),
-    ).toBeInTheDocument()
+    expect(lines(region)).toEqual([
+      'Upper band, read as Standard: age 45 or over.',
+      expect.stringMatching(/^Adds up to \d+(\.\d+)?% a week while rebuilding toward a level/),
+      loadTradeoff(),
+    ])
+    expect(within(region).getByText('Upper band', { selector: 'strong' })).toBeInTheDocument()
     expectCleanCopy(region)
   })
 
@@ -1285,6 +1312,54 @@ describe('Plan page, changing the load setting', () => {
       expect(after).toContain('/api/plan/revisions')
     })
     expect(await screen.findByText('Load setting changed')).toBeInTheDocument()
+  })
+
+  const withSummary = (loadAppetite: LoadAppetite, summary: string) => ({
+    loadAppetite,
+    revision: makeRevision({ id: 'load-1', reason: 'owner', auto: false, summary }),
+  })
+
+  test('the toast after Apply states the summary of the revision for a position that applies', async () => {
+    const user = userEvent.setup()
+    const summary = loadSettingSummary(load({ requested: 'standard', position: 'standard' }))
+    expect(summary).toBe(
+      'Load setting changed to Standard: weeks ahead add up to 12% while rebuilding.',
+    )
+    mockApi(routes(makeV2Plan(), { 'PUT /api/plan/load': () => withSummary('standard', summary) }))
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Standard' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    const toast = await screen.findByRole('status')
+    await waitFor(() => {
+      expect(toast).toHaveTextContent(summary)
+    })
+    expect(screen.queryByText('Load setting changed')).not.toBeInTheDocument()
+    expectCleanCopy(toast)
+  })
+
+  test('the toast after Apply says why a held position does not apply, at once', async () => {
+    const user = userEvent.setup()
+    const held = load({ requested: 'upper', position: 'steady', held: 'recent-injury' })
+    const summary = loadSettingSummary(held)
+    expect(summary).toBe(
+      'Load setting changed to Upper band. The steady step applies for now: a recent injury is on file.',
+    )
+    mockApi(
+      routes(makeV2Plan({ load: load() }), {
+        'PUT /api/plan/load': () => withSummary('upper', summary),
+      }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Upper band' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    const toast = await screen.findByRole('status')
+    await waitFor(() => {
+      expect(toast).toHaveTextContent(summary)
+    })
+    expect(toast).toHaveTextContent('The steady step applies for now: a recent injury is on file.')
+    expectCleanCopy(toast)
   })
 
   test('the position the plan is set to disables Apply, also while it is held, and sends nothing', async () => {
