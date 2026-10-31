@@ -5,6 +5,7 @@
 // of the page in the unit it was given.
 import { countPhrase } from '../../../shared/copy/quantity.ts'
 import { STRENGTH_PAGE_TEMPLATES } from '../../../shared/copy/strengthPage.ts'
+import { STRENGTH_REVIEW_TEMPLATES } from '../../../shared/copy/strengthReview.ts'
 import { STRENGTH_TEMPLATES } from '../../../shared/copy/strengthTemplates.ts'
 import { render, type Template } from '../../../shared/copy/template.ts'
 import type { Quantity } from '../../../shared/engine/types.ts'
@@ -19,7 +20,7 @@ import type {
 } from '../../../shared/types.ts'
 import { strengthWords } from './strengthText.ts'
 
-const ALL = { ...STRENGTH_TEMPLATES, ...STRENGTH_PAGE_TEMPLATES }
+const ALL = { ...STRENGTH_TEMPLATES, ...STRENGTH_PAGE_TEMPLATES, ...STRENGTH_REVIEW_TEMPLATES }
 
 /** A template of the page or of the shared strength words. */
 export type PageTemplateId = keyof typeof ALL

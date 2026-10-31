@@ -1,13 +1,18 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, weekStartsBetween } from '../../shared/dates.ts'
+import { formatLoad } from '../../shared/domain/weight.ts'
+import { P } from '../../shared/engine/params/index.ts'
+import type { WeekHistory } from '../../shared/engine/strength.ts'
 import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   Activity,
+  AthleteProfile,
   PlanSessionView,
   PlanWeekView,
   PlanWithSessions,
+  StrengthView,
   WeekRow,
   WeeklyReview,
   ZoneProposalView,
@@ -17,6 +22,7 @@ import { ReviewPage } from '../../web/pages/ReviewPage.tsx'
 import { makeActivity, makeWeekRow } from '../factories.ts'
 import {
   activityPage,
+  delayResponses,
   expectCleanCopy,
   explainOf,
   mockApi,
@@ -31,6 +37,8 @@ import {
   makeRevision,
   makeWeekLine,
 } from './plan-fixtures.ts'
+import { lb, makeView } from './strength-fixtures.ts'
+import { PROFILE } from './strength-page-fixtures.ts'
 
 // The real drawer is Task E14's; this stand-in shows which rules a Why button passes on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -45,6 +53,12 @@ vi.mock('../../web/components/WhyDrawer.tsx', () => ({
 // Wednesday 21 Oct 2026: the current week starts 19 Oct, the last finished week 12 Oct.
 const W = '2026-10-12'
 const CURRENT = '2026-10-19'
+const TODAY = '2026-10-21'
+
+const unreachable = {
+  status: 503,
+  body: { error: { code: 'internal', message: 'No connection.' } },
+}
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -189,6 +203,9 @@ interface Fixture {
   activities?: Activity[]
   /** Mark every week as reviewed. */
   allReviewed?: boolean
+  /** The Strength view the Review page reads for its lines and its question; `null` fails the read. */
+  strength?: StrengthView | null
+  profile?: AthleteProfile
 }
 
 const defaultPlan = (): PlanWithSessions =>
@@ -214,6 +231,9 @@ function routes(fixture: Fixture = {}): MockRoutes {
     'GET /api/activities': () => activityPage(fixture.activities ?? []),
     'GET /api/settings': () => ({ email: 'runner@example.com', displayName: null, units: 'km' }),
     'GET /api/zones/proposals': () => fixture.proposals ?? [],
+    'GET /api/strength': () =>
+      fixture.strength === null ? unreachable : (fixture.strength ?? makeView({ asOf: TODAY })),
+    'GET /api/profile': () => fixture.profile ?? PROFILE,
   }
 }
 
@@ -1107,6 +1127,255 @@ describe('ReviewPage', () => {
       await ready()
       expect(await screen.findByText('Critical speed')).toBeInTheDocument()
       expect(screen.getByText('4:10 /km to 4:04 /km')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('ReviewPage: strength (design 12.2 and 12.4)', () => {
+  const week = (weekStart: string, over: Partial<WeekHistory> = {}): WeekHistory => ({
+    weekStart,
+    planned: 2,
+    logged: 2,
+    sets: 9,
+    moved: [],
+    ...over,
+  })
+  const squatUp = { exerciseId: 'back-squat', fromG: lb(110), toG: lb(115) }
+  const rdlDown = { exerciseId: 'dumbbell-rdl', fromG: lb(40), toG: lb(35) }
+  const lines = () => screen.queryByRole('list', { name: 'Lifts that moved' })
+
+  describe('the lines for the lifts that moved', () => {
+    test('shows one line for each lift that moved under a week with a logged session, with a link to its history', async () => {
+      renderReview({
+        weeks: { [W]: fullWeek },
+        strength: makeView({
+          asOf: TODAY,
+          weeks: [week(W, { moved: [squatUp, rdlDown] })],
+        }),
+      })
+      await ready()
+      const list = await screen.findByRole('list', { name: 'Lifts that moved' })
+      const items = within(list).getAllByRole('listitem')
+      expect(items.map((item) => item.firstChild?.textContent)).toEqual([
+        'Back squat 110 lb to 115 lb',
+        'Dumbbell Romanian deadlift 40 lb to 35 lb',
+      ])
+      // the line sits under the week's own "N of M strength sessions"
+      expect(screen.getByText('2 of 2 strength sessions').compareDocumentPosition(list)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+      // the link names the lift, and the Strength page opens its history on arrival
+      const link = within(items[0]!).getByRole('link', { name: 'History of Back squat' })
+      expect(link).toHaveAttribute('href', '/strength?lift=back-squat')
+      expect(link).toHaveTextContent('History')
+      expect(
+        within(items[1]!).getByRole('link', { name: 'History of Dumbbell Romanian deadlift' }),
+      ).toHaveAttribute('href', '/strength?lift=dumbbell-rdl')
+      expectCleanCopy(document.body)
+    })
+
+    test("reads the loads in the runner's weight unit", async () => {
+      renderReview(
+        {
+          weeks: { [W]: fullWeek },
+          strength: makeView({ asOf: TODAY, weeks: [week(W, { moved: [squatUp] })] }),
+        },
+        {
+          'GET /api/settings': () => ({
+            email: 'runner@example.com',
+            displayName: null,
+            units: 'km',
+            weightUnit: 'kg',
+          }),
+        },
+      )
+      await ready()
+      const list = await screen.findByRole('list', { name: 'Lifts that moved' })
+      expect(
+        within(list).getByText(
+          `Back squat ${formatLoad(lb(110), 'kg')} to ${formatLoad(lb(115), 'kg')}`,
+        ),
+      ).toBeInTheDocument()
+      expect(list.textContent).toContain(' kg')
+      expect(list.textContent).not.toContain(' lb')
+    })
+
+    test('shows nothing for a week in which no lift moved, and for a week the view does not hold', async () => {
+      renderReview({
+        weeks: { [W]: fullWeek },
+        strength: makeView({
+          asOf: TODAY,
+          weeks: [week(W), week('2026-10-05', { moved: [squatUp] })],
+        }),
+      })
+      await ready()
+      await waitFor(() => {
+        expect(screen.getByText('2 of 2 strength sessions')).toBeInTheDocument()
+      })
+      expect(lines()).not.toBeInTheDocument()
+      cleanup()
+
+      renderReview({
+        weeks: { [W]: fullWeek },
+        strength: makeView({ asOf: TODAY, weeks: [week('2026-10-05', { moved: [squatUp] })] }),
+      })
+      await ready()
+      expect(lines()).not.toBeInTheDocument()
+    })
+
+    test('shows nothing for a week with no logged session', async () => {
+      renderReview({
+        weeks: { [W]: fullWeek },
+        strength: makeView({
+          asOf: TODAY,
+          weeks: [week(W, { logged: 0, sets: 0, moved: [squatUp] })],
+        }),
+      })
+      await ready()
+      expect(lines()).not.toBeInTheDocument()
+    })
+
+    test('follows the week the picker chooses', async () => {
+      const user = userEvent.setup()
+      renderReview({
+        weeks: { [W]: fullWeek },
+        strength: makeView({
+          asOf: TODAY,
+          weeks: [
+            week('2026-10-05', {
+              moved: [{ exerciseId: 'back-squat', fromG: lb(105), toG: lb(110) }],
+            }),
+            week(W, { moved: [squatUp] }),
+          ],
+        }),
+      })
+      await ready()
+      expect(await screen.findByText('Back squat 110 lb to 115 lb')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Previous week' }))
+      await ready('Week of 5 Oct')
+      expect(await screen.findByText('Back squat 105 lb to 110 lb')).toBeInTheDocument()
+      expect(screen.queryByText('Back squat 110 lb to 115 lb')).not.toBeInTheDocument()
+    })
+
+    test('makes no request beyond the one Strength read, and leaves the review as it was', async () => {
+      const api = renderReview({
+        weeks: { [W]: fullWeek },
+        strength: makeView({ asOf: TODAY, weeks: [week(W, { moved: [squatUp] })] }),
+      })
+      await ready()
+      await screen.findByRole('list', { name: 'Lifts that moved' })
+      const strengthCalls = api.calls.filter((call) => call.url.startsWith('/api/strength'))
+      expect(new Set(strengthCalls.map((call) => `${call.method} ${call.url}`))).toEqual(
+        new Set(['GET /api/strength']),
+      )
+      // a read only: nothing is written by looking at a week
+      expect(api.calls.filter((call) => call.method !== 'GET')).toEqual([])
+    })
+
+    test('leaves the review whole when the Strength view cannot be read', async () => {
+      renderReview({ weeks: { [W]: fullWeek }, strength: null })
+      await ready()
+      expect(screen.getByText('2 of 2 strength sessions')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save review' })).toBeInTheDocument()
+      expect(lines()).not.toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('the question about a lower weekly count', () => {
+    const QUESTION = 'Two a week is the plan; one fits a busy stretch too. Plan one a week?'
+    // three finished weeks with one session of two logged, and the week in progress
+    const low = (over: Partial<ReturnType<typeof makeView>> = {}) =>
+      makeView({
+        asOf: TODAY,
+        weeks: [
+          week('2026-09-28', { logged: 1 }),
+          week('2026-10-05', { logged: 1 }),
+          week(W, { logged: 1 }),
+          week(CURRENT, { logged: 0 }),
+        ],
+        lowCountWeeks: P.f9.countPromptWeeks.value,
+        countPrompt: true,
+        ...over,
+      })
+
+    test('is asked on the Review page too, after the week form', async () => {
+      renderReview({ weeks: { [W]: fullWeek }, strength: low() })
+      await ready()
+      const group = await screen.findByRole('group', { name: QUESTION })
+      expect(group).toHaveTextContent(QUESTION)
+      expect(
+        screen.getByRole('button', { name: 'Save review' }).compareDocumentPosition(group),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+      expect(
+        group.compareDocumentPosition(screen.getByRole('heading', { name: 'Reviewed weeks' })),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+      expectCleanCopy(document.body)
+    })
+
+    test('is not asked, and the Profile is not read, while the server does not call for it', async () => {
+      const api = renderReview({ weeks: { [W]: fullWeek } })
+      await ready()
+      await waitFor(() => {
+        expect(api.calls.map((call) => call.url)).toContain('/api/strength')
+      })
+      expect(screen.queryByRole('group', { name: QUESTION })).not.toBeInTheDocument()
+      expect(api.calls.map((call) => call.url)).not.toContain('/api/profile')
+    })
+
+    test('"Plan 1 a week" changes the Profile choice and nothing else', async () => {
+      const user = userEvent.setup()
+      const api = renderReview(
+        { weeks: { [W]: fullWeek }, strength: low() },
+        {
+          'PUT /api/profile': ({ body }) => ({ ...PROFILE, ...(body as object) }),
+        },
+      )
+      await ready()
+      const group = await screen.findByRole('group', { name: QUESTION })
+      expect(api.calls.filter((call) => call.method !== 'GET')).toEqual([])
+
+      await user.click(within(group).getByRole('button', { name: 'Plan 1 a week' }))
+
+      expect(
+        await screen.findByText(
+          'From the next weekly update the plan asks for one strength session a week.',
+        ),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: QUESTION })).not.toBeInTheDocument()
+      // one field: the rest of the Profile is the route's to keep
+      expect(api.calls.filter((call) => call.method !== 'GET')).toEqual([
+        { method: 'PUT', url: '/api/profile', body: { strengthPreference: 1 } },
+      ])
+    })
+
+    test('keeps the question on screen until the line that answers it is there', async () => {
+      const user = userEvent.setup()
+      renderReview(
+        { weeks: { [W]: fullWeek }, strength: low() },
+        { 'PUT /api/profile': ({ body }) => ({ ...PROFILE, ...(body as object) }) },
+      )
+      await ready()
+      const group = await screen.findByRole('group', { name: QUESTION })
+      const line = 'From the next weekly update the plan asks for one strength session a week.'
+
+      // the save lands, and the plan the Review page shows is read again before the call settles
+      delayResponses(150)
+      const frames: Array<{ question: boolean; answer: boolean }> = []
+      const observer = new MutationObserver(() => {
+        frames.push({
+          question: screen.queryByRole('group', { name: QUESTION }) !== null,
+          answer: screen.queryByText(line) !== null,
+        })
+      })
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+      await user.click(within(group).getByRole('button', { name: 'Plan 1 a week' }))
+      await screen.findByText(line)
+      observer.disconnect()
+
+      expect(frames.length).toBeGreaterThan(0)
+      // at no point is there neither the question nor its answer
+      expect(frames.filter((frame) => !frame.question && !frame.answer)).toEqual([])
     })
   })
 })

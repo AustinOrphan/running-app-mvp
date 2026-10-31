@@ -934,7 +934,7 @@ describe('invalidation of engine data', () => {
   }
 
   test('a profile save refetches zones, the plan, today and the zone proposals', async () => {
-    expect(await refetchedBy((r) => r.saveProfile.mutateAsync({} as never))).toEqual([
+    expect(await refetchedBy((r) => r.saveProfile.mutateAsync({}))).toEqual([
       '/api/plan',
       '/api/today',
       '/api/zones',
