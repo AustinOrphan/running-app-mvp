@@ -349,7 +349,7 @@ describe('the note on a week with more sessions than planned (design 12.4)', () 
   })
 })
 
-describe('the stylesheet of the prompt and the note (design 11.7)', () => {
+describe('the stylesheets of the prompt, the note and the Review lines (design 11.7)', () => {
   const css = (file: string) =>
     readFileSync(join(process.cwd(), 'web/components/strength', file), 'utf8')
 
@@ -361,5 +361,11 @@ describe('the stylesheet of the prompt and the note (design 11.7)', () => {
     // only a failed save is danger-coloured
     expect(prompt.match(/var\(--danger\)/g)).toHaveLength(1)
     expect(prompt).toMatch(/\.error \{[^}]*var\(--danger\)/s)
+  })
+
+  test('the history link of a Review line is a 44 px target, and the line wraps instead of widening the page', () => {
+    const lines = css('ReviewStrength.module.css')
+    expect(lines).toMatch(/\.link \{[^}]*min-height: 2\.75rem;/s)
+    expect(lines).toMatch(/\.lift \{[^}]*flex-wrap: wrap;[^}]*min-width: 0;/s)
   })
 })

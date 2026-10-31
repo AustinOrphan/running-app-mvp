@@ -43,6 +43,7 @@ import { Meter } from '../components/Meter.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
+import { ReviewCountPrompt, ReviewLifts } from '../components/strength/ReviewStrength.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { formatShortDate, formatWeekday, weekPhaseLabel } from '../components/format.ts'
 import { localiseEngineText } from '../components/engineText.ts'
@@ -307,6 +308,8 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
         isV2={plan !== null && plan.generatorVersion >= 2}
         sessions={sessions}
       />
+
+      <ReviewCountPrompt />
 
       <ZoneProposals />
 
@@ -848,6 +851,7 @@ function WeekSummary({ row, planWeek }: { row: WeekRow; planWeek: PlanWeek | nul
             : plural(row.strengthSessions, 'strength session', 'strength sessions')}
         </li>
       </ul>
+      <ReviewLifts weekStart={row.weekStart} />
     </div>
   )
 }
