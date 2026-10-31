@@ -4029,3 +4029,60 @@ describe('the jump dose past the cap is capped before it is halved (rule F7, des
     expect(reduced?.contacts).toBe(50)
   })
 })
+
+describe('summariseHistory: the last change of a working load', () => {
+  const lift = (logs: StrengthLogEntry[]) =>
+    summariseHistory(barbellRunner(logs)).lifts.find((l) => l.exerciseId === 'back-squat')
+
+  it('names the latest move of the load, whatever sessions at the same load follow it', () => {
+    const moved = [
+      squat('a', 30, rows(100, [5, 5], [null, null])),
+      squat('b', 23, rows(105, [5, 5], [null, null])),
+      squat('c', 16, rows(105, [5, 5], [null, null])),
+      squat('d', 9, rows(105, [5, 5], [null, null])),
+    ]
+    // a hold after a move still reads the move, dated at the first session at the new load
+    expect(lift(moved)?.lastChange).toEqual({ fromG: lb(100), toG: lb(105), date: ago(23) })
+    // and the latest of several moves, not the first
+    const twice = [...moved, squat('e', 2, rows(110, [5, 5], [null, null]))]
+    expect(lift(twice)?.lastChange).toEqual({ fromG: lb(105), toG: lb(110), date: ago(2) })
+  })
+
+  it('reads a move down as well as a move up', () => {
+    const down = [
+      squat('a', 30, rows(110, [5, 5], [null, null])),
+      squat('b', 23, rows(105, [5, 5], [null, null])),
+      squat('c', 16, rows(105, [5, 5], [null, null])),
+    ]
+    expect(lift(down)?.lastChange).toEqual({ fromG: lb(110), toG: lb(105), date: ago(23) })
+  })
+
+  it('has none while the load has never moved, or with one session', () => {
+    const flat = [
+      squat('a', 30, rows(100, [5, 5], [null, null])),
+      squat('b', 23, rows(100, [5, 5], [null, null])),
+      squat('c', 16, rows(100, [5, 5], [null, null])),
+    ]
+    expect(lift(flat)?.lastChange).toBeNull()
+    expect(lift(flat.slice(0, 1))?.lastChange).toBeNull()
+  })
+
+  it('looks at the normal sessions only, so a lighter day is not a move', () => {
+    const logs = [
+      squat('a', 30, rows(100, [5, 5], [null, null])),
+      squat('b', 23, rows(105, [5, 5], [null, null])),
+      squat('c', 16, rows(105, [5, 5], [null, null])),
+      squat('d', 9, rows(95, [5, 5], [3, 3]), { mode: 'lighter-day' }),
+    ]
+    expect(lift(logs)?.lastChange).toEqual({ fromG: lb(100), toG: lb(105), date: ago(23) })
+  })
+
+  it('does not depend on the order of the logs', () => {
+    const logs = [
+      squat('a', 30, rows(100, [5, 5], [null, null])),
+      squat('b', 23, rows(105, [5, 5], [null, null])),
+      squat('c', 16, rows(105, [5, 5], [null, null])),
+    ]
+    expect(lift([...logs].reverse())?.lastChange).toEqual(lift(logs)?.lastChange)
+  })
+})

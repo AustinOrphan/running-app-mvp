@@ -1585,6 +1585,23 @@ function historySession(session: LoggedSession): HistorySession {
 }
 
 /**
+ * The latest move of a working load: walking back over the normal sessions of the lift to the
+ * latest pair whose working loads differ, that pair with the date of the session at the new load.
+ * So a hold after a move still reads the move. A movement with no added load has no load to move.
+ */
+function lastMove(normal: readonly LoggedSession[]): LiftHistory['lastChange'] {
+  const loaded = normal.filter((session) => session.base !== null)
+  for (let i = loaded.length - 1; i > 0; i -= 1) {
+    const at = loaded[i]
+    const from = loaded[i - 1]?.base ?? null
+    if (at !== undefined && at.base !== null && from !== null && from !== at.base) {
+      return { fromG: from, toG: at.base, date: at.date }
+    }
+  }
+  return null
+}
+
+/**
  * What the Strength page and the weekly review read, computed from the logs and the stored plan on
  * every read (design 6.4, 12): the sessions of each exercise with their heaviest set and estimated
  * maximum, the last move of each working load, and for each week the sessions planned and logged,
@@ -1601,8 +1618,6 @@ export function summariseHistory(ctx: StrengthContext): HistorySummary {
     if (latest === undefined) continue
     const normal = sessions.filter((session) => session.mode === 'normal')
     const lastNormal = normal.at(-1)
-    const before = normal.slice(0, -1).at(-1)
-    const from = before?.base ?? null
     const to = lastNormal?.base ?? null
     lifts.push({
       exerciseId,
@@ -1611,10 +1626,7 @@ export function summariseHistory(ctx: StrengthContext): HistorySummary {
       gapDays: daysBetween(latest.date, ctx.today),
       workingLoadG: to,
       estimateG: latest.estimate,
-      lastChange:
-        lastNormal !== undefined && from !== null && to !== null && from !== to
-          ? { fromG: from, toG: to, date: lastNormal.date }
-          : null,
+      lastChange: lastMove(normal),
     })
   }
   lifts.sort(
