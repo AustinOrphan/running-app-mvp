@@ -1332,6 +1332,37 @@ describe('F8.4 and F8.5: a step up', () => {
     expect(at(50)).toMatchObject({ rule: 'F8.6', change: 'hold' })
   })
 
+  it('reads the smallest step of a list in the grams it was entered in, whatever unit it is shown in', () => {
+    // 10 to 60 lb in 5 lb steps, shown in kilograms: the same 5 lb is 2.25 or 2.5 kg on the display
+    // grid (30 lb is 13.5 kg and 35 lb is 16 kg), so it is the smallest step all the same
+    const weights = [10, 15, 20, 25, 30, 35, 40, 45, 50, 60]
+    const ctx = withSetup(
+      { equipment: [dumbbellsOf(...weights)] },
+      { weightUnit: 'kg', logs: [goblet('g', 5, rows(30, [8, 8, 8], [3, 3, 3]))] },
+    )
+    const s = suggestLoad(ctx, {
+      exerciseId: 'goblet-squat',
+      implement: 'dumbbells',
+      date: TODAY,
+      ...structuresFor('heavy', 'other', 6),
+    })
+    expect(s).toMatchObject({ rule: 'F8.5', change: 'increase', loadG: toGrams(16, 'kg') })
+    // the 10 lb jump from 50 lb to 60 lb is still not the smallest step
+    const jump = suggestLoad(
+      withSetup(
+        { equipment: [dumbbellsOf(...weights)] },
+        { weightUnit: 'kg', logs: [goblet('g', 5, rows(50, [8, 8, 8], [3, 3, 3]))] },
+      ),
+      {
+        exerciseId: 'goblet-squat',
+        implement: 'dumbbells',
+        date: TODAY,
+        ...structuresFor('heavy', 'other', 6),
+      },
+    )
+    expect(jump).toMatchObject({ rule: 'F8.6', change: 'hold' })
+  })
+
   it('keeps the ceiling of the latest earlier estimate when a session gives none, and has none for a lift with no estimate yet', () => {
     // 100 lb to 125 lb is the only step of the list, so it is usable; the ceiling decides
     const at = (logs: StrengthLogEntry[], anchors: StrengthContext['anchors'] = []) =>

@@ -602,16 +602,29 @@ interface StepUp {
 /**
  * Whether the step from `from` to `to` is the smallest step the equipment makes (rule F8.5, amended
  * 2026-10-25): a ladder or a stack has one step, so every step of it is the smallest, and a list of
- * weights has its smallest gap between neighbours. Read in the runner's unit.
+ * weights has its smallest gap between neighbours. The gaps are read in the grams the weights were
+ * entered in and not in the displayed unit, whose half pound or quarter kilogram grid would show
+ * one physical step as two sizes.
  */
 function isSmallestStep(steps: LoadSteps, from: number, to: number, unit: WeightUnit): boolean {
   if (!('loadsG' in steps)) return true
-  const shown = [...new Set(steps.loadsG.map((g) => fromGrams(g, unit)))].sort((a, b) => a - b)
-  let smallest = Infinity
-  for (let i = 1; i < shown.length; i += 1) {
-    smallest = Math.min(smallest, (shown[i] ?? 0) - (shown[i - 1] ?? 0))
+  const shown = (g: number): number => fromGrams(g, unit)
+  // the weights as the equipment makes them, sorted, one to each displayed load (as `stepsFor` reads)
+  const rungs: number[] = []
+  for (const g of [...steps.loadsG].sort((a, b) => a - b)) {
+    const last = rungs.at(-1)
+    if (Number.isFinite(g) && g > 0 && (last === undefined || shown(g) !== shown(last))) {
+      rungs.push(g)
+    }
   }
-  return fromGrams(to, unit) - fromGrams(from, unit) <= smallest
+  let smallest = Infinity
+  for (let i = 1; i < rungs.length; i += 1) {
+    smallest = Math.min(smallest, (rungs[i] ?? 0) - (rungs[i - 1] ?? 0))
+  }
+  // a rung is the entered weight that shows as the load, and a load off the list stands as it is
+  const entered = (g: number): number => rungs.find((rung) => shown(rung) === shown(g)) ?? g
+  // a weight is stored to the whole gram, so equal steps may differ by one
+  return entered(to) - entered(from) <= smallest + 1
 }
 
 /**
