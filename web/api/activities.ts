@@ -75,6 +75,9 @@ export const ACTIVITY_DATA_KEYS = [
   keys.predictions,
   keys.state,
   keys.stats,
+  // The strength readers: a deleted activity takes its log with it, and a log's sessions, weeks and
+  // next loads are derived from the activities and the stored plan.
+  keys.strength,
   // A run's fuel log is read against its elapsed time and weather, and the ladder against its logs.
   keys.fuel,
 ] as const
