@@ -233,6 +233,18 @@ export const STRENGTH_TEMPLATES = {
     { shape: 'label', fallback: 'Strength: open the workout' },
   ),
 
+  // ---- The session sheet (design 11.2) ----------------------------------------------------------
+  // `week` and `of` are the place of the session in the block (`e5.strengthBlockWeeks`).
+  'strength.session.week': tpl('Week {week} of {of} of the strength block.', {
+    week: 'count',
+    of: 'count',
+  }),
+  // A session ahead is worked out from the logs there are now, so its loads can still move.
+  'strength.session.as-of-today': tpl(
+    'As of today: the loads can change with the sessions before this one.',
+  ),
+  'strength.session.unavailable': tpl('The workout could not be loaded.'),
+
   // ---- Where a session stands in the block (design 8.1, 9.1, 11.3) ------------------------------
   'strength.heading': tpl(
     'Strength, {template} {variant}',
