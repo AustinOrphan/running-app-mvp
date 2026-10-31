@@ -1,5 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { renderFact } from '../../shared/copy/templates.ts'
+import type { ExplainView } from '../../shared/engine/types.ts'
 import type { PlanWithSessions } from '../../shared/types.ts'
 import { parsePlanOptions } from '../../server/serialize.ts'
 import {
@@ -218,6 +220,118 @@ describe('POST /api/plan/generate with a method preset', () => {
       effective: 'three-run-days',
       reason: null,
     })
+  })
+})
+
+describe('a goal switch', () => {
+  const activate = (user: TestUser, goalId: string) =>
+    client(ctx, user).post(`/api/goals/${goalId}/activate`).send({ replacePlan: true })
+
+  test('carries the stored preset to the plan for the other goal, which reads it as the default for a marathon', async () => {
+    const user = await seedRunner('method-switch@example.com')
+    const half = await seedGoal(user.id, HALF_M, 'Test Half')
+    const marathon = await seedGoal(user.id, MARATHON_M, 'Test Marathon')
+    const created = await generate(user, half.id, { method: 'three-run-days' })
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    const halfPlan = created.body as PlanWithSessions
+    expect(halfPlan.method?.effective).toBe('three-run-days')
+
+    // the switch builds the plan for the marathon from the stored options
+    const switched = await activate(user, marathon.id)
+    expect(switched.status, JSON.stringify(switched.body)).toBe(200)
+    const plan = await readPlan(user)
+    expect(plan.id).not.toBe(halfPlan.id)
+    expect(plan.goalId).toBe(marathon.id)
+    expect(await storedOptions(plan.id)).toEqual({ method: 'three-run-days' })
+    expect(plan.method).toEqual({
+      requested: 'three-run-days',
+      effective: 'default',
+      reason: 'not-applicable',
+    })
+    const revisions = await ctx.prisma.planRevision.findMany({ where: { planId: plan.id } })
+    expect(revisions.map((r) => r.reason)).toEqual(['goal-switch'])
+
+    // and back to the half marathon: the choice is still there, and applies again
+    const back = await activate(user, half.id)
+    expect(back.status, JSON.stringify(back.body)).toBe(200)
+    const again = await readPlan(user)
+    expect(again.goalId).toBe(half.id)
+    expect(await storedOptions(again.id)).toEqual({ method: 'three-run-days' })
+    expect(again.method).toEqual({
+      requested: 'three-run-days',
+      effective: 'three-run-days',
+      reason: null,
+    })
+    expect(Math.max(...ahead(again).map((w) => w.runDays))).toBeLessThanOrEqual(3)
+  })
+})
+
+describe('the default method and no method, through the load setting and a re-plan', () => {
+  /** Generate, set the load to Standard and re-plan: what the plan holds at the end. */
+  async function lifecycle(email: string, options?: Record<string, unknown>) {
+    const user = await seedRunner(email)
+    const goal = await seedGoal(user.id, HALF_M, 'Test Half')
+    expect((await generate(user, goal.id, options)).status).toBe(201)
+    const standard = await client(ctx, user)
+      .put('/api/plan/load')
+      .send({ loadAppetite: 'standard' })
+    expect(standard.status, JSON.stringify(standard.body)).toBe(200)
+    const replanned = await client(ctx, user).post('/api/plan/replan').send({})
+    expect(replanned.status, JSON.stringify(replanned.body)).toBe(200)
+    const plan = await readPlan(user)
+    return {
+      plan,
+      weeks: weeksOf(plan),
+      sessions: plan.sessions.map((s) => [s.date, s.kind, s.durationMin, s.title]),
+    }
+  }
+
+  test('give the same weeks and sessions', async () => {
+    const none = await lifecycle('method-life-none@example.com')
+    const chosen = await lifecycle('method-life-default@example.com', { method: 'default' })
+    expect(chosen.weeks).toEqual(none.weeks)
+    expect(chosen.sessions).toEqual(none.sessions)
+    expect(chosen.plan.method).toEqual(DEFAULT)
+    expect(none.plan.method).toEqual(DEFAULT)
+    expect(chosen.plan.load).toEqual(none.plan.load)
+    expect(chosen.plan.checklist).toEqual(none.plan.checklist)
+    expect(chosen.plan.feasibility).toEqual(none.plan.feasibility)
+  })
+})
+
+describe('the Why drawer on a plan with a preset', () => {
+  const runDayFacts = async (user: TestUser): Promise<string[]> => {
+    const res = await client(ctx, user).get('/api/explain?subject=rules&rules=F5')
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const view = res.body as ExplainView
+    const facts = view.groups.find((group) => group.rule === 'F5')?.facts ?? []
+    return facts.map((fact) => renderFact(fact, 'km'))
+  }
+
+  test('states the cap of three run days to a masters runner on three-run-days, and six otherwise', async () => {
+    const preset = await seedRunner('method-explain-p2@example.com')
+    const presetGoal = await seedGoal(preset.id, HALF_M, 'Test Half')
+    expect((await generate(preset, presetGoal.id, { method: 'three-run-days' })).status).toBe(201)
+    expect(await runDayFacts(preset)).toContain(
+      'From age 41 the plan keeps run days to 3 a week or fewer.',
+    )
+
+    const plain = await seedRunner('method-explain-default@example.com')
+    const plainGoal = await seedGoal(plain.id, HALF_M, 'Test Half')
+    expect((await generate(plain, plainGoal.id)).status).toBe(201)
+    expect(await runDayFacts(plain)).toContain(
+      'From age 41 the plan keeps run days to 6 a week or fewer.',
+    )
+
+    // a preset that does not apply to the goal leaves the default's cap in the drawer, as in the plan
+    const marathon = await seedRunner('method-explain-marathon@example.com')
+    const marathonGoal = await seedGoal(marathon.id, MARATHON_M, 'Test Marathon')
+    expect((await generate(marathon, marathonGoal.id, { method: 'three-run-days' })).status).toBe(
+      201,
+    )
+    expect(await runDayFacts(marathon)).toContain(
+      'From age 41 the plan keeps run days to 6 a week or fewer.',
+    )
   })
 })
 
