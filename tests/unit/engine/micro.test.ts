@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { addDays, daysBetween } from '../../../shared/dates.ts'
 import type { DayRule } from '../../../shared/engine/disruption.ts'
 import type { SessionKind, SessionSpec, WeekDraft } from '../../../shared/engine/types.ts'
-import { holdSessions, placeWeek, strengthOffDay } from '../../../shared/engine/micro.ts'
+import {
+  holdSessions,
+  placeWeek,
+  strengthMinutes,
+  strengthOffDay,
+} from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { postRaceWindow, windowWeeks } from '../../../shared/engine/postRace.ts'
 import { WEEKDAYS, ZONES, availability, profile, session, state, week } from './e6-fixtures.ts'
@@ -443,6 +448,28 @@ describe('placeWeek', () => {
       })
       const sessions = place(b2bWeek({ runDays: 3 }), { profile: profile({ availability: avail }) })
       expect(sessions.some((s) => s.kind === 'b2b')).toBe(false)
+    })
+  })
+
+  describe('the time a strength session is given (strengthMinutes, rules F7, F4)', () => {
+    it('is the block budget in a block week and the maintenance budget in every other week', () => {
+      expect(strengthMinutes({ flags: ['strength-block'] })).toBe(P.f7.blockSessionMin.value)
+      expect(strengthMinutes({ flags: ['strength-block', 'recovery'] })).toBe(
+        P.f7.blockSessionMin.value,
+      )
+      for (const flags of [[], ['taper'], ['recovery'], ['injury-return']]) {
+        expect(strengthMinutes({ flags }), flags.join()).toBe(P.f7.maintenanceSessionMin.value)
+      }
+    })
+
+    it('is the budget the placement gives a session', () => {
+      for (const flags of [[], ['strength-block']]) {
+        const given = place(week({ strengthSessions: 2, flags })).filter(
+          (s) => s.kind === 'strength',
+        )
+        expect(given.length).toBeGreaterThan(0)
+        for (const s of given) expect(s.durationMin).toBe(strengthMinutes({ flags }))
+      }
     })
   })
 

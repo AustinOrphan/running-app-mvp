@@ -3,6 +3,7 @@
 // own, so the shared G5 lint covers every word, and a load reads in the runner's weight unit: one
 // place makes every sentence of the sheet in the unit it was given.
 import { countPhrase } from '../../../shared/copy/quantity.ts'
+import { mondayOf } from '../../../shared/dates.ts'
 import {
   STRENGTH_TEMPLATES,
   type StrengthTemplateId,
@@ -104,6 +105,31 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     return say('strength.heading', { template: say(`strength.template.${template}`), variant })
   }
 
+  /**
+   * Where a log with no planned session starts from (design 9.1): the next planned session, or the
+   * session of the week of `date`, named by the template the workout really has (a maintenance
+   * week, but also a block week, the taper or a return week). `thisWeek` is whether that week is the
+   * server's current one.
+   */
+  function startLine(
+    start: 'next-planned' | 'maintenance',
+    template: StrengthTemplate,
+    date: string,
+    thisWeek: boolean,
+  ): string {
+    if (start === 'next-planned') return say('strength.sheet.from-next')
+    const monday: Quantity = { kind: 'date', iso: mondayOf(date), style: 'short' }
+    const name = say(`strength.template.${template}`)
+    if (template === 'maintenance') {
+      return thisWeek
+        ? say('strength.sheet.from-maintenance')
+        : say('strength.sheet.from-maintenance-week', { date: monday })
+    }
+    return thisWeek
+      ? say('strength.sheet.from-week', { template: name })
+      : say('strength.sheet.from-week-of', { template: name, date: monday })
+  }
+
   /** The accessible name of a stepper or a scale: "Back squat, set 2, load". */
   function stepperGroup(exerciseId: string, set: number, what: string): string {
     return say('strength.sheet.stepper-group', {
@@ -156,6 +182,7 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     suggestion,
     reason,
     heading,
+    startLine,
     stepperGroup,
     nextLine,
     saved,

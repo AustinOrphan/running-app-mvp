@@ -635,6 +635,18 @@ export const STRENGTH_TEMPLATES = {
     { date: 'date' },
     { fallback: 'From a maintenance session.' },
   ),
+  // The same for a week that is not a maintenance week (a block week, the taper, a return week):
+  // the session is the week's own, so the line names its template. `template` reads "heavy".
+  'strength.sheet.from-week': tpl(
+    "From this week's {template} session.",
+    { template: 'text' },
+    { fallback: 'From a session of this week.' },
+  ),
+  'strength.sheet.from-week-of': tpl(
+    'From the {template} session of the week of {date}.',
+    { template: 'text', date: 'date' },
+    { fallback: 'From a session of that week.' },
+  ),
   'strength.sheet.title-plain': tpl('Strength', {}, { shape: 'label' }),
   'strength.sheet.workout-reading': tpl('Reading the workout.'),
   'strength.sheet.workout-error': tpl(

@@ -1135,7 +1135,29 @@ describe('where a workout came from (design 9.1)', () => {
     expect(screen.queryByRole('button', { name: /^Why:/ })).toBeNull()
   })
 
-  test('names the week of a maintenance session logged in another week', async () => {
+  test.each([
+    ['heavy', "From this week's heavy session."],
+    ['ramp-in', "From this week's ramp-in session."],
+    ['lighter-week', "From this week's lighter week session."],
+    ['taper', "From this week's taper session."],
+    ['return', "From this week's return session."],
+  ] as const)(
+    'a start in a %s week says so, not that it is a maintenance session',
+    async (template, line) => {
+      // the server gives the week's own template, which is maintenance only outside a block
+      open({
+        workout: makeWorkout({ sessionId: `maintenance-${DAY}`, template }),
+        start: 'maintenance',
+        sessionId: null,
+      })
+      const dialog = await screen.findByRole('dialog', { name: /^Strength, / })
+      expect(await within(dialog).findByText(line)).toBeVisible()
+      expect(within(dialog).queryByText(/maintenance/)).toBeNull()
+      expectCleanCopy(dialog)
+    },
+  )
+
+  test('names the template and the week of a start logged in another week', async () => {
     open({
       workout: makeWorkout({ sessionId: 'maintenance-2026-03-04', date: '2026-03-04' }),
       date: '2026-03-04',
@@ -1143,6 +1165,39 @@ describe('where a workout came from (design 9.1)', () => {
       sessionId: null,
     })
     const dialog = await sheet()
+    expect(
+      await within(dialog).findByText('From the heavy session of the week of 2 Mar.'),
+    ).toBeVisible()
+    expect(within(dialog).queryByText(/maintenance/)).toBeNull()
+  })
+
+  test('a sheet that reads a block week’s start says so with the week’s template', async () => {
+    open({
+      read: { date: DAY },
+      sessionId: null,
+      routes: {
+        'GET /api/strength/workout': dayRoute(
+          makeWorkout({ sessionId: `maintenance-${DAY}` }),
+          'maintenance',
+        ),
+      },
+    })
+    const dialog = await sheet()
+    expect(await within(dialog).findByText("From this week's heavy session.")).toBeVisible()
+  })
+
+  test('names the week of a maintenance session logged in another week', async () => {
+    open({
+      workout: makeWorkout({
+        sessionId: 'maintenance-2026-03-04',
+        date: '2026-03-04',
+        template: 'maintenance',
+      }),
+      date: '2026-03-04',
+      start: 'maintenance',
+      sessionId: null,
+    })
+    const dialog = await sheet('Strength, maintenance A')
     expect(
       await within(dialog).findByText('From the maintenance session of the week of 2 Mar.'),
     ).toBeVisible()

@@ -1753,7 +1753,9 @@ export interface WorkoutLift {
 
 /**
  * Where the workout of a day was taken from (design 9.1): the planned strength session of that day,
- * else the next planned one, else the maintenance session of that day's week.
+ * else the next planned one, else a session of that day's week. Of that last one the design says "the
+ * maintenance template of that week", read as the week's own template and budget: maintenance outside
+ * a block, and the template of a block, taper or return week inside one.
  */
 export type StrengthWorkoutSource = 'planned' | 'next-planned' | 'maintenance'
 

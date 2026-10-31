@@ -321,13 +321,12 @@ export function StrengthForm({
         </p>
         {start === null ? null : (
           <p className={styles.muted}>
-            {start === 'next-planned'
-              ? words.say('strength.sheet.from-next')
-              : asOf !== undefined && mondayOf(asOf) === mondayOf(date)
-                ? words.say('strength.sheet.from-maintenance')
-                : words.say('strength.sheet.from-maintenance-week', {
-                    date: { kind: 'date', iso: mondayOf(date), style: 'short' },
-                  })}
+            {words.startLine(
+              start,
+              workout.template,
+              date,
+              asOf !== undefined && mondayOf(asOf) === mondayOf(date),
+            )}
           </p>
         )}
         {lighterDay ? (

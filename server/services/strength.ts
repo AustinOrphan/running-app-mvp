@@ -13,7 +13,7 @@ import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { isExerciseId, type ExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { plannedMinOf } from '../../shared/engine/limits.ts'
-import { strengthOffDay } from '../../shared/engine/micro.ts'
+import { strengthMinutes, strengthOffDay } from '../../shared/engine/micro.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { illnessPhase, recentPain } from '../../shared/engine/readiness.ts'
 import {
@@ -685,13 +685,21 @@ export async function todayStrengthSetupSlot(
 }
 
 /**
- * A session that is no stored session: the maintenance session of the week of `date`, which the
- * engine gives the template of that week (maintenance outside a block, the taper or a return week
- * where the plan says so). Its id names nothing in the plan, and the engine counts it as one more
- * session of its week when it picks A or B.
+ * A session that is no stored session: the session of the week of `date` that a log with no
+ * planned session starts from (design 9.1, "the maintenance template of that week"). It is the
+ * week's own: the engine gives it the template of that week (maintenance outside a block, and the
+ * block's, the taper's or a return week's template where the plan says so) and the planner's own
+ * budget for such a week (`strengthMinutes`: the block budget in a block week, the maintenance
+ * budget otherwise; a week the plan does not hold has no flags, so it is maintenance). Its id names
+ * nothing in the plan, and the engine counts it as one more session of its week when it picks A or B.
  */
-function maintenanceRef(id: string, date: string): StrengthSessionRef {
-  return { id, date, order: 0, durationMin: P.f7.maintenanceSessionMin.value, rules: [] }
+function maintenanceRef(
+  id: string,
+  date: string,
+  weeks: readonly StrengthWeek[],
+): StrengthSessionRef {
+  const week = weeks.find((candidate) => candidate.weekStart === mondayOf(date))
+  return { id, date, order: 0, durationMin: strengthMinutes(week ?? { flags: [] }), rules: [] }
 }
 
 /**
@@ -733,7 +741,7 @@ export async function strengthDayWorkout(
       ref = sessionRefOf(next)
     } else {
       source = 'maintenance'
-      ref = maintenanceRef(`maintenance-${date}`, date)
+      ref = maintenanceRef(`maintenance-${date}`, date, context.weeks)
     }
   }
   return {
@@ -850,7 +858,7 @@ async function nextLoads(
   const ref: StrengthSessionRef =
     ahead !== undefined
       ? sessionRefOf(ahead)
-      : maintenanceRef(log.id, addDays(log.date > today ? log.date : today, 1))
+      : maintenanceRef(log.id, addDays(log.date > today ? log.date : today, 1), context.weeks)
   const seen = new Set<string>()
   const next: StrengthNextLoad[] = []
   for (const set of log.sets) {

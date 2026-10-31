@@ -855,9 +855,10 @@ function planRuns(
 
 /**
  * The time a strength session is given, and the room a day needs for it: the budget of a block
- * week, or the smaller one of every other week [rules F7, F4].
+ * week, or the smaller one of every other week [rules F7, F4]. The one place the budget is decided:
+ * the placement of a week's lifts and the session a log with no plan starts from both ask it.
  */
-function strengthMinutes(week: WeekDraft): number {
+export function strengthMinutes(week: Pick<WeekDraft, 'flags'>): number {
   return week.flags.includes('strength-block')
     ? P.f7.blockSessionMin.value
     : P.f7.maintenanceSessionMin.value

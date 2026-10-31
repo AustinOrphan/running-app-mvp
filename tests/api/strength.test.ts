@@ -5,7 +5,8 @@ import { renderFact } from '../../shared/copy/templates.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { EXERCISES } from '../../shared/domain/strengthLibrary.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import { structuresFor } from '../../shared/engine/strength.ts'
+import { strengthMinutes } from '../../shared/engine/micro.ts'
+import { blockPosition, strengthTemplate, structuresFor } from '../../shared/engine/strength.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { loadAthleteContext } from '../../server/services/athleteState.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
@@ -1492,7 +1493,13 @@ interface SeedSession {
 async function seedPlan(
   user: TestUser,
   sessions: SeedSession[],
-  seed: { block?: number; distanceM?: number; targetTimeSec?: number } = {},
+  seed: {
+    block?: number
+    distanceM?: number
+    targetTimeSec?: number
+    /** The flags of week `index` (0 is six weeks back, 6 is this week); the block flag by default. */
+    weekFlags?: (index: number, base: string[]) => string[]
+  } = {},
 ) {
   const { thisMonday } = days()
   const goal = await ctx.prisma.goal.create({
@@ -1526,7 +1533,12 @@ async function seedPlan(
           longRunMin: 70,
           runDays: 4,
           strengthSessions: 2,
-          flags: JSON.stringify(index < (seed.block ?? 12) ? ['strength-block'] : []),
+          flags: JSON.stringify(
+            (seed.weekFlags ?? ((_, base) => base))(
+              index,
+              index < (seed.block ?? 12) ? ['strength-block'] : [],
+            ),
+          ),
         })),
       },
     },
@@ -2104,7 +2116,10 @@ describe('GET /api/strength/workout', () => {
   }
 
   /** A runner with a bar and dumbbells, in week 7 of a block of 12 (a heavy week). */
-  const lifter = async (sessions: SeedSession[], seed: { block?: number } = {}) => {
+  const lifter = async (
+    sessions: SeedSession[],
+    seed: { block?: number; weekFlags?: (index: number, base: string[]) => string[] } = {},
+  ) => {
     const user = await newUser()
     await seedProfile(user)
     await setup(user, { equipment: [BARBELL, DUMBBELLS, { kind: 'step' }], level: 'some' })
@@ -2205,6 +2220,89 @@ describe('GET /api/strength/workout', () => {
       })
       expect(day.workout.lifts.length).toBeGreaterThan(0)
       expect(day.workout.lifts.every((lift) => lift.sets === P.f7.maintenanceSets.value)).toBe(true)
+    })
+
+    describe('in a week that has a template of its own', () => {
+      /** The template and the budget the engine gives a session of the week of `date`. */
+      async function engineWeek(user: TestUser, date: string) {
+        const strength = await loadStrengthContext(ctx, { userId: user.id, today: todayIso() })
+        const week = strength.weeks.find((candidate) => candidate.weekStart === mondayOf(date))!
+        return {
+          template: strengthTemplate(week, blockPosition(strength, week.weekStart)),
+          budgetMin: strengthMinutes(week),
+        }
+      }
+      const thisWeek = (flags: string[]) => (index: number) => (index === 6 ? flags : [])
+
+      test('takes the week’s own template and the block budget in a week of the block', async () => {
+        const { today } = days()
+        // week 7 of a block of 12, nothing planned ahead: the heavy week it is
+        const { user } = await lifter([])
+        const day = await dayOf(user, today)
+        expect(day.source).toBe('maintenance')
+        expect(day.workout).toMatchObject({
+          template: 'heavy',
+          block: { week: 7, of: 12, rampInWeeks: 3 },
+          budgetMin: P.f7.blockSessionMin.value,
+        })
+        expect(await engineWeek(user, today)).toEqual({
+          template: day.workout.template,
+          budgetMin: day.workout.budgetMin,
+        })
+      })
+
+      test('takes the maintenance budget in a taper week, and the taper’s template', async () => {
+        const { today } = days()
+        const { user } = await lifter([], { block: 0, weekFlags: thisWeek(['taper']) })
+        const day = await dayOf(user, today)
+        expect(day.workout).toMatchObject({
+          template: 'taper',
+          budgetMin: P.f7.maintenanceSessionMin.value,
+        })
+        expect(await engineWeek(user, today)).toEqual({
+          template: 'taper',
+          budgetMin: day.workout.budgetMin,
+        })
+      })
+
+      test('takes a return week’s template, with the budget of a block week inside the block and the maintenance budget outside it', async () => {
+        const { today } = days()
+        const inside = await lifter([], {
+          weekFlags: thisWeek(['strength-block', 'injury-return']),
+        })
+        const day = await dayOf(inside.user, today)
+        expect(day.workout).toMatchObject({
+          template: 'return',
+          budgetMin: P.f7.blockSessionMin.value,
+        })
+        expect(await engineWeek(inside.user, today)).toEqual({
+          template: 'return',
+          budgetMin: day.workout.budgetMin,
+        })
+
+        const outside = await lifter([], { block: 0, weekFlags: thisWeek(['injury-return']) })
+        const bare = await dayOf(outside.user, today)
+        expect(bare.workout).toMatchObject({
+          template: 'return',
+          budgetMin: P.f7.maintenanceSessionMin.value,
+        })
+        expect(await engineWeek(outside.user, today)).toEqual({
+          template: 'return',
+          budgetMin: bare.workout.budgetMin,
+        })
+      })
+
+      test('is the maintenance template and budget in a week the plan does not hold', async () => {
+        const { today } = days()
+        const { user } = await lifter([])
+        const far = addDays(today, 7 * 40)
+        const day = await dayOf(user, far)
+        expect(day.workout).toMatchObject({
+          template: 'maintenance',
+          block: null,
+          budgetMin: P.f7.maintenanceSessionMin.value,
+        })
+      })
     })
 
     test('is the maintenance session for a runner with no plan at all, and bodyweight only before the setup', async () => {
