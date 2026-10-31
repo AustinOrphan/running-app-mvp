@@ -28,6 +28,7 @@ import {
 } from '../../../shared/domain/weight.ts'
 import {
   anchorEstimate,
+  barbellAllowed,
   blockPosition,
   estimateOneRm,
   liftFor,
@@ -236,10 +237,8 @@ describe('strengthTemplate', () => {
     expect(strengthTemplate(flagged(['strength-block'], { isRecovery: true }), inBlock(7))).toBe(
       'lighter-week',
     )
-    // inside the ramp-in as well: the load is kept either way, and the sets are fewer
-    expect(strengthTemplate(flagged(['strength-block', 'recovery']), inBlock(2))).toBe(
-      'lighter-week',
-    )
+    // inside the ramp-in a recovery week stays a ramp-in, with fewer sets (see the describe below)
+    expect(strengthTemplate(flagged(['strength-block', 'recovery']), inBlock(2))).toBe('ramp-in')
   })
 
   it('is maintenance after the block and before the taper, recovery week or not', () => {
@@ -3510,5 +3509,121 @@ describe('workoutFor: a harder movement that has stalled as well (rule F8.7)', (
       'Step-up',
       null,
     ])
+  })
+})
+
+describe('a running recovery week inside the ramp-in (rule F7)', () => {
+  const index = 1 // block week 2 of 3
+  const recoveryWeeks = plan(30, 12).map((w, i) =>
+    i === index ? { ...w, flags: [...w.flags, 'recovery'] } : w,
+  )
+  const session = sessionOf(index)
+  const seasoned = (pounds: number) =>
+    log('seed', addDays(session.date, -4), {
+      sets: [
+        ...setsOf('goblet-squat', rows(pounds, [6, 6, 6], [3, 3, 3])),
+        ...setsOf('dumbbell-rdl', rows(pounds, [6, 6, 6], [3, 3, 3]), 10),
+        ...setsOf('standing-calf-raise', rows(pounds, [6, 6, 6], [3, 3, 3]), 20),
+      ],
+    })
+  const run = (weeks: StrengthWeek[], kinds: EquipmentKind[] = ['barbell', 'dumbbells']) =>
+    workoutFor(
+      withSetup(
+        { equipment: have(...kinds) },
+        { today: session.date, weeks, logs: [seasoned(40)] },
+      ),
+      session,
+    )
+
+  it('stays a ramp-in: 6 to 8 reps leaving 3, no barbell, with the sets of a recovery week', () => {
+    const workout = run(recoveryWeeks)
+    expect(workout.template).toBe('ramp-in')
+    expect(workout.block).toEqual({ week: 2, of: 12, rampInWeeks: 3 })
+    expect(workout.lifts.map((lift) => lift.exerciseId)).toEqual([
+      'goblet-squat',
+      'dumbbell-rdl',
+      'standing-calf-raise',
+    ])
+    for (const lift of workout.lifts) {
+      expect(lift.implement, lift.exerciseId).not.toBe('barbell')
+      expect(lift.range).toEqual({ min: 6, max: 8 })
+      expect(lift.rir).toEqual({ min: P.f7.easyRir.value, max: P.f7.easyRir.value })
+      expect(lift.sets).toBe(P.f7.maintenanceSets.value)
+    }
+    // the same week without the flag has the sets of a later ramp-in week
+    const usual = run(plan(30, 12))
+    expect(usual.lifts.map((lift) => lift.sets)).toEqual([3, 3, 3])
+  })
+
+  it('keeps the load, halves the jumps, and is logged as a lighter week', () => {
+    const workout = run(recoveryWeeks)
+    // every set was at the bottom of the range, so the usual week would hold: the load is the same
+    expect(workout.lifts.map((lift) => lift.loadG)).toEqual([lb(40), lb(40), lb(40)])
+    expect(workout.plyo).toEqual({
+      contacts: Math.round(P.f7.plyoStartContacts.value * P.f7.reducedPlyoShare.value),
+      movements: ['pogo-hop'],
+    })
+    expect(modeOf(workout)).toBe('lighter-week')
+    // a load that would have risen is kept in a recovery week
+    const risen = withSetup(
+      { equipment: have('dumbbells') },
+      {
+        today: session.date,
+        weeks: recoveryWeeks,
+        logs: [
+          log('top', addDays(session.date, -4), {
+            sets: setsOf('goblet-squat', rows(40, [8, 8, 8], [3, 3, 3])),
+          }),
+        ],
+      },
+    )
+    const knee = workoutFor(risen, session).lifts[0]
+    expect(knee).toMatchObject({ exerciseId: 'goblet-squat', loadG: lb(40), change: 'hold' })
+    expect(knee?.basis.facts.map((f) => f.template)).toEqual(['strength.reason.lighter-week'])
+  })
+
+  it('gives a runner with a bar the bodyweight lifts of the ramp-in, not the squat', () => {
+    const workout = run(recoveryWeeks, ['barbell'])
+    expect(workout.template).toBe('ramp-in')
+    expect(workout.lifts.map((lift) => lift.exerciseId)).toEqual([
+      'tempo-squat',
+      'hip-thrust',
+      'standing-calf-raise',
+    ])
+    expect(workout.lifts.every((lift) => lift.implement !== 'barbell')).toBe(true)
+  })
+
+  it('lets the barbell in from the first week after the ramp-in, recovery week or not', () => {
+    const after = sessionOf(3)
+    const weeks = plan(30, 12).map((w, i) =>
+      i === 3 ? { ...w, flags: [...w.flags, 'recovery'] } : w,
+    )
+    const ctx = withSetup({ equipment: have('barbell') }, { today: after.date, weeks })
+    const workout = workoutFor(ctx, after)
+    expect(workout.template).toBe('lighter-week')
+    expect(workout.lifts[0]?.implement).toBe('barbell')
+  })
+
+  it('decides the barbell by the place in the block as well as by the template', () => {
+    const inside = { week: 2, of: 12, rampInWeeks: 3 }
+    const outside = { week: 4, of: 12, rampInWeeks: 3 }
+    expect(barbellAllowed('lighter-week', inside)).toBe(false)
+    expect(barbellAllowed('heavy', inside)).toBe(false)
+    expect(barbellAllowed('lighter-week', outside)).toBe(true)
+    expect(barbellAllowed('heavy', outside)).toBe(true)
+    expect(barbellAllowed('lighter-week', null)).toBe(true)
+    expect(barbellAllowed('ramp-in', null)).toBe(false)
+    expect(barbellAllowed('return', outside)).toBe(false)
+    // a regenerate that skipped the ramp-in has no weeks inside it
+    expect(barbellAllowed('heavy', { week: 1, of: 12, rampInWeeks: 0 })).toBe(true)
+  })
+
+  it('names the ramp-in template for the first weeks whatever the recovery flag', () => {
+    const inBlock = (week: number): BlockPosition => ({ week, of: 12, rampInWeeks: 3 })
+    const flagged = { flags: ['strength-block', 'recovery'], phase: 'base', isRecovery: true }
+    expect(strengthTemplate(flagged, inBlock(1))).toBe('ramp-in')
+    expect(strengthTemplate(flagged, inBlock(3))).toBe('ramp-in')
+    expect(strengthTemplate(flagged, inBlock(4))).toBe('lighter-week')
+    expect(strengthTemplate(flagged, null)).toBe('maintenance')
   })
 })

@@ -128,8 +128,9 @@ export function blockPosition(ctx: StrengthContext, weekStart: string): BlockPos
  * the block. The first that applies wins, the more conservative first (G6):
  *
  * 1. `return`: an injury-return, ladder, run-walk or restart-floor week, or a post-race week.
- * 2. In the block: `lighter-week` in a running recovery week, `ramp-in` in the first weeks,
- *    `heavy` after them.
+ * 2. In the block: `ramp-in` in the first weeks, whatever the recovery flag (a recovery week of
+ *    the ramp-in keeps its structure and cuts its sets, see `SessionPlan.recovery`); after them
+ *    `lighter-week` in a running recovery week and `heavy` otherwise.
  * 3. Outside it: `taper` in a taper or race week, `maintenance` otherwise.
  */
 export function strengthTemplate(
@@ -138,8 +139,8 @@ export function strengthTemplate(
 ): StrengthTemplate {
   if (isReturnWeek(week)) return 'return'
   if (position !== null) {
-    if (isRecoveryWeek(week)) return 'lighter-week'
-    return position.week <= position.rampInWeeks ? 'ramp-in' : 'heavy'
+    if (position.week <= position.rampInWeeks) return 'ramp-in'
+    return isRecoveryWeek(week) ? 'lighter-week' : 'heavy'
   }
   const tapering =
     week.flags.includes('taper') ||
@@ -199,9 +200,18 @@ const equipmentOf = (ctx: StrengthContext): readonly EquipmentConfig[] =>
 const avoidedBy = (ctx: StrengthContext): ReadonlySet<string> =>
   new Set(ctx.setup.saved ? ctx.setup.avoid : [])
 
-/** The barbell is allowed in every template but the ramp-in and the return (design 7.2). */
-export const barbellAllowed = (template: StrengthTemplate): boolean =>
-  template !== 'ramp-in' && template !== 'return'
+/**
+ * The barbell is allowed in every template but the ramp-in and the return, and in no week inside
+ * the ramp-in whatever the template (design 7.2, 8.2): the place in the block decides as well as
+ * the template, so a recovery week of the ramp-in cannot bring it in.
+ */
+export const barbellAllowed = (
+  template: StrengthTemplate,
+  position: BlockPosition | null = null,
+): boolean =>
+  template !== 'ramp-in' &&
+  template !== 'return' &&
+  (position === null || position.week > position.rampInWeeks)
 
 /**
  * The ways an exercise can be done with the saved equipment, best first. An implement that carries
@@ -455,12 +465,15 @@ const build = (
  * bodyweight range of `f7.bodyweightReps` in place of the repetitions of the template, and its
  * reps left are the template's.
  *
- * `blockWeek` is the week in the block; the first ramp-in week has fewer sets.
+ * `blockWeek` is the week in the block; the first ramp-in week has fewer sets. `recovery` is a
+ * running recovery week of the ramp-in, which keeps the ramp-in repetitions and reps left and cuts
+ * the sets to those of a lighter week (`f7.maintenanceSets`, at most).
  */
 export function structuresFor(
   template: StrengthTemplate,
   role: LiftRole,
   blockWeek: number | null = null,
+  recovery = false,
 ): { template: StructureSet; first: StructureSet } {
   const ramp = P.f7.rampInReps.value
   const bodyweight = P.f7.bodyweightReps.value
@@ -475,8 +488,11 @@ export function structuresFor(
   })
   const first = pair(firstSets, ramp, easy)
   switch (template) {
-    case 'ramp-in':
-      return { first, template: pair(blockWeek === 1 ? firstSets : laterSets, ramp, easy) }
+    case 'ramp-in': {
+      const sets = blockWeek === 1 ? firstSets : laterSets
+      const cut = recovery ? Math.min(sets, P.f7.maintenanceSets.value) : sets
+      return { first, template: pair(cut, ramp, easy) }
+    }
     case 'return':
       return { first, template: first }
     case 'heavy':
@@ -1014,6 +1030,7 @@ function plyoFor(
   ctx: StrengthContext,
   template: StrengthTemplate,
   weekStart: string,
+  recovery: boolean,
 ): PlyoDose | null {
   if (template === 'taper' || template === 'return') return null
   const cap = P.flib.plyoContactsMax.value
@@ -1026,7 +1043,7 @@ function plyoFor(
       ? P.f7.maintenancePlyoContacts.value
       : P.f7.plyoStartContacts.value + P.f7.plyoStepContacts.value * steps
   const fast = ctx.goal.paceKmh !== null && ctx.goal.paceKmh > P.flib.plyoEmphasisPaceKmh.value
-  const reduced = fast || injured || template === 'lighter-week'
+  const reduced = fast || injured || recovery
   const contacts = Math.min(cap, reduced ? Math.round(dose * P.f7.reducedPlyoShare.value) : dose)
   // the movement of the rung, or the nearest easier one the runner has not left out, else a harder
   const avoided = avoidedBy(ctx)
@@ -1062,9 +1079,13 @@ const keepsLoad = (template: StrengthTemplate): boolean =>
   template === 'taper' ||
   template === 'return'
 
-/** The reason a template that keeps the load gives for the unchanged load, as a fact. */
-function keptFact(template: StrengthTemplate): Fact | null {
+/**
+ * The reason a template that keeps the load gives for the unchanged load, as a fact. A recovery
+ * week gives the lighter-week reason in the ramp-in as well.
+ */
+function keptFact(template: StrengthTemplate, recovery: boolean): Fact | null {
   const sets = countPhrase(P.f7.maintenanceSets.value, 'set')
+  if (recovery) return fact('strength.reason.lighter-week', { sets })
   switch (template) {
     case 'lighter-week':
       return fact('strength.reason.lighter-week', { sets })
@@ -1090,6 +1111,13 @@ interface SessionPlan {
   position: BlockPosition | null
   template: StrengthTemplate
   variant: 'A' | 'B'
+  /**
+   * A running recovery week inside the block, whatever its template: it cuts the sets, keeps the
+   * load and halves the jumps, and inside the ramp-in it keeps the ramp-in structure.
+   */
+  recovery: boolean
+  /** Whether a barbell lift may be offered, by the template and the place in the block. */
+  barbell: boolean
   /** The viewed day's readiness is lower than usual. */
   lowReadiness: boolean
 }
@@ -1104,7 +1132,7 @@ function harderChoice(
   const harder = exerciseById(id)?.harder ?? null
   if (harder === null || avoidedBy(ctx).has(harder)) return null
   if (slot !== 'trunk' && slot !== 'plyo' && pinnedFor(ctx, slot) === id) return null
-  const way = waysFor(ctx, harder, barbellAllowed(plan.template))[0]
+  const way = waysFor(ctx, harder, plan.barbell)[0]
   return way === undefined ? null : { exerciseId: harder, floor: false, ...way }
 }
 
@@ -1117,7 +1145,7 @@ function liftFrom(
   suggestion: LoadSuggestion,
   trail: Fact[],
 ): WorkoutLift {
-  const kept = suggestion.change === 'hold' ? keptFact(plan.template) : null
+  const kept = suggestion.change === 'hold' ? keptFact(plan.template, plan.recovery) : null
   let change: WorkoutLift['change'] = suggestion.change
   let facts = suggestion.facts
   let rule: SuggestionBasis['rule'] = facts.length > 0 ? 'F8' : 'F7'
@@ -1203,13 +1231,13 @@ function requestFor(
       keepLoad: true,
     }
   }
-  const shapes = structuresFor(plan.template, role, plan.position?.week ?? null)
+  const shapes = structuresFor(plan.template, role, plan.position?.week ?? null, plan.recovery)
   return {
     exerciseId: choice.exerciseId,
     implement: choice.implement,
     date: plan.session.date,
     ...shapes,
-    keepLoad: keepsLoad(plan.template),
+    keepLoad: keepsLoad(plan.template) || plan.recovery,
     canVary: harderChoice(ctx, plan, choice.exerciseId, slot) !== null,
   }
 }
@@ -1291,7 +1319,7 @@ function liftsOf(ctx: StrengthContext, plan: SessionPlan): WorkoutLift[] {
   const wanted = taper ? P.f7.taperLifts.value : P.flib.heavyExercises.value
   return order.slice(0, wanted).map((slot) => {
     const choice = pickLift(slot, ctx, {
-      barbell: barbellAllowed(plan.template),
+      barbell: plan.barbell,
       variant: plan.variant,
     })
     return buildLift(ctx, plan, choice, slot, slot === lead ? 'lead' : 'other')
@@ -1304,12 +1332,16 @@ function planOf(ctx: StrengthContext, session: StrengthSessionRef): SessionPlan 
   const week = ctx.weeks.find((w) => w.weekStart === weekStart)
   const position = blockPosition(ctx, weekStart)
   const readiness = ctx.readiness
+  const shown = week ?? { flags: [], phase: '', isRecovery: false }
+  const template = strengthTemplate(shown, position)
   return {
     session,
     weekStart,
     position,
-    template: strengthTemplate(week ?? { flags: [], phase: '', isRecovery: false }, position),
+    template,
     variant: sessionVariant(ctx, session),
+    recovery: position !== null && template !== 'return' && isRecoveryWeek(shown),
+    barbell: barbellAllowed(template, position),
     lowReadiness:
       readiness !== null && readiness.date === session.date && isLowReadiness(readiness),
   }
@@ -1332,7 +1364,7 @@ export function workoutFor(ctx: StrengthContext, session: StrengthSessionRef): S
     budgetMin: session.durationMin,
     setupSaved: ctx.setup.saved,
     lifts: liftsOf(ctx, plan),
-    plyo: plyoFor(ctx, plan.template, plan.weekStart),
+    plyo: plyoFor(ctx, plan.template, plan.weekStart, plan.recovery),
     trunk: trunkOf(ctx, plan),
     rules: [...session.rules],
   }
@@ -1352,7 +1384,7 @@ export function liftFor(
   const exercise = exerciseById(exerciseId)
   if (exercise === undefined || exercise.slot === 'plyo') return null
   const plan = planOf(ctx, session)
-  const way = waysFor(ctx, exerciseId, barbellAllowed(plan.template))[0]
+  const way = waysFor(ctx, exerciseId, plan.barbell)[0]
   if (way === undefined) return null
   const lead = plan.variant === 'A' ? 'knee' : 'hip'
   return buildLift(
@@ -1376,7 +1408,11 @@ export function modeOf(workout: Pick<StrengthWorkout, 'template' | 'lifts'>): St
   if (workout.lifts.some((lift) => lift.change === 'lighter-day')) return 'lighter-day'
   if (workout.template === 'taper') return 'taper'
   if (workout.template === 'lighter-week') return 'lighter-week'
-  return 'normal'
+  // a recovery week of the ramp-in keeps its template and says so in its reasons
+  const recovery = workout.lifts.some((lift) =>
+    lift.basis.facts.some((fact) => fact.template === 'strength.reason.lighter-week'),
+  )
+  return recovery ? 'lighter-week' : 'normal'
 }
 
 /** The words of an exercise as templates and slots: its name, its cue and its tempo or effort note. */

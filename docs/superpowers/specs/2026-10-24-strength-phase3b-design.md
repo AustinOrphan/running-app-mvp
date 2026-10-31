@@ -864,7 +864,9 @@ week of a 3-week ramp-in); side plank and dead bug, 2 sets each.
 - **Lighter week.** The running recovery week (rule E3) is a lighter week for lifting too: the same
   lifts at the same loads with fewer sets. Volume is cut and load kept, the pattern
   `spiering-2021-minimal-dose` found enough to keep strength; using it for recovery is a design
-  choice (gap 3). The progression state is untouched (section 10.4).
+  choice (gap 3). The progression state is untouched (section 10.4). A recovery week inside the
+  ramp-in stays a ramp-in (6 to 8 reps leaving 3 or more, no barbell) with the same cut of sets,
+  the same load and half the jump dose (amended 2026-10-25).
 - **Maintenance.** One session a week for the rest of the plan before the taper (E5), the block's
   lifts at the kept load, two sets, and 60 contacts. Evidence for the dose is a narrative review of
   non-athletes (gap 3).
