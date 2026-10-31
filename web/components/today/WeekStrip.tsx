@@ -61,7 +61,13 @@ function DayFace({ day, units }: { day: WeekStripDay; units: Units }) {
  * past day with a run still to do reads "planned, no run logged".
  */
 export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units }) {
-  const [open, setOpen] = useState<PlanSessionView | null>(null)
+  // The sheet is opened on the session as the strip holds it now, by id, so a read of Today that
+  // changes the session (a log that settles it) changes the sheet too, as the Plan page's does.
+  const [openId, setOpenId] = useState<string | null>(null)
+  const open =
+    openId === null
+      ? null
+      : (strip.days.flatMap((day) => day.sessions).find((s) => s.id === openId) ?? null)
   const empty = strip.days.every((d) => d.mark === 'free' && d.runMin === 0)
   if (empty && strip.targetRunMin === null) return null
   const advice = strip.remaining
@@ -92,7 +98,7 @@ export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units
                   className={`${styles.cell} ${styles.tap}`}
                   aria-current={current}
                   onClick={() => {
-                    setOpen(session)
+                    setOpenId(session.id)
                   }}
                 >
                   <DayFace day={day} units={units} />
@@ -136,7 +142,7 @@ export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units
         <SessionSheet
           session={open}
           onClose={() => {
-            setOpen(null)
+            setOpenId(null)
           }}
         />
       )}

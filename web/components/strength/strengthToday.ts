@@ -104,7 +104,9 @@ export function useSessionStrength(
           : view.date
   return {
     workout: isStrength ? workout : null,
-    failed: isStrength && workout === null && (fetched.isError || today.isError),
+    // only the workouts read can fail the section: while it is on its way (and Today's own read
+    // has failed, which is why it was needed) nothing is wrong yet
+    failed: isStrength && workout === null && fetched.isError,
     ahead: day !== null && session.date > day,
     loggable: day !== null && session.date <= day,
   }

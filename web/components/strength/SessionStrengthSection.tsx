@@ -23,6 +23,10 @@ import { workoutRows } from './workoutRows.ts'
 export function SessionStrengthSection({ session }: { session: PlanSessionView }) {
   const headingId = useId()
   const [logging, setLogging] = useState(false)
+  // What the sheet saved, so the session says so and does not offer to log it again: the plan the
+  // sheet was opened on does not change until the next read, and a save kept on the phone changes
+  // it only when it is sent.
+  const [saved, setSaved] = useState<'sent' | 'queued' | null>(null)
   const units = useStrengthUnits().data
   const { workout, failed, ahead, loggable } = useSessionStrength(session)
   // No load is drawn before the weight unit is known: it would be off by a factor of 2.2.
@@ -78,7 +82,11 @@ export function SessionStrengthSection({ session }: { session: PlanSessionView }
             hours: words.count(P.f4.strengthSeparationHours.value),
           })}
         </p>
-        {loggable && isToRun(session.status) ? (
+        {saved !== null ? (
+          <p className={sheetStyles.muted} role="status">
+            {words.say(saved === 'queued' ? 'strength.sheet.saved-queued' : 'strength.sheet.saved')}
+          </p>
+        ) : loggable && isToRun(session.status) ? (
           <div>
             <Button
               variant="secondary"
@@ -99,7 +107,8 @@ export function SessionStrengthSection({ session }: { session: PlanSessionView }
           onClose={() => {
             setLogging(false)
           }}
-          onSaved={() => {
+          onSaved={(result) => {
+            setSaved(result.status === 'queued' ? 'queued' : 'sent')
             setLogging(false)
           }}
         />
