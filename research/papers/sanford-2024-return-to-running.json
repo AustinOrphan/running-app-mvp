@@ -29,6 +29,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-downloaded the 8-page PDF and read it with pdftotext. Ready-to-run tests, post-surgical levels, tendon levels, 72 h rationale and pain rules match; footer '221-918-717 1/24' and PDF creation date 25 Jan 2024 confirm the year. 20 min (Level 4) is the 7th session with levels 1-3 done twice. Added the scope notes. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Sanford Health sells rehabilitation and physical therapy services, including the AlterG program the guideline describes.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "Ready-to-run tests, post-surgical levels (3 run/4 walk, 4/3, 6/3, 8 to 10 min), tendon levels (5 to 30 min), the 72 hour note, the pain rules and the footer code 1/24 located in the 8-page PDF fetched 2026-10-31 (created 2024-01-25)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Body named (Sanford Health); no clinician is named in the document, and its references list the primary studies. ProPublica Nonprofit Explorer (read 2026-10-31) lists Sanford of Sioux Falls SD (EIN 45-3791176) as a 501(c)(3). Interests recorded."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Document code 1/24, created 2024-01-25, served last-modified 2024-01-30; the same file the record read. Later corpus papers (warden-2021-bsi-optimal-workload, george-2024-tibial-bsi-return-to-run) do not supersede the tendon or post-surgical tables."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Structure (levels, rest between runs, repeat on symptoms, 72 hours for tendon) agrees with the BJSM table (bjsm-2019) and george-2024-tibial-bsi-return-to-run (graduated, symptom-led). Durations differ between the sources; the conservative reading is the lesser."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated (patients returning after lower-extremity injury or surgery); the injuryReturn and j9.niggleEasyDays notes label use for a generic injury flag or niggle as an extrapolation."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
   }
 }

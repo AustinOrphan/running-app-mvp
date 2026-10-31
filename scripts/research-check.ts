@@ -141,7 +141,6 @@ export const PREDATES_RUBRIC: ReadonlySet<string> = new Set([
   'bjsm-2019-bone-stress-return-to-run',
   'clark-2026-couch-to-5k-original',
   'cts-2025-koop-ultra-recovery',
-  'galloway-2026-beginner-run-walk',
   'higdon-2024-advanced-10k',
   'higdon-2024-advanced-5k',
   'higdon-2024-intermediate-5k',
@@ -150,12 +149,10 @@ export const PREDATES_RUBRIC: ReadonlySet<string> = new Set([
   'irunfar-2016-powell-post-100-return',
   'irunfar-2023-torrence-post-ultra-downtime',
   'johnson-2018-long-runs-5k-10k',
-  'nhs-2026-couch-to-5k',
   'outside-2015-orton-koop-100-miles',
   'outside-2023-strava-utmb',
   'outside-2023-strava-western-states',
   'runningmagazine-2023-daniels-long-run-limit',
-  'sanford-2024-return-to-running',
   'skurka-2017-roche-100-recovery',
 ])
 
