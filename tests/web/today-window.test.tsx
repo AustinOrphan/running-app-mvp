@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type {
@@ -232,8 +232,12 @@ describe('Today: every window open today has its own line', () => {
     const bands = await screen.findAllByRole('region', { name: 'Rest window' })
     await user.click(within(bands[1]!).getByRole('button', { name: 'Extend' }))
     await screen.findByRole('dialog', { name: 'Extend this window' })
-    const preview = api.calls.find((call) => call.url === '/api/plan/preview')
-    expect(preview?.body).toMatchObject({ type: 'disruption-update', id: 'w2' })
+    // The sheet asks for its preview from an effect, which React can run after the commit that put
+    // the dialog on the page: the request is awaited, not read as soon as the dialog is there.
+    await waitFor(() => {
+      const preview = api.calls.find((call) => call.url === '/api/plan/preview')
+      expect(preview?.body).toMatchObject({ type: 'disruption-update', id: 'w2' })
+    })
   })
 
   test('with none open, the next window ahead has the line alone', async () => {
