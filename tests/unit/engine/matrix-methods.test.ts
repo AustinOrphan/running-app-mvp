@@ -18,55 +18,17 @@ import { athletes, TODAY, type MatrixAthlete } from './matrix-fixtures.ts'
 import {
   aboveDefault,
   maxRunDays,
+  type Offered,
   OFFERED,
   positionOf,
   QUALITY_KINDS,
+  READING,
   text,
   withMethod,
 } from './method-fixtures.ts'
 
 const all = athletes()
 const defaults = new Map(all.map((a) => [a.id, buildPlan(a.input)]))
-type Offered = (typeof OFFERED)[number]
-
-/** What the resolver says of each athlete: `applies`, or why the preset reads the default. */
-type Reading =
-  'applies' | 'not-applicable' | 'novice' | 'no-base' | 'held:recent-injury' | 'held:reds-hold'
-
-const READING: Record<Offered, Record<string, Reading>> = {
-  // goals of 5 km to the half marathon only; a novice keeps the novice days; a recent injury holds it
-  'three-run-days': {
-    'novice-5k': 'novice',
-    half: 'applies',
-    marathon: 'not-applicable',
-    'trail-50k': 'not-applicable',
-    'first-100-mile': 'not-applicable',
-    masters: 'not-applicable',
-    returning: 'applies',
-    'prior-bsi': 'held:recent-injury',
-    'hot-race': 'not-applicable',
-    'sparse-100-mile': 'not-applicable',
-    'reds-hold': 'not-applicable',
-    'post-marathon-short-run': 'applies',
-  },
-  // every class; a plan with no base week of its own reads the default (a ladder that covers the
-  // base, a novice plan with no base), and so does a plan held by a persistent condition
-  'longer-base': {
-    'novice-5k': 'no-base',
-    half: 'applies',
-    marathon: 'applies',
-    'trail-50k': 'applies',
-    'first-100-mile': 'applies',
-    masters: 'applies',
-    returning: 'applies',
-    'prior-bsi': 'held:recent-injury',
-    'hot-race': 'applies',
-    'sparse-100-mile': 'applies',
-    'reds-hold': 'held:reds-hold',
-    'post-marathon-short-run': 'no-base',
-  },
-}
-
 /** Base weeks of the default plan and of `longer-base`, by athlete, where the preset applies. */
 const BASE_WEEKS: Record<string, [default_: number, preset: number]> = {
   half: [3, 5],
