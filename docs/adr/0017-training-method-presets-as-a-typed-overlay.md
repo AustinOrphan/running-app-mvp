@@ -45,8 +45,8 @@ guard, no ceiling and no option.
   | table of quality kinds (`QUALITY_BY_PRESET`, `micro.ts`) | F2   | choose another table          | existing kinds; taper and race rows kept |
 
   `three-run-days` sets the run-day cap to 3 (`p2.runDays`). `longer-base` sets the build length to 4
-  (`p4.buildWeeks`) and uses a table with strides only in the base and hills, then threshold, in the
-  build (section (p) gives the build as "hills and threshold", and the order is the table's). No
+  (`p4.buildWeeks`) and uses a table with strides only in the base and threshold, then hills, in the
+  build (section (p) records the order of the build row, decided 2026-10-31 in task M5). No
   preset lowers the long-run share (P3 is not offered), so that id has readers and no override. Every
   other rule and `Param` is never overridable.
 
@@ -99,11 +99,13 @@ Reasons:
   is part of each digest, so a new checklist item would move all 142; none is added.
 - **Fact:** On the twelve matrix athletes (`methods.test.ts`, 2026-10-31), `three-run-days` applies to
   three (half, returning, post-marathon-short-run) and reads as the default for nine (seven goals of a
-  marathon or longer, one novice, one held by a recent injury). `longer-base` applies to nine
-  (first-100-mile, half, hot-race, marathon, masters, post-marathon-short-run, returning,
-  sparse-100-mile, trail-50k) and reads as the default for three (the novice 5 km plan with no base
-  week, and the two held plans). Both presets fail no checklist item that the default plan passes,
-  and `three-run-days` holds every week to three run days where it applies.
+  marathon or longer, one novice, one held by a recent injury). `longer-base` applies to eight
+  (first-100-mile, half, hot-race, marathon, masters, returning, sparse-100-mile, trail-50k) and
+  reads as the default for four (the novice 5 km plan with no base week, `post-marathon-short-run`
+  whose ladder of 11 weeks covers its base, and the two held plans; before the start-path weeks kept
+  the default's phase it applied to nine, task M5, 2026-10-31). Both presets fail no checklist item
+  that the default plan passes, and `three-run-days` holds every week to three run days where it
+  applies.
 - **Fact:** The default plan places short of its target where a session cannot hold its share (a
   threshold session in the build), and `generate` reads the minutes placed for the weekly ramp
   (`index.ts`, read 2026-10-31). With the hold disabled, a throwaway probe over
@@ -196,12 +198,14 @@ Alternatives:
 - Whether P2 reaches marathon goals, with a weekly-minutes cap or a cross-training session kind, is
   undecided (decision 6). It needs a new grade D `Param` on the whitelist and an applicability change
   in `methods.ts`.
-- With one quality session in a week (a novice after the first weeks, a goal of 100 km or more), the
-  build of `longer-base` holds hills only, since the table lists hills first. Threshold appears in a
-  build week with two quality sessions. The order is a decision for M3 to confirm.
-- The phase filed on a start-path week follows the plan's phases, so under `longer-base` a ladder or
-  floor week is filed under base where the default files it under build. The sessions of the week are
-  the programme's, unchanged.
+- The build row of `longer-base` holds threshold first and hills second (decided 2026-10-31, task M5,
+  section (p)): a build week with one quality session (a goal of 100 km or more, a week with few open
+  days) keeps the default's threshold, and hills take the second session. With hills first those weeks
+  held hills alone.
+- A week of a start path (a ladder, an injury-return level or the restart floor) is filed under the
+  phase the default files it under, whatever the preset's own draw of the phases says (decided
+  2026-10-31, task M5, section (p)). A plan whose only base weeks are start-path weeks reads the
+  default with the reason `no-base`; of the twelve matrix athletes that is `post-marathon-short-run`.
 - A preset's week target is the default's where the default places short, and the minutes it places
   are the default's: a preset plan can read a week below its own drawn target, as the default does in
   those weeks. Three runners of the sweep (#16, #28 and #36) fail the checklist's spacing item at the

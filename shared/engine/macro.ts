@@ -863,13 +863,14 @@ function planWeeks(
   const preCount = total - taperCount
   const openingRecovery =
     input.existing?.weeks.find((w) => w.weekStart === firstMonday)?.isRecovery === true
+  const carriedLabels = freshPhases ? [] : carriedPhases(input, firstMonday, raceMonday, preCount)
   const phases = planPhases(
     preCount,
     taperCount,
     cycleWorkWeeks(input, state),
     openingRecovery,
     method,
-    freshPhases ? [] : carriedPhases(input, firstMonday, raceMonday, preCount),
+    carriedLabels,
   )
   const raceIdx = total - 1
 
@@ -1065,6 +1066,20 @@ function planWeeks(
   // it open a new block, which the checklist counts the same way)
   const programmeWeeks = restart !== null && restart.kind !== 'floor' ? startWeeks : 0
   for (let i = 0; i < programmeWeeks && i < preCount; i++) phases[i]!.isRecovery = false
+  // A week of a start path is the programme's, which a preset leaves as it is: it is filed under the
+  // phase the default plan files it under, so a longer base counts no ladder or floor week as base
+  // [rules E6, P4]. A plan whose only base weeks are those reads P1 (`resolveMethod`, `no-base`).
+  if (method !== 'default' && startWeeks > 0) {
+    const defaults = planPhases(
+      preCount,
+      taperCount,
+      cycleWorkWeeks(input, state),
+      openingRecovery,
+      'default',
+      carriedLabels,
+    )
+    for (let i = 0; i < startWeeks && i < preCount; i++) phases[i]!.phase = defaults[i]!.phase
+  }
   // The recovery week the replaced plan stored on this Monday stays a recovery week wherever the
   // count falls, unless a start path claims the week (a 3 x N floor after a gap, a ladder: a rule
   // drives that start, not the cadence). After a change of cycle (the low-frequency flag arming or
