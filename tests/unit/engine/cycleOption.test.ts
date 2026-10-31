@@ -18,13 +18,6 @@ const FLAGGED = P.e3.flaggedCycleWorkWeeks.value
 const athlete = (id: string) => athletes().find((a) => a.id === id)!
 const withOptions = (input: EngineInput, options: Options): EngineInput => ({ ...input, options })
 
-/** What the cadence item says its cycle is: "A recovery week at least every 3rd week" is 2:1. */
-function checkedCycle(plan: PlanDraft): number {
-  const item = plan.checklist.find((c) => c.id === 'recovery-cadence')!
-  const match = /every (\d+)\w* week/.exec(item.detail)
-  return Number(match?.[1]) - 1
-}
-
 /** The distance in weeks between one recovery week and the next, before the taper begins. */
 function recoveryGaps(weeks: WeekDraft[]): number[] {
   const taper = weeks.findIndex((w) => w.isTaper)
@@ -38,18 +31,19 @@ function recoveryGaps(weeks: WeekDraft[]): number[] {
 describe('the recovery cycle option', () => {
   // A novice (the 5 km athlete) and a runner returning after six weeks off, whose logged frequency
   // is low: both are the new-runner cases that the Generate form used to give 3:1 by sending it.
-  const CASES: Array<[string, Options, ReturnType<typeof cycleShortReason>, number]> = [
-    ['novice-5k', {}, 'new-runner', FLAGGED],
-    ['novice-5k', { recoveryCycle: '2:1' }, 'chosen', FLAGGED],
-    ['novice-5k', { recoveryCycle: '3:1' }, null, USUAL],
-    ['returning', {}, 'new-runner', FLAGGED],
-    ['returning', { recoveryCycle: '2:1' }, 'chosen', FLAGGED],
-    ['returning', { recoveryCycle: '3:1' }, null, USUAL],
+  // The last column is the cycle as the cadence item words it: 2:1 is a recovery week every 3rd week.
+  const CASES: Array<[string, Options, ReturnType<typeof cycleShortReason>, number, string]> = [
+    ['novice-5k', {}, 'new-runner', FLAGGED, '3rd'],
+    ['novice-5k', { recoveryCycle: '2:1' }, 'chosen', FLAGGED, '3rd'],
+    ['novice-5k', { recoveryCycle: '3:1' }, null, USUAL, '4th'],
+    ['returning', {}, 'new-runner', FLAGGED, '3rd'],
+    ['returning', { recoveryCycle: '2:1' }, 'chosen', FLAGGED, '3rd'],
+    ['returning', { recoveryCycle: '3:1' }, null, USUAL, '4th'],
   ]
 
   it.each(CASES)(
     '%s with %j: the generator and the checklist use the same cycle',
-    (id, options, reason, workWeeks) => {
+    (id, options, reason, workWeeks, every) => {
       const input = withOptions(athlete(id).input, options)
       const state = estimateState(input)
       expect(cycleShortReason(input, state)).toBe(reason)
@@ -58,7 +52,7 @@ describe('the recovery cycle option', () => {
       const plan = buildPlan(input)
       const item = plan.checklist.find((c) => c.id === 'recovery-cadence')!
       expect(item.ok, item.detail).toBe(true)
-      expect(checkedCycle(plan)).toBe(workWeeks)
+      expect(item.detail).toBe(`A recovery week at least every ${every} week.`)
       // the weeks the generator drew keep the cycle the check names (the novice's weeks are a
       // start path, which carries no recovery weeks of its own)
       if (id === 'returning') {

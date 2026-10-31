@@ -254,3 +254,14 @@ export function countPhrase(n: number, noun: string): string {
     Number.isInteger(n) && n >= 0 && n < NUMBER_WORDS.length ? NUMBER_WORDS[n]! : String(n)
   return `${word} ${noun}${n === 1 ? '' : 's'}`
 }
+
+/**
+ * A whole number as an English ordinal in digits: "1st", "2nd", "3rd", "4th", "11th", "21st". The
+ * teens take "th" (11th, 12th, 13th), as do 0 and every digit from 4 to 9.
+ */
+export function ordinal(n: number): string {
+  const lastTwo = Math.abs(n) % 100
+  const suffix =
+    lastTwo >= 11 && lastTwo <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][lastTwo % 10] ?? 'th')
+  return `${String(n)}${suffix}`
+}

@@ -3,6 +3,7 @@
 // differentiation, the session spike guard, availability, spacing, ultra caps and race day.
 // It re-reads the finished plan; it never repairs one. A failed item blocks publishing with its
 // detail, so each detail names the week or date at fault.
+import { ordinal } from '../copy/quantity.ts'
 import { windowCheckLine } from '../copy/revision.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
@@ -329,7 +330,7 @@ function recoveryCadence(
     'recovery-cadence',
     failures.length === 0,
     failures.length === 0
-      ? `A recovery week at least every ${cycle + 1}th week.`
+      ? `A recovery week at least every ${ordinal(cycle + 1)} week.`
       : failures.join('; '),
     rules,
   )
