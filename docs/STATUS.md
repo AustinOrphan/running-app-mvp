@@ -1502,7 +1502,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     any exercise with a logged set), each with "No added load". Next: wave 5, task E14-10 in two
     halves (E14-10a: the day-workout read with Swap, the Today setup card, the activity page;
     E14-10b: the Review lines, the count prompt, the notes, the list), then E14-11 and C2.
-    E14-11 done in #NNN (2026-10-31): task E14-11 added the strength e2e. `20-strength.spec.ts`
+    E14-11 done in #595 (2026-10-31): task E14-11 added the strength e2e. `20-strength.spec.ts`
     (13 cases) covers the flows of spec section 13 that `12-today.spec.ts` leaves out: the setup
     saved with a barbell and dumbbells from the "Set up strength" card; a change of equipment and of
     the weight unit, followed by the next workout, Today and the sheet; a session logged as
