@@ -20,7 +20,11 @@ const SCANNED = ['shared', 'server', 'web', 'scripts']
 const SOURCE = /\.[cm]?[jt]sx?$/
 
 /** The harness: a directory when it ends with a slash, else one module (with or without `.ts`). */
-export const HARNESS = ['tests/reports/', 'tests/unit/engine/plan-metrics.ts'] as const
+export const HARNESS = [
+  'tests/reports/',
+  'tests/unit/engine/plan-metrics.ts',
+  'tests/unit/engine/prediction-skill.ts',
+] as const
 
 const FROM = /\bfrom\s*(['"])(.+?)\1/g
 const SIDE_EFFECT = /\bimport\s*(['"])(.+?)\1/g
