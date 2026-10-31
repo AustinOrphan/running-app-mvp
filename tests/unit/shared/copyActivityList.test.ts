@@ -4,6 +4,7 @@ import {
   ACTIVITY_MORE_ERROR,
   activityCountText,
   activityMoreLabel,
+  activitySetsText,
 } from '../../../shared/copy/activityList.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
@@ -38,6 +39,22 @@ describe('activityMoreLabel and the failed-page note', () => {
   })
 })
 
+describe('activitySetsText', () => {
+  test('reads the sets of a strength row, in the singular for one and as "No sets" for none', () => {
+    expect(activitySetsText(9)).toBe('9 sets')
+    expect(activitySetsText(2)).toBe('2 sets')
+    expect(activitySetsText(1)).toBe('1 set')
+    expect(activitySetsText(0)).toBe('No sets')
+    expect(activitySetsText(120)).toBe('120 sets')
+  })
+
+  test('gives nothing for a count the list did not send or cannot be one', () => {
+    for (const value of [null, undefined, -1, 2.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(activitySetsText(value), String(value)).toBeNull()
+    }
+  })
+})
+
 describe('the registered templates', () => {
   test('are in the shared registry, so the copy lint renders every one', () => {
     for (const id of Object.keys(ACTIVITY_LIST_TEMPLATES)) {
@@ -52,6 +69,7 @@ describe('the registered templates', () => {
       activityCountText(50, 1284),
       activityMoreLabel(50),
       ACTIVITY_MORE_ERROR,
+      ...[0, 1, 9].map((n) => activitySetsText(n) ?? ''),
     ]
     for (const text of shown) expect(lintText(text), text).toEqual([])
   })
