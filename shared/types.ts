@@ -1319,6 +1319,17 @@ export interface TodaySlots {
    * it does a run. It is no budgeted slot: the hero and the "Also today" line render it.
    */
   strength: StrengthWorkout | null
+  /**
+   * The offer to set up strength (design 6.1): the first strength session still to be done within
+   * 7 days while the setup is not saved, else null. It does not depend on the viewed day. The
+   * `fuelPrompt` frame below the fold holds its card; it has no slot of its own.
+   */
+  strengthSetup: StrengthSetupOffer | null
+}
+/** The strength session that makes Today offer "Set up strength". */
+export interface StrengthSetupOffer {
+  sessionId: string
+  date: string
 }
 export interface TodayCoach {
   /** ISO instant the payload was composed. */

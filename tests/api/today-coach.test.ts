@@ -336,6 +336,7 @@ describe('GET /api/today: the coach payload', () => {
       brief: null,
       fuelPrompt: null,
       strength: null,
+      strengthSetup: null,
     })
   })
 
@@ -1275,6 +1276,7 @@ describe('GET /api/today: slots', () => {
       brief,
       fuelPrompt: null,
       strength: null,
+      strengthSetup: null,
     })
     expect(coach.hero).not.toBeNull()
   })

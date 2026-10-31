@@ -46,6 +46,7 @@ import type {
   StrengthNextLoad,
   StrengthRecentLog,
   StrengthSettings,
+  StrengthSetupOffer,
   StrengthSnapshot,
   StrengthView,
   StrengthWorkout,
@@ -658,6 +659,29 @@ export async function todayStrengthSlot(
   if (!args.preview && illnessPhase(inputFromContext(context), date).phase === 'rest') return null
   const strength = await loadStrengthContext(deps, { userId: args.userId, today: args.today })
   return workoutFor(strength, sessionRefOf(session))
+}
+
+/** Days ahead that a strength session makes Today offer the setup (design 6.1). */
+export const STRENGTH_SETUP_OFFER_DAYS = 7
+
+/**
+ * `coach.slots.strengthSetup` (design 6.1): the first strength session still to be done from today
+ * to 7 days ahead while the setup is not saved, else null. It reads the plan and the setup state
+ * only, so the data version in the page's tag covers it. The viewed day does not matter: the offer is
+ * about the runner's next week, so a preview carries the same answer.
+ */
+export async function todayStrengthSetupSlot(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string; context: AthleteContext },
+): Promise<StrengthSetupOffer | null> {
+  const { today, context } = args
+  const last = addDays(today, STRENGTH_SETUP_OFFER_DAYS)
+  const upcoming = strengthSessions(context).find(
+    (session) => session.date >= today && session.date <= last && isToRun(session.status),
+  )
+  if (upcoming === undefined) return null
+  const strength = await loadStrengthContext(deps, { userId: args.userId, today })
+  return strength.setup.saved ? null : { sessionId: upcoming.id, date: upcoming.date }
 }
 
 /**

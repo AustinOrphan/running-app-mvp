@@ -2873,6 +2873,84 @@ describe('GET /api/today: coach.slots.strength', () => {
   })
 })
 
+describe('GET /api/today: coach.slots.strengthSetup (design 6.1)', () => {
+  /** A runner who has not saved the setup, with a plan of the given sessions. */
+  async function unsetUser(sessions: SeedSession[]) {
+    const user = await newUser()
+    const { rows } = await seedPlan(user, sessions)
+    return { user, rows }
+  }
+  const offerOf = async (user: TestUser, query = '') =>
+    (await todayView(user, query)).coach.slots.strengthSetup
+
+  test('offers the setup when a strength session is still to be done within 7 days and the setup is not saved', async () => {
+    const { today } = days()
+    const { user, rows } = await unsetUser([
+      { date: addDays(today, 3) },
+      { date: addDays(today, 5) },
+    ])
+    expect(await offerOf(user)).toEqual({ sessionId: rows[0]!.id, date: addDays(today, 3) })
+  })
+
+  test('counts today and the 7th day ahead, and not the 8th', async () => {
+    const { today } = days()
+    const first = await unsetUser([{ date: today }])
+    expect(await offerOf(first.user)).toEqual({ sessionId: first.rows[0]!.id, date: today })
+    const edge = await unsetUser([{ date: addDays(today, 7) }])
+    expect(await offerOf(edge.user)).toEqual({
+      sessionId: edge.rows[0]!.id,
+      date: addDays(today, 7),
+    })
+    const beyond = await unsetUser([{ date: addDays(today, 8) }])
+    expect(await offerOf(beyond.user)).toBeNull()
+  })
+
+  test('passes over a session that is over, and a run', async () => {
+    const { today } = days()
+    const { user, rows } = await unsetUser([
+      { date: addDays(today, -1) },
+      { date: today, status: 'completed' },
+      { date: addDays(today, 1), kind: 'easy' },
+      { date: addDays(today, 2) },
+    ])
+    expect(await offerOf(user)).toEqual({ sessionId: rows[3]!.id, date: addDays(today, 2) })
+    const settled = await unsetUser([{ date: today, status: 'completed' }])
+    expect(await offerOf(settled.user)).toBeNull()
+  })
+
+  test('is gone once the setup is saved, and comes back with no strength session to offer it for', async () => {
+    const { today } = days()
+    const { user } = await unsetUser([{ date: addDays(today, 2) }])
+    expect(await offerOf(user)).not.toBeNull()
+    await setup(user, { equipment: [BARBELL] })
+    expect(await offerOf(user)).toBeNull()
+  })
+
+  test('is null for a runner with no plan', async () => {
+    const user = await newUser()
+    expect(await offerOf(user)).toBeNull()
+  })
+
+  test('is the same on a preview day: it is about the coming week, not the viewed day', async () => {
+    const { today } = days()
+    const { user, rows } = await unsetUser([{ date: addDays(today, 2) }])
+    const own = await offerOf(user)
+    expect(own).toEqual({ sessionId: rows[0]!.id, date: addDays(today, 2) })
+    expect(await offerOf(user, `?date=${addDays(today, 1)}`)).toEqual(own)
+  })
+
+  test('follows the setup through the tag: a save changes the answer to a request that holds the old tag', async () => {
+    const { today } = days()
+    const { user } = await unsetUser([{ date: addDays(today, 2) }])
+    const first = await client(ctx, user).get('/api/today')
+    const tag = String(first.headers.etag)
+    await setup(user, { level: 'some' })
+    const second = await client(ctx, user).get('/api/today').set('If-None-Match', tag)
+    expect(second.status).toBe(200)
+    expect((second.body as TodayView).coach.slots.strengthSetup).toBeNull()
+  })
+})
+
 describe('GET /api/today: the tag follows the strength state', () => {
   const tagOf = (res: { headers: Record<string, unknown> }) => String(res.headers.etag)
   const get = (user: TestUser, tag?: string) => {

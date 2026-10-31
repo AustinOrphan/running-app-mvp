@@ -62,6 +62,13 @@ export const STRENGTH_PAGE_TEMPLATES = {
   'strength.page.part-exercises-note': tpl('Leave a movement out, or always use one for a slot.'),
   'strength.page.part-anchors-note': tpl('A recent set or a known maximum gives a first load.'),
 
+  // The card on Today the first time a strength session falls within a week while the setup is not
+  // saved (design 6.1); its heading is `strength.page.setup-heading`, "Set up strength".
+  'strength.page.today-offer': tpl(
+    'A strength session is coming up, and its workout is for bodyweight only until the setup is saved.',
+  ),
+  'strength.page.today-link': tpl('Open Strength', {}, { shape: 'label' }),
+
   // ---- 2. Next session (design 11.3, 6.4) --------------------------------------------------------
   'strength.page.next-heading': tpl('Next session', {}, { shape: 'label' }),
   'strength.page.next-empty': tpl(

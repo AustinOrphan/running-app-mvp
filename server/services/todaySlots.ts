@@ -16,7 +16,7 @@ import type { AthleteContext } from './athleteState.ts'
 import { todayBriefSlot } from './brief.ts'
 import { disruptionSlot } from './disruptions.ts'
 import { todayFuelPromptSlot, todayFuelSlot } from './fuel.ts'
-import { todayStrengthSlot } from './strength.ts'
+import { todayStrengthSetupSlot, todayStrengthSlot } from './strength.ts'
 import { safeMessage } from './syncLog.ts'
 import { todayWatchSlot } from './wristItems.ts'
 
@@ -64,6 +64,9 @@ export const slotProviders: { [K in SlotName]: SlotProvider<K> } = {
   // readiness read), so the data version in the page's ETag covers it: no stamp of its own.
   strength: ({ deps, userId, date, today, preview, context }) =>
     todayStrengthSlot(deps, { userId, today, date, preview, context }),
+  // The offer to set up strength reads the plan and the setup state: the same data version covers it.
+  strengthSetup: ({ deps, userId, today, context }) =>
+    todayStrengthSetupSlot(deps, { userId, today, context }),
 }
 
 /** Every slot with its provider's answer; a failed provider's slot is null. */

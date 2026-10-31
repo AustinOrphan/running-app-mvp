@@ -9,11 +9,14 @@
  * | `fuel`       | fuel target line, beside the targets    | E6    | 26 px  |
  * | `watch`      | wrist line, under the session actions   | E1    | 24 px  |
  * | `brief`      | weekly brief line                       | E4    | 52 px  |
- * | `fuelPrompt` | fuel prompt card, below the fold        | E6    | none   |
+ * | `fuelPrompt` | prompt cards, below the fold            | E6    | none   |
  *
  * Where each sits, in DOM order: `disruption` at the top of the session group, over the readiness
  * read; `fuel` in the hero, under the targets; `watch` in the hero, under Done, Explain and Not
  * today; `brief` in the week group, under the week strip; `fuelPrompt` lower in the week group.
+ * The `fuelPrompt` frame holds the fuel log card (E6) and, the first time a strength session falls
+ * within a week while the setup is not saved, the "Set up strength" card (E14, design 6.1): the page
+ * places no slot of its own for strength, and neither card has a budget.
  *
  * **What a budget is.** The tallest the content may be, in CSS pixels, at a 360 px viewport (a
  * 328 px column), whatever state it shows. Content that could be taller stays inside its box
