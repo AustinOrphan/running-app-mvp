@@ -32,6 +32,42 @@ grades, how rules relate to parameters).
    `research/engine-rules.md`, and the `evidence` array of the affected parameters.
 4. Run `npm run research:check`, then `npm run research:verify -- <id>` (online).
 
+## Add a source outside the journals
+
+For a book, a programme page, a column, a conference abstract, a thesis, a report outside a journal,
+a preprint or a trial registration. Read "Sources outside the journals" in `research/README.md`
+first: it holds the six gates (R1 to R6), the caps by class and the sign-off. Do not use the corpus
+workflow for these; its agents return summaries, and a summary is not a source.
+
+1. Locate the claim and read it in the source in this session: edition and page (or table or
+   section) for a book, URL and fetch date for a page. A claim known from a search result, a
+   magazine quoting a book, a mirror or an agent's summary is not read. Text written by a language
+   model is never a source.
+2. Record where and when. A book gets `edition`, `isbn` (copied from the publisher's page, not
+   recalled) and `pagesRead`; a page gets its `url`, and `verification.checkedAt` is the fetch date.
+   `interests` states what the author sells or holds a stake in. `design` is `book-or-guideline` for
+   a book, a programme page or a column; an abstract or a thesis keeps the design of its study.
+3. Run the six gates and write each in `vetting` as `{ "result": "pass", "note": "..." }`, with
+   `result` one of `pass`, `fail`, `hold` and `n/a`. R1 and R2 are hard: when either is not `pass`,
+   the source is held or left out, and no record is written. Read Crossref's `updated-by` for a DOI
+   (`npm run research:verify -- <id>` prints notices the record does not mention).
+4. Apply the cap of the class. A book, a programme page, a column and a data report are
+   `evidenceLevel` D; an abstract or a thesis is C at most; a consensus statement is graded by
+   content; a preprint or a registration is not admitted (step 7). A source never raises a grade,
+   never moves a default toward more load and never replaces the study it reports.
+5. Get the admission signed off: the owner, or two independent reading passes that each read the
+   source. `vetting.signedOff` says who and when (`"owner, 2026-11-02"`); the schema wants a date.
+   One agent's pass signs nothing off.
+6. Write `research/papers/<id>.json` by hand (copy a record), cite it where it is used, and add a
+   method entry to `research/README.md`. A `Param` that cites only books, programme pages, columns
+   or data reports is grade D with a note that says it is a default; changing its value or grade is
+   a "Change a rule or a number" job. Run `npm run research:check` and, for a DOI,
+   `npm run research:verify -- <id>`.
+7. A preprint or a registration goes on `docs/research/watch-list.md` instead: its DOI or registry
+   id, the date added, why it is watched and what would move it into the corpus. No rule, topic or
+   `Param` cites it. When the journal version appears, add that paper by "Add a paper" and delete
+   the row.
+
 ## Add a topic
 
 1. Add an entry `{ key, title, scope }` to `TOPICS` in `research/tools/build-corpus.workflow.js`.
@@ -80,7 +116,9 @@ npm run plan:report        by hand, outside npm run check; report only
 At every `PARAMS_VERSION` bump, run `npm run -s plan:report` before and after the change and paste
 the delta of the scorecards (the diff of the two outputs) into the pull request (proposal decision 9).
 
-`research:check` fails on a schema error, an unknown topic, a duplicate DOI, or a cited id with no
+`research:check` fails on a schema error, an unknown topic, a duplicate DOI, a book field on a record
+that is not a `book-or-guideline`, a `book-or-guideline` record without R1 and R2 `pass` in `vetting`
+(the records in `PREDATES_RUBRIC` are exempt until task S4 re-vets them), or a cited id with no
 paper. The few known stale ids in topic syntheses are listed in `scripts/research-check.ts`
 (`KNOWN_UNRESOLVED`); fix the text when you touch the synthesis and remove the entry. The parameter
 test also fails when a grade D parameter has no default note or a rule id has no heading in
