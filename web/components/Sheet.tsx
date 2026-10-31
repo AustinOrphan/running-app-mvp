@@ -12,6 +12,25 @@ export interface SheetProps {
   footer?: ReactNode
 }
 
+/**
+ * The sheets that are open, the newest last. A sheet can open over another (the logging sheet over
+ * the session's, the Why drawer over either), and each one listens for keys on the document, so
+ * without an order they would all answer one Escape and all pull Tab to their own controls. Only the
+ * top sheet answers; the ones under it are `inert`, which keeps focus, clicks and assistive
+ * technology off them until the sheet over them closes. The attribute is set here at once, not by a
+ * render, so the sheet that is back on top can take focus in the same step that its neighbour leaves.
+ */
+const openSheets: Array<{ id: symbol; root: () => HTMLElement | null }> = []
+
+function syncOpenSheets(): void {
+  openSheets.forEach((sheet, index) => {
+    const root = sheet.root()
+    if (root === null) return
+    if (index === openSheets.length - 1) root.removeAttribute('inert')
+    else root.setAttribute('inert', '')
+  })
+}
+
 const focusable =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
@@ -22,6 +41,7 @@ const focusable =
  */
 export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   const titleId = useId()
+  const root = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
@@ -32,10 +52,15 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   useEffect(() => {
     if (!open) return
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const id = Symbol('sheet')
+    openSheets.push({ id, root: () => root.current })
+    syncOpenSheets()
     const first = body.current?.querySelector<HTMLElement>(focusable) ?? panel.current
     first?.focus()
 
     function onKeyDown(event: globalThis.KeyboardEvent) {
+      // a sheet over this one is the one the keys are for
+      if (openSheets[openSheets.length - 1]?.id !== id) return
       if (event.key === 'Escape') {
         event.stopPropagation()
         onCloseRef.current()
@@ -54,6 +79,9 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      const at = openSheets.findIndex((sheet) => sheet.id === id)
+      if (at !== -1) openSheets.splice(at, 1)
+      syncOpenSheets()
       if (opener?.isConnected === true) {
         opener.focus()
       } else if (opener !== null && isFocusLost()) {
@@ -68,7 +96,9 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   if (!open) return null
 
   function trapTab(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== 'Tab' || !panel.current) return
+    // a key from a sheet opened over this one reaches here through the React tree, not the DOM
+    if (event.key !== 'Tab' || !panel.current || !panel.current.contains(event.target as Node))
+      return
     const items = [...panel.current.querySelectorAll<HTMLElement>(focusable)]
     const first = items[0]
     const last = items[items.length - 1]
@@ -88,7 +118,7 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   }
 
   return createPortal(
-    <div className={styles.root}>
+    <div ref={root} className={styles.root}>
       <div className={styles.scrim} data-testid="sheet-scrim" onClick={onClose} />
       <div
         ref={panel}

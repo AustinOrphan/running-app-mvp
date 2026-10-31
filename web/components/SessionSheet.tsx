@@ -22,6 +22,7 @@ import { useSettings } from '../api/settings.ts'
 import { Button } from './Button.tsx'
 import { Field, Select } from './Field.tsx'
 import { FuelSessionSection } from './fuel/FuelSessionSection.tsx'
+import { SessionStrengthSection } from './strength/SessionStrengthSection.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
 import { WhyDrawer } from './WhyDrawer.tsx'
@@ -357,8 +358,8 @@ function LinkSection({ session, units }: { session: PlanSession; units: Units | 
 }
 
 /**
- * Prescription, steps, why drawer, linked activity, execution assessment, link, and the changes a
- * runner can make: move, swap, shorten, skip (`AdjustSection`). The sheet is one exported
+ * Prescription, steps, why drawer, the workout of a strength session, linked activity, execution
+ * assessment, link, and the changes a runner can make: move, swap, shorten, skip (`AdjustSection`). The sheet is one exported
  * component: Plan, Today's hero and the week strip open it with a session and `onClose`.
  */
 export function SessionSheet({ session, onClose }: SessionSheetProps) {
@@ -447,6 +448,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
             </div>
           </section>
 
+          {session.kind === 'strength' ? <SessionStrengthSection session={session} /> : null}
           <FuelSessionSection session={session} />
           <WristSection session={session} workout={workout.data} />
           {session.execution !== null ? (

@@ -6,7 +6,9 @@ export interface SessionActionsProps {
   canAct: boolean
   /** False when no rule stands behind the session (a plain rest day). */
   canExplain: boolean
-  /** Done was tapped: the hero opens the sheet that logs the run. */
+  /** The label of the primary button: "Done" for a run, "Log sets" for a strength session. */
+  primaryLabel?: string
+  /** The primary button was tapped: the hero opens the sheet that logs the session. */
   onDone: () => void
   /** Explain was tapped: the hero opens the why drawer with the rules behind the session. */
   onExplain: () => void
@@ -24,6 +26,7 @@ export interface SessionActionsProps {
 export function SessionActions({
   canAct,
   canExplain,
+  primaryLabel = 'Done',
   onDone,
   onExplain,
   onNotToday,
@@ -32,7 +35,7 @@ export function SessionActions({
     <div className={styles.actions}>
       {canAct ? (
         <Button variant="primary" className={styles.action} onClick={onDone}>
-          Done
+          {primaryLabel}
         </Button>
       ) : null}
       {canExplain ? (

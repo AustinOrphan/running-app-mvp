@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { StrengthLog, StrengthWorkout } from '../../../shared/types.ts'
 import { useStrengthUnits } from '../../api/strength.ts'
 import { Sheet } from '../Sheet.tsx'
@@ -26,10 +27,16 @@ export interface StrengthSheetProps {
   /**
    * A saved log to edit (the Strength page's recent sessions): the sheet opens with its sets, minutes,
    * effort, pain and note, and saves over it under its own id, so the log is replaced and not
-   * doubled. `workout` is then `workoutOfLog(log, ...)`; the quiet buttons, "Why" and "Swap" speak
-   * of a plan the log was not made from and are left out, and "Save without sets" never applies.
+   * doubled. `workout` is then `workoutOfLog(log, ...)`, which the sheet keeps as it keeps any
+   * workout it was opened with; the quiet buttons, "Why" and "Swap" speak of a plan the log was not
+   * made from and are left out, and "Save without sets" never applies.
    */
   log?: StrengthLog
+  /**
+   * Open with the usual load of a lighter day in every set that has one, as the lift's "Use the
+   * usual load" does (the Today hero's switch). A draft kept on the device wins over it.
+   */
+  usualLoads?: boolean
   onClose: () => void
   /** The log was saved, or kept on this phone, or saved without sets. The caller closes the sheet. */
   onSaved: (saved: StrengthSaved) => void
@@ -45,14 +52,19 @@ export interface StrengthSheetProps {
  * sheet opens with no connection (ADR 0012).
  */
 export function StrengthSheet({
-  workout,
+  workout: given,
   date,
   sessionId,
   activityId,
   log,
+  usualLoads,
   onClose,
   onSaved,
 }: StrengthSheetProps) {
+  // The workout the sheet was opened with is the one it keeps (ADR 0014): a read of Today that
+  // lands while it is open changes the loads the rules suggest, and the sets entered, the draft and
+  // the snapshot the log stores must stay those of what the runner was shown.
+  const [workout] = useState(given)
   const units = useStrengthUnits()
   const title = strengthWords('km', 'lb').heading(workout.template, workout.variant)
   return (
@@ -70,6 +82,7 @@ export function StrengthSheet({
           sessionId={sessionId === undefined ? workout.sessionId : sessionId}
           activityId={activityId ?? log?.activityId ?? null}
           {...(log === undefined ? {} : { log })}
+          usualLoads={usualLoads === true}
           weightUnit={units.data.weightUnit}
           units={units.data.units}
           onSaved={onSaved}

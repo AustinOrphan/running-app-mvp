@@ -436,6 +436,124 @@ describe('Sheet', () => {
     await user.tab({ shift: true })
     expect(screen.getByRole('button', { name: 'Save run' })).toHaveFocus()
   })
+
+  // A sheet opened from inside another (the logging sheet from the session's, the Why drawer from
+  // either) is the only one that answers the keyboard; the one under it is inert until it closes.
+  describe('stacked over another sheet', () => {
+    function Stack({
+      onCloseOuter,
+      onCloseInner,
+    }: {
+      onCloseOuter: () => void
+      onCloseInner: () => void
+    }) {
+      const [outer, setOuter] = useState(false)
+      const [inner, setInner] = useState(false)
+      return (
+        <>
+          <button
+            onClick={() => {
+              setOuter(true)
+            }}
+          >
+            Open outer
+          </button>
+          <Sheet
+            open={outer}
+            onClose={() => {
+              onCloseOuter()
+              setOuter(false)
+            }}
+            title="Outer sheet"
+          >
+            <button
+              onClick={() => {
+                setInner(true)
+              }}
+            >
+              Open inner
+            </button>
+            <button>Outer last</button>
+            <Sheet
+              open={inner}
+              onClose={() => {
+                onCloseInner()
+                setInner(false)
+              }}
+              title="Inner sheet"
+            >
+              <button>Inner first</button>
+              <button>Inner last</button>
+            </Sheet>
+          </Sheet>
+        </>
+      )
+    }
+
+    async function openBoth() {
+      const user = userEvent.setup()
+      const onCloseOuter = vi.fn()
+      const onCloseInner = vi.fn()
+      render(<Stack onCloseOuter={onCloseOuter} onCloseInner={onCloseInner} />)
+      await user.click(screen.getByRole('button', { name: 'Open outer' }))
+      await user.click(screen.getByRole('button', { name: 'Open inner' }))
+      return { user, onCloseOuter, onCloseInner }
+    }
+
+    const root = (name: string) => screen.getByRole('dialog', { name }).parentElement as HTMLElement
+
+    test('Escape closes the sheet on top and leaves the one under it open', async () => {
+      const { user, onCloseOuter, onCloseInner } = await openBoth()
+      await user.keyboard('{Escape}')
+      expect(onCloseInner).toHaveBeenCalledTimes(1)
+      expect(onCloseOuter).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog', { name: 'Inner sheet' })).not.toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Outer sheet' })).toBeInTheDocument()
+      // and a second Escape is the outer sheet's own
+      await user.keyboard('{Escape}')
+      expect(onCloseOuter).toHaveBeenCalledTimes(1)
+    })
+
+    test('the sheet under is inert while another is over it, and answers again once it is alone', async () => {
+      const { user } = await openBoth()
+      expect(root('Outer sheet')).toHaveAttribute('inert')
+      expect(root('Inner sheet')).not.toHaveAttribute('inert')
+      await user.keyboard('{Escape}')
+      expect(root('Outer sheet')).not.toHaveAttribute('inert')
+    })
+
+    test('Tab stays in the sheet on top, and focus returns to the control that opened it', async () => {
+      const { user } = await openBoth()
+      const inner = screen.getByRole('dialog', { name: 'Inner sheet' })
+      expect(inner).toContainElement(document.activeElement as HTMLElement)
+      // round and round the inner sheet's own controls: Close, Inner first, Inner last
+      for (let i = 0; i < 7; i += 1) {
+        await user.tab()
+        expect(inner).toContainElement(document.activeElement as HTMLElement)
+      }
+      for (let i = 0; i < 7; i += 1) {
+        await user.tab({ shift: true })
+        expect(inner).toContainElement(document.activeElement as HTMLElement)
+      }
+      // focus fallen to the page comes back to the sheet on top, not the one under it
+      ;(document.activeElement as HTMLElement).blur()
+      await user.tab()
+      expect(inner).toContainElement(document.activeElement as HTMLElement)
+
+      await user.keyboard('{Escape}')
+      expect(screen.getByRole('button', { name: 'Open inner' })).toHaveFocus()
+    })
+
+    test('a sheet that opens and closes alone is as it was: no inert, one Escape', async () => {
+      const user = userEvent.setup()
+      const onClose = vi.fn()
+      render(<Harness onClose={onClose} />)
+      await user.click(screen.getByRole('button', { name: 'Open sheet' }))
+      expect(root('Log activity')).not.toHaveAttribute('inert')
+      await user.keyboard('{Escape}')
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+  })
 })
 
 describe('Toast', () => {

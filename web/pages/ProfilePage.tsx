@@ -27,6 +27,7 @@ import { Segmented } from '../components/Segmented.tsx'
 import { Sheet } from '../components/Sheet.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { formatLongDate } from '../components/format.ts'
+import { strengthProfileHint } from '../components/strength/profileHint.ts'
 import {
   BOUNDARY_SOURCE_LABELS,
   bpmRangeText,
@@ -573,6 +574,7 @@ function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units
               set('strength', value)
             }}
           />
+          <p className={styles.note}>{strengthProfileHint(units)}</p>
           {errors['strengthPreference'] !== undefined ? (
             <p className={styles.error}>{errors['strengthPreference']}</p>
           ) : null}

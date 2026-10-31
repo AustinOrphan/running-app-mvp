@@ -160,6 +160,28 @@ describe('ProfilePage', () => {
     expectCleanCopy(document.body)
   })
 
+  test('says under the strength choice how many sessions the plan asks for, what a double is and how long one takes', async () => {
+    setup(makeProfile())
+    await loaded()
+    const section = screen.getByRole('heading', { name: 'Strength' }).closest('section')
+    expect(section).not.toBeNull()
+    const hint = within(section as HTMLElement).getByText(/^The plan asks for at most/)
+    expect(hint).toHaveTextContent(
+      'The plan asks for at most two strength sessions a week, each up to about 40 min. ' +
+        'A double is a lift and an easy run on one day, at least 3 hours apart.',
+    )
+    // it sits under the choice, so the choice is read first
+    const choice = within(section as HTMLElement).getByRole('radiogroup', {
+      name: 'Strength preference',
+    })
+    expect(choice.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // the words do not change with the choice, which is how much the plan may ask for
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('radio', { name: 'None' }))
+    expect(hint).toBeVisible()
+    expectCleanCopy(section as HTMLElement)
+  })
+
   test('saves edited numbers, pace and selects with a full profile body', async () => {
     const { api, user } = setup(makeProfile())
     await loaded()

@@ -25,6 +25,7 @@ import { toGrams } from '../../../shared/domain/weight.ts'
 import { allParams, P } from '../../../shared/engine/params/index.ts'
 import type { Quantity } from '../../../shared/engine/types.ts'
 import type { StrengthTemplate, Units, WeightUnit } from '../../../shared/types.ts'
+import { strengthProfileHint } from '../../../web/components/strength/profileHint.ts'
 
 const ids = Object.keys(STRENGTH_TEMPLATES) as StrengthTemplateId[]
 const UNITS: Units[] = ['km', 'mi']
@@ -301,6 +302,47 @@ describe('the sentences of design 11.6', () => {
     // a different Param would change the sentence, not leave "one" in it
     expect(say('strength.reason.lighter-day', { sets: countPhrase(2, 'set') })).toContain(
       'two sets fewer',
+    )
+  })
+
+  it('words the lighter day of the Today hero from the same Param, with and without a load to lower', () => {
+    const sets = countPhrase(P.f9.lowReadinessSetsCut.value, 'set')
+    // only the sets were cut: the sentence promises no usual load and no percentage
+    expect(say('strength.lighter-today-sets', { sets })).toBe('Lighter today: one set fewer.')
+    // the usual load is taken: the loads are the usual ones, the set cut still stands
+    expect(say('strength.hero.usual-on', { sets })).toBe('Usual loads, with one set fewer.')
+    expect(say('strength.hero.usual-on', { sets: countPhrase(2, 'set') })).toBe(
+      'Usual loads, with two sets fewer.',
+    )
+  })
+
+  it('names the strength item of "Also today" as design 11.1 does', () => {
+    expect(
+      say('strength.hero.open-workout', {
+        minutes: countPhrase(P.f7.blockSessionMin.value, 'minute'),
+      }),
+    ).toBe(`Strength, ${String(P.f7.blockSessionMin.value)} minutes: open the workout`)
+    expect(say('strength.label.log-sets')).toBe('Log sets')
+  })
+
+  it('words the session sheet and the Profile hint from their Params', () => {
+    const weeks = P.e5.strengthBlockWeeks.value
+    expect(say('strength.session.week', { week: count(6), of: count(weeks) })).toBe(
+      `Week 6 of ${String(weeks)} of the strength block.`,
+    )
+    expect(say('strength.session.as-of-today')).toBe(
+      'As of today: the loads can change with the sessions before this one.',
+    )
+    const hours = P.f4.strengthSeparationHours.value
+    expect(strengthProfileHint('km')).toBe(
+      `The plan asks for at most ${countPhrase(P.flib.strengthPerWeek.value, 'strength session')} a week, ` +
+        `each up to about ${String(P.f7.blockSessionMin.value)} min. ` +
+        `A double is a lift and an easy run on one day, at least ${String(hours)} hours apart.`,
+    )
+    // a runner in miles reads the same hint: it holds no distance
+    expect(strengthProfileHint('mi')).toBe(strengthProfileHint('km'))
+    expect(say('strength.separation', { hours: count(hours) })).toBe(
+      `Lift at least ${String(hours)} hours before or after a run.`,
     )
   })
 
