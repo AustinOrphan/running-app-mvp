@@ -7,11 +7,11 @@
 import { addDays, mondayOf } from '../dates.ts'
 import { ageFlag, historyBlock, historyRowCount, weekRowsBetween } from './athlete.ts'
 import { disruptionPlan, windowPhase } from './disruption.ts'
+import { persistentHoldOf, type PersistentHold } from './holds.ts'
 import {
   ceilingWeeklyRate,
   EPS,
   eligibleWeeks,
-  injuryTight,
   plannedMinOf,
   recentRunMean,
   type RebuildZone,
@@ -19,7 +19,6 @@ import {
 } from './limits.ts'
 import { P } from './params/index.ts'
 import { postRaceWindows } from './postRace.ts'
-import { focalBoneActive } from './readiness.ts'
 import {
   isLoadAppetite,
   type AthleteState,
@@ -32,14 +31,7 @@ import {
  * Why a requested position does not apply: the plan is held at steady for as long as it lasts, and
  * the setting returns when it ends. The first that applies is named, in this order.
  */
-export type LoadHold =
-  | 'recent-injury'
-  | 'bone-stress'
-  | 'bsi-factors'
-  | 'reds-hold'
-  | 'bone-pain'
-  | 'rest-window'
-  | 'post-race'
+export type LoadHold = PersistentHold | 'rest-window' | 'post-race'
 
 export interface LoadPosition {
   /** What the plan asks for (`options.loadAppetite`); steady when the option is absent. */
@@ -63,11 +55,8 @@ function restWindowActive(input: EngineInput): boolean {
 
 /** The first reason that holds the setting at steady for this runner today, or null. */
 function holdOf(input: EngineInput, state: AthleteState): LoadHold | null {
-  if (injuryTight(state)) return 'recent-injury'
-  if (state.risk.priorBsi) return 'bone-stress'
-  if (state.risk.bsiFactors >= P.g3.bsiFactorsForCap.value) return 'bsi-factors'
-  if (state.risk.redsFlags >= P.j5.redsHoldFlags.value) return 'reds-hold'
-  if (focalBoneActive(input, input.today)) return 'bone-pain'
+  const persistent = persistentHoldOf(input, state)
+  if (persistent !== null) return persistent
   if (restWindowActive(input)) return 'rest-window'
   // a plan built inside the window of a past race: the goal race's own window is ahead of the plan
   if (postRaceWindows(input).past !== null) return 'post-race'

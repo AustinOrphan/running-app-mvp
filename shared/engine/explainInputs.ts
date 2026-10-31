@@ -45,6 +45,7 @@ import {
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
 import { blockLiftMin, loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
+import { effective, resolveMethod } from './methods.ts'
 import {
   cycleShortReason,
   cycleWorkWeeks,
@@ -80,6 +81,7 @@ import type {
   InputFact,
   PhaseV2,
   Prediction,
+  PresetId,
   Quantity,
   ReadinessSnapshot,
   SourceRef,
@@ -411,6 +413,16 @@ function decisionRunMin(ctx: ExplainContext, weekStart: string): number {
  * of `input` does not carry.
  */
 const loadInputOf = (ctx: ExplainContext): EngineInput => ctx.planInput ?? ctx.input
+
+/**
+ * The method preset that applies to the plan [rules P1 to P4], read from the plan's own goal and
+ * options (`loadInputOf`) and the stored weeks, as the generator and the plan's served position read
+ * it. Without a plan the options are the neutral input's and the default applies.
+ */
+const methodOf = (ctx: ExplainContext, state: AthleteState = ctx.state): PresetId => {
+  const input = loadInputOf(ctx)
+  return resolveMethod(input, state, input.existing?.weeks).effective
+}
 
 function weeklyRampFacts(scope: Scope): InputFact[] {
   const { ctx, last, next } = scope
@@ -1879,7 +1891,7 @@ function runDayFacts(scope: Scope): InputFact[] {
         'F5',
         'masters',
         'explain.f5-masters',
-        { age: count(age), n: count(P.f5.mastersMaxRunDays.value) },
+        { age: count(age), n: count(effective(methodOf(ctx), 'f5.mastersMaxRunDays')) },
         { sources: [profileSource(ctx)] },
       ),
     )
@@ -2296,7 +2308,7 @@ function outlookFacts(scope: Scope): InputFact[] {
   // The label the plan was generated with: the same start path, the same day and the same state.
   const input: EngineInput = { ...ctx.input, today: ctx.asOf, goal: race }
   const state = planState(ctx)
-  const outlook = feasibility(race, state, ctx.asOf, startPath(input, state))
+  const outlook = feasibility(race, state, ctx.asOf, startPath(input, state), methodOf(ctx, state))
   return [
     make('D4', 'label', 'explain.d4-label', {
       label: FEASIBILITY_WORDS[outlook.label],
@@ -3560,8 +3572,12 @@ const RACE_RULES: ReadonlySet<string> = new Set(
   ].map(lower),
 )
 
-/** The rules that read the load setting (`ExplainContext.planInput`): the ramp, the cap, the start and g-8. */
-const LOAD_SETTING_RULES: ReadonlySet<string> = new Set(['g-2', 'g-6', 'g-8', 'e6'])
+/**
+ * The rules that read the plan's own options (`ExplainContext.planInput`): the load setting (the
+ * ramp, the cap, the start and g-8) and the method preset (F5's run-day cap and D4's long-run
+ * share, `methodOf`).
+ */
+const LOAD_SETTING_RULES: ReadonlySet<string> = new Set(['g-2', 'g-6', 'g-8', 'e6', 'f5', 'd4'])
 
 /** The rules that read the strength engine's input (`ExplainContext.strength`). */
 const STRENGTH_RULES: ReadonlySet<string> = new Set(['f7', 'f8', 'f9'])

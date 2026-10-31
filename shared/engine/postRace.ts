@@ -10,6 +10,7 @@ import type { Activity } from '../types.ts'
 import { distanceClassOf } from './goal.ts'
 import { referenceBetween, runCaps, type RunRecord } from './limits.ts'
 import { isDuplicate } from './load.ts'
+import { effective } from './methods.ts'
 import { P } from './params/index.ts'
 import { checkinsOf, J8_CHECKLIST, poorSubjective } from './readiness.ts'
 import type {
@@ -520,11 +521,17 @@ export function windowWeeks(
     reference: number
     /** Run days of the reference week. */
     referenceRunDays: number
+    /**
+     * The long run's share of the week [rule design-macro]: the effective value under the plan's
+     * method preset (`effective`, methods.ts). Absent means the default.
+     */
+    longRunShare?: number
     /** The runs of the 30-day reference (completed or planned) and the first day a run can fall on. */
     limits?: { runs: readonly RunRecord[]; today: string }
   },
 ): WeekDraft[] {
   const { reference, referenceRunDays } = args
+  const longRunShare = args.longRunShare ?? effective('default', 'macroDesign.longRunShareOfWeek')
   const runs = args.limits === undefined ? null : [...args.limits.runs]
   return args.weekStarts.map((weekStart, k) => {
     let minutes = 0
@@ -598,10 +605,7 @@ export function windowWeeks(
         ? 0
         : Math.min(
             longMax,
-            Math.max(
-              Math.floor(target * P.macroDesign.longRunShareOfWeek.value + EPS),
-              Math.ceil(target / runDays),
-            ),
+            Math.max(Math.floor(target * longRunShare + EPS), Math.ceil(target / runDays)),
           )
     const week: WeekDraft = {
       weekStart,

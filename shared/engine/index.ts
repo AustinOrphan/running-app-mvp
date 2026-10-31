@@ -46,6 +46,7 @@ import {
 import { isDuplicate } from './load.ts'
 import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath, strengthBlockPosition } from './macro.ts'
+import { resolveMethod } from './methods.ts'
 import { holdSessions, placeWeek } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { planWindows, postRaceWarnings } from './postRace.ts'
@@ -422,11 +423,21 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
   const kept = keep.sessions
   const state = afterBreak(estimateState(input))
   const zones = buildZones(input.profile, state, today)
-  const feas = feasibility(goal, state, today, startPath(input, state))
+  // The method preset that applies [rules P1 to P4]: the label reads its long-run share, the macro
+  // cycle draws the weeks with it, and the week placement below reads the table of quality kinds,
+  // once the plan's weeks show whether it has a base week to lengthen.
+  const feas = feasibility(
+    goal,
+    state,
+    today,
+    startPath(input, state),
+    resolveMethod(input, state).effective,
+  )
   const currentMonday = mondayOf(today)
   const pastWeeks = (input.existing?.weeks ?? []).filter((w) => w.weekStart < currentMonday)
   const macro: WeekDraft[] = []
   const { weeks: macroWeeks, raceWeekTail } = macroPlanDraft(input, state, goal, feas)
+  const method = resolveMethod(input, state, [...pastWeeks, ...macroWeeks]).effective
   for (const w of macroWeeks) {
     let week: WeekDraft = {
       ...capWeek(w, input.weekCaps?.[w.weekStart]),
@@ -609,6 +620,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
             ? P.macroDesign.peakLongRunKmMax.value * 1000
             : undefined,
         ultra: goal.isUltra,
+        method,
         blockPosition: strengthBlockPosition([...pastWeeks, ...macro], week.weekStart),
         ...(rules.length > 0 ? { dayRules: rules } : {}),
         ...(dplan.days.length > 0 ? { windowPlan: true } : {}),
@@ -828,6 +840,7 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
               virtualTwoDay: completed.virtualTwoDay,
             },
             postRace: windows,
+            method,
           }).filter((s) => !keptDates.has(s.date))
         : []
     // hold days of a rest window are rest days with the window's words; the race day keeps the race

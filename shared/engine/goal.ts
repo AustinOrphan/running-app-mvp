@@ -2,10 +2,11 @@
 import { daysBetween, mondayOf } from '../dates.ts'
 import type { Goal } from '../types.ts'
 import { startWeekMin, ultraRunCapMin } from './limits.ts'
+import { effective } from './methods.ts'
 import { P } from './params/index.ts'
 import { predictFromState } from './predict.ts'
 import { rungCount, startWeek, type StartPath } from './startWeeks.ts'
-import type { AthleteState, EngineWarning, Feasibility, GoalModel } from './types.ts'
+import type { AthleteState, EngineWarning, Feasibility, GoalModel, PresetId } from './types.ts'
 
 const SEC_PER_MIN = 60
 const MIN_PER_HOUR = 60
@@ -258,12 +259,15 @@ export interface LongRunFloor {
  * run the planner can schedule when that is shorter. The planner's long run is the lesser of
  * `peakLongRunMin` and the long-run share of the larger of the class peak week and the start week,
  * in minutes at the training pace, so the check never counts weeks toward a run the plan does not
- * build [rules D3, D4]. Null for the other classes, which have no long-run floor.
+ * build [rules D3, D4]. Null for the other classes, which have no long-run floor. The share is the
+ * one the plan's method preset gives (`method`, the preset that applies: `resolveMethod`; the
+ * default when absent), so the label reads the long run the plan builds.
  */
 export function longRunFloor(
   goal: GoalModel,
   state: AthleteState,
   start?: StartPath | null,
+  method: PresetId = 'default',
 ): LongRunFloor | null {
   const floorKm =
     goal.distanceClass === 'half'
@@ -276,7 +280,7 @@ export function longRunFloor(
   const weekMin = Math.max(peakWeeklyMin(goal, pace), startWeekMin(state, start))
   const plannedMin = Math.min(
     peakLongRunMin(goal, pace, state),
-    Math.floor(P.macroDesign.longRunShareOfWeek.value * weekMin + EPSILON),
+    Math.floor(effective(method, 'macroDesign.longRunShareOfWeek') * weekMin + EPSILON),
   )
   const plannedKm = (plannedMin * SEC_PER_MIN) / pace
   const reached = plannedMin >= minutesFor(floorKm, pace)
@@ -302,6 +306,7 @@ export function longRunFloor(
 function startReach(
   state: AthleteState,
   start: StartPath | null | undefined,
+  method: PresetId,
 ): { weeks: number; reachMin: number } {
   if (start === undefined || start === null) {
     const { distanceM, durationSec } = state.longest30d
@@ -309,7 +314,7 @@ function startReach(
     const weekMin = startWeekMin(state, start)
     return {
       weeks: 0,
-      reachMin: Math.floor(P.macroDesign.longRunShareOfWeek.value * weekMin + EPSILON),
+      reachMin: Math.floor(effective(method, 'macroDesign.longRunShareOfWeek') * weekMin + EPSILON),
     }
   }
   if (start.kind === 'floor') return { weeks: 0, reachMin: start.sessionMin }
@@ -375,6 +380,7 @@ export function planWeeksAvailable(today: string, raceDate: string): number {
  * long run the planner schedules when that is shorter (`longRunFloor`).
  * The weeks available are the plan's own Monday weeks, the current week through the race week
  * (`planWeeksAvailable`), the same weeks `weeksNeeded` counts.
+ * `method` is the preset that applies to the plan (`resolveMethod`), read for the long-run share.
  * A label only: it changes no limit and no session.
  */
 export function feasibility(
@@ -382,6 +388,7 @@ export function feasibility(
   state: AthleteState,
   today: string,
   start?: StartPath | null,
+  method: PresetId = 'default',
 ): Feasibility {
   const notes: EngineWarning[] = []
   const weeksAvailable = planWeeksAvailable(today, goal.date)
@@ -401,7 +408,7 @@ export function feasibility(
   } else {
     // D3/D4: a half or marathon works toward the D3 floor, or the long run the planner schedules
     // when that is shorter; the other classes toward the race distance, at most a typical session.
-    const floor = longRunFloor(goal, state, start)
+    const floor = longRunFloor(goal, state, start, method)
     const targetM =
       floor?.targetM ?? Math.min(goal.distanceM, P.d3.typicalSessionKm.value * M_PER_KM)
     if (floor !== null && !floor.reached && goal.goalType === 'time') {
@@ -413,7 +420,7 @@ export function feasibility(
       })
     }
     // E6: the plan starts from its first session, and a ladder reaches its last rung after its weeks.
-    const reach = startReach(state, start)
+    const reach = startReach(state, start, method)
     leadWeeks = reach.weeks
     const startM = ((reach.reachMin * SEC_PER_MIN) / pace) * M_PER_KM
     const current = Math.max(state.longest30d.distanceM, P.g1.minStepDistanceM.value, startM)

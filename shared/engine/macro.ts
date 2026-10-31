@@ -38,6 +38,7 @@ import {
 } from './limits.ts'
 import { isDuplicate } from './load.ts'
 import { blockLift, rebuildZone, responseBasis } from './loadSetting.ts'
+import { effective, resolveMethod } from './methods.ts'
 import { P } from './params/index.ts'
 import {
   ownWindow,
@@ -68,6 +69,7 @@ import type {
   Feasibility,
   GoalModel,
   PhaseV2,
+  PresetId,
   SessionSpec,
   WeekDraft,
 } from './types.ts'
@@ -223,13 +225,14 @@ function planPhases(
   taperWeeks: number,
   workPerCycle: number,
   openingRecovery: boolean,
+  method: PresetId,
   carried: ReadonlyArray<PhaseV2 | null> = [],
 ): PhasePlan[] {
   const specificMin = P.e2.specificWeeksMin.value
   const specific =
     weeksBeforeTaper >= specificMin ? Math.min(P.e2.specificWeeksMax.value, weeksBeforeTaper) : 0
   const remaining = weeksBeforeTaper - specific
-  const build = Math.min(remaining, P.macroDesign.buildWeeks.value)
+  const build = Math.min(remaining, effective(method, 'macroDesign.buildWeeks'))
   const base = remaining - build
   const cycle = workPerCycle + 1
   const out: PhasePlan[] = []
@@ -810,6 +813,8 @@ function planWeeks(
   state: AthleteState,
   goal: GoalModel,
   _feasibility: Feasibility,
+  /** The method preset that applies to the plan [rules P1 to P4]: `resolveMethod`, once per plan. */
+  method: PresetId,
   /**
    * A plan built inside a post-race window [H12]: the planned minutes of the window weeks before
    * its first week (ramp baselines), and the first loading week after them, which restarts from
@@ -837,7 +842,7 @@ function planWeeks(
   const pace = trainingPace(state, goal)
   const share = goal.isUltra
     ? P.macroDesign.longRunShareOfWeekUltra.value
-    : P.macroDesign.longRunShareOfWeek.value
+    : effective(method, 'macroDesign.longRunShareOfWeek')
   const cut = P.e3.recoveryWeekCutPct.value / 100
 
   // Phases
@@ -850,6 +855,7 @@ function planWeeks(
     taperCount,
     cycleWorkWeeks(input, state),
     openingRecovery,
+    method,
     carriedPhases(input, firstMonday, raceMonday, preCount),
   )
   const raceIdx = total - 1
@@ -857,7 +863,7 @@ function planWeeks(
   // Run days: novices keep the three-day rhythm, others follow the minutes, never above six
   const sessionMin = (P.d3.typicalSessionKm.value * pace) / 60
   const minDays = P.f5.noviceRunDays.value
-  const maxDays = P.f5.mastersMaxRunDays.value
+  const maxDays = effective(method, 'f5.mastersMaxRunDays')
   const daysFor = (target: number) => {
     if (target <= 0) return 0
     if (novice) return minDays
@@ -1437,6 +1443,7 @@ function planWeeks(
     firstIndex: total - 1,
     reference,
     referenceRunDays: refDays,
+    longRunShare: effective(method, 'macroDesign.longRunShareOfWeek'),
     limits: { runs, today: input.today },
   })
   weeks.push(...afterWeeks)
@@ -1458,6 +1465,7 @@ function windowLeadIn(
   input: EngineInput,
   state: AthleteState,
   goal: GoalModel,
+  method: PresetId,
 ): { window: PostRaceWindow; weeks: WeekDraft[]; restartMin: number } | null {
   if (goal.date < input.today) return null
   const { past } = postRaceWindows(input)
@@ -1485,6 +1493,7 @@ function windowLeadIn(
     firstIndex: 0,
     reference,
     referenceRunDays,
+    longRunShare: effective(method, 'macroDesign.longRunShareOfWeek'),
     limits: { runs: completedReference(input.activities, state).runs, today: input.today },
   })
 
@@ -1524,8 +1533,10 @@ export function macroPlanDraft(
   goal: GoalModel,
   feasibility: Feasibility,
 ): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
-  const lead = windowLeadIn(input, state, goal)
-  if (lead === null) return planWeeks(input, state, goal, feasibility)
+  // one resolution for the whole plan, so the lead-in and the weeks after it agree on the preset
+  const method = resolveMethod(input, state).effective
+  const lead = windowLeadIn(input, state, goal, method)
+  if (lead === null) return planWeeks(input, state, goal, feasibility, method)
   const normalStart = addDays(mondayOf(input.today), 7 * lead.weeks.length)
   // The plan it replaces is not read: its weeks at the shifted start are weeks of the normal plan
   // and would anchor the restart above the J7 volume.
@@ -1541,6 +1552,7 @@ export function macroPlanDraft(
     },
     goal,
     feasibility,
+    method,
     {
       volumes: new Map(lead.weeks.map((w) => [w.weekStart, w.targetRunMin])),
       runs: windowRuns(lead.window, lead.weeks),
