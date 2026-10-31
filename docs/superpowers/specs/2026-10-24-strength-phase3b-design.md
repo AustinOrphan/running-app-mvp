@@ -1,6 +1,7 @@
 # Strength programming (phase 3b, E14) — design
 
-Status: Proposed 2026-10-24; owner decisions recorded 2026-10-24 (section 18). Written under the
+Status: Implemented 2026-10-31 (phase 3b, strength epic E14; see `docs/STATUS.md`, follow-up 18).
+Proposed 2026-10-24; owner decisions recorded 2026-10-24 (section 18). Written under the
 owner's direction of 2026-10-23 (section 1.1) as the first epic of phase 3b, after the phase 3a
 close (`docs/STATUS.md`, follow-up 18). Decisions are the builder's unless marked **owner**;
 section 15 lists every decision with its reason and section 16 lists the questions that the owner
