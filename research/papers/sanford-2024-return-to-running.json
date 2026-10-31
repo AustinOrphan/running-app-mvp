@@ -46,17 +46,17 @@
       "note": "Document code 1/24, created 2024-01-25, served last-modified 2024-01-30; the same file the record read. Later corpus papers (warden-2021-bsi-optimal-workload, george-2024-tibial-bsi-return-to-run) do not supersede the tendon or post-surgical tables."
     },
     "r4": {
-      "result": "pass",
-      "note": "Structure (levels, rest between runs, repeat on symptoms, 72 hours for tendon) agrees with the BJSM table (bjsm-2019) and george-2024-tibial-bsi-return-to-run (graduated, symptom-led). Durations differ between the sources; the conservative reading is the lesser."
+      "result": "hold",
+      "note": "Structure (levels, rest between runs, repeat on symptoms, 72 hours for tendon) agrees with the BJSM table (bjsm-2019) and george-2024-tibial-bsi-return-to-run (graduated, symptom-led). Durations differ between the sources; the conservative reading is the lesser. second pass: the sheet gives different rest between runs (every other day after surgery, 2 to 3 days for tendon) and injuryReturn.restDaysBetween takes 1 day beside the tendon levels, so the conservative reading is not used there; the BJSM table adapts Warden and the sheet lists it, so the agreement is weaker than two independent sources."
     },
     "r5": {
-      "result": "pass",
-      "note": "Population stated (patients returning after lower-extremity injury or surgery); the injuryReturn and j9.niggleEasyDays notes label use for a generic injury flag or niggle as an extrapolation."
+      "result": "hold",
+      "note": "Population stated (patients returning after lower-extremity injury or surgery); the injuryReturn and j9.niggleEasyDays notes label use for a generic injury flag or niggle as an extrapolation. second pass: injuryReturn.repeatsPerLevel and restDaysBetween apply the tendon and post-surgical rules to any recent-injury flag, and their notes do not call that an extrapolation (only levelsMin does)."
     },
     "r6": {
       "result": "pass",
       "note": "Evidence level D, at the practice cap."
     },
-    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

@@ -51,13 +51,13 @@
       "note": "Weeks of reduced running agree in shape with Roche (skurka-2017) and Powell (irunfar-2016), independent coaches, and function data (millet-2011, hoffman-2017) show recovery by days 5 to 16. Roche and Powell differ on the week-1 dose (rest versus short jogs); the conservative reading is the shorter run."
     },
     "r5": {
-      "result": "pass",
-      "note": "Population is coach guidance for ultramarathoners, mainly after a 100-mile race; the record states there are no figures for 50 km, and the H12 Param notes label the extension to other classes as a default."
+      "result": "hold",
+      "note": "Population is coach guidance for ultramarathoners, mainly after a 100-mile race; the record states there are no figures for 50 km, and the H12 Param notes label the extension to other classes as a default. second pass: h12.step2RunMaxMin and h12.reducedDays apply this 100-mile advice to the later steps after a marathon or a 50K, and their notes name the 100-mile plans without calling that extension an extrapolation."
     },
     "r6": {
       "result": "pass",
       "note": "Evidence level D, at the practice cap."
     },
-    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

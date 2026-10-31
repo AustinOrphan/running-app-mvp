@@ -51,13 +51,13 @@
       "note": "Structure (graded walk-run levels, rest day between runs, regress on symptoms) agrees with george-2024-tibial-bsi-return-to-run (graduated programme, symptom-led) and with the Sanford tendon table (sanford-2024). Durations have no second source; the conservative reading takes the lesser of the level and the G-3 limit, as the Param notes state."
     },
     "r5": {
-      "result": "pass",
-      "note": "Population is athletes with bone stress injury; the record and the injuryReturn Param note label use for a generic injury flag as an extrapolation."
+      "result": "hold",
+      "note": "Population is athletes with bone stress injury; the record and the injuryReturn Param note label use for a generic injury flag as an extrapolation. second pass: injuryReturn.repeatsPerLevel and restDaysBetween apply this bone-stress table to any recent-injury flag, and their notes do not call that an extrapolation (only levelsMin does)."
     },
     "r6": {
       "result": "pass",
       "note": "Evidence level D, at the practice cap."
     },
-    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }

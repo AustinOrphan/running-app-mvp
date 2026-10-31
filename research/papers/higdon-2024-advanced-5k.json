@@ -34,7 +34,7 @@
   "vetting": {
     "r1": {
       "result": "hold",
-      "note": "Not read: on 2026-10-31 the live page dropped the connection of a plain HTTP client, and the single Wayback lookup resolved to a capture of the host's captcha page (2025-03-27), not the plan. No claim was located and no attempt was made to get past the check. The record's 2026-10-22 read was through a page summariser."
+      "note": "Not read: on 2026-10-31 the live page dropped the connection of a plain HTTP client, and the single Wayback lookup resolved to a capture of the host's captcha page (2025-03-27), not the plan. No claim was located and no attempt was made to get past the check. The record's 2026-10-22 read was through a page summariser. second pass: the live page was read on 2026-10-31 (plain HTTP client, status 200) and the Sunday long runs of 60, 65, 70, a 5K test, 75, 85 and 90 minutes and the race, the six run days, the Monday, Tuesday, Thursday and Saturday sessions and the 12-mile header all match the record; S4 did not read the page, so only one pass has read it, and the hold stays until a second read or the owner signs off."
     },
     "r2": {
       "result": "pass",
@@ -42,20 +42,20 @@
     },
     "r3": {
       "result": "hold",
-      "note": "Page not read, so its version and date are unknown beyond the record; the sibling Higdon 5K pages carry published 2018-04 and modified 2018-07 metadata."
+      "note": "Page not read, so its version and date are unknown beyond the record; the sibling Higdon 5K pages carry published 2018-04 and modified 2018-07 metadata. second pass: the live page metadata gives published 2018-04-09 and modified 2018-07-12, as on the sibling pages; the hold stays with R1."
     },
     "r4": {
       "result": "hold",
-      "note": "Not re-read, so agreement cannot be restated. The 90-minute peak long run sits near Johnson's ten miles for a serious 5K runner (johnson-2018), and the record flags the page header's 12 miles as inconsistent with its own schedule."
+      "note": "Not re-read, so agreement cannot be restated. The 90-minute peak long run sits near Johnson's ten miles for a serious 5K runner (johnson-2018), and the record flags the page header's 12 miles as inconsistent with its own schedule. second pass: with the page read, the 90-minute peak matches the record and sits near Johnson's ten miles for a serious 5K runner; the hold stays with R1."
     },
     "r5": {
       "result": "hold",
-      "note": "Population as recorded on 2026-10-22 (experienced 5K runners, 4 to 5 days and 20 to 30+ miles a week); not confirmed this pass because the page was not read."
+      "note": "Population as recorded on 2026-10-22 (experienced 5K runners, 4 to 5 days and 20 to 30+ miles a week); not confirmed this pass because the page was not read. second pass: the page states 4 to 5 running days and 20 to 30 miles or more a week, as recorded; the hold stays with R1."
     },
     "r6": {
       "result": "pass",
       "note": "Evidence level D, at the practice cap."
     },
-    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
+    "signedOff": "S4 2026-10-31 (page not read); S4b 2026-10-31 read the live page and found the findings matching; one reading pass only, owner sign-off pending at merge"
   }
 }

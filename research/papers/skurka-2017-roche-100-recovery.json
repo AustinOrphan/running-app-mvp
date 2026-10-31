@@ -50,13 +50,13 @@
       "note": "A staged month agrees in shape with Koop (cts-2025) and Powell (irunfar-2016) and with function data in millet-2011 and hoffman-2017. Roche's complete-rest week is shorter than Uhan's ten days (irunfar-2014); the conservative reading is the longer."
     },
     "r5": {
-      "result": "pass",
-      "note": "Population is coach guidance for athletes recovering from a 100-mile race, mostly well trained; macroDesign.postRaceLongFractions and the H12 Params apply it to races of 100K and longer, labelled as defaults."
+      "result": "hold",
+      "note": "Population is coach guidance for athletes recovering from a 100-mile race, mostly well trained; macroDesign.postRaceLongFractions and the H12 Params apply it to races of 100K and longer, labelled as defaults. second pass: h12.step2RunMaxMin and h12.reducedDays apply these 100-mile staging figures to the later steps after a marathon or a 50K, and their notes name the 100-mile plans without calling that extension an extrapolation."
     },
     "r6": {
       "result": "pass",
       "note": "Evidence level D, at the practice cap."
     },
-    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, S4 and S4b, 2026-10-31"
   }
 }
