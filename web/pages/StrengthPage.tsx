@@ -17,6 +17,7 @@ import { LiftHistory } from '../components/strength/LiftHistory.tsx'
 import { LiftsList } from '../components/strength/LiftsList.tsx'
 import { RecentSessions } from '../components/strength/RecentSessions.tsx'
 import { SetupCard } from '../components/strength/SetupCard.tsx'
+import { StrengthLogNotices } from '../components/strength/StrengthLogNotices.tsx'
 import type { SetupPart } from '../components/strength/setupForm.ts'
 import { UnitsSection } from '../components/strength/UnitsSection.tsx'
 import { WorkoutCard } from '../components/strength/WorkoutCard.tsx'
@@ -162,6 +163,8 @@ export function StrengthPage() {
         title={words.say('strength.page.title')}
         context={words.say('strength.page.context')}
       />
+      {/* a log the server refused when it was sent later is gone from the phone: say so, here too */}
+      <StrengthLogNotices />
       {view.data === undefined && view.isError ? (
         <p role="alert" className={styles.error}>
           {words.say('strength.page.load-error')}

@@ -15,13 +15,13 @@ import type {
   UserSettings,
   WorkoutLift,
 } from '../../shared/types.ts'
-import type { StrengthLogBody } from '../../web/api/strength.ts'
+import { strengthLogUrl, type StrengthLogBody } from '../../web/api/strength.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { StrengthSheet, type StrengthSaved } from '../../web/components/strength/StrengthSheet.tsx'
 import { STRENGTH_DRAFT_PREFIX } from '../../web/pwa/drafts.ts'
 import { measureOf, strengthWords } from '../../web/components/strength/strengthText.ts'
 import { StrengthPage } from '../../web/pages/StrengthPage.tsx'
-import { getOutbox } from '../../web/pwa/outbox.ts'
+import { getOutbox, useOutboxReplay } from '../../web/pwa/outbox.ts'
 import { have } from '../unit/engine/strength-fixtures.ts'
 import {
   delayResponses,
@@ -3063,6 +3063,104 @@ describe('the Strength page: the copy', () => {
     await page()
     // the page states no injury figure and no chance of one (G5)
     expect(document.body.textContent).not.toMatch(/injury (?:risk|probability|chance|odds)/i)
+  })
+})
+
+describe('the Strength page: a log the server refused when it was sent later (design 9.6)', () => {
+  const dropped =
+    'A strength log saved on this phone was not accepted and was removed. Enter it again if it still applies.'
+  const BODY: StrengthLogBody = {
+    date: DAY,
+    sessionId: SESSION_ID,
+    durationMin: 40,
+    prescribed: { template: 'heavy', variant: 'A', week: 6, mode: 'normal', lifts: [] },
+    sets: [{ exerciseId: 'back-squat', loadG: lb(110), count: 5, rir: 1 }],
+  }
+
+  /** The page with the app's replay of the outbox beside it, as the signed-in app mounts them. */
+  function openWithReplay(routes: MockRoutes) {
+    function Replay() {
+      useOutboxReplay('u1')
+      return null
+    }
+    mockApi({
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/strength': () => pageView(),
+      'GET /api/profile': () => PROFILE,
+      ...routes,
+    })
+    renderWithProviders(
+      <ToastProvider>
+        <Replay />
+        <StrengthPage />
+      </ToastProvider>,
+      { route: '/strength' },
+    )
+  }
+
+  test('shows the notice on the page, in the words Today uses, and Dismiss removes it', async () => {
+    let connected = false
+    openWithReplay({
+      [`PUT ${strengthLogUrl(LOG_ID)}`]: () =>
+        connected
+          ? {
+              status: 409,
+              body: { error: { code: 'conflict', message: 'That activity already has a log.' } },
+            }
+          : unreachable,
+    })
+    await page()
+    // saved while there was no connection: kept on the phone, and nothing said yet
+    expect((await getOutbox().save(strengthLogUrl(LOG_ID), { ...BODY })).status).toBe('queued')
+    expect(screen.queryByText(dropped)).not.toBeInTheDocument()
+
+    connected = true
+    window.dispatchEvent(new Event('online'))
+    // the replay was refused (a 409): the log is gone from the phone, and the page says so
+    const notice = await screen.findByText(dropped)
+    expect(notice).toHaveAttribute('role', 'alert')
+    expect(getOutbox().getState().entries).toEqual([])
+    expectCleanCopy(notice.parentElement as HTMLElement)
+
+    const dismiss = screen.getByRole('button', { name: 'Dismiss' })
+    // a 44 px target, as on Today: the button and its notice share the component's stylesheet
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/strength/StrengthLogNotices.module.css'),
+      'utf8',
+    )
+    expect(css).toMatch(
+      /\.dismiss \{[^}]*margin-top: calc\(\(var\(--lh-sm\) - var\(--control-h\)\) \/ 2\)/s,
+    )
+    await userEvent.setup().click(dismiss)
+    expect(screen.queryByText(dropped)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument()
+    expect(getOutbox().getState().notices).toEqual([])
+    // the page itself went on working through it
+    expect(screen.getByRole('region', { name: 'Next session' })).toBeVisible()
+  })
+
+  test("says it also when the page could not be read, and leaves another entry's notice to its own surface", async () => {
+    let connected = false
+    openWithReplay({
+      'GET /api/strength': () => unreachable,
+      [`PUT ${strengthLogUrl(LOG_ID)}`]: () =>
+        connected
+          ? { status: 400, body: { error: { code: 'validation', message: 'Not a log.' } } }
+          : unreachable,
+      'PUT /api/checkins/2026-03-18': () =>
+        connected
+          ? { status: 400, body: { error: { code: 'validation', message: 'Not a day.' } } }
+          : unreachable,
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent('The Strength page did not load.')
+    await getOutbox().save(strengthLogUrl(LOG_ID), { ...BODY })
+    await getOutbox().save('/api/checkins/2026-03-18', { fatigue: 3 })
+    connected = true
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByText(dropped)).toBeVisible()
+    // the check-in's refusal is the check-in's, and is not listed on this page
+    expect(getOutbox().getState().notices).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(1)
   })
 })
 
