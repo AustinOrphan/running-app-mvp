@@ -1,0 +1,61 @@
+{
+  "id": "scudamore-2018-vdot-paces-evaluation",
+  "title": "An Evaluation of Time-Trial-Based Predictions of VO2max and Recommended Training Paces for Collegiate and Recreational Runners",
+  "authors": "Scudamore EM, Barry VW, Coons JM",
+  "year": 2018,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000001942",
+  "pmid": "28426511",
+  "url": "https://doi.org/10.1519/jsc.0000000000001942",
+  "design": "cross-sectional",
+  "population": "Eleven NCAA Division 1 track athletes and nine recreational runners; indoor 5 km time trial and laboratory tests",
+  "sampleSize": 20,
+  "evidenceLevel": "C",
+  "topics": ["training-methods", "zones-thresholds"],
+  "findings": [
+    "The study compared the predictions of Jack Daniels' VDOT running calculator, made from an indoor 5 km time trial, with laboratory VO2max, pace at VO2max and lactate-threshold pace in 11 collegiate track athletes and 9 recreational runners.",
+    "VDOT underestimated VO2max in the athletes (t(10) = -6.00, p < 0.001, d = 1.75) and in the recreational runners (t(8) = -8.96, p < 0.001, d = 3.44), and the underestimate was larger in the recreational group (p = 0.0031, d = 1.59).",
+    "The recommended interval pace (pIN) was slower than pace at VO2max in the recreational runners (p = 0.003) but not different in the athletes; the recommended threshold pace (pTH) was faster than lactate-threshold pace in the athletes (p = 0.003) but not different in the recreational runners (p = 0.139).",
+    "The authors conclude that the threshold pace can be used with confidence at any ability level, that the interval pace may not be optimal for improving VO2max in recreational runners, and that VDOT should be interpreted with caution because it may underestimate VO2max."
+  ],
+  "limitations": "Only the abstract was read (closed access; OpenAlex lists no open copy on 2026-10-31). Twenty runners from one university; the study compares a calculator with laboratory values and does not test Daniels's training plans, his long-run limit or any training outcome. The abstract gives t(8) for the athletes' threshold-pace test, which does not match 11 athletes, so the exact sample of that test is unknown. The calculator is a tool derived from Daniels's work, not the book's text.",
+  "implications": [
+    "VDOT paces are one tool among several and can differ from laboratory thresholds, more at interval pace for recreational runners; the engine anchors paces on thresholds (C2), so the record gives no support for crediting Daniels's paces in a preset.",
+    "No rule, Param or preset cites it; it says nothing about Daniels's weekly plans or long-run share."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. Crossref: title, J Strength Cond Res 32(4):1137-1143, April 2018, three authors, no updated-by notice. Abstract read on Europe PMC (PMID 28426511). The full text is closed access and was not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 28426511) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read, and nothing beyond the abstract is claimed."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Three named authors; the affiliation PubMed holds is the Department of Health and Human Performance, Middle Tennessee State University (Scudamore); the other two have none listed. No separate university record was fetched. No conflict is stated in the abstract."
+    },
+    "r3": {
+      "result": "hold",
+      "note": "Published 2018 and about the calculator of that time; the 4th edition of Daniels' Running Formula (2022) is later, and its tables were not read. No corpus paper tests VDOT paces against thresholds."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "One study of 20 runners; the corpus holds no second source on the accuracy of VDOT paces."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 11 collegiate track athletes and 9 recreational runners, indoor 5 km as the input. Use for other distances is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "M1 2026-10-31, one reading pass (abstract only); second pass or owner sign-off pending at merge"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "meixner-2025-zone2-variability-cyclists",
+  "title": "Zone 2 Intensity: A Critical Comparison of Individual Variability in Different Submaximal Exercise Intensity Boundaries",
+  "authors": "Meixner B, Filipas L, Holmberg HC, Sperlich B",
+  "year": 2025,
+  "journal": "Translational Sports Medicine",
+  "doi": "10.1155/tsm2/2008291",
+  "pmid": "40225831",
+  "url": "https://doi.org/10.1155/tsm2/2008291",
+  "design": "cross-sectional",
+  "population": "Fifty experienced cyclists (30 men, 20 women; age 31.2 ± 7.8 years; VO2peak 54.1 ± 8.1 mL/min/kg; more than 3 years of regular cycling), laboratory ramp and step tests",
+  "sampleSize": 50,
+  "evidenceLevel": "C",
+  "topics": ["training-methods", "zones-thresholds"],
+  "findings": [
+    "Fifty cyclists did a ramp test and a step test in two laboratory visits at least 48 h apart. The study compared nine definitions of 'Zone 2': 72% and 82% of maximum heart rate, blood lactate of 1.5, 2.0 and 2.5 mmol/L, baseline lactate plus 0.5 mmol/L, 65% of VO2peak, the first ventilatory threshold (VT1) and the maximum fat-oxidation rate (FatMax). Nine cyclists never reached a lactate below 1.5 mmol/L and were left out of the lactate-based analyses.",
+    "Between-person coefficients of variation ranged from 6% to 29% across the markers (heart rate 6.0 to 10.8%, power output 22.7 to 29.6%, oxygen uptake 18.8 to 25.6%); the fixed percentages of maximum heart rate and the fixed blood lactate values showed wide individual differences.",
+    "On average, power at 82% of maximum heart rate did not differ from power at VT1, and 72% of maximum heart rate did not differ from FatMax, but VT1 and FatMax differed (Table 2: 200 W at VT1 against 125 W at FatMax), and the limits of agreement between each pair were wide; VT1 and baseline lactate plus 0.5 mmol/L agreed closely.",
+    "Women and men differed in some ratios of power to peak step power at the lactate and heart-rate markers (p from 0.002 to 0.02).",
+    "The authors conclude that standardized markers such as a fixed percentage of maximum heart rate may not reflect an individual's metabolic response, and recommend individualised markers (VT1, FatMax) for Zone 2 prescription."
+  ],
+  "limitations": "Cyclists in a laboratory on one occasion each, with no training intervention and no outcome, so it shows variation between people and not that any marker gives better training. The paper does not test running, age-based heart-rate rules such as 180 minus age, or any plan. Its abstract says VT1 and FatMax 'showed strong alignment', while its Results and Table 2 show them differing (200 W at VT1 against 125 W at FatMax; the text says FatMax is about 25% lower); the record follows the Results. Data are available on request only; the authors state no funding and no conflict of interest.",
+  "implications": [
+    "Fixed heart-rate and lactate rules for a low-intensity zone fit individual cyclists unevenly, which agrees with C1 and C2 (thresholds above fixed heart-rate rules). For runners and for an age-based rule such as 180 minus age this is an extrapolation by analogy only, and the engine does not use such a rule.",
+    "No rule, Param or preset cites it."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. Crossref: title, Translational Sports Medicine 2025:2008291, online 2025-02-23, four authors, CC BY 4.0, no updated-by notice. Abstract and full text read on Europe PMC (PMC11986187, open access): Methods, Table 2, Results, Discussion and Conclusion (Figures 2 to 4 not viewed).",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC11986187, CC BY) on 2026-10-31, with Table 2. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Four named authors with the affiliations the publisher deposit holds: Julius-Maximilians-Universität Würzburg (Meixner, Sperlich), University of Milan (Filipas), Luleå University of Technology and the University of British Columbia (Holmberg). No separate university record was fetched. The authors state no conflict and no funding; one coauthor also lists a professional cycling team."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2025-02-23; no correction. Not superseded; no corpus paper tests Zone 2 markers."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "One study. The direction (fixed percentage markers vary between people) agrees with C1 and C2 of engine-rules.md and with the corpus papers on threshold anchors (for example lu-2025-smartwatch-lactate-threshold), but no second study of Zone 2 markers was read."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "Experienced cyclists only. Use for runners is extrapolated, and the record gives it no use beyond the analogy."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional laboratory study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "M1 2026-10-31, one reading pass; second pass or owner sign-off pending at merge"
+  }
+}
