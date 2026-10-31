@@ -145,6 +145,11 @@ export const RULE_TITLES: Record<string, string> = {
   'n-7': 'Exercise-associated hyponatraemia',
   // (o) delivery to devices
   O1: 'Targets on the device',
+  // (p) methods
+  P1: 'Default method',
+  P2: 'Three run days',
+  P3: 'Shorter long run',
+  P4: 'Longer base',
   // design decisions that have no research rule
   'design-macro': 'Plan structure defaults',
   'design-sessions': 'Session design defaults',

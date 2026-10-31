@@ -3379,6 +3379,13 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'L7',
   // red flags that state a safety convention without a measured figure
   'n-5',
+  // method presets: a named choice among four structural values, with no figure of the runner's
+  // own; the facts (the preset chosen, each override against the default) come with the form and
+  // the drawer, and the rules move to `INPUT_BUILDERS` then
+  'P1',
+  'P2',
+  'P3',
+  'P4',
   // design choices without a runner figure
   'design-macro',
   'design-sessions',
