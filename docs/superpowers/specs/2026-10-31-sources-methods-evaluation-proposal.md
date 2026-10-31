@@ -470,7 +470,7 @@ the owner, never a plan edit (ADR 0005), and an unvalidated judgement that vouch
    `npm run plan:report` at every `PARAMS_VERSION` bump, and its scorecard delta in the PR.
 10. **The plateau.** Default: report it; no engine change (G6). Alternative: a `research-update`
     pass on progressive builds against early plateaus. Against: the shape stays unexplained.
-    **Answered 2026-10-31:** the alternative, not the default (R2): a `research-update` pass on
+    **Answered 2026-10-31:** the alternative, not the default (RU2): a `research-update` pass on
     progressive builds against early plateaus, asking whether the ceiling is the evidence,
     whether the class `peakWeeklyMin` or the history-informed ceiling (ADR 0013) should bind, and
     what the literature says about volume inside a plateau. It ends in a rule change or a stated
@@ -511,16 +511,16 @@ Opinion or Preference; each corpus change adds a README method entry.
 - **S1. Corrections check.** S. Done in #596. `scripts/research-verify.ts`: a pure function over a
   stored Crossref message, tested in `tests/unit/research/` without network; a run by hand reports
   four notices.
-- **S2. Rubric and book fields.** M. Decisions 1, 2, 4. `research/README.md` (R1 to R6, sign-off,
-  the 19 records predate it), the skill ("add a source outside the journals"), optional fields in
+- **S2. Rubric and book fields.** M. Decisions 1, 2, 4. `research/README.md` (R1 to R6, sign-off;
+  S4 re-vets the 19 records), the skill ("add a source outside the journals"), optional fields in
   `paperSchema`, the workflow's paper schema and `write-corpus.mjs` with tests; a `params.test.ts`
   case that a Param citing only practice sources is D; `PaperCard` shows `url`; the watch list; ADR.
 - **S4. Re-vet the 19 practice records.** M. Decision 2. Depends S2. Each of the 19 is read against
   R1 to R6 (3.3) and states its gate results in `vetting` (3.4, B). A change to a Param's value or
   grade is not part of this task and goes through `research-update`.
-- **S3. First book records.** M each. Depends S2 and the question of fact. From read pages only:
-  works a preset would credit (Pierce, Murr and Moss; Lydiard), then corpus gaps (Koop 2nd ed.,
-  Daniels 4th, Pfitzinger 4th); topic `training-methods`.
+- **S3. First book records.** M each. Depends S2 and S4; the question of fact is answered. From
+  read pages only: works a preset would credit (Pierce, Murr and Moss; Lydiard), then corpus
+  gaps (Koop 2nd ed., Daniels 4th, Pfitzinger 4th); topic `training-methods`.
 - **H0. Plan metrics.** S to M. Done in #597. `plan-metrics.ts` and `plan-metrics.test.ts` with
   hand-computed cases, reusing `monotonyStrain`, `RUN_KINDS` and `pairSessions`; no engine file
   changes.
@@ -557,10 +557,10 @@ Opinion or Preference; each corpus change adds a README method entry.
   argument through `computeReplan` with the current week held, its diff and undo `setting`,
   `PlanRevisionReason`, `shared/copy/revision.ts`, `web/api/plan.ts`, a sheet; the run-day switch
   of follow-up 27 guarded as the transient holds are (4.5); API, page and chain tests.
-- **R1. RIR research update.** S. Skill `research-update`: the Params `f7.heavyRir`,
+- **RU1. RIR research update.** S. Skill `research-update`: the Params `f7.heavyRir`,
   `f8.progressMinRir` and `f8.bigStepRir` (grade D); Zourdos 2016 and the RIR-based RPE
   literature, read in that session; gap 2 of the strength spec (no paper mentions RIR).
-- **R2. Plateau research update.** M. Decision 10. Skill `research-update`: progressive builds
+- **RU2. Plateau research update.** M. Decision 10. Skill `research-update`: progressive builds
   against early plateaus (Finding 3: six of twelve matrix plans reach their class ceiling within
   nine weeks); whether the ceiling is the evidence, whether the class `peakWeeklyMin` or the
   history-informed ceiling (ADR 0013) should bind, and what the literature says about volume
@@ -568,8 +568,10 @@ Opinion or Preference; each corpus change adds a README method entry.
   reason in the Why drawer.
 - **C. Close.** S, after each wave: a `docs/STATUS.md` entry with counts and the oracle result.
 
-S1, H0 and H3 need no decision. S0 waits for decisions 2 and 3; S2 for 1, 2 and 4; H1 and H5 for 9;
-H2 for 11; H4 for 12; M0 for 7; M1 to M5 for 5 and 6; M6 for 8.
+Every decision of section 7 is answered, so only the open part of decision 6 (P2 for marathon
+goals) waits for the owner. S0, S2, H3, RU1 and RU2 wait on nothing. S4 waits on S2; S3 on S2 and
+S4; H0 is done (#597), so H1, H2 and H4 are free to start; H5 waits on H1; M1 to M5 on S2 and H1,
+in the order of their own dependencies; M6 on M3.
 
 ## Appendix A. Sources
 
