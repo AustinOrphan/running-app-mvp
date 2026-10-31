@@ -7,6 +7,7 @@ import { BriefLine } from '../BriefLine.tsx'
 import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
 import { FuelTargetLine } from '../fuel/FuelTargetLine.tsx'
+import { StrengthSetupCard } from '../strength/StrengthSetupCard.tsx'
 import { DisruptionSlot } from './DisruptionSlot.tsx'
 import { usePhoneCopy } from './phoneCopy.ts'
 import { SlotFrame } from './SlotFrame.tsx'
@@ -58,15 +59,26 @@ function DisruptionMount() {
   )
 }
 
-/** E6: the fuel log card below the fold, for the recent runs that have no log yet. */
+/**
+ * The prompt cards below the fold, in the week group. E6: the fuel log card, for the recent runs
+ * that have no log yet. E14: "Set up strength", the first time a strength session falls within a
+ * week while the setup is not saved (design 6.1). The strength card shares this frame because the
+ * page places no slot of its own for it and has no height to give it: it is unbudgeted like the fuel
+ * card, so neither touches the first screen. A payload kept before the offer existed has no
+ * `strengthSetup`, which reads as none; both cards read the kept payload, so they show offline too.
+ */
 function FuelPromptMount() {
   const today = useLoaded<TodayView>(keys.today)
   const settings = useLoaded<UserSettings>(keys.settings)
   const prompts = today?.coach.slots.fuelPrompt?.prompts ?? []
+  const setup = today?.coach.slots.strengthSetup ?? null
   return (
     <SlotFrame name="fuelPrompt">
       {prompts.length === 0 || settings === undefined ? null : (
         <FuelPromptCard prompts={prompts} units={settings.units} />
+      )}
+      {setup === null || settings === undefined ? null : (
+        <StrengthSetupCard units={settings.units} />
       )}
     </SlotFrame>
   )

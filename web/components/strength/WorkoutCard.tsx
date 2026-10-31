@@ -16,10 +16,16 @@ export interface WorkoutCardProps {
   words: PageWords
   /** The separation line, worded from the Param by the page (design 11.6); null when the view has none. */
   separation: string | null
-  /** "Log sets": the sheet opens on the workout. */
-  onLog: (workout: StrengthWorkout) => void
-  /** "Add a past session": the sheet opens on the workout at a day in the last year. */
-  onPast: (workout: StrengthWorkout, date: string) => void
+  /**
+   * "Log sets": the sheet opens on the workout. With no session planned the button reads "Log a
+   * session" and the workout is null: the sheet then reads the day's own start (design 9.1).
+   */
+  onLog: (workout: StrengthWorkout | null) => void
+  /**
+   * "Add a past session": the sheet opens on the workout at a day in the last year, or, with none
+   * planned (null), reads the start of that day.
+   */
+  onPast: (workout: StrengthWorkout | null, date: string) => void
 }
 
 /** A word for what the rules did to a lift's load, where there is one: never colour alone. */
@@ -56,9 +62,10 @@ function LiftRow({ words, lift }: { words: PageWords; lift: WorkoutLift }) {
 /**
  * The next session's workout (design 11.3, part 2): the lifts with their loads and efforts, the jump
  * dose and the trunk movements, as the rules give them now, with "Log sets" and "Add a past
- * session". It shows the one workout every surface shows (design 5.1) and works out nothing. A past
- * session starts from this workout (design 9.1), so with none planned there is nothing to start from
- * and the card says how to get one.
+ * session". It shows the one workout every surface shows (design 5.1) and works out nothing. A log
+ * made without a planned session starts from this workout (design 9.1); with none planned the card
+ * says how to get one and offers "Log a session" and "Add a past session" all the same, and the
+ * sheet reads the start of the day (the next planned session, else the week's maintenance session).
  */
 export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }: WorkoutCardProps) {
   const headingId = useId()
@@ -69,7 +76,6 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
 
   function submitPast(event: FormEvent): void {
     event.preventDefault()
-    if (workout === null) return
     if (!isIsoDate(date) || date > asOf || date < oldest) {
       setInvalid(true)
       return
@@ -80,6 +86,45 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
     // back to. A form closed here would have taken that control with it, and focus would be lost.
     onPast(workout, date)
   }
+
+  const pastButton = (
+    <Button
+      variant="secondary"
+      aria-expanded={pastOpen}
+      onClick={() => {
+        setPastOpen((open) => !open)
+      }}
+    >
+      {words.say('strength.page.past')}
+    </Button>
+  )
+  const pastForm = pastOpen ? (
+    <form className={styles.past} onSubmit={submitPast} noValidate>
+      <Field
+        label={words.say('strength.page.past-date')}
+        hint={words.say('strength.page.past-hint')}
+        error={invalid ? words.say('strength.page.past-invalid') : undefined}
+      >
+        {(control) => (
+          <Input
+            {...control}
+            type="date"
+            min={oldest}
+            max={asOf}
+            value={date}
+            onChange={(event) => {
+              setDate(event.target.value)
+            }}
+          />
+        )}
+      </Field>
+      <div>
+        <Button type="submit" variant="secondary">
+          {words.say('strength.page.past-continue')}
+        </Button>
+      </div>
+    </form>
+  ) : null
 
   return (
     <section aria-labelledby={headingId} className={styles.section}>
@@ -94,6 +139,18 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
               {words.say('strength.page.profile-link')}
             </Link>
           </p>
+          <div className={styles.actions}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                onLog(null)
+              }}
+            >
+              {words.say('strength.page.log-session')}
+            </Button>
+            {pastButton}
+          </div>
+          {pastForm}
         </>
       ) : (
         <>
@@ -137,43 +194,9 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
             >
               {words.say('strength.label.log-sets')}
             </Button>
-            <Button
-              variant="secondary"
-              aria-expanded={pastOpen}
-              onClick={() => {
-                setPastOpen((open) => !open)
-              }}
-            >
-              {words.say('strength.page.past')}
-            </Button>
+            {pastButton}
           </div>
-          {pastOpen ? (
-            <form className={styles.past} onSubmit={submitPast} noValidate>
-              <Field
-                label={words.say('strength.page.past-date')}
-                hint={words.say('strength.page.past-hint')}
-                error={invalid ? words.say('strength.page.past-invalid') : undefined}
-              >
-                {(control) => (
-                  <Input
-                    {...control}
-                    type="date"
-                    min={oldest}
-                    max={asOf}
-                    value={date}
-                    onChange={(event) => {
-                      setDate(event.target.value)
-                    }}
-                  />
-                )}
-              </Field>
-              <div>
-                <Button type="submit" variant="secondary">
-                  {words.say('strength.page.past-continue')}
-                </Button>
-              </div>
-            </form>
-          ) : null}
+          {pastForm}
         </>
       )}
     </section>

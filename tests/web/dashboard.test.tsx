@@ -262,6 +262,7 @@ describe('DashboardPage: the fuel slots', () => {
     brief: null,
     fuelPrompt: null,
     strength: null,
+    strengthSetup: null,
   }
   const withSlots = (slots: Partial<TodayCoach['slots']>, hero = longRun()): TodayView =>
     makeToday({
@@ -529,6 +530,7 @@ describe('DashboardPage: a strength session', () => {
     brief: null,
     fuelPrompt: null,
     strength: null,
+    strengthSetup: null,
   }
   const unreachable = {
     status: 503,
@@ -1228,7 +1230,9 @@ describe('DashboardPage: a strength session', () => {
         await within(dialog).findByRole('textbox', { name: 'Back squat, set 1, load' }),
       ).toHaveValue('110')
       expect(
-        await within(dialog).findByText('Same as last time and Swap need a connection.'),
+        await within(dialog).findByText(
+          'Same as last time, Swap and Add a lift need a connection.',
+        ),
       ).toBeVisible()
       await user.click(within(dialog).getByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))
@@ -1244,6 +1248,95 @@ describe('DashboardPage: a strength session', () => {
       // and no read of the workouts was made: the payload carries the one the hero shows
       expect(api.calls.some((call) => call.url.startsWith('/api/strength/workouts'))).toBe(false)
     })
+  })
+})
+
+describe('DashboardPage: the offer to set up strength (design 6.1)', () => {
+  const NO_SLOTS: TodayCoach['slots'] = {
+    disruption: null,
+    fuel: null,
+    watch: null,
+    brief: null,
+    fuelPrompt: null,
+    strength: null,
+    strengthSetup: null,
+  }
+  const OFFER = { sessionId: SESSION_ID, date: '2026-03-20' }
+  const withSlots = (slots: Partial<TodayCoach['slots']>): TodayView => {
+    const hero = makeHero()
+    return makeToday({
+      sessions: [{ session: hero.session, advice: 'as-planned', reasons: [] }],
+      coach: makeCoach({ hero, slots: { ...NO_SLOTS, ...slots } }),
+    })
+  }
+  const card = () => screen.findByRole('region', { name: 'Set up strength' })
+
+  test('is a card with one line and a link to the Strength page, where the setup opens', async () => {
+    renderToday(withSlots({ strengthSetup: OFFER }))
+    const offer = await card()
+    expect(
+      within(offer).getByText(
+        'A strength session is coming up, and its workout is for bodyweight only until the setup is saved.',
+      ),
+    ).toBeVisible()
+    expect(within(offer).getByRole('link', { name: 'Open Strength' })).toHaveAttribute(
+      'href',
+      '/strength',
+    )
+    expectCleanCopy(offer)
+  })
+
+  test('sits below the fold with no budget, in the frame of the prompt cards, and asks for nothing more', async () => {
+    const { api } = renderToday(withSlots({ strengthSetup: OFFER }))
+    const offer = await card()
+    const slot = offer.closest('[data-slot]')
+    expect(slot).toHaveAttribute('data-slot', 'fuelPrompt')
+    expect(slot).not.toHaveAttribute('data-budget-px')
+    // the first screen's two requests are all there were
+    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+  })
+
+  test('is not there once the setup is saved or no session is within the week', async () => {
+    renderToday(withSlots({}))
+    await screen.findByRole('article', { name: 'Easy run' })
+    expect(screen.queryByRole('region', { name: 'Set up strength' })).not.toBeInTheDocument()
+    expect(document.querySelector('[data-slot="fuelPrompt"]')).toBeNull()
+  })
+
+  test('is not there in a payload kept before the offer existed, which has no such field', async () => {
+    const kept = withSlots({})
+    delete (kept.coach.slots as unknown as Record<string, unknown>)['strengthSetup']
+    renderToday(kept)
+    await screen.findByRole('article', { name: 'Easy run' })
+    expect(screen.queryByRole('region', { name: 'Set up strength' })).not.toBeInTheDocument()
+  })
+
+  test('shares its frame with the fuel log card, and each shows without the other', async () => {
+    renderToday(withSlots({ strengthSetup: OFFER, fuelPrompt: makeFuelPrompts() }))
+    const offer = await card()
+    const fuel = await screen.findByRole('region', { name: 'Fuel log' })
+    expect(offer.closest('[data-slot]')).toBe(fuel.closest('[data-slot]'))
+    cleanup()
+    renderToday(withSlots({ fuelPrompt: makeFuelPrompts() }))
+    await screen.findByRole('region', { name: 'Fuel log' })
+    expect(screen.queryByRole('region', { name: 'Set up strength' })).not.toBeInTheDocument()
+  })
+
+  test('shows from the payload the phone kept, with no connection', async () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    const { api } = renderToday({ ...withSlots({ strengthSetup: OFFER }), servedFromCache: true })
+    const offer = await card()
+    expect(within(offer).getByRole('link', { name: 'Open Strength' })).toBeVisible()
+    expect(api.calls.some((call) => call.url.startsWith('/api/strength'))).toBe(false)
+  })
+
+  test('leaves the page and its first screen alone: the page names no strength card', () => {
+    const page = readFileSync(join(process.cwd(), 'web/pages/DashboardPage.tsx'), 'utf8')
+    expect(page).not.toMatch(/strengthSetup|StrengthSetupCard/)
+    expect(page).toContain('<TodaySlot name="fuelPrompt" />')
+    const slots = readFileSync(join(process.cwd(), 'web/components/today/slots.ts'), 'utf8')
+    expect(slots).toMatch(/fuelPrompt: null,/)
+    expect(slots).not.toMatch(/strengthSetup:/)
   })
 })
 

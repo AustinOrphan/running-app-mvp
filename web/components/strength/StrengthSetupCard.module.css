@@ -1,0 +1,27 @@
+.section {
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+
+.heading {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.lead {
+  margin: 0;
+  max-width: var(--prose-max);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* A 44 px target: the link is the card's one action. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+  font-weight: 600;
+}

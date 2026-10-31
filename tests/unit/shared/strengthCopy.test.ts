@@ -725,6 +725,24 @@ describe('the sentences of the logging sheet (design 9.1)', () => {
     )
   })
 
+  it('says where a log with no planned session starts from, naming the template the week really has', () => {
+    const monday = { kind: 'date', iso: '2026-03-02', style: 'short' } as const
+    expect(say('strength.sheet.from-next')).toBe('From the next planned session.')
+    expect(say('strength.sheet.from-maintenance')).toBe("From this week's maintenance session.")
+    expect(say('strength.sheet.from-maintenance-week', { date: monday })).toBe(
+      'From the maintenance session of the week of 2 Mar.',
+    )
+    expect(say('strength.sheet.from-week', { template: say('strength.template.heavy') })).toBe(
+      "From this week's heavy session.",
+    )
+    expect(
+      say('strength.sheet.from-week-of', {
+        template: say('strength.template.taper'),
+        date: monday,
+      }),
+    ).toBe('From the taper session of the week of 2 Mar.')
+  })
+
   it('names a measure for each way a set is counted', () => {
     expect(
       (['reps', 'seconds', 'contacts'] as const).map((measure) =>

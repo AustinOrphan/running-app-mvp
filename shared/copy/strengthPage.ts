@@ -62,6 +62,13 @@ export const STRENGTH_PAGE_TEMPLATES = {
   'strength.page.part-exercises-note': tpl('Leave a movement out, or always use one for a slot.'),
   'strength.page.part-anchors-note': tpl('A recent set or a known maximum gives a first load.'),
 
+  // The card on Today the first time a strength session falls within a week while the setup is not
+  // saved (design 6.1); its heading is `strength.page.setup-heading`, "Set up strength".
+  'strength.page.today-offer': tpl(
+    'A strength session is coming up, and its workout is for bodyweight only until the setup is saved.',
+  ),
+  'strength.page.today-link': tpl('Open Strength', {}, { shape: 'label' }),
+
   // ---- 2. Next session (design 11.3, 6.4) --------------------------------------------------------
   'strength.page.next-heading': tpl('Next session', {}, { shape: 'label' }),
   'strength.page.next-empty': tpl(
@@ -74,11 +81,25 @@ export const STRENGTH_PAGE_TEMPLATES = {
   'strength.page.bodyweight-only': tpl(
     'This workout is bodyweight only. Set up strength and the lifts use the saved equipment.',
   ),
+  // With no strength session planned, a log starts from the next planned session or the week's
+  // maintenance session (design 9.1); the sheet's header says which.
+  'strength.page.log-session': tpl('Log a session', {}, { shape: 'label' }),
   'strength.page.past': tpl('Add a past session', {}, { shape: 'label' }),
   'strength.page.past-date': tpl('Date of the session', {}, { shape: 'label' }),
   'strength.page.past-hint': tpl('Any day in the last year, up to today.'),
   'strength.page.past-invalid': tpl('Choose a day in the last year, up to today.'),
   'strength.page.past-continue': tpl('Continue', {}, { shape: 'label' }),
+
+  // ---- The activity page (design 11.4): the sets of a strength activity -----------------------
+  'strength.page.sets-heading': tpl('Sets', {}, { shape: 'label' }),
+  'strength.page.sets-label': tpl('Sets of this session', {}, { shape: 'label' }),
+  'strength.page.sets-none': tpl('No sets are logged for this session.'),
+  'strength.page.sets-error': tpl('The sets did not load.'),
+  'strength.page.col-exercise': tpl('Exercise', {}, { shape: 'label' }),
+  'strength.page.col-set': tpl('Set', {}, { shape: 'label' }),
+  'strength.page.col-load': tpl('Load', {}, { shape: 'label' }),
+  'strength.page.col-reps': tpl('Reps', {}, { shape: 'label' }),
+  'strength.page.sets-not-recorded': tpl('Not recorded', {}, { shape: 'label' }),
 
   // ---- 3. This block (design 8.1, 8.3, 11.3) -----------------------------------------------------
   'strength.page.block-heading': tpl('This block', {}, { shape: 'label' }),

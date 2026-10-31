@@ -10,9 +10,10 @@
 // the end of the file (E14-6).
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
-import { isExerciseId } from '../../shared/domain/strengthLibrary.ts'
+import { isExerciseId, type ExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { plannedMinOf } from '../../shared/engine/limits.ts'
+import { strengthMinutes, strengthOffDay } from '../../shared/engine/micro.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { illnessPhase, recentPain } from '../../shared/engine/readiness.ts'
 import {
@@ -36,16 +37,20 @@ import type {
   PinnedSlot,
   PlanSessionView,
   StrengthBlockView,
+  StrengthDayWorkout,
   StrengthExerciseView,
   StrengthLift,
   StrengthLiftSummary,
   StrengthLog,
   StrengthLogResult,
   StrengthNextLoad,
+  StrengthRecentLog,
   StrengthSettings,
+  StrengthSetupOffer,
   StrengthSnapshot,
   StrengthView,
   StrengthWorkout,
+  StrengthWorkoutSource,
 } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
@@ -443,6 +448,11 @@ export interface StrengthState {
   anchors: StrengthLift[]
   /** Newest first. */
   logs: StrengthLog[]
+  /**
+   * The newest `STRENGTH_RECENT_LOGS` of `logs` with the note about the day each was logged on
+   * (design 12.4), read from the stored plan of the snapshot: no query of its own.
+   */
+  recent: StrengthRecentLog[]
 }
 
 type CountedRow = {
@@ -587,7 +597,11 @@ async function buildStrengthState(
     goal: { paceKmh: await goalPaceKmh(athlete) },
     readiness: strengthReadiness(athlete),
   }
-  return { context, settings, anchors, logs }
+  const recent = logs.slice(0, STRENGTH_RECENT_LOGS).map((log): StrengthRecentLog => ({
+    ...log,
+    offDay: strengthOffDay(log.date, athlete.planSessions),
+  }))
+  return { context, settings, anchors, logs, recent }
 }
 
 /**
@@ -645,6 +659,96 @@ export async function todayStrengthSlot(
   if (!args.preview && illnessPhase(inputFromContext(context), date).phase === 'rest') return null
   const strength = await loadStrengthContext(deps, { userId: args.userId, today: args.today })
   return workoutFor(strength, sessionRefOf(session))
+}
+
+/** Days ahead that a strength session makes Today offer the setup (design 6.1). */
+export const STRENGTH_SETUP_OFFER_DAYS = 7
+
+/**
+ * `coach.slots.strengthSetup` (design 6.1): the first strength session still to be done from today
+ * to 7 days ahead while the setup is not saved, else null. It reads the plan and the setup state
+ * only, so the data version in the page's tag covers it. The viewed day does not matter: the offer is
+ * about the runner's next week, so a preview carries the same answer.
+ */
+export async function todayStrengthSetupSlot(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string; context: AthleteContext },
+): Promise<StrengthSetupOffer | null> {
+  const { today, context } = args
+  const last = addDays(today, STRENGTH_SETUP_OFFER_DAYS)
+  const upcoming = strengthSessions(context).find(
+    (session) => session.date >= today && session.date <= last && isToRun(session.status),
+  )
+  if (upcoming === undefined) return null
+  const strength = await loadStrengthContext(deps, { userId: args.userId, today })
+  return strength.setup.saved ? null : { sessionId: upcoming.id, date: upcoming.date }
+}
+
+/**
+ * A session that is no stored session: the session of the week of `date` that a log with no
+ * planned session starts from (design 9.1, "the maintenance template of that week"). It is the
+ * week's own: the engine gives it the template of that week (maintenance outside a block, and the
+ * block's, the taper's or a return week's template where the plan says so) and the planner's own
+ * budget for such a week (`strengthMinutes`: the block budget in a block week, the maintenance
+ * budget otherwise; a week the plan does not hold has no flags, so it is maintenance). Its id names
+ * nothing in the plan, and the engine counts it as one more session of its week when it picks A or B.
+ */
+function maintenanceRef(
+  id: string,
+  date: string,
+  weeks: readonly StrengthWeek[],
+): StrengthSessionRef {
+  const week = weeks.find((candidate) => candidate.weekStart === mondayOf(date))
+  return { id, date, order: 0, durationMin: strengthMinutes(week ?? { flags: [] }), rules: [] }
+}
+
+/**
+ * `GET /api/strength/workout`: the workout a log made on `date` starts from (design 9.1), derived on
+ * read and written nowhere. The planned strength session of that day when it has one (`sessionId`
+ * names one of several), else the next planned session still to be done from today on, else the
+ * maintenance session of that day's week. With `swap` the answer also carries that exercise as a
+ * lift of the same session through `liftFor` (design 7.3, 10.3): the first session of an exercise
+ * with no history, else its own history. Throws 404 for a `sessionId` that is not a strength
+ * session of the runner's plan on `date`.
+ */
+export async function strengthDayWorkout(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string; date: string; sessionId?: string; swap?: ExerciseId },
+): Promise<StrengthDayWorkout> {
+  const { userId, today, date } = args
+  const [athlete, context] = await Promise.all([
+    loadAthleteContext(deps, { userId, today }),
+    loadStrengthContext(deps, { userId, today }),
+  ])
+  const sessions = strengthSessions(athlete)
+  let source: StrengthWorkoutSource = 'planned'
+  let ref: StrengthSessionRef
+  if (args.sessionId !== undefined) {
+    const named = sessions.find((session) => session.id === args.sessionId && session.date === date)
+    if (named === undefined)
+      throw notFound('That strength session is not in your plan for that day.')
+    ref = sessionRefOf(named)
+  } else {
+    const onDay = sessions.filter((session) => session.date === date)
+    const planned = onDay.find((session) => isToRun(session.status)) ?? onDay[0]
+    const next = sessions.find(
+      (session) => session.date > date && session.date >= today && isToRun(session.status),
+    )
+    if (planned !== undefined) {
+      ref = sessionRefOf(planned)
+    } else if (next !== undefined) {
+      source = 'next-planned'
+      ref = sessionRefOf(next)
+    } else {
+      source = 'maintenance'
+      ref = maintenanceRef(`maintenance-${date}`, date, context.weeks)
+    }
+  }
+  return {
+    source,
+    workout: workoutFor(context, ref),
+    lift: args.swap === undefined ? null : liftFor(context, ref, args.swap),
+  }
 }
 
 function liftSummary(lift: LiftHistory): StrengthLiftSummary {
@@ -707,7 +811,7 @@ export async function strengthView(
       .filter((session) => session.date >= today && isToRun(session.status))
       .slice(0, STRENGTH_NEXT_WORKOUTS)
       .map((session) => workoutFor(context, sessionRefOf(session))),
-    recent: state.logs.slice(0, STRENGTH_RECENT_LOGS),
+    recent: state.recent,
     lifts: history.lifts.map(liftSummary),
     weeks: history.weeks.filter((w) => w.weekStart >= first && w.weekStart <= thisWeek),
     lowCountWeeks: history.lowCountWeeks,
@@ -754,13 +858,7 @@ async function nextLoads(
   const ref: StrengthSessionRef =
     ahead !== undefined
       ? sessionRefOf(ahead)
-      : {
-          id: log.id,
-          date: addDays(log.date > today ? log.date : today, 1),
-          order: 0,
-          durationMin: P.f7.maintenanceSessionMin.value,
-          rules: [],
-        }
+      : maintenanceRef(log.id, addDays(log.date > today ? log.date : today, 1), context.weeks)
   const seen = new Set<string>()
   const next: StrengthNextLoad[] = []
   for (const set of log.sets) {

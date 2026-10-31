@@ -137,6 +137,7 @@ describe("Today: today's session", () => {
             brief: null,
             fuelPrompt: null,
             strength: makeWorkout(),
+            strengthSetup: null,
           },
         }),
       }),

@@ -3,23 +3,28 @@
 // of the settings and log routes. No real history, equipment or names.
 import { addDays } from '../../shared/dates.ts'
 import { toGrams } from '../../shared/domain/weight.ts'
-import { workoutFor } from '../../shared/engine/strength.ts'
+import type { ExerciseId } from '../../shared/domain/strengthLibrary.ts'
+import { liftFor, workoutFor } from '../../shared/engine/strength.ts'
 import type {
   Activity,
+  EquipmentConfig,
   EquipmentKind,
   LiftEvidence,
   StrengthLog,
   StrengthLogResult,
   StrengthNextLoad,
   StrengthSet,
+  StrengthDayWorkout,
   StrengthSettings,
   StrengthSnapshotLift,
   StrengthView,
   StrengthWorkout,
+  StrengthWorkoutSource,
   UserSettings,
   WorkoutLift,
 } from '../../shared/types.ts'
 import { activity } from '../unit/engine/e8-fixtures.ts'
+import type { MockRequest } from './helpers.tsx'
 import {
   have,
   log as engineLog,
@@ -200,6 +205,39 @@ export function lighterDayWorkout(): StrengthWorkout {
 export function engineWorkout(variant: 0 | 1 = 0): StrengthWorkout {
   const ctx = withSetup({ equipment: have('barbell', 'dumbbells', 'bands', 'step') })
   return workoutFor(ctx, sessionRef(5, variant))
+}
+
+/**
+ * An exercise as a lift of session A of week 6, as the rules give it: what the server answers to a
+ * read with `swap` (design 7.3, 10.3). The first session of an exercise with no history has the
+ * ramp-in sets and counts; a runner with a bar, dumbbells, bands and a step by default.
+ */
+export function engineLift(
+  exerciseId: ExerciseId,
+  equipment: EquipmentConfig[] = have('barbell', 'dumbbells', 'bands', 'step'),
+): WorkoutLift {
+  const lift = liftFor(withSetup({ equipment }), sessionRef(5), exerciseId)
+  if (lift === null) throw new Error(`The rules give no lift of ${exerciseId} for this equipment.`)
+  return lift
+}
+
+/**
+ * The answer of `GET /api/strength/workout` for a mock: the given workout and where it came from,
+ * and with `swap` the exercise asked for as the rules give it (`engineLift`). `lifts` overrides the
+ * lift of an exercise (a history the engine fixture does not have); `null` is an exercise the
+ * saved equipment cannot make.
+ */
+export function dayRoute(
+  workout: StrengthWorkout = makeWorkout(),
+  source: StrengthWorkoutSource = 'planned',
+  lifts: Partial<Record<string, WorkoutLift | null>> = {},
+) {
+  return ({ query }: MockRequest): StrengthDayWorkout => {
+    const asked = query.get('swap')
+    const lift =
+      asked === null ? null : asked in lifts ? (lifts[asked] ?? null) : engineLift(asked as never)
+    return { source, workout, lift }
+  }
 }
 
 /**

@@ -1158,6 +1158,7 @@ not used.
 | `PUT /api/strength/settings`          | Equipment, level, currently lifting, exercises left out, pinned choices and the note (the weight unit is saved by `PUT /api/settings`)                         |
 | `PUT /api/strength/lifts/:exerciseId` | One starting point (a set or a maximum); `DELETE` removes it                                                                                                   |
 | `GET /api/strength/workouts`          | `from`, `to` (a span of at most 62 days): the workouts of the active plan's strength sessions                                                                  |
+| `GET /api/strength/workout`           | `date`, optional `sessionId` and `swap`: the workout a log of that day starts from, and with `swap` that exercise as a lift of the session (task E14-10)       |
 | `GET /api/strength/logs`              | `activityId` or `from` and `to`: logs with their sets                                                                                                          |
 | `PUT /api/strength/logs/:logId`       | The idempotent save. Body: `date`, optional `activityId` and `sessionId`, `durationMin`, optional `rpe` and `pain`, `notes`, `prescribed`, `sets` (at most 80) |
 | `DELETE /api/strength/logs/:logId`    | Removes the log and its sets                                                                                                                                   |

@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { addDays, daysBetween } from '../../../shared/dates.ts'
 import type { DayRule } from '../../../shared/engine/disruption.ts'
 import type { SessionKind, SessionSpec, WeekDraft } from '../../../shared/engine/types.ts'
-import { holdSessions, placeWeek } from '../../../shared/engine/micro.ts'
+import {
+  holdSessions,
+  placeWeek,
+  strengthMinutes,
+  strengthOffDay,
+} from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { postRaceWindow, windowWeeks } from '../../../shared/engine/postRace.ts'
 import { WEEKDAYS, ZONES, availability, profile, session, state, week } from './e6-fixtures.ts'
@@ -443,6 +448,97 @@ describe('placeWeek', () => {
       })
       const sessions = place(b2bWeek({ runDays: 3 }), { profile: profile({ availability: avail }) })
       expect(sessions.some((s) => s.kind === 'b2b')).toBe(false)
+    })
+  })
+
+  describe('the time a strength session is given (strengthMinutes, rules F7, F4)', () => {
+    it('is the block budget in a block week and the maintenance budget in every other week', () => {
+      expect(strengthMinutes({ flags: ['strength-block'] })).toBe(P.f7.blockSessionMin.value)
+      expect(strengthMinutes({ flags: ['strength-block', 'recovery'] })).toBe(
+        P.f7.blockSessionMin.value,
+      )
+      for (const flags of [[], ['taper'], ['recovery'], ['injury-return']]) {
+        expect(strengthMinutes({ flags }), flags.join()).toBe(P.f7.maintenanceSessionMin.value)
+      }
+    })
+
+    it('is the budget the placement gives a session', () => {
+      for (const flags of [[], ['strength-block']]) {
+        const given = place(week({ strengthSessions: 2, flags })).filter(
+          (s) => s.kind === 'strength',
+        )
+        expect(given.length).toBeGreaterThan(0)
+        for (const s of given) expect(s.durationMin).toBe(strengthMinutes({ flags }))
+      }
+    })
+  })
+
+  describe('the day the plan keeps strength off (strengthOffDay, rule F4)', () => {
+    const monday = '2026-11-02'
+    const on = (day: number, kind: SessionKind) => ({ date: addDays(monday, day), kind })
+    const asked = (day: number, sessions: Array<{ date: string; kind: SessionKind }>) =>
+      strengthOffDay(addDays(monday, day), sessions)
+
+    it('names the day before the long run, and a day that holds a hard run or the long run', () => {
+      const week = [on(1, 'threshold'), on(3, 'easy'), on(5, 'long')]
+      expect(asked(4, week)).toBe('day-before-long-run')
+      expect(asked(1, week)).toBe('hard-run-day')
+      expect(asked(5, week)).toBe('hard-run-day')
+      for (const open of [0, 2, 3, 6]) expect(asked(open, week), `day ${String(open)}`).toBeNull()
+    })
+
+    it.each(['long', 'long-fast-finish', 'b2b'] as const)(
+      'counts a %s as the long run: the day before it is off',
+      (kind) => {
+        expect(asked(5, [on(6, kind)])).toBe('day-before-long-run')
+      },
+    )
+
+    it.each(HARD)('keeps strength off the day of a %s', (kind) => {
+      expect(asked(2, [on(2, kind)])).not.toBeNull()
+    })
+
+    it.each(['easy', 'recovery', 'strides', 'hike'] as const)(
+      'leaves the day of a %s open',
+      (kind) => {
+        expect(asked(2, [on(2, kind)])).toBeNull()
+      },
+    )
+
+    it('takes the first long run of the week as the one the day before is off for', () => {
+      const week = [on(2, 'long-fast-finish'), on(5, 'long')]
+      expect(asked(1, week)).toBe('day-before-long-run')
+      expect(asked(4, week)).toBeNull()
+    })
+
+    it('names the day before the long run first when the day is also a hard day', () => {
+      expect(asked(4, [on(4, 'threshold'), on(5, 'long')])).toBe('day-before-long-run')
+    })
+
+    it('reads the runs of the date’s own week only, and no session that is not a run', () => {
+      // a long run on Monday has no day before it in this week, and last week’s runs are not this week’s
+      expect(asked(6, [on(0, 'long')])).toBeNull()
+      expect(asked(0, [on(0, 'long')])).toBe('hard-run-day')
+      expect(asked(1, [{ date: addDays(monday, -2), kind: 'long' }])).toBeNull()
+      expect(asked(1, [on(1, 'strength'), on(1, 'mobility'), on(1, 'rest')])).toBeNull()
+      expect(asked(2, [])).toBeNull()
+    })
+
+    it('agrees with the placement of a week’s lifts: no lift is ever placed on a day it names', () => {
+      for (const runDays of [3, 4, 5, 6, 7]) {
+        for (const qualitySessions of [0, 1, 2]) {
+          const sessions = place(week({ strengthSessions: 3, runDays, qualitySessions }))
+          const runs = sessions.filter(isRun)
+          const lifts = sessions.filter((s) => s.kind === 'strength')
+          expect(lifts.length, `${String(runDays)} run days`).toBeGreaterThan(0)
+          for (const lift of lifts) {
+            expect(
+              strengthOffDay(lift.date, runs),
+              `${lift.date} with ${String(runDays)} run days`,
+            ).toBeNull()
+          }
+        }
+      }
     })
   })
 

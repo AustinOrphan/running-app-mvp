@@ -5,6 +5,8 @@ import { renderFact } from '../../shared/copy/templates.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { EXERCISES } from '../../shared/domain/strengthLibrary.ts'
 import { P } from '../../shared/engine/params/index.ts'
+import { strengthMinutes } from '../../shared/engine/micro.ts'
+import { blockPosition, strengthTemplate, structuresFor } from '../../shared/engine/strength.ts'
 import { dataVersionKey } from '../../server/dataVersion.ts'
 import { loadAthleteContext } from '../../server/services/athleteState.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
@@ -16,6 +18,7 @@ import type {
   StrengthLift,
   StrengthLog,
   StrengthLogResult,
+  StrengthDayWorkout,
   StrengthExerciseView,
   StrengthSettings,
   StrengthSnapshot,
@@ -1490,7 +1493,13 @@ interface SeedSession {
 async function seedPlan(
   user: TestUser,
   sessions: SeedSession[],
-  seed: { block?: number; distanceM?: number; targetTimeSec?: number } = {},
+  seed: {
+    block?: number
+    distanceM?: number
+    targetTimeSec?: number
+    /** The flags of week `index` (0 is six weeks back, 6 is this week); the block flag by default. */
+    weekFlags?: (index: number, base: string[]) => string[]
+  } = {},
 ) {
   const { thisMonday } = days()
   const goal = await ctx.prisma.goal.create({
@@ -1524,7 +1533,12 @@ async function seedPlan(
           longRunMin: 70,
           runDays: 4,
           strengthSessions: 2,
-          flags: JSON.stringify(index < (seed.block ?? 12) ? ['strength-block'] : []),
+          flags: JSON.stringify(
+            (seed.weekFlags ?? ((_, base) => base))(
+              index,
+              index < (seed.block ?? 12) ? ['strength-block'] : [],
+            ),
+          ),
         })),
       },
     },
@@ -2092,6 +2106,398 @@ describe('GET /api/strength/workouts', () => {
   })
 })
 
+describe('GET /api/strength/workout', () => {
+  const dayQuery = (date: string, extra: Record<string, string> = {}) =>
+    new URLSearchParams({ date, ...extra }).toString()
+  const dayOf = async (user: TestUser, date: string, extra: Record<string, string> = {}) => {
+    const res = await client(ctx, user).get(`/api/strength/workout?${dayQuery(date, extra)}`)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    return res.body as StrengthDayWorkout
+  }
+
+  /** A runner with a bar and dumbbells, in week 7 of a block of 12 (a heavy week). */
+  const lifter = async (
+    sessions: SeedSession[],
+    seed: { block?: number; weekFlags?: (index: number, base: string[]) => string[] } = {},
+  ) => {
+    const user = await newUser()
+    await seedProfile(user)
+    await setup(user, { equipment: [BARBELL, DUMBBELLS, { kind: 'step' }], level: 'some' })
+    const { rows } = await seedPlan(user, sessions, seed)
+    return { user, rows }
+  }
+
+  describe('a day with a planned session', () => {
+    test('answers its workout as the other reads give it: one function, one object', async () => {
+      const { today } = days()
+      const { user, rows } = await lifter([{ date: today }])
+      const day = await dayOf(user, today)
+      expect(day.source).toBe('planned')
+      expect(day.lift).toBeNull()
+      expect(day.workout).toMatchObject({ sessionId: rows[0]!.id, date: today, template: 'heavy' })
+      const slot = (await todayView(user)).coach.slots.strength
+      expect(day.workout).toEqual(slot)
+      const list = await client(ctx, user).get(`/api/strength/workouts?from=${today}&to=${today}`)
+      expect(list.body).toEqual([day.workout])
+    })
+
+    test('is the workout of a day that is over, whatever became of its session', async () => {
+      const { today } = days()
+      const past = addDays(today, -2)
+      const { user, rows } = await lifter([{ date: past, status: 'completed' }])
+      const day = await dayOf(user, past)
+      expect(day.source).toBe('planned')
+      expect(day.workout.sessionId).toBe(rows[0]!.id)
+    })
+
+    test('takes the session that is still to be done when the day has two, and sessionId names the other', async () => {
+      const { today } = days()
+      const { user, rows } = await lifter([
+        { date: today, status: 'completed' },
+        { date: today, min: 25 },
+      ])
+      const day = await dayOf(user, today)
+      expect(day.workout).toMatchObject({ sessionId: rows[1]!.id, budgetMin: 25 })
+      const named = await dayOf(user, today, { sessionId: rows[0]!.id })
+      expect(named.source).toBe('planned')
+      expect(named.workout).toMatchObject({ sessionId: rows[0]!.id, budgetMin: 40 })
+    })
+
+    test('derives the same workout for a session of a coming day, as of today', async () => {
+      const { today } = days()
+      const later = addDays(today, 3)
+      const { user, rows } = await lifter([{ date: later }])
+      const day = await dayOf(user, later, { sessionId: rows[0]!.id })
+      const list = await client(ctx, user).get(`/api/strength/workouts?from=${later}&to=${later}`)
+      expect(day.workout).toEqual((list.body as StrengthWorkout[])[0])
+    })
+  })
+
+  describe('a day with no planned session', () => {
+    test('starts from the next planned session still to be done, with that session’s id and day', async () => {
+      const { today } = days()
+      const { user, rows } = await lifter([
+        { date: addDays(today, -1), status: 'completed' },
+        { date: addDays(today, 2), status: 'completed' },
+        { date: addDays(today, 3) },
+        { date: addDays(today, 5) },
+      ])
+      const day = await dayOf(user, today)
+      expect(day.source).toBe('next-planned')
+      expect(day.workout).toMatchObject({ sessionId: rows[2]!.id, date: addDays(today, 3) })
+      const list = await client(ctx, user).get(
+        `/api/strength/workouts?from=${addDays(today, 3)}&to=${addDays(today, 3)}`,
+      )
+      expect(day.workout).toEqual((list.body as StrengthWorkout[])[0])
+    })
+
+    test('starts a past day from the next session still ahead, not from a session already over', async () => {
+      const { today } = days()
+      const { user, rows } = await lifter([
+        { date: addDays(today, -3), status: 'completed' },
+        { date: addDays(today, 1) },
+      ])
+      const day = await dayOf(user, addDays(today, -6))
+      expect(day.source).toBe('next-planned')
+      expect(day.workout.sessionId).toBe(rows[1]!.id)
+    })
+
+    test('starts from the maintenance session of that week when none is planned from then on', async () => {
+      const { today } = days()
+      const { user } = await lifter([{ date: addDays(today, -4), status: 'completed' }], {
+        block: 0,
+      })
+      const day = await dayOf(user, today)
+      expect(day.source).toBe('maintenance')
+      expect(day.workout).toMatchObject({
+        sessionId: `maintenance-${today}`,
+        date: today,
+        template: 'maintenance',
+        block: null,
+        budgetMin: P.f7.maintenanceSessionMin.value,
+        setupSaved: true,
+        rules: [],
+      })
+      expect(day.workout.lifts.length).toBeGreaterThan(0)
+      expect(day.workout.lifts.every((lift) => lift.sets === P.f7.maintenanceSets.value)).toBe(true)
+    })
+
+    describe('in a week that has a template of its own', () => {
+      /** The template and the budget the engine gives a session of the week of `date`. */
+      async function engineWeek(user: TestUser, date: string) {
+        const strength = await loadStrengthContext(ctx, { userId: user.id, today: todayIso() })
+        const week = strength.weeks.find((candidate) => candidate.weekStart === mondayOf(date))!
+        return {
+          template: strengthTemplate(week, blockPosition(strength, week.weekStart)),
+          budgetMin: strengthMinutes(week),
+        }
+      }
+      const thisWeek = (flags: string[]) => (index: number) => (index === 6 ? flags : [])
+
+      test('takes the week’s own template and the block budget in a week of the block', async () => {
+        const { today } = days()
+        // week 7 of a block of 12, nothing planned ahead: the heavy week it is
+        const { user } = await lifter([])
+        const day = await dayOf(user, today)
+        expect(day.source).toBe('maintenance')
+        expect(day.workout).toMatchObject({
+          template: 'heavy',
+          block: { week: 7, of: 12, rampInWeeks: 3 },
+          budgetMin: P.f7.blockSessionMin.value,
+        })
+        expect(await engineWeek(user, today)).toEqual({
+          template: day.workout.template,
+          budgetMin: day.workout.budgetMin,
+        })
+      })
+
+      test('takes the maintenance budget in a taper week, and the taper’s template', async () => {
+        const { today } = days()
+        const { user } = await lifter([], { block: 0, weekFlags: thisWeek(['taper']) })
+        const day = await dayOf(user, today)
+        expect(day.workout).toMatchObject({
+          template: 'taper',
+          budgetMin: P.f7.maintenanceSessionMin.value,
+        })
+        expect(await engineWeek(user, today)).toEqual({
+          template: 'taper',
+          budgetMin: day.workout.budgetMin,
+        })
+      })
+
+      test('takes a return week’s template, with the budget of a block week inside the block and the maintenance budget outside it', async () => {
+        const { today } = days()
+        const inside = await lifter([], {
+          weekFlags: thisWeek(['strength-block', 'injury-return']),
+        })
+        const day = await dayOf(inside.user, today)
+        expect(day.workout).toMatchObject({
+          template: 'return',
+          budgetMin: P.f7.blockSessionMin.value,
+        })
+        expect(await engineWeek(inside.user, today)).toEqual({
+          template: 'return',
+          budgetMin: day.workout.budgetMin,
+        })
+
+        const outside = await lifter([], { block: 0, weekFlags: thisWeek(['injury-return']) })
+        const bare = await dayOf(outside.user, today)
+        expect(bare.workout).toMatchObject({
+          template: 'return',
+          budgetMin: P.f7.maintenanceSessionMin.value,
+        })
+        expect(await engineWeek(outside.user, today)).toEqual({
+          template: 'return',
+          budgetMin: bare.workout.budgetMin,
+        })
+      })
+
+      test('is the maintenance template and budget in a week the plan does not hold', async () => {
+        const { today } = days()
+        const { user } = await lifter([])
+        const far = addDays(today, 7 * 40)
+        const day = await dayOf(user, far)
+        expect(day.workout).toMatchObject({
+          template: 'maintenance',
+          block: null,
+          budgetMin: P.f7.maintenanceSessionMin.value,
+        })
+      })
+    })
+
+    test('is the maintenance session for a runner with no plan at all, and bodyweight only before the setup', async () => {
+      const user = await newUser()
+      const { today } = days()
+      const day = await dayOf(user, today)
+      expect(day.source).toBe('maintenance')
+      expect(day.workout).toMatchObject({ template: 'maintenance', setupSaved: false })
+      expect(
+        day.workout.lifts.every((lift) => lift.implement === null && lift.loadG === null),
+      ).toBe(true)
+    })
+
+    test('reads its loads from the history, as of today', async () => {
+      const { today } = days()
+      const { user } = await lifter([], { block: 0 })
+      const before = (await dayOf(user, today)).workout.lifts.find((lift) => lift.slot === 'knee')!
+      expect(before.evidence.latest).toBeNull()
+      await seedLog(user, {
+        id: uuid(9001),
+        date: addDays(today, -3),
+        sets: Array.from({ length: 4 }, (): SeedSet => [before.exerciseId, LB(30), 6, 2]),
+        implement: { [before.exerciseId]: before.implement as 'dumbbells' },
+      })
+      const after = (await dayOf(user, today)).workout.lifts.find((lift) => lift.slot === 'knee')!
+      expect(after.exerciseId).toBe(before.exerciseId)
+      expect(after.evidence.latest).toMatchObject({ logId: uuid(9001), sets: 4 })
+    })
+  })
+
+  describe('with swap', () => {
+    const FIRST = structuresFor('heavy', 'other', 7).first
+
+    test('puts an exercise with no history in as its first session: the ramp-in sets and counts, the lightest load', async () => {
+      const { today } = days()
+      const { user } = await lifter([{ date: today }])
+      const day = await dayOf(user, today, { swap: 'goblet-squat' })
+      const lift = day.lift!
+      expect(lift).toMatchObject({
+        exerciseId: 'goblet-squat',
+        slot: 'knee',
+        implement: 'dumbbells',
+        change: 'start',
+        sets: FIRST.loaded.sets,
+        range: FIRST.loaded.range,
+        rir: FIRST.loaded.rir,
+        evidence: { latest: null, judged: null },
+      })
+      // a rung of the dumbbells the setup holds: 10 lb and then 5 lb more
+      expect(lift.loadG).toBeGreaterThanOrEqual(4536)
+      expect((lift.loadG! - 4536) % 2268).toBe(0)
+      expect(lift.basis.facts.length).toBeGreaterThan(0)
+      expect(lift.basis.facts.every((fact) => typeof fact.template === 'string')).toBe(true)
+      // the workout is the day’s own: a swap changes nothing in it
+      expect(day.workout).toEqual((await dayOf(user, today)).workout)
+    })
+
+    test('uses the template of the week for an exercise with a history and the first-session structure for one without', async () => {
+      const { today } = days()
+      const { user } = await lifter([{ date: today }])
+      await seedLog(user, {
+        id: uuid(9002),
+        date: addDays(today, -4),
+        sets: Array.from({ length: 4 }, (): SeedSet => ['goblet-squat', LB(30), 6, 2]),
+        implement: { 'goblet-squat': 'dumbbells' },
+      })
+      const known = (await dayOf(user, today, { swap: 'goblet-squat' })).lift!
+      const fresh = (await dayOf(user, today, { swap: 'split-squat' })).lift!
+      const heavy = structuresFor('heavy', 'other', 7).template.loaded
+      expect(heavy.range).not.toEqual(FIRST.loaded.range)
+      expect(known.range).toEqual(heavy.range)
+      expect(fresh).toMatchObject({ change: 'start', range: FIRST.loaded.range })
+    })
+
+    test('gives an exercise with a history its own load and its own sessions as the evidence', async () => {
+      const { today } = days()
+      const { user } = await lifter([{ date: today }])
+      await seedLog(user, {
+        id: uuid(9003),
+        date: addDays(today, -4),
+        sets: Array.from({ length: 4 }, (): SeedSet => ['goblet-squat', LB(30), 6, 2]),
+        implement: { 'goblet-squat': 'dumbbells' },
+      })
+      const lift = (await dayOf(user, today, { swap: 'goblet-squat' })).lift!
+      expect(lift.change).not.toBe('start')
+      expect(lift.evidence.judged).toMatchObject({ logId: uuid(9003), sets: 4 })
+      // never below the 30 lb it was logged at: the rules hold it or move it up
+      expect(lift.loadG).toBeGreaterThanOrEqual(LB(30))
+    })
+
+    test('starts a movement with no added load with none, and a trunk exercise as a trunk lift', async () => {
+      const { today } = days()
+      const { user } = await lifter([{ date: today }])
+      const tempo = (await dayOf(user, today, { swap: 'tempo-squat' })).lift!
+      expect(tempo).toMatchObject({ implement: null, loadG: null, steps: null, change: 'start' })
+      expect(tempo.range).toEqual(FIRST.unloaded.range)
+      const trunk = (await dayOf(user, today, { swap: 'dead-bug' })).lift!
+      expect(trunk).toMatchObject({ slot: 'trunk', loadG: null })
+    })
+
+    test('reads the exercise in the place of the session the answer is for', async () => {
+      const { today } = days()
+      const { user, rows } = await lifter([{ date: addDays(today, 2) }])
+      const off = await dayOf(user, today, { swap: 'goblet-squat' })
+      expect(off.source).toBe('next-planned')
+      expect(off.workout.sessionId).toBe(rows[0]!.id)
+      // the same lift as the planned session’s own day gives
+      const own = await dayOf(user, addDays(today, 2), {
+        sessionId: rows[0]!.id,
+        swap: 'goblet-squat',
+      })
+      expect(off.lift).toEqual(own.lift)
+      expect(off.lift).toMatchObject({ exerciseId: 'goblet-squat', change: 'start' })
+    })
+
+    test('is null for an exercise the saved equipment cannot make and for a jump', async () => {
+      const { today } = days()
+      const { user } = await lifter([{ date: today }])
+      expect((await dayOf(user, today, { swap: 'leg-press' })).lift).toBeNull()
+      expect((await dayOf(user, today, { swap: 'pogo-hop' })).lift).toBeNull()
+    })
+  })
+
+  test('writes nothing and reads the memoised state: a second read runs no query of the history or the plan', async () => {
+    const { today } = days()
+    const { user } = await lifter([{ date: today }])
+    await dayOf(user, today)
+    const before = await dataVersionKey(ctx.prisma)
+    const watched = [
+      ['activity', 'findMany'],
+      ['wellnessDay', 'findMany'],
+      ['weeklyReview', 'findMany'],
+      ['plan', 'findFirst'],
+      ['strengthLog', 'findMany'],
+      ['strengthSettings', 'findUnique'],
+    ] as const
+    type Delegate = Record<string, (...args: unknown[]) => PromiseLike<unknown>>
+    const spies = watched.map(([model, method]) =>
+      vi.spyOn((ctx.prisma as unknown as Record<string, Delegate>)[model]!, method),
+    )
+    try {
+      await dayOf(user, today, { swap: 'goblet-squat' })
+      await dayOf(user, addDays(today, 9))
+      expect(spies.map((spy) => spy.mock.calls.length)).toEqual(watched.map(() => 0))
+      expect(await dataVersionKey(ctx.prisma)).toEqual(before)
+      // the spies are live: a write drops the memo, and the next read runs the queries again
+      await setup(user, { level: 'experienced' })
+      await dayOf(user, today)
+      expect(spies.every((spy) => spy.mock.calls.length > 0)).toBe(true)
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
+
+  test.each([
+    ['no date', ''],
+    ['a date that is not a day', 'date=2026-02-30'],
+    ['a date in another shape', 'date=18-03-2026'],
+    ['an unknown parameter', 'date=2026-03-18&units=lb'],
+    ['an exercise that is not in the catalogue', 'date=2026-03-18&swap=nothing'],
+    ['an empty session id', 'date=2026-03-18&sessionId='],
+    ['two dates', 'date=2026-03-18&date=2026-03-19'],
+  ])('refuses %s with the issue', async (_name, query) => {
+    const user = await newUser()
+    const res = await client(ctx, user).get(`/api/strength/workout?${query}`)
+    expect(res.status).toBe(400)
+    expect(errorOf(res).code).toBe('validation')
+    expect(issuePaths(res).length).toBeGreaterThan(0)
+  })
+
+  test('is 404 for a session id that is a run, another runner’s, or a strength session of another day', async () => {
+    const { today } = days()
+    const { user, rows } = await lifter([
+      { date: today, kind: 'easy' },
+      { date: addDays(today, 2) },
+    ])
+    const other = await lifter([{ date: today }])
+    const refuse = async (sessionId: string, date = today) => {
+      const res = await client(ctx, user).get(
+        `/api/strength/workout?${dayQuery(date, { sessionId })}`,
+      )
+      expect(res.status, JSON.stringify(res.body)).toBe(404)
+      expect(errorOf(res).code).toBe('not_found')
+    }
+    await refuse(rows[0]!.id)
+    await refuse(other.rows[0]!.id)
+    await refuse(rows[1]!.id)
+    await refuse(randomUUID())
+    // and the right day answers
+    expect((await dayOf(user, addDays(today, 2), { sessionId: rows[1]!.id })).source).toBe(
+      'planned',
+    )
+  })
+})
+
 describe('GET /api/strength', () => {
   const view = async (user: TestUser) => {
     const res = await client(ctx, user).get('/api/strength')
@@ -2115,6 +2521,47 @@ describe('GET /api/strength', () => {
       countPrompt: false,
     })
     expect(body.settings).toMatchObject({ equipment: [], level: 'new', savedAt: null })
+  })
+
+  test('says of each recent session whether the plan keeps lifting off its day (design 12.4)', async () => {
+    const user = await newUser()
+    const { thisMonday } = days()
+    const lastMonday = addDays(thisMonday, -7)
+    const at = (day: number) => addDays(lastMonday, day)
+    await seedProfile(user)
+    // last week: a hard run on Tuesday, the long run on Saturday
+    await seedPlan(user, [
+      { date: at(1), kind: 'threshold' },
+      { date: at(3), kind: 'easy' },
+      { date: at(5), kind: 'long' },
+    ])
+    const logged: Array<[number, string]> = [
+      [1, 'a hard run that day'],
+      [2, 'an open day'],
+      [3, 'an easy run that day'],
+      [4, 'the day before the long run'],
+      [5, 'the long run itself'],
+    ]
+    for (const [i, [day]] of logged.entries()) {
+      await seedLog(user, { id: uuid(9100 + i), date: at(day), sets: squat() })
+    }
+    // a week the plan does not cover has no run to name
+    await seedLog(user, { id: uuid(9199), date: addDays(thisMonday, -7 * 12 + 4), sets: squat() })
+
+    const recent = (await view(user)).recent
+    const offDayOf = (date: string) => recent.find((log) => log.date === date)?.offDay
+    expect(offDayOf(at(1))).toBe('hard-run-day')
+    expect(offDayOf(at(2))).toBeNull()
+    expect(offDayOf(at(3))).toBeNull()
+    expect(offDayOf(at(4))).toBe('day-before-long-run')
+    expect(offDayOf(at(5))).toBe('hard-run-day')
+    expect(offDayOf(addDays(thisMonday, -7 * 12 + 4))).toBeNull()
+    // every recent session carries the fact, null when there is none to state
+    expect(recent.every((log) => log.offDay !== undefined)).toBe(true)
+
+    // the fact belongs to the view: the log itself, as the logs route serves it, carries none
+    const logs = await client(ctx, user).get(`/api/strength/logs?from=${at(0)}&to=${at(6)}`)
+    expect((logs.body as StrengthLog[]).every((log) => !('offDay' in log))).toBe(true)
   })
 
   test('names the setup, the starting points, the block, the next sessions and the lifts', async () => {
@@ -2375,6 +2822,7 @@ describe('the reads need a session', () => {
   test.each([
     '/api/strength',
     '/api/strength/workouts?from=2026-01-01&to=2026-01-02',
+    '/api/strength/workout?date=2026-01-01',
     '/api/strength/exercises/back-squat',
   ])('get %s', async (url) => {
     expect((await client(ctx).get(url)).status).toBe(401)
@@ -2520,6 +2968,84 @@ describe('GET /api/today: coach.slots.strength', () => {
     const after = await todayView(user)
     expect(after.coach.hero?.session.status).not.toBe('planned')
     expect(after.coach.slots.strength).toEqual(before)
+  })
+})
+
+describe('GET /api/today: coach.slots.strengthSetup (design 6.1)', () => {
+  /** A runner who has not saved the setup, with a plan of the given sessions. */
+  async function unsetUser(sessions: SeedSession[]) {
+    const user = await newUser()
+    const { rows } = await seedPlan(user, sessions)
+    return { user, rows }
+  }
+  const offerOf = async (user: TestUser, query = '') =>
+    (await todayView(user, query)).coach.slots.strengthSetup
+
+  test('offers the setup when a strength session is still to be done within 7 days and the setup is not saved', async () => {
+    const { today } = days()
+    const { user, rows } = await unsetUser([
+      { date: addDays(today, 3) },
+      { date: addDays(today, 5) },
+    ])
+    expect(await offerOf(user)).toEqual({ sessionId: rows[0]!.id, date: addDays(today, 3) })
+  })
+
+  test('counts today and the 7th day ahead, and not the 8th', async () => {
+    const { today } = days()
+    const first = await unsetUser([{ date: today }])
+    expect(await offerOf(first.user)).toEqual({ sessionId: first.rows[0]!.id, date: today })
+    const edge = await unsetUser([{ date: addDays(today, 7) }])
+    expect(await offerOf(edge.user)).toEqual({
+      sessionId: edge.rows[0]!.id,
+      date: addDays(today, 7),
+    })
+    const beyond = await unsetUser([{ date: addDays(today, 8) }])
+    expect(await offerOf(beyond.user)).toBeNull()
+  })
+
+  test('passes over a session that is over, and a run', async () => {
+    const { today } = days()
+    const { user, rows } = await unsetUser([
+      { date: addDays(today, -1) },
+      { date: today, status: 'completed' },
+      { date: addDays(today, 1), kind: 'easy' },
+      { date: addDays(today, 2) },
+    ])
+    expect(await offerOf(user)).toEqual({ sessionId: rows[3]!.id, date: addDays(today, 2) })
+    const settled = await unsetUser([{ date: today, status: 'completed' }])
+    expect(await offerOf(settled.user)).toBeNull()
+  })
+
+  test('is gone once the setup is saved, and comes back with no strength session to offer it for', async () => {
+    const { today } = days()
+    const { user } = await unsetUser([{ date: addDays(today, 2) }])
+    expect(await offerOf(user)).not.toBeNull()
+    await setup(user, { equipment: [BARBELL] })
+    expect(await offerOf(user)).toBeNull()
+  })
+
+  test('is null for a runner with no plan', async () => {
+    const user = await newUser()
+    expect(await offerOf(user)).toBeNull()
+  })
+
+  test('is the same on a preview day: it is about the coming week, not the viewed day', async () => {
+    const { today } = days()
+    const { user, rows } = await unsetUser([{ date: addDays(today, 2) }])
+    const own = await offerOf(user)
+    expect(own).toEqual({ sessionId: rows[0]!.id, date: addDays(today, 2) })
+    expect(await offerOf(user, `?date=${addDays(today, 1)}`)).toEqual(own)
+  })
+
+  test('follows the setup through the tag: a save changes the answer to a request that holds the old tag', async () => {
+    const { today } = days()
+    const { user } = await unsetUser([{ date: addDays(today, 2) }])
+    const first = await client(ctx, user).get('/api/today')
+    const tag = String(first.headers.etag)
+    await setup(user, { level: 'some' })
+    const second = await client(ctx, user).get('/api/today').set('If-None-Match', tag)
+    expect(second.status).toBe(200)
+    expect((second.body as TodayView).coach.slots.strengthSetup).toBeNull()
   })
 })
 
