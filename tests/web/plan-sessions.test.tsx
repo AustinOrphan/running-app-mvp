@@ -1051,7 +1051,7 @@ describe('Plan page, the load setting in effect', () => {
       await user.click(await screen.findByRole('button', { name: 'Regenerate plan' }))
       const dialog = await screen.findByRole('dialog', { name: 'Regenerate plan' })
       expect(within(dialog).getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true')
-      expect(within(dialog).getByRole('radio', { name: 'Let the plan decide' })).toHaveAttribute(
+      expect(within(dialog).getByRole('radio', { name: 'Plan decides' })).toHaveAttribute(
         'aria-checked',
         'false',
       )
@@ -1065,7 +1065,7 @@ describe('Plan page, the load setting in effect', () => {
     },
   )
 
-  test('Regenerate plan starts on "Let the plan decide" when the plan holds no cycle, and sends none', async () => {
+  test('Regenerate plan starts on "Plan decides" when the plan holds no cycle, and sends none', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(
       routes(makeV2Plan({ recoveryCycle: null }), {
@@ -1075,7 +1075,7 @@ describe('Plan page, the load setting in effect', () => {
     renderPlan()
     await user.click(await screen.findByRole('button', { name: 'Regenerate plan' }))
     const dialog = await screen.findByRole('dialog', { name: 'Regenerate plan' })
-    expect(within(dialog).getByRole('radio', { name: 'Let the plan decide' })).toHaveAttribute(
+    expect(within(dialog).getByRole('radio', { name: 'Plan decides' })).toHaveAttribute(
       'aria-checked',
       'true',
     )

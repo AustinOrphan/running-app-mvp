@@ -159,8 +159,8 @@ describe('Plan page', () => {
       within(cycle)
         .getAllByRole('radio')
         .map((radio) => radio.textContent),
-    ).toEqual(['Let the plan decide', 'Every 4th week', 'Every 3rd week'])
-    expect(within(cycle).getByRole('radio', { name: 'Let the plan decide' })).toHaveAttribute(
+    ).toEqual(['Plan decides', 'Every 4th week', 'Every 3rd week'])
+    expect(within(cycle).getByRole('radio', { name: 'Plan decides' })).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -627,13 +627,13 @@ describe('Plan page, the recovery cycle on the Generate form', () => {
     'Two building weeks, then a lighter one. It suits a new runner or a return from a break.',
   ]
 
-  test('starts on "Let the plan decide", and each choice says what it does', async () => {
+  test('starts on "Plan decides", and each choice says what it does', async () => {
     const user = userEvent.setup()
     mockApi(routes(null))
     const { container } = renderWithProviders(<PlanPage />)
     const group = await screen.findByRole('radiogroup', { name: 'Easier week' })
 
-    expect(within(group).getByRole('radio', { name: 'Let the plan decide' })).toHaveAttribute(
+    expect(within(group).getByRole('radio', { name: 'Plan decides' })).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -673,7 +673,7 @@ describe('Plan page, the recovery cycle on the Generate form', () => {
     await user.click(within(group).getByRole('radio', { name: 'Every 3rd week' }))
     await generate(3)
     // going back to the plan's own decision takes the option out again
-    await user.click(within(group).getByRole('radio', { name: 'Let the plan decide' }))
+    await user.click(within(group).getByRole('radio', { name: 'Plan decides' }))
     await generate(4)
 
     expect(sent().map((options) => options.recoveryCycle)).toEqual([

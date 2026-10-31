@@ -54,7 +54,7 @@ export const PAGE_TEMPLATES = {
   // runner chooses 3:1 or 2:1. Each choice says what it does, including that a chosen 3:1 holds
   // for a new runner and still gives way to a recent injury (`cycleShortReason`, macro.ts).
   'plan.cycle.field': tpl('Easier week', {}, { shape: 'label' }),
-  'plan.cycle.name.auto': tpl('Let the plan decide', {}, { shape: 'label' }),
+  'plan.cycle.name.auto': tpl('Plan decides', {}, { shape: 'label' }),
   'plan.cycle.name.3-1': tpl('Every 4th week', {}, { shape: 'label' }),
   'plan.cycle.name.2-1': tpl('Every 3rd week', {}, { shape: 'label' }),
   'plan.cycle.hint.auto': tpl('The plan chooses the rhythm: a lighter week every 4th week.'),
@@ -136,7 +136,7 @@ const CYCLE_NAMES = {
 /** The label of the recovery-cycle field. */
 export const cycleFieldLabel = (): string => render(PAGE_TEMPLATES['plan.cycle.field'], {}, 'km')
 
-/** The label of a choice: "Let the plan decide", "Every 4th week" (3:1), "Every 3rd week" (2:1). */
+/** The label of a choice: "Plan decides", "Every 4th week" (3:1), "Every 3rd week" (2:1). */
 export const cycleChoiceLabel = (choice: CycleChoice): string =>
   render(PAGE_TEMPLATES[CYCLE_NAMES[choice]], {}, 'km')
 
