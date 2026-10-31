@@ -1015,12 +1015,12 @@ describe('ActivityDetailPage: a strength activity', () => {
     expect(api.calls.some((call) => call.url.startsWith('/api/strength'))).toBe(false)
   })
 
-  test('keeps the buttons at 44 px and the table inside 360 px: the exercise wraps instead of scrolling', () => {
+  test('keeps the buttons at 44 px and the table inside 360 px: the exercise wraps between words instead of the table scrolling', () => {
     const css = readFileSync(
       join(process.cwd(), 'web/components/strength/ActivitySets.module.css'),
       'utf8',
     )
-    expect(css).toMatch(/\.exercise \{[^}]*overflow-wrap: anywhere;/s)
+    expect(css).toMatch(/\.exercise \{[^}]*overflow-wrap: break-word;/s)
     expect(css).not.toMatch(/white-space: nowrap/)
     expect(css).not.toMatch(/min-width: \d/)
     const button = readFileSync(join(process.cwd(), 'web/components/Button.module.css'), 'utf8')

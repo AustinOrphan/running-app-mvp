@@ -66,15 +66,13 @@ function SetsTable({
                 {words.name(set.exerciseId)}
               </th>
               <td>{number}</td>
-              <td className={styles.load}>
+              <td>
                 {set.loadG === null
                   ? words.say('strength.page.lift-no-load')
                   : formatLoad(set.loadG, weightUnit)}
               </td>
               <td>{countText(words, set)}</td>
-              <td className={styles.left}>
-                {set.rir === null ? words.say('strength.page.sets-not-recorded') : set.rir}
-              </td>
+              <td>{set.rir === null ? words.say('strength.page.sets-not-recorded') : set.rir}</td>
             </tr>
           ))}
         </tbody>

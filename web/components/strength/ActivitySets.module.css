@@ -25,7 +25,10 @@
   color: var(--danger);
 }
 
-/* A session is a handful of sets, so at 360 px the exercise wraps and the table does not scroll. */
+/*
+ * A session is a handful of sets, so at 360 px the exercise wraps between words (a word is never
+ * broken, which is what keeps the columns from being squeezed) and the table does not scroll.
+ */
 .scroll {
   overflow-x: auto;
   max-width: var(--page-max);
@@ -62,12 +65,7 @@
 }
 
 .exercise {
-  overflow-wrap: anywhere;
-}
-
-.load,
-.left {
-  font-size: var(--text-sm);
+  overflow-wrap: break-word;
 }
 
 .actions {
