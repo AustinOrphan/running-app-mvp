@@ -1,0 +1,63 @@
+{
+  "id": "lydiardfoundation-2026-lydiard-principles",
+  "title": "Lydiard Training Principles (Lorraine Moller, Lydiard Foundation): base first, six phases written back from the goal",
+  "authors": "Moller L (Lydiard Foundation; method of Arthur Lydiard)",
+  "year": 2026,
+  "journal": "lydiardfoundation.org",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.lydiardfoundation.org/about-us",
+  "design": "book-or-guideline",
+  "population": "Runners of any ability, with a starter plan for beginners in reasonably good health; the pages give no population data and no outcome data",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["training-methods", "periodization-recovery"],
+  "findings": [
+    "The page 'Lydiard Training Principles', by Lorraine Moller, gives five principles: maximise aerobic capacity first ('Miles in the bank'), feeling-based training, response-regulated recovery, sequential development of the energy systems, and correct timing. Of the first it says the greatest gain for an aspiring distance athlete 'is made by spending the majority of time on aerobic development', and that for recreational athletes training for a weekend road race this is 'the only phase of Lydiard training that is initially indispensable'.",
+    "On the sequence it says speed is built on intervals, which are built on strength, which is built on endurance, and lists six phases of a pyramid: Aerobic Conditioning, Hill Strength Training, Anaerobic Development, Integration, Taper and Racing, each dependent on the one before. It adds that 'a Lydiard schedule is always written from the goal backwards, allotting the amount of time needed for each phase and using the remaining time for base training', and that anaerobic development 'takes four to six weeks to top out'.",
+    "The musculoskeletal system lags the cardiovascular one, so 'you can never progress faster than your slowest part will allow'; recovery is judged from response (morning heart rate, sleep, energy, sore muscles, mood) and a workout of any intensity is contraindicated when these indicate it.",
+    "The Foundation's FAQ says Lydiard training incorporates all paces in sequence from easy aerobic running to the fastest speeds, that a runner should learn to run easy and for a duration before running fast, and that 'the Lydiard pyramid is easily adapted to the number of days you wish to train'. Its free starter plan (Stepping Out) begins with three run days a week, alternates jog and walk and takes a beginner from zero to 15 to 20 minutes of continuous running in 8 weeks.",
+    "The pages give no length for the aerobic phase, no hill-phase prescription and no weekly mileage as a prescription (one anecdote says Japanese teams training in Colorado handled 200-mile weeks)."
+  ],
+  "limitations": "A page of a foundation that sells coach certification courses, training plans and tools, by a Foundation co-founder, about a method whose author died in 2004; the method's text (Running to the Top, 1997) was not read, so the pages are an interpretation by its promoters, with testimonials and anecdotes (for example a Japanese team's training in Colorado) and no data. It gives the order of the phases and no number, so the figures usually quoted (a base of 10 to 12 weeks, hills for 6 to 8, 100 miles a week) are in a secondary account (casado-2023-lactate-guided-threshold, citing the book) and in no page read here. Undated pages (the blog posts carry 2020 dates).",
+  "implications": [
+    "Supports one structural statement, as practice: aerobic conditioning first, hill strength and then anaerobic work added in sequence, a schedule written back from the goal with the remaining time given to base, and the plan adapted to the days a runner has. The engine's E2 already builds backwards from race day and gives base the remainder. The pages give no base length, so they cannot set a build or base number.",
+    "Grade D practice at most. A preset that credits Lydiard (a longer base) credits this sequence and not his volumes; a Param may not take a value from these pages."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. The pages /about-us (the principles), /free-starter-plans, /faq, /ourhistory and the home page were fetched with a plain HTTP client on 2026-10-31 and read; the Lydiard Training Wizard page answered 401 and was not read. The World Athletics heritage plaque page for Arthur Lydiard and the New Zealand Olympic Committee page for Lorraine Moller (both read 2026-10-31) were read for R2. The record is of the pages only; the book is not recorded from a page about it. Practice source (a programme page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Sells Lydiard coach certification courses (Level I and II), training plans and a coaching toolset, and runs monthly coaching webinars (the site's navigation and home page); the page's author co-created the Foundation.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The five principles, the six phases, the 'written from the goal backwards' sentence, the recreational-athlete sentence, the FAQ answers and the starter plan's three days and eight weeks were all located on the pages fetched 2026-10-31. The pages give no phase length, and the record claims none."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Named author Lorraine Moller, co-creator of the Foundation. The New Zealand Olympic Committee's athlete page (read 2026-10-31) lists her as bronze medallist in the women's marathon at Barcelona 1992. The method is Arthur Lydiard's: World Athletics, the federation, awards him a Heritage Plaque in its Legend category (2019-09-26, read 2026-10-31), recording that his athletes Peter Snell and Murray Halberg won Olympic gold in 1960 and that he coached for the Mexican federation in 1965 and in Finland from 1967. The Foundation's own pages are the second record. Interests recorded."
+    },
+    "r3": {
+      "result": "hold",
+      "note": "The pages are undated, give no edition of the book and describe a method of the 1950s and 1960s. Later corpus papers agree with a base-first sequence but show no advantage for it: casado-2022-elite-runners-review (traditional periodization) and gonzalezrave-2022-reverse-periodization (reverse periodization no better). No paper tests a base length."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "For the order of phases only: casado-2023-lactate-guided-threshold (a different group, read in full) gives the same order, citing the 1997 book, and engine rule E1 (grade B) takes the traditional sequence. They agree on the sequence and not on lengths, which no page or review gives from a read book."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "The Foundation says the principles apply to any athlete and that the aerobic phase suits a recreational runner training for a road race, but gives no population data. A longer base for a recreational runner is an extrapolation and is labelled one."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the cap of a programme page."
+    },
+    "signedOff": "M1 2026-10-31, one reading pass; second pass or owner sign-off pending at merge"
+  }
+}

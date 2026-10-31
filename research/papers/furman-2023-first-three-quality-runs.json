@@ -1,0 +1,63 @@
+{
+  "id": "furman-2023-first-three-quality-runs",
+  "title": "Services and Training Programs (Furman Institute of Running and Scientific Training, FIRST: three quality runs a week)",
+  "authors": "Furman Institute of Running and Scientific Training (Pierce B, Murr S)",
+  "year": 2023,
+  "journal": "furman.edu (Furman University)",
+  "doi": null,
+  "pmid": null,
+  "url": "https://www.furman.edu/first/services-training-programs/",
+  "design": "book-or-guideline",
+  "population": "Runners of all levels training for 5K to the marathon; the page cites the institute's own training studies and gives no sample, outcome or number from them",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["training-methods"],
+  "findings": [
+    "The page says the FIRST training programmes 'are based on results from FIRST training research studies that showed runners are able to run successful road races by incorporating three quality runs a week into their overall training program', and that the details are in the book Runner's World Run Less, Run Faster. It names no study, sample or result.",
+    "The page lists the contents of the revised edition of the book: detailed programmes for the 5K, 10K, half marathon and marathon, a novice marathon programme, novice and intermediate 5K programmes, 12-week cross-training schedules for 5K and 10K training and 16-week cross-training schedules for half-marathon and marathon training.",
+    "Its answers describe the weekly shape: key workout 1 is a track-interval session (examples 6 x 800 m with 90 s recovery, 12 x 400 m, 5 x 1K with 400 m recovery, run within a range of a couple of seconds), plus a tempo run and a long run; paces are set from a recent race (the page names the 10K) and adjusted each week; the institute prefers 6 to 8 runs of 20 miles in an 18-week marathon programme.",
+    "Asked whether three days a week of running are sufficient preparation for the marathon, the page answers 'No.' and goes on to say FIRST has trained runners 'from sub-three-hour finishers to five-hour marathoners' with success, that 'two cross-training workouts per week are an important part of the program', done on the non-key days for the same time as a typical run.",
+    "'FIRST stresses quality over quantity. While the weekly mileage is less than most programs, the intensity of the training runs is higher'; runners are said to report the paces as achievable but harder than they have run before. This is the institute's own report; no figure is given."
+  ],
+  "limitations": "The institute's own programme page, with no study, number or comparison on it: the claims that three quality runs 'work' and that injury and overtraining fall rest on studies the page does not describe. The page lists the contents of the revised (second) edition, while the institute's home page sells the third edition of 2021, so it lags the book; the site's own interface dates the page to 2020-01-23 (created) and 2023-12-13 (modified). The programme is three hard runs plus two cross-training sessions, not an easy-run week, so a plan with three run days is not FIRST. Pages that the FAQ points to (for example furman.edu/first/1.htm) now return 404, and the programme tables are in the book, which was not read (task S3 reads books). The institute sells the book, paid clinics and e-coaching.",
+  "implications": [
+    "Supports one structural fact: a published programme that runs three days a week, with each run a set key session, and two cross-training sessions on the other days. It does not show that the programme works or that it is safer, and it does not support a run-day cap of 3 with the engine's one to two quality sessions.",
+    "Grade D practice at most (a programme page). A preset that credits FIRST must say its shape is not FIRST's, and no Param may take a value from this page."
+  ],
+  "verification": {
+    "doiResolved": false,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. The page was fetched with a plain HTTP client on 2026-10-31 and its text read; the institute's home page and the Penguin Random House page of the book (ISBN 9780593232231, third edition, 2021) were read beside it. Page dates from the site's own JSON interface: created 2020-01-23, modified 2023-12-13. The record is of the page only; the book is not recorded from a page about it. Practice source (a programme page): a published convention, not evidence; grade D.",
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Sells the book Run Less, Run Faster (third edition 2021, Rodale), a paid clinic, laboratory assessments, gait analysis and e-coaching (the page lists the services and a fees and registration page).",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The three-quality-runs sentence, the edition's contents, the key-workout answers, the three-days answer with its 'No.', the cross-training answer and the quality-over-quantity answer were all located on the page fetched 2026-10-31; the page dates come from the site's own interface."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "The page is unsigned (FIRST staff); the programme is by Bill Pierce and Scott Murr. Furman University's news item of 2023-07-24 (read 2026-10-31) says that in 2003 the two, health sciences faculty at Furman, started the clinic and that they wrote Run Less, Run Faster; the publisher's page (Penguin Random House, read 2026-10-31) lists them as the book's authors and describes the 3PLUS2 programme. The university's own pages are the institute's host, so the publisher is the more independent record. Interests recorded."
+    },
+    "r3": {
+      "result": "hold",
+      "note": "The page lists the revised (second) edition's contents, the institute offers the third edition (2021), and the page was modified 2023-12-13. The 2023 news item quotes Murr that the programme is the same as 20 years earlier. No later consensus or corpus paper tests the programme."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Single source for the structure. Corpus papers give only direction for fewer run days: pollock-1977-frequency-duration-injury (three days against five, young men jogging hard), kluitenberg-2016-nlstart2run-training-factors (novices; three against two not significant) and yamaguchi-2023-volume-frequency-run-distance (at equal monthly volume, frequency unrelated to marathon time). Conservative reading: use as structure only."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "The page is for runners of all levels and distances from the 5K to the marathon, and gives no population data. A preset of three run days for 5 km to half-marathon goals uses only the shape, with the cross-training and the three hard runs left out, and is labelled an extrapolation."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the cap of a programme page."
+    },
+    "signedOff": "M1 2026-10-31, one reading pass; second pass or owner sign-off pending at merge"
+  }
+}
