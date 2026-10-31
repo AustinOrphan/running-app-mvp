@@ -2450,6 +2450,82 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     expect(body).toMatchObject({ rpe: null, pain: null, notes: null })
   })
 
+  test('an edit keeps the workout it was opened with when the page is read again meanwhile', async () => {
+    let view = pageView()
+    const { calls } = openPage({
+      routes: {
+        'GET /api/strength': () => view,
+        [`PUT /api/strength/logs/${LOG_LAST}`]: () => savedLog(LOG_LAST),
+      },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    await sheet('Strength, heavy A')
+    expect(values('Back squat', 'load')).toEqual(['105', '105', '105'])
+
+    // the bar is sold in another tab and the page reads again: the sheet is as it was opened
+    view = {
+      ...view,
+      settings: { ...view.settings, equipment: have('dumbbells', 'bands', 'step') },
+      recent: view.recent.slice(1),
+    }
+    const reads = () => calls.filter((call) => call.url === '/api/strength').length
+    const before = reads()
+    document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
+    await waitFor(() => {
+      expect(reads()).toBeGreaterThan(before)
+    })
+    await waitFor(() => {
+      expect(region('Recent sessions').getAllByRole('listitem')).toHaveLength(1)
+    })
+    expect(values('Back squat', 'load')).toEqual(['105', '105', '105'])
+    expect(screen.getByRole('dialog', { name: 'Strength, heavy A' })).toBeVisible()
+    // and the bar's steps are the ones it was opened with: a press moves one jump of the bar
+    const first = within(screen.getByRole('group', { name: 'Back squat, set 1, load' }))
+    await user.click(first.getByRole('button', { name: 'Raise the load by one step' }))
+    expect(values('Back squat', 'load')).toEqual(['110', '105', '105'])
+  })
+
+  test('an edit saved with no connection is kept on the phone, and the next edit opens on it', async () => {
+    let connected = false
+    const { calls } = openPage({
+      routes: {
+        [`PUT /api/strength/logs/${LOG_LAST}`]: () =>
+          connected ? savedLog(LOG_LAST) : unreachable,
+      },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    await sheet('Strength, heavy A')
+    const first = within(screen.getByRole('group', { name: 'Back squat, set 1, load' }))
+    await user.click(first.getByRole('button', { name: 'Raise the load by one step' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // kept under the log's own id: the entry in the outbox is this log's, not a second one
+    expect(
+      getOutbox()
+        .getState()
+        .entries.map((entry) => entry.url),
+    ).toEqual([`/api/strength/logs/${LOG_LAST}`])
+    // the next edit opens on what was kept (the queued body), not on the log as the server holds it
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    await sheet('Strength, heavy A')
+    expect(values('Back squat', 'load')).toEqual(['110', '105', '105'])
+    connected = true
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // still one id: a second save under it replaces the first, so the log replays once
+    expect(new Set(calls.filter((call) => call.method === 'PUT').map((call) => call.url))).toEqual(
+      new Set([`/api/strength/logs/${LOG_LAST}`]),
+    )
+  })
+
   test('edits a session: the sheet opens as it was saved and saves over it under its own id', async () => {
     const log = pageView().recent[0]!
     const { calls } = openPage({
