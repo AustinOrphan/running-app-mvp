@@ -2013,6 +2013,38 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
   })
 })
 
+describe('the Strength page: focus around the past session flow (design 11.7)', () => {
+  test('goes back to the Continue button that opened the sheet, whether it is closed or saved', async () => {
+    openPage({ routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) } })
+    await page()
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Add a past session' }))
+    fireEvent.change(screen.getByLabelText('Date of the session'), {
+      target: { value: '2026-03-10' },
+    })
+    const proceed = screen.getByRole('button', { name: 'Continue' })
+    await user.click(proceed)
+    await sheet('Strength, heavy A')
+    // Escape closes the sheet and keeps what was entered; the control that opened it is still there
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(proceed).toBeInTheDocument()
+    expect(proceed).toHaveFocus()
+
+    // and the same after a save
+    await user.click(proceed)
+    await sheet('Strength, heavy A')
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveFocus()
+  })
+})
+
 describe('the Strength page: this block (design 11.3, 4.5)', () => {
   test('says where the week stands, what follows, the benefit sentence with its grade, and links the research', async () => {
     openPage()

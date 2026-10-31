@@ -75,8 +75,9 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
       return
     }
     setInvalid(false)
-    setPastOpen(false)
-    setDate('')
+    // The form stays, and with it the focused Continue button: the sheet is lazy and mounts a moment
+    // later, and a sheet records the control that is focused when it opens as the one to give focus
+    // back to. A form closed here would have taken that control with it, and focus would be lost.
     onPast(workout, date)
   }
 
