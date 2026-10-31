@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { countPhrase } from '../../../shared/copy/quantity.ts'
@@ -181,6 +182,10 @@ export function StrengthForm({
   const addable = canAddSet(state.blocks)
   const hasEffort = state.blocks.some((block) => block.shown.rir !== null)
   const editing = log !== undefined
+  // Until the setup is saved the workout is bodyweight only (design 6.1): the sheet says so and
+  // offers it, on the surfaces that are not the Strength page, whose own card makes the offer.
+  const onStrengthPage = useLocation().pathname === '/strength'
+  const offerSetup = !workout.setupSaved && !editing && !onStrengthPage
   const lighterDay = !editing && state.blocks.some((block) => block.shown.change === 'lighter-day')
   // "the usual load is one tap away" is true only where some lift has a usual load to go back to
   const anyUsual = state.blocks.some((block) => usualLoadOf(block.shown) !== null)
@@ -306,6 +311,14 @@ export function StrengthForm({
               : words.say('strength.lighter-today-sets', {
                   sets: countPhrase(P.f9.lowReadinessSetsCut.value, 'set'),
                 })}
+          </p>
+        ) : null}
+        {offerSetup ? (
+          <p className={styles.offer}>
+            <span>{render(TEMPLATES['strength.page.sheet-offer'], {}, units, weightUnit)}</span>
+            <Link to="/strength" className={styles.offerLink}>
+              {render(TEMPLATES['strength.page.setup-heading'], {}, units, weightUnit)}
+            </Link>
           </p>
         ) : null}
         <p className={styles.muted}>{words.say('strength.safety')}</p>

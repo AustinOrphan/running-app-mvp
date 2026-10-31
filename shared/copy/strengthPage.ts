@@ -44,6 +44,9 @@ export const STRENGTH_PAGE_TEMPLATES = {
     'The workout follows the saved equipment, lifting history and starting loads. Until they are saved it is bodyweight only.',
   ),
   'strength.page.setup-optional': tpl('Each part is optional. Close a sheet to skip it.'),
+  // The one-line row of the logging sheet while the setup is not saved (design 6.1), beside a link
+  // that is "Set up strength".
+  'strength.page.sheet-offer': tpl('The workout is for bodyweight only until the setup is saved.'),
   'strength.page.part-unit': tpl('Weight unit', {}, { shape: 'label' }),
   'strength.page.part-equipment': tpl('Equipment', {}, { shape: 'label' }),
   'strength.page.part-history': tpl('Lifting history', {}, { shape: 'label' }),

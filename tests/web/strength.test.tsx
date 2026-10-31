@@ -183,6 +183,44 @@ const putBody = (calls: Rig['calls']): StrengthLogBody => {
   return call?.body as StrengthLogBody
 }
 
+describe('the offer to set up strength in the sheet (design 6.1)', () => {
+  const offer = 'The workout is for bodyweight only until the setup is saved.'
+
+  test('is a line with a link to the setup while the workout is built for bodyweight only', async () => {
+    open({ workout: { ...bodyweightWorkout(), setupSaved: false } })
+    const dialog = await sheet('Strength, ramp-in A')
+    expect(within(dialog).getByText(offer)).toBeVisible()
+    const link = within(dialog).getByRole('link', { name: 'Set up strength' })
+    expect(link).toHaveAttribute('href', '/strength')
+    expectCleanCopy(dialog)
+    // the link is a 44 px target
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/strength/StrengthSheet.module.css'),
+      'utf8',
+    )
+    expect(css).toMatch(/\.offerLink \{[^}]*min-height: 2\.75rem;/s)
+  })
+
+  test('is not there once the setup is saved', async () => {
+    open({ workout: makeWorkout({ setupSaved: true }) })
+    const dialog = await sheet()
+    expect(within(dialog).queryByText(offer)).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('link', { name: 'Set up strength' })).not.toBeInTheDocument()
+  })
+
+  test('is not there on the Strength page, whose card makes the offer, nor when a saved log is edited', async () => {
+    openPage({ view: unsavedView() })
+    await page('Set up strength')
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).queryByText(offer)).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    // the page's own card is where the offer is
+    expect(region('Set up strength').getByRole('button', { name: 'Equipment' })).toBeVisible()
+  })
+})
+
 describe('the sheet a workout opens as (design 9.1)', () => {
   test('is filled from the workout: its loads, its target in each set, no reps left, the planned minutes', async () => {
     open()
