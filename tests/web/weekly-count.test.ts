@@ -6,6 +6,7 @@ import {
   COUNT_QUIET_WEEKS,
   countToAsk,
   isQuiet,
+  overPlannedWeek,
   plannedPerWeek,
 } from '../../web/components/strength/weeklyCount.ts'
 import { makeView } from './strength-fixtures.ts'
@@ -79,5 +80,23 @@ describe('when the question is asked', () => {
   test('is not asked inside the quiet period', () => {
     expect(countToAsk(view(low), 2, addDays(TODAY, -27))).toBeNull()
     expect(countToAsk(view(low), 2, addDays(TODAY, -28))).toBe(2)
+  })
+})
+
+describe('a week with more sessions than the plan asked for', () => {
+  test('is the current week or the one before it, the latest of them', () => {
+    expect(overPlannedWeek(view([week(-1, 2, 3), week(0, 2, 1)]))).toMatchObject({
+      weekStart: addDays(THIS_WEEK, -7),
+    })
+    expect(overPlannedWeek(view([week(-1, 2, 3), week(0, 2, 4)]))).toMatchObject({
+      weekStart: THIS_WEEK,
+    })
+  })
+
+  test('is not an older week, a full week, or a week with nothing planned', () => {
+    expect(overPlannedWeek(view([week(-2, 2, 3), week(-1, 2, 2), week(0, 2, 1)]))).toBeNull()
+    expect(overPlannedWeek(view([week(0, 2, 2)]))).toBeNull()
+    expect(overPlannedWeek(view([week(0, 0, 2)]))).toBeNull()
+    expect(overPlannedWeek(view([]))).toBeNull()
   })
 })

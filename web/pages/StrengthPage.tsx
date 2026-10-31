@@ -19,6 +19,7 @@ import { LiftsList } from '../components/strength/LiftsList.tsx'
 import { RecentSessions } from '../components/strength/RecentSessions.tsx'
 import { SetupCard } from '../components/strength/SetupCard.tsx'
 import { StrengthLogNotices } from '../components/strength/StrengthLogNotices.tsx'
+import { StrengthNotes } from '../components/strength/StrengthNotes.tsx'
 import type { SetupPart } from '../components/strength/setupForm.ts'
 import { UnitsSection } from '../components/strength/UnitsSection.tsx'
 import { WorkoutCard } from '../components/strength/WorkoutCard.tsx'
@@ -104,6 +105,7 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
         </div>
         <div className={styles.column}>
           <LiftHistory exerciseId={lift} words={words} units={units} weightUnit={weightUnit} />
+          <StrengthNotes view={view} words={words} />
           <RecentSessions
             logs={view.recent}
             words={words}

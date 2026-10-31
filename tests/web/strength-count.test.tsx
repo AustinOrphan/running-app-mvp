@@ -1,4 +1,4 @@
-// The count prompt of the Strength page (E14-10b; strength design 12.4). The weeks of
+// The count prompt and the notes of the Strength page (E14-10b; strength design 12.4). The weeks of
 // every view here come from the real `summariseHistory` over a synthetic plan of two sessions a week,
 // so the threshold the page honours is the one `f9.countPromptWeeks` gives.
 import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { addDays } from '../../shared/dates.ts'
+import { addDays, mondayOf } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { summariseHistory } from '../../shared/engine/strength.ts'
 import type { StrengthLogEntry } from '../../shared/engine/types.ts'
@@ -14,7 +14,7 @@ import type { AthleteProfile, StrengthView, UserSettings } from '../../shared/ty
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { STRENGTH_PROMPT_PREFIX, purgeDrafts, readCountNotNow } from '../../web/pwa/drafts.ts'
 import { StrengthPage } from '../../web/pages/StrengthPage.tsx'
-import { context, log, sessionRef, sessionsOf } from '../unit/engine/strength-fixtures.ts'
+import { context, log, monday, sessionRef, sessionsOf } from '../unit/engine/strength-fixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { SETTINGS } from './strength-fixtures.ts'
 import { PROFILE, pageView } from './strength-page-fixtures.ts'
@@ -36,6 +36,7 @@ afterEach(() => {
 
 /** The plan of the fixtures: two sessions a week for the six weeks up to and including today's. */
 const TODAY = context().today
+const THIS_WEEK = mondayOf(TODAY)
 
 /** Both sessions of week `i` logged. */
 const full = (i: number): StrengthLogEntry[] => [
@@ -45,6 +46,12 @@ const full = (i: number): StrengthLogEntry[] => [
 
 /** One of the two sessions of week `i` logged. */
 const one = (i: number): StrengthLogEntry[] => [log(`o${String(i)}`, sessionRef(i, 0).date)]
+
+/** Three sessions in week `i`: one more than planned. */
+const three = (i: number): StrengthLogEntry[] => [
+  ...full(i),
+  log(`t${String(i)}`, addDays(monday(i), 5)),
+]
 
 /** The last `n` finished weeks logged one session of two, the weeks before them both. */
 function lowWeeks(n: number): StrengthLogEntry[] {
@@ -282,14 +289,75 @@ describe('the count prompt (design 12.4)', () => {
   })
 })
 
-describe('the stylesheet of the prompt (design 11.7)', () => {
+describe('the note on a week with more sessions than planned (design 12.4)', () => {
+  const [lo, hi] = P.flib.strengthPerWeek.range ?? [0, 0]
+  const NOTE = `3 sessions logged; the plan asks for 2. More does not add to the block. The research range is ${String(lo)} to ${String(hi)} a week.`
+
+  test('reads as specified, with the range of flib.strengthPerWeek, in the current week', async () => {
+    expect([lo, hi]).toEqual([2, 3])
+    const view = viewFor([...full(3), ...full(4), ...three(5)])
+    expect(view.weeks.at(-1)).toMatchObject({ weekStart: THIS_WEEK, planned: 2, logged: 3 })
+    openPage(view)
+    await page()
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent(NOTE)
+    // beside the recent sessions: in the right column, before them
+    const recent = screen.getByRole('region', { name: 'Recent sessions' })
+    expect(note.parentElement).toBe(recent.parentElement)
+    expect(note.compareDocumentPosition(recent)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    // it is only a note: no control, no change to the plan
+    expect(within(note).queryByRole('button')).not.toBeInTheDocument()
+    expectCleanCopy(document.body)
+  })
+
+  test('is shown for the week just finished, and not for an older one', async () => {
+    openPage(viewFor([...full(3), ...three(4), ...one(5)]))
+    await page()
+    expect(screen.getByRole('note')).toHaveTextContent(NOTE)
+    cleanup()
+
+    openPage(viewFor([...three(2), ...full(3), ...full(4), ...one(5)]))
+    await page()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
+  test('is not shown when the sessions logged are the sessions planned, or fewer', async () => {
+    openPage(viewFor([...full(3), ...full(4), ...full(5)]))
+    await page()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    cleanup()
+
+    openPage(viewFor([...one(3), ...one(4), ...one(5)]))
+    await page()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
+  test('is not shown for a week with no session planned', async () => {
+    const view = viewFor(three(5))
+    const unplanned = { ...view, weeks: view.weeks.map((week) => ({ ...week, planned: 0 })) }
+    openPage(unplanned)
+    await page()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
+  test('is a note and not a score: no red, no "behind", no count of days in a row', async () => {
+    openPage(viewFor([...three(5)]))
+    await page()
+    const note = screen.getByRole('note')
+    expect(note.textContent).not.toMatch(/behind|missed|streak|record/i)
+    expect(note.textContent).not.toMatch(/\bred\b/)
+  })
+})
+
+describe('the stylesheet of the prompt and the note (design 11.7)', () => {
   const css = (file: string) =>
     readFileSync(join(process.cwd(), 'web/components/strength', file), 'utf8')
 
-  test('the prompt wraps its line and its buttons at 360 px, and only a failed save is danger-coloured', () => {
+  test('the prompt wraps its line and its buttons at 360 px, and a note is set apart by a bar and not by colour', () => {
     const prompt = css('CountPrompt.module.css')
     expect(prompt).toMatch(/\.prompt \{[^}]*min-width: 0;/s)
     expect(prompt).toMatch(/\.actions \{[^}]*flex-wrap: wrap;/s)
+    expect(prompt).toMatch(/\.note \{[^}]*border-left: 3px solid var\(--border-strong\);/s)
     // only a failed save is danger-coloured
     expect(prompt.match(/var\(--danger\)/g)).toHaveLength(1)
     expect(prompt).toMatch(/\.error \{[^}]*var\(--danger\)/s)

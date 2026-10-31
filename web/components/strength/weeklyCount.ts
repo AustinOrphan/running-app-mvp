@@ -1,9 +1,10 @@
 // What the Strength page and the Review page say about the weekly count of strength sessions
-// (strength design 12.4): when they ask whether to plan fewer. The server counts the finished weeks with fewer sessions logged than planned
+// (strength design 12.4): when they ask whether to plan fewer, and when more were logged than the
+// plan asks for. The server counts the finished weeks with fewer sessions logged than planned
 // (`f9.countPromptWeeks`, in `summariseHistory`) and sends the verdict as `countPrompt`; this module
 // adds what only the page knows: what the plan asks for now, what the Profile says, and whether the
 // runner chose "Not now" lately. Days are the server's (`asOf`), never the phone's.
-import { addDays } from '../../../shared/dates.ts'
+import { addDays, mondayOf } from '../../../shared/dates.ts'
 import type { StrengthView } from '../../../shared/types.ts'
 
 /** The count the question offers, and so the Profile's strength choice the button saves. */
@@ -55,4 +56,19 @@ export function countToAsk(
   if (strengthPreference <= COUNT_PROMPT_FEWER) return null
   if (isQuiet(view.asOf, notNowOn)) return null
   return planned
+}
+
+/**
+ * The latest of the current week and the one before it in which more sessions were logged than the
+ * plan asked for, or null. An older week no longer says anything about now, and a week with no
+ * session planned has no count to be over.
+ */
+export function overPlannedWeek(view: StrengthView): StrengthView['weeks'][number] | null {
+  const since = addDays(mondayOf(view.asOf), -7)
+  for (let i = view.weeks.length - 1; i >= 0; i -= 1) {
+    const week = view.weeks[i]
+    if (week === undefined || week.weekStart < since) break
+    if (week.planned > 0 && week.logged > week.planned) return week
+  }
+  return null
 }
