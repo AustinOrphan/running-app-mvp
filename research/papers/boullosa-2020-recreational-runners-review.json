@@ -1,0 +1,62 @@
+{
+  "id": "boullosa-2020-recreational-runners-review",
+  "title": "Factors Affecting Training and Physical Performance in Recreational Endurance Runners",
+  "authors": "Boullosa D, Esteve-Lanao J, Casado A, Peyré-Tartaruga LA, Gomes da Rosa R, Del Coso J",
+  "year": 2020,
+  "journal": "Sports",
+  "doi": "10.3390/sports8030035",
+  "pmid": "32183425",
+  "url": "https://doi.org/10.3390/sports8030035",
+  "design": "narrative-review",
+  "population": "Recreational endurance runners from novice to well-trained, drawn from studies of recreational and professional athletes; no participants of its own",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["training-methods", "intensity-distribution"],
+  "findings": [
+    "The review states that there is no consensus on the best practice for recreational runners to train for their objectives and improve performance in a healthy way, that much practice rests on anecdote ('10% rule', unvalidated monitoring algorithms, shoe types), and that most running evidence comes from studies of recreational and professional athletes of very different levels, which makes transfer to recreational runners difficult.",
+    "On intensity distribution it says that literature in recreational runners is scarce, so it is difficult to say which model is more beneficial; it names pyramidal and polarized as the forms to recommend, with different considerations by distance, time available and season, and ends with the advice that recreational runners should adopt a polarized distribution, although other models may also be beneficial, with at least 75% of time in zone 1 for better results.",
+    "It describes the trial of Muñoz et al. as finding that a polarized model improved 10 km performance more than a threshold model; the corpus record of that trial (munoz-2014-polarized-recreational) reports that the primary between-group difference was not significant (5.0% against 3.6%) and that the positive result came from a post-hoc subset.",
+    "On methods it recommends one to two high-intensity interval sessions a week plus more moderate and low continuous sessions, and a minimum effective dose of strength training.",
+    "On periodization it says research in recreational runners is very limited, that linear or block periodization may fit distances of 21 km or shorter, and, as 'a general recommendation from our practical experience', that marathons and longer events would probably benefit from reverse periodization, and novices from reverse periodization for 21 km or even 10 km; it adds that further studies are needed to test these suggestions."
+  ],
+  "limitations": "A narrative review that names its basis as the authors' practical experience and gives no search method or appraisal of the studies it cites. Its advice is stronger than the studies it quotes (Muñoz 2014 above) and the reverse-periodization advice for marathons conflicts with a systematic review of reverse periodization that finds it no more effective than traditional periodization (gonzalezrave-2022-reverse-periodization; engine rule E1). Two authors are coaches or trainers (Esteve-Lanao's affiliation is a training-system company) and the paper declares no conflict of interest and no external funding. The statement of no consensus is as of 2020.",
+  "implications": [
+    "Cite it for one claim: in 2020 its authors found no consensus on the best practice for recreational runners, and little recreational-runner evidence on intensity distribution or periodization.",
+    "Its recommendations (polarized for recreational runners, reverse periodization for marathons) are the authors' experience, conflict with E1 and the network meta-analysis (rosenblat-2025-tid-ipd-nma) and are no source for a rule, Param or preset."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task M1. Crossref: title, Sports 8(3):35, published 2020-03-15, six authors, CC BY 4.0, no updated-by notice. Abstract and full text read on Europe PMC (PMC7183043, open access): Introduction, sections 2.1 to 2.4 on training methods, intensity distribution and periodization, section 3 on monitoring, and the Conclusions; sections 4 to 6 (prediction, technique, injuries) were not read in detail.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC7183043, CC BY) on 2026-10-31: the 'no consensus' sentence is in the abstract and Introduction, the intensity-distribution and periodization recommendations are in sections 2.3 and 2.4. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Six named authors with the affiliations the publisher deposit holds: Federal University of Mato Grosso do Sul (Boullosa), Isabel I de Castilla International University (Casado), Rey Juan Carlos University (Del Coso), Federal University of Rio Grande do Sul (Peyré-Tartaruga, Gomes da Rosa) and All in Your Mind Training System, Mérida (Esteve-Lanao). No separate university record was fetched. Interest: a coach's business affiliation; the paper declares no conflict."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2020-03-15; no correction. Later corpus papers (rosenblat-2025-tid-ipd-nma, oliveira-2024-pol-meta, gonzalezrave-2022-reverse-periodization) postdate it and test parts of its advice; the 'no consensus' statement is dated 2020 in the record."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "The 'no consensus' claim agrees with rosenblat-2025-tid-ipd-nma (no difference overall). The recommendations disagree with gonzalezrave-2022-reverse-periodization and E1 on reverse periodization and overstate munoz-2014-polarized-recreational; the conservative reading (G6) is the corpus papers."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: recreational runners, defined broadly from novice to well-trained, with an evidence base the authors say is mostly not from recreational runners; the record uses it only for the statement of no consensus."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a narrative review, level D); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, M1 and M1b, 2026-10-31"
+  }
+}
