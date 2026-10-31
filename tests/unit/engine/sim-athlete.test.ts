@@ -749,8 +749,9 @@ describe('scoreChain', () => {
 describe('a held plan under the weekly decision [rules n-4, J5]', () => {
   // Found by H2 (2026-10-31) and fixed by RF1: the REDs athlete holds every week, and the cap of the
   // weekly decision lowers the week it covers under the level the macrocycle holds, so the weeks that
-  // climb back by the ramp read as growth to the checklist's hold item (7 of 20 compliant steps, 17 of
-  // 20 of the overshooting chain). The item reads the runner's level beside the first week.
+  // climb back by the ramp read as growth to the checklist's hold item: it failed at 10 of the 20
+  // steps of the compliant chain, 5 of the ragged and 11 of the overshooting one (one run of the
+  // chains, RF1, 2026-10-31). The item reads the runner's level beside the first week.
   it.each(SIM_LEVELS)(
     'keeps the hold item of the checklist at every step of the chain at the %s level',
     (level) => {
