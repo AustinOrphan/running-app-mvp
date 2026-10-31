@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -761,6 +761,56 @@ describe('DashboardPage: a strength session', () => {
       ).toHaveValue('100')
     })
 
+    test('the usual load does not overwrite a draft the runner left in the sheet', async () => {
+      vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+      const user = userEvent.setup()
+      renderToday(strengthDay(lighterDayWorkout()), routes())
+      const card = await screen.findByRole('article', { name: 'Strength' })
+      await user.click(within(card).getByRole('button', { name: 'Log sets' }))
+      const first = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const set1 = await within(first).findByRole('group', { name: 'Back squat, set 1, load' })
+      await user.click(within(set1).getByRole('button', { name: 'Raise the load by one step' }))
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+
+      await user.click(within(card).getByRole('button', { name: 'Use the usual load' }))
+      await user.click(within(card).getByRole('button', { name: 'Log sets' }))
+      const again = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      // the draft is what the sheet opens on: the raised set, and the others as they were left
+      expect(
+        await within(again).findByRole('textbox', { name: 'Back squat, set 1, load' }),
+      ).toHaveValue('105')
+      expect(within(again).getByRole('textbox', { name: 'Back squat, set 2, load' })).toHaveValue(
+        '100',
+      )
+    })
+
+    test('the usual load does not overwrite a save still queued on the phone', async () => {
+      vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+      const user = userEvent.setup()
+      renderToday(
+        strengthDay(lighterDayWorkout()),
+        routes({ [`PUT /api/strength/logs/${LOG_ID}`]: () => unreachable }),
+      )
+      const card = await screen.findByRole('article', { name: 'Strength' })
+      await user.click(within(card).getByRole('button', { name: 'Log sets' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      })
+      expect(getOutbox().getState().entries).toHaveLength(1)
+
+      await user.click(within(card).getByRole('button', { name: 'Use the usual load' }))
+      await user.click(within(card).getByRole('button', { name: 'Log sets' }))
+      const again = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      // the queued body is the sheet's state on reopen: the lighter load it was saved with
+      expect(
+        await within(again).findByRole('textbox', { name: 'Back squat, set 1, load' }),
+      ).toHaveValue('100')
+    })
+
     test('a day that only cut sets has no switch and does not promise one', async () => {
       const setsOnly = makeWorkout({
         lifts: [
@@ -858,6 +908,54 @@ describe('DashboardPage: a strength session', () => {
       expect(item.closest('p')).toHaveTextContent(
         'Also today: Strength (40 min), Mobility (10 min).',
       )
+    })
+  })
+
+  describe('a strength log the server refuses when it is finally sent', () => {
+    const NOTICE =
+      'A strength log saved on this phone was not accepted and was removed. Enter it again if it still applies.'
+
+    test('leaves the entry gone and a notice on Today until it is dismissed', async () => {
+      vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
+      const user = userEvent.setup()
+      let connected = false
+      const refused = {
+        status: 409,
+        body: { error: { code: 'conflict', message: 'That session no longer exists.' } },
+      }
+      const { container } = renderToday(
+        strengthDay(),
+        routes({
+          [`PUT /api/strength/logs/${LOG_ID}`]: () => (connected ? refused : unreachable),
+        }),
+      )
+      const card = await screen.findByRole('article', { name: 'Strength' })
+      await user.click(within(card).getByRole('button', { name: 'Log sets' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      })
+      // kept on the phone, and nothing to say yet
+      expect(getOutbox().getState().entries).toHaveLength(1)
+      expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
+
+      // the connection returns and the server turns the replay down
+      connected = true
+      await act(async () => {
+        await getOutbox().flush()
+      })
+      expect(getOutbox().getState().entries).toEqual([])
+      const notice = await screen.findByText(NOTICE)
+      expect(notice).toBeVisible()
+      expect(notice).toHaveAttribute('role', 'alert')
+      expectCleanCopy(container)
+
+      await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+      expect(screen.queryByText(NOTICE)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument()
+      expect(getOutbox().getState().notices).toEqual([])
     })
   })
 

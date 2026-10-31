@@ -811,3 +811,65 @@ test('Log sets opens the logging sheet from the hero; logging as suggested is th
   expect(after.sessions.find((session) => session.id === strengthDay.id)?.status).toBe('completed')
   expect(await queued()).toBe(0)
 })
+
+test('a strength log the server refuses when it is finally sent leaves a notice on Today, with a 44 px control that clears it', async ({
+  baseURL,
+}) => {
+  // The session of the last case is logged; start over with a session still to be done.
+  strengthDay = await strengthOnlyToday(baseURL ?? '')
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/')
+  const card = page.getByRole('article', { name: strengthDay.title })
+  await expect(card.getByRole('button', { name: 'Log sets' })).toBeVisible()
+
+  // saved with no connection: kept on the phone
+  await page.context().setOffline(true)
+  try {
+    await card.getByRole('button', { name: 'Log sets' }).click()
+    const sheet = page.getByRole('dialog', { name: /^Strength, / })
+    await sheet.getByRole('button', { name: 'As suggested' }).click()
+    await sheet.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(toast(page, /^Strength log saved on this phone/)).toBeVisible()
+    await expect(sheet).toBeHidden()
+    expect(await queued()).toBe(1)
+  } finally {
+    await page.context().setOffline(false)
+  }
+
+  // the connection returns and the server turns the replay down (the session was deleted meanwhile)
+  const refusal = {
+    status: 409,
+    json: { error: { code: 'conflict', message: 'That session no longer exists.' } },
+  }
+  await page.route('**/api/strength/logs/*', (route) => route.fulfill(refusal))
+  try {
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+    const notice = page.getByText(
+      'A strength log saved on this phone was not accepted and was removed. Enter it again if it still applies.',
+    )
+    await expect(notice).toBeVisible()
+    await expect.poll(queued).toBe(0)
+    expect(await scrollsSideways()).toBe(false)
+
+    // the control that clears it is a 44 px target
+    const dismiss = page.getByRole('button', { name: 'Dismiss' })
+    const box = await dismiss.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44)
+
+    // the notice is above the hero, so it counts against the first screen while it is there: the
+    // figure is recorded, and the hero is back where it was once the notice is dismissed
+    await fillSlotsToBudget()
+    const withNotice = await doneBottom(strengthDay.title, 'Log sets')
+    await attachScreenshot('strength-360x740-refused-notice', withNotice)
+    await dismiss.click()
+    await expect(notice).toBeHidden()
+    await expect(dismiss).toBeHidden()
+    expect(await doneBottom(strengthDay.title, 'Log sets')).toBeLessThan(withNotice)
+  } finally {
+    await page.unroute('**/api/strength/logs/*')
+    await page.setViewportSize({ width: 1280, height: 720 })
+  }
+})
