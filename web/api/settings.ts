@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Units, UserSettings } from '../../shared/types.ts'
+import type { Units, UserSettings, WeightUnit } from '../../shared/types.ts'
 import { api, keys } from './client.ts'
 
 export interface SettingsPatch {
   units?: Units
+  /** The unit strength loads are shown in (strength design 5.2); saved by the same route as `units`. */
+  weightUnit?: WeightUnit
   displayName?: string | null
 }
 

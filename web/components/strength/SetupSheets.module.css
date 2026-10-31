@@ -1,0 +1,134 @@
+/* The five setup sheets: one column of fields, the save bar pinned above the safe area while a long
+   sheet (the equipment, the exercises) scrolls. Every control is at least 44 px; `min-width: 0` lets
+   a long label wrap at 360 px instead of widening the sheet. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.lead,
+.muted,
+.line,
+.alert {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.alert {
+  color: var(--danger);
+}
+
+/* One item of the checklist: the switch row, then the details it needs, indented under it. */
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.item:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 2.75rem;
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.check input {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-left: var(--space-5);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3) 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.group legend {
+  padding: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.slotName {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+}
+
+.anchors {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.anchor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.anchor:first-child {
+  border-top: 0;
+}
+
+/* Save stays in reach while the sheet scrolls, above the safe area. The sheet body pads its bottom by
+   a space-4, and a sticky box stops short of that padding, so the bar reaches down into it. */
+.actions {
+  position: sticky;
+  bottom: calc(var(--space-4) * -1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: calc(var(--space-4) * -1);
+  padding: var(--space-3) 0 calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+}

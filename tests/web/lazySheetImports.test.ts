@@ -11,6 +11,7 @@ const SHEETS = [
   'components/today/DoneSheet.tsx',
   'components/fuel/FuelLogSheet.tsx',
   'components/strength/StrengthSheet.tsx',
+  'components/strength/SetupSheets.tsx',
   'components/disruption/NotFullSheet.tsx',
   'components/disruption/ReplanSheet.tsx',
   'components/disruption/WindowActionSheet.tsx',
