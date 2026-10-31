@@ -76,6 +76,7 @@ time for the Research page and the "why" drawer.
    `injury-tissue-capacity-no-rate`, G-2 and J7 of `engine-rules.md`.
 10. **Strength gap pass (2026-10-25).** Written for the strength epic (`docs/superpowers/specs/2026-10-24-strength-phase3b-design.md`, section 4.4 and task E14-1). The twelve gaps of that section were searched by hand on Crossref and Europe PMC, one query set per gap, because the topic `strength-plyometrics` already exists and the corpus workflow was not needed. Twenty papers were added (376 to 396): each was looked up on Crossref, its abstract was read on Europe PMC that day, and `npm run research:verify` found no mismatch. Candidates with no abstract in Europe PMC or PubMed, with no DOI, whose abstract held no result on the gap, or that studied patients under treatment were left out; several admitted papers give no dose, and their records say so. The papers add something on ten of the twelve gaps and close none: no paper compares ways of progressing a load in runners, validates an equation for a maximum in runners, or gives a calf, jump, maintenance or taper dose for runners, and none concerns runners over about 50, 100-mile runners or eccentric work in trail runners. Rules F7 to F9 of `engine-rules.md` (and the amended E5, F-lib, F4, H5 and H10), the numeric table, the eight new rules of `rules/strength-plyometrics.json` and the section of `topics/strength-plyometrics.md` carry the result. Every dose they set is grade D, and every `Param` of F7 to F9 says so. The raw search results are kept outside the repository.
 11. **Record edits (2026-10-31).** Written for task S0 of `docs/superpowers/specs/2026-10-31-sources-methods-evaluation-proposal.md` (decisions 2 and 3, gate R1 of section 3.3). Three records changed and no paper was added; the rule `volume-long-run-share` (`rules/volume-performance.json`) and its row in `topics/volume-performance.md` carry the same provenance. The Daniels long-run limit (`runningmagazine-2023-daniels-long-run-limit`) is labelled as Running Magazine reports it, in the record and in the note of `macroDesign.longRunShareOfWeek`: the article was read and the book was not, and the date of that read (2026-10-22) stands. The records of Tyler 2016 and Mountjoy 2023 now name the Crossref notices listed against them (`10.1007/s40279-016-0572-3` and `10.1136/bjsports-2023-106994corr1`). Both publishers' pages answered with a bot check and Europe PMC holds no text for either notice, so neither was read and what each changed is unknown; the records say so. No rule, grade, value, `Param` value or `PARAMS_VERSION` changed.
+12. **Vetting rubric (2026-10-31).** Written for task S2 of `docs/superpowers/specs/2026-10-31-sources-methods-evaluation-proposal.md` (decisions 1, 2 and 4, section 3.3). The six gates, the sign-off and the caps by class for a source outside the journals are in the section below, the optional book fields are in `paperSchema` and `tools/write-corpus.mjs` keeps them, and a preprint or registration that waits is listed in `docs/research/watch-list.md`. No paper was added, and no rule, grade, `Param` value or `PARAMS_VERSION` changed.
 
 ## Evidence levels and grades
 
@@ -129,6 +130,77 @@ record, and engine code uses only those records (`P.g1.spikeRatioWarn.value`):
 A plan stores the `PARAMS_VERSION` it was generated with. Bump the version when any value, grade
 or rule of a parameter changes.
 
+## Sources outside the journals
+
+A book, a programme page, a column, a conference abstract, a thesis or a report outside a journal is a
+record only after it passes six gates, and its record states each result in `vetting` (a journal
+record may carry `vetting` too). The decision is ADR 0015; the reasoning is section 3 of
+`docs/superpowers/specs/2026-10-31-sources-methods-evaluation-proposal.md`.
+
+**The gates.**
+
+- **R1 Provenance (hard).** The claim is located (edition and page, table, or URL and fetch date)
+  and read in the source in the session that records it; a DOI resolves and Crossref's
+  `updated-by` is read. Fails: known by report, from an agent's summary or from a mirror.
+- **R2 Author (hard).** Named; credentials or track record confirmed in a record independent of
+  the author (a university, a federation, a publisher), the author's own site only as a second;
+  interests recorded. A seller is not excluded; an undisclosed interest in the claim is.
+- **R3 Currency.** Date and edition recorded; the latest edition read or the difference stated;
+  later consensus and corpus papers checked. Supersession decides, not age.
+- **R4 Agreement.** Two independent sources agree (a magazine quoting a book is one source, as
+  are papers that share authors), or a graded corpus paper does; disagreement recorded and the
+  conservative reading used (G6). A single source is held unless it is the sole source of a
+  practice.
+- **R5 Applicability.** Population stated (distance, level, volume, age, sex, terrain); use
+  outside it labelled extrapolated.
+- **R6 Grade cap.** The cap of the table below, for a source outside the journals only; a journal
+  paper keeps the level of its design.
+
+**Results and sign-off.** A gate is `pass`, `fail`, `hold` or `n/a`, with a short note. A source is
+admitted as evidence (at the level of its design) or as practice (grade D), held, or left out. R1 and
+R2 are hard gates: a source that does not pass both is not admitted, whatever the other gates say. The
+owner, or two independent reading passes that each read the source (method steps 2 and 3), sign an
+admission off, and `vetting.signedOff` says who and when.
+
+**Caps by class.**
+
+| Class                            | May                                                       | May not                                                | Cap               |
+| -------------------------------- | --------------------------------------------------------- | ------------------------------------------------------ | ----------------- |
+| Coaching books and manuals       | describe a prescription read in the book; fill a rule gap | raise a grade; move toward more load; enter by summary | D                 |
+| Programme pages, columns         | find the primary study; be the sole source of a practice  | stand in for the study they report                     | D                 |
+| Consensus statements, guidelines | grade by content (rigour, base of studies)                | take a grade from the label                            | A to D by content |
+| Conference abstracts, theses     | report a result read in the abstract or thesis            | outrank the peer-reviewed version                      | C                 |
+| Preprints                        | sit on the watch list until published                     | be cited by a rule or a `Param`                        | not admitted      |
+| Trial registrations              | show what a trial planned to measure                      | carry a result                                         | not admitted      |
+| Data reports outside journals    | describe distributions                                    | show that a plan works; set a default toward more load | D                 |
+
+A dataset analysis in a journal stays a paper graded by its design. The D cap is a rule (method step 7).
+The C cap and keeping preprints out are opinions, argued in ADR 0015. A `Param` that cites only
+practice sources (programme pages, columns, books, data reports) is grade D, and a test holds it.
+
+**What stays out.** Forums (they may locate a claim, never support one); anonymous or uncited blogs;
+marketing; calculator pages; mirrored books; retracted work; text written by a language model,
+including a model's summary of a book (ADR 0005: a language model never chooses a session, and the two
+corpus studies of model-written plans, `duking-2024-chatgpt-running-plans` and
+`montaruli-2026-ai-marathon-programs`, test plans, not summaries).
+
+**Book fields.** A `book-or-guideline` record may carry `edition`, `isbn` (checksum checked),
+`pagesRead` (the pages or sections read) and `interests` (what the author sells or has a stake in,
+from R2), and `vetting`: `r1` to `r6`, each `{ result, note }`, and `signedOff`. Only `vetting` is
+allowed on other designs. A book record is written by hand in the session that reads the pages, not
+by the corpus workflow, whose agents return summaries. A `Param` cites a book by its paper id like any
+other paper; a book alone gives grade D. `research:check` fails a `book-or-guideline` record whose `vetting` lacks R1
+and R2 `pass`.
+
+**The 19 practice records.** The 19 practice records admitted before the rubric (method step 7) are
+listed in `PREDATES_RUBRIC` in `scripts/research-check.ts` and are exempt from that check. Task S4 of
+the proposal re-vets each of them against R1 to R6, states the results in its `vetting`, and removes
+it from the list once R1 and R2 pass.
+
+**Watch list.** A preprint or a trial registration is not admitted. `docs/research/watch-list.md`
+records it by DOI or registry id with the reason and what would move it into the corpus; no rule,
+topic or `Param` cites it.
+
 ## Checks
 
 ```
@@ -137,7 +209,9 @@ npm run research:verify   online, Crossref, one request at a time; run by hand
 ```
 
 `research:check` fails when a paper does not match the schema or its file name, a paper uses an
-unknown topic, two papers share a DOI, or a paper id cited in `rules/`, `topics/`,
+unknown topic, two papers share a DOI, a book field sits on a record that is not a
+`book-or-guideline`, a `book-or-guideline` record lacks `vetting` with R1 and R2 `pass` (the
+records in `PREDATES_RUBRIC` excepted), or a paper id cited in `rules/`, `topics/`,
 `engine-rules.md` or the parameter registry does not exist. `tests/unit/research/corpus.test.ts`
 and `tests/unit/engine/params.test.ts` run the same checks and more (every grade D parameter has a
 default note, every parameter points to an `engine-rules.md` heading, ids are unique).
@@ -161,6 +235,9 @@ session that adds it.
   `node research/tools/write-corpus.mjs <result.json>`. The writer merges into `research/` and
   never deletes a file. Then read the new synthesis, update `engine-rules.md`, and update the
   parameters.
+- **Add a source outside the journals.** Read the claim in the source, run the six gates above,
+  write each result in `vetting` and have the admission signed off. The skill `research-update`
+  has the steps.
 - **Change a rule or a number.** Edit `engine-rules.md` first (rule text, grade, evidence), then the
   matching `Param` in `shared/engine/params/`, then bump `PARAMS_VERSION`, then the unit tests
   that pin the number. A change that moves toward more load needs stronger evidence than one that
