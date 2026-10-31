@@ -50,6 +50,15 @@ import type {
 import type { Activity, Availability, Weekday } from '../../../shared/types.ts'
 import { mulberry32 } from './disruption-fixtures.ts'
 import { activity } from './e8-fixtures.ts'
+import {
+  churnAlongChain,
+  describePlan,
+  figure,
+  type ChainChurn,
+  type Figure,
+  type Peak,
+  type PlanContext,
+} from './plan-metrics.ts'
 import type { ReplanStep } from './replan-steps.ts'
 
 // ---------------------------------------------------------------------------------------------
@@ -667,4 +676,180 @@ export function simulateChain(
     })
   }
   return { seed: athlete.seed, level: athlete.level, calendar, steps }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The scorer
+// ---------------------------------------------------------------------------------------------
+
+/** What the scorer reads of a step; a `SimStep` has all of it, and a hand-built one needs no more. */
+export interface ScoredStep {
+  draft: PlanDraft
+  input: PlanContext
+  decision: Pick<WeeklyDecision, 'decision' | 'postRace'> | null
+  week: SimWeek | null
+}
+
+export interface ScorableChain {
+  steps: readonly ScoredStep[]
+}
+
+export interface WeekCount {
+  /** Weeks counted: those with planned minutes. */
+  weeks: number
+  of: number
+}
+
+export interface HoldFlips {
+  /** Decisions in order, a post-race window's left out. */
+  sequence: Array<WeeklyDecision['decision']>
+  /** A progress between two holds: hold, progress, hold. */
+  flips: number
+  counts: Record<WeeklyDecision['decision'], number>
+}
+
+export interface PeakDrift {
+  /** The highest loading week of each plan of the chain: the first plan, then every re-plan. */
+  rows: Array<{ today: string; peak: Peak | null }>
+  first: Peak | null
+  last: Peak | null
+  /** Last minus first, null without a peak at either end. */
+  targetChangeMin: number | null
+  positionChange: number | null
+  /** The largest distance of any plan's peak target from the first plan's. */
+  maxTargetDistanceMin: number | null
+  /** Re-plans whose peak is another week than the one before. */
+  weekMoves: number
+}
+
+export interface Conformance {
+  /** Failed items of the checklist in each plan of the chain: the first plan, then every re-plan. */
+  failedItems: number[]
+  stepsWithFailure: number
+}
+
+export interface Delivered {
+  ranMin: number
+  /** The first plan's run minutes in the weeks the chain ran. */
+  firstPlanMin: number
+  /** `ranMin / firstPlanMin`; null without planned minutes. */
+  share: number | null
+}
+
+export interface ChainScore {
+  /** `weeks` with at least `j5.completionHoldShare` of the planned minutes run. */
+  atHoldShare: Figure<WeekCount>
+  /** `weeks` run above `WEEK_ABOVE_PLAN_RATIO` of the planned minutes (a preference: no label). */
+  aboveWeeks: Figure<WeekCount>
+  /** Minutes moved by every re-plan on the run sessions from its day on, and its pairs. */
+  churn: Figure<ChainChurn>
+  holdFlips: Figure<HoldFlips>
+  peakDrift: Figure<PeakDrift>
+  conformance: Figure<Conformance>
+  delivered: Figure<Delivered>
+}
+
+/** Sessions of a draft in the weeks from `first` to before `until` that the athlete would run. */
+const plannedRunMin = (draft: PlanDraft, from: string, until: string): number =>
+  draft.sessions
+    .filter((s) => s.date >= from && s.date < until && RAN_KINDS.has(s.kind))
+    .reduce((sum, s) => sum + s.durationMin, 0)
+
+/**
+ * The figures of one chain, read from the plans and the weeks as run. Report-only: no figure is
+ * compared with a limit here, none is called good or bad, and there is no overall score. The labels
+ * are the Params the figure is read against (`j5.completionHoldShare` for the weeks held to the
+ * share, the J5 hold for the flips); the figures no rule supports carry none.
+ */
+export function scoreChain(chain: ScorableChain): ChainScore {
+  const { steps } = chain
+  const weeks = steps
+    .flatMap((s) => (s.week === null ? [] : [s.week]))
+    .filter((w) => w.plannedMin > 0)
+  const holdShare = P.j5.completionHoldShare.value
+
+  // conformance at each step: the failed items of the checklist, counted
+  const failedItems = steps.map((s) => s.draft.checklist.filter((c) => !c.ok).length)
+
+  // hold, progress, hold
+  const sequence = steps.flatMap((s) =>
+    s.decision === null || s.decision.postRace !== undefined ? [] : [s.decision.decision],
+  )
+  const counts = { progress: 0, hold: 0, reduce: 0 }
+  for (const d of sequence) counts[d] += 1
+  let flips = 0
+  for (let i = 1; i + 1 < sequence.length; i += 1) {
+    if (sequence[i - 1] === 'hold' && sequence[i] === 'progress' && sequence[i + 1] === 'hold') {
+      flips += 1
+    }
+  }
+
+  // the peak week along the chain
+  const rows = steps.map((s) => ({
+    today: s.input.today,
+    peak: describePlan(s.draft, s.input).peak.value,
+  }))
+  const firstPeak = rows[0]?.peak ?? null
+  const lastPeak = rows.at(-1)?.peak ?? null
+  const distances = rows.flatMap((r) =>
+    firstPeak === null || r.peak === null ? [] : [Math.abs(r.peak.targetMin - firstPeak.targetMin)],
+  )
+  let weekMoves = 0
+  for (let i = 1; i < rows.length; i += 1) {
+    const [before, after] = [rows[i - 1]!.peak, rows[i]!.peak]
+    if (before !== null && after !== null && before.weekStart !== after.weekStart) weekMoves += 1
+  }
+
+  // minutes delivered against the first plan, over the weeks the chain ran
+  const ranWeeks = steps.flatMap((s) => (s.week === null ? [] : [s.week]))
+  const ranMin = ranWeeks.reduce((sum, w) => sum + w.ranMin, 0)
+  const firstDraft = steps[0]?.draft
+  const firstPlanMin =
+    firstDraft === undefined || ranWeeks.length === 0
+      ? 0
+      : ranWeeks.reduce(
+          (sum, w) => sum + plannedRunMin(firstDraft, w.weekStart, addDays(w.weekStart, 7)),
+          0,
+        )
+
+  return {
+    atHoldShare: figure(
+      {
+        weeks: weeks.filter((w) => w.ranMin / w.plannedMin >= holdShare).length,
+        of: weeks.length,
+      },
+      [P.j5.completionHoldShare],
+    ),
+    aboveWeeks: figure({
+      weeks: weeks.filter((w) => w.ranMin / w.plannedMin > WEEK_ABOVE_PLAN_RATIO).length,
+      of: weeks.length,
+    }),
+    churn: figure(
+      churnAlongChain(
+        steps.map((s) => s.draft),
+        { from: steps.map((s) => s.input.today) },
+      ),
+    ),
+    holdFlips: figure({ sequence, flips, counts }, [P.j5.completionHoldShare]),
+    peakDrift: figure({
+      rows,
+      first: firstPeak,
+      last: lastPeak,
+      targetChangeMin:
+        firstPeak === null || lastPeak === null ? null : lastPeak.targetMin - firstPeak.targetMin,
+      positionChange:
+        firstPeak === null || lastPeak === null ? null : lastPeak.position - firstPeak.position,
+      maxTargetDistanceMin: distances.length === 0 ? null : Math.max(...distances),
+      weekMoves,
+    }),
+    conformance: figure({
+      failedItems,
+      stepsWithFailure: failedItems.filter((n) => n > 0).length,
+    }),
+    delivered: figure({
+      ranMin,
+      firstPlanMin,
+      share: firstPlanMin > 0 ? ranMin / firstPlanMin : null,
+    }),
+  }
 }
