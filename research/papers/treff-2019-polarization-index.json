@@ -30,7 +30,34 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Added 2026-10-31 for task H5, so that comments in the plan metrics and the plan report cite this id and not the bare DOI. Crossref: title, Frontiers in Physiology 10:707, published online 2019-06-12, five authors, CC BY 4.0, no updated-by notice. Abstract read on Europe PMC (PMID 31249533) and the full text on PMC6582670 (CC BY): the formulas, the worked values and every Table 1 row were recomputed. The linked commentary (Frontiers in Physiology 2023, doi 10.3389/fphys.2023.1179769, PMC10639116) was read: it writes out the Eq. 2 reading above and corrects the 90-5-5 example. A journal paper keeps its design level; the schema had no vetting field when this record was written.",
+    "notes": "Added 2026-10-31 for task H5, so that comments in the plan metrics and the plan report cite this id and not the bare DOI. Crossref: title, Frontiers in Physiology 10:707, published online 2019-06-12, five authors, CC BY 4.0, no updated-by notice. Abstract read on Europe PMC (PMID 31249533) and the full text on PMC6582670 (CC BY): the formulas, the worked values and every Table 1 row were recomputed. The linked commentary (Frontiers in Physiology 2023, doi 10.3389/fphys.2023.1179769, PMC10639116) was read: it writes out the Eq. 2 reading above and corrects the 90-5-5 example. A journal paper keeps its design level; R1 to R6 are in vetting.",
     "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC6582670, CC BY) on 2026-10-31, and the abstract on Europe PMC (PMID 31249533); the formulas, the worked values and every Table 1 row were recomputed. The DOI resolves in Crossref, which lists no updated-by notice (research:verify, 2026-10-31)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Five named authors, with the affiliations the article states in its front matter (the publisher deposit in Europe PMC): Division of Sports and Rehabilitation Medicine, Ulm University Hospital; Institute of Sports Medicine, Prevention and Rehabilitation, Paracelsus Medical University, Salzburg; Integrative and Experimental Exercise Science and Training, Institute of Sport Science, University of Wurzburg. No separate university record was fetched. The authors declare no commercial or financial relationships. Their group proposed the index in 2017, so they have an academic stake in the claim, disclosed by self-citation."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published online 2019-06-12 (volume 10, article 707); no later edition and no Crossref notice. The 2023 commentary (doi 10.3389/fphys.2023.1179769) was read: it reproduces the worked values, corrects one example, writes Eq. 2 in the form that fits Table 1 and leaves the cut-off unchanged. Europe PMC lists 51 citing articles on 2026-10-31; only the commentary was read, and no other corpus record names the index."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "For the formula and its arithmetic: the independent commentary (Universidad Surcolombiana, Universidad Nacional de Colombia, University of Valencia) reproduces the worked values and gives Eq. 2 in the form that fits Table 1. For the cut-off as a meaning there is no second source, and no source read tests it against performance or injury, so the record limits its implications to description and no rule cites it."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "No participants: the examples are 15 distributions from nine studies, six of rowers, one of cyclists, one of recreational runners and one not stated in the text. Use for runners and for a plan is extrapolated, and the record says so."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a hypothesis paper, level D); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "H5 2026-10-31, one reading pass; owner sign-off pending at merge"
   }
 }
