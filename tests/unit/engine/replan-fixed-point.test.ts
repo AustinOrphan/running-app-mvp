@@ -7,6 +7,7 @@ import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { HOLD_TRIM_RULE, isTrimmed, TRIM_RULE } from '../../../shared/domain/sessionStatus.ts'
 import { buildPlan, keptByReplan, replan } from '../../../shared/engine/index.ts'
 import type { EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
+import { wellnessDay } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
 import { replanSteps } from './replan-steps.ts'
 import {
@@ -138,6 +139,67 @@ describe('a held week, stored and re-planned with nothing new [rules J5, G-6]', 
       expect(weeksFrom(second, monday)).toEqual(weeksFrom(first, monday))
     },
   )
+})
+
+describe('a reduced week, stored and re-planned with nothing new [rules J5, E3, G-6]', () => {
+  // A reduce makes the week a recovery week. No level of the simulator sets wellness, so the decision
+  // is forced here: a runner who ran every session as planned reports an illness on the Thursday of
+  // the week before each Monday (a direct signal of rule J5).
+  const half = athletes().find((a) => a.id === 'half')!
+  const chain = simulateChain(new SimAthlete(1, 'compliant', EXACT_RATES), half.input, {
+    maxSteps: 9,
+  })
+  const steps = chain.steps.slice(1)
+  const reduced = (step: SimStep): SimStep => {
+    const monday = mondayOf(step.settled.today)
+    const settled: EngineInput = {
+      ...step.settled,
+      wellness: [...step.settled.wellness, wellnessDay(addDays(monday, -4), { illness: true })],
+    }
+    const first = replanMonday(settled)
+    return {
+      ...step,
+      settled,
+      input: first.input,
+      decisions: first.decisions,
+      decision: first.decision,
+      draft: first.draft,
+    }
+  }
+
+  it.each(steps.map((_, i) => i + 1))('gives the plan back at step %i, pass after pass', (k) => {
+    const step = reduced(chain.steps[k]!)
+    expect(step.decision?.decision).toBe('reduce')
+    const monday = mondayOf(step.settled.today)
+    expect(step.draft.weeks.find((w) => w.weekStart === monday)!.isRecovery).toBe(true)
+    let current: SimStep = step
+    for (let pass = 2; pass <= 3; pass += 1) {
+      const next = replanMonday(withStoredPlan(current))
+      expect(next.draft, `pass ${String(pass)}`).toEqual(step.draft)
+      expect(
+        replan(next.input, { decisions: next.decisions }).changes,
+        `pass ${String(pass)}`,
+      ).toEqual([])
+      current = { ...current, settled: withStoredPlan(current), draft: next.draft }
+    }
+  })
+
+  it('inserts the recovery week: the loading sequence resumes at the week the reduce displaced', () => {
+    // the reduce inserts a recovery week (rule J5): the loading week it displaces follows it, as it
+    // does from a stored recovery week, where the sequence pauses at the work week before
+    let compared = 0
+    for (const plain of steps) {
+      const monday = mondayOf(plain.settled.today)
+      const week = plain.draft.weeks.find((w) => w.weekStart === monday)!
+      if (week.isRecovery) continue
+      const after = reduced(plain).draft.weeks.find(
+        (w) => w.weekStart > monday && !w.isRecovery && !w.isTaper && w.phase !== 'race',
+      )!
+      expect(after.targetRunMin, monday).toBe(week.targetRunMin)
+      compared += 1
+    }
+    expect(compared).toBeGreaterThan(4)
+  })
 })
 
 describe('keptByReplan and the trim of the weekly decision [rules J5, design 4.3]', () => {

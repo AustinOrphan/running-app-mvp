@@ -442,7 +442,21 @@ function generate(input: EngineInput, keep: Keep, weekOffset: number): PlanDraft
   // The week a hold caps carries the loading sequence on from the cap [rule J5].
   const heldCap =
     keep.decisions[currentMonday] === 'hold' ? input.weekCaps?.[currentMonday] : undefined
-  const { weeks: macroWeeks, raceWeekTail } = macroPlanDraft(input, state, goal, feas, heldCap)
+  // The week a reduce makes a recovery week is one for the macrocycle too, as it is when the stored
+  // plan carries it: the cadence and the loading sequence are drawn once, not once for each case.
+  const reduced =
+    keep.decisions[currentMonday] === 'reduce' && input.existing !== null
+      ? {
+          ...input,
+          existing: {
+            ...input.existing,
+            weeks: input.existing.weeks.map((w) =>
+              w.weekStart === currentMonday ? { ...w, isRecovery: true } : w,
+            ),
+          },
+        }
+      : input
+  const { weeks: macroWeeks, raceWeekTail } = macroPlanDraft(reduced, state, goal, feas, heldCap)
   for (const w of macroWeeks) {
     let week: WeekDraft = {
       ...capWeek(w, input.weekCaps?.[w.weekStart]),
