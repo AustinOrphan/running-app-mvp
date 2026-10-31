@@ -4,12 +4,14 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { fromGrams, toGrams } from '../../shared/domain/weight.ts'
+import { structuresFor } from '../../shared/engine/strength.ts'
 import type {
   StrengthNextLoad,
   StrengthSnapshot,
   StrengthView,
   StrengthWorkout,
   UserSettings,
+  WorkoutLift,
 } from '../../shared/types.ts'
 import type { StrengthLogBody } from '../../web/api/strength.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
@@ -34,10 +36,13 @@ import {
   engineWorkout,
   lb,
   lighterDayWorkout,
+  makeLog,
   makeView,
   makeWorkout,
   rdl,
   savedLog,
+  set,
+  snapLift,
   squat,
 } from './strength-fixtures.ts'
 
@@ -54,6 +59,10 @@ vi.mock('../../web/components/WhyDrawer.tsx', () => ({
       </div>
     ) : null,
 }))
+
+// A lift swapped in is a first session of its exercise, in any template of the week (design 10.3).
+const FIRST = structuresFor('heavy', 'other', 6).first.loaded
+const COUNT = String(FIRST.range.min)
 
 const LOG_ID = '3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
 const LOG_URL = `/api/strength/logs/${LOG_ID}`
@@ -539,6 +548,96 @@ describe('"Same as last time"', () => {
   })
 })
 
+describe('"Same as last time" and the implement (design 6.5)', () => {
+  /** The sheet with the page view read, so the buttons have settled. */
+  async function opened(options: Options) {
+    const rig = open(options)
+    await sheet()
+    await waitFor(() => {
+      expect(rig.calls.some((call) => call.url === '/api/strength')).toBe(true)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    return rig
+  }
+
+  test('does not copy a session on another implement: a calf machine is not the floor', async () => {
+    const view = makeView({
+      recent: [
+        makeLog(
+          'machine',
+          '2026-03-12',
+          [set('standing-calf-raise', 0, 80, 12)],
+          [snapLift('standing-calf-raise', 'calf-machine', 80)],
+        ),
+      ],
+    })
+    await opened({ workout: makeWorkout({ lifts: [calf()], plyo: null, trunk: [] }), view })
+    expect(
+      screen.queryByRole('button', { name: 'Same as last time: Standing calf raise' }),
+    ).toBeNull()
+    expect(screen.getByRole('button', { name: 'Same as last time' })).toBeDisabled()
+    expect(values('Standing calf raise', 'reps')).toEqual(['12', '12', '12'])
+  })
+
+  test('copies the counts and no hidden load into a lift that has no load field', async () => {
+    const view = makeView({
+      recent: [
+        makeLog('floor', '2026-03-12', [
+          set('standing-calf-raise', 0, 80, 14),
+          set('standing-calf-raise', 1, 80, 13),
+        ]),
+      ],
+    })
+    const { calls } = await opened({
+      workout: makeWorkout({ lifts: [calf()], plyo: null, trunk: [] }),
+      view,
+      routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) },
+    })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Same as last time' }))
+    expect(values('Standing calf raise', 'reps')).toEqual(['14', '13'])
+    expect(region('Standing calf raise').queryByRole('group', { name: /load$/ })).toBeNull()
+    expect(region('Standing calf raise').queryByRole('textbox', { name: /load$/ })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(calls.some((call) => call.url === LOG_URL)).toBe(true)
+    })
+    expect(putBody(calls).sets.map((s) => [s.count, s.loadG])).toEqual([
+      [14, null],
+      [13, null],
+    ])
+  })
+
+  test('copies the session in the implement the lift is shown with, the older one when a newer is another', async () => {
+    const view = makeView({
+      recent: [
+        makeLog(
+          'kettle',
+          '2026-03-12',
+          [set('goblet-squat', 0, 35, 8)],
+          [snapLift('goblet-squat', 'kettlebells', 35)],
+        ),
+        makeLog(
+          'dumbbell',
+          '2026-03-05',
+          [set('goblet-squat', 0, 25, 8)],
+          [snapLift('goblet-squat', 'dumbbells', 25)],
+        ),
+      ],
+    })
+    const goblet = squat({
+      exerciseId: 'goblet-squat',
+      implement: 'dumbbells',
+      steps: { loadsG: [10, 15, 20, 25, 30, 35].map(lb) },
+      loadG: lb(20),
+    })
+    await opened({ workout: makeWorkout({ lifts: [goblet], plyo: null, trunk: [] }), view })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Same as last time: Goblet squat' }))
+    expect(values('Goblet squat', 'load')).toEqual(['25'])
+  })
+})
+
 describe('adding and removing sets', () => {
   test('"Add a set" copies the last set without its reps left, and "Remove" renumbers the rest', async () => {
     open()
@@ -600,10 +699,18 @@ describe('"Swap" and "Always use this"', () => {
     ])
     await user.click(choices.getByRole('button', { name: 'Goblet squat' }))
 
-    // it takes the place of the squat: same sets and counts, starting at the lightest dumbbell
+    // it takes the place of the squat as the first session of the exercise: the ramp-in sets and
+    // counts, starting at the lightest dumbbell, and no explanation until the server reads one
     expect(screen.queryByRole('region', { name: 'Back squat' })).toBeNull()
-    expect(values('Goblet squat', 'load')).toEqual(['10', '10', '10', '10'])
-    expect(values('Goblet squat', 'reps')).toEqual(['5', '5', '4', '4'])
+    expect(values('Goblet squat', 'load')).toEqual(Array(FIRST.sets).fill('10'))
+    expect(values('Goblet squat', 'reps')).toEqual(Array(FIRST.sets).fill(COUNT))
+    expect(FIRST.sets).not.toBe(squat().sets)
+    expect(
+      region('Goblet squat').getByText(
+        new RegExp(`^Suggested 10 lb, .* of ${COUNT} to ${String(FIRST.range.max)} reps, leave`),
+      ),
+    ).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Why: Goblet squat' })).toBeNull()
     expect(
       region('Goblet squat').getByText(
         'Goblet squat was swapped in for this session, so it starts at the lightest load the equipment makes.',
@@ -626,11 +733,14 @@ describe('"Swap" and "Always use this"', () => {
       expect(calls.some((call) => call.url === LOG_URL)).toBe(true)
     })
     const body = putBody(calls)
-    expect(body.sets.filter((set) => set.exerciseId === 'goblet-squat')).toHaveLength(4)
+    expect(body.sets.filter((set) => set.exerciseId === 'goblet-squat')).toHaveLength(FIRST.sets)
     expect(body.sets.some((set) => set.exerciseId === 'back-squat')).toBe(false)
     const shown = body.prescribed.lifts.find((lift) => lift.exerciseId === 'goblet-squat')
     expect(shown).toMatchObject({
       implement: 'dumbbells',
+      sets: FIRST.sets,
+      range: FIRST.range,
+      rir: FIRST.rir,
       change: 'start',
       shownLoadG: lb(10),
       baseLoadG: lb(10),
@@ -660,6 +770,7 @@ describe('"Swap" and "Always use this"', () => {
     await user.click(screen.getByRole('button', { name: 'Back squat, as suggested' }))
     expect(values('Back squat', 'load')).toEqual(['110', '110', '110', '110'])
     expect(screen.queryByRole('region', { name: 'Goblet squat' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Why: Back squat' })).toBeVisible()
   })
 
   test('swaps to a bodyweight form with no load field and no added load', async () => {
@@ -700,6 +811,89 @@ describe('"Swap" and "Always use this"', () => {
     await user.click(screen.getByRole('button', { name: 'Swap: Standing calf raise' }))
     expect(screen.getByText('No other exercise fits the equipment in the setup.')).toBeVisible()
     expect(screen.queryByRole('group', { name: 'Swap Standing calf raise for' })).toBeNull()
+  })
+})
+
+describe('what a load means, beside the field (design 5.2)', () => {
+  const machine = { minG: lb(10), stepG: lb(10), maxG: lb(300) }
+  const bells = { loadsG: [10, 20, 30, 40].map(lb) }
+  const cases: Array<[string, WorkoutLift, string]> = [
+    ['Back squat', squat(), 'Total, including the bar'],
+    [
+      'Goblet squat',
+      squat({ exerciseId: 'goblet-squat', implement: 'dumbbells', steps: bells, loadG: lb(20) }),
+      'Weight of one dumbbell or kettlebell',
+    ],
+    [
+      'Goblet squat',
+      squat({ exerciseId: 'goblet-squat', implement: 'kettlebells', steps: bells, loadG: lb(20) }),
+      'Weight of one dumbbell or kettlebell',
+    ],
+    [
+      'Leg press',
+      squat({ exerciseId: 'leg-press', implement: 'leg-press', steps: machine, loadG: lb(100) }),
+      'Stack or plate total',
+    ],
+    [
+      'Standing calf raise',
+      calf({ implement: 'calf-machine', steps: machine, loadG: lb(70) }),
+      'Stack or plate total',
+    ],
+    [
+      'Leg curl',
+      rdl({ exerciseId: 'leg-curl', implement: 'leg-curl', steps: machine, loadG: lb(50) }),
+      'Stack or plate total',
+    ],
+    [
+      'Single-leg calf raise',
+      calf({
+        exerciseId: 'single-leg-calf-raise',
+        implement: 'dumbbells',
+        steps: bells,
+        loadG: null,
+      }),
+      'Added weight',
+    ],
+  ]
+
+  test.each(cases)(
+    '%s shows "%s" under its suggestion and as the description of its field',
+    async (name, lift, text) => {
+      open({ workout: makeWorkout({ lifts: [lift], plyo: null, trunk: [] }) })
+      await sheet()
+      const line = region(name).getByText(text)
+      expect(line).toBeVisible()
+      expect(field(name, 1, 'load').getAttribute('aria-describedby')).toContain(line.id)
+      // one line a lift, not one a set
+      expect(region(name).getAllByText(text)).toHaveLength(1)
+    },
+  )
+
+  test('is not shown on the bodyweight path, where there is no load field', async () => {
+    open({ workout: bodyweightWorkout() })
+    const dialog = await sheet('Strength, ramp-in A')
+    expect(
+      within(dialog).queryByText(
+        /Total, including the bar|Stack or plate total|Weight of one dumbbell or kettlebell|Added weight/,
+      ),
+    ).toBeNull()
+  })
+
+  test('is the meaning of the implement of a swapped lift, not of the lift it replaced', async () => {
+    open()
+    await sheet()
+    const user = userEvent.setup()
+    expect(region('Back squat').getByText('Total, including the bar')).toBeVisible()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    await user.click(screen.getByRole('button', { name: 'Goblet squat' }))
+    expect(region('Goblet squat').getByText('Weight of one dumbbell or kettlebell')).toBeVisible()
+    expect(screen.queryAllByText('Total, including the bar')).toHaveLength(0)
+    await user.click(screen.getByRole('button', { name: 'Swap: Goblet squat' }))
+    await user.click(screen.getByRole('button', { name: 'Tempo squat' }))
+    expect(region('Tempo squat').queryByText(/Weight of one|Total, including/)).toBeNull()
   })
 })
 
@@ -1205,8 +1399,12 @@ describe('the draft', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'ffffffff-0000-4000-8000-000000000000' })
     const second = open({ routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) } })
     await sheet()
-    expect(values('Goblet squat', 'load')).toEqual(['10', '15', '10', '10'])
-    expect(repsLeft('Goblet squat')).toEqual([3, null, null, null])
+    expect(values('Goblet squat', 'load')).toEqual(
+      Array.from({ length: FIRST.sets }, (_, i) => (i === 1 ? '15' : '10')),
+    )
+    expect(repsLeft('Goblet squat')).toEqual(
+      Array.from({ length: FIRST.sets }, (_, i) => (i === 0 ? 3 : null)),
+    )
     expect(values('Dumbbell Romanian deadlift', 'load')).toEqual(['37', '40', '40'])
     expect(screen.getByRole('button', { name: 'Effort 8' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('region', { name: 'Back squat' })).toBeNull()
@@ -1232,6 +1430,7 @@ describe('the draft', () => {
         date: DAY,
         activityId: null,
         at: 1,
+        weightUnit: 'lb',
         minutes: '99',
         effort: null,
         pain: null,
@@ -1273,6 +1472,7 @@ describe('the draft', () => {
         date: DAY,
         activityId: null,
         at,
+        weightUnit: 'lb',
         minutes,
         effort: null,
         pain: null,
@@ -1290,6 +1490,46 @@ describe('the draft', () => {
     open()
     await sheet()
     expect(screen.getByRole('textbox', { name: 'Minutes' })).toHaveValue('50')
+  })
+
+  test('puts the same grams back when the weight unit changed in between', async () => {
+    open()
+    await sheet()
+    const user = userEvent.setup()
+    await user.click(
+      within(screen.getByRole('group', { name: 'Back squat, set 1, load' })).getByRole('button', {
+        name: 'Raise the load by one step',
+      }),
+    )
+    await user.clear(field('Back squat', 2, 'load'))
+    await user.type(field('Back squat', 2, 'load'), '135')
+    expect(JSON.parse(window.localStorage.getItem(draftKey) ?? '{}')).toMatchObject({
+      weightUnit: 'lb',
+    })
+
+    // the runner switches to kilograms in Settings, and the sheet opens again
+    cleanup()
+    const second = open({
+      settings: { ...SETTINGS, weightUnit: 'kg', units: 'km' },
+      routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) },
+    })
+    await sheet()
+    expect(values('Back squat', 'load')).toEqual([
+      String(fromGrams(lb(115), 'kg')),
+      String(fromGrams(toGrams(135, 'lb'), 'kg')),
+      String(fromGrams(lb(110), 'kg')),
+      String(fromGrams(lb(110), 'kg')),
+    ])
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(second.onSaved).toHaveBeenCalledTimes(1)
+    })
+    // 115 lb stays 115 lb: it is not read again as 52 kg or as 115 kg
+    expect(
+      putBody(second.calls)
+        .sets.slice(0, 4)
+        .map((set) => set.loadG),
+    ).toEqual([lb(115), toGrams(135, 'lb'), lb(110), lb(110)])
   })
 
   test('is cleared on save, so a sheet opened again starts from the workout', async () => {

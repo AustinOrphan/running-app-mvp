@@ -13,7 +13,7 @@ import type {
   Units,
   WeightUnit,
 } from '../../shared/types.ts'
-import { getOutbox, refreshAfterSend } from '../pwa/outbox.ts'
+import { getOutbox, refreshAfterSend, useOutboxState, type OutboxNotice } from '../pwa/outbox.ts'
 import { ACTIVITY_DATA_KEYS } from './activities.ts'
 import { api, keys, qs } from './client.ts'
 import { useSettings } from './settings.ts'
@@ -263,9 +263,30 @@ export function useDeleteStrengthLog() {
       api<undefined>('DELETE', `/strength/logs/${encodeURIComponent(logId)}`),
     onSuccess: () =>
       Promise.all(
-        [keys.strength, ...ACTIVITY_DATA_KEYS].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
-        ),
+        ACTIVITY_DATA_KEYS.map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       ),
   })
+}
+
+/** The URLs of the strength log entries of the outbox: `strengthLogUrl` of any id starts with this. */
+const STRENGTH_LOG_URL_PREFIX = '/api/strength/logs/'
+
+/**
+ * The one-time notices of strength logs the server refused when the outbox finally sent them (the
+ * session was deleted meanwhile, or the answer was a 400): the entry is gone from the phone, and the
+ * notice says so ("A strength log saved on this phone was not accepted and was removed. Enter it
+ * again if it still applies."). A surface that logs sets renders them and calls `dismiss`: the
+ * outbox raises one for any entry and nothing else shows it (design 9.6).
+ */
+export function useStrengthLogNotices(): {
+  notices: OutboxNotice[]
+  dismiss: (id: number) => void
+} {
+  const { notices } = useOutboxState()
+  return {
+    notices: notices.filter((notice) => notice.url.startsWith(STRENGTH_LOG_URL_PREFIX)),
+    dismiss: (id) => {
+      getOutbox().dismissNotice(id)
+    },
+  }
 }

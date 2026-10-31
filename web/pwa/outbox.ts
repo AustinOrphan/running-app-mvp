@@ -69,12 +69,12 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
   {
     // `PUT /api/strength/logs/:logId` stores the whole session under the id the sheet chose, so a
     // second write replaces the first and a replay changes nothing (strength design 9.6). The log
-    // creates an activity linked to the planned session, so the readers of activity data go with the
-    // strength readers and Today.
+    // creates an activity linked to the planned session, so the readers of activity data (the strength
+    // readers and Today among them) are read again.
     label: 'strength log',
     matches: (url) => /^\/api\/strength\/logs\/[\w-]{8,64}$/.test(url),
     combine: 'replace',
-    invalidates: [keys.strength, ...ACTIVITY_DATA_KEYS],
+    invalidates: [...ACTIVITY_DATA_KEYS],
   },
 ]
 

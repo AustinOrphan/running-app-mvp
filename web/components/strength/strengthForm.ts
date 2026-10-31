@@ -23,7 +23,7 @@ import {
   stepsFor,
   toGrams,
 } from '../../../shared/domain/weight.ts'
-import { barbellAllowed, modeOf } from '../../../shared/engine/strength.ts'
+import { barbellAllowed, modeOf, structuresFor } from '../../../shared/engine/strength.ts'
 import {
   STRENGTH_COUNT_MAX,
   STRENGTH_DURATION_MAX_MIN,
@@ -32,16 +32,19 @@ import {
 } from '../../../shared/limits.ts'
 import type {
   EquipmentConfig,
+  EquipmentKind,
   LiftEvidence,
   StrengthLog,
   StrengthSet,
   StrengthSnapshot,
+  StrengthSnapshotLift,
   StrengthWorkout,
   WeightUnit,
   WorkoutLift,
 } from '../../../shared/types.ts'
 import type { ActivityInput } from '../../api/activities.ts'
 import type { StrengthLogBody, StrengthSetBody } from '../../api/strength.ts'
+import type { OutboxEntry } from '../../pwa/outbox.ts'
 
 /** How far a count stepper moves in one press: by one rep, five seconds, ten ground contacts. */
 export const COUNT_STEP: Readonly<Record<Measure, number>> = { reps: 1, seconds: 5, contacts: 10 }
@@ -116,6 +119,17 @@ export function rowLoadG(row: SetRow, unit: WeightUnit): number | null | 'invali
     return row.exactG === 0 ? null : row.exactG
   }
   return parseLoad(row.load, unit)
+}
+
+/**
+ * A row whose load was typed in `from`, as the same grams shown in `to`. A load that was not a number
+ * is left as typed. The row's exact grams stay what they were.
+ */
+export function inUnit(row: SetRow, from: WeightUnit, to: WeightUnit): SetRow {
+  if (from === to) return row
+  const grams = rowLoadG(row, from)
+  if (grams === 'invalid') return row
+  return { ...row, load: loadText(grams, to), exactG: grams }
 }
 
 /** A count typed as a whole number from one up to the largest the API stores; null otherwise. */
@@ -237,41 +251,67 @@ export function asSuggested(blocks: readonly Block[], unit: WeightUnit): Block[]
   }))
 }
 
-/** The sets of the last logged session of an exercise, in order; none when it has not been logged. */
-export type LastSets = (exerciseId: string) => StrengthSet[]
+/**
+ * The sets of the last logged session of an exercise in an implement, in order; none when it has
+ * not been logged with it. A session whose snapshot shows another implement is not one (a load on a
+ * calf machine is not a load on a dumbbell, and a change of equipment starts the lift again,
+ * design 6.5), as the engine's `loggedSessions` reads it; a log with no snapshot of the lift counts
+ * for any implement.
+ */
+export type LastSets = (exerciseId: string, implement: EquipmentKind | null) => StrengthSet[]
 
 /** The last sets of each exercise in logs listed newest first (the page view's `recent`). */
 export function lastSetsOf(logs: readonly StrengthLog[]): LastSets {
-  const last = new Map<string, StrengthSet[]>()
+  interface Session {
+    /** The implement the snapshot shows for the exercise; undefined when it shows none. */
+    implement: EquipmentKind | null | undefined
+    sets: StrengthSet[]
+  }
+  const sessions = new Map<string, Session[]>()
   for (const log of logs) {
     const byExercise = new Map<string, StrengthSet[]>()
-    for (const set of log.sets)
+    for (const set of log.sets) {
       byExercise.set(set.exerciseId, [...(byExercise.get(set.exerciseId) ?? []), set])
+    }
     for (const [exerciseId, sets] of byExercise) {
-      if (!last.has(exerciseId))
-        last.set(
-          exerciseId,
-          sets.sort((a, b) => a.position - b.position),
-        )
+      const shown = log.prescribed.lifts.find((lift) => lift.exerciseId === exerciseId)
+      sessions.set(exerciseId, [
+        ...(sessions.get(exerciseId) ?? []),
+        { implement: shown?.implement, sets: sets.sort((a, b) => a.position - b.position) },
+      ])
     }
   }
-  return (exerciseId) => last.get(exerciseId) ?? []
+  return (exerciseId, implement) =>
+    sessions
+      .get(exerciseId)
+      ?.find((session) => session.implement === undefined || session.implement === implement)
+      ?.sets ?? []
 }
 
-function rowOfLastSet(set: StrengthSet, unit: WeightUnit): SetRow {
+/**
+ * A set of the last session as a row. A lift with no load field (a bodyweight movement, a band) takes
+ * no load, whatever the session held, so no hidden load is written into it.
+ */
+function rowOfLastSet(set: StrengthSet, unit: WeightUnit, loaded: boolean): SetRow {
+  const loadG = loaded ? set.loadG : null
   // the reps left stay unset: they describe a different day (design 9.1)
-  return { load: loadText(set.loadG, unit), exactG: set.loadG, count: String(set.count), rir: null }
+  return { load: loadText(loadG, unit), exactG: loadG, count: String(set.count), rir: null }
+}
+
+/** The sets "Same as last time" would copy into a block: those of its exercise in its implement. */
+function lastOfBlock(block: Block, lastOf: LastSets): StrengthSet[] {
+  return block.kind === 'plyo' ? [] : lastOf(block.shown.exerciseId, block.shown.implement)
 }
 
 /** Whether "Same as last time" has anything to copy for a block (the jump dose has none). */
 export function hasLast(block: Block, lastOf: LastSets): boolean {
-  return block.kind !== 'plyo' && lastOf(block.shown.exerciseId).length > 0
+  return lastOfBlock(block, lastOf).length > 0
 }
 
 /**
- * "Same as last time": the load and the count of each set of the last logged session of the lift,
- * with the reps left unset. A lift that was never logged, and the jump dose, stay as they are. With
- * a `key` only that block is copied (the lift's own button).
+ * "Same as last time": the load and the count of each set of the last logged session of the lift in
+ * the implement it is shown with, with the reps left unset. A lift that was never logged that way,
+ * and the jump dose, stay as they are. With a `key` only that block is copied (the lift's own button).
  */
 export function sameAsLast(
   blocks: readonly Block[],
@@ -281,8 +321,10 @@ export function sameAsLast(
 ): Block[] {
   return blocks.map((block) => {
     if (key !== undefined && block.key !== key) return block
-    if (!hasLast(block, lastOf)) return block
-    return { ...block, rows: lastOf(block.shown.exerciseId).map((set) => rowOfLastSet(set, unit)) }
+    const last = lastOfBlock(block, lastOf)
+    if (last.length === 0) return block
+    const loaded = block.shown.steps !== null
+    return { ...block, rows: last.map((set) => rowOfLastSet(set, unit, loaded)) }
   })
 }
 
@@ -401,24 +443,27 @@ export function swapChoices(
 }
 
 /**
- * The lift a swap puts in `from`'s place, as far as the sheet can say. The server derives the real
+ * The lift a swap puts in a lift's place, as far as the sheet can say. The server derives the real
  * suggestion for an exercise with no sets in this session (`liftFor`), but no read gives it to the
- * sheet, so the swapped lift keeps the sets, the counts and the effort of the lift it replaces and
- * starts at the lightest load the saved equipment makes, or with no load for a movement with
- * nothing added (the conservative start of design 10.3, G6). It says so as its reason. Null for an
- * exercise the equipment cannot do.
+ * sheet yet (E14-10 owns it), so the swapped lift is a first session of the exercise (design 10.3):
+ * the first-session structure of `structuresFor` (the ramp-in sets, the ramp-in repetitions or the
+ * bodyweight range of a movement with no load, and at least `f7.easyRir` reps left, whatever the
+ * template of the week) at the lightest load the saved equipment makes, or with no load for a
+ * movement with nothing added (G6). It says so as its reason. Null for an exercise the equipment
+ * cannot do.
  */
 export function swappedLift(
-  from: WorkoutLift,
+  workout: Pick<StrengthWorkout, 'template' | 'block'>,
   exerciseId: ExerciseId,
   equipment: readonly EquipmentConfig[],
   unit: WeightUnit,
-  barbell: boolean,
 ): WorkoutLift | null {
   const exercise = exerciseById(exerciseId)
   if (exercise === undefined) return null
   let chosen: { implement: WorkoutLift['implement']; steps: WorkoutLift['steps'] } | null = null
-  for (const implement of usableImplements(exerciseId, equipment, { barbell })) {
+  for (const implement of usableImplements(exerciseId, equipment, {
+    barbell: barbellOf(workout),
+  })) {
     const steps = implement === null ? null : stepsFor(equipment, implement, unit)
     // an implement that carries a load but makes none is no way to do it; the bodyweight form is last
     if (implement !== null && steps === null && loadMeaning(exerciseId, implement) !== 'none') {
@@ -431,18 +476,21 @@ export function swappedLift(
   const { implement, steps } = chosen
   const loaded = steps !== null && loadMeaning(exerciseId, implement) !== 'added'
   const loadG = loaded ? lightestLoad(steps, unit) : null
+  // the first session of an exercise is the same in every template and for every role
+  const first = structuresFor(workout.template, 'other', workout.block?.week ?? null).first
+  const shape = loadG === null ? first.unloaded : first.loaded
   const template =
     loadG === null ? 'strength.sheet.swap-start-unloaded' : 'strength.sheet.swap-start'
   return {
     exerciseId,
     slot: exercise.slot,
     implement,
-    sets: from.sets,
-    range: from.range,
-    targets: from.targets,
+    sets: shape.sets,
+    range: shape.range,
+    targets: Array.from({ length: shape.sets }, () => shape.range.min),
     loadG,
     steps,
-    rir: from.rir,
+    rir: shape.rir,
     change: 'start',
     usualLoadG: null,
     basis: {
@@ -565,6 +613,157 @@ export function buildLogBody(
       prescribed: snapshotOf(workout, state.blocks),
       sets,
     },
+  }
+}
+
+// ---- A save that is still on the phone ---------------------------------------------------------
+
+/** A save kept in the outbox, with the id it was queued under (the key of its entry's URL). */
+export interface QueuedLog {
+  logId: string
+  body: StrengthLogBody
+}
+
+const LOG_URL = /^\/api\/strength\/logs\/([\w-]{8,64})$/
+
+function isSetBody(value: unknown): value is StrengthSetBody {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'exerciseId' in value &&
+    typeof value.exerciseId === 'string' &&
+    'count' in value &&
+    typeof value.count === 'number' &&
+    (!('loadG' in value) || value.loadG === null || typeof value.loadG === 'number') &&
+    (!('rir' in value) || value.rir === null || typeof value.rir === 'number')
+  )
+}
+
+/**
+ * The save in the outbox that is for this session: the strength log entry whose body has the same
+ * session, day and activity (a log of no session has none, and matches none). A second save made
+ * under its id replaces it, so one session replays as one log; under any other id it would be a
+ * second activity. The newest entry when there are several.
+ */
+export function queuedLogOf(
+  entries: readonly OutboxEntry[],
+  match: { sessionId: string | null; date: string; activityId: string | null },
+): QueuedLog | null {
+  let found: { log: QueuedLog; seq: number } | null = null
+  for (const entry of entries) {
+    const logId = LOG_URL.exec(entry.url)?.[1]
+    const { body } = entry
+    if (
+      logId === undefined ||
+      body['date'] !== match.date ||
+      ((body['sessionId'] as string | undefined) ?? null) !== match.sessionId ||
+      ((body['activityId'] as string | undefined) ?? null) !== match.activityId ||
+      typeof body['durationMin'] !== 'number' ||
+      typeof body['prescribed'] !== 'object' ||
+      !Array.isArray(body['sets'])
+    ) {
+      continue
+    }
+    if (found === null || entry.seq > found.seq) {
+      const sets: unknown[] = body['sets']
+      found = {
+        log: {
+          logId,
+          body: { ...(body as unknown as StrengthLogBody), sets: sets.filter(isSetBody) },
+        },
+        seq: entry.seq,
+      }
+    }
+  }
+  return found === null ? null : found.log
+}
+
+function rowOfSet(set: StrengthSetBody, unit: WeightUnit): SetRow {
+  const loadG = set.loadG
+  return { load: loadText(loadG, unit), exactG: loadG, count: String(set.count), rir: set.rir }
+}
+
+/**
+ * The lift a kept save shows for a swapped exercise, rebuilt from its snapshot: what was shown, and
+ * the steps of the lift it replaced when the implement is the same. A swap to another implement has
+ * no steps here (the saved equipment is not read yet), so its field keeps the loads and its steppers
+ * stay at their ends until the sheet is opened with the page view.
+ */
+function liftOfSnapshot(
+  original: WorkoutLift,
+  exerciseId: string,
+  snapshot: StrengthSnapshotLift | undefined,
+): WorkoutLift {
+  const slot = exerciseById(exerciseId)?.slot ?? original.slot
+  if (snapshot === undefined) {
+    return {
+      ...original,
+      exerciseId,
+      slot,
+      implement: null,
+      steps: null,
+      loadG: null,
+      usualLoadG: null,
+      change: 'start',
+      basis: { rule: 'F8', facts: [] },
+      evidence: NO_EVIDENCE,
+    }
+  }
+  return {
+    exerciseId,
+    slot,
+    implement: snapshot.implement,
+    sets: snapshot.sets,
+    range: snapshot.range,
+    targets: Array.from({ length: snapshot.sets }, () => snapshot.range.min),
+    loadG: snapshot.shownLoadG,
+    steps:
+      snapshot.implement !== null && snapshot.implement === original.implement
+        ? original.steps
+        : null,
+    rir: snapshot.rir,
+    change: snapshot.change,
+    usualLoadG: snapshot.baseLoadG !== snapshot.shownLoadG ? snapshot.baseLoadG : null,
+    basis: snapshot.basis,
+    evidence: NO_EVIDENCE,
+  }
+}
+
+/**
+ * The sheet a kept save puts back over the sheet a workout opens as: its sets, its minutes, effort,
+ * pain and note. A block with no sets in the save had them taken out; sets under an exercise the
+ * workout does not hold are a swap of the block of their slot.
+ */
+export function stateFromBody(
+  fresh: FormState,
+  body: StrengthLogBody,
+  unit: WeightUnit,
+): FormState {
+  const byExercise = new Map<string, StrengthSetBody[]>()
+  for (const set of body.sets) {
+    byExercise.set(set.exerciseId, [...(byExercise.get(set.exerciseId) ?? []), set])
+  }
+  const held = new Set(fresh.blocks.map((block) => block.key))
+  const strays = [...byExercise.keys()].filter((id) => !held.has(id))
+  return {
+    blocks: fresh.blocks.map((block): Block => {
+      const own = byExercise.get(block.key)
+      if (own !== undefined) return { ...block, rows: own.map((set) => rowOfSet(set, unit)) }
+      const stray = strays.find((id) => exerciseById(id)?.slot === block.original.slot)
+      const swapped = stray === undefined ? undefined : byExercise.get(stray)
+      if (stray === undefined || swapped === undefined) return { ...block, rows: [] }
+      strays.splice(strays.indexOf(stray), 1)
+      const snapshot = body.prescribed.lifts.find((lift) => lift.exerciseId === stray)
+      return {
+        ...block,
+        shown: liftOfSnapshot(block.original, stray, snapshot),
+        rows: swapped.map((set) => rowOfSet(set, unit)),
+      }
+    }),
+    minutes: String(body.durationMin),
+    effort: body.rpe ?? null,
+    pain: body.pain ?? null,
+    notes: body.notes ?? '',
   }
 }
 

@@ -1,10 +1,13 @@
 // App-authored sentences of the older pages and of the provider modules, as templates, so the G5
 // lint covers them (phase 3a design 4.5): the Import dialog, sign-in, the token and folder notes on
-// the Integrations page, a screening question, and the messages a provider module throws for a
-// service that answered with an error status. Text a service returned stays a text slot, shown
-// verbatim inside the app's own sentence and outside the lint.
+// the Integrations page, a screening question, the recovery-cycle choice on the Plan page's Generate
+// form, and the messages a provider module throws for a service that answered with an error status.
+// Text a service returned stays a text slot, shown verbatim inside the app's own sentence and
+// outside the lint.
 //
 // Ids are `<area>.<name>`; both sets are spread into `TEMPLATES`.
+import { P } from '../engine/params/index.ts'
+import type { RecoveryCycle } from '../engine/types.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
 
 export const PAGE_TEMPLATES = {
@@ -46,6 +49,26 @@ export const PAGE_TEMPLATES = {
   'integrations.folder.interval': tpl('The folder is scanned every {minutes} minutes.', {
     minutes: 'count',
   }),
+
+  // The recovery-cycle choice on the Plan page's Generate form [rules E3]: the plan decides, or the
+  // runner chooses 3:1 or 2:1. Each choice says what it does, including that a chosen 3:1 holds
+  // for a new runner and still gives way to a recent injury (`cycleShortReason`, macro.ts).
+  'plan.cycle.field': tpl('Easier week', {}, { shape: 'label' }),
+  'plan.cycle.name.auto': tpl('Plan decides', {}, { shape: 'label' }),
+  'plan.cycle.name.3-1': tpl('Every 4th week', {}, { shape: 'label' }),
+  'plan.cycle.name.2-1': tpl('Every 3rd week', {}, { shape: 'label' }),
+  'plan.cycle.hint.auto': tpl('The plan chooses the rhythm: a lighter week every 4th week.'),
+  'plan.cycle.hint.auto-short': tpl(
+    'It comes every 3rd week for a new runner, for one under {runs} runs a week and after a recent injury.',
+    { runs: 'count' },
+  ),
+  'plan.cycle.hint.3-1': tpl(
+    'Three building weeks, then a lighter one, even for a new or low-frequency runner.',
+  ),
+  'plan.cycle.hint.3-1-injury': tpl('A recent injury on file still gives every 3rd week.'),
+  'plan.cycle.hint.2-1': tpl(
+    'Two building weeks, then a lighter one. It suits a new runner or a return from a break.',
+  ),
 
   // The screening on the Profile page: the question about the cycle.
   'profile.screening.cycle': tpl(
@@ -96,4 +119,45 @@ export function providerMessage<K extends ProviderMessageId>(
 ): string {
   const template: Template = PROVIDER_TEMPLATES[id]
   return render(template, slots as SlotValues<SlotSpec>, 'km')
+}
+
+/** What the recovery-cycle field offers: leave it to the plan, or choose one of the two cycles. */
+export type CycleChoice = 'auto' | RecoveryCycle
+
+/** The choices in the order the form offers them; the plan's own decision comes first. */
+export const CYCLE_CHOICES: readonly CycleChoice[] = ['auto', '3:1', '2:1']
+
+const CYCLE_NAMES = {
+  auto: 'plan.cycle.name.auto',
+  '3:1': 'plan.cycle.name.3-1',
+  '2:1': 'plan.cycle.name.2-1',
+} as const satisfies Record<CycleChoice, keyof typeof PAGE_TEMPLATES>
+
+/** The label of the recovery-cycle field. */
+export const cycleFieldLabel = (): string => render(PAGE_TEMPLATES['plan.cycle.field'], {}, 'km')
+
+/** The label of a choice: "Plan decides", "Every 4th week" (3:1), "Every 3rd week" (2:1). */
+export const cycleChoiceLabel = (choice: CycleChoice): string =>
+  render(PAGE_TEMPLATES[CYCLE_NAMES[choice]], {}, 'km')
+
+/** What a choice does, a sentence to a line. The figure is the Param the plan reads. */
+export function cycleHintLines(choice: CycleChoice): string[] {
+  switch (choice) {
+    case 'auto':
+      return [
+        render(PAGE_TEMPLATES['plan.cycle.hint.auto'], {}, 'km'),
+        render(
+          PAGE_TEMPLATES['plan.cycle.hint.auto-short'],
+          { runs: count(P.a5.lowFrequencyRunsPerWeek.value) },
+          'km',
+        ),
+      ]
+    case '3:1':
+      return [
+        render(PAGE_TEMPLATES['plan.cycle.hint.3-1'], {}, 'km'),
+        render(PAGE_TEMPLATES['plan.cycle.hint.3-1-injury'], {}, 'km'),
+      ]
+    case '2:1':
+      return [render(PAGE_TEMPLATES['plan.cycle.hint.2-1'], {}, 'km')]
+  }
 }

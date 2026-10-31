@@ -1974,6 +1974,8 @@ Size S. Depends on: E14-8, E14-9. Contract: sections 11.4, 12.
   fewer sessions than planned, changes the Profile choice only on the button and is quiet for 4
   weeks after "Not now"; the more-than-planned and day-before-the-long-run notes read as specified;
   every page passes the lint.
+- **Also:** the server read for the sheet's Swap (a `swap` parameter on `GET /api/strength/workouts`,
+  or a small route over `liftFor`), which replaces E14-7's first-session stand-in `swappedLift`.
 - **Tests:** the web tests above.
 
 #### Task E14-11: E2E, the narrow viewport, the offline case, handoff docs

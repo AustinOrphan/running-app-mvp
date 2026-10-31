@@ -557,7 +557,7 @@ export const STRENGTH_TEMPLATES = {
     { shape: 'label', fallback: 'As suggested' },
   ),
   'strength.sheet.swap-note': tpl(
-    'A swap holds for this session. The swapped lift starts at the lightest load the equipment makes.',
+    'A swap holds for this session. The swapped lift starts with the sets of a first session, at the lightest load the equipment makes.',
   ),
   'strength.sheet.swap-none': tpl('No other exercise fits the equipment in the setup.'),
   'strength.sheet.always-use': tpl('Always use this', {}, { shape: 'label' }),
