@@ -14,6 +14,7 @@ import type {
 } from '../../shared/types.ts'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeWeekRow } from '../factories.ts'
+import { makeProfile } from './plan-fixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { wristRoutes } from './wrist-fixtures.ts'
 
@@ -120,6 +121,7 @@ function routes(
     'GET /api/plan': () => plan,
     'GET /api/goals': () => goals,
     'GET /api/settings': () => settings,
+    'GET /api/profile': () => makeProfile(),
     'GET /api/weeks': () => [] as WeekRow[],
     ...wristRoutes(),
     ...extra,
@@ -683,5 +685,193 @@ describe('Plan page, the recovery cycle on the Generate form', () => {
       undefined,
     ])
     expect(sent().map((options) => 'recoveryCycle' in options)).toEqual([false, true, true, false])
+  })
+})
+
+describe('Plan page, the plan shape on the Generate form', () => {
+  const OWN =
+    'Run days follow your weekly minutes and the days you have free, and the base comes first.'
+  const THREE =
+    "At most three run days a week. The long run and the quality runs stay, and no week plans more minutes than the plan's own shape."
+  const BASE =
+    "Strides only in the base, for up to two more weeks, then hills and threshold runs. No week plans more minutes than the plan's own shape."
+  const GRADE = 'A choice, not a better plan (grade D).'
+  const marathon: Goal = { ...goal, id: 'g2', name: 'Autumn marathon', distanceM: 42195 }
+  const tenK: Goal = { ...goal, id: 'g3', name: 'City 10 km', distanceM: 10000 }
+
+  /** The generate request options, in the order the requests were sent. */
+  const sentOptions = (calls: Array<{ method: string; url: string; body: unknown }>) =>
+    calls
+      .filter((c) => c.method === 'POST' && c.url === '/api/plan/generate')
+      .map((c) => (c.body as { options: Record<string, unknown> }).options)
+
+  test("offers the plan's own shape, three run days and a longer base, each with one line of help", async () => {
+    mockApi(routes(null))
+    const { container } = renderWithProviders(<PlanPage />)
+
+    const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
+    const radios = within(group).getAllByRole('radio')
+    expect(radios.map((radio) => radio.getAttribute('value'))).toEqual([
+      'default',
+      'three-run-days',
+      'longer-base',
+    ])
+    expect(within(group).getByRole('radio', { name: "The plan's own shape" })).toBeChecked()
+    expect(within(group).getByRole('radio', { name: 'Three run days a week' })).not.toBeChecked()
+    expect(within(group).getByRole('radio', { name: 'A longer base' })).not.toBeChecked()
+    expect(within(group).getByText(OWN)).toBeInTheDocument()
+    expect(within(group).getByText(THREE)).toBeInTheDocument()
+    expect(within(group).getByText(BASE)).toBeInTheDocument()
+    // every shape carries the one line that says it is a choice and not a better plan
+    expect(within(group).getAllByText(GRADE)).toHaveLength(1)
+    expect(group).toHaveAccessibleDescription(GRADE)
+    expect(radios.every((radio) => radio instanceof HTMLInputElement && !radio.disabled)).toBe(true)
+    // it sits beside the load setting's choice
+    const load = screen.getByRole('radiogroup', { name: 'Load' })
+    expect(load.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expectCleanCopy(container)
+  })
+
+  test("sends the shape chosen as options.method, and nothing for the plan's own shape", async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(null, { 'POST /api/plan/generate': () => ({ status: 201, body: makePlan() }) }),
+    )
+    renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
+    const generate = async (count: number) => {
+      await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(sentOptions(calls)).toHaveLength(count)
+      })
+    }
+
+    await generate(1)
+    await user.click(within(group).getByRole('radio', { name: 'Three run days a week' }))
+    await generate(2)
+    await user.click(within(group).getByRole('radio', { name: 'A longer base' }))
+    await generate(3)
+    // going back to the plan's own shape takes the option out again
+    await user.click(within(group).getByRole('radio', { name: "The plan's own shape" }))
+    await generate(4)
+
+    expect(sentOptions(calls).map((options) => options.method)).toEqual([
+      undefined,
+      'three-run-days',
+      'longer-base',
+      undefined,
+    ])
+    expect(sentOptions(calls).map((options) => 'method' in options)).toEqual([
+      false,
+      true,
+      true,
+      false,
+    ])
+    // the other options are sent as before
+    expect(sentOptions(calls)[1]).toEqual({
+      strengthSessions: 2,
+      loadAppetite: 'steady',
+      method: 'three-run-days',
+    })
+  })
+
+  test('shows three run days disabled with its reason for a marathon goal, and offers the others', async () => {
+    mockApi(routes(null, {}, [marathon]))
+    const { container } = renderWithProviders(<PlanPage />)
+
+    const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
+    const three = within(group).getByRole('radio', { name: 'Three run days a week' })
+    expect(three).toBeDisabled()
+    expect(three).toHaveAccessibleDescription(`${THREE} Not for a marathon or longer`)
+    expect(within(group).getByText('Not for a marathon or longer')).toBeInTheDocument()
+    expect(within(group).getByRole('radio', { name: 'A longer base' })).toBeEnabled()
+    expect(within(group).getByRole('radio', { name: "The plan's own shape" })).toBeEnabled()
+    expectCleanCopy(container)
+  })
+
+  test('a shape picked for one goal is not sent for a goal it is not for', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(null, { 'POST /api/plan/generate': () => ({ status: 201, body: makePlan() }) }, [
+        goal,
+        marathon,
+      ]),
+    )
+    renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
+    await user.click(within(group).getByRole('radio', { name: 'Three run days a week' }))
+    expect(within(group).getByRole('radio', { name: 'Three run days a week' })).toBeChecked()
+
+    // the marathon: the choice reads as the plan's own shape, and that is what is sent
+    await user.selectOptions(screen.getByLabelText('Goal'), 'g2')
+    expect(within(group).getByRole('radio', { name: "The plan's own shape" })).toBeChecked()
+    expect(within(group).getByRole('radio', { name: 'Three run days a week' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(sentOptions(calls)).toHaveLength(1)
+    })
+    expect('method' in sentOptions(calls)[0]!).toBe(false)
+
+    // back to a goal it is for: the pick is still there
+    await user.selectOptions(screen.getByLabelText('Goal'), 'g1')
+    expect(within(group).getByRole('radio', { name: 'Three run days a week' })).toBeChecked()
+  })
+
+  test('a 10 km goal offers three run days', async () => {
+    mockApi(routes(null, {}, [tenK]))
+    renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
+    expect(within(group).getByRole('radio', { name: 'Three run days a week' })).toBeEnabled()
+    expect(within(group).queryByText('Not for a marathon or longer')).not.toBeInTheDocument()
+  })
+
+  test.each([
+    [5, 'You have 5 days open; three run days leave two free.'],
+    [7, 'You have 7 days open; three run days leave four free.'],
+    [3, 'You have 3 days open; three run days use all of them.'],
+    [2, 'You have 2 days open, fewer than three run days.'],
+  ])('states the days open from the profile as a note: %i days', async (open, note) => {
+    mockApi(routes(null, { 'GET /api/profile': () => makeProfile(open) }))
+    const { container } = renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
+
+    expect(await within(group).findByText(note)).toBeInTheDocument()
+    expect(
+      within(group).getByRole('radio', { name: 'Three run days a week' }),
+    ).toHaveAccessibleDescription(`${THREE} ${note}`)
+    // a note and not a score: nothing else on the form counts days or rates the shape
+    expect(within(group).getAllByText(/days open/)).toHaveLength(1)
+    expectCleanCopy(container)
+  })
+
+  test('adds no note when the profile does not load, and the form still works', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(null, {
+        'GET /api/profile': () => ({ status: 500, body: { error: { code: 'x', message: 'no' } } }),
+        'POST /api/plan/generate': () => ({ status: 201, body: makePlan() }),
+      }),
+    )
+    renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
+    await waitFor(() => {
+      expect(calls.some((c) => c.url === '/api/profile')).toBe(true)
+    })
+    expect(within(group).queryByText(/days open/)).not.toBeInTheDocument()
+    await user.click(within(group).getByRole('radio', { name: 'Three run days a week' }))
+    await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(sentOptions(calls)).toHaveLength(1)
+    })
+    expect(sentOptions(calls)[0]).toMatchObject({ method: 'three-run-days' })
+  })
+
+  test('names no hold when a plan is first generated: the server reports none yet', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(null))
+    renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
+    await user.click(within(group).getByRole('radio', { name: 'A longer base' }))
+    expect(within(group).queryByText(/Held at the plan's own shape/)).not.toBeInTheDocument()
   })
 })

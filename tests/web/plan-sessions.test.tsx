@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { loadTradeoff } from '../../shared/copy/load.ts'
 import { loadSettingSummary } from '../../shared/copy/revision.ts'
 import type { LoadHold, LoadPosition } from '../../shared/engine/loadSetting.ts'
+import type { MethodPosition } from '../../shared/engine/methods.ts'
 import type { LoadAppetite } from '../../shared/engine/types.ts'
 import type {
   Goal,
@@ -30,6 +31,7 @@ import {
   makeDiff,
   makeLine,
   makePreview,
+  makeProfile,
   makeRevision,
   makeSession,
   makeV1Plan,
@@ -78,6 +80,7 @@ function routes(plan: PlanWithSessions | PlanWithWeeks | null, extra: MockRoutes
     'GET /api/plan': () => plan,
     'GET /api/goals': () => [goal],
     'GET /api/settings': () => settings,
+    'GET /api/profile': () => makeProfile(),
     'GET /api/weeks': () => [] as WeekRow[],
     'GET /api/plan/revisions': () => [makeRevision()],
     'GET /api/plan/disruptions': () => [],
@@ -1476,6 +1479,161 @@ describe('Plan page, changing the load setting', () => {
     expect(alert).toHaveTextContent('The plan did not pass the plan checks')
     expect(screen.getByRole('dialog', { name: 'Change load setting' })).toBeInTheDocument()
     expectCleanCopy(dialog)
+  })
+})
+
+// The plan shape [rules P1 to P4]: Regenerate plan starts from the shape the plan was generated with
+// and says what the server reports about a hold; the panel shows the shape in effect.
+describe('Plan page, the plan shape', () => {
+  const method = (over: Partial<MethodPosition> = {}): MethodPosition => ({
+    requested: 'default',
+    effective: 'default',
+    reason: null,
+    ...over,
+  })
+  const loadPosition = (over: Partial<LoadPosition> = {}): LoadPosition => ({
+    requested: 'steady',
+    position: 'steady',
+    held: null,
+    ageCapped: false,
+    ...over,
+  })
+  const HELD_LINE = "Held at the plan's own shape while a recent injury is on file."
+
+  const generated = (calls: Array<{ method: string; url: string; body: unknown }>) =>
+    calls
+      .filter((c) => c.method === 'POST' && c.url === '/api/plan/generate')
+      .map((c) => (c.body as { options: Record<string, unknown> }).options)
+
+  // the goal of these plans is a half marathon, which every shape is offered for
+  const halfGoal = { ...goal, name: 'Spring half', distanceM: 21098 } as Goal
+
+  /** Opens the Regenerate sheet of a plan and returns the sheet and what was posted so far. */
+  async function openRegenerate(plan: PlanWithSessions, goals: Goal[] = [halfGoal]) {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(plan, {
+        'GET /api/goals': () => goals,
+        'POST /api/plan/generate': () => ({ status: 201, body: makeV2Plan() }),
+      }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Regenerate plan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Regenerate plan' })
+    return { user, calls, dialog }
+  }
+
+  describe('on the Regenerate plan form', () => {
+    test("starts on the plan's own shape for a plan generated without a choice, and sends none", async () => {
+      const { user, calls, dialog } = await openRegenerate(makeV2Plan({ method: method() }))
+      expect(within(dialog).getByRole('radio', { name: "The plan's own shape" })).toBeChecked()
+      expect(within(dialog).queryByText(HELD_LINE)).not.toBeInTheDocument()
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(generated(calls)).toHaveLength(1)
+      })
+      expect('method' in generated(calls)[0]!).toBe(false)
+    })
+
+    test('starts from the shape the plan was generated with and sends it again', async () => {
+      const { user, calls, dialog } = await openRegenerate(
+        makeV2Plan({
+          method: method({ requested: 'longer-base', effective: 'longer-base' }),
+        }),
+      )
+      expect(within(dialog).getByRole('radio', { name: 'A longer base' })).toBeChecked()
+      expect(within(dialog).queryByText(HELD_LINE)).not.toBeInTheDocument()
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(generated(calls)).toHaveLength(1)
+      })
+      expect(generated(calls)[0]).toMatchObject({ method: 'longer-base' })
+    })
+
+    test("starts from the shape asked for, even while it reads as the plan's own, and says why", async () => {
+      const { user, calls, dialog } = await openRegenerate(
+        makeV2Plan({
+          method: method({ requested: 'three-run-days', reason: 'held:recent-injury' }),
+        }),
+      )
+      expect(within(dialog).getByRole('radio', { name: 'Three run days a week' })).toBeChecked()
+      const group = within(dialog).getByRole('radiogroup', { name: 'Plan shape' })
+      expect(within(group).getByText(HELD_LINE)).toBeInTheDocument()
+      expect(group).toHaveAccessibleDescription(
+        `${HELD_LINE} A choice, not a better plan (grade D).`,
+      )
+      expectCleanCopy(dialog)
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(generated(calls)).toHaveLength(1)
+      })
+      expect(generated(calls)[0]).toMatchObject({ method: 'three-run-days' })
+    })
+
+    test.each([
+      ['recent-injury', 'a recent injury is on file'],
+      ['bone-stress', 'an earlier bone stress injury is on file'],
+      ['bsi-factors', 'at least two risk factors for bone stress injury apply'],
+      ['reds-hold', 'flags from the energy availability screening hold progression'],
+      ['bone-pain', 'focal bone pain holds progression'],
+    ] as const)('words the %s hold the plan reports', async (hold, reason) => {
+      const { dialog } = await openRegenerate(
+        makeV2Plan({ method: method({ requested: 'longer-base', reason: `held:${hold}` }) }),
+      )
+      expect(
+        within(dialog).getByText(`Held at the plan's own shape while ${reason}.`),
+      ).toBeInTheDocument()
+    })
+
+    test('reads a persistent hold from the load setting when the plan asked for no shape', async () => {
+      const { user, dialog } = await openRegenerate(
+        makeV2Plan({
+          method: method(),
+          load: loadPosition({ requested: 'standard', held: 'recent-injury' }),
+        }),
+      )
+      // nothing is held while the plan's own shape is chosen
+      expect(within(dialog).queryByText(HELD_LINE)).not.toBeInTheDocument()
+      await user.click(within(dialog).getByRole('radio', { name: 'A longer base' }))
+      expect(within(dialog).getByText(HELD_LINE)).toBeInTheDocument()
+      await user.click(within(dialog).getByRole('radio', { name: "The plan's own shape" }))
+      expect(within(dialog).queryByText(HELD_LINE)).not.toBeInTheDocument()
+    })
+
+    test.each(['rest-window', 'post-race'] as const)(
+      'does not hold a shape for the transient %s hold of the load setting',
+      async (held) => {
+        const { user, dialog } = await openRegenerate(
+          makeV2Plan({
+            method: method(),
+            load: loadPosition({ requested: 'standard', held }),
+          }),
+        )
+        await user.click(within(dialog).getByRole('radio', { name: 'Three run days a week' }))
+        expect(within(dialog).queryByText(/Held at the plan's own shape/)).not.toBeInTheDocument()
+      },
+    )
+
+    test("shows three run days disabled for a goal it is not for, and starts on the plan's own shape", async () => {
+      // a plan switched to a marathon keeps its choice, and the form does not offer it again
+      const { user, calls, dialog } = await openRegenerate(
+        makeV2Plan({ method: method({ requested: 'three-run-days', reason: 'not-applicable' }) }),
+        [goal],
+      )
+      expect(within(dialog).getByRole('radio', { name: 'Three run days a week' })).toBeDisabled()
+      expect(within(dialog).getByRole('radio', { name: "The plan's own shape" })).toBeChecked()
+      expect(within(dialog).getByText('Not for a marathon or longer')).toBeInTheDocument()
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(generated(calls)).toHaveLength(1)
+      })
+      expect('method' in generated(calls)[0]!).toBe(false)
+    })
+
+    test("starts on the plan's own shape for a plan that carries no method", async () => {
+      const { dialog } = await openRegenerate(makeV2Plan({ method: null }))
+      expect(within(dialog).getByRole('radio', { name: "The plan's own shape" })).toBeChecked()
+    })
   })
 })
 
