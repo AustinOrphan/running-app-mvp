@@ -384,7 +384,7 @@ const NOTES = [
   // 4
   "Peak week is the first loading week with the plan's highest target. The plateau, the loading weeks within 5% of that peak, is a preference of this report; no rule sets it.",
   // 5
-  "Treff's polarization index is a value with the order of the zones, never a label: its 2.00 cut-off has no engine rule, and Treff calls a distribution polarized only when Z1 > Z3 > Z2 [Treff 2019, a hypothesis paper outside the corpus].",
+  "Treff's polarization index is a value with the order of the zones, never a label: its 2.00 cut-off has no engine rule, and Treff calls a distribution polarized only when Z1 > Z3 > Z2 [treff-2019-polarization-index, a hypothesis paper].",
   // 6
   'Planned load is the minutes of a session times the midpoint of `expectedRpe` for its kind, in relative units. Monotony and strain come from the seven daily loads of a whole week through `monotonyStrain` and carry no flag, as a plan has no range of its own [foster-1998-monotony-strain].',
   // 7
