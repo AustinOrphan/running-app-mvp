@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
-import type { Activity, ImportBatch, Units } from '../../shared/types.ts'
+import type { Activity, ActivityListItem, ImportBatch, Units } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import { parseDistanceInput, parseDurationInput } from '../../web/pages/ActivityForm.tsx'
@@ -23,7 +23,7 @@ function settings(units: Units) {
 
 function renderPage(opts: {
   route?: string
-  activities?: Activity[]
+  activities?: ActivityListItem[]
   units?: Units
   routes?: MockRoutes
 }) {
@@ -133,6 +133,53 @@ describe('Activities page', () => {
     // Strength has no pace; a cross row with no distance shows an en dash.
     expect(screen.getAllByText(/\/mi$/)).toHaveLength(1)
     expect(screen.getByText('–')).toBeInTheDocument()
+  })
+
+  describe('a strength row shows its sets in place of a distance (strength design 11.4)', () => {
+    const strength = (strengthSets?: number | null): ActivityListItem => ({
+      ...makeActivity({ id: 's1', type: 'strength', durationSec: 2400, distanceM: null }),
+      ...(strengthSets === undefined ? {} : { strengthSets }),
+    })
+
+    test.each([
+      [9, '9 sets'],
+      [1, '1 set'],
+      [0, 'No sets'],
+      [12, '12 sets'],
+    ])('%i sets read "%s", beside the duration', async (sets, text) => {
+      renderPage({ activities: [strength(sets)] })
+      const figure = await screen.findByText(text)
+      expect(figure.parentElement).toHaveTextContent(`Strength40:00${text}`)
+      // no distance and no dash stand in the cell, and a strength row has no pace
+      expect(screen.queryByText('–')).not.toBeInTheDocument()
+      expect(screen.queryByText(/\/mi$/)).not.toBeInTheDocument()
+      expectCleanCopy(document.body)
+    })
+
+    test.each([
+      ['a list from before the field existed', undefined],
+      ['a row the server gave no count (null)', null],
+    ])('shows what it showed before for %s', async (_name, sets) => {
+      renderPage({ activities: [strength(sets)] })
+      expect(await screen.findByText('40:00')).toBeInTheDocument()
+      expect(screen.queryByText(/sets?$/)).not.toBeInTheDocument()
+      expect(screen.queryByText('–')).not.toBeInTheDocument()
+    })
+
+    test('keeps the distance of a run, whatever else the item carries', async () => {
+      const run: ActivityListItem = {
+        ...makeActivity({ id: 'r1', durationSec: 2700, distanceM: 8047 }),
+        strengthSets: 3,
+      }
+      renderPage({ activities: [run] })
+      expect(await screen.findByText('5.00 mi')).toBeInTheDocument()
+      expect(screen.queryByText('3 sets')).not.toBeInTheDocument()
+    })
+
+    test('reads the same in kilometres', async () => {
+      renderPage({ units: 'km', activities: [strength(9)] })
+      expect(await screen.findByText('9 sets')).toBeInTheDocument()
+    })
   })
 
   test('km users see km and pace per km', async () => {

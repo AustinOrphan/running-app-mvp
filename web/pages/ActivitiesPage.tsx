@@ -4,6 +4,7 @@ import {
   ACTIVITY_MORE_ERROR,
   activityCountText,
   activityMoreLabel,
+  activitySetsText,
 } from '../../shared/copy/activityList.ts'
 import { todayIso } from '../../shared/dates.ts'
 import type { ActivityListItem, ActivityType, Units } from '../../shared/types.ts'
@@ -70,6 +71,9 @@ function ActivityRow({
 }) {
   const resolve = useResolveDuplicate()
   const hasDistance = activity.type !== 'strength'
+  // A strength row shows the sets of its log where a run shows its distance (design 11.4); a list
+  // from before the field existed has none, and the row shows what it did.
+  const sets = activity.type === 'strength' ? activitySetsText(activity.strengthSets) : null
   const showPace =
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
@@ -86,6 +90,8 @@ function ActivityRow({
             <span className={styles.figure}>
               {activity.distanceM === null ? EN_DASH : formatDistance(activity.distanceM, units)}
             </span>
+          ) : sets !== null ? (
+            <span className={styles.figure}>{sets}</span>
           ) : null}
           {showPace && activity.distanceM !== null ? (
             <span className={styles.pace}>

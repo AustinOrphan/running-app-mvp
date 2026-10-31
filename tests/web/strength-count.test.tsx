@@ -10,7 +10,13 @@ import { addDays, mondayOf } from '../../shared/dates.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { summariseHistory } from '../../shared/engine/strength.ts'
 import type { StrengthLogEntry } from '../../shared/engine/types.ts'
-import type { AthleteProfile, StrengthView, UserSettings } from '../../shared/types.ts'
+import type {
+  AthleteProfile,
+  StrengthOffDay,
+  StrengthRecentLog,
+  StrengthView,
+  UserSettings,
+} from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import {
   STRENGTH_PROMPT_PREFIX,
@@ -21,7 +27,7 @@ import {
 import { StrengthPage } from '../../web/pages/StrengthPage.tsx'
 import { context, log, monday, sessionRef, sessionsOf } from '../unit/engine/strength-fixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
-import { SETTINGS } from './strength-fixtures.ts'
+import { SETTINGS, makeLog, set } from './strength-fixtures.ts'
 import { PROFILE, pageView, squatHistory } from './strength-page-fixtures.ts'
 
 const QUESTION = 'Two a week is the plan; one fits a busy stretch too. Plan one a week?'
@@ -380,6 +386,99 @@ describe('the note on a week with more sessions than planned (design 12.4)', () 
     const note = screen.getByRole('note')
     expect(note.textContent).not.toMatch(/behind|missed|streak|record/i)
     expect(note.textContent).not.toMatch(/\bred\b/)
+  })
+})
+
+describe('the note on a session logged on a day the plan keeps heavy lifting off (design 12.4)', () => {
+  const LONG_RUN = 'The long run is tomorrow; the plan keeps heavy lifting off that day.'
+  const HARD_RUN = 'A hard or long run is planned today; the plan keeps heavy lifting off that day.'
+  const YESTERDAY = addDays(TODAY, -1)
+
+  /** A logged session as the page view lists it, with the flag the server derived for it. */
+  function recentLog(id: string, date: string, offDay?: StrengthOffDay | null): StrengthRecentLog {
+    return {
+      ...makeLog(id, date, [set('back-squat', 0, 105, 5, 2)]),
+      ...(offDay === undefined ? {} : { offDay }),
+    }
+  }
+
+  /** A view with nothing else to say: the notes of the weeks and the question are off. */
+  const viewWith = (recent: StrengthRecentLog[], over: Partial<StrengthView> = {}) =>
+    viewFor([], { recent, weeks: [], lowCountWeeks: 0, countPrompt: false, ...over })
+
+  const notes = () => screen.queryAllByRole('note').map((note) => note.textContent)
+
+  test('says the long run is tomorrow for the session logged the day before it, beside the recent sessions', async () => {
+    openPage(viewWith([recentLog('a', TODAY, 'day-before-long-run'), recentLog('b', YESTERDAY)]))
+    await page()
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent(LONG_RUN)
+    const recent = screen.getByRole('region', { name: 'Recent sessions' })
+    expect(note.parentElement).toBe(recent.parentElement)
+    expect(note.compareDocumentPosition(recent)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    // it is only a note: no control, no change to the plan, nothing kept in the browser
+    expect(within(note).queryByRole('button')).not.toBeInTheDocument()
+    expect(window.localStorage.length).toBe(0)
+    expectCleanCopy(document.body)
+  })
+
+  test('says a hard or long run is planned today for the session logged on such a day', async () => {
+    openPage(viewWith([recentLog('a', TODAY, 'hard-run-day')]))
+    await page()
+    expect(notes()).toEqual([HARD_RUN])
+    expectCleanCopy(document.body)
+  })
+
+  test('says nothing for sessions with no flag, a null flag, or a view that sends none', async () => {
+    openPage(
+      viewWith([recentLog('a', TODAY, null), recentLog('b', TODAY), recentLog('c', YESTERDAY)]),
+    )
+    await page()
+    expect(notes()).toEqual([])
+  })
+
+  test('says it for the latest flagged session only, once', async () => {
+    openPage(
+      viewWith([
+        recentLog('a', TODAY, 'hard-run-day'),
+        recentLog('b', TODAY, 'day-before-long-run'),
+        recentLog('c', YESTERDAY, 'day-before-long-run'),
+      ]),
+    )
+    await page()
+    expect(notes()).toEqual([HARD_RUN])
+  })
+
+  test('does not come back after a newer session without the flag', async () => {
+    // the session was noted when it was the latest; a session logged since has none, and takes its place
+    openPage(viewWith([recentLog('b', TODAY), recentLog('a', TODAY, 'day-before-long-run')]))
+    await page()
+    expect(notes()).toEqual([])
+  })
+
+  test('does not say "tomorrow" about a day that has passed', async () => {
+    openPage(viewWith([recentLog('a', YESTERDAY, 'day-before-long-run')]))
+    await page()
+    expect(notes()).toEqual([])
+  })
+
+  test('stands before the note on more sessions than planned when both apply', async () => {
+    const weeks = viewFor([...full(3), ...full(4), ...three(5)])
+    openPage({ ...weeks, recent: [recentLog('a', TODAY, 'day-before-long-run')] })
+    await page()
+    expect(notes()).toEqual([
+      LONG_RUN,
+      '3 sessions logged; the plan asks for 2. More does not add to the block. The research range is 2 to 3 a week.',
+    ])
+    expectCleanCopy(document.body)
+  })
+
+  test('is a note and not a score: no red, no "behind", no streak', async () => {
+    openPage(viewWith([recentLog('a', TODAY, 'hard-run-day')]))
+    await page()
+    for (const text of notes()) {
+      expect(text).not.toMatch(/behind|missed|streak|record|\bred\b/i)
+    }
   })
 })
 

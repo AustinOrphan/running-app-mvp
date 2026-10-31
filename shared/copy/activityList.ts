@@ -24,6 +24,10 @@ export const ACTIVITY_LIST_TEMPLATES = {
     { shape: 'label', fallback: 'Show more' },
   ),
   'activity-list.more-error': tpl('More activities did not load. Try again.'),
+  // The figure of a strength row in place of a distance (strength design 11.4): the sets logged.
+  'activity-list.sets.none': tpl('No sets', {}, { shape: 'label' }),
+  'activity-list.sets.one': tpl('1 set', {}, { shape: 'label' }),
+  'activity-list.sets.many': tpl('{n} sets', { n: 'count' }, { shape: 'label', fallback: 'Sets' }),
 } satisfies Record<string, Template>
 
 const T = ACTIVITY_LIST_TEMPLATES
@@ -61,3 +65,15 @@ export function activityMoreLabel(n: number): string {
 }
 
 export const ACTIVITY_MORE_ERROR = render(T['activity-list.more-error'], {}, UNITS)
+
+/**
+ * The figure of a strength row: "9 sets", "1 set" or "No sets". `sets` is the number the list sends
+ * (`ActivityListItem.strengthSets`); a value that is not a whole number of zero or more (an old
+ * cached list carries none) gives null, and the row shows what it showed before.
+ */
+export function activitySetsText(sets: number | null | undefined): string | null {
+  if (typeof sets !== 'number' || !Number.isInteger(sets) || sets < 0) return null
+  if (sets === 0) return render(T['activity-list.sets.none'], {}, UNITS)
+  if (sets === 1) return render(T['activity-list.sets.one'], {}, UNITS)
+  return render(T['activity-list.sets.many'], { n: { kind: 'count', n: sets } }, UNITS)
+}

@@ -60,6 +60,16 @@ export const STRENGTH_REVIEW_TEMPLATES = {
     { logged: 'count', planned: 'count', lo: 'count', hi: 'count' },
     { fallback: 'More sessions than the plan asks for do not add to the block.' },
   ),
+
+  // ---- A session on a day the plan keeps heavy lifting off (design 12.4, rule F4) -----------------
+  // One plain note for the session just logged; it moves nothing. The wording is about that day, so
+  // the page shows it on the day of the session only.
+  'strength.off-day.long-run': tpl(
+    'The long run is tomorrow; the plan keeps heavy lifting off that day.',
+  ),
+  'strength.off-day.hard-run': tpl(
+    'A hard or long run is planned today; the plan keeps heavy lifting off that day.',
+  ),
 } satisfies Record<string, Template>
 
 export type StrengthReviewTemplateId = keyof typeof STRENGTH_REVIEW_TEMPLATES
