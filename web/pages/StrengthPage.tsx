@@ -21,13 +21,24 @@ import { StrengthLogNotices } from '../components/strength/StrengthLogNotices.ts
 import type { SetupPart } from '../components/strength/setupForm.ts'
 import { UnitsSection } from '../components/strength/UnitsSection.tsx'
 import { WorkoutCard } from '../components/strength/WorkoutCard.tsx'
-import { workoutOfLog } from '../components/strength/strengthForm.ts'
+import { workoutOfLog, type WorkoutStart } from '../components/strength/strengthForm.ts'
 import { pageWords } from '../components/strength/strengthPageText.ts'
 import styles from './StrengthPage.module.css'
 
-/** What the logging sheet is open on: the next workout (at a day), or a saved log being edited. */
+/**
+ * What the logging sheet is open on: the next workout (at a day), the start of a day with no
+ * session planned (which the sheet reads from the server), or a saved log being edited.
+ */
 type Logging =
-  | { kind: 'workout'; workout: StrengthWorkout; date: string; sessionId: string | null }
+  | {
+      kind: 'workout'
+      workout: StrengthWorkout
+      date: string
+      sessionId: string | null
+      /** Set when the workout is the next planned session and the log is not for it (design 9.1). */
+      start: WorkoutStart | null
+    }
+  | { kind: 'read'; date: string }
   | { kind: 'edit'; log: StrengthLog }
 
 interface BodyProps {
@@ -58,7 +69,7 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
   // an edit opens on the workout of its log, with the steps the saved equipment makes now
   const sheetWorkout = useMemo(
     () =>
-      logging === null
+      logging === null || logging.kind === 'read'
         ? null
         : logging.kind === 'workout'
           ? logging.workout
@@ -77,6 +88,11 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
             words={words}
             separation={fact('strength.separation')}
             onLog={(workout) => {
+              if (workout === null) {
+                // nothing is planned: the sheet reads where today's log starts from
+                setLogging({ kind: 'read', date: view.asOf })
+                return
+              }
               // a session that is still ahead is logged today, and a session of today is the day's
               const today = workout.date <= view.asOf
               setLogging({
@@ -84,10 +100,15 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
                 workout,
                 date: today ? workout.date : view.asOf,
                 sessionId: today ? workout.sessionId : null,
+                start: today ? null : 'next-planned',
               })
             }}
             onPast={(workout, date) => {
-              setLogging({ kind: 'workout', workout, date, sessionId: null })
+              setLogging(
+                workout === null
+                  ? { kind: 'read', date }
+                  : { kind: 'workout', workout, date, sessionId: null, start: 'next-planned' },
+              )
             }}
           />
           <BlockCard block={view.block} benefit={benefit} words={words} />
@@ -127,9 +148,22 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
           }}
         />
       )}
-      {logging === null || sheetWorkout === null ? null : (
+      {logging?.kind === 'read' ? (
+        <StrengthSheet
+          read={{ date: logging.date }}
+          date={logging.date}
+          sessionId={null}
+          onClose={() => {
+            setLogging(null)
+          }}
+          onSaved={() => {
+            setLogging(null)
+          }}
+        />
+      ) : logging === null || sheetWorkout === null ? null : (
         <StrengthSheet
           workout={sheetWorkout}
+          {...(logging.kind === 'workout' ? { start: logging.start } : {})}
           date={logging.kind === 'workout' ? logging.date : logging.log.date}
           sessionId={logging.kind === 'workout' ? logging.sessionId : null}
           {...(logging.kind === 'edit' ? { log: logging.log } : {})}

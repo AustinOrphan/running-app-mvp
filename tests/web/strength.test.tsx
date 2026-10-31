@@ -2426,7 +2426,10 @@ describe('the Strength page: its sections and states (design 11.3)', () => {
       next.getByText('No strength session is planned. Choose how many a week on the Profile.'),
     ).toBeVisible()
     expect(next.getByRole('link', { name: 'Open the Profile' })).toHaveAttribute('href', '/profile')
+    // nothing is planned, so there is no session to log sets for; a log can still be made
     expect(next.queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
+    expect(next.getByRole('button', { name: 'Log a session' })).toBeVisible()
+    expect(next.getByRole('button', { name: 'Add a past session' })).toBeVisible()
     expect(
       region('This block').getByText(
         'No strength block runs this week. Maintenance sessions are short and keep the loads.',
@@ -2527,6 +2530,36 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     expect(body).not.toHaveProperty('sessionId')
   })
 
+  test('"Log sets" for a session still ahead says the log starts from the next planned session', async () => {
+    openPage({ view: pageView({ next: [makeWorkout({ date: '2026-03-20' })] }) })
+    await page()
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
+  })
+
+  test('"Log sets" for the session of today says nothing of a start', async () => {
+    openPage()
+    await page()
+    await userEvent.setup().click(region('Next session').getByRole('button', { name: 'Log sets' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).queryByText(/^From /)).toBeNull()
+  })
+
+  test('"Add a past session" starts from the next planned session and says so', async () => {
+    openPage()
+    await page()
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Add a past session' }))
+    fireEvent.change(screen.getByLabelText('Date of the session'), {
+      target: { value: '2026-03-10' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
+  })
+
   test('"Add a past session" asks for a day in the last year and opens the sheet on it, linking no session', async () => {
     const { calls } = openPage({
       routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) },
@@ -2564,6 +2597,125 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     const body = putBody(calls)
     expect(body.date).toBe('2026-03-10')
     expect(body).not.toHaveProperty('sessionId')
+  })
+})
+
+describe('the Strength page: a log with no session planned (design 9.1, 11.3)', () => {
+  const none = () => pageView({ next: [], lifts: [], recent: [], block: null })
+  const ahead = makeWorkout({ sessionId: 's9z', date: '2026-03-20' })
+
+  test('"Log a session" opens the sheet at once and starts from the next planned session, which the server names', async () => {
+    const { calls } = openPage({
+      view: none(),
+      routes: {
+        'GET /api/strength/workout': dayRoute(ahead, 'next-planned'),
+        [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID),
+      },
+    })
+    await page()
+    delayResponses(300)
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Log a session' }))
+    // the sheet is there while the workout is read
+    const loading = await screen.findByRole('dialog', { name: 'Strength' })
+    expect(within(loading).getByText('Reading the workout.')).toBeVisible()
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
+    expect(within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')).toBeVisible()
+    expect(dayReads(calls)).toEqual([`/api/strength/workout?date=${DAY}`])
+
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // logged today, for no planned session: the server's matcher links it if it should
+    const body = putBody(calls)
+    expect(body.date).toBe(DAY)
+    expect(body).not.toHaveProperty('sessionId')
+    expect(body.sets.length).toBeGreaterThan(0)
+  })
+
+  test('with no session planned from then on it starts from the maintenance session of the week', async () => {
+    const maintenance = makeWorkout({
+      sessionId: `maintenance-${DAY}`,
+      template: 'maintenance',
+      block: null,
+    })
+    openPage({
+      view: none(),
+      routes: { 'GET /api/strength/workout': dayRoute(maintenance, 'maintenance') },
+    })
+    await page()
+    await userEvent
+      .setup()
+      .click(region('Next session').getByRole('button', { name: 'Log a session' }))
+    const dialog = await sheet('Strength, maintenance A')
+    expect(await within(dialog).findByText("From this week's maintenance session.")).toBeVisible()
+    expectCleanCopy(dialog)
+  })
+
+  test('"Add a past session" reads the start of the day chosen, and logs on that day', async () => {
+    const { calls } = openPage({
+      view: none(),
+      routes: {
+        'GET /api/strength/workout': dayRoute(ahead, 'next-planned'),
+        [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID),
+      },
+    })
+    await page()
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Add a past session' }))
+    fireEvent.change(screen.getByLabelText('Date of the session'), {
+      target: { value: '2026-03-10' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).getByText('Tue 10 Mar. Loads are in pounds.')).toBeVisible()
+    expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
+    expect(dayReads(calls)).toEqual(['/api/strength/workout?date=2026-03-10'])
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    const body = putBody(calls)
+    expect(body.date).toBe('2026-03-10')
+    expect(body).not.toHaveProperty('sessionId')
+  })
+
+  test('refuses a day outside the last year before it asks the server anything', async () => {
+    const { calls } = openPage({ view: none() })
+    await page()
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Add a past session' }))
+    for (const bad of ['2026-03-19', '2025-03-17', '']) {
+      fireEvent.change(screen.getByLabelText('Date of the session'), { target: { value: bad } })
+      await user.click(screen.getByRole('button', { name: 'Continue' }))
+      expect(screen.getByText('Choose a day in the last year, up to today.')).toBeVisible()
+    }
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(dayReads(calls)).toEqual([])
+  })
+
+  test('says so in the sheet when the start cannot be read, and focus goes back to the button on Escape', async () => {
+    openPage({
+      view: none(),
+      routes: { 'GET /api/strength/workout': () => unreachable },
+    })
+    await page()
+    const user = userEvent.setup()
+    const button = region('Next session').getByRole('button', { name: 'Log a session' })
+    await user.click(button)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(
+      'The workout could not be read. A session with no plan needs a connection.',
+    )
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(button).toHaveFocus()
   })
 })
 

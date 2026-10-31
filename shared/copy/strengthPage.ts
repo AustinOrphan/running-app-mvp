@@ -74,6 +74,9 @@ export const STRENGTH_PAGE_TEMPLATES = {
   'strength.page.bodyweight-only': tpl(
     'This workout is bodyweight only. Set up strength and the lifts use the saved equipment.',
   ),
+  // With no strength session planned, a log starts from the next planned session or the week's
+  // maintenance session (design 9.1); the sheet's header says which.
+  'strength.page.log-session': tpl('Log a session', {}, { shape: 'label' }),
   'strength.page.past': tpl('Add a past session', {}, { shape: 'label' }),
   'strength.page.past-date': tpl('Date of the session', {}, { shape: 'label' }),
   'strength.page.past-hint': tpl('Any day in the last year, up to today.'),
