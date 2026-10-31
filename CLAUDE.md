@@ -116,8 +116,10 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
   read those Params directly: `resolveMethod` (`shared/engine/methods.ts`) says which preset applies
   (goal class, persistent holds, novice, a plan with no base week; the transient holds do not hold
   one) and `effective(method, id)` gives the value, as `tidFor` takes `polarized`. A test scans for a
-  direct read. The default is today's plan byte for byte (the oracle); a new overridable value needs
-  an id, a reader, a bound in `methods.test.ts` and a grade D Param under its rule.
+  direct read. The default is today's plan byte for byte (the oracle). A preset that applies is held
+  week by week to the default plan of the same input (`WeekLimit`, `generate` in
+  `shared/engine/index.ts`), so it never plans more. A new overridable value needs an id, a reader, a
+  bound in `methods.test.ts` and a grade D Param under its rule.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`

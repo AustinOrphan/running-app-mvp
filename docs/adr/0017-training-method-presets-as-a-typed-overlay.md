@@ -74,6 +74,17 @@ guard, no ceiling and no option.
   that does not apply is stored as chosen and served as the default with its reason. Every re-plan and
   a goal switch read the stored options, so the preset follows the plan; no revision is written for
   it. A change in place is M6.
+- **No more load than the default.** A preset that applies is generated beside the default plan of
+  the same input (`generate` runs both, and the default run draws its phases anew, so it does not
+  inherit the preset's). Each week of the preset is held to the default's target (the long run and
+  the climbing shrink with it) and to the minutes the default places in that week (the long run
+  keeps its length and the other runs share what is left). No week target, no week's planned
+  minutes and no peak week of a preset's plan is above the default's, which makes the claim of rule
+  P4, that the preset keeps the weekly minutes, true as a limit: a week may be lower. The cost is a
+  second generation for a plan whose preset applies; a default plan runs once and is unchanged.
+- **The run-day cap, at any age and after a race.** `three-run-days` caps the run days of every
+  runner, where the cap of the default is the masters' (`micro.ts`), and of the weeks after a past
+  race, which take their run days from the reference week (`windowWeeks`, `runDayCap`).
 - **Grade D throughout.** Every preset is "a choice, not a better plan". It moves no ceiling and no
   ramp and adds no load (G6), and sets none of `recoveryCycle`, `tidModel`, `strengthSessions` and
   `loadAppetite`.
@@ -88,10 +99,23 @@ Reasons:
   is part of each digest, so a new checklist item would move all 142; none is added.
 - **Fact:** On the twelve matrix athletes (`methods.test.ts`, 2026-10-31), `three-run-days` applies to
   three (half, returning, post-marathon-short-run) and reads as the default for nine (seven goals of a
-  marathon or longer, one novice, one held by a recent injury). `longer-base` applies to nine and
-  reads as the default for three (one novice 5 km plan with no base week, two held). Both pass the
-  checklist, add no minute to any week and raise no week target, and `three-run-days` holds every
-  week to three run days where it applies.
+  marathon or longer, one novice, one held by a recent injury). `longer-base` applies to nine
+  (first-100-mile, half, hot-race, marathon, masters, post-marathon-short-run, returning,
+  sparse-100-mile, trail-50k) and reads as the default for three (the novice 5 km plan with no base
+  week, and the two held plans). Both presets fail no checklist item that the default plan passes,
+  and `three-run-days` holds every week to three run days where it applies.
+- **Fact:** The default plan places short of its target where a session cannot hold its share (a
+  threshold session in the build), and `generate` reads the minutes placed for the weekly ramp
+  (`index.ts`, read 2026-10-31). With the hold disabled, a throwaway probe over
+  `sweepCases(20261025, 150)` on 2026-10-31 found `longer-base` planning a higher week target in 36 of
+  the 150 first plans (372 weeks, up to 16 minutes above the default's), more minutes in a week in 47
+  plans (429 weeks) and a higher peak week in 11 plans (up to 5.3%), and `three-run-days` none of the
+  three. With the hold, none of the three for either preset: `methods.test.ts` asserts it over the
+  150, over the 72 runners of the oracle, over the weekly chains of the twelve matrix athletes
+  (249 steps, each preset's chain against the default's) and at every step of the default chains.
+- **Fact:** With the hold disabled, on the 72 runners of the oracle, `longer-base` planned more minutes
+  in a week in 12 plans and a higher week target in 8 (the same probe), so at least four plans plan
+  more minutes with no week target above the default's.
 - **Fact:** A `Param` value is a number, a list of numbers or a record of numbers
   (`params.test.ts`, "has finite numeric values"), so the table of quality kinds cannot be one.
 - **Fact:** `CYCLE_REASON_WORDS` in `explainInputs.ts` is a module-level snapshot built from the
@@ -139,8 +163,9 @@ Alternatives:
   only. Against (**Rule**): G6 puts the more conservative rule first, which a copy of each guard per
   method cannot promise.
 - **A global swap of `P` while a plan is built.** For (**Opinion**): no reader changes. Against
-  (**Fact**): the snapshot above reads stale, and a swap that a thrown error left unrestored
-  would leave a preset's value in `P` for the next plan.
+  (**Fact**): the snapshot above reads stale. Against (**Opinion**): a swap that a thrown error left
+  unrestored would leave a preset's value in `P` for the next plan, and every later plan would carry
+  it without a request asking.
 - **Clamp the values at run time.** For (**Opinion**): a bad table cannot produce a plan outside the
   bounds. Against (**Opinion**): a clamp makes a wrong table look right, and the bounds belong where
   the table is reviewed.
@@ -148,9 +173,13 @@ Alternatives:
   further below the D3 floor of 25 km for the marathon (grade B), from 115 to 99 minutes (about 19
   km) on the matrix marathon plan (proposal 4.6). Against (**Rule**): decision 6 puts P3 out.
 - **A checklist item for the run-day cap.** For (**Opinion**): the cap would be checked at publish.
-  Against (**Fact**): the item would change `PlanDraft.checklist` and so every oracle digest, and a
-  re-plan that keeps finished sessions could fail it for days already run. The cap is asserted in
+  Against (**Fact**): the item would change `PlanDraft.checklist` and so every oracle digest. Against
+  (**Opinion**): a re-plan keeps the sessions already run, so a week with four finished runs would
+  fail an item for three, and a failed item blocks publishing. The cap is asserted in
   `methods.test.ts` instead.
+- **Hold the week targets only.** For (**Opinion**): one line at the ramp, and the placement is
+  untouched. Against (**Fact**): on the 72 oracle runners the minutes planned in a week rose in four
+  more plans than the targets did (above), so a hold on targets leaves them.
 - **Hold a preset under the transient holds as well.** Against (**Fact**): follow-up 27 (#570) names the
   mechanism, run days switching in the middle of a plan as a window opens and closes.
 
@@ -173,6 +202,11 @@ Alternatives:
 - The phase filed on a start-path week follows the plan's phases, so under `longer-base` a ladder or
   floor week is filed under base where the default files it under build. The sessions of the week are
   the programme's, unchanged.
+- A preset's week target is the default's where the default places short, and the minutes it places
+  are the default's: a preset plan can read a week below its own drawn target, as the default does in
+  those weeks. Three runners of the sweep (#16, #28 and #36) fail the checklist's spacing item at the
+  default (the long run between two quality days in the first week), so `methods.test.ts` compares a
+  preset with the failures of the default plan and not with none; the item is not a preset's.
 - A new overridable value needs an id in `OVERRIDE_IDS`, a reader that calls `effective`, a bound in
   `methods.test.ts`, a `Param` under its rule and the section (p) text; the source scan fails on a
   direct read.
