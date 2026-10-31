@@ -20,6 +20,7 @@ import {
 import {
   injuryTight,
   rampBasis,
+  startLevelMin,
   rampLimits,
   rampSkipWeeks,
   rebuildZoneUsed,
@@ -795,10 +796,16 @@ function postRaceWindowItem(draft: PlanDraft, input: EngineInput): ChecklistResu
 }
 
 /**
- * A held plan: no loading week from today is above the first one, its long run and gain target do
- * not grow, and no back-to-back pair is planned. Returns what breaks the hold.
+ * A held plan: no loading week from today is above the level the hold keeps, its long run and gain
+ * target do not grow, and no back-to-back pair is planned. Returns what breaks the hold.
+ *
+ * The level is the first loading week, or the runner's own level when the first week was capped
+ * under it: the macrocycle holds every week at the start level (`startLevelMin`), the longest run
+ * and the climb of the last 30 days, and the weekly decision of a held plan caps the week it covers
+ * (after a recovery week, a sleep warning, a week run under the plan). The weeks that climb back by
+ * the ramp to the level are the plan returning to it, not progressing beyond it [rules n-4, n-1, J5].
  */
-function heldProgression(draft: PlanDraft, input: EngineInput): string[] {
+function heldProgression(draft: PlanDraft, input: EngineInput, state: AthleteState): string[] {
   const failures: string[] = []
   const currentMonday = mondayOf(input.today)
   const loading = sortedWeeks(draft).filter(
@@ -811,18 +818,28 @@ function heldProgression(draft: PlanDraft, input: EngineInput): string[] {
   )
   const first = loading[0]
   if (first !== undefined) {
+    const floored = (x: number, step = 1) => Math.floor((x + 1e-9) / step) * step
+    const held = {
+      min: Math.max(first.targetRunMin, startLevelMin(state)),
+      long: Math.max(first.longRunMin, floored(state.longest30d.durationSec / 60)),
+      gain: Math.max(
+        first.gainTargetM ?? 0,
+        P.h4.minStepGainM.value,
+        floored(state.longest30d.gainM, 10),
+      ),
+    }
     for (const w of loading.slice(1)) {
-      if (w.targetRunMin > first.targetRunMin) {
+      if (w.targetRunMin > held.min) {
         failures.push(
-          `week of ${w.weekStart}: ${w.targetRunMin} min is above the held ${first.targetRunMin} min`,
+          `week of ${w.weekStart}: ${w.targetRunMin} min is above the held ${held.min} min`,
         )
       }
-      if (w.longRunMin > first.longRunMin) {
+      if (w.longRunMin > held.long) {
         failures.push(
-          `week of ${w.weekStart}: long run ${w.longRunMin} min is above the held ${first.longRunMin} min`,
+          `week of ${w.weekStart}: long run ${w.longRunMin} min is above the held ${held.long} min`,
         )
       }
-      if ((w.gainTargetM ?? 0) > (first.gainTargetM ?? 0)) {
+      if ((w.gainTargetM ?? 0) > held.gain) {
         failures.push(`week of ${w.weekStart}: gain target grows`)
       }
     }
@@ -846,7 +863,7 @@ function redsHoldItem(draft: PlanDraft, input: EngineInput, state: AthleteState)
       rules,
     )
   }
-  const failures = heldProgression(draft, input)
+  const failures = heldProgression(draft, input, state)
   return result(
     'reds-hold',
     failures.length === 0,
@@ -858,12 +875,16 @@ function redsHoldItem(draft: PlanDraft, input: EngineInput, state: AthleteState)
 }
 
 /** N-1: focal bone pain, while it is reported, holds progression. */
-function bonePainHoldItem(draft: PlanDraft, input: EngineInput): ChecklistResult {
+function bonePainHoldItem(
+  draft: PlanDraft,
+  input: EngineInput,
+  state: AthleteState,
+): ChecklistResult {
   const rules = ['n-1']
   if (!focalBoneActive(input, input.today)) {
     return result('bone-pain-hold', true, 'No focal bone pain reported.', rules)
   }
-  const failures = heldProgression(draft, input)
+  const failures = heldProgression(draft, input, state)
   return result(
     'bone-pain-hold',
     failures.length === 0,
@@ -977,7 +998,7 @@ export function runChecklist(draft: PlanDraft, input: EngineInput): ChecklistRes
     raceDay(draft, input),
     postRaceWindowItem(draft, input),
     redsHoldItem(draft, input, state),
-    bonePainHoldItem(draft, input),
+    bonePainHoldItem(draft, input, state),
     ...(windows === null ? [] : [windows]),
   ]
 }

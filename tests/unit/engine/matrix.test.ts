@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { buildPlan, explain } from '../../../shared/engine/index.ts'
+import { buildPlan, explain, runChecklist } from '../../../shared/engine/index.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { ownWindow, windowViolations } from '../../../shared/engine/postRace.ts'
 import type { PlanDraft, SessionKind, SessionSpec } from '../../../shared/engine/types.ts'
@@ -723,6 +723,47 @@ describe('plan matrix: REDs hold', () => {
     const item = plan.checklist.find((c) => c.id === 'reds-hold')!
     expect(item.ok).toBe(true)
     expect(item.detail).toMatch(/hold/i)
+  })
+
+  describe('with the first week capped under the level by the weekly decision [rules n-4, J5, E6]', () => {
+    // The weekly decision of a held plan caps the week it covers (a recovery week before it, a
+    // sleep warning, the minutes run), and the weeks after the cap climb back by the ramp to the
+    // level the hold keeps. That is the plan returning to its level, not progressing beyond it: the
+    // level is the runner's (`startLevelMin`, the macrocycle's own), not the dip of the first week.
+    const loading = planWeeks(plan).filter(
+      (w) => !w.isRecovery && !w.isTaper && !w.flags.includes('post-race'),
+    )
+    const level = loading[0]!.targetRunMin
+    const lowered = (cut: number, grow?: { index: number; by: number }): PlanDraft => ({
+      ...plan,
+      weeks: plan.weeks.map((w) => {
+        if (w.weekStart === loading[0]!.weekStart) {
+          return {
+            ...w,
+            targetRunMin: Math.round(level * cut),
+            longRunMin: Math.round(w.longRunMin * cut),
+          }
+        }
+        if (grow !== undefined && w.weekStart === loading[grow.index]!.weekStart) {
+          return { ...w, targetRunMin: level + grow.by }
+        }
+        return w
+      }),
+    })
+    const hold = (draft: PlanDraft) =>
+      runChecklist(draft, a.input).find((c) => c.id === 'reds-hold')!
+
+    it('does not fail the weeks that return to the level', () => {
+      const item = hold(lowered(0.75))
+      expect(item.ok, item.detail).toBe(true)
+      expect(item.detail).toMatch(/hold/i)
+    })
+
+    it('still fails a week above the level the hold keeps', () => {
+      const item = hold(lowered(0.75, { index: 3, by: 20 }))
+      expect(item.ok).toBe(false)
+      expect(item.detail).toMatch(/above the held/)
+    })
   })
 })
 

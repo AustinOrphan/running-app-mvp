@@ -742,6 +742,34 @@ describe('scoreChain', () => {
 })
 
 // ---------------------------------------------------------------------------------------------
+// A held plan under the weekly decision
+// ---------------------------------------------------------------------------------------------
+
+describe('a held plan under the weekly decision [rules n-4, J5]', () => {
+  // Found by H2 (2026-10-31) and fixed by RF1: the REDs athlete holds every week, and the cap of the
+  // weekly decision lowers the week it covers under the level the macrocycle holds, so the weeks that
+  // climb back by the ramp read as growth to the checklist's hold item (7 of 20 compliant steps, 17 of
+  // 20 of the overshooting chain). The item reads the runner's level beside the first week.
+  it.each(SIM_LEVELS)(
+    'keeps the hold item of the checklist at every step of the chain at the %s level',
+    (level) => {
+      const chain = chainOf(
+        level,
+        all.findIndex((a) => a.id === 'reds-hold'),
+      )
+      const failed = chain.steps.flatMap((step, k) =>
+        step.draft.checklist
+          .filter((c) => c.id === 'reds-hold' && !c.ok)
+          .map((c) => `step ${String(k)}: ${c.detail}`),
+      )
+      expect(failed).toEqual([])
+      // every week is held, so the chain is the case the item is for
+      expect(chain.steps.filter((s) => s.decision?.decision === 'hold').length).toBeGreaterThan(10)
+    },
+  )
+})
+
+// ---------------------------------------------------------------------------------------------
 // The figures of the chains, printed by hand
 // ---------------------------------------------------------------------------------------------
 

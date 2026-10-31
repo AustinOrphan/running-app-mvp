@@ -660,6 +660,7 @@ The app must surface each of these. It states facts and points to care; it does 
 4. **REDs signs.** Unintended weight loss, menstrual dysfunction, recurrent BSI or illness, persistent fatigue, GI symptoms, disordered eating.
    - Screen all users at onboarding and every 12 weeks, including men on ultra plans. Offer the LEAF-Q to women.
    - Two or more flags hold progression and show a clinician prompt.
+   - The hold keeps the weekly running, the long run and the climb at the runner's level (the start level of E6, the longest run and climb of the last 30 days), and the checklist reads that level (2026-10-31, task RF1). The weekly decision (J5) holds such a plan every week and caps the week it covers, so a first week under the level is common; the weeks that climb back to the level by the ramp are the plan returning to it, not progression beyond it. A week above the level, or a run or climb above its own, still fails the item. Grade D.
    - Grade A/C/D [mountjoy-2023-reds-consensus, melin-2014-leaf-q, hoeg-2022-ultramarathon-triad].
 5. **Possible iron deficiency.** Fatigue or underperformance for 2 weeks at stable load: suggest blood testing through a clinician. Give no supplement advice. Grade D [sim-2019-iron-athlete, burden-2015-iron-treatment-meta].
 6. **Persistent suppression.** Per J8. No overtraining diagnosis.
