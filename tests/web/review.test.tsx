@@ -1163,13 +1163,13 @@ describe('ReviewPage: strength (design 12.2 and 12.4)', () => {
       expect(screen.getByText('2 of 2 strength sessions').compareDocumentPosition(list)).toBe(
         Node.DOCUMENT_POSITION_FOLLOWING,
       )
-      // the Strength page chooses a lift's history; the exercise is not in the address
+      // the link names the lift, and the Strength page opens its history on arrival
       const link = within(items[0]!).getByRole('link', { name: 'History of Back squat' })
-      expect(link).toHaveAttribute('href', '/strength')
+      expect(link).toHaveAttribute('href', '/strength?lift=back-squat')
       expect(link).toHaveTextContent('History')
       expect(
         within(items[1]!).getByRole('link', { name: 'History of Dumbbell Romanian deadlift' }),
-      ).toHaveAttribute('href', '/strength')
+      ).toHaveAttribute('href', '/strength?lift=dumbbell-rdl')
       expectCleanCopy(document.body)
     })
 

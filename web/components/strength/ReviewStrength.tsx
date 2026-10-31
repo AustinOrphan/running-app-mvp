@@ -19,7 +19,7 @@ function useReviewWords(): PageWords | null {
 /**
  * Under a week of the Review page that has a logged strength session (design 12.2): one line for
  * each lift whose working load moved in the week ("Back squat 110 lb to 115 lb"), each with a link to
- * the Strength page, where a lift's history is chosen. The lines come from the `weeks` of the
+ * that lift's history on the Strength page (`/strength?lift=<id>`). The lines come from the `weeks` of the
  * Strength view, the one read the Strength page makes too; the review and its stored record are not
  * touched. With the read pending or failed (the view is not kept offline, ADR 0012), or with no lift
  * moved, nothing is shown.
@@ -45,7 +45,7 @@ export function ReviewLifts({ weekStart }: { weekStart: string }) {
               })}
             </span>
             <Link
-              to="/strength"
+              to={`/strength?lift=${encodeURIComponent(move.exerciseId)}`}
               className={styles.link}
               aria-label={words.say('strength.page.lift-history-for', { exercise })}
             >

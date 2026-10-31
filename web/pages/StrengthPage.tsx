@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { renderFact } from '../../shared/copy/templates.ts'
+import { isExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import type {
   StrengthLog,
   StrengthView,
@@ -48,7 +50,14 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
   const words = useMemo(() => pageWords(units, weightUnit), [units, weightUnit])
   const [part, setPart] = useState<SetupPart | null>(null)
   const [logging, setLogging] = useState<Logging | null>(null)
-  const [lift, setLift] = useState<string | null>(null)
+  // The Review page links here with `?lift=<exercise id>`: that lift's history is open on arrival.
+  // Any lift of the catalogue has a history to read, whether or not it is in the Lifts list yet; an
+  // id that is not one falls back to the chooser.
+  const [params] = useSearchParams()
+  const [lift, setLift] = useState<string | null>(() => {
+    const id = params.get('lift')
+    return id !== null && isExerciseId(id) ? id : null
+  })
 
   /** A sentence that restates a Param, worded from the fact the view carries (design 11.6). */
   const fact = (template: string): string | null => {

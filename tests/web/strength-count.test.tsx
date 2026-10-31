@@ -17,7 +17,7 @@ import { StrengthPage } from '../../web/pages/StrengthPage.tsx'
 import { context, log, monday, sessionRef, sessionsOf } from '../unit/engine/strength-fixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
 import { SETTINGS } from './strength-fixtures.ts'
-import { PROFILE, pageView } from './strength-page-fixtures.ts'
+import { PROFILE, pageView, squatHistory } from './strength-page-fixtures.ts'
 
 const QUESTION = 'Two a week is the plan; one fits a busy stretch too. Plan one a week?'
 const STORAGE_KEY = `${STRENGTH_PROMPT_PREFIX}count-not-now`
@@ -79,6 +79,8 @@ interface Options {
   settings?: UserSettings
   profile?: AthleteProfile
   routes?: MockRoutes
+  /** The address the page opens at. */
+  route?: string
 }
 
 function openPage(view: StrengthView, options: Options = {}) {
@@ -93,7 +95,7 @@ function openPage(view: StrengthView, options: Options = {}) {
     <ToastProvider>
       <StrengthPage />
     </ToastProvider>,
-    { route: '/strength' },
+    { route: options.route ?? '/strength' },
   )
   return { calls }
 }
@@ -346,6 +348,71 @@ describe('the note on a week with more sessions than planned (design 12.4)', () 
     const note = screen.getByRole('note')
     expect(note.textContent).not.toMatch(/behind|missed|streak|record/i)
     expect(note.textContent).not.toMatch(/\bred\b/)
+  })
+})
+
+describe('a lift chosen in the address, as the Review page links to it (design 12.2)', () => {
+  const CHOOSE = 'Choose a lift from the list to see its history.'
+  const history = () => within(screen.getByRole('region', { name: 'History of one lift' }))
+  const exercisesCalled = (calls: Array<{ url: string }>) =>
+    calls.filter((call) => call.url.startsWith('/api/strength/exercises/')).map((call) => call.url)
+
+  test('opens the history of that lift on arrival', async () => {
+    const { calls } = openPage(pageView(), {
+      route: '/strength?lift=back-squat',
+      routes: { 'GET /api/strength/exercises/back-squat': () => squatHistory() },
+    })
+    await page()
+    expect(await screen.findByRole('region', { name: 'History of Back squat' })).toBeVisible()
+    await screen.findByRole('img', { name: 'Estimated maximum, from submaximal sets' })
+    expect(history().getByRole('heading', { level: 3, name: 'Back squat' })).toBeVisible()
+    expect(screen.queryByText(CHOOSE)).not.toBeInTheDocument()
+    // the lift is marked in the list, as if its History button had been pressed
+    expect(screen.getByRole('button', { name: 'History of Back squat' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(exercisesCalled(calls)).toEqual(['/api/strength/exercises/back-squat'])
+  })
+
+  test('opens a lift of the catalogue that the Lifts list does not hold yet', async () => {
+    // a lift that moved in a week of the review may have no session among the lifts the page lists
+    const { calls } = openPage(pageView(), {
+      route: '/strength?lift=standing-calf-raise',
+      routes: {
+        'GET /api/strength/exercises/standing-calf-raise': () => ({
+          exerciseId: 'standing-calf-raise',
+          anchor: null,
+          summary: null,
+          sessions: [],
+        }),
+      },
+    })
+    await page()
+    expect(
+      await history().findByRole('heading', { level: 3, name: 'Standing calf raise' }),
+    ).toBeVisible()
+    expect(await screen.findByText('This lift has no logged sets yet.')).toBeVisible()
+    expect(exercisesCalled(calls)).toEqual(['/api/strength/exercises/standing-calf-raise'])
+  })
+
+  test.each(['not-a-lift', 'BACK-SQUAT', ''])(
+    'falls back to the chooser for an id the page does not know: "%s"',
+    async (id) => {
+      const { calls } = openPage(pageView(), {
+        route: `/strength?lift=${encodeURIComponent(id)}`,
+      })
+      await page()
+      expect(await screen.findByText(CHOOSE)).toBeVisible()
+      expect(history().queryByRole('heading', { level: 3 })).not.toBeInTheDocument()
+      expect(exercisesCalled(calls)).toEqual([])
+    },
+  )
+
+  test('opens on the chooser with no lift in the address, as before', async () => {
+    openPage(pageView())
+    await page()
+    expect(await screen.findByText(CHOOSE)).toBeVisible()
   })
 })
 
