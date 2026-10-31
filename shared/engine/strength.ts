@@ -1201,7 +1201,10 @@ function liftFrom(
   suggestion: LoadSuggestion,
   trail: Fact[],
 ): WorkoutLift {
-  const kept = suggestion.change === 'hold' ? keptFact(plan.template, plan.recovery) : null
+  // the sentence about the usual load is the lifts': a trunk movement (a carry) has no load of the
+  // template to keep and keeps its own basis, F7 with no reason
+  const kept =
+    slot !== 'trunk' && suggestion.change === 'hold' ? keptFact(plan.template, plan.recovery) : null
   let change: WorkoutLift['change'] = suggestion.change
   let facts = suggestion.facts
   let rule: SuggestionBasis['rule'] = facts.length > 0 ? 'F8' : 'F7'

@@ -3948,3 +3948,44 @@ describe('the reason of a lower-readiness day says what changed (rule F9)', () =
     expect(usual?.basis.facts.map((fact) => fact.template)).toEqual(['strength.reason.maintenance'])
   })
 })
+
+describe('the kept-load sentence belongs to the lifts, not to the trunk movements (rule F9)', () => {
+  const withCarry = (index: number, flags: string[]) => {
+    const session = sessionOf(index, 1, { durationMin: 25 })
+    const weeks = plan(30, 12).map((w, i) =>
+      i === index ? { ...w, flags: [...w.flags, ...flags] } : w,
+    )
+    const logs = [
+      log('c', addDays(session.date, -3), {
+        sets: [
+          ...setsOf('farmer-carry', rows(20, [32, 32], [null, null])),
+          ...setsOf('goblet-squat', rows(40, [4, 4, 4], [null, null, null]), 10),
+          ...setsOf('dumbbell-rdl', rows(40, [4, 4, 4], [null, null, null]), 20),
+          ...setsOf('standing-calf-raise', rows(40, [4, 4, 4], [null, null, null]), 30),
+        ],
+      }),
+    ]
+    return workoutFor(
+      withSetup({ equipment: have('dumbbells') }, { today: session.date, weeks, logs }),
+      session,
+    )
+  }
+
+  it.each([
+    ['a lighter week', 6, ['recovery'], 'strength.reason.lighter-week'],
+    ['maintenance', 14, [], 'strength.reason.maintenance'],
+    ['the taper', 25, ['taper'], 'strength.reason.taper'],
+  ] as const)(
+    'gives the farmer carry of %s no reason of the template, and its lifts one',
+    (_name, index, flags, kept) => {
+      const workout = withCarry(index, [...flags])
+      const carry = workout.trunk.find((lift) => lift.exerciseId === 'farmer-carry')
+      expect(carry).toMatchObject({ loadG: lb(20), change: 'hold' })
+      expect(carry?.basis).toEqual({ rule: 'F7', facts: [] })
+      // the lifts of the session keep the sentence and the rule of F9
+      const lift = workout.lifts.find((l) => l.change === 'hold' && l.exerciseId !== 'farmer-carry')
+      expect(lift?.basis.rule).toBe('F9')
+      expect(lift?.basis.facts.map((f) => f.template)).toEqual([kept])
+    },
+  )
+})
