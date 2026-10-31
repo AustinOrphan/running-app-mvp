@@ -1,0 +1,77 @@
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* 44 px square at least: the buttons of a set are the targets a gloved or tired hand has to hit. */
+.button {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:first-child {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.button:nth-child(3) {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.button:active:not([aria-disabled='true']) {
+  background: var(--accent-soft);
+}
+
+.button[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.button:focus-visible,
+.field:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.field {
+  flex: 0 1 auto;
+  box-sizing: border-box;
+  width: 3.25rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: var(--font-sans);
+  /* 16 px at least, or a phone zooms the page when the field takes focus */
+  font-size: max(1rem, var(--text-base));
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.field[aria-invalid='true'] {
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+}
+
+.unit {
+  align-self: center;
+  padding-left: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

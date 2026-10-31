@@ -527,6 +527,7 @@ export const STRENGTH_TEMPLATES = {
     { shape: 'label', fallback: 'Always use this' },
   ),
   'strength.sheet.pinned': tpl('This choice is kept for later sessions.'),
+  'strength.sheet.not-pinned': tpl('The choice could not be saved. Try again.'),
 
   // A lighter day (design 10.4): the usual load is one tap away.
   'strength.sheet.usual-load': tpl('Usual load: {load}.', { load: 'load' }),
