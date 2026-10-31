@@ -104,6 +104,7 @@ function makePlan(weeks: PlanWeekView[], over: Partial<PlanWithSessions> = {}): 
     checklist: [],
     zones: null,
     load: null,
+    recoveryCycle: null,
     ...over,
   }
 }

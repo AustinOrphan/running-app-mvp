@@ -49,6 +49,13 @@ import {
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { estimateAboutText } from '../../shared/copy/distanceEstimate.ts'
 import {
+  CYCLE_CHOICES,
+  cycleChoiceLabel,
+  cycleFieldLabel,
+  cycleHintLines,
+  type CycleChoice,
+} from '../../shared/copy/pageCopy.ts'
+import {
   loadChangeLabel,
   loadPanelText,
   loadPanelTitle,
@@ -65,7 +72,7 @@ import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import { groupWarnings, localiseEngineText } from '../components/engineText.ts'
 import type { LoadPosition } from '../../shared/engine/loadSetting.ts'
-import type { EngineWarning, LoadAppetite } from '../../shared/engine/types.ts'
+import type { EngineWarning, LoadAppetite, RecoveryCycle } from '../../shared/engine/types.ts'
 import type {
   DisruptionView,
   Goal,
@@ -125,10 +132,10 @@ const STRENGTH_OPTIONS: Array<{ value: '0' | '1' | '2'; label: string }> = [
   { value: '2', label: '2' },
 ]
 
-const CYCLE_OPTIONS: Array<{ value: '3:1' | '2:1'; label: string }> = [
-  { value: '3:1', label: 'Every 4th week' },
-  { value: '2:1', label: 'Every 3rd week' },
-]
+const CYCLE_OPTIONS: Array<{ value: CycleChoice; label: string }> = CYCLE_CHOICES.map((choice) => ({
+  value: choice,
+  label: cycleChoiceLabel(choice),
+}))
 
 const POLARIZED_OPTIONS: Array<{ value: 'off' | 'on'; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -140,16 +147,25 @@ interface GenerateFormProps {
   initialGoalId?: string
   /** The load position to start from: the one the plan being replaced was set to. */
   initialLoad?: LoadAppetite | undefined
+  /** The recovery cycle to start from: the one the plan being replaced holds, when it holds one. */
+  initialCycle?: RecoveryCycle | null | undefined
   onDone?: () => void
 }
 
-function GenerateForm({ goals, initialGoalId, initialLoad, onDone }: GenerateFormProps) {
+function GenerateForm({
+  goals,
+  initialGoalId,
+  initialLoad,
+  initialCycle,
+  onDone,
+}: GenerateFormProps) {
   const toast = useToast()
   const generate = useGeneratePlan()
   const preferred =
     goals.find((g) => g.id === initialGoalId) ?? goals.find((g) => g.isActive) ?? goals[0]
   const [goalId, setGoalId] = useState(preferred?.id ?? '')
-  const [cycle, setCycle] = useState<'3:1' | '2:1'>('3:1')
+  // Only a cycle the runner picked is sent; `auto` leaves the option out so the plan decides it.
+  const [cycle, setCycle] = useState<CycleChoice>(initialCycle ?? 'auto')
   const [strength, setStrength] = useState<'0' | '1' | '2'>('2')
   const [load, setLoad] = useState<LoadAppetite>(initialLoad ?? 'steady')
   const [polarized, setPolarized] = useState<'off' | 'on'>('off')
@@ -165,7 +181,7 @@ function GenerateForm({ goals, initialGoalId, initialLoad, onDone }: GenerateFor
     const request: GeneratePlanRequest = {
       goalId,
       options: {
-        recoveryCycle: cycle,
+        ...(cycle === 'auto' ? {} : { recoveryCycle: cycle }),
         strengthSessions: Number(strength) as 0 | 1 | 2,
         loadAppetite: load,
         ...(shortGoal && polarized === 'on' ? { tidModel: 'polarized' as const } : {}),
@@ -212,9 +228,9 @@ function GenerateForm({ goals, initialGoalId, initialLoad, onDone }: GenerateFor
           </Select>
         )}
       </Field>
-      <Segmented<'3:1' | '2:1'>
-        label="Easier week"
-        hint="Three building weeks then a lighter one is the usual rhythm; two then one suits a return from a break. The plan shortens the rhythm itself when it needs to."
+      <Segmented<CycleChoice>
+        label={cycleFieldLabel()}
+        hint={cycleHintLines(cycle)}
         options={CYCLE_OPTIONS}
         value={cycle}
         onChange={setCycle}
@@ -1276,6 +1292,7 @@ export function PlanPage() {
               goals={eligible}
               initialGoalId={plan.data.goalId}
               initialLoad={plan.data.load?.requested}
+              initialCycle={plan.data.recoveryCycle}
               onDone={() => {
                 setRegenerating(false)
               }}

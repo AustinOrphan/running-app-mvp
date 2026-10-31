@@ -204,6 +204,13 @@ export type LoadAppetite = (typeof LOAD_APPETITES)[number]
 export const isLoadAppetite = (value: unknown): value is LoadAppetite =>
   typeof value === 'string' && (LOAD_APPETITES as readonly string[]).includes(value)
 
+/**
+ * The recovery cycles a runner can choose [rules E3]: that many building weeks, then one lighter
+ * week. `options.recoveryCycle` holds a choice only; absent, the plan decides (`cycleShortReason`,
+ * macro.ts), so a form never sends the default as if it had been chosen.
+ */
+export type RecoveryCycle = '3:1' | '2:1'
+
 export interface AthleteState {
   asOf: string
   age: number | null
@@ -499,7 +506,7 @@ export interface EngineInput {
     >
   } | null
   options: {
-    recoveryCycle?: '3:1' | '2:1'
+    recoveryCycle?: RecoveryCycle
     strengthSessions?: 0 | 1 | 2
     tidModel?: 'pyramidal' | 'polarized'
     /**

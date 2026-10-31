@@ -154,8 +154,13 @@ describe('Plan page', () => {
     // the version-1 fields are gone; the engine options are offered instead
     expect(screen.queryByLabelText('Weekly run minutes')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Plan start (Monday)')).not.toBeInTheDocument()
-    expect(screen.getByRole('radiogroup', { name: 'Easier week' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Every 4th week' })).toHaveAttribute(
+    const cycle = screen.getByRole('radiogroup', { name: 'Easier week' })
+    expect(
+      within(cycle)
+        .getAllByRole('radio')
+        .map((radio) => radio.textContent),
+    ).toEqual(['Let the plan decide', 'Every 4th week', 'Every 3rd week'])
+    expect(within(cycle).getByRole('radio', { name: 'Let the plan decide' })).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -205,9 +210,10 @@ describe('Plan page', () => {
     await user.click(await screen.findByRole('button', { name: 'Generate plan' }))
     expect(await screen.findByText('The goal date is in the past.')).toBeInTheDocument()
     const first = calls.find((c) => c.method === 'POST')?.body as Record<string, unknown>
+    // the plan decides the cycle until the runner chooses one, so none is sent
     expect(first).toEqual({
       goalId: 'g1',
-      options: { recoveryCycle: '3:1', strengthSessions: 2, loadAppetite: 'steady' },
+      options: { strengthSessions: 2, loadAppetite: 'steady' },
     })
 
     await user.click(screen.getByRole('radio', { name: 'Every 3rd week' }))
@@ -244,7 +250,7 @@ describe('Plan page', () => {
     })
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       goalId: 'g1',
-      options: { recoveryCycle: '3:1', strengthSessions: 2, loadAppetite: 'steady' },
+      options: { strengthSessions: 2, loadAppetite: 'steady' },
     })
 
     await user.click(within(group).getByRole('radio', { name: 'On' }))
@@ -255,7 +261,6 @@ describe('Plan page', () => {
     expect(calls.filter((c) => c.method === 'POST')[1]?.body).toEqual({
       goalId: 'g1',
       options: {
-        recoveryCycle: '3:1',
         strengthSessions: 2,
         loadAppetite: 'steady',
         tidModel: 'polarized',
@@ -603,8 +608,80 @@ describe('Plan page, the load setting on the Generate form', () => {
     expect(sent()).toEqual(
       (['steady', 'standard', 'upper'] as const).map((loadAppetite) => ({
         goalId: 'g1',
-        options: { recoveryCycle: '3:1', strengthSessions: 2, loadAppetite },
+        options: { strengthSessions: 2, loadAppetite },
       })),
     )
+  })
+})
+
+describe('Plan page, the recovery cycle on the Generate form', () => {
+  const AUTO = [
+    'The plan chooses the rhythm: a lighter week every 4th week.',
+    `It comes every 3rd week for a new runner, for one under ${String(P.a5.lowFrequencyRunsPerWeek.value)} runs a week and after a recent injury.`,
+  ]
+  const USUAL = [
+    'Three building weeks, then a lighter one, even for a new or low-frequency runner.',
+    'A recent injury on file still gives every 3rd week.',
+  ]
+  const SHORT = [
+    'Two building weeks, then a lighter one. It suits a new runner or a return from a break.',
+  ]
+
+  test('starts on "Let the plan decide", and each choice says what it does', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(null))
+    const { container } = renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Easier week' })
+
+    expect(within(group).getByRole('radio', { name: 'Let the plan decide' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(group).toHaveAccessibleDescription(AUTO.join(' '))
+    expectCleanCopy(container)
+
+    await user.click(within(group).getByRole('radio', { name: 'Every 4th week' }))
+    expect(group).toHaveAccessibleDescription(USUAL.join(' '))
+    expectCleanCopy(container)
+
+    await user.click(within(group).getByRole('radio', { name: 'Every 3rd week' }))
+    expect(group).toHaveAccessibleDescription(SHORT.join(' '))
+    expectCleanCopy(container)
+  })
+
+  test('sends no recoveryCycle until one is chosen, then sends the one chosen', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(null, { 'POST /api/plan/generate': () => ({ status: 201, body: makePlan() }) }),
+    )
+    renderWithProviders(<PlanPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Easier week' })
+    const sent = () =>
+      calls
+        .filter((c) => c.method === 'POST' && c.url === '/api/plan/generate')
+        .map((c) => (c.body as { options: Record<string, unknown> }).options)
+    const generate = async (count: number) => {
+      await user.click(screen.getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(sent()).toHaveLength(count)
+      })
+    }
+
+    await generate(1)
+    await user.click(within(group).getByRole('radio', { name: 'Every 4th week' }))
+    await generate(2)
+    await user.click(within(group).getByRole('radio', { name: 'Every 3rd week' }))
+    await generate(3)
+    // going back to the plan's own decision takes the option out again
+    await user.click(within(group).getByRole('radio', { name: 'Let the plan decide' }))
+    await generate(4)
+
+    expect(sent().map((options) => options.recoveryCycle)).toEqual([
+      undefined,
+      '3:1',
+      '2:1',
+      undefined,
+    ])
+    expect(sent().map((options) => 'recoveryCycle' in options)).toEqual([false, true, true, false])
   })
 })

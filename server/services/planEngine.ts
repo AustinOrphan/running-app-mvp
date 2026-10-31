@@ -107,6 +107,7 @@ function present(
 ): PlanWithSessions {
   const { zones } = paces
   const engine = plan.generatorVersion >= 2 ? toPlanEngineFields(plan) : null
+  const chosenCycle = engine === null ? undefined : parsePlanOptions(plan.options).recoveryCycle
   const sessions = plan.sessions.map((row) => withDistanceEstimate(toPlanSession(row), paces))
   const byWeek = new Map<string, typeof sessions>()
   for (const session of sessions) {
@@ -124,6 +125,8 @@ function present(
     checklist: engine?.checklist ?? [],
     zones,
     load,
+    // a stored value that is neither cycle is not a choice, as the engine reads it
+    recoveryCycle: chosenCycle === '2:1' || chosenCycle === '3:1' ? chosenCycle : null,
   }
 }
 
