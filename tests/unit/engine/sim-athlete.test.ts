@@ -8,12 +8,12 @@
 // `PARAMS_VERSION` bump (decision 11), never asserted against a threshold (G5). The chain time of
 // every level and athlete, and of the two relations, is printed at the end of the run.
 //
-// Two relations, each in the forms that hold today and the forms that do not (the cases that do not
-// are `test.fails`, with the engine untouched and the case list as the failure message):
+// Two relations, each asserted where it holds and recorded as `test.fails` where it does not (the case
+// list is the failure message, and the test goes red when an engine change fixes a case):
 // - "a re-plan with no new data is a fixed point": re-running a step with the same input gives the
-//   same plan at every step of every ragged chain. Feeding the step's plan back as the stored plan
-//   gives it back at every compliant and ragged step that follows a progress decision, before the race
-//   week. It does not after a hold, and not at the race-week step of the compliant chains.
+//   same plan at every step of every ragged chain, and feeding the step's plan back as the stored plan
+//   gives it back at every compliant and ragged step, after a hold and in the race week included. It
+//   does not in the first week of a start path or in a held week a window touches (RF1, not fixed).
 // - "a closed day never raises a week": holds for the compliant level at every step and for the ragged
 //   level at the steps that follow a progress decision and carry no start-path week. It does not hold
 //   at ragged steps after a hold, or in a start-path plan.
@@ -21,7 +21,12 @@ import { isDeepStrictEqual } from 'node:util'
 import { afterAll, describe, expect, it, test, vi } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { isDisruptedWeek, validateDisruption } from '../../../shared/engine/disruption.ts'
+import {
+  dayRulesIn,
+  disruptionPlan,
+  isDisruptedWeek,
+  validateDisruption,
+} from '../../../shared/engine/disruption.ts'
 import { loadPosition, responseBasis } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type {
@@ -793,6 +798,10 @@ interface Case {
   decided: boolean
   /** The plan has a start-path week from today on. */
   programme: boolean
+  /** The week of the step's Monday is a week of a start path. */
+  opens: boolean
+  /** A window touches the week of the step's Monday. */
+  windowed: boolean
   /** The step is the race week's Monday, the last of the chain. */
   raceWeek: boolean
   detail: string
@@ -809,13 +818,21 @@ function caseOf(athlete: string, chain: SimChain, k: number, detail: string): Ca
     programme: step.draft.weeks.some(
       (w) => w.weekStart >= today && PROGRAMME_FLAGS.test(w.flags.join(' ')),
     ),
+    opens: step.draft.weeks.some(
+      (w) => w.weekStart === mondayOf(today) && PROGRAMME_FLAGS.test(w.flags.join(' ')),
+    ),
+    windowed:
+      dayRulesIn(disruptionPlan(step.settled.disruptions ?? []), {
+        from: mondayOf(today),
+        to: addDays(mondayOf(today), 6),
+      }).length > 0,
     raceWeek: k === chain.steps.length - 1,
     detail,
   }
 }
 
 const label = (c: Case): string =>
-  `${c.athlete} step ${String(c.step)} (${c.today})${c.decided ? ' after a hold' : ''}${c.programme ? ' in a start path' : ''}${c.raceWeek ? ' in the race week' : ''}: ${c.detail}`
+  `${c.athlete} step ${String(c.step)} (${c.today})${c.decided ? ' after a hold' : ''}${c.programme ? ' in a start path' : ''}${c.opens ? ' opening one' : ''}${c.windowed ? ' in a week a window touches' : ''}${c.raceWeek ? ' in the race week' : ''}: ${c.detail}`
 
 /** What differs between two drafts of one Monday, in a line. */
 function difference(a: PlanDraft, b: PlanDraft): string {
@@ -868,25 +885,27 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
     const compliantDrifts = drifts('compliant', 'plan stored again (compliant)')
     const raggedDrifts = drifts('ragged', 'plan stored again (ragged)')
 
-    it('gives the plan back when it is stored and re-planned, after a progress decision and before the race week', () => {
+    /**
+     * The steps the relation holds in. Two classes are left out, both observed and not fixed (see the
+     * last test of the group): the first week of a start path, whose minutes are its programme's, and
+     * a held week a window touches.
+     */
+    const covered = (c: Case) => !c.opens && !(c.decided && c.windowed)
+
+    // Found by H2 (2026-10-31) and fixed by RF1: after a hold, a plan stored as it came out of the
+    // re-plan and re-planned with no new activity, window or check-in was not the same plan. 35 of the 96
+    // ragged steps that follow a hold came back changed, and 14 of the 19 steps of the compliant REDs-hold
+    // athlete, whose every week is held; the weeks ahead mostly fell (by up to 116 minutes in a week and
+    // 377 over a plan). Two causes: the loading sequence of the weeks ahead carried on from the week as
+    // the cap held it at the second pass and from the plan before the cap at the first, and the minutes
+    // of the trim entered the bound of the week again. A hold now carries the sequence on from its cap,
+    // and the trim of the decision is drawn again from the decision.
+    it('gives the plan back when it is stored and re-planned, at every compliant and ragged step', () => {
       for (const drifted of [compliantDrifts(), raggedDrifts()]) {
-        const unexpected = drifted.cases.filter((c) => !c.decided && !c.raceWeek)
-        expect(unexpected.map(label)).toEqual([])
-        // the check ran over many steps
+        expect(drifted.cases.filter(covered).map(label)).toEqual([])
+        // the check ran over many steps, after a hold among them
         expect(drifted.steps).toBeGreaterThan(200)
       }
-    })
-
-    // KNOWN DEFECT, found by H2 (2026-10-31), engine untouched: after a hold, a plan stored as it came
-    // out of the re-plan and re-planned with no new activity, window or check-in is not the same plan.
-    // 35 of the 96 ragged steps that follow a hold come back changed, and 14 of the 19 steps of the
-    // compliant REDs-hold athlete, whose every week is held. The second pass mostly lowers the weeks
-    // ahead (by up to 116 minutes in a week and 377 over a plan; 6 weeks go up). A hold trims the
-    // next quality session and caps the week it covers; that cap and trim are read again from a stored
-    // plan that already holds them. The case list is the failure message; this passes when none is left.
-    test.fails('gives the plan back after a hold, at the ragged and the compliant steps', () => {
-      const cases = [...compliantDrifts().cases, ...raggedDrifts().cases]
-      expect(cases.filter((c) => c.decided).map(label)).toEqual([])
     })
 
     // Found by H2 (2026-10-31) and fixed by RF1: in the race week, the last step of a chain, the plan
@@ -901,6 +920,21 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
           .map(label),
       ).toEqual([])
     })
+
+    // KNOWN LIMITS, observed by RF1 (2026-10-31) and not fixed. The relation does not hold (1) in the
+    // first week of a start path: the ladder and the 3 x N floor weeks are sized by their programme,
+    // and a stored plan that flips into one mid-season, or opens a hold at a cap under the floor, is
+    // held to the minutes its short sessions placed; (2) in a held week a window touches: the bound of
+    // such a week is the minutes placed, which the window's cap charges the held days against, and the
+    // trim of the hold takes its minutes from that bound again. The case list is the failure message;
+    // this passes when the first of them is fixed.
+    test.fails(
+      'gives the plan back in the first week of a start path and in a held week a window touches',
+      () => {
+        const cases = [...compliantDrifts().cases, ...raggedDrifts().cases]
+        expect(cases.filter((c) => !covered(c)).map(label)).toEqual([])
+      },
+    )
   })
 
   describe('a closed day never raises a week', () => {
