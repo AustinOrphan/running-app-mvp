@@ -1,9 +1,9 @@
 // The strength API (strength design 9.4 and 9.5; ADR 0014): the setup, the runner's starting
-// points, the logs of their sessions, and the three reads of the epic (the page view, the workouts
-// of a span of days, the history of one exercise). Mounted under `requireAuth` and under the
-// general JSON parser, which sits below it (CLAUDE.md, request order): an anonymous request is a
-// 401 before any byte of a body is read. Zod parses every body and query (400 with a path per
-// field); another runner's record is 404; a conflict is 409.
+// points, the logs of their sessions, and the four reads of the epic (the page view, the workouts
+// of a span of days, the workout a log of one day starts from, the history of one exercise).
+// Mounted under `requireAuth` and under the general JSON parser, which sits below it (CLAUDE.md,
+// request order): an anonymous request is a 401 before any byte of a body is read. Zod parses every
+// body and query (400 with a path per field); another runner's record is 404; a conflict is 409.
 import { Router } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
@@ -38,6 +38,7 @@ import {
   saveStrengthLift,
   saveStrengthLog,
   saveStrengthSettings,
+  strengthDayWorkout,
   strengthExerciseView,
   strengthView,
   strengthWorkouts,
@@ -389,6 +390,17 @@ const workoutsQuerySchema = z
     return query
   })
 
+/**
+ * The day of a log and, when it names one, the planned session on it and the exercise to read as a
+ * lift of that session. `swap` is the exercise alone: the catalogue fixes its slot, so a slot in the
+ * query would only repeat it (and could disagree).
+ */
+const dayWorkoutQuerySchema = z.strictObject({
+  date: dayText,
+  sessionId: recordId.optional(),
+  swap: exerciseId.optional(),
+})
+
 // ---------------------------------------------------------------------------------------------
 // The router
 // ---------------------------------------------------------------------------------------------
@@ -405,6 +417,19 @@ export function strengthRouter(deps: Deps): Router {
   router.get('/workouts', async (req, res) => {
     const { from, to } = parse(workoutsQuerySchema, req.query)
     res.json(await strengthWorkouts(deps, { userId: req.userId, today: todayIso(), from, to }))
+  })
+
+  router.get('/workout', async (req, res) => {
+    const { date, sessionId, swap } = parse(dayWorkoutQuerySchema, req.query)
+    res.json(
+      await strengthDayWorkout(deps, {
+        userId: req.userId,
+        today: todayIso(),
+        date,
+        ...(sessionId === undefined ? {} : { sessionId }),
+        ...(swap === undefined ? {} : { swap }),
+      }),
+    )
   })
 
   router.get('/exercises/:exerciseId', async (req, res) => {

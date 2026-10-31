@@ -1733,6 +1733,31 @@ export interface WorkoutLift {
   evidence: LiftEvidence
 }
 
+/**
+ * Where the workout of a day was taken from (design 9.1): the planned strength session of that day,
+ * else the next planned one, else the maintenance session of that day's week.
+ */
+export type StrengthWorkoutSource = 'planned' | 'next-planned' | 'maintenance'
+
+/**
+ * The answer to `GET /api/strength/workout` (design 9.1, 7.3): the workout a log made on `date`
+ * starts from, derived on read, and with `swap` the named exercise as a lift of that session.
+ */
+export interface StrengthDayWorkout {
+  source: StrengthWorkoutSource
+  /**
+   * The workout as the rules give it now. For `next-planned` it is the next session's, with that
+   * session's id and date; for `maintenance` its `sessionId` names no stored session.
+   */
+  workout: StrengthWorkout
+  /**
+   * With `swap`: that exercise in this session's place (a swap) or after its lifts (an added lift),
+   * from the rules: its first session when it has no history (design 10.3), else its own. Null when
+   * `swap` was not given or the runner cannot do the exercise with the saved equipment.
+   */
+  lift: WorkoutLift | null
+}
+
 /** One logged session of the lift's exercise, as the rules read it. */
 export interface EvidenceSession {
   logId: string

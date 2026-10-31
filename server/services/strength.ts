@@ -10,7 +10,7 @@
 // the end of the file (E14-6).
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
-import { isExerciseId } from '../../shared/domain/strengthLibrary.ts'
+import { isExerciseId, type ExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { plannedMinOf } from '../../shared/engine/limits.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -36,6 +36,7 @@ import type {
   PinnedSlot,
   PlanSessionView,
   StrengthBlockView,
+  StrengthDayWorkout,
   StrengthExerciseView,
   StrengthLift,
   StrengthLiftSummary,
@@ -46,6 +47,7 @@ import type {
   StrengthSnapshot,
   StrengthView,
   StrengthWorkout,
+  StrengthWorkoutSource,
 } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
@@ -647,6 +649,65 @@ export async function todayStrengthSlot(
   return workoutFor(strength, sessionRefOf(session))
 }
 
+/**
+ * A session that is no stored session: the maintenance session of the week of `date`, which the
+ * engine gives the template of that week (maintenance outside a block, the taper or a return week
+ * where the plan says so). Its id names nothing in the plan, and the engine counts it as one more
+ * session of its week when it picks A or B.
+ */
+function maintenanceRef(id: string, date: string): StrengthSessionRef {
+  return { id, date, order: 0, durationMin: P.f7.maintenanceSessionMin.value, rules: [] }
+}
+
+/**
+ * `GET /api/strength/workout`: the workout a log made on `date` starts from (design 9.1), derived on
+ * read and written nowhere. The planned strength session of that day when it has one (`sessionId`
+ * names one of several), else the next planned session still to be done from today on, else the
+ * maintenance session of that day's week. With `swap` the answer also carries that exercise as a
+ * lift of the same session through `liftFor` (design 7.3, 10.3): the first session of an exercise
+ * with no history, else its own history. Throws 404 for a `sessionId` that is not a strength
+ * session of the runner's plan on `date`.
+ */
+export async function strengthDayWorkout(
+  deps: SnapshotDeps,
+  args: { userId: string; today: string; date: string; sessionId?: string; swap?: ExerciseId },
+): Promise<StrengthDayWorkout> {
+  const { userId, today, date } = args
+  const [athlete, context] = await Promise.all([
+    loadAthleteContext(deps, { userId, today }),
+    loadStrengthContext(deps, { userId, today }),
+  ])
+  const sessions = strengthSessions(athlete)
+  let source: StrengthWorkoutSource = 'planned'
+  let ref: StrengthSessionRef
+  if (args.sessionId !== undefined) {
+    const named = sessions.find((session) => session.id === args.sessionId && session.date === date)
+    if (named === undefined)
+      throw notFound('That strength session is not in your plan for that day.')
+    ref = sessionRefOf(named)
+  } else {
+    const onDay = sessions.filter((session) => session.date === date)
+    const planned = onDay.find((session) => isToRun(session.status)) ?? onDay[0]
+    const next = sessions.find(
+      (session) => session.date > date && session.date >= today && isToRun(session.status),
+    )
+    if (planned !== undefined) {
+      ref = sessionRefOf(planned)
+    } else if (next !== undefined) {
+      source = 'next-planned'
+      ref = sessionRefOf(next)
+    } else {
+      source = 'maintenance'
+      ref = maintenanceRef(`maintenance-${date}`, date)
+    }
+  }
+  return {
+    source,
+    workout: workoutFor(context, ref),
+    lift: args.swap === undefined ? null : liftFor(context, ref, args.swap),
+  }
+}
+
 function liftSummary(lift: LiftHistory): StrengthLiftSummary {
   return {
     exerciseId: lift.exerciseId,
@@ -754,13 +815,7 @@ async function nextLoads(
   const ref: StrengthSessionRef =
     ahead !== undefined
       ? sessionRefOf(ahead)
-      : {
-          id: log.id,
-          date: addDays(log.date > today ? log.date : today, 1),
-          order: 0,
-          durationMin: P.f7.maintenanceSessionMin.value,
-          rules: [],
-        }
+      : maintenanceRef(log.id, addDays(log.date > today ? log.date : today, 1))
   const seen = new Set<string>()
   const next: StrengthNextLoad[] = []
   for (const set of log.sets) {
