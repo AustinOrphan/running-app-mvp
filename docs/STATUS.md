@@ -1328,7 +1328,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     (ADR 0003) and speeds stay per-session guides. The easy pace is the middle of the Z1 pace range
     of the current zones; with no pace in the zones the recent logged pace stands in ("about N mi
     at your recent pace"); see "Decisions for the owner". Merged as #560 on 2026-10-24.
-18. Done 2026-10-31 in #NNN (task C2; the closing paragraph is the last of this item). Strength
+18. Done 2026-10-31 in #598 (task C2; the closing paragraph is the last of this item). Strength
     programming as the first phase 3b epic (the owner's direction, 2026-10-23): an
     exercise library and session templates by phase from rules H10 and F4 (heavy lifting at 80%
     or more of one-rep max, 2-4 exercises of 3-4 sets of 3-6 reps, calf raises and plyometrics,
@@ -1534,7 +1534,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     what every write of a strength model drops. This closes the test line of follow-up 18. Gates:
     `npm run check` (267 files and 15266 tests), `npm run build` (entry chunk 376.17 kB),
     `npm run test:e2e` (100, twice in a row). Next: task C2.
-    C2 done in #NNN (2026-10-31): the epic is closed. What shipped, by wave: wave 0 (#572) the
+    C2 done in #598 (2026-10-31): the epic is closed. What shipped, by wave: wave 0 (#572) the
     research base, rules F7 to F9 with their Params and ADR 0014; wave 1 (#574, #576) the
     25-exercise catalogue with weights in grams and the copy, and the block anchored in the engine
     with budgets of 40 and 25 minutes; wave 2 (#580, #581) the pure strength engine and the

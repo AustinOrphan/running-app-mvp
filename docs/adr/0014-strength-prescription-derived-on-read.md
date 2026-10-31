@@ -1,6 +1,6 @@
 # 0014. The strength prescription is derived on read from rules, a closed catalogue and the runner's own log
 
-Status: Accepted 2026-10-31 (#NNN)
+Status: Accepted 2026-10-31 (#598)
 
 Builds on ADR 0003, ADR 0005, ADR 0007, ADR 0009, ADR 0010 and ADR 0011. Adds rules F7 to F9 to
 `research/engine-rules.md` and amends E5, F4, F-lib, H5 and H10 there (dated 2026-10-25).
