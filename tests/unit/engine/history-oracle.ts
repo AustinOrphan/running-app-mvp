@@ -23,6 +23,11 @@
 // or their presence where the label moved) differ from the digests before it; the sessions, the
 // weeks and the other warnings are the same.
 //
+// Regenerated 2026-10-31 for the ordinal of the recovery cadence item: its detail read "every 3th
+// week" for a 2:1 cycle and now reads "every 3rd week". In the 26 plans that carry the 2:1 cadence
+// only that text differs (checked by restoring "3th" before the digest: all 142 digests matched),
+// and the owner validation is byte for byte the same.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

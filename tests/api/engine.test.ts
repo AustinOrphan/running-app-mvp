@@ -246,6 +246,27 @@ describe('version-2 plan generation', () => {
     expect(JSON.parse(row.options)).toEqual({ strengthSessions: 0, recoveryCycle: '2:1' })
   })
 
+  test('the plan payload carries the recovery cycle the runner chose, and null when the plan decided it', async () => {
+    const u = await seedUser(ctx, { email: 'cycle@example.com' })
+    await seedHistory(u.id)
+    const goal = await seedGoal(u.id)
+    const api = client(ctx, u)
+
+    const chosen = await api
+      .post('/api/plan/generate')
+      .send({ goalId: goal.id, options: { recoveryCycle: '3:1' } })
+    expect(chosen.status).toBe(201)
+    expect((chosen.body as PlanWithSessions).recoveryCycle).toBe('3:1')
+    expect(((await api.get('/api/plan')).body as PlanWithSessions).recoveryCycle).toBe('3:1')
+
+    // an absent option is stored as absent, so the next regenerate and every re-plan leave it to the plan
+    const decided = await generated(u, goal.id)
+    expect(decided.recoveryCycle).toBeNull()
+    expect(((await api.get('/api/plan')).body as PlanWithSessions).recoveryCycle).toBeNull()
+    const row = await ctx.prisma.plan.findUniqueOrThrow({ where: { id: decided.id } })
+    expect(JSON.parse(row.options)).not.toHaveProperty('recoveryCycle')
+  })
+
   test('generate errors', async () => {
     const u = await seedUser(ctx, { email: 'errors@example.com' })
     await seedHistory(u.id)

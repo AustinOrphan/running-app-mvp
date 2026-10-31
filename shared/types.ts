@@ -26,6 +26,7 @@ import type {
   Prediction,
   Quantity,
   ReadinessSnapshot,
+  RecoveryCycle,
   ResolvedTargets,
   SessionBrief,
   SessionFlag,
@@ -997,6 +998,12 @@ export interface PlanWithSessions extends PlanWithWeeks {
    * recomputes it. Null for a version-1 plan.
    */
   load: LoadPosition | null
+  /**
+   * The recovery cycle the runner chose for the plan [rules E3]. Null when none was chosen, so the
+   * plan decides it (2:1 for a new or low-frequency runner, 3:1 otherwise), and for a version-1
+   * plan. Regenerate starts from it.
+   */
+  recoveryCycle: RecoveryCycle | null
 }
 /** The `details` of the 409 that `POST /api/goals/:id/activate` answers while a plan follows another goal. */
 export interface ActivateRequiresPlan {
