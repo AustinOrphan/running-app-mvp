@@ -516,6 +516,185 @@ describe('the sentences of design 11.6', () => {
   })
 })
 
+describe('the sentences of the logging sheet (design 9.1)', () => {
+  const squat = name('back-squat')
+  const load = { kind: 'load', g: toGrams(110, 'lb') } as const
+
+  it('states the day and the unit the loads are in', () => {
+    const date = { kind: 'date', iso: '2026-03-18', style: 'weekday' } as const
+    expect(say('strength.sheet.date-unit', { date, unit: say('strength.unit.lb') })).toBe(
+      'Wed 18 Mar. Loads are in pounds.',
+    )
+    expect(say('strength.sheet.date-unit', { date, unit: say('strength.unit.kg') })).toBe(
+      'Wed 18 Mar. Loads are in kilograms.',
+    )
+  })
+
+  it('writes the one-line suggestion as design 9.1 does, in the runner’s unit', () => {
+    const slots = {
+      load,
+      sets: countPhrase(4, 'set'),
+      amount: say('strength.sheet.amount-range', { lo: count(3), hi: count(6) }),
+      measure: say('strength.measure.reps'),
+      effort: say('strength.sheet.effort-range', { lo: count(1), hi: count(3) }),
+    }
+    expect(say('strength.sheet.suggested', slots)).toBe(
+      'Suggested 110 lb, four sets of 3 to 6 reps, leave 1 to 3 in reserve.',
+    )
+    expect(say('strength.sheet.suggested', slots, 'kg')).toBe(
+      'Suggested 50 kg, four sets of 3 to 6 reps, leave 1 to 3 in reserve.',
+    )
+  })
+
+  it('has a line for a lift with no load and for one with no effort target', () => {
+    const { load: _load, ...bodyweight } = {
+      load,
+      sets: countPhrase(3, 'set'),
+      amount: say('strength.sheet.amount-range', { lo: count(8), hi: count(15) }),
+      measure: say('strength.measure.reps'),
+      effort: say('strength.sheet.effort-min', { n: count(2) }),
+    }
+    expect(say('strength.sheet.suggested-bodyweight', bodyweight)).toBe(
+      'Suggested three sets of 8 to 15 reps, leave 2 or more in reserve.',
+    )
+    const { effort: _effort, ...plain } = bodyweight
+    expect(say('strength.sheet.suggested-plain-bodyweight', plain)).toBe(
+      'Suggested three sets of 8 to 15 reps.',
+    )
+    expect(
+      say('strength.sheet.suggested-plain', {
+        ...plain,
+        load,
+        amount: say('strength.sheet.amount-one', { n: count(30) }),
+        measure: say('strength.measure.seconds'),
+        sets: countPhrase(1, 'set'),
+      }),
+    ).toBe('Suggested 110 lb, one set of 30 seconds.')
+  })
+
+  it('names the group and the buttons of a stepper as design 11.7 does', () => {
+    expect(
+      say('strength.sheet.stepper-group', {
+        exercise: squat,
+        set: count(2),
+        what: say('strength.measure.load'),
+      }),
+    ).toBe('Back squat, set 2, load')
+    expect(say('strength.sheet.lower-load')).toBe('Lower the load by one step')
+    expect(say('strength.sheet.raise-load')).toBe('Raise the load by one step')
+    expect(
+      say('strength.sheet.raise-count', {
+        measure: say('strength.measure.seconds'),
+        amount: count(5),
+      }),
+    ).toBe('Raise the seconds by 5')
+  })
+
+  it('adds the exercise to a name that several controls share, after the visible words', () => {
+    expect(say('strength.sheet.swap-for', { exercise: squat })).toBe('Swap: Back squat')
+    expect(say('strength.sheet.same-as-last-for', { exercise: squat })).toBe(
+      'Same as last time: Back squat',
+    )
+    expect(say('strength.sheet.always-use-for', { exercise: squat })).toBe(
+      'Always use this: Back squat',
+    )
+    expect(say('strength.sheet.use-usual-for', { exercise: squat })).toBe(
+      'Use the usual load: Back squat',
+    )
+    expect(say('strength.sheet.add-set-for', { exercise: squat })).toBe('Add a set: Back squat')
+    expect(say('strength.sheet.remove-for', { exercise: squat, set: count(3) })).toBe(
+      'Remove: Back squat, set 3',
+    )
+  })
+
+  it('takes the top of the reps-left scale and the bounds of a field as figures, not words', () => {
+    expect(say('strength.sheet.reps-left-hint', { max: count(5) })).toBe(
+      'Reps left in reserve: 5 means 5 or more. Tap a value again to clear it.',
+    )
+    expect(say('strength.sheet.minutes-invalid', { lo: count(1), hi: count(300) })).toBe(
+      'Enter whole minutes from 1 to 300.',
+    )
+    expect(say('strength.sheet.effort-hint', { lo: count(1), hi: count(10) })).toBe(
+      '1 is very easy, 10 is all out. Tap again to clear.',
+    )
+    expect(say('strength.sheet.pain-hint', { lo: count(0), hi: count(10) })).toBe(
+      '0 is none, 10 is the worst. Tap again to clear.',
+    )
+  })
+
+  it('says what a save did, in the words of the outbox when it is kept on the phone', () => {
+    expect(say('strength.sheet.saved')).toBe('Strength log saved.')
+    expect(
+      say('strength.sheet.saved-next', {
+        lines: [
+          say('strength.next.increase', {
+            exercise: squat,
+            load: { kind: 'load', g: toGrams(115, 'lb') },
+          }),
+          say('strength.next.hold', {
+            exercise: name('dumbbell-rdl'),
+            load: { kind: 'load', g: toGrams(40, 'lb') },
+          }),
+        ].join(', '),
+      }),
+    ).toBe(
+      'Strength log saved. Next time: Back squat up to 115 lb, Dumbbell Romanian deadlift stays at 40 lb.',
+    )
+    expect(say('strength.sheet.saved-queued')).toBe(
+      'Strength log saved on this phone. It is sent when a connection returns.',
+    )
+    expect(say('strength.sheet.offline')).toBe(
+      'No connection. Save keeps the sets on this phone and sends them when a connection returns.',
+    )
+    expect(say('strength.sheet.bare-offline')).toBe('Save without sets needs a connection.')
+    expect(say('strength.sheet.not-saved', { reason: 'Use an exercise of the catalogue.' })).toBe(
+      'Strength log not saved. Use an exercise of the catalogue. The sets stay on this phone. Try again.',
+    )
+  })
+
+  it('says each way a load can move for next time', () => {
+    const l = { kind: 'load', g: toGrams(115, 'lb') } as const
+    expect(
+      (['increase', 'hold', 'reduce', 'return', 'start', 'at'] as const).map((change) =>
+        say(`strength.next.${change}`, { exercise: squat, load: l }),
+      ),
+    ).toEqual([
+      'Back squat up to 115 lb',
+      'Back squat stays at 115 lb',
+      'Back squat comes down to 115 lb',
+      'Back squat comes back to 115 lb',
+      'Back squat starts at 115 lb',
+      'Back squat at 115 lb',
+    ])
+    expect(say('strength.next.variation', { exercise: name('goblet-squat') })).toBe(
+      'move on to Goblet squat',
+    )
+    expect(say('strength.next.no-load', { exercise: name('tempo-squat') })).toBe(
+      'Tempo squat with no added load',
+    )
+  })
+
+  it('says why a swapped lift starts light, never that it has no history', () => {
+    expect(say('strength.sheet.swap-start', { exercise: name('leg-press') })).toBe(
+      'Leg press was swapped in for this session, so it starts at the lightest load the equipment makes.',
+    )
+    expect(say('strength.sheet.swap-start-unloaded', { exercise: name('tempo-squat') })).toBe(
+      'Tempo squat was swapped in for this session, so it starts with no added load.',
+    )
+  })
+
+  it('names a measure for each way a set is counted', () => {
+    expect(
+      (['reps', 'seconds', 'contacts'] as const).map((measure) =>
+        say(`strength.measure.${measure}`),
+      ),
+    ).toEqual(['reps', 'seconds', 'contacts'])
+    expect(
+      EXERCISES.map((e) => e.measure).every((m) => ids.includes(`strength.measure.${m}`)),
+    ).toBe(true)
+  })
+})
+
 describe('shared/copy/strengthTemplates.ts', () => {
   /** The source with its comments removed, so a figure in a comment is not counted. */
   const code = readFileSync(
