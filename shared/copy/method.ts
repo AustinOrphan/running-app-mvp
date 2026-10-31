@@ -16,12 +16,13 @@ import {
   type MethodPosition,
   type MethodReason,
 } from '../engine/methods.ts'
-import { allParams } from '../engine/params/index.ts'
+import { allParams, P } from '../engine/params/index.ts'
 import { PRESET_OVERRIDES } from '../engine/params/p-methods.ts'
 import { PRESET_IDS, type Grade, type GoalModel, type PresetId } from '../engine/types.ts'
 import type { Availability, Units } from '../types.ts'
+import { openDayCount } from '../domain/availability.ts'
 import { loadHoldReason } from './load.ts'
-import { numberWord } from './quantity.ts'
+import { countPhrase, numberWord } from './quantity.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const METHOD_TEMPLATES = {
@@ -123,7 +124,7 @@ export const METHOD_TEMPLATES = {
     grade: 'text',
   }),
   'method.fact.own-build': tpl(
-    "The plan's own build phase is {weeks} weeks (grade {grade}), and the base comes before it.",
+    "The plan's own shape builds for up to {weeks} weeks (grade {grade}), after any base.",
     { weeks: 'count', grade: 'text' },
   ),
   'method.fact.own-long': tpl(
@@ -162,9 +163,7 @@ export const presetRule = (preset: PresetId): 'P1' | 'P2' | 'P4' => PRESET_RULES
 const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
 
 /** "three run days": a number of run days in words, from the Param that sets it. */
-function runDaysPhrase(n: number): string {
-  return `${numberWord(n)} run day${n === 1 ? '' : 's'}`
-}
+const runDaysPhrase = (n: number): string => countPhrase(n, 'run day')
 
 const cap = (preset: PresetId): number => effective(preset, 'f5.mastersMaxRunDays')
 const buildWeeks = (preset: PresetId): number => effective(preset, 'macroDesign.buildWeeks')
@@ -267,11 +266,6 @@ export function planShapeOffered(
 /** Why a shape is shown disabled for a goal it is not for. */
 export const planShapeNotFor = (): string => render(T['method.not-for'], {}, UNITS)
 
-/** "You have 5 days open" as the page counts them, the days the runner marked available. */
-export function openDaysOf(availability: Availability): number {
-  return Object.values(availability).filter((day) => day.available).length
-}
-
 const daysOpen = (n: number): string => `${String(n)} ${n === 1 ? 'day' : 'days'}`
 
 /**
@@ -314,7 +308,7 @@ export function planShapeRows(
   return PLAN_SHAPES.map((value) => {
     const offered = planShapeOffered(value, distanceClass)
     const fit =
-      offered && availability !== null ? planShapeFitNote(value, openDaysOf(availability)) : null
+      offered && availability !== null ? planShapeFitNote(value, openDayCount(availability)) : null
     return {
       value,
       label: planShapeLabel(value),
@@ -446,7 +440,11 @@ export function planShapePanelText(method: MethodPosition): PlanShapePanelText {
 // ---------------------------------------------------------------------------------------------
 
 /** The values a shape may override that the drawer states, by the id the Params use. */
-type ValueId = 'f5.mastersMaxRunDays' | 'macroDesign.buildWeeks' | 'macroDesign.longRunShareOfWeek'
+type ValueId =
+  | 'f5.mastersMaxRunDays'
+  | 'macroDesign.buildWeeks'
+  | 'macroDesign.longRunShareOfWeek'
+  | 'macroDesign.longRunShareOfWeekUltra'
 
 /**
  * The grade of the plan's own value of `id`: the Param that carries it, read from the registry, so
@@ -460,7 +458,20 @@ export const overrideGrade = (
   id: 'f5.mastersMaxRunDays' | 'macroDesign.buildWeeks',
 ): Grade => PRESET_OVERRIDES[preset][id]?.grade ?? 'D'
 
-/** The long run's share of the week under every shape: P3 is not offered, so none lowers it. */
-export const longRunShare = (): number => effective('default', 'macroDesign.longRunShareOfWeek')
+/**
+ * The Param that carries the long run's share of the week for a goal: an ultra plan places its own,
+ * larger share (`macro.ts`), and no shape changes either.
+ */
+export const longRunShareId = (ultra: boolean): ValueId =>
+  ultra ? 'macroDesign.longRunShareOfWeekUltra' : 'macroDesign.longRunShareOfWeek'
+
+/**
+ * The long run's share of the week the plan places, under every shape: P3 is not offered, so none
+ * lowers it. An ultra goal reads the ultra Param, as the plan does.
+ */
+export const longRunShare = (ultra: boolean): number =>
+  ultra
+    ? P.macroDesign.longRunShareOfWeekUltra.value
+    : effective('default', 'macroDesign.longRunShareOfWeek')
 
 export { extraBaseWeeks }

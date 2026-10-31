@@ -11,6 +11,7 @@ import {
   defaultGrade,
   extraBaseWeeks,
   longRunShare,
+  longRunShareId,
   methodReasonText,
   overrideGrade,
   planShapeLabel,
@@ -22,6 +23,7 @@ import { STRENGTH_TEMPLATES } from '../copy/strengthTemplates.ts'
 import type { SlotValues } from '../copy/template.ts'
 import type { TEMPLATES, TemplateId } from '../copy/templates.ts'
 import { addDays, daysBetween, isIsoDate, mondayOf } from '../dates.ts'
+import { openDayCount } from '../domain/availability.ts'
 import { exerciseById, isExerciseId } from '../domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type {
@@ -1880,7 +1882,7 @@ function runDayFacts(scope: Scope): InputFact[] {
       ),
     )
   }
-  const available = Object.values(profile.availability).filter((d) => d.available).length
+  const available = openDayCount(profile.availability)
   facts.push(
     make(
       'F5',
@@ -3295,6 +3297,8 @@ const shapeGrade = (rule: ShapeRule, preset: PresetId): InputFact =>
 function ownShapeFacts(scope: Scope): InputFact[] {
   const position = shapeOf(scope.ctx)
   if (position === null) return [gap('P1', 'explain.plan-gap', {})]
+  // an ultra plan places its own, larger share of the week in the long run (macro.ts)
+  const ultra = loadInputOf(scope.ctx).goal.isUltra
   return [
     shapeChoice('P1', 'default', position),
     make('P1', 'own-days', 'method.fact.own-days', {
@@ -3306,8 +3310,8 @@ function ownShapeFacts(scope: Scope): InputFact[] {
       grade: defaultGrade('macroDesign.buildWeeks'),
     }),
     make('P1', 'own-long', 'method.fact.own-long', {
-      share: share(longRunShare()),
-      grade: defaultGrade('macroDesign.longRunShareOfWeek'),
+      share: share(longRunShare(ultra)),
+      grade: defaultGrade(longRunShareId(ultra)),
     }),
     shapeGrade('P1', 'default'),
   ]
@@ -3359,8 +3363,10 @@ const longerBaseFacts = presetFacts('P4', 'longer-base', () => [
  * the plan has.
  */
 function longRunShareFacts(scope: Scope): InputFact[] {
-  if (loadInputOf(scope.ctx).existing === null) return [gap('P3', 'explain.plan-gap', {})]
-  return [make('P3', 'long-run', 'method.fact.long-run', { share: share(longRunShare()) })]
+  const input = loadInputOf(scope.ctx)
+  if (input.existing === null) return [gap('P3', 'explain.plan-gap', {})]
+  const ultra = input.goal.isUltra
+  return [make('P3', 'long-run', 'method.fact.long-run', { share: share(longRunShare(ultra)) })]
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -3702,7 +3708,7 @@ const RACE_RULES: ReadonlySet<string> = new Set(
 /**
  * The rules that read the plan's own options (`ExplainContext.planInput`): the load setting (the
  * ramp, the cap, the start and g-8) and the method preset (F5's run-day cap and D4's long-run
- * share, `methodOf`, and the plan shape of P1, P2 and P4, `shapeOf`).
+ * share, `methodOf`, and the plan shape of P1 to P4, `shapeOf`).
  */
 const LOAD_SETTING_RULES: ReadonlySet<string> = new Set([
   'g-2',
@@ -3713,6 +3719,7 @@ const LOAD_SETTING_RULES: ReadonlySet<string> = new Set([
   'd4',
   'p1',
   'p2',
+  'p3',
   'p4',
 ])
 

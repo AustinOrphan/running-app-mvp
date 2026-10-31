@@ -3,6 +3,7 @@
 // content (structure, targets, purpose) comes from `prescribe` (sessions.ts); this module only
 // decides when and how long.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
+import { isOpenDay } from '../domain/availability.ts'
 import type { AthleteProfile, StrengthOffDay, Weekday } from '../types.ts'
 import { isDisruptedWeek, type DayRule } from './disruption.ts'
 import {
@@ -988,7 +989,7 @@ function planStrength(
 function slotsOf(week: WeekDraft, profile: AthleteProfile, caps: RunCaps[]): Slot[] {
   return WEEKDAYS.map((weekday, day) => {
     const a = profile.availability[weekday]
-    const open = a.available && (a.maxMin === null || a.maxMin > 0)
+    const open = isOpenDay(a)
     const availMin = open ? (a.maxMin ?? Infinity) : 0
     return {
       day,
