@@ -1,7 +1,8 @@
 // Plan report (`npm run plan:report`; evaluation harness, proposal
 // `docs/superpowers/specs/2026-10-31-sources-methods-evaluation-proposal.md` sections 5.1 and 5.5,
-// task H1): the plan metrics of `describePlan` over the twelve matrix athletes, the 150 runners of
-// the history sweep and the 576 rest-window combinations, as Markdown on stdout.
+// task H1): the plan metrics of `describePlan` over the twelve matrix athletes, the same athletes at
+// each method preset (task M5), the 150 runners of the history sweep and the 576 rest-window
+// combinations, as Markdown on stdout.
 //
 // Report only. Nothing here is a target, a limit or a verdict, and it is not part of
 // `npm run check`: it is run by hand at every `PARAMS_VERSION` bump, before and after, and the
@@ -11,24 +12,28 @@
 // itself and never typed here, and the sweeps are stratified by the sweeps' own axes.
 //
 // Deterministic: no clock, no randomness, no run time in the text (the time goes to stderr), so the
-// same input gives the same text and a digest of the matrix section is pinned in
-// `tests/unit/reports/plan-report.test.ts`. Outside the Vitest include. Nothing under `shared/`,
+// same input gives the same text and a digest of the matrix section and of each preset section is
+// pinned in `tests/unit/reports/plan-report.test.ts`. Outside the Vitest include. Nothing under `shared/`,
 // `server/`, `web/` or `scripts/` may import this file (`harness-isolation.test.ts`).
 //
 //   npm run plan:report                 # the whole report
-//   npm run plan:report -- --matrix-only # the matrix, its bands and scorecards, without the sweeps
+//   npm run plan:report -- --matrix-only # the matrix, its bands, scorecards and presets, without the sweeps
 import { pathToFileURL } from 'node:url'
 import { assertCleanCopy } from '../../shared/copy/lint.ts'
 import { daysBetween } from '../../shared/dates.ts'
 import { buildPlan, PARAMS_VERSION } from '../../shared/engine/index.ts'
-import type { EngineInput, PlanDraft } from '../../shared/engine/types.ts'
+import type { MethodPosition } from '../../shared/engine/methods.ts'
+import { NUMERIC_OVERRIDE_IDS, PRESET_OVERRIDES } from '../../shared/engine/params/p-methods.ts'
+import type { EngineInput, PlanDraft, SessionKind } from '../../shared/engine/types.ts'
 import { withWindows } from '../unit/engine/disruption-fixtures.ts'
 import { at } from '../unit/engine/history-fixtures.ts'
 import { POSITIONS, type Position } from '../unit/engine/history-properties.ts'
 import { SWEEP_COUNT, SWEEP_SEED, sweepCases } from '../unit/engine/history-sweep.ts'
 import { athletes, TODAY } from '../unit/engine/matrix-fixtures.ts'
+import { OFFERED, positionOf, withMethod, type Offered } from '../unit/engine/method-fixtures.ts'
 import {
   describePlan,
+  figure,
   type Figure,
   type HeadroomFigure,
   type PlanDescription,
@@ -781,6 +786,230 @@ export function renderMatrixSection(rows: readonly PlanRow[] = matrixRows()): st
   ].join('\n')
 }
 
+// ---------------------------------------------------------------------------------------------
+// Presets: the matrix at each method preset (rules P1 to P4, task M5)
+// ---------------------------------------------------------------------------------------------
+
+/** The sessions the table of quality kinds by phase holds, other than strides [rule F2]. */
+const HARD_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'threshold',
+  'intervals',
+  'race-pace',
+  'hills',
+])
+
+const sessionsOf = (r: PlanRow, kinds: ReadonlySet<SessionKind>): number =>
+  r.plan.sessions.filter((s) => kinds.has(s.kind)).length
+const kindCount = (kind: SessionKind) => (r: PlanRow) => sessionsOf(r, new Set([kind]))
+const weeksIn = (phase: string) => (r: PlanRow) =>
+  r.plan.weeks.filter((w) => w.phase === phase && !w.flags.includes('post-race')).length
+
+/** A figure of the preset tables: the default's value beside the preset's, and the change. */
+interface PresetMetric {
+  head: string
+  /** The `describePlan` figure the value reads, for its grade and rule; null for a count of the plan. */
+  figure: FigureKey | null
+  get: (r: PlanRow) => number | null
+  digits: number
+  /** Shares are printed in points of the week, so a change reads in points. */
+  percent?: boolean
+}
+
+const PRESET_METRICS = {
+  baseWeeks: { head: 'Base weeks', figure: null, get: weeksIn('base'), digits: 0 },
+  buildWeeks: { head: 'Build weeks', figure: null, get: weeksIn('build'), digits: 0 },
+  peakMin: {
+    head: 'Peak min',
+    figure: 'peak',
+    get: (r) => r.d.peak.value?.targetMin ?? null,
+    digits: 0,
+  },
+  runDaysMedian: {
+    head: 'Run days, median',
+    figure: 'runDays',
+    get: (r) => r.d.runDays.value.median,
+    digits: 1,
+  },
+  runDaysMax: {
+    head: 'Run days, max',
+    figure: 'runDays',
+    get: (r) => r.d.runDays.value.max,
+    digits: 0,
+  },
+  longRunMean: {
+    head: 'Long run share, mean',
+    figure: 'longRun',
+    get: (r) => r.d.longRunShare.value.mean,
+    digits: 1,
+    percent: true,
+  },
+  hardSessions: {
+    head: 'Quality sessions other than strides',
+    figure: null,
+    get: (r) => sessionsOf(r, HARD_KINDS),
+    digits: 0,
+  },
+  intervals: { head: 'Interval sessions', figure: null, get: kindCount('intervals'), digits: 0 },
+  hills: { head: 'Hill sessions', figure: null, get: kindCount('hills'), digits: 0 },
+  strides: { head: 'Strides sessions', figure: null, get: kindCount('strides'), digits: 0 },
+  peakLoad: {
+    head: 'Peak planned load',
+    figure: 'load',
+    get: (r) => {
+      const loads = r.d.load.value.map((l) => l.load)
+      return loads.length === 0 ? null : Math.max(...loads)
+    },
+    digits: 0,
+  },
+} satisfies Record<string, PresetMetric>
+
+type PresetMetricKey = keyof typeof PRESET_METRICS
+
+/** The columns of the table of each preset: what the preset changes, then what it holds still. */
+const PRESET_COLUMNS: Record<Offered, readonly PresetMetricKey[]> = {
+  'three-run-days': ['runDaysMedian', 'runDaysMax', 'longRunMean', 'hardSessions', 'peakMin'],
+  'longer-base': [
+    'baseWeeks',
+    'buildWeeks',
+    'hardSessions',
+    'intervals',
+    'hills',
+    'strides',
+    'peakMin',
+    'peakLoad',
+  ],
+}
+
+/** The rule each preset is read under (section (p)). */
+const PRESET_RULE: Record<Offered, string> = { 'three-run-days': 'P2', 'longer-base': 'P4' }
+
+/**
+ * The label of every row of a preset table: the weakest grade and the rule of the numeric overrides
+ * of the preset, read from the registry (`PRESET_OVERRIDES`), and the words of section (p).
+ */
+export function presetLabel(method: Offered): string {
+  const params = NUMERIC_OVERRIDE_IDS.flatMap((id) => PRESET_OVERRIDES[method][id] ?? [])
+  const labelled = figure(null, params)
+  return `${labelled.grade ?? 'D'}, a choice (${labelled.rule ?? PRESET_RULE[method]})`
+}
+
+/** One athlete at the default and at a preset. */
+export interface PresetRow {
+  id: string
+  goal: string
+  /** What the resolver says: the preset that applies, and why it does not when it does not. */
+  position: MethodPosition
+  base: PlanRow
+  preset: PlanRow
+}
+
+/** The twelve athletes at `method`, each beside the same athlete at the default. */
+export function presetRows(
+  method: Offered,
+  defaults: readonly PlanRow[] = matrixRows(),
+): PresetRow[] {
+  return defaults.map((base) => {
+    const input = withMethod(base.input, method)
+    const plan = buildPlan(input)
+    return {
+      id: base.id,
+      goal: base.input.goal.distanceClass,
+      position: positionOf(input, plan),
+      base,
+      preset: rowOf(base.id, base.label, input, plan),
+    }
+  })
+}
+
+const reading = (p: MethodPosition): string =>
+  p.reason === null ? 'applies' : `reads the default (${p.reason})`
+
+function metricHead(key: PresetMetricKey, first: PlanRow): string {
+  const metric: PresetMetric = PRESET_METRICS[key]
+  const unit = metric.percent === true ? ', % and points' : ''
+  const labelled = metric.figure === null ? 'no rule' : label(FIGURES[metric.figure](first.d))
+  return `${metric.head}${unit}, default / preset (change) (${labelled})`
+}
+
+/** The values of a metric, scaled for print: the default's, the preset's and the change. */
+function scaled(key: PresetMetricKey, row: PresetRow): [number, number, number] | null {
+  const metric: PresetMetric = PRESET_METRICS[key]
+  const [before, after] = [metric.get(row.base), metric.get(row.preset)]
+  if (before === null || after === null) return null
+  const k = metric.percent === true ? 100 : 1
+  return [before * k, after * k, (after - before) * k]
+}
+
+const changeText = (n: number, digits: number): string => {
+  const text = fix(n, digits)
+  return n > 0 && text !== fix(0, digits) ? `+${text}` : text
+}
+
+function presetCell(key: PresetMetricKey, row: PresetRow): string {
+  const values = scaled(key, row)
+  if (values === null) return NA
+  const digits = PRESET_METRICS[key].digits
+  return `${fix(values[0], digits)} / ${fix(values[1], digits)} (${changeText(values[2], digits)})`
+}
+
+/** One preset: a row for each athlete, then the median change over the plans it applies to and over the others. */
+export function renderPresetSection(
+  method: Offered,
+  rows: readonly PresetRow[] = presetRows(method),
+): string {
+  const keys = PRESET_COLUMNS[method]
+  const first = rows[0]!.base
+  const tag = presetLabel(method)
+  const stratum = (name: string, members: readonly PresetRow[]): string[] => [
+    `${name} (${members.length} plans): median change, with the range`,
+    '',
+    '',
+    ...keys.map((k) => {
+      const changes = members.map((r) => scaled(k, r)?.[2] ?? null)
+      return spread(changes, (n) => changeText(n, PRESET_METRICS[k].digits))
+    }),
+    tag,
+  ]
+  return [
+    `### ${method}: ${tag}`,
+    '',
+    table(
+      ['Athlete', 'Goal', 'Reading', ...keys.map((k) => metricHead(k, first)), 'Label'],
+      [
+        ...rows.map((r) => [
+          r.id,
+          r.goal,
+          reading(r.position),
+          ...keys.map((k) => presetCell(k, r)),
+          tag,
+        ]),
+        stratum(
+          'Preset applies',
+          rows.filter((r) => r.position.reason === null),
+        ),
+        stratum(
+          'Preset reads the default',
+          rows.filter((r) => r.position.reason !== null),
+        ),
+      ],
+    ),
+  ].join('\n')
+}
+
+/** The matrix at each method preset, the figures beside the default's with the change. */
+export function renderPresetsSection(
+  defaults: readonly PlanRow[] = matrixRows(),
+  methods: readonly Offered[] = OFFERED,
+): string {
+  return [
+    '## Presets: the matrix at each method preset',
+    '',
+    `The twelve athletes of the matrix asked for each preset of section (p) of \`research/engine-rules.md\` (rules P1 to P4; \`options.method\`, task M2). Every preset is grade D, a choice and not a better plan: no study compares the plans these methods describe, so each row carries the label "D, a choice" with the rule of its preset, and no change below is a gain or a loss. A cell reads \`default / preset (change)\`, the change being the preset's figure less the default's. For a runner the preset reads as the default (a goal it does not name, a persistent hold of the load setting, a novice, a plan with no base week of its own) the reading says why and the plan is the default plan, so every change is 0. A preset plans no week above the default's in minutes (rule G6), so the peak week in minutes cannot rise; the planned load weighs the minutes by the kind of session and can move with the kinds. The last two rows are the median change over the plans the preset applies to and over the others. The grade and rule in brackets in a column head are those of the figure, as in the tables above.`,
+    '',
+    methods.map((m) => renderPresetSection(m, presetRows(m, defaults))).join('\n\n'),
+  ].join('\n')
+}
+
 type Metrics = readonly MetricKey[]
 const SHAPE_STRATA: Metrics = ['weeks', 'peakWeeksOut', 'plateauShare', 'medianStep', 'maxStep']
 const COMPOSITION_STRATA: Metrics = [
@@ -946,7 +1175,7 @@ function renderHeader(): string {
     '',
     'Report only. No figure below is a target, a limit or a verdict: it gates, caps and justifies nothing, there is no overall score and no acute:chronic ratio (G-5), and a change that moves a figure still enters through `research-update`. Each figure carries the grade and rule id of the Params it rests on, read from the registry ("no rule": the figure describes the draft and no engine rule rests on it).',
     '',
-    `Params version ${PARAMS_VERSION}. Plans: the twelve athletes of the plan matrix (today ${TODAY}), the runners of the history sweep (seed ${SWEEP_SEED}) and the combinations of the rest-window sweep (seed ${REST_SWEEP_SEED}). The same input gives the same text: no clock and no run time is printed.`,
+    `Params version ${PARAMS_VERSION}. Plans: the twelve athletes of the plan matrix (today ${TODAY}) at the default and at each method preset, the runners of the history sweep (seed ${SWEEP_SEED}) and the combinations of the rest-window sweep (seed ${REST_SWEEP_SEED}). The same input gives the same text: no clock and no run time is printed.`,
     '',
     'Notes',
     '',
@@ -974,7 +1203,8 @@ export function assertReportClean(text: string): void {
 }
 
 export function renderReport(options: ReportOptions = {}): string {
-  const sections = [renderHeader(), renderMatrixSection()]
+  const defaults = matrixRows()
+  const sections = [renderHeader(), renderMatrixSection(defaults), renderPresetsSection(defaults)]
   if (options.matrixOnly !== true) {
     sections.push(
       renderHistorySection(historyRows(options.history)),
