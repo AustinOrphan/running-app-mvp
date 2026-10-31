@@ -1502,6 +1502,37 @@ things stand" gives counts and percentages without a weekly total or a date.
     any exercise with a logged set), each with "No added load". Next: wave 5, task E14-10 in two
     halves (E14-10a: the day-workout read with Swap, the Today setup card, the activity page;
     E14-10b: the Review lines, the count prompt, the notes, the list), then E14-11 and C2.
+    E14-11 done in #595 (2026-10-31): task E14-11 added the strength e2e. `20-strength.spec.ts`
+    (13 cases) covers the flows of spec section 13 that `12-today.spec.ts` leaves out: the setup
+    saved with a barbell and dumbbells from the "Set up strength" card; a change of equipment and of
+    the weight unit, followed by the next workout, Today and the sheet; a session logged as
+    suggested in 3 interactions and one with two changed sets and a reps-left value on each of
+    three lifts in 12, both counted from the click and key events the browser itself makes (the
+    bar of spec 1.4 is met exactly); a load that rises one step after a session at the top of the
+    range with reps left, and one that comes down after a set short of it, with the reason in the
+    Why drawer; the bodyweight path; "Log a session" and "Add a past session" with nothing planned;
+    Swap and Add a lift through the server read; "Add the sets" and "Edit sets" on the activity
+    page; the Today offer to set up strength; and the count prompt after "Not now" (quiet at 27
+    days, back at 28) and after "Plan 1 a week". `06-narrow-viewport.spec.ts` holds the Strength
+    page, the equipment sheet and the logging sheet at 360 px (no horizontal scroll, every control
+    at least 44 px, a set in two lines, Save in view), and `17-offline.spec.ts` a strength log
+    saved with no connection and sent once when it returns. `strengthOnlyToday()` and
+    `serveTallestStrengthDay()` moved to `tests/e2e/helpers.ts`, with the seeding the cases need.
+    Two seeds are worth knowing: a lift that starts on the lightest rung of a 5 lb dumbbell ladder
+    holds there, because one step passes 90% of the estimated maximum (rule F8, as designed), so
+    the case for a rising load gives the lifts starting points; and a plan generated today has a
+    recovery week as its second week, which keeps the load, so that case takes the recovery weeks
+    out first. Nothing under `web/`, `server/`, `shared/` or `prisma/` changed, and every flow was
+    driven by role and label. The stable surface for the later epics: `StrengthView`
+    (`GET /api/strength`) and the derived `StrengthWorkout` (`workoutFor` in
+    `shared/engine/strength.ts`; also Today's `coach.slots.strength`, `GET /api/strength/workouts`
+    and `GET /api/strength/workout`), which an ultra-readiness epic can read, are derived on read
+    from the stored plan and the logs and written nowhere; the routes of `server/routes/strength.ts`
+    (settings, lifts, logs, exercises; the weight unit is `PUT /api/settings`) write the setup and
+    the logs; and `strength.state`, one memo per data version and day, is what the reads share and
+    what every write of a strength model drops. This closes the test line of follow-up 18. Gates:
+    `npm run check` (267 files and 15266 tests), `npm run build` (entry chunk 376.17 kB),
+    `npm run test:e2e` (100, twice in a row). Next: task C2.
 19. Done in #567: the Today disruption presentation, from the owner's feedback of 2026-10-24 on
     Today with an illness window. (a) The band owns the window and the verdict names the day: while
     the illness windows hold the n-3 gate, the payload leaves out the illness note and the illness

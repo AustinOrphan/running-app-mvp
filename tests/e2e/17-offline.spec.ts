@@ -1,14 +1,24 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
-import type { PlanSession } from '../../shared/types.ts'
-import { planWithRunToday, queued, relativeDates, signedInApi, type Api } from './helpers.ts'
+import type { Activity, PlanSession, PlanWithSessions, StrengthView } from '../../shared/types.ts'
+import {
+  planWithRunToday,
+  queued,
+  relativeDates,
+  saveStrengthSetup,
+  signedInApi,
+  strengthOnlyToday,
+  toast,
+  type Api,
+} from './helpers.ts'
 
 // The installed app with no connection (phase 3a design 7.6, ADR 0012): the service worker keeps the
 // shell and the answers Today needs, the page opens with the network off, a check-in tapped there is
-// kept on the phone and sent when the connection returns, and signing out or a 401 empties what the
-// device kept. This is the only spec that lets the worker run: the config blocks service workers
-// everywhere else, because a worker warms caches and spends the shared request budget.
+// kept on the phone and sent when the connection returns (so is a strength log, in the last case),
+// and signing out or a 401 empties what the device kept. This is the only spec that lets the worker
+// run: the config blocks service workers everywhere else, because a worker warms caches and spends
+// the shared request budget.
 //
 // One signed-in page, one plan and serial tests, as in `12-today.spec.ts`: each test continues from
 // the state the one before left (the worker installed, the answers kept).
@@ -274,4 +284,71 @@ test('signing out empties the cache and the queue, and leaves the shell', async 
   const names = await cacheNames()
   expect(names.some((name) => name.startsWith('rl-shell-'))).toBe(true)
   await page.unroute('**/api/checkins/*')
+})
+
+// The last case starts over from an empty log with a plan that holds a strength session today, so
+// it comes after the cases that name the run of `planned`.
+test('a strength log saved with no connection is kept on the phone and sent once when it returns', async () => {
+  const { today } = relativeDates()
+  const session = await strengthOnlyToday(page, origin)
+  await api.put('/settings', { weightUnit: 'lb' })
+  await saveStrengthSetup(api)
+  await page.goto('/')
+  const card = page.getByRole('article', { name: session.title })
+  await expect(card.getByRole('button', { name: 'Log sets' })).toBeVisible()
+  await waitForKeptAnswers()
+
+  // The signal goes after the page has loaded; the page opens again from the phone's copy, and the
+  // sheet needs only what that copy holds: the workout in Today's answer and the weight unit.
+  await page.context().setOffline(true)
+  await page.reload()
+  await expect(card).toBeVisible()
+  await expect(
+    page.getByText(/^Offline\. Showing the session saved at \d{2}:\d{2}\.$/),
+  ).toBeVisible()
+  await card.getByRole('button', { name: 'Log sets' }).click()
+  const sheet = page.getByRole('dialog', { name: /^Strength, / })
+  await expect(sheet.getByText(/Loads are in pounds\.$/)).toBeVisible()
+  await expect(
+    sheet.getByText(
+      'No connection. Save keeps the sets on this phone and sends them when a connection returns.',
+    ),
+  ).toBeVisible()
+  await sheet.getByRole('button', { name: 'As suggested' }).click()
+
+  const sends: number[] = []
+  page.on('response', (response) => {
+    const request = response.request()
+    if (
+      request.method() === 'PUT' &&
+      /^\/api\/strength\/logs\/[\w-]+$/.test(new URL(request.url()).pathname)
+    ) {
+      sends.push(response.status())
+    }
+  })
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(
+    toast(page, 'Strength log saved on this phone. It is sent when a connection returns.'),
+  ).toBeVisible()
+  await expect(sheet).toBeHidden()
+  expect(await queued(page)).toBe(1)
+  // the server has heard nothing of it
+  expect(((await api.get('/strength')) as StrengthView).recent).toHaveLength(0)
+  const before = (await api.get(`/activities?from=${today}&to=${today}`)) as { items: Activity[] }
+  expect(before.items.filter((item) => item.type === 'strength')).toHaveLength(0)
+  expect(sends).toEqual([])
+
+  // The connection returns: the page hears of it, and the outbox sends the log, once.
+  await page.context().setOffline(false)
+  await expect.poll(() => queued(page)).toBe(0)
+  await expect(card.getByText('Completed')).toBeVisible()
+  await expect(page.getByText(/^Offline\./)).toBeHidden()
+  expect(sends).toEqual([201])
+  const view = (await api.get('/strength')) as StrengthView
+  expect(view.recent).toHaveLength(1)
+  expect(view.recent[0]?.sets.length).toBeGreaterThan(0)
+  const after = (await api.get(`/activities?from=${today}&to=${today}`)) as { items: Activity[] }
+  expect(after.items.filter((item) => item.type === 'strength')).toHaveLength(1)
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  expect(plan.sessions.find((item) => item.id === session.id)?.status).toBe('completed')
 })

@@ -1,9 +1,23 @@
+import { randomUUID } from 'node:crypto'
 import { expect, type APIResponse, type Page } from '@playwright/test'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
-import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
+import type {
+  EquipmentConfig,
+  PlanSession,
+  PlanWithSessions,
+  StrengthLogResult,
+  StrengthSet,
+  StrengthSettings,
+  StrengthSnapshot,
+  StrengthView,
+  StrengthWorkout,
+  TodayView,
+  WorkoutLift,
+} from '../../shared/types.ts'
 import { SESSION_COOKIE, signSession } from '../../server/auth/session.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { clearUserData } from '../schemaModels.ts'
+import { lb, makeWorkout, plank, rdl, squat } from '../web/strength-fixtures.ts'
 import { E2E_DATABASE_URL } from './env.ts'
 
 /** Synthetic account shared by every spec. */
@@ -244,4 +258,314 @@ export function queued(page: Page): Promise<number> {
       }
     })
   })
+}
+
+// ---- A strength day (strength design 11.1, 13) ---------------------------------------------------
+
+/**
+ * A plan with strength sessions, and the first of them on today as the day's only session, or, with
+ * `withRun`, beside the first run that is still ahead, moved here too. It starts over from an empty
+ * log (`resetData`) and signs the page in again, because a spec may have signed out before it. The
+ * move is a write through Prisma, as `seedPredictionLogs` does: the plan's own move is guarded by
+ * the rules of F4 and may refuse the day, and the page only ever shows today. The server reads the
+ * change on its next request (`PRAGMA data_version`).
+ */
+export async function strengthOnlyToday(
+  page: Page,
+  origin: string,
+  withRun = false,
+): Promise<PlanSession> {
+  const { today, thisMonday, lastWednesday, raceDate } = relativeDates()
+  await resetData()
+  const api = await signedInApi(page, origin)
+  for (let i = 0; i < 4; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (30 + 5 * i) * 60,
+      distanceM: 5000 + i * 500,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Strength marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 2 })
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const strength = plan.sessions.find((session) => session.kind === 'strength')
+  if (strength === undefined) throw new Error('The plan has no strength session.')
+  const run = withRun
+    ? plan.sessions.find((session) => RUN_KINDS.includes(session.kind) && session.date >= today)
+    : undefined
+  if (withRun && run === undefined) throw new Error('The plan has no run to put beside it.')
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    await prisma.planSession.deleteMany({
+      where: {
+        planId: strength.planId,
+        date: today,
+        NOT: { id: { in: [strength.id, ...(run === undefined ? [] : [run.id])] } },
+      },
+    })
+    for (const moved of [strength, run]) {
+      if (moved === undefined) continue
+      await prisma.planSession.update({
+        where: { id: moved.id },
+        data: { date: today, weekStart: thisMonday },
+      })
+    }
+  } finally {
+    await prisma.$disconnect()
+  }
+  return { ...strength, date: today, weekStart: thisMonday }
+}
+
+/** The request of the Today page, for a route that stands in for the server's answer. */
+const TODAY_REQUEST = '**/api/today'
+
+/**
+ * Serves `GET /api/today` with the tallest strength day: the session's own payload with five rows
+ * (three lifts with long names, the jumps and three trunk movements) on a day of lower readiness,
+ * which adds the line and the switch to the usual load. The fold has to hold for it too. The route
+ * stays until the page calls `unroute('**\/api/today')`.
+ */
+export async function serveTallestStrengthDay(
+  page: Page,
+  session: PlanSession,
+): Promise<StrengthWorkout> {
+  const tallest = makeWorkout({
+    sessionId: session.id,
+    date: session.date,
+    lifts: [
+      squat({
+        sets: 3,
+        targets: [5, 5, 4],
+        loadG: lb(100),
+        usualLoadG: lb(110),
+        change: 'lighter-day',
+      }),
+      rdl({ sets: 2, targets: [6, 6] }),
+      rdl({ exerciseId: 'standing-calf-raise', slot: 'calf', sets: 2, targets: [12, 12] }),
+    ],
+    plyo: { contacts: 60, movements: ['pogo-hop', 'line-hop'] },
+    trunk: [plank(), plank({ exerciseId: 'dead-bug' }), plank({ exerciseId: 'pallof-press' })],
+  })
+  await page.route(TODAY_REQUEST, async (route) => {
+    // The browser revalidates with the tag it holds; a 304 has no body to change.
+    const headers = { ...route.request().headers() }
+    delete headers['if-none-match']
+    const response = await route.fetch({ headers })
+    const view = (await response.json()) as TodayView
+    const slots = { ...view.coach.slots, strength: tallest }
+    await route.fulfill({ response, json: { ...view, coach: { ...view.coach, slots } } })
+  })
+  return tallest
+}
+
+// ---- Seeding the strength setup and its history ------------------------------------------------
+
+/**
+ * The equipment of the strength flows, in grams as the API stores it: a barbell (a 45 lb bar, 5 lb
+ * jumps) and dumbbells from `lightestLb` to 50 lb in 5 lb steps.
+ */
+export function barbellAndDumbbells(lightestLb = 10): EquipmentConfig[] {
+  return [
+    { kind: 'barbell', barG: lb(45), jumpG: lb(5) },
+    { kind: 'dumbbells', loads: { minG: lb(lightestLb), stepG: lb(5), maxG: lb(50) } },
+  ]
+}
+
+/**
+ * Saves the strength setup through `PUT /api/strength/settings` (the weight unit is a setting of
+ * `PUT /api/settings`): the equipment given, a lifting level of "some" and not lifting now, unless
+ * `setup` says otherwise. The first save ends the offer of the setup (`setupSaved`).
+ */
+export async function saveStrengthSetup(
+  api: Api,
+  setup: Partial<Pick<StrengthSettings, 'equipment' | 'level' | 'currentlyLifting'>> = {},
+): Promise<StrengthSettings> {
+  return (await api.put('/strength/settings', {
+    equipment: barbellAndDumbbells(),
+    level: 'some',
+    currentlyLifting: false,
+    ...setup,
+  })) as StrengthSettings
+}
+
+/**
+ * Gives each exercise a starting point through `PUT /api/strength/lifts/:exerciseId`: a maximum the
+ * runner already knows, of `maxLb` pounds. The first load is 70% of it (rule F8.1), so a lift does
+ * not start at the lightest rung of the equipment, where one step is half the load and the 90%
+ * ceiling of the estimated maximum holds it (rule F8, design 10.2).
+ */
+export async function saveStartingPoints(
+  api: Api,
+  exerciseIds: readonly string[],
+  maxLb: number,
+): Promise<void> {
+  for (const exerciseId of exerciseIds) {
+    await api.put(`/strength/lifts/${exerciseId}`, { kind: 'max', loadG: lb(maxLb) })
+  }
+}
+
+/** The workout of the next planned strength session, as the Strength page reads it. */
+export async function nextStrengthWorkout(api: Api): Promise<StrengthWorkout> {
+  const next = ((await api.get('/strength')) as StrengthView).next[0]
+  if (next === undefined) throw new Error('The plan has no strength session still to do.')
+  return next
+}
+
+/** One set to log: the exercise, the load in grams (null for no added load), the count, reps left. */
+export type SeededSet = Pick<StrengthSet, 'exerciseId' | 'loadG' | 'count' | 'rir'>
+
+/**
+ * The sets "As suggested" fills: every set of every lift and trunk movement at the workout's load
+ * and its first target, with the lowest reps left of the range (none for a movement without one).
+ */
+export function suggestedSets(workout: StrengthWorkout): SeededSet[] {
+  return [...workout.lifts, ...workout.trunk].flatMap((lift: WorkoutLift) =>
+    Array.from({ length: lift.sets }, (_, index) => ({
+      exerciseId: lift.exerciseId,
+      loadG: lift.loadG,
+      count: lift.targets[index] ?? lift.range.min,
+      rir: lift.rir?.min ?? null,
+    })),
+  )
+}
+
+/** What the sheet stores in `prescribed`: the lifts of the workout as it showed them. */
+function snapshotOf(workout: StrengthWorkout): StrengthSnapshot {
+  return {
+    template: workout.template,
+    variant: workout.variant,
+    week: workout.block?.week ?? null,
+    mode: 'normal',
+    lifts: [...workout.lifts, ...workout.trunk].map((lift) => ({
+      exerciseId: lift.exerciseId,
+      implement: lift.implement,
+      sets: lift.sets,
+      range: lift.range,
+      rir: lift.rir,
+      baseLoadG: lift.usualLoadG ?? lift.loadG,
+      shownLoadG: lift.loadG,
+      change: lift.change,
+      basis: lift.basis,
+    })),
+  }
+}
+
+/**
+ * Logs a strength session through `PUT /api/strength/logs/:logId`, as the sheet does: the date, a
+ * duration, the snapshot of `workout` and the sets (as suggested unless `sets` is given). The log
+ * links to `sessionId` when one is named, and is for no planned session otherwise.
+ */
+export async function logStrengthSession(
+  api: Api,
+  workout: StrengthWorkout,
+  options: {
+    date: string
+    sessionId?: string
+    sets?: readonly SeededSet[]
+    durationMin?: number
+    logId?: string
+  },
+): Promise<StrengthLogResult> {
+  const logId = options.logId ?? randomUUID()
+  return (await api.put(`/strength/logs/${logId}`, {
+    date: options.date,
+    ...(options.sessionId === undefined ? {} : { sessionId: options.sessionId }),
+    durationMin: options.durationMin ?? workout.budgetMin,
+    prescribed: snapshotOf(workout),
+    sets: [...(options.sets ?? suggestedSets(workout))],
+  })) as StrengthLogResult
+}
+
+/**
+ * Takes the running recovery weeks (rule E3) out of the active plan, so that a strength session
+ * after the one just logged is a session that moves the load. A plan generated today has a recovery
+ * week as its second week, and a recovery week keeps the load (strength design 10.4), so whether
+ * the next session after today's rises depends on the weekday the suite runs on. A write straight
+ * to the tables, as `strengthOnlyToday` makes: the plan has no way to say it. The account and the
+ * plan must exist.
+ */
+export async function withoutRecoveryWeeks(): Promise<void> {
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
+    const weeks = await prisma.planWeek.findMany({
+      where: { plan: { userId: user.id, status: 'active' } },
+    })
+    for (const week of weeks) {
+      const flags = (JSON.parse(week.flags) as string[]).filter((flag) => flag !== 'recovery')
+      await prisma.planWeek.update({
+        where: { id: week.id },
+        data: { isRecovery: false, flags: JSON.stringify(flags) },
+      })
+    }
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
+/** The `target` JSON text of a session row: the plan reads it, nothing here depends on it. */
+const SEEDED_TARGET = JSON.stringify({
+  zone: 'z1',
+  rpe: [2, 3],
+  hr: null,
+  paceSecPerKm: null,
+  heatNote: null,
+})
+
+/**
+ * Gives the active plan two strength sessions (Tuesday and Friday) in each of the `weeks` finished
+ * weeks before this one that were never logged, and none in this week: the history the count
+ * prompt reads (strength design 12.4, `f9.countPromptWeeks` finished weeks with fewer sessions
+ * logged than planned). The plan starts on the day it is generated, so no real plan has a past week
+ * and the API has no way to make one; the rows are written straight to the tables, as
+ * `seedPredictionLogs` does. Sessions of this week are taken out so that the plan's count for the
+ * latest week is two whatever day of the week the suite runs on. The account and the plan must
+ * exist, so call this after `strengthOnlyToday()`.
+ */
+export async function seedUnloggedStrengthWeeks(weeks = 3): Promise<void> {
+  const { thisMonday } = relativeDates()
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
+    const plan = await prisma.plan.findFirstOrThrow({
+      where: { userId: user.id, status: 'active' },
+    })
+    await prisma.planSession.deleteMany({
+      where: { planId: plan.id, kind: 'strength', date: { lt: addDays(thisMonday, 7) } },
+    })
+    for (let back = 1; back <= weeks; back += 1) {
+      const weekStart = addDays(thisMonday, -7 * back)
+      for (const [order, offset] of [1, 4].entries()) {
+        await prisma.planSession.create({
+          data: {
+            planId: plan.id,
+            externalId: randomUUID(),
+            weekStart,
+            date: addDays(weekStart, offset),
+            order,
+            kind: 'strength',
+            title: 'Strength',
+            durationMin: 40,
+            structure: '[]',
+            target: SEEDED_TARGET,
+            purpose: 'Synthetic.',
+            rules: JSON.stringify(['F-lib', 'F4', 'E5', 'F7']),
+            status: 'planned',
+          },
+        })
+      }
+    }
+  } finally {
+    await prisma.$disconnect()
+  }
 }

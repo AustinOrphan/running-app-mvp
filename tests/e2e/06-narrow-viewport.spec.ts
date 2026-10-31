@@ -1,9 +1,17 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import type { PlanSession, PlanWithSessions, WristItem, WristStatus } from '../../shared/types.ts'
 import { publishable } from '../../shared/workouts/labels.ts'
-import { relativeDates, resetData, signedInApi } from './helpers.ts'
+import {
+  logStrengthSession,
+  nextStrengthWorkout,
+  relativeDates,
+  resetData,
+  saveStrengthSetup,
+  signedInApi,
+  strengthOnlyToday,
+} from './helpers.ts'
 
 // A phone-width viewport: nothing may be clipped out of reach or push the page sideways.
 // One shared signed-in page keeps the specs within the login limiter's 10 attempts per window.
@@ -790,6 +798,151 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
     expect((box?.y ?? 0) + (box?.height ?? 0), `${name} bottom edge`).toBeLessThanOrEqual(height)
     expect(await isUncovered(button), name).toBe(true)
   }
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+})
+
+/**
+ * What sticks out past `limit` pixels from the left edge inside `root`, as element and text, leaving
+ * out a table that scrolls inside its own box (a region with a tab stop).
+ */
+async function pastRightEdge(root: Locator, limit: number): Promise<string[]> {
+  return root.evaluate(
+    (el, edge) =>
+      [...el.querySelectorAll('*')]
+        .filter((node) => {
+          if (node.closest('[role="region"][tabindex="0"]') !== null) return false
+          const box = node.getBoundingClientRect()
+          return box.width > 0 && box.right > edge + 0.5
+        })
+        .map((node) => `${node.tagName.toLowerCase()} "${node.textContent.slice(0, 40)}"`),
+    limit,
+  )
+}
+
+/**
+ * The controls of `root` that are on the page and smaller than 44 px either way, by name and size.
+ * A checkbox is measured by the label that holds it, because the label is what the finger meets.
+ */
+async function controlsUnder44(root: Locator): Promise<string[]> {
+  return root.evaluate((el) => {
+    const small: string[] = []
+    const selector = 'button, a[href], input, select, textarea, [role="radio"]'
+    for (const node of el.querySelectorAll(selector)) {
+      if (node instanceof HTMLInputElement && node.type === 'hidden') continue
+      const target =
+        node instanceof HTMLInputElement && (node.type === 'checkbox' || node.type === 'radio')
+          ? (node.closest('label') ?? node)
+          : node
+      const box = target.getBoundingClientRect()
+      if (box.width === 0 || box.height === 0) continue
+      if (box.width < 43.5 || box.height < 43.5) {
+        const name = node.getAttribute('aria-label') ?? node.textContent.trim()
+        small.push(
+          `${node.tagName.toLowerCase()} "${name.slice(0, 40)}" ${String(Math.round(box.width))} x ${String(Math.round(box.height))}`,
+        )
+      }
+    }
+    return small
+  })
+}
+
+test('the Strength page and its setup and logging sheets fit 360 px with every control 44 px', async ({
+  baseURL,
+}) => {
+  const { today } = relativeDates()
+  await strengthOnlyToday(page, baseURL ?? '')
+  await api.put('/settings', { weightUnit: 'lb' })
+  await saveStrengthSetup(api)
+  // one session already logged, so that the page holds every section it has: the lifts, the
+  // history of a lift and a recent session, beside the next session
+  const logged = await nextStrengthWorkout(api)
+  await logStrengthSession(api, logged, { date: today, sessionId: logged.sessionId })
+
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/strength')
+  await expect(page.getByRole('heading', { name: 'Strength', level: 1 })).toBeVisible()
+  const next = page.getByRole('region', { name: 'Next session' })
+  await expect(next.getByRole('button', { name: 'Log sets' })).toBeVisible()
+  await page
+    .getByRole('region', { name: 'Lifts' })
+    .getByRole('button', { name: 'History of Goblet squat' })
+    .click()
+  await expect(
+    page.getByRole('region', { name: 'History of Goblet squat', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Recent sessions' })).toBeVisible()
+
+  // the page: nothing pushes it sideways, and every control is a 44 px target
+  expect(await pageOverflow(), 'the page').toBeLessThanOrEqual(0)
+  expect(await pastRightEdge(page.getByRole('main'), 360), 'page past the right edge').toEqual([])
+  expect(await controlsUnder44(page.getByRole('main')), 'page controls under 44 px').toEqual([])
+
+  // the setup sheet at its tallest: every kind of equipment ticked, so every field is on show
+  await page.getByRole('button', { name: 'Edit equipment' }).click()
+  const setup = page.getByRole('dialog', { name: 'Equipment' })
+  await expect(setup).toBeVisible()
+  await setup.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  for (const kind of ['Kettlebells', 'Bands', 'A step or box', 'Leg press', 'Calf raise machine']) {
+    await setup.getByRole('checkbox', { name: kind }).check()
+  }
+  await setup.getByRole('checkbox', { name: 'Leg curl machine' }).check()
+  expect(await pageOverflow(), 'the page with the setup sheet open').toBeLessThanOrEqual(0)
+  expect(
+    await setup.evaluate((el) => el.scrollWidth - el.clientWidth),
+    'the setup sheet',
+  ).toBeLessThanOrEqual(0)
+  expect(await pastRightEdge(setup, 360), 'setup sheet past the right edge').toEqual([])
+  expect(await controlsUnder44(setup), 'setup sheet controls under 44 px').toEqual([])
+  const save = setup.getByRole('button', { name: 'Save', exact: true })
+  await save.scrollIntoViewIfNeeded()
+  const saveBox = await save.boundingBox()
+  expect((saveBox?.y ?? 0) + (saveBox?.height ?? 0), 'Save bottom edge').toBeLessThanOrEqual(740)
+  expect(await isUncovered(save), 'Save').toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(setup).toBeHidden()
+
+  // the logging sheet filled as suggested: the steppers and the scales, the footer and Save
+  await next.getByRole('button', { name: 'Log sets' }).click()
+  const sheet = page.getByRole('dialog', { name: /^Strength, / })
+  await expect(sheet.getByRole('button', { name: 'As suggested' })).toBeVisible()
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  await sheet.getByRole('button', { name: 'As suggested' }).click()
+  await sheet.getByRole('button', { name: 'More details' }).click()
+  expect(await pageOverflow(), 'the page with the logging sheet open').toBeLessThanOrEqual(0)
+  expect(
+    await sheet.evaluate((el) => el.scrollWidth - el.clientWidth),
+    'the logging sheet',
+  ).toBeLessThanOrEqual(0)
+  expect(await pastRightEdge(sheet, 360), 'logging sheet past the right edge').toEqual([])
+  expect(await controlsUnder44(sheet), 'logging sheet controls under 44 px').toEqual([])
+
+  // a set is two lines: the load and the reps side by side, then the reps left under them
+  const squat = sheet.getByRole('region', { name: 'Goblet squat', exact: true })
+  const load = await squat.getByRole('group', { name: 'Goblet squat, set 1, load' }).boundingBox()
+  const reps = await squat
+    .getByRole('group', { name: 'Goblet squat, set 1, reps', exact: true })
+    .boundingBox()
+  const left = await squat
+    .getByRole('group', { name: 'Goblet squat, set 1, reps left' })
+    .boundingBox()
+  expect(Math.abs((load?.y ?? -100) - (reps?.y ?? 100)), 'load and reps share a line').toBeLessThan(
+    2,
+  )
+  expect(left?.y ?? 0, 'reps left under them').toBeGreaterThanOrEqual(
+    (load?.y ?? 0) + (load?.height ?? 0) - 1,
+  )
+
+  // the footer: Save is pinned in view at the top of the sheet and again at the end of it
+  const pinned = sheet.getByRole('button', { name: 'Save', exact: true })
+  const pinnedBox = await pinned.boundingBox()
+  expect(pinnedBox, 'Save').not.toBeNull()
+  expect((pinnedBox?.y ?? 0) + (pinnedBox?.height ?? 0), 'Save bottom edge').toBeLessThanOrEqual(
+    740,
+  )
+  expect(await isUncovered(pinned), 'Save').toBe(true)
+  await sheet.getByRole('textbox', { name: 'Note' }).scrollIntoViewIfNeeded()
+  expect(await isUncovered(pinned), 'Save at the end of the sheet').toBe(true)
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
 })
