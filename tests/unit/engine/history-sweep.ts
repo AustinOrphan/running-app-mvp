@@ -8,6 +8,10 @@ import { mulberry32 } from './disruption-fixtures.ts'
 import { goal as halfGoal } from './e8-fixtures.ts'
 import { HISTORY_TODAY, hundredMile, scenario, week, type Run } from './history-fixtures.ts'
 
+/** The sample of the sweep tests and of the plan report (`tests/reports/plan-report.ts`). */
+export const SWEEP_SEED = 20_261_025
+export const SWEEP_COUNT = 150
+
 /** One synthetic runner of the sweep. */
 export interface SweepCase {
   name: string
