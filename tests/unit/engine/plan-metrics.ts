@@ -276,8 +276,12 @@ export interface PlanDescription {
 
 const GRADES_BEST_FIRST: readonly Grade[] = ['A', 'B', 'C', 'D']
 
-/** Wraps `value` with the weakest grade and the rule ids of `params`; no params, no label. */
-function figure<T>(value: T, params: ReadonlyArray<Param<unknown>> = []): Figure<T> {
+/**
+ * Wraps `value` with the weakest grade and the rule ids of `params`; no params, no label. Exported
+ * for the simulator's scorer (`sim-athlete.ts`), so every figure of the harness is labelled the
+ * same way.
+ */
+export function figure<T>(value: T, params: ReadonlyArray<Param<unknown>> = []): Figure<T> {
   if (params.length === 0) return { value, grade: null, rule: null }
   const grade = params
     .map((p) => p.grade)
