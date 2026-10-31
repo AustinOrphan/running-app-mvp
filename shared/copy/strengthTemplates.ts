@@ -245,6 +245,21 @@ export const STRENGTH_TEMPLATES = {
   ),
   'strength.session.unavailable': tpl('The workout could not be loaded.'),
 
+  // ---- The Profile (design 11.2) ---------------------------------------------------------------
+  // `sessions` reads "two strength sessions" (`flib.strengthPerWeek`), `time` is the budget of a
+  // block session (`f7.blockSessionMin`) and `hours` the gap of rule F4.
+  'strength.profile.count': tpl(
+    'The plan asks for at most {sessions} a week, each up to about {time}.',
+    {
+      sessions: 'text',
+      time: 'minutes',
+    },
+  ),
+  'strength.profile.double': tpl(
+    'A double is a lift and an easy run on one day, at least {hours} hours apart.',
+    { hours: 'count' },
+  ),
+
   // ---- Where a session stands in the block (design 8.1, 9.1, 11.3) ------------------------------
   'strength.heading': tpl(
     'Strength, {template} {variant}',
