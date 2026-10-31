@@ -9,11 +9,21 @@ import { EXPLAIN_CHECKIN_DAYS, EXPLAIN_MAX_SOURCES } from '../copy/limits.ts'
 import { loadHoldReason, loadName, stepPercent } from '../copy/load.ts'
 import { countPhrase } from '../copy/quantity.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
+import { STRENGTH_TEMPLATES } from '../copy/strengthTemplates.ts'
 import type { SlotValues } from '../copy/template.ts'
 import type { TEMPLATES, TemplateId } from '../copy/templates.ts'
 import { addDays, daysBetween, isIsoDate, mondayOf } from '../dates.ts'
+import { exerciseById, isExerciseId } from '../domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
-import type { Activity, DisruptionReason, Goal } from '../types.ts'
+import type {
+  Activity,
+  DisruptionReason,
+  EquipmentKind,
+  Goal,
+  StrengthTemplate,
+  StrengthWorkout,
+  WorkoutLift,
+} from '../types.ts'
 import { afterBreak, breakRestart, weekEvidence } from './adapt.ts'
 import { bmiOf, csEffortsOf, durabilityRuns, efficiencySamples, hrAnchors } from './athlete.ts'
 import type { HrModel } from './execution.ts'
@@ -35,7 +45,14 @@ import {
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
 import { blockLiftMin, loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
-import { cycleShortReason, cycleWorkWeeks, startLift, startPath, taperDays } from './macro.ts'
+import {
+  cycleShortReason,
+  cycleWorkWeeks,
+  startLift,
+  startPath,
+  strengthBlockPosition,
+  taperDays,
+} from './macro.ts'
 import { P } from './params/index.ts'
 import { ownHoldReasons, postRaceWindows } from './postRace.ts'
 import { rangeLabel } from './predict.ts'
@@ -48,6 +65,7 @@ import {
   sleepAverageH,
 } from './readiness.ts'
 import { isLoadingWeek, rungCount } from './startWeeks.ts'
+import { liftFor, percentOfMax, workoutFor } from './strength.ts'
 import { resolveTargets } from './targets.ts'
 import type {
   AthleteState,
@@ -65,6 +83,8 @@ import type {
   Quantity,
   ReadinessSnapshot,
   SourceRef,
+  StrengthContext,
+  StrengthSessionRef,
   WeekDraft,
   WeeklyDecision,
   ZoneSet,
@@ -107,13 +127,21 @@ export interface ExplainContext {
    * without a goal. `input.goal` is a neutral stand-in for reads about the athlete.
    */
   race: GoalModel | null
+  /**
+   * What the strength engine reads (`loadStrengthContext`), for the rules F7 to F9: the saved
+   * setup, the logs, the stored plan's weeks and the readiness read of the day. Absent or null
+   * when the request has no use for it (`explainNeeds`); those builders then say what they need.
+   */
+  strength?: StrengthContext | null
 }
 
 /** What a builder reads besides the context. */
 interface Scope {
   readonly ctx: ExplainContext
-  /** The session being explained, for a session request. */
+  /** The session being explained, for a session or a strength request. */
   readonly session: SessionRow | null
+  /** The exercise a strength request opened on (a lift's "Why"); null for the session as a whole. */
+  readonly exercise: string | null
   /** The week the ramp starts from and the weekly decision is about (a Monday). */
   readonly last: string
   /** The week they lead to (a Monday). */
@@ -149,6 +177,7 @@ const climb = (m: number): Q<'climb'> => ({ kind: 'climb', m })
 const duration = (sec: number): Q<'duration'> => ({ kind: 'duration', sec: Math.round(sec) })
 const pace = (secPerKm: number): Q<'pace'> => ({ kind: 'pace', secPerKm })
 const speed = (kmh: number): Q<'speed'> => ({ kind: 'speed', kmh })
+const loadOf = (g: number): Q<'load'> => ({ kind: 'load', g })
 const temp = (c: number): Q<'temp'> => ({ kind: 'temp', c })
 const day = (iso: string): Q<'date'> => ({ kind: 'date', iso, style: 'weekday' })
 const weekOf = (iso: string): Q<'date'> => ({ kind: 'date', iso, style: 'short' })
@@ -167,6 +196,30 @@ function listed(sources: readonly SourceRef[]): { sources: SourceRef[]; moreSour
   }
 }
 
+/**
+ * One fact from a template id and slots that something else already checked: the reasons of a
+ * strength suggestion are built by the engine (`fact` in `strength.ts`, typed there) and stored on
+ * the workout as data, and a test renders each of them.
+ */
+function rawFact(
+  rule: string,
+  name: string,
+  template: string,
+  slots: Readonly<Record<string, Quantity | string>>,
+  extras: FactExtras = {},
+): InputFact {
+  const fact: InputFact = {
+    id: `${rule.toLowerCase()}.${name}`,
+    template,
+    slots: { ...slots },
+    rule,
+    ...listed(extras.sources ?? []),
+    state: extras.insufficient === true ? 'insufficient' : 'used',
+  }
+  if (extras.window !== undefined) fact.window = { ...extras.window }
+  return fact
+}
+
 /** One fact. `name` makes the id unique within the rule; `slots` are checked against the template. */
 function make<K extends TemplateId>(
   rule: string,
@@ -175,16 +228,7 @@ function make<K extends TemplateId>(
   slots: SlotsOf<K>,
   extras: FactExtras = {},
 ): InputFact {
-  const fact: InputFact = {
-    id: `${rule.toLowerCase()}.${name}`,
-    template,
-    slots: { ...(slots as Record<string, Quantity | string>) },
-    rule,
-    ...listed(extras.sources ?? []),
-    state: extras.insufficient === true ? 'insufficient' : 'used',
-  }
-  if (extras.window !== undefined) fact.window = { ...extras.window }
-  return fact
+  return rawFact(rule, name, template, slots, extras)
 }
 
 /** A gap sentence for `rule`: the data it needs is missing. */
@@ -2674,8 +2718,16 @@ function fuelBlockFacts(scope: Scope): InputFact[] {
   ]
 }
 
+/**
+ * H10, the ultra rule for strength: the plan's strength sessions in the week, the block week and
+ * what the profile asks for. The rule is in force for an ultra goal only (the sessions of any other
+ * goal cite E5 and F7), so another goal has nothing for it to state, as with H2.
+ */
 function strengthFacts(scope: Scope): InputFact[] {
   const { ctx, next } = scope
+  const { race } = ctx
+  if (race === null) return noGoal('H10')
+  if (!race.isUltra) return []
   const facts: InputFact[] = []
   const week = plannedWeek(ctx, next)
   if (week !== null) {
@@ -2687,6 +2739,24 @@ function strengthFacts(scope: Scope): InputFact[] {
         { week: weekOf(next), n: count(week.strengthSessions) },
         { window: weekWindow(next) },
       ),
+    )
+    const at = strengthBlockPosition(planWeeks(ctx), next)
+    facts.push(
+      at === null
+        ? make(
+            'H10',
+            'block',
+            'explain.h10-outside',
+            { week: weekOf(next) },
+            { window: weekWindow(next) },
+          )
+        : make(
+            'H10',
+            'block',
+            'explain.h10-block',
+            { week: weekOf(next), k: count(at.week), n: count(at.of) },
+            { window: weekWindow(next) },
+          ),
     )
   }
   const wanted = ctx.input.profile.strengthPreference
@@ -2702,6 +2772,360 @@ function strengthFacts(scope: Scope): InputFact[] {
     )
   }
   if (week === null) facts.push(gap('H10', 'explain.plan-gap', {}))
+  return facts
+}
+
+// ---------------------------------------------------------------------------------------------
+// F7 to F9: a strength session, its loads and its lighter days (strength design 10.5, ADR 0014)
+// ---------------------------------------------------------------------------------------------
+
+/** What a strength request reads: the engine's input, the session and the one workout it derives. */
+interface StrengthRead {
+  ctx: StrengthContext
+  ref: StrengthSessionRef
+  workout: StrengthWorkout
+}
+
+/** A planned session as the strength engine reads it. */
+const strengthRef = (session: SessionRow): StrengthSessionRef => ({
+  id: session.id,
+  date: session.date,
+  order: session.order,
+  durationMin: session.durationMin,
+  rules: session.rules,
+})
+
+const strengthReads = new WeakMap<Scope, StrengthRead | null>()
+
+/**
+ * The workout of the session being explained, derived by the same `workoutFor` that every surface
+ * calls, so a reason cannot differ from the load beside it. Null without the strength input or
+ * without a strength session of the plan; each builder then says what it needs.
+ */
+function strengthRead(scope: Scope): StrengthRead | null {
+  if (strengthReads.has(scope)) return strengthReads.get(scope) ?? null
+  const { strength } = scope.ctx
+  const { session } = scope
+  let read: StrengthRead | null = null
+  if (
+    strength !== undefined &&
+    strength !== null &&
+    session !== null &&
+    session.kind === 'strength'
+  ) {
+    const ref = strengthRef(session)
+    read = { ctx: strength, ref, workout: workoutFor(strength, ref) }
+  }
+  strengthReads.set(scope, read)
+  return read
+}
+
+/**
+ * The lifts a strength request is about: the one a lift's "Why" opened on (in the workout, else as
+ * the rules would give it in this session's place, for a swapped or an added lift), or the lifts of
+ * the session. A jump or an exercise the runner cannot do has no load to explain.
+ */
+function explainedLifts(
+  strength: StrengthContext,
+  ref: StrengthSessionRef,
+  workout: StrengthWorkout,
+  exercise: string | null,
+): WorkoutLift[] {
+  if (exercise === null) return workout.lifts
+  const own = [...workout.lifts, ...workout.trunk].find((lift) => lift.exerciseId === exercise)
+  if (own !== undefined) return [own]
+  const other = isExerciseId(exercise) ? liftFor(strength, ref, exercise) : null
+  return other === null ? [] : [other]
+}
+
+const liftsToExplain = (scope: Scope, read: StrengthRead): WorkoutLift[] =>
+  explainedLifts(read.ctx, read.ref, read.workout, scope.exercise)
+
+const exerciseName = (id: string): string => {
+  const exercise = exerciseById(id)
+  return exercise === undefined ? id : STRENGTH_TEMPLATES[exercise.name].text
+}
+
+const templateWord = (template: StrengthTemplate): string =>
+  STRENGTH_TEMPLATES[`strength.template.${template}`].text
+
+/** What a load is for, in words ("a barbell"); an exhaustive map, so a new item needs its words. */
+export const EQUIPMENT_WORDS: Readonly<Record<EquipmentKind, string>> = {
+  barbell: 'a barbell',
+  dumbbells: 'dumbbells',
+  kettlebells: 'a kettlebell',
+  bands: 'a band',
+  step: 'a step',
+  'leg-press': 'the leg press',
+  'calf-machine': 'the calf machine',
+  'leg-curl': 'the leg curl machine',
+}
+
+/**
+ * The reasons of the engine that belong to F9 (lighter days and weeks, the taper, maintenance); the
+ * other reasons of a lift are F8's (a first load, a step, a hold, a gap).
+ */
+const F9_REASONS: ReadonlySet<string> = new Set([
+  'strength.reason.lighter-day',
+  'strength.reason.lighter-day-sets',
+  'strength.reason.lighter-day-load',
+  'strength.reason.lighter-week',
+  'strength.reason.taper',
+  'strength.reason.maintenance',
+])
+
+/** The log of a session the rules read, as a source: the activity page shows its sets. */
+function logSource(read: StrengthRead, logId: string, date: string): SourceRef[] {
+  const activityId = read.ctx.logs.find((entry) => entry.id === logId)?.activityId
+  return activityId === undefined
+    ? []
+    : [{ kind: 'activity', id: activityId, date, label: 'Strength' }]
+}
+
+/** F7: the block week, the template and what sets it, the equipment of a lift and the jump dose. */
+function strengthStructureFacts(scope: Scope): InputFact[] {
+  const read = strengthRead(scope)
+  if (read === null) return [gap('F7', 'explain.f7-gap', {})]
+  const { ctx, workout } = read
+  const facts: InputFact[] = []
+  if (!workout.setupSaved) facts.push(gap('F7', 'explain.f7-no-setup', {}))
+
+  const { block } = workout
+  if (block === null) {
+    facts.push(make('F7', 'block', 'explain.f7-outside', {}))
+  } else if (block.rampInWeeks === 0) {
+    facts.push(
+      make('F7', 'block', 'explain.f7-block-credit', {
+        week: count(block.week),
+        of: count(block.of),
+        weeks: count(P.f7.blockCreditWeeks.value),
+      }),
+    )
+  } else {
+    facts.push(
+      make('F7', 'block', 'explain.f7-block', {
+        week: count(block.week),
+        of: count(block.of),
+        ramp: countPhrase(block.rampInWeeks, 'week'),
+      }),
+    )
+  }
+  facts.push(
+    make('F7', 'template', 'explain.f7-template', {
+      template: templateWord(workout.template),
+      variant: workout.variant,
+    }),
+  )
+  if (workout.template === 'lighter-week') {
+    facts.push(make('F7', 'why', 'explain.f7-why-lighter-week', {}))
+  }
+  if (workout.template === 'taper') facts.push(make('F7', 'why', 'explain.f7-why-taper', {}))
+  if (workout.template === 'return') facts.push(make('F7', 'why', 'explain.f7-why-return', {}))
+
+  for (const lift of liftsToExplain(scope, read)) {
+    const exercise = exerciseName(lift.exerciseId)
+    facts.push(
+      lift.implement === null
+        ? make('F7', `bodyweight-${lift.exerciseId}`, 'explain.f7-bodyweight', { exercise })
+        : make('F7', `equipment-${lift.exerciseId}`, 'explain.f7-equipment', {
+            exercise,
+            equipment: EQUIPMENT_WORDS[lift.implement],
+          }),
+    )
+  }
+
+  if (workout.plyo !== null) {
+    facts.push(make('F7', 'plyo', 'explain.f7-plyo', { contacts: count(workout.plyo.contacts) }))
+    const cut = share(P.f7.reducedPlyoShare.value)
+    const pace = ctx.goal.paceKmh
+    if (pace !== null && pace > P.flib.plyoEmphasisPaceKmh.value) {
+      facts.push(
+        make('F7', 'plyo-pace', 'explain.f7-plyo-pace', {
+          pace: speed(P.flib.plyoEmphasisPaceKmh.value),
+          share: cut,
+        }),
+      )
+    }
+    if (ctx.athlete.risk.priorBsi) {
+      facts.push(make('F7', 'plyo-bsi', 'explain.f7-plyo-bsi', { share: cut }))
+    }
+    if (ctx.athlete.risk.recentInjury) {
+      facts.push(
+        make('F7', 'plyo-injury', 'explain.f7-plyo-injury', {
+          months: count(P.a9.recentInjuryWindowMonths.value),
+          share: cut,
+        }),
+      )
+    }
+    const week = ctx.weeks.find((w) => w.weekStart === mondayOf(read.ref.date))
+    const recovery =
+      week !== undefined &&
+      workout.block !== null &&
+      workout.template !== 'return' &&
+      (week.isRecovery || week.flags.includes('recovery'))
+    if (recovery) facts.push(make('F7', 'plyo-lighter', 'explain.f7-plyo-lighter', { share: cut }))
+  }
+  return facts
+}
+
+/**
+ * F8: for each lift, its last session and the reasons the rules gave for its load (a first load, a
+ * step up, a hold, a step down, a return, a move to a harder movement), and the share of the
+ * estimated maximum the load is once there is an estimate. The reasons are the lift's own `basis`,
+ * so they are the ones that made the number.
+ */
+function strengthLoadFacts(scope: Scope): InputFact[] {
+  const read = strengthRead(scope)
+  if (read === null) return [gap('F8', 'explain.f8-gap', {})]
+  const facts: InputFact[] = []
+  const seen = new Set<string>()
+  for (const lift of liftsToExplain(scope, read)) {
+    const id = lift.exerciseId
+    const exercise = exerciseName(id)
+    // the session whose sets the rules judged (else the only kind there is: a lighter one), in the
+    // lift's implement and before the day of the session: what the rules read, and no other history
+    const last = lift.evidence.judged ?? lift.evidence.latest
+    if (last !== null) {
+      const sources = logSource(read, last.logId, last.date)
+      const date = { kind: 'date', iso: last.date, style: 'weekday' } as const
+      const sets = countPhrase(last.sets, 'set')
+      // a hold or a carry is counted in seconds, and every other lift in reps
+      const timed = exerciseById(id)?.measure === 'seconds'
+      const fact =
+        last.heaviest === null
+          ? timed
+            ? make(
+                'F8',
+                `last-${id}`,
+                'explain.f8-last-hold',
+                { exercise, date, sets, time: duration(last.best) },
+                { sources },
+              )
+            : make(
+                'F8',
+                `last-${id}`,
+                'explain.f8-last-unloaded',
+                { exercise, date, sets, count: count(last.best) },
+                { sources },
+              )
+          : timed
+            ? make(
+                'F8',
+                `last-${id}`,
+                'explain.f8-last-seconds',
+                {
+                  exercise,
+                  date,
+                  sets,
+                  load: loadOf(last.heaviest.loadG),
+                  time: duration(last.heaviest.count),
+                },
+                { sources },
+              )
+            : make(
+                'F8',
+                `last-${id}`,
+                'explain.f8-last',
+                {
+                  exercise,
+                  date,
+                  sets,
+                  load: loadOf(last.heaviest.loadG),
+                  count: count(last.heaviest.count),
+                },
+                { sources },
+              )
+      facts.push(fact)
+    }
+    lift.basis.facts
+      .filter((reason) => !F9_REASONS.has(reason.template))
+      .forEach((reason, i) => {
+        const key = JSON.stringify([reason.template, reason.slots])
+        if (seen.has(key)) return
+        seen.add(key)
+        facts.push(rawFact('F8', `${id}-${String(i)}`, reason.template, reason.slots))
+      })
+    if (lift.loadG !== null) {
+      // the estimate the engine used for this lift: its latest session's, else the starting point's
+      const { estimateG } = lift.evidence
+      const pct = estimateG === null ? null : percentOfMax(lift.loadG, estimateG)
+      if (pct !== null) {
+        facts.push(
+          rawFact('F8', `share-${id}`, 'strength.max-share', {
+            pct: percent(pct),
+            floor: percent(P.flib.heavyMinPct1rm.value),
+          }),
+        )
+      }
+    }
+  }
+  return facts
+}
+
+/**
+ * F9: what made a lift lighter or kept it, from the readiness read of the day, the week's flags
+ * and the gap since its last session: the lighter-day, recovery-week, taper and maintenance reasons
+ * of the lifts, the cause of a lighter day, the usual load, and the days since the last session
+ * with the gap that sends the load back.
+ */
+function strengthLighterFacts(scope: Scope): InputFact[] {
+  const read = strengthRead(scope)
+  if (read === null) return [gap('F9', 'explain.f9-gap', {})]
+  const facts: InputFact[] = []
+  const seen = new Set<string>()
+  const lifts = liftsToExplain(scope, read)
+  for (const lift of lifts) {
+    lift.basis.facts
+      .filter((reason) => F9_REASONS.has(reason.template))
+      .forEach((reason, i) => {
+        const key = JSON.stringify([reason.template, reason.slots])
+        if (seen.has(key)) return
+        seen.add(key)
+        facts.push(rawFact('F9', `${lift.exerciseId}-${String(i)}`, reason.template, reason.slots))
+      })
+  }
+  const { readiness } = read.ctx
+  if (readiness !== null && lifts.some((lift) => lift.change === 'lighter-day')) {
+    if (readiness.state !== 'normal') facts.push(make('F9', 'state', 'explain.f9-state', {}))
+    if (readiness.pain !== null && readiness.pain >= P.pain.flagScore.value) {
+      facts.push(make('F9', 'pain', 'explain.f9-pain', { score: count(readiness.pain) }))
+    }
+    if (readiness.illness === 'easy-only') {
+      facts.push(make('F9', 'illness', 'explain.f9-illness', {}))
+    }
+    if (readiness.illness === 'rest')
+      facts.push(make('F9', 'illness', 'explain.f9-illness-rest', {}))
+  }
+  for (const lift of lifts) {
+    const exercise = exerciseName(lift.exerciseId)
+    if (lift.usualLoadG !== null) {
+      facts.push(
+        make('F9', `usual-${lift.exerciseId}`, 'explain.f9-usual', {
+          exercise,
+          load: loadOf(lift.usualLoadG),
+        }),
+      )
+    }
+    // the gap is counted from the latest session of any mode, as rule F8.2 counts it, and the
+    // return rule has a load to bring back only for a lift that carries one
+    const last = lift.evidence.latest
+    if (last !== null && lift.loadG !== null) {
+      facts.push(
+        make(
+          'F9',
+          `since-${lift.exerciseId}`,
+          'explain.f9-since',
+          {
+            exercise,
+            days: countPhrase(last.gapDays, 'day'),
+            layoff: count(P.f8.layoffDays.value),
+            share: share(P.f8.layoffLoadFraction.value),
+          },
+          { sources: logSource(read, last.logId, last.date) },
+        ),
+      )
+    }
+  }
   return facts
 }
 
@@ -2842,6 +3266,9 @@ export const INPUT_BUILDERS: Readonly<Record<string, Builder>> = {
   E4: intensityFacts,
   E6: startPathFacts,
   F5: runDayFacts,
+  F7: strengthStructureFacts,
+  F8: strengthLoadFacts,
+  F9: strengthLighterFacts,
   H10: strengthFacts,
   H12: postRaceFacts,
   H13: heatAdaptationFacts('H13'),
@@ -2915,12 +3342,6 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'F4',
   'F6',
   'F-lib',
-  // strength prescription: F7 to F9 are derived on read from the runner's log (ADR 0014). They
-  // rest on the rule alone until their builders read the sets of an exercise (task E14-6), which
-  // then move each id to INPUT_BUILDERS
-  'F7',
-  'F8',
-  'F9',
   // limits that restate a principle
   'g-4',
   'g-5',
@@ -2999,6 +3420,12 @@ export const EXPLAIN_RULES = {
   readiness: ['J2', 'J3', 'J4'],
   zones: ['C1', 'C2', 'C3', 'C4', 'C5', 'A6'],
   prediction: ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'],
+  /**
+   * A strength session, in the order of the drawer (strength design 10.5): the load and the lighter
+   * day of a lift, the structure of the session, then the rules that rest on the rule alone, which
+   * the session's own rule ids bring.
+   */
+  strength: ['F8', 'F9', 'F7'],
 } as const
 
 /** The rules of a zone boundary: its anchor, then the rule that sets it. */
@@ -3064,6 +3491,17 @@ export function explainRules(req: ExplainRequest, ctx: ExplainContext): string[]
         : [...BOUNDARY_RULES[req.boundary]]
     case 'prediction':
       return [...EXPLAIN_RULES.prediction]
+    case 'strength': {
+      const session = sessionOf(ctx, req.id)
+      if (session === null || session.kind !== 'strength') return null
+      // With the strength input at hand, a lift the session cannot do is an unknown record too.
+      if (req.exercise !== undefined && ctx.strength !== undefined && ctx.strength !== null) {
+        const ref = strengthRef(session)
+        const workout = workoutFor(ctx.strength, ref)
+        if (explainedLifts(ctx.strength, ref, workout, req.exercise).length === 0) return null
+      }
+      return dedupe([...EXPLAIN_RULES.strength, ...session.rules])
+    }
     case 'rules':
       return dedupe(req.rules)
     case 'brief':
@@ -3084,7 +3522,7 @@ export function explainWeeks(
   let next: string
   if (req.subject === 'decision') return { last: req.weekStart, next: addDays(req.weekStart, 7) }
   if (req.subject === 'week' || req.subject === 'brief') next = req.weekStart
-  else if (req.subject === 'session') {
+  else if (req.subject === 'session' || req.subject === 'strength') {
     const session = ctx.input.existing?.sessions.find((s) => s.id === req.id)
     next = mondayOf(session?.date ?? ctx.asOf)
   } else next = mondayOf(ctx.asOf)
@@ -3106,6 +3544,7 @@ const RACE_RULES: ReadonlySet<string> = new Set(
     'H4',
     'H5',
     'H6',
+    'H10',
     'H12',
     'I2',
     'I3',
@@ -3117,6 +3556,9 @@ const RACE_RULES: ReadonlySet<string> = new Set(
 /** The rules that read the load setting (`ExplainContext.planInput`): the ramp, the cap, the start and g-8. */
 const LOAD_SETTING_RULES: ReadonlySet<string> = new Set(['g-2', 'g-6', 'g-8', 'e6'])
 
+/** The rules that read the strength engine's input (`ExplainContext.strength`). */
+const STRENGTH_RULES: ReadonlySet<string> = new Set(['f7', 'f8', 'f9'])
+
 /** Which values beyond the snapshot a set of rules reads, so the server computes only those. */
 export function explainNeeds(rules: readonly string[]): {
   hrModel: boolean
@@ -3124,6 +3566,7 @@ export function explainNeeds(rules: readonly string[]): {
   prediction: boolean
   race: boolean
   planInput: boolean
+  strength: boolean
 } {
   const keys = new Set(rules.map(lower))
   return {
@@ -3133,6 +3576,7 @@ export function explainNeeds(rules: readonly string[]): {
     // n-7 sizes the fluid-safety card from the goal time, else from the prediction
     prediction: EXPLAIN_RULES.prediction.some((rule) => keys.has(lower(rule))) || keys.has('n-7'),
     race: [...keys].some((key) => RACE_RULES.has(key)),
+    strength: [...keys].some((key) => STRENGTH_RULES.has(key)),
   }
 }
 
@@ -3144,8 +3588,10 @@ export function explainNeeds(rules: readonly string[]): {
  */
 export function explainInputs(req: ExplainRequest, ctx: ExplainContext): ExplainView {
   const rules = explainRules(req, ctx) ?? []
-  const session = req.subject === 'session' ? sessionOf(ctx, req.id) : null
-  const scope: Scope = { ctx, session, ...explainWeeks(req, ctx) }
+  const session =
+    req.subject === 'session' || req.subject === 'strength' ? sessionOf(ctx, req.id) : null
+  const exercise = req.subject === 'strength' ? (req.exercise ?? null) : null
+  const scope: Scope = { ctx, session, exercise, ...explainWeeks(req, ctx) }
   const groups: ExplainGroup[] = []
   const rest: string[] = []
   for (const rule of rules) {

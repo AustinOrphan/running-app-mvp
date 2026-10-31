@@ -239,6 +239,7 @@ describe('DashboardPage: the fuel slots', () => {
     watch: null,
     brief: null,
     fuelPrompt: null,
+    strength: null,
   }
   const withSlots = (slots: Partial<TodayCoach['slots']>, hero = longRun()): TodayView =>
     makeToday({

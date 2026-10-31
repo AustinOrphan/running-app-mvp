@@ -78,3 +78,7 @@ export const STRENGTH_SNAPSHOT_MAX_CHARS = 16_384
 export const STRENGTH_LOAD_LIST_MAX = 100
 /** The most days between `from` and `to` of one `GET /api/strength/logs` request. */
 export const STRENGTH_LOGS_MAX_DAYS = 366
+/** The most days between `from` and `to` of one `GET /api/strength/workouts` request. */
+export const STRENGTH_WORKOUTS_MAX_DAYS = 62
+/** The most sessions `GET /api/strength/exercises/:id` lists (design 9.5). */
+export const STRENGTH_HISTORY_MAX_SESSIONS = 60

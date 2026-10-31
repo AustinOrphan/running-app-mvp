@@ -153,6 +153,7 @@ function fullDay(): TodayView {
         watch: null,
         brief: makeItem(),
         fuelPrompt: makeFuelPrompts(),
+        strength: null,
       },
     }),
   })

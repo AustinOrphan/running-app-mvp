@@ -396,6 +396,27 @@ interface WorkoutLift {
   /** On a lighter day, the load the progression would otherwise have asked for. */
   usualLoadG: number | null
   basis: SuggestionBasis
+  /** What the rules read to give the load (added in E14-6): the Why drawer names these and no other history. */
+  evidence: LiftEvidence
+}
+/**
+ * The sessions of the exercise in the lift's implement and window (a change of equipment starts the
+ * lift again) and the estimate `suggestLoad` used. `latest` is the latest of any mode (the gap of
+ * F8.2 counts from it); `judged` is the latest `normal` session, whose sets decided the load.
+ */
+interface LiftEvidence {
+  latest: EvidenceSession | null
+  judged: EvidenceSession | null
+  estimateG: number | null
+}
+interface EvidenceSession {
+  logId: string
+  date: string
+  mode: 'normal' | 'lighter-day' | 'lighter-week' | 'taper' | 'return'
+  sets: number
+  heaviest: { loadG: number; count: number } | null
+  best: number
+  gapDays: number
 }
 /** A uniform ladder (a barbell, a machine) or the list of loads there are (dumbbells, kettlebells). */
 type LoadSteps = { minG: number; stepG: number; maxG: number | null } | { loadsG: number[] }

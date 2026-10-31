@@ -42,6 +42,7 @@ import {
   explainRules,
   explainWeeks,
   INPUT_BUILDERS,
+  EQUIPMENT_WORDS,
   isPolicyOnly,
   LOAD_METRIC_WORDS,
   METHOD_WORDS,
@@ -62,7 +63,7 @@ import {
   weeklyRamp,
 } from '../../../shared/engine/limits.ts'
 import { criticalSpeed } from '../../../shared/engine/load.ts'
-import { startPath, taperDays } from '../../../shared/engine/macro.ts'
+import { startPath, strengthBlockPosition, taperDays } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import {
   blockLiftMin,
@@ -75,6 +76,7 @@ import {
 import { postRaceWindows } from '../../../shared/engine/postRace.ts'
 import { predictFromState } from '../../../shared/engine/predict.ts'
 import { readinessSnapshot } from '../../../shared/engine/readiness.ts'
+import { estimateOneRm, percentOfMax, workoutFor } from '../../../shared/engine/strength.ts'
 import { resolveTargets } from '../../../shared/engine/targets.ts'
 import type {
   Checkin,
@@ -83,10 +85,19 @@ import type {
   ExplainView,
   InputFact,
   Quantity,
+  StrengthContext,
+  StrengthSessionRef,
   WeekDraft,
 } from '../../../shared/engine/types.ts'
 import { buildZones } from '../../../shared/engine/zones.ts'
-import type { Activity, AthleteProfile, Units, WellnessDay } from '../../../shared/types.ts'
+import { formatLoad } from '../../../shared/domain/weight.ts'
+import type {
+  Activity,
+  AthleteProfile,
+  Units,
+  WeightUnit,
+  WellnessDay,
+} from '../../../shared/types.ts'
 import { RULE_TITLES } from '../../../web/components/ruleTitles.ts'
 import {
   activity,
@@ -97,6 +108,17 @@ import {
   wellnessDay,
 } from './e8-fixtures.ts'
 import { steadyHistogram } from './fixtures.ts'
+import {
+  ALL_KINDS,
+  context,
+  have,
+  lb,
+  liftLog,
+  monday,
+  plan,
+  sessionRef,
+  withSetup,
+} from './strength-fixtures.ts'
 import {
   at,
   h1,
@@ -3090,8 +3112,19 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
       'H10',
       ctxOf('first-100-mile', { profile: profileOf({ strengthPreference: 2 }) }),
     )
-    expect(strength.map((f) => f.id)).toEqual(['h10.week', 'h10.wanted'])
-    expect(text(strength[1]!)).toBe('Your profile asks for 2 strength sessions a week.')
+    expect(strength.map((f) => f.id)).toEqual(['h10.week', 'h10.block', 'h10.wanted'])
+    expect(text(strength[2]!)).toBe('Your profile asks for 2 strength sessions a week.')
+    // the block week is read from the flags of the stored plan, as the engine counts it
+    const at = strengthBlockPosition(weeks, mondayOf(TODAY))
+    expect(at, 'the next week of the 100-mile plan is in the strength block').not.toBeNull()
+    expect(strength[1]!.template).toBe('explain.h10-block')
+    expect(slot(strength[1]!, 'k', 'count').n).toBe(at!.week)
+    expect(slot(strength[1]!, 'n', 'count').n).toBe(at!.of)
+    expect(text(strength[1]!)).toMatch(
+      new RegExp(`is week ${String(at!.week)} of ${String(at!.of)} of the strength block\\.$`),
+    )
+    // H10 is the ultra rule: the sessions of any other goal cite E5 and F7, so it has nothing to state
+    expect(factsOf('H10', ctxOf('marathon'))).toEqual([])
 
     const taper = weeks.filter((w) => w.isTaper)
     const [k1] = factsOf('K1', ctx)
@@ -3102,7 +3135,9 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
       taper.slice(0, EXPLAIN_MAX_SOURCES).map((w) => Math.round(w.targetRunMin)),
     )
     for (const rule of ['H7', 'H10', 'K2']) {
-      expect(factsOf(rule, contextOf(emptyInput())).at(-1), rule).toMatchObject({
+      const input =
+        rule === 'H10' ? emptyInput({ distanceM: 160_934, isUltra: true }) : emptyInput()
+      expect(factsOf(rule, contextOf(input)).at(-1), rule).toMatchObject({
         template: 'explain.plan-gap',
         state: 'insufficient',
       })
@@ -3383,6 +3418,7 @@ describe('insufficient states', () => {
       case 'H4':
       case 'H5':
       case 'H6':
+      case 'H10':
       case 'H12':
       case 'K1':
       case 'n-7':
@@ -3504,6 +3540,7 @@ describe('subjects', () => {
       prediction: false,
       race: false,
       planInput: false,
+      strength: false,
     })
     expect(explainNeeds(['a8'])).toMatchObject({ hrModel: true })
     expect(explainNeeds(['J5'])).toMatchObject({ decision: true })
@@ -3514,6 +3551,7 @@ describe('subjects', () => {
       prediction: false,
       race: false,
       planInput: false,
+      strength: false,
     })
     // the rules that read the load setting need the input with the plan's own goal
     expect(explainNeeds(['g-2'])).toMatchObject({ planInput: true })
@@ -3585,5 +3623,912 @@ describe('coverage of the rule titles', () => {
     expect(isPolicyOnly('H4')).toBe(false)
     expect(builderFor('G-6')).toBe(builderFor('g-6'))
     expect(builderFor('g1')).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// F7 to F9: a strength session, its loads and its lighter days (strength design 10.5, ADR 0014)
+// ---------------------------------------------------------------------------------------------
+
+describe('F7, F8 and F9: a strength session', () => {
+  const SESSION_RULES = ['F-lib', 'F4', 'E5', 'F7']
+  const heavy = sessionRef(5)
+  const WEIGHT_UNITS: readonly WeightUnit[] = ['lb', 'kg']
+
+  /** The explain context of the strength session `ref` over the strength input `strength`. */
+  function strengthCtx(
+    strength: StrengthContext | null,
+    ref: StrengthSessionRef = heavy,
+    over: Partial<ExplainContext> = {},
+  ): ExplainContext {
+    const session = planned(ref.id, ref.date, 'strength', {
+      order: ref.order,
+      durationMin: ref.durationMin,
+      rules: [...ref.rules],
+    })
+    const input: EngineInput = { ...emptyInput(), existing: { weeks: [], sessions: [session] } }
+    return contextOf(input, { strength, ...over })
+  }
+
+  function ask(
+    strength: StrengthContext | null,
+    ref: StrengthSessionRef = heavy,
+    exercise?: string,
+  ): ExplainView {
+    return view(
+      { subject: 'strength', id: ref.id, ...(exercise === undefined ? {} : { exercise }) },
+      strengthCtx(strength, ref),
+    )
+  }
+  const groupOf = (out: ExplainView, rule: string): InputFact[] =>
+    out.groups.find((g) => g.rule === rule)?.facts ?? []
+  const said = (facts: InputFact[], units: Units = 'km', weight: WeightUnit = 'lb'): string[] =>
+    facts.map((fact) => renderFact(fact, units, weight))
+
+  /** A runner with a barbell, dumbbells and a step in week 6 of a block of 12, nothing logged. */
+  const equipped = (over: Partial<StrengthContext> = {}) =>
+    withSetup({ equipment: have('barbell', 'dumbbells', 'step') }, { today: heavy.date, ...over })
+
+  /** Four sets of six at 110 lb with two reps left, three days before the session. */
+  const squatLog = (id = 'log-1', rirs: number[] = [2, 2, 2, 2]) =>
+    liftLog(
+      id,
+      addDays(heavy.date, -3),
+      'back-squat',
+      rirs.map((rir) => [110, 6, rir] as const),
+      { implement: 'barbell', baseLb: 110, template: 'heavy', activityId: `act-${id}` },
+    )
+
+  describe('the subject', () => {
+    test('lists the load, the lighter day and the structure, then the session’s own rules', () => {
+      const strength = equipped()
+      expect(explainRules({ subject: 'strength', id: heavy.id }, strengthCtx(strength))).toEqual([
+        'F8',
+        'F9',
+        'F7',
+        'F-lib',
+        'F4',
+        'E5',
+      ])
+      const ultra = { ...heavy, rules: [...SESSION_RULES, 'H10'] }
+      expect(
+        explainRules({ subject: 'strength', id: ultra.id }, strengthCtx(strength, ultra)),
+      ).toEqual(['F8', 'F9', 'F7', 'F-lib', 'F4', 'E5', 'H10'])
+    })
+
+    test('is an unknown record for a session that is not a strength session of the plan', () => {
+      const ctx = strengthCtx(equipped())
+      expect(explainRules({ subject: 'strength', id: 'nope' }, ctx)).toBeNull()
+      const run = {
+        ...ctx.input,
+        existing: { weeks: [], sessions: [planned('run1', MONDAY, 'easy')] },
+      }
+      expect(explainRules({ subject: 'strength', id: 'run1' }, { ...ctx, input: run })).toBeNull()
+      expect(view({ subject: 'strength', id: 'nope' }, ctx).groups).toEqual([])
+    })
+
+    test('is an unknown record for a lift that the session cannot do, and takes one it can swap in', () => {
+      const strength = equipped()
+      const ctx = strengthCtx(strength)
+      // a jump is a dose, and the leg press needs a machine the runner has not saved
+      for (const exercise of ['pogo-hop', 'leg-press', 'not-an-exercise']) {
+        expect(
+          explainRules({ subject: 'strength', id: heavy.id, exercise }, ctx),
+          exercise,
+        ).toBeNull()
+      }
+      // a lift of the workout, and one the dumbbells make that is not in it
+      for (const exercise of ['back-squat', 'goblet-squat']) {
+        expect(
+          explainRules({ subject: 'strength', id: heavy.id, exercise }, ctx),
+          exercise,
+        ).not.toBeNull()
+      }
+      // without the strength input there is nothing to check the lift against
+      expect(
+        explainRules(
+          { subject: 'strength', id: heavy.id, exercise: 'pogo-hop' },
+          strengthCtx(null),
+        ),
+      ).not.toBeNull()
+    })
+
+    test('the session subject of a strength session lists its own rules and no run rule', () => {
+      const out = view({ subject: 'session', id: heavy.id }, strengthCtx(equipped()))
+      expect(out.rules).toEqual(SESSION_RULES)
+      for (const run of ['g-1', 'g-2', 'C1', 'C2']) expect(out.rules).not.toContain(run)
+      expect(out.groups.map((g) => g.rule)).toEqual(['F7'])
+      expect(out.rest).toEqual(['F-lib', 'F4', 'E5'])
+    })
+
+    test('gives F7, F8 and F9 builders, not policy entries, and reads the strength input', () => {
+      for (const rule of ['F7', 'F8', 'F9']) {
+        expect(builderFor(rule), rule).toBeDefined()
+        expect(isPolicyOnly(rule), rule).toBe(false)
+        expect(RULE_TITLES[rule], rule).toBeDefined()
+      }
+      for (const rule of ['F4', 'E5', 'F-lib']) expect(isPolicyOnly(rule), rule).toBe(true)
+      expect(explainNeeds(['F7'])).toMatchObject({ strength: true })
+      expect(explainNeeds(['f8', 'g-1'])).toMatchObject({ strength: true })
+      expect(explainNeeds(['F9'])).toMatchObject({ strength: true })
+      expect(explainNeeds(['F4', 'E5', 'F-lib', 'g-1'])).toMatchObject({ strength: false })
+      // H10 reads the goal: it is the rule of the ultra goal
+      expect(explainNeeds(['H10'])).toMatchObject({ race: true, strength: false })
+    })
+  })
+
+  describe('a gap sentence says what is needed', () => {
+    test.each(['F7', 'F8', 'F9'])(
+      '%s asked by id alone, or for a session without the input',
+      (rule) => {
+        for (const ctx of [contextOf(emptyInput()), strengthCtx(null)]) {
+          const facts = factsOf(rule, ctx)
+          expect(facts).toHaveLength(1)
+          expect(facts[0]).toMatchObject({ state: 'insufficient', rule })
+          for (const units of UNITS) {
+            const sentence = text(facts[0]!, units)
+            expect(sentence.length).toBeGreaterThan(20)
+            expect(lintText(sentence)).toEqual([])
+          }
+        }
+        const out = ask(null)
+        expect(out.groups.map((g) => g.rule)).toEqual(['F8', 'F9', 'F7'])
+        expect(out.groups.every((g) => g.facts.every((f) => f.state === 'insufficient'))).toBe(true)
+      },
+    )
+
+    test('F7 says when the setup is not saved, and builds the rest for body weight', () => {
+      const out = ask(withSetup({ saved: false }, { today: heavy.date }))
+      const facts = groupOf(out, 'F7')
+      expect(facts[0]).toMatchObject({ id: 'f7.gap', state: 'insufficient' })
+      expect(text(facts[0]!)).toBe(
+        'The strength setup is not saved yet, so the session is built for body weight only.',
+      )
+      expect(facts.slice(1).every((f) => f.state === 'used')).toBe(true)
+      expect(said(facts).some((s) => / is done with body weight\.$/.test(s))).toBe(true)
+    })
+  })
+
+  describe('F7: the block, the template and the equipment', () => {
+    test('names the week of the block, the ramp-in and the template', () => {
+      const facts = groupOf(ask(equipped()), 'F7')
+      expect(said(facts).slice(0, 2)).toEqual([
+        'This is week 6 of 12 of the strength block, and heavy work follows a ramp-in of three weeks.',
+        'The session is a heavy session, variant A.',
+      ])
+      expect(facts.slice(0, 2).map((f) => f.id)).toEqual(['f7.block', 'f7.template'])
+      expect(slot(facts[0]!, 'week', 'count').n).toBe(6)
+      expect(slot(facts[0]!, 'of', 'count').n).toBe(12)
+    })
+
+    test('reads the ramp-in from the runner: longer for a new lifter and for age 40, none after a block', () => {
+      const ramp = (strength: StrengthContext) =>
+        said(groupOf(ask(strength), 'F7'))[0]!.replace(/^.*ramp-in of /, '')
+      expect(ramp(equipped({ today: heavy.date }))).toBe('three weeks.')
+      expect(
+        ramp(withSetup({ equipment: have('barbell'), level: 'new' }, { today: heavy.date })),
+      ).toBe('four weeks.')
+      expect(
+        ramp(
+          withSetup(
+            { equipment: have('barbell') },
+            { today: heavy.date, athlete: { ...context().athlete, age: 41 } },
+          ),
+        ),
+      ).toBe('four weeks.')
+    })
+
+    test('says a block that continues from logged weeks has no ramp-in', () => {
+      // the block starts in week 4; a block session was logged in each of the weeks before it
+      const weeks = plan(30, 16).map((w, i) => (i < 4 ? { ...w, flags: [] } : w))
+      const logs = [0, 1, 2, 3].map((i) =>
+        liftLog(`credit-${String(i)}`, addDays(monday(i), 1), 'goblet-squat', [[25, 6, 2]], {
+          template: 'heavy',
+        }),
+      )
+      const facts = groupOf(ask(equipped({ weeks, logs })), 'F7')
+      expect(facts[0]).toMatchObject({ id: 'f7.block', template: 'explain.f7-block-credit' })
+      expect(text(facts[0]!)).toBe(
+        `This is week 2 of 12 of the strength block. A session was logged in each of the ${String(P.f7.blockCreditWeeks.value)} weeks before it, so it has no ramp-in.`,
+      )
+    })
+
+    test('says a week outside the block is maintenance, the taper keeps two lifts, a return starts light', () => {
+      const maintenance = sessionRef(14, 0, { durationMin: 25 })
+      const out = said(groupOf(ask(equipped({ today: maintenance.date }), maintenance), 'F7'))
+      expect(out.slice(0, 2)).toEqual([
+        'This week is outside the strength block.',
+        'The session is a maintenance session, variant A.',
+      ])
+
+      const taper = sessionRef(25, 0, { durationMin: 25 })
+      const taperWeeks = plan(30, 12).map((w, i) => (i === 25 ? { ...w, flags: ['taper'] } : w))
+      const taperFacts = said(
+        groupOf(ask(equipped({ today: taper.date, weeks: taperWeeks }), taper), 'F7'),
+      )
+      expect(taperFacts).toContain(
+        'The week is in the taper, so strength keeps only the lead lift and the calf raise.',
+      )
+
+      const back = sessionRef(26, 0, { durationMin: 25 })
+      const returnWeeks = plan(30, 12).map((w, i) =>
+        i === 26 ? { ...w, flags: ['injury-return'] } : w,
+      )
+      expect(
+        said(groupOf(ask(equipped({ today: back.date, weeks: returnWeeks }), back), 'F7')),
+      ).toContain('The week is a return week of your plan, so strength starts light.')
+
+      const recovery = sessionRef(8)
+      const recoveryWeeks = plan(30, 12).map((w, i) => (i === 8 ? { ...w, isRecovery: true } : w))
+      expect(
+        said(
+          groupOf(ask(equipped({ today: recovery.date, weeks: recoveryWeeks }), recovery), 'F7'),
+        ),
+      ).toContain(
+        'The week is a recovery week of your running plan, so strength keeps the usual load with fewer sets.',
+      )
+    })
+
+    test('names the equipment of each lift, or the lift a "Why" opened on', () => {
+      const strength = equipped()
+      const all = said(groupOf(ask(strength), 'F7')).filter((s) => / is done with /.test(s))
+      expect(all.length).toBeGreaterThanOrEqual(3)
+      expect(all).toContain('Back squat is done with a barbell, from your saved setup.')
+      expect(all.every((s) => /^[A-Z].* is done with .*\.$/.test(s))).toBe(true)
+
+      const one = said(groupOf(ask(strength, heavy, 'back-squat'), 'F7')).filter((s) =>
+        / is done with /.test(s),
+      )
+      expect(one).toEqual(['Back squat is done with a barbell, from your saved setup.'])
+      // a lift the sheet swapped in is read as the rules would give it in the session's place
+      expect(said(groupOf(ask(strength, heavy, 'goblet-squat'), 'F7'))).toContain(
+        'Goblet squat is done with dumbbells, from your saved setup.',
+      )
+      // bodyweight, a band and a step: no item of weights to name
+      const light = withSetup({ equipment: have('step', 'bands') }, { today: heavy.date })
+      expect(said(groupOf(ask(light, heavy, 'split-squat'), 'F7'))).toContain(
+        'Split squat is done with body weight.',
+      )
+    })
+
+    test('gives the jump dose and the reason it is cut, the same reasons the engine cuts it for', () => {
+      const cases: Array<[string, Partial<StrengthContext>, string[]]> = [
+        ['no cut', {}, []],
+        [
+          'a goal pace above 12 km/h',
+          { goal: { paceKmh: 13 } },
+          ['Your goal pace is faster than 12 km/h, so the jump dose is cut to 50%.'],
+        ],
+        ['a goal pace of exactly 12 km/h', { goal: { paceKmh: 12 } }, []],
+        [
+          'a bone stress injury',
+          { athlete: { ...context().athlete, risk: { priorBsi: true, recentInjury: false } } },
+          [
+            'A bone stress injury is in your profile, so the jump dose is cut to 50% and stops at the second rung.',
+          ],
+        ],
+        [
+          'a recent injury',
+          { athlete: { ...context().athlete, risk: { priorBsi: false, recentInjury: true } } },
+          [
+            `An injury in your profile in the last ${String(P.a9.recentInjuryWindowMonths.value)} months cuts the jump dose to 50% and stops it at the second rung.`,
+          ],
+        ],
+      ]
+      const uncut = workoutFor(equipped(), heavy).plyo!.contacts
+      for (const [name, over, reasons] of cases) {
+        const strength = equipped(over)
+        const contacts = workoutFor(strength, heavy).plyo!.contacts
+        const facts = said(groupOf(ask(strength), 'F7'))
+        expect(facts, name).toContain(`The jump dose is ${String(contacts)} contacts.`)
+        expect(
+          facts.filter((s) => /jump dose is cut|cuts the jump dose/.test(s)),
+          name,
+        ).toEqual(reasons)
+        // a cut in the facts is a cut in the dose, and the other way round
+        expect(contacts < uncut, name).toBe(reasons.length > 0)
+      }
+      // a running recovery week cuts it too
+      const recovery = sessionRef(8)
+      const weeks = plan(30, 12).map((w, i) => (i === 8 ? { ...w, isRecovery: true } : w))
+      const lighter = equipped({ today: recovery.date, weeks })
+      const dose = workoutFor(lighter, recovery).plyo!.contacts
+      const facts = said(groupOf(ask(lighter, recovery), 'F7'))
+      expect(facts).toContain('A lighter week cuts the jump dose to 50%.')
+      expect(facts).toContain(`The jump dose is ${String(dose)} contacts.`)
+      // the taper and a return have no jumps to state
+      const taper = sessionRef(25, 0, { durationMin: 25 })
+      const taperWeeks = plan(30, 12).map((w, i) => (i === 25 ? { ...w, flags: ['taper'] } : w))
+      const none = said(
+        groupOf(ask(equipped({ today: taper.date, weeks: taperWeeks }), taper), 'F7'),
+      )
+      expect(none.some((s) => /jump dose/.test(s))).toBe(false)
+    })
+  })
+
+  describe('F8: the sets that set the load', () => {
+    test('names the last session, the reason for the step and the share of the estimated maximum', () => {
+      const strength = equipped({ logs: [squatLog()] })
+      const lift = workoutFor(strength, heavy).lifts.find((l) => l.exerciseId === 'back-squat')!
+      expect(lift.change).toBe('increase')
+
+      const facts = groupOf(ask(strength, heavy, 'back-squat'), 'F8')
+      expect(facts.map((f) => f.id)).toEqual([
+        'f8.last-back-squat',
+        'f8.back-squat-0',
+        'f8.share-back-squat',
+      ])
+      const [last, reason, share] = said(facts, 'km', 'lb')
+      expect(last).toBe(
+        'The last session of Back squat was on Sat 7 Feb: four sets, heaviest set 110 lb x 6.',
+      )
+      expect(reason).toBe(
+        'Every set of Back squat reached 6 reps with reps left, so the load goes up one step.',
+      )
+      expect(share).toMatch(
+        /^About \d+% of the estimated maximum; heavy work asks for 80% or more\.$/,
+      )
+      // the same grams read in kilograms
+      expect(renderFact(facts[0]!, 'km', 'kg')).toBe(
+        `The last session of Back squat was on Sat 7 Feb: four sets, heaviest set ${formatLoad(lb(110), 'kg')} x 6.`,
+      )
+      // the log is the source, so the drawer links to its sets
+      expect(facts[0]!.sources).toEqual([
+        { kind: 'activity', id: 'act-log-1', date: addDays(heavy.date, -3), label: 'Strength' },
+      ])
+      // the reason is the lift's own basis: the one that made the number beside it
+      expect(facts[1]).toMatchObject({
+        template: lift.basis.facts[0]!.template,
+        slots: lift.basis.facts[0]!.slots,
+        state: 'used',
+      })
+      // the share is the load as a share of the estimate of the last session
+      expect(slot(facts[2]!, 'floor', 'percent').pct).toBe(P.flib.heavyMinPct1rm.value)
+    })
+
+    test('says why a set short of the range, an unrecorded count and a hold are what they are', () => {
+      const short = equipped({
+        logs: [
+          liftLog(
+            'short',
+            addDays(heavy.date, -3),
+            'back-squat',
+            [
+              [110, 6, 2],
+              [110, 6, 2],
+              [110, 2, 0],
+            ],
+            { implement: 'barbell', baseLb: 110 },
+          ),
+        ],
+      })
+      expect(said(groupOf(ask(short, heavy, 'back-squat'), 'F8'))).toContain(
+        'Set 3 of Back squat ended at 2 reps, below the 3 to 6 range, so the load comes down one step.',
+      )
+      const unrecorded = equipped({
+        logs: [
+          liftLog(
+            'none',
+            addDays(heavy.date, -3),
+            'back-squat',
+            [
+              [110, 6, null],
+              [110, 6, null],
+            ],
+            {
+              implement: 'barbell',
+              baseLb: 110,
+            },
+          ),
+        ],
+      })
+      expect(said(groupOf(ask(unrecorded, heavy, 'back-squat'), 'F8'))).toContain(
+        'The count of reps left was not recorded, so the load holds.',
+      )
+    })
+
+    test('names a first session: no last session, and the way the first load was found', () => {
+      const facts = groupOf(ask(equipped(), heavy, 'back-squat'), 'F8')
+      expect(facts.some((f) => f.id.startsWith('f8.last-'))).toBe(false)
+      expect(facts.length).toBeGreaterThan(0)
+      expect(said(facts)[0]).toMatch(/^Back squat has no sets logged yet, so it starts /)
+      // an estimated maximum entered at the setup gives the share before any log
+      const anchored = equipped({
+        anchors: [
+          {
+            exerciseId: 'back-squat',
+            kind: 'max',
+            loadG: lb(150),
+            reps: 1,
+            rir: null,
+            asOf: monday(0),
+          },
+        ],
+      })
+      const share = groupOf(ask(anchored, heavy, 'back-squat'), 'F8').find((f) =>
+        f.id.startsWith('f8.share-'),
+      )
+      expect(share).toBeDefined()
+    })
+
+    test('without a session’s lift in particular, reads every lift of the session once', () => {
+      const strength = equipped({ logs: [squatLog()] })
+      const facts = groupOf(ask(strength), 'F8')
+      const lifts = workoutFor(strength, heavy).lifts
+      for (const lift of lifts) {
+        expect(
+          facts.some((f) => f.id.includes(lift.exerciseId)),
+          lift.exerciseId,
+        ).toBe(true)
+      }
+      expect(new Set(facts.map((f) => f.id)).size).toBe(facts.length)
+    })
+
+    test('leaves out a lighter day’s reasons, which are F9’s, and a bodyweight lift has no share', () => {
+      const lighter = equipped({
+        logs: [squatLog()],
+        readiness: { date: heavy.date, state: 'possible-fatigue', pain: null, illness: 'clear' },
+      })
+      const f8 = groupOf(ask(lighter), 'F8')
+      expect(f8.some((f) => f.template.startsWith('strength.reason.lighter'))).toBe(false)
+      const f9 = groupOf(ask(lighter), 'F9')
+      expect(f9.some((f) => f.template.startsWith('strength.reason.lighter-day'))).toBe(true)
+      const bodyweight = withSetup({ equipment: have('step') }, { today: heavy.date })
+      expect(
+        groupOf(ask(bodyweight, heavy, 'split-squat'), 'F8').some((f) =>
+          f.id.startsWith('f8.share-'),
+        ),
+      ).toBe(false)
+    })
+  })
+
+  describe('F9: the lighter day, the week and the gap', () => {
+    const lowReadiness = (over: Partial<NonNullable<StrengthContext['readiness']>> = {}) => ({
+      date: heavy.date,
+      state: 'possible-fatigue' as const,
+      pain: null,
+      illness: 'clear' as const,
+      ...over,
+    })
+
+    test('says what made the day lighter, and keeps the usual load in view', () => {
+      const strength = equipped({
+        logs: [squatLog()],
+        readiness: lowReadiness({ pain: P.pain.flagScore.value, illness: 'easy-only' }),
+      })
+      const workout = workoutFor(strength, heavy)
+      const lead = workout.lifts.find((l) => l.exerciseId === 'back-squat')!
+      expect(lead.change).toBe('lighter-day')
+
+      const facts = groupOf(ask(strength, heavy, 'back-squat'), 'F9')
+      const sentences = said(facts, 'mi', 'kg')
+      expect(sentences).toContain('The readiness read for the day is lower than usual.')
+      expect(sentences).toContain(
+        `A pain score of ${String(P.pain.flagScore.value)} was reported in the last two days.`,
+      )
+      expect(sentences).toContain('A recent illness limits the day to easy effort.')
+      expect(facts.map((f) => f.id)).toEqual(
+        expect.arrayContaining(['f9.state', 'f9.pain', 'f9.illness', 'f9.usual-back-squat']),
+      )
+      // the reason of the engine, and the load it would otherwise have asked for
+      expect(facts.some((f) => f.template.startsWith('strength.reason.lighter-day'))).toBe(true)
+      const usual = facts.find((f) => f.id === 'f9.usual-back-squat')!
+      expect(slot(usual, 'load', 'load').g).toBe(lead.usualLoadG)
+      expect(renderFact(usual, 'km', 'lb')).toMatch(
+        /^The usual load of Back squat is \d+(\.\d+)? lb\.$/,
+      )
+    })
+
+    test('has nothing to say about readiness on a day that is not lighter, or without a read', () => {
+      for (const readiness of [
+        null,
+        lowReadiness({ state: 'normal' }),
+        lowReadiness({ date: monday(0) }),
+      ]) {
+        const facts = groupOf(ask(equipped({ readiness })), 'F9')
+        expect(facts.some((f) => ['f9.state', 'f9.pain', 'f9.illness'].includes(f.id))).toBe(false)
+        expect(facts.some((f) => f.id.startsWith('f9.usual-'))).toBe(false)
+      }
+    })
+
+    test('names the recovery week, the taper and the maintenance as F9 reasons', () => {
+      // a lift that has been done before holds its load in these weeks, and the week says why
+      const before = (ref: StrengthSessionRef) => [
+        liftLog(`before-${ref.id}`, addDays(ref.date, -3), 'back-squat', [[110, 6, 2]], {
+          implement: 'barbell',
+          baseLb: 110,
+        }),
+        liftLog(`calf-${ref.id}`, addDays(ref.date, -3), 'standing-calf-raise', [[0, 12, 2]], {
+          baseLb: null,
+        }),
+      ]
+      const reasons = (strength: StrengthContext, ref: StrengthSessionRef) =>
+        groupOf(ask(strength, ref), 'F9').map((f) => f.template)
+
+      const recovery = sessionRef(8)
+      const recoveryWeeks = plan(30, 12).map((w, i) => (i === 8 ? { ...w, isRecovery: true } : w))
+      expect(
+        reasons(
+          equipped({ today: recovery.date, weeks: recoveryWeeks, logs: before(recovery) }),
+          recovery,
+        ),
+      ).toContain('strength.reason.lighter-week')
+
+      const taper = sessionRef(25, 0, { durationMin: 25 })
+      const taperWeeks = plan(30, 12).map((w, i) => (i === 25 ? { ...w, flags: ['taper'] } : w))
+      expect(
+        reasons(equipped({ today: taper.date, weeks: taperWeeks, logs: before(taper) }), taper),
+      ).toContain('strength.reason.taper')
+
+      const maintenance = sessionRef(14, 0, { durationMin: 25 })
+      expect(
+        reasons(equipped({ today: maintenance.date, logs: before(maintenance) }), maintenance),
+      ).toContain('strength.reason.maintenance')
+
+      // F8 does not repeat them
+      const f8 = groupOf(
+        ask(equipped({ today: maintenance.date, logs: before(maintenance) }), maintenance),
+        'F8',
+      )
+      expect(f8.some((f) => f.template === 'strength.reason.maintenance')).toBe(false)
+    })
+
+    test('states the days since the last session and the gap that sends the load back', () => {
+      const strength = equipped({ logs: [squatLog()] })
+      const facts = groupOf(ask(strength, heavy, 'back-squat'), 'F9')
+      const since = facts.find((f) => f.id === 'f9.since-back-squat')!
+      expect(text(since)).toBe(
+        'Back squat: three days since the last session. After 28 days the load comes back to about 90% of the last one.',
+      )
+      expect(since.sources).toEqual([
+        { kind: 'activity', id: 'act-log-1', date: addDays(heavy.date, -3), label: 'Strength' },
+      ])
+      // after a gap the engine returns the load, and F8 gives that reason
+      const gap = equipped({
+        today: heavy.date,
+        logs: [
+          liftLog(
+            'old',
+            addDays(heavy.date, -35),
+            'back-squat',
+            [
+              [110, 6, 2],
+              [110, 6, 2],
+            ],
+            { implement: 'barbell', baseLb: 110 },
+          ),
+        ],
+      })
+      const returned = ask(gap, heavy, 'back-squat')
+      expect(groupOf(returned, 'F8').some((f) => f.template === 'strength.reason.return')).toBe(
+        true,
+      )
+      expect(said(groupOf(returned, 'F9'))).toContain(
+        'Back squat: 35 days since the last session. After 28 days the load comes back to about 90% of the last one.',
+      )
+    })
+
+    test('reads a session ahead as of today, and a past session by the history before it', () => {
+      const ahead = sessionRef(8)
+      const strength = equipped({
+        today: addDays(ahead.date, -4),
+        logs: [
+          liftLog('near', addDays(ahead.date, -6), 'back-squat', [[110, 6, 2]], {
+            implement: 'barbell',
+          }),
+        ],
+      })
+      const since = groupOf(ask(strength, ahead, 'back-squat'), 'F9').find((f) =>
+        f.id.startsWith('f9.since-'),
+      )!
+      // today is four days before the session, and the session was two days before today
+      expect(text(since)).toMatch(/^Back squat: two days since the last session\./)
+    })
+  })
+
+  describe('every sentence', () => {
+    function views(): Array<[string, ExplainView]> {
+      const logs = [
+        squatLog(),
+        liftLog('calf', addDays(heavy.date, -3), 'standing-calf-raise', [[80, 8, 2]], {
+          implement: 'calf-machine',
+          baseLb: 80,
+        }),
+        liftLog(
+          'short',
+          addDays(heavy.date, -10),
+          'goblet-squat',
+          [
+            [25, 8, 2],
+            [25, 2, 0],
+          ],
+          {
+            implement: 'dumbbells',
+            baseLb: 25,
+          },
+        ),
+      ]
+      const lighter = lowReadinessFor(heavy)
+      const bone = { ...context().athlete, risk: { priorBsi: true, recentInjury: true } }
+      const recovery = sessionRef(8)
+      const recoveryWeeks = plan(30, 12).map((w, i) => (i === 8 ? { ...w, isRecovery: true } : w))
+      return [
+        ['bodyweight', ask(withSetup({ saved: false }, { today: heavy.date }))],
+        ['the first session', ask(equipped())],
+        ['a session with history', ask(equipped({ logs }))],
+        ['a lighter day', ask(equipped({ logs, readiness: lighter }))],
+        [
+          'a fast goal and bone stress',
+          ask(equipped({ logs, goal: { paceKmh: 14 }, athlete: bone })),
+        ],
+        [
+          'a recovery week',
+          ask(equipped({ today: recovery.date, weeks: recoveryWeeks, logs }), recovery),
+        ],
+        ['each lift', ask(equipped({ logs }), heavy, 'standing-calf-raise')],
+        ['a swapped lift', ask(equipped({ logs }), heavy, 'goblet-squat')],
+        [
+          'the session subject',
+          view({ subject: 'session', id: heavy.id }, strengthCtx(equipped({ logs }))),
+        ],
+      ]
+    }
+    const lowReadinessFor = (ref: StrengthSessionRef) => ({
+      date: ref.date,
+      state: 'possible-fatigue' as const,
+      pain: P.pain.flagScore.value,
+      illness: 'easy-only' as const,
+    })
+
+    test('reads in both unit systems and both weight units, within the limit, clean of the G5 words', () => {
+      let n = 0
+      for (const [name, out] of views()) {
+        for (const fact of out.groups.flatMap((g) => g.facts)) {
+          for (const units of UNITS) {
+            for (const weight of WEIGHT_UNITS) {
+              const sentence = renderFact(fact, units, weight)
+              expect(lintText(sentence), `${name} ${fact.id}: ${sentence}`).toEqual([])
+              expect(sentence.length, `${name} ${fact.id}`).toBeLessThanOrEqual(COPY_MAX_CHARS)
+              expect(sentence, `${name} ${fact.id}`).toMatch(/[.?]$/)
+              expect(sentence, `${name} ${fact.id}`).not.toMatch(/undefined|NaN|\{/)
+              n += 1
+            }
+          }
+        }
+      }
+      expect(n).toBeGreaterThan(200)
+    })
+
+    test('has unique fact ids within a rule, and only registered templates', () => {
+      for (const [name, out] of views()) {
+        for (const group of out.groups) {
+          const ids = group.facts.map((f) => f.id)
+          expect(new Set(ids).size, `${name} ${group.rule}`).toBe(ids.length)
+          for (const fact of group.facts) {
+            expect(Object.keys(TEMPLATES), `${name} ${fact.id}`).toContain(fact.template)
+            expect(fact.rule).toBe(group.rule)
+          }
+        }
+      }
+    })
+
+    test('is deterministic and leaves a frozen input alone', () => {
+      const logs = [squatLog()]
+      const frozen = deepFreeze(equipped({ logs, readiness: lowReadinessFor(heavy) }))
+      const first = ask(frozen)
+      expect(ask(frozen)).toEqual(first)
+    })
+
+    test('words the equipment of every item the setup can save', () => {
+      for (const kind of ALL_KINDS) {
+        expect(EQUIPMENT_WORDS[kind], kind).toMatch(/^(a|an|the)? ?[a-z ]+$/)
+        expect(lintText(EQUIPMENT_WORDS[kind])).toEqual([])
+      }
+    })
+  })
+
+  describe('what the rules judged: the read that made the number', () => {
+    const goblet = (id: string, daysBack: number, implement: 'kettlebells' | 'dumbbells') =>
+      liftLog(
+        id,
+        addDays(heavy.date, -daysBack),
+        'goblet-squat',
+        [
+          [26, 8, 2],
+          [26, 8, 2],
+          [26, 8, 2],
+        ],
+        { implement, baseLb: 26, activityId: `act-${id}` },
+      )
+    const withEquipment = (kinds: Parameters<typeof have>, over: Partial<StrengthContext> = {}) =>
+      withSetup({ equipment: have(...kinds) }, { today: heavy.date, ...over })
+    const idsOf = (out: ExplainView, rule: string) => groupOf(out, rule).map((f) => f.id)
+
+    test('a change of equipment starts the lift again: no last session, no share, no gap', () => {
+      // goblet squats were logged with a kettlebell; the runner now has dumbbells
+      const logs = [goblet('kb', 3, 'kettlebells')]
+      const dumbbells = ask(withEquipment(['dumbbells', 'step'], { logs }), heavy, 'goblet-squat')
+      const f8 = groupOf(dumbbells, 'F8')
+      expect(f8.some((f) => f.id.startsWith('f8.last-'))).toBe(false)
+      expect(f8.some((f) => f.id.startsWith('f8.share-'))).toBe(false)
+      expect(said(f8)[0]).toMatch(/^Goblet squat has no sets logged yet, so it starts /)
+      expect(idsOf(dumbbells, 'F9').some((id) => id.startsWith('f9.since-'))).toBe(false)
+
+      // the control: with the kettlebell still the lift, the same log is its history
+      const kettlebell = ask(
+        withEquipment(['kettlebells', 'step'], { logs }),
+        heavy,
+        'goblet-squat',
+      )
+      expect(idsOf(kettlebell, 'F8')).toContain('f8.last-goblet-squat')
+      expect(idsOf(kettlebell, 'F9')).toContain('f9.since-goblet-squat')
+    })
+
+    test('a session is explained by the history before it, and the estimate of that history', () => {
+      const before = liftLog(
+        'before',
+        addDays(heavy.date, -3),
+        'back-squat',
+        [110, 110, 110, 110].map((pounds) => [pounds, 6, 2] as const),
+        { implement: 'barbell', baseLb: 110, activityId: 'act-before' },
+      )
+      // a heavier session two days after the one explained, and today a week later
+      const after = liftLog(
+        'after',
+        addDays(heavy.date, 2),
+        'back-squat',
+        [135, 135, 135, 135].map((pounds) => [pounds, 6, 2] as const),
+        { implement: 'barbell', baseLb: 135, activityId: 'act-after' },
+      )
+      const strength = equipped({ today: addDays(heavy.date, 7), logs: [before, after] })
+      const lift = workoutFor(strength, heavy).lifts.find((l) => l.exerciseId === 'back-squat')!
+      const out = ask(strength, heavy, 'back-squat')
+
+      const last = groupOf(out, 'F8').find((f) => f.id === 'f8.last-back-squat')!
+      expect(last.sources.map((s) => s.id)).toEqual(['act-before'])
+      expect(slot(last, 'load', 'load').g).toBe(lb(110))
+      // the share is the load against the estimate of the session the rules read
+      const share = groupOf(out, 'F8').find((f) => f.id === 'f8.share-back-squat')!
+      expect(slot(share, 'pct', 'percent').pct).toBe(
+        percentOfMax(lift.loadG!, estimateOneRm(lb(110), 6, 2)!),
+      )
+      // and the gap is counted to the day of the session
+      const since = groupOf(out, 'F9').find((f) => f.id === 'f9.since-back-squat')!
+      expect(text(since)).toMatch(/^Back squat: three days since the last session\./)
+    })
+
+    test('names the session that set the load, and counts the gap from the latest session of any mode', () => {
+      const normal = liftLog(
+        'normal',
+        addDays(heavy.date, -10),
+        'back-squat',
+        [110, 110, 110, 110].map((pounds) => [pounds, 6, 2] as const),
+        { implement: 'barbell', baseLb: 110, activityId: 'act-normal' },
+      )
+      const lighter = liftLog(
+        'lighter',
+        addDays(heavy.date, -2),
+        'back-squat',
+        [95, 95].map((pounds) => [pounds, 6, 2] as const),
+        {
+          implement: 'barbell',
+          baseLb: 110,
+          mode: 'lighter-day',
+          template: 'heavy',
+          activityId: 'act-lighter',
+        },
+      )
+      const out = ask(equipped({ logs: [normal, lighter] }), heavy, 'back-squat')
+      const last = groupOf(out, 'F8').find((f) => f.id === 'f8.last-back-squat')!
+      expect(last.sources.map((s) => s.id)).toEqual(['act-normal'])
+      expect(text(last)).toBe(
+        'The last session of Back squat was on Sat 31 Jan: four sets, heaviest set 110 lb x 6.',
+      )
+      const since = groupOf(out, 'F9').find((f) => f.id === 'f9.since-back-squat')!
+      expect(text(since)).toMatch(/^Back squat: two days since the last session\./)
+      expect(since.sources.map((s) => s.id)).toEqual(['act-lighter'])
+    })
+  })
+
+  describe('the gap and the illness, in words', () => {
+    const lastBack = (daysBack: number) =>
+      liftLog('gap-log', addDays(heavy.date, -daysBack), 'back-squat', [[110, 6, 2]], {
+        implement: 'barbell',
+        baseLb: 110,
+      })
+
+    test('says one day, not "1 days", and keeps the figures of the rule', () => {
+      const one = ask(equipped({ logs: [lastBack(1)] }), heavy, 'back-squat')
+      expect(said(groupOf(one, 'F9'))).toContain(
+        'Back squat: one day since the last session. After 28 days the load comes back to about 90% of the last one.',
+      )
+      const twelve = ask(equipped({ logs: [lastBack(12)] }), heavy, 'back-squat')
+      expect(said(groupOf(twelve, 'F9'))).toContain(
+        'Back squat: 12 days since the last session. After 28 days the load comes back to about 90% of the last one.',
+      )
+    })
+
+    test('has no gap fact for a lift with no load, which the return rule has no load for', () => {
+      const bodyweight = withSetup({ equipment: have('step') }, { today: heavy.date })
+      const log = liftLog('split', addDays(heavy.date, -3), 'split-squat', [
+        [null, 8, 2],
+        [null, 8, 2],
+      ])
+      const out = ask({ ...bodyweight, logs: [log] }, heavy, 'split-squat')
+      expect(groupOf(out, 'F9').some((f) => f.id.startsWith('f9.since-'))).toBe(false)
+    })
+
+    test('words the rest phase of an illness as rest, and the easy phase as easy effort', () => {
+      const day = (illness: 'rest' | 'easy-only') =>
+        said(
+          groupOf(
+            ask(
+              equipped({
+                logs: [lastBack(3)],
+                readiness: { date: heavy.date, state: 'normal', pain: null, illness },
+              }),
+              heavy,
+              'back-squat',
+            ),
+            'F9',
+          ),
+        )
+      expect(day('easy-only')).toContain('A recent illness limits the day to easy effort.')
+      const rest = day('rest')
+      expect(rest).toContain(
+        'A recent illness asks for rest, so the lifts are lighter if the session is done.',
+      )
+      expect(rest).not.toContain('A recent illness limits the day to easy effort.')
+    })
+  })
+
+  describe('a timed exercise and a bodyweight one have their own units', () => {
+    const trunk = (
+      id: string,
+      rows: Array<readonly [number | null, number, number | null]>,
+      implement?: 'dumbbells',
+    ) =>
+      liftLog(`trunk-${id}`, addDays(heavy.date, -3), id, rows, {
+        ...(implement === undefined ? {} : { implement }),
+        activityId: `act-${id}`,
+      })
+
+    test('a hold is a time: the longest hold of a side plank, the time of a carry', () => {
+      const plank = ask(
+        equipped({
+          logs: [
+            trunk('side-plank', [
+              [null, 30, null],
+              [null, 40, null],
+            ]),
+          ],
+        }),
+        heavy,
+        'side-plank',
+      )
+      expect(said(groupOf(plank, 'F8'))).toContain(
+        'The last session of Side plank was on Sat 7 Feb: two sets, longest hold 40 s.',
+      )
+      const carry = ask(
+        equipped({ logs: [trunk('farmer-carry', [[50, 30, null]], 'dumbbells')] }),
+        heavy,
+        'farmer-carry',
+      )
+      expect(said(groupOf(carry, 'F8'))).toContain(
+        'The last session of Farmer carry was on Sat 7 Feb: one set, heaviest set 50 lb for 30 s.',
+      )
+    })
+
+    test('a bodyweight lift counts reps, and says so', () => {
+      const bodyweight = withSetup({ equipment: have('step') }, { today: heavy.date })
+      const log = liftLog('split', addDays(heavy.date, -3), 'split-squat', [
+        [null, 8, 2],
+        [null, 7, 2],
+      ])
+      const out = ask({ ...bodyweight, logs: [log] }, heavy, 'split-squat')
+      expect(said(groupOf(out, 'F8'))).toContain(
+        'The last session of Split squat was on Sat 7 Feb: two sets, most reps in a set 8.',
+      )
+    })
   })
 })

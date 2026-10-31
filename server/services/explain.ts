@@ -16,7 +16,12 @@ import {
 } from '../../shared/engine/explainInputs.ts'
 import { weeklyRamp } from '../../shared/engine/limits.ts'
 import { rebuildZone } from '../../shared/engine/loadSetting.ts'
-import type { EngineInput, ExplainRequest, ExplainView } from '../../shared/engine/types.ts'
+import type {
+  EngineInput,
+  ExplainRequest,
+  ExplainView,
+  StrengthContext,
+} from '../../shared/engine/types.ts'
 import type { Deps } from '../app.ts'
 import { notFound } from '../errors.ts'
 import {
@@ -30,6 +35,7 @@ import { explainBrief } from './brief.ts'
 import { inputFromContext } from './engineInput.ts'
 import { explainActivity } from './insight.ts'
 import { executionRecordsByWeek } from './planEngine.ts'
+import { loadStrengthContext } from './strength.ts'
 
 type Goal = NonNullable<ExplainContext['goal']>
 
@@ -57,6 +63,7 @@ const NOT_FOUND: Record<ExplainRequest['subject'], string> = {
   brief: 'There is no brief for that week.',
   // A run is answered from its stored insight, before this table is read.
   activity: 'Activity not found.',
+  strength: 'That strength session or exercise is not in your current plan.',
 }
 
 /**
@@ -83,6 +90,10 @@ export async function explainView(
   // reads about the athlete use. The weekly decision is made from the plan's own goal below.
   const input = inputFromContext(context, { existing: true, options: context.planOptions })
   const goal = goalFor(context, request)
+  // A strength request is checked against the session's lifts, so the strength input comes first;
+  // any other request that reads it (the session of a strength session) takes it below.
+  const requested: StrengthContext | null =
+    request.subject === 'strength' ? await loadStrengthContext(deps, { userId, today }) : null
   const shell: ExplainContext = {
     asOf: today,
     input,
@@ -94,6 +105,7 @@ export async function explainView(
     hrModel: null,
     decision: null,
     race: null,
+    strength: requested,
   }
   const rules = explainRules(request, shell)
   if (rules === null) throw notFound(NOT_FOUND[request.subject])
@@ -141,6 +153,18 @@ export async function explainView(
     const race =
       needs.race && goal !== null ? await goalModelFor(context, goal.id, { climate: true }) : null
 
-    return explainInputs(request, { ...shell, hrModel, decision, prediction, race, planInput })
+    // The state of the logs, the setup and the plan's weeks, with the readiness read of today.
+    const strength =
+      requested ?? (needs.strength ? await loadStrengthContext(deps, { userId, today }) : null)
+
+    return explainInputs(request, {
+      ...shell,
+      hrModel,
+      decision,
+      prediction,
+      race,
+      planInput,
+      strength,
+    })
   })
 }
