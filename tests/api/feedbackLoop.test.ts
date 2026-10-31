@@ -462,6 +462,9 @@ describe('reviews of version-2 plans use the weekly decision and re-plan', () =>
     const again = await client(ctx, u).post('/api/plan/replan').send({})
     expect(again.status, JSON.stringify(again.body)).toBe(200)
     expect(await shape()).toEqual(first)
+    // and the revision it writes says so: the trim drawn again is not a change of planned minutes
+    expect((again.body as PlanRevision).changes).toEqual([])
+    expect((again.body as PlanRevision).summary).toMatch(/No changes to the plan\./)
   })
 
   test('a re-plan that cannot run does not fail the save', async () => {

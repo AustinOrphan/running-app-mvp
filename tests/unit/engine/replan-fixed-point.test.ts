@@ -57,7 +57,8 @@ describe('the race week, stored and re-planned with nothing new [rules g-6, K2]'
 describe('a held week, stored and re-planned with nothing new [rules J5, G-6]', () => {
   // A runner who runs 75% of every session: every Monday re-plan holds (completion under
   // `j5.completionHoldShare`), caps the week at the minutes run and a step, and trims the next
-  // quality session. The third and the fifth Mondays carry a trim; the fourth does not.
+  // quality session. Of the three Mondays tested (steps 2, 3 and 4 of the chain) the first carries
+  // no trim and the other two do.
   const half = athletes().find((a) => a.id === 'half')!
   const runner = new SimAthlete(1, 'compliant', { ...EXACT_RATES, asPlanned: [0.75, 0.75] })
   const chain = simulateChain(runner, half.input, { maxSteps: 4 })
@@ -94,6 +95,13 @@ describe('a held week, stored and re-planned with nothing new [rules J5, G-6]', 
       expect(next, `pass ${String(pass)}`).toEqual(step.draft)
       current = { ...current, settled: withStoredPlan(current), draft: next }
     }
+  })
+
+  it.each([0, 1, 2])('reports no change on the second pass of held step %i', (i) => {
+    // the plan is the same, so the list of changes the revision words is empty: the trim the second
+    // pass draws again is not a change of planned minutes against the trim stored
+    const second = replanMonday(withStoredPlan(held[i]!))
+    expect(replan(second.input, { decisions: second.decisions }).changes).toEqual([])
   })
 
   it('gives the plan back when the trimmed session is stored as planned too', () => {

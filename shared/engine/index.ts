@@ -1246,7 +1246,7 @@ export function replan(
       }
     }
     const oldMin = plannedMinutes(
-      oldSessions.filter((s) => s.status === 'planned'),
+      oldSessions.filter((s) => s.status === 'planned' || isHoldTrimRow(s)),
       weekStart,
       input.today,
     )
