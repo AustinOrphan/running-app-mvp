@@ -3,6 +3,7 @@
 // differentiation, the session spike guard, availability, spacing, ultra caps and race day.
 // It re-reads the finished plan; it never repairs one. A failed item blocks publishing with its
 // detail, so each detail names the week or date at fault.
+import { ordinal } from '../copy/quantity.ts'
 import { windowCheckLine } from '../copy/revision.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
@@ -18,7 +19,6 @@ import {
 } from './disruption.ts'
 import {
   injuryTight,
-  noviceRamp,
   rampBasis,
   rampLimits,
   rampSkipWeeks,
@@ -28,7 +28,7 @@ import {
   type RebuildZone,
 } from './limits.ts'
 import { rebuildZone, responseBasis } from './loadSetting.ts'
-import { redsHold } from './macro.ts'
+import { cycleShortReason, cycleWorkWeeks, redsHold } from './macro.ts'
 import { intensityMinutes } from './micro.ts'
 import { P } from './params/index.ts'
 import { postRaceWindows, windowViolations } from './postRace.ts'
@@ -267,17 +267,14 @@ function recoveryCadence(
   input: EngineInput,
 ): ChecklistResult {
   const rules = ['E3', 'g-3']
-  const flagged = P.e3.flaggedCycleWorkWeeks.value
   const usual = P.e3.defaultCycleWorkWeeks.value
-  const forced =
-    state.risk.recentInjury ||
-    input.options.recoveryCycle === '2:1' ||
-    (input.options.recoveryCycle !== '3:1' && state.experience === 'novice')
-  const cycle: number =
-    forced || (input.options.recoveryCycle !== '3:1' && noviceRamp(state)) ? flagged : usual
+  // The cycle is the generator's own answer (`cycleShortReason` and `cycleWorkWeeks`, macro.ts), so
+  // that a plan and its check cannot disagree about what an absent, chosen or forced option means.
+  const cycle = cycleWorkWeeks(input, state)
   // A runner whose logged frequency has just fallen under 2 a week gets the 2:1 cadence from the
-  // current week on [rules A5]; the weeks before it were planned, and are checked, at 3:1.
-  const switched = cycle !== (forced ? flagged : usual)
+  // current week on [rules A5]; the weeks before it were planned, and are checked, at 3:1. A
+  // runner who is novice, injured or chose 2:1 has the short cycle throughout.
+  const switched = cycleShortReason(input, state) === 'new-runner' && state.experience !== 'novice'
   const currentMonday = mondayOf(input.today)
   const failures: string[] = []
   // The plan never opens with a recovery week, so its first block may run one week longer (macro).
@@ -333,7 +330,7 @@ function recoveryCadence(
     'recovery-cadence',
     failures.length === 0,
     failures.length === 0
-      ? `A recovery week at least every ${cycle + 1}th week.`
+      ? `A recovery week at least every ${ordinal(cycle + 1)} week.`
       : failures.join('; '),
     rules,
   )

@@ -1034,6 +1034,60 @@ describe('Plan page, the load setting in effect', () => {
       options: { loadAppetite: 'standard' },
     })
   })
+
+  test.each([
+    ['3:1', 'Every 4th week'],
+    ['2:1', 'Every 3rd week'],
+  ] as const)(
+    'Regenerate plan starts from the %s cycle the plan holds and sends it again',
+    async (stored, name) => {
+      const user = userEvent.setup()
+      const { calls } = mockApi(
+        routes(makeV2Plan({ recoveryCycle: stored }), {
+          'POST /api/plan/generate': () => ({ status: 201, body: makeV2Plan() }),
+        }),
+      )
+      renderPlan()
+      await user.click(await screen.findByRole('button', { name: 'Regenerate plan' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Regenerate plan' })
+      expect(within(dialog).getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true')
+      expect(within(dialog).getByRole('radio', { name: 'Plan decides' })).toHaveAttribute(
+        'aria-checked',
+        'false',
+      )
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(calls.some((c) => c.method === 'POST' && c.url === '/api/plan/generate')).toBe(true)
+      })
+      expect(calls.find((c) => c.url === '/api/plan/generate')?.body).toMatchObject({
+        options: { recoveryCycle: stored },
+      })
+    },
+  )
+
+  test('Regenerate plan starts on "Plan decides" when the plan holds no cycle, and sends none', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan({ recoveryCycle: null }), {
+        'POST /api/plan/generate': () => ({ status: 201, body: makeV2Plan() }),
+      }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Regenerate plan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Regenerate plan' })
+    expect(within(dialog).getByRole('radio', { name: 'Plan decides' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST' && c.url === '/api/plan/generate')).toBe(true)
+    })
+    const body = calls.find((c) => c.url === '/api/plan/generate')?.body as {
+      options: Record<string, unknown>
+    }
+    expect('recoveryCycle' in body.options).toBe(false)
+  })
 })
 
 // A loading week run past its plan is taken as run (rules g-2, g-6): the stored target and baseline
