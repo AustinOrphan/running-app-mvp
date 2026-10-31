@@ -39,11 +39,11 @@ import {
   zoneReport,
   type Position,
 } from './history-properties.ts'
-import { sweepCases } from './history-sweep.ts'
+import { SWEEP_COUNT, SWEEP_SEED, sweepCases } from './history-sweep.ts'
 import { replanChain } from './replan-steps.ts'
 
-const SEED = 20_261_025
-const COUNT = 150
+const SEED = SWEEP_SEED
+const COUNT = SWEEP_COUNT
 // The budget of the phase 3a design: the sweep runs in under 60 s on a development machine. The
 // GitHub runners take two to three times as long (35 s and 62 s measured on 2026-10-25), so the
 // budget holds three times that: a guard against the sweep growing without bound, not a benchmark.

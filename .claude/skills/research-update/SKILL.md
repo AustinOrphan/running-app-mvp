@@ -74,7 +74,11 @@ a conflict resolution. Do not delete a paper that an older rule cites without re
 npm run research:check     offline; part of npm run check
 npm run research:verify    online Crossref check; whole corpus, or -- <id> <id> for some
 npm run check              lint, format, types, research check, unit tests
+npm run plan:report        by hand, outside npm run check; report only
 ```
+
+At every `PARAMS_VERSION` bump, run `npm run -s plan:report` before and after the change and paste
+the delta of the scorecards (the diff of the two outputs) into the pull request (proposal decision 9).
 
 `research:check` fails on a schema error, an unknown topic, a duplicate DOI, or a cited id with no
 paper. The few known stale ids in topic syntheses are listed in `scripts/research-check.ts`

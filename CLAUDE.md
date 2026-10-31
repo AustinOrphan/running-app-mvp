@@ -12,6 +12,11 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
   that the config's `webServer` creates and migrates. Run `npm run build` first.
 - `npm run research:check` (offline corpus and citation check) and `npm run research:verify`
   (online, Crossref, by hand).
+- `npm run plan:report`: report-only plan metrics, reference bands and a scorecard per plan over the
+  matrix and the sweeps (`tests/reports/`, about 20 s; `-- --matrix-only` skips the sweeps). Not part
+  of `check`; nothing outside `tests/` imports it (`harness-isolation.test.ts`). Run
+  `npm run -s plan:report` by hand before and after a `PARAMS_VERSION` bump and paste the delta of the
+  two outputs into the PR.
 - `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`.
 - `npm run icons`: renders the PNG icons in `web/public` from `icon.svg` with Playwright's chromium
   (no image library); commit the four PNGs it writes.
