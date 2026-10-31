@@ -14,6 +14,11 @@ const links = [
   { to: '/profile', label: 'Profile', note: 'Heart rate, availability and injury history' },
   { to: '/research', label: 'Research', note: render(TEMPLATES['research.context'], {}, 'km') },
   { to: '/fuel', label: 'Fuel lab', note: 'Fuel targets, products and gut training' },
+  {
+    to: '/strength',
+    label: 'Strength',
+    note: render(TEMPLATES['strength.page.more-note'], {}, 'km'),
+  },
   { to: '/settings', label: 'Settings', note: 'Units, display name, export' },
 ]
 

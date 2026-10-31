@@ -20,6 +20,7 @@ import { ReviewPage } from './pages/ReviewPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
 import { StatsPage } from './pages/StatsPage.tsx'
+import { StrengthPage } from './pages/StrengthPage.tsx'
 import { useOutboxReplay } from './pwa/outbox.ts'
 
 /** Sends first-run visitors to /setup and signed-out visitors to /login. */
@@ -82,6 +83,7 @@ export function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/research" element={<ResearchPage />} />
           <Route path="/fuel" element={<FuelLabPage />} />
+          <Route path="/strength" element={<StrengthPage />} />
           <Route path="/more" element={<MorePage />} />
         </Route>
       </Route>

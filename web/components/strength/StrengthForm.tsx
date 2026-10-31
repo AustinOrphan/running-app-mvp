@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { countPhrase } from '../../../shared/copy/quantity.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type {
   PinnedSlot,
+  StrengthLog,
   StrengthNextLoad,
   StrengthWorkout,
   Units,
@@ -36,6 +38,7 @@ import {
   parseMinutes,
   sameAsLast,
   stateFromBody,
+  stateOfLog,
   withUsualLoad,
   type Block,
   type FormState,
@@ -67,7 +70,9 @@ export interface StrengthFormProps {
   /** The planned session the log links to; null for none. */
   sessionId: string | null
   activityId: string | null
-  /** Start every set that has a usual load at it (design 11.1). */
+  /** A saved log being edited: the sheet opens as it was saved and saves over it (design 11.3). */
+  log?: StrengthLog
+  /** Start every set that has a usual load at it (design 11.1); an edit opens as it was saved. */
   usualLoads?: boolean
   weightUnit: WeightUnit
   units: Units
@@ -85,6 +90,7 @@ export function StrengthForm({
   date,
   sessionId,
   activityId,
+  log,
   usualLoads = false,
   weightUnit,
   units,
@@ -110,10 +116,13 @@ export function StrengthForm({
   // replays as two logs; the draft of that id, if the runner went on editing, is newer than its body.
   // Otherwise the draft brings its id back, so the save it was kept for is the same save.
   const [boot] = useState(() => {
-    const start = initialState(workout, weightUnit)
-    const fresh = usualLoads
-      ? { ...start, blocks: start.blocks.map((block) => withUsualLoad(block, weightUnit)) }
-      : start
+    // an edit opens on the log as it was saved, and a workout starts on its usual loads when asked to
+    const start =
+      log === undefined ? initialState(workout, weightUnit) : stateOfLog(workout, log, weightUnit)
+    const fresh =
+      usualLoads && log === undefined
+        ? { ...start, blocks: start.blocks.map((block) => withUsualLoad(block, weightUnit)) }
+        : start
     const draft = readDraft(context)
     const queued = queuedLogOf(getOutbox().getState().entries, { sessionId, date, activityId })
     if (queued !== null) {
@@ -126,7 +135,7 @@ export function StrengthForm({
       }
     }
     return draft === null
-      ? { logId: newLogId(), state: fresh }
+      ? { logId: log?.id ?? newLogId(), state: fresh }
       : { logId: draft.logId, state: applyDraft(fresh, draft, weightUnit) }
   })
   const { logId } = boot
@@ -172,7 +181,12 @@ export function StrengthForm({
   const anyLast = state.blocks.some((block) => hasLast(block, lastOf))
   const addable = canAddSet(state.blocks)
   const hasEffort = state.blocks.some((block) => block.shown.rir !== null)
-  const lighterDay = state.blocks.some((block) => block.shown.change === 'lighter-day')
+  const editing = log !== undefined
+  // Until the setup is saved the workout is bodyweight only (design 6.1): the sheet says so and
+  // offers it, on the surfaces that are not the Strength page, whose own card makes the offer.
+  const onStrengthPage = useLocation().pathname === '/strength'
+  const offerSetup = !workout.setupSaved && !editing && !onStrengthPage
+  const lighterDay = !editing && state.blocks.some((block) => block.shown.change === 'lighter-day')
   // "the usual load is one tap away" is true only where some lift has a usual load to go back to
   const anyUsual = state.blocks.some((block) => usualLoadOf(block.shown) !== null)
   const minutesWrong =
@@ -206,16 +220,19 @@ export function StrengthForm({
       activityId,
       state,
       unit: weightUnit,
+      clearEmpty: log !== undefined,
     })
     if (!built.ok) {
       setProblems(built.issues)
       return
     }
     setProblems(null)
+    // An edit sends the snapshot the log already holds: what the sheet showed then has not changed.
+    const body = log === undefined ? built.body : { ...built.body, prescribed: log.prescribed }
     // A log the server turned down shows in the sheet's alert and the entries stay; one kept on
     // this phone is as good as saved. The saved session can leave the sheet's surface before a
     // per-call callback would run, so the promise settles here.
-    save.mutateAsync({ logId, body: built.body }).then(
+    save.mutateAsync({ logId, body }).then(
       (result) => {
         if (result.status === 'rejected') return
         if (result.status === 'queued') {
@@ -296,6 +313,14 @@ export function StrengthForm({
                 })}
           </p>
         ) : null}
+        {offerSetup ? (
+          <p className={styles.offer}>
+            <span>{render(TEMPLATES['strength.page.sheet-offer'], {}, units, weightUnit)}</span>
+            <Link to="/strength" className={styles.offerLink}>
+              {render(TEMPLATES['strength.page.setup-heading'], {}, units, weightUnit)}
+            </Link>
+          </p>
+        ) : null}
         <p className={styles.muted}>{words.say('strength.safety')}</p>
         <p className={styles.muted}>
           {words.say('strength.sheet.warmup')}
@@ -305,29 +330,31 @@ export function StrengthForm({
         </p>
       </div>
 
-      <div className={styles.quick}>
-        <Button
-          variant="quiet"
-          onClick={() => {
-            change((current) => ({ ...current, blocks: asSuggested(current.blocks, weightUnit) }))
-          }}
-        >
-          {words.say('strength.sheet.as-suggested')}
-        </Button>
-        <Button
-          variant="quiet"
-          disabled={!anyLast}
-          onClick={() => {
-            change((current) => ({
-              ...current,
-              blocks: sameAsLast(current.blocks, lastOf, weightUnit),
-            }))
-          }}
-        >
-          {words.say('strength.sheet.same-as-last')}
-        </Button>
-      </div>
-      {sheetNeedsServer ? (
+      {editing ? null : (
+        <div className={styles.quick}>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              change((current) => ({ ...current, blocks: asSuggested(current.blocks, weightUnit) }))
+            }}
+          >
+            {words.say('strength.sheet.as-suggested')}
+          </Button>
+          <Button
+            variant="quiet"
+            disabled={!anyLast}
+            onClick={() => {
+              change((current) => ({
+                ...current,
+                blocks: sameAsLast(current.blocks, lastOf, weightUnit),
+              }))
+            }}
+          >
+            {words.say('strength.sheet.same-as-last')}
+          </Button>
+        </div>
+      )}
+      {sheetNeedsServer && !editing ? (
         <p className={styles.muted} role="status">
           {words.say('strength.sheet.needs-connection')}
         </p>
@@ -343,8 +370,10 @@ export function StrengthForm({
             weightUnit={weightUnit}
             attempted={attempted}
             equipment={equipment}
+            avoid={view.data?.settings.avoid ?? []}
             pinned={pinned?.[block.shown.slot as PinnedSlot]}
-            hasLast={hasLast(block, lastOf)}
+            hasLast={!editing && hasLast(block, lastOf)}
+            editing={editing}
             canAdd={addable}
             onChange={(update) => {
               changeBlock(block.key, update)

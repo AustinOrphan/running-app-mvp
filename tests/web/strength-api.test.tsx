@@ -15,6 +15,7 @@ import {
   useStrengthView,
   useStrengthWorkouts,
 } from '../../web/api/strength.ts'
+import { useSettings, useUpdateSettings } from '../../web/api/settings.ts'
 import { useToday } from '../../web/api/today.ts'
 import { OUTBOX_ROUTES } from '../../web/pwa/outbox.ts'
 import { mockApi } from './helpers.tsx'
@@ -152,6 +153,47 @@ describe('the strength writes', () => {
       expect(calls.filter((call) => call.url === '/api/strength')).toHaveLength(2)
     })
     expect(calls.filter((call) => call.url === '/api/today')).toHaveLength(2)
+  })
+
+  test('a change of the weight unit reads the strength readers and Today again; no other setting does', async () => {
+    const { calls } = mockApi({
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/auth/me': () => ({ id: 'u1', ...SETTINGS }),
+      'GET /api/strength': () => makeView(),
+      'GET /api/today': () => ({}),
+      'PUT /api/settings': ({ body }) => ({ ...SETTINGS, ...(body as object) }),
+    })
+    const { wrap } = wrapper()
+    // the grid of every prescribed load is the unit's, so what was read in the other unit is stale
+    const view = renderHook(
+      () => ({ strength: useStrengthView(), today: useToday(), settings: useSettings() }),
+      { wrapper: wrap },
+    )
+    await waitFor(() => {
+      expect(view.result.current.strength.isSuccess).toBe(true)
+      expect(view.result.current.today.isSuccess).toBe(true)
+      expect(view.result.current.settings.isSuccess).toBe(true)
+    })
+    const reads = (url: string) => calls.filter((call) => call.url === url).length
+    const { result } = renderHook(() => useUpdateSettings(), { wrapper: wrap })
+
+    await act(async () => {
+      await result.current.mutateAsync({ displayName: 'Sam' })
+    })
+    expect(reads('/api/settings')).toBeGreaterThan(1)
+    expect(reads('/api/strength')).toBe(1)
+    expect(reads('/api/today')).toBe(1)
+
+    await act(async () => {
+      await result.current.mutateAsync({ weightUnit: 'kg' })
+    })
+    // the write resolves once they have been read again
+    expect(reads('/api/strength')).toBe(2)
+    expect(reads('/api/today')).toBe(2)
+    expect(calls.filter((call) => call.method === 'PUT').map((call) => call.body)).toEqual([
+      { displayName: 'Sam' },
+      { weightUnit: 'kg' },
+    ])
   })
 
   test('a starting point is put and removed by exercise', async () => {

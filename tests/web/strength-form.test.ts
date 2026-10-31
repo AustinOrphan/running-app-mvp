@@ -3,6 +3,7 @@ import { fromGrams, stepsFor, toGrams } from '../../shared/domain/weight.ts'
 import { structuresFor } from '../../shared/engine/strength.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { STRENGTH_COUNT_MAX, STRENGTH_SETS_MAX } from '../../shared/limits.ts'
+import type { StrengthLog, StrengthSettings } from '../../shared/types.ts'
 import {
   applyDraft,
   clearDraft,
@@ -30,6 +31,7 @@ import {
   sameAsLast,
   snapshotOf,
   stateFromBody,
+  stateOfLog,
   stepRowCount,
   stepRowLoad,
   swapChoices,
@@ -39,10 +41,13 @@ import {
   withAllRir,
   withLift,
   withUsualLoad,
+  withoutAvoided,
   withoutSet,
+  workoutOfLog,
   type Block,
   type SetRow,
 } from '../../web/components/strength/strengthForm.ts'
+import { formOfExercises, pinChoices } from '../../web/components/strength/setupForm.ts'
 import { STRENGTH_DRAFT_PREFIX } from '../../web/pwa/drafts.ts'
 import type { OutboxEntry } from '../../web/pwa/outbox.ts'
 import { have } from '../unit/engine/strength-fixtures.ts'
@@ -60,6 +65,7 @@ import {
   set,
   snapLift,
   squat,
+  STRENGTH_SETTINGS,
 } from './strength-fixtures.ts'
 
 afterEach(() => {
@@ -346,6 +352,42 @@ describe('a swap', () => {
       'step-up',
       'single-leg-box-squat',
     ])
+  })
+
+  test('does not offer an exercise the runner left out, and keeps the one the workout held', () => {
+    const start = block('back-squat')
+    expect(swapChoices(start, equipment, true, ['goblet-squat', 'step-up'])).toEqual([
+      'tempo-squat',
+      'split-squat',
+      'single-leg-box-squat',
+    ])
+    // the original is what the engine put there, even when it is left out (the floor stands in)
+    const swapped = withLift(
+      start,
+      swappedLift(workout, 'goblet-squat', equipment, 'lb') as never,
+      'lb',
+    )
+    expect(swapChoices(swapped, equipment, true, ['back-squat'])).toContain('back-squat')
+  })
+
+  test('the setup pins and the sheet swaps through one function: an exercise left out is offered by neither', () => {
+    expect(withoutAvoided(['back-squat', 'leg-press', 'tempo-squat'], ['leg-press'])).toEqual([
+      'back-squat',
+      'tempo-squat',
+    ])
+    expect(
+      withoutAvoided(['back-squat', 'leg-press'], new Set(['leg-press']), ['leg-press']),
+    ).toEqual(['back-squat', 'leg-press'])
+    const avoid = ['goblet-squat', 'tempo-squat']
+    const settings: StrengthSettings = { ...STRENGTH_SETTINGS, avoid }
+    const pins = pinChoices('knee', equipment, formOfExercises(settings))
+    const swaps = swapChoices(block('back-squat'), equipment, true, avoid)
+    for (const id of avoid) {
+      expect(pins, id).not.toContain(id)
+      expect(swaps, id).not.toContain(id)
+    }
+    // whatever the sheet can swap to, the setup can pin: the two lists cannot disagree
+    for (const id of swaps) expect(pins, id).toContain(id)
   })
 
   test('starts a dumbbell lift as the first session of an exercise, at the lightest dumbbell', () => {
@@ -670,6 +712,179 @@ describe('the draft', () => {
       clearDraft(LOG)
     }).not.toThrow()
     expect(readDraft(context)).toBeNull()
+  })
+})
+
+describe('editing a saved log', () => {
+  const logged = [
+    set('back-squat', 0, 105, 5, 2),
+    set('back-squat', 1, 110, 5, null),
+    set('dumbbell-rdl', 2, 35, 6, 3),
+    set('pogo-hop', 3, null, 40, null),
+    set('side-plank', 4, null, 30, null),
+  ]
+  const log = (): StrengthLog => {
+    const saved = makeLog('3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10', DAY, logged)
+    return {
+      ...saved,
+      durationMin: 35,
+      rpe: 7,
+      pain: 2,
+      notes: 'Felt steady',
+      prescribed: {
+        template: 'heavy',
+        variant: 'B',
+        week: 5,
+        mode: 'lighter-day',
+        lifts: [
+          {
+            exerciseId: 'back-squat',
+            implement: 'barbell',
+            sets: 3,
+            range: { min: 3, max: 6 },
+            rir: { min: 1, max: 3 },
+            baseLoadG: lb(115),
+            shownLoadG: lb(105),
+            change: 'lighter-day',
+            basis: squat().basis,
+          },
+          {
+            exerciseId: 'dumbbell-rdl',
+            implement: 'dumbbells',
+            sets: 2,
+            range: { min: 3, max: 6 },
+            rir: { min: 2, max: 2 },
+            baseLoadG: lb(35),
+            shownLoadG: lb(35),
+            change: 'hold',
+            basis: rdl().basis,
+          },
+        ],
+      },
+    }
+  }
+  const equipment = have('barbell', 'dumbbells', 'bands', 'step')
+
+  test('opens as the workout the log was made from: the exercises in the order they were logged, as the snapshot showed them', () => {
+    const workout = workoutOfLog(log(), equipment, 'lb')
+    expect(workout).toMatchObject({
+      sessionId: '3f2b7c1e-8d4a-4f6b-9a31-5c0e2d7b6a10',
+      date: DAY,
+      template: 'heavy',
+      variant: 'B',
+      budgetMin: 35,
+      block: null,
+      plyo: null,
+      trunk: [],
+    })
+    expect(workout.lifts.map((lift) => lift.exerciseId)).toEqual([
+      'back-squat',
+      'dumbbell-rdl',
+      'pogo-hop',
+      'side-plank',
+    ])
+    const [squatLift, rdlLift, jumps, plank] = workout.lifts
+    // the snapshot's implement, range, effort and reason, and the load that was shown
+    expect(squatLift).toMatchObject({
+      slot: 'knee',
+      implement: 'barbell',
+      sets: 3,
+      range: { min: 3, max: 6 },
+      rir: { min: 1, max: 3 },
+      loadG: lb(105),
+      usualLoadG: lb(115),
+      change: 'lighter-day',
+    })
+    expect(rdlLift).toMatchObject({ usualLoadG: null, change: 'hold' })
+    expect(squatLift?.basis).toEqual(squat().basis)
+    // the steps are the ones the saved equipment makes now, so a stepper moves on its rungs
+    expect(squatLift?.steps).toEqual(stepsFor(equipment, 'barbell', 'lb'))
+    expect(rdlLift?.steps).toEqual(stepsFor(equipment, 'dumbbells', 'lb'))
+    // an exercise the snapshot does not hold (the jumps are left out of it) has no load to step
+    expect(jumps).toMatchObject({ slot: 'plyo', implement: null, steps: null, rir: null })
+    expect(jumps?.range).toEqual({ min: 40, max: 40 })
+    expect(plank).toMatchObject({ slot: 'trunk', implement: null, steps: null })
+  })
+
+  test('has no steps before the saved equipment is known, and none for a lift whose equipment has gone', () => {
+    expect(workoutOfLog(log(), null, 'lb').lifts.map((lift) => lift.steps)).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ])
+    const [squatLift, rdlLift] = workoutOfLog(log(), have('dumbbells'), 'lb').lifts
+    expect(squatLift?.steps).toBeNull()
+    expect(rdlLift?.steps).not.toBeNull()
+  })
+
+  test('fills the sheet with the sets as they were logged: loads in the grams they were, counts, reps left, the footer', () => {
+    const workout = workoutOfLog(log(), equipment, 'lb')
+    const state = stateOfLog(workout, log(), 'lb')
+    expect(state.blocks.map((block) => [block.key, block.kind, block.rows.length])).toEqual([
+      ['back-squat', 'lift', 2],
+      ['dumbbell-rdl', 'lift', 1],
+      ['pogo-hop', 'plyo', 1],
+      ['side-plank', 'trunk', 1],
+    ])
+    expect(state.blocks[0]?.rows).toEqual([
+      { load: '105', exactG: lb(105), count: '5', rir: 2 },
+      { load: '110', exactG: lb(110), count: '5', rir: null },
+    ])
+    // a movement with no load has none to show, and its count is the contacts or the seconds
+    expect(state.blocks[2]?.rows).toEqual([{ load: '', exactG: null, count: '40', rir: null }])
+    expect(state).toMatchObject({ minutes: '35', effort: 7, pain: 2, notes: 'Felt steady' })
+  })
+
+  test('leaves the footer empty for a log that has no effort, pain or note', () => {
+    const bare = { ...log(), rpe: null, pain: null, notes: null }
+    const state = stateOfLog(workoutOfLog(bare, equipment, 'lb'), bare, 'lb')
+    expect(state).toMatchObject({ effort: null, pain: null, notes: '' })
+  })
+
+  test('sends an emptied effort, pain and note as null in an edit, so the activity is cleared, and leaves them out otherwise', () => {
+    const saved = log()
+    const workout = workoutOfLog(saved, equipment, 'lb')
+    const cleared = { ...stateOfLog(workout, saved, 'lb'), effort: null, pain: null, notes: '  ' }
+    const input = { workout, date: DAY, sessionId: null, activityId: null, unit: 'lb' as const }
+    const edit = buildLogBody({ ...input, state: cleared, clearEmpty: true })
+    expect(edit.ok && edit.body).toMatchObject({ rpe: null, pain: null, notes: null })
+    // a first save, or the attach to an import, has no key: the activity keeps what it holds
+    const attach = buildLogBody({ ...input, state: cleared })
+    expect(attach.ok).toBe(true)
+    if (!attach.ok) return
+    expect(attach.body).not.toHaveProperty('rpe')
+    expect(attach.body).not.toHaveProperty('pain')
+    expect(attach.body).not.toHaveProperty('notes')
+    // an edit that keeps them sends what they hold
+    const kept = buildLogBody({
+      ...input,
+      state: stateOfLog(workout, saved, 'lb'),
+      clearEmpty: true,
+    })
+    expect(kept.ok && kept.body).toMatchObject({ rpe: 7, pain: 2, notes: 'Felt steady' })
+  })
+
+  test('sends the loads it was filled with as the very grams, in either unit', () => {
+    const workout = workoutOfLog(log(), equipment, 'kg')
+    const state = stateOfLog(workout, log(), 'kg')
+    const built = buildLogBody({
+      workout,
+      date: DAY,
+      sessionId: null,
+      activityId: null,
+      state,
+      unit: 'kg',
+    })
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(built.body.sets.map((setBody) => setBody.loadG)).toEqual([
+      lb(105),
+      lb(110),
+      lb(35),
+      null,
+      null,
+    ])
   })
 })
 

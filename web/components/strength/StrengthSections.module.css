@@ -1,0 +1,265 @@
+/* The frame the sections of the Strength page share: a hairline above, a heading, then the section's
+   own parts (the Fuel lab's frame). `min-width: 0` lets a long line wrap inside a flex child instead
+   of widening the page at 360 px. Nothing here is danger-coloured but a failed read: a lift that went
+   down is a change, not a mistake. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+/* A heading that takes focus after a lift is chosen, so focus does not fall to the page. */
+.heading:focus,
+.subheading:focus {
+  outline: none;
+}
+
+.heading:focus-visible,
+.subheading:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.subheading {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.lead,
+.note {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.note {
+  color: var(--text-muted);
+}
+
+.run {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.item:first-child {
+  border-top: 0;
+}
+
+/* The line of one lift of a workout: its name, the suggestion under it, and a word for the change. */
+.rowName {
+  font-weight: 600;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.rowText {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.tag {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 600;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+/* A label and its value, in pairs that wrap: the facts of a lift, the rows of the units section. */
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.fact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+}
+
+.fact dt {
+  color: var(--text-muted);
+}
+
+.fact dd {
+  margin: 0;
+}
+
+.past {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 24rem;
+}
+
+.badges {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.badge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* The table of one lift's history scrolls inside its own box, both ways, so a phone never scrolls the
+   page sideways. The box takes focus (it is a labelled region), so the focus ring is its own. */
+.scroll {
+  max-height: 26rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.scroll:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 600;
+}
+
+.table tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.table td {
+  white-space: nowrap;
+}
+
+.table th small {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 400;
+}
+
+/* A row of quiet buttons: the first one's text lines up with the text above it, not its padding. */
+.flush {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: calc(var(--space-4) * -1);
+}
+
+/* The change button of a row of the units section stands on a line of its own, at every width. */
+.rowAction {
+  flex-basis: 100%;
+  margin-left: calc(var(--space-4) * -1);
+}
+
+.sets {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A set stays on one line and the estimate beside it wraps, so the table fits a phone's 328 px. */
+.sets li {
+  white-space: nowrap;
+}

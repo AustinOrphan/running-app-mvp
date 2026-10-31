@@ -32,6 +32,10 @@ vi.mock('../../web/components/strength/StrengthSheet.tsx', () => {
   loaded.push('StrengthSheet')
   return { StrengthSheet: () => null }
 })
+vi.mock('../../web/components/strength/SetupSheets.tsx', () => {
+  loaded.push('SetupSheets')
+  return { StrengthSetupSheet: () => null }
+})
 vi.mock('../../web/components/disruption/NotFullSheet.tsx', () => {
   loaded.push('NotFullSheet')
   return { NotFullSheet: () => null }
@@ -50,6 +54,7 @@ const SHEETS = [
   'DoneSheet',
   'FuelLogSheet',
   'StrengthSheet',
+  'SetupSheets',
   'NotFullSheet',
   'ReplanSheet',
   'WindowActionSheet',

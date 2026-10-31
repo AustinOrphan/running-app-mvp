@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
-import type { Units, UserSettings } from '../../shared/types.ts'
+import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../../shared/domain/weight.ts'
+import type { Units, UserSettings, WeightUnit } from '../../shared/types.ts'
 import { useLogout } from '../api/auth.ts'
 import { fieldErrors } from '../api/client.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
@@ -36,6 +37,10 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   // What the server holds, as of the last successful save; the form sends only the differences.
   const [saved, setSaved] = useState(initial)
   const [units, setUnits] = useState<Units>(initial.units)
+  // an answer kept from before the unit existed has none, and reads as the default (pounds)
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(
+    isWeightUnit(initial.weightUnit) ? initial.weightUnit : DEFAULT_WEIGHT_UNIT,
+  )
   const [displayName, setDisplayName] = useState(initial.displayName ?? '')
 
   const errors = fieldErrors(update.error)
@@ -60,6 +65,15 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     setUnits(next)
     save({ units: next }, () => {
       setUnits(previous)
+    })
+  }
+
+  function onWeightUnitChange(next: WeightUnit) {
+    if (next === weightUnit) return
+    const previous = weightUnit
+    setWeightUnit(next)
+    save({ weightUnit: next }, () => {
+      setWeightUnit(previous)
     })
   }
 
@@ -92,6 +106,15 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
           options={[
             { value: 'mi', label: 'Miles' },
             { value: 'km', label: 'Kilometres' },
+          ]}
+        />
+        <Segmented<WeightUnit>
+          label={render(TEMPLATES['strength.page.weight-units'], {}, units)}
+          value={weightUnit}
+          onChange={onWeightUnitChange}
+          options={[
+            { value: 'lb', label: render(TEMPLATES['strength.page.unit-pounds'], {}, units) },
+            { value: 'kg', label: render(TEMPLATES['strength.page.unit-kilograms'], {}, units) },
           ]}
         />
         <Field label="Display name" error={errors['displayName']}>

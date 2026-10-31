@@ -238,6 +238,93 @@ export function initialState(workout: StrengthWorkout, unit: WeightUnit): FormSt
   }
 }
 
+// ---- Editing a saved log -----------------------------------------------------------------------
+
+/** What kind of block an exercise of a saved log is: by the slot it fills in the catalogue. */
+function blockKindOf(slot: WorkoutLift['slot']): BlockKind {
+  return slot === 'plyo' ? 'plyo' : slot === 'trunk' ? 'trunk' : 'lift'
+}
+
+/**
+ * The workout a saved log is edited as: the exercises of its sets, in the order they were logged,
+ * each as the log's snapshot showed it (its implement, range, reps left and reason) with the steps
+ * the saved equipment makes now, so a load stepper moves on the rungs the runner has. It stands for
+ * no planned session (`sessionId` is the log's own id, which only the draft's key reads) and is
+ * never saved: an edit sends the snapshot the log already holds.
+ */
+export function workoutOfLog(
+  log: StrengthLog,
+  equipment: readonly EquipmentConfig[] | null,
+  unit: WeightUnit,
+): StrengthWorkout {
+  const logged = [...log.sets].sort((a, b) => a.position - b.position)
+  const ids = [...new Set(logged.map((set) => set.exerciseId))]
+  const lifts = ids.map((exerciseId): WorkoutLift => {
+    const shown = log.prescribed.lifts.find((lift) => lift.exerciseId === exerciseId)
+    const own = logged.filter((set) => set.exerciseId === exerciseId)
+    const counts = own.map((set) => set.count)
+    const implement = shown?.implement ?? null
+    return {
+      exerciseId,
+      slot: exerciseById(exerciseId)?.slot ?? 'knee',
+      implement,
+      sets: shown?.sets ?? own.length,
+      range: shown?.range ?? { min: Math.min(...counts), max: Math.max(...counts) },
+      targets: counts,
+      loadG: shown?.shownLoadG ?? own[0]?.loadG ?? null,
+      steps: implement === null || equipment === null ? null : stepsFor(equipment, implement, unit),
+      rir: shown?.rir ?? null,
+      change: shown?.change ?? 'hold',
+      usualLoadG:
+        shown !== undefined && shown.baseLoadG !== shown.shownLoadG ? shown.baseLoadG : null,
+      basis: shown?.basis ?? { rule: 'F8', facts: [] },
+      evidence: NO_EVIDENCE,
+    }
+  })
+  return {
+    sessionId: log.id,
+    date: log.date,
+    template: log.prescribed.template,
+    variant: log.prescribed.variant,
+    block: null,
+    budgetMin: log.durationMin,
+    setupSaved: true,
+    lifts,
+    plyo: null,
+    trunk: [],
+    rules: [],
+  }
+}
+
+/** The sheet as an edit opens it: the logged sets as they were, the minutes, the effort, the pain and the note. */
+export function stateOfLog(
+  workout: StrengthWorkout,
+  log: StrengthLog,
+  unit: WeightUnit,
+): FormState {
+  const logged = [...log.sets].sort((a, b) => a.position - b.position)
+  return {
+    blocks: workout.lifts.map((lift) => ({
+      key: lift.exerciseId,
+      kind: blockKindOf(lift.slot),
+      shown: lift,
+      original: lift,
+      rows: logged
+        .filter((set) => set.exerciseId === lift.exerciseId)
+        .map((set): SetRow => ({
+          load: loadText(set.loadG, unit),
+          exactG: set.loadG,
+          count: String(set.count),
+          rir: set.rir,
+        })),
+    })),
+    minutes: String(log.durationMin),
+    effort: log.rpe,
+    pain: log.pain,
+    notes: log.notes ?? '',
+  }
+}
+
 // ---- What the quiet buttons do -----------------------------------------------------------------
 
 /**
@@ -429,17 +516,36 @@ export function barbellOf(workout: Pick<StrengthWorkout, 'template' | 'block'>):
 }
 
 /**
+ * The exercises of `ids` that the runner has not left out (design 6.2, part 4). Every place that
+ * offers or saves an always-use choice reads the list through this: the setup's pins and the logging
+ * sheet's Swap and "Always use this". A pin on an exercise that is left out is a pin the rules
+ * ignore (the engine lets "left out" win), and the setup drops it when an exercise is left out, so
+ * the two writers keep one invariant. `keep` names exercises that stay whatever the list says: one
+ * already chosen, so a saved choice is never hidden.
+ */
+export function withoutAvoided(
+  ids: readonly ExerciseId[],
+  avoid: readonly string[] | ReadonlySet<string>,
+  keep: readonly string[] = [],
+): ExerciseId[] {
+  const left = new Set(avoid)
+  return ids.filter((id) => keep.includes(id) || !left.has(id))
+}
+
+/**
  * The exercises a lift can be swapped for: the one the workout held (to return to), then the slot's
- * feasible substitutes with the saved equipment (design 7.3), without the one now shown.
+ * feasible substitutes with the saved equipment (design 7.3), without the one now shown and without
+ * those the runner left out, so "Always use this" cannot pin one of them.
  */
 export function swapChoices(
   block: Block,
   equipment: readonly EquipmentConfig[],
   barbell: boolean,
+  avoid: readonly string[] = [],
 ): ExerciseId[] {
   const original = exerciseById(block.original.exerciseId)
   if (original === undefined) return []
-  const others = substitutes(original.id, equipment, { barbell })
+  const others = withoutAvoided(substitutes(original.id, equipment, { barbell }), avoid)
   return [original.id, ...others].filter((id) => id !== block.shown.exerciseId)
 }
 
@@ -572,6 +678,12 @@ export interface LogInput {
   activityId: string | null
   state: FormState
   unit: WeightUnit
+  /**
+   * An edit of a saved log: an emptied effort, pain or note is sent as `null`, which clears what the
+   * activity holds. Left out (the default) it is sent as no key, which keeps what an attached
+   * import brought, and is what a first save of a session does.
+   */
+  clearEmpty?: boolean
 }
 
 /** The request for the sheet, or what is wrong with it. */
@@ -607,10 +719,15 @@ export function buildLogBody(
       ...(input.sessionId === null ? {} : { sessionId: input.sessionId }),
       ...(input.activityId === null ? {} : { activityId: input.activityId }),
       durationMin,
-      // left out, not null: an attached import keeps the effort, pain and note it brought
-      ...(state.effort === null ? {} : { rpe: state.effort }),
-      ...(state.pain === null ? {} : { pain: state.pain }),
-      ...(notes === '' ? {} : { notes }),
+      // left out, not null: an attached import keeps the effort, pain and note it brought; an edit
+      // of a saved log has them in its form, so an emptied field is the runner clearing it
+      ...(input.clearEmpty === true
+        ? { rpe: state.effort, pain: state.pain, notes: notes === '' ? null : notes }
+        : {
+            ...(state.effort === null ? {} : { rpe: state.effort }),
+            ...(state.pain === null ? {} : { pain: state.pain }),
+            ...(notes === '' ? {} : { notes }),
+          }),
       prescribed: snapshotOf(workout, state.blocks),
       sets,
     },

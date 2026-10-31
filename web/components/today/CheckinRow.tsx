@@ -3,12 +3,12 @@ import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import type { Checkin, Units } from '../../../shared/types.ts'
 import { checkinUrl, useSaveCheckin, type CheckinInput } from '../../api/checkins.ts'
-import { useStrengthLogNotices } from '../../api/strength.ts'
 import { getOutbox, useOutboxState } from '../../pwa/outbox.ts'
 import { Button } from '../Button.tsx'
 import { Segmented } from '../Segmented.tsx'
 import { useToast } from '../Toast.tsx'
 import { CheckinSheet, NotFullSheet } from '../lazySheets.tsx'
+import { StrengthLogNotices } from '../strength/StrengthLogNotices.tsx'
 import styles from './CheckinRow.module.css'
 
 /** The fatigue row's answers, 1 (fresh) to 5 (drained): the word, then the line the row folds to. */
@@ -79,7 +79,6 @@ export function CheckinRow({
 }: CheckinRowProps) {
   const url = checkinUrl(date)
   const outbox = useOutboxState()
-  const strengthNotices = useStrengthLogNotices()
   const save = useSaveCheckin()
   const toast = useToast()
   const [sheet, setSheet] = useState<'feel' | 'hurt' | 'window' | null>(null)
@@ -212,22 +211,7 @@ export function CheckinRow({
           {notice.message}
         </p>
       ))}
-      {strengthNotices.notices.map((notice) => (
-        <div key={notice.id} className={styles.dismissable}>
-          <p role="alert" className={styles.notice}>
-            {notice.message}
-          </p>
-          <Button
-            variant="quiet"
-            className={styles.dismiss}
-            onClick={() => {
-              strengthNotices.dismiss(notice.id)
-            }}
-          >
-            {render(TEMPLATES['today.outbox.dismiss'], {}, units)}
-          </Button>
-        </div>
-      ))}
+      <StrengthLogNotices />
       {sheet === 'window' ? (
         <NotFullSheet
           today={date}

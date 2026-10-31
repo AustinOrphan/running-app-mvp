@@ -60,6 +60,9 @@ export const FuelLogSheet = lazySheet(() =>
 export const StrengthSheet = lazySheet(() =>
   import('./strength/StrengthSheet.tsx').then((module) => module.StrengthSheet),
 )
+export const StrengthSetupSheet = lazySheet(() =>
+  import('./strength/SetupSheets.tsx').then((module) => module.StrengthSetupSheet),
+)
 export const LoadSettingSheet = lazySheet(() =>
   import('./LoadSettingSheet.tsx').then((module) => module.LoadSettingSheet),
 )

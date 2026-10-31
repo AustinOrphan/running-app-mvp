@@ -1,9 +1,5 @@
 import { useId, useState } from 'react'
-import {
-  isExerciseId,
-  loadMeaning,
-  type ExerciseId,
-} from '../../../shared/domain/strengthLibrary.ts'
+import type { ExerciseId } from '../../../shared/domain/strengthLibrary.ts'
 import type {
   EquipmentConfig,
   PinnedSlot,
@@ -34,7 +30,7 @@ import {
   type Block,
   type SetRow,
 } from './strengthForm.ts'
-import { measureOf, type StrengthWords } from './strengthText.ts'
+import { loadMeaningLine, measureOf, type StrengthWords } from './strengthText.ts'
 import { usualLoadOf } from './workoutRows.ts'
 import styles from './StrengthSheet.module.css'
 
@@ -50,10 +46,14 @@ export interface LiftSectionProps {
   attempted: boolean
   /** The saved equipment, which "Swap" reads; null until the page view has loaded (or offline). */
   equipment: readonly EquipmentConfig[] | null
+  /** The exercises left out in the setup: "Swap" does not offer them, so none can be pinned. */
+  avoid: readonly string[]
   /** The exercise the runner always uses in this lift's slot, if any. */
   pinned: string | undefined
   /** "Same as last time" has a session of this lift to copy. */
   hasLast: boolean
+  /** A saved log is being edited: "Why", "Swap", "Always use this" and the usual load speak of a plan it was not made from. */
+  editing: boolean
   /** Another set fits in the log. */
   canAdd: boolean
   onChange: (update: (block: Block) => Block) => void
@@ -74,8 +74,10 @@ export function LiftSection({
   weightUnit,
   attempted,
   equipment,
+  avoid,
   pinned,
   hasLast,
+  editing,
   canAdd,
   onChange,
   onSameAsLast,
@@ -92,16 +94,14 @@ export function LiftSection({
   // a lift with loads in its sets shows the field, whatever the equipment says (a log of a swapped
   // lift that was kept on the phone has its loads and not its steps)
   const loaded = shown.steps !== null || rows.some((row) => row.load !== '')
-  const meaning =
-    loaded && isExerciseId(shown.exerciseId)
-      ? loadMeaning(shown.exerciseId, shown.implement)
-      : 'none'
+  const meaning = loaded ? loadMeaningLine(words, shown.exerciseId, shown.implement) : null
   const swapped = shown !== block.original
   const reason = words.reason(shown)
   const usualLoadG = usualLoadOf(shown)
-  const lighterDay = shown.change === 'lighter-day' && usualLoadG !== null
-  const choices = equipment === null ? [] : swapChoices(block, equipment, barbellOf(workout))
-  const pinnable = swapped && PINNABLE.has(shown.slot)
+  // a saved log being edited was not made on a lighter day of the plan that is read now
+  const lighterDay = !editing && shown.change === 'lighter-day' && usualLoadG !== null
+  const choices = equipment === null ? [] : swapChoices(block, equipment, barbellOf(workout), avoid)
+  const pinnable = !editing && swapped && PINNABLE.has(shown.slot)
   const reachedBy = (index: number, update: (row: SetRow) => SetRow) => {
     onChange((current) => ({
       ...current,
@@ -136,15 +136,16 @@ export function LiftSection({
         </h3>
         <div className={styles.liftTools}>
           {/* A swapped lift has no explanation yet: the server reads the figures of a lift in the
-              session's place (E14-10), and the drawer would explain another suggestion. */}
-          {block.kind === 'lift' && !swapped ? (
+              session's place (E14-10), and the drawer would explain another suggestion. A saved
+              log being edited was not made from the plan the drawer would explain. */}
+          {block.kind === 'lift' && !swapped && !editing ? (
             <ExplainButton
               subject={exercise}
               rules={[shown.basis.rule]}
               explain={{ subject: 'strength', id: workout.sessionId, exercise: shown.exerciseId }}
             />
           ) : null}
-          {block.kind === 'lift' ? (
+          {block.kind === 'lift' && !editing ? (
             <Button
               variant="quiet"
               aria-label={words.say('strength.sheet.swap-for', { exercise })}
@@ -172,9 +173,9 @@ export function LiftSection({
       <p className={styles.suggestion}>{words.suggestion(shown)}</p>
       {reason === null ? null : <p className={styles.muted}>{reason}</p>}
       {/* what the load means is fixed by the equipment and shown beside the field (design 5.2) */}
-      {meaning === 'none' ? null : (
+      {meaning === null ? null : (
         <p id={meaningId} className={styles.muted}>
-          {words.say(`strength.basis.${meaning}`)}
+          {meaning}
         </p>
       )}
 
@@ -314,7 +315,7 @@ export function LiftSection({
                       value={row.load}
                       inputMode="decimal"
                       unit={weightUnit}
-                      describedBy={meaning === 'none' ? undefined : meaningId}
+                      describedBy={meaning === null ? undefined : meaningId}
                       lowerLabel={words.say('strength.sheet.lower-load')}
                       raiseLabel={words.say('strength.sheet.raise-load')}
                       lowerEnds={stepRowLoad(row, shown, -1, weightUnit) === row}

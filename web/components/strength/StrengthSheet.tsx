@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { StrengthWorkout } from '../../../shared/types.ts'
+import type { StrengthLog, StrengthWorkout } from '../../../shared/types.ts'
 import { useStrengthUnits } from '../../api/strength.ts'
 import { Sheet } from '../Sheet.tsx'
 import { Skeleton } from '../Skeleton.tsx'
@@ -25,6 +25,14 @@ export interface StrengthSheetProps {
   /** An owned strength activity that has no log yet (an import): the sets attach to it. */
   activityId?: string | null
   /**
+   * A saved log to edit (the Strength page's recent sessions): the sheet opens with its sets, minutes,
+   * effort, pain and note, and saves over it under its own id, so the log is replaced and not
+   * doubled. `workout` is then `workoutOfLog(log, ...)`, which the sheet keeps as it keeps any
+   * workout it was opened with; the quiet buttons, "Why" and "Swap" speak of a plan the log was not
+   * made from and are left out, and "Save without sets" never applies.
+   */
+  log?: StrengthLog
+  /**
    * Open with the usual load of a lighter day in every set that has one, as the lift's "Use the
    * usual load" does (the Today hero's switch). A draft kept on the device wins over it.
    */
@@ -48,6 +56,7 @@ export function StrengthSheet({
   date,
   sessionId,
   activityId,
+  log,
   usualLoads,
   onClose,
   onSaved,
@@ -71,7 +80,8 @@ export function StrengthSheet({
           workout={workout}
           date={date}
           sessionId={sessionId === undefined ? workout.sessionId : sessionId}
-          activityId={activityId ?? null}
+          activityId={activityId ?? log?.activityId ?? null}
+          {...(log === undefined ? {} : { log })}
           usualLoads={usualLoads === true}
           weightUnit={units.data.weightUnit}
           units={units.data.units}

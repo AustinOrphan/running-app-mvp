@@ -1,25 +1,30 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { fromGrams, toGrams } from '../../shared/domain/weight.ts'
-import { structuresFor } from '../../shared/engine/strength.ts'
+import { formatLoad, fromGrams, toGrams } from '../../shared/domain/weight.ts'
+import { P } from '../../shared/engine/params/index.ts'
+import { estimateOneRm, structuresFor } from '../../shared/engine/strength.ts'
 import type {
   StrengthNextLoad,
+  StrengthSettings,
   StrengthSnapshot,
   StrengthView,
   StrengthWorkout,
   UserSettings,
   WorkoutLift,
 } from '../../shared/types.ts'
-import type { StrengthLogBody } from '../../web/api/strength.ts'
+import { strengthLogUrl, type StrengthLogBody } from '../../web/api/strength.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { StrengthSheet, type StrengthSaved } from '../../web/components/strength/StrengthSheet.tsx'
 import { STRENGTH_DRAFT_PREFIX } from '../../web/pwa/drafts.ts'
 import { measureOf, strengthWords } from '../../web/components/strength/strengthText.ts'
-import { getOutbox } from '../../web/pwa/outbox.ts'
+import { StrengthPage } from '../../web/pages/StrengthPage.tsx'
+import { getOutbox, useOutboxReplay } from '../../web/pwa/outbox.ts'
+import { have } from '../unit/engine/strength-fixtures.ts'
 import {
+  delayResponses,
   expectCleanCopy,
   explainOf,
   mockApi,
@@ -45,6 +50,17 @@ import {
   snapLift,
   squat,
 } from './strength-fixtures.ts'
+import {
+  LOG_FIRST,
+  LOG_LAST,
+  PROFILE,
+  RDL_SUMMARY,
+  SQUAT_SUMMARY,
+  pageView,
+  squatHistory,
+  squatSession,
+  unsavedView,
+} from './strength-page-fixtures.ts'
 
 // The Why drawer is stood in for: this file tests what the sheet asks it to open on.
 vi.mock('../../web/components/WhyDrawer.tsx', () => ({
@@ -166,6 +182,44 @@ const putBody = (calls: Rig['calls']): StrengthLogBody => {
   expect(call, 'a PUT to a strength log').toBeDefined()
   return call?.body as StrengthLogBody
 }
+
+describe('the offer to set up strength in the sheet (design 6.1)', () => {
+  const offer = 'The workout is for bodyweight only until the setup is saved.'
+
+  test('is a line with a link to the setup while the workout is built for bodyweight only', async () => {
+    open({ workout: { ...bodyweightWorkout(), setupSaved: false } })
+    const dialog = await sheet('Strength, ramp-in A')
+    expect(within(dialog).getByText(offer)).toBeVisible()
+    const link = within(dialog).getByRole('link', { name: 'Set up strength' })
+    expect(link).toHaveAttribute('href', '/strength')
+    expectCleanCopy(dialog)
+    // the link is a 44 px target
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/strength/StrengthSheet.module.css'),
+      'utf8',
+    )
+    expect(css).toMatch(/\.offerLink \{[^}]*min-height: 2\.75rem;/s)
+  })
+
+  test('is not there once the setup is saved', async () => {
+    open({ workout: makeWorkout({ setupSaved: true }) })
+    const dialog = await sheet()
+    expect(within(dialog).queryByText(offer)).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('link', { name: 'Set up strength' })).not.toBeInTheDocument()
+  })
+
+  test('is not there on the Strength page, whose card makes the offer, nor when a saved log is edited', async () => {
+    openPage({ view: unsavedView() })
+    await page('Set up strength')
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).queryByText(offer)).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    // the page's own card is where the offer is
+    expect(region('Set up strength').getByRole('button', { name: 'Equipment' })).toBeVisible()
+  })
+})
 
 describe('the sheet a workout opens as (design 9.1)', () => {
   test('is filled from the workout: its loads, its target in each set, no reps left, the planned minutes', async () => {
@@ -675,6 +729,43 @@ describe('adding and removing sets', () => {
 })
 
 describe('"Swap" and "Always use this"', () => {
+  test('does not offer an exercise left out in the setup, so "Always use this" cannot pin it', async () => {
+    const { calls } = open({
+      view: makeView({
+        settings: { ...STRENGTH_SETTINGS, avoid: ['goblet-squat', 'dumbbell-rdl'] },
+      }),
+      routes: {
+        'PUT /api/strength/settings': ({ body }) => ({ ...STRENGTH_SETTINGS, ...(body as object) }),
+      },
+    })
+    await sheet()
+    const user = userEvent.setup()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
+    })
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    const choices = within(screen.getByRole('group', { name: 'Swap Back squat for' }))
+    expect(choices.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Tempo squat',
+      'Split squat',
+      'Step-up',
+      'Single-leg box squat',
+    ])
+    await user.click(choices.getByRole('button', { name: 'Tempo squat' }))
+    await user.click(screen.getByRole('button', { name: 'Always use this: Tempo squat' }))
+    await waitFor(() => {
+      expect(
+        calls.some((call) => call.method === 'PUT' && call.url === '/api/strength/settings'),
+      ).toBe(true)
+    })
+    // what was pinned is not on the list of the exercises left out
+    const sent = calls.find((call) => call.method === 'PUT')?.body as {
+      pinned: Record<string, string>
+    }
+    expect(sent.pinned).toEqual({ knee: 'tempo-squat' })
+    expect(['goblet-squat', 'dumbbell-rdl']).not.toContain(sent.pinned['knee'])
+  })
+
   test('lists the exercises the equipment makes for the slot, and swaps one for the session', async () => {
     const { calls } = open({
       routes: {
@@ -1663,5 +1754,1642 @@ describe('the layout rules of the stylesheet (design 11.7)', () => {
 
   test('the reps-left scale is the touch scale: 44 px a value, wrapping when they do not fit', () => {
     expect(css('ScalePicker.module.css')).toMatch(/\[data-touch='true'\][^}]*minmax\(2\.75rem/s)
+  })
+})
+
+// ---- The Strength page (E14-9; design 6, 11.3, 11.4) -----------------------------------------------
+
+const SETTINGS_KG: UserSettings = { ...SETTINGS, weightUnit: 'kg', units: 'km' }
+
+interface PageOptions {
+  /** The page view; `null` makes the read fail, as it does with no connection. */
+  view?: StrengthView | null
+  settings?: UserSettings
+  routes?: MockRoutes
+}
+
+/** Opens the Strength page with the view, the settings and the profile answered. */
+function openPage(options: PageOptions = {}) {
+  const view = options.view === undefined ? pageView() : options.view
+  const { calls } = mockApi({
+    'GET /api/settings': () => options.settings ?? SETTINGS,
+    'GET /api/strength': () => (view === null ? unreachable : view),
+    'GET /api/profile': () => PROFILE,
+    ...options.routes,
+  })
+  renderWithProviders(
+    <ToastProvider>
+      <StrengthPage />
+    </ToastProvider>,
+    { route: '/strength' },
+  )
+  return { calls }
+}
+
+/** The page once it has drawn its sections. */
+async function page(name = 'Next session') {
+  await screen.findByRole('region', { name })
+}
+
+const SECTIONS = [
+  'Next session',
+  'This block',
+  'Lifts',
+  'History of one lift',
+  'Recent sessions',
+  'Equipment and units',
+  'About strength work',
+]
+
+const headings = () =>
+  screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+
+describe('the Strength page: its sections and states (design 11.3)', () => {
+  test('lists every section in phone order, with the offer to set up only while the setup is not saved', async () => {
+    openPage()
+    await page()
+    expect(screen.getByRole('heading', { level: 1, name: 'Strength' })).toBeInTheDocument()
+    expect(
+      screen.getByText('The next workout, where the block stands and the lifts logged so far.'),
+    ).toBeInTheDocument()
+    expect(headings()).toEqual(SECTIONS)
+    expect(screen.queryByRole('region', { name: 'Set up strength' })).not.toBeInTheDocument()
+  })
+
+  test('puts "Set up strength" first while the setup is not saved, with its five parts', async () => {
+    openPage({ view: unsavedView() })
+    await page('Set up strength')
+    expect(headings()).toEqual(['Set up strength', ...SECTIONS])
+    const setup = region('Set up strength')
+    expect(
+      setup.getByText(
+        'The workout follows the saved equipment, lifting history and starting loads. Until they are saved it is bodyweight only.',
+      ),
+    ).toBeVisible()
+    expect(setup.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Weight unit',
+      'Equipment',
+      'Lifting history',
+      'Exercises',
+      'Starting points',
+    ])
+    expect(
+      region('Next session').getByText(
+        'This workout is bodyweight only. Set up strength and the lifts use the saved equipment.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('stands in two columns from 900 px: the first four sections on the left, the rest on the right', async () => {
+    openPage()
+    await page()
+    const left = screen.getByRole('region', { name: 'Next session' }).parentElement
+    const right = screen.getByRole('region', { name: 'History of one lift' }).parentElement
+    expect(left).not.toBe(right)
+    for (const name of ['This block', 'Lifts']) {
+      expect(screen.getByRole('region', { name }).parentElement, name).toBe(left)
+    }
+    for (const name of ['Recent sessions', 'Equipment and units', 'About strength work']) {
+      expect(screen.getByRole('region', { name }).parentElement, name).toBe(right)
+    }
+    // the left column comes first in the document, so a phone reads the sections in order
+    expect(left?.compareDocumentPosition(right as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+
+    const css = readFileSync(join(process.cwd(), 'web/pages/StrengthPage.module.css'), 'utf8')
+    expect(css).toMatch(
+      /@media \(min-width: 900px\) \{\s*\.columns \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1\.15fr\) minmax\(0, 1fr\);/s,
+    )
+    // below 900 px the columns are one flex column, and nothing can widen the page
+    expect(css).toMatch(/\.columns \{[^}]*display: flex;[^}]*flex-direction: column;/s)
+    expect(css).toMatch(/\.page > \* \{[^}]*min-width: 0;/s)
+  })
+
+  test('says it needs a connection when the page cannot be read', async () => {
+    openPage({ view: null })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The Strength page did not load. It needs a connection; reload the page to try again.',
+    )
+    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    expectCleanCopy(document.body)
+  })
+
+  test('shows a loading placeholder while the page is read, and no load before the weight unit is known', async () => {
+    mockApi({
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/strength': () => pageView(),
+      'GET /api/profile': () => PROFILE,
+    })
+    delayResponses(500)
+    renderWithProviders(
+      <ToastProvider>
+        <StrengthPage />
+      </ToastProvider>,
+      { route: '/strength' },
+    )
+    expect(await screen.findByLabelText('Loading')).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByText(/ lb/)).not.toBeInTheDocument()
+    await page()
+    expect(screen.queryByLabelText('Loading')).not.toBeInTheDocument()
+  })
+
+  test('says so, and shows no load, when the weight unit cannot be read', async () => {
+    openPage({ routes: { 'GET /api/settings': () => unreachable } })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The weight unit could not be read, so no load is shown. Reload the page to try again.',
+    )
+    expect(screen.queryByText(/ lb/)).not.toBeInTheDocument()
+  })
+
+  test('has an empty state for the workout, the lifts and the sessions, in the words of the templates', async () => {
+    openPage({
+      view: pageView({ next: [], lifts: [], recent: [], block: null }),
+    })
+    await page()
+    const next = region('Next session')
+    expect(
+      next.getByText('No strength session is planned. Choose how many a week on the Profile.'),
+    ).toBeVisible()
+    expect(next.getByRole('link', { name: 'Open the Profile' })).toHaveAttribute('href', '/profile')
+    expect(next.queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
+    expect(
+      region('This block').getByText(
+        'No strength block runs this week. Maintenance sessions are short and keep the loads.',
+      ),
+    ).toBeVisible()
+    expect(
+      region('Lifts').getByText(
+        'No lifts are logged yet. Log a session and its lifts appear here.',
+      ),
+    ).toBeVisible()
+    expect(
+      region('History of one lift').getByText('Choose a lift from the list to see its history.'),
+    ).toBeVisible()
+    expect(
+      region('Recent sessions').getByText(
+        'No sessions are logged yet. Log sets and they appear here.',
+      ),
+    ).toBeVisible()
+    expectCleanCopy(document.body)
+  })
+})
+
+describe('the Strength page: the next session (design 11.3, 6.4)', () => {
+  test('shows the workout card: the lifts, the jumps and the trunk movements as the rules give them', async () => {
+    openPage()
+    await page()
+    const next = region('Next session')
+    expect(next.getByText('Strength, heavy A')).toBeVisible()
+    expect(next.getByText('Wed 18 Mar. About 40 min planned.')).toBeVisible()
+    expect(
+      next.getByText('Suggested 110 lb, four sets of 3 to 6 reps, leave 1 to 3 in reserve.'),
+    ).toBeVisible()
+    expect(
+      next.getByText('Suggested 40 lb, three sets of 3 to 6 reps, leave 2 or more in reserve.'),
+    ).toBeVisible()
+    expect(
+      next.getByText('Suggested three sets of 8 to 15 reps, leave 1 to 3 in reserve.'),
+    ).toBeVisible()
+    expect(next.getByText('Pogo hops, 40 contacts.')).toBeVisible()
+    expect(next.getByText('Suggested two sets of 30 to 45 seconds.')).toBeVisible()
+    expect(next.getByText('Lift at least 3 hours before or after a run.')).toBeVisible()
+    // a word for what the rules did, never colour alone
+    expect(next.getByText('Up one step')).toBeVisible()
+    expect(next.getByText('The load holds')).toBeVisible()
+  })
+
+  test('shows the loads in kilograms for a runner who chose them, on the same grams', async () => {
+    openPage({ settings: SETTINGS_KG })
+    await page()
+    expect(
+      region('Next session').getByText(
+        'Suggested 50 kg, four sets of 3 to 6 reps, leave 1 to 3 in reserve.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('"Log sets" opens the sheet on the workout and links the session of the day', async () => {
+    const { calls } = openPage({
+      routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) },
+    })
+    await page()
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(calls.find((call) => call.method === 'PUT' && call.url === LOG_URL)?.body).toMatchObject(
+      { date: DAY, sessionId: SESSION_ID },
+    )
+    // the page reads again once the log is saved, so the next suggestion follows it
+    await waitFor(() => {
+      expect(calls.filter((call) => call.url === '/api/strength').length).toBeGreaterThan(1)
+    })
+  })
+
+  test('logs a session that is still ahead today and links no session', async () => {
+    const { calls } = openPage({
+      view: pageView({ next: [makeWorkout({ date: '2026-03-20' })] }),
+      routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) },
+    })
+    await page()
+    const user = userEvent.setup()
+    expect(region('Next session').getByText('Fri 20 Mar. About 40 min planned.')).toBeVisible()
+    await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    const body = putBody(calls)
+    expect(body.date).toBe(DAY)
+    expect(body).not.toHaveProperty('sessionId')
+  })
+
+  test('"Add a past session" asks for a day in the last year and opens the sheet on it, linking no session', async () => {
+    const { calls } = openPage({
+      routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) },
+    })
+    await page()
+    const user = userEvent.setup()
+    const next = region('Next session')
+    const open = next.getByRole('button', { name: 'Add a past session' })
+    expect(open).toHaveAttribute('aria-expanded', 'false')
+    await user.click(open)
+    expect(open).toHaveAttribute('aria-expanded', 'true')
+    const day = screen.getByLabelText('Date of the session')
+    expect(day).toHaveAttribute('type', 'date')
+    expect(day).toHaveAttribute('max', DAY)
+    expect(day).toHaveAttribute('min', '2025-03-18')
+    expect(screen.getByText('Any day in the last year, up to today.')).toBeVisible()
+
+    // tomorrow, and more than a year back, are refused where the server would refuse them
+    for (const bad of ['2026-03-19', '2025-03-17', '']) {
+      fireEvent.change(day, { target: { value: bad } })
+      await user.click(screen.getByRole('button', { name: 'Continue' }))
+      expect(screen.getByText('Choose a day in the last year, up to today.')).toBeVisible()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    }
+
+    fireEvent.change(day, { target: { value: '2026-03-10' } })
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).getByText('Tue 10 Mar. Loads are in pounds.')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    const body = putBody(calls)
+    expect(body.date).toBe('2026-03-10')
+    expect(body).not.toHaveProperty('sessionId')
+  })
+})
+
+describe('the Strength page: focus around the past session flow (design 11.7)', () => {
+  test('goes back to the Continue button that opened the sheet, whether it is closed or saved', async () => {
+    openPage({ routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) } })
+    await page()
+    const user = userEvent.setup()
+    await user.click(region('Next session').getByRole('button', { name: 'Add a past session' }))
+    fireEvent.change(screen.getByLabelText('Date of the session'), {
+      target: { value: '2026-03-10' },
+    })
+    const proceed = screen.getByRole('button', { name: 'Continue' })
+    await user.click(proceed)
+    await sheet('Strength, heavy A')
+    // Escape closes the sheet and keeps what was entered; the control that opened it is still there
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(proceed).toBeInTheDocument()
+    expect(proceed).toHaveFocus()
+
+    // and the same after a save
+    await user.click(proceed)
+    await sheet('Strength, heavy A')
+    await user.click(screen.getByRole('button', { name: 'As suggested' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveFocus()
+  })
+})
+
+describe('the Strength page: this block (design 11.3, 4.5)', () => {
+  test('says where the week stands, what follows, the benefit sentence with its grade, and links the research', async () => {
+    openPage()
+    await page('This block')
+    const block = region('This block')
+    expect(block.getByText('Week 6 of 12, heavy')).toBeVisible()
+    expect(
+      block.getByText(
+        'Heavy work runs to week 12. Maintenance follows; the taper keeps a light session each week.',
+      ),
+    ).toBeVisible()
+    expect(
+      block.getByText(
+        'Strength work may lower the oxygen cost of running by about 2 to 4% after a full block. That is small, and it says nothing about race time.',
+      ),
+    ).toBeVisible()
+    expect(block.getByText(`Evidence grade ${P.f7.expectedBenefitPct.grade}`)).toBeVisible()
+    expect(block.getByRole('link', { name: 'Read the research' })).toHaveAttribute(
+      'href',
+      '/research?topic=strength-plyometrics',
+    )
+  })
+
+  test.each([
+    [
+      'ramp-in',
+      'Week 2 of 12, ramp-in',
+      'The ramp-in lasts three weeks. Heavy work follows to week 12',
+    ],
+    [
+      'lighter-week',
+      'Week 4 of 12, lighter week',
+      'A lighter week keeps the loads and cuts the sets.',
+    ],
+    [
+      'taper',
+      'Week 2 of 12, taper',
+      'The taper keeps a light session each week until the race week.',
+    ],
+    ['return', 'Week 3 of 12, return', 'Return weeks use the ramp-in structure with no jumps.'],
+    [
+      'maintenance',
+      'Week 2 of 12, maintenance',
+      'Maintenance sessions are short and keep the loads.',
+    ],
+  ] as const)('words a %s week and what follows it', async (template, position, follows) => {
+    const week = Number(position.match(/Week (\d+)/)?.[1])
+    openPage({ view: pageView({ block: { week, of: 12, rampInWeeks: 3, template } }) })
+    await page('This block')
+    const block = region('This block')
+    expect(block.getByText(position)).toBeVisible()
+    expect(block.getByText(new RegExp(`^${escaped(follows)}`))).toBeVisible()
+  })
+
+  test('says nothing about benefit when the view carries no fact for it', async () => {
+    openPage({ view: pageView({ facts: [] }) })
+    await page('This block')
+    expect(screen.queryByText(/oxygen cost of running/)).not.toBeInTheDocument()
+    // the separation line is a fact too, so the card leaves it out
+    expect(screen.queryByText(/Lift at least/)).not.toBeInTheDocument()
+  })
+})
+
+describe('the Strength page: the lifts and the history of one lift (design 11.3, 6.3)', () => {
+  const liftRow = (name: string) =>
+    within(
+      within(screen.getByRole('region', { name: 'Lifts' }))
+        .getByText(name)
+        .closest('li')!,
+    )
+  const squatItem = () => liftRow('Back squat')
+
+  test('lists each lift with its last load, its estimated maximum as an estimate and the last change in words', async () => {
+    openPage()
+    await page('Lifts')
+    const squatRow = squatItem()
+    expect(squatRow.getByText('Last load')).toBeVisible()
+    expect(squatRow.getByText('105 lb')).toBeVisible()
+    expect(squatRow.getByText('Estimated maximum')).toBeVisible()
+    expect(squatRow.getByText('about 125 lb')).toBeVisible()
+    expect(squatRow.getByText('Up from 100 lb to 105 lb, Thu 12 Mar')).toBeVisible()
+    expect(squatRow.getByText('Thu 12 Mar')).toBeVisible()
+    // a lift whose load has not moved and that has no estimate says the first and shows none of the second
+    const rdlRow = liftRow('Dumbbell Romanian deadlift')
+    expect(rdlRow.getByText('35 lb')).toBeVisible()
+    expect(rdlRow.getByText('The load has not moved')).toBeVisible()
+    expect(rdlRow.queryByText('Estimated maximum')).not.toBeInTheDocument()
+    expect(
+      region('Lifts').getByText(
+        'The estimated maximum is worked out from sets, not tested. It is a rough guide.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('words a load that came down, and a lift with no added load', async () => {
+    openPage({
+      view: pageView({
+        lifts: [
+          {
+            ...SQUAT_SUMMARY,
+            lastChange: { fromG: lb(110), toG: lb(105), date: '2026-03-12' },
+          },
+          {
+            ...RDL_SUMMARY,
+            exerciseId: 'standing-calf-raise',
+            workingLoadG: null,
+            lastChange: null,
+          },
+        ],
+      }),
+    })
+    await page('Lifts')
+    expect(screen.getByText('Down from 110 lb to 105 lb, Thu 12 Mar')).toBeVisible()
+    expect(screen.getByText('No added load')).toBeVisible()
+  })
+
+  test('shows every load in kilograms for a runner who chose them', async () => {
+    openPage({ settings: SETTINGS_KG })
+    await page('Lifts')
+    const squatRow = squatItem()
+    // the same grams, on the display grid of kilograms (a quarter)
+    expect(formatLoad(lb(105), 'kg')).toBe('47.75 kg')
+    expect(squatRow.getByText('47.75 kg')).toBeVisible()
+    expect(squatRow.getByText('about 56.75 kg')).toBeVisible()
+    expect(squatRow.getByText('Up from 45.25 kg to 47.75 kg, Thu 12 Mar')).toBeVisible()
+  })
+
+  test('chooses a lift from the list and shows its history as a labelled table with a line of the estimated maximum', async () => {
+    const { calls } = openPage({
+      routes: { 'GET /api/strength/exercises/back-squat': () => squatHistory() },
+    })
+    await page('Lifts')
+    const user = userEvent.setup()
+    const choose = screen.getByRole('button', { name: 'History of Back squat' })
+    expect(choose).toHaveAttribute('aria-pressed', 'false')
+    await user.click(choose)
+    expect(choose).toHaveAttribute('aria-pressed', 'true')
+
+    const table = await screen.findByRole('region', { name: 'History of Back squat' })
+    expect(table).toHaveAttribute('tabindex', '0')
+    const grid = within(table).getByRole('table')
+    expect(
+      within(grid)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Date and mode', 'Sets', 'Estimated maximum'])
+    const rows = within(grid).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(3)
+    // newest first: the date, the load and count of each set, the reps left, the mode, the estimate
+    const latest = within(rows[0]!)
+    expect(latest.getByRole('rowheader')).toHaveTextContent('Thu 12 Mar')
+    expect(latest.getAllByText('105 lb x 5, 2 left', { selector: 'li' })).toHaveLength(2)
+    expect(latest.getByText('105 lb x 4', { selector: 'li' })).toBeVisible()
+    expect(latest.getByText('Normal')).toBeVisible()
+    expect(latest.getByText('125 lb')).toBeVisible()
+    expect(within(rows[1]!).getByText('Lighter day')).toBeVisible()
+    expect(within(rows[2]!).getByText('No estimate')).toBeVisible()
+
+    // the heading of the lift takes focus, and the line is drawn by the lazy chart module
+    expect(screen.getByRole('heading', { level: 3, name: 'Back squat' })).toHaveFocus()
+    const chart = await screen.findByRole('img', {
+      name: 'Estimated maximum, from submaximal sets',
+    })
+    expect(chart).toBeInTheDocument()
+    expect(
+      screen.getByText('Estimated maximum, from submaximal sets', { selector: 'figcaption' }),
+    ).toBeVisible()
+    expect(calls.filter((call) => call.url === '/api/strength/exercises/back-squat')).toHaveLength(
+      1,
+    )
+  })
+
+  test('draws no line until two sessions have an estimate, and says so', async () => {
+    openPage({
+      routes: {
+        'GET /api/strength/exercises/back-squat': () =>
+          squatHistory({
+            sessions: [
+              squatSession(LOG_LAST, '2026-03-12', 105, 125),
+              squatSession(LOG_FIRST, '2026-03-05', 100, null),
+            ],
+          }),
+      },
+    })
+    await page('Lifts')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'History of Back squat' }))
+    await screen.findByRole('region', { name: 'History of Back squat' })
+    expect(
+      screen.getByText('The line appears once two sessions have an estimated maximum.'),
+    ).toBeVisible()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  test('shows a starting point, and says a lift has no logged sets yet', async () => {
+    openPage({
+      routes: {
+        'GET /api/strength/exercises/back-squat': () =>
+          squatHistory({
+            sessions: [],
+            summary: null,
+            anchor: {
+              exerciseId: 'back-squat',
+              kind: 'set',
+              loadG: lb(135),
+              reps: 5,
+              rir: 2,
+              asOf: '2026-03-01',
+            },
+          }),
+      },
+    })
+    await page('Lifts')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'History of Back squat' }))
+    expect(await screen.findByText('Starting point: a set of 135 lb, five reps.')).toBeVisible()
+    expect(screen.getByText('This lift has no logged sets yet.')).toBeVisible()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  test('says when a history did not load and tries again', async () => {
+    let attempts = 0
+    openPage({
+      routes: {
+        'GET /api/strength/exercises/back-squat': () => {
+          attempts += 1
+          return attempts === 1 ? unreachable : squatHistory()
+        },
+      },
+    })
+    await page('Lifts')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'History of Back squat' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The history of this lift did not load.',
+    )
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('region', { name: 'History of Back squat' })).toBeVisible()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  test('shows loads, counts and the estimate in kilograms and seconds for a timed lift', async () => {
+    openPage({
+      settings: SETTINGS_KG,
+      view: pageView({ lifts: [{ ...RDL_SUMMARY, exerciseId: 'side-plank', workingLoadG: null }] }),
+      routes: {
+        'GET /api/strength/exercises/side-plank': () => ({
+          exerciseId: 'side-plank',
+          anchor: null,
+          summary: { ...RDL_SUMMARY, exerciseId: 'side-plank', workingLoadG: null },
+          sessions: [
+            {
+              logId: LOG_LAST,
+              date: '2026-03-12',
+              mode: 'taper',
+              sets: [{ position: 0, loadG: null, count: 30, rir: null }],
+              heaviest: null,
+              workingLoadG: null,
+              estimateG: null,
+            },
+          ],
+        }),
+      },
+    })
+    await page('Lifts')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'History of Side plank' }))
+    const table = await screen.findByRole('region', { name: 'History of Side plank' })
+    expect(within(table).getByText('30 seconds', { selector: 'li' })).toBeVisible()
+    expect(within(table).getByText('Taper')).toBeVisible()
+  })
+})
+
+describe('the Strength page: the recent sessions (design 11.3)', () => {
+  test('lists the logged sessions with their template, sets and minutes', async () => {
+    openPage()
+    await page('Recent sessions')
+    const recent = region('Recent sessions')
+    expect(recent.getAllByRole('listitem')).toHaveLength(2)
+    expect(recent.getByText('Thu 12 Mar')).toBeVisible()
+    expect(recent.getByText('five sets, 40 min.')).toBeVisible()
+    expect(recent.getByText('Thu 5 Mar')).toBeVisible()
+    expect(recent.getByText('two sets, 40 min.')).toBeVisible()
+    expect(recent.getAllByText('Strength, heavy A')).toHaveLength(2)
+  })
+
+  test('deletes a session after asking, and reads the page again', async () => {
+    let logs = pageView().recent
+    const { calls } = openPage({
+      routes: {
+        'GET /api/strength': () => pageView({ recent: logs }),
+        [`DELETE /api/strength/logs/${LOG_LAST}`]: () => {
+          logs = logs.filter((log) => log.id !== LOG_LAST)
+          return { status: 204, body: undefined }
+        },
+      },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Delete the session of Thu 12 Mar' }))
+    const ask = screen.getByRole('group', { name: 'Delete the session of Thu 12 Mar' })
+    expect(
+      within(ask).getByText('Delete the sets of this session? The activity stays.'),
+    ).toBeVisible()
+    // nothing is sent until it is confirmed
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false)
+    await user.click(within(ask).getByRole('button', { name: 'Delete the sets' }))
+    expect(await screen.findByText('Sets deleted')).toBeVisible()
+    await waitFor(() => {
+      expect(region('Recent sessions').getAllByRole('listitem')).toHaveLength(1)
+    })
+    expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.url)).toEqual([
+      `/api/strength/logs/${LOG_LAST}`,
+    ])
+    expect(screen.getByRole('heading', { level: 2, name: 'Recent sessions' })).toHaveFocus()
+  })
+
+  test('keeps a session when asked to, and returns focus to its Delete button', async () => {
+    const { calls } = openPage()
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Delete the session of Thu 12 Mar' }))
+    await user.click(screen.getByRole('button', { name: 'Keep' }))
+    const again = screen.getByRole('button', { name: 'Delete the session of Thu 12 Mar' })
+    expect(again).toHaveFocus()
+    expect(screen.queryByText('Delete the sets of this session? The activity stays.')).toBeNull()
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false)
+  })
+
+  test('says when a delete was refused and keeps the question open', async () => {
+    openPage({
+      routes: { [`DELETE /api/strength/logs/${LOG_LAST}`]: () => unreachable },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Delete the session of Thu 12 Mar' }))
+    await user.click(screen.getByRole('button', { name: 'Delete the sets' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The sets were not deleted. Try again.',
+    )
+    expect(screen.getByRole('button', { name: 'Delete the sets' })).toBeEnabled()
+    expect(region('Recent sessions').getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  test('an edit can clear the effort, the pain and the note of a saved session', async () => {
+    const [first, ...rest] = pageView().recent
+    const saved = { ...first!, rpe: 7, pain: 2, notes: 'Felt steady' }
+    const { calls } = openPage({
+      view: pageView({ recent: [saved, ...rest] }),
+      routes: { [`PUT /api/strength/logs/${LOG_LAST}`]: () => savedLog(LOG_LAST) },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    await sheet('Strength, heavy A')
+    // the sheet opens with what was saved, the details open because there are some
+    expect(screen.getByRole('button', { name: 'Effort 7' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('textbox', { name: 'Note' })).toHaveValue('Felt steady')
+    await user.click(screen.getByRole('button', { name: 'Effort 7' }))
+    await user.click(screen.getByRole('button', { name: 'Pain 2' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Note' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // an explicit null, which the server reads as clearing the activity's own
+    const body = calls.find((call) => call.method === 'PUT')?.body as StrengthLogBody
+    expect(body).toMatchObject({ rpe: null, pain: null, notes: null })
+  })
+
+  test('an edit keeps the workout it was opened with when the page is read again meanwhile', async () => {
+    let view = pageView()
+    const { calls } = openPage({
+      routes: {
+        'GET /api/strength': () => view,
+        [`PUT /api/strength/logs/${LOG_LAST}`]: () => savedLog(LOG_LAST),
+      },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    await sheet('Strength, heavy A')
+    expect(values('Back squat', 'load')).toEqual(['105', '105', '105'])
+
+    // the bar is sold in another tab and the page reads again: the sheet is as it was opened
+    view = {
+      ...view,
+      settings: { ...view.settings, equipment: have('dumbbells', 'bands', 'step') },
+      recent: view.recent.slice(1),
+    }
+    const reads = () => calls.filter((call) => call.url === '/api/strength').length
+    const before = reads()
+    document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
+    await waitFor(() => {
+      expect(reads()).toBeGreaterThan(before)
+    })
+    await waitFor(() => {
+      expect(region('Recent sessions').getAllByRole('listitem')).toHaveLength(1)
+    })
+    expect(values('Back squat', 'load')).toEqual(['105', '105', '105'])
+    expect(screen.getByRole('dialog', { name: 'Strength, heavy A' })).toBeVisible()
+    // and the bar's steps are the ones it was opened with: a press moves one jump of the bar
+    const first = within(screen.getByRole('group', { name: 'Back squat, set 1, load' }))
+    await user.click(first.getByRole('button', { name: 'Raise the load by one step' }))
+    expect(values('Back squat', 'load')).toEqual(['110', '105', '105'])
+  })
+
+  test('an edit saved with no connection is kept on the phone, and the next edit opens on it', async () => {
+    let connected = false
+    const { calls } = openPage({
+      routes: {
+        [`PUT /api/strength/logs/${LOG_LAST}`]: () =>
+          connected ? savedLog(LOG_LAST) : unreachable,
+      },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    await sheet('Strength, heavy A')
+    const first = within(screen.getByRole('group', { name: 'Back squat, set 1, load' }))
+    await user.click(first.getByRole('button', { name: 'Raise the load by one step' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // kept under the log's own id: the entry in the outbox is this log's, not a second one
+    expect(
+      getOutbox()
+        .getState()
+        .entries.map((entry) => entry.url),
+    ).toEqual([`/api/strength/logs/${LOG_LAST}`])
+    // the next edit opens on what was kept (the queued body), not on the log as the server holds it
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    await sheet('Strength, heavy A')
+    expect(values('Back squat', 'load')).toEqual(['110', '105', '105'])
+    connected = true
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // still one id: a second save under it replaces the first, so the log replays once
+    expect(new Set(calls.filter((call) => call.method === 'PUT').map((call) => call.url))).toEqual(
+      new Set([`/api/strength/logs/${LOG_LAST}`]),
+    )
+  })
+
+  test('edits a session: the sheet opens as it was saved and saves over it under its own id', async () => {
+    const log = pageView().recent[0]!
+    const { calls } = openPage({
+      routes: { [`PUT /api/strength/logs/${LOG_LAST}`]: () => savedLog(LOG_LAST) },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    const dialog = await sheet('Strength, heavy A')
+    expect(within(dialog).getByText('Thu 12 Mar. Loads are in pounds.')).toBeVisible()
+
+    // the sets as they were logged, the reps left, the minutes, and nothing of the plan they came from
+    expect(values('Back squat', 'load')).toEqual(['105', '105', '105'])
+    expect(values('Back squat', 'reps')).toEqual(['5', '5', '4'])
+    expect(repsLeft('Back squat')).toEqual([2, 2, 1])
+    expect(values('Dumbbell Romanian deadlift', 'load')).toEqual(['35', '35'])
+    expect(screen.getByRole('textbox', { name: 'Minutes' })).toHaveValue('40')
+    for (const gone of [
+      'As suggested',
+      'Same as last time',
+      'Swap: Back squat',
+      'Save without sets',
+    ]) {
+      expect(screen.queryByRole('button', { name: gone }), gone).not.toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', { name: 'Why' })).not.toBeInTheDocument()
+
+    // one set goes up a step of the bar, and the session is saved
+    const first = within(screen.getByRole('group', { name: 'Back squat, set 1, load' }))
+    await user.click(first.getByRole('button', { name: 'Raise the load by one step' }))
+    expect(values('Back squat', 'load')).toEqual(['110', '105', '105'])
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    const sent = calls.filter((call) => call.method === 'PUT')
+    expect(sent.map((call) => call.url)).toEqual([`/api/strength/logs/${LOG_LAST}`])
+    const body = sent[0]?.body as StrengthLogBody
+    expect(body).toMatchObject({ date: '2026-03-12', activityId: log.activityId, durationMin: 40 })
+    expect(body).not.toHaveProperty('sessionId')
+    // what the sheet showed then has not changed: the snapshot goes back as it is
+    expect(body.prescribed).toEqual(log.prescribed)
+    expect(body.sets.map((set) => [set.exerciseId, set.loadG, set.count, set.rir])).toEqual([
+      ['back-squat', lb(110), 5, 2],
+      ['back-squat', lb(105), 5, 2],
+      ['back-squat', lb(105), 4, 1],
+      ['dumbbell-rdl', lb(35), 6, 3],
+      ['dumbbell-rdl', lb(35), 6, 3],
+    ])
+  })
+})
+
+describe('the Strength page: the setup (design 6.2, 6.5)', () => {
+  /** The sheet of a part of the setup. */
+  async function setupSheet(name: string) {
+    const dialog = await screen.findByRole('dialog', { name })
+    return within(dialog)
+  }
+
+  const sentOf = (calls: Rig['calls'], method: string, url: string) =>
+    calls.filter((call) => call.method === method && call.url === url).map((call) => call.body)
+
+  /** Routes that answer a save of the setup with the settings it made, and the view with them. */
+  function savingRoutes(start: StrengthView = unsavedView()) {
+    let view = start
+    const routes: MockRoutes = {
+      'GET /api/strength': () => view,
+      'PUT /api/strength/settings': ({ body }) => {
+        const patch = body as Partial<StrengthSettings>
+        const settings = {
+          ...view.settings,
+          ...patch,
+          savedAt: view.settings.savedAt ?? '2026-03-18T09:00:00.000Z',
+        } as StrengthSettings
+        view = { ...view, settings, setupSaved: true }
+        return settings
+      },
+    }
+    return { routes, current: () => view }
+  }
+
+  test('the weight unit is the first part, saved by the route that saves the distance unit', async () => {
+    const { calls } = openPage({
+      view: unsavedView(),
+      routes: {
+        'PUT /api/settings': ({ body }) => ({ ...SETTINGS, ...(body as object) }),
+      },
+    })
+    await page('Set up strength')
+    const user = userEvent.setup()
+    await user.click(region('Set up strength').getByRole('button', { name: 'Weight unit' }))
+    const sheet = await setupSheet('Weight unit')
+    expect(sheet.getByRole('radio', { name: 'Pounds' })).toBeChecked()
+    await user.click(sheet.getByRole('radio', { name: 'Kilograms' }))
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Weight unit saved')).toBeVisible()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(sentOf(calls, 'PUT', '/api/settings')).toEqual([{ weightUnit: 'kg' }])
+    // closing without a change sends nothing
+    await user.click(region('Set up strength').getByRole('button', { name: 'Weight unit' }))
+    await user.click((await setupSheet('Weight unit')).getByRole('button', { name: 'Save' }))
+    expect(sentOf(calls, 'PUT', '/api/settings')).toHaveLength(1)
+  })
+
+  test('the equipment is a checklist with the detail each item needs, saved in grams on the steps it makes', async () => {
+    const { routes, current } = savingRoutes()
+    const { calls } = openPage({ view: unsavedView(), routes })
+    await page('Set up strength')
+    const user = userEvent.setup()
+    await user.click(region('Set up strength').getByRole('button', { name: 'Equipment' }))
+    const sheet = await setupSheet('Equipment')
+    expect(
+      sheet.getByText(
+        'Bodyweight is always available. Tick the other equipment; each step is the smallest change of load.',
+      ),
+    ).toBeVisible()
+    expect(sheet.getAllByRole('checkbox').map((box) => box.closest('label')?.textContent)).toEqual([
+      'Barbell, plates and a rack',
+      'Dumbbells',
+      'Kettlebells',
+      'Bands',
+      'A step or box',
+      'Leg press',
+      'Calf raise machine',
+      'Leg curl machine',
+    ])
+
+    // a bar: the usual 45 lb and 5 lb, which the runner keeps
+    await user.click(sheet.getByRole('checkbox', { name: 'Barbell, plates and a rack' }))
+    expect(sheet.getByLabelText('Bar weight in pounds')).toHaveValue('45')
+    expect(sheet.getByLabelText('Smallest pair of plates in pounds')).toHaveValue('5')
+    // dumbbells as a range and a step
+    await user.click(sheet.getByRole('checkbox', { name: 'Dumbbells' }))
+    await user.type(sheet.getByLabelText('Lightest weight in pounds'), '10')
+    await user.type(sheet.getByLabelText('Heaviest weight in pounds'), '50')
+    await user.type(sheet.getByLabelText('Step in pounds'), '5')
+    // kettlebells as a list
+    await user.click(sheet.getByRole('checkbox', { name: 'Kettlebells' }))
+    await user.type(sheet.getByLabelText('Weights in pounds'), '18, 26, 35')
+    // a list is typed with commas, which a decimal keypad has not got; a single weight is decimal
+    expect(sheet.getByLabelText('Weights in pounds')).toHaveAttribute('inputmode', 'text')
+    expect(sheet.getByLabelText('Bar weight in pounds')).toHaveAttribute('inputmode', 'decimal')
+    expect(sheet.getByLabelText('Step in pounds')).toHaveAttribute('inputmode', 'decimal')
+    // bands and a step carry no load, and a machine has a step and a top
+    await user.click(sheet.getByRole('checkbox', { name: 'Bands' }))
+    await user.click(sheet.getByRole('checkbox', { name: 'A step or box' }))
+    await user.click(sheet.getByRole('checkbox', { name: 'Leg press' }))
+    await user.type(sheet.getByLabelText('Weight step in pounds'), '10')
+    await user.type(sheet.getByLabelText('Top weight in pounds'), '300')
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('Strength setup saved')).toBeVisible()
+    expect(sentOf(calls, 'PUT', '/api/strength/settings')).toEqual([
+      {
+        equipment: [
+          { kind: 'barbell', barG: lb(45), jumpG: lb(5) },
+          { kind: 'dumbbells', loads: { minG: lb(10), stepG: lb(5), maxG: lb(50) } },
+          { kind: 'kettlebells', loads: { loadsG: [lb(18), lb(26), lb(35)] } },
+          { kind: 'bands' },
+          { kind: 'step' },
+          { kind: 'leg-press', stepG: lb(10), maxG: lb(300) },
+        ],
+      },
+    ])
+    expect(current().setupSaved).toBe(true)
+    // the first save ends the offer, and the page has read the view again
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Set up strength' })).not.toBeInTheDocument()
+    })
+    expect(calls.filter((call) => call.url === '/api/strength').length).toBeGreaterThan(1)
+  })
+
+  test('the next workout follows a change of equipment at once, on the next read', async () => {
+    const start = pageView({ next: [makeWorkout()] })
+    let view = start
+    const { calls } = openPage({
+      view,
+      routes: {
+        'GET /api/strength': () => view,
+        'PUT /api/strength/settings': () => {
+          // the bar is sold: the squat gives way to the next feasible lift of the slot
+          view = {
+            ...view,
+            settings: { ...view.settings, equipment: have('dumbbells', 'bands', 'step') },
+            next: [
+              makeWorkout({
+                lifts: [
+                  squat({
+                    exerciseId: 'goblet-squat',
+                    implement: 'dumbbells',
+                    change: 'start',
+                    loadG: lb(30),
+                  }),
+                ],
+              }),
+            ],
+          }
+          return view.settings
+        },
+      },
+    })
+    await page()
+    const user = userEvent.setup()
+    expect(region('Next session').getByText(/Suggested 110 lb, four sets/)).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Edit equipment' }))
+    const sheet = await setupSheet('Equipment')
+    expect(sheet.getByRole('checkbox', { name: 'Barbell, plates and a rack' })).toBeChecked()
+    await user.click(sheet.getByRole('checkbox', { name: 'Barbell, plates and a rack' }))
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // the sent equipment is the saved one without the bar, the rest as it was: nothing was re-typed
+    const sent = calls.find((call) => call.method === 'PUT')?.body as { equipment: unknown[] }
+    expect(sent.equipment).toEqual(have('dumbbells', 'bands', 'step'))
+    await waitFor(() => {
+      expect(region('Next session').queryByText(/Suggested 110 lb/)).not.toBeInTheDocument()
+    })
+    expect(region('Next session').getByText(/Suggested 30 lb, four sets/)).toBeVisible()
+    expect(region('Equipment and units').getByText('Dumbbells, Bands, A step or box')).toBeVisible()
+  })
+
+  test('marks the field a save cannot read, says so, and sends nothing', async () => {
+    const { routes } = savingRoutes()
+    const { calls } = openPage({ view: unsavedView(), routes })
+    await page('Set up strength')
+    const user = userEvent.setup()
+    await user.click(region('Set up strength').getByRole('button', { name: 'Equipment' }))
+    const sheet = await setupSheet('Equipment')
+    await user.click(sheet.getByRole('checkbox', { name: 'Dumbbells' }))
+    await user.type(sheet.getByLabelText('Lightest weight in pounds'), '50')
+    await user.type(sheet.getByLabelText('Heaviest weight in pounds'), '10')
+    await user.type(sheet.getByLabelText('Step in pounds'), '0.1')
+    await user.click(sheet.getByRole('checkbox', { name: 'Leg curl machine' }))
+    await user.type(sheet.getByLabelText('Weight step in pounds'), '20')
+    await user.type(sheet.getByLabelText('Top weight in pounds'), '10')
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+
+    expect(sheet.getByText('Some fields need attention. Check the marked ones.')).toBeVisible()
+    const top = sheet.getByLabelText('Heaviest weight in pounds')
+    expect(top).toHaveAttribute('aria-invalid', 'true')
+    expect(top).toHaveFocus()
+    expect(sheet.getByText('The heaviest weight must be at least the lightest.')).toBeVisible()
+    expect(sheet.getByLabelText('Top weight in pounds')).toHaveAttribute('aria-invalid', 'true')
+    expect(sheet.getByText('The top weight must be at least one step.')).toBeVisible()
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false)
+
+    // with those mended, a step finer than a load can show is refused
+    fireEvent.change(top, { target: { value: '80' } })
+    fireEvent.change(sheet.getByLabelText('Top weight in pounds'), { target: { value: '100' } })
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+    expect(sheet.getByLabelText('Step in pounds')).toHaveAttribute('aria-invalid', 'true')
+    expect(sheet.getByText('The step is too small to show. Use a larger step.')).toBeVisible()
+
+    // and a list that is not weights
+    await user.click(sheet.getByRole('radio', { name: 'A list' }))
+    await user.type(sheet.getByLabelText('Weights in pounds'), '10, heavy')
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+    expect(sheet.getByText('List at least one weight, separated by commas.')).toBeVisible()
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false)
+    expectCleanCopy(screen.getByRole('dialog'))
+  })
+
+  test('the lifting history saves the level and whether lifting goes on now', async () => {
+    const { routes } = savingRoutes()
+    const { calls } = openPage({ view: unsavedView(), routes })
+    await page('Set up strength')
+    const user = userEvent.setup()
+    await user.click(region('Set up strength').getByRole('button', { name: 'Lifting history' }))
+    const sheet = await setupSheet('Lifting history')
+    expect(sheet.getByRole('radio', { name: 'Some' })).toBeChecked()
+    expect(sheet.getByText('Lifted for a while but not consistently.')).toBeVisible()
+    await user.click(sheet.getByRole('radio', { name: 'Experienced' }))
+    expect(
+      sheet.getByText(
+        'Lifted consistently for a year or more and comfortable with squat and hinge movements under load.',
+      ),
+    ).toBeVisible()
+    expect(sheet.getByRole('radio', { name: 'No' })).toBeChecked()
+    await user.click(sheet.getByRole('radio', { name: 'Yes' }))
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(sentOf(calls, 'PUT', '/api/strength/settings')).toEqual([
+      { level: 'experienced', currentlyLifting: true },
+    ])
+    expect(await screen.findByText('Experienced, lifting now: Yes')).toBeVisible()
+  })
+
+  test('the exercises sheet leaves a movement out, pins one for a slot and keeps a note', async () => {
+    const { routes } = savingRoutes(pageView())
+    const { calls } = openPage({ view: pageView(), routes })
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit exercises' }))
+    const sheet = await setupSheet('Exercises')
+    // a slot is pinned to an exercise the saved equipment can do, and to nothing else
+    const knee = sheet.getByLabelText('Always use for Squats and steps')
+    expect(
+      within(knee)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual([
+      'The plan chooses',
+      'Back squat',
+      'Goblet squat',
+      'Tempo squat',
+      'Split squat',
+      'Step-up',
+      'Single-leg box squat',
+    ])
+    await user.selectOptions(knee, 'goblet-squat')
+    expect(sheet.getByLabelText('Always use for Calf raises')).toHaveValue('')
+    // every exercise of the catalogue has a switch, grouped by slot
+    expect(sheet.getAllByRole('checkbox')).toHaveLength(25)
+    await user.click(sheet.getByRole('checkbox', { name: 'Leg curl' }))
+    await user.type(sheet.getByLabelText('Note'), '  Knee is tender on stairs  ')
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(sentOf(calls, 'PUT', '/api/strength/settings')).toEqual([
+      {
+        avoid: ['leg-curl'],
+        pinned: { knee: 'goblet-squat' },
+        note: 'Knee is tender on stairs',
+      },
+    ])
+    expect(
+      await region('Equipment and units').findByText(
+        'Left out: Leg curl. Always used: Goblet squat.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('an exercise left out cannot also be always used', async () => {
+    const view = pageView({
+      settings: { ...STRENGTH_SETTINGS, pinned: { knee: 'back-squat' } },
+    })
+    const { routes } = savingRoutes(view)
+    const { calls } = openPage({ view, routes })
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit exercises' }))
+    const sheet = await setupSheet('Exercises')
+    expect(sheet.getByLabelText('Always use for Squats and steps')).toHaveValue('back-squat')
+    await user.click(sheet.getByRole('checkbox', { name: 'Back squat' }))
+    expect(sheet.getByLabelText('Always use for Squats and steps')).toHaveValue('')
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(sentOf(calls, 'PUT', '/api/strength/settings')).toEqual([
+        { avoid: ['back-squat'], pinned: {}, note: null },
+      ])
+    })
+  })
+
+  test('a starting point is a recent set or a known maximum, with the estimated maximum shown as an estimate', async () => {
+    let view = pageView()
+    const { calls } = openPage({
+      view,
+      routes: {
+        'GET /api/strength': () => view,
+        'PUT /api/strength/lifts/back-squat': ({ body }) => {
+          const lift = body as {
+            kind: 'set' | 'max'
+            loadG: number
+            reps?: number
+            rir?: number | null
+          }
+          const saved = {
+            exerciseId: 'back-squat',
+            kind: lift.kind,
+            loadG: lift.loadG,
+            reps: lift.reps ?? 1,
+            rir: lift.rir ?? null,
+            asOf: DAY,
+          } as const
+          view = { ...view, anchors: [saved] }
+          return saved
+        },
+        'DELETE /api/strength/lifts/back-squat': () => {
+          view = { ...view, anchors: [] }
+          return { status: 204, body: undefined }
+        },
+      },
+    })
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit starting points' }))
+    const sheet = await setupSheet('Starting points')
+    await user.selectOptions(sheet.getByLabelText('Exercise'), 'back-squat')
+    await user.type(sheet.getByLabelText('Weight in pounds'), '135')
+    await user.type(sheet.getByLabelText('Reps'), '5')
+    // 135 lb for five, leaving two: worked out by the engine, shown as an estimate, never as a test
+    await user.click(sheet.getByRole('button', { name: 'Reps left 2' }))
+    const estimate = formatLoad(estimateOneRm(lb(135), 5, 2) ?? 0, 'lb')
+    expect(
+      sheet.getByText(
+        'Estimated maximum: about ' + estimate + '. It is worked out from this set, not tested.',
+      ),
+    ).toBeVisible()
+    // a set too far from the limit gives none
+    await user.clear(sheet.getByLabelText('Reps'))
+    await user.type(sheet.getByLabelText('Reps'), '12')
+    expect(
+      sheet.getByText('No estimate from this set: it is more than 10 reps from the limit.'),
+    ).toBeVisible()
+    await user.clear(sheet.getByLabelText('Reps'))
+    await user.type(sheet.getByLabelText('Reps'), '5')
+    await user.click(sheet.getByRole('button', { name: 'Save starting point' }))
+    expect(await screen.findByText('Starting point saved')).toBeVisible()
+    expect(sentOf(calls, 'PUT', '/api/strength/lifts/back-squat')).toEqual([
+      { kind: 'set', loadG: lb(135), reps: 5, rir: 2 },
+    ])
+    // the sheet stays open, lists what is saved with its estimate, and takes another
+    const saved = await sheet.findByRole('list')
+    expect(within(saved).getByText('Back squat: 135 lb, five reps.')).toBeVisible()
+    expect(sheet.getByLabelText('Exercise')).toHaveValue('')
+
+    // a known maximum stands as it is
+    await user.selectOptions(sheet.getByLabelText('Exercise'), 'back-squat')
+    await user.click(sheet.getByRole('radio', { name: 'A known maximum' }))
+    expect(sheet.queryByLabelText('Reps')).not.toBeInTheDocument()
+    await user.type(sheet.getByLabelText('Weight in pounds'), '185')
+    expect(sheet.getByText('Estimated maximum: 185 lb, the maximum entered.')).toBeVisible()
+    await user.click(sheet.getByRole('button', { name: 'Save starting point' }))
+    await waitFor(() => {
+      expect(sentOf(calls, 'PUT', '/api/strength/lifts/back-squat')).toHaveLength(2)
+    })
+    expect(sentOf(calls, 'PUT', '/api/strength/lifts/back-squat')[1]).toEqual({
+      kind: 'max',
+      loadG: lb(185),
+    })
+
+    // and a starting point is removed on its own
+    await user.click(
+      await sheet.findByRole('button', { name: 'Remove the starting point for Back squat' }),
+    )
+    expect(await screen.findByText('Starting point removed')).toBeVisible()
+    await waitFor(() => {
+      expect(sheet.queryByRole('list')).not.toBeInTheDocument()
+    })
+    expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.url)).toEqual([
+      '/api/strength/lifts/back-squat',
+    ])
+  })
+
+  test('the weight of a starting point says what it means, in the words of the logging sheet', async () => {
+    openPage()
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit starting points' }))
+    const sheet = await setupSheet('Starting points')
+    const weight = sheet.getByLabelText('Weight in pounds')
+    // nothing is said before an exercise is chosen
+    expect(weight).not.toHaveAccessibleDescription()
+    for (const [exercise, meaning] of [
+      ['back-squat', 'Total, including the bar'],
+      ['goblet-squat', 'Weight of one dumbbell or kettlebell'],
+      ['leg-press', 'Stack or plate total'],
+    ] as const) {
+      await user.selectOptions(sheet.getByLabelText('Exercise'), exercise)
+      expect(weight, exercise).toHaveAccessibleDescription(meaning)
+      expect(sheet.getByText(meaning), exercise).toBeVisible()
+    }
+    // the sheet that logs the same lift names the same load in the same words
+    expect(strengthWords('km', 'lb').say('strength.basis.total-with-bar')).toBe(
+      'Total, including the bar',
+    )
+    await user.selectOptions(sheet.getByLabelText('Exercise'), '')
+    expect(weight).not.toHaveAccessibleDescription()
+  })
+
+  test('the starting point picker offers only exercises counted in reps', async () => {
+    openPage()
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit starting points' }))
+    const sheet = await setupSheet('Starting points')
+    const names = within(sheet.getByLabelText('Exercise'))
+      .getAllByRole('option')
+      .map((option) => option.textContent)
+    expect(names).toContain('Back squat')
+    // the carry is held for seconds, which the estimated maximum cannot read
+    expect(names).not.toContain('Farmer carry')
+    expect(names).not.toContain('Side plank')
+  })
+
+  test('marks what a starting point is missing and sends nothing', async () => {
+    const { calls } = openPage()
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit starting points' }))
+    const sheet = await setupSheet('Starting points')
+    await user.click(sheet.getByRole('button', { name: 'Save starting point' }))
+    expect(sheet.getByText('Choose an exercise.')).toBeVisible()
+    expect(sheet.getByText('Enter a weight above zero.')).toBeVisible()
+    expect(sheet.getByText('Enter a whole number of reps.')).toBeVisible()
+    expect(sheet.getByLabelText('Exercise')).toHaveAttribute('aria-invalid', 'true')
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false)
+  })
+
+  test('shows what the server said when a part could not be saved, and keeps the entries', async () => {
+    openPage({
+      routes: {
+        'PUT /api/strength/settings': () => ({
+          status: 400,
+          body: { error: { code: 'validation', message: 'List each kind of equipment once.' } },
+        }),
+      },
+    })
+    await page()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit lifting history' }))
+    const sheet = await setupSheet('Lifting history')
+    await user.click(sheet.getByRole('radio', { name: 'New' }))
+    await user.click(sheet.getByRole('button', { name: 'Save' }))
+    expect(await sheet.findByRole('alert')).toHaveTextContent(
+      'The setup was not saved. List each kind of equipment once. Try again.',
+    )
+    expect(sheet.getByRole('radio', { name: 'New' })).toBeChecked()
+  })
+})
+
+describe('the Strength page: equipment and units (design 11.3, 6.5, 11.4)', () => {
+  test('shows what is saved of each part, with a button to change it at any time', async () => {
+    openPage({
+      view: pageView({
+        settings: {
+          ...STRENGTH_SETTINGS,
+          avoid: ['leg-curl'],
+          pinned: { knee: 'goblet-squat' },
+        },
+        anchors: [
+          {
+            exerciseId: 'back-squat',
+            kind: 'max',
+            loadG: lb(185),
+            reps: 1,
+            rir: null,
+            asOf: '2026-03-01',
+          },
+        ],
+      }),
+    })
+    await page('Equipment and units')
+    const units = region('Equipment and units')
+    expect(
+      units.getByText('Barbell, plates and a rack, Dumbbells, Bands, A step or box'),
+    ).toBeVisible()
+    expect(units.getByText('Some, lifting now: Yes')).toBeVisible()
+    expect(units.getByText('Left out: Leg curl. Always used: Goblet squat.')).toBeVisible()
+    expect(units.getByText('Back squat')).toBeVisible()
+    for (const name of [
+      'Edit equipment',
+      'Edit lifting history',
+      'Edit exercises',
+      'Edit starting points',
+    ]) {
+      expect(units.getByRole('button', { name })).toBeEnabled()
+    }
+  })
+
+  test('says nothing is saved before the setup, and lists the injuries of the Profile with a link', async () => {
+    openPage({ view: unsavedView() })
+    await page('Equipment and units')
+    const units = region('Equipment and units')
+    expect(units.getByText('None saved, so workouts are bodyweight only.')).toBeVisible()
+    expect(units.getByText('Not set yet.')).toBeVisible()
+    expect(units.getByText('No starting points are saved.')).toBeVisible()
+    expect(await units.findByText('On the Profile: left knee.')).toBeVisible()
+    expect(units.getByRole('link', { name: 'Open the Profile' })).toHaveAttribute(
+      'href',
+      '/profile',
+    )
+  })
+
+  test('says so when the Profile records no injury', async () => {
+    openPage({ routes: { 'GET /api/profile': () => ({ ...PROFILE, injuries: [] }) } })
+    await page('Equipment and units')
+    expect(
+      await region('Equipment and units').findByText('None are recorded on the Profile.'),
+    ).toBeVisible()
+  })
+
+  test('the weight unit is saved by the settings route, and the view is read again so every load follows it at once', async () => {
+    let settings = SETTINGS
+    // the server builds the prescribed loads on the grid of the runner's unit: 110 lb on the pound
+    // grid, and on the kilogram grid a load that is not the same grams (a 52 kg squat)
+    const viewFor = (unit: 'lb' | 'kg') =>
+      pageView({
+        next: [
+          makeWorkout({
+            lifts: [squat({ loadG: unit === 'kg' ? toGrams(52, 'kg') : lb(110) })],
+            plyo: null,
+            trunk: [],
+          }),
+        ],
+      })
+    const { calls } = openPage({
+      routes: {
+        'GET /api/settings': () => settings,
+        'GET /api/strength': () => viewFor(settings.weightUnit),
+        'PUT /api/settings': ({ body }) => {
+          settings = { ...settings, ...(body as object) }
+          return settings
+        },
+      },
+    })
+    await page('Equipment and units')
+    const user = userEvent.setup()
+    expect(region('Next session').getByText(/Suggested 110 lb, four sets/)).toBeVisible()
+    const reads = () => calls.filter((call) => call.url === '/api/strength').length
+    expect(reads()).toBe(1)
+    const group = screen.getByRole('radiogroup', { name: 'Weight units' })
+    expect(within(group).getByRole('radio', { name: 'Pounds' })).toBeChecked()
+    await user.click(within(group).getByRole('radio', { name: 'Kilograms' }))
+    expect(await screen.findByText('Weight unit saved')).toBeVisible()
+    expect(calls.filter((call) => call.method === 'PUT').map((call) => call.body)).toEqual([
+      { weightUnit: 'kg' },
+    ])
+    expect(within(group).getByRole('radio', { name: 'Kilograms' })).toBeChecked()
+    // the view was read again, so the workout is the one the kilogram grid gives, not the old one
+    // shown in the new unit (which would read 50 kg)
+    expect(reads()).toBe(2)
+    expect(region('Next session').getByText(/Suggested 52 kg, four sets/)).toBeVisible()
+    expect(region('Lifts').getByText('about 56.75 kg')).toBeVisible()
+    expect(screen.queryByText(/ lb\b/)).not.toBeInTheDocument()
+  })
+
+  test('puts the unit back and says so when it could not be saved', async () => {
+    openPage({ routes: { 'PUT /api/settings': () => unreachable } })
+    await page('Equipment and units')
+    const user = userEvent.setup()
+    const group = screen.getByRole('radiogroup', { name: 'Weight units' })
+    await user.click(within(group).getByRole('radio', { name: 'Kilograms' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The weight unit was not saved. Try again.',
+    )
+    expect(within(group).getByRole('radio', { name: 'Pounds' })).toBeChecked()
+    expect(region('Next session').getByText(/Suggested 110 lb, four sets/)).toBeVisible()
+  })
+})
+
+describe('the Strength page: about (design 4.5, 11.3)', () => {
+  test('says what the programme does and does not claim, with the grades from the Params and the safety line', async () => {
+    openPage()
+    await page('About strength work')
+    const about = region('About strength work')
+    expect(
+      about.getByText(
+        'Strength work may lower the oxygen cost of running by about 2 to 4% after a full block. That is small, and it says nothing about race time.',
+      ),
+    ).toBeVisible()
+    expect(
+      about.getByText(
+        'Heavy loads have the strongest support, and jumps help most at slower paces.',
+      ),
+    ).toBeVisible()
+    expect(
+      about.getByText(
+        'The evidence for ultra runners is thin, so the loads and sets are defaults, not findings.',
+      ),
+    ).toBeVisible()
+    expect(
+      about.getByText(
+        'Nothing here predicts an injury, and strength work is not claimed to prevent one.',
+      ),
+    ).toBeVisible()
+    const grades = about.getByRole('list')
+    expect(
+      within(grades)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      `Oxygen cost of runningEvidence grade ${P.f7.expectedBenefitPct.grade}`,
+      `Heavy loadsEvidence grade ${P.flib.heavyMinPct1rm.grade}`,
+      `Sets, reps and ramp-in lengthEvidence grade ${P.flib.heavySets.grade}`,
+    ])
+    expect(P.flib.heavySets.grade).toBe('D')
+    expect(
+      about.getByText(
+        'Grade D means a default: a cautious choice that no trial in runners has tested.',
+      ),
+    ).toBeVisible()
+    expect(
+      about.getByText(
+        'Stop a set if anything hurts or form changes. Learn barbell lifts from a coach before adding load.',
+      ),
+    ).toBeVisible()
+  })
+})
+
+describe('the Strength page: the copy', () => {
+  test('passes the lint with every section in view, in pounds and in kilograms', async () => {
+    for (const settings of [SETTINGS, SETTINGS_KG]) {
+      const { unmount } = (() => {
+        openPage({
+          settings,
+          routes: { 'GET /api/strength/exercises/back-squat': () => squatHistory() },
+        })
+        return { unmount: () => cleanup() }
+      })()
+      await page()
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: 'History of Back squat' }))
+      await screen.findByRole('region', { name: 'History of Back squat' })
+      await screen.findByRole('img', { name: 'Estimated maximum, from submaximal sets' })
+      expectCleanCopy(document.body)
+      unmount()
+    }
+  })
+
+  test('passes the lint with the setup unsaved, and with each sheet open', async () => {
+    openPage({ view: unsavedView() })
+    await page('Set up strength')
+    expectCleanCopy(document.body)
+    const user = userEvent.setup()
+    for (const [button, title] of [
+      ['Weight unit', 'Weight unit'],
+      ['Equipment', 'Equipment'],
+      ['Lifting history', 'Lifting history'],
+      ['Exercises', 'Exercises'],
+      ['Starting points', 'Starting points'],
+    ] as const) {
+      await user.click(region('Set up strength').getByRole('button', { name: button }))
+      const dialog = await screen.findByRole('dialog', { name: title })
+      if (title === 'Equipment') {
+        for (const box of within(dialog).getAllByRole('checkbox')) await user.click(box)
+      }
+      expectCleanCopy(dialog)
+      await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      })
+    }
+  })
+
+  test('puts no number in a sentence that is not a quantity of the runner', async () => {
+    openPage()
+    await page()
+    // the page states no injury figure and no chance of one (G5)
+    expect(document.body.textContent).not.toMatch(/injury (?:risk|probability|chance|odds)/i)
+  })
+})
+
+describe('the Strength page: a log the server refused when it was sent later (design 9.6)', () => {
+  const dropped =
+    'A strength log saved on this phone was not accepted and was removed. Enter it again if it still applies.'
+  const BODY: StrengthLogBody = {
+    date: DAY,
+    sessionId: SESSION_ID,
+    durationMin: 40,
+    prescribed: { template: 'heavy', variant: 'A', week: 6, mode: 'normal', lifts: [] },
+    sets: [{ exerciseId: 'back-squat', loadG: lb(110), count: 5, rir: 1 }],
+  }
+
+  /** The page with the app's replay of the outbox beside it, as the signed-in app mounts them. */
+  function openWithReplay(routes: MockRoutes) {
+    function Replay() {
+      useOutboxReplay('u1')
+      return null
+    }
+    mockApi({
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/strength': () => pageView(),
+      'GET /api/profile': () => PROFILE,
+      ...routes,
+    })
+    renderWithProviders(
+      <ToastProvider>
+        <Replay />
+        <StrengthPage />
+      </ToastProvider>,
+      { route: '/strength' },
+    )
+  }
+
+  test('shows the notice on the page, in the words Today uses, and Dismiss removes it', async () => {
+    let connected = false
+    openWithReplay({
+      [`PUT ${strengthLogUrl(LOG_ID)}`]: () =>
+        connected
+          ? {
+              status: 409,
+              body: { error: { code: 'conflict', message: 'That activity already has a log.' } },
+            }
+          : unreachable,
+    })
+    await page()
+    // saved while there was no connection: kept on the phone, and nothing said yet
+    expect((await getOutbox().save(strengthLogUrl(LOG_ID), { ...BODY })).status).toBe('queued')
+    expect(screen.queryByText(dropped)).not.toBeInTheDocument()
+
+    connected = true
+    window.dispatchEvent(new Event('online'))
+    // the replay was refused (a 409): the log is gone from the phone, and the page says so
+    const notice = await screen.findByText(dropped)
+    expect(notice).toHaveAttribute('role', 'alert')
+    expect(getOutbox().getState().entries).toEqual([])
+    expectCleanCopy(notice.parentElement as HTMLElement)
+
+    const dismiss = screen.getByRole('button', { name: 'Dismiss' })
+    // a 44 px target, as on Today: the button and its notice share the component's stylesheet
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/strength/StrengthLogNotices.module.css'),
+      'utf8',
+    )
+    expect(css).toMatch(
+      /\.dismiss \{[^}]*margin-top: calc\(\(var\(--lh-sm\) - var\(--control-h\)\) \/ 2\)/s,
+    )
+    await userEvent.setup().click(dismiss)
+    expect(screen.queryByText(dropped)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument()
+    expect(getOutbox().getState().notices).toEqual([])
+    // the page itself went on working through it
+    expect(screen.getByRole('region', { name: 'Next session' })).toBeVisible()
+  })
+
+  test("says it also when the page could not be read, and leaves another entry's notice to its own surface", async () => {
+    let connected = false
+    openWithReplay({
+      'GET /api/strength': () => unreachable,
+      [`PUT ${strengthLogUrl(LOG_ID)}`]: () =>
+        connected
+          ? { status: 400, body: { error: { code: 'validation', message: 'Not a log.' } } }
+          : unreachable,
+      'PUT /api/checkins/2026-03-18': () =>
+        connected
+          ? { status: 400, body: { error: { code: 'validation', message: 'Not a day.' } } }
+          : unreachable,
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent('The Strength page did not load.')
+    await getOutbox().save(strengthLogUrl(LOG_ID), { ...BODY })
+    await getOutbox().save('/api/checkins/2026-03-18', { fatigue: 3 })
+    connected = true
+    window.dispatchEvent(new Event('online'))
+    expect(await screen.findByText(dropped)).toBeVisible()
+    // the check-in's refusal is the check-in's, and is not listed on this page
+    expect(getOutbox().getState().notices).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(1)
+  })
+})
+
+describe('the stylesheets of the Strength page (design 11.7)', () => {
+  const css = (file: string) => readFileSync(join(process.cwd(), 'web', file), 'utf8')
+
+  test('a setup choice is a 44 px target and the sheets wrap instead of scrolling sideways', () => {
+    const sheets = css('components/strength/SetupSheets.module.css')
+    expect(sheets).toMatch(/\.check \{[^}]*min-height: 2\.75rem;/s)
+    expect(sheets).toMatch(/safe-area-inset-bottom/)
+    expect(sheets).not.toMatch(/overflow-x: scroll/)
+  })
+
+  test('the page links are 44 px targets, and the history table scrolls inside its own box', () => {
+    const sections = css('components/strength/StrengthSections.module.css')
+    expect(sections).toMatch(/\.link \{[^}]*min-height: 2\.75rem;/s)
+    expect(sections).toMatch(/\.scroll \{[^}]*overflow: auto;/s)
+    // the table wraps its cells to fit a phone, and still scrolls inside its box when it must
+    expect(sections).not.toMatch(/\.table \{[^}]*min-width/s)
+    // the section frame lets a long line wrap at 360 px
+    expect(sections).toMatch(/\.section \{[^}]*min-width: 0;/s)
   })
 })

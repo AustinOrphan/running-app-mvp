@@ -1976,6 +1976,9 @@ Size S. Depends on: E14-8, E14-9. Contract: sections 11.4, 12.
   every page passes the lint.
 - **Also:** the server read for the sheet's Swap (a `swap` parameter on `GET /api/strength/workouts`,
   or a small route over `liftFor`), which replaces E14-7's first-session stand-in `swappedLift`.
+- **Also:** the card on Today that offers "Set up strength" the first time a strength session falls
+  within 7 days while `setupSaved` is false (section 6.1). No other task owns it; E14-9 gave the
+  logging sheet its one-line row and the Strength page its card.
 - **Tests:** the web tests above.
 
 #### Task E14-11: E2E, the narrow viewport, the offline case, handoff docs

@@ -9,9 +9,15 @@ import {
 } from '../../../shared/copy/strengthTemplates.ts'
 import { render, type Template } from '../../../shared/copy/template.ts'
 import { renderFact } from '../../../shared/copy/templates.ts'
-import { exerciseById, type Measure } from '../../../shared/domain/strengthLibrary.ts'
+import {
+  exerciseById,
+  isExerciseId,
+  loadMeaning,
+  type Measure,
+} from '../../../shared/domain/strengthLibrary.ts'
 import type { Quantity } from '../../../shared/engine/types.ts'
 import type {
+  EquipmentKind,
   StrengthNextLoad,
   StrengthTemplate,
   Units,
@@ -158,3 +164,20 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
 }
 
 export type StrengthWords = ReturnType<typeof strengthWords>
+
+/**
+ * What a load of an exercise done with an implement means (design 5.2), as the line shown beside the
+ * field: the total with the bar, the stack or plate total, the weight of one implement, the added
+ * weight. Null where there is no load to name (bodyweight, a band) and for an exercise the catalogue
+ * does not hold. The logging sheet and the setup's starting points both read it here, so the two
+ * fields say the same words for the same load.
+ */
+export function loadMeaningLine(
+  words: StrengthWords,
+  exerciseId: string,
+  implement: EquipmentKind | null,
+): string | null {
+  if (!isExerciseId(exerciseId)) return null
+  const meaning = loadMeaning(exerciseId, implement)
+  return meaning === 'none' ? null : words.say(`strength.basis.${meaning}`)
+}
