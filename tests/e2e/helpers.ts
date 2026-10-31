@@ -1,9 +1,15 @@
 import { expect, type APIResponse, type Page } from '@playwright/test'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
-import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
+import type {
+  PlanSession,
+  PlanWithSessions,
+  StrengthWorkout,
+  TodayView,
+} from '../../shared/types.ts'
 import { SESSION_COOKIE, signSession } from '../../server/auth/session.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { clearUserData } from '../schemaModels.ts'
+import { lb, makeWorkout, plank, rdl, squat } from '../web/strength-fixtures.ts'
 import { E2E_DATABASE_URL } from './env.ts'
 
 /** Synthetic account shared by every spec. */
@@ -244,4 +250,110 @@ export function queued(page: Page): Promise<number> {
       }
     })
   })
+}
+
+// ---- A strength day (strength design 11.1, 13) ---------------------------------------------------
+
+/**
+ * A plan with strength sessions, and the first of them on today as the day's only session, or, with
+ * `withRun`, beside the first run that is still ahead, moved here too. It starts over from an empty
+ * log (`resetData`) and signs the page in again, because a spec may have signed out before it. The
+ * move is a write through Prisma, as `seedPredictionLogs` does: the plan's own move is guarded by
+ * the rules of F4 and may refuse the day, and the page only ever shows today. The server reads the
+ * change on its next request (`PRAGMA data_version`).
+ */
+export async function strengthOnlyToday(
+  page: Page,
+  origin: string,
+  withRun = false,
+): Promise<PlanSession> {
+  const { today, thisMonday, lastWednesday, raceDate } = relativeDates()
+  await resetData()
+  const api = await signedInApi(page, origin)
+  for (let i = 0; i < 4; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (30 + 5 * i) * 60,
+      distanceM: 5000 + i * 500,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Strength marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 2 })
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const strength = plan.sessions.find((session) => session.kind === 'strength')
+  if (strength === undefined) throw new Error('The plan has no strength session.')
+  const run = withRun
+    ? plan.sessions.find((session) => RUN_KINDS.includes(session.kind) && session.date >= today)
+    : undefined
+  if (withRun && run === undefined) throw new Error('The plan has no run to put beside it.')
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    await prisma.planSession.deleteMany({
+      where: {
+        planId: strength.planId,
+        date: today,
+        NOT: { id: { in: [strength.id, ...(run === undefined ? [] : [run.id])] } },
+      },
+    })
+    for (const moved of [strength, run]) {
+      if (moved === undefined) continue
+      await prisma.planSession.update({
+        where: { id: moved.id },
+        data: { date: today, weekStart: thisMonday },
+      })
+    }
+  } finally {
+    await prisma.$disconnect()
+  }
+  return { ...strength, date: today, weekStart: thisMonday }
+}
+
+/** The request of the Today page, for a route that stands in for the server's answer. */
+const TODAY_REQUEST = '**/api/today'
+
+/**
+ * Serves `GET /api/today` with the tallest strength day: the session's own payload with five rows
+ * (three lifts with long names, the jumps and three trunk movements) on a day of lower readiness,
+ * which adds the line and the switch to the usual load. The fold has to hold for it too. The route
+ * stays until the page calls `unroute('**\/api/today')`.
+ */
+export async function serveTallestStrengthDay(
+  page: Page,
+  session: PlanSession,
+): Promise<StrengthWorkout> {
+  const tallest = makeWorkout({
+    sessionId: session.id,
+    date: session.date,
+    lifts: [
+      squat({
+        sets: 3,
+        targets: [5, 5, 4],
+        loadG: lb(100),
+        usualLoadG: lb(110),
+        change: 'lighter-day',
+      }),
+      rdl({ sets: 2, targets: [6, 6] }),
+      rdl({ exerciseId: 'standing-calf-raise', slot: 'calf', sets: 2, targets: [12, 12] }),
+    ],
+    plyo: { contacts: 60, movements: ['pogo-hop', 'line-hop'] },
+    trunk: [plank(), plank({ exerciseId: 'dead-bug' }), plank({ exerciseId: 'pallof-press' })],
+  })
+  await page.route(TODAY_REQUEST, async (route) => {
+    // The browser revalidates with the tag it holds; a 304 has no body to change.
+    const headers = { ...route.request().headers() }
+    delete headers['if-none-match']
+    const response = await route.fetch({ headers })
+    const view = (await response.json()) as TodayView
+    const slots = { ...view.coach.slots, strength: tallest }
+    await route.fulfill({ response, json: { ...view, coach: { ...view.coach, slots } } })
+  })
+  return tallest
 }

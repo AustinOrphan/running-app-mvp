@@ -1,18 +1,22 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { createPrisma, initSqlite } from '../../server/db.ts'
 import { addDays } from '../../shared/dates.ts'
 import type {
   PlanSession,
   PlanWithSessions,
   StrengthView,
-  StrengthWorkout,
   TodayHeat,
   TodayView,
 } from '../../shared/types.ts'
 import { SLOT_BUDGETS_PX } from '../../web/components/today/slots.ts'
-import { lb, makeWorkout, plank, rdl, squat } from '../web/strength-fixtures.ts'
-import { E2E_DATABASE_URL } from './env.ts'
-import { relativeDates, resetData, signedInApi, toast, type Api } from './helpers.ts'
+import {
+  relativeDates,
+  resetData,
+  serveTallestStrengthDay,
+  signedInApi,
+  strengthOnlyToday,
+  toast,
+  type Api,
+} from './helpers.ts'
 
 // Today as the runner uses it: Not today and Done on the session's hero, then the one-tap check-in
 // that survives a lost connection and a reload. The e2e server runs with NODE_ENV=development, which
@@ -638,104 +642,12 @@ test('signing out empties the outbox', async () => {
 // The last cases of the file: they start over from an empty log (`resetData`) with a plan that holds
 // strength, and the one before them signed out.
 
-/**
- * A plan with strength sessions, and the first of them on today as the day's only session, or, with
- * `withRun`, beside the first run that is still ahead, moved here too. The move
- * is a write through Prisma, as `seedPredictionLogs` does: the plan's own move is guarded by the
- * rules of F4 and may refuse the day, and the page only ever shows today. The server reads the
- * change on its next request (`PRAGMA data_version`).
- */
-async function strengthOnlyToday(origin: string, withRun = false): Promise<PlanSession> {
-  const { today, thisMonday, lastWednesday, raceDate } = relativeDates()
-  await resetData()
-  api = await signedInApi(page, origin)
-  for (let i = 0; i < 4; i += 1) {
-    await api.post('/activities', {
-      date: addDays(lastWednesday, -3 * i),
-      type: 'run',
-      durationSec: (30 + 5 * i) * 60,
-      distanceM: 5000 + i * 500,
-    })
-  }
-  const goal = (await api.post('/goals', {
-    name: 'Strength marathon',
-    priority: 'A',
-    targetDate: raceDate,
-    distanceM: 42_195,
-  })) as { id: string }
-  await api.post(`/goals/${goal.id}/activate`)
-  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 2 })
-  const plan = (await api.get('/plan')) as PlanWithSessions
-  const strength = plan.sessions.find((session) => session.kind === 'strength')
-  if (strength === undefined) throw new Error('The plan has no strength session.')
-  const run = withRun
-    ? plan.sessions.find((session) => RUN_KINDS.includes(session.kind) && session.date >= today)
-    : undefined
-  if (withRun && run === undefined) throw new Error('The plan has no run to put beside it.')
-  const prisma = createPrisma(E2E_DATABASE_URL)
-  try {
-    await initSqlite(prisma)
-    await prisma.planSession.deleteMany({
-      where: {
-        planId: strength.planId,
-        date: today,
-        NOT: { id: { in: [strength.id, ...(run === undefined ? [] : [run.id])] } },
-      },
-    })
-    for (const moved of [strength, run]) {
-      if (moved === undefined) continue
-      await prisma.planSession.update({
-        where: { id: moved.id },
-        data: { date: today, weekStart: thisMonday },
-      })
-    }
-  } finally {
-    await prisma.$disconnect()
-  }
-  return { ...strength, date: today, weekStart: thisMonday }
-}
-
-/**
- * Serves `GET /api/today` with the tallest strength day: the session's own payload with five rows
- * (three lifts with long names, the jumps and three trunk movements) on a day of lower readiness,
- * which adds the line and the switch to the usual load. The fold has to hold for it too.
- */
-async function serveTallestStrengthDay(session: PlanSession): Promise<StrengthWorkout> {
-  const tallest = makeWorkout({
-    sessionId: session.id,
-    date: session.date,
-    lifts: [
-      squat({
-        sets: 3,
-        targets: [5, 5, 4],
-        loadG: lb(100),
-        usualLoadG: lb(110),
-        change: 'lighter-day',
-      }),
-      rdl({ sets: 2, targets: [6, 6] }),
-      rdl({ exerciseId: 'standing-calf-raise', slot: 'calf', sets: 2, targets: [12, 12] }),
-    ],
-    plyo: { contacts: 60, movements: ['pogo-hop', 'line-hop'] },
-    trunk: [plank(), plank({ exerciseId: 'dead-bug' }), plank({ exerciseId: 'pallof-press' })],
-  })
-  await page.route(TODAY_REQUEST, async (route) => {
-    // The browser revalidates with the tag it holds; a 304 has no body to change.
-    const headers = { ...route.request().headers() }
-    delete headers['if-none-match']
-    const response = await route.fetch({ headers })
-    const view = (await response.json()) as TodayView
-    const slots = { ...view.coach.slots, strength: tallest }
-    await route.fulfill({ response, json: { ...view, coach: { ...view.coach, slots } } })
-  })
-  return tallest
-}
-
 let strengthDay: PlanSession
 
 test('a day with only strength lists its workout in the hero, with Log sets in place of Done', async ({
   baseURL,
 }) => {
-  strengthDay = await strengthOnlyToday(baseURL ?? '')
+  strengthDay = await strengthOnlyToday(page, baseURL ?? '')
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
   const card = page.getByRole('article', { name: strengthDay.title })
@@ -775,7 +687,7 @@ test('at 390 x 844 and 360 x 740 Log sets is inside the fold on a strength day, 
 
   // the tallest it can be: five rows with long names, and a lighter day's line and switch
   try {
-    await serveTallestStrengthDay(strengthDay)
+    await serveTallestStrengthDay(page, strengthDay)
     await page.reload()
     await expect(card.getByRole('list', { name: /^Strength, / }).getByRole('listitem')).toHaveCount(
       5,
@@ -828,7 +740,7 @@ test('a strength log the server refuses when it is finally sent leaves a notice 
   baseURL,
 }) => {
   // The session of the last case is logged; start over with a session still to be done.
-  strengthDay = await strengthOnlyToday(baseURL ?? '')
+  strengthDay = await strengthOnlyToday(page, baseURL ?? '')
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto('/')
   const card = page.getByRole('article', { name: strengthDay.title })
@@ -889,7 +801,7 @@ test('a strength log the server refuses when it is finally sent leaves a notice 
 test('the "Also today" item of a run day is a 44 px target that stays off the action row', async ({
   baseURL,
 }) => {
-  await strengthOnlyToday(baseURL ?? '', true)
+  await strengthOnlyToday(page, baseURL ?? '', true)
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto('/')
   const item = page.getByRole('button', { name: /^Strength, \d+ minutes: open the workout$/ })
