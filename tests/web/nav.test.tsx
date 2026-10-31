@@ -6,6 +6,7 @@ import { Nav } from '../../web/components/Nav.tsx'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { makeUpdate, makeView } from './brief-fixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
+import { PROFILE, pageView } from './strength-page-fixtures.ts'
 
 function primaryLinks() {
   return within(screen.getByRole('navigation', { name: 'Primary' })).getAllByRole('link')
@@ -27,7 +28,7 @@ describe('Nav', () => {
     expect(current.map((l) => l.textContent)).toEqual(['Plan'])
   })
 
-  test.each(['/more', '/goals', '/stats', '/settings', '/integrations', '/profile'])(
+  test.each(['/more', '/goals', '/stats', '/settings', '/integrations', '/profile', '/strength'])(
     'More is current on %s',
     (route) => {
       renderWithProviders(<Nav />, { route })
@@ -150,6 +151,60 @@ describe('MorePage', () => {
       '/integrations',
     )
     expect(nav.getByRole('link', { name: /^Profile/ })).toHaveAttribute('href', '/profile')
+  })
+})
+
+describe('Strength navigation', () => {
+  test('More lists Strength with its note, and the link goes to /strength', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    const nav = within(screen.getByRole('navigation', { name: 'More pages' }))
+    const link = nav.getByRole('link', { name: /^Strength/ })
+    expect(link).toHaveAttribute('href', '/strength')
+    expect(link).toHaveTextContent('Lifts, loads and history')
+    expectCleanCopy(link)
+  })
+
+  test('Strength is not in the tab bar: More is the one current item on its page', () => {
+    renderWithProviders(<Nav />, { route: '/strength' })
+    expect(primaryLinks().map((l) => l.textContent)).toEqual([
+      'Today',
+      'Log',
+      'Plan',
+      'Review',
+      'More',
+    ])
+    const current = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page')
+    expect(current.map((link) => link.textContent)).toEqual(['More'])
+  })
+
+  test('the app routes /strength to the Strength page, inside the layout', async () => {
+    const { calls } = mockApi({
+      'GET /api/setup': () => ({ needsSetup: false }),
+      'GET /api/auth/me': () => ({
+        id: 'u1',
+        email: 'runner@example.com',
+        displayName: null,
+        units: 'km',
+        weightUnit: 'lb',
+      }),
+      'GET /api/settings': () => ({
+        email: 'runner@example.com',
+        displayName: null,
+        units: 'km',
+        weightUnit: 'lb',
+      }),
+      'GET /api/strength': () => pageView(),
+      'GET /api/profile': () => PROFILE,
+    })
+    renderWithProviders(<App />, { route: '/strength' })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Strength' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Next session' }),
+    ).toBeInTheDocument()
+    expect(calls.map((call) => call.url)).toContain('/api/strength')
+    expect(screen.getByRole('main')).toBeInTheDocument()
   })
 })
 

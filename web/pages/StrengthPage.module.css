@@ -1,0 +1,46 @@
+/* One column of sections on a phone, in reading order. From 900 px the setup, next session, block and
+   lifts stand on the left and the history, recent sessions, equipment and about on the right; the DOM
+   order is the reading order at every width. `min-width: 0` lets a long line wrap inside a flex or
+   grid child instead of widening the page at 360 px. */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: var(--page-max);
+}
+
+.page > * {
+  min-width: 0;
+}
+
+.columns {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.column > * {
+  min-width: 0;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+@media (min-width: 900px) {
+  .columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 0 var(--space-6);
+    align-items: start;
+  }
+}

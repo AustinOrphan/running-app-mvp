@@ -143,6 +143,7 @@ const primary: Item[] = [
       '/integrations',
       '/profile',
       '/fuel',
+      '/strength',
     ],
     icon: (
       <Icon>
