@@ -1397,6 +1397,53 @@ things stand" gives counts and percentages without a weekly total or a date.
     `loadStrengthContext`; logs on duplicate activities counted once; `next` after a save (empty
     until the engine fills it); the H10 explain builder. Next: wave 3, task E14-6 (the server read
     side), then E14-7 to E14-9 (the web).
+    Wave 3 done in #584 and #586 (2026-10-31): task E14-6 added the server read side. The
+    `strength.state` memo (`memoByVersion`) holds the settings, the anchors and the last 26 weeks of
+    logs in one round of four reads, and four answers read it: `GET /api/strength` (the page view),
+    `GET /api/strength/workouts` (at most 62 days), `GET /api/strength/exercises/:id` and
+    `coach.slots.strength` on Today (the derived workout of the day's strength session, null on an
+    illness rest day or without a plan). `GET /api/explain` takes the subject `strength`, with the
+    F7 to F9 builders moved from the policy-only rules to the input builders, and the save of a log
+    (`PUT /api/strength/logs/:logId`) returns `next`, the load the next planned session asks for. A
+    copy's log (a possible or confirmed duplicate) is skipped only when its original has a log, so a
+    session is counted once and never disappears (a deviation from the task brief, which skipped
+    every confirmed copy). A three-lens review confirmed 4 defects, all fixed: the F8 and F9 explain
+    facts re-read the history without the engine's implement filter and window, so after a change of
+    equipment the drawer could name a load the engine never judged (`WorkoutLift.evidence` now
+    carries the engine's own judged session, latest session and estimate, and the facts read those);
+    "1 days"; the unit of a timed or bodyweight lift in the last-session fact; and the `next`
+    harder-movement case, which had no test. Task E14-7 added the web foundations: the hooks in
+    `web/api/strength.ts`, which refresh the strength readers, Today and the activity readers after
+    a write, and the lazy `StrengthSheet`, the sheet of spec 9.1, pre-filled from the workout, with
+    44 px steppers (the load by the equipment step, the reps by one), "As suggested", "Same as last
+    time", the reps-left scale with "All sets", add and remove a set, the bodyweight path with no
+    load field, "Swap" with "Always use this", "Save without sets" and "Use the usual load" on a
+    lighter day. A session logged as suggested takes 3 interactions, and two changed sets with one
+    All-sets value per lift take 8, against the bar of 12 (both asserted). The draft is kept under
+    `strength-draft:<logId>` and purged with the device data, the `strength log` outbox entry
+    replays once with the same log id, and ADR 0012 gains one line. Swap is a stand-in: no read
+    gives the sheet the server's `liftFor` result, so a swapped lift is built on the client as the
+    first session of its exercise (`structuresFor(...).first`) at the lightest load the equipment
+    makes, with no Why drawer; the server read of a lift in a session's place is given to E14-10
+    (spec section 17) and replaces it, and "Add a lift" waits for the same read. A three-lens review
+    confirmed 7 defects, all fixed: "Same as last time" copied another implement's loads (it now
+    keys the last session by exercise and implement, and copies no load into a lift without a load
+    field); the sheet showed no line for what a load means (spec 5.2), and now shows one muted line
+    per lift; a swapped lift took the structure of the lift it replaced, and now takes the
+    first-session structure above; a strength log refused at replay was dropped with a notice that
+    no surface showed, and `useStrengthLogNotices` now lists and dismisses it for the wave-4
+    surfaces to render; a sheet reopened after a queued save started a new log id, and now reuses
+    the queued entry's id, so the second save replaces the first; the draft kept a load with no
+    unit, and now stores its unit and rebuilds each load from the same grams; `keys.strength` was in
+    neither invalidation list, and is now in both. Gates: `npm run check` (256 files and 13475 tests
+    after E14-6; 261 files and 14095 tests after E14-7), `npm run build` (entry 358.79 kB, the sheet
+    its own 35.80 kB chunk), `npm run test:e2e` (80). Validation on a real history is byte-identical
+    (counts only): E14-6 added only the workout's `evidence` field and read paths, E14-7 changed no
+    engine, server or schema file, and neither added a migration. Left for wave 4: the Why drawer
+    renders loads in the default unit (`InputFacts.tsx` needs the runner's weight unit), and the
+    hero rows pick the "leave n or more" templates for easy sessions. Next: wave 4, tasks E14-8
+    (Today and the session sheet) and E14-9 (the Strength page, the setup, Settings and More), both
+    in review.
 19. Done in #567: the Today disruption presentation, from the owner's feedback of 2026-10-24 on
     Today with an illness window. (a) The band owns the window and the verdict names the day: while
     the illness windows hold the n-3 gate, the payload leaves out the illness note and the illness
