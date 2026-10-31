@@ -1,6 +1,6 @@
 # 0016. The evaluation harness is report-only
 
-Status: Proposed 2026-10-31
+Status: Accepted 2026-10-31 (#605)
 
 Amends rule G-5 of `research/engine-rules.md` by one sentence. Builds on ADR 0005 and ADR 0013.
 
