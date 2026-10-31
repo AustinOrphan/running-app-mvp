@@ -140,16 +140,11 @@ export type Paper = z.infer<typeof paperSchema>
 export const PREDATES_RUBRIC: ReadonlySet<string> = new Set([
   'bjsm-2019-bone-stress-return-to-run',
   'clark-2026-couch-to-5k-original',
-  'cts-2025-koop-ultra-recovery',
   'higdon-2024-advanced-5k',
-  'irunfar-2014-uhan-ultra-recovery-rules',
-  'irunfar-2016-powell-post-100-return',
-  'irunfar-2023-torrence-post-ultra-downtime',
   'outside-2015-orton-koop-100-miles',
   'outside-2023-strava-utmb',
   'outside-2023-strava-western-states',
   'runningmagazine-2023-daniels-long-run-limit',
-  'skurka-2017-roche-100-recovery',
 ])
 
 /**

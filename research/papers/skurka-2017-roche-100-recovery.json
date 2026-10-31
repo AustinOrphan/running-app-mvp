@@ -29,6 +29,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the page (WebFetch): page dated August 27, 2017 (year now confirmed); week structure, 2-month figure, overtraining resemblance and first-100 risk quotes present. Removed the earlier 'a week or two of solid running, then lethargy, illness' detail, which the fetch did not confirm. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "David Roche sells coaching (SWAP) and a book; Andrew Skurka, who interviews him and publishes the page, is his coaching client.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The four-segment month (rest, slow running, slow running with hills, easy running), 'around a full month', full fitness and recovery around two months, the overtraining-like return and the first-100 risk located in the Q&A on the page fetched 2026-10-31 (published 2017-08-27, modified 2019-10-16)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "The claims are David Roche's (the record's author). Human Kinetics' author page for The Happy Runner (read 2026-10-31) states that he started the SWAP coaching team in 2013, that athletes he coaches have won Western States and Hardrock, and that he is a two-time national champion. The interviewer is his client. Interests recorded."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Interview of 2017-08-27 (modified 2019-10-16), read live. Later corpus papers (hoffman-2017, garciavaliente-2026) describe recovery of function over days to weeks and do not supersede a monthly staging."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "A staged month agrees in shape with Koop (cts-2025) and Powell (irunfar-2016) and with function data in millet-2011 and hoffman-2017. Roche's complete-rest week is shorter than Uhan's ten days (irunfar-2014); the conservative reading is the longer."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population is coach guidance for athletes recovering from a 100-mile race, mostly well trained; macroDesign.postRaceLongFractions and the H12 Params apply it to races of 100K and longer, labelled as defaults."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
   }
 }
