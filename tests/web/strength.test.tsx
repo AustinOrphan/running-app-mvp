@@ -2317,6 +2317,32 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     expect(region('Recent sessions').getAllByRole('listitem')).toHaveLength(2)
   })
 
+  test('an edit can clear the effort, the pain and the note of a saved session', async () => {
+    const [first, ...rest] = pageView().recent
+    const saved = { ...first!, rpe: 7, pain: 2, notes: 'Felt steady' }
+    const { calls } = openPage({
+      view: pageView({ recent: [saved, ...rest] }),
+      routes: { [`PUT /api/strength/logs/${LOG_LAST}`]: () => savedLog(LOG_LAST) },
+    })
+    await page('Recent sessions')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
+    await sheet('Strength, heavy A')
+    // the sheet opens with what was saved, the details open because there are some
+    expect(screen.getByRole('button', { name: 'Effort 7' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('textbox', { name: 'Note' })).toHaveValue('Felt steady')
+    await user.click(screen.getByRole('button', { name: 'Effort 7' }))
+    await user.click(screen.getByRole('button', { name: 'Pain 2' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Note' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    // an explicit null, which the server reads as clearing the activity's own
+    const body = calls.find((call) => call.method === 'PUT')?.body as StrengthLogBody
+    expect(body).toMatchObject({ rpe: null, pain: null, notes: null })
+  })
+
   test('edits a session: the sheet opens as it was saved and saves over it under its own id', async () => {
     const log = pageView().recent[0]!
     const { calls } = openPage({

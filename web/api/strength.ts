@@ -176,8 +176,9 @@ export interface StrengthSetBody {
 /**
  * The body of `PUT /api/strength/logs/:logId`: the whole session, so a repeat with the same id
  * replaces it and leaves one log. `rpe`, `pain` and `notes` left out keep what an existing
- * activity holds (an import brings its own); the keys are exactly those of
- * `server/routes/strength.ts`, which rejects any other.
+ * activity holds (an import brings its own), and `null` clears it (the edit of a saved log, whose
+ * runner emptied the field); the keys are exactly those of `server/routes/strength.ts`, which
+ * rejects any other and accepts a `null` for these three.
  */
 export interface StrengthLogBody {
   date: string
@@ -186,9 +187,9 @@ export interface StrengthLogBody {
   /** The planned session this one fulfils. */
   sessionId?: string
   durationMin: number
-  rpe?: number
-  pain?: number
-  notes?: string
+  rpe?: number | null
+  pain?: number | null
+  notes?: string | null
   /** What the sheet showed, kept as sent (design 9.3). */
   prescribed: StrengthSnapshot
   sets: StrengthSetBody[]

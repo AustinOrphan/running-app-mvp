@@ -215,6 +215,7 @@ export function StrengthForm({
       activityId,
       state,
       unit: weightUnit,
+      clearEmpty: log !== undefined,
     })
     if (!built.ok) {
       setProblems(built.issues)

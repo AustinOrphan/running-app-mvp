@@ -803,6 +803,29 @@ describe('editing a saved log', () => {
     expect(state).toMatchObject({ effort: null, pain: null, notes: '' })
   })
 
+  test('sends an emptied effort, pain and note as null in an edit, so the activity is cleared, and leaves them out otherwise', () => {
+    const saved = log()
+    const workout = workoutOfLog(saved, equipment, 'lb')
+    const cleared = { ...stateOfLog(workout, saved, 'lb'), effort: null, pain: null, notes: '  ' }
+    const input = { workout, date: DAY, sessionId: null, activityId: null, unit: 'lb' as const }
+    const edit = buildLogBody({ ...input, state: cleared, clearEmpty: true })
+    expect(edit.ok && edit.body).toMatchObject({ rpe: null, pain: null, notes: null })
+    // a first save, or the attach to an import, has no key: the activity keeps what it holds
+    const attach = buildLogBody({ ...input, state: cleared })
+    expect(attach.ok).toBe(true)
+    if (!attach.ok) return
+    expect(attach.body).not.toHaveProperty('rpe')
+    expect(attach.body).not.toHaveProperty('pain')
+    expect(attach.body).not.toHaveProperty('notes')
+    // an edit that keeps them sends what they hold
+    const kept = buildLogBody({
+      ...input,
+      state: stateOfLog(workout, saved, 'lb'),
+      clearEmpty: true,
+    })
+    expect(kept.ok && kept.body).toMatchObject({ rpe: 7, pain: 2, notes: 'Felt steady' })
+  })
+
   test('sends the loads it was filled with as the very grams, in either unit', () => {
     const workout = workoutOfLog(log(), equipment, 'kg')
     const state = stateOfLog(workout, log(), 'kg')

@@ -659,6 +659,12 @@ export interface LogInput {
   activityId: string | null
   state: FormState
   unit: WeightUnit
+  /**
+   * An edit of a saved log: an emptied effort, pain or note is sent as `null`, which clears what the
+   * activity holds. Left out (the default) it is sent as no key, which keeps what an attached
+   * import brought, and is what a first save of a session does.
+   */
+  clearEmpty?: boolean
 }
 
 /** The request for the sheet, or what is wrong with it. */
@@ -694,10 +700,15 @@ export function buildLogBody(
       ...(input.sessionId === null ? {} : { sessionId: input.sessionId }),
       ...(input.activityId === null ? {} : { activityId: input.activityId }),
       durationMin,
-      // left out, not null: an attached import keeps the effort, pain and note it brought
-      ...(state.effort === null ? {} : { rpe: state.effort }),
-      ...(state.pain === null ? {} : { pain: state.pain }),
-      ...(notes === '' ? {} : { notes }),
+      // left out, not null: an attached import keeps the effort, pain and note it brought; an edit
+      // of a saved log has them in its form, so an emptied field is the runner clearing it
+      ...(input.clearEmpty === true
+        ? { rpe: state.effort, pain: state.pain, notes: notes === '' ? null : notes }
+        : {
+            ...(state.effort === null ? {} : { rpe: state.effort }),
+            ...(state.pain === null ? {} : { pain: state.pain }),
+            ...(notes === '' ? {} : { notes }),
+          }),
       prescribed: snapshotOf(workout, state.blocks),
       sets,
     },
