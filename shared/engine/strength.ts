@@ -1100,7 +1100,9 @@ function plyoFor(
       : P.f7.plyoStartContacts.value + P.f7.plyoStepContacts.value * steps
   const fast = ctx.goal.paceKmh !== null && ctx.goal.paceKmh > P.flib.plyoEmphasisPaceKmh.value
   const reduced = fast || injured || recovery
-  const contacts = Math.min(cap, reduced ? Math.round(dose * P.f7.reducedPlyoShare.value) : dose)
+  // the cap comes first and the share after it: a reduced runner past the cap has half the cap
+  const capped = Math.min(cap, dose)
+  const contacts = reduced ? Math.round(capped * P.f7.reducedPlyoShare.value) : capped
   // the movement of the rung, or the nearest easier one the runner has not left out, else a harder
   const avoided = avoidedBy(ctx)
   const easier = [...PLYO_LADDER.slice(0, reached + 1)].reverse()

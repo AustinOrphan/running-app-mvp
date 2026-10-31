@@ -3989,3 +3989,43 @@ describe('the kept-load sentence belongs to the lifts, not to the trunk movement
     },
   )
 })
+
+describe('the jump dose past the cap is capped before it is halved (rule F7, design 8.2)', () => {
+  // a 32-week block of completed weeks: 14 steps by week 32 is 320 contacts, over the cap of 200
+  const longBlock = (extra: Record<number, string[]> = {}) =>
+    plan(40, 32).map((w, i) => ({
+      ...w,
+      plannedRunMin: 100,
+      runMin: 100,
+      flags: [...w.flags, ...(extra[i] ?? [])],
+    }))
+  const session = sessionOf(31)
+  const dose = (weeks: StrengthWeek[], over: Partial<StrengthContext> = {}) =>
+    workoutFor(withSetup({}, { today: session.date, weeks, ...over }), session).plyo
+
+  it('gives the reduced runner half the cap and not half the dose that is over it', () => {
+    expect(P.flib.plyoContactsMax.value).toBe(200)
+    expect(dose(longBlock())?.contacts).toBe(200)
+    // halved after the cap: 100, where halving the 320 first and capping would give 160
+    expect(dose(longBlock(), { goal: { paceKmh: 14 } })?.contacts).toBe(100)
+    expect(
+      dose(longBlock(), {
+        athlete: { ...context().athlete, risk: { priorBsi: true, recentInjury: false } },
+      })?.contacts,
+    ).toBe(100)
+  })
+
+  it('does the same for a lighter week', () => {
+    expect(dose(longBlock({ 31: ['recovery'] }))?.contacts).toBe(100)
+  })
+
+  it('still halves a dose that is under the cap', () => {
+    const s = sessionOf(9)
+    const weeks = plan(30, 12).map((w) => ({ ...w, plannedRunMin: 100, runMin: 100 }))
+    const reduced = workoutFor(
+      withSetup({}, { today: s.date, weeks, goal: { paceKmh: 14 } }),
+      s,
+    ).plyo
+    expect(reduced?.contacts).toBe(50)
+  })
+})

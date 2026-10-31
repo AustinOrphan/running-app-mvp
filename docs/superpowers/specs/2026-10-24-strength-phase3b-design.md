@@ -856,7 +856,7 @@ week of a 3-week ramp-in); side plank and dead bug, 2 sets each.
   Ramp-in weeks hold 40 contacts on the first rung. After a ramp-in of 3 weeks, a 12-week block in
   which every week was completed ends at 120 contacts at most: the cap
   binds only in a longer block, on purpose, because 200 is the highest dose observed in trials and
-  not a target (gap 6). The dose is multiplied by `f7.reducedPlyoShare` (0.5) when the goal pace
+  not a target (gap 6). The dose, taken to the cap first, is multiplied by `f7.reducedPlyoShare` (0.5) when the goal pace
   is faster than `flib.plyoEmphasisPaceKmh` (12 km/h, from the goal's distance and expected
   duration: `llanoslagos-2024-economy-speeds` found the plyometric effect at 12 km/h or slower), and
   when `state.risk` shows a bone stress history or a recent injury (G6; gap 6). A runner with a
