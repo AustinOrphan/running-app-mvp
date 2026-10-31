@@ -66,8 +66,8 @@ export interface PlanRow {
   bands: BandPlan
 }
 
-function planRow(id: string, label: string, input: EngineInput): PlanRow {
-  const plan = buildPlan(input)
+/** The row of a plan already built (a stored draft, a re-plan) from the input it was made from. */
+export function rowOf(id: string, label: string, input: EngineInput, plan: PlanDraft): PlanRow {
   const d = describePlan(plan, input)
   const bands: BandPlan = {
     goalClass: input.goal.distanceClass,
@@ -76,6 +76,10 @@ function planRow(id: string, label: string, input: EngineInput): PlanRow {
     sessions: plan.sessions,
   }
   return { id, label, input, plan, d, bands }
+}
+
+function planRow(id: string, label: string, input: EngineInput): PlanRow {
+  return rowOf(id, label, input, buildPlan(input))
 }
 
 /** The twelve athletes of the plan matrix. */
