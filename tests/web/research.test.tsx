@@ -453,4 +453,64 @@ describe('citations', () => {
     renderWithProviders(<PaperCard paper={base} open={false} onToggle={() => {}} />)
     expect(screen.getByText('de Jager E et al. (2021), Example Journal')).toBeInTheDocument()
   })
+
+  test('a paper with no DOI links its page by host name', () => {
+    const paper = { ...base, url: 'https://www.example.com/plans/novice' }
+    renderWithProviders(<PaperCard paper={paper} open onToggle={() => {}} />)
+    expect(screen.getByText('No DOI is recorded for this paper.')).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: 'example.com' })
+    expect(link).toHaveAttribute('href', 'https://www.example.com/plans/novice')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  test('a paper whose URL is its DOI link shows one link', () => {
+    const paper = { ...base, doi: '10.1234/example.1', url: 'https://doi.org/10.1234/example.1' }
+    renderWithProviders(<PaperCard paper={paper} open onToggle={() => {}} />)
+    expect(screen.getAllByRole('link')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: 'doi.org/10.1234/example.1' })).toHaveAttribute(
+      'href',
+      'https://doi.org/10.1234/example.1',
+    )
+  })
+
+  test('a paper with a DOI and another page shows both links', () => {
+    const paper = { ...base, doi: '10.1234/example.1', url: 'https://pubmed.example.org/123/' }
+    renderWithProviders(<PaperCard paper={paper} open onToggle={() => {}} />)
+    expect(screen.getByRole('link', { name: 'doi.org/10.1234/example.1' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'pubmed.example.org' })).toHaveAttribute(
+      'href',
+      'https://pubmed.example.org/123/',
+    )
+  })
+
+  test('a URL that is not http or https is not a link', () => {
+    const paper = { ...base, url: 'javascript:alert(1)' }
+    renderWithProviders(<PaperCard paper={paper} open onToggle={() => {}} />)
+    expect(screen.queryAllByRole('link')).toHaveLength(0)
+  })
+
+  test('a book record shows its edition, pages read, interests and sign-off', () => {
+    const book: CorpusPaper = {
+      ...base,
+      design: 'book-or-guideline',
+      evidenceLevel: 'D',
+      edition: '4th edition',
+      pagesRead: 'pp. 12-20, table 3.1',
+      interests: 'The author sells training plans.',
+      vetting: { signedOff: 'owner, 2026-11-02' },
+    }
+    renderWithProviders(<PaperCard paper={book} open onToggle={() => {}} />)
+    expect(screen.getByText('Edition: 4th edition')).toBeInTheDocument()
+    expect(screen.getByText('Pages read: pp. 12-20, table 3.1')).toBeInTheDocument()
+    expect(screen.getByText('Interests: The author sells training plans.')).toBeInTheDocument()
+    expect(screen.getByText('Signed off: owner, 2026-11-02')).toBeInTheDocument()
+  })
+
+  test('a paper without book fields has no such lines', () => {
+    renderWithProviders(<PaperCard paper={base} open onToggle={() => {}} />)
+    for (const label of [/^Edition:/, /^Pages read:/, /^Interests:/, /^Signed off:/]) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument()
+    }
+  })
 })
