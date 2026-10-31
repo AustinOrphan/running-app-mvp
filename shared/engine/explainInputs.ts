@@ -7,6 +7,15 @@
 // heart-rate model, the weekly decision and the prediction it has already computed.
 import { EXPLAIN_CHECKIN_DAYS, EXPLAIN_MAX_SOURCES } from '../copy/limits.ts'
 import { loadHoldReason, loadName, stepPercent } from '../copy/load.ts'
+import {
+  defaultGrade,
+  extraBaseWeeks,
+  longRunShare,
+  methodReasonText,
+  overrideGrade,
+  planShapeLabel,
+  presetGrade,
+} from '../copy/method.ts'
 import { countPhrase } from '../copy/quantity.ts'
 import { ZONE_BOUNDARY_WORDS } from '../copy/revision.ts'
 import { STRENGTH_TEMPLATES } from '../copy/strengthTemplates.ts'
@@ -45,7 +54,7 @@ import {
 } from './limits.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
 import { blockLiftMin, loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
-import { effective, resolveMethod } from './methods.ts'
+import { effective, overrides, resolveMethod, type MethodPosition } from './methods.ts'
 import {
   cycleShortReason,
   cycleWorkWeeks,
@@ -1884,6 +1893,17 @@ function runDayFacts(scope: Scope): InputFact[] {
   if (ctx.state.experience === 'novice') {
     facts.push(make('F5', 'novice', 'explain.f5-novice', { n: count(P.f5.noviceRunDays.value) }))
   }
+  // A plan shape that sets the cap names itself: the cap is the shape's, whatever the runner's age
+  // [rule P2], and the age rule below states the plan's own cap.
+  const shape = methodOf(ctx)
+  if (overrides(shape, 'f5.mastersMaxRunDays')) {
+    facts.push(
+      make('F5', 'shape', 'method.fact.f5-cap', {
+        shape: planShapeLabel(shape),
+        n: count(effective(shape, 'f5.mastersMaxRunDays')),
+      }),
+    )
+  }
   const { age } = ctx.state
   if (age !== null && age >= P.f5.mastersMinAge.value) {
     facts.push(
@@ -1891,7 +1911,7 @@ function runDayFacts(scope: Scope): InputFact[] {
         'F5',
         'masters',
         'explain.f5-masters',
-        { age: count(age), n: count(effective(methodOf(ctx), 'f5.mastersMaxRunDays')) },
+        { age: count(age), n: count(effective('default', 'f5.mastersMaxRunDays')) },
         { sources: [profileSource(ctx)] },
       ),
     )
@@ -3234,6 +3254,116 @@ function heatAdaptationFacts(rule: 'I8' | 'H13'): Builder {
 }
 
 // ---------------------------------------------------------------------------------------------
+// P1 to P4: the plan shape
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The shape the plan asked for and the one that applies today [rules P1 to P4], read from the plan's
+ * own goal and options (`loadInputOf`) and its stored weeks, as `PlanWithSessions.method` is. Null
+ * without a stored plan, which has no shape to explain.
+ */
+function shapeOf(ctx: ExplainContext): MethodPosition | null {
+  const input = loadInputOf(ctx)
+  return input.existing === null ? null : resolveMethod(input, ctx.state, input.existing.weeks)
+}
+
+type ShapeRule = 'P1' | 'P2' | 'P4'
+
+/**
+ * The shape chosen and why it reads as the plan's own when it does, the head of P1, P2 and P4. A
+ * rule about a shape the plan did not choose says so and states none of its figures.
+ */
+function shapeChoice(rule: ShapeRule, preset: PresetId, position: MethodPosition): InputFact {
+  const shape = planShapeLabel(position.requested)
+  if (preset !== 'default' && position.requested !== preset) {
+    return make(rule, 'other', 'method.fact.other', { shape })
+  }
+  if (position.reason !== null) {
+    const reason = methodReasonText(position.reason)
+    return make(rule, 'read-default', 'method.fact.read-default', { shape, reason })
+  }
+  return position.requested === 'default'
+    ? make(rule, 'own', 'method.fact.own', {})
+    : make(rule, 'chosen', 'method.fact.chosen', { shape })
+}
+
+/** "A choice, not a better plan (grade D)": every shape is graded as a choice, at its weakest part. */
+const shapeGrade = (rule: ShapeRule, preset: PresetId): InputFact =>
+  make(rule, 'grade', 'method.fact.grade', { grade: presetGrade(preset) })
+
+/** P1: what the plan's own shape holds, each value with the grade of the Param that carries it. */
+function ownShapeFacts(scope: Scope): InputFact[] {
+  const position = shapeOf(scope.ctx)
+  if (position === null) return [gap('P1', 'explain.plan-gap', {})]
+  return [
+    shapeChoice('P1', 'default', position),
+    make('P1', 'own-days', 'method.fact.own-days', {
+      cap: count(effective('default', 'f5.mastersMaxRunDays')),
+      grade: defaultGrade('f5.mastersMaxRunDays'),
+    }),
+    make('P1', 'own-build', 'method.fact.own-build', {
+      weeks: count(effective('default', 'macroDesign.buildWeeks')),
+      grade: defaultGrade('macroDesign.buildWeeks'),
+    }),
+    make('P1', 'own-long', 'method.fact.own-long', {
+      share: share(longRunShare()),
+      grade: defaultGrade('macroDesign.longRunShareOfWeek'),
+    }),
+    shapeGrade('P1', 'default'),
+  ]
+}
+
+/**
+ * P2 and P4: the choice, then, when the shape applies to this plan, each override against the
+ * plan's own value with both grades (ADR 0010: every figure is read from the Params), then the
+ * grade of the choice. A shape that reads as the plan's own states why and no override.
+ */
+function presetFacts(rule: 'P2' | 'P4', preset: PresetId, overridden: () => InputFact[]): Builder {
+  return (scope) => {
+    const position = shapeOf(scope.ctx)
+    if (position === null) return [gap(rule, 'explain.plan-gap', {})]
+    const applies = position.requested === preset && position.reason === null
+    return [
+      shapeChoice(rule, preset, position),
+      ...(applies ? overridden() : []),
+      shapeGrade(rule, preset),
+    ]
+  }
+}
+
+/** P2: the run-day cap against the plan's own. */
+const threeRunDaysFacts = presetFacts('P2', 'three-run-days', () => [
+  make('P2', 'days', 'method.fact.days', {
+    n: count(effective('three-run-days', 'f5.mastersMaxRunDays')),
+    grade: overrideGrade('three-run-days', 'f5.mastersMaxRunDays'),
+    cap: count(effective('default', 'f5.mastersMaxRunDays')),
+    capGrade: defaultGrade('f5.mastersMaxRunDays'),
+  }),
+])
+
+/** P4: the build length against the plan's own, the base taking the difference, and the kinds. */
+const longerBaseFacts = presetFacts('P4', 'longer-base', () => [
+  make('P4', 'build', 'method.fact.build', {
+    n: count(effective('longer-base', 'macroDesign.buildWeeks')),
+    grade: overrideGrade('longer-base', 'macroDesign.buildWeeks'),
+    weeks: count(effective('default', 'macroDesign.buildWeeks')),
+    weeksGrade: defaultGrade('macroDesign.buildWeeks'),
+  }),
+  make('P4', 'base', 'method.fact.base', { more: count(extraBaseWeeks('longer-base')) }),
+  make('P4', 'kinds', 'method.fact.kinds', { grade: presetGrade('longer-base') }),
+])
+
+/**
+ * P3 is not offered: every shape keeps the long run's share of the week, and none lowers it. The
+ * share is the plan's own, so a runner with no plan has a gap sentence, as every rule that reads
+ * the plan has.
+ */
+function longRunShareFacts(scope: Scope): InputFact[] {
+  if (loadInputOf(scope.ctx).existing === null) return [gap('P3', 'explain.plan-gap', {})]
+  return [make('P3', 'long-run', 'method.fact.long-run', { share: share(longRunShare()) })]
+}
+
+// ---------------------------------------------------------------------------------------------
 // The registry
 // ---------------------------------------------------------------------------------------------
 
@@ -3317,6 +3447,10 @@ export const INPUT_BUILDERS: Readonly<Record<string, Builder>> = {
   'n-6': fatigueStateFacts('n-6'),
   'n-7': fluidSafetyFacts,
   O1: deviceTargetFacts,
+  P1: ownShapeFacts,
+  P2: threeRunDaysFacts,
+  P3: longRunShareFacts,
+  P4: longerBaseFacts,
 }
 
 /**
@@ -3391,13 +3525,6 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'L7',
   // red flags that state a safety convention without a measured figure
   'n-5',
-  // method presets: a named choice among four structural values, with no figure of the runner's
-  // own; the facts (the preset chosen, each override against the default) come with the form and
-  // the drawer, and the rules move to `INPUT_BUILDERS` then
-  'P1',
-  'P2',
-  'P3',
-  'P4',
   // design choices without a runner figure
   'design-macro',
   'design-sessions',
@@ -3575,9 +3702,19 @@ const RACE_RULES: ReadonlySet<string> = new Set(
 /**
  * The rules that read the plan's own options (`ExplainContext.planInput`): the load setting (the
  * ramp, the cap, the start and g-8) and the method preset (F5's run-day cap and D4's long-run
- * share, `methodOf`).
+ * share, `methodOf`, and the plan shape of P1, P2 and P4, `shapeOf`).
  */
-const LOAD_SETTING_RULES: ReadonlySet<string> = new Set(['g-2', 'g-6', 'g-8', 'e6', 'f5', 'd4'])
+const LOAD_SETTING_RULES: ReadonlySet<string> = new Set([
+  'g-2',
+  'g-6',
+  'g-8',
+  'e6',
+  'f5',
+  'd4',
+  'p1',
+  'p2',
+  'p4',
+])
 
 /** The rules that read the strength engine's input (`ExplainContext.strength`). */
 const STRENGTH_RULES: ReadonlySet<string> = new Set(['f7', 'f8', 'f9'])
