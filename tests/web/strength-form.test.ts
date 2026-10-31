@@ -17,6 +17,7 @@ import {
   canAddSet,
   commonRir,
   hasLast,
+  heldByOthers,
   inUnit,
   initialState,
   lastSetsOf,
@@ -380,6 +381,36 @@ describe('a swap', () => {
     }
     // whatever the sheet can swap to, the setup can pin: the two lists cannot disagree
     for (const id of swaps) expect(pins, id).toContain(id)
+  })
+
+  test('does not offer an exercise another block of the sheet already shows, an added lift or one another swap took out', () => {
+    const start = blocksOf(makeWorkout(), 'lb')
+    const squatBlock = start.find((b) => b.key === 'back-squat')!
+    // nothing else of the knee slot is in the sheet: every substitute is offered
+    expect(swapChoices(squatBlock, equipment, true, [], heldByOthers(start, squatBlock))).toEqual(
+      swapChoices(squatBlock, equipment, true),
+    )
+    // a split squat was added: it is not a choice for the squat any more
+    const added = withAddedLift(initialState(makeWorkout(), 'lb'), engineLift('split-squat'), 'lb')
+    const squatNow = added.blocks.find((b) => b.key === 'back-squat')!
+    const held = heldByOthers(added.blocks, squatNow)
+    expect(held).toContain('split-squat')
+    expect(swapChoices(squatNow, equipment, true)).toContain('split-squat')
+    const choices = swapChoices(squatNow, equipment, true, [], held)
+    expect(choices).not.toContain('split-squat')
+    expect(choices).toContain('goblet-squat')
+    // the block of the added lift, in turn, is not offered the squat that is in the sheet
+    const splitBlock = added.blocks.find((b) => b.key === 'split-squat')!
+    expect(
+      swapChoices(splitBlock, equipment, true, [], heldByOthers(added.blocks, splitBlock)),
+    ).not.toContain('back-squat')
+    // an exercise a swap took out of its block is held by that block, which can swap back
+    const swapped = added.blocks.map((b) =>
+      b.key === 'back-squat' ? withLift(b, engineLift('goblet-squat'), 'lb') : b,
+    )
+    expect(heldByOthers(swapped, splitBlock)).toEqual(
+      expect.arrayContaining(['back-squat', 'goblet-squat']),
+    )
   })
 
   test('puts the lift in the block and fills its sets from it, with no reps left', () => {

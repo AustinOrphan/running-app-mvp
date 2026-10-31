@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ExerciseId } from '../../../shared/domain/strengthLibrary.ts'
 import type { EquipmentConfig, WorkoutLift } from '../../../shared/types.ts'
 import type { DayRead } from '../../api/strength.ts'
@@ -89,12 +89,14 @@ export function AddLift({
   onAdd,
 }: AddLiftProps) {
   const [open, setOpen] = useState(false)
+  const button = useRef<HTMLButtonElement>(null)
   const choices = equipment === null ? [] : addChoices(blocks, equipment, barbell, avoid)
 
   return (
     <section className={styles.addLift}>
       <div>
         <Button
+          ref={button}
           variant="quiet"
           aria-expanded={open}
           disabled={equipment === null || read === null || !canAdd}
@@ -113,6 +115,8 @@ export function AddLift({
           onAdd={(lift) => {
             onAdd(lift)
             setOpen(false)
+            // the choice that was pressed leaves with the panel, so focus goes back to the button
+            button.current?.focus()
           }}
         />
       ) : null}

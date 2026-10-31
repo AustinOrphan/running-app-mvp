@@ -530,19 +530,31 @@ export function withoutAvoided(
 
 /**
  * The exercises a lift can be swapped for: the one the workout held (to return to), then the slot's
- * feasible substitutes with the saved equipment (design 7.3), without the one now shown and without
- * those the runner left out, so "Always use this" cannot pin one of them.
+ * feasible substitutes with the saved equipment (design 7.3), without the one now shown, without
+ * those the runner left out, so "Always use this" cannot pin one of them, and without those another
+ * block of the sheet holds (`heldElsewhere`: a lift that was added, or the exercise another swap took
+ * out), so no exercise has two blocks, as "Add a lift" sees to from the other side.
  */
 export function swapChoices(
   block: Block,
   equipment: readonly EquipmentConfig[],
   barbell: boolean,
   avoid: readonly string[] = [],
+  heldElsewhere: readonly string[] = [],
 ): ExerciseId[] {
   const original = exerciseById(block.original.exerciseId)
   if (original === undefined) return []
   const others = withoutAvoided(substitutes(original.id, equipment, { barbell }), avoid)
-  return [original.id, ...others].filter((id) => id !== block.shown.exerciseId)
+  return [original.id, ...others].filter(
+    (id) => id !== block.shown.exerciseId && !heldElsewhere.includes(id),
+  )
+}
+
+/** The exercises the blocks of the sheet other than `block` show or were opened with. */
+export function heldByOthers(blocks: readonly Block[], block: Block): string[] {
+  return blocks
+    .filter((other) => other.key !== block.key)
+    .flatMap((other) => [other.key, other.shown.exerciseId])
 }
 
 /** The block with `lift` in place of what it showed, its sets filled from it and no reps left. */

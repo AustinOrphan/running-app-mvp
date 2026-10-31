@@ -45,6 +45,8 @@ export interface LiftSectionProps {
   weightUnit: WeightUnit
   /** A save was tried: the fields it could not read are marked. */
   attempted: boolean
+  /** The exercises the other blocks of the sheet show or were opened with: "Swap" does not offer them. */
+  heldElsewhere: readonly string[]
   /** The saved equipment, which "Swap" reads; null until the page view has loaded (or offline). */
   equipment: readonly EquipmentConfig[] | null
   /** The exercises left out in the setup: "Swap" does not offer them, so none can be pinned. */
@@ -81,6 +83,7 @@ export function LiftSection({
   words,
   weightUnit,
   attempted,
+  heldElsewhere,
   equipment,
   avoid,
   pinned,
@@ -111,7 +114,10 @@ export function LiftSection({
   const usualLoadG = usualLoadOf(shown)
   // a saved log being edited was not made on a lighter day of the plan that is read now
   const lighterDay = !editing && shown.change === 'lighter-day' && usualLoadG !== null
-  const choices = equipment === null ? [] : swapChoices(block, equipment, barbellOf(workout), avoid)
+  const choices =
+    equipment === null
+      ? []
+      : swapChoices(block, equipment, barbellOf(workout), avoid, heldElsewhere)
   const pinnable = !editing && swapped && PINNABLE.has(shown.slot)
   const reachedBy = (index: number, update: (row: SetRow) => SetRow) => {
     onChange((current) => ({

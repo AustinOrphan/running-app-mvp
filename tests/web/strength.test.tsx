@@ -1390,6 +1390,32 @@ describe('"Add a lift" (design 9.1)', () => {
     })
   })
 
+  test('returns focus to the button when the lift is in, and does not offer it again for a swap', async () => {
+    const { user } = await addRig()
+    await user.click(screen.getByRole('button', { name: 'Add a lift' }))
+    await user.click(screen.getByRole('button', { name: 'Split squat' }))
+    await screen.findByRole('region', { name: 'Split squat' })
+    // the pressed choice left with the panel: focus is on "Add a lift", not lost to the page
+    expect(screen.getByRole('button', { name: 'Add a lift' })).toHaveFocus()
+    // the squat's swap list no longer holds the exercise the sheet shows as an added lift
+    await user.click(screen.getByRole('button', { name: 'Swap: Back squat' }))
+    const choices = within(screen.getByRole('group', { name: 'Swap Back squat for' }))
+    const names = choices.getAllByRole('button').map((button) => button.textContent)
+    expect(names).not.toContain('Split squat')
+    expect(names).toEqual(['Goblet squat', 'Tempo squat', 'Step-up', 'Single-leg box squat'])
+    // and swapping into another choice still works
+    await user.click(choices.getByRole('button', { name: 'Goblet squat' }))
+    await screen.findByRole('region', { name: 'Goblet squat' })
+    // with the squat swapped out, "Add a lift" offers neither the squat nor the goblet squat
+    await user.click(screen.getByRole('button', { name: 'Add a lift' }))
+    const adds = within(screen.getByRole('group', { name: 'Lifts to add' }))
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+    expect(adds).not.toContain('Back squat')
+    expect(adds).not.toContain('Goblet squat')
+    expect(adds).not.toContain('Split squat')
+  })
+
   test('adds a trunk movement, which has no Why and no swap', async () => {
     const { user } = await addRig()
     await user.click(screen.getByRole('button', { name: 'Add a lift' }))

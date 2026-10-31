@@ -34,6 +34,7 @@ import {
   buildLogBody,
   canAddSet,
   hasLast,
+  heldByOthers,
   initialState,
   lastSetsOf,
   liftReadOf,
@@ -398,6 +399,7 @@ export function StrengthForm({
             weightUnit={weightUnit}
             attempted={attempted}
             equipment={equipment}
+            heldElsewhere={heldByOthers(state.blocks, block)}
             avoid={view.data?.settings.avoid ?? []}
             pinned={pinned?.[block.shown.slot as PinnedSlot]}
             hasLast={!editing && hasLast(block, lastOf)}
