@@ -499,7 +499,7 @@ export const fMicro = {
     }),
     maxStepPct: param('f8.maxStepPct', 15, 'D', 'F8', ['acsm-2009-progression-models-resistance'], {
       unit: '%',
-      note: 'Default: the largest single step a suggestion makes, as a share of the load; a larger step is not offered. A consensus stand for healthy adults gives 2 to 10% per step, so this cap is looser only because equipment moves in whole steps.',
+      note: 'Default: the largest single step a suggestion makes, as a share of the load; a larger step is not offered, except the smallest step the equipment makes, which is always usable so that a light load can still move. A consensus stand for healthy adults gives 2 to 10% per step, so this cap is looser only because equipment moves in whole steps.',
     }),
     reducePct: param('f8.reducePct', 5, 'D', 'F8', [], {
       unit: '%',
@@ -531,6 +531,10 @@ export const fMicro = {
         note: 'Default: the divisor of the linear estimate, load x (1 + (reps + reps in reserve) / divisor). No paper validates it in runners; it is an estimate, never a test.',
       },
     ),
+    e1rmMaxReps: param('f8.e1rmMaxReps', 10, 'D', 'F8', ['reynolds-2006-1rm-prediction'], {
+      unit: 'reps',
+      note: 'Default: taken from the advice of one study of the leg press and chest press that a linear equation use no more than 10 repetitions, the most repetitions to the limit (repetitions done plus repetitions left) in a set that gives an estimate. A set above it gives none. No paper validates the figure in runners.',
+    }),
     startFractionBodyweight: param<Record<string, number>>(
       'f8.startFractionBodyweight',
       {

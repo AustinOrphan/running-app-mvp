@@ -19,7 +19,7 @@
   ],
   "limitations": "Two machine or bench lifts (not a free-weight squat or a hinge), 70 volunteers of mixed ages, repetitions taken to failure; the equations are for the lifts tested. Abstract read; full text not read.",
   "implications": [
-    "Any estimate of a maximum from a few repetitions is an approximation, best from low repetitions: a linear equation should stay at 10 repetitions or fewer. The engine's block sets (3-6 repetitions plus 1-3 in reserve) stay inside that; a ramp-in set of 8 repetitions with 3 in reserve reaches 11, one above it. The estimate is shown as an estimate and is never a test (grade D).",
+    "Any estimate of a maximum from a few repetitions is an approximation, best from low repetitions: a linear equation should stay at 10 repetitions or fewer. The engine's block sets (3-6 repetitions plus 1-3 in reserve) stay inside that; a ramp-in set of 8 repetitions with 3 in reserve reaches 11, one above it. A set above 10 repetitions to the limit (done plus left) therefore gives no estimate (`f8.e1rmMaxReps`, a default taken from this advice, grade D). The estimate is shown as an estimate and is never a test (grade D).",
     "Gives no check of the engine's divisor (f8.e1rmDivisor); the corpus holds no paper that validates it."
   ],
   "verification": {

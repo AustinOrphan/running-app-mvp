@@ -283,16 +283,24 @@ export const STRENGTH_TEMPLATES = {
     { pct: 'percent' },
     { fallback: REASON_FALLBACK },
   ),
+  // Every set reached the top of the range but one had too few reps left to earn a step (rule F8.5
+  // asks for `f8.progressMinRir`); `reps` is that count in words ("one rep"), built from the Param.
+  'strength.reason.hold-effort': tpl(
+    'Every set of {exercise} reached {top} reps, but a set had fewer than {reps} left, so the load holds.',
+    { exercise: 'text', top: 'count', reps: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
   // For a set that ended at two reps or fewer, or none: a set that ended at one rep has its own
-  // template, so the sentence never reads "1 reps".
+  // template, so the sentence never reads "1 reps". `steps` is the steps the load comes down, in
+  // words ("one step", "three steps"), from the rungs the rule actually removed.
   'strength.reason.reduce': tpl(
-    'Set {set} of {exercise} ended at {count} reps, below the {lo} to {hi} range, so the load comes down one step.',
-    { set: 'count', exercise: 'text', count: 'count', lo: 'count', hi: 'count' },
+    'Set {set} of {exercise} ended at {count} reps, below the {lo} to {hi} range, so the load comes down {steps}.',
+    { set: 'count', exercise: 'text', count: 'count', lo: 'count', hi: 'count', steps: 'text' },
     { fallback: REASON_FALLBACK },
   ),
   'strength.reason.reduce-one': tpl(
-    'Set {set} of {exercise} ended at one rep, below the {lo} to {hi} range, so the load comes down one step.',
-    { set: 'count', exercise: 'text', lo: 'count', hi: 'count' },
+    'Set {set} of {exercise} ended at one rep, below the {lo} to {hi} range, so the load comes down {steps}.',
+    { set: 'count', exercise: 'text', lo: 'count', hi: 'count', steps: 'text' },
     { fallback: REASON_FALLBACK },
   ),
   // `days` is the gap, at least `f8.layoffDays`; `share` is `f8.layoffLoadFraction`.
@@ -334,6 +342,18 @@ export const STRENGTH_TEMPLATES = {
     { sets: 'text' },
     { fallback: REASON_FALLBACK },
   ),
+  // A lift that lost only a set (a movement with no load to lower, or the lightest load) and a lift
+  // that lost only load (already at the fewest sets) each get the sentence for what changed.
+  'strength.reason.lighter-day-sets': tpl(
+    'Readiness is lower than usual today, so {exercise} has {sets} fewer.',
+    { exercise: 'text', sets: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
+  'strength.reason.lighter-day-load': tpl(
+    'Readiness is lower than usual today, so {exercise} is at a lighter load.',
+    { exercise: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
   'strength.reason.lighter-week': tpl(
     'This is a lighter week, so each lift has {sets} at the usual load.',
     { sets: 'text' },
@@ -341,6 +361,12 @@ export const STRENGTH_TEMPLATES = {
   ),
   'strength.reason.taper': tpl(
     'The taper keeps the lead lift and the calf raise at the usual load, with {sets} of each.',
+    { sets: 'text' },
+    { fallback: REASON_FALLBACK },
+  ),
+  // Maintenance keeps the load the block reached (rule F7); `sets` is `f7.maintenanceSets` in words.
+  'strength.reason.maintenance': tpl(
+    'Maintenance keeps each lift at the usual load, with {sets} of each.',
     { sets: 'text' },
     { fallback: REASON_FALLBACK },
   ),

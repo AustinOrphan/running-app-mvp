@@ -4,11 +4,15 @@ import type {
   Activity,
   AthleteProfile,
   CauseCode,
+  EquipmentConfig,
+  EquipmentKind,
   PlanSessionStatus,
   DisruptionMode,
   DisruptionReason,
+  StrengthTemplate,
   WeekRow,
   WeeklyReview,
+  WeightUnit,
   WellnessDay,
 } from '../types.ts'
 
@@ -951,4 +955,156 @@ export interface ExplainView {
   rules: string[]
   groups: ExplainGroup[]
   rest: string[]
+}
+
+// ---- Strength engine inputs (phase 3b, E14-4; ADR 0014) -----------------------------------------
+//
+// What `workoutFor`, `suggestLoad` and `summariseHistory` (`shared/engine/strength.ts`) read. The
+// server builds one `StrengthContext` per read (`loadStrengthContext`, E14-6) from the saved
+// setup, the anchors, the last 26 weeks of logs and the stored plan; the engine reads nothing else
+// and no clock, so `today` and the viewed day's readiness arrive here. Every list is read as it
+// comes (the engine sorts a copy), so the order of rows does not matter.
+
+/** The runner's own account of their lifting history (design 6.2, part 3). */
+export type LiftingLevel = 'new' | 'some' | 'experienced'
+
+/**
+ * How a session was run (design 9.3, 10.4). Only a `normal` session moves the working load of a
+ * lift; the others are lighter than the rules asked for, or came after a gap, and neither raise
+ * nor lower it.
+ */
+export type StrengthMode = 'normal' | 'lighter-day' | 'lighter-week' | 'taper' | 'return'
+
+/** The saved setup (`StrengthSettings`). Until `saved`, every other field is read as its default. */
+export interface StrengthSetup {
+  /** False until the runner has saved the setup: the workout is then built for bodyweight only. */
+  saved: boolean
+  equipment: readonly EquipmentConfig[]
+  level: LiftingLevel
+  currentlyLifting: boolean
+  /** Exercise ids the runner left out. */
+  avoid: readonly string[]
+  /** Slot (`knee`, `hip`, `calf`) to the exercise id the runner always uses there. */
+  pinned: Readonly<Record<string, string>>
+}
+
+/** A starting point the runner entered for one exercise (`StrengthLift`, design 6.3). */
+export interface StrengthAnchor {
+  exerciseId: string
+  /** `set` is a recent set; `max` is a maximum the runner already knows (one rep). */
+  kind: 'set' | 'max'
+  loadG: number
+  reps: number
+  /** Reps left, 0 to 5; null when the runner gave no count (read as 0). */
+  rir: number | null
+  /** YYYY-MM-DD. */
+  asOf: string
+}
+
+/** One logged set (`StrengthSet`). */
+export interface LoggedSet {
+  exerciseId: string
+  /** Order within the session. */
+  position: number
+  /** Grams; null for a movement with no added load. */
+  loadG: number | null
+  /** Reps, seconds or contacts, by the exercise's measure. */
+  count: number
+  /** Reps left, 0 to 5 (5 is five or more); null when not recorded. */
+  rir: number | null
+}
+
+/**
+ * What the sheet showed for one lift, from the log's snapshot (`prescribed`, design 9.3): the
+ * implement the load was for and the working load the rules asked for before the mode changed it.
+ */
+export interface LoggedLift {
+  exerciseId: string
+  implement: EquipmentKind | null
+  baseLoadG: number | null
+}
+
+/** One logged session (`StrengthLog` with its sets and snapshot). */
+export interface StrengthLogEntry {
+  id: string
+  /** YYYY-MM-DD. */
+  date: string
+  mode: StrengthMode
+  /** The template the sheet showed; null when the snapshot has none. */
+  template: StrengthTemplate | null
+  sets: readonly LoggedSet[]
+  lifts: readonly LoggedLift[]
+}
+
+/** One week of the stored plan, as the strength engine reads it. */
+export interface StrengthWeek {
+  weekStart: string
+  /** The week's flags (`strength-block`, `recovery`, `taper`, `injury-return`, ...). */
+  flags: string[]
+  /** `taper` and `race` are read; any other phase is not. */
+  phase: string
+  isRecovery: boolean
+  /** The run minutes the week was planned at (`plannedMinOf`), before any overshoot. */
+  plannedRunMin: number
+  /** The run minutes actually run; read for a finished week. */
+  runMin: number
+}
+
+/** A planned strength session of the stored plan, for the A and B variants of its week. */
+export interface StrengthPlannedSession {
+  id: string
+  date: string
+  order: number
+}
+
+/** The strength session being read: a stored plan session, or the part of it the engine needs. */
+export interface StrengthSessionRef {
+  id: string
+  date: string
+  order: number
+  /** The planned minutes, shown as the budget. */
+  durationMin: number
+  /** The session's own rule ids (`F-lib`, `F4`, `E5`, `F7`, and `H10` for an ultra goal). */
+  rules: readonly string[]
+}
+
+/**
+ * The viewed day's readiness, reduced to the tests rule J3 already applies to runs (design 10.4):
+ * the readiness read's state, the worst pain score recently reported, and the illness phase. Null
+ * in the context for a preview or a past day, which have no read and therefore no reduction.
+ */
+export interface StrengthReadiness {
+  /** The day the read is for; it applies to a session on that day only. */
+  date: string
+  state: ReadinessSnapshot['state']
+  /** The worst pain score of the last two days (`recentPain`); null when none. */
+  pain: number | null
+  illness: 'clear' | 'easy-only' | 'rest'
+}
+
+/** Everything the strength engine reads. */
+export interface StrengthContext {
+  /** The local day of the read. */
+  today: string
+  weightUnit: WeightUnit
+  setup: StrengthSetup
+  anchors: readonly StrengthAnchor[]
+  /** Logged sessions, any order. */
+  logs: readonly StrengthLogEntry[]
+  /** The stored plan's weeks, any order. */
+  weeks: readonly StrengthWeek[]
+  /** The stored plan's strength sessions, any order. */
+  sessions: readonly StrengthPlannedSession[]
+  athlete: {
+    /** Whole years; null when unknown. */
+    age: number | null
+    weightKg: number | null
+    /** `state.risk.priorBsi` and `state.risk.recentInjury`. */
+    risk: { priorBsi: boolean; recentInjury: boolean }
+  }
+  goal: {
+    /** The goal's pace in km/h (distance over expected duration); null when unknown. */
+    paceKmh: number | null
+  }
+  readiness: StrengthReadiness | null
 }
