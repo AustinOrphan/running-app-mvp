@@ -319,6 +319,17 @@ export function StrengthForm({
             unit: words.unitName(),
           })}
         </p>
+        {start === null ? null : (
+          <p className={styles.muted}>
+            {start === 'next-planned'
+              ? words.say('strength.sheet.from-next')
+              : asOf !== undefined && mondayOf(asOf) === mondayOf(date)
+                ? words.say('strength.sheet.from-maintenance')
+                : words.say('strength.sheet.from-maintenance-week', {
+                    date: { kind: 'date', iso: mondayOf(date), style: 'short' },
+                  })}
+          </p>
+        )}
         {lighterDay ? (
           <p className={styles.note}>
             {anyUsual
@@ -339,17 +350,6 @@ export function StrengthForm({
             </Link>
           </p>
         ) : null}
-        {start === null ? null : (
-          <p className={styles.muted}>
-            {start === 'next-planned'
-              ? words.say('strength.sheet.from-next')
-              : asOf !== undefined && mondayOf(asOf) === mondayOf(date)
-                ? words.say('strength.sheet.from-maintenance')
-                : words.say('strength.sheet.from-maintenance-week', {
-                    date: { kind: 'date', iso: mondayOf(date), style: 'short' },
-                  })}
-          </p>
-        )}
         <p className={styles.muted}>{words.say('strength.safety')}</p>
         <p className={styles.muted}>
           {words.say('strength.sheet.warmup')}
