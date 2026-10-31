@@ -505,7 +505,8 @@ describe('GET /api/activities pages', () => {
           return ctx.prisma.activity.findMany(args)
         },
       },
-    } as unknown as Pick<typeof ctx.prisma, 'activity'>
+      strengthLog: ctx.prisma.strengthLog,
+    } as unknown as Pick<typeof ctx.prisma, 'activity' | 'strengthLog'>
     async function insertNewer() {
       await ctx.prisma.activity.create({
         data: { userId: user.id, date: '2026-03-20', type: 'run', durationSec: 1800 },
@@ -628,6 +629,80 @@ describe('GET /api/activities pages', () => {
     expect((await page('', other)).body.total).toBe(2)
     await ctx.prisma.activity.deleteMany({ where: { userId: other.id } })
     await ctx.prisma.user.delete({ where: { id: other.id } })
+  })
+
+  describe('strengthSets (strength design 11.4)', () => {
+    let logs = 0
+    /** A strength activity with a log of `sets` sets, or none when `sets` is null. */
+    async function strength(date: string, sets: number | null, owner: TestUser = user) {
+      const activity = await ctx.prisma.activity.create({
+        data: { userId: owner.id, date, type: 'strength', durationSec: 2400 },
+      })
+      if (sets !== null) {
+        logs += 1
+        await ctx.prisma.strengthLog.create({
+          data: {
+            id: `00000000-0000-4000-8000-${String(logs).padStart(12, '0')}`,
+            userId: owner.id,
+            activityId: activity.id,
+            prescribed: '{}',
+            sets: {
+              create: Array.from({ length: sets }, (_, position) => ({
+                userId: owner.id,
+                exerciseId: 'back-squat',
+                position,
+                loadG: 60_000,
+                count: 5,
+                rir: 2,
+              })),
+            },
+          },
+        })
+      }
+      return activity
+    }
+
+    test('is the number of sets logged for a strength activity, 0 without a log, and null for every other type', async () => {
+      await seedDays(1)
+      const logged = await strength('2026-03-05', 9)
+      const bare = await strength('2026-03-06', null)
+      const other = await seedUser(ctx, { email: 'sets@example.com' })
+      await strength('2026-03-07', 4, other)
+      const items = (await page()).body.items
+      const byId = new Map(items.map((item) => [item.id, item.strengthSets]))
+      expect(byId.get(logged.id)).toBe(9)
+      expect(byId.get(bare.id)).toBe(0)
+      expect(items.filter((item) => item.type === 'run').map((item) => item.strengthSets)).toEqual([
+        null,
+      ])
+      // another runner's log is theirs alone
+      expect((await page('', other)).body.items.map((item) => item.strengthSets)).toEqual([4])
+      await ctx.prisma.activity.deleteMany({ where: { userId: other.id } })
+      await ctx.prisma.user.delete({ where: { id: other.id } })
+    })
+
+    test('is counted for the whole page in one query, and in none when the page has no strength activity', async () => {
+      await seedDays(2)
+      await strength('2026-03-05', 3)
+      await strength('2026-03-06', 2)
+      await strength('2026-03-07', null)
+      const spy = vi.spyOn(ctx.prisma.strengthLog, 'findMany')
+      try {
+        await page()
+        expect(spy).toHaveBeenCalledTimes(1)
+        spy.mockClear()
+        await page('type=run')
+        expect(spy).not.toHaveBeenCalled()
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    test('is not on the answers of the other activity routes', async () => {
+      const activity = await strength('2026-03-05', 3)
+      const detail = await client(ctx, user).get(`/api/activities/${activity.id}`)
+      expect(detail.body).not.toHaveProperty('strengthSets')
+    })
   })
 
   test('the CSV export still has every row, past any page size', async () => {

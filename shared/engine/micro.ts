@@ -2,8 +2,8 @@
 // fits [rules F1 to F5, H3]. Pure: the same week and context give the same sessions. Session
 // content (structure, targets, purpose) comes from `prescribe` (sessions.ts); this module only
 // decides when and how long.
-import { addDays, daysBetween } from '../dates.ts'
-import type { AthleteProfile, Weekday } from '../types.ts'
+import { addDays, daysBetween, mondayOf } from '../dates.ts'
+import type { AthleteProfile, StrengthOffDay, Weekday } from '../types.ts'
 import { isDisruptedWeek, type DayRule } from './disruption.ts'
 import {
   recordOf,
@@ -871,6 +871,41 @@ function strengthMinutes(week: WeekDraft): number {
 const roomMin = (slot: Slot): number => (slot.bound ? slot.capMin : slot.availMin)
 
 /**
+ * Why the plan keeps strength off a day of the week, or null when the day is open to it [rule F4]:
+ * the day before the week's first long run (a long run, its fast-finish form or the first day of a
+ * back-to-back pair), or a day that holds a hard run or the long run itself. The day before a long
+ * run is named first when a day is both. `day` and the runs' days are indexes in the week, Monday 0.
+ * Placement (`planStrength`) and the note on a session logged on such a day (`strengthOffDay`) both
+ * ask this, so the two cannot disagree.
+ */
+function strengthOffDayIn(
+  day: number,
+  runs: readonly Pick<RunPlan, 'day' | 'kind'>[],
+): StrengthOffDay | null {
+  const longStart = runs.filter((r) => LONG_KINDS.has(r.kind)).map((r) => r.day)
+  const firstLong = longStart.length > 0 ? Math.min(...longStart) : null
+  if (firstLong !== null && day === firstLong - 1) return 'day-before-long-run'
+  const run = runs.find((r) => r.day === day)
+  return run && (HARD_KINDS.has(run.kind) || run.kind === 'long') ? 'hard-run-day' : null
+}
+
+/**
+ * Whether the plan keeps strength off the day `date`, and why [rule F4]: asked of the stored
+ * sessions, any kind, of which only the runs of the date's own week count. The same test the
+ * placement of a week's lifts uses.
+ */
+export function strengthOffDay(
+  date: string,
+  sessions: readonly { date: string; kind: SessionKind }[],
+): StrengthOffDay | null {
+  const weekStart = mondayOf(date)
+  const runs = sessions
+    .filter((s) => RUN_KINDS.has(s.kind) && mondayOf(s.date) === weekStart)
+    .map((s) => ({ day: daysBetween(weekStart, s.date), kind: s.kind }))
+  return strengthOffDayIn(daysBetween(weekStart, date), runs)
+}
+
+/**
  * Days for strength: easy or free days, never a hard day, the long day or the day before it. `held`
  * are the days of the week that already hold a lift (finished, or kept by a re-plan): they count
  * against the lifts the week wants, so a re-plan in mid-week adds only what is still to come.
@@ -885,18 +920,13 @@ function planStrength(
   const wanted = Math.min(week.strengthSessions, profile.strengthPreference) - held.length
   if (wanted <= 0) return []
   const minutes = strengthMinutes(week)
-  const longStart = runs
-    .filter((r) => r.kind === 'long' || r.kind === 'long-fast-finish' || r.kind === 'b2b')
-    .map((r) => r.day)
-  const firstLong = longStart.length > 0 ? Math.min(...longStart) : null
   const runOn = (day: number) => runs.find((r) => r.day === day)
   const candidates = slots
     .map((s) => s.day)
     .filter((day) => {
       const run = runOn(day)
       if (!slots[day]!.open) return false
-      if (run && (HARD_KINDS.has(run.kind) || run.kind === 'long')) return false
-      if (firstLong !== null && day === firstLong - 1) return false
+      if (strengthOffDayIn(day, runs) !== null) return false
       return roomMin(slots[day]!) - (run?.minutes ?? 0) >= minutes
     })
   const picked: number[] = []

@@ -13,6 +13,7 @@ import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { isExerciseId, type ExerciseId } from '../../shared/domain/strengthLibrary.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
 import { plannedMinOf } from '../../shared/engine/limits.ts'
+import { strengthOffDay } from '../../shared/engine/micro.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { illnessPhase, recentPain } from '../../shared/engine/readiness.ts'
 import {
@@ -43,6 +44,7 @@ import type {
   StrengthLog,
   StrengthLogResult,
   StrengthNextLoad,
+  StrengthRecentLog,
   StrengthSettings,
   StrengthSnapshot,
   StrengthView,
@@ -445,6 +447,11 @@ export interface StrengthState {
   anchors: StrengthLift[]
   /** Newest first. */
   logs: StrengthLog[]
+  /**
+   * The newest `STRENGTH_RECENT_LOGS` of `logs` with the note about the day each was logged on
+   * (design 12.4), read from the stored plan of the snapshot: no query of its own.
+   */
+  recent: StrengthRecentLog[]
 }
 
 type CountedRow = {
@@ -589,7 +596,11 @@ async function buildStrengthState(
     goal: { paceKmh: await goalPaceKmh(athlete) },
     readiness: strengthReadiness(athlete),
   }
-  return { context, settings, anchors, logs }
+  const recent = logs.slice(0, STRENGTH_RECENT_LOGS).map((log): StrengthRecentLog => ({
+    ...log,
+    offDay: strengthOffDay(log.date, athlete.planSessions),
+  }))
+  return { context, settings, anchors, logs, recent }
 }
 
 /**
@@ -768,7 +779,7 @@ export async function strengthView(
       .filter((session) => session.date >= today && isToRun(session.status))
       .slice(0, STRENGTH_NEXT_WORKOUTS)
       .map((session) => workoutFor(context, sessionRefOf(session))),
-    recent: state.logs.slice(0, STRENGTH_RECENT_LOGS),
+    recent: state.recent,
     lifts: history.lifts.map(liftSummary),
     weeks: history.weeks.filter((w) => w.weekStart >= first && w.weekStart <= thisWeek),
     lowCountWeeks: history.lowCountWeeks,

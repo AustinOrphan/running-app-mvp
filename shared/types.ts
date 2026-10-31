@@ -99,8 +99,15 @@ export type ActivityCore = Pick<
 /**
  * An activity as the list shows it: every column but the heart-rate histogram, which is the
  * largest and is read only by the detail route (`GET /api/activities/:id`).
+ *
+ * `strengthSets` is the number of sets logged for a strength activity (design 11.4: the list shows
+ * "9 sets" in place of a distance), 0 for one with no log, and null for every other type. The list
+ * route always sends it; it is optional in the type only because the other routes that answer with
+ * an activity (create, update, the detail) are typed through this shape too and do not carry it.
  */
-export type ActivityListItem = Omit<Activity, 'hrHistogram'>
+export type ActivityListItem = Omit<Activity, 'hrHistogram'> & {
+  strengthSets?: number | null
+}
 /**
  * `GET /api/activities`: one page of the list, newest first. `nextOffset` is the `offset` of the
  * next page, or null on the last one; `total` counts every row the filters match.
@@ -1961,6 +1968,19 @@ export interface StrengthLiftSummary {
   sessionCount: number
 }
 
+/**
+ * Why the plan keeps heavy lifting off the day of a logged session (design 12.4, rule F4): the
+ * long run is the next day, or a hard run (or the long run itself) is on that day.
+ */
+export type StrengthOffDay = 'day-before-long-run' | 'hard-run-day'
+
+/**
+ * A logged session in the page view's recent list: the log, and the fact the page's note reads. It
+ * is derived on read from the stored plan and is not part of the log. The view always sends it; it
+ * is optional in the type so that a log from another route (which carries none) still fits.
+ */
+export type StrengthRecentLog = StrengthLog & { offDay?: StrengthOffDay | null }
+
 /** The answer to `GET /api/strength` (design 9.5, 11.3, 12.2). */
 export interface StrengthView {
   /** The server's day the view is for. */
@@ -1978,7 +1998,7 @@ export interface StrengthView {
    */
   next: StrengthWorkout[]
   /** The logged sessions of the last 26 weeks, newest first, at most 30, with their sets. */
-  recent: StrengthLog[]
+  recent: StrengthRecentLog[]
   /** The exercises with a logged set, the latest first. */
   lifts: StrengthLiftSummary[]
   /**

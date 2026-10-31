@@ -134,7 +134,8 @@ function parseJson<T>(text: string | null, fallback: T): T {
 /** An activity row read without its heart-rate histogram (`ACTIVITY_LIST_OMIT`). */
 export type ActivityListRow = Omit<ActivityRow, 'hrHistogram'>
 
-export function toActivityListItem(row: ActivityListRow): ActivityListItem {
+/** The columns an activity has in every answer: the list's, without the heart-rate histogram. */
+function activityColumns(row: ActivityListRow): Omit<Activity, 'hrHistogram'> {
   return {
     id: row.id,
     userId: row.userId,
@@ -177,9 +178,20 @@ export function toActivityListItem(row: ActivityListRow): ActivityListItem {
   }
 }
 
+/**
+ * An activity as the list shows it. `strengthSets` is the sets logged for a strength activity
+ * (null for every other type), which the list reads in one grouped query for its page.
+ */
+export function toActivityListItem(
+  row: ActivityListRow,
+  strengthSets: number | null = null,
+): ActivityListItem {
+  return { ...activityColumns(row), strengthSets }
+}
+
 export function toActivity(row: ActivityRow): Activity {
   return {
-    ...toActivityListItem(row),
+    ...activityColumns(row),
     hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
   }
 }
@@ -985,6 +997,22 @@ export async function loadActivities(
 }
 
 /**
+ * The sets logged for each of these activities, by activity id: one query for the page, and none
+ * when the page has no strength activity. An activity with no log is absent from the map.
+ */
+async function strengthSetCounts(
+  prisma: Pick<PrismaClient, 'strengthLog'>,
+  activityIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (activityIds.length === 0) return new Map()
+  const logs = await prisma.strengthLog.findMany({
+    where: { activityId: { in: [...activityIds] } },
+    select: { activityId: true, _count: { select: { sets: true } } },
+  })
+  return new Map(logs.map((log) => [log.activityId, log._count.sets]))
+}
+
+/**
  * One page of a user's activities, newest first, without the heart-rate histogram. The order is
  * total (date, start time, creation time, then `id`), so a row is never repeated or skipped
  * between two pages of an unchanged list. Offset paging, not a cursor: `startTime` is nullable.
@@ -995,7 +1023,7 @@ export async function loadActivities(
  * offers that page. A count taken first would be one short and end the list a row early.
  */
 export async function loadActivityPage(
-  prisma: Pick<PrismaClient, 'activity'>,
+  prisma: Pick<PrismaClient, 'activity' | 'strengthLog'>,
   userId: string,
   opts: { from?: string; to?: string; type?: ActivityType; limit: number; offset: number },
 ): Promise<ActivityListPage> {
@@ -1009,8 +1037,14 @@ export async function loadActivityPage(
   })
   const total = await prisma.activity.count({ where })
   const next = opts.offset + rows.length
+  const sets = await strengthSetCounts(
+    prisma,
+    rows.filter((row) => row.type === 'strength').map((row) => row.id),
+  )
   return {
-    items: rows.map(toActivityListItem),
+    items: rows.map((row) =>
+      toActivityListItem(row, row.type === 'strength' ? (sets.get(row.id) ?? 0) : null),
+    ),
     total,
     limit: opts.limit,
     offset: opts.offset,

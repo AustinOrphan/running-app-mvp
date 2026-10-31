@@ -2425,6 +2425,47 @@ describe('GET /api/strength', () => {
     expect(body.settings).toMatchObject({ equipment: [], level: 'new', savedAt: null })
   })
 
+  test('says of each recent session whether the plan keeps lifting off its day (design 12.4)', async () => {
+    const user = await newUser()
+    const { thisMonday } = days()
+    const lastMonday = addDays(thisMonday, -7)
+    const at = (day: number) => addDays(lastMonday, day)
+    await seedProfile(user)
+    // last week: a hard run on Tuesday, the long run on Saturday
+    await seedPlan(user, [
+      { date: at(1), kind: 'threshold' },
+      { date: at(3), kind: 'easy' },
+      { date: at(5), kind: 'long' },
+    ])
+    const logged: Array<[number, string]> = [
+      [1, 'a hard run that day'],
+      [2, 'an open day'],
+      [3, 'an easy run that day'],
+      [4, 'the day before the long run'],
+      [5, 'the long run itself'],
+    ]
+    for (const [i, [day]] of logged.entries()) {
+      await seedLog(user, { id: uuid(9100 + i), date: at(day), sets: squat() })
+    }
+    // a week the plan does not cover has no run to name
+    await seedLog(user, { id: uuid(9199), date: addDays(thisMonday, -7 * 12 + 4), sets: squat() })
+
+    const recent = (await view(user)).recent
+    const offDayOf = (date: string) => recent.find((log) => log.date === date)?.offDay
+    expect(offDayOf(at(1))).toBe('hard-run-day')
+    expect(offDayOf(at(2))).toBeNull()
+    expect(offDayOf(at(3))).toBeNull()
+    expect(offDayOf(at(4))).toBe('day-before-long-run')
+    expect(offDayOf(at(5))).toBe('hard-run-day')
+    expect(offDayOf(addDays(thisMonday, -7 * 12 + 4))).toBeNull()
+    // every recent session carries the fact, null when there is none to state
+    expect(recent.every((log) => log.offDay !== undefined)).toBe(true)
+
+    // the fact belongs to the view: the log itself, as the logs route serves it, carries none
+    const logs = await client(ctx, user).get(`/api/strength/logs?from=${at(0)}&to=${at(6)}`)
+    expect((logs.body as StrengthLog[]).every((log) => !('offDay' in log))).toBe(true)
+  })
+
   test('names the setup, the starting points, the block, the next sessions and the lifts', async () => {
     const user = await newUser()
     const { today } = days()
