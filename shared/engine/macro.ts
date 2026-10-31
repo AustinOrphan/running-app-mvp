@@ -860,7 +860,8 @@ function planWeeks(
   )
   const raceIdx = total - 1
 
-  // Run days: novices keep the three-day rhythm, others follow the minutes, never above six
+  // Run days: novices keep the three-day rhythm, others follow the minutes, never above the cap (six,
+  // or the method preset's, which only lowers it) [rules F5, P2]
   const sessionMin = (P.d3.typicalSessionKm.value * pace) / 60
   const minDays = P.f5.noviceRunDays.value
   const maxDays = effective(method, 'f5.mastersMaxRunDays')
