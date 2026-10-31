@@ -573,7 +573,10 @@ describe('Today: the check-in sheet', () => {
       .getAllByRole('heading', { level: 3 })
       .map((heading) => heading.textContent)
     expect(headings).toEqual(['Pain and illness', 'How you feel'])
-    expect(within(sheet).getByRole('checkbox', { name: 'Feeling ill' })).toHaveFocus()
+    // The sheet moves focus in an effect, which React can run after the commit that shows it.
+    await waitFor(() => {
+      expect(within(sheet).getByRole('checkbox', { name: 'Feeling ill' })).toHaveFocus()
+    })
     expect(
       within(sheet).getByRole('checkbox', { name: 'Point tenderness on a bone' }),
     ).toBeVisible()
@@ -596,7 +599,9 @@ describe('Today: the check-in sheet', () => {
       'aria-pressed',
       'true',
     )
-    expect(within(sheet).getByRole('button', { name: 'Fatigue 1' })).toHaveFocus()
+    await waitFor(() => {
+      expect(within(sheet).getByRole('button', { name: 'Fatigue 1' })).toHaveFocus()
+    })
     expect(
       within(sheet).getByText('Saved for today. Change any answer and save again.'),
     ).toBeVisible()
@@ -1308,7 +1313,12 @@ describe('Today: the disruption slot', () => {
     })
     await user.click(await screen.findByRole('button', { name: 'Remove window' }))
     const dialog = await screen.findByRole('dialog', { name: 'Remove this window' })
-    await user.click(await within(dialog).findByRole('button', { name: 'Apply to my plan' }))
+    const apply = await within(dialog).findByRole('button', { name: 'Apply to my plan' })
+    // The button is on the page before the preview is, and a click on it while disabled does nothing.
+    await waitFor(() => {
+      expect(apply).toBeEnabled()
+    })
+    await user.click(apply)
     await within(dialog).findByRole('heading', { name: 'Window removed' })
     await waitFor(() => {
       expect(screen.queryByRole('region', { name: 'Rest window' })).not.toBeInTheDocument()
