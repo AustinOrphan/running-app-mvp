@@ -32,6 +32,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched https://www.outsideonline.com/running/strava-data-utmb/ (published 2023-08-31, byline Zoë Rom) and checked all figures (68% of 2,300-plus, 931 mi, 140 h, 38 mi/wk, 30 to 79 mi, 66-97, 16,000 ft, 39%, 62%, 24%, 57%, 14 miles, six weeks, Dauwalter, 81%/43%). Set sampleSize to null because the page gives only the starter count, not the analysed N. Added that the 'long run risks injury' line is the article's assertion, not data. Reworded the cap implication, which overstated consistency. Practice source, grade D. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Column of Outside Online with Strava as data supplier (the partnership is stated on the sister Western States column of 2023-06-14, not on this page); Strava is a commercial activity platform.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The figures (68% of 2,300-plus finished, 931 miles, 140 hours, 38 miles a week, 30 to 79 miles, 66 to 97, 16,000 ft, 39%, 62%, 24%, 57%, a median longest run of 14 miles, six weeks, Dauwalter, 81% and 43%) and the no-significant-difference statement located on the page fetched 2026-10-31."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Byline Zoë Rom (editor in chief of Trail Runner per the bio on the sister column, read 2026-10-31); the Strava analysts are not named, and the analysed N and the test are not stated. The Strava partnership is disclosed on the sister piece, not here. Interests recorded."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2023-08-31 and modified 2026-08-17; the figures in the record match the page read. Data are from the 2022 season; no corpus paper supersedes it."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Same author and data supplier as the Western States column, so one source. It disagrees with baldea-2009 and tan-2017 (small studies relating longer longest runs to finishing) and sits below Orton and Koop's 6 to 7 hour convention. Conservative reading: no longest-run target tied to finishing, as the d4LongRun note says."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "Population stated (UTMB 2022 starters on Strava); N, age, sex and test not stated. d4LongRun.ultra100k and the h2 caps use it for other classes without labelling the extension as extrapolated."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
   }
 }

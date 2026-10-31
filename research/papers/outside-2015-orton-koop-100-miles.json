@@ -32,6 +32,34 @@
     "abstractSource": "publisher",
     "findingsSupported": true,
     "notes": "Re-fetched the page (HTTP 200) and checked the prescriptions verbatim: one long run a month, five to six long runs, final one four weeks before and about six to seven hours, 2 h then 3 h progression, 10 percent rule, nine hours for six weeks, hour 17 quote, locomote quote. Meta tags give author Erin Beresini and published 2015-10-07; page text says updated July 10, 2025. Corrected finding 1, which had garbled 'the last four weeks before the race' into the timing of the whole set. Practice source (programme, coaching or clinical page): a published convention, not evidence; grade D.",
-    "checkedAt": "2026-10-22"
+    "checkedAt": "2026-10-31"
+  },
+  "interests": "Outside Run is a media site. Koop is CTS's director of coaching and sells coaching and a book; Orton sells coaching and a book (publisher page for The Cool Impossible). The article states neither interest.",
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The monthly longer run, five to six long runs with the last one four weeks out and about six to seven hours, the 2 h then 3 h progression, the 10 percent rule, Koop's nine hours for six weeks, the hour-17 remark and the locomote remark located on the page fetched 2026-10-31 (published 2015-10-07, updated 2025-07-10). The progression sentences are the writer's paraphrase after Orton's recommendation, not a direct quote."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Writer Erin Beresini; the claims are two named coaches'. Penguin Random House's author page (read 2026-10-31) describes Eric Orton as author of The Cool Impossible and former fitness director at the University of Colorado Health Sciences Center; Koop is described as CTS's director of coaching by this article and by the CTS page (cts-2025). Interests recorded; the article states none."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2015-10-07, updated 2025-07-10 (page text) and modified 2026-05-01 (metadata); the version read is the current page. The 6 to 7 hour figure is a 2015 coaching view, and no corpus paper links a longest run to finishing (tan-2017, baldea-2009 are small)."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Disagreement recorded: the Strava columns (outside-2023) give a median longest run of 50 miles for Western States finishers and 14 miles (race-free) for UTMB starters, and baldea-2009 and tan-2017 (small, grade C) relate longer longest runs to finishing only weakly. The conservative reading is the lower figure, as the d4LongRun and h2 notes use."
+    },
+    "r5": {
+      "result": "hold",
+      "note": "Population is coach interviews on finishing 100 miles on marathon-style training. d4LongRun.ultra50 and the h2 caps extend it to 50K and cap hours without labelling the extension as extrapolated."
+    },
+    "r6": {
+      "result": "pass",
+      "note": "Evidence level D, at the practice cap."
+    },
+    "signedOff": "S4 re-vet 2026-10-31, one reading pass; owner sign-off pending at merge"
   }
 }

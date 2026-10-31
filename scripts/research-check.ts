@@ -141,9 +141,6 @@ export const PREDATES_RUBRIC: ReadonlySet<string> = new Set([
   'bjsm-2019-bone-stress-return-to-run',
   'clark-2026-couch-to-5k-original',
   'higdon-2024-advanced-5k',
-  'outside-2015-orton-koop-100-miles',
-  'outside-2023-strava-utmb',
-  'outside-2023-strava-western-states',
   'runningmagazine-2023-daniels-long-run-limit',
 ])
 
