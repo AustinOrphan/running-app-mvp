@@ -223,6 +223,93 @@ export function initialState(workout: StrengthWorkout, unit: WeightUnit): FormSt
   }
 }
 
+// ---- Editing a saved log -----------------------------------------------------------------------
+
+/** What kind of block an exercise of a saved log is: by the slot it fills in the catalogue. */
+function blockKindOf(slot: WorkoutLift['slot']): BlockKind {
+  return slot === 'plyo' ? 'plyo' : slot === 'trunk' ? 'trunk' : 'lift'
+}
+
+/**
+ * The workout a saved log is edited as: the exercises of its sets, in the order they were logged,
+ * each as the log's snapshot showed it (its implement, range, reps left and reason) with the steps
+ * the saved equipment makes now, so a load stepper moves on the rungs the runner has. It stands for
+ * no planned session (`sessionId` is the log's own id, which only the draft's key reads) and is
+ * never saved: an edit sends the snapshot the log already holds.
+ */
+export function workoutOfLog(
+  log: StrengthLog,
+  equipment: readonly EquipmentConfig[] | null,
+  unit: WeightUnit,
+): StrengthWorkout {
+  const logged = [...log.sets].sort((a, b) => a.position - b.position)
+  const ids = [...new Set(logged.map((set) => set.exerciseId))]
+  const lifts = ids.map((exerciseId): WorkoutLift => {
+    const shown = log.prescribed.lifts.find((lift) => lift.exerciseId === exerciseId)
+    const own = logged.filter((set) => set.exerciseId === exerciseId)
+    const counts = own.map((set) => set.count)
+    const implement = shown?.implement ?? null
+    return {
+      exerciseId,
+      slot: exerciseById(exerciseId)?.slot ?? 'knee',
+      implement,
+      sets: shown?.sets ?? own.length,
+      range: shown?.range ?? { min: Math.min(...counts), max: Math.max(...counts) },
+      targets: counts,
+      loadG: shown?.shownLoadG ?? own[0]?.loadG ?? null,
+      steps: implement === null || equipment === null ? null : stepsFor(equipment, implement, unit),
+      rir: shown?.rir ?? null,
+      change: shown?.change ?? 'hold',
+      usualLoadG:
+        shown !== undefined && shown.baseLoadG !== shown.shownLoadG ? shown.baseLoadG : null,
+      basis: shown?.basis ?? { rule: 'F8', facts: [] },
+      evidence: NO_EVIDENCE,
+    }
+  })
+  return {
+    sessionId: log.id,
+    date: log.date,
+    template: log.prescribed.template,
+    variant: log.prescribed.variant,
+    block: null,
+    budgetMin: log.durationMin,
+    setupSaved: true,
+    lifts,
+    plyo: null,
+    trunk: [],
+    rules: [],
+  }
+}
+
+/** The sheet as an edit opens it: the logged sets as they were, the minutes, the effort, the pain and the note. */
+export function stateOfLog(
+  workout: StrengthWorkout,
+  log: StrengthLog,
+  unit: WeightUnit,
+): FormState {
+  const logged = [...log.sets].sort((a, b) => a.position - b.position)
+  return {
+    blocks: workout.lifts.map((lift) => ({
+      key: lift.exerciseId,
+      kind: blockKindOf(lift.slot),
+      shown: lift,
+      original: lift,
+      rows: logged
+        .filter((set) => set.exerciseId === lift.exerciseId)
+        .map((set): SetRow => ({
+          load: loadText(set.loadG, unit),
+          exactG: set.loadG,
+          count: String(set.count),
+          rir: set.rir,
+        })),
+    })),
+    minutes: String(log.durationMin),
+    effort: log.rpe,
+    pain: log.pain,
+    notes: log.notes ?? '',
+  }
+}
+
 // ---- What the quiet buttons do -----------------------------------------------------------------
 
 /**

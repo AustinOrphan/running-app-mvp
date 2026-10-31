@@ -49,6 +49,8 @@ export interface LiftSectionProps {
   pinned: string | undefined
   /** "Same as last time" has a session of this lift to copy. */
   hasLast: boolean
+  /** A saved log is being edited: "Why", "Swap", "Always use this" and the usual load speak of a plan it was not made from. */
+  editing: boolean
   /** Another set fits in the log. */
   canAdd: boolean
   onChange: (update: (block: Block) => Block) => void
@@ -71,6 +73,7 @@ export function LiftSection({
   equipment,
   pinned,
   hasLast,
+  editing,
   canAdd,
   onChange,
   onSameAsLast,
@@ -86,9 +89,9 @@ export function LiftSection({
   const loaded = shown.steps !== null
   const swapped = shown !== block.original
   const reason = words.reason(shown)
-  const lighterDay = shown.change === 'lighter-day' && shown.usualLoadG !== null
+  const lighterDay = !editing && shown.change === 'lighter-day' && shown.usualLoadG !== null
   const choices = equipment === null ? [] : swapChoices(block, equipment, barbellOf(workout))
-  const pinnable = swapped && PINNABLE.has(shown.slot)
+  const pinnable = !editing && swapped && PINNABLE.has(shown.slot)
   const reachedBy = (index: number, update: (row: SetRow) => SetRow) => {
     onChange((current) => ({
       ...current,
@@ -122,14 +125,14 @@ export function LiftSection({
           {exercise}
         </h3>
         <div className={styles.liftTools}>
-          {block.kind === 'lift' ? (
+          {block.kind === 'lift' && !editing ? (
             <ExplainButton
               subject={exercise}
               rules={[shown.basis.rule]}
               explain={{ subject: 'strength', id: workout.sessionId, exercise: shown.exerciseId }}
             />
           ) : null}
-          {block.kind === 'lift' ? (
+          {block.kind === 'lift' && !editing ? (
             <Button
               variant="quiet"
               aria-label={words.say('strength.sheet.swap-for', { exercise })}

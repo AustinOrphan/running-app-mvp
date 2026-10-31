@@ -1,4 +1,4 @@
-import type { StrengthWorkout } from '../../../shared/types.ts'
+import type { StrengthLog, StrengthWorkout } from '../../../shared/types.ts'
 import { useStrengthUnits } from '../../api/strength.ts'
 import { Sheet } from '../Sheet.tsx'
 import { Skeleton } from '../Skeleton.tsx'
@@ -23,6 +23,13 @@ export interface StrengthSheetProps {
   sessionId?: string | null
   /** An owned strength activity that has no log yet (an import): the sets attach to it. */
   activityId?: string | null
+  /**
+   * A saved log to edit (the Strength page's recent sessions): the sheet opens with its sets, minutes,
+   * effort, pain and note, and saves over it under its own id, so the log is replaced and not
+   * doubled. `workout` is then `workoutOfLog(log, ...)`; the quiet buttons, "Why" and "Swap" speak
+   * of a plan the log was not made from and are left out, and "Save without sets" never applies.
+   */
+  log?: StrengthLog
   onClose: () => void
   /** The log was saved, or kept on this phone, or saved without sets. The caller closes the sheet. */
   onSaved: (saved: StrengthSaved) => void
@@ -42,6 +49,7 @@ export function StrengthSheet({
   date,
   sessionId,
   activityId,
+  log,
   onClose,
   onSaved,
 }: StrengthSheetProps) {
@@ -60,7 +68,8 @@ export function StrengthSheet({
           workout={workout}
           date={date}
           sessionId={sessionId === undefined ? workout.sessionId : sessionId}
-          activityId={activityId ?? null}
+          activityId={activityId ?? log?.activityId ?? null}
+          {...(log === undefined ? {} : { log })}
           weightUnit={units.data.weightUnit}
           units={units.data.units}
           onSaved={onSaved}
