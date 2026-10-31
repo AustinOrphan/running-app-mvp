@@ -8,20 +8,26 @@
 // `PARAMS_VERSION` bump (decision 11), never asserted against a threshold (G5). The chain time of
 // every level and athlete, and of the two relations, is printed at the end of the run.
 //
-// Two relations, each in the forms that hold today and the forms that do not (the cases that do not
-// are `test.fails`, with the engine untouched and the case list as the failure message):
+// Two relations, each asserted where it holds and recorded as `test.fails` where it does not (the case
+// list is the failure message, and the test goes red when an engine change fixes a case):
 // - "a re-plan with no new data is a fixed point": re-running a step with the same input gives the
-//   same plan at every step of every ragged chain. Feeding the step's plan back as the stored plan
-//   gives it back at every compliant and ragged step that follows a progress decision, before the race
-//   week. It does not after a hold, and not at the race-week step of the compliant chains.
+//   same plan at every step of every ragged chain, and feeding the step's plan back as the stored plan
+//   gives it back at every compliant and ragged step, after a hold and in the race week included. It
+//   does not in the first week of a start path or in a held week a window touches (RF1, not fixed).
 // - "a closed day never raises a week": holds for the compliant level at every step and for the ragged
-//   level at the steps that follow a progress decision and carry no start-path week. It does not hold
-//   at ragged steps after a hold, or in a start-path plan.
+//   level at every step that carries no start-path week and where the day does not empty the week,
+//   after a hold included. It does not hold in a start-path plan, or when the day empties the week
+//   (RF1, not fixed).
 import { isDeepStrictEqual } from 'node:util'
 import { afterAll, describe, expect, it, test, vi } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { isDisruptedWeek, validateDisruption } from '../../../shared/engine/disruption.ts'
+import {
+  dayRulesIn,
+  disruptionPlan,
+  isDisruptedWeek,
+  validateDisruption,
+} from '../../../shared/engine/disruption.ts'
 import { loadPosition, responseBasis } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type {
@@ -316,6 +322,24 @@ describe('the ragged level', () => {
       expect(of, athlete.id).toBeGreaterThan(8)
       expect(weeks, athlete.id).toBeLessThan(of)
     }
+  })
+
+  // Found by H2 (2026-10-31) and fixed by RF1: a week with no running gave a cap of 0 minutes on the
+  // week after it, which a hold or a reduce applies (rule G-6 steps from the minutes run). The break
+  // rules size the restart (J7, E6), so a week planned at the start floor or more is not capped at 0.
+  it('does not cap the week after a week with no running at 0 minutes, where the plan held the floor', () => {
+    let after = 0
+    for (const { athlete, chain } of ragged) {
+      for (const step of chain.steps) {
+        const { week, decision } = step
+        if (week === null || decision === null || decision.postRace !== undefined) continue
+        if (week.ranMin > 0 || week.plannedMin < P.macroDesign.startFloorWeekMin.value) continue
+        if (decision.decision === 'progress') continue
+        after += 1
+        expect(decision.nextWeekTargetMin, `${athlete.id} ${step.settled.today}`).toBeGreaterThan(0)
+      }
+    }
+    expect(after).toBeGreaterThan(0)
   })
 
   it('reports its windows through the real disruption path and the plan answers them', () => {
@@ -719,6 +743,35 @@ describe('scoreChain', () => {
 })
 
 // ---------------------------------------------------------------------------------------------
+// A held plan under the weekly decision
+// ---------------------------------------------------------------------------------------------
+
+describe('a held plan under the weekly decision [rules n-4, J5]', () => {
+  // Found by H2 (2026-10-31) and fixed by RF1: the REDs athlete holds every week, and the cap of the
+  // weekly decision lowers the week it covers under the level the macrocycle holds, so the weeks that
+  // climb back by the ramp read as growth to the checklist's hold item: it failed at 10 of the 20
+  // steps of the compliant chain, 5 of the ragged and 11 of the overshooting one (one run of the
+  // chains, RF1, 2026-10-31). The item reads the runner's level beside the first week.
+  it.each(SIM_LEVELS)(
+    'keeps the hold item of the checklist at every step of the chain at the %s level',
+    (level) => {
+      const chain = chainOf(
+        level,
+        all.findIndex((a) => a.id === 'reds-hold'),
+      )
+      const failed = chain.steps.flatMap((step, k) =>
+        step.draft.checklist
+          .filter((c) => c.id === 'reds-hold' && !c.ok)
+          .map((c) => `step ${String(k)}: ${c.detail}`),
+      )
+      expect(failed).toEqual([])
+      // every week is held, so the chain is the case the item is for
+      expect(chain.steps.filter((s) => s.decision?.decision === 'hold').length).toBeGreaterThan(10)
+    },
+  )
+})
+
+// ---------------------------------------------------------------------------------------------
 // The figures of the chains, printed by hand
 // ---------------------------------------------------------------------------------------------
 
@@ -793,6 +846,12 @@ interface Case {
   decided: boolean
   /** The plan has a start-path week from today on. */
   programme: boolean
+  /** The week of the step's Monday is a week of a start path. */
+  opens: boolean
+  /** A window touches the week of the step's Monday. */
+  windowed: boolean
+  /** Closing the day left the week of the step's Monday with no running that it had without it. */
+  emptied: boolean
   /** The step is the race week's Monday, the last of the chain. */
   raceWeek: boolean
   detail: string
@@ -809,13 +868,22 @@ function caseOf(athlete: string, chain: SimChain, k: number, detail: string): Ca
     programme: step.draft.weeks.some(
       (w) => w.weekStart >= today && PROGRAMME_FLAGS.test(w.flags.join(' ')),
     ),
+    opens: step.draft.weeks.some(
+      (w) => w.weekStart === mondayOf(today) && PROGRAMME_FLAGS.test(w.flags.join(' ')),
+    ),
+    windowed:
+      dayRulesIn(disruptionPlan(step.settled.disruptions ?? []), {
+        from: mondayOf(today),
+        to: addDays(mondayOf(today), 6),
+      }).length > 0,
+    emptied: false,
     raceWeek: k === chain.steps.length - 1,
     detail,
   }
 }
 
 const label = (c: Case): string =>
-  `${c.athlete} step ${String(c.step)} (${c.today})${c.decided ? ' after a hold' : ''}${c.programme ? ' in a start path' : ''}${c.raceWeek ? ' in the race week' : ''}: ${c.detail}`
+  `${c.athlete} step ${String(c.step)} (${c.today})${c.decided ? ' after a hold' : ''}${c.programme ? ' in a start path' : ''}${c.opens ? ' opening one' : ''}${c.windowed ? ' in a week a window touches' : ''}${c.emptied ? ' emptying it' : ''}${c.raceWeek ? ' in the race week' : ''}: ${c.detail}`
 
 /** What differs between two drafts of one Monday, in a line. */
 function difference(a: PlanDraft, b: PlanDraft): string {
@@ -868,37 +936,56 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
     const compliantDrifts = drifts('compliant', 'plan stored again (compliant)')
     const raggedDrifts = drifts('ragged', 'plan stored again (ragged)')
 
-    it('gives the plan back when it is stored and re-planned, after a progress decision and before the race week', () => {
+    /**
+     * The steps the relation holds in. Two classes are left out, both observed and not fixed (see the
+     * last test of the group): the first week of a start path, whose minutes are its programme's, and
+     * a held week a window touches.
+     */
+    const covered = (c: Case) => !c.opens && !(c.decided && c.windowed)
+
+    // Found by H2 (2026-10-31) and fixed by RF1: after a hold, a plan stored as it came out of the
+    // re-plan and re-planned with no new activity, window or check-in was not the same plan. 35 of the 96
+    // ragged steps that follow a hold came back changed, and 14 of the 19 steps of the compliant REDs-hold
+    // athlete, whose every week is held; the weeks ahead mostly fell (by up to 116 minutes in a week and
+    // 377 over a plan). Two causes: the loading sequence of the weeks ahead carried on from the week as
+    // the cap held it at the second pass and from the plan before the cap at the first, and the minutes
+    // of the trim entered the bound of the week again. A hold now carries the sequence on from its cap,
+    // and the trim of the decision is drawn again from the decision.
+    it('gives the plan back when it is stored and re-planned, at every compliant and ragged step', () => {
       for (const drifted of [compliantDrifts(), raggedDrifts()]) {
-        const unexpected = drifted.cases.filter((c) => !c.decided && !c.raceWeek)
-        expect(unexpected.map(label)).toEqual([])
-        // the check ran over many steps
+        expect(drifted.cases.filter(covered).map(label)).toEqual([])
+        // the check ran over many steps, after a hold among them
         expect(drifted.steps).toBeGreaterThan(200)
       }
     })
 
-    // KNOWN DEFECT, found by H2 (2026-10-31), engine untouched: after a hold, a plan stored as it came
-    // out of the re-plan and re-planned with no new activity, window or check-in is not the same plan.
-    // 35 of the 96 ragged steps that follow a hold come back changed, and 14 of the 19 steps of the
-    // compliant REDs-hold athlete, whose every week is held. The second pass mostly lowers the weeks
-    // ahead (by up to 116 minutes in a week and 377 over a plan; 6 weeks go up). A hold trims the
-    // next quality session and caps the week it covers; that cap and trim are read again from a stored
-    // plan that already holds them. The case list is the failure message; this passes when none is left.
-    test.fails('gives the plan back after a hold, at the ragged and the compliant steps', () => {
-      const cases = [...compliantDrifts().cases, ...raggedDrifts().cases]
-      expect(cases.filter((c) => c.decided).map(label)).toEqual([])
-    })
-
-    // KNOWN DEFECT, found by H2 (2026-10-31), engine untouched: in the race week, the last step of a
-    // chain, the plan stored and re-planned with nothing new moves an easy session to another day, at
-    // 8 of the 11 compliant race-week steps that follow no hold. The case list is the failure message.
-    test.fails('gives the plan back at the race-week step of the compliant chains', () => {
+    // Found by H2 (2026-10-31) and fixed by RF1: in the race week, the last step of a chain, the plan
+    // stored and re-planned with nothing new moved an easy session to another day, at 8 of the 11
+    // compliant race-week steps that follow no hold. The week holds a run on the day of the race, which
+    // the race replaces, and the re-plan held the week to the minutes the sessions placed, so each pass
+    // shed a share of the week. A week the replaced plan has not started is held to its figure.
+    it('gives the plan back at the race-week step of the compliant chains', () => {
       expect(
         compliantDrifts()
           .cases.filter((c) => c.raceWeek && !c.decided)
           .map(label),
       ).toEqual([])
     })
+
+    // KNOWN LIMITS, observed by RF1 (2026-10-31) and not fixed. The relation does not hold (1) in the
+    // first week of a start path: the ladder and the 3 x N floor weeks are sized by their programme,
+    // and a stored plan that flips into one mid-season, or opens a hold at a cap under the floor, is
+    // held to the minutes its short sessions placed; (2) in a held week a window touches: the bound of
+    // such a week is the minutes placed, which the window's cap charges the held days against, and the
+    // trim of the hold takes its minutes from that bound again. The case list is the failure message;
+    // this passes when the first of them is fixed.
+    test.fails(
+      'gives the plan back in the first week of a start path and in a held week a window touches',
+      () => {
+        const cases = [...compliantDrifts().cases, ...raggedDrifts().cases]
+        expect(cases.filter((c) => !covered(c)).map(label)).toEqual([])
+      },
+    )
   })
 
   describe('a closed day never raises a week', () => {
@@ -963,9 +1050,17 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
                     found.push(`minutes ${week} ${String(before)} -> ${String(minutes)}`)
                 }
                 if (found.length > 0) {
-                  cases.push(
-                    caseOf(athlete.id, chain, k, `closing ${day}: ${found.slice(0, 2).join('; ')}`),
-                  )
+                  const monday = mondayOf(step.settled.today)
+                  cases.push({
+                    ...caseOf(
+                      athlete.id,
+                      chain,
+                      k,
+                      `closing ${day}: ${found.slice(0, 2).join('; ')}`,
+                    ),
+                    emptied:
+                      (base.get(monday) ?? 0) > 0 && (planMinutes(variant).get(monday) ?? 0) === 0,
+                  })
                 }
               }
             })
@@ -981,24 +1076,36 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
       expect(compliantRaises().cases.map(label)).toEqual([])
     })
 
-    it('holds at the ragged steps after a progress decision that carry no start-path week', () => {
+    /** The steps the relation holds in: not the plans of a start path, and not a week the day empties. */
+    const held = (c: Case) => !c.programme && !c.emptied
+
+    // Found by H2 (2026-10-31) and fixed in part by RF1: at ragged steps that follow a hold, a one-day
+    // rest window raised a week. Closing a day moved a week a window touches from the plan's figure to
+    // the minutes the plan placed as its bound, and where the plan had placed more than its figure
+    // (a session raised to the shortest run) the week rose; the bound of such a week is now the lesser
+    // of the two.
+    it('holds at the ragged steps, after a progress decision or a hold, that carry no start-path week and keep a run in the week', () => {
       expect(raggedRaises().checks).toBeGreaterThan(500)
-      const inDomain = raggedRaises().cases.filter((c) => !c.decided && !c.programme)
-      expect(inDomain.map(label)).toEqual([])
+      expect(raggedRaises().cases.filter(held).map(label)).toEqual([])
     })
 
-    // KNOWN DEFECT, found by H2 (2026-10-31), engine untouched: at ragged steps that follow a hold, and
-    // in plans with a start-path week ahead, a one-day rest window raises a week. In this sample: on
-    // the hot-race chain at 2026-11-30 (after a hold, a window active), closing the last day of the
-    // current week leaves it with no minutes placed, and the weeks after it go from 106, 116 and 127
-    // minutes to 223, 245 and 269, then to the 330 of the cap (the plan without the window anchors
-    // them on the 97 minutes placed in the current week, the plan with it on its target of 278);
-    // on the first-100-mile chain at 2027-04-05 a start-path week of 10 minutes becomes 19. Other
-    // seeds also found the race week gaining easy minutes while its target falls, and a REDs-hold
-    // week going from 20 to 51 minutes. The case list is the failure message; this passes when none
-    // is left.
-    test.fails('holds at every ragged step, whatever the decision and the plan', () => {
-      expect(raggedRaises().cases.map(label)).toEqual([])
+    // KNOWN LIMITS, observed by H2 and RF1 (2026-10-31) and not fixed. (1) A day that empties the
+    // week: on the hot-race chain at 2026-11-30 (after a hold, a window active), closing the last day
+    // of the current week leaves it with no minutes, and the weeks after it go from 106, 116 and 127
+    // minutes to 223, 245 and 269. A week with nothing placed has no baseline for the ramp of G-2, and
+    // the ramp starts from the typical week, as it does for a layoff of the runner's (J7). The plan
+    // with the day open anchors on the 97 minutes placed, so no baseline can serve both without
+    // planning the weeks after an emptied week at nothing: that is a rule to choose (J9 or the
+    // relation), not a defect to patch. (2) The plans of a start path, whose first-week minutes are
+    // the programme's and shift with the day closed. (3) Other seeds also found tiny weeks (a target
+    // of 12 to 14 minutes) placed above their target once a window touches them. The case list is the
+    // failure message; this passes when none is left.
+    test.fails('holds when the day empties the week, and in the plans of a start path', () => {
+      expect(
+        raggedRaises()
+          .cases.filter((c) => !held(c))
+          .map(label),
+      ).toEqual([])
     })
   })
 })

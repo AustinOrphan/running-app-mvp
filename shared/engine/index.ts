@@ -4,7 +4,7 @@
 // points delegate to the module that owns the rule.
 import { loadFocus } from '../copy/load.ts'
 import { addDays, mondayOf } from '../dates.ts'
-import { isToRun, isTrimmed } from '../domain/sessionStatus.ts'
+import { HOLD_TRIM_RULE, isHoldTrim, isToRun, isTrimmed } from '../domain/sessionStatus.ts'
 import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
 import { afterBreak, trimQuality } from './adapt.ts'
 import { estimateState } from './athlete.ts'
@@ -211,6 +211,12 @@ interface Keep {
   toRun: ReadonlySet<KeptSession>
   /** For weeks with kept sessions: the running minutes the replaced plan still had on other days. */
   stillPlanned: ReadonlyMap<string, number>
+  /**
+   * The weeks the replaced plan has not started (`unstartedWeek`), each with the plan's own figure
+   * for it: the week's stored target. `stillPlanned` of such a week is that figure unless a window
+   * touches it.
+   */
+  figure: ReadonlyMap<string, number>
   /** The running minutes the replaced plan still has on each day from today on. */
   plannedOn: ReadonlyMap<string, number>
   /** The kept sessions that a recorded activity stands for; its run is counted from the activity. */
@@ -235,6 +241,10 @@ const RELEASED_ON_HOLD: ReadonlySet<string> = new Set([...OWNER_EDITS, 'downgrad
 const isTrim = (s: { status: string; rules: string[] }) =>
   s.status === 'downgraded' && isTrimmed(s.rules)
 
+/** A session still to be drawn that the weekly decision trimmed: the re-plan draws it again [rule J5]. */
+const isHoldTrimRow = (s: { status: string; rules: string[] }) =>
+  s.status === 'downgraded' && isHoldTrim(s.rules)
+
 /**
  * True for a session a re-plan keeps as it is: the past, the finished sessions of the current
  * week, and in the next 14 days the owner's edits (moved, swapped or skipped sessions) and the
@@ -250,6 +260,9 @@ export function keptByReplan(
   holdDates?: ReadonlySet<string>,
 ): boolean {
   if (session.date < today) return true
+  // The trim of the weekly decision is that decision's own: a re-plan draws it again from the
+  // decision, with the week it trims, and keeps no copy of it [rule J5].
+  if (isHoldTrimRow(session)) return false
   const released = holdDates?.has(session.date) === true && RELEASED_ON_HOLD.has(session.status)
   if (mondayOf(session.date) === mondayOf(today) && session.status !== 'planned') return !released
   if (session.date >= addDays(today, P.macroDesign.keepOwnerEditsDays.value)) return false
@@ -445,12 +458,30 @@ function generate(
   const currentMonday = mondayOf(today)
   const pastWeeks = (input.existing?.weeks ?? []).filter((w) => w.weekStart < currentMonday)
   const macro: WeekDraft[] = []
+  // The week a hold caps carries the loading sequence on from the cap [rule J5].
+  const heldCap =
+    keep.decisions[currentMonday] === 'hold' ? input.weekCaps?.[currentMonday] : undefined
+  // The week a reduce makes a recovery week is one for the macrocycle too, as it is when the stored
+  // plan carries it: the cadence and the loading sequence are drawn once, not once for each case.
+  const reduced =
+    keep.decisions[currentMonday] === 'reduce' && input.existing !== null
+      ? {
+          ...input,
+          existing: {
+            ...input.existing,
+            weeks: input.existing.weeks.map((w) =>
+              w.weekStart === currentMonday ? { ...w, isRecovery: true } : w,
+            ),
+          },
+        }
+      : input
   // the default run a preset is held to draws its phases anew: it does not inherit the preset's
   const { weeks: macroWeeks, raceWeekTail } = macroPlanDraft(
-    input,
+    reduced,
     state,
     goal,
     feas,
+    heldCap,
     record !== undefined,
   )
   const method = resolveMethod(input, state, [...pastWeeks, ...macroWeeks]).effective
@@ -514,6 +545,7 @@ function generate(
   const tooShort: Array<{ weekStart: string; room: number; minimum: number }> = []
   const overshot: Array<{ weekStart: string; planned: number; ran: number }> = []
   const history: SessionSpec[] = [...kept]
+  let figureRecord: { index: number; week: WeekDraft } | null = null
   const raceMonday = mondayOf(goal.date)
   for (let w = 0; w < macro.length; w++) {
     const week = macro[w]!
@@ -758,10 +790,11 @@ function generate(
     if (keep.decisions[week.weekStart] === 'hold' && !trimmedAlready) {
       const next = sessions.find((s) => s.date >= today && isQualityKind(s.kind))
       if (next !== undefined) {
-        const cut = trimQuality(
+        const trim = trimQuality(
           next,
           "last week's review suggested holding, so this session is a little shorter.",
         )
+        const cut = { ...trim, rules: [...trim.rules, HOLD_TRIM_RULE] }
         sessions = sessions.map((s) => (s === next ? cut : s))
       }
     }
@@ -908,6 +941,23 @@ function generate(
         })
         macro[w] = taken
       }
+      // A week the replaced plan's figure holds below the week the rules draw keeps that figure on
+      // record, as a week drawn ahead does, so the next re-plan of the same Monday is held to it
+      // again and not to the minutes the sessions placed [rule G-6]. Set after the loop, so the
+      // weeks drawn from this one are the same as before.
+      const figure = keep.figure.get(week.weekStart)
+      if (
+        figure !== undefined &&
+        !startDrawn &&
+        figure < Math.floor(week.targetRunMin) &&
+        done.runDays === 0 &&
+        keptAhead.length === 0
+      ) {
+        figureRecord = {
+          index: w,
+          week: remainingOfWeek(week, { minutes: 0, runDays: 0 }, new Set(), 0, figure),
+        }
+      }
     }
     // A loading week as placed that uses the rebuild zone says what it rebuilds toward. It is the
     // week the checklist's progression item counts as a zone week (`rebuildZoneUsed`), measured on
@@ -924,6 +974,17 @@ function generate(
       if (!VOLUME_KINDS.has(s.kind)) continue
       records.push(recordOf(s))
       if (!isProgramme(s)) plain.push(recordOf(s))
+    }
+  }
+
+  if (figureRecord !== null) {
+    const { index, week } = figureRecord
+    macro[index] = {
+      ...macro[index]!,
+      targetRunMin: week.targetRunMin,
+      longRunMin: week.longRunMin,
+      longRunM: week.longRunM,
+      gainTargetM: week.gainTargetM,
     }
   }
 
@@ -1073,6 +1134,7 @@ export function buildPlan(input: EngineInput): PlanDraft {
       sessions: [],
       toRun: new Set(),
       stillPlanned: new Map(),
+      figure: new Map(),
       plannedOn: new Map(),
       matched: new Set(),
       decisions: {},
@@ -1126,6 +1188,29 @@ function plannedMinutes(sessions: SessionSpec[], weekStart: string, from: string
 }
 
 /**
+ * Whether the replaced plan has not started `oldWeek`: today is its Monday, every session of it is
+ * still planned (or trimmed by the weekly decision, which the re-plan draws again), and nothing has
+ * been run since. The weeks of a start path are left out: their minutes are their programme's, and
+ * the floor week is the baseline the ramp measures from.
+ */
+function unstartedWeek(
+  oldWeek: WeekDraft,
+  oldSessions: ReadonlyArray<{ date: string; status: string; rules: string[] }>,
+  input: EngineInput,
+): boolean {
+  const { weekStart } = oldWeek
+  return (
+    weekStart === input.today &&
+    !isProgrammeWeek(oldWeek.flags) &&
+    !oldWeek.flags.includes('restart-floor') &&
+    oldSessions
+      .filter((s) => s.date >= weekStart && s.date <= addDays(weekStart, 6))
+      .every((s) => s.status === 'planned' || isHoldTrimRow(s)) &&
+    !input.activities.some((a) => a.date >= weekStart)
+  )
+}
+
+/**
  * Keeps the past, the finished sessions of the current week and the owner's edits of the next 14
  * days (`keptByReplan`), recomputes the rest from the updated state within every limit, and lists
  * what changed with the rule ids behind it. `options.decisions` carries the weekly decision behind
@@ -1160,21 +1245,44 @@ export function replan(
     ...keptRows.filter((s) => s.date >= input.today).map((s) => mondayOf(s.date)),
   ])
   const stillPlanned = new Map<string, number>()
+  const figure = new Map<string, number>()
+  const windowPlan = disruptionPlan(input.disruptions ?? [])
   for (const weekStart of settled) {
-    if (!oldWeeks.some((w) => w.weekStart === weekStart)) continue
-    stillPlanned.set(
+    const oldWeek = oldWeeks.find((w) => w.weekStart === weekStart)
+    if (oldWeek === undefined) continue
+    const planned = plannedMinutes(
+      oldSessions.filter((s) => s.status === 'planned' || isHoldTrimRow(s)),
       weekStart,
-      plannedMinutes(
-        oldSessions.filter((s) => s.status === 'planned'),
-        weekStart,
-        input.today,
-      ),
+      input.today,
     )
+    // A week the replaced plan has not started is held to the plan's own figure for it, not to the
+    // minutes its sessions placed: those fall short of the figure by what the placement cannot use
+    // (the run on the day of the race, a trimmed session, rounding), and held to them each
+    // re-plan of the same Monday would take the shortfall again [rule G-6]. The sessions stay the
+    // bound where a window touches the week, as its cap charges the held days against them, but
+    // never above the figure: a closed day must not hold a week to more than it was without it.
+    if (unstartedWeek(oldWeek, oldSessions, input)) {
+      figure.set(weekStart, oldWeek.targetRunMin)
+      const touched =
+        dayRulesIn(windowPlan, { from: weekStart, to: addDays(weekStart, 6) }).length > 0
+      stillPlanned.set(
+        weekStart,
+        touched ? Math.min(planned, oldWeek.targetRunMin) : oldWeek.targetRunMin,
+      )
+    } else {
+      stillPlanned.set(weekStart, planned)
+    }
   }
   // the running minutes the replaced plan still has on each day from today on
   const plannedOn = new Map<string, number>()
   for (const s of oldSessions) {
-    if (s.status !== 'planned' || s.date < input.today || !isRunningTime(s)) continue
+    if (
+      (s.status !== 'planned' && !isHoldTrimRow(s)) ||
+      s.date < input.today ||
+      !isRunningTime(s)
+    ) {
+      continue
+    }
     plannedOn.set(s.date, (plannedOn.get(s.date) ?? 0) + s.durationMin)
   }
   const matched = new Set(kept.filter((_, i) => keptRows[i]!.activityId !== null))
@@ -1184,6 +1292,7 @@ export function replan(
       sessions: kept,
       toRun,
       stillPlanned,
+      figure,
       plannedOn,
       matched,
       decisions: options.decisions ?? {},
@@ -1220,7 +1329,7 @@ export function replan(
       }
     }
     const oldMin = plannedMinutes(
-      oldSessions.filter((s) => s.status === 'planned'),
+      oldSessions.filter((s) => s.status === 'planned' || isHoldTrimRow(s)),
       weekStart,
       input.today,
     )

@@ -344,13 +344,15 @@ function carriedPhases(
  * The response to weeks run above plan [rules g-8] does not lift this start: the week in progress
  * keeps the minutes the plan gave it (a re-plan adds none to a settled week, `remainingOfWeek`),
  * and the weeks after it step from the higher of these minutes and the mean of the weeks run
- * (`responseBaseline`, read where each loading week is drawn).
+ * (`responseBaseline`, read where each loading week is drawn). A week the weekly decision holds
+ * (`heldCap`) carries the sequence on from the cap.
  */
 function replanAnchor(
   input: EngineInput,
   state: AthleteState,
   firstMonday: string,
   stepCap: number,
+  heldCap: number | undefined,
 ): { minutes: number; paused: boolean } | null {
   const weeks = input.existing?.weeks
   if (weeks === undefined || state.layoffDays >= P.j7.tier1Days.value) return null
@@ -364,7 +366,11 @@ function replanAnchor(
   if (work === undefined || work.targetRunMin <= 0 || !Number.isFinite(stepCap)) return null
   // A week run past its target is stored at the minutes run; the loading sequence carries on from
   // the minutes it was planned at, so an overshoot lifts nothing after it [rules g-2, g-6].
-  return { minutes: Math.min(plannedMinOf(work), stepCap), paused: current.isRecovery }
+  // A hold keeps the volume it caps the week at, and the sequence carries on from that week. Read
+  // from the stored week alone it would carry on from the cap at a second re-plan of the same
+  // Monday and from the plan before the cap at the first [rules J5, G-6].
+  const held = current.isRecovery || heldCap === undefined ? Infinity : heldCap
+  return { minutes: Math.min(plannedMinOf(work), stepCap, held), paused: current.isRecovery }
 }
 
 /** Quality sessions wanted in a pre-taper week before the run-day cap [rules F2, H1]. */
@@ -830,6 +836,8 @@ function planWeeks(
    * carries: the default plan a method preset is held to does not inherit the preset's phases.
    */
   freshPhases = false,
+  /** The cap of the first week when the weekly decision holds it [rule J5]. */
+  heldCap?: number,
 ): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
   const firstMonday = mondayOf(input.today)
   const raceMonday = mondayOf(goal.date)
@@ -994,7 +1002,9 @@ function planWeeks(
   // level. A re-plan continues the plan it replaces: a ladder carries on from the weeks it has run
   // (`startContinuation`), and a start path lifts only a new plan, or a re-plan whose continuation
   // would sit below its first week [rules E6].
-  const continued = hold ? null : replanAnchor(input, state, firstMonday, stepCap(firstMonday))
+  const continued = hold
+    ? null
+    : replanAnchor(input, state, firstMonday, stepCap(firstMonday), heldCap)
   // Under a hold nothing advances: a ladder keeps its rung, a level its level, and the floor
   // repeats. A new start path is chosen under a hold only for a runner with no weekly running,
   // who would otherwise start from the start floor week; a runner with a typical week keeps it.
@@ -1547,13 +1557,14 @@ export function macroPlanDraft(
   state: AthleteState,
   goal: GoalModel,
   feasibility: Feasibility,
+  heldCap?: number,
   freshPhases = false,
 ): { weeks: WeekDraft[]; raceWeekTail: WeekDraft | null } {
   // one resolution for the whole plan, so the lead-in and the weeks after it agree on the preset
   const method = resolveMethod(input, state).effective
   const lead = windowLeadIn(input, state, goal, method)
   if (lead === null) {
-    return planWeeks(input, state, goal, feasibility, method, undefined, freshPhases)
+    return planWeeks(input, state, goal, feasibility, method, undefined, freshPhases, heldCap)
   }
   const normalStart = addDays(mondayOf(input.today), 7 * lead.weeks.length)
   // The plan it replaces is not read: its weeks at the shifted start are weeks of the normal plan

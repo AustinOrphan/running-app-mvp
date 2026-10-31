@@ -10,6 +10,7 @@ import {
   zoneProposals,
   type ExecutionRecord,
 } from '../../../shared/engine/adapt.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import { readinessSnapshot } from '../../../shared/engine/readiness.ts'
 import type {
   EngineInput,
@@ -197,6 +198,63 @@ describe('weeklyDecision (J5, G-6)', () => {
       existing: { weeks: [weekDraft(WEEK, 200), weekDraft(NEXT, 400)], sessions: weekSessions() },
     })
     expect(weeklyDecision(lots, WEEK, { efficiency: STABLE }).nextWeekTargetMin).toBe(220)
+  })
+
+  describe('after a week with no running at all [rules G-6, J7, E6]', () => {
+    // The week was planned at 200 minutes and nothing was run: G-6 steps from the minutes run, which
+    // leaves no step to take, and a cap of 0 would hold the next week empty too. The break rules size
+    // the restart: the J7 share of the planned week for the days since the last run, and the 3 x 20
+    // min of E6 when that share falls under them and the plan holds that much.
+    const idle = (lastRun: string | null, plannedMin = 200) =>
+      base({
+        activities: lastRun === null ? [] : [activity(lastRun, { durationSec: 3000, id: 'last' })],
+        existing: {
+          weeks: [weekDraft(WEEK, plannedMin), weekDraft(NEXT, 210)],
+          sessions: weekSessions().map((s) => ({ ...s, durationMin: plannedMin / 4 })),
+        },
+      })
+    const hold = (i: EngineInput) => weeklyDecision(i, WEEK, { efficiency: STABLE })
+
+    it('leaves the J7 share of the planned week for the days since the last run', () => {
+      // the week ends on the 18th: a run on the 8th is 10 days back (90%), on 25 September 23 (75%)
+      const near = hold(idle('2026-10-08'))
+      expect(near.decision).toBe('hold')
+      expect(codes(near)).toEqual(['completion-low'])
+      expect(near.nextWeekTargetMin).toBe(180)
+      expect(hold(idle('2026-09-25')).nextWeekTargetMin).toBe(150)
+      // no run in the history at all: over 28 days, 50%
+      expect(hold(idle(null)).nextWeekTargetMin).toBe(100)
+    })
+
+    it('leaves the start floor where the share falls under it and the plan holds that much', () => {
+      // 50% of 100 min is 50, under the 60 min of the start floor: E6 sets the first week
+      expect(hold(idle(null, 100)).nextWeekTargetMin).toBe(60)
+      // a plan under the floor has no first week to set: the cap stays at no running
+      expect(hold(idle(null, 40)).nextWeekTargetMin).toBe(0)
+    })
+
+    it('makes the recovery week of a reduce from the restart share', () => {
+      const ill = idle('2026-10-08')
+      const reduced = weeklyDecision(
+        { ...ill, wellness: [wellnessDay('2026-10-14', { illness: true })] },
+        WEEK,
+        { efficiency: STABLE },
+      )
+      expect(reduced.decision).toBe('reduce')
+      // 180 min cut by the recovery week's share
+      expect(reduced.nextWeekTargetMin).toBe(
+        Math.round(180 * (1 - P.e3.recoveryWeekCutPct.value / 100)),
+      )
+    })
+
+    it('leaves a week with some running to the step of G-6', () => {
+      const d = weeklyDecision(base({ activities: runs([30]), existing: base().existing }), WEEK, {
+        efficiency: STABLE,
+      })
+      expect(d.decision).toBe('hold')
+      // min(planned 200, 30 run x 1.1)
+      expect(d.nextWeekTargetMin).toBe(33)
+    })
   })
 
   it('judges only the sessions already due in a week still in progress', () => {
