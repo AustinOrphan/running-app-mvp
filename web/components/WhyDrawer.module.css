@@ -40,11 +40,54 @@
 }
 
 .ruleTitle {
-  margin: 0 0 var(--space-2);
+  margin: 0;
   font-family: var(--font-serif);
   font-size: var(--text-base);
   line-height: var(--lh-base);
   font-weight: 600;
+}
+
+/* A rule is one fold: the row is the rule's name, its best grade and the count of its papers. */
+.fold {
+  min-width: 0;
+}
+
+.foldSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  padding: var(--space-2) 0;
+  list-style: none;
+  cursor: pointer;
+}
+
+.foldSummary::-webkit-details-marker {
+  display: none;
+}
+
+.foldSummary::after {
+  margin-left: auto;
+  color: var(--accent);
+  content: '+';
+  font-weight: 600;
+}
+
+.fold[open] > .foldSummary::after {
+  content: '\2212';
+}
+
+.foldSummary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: calc(var(--focus-offset) * -1);
+}
+
+.paperCount {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 
 .param {

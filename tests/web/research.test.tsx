@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
@@ -106,8 +108,9 @@ describe('WhyDrawer', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
     // Rule ids match regardless of case, as in paramsForRule().
     expect(await within(dialog).findByText('0.75, 0.55, 0.35')).toBeInTheDocument()
-    expect(within(dialog).getByText('Evidence grade B')).toBeInTheDocument()
-    expect(within(dialog).getByText('Evidence grade D')).toBeInTheDocument()
+    // each rule's fold names its best grade, and so does the parameter row inside it
+    expect(within(dialog).getAllByText('Evidence grade B')).toHaveLength(2)
+    expect(within(dialog).getAllByText('Evidence grade D')).toHaveLength(2)
     // Grade D says it is a default, and the sentence is the parameter's own note.
     expect(within(dialog).getByText('Default (no direct study)')).toBeInTheDocument()
     expect(within(dialog).getByText(/no direct evidence/)).toBeInTheDocument()
@@ -132,6 +135,69 @@ describe('WhyDrawer', () => {
     expectCleanCopy(dialog)
     // The wait for the corpus is 8 s, so the test must allow more than the 5 s default.
   }, 15_000)
+
+  test('folds each rule after the first: its row names the best grade and the papers, one tap opens the rest', async () => {
+    mockApi({ ...drawerRoutes(), 'GET /api/research/params': () => registry })
+    const user = userEvent.setup()
+    renderWithProviders(<Harness rules={['k1', 'c4']} />)
+    await user.click(screen.getByRole('button', { name: 'Why' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const taper = await within(dialog).findByRole('region', { name: 'Taper length' })
+    const threshold = within(dialog).getByRole('region', { name: 'First threshold when untested' })
+    const foldOf = (section: HTMLElement) => section.querySelector('details')!
+    // the first rule is open, as a one-rule drawer always was; the next is closed
+    expect(foldOf(taper).open).toBe(true)
+    expect(foldOf(threshold).open).toBe(false)
+
+    // the row is the rule's heading with its best grade and how many papers are behind it
+    const open = foldOf(taper).querySelector('summary')!
+    expect(within(open).getByRole('heading', { name: 'Taper length', level: 4 })).toBeVisible()
+    expect(within(open).getByText('Evidence grade B')).toBeInTheDocument()
+    expect(within(open).getByText('1 paper')).toBeInTheDocument()
+    // a rule with no paper says no count
+    const closed = foldOf(threshold).querySelector('summary')!
+    expect(within(closed).getByText('Evidence grade D')).toBeInTheDocument()
+    expect(within(closed).queryByText(/paper/)).not.toBeInTheDocument()
+
+    // nothing is left out: one tap on the row opens the parameters of the closed rule
+    await user.click(closed)
+    expect(foldOf(threshold).open).toBe(true)
+    expect(within(threshold).getByText('2 to 4 on the CR-10 scale')).toBeVisible()
+    await user.click(closed)
+    expect(foldOf(threshold).open).toBe(false)
+    expectCleanCopy(dialog)
+  })
+
+  test('a rule with several papers counts them, and its best grade is the strongest of its parameters', async () => {
+    const strong: Param<unknown> = { ...taperParam, id: 'k1.taperDays', grade: 'A', value: 14 }
+    const weak: Param<unknown> = {
+      ...taperParam,
+      id: 'k1.taperShape',
+      grade: 'C',
+      evidence: ['bosquet-2007-taper-meta-analysis', 'pollock-1977-frequency-duration-injury'],
+    }
+    mockApi({
+      ...drawerRoutes(),
+      'GET /api/research/params': () => ({ version: registry.version, params: [weak, strong] }),
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<Harness rules={['K1']} />)
+    await user.click(screen.getByRole('button', { name: 'Why' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const rule = await within(dialog).findByRole('region', { name: 'Taper length' })
+    const summary = rule.querySelector('summary')!
+    expect(within(summary).getByText('Evidence grade A')).toBeInTheDocument()
+    expect(within(summary).queryByText('Evidence grade C')).not.toBeInTheDocument()
+    // two papers, whichever parameter names them, counted once each
+    expect(within(summary).getByText('2 papers')).toBeInTheDocument()
+  })
+
+  test('the row of a rule is a 44 px target in the stylesheet, with a marker of its own', () => {
+    const css = readFileSync(join(process.cwd(), 'web/components/WhyDrawer.module.css'), 'utf8')
+    expect(css).toMatch(/\.foldSummary \{[^}]*min-height: 2\.75rem;/s)
+    expect(css).toMatch(/\.foldSummary::-webkit-details-marker \{[^}]*display: none;/s)
+  })
 
   test('the effort assessment says that an effort verdict needs a rating', async () => {
     mockApi({ ...drawerRoutes(), 'GET /api/research/params': () => registry })

@@ -113,6 +113,9 @@ export const TEMPLATES = {
     { ids: 'text' },
     { fallback: 'The research base could not be loaded.' },
   ),
+  // The count beside a rule's name on its fold: how many papers are behind it.
+  'why.papers-one': tpl('1 paper', {}, { shape: 'label' }),
+  'why.papers-many': tpl('{n} papers', { n: 'count' }, { fallback: 'Papers', shape: 'label' }),
   'why.paper-missing': tpl(
     '{id} is not in the bundled research base.',
     { id: 'text' },
