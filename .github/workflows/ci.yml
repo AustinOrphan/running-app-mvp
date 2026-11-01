@@ -22,6 +22,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # A high or critical advisory on a runtime dependency fails the build here, so it shows as a red
+      # check instead of waiting for a Dependabot PR that nobody opens. Dev dependencies are left out:
+      # the Docker image installs without them.
+      - run: npm audit --omit=dev --audit-level=high
       # The browsers are kept between runs, keyed by the installed Playwright version (the build of
       # chromium it downloads follows from it). Twice a runner hung on that download until the job's
       # 20 minutes ran out. A hit still installs the system packages chromium needs on a fresh runner.
