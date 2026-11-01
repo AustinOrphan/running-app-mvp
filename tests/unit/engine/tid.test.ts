@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   countsAsVolume,
   deliveredShares,
+  isDrawnOutsideE4,
   percentOfMinutes,
   plannedZoneMinutes,
   tidZoneOf,
@@ -136,5 +137,32 @@ describe('whole percents', () => {
     // 98.6 / 1.2 / 0.2
     expect(wholePercents({ z1: 98.6, z2: 1.2, z3: 0.2 })).toEqual({ z1: 99, z2: 1, z3: 0 })
     expect(wholePercents({ z1: 100, z2: 0, z3: 0 })).toEqual({ z1: 100, z2: 0, z3: 0 })
+  })
+})
+
+describe('the weeks rule E4 does not draw', () => {
+  it('are the return steps after the race and the weeks of a start path', () => {
+    for (const flags of [
+      ['post-race'],
+      ['ladder-1', 'run-walk'],
+      ['ladder-4', 'restart-floor', 'run-walk'],
+      ['injury-return', 'injury-level-2'],
+      ['restart-floor', 'strength-block'],
+    ]) {
+      expect(isDrawnOutsideE4(flags), flags.join(',')).toBe(true)
+    }
+  })
+
+  it('are not the loading, recovery, taper and race weeks', () => {
+    for (const flags of [
+      [],
+      ['recovery'],
+      ['strength-block'],
+      ['taper'],
+      ['race-week'],
+      ['peak'],
+    ]) {
+      expect(isDrawnOutsideE4(flags), flags.join(',')).toBe(false)
+    }
   })
 })

@@ -5,11 +5,13 @@
 //
 // Two readers share it so that what the Why drawer says and what the plan report measures are one
 // count: `explainInputs.ts` (the E4 fact of a week) and `tests/unit/engine/plan-metrics.ts` (the
-// realised distribution). The three-zone choices below are the report's own and are not stated by
-// E4: strides count in zone 3, as the F2 cap counts them above zone 1, and race pace counts in
-// zone 2 above 10 km (E4: "race pace moves into Z2") and in zone 3 at 5 and 10 km, where E4 says
-// nothing.
+// realised distribution). Two choices of this counting are not stated by E4: strides count in zone
+// 3, as the F2 cap counts them above zone 1, and race pace counts in zone 2 above 10 km (E4: "race
+// pace moves into Z2") and in zone 3 at 5 and 10 km, where E4 says nothing. Race pace is above zone
+// 1 either way, so the zone 1 share does not depend on it; it moves minutes between zones 2 and 3
+// (about 10 points of a 5 or 10 km specific phase), and strides are a minute or two a session.
 import { RUN_KINDS } from './adjust.ts'
+import { startKind } from './startWeeks.ts'
 import type { GoalModel, SessionSpec, ZoneKey } from './types.ts'
 
 /** The distance class of a goal, which decides where race-pace work counts. */
@@ -61,6 +63,15 @@ export function zoneMinutes(
     else if (zone === 3) z3 += minutes
   }
   return { z1: Math.max(0, session.durationMin - z2 - z3), z2, z3 }
+}
+
+/**
+ * A week whose sessions something other than rule E4 sets: a start path (the run-walk ladder, the
+ * injury-return ladder, the restart floor week; E6) or a return step after the race (H12). Such a
+ * week is drawn at 100/0/0 from a programme, so it has no E4 aim and is not read against an E4 row.
+ */
+export function isDrawnOutsideE4(flags: readonly string[]): boolean {
+  return flags.includes('post-race') || startKind(flags) !== null
 }
 
 /** The minutes in each zone of the sessions that count toward running minutes (`countsAsVolume`). */

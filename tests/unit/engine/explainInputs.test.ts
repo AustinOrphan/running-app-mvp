@@ -3021,7 +3021,7 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
 
   test('E4 states what the week holds by planned minutes, then the aim it was drawn from', () => {
     const ctx = ctxOf('marathon')
-    const [week, aim, ...rest] = factsOf('E4', ctx)
+    const [week, count, aim, ...rest] = factsOf('E4', ctx)
     expect(rest).toEqual([])
     const stored = ctx.input.existing!.weeks.find((w) => w.weekStart === MONDAY)!
     const sessions = ctx.input.existing!.sessions.filter((s) => mondayOf(s.date) === MONDAY)
@@ -3039,9 +3039,14 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
       expect(Math.abs(shown[i]! - exact)).toBeLessThan(1)
     }
     expect(text(week!)).toBe(
-      `Planned minutes in the week of 19 Oct: ${String(shown[0])}% in zone 1, ${String(shown[1])}% in zone 2 and ${String(shown[2])}% in zone 3, with work blocks at their zone and the rest at zone 1.`,
+      `Planned running minutes in the week of 19 Oct: ${String(shown[0])}% in zone 1, ${String(shown[1])}% in zone 2 and ${String(shown[2])}% in zone 3.`,
     )
-    // the second is the band the plan drew the week from, kept as the aim
+    // the second says how the minutes are counted, and what is left out
+    expect(count!.id).toBe('e4.count')
+    expect(text(count!)).toBe(
+      'Time in a zone is counted from planned minutes: work blocks at their zone, the rest of a run at zone 1; the race, hikes and strength are left out.',
+    )
+    // the third is the band the plan drew the week from, kept as the aim
     expect(aim!.id).toBe('e4.aim')
     expect(slot(aim!, 'z1', 'percent').pct).toBe(stored.tid.z1)
     expect(slot(aim!, 'z2', 'percent').pct).toBe(stored.tid.z2)
@@ -3061,8 +3066,9 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
     expect(forSession.map((f) => f.window)).toEqual([
       { from: monday, to: addDays(monday, 6) },
       { from: monday, to: addDays(monday, 6) },
+      { from: monday, to: addDays(monday, 6) },
     ])
-    expect(slot(forSession[1]!, 'z1', 'percent').pct).toBe(storedLater.tid.z1)
+    expect(slot(forSession[2]!, 'z1', 'percent').pct).toBe(storedLater.tid.z1)
   })
 
   test('E4 counts a week of known sessions: threshold work in zone 2, interval work in zone 3', () => {
@@ -3112,8 +3118,137 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
       },
     }
     expect(text(factsOf('E4', ctx)[0]!)).toBe(
-      'Planned minutes in the week of 19 Oct: 86% in zone 1, 9% in zone 2 and 5% in zone 3, with work blocks at their zone and the rest at zone 1.',
+      'Planned running minutes in the week of 19 Oct: 86% in zone 1, 9% in zone 2 and 5% in zone 3.',
     )
+  })
+
+  /** The marathon context with the sessions of the first week replaced by `week`, and a goal class. */
+  function withWeek(
+    sessions: Array<{ kind: SessionKind; durationMin: number; structure?: Step[] }>,
+    over: { distanceClass?: EngineInput['goal']['distanceClass']; flags?: string[] } = {},
+  ) {
+    const base = ctxOf('marathon')
+    const existing = base.input.existing!
+    const template = existing.sessions[0]!
+    return {
+      ...base,
+      race: { ...base.race!, distanceClass: over.distanceClass ?? base.race!.distanceClass },
+      input: {
+        ...base.input,
+        existing: {
+          weeks: existing.weeks.map((w) =>
+            w.weekStart === MONDAY && over.flags !== undefined ? { ...w, flags: over.flags } : w,
+          ),
+          sessions: [
+            ...existing.sessions.filter((s) => mondayOf(s.date) !== MONDAY),
+            ...sessions.map((s, i) => ({
+              ...template,
+              id: `w-${String(i)}`,
+              date: addDays(MONDAY, i + 1),
+              structure: [],
+              ...s,
+            })),
+          ],
+        },
+      },
+    }
+  }
+  const racePaceWeek = [
+    { kind: 'easy' as const, durationMin: 60 },
+    {
+      kind: 'race-pace' as const,
+      durationMin: 40,
+      structure: [
+        {
+          kind: 'warmup' as const,
+          reps: 1,
+          durationSec: 600,
+          distanceM: null,
+          zone: 'z1' as const,
+        },
+        {
+          kind: 'work' as const,
+          reps: 1,
+          durationSec: 1200,
+          distanceM: null,
+          zone: 'race-pace' as const,
+        },
+        {
+          kind: 'cooldown' as const,
+          reps: 1,
+          durationSec: 600,
+          distanceM: null,
+          zone: 'z1' as const,
+        },
+      ],
+    },
+  ]
+
+  test('E4 counts race-pace work by the class of the goal race: zone 2 above 10 km, zone 3 at 5 and 10 km', () => {
+    // 100 planned minutes, 20 of them at race pace
+    const zones = (ctx: ExplainContext) =>
+      (['z1', 'z2', 'z3'] as const).map((z) => slot(factsOf('E4', ctx)[0]!, z, 'percent').pct)
+    expect(zones(withWeek(racePaceWeek, { distanceClass: 'marathon' }))).toEqual([80, 20, 0])
+    expect(zones(withWeek(racePaceWeek, { distanceClass: 'half' }))).toEqual([80, 20, 0])
+    expect(zones(withWeek(racePaceWeek, { distanceClass: '10k' }))).toEqual([80, 0, 20])
+    expect(zones(withWeek(racePaceWeek, { distanceClass: '5k' }))).toEqual([80, 0, 20])
+  })
+
+  test('E4 asks for the goal as the engine models it, and never counts race pace without one', () => {
+    expect(explainNeeds(['E4']).race).toBe(true)
+    expect(explainNeeds(['e4']).race).toBe(true)
+    // a request that carries no goal race says so and states no mix
+    const facts = factsOf('E4', { ...withWeek(racePaceWeek), race: null })
+    expect(facts).toHaveLength(1)
+    expect(facts[0]).toMatchObject({ template: 'explain.goal-gap', state: 'insufficient' })
+  })
+
+  test('E4 names the running it counts, and the race alone is no running', () => {
+    // the race counts for nothing: a shake-out run does, and a week of the race alone says so
+    const shakeOut = [
+      { kind: 'easy' as const, durationMin: 20 },
+      { kind: 'race' as const, durationMin: 240 },
+    ]
+    expect(text(factsOf('E4', withWeek(shakeOut))[0]!)).toBe(
+      'Planned running minutes in the week of 19 Oct: 100% in zone 1, 0% in zone 2 and 0% in zone 3.',
+    )
+    const raceOnly = factsOf('E4', withWeek([{ kind: 'race' as const, durationMin: 240 }]))
+    expect(raceOnly).toHaveLength(1)
+    expect(raceOnly[0]).toMatchObject({ id: 'e4.week', template: 'explain.e4-week-race' })
+    expect(text(raceOnly[0]!)).toBe(
+      'The week of 19 Oct holds the race and no other planned running, so no running minutes fall in any zone.',
+    )
+    // strength and a hike are not counted either
+    const noRun = factsOf(
+      'E4',
+      withWeek([
+        { kind: 'strength' as const, durationMin: 40 },
+        { kind: 'hike' as const, durationMin: 120 },
+      ]),
+    )
+    expect(noRun[0]).toMatchObject({ template: 'explain.e4-week-none' })
+  })
+
+  test('E4 states no aim for a week a start path or the return after the race sets', () => {
+    const easy = [{ kind: 'easy' as const, durationMin: 40 }]
+    for (const flags of [
+      ['post-race'],
+      ['ladder-3', 'run-walk'],
+      ['injury-return', 'injury-level-1'],
+      ['restart-floor'],
+    ]) {
+      const facts = factsOf('E4', withWeek(easy, { flags }))
+      expect(
+        facts.map((f) => f.id),
+        flags.join(','),
+      ).toEqual(['e4.week', 'e4.count'])
+    }
+    // an ordinary week keeps its aim
+    expect(factsOf('E4', withWeek(easy, { flags: ['strength-block'] })).map((f) => f.id)).toEqual([
+      'e4.week',
+      'e4.count',
+      'e4.aim',
+    ])
   })
 
   test('E4 says so when the plan sets no running in the week', () => {

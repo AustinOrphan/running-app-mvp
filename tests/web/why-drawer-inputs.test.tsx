@@ -913,7 +913,8 @@ describe('WhyDrawer, the intensity distribution [rule E4]', () => {
       .getAllByRole('listitem')
       .map((item) => item.querySelector('p')?.textContent)
     expect(sentences).toEqual([
-      'Planned minutes in the week of 19 Oct: 86% in zone 1, 9% in zone 2 and 5% in zone 3, with work blocks at their zone and the rest at zone 1.',
+      'Planned running minutes in the week of 19 Oct: 86% in zone 1, 9% in zone 2 and 5% in zone 3.',
+      'Time in a zone is counted from planned minutes: work blocks at their zone, the rest of a run at zone 1; the race, hikes and strength are left out.',
       'The aim for a build week is 80% in zone 1, 12% in zone 2 and 8% in zone 3.',
     ])
     // the old sentence declared the band as what the week holds
@@ -937,6 +938,28 @@ describe('WhyDrawer, the intensity distribution [rule E4]', () => {
         'The plan sets no running for the week of 19 Oct, so no minutes fall in any zone.',
       ),
     ).toBeInTheDocument()
+    expect(within(group).queryByText(/The aim for/)).not.toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  test('a week whose only running is the race says so, and does not say it has no running', async () => {
+    const input = knownWeek()
+    const race = { ...input.existing!.sessions[0]!, id: 'e4-race', kind: 'race' as const }
+    const figures = e4View({ ...input, existing: { ...input.existing!, sessions: [race] } })
+    mockApi(drawerRoutes(() => figures, 'km', { 'GET /api/research/params': () => e4Registry }))
+    const { open } = renderButton({ subject: 'rules', rules: ['E4'] }, ['E4'])
+    await open()
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const group = await within(dialog).findByRole('group', {
+      name: 'Intensity distribution by phase',
+    })
+    expect(
+      within(group).getByText(
+        'The week of 19 Oct holds the race and no other planned running, so no running minutes fall in any zone.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(group).queryByText(/The plan sets no running/)).not.toBeInTheDocument()
     expect(within(group).queryByText(/The aim for/)).not.toBeInTheDocument()
     expectCleanCopy(dialog)
   })
