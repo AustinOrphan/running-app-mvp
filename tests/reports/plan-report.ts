@@ -39,8 +39,11 @@ import { OFFERED, positionOf, withMethod, type Offered } from '../unit/engine/me
 import {
   describePlan,
   figure,
+  QUALITY_KINDS,
+  type Bound,
   type Figure,
   type HeadroomFigure,
+  type PhaseIntensity,
   type PlanDescription,
   type ZoneShares,
 } from '../unit/engine/plan-metrics.ts'
@@ -399,6 +402,10 @@ const NOTES = [
   'Planned load is the minutes of a session times the midpoint of `expectedRpe` for its kind, in relative units. Monotony and strain come from the seven daily loads of a whole week through `monotonyStrain` and carry no flag, as a plan has no range of its own [foster-1998-monotony-strain].',
   // 7
   `A band row is a published plan's figure, labelled "${BAND_LABEL}": a convention, not evidence, and no engine rule rests on it. The distance from the band is printed beside the figure (0 inside the band, else signed to the nearest edge) and is never minimised.`,
+  // 8
+  'Work is the time in zones 2 and 3 counted as note 2 counts it. A quality session is a threshold, intervals, race-pace or hills session (the kinds of the table of quality kinds by phase, rule F2, strides left out), and the weekly figure is read over the loading weeks. Both describe the sessions: no rule sets a number of minutes for either, and rule F2 gives only the share of weekly time (about 20%, never over 25%, grade D) that they are printed beside.',
+  // 9
+  'The E4 row of a phase is read from the Params, and a zone that E4 gives no figure for reads n/a. Base: Z1 80 or more, Z2 up to 12, Z3 about 5 (E4 gives no width for "about", so the distance from the point 5 is printed as it is). Build: 80/12/8 within `e4.priorTolerancePp`. Specific: Z2 up to 25 for a half marathon and a marathon, the threshold cap of any phase for 5 and 10 km, Z1 never under 70. Taper and the race week: the hard rules alone ("intensity kept, volume cut"). An ultra goal: Z1 85 or more in every phase, and in base Z3 up to 5. A phase is pooled over its loading weeks by planned minutes, as the other distribution figures are (recovery weeks and the post-race return steps left out; the taper row pools the taper weeks and the race week). The distance is in percentage points, 0 inside the row, else signed to the nearest edge. It describes the sessions and is never minimised (ADR 0016, point 5): the declared column is what the plan was drawn from, the realised column is what its sessions hold, and where race pace counts moves minutes between zones 2 and 3 and leaves the Z1 share as it is.',
 ] as const
 
 const noteRef = (n: number): string => `note ${n}`
@@ -485,6 +492,49 @@ function compositionTable(rows: readonly PlanRow[]): string {
         index(pol.realised),
       ]
     }),
+  )
+}
+
+/** An E4 bound in words: "80 or more", "up to 12", "75 to 85", the point "about 5", or "-" for no figure. */
+function boundText(b: Bound | null): string {
+  if (b === null) return '-'
+  if (b.lo !== null && b.hi !== null)
+    return b.lo === b.hi ? `about ${fix(b.lo, 0)}` : `${fix(b.lo, 0)} to ${fix(b.hi, 0)}`
+  if (b.lo !== null) return `${fix(b.lo, 0)} or more`
+  return b.hi === null ? '-' : `up to ${fix(b.hi, 0)}`
+}
+
+const distanceText = (n: number | null): string => (n === null ? NA : signed(n))
+
+/** The phases of a plan: the realised distribution against the E4 row, with the distance. */
+function phaseTable(rows: readonly PlanRow[]): string {
+  const first = rows[0]!
+  const body = rows.flatMap((r) =>
+    r.d.intensityByPhase.value.map((p: PhaseIntensity) => [
+      r.id,
+      r.input.goal.distanceClass,
+      p.phase,
+      String(p.weeks),
+      zones(p.declared),
+      zones(p.realised),
+      `Z1 ${boundText(p.row.z1)}; Z2 ${boundText(p.row.z2)}; Z3 ${boundText(p.row.z3)}`,
+      [p.distance.z1, p.distance.z2, p.distance.z3].map(distanceText).join(' / '),
+      label(p.row.basis),
+    ]),
+  )
+  return table(
+    [
+      'Athlete',
+      'Goal',
+      'Phase',
+      'Weeks',
+      `Declared Z1 / Z2 / Z3 % (${label(first.d.intensityByPhase)})`,
+      `Realised Z1 / Z2 / Z3 % (${label(first.d.intensityByPhase)}; ${noteRef(2)})`,
+      `E4 row, % (${noteRef(9)})`,
+      `Distance from the row, Z1 / Z2 / Z3, points (${noteRef(9)})`,
+      'Label of the row',
+    ],
+    body,
   )
 }
 
@@ -690,6 +740,20 @@ function scoreRows(r: PlanRow): Score[] {
     `${index(pol.declared)} / ${index(pol.realised)}`,
     d.polarization,
   )
+  const quality = d.qualityWork.value
+  add(
+    `Work per quality session, minutes above zone 1 (${noteRef(8)})`,
+    quality.perSession === null
+      ? `${NA} (no quality session in the loading weeks)`
+      : `${num(quality.perSession)} min over ${quality.sessions} ${quality.sessions === 1 ? 'session' : 'sessions'}`,
+    d.qualityWork,
+  )
+  const weekly = d.weeklyZ2Plus.value
+  add(
+    `Minutes at or above zone 2 a week, loading weeks: mean / max (${noteRef(8)})`,
+    `${num(weekly.mean)} / ${num(weekly.max)} min over ${weekly.rows.length} ${weekly.rows.length === 1 ? 'week' : 'weeks'}`,
+    d.weeklyZ2Plus,
+  )
   add(
     `Planned load, relative units: peak week / mean (${noteRef(6)})`,
     `${cell('peakLoad', r)} / ${fix(mean(d.load.value.map((l) => l.load)) ?? 0, 0)}`,
@@ -775,6 +839,10 @@ export function renderMatrixSection(rows: readonly PlanRow[] = matrixRows()): st
     '',
     compositionTable(rows),
     '',
+    '### Intensity by phase: the sessions against the E4 row',
+    '',
+    phaseTable(rows),
+    '',
     '### Load, recovery cycle and taper',
     '',
     loadTable(rows),
@@ -794,14 +862,6 @@ export function renderMatrixSection(rows: readonly PlanRow[] = matrixRows()): st
 // ---------------------------------------------------------------------------------------------
 // Presets: the matrix at each method preset (rules P1 to P4, task M5)
 // ---------------------------------------------------------------------------------------------
-
-/** The sessions the table of quality kinds by phase holds, other than strides [rule F2]. */
-const HARD_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
-  'threshold',
-  'intervals',
-  'race-pace',
-  'hills',
-])
 
 const sessionsOf = (r: PlanRow, kinds: ReadonlySet<SessionKind>): number =>
   r.plan.sessions.filter((s) => kinds.has(s.kind)).length
@@ -851,7 +911,7 @@ const PRESET_METRICS = {
   hardSessions: {
     head: 'Quality sessions other than strides',
     figure: null,
-    get: (r) => sessionsOf(r, HARD_KINDS),
+    get: (r) => sessionsOf(r, QUALITY_KINDS),
     digits: 0,
   },
   intervals: { head: 'Interval sessions', figure: null, get: kindCount('intervals'), digits: 0 },

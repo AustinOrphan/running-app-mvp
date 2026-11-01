@@ -43,7 +43,7 @@ vi.setConfig({ testTimeout: 30_000 })
  *     console.log(createHash('sha256').update(m.renderMatrixSection()).digest('hex'))
  *   })"
  */
-const MATRIX_DIGEST = '00351558c6fc7f931698b0de21d97185e0b6137d00e9b009a8cd3bf08cac50b7'
+const MATRIX_DIGEST = '38798a530f8c66ded1ce32d82ae8093d2a100588eda05cdfabef0103768b60e4'
 
 /**
  * The digest of the section of each method preset (the twelve athletes at the preset, each figure
@@ -178,6 +178,72 @@ describe('the matrix section', () => {
     const post = body.find((r) => r[0] === 'post-marathon-short-run')!
     expect(Number(novice[soft])).toBeLessThan(0)
     expect(Number(post[soft])).toBeLessThan(0)
+  })
+})
+
+describe('the intensity of each phase against the E4 row', () => {
+  const heading = '### Intensity by phase: the sessions against the E4 row'
+  const [head, ...body] = tableAfter(matrix, heading)
+  const col = (name: string) => head!.findIndex((h) => h.startsWith(name))
+  const rowOf = (id: string, phase: string) => body.find((r) => r[0] === id && r[2] === phase)!
+
+  it('holds a row for each phase of each of the twelve athletes, in the order of the plan', () => {
+    const expected = matrixRows().flatMap((r) =>
+      r.d.intensityByPhase.value.map((p) => `${r.id} ${p.phase}`),
+    )
+    expect(body.map((r) => `${r[0]} ${r[2]}`)).toEqual(expected)
+    expect(new Set(body.map((r) => r[0]))).toEqual(new Set(matrixRows().map((r) => r.id)))
+  })
+
+  it('labels the figure columns and each row with the grade and rule of the Params it rests on', () => {
+    expect(head).toContain('Declared Z1 / Z2 / Z3 % (C, E4)')
+    expect(head).toContain('Realised Z1 / Z2 / Z3 % (C, E4; note 2)')
+    expect(head).toContain('E4 row, % (note 9)')
+    expect(head).toContain('Distance from the row, Z1 / Z2 / Z3, points (note 9)')
+    for (const row of body) expect(row.at(-1), `${row[0]} ${row[2]}`).toMatch(/^[ABCD], E4$/)
+    // a base or build row rests on the weakest of its priors; an ultra row is grade D
+    expect(rowOf('marathon', 'build').at(-1)).toBe('C, E4')
+    expect(rowOf('first-100-mile', 'build').at(-1)).toBe('D, E4')
+  })
+
+  it('reads the row from the Params: build 80/12/8 within 5 points, base with the point 5', () => {
+    expect(rowOf('marathon', 'build')[col('E4 row')]).toBe('Z1 75 to 85; Z2 7 to 17; Z3 3 to 13')
+    expect(rowOf('marathon', 'base')[col('E4 row')]).toBe('Z1 80 or more; Z2 up to 12; Z3 about 5')
+    expect(rowOf('marathon', 'specific')[col('E4 row')]).toBe('Z1 70 or more; Z2 up to 25; Z3 -')
+    expect(rowOf('first-100-mile', 'base')[col('E4 row')]).toBe('Z1 85 or more; Z2 -; Z3 up to 5')
+  })
+
+  it('prints the distance in points, 0 inside the row and n/a for a zone with no bound', () => {
+    const cell = /^(?:n\/a|[+-]?\d+\.\d)$/
+    for (const row of body) {
+      const parts = row[col('Distance from the row')]!.split(' / ')
+      expect(parts, `${row[0]} ${row[2]}`).toHaveLength(3)
+      for (const part of parts) expect(part, `${row[0]} ${row[2]}`).toMatch(cell)
+      // a zone the row has no figure for reads n/a, and only such a zone does
+      const bounds = row[col('E4 row')]!.split('; ')
+      for (const [i, b] of bounds.entries()) {
+        expect(parts[i] === 'n/a', `${row[0]} ${row[2]} Z${String(i + 1)}`).toBe(b.endsWith(' -'))
+      }
+    }
+    // marathon build: Z1 over 85 by about 6 points, Z3 under 3 by about 1
+    const build = rowOf('marathon', 'build')[col('Distance from the row')]!.split(' / ')
+    expect(Number(build[0])).toBeGreaterThan(5)
+    expect(Number(build[2])).toBeLessThan(0)
+  })
+
+  it('shows the declared and the realised distribution of a phase side by side', () => {
+    const declared = rowOf('marathon', 'build')[col('Declared')]!
+    const realised = rowOf('marathon', 'build')[col('Realised')]!
+    expect(declared).toBe('80.0 / 12.0 / 8.0')
+    expect(realised).not.toBe(declared)
+  })
+
+  it('gives the notes for the row and the work figures, and says the distance is never minimised', () => {
+    const text = renderReport({ matrixOnly: true })
+    expect(text).toMatch(/\n8\. Work is the time in zones 2 and 3/)
+    expect(text).toMatch(/\n9\. The E4 row of a phase is read from the Params/)
+    expect(text).toContain('is never minimised (ADR 0016, point 5)')
+    expect(() => assertReportClean(text)).not.toThrow()
   })
 })
 
@@ -342,6 +408,33 @@ describe('the scorecards', () => {
     // a half marathon or an ultra has no band
     expect(rowsOf('half')).not.toContain('practice source')
     expect(rowsOf('first-100-mile')).not.toContain('practice source')
+  })
+
+  it('carry the work per quality session and the minutes at or above zone 2, with their rule and grade', () => {
+    for (const card of cards) {
+      const id = card.split(' ')[0]
+      const rows = card
+        .split('\n')
+        .filter((l) => l.startsWith('| '))
+        .map((l) =>
+          l
+            .split('|')
+            .slice(1, -1)
+            .map((c) => c.trim()),
+        )
+      const quality = rows.find((r) => r[0]!.startsWith('Work per quality session'))
+      const weekly = rows.find((r) => r[0]!.startsWith('Minutes at or above zone 2 a week'))
+      expect(quality, id).toBeDefined()
+      expect(weekly, id).toBeDefined()
+      expect([quality![2], quality![3]], id).toEqual(['D', 'F2'])
+      expect([weekly![2], weekly![3]], id).toEqual(['D', 'E4, F2'])
+      expect(quality![0], id).toContain('(note 8)')
+      expect(weekly![1], id).toMatch(/^\d+\.\d \/ \d+\.\d min over \d+ weeks?$/)
+      // a plan with no quality session in its loading weeks says so instead of a figure
+      expect(quality![1], id).toMatch(
+        /^(?:\d+\.\d min over \d+ sessions?|n\/a \(no quality session.*\))$/,
+      )
+    }
   })
 
   it("print every band row as 'D, practice source'", () => {
