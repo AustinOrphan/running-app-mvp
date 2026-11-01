@@ -12,7 +12,7 @@
 //
 // Every preset is grade D, a choice and not a better plan: the `fidelity` figure is report-only, and
 // these asserts check that a preset keeps its words, never that its weeks are better.
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { SessionKind } from '../../../shared/engine/types.ts'
 import { athletes } from './matrix-fixtures.ts'
 import { OFFERED, READING, type Offered } from './method-fixtures.ts'
@@ -25,8 +25,7 @@ import {
 } from './sim-athlete.ts'
 
 // The 36 chains take about ten seconds on a development machine and more beside the other test files:
-// the timeout is a minute, so a slow machine fails an assertion and not a bare timeout.
-vi.setConfig({ testTimeout: 60_000 })
+// the file is in the `sweep` project (`tests/vitestProjects.ts`), which sets the test timeout.
 
 /** One seed for every chain, so the athlete draws the same days at every preset (`sim-athlete.test.ts`). */
 const SEED = 20_261_031

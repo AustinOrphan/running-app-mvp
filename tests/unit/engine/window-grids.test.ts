@@ -21,7 +21,7 @@
 //    every second week, the days before run as planned, with a niggle of 28 days: the load items of
 //    the checklist pass, the fall of the taper among them (a race week redrawn above the plan before
 //    failed it on those days). 7,362 re-plans.
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { buildPlan } from '../../../shared/engine/index.ts'
 import type { DisruptionWindow } from '../../../shared/engine/types.ts'
@@ -30,8 +30,7 @@ import { windowOf, withWindows } from './disruption-fixtures.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
 import { replanChain } from './replan-steps.ts'
 
-vi.setConfig({ testTimeout: 900_000 })
-
+// The test timeout (15 minutes) is the `sweep` project's (`tests/vitestProjects.ts`).
 const byHand = describe.skipIf(process.env.WINDOW_GRIDS_FULL === undefined)
 
 /** The windows of the re-plan grid: a niggle of 7 to 28 days, an illness of 10 and 14 days. */

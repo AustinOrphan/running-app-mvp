@@ -14,5 +14,5 @@ import { describePhases } from './preset-phases.ts'
 describePhases(
   'the phases of a longer-base plan: sweep runners 101 to 150 at all 26 dates (by hand)',
   sweepCases(SWEEP_SEED, SWEEP_COUNT).slice(100, 150),
-  { byHand: true, timeoutMs: 900_000 },
+  { byHand: true },
 )
