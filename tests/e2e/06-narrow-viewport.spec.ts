@@ -780,6 +780,44 @@ test('a tap on Skip in the session sheet shows what would change, with Apply cha
   expect(await isUncovered(apply)).toBe(true)
   expect(await pageOverflow()).toBeLessThanOrEqual(0)
 
+  // The buttons are pinned, not only scrolled to: on a short screen, with the sheet scrolled so
+  // that only the top 70 px of the answer shows above its foot, Apply change is still inside the
+  // scroller. Without `position: sticky` on the row it sits below the scroller's bottom edge.
+  await page.setViewportSize({ width: 360, height: 420 })
+  await dialog.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  const placed = await check.evaluate((panel) => {
+    let scroller: HTMLElement | null = panel.parentElement
+    while (
+      scroller !== null &&
+      !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)
+    ) {
+      scroller = scroller.parentElement
+    }
+    if (scroller === null) throw new Error('The answer has no scrolling sheet around it.')
+    const foot = scroller.getBoundingClientRect().bottom
+    scroller.scrollTop += panel.getBoundingClientRect().top - (foot - 70)
+    return { scrolledBy: scroller.scrollTop }
+  })
+  expect(placed.scrolledBy, 'the sheet scrolled to put the answer near its foot').toBeGreaterThan(0)
+  const scrollerBottom = await check.evaluate((panel) => {
+    let scroller: HTMLElement | null = panel.parentElement
+    while (
+      scroller !== null &&
+      !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)
+    ) {
+      scroller = scroller.parentElement
+    }
+    return scroller?.getBoundingClientRect().bottom ?? 0
+  })
+  const pinned = await apply.boundingBox()
+  expect(pinned, 'Apply change on the short screen').not.toBeNull()
+  expect(
+    (pinned?.y ?? 0) + (pinned?.height ?? 0),
+    'Apply change is inside the sheet',
+  ).toBeLessThanOrEqual(scrollerBottom + 0.5)
+  expect(await isUncovered(apply), 'Apply change on the short screen').toBe(true)
+  await page.setViewportSize(size)
+
   // Cancel changes nothing.
   await cancel.click()
   await expect(change.getByText('What would change')).toBeHidden()
