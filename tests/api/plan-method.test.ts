@@ -1,9 +1,17 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
+import { assertCleanCopy } from '../../shared/copy/lint.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
 import type { ExplainView } from '../../shared/engine/types.ts'
-import type { PlanWithSessions } from '../../shared/types.ts'
+import type {
+  MethodChangeResult,
+  PlanRevisionView,
+  PlanWithSessions,
+  UndoResult,
+} from '../../shared/types.ts'
 import { parsePlanOptions } from '../../server/serialize.ts'
+import { replanActivePlan } from '../../server/services/replan.ts'
+import { optionsRestored, readPayload } from '../../server/services/revisions.ts'
 import {
   client,
   createTestCtx,
@@ -12,7 +20,7 @@ import {
   type TestCtx,
   type TestUser,
 } from './helpers.ts'
-import { runsOn, s3Runs } from '../unit/engine/history-fixtures.ts'
+import { runsOn, s3Runs, weeks, type Run } from '../unit/engine/history-fixtures.ts'
 
 // The method preset on a plan (task M2, rules P1 to P4, methods proposal sections 4.3 and 4.5):
 // POST /api/plan/generate takes `options.method`, an unknown id is a 400 with its path, the plan
@@ -54,15 +62,15 @@ async function seedGoal(userId: string, distanceM: number, name: string) {
   })
 }
 
-/** A runner of 41 with a year of running and the block of appendix A. */
-async function seedRunner(email: string) {
+/** A runner of 41 with a year of running and the block of appendix A (or the runs given). */
+async function seedRunner(email: string, runs: Run[] = s3Runs()) {
   const user = await seedUser(ctx, { email })
   await client(ctx, user)
     .put('/api/profile')
     .send({ birthYear: year - 41, runningSinceYear: year - 1 })
     .expect(200)
   await ctx.prisma.activity.createMany({
-    data: runsOn(thisMonday, s3Runs()).map((a) => ({
+    data: runsOn(thisMonday, runs).map((a) => ({
       userId: user.id,
       date: a.date,
       type: 'run',
@@ -457,5 +465,558 @@ describe('the stored preset', () => {
     })
     expect(parsePlanOptions('{"method":3}')).toEqual({})
     expect(parsePlanOptions('{"method":null,"loadAppetite":"extreme"}')).toEqual({})
+  })
+})
+
+// The change of the preset in place (task M6, decision 8 of the methods proposal): PUT
+// /api/plan/method stores the preset through the re-plan path as one revision with the diff of the
+// weeks it moved and an undo that puts the old preset back with the old rows. The week the change is
+// made in keeps the shape it was drawn under, so its sessions stay and the weeks after it carry the
+// shape.
+
+const putMethod = (user: TestUser, body: unknown) =>
+  client(ctx, user)
+    .put('/api/plan/method')
+    .send(body as object)
+const revisionCount = (planId: string) => ctx.prisma.planRevision.count({ where: { planId } })
+const listed = async (user: TestUser, query = '') =>
+  (await client(ctx, user).get(`/api/plan/revisions${query}`)).body as PlanRevisionView[]
+/** The sessions of the week of `monday` as the plan holds them: what a held week keeps. */
+const weekSessions = (plan: PlanWithSessions, monday: string) =>
+  plan.sessions
+    .filter((s) => s.weekStart === monday)
+    .map((s) => [s.id, s.externalId, s.date, s.kind, s.durationMin, s.title, s.status, s.rules])
+const shapeFlags = (plan: PlanWithSessions, monday: string): string[] =>
+  plan.weeks.find((w) => w.weekStart === monday)!.flags.filter((f) => f.startsWith('shape-'))
+/**
+ * A plan of a runner who has run four times a week for twelve weeks, so that the plan opens on its
+ * own weeks and not on a start programme's, drawn once more so that what a test reads is a plan a
+ * re-plan leaves as it is.
+ */
+async function seedPlan(email: string, distanceM = HALF_M, options?: Record<string, unknown>) {
+  const user = await seedRunner(email, weeks(12, 1, [50, 50, 50, 70]))
+  const goal = await seedGoal(user.id, distanceM, 'Test Race')
+  const created = await generate(user, goal.id, options)
+  expect(created.status, JSON.stringify(created.body)).toBe(201)
+  expect((await client(ctx, user).post('/api/plan/replan').send({})).status).toBe(200)
+  return { user, goal, planId: (created.body as PlanWithSessions).id }
+}
+
+describe('PUT /api/plan/method', () => {
+  test('stores the preset, draws the weeks after the current one again and records one revision with the summary', async () => {
+    const { user, planId } = await seedPlan('method-put@example.com')
+    const before = await readPlan(user)
+    expect(Math.max(...ahead(before).map((w) => w.runDays))).toBeGreaterThan(3)
+    const revisionsBefore = await revisionCount(planId)
+
+    const res = await putMethod(user, { method: 'three-run-days' })
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const { method, revision } = res.body as MethodChangeResult
+    expect(method).toBe('three-run-days')
+    expect(revision).not.toBeNull()
+    expect(revision!.reason).toBe('method-change')
+    expect(revision!.auto).toBe(false)
+    const after = await readPlan(user)
+    const weeksAfter = after.weeks.filter((w) => w.weekStart > thisMonday)
+    expect(revision!.summary).toBe(
+      `Plan shape changed to three run days a week. ${String(weeksAfter.length)} weeks redrawn from ${
+        /redrawn from (.+?)\. This week/.exec(revision!.summary)![1]!
+      }. This week stays as it was drawn.`,
+    )
+    assertCleanCopy(revision!.summary)
+
+    // stored as asked, served as in effect, the same plan kept
+    expect(await storedOptions(planId)).toEqual({ method: 'three-run-days' })
+    expect(after.id).toBe(planId)
+    expect(after.method).toEqual({
+      requested: 'three-run-days',
+      effective: 'three-run-days',
+      reason: null,
+    })
+    expect(after.checklist.filter((item) => !item.ok)).toEqual([])
+    for (const week of weeksAfter) {
+      expect(week.runDays, week.weekStart).toBeLessThanOrEqual(3)
+      expect(shapeFlags(after, week.weekStart)).toEqual(['shape-three-run-days'])
+      // no week plans more minutes than the plan's own
+      const own = before.weeks.find((w) => w.weekStart === week.weekStart)!
+      expect(week.targetRunMin, week.weekStart).toBeLessThanOrEqual(own.targetRunMin)
+    }
+
+    // the diff names the weeks after the current one and no day of the current week
+    expect(revision!.diff!.empty).toBe(false)
+    expect(revision!.diff!.weeks.length).toBeGreaterThan(0)
+    expect(revision!.diff!.weeks.every((line) => line.weekStart > thisMonday)).toBe(true)
+    expect(revision!.diff!.sessions.every((line) => line.weekStart > thisMonday)).toBe(true)
+    expect(revision!.causes?.weeks[revision!.diff!.weeks[0]!.weekStart]).toEqual(['owner-edit'])
+
+    // one revision, and the list shows it with its summary and an undo
+    expect(await revisionCount(planId)).toBe(revisionsBefore + 1)
+    const row = (await listed(user)).find((entry) => entry.id === revision!.id)
+    expect(row).toMatchObject({ summary: revision!.summary, reason: 'method-change' })
+    expect(row!.undo.available).toBe(true)
+  })
+
+  test('holds the current week: its sessions and its row stay as they were drawn', async () => {
+    const { user } = await seedPlan('method-held-week@example.com')
+    const before = await readPlan(user)
+    const week = (plan: PlanWithSessions) => plan.weeks.find((w) => w.weekStart === thisMonday)!
+
+    expect((await putMethod(user, { method: 'three-run-days' })).status).toBe(200)
+    const after = await readPlan(user)
+    expect(weekSessions(after, thisMonday)).toEqual(weekSessions(before, thisMonday))
+    expect(week(after)).toEqual(week(before))
+    expect(shapeFlags(after, thisMonday)).toEqual([])
+    // the weeks after it are not the plan's own
+    expect(weekSessions(after, addDays(thisMonday, 35))).not.toEqual(
+      weekSessions(before, addDays(thisMonday, 35)),
+    )
+  })
+
+  test('leaves the weeks of a start programme as they are, and starts the redrawn weeks after them', async () => {
+    // the runner of appendix A opens on a start programme: its weeks are the programme's whatever the
+    // shape, so none is held and the summary counts from the first week the shape reaches
+    const user = await seedRunner('method-programme@example.com')
+    const goal = await seedGoal(user.id, HALF_M, 'Test Half')
+    expect((await generate(user, goal.id)).status).toBe(201)
+    expect((await client(ctx, user).post('/api/plan/replan').send({})).status).toBe(200)
+    const before = await readPlan(user)
+    const programme = before.weeks.filter((w) =>
+      w.flags.some((f) => /^ladder-|^restart-floor$/.test(f)),
+    )
+    expect(programme.length).toBeGreaterThan(0)
+
+    const res = await putMethod(user, { method: 'three-run-days' })
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const { revision } = res.body as MethodChangeResult
+    expect(revision!.summary).toMatch(
+      /^Plan shape changed to three run days a week\. \d+ weeks redrawn from .+\.$/,
+    )
+    const after = await readPlan(user)
+    for (const week of programme) {
+      expect(weekSessions(after, week.weekStart), week.weekStart).toEqual(
+        weekSessions(before, week.weekStart),
+      )
+      expect(shapeFlags(after, week.weekStart)).toEqual([])
+    }
+    const first = after.weeks.find((w) => w.flags.includes('shape-three-run-days'))!
+    expect(revision!.summary).toContain(
+      `${String(after.weeks.filter((w) => w.weekStart >= first.weekStart).length)} weeks`,
+    )
+  })
+
+  test('undo puts the previous preset, the previous weeks and the previous sessions back', async () => {
+    const { user, planId } = await seedPlan('method-undo@example.com')
+    const before = await readPlan(user)
+    const changed = (await putMethod(user, { method: 'three-run-days' })).body as MethodChangeResult
+    const revisionId = changed.revision!.id
+    expect(weeksOf(await readPlan(user))).not.toEqual(weeksOf(before))
+
+    const undone = await client(ctx, user).post(`/api/plan/revisions/${revisionId}/undo`).send({})
+    expect(undone.status, JSON.stringify(undone.body)).toBe(200)
+    const { revision, target } = undone.body as UndoResult
+    expect(revision.reason).toBe('undo')
+    expect(revision.summary).toBe(`Undid: ${changed.revision!.summary}`)
+    expect(target.undo.undoneAt).not.toBeNull()
+
+    // the plan generated with no preset stored none, and reads as the plan's own shape again
+    expect(await storedOptions(planId)).toEqual({})
+    const after = await readPlan(user)
+    expect(weeksOf(after)).toEqual(weeksOf(before))
+    expect(after.method).toEqual(DEFAULT)
+    for (const week of after.weeks) expect(shapeFlags(after, week.weekStart)).toEqual([])
+    expect(after.sessions.map((s) => [s.date, s.kind, s.durationMin, s.title])).toEqual(
+      before.sessions.map((s) => [s.date, s.kind, s.durationMin, s.title]),
+    )
+    expect(after.checklist.filter((item) => !item.ok)).toEqual([])
+  })
+
+  test('undo puts back a preset the plan stored, other options untouched', async () => {
+    const { user, planId } = await seedPlan('method-undo-stored@example.com', HALF_M, {
+      method: 'longer-base',
+      recoveryCycle: '2:1',
+    })
+    const before = await readPlan(user)
+    const changed = (await putMethod(user, { method: 'three-run-days' })).body as MethodChangeResult
+    expect(await storedOptions(planId)).toEqual({ method: 'three-run-days', recoveryCycle: '2:1' })
+    const undone = await client(ctx, user)
+      .post(`/api/plan/revisions/${changed.revision!.id}/undo`)
+      .send({})
+    expect(undone.status, JSON.stringify(undone.body)).toBe(200)
+    expect(await storedOptions(planId)).toEqual({ method: 'longer-base', recoveryCycle: '2:1' })
+    expect(weeksOf(await readPlan(user))).toEqual(weeksOf(before))
+  })
+
+  test('the plan’s own shape is a change like another, stored as asked', async () => {
+    const { user, planId } = await seedPlan('method-back@example.com', HALF_M, {
+      method: 'three-run-days',
+    })
+    const before = await readPlan(user)
+    const res = await putMethod(user, { method: 'default' })
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const { revision } = res.body as MethodChangeResult
+    expect(revision!.summary).toMatch(
+      /^Plan shape changed to the plan's own shape\. \d+ weeks redrawn from .+\. This week stays as it was drawn\.$/,
+    )
+    expect(await storedOptions(planId)).toEqual({ method: 'default' })
+    const after = await readPlan(user)
+    expect(after.method).toEqual(DEFAULT)
+    expect(weekSessions(after, thisMonday)).toEqual(weekSessions(before, thisMonday))
+    expect(shapeFlags(after, thisMonday)).toEqual(['shape-three-run-days'])
+    expect(shapeFlags(after, addDays(thisMonday, 35))).toEqual([])
+    expect(Math.max(...ahead(after).map((w) => w.runDays))).toBeGreaterThan(3)
+  })
+
+  test('stores a preset the goal does not take as asked, serves it as the plan’s own shape with the reason, and says so', async () => {
+    const { user, planId } = await seedPlan('method-marathon-put@example.com', MARATHON_M)
+    const before = await readPlan(user)
+    const res = await putMethod(user, { method: 'three-run-days' })
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const { revision } = res.body as MethodChangeResult
+    expect(revision!.summary).toBe(
+      "Plan shape changed to three run days a week. The plan's own shape applies for now: not for this goal.",
+    )
+    assertCleanCopy(revision!.summary)
+    expect(await storedOptions(planId)).toEqual({ method: 'three-run-days' })
+    const after = await readPlan(user)
+    expect(after.method).toEqual({
+      requested: 'three-run-days',
+      effective: 'default',
+      reason: 'not-applicable',
+    })
+    // read as the plan's own shape, no week moved: the revision has an empty diff, which the list
+    // leaves out unless asked for, and the preset still undoes
+    expect(weeksOf(after)).toEqual(weeksOf(before))
+    expect(revision!.diff!.empty).toBe(true)
+    expect((await listed(user)).some((entry) => entry.id === revision!.id)).toBe(false)
+    expect((await listed(user, '?include=empty')).some((entry) => entry.id === revision!.id)).toBe(
+      true,
+    )
+    const undone = await client(ctx, user).post(`/api/plan/revisions/${revision!.id}/undo`).send({})
+    expect(undone.status, JSON.stringify(undone.body)).toBe(200)
+    expect(await storedOptions(planId)).toEqual({})
+  })
+
+  test('stores a preset held by a recent injury as asked, and says so in the summary', async () => {
+    const { user, planId } = await seedPlan('method-injured-put@example.com')
+    await client(ctx, user)
+      .put('/api/profile')
+      .send({
+        injuries: [{ area: 'knee', side: null, year, month: 1, kind: 'joint', notes: null }],
+      })
+      .expect(200)
+    expect((await client(ctx, user).post('/api/plan/replan').send({})).status).toBe(200)
+    const before = weeksOf(await readPlan(user))
+
+    const res = await putMethod(user, { method: 'longer-base' })
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const { revision } = res.body as MethodChangeResult
+    expect(revision!.summary).toBe(
+      "Plan shape changed to a longer base. The plan's own shape applies for now: held while a recent injury is on file.",
+    )
+    assertCleanCopy(revision!.summary)
+    expect(await storedOptions(planId)).toEqual({ method: 'longer-base' })
+    const after = await readPlan(user)
+    expect(after.method).toEqual({
+      requested: 'longer-base',
+      effective: 'default',
+      reason: 'held:recent-injury',
+    })
+    expect(weeksOf(after)).toEqual(before)
+    expect(revision!.diff!.empty).toBe(true)
+  })
+
+  test('the same preset writes nothing, whether the plan stored it or reads it as the plan’s own shape', async () => {
+    const { user, planId } = await seedPlan('method-same@example.com')
+    const revisions = await revisionCount(planId)
+    const weeks = weeksOf(await readPlan(user))
+
+    // no stored preset reads as the plan's own shape
+    const own = await putMethod(user, { method: 'default' })
+    expect(own.status, JSON.stringify(own.body)).toBe(200)
+    expect(own.body).toEqual({ method: 'default', revision: null })
+    expect(await storedOptions(planId)).toEqual({})
+
+    // a stored preset
+    expect((await putMethod(user, { method: 'three-run-days' })).status).toBe(200)
+    const after = await revisionCount(planId)
+    expect(after).toBe(revisions + 1)
+    const again = await putMethod(user, { method: 'three-run-days' })
+    expect(again.status).toBe(200)
+    expect(again.body).toEqual({ method: 'three-run-days', revision: null })
+    expect(await revisionCount(planId)).toBe(after)
+    expect(weeksOf(await readPlan(user))).not.toEqual(weeks)
+  })
+
+  test('refuses a value that is not a preset, and writes nothing', async () => {
+    const { user, planId } = await seedPlan('method-invalid@example.com')
+    const revisions = await revisionCount(planId)
+    const bodies: unknown[] = [
+      { method: 'shorter-long-run' },
+      { method: 'Three-Run-Days' },
+      { method: 'three_run_days' },
+      { method: '' },
+      { method: 3 },
+      { method: null },
+      { method: ['longer-base'] },
+      {},
+      { method: 'longer-base', loadAppetite: 'standard' },
+    ]
+    for (const body of bodies) {
+      const res = await putMethod(user, body)
+      expect(res.status, JSON.stringify(body)).toBe(400)
+      expect((res.body as { error: { code: string } }).error.code).toBe('validation')
+    }
+    expect(await storedOptions(planId)).toEqual({})
+    expect(await revisionCount(planId)).toBe(revisions)
+  })
+
+  test('an anonymous request is a 401, and so is one with a body that would be refused', async () => {
+    expect((await client(ctx).put('/api/plan/method').send({ method: 'longer-base' })).status).toBe(
+      401,
+    )
+    expect((await client(ctx).put('/api/plan/method').send({ method: 'nonsense' })).status).toBe(
+      401,
+    )
+  })
+
+  test('answers 404 for a runner with no active plan', async () => {
+    const user = await seedUser(ctx, { email: 'method-noplan@example.com' })
+    expect((await putMethod(user, { method: 'longer-base' })).status).toBe(404)
+  })
+
+  test("never touches another runner's plan", async () => {
+    const mine = await seedPlan('method-mine@example.com')
+    const theirs = await seedPlan('method-theirs@example.com')
+    expect((await putMethod(mine.user, { method: 'three-run-days' })).status).toBe(200)
+    expect(await storedOptions(theirs.planId)).toEqual({})
+    // the plan's own two: generated, and drawn once more
+    expect(await revisionCount(theirs.planId)).toBe(2)
+  })
+
+  test('refuses an undo after the preset changed again, with the plan as it was left', async () => {
+    const { user, planId } = await seedPlan('method-edited@example.com')
+    const first = (await putMethod(user, { method: 'three-run-days' })).body as MethodChangeResult
+    // another route changed the preset since, as a regenerate that kept the plan's rows would
+    await ctx.prisma.plan.update({
+      where: { id: planId },
+      data: { options: JSON.stringify({ method: 'longer-base' }) },
+    })
+    const row = (await listed(user)).find((entry) => entry.id === first.revision!.id)
+    expect(row!.undo.available).toBe(false)
+    expect(row!.undo.reasons.map((reason) => reason.code)).toEqual(['edited-since'])
+    const refused = await client(ctx, user)
+      .post(`/api/plan/revisions/${first.revision!.id}/undo`)
+      .send({})
+    expect(refused.status).toBe(409)
+    expect(await storedOptions(planId)).toEqual({ method: 'longer-base' })
+  })
+
+  test('a second change gets its own revision, and undoing the newer one restores the older preset', async () => {
+    const { user, planId } = await seedPlan('method-twice@example.com')
+    const a = (await putMethod(user, { method: 'three-run-days' })).body as MethodChangeResult
+    const afterA = weeksOf(await readPlan(user))
+    const b = (await putMethod(user, { method: 'longer-base' })).body as MethodChangeResult
+    expect(b.revision!.id).not.toBe(a.revision!.id)
+    expect(await storedOptions(planId)).toEqual({ method: 'longer-base' })
+    const undone = await client(ctx, user)
+      .post(`/api/plan/revisions/${b.revision!.id}/undo`)
+      .send({})
+    expect(undone.status, JSON.stringify(undone.body)).toBe(200)
+    expect(await storedOptions(planId)).toEqual({ method: 'three-run-days' })
+    expect(weeksOf(await readPlan(user))).toEqual(afterA)
+  })
+
+  test('keeps the load setting of the plan, and a change of the load setting keeps the preset', async () => {
+    const { user, planId } = await seedPlan('method-load@example.com', HALF_M, {
+      loadAppetite: 'standard',
+    })
+    expect((await putMethod(user, { method: 'three-run-days' })).status).toBe(200)
+    expect(await storedOptions(planId)).toEqual({
+      method: 'three-run-days',
+      loadAppetite: 'standard',
+    })
+    const load = await client(ctx, user).put('/api/plan/load').send({ loadAppetite: 'upper' })
+    expect(load.status, JSON.stringify(load.body)).toBe(200)
+    expect(await storedOptions(planId)).toEqual({ method: 'three-run-days', loadAppetite: 'upper' })
+    expect((await readPlan(user)).method?.effective).toBe('three-run-days')
+  })
+})
+
+describe('the preset in a stored undo payload', () => {
+  const none = { created: [], deleted: [], updated: [] }
+  const stored = (extra: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      v: 1,
+      sessions: none,
+      weeks: none,
+      disruptions: { created: [], updated: [] },
+      ...extra,
+    })
+
+  test('is read when it names presets, with none before', () => {
+    expect(
+      readPayload(stored({ setting: { method: { before: 'longer-base', after: 'default' } } }))
+        ?.setting,
+    ).toEqual({ method: { before: 'longer-base', after: 'default' } })
+    expect(
+      readPayload(stored({ setting: { method: { before: null, after: 'three-run-days' } } }))
+        ?.setting,
+    ).toEqual({ method: { before: null, after: 'three-run-days' } })
+  })
+
+  test('is read beside the load setting, and each is dropped on its own when unreadable', () => {
+    expect(
+      readPayload(
+        stored({
+          setting: {
+            loadAppetite: { before: null, after: 'standard' },
+            method: { before: null, after: 'longer-base' },
+          },
+        }),
+      )?.setting,
+    ).toEqual({
+      loadAppetite: { before: null, after: 'standard' },
+      method: { before: null, after: 'longer-base' },
+    })
+    expect(
+      readPayload(
+        stored({
+          setting: {
+            loadAppetite: { before: null, after: 'standard' },
+            method: { before: 'shorter-long-run', after: 'longer-base' },
+          },
+        }),
+      )?.setting,
+    ).toEqual({ loadAppetite: { before: null, after: 'standard' } })
+    expect(
+      readPayload(stored({ setting: { method: { before: null, after: 'shorter-long-run' } } }))
+        ?.setting,
+    ).toBeUndefined()
+  })
+
+  test('puts the preset back or takes it away, and leaves the other options as they are', () => {
+    const text = JSON.stringify({
+      recoveryCycle: '2:1',
+      method: 'longer-base',
+      loadAppetite: 'standard',
+    })
+    const back = { method: { before: 'three-run-days', after: 'longer-base' } } as const
+    expect(JSON.parse(optionsRestored(text, back)) as unknown).toEqual({
+      recoveryCycle: '2:1',
+      method: 'three-run-days',
+      loadAppetite: 'standard',
+    })
+    const away = { method: { before: null, after: 'longer-base' } } as const
+    expect(JSON.parse(optionsRestored(text, away)) as unknown).toEqual({
+      recoveryCycle: '2:1',
+      loadAppetite: 'standard',
+    })
+    // both at once, as one revision that changed both would record them
+    const both = {
+      loadAppetite: { before: null, after: 'standard' },
+      method: { before: null, after: 'longer-base' },
+    } as const
+    expect(JSON.parse(optionsRestored(text, both)) as unknown).toEqual({ recoveryCycle: '2:1' })
+    expect(JSON.parse(optionsRestored(null, back)) as unknown).toEqual({ method: 'three-run-days' })
+  })
+})
+
+describe('a hold that starts and ends between two weekly re-plans [follow-up 27]', () => {
+  // The weekly re-plan reads the shape that applies: a persistent hold (a recent injury) returns the
+  // plan to its own shape at once, and when the hold ends the current week keeps the shape it was
+  // drawn under and the shape comes back with the week after it. Each says so in the summary of the
+  // re-plan that reads it. The runs of each week are on file as the plan had them.
+  const RUN_KINDS = ['easy', 'long', 'threshold', 'intervals', 'race-pace', 'recovery', 'hills']
+
+  /** The runs of the sessions the plan holds before `monday`, as the runner logged them. */
+  async function logRuns(userId: string, planId: string, monday: string) {
+    const sessions = await ctx.prisma.planSession.findMany({
+      where: { planId, date: { lt: monday }, kind: { in: RUN_KINDS } },
+    })
+    const have = new Set(
+      (await ctx.prisma.activity.findMany({ where: { userId }, select: { date: true } })).map(
+        (a) => a.date,
+      ),
+    )
+    await ctx.prisma.activity.createMany({
+      data: sessions
+        .filter((s) => !have.has(s.date))
+        .map((s) => ({
+          userId,
+          date: s.date,
+          type: 'run',
+          durationSec: s.durationMin * 60,
+          movingSec: s.durationMin * 60,
+          distanceM: s.durationMin * 170,
+          rpe: 3,
+          source: 'manual',
+        })),
+    })
+  }
+
+  test('says so on the re-plan that reads the hold, and again on the one that reads its end', async () => {
+    const { user, planId } = await seedPlan('method-guard@example.com', HALF_M, {
+      method: 'three-run-days',
+    })
+    const next = addDays(thisMonday, 7)
+    const after = addDays(thisMonday, 14)
+
+    // an injury arrives in the middle of the week; the weekly re-plan on Monday reads it
+    await client(ctx, user)
+      .put('/api/profile')
+      .send({
+        injuries: [{ area: 'knee', side: null, year, month: 1, kind: 'joint', notes: null }],
+      })
+      .expect(200)
+    await logRuns(user.id, planId, next)
+    const started = await replanActivePlan(ctx, { userId: user.id, reason: 'weekly', today: next })
+    expect(started.auto).toBe(true)
+    expect(started.summary).toContain(
+      "The plan's shape returned to its own: held while a recent injury is on file.",
+    )
+    assertCleanCopy(started.summary)
+    const held = await readPlan(user)
+    expect(held.method).toMatchObject({ effective: 'default', reason: 'held:recent-injury' })
+    for (const week of held.weeks.filter((w) => w.weekStart >= next)) {
+      expect(shapeFlags(held, week.weekStart), week.weekStart).toEqual([])
+    }
+
+    // the hold lasts: the next weekly re-plan has nothing to say about the shape
+    await logRuns(user.id, planId, after)
+    const lasting = await replanActivePlan(ctx, { userId: user.id, reason: 'weekly', today: after })
+    expect(lasting.summary).not.toContain('plan shape')
+    expect(lasting.summary).not.toContain("plan's shape")
+
+    // the injury is cleared; the weekly re-plan after it holds the current week and brings the
+    // shape back with the week after it
+    await client(ctx, user).put('/api/profile').send({ injuries: [] }).expect(200)
+    const third = addDays(thisMonday, 21)
+    await logRuns(user.id, planId, third)
+    const ended = await replanActivePlan(ctx, { userId: user.id, reason: 'weekly', today: third })
+    expect(ended.summary).toMatch(
+      /The plan shape is three run days a week again from .+\. This week stays as it was drawn\./,
+    )
+    assertCleanCopy(ended.summary)
+    const back = await readPlan(user)
+    expect(back.method).toEqual({
+      requested: 'three-run-days',
+      effective: 'three-run-days',
+      reason: null,
+    })
+    expect(shapeFlags(back, third)).toEqual([])
+    for (const week of back.weeks.filter((w) => w.weekStart > third)) {
+      expect(shapeFlags(back, week.weekStart), week.weekStart).toEqual(['shape-three-run-days'])
+      expect(week.runDays, week.weekStart).toBeLessThanOrEqual(3)
+    }
+
+    // and the weekly re-plan after that one finds the shape unchanged
+    await logRuns(user.id, planId, addDays(thisMonday, 28))
+    const settled = await replanActivePlan(ctx, {
+      userId: user.id,
+      reason: 'weekly',
+      today: addDays(thisMonday, 28),
+    })
+    expect(settled.summary).not.toContain('plan shape')
+    expect(settled.summary).not.toContain("plan's shape")
   })
 })

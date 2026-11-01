@@ -15,11 +15,12 @@
 import { createHash } from 'node:crypto'
 import { changesSummary, stalePreviewMessage } from '../../shared/copy/revision.ts'
 import { diffPlans } from '../../shared/engine/diff.ts'
-import type { EngineWarning, LoadAppetite } from '../../shared/engine/types.ts'
+import type { EngineWarning, LoadAppetite, PresetId } from '../../shared/engine/types.ts'
 import type {
   AdjustResult,
   DisruptionResult,
   LoadSettingResult,
+  MethodChangeResult,
   PlanAction,
   PlanAdjustment,
   PlanDiff,
@@ -55,7 +56,7 @@ import {
 } from './replan.ts'
 import {
   indexRows,
-  optionsWithSetting,
+  optionsRestored,
   planUndo,
   restoreDiff,
   restoreWrites,
@@ -350,6 +351,43 @@ export async function commitLoadSetting(
 }
 
 /**
+ * Changes the method preset of the active plan (decision 8 of the methods proposal): the weeks
+ * after the current one are drawn again with the shape that applies, the current week keeps the
+ * shape it was drawn under, and the revision (reason `method-change`) records the old preset for an
+ * undo. The same collision rules as the load setting: the newest revision is read first, the write
+ * refuses (`StaleWrite`) when another has landed since, the change is decided once more, and a
+ * second collision is a 409. A plan that already holds the preset writes nothing and answers with no
+ * revision. A preset the goal or the runner's state reads as the plan's own shape is stored as
+ * asked and served with its reason (`PlanWithSessions.method`). 404 without an active plan, 422
+ * with the checklist when the plan the change gives does not pass it (nothing is written).
+ */
+export async function commitMethod(
+  deps: Deps,
+  args: { userId: string; method: PresetId; today: string },
+): Promise<MethodChangeResult> {
+  const { userId, method, today } = args
+  const plan = await deps.prisma.plan.findFirst({
+    where: { userId, status: 'active' },
+    orderBy: { createdAt: 'desc' },
+    select: { options: true },
+  })
+  // Absent options read as the plan's own shape, so a plan that stores none already holds it.
+  if (plan !== null && (parsePlanOptions(plan.options).method ?? 'default') === method) {
+    return { method, revision: null }
+  }
+  for (let attempt = 1; ; attempt += 1) {
+    const result = await computeReplan(deps, { userId, reason: 'method-change', today, method })
+    try {
+      const written = await applyReplan(deps, result, { checkHead: true })
+      return { method, revision: await viewRevision(deps, { userId, revisionId: written.id }) }
+    } catch (error) {
+      if (!(error instanceof StaleWrite)) throw error
+      if (attempt >= 2) throw conflict(stalePreviewMessage())
+    }
+  }
+}
+
+/**
  * Creates, changes or removes a rest window: the window row, the past sessions it skips and the
  * re-plan it causes are one transaction and one revision with `disruptionId`. 409 `stale-preview`
  * when `expectHash` no longer matches or the plan or the window moved while it was written; 422
@@ -561,7 +599,8 @@ async function applyUndo(
         await tx.disruption.updateMany({ where: { id, userId }, data })
       }
 
-      // The load setting goes back with the rows, from the options as they stand in this transaction.
+      // The load setting and the method preset go back with the rows, from the options as they stand
+      // in this transaction.
       await tx.plan.update({
         where: { id: planId },
         data: {
@@ -569,7 +608,7 @@ async function applyUndo(
           ...(scoped.payload.setting === undefined
             ? {}
             : {
-                options: optionsWithSetting(planRow.options, scoped.payload.setting.loadAppetite),
+                options: optionsRestored(planRow.options, scoped.payload.setting),
               }),
         },
       })

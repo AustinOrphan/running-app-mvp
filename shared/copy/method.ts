@@ -67,6 +67,20 @@ export const METHOD_TEMPLATES = {
     { fallback: "Held at the plan's own shape for now." },
   ),
 
+  // The action on the Plan page's panel and the sheet it opens (decision 8 of the methods proposal):
+  // the choice is the Generate form's, and Save sends it in one request.
+  'method.change': tpl('Change', {}, { shape: 'label' }),
+  'method.change.label': tpl('Change plan shape', {}, { shape: 'label' }),
+  'method.sheet.title': tpl('Change plan shape', {}, { shape: 'label' }),
+  'method.sheet.note': tpl(
+    'Saving draws the weeks after this one again with this shape. This week stays as it was drawn.',
+  ),
+  'method.sheet.undo': tpl('A change to the weeks can be undone from What changed.'),
+  'method.sheet.current': tpl('The shape chosen now', {}, { shape: 'label' }),
+  'method.sheet.save': tpl('Save', {}, { shape: 'label' }),
+  'method.sheet.cancel': tpl('Cancel', {}, { shape: 'label' }),
+  'method.sheet.saved': tpl('Plan shape changed', {}, { shape: 'label' }),
+
   // The Plan page: the shape in effect, and why the one chosen does not apply.
   'method.panel.read': tpl(
     "{choice}, read as the plan's own shape: {reason}.",
@@ -231,6 +245,12 @@ export function planShapeLabel(preset: PresetId): string {
   }
 }
 
+/** The shape inside a sentence: "three run days a week", "a longer base", "the plan's own shape". */
+export function planShapeName(preset: PresetId): string {
+  const label = planShapeLabel(preset)
+  return label.charAt(0).toLowerCase() + label.slice(1)
+}
+
 /** One line of what a shape does. The figures are the Params the plan reads. */
 export function planShapeHelp(preset: PresetId): string {
   switch (preset) {
@@ -382,6 +402,22 @@ export const planShapePanelTitle = (): string => planShapeFieldLabel()
 
 /** The label of the panel's Why button. */
 export const planShapeWhyLabel = (): string => render(T['method.panel.why'], {}, UNITS)
+
+/** The words of the Plan page's action that changes the shape: the button, the sheet and the toast. */
+export const planShapeChangeLabel = (): string => render(T['method.change'], {}, UNITS)
+/** The accessible name of the button, which says which panel it belongs to. */
+export const planShapeChangeName = (): string => render(T['method.change.label'], {}, UNITS)
+export const planShapeSheetTitle = (): string => render(T['method.sheet.title'], {}, UNITS)
+/** The two sentences under the title: what saving does, and where it is undone. */
+export const planShapeSheetNote = (): string[] => [
+  render(T['method.sheet.note'], {}, UNITS),
+  render(T['method.sheet.undo'], {}, UNITS),
+]
+/** The note on the row of the shape the plan asks for now. */
+export const planShapeCurrentNote = (): string => render(T['method.sheet.current'], {}, UNITS)
+export const planShapeSaveLabel = (): string => render(T['method.sheet.save'], {}, UNITS)
+export const planShapeCancelLabel = (): string => render(T['method.sheet.cancel'], {}, UNITS)
+export const planShapeSavedToast = (): string => render(T['method.sheet.saved'], {}, UNITS)
 
 /** The rule ids the panel's Why opens on, for the shape the plan has and the one it asked for. */
 export function planShapeWhyRules(method: MethodPosition): string[] {

@@ -14,12 +14,14 @@ import { addDays } from '../dates.ts'
 import type { DisruptionIssue, DisruptionIssueCode, WindowPlan } from '../engine/disruption.ts'
 import { RUN_CAP_MAX_MIN } from '../engine/disruption.ts'
 import { positionStep, type LoadPosition } from '../engine/loadSetting.ts'
+import type { MethodReason } from '../engine/methods.ts'
 import { P } from '../engine/params/index.ts'
-import type { Quantity } from '../engine/types.ts'
+import type { PresetId, Quantity } from '../engine/types.ts'
 import type { SafetyRule, UndoFinding } from '../engine/undoGuard.ts'
 import type { ZoneBoundary } from '../engine/zoneChange.ts'
 import type { ActivityType, DisruptionReason, TargetDiffLine, UndoReason, Units } from '../types.ts'
 import { loadCappedLine, loadHeldLine, loadName, stepPercent } from './load.ts'
+import { methodReasonText, planShapeName } from './method.ts'
 import { countPhrase } from './quantity.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -529,6 +531,42 @@ export const REVISION_TEMPLATES = {
     { fallback: 'Load setting changed.' },
   ),
 
+  // The summary of a change of the plan shape [rules P1 to P4, decision 8 of the methods proposal]:
+  // the shape asked for, the weeks drawn again and where they start. A shape that reads as the plan's
+  // own says why (`method.reason.*`), and the week the change was made in keeps the shape it was
+  // drawn under, so its sessions stay.
+  'revision.method.changed': tpl(
+    'Plan shape changed to {shape}.',
+    { shape: 'text' },
+    { fallback: 'Plan shape changed.' },
+  ),
+  'revision.method.own': tpl(
+    "The plan's own shape applies for now: {reason}.",
+    { reason: 'text' },
+    { fallback: "The plan's own shape applies for now." },
+  ),
+  'revision.method.redrawn': tpl('{weeks} weeks redrawn from {date}.', {
+    weeks: 'count',
+    date: 'date',
+  }),
+  'revision.method.redrawn-one': tpl('1 week redrawn on {date}.', { date: 'date' }),
+  'revision.method.held-week': tpl('This week stays as it was drawn.'),
+
+  // A change of the shape in effect that the runner did not ask for: a persistent hold of the load
+  // setting starts or ends, or the weeks of a novice come to an end. The re-plan that reads it says
+  // so in its own summary. A shape that returns to the plan's own does so at once; one that comes
+  // back starts with the week after the current one, which keeps the shape it was drawn under.
+  'revision.method.returned-own': tpl(
+    "The plan's shape returned to its own: {reason}.",
+    { reason: 'text' },
+    { fallback: "The plan's shape returned to its own." },
+  ),
+  'revision.method.returned': tpl(
+    'The plan shape is {shape} again from {date}.',
+    { shape: 'text', date: 'date' },
+    { fallback: 'The plan shape returned.' },
+  ),
+
   // The summary of a new plan.
   'revision.generated': tpl('Plan generated for {goal}: {weeks} weeks, {sessions} sessions.', {
     goal: 'text',
@@ -649,6 +687,83 @@ export function loadSettingSummary(load: LoadPosition): string {
     STORED_UNITS,
   )
   return load.ageCapped ? `${lead} ${loadCappedLine()}` : lead
+}
+
+/** What a re-plan did to the shape of a plan, for the sentences that say so. */
+export interface MethodChangeLine {
+  /** The shape asked for, and why it reads as the plan's own when it does. */
+  requested: PresetId
+  reason: MethodReason | null
+  /** The weeks drawn under another shape than the one they had, and the Monday the first of them starts. */
+  weeks: number
+  from: string
+  /** The week the change was made in keeps the shape it was drawn under. */
+  held: boolean
+}
+
+/**
+ * The summary of a change of the plan shape [rules P1 to P4]: the shape asked for, the reason it
+ * reads as the plan's own when it does, the weeks drawn again from the Monday they start, and that
+ * the current week stays as it was drawn.
+ */
+export function methodChangeSummary(line: MethodChangeLine): string {
+  const t = REVISION_TEMPLATES
+  const parts = [
+    render(t['revision.method.changed'], { shape: planShapeName(line.requested) }, STORED_UNITS),
+  ]
+  if (line.reason !== null) {
+    parts.push(
+      render(t['revision.method.own'], { reason: methodReasonText(line.reason) }, STORED_UNITS),
+    )
+  }
+  if (line.weeks === 1) {
+    parts.push(render(t['revision.method.redrawn-one'], { date: day(line.from) }, STORED_UNITS))
+  } else if (line.weeks > 1) {
+    parts.push(
+      render(
+        t['revision.method.redrawn'],
+        { weeks: count(line.weeks), date: day(line.from) },
+        STORED_UNITS,
+      ),
+    )
+  }
+  if (line.held) parts.push(render(t['revision.method.held-week'], {}, STORED_UNITS))
+  return parts.join(' ')
+}
+
+/** A change of the shape in effect between two re-plans that the runner did not ask for. */
+export interface MethodFlipLine {
+  /** The shape that applies now; the plan's own when it returned to it. */
+  now: PresetId
+  /** Why the shape asked for reads as the plan's own now; null when it applies. */
+  reason: MethodReason | null
+  /** The Monday the shape that applies now starts, for a shape that is back. */
+  from: string
+  held: boolean
+}
+
+/**
+ * The sentence for a change of the shape in effect between two re-plans: a persistent hold starting
+ * (the plan's shape returns to its own, with the reason) or ending, or the weeks of a novice coming
+ * to an end (the shape is back from the Monday it starts, and the current week stays as it was
+ * drawn). The runner chose nothing, so nothing is offered to undo: it is the plan's shape for as
+ * long as the condition lasts.
+ */
+export function methodFlipSummary(line: MethodFlipLine): string {
+  const t = REVISION_TEMPLATES
+  const lead =
+    line.now === 'default'
+      ? render(
+          t['revision.method.returned-own'],
+          { reason: methodReasonText(line.reason ?? 'not-applicable') },
+          STORED_UNITS,
+        )
+      : render(
+          t['revision.method.returned'],
+          { shape: planShapeName(line.now), date: day(line.from) },
+          STORED_UNITS,
+        )
+  return line.held ? `${lead} ${render(t['revision.method.held-week'], {}, STORED_UNITS)}` : lead
 }
 
 /**

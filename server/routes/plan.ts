@@ -12,6 +12,7 @@ import {
   commitAdjust,
   commitDisruption,
   commitLoadSetting,
+  commitMethod,
   commitReplan,
   commitUndo,
   previewAction,
@@ -123,6 +124,9 @@ const undoBody = z.strictObject({ expectHash })
 
 /** The load setting of the plan: one of the three positions of the Generate form. */
 const loadBody = z.strictObject({ loadAppetite: z.enum(LOAD_APPETITES) })
+
+/** The plan shape: one of the method presets of the Generate form (rules P1 to P4). */
+const methodBody = z.strictObject({ method: z.enum(PRESET_IDS) })
 
 const windowId = z.string().min(1).max(64)
 
@@ -247,6 +251,14 @@ export function planRouter(deps: Deps): Router {
   router.put('/load', async (req, res) => {
     const { loadAppetite } = parse(loadBody, req.body)
     res.json(await commitLoadSetting(deps, { userId: req.userId, loadAppetite, today: todayIso() }))
+  })
+
+  // Changes the method preset of the active plan: the weeks after the current one are drawn again
+  // with it and the current week keeps its shape (one revision, with an undo). The same preset
+  // writes nothing and answers `revision: null`.
+  router.put('/method', async (req, res) => {
+    const { method } = parse(methodBody, req.body)
+    res.json(await commitMethod(deps, { userId: req.userId, method, today: todayIso() }))
   })
 
   router.get('/archived', async (req, res) => {
