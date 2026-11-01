@@ -380,7 +380,7 @@ describe('the Why drawer on a plan with a preset', () => {
       'Plan shape chosen: A longer base.',
       "Build phase: at most 4 weeks (grade D), against 6 in the plan's own shape (grade D).",
       'The base takes the difference: up to 2 more weeks before the build.',
-      'Quality runs: strides only in the base, then hills and threshold runs in the build (grade D).',
+      'Quality runs: strides only in the base, then threshold and hill runs in the build (grade D).',
       'A choice, not a better plan (grade D): no study compares these plans.',
     ])
   })

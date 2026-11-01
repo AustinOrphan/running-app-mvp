@@ -1642,7 +1642,7 @@ describe('Plan page, the plan shape', () => {
     const THREE =
       "At most three run days a week. The long run and the quality runs stay, and no week plans more minutes than the plan's own shape."
     const BASE =
-      "Strides only in the base, for up to two more weeks, then hills and threshold runs. No week plans more minutes than the plan's own shape."
+      "Strides only in the base, for up to two more weeks, then threshold and hill runs. No week plans more minutes than the plan's own shape."
     const GRADE = 'A choice, not a better plan (grade D).'
 
     const panel = () => screen.findByRole('region', { name: 'Plan shape' })

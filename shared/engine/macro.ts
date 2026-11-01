@@ -863,13 +863,14 @@ function planWeeks(
   const preCount = total - taperCount
   const openingRecovery =
     input.existing?.weeks.find((w) => w.weekStart === firstMonday)?.isRecovery === true
+  const carriedLabels = freshPhases ? [] : carriedPhases(input, firstMonday, raceMonday, preCount)
   const phases = planPhases(
     preCount,
     taperCount,
     cycleWorkWeeks(input, state),
     openingRecovery,
     method,
-    freshPhases ? [] : carriedPhases(input, firstMonday, raceMonday, preCount),
+    carriedLabels,
   )
   const raceIdx = total - 1
 
@@ -1064,6 +1065,29 @@ function planWeeks(
   // the weeks of a ladder follow its steps and repeats: no recovery week inside it (the weeks after
   // it open a new block, which the checklist counts the same way)
   const programmeWeeks = restart !== null && restart.kind !== 'floor' ? startWeeks : 0
+  // A preset with no base week of its own to lengthen, every base week of its draw being a week of a
+  // start path (the programme sets those), is the default: it draws the default's phases whole, so the
+  // plan is the default plan and the resolver reads `no-base` [rule P4]. A preset that keeps a base
+  // week of its own labels the start-path weeks as its draw does, and its phases never decrease.
+  if (
+    method !== 'default' &&
+    overrides(method, 'macroDesign.buildWeeks') &&
+    startWeeks > 0 &&
+    !phases.some((p, i) => p.phase === 'base' && i >= startWeeks)
+  ) {
+    phases.splice(
+      0,
+      phases.length,
+      ...planPhases(
+        preCount,
+        taperCount,
+        cycleWorkWeeks(input, state),
+        openingRecovery,
+        'default',
+        carriedLabels,
+      ),
+    )
+  }
   for (let i = 0; i < programmeWeeks && i < preCount; i++) phases[i]!.isRecovery = false
   // The recovery week the replaced plan stored on this Monday stays a recovery week wherever the
   // count falls, unless a start path claims the week (a 3 x N floor after a gap, a ladder: a rule

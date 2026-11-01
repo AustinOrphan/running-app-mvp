@@ -4,6 +4,7 @@
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import type {
+  DisruptionWindow,
   EngineInput,
   LoadAppetite,
   PlanDraft,
@@ -26,6 +27,13 @@ export interface ReplanChainOptions {
   scale?: number | ((step: number) => number)
   /** Stop after this many re-plans (default: until the race week). */
   maxSteps?: number
+  /**
+   * Windows the runner reports [rule J9]: each joins the input of the first re-plan on or after its
+   * first day and stays in it, closed or not, as the simulator reports its own. The runner honours
+   * a window whether or not the plan in force knew of it: no run on a day of a rest window, and a
+   * run on a day of a limited window cut to its cap.
+   */
+  windows?: readonly DisruptionWindow[]
 }
 
 export interface ReplanStepsOptions extends ReplanChainOptions {
@@ -37,7 +45,7 @@ export interface ReplanStepsOptions extends ReplanChainOptions {
 
 /** The first plan of `first` and a re-plan on every Monday after it, until the race week. */
 export function replanChain(first: EngineInput, options: ReplanChainOptions = {}): ReplanStep[] {
-  const { scale = 1, maxSteps = Infinity } = options
+  const { scale = 1, maxSteps = Infinity, windows = [] } = options
   let draft = buildPlan(first)
   let activities = first.activities
   const steps: ReplanStep[] = [{ draft, input: first }]
@@ -50,21 +58,30 @@ export function replanChain(first: EngineInput, options: ReplanChainOptions = {}
     const ran = draft.sessions
       .filter((s) => s.date >= addDays(monday, -7) && s.date < monday)
       .filter((s) => !['strength', 'race', 'mobility', 'rest'].includes(s.kind))
-      .map((s) =>
-        activity(s.date, {
-          id: `done-${s.date}-${s.order}`,
-          durationSec: factor === 1 ? s.durationMin * 60 : Math.round(s.durationMin * factor) * 60,
-          distanceM:
-            factor === 1
-              ? (s.distanceM ?? s.durationMin * 170)
-              : Math.round((s.distanceM ?? s.durationMin * 170) * factor),
-        }),
-      )
+      .flatMap((s) => {
+        const window = windows.find((w) => w.startDate <= s.date && s.date <= w.endDate)
+        if (window?.mode === 'rest') return []
+        const minutes =
+          window?.mode === 'limited' && window.maxRunMin !== null
+            ? Math.min(s.durationMin, window.maxRunMin)
+            : s.durationMin
+        const cut = s.durationMin > 0 ? minutes / s.durationMin : 1
+        const distanceM = (s.distanceM ?? s.durationMin * 170) * cut
+        return [
+          activity(s.date, {
+            id: `done-${s.date}-${s.order}`,
+            durationSec: factor === 1 ? minutes * 60 : Math.round(minutes * factor) * 60,
+            distanceM: factor === 1 ? distanceM : Math.round(distanceM * factor),
+          }),
+        ]
+      })
     activities = [...activities, ...ran]
+    const reported = windows.filter((w) => w.startDate <= monday)
     const input: EngineInput = {
       ...first,
       today: monday,
       activities,
+      ...(reported.length > 0 ? { disruptions: [...(first.disruptions ?? []), ...reported] } : {}),
       existing: {
         weeks: draft.weeks,
         sessions: draft.sessions.map((s, i) => ({

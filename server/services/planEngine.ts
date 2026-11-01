@@ -165,7 +165,7 @@ export async function loadPlanWithSessions(
       options: context.planOptions,
     })
     load = loadPosition(input, context.state)
-    method = resolveMethod(input, context.state, plan.weeks)
+    method = resolveMethod(input, context.state, plan.weeks.map(toPlanWeek))
   }
   return present(
     plan,
@@ -355,7 +355,7 @@ export async function generateEnginePlan(
     created,
     { zones: draft.zones, recentPaceSecPerKm: recentPace },
     loadPosition(input, state),
-    resolveMethod(input, state, created.weeks),
+    resolveMethod(input, state, created.weeks.map(toPlanWeek)),
   )
 }
 

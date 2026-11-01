@@ -120,7 +120,7 @@ describe('the plan shape copy', () => {
     // the default build is 6 weeks and the preset's is 4: the base takes the 2 between
     expect(P.macroDesign.buildWeeks.value - P.p4.buildWeeks.value).toBe(2)
     expect(planShapeHelp('longer-base')).toBe(
-      "Strides only in the base, for up to two more weeks, then hills and threshold runs. No week plans more minutes than the plan's own shape.",
+      "Strides only in the base, for up to two more weeks, then threshold and hill runs. No week plans more minutes than the plan's own shape.",
     )
     expect(planShapeHelp('default')).toBe(
       'Run days follow your weekly minutes and the days you have free, and the base comes first.',
@@ -384,9 +384,9 @@ describe('what the drawer states about a shape', () => {
     // the sentence restates `QUALITY_BY_PRESET['longer-base']` (micro.ts); a change of the table
     // fails here until the sentence follows it
     expect(QUALITY_BY_PRESET['longer-base'].base).toEqual(['strides'])
-    expect(QUALITY_BY_PRESET['longer-base'].build).toEqual(['hills', 'threshold'])
+    expect(QUALITY_BY_PRESET['longer-base'].build).toEqual(['threshold', 'hills'])
     expect(METHOD_TEMPLATES['method.fact.kinds'].text).toBe(
-      'Quality runs: strides only in the base, then hills and threshold runs in the build (grade {grade}).',
+      'Quality runs: strides only in the base, then threshold and hill runs in the build (grade {grade}).',
     )
     expect(PRESET_OVERRIDES['longer-base'].qualityByPhase).toBe(true)
   })
