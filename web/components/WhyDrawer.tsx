@@ -2,7 +2,7 @@ import { useId } from 'react'
 import { describeParamRange, describeParamValue } from '../../shared/copy/paramUnits.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
-import type { ExplainView, Param } from '../../shared/engine/types.ts'
+import type { ExplainView, Grade, Param } from '../../shared/engine/types.ts'
 import type { Units, WeightUnit } from '../../shared/types.ts'
 import { rulesRef, useExplain, type ExplainRef } from '../api/explain.ts'
 import { useResearchParams } from '../api/research.ts'
@@ -205,7 +205,26 @@ function NumbersSection({
   )
 }
 
-/** Each rule with its parameters, grades, default notes and papers. */
+const GRADE_ORDER: readonly Grade[] = ['A', 'B', 'C', 'D']
+
+/** The strongest grade among a rule's parameters, or null for a rule with none. */
+function bestGrade(params: readonly Param<unknown>[]): Grade | null {
+  return GRADE_ORDER.find((grade) => params.some((param) => param.grade === grade)) ?? null
+}
+
+/** "1 paper", "3 papers". */
+function papersCount(n: number, units: Units): string {
+  return n === 1
+    ? render(TEMPLATES['why.papers-one'], {}, units)
+    : render(TEMPLATES['why.papers-many'], { n: { kind: 'count', n } }, units)
+}
+
+/**
+ * Each rule with its parameters, grades, default notes and papers. A rule is one fold: its name,
+ * its best grade and how many papers stand behind it on the row, and the parameters and the papers
+ * under it. The first rule is open, so a drawer for one rule reads as it always did, and the rest
+ * are one tap away: the evidence is folded, never left out.
+ */
 function RuleSections({ rules, units }: { rules: string[]; units: Units }) {
   const registry = useResearchParams()
   const corpus = useCorpus()
@@ -225,57 +244,66 @@ function RuleSections({ rules, units }: { rules: string[]; units: Units }) {
   const params = registry.data.params
   return (
     <>
-      {rules.map((rule) => {
+      {rules.map((rule, index) => {
         const matched = params.filter((p) => ruleKey(p.rule) === ruleKey(rule))
         const paperIds = [...new Set(matched.flatMap((p) => p.evidence))].sort()
         const title = ruleTitle(rule)
+        const best = bestGrade(matched)
         return (
           <section key={rule} className={styles.rule} aria-label={title ?? `Rule ${rule}`}>
-            <h4 className={styles.ruleTitle}>{title ?? `Rule ${rule}`}</h4>
-            {matched.some((param) => param.id.startsWith('effort.')) ? (
-              <p className={styles.note}>{RATING_WHY_NOTE}</p>
-            ) : null}
-            {matched.length === 0 ? (
-              <p className={styles.note}>
-                {render(TEMPLATES['why.no-parameter'], { rule: title ?? rule }, units)}
-              </p>
-            ) : (
-              matched.map((param) => <ParamRow key={param.id} param={param} units={units} />)
-            )}
-            {paperIds.length > 0 ? (
-              <div className={styles.papers}>
-                <p className={styles.paperHeading}>Papers</p>
-                {corpus.isPending ? (
-                  <p className={styles.note}>
-                    {render(TEMPLATES['why.papers-loading'], {}, units)}
-                  </p>
+            <details className={styles.fold} open={index === 0}>
+              <summary className={styles.foldSummary}>
+                <h4 className={styles.ruleTitle}>{title ?? `Rule ${rule}`}</h4>
+                {best !== null ? <GradeBadge grade={best} /> : null}
+                {paperIds.length > 0 ? (
+                  <span className={styles.paperCount}>{papersCount(paperIds.length, units)}</span>
                 ) : null}
-                {corpus.isError ? (
-                  <p role="alert" className={styles.note}>
-                    {render(TEMPLATES['why.papers-error'], { ids: paperIds.join(', ') }, units)}
-                  </p>
-                ) : null}
-                {corpus.data
-                  ? paperIds.map((id) => {
-                      const paper = corpus.data.papers.get(id)
-                      return paper ? (
-                        <PaperCard
-                          key={id}
-                          paper={paper}
-                          open={openPapers.has(id)}
-                          onToggle={() => {
-                            togglePaper(id)
-                          }}
-                        />
-                      ) : (
-                        <p key={id} className={styles.note}>
-                          {render(TEMPLATES['why.paper-missing'], { id }, units)}
-                        </p>
-                      )
-                    })
-                  : null}
-              </div>
-            ) : null}
+              </summary>
+              {matched.some((param) => param.id.startsWith('effort.')) ? (
+                <p className={styles.note}>{RATING_WHY_NOTE}</p>
+              ) : null}
+              {matched.length === 0 ? (
+                <p className={styles.note}>
+                  {render(TEMPLATES['why.no-parameter'], { rule: title ?? rule }, units)}
+                </p>
+              ) : (
+                matched.map((param) => <ParamRow key={param.id} param={param} units={units} />)
+              )}
+              {paperIds.length > 0 ? (
+                <div className={styles.papers}>
+                  <p className={styles.paperHeading}>Papers</p>
+                  {corpus.isPending ? (
+                    <p className={styles.note}>
+                      {render(TEMPLATES['why.papers-loading'], {}, units)}
+                    </p>
+                  ) : null}
+                  {corpus.isError ? (
+                    <p role="alert" className={styles.note}>
+                      {render(TEMPLATES['why.papers-error'], { ids: paperIds.join(', ') }, units)}
+                    </p>
+                  ) : null}
+                  {corpus.data
+                    ? paperIds.map((id) => {
+                        const paper = corpus.data.papers.get(id)
+                        return paper ? (
+                          <PaperCard
+                            key={id}
+                            paper={paper}
+                            open={openPapers.has(id)}
+                            onToggle={() => {
+                              togglePaper(id)
+                            }}
+                          />
+                        ) : (
+                          <p key={id} className={styles.note}>
+                            {render(TEMPLATES['why.paper-missing'], { id }, units)}
+                          </p>
+                        )
+                      })
+                    : null}
+                </div>
+              ) : null}
+            </details>
           </section>
         )
       })}

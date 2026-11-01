@@ -436,6 +436,44 @@ const methodOf = (ctx: ExplainContext, state: AthleteState = ctx.state): PresetI
   return resolveMethod(input, state, input.existing?.weeks).effective
 }
 
+/**
+ * Where the ramp starts: the running time of the week before the planned one, "was 3.5 h" for a week
+ * that is over. A week that is not over has no running time to state ("was 0 min" for a week still to
+ * come says the runner did nothing), so it reads as the plan has it: "is planned at 3.5 h", or the
+ * plan sets no running for it. A week the plan has no row for keeps the sentence of a week run.
+ */
+function lastWeekFact(ctx: ExplainContext, last: string, ranMin: number): InputFact {
+  const over = addDays(last, 6) < ctx.asOf
+  const planned = over ? null : plannedWeek(ctx, last)
+  if (planned === null) {
+    return make(
+      'g-2',
+      'last-week',
+      'explain.g2-last-week',
+      { week: weekOf(last), minutes: minutes(ranMin) },
+      { sources: weekRuns(ctx, last).map(activitySource), window: weekWindow(last) },
+    )
+  }
+  const plannedMin = plannedMinOf(planned)
+  return Math.round(plannedMin) <= 0
+    ? make(
+        'g-2',
+        'last-week',
+        'explain.g2-plan-week-none',
+        { week: weekOf(last) },
+        {
+          window: weekWindow(last),
+        },
+      )
+    : make(
+        'g-2',
+        'last-week',
+        'explain.g2-last-week-planned',
+        { week: weekOf(last), minutes: minutes(plannedMin) },
+        { window: weekWindow(last) },
+      )
+}
+
 function weeklyRampFacts(scope: Scope): InputFact[] {
   const { ctx, last, next } = scope
   if (!ctx.state.weeks.some((w) => w.runMin > 0 || w.raceMin > 0)) {
@@ -446,13 +484,7 @@ function weeklyRampFacts(scope: Scope): InputFact[] {
     [last],
   )[0]!
   const facts = [
-    make(
-      'g-2',
-      'last-week',
-      'explain.g2-last-week',
-      { week: weekOf(last), minutes: minutes(ran.runMin) },
-      { sources: weekRuns(ctx, last).map(activitySource), window: weekWindow(last) },
-    ),
+    lastWeekFact(ctx, last, ran.runMin),
     // "at most": under the rebuild zone of a plan at standard or upper [rules g-8] a week under its
     // ceiling may add the zone's step, which is more than the usual one
     make('g-2', 'ramp', 'explain.g2-ramp', {

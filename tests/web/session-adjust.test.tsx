@@ -310,6 +310,77 @@ describe('AdjustSection, a move', () => {
   })
 })
 
+describe('AdjustSection, bringing the answer into view', () => {
+  // jsdom has no `scrollIntoView`; the section calls it only when the device has one.
+  const scrollIntoView = vi.fn()
+  beforeEach(() => {
+    scrollIntoView.mockClear()
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    })
+  })
+  afterEach(() => {
+    Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
+  })
+
+  test('a tap on Skip scrolls the check of the change into view by the least scroll, once', async () => {
+    const user = userEvent.setup()
+    render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    expect(scrollIntoView).not.toHaveBeenCalled()
+
+    await user.click(within(section).getByRole('button', { name: 'Skip session' }))
+    expect(await within(section).findByText('What would change')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    })
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+    // the element that scrolls is the panel that holds the answer, Apply change and Cancel
+    expect(scrollIntoView.mock.contexts[0]).toBe(
+      within(section).getByRole('status', { name: 'Check of this change' }),
+    )
+    expect(within(section).getByRole('button', { name: 'Apply change' })).toBeEnabled()
+  })
+
+  test('a typed field that has focus keeps the view where the runner is typing', async () => {
+    render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    const move = within(section).getByLabelText('Move to')
+    move.focus()
+    fireEvent.change(move, { target: { value: '2027-01-15' } })
+    expect(await within(section).findByText('What would change')).toBeInTheDocument()
+    expect(scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  test('the number typed into Shorten keeps the view too, and a button after it scrolls', async () => {
+    const user = userEvent.setup()
+    render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    const shorten = within(section).getByLabelText('Shorten to (minutes)')
+    shorten.focus()
+    fireEvent.change(shorten, { target: { value: '40' } })
+    expect(await within(section).findByText('What would change')).toBeInTheDocument()
+    expect(scrollIntoView).not.toHaveBeenCalled()
+
+    await user.click(within(section).getByRole('button', { name: 'Skip session' }))
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  test('a device with no scrollIntoView takes the answer as it is', async () => {
+    Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
+    const user = userEvent.setup()
+    render(SESSION, ({ body }) => dryRun(body.adjustment))
+    const section = screen.getByRole('region', { name: 'Change this session' })
+    await user.click(within(section).getByRole('button', { name: 'Skip session' }))
+    expect(await within(section).findByText('What would change')).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Apply change' })).toBeEnabled()
+  })
+})
+
 describe('AdjustSection, the answer to a check', () => {
   const message = "Sun 17 Jan already has a run; one run a day keeps the week's spacing (rule F1)."
 

@@ -31,7 +31,3 @@
   font-size: var(--text-base);
   line-height: var(--lh-base);
 }
-
-.link {
-  color: var(--accent);
-}

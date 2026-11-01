@@ -340,14 +340,20 @@ export function fuelWatchText(rate: RungRate): string {
     : say(T['fuel.watch.range'], { low: count(rate.range[0]), high: count(rate.range[1]) })
 }
 
+/**
+ * The low-certainty label of every rate above the floor: beside a target, and once above the
+ * ladder, whose rungs above the floor all stand under it (rule H8, ADR 0011).
+ */
+export function lowCertaintyLine(): string {
+  return say(T['fuel.certainty'], { floorHigh: count(P.h7.carbFloorGPerH.value[1]) })
+}
+
 /** Everything the words of one fuel target say. */
 export function describeFuelTarget(target: FuelTarget): FuelTargetText {
   return {
     heading: say(T['fuel.target.heading'], { rate: rateText(target) }),
     basis: basisText(target),
-    certainty: target.lowCertainty
-      ? say(T['fuel.certainty'], { floorHigh: count(P.h7.carbFloorGPerH.value[1]) })
-      : null,
+    certainty: target.lowCertainty ? lowCertaintyLine() : null,
     multiCarb: target.multiCarbRequired
       ? say(T['fuel.multicarb'], { tier: count(P.h7.carbTier1GPerH.value) })
       : null,

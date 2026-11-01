@@ -21,6 +21,5 @@
 
 .link {
   flex: none;
-  color: var(--accent);
   white-space: nowrap;
 }

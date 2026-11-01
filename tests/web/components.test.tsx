@@ -2,14 +2,16 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { gradeMeaning } from '../../shared/copy/grades.ts'
 import { suggestAction, type SuggestInput } from '../../shared/domain/review.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { Button } from '../../web/components/Button.tsx'
 import { EmptyState } from '../../web/components/EmptyState.tsx'
 import { Field, Input } from '../../web/components/Field.tsx'
+import { GradeBadge } from '../../web/components/GradeBadge.tsx'
 import { Meter } from '../../web/components/Meter.tsx'
 import { PageHeader } from '../../web/components/PageHeader.tsx'
-import { ScalePicker } from '../../web/components/ScalePicker.tsx'
+import { ScalePicker, touchColumns } from '../../web/components/ScalePicker.tsx'
 import { Segmented } from '../../web/components/Segmented.tsx'
 import { Sheet } from '../../web/components/Sheet.tsx'
 import { Skeleton } from '../../web/components/Skeleton.tsx'
@@ -23,7 +25,7 @@ import {
   phaseLabel,
 } from '../../web/components/format.ts'
 import { makeWeekRow } from '../factories.ts'
-import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
+import { expectCleanCopy, expectTouchScale, mockApi, renderWithProviders } from './helpers.tsx'
 import { settings } from './plan-fixtures.ts'
 import { makeSession } from './today-fixtures.ts'
 
@@ -301,8 +303,24 @@ describe('Segmented', () => {
   })
 })
 
+describe('GradeBadge', () => {
+  test('says the grade in words, with what it means as the hover text from the shared map', () => {
+    render(
+      <>
+        <GradeBadge grade="B" />
+        <GradeBadge grade="D" />
+        <GradeBadge grade="C" kind="level" />
+      </>,
+    )
+    // the letter is in the words of the badge, so the grade is in its name without the hover text
+    expect(screen.getByText('Evidence grade B')).toHaveAttribute('title', gradeMeaning('B'))
+    expect(screen.getByText('Evidence grade D')).toHaveAttribute('title', gradeMeaning('D'))
+    expect(screen.getByText('Evidence level C')).toHaveAttribute('title', gradeMeaning('C'))
+  })
+})
+
 describe('ScalePicker', () => {
-  test('a touch scale marks its row so the buttons keep a 44 px square and wrap', () => {
+  test('a touch scale marks its row so the buttons keep a 44 px square', () => {
     render(
       <>
         <ScalePicker legend="Pain" min={0} max={10} value={null} onChange={() => {}} touch />
@@ -313,6 +331,27 @@ describe('ScalePicker', () => {
     expect(touch).not.toBeNull()
     expect(within(touch as HTMLElement).getAllByRole('button')).toHaveLength(11)
     expect(screen.getByRole('group', { name: 'RPE' }).querySelector('[data-touch]')).toBeNull()
+  })
+
+  test('a touch scale is set in balanced rows: one row to six steps, else two that differ by one', () => {
+    expect([1, 3, 5, 6, 7, 8, 10, 11].map(touchColumns)).toEqual([1, 3, 5, 6, 4, 4, 5, 6])
+    render(
+      <>
+        <ScalePicker legend="RPE" min={1} max={10} value={null} onChange={() => {}} touch />
+        <ScalePicker legend="Pain" min={0} max={10} value={null} onChange={() => {}} touch />
+        <ScalePicker legend="Sleep" min={1} max={5} value={null} onChange={() => {}} touch />
+      </>,
+    )
+    expectTouchScale(screen.getByRole('group', { name: 'RPE' }), { steps: 10, columns: 5 })
+    expectTouchScale(screen.getByRole('group', { name: 'Pain' }), { steps: 11, columns: 6 })
+    expectTouchScale(screen.getByRole('group', { name: 'Sleep' }), { steps: 5, columns: 5 })
+  })
+
+  test('the default scale keeps its one row and sets no column count', () => {
+    render(<ScalePicker legend="RPE" min={1} max={10} value={null} onChange={() => {}} />)
+    const row = screen.getByRole('group', { name: 'RPE' }).querySelector<HTMLElement>('div')!
+    expect(row.style.getPropertyValue('--steps')).toBe('10')
+    expect(row.style.getPropertyValue('--cols')).toBe('')
   })
 })
 

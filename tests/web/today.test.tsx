@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { Checkin, DisruptionSlot, DisruptionView, TodayView } from '../../shared/types.ts'
 import { getOutbox } from '../../web/pwa/outbox.ts'
 import { makeActivity } from '../factories.ts'
-import { explainOf, expectCleanCopy, type MockRoutes } from './helpers.tsx'
+import { explainOf, expectCleanCopy, expectTouchScale, type MockRoutes } from './helpers.tsx'
 import {
   AVAILABLE,
   makeBrief,
@@ -852,6 +852,13 @@ describe('Today: Done', () => {
     await user.click(within(card).getByRole('button', { name: 'Done' }))
     return screen.findByRole('dialog', { name: "Log today's run" })
   }
+
+  test('sets RPE as a touch scale of two rows of five, so each number is a 44 px target', async () => {
+    const user = userEvent.setup()
+    render(withEasyRun())
+    const sheet = await openDone(user)
+    expectTouchScale(within(sheet).getByRole('group', { name: 'RPE' }), { steps: 10, columns: 5 })
+  })
 
   test('opens the log with the planned minutes and distance filled in', async () => {
     const user = userEvent.setup()

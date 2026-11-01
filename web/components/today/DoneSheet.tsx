@@ -271,6 +271,7 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
           legend="RPE"
           min={1}
           max={10}
+          touch
           value={form.rpe}
           onChange={(rpe) => {
             change({ rpe })

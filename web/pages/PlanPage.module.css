@@ -130,8 +130,36 @@
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
+/* The focus of a phase, printed once above the first week of its run. The first week of the run
+   takes its top rule from this row, so the two do not stack. */
+.phaseHeading {
+  display: block;
+  padding: var(--space-3) 0 0 var(--space-3);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.phaseHeading td {
+  display: block;
+  padding: 0;
+}
+
+.phaseHeading + .row:not([data-race='true']) {
+  border-top-color: transparent;
+}
+
 .week {
   grid-area: week;
+  font-weight: 600;
+}
+
+/* "This week" beside the date of the current week, with the accent bar on the row's edge. */
+.thisWeek {
+  margin-left: var(--space-2);
+  color: var(--accent);
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -292,6 +320,21 @@
     width: 100%;
   }
 
+  .phaseHeading {
+    display: table-row;
+    padding: 0;
+  }
+
+  .phaseHeading td {
+    display: table-cell;
+    padding: var(--space-3) var(--space-3) 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .phaseHeading + .row:not([data-race='true']) td {
+    border-top-color: transparent;
+  }
+
   .target,
   .actual {
     text-align: left;
@@ -329,6 +372,8 @@
 }
 
 .panel summary {
+  /* 28 px of serif line and 16 of padding: a 44 px row, the size of a tap */
+  padding-block: var(--space-2);
   cursor: pointer;
   font-family: var(--font-serif);
   font-size: var(--text-lg);
@@ -403,6 +448,56 @@
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   font-weight: 400;
+}
+
+/* The row that holds the weeks before this one: a whole-row button with the + and - of the app's
+   other disclosure rows. */
+.earlierRow {
+  display: block;
+  border-top: 1px solid var(--border);
+}
+
+.earlierRow td {
+  display: block;
+  padding: 0;
+}
+
+.earlierToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.earlierToggle::after {
+  margin-left: auto;
+  color: var(--accent);
+  content: '+';
+  font-weight: 600;
+}
+
+.earlierToggle[aria-expanded='true']::after {
+  content: '\2212';
+}
+
+@media (min-width: 900px) {
+  .earlierRow {
+    display: table-row;
+  }
+
+  .earlierRow td {
+    display: table-cell;
+    border-top: 1px solid var(--border);
+  }
 }
 
 /* Day cards sit under their week row. */
@@ -481,7 +576,6 @@
   align-items: center;
   min-height: 2.75rem;
   margin: 0;
-  color: var(--accent);
 }
 
 p.weekFiles {
@@ -508,9 +602,12 @@ p.weekFiles {
 }
 
 .warningDetails summary {
+  /* A 44 px row: the 22 px line of this size and 11 px above and below. */
+  padding-block: calc((2.75rem - var(--lh-sm)) / 2);
   cursor: pointer;
   color: var(--text-muted);
   font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 
 .items .warningDetails ul {

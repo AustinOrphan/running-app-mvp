@@ -125,7 +125,7 @@ describe('the window the runner enters', () => {
     ).toEqual({ endDate: 'A window cannot end after the race.' })
     expect(
       draftErrors(input({ mode: 'limited', reason: 'travel', maxRunMin: 300 }), context),
-    ).toEqual({ maxRunMin: 'The longest run can be 20 min to 240 min.' })
+    ).toEqual({ maxRunMin: 'The longest run can be 20 min to 4 h.' })
     expect(draftErrors(input({ endDate: '2026-12-01', startDate: '2026-09-01' }), context)).toEqual(
       {
         startDate: 'A window can start up to 28 days ago.',

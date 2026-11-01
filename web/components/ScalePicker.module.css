@@ -21,9 +21,12 @@
   max-width: 34rem;
 }
 
-/* A touch scale keeps a 44 px square per step and wraps when the steps do not fit in one row. */
+/*
+ * A touch scale keeps a 44 px square per step. Up to six steps share one row; more are set in two
+ * rows of about the same length (`--cols`), so 1 to 10 reads as 5 and 5, and never as 7 and 3.
+ */
 .row[data-touch='true'] {
-  grid-template-columns: repeat(auto-fit, minmax(2.75rem, 1fr));
+  grid-template-columns: repeat(var(--cols), minmax(2.75rem, 1fr));
 }
 
 .button {

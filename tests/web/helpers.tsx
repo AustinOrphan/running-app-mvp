@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, type RenderResult } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { vi } from 'vitest'
+import { expect, vi } from 'vitest'
 import { lintText } from '../../shared/copy/lint.ts'
 import type { ActivityListItem, ActivityListPage } from '../../shared/types.ts'
 
@@ -271,4 +271,19 @@ export function expectCleanCopy(container: Element): void {
   if (problems.length > 0) {
     throw new Error(`Copy breaks the G5 lint:\n${problems.join('\n')}`)
   }
+}
+
+/**
+ * A scale of numbered buttons set for touch (`ScalePicker` with `touch`): `steps` buttons in a row
+ * that holds `columns` of them, so 1 to 10 reads as 5 and 5 and 0 to 10 as 6 and 5. `scale` is the
+ * group the page names ("RPE", "Pain"), found inside `within`.
+ */
+export function expectTouchScale(
+  scale: HTMLElement,
+  expected: { steps: number; columns: number },
+): void {
+  const row = scale.querySelector<HTMLElement>('[data-touch="true"]')
+  expect(row, 'a touch scale').not.toBeNull()
+  expect(row?.querySelectorAll('button')).toHaveLength(expected.steps)
+  expect(row?.style.getPropertyValue('--cols')).toBe(String(expected.columns))
 }

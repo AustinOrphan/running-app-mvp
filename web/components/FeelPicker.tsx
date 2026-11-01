@@ -65,6 +65,7 @@ export function FeedbackFields({ value, onChange }: FeedbackFieldsProps) {
         legend="RPE"
         min={1}
         max={10}
+        touch
         value={value.rpe}
         onChange={(rpe) => {
           onChange({ ...value, rpe })
@@ -81,6 +82,7 @@ export function FeedbackFields({ value, onChange }: FeedbackFieldsProps) {
         legend="Pain"
         min={0}
         max={10}
+        touch
         value={value.pain}
         onChange={(pain) => {
           onChange({ ...value, pain })

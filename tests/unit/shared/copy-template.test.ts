@@ -49,6 +49,20 @@ describe('tpl and render', () => {
     expect(placeholdersOf(twice.text)).toEqual(['n'])
   })
 
+  test('a weekMinutes slot takes a minutes quantity and reads it as hours', () => {
+    const week = tpl('Next week is up to {minutes}.', { minutes: 'weekMinutes' })
+    const session = tpl('The long run is {minutes}.', { minutes: 'minutes' })
+    const minutes: Quantity = { kind: 'minutes', min: 390 }
+    expect(render(week, { minutes }, 'km')).toBe('Next week is up to 6.5 h.')
+    expect(render(session, { minutes }, 'km')).toBe('The long run is 6 h 30 min.')
+    expect(() => render(week as Template, { minutes: { kind: 'count', n: 390 } }, 'km')).toThrow(
+      /weekMinutes, got a count/,
+    )
+    expect(() =>
+      render(week as Template, { minutes: { kind: 'minutes', min: Number.NaN } }, 'km'),
+    ).toThrow(/minutes/)
+  })
+
   test('text slots are inserted verbatim and are not expanded again', () => {
     expect(render(QUOTE, { message: 'Rate limit {limit} reached' }, 'km')).toBe(
       'The service said: Rate limit {limit} reached',

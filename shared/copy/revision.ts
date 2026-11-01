@@ -356,7 +356,7 @@ export const ADJUST_TEMPLATES = {
   ),
   'adjust.weekly-cap': tpl(
     'The week of {date} would hold {minutes} of running, above its {max} target (rules G-2, G-6).',
-    { date: 'date', minutes: 'minutes', max: 'minutes' },
+    { date: 'date', minutes: 'weekMinutes', max: 'weekMinutes' },
   ),
 
   // The label of the alternative a guard offers.
@@ -387,7 +387,7 @@ export const REVISION_TEMPLATES = {
   }),
   'revision.decision': tpl("Last week's decision: {decision}, next week up to {minutes}.", {
     decision: 'text',
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
   // Zero minutes is "no running set", not "up to 0 min".
   'revision.decision-bare': tpl("Last week's decision: {decision}.", { decision: 'text' }),
@@ -451,57 +451,57 @@ export const REVISION_TEMPLATES = {
   // target safe or unsafe: the sentences say what the limit is.
   'revision.target.kept': tpl(
     "Week of {date}: the target set by hand, {kept}, stays; the plan's own figure would be {engine}.",
-    { date: 'date', kept: 'minutes', engine: 'minutes' },
+    { date: 'date', kept: 'weekMinutes', engine: 'weekMinutes' },
   ),
   'revision.target.clipped.ceiling': tpl(
     'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the most the limits allow that week (growth over two weeks stays within {pct}).',
-    { date: 'date', asked: 'minutes', kept: 'minutes', pct: 'share' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes', pct: 'share' },
   ),
   'revision.target.clipped.profile': tpl(
     'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the most the tightened weekly step allows that week ({pct} a week).',
-    { date: 'date', asked: 'minutes', kept: 'minutes', pct: 'share' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes', pct: 'share' },
   ),
   // The limits never go under the plan's own figure or the minutes already run, so a target
   // lowered to one of those is above what the ceiling or the tightened step alone would allow.
   'revision.target.clipped.ceiling.plan': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure that week, which the limits do not go under.",
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.ceiling.logged': tpl(
     'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the minutes already run that week, which the limits do not go under.',
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.profile.plan': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure that week, which the tightened step does not go under.",
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.profile.logged': tpl(
     'Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the minutes already run that week, which the tightened step does not go under.',
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.hold': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure while progression is on hold.",
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.decision': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure after last week's decision.",
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.post-race': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure for the weeks after a race.",
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.window': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure for a week a rest window touches.",
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.programme': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure for a week of the start programme.",
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
   'revision.target.clipped.structure': tpl(
     "Week of {date}: the target set by hand, {asked}, is lowered to {kept}, the plan's own figure for a recovery, taper or race week.",
-    { date: 'date', asked: 'minutes', kept: 'minutes' },
+    { date: 'date', asked: 'weekMinutes', kept: 'weekMinutes' },
   ),
 
   // A week the re-plan took as run (rules g-2, g-6): the minutes run are a fact, the plan stays what
@@ -509,7 +509,7 @@ export const REVISION_TEMPLATES = {
   // rose.
   'revision.overshoot': tpl(
     'Week of {date} was run past its plan: {ran} against {planned}; the weeks after it are drawn from the plan.',
-    { date: 'date', ran: 'minutes', planned: 'minutes' },
+    { date: 'date', ran: 'weekMinutes', planned: 'weekMinutes' },
   ),
 
   // The summary of a change of the load setting [rules g-8]: the position and the step the weeks

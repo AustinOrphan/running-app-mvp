@@ -39,6 +39,18 @@ textarea {
   color: inherit;
 }
 
+/*
+ * Links are the app's accent in both schemes (the token has a value for each) and never the
+ * browser's blue and visited purple. An author colour on `a` beats the browser's visited colour,
+ * so there is no `a:visited` rule: one would outrank the class of a link drawn as a button (an
+ * accent fill with its own text colour) and give it accent text on an accent fill. A class that
+ * sets a colour of its own still wins over this rule.
+ */
+a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
 :focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);

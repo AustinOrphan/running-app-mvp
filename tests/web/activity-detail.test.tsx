@@ -20,7 +20,13 @@ import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { loggedRun, logOf, makeLab, saved } from './fuel-fixtures.ts'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  expectCleanCopy,
+  expectTouchScale,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import { makeSession, makeV2Plan } from './plan-fixtures.ts'
 import {
   DAY,
@@ -340,6 +346,19 @@ describe('ActivityDetailPage', () => {
       rpe: 7,
       feel: 1,
       pain: 2,
+    })
+  })
+
+  test('feedback sets RPE and pain as touch scales: 5 and 5, and 6 and 5', async () => {
+    renderDetail({})
+    const section = await screen.findByRole('region', { name: 'How did it go?' })
+    expectTouchScale(within(section).getByRole('group', { name: 'RPE' }), {
+      steps: 10,
+      columns: 5,
+    })
+    expectTouchScale(within(section).getByRole('group', { name: 'Pain' }), {
+      steps: 11,
+      columns: 6,
     })
   })
 

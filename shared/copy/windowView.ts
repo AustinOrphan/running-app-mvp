@@ -7,6 +7,8 @@
 // renders each one in both unit systems.
 import { addDays } from '../dates.ts'
 import type { DisruptionReason, DisruptionView, Units } from '../types.ts'
+import { P } from '../engine/params/index.ts'
+import { countPhrase, sameWeekHours } from './quantity.ts'
 import { windowRuleFact } from './revision.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -33,7 +35,7 @@ export const WINDOW_VIEW_TEMPLATES = {
     'Easy running only until {until}. Hard sessions return on {date}.',
     { until: 'date', date: 'date' },
   ),
-  'window-view.banner.returning': tpl('Return week: up to {max}.', { max: 'minutes' }),
+  'window-view.banner.returning': tpl('Return week: up to {max}.', { max: 'weekMinutes' }),
   'window-view.banner.returning-open': tpl(
     'Return week: a gentler build back to the planned week.',
   ),
@@ -52,20 +54,34 @@ export const WINDOW_VIEW_TEMPLATES = {
   'window-view.entry.label': tpl('Not 100%', {}, { shape: 'label' }),
   'window-view.entry.hint': tpl('Tell the plan if you are ill, hurt, short on time or travelling.'),
 
+  // The hint under the last day of a window, by what the window is for: the last day the runner
+  // feels it or is away, and what the plan adds after it. An illness has a symptom-free wait and
+  // easy days after it (rule n-3), a niggle only easy days (rule j9) and a trip or a busy spell none.
+  'window-view.until.illness': tpl(
+    'The last day you feel it. The plan adds {free} and {easy} after it.',
+    { free: 'text', easy: 'text' },
+  ),
+  'window-view.until.niggle': tpl('The last day you feel it. The plan adds {easy} after it.', {
+    easy: 'text',
+  }),
+  'window-view.until.travel': tpl('The last day you are away.'),
+  'window-view.until.short': tpl('The last day you are short on time.'),
+  'window-view.until.change-later': tpl('You can change it later.'),
+
   // The preview of a window: the running time it changes, and what it cannot decide for the runner.
   'window-view.minutes-less': tpl(
     'Running time over the next four weeks: {before} becomes {after}. The minutes you rest are not added back.',
-    { before: 'text', after: 'text' },
+    { before: 'weekMinutes', after: 'weekMinutes' },
   ),
   'window-view.minutes-more': tpl(
     'Running time over the next four weeks: {before} becomes {after}.',
     {
-      before: 'text',
-      after: 'text',
+      before: 'weekMinutes',
+      after: 'weekMinutes',
     },
   ),
   'window-view.minutes-same': tpl('Running time over the next four weeks stays at {total}.', {
-    total: 'text',
+    total: 'weekMinutes',
   }),
   'window-view.race-day': tpl(
     'The window includes race day. The plan keeps the race; whether to start is your decision.',
@@ -178,6 +194,47 @@ function restLine(window: BannerWindow, units: Units): string {
   }
 }
 
+/**
+ * The hint under the "Until" date of a window of this reason: the last day it is felt or lasts, and
+ * what the plan adds after it, with the counts from the n-3 and j9 Params. `changeLater` adds that
+ * the date can be changed, for the sheet that creates the window.
+ */
+export function untilHint(
+  reason: DisruptionReason,
+  units: Units,
+  options: { changeLater?: boolean } = {},
+): string {
+  const say = (text: string): string =>
+    options.changeLater === true ? `${text} ${later(units)}` : text
+  switch (reason) {
+    case 'illness-above-neck':
+    case 'illness-below-neck': {
+      const fact = windowRuleFact(reason)
+      const free =
+        typeof fact?.slots['free'] === 'string' ? fact.slots['free'] : 'one symptom-free day'
+      const easy = typeof fact?.slots['easy'] === 'string' ? fact.slots['easy'] : 'three easy days'
+      // "one symptom-free day" reads "a symptom-free day" in a sentence
+      return say(
+        render(t['window-view.until.illness'], { free: free.replace(/^one /, 'a '), easy }, units),
+      )
+    }
+    case 'niggle':
+      return say(
+        render(
+          t['window-view.until.niggle'],
+          { easy: countPhrase(P.j9.niggleEasyDays.value, 'easy day') },
+          units,
+        ),
+      )
+    case 'travel':
+      return say(render(t['window-view.until.travel'], {}, units))
+    case 'short-on-time':
+      return say(render(t['window-view.until.short'], {}, units))
+  }
+}
+
+const later = (units: Units): string => render(t['window-view.until.change-later'], {}, units)
+
 /** "One symptom-free day", from the n-3 Param. */
 function symptomFreeWait(): string {
   const fact = windowRuleFact('illness-above-neck')
@@ -186,24 +243,18 @@ function symptomFreeWait(): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 }
 
-/** "1,240 min": a total of minutes with a thousands separator, for a sum across weeks. */
-export function totalMinutesText(min: number): string {
-  return `${Math.round(min).toLocaleString('en-US')} min`
-}
-
 /**
- * The running-time line of a preview: the minutes the next four weeks hold now and after the
- * action. Only a line that shows minutes taken away says they are not added back; undoing or
- * shortening a window can give minutes back, and that line does not.
+ * The running-time line of a preview: the time the next four weeks hold now and after the action,
+ * as hours ("20.3 h becomes 17.4 h"), the unit of a week's total. Only a line that shows time taken
+ * away says it is not added back; undoing or shortening a window can give time back, and that
+ * line does not.
  */
 export function runningTimeLine(figures: { before: number; after: number }, units: Units): string {
-  if (figures.before === figures.after) {
-    return render(t['window-view.minutes-same'], { total: totalMinutesText(figures.before) }, units)
+  // Totals that read the same at 0.1 h (120 and 119 minutes) are "stays at", not "2.0 h becomes 2.0 h".
+  if (figures.before === figures.after || sameWeekHours(figures.before, figures.after)) {
+    return render(t['window-view.minutes-same'], { total: mins(figures.after) }, units)
   }
-  const slots = {
-    before: totalMinutesText(figures.before),
-    after: totalMinutesText(figures.after),
-  }
+  const slots = { before: mins(figures.before), after: mins(figures.after) }
   return figures.after < figures.before
     ? render(t['window-view.minutes-less'], slots, units)
     : render(t['window-view.minutes-more'], slots, units)

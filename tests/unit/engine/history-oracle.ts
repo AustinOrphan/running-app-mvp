@@ -69,6 +69,14 @@
 // weeks and the other 141 digests are the same. The taper cut that follows the same reading (task
 // RF2, second review) and the distance of the long run in the week in progress move no digest.
 //
+// Regenerated 2026-11-01 (task UX1, item 1) for the unit of the weekly-path note: the feasibility
+// note `weekly-path` of an ultra goal gave the start and the target week in minutes ("growing from
+// about 60 to 534 minutes a week") and now gives them in hours ("growing from about 1.0 to 8.9 h a
+// week", `h1 one year`), the unit of a week total everywhere else. 34 of the 142 digests move: the
+// plans that carry the note (14 runners, 12 sweep cases and 8 plans of the `first-100-mile`
+// chains). Checked by putting the old sentence back: all 142 digests matched, so only that text
+// differs.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

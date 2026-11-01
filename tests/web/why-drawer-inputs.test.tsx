@@ -672,7 +672,8 @@ describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
   test("the rule section holds the override's grade D and the records it rests on, each with its level", async () => {
     const { user, dialog } = await openOn(planOf('half', 'three-run-days'), ['P2'])
     const section = await within(dialog).findByRole('region', { name: 'Three run days' })
-    expect(within(section).getByText('Evidence grade D')).toBeInTheDocument()
+    // the fold's row and the parameter row inside it both say the grade
+    expect(within(section).getAllByText('Evidence grade D')).toHaveLength(2)
     expect(within(section).getByText('Default (no direct study)')).toBeInTheDocument()
     expect(within(section).getByText(/A choice, not a better plan/)).toBeInTheDocument()
 

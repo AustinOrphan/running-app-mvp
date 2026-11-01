@@ -57,9 +57,7 @@ describe('revision summaries', () => {
   })
 
   it('states the minutes of the weekly decision, and leaves out a zero', () => {
-    expect(decisionSummary('hold', 270)).toBe(
-      "Last week's decision: hold, next week up to 270 min.",
-    )
+    expect(decisionSummary('hold', 270)).toBe("Last week's decision: hold, next week up to 4.5 h.")
     expect(decisionSummary('reduce', 0)).toBe("Last week's decision: reduce.")
     expect(decisionSummary('progress', 0.4)).toBe("Last week's decision: progress.")
   })
@@ -246,13 +244,13 @@ describe('the sentences of a week target raised by hand', () => {
 
   it('says a kept target stays and what the plan’s own figure would be', () => {
     expect(targetSummary(line({ outcome: 'kept', askedMin: 230, keptMin: 230 }))).toBe(
-      "Week of Mon 26 Oct: the target set by hand, 230 min, stays; the plan's own figure would be 209 min.",
+      "Week of Mon 26 Oct: the target set by hand, 3.8 h, stays; the plan's own figure would be 3.5 h.",
     )
   })
 
   it('names the 2-week ceiling with its share, from the stored line', () => {
     expect(targetSummary(line())).toBe(
-      'Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 247 min, the most the limits allow that week (growth over two weeks stays within 30%).',
+      'Week of Mon 26 Oct: the target set by hand, 6.7 h, is lowered to 4.1 h, the most the limits allow that week (growth over two weeks stays within 30%).',
     )
     // the share is the line's own, and the ceiling's Param when a line carries none
     expect(targetSummary(line({ ramp: 0.25 }))).toContain('stays within 25%')
@@ -261,27 +259,27 @@ describe('the sentences of a week target raised by hand', () => {
 
   it('names the tightened step of a profile with its share', () => {
     expect(targetSummary(line({ limit: 'profile', ramp: 0.05 }))).toBe(
-      'Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 247 min, the most the tightened weekly step allows that week (5% a week).',
+      'Week of Mon 26 Oct: the target set by hand, 6.7 h, is lowered to 4.1 h, the most the tightened weekly step allows that week (5% a week).',
     )
   })
 
   it('names the plan’s own figure when it is what the ceiling or the profile leaves, not the most the limits allow', () => {
     expect(targetSummary(line({ bound: 'plan', keptMin: 209 }))).toBe(
-      "Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 209 min, the plan's own figure that week, which the limits do not go under.",
+      "Week of Mon 26 Oct: the target set by hand, 6.7 h, is lowered to 3.5 h, the plan's own figure that week, which the limits do not go under.",
     )
     expect(targetSummary(line({ limit: 'profile', ramp: 0.05, bound: 'plan', keptMin: 209 }))).toBe(
-      "Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 209 min, the plan's own figure that week, which the tightened step does not go under.",
+      "Week of Mon 26 Oct: the target set by hand, 6.7 h, is lowered to 3.5 h, the plan's own figure that week, which the tightened step does not go under.",
     )
   })
 
   it('names the minutes already run when they are what the ceiling or the profile leaves', () => {
     expect(targetSummary(line({ bound: 'logged', keptMin: 262 }))).toBe(
-      'Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 262 min, the minutes already run that week, which the limits do not go under.',
+      'Week of Mon 26 Oct: the target set by hand, 6.7 h, is lowered to 4.4 h, the minutes already run that week, which the limits do not go under.',
     )
     expect(
       targetSummary(line({ limit: 'profile', ramp: 0.05, bound: 'logged', keptMin: 262 })),
     ).toBe(
-      'Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 262 min, the minutes already run that week, which the tightened step does not go under.',
+      'Week of Mon 26 Oct: the target set by hand, 6.7 h, is lowered to 4.4 h, the minutes already run that week, which the tightened step does not go under.',
     )
   })
 
@@ -306,7 +304,7 @@ describe('the sentences of a week target raised by hand', () => {
     'names a week that a rule draws: %s',
     (limit) => {
       const text = targetSummary(line({ limit, ramp: null }))
-      expect(text).toMatch(/is lowered to 247 min, the plan's own figure (for|while|after) /)
+      expect(text).toMatch(/is lowered to 4\.1 h, the plan's own figure (for|while|after) /)
     },
   )
 
@@ -341,7 +339,7 @@ describe('the sentence for a week the re-plan took as run', () => {
 
   it('says the week was run past its plan, with the minutes run against the plan', () => {
     expect(overshootSummary(line)).toBe(
-      'Week of Mon 26 Oct was run past its plan: 144 min against 79 min; the weeks after it are drawn from the plan.',
+      'Week of Mon 26 Oct was run past its plan: 2.4 h against 1.3 h; the weeks after it are drawn from the plan.',
     )
   })
 

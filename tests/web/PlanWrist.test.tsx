@@ -156,21 +156,21 @@ describe('the strip on the Plan page', () => {
     expect(within(strip).queryByRole('link', { name: /zip/ })).not.toBeInTheDocument()
   })
 
-  test('says sending is off, and points to the files and to Integrations', async () => {
+  test('is one line when sending is off: the sentence, the files and Integrations', async () => {
     mockApi(routes(makeV2Plan(), makeWristStatus()))
     renderPlan()
     const strip = await screen.findByRole('region', { name: 'Watch' })
-    expect(
-      await within(strip).findByText(
-        'Sending to your watch is off. Download the workout file, or turn it on under Integrations.',
-      ),
-    ).toBeInTheDocument()
+    expect(await within(strip).findByText('Sending to your watch is off.')).toBeInTheDocument()
+    expect(strip).toHaveAttribute('data-state', 'off')
     expect(within(strip).getByRole('link', { name: 'Open Integrations' })).toHaveAttribute(
       'href',
       '/integrations',
     )
     expect(within(strip).getByRole('link', { name: 'Download this week as .zip' })).toBeVisible()
     expect(within(strip).queryByRole('button')).not.toBeInTheDocument()
+    // the strip is the sentence and two links, with no explanation beside them
+    expect(strip.querySelectorAll('p')).toHaveLength(1)
+    expect(within(strip).queryByText(/turn it on under Integrations/)).not.toBeInTheDocument()
   })
 
   test('renders nothing about the status offline, and the download stays', async () => {
@@ -299,6 +299,7 @@ describe('the days of a week', () => {
     mockApi(routes(makeV2Plan(), sendingOn([])))
     renderPlan()
     await screen.findByRole('table')
+    await user.click(await screen.findByRole('button', { name: 'Earlier weeks (1)' }))
     await user.click(await screen.findByRole('button', { name: 'Days for week of 4 Jan' }))
     const row = days('2027-01-04')
     expect(
@@ -402,14 +403,18 @@ describe('the session sheet', () => {
     ).toHaveAttribute('href', '/api/plan/sessions/c/workout.fit')
   })
 
-  test('says sending is off in the section too', async () => {
+  test('leaves the section at the one download link while sending is off', async () => {
     const { dialog } = await openSheet()
     const section = within(dialog).getByRole('region', { name: 'On your watch' })
     expect(
-      await within(section).findByText(
-        'Sending to your watch is off. Download the workout file, or turn it on under Integrations.',
-      ),
-    ).toBeInTheDocument()
+      await within(section).findByRole('link', { name: 'Download the workout file' }),
+    ).toBeVisible()
+    // the strip on the page says sending is off and links to Integrations; the sheet does not repeat it
+    expect(within(section).queryByText(/Sending to your watch is off/)).not.toBeInTheDocument()
+    expect(
+      within(section).queryByRole('link', { name: 'Open Integrations' }),
+    ).not.toBeInTheDocument()
+    expect(within(section).getAllByRole('link')).toHaveLength(1)
   })
 
   test('says an eased run is the easy version on the watch, and keeps the plan', async () => {

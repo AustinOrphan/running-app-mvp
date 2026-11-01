@@ -21,13 +21,17 @@
   max-width: var(--prose-max);
 }
 
-/* A 44px row, so the disclosure is a comfortable tap target. */
+/*
+ * A 44px row, so the disclosure is a comfortable tap target. The row stays `display: list-item`, as
+ * the disclosure of Today's notes does: any other display drops the browser's disclosure marker, the
+ * one cue that the line opens, and without it accent words on a line read as a link.
+ */
 .summary {
-  display: flex;
-  align-items: center;
-  min-height: 2.75rem;
+  display: list-item;
+  padding-block: calc((2.75rem - var(--lh-sm)) / 2);
   color: var(--accent);
   font-size: var(--text-sm);
+  line-height: var(--lh-sm);
   font-weight: 600;
   cursor: pointer;
 }

@@ -6,6 +6,7 @@ import { publishable } from '../../shared/workouts/labels.ts'
 import {
   logStrengthSession,
   nextStrengthWorkout,
+  planWithRunToday,
   relativeDates,
   resetData,
   saveStrengthSetup,
@@ -535,6 +536,15 @@ test('the Plan page keeps the watch strip, its chips and the sheet section insid
   await page.setViewportSize({ width: 360, height: 740 })
   // Sending is off in a fresh account: the strip says so and keeps the files one tap away.
   await page.goto('/plan')
+  // The disclosure rows of the page are 44 px taps: Plan checks, What changed, Earlier weeks.
+  for (const row of [
+    page.locator('summary#checks-title'),
+    page.locator('summary').filter({ hasText: 'What changed' }),
+  ]) {
+    const box = await row.boundingBox()
+    expect(box, 'a disclosure row').not.toBeNull()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(43.5)
+  }
   const strip = page.getByRole('region', { name: 'Watch' })
   await expect(strip).toContainText('Sending to your watch is off.')
   await expect(strip.getByRole('link', { name: 'Download this week as .zip' })).toBeVisible()
@@ -640,6 +650,179 @@ test('the Plan page keeps the watch strip, its chips and the sheet section insid
   }
 })
 
+test('the RPE and pain scales after a run are 44 px squares in two balanced rows at 360 px', async ({
+  baseURL,
+}) => {
+  const run = await planWithRunToday(api, page, baseURL ?? '', 'Scales marathon')
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/')
+  await page
+    .getByRole('article', { name: run.title })
+    .getByRole('button', { name: 'Done', exact: true })
+    .click()
+  const sheet = page.getByRole('dialog', { name: "Log today's run" })
+  await expect(sheet).toBeVisible()
+  // Measure after the slide-up animation ends.
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+
+  // RPE: ten answers in rows of five, each at least 44 px each way and inside the screen.
+  const rpe = sheet.getByRole('group', { name: 'RPE' })
+  await rpe.scrollIntoViewIfNeeded()
+  const buttons = await rpe.getByRole('button').all()
+  expect(buttons.length).toBe(10)
+  const rows = new Map<number, number>()
+  for (const button of buttons) {
+    const box = await button.boundingBox()
+    const label = (await button.getAttribute('aria-label')) ?? 'RPE'
+    expect(box, label).not.toBeNull()
+    expect(box?.width ?? 0, `${label} width`).toBeGreaterThanOrEqual(43.5)
+    expect(box?.height ?? 0, `${label} height`).toBeGreaterThanOrEqual(43.5)
+    expect((box?.x ?? 0) + (box?.width ?? 0), `${label} right edge`).toBeLessThanOrEqual(360)
+    const top = Math.round(box?.y ?? 0)
+    rows.set(top, (rows.get(top) ?? 0) + 1)
+  }
+  expect([...rows.values()], 'RPE 1 to 10 reads as 5 and 5').toEqual([5, 5])
+
+  // Save stays pinned at the foot of the sheet, on screen and uncovered, with the taller scale.
+  const save = sheet.getByRole('button', { name: 'Save' })
+  const saveBox = await save.boundingBox()
+  expect(saveBox).not.toBeNull()
+  expect((saveBox?.y ?? 0) + (saveBox?.height ?? 0)).toBeLessThanOrEqual(740)
+  expect(await isUncovered(save)).toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+
+  // The card after a run on Today and the activity page share one pair of scales; the manual
+  // form's Pain is the same component: 0 to 10 reads as 6 and 5.
+  await page.goto('/activities?new=1')
+  const form = page.getByRole('dialog')
+  await form.getByRole('button', { name: 'More details' }).click()
+  const pain = form.getByRole('group', { name: 'Pain' })
+  await pain.scrollIntoViewIfNeeded()
+  const painRows = new Map<number, number>()
+  for (const button of await pain.getByRole('button').all()) {
+    const box = await button.boundingBox()
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(43.5)
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(43.5)
+    const top = Math.round(box?.y ?? 0)
+    painRows.set(top, (painRows.get(top) ?? 0) + 1)
+  }
+  expect([...painRows.values()], 'pain 0 to 10 reads as 6 and 5').toEqual([6, 5])
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+})
+
+test('a tap on Skip in the session sheet shows what would change, with Apply change on screen', async () => {
+  const { lastWednesday, raceDate, thisMonday } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Sheet marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+
+  const size = { width: 360, height: 740 }
+  await page.setViewportSize(size)
+  await page.goto('/plan')
+  // this week's days are open when the page opens; open its first run still to do
+  await page
+    .locator(`tr[data-days-for="${thisMonday}"] button[data-status="planned"]`)
+    .first()
+    .click()
+  const dialog = page.getByRole('dialog')
+  const change = dialog.getByRole('region', { name: 'Change this session' })
+  // Measure after the slide-up animation ends.
+  await dialog.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+
+  // The change section is not the last: the watch and the linked activity come after it.
+  const names = await dialog
+    .getByRole('region')
+    .evaluateAll((regions) =>
+      regions.map((region) => region.querySelector('h3')?.textContent ?? ''),
+    )
+  expect(names.indexOf('Change this session')).toBeGreaterThan(-1)
+  expect(names.indexOf('Change this session')).toBeLessThan(names.indexOf('Linked activity'))
+
+  // Skip sits at the foot of the screen, so the answer that mounts below it starts off screen.
+  const skip = change.getByRole('button', { name: 'Skip session' })
+  await skip.evaluate((el) => {
+    el.scrollIntoView({ block: 'end' })
+  })
+  await skip.click()
+  const check = change.getByRole('status', { name: 'Check of this change' })
+  await expect(check.getByText('What would change')).toBeVisible()
+  // The answer came into view with its buttons: both inside the screen and not under anything.
+  const apply = check.getByRole('button', { name: 'Apply change' })
+  const cancel = check.getByRole('button', { name: 'Cancel' })
+  await expect(apply).toBeVisible()
+  for (const [name, button] of [
+    ['Apply change', apply],
+    ['Cancel', cancel],
+  ] as const) {
+    const box = await button.boundingBox()
+    expect(box, name).not.toBeNull()
+    expect((box?.y ?? 0) + (box?.height ?? 0), name).toBeLessThanOrEqual(size.height)
+    expect(box?.y ?? -1, name).toBeGreaterThanOrEqual(0)
+    expect(await isUncovered(button), name).toBe(true)
+  }
+  // Scrolled back up to the rows of the change, the buttons stay at the foot of the sheet.
+  await check.getByText('What would change').scrollIntoViewIfNeeded()
+  expect(await isUncovered(apply)).toBe(true)
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+
+  // The buttons are pinned, not only scrolled to: on a short screen, with the sheet scrolled so
+  // that only the top 70 px of the answer shows above its foot, Apply change is still inside the
+  // scroller. Without `position: sticky` on the row it sits below the scroller's bottom edge.
+  await page.setViewportSize({ width: 360, height: 420 })
+  await dialog.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  const placed = await check.evaluate((panel) => {
+    let scroller: HTMLElement | null = panel.parentElement
+    while (
+      scroller !== null &&
+      !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)
+    ) {
+      scroller = scroller.parentElement
+    }
+    if (scroller === null) throw new Error('The answer has no scrolling sheet around it.')
+    const foot = scroller.getBoundingClientRect().bottom
+    scroller.scrollTop += panel.getBoundingClientRect().top - (foot - 70)
+    return { scrolledBy: scroller.scrollTop }
+  })
+  expect(placed.scrolledBy, 'the sheet scrolled to put the answer near its foot').toBeGreaterThan(0)
+  const scrollerBottom = await check.evaluate((panel) => {
+    let scroller: HTMLElement | null = panel.parentElement
+    while (
+      scroller !== null &&
+      !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)
+    ) {
+      scroller = scroller.parentElement
+    }
+    return scroller?.getBoundingClientRect().bottom ?? 0
+  })
+  const pinned = await apply.boundingBox()
+  expect(pinned, 'Apply change on the short screen').not.toBeNull()
+  expect(
+    (pinned?.y ?? 0) + (pinned?.height ?? 0),
+    'Apply change is inside the sheet',
+  ).toBeLessThanOrEqual(scrollerBottom + 0.5)
+  expect(await isUncovered(apply), 'Apply change on the short screen').toBe(true)
+  await page.setViewportSize(size)
+
+  // Cancel changes nothing.
+  await cancel.click()
+  await expect(change.getByText('What would change')).toBeHidden()
+})
+
 test('the Fuel lab and an open fuel log fit 360 px, with every control reachable', async () => {
   const { lastWednesday, raceDate, today } = relativeDates()
   await resetData()
@@ -715,6 +898,15 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
   // The page: nothing pushes it sideways, and the history table scrolls inside its own box.
   expect(await pageOverflow(), 'the lab page').toBeLessThanOrEqual(0)
   expect(await pastRightEdge(page.getByRole('main')), 'past the right edge').toEqual([])
+  // The grades on the ladder are explained in a line of the page, since a phone shows no hover
+  // text. The low-certainty label of the rungs above the floor is one line over them.
+  const ladder = page.getByRole('region', { name: 'Tier ladder' })
+  await ladder.scrollIntoViewIfNeeded()
+  await expect(ladder.getByText(/Grade C: small trials, observational data/)).toBeVisible()
+  await expect(ladder.getByText(/Grade D: a convention or engineering default/)).toBeVisible()
+  await expect(
+    ladder.getByText(/^Low certainty: above \d+ g\/h the evidence is thin/),
+  ).toBeVisible()
   const historyBox = await history.boundingBox()
   expect((historyBox?.x ?? -1) + (historyBox?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
   expect(historyBox?.x ?? -1).toBeGreaterThanOrEqual(0)
