@@ -157,7 +157,6 @@ export const FUEL_UI_TEMPLATES = {
     'The ladder is meant to be climbed on long runs from the start of the build, not only in its last weeks.',
   ),
   'fuel.lab.ladder-label': tpl('Carbohydrate rates, lowest first', {}, { shape: 'label' }),
-  'fuel.lab.low-certainty': tpl('Low certainty', {}, { shape: 'label' }),
   'fuel.lab.history-heading': tpl('History', {}, { shape: 'label' }),
   'fuel.lab.history-label': tpl('Fuel history, newest first', {}, { shape: 'label' }),
   'fuel.lab.history-empty': tpl(

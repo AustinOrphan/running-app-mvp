@@ -861,12 +861,14 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
   expect(await pageOverflow(), 'the lab page').toBeLessThanOrEqual(0)
   expect(await pastRightEdge(page.getByRole('main')), 'past the right edge').toEqual([])
   // The grades on the ladder are explained in a line of the page, since a phone shows no hover
-  // text, and a rung no longer says "Low certainty" beside a C or D badge that says it.
+  // text. The low-certainty label of the rungs above the floor is one line over them.
   const ladder = page.getByRole('region', { name: 'Tier ladder' })
   await ladder.scrollIntoViewIfNeeded()
   await expect(ladder.getByText(/Grade C: small trials, observational data/)).toBeVisible()
   await expect(ladder.getByText(/Grade D: a convention or engineering default/)).toBeVisible()
-  await expect(ladder.getByText('Low certainty')).toHaveCount(0)
+  await expect(
+    ladder.getByText(/^Low certainty: above \d+ g\/h the evidence is thin/),
+  ).toBeVisible()
   const historyBox = await history.boundingBox()
   expect((historyBox?.x ?? -1) + (historyBox?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
   expect(historyBox?.x ?? -1).toBeGreaterThanOrEqual(0)

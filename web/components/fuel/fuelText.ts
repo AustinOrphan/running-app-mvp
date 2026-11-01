@@ -11,6 +11,7 @@ import {
   type SlotValues,
   type Template,
 } from '../../../shared/copy/template.ts'
+import { lowCertaintyLine } from '../../../shared/engine/fuelCopy.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { FuelProductKind, Units } from '../../../shared/types.ts'
 
@@ -166,7 +167,7 @@ export const labText = {
   ladderHeading: () => say(T['fuel.lab.ladder-heading'], {}),
   ladderIntro: () => say(T['fuel.lab.ladder-intro'], {}),
   ladderLabel: () => say(T['fuel.lab.ladder-label'], {}),
-  lowCertainty: () => say(T['fuel.lab.low-certainty'], {}),
+  ladderCertainty: () => lowCertaintyLine(),
 
   historyHeading: () => say(T['fuel.lab.history-heading'], {}),
   historyLabel: () => say(T['fuel.lab.history-label'], {}),

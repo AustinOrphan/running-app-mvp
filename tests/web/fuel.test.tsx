@@ -1445,13 +1445,28 @@ describe('the Fuel lab page: the tier ladder', () => {
       expect(within(item).getByText(rungStateLabel(rung.state))).toBeInTheDocument()
       expect(within(item).getByText(`Evidence grade ${rung.grade}`)).toBeInTheDocument()
       expect(item.getAttribute('aria-current')).toBe(index === ladder.currentIndex ? 'step' : null)
-      // A rung above the floor has thin evidence, and its C or D badge says so: the label that
-      // said it a second time is gone, and the legend under the intro says what the letters mean.
+      // A rung above the floor has thin evidence and stands under the one line below the intro
+      // (rule H8, ADR 0011); its C or D badge is the grade, and no chip repeats the label.
       expect(rung.lowCertainty).toBe(index > 0)
       if (rung.lowCertainty) expect(['C', 'D']).toContain(rung.grade)
-      expect(within(item).queryByText('Low certainty')).not.toBeInTheDocument()
+      expect(within(item).queryByText(/Low certainty/)).not.toBeInTheDocument()
     })
-    expect(within(card).queryByText('Low certainty')).not.toBeInTheDocument()
+    // The label every rung above the floor carries is said once, above them, in the words of the
+    // target's own line, and before the legend of the grades.
+    const certainty = within(card).getByText(
+      `Low certainty: above ${String(P.h7.carbFloorGPerH.value[1])} g/h the evidence is thin. This is a rehearsal, not a promise.`,
+    )
+    expect(certainty).toBeVisible()
+    expect(within(card).getAllByText(/Low certainty/)).toHaveLength(1)
+    const intro0 = within(card).getByText(/climbed on long runs from the start of the build/)
+    const legend0 = within(card).getByText(/^Grade [A-D]: /)
+    expect(
+      intro0.compareDocumentPosition(certainty) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      certainty.compareDocumentPosition(legend0) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(list.compareDocumentPosition(certainty) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
     const legend = within(card).getByText(/^Grade [A-D]: /)
     expect(legend).toBeVisible()
     expect(legend).toHaveTextContent(gradeLegend(ladder.rungs.map((rung) => rung.grade)))

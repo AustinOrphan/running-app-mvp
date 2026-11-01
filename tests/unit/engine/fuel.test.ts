@@ -37,6 +37,7 @@ import {
   fluidReferenceNote,
   fuelDisclaimer,
   fuelWatchText,
+  lowCertaintyLine,
   gutTrainingText,
   loggedTotalText,
   rateText,
@@ -1426,7 +1427,11 @@ describe('fuel copy agrees with the registry', () => {
     expect(text.multiCarb).toContain(`Above ${String(P.h7.carbTier1GPerH.value)} g/h`)
     withParam(P.h7.carbFloorGPerH, [25, 45], () => {
       expect(describeFuelTarget(target).certainty).toContain('above 45 g/h')
+      expect(lowCertaintyLine()).toContain('above 45 g/h')
     })
+    // the line over the ladder is the target's own label, from the one template
+    expect(lowCertaintyLine()).toBe(text.certainty)
+    expect(lowCertaintyLine()).toMatch(/^Low certainty: .* a rehearsal, not a promise\.$/)
     expect(rungStateLabel('opens-after-second-tier')).toBe(
       `Opens after ${String(P.h7.carbTier2GPerH.value)} g/h goes well`,
     )
