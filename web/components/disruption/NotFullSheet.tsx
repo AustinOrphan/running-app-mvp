@@ -342,6 +342,7 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
                 legend="Pain (0 to 10)"
                 min={0}
                 max={10}
+                touch
                 value={draft.pain}
                 onChange={(pain) => {
                   change({ pain })

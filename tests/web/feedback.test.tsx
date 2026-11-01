@@ -7,7 +7,13 @@ import { ScalePicker } from '../../web/components/ScalePicker.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import { makeActivity } from '../factories.ts'
-import { activityPage, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  activityPage,
+  expectTouchScale,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import { makeToday } from './today-fixtures.ts'
 import { renderToday } from './today-render.tsx'
 
@@ -138,6 +144,13 @@ describe('Today: How did it go?', () => {
     renderDashboard([])
     await screen.findByText(/No plan yet/)
     expect(screen.queryByRole('region', { name: 'How did it go?' })).not.toBeInTheDocument()
+  })
+
+  test('sets RPE and pain as touch scales: 5 and 5, and 6 and 5', async () => {
+    renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })])
+    const card = await screen.findByRole('region', { name: 'How did it go?' })
+    expectTouchScale(within(card).getByRole('group', { name: 'RPE' }), { steps: 10, columns: 5 })
+    expectTouchScale(within(card).getByRole('group', { name: 'Pain' }), { steps: 11, columns: 6 })
   })
 
   test('saves RPE, feel and pain for the activity', async () => {

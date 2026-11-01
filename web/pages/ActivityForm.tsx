@@ -483,6 +483,7 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
               legend="Pain"
               min={0}
               max={10}
+              touch
               value={pain}
               onChange={setPain}
               hint="0 is none, 10 is the worst. Tap again to clear."

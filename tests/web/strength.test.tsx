@@ -2349,8 +2349,10 @@ describe('the layout rules of the stylesheet (design 11.7)', () => {
     expect(sheetCss).not.toMatch(/overflow-x: scroll/)
   })
 
-  test('the reps-left scale is the touch scale: 44 px a value, wrapping when they do not fit', () => {
-    expect(css('ScalePicker.module.css')).toMatch(/\[data-touch='true'\][^}]*minmax\(2\.75rem/s)
+  test('the reps-left scale is the touch scale: 44 px a value, in the columns the component sets', () => {
+    expect(css('ScalePicker.module.css')).toMatch(
+      /\[data-touch='true'\][^}]*repeat\(var\(--cols\), minmax\(2\.75rem/s,
+    )
   })
 })
 

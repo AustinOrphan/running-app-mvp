@@ -7,7 +7,13 @@ import { P } from '../../shared/engine/params/index.ts'
 import type { DisruptionResult, PlanPreview, TodayView } from '../../shared/types.ts'
 import { NotFullSheet } from '../../web/components/disruption/NotFullSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  expectCleanCopy,
+  expectTouchScale,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import {
   AVAILABLE,
   makeBrief,
@@ -273,6 +279,10 @@ describe('Not 100%, step 2', () => {
     )
     expect(dialog).toHaveTextContent('Pain at one spot on a bone pauses progression')
     await user.type(within(dialog).getByLabelText('Where is it?'), 'Left calf')
+    expectTouchScale(within(dialog).getByRole('group', { name: 'Pain (0 to 10)' }), {
+      steps: 11,
+      columns: 6,
+    })
     await user.click(within(dialog).getByRole('button', { name: 'Pain (0 to 10) 3' }))
     await user.click(within(dialog).getByRole('checkbox', { name: 'It changes how I walk or run' }))
     // A niggle may rest or allow short easy runs; resting is the start.

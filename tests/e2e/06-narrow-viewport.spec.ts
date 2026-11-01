@@ -6,6 +6,7 @@ import { publishable } from '../../shared/workouts/labels.ts'
 import {
   logStrengthSession,
   nextStrengthWorkout,
+  planWithRunToday,
   relativeDates,
   resetData,
   saveStrengthSetup,
@@ -638,6 +639,67 @@ test('the Plan page keeps the watch strip, its chips and the sheet section insid
   } finally {
     await page.unroute('**/api/wrist/status')
   }
+})
+
+test('the RPE and pain scales after a run are 44 px squares in two balanced rows at 360 px', async ({
+  baseURL,
+}) => {
+  const run = await planWithRunToday(api, page, baseURL ?? '', 'Scales marathon')
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/')
+  await page
+    .getByRole('article', { name: run.title })
+    .getByRole('button', { name: 'Done', exact: true })
+    .click()
+  const sheet = page.getByRole('dialog', { name: "Log today's run" })
+  await expect(sheet).toBeVisible()
+  // Measure after the slide-up animation ends.
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+
+  // RPE: ten answers in rows of five, each at least 44 px each way and inside the screen.
+  const rpe = sheet.getByRole('group', { name: 'RPE' })
+  await rpe.scrollIntoViewIfNeeded()
+  const buttons = await rpe.getByRole('button').all()
+  expect(buttons.length).toBe(10)
+  const rows = new Map<number, number>()
+  for (const button of buttons) {
+    const box = await button.boundingBox()
+    const label = (await button.getAttribute('aria-label')) ?? 'RPE'
+    expect(box, label).not.toBeNull()
+    expect(box?.width ?? 0, `${label} width`).toBeGreaterThanOrEqual(43.5)
+    expect(box?.height ?? 0, `${label} height`).toBeGreaterThanOrEqual(43.5)
+    expect((box?.x ?? 0) + (box?.width ?? 0), `${label} right edge`).toBeLessThanOrEqual(360)
+    const top = Math.round(box?.y ?? 0)
+    rows.set(top, (rows.get(top) ?? 0) + 1)
+  }
+  expect([...rows.values()], 'RPE 1 to 10 reads as 5 and 5').toEqual([5, 5])
+
+  // Save stays pinned at the foot of the sheet, on screen and uncovered, with the taller scale.
+  const save = sheet.getByRole('button', { name: 'Save' })
+  const saveBox = await save.boundingBox()
+  expect(saveBox).not.toBeNull()
+  expect((saveBox?.y ?? 0) + (saveBox?.height ?? 0)).toBeLessThanOrEqual(740)
+  expect(await isUncovered(save)).toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+
+  // The card after a run on Today and the activity page share one pair of scales; the manual
+  // form's Pain is the same component: 0 to 10 reads as 6 and 5.
+  await page.goto('/activities?new=1')
+  const form = page.getByRole('dialog')
+  await form.getByRole('button', { name: 'More details' }).click()
+  const pain = form.getByRole('group', { name: 'Pain' })
+  await pain.scrollIntoViewIfNeeded()
+  const painRows = new Map<number, number>()
+  for (const button of await pain.getByRole('button').all()) {
+    const box = await button.boundingBox()
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(43.5)
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(43.5)
+    const top = Math.round(box?.y ?? 0)
+    painRows.set(top, (painRows.get(top) ?? 0) + 1)
+  }
+  expect([...painRows.values()], 'pain 0 to 10 reads as 6 and 5').toEqual([6, 5])
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
 })
 
 test('a tap on Skip in the session sheet shows what would change, with Apply change on screen', async () => {
