@@ -43,8 +43,8 @@ import { renderToday, startToday } from './today-render.tsx'
 /** Thursday 2026-03-19 12:00 UTC; 07:00 in Chicago (CDT), 21:00 in Tokyo. */
 const NOW = new Date('2026-03-19T12:00:00.000Z')
 
-function goOffline(): void {
-  vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+function goOffline() {
+  return vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
 }
 
 beforeEach(() => {
@@ -717,6 +717,58 @@ describe('a file replaced by an update', () => {
     try {
       expect(preloadError().defaultPrevented).toBe(false)
       expect(reload).not.toHaveBeenCalled()
+    } finally {
+      stop()
+    }
+  })
+
+  test('does not reload while the browser says it is offline: the error is left to show', () => {
+    goOffline()
+    const reload = vi.fn()
+    const stop = reloadOnPreloadError(reload)
+    try {
+      expect(preloadError().defaultPrevented).toBe(false)
+      expect(reload).not.toHaveBeenCalled()
+    } finally {
+      stop()
+    }
+  })
+
+  test('leaves the reload record alone while offline, so the next online error still reloads', () => {
+    const reload = vi.fn()
+    const stop = reloadOnPreloadError(reload)
+    try {
+      const offline = goOffline()
+      preloadError()
+      expect(window.sessionStorage.getItem('rl_preload_reload')).toBeNull()
+      offline.mockReturnValue(true)
+      expect(preloadError().defaultPrevented).toBe(true)
+      expect(reload).toHaveBeenCalledTimes(1)
+    } finally {
+      stop()
+    }
+  })
+
+  test('keeps the time of an earlier reload as it was when an offline error comes later', () => {
+    const reload = vi.fn()
+    const stop = reloadOnPreloadError(reload)
+    try {
+      preloadError()
+      expect(window.sessionStorage.getItem('rl_preload_reload')).toBe(String(NOW.getTime()))
+      // The minute has passed, so only the offline rule stands between this error and a reload.
+      const offline = goOffline()
+      vi.setSystemTime(new Date(NOW.getTime() + 61_000))
+      expect(preloadError().defaultPrevented).toBe(false)
+      expect(reload).toHaveBeenCalledTimes(1)
+      expect(window.sessionStorage.getItem('rl_preload_reload')).toBe(String(NOW.getTime()))
+      // Back online a second later: the record is still the first reload's, so this one reloads.
+      offline.mockReturnValue(true)
+      vi.setSystemTime(new Date(NOW.getTime() + 62_000))
+      expect(preloadError().defaultPrevented).toBe(true)
+      expect(reload).toHaveBeenCalledTimes(2)
+      expect(window.sessionStorage.getItem('rl_preload_reload')).toBe(
+        String(NOW.getTime() + 62_000),
+      )
     } finally {
       stop()
     }

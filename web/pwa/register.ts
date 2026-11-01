@@ -138,12 +138,18 @@ function mayReload(now: number): boolean {
  * build): Vite reports it as `vite:preloadError`, and the page reloads once to pick up the new
  * build. The record is the tab's own, so a second failure right after the reload shows the error
  * (a sheet says it did not open) instead of looping. The worker keeps two builds so this is rare.
- * Returns the way to stop listening.
+ *
+ * While the browser says it is offline the error is left alone and the record is not touched: a
+ * file that failed because the connection is gone says nothing about the build, a reload could not
+ * fetch a newer one, and it would drop what the page holds (an open sheet) and spend the minute's
+ * reload for the next error that follows a real update. The lazy import then fails to its own
+ * notice (`lazySheets.tsx`). Returns the way to stop listening.
  */
 export function reloadOnPreloadError(
   reload: () => void = () => window.location.reload(),
 ): () => void {
   const onError = (event: Event) => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return
     if (!mayReload(Date.now())) return
     event.preventDefault()
     reload()
