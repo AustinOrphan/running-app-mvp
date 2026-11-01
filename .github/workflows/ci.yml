@@ -33,6 +33,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
       - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
         run: npx playwright install --with-deps chromium
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
