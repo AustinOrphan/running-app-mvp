@@ -1445,6 +1445,35 @@ describe('Plan page, changing the load setting', () => {
     expect(putLoad(calls)).toHaveLength(0)
   })
 
+  test('stays open while the change is under way, and says the toast when it settles', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(makeV2Plan(), { 'PUT /api/plan/load': () => changed('standard') }))
+    const answer = globalThis.fetch
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if ((init?.method ?? 'GET').toUpperCase() === 'PUT') await gate
+      return answer(input, init)
+    })
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Standard' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Close' })).toBeDisabled()
+    })
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByTestId('sheet-scrim'))
+    expect(screen.getByRole('dialog', { name: 'Change load setting' })).toBeInTheDocument()
+    release()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Change load setting' })).not.toBeInTheDocument()
+    })
+    expect(await screen.findByText('Load setting changed')).toBeInTheDocument()
+  })
+
   test('Cancel closes the sheet and sends nothing', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(routes(makeV2Plan()))
@@ -1646,6 +1675,48 @@ describe('Plan page, changing the plan shape', () => {
       expect(within(panel).getByText('Three run days a week', { selector: 'strong' })).toBeVisible()
     })
     expect(within(panel).queryByText("The plan's own shape", { selector: 'strong' })).toBeNull()
+  })
+
+  test('stays open while the change is under way, so the toast and a refusal are said by the sheet that asked', async () => {
+    const user = userEvent.setup()
+    const summary = summaryOf(8)
+    mockApi(
+      routes(makeV2Plan({ method: method() }), {
+        'GET /api/goals': () => [halfGoal],
+        'PUT /api/plan/method': () => changedTo(summary),
+      }),
+    )
+    // the request waits until the test lets it go, as a slow server does
+    const answer = globalThis.fetch
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if ((init?.method ?? 'GET').toUpperCase() === 'PUT') await gate
+      return answer(input, init)
+    })
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Three run days a week' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    // Close is off, and Escape and the scrim do nothing, until the answer comes
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Close' })).toBeDisabled()
+    })
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByTestId('sheet-scrim'))
+    expect(screen.getByRole('dialog', { name: TITLE })).toBeInTheDocument()
+
+    release()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: TITLE })).not.toBeInTheDocument()
+    })
+    const toast = await screen.findByRole('status')
+    await waitFor(() => {
+      expect(toast).toHaveTextContent(summary)
+    })
   })
 
   test('the toast after Save is the summary of the revision, sentence by sentence', async () => {

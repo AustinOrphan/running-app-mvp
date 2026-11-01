@@ -80,6 +80,7 @@ export function PlanShapeSheet({ current, distanceClass, held, onClose }: PlanSh
     <Sheet
       open
       onClose={onClose}
+      busy={change.isPending}
       title={planShapeSheetTitle()}
       footer={
         <>

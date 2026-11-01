@@ -64,6 +64,7 @@ export function LoadSettingSheet({ current, onClose }: LoadSettingSheetProps) {
     <Sheet
       open
       onClose={onClose}
+      busy={change.isPending}
       title={loadSheetTitle()}
       footer={
         <>
