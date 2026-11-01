@@ -832,8 +832,9 @@ export function raisedTargetLimits(args: {
  * The change of shape a re-plan makes to the weeks it draws [rules P1 to P4]: among the weeks from
  * the one after a held current week (the current week when none is held), the first whose shape
  * differs from the one stored for it, the shape it now has and the Monday it starts, and how many
- * weeks run from there to the end of the plan. Null when no week changes shape. A week with no shape
- * flag was drawn under the plan's own shape, a start programme's included.
+ * weeks run from there to the end of the plan. Null when no week changes shape. A stored week with no
+ * shape flag was drawn under the plan's own shape, unless it was a start programme's (`takesShape`),
+ * which has none to change.
  */
 export function shapeChange(
   rows: readonly PlanWeekRow[],
@@ -841,11 +842,15 @@ export function shapeChange(
   args: { today: string; held: boolean },
 ): { now: PresetId; from: string; weeks: number } | null {
   const from = args.held ? addDays(mondayOf(args.today), 7) : mondayOf(args.today)
-  const before = new Map(rows.map((row) => [row.weekStart, shapeOfFlags(toPlanWeek(row).flags)]))
+  const stored = new Map(rows.map((row) => [row.weekStart, toPlanWeek(row).flags]))
   const ahead = weeks.filter((week) => week.weekStart >= from && takesShape(week.flags))
-  const changed = ahead.filter(
-    (week) => shapeOfFlags(week.flags) !== (before.get(week.weekStart) ?? 'default'),
-  )
+  // a week that was a start programme's had no shape to lose: it turning ordinary is no change of
+  // shape, and a week the plan did not hold before was drawn under the plan's own
+  const changed = ahead.filter((week) => {
+    const flags = stored.get(week.weekStart)
+    if (flags !== undefined && !takesShape(flags)) return false
+    return shapeOfFlags(week.flags) !== (flags === undefined ? 'default' : shapeOfFlags(flags))
+  })
   const first = changed[0]
   return first === undefined
     ? null
@@ -974,11 +979,18 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
           held: heldWeek !== null,
         })
       : null
+  // A rest-window action leads with what it did to the window; a change of shape that the same
+  // re-plan found follows it, as it follows the lead of any other re-plan.
   const baseSummary = [
-    args.window?.summary ??
-      [lead, flip, decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null]
-        .filter((line): line is string => line !== null)
-        .join(' '),
+    args.window === undefined
+      ? [
+          lead,
+          flip,
+          decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null,
+        ]
+          .filter((line): line is string => line !== null)
+          .join(' ')
+      : [args.window.summary, flip].filter((line): line is string => line !== null).join(' '),
     overshootsSummary(weeksTakenAsRun(weekRows, draft.weeks, today)),
   ]
     .filter((part) => part !== '')

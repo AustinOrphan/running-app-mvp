@@ -2,15 +2,19 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
 import { assertCleanCopy } from '../../shared/copy/lint.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
-import type { ExplainView } from '../../shared/engine/types.ts'
+import { buildPlan } from '../../shared/engine/index.ts'
+import type { ExplainView, WeekDraft } from '../../shared/engine/types.ts'
 import type {
+  DisruptionResult,
   MethodChangeResult,
   PlanRevisionView,
   PlanWithSessions,
   UndoResult,
 } from '../../shared/types.ts'
+import type { PlanWeek as PlanWeekRow } from '../../server/db.ts'
 import { parsePlanOptions } from '../../server/serialize.ts'
-import { replanActivePlan } from '../../server/services/replan.ts'
+import { weekRow } from '../../server/services/planEngine.ts'
+import { replanActivePlan, shapeChange } from '../../server/services/replan.ts'
 import { optionsRestored, readPayload } from '../../server/services/revisions.ts'
 import {
   client,
@@ -21,6 +25,7 @@ import {
   type TestUser,
 } from './helpers.ts'
 import { runsOn, s3Runs, weeks, type Run } from '../unit/engine/history-fixtures.ts'
+import { athletes } from '../unit/engine/matrix-fixtures.ts'
 
 // The method preset on a plan (task M2, rules P1 to P4, methods proposal sections 4.3 and 4.5):
 // POST /api/plan/generate takes `options.method`, an unknown id is a 400 with its path, the plan
@@ -1018,5 +1023,86 @@ describe('a hold that starts and ends between two weekly re-plans [follow-up 27]
     })
     expect(settled.summary).not.toContain('plan shape')
     expect(settled.summary).not.toContain("plan's shape")
+  })
+})
+
+describe('the change of shape a re-plan reports [rules P1 to P4]', () => {
+  const half = athletes().find((a) => a.id === 'half')!
+  const preset = buildPlan({
+    ...half.input,
+    options: { ...half.input.options, method: 'three-run-days' },
+  })
+  const own = buildPlan(half.input)
+  const today = half.input.today
+
+  /** Stored week rows as the plan table holds them, from the weeks of a draft. */
+  const rowsOf = (drafts: readonly WeekDraft[]): PlanWeekRow[] =>
+    drafts.map((week, i) => ({
+      ...weekRow(week),
+      id: `w${String(i)}`,
+      planId: 'p',
+      updatedAt: new Date(0),
+    }))
+
+  test('names the first week that changes shape, the shape it has and the weeks from there on', () => {
+    const change = shapeChange(rowsOf(own.weeks), preset.weeks, { today, held: false })
+    expect(change).toMatchObject({ now: 'three-run-days', from: mondayOf(today) })
+    expect(change!.weeks).toBe(preset.weeks.length)
+    // the week that is held is not one of them
+    const held = shapeChange(rowsOf(own.weeks), preset.weeks, { today, held: true })
+    expect(held).toMatchObject({ from: addDays(mondayOf(today), 7) })
+    expect(held!.weeks).toBe(preset.weeks.length - 1)
+    // a plan that keeps its shape reports none
+    expect(shapeChange(rowsOf(preset.weeks), preset.weeks, { today, held: false })).toBeNull()
+    expect(shapeChange(rowsOf(own.weeks), own.weeks, { today, held: false })).toBeNull()
+  })
+
+  test('reads a stored week of a start programme as one with no shape to lose', () => {
+    // the first stored week is a ladder week and no shape was drawn for it; the weeks after it are
+    // three run days now as they were. A draw that finds the first week ordinary has changed no shape.
+    const stored = rowsOf(preset.weeks).map((row, i) =>
+      i === 0 ? { ...row, flags: JSON.stringify(['ladder-1']) } : row,
+    )
+    expect(shapeChange(stored, preset.weeks, { today, held: false })).toBeNull()
+    // a later week that does change shape is still found, and the programme week is not its start
+    const mixed = stored.map((row, i) => (i === 2 ? { ...row, flags: JSON.stringify([]) } : row))
+    expect(shapeChange(mixed, preset.weeks, { today, held: false })).toMatchObject({
+      now: 'three-run-days',
+      from: preset.weeks[2]!.weekStart,
+    })
+  })
+})
+
+describe('a rest window that finds the shape changed [follow-up 27]', () => {
+  test('says so after its own sentence, as any re-plan does', async () => {
+    const { user } = await seedPlan('method-window-flip@example.com', HALF_M, {
+      method: 'three-run-days',
+    })
+    // an injury on file reads the preset as the plan's own shape, at once; clearing it reads it again
+    await client(ctx, user)
+      .put('/api/profile')
+      .send({
+        injuries: [{ area: 'knee', side: null, year, month: 1, kind: 'joint', notes: null }],
+      })
+      .expect(200)
+    expect((await client(ctx, user).post('/api/plan/replan').send({})).status).toBe(200)
+    expect((await readPlan(user)).method).toMatchObject({ effective: 'default' })
+    await client(ctx, user).put('/api/profile').send({ injuries: [] }).expect(200)
+
+    const res = await client(ctx, user)
+      .post('/api/plan/disruptions')
+      .send({
+        reason: 'travel',
+        mode: 'rest',
+        startDate: addDays(thisMonday, 21),
+        endDate: addDays(thisMonday, 23),
+      })
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    const { revision } = res.body as DisruptionResult
+    expect(revision.reason).toBe('disruption')
+    expect(revision.summary).toMatch(
+      /^Added a window \(travel\) from .+? to .+?\. The plan shape is three run days a week again from .+\. This week stays as it was drawn\./,
+    )
+    assertCleanCopy(revision.summary)
   })
 })
