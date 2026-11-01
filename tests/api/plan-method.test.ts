@@ -308,20 +308,24 @@ describe('the Why drawer on a plan with a preset', () => {
     return facts.map((fact) => renderFact(fact, 'km'))
   }
 
-  test('states the cap of three run days to a masters runner on three-run-days, and six otherwise', async () => {
+  const PRESET_CAP = 'Your plan shape, Three run days a week, caps run days at 3 a week.'
+  const AGE_CAP = 'From age 41 the plan keeps run days to 6 a week or fewer.'
+
+  test('names the plan shape that sets the cap of three run days, and states the age rule at six', async () => {
     const preset = await seedRunner('method-explain-p2@example.com')
     const presetGoal = await seedGoal(preset.id, HALF_M, 'Test Half')
     expect((await generate(preset, presetGoal.id, { method: 'three-run-days' })).status).toBe(201)
-    expect(await runDayFacts(preset)).toContain(
-      'From age 41 the plan keeps run days to 3 a week or fewer.',
-    )
+    const facts = await runDayFacts(preset)
+    expect(facts).toContain(PRESET_CAP)
+    // the age rule keeps the plan's own cap: three is the shape's, not the runner's age
+    expect(facts).toContain(AGE_CAP)
 
     const plain = await seedRunner('method-explain-default@example.com')
     const plainGoal = await seedGoal(plain.id, HALF_M, 'Test Half')
     expect((await generate(plain, plainGoal.id)).status).toBe(201)
-    expect(await runDayFacts(plain)).toContain(
-      'From age 41 the plan keeps run days to 6 a week or fewer.',
-    )
+    const plainFacts = await runDayFacts(plain)
+    expect(plainFacts).toContain(AGE_CAP)
+    expect(plainFacts).not.toContain(PRESET_CAP)
 
     // a preset that does not apply to the goal leaves the default's cap in the drawer, as in the plan
     const marathon = await seedRunner('method-explain-marathon@example.com')
@@ -329,8 +333,80 @@ describe('the Why drawer on a plan with a preset', () => {
     expect((await generate(marathon, marathonGoal.id, { method: 'three-run-days' })).status).toBe(
       201,
     )
-    expect(await runDayFacts(marathon)).toContain(
-      'From age 41 the plan keeps run days to 6 a week or fewer.',
+    const marathonFacts = await runDayFacts(marathon)
+    expect(marathonFacts).toContain(AGE_CAP)
+    expect(marathonFacts).not.toContain(PRESET_CAP)
+  })
+
+  /** The facts of each rule of a `rules` request, worded. */
+  const shapeFacts = async (user: TestUser, rules: string[]) => {
+    const res = await client(ctx, user).get(`/api/explain?subject=rules&rules=${rules.join(',')}`)
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+    const view = res.body as ExplainView
+    return Object.fromEntries(
+      rules.map((rule) => [
+        rule,
+        (view.groups.find((group) => group.rule === rule)?.facts ?? []).map((fact) =>
+          renderFact(fact, 'km'),
+        ),
+      ]),
+    )
+  }
+
+  test("P2 states the run days against the plan's own, from the plan the server holds", async () => {
+    const user = await seedRunner('method-explain-shape-p2@example.com')
+    const goal = await seedGoal(user.id, HALF_M, 'Test Half')
+    expect((await generate(user, goal.id, { method: 'three-run-days' })).status).toBe(201)
+    const facts = await shapeFacts(user, ['P1', 'P2', 'P4'])
+    expect(facts['P2']).toEqual([
+      'Plan shape chosen: Three run days a week.',
+      "Run days: at most 3 a week (grade D), against 6 in the plan's own shape (grade D).",
+      'A choice, not a better plan (grade D): no study compares these plans.',
+    ])
+    // the rule about the other shape says it was not chosen and states none of its figures
+    expect(facts['P4']).toEqual([
+      'Plan shape chosen: Three run days a week. This rule is about another shape.',
+      'A choice, not a better plan (grade D): no study compares these plans.',
+    ])
+    expect(facts['P1']?.[0]).toBe('Plan shape chosen: Three run days a week.')
+    expect(facts['P1']).toContain("The plan's own shape caps run days at 6 (grade D).")
+  })
+
+  test('P4 states the build, the base and the quality kinds', async () => {
+    const user = await seedRunner('method-explain-shape-p4@example.com')
+    const goal = await seedGoal(user.id, HALF_M, 'Test Half')
+    expect((await generate(user, goal.id, { method: 'longer-base' })).status).toBe(201)
+    expect((await shapeFacts(user, ['P4']))['P4']).toEqual([
+      'Plan shape chosen: A longer base.',
+      "Build phase: at most 4 weeks (grade D), against 6 in the plan's own shape (grade D).",
+      'The base takes the difference: up to 2 more weeks before the build.',
+      'Quality runs: strides only in the base, then hills and threshold runs in the build (grade D).',
+      'A choice, not a better plan (grade D): no study compares these plans.',
+    ])
+  })
+
+  test("says why a shape reads as the plan's own, on P1 and on its own rule", async () => {
+    const user = await seedRunner('method-explain-shape-held@example.com')
+    const goal = await seedGoal(user.id, MARATHON_M, 'Test Marathon')
+    expect((await generate(user, goal.id, { method: 'three-run-days' })).status).toBe(201)
+    const facts = await shapeFacts(user, ['P1', 'P2'])
+    const READ =
+      "Plan shape chosen: Three run days a week, read as the plan's own shape: not for this goal."
+    expect(facts['P1']?.[0]).toBe(READ)
+    // no override is stated for a shape that does not apply
+    expect(facts['P2']).toEqual([
+      READ,
+      'A choice, not a better plan (grade D): no study compares these plans.',
+    ])
+  })
+
+  test("a plan with no choice has the plan's own shape, and no plan has a gap sentence", async () => {
+    const user = await seedRunner('method-explain-shape-own@example.com')
+    expect((await shapeFacts(user, ['P1', 'P2']))['P1']?.[0]).toMatch(/^No plan is active/)
+    const goal = await seedGoal(user.id, HALF_M, 'Test Half')
+    expect((await generate(user, goal.id)).status).toBe(201)
+    expect((await shapeFacts(user, ['P1']))['P1']?.[0]).toBe(
+      "This plan has the plan's own shape; no other shape was chosen.",
     )
   })
 })

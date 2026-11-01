@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { loadTradeoff } from '../../shared/copy/load.ts'
 import { loadSettingSummary } from '../../shared/copy/revision.ts'
 import type { LoadHold, LoadPosition } from '../../shared/engine/loadSetting.ts'
+import type { MethodPosition, MethodReason } from '../../shared/engine/methods.ts'
 import type { LoadAppetite } from '../../shared/engine/types.ts'
 import type {
   Goal,
@@ -30,6 +31,7 @@ import {
   makeDiff,
   makeLine,
   makePreview,
+  makeProfile,
   makeRevision,
   makeSession,
   makeV1Plan,
@@ -78,6 +80,7 @@ function routes(plan: PlanWithSessions | PlanWithWeeks | null, extra: MockRoutes
     'GET /api/plan': () => plan,
     'GET /api/goals': () => [goal],
     'GET /api/settings': () => settings,
+    'GET /api/profile': () => makeProfile(),
     'GET /api/weeks': () => [] as WeekRow[],
     'GET /api/plan/revisions': () => [makeRevision()],
     'GET /api/plan/disruptions': () => [],
@@ -1476,6 +1479,287 @@ describe('Plan page, changing the load setting', () => {
     expect(alert).toHaveTextContent('The plan did not pass the plan checks')
     expect(screen.getByRole('dialog', { name: 'Change load setting' })).toBeInTheDocument()
     expectCleanCopy(dialog)
+  })
+})
+
+// The plan shape [rules P1 to P4]: Regenerate plan starts from the shape the plan was generated with
+// and says what the server reports about a hold; the panel shows the shape in effect.
+describe('Plan page, the plan shape', () => {
+  const method = (over: Partial<MethodPosition> = {}): MethodPosition => ({
+    requested: 'default',
+    effective: 'default',
+    reason: null,
+    ...over,
+  })
+  const loadPosition = (over: Partial<LoadPosition> = {}): LoadPosition => ({
+    requested: 'steady',
+    position: 'steady',
+    held: null,
+    ageCapped: false,
+    ...over,
+  })
+  const HELD_LINE = "Held at the plan's own shape while a recent injury is on file."
+
+  const generated = (calls: Array<{ method: string; url: string; body: unknown }>) =>
+    calls
+      .filter((c) => c.method === 'POST' && c.url === '/api/plan/generate')
+      .map((c) => (c.body as { options: Record<string, unknown> }).options)
+
+  // the goal of these plans is a half marathon, which every shape is offered for
+  const halfGoal = { ...goal, name: 'Spring half', distanceM: 21098 } as Goal
+
+  /** Opens the Regenerate sheet of a plan and returns the sheet and what was posted so far. */
+  async function openRegenerate(plan: PlanWithSessions, goals: Goal[] = [halfGoal]) {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(plan, {
+        'GET /api/goals': () => goals,
+        'POST /api/plan/generate': () => ({ status: 201, body: makeV2Plan() }),
+      }),
+    )
+    renderPlan()
+    await user.click(await screen.findByRole('button', { name: 'Regenerate plan' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Regenerate plan' })
+    return { user, calls, dialog }
+  }
+
+  describe('on the Regenerate plan form', () => {
+    test("starts on the plan's own shape for a plan generated without a choice, and sends none", async () => {
+      const { user, calls, dialog } = await openRegenerate(makeV2Plan({ method: method() }))
+      expect(within(dialog).getByRole('radio', { name: "The plan's own shape" })).toBeChecked()
+      expect(within(dialog).queryByText(HELD_LINE)).not.toBeInTheDocument()
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(generated(calls)).toHaveLength(1)
+      })
+      expect('method' in generated(calls)[0]!).toBe(false)
+    })
+
+    test('starts from the shape the plan was generated with and sends it again', async () => {
+      const { user, calls, dialog } = await openRegenerate(
+        makeV2Plan({
+          method: method({ requested: 'longer-base', effective: 'longer-base' }),
+        }),
+      )
+      expect(within(dialog).getByRole('radio', { name: 'A longer base' })).toBeChecked()
+      expect(within(dialog).queryByText(HELD_LINE)).not.toBeInTheDocument()
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(generated(calls)).toHaveLength(1)
+      })
+      expect(generated(calls)[0]).toMatchObject({ method: 'longer-base' })
+    })
+
+    test("starts from the shape asked for, even while it reads as the plan's own, and says why", async () => {
+      const { user, calls, dialog } = await openRegenerate(
+        makeV2Plan({
+          method: method({ requested: 'three-run-days', reason: 'held:recent-injury' }),
+        }),
+      )
+      expect(within(dialog).getByRole('radio', { name: 'Three run days a week' })).toBeChecked()
+      const group = within(dialog).getByRole('radiogroup', { name: 'Plan shape' })
+      expect(within(group).getByText(HELD_LINE)).toBeInTheDocument()
+      expect(group).toHaveAccessibleDescription(
+        `${HELD_LINE} A choice, not a better plan (grade D).`,
+      )
+      expectCleanCopy(dialog)
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(generated(calls)).toHaveLength(1)
+      })
+      expect(generated(calls)[0]).toMatchObject({ method: 'three-run-days' })
+    })
+
+    test.each([
+      ['recent-injury', 'a recent injury is on file'],
+      ['bone-stress', 'an earlier bone stress injury is on file'],
+      ['bsi-factors', 'at least two risk factors for bone stress injury apply'],
+      ['reds-hold', 'flags from the energy availability screening hold progression'],
+      ['bone-pain', 'focal bone pain holds progression'],
+    ] as const)('words the %s hold the plan reports', async (hold, reason) => {
+      const { dialog } = await openRegenerate(
+        makeV2Plan({ method: method({ requested: 'longer-base', reason: `held:${hold}` }) }),
+      )
+      expect(
+        within(dialog).getByText(`Held at the plan's own shape while ${reason}.`),
+      ).toBeInTheDocument()
+    })
+
+    test('reads a persistent hold from the load setting when the plan asked for no shape', async () => {
+      const { user, dialog } = await openRegenerate(
+        makeV2Plan({
+          method: method(),
+          load: loadPosition({ requested: 'standard', held: 'recent-injury' }),
+        }),
+      )
+      // nothing is held while the plan's own shape is chosen
+      expect(within(dialog).queryByText(HELD_LINE)).not.toBeInTheDocument()
+      await user.click(within(dialog).getByRole('radio', { name: 'A longer base' }))
+      expect(within(dialog).getByText(HELD_LINE)).toBeInTheDocument()
+      await user.click(within(dialog).getByRole('radio', { name: "The plan's own shape" }))
+      expect(within(dialog).queryByText(HELD_LINE)).not.toBeInTheDocument()
+    })
+
+    test.each(['rest-window', 'post-race'] as const)(
+      'does not hold a shape for the transient %s hold of the load setting',
+      async (held) => {
+        const { user, dialog } = await openRegenerate(
+          makeV2Plan({
+            method: method(),
+            load: loadPosition({ requested: 'standard', held }),
+          }),
+        )
+        await user.click(within(dialog).getByRole('radio', { name: 'Three run days a week' }))
+        expect(within(dialog).queryByText(/Held at the plan's own shape/)).not.toBeInTheDocument()
+      },
+    )
+
+    test("shows three run days disabled for a goal it is not for, and starts on the plan's own shape", async () => {
+      // a plan switched to a marathon keeps its choice, and the form does not offer it again
+      const { user, calls, dialog } = await openRegenerate(
+        makeV2Plan({ method: method({ requested: 'three-run-days', reason: 'not-applicable' }) }),
+        [goal],
+      )
+      expect(within(dialog).getByRole('radio', { name: 'Three run days a week' })).toBeDisabled()
+      expect(within(dialog).getByRole('radio', { name: "The plan's own shape" })).toBeChecked()
+      expect(within(dialog).getByText('Not for a marathon or longer')).toBeInTheDocument()
+      await user.click(within(dialog).getByRole('button', { name: 'Generate plan' }))
+      await waitFor(() => {
+        expect(generated(calls)).toHaveLength(1)
+      })
+      expect('method' in generated(calls)[0]!).toBe(false)
+    })
+
+    test("starts on the plan's own shape for a plan that carries no method", async () => {
+      const { dialog } = await openRegenerate(makeV2Plan({ method: null }))
+      expect(within(dialog).getByRole('radio', { name: "The plan's own shape" })).toBeChecked()
+    })
+  })
+
+  describe('on the Plan page', () => {
+    const OWN =
+      'Run days follow your weekly minutes and the days you have free, and the base comes first.'
+    const THREE =
+      "At most three run days a week. The long run and the quality runs stay, and no week plans more minutes than the plan's own shape."
+    const BASE =
+      "Strides only in the base, for up to two more weeks, then hills and threshold runs. No week plans more minutes than the plan's own shape."
+    const GRADE = 'A choice, not a better plan (grade D).'
+
+    const panel = () => screen.findByRole('region', { name: 'Plan shape' })
+    const lines = (region: HTMLElement) =>
+      Array.from(region.querySelectorAll('p')).map((line) => line.textContent)
+
+    test("names the plan's own shape and its help for a plan generated without a choice", async () => {
+      mockApi(routes(makeV2Plan({ method: method() })))
+      renderPlan()
+      const region = await panel()
+      expect(within(region).getByRole('heading', { name: 'Plan shape', level: 2 })).toBeVisible()
+      expect(lines(region)).toEqual([`The plan's own shape ${OWN}`, GRADE])
+      expect(within(region).getByText("The plan's own shape", { selector: 'strong' })).toBeVisible()
+      expectCleanCopy(region)
+    })
+
+    test.each([
+      ['three-run-days', 'Three run days a week', THREE],
+      ['longer-base', 'A longer base', BASE],
+    ] as const)(
+      'names %s and its help when it applies, with no reason',
+      async (preset, name, help) => {
+        mockApi(routes(makeV2Plan({ method: method({ requested: preset, effective: preset }) })))
+        renderPlan()
+        const region = await panel()
+        expect(lines(region)).toEqual([`${name} ${help}`, GRADE])
+        expect(within(region).getByText(name, { selector: 'strong' })).toBeVisible()
+        expect(within(region).queryByText(/read as the plan's own shape/)).not.toBeInTheDocument()
+        expectCleanCopy(region)
+      },
+    )
+
+    const REASONS: Array<[MethodReason, string]> = [
+      ['not-applicable', 'not for this goal'],
+      ['held:recent-injury', 'held while a recent injury is on file'],
+      ['held:bone-stress', 'held while an earlier bone stress injury is on file'],
+      ['held:bsi-factors', 'held while at least two risk factors for bone stress injury apply'],
+      [
+        'held:reds-hold',
+        'held while flags from the energy availability screening hold progression',
+      ],
+      ['held:bone-pain', 'held while focal bone pain holds progression'],
+      ['novice', 'the start weeks keep their novice days'],
+      ['no-base', 'there is no base to lengthen'],
+    ]
+
+    test.each(REASONS)(
+      "shows the choice read as the plan's own shape, with the reason: %s",
+      async (reason, words) => {
+        mockApi(routes(makeV2Plan({ method: method({ requested: 'three-run-days', reason }) })))
+        renderPlan()
+        const region = await panel()
+        // the choice leads with the reason, then the help of the shape in effect, then the grade
+        expect(lines(region)).toEqual([
+          `Three run days a week, read as the plan's own shape: ${words}.`,
+          OWN,
+          GRADE,
+        ])
+        expect(
+          within(region).getByText('Three run days a week', { selector: 'strong' }),
+        ).toBeVisible()
+        expect(
+          Array.from(region.querySelectorAll('strong')).map((node) => node.textContent),
+        ).toEqual(['Three run days a week'])
+        expectCleanCopy(region)
+      },
+    )
+
+    test('offers no change here: only Why, until the Plan page has a change action', async () => {
+      mockApi(
+        routes(
+          makeV2Plan({ method: method({ requested: 'longer-base', effective: 'longer-base' }) }),
+        ),
+      )
+      renderPlan()
+      const region = await panel()
+      expect(
+        within(region)
+          .getAllByRole('button')
+          .map((button) => button.getAttribute('aria-label')),
+      ).toEqual(['Why this shape'])
+    })
+
+    test('sits after the load setting, and a plan with no method has no panel', async () => {
+      mockApi(routes(makeV2Plan({ method: method() })))
+      renderPlan()
+      const shape = await panel()
+      const load = screen.getByRole('region', { name: 'Load setting' })
+      expect(load.compareDocumentPosition(shape) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    test('has no panel for a plan with no method', async () => {
+      mockApi(routes(makeV2Plan({ method: null })))
+      renderPlan()
+      await screen.findByRole('region', { name: 'Feasibility' })
+      expect(screen.queryByRole('region', { name: 'Plan shape' })).not.toBeInTheDocument()
+    })
+
+    test.each([
+      [method(), ['P1']],
+      [method({ requested: 'three-run-days', effective: 'three-run-days' }), ['P2', 'F5']],
+      [method({ requested: 'longer-base', effective: 'longer-base' }), ['P4', 'E2']],
+      [method({ requested: 'three-run-days', reason: 'not-applicable' }), ['P1', 'P2']],
+      [method({ requested: 'longer-base', reason: 'held:bone-pain' }), ['P1', 'P4']],
+    ])(
+      'Why this shape opens the drawer on the rules of the shape (%#)',
+      async (position, rules) => {
+        const user = userEvent.setup()
+        mockApi(routes(makeV2Plan({ method: position })))
+        renderPlan()
+        const region = await panel()
+        await user.click(within(region).getByRole('button', { name: 'Why this shape' }))
+        const drawer = await screen.findByRole('complementary', { name: 'Why drawer' })
+        expect(drawer).toHaveTextContent(rules.join(','))
+        expect(explainOf(drawer)).toEqual({ subject: 'rules', rules })
+      },
+    )
   })
 })
 

@@ -16,6 +16,7 @@ import { EXECUTION_TEMPLATES } from './execution.ts'
 import { FUEL_UI_TEMPLATES } from './fuelUi.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
 import { LOAD_TEMPLATES } from './load.ts'
+import { METHOD_TEMPLATES } from './method.ts'
 import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
@@ -52,6 +53,7 @@ export const TEMPLATES = {
   ...PUBLISH_TEMPLATES,
   ...GOALS_TEMPLATES,
   ...LOAD_TEMPLATES,
+  ...METHOD_TEMPLATES,
   ...OVERSHOOT_TEMPLATES,
   ...WORKOUT_TEMPLATES,
   ...STANDOUT_TEMPLATES,

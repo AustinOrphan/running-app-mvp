@@ -1,5 +1,7 @@
 import type { SessionBrief } from '../../shared/engine/types.ts'
 import type {
+  AthleteProfile,
+  Availability,
   DisruptionView,
   Plan,
   PlanDiff,
@@ -13,6 +15,7 @@ import type {
   PlanWithSessions,
   PlanWithWeeks,
   UserSettings,
+  Weekday,
 } from '../../shared/types.ts'
 
 export const settings: UserSettings = {
@@ -20,6 +23,41 @@ export const settings: UserSettings = {
   displayName: null,
   units: 'km',
   weightUnit: 'lb',
+}
+
+const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+/** An availability with the first `open` days of the week marked available. */
+export function availabilityOf(open: number): Availability {
+  return Object.fromEntries(
+    WEEKDAYS.map((day, index) => [day, { available: index < open, maxMin: null }]),
+  ) as Availability
+}
+
+/** The profile the Generate form reads the days open from: a runner with `open` days free. */
+export function makeProfile(open = 7, over: Partial<AthleteProfile> = {}): AthleteProfile {
+  return {
+    birthYear: 1985,
+    sex: 'unspecified',
+    heightCm: null,
+    weightKg: null,
+    hrMax: null,
+    hrMaxSource: null,
+    hrRest: null,
+    lthr: null,
+    thresholdPaceSecPerKm: null,
+    runningSinceYear: null,
+    injuries: [],
+    availability: availabilityOf(open),
+    longRunDay: 'sat',
+    terrain: { trail: false, hills: false, treadmill: false, track: false },
+    strengthPreference: 2,
+    timezone: 'UTC',
+    homeLat: null,
+    homeLng: null,
+    useHomeWeather: false,
+    ...over,
+  }
 }
 
 export function makeSession(over: Partial<PlanSessionView> = {}): PlanSessionView {

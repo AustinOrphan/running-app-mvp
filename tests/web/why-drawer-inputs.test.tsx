@@ -1,16 +1,26 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test, vi } from 'vitest'
 import { EXPLAIN_MAX_SOURCES } from '../../shared/copy/limits.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
-import { explainInputs, type ExplainContext } from '../../shared/engine/explainInputs.ts'
+import {
+  explainInputs,
+  explainNeeds,
+  type ExplainContext,
+} from '../../shared/engine/explainInputs.ts'
+import { buildPlan } from '../../shared/engine/index.ts'
+import { P } from '../../shared/engine/params/index.ts'
 import { readinessSnapshot } from '../../shared/engine/readiness.ts'
 import { buildZones } from '../../shared/engine/zones.ts'
 import type {
+  EngineInput,
   ExplainView,
   InputFact,
   Param,
+  PresetId,
   Quantity,
   SourceRef,
 } from '../../shared/engine/types.ts'
@@ -26,6 +36,7 @@ import {
   type MockRoutes,
 } from './helpers.tsx'
 import { at, h1, scenario, SPARSE } from '../unit/engine/history-fixtures.ts'
+import { athletes } from '../unit/engine/matrix-fixtures.ts'
 
 // The drawer's "From your numbers": the figures come from GET /api/explain, are worded by
 // `renderFact` in the runner's units, and sit before the rule, its grade and its papers.
@@ -570,6 +581,230 @@ describe('WhyDrawer, the history-informed rebuild [rules g-8]', () => {
     expect(within(group).getByText(renderFact(gap, 'km'))).toBeInTheDocument()
     expect(within(group).getByText('Not enough data yet:')).toBeInTheDocument()
     expectCleanCopy(dialog)
+  })
+})
+
+describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
+  const GRADE = 'A choice, not a better plan (grade D): no study compares these plans.'
+  const shapeRegistry: ResearchParams = { version: 'v', params: [P.p2.runDays, P.p4.buildWeeks] }
+
+  /** The plan the engine builds for a matrix athlete under a preset, in the shape of a stored plan. */
+  function planOf(id: string, method?: PresetId): EngineInput {
+    const athlete = athletes().find((a) => a.id === id)!
+    const input: EngineInput = { ...athlete.input, options: method === undefined ? {} : { method } }
+    const draft = buildPlan(input)
+    return {
+      ...input,
+      existing: {
+        weeks: draft.weeks,
+        sessions: draft.sessions.map((s, i) => ({
+          ...s,
+          id: `s${String(i)}`,
+          status: 'planned',
+          activityId: null,
+        })),
+      },
+    }
+  }
+
+  /** The figures of some rules for a plan, as the server builds them from the snapshot. */
+  function shapeView(input: EngineInput, rules: string[]): ExplainView {
+    const state = estimateState(input)
+    const ctx: ExplainContext = {
+      asOf: input.today,
+      input,
+      state,
+      zones: buildZones(input.profile, state, input.today),
+      readiness: readinessSnapshot(input, input.today),
+      goal: null,
+      prediction: null,
+      hrModel: null,
+      decision: null,
+      race: null,
+    }
+    return explainInputs({ subject: 'rules', rules }, ctx)
+  }
+
+  /** Opens the drawer on `rules` over the figures of `input`; the registry holds the two Params. */
+  async function openOn(input: EngineInput, rules: string[]) {
+    const figures = shapeView(input, rules)
+    mockApi(drawerRoutes(() => figures, 'km', { 'GET /api/research/params': () => shapeRegistry }))
+    const { user, open } = renderButton({ subject: 'rules', rules }, rules)
+    await open()
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    await within(dialog).findByRole('heading', { name: 'From your numbers' })
+    return { user, dialog, figures }
+  }
+
+  /** The worded sentences of a rule's facts, in the order the drawer lists them. */
+  const sentencesOf = (figures: ExplainView, rule: string) =>
+    (figures.groups.find((group) => group.rule === rule)?.facts ?? []).map((fact) =>
+      renderFact(fact, 'km'),
+    )
+
+  test('P2 states the run days against the default, with both grades, and the grade of the choice', async () => {
+    const { dialog, figures } = await openOn(planOf('half', 'three-run-days'), ['P2', 'F5'])
+    const sentences = sentencesOf(figures, 'P2')
+    expect(sentences).toEqual([
+      'Plan shape chosen: Three run days a week.',
+      "Run days: at most 3 a week (grade D), against 6 in the plan's own shape (grade D).",
+      GRADE,
+    ])
+    const group = await within(dialog).findByRole('group', { name: 'Three run days' })
+    for (const sentence of sentences) expect(within(group).getByText(sentence)).toBeInTheDocument()
+    // the run-day fact of F5 names the shape that sets the cap
+    const f5 = within(dialog).getByRole('group', { name: 'Run frequency and availability' })
+    expect(
+      within(f5).getByText('Your plan shape, Three run days a week, caps run days at 3 a week.'),
+    ).toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  // The papers come from the research bundle, one lazily loaded chunk of the whole corpus; a full
+  // parallel run can need more than the 1 s default to load it (as in research.test.tsx).
+  const SLOW = { timeout: 8000 }
+
+  test("the rule section holds the override's grade D and the records it rests on, each with its level", async () => {
+    const { user, dialog } = await openOn(planOf('half', 'three-run-days'), ['P2'])
+    const section = await within(dialog).findByRole('region', { name: 'Three run days' })
+    expect(within(section).getByText('Evidence grade D')).toBeInTheDocument()
+    expect(within(section).getByText('Default (no direct study)')).toBeInTheDocument()
+    expect(within(section).getByText(/A choice, not a better plan/)).toBeInTheDocument()
+
+    // a practice record is level D and a trial is level C: the grades are the records' own
+    const furman = await within(section).findByRole(
+      'button',
+      { name: /Services and Training Programs/ },
+      SLOW,
+    )
+    await user.click(furman)
+    expect(await within(section).findByText('Evidence level D', {}, SLOW)).toBeInTheDocument()
+    expect(within(section).getByText('book-or-guideline')).toBeInTheDocument()
+    const pollock = JSON.parse(
+      readFileSync(
+        join(process.cwd(), 'research', 'papers', 'pollock-1977-frequency-duration-injury.json'),
+        'utf8',
+      ),
+    ) as { title: string; evidenceLevel: string }
+    expect(pollock.evidenceLevel).toBe('C')
+    const trial = await within(section).findByRole(
+      'button',
+      { name: new RegExp(pollock.title.slice(0, 30)) },
+      SLOW,
+    )
+    await user.click(trial)
+    expect(await within(section).findByText('Evidence level C', {}, SLOW)).toBeInTheDocument()
+  }, 15_000)
+
+  test('P4 states the build against the default, the base taking the difference, and the kinds', async () => {
+    const { dialog, figures } = await openOn(planOf('half', 'longer-base'), ['P4', 'E2'])
+    const sentences = sentencesOf(figures, 'P4')
+    expect(sentences).toEqual([
+      'Plan shape chosen: A longer base.',
+      "Build phase: at most 4 weeks (grade D), against 6 in the plan's own shape (grade D).",
+      'The base takes the difference: up to 2 more weeks before the build.',
+      'Quality runs: strides only in the base, then hills and threshold runs in the build (grade D).',
+      GRADE,
+    ])
+    const group = await within(dialog).findByRole('group', { name: 'Longer base' })
+    for (const sentence of sentences) expect(within(group).getByText(sentence)).toBeInTheDocument()
+    expect(within(dialog).getByRole('region', { name: 'Longer base' })).toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  test("P1 states the plan's own values with the grade of each, and says no shape was chosen", async () => {
+    const { dialog, figures } = await openOn(planOf('half'), ['P1'])
+    expect(sentencesOf(figures, 'P1')).toEqual([
+      "This plan has the plan's own shape; no other shape was chosen.",
+      "The plan's own shape caps run days at 6 (grade D).",
+      "The plan's own shape builds for up to 6 weeks (grade D), after any base.",
+      "The plan's own long run is about 35% of a week's running (grade D).",
+      GRADE,
+    ])
+    const group = await within(dialog).findByRole('group', { name: 'Default method' })
+    for (const sentence of sentencesOf(figures, 'P1')) {
+      expect(within(group).getByText(sentence)).toBeInTheDocument()
+    }
+    expectCleanCopy(dialog)
+  })
+
+  test.each(['first-100-mile', 'trail-50k'])(
+    'P1 and P3 state the ultra share of the week for an ultra plan (%s), as the plan places it',
+    async (id) => {
+      const input = planOf(id)
+      expect(input.goal.isUltra).toBe(true)
+      const { dialog, figures } = await openOn(input, ['P1', 'P3'])
+      const ultra = `${String(Math.round(P.macroDesign.longRunShareOfWeekUltra.value * 100))}%`
+      expect(ultra).toBe('45%')
+      expect(sentencesOf(figures, 'P1')).toContain(
+        `The plan's own long run is about 45% of a week's running (grade ${P.macroDesign.longRunShareOfWeekUltra.grade}).`,
+      )
+      expect(sentencesOf(figures, 'P3')).toEqual([
+        "Every plan shape keeps the long run at about 45% of a week's running; a shorter share is not offered.",
+      ])
+      expect(within(dialog).queryByText(/about 35% of a week/)).not.toBeInTheDocument()
+      expectCleanCopy(dialog)
+    },
+  )
+
+  test('P3 states 35% for a half marathon plan, and the plan asks the server for the plan input', async () => {
+    const { figures } = await openOn(planOf('half'), ['P3'])
+    expect(sentencesOf(figures, 'P3')).toEqual([
+      "Every plan shape keeps the long run at about 35% of a week's running; a shorter share is not offered.",
+    ])
+    expect(explainNeeds(['P3'])).toMatchObject({ planInput: true })
+  })
+
+  test('P1 claims no base for a plan that has none: the build is a limit, after any base', () => {
+    const input = planOf('novice-5k')
+    expect(input.existing!.weeks.some((week) => week.phase === 'base')).toBe(false)
+    const sentences = sentencesOf(shapeView(input, ['P1']), 'P1')
+    expect(sentences).toContain(
+      "The plan's own shape builds for up to 6 weeks (grade D), after any base.",
+    )
+    expect(sentences.join(' ')).not.toMatch(/base comes before/)
+  })
+
+  test("a shape that reads as the plan's own gives the reason on P1 and on its own rule, and no override", async () => {
+    const { dialog, figures } = await openOn(planOf('marathon', 'three-run-days'), ['P1', 'P2'])
+    const read =
+      "Plan shape chosen: Three run days a week, read as the plan's own shape: not for this goal."
+    expect(sentencesOf(figures, 'P1')[0]).toBe(read)
+    expect(sentencesOf(figures, 'P2')).toEqual([read, GRADE])
+    const p2 = await within(dialog).findByRole('group', { name: 'Three run days' })
+    expect(within(p2).getByText(read)).toBeInTheDocument()
+    expect(within(p2).queryByText(/Run days: at most/)).not.toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  test('a shape the plan did not choose says so and states none of its figures', async () => {
+    const { figures } = await openOn(planOf('half', 'longer-base'), ['P2'])
+    expect(sentencesOf(figures, 'P2')).toEqual([
+      'Plan shape chosen: A longer base. This rule is about another shape.',
+      GRADE,
+    ])
+  })
+
+  test('P3 is not a shape: it says the long run keeps its share under every shape', async () => {
+    const { dialog, figures } = await openOn(planOf('half', 'three-run-days'), ['P3'])
+    expect(sentencesOf(figures, 'P3')).toEqual([
+      "Every plan shape keeps the long run at about 35% of a week's running; a shorter share is not offered.",
+    ])
+    expect(
+      await within(dialog).findByRole('group', { name: 'Shorter long run' }),
+    ).toBeInTheDocument()
+  })
+
+  test('a runner with no plan reads a gap sentence on each rule', () => {
+    const athlete = athletes().find((a) => a.id === 'half')!
+    const figures = shapeView({ ...athlete.input, existing: null }, ['P1', 'P2', 'P3', 'P4'])
+    for (const rule of ['P1', 'P2', 'P3', 'P4']) {
+      const facts = figures.groups.find((group) => group.rule === rule)?.facts ?? []
+      expect(
+        facts.map((fact) => [fact.state, fact.template]),
+        rule,
+      ).toEqual([['insufficient', 'explain.plan-gap']])
+    }
   })
 })
 
