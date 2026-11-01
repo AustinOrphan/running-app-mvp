@@ -1,11 +1,11 @@
 # Sources beyond the corpus, a methods layer and an evaluation harness — proposal
 
-Status: Implemented 2026-10-31 for S0 to S2, S4, H0 to H5, M0 to M6 (see `docs/STATUS.md`,
-follow-up 28); open: RU1 to RU3, S3, H2b. Proposed 2026-10-31; owner decisions recorded 2026-10-31
-(section 7), one part open (decision 6). As proposed, this document changed no code, Param, rule text
-or research record. It answers the owner's three requests: which sources beyond the corpus
-should inform plans and how they are vetted; how plans could follow different methods; which tools
-would test and evaluate plans. Baseline:
+Status: Implemented 2026-10-31 for S0 to S2, S4, H0 to H5, M0 to M6, and 2026-11-01 for RU1 (#619)
+and RF2 (#621) (see `docs/STATUS.md`, follow-up 28); open: RU2, RU3, S3, H2b. Proposed 2026-10-31;
+owner decisions recorded 2026-10-31 (section 7), one part open (decision 6). As proposed, this
+document changed no code, Param, rule text or research record. It answers the owner's three
+requests: which sources beyond the corpus should inform plans and how they are vetted; how plans
+could follow different methods; which tools would test and evaluate plans. Baseline:
 `main` at `bb63e675` (`PARAMS_VERSION` `2026-10-25.6`, 396 papers, 632 Params), re-read at
 `b3e1093b` (docs and test fixes only). Four research reports and two reviews were data: every source
 was checked against `research/papers` and Crossref on 2026-10-31, abstracts relied on were read on
@@ -536,7 +536,8 @@ Opinion or Preference; each corpus change adds a README method entry.
   matrix and sweep; Knopp's marathon bands as a fixture with source id and read date; a scorecard
   per plan; `harness-isolation.test.ts` (5).
 - **H2. Simulator.** M to L. Done in #604; most of the engine defects it found were fixed in #608
-  (RF1), the rest are RF2, open (`docs/STATUS.md`, follow-up 28). Depends H0.
+  (RF1) and the rest in #621 (RF2), apart from the cases that stay pinned for RF4
+  (`docs/STATUS.md`, follow-up 28). Depends H0.
   `tests/unit/engine/sim-athlete.ts`, a scorer, the ragged level, a measured chain time, metamorphic
   cases. **H2b** (S, open): the tuning of the other two levels (H2 shipped all three, with their
   rates as named constants).
@@ -574,9 +575,10 @@ Opinion or Preference; each corpus change adds a README method entry.
   argument through `computeReplan` with the current week held, its diff and undo `setting`,
   `PlanRevisionReason`, `shared/copy/revision.ts`, `web/api/plan.ts`, a sheet; the run-day switch of
   follow-up 27 guarded as the transient holds are (4.5); API, page and chain tests.
-- **RU1. RIR research update.** S. Open. Skill `research-update`: the Params `f7.heavyRir`,
-  `f8.progressMinRir` and `f8.bigStepRir` (grade D); Zourdos 2016 and the RIR-based RPE literature,
-  read in that session; gap 2 of the strength spec (no paper mentions RIR).
+- **RU1. RIR research update.** S. Done in #619, with a second reading pass (RU1b). Skill
+  `research-update`: the Params `f7.heavyRir`, `f8.progressMinRir` and `f8.bigStepRir` (grade D);
+  Zourdos 2016 and the RIR-based RPE literature, read in that session; gap 2 of the strength spec
+  (no paper mentions RIR). `f7.heavyRir` is now grade C; no value changed.
 - **RU2. Plateau research update.** M. Open. Decision 10. Skill `research-update`: progressive
   builds against early plateaus (Finding 3: six of twelve matrix plans reach their class ceiling
   within nine weeks); whether the ceiling is the evidence, whether the class `peakWeeklyMin` or the
@@ -591,9 +593,9 @@ Opinion or Preference; each corpus change adds a README method entry.
   for this build in `docs/STATUS.md`, follow-up 28.
 
 Every decision of section 7 is answered, so only the open part of decision 6 (P2 for marathon
-goals) waits for the owner. Every task above is done except RU1, RU2, RU3, S3 and H2b, and none of
+goals) waits for the owner. Every task above is done except RU2, RU3, S3 and H2b, and none of
 those waits on another task: S3 waits on the owner's reading of the pages, RU3 on the owner's
-answer, and RU1, RU2 and H2b on a session to run them.
+answer, and RU2 and H2b on a session to run them.
 
 ## Appendix A. Sources
 

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DEFAULT_DATABASE_URL } from './dbPath.ts'
 
 export interface Config {
   databaseUrl: string
@@ -12,7 +13,7 @@ export interface Config {
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1).default('file:./data/app.db'),
+  DATABASE_URL: z.string().min(1).default(DEFAULT_DATABASE_URL),
   SESSION_SECRET: z.string().min(32, 'must be at least 32 characters'),
   PORT: z
     .string()

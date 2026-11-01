@@ -784,9 +784,30 @@ export const EXPLAIN_TEMPLATES = {
     'The next recovery week in your plan starts on {week}, with no running set.',
     { week: 'date' },
   ),
+  // What the week's sessions hold, counted as rule E4 counts: time in zone, from the planned running
+  // minutes (`deliveredShares`, `shared/engine/tid.ts`), so not the race, a hike or strength. The aim
+  // is the band the plan draws the week from; the two differ on a real plan, and the first is the one
+  // that is true of the sessions.
   'explain.e4-week': tpl(
-    'The week of {week} is a {phase} week, with about {z1} of running time in zone 1, {z2} in zone 2 and {z3} in zone 3.',
-    { week: 'date', phase: 'text', z1: 'percent', z2: 'percent', z3: 'percent' },
+    'Planned running minutes in the week of {week}: {z1} in zone 1, {z2} in zone 2 and {z3} in zone 3.',
+    { week: 'date', z1: 'percent', z2: 'percent', z3: 'percent' },
+  ),
+  'explain.e4-count': tpl(
+    'Time in a zone is counted from planned minutes: work blocks at their zone, the rest of a run at zone 1; the race, hikes and strength are left out.',
+  ),
+  // A week whose only running is the race, and a week set at no running (a rest window, the rest
+  // after a race), have no minutes to count.
+  'explain.e4-week-race': tpl(
+    'The week of {week} holds the race and no other planned running, so no running minutes fall in any zone.',
+    { week: 'date' },
+  ),
+  'explain.e4-week-none': tpl(
+    'The plan sets no running for the week of {week}, so no minutes fall in any zone.',
+    { week: 'date' },
+  ),
+  'explain.e4-aim': tpl(
+    'The aim for a {phase} week is {z1} in zone 1, {z2} in zone 2 and {z3} in zone 3.',
+    { phase: 'text', z1: 'percent', z2: 'percent', z3: 'percent' },
   ),
   'explain.e6-ladder': tpl(
     'You start on rung {rung} of {rungs} of a run-walk ladder, because of your recent running.',

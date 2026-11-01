@@ -10,7 +10,9 @@
 // alone. The functions that enforce a limit (`limits.ts`, `guards.ts`, `checklist.ts`) are never
 // called: the G-2 headroom is re-derived below from the rule text, so a loosened guard shows here.
 // The only engine functions used are the ones the proposal names: `monotonyStrain` (B7),
-// `RUN_KINDS` and `pairSessions`.
+// `RUN_KINDS` and `pairSessions`, and the zone counting of `shared/engine/tid.ts`, which the
+// Why drawer reads too so that its sentence about a week and the realised distribution here are one
+// count (task EV1).
 //
 // Pure and deterministic: no I/O, no clock, no randomness. Nothing under `shared/`, `server/`,
 // `web/` or `scripts/` may import this file (H1 adds the scan test).
@@ -19,15 +21,24 @@ import { pairSessions } from '../../../shared/domain/sessionIdentity.ts'
 import { RUN_KINDS } from '../../../shared/engine/adjust.ts'
 import { monotonyStrain } from '../../../shared/engine/load.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import {
+  countsAsVolume,
+  isDrawnOutsideE4,
+  percentOfMinutes,
+  plannedZoneMinutes,
+  zoneMinutes,
+  type ZoneShares,
+} from '../../../shared/engine/tid.ts'
 import type {
   EngineInput,
   Grade,
   Param,
+  PhaseV2,
   PlanDraft,
   RecoveryCycle,
+  SessionKind,
   SessionSpec,
   WeekDraft,
-  ZoneKey,
 } from '../../../shared/engine/types.ts'
 
 // ---------------------------------------------------------------------------------------------
@@ -68,11 +79,7 @@ export type PlanContext = Pick<EngineInput, 'today' | 'goal' | 'options'>
 type GoalClass = EngineInput['goal']['distanceClass']
 
 /** Shares of the three intensity zones, in whatever unit the caller keeps (percent or minutes). */
-export interface ZoneShares {
-  z1: number
-  z2: number
-  z3: number
-}
+export type { ZoneShares }
 
 /**
  * What a week is for the ramp, the cycle and the taper. `race` is the week the race falls in
@@ -183,6 +190,64 @@ export interface Distribution {
   realised: ZoneShares | null
 }
 
+/**
+ * The phases rule E4 gives a row for. The taper row covers the taper weeks and the race week, as the
+ * generator draws both from one set of shares (`tidFor`, `macro.ts`).
+ */
+export type TidPhase = 'base' | 'build' | 'specific' | 'taper'
+
+/** A bound on a share, in percent of running time; a null edge is open. */
+export interface Bound {
+  lo: number | null
+  hi: number | null
+}
+
+/**
+ * The row of rule E4 for one phase and goal class: a bound for each zone, null for a zone E4 gives
+ * no figure for in that phase. `basis` labels the row with the weakest grade and the rule of the
+ * Params it was read from.
+ */
+export interface E4Row {
+  z1: Bound | null
+  z2: Bound | null
+  z3: Bound | null
+  basis: Figure<null>
+}
+
+export interface PhaseIntensity {
+  phase: TidPhase
+  /** Loading weeks of the phase that E4 draws (the taper row: the taper weeks and the race week). */
+  weeks: number
+  /** The weeks' `tid` weighted by target minutes. */
+  declared: ZoneShares
+  /** The phase's sessions pooled, in percent of the planned minutes; null without planned minutes. */
+  realised: ZoneShares | null
+  row: E4Row
+  /**
+   * The realised share less the row, in percentage points: 0 inside the bound, else signed to the
+   * nearest edge; null for a zone with no bound or with no realised mix. A description, never a
+   * threshold (ADR 0016, point 5).
+   */
+  distance: { z1: number | null; z2: number | null; z3: number | null }
+}
+
+/** Minutes above zone 1 in the quality sessions of the loading weeks. */
+export interface QualityWork {
+  /** Sessions of the `QUALITY_KINDS` in loading weeks. */
+  sessions: number
+  /** Their minutes in zones 2 and 3. */
+  workMin: number
+  /** `workMin / sessions`; null without sessions. */
+  perSession: number | null
+}
+
+/** Minutes in zones 2 and 3 in each loading week. */
+export interface WeeklyZ2Plus {
+  rows: Array<{ weekStart: string; min: number }>
+  mean: number | null
+  max: number | null
+}
+
 export interface PolarizationIndex {
   /** log10((Z1 / Z2) × Z3 × 100) on fractions; null when zone 1 or zone 3 is empty. */
   value: number | null
@@ -262,6 +327,10 @@ export interface PlanDescription {
   peak: Figure<Peak | null>
   longRunShare: Figure<LongRunShare>
   distribution: Figure<Distribution>
+  /** The realised distribution of each phase against the E4 row, with its distance. */
+  intensityByPhase: Figure<PhaseIntensity[]>
+  qualityWork: Figure<QualityWork>
+  weeklyZ2Plus: Figure<WeeklyZ2Plus>
   /** Treff's index of the declared and the realised distribution of the loading weeks. */
   polarization: Figure<{ declared: PolarizationIndex; realised: PolarizationIndex | null }>
   load: Figure<LoadRow[]>
@@ -301,25 +370,11 @@ function median(values: readonly number[]): number | null {
 
 const ZONES = ['z1', 'z2', 'z3'] as const
 
-const percentOf = (minutes: ZoneShares, total: number): ZoneShares => ({
-  z1: (minutes.z1 / total) * 100,
-  z2: (minutes.z2 / total) * 100,
-  z3: (minutes.z3 / total) * 100,
-})
-
 const mean = (values: readonly number[]): number | null =>
   values.length === 0 ? null : values.reduce((s, v) => s + v, 0) / values.length
 
 const max = (values: readonly number[]): number | null =>
   values.length === 0 ? null : Math.max(...values)
-
-/**
- * Sessions that count toward a week's running minutes: the run kinds except a race (its minutes
- * are the race's, not training) and a hike.
- */
-function countsAsVolume(session: SessionSpec): boolean {
-  return RUN_KINDS.has(session.kind) && session.kind !== 'race' && session.kind !== 'hike'
-}
 
 function weekTypeOf(week: WeekDraft): WeekType {
   if (week.flags.includes('post-race')) return 'post-race'
@@ -345,33 +400,109 @@ function sessionsByWeek(sessions: readonly SessionSpec[]): Map<string, SessionSp
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The zone of the three-zone distribution a step's time counts in. `strides` count in zone 3, as the
- * F2 cap counts them above zone 1. `race-pace` counts in zone 2 for goals above 10 km, where
- * "race pace moves into Z2" (E4); rule E4 says nothing of 5 and 10 km, so there it counts in zone 3,
- * a choice of this harness. Other zone keys (strength, rest) are no running time.
+ * The session kinds that carry the quality work of a week: the table of quality kinds by phase
+ * (F2), strides left out, as their time above zone 1 is a minute or two.
  */
-function tidZoneOf(zone: ZoneKey, goalClass: GoalClass): 1 | 2 | 3 | null {
-  if (zone === 'z1') return 1
-  if (zone === 'z2') return 2
-  if (zone === 'z3' || zone === 'strides') return 3
-  if (zone === 'race-pace') return goalClass === '5k' || goalClass === '10k' ? 3 : 2
-  return null
+export const QUALITY_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
+  'threshold',
+  'intervals',
+  'race-pace',
+  'hills',
+])
+
+export const TID_PHASES: readonly TidPhase[] = ['base', 'build', 'specific', 'taper']
+
+/**
+ * The weeks a phase's row is read over: the loading weeks, as every other distribution figure is,
+ * and the taper weeks with the race week. Recovery weeks are left out, and so are the weeks that a
+ * start path or the return after the race sets and rule E4 does not (`isDrawnOutsideE4`).
+ */
+const TID_WEEK_TYPES: ReadonlySet<WeekType> = new Set<WeekType>(['loading', 'taper', 'race'])
+
+/** The E4 row a week of `phase` is read against: the race week reads the taper row. */
+function tidPhaseOf(phase: PhaseV2): TidPhase {
+  return phase === 'race' ? 'taper' : phase
+}
+
+const ULTRA_CLASSES: ReadonlySet<GoalClass> = new Set<GoalClass>([
+  'ultra50',
+  'ultra100k',
+  'ultra100mi',
+  'beyond',
+])
+
+/**
+ * The row of rule E4 for a phase and a goal class, from the Params, with the row's label. E4 states
+ * a figure for a zone only where its table does, so a zone it is silent on has no bound (the hard
+ * rules fill what they cover: Z1 never below `e4.z1Floor`, and the threshold cap in any phase):
+ *
+ * - base: Z1 at least `z1Prior`, Z2 at most `z2CapBase`, Z3 about `baseZ3Share` (a point: E4 gives
+ *   "~5" with no width, so the distance from it is printed as it is);
+ * - build: `z1Prior`, `z2Prior` and `z3Prior` within `priorTolerancePp` ("80/12/8 +/- 5 pp");
+ * - specific: half and marathon, Z2 at most `specificHalfMarathonZ2Max`; 5 and 10 km, Z2 at most
+ *   `z2CapAnyPhase`; Z1 at least `z1Floor` and Z3 unbounded in both;
+ * - taper and race week: "intensity kept, volume cut", so the same hard rules;
+ * - an ultra goal: Z1 at least `ultraZ1Min` in every phase, and in base Z3 at most `ultraZ3Max`.
+ */
+export function e4Row(phase: TidPhase, goalClass: GoalClass): E4Row {
+  const { e4 } = P
+  const atLeast = (p: Param<number>): Bound => ({ lo: p.value, hi: null })
+  const atMost = (p: Param<number>): Bound => ({ lo: null, hi: p.value })
+  const row = (
+    z1: Bound | null,
+    z2: Bound | null,
+    z3: Bound | null,
+    params: ReadonlyArray<Param<unknown>>,
+  ): E4Row => ({ z1, z2, z3, basis: figure(null, params) })
+  if (ULTRA_CLASSES.has(goalClass)) {
+    return phase === 'base'
+      ? row(atLeast(e4.ultraZ1Min), null, atMost(e4.ultraZ3Max), [e4.ultraZ1Min, e4.ultraZ3Max])
+      : row(atLeast(e4.ultraZ1Min), null, null, [e4.ultraZ1Min])
+  }
+  switch (phase) {
+    case 'base':
+      return row(
+        atLeast(e4.z1Prior),
+        atMost(e4.z2CapBase),
+        { lo: e4.baseZ3Share.value, hi: e4.baseZ3Share.value },
+        [e4.z1Prior, e4.z2CapBase, e4.baseZ3Share],
+      )
+    case 'build': {
+      const around = (p: Param<number>): Bound => ({
+        lo: Math.max(0, p.value - e4.priorTolerancePp.value),
+        hi: Math.min(100, p.value + e4.priorTolerancePp.value),
+      })
+      return row(around(e4.z1Prior), around(e4.z2Prior), around(e4.z3Prior), [
+        e4.z1Prior,
+        e4.z2Prior,
+        e4.z3Prior,
+        e4.priorTolerancePp,
+      ])
+    }
+    case 'specific':
+      return goalClass === 'half' || goalClass === 'marathon'
+        ? row(atLeast(e4.z1Floor), atMost(e4.specificHalfMarathonZ2Max), null, [
+            e4.z1Floor,
+            e4.specificHalfMarathonZ2Max,
+          ])
+        : row(atLeast(e4.z1Floor), atMost(e4.z2CapAnyPhase), null, [e4.z1Floor, e4.z2CapAnyPhase])
+    case 'taper':
+      return row(atLeast(e4.z1Floor), atMost(e4.z2CapAnyPhase), null, [
+        e4.z1Floor,
+        e4.z2CapAnyPhase,
+      ])
+  }
 }
 
 /**
- * Minutes of a session in each zone: the time of every step above zone 1 in its zone, and the rest
- * of the session's minutes (steps in zone 1 and any time the steps do not name) in zone 1.
+ * The distance of a share from a bound, in percentage points: 0 inside it, else signed to the
+ * nearest edge (negative below `lo`, positive above `hi`). Null without a bound or a share.
  */
-function zoneMinutes(session: SessionSpec, goalClass: GoalClass): ZoneShares {
-  let z2 = 0
-  let z3 = 0
-  for (const step of session.structure) {
-    const zone = tidZoneOf(step.zone, goalClass)
-    const minutes = ((step.durationSec ?? 0) * step.reps) / 60
-    if (zone === 2) z2 += minutes
-    else if (zone === 3) z3 += minutes
-  }
-  return { z1: Math.max(0, session.durationMin - z2 - z3), z2, z3 }
+export function distanceFromBound(bound: Bound | null, value: number | null): number | null {
+  if (bound === null || value === null) return null
+  if (bound.lo !== null && value < bound.lo) return value - bound.lo
+  if (bound.hi !== null && value > bound.hi) return value - bound.hi
+  return 0
 }
 
 /**
@@ -550,36 +681,88 @@ export function describePlan(draft: PlanDraft, input: PlanContext): PlanDescript
   const shares = shareRows.flatMap((r) => (r.share === null ? [] : [r.share]))
   const longRunShare: LongRunShare = { rows: shareRows, mean: mean(shares), max: max(shares) }
 
-  // declared against realised distribution of the loading weeks
+  // declared against realised distribution of the loading weeks, and the work above zone 1
   const distributionRows: DistributionRow[] = []
   const declaredOverall: ZoneShares = { z1: 0, z2: 0, z3: 0 }
   const realisedMinutes: ZoneShares = { z1: 0, z2: 0, z3: 0 }
   const targetTotal = loading.reduce((sum, w) => sum + w.targetMin, 0)
+  const weeklyRows: WeeklyZ2Plus['rows'] = []
+  let qualitySessions = 0
+  let qualityWorkMin = 0
   for (const week of loading) {
-    const minutes: ZoneShares = { z1: 0, z2: 0, z3: 0 }
-    for (const s of (bySessions.get(week.weekStart) ?? []).filter(countsAsVolume)) {
-      const m = zoneMinutes(s, goalClass)
-      minutes.z1 += m.z1
-      minutes.z2 += m.z2
-      minutes.z3 += m.z3
-    }
-    const total = minutes.z1 + minutes.z2 + minutes.z3
+    const sessions = bySessions.get(week.weekStart) ?? []
+    const minutes = plannedZoneMinutes(sessions, goalClass)
     const declared = { ...draftWeek.get(week.weekStart)!.tid }
     distributionRows.push({
       weekStart: week.weekStart,
       declared,
-      realised: total > 0 ? percentOf(minutes, total) : null,
+      realised: percentOfMinutes(minutes),
     })
     for (const zone of ZONES) {
       realisedMinutes[zone] += minutes[zone]
       if (targetTotal > 0) declaredOverall[zone] += (declared[zone] * week.targetMin) / targetTotal
     }
+    weeklyRows.push({ weekStart: week.weekStart, min: minutes.z2 + minutes.z3 })
+    for (const s of sessions) {
+      if (!QUALITY_KINDS.has(s.kind)) continue
+      const m = zoneMinutes(s, goalClass)
+      qualitySessions += 1
+      qualityWorkMin += m.z2 + m.z3
+    }
   }
-  const realisedTotal = realisedMinutes.z1 + realisedMinutes.z2 + realisedMinutes.z3
   const distribution: Distribution = {
     rows: distributionRows,
     declared: declaredOverall,
-    realised: realisedTotal > 0 ? percentOf(realisedMinutes, realisedTotal) : null,
+    realised: percentOfMinutes(realisedMinutes),
+  }
+  const weeklyMins = weeklyRows.map((r) => r.min)
+  const weeklyZ2Plus: WeeklyZ2Plus = {
+    rows: weeklyRows,
+    mean: mean(weeklyMins),
+    max: max(weeklyMins),
+  }
+  const qualityWork: QualityWork = {
+    sessions: qualitySessions,
+    workMin: qualityWorkMin,
+    perSession: qualitySessions > 0 ? qualityWorkMin / qualitySessions : null,
+  }
+
+  // the realised distribution of each phase against the E4 row
+  const intensityByPhase: PhaseIntensity[] = []
+  for (const phase of TID_PHASES) {
+    const inPhase = draftWeeks.filter(
+      (w) =>
+        tidPhaseOf(w.phase) === phase &&
+        TID_WEEK_TYPES.has(weekTypeOf(w)) &&
+        !isDrawnOutsideE4(w.flags),
+    )
+    if (inPhase.length === 0) continue
+    const phaseTarget = inPhase.reduce((sum, w) => sum + w.targetRunMin, 0)
+    const declared: ZoneShares = { z1: 0, z2: 0, z3: 0 }
+    for (const w of inPhase) {
+      for (const zone of ZONES) {
+        if (phaseTarget > 0) declared[zone] += (w.tid[zone] * w.targetRunMin) / phaseTarget
+      }
+    }
+    const realised = percentOfMinutes(
+      plannedZoneMinutes(
+        inPhase.flatMap((w) => bySessions.get(w.weekStart) ?? []),
+        goalClass,
+      ),
+    )
+    const row = e4Row(phase, goalClass)
+    intensityByPhase.push({
+      phase,
+      weeks: inPhase.length,
+      declared,
+      realised,
+      row,
+      distance: {
+        z1: distanceFromBound(row.z1, realised?.z1 ?? null),
+        z2: distanceFromBound(row.z2, realised?.z2 ?? null),
+        z3: distanceFromBound(row.z3, realised?.z3 ?? null),
+      },
+    })
   }
 
   // planned load, monotony and strain
@@ -700,6 +883,14 @@ export function describePlan(draft: PlanDraft, input: PlanContext): PlanDescript
     peak: figure(peak),
     longRunShare: figure(longRunShare, [P.macroDesign.longRunShareOfWeek]),
     distribution: figure(distribution, [P.e4.z1Prior, P.e4.z2Prior, P.e4.z3Prior]),
+    intensityByPhase: figure(intensityByPhase, [
+      P.e4.z1Prior,
+      P.e4.z2Prior,
+      P.e4.z3Prior,
+      P.e4.priorTolerancePp,
+    ]),
+    qualityWork: figure(qualityWork, [P.f2.qualitySessionsPerWeek, P.f2.z2z3Share]),
+    weeklyZ2Plus: figure(weeklyZ2Plus, [P.e4.z2Prior, P.e4.z3Prior, P.f2.z2z3Share]),
     polarization: figure({
       declared: polarizationIndex(distribution.declared),
       realised: distribution.realised === null ? null : polarizationIndex(distribution.realised),

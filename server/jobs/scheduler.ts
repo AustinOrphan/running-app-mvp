@@ -1,10 +1,13 @@
+import { basename } from 'node:path'
 import { todayIso } from '../../shared/dates.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
 import type { PrismaClient } from '../db.ts'
+import { sqliteFilePath } from '../dbPath.ts'
 import { createLogger } from '../logger.ts'
 import { PROVIDERS } from '../providers/registry.ts'
+import { backupDirectory, createBackup, pruneBackups } from '../services/backup.ts'
 import { generateBrief } from '../services/brief.ts'
 import { runNightlyMatching } from '../services/execution.ts'
 import { scanFolderIntegration } from '../services/folder.ts'
@@ -229,6 +232,38 @@ export async function runPredictionJob(
   }
 }
 
+/**
+ * Copies the database into `backups/` beside it and prunes the older ordinary backups by the
+ * default retention rule (`server/services/backup.ts`). The copy is one for the whole database, so
+ * each user gets a `backup` run that says how it went: `accepted` 1 for a copy that passed
+ * `integrity_check`, an error run otherwise. A failure is recorded and logged, never thrown, and
+ * prunes nothing. Nothing in a request handler calls this; only the daily slot does.
+ */
+export async function runBackupJob(
+  deps: Deps,
+  opts: { now?: Date } = {},
+  log?: Log,
+): Promise<void> {
+  const startedAt = new Date()
+  let failure: unknown = null
+  try {
+    const file = sqliteFilePath(deps.config.databaseUrl)
+    const copy = await createBackup(file, { kind: 'ordinary', now: opts.now })
+    const pruned = pruneBackups(backupDirectory(file), undefined, basename(copy.path))
+    log?.info({ bytes: copy.bytes, pruned: pruned.length }, 'database backed up')
+  } catch (error) {
+    log?.warn({ reason: safeMessage(error) }, 'scheduled backup failed')
+    failure = error
+  }
+  const users = await deps.prisma.user.findMany({ select: { id: true } })
+  for (const user of users) {
+    await recordJob(deps, 'backup', user.id, startedAt, {
+      accepted: failure === null ? 1 : 0,
+      error: failure,
+    })
+  }
+}
+
 /** Users with an active version-2 plan: whom the nightly matching and the Monday re-plan serve. */
 async function activePlanUsers(prisma: PrismaClient): Promise<string[]> {
   const plans = await prisma.plan.findMany({
@@ -378,17 +413,19 @@ export function dueSlot(now: Date, last: string | null, slot: DailySlot): string
 }
 
 /** How often the daily jobs check whether their slot has come. */
-const SLOT_CHECK_MS = 10 * MINUTE_MS
-/** Nightly matching runs first, so the Monday re-plan sees the week's links. */
+export const SLOT_CHECK_MS = 10 * MINUTE_MS
+/** The database copy comes first, before the night's matching and the Monday re-plan write. */
+export const BACKUP_SLOT: DailySlot = { hour: 2, minute: 0 }
+/** Nightly matching runs before the Monday re-plan, so the re-plan sees the week's links. */
 export const MATCHING_SLOT: DailySlot = { hour: 2, minute: 30 }
 /** After matching (02:30) and the Monday re-plan (03:00): the morning's forced publish. */
 export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
 
 /**
- * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the nightly matching
- * (02:30 local), the Monday re-plan (03:00 local) and its catch-up, and the weekly prediction log
- * (each 30 s after start, then every 6 hours), the publisher's 2-minute check and its forced 04:45
- * run; returns `stop()`.
+ * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the daily database
+ * backup (02:00 local), the nightly matching (02:30 local), the Monday re-plan (03:00 local) and
+ * its catch-up, and the weekly prediction log (each 30 s after start, then every 6 hours), the
+ * publisher's 2-minute check and its forced 04:45 run; returns `stop()`.
  * A job never overlaps itself: a tick that finds its previous run still going does nothing.
  * Called from `server/index.ts` only, never in tests.
  */
@@ -441,6 +478,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('sync', SYNC_INTERVAL_MS, () => runSyncJob(deps, opts, log))
   every('folder', FOLDER_INTERVAL_MS, () => runFolderJob(deps, log))
   every('weather', WEATHER_INTERVAL_MS, () => runWeatherJob(deps, opts, log))
+  daily('backup', BACKUP_SLOT, () => runBackupJob(deps, {}, log))
   daily('matching', MATCHING_SLOT, () => runMatchingJob(deps, {}, log))
   daily('replan', REPLAN_SLOT, () => runReplanJob(deps, {}, log))
   // The daily slot is seeded at start, so a restart after 03:00 on Monday would skip the week.

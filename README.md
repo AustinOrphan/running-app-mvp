@@ -41,7 +41,9 @@ per 15 minutes (successful ones count too); the limit is held in memory and rese
 | `npm start`                         | run the built server                                     |
 | `npm run test:e2e`                  | Playwright golden paths against the production build     |
 | `npm run format`                    | rewrite files with Prettier                              |
-| `npm run db:migrate`                | apply migrations (`prisma migrate deploy`)               |
+| `npm run db:migrate`                | copy the database if a migration is pending, then apply  |
+| `npm run backup`                    | copy the database to `backups/` and check the copy       |
+| `npm run restore -- <file>`         | replace the database with a backup (server stopped)      |
 | `npm run reset-password -- <email>` | set a new password from the command line                 |
 | `npm run icons`                     | render the PNG app icons in `web/public` from `icon.svg` |
 
@@ -230,12 +232,24 @@ tool, or any app that can write files to iCloud Drive, Dropbox, Syncthing or a n
 
 ### Weather and privacy
 
-The app otherwise makes no third-party requests. With weather on, a background job sends
-Open-Meteo (no account or key) the start location of each activity, rounded to about one
-kilometre, and its time; for an activity without a location it uses the home location from the
-Profile page when "use the home location for weather" is on. Turn that off, and leave the home
-location empty, to send nothing. Providers see only what you connect: the app calls intervals.icu,
-Strava and Garmin only after you connect them, and only for your own account.
+The app otherwise makes no third-party requests. Weather comes from Open-Meteo (no account or key),
+and no setting turns the lookups off. A background job runs every ten minutes and sends:
+
+- For each activity with a start location, that location rounded to a cell of 0.1 degree (about 11
+  km from north to south). An activity of the last five days is asked for by that cell alone (the
+  past seven days there); an older one is asked for by the dates it falls on. Indoor activities (a
+  treadmill, virtual or indoor subtype) are never sent.
+- For each target or considered goal that is still ahead, has a distance and has coordinates of its
+  own, the race location rounded to 0.01 degree (about 1 km), with the race's month and day in
+  each of the last three years.
+- When a home location is saved, a forecast request for the home location rounded to 0.1 degree,
+  repeated about once an hour.
+
+The Profile page's "Use the home location for weather when a run has no start location" adds the
+saved home location as the place for activities without a start location and for goals without
+coordinates. It does not stop the requests above, and leaving the home location empty stops only
+the forecast and that fallback. Providers see only what is connected: the app calls intervals.icu,
+Strava and Garmin only after they are connected, and only for the connected account.
 
 ## Sessions on the watch
 
@@ -399,7 +413,7 @@ The app listens on port 3001 and keeps its database in the `app-data` volume mou
 `docker compose` refuses to start without `SESSION_SECRET`; keep the value somewhere safe, because
 a new value signs you out. The container runs as the unprivileged `node` user (uid 1000), so a
 bind mount instead of the volume needs `chown 1000:1000` on the host directory. Migrations run on
-every start.
+every start, after a copy of the database when one is pending (see Backup, restore and update).
 
 Without Compose:
 
@@ -409,8 +423,127 @@ docker run -d -p 3001:3001 -v running-log-data:/data \
   -e SESSION_SECRET="$(openssl rand -base64 48)" -e TZ=Europe/London running-log
 ```
 
-Back up the database while the app runs with `sqlite3 /data/app.db ".backup 'backup.db'"`; copying
-the file alone can miss changes still in the write-ahead log.
+## Backup, restore and update
+
+### Backups
+
+The server copies the database every day at 02:00 (its local time; in Docker, set `TZ`). The copy is
+made with SQLite's online backup, so it is consistent while the app runs, and `PRAGMA
+integrity_check` must say `ok` on the copy before the file is kept. The job is recorded as a
+`backup` run in the job log (`GET /api/jobs`). A restart after 02:00 skips that day's run;
+`npm run backup` takes one at any time.
+
+The files are in `backups/`, next to the database file: `/data/backups/` in Docker, and
+`prisma/data/backups/` for the default `DATABASE_URL` in a checkout. The folder follows
+`DATABASE_URL`; there is no setting of its own.
+
+| File                             | Made by                                                                              | Pruned            |
+| -------------------------------- | ------------------------------------------------------------------------------------ | ----------------- |
+| `app-<UTC timestamp>.db`         | the daily job, `npm run backup`                                                      | by the rule below |
+| `pre-migrate-<UTC timestamp>.db` | `npm run db:migrate` and each start of the Docker image, when a migration is pending | never             |
+| `pre-restore-<UTC timestamp>.db` | `npm run restore`, from the database it replaces                                     | never             |
+
+The rule for `app-*.db`, applied after each backup that passes its check: keep the newest backup of
+each of the 7 most recent days (UTC) that have one, and the newest of each of the 4 most recent ISO
+weeks that have one. `npm run backup -- --keep 14` keeps the newest 14 instead. Delete the
+`pre-migrate` and `pre-restore` copies by hand when they are no longer needed.
+
+A backup is the whole database, unencrypted: the runner's GPS tracks, wellness data and screening
+answers, the password hash, and the integrations' tokens (encrypted with a key derived from
+`SESSION_SECRET`, so a restore under a different `SESSION_SECRET` needs the integrations connected
+again). Copying backups off the machine, and encrypting them there, is the operator's job: the app
+sends them nowhere, and a copy on the same disk does not survive the loss of the disk. In Docker,
+`docker compose cp app:/data/backups ./` copies the folder out; it fails until `/data/backups`
+exists, so take one backup first with `docker compose exec app node dist/scripts/backup.js`.
+
+### Restore
+
+Stop the server first. The restore refuses, and changes nothing, while the database looks in use:
+it asks the database for an exclusive lock, which SQLite refuses while the server's connection is
+open (the server keeps it in WAL mode), and it refuses when the `-wal` or `-shm` file was written in
+the last 10 seconds (after a crash, wait that long). Once the file passes `integrity_check`, the
+restore copies the current database aside as `pre-restore-<UTC timestamp>.db`, removes the stale
+`-wal` and `-shm` files, and puts the backup in place with the mode and owner of the file it
+replaces. A current database too damaged for SQLite to copy (garbage, truncated, damaged pages) is
+kept byte for byte, with its `-wal` and `-shm` files beside the copy, so a damaged database can be
+restored over. To undo a restore, restore that `pre-restore` file.
+
+In a checkout:
+
+```sh
+npm run restore -- prisma/data/backups/app-20261101T020000Z.db
+```
+
+In Docker, stop the app and run the script in a one-off container on the same volume (Compose still
+needs `SESSION_SECRET` exported, as for `up`; the restore does not use it):
+
+```sh
+docker compose stop app
+docker compose run --rm app node dist/scripts/restore.js /data/backups/app-20261101T020000Z.db
+docker compose up -d
+```
+
+Without Compose, stop the container, then
+`docker run --rm -v running-log-data:/data running-log node dist/scripts/restore.js /data/backups/app-20261101T020000Z.db`
+and start the container again.
+
+A backup kept elsewhere goes into the volume first, for example
+`docker compose cp ./app-20261101T020000Z.db app:/data/backups/` (this works while the container is
+stopped, once `/data/backups` exists: run one backup first, as under Backups).
+
+### Update
+
+Stop the server first, so that nothing writes to the database while it is migrated.
+
+```sh
+# stop the running server, then:
+git pull
+npm ci
+npm run db:migrate   # copies the database to backups/pre-migrate-<timestamp>.db if a migration is pending, then migrates
+npm run build
+npm start
+```
+
+With Docker, the migration runs when the new container starts:
+
+```sh
+docker compose stop app
+git pull
+docker compose up -d --build
+```
+
+`npm run db:migrate` stops before migrating if the copy fails its check. The image does the same:
+it copies the database to `/data/backups` before `prisma migrate deploy` when a migration is
+pending, and a failed copy stops the container from starting (see `docker compose logs app`). No
+copy is made when nothing is pending, and none while a failed migration is recorded: `migrate
+deploy` then refuses on every start, and the copy from before the first attempt stays the one to
+keep.
+
+### Roll back
+
+A pre-migrate copy holds the data as it was before the update, so rolling back loses what was
+entered since. Take the copy from the start of that update, the oldest `pre-migrate` file made since
+you began it (`ls -l backups/` and compare the times), not a later one: after a migration that
+failed part way, a later copy could hold the half-migrated schema. Restore it first, from the
+checkout that has the scripts, then go back to the earlier code:
+
+1. Stop the server (`docker compose stop app` with Docker).
+2. Restore that `pre-migrate` copy, as under Restore. The data written since the update stays in
+   the new `pre-restore` copy.
+3. Check out the previous tag (`git checkout <tag>`), run `npm ci` and `npm run build`, and start the
+   server. With Docker, run `docker compose up -d --build` after the checkout instead.
+
+To run the update again after a migration failed, first restore the oldest `pre-migrate` copy of
+that update, as above: it was made before the first attempt, so it has no failed migration
+recorded. Then fix the cause and repeat the update. Do not start from the half-migrated database:
+on SQLite a migration that fails part way keeps the statements that ran before the failure, so
+`npx prisma migrate resolve --rolled-back <migration name>` (with Docker,
+`docker compose run --rm app npx prisma migrate resolve --rolled-back <migration name>`) lets the
+retry fail again on the first of them ("table ... already exists") and records a second failed
+migration. Use `--rolled-back` only after reverting those statements by hand. On a fresh volume
+there is no `pre-migrate` copy to restore (nothing existed to copy), so reverting by hand and
+`--rolled-back`, or finishing the statements by hand and `migrate resolve --applied <migration name>`,
+is the only way there.
 
 ## Resetting the password
 
