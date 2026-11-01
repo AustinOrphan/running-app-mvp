@@ -31,6 +31,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # The base image follows .nvmrc, so a new node major is a deliberate change, not node:25-slim.
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
