@@ -208,8 +208,9 @@ Alternatives:
   counts as a base to lengthen (decided 2026-10-31, task M5, section (p)). A plan whose only base weeks
   are start-path weeks reads the default with the reason `no-base` and draws the default's phases whole,
   so it is the default plan; of the twelve matrix athletes that is `post-marathon-short-run`. The phases
-  of a `longer-base` plan never decrease and its build is at most 4 weeks (`preset-phases.test.ts`, the
-  matrix and the 150 sweep runners with the race 0 to 175 days later); an earlier relabel of the
+  of a `longer-base` plan never decrease and its build is at most 4 weeks (`preset-phases.test.ts`: the
+  matrix with the race 0 to 175 days later and a sample of the sweep in `npm run check`, the 150 sweep
+  runners at all those dates by hand with `PRESET_PHASES_FULL=1`); an earlier relabel of the
   start-path weeks alone had left plans reading build, base, build.
 - A preset's week target is the default's where the default places short, and the minutes it places
   are the default's: a preset plan can read a week below its own drawn target, as the default does in

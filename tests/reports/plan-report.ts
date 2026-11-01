@@ -11,6 +11,11 @@
 // Every figure carries the grade and rule id of the Params it rests on, read from the figure
 // itself and never typed here, and the sweeps are stratified by the sweeps' own axes.
 //
+// At the same bump the full phase sweep of the longer-base preset is run by hand too, as it is not in
+// `npm run check` (the matrix and a sample are):
+// `PRESET_PHASES_FULL=1 npx vitest run tests/unit/engine/preset-phases-sweep`
+// (`tests/unit/engine/preset-phases.ts`).
+//
 // Deterministic: no clock, no randomness, no run time in the text (the time goes to stderr), so the
 // same input gives the same text and a digest of the matrix section and of each preset section is
 // pinned in `tests/unit/reports/plan-report.test.ts`. Outside the Vitest include. Nothing under `shared/`,
