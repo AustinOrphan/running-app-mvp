@@ -1587,6 +1587,7 @@ describe('the taper under way keeps the reference of the plan before the window 
     const withWindow = replanChain(athlete.input, { windows: [window] })
     expect(withWindow).toHaveLength(without.length)
     let compared = 0
+    let bounded = 0
     withWindow.forEach((step, k) => {
       if (step.input.today < lastLoading.weekStart) return
       for (const week of step.draft.weeks) {
@@ -1594,16 +1595,108 @@ describe('the taper under way keeps the reference of the plan before the window 
           continue
         if (week.weekStart < mondayOf(step.input.today)) continue
         const plain = without[k]!.draft.weeks.find((w) => w.weekStart === week.weekStart)!
+        // the week of the chain with no window, and not above the same week of the plan before: a
+        // re-plan of the race week of the marathon athlete raises it with no window (115 to 132), and
+        // a window never raises a week
+        const was = withWindow[k - 1]?.draft.weeks.find((w) => w.weekStart === week.weekStart)
+        const least = Math.min(plain.targetRunMin, was?.targetRunMin ?? Infinity)
         compared += 1
         expect(
           week.targetRunMin,
           `${id}, re-plan of ${step.input.today}, ${week.weekStart}`,
-        ).toBeGreaterThanOrEqual(
-          Math.floor(plain.targetRunMin * (1 - lostShare(window, week.weekStart))),
-        )
+        ).toBeGreaterThanOrEqual(Math.floor(least * (1 - lostShare(window, week.weekStart))))
+      }
+      // and no taper, race or post-race week is above the same week of the plan before, once the
+      // taper is under way; where the chain with no window raises a week the same way (the race
+      // week of the marathon athlete, 115 to 132, found by the review and not this branch's), the
+      // chain with the window is held to that chain
+      if (mondayOf(step.input.today) < taper[0]!.weekStart) return
+      for (const week of step.draft.weeks) {
+        if (!(week.isTaper || week.phase === 'race' || week.flags.includes('post-race'))) continue
+        const before = withWindow[k - 1]!.draft.weeks.find((w) => w.weekStart === week.weekStart)
+        if (before === undefined || isDisruptedWeek(week.flags)) continue
+        const plain = without[k]!.draft.weeks.find((w) => w.weekStart === week.weekStart)
+        const plainBefore = without[k - 1]!.draft.weeks.find((w) => w.weekStart === week.weekStart)
+        const raisedAnyway =
+          plain !== undefined &&
+          plainBefore !== undefined &&
+          plain.targetRunMin > plainBefore.targetRunMin
+        bounded += 1
+        expect(
+          week.targetRunMin,
+          `${id}, re-plan of ${step.input.today}, ${week.weekStart}: against the plan before`,
+        ).toBeLessThanOrEqual(raisedAnyway ? plain.targetRunMin : before.targetRunMin)
       }
     })
     expect(compared).toBeGreaterThan(weeks)
+    expect(bounded).toBeGreaterThan(weeks)
+  })
+})
+
+describe('a re-plan on any day of the taper keeps to the plan before [rules K2, K6, H12, G6]', () => {
+  // Found by the final review of RF2 (2026-11-01), a regression of 5206f18a. The reference of a taper
+  // under way (the last loading week the window did not touch) had no ceiling. After a hold of 28
+  // days that ends two or three weeks before the taper every week since is a part week, so that
+  // reference is the peak before the hold; on a Monday the plan being replaced pins the week in
+  // progress to its own figure, and on any other day nothing did. The race week that plan held at 105
+  // was redrawn at 155 on the Tuesday of the race week (trail-50k, a niggle of 28 days from
+  // 2027-01-16) and the taper item said "(155 min) does not fall from 155 min": 45 re-plans of the
+  // reviewer's grids, all of the race week, newly failed it. The post-race weeks, drawn from the same
+  // reference, were lifted above the plan before too. A taper, race or post-race week is now held to
+  // the same week of the plan being replaced.
+  //
+  // The chain is re-planned on a Tuesday, a Thursday and a Saturday of every week, the days before
+  // run as planned. Every re-plan once the taper is under way holds each taper, race and post-race
+  // week at most at the same week of the plan before, and passes the load items of the checklist.
+  // The `tid` item of reds-hold fails on the Tuesday chains from 2027-01-19 on (the week of 01-18 is
+  // 20 minutes, half of them above zone 1) with or without this fix: found by the same review and
+  // listed for RF4.
+  const KNOWN_TID = 'reds-hold Tuesday'
+  const DAYS: Array<[string, number]> = [
+    ['Tuesday', 1],
+    ['Thursday', 3],
+    ['Saturday', 5],
+  ]
+
+  describe.each(['trail-50k', 'reds-hold'])('%s, a niggle of 28 days from 2027-01-16', (id) => {
+    it.each(DAYS)('keeps every draft on a %s to the plan before', (day, weekday) => {
+      const athlete = byId(id)
+      const taperStart = buildPlan(athlete.input).weeks.find((w) => w.isTaper)!.weekStart
+      const window = windowOf({
+        id: 'taper-day',
+        reason: 'niggle',
+        startDate: '2027-01-16',
+        endDate: addDays('2027-01-16', 27),
+        pain: 0,
+      })
+      const chain = replanChain(athlete.input, { windows: [window], weekday })
+      const failing = chain.flatMap((step) =>
+        step.draft.checklist
+          .filter((c) => !c.ok)
+          .map((c) => `${step.input.today}: ${c.id}: ${c.detail}`),
+      )
+      const expected = `${id} ${day}` === KNOWN_TID ? 7 : 0
+      expect(
+        failing.filter((f) => !f.includes(': tid: ')),
+        failing.join('; '),
+      ).toEqual([])
+      expect(failing.filter((f) => f.includes(': tid: '))).toHaveLength(expected)
+      let bounded = 0
+      chain.forEach((step, k) => {
+        if (k === 0 || mondayOf(step.input.today) < taperStart) return
+        for (const week of step.draft.weeks) {
+          if (!(week.isTaper || week.phase === 'race' || week.flags.includes('post-race'))) continue
+          const before = chain[k - 1]!.draft.weeks.find((w) => w.weekStart === week.weekStart)
+          if (before === undefined || isDisruptedWeek(week.flags)) continue
+          bounded += 1
+          expect(
+            week.targetRunMin,
+            `${id}, re-plan of ${step.input.today}, ${week.weekStart}: against the plan before`,
+          ).toBeLessThanOrEqual(before.targetRunMin)
+        }
+      })
+      expect(bounded).toBeGreaterThan(5)
+    })
   })
 })
 

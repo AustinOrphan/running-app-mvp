@@ -28,6 +28,12 @@ export interface ReplanChainOptions {
   /** Stop after this many re-plans (default: until the race week). */
   maxSteps?: number
   /**
+   * The day of each week the re-plan is made on, in days after the Monday (default 0: the Monday).
+   * The days of the week before it were run as planned, so a re-plan on a Tuesday finds Monday's run
+   * done and the rest of the week still to run.
+   */
+  weekday?: number
+  /**
    * Windows the runner reports [rule J9]: each joins the input of the first re-plan on or after its
    * first day and stays in it, closed or not, as the simulator reports its own. The runner honours
    * a window whether or not the plan in force knew of it: no run on a day of a rest window, and a
@@ -45,14 +51,14 @@ export interface ReplanStepsOptions extends ReplanChainOptions {
 
 /** The first plan of `first` and a re-plan on every Monday after it, until the race week. */
 export function replanChain(first: EngineInput, options: ReplanChainOptions = {}): ReplanStep[] {
-  const { scale = 1, maxSteps = Infinity, windows = [] } = options
+  const { scale = 1, maxSteps = Infinity, windows = [], weekday = 0 } = options
   let draft = buildPlan(first)
   let activities = first.activities
   const steps: ReplanStep[] = [{ draft, input: first }]
   const raceMonday = mondayOf(first.goal.date)
   for (
-    let monday = addDays(mondayOf(first.today), 7);
-    monday <= raceMonday && steps.length <= maxSteps;
+    let monday = addDays(mondayOf(first.today), 7 + weekday);
+    mondayOf(monday) <= raceMonday && monday <= first.goal.date && steps.length <= maxSteps;
   ) {
     const factor = typeof scale === 'number' ? scale : scale(steps.length)
     const ran = draft.sessions
