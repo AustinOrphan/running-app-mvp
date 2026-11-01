@@ -521,12 +521,17 @@ checkout that has the scripts, then go back to the earlier code:
 3. Check out the previous tag (`git checkout <tag>`), run `npm ci` and `npm run build`, and start the
    server. With Docker, run `docker compose up -d --build` after the checkout instead.
 
-A restored copy from before the first attempt has no failed migration recorded. If the database
-still holds one (`migrate deploy` stops with P3009 and names it), and the cause is fixed so that the
-migration should run again, mark it with
+To run the update again after a migration failed, first restore the oldest `pre-migrate` copy of
+that update, as above: it was made before the first attempt, so it has no failed migration
+recorded. Then fix the cause and repeat the update. Do not start from the half-migrated database:
+on SQLite a migration that fails part way keeps the statements that ran before the failure, so
 `npx prisma migrate resolve --rolled-back <migration name>` (with Docker,
-`docker compose run --rm app npx prisma migrate resolve --rolled-back <migration name>`), then
-start the server.
+`docker compose run --rm app npx prisma migrate resolve --rolled-back <migration name>`) lets the
+retry fail again on the first of them ("table ... already exists") and records a second failed
+migration. Use `--rolled-back` only after reverting those statements by hand. On a fresh volume
+there is no `pre-migrate` copy to restore (nothing existed to copy), so reverting by hand and
+`--rolled-back`, or finishing the statements by hand and `migrate resolve --applied <migration name>`,
+is the only way there.
 
 ## Resetting the password
 
