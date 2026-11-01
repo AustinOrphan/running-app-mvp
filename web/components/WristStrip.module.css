@@ -15,6 +15,21 @@
   overflow-wrap: anywhere;
 }
 
+/* With sending off the strip is one row: the sentence and the two links side by side (they wrap
+   only when the screen is too narrow for all three). */
+.strip[data-state='off'] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-3);
+  row-gap: 0;
+  padding-block: var(--space-1);
+}
+
+.strip[data-state='off'] .actions {
+  display: contents;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

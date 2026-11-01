@@ -84,8 +84,7 @@ async function planWithRunToday(): Promise<PlanSessionView> {
   throw new Error(`The plan has no run for ${today} and none could be moved there.`)
 }
 
-const SENDING_OFF =
-  'Sending to your watch is off. Download the workout file, or turn it on under Integrations.'
+const SENDING_OFF = 'Sending to your watch is off.'
 
 test('Plan says sending is off, and offers a named FIT file for a session and a zip for the week', async () => {
   const { thisMonday, today } = relativeDates()
@@ -103,7 +102,8 @@ test('Plan says sending is off, and offers a named FIT file for a session and a 
     .click()
   const sheet = page.getByRole('dialog', { name: hero.title })
   const section = sheet.getByRole('region', { name: 'On your watch' })
-  await expect(section.getByText(SENDING_OFF)).toBeVisible()
+  // the strip says sending is off; the sheet keeps the one download link
+  await expect(section.getByText(SENDING_OFF)).toBeHidden()
 
   const [file] = await Promise.all([
     page.waitForEvent('download'),

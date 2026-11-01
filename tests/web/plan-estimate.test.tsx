@@ -161,12 +161,14 @@ describe('Plan page: the day cards', () => {
 
 describe('Plan page: the week row', () => {
   test('says what the week’s runs come to, under the target', async () => {
+    const user = userEvent.setup()
     mockApi(routes(estimated()))
     renderPlan()
-    await screen.findByText('Week focus 0')
+    await screen.findByText('Week focus 1')
     const target = row('2027-01-11').querySelector<HTMLElement>('[data-cell="target"]')!
     expect(within(target).getByText('5.0 h')).toBeInTheDocument()
     expect(await within(target).findByText('about 25 km')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Earlier weeks (1)' }))
     const first = row('2027-01-04').querySelector<HTMLElement>('[data-cell="target"]')!
     expect(within(first).getByText('about 6 km')).toBeInTheDocument()
   })
@@ -174,7 +176,7 @@ describe('Plan page: the week row', () => {
   test('follows the runner’s units', async () => {
     mockApi(routes(estimated(), 'mi'))
     renderPlan()
-    await screen.findByText('Week focus 0')
+    await screen.findByText('Week focus 1')
     const target = row('2027-01-11').querySelector<HTMLElement>('[data-cell="target"]')!
     expect(await within(target).findByText('about 16 mi')).toBeInTheDocument()
   })
@@ -182,7 +184,7 @@ describe('Plan page: the week row', () => {
   test('says nothing for a week the server had no figure for', async () => {
     mockApi(routes(estimated()))
     renderPlan()
-    await screen.findByText('Week focus 0')
+    await screen.findByText('Week focus 1')
     // The week before it has a figure, so the units have loaded when that one shows.
     expect(await within(row('2027-01-11')).findByText('about 25 km')).toBeInTheDocument()
     const target = row('2027-01-18').querySelector<HTMLElement>('[data-cell="target"]')!
@@ -192,7 +194,7 @@ describe('Plan page: the week row', () => {
   test('keeps the minutes as the target: the estimate is not a second target and is never graded', async () => {
     mockApi(routes(estimated()))
     const { container } = renderPlan()
-    await screen.findByText('Week focus 0')
+    await screen.findByText('Week focus 1')
     const target = row('2027-01-11').querySelector<HTMLElement>('[data-cell="target"]')!
     await within(target).findByText('about 25 km')
     // The minutes lead and the estimate follows them, with no second target beside them.

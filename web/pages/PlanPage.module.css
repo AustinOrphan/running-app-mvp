@@ -405,6 +405,56 @@
   font-weight: 400;
 }
 
+/* The row that holds the weeks before this one: a whole-row button with the + and - of the app's
+   other disclosure rows. */
+.earlierRow {
+  display: block;
+  border-top: 1px solid var(--border);
+}
+
+.earlierRow td {
+  display: block;
+  padding: 0;
+}
+
+.earlierToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.earlierToggle::after {
+  margin-left: auto;
+  color: var(--accent);
+  content: '+';
+  font-weight: 600;
+}
+
+.earlierToggle[aria-expanded='true']::after {
+  content: '\2212';
+}
+
+@media (min-width: 900px) {
+  .earlierRow {
+    display: table-row;
+  }
+
+  .earlierRow td {
+    display: table-cell;
+    border-top: 1px solid var(--border);
+  }
+}
+
 /* Day cards sit under their week row. */
 .daysRow {
   display: block;

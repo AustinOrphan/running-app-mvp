@@ -33,7 +33,7 @@ export function WristStrip({ sessions }: { sessions: readonly PlanSession[] }) {
     status === undefined
       ? null
       : counts === null
-        ? wristPlain('publish.sheet.off')
+        ? wristPlain('publish.strip.off')
         : wristStripSentence(counts, daysBetween(status.from, status.to) + 1)
 
   return (

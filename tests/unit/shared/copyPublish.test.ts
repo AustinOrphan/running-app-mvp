@@ -318,7 +318,7 @@ describe('the fixed words of the strip and the sheet', () => {
     for (const id of [
       'publish.strip.heading',
       'publish.sheet.heading',
-      'publish.sheet.off',
+      'publish.strip.off',
       'publish.sheet.eased',
       'publish.action.send-again',
       'publish.action.integrations',
@@ -330,9 +330,7 @@ describe('the fixed words of the strip and the sheet', () => {
     }
     expect(wristSendLabel(14)).toBe('Send my next 14 days of runs to intervals.icu')
     expect(lintText(wristSendLabel(14))).toEqual([])
-    expect(wristPlain('publish.sheet.off')).toBe(
-      'Sending to your watch is off. Download the workout file, or turn it on under Integrations.',
-    )
+    expect(wristPlain('publish.strip.off')).toBe('Sending to your watch is off.')
     expect(wristPlain('publish.sheet.eased')).toBe(
       "Today's readiness eased this session. The watch has the easy version; this page keeps the plan.",
     )

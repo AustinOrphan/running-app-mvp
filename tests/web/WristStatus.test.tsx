@@ -245,21 +245,16 @@ describe('the section of the session sheet', () => {
     return api
   }
 
-  test('says sending is off, and offers the file and Integrations', async () => {
+  test('offers the file alone while sending is off', async () => {
     renderSection(makeWristStatus())
     const section = screen.getByRole('region', { name: 'On your watch' })
     expect(
-      await within(section).findByText(
-        'Sending to your watch is off. Download the workout file, or turn it on under Integrations.',
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(section).getByRole('link', { name: 'Download the workout file' }),
+      await within(section).findByRole('link', { name: 'Download the workout file' }),
     ).toHaveAttribute('href', '/api/plan/sessions/s1/workout.fit')
-    expect(within(section).getByRole('link', { name: 'Open Integrations' })).toHaveAttribute(
-      'href',
-      '/integrations',
-    )
+    expect(within(section).queryByText(/Sending to your watch is off/)).not.toBeInTheDocument()
+    expect(
+      within(section).queryByRole('link', { name: 'Open Integrations' }),
+    ).not.toBeInTheDocument()
     expect(within(section).queryByRole('button')).not.toBeInTheDocument()
     expectCleanCopy(document.body)
   })

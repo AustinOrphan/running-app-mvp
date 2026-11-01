@@ -275,7 +275,7 @@ describe('Plan page', () => {
     const after = makeWeek(phases.length, { phase: 'race', flags: ['post-race'] })
     mockApi(routes(makePlan([...weeks, after])))
     renderWithProviders(<PlanPage />)
-    await screen.findByText('Focus 0')
+    await screen.findByText('Focus 2')
 
     expect(within(row(weeks[9]!.weekStart)).getByText('Race week')).toBeInTheDocument()
     expect(within(row(after.weekStart)).getByText('After the race')).toBeInTheDocument()
@@ -285,6 +285,7 @@ describe('Plan page', () => {
   })
 
   test('week table: phase chips with --phase-level 1..6 (taper and race dashed), cutback rows italic with the word "cutback", race row emphasised, current week aria-current="date", targets via minutesToHours1', async () => {
+    const user = userEvent.setup()
     mockApi(
       routes(
         makePlan([
@@ -295,7 +296,8 @@ describe('Plan page', () => {
       ),
     )
     renderWithProviders(<PlanPage />)
-    await screen.findByText('Focus 0')
+    await screen.findByText('Focus 2')
+    await user.click(screen.getByRole('button', { name: 'Earlier weeks (2)' }))
 
     const chips = [...document.querySelectorAll<HTMLElement>('[data-phase]')]
     expect(chips.map((c) => c.dataset.phase)).toEqual(phases)
@@ -320,6 +322,52 @@ describe('Plan page', () => {
     expect(within(row('2027-01-04')).getByText('7.0 h')).toBeInTheDocument()
   })
 
+  test('the weeks before this Monday sit behind "Earlier weeks (2)", closed, with the current week first', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(makePlan()))
+    renderWithProviders(<PlanPage />)
+    await screen.findByText('Focus 2')
+
+    const toggle = screen.getByRole('button', { name: 'Earlier weeks (2)' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    const rows = () =>
+      [...document.querySelectorAll<HTMLElement>('tr[data-week]')].map((tr) => tr.dataset.week)
+    // closed: the table opens on the current week, then the weeks after it
+    expect(rows()[0]).toBe(CURRENT_WEEK)
+    expect(rows()).toHaveLength(phases.length - 2)
+    expect(screen.queryByRole('button', { name: 'Edit week of 28 Dec' })).not.toBeInTheDocument()
+    // the fold is the first row of the table, above the current week
+    const first = document.querySelector('tbody tr')
+    expect(first).toContainElement(toggle)
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(rows()).toHaveLength(phases.length)
+    expect(rows()[0]).toBe(START)
+    expect(rows()[2]).toBe(CURRENT_WEEK)
+    expect(screen.getByRole('button', { name: 'Edit week of 28 Dec' })).toBeInTheDocument()
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(rows()[0]).toBe(CURRENT_WEEK)
+  })
+
+  test('a plan that today has not reached, or has left, shows every week with no fold', async () => {
+    mockApi(routes(makePlan()))
+    vi.setSystemTime(new Date('2026-12-01T12:00:00'))
+    const before = renderWithProviders(<PlanPage />)
+    await screen.findByText('Focus 2')
+    expect(screen.queryByRole('button', { name: /Earlier weeks/ })).not.toBeInTheDocument()
+    expect(document.querySelectorAll('tr[data-week]')).toHaveLength(phases.length)
+    before.unmount()
+
+    vi.setSystemTime(new Date('2027-06-01T12:00:00'))
+    renderWithProviders(<PlanPage />)
+    await screen.findByText('Focus 2')
+    expect(screen.queryByRole('button', { name: /Earlier weeks/ })).not.toBeInTheDocument()
+    expect(document.querySelectorAll('tr[data-week]')).toHaveLength(phases.length)
+  })
+
   test('numeric cells keep number and unit together with a non-breaking space, and a zero long run shows a dash', async () => {
     mockApi(
       routes(
@@ -331,7 +379,7 @@ describe('Plan page', () => {
       ),
     )
     renderWithProviders(<PlanPage />)
-    await screen.findByText('Focus 0')
+    await screen.findByText('Focus 2')
 
     const cell = (weekStart: string, name: string) =>
       row(weekStart).querySelector(`[data-cell="${name}"]`)
@@ -354,7 +402,7 @@ describe('Plan page', () => {
     weeks[5] = makeWeek(5, { targetRunMin: 390, targetSource: 'review' })
     mockApi(routes(makePlan(weeks)))
     renderWithProviders(<PlanPage />)
-    await screen.findByText('Focus 0')
+    await screen.findByText('Focus 2')
 
     const edited = row(addDays(START, 28))
     const struck = edited.querySelector('s')
@@ -381,6 +429,7 @@ describe('Plan page', () => {
   })
 
   test('actual hours appear for past weeks from useWeeks and are absent for future weeks', async () => {
+    const user = userEvent.setup()
     const { calls } = mockApi(
       routes(makePlan(), {
         'GET /api/weeks': () => [
@@ -392,6 +441,7 @@ describe('Plan page', () => {
     )
     renderWithProviders(<PlanPage />)
 
+    await user.click(await screen.findByRole('button', { name: 'Earlier weeks (2)' }))
     await waitFor(() => {
       expect(within(row('2026-12-28')).getByText('2.5 h')).toBeInTheDocument()
     })
@@ -419,7 +469,7 @@ describe('Plan page', () => {
       }),
     )
     renderWithProviders(<PlanPage />)
-    await screen.findByText('Focus 0')
+    await screen.findByText('Focus 2')
 
     await user.click(screen.getByRole('button', { name: 'Edit week of 8 Feb' }))
     let dialog = await screen.findByRole('dialog', { name: 'Edit week of 8 Feb' })
@@ -471,7 +521,7 @@ describe('Plan page', () => {
       }),
     )
     renderWithProviders(<PlanPage />)
-    await screen.findByText('Focus 0')
+    await screen.findByText('Focus 2')
     expect(
       await screen.findByText('Actual hours did not load. Reload the page to try again.'),
     ).toBeInTheDocument()
