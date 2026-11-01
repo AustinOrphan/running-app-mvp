@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { gradeLegend, gradeMeaning } from '../../shared/copy/grades.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
 import { formatLoad, fromGrams, stepFrom, toGrams } from '../../shared/domain/weight.ts'
 import { P } from '../../shared/engine/params/index.ts'
@@ -3961,11 +3962,20 @@ describe('the Strength page: about (design 4.5, 11.3)', () => {
       `Sets, reps and ramp-in lengthEvidence grade ${P.flib.heavySets.grade}`,
     ])
     expect(P.flib.heavySets.grade).toBe('D')
+    // the legend says what every grade shown means, from the map the badges' hover text reads: a
+    // touch screen shows no hover text, and a legend that explained D alone left the others bare
+    const shown = [
+      P.f7.expectedBenefitPct.grade,
+      P.flib.heavyMinPct1rm.grade,
+      P.flib.heavySets.grade,
+    ]
+    expect(about.getByText(gradeLegend(shown))).toBeVisible()
     expect(
-      about.getByText(
-        'Grade D means a default: a cautious choice that no trial in runners has tested.',
-      ),
+      about.getByText(/Grade D: a convention or engineering default; no direct evidence\./),
     ).toBeVisible()
+    for (const grade of new Set(shown)) {
+      expect(about.getByText(new RegExp(`Grade ${grade}: ${gradeMeaning(grade)}`))).toBeVisible()
+    }
     expect(
       about.getByText(
         'Stop a set if anything hurts or form changes. Learn barbell lifts from a coach before adding load.',

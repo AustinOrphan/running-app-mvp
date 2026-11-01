@@ -2,11 +2,13 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
+import { gradeMeaning } from '../../shared/copy/grades.ts'
 import { suggestAction, type SuggestInput } from '../../shared/domain/review.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { Button } from '../../web/components/Button.tsx'
 import { EmptyState } from '../../web/components/EmptyState.tsx'
 import { Field, Input } from '../../web/components/Field.tsx'
+import { GradeBadge } from '../../web/components/GradeBadge.tsx'
 import { Meter } from '../../web/components/Meter.tsx'
 import { PageHeader } from '../../web/components/PageHeader.tsx'
 import { ScalePicker, touchColumns } from '../../web/components/ScalePicker.tsx'
@@ -298,6 +300,22 @@ describe('Segmented', () => {
       await user.click(screen.getByRole('radio', { name: 'Two' }))
       expect(onChange).toHaveBeenCalledExactlyOnceWith('2')
     })
+  })
+})
+
+describe('GradeBadge', () => {
+  test('says the grade in words, with what it means as the hover text from the shared map', () => {
+    render(
+      <>
+        <GradeBadge grade="B" />
+        <GradeBadge grade="D" />
+        <GradeBadge grade="C" kind="level" />
+      </>,
+    )
+    // the letter is in the words of the badge, so the grade is in its name without the hover text
+    expect(screen.getByText('Evidence grade B')).toHaveAttribute('title', gradeMeaning('B'))
+    expect(screen.getByText('Evidence grade D')).toHaveAttribute('title', gradeMeaning('D'))
+    expect(screen.getByText('Evidence level C')).toHaveAttribute('title', gradeMeaning('C'))
   })
 })
 

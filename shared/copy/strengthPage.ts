@@ -311,9 +311,6 @@ export const STRENGTH_PAGE_TEMPLATES = {
   'strength.page.grade-benefit': tpl('Oxygen cost of running', {}, { shape: 'label' }),
   'strength.page.grade-heavy': tpl('Heavy loads', {}, { shape: 'label' }),
   'strength.page.grade-defaults': tpl('Sets, reps and ramp-in length', {}, { shape: 'label' }),
-  'strength.page.about-defaults': tpl(
-    'Grade D means a default: a cautious choice that no trial in runners has tested.',
-  ),
 
   // ---- The setup sheets (design 6.2) -------------------------------------------------------------
   'strength.page.save': tpl('Save', {}, { shape: 'label' }),

@@ -4,6 +4,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { FUEL_UI_TEMPLATES } from '../../shared/copy/fuelUi.ts'
+import { gradeLegend } from '../../shared/copy/grades.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { eahCard, fuelTargetFor, replayLadder } from '../../shared/engine/fuel.ts'
 import {
@@ -1431,9 +1432,24 @@ describe('the Fuel lab page: the tier ladder', () => {
       expect(within(item).getByText(rungStateLabel(rung.state))).toBeInTheDocument()
       expect(within(item).getByText(`Evidence grade ${rung.grade}`)).toBeInTheDocument()
       expect(item.getAttribute('aria-current')).toBe(index === ladder.currentIndex ? 'step' : null)
-      // Every rung above the floor says its evidence is thin.
-      expect(within(item).queryByText('Low certainty') !== null).toBe(index > 0)
+      // A rung above the floor has thin evidence, and its C or D badge says so: the label that
+      // said it a second time is gone, and the legend under the intro says what the letters mean.
+      expect(rung.lowCertainty).toBe(index > 0)
+      if (rung.lowCertainty) expect(['C', 'D']).toContain(rung.grade)
+      expect(within(item).queryByText('Low certainty')).not.toBeInTheDocument()
     })
+    expect(within(card).queryByText('Low certainty')).not.toBeInTheDocument()
+    const legend = within(card).getByText(/^Grade [A-D]: /)
+    expect(legend).toBeVisible()
+    expect(legend).toHaveTextContent(gradeLegend(ladder.rungs.map((rung) => rung.grade)))
+    // one legend line, under the intro, for the grades the ladder shows and no other
+    const intro = within(card).getByText(/climbed on long runs from the start of the build/)
+    expect(intro.compareDocumentPosition(legend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const shownGrades = new Set(ladder.rungs.map((rung) => rung.grade))
+    for (const grade of ['A', 'B', 'C', 'D'] as const) {
+      expect(legend.textContent?.includes(`Grade ${grade}:`), grade).toBe(shownGrades.has(grade))
+    }
+    expect(legend.textContent).toMatch(/Grade D: a convention or engineering default/)
     const shown = new Set(ladder.rungs.map((rung) => rungStateLabel(rung.state)))
     expect(shown).toEqual(new Set(scenario.words))
     expect(
