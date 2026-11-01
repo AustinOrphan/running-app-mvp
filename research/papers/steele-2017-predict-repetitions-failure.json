@@ -1,0 +1,61 @@
+{
+  "id": "steele-2017-predict-repetitions-failure",
+  "title": "Ability to predict repetitions to momentary failure is not perfectly accurate, though improves with resistance training experience",
+  "authors": "Steele J, Endres A, Fisher J, Gentil P, Giessing J",
+  "year": 2017,
+  "journal": "PeerJ",
+  "doi": "10.7717/peerj.4105",
+  "pmid": "29204323",
+  "url": "https://doi.org/10.7717/peerj.4105",
+  "design": "cross-sectional",
+  "population": "141 members of a private exercise facility in Germany (72 men aged 29 ± 10 and 69 women aged 25 ± 8), grouped by resistance training experience: under 1.5 months (15), 1.5-6 months (21), 6-12 months (21), 12-36 months (42) and over 36 months (42). Not runners.",
+  "sampleSize": 141,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "In one session each person did a single set to concentric momentary failure on five machines (seated row, chest press, leg press, elbow flexion, pulldown) and on sit-ups, with the load they normally used. Before each exercise they predicted how many repetitions they could complete; the investigator counted without encouraging.",
+    "On average the sample underpredicted: predicted against actual repetitions were 12.4 against 14.2 on the chest press, 12.5 against 16.4 on the leg press and 12.5 against 13.8 on the pulldown. The standard error of measurement for the combined sample ranged from 2.64 (elbow flexion) to 3.38 repetitions (leg press).",
+    "Accuracy tended to improve with experience. On the leg press the standard error fell from 4.98 (under 1.5 months) to 1.73 repetitions (over 36 months), and on the chest press from 4.33 to 1.57. The least experienced group predicted 15.4 repetitions on the leg press and completed 23.9, while the most experienced predicted 10.7 and completed 12.1.",
+    "The authors put the underprediction of the most experienced at about 1-2 repetitions and of the least experienced at about 4-5. They conclude that repetitions-in-reserve scales should be used cautiously in most trainees, may suit experienced trainees doing several sets, and that the error probably means training at a lower effort than intended."
+  ],
+  "limitations": "The prediction was made before the set, with the usual load, and the sets ended after 11-24 repetitions on average, so it measures accuracy far from failure and not the intraset accuracy near it (the authors say so). Machine exercises and sit-ups only. The experience groups also differ in relative load (the more experienced used heavier loads), which confounds the comparison. The explanation the authors offer, that discomfort anchors the prediction, is a hypothesis. Gym members, a single supervised set; no runners.",
+  "implications": [
+    "The least experienced trainees underpredicted how many repetitions they could do by several (about 8 on the leg press) in sets of 15-25 repetitions, so a beginner's reported count tends to understate the reserve. For a rule that raises a load only on a reported reserve, that error is on the safe side: it delays an increase.",
+    "It is evidence on far-from-failure sets of 10-25 repetitions, not on the engine's heavy sets of 3-6. Whether novices are less accurate is contested in the corpus (R4 of this record); the engine therefore keeps its thresholds as defaults and holds the load when the count is missing."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, PeerJ 5:e4105, 30 November 2017, five authors, CC BY 4.0, no updated-by notice. Europe PMC PMID 29204323, PMC5712461 (open access). Abstract and full text read: Methods, Tables 1 to 3, Results, Discussion.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC5712461) on 2026-10-31 with Tables 1 to 3; every number is from the Results, Table 1 or Table 2. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Five named authors; Europe PMC holds the affiliations (Southampton Solent University; University of Koblenz-Landau; Federal University of Goias). No separate university record was fetched. The competing-interests statement says none and no funding was received."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published November 2017, not corrected. Later papers in the corpus find accuracy depends on distance from failure and repetition count (halperin-2021-rir-prediction-accuracy, zourdos-2021-intraset-rir-accuracy) and, in five papers, not on training status (R4). Nothing later supersedes it for the far-from-failure case."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Agreed: underprediction of repetitions to failure (halperin-2021-rir-prediction-accuracy, pooled mean 0.95; it shares two authors, Steele and Fisher, so it is not an independent source; refalo-2023-rir-accuracy-bench and zourdos-2021-intraset-rir-accuracy also report underprediction). Not agreed: that experience improves accuracy; halperin-2021, hackett-2017-accuracy-repetitions-failure, remmert-2023-rir-accuracy-trained-untrained, zourdos-2021-intraset-rir-accuracy and refalo-2023-rir-accuracy-bench found no effect of training status, while zourdos-2016-rir-rpe-scale found a difference at 1RM. The conflict is recorded and the cautious reading is used (G6)."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 141 gym members, machine exercises at their usual loads (11-24 repetitions), single sets. Use for heavy sets of 3-6 repetitions, free weights and runners is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
+  }
+}

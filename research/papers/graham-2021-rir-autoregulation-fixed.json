@@ -1,0 +1,62 @@
+{
+  "id": "graham-2021-rir-autoregulation-fixed",
+  "title": "Autoregulation by \"Repetitions in Reserve\" Leads to Greater Improvements in Strength Over a 12-Week Training Program Than Fixed Loading",
+  "authors": "Graham T, Cleather DJ",
+  "year": 2021,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000003164",
+  "pmid": "31009432",
+  "url": "https://doi.org/10.1519/jsc.0000000000003164",
+  "design": "controlled-trial",
+  "population": "31 resistance-trained men (16 on fixed loading and 15 on RIR-based loading, aged about 28, at least 2 years of training, as tabulated in hickmott-2022-autoregulation-meta) who trained twice a week on front and back squat programmes. Not runners.",
+  "sampleSize": 31,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "Over 12 weeks, 31 resistance-trained men did a squat programme twice a week with volume matched. For the fixed-loading group the load was a percentage of the pre-test 1RM; for the autoregulated group the load was set by the number of repetitions in reserve, so that the intensities were theoretically the same.",
+    "Both groups improved front squat and back squat, and the gain was larger for the autoregulated group: front squat +11.7% against +8.3% (p = 0.004) and back squat +10.8% against +7.1% (p = 0.006).",
+    "The autoregulated group trained at a higher average weekly intensity: front squat 83.2 ± 13.3% against 80.4 ± 10.0% of 1RM (p < 0.001) and back squat 83.6 ± 12.7% against 80.4 ± 10.0% (p = 0.006).",
+    "The authors conclude that autoregulation by repetitions in reserve accommodates the rising strength of the athlete through a programme and gave greater strength adaptations over 12 weeks.",
+    "As tabulated in hickmott-2022-autoregulation-meta, the autoregulated group's weekly targets ran from RPE 6 to a maximum effort across the 12 weeks, against 65% to 95% of 1RM for the fixed group, in blocks of 3 sets of 10, 4 sets of 5 and 3 sets of 3."
+  ],
+  "limitations": "Only the abstract was read, as the publisher deposited it in Crossref: the full text is closed access, PubMed and Europe PMC hold no abstract, and the publisher's page refused the request (a bot check, not circumvented). Randomisation, supervision, how the repetitions in reserve were checked and how loads were adjusted were not read. The authors' own result shows the autoregulated group lifted at a higher average intensity, which may explain the gain. Men only; squat only; hickmott-2022-autoregulation-meta rates every included study at some risk of bias.",
+  "implications": [
+    "A second controlled comparison of RIR-based loading against fixed percentages in trained men, and here the RIR-based group gained more because it lifted heavier on average. Together with helms-2018-rpe-vs-percent-loading it supports RIR-based load selection as no worse than fixed loading; it does not test a threshold, a progression rule or novices and runners.",
+    "It supports the direction of F8 (load follows what the lifter reports) and not its numbers; a higher average intensity under autoregulation is also the reason the engine's increases are capped and need a recorded count (G6)."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "crossref",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, J Strength Cond Res 35(9):2451-2456, online 2019-04-21, print September 2021, two authors, no updated-by notice. The abstract is Crossref's publisher-deposited abstract; PubMed (PMID 31009432) and Europe PMC hold none. The publisher page answered HTTP 403 and was not retried; Unpaywall lists no open copy. The last finding is read from Table 2 of hickmott-2022-autoregulation-meta, which was read in full.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read in the Crossref record (the publisher's deposit) on 2026-10-31 and every finding is its own wording; the design details of the last finding come from Table 2 of hickmott-2022-autoregulation-meta, read in full. The full text was not read (closed; the publisher page returned a bot check). The DOI resolves; Crossref lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Two named authors; PubMed gives the first author's affiliation (Faculty of Sport, Health and Applied Science, St Mary's University, Twickenham); Cleather has the same affiliation in richens-2014-reps-at-percent-runners. No separate university record was fetched. No interest is stated in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published online April 2019 and in print September 2021, not corrected. hickmott-2022-autoregulation-meta (2022) pooled it. No later contrary trial was found."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Agrees in direction (RIR-based loading is not worse) with helms-2018-rpe-vs-percent-loading (an independent group) and the pooled estimate of hickmott-2022-autoregulation-meta (SMD 0.21 overall, 0.30 for the RIR-based subgroup, not significant). The significant advantage seen here is not found in the other trial; the conservative reading is no difference."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 31 resistance-trained men, 12 weeks, front and back squat. Use for novices, women, runners and the other lifts is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small controlled trial, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
+  }
+}

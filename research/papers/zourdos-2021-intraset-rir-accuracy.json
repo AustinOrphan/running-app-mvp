@@ -1,0 +1,61 @@
+{
+  "id": "zourdos-2021-intraset-rir-accuracy",
+  "title": "Proximity to Failure and Total Repetitions Performed in a Set Influences Accuracy of Intraset Repetitions in Reserve-Based Rating of Perceived Exertion",
+  "authors": "Zourdos MC, Goldsmith JA, Helms ER, Trepeck C, Halle JL, Mendez KM, Cooke DM, Haischer MH, Sousa CA, Klemp A, Byrnes RK",
+  "year": 2021,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000002995",
+  "pmid": "30747900",
+  "url": "https://doi.org/10.1519/jsc.0000000000002995",
+  "design": "cross-sectional",
+  "population": "25 men (age 25.3 ± 3.3 years, training age 4.7 ± 3.2 years) who did a back squat. Not runners.",
+  "sampleSize": 25,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "After a 1RM squat, each man did one set to failure at 70% of 1RM (mean load 123.1 ± 24.3 kg, 16 ± 4 repetitions). During the set he said when he believed he was at 5 RPE (5 repetitions in reserve), 7 RPE (3 in reserve) and 9 RPE (1 in reserve) and then continued to failure.",
+    "The difference between the repetitions actually done after the call and the predicted count (RIRDIFF) was smaller closer to failure: 2.05 ± 1.73 at 9 RPE, 3.65 ± 2.46 at 7 RPE and 5.15 ± 2.92 at 5 RPE. A call of 1 in reserve was followed by about 3 more repetitions, a call of 3 by about 6.7 and a call of 5 by about 10 (computed from the means).",
+    "RIRDIFF was related to the total repetitions in the set at 5 RPE (r = 0.65, p = 0.001) and 7 RPE (r = 0.56, p = 0.004) and not at 9 RPE (r = 0.01). In a multiple regression, more repetitions per set predicted the inaccuracy at 5 and 7 RPE, and training age did not.",
+    "The authors conclude that predictions are better in low to moderate repetition sets and close to failure."
+  ],
+  "limitations": "Abstract read; the full text is closed access and was not fetched. One set of about 16 repetitions of a back squat at 70% of 1RM in 25 trained men, with the call made during the set; the engine's heavy sets are 3-6 repetitions. Men only. The sign of the error is implied by the definition (actual minus predicted) and not stated in the abstract.",
+  "implications": [
+    "In long sets the lifter understated the reserve: calls of 1, 3 and 5 left were followed by about 3, 7 and 10 more repetitions. The error grew with distance from failure and with the number of repetitions in the set. For the engine this says the reported count understates the true reserve, more so for a count of 3 or more and for high-repetition sets, and that the safe direction is to leave a margin and not to read a count of 4 or more as exact.",
+    "It does not measure sets of 3-6 repetitions, where the error should be smaller if the dependence on repetition count holds. Training age did not predict the accuracy."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, J Strength Cond Res 35(Suppl 2):S158-S165, February 2021 (online 2019-02-12), eleven authors, no updated-by notice. Abstract read on Europe PMC (PMID 30747900); every figure above is in it except the three computed repetition counts, marked as computed.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 30747900) on 2026-10-31 and every finding is its own wording, apart from the sums of call plus RIRDIFF marked as computed. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Eleven named authors at Florida Atlantic University (Muscle Physiology Laboratory) and Auckland University of Technology, as Europe PMC holds. Interests: the senior authors developed the scale tested; no statement is in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published online February 2019 and in the supplement of February 2021, not corrected. hickmott-2022-autoregulation-meta cites the same finding as the main limit of RIR-based loading. refalo-2023-rir-accuracy-bench later found small errors at 1 and 3 in reserve in bench-press sets of about 10 repetitions."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Agrees on the dependence on distance from failure and repetition count with halperin-2021-rir-prediction-accuracy, hackett-2017-accuracy-repetitions-failure (an independent group) and remmert-2023-rir-accuracy-trained-untrained. The size of the error differs: refalo-2023-rir-accuracy-bench found 0.65 repetitions of absolute error at 1 and 3 in reserve, against 2 to 4 here, a difference of exercise and repetition count (about 10 against 16). The larger figure is used for caution (G6)."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 25 trained men, back squat, one set of about 16 repetitions at 70% of 1RM. Use for sets of 3-6 repetitions, women, novices and runners is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
+  }
+}

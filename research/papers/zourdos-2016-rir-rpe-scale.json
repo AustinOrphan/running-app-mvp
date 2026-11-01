@@ -11,7 +11,7 @@
   "population": "29 adults (mean age 24.0 years) who squatted: 15 experienced squatters (training age 5.2 +/- 3.5 years) and 14 novice squatters (0.4 +/- 0.6 years). Not runners.",
   "sampleSize": 29,
   "evidenceLevel": "C",
-  "topics": ["strength-plyometrics"],
+  "topics": ["strength-plyometrics", "strength-autoregulation"],
   "findings": [
     "Each person performed a 1RM squat, then one repetition at 60, 75 and 90% of 1RM and an 8-repetition set at 70% 1RM, and rated each with an effort score that matched repetitions in reserve (RPE 10 = 0 reps in reserve, RPE 9 = 1 in reserve, and so on).",
     "Average barbell velocity was slower in the experienced than in the novice squatters at 100% and 90% 1RM (p <= 0.05) and did not differ at 60 and 75% 1RM or on the first and eighth repetitions of the 70% set (p > 0.05). The experienced group rated the 1RM as harder (p = 0.023).",
@@ -28,7 +28,34 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title (en dash in Crossref, hyphen here), J Strength Cond Res 30(1):267-275, 2016, eleven authors and DOI match. Europe PMC abstract (PMID 26049792) read; every figure above is in it. Design set to cross-sectional because each person did the same tests once and two groups were compared.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title (en dash in Crossref, hyphen here), J Strength Cond Res 30(1):267-275, 2016, eleven authors and DOI match. Europe PMC abstract (PMID 26049792) read; every figure above is in it. Design set to cross-sectional because each person did the same tests once and two groups were compared. Re-read 2026-10-31 for task RU1: abstract re-read on Europe PMC (PMID 26049792); the full text is closed access and was not fetched. Details beyond the abstract quoted by helms-2016-rir-rpe-application are that record's, not this one's.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was re-read on Europe PMC (PMID 26049792) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text is closed access and was not read."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Eleven named authors; Europe PMC holds the first author's affiliation (Muscle Physiology Laboratory, Department of Exercise Science and Health Promotion, Florida Atlantic University). No separate university record was fetched. Interests: Zourdos and Helms developed the scale; the abstract states none."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published January 2016 and not corrected. Later papers in the corpus test what it assumed: the accuracy of the count (halperin-2021-rir-prediction-accuracy, hackett-2017-accuracy-repetitions-failure, zourdos-2021-intraset-rir-accuracy) and RIR-based loading in trials (helms-2018-rpe-vs-percent-loading, graham-2021-rir-autoregulation-fixed, martikainen-2025-varying-proximity-failure)."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Every confirmation read is by authors of the scale or shares authors with it (helms-2018-rpe-vs-percent-loading, refalo-2023-rir-accuracy-bench, remmert-2023-rir-accuracy-trained-untrained). Later independent studies of the RIR and velocity relationship (Jukic 2024, 10.14814/phy2.15955; Paulsen 2025, 10.7717/peerj.19797) were located by title and not read. The difference between novice and experienced squatters at 1RM is not found in five later accuracy papers (R4 of steele-2017-predict-repetitions-failure)."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 29 young adults, back squat only, novice and experienced. Use for runners and for other lifts is extrapolated, as the implications say."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
   }
 }

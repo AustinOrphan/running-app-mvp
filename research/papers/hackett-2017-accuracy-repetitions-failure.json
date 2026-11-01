@@ -1,0 +1,62 @@
+{
+  "id": "hackett-2017-accuracy-repetitions-failure",
+  "title": "Accuracy in Estimating Repetitions to Failure During Resistance Exercise",
+  "authors": "Hackett DA, Cobley SP, Davies TB, Michael SW, Halaki M",
+  "year": 2017,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000001683",
+  "pmid": "27787474",
+  "url": "https://doi.org/10.1519/jsc.0000000000001683",
+  "design": "cross-sectional",
+  "population": "81 adults (53 men and 28 women) with a broad range of resistance training experience, who did the chest press and the leg press. Not runners.",
+  "sampleSize": 81,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "Participants did up to 10 sets of 10 repetitions at 70% of 1RM on the chest press and 80% of 1RM on the leg press. After each set they reported the repetitions they could still do (estimated repetitions to failure, ERF) and then continued to failure to give the actual repetitions to failure (ARF).",
+    "The error of ERF differed with ARF (p < 0.001): about 1 repetition when ARF was 0-5 and more than 2 repetitions when ARF was 7-10.",
+    "The chest press was estimated more accurately than the leg press: the error was 1 repetition or less for ARF 0-5 on the chest press and for ARF 0-3 on the leg press (p = 0.012). Men were more accurate than women at some ARF values on the leg press (p = 0.008) and not on the chest press.",
+    "Resistance training experience did not affect the accuracy of the estimates.",
+    "The authors conclude that resistance trainers can estimate repetitions to failure accurately when close to failure and that the estimate could be used to prescribe and monitor resistance exercise."
+  ],
+  "limitations": "Abstract read; the full text is closed access and was not fetched. The abstract gives the size of the error and not its direction. Sets of 10 at 70-80% of 1RM on two machines; sets of 3-6 repetitions and free-weight squats or hinges were not tested. Healthy adults of mixed experience; no runners.",
+  "implications": [
+    "Near the limit of a set (about 5 or fewer repetitions left) the lifter's count is good to about one repetition on a machine, and from 7 or more away it is off by more than two. A reported count of 1-3 is therefore the better-founded end of the scale, and a count of 4 or more (the engine's two-step threshold) is the least reliable. Leg press counts were less accurate than chest press counts.",
+    "Training experience did not change the accuracy here, so the engine makes no adjustment for it. Evidence on sets of 3-6 repetitions with a heavy free-weight lift is not in the corpus."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, J Strength Cond Res 31(8):2162-2168, August 2017, five authors, no updated-by notice. Abstract read on Europe PMC (PMID 27787474); every figure above is in it. The full text is behind the publisher's paywall and was not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 27787474) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access), and nothing beyond the abstract is claimed."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Five named authors; Europe PMC holds the first author's affiliation (Discipline of Exercise and Sport Science, University of Sydney). No separate university record was fetched. No interest is stated in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published August 2017, not corrected. Later work in the corpus agrees on the dependence on distance from failure: halperin-2021-rir-prediction-accuracy, zourdos-2021-intraset-rir-accuracy and remmert-2023-rir-accuracy-trained-untrained."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Agreed by independent groups: zourdos-2021-intraset-rir-accuracy and refalo-2023-rir-accuracy-bench (Florida Atlantic and Deakin groups), remmert-2023-rir-accuracy-trained-untrained (Illinois State with Zourdos) and the pooled halperin-2021-rir-prediction-accuracy (A, which found training status did not matter). The figures differ by exercise and repetition count; the direction is the same."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 81 adults, chest press at 70% and leg press at 80% of 1RM, sets of 10. Use for sets of 3-6 repetitions, free-weight lifts and runners is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
+  }
+}

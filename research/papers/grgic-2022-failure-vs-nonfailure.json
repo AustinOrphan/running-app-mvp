@@ -1,0 +1,62 @@
+{
+  "id": "grgic-2022-failure-vs-nonfailure",
+  "title": "Effects of resistance training performed to repetition failure or non-failure on muscular strength and hypertrophy: A systematic review and meta-analysis",
+  "authors": "Grgic J, Schoenfeld BJ, Orazem J, Sabol F",
+  "year": 2022,
+  "journal": "Journal of Sport and Health Science",
+  "doi": "10.1016/j.jshs.2021.01.007",
+  "pmid": "33497853",
+  "url": "https://doi.org/10.1016/j.jshs.2021.01.007",
+  "design": "meta-analysis",
+  "population": "15 randomised trials of healthy young adults (394 participants in the strength analyses: 265 men and 129 women; groups of 9-89, median 25), 6 of them in resistance-trained people. Programmes of 6-14 weeks (median 8), 2-3 days a week; 7 trials (219 participants) measured hypertrophy. No runners or endurance athletes.",
+  "sampleSize": 394,
+  "evidenceLevel": "A",
+  "topics": ["strength-autoregulation", "strength-plyometrics"],
+  "findings": [
+    "Searched PubMed, Scopus and SPORTDiscus to 2 January 2020, plus reference lists and citation tracking, for randomised trials of at least 6 weeks that compared resistance training to failure with training not to failure. Methodological quality on a modified Downs and Black checklist had a median of 21 of 29 (range 19-24): five studies moderate and ten good.",
+    "Muscular strength: no significant difference between training to failure and not to failure (ES -0.09, 95% CI -0.22 to 0.05). With training volume equated the difference was 0.01 (-0.12 to 0.15). When volume was not equated, non-failure training was favoured (ES -0.32, -0.57 to -0.07); the authors note that in most of those studies the non-failure group did more sets.",
+    "Subgroups for strength did not differ: trained -0.09 (-0.48 to 0.29), untrained -0.08 (-0.22 to 0.06), lower body -0.15 (-0.33 to 0.02), upper body 0.00, multi-joint -0.13 and single-joint -0.05.",
+    "Hypertrophy (7 trials): no significant difference (ES 0.22, -0.11 to 0.55). In the resistance-trained subgroup, two studies, failure training was favoured (ES 0.15, 0.03 to 0.26).",
+    "The authors conclude that training to failure is not needed for strength or size and does not seem harmful either. They say it is unclear whether stopping 5 repetitions short differs from stopping 2 short, and that the findings may not carry over to concurrent training: they cite studies in which failure training did worse when combined with other exercise, including one with sprint interval training in resistance-trained men."
+  ],
+  "limitations": "Healthy young adults only; only 6 of 15 studies in trained people and 2 for hypertrophy in them. Failure was defined in different ways across studies and training volume was equated in some and not in others. Studies with independent groups and with a limb-to-limb design were pooled. The correlation between pre and post scores was assumed (0.75). Five studies did not report adherence. The review does not say how many repetitions short of failure suffice, and it excludes concurrent training; no endurance athlete is in it.",
+  "implications": [
+    "Two lines of evidence now agree that stopping short of failure does not cost strength in lifters (this review and vieira-2021-failure-vs-nonfailure; also robinson-2024-proximity-failure-meta). It supports a block target that leaves repetitions in reserve (`f7.heavyRir`) and easier targets than that (`f7.easyRir`), as an extrapolation from lifters to runners.",
+    "It does not test 1-3 in reserve against 4-6, and it does not cover runners or concurrent training, where the authors suspect failure is worse. It is no ground for a number beyond 'not to failure'."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, Journal of Sport and Health Science 11(2):202-211, March 2022 (online 2021-01-23 in Crossref's created date), four authors, no updated-by notice. Europe PMC PMID 33497853, PMC9068575 (open access). Abstract and full text read: Methods, Tables 1 to 3, Results and Discussion; Figures 2 and 3 are not read (images).",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC9068575) on 2026-10-31 with Tables 1 to 3; every number is from the Results or a table. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Four named authors; Europe PMC holds the affiliations (Victoria University, Australia; Lehman College, New York; University of Zagreb). No separate university record was fetched. The competing-interests statement says none."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published March 2022 (search to January 2020), not corrected; a Crossref title search found no comment letter on it. Later reviews agree: refalo-2022-proximity-hypertrophy and robinson-2024-proximity-failure-meta, both read here. A 2026 meta-analysis (10.1186/s13102-026-01861-z) was located and not read."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Agreed by vieira-2021-failure-vs-nonfailure (13 studies, an independent group, strength no difference overall and non-failure favoured when volume was not equated) and by robinson-2024-proximity-failure-meta (a negligible slope of strength on estimated RIR). The studies overlap, so the agreement is of reviews of the same trials."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: healthy young adults, mostly untrained, 6-14 weeks, strength mostly 1RM. Use for runners, older adults and heavy sets alongside running is extrapolated; the authors say concurrent training is not covered."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a meta-analysis of randomised trials of moderate to good quality, level A); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
+  }
+}

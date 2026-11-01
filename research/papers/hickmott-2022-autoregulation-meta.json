@@ -8,19 +8,22 @@
   "pmid": "35038063",
   "url": "https://doi.org/10.1186/s40798-021-00404-9",
   "design": "meta-analysis",
-  "population": "Resistance-trained individuals; 15 studies, 6 on load autoregulation (repetitions-in-reserve rated exertion or velocity-based training against percentage-based prescription) and 9 on volume autoregulation (velocity-loss thresholds). Not runners.",
-  "sampleSize": null,
+  "population": "Resistance-trained individuals; 15 studies, 441 participants: 6 studies on load autoregulation (133 people; three used repetitions-in-reserve rated exertion and three velocity-based training, each against percentage-based prescription) and 9 on volume autoregulation (308 people; velocity-loss thresholds). Five of the six load studies were of men aged 17 to 28 with at least 2 years of training and one of teenage girls with at least 1 year. Not runners.",
+  "sampleSize": 441,
   "evidenceLevel": "A",
-  "topics": ["strength-plyometrics"],
+  "topics": ["strength-plyometrics", "strength-autoregulation"],
   "findings": [
     "Searched MEDLINE, Embase, Scopus and SPORTDiscus under PRISMA; the protocol was registered (PROSPERO CRD42021240506).",
     "Autoregulated load prescription (repetitions-in-reserve based rating of perceived exertion, or velocity-based training) and standardised percentage-based prescription did not differ for 1RM strength (MD 2.07 kg, 95% CI -0.32 to 4.46, p = 0.09, SMD 0.21).",
     "With sets and relative intensity equated, velocity-loss thresholds of 25% or less gave greater 1RM strength than thresholds above 25% (MD 2.32 kg, 95% CI 0.33-4.31, p = 0.02, SMD 0.23) and less hypertrophy (MD 0.61 cm2, p = 0.03).",
-    "The authors conclude that autoregulated and standardised load prescription produced similar improvements in strength."
+    "The authors conclude that autoregulated and standardised load prescription produced similar improvements in strength.",
+    "In the load comparisons (133 participants, 247 comparisons; 6-12 weeks, 2-3 sessions a week, sets matched in all six), the three studies of repetitions-in-reserve rated exertion (Arede et al., Graham and Cleather, Helms et al.) gave MD 3.15 kg (95% CI -0.14 to 6.45, p = 0.06, SMD 0.30) in favour of autoregulation and the three velocity-based studies MD 0.88 kg (-2.59 to 4.34, SMD 0.10); the subgroups did not differ (p = 0.35).",
+    "The authors attribute the small advantage of subjective autoregulation to those groups training at a higher relative intensity (in about half of the exercises) and to longer interventions. Every included study had some risk of bias on RoB 2, and visual inspection of funnel plots showed no obvious publication bias.",
+    "The authors name subjectivity as the main limit of repetitions-in-reserve prescription: in one study of a squat set to failure at 70% of 1RM, calls of 5, 7 and 9 RPE came about 5, 4 and 2 repetitions before failure; they add that accuracy improves from set to set and closer to failure."
   ],
-  "limitations": "The abstract gives the number of studies, not the number of participants; resistance-trained lifters, not runners or novices; the comparison is of prescription methods over short interventions on 1RM and muscle size, with no running, economy or injury outcome. Abstract read; full text not read.",
+  "limitations": "The meta-analysis of load autoregulation rests on six small studies (133 people), three of them with the RIR-based method, and the pooled effect is not significant; resistance-trained, mostly young men, not runners or novices. Comparisons are of prescription methods over 6-12 weeks on 1RM and muscle size, with no running, economy or injury outcome. Fixed-effect models were used, all studies had some risk of bias, and the autoregulated groups often trained at a higher intensity. Full text read 2026-10-31 (the supplementary tables were not read).",
   "implications": [
-    "The only synthesis in the corpus that compares ways of choosing the load: an effort-based (repetitions-in-reserve) prescription and a percentage-of-maximum prescription gave similar strength gains in trained lifters. It supports an effort target as no worse than a percentage, not as better, and says nothing about double progression or about runners.",
+    "The only synthesis in the corpus that compares ways of choosing the load: an effort-based (repetitions-in-reserve) prescription and a percentage-of-maximum prescription gave similar strength gains in trained lifters, with a small, non-significant advantage for the RIR-based studies that went with a higher training intensity. It supports an effort target as no worse than a percentage, not as better, and says nothing about double progression or about runners.",
     "No evidence here on the novice or recreational lifter, who is the usual user of the strength page; the load-progression rule stays a default (grade D)."
   ],
   "verification": {
@@ -28,7 +31,34 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title, Sports Med Open 8:9, issued 2022-01-15, four authors and DOI match. Europe PMC abstract (PMID 35038063, PMC8762534) read; every figure above is in it. The velocity-loss findings are kept only as context; they are not used for any engine value.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title, Sports Med Open 8:9, issued 2022-01-15, four authors and DOI match. Europe PMC abstract (PMID 35038063, PMC8762534) read; every figure above is in it. The velocity-loss findings are kept only as context; they are not used for any engine value. Re-read in full 2026-10-31 for task RU1 on Europe PMC (PMC8762534, open access): Methods, Tables 1 to 4, Results and Discussion; the supplementary tables were not read. The participant counts and the subgroup figures above are from the text and tables.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC8762534) on 2026-10-31 with Tables 1 to 4; every number is from the Results or a table. The DOI resolves in Crossref, which lists no updated-by notice. The supplementary tables were not read."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Four named authors, all at the University of Saskatchewan (College of Medicine, College of Kinesiology, School of Rehabilitation Science), as Europe PMC holds. No separate university record was fetched. The competing-interests statement says none."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published online January 2022 (search to May 2021), not corrected; a Crossref title search found no comment letter. Later trials in the corpus (martikainen-2025-varying-proximity-failure) and the 2026 position stand (currier-2026-acsm-resistance-prescription, which could not determine the effect of intrasession autoregulation) do not contradict it."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Rests on three RIR-based trials, of which helms-2018-rpe-vs-percent-loading and graham-2021-rir-autoregulation-fixed are in the corpus and agree in direction (not worse than percentage loading); the third (Arede et al.) was not read. The review's authors are independent of the trial authors."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: resistance-trained individuals, 133 in the load comparisons, mostly young men, 6-12 weeks, 1RM outcomes. Use for novices, women, runners and the lifts of the catalogue is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a systematic review and meta-analysis with a registered protocol, level A); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
   }
 }

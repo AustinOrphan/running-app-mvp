@@ -1,0 +1,62 @@
+{
+  "id": "martikainen-2025-varying-proximity-failure",
+  "title": "Influence of Varying Proximity-to-Failure on Muscular Adaptations and Repetitions-in-Reserve Estimation Accuracy in Resistance-Trained Individuals",
+  "authors": "Martikainen O, Niiranen H, Rytkönen T, Schoenfeld BJ, Ahtiainen JP, Hulmi JJ",
+  "year": 2025,
+  "journal": "Journal of Science in Sport and Exercise",
+  "doi": "10.1007/s42978-025-00338-8",
+  "pmid": null,
+  "url": "https://doi.org/10.1007/s42978-025-00338-8",
+  "design": "rct",
+  "population": "39 healthy resistance-trained men and women aged 20-35 (2-9 years of continuous training; squat 1RM at least 1.35 times body mass in men and 1.1 in women) randomised in matched pairs; 31 finished (16 in one group and 15 in the other). People already experienced with RIR training or doing over 2 hours a week of aerobic exercise were excluded. Not runners.",
+  "sampleSize": 31,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "Two 5-week blocks, four sessions a week (upper and lower), identical for both groups except the effort target: 3 sets of 7-9 repetitions in block 1 and 4 sets of 4-6 in block 2, with the fifth week a deload at 1 in reserve. One group (RIR1) took every set to an estimated 1 repetition in reserve; the other (RIR1-4) lowered the weekly target from 4 to 1 in reserve within each block. Lifters chose loads from the count, with weekly logs, videos and one supervised session.",
+    "No statistically significant group difference in the change in strength or size. Squat 1RM rose 9.8 ± 3.9% (RIR1-4) and 9.2 ± 7.7% (RIR1); bench press 7.0 ± 6.0% and 9.6 ± 7.3%; vastus lateralis area 6.5 ± 4.2% and 5.5 ± 3.6%. Triceps thickness rose significantly only in RIR1-4 (5.8 ± 5.9% against 2.2 ± 4.9%), without a group difference. Weekly volume load did not differ.",
+    "Session ratings of perceived exertion were lower in RIR1-4 than in RIR1 (average 6.9 against 7.7, p < 0.05). In the squat, 13 of 16 in RIR1-4 gained more than 5 kg against 5 of 15 in RIR1, which the authors note but do not read as a difference.",
+    "In 80% of 1RM repetition tests, the error at a call of 3 repetitions in reserve in the RIR1-4 group fell from -1.5 ± 1.7 to -0.6 ± 1.4 repetitions in the squat and from -1.1 ± 1.8 to -0.1 ± 0.9 in the bench press (a negative error means more repetitions than called). The change in RIR1 was not significant and the groups did not differ.",
+    "The authors conclude that varying proximity to failure may not enhance short-term adaptations but allows lower effort, that RIR accuracy is acceptable at baseline in resistance-trained people and may improve with RIR training."
+  ],
+  "limitations": "31 finishers, 10 weeks, resistance-trained people aged 20-35, with eight of 39 lost to illness, injury, adherence or personal reasons. Only partly supervised: reported RIR was not verified, though logs, videos and a supervised session were used. The authors say the sample was small and larger studies are needed. Strength was tested on the squat and bench press only. One author declares a seat on the scientific advisory board of a fitness-equipment maker. Not runners and no novices (2-9 years of lifting required). The page was read as the journal's open-access HTML, whose tables are images; figures come from the text.",
+  "implications": [
+    "A randomised comparison in the zone of `f7.heavyRir`: stopping every set at 1 in reserve and stopping 4, 3, 2 then 1 short gave the same strength and size gains in trained people, with lower effort in the second. It supports a block target that includes 2-4 left as no worse than 1 left for strength in lifters; it is one small trial and does not carry to runners or novices.",
+    "At a call of 3 in reserve in an 80%-of-1RM set, lifters had on average 1 to 1.5 repetitions more than they called before training, and less after practice, which agrees with the direction and size of the other accuracy records."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, Journal of Science in Sport and Exercise, online 2025-08-19, six authors, CC BY 4.0, no updated-by notice. Not yet indexed by Europe PMC or PubMed (no PMID). Abstract and full text read on the journal's open-access page (link.springer.com, fetched with a plain HTTP client, HTTP 200); Tables 1 to 4 and Figures 1 and 2 are images and were not read, and every number is from the text.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on the journal's open-access page on 2026-10-31 (Methods, Results, Discussion and the conflict statement); tables and figures are images and were not read, and every number comes from the text. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Six named authors; the page gives the Faculty of Sport and Health Sciences, Neuromuscular Research Center, University of Jyväskylä for the senior authors and the ethics approval of that university. No separate university record was fetched. Interest declared: Schoenfeld sits on the scientific advisory board of Tonal Corporation, a fitness-equipment maker; the others report none."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published August 2025; no correction. It postdates grgic-2022-failure-vs-nonfailure and robinson-2024-proximity-failure-meta and agrees with them; a later trial of RIR estimation (wiedenmann-2026-rir-trainability) is in the corpus."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "One small randomised trial. It agrees in direction with the failure-against-non-failure reviews (grgic-2022-failure-vs-nonfailure, vieira-2021-failure-vs-nonfailure) and the 2026 position stand (currier-2026-acsm-resistance-prescription); none of them tests 1 against 4-to-1 in reserve. The trial notes that only one earlier study varied proximity to failure. Held."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 31 resistance-trained men and women aged 20-35, squat and bench press, 10 weeks. Use for novices, runners and the other lifts of the catalogue is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small randomised trial, level C as for the other small trials in the corpus); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
+  }
+}

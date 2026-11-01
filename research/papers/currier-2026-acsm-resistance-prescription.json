@@ -1,0 +1,63 @@
+{
+  "id": "currier-2026-acsm-resistance-prescription",
+  "title": "American College of Sports Medicine Position Stand. Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults: An Overview of Reviews",
+  "authors": "Currier BS, D'Souza AC, Singh MAF, Lowisz CV, Rawson ES, Schoenfeld BJ, Smith-Ryan AE, Steen JP, Thomas GA, Triplett NT, Washington TA, Werner TJ, Phillips SM",
+  "year": 2026,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1249/mss.0000000000003897",
+  "pmid": "41843416",
+  "url": "https://doi.org/10.1249/mss.0000000000003897",
+  "design": "consensus-statement",
+  "population": "137 systematic reviews (more than 30,000 participants) of randomised trials in healthy adults aged 18 or over who did resistance training for at least 6 weeks (range 6-52). It covers lifting for strength, size, power and function, not runners or endurance athletes.",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-autoregulation", "strength-plyometrics"],
+  "findings": [
+    "An overview of 137 systematic reviews, searched to October 2024, that updates the American College of Sports Medicine 2009 stand 'Progression models in resistance training for healthy adults'. Each review's quality was rated and a decision (positive effect, cannot determine, no effect) was drawn for each prescription variable.",
+    "Against no exercise, resistance training improved strength, size, power, endurance, contraction velocity, gait speed, balance and several function outcomes. Between prescriptions, strength was enhanced by loads of 80% of 1RM or more, a full range of motion, 2-3 sets, work early in the session and at least 2 sessions a week; hypertrophy by 10 or more sets a week and eccentric overload; power by loads of 30-70% of 1RM, low to moderate volume and power training.",
+    "Training to momentary muscle fatigue (failure) did not consistently affect outcomes: the overall decision for fatigue or failure in the stand's Table 4 is 'does not impact outcome' for strength and for hypertrophy and 'cannot determine' for power. The discussion says that completing sets to fatigue does not enhance gains in strength, hypertrophy and power, and so is not necessary, and that sufficient effort can be reached by 'near-failure' or a target of 2-3 repetitions in reserve.",
+    "The limitations paragraph says that while training to failure is not obligatory, there is insufficient evidence to quantify exact repetitions-in-reserve and perceived-exertion targets.",
+    "On progression, the stand says progression is not necessary to achieve benefit and is likely required only for continued long-term progress, except for inexperienced people whose loads must start low; the same relative load can be kept by regular strength testing or by perceived-exertion scales that raise the absolute load as strength rises. The effect of intrasession autoregulation on strength could not be determined (one review of 308 people favourable at 75% quality, one of 356 not at 25%), and periodization is not significantly superior with appropriate progressive overload.",
+    "The stand departs from 2009: it notes that the 2009 recommendation for novices, graded the highest quality, rested on three studies of 59 people, and it puts individualisation and participation ahead of conforming to a set prescription. It does not restate the 2009 criterion for raising a load by 2-10% when the lifter does one or two repetitions more than the target."
+  ],
+  "limitations": "An overview of reviews pools variable-level decisions and cannot give dose-response or compare programmes; it is limited to what published reviews synthesised and the overlap between reviews was counted only for strength (moderate, 6-10% of primary papers in two or more reviews). It states that randomised trials in the field are often small and poorly reported and that a pooled GRADE rating was not possible. Healthy adults only; no runner or endurance athlete. Its statements of 'near-failure or 2-3 in reserve' and on progression are the panel's own view and are not graded by the stand. The supplementary appendices were not read. Funding: no specific source; one author formerly served on the scientific advisory board of a fitness-equipment maker.",
+  "implications": [
+    "The current position of the American College of Sports Medicine supports stopping short of failure and names near-failure or 2-3 in reserve as enough effort, while saying the evidence cannot fix an exact target. That sits on the engine's block target (`f7.heavyRir` 1-3) and at the edge of its easy target (`f7.easyRir` 3), and it is a reason the numbers stay a convention inside a supported zone.",
+    "It supersedes the 2009 stand that the corpus cites for the only published step-size criterion (2-10% for one to two repetitions over). The update does not repeat that criterion and says progression is a requirement chiefly for the inexperienced, so the Params that cite the 2009 stand (`f8.maxStepPct`, `f8.progressMinRir`) rest on a superseded source and stay defaults."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, Medicine & Science in Sports & Exercise 58(4):851-872, online 2026-03-05 (print April 2026), 13 authors, CC BY-NC-ND 4.0, no updated-by notice. Europe PMC PMID 41843416, PMC12965823 (open access). Abstract and full text read: Methods, Tables 1 to 6 with their legends, Results for strength and hypertrophy, and the Discussion; the other outcome sections (balance, gait, jumping) and the supplementary appendices were not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC12965823) on 2026-10-31, including Tables 3 and 4 with their legends and the Discussion; every statement above is the stand's own wording. The DOI resolves in Crossref, which lists no updated-by notice. The supplementary appendices were not read."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Thirteen named authors under the American College of Sports Medicine; Europe PMC holds the affiliations (McMaster University, University of Sydney, University of North Carolina, Pennsylvania State University, Appalachian State University, CUNY Lehman College and others). No separate university record was fetched. Interests: one author formerly served on the scientific advisory board of a fitness-equipment company; the stand states it does not constitute an endorsement by the College."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published March 2026 and the latest consensus; it supersedes acsm-2009-progression-models-resistance, which is why that record is marked superseded. It postdates and agrees with grgic-2022-failure-vs-nonfailure, vieira-2021-failure-vs-nonfailure and refalo-2022-proximity-hypertrophy."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "That failure is not necessary for strength agrees with grgic-2022-failure-vs-nonfailure (Schoenfeld is an author of both, so not independent), vieira-2021-failure-vs-nonfailure (a different group) and robinson-2024-proximity-failure-meta; martikainen-2025-varying-proximity-failure (a randomised trial) found no strength difference between 1 and 4-to-1 in reserve. The 2-3 in reserve target is the panel's view and no read source tests it directly."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: healthy adults in randomised trials of at least 6 weeks, outcomes of strength, size, power and function. Use for runners, for concurrent training and for the engine's heavy sets is extrapolated; the stand does not cover endurance athletes."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper; a consensus statement is graded by content, not by its label. The statement that failure is not necessary rests on 137 reviews and is graded A; the 2-3 in reserve target and the progression remarks are the panel's view and are weaker, as the record's limitations say."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
+  }
+}

@@ -1,6 +1,6 @@
 # Research base
 
-The evidence behind the training engine: 406 papers, 21 topic syntheses, the rules derived from
+The evidence behind the training engine: 424 papers, 22 topic syntheses, the rules derived from
 them and the one document that turns the rules into engine behaviour. It is decision support for
 one recreational runner, not medical advice.
 

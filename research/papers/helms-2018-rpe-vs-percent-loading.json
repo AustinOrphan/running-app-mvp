@@ -1,0 +1,63 @@
+{
+  "id": "helms-2018-rpe-vs-percent-loading",
+  "title": "RPE vs. Percentage 1RM Loading in Periodized Programs Matched for Sets and Repetitions",
+  "authors": "Helms ER, Byrnes RK, Cooke DM, Haischer MH, Carzoli JP, Johnson TK, Cross MR, Cronin JB, Storey AG, Zourdos MC",
+  "year": 2018,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2018.00247",
+  "pmid": "29628895",
+  "url": "https://doi.org/10.3389/fphys.2018.00247",
+  "design": "controlled-trial",
+  "population": "21 resistance-trained men aged 19-35 (back squat 1RM at least 1.5 and bench press at least 1.25 times body mass, at least 2 years of training). 24 started and 3 dropped out. 11 trained with percentage loads and 10 with RIR-based RPE loads, counterbalanced by pre-test 1RM rather than randomised. Not runners.",
+  "sampleSize": 21,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "8 weeks, 3 sessions a week on non-consecutive days, squat then bench press in a daily undulating plan, with exercises, sets, repetitions and rests matched. The percentage group lifted set percentages of pre-test 1RM (65% to 92.5%). The RPE group chose loads to reach target ranges on the RIR-based scale (5-7 RPE in week 1, up to 8-10 RPE in weeks 6-7), with the load changed by 2% for every 0.5 RPE outside the range; the researchers chose the week-1 loads.",
+    "Both groups gained. Squat 1RM rose 13.9 ± 5.9 kg (percentage) and 17.1 ± 5.4 kg (RPE); bench press 9.6 ± 5.4 and 10.7 ± 3.3 kg. Muscle thickness rose at every site in both groups. No between-group difference was significant (squat p = 0.32, bench p = 0.52, combined p = 0.38).",
+    "Magnitude-based inferences gave small effects in favour of the RPE group: squat 0.50 ± 0.63, bench press 0.28 ± 0.73 and combined 0.48 ± 0.68 (90% confidence limits), with 79, 57 and 72% chances of an RPE advantage and 4, 14 and 6% chances of a percentage advantage.",
+    "The RPE group trained at a higher average RPE (squat 7.2 ± 0.3 against 6.5 ± 1.0, p = 0.04; bench press 7.3 against 5.8, p < 0.001) and, on the bench press, at a higher relative intensity (84.1% against 78.7% of pre-test 1RM). Squat intensity did not differ (79.7% against 78.7%).",
+    "Most of the training in both groups was about 3-4 repetitions from failure (RPE 6-7) and strength still rose, which the authors read as further evidence that failure is not needed for strength at moderate to heavy loads.",
+    "The authors advise that a lifter who is inaccurate with RPE should not use RPE alone: assign a conservative percentage for the first set and a goal RPE range to adjust later sets."
+  ],
+  "limitations": "21 young resistance-trained men, 8 weeks, squat and bench press, supervised in a laboratory with a velocity device used to pick 1RM attempts. Groups were assigned by counterbalancing, not randomly. The authors name two limits: the percentages in the percentage group may have been too low or its progression too slow, and the RPE group trained at a higher intensity on the bench press, so a gain may reflect intensity and not the method. Differences were not significant and the effect-size limits are wide. No novices, women, older lifters or runners.",
+  "implications": [
+    "A controlled comparison of choosing loads by reported repetitions in reserve against fixed percentages in trained men: both worked and the RIR-based group was not worse, and its loads rose faster. It supports an RIR target as no worse than a percentage for choosing a load. It does not test a threshold such as 1 or 4 in reserve, and it says nothing about novices or runners.",
+    "Training mostly at 3-4 repetitions from failure gained strength in trained men, which is the neighbourhood of `f7.easyRir` and the easier end of `f7.heavyRir`. The advice to start from a conservative load and use the count to adjust is the shape of the engine's first-load rule and of F8."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, Frontiers in Physiology 9:247, 21 March 2018, ten authors, no updated-by notice. Europe PMC PMID 29628895, PMC5877330 (CC BY, open access). Abstract and full text read: Methods, Tables 1 to 4, Results and Discussion; figures 1 and 2 are not read (images).",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC5877330) on 2026-10-31 with Tables 1 to 4; every number is from the Methods, Results or Table 4. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Ten named authors at Auckland University of Technology (SPRINZ) and Florida Atlantic University (Muscle Physiology Laboratory), as Europe PMC holds. Interests: the first and last authors developed and promoted the RIR-based scale tested here; the conflict statement says no commercial or financial relationships."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published March 2018, not corrected. Later: hickmott-2022-autoregulation-meta pooled it with two other RIR-based trials (subjective autoregulation SMD 0.30, p = 0.06) and graham-2021-rir-autoregulation-fixed found a larger gain for RIR-based loading. No later correction or contrary trial was found."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Graded corpus paper hickmott-2022-autoregulation-meta (A) pooled it and finds autoregulated and percentage loading similar; graham-2021-rir-autoregulation-fixed (an independent group) finds the RIR-based group gained more. The direction is the same (RIR-based loading is not worse); the significance differs between the trials."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 21 trained men, 8 weeks, squat and bench press. Use for novices, women, older lifters, runners and for the lighter lifts of the catalogue is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small controlled trial, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
+  }
+}

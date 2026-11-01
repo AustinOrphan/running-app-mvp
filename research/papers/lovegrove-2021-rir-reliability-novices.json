@@ -1,0 +1,61 @@
+{
+  "id": "lovegrove-2021-rir-reliability-novices",
+  "title": "Repetitions in Reserve Is a Reliable Tool for Prescribing Resistance Training Load",
+  "authors": "Lovegrove S, Hughes LJ, Mansfield SK, Read PJ, Price P, Patterson SD",
+  "year": 2022,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000003952",
+  "pmid": "36135029",
+  "url": "https://doi.org/10.1519/jsc.0000000000003952",
+  "design": "experimental-repeated-measures",
+  "population": "15 novice trained boys and young men (age 17.3 ± 0.9 years, 71.3 ± 10.7 kg), 1RM deadlift 118.1 ± 27.3 kg and bench press 58.2 ± 18.6 kg. Not runners.",
+  "sampleSize": 15,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "After a 1RM test for the deadlift and bench press, the 15 lifters did three identical sessions (one familiarisation and two test sessions) of sets of 3, 5 and 8 repetitions. For each scheme the load was raised from set to set until the lifter felt 1 repetition in reserve at the end of a set.",
+    "Test-retest reliability of the load chosen was high: deadlift ICC 0.95-0.99 and CV 2.7-5.7%; bench press ICC 0.97-0.99 and CV 3.8-6.2%. There was no difference between the two sessions.",
+    "The load at which lifters felt 1 in reserve fell as the repetitions rose: deadlift 88.2, 84.3 and 79.2% of 1RM and bench press 93.0, 87.3 and 79.6% of 1RM for sets of 3, 5 and 8 repetitions.",
+    "The authors conclude that RIR is a reliable tool for load prescription in a young novice population and that the differences between repetition schemes let practitioners manipulate load and volume."
+  ],
+  "limitations": "Abstract read; the full text is closed access and was not fetched. It tests reliability (the same load picked twice) and not accuracy: sets stopped at the felt 1 in reserve and were not continued to failure, so the true reserve is unknown. 15 novice trained males aged about 17, deadlift and bench press, 1RM tested by the same people (novices may under-test their 1RM). No runners, women or lower-body machine lifts.",
+  "implications": [
+    "Young novice lifters picked the same load for a felt 1 in reserve on two days within a few percent of 1RM, so the count is repeatable even where its accuracy is unproven. This fits the engine's use of a recorded count from lifters with little experience, with the load held when it is missing.",
+    "Computed here, not a finding of the paper: the engine's linear estimate with divisor 30 puts the load at 3, 5 and 8 repetitions plus 1 in reserve at 88%, 83% and 77% of 1RM. The deadlift figures above are within about 2 points of that, and the bench-press figures are 3-5 points above it. Read alone, this is a weak check of f8.e1rmDivisor: the count was not verified and the maximum was a novice's."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, J Strength Cond Res 36(10):2696-2700, online 2021-02-22 and print October 2022 (record year 2022, the print year; Europe PMC also 2022), six authors, no updated-by notice. Abstract read on Europe PMC (PMID 36135029); every figure above is in it. The last implication's percentages are computed from the engine's equation.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 36135029) on 2026-10-31 and every finding is its own wording, apart from the equation percentages marked as computed. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Six named authors; Europe PMC holds the affiliations (St Mary's University; Murdoch University; University College London). No separate university record was fetched. No interest is stated in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published online February 2021 and in print October 2022, not corrected. No later paper was found that tests the accuracy of the count in novices on the deadlift; the accuracy papers in the corpus use other lifts."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "A single small study of reliability, and the corpus holds no second one. zourdos-2016-rir-rpe-scale (velocity related to the rating in novices, r = -0.77) and remmert-2023-rir-accuracy-trained-untrained (no training-experience effect on accuracy) point the same way but test other things, so the gate is held."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 15 novice trained males aged about 17, deadlift and bench press, sets of 3, 5 and 8. Use for adults, women, runners and the squat and calf lifts is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small repeated-measures study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
+  }
+}

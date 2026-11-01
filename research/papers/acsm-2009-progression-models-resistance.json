@@ -11,14 +11,14 @@
   "population": "Healthy adults, from novices to advanced lifters; a position stand on resistance training, not on runners or endurance athletes",
   "sampleSize": null,
   "evidenceLevel": "A",
-  "topics": ["strength-plyometrics"],
+  "topics": ["strength-plyometrics", "strength-autoregulation"],
   "findings": [
     "For novice training (no resistance training experience, or none for several years) the stand recommends loads that correspond to a repetition range of 8-12 repetition maximum (RM). For intermediate (about 6 months of consistent training) to advanced (years of training) lifters it recommends a wider range of 1-12 RM in a periodized fashion, with eventual emphasis on heavy loading (1-6 RM), 3- to 5-minute rests between sets and a moderate contraction velocity (1-2 s concentric, 1-2 s eccentric).",
     "When training at a specific RM load, the stand recommends a 2-10% increase in load when the individual can perform the current workload for one to two repetitions over the desired number.",
     "The recommended training frequency is 2-3 days per week for novice training, 3-4 for intermediate and 4-5 for advanced training.",
     "The stand says that its recommendations should be applied in context and be contingent on an individual's target goals, physical capacity and training status."
   ],
-  "limitations": "A consensus statement for healthy adults in general, not for runners; the abstract does not say how each recommendation was graded and it does not compare progression schemes. It supports a convention (raise the load when the target repetitions are exceeded by one or two), not a test of one. Abstract read on Europe PMC; the full text was not read.",
+  "limitations": "A consensus statement for healthy adults in general, not for runners; the abstract does not say how each recommendation was graded and it does not compare progression schemes. It supports a convention (raise the load when the target repetitions are exceeded by one or two), not a test of one. Abstract read on Europe PMC; the full text was not read. Superseded: the American College of Sports Medicine published an update in 2026 (currier-2026-acsm-resistance-prescription), which does not restate the 2-10% criterion and says its 2009 novice recommendation, graded the highest quality, rested on three studies of 59 people.",
   "implications": [
     "The closest published convention for a double-progression rule: raise the load when the repetitions exceed the target by one or two, in steps of 2-10%. It is a consensus of practice for healthy adults and gives no evidence that this beats any other scheme, so the progression rule stays a default (grade D).",
     "The engine's step cap (f8.maxStepPct) is above the 10% end of this range because loads move in the steps the equipment can make; the cap is the engine's own default, not a figure of the stand."
@@ -28,7 +28,34 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title, Med Sci Sports Exerc 41(3):687-708, 2009 and DOI match; Crossref lists no author, and Europe PMC gives the American College of Sports Medicine as the author. Europe PMC abstract (PMID 19204579) read; every figure above is in it. The stand's recommendations for hypertrophy, power and local muscular endurance are not used.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title, Med Sci Sports Exerc 41(3):687-708, 2009 and DOI match; Crossref lists no author, and Europe PMC gives the American College of Sports Medicine as the author. Europe PMC abstract (PMID 19204579) read; every figure above is in it. The stand's recommendations for hypertrophy, power and local muscular endurance are not used. Re-read 2026-10-31 for task RU1: abstract re-read on Europe PMC (PMID 19204579); the full text is closed access and was not fetched. The 2026 update was found and read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was re-read on Europe PMC (PMID 19204579) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access), so the base of each recommendation is unknown."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Authored by the American College of Sports Medicine (a position stand; Crossref lists no author and Europe PMC gives the College). The authors are not individually named in the records read. No interest is stated."
+    },
+    "r3": {
+      "result": "fail",
+      "note": "Superseded: currier-2026-acsm-resistance-prescription (March 2026) updates this stand, does not restate its 2-10% criterion, and says that its novice recommendation rested on three studies of 59 people. The 2009 criterion stays the only published step-size figure in the corpus, but it is no longer the College's current position."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "The 2-10% rule for one to two repetitions over is not repeated by the 2026 update and no other source read gives a step size; the effort-based direction agrees with helms-2018-rpe-vs-percent-loading and hickmott-2022-autoregulation-meta. A single superseded source for the number, so held."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: healthy adults from novice to advanced; not runners. Use for runners is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper; a consensus statement is graded by content, not by its label. Its progression criterion is a convention of practice whose base is not in the abstract, so no number rests on it above grade D."
+    },
+    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
   }
 }
