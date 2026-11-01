@@ -326,10 +326,12 @@ function recoveryCadence(
     // weeks of a floor start path (six of them in the review's case) with no recovery week and does
     // not count the floor week as a block of its own, so that three loading weeks and a recovery week
     // follow the floor week that the cadence would otherwise count as four in a row. A Preference
-    // (no study), recorded under E3 in the rules.
+    // (no study), recorded under E3 in the rules. The floor week spends the longer first block of a
+    // plan that opens on it, so that the block after it is the cycle and no longer.
     if (isStartPathWeek(week) || week.flags.includes('restart-floor')) {
       run = 0
       lastLoad = null
+      if (week.flags.includes('restart-floor')) first = false
       continue
     }
     if (week.isRecovery) {
