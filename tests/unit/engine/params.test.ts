@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-31.2')
+    expect(PARAMS_VERSION).toBe('2026-11-01.1')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -54,6 +54,18 @@ describe('parameter registry', () => {
       evidence: [],
     })
     expect(paramsForRule('design-revisions').map((p) => p.id)).toEqual(['revision.undoWindowDays'])
+  })
+
+  it('holds the shake-out and the easy days before a long race as grade D defaults (K6, RF3)', () => {
+    expect(P.k6.dayBeforeMaxMin).toMatchObject({ value: 20, grade: 'D', rule: 'K6', unit: 'min' })
+    expect(P.k6.easyDaysBefore).toMatchObject({ value: 2, grade: 'D', rule: 'K6', unit: 'days' })
+    for (const p of [P.k6.dayBeforeMaxMin, P.k6.easyDaysBefore]) {
+      expect(p.evidence).toContain('bussau-2002-carb-loading-one-day')
+      expect(p.note).toMatch(/default/i)
+    }
+    expect(paramsForRule('K6').map((p) => p.id)).toEqual(
+      expect.arrayContaining(['k6.carbLoadMinRaceMin', 'k6.dayBeforeMaxMin', 'k6.easyDaysBefore']),
+    )
   })
 
   it('holds a few hundred parameters, every section non-empty', () => {
