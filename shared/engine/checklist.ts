@@ -603,8 +603,23 @@ function breakRestartItem(
       rules,
     )
   }
-  const { restartMin, fraction } = breakRestart(state.layoffDays, state.typicalWeekMin)
   const first = sortedWeeks(draft).find((w) => w.weekStart >= mondayOf(input.today))
+  // A layoff a window holds is sized as the generator sizes it [rule J9]: the J7 fraction of the
+  // reference week of the hold (`holdReference`, the median of the weeks before the window), where the
+  // typical week is pulled down by the part week the window left. The week the item reads is the
+  // return week or the first full week of the hold; a break with no window is read as before.
+  const hold = disruptionPlan(input.disruptions ?? []).holds.find(
+    (h) =>
+      h.fraction < 1 &&
+      (h.returnWeekStart === mondayOf(input.today) || h.fullWeekStart === mondayOf(input.today)),
+  )
+  const ran = new Map(state.weeks.map((w) => [w.weekStart, w.runMin]))
+  const reference = hold === undefined ? 0 : holdReference(hold, (weekStart) => ran.get(weekStart))
+  const { restartMin, fraction } =
+    hold !== undefined && reference > 0
+      ? { restartMin: Math.floor(reference * hold.fraction + 1e-9), fraction: hold.fraction }
+      : breakRestart(state.layoffDays, state.typicalWeekMin)
+  const typical = hold !== undefined && reference > 0 ? reference : state.typicalWeekMin
   // The first week of a start path, and a ladder week that carries on from the weeks before the
   // break, start above the restart volume by design [rules E6].
   const floorMin =
@@ -619,8 +634,8 @@ function breakRestartItem(
     'break-restart',
     planned <= limit,
     planned <= limit
-      ? `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, from a restart at ${Math.round(fraction * 100)}% of ${state.typicalWeekMin} min.`
-      : `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, above ${Math.round(limit)} min (${Math.round(fraction * 100)}% of ${state.typicalWeekMin} min, plus one step).`,
+      ? `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, from a restart at ${Math.round(fraction * 100)}% of ${typical} min.`
+      : `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, above ${Math.round(limit)} min (${Math.round(fraction * 100)}% of ${typical} min, plus one step).`,
     rules,
   )
 }

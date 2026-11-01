@@ -1753,3 +1753,50 @@ describe('the checklist accepts every re-plan after a hold of 21 or 28 days [rul
     120_000,
   )
 })
+
+describe('the break-restart item reads the reference week of a hold [rules J7, J9]', () => {
+  // Found by the final review of RF2 (2026-11-01), present since the second round and absent on main.
+  // The return week after a window restarts at the J7 fraction of the reference week, the median of
+  // the weeks before the window (`holdReference`); the `break-restart` item took the same fraction of
+  // the typical week, which the part week the window left pulls down, so the generator's week stood
+  // above what the item allowed and the draft was refused (422): the half-marathon athlete, an
+  // illness above the neck from 2027-01-02 to 01-15, re-plan of 01-18: 202 minutes, "above 196 min
+  // (75% of 236 min, plus one step)", 202 being 75% of the 270 of the reference week. A niggle at the
+  // same dates passes, since its return week runs the weekend and the layoff reads 0 on the Monday.
+  // For a layoff a window holds the item reads the reference week of the hold; a break with no window
+  // is read as before.
+  const ILLNESS: Array<[string, string, string]> = [
+    ['half', '2027-01-02', '2027-01-15'],
+    ['first-100-mile', '2027-01-16', '2027-01-29'],
+    ['first-100-mile', '2027-02-13', '2027-02-26'],
+    ['first-100-mile', '2027-03-13', '2027-03-26'],
+  ]
+
+  it.each(ILLNESS)(
+    'passes the checklist at every re-plan of %s, an illness above the neck from %s to %s',
+    (id, startDate, endDate) => {
+      const window = windowOf({ id: 'ill', reason: 'illness-above-neck', startDate, endDate })
+      const chain = replanChain(byId(id).input, { windows: [window] })
+      const failing = chain.flatMap((step) =>
+        step.draft.checklist
+          .filter((c) => !c.ok)
+          .map((c) => `re-plan of ${step.input.today}: ${c.id}: ${c.detail}`),
+      )
+      expect(failing).toEqual([])
+    },
+  )
+
+  it('names the reference week of the hold in the half-marathon case', () => {
+    const window = windowOf({
+      id: 'ill',
+      reason: 'illness-above-neck',
+      startDate: '2027-01-02',
+      endDate: '2027-01-15',
+    })
+    const chain = replanChain(byId('half').input, { windows: [window] })
+    const step = chain.find((s) => s.input.today === '2027-01-18')!
+    const item = step.draft.checklist.find((c) => c.id === 'break-restart')!
+    expect(item.ok, item.detail).toBe(true)
+    expect(item.detail).toMatch(/75% of 270 min/)
+  })
+})
