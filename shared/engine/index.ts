@@ -52,7 +52,7 @@ import { isDuplicate } from './load.ts'
 import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath, strengthBlockPosition } from './macro.ts'
 import { resolveMethod } from './methods.ts'
-import { holdSessions, placeWeek, shakeOutFor } from './micro.ts'
+import { holdSessions, placeWeek, shakeOutFor, type ShakeOut } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { planWindows, postRaceWarnings } from './postRace.ts'
 import { predictRace } from './predict.ts'
@@ -843,6 +843,7 @@ function generate(
       on: AthleteProfile,
       rules: readonly DayRule[],
       ceiling = false,
+      shake = true,
     ) =>
       placeWeek(target, {
         profile: on,
@@ -864,7 +865,7 @@ function generate(
         ...(rules.length > 0 ? { dayRules: rules } : {}),
         ...(dplan.days.length > 0 ? { windowPlan: true } : {}),
         ...(ceiling ? { ceiling: true } : {}),
-        ...(shakeOut !== undefined ? { shakeOut } : {}),
+        ...(shake && shakeOut !== undefined ? { shakeOut } : {}),
       })
     // A week a window touches, or that a long hold sends back at the J7 fraction, holds what the
     // window leaves of the plan's own week [rules J9, J7, G-6]: the minutes of the held days, and
@@ -906,7 +907,9 @@ function generate(
       let longLost = false
       const minByDate: Record<string, number> = {}
       if (ruled.length > 0 && (planWeek.targetRunMin > 0 || planWeek.strengthSessions > 0)) {
-        const baseline = place(planWeek, closedForRuns(closedBase), [])
+        // placed without the shake-out: the hold target is spread over the runs at their shares and
+        // the cap cuts the day before once, from the placed result [rules K6, J9]
+        const baseline = place(planWeek, closedForRuns(closedBase), [], false, false)
         baselineAhead = runningMinutes(baseline)
         for (const s of baseline) {
           if (VOLUME_KINDS.has(s.kind)) minByDate[s.date] = (minByDate[s.date] ?? 0) + s.durationMin
@@ -1471,6 +1474,38 @@ function plannedMinutes(sessions: SessionSpec[], weekStart: string, from: string
 }
 
 /**
+ * The minutes rule K6 cut from the run of the day before a long race in the plan being replaced, for
+ * the week that holds that day: the run stands at the cap and the other runs still planned stand at
+ * their share of the week, so the cut is the largest of the others less the run. The bound of the
+ * week (`stillPlanned`) counts the run at its share, as the share-out of the remaining runs gives it,
+ * and the cap then cuts the run once more. Counted at the cap, each re-plan of a week in progress
+ * would cut the run a second time and shed a share of the runs that nothing changed [rules K6, G-6].
+ */
+function shakeOutCut(
+  rows: ReadonlyArray<SessionSpec>,
+  weekStart: string,
+  from: string,
+  shakeOut: ShakeOut,
+): number {
+  if (shakeOut.dayBefore < weekStart || shakeOut.dayBefore > addDays(weekStart, 6)) return 0
+  const runs = rows.filter(
+    (s) =>
+      mondayOf(s.date) === weekStart &&
+      s.date >= from &&
+      s.durationMin > 0 &&
+      isRunningTime(s) &&
+      !NOT_RUNS.has(s.kind),
+  )
+  const dayBefore = runs.filter((s) => s.date === shakeOut.dayBefore)
+  const others = runs.filter((s) => s.date !== shakeOut.dayBefore)
+  if (dayBefore.length !== 1 || others.length === 0) return 0
+  const held = dayBefore[0]!.durationMin
+  // a run under the cap was not cut
+  if (held < shakeOut.maxMin) return 0
+  return Math.max(0, Math.max(...others.map((s) => s.durationMin)) - held)
+}
+
+/**
  * Whether the replaced plan has not started `oldWeek`: today is its Monday, every session of it is
  * still planned (or trimmed by the weekly decision, which the re-plan draws again), and nothing has
  * been run since.
@@ -1544,15 +1579,16 @@ export function replan(
   const figure = new Map<string, number>()
   const notStarted = new Map<string, number>()
   const windowPlan = disruptionPlan(input.disruptions ?? [])
+  const shakeOut = shakeOutFor(input.goal.date, input.goal.expectedDurationSec / 60)
   for (const weekStart of settled) {
     const oldWeek = oldWeeks.find((w) => w.weekStart === weekStart)
     if (oldWeek === undefined) continue
     if (notStartedWeek(oldWeek, oldSessions, input)) notStarted.set(weekStart, oldWeek.targetRunMin)
-    const planned = plannedMinutes(
-      oldSessions.filter((s) => s.status === 'planned' || isHoldTrimRow(s)),
-      weekStart,
-      input.today,
-    )
+    const stillRows = oldSessions.filter((s) => s.status === 'planned' || isHoldTrimRow(s))
+    // the run of the day before a long race counts at its share of the week, not at its cap
+    const planned =
+      plannedMinutes(stillRows, weekStart, input.today) +
+      (shakeOut === undefined ? 0 : shakeOutCut(stillRows, weekStart, input.today, shakeOut))
     // A week the replaced plan has not started is held to the plan's own figure for it, not to the
     // minutes its sessions placed: those fall short of the figure by what the placement cannot use
     // (a trimmed session, rounding), and held to them each
