@@ -9,6 +9,28 @@ updates:
         update-types:
           - minor
           - patch
+    # A major version of each is a deliberate session, not a Dependabot PR: @types/node follows
+    # .nvmrc and the Docker base image; the others touch the Docker strip step or the engine's
+    # toolchain.
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: better-sqlite3
+        update-types: ['version-update:semver-major']
+      - dependency-name: prisma
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@prisma/*'
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -1957,3 +1957,6 @@ linting unit-tests` worktrees and the detached comparison worktree the start-pat
   closed to new applicants (October 2026).
 - Personal training data stays in Google Sheets, Smashrun and the owner's own app database; the
   repository holds synthetic fixtures only.
+- Dependency policy: a security advisory on a runtime dependency is merged within 48 hours of its
+  Dependabot PR going green, other grouped updates weekly, and a major version only by a deliberate
+  decision; a red `npm audit` step in CI blocks until the advisory is addressed.
