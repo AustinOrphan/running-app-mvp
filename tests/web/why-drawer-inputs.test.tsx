@@ -703,7 +703,7 @@ describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
       'Plan shape chosen: A longer base.',
       "Build phase: at most 4 weeks (grade D), against 6 in the plan's own shape (grade D).",
       'The base takes the difference: up to 2 more weeks before the build.',
-      'Quality runs: strides only in the base, then hills and threshold runs in the build (grade D).',
+      'Quality runs: strides only in the base, then threshold and hill runs in the build (grade D).',
       GRADE,
     ])
     const group = await within(dialog).findByRole('group', { name: 'Longer base' })

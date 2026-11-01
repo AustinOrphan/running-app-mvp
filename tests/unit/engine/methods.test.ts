@@ -37,24 +37,26 @@ import {
   type PresetId,
   type SessionKind,
 } from '../../../shared/engine/types.ts'
-import { planMinutes, problemsOf, windowOf } from './disruption-fixtures.ts'
+import { problemsOf, windowOf } from './disruption-fixtures.ts'
 import { activity, wellnessDay } from './e8-fixtures.ts'
 import { h13Race } from './history-fixtures.ts'
 import { oracleInputs } from './history-oracle.ts'
 import { SWEEP_COUNT, SWEEP_SEED, sweepCases } from './history-sweep.ts'
+import {
+  aboveDefault,
+  maxRunDays,
+  OFFERED,
+  positionOf,
+  QUALITY_KINDS,
+  text,
+  withMethod,
+} from './method-fixtures.ts'
 import { replanSteps } from './replan-steps.ts'
 import { athletes, TODAY, type MatrixAthlete } from './matrix-fixtures.ts'
 
 const ROOT = join(import.meta.dirname, '../../..')
 const all = athletes()
 const byId = (id: string): MatrixAthlete => all.find((a) => a.id === id)!
-const withMethod = (input: EngineInput, method: PresetId): EngineInput => ({
-  ...input,
-  options: { ...input.options, method },
-})
-/** The plan as the digests read it: the version of the Params is left out. */
-const text = (plan: PlanDraft): string => JSON.stringify({ ...plan, paramsVersion: '' })
-const OFFERED = ['three-run-days', 'longer-base'] as const satisfies readonly PresetId[]
 const DISTANCE_CLASSES = [
   '5k',
   '10k',
@@ -65,59 +67,6 @@ const DISTANCE_CLASSES = [
   'ultra100mi',
   'beyond',
 ] as const
-
-const RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
-  'easy',
-  'recovery',
-  'long',
-  'long-fast-finish',
-  'threshold',
-  'intervals',
-  'race-pace',
-  'strides',
-  'hills',
-  'b2b',
-])
-const QUALITY: ReadonlySet<SessionKind> = new Set<SessionKind>([
-  'threshold',
-  'intervals',
-  'race-pace',
-  'hills',
-  'strides',
-])
-
-/** The most run days any week from today on holds. */
-function maxRunDays(plan: PlanDraft): number {
-  const days = new Map<string, Set<string>>()
-  for (const s of plan.sessions) {
-    if (!RUN_KINDS.has(s.kind) || s.date < TODAY) continue
-    const monday = mondayOf(s.date)
-    days.set(monday, (days.get(monday) ?? new Set<string>()).add(s.date))
-  }
-  return Math.max(0, ...[...days.values()].map((d) => d.size))
-}
-
-/**
- * What a plan holds above the default plan [rule G6]: a week target, the running minutes planned in
- * a week and the peak week. Empty when the plan plans no more than the default in any week.
- */
-function aboveDefault(base: PlanDraft, plan: PlanDraft): string[] {
-  const problems: string[] = []
-  for (const week of plan.weeks) {
-    const before = base.weeks.find((w) => w.weekStart === week.weekStart)
-    if (before !== undefined && week.targetRunMin > before.targetRunMin) {
-      problems.push(`target ${week.weekStart}: ${week.targetRunMin} against ${before.targetRunMin}`)
-    }
-  }
-  const baseline = planMinutes(base)
-  for (const [week, minutes] of planMinutes(plan)) {
-    const before = baseline.get(week) ?? 0
-    if (minutes > before) problems.push(`planned ${week}: ${minutes} against ${before}`)
-  }
-  const peak = (p: PlanDraft) => Math.max(0, ...p.weeks.map((w) => w.targetRunMin))
-  if (peak(plan) > peak(base)) problems.push(`peak ${peak(plan)} against ${peak(base)}`)
-  return problems
-}
 
 /** The state with one more risk fact set, as the load setting's own tests do. */
 function withRisk(state: AthleteState, risk: Partial<AthleteState['risk']>): AthleteState {
@@ -278,9 +227,11 @@ describe('the bounds of section 4.4, as literals', () => {
       const own = PRESET_OVERRIDES[id].qualityByPhase === true
       expect(table !== QUALITY_BY_PRESET.default, id).toBe(own)
     }
-    // longer-base: strides only in the base; hills and threshold, in that order, in the build
+    // longer-base: strides only in the base; threshold, then hills, in the build: the first quality
+    // session of a build week is the default's (section (p), the order of the build row)
     expect(QUALITY_BY_PRESET['longer-base'].base).toEqual(['strides'])
-    expect(QUALITY_BY_PRESET['longer-base'].build).toEqual(['hills', 'threshold'])
+    expect(QUALITY_BY_PRESET['longer-base'].build).toEqual(['threshold', 'hills'])
+    expect(QUALITY_BY_PRESET['longer-base'].build[0]).toBe(DEFAULT_TABLE.build[0])
     expect(QUALITY_BY_PRESET['three-run-days']).toEqual(DEFAULT_TABLE)
   })
 })
@@ -526,21 +477,27 @@ describe('novices and the E6 start paths', () => {
   })
 
   it.each([
-    ['post-marathon-short-run', 'ladder'],
-    ['sparse-100-mile', 'floor'],
+    ['post-marathon-short-run', 'ladder', 0],
+    ['sparse-100-mile', 'floor', 0],
+    // the race 77 days later gives the ladder a base of its own to follow: the preset applies
+    ['post-marathon-short-run', 'ladder', 77],
   ] as const)(
-    '%s: the %s start path plans its own weeks, which a preset leaves as they are',
-    (id, kind) => {
+    '%s, race %i days later: the %s start path plans its own weeks, which a preset leaves as they are',
+    (id, kind, later) => {
       const athlete = byId(id)
-      expect(startPath(athlete.input, estimateState(athlete.input))?.kind).toBe(kind)
-      const base = buildPlan(athlete.input)
+      const input = {
+        ...athlete.input,
+        goal: { ...athlete.input.goal, date: addDays(athlete.input.goal.date, later) },
+      }
+      expect(startPath(input, estimateState(input))?.kind).toBe(kind)
+      const base = buildPlan(input)
       const isStart = (flags: string[]) => flags.some((f) => /^ladder-|^restart-floor$/.test(f))
       const startWeeks = base.weeks.filter((w) => isStart(w.flags))
       expect(startWeeks.length).toBeGreaterThan(0)
       for (const method of OFFERED) {
-        const plan = buildPlan(withMethod(athlete.input, method))
+        const plan = buildPlan(withMethod(input, method))
         for (const week of startWeeks) {
-          // the programme sets the week; only the phase it is filed under follows the preset
+          // the programme sets the week; only the phase it is filed under follows the preset's own draw
           const own = plan.weeks.find((w) => w.weekStart === week.weekStart)
           expect({ ...own, phase: null }, `${method} ${week.weekStart}`).toEqual({
             ...week,
@@ -557,6 +514,24 @@ describe('novices and the E6 start paths', () => {
       }
     },
   )
+
+  it('post-marathon-short-run: a ladder that covers the base leaves no base week of its own, so longer-base reads the default and is the default plan', () => {
+    // the ladder runs 11 weeks, the whole of base and build: the one base week of the preset's own draw
+    // would be its first ladder week, a week the programme sets
+    const athlete = byId('post-marathon-short-run')
+    const input = withMethod(athlete.input, 'longer-base')
+    const plan = buildPlan(input)
+    expect(positionOf(input, plan)).toEqual({
+      requested: 'longer-base',
+      effective: 'default',
+      reason: 'no-base',
+    })
+    expect(text(plan)).toBe(text(buildPlan(athlete.input)))
+    // the base weeks the plan holds, if any, are weeks of the ladder
+    for (const week of plan.weeks.filter((w) => w.phase === 'base')) {
+      expect(week.flags.some((f) => f.startsWith('ladder-'))).toBe(true)
+    }
+  })
 })
 
 describe('a plan with no base week [rule P4]', () => {
@@ -571,6 +546,26 @@ describe('a plan with no base week [rule P4]', () => {
     expect(some).toEqual({ requested: 'longer-base', effective: 'longer-base', reason: null })
     // without the weeks the question is not asked
     expect(resolveMethod(input, state).effective).toBe('longer-base')
+  })
+
+  it("counts only the base weeks outside a start path: a ladder, a floor or an injury-return week is the programme's", () => {
+    const own = { phase: 'base', flags: ['strength-block'] }
+    for (const flags of [
+      ['ladder-1', 'run-walk'],
+      ['restart-floor'],
+      ['injury-return', 'injury-level-0'],
+    ]) {
+      const start = { phase: 'base', flags }
+      expect(resolveMethod(input, state, [start, { phase: 'build' }]).reason, flags.join()).toBe(
+        'no-base',
+      )
+      expect(
+        resolveMethod(input, state, [start, own, { phase: 'build' }]).reason,
+        flags.join(),
+      ).toBe(null)
+    }
+    // a week with no flags (a week made by hand) counts as it did
+    expect(resolveMethod(input, state, [{ phase: 'base' }]).reason).toBeNull()
   })
 
   it('does not ask three-run-days for a base week', () => {
@@ -626,6 +621,25 @@ describe('the default and the absent method are the same plan [rule P1]', () => 
       expect(text(buildPlan(withMethod(a.input, 'default')))).toBe(text(buildPlan(a.input)))
     },
   )
+
+  it('moves no default plan when the build row of longer-base changes', () => {
+    // the oracle pins the digests of the default; this reads the cause: the kind table of a preset is
+    // read for a preset plan only (task M5)
+    const before = all.map((a) => text(buildPlan(a.input)))
+    const half = withMethod(byId('half').input, 'longer-base')
+    const own = text(buildPlan(half))
+    const table = QUALITY_BY_PRESET['longer-base'] as unknown as { build: readonly SessionKind[] }
+    const kept = table.build
+    try {
+      table.build = ['intervals', 'hills']
+      expect(all.map((a) => text(buildPlan(a.input)))).toEqual(before)
+      // the table is read: the preset plan moves with it
+      expect(text(buildPlan(half))).not.toBe(own)
+    } finally {
+      table.build = kept
+    }
+    expect(QUALITY_BY_PRESET['longer-base'].build).toEqual(['threshold', 'hills'])
+  })
 })
 
 describe('the offered presets on the twelve matrix athletes', () => {
@@ -647,8 +661,9 @@ describe('the offered presets on the twelve matrix athletes', () => {
         const plan = buildPlan(input)
         const base = runnerDefaults.get(id)!
         // the checklist, no minutes added to any week, no week target raised, the race kept [G6];
-        // what the default plan already fails (three sweep runners fail the spacing item at
-        // default) is not the preset's
+        // what the default plan already fails (four sweep runners fail the spacing item at the
+        // default, #48 at steady and standard only; `history-sweep.test.ts` pins the list) is not
+        // the preset's
         const windows = input.disruptions ?? []
         const inherited = problemsOf(a, windows, base, base)
         expect(problemsOf(a, windows, plan, base).filter((p) => !inherited.includes(p))).toEqual([])
@@ -679,7 +694,7 @@ describe('the offered presets on the twelve matrix athletes', () => {
     expect(maxRunDays(defaults.get('half')!)).toBeGreaterThan(P.p2.runDays.value)
   })
 
-  it('longer-base applies to nine of the twelve and reads the default for the other three', () => {
+  it('longer-base applies to eight of the twelve and reads the default for the other four', () => {
     const position = (a: MatrixAthlete) => {
       const input = withMethod(a.input, 'longer-base')
       return resolveMethod(input, estimateState(input), buildPlan(input).weeks)
@@ -691,12 +706,12 @@ describe('the offered presets on the twelve matrix athletes', () => {
       'hot-race',
       'marathon',
       'masters',
-      'post-marathon-short-run',
       'returning',
       'sparse-100-mile',
       'trail-50k',
     ])
     expect(position(byId('novice-5k')).reason).toBe('no-base')
+    expect(position(byId('post-marathon-short-run')).reason).toBe('no-base')
     expect(position(byId('prior-bsi')).reason).toBe('held:recent-injury')
     expect(position(byId('reds-hold')).reason).toBe('held:reds-hold')
   })
@@ -711,7 +726,8 @@ describe('the offered presets on the twelve matrix athletes', () => {
       const phaseOf = new Map(plan.weeks.map((w) => [w.weekStart, w]))
       for (const s of plan.sessions) {
         const week = phaseOf.get(mondayOf(s.date))
-        if (week === undefined || !QUALITY.has(s.kind) || week.flags.includes('post-race')) continue
+        if (week === undefined || !QUALITY_KINDS.has(s.kind) || week.flags.includes('post-race'))
+          continue
         if (week.phase === 'base') expect(s.kind, `${a.id} ${s.date}`).toBe('strides')
         if (week.phase === 'build') {
           build += 1

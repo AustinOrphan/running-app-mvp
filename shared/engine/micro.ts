@@ -94,9 +94,11 @@ const QUALITY_BY_PHASE: QualityTable = {
  * (`qualityByPhase`). The kinds are the ones the default already uses; the specific, taper and race
  * rows are the default's in every row.
  *
- * `longer-base` [rule P4]: the base holds strides only and the build holds hills and threshold, in
- * the order the section gives them, so intervals leave the build and the first quality session of a
- * build week is hills. Every other preset uses the default's table.
+ * `longer-base` [rule P4]: the base holds strides only and the build holds threshold and hills, in
+ * that order, so intervals leave the build and the first quality session of a build week stays the
+ * default's threshold: a build week with one quality session (a goal of 100 km or more, a week of
+ * few days) keeps the build's named stimulus, and hills take the second session where there is one.
+ * Every other preset uses the default's table.
  */
 export const QUALITY_BY_PRESET: Readonly<Record<PresetId, QualityTable>> = {
   default: QUALITY_BY_PHASE,
@@ -104,7 +106,7 @@ export const QUALITY_BY_PRESET: Readonly<Record<PresetId, QualityTable>> = {
   'longer-base': {
     ...QUALITY_BY_PHASE,
     base: ['strides'],
-    build: ['hills', 'threshold'],
+    build: ['threshold', 'hills'],
   },
 }
 

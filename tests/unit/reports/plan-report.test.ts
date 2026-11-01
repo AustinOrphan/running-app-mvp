@@ -1,10 +1,12 @@
 // The plan report (task H1, proposal section 5): the text is deterministic, every figure carries
 // its grade and rule, the scorecard has no overall score, the bands say "D, practice source", and
-// no G5 word appears. The matrix section is pinned by a digest, as the oracle pins the plans.
+// no G5 word appears. The matrix section is pinned by a digest, as the oracle pins the plans, and so
+// is the section of each method preset (task M5): "D, a choice", the figures beside the default's.
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { PARAMS_VERSION } from '../../../shared/engine/index.ts'
 import { SWEEP_COUNT, SWEEP_SEED, sweepCases } from '../engine/history-sweep.ts'
+import { OFFERED, READING, type Offered } from '../engine/method-fixtures.ts'
 import { BAND_LABEL } from '../../reports/bands.ts'
 import {
   assertReportClean,
@@ -12,8 +14,12 @@ import {
   historyRows,
   lengthBucket,
   matrixRows,
+  presetLabel,
+  presetRows,
   renderHistorySection,
   renderMatrixSection,
+  renderPresetSection,
+  renderPresetsSection,
   renderReport,
   renderWindowSection,
   spread,
@@ -21,6 +27,10 @@ import {
   windowRows,
   yearsOfRunner,
 } from '../../reports/plan-report.ts'
+
+// A section of the report plans the twelve athletes at the default and at two presets: a few seconds
+// on a development machine and more beside the other test files.
+vi.setConfig({ testTimeout: 30_000 })
 
 /**
  * The digest of the matrix section (the five tables, the bands and the twelve scorecards). It
@@ -34,6 +44,23 @@ import {
  *   })"
  */
 const MATRIX_DIGEST = 'd306259c6f06b18f724218b76d81150dd44c6f48b2808a7f902498e57c8b4735'
+
+/**
+ * The digest of the section of each method preset (the twelve athletes at the preset, each figure
+ * beside the default's with the change, and the two strata rows). It moves with a preset plan, the
+ * Param a figure is labelled with, the reading of a preset or the text of the section; the digest of
+ * the default's matrix above does not move with any of them. Regenerate with
+ *
+ *   npx tsx -e "import('./tests/reports/plan-report.ts').then(async (m) => {
+ *     const { createHash } = await import('node:crypto')
+ *     for (const method of ['three-run-days', 'longer-base'])
+ *       console.log(method, createHash('sha256').update(m.renderPresetSection(method)).digest('hex'))
+ *   })"
+ */
+const PRESET_DIGESTS: Record<Offered, string> = {
+  'three-run-days': '8d50144935b29ce01f677669a6aad78ef0adc8732de01d53b5e1b10972c83dea',
+  'longer-base': 'd6d7e33ea4d7d8a8a19c6af277720b043ec3eee88a1fa40714ba011a85328e20',
+}
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 
@@ -151,6 +178,114 @@ describe('the matrix section', () => {
     const post = body.find((r) => r[0] === 'post-marathon-short-run')!
     expect(Number(novice[soft])).toBeLessThan(0)
     expect(Number(post[soft])).toBeLessThan(0)
+  })
+})
+
+describe('the preset sections', () => {
+  const sections = new Map(OFFERED.map((m) => [m, renderPresetSection(m)] as const))
+
+  it.each(OFFERED)('%s: is the same text twice, and its digest is the pinned one', (method) => {
+    expect(renderPresetSection(method)).toBe(sections.get(method))
+    expect(
+      sha256(sections.get(method)!),
+      'regenerate the digest as the comment above PRESET_DIGESTS says',
+    ).toBe(PRESET_DIGESTS[method])
+  })
+
+  it('leaves the matrix section of the default as it was: the presets are a section of their own', () => {
+    expect(sha256(renderMatrixSection())).toBe(MATRIX_DIGEST)
+    const text = renderReport({ matrixOnly: true })
+    expect(text.indexOf('## Matrix')).toBeLessThan(text.indexOf('## Presets'))
+    expect(text.indexOf('## Scorecards: matrix')).toBeLessThan(text.indexOf('## Presets'))
+  })
+
+  it.each(OFFERED)(
+    '%s: holds a row for each of the twelve athletes, then the two strata',
+    (method) => {
+      const [, ...body] = tableAfter(sections.get(method)!, `### ${method}: ${presetLabel(method)}`)
+      expect(body.slice(0, 12).map((r) => r[0])).toEqual(matrixRows().map((r) => r.id))
+      expect(body.slice(12).map((r) => r[0]!.replace(/ \(\d+ plans\).*/, ''))).toEqual([
+        'Preset applies',
+        'Preset reads the default',
+      ])
+      const counts = body.slice(12).map((r) => Number(/\((\d+) plans\)/.exec(r[0]!)![1]))
+      expect(counts).toEqual(method === 'three-run-days' ? [3, 9] : [8, 4])
+    },
+  )
+
+  it('labels every row "D, a choice" with the rule of the preset, read from the registry', () => {
+    expect(presetLabel('three-run-days')).toBe('D, a choice (P2)')
+    expect(presetLabel('longer-base')).toBe('D, a choice (P4)')
+    for (const method of OFFERED) {
+      const [head, ...body] = tableAfter(
+        sections.get(method)!,
+        `### ${method}: ${presetLabel(method)}`,
+      )
+      expect(head!.at(-1)).toBe('Label')
+      for (const row of body) expect(row.at(-1), row[0]).toBe(presetLabel(method))
+    }
+  })
+
+  it.each(OFFERED)('%s: reads each athlete as the table of the matrix tests does', (method) => {
+    const rows = presetRows(method)
+    for (const row of rows) {
+      const want = READING[method][row.id]!
+      const got = row.position.reason === null ? 'applies' : row.position.reason
+      expect(got, row.id).toBe(want)
+    }
+  })
+
+  it.each(OFFERED)('%s: shows no change for a runner the preset reads as the default', (method) => {
+    const [head, ...body] = tableAfter(
+      sections.get(method)!,
+      `### ${method}: ${presetLabel(method)}`,
+    )
+    const figures = head!.slice(3, -1)
+    let read = 0
+    for (const row of body.slice(0, 12)) {
+      if (!row[2]!.startsWith('reads the default')) continue
+      read += 1
+      for (const [i, cell] of row.slice(3, -1).entries()) {
+        expect(cell, `${row[0]}: ${figures[i]}`).toMatch(/\((?:\+|-)?0(?:\.0)?\)$/)
+      }
+    }
+    expect(read).toBe(method === 'three-run-days' ? 9 : 4)
+  })
+
+  it('shows the three-run-days cap and the longer-base shape as the change of the figures', () => {
+    const find = (method: Offered, id: string) =>
+      tableAfter(sections.get(method)!, `### ${method}: ${presetLabel(method)}`)
+        .slice(1)
+        .find((r) => r[0] === id)!
+    const column = (method: Offered, name: string) =>
+      tableAfter(sections.get(method)!, `### ${method}: ${presetLabel(method)}`)[0]!.findIndex(
+        (h) => h.startsWith(name),
+      )
+    // the half marathon runs five days a week at the default and three at the preset
+    expect(find('three-run-days', 'half')[column('three-run-days', 'Run days, max')]).toBe(
+      '5 / 3 (-2)',
+    )
+    // two weeks of build become base, and the intervals of the default leave the build
+    expect(find('longer-base', 'half')[column('longer-base', 'Base weeks')]).toBe('3 / 5 (+2)')
+    expect(find('longer-base', 'half')[column('longer-base', 'Build weeks')]).toBe('6 / 4 (-2)')
+    expect(find('longer-base', 'half')[column('longer-base', 'Interval sessions')]).toBe(
+      '5 / 0 (-5)',
+    )
+    // no week plans more minutes than the default's, so no peak in minutes rises
+    for (const method of OFFERED) {
+      const peak = column(method, 'Peak min')
+      for (const row of tableAfter(
+        sections.get(method)!,
+        `### ${method}: ${presetLabel(method)}`,
+      ).slice(1, 13)) {
+        expect(row[peak], `${method} ${row[0]}`).toMatch(/\((?:\+|-)?0\)$/)
+      }
+    }
+  })
+
+  it('has no G5 word and no word for safe', () => {
+    expect(() => assertReportClean(renderPresetsSection())).not.toThrow()
+    expect(renderPresetsSection()).toContain('a choice and not a better plan')
   })
 })
 

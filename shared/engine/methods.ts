@@ -10,6 +10,7 @@
 import { persistentHoldOf, type PersistentHold } from './holds.ts'
 import { P } from './params/index.ts'
 import { PRESET_OVERRIDES, type NumericOverrideId } from './params/p-methods.ts'
+import { injuryLevel, startKind } from './startWeeks.ts'
 import {
   isPresetId,
   type AthleteState,
@@ -42,6 +43,11 @@ export function overrides(method: PresetId, id: NumericOverrideId): boolean {
 
 type DistanceClass = GoalModel['distanceClass']
 
+/** A base week that is the plan's own: not a week of a start path, which its programme sets. */
+const ownBase = (week: { readonly phase: string; readonly flags?: readonly string[] }): boolean =>
+  week.phase === 'base' &&
+  (week.flags === undefined || (startKind(week.flags) === null && injuryLevel(week.flags) === null))
+
 /**
  * The goal classes a preset names [rules P2, P4]; a preset not listed applies to every class. P2
  * is for goals from 5 km to the half marathon (decision 6 of the methods proposal): a marathon or
@@ -63,7 +69,8 @@ export function appliesToClass(method: PresetId, distanceClass: DistanceClass): 
  * - `held:<hold>`: a persistent hold of the load setting applies (see holds.ts);
  * - `novice`: the preset only lowers the run-day cap, and a novice already runs the novice days
  *   (`f5.noviceRunDays`) whatever the cap;
- * - `no-base`: the plan has no base week to lengthen [rule P4].
+ * - `no-base`: the plan has no base week of its own to lengthen [rule P4]: a week of a start path
+ *   (a ladder rung, an injury-return level, the restart floor) is the programme's and is not one.
  */
 export type MethodReason = 'not-applicable' | `held:${PersistentHold}` | 'novice' | 'no-base'
 
@@ -88,13 +95,14 @@ export interface MethodPosition {
  * preset applies to the weeks after them.
  *
  * `weeks` are the weeks of the plan, past and planned, when they are known: the check for a base
- * week reads them. Without them the check is skipped, which is right where the phases are still
- * being drawn (a plan with no base week draws the same phases as the default).
+ * week reads their phases, and their flags where they have them, so that a base week that is a
+ * week of a start path does not count. Without the weeks the check is skipped, which is right where
+ * the phases are still being drawn.
  */
 export function resolveMethod(
   input: EngineInput,
   state: AthleteState,
-  weeks?: ReadonlyArray<{ readonly phase: string }>,
+  weeks?: ReadonlyArray<{ readonly phase: string; readonly flags?: readonly string[] }>,
 ): MethodPosition {
   const requested = isPresetId(input.options.method) ? input.options.method : 'default'
   const reads = (reason: MethodReason): MethodPosition => ({
@@ -113,8 +121,6 @@ export function resolveMethod(
   if (onlyRunDays && state.experience === 'novice') return reads('novice')
   const needsBase =
     overrides['macroDesign.buildWeeks'] !== undefined || overrides.qualityByPhase === true
-  if (needsBase && weeks !== undefined && !weeks.some((w) => w.phase === 'base')) {
-    return reads('no-base')
-  }
+  if (needsBase && weeks !== undefined && !weeks.some(ownBase)) return reads('no-base')
   return { requested, effective: requested, reason: null }
 }
