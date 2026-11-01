@@ -53,6 +53,16 @@ const MAX_SESSION_MIN = 24 * 60
 const SETTLE_MS = 300
 
 /**
+ * Whether a session can no longer be changed here because it was run: completed or partial, or
+ * linked to an activity. The section then says why instead of offering the changes.
+ */
+export function isSettledForChange(session: Pick<PlanSession, 'status' | 'activityId'>): boolean {
+  return (
+    session.status === 'completed' || session.status === 'partial' || session.activityId !== null
+  )
+}
+
+/**
  * Change one session: move it to another day of its week, swap it with another session of the
  * week, shorten it, skip it or restore it. Each change is asked of the server as a dry run while
  * the runner chooses (`POST /api/plan/sessions/:id/adjust` with `dryRun`), so the section shows
@@ -123,8 +133,7 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
     box?.scrollIntoView?.({ block: 'nearest' })
   }, [pending, answered])
 
-  const settled =
-    session.status === 'completed' || session.status === 'partial' || session.activityId !== null
+  const settled = isSettledForChange(session)
   const skipped = session.status === 'skipped'
   const partners =
     today === undefined
