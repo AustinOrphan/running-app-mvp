@@ -23,6 +23,8 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
+// Each case starts a node process with tsx, which takes seconds on a loaded runner: the explicit
+// 90 s timeout on the cases below is for that process start, not for any work of the scripts.
 describe('the main-module guard of the backup scripts', () => {
   for (const [script, usage] of [
     ['backup', 'Usage: npm run backup'],

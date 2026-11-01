@@ -36,7 +36,10 @@ function makeDatabase(file: string, rows = 5): void {
   db.pragma('journal_mode = WAL')
   db.exec('CREATE TABLE note (id INTEGER PRIMARY KEY, body TEXT NOT NULL)')
   const insert = db.prepare('INSERT INTO note (body) VALUES (?)')
-  for (let i = 0; i < rows; i += 1) insert.run(`row ${i}`)
+  // One transaction: every autocommit insert is a synced write, which a loaded runner makes slow.
+  db.transaction(() => {
+    for (let i = 0; i < rows; i += 1) insert.run(`row ${i}`)
+  })()
   db.close()
 }
 
@@ -150,12 +153,17 @@ describe('createBackup', () => {
     db.exec('CREATE TABLE note (id INTEGER PRIMARY KEY, body TEXT NOT NULL)')
     db.exec('CREATE INDEX note_body ON note (body)')
     const insert = db.prepare('INSERT INTO note (body) VALUES (?)')
-    for (let i = 0; i < 3000; i += 1) insert.run(`row ${i} ${'x'.repeat(40)}`)
+    // A few pages are enough, written in one transaction: 3000 autocommit inserts took two seconds
+    // here, and over five on a loaded CI runner, all of it in the synced writes of the build.
+    db.transaction(() => {
+      for (let i = 0; i < 150; i += 1) insert.run(`row ${i} ${'x'.repeat(40)}`)
+    })()
     db.close()
-    // Overwrite the middle of the file, where index and table pages are.
+    // Page 3 is the root of the index, the page after the table's root: overwrite all of it.
     const bytes = readFileSync(file)
-    bytes.fill(0xff, Math.floor(bytes.length / 2), Math.floor(bytes.length / 2) + 4096)
+    bytes.fill(0xff, 2 * 4096, 3 * 4096)
     writeFileSync(file, bytes)
+    expect(integrityProblems(file)).not.toEqual([])
 
     await expect(createBackup(file, { kind: 'ordinary', now: AT })).rejects.toThrow()
     expect(readdirSync(join(dir, 'backups'))).toEqual([])

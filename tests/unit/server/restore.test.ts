@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { createBackup } from '../../../server/services/backup.ts'
+import { createBackup, integrityProblems } from '../../../server/services/backup.ts'
 import { restoreDatabase } from '../../../server/services/restore.ts'
 
 let dir: string
@@ -202,7 +202,11 @@ describe('restoreDatabase', () => {
   })
 })
 
-/** A WAL-mode database with enough rows and an index to span many pages. */
+/**
+ * A WAL-mode database with an index and a few pages of rows, written in one transaction (each
+ * autocommit insert is a synced write, which makes a loaded runner slow). Page 2 is the root of
+ * `marker`, page 3 of `filler` (an interior page once the rows spill), page 4 of the index.
+ */
 function makeBigDatabase(file: string): void {
   const db = new Database(file)
   db.pragma('journal_mode = WAL')
@@ -211,7 +215,9 @@ function makeBigDatabase(file: string): void {
   db.exec('CREATE INDEX filler_body ON filler (body)')
   db.prepare('INSERT INTO marker (label) VALUES (?)').run('current')
   const insert = db.prepare('INSERT INTO filler (body) VALUES (?)')
-  for (let i = 0; i < 3000; i += 1) insert.run(`row ${i} ${'x'.repeat(40)}`)
+  db.transaction(() => {
+    for (let i = 0; i < 150; i += 1) insert.run(`row ${i} ${'x'.repeat(40)}`)
+  })()
   db.close()
 }
 
@@ -226,8 +232,7 @@ describe('restoreDatabase over a damaged database', () => {
       name: 'a run of damaged pages',
       damage: (file) => {
         const bytes = readFileSync(file)
-        const middle = Math.floor(bytes.length / 2)
-        bytes.fill(0xff, middle, middle + 4096)
+        bytes.fill(0xff, 2 * 4096, 3 * 4096)
         writeFileSync(file, bytes)
       },
       asIs: true,
@@ -245,6 +250,8 @@ describe('restoreDatabase over a damaged database', () => {
     test(`restores over ${name} after a stop, keeping the damaged file`, async () => {
       makeBigDatabase(target)
       damage(target)
+      // The damage is real: SQLite finds a problem in it (a file of zero bytes is a sound empty one).
+      if (asIs) expect(integrityProblems(target)).not.toEqual([])
       const damaged = readFileSync(target)
       const backup = await backupOf('older')
 
