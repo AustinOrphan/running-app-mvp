@@ -11,10 +11,16 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Five jobs: four that run side by side, so that a run lasts as long as the longest of them and not
+# as long as their sum, and `ci`, which waits for them. `npm run check` (`check:static`, then every
+# Vitest project) is what a developer runs before a commit; `static`, `unit` and `sweeps` run its
+# parts, so a part that `check` gains has to reach one of them: `check:static` and the `!sweep`
+# project filter of `test:unit` do that on their own, and a new Vitest project is in `unit` unless it
+# is named `sweep`.
 jobs:
-  ci:
+  static:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -26,6 +32,50 @@ jobs:
       # check instead of waiting for a Dependabot PR that nobody opens. Dev dependencies are left out:
       # the Docker image installs without them.
       - run: npm audit --omit=dev --audit-level=high
+      # Lint, Prettier, typecheck and the offline research check.
+      - run: npm run check:static
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Every Vitest project except `sweep` (server and API, pure engine and shared code, web).
+      - run: npm run test:unit
+
+  sweeps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      # A red shard does not hide what the other one finds.
+      fail-fast: false
+      matrix:
+        shard: ['1/2', '2/2']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The long engine files (the `sweep` project, `tests/vitestProjects.ts`), two shards by file.
+      - run: npm run test:sweep -- --shard=${{ matrix.shard }}
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
       # The browsers are kept between runs, keyed by the installed Playwright version (the build of
       # chromium it downloads follows from it). Twice a runner hung on that download until the job's
       # 20 minutes ran out. A hit still installs the system packages chromium needs on a fresh runner.
@@ -41,7 +91,6 @@ jobs:
         run: npx playwright install --with-deps chromium
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
-      - run: npm run check
       - run: npm run build
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v7
@@ -50,3 +99,26 @@ jobs:
           name: playwright-report
           path: playwright-report
           if-no-files-found: ignore
+
+  # The one check that branch protection and the merge rule read, named `ci` as the single job was.
+  # A job that needs a failed job is skipped, and a skipped required check reads as passed, so this
+  # one runs after a failure too (not after a cancel) and fails itself unless all four succeeded.
+  ci:
+    needs: [static, unit, sweeps, e2e]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          STATIC: ${{ needs.static.result }}
+          UNIT: ${{ needs.unit.result }}
+          SWEEPS: ${{ needs.sweeps.result }}
+          E2E: ${{ needs.e2e.result }}
+        run: |
+          echo "static=$STATIC unit=$UNIT sweeps=$SWEEPS e2e=$E2E"
+          for result in "$STATIC" "$UNIT" "$SWEEPS" "$E2E"; do
+            if [ "$result" != success ]; then
+              echo "A job did not succeed."
+              exit 1
+            fi
+          done
