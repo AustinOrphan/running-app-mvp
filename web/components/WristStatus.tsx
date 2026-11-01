@@ -1,5 +1,4 @@
 import { useId } from 'react'
-import { Link } from 'react-router-dom'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import {
   wristChipLabel,
@@ -82,7 +81,9 @@ export function canSendAgain(item: Pick<WristItem, 'status'>): boolean {
 /**
  * The "On your watch" section of the session sheet: where the run stands on its way to intervals.icu
  * and the watch, what to do when it is stuck, and the workout file. Only runs have one. Offline, or
- * while the status cannot be read, the status lines are left out and the download stays.
+ * while the status cannot be read, the status lines are left out and the download stays. With
+ * sending off the section is the download alone: the Plan strip says sending is off and links to
+ * Integrations.
  */
 export function WristSection(props: {
   session: PlanSession
@@ -118,7 +119,6 @@ function RunWristSection({
     )
   }
 
-  const off = status !== undefined && !status.settings.enabled
   const item =
     status?.settings.enabled === true
       ? status.items.find((i) => i.sessionId === session.id)
@@ -126,7 +126,6 @@ function RunWristSection({
   return (
     <section className={styles.section} aria-labelledby={headingId}>
       {heading}
-      {off ? <p>{wristPlain('publish.sheet.off')}</p> : null}
       {item !== undefined ? (
         <div className={styles.state}>
           <p className={styles.stateLine}>
@@ -156,11 +155,6 @@ function RunWristSection({
           </Button>
         ) : null}
         <FileLink sessionId={session.id} />
-        {off ? (
-          <Link to="/integrations" className={styles.link}>
-            {wristPlain('publish.action.integrations')}
-          </Link>
-        ) : null}
       </div>
       {send.isError ? (
         <p role="alert" className={styles.error}>

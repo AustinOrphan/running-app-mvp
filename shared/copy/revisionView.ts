@@ -22,6 +22,7 @@ import type {
   Units,
   WeekDiffLine,
 } from '../types.ts'
+import { sameWeekHours } from './quantity.ts'
 import { REVISION_TEMPLATES } from './revision.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -104,14 +105,14 @@ export const REVISION_VIEW_TEMPLATES = {
   'diff.week': tpl('Week of {week}: {what}', { week: 'date', what: 'text' }, { shape: 'label' }),
   'diff.week.minutes': tpl(
     'running time {before} to {after}',
-    { before: 'minutes', after: 'minutes' },
+    { before: 'weekMinutes', after: 'weekMinutes' },
     { shape: 'label' },
   ),
   // A week the re-plan took as run (rules g-2, g-6): the plan stays what it was, and the minutes run
   // are the record beside it, where the line would otherwise read as a target that rose.
   'diff.week.overshoot': tpl(
     'run past its plan, {ran} against {planned}',
-    { ran: 'minutes', planned: 'minutes' },
+    { ran: 'weekMinutes', planned: 'weekMinutes' },
     { shape: 'label' },
   ),
   'diff.week.updated': tpl('updated', {}, { shape: 'label' }),
@@ -395,7 +396,12 @@ function weekLine(week: WeekDiffLine, units: Units): string {
         units,
       ),
     )
-  } else if (week.runMinBefore !== week.runMinAfter) {
+  } else if (
+    week.runMinBefore !== week.runMinAfter &&
+    // a change under the 0.1 h a week total is written at would read "4.1 h to 4.1 h": the line
+    // then says what else changed, or that the week was updated
+    !sameWeekHours(week.runMinBefore, week.runMinAfter)
+  ) {
     pieces.push(
       render(
         t['diff.week.minutes'],

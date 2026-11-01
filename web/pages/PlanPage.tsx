@@ -60,6 +60,9 @@ import {
   cycleChoiceLabel,
   cycleFieldLabel,
   cycleHintLines,
+  thisWeekLabel,
+  weekRanOfText,
+  weekRanText,
   type CycleChoice,
 } from '../../shared/copy/pageCopy.ts'
 import {
@@ -784,25 +787,53 @@ function LoadPanel({ load }: { load: LoadPosition }) {
   )
 }
 
+/** The two actions on the whole plan, as quiet buttons: update it from the latest data, build it again. */
+function PlanWideActions({
+  onUpdate,
+  onRegenerate,
+}: {
+  onUpdate: () => void
+  onRegenerate: () => void
+}) {
+  return (
+    <>
+      <Button variant="quiet" onClick={onUpdate}>
+        Update plan from latest data
+      </Button>
+      <Button variant="quiet" onClick={onRegenerate}>
+        Regenerate plan
+      </Button>
+    </>
+  )
+}
+
 /**
  * The plan shape in effect [rules P1 to P4]: the shape the plan has, one line of what it does and
  * the grade line. A shape chosen that reads as the plan's own (a goal it is not for, a persistent
  * hold, a novice's start weeks, no base to lengthen) leads with the choice and the reason, as the
  * load setting's panel does. The plan payload says which applies (`PlanWithSessions.method`); the
  * page never works it out. "Change" opens the sheet that changes the shape in place: the weeks
- * after the current one are drawn again, and the current week stays as it was drawn.
+ * after the current one are drawn again, and the current week stays as it was drawn. The two
+ * actions on the whole plan, updating it from the latest data and building it again, sit beside it
+ * as quiet buttons, so the page header keeps one outlined action.
  */
 function ShapePanel({
   method,
   goalId,
   held,
   onWhy,
+  onUpdate,
+  onRegenerate,
 }: {
   method: MethodPosition
   goalId: string
   /** The persistent hold the server reports for the runner, which reads a shape as the plan's own. */
   held: PersistentHold | null
   onWhy: (why: WhyTarget) => void
+  /** Opens the sheet that updates the plan from the latest data. */
+  onUpdate: () => void
+  /** Opens the sheet that builds the plan again. */
+  onRegenerate: () => void
 }) {
   const text = planShapePanelText(method)
   const goals = useGoals()
@@ -826,6 +857,7 @@ function ShapePanel({
           >
             {planShapeChangeLabel()}
           </Button>
+          <PlanWideActions onUpdate={onUpdate} onRegenerate={onRegenerate} />
         </div>
       </div>
       {text.lead === null ? (
@@ -860,14 +892,23 @@ function ShapePanel({
 function PlanOverview({
   plan,
   onWhy,
+  onUpdate,
+  onRegenerate,
 }: {
   plan: PlanWithSessions
   onWhy: (why: WhyTarget) => void
+  onUpdate: () => void
+  onRegenerate: () => void
 }) {
   const revisions = usePlanRevisions()
   const units = useSettings().data?.units ?? 'mi'
   const passed = plan.checklist.filter((item) => item.ok).length
   const feasibility = plan.feasibility
+  // The plan's warnings start with the feasibility notes (`warnings = [...notes, ...]` in the
+  // engine), and the Feasibility panel prints those: a warning with the code of a note is not
+  // printed a second time.
+  const noteCodes = new Set((feasibility?.notes ?? []).map((note) => note.code))
+  const warnings = plan.warnings.filter((warning) => !noteCodes.has(warning.code))
 
   return (
     <div className={styles.overview}>
@@ -903,15 +944,22 @@ function PlanOverview({
           goalId={plan.goalId}
           held={planShapeHold(plan.method, plan.load)}
           onWhy={onWhy}
+          onUpdate={onUpdate}
+          onRegenerate={onRegenerate}
         />
-      ) : null}
-      {plan.warnings.length > 0 ? (
+      ) : (
+        // The server always reads a method for a version-2 plan; the actions must not depend on it.
+        <div className={styles.panelActions}>
+          <PlanWideActions onUpdate={onUpdate} onRegenerate={onRegenerate} />
+        </div>
+      )}
+      {warnings.length > 0 ? (
         <section aria-labelledby="warnings-title" className={styles.panel}>
           <h2 id="warnings-title" className={styles.panelTitle}>
             Warnings
           </h2>
           <ul className={styles.items}>
-            {groupWarnings(plan.warnings, units).map((group) => (
+            {groupWarnings(warnings, units).map((group) => (
               <li key={group.code}>
                 <span className={styles.warningText}>
                   <span>
@@ -1065,6 +1113,48 @@ function DaysRow({
   )
 }
 
+/**
+ * The phase runs of the weeks a table shows: consecutive weeks that read the same phase label ("Base
+ * 1", "Race week", "After the race"). The first week of a run carries the run's heading, the focus
+ * line most of its weeks have (the earliest of equals), so a run of ten weeks prints it once. A
+ * week whose own focus differs from its run's (a recovery week, a step of the run-walk ladder)
+ * keeps its line in its row, so nothing the plan says about a week is left out.
+ */
+function phaseRuns(
+  weeks: readonly PlanWeek[],
+): Map<string, { heading: string | null; ownFocus: string | null }> {
+  const info = new Map<string, { heading: string | null; ownFocus: string | null }>()
+  let start = 0
+  while (start < weeks.length) {
+    const label = weekPhaseLabel(weeks[start]!)
+    let end = start
+    while (end < weeks.length && weekPhaseLabel(weeks[end]!) === label) end += 1
+    const run = weeks.slice(start, end)
+    const counts = new Map<string, number>()
+    for (const week of run) {
+      const focus = (week.focus ?? '').trim()
+      if (focus !== '') counts.set(focus, (counts.get(focus) ?? 0) + 1)
+    }
+    let common: string | null = null
+    let most = 0
+    for (const [focus, count] of counts) {
+      if (count > most) {
+        common = focus
+        most = count
+      }
+    }
+    run.forEach((week, index) => {
+      const focus = (week.focus ?? '').trim()
+      info.set(week.weekStart, {
+        heading: index === 0 ? common : null,
+        ownFocus: focus !== '' && focus !== common ? focus : null,
+      })
+    })
+    start = end
+  }
+  return info
+}
+
 function PlanTable({
   plan,
   sessions,
@@ -1085,6 +1175,16 @@ function PlanTable({
   const actual = new Map((weeks.data ?? []).map((w) => [w.weekStart, w.runMin]))
   // The current week opens to its days at first; other weeks open on request.
   const [open, setOpen] = useState<Set<string>>(() => new Set([currentMonday]))
+  // The weeks before this Monday sit behind one row at the top of the table, closed at first, so the
+  // current week stays where it is however far into the plan the runner is. A plan the calendar
+  // has not reached or has left shows every week.
+  const earlierCount =
+    currentMonday >= first && currentMonday <= last
+      ? plan.weeks.filter((week) => week.weekStart < currentMonday).length
+      : 0
+  const [showEarlier, setShowEarlier] = useState(false)
+  const shownWeeks = showEarlier ? plan.weeks : plan.weeks.slice(earlierCount)
+  const runs = phaseRuns(shownWeeks)
   const sessionsByWeek = new Map<string, PlanSessionView[]>()
   for (const session of sessions) {
     sessionsByWeek.set(session.weekStart, [
@@ -1127,7 +1227,23 @@ function PlanTable({
           </tr>
         </thead>
         <tbody>
-          {plan.weeks.map((week) => {
+          {earlierCount > 0 ? (
+            <tr className={styles.earlierRow}>
+              <td colSpan={10}>
+                <button
+                  type="button"
+                  className={styles.earlierToggle}
+                  aria-expanded={showEarlier}
+                  onClick={() => {
+                    setShowEarlier((current) => !current)
+                  }}
+                >
+                  {`Earlier weeks (${String(earlierCount)})`}
+                </button>
+              </td>
+            </tr>
+          ) : null}
+          {shownWeeks.map((week) => {
             // A version-2 week carries the engine's own recovery flag (its cycle is 3:1 or 2:1 and
             // ladder weeks are exempt); a version-1 week has none, so its index decides.
             const cutback = isV2
@@ -1139,8 +1255,15 @@ function PlanTable({
             const short = formatShortDate(week.weekStart)
             const weekSessions = sessionsByWeek.get(week.weekStart) ?? []
             const expanded = weekSessions.length > 0 && open.has(week.weekStart)
+            const run = runs.get(week.weekStart)
+            const heading = run?.heading ?? null
             return (
               <Fragment key={week.weekStart}>
+                {heading !== null ? (
+                  <tr className={styles.phaseHeading}>
+                    <td colSpan={10}>{heading}</td>
+                  </tr>
+                ) : null}
                 <tr
                   data-week={week.weekStart}
                   data-cutback={cutback ? 'true' : undefined}
@@ -1149,7 +1272,16 @@ function PlanTable({
                   aria-current={isCurrent ? 'date' : undefined}
                   className={styles.row}
                 >
-                  <td className={styles.week}>{short}</td>
+                  <td className={styles.week}>
+                    {short}
+                    {/* a space of its own: the margin is only the look, and the name reads "9 Nov This week" */}
+                    {isCurrent ? (
+                      <>
+                        {' '}
+                        <span className={styles.thisWeek}>{thisWeekLabel()}</span>
+                      </>
+                    ) : null}
+                  </td>
                   <td className={styles.phase}>
                     <PhaseChip phase={week.phase} flags={week.flags} />
                     {cutback ? <span className={styles.cutback}>cutback</span> : null}
@@ -1164,7 +1296,13 @@ function PlanTable({
                     <TargetCell week={week} units={units} />
                   </td>
                   <td className={styles.actual} data-cell="actual">
-                    {runMin === undefined ? '' : hours(runMin)}
+                    {runMin === undefined
+                      ? ''
+                      : // "of" a week with a target to run toward; a week set at no running (the rest after
+                        // a race, a window over the whole week) has none, and "0.3 of 0.0 h" says nothing
+                        isCurrent && !week.overshoot && Math.round(shownTargetMin(week)) > 0
+                        ? weekRanOfText(runMin, shownTargetMin(week))
+                        : weekRanText(runMin)}
                     {week.overshoot && runMin !== undefined ? (
                       <OvershootNote ranMin={runMin} plannedMin={week.plannedRunMin} />
                     ) : null}
@@ -1185,7 +1323,7 @@ function PlanTable({
                   <td className={styles.number} data-cell="strength">
                     {week.strengthSessions}
                   </td>
-                  <td className={styles.focus}>{week.focus}</td>
+                  <td className={styles.focus}>{run?.ownFocus ?? ''}</td>
                   <td className={styles.edit}>
                     {weekSessions.length > 0 ? (
                       <Button
@@ -1324,27 +1462,17 @@ export function PlanPage() {
         title="Plan"
         context={`${plan.data.name}. Race week of ${formatShortDate(plan.data.raceWeekStart)}.`}
         actions={
-          <>
-            {hasSessions ? (
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setNotFull(true)
-                  }}
-                >
-                  Not 100%
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setUpdating(true)
-                  }}
-                >
-                  Update plan from latest data
-                </Button>
-              </>
-            ) : null}
+          hasSessions ? (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setNotFull(true)
+              }}
+            >
+              Not 100%
+            </Button>
+          ) : (
+            // A version-1 plan has no plan shape panel to hold the action.
             <Button
               variant="secondary"
               onClick={() => {
@@ -1353,12 +1481,23 @@ export function PlanPage() {
             >
               Regenerate plan
             </Button>
-          </>
+          )
         }
       />
       {hasSessions ? <PlanWindows /> : null}
       {hasSessions ? <WristStrip sessions={sessions} /> : null}
-      {hasSessions ? <PlanOverview plan={plan.data} onWhy={setWhy} /> : null}
+      {hasSessions ? (
+        <PlanOverview
+          plan={plan.data}
+          onWhy={setWhy}
+          onUpdate={() => {
+            setUpdating(true)
+          }}
+          onRegenerate={() => {
+            setRegenerating(true)
+          }}
+        />
+      ) : null}
       <PlanTable plan={plan.data} sessions={sessions} onOpenSession={setOpenSessionId} />
       {openSession !== undefined ? (
         <SessionSheet

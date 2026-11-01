@@ -49,9 +49,9 @@ const rebuilding = (plan: PlanDraft) =>
   plan.weeks.filter((w) => REBUILDING.test(w.focus)).map((w) => w.weekStart)
 
 describe('the focus of a week in the rebuild zone [rules g-8]', () => {
-  it('is worded from the ceiling in whole minutes, and passes the G5 lint', () => {
-    expect(loadFocus(196)).toBe('Rebuilding toward 196 min a week')
-    expect(loadFocus(195.6)).toBe('Rebuilding toward 196 min a week')
+  it('is worded from the ceiling in hours, and passes the G5 lint', () => {
+    expect(loadFocus(196)).toBe('Rebuilding toward 3.3 h a week')
+    expect(loadFocus(195.6)).toBe('Rebuilding toward 3.3 h a week')
     expect(lintText(loadFocus(238))).toEqual([])
   })
 

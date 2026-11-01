@@ -12,7 +12,3 @@
   list-style: none;
   font-size: var(--text-base);
 }
-
-.flags a {
-  color: var(--accent);
-}

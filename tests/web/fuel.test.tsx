@@ -4,6 +4,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { FUEL_UI_TEMPLATES } from '../../shared/copy/fuelUi.ts'
+import { gradeLegend } from '../../shared/copy/grades.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { eahCard, fuelTargetFor, replayLadder } from '../../shared/engine/fuel.ts'
 import {
@@ -1363,6 +1364,19 @@ describe('the Fuel lab page: the target', () => {
     expectCleanCopy(card)
   })
 
+  test('the nausea plan is a disclosure row: it keeps the browser marker, a 44 px row, no link look', () => {
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/fuel/FuelTargetDetails.module.css'),
+      'utf8',
+    )
+    const summary = /\.summary \{([^}]*)\}/.exec(css)?.[1] ?? ''
+    // `display: list-item` keeps the disclosure marker, the cue that the line opens; `flex` drops it
+    expect(summary).toMatch(/display: list-item;/)
+    expect(summary).not.toMatch(/display: (flex|block|inline)/)
+    expect(summary).toMatch(/padding-block: calc\(\(2\.75rem - var\(--lh-sm\)\) \/ 2\);/)
+    expect(summary).toMatch(/cursor: pointer;/)
+  })
+
   test('opens the nausea plan when a warm day brings it forward, and says why the rate stays', async () => {
     // One tolerated run at the floor opens 60 g/h; the forecast is hot, so the target stays put.
     const view = targetFor([loggedRun(1, { servings: 6, gut: 0 })], ENGINE_SETTINGS, true)
@@ -1431,9 +1445,39 @@ describe('the Fuel lab page: the tier ladder', () => {
       expect(within(item).getByText(rungStateLabel(rung.state))).toBeInTheDocument()
       expect(within(item).getByText(`Evidence grade ${rung.grade}`)).toBeInTheDocument()
       expect(item.getAttribute('aria-current')).toBe(index === ladder.currentIndex ? 'step' : null)
-      // Every rung above the floor says its evidence is thin.
-      expect(within(item).queryByText('Low certainty') !== null).toBe(index > 0)
+      // A rung above the floor has thin evidence and stands under the one line below the intro
+      // (rule H8, ADR 0011); its C or D badge is the grade, and no chip repeats the label.
+      expect(rung.lowCertainty).toBe(index > 0)
+      if (rung.lowCertainty) expect(['C', 'D']).toContain(rung.grade)
+      expect(within(item).queryByText(/Low certainty/)).not.toBeInTheDocument()
     })
+    // The label every rung above the floor carries is said once, above them, in the words of the
+    // target's own line, and before the legend of the grades.
+    const certainty = within(card).getByText(
+      `Low certainty: above ${String(P.h7.carbFloorGPerH.value[1])} g/h the evidence is thin. This is a rehearsal, not a promise.`,
+    )
+    expect(certainty).toBeVisible()
+    expect(within(card).getAllByText(/Low certainty/)).toHaveLength(1)
+    const intro0 = within(card).getByText(/climbed on long runs from the start of the build/)
+    const legend0 = within(card).getByText(/^Grade [A-D]: /)
+    expect(
+      intro0.compareDocumentPosition(certainty) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      certainty.compareDocumentPosition(legend0) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(list.compareDocumentPosition(certainty) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    const legend = within(card).getByText(/^Grade [A-D]: /)
+    expect(legend).toBeVisible()
+    expect(legend).toHaveTextContent(gradeLegend(ladder.rungs.map((rung) => rung.grade)))
+    // one legend line, under the intro, for the grades the ladder shows and no other
+    const intro = within(card).getByText(/climbed on long runs from the start of the build/)
+    expect(intro.compareDocumentPosition(legend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const shownGrades = new Set(ladder.rungs.map((rung) => rung.grade))
+    for (const grade of ['A', 'B', 'C', 'D'] as const) {
+      expect(legend.textContent?.includes(`Grade ${grade}:`), grade).toBe(shownGrades.has(grade))
+    }
+    expect(legend.textContent).toMatch(/Grade D: a convention or engineering default/)
     const shown = new Set(ladder.rungs.map((rung) => rungStateLabel(rung.state)))
     expect(shown).toEqual(new Set(scenario.words))
     expect(

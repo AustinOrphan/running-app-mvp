@@ -3,10 +3,6 @@
   font-size: var(--text-sm);
 }
 
-.back a {
-  color: var(--accent);
-}
-
 .section {
   padding: var(--space-6) 0;
   border-top: 1px solid var(--border);
@@ -53,10 +49,6 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
   max-width: var(--prose-max);
-}
-
-.note a {
-  color: var(--accent);
 }
 
 .charts {
@@ -175,10 +167,6 @@
   margin: 0;
   padding: var(--space-4) 0;
   border-top: 1px solid var(--border);
-}
-
-.file a {
-  color: var(--accent);
 }
 
 .danger {

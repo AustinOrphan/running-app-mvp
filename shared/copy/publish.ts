@@ -96,12 +96,12 @@ export const PUBLISH_TEMPLATES = {
   'publish.strip.sent': tpl('{n} on your watch or sent', { n: 'count' }, { shape: 'label' }),
   'publish.strip.waiting': tpl('{n} waiting', { n: 'count' }, { shape: 'label' }),
   'publish.strip.not-delivered': tpl('{n} not delivered', { n: 'count' }, { shape: 'label' }),
+  // With sending off the strip is one line: this sentence, then the links to the files and to
+  // Integrations. The session sheet leaves the explanation to the strip and keeps its one link.
+  'publish.strip.off': tpl('Sending to your watch is off.'),
 
   // The section of the session sheet.
   'publish.sheet.heading': tpl('On your watch', {}, { shape: 'label' }),
-  'publish.sheet.off': tpl(
-    'Sending to your watch is off. Download the workout file, or turn it on under Integrations.',
-  ),
   'publish.sheet.eased': tpl(
     "Today's readiness eased this session. The watch has the easy version; this page keeps the plan.",
   ),
@@ -475,7 +475,7 @@ export function wristLineSentence(item: WristWording & Pick<WristItem, 'variant'
 export type WristPlainId =
   | 'publish.strip.heading'
   | 'publish.sheet.heading'
-  | 'publish.sheet.off'
+  | 'publish.strip.off'
   | 'publish.sheet.eased'
   | 'publish.action.send-again'
   | 'publish.action.integrations'

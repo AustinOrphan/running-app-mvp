@@ -192,14 +192,6 @@ const ELSEWHERE: Record<string, Row> = {
       { role: 'link', name: 'Download the workout file' },
     ],
   },
-  'publish.sheet.off': {
-    says: 'Download the workout file, or turn it on under Integrations',
-    show: planSheet({ sending: false }),
-    controls: [
-      { role: 'link', name: 'Download the workout file' },
-      { role: 'link', name: 'Open Integrations' },
-    ],
-  },
 }
 
 describe('the sentences of the wrist routes', () => {

@@ -37,6 +37,7 @@ import {
   fluidReferenceNote,
   fuelDisclaimer,
   fuelWatchText,
+  lowCertaintyLine,
   gutTrainingText,
   loggedTotalText,
   rateText,
@@ -1426,7 +1427,11 @@ describe('fuel copy agrees with the registry', () => {
     expect(text.multiCarb).toContain(`Above ${String(P.h7.carbTier1GPerH.value)} g/h`)
     withParam(P.h7.carbFloorGPerH, [25, 45], () => {
       expect(describeFuelTarget(target).certainty).toContain('above 45 g/h')
+      expect(lowCertaintyLine()).toContain('above 45 g/h')
     })
+    // the line over the ladder is the target's own label, from the one template
+    expect(lowCertaintyLine()).toBe(text.certainty)
+    expect(lowCertaintyLine()).toMatch(/^Low certainty: .* a rehearsal, not a promise\.$/)
     expect(rungStateLabel('opens-after-second-tier')).toBe(
       `Opens after ${String(P.h7.carbTier2GPerH.value)} g/h goes well`,
     )
@@ -1434,7 +1439,9 @@ describe('fuel copy agrees with the registry', () => {
 
   it('quotes the counting thresholds from the Params', () => {
     const tooShort = lastStep(replay(runs({ hours: 1 })))
-    expect(countsLine(tooShort)).toContain(`${String(P.h7.logMinDurationMin.value)} min`)
+    // A session length of two hours or more reads in hours: the 120 minutes of the Param read "2 h".
+    expect(P.h7.logMinDurationMin.value).toBe(120)
+    expect(countsLine(tooShort)).toContain('shorter than 2 h')
     const inBlock = lastStep(replay(runs({ hours: 0.5 }), NO_OPT_IN, [START]))
     expect(countsLine(inBlock)).toContain(`${String(P.h7.gutTrainingSessionMinMin.value)} min`)
     const below = lastStep(replay(runs(OK, { gPerH: 5 })))

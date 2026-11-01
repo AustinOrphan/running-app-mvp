@@ -120,6 +120,31 @@ describe('Plan page, version-2 plans', () => {
     expect(document.body.textContent).not.toMatch(/behind|missed|streak/i)
   })
 
+  test('prints a feasibility note once: the plan warnings that repeat a note are left out of Warnings', async () => {
+    const base = makeV2Plan()
+    const note = base.feasibility!.notes[0]!
+    // The engine starts `warnings` with the feasibility notes, so a stored plan carries each twice.
+    mockApi(routes(makeV2Plan({ warnings: [note, ...base.warnings] })))
+    renderPlan()
+    const feasibility = await screen.findByRole('region', { name: 'Feasibility' })
+    expect(within(feasibility).getByText('Two fewer weeks than usual.')).toBeInTheDocument()
+    expect(screen.getAllByText('Two fewer weeks than usual.')).toHaveLength(1)
+    const warnings = screen.getByRole('region', { name: 'Warnings' })
+    expect(within(warnings).getAllByRole('listitem')).toHaveLength(1)
+    expect(
+      within(warnings).getByText('Week of 18 Jan held at the weekly ramp limit.'),
+    ).toBeInTheDocument()
+  })
+
+  test('has no Warnings panel when every warning is a feasibility note', async () => {
+    const base = makeV2Plan()
+    mockApi(routes(makeV2Plan({ warnings: [...base.feasibility!.notes] })))
+    renderPlan()
+    await screen.findByRole('region', { name: 'Feasibility' })
+    expect(screen.queryByRole('region', { name: 'Warnings' })).not.toBeInTheDocument()
+    expect(screen.getAllByText('Two fewer weeks than usual.')).toHaveLength(1)
+  })
+
   test('marks the cutback chip from the engine recovery flag, not from the week index', async () => {
     mockApi(
       routes(
@@ -260,7 +285,7 @@ describe('Plan page, version-2 plans', () => {
     ).toBeInTheDocument()
     expect(within(changed).getByText('Weekly update')).toBeInTheDocument()
     expect(
-      within(changed).getByText(/Week of 18 Jan: Weekly running time 330 min to 300 min/),
+      within(changed).getByText(/Week of 18 Jan: Weekly running time 5.5 h to 5.0 h/),
     ).toBeInTheDocument()
   })
 
@@ -268,11 +293,14 @@ describe('Plan page, version-2 plans', () => {
     const user = userEvent.setup()
     mockApi(routes(makeV2Plan()))
     renderPlan()
-    await screen.findByText('Week focus 0')
+    await screen.findByText('Week focus 1')
     expect(screen.getByRole('button', { name: /Steady long run/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Hill strides/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Easy run/ })).not.toBeInTheDocument()
 
+    // the week before this one is behind the fold
+    expect(screen.queryByRole('button', { name: 'Days for week of 4 Jan' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Earlier weeks (1)' }))
     const toggle = screen.getByRole('button', { name: 'Days for week of 4 Jan' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     await user.click(toggle)
@@ -561,7 +589,7 @@ describe('Plan page, What changed', () => {
     await userEvent.setup().click(within(changed).getByText('What changed'))
     expect(within(changed).getByText('Weekly update')).toBeInTheDocument()
     expect(
-      within(changed).getByText('Week of 11 Jan: running time 300 min to 270 min'),
+      within(changed).getByText('Week of 11 Jan: running time 5.0 h to 4.5 h'),
     ).toBeInTheDocument()
     expect(
       within(changed).getByText('Thu 14 Jan: Threshold intervals 40 min to Easy run 30 min'),
@@ -687,9 +715,14 @@ describe('Plan page, What changed', () => {
 describe('Plan page, rest windows', () => {
   const todayRoute = { 'GET /api/today': () => makeToday({ date: '2027-01-13' }) }
 
-  test('the header has Not 100% beside Update plan from latest data, and Not 100% opens the sheet', async () => {
+  test('the header has Not 100% alone, the two actions on the plan sit in the Plan shape panel, and Not 100% opens the sheet', async () => {
     const user = userEvent.setup()
-    mockApi(routes(makeV2Plan(), todayRoute))
+    mockApi(
+      routes(
+        makeV2Plan({ method: { requested: 'default', effective: 'default', reason: null } }),
+        todayRoute,
+      ),
+    )
     renderPlan()
     await screen.findByRole('button', { name: 'Not 100%' })
     const header = screen.getByRole('banner')
@@ -697,7 +730,13 @@ describe('Plan page, rest windows', () => {
       within(header)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual(['Not 100%', 'Update plan from latest data', 'Regenerate plan'])
+    ).toEqual(['Not 100%'])
+    const panel = await screen.findByRole('region', { name: 'Plan shape' })
+    expect(
+      within(panel)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Why', 'Change', 'Update plan from latest data', 'Regenerate plan'])
     await user.click(within(header).getByRole('button', { name: 'Not 100%' }))
     const dialog = await screen.findByRole('dialog', { name: 'Not 100%' })
     expect(await within(dialog).findByRole('radio', { name: /Ill, above the neck/ })).toBeVisible()
@@ -709,7 +748,7 @@ describe('Plan page, rest windows', () => {
   test('without a window there is no banner and the server is not asked for its day', async () => {
     const { calls } = mockApi(routes(makeV2Plan()))
     renderPlan()
-    await screen.findByText('Week focus 0')
+    await screen.findByText('Week focus 1')
     await waitFor(() => {
       expect(calls.some((c) => c.url.startsWith('/api/plan/disruptions'))).toBe(true)
     })
@@ -785,6 +824,7 @@ describe('Plan page, rest windows', () => {
   })
 
   test('a week a window touches carries Rest window, and the weeks held to the restart, Return week', async () => {
+    const user = userEvent.setup()
     mockApi(
       routes(
         makeV2Plan({
@@ -797,7 +837,8 @@ describe('Plan page, rest windows', () => {
       ),
     )
     renderPlan()
-    await screen.findByText('Week focus 0')
+    await screen.findByText('Week focus 1')
+    await user.click(screen.getByRole('button', { name: 'Earlier weeks (1)' }))
     const row = (weekStart: string) =>
       document.querySelector<HTMLElement>(`tr[data-week="${weekStart}"]`)!
     expect(within(row('2027-01-04')).queryByText('Rest window')).not.toBeInTheDocument()
@@ -1133,25 +1174,33 @@ describe('Plan page, a week run past its plan', () => {
     // 79 minutes is 1.3 hours; the raised target of 144 minutes (2.4 hours) is not shown as one.
     expect(cell(CURRENT, 'target').textContent?.trim()).toBe('1.3\u00a0h')
     expect(cell(CURRENT, 'target')).not.toHaveTextContent('2.4')
-    expect(cell(CURRENT, 'actual').textContent).toBe('2.4\u00a0h1.1 h over the plan')
+    // the run is named, and a week run past its plan has no target to be "of"
+    expect(cell(CURRENT, 'actual').textContent).toBe('2.4 h run1.1 h over the plan')
     expect(within(row(CURRENT)).getAllByText('1.1 h over the plan')).toHaveLength(1)
     expect(screen.getAllByText(/over the plan/)).toHaveLength(1)
     expectCleanCopy(document.body)
   })
 
   test('leaves a week that was not run past its plan exactly as it was', async () => {
+    const user = userEvent.setup()
     mockApi(withRuns())
     renderPlan()
     await screen.findByText('Week focus 1')
+    await user.click(screen.getByRole('button', { name: 'Earlier weeks (1)' }))
     await waitFor(() => {
       expect(cell('2027-01-04', 'actual')).toHaveTextContent('4.7 h')
     })
 
     // The row text of a normal week, target and run beside each other: no note, no extra element.
     expect(cell('2027-01-04', 'target').textContent?.trim()).toBe('5.0\u00a0h')
-    expect(cell('2027-01-04', 'actual').textContent).toBe('4.7\u00a0h')
+    expect(cell('2027-01-04', 'actual').textContent).toBe('4.7 h run')
+    // the focus line is the heading row's, once for the run, and not in the row
     expect(row('2027-01-04').textContent).toBe(
-      '4 JanBase 5.0\u00a0h4.7\u00a0hLong run 90\u00a0min, 4 run days, strength 190\u00a0min—41Week focus 0DaysEdit',
+      '4 JanBase 5.0\u00a0h4.7 h runLong run 90\u00a0min, 4 run days, strength 190\u00a0min—41DaysEdit',
+    )
+    expect(screen.getAllByText('Week focus 0')).toHaveLength(1)
+    expect(screen.getByText('Week focus 0').closest('tr')).toBe(
+      row('2027-01-04').previousElementSibling,
     )
     expect(cell('2027-01-18', 'target').textContent?.trim()).toBe('5.0\u00a0h')
     expect(cell('2027-01-18', 'actual').textContent).toBe('')
@@ -1573,8 +1622,8 @@ describe('Plan page, changing the plan shape', () => {
     expect(
       within(panel)
         .getAllByRole('button')
-        .map((button) => button.getAttribute('aria-label')),
-    ).toEqual(['Why this shape', TITLE])
+        .map((button) => button.getAttribute('aria-label') ?? button.textContent),
+    ).toEqual(['Why this shape', TITLE, 'Update plan from latest data', 'Regenerate plan'])
     // the visible word is "Change", as on the load setting's panel, and its name says which panel
     const change = within(panel).getByRole('button', { name: TITLE })
     expect(change).toHaveTextContent('Change')
@@ -2120,7 +2169,7 @@ describe('Plan page, the plan shape', () => {
       },
     )
 
-    test('offers Why and the change action, and nothing else', async () => {
+    test('offers Why, the change action and the two actions on the whole plan, and nothing else', async () => {
       mockApi(
         routes(
           makeV2Plan({ method: method({ requested: 'longer-base', effective: 'longer-base' }) }),
@@ -2131,8 +2180,13 @@ describe('Plan page, the plan shape', () => {
       expect(
         within(region)
           .getAllByRole('button')
-          .map((button) => button.getAttribute('aria-label')),
-      ).toEqual(['Why this shape', 'Change plan shape'])
+          .map((button) => button.getAttribute('aria-label') ?? button.textContent),
+      ).toEqual([
+        'Why this shape',
+        'Change plan shape',
+        'Update plan from latest data',
+        'Regenerate plan',
+      ])
     })
 
     test('sits after the load setting, and a plan with no method has no panel', async () => {
@@ -2143,11 +2197,13 @@ describe('Plan page, the plan shape', () => {
       expect(load.compareDocumentPosition(shape) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
-    test('has no panel for a plan with no method', async () => {
+    test('has no panel for a plan with no method, and the two actions on the plan stay', async () => {
       mockApi(routes(makeV2Plan({ method: null })))
       renderPlan()
       await screen.findByRole('region', { name: 'Feasibility' })
       expect(screen.queryByRole('region', { name: 'Plan shape' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Update plan from latest data' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Regenerate plan' })).toBeEnabled()
     })
 
     test.each([
@@ -2176,7 +2232,7 @@ describe('Plan page, version-1 plans', () => {
   test('stay as before: no feasibility, no checks, no day cards, no revisions request', async () => {
     const { calls } = mockApi(routes(makeV1Plan()))
     renderPlan()
-    await screen.findByText('Week focus 0')
+    await screen.findByText('Week focus 1')
     expect(screen.queryByRole('region', { name: 'Feasibility' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Plan checks' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Days for week/ })).not.toBeInTheDocument()
@@ -2184,6 +2240,10 @@ describe('Plan page, version-1 plans', () => {
       screen.queryByRole('button', { name: 'Update plan from latest data' }),
     ).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Not 100%' })).not.toBeInTheDocument()
+    // the one action a version-1 plan has stays in the header, which has no shape panel to hold it
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', { name: 'Regenerate plan' }),
+    ).toBeEnabled()
     expect(calls.some((c) => c.url.startsWith('/api/plan/revisions'))).toBe(false)
     expect(calls.some((c) => c.url.startsWith('/api/plan/disruptions'))).toBe(false)
   })

@@ -3,11 +3,18 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays } from '../../shared/dates.ts'
+import { untilHint } from '../../shared/copy/windowView.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import type { DisruptionResult, PlanPreview, TodayView } from '../../shared/types.ts'
 import { NotFullSheet } from '../../web/components/disruption/NotFullSheet.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  expectCleanCopy,
+  expectTouchScale,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import {
   AVAILABLE,
   makeBrief,
@@ -222,7 +229,9 @@ describe('Not 100%, step 2', () => {
     expect(within(dialog).getByLabelText('Until')).toHaveValue('2026-03-18')
     expect(within(dialog).getByText('You can start this in the past.')).toBeInTheDocument()
     expect(
-      within(dialog).getByText('The last day it affects training. You can change it later.'),
+      within(dialog).getByText(
+        'The last day you feel it. The plan adds a symptom-free day and three easy days after it. You can change it later.',
+      ),
     ).toBeInTheDocument()
     // The bounds are the Params': a start up to j9.maxBackdateDays back, a window of up to j9.maxWindowDays.
     expect(P.j9.maxBackdateDays.value).toBe(28)
@@ -256,6 +265,48 @@ describe('Not 100%, step 2', () => {
     expectCleanCopy(dialog)
   })
 
+  test.each([
+    {
+      reason: /Ill, above the neck/,
+      hint: 'The last day you feel it. The plan adds a symptom-free day and three easy days after it. You can change it later.',
+    },
+    {
+      reason: /Ill, below the neck/,
+      hint: 'The last day you feel it. The plan adds a symptom-free day and three easy days after it. You can change it later.',
+    },
+    {
+      // a niggle has no symptom-free wait: the rule note under the dates says so
+      reason: /A niggle or pain/,
+      hint: 'The last day you feel it. The plan adds three easy days after it. You can change it later.',
+    },
+    { reason: /Travelling/, hint: 'The last day you are away. You can change it later.' },
+    {
+      reason: /Short on time/,
+      hint: 'The last day you are short on time. You can change it later.',
+    },
+  ])('the hint under Until says what the last day is for $reason', async ({ reason, hint }) => {
+    const user = userEvent.setup()
+    renderSheet()
+    const { dialog } = await open(user)
+    await toWhen(user, dialog, reason)
+    expect(within(dialog).getByText(hint)).toBeInTheDocument()
+    // the old hint named no reason and left out what the plan adds after the last day
+    expect(dialog).not.toHaveTextContent('The last day it affects training')
+    expectCleanCopy(dialog)
+  })
+
+  test('the counts in the hint are the n-3 and j9 Params', () => {
+    expect(P.n3.illnessSymptomFreeDays.value).toBe(1)
+    expect(P.n3.illnessEasyDaysBeforeIntensity.value).toBe(3)
+    expect(P.j9.niggleEasyDays.value).toBe(3)
+    expect(untilHint('illness-above-neck', 'km')).toBe(
+      'The last day you feel it. The plan adds a symptom-free day and three easy days after it.',
+    )
+    expect(untilHint('niggle', 'mi', { changeLater: true })).toBe(
+      'The last day you feel it. The plan adds three easy days after it. You can change it later.',
+    )
+  })
+
   test('a niggle takes the area, a 0 to 10 pain, the gait change and the bone-pain notice', async () => {
     const user = userEvent.setup()
     const { calls } = renderSheet({ 'POST /api/plan/preview': () => illnessPreview() })
@@ -273,6 +324,10 @@ describe('Not 100%, step 2', () => {
     )
     expect(dialog).toHaveTextContent('Pain at one spot on a bone pauses progression')
     await user.type(within(dialog).getByLabelText('Where is it?'), 'Left calf')
+    expectTouchScale(within(dialog).getByRole('group', { name: 'Pain (0 to 10)' }), {
+      steps: 11,
+      columns: 6,
+    })
     await user.click(within(dialog).getByRole('button', { name: 'Pain (0 to 10) 3' }))
     await user.click(within(dialog).getByRole('checkbox', { name: 'It changes how I walk or run' }))
     // A niggle may rest or allow short easy runs; resting is the start.
@@ -423,7 +478,7 @@ describe('Not 100%, step 3', () => {
     ).toBeInTheDocument()
     expect(
       within(dialog).getByText(
-        'Running time over the next four weeks: 1,140 min becomes 1,010 min. The minutes you rest are not added back.',
+        'Running time over the next four weeks: 19.0 h becomes 16.8 h. The minutes you rest are not added back.',
       ),
     ).toBeInTheDocument()
     const worth = within(dialog).getByRole('list', { name: 'Worth knowing' })
@@ -469,7 +524,7 @@ describe('Not 100%, step 3', () => {
     await toReview(user, dialog)
     expect(
       within(dialog).getByText(
-        'Running time over the next four weeks: 600 min becomes 480 min. The minutes you rest are not added back.',
+        'Running time over the next four weeks: 10.0 h becomes 8.0 h. The minutes you rest are not added back.',
       ),
     ).toBeInTheDocument()
   })
@@ -592,7 +647,7 @@ describe('Not 100%, step 3', () => {
     ).not.toBeInTheDocument()
     expect(
       within(dialog).getByText(
-        'Running time over the next four weeks: 1,140 min becomes 980 min. The minutes you rest are not added back.',
+        'Running time over the next four weeks: 19.0 h becomes 16.3 h. The minutes you rest are not added back.',
       ),
     ).toBeInTheDocument()
 

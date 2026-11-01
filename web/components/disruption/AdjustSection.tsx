@@ -53,6 +53,16 @@ const MAX_SESSION_MIN = 24 * 60
 const SETTLE_MS = 300
 
 /**
+ * Whether a session can no longer be changed here because it was run: completed or partial, or
+ * linked to an activity. The section then says why instead of offering the changes.
+ */
+export function isSettledForChange(session: Pick<PlanSession, 'status' | 'activityId'>): boolean {
+  return (
+    session.status === 'completed' || session.status === 'partial' || session.activityId !== null
+  )
+}
+
+/**
  * Change one session: move it to another day of its week, swap it with another session of the
  * week, shorten it, skip it or restore it. Each change is asked of the server as a dry run while
  * the runner chooses (`POST /api/plan/sessions/:id/adjust` with `dryRun`), so the section shows
@@ -85,6 +95,8 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
   const heading = useRef<HTMLHeadingElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const resultBox = useRef<HTMLDivElement>(null)
+  // The change whose answer has been brought into view, so one choice scrolls once.
+  const shownFor = useRef<PlanAdjustment | null>(null)
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const units = settings.data?.units ?? 'km'
 
@@ -106,9 +118,22 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
   const todayView = useToday({ enabled: swapOpen })
   const today = todayView.data?.date
   const dry = useAdjustPreview(session.id, pending)
+  const answered = dry.data !== undefined
 
-  const settled =
-    session.status === 'completed' || session.status === 'partial' || session.activityId !== null
+  // The answer to a change chosen with a button (or a list) is below the controls, and on a sheet
+  // already at its height cap that is off the screen: bring it in, by the least scroll. A typed
+  // field that has focus keeps the view where the runner is typing, and a device with no
+  // `scrollIntoView` (a test's DOM) has nothing to call.
+  useEffect(() => {
+    if (pending === null || !answered || shownFor.current === pending) return
+    shownFor.current = pending
+    const active = document.activeElement
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return
+    const box: { scrollIntoView?: (options: ScrollIntoViewOptions) => void } | null = panel.current
+    box?.scrollIntoView?.({ block: 'nearest' })
+  }, [pending, answered])
+
+  const settled = isSettledForChange(session)
   const skipped = session.status === 'skipped'
   const partners =
     today === undefined

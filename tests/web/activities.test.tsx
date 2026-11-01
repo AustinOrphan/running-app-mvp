@@ -12,6 +12,7 @@ import {
   activityPage,
   activityRoute,
   expectCleanCopy,
+  expectTouchScale,
   mockApi,
   renderWithProviders,
   type MockRoutes,
@@ -289,6 +290,12 @@ describe('Activities page', () => {
       '9',
       '10',
     ])
+
+    // Pain is a touch scale, 6 and 5; the RPE row above it is its own grid of 5 and 5
+    expectTouchScale(within(dialog).getByRole('group', { name: 'Pain' }), {
+      steps: 11,
+      columns: 6,
+    })
 
     await user.type(within(dialog).getByLabelText('Duration'), '50')
     fireEvent.change(within(dialog).getByLabelText('Start time'), { target: { value: '06:30' } })

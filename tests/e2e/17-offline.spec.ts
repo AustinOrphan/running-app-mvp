@@ -190,6 +190,14 @@ test("opens today's session with no connection, says when it was saved, and expl
     drawer.getByText(/^Your figures could not be loaded\. The rule and papers below still apply\./),
   ).toBeVisible()
   await expect(drawer.getByRole('alert')).toHaveCount(1)
+  // A rule is a fold whose row says how many papers stand behind it; open one to read them.
+  const row = drawer
+    .locator('summary')
+    .filter({ hasText: /\d+ papers?$/ })
+    .first()
+  await expect(row).toBeVisible()
+  if ((await row.locator('xpath=ancestor::details').getAttribute('open')) === null)
+    await row.click()
   await expect(drawer.getByText('Papers', { exact: true }).first()).toBeVisible()
   await drawer.getByRole('button', { name: 'Close' }).click()
   await expect(drawer).toBeHidden()

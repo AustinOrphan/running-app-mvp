@@ -27,7 +27,7 @@ import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
 import { WhyDrawer } from './WhyDrawer.tsx'
 import { WristSection } from './WristStatus.tsx'
-import { AdjustSection } from './disruption/AdjustSection.tsx'
+import { AdjustSection, isSettledForChange } from './disruption/AdjustSection.tsx'
 import { SessionTargets } from './today/SessionTargets.tsx'
 import { unratedEffortNote } from './engineText.ts'
 import {
@@ -358,9 +358,13 @@ function LinkSection({ session, units }: { session: PlanSession; units: Units | 
 }
 
 /**
- * Prescription, steps, why drawer, the workout of a strength session, linked activity, execution
- * assessment, link, and the changes a runner can make: move, swap, shorten, skip (`AdjustSection`). The sheet is one exported
- * component: Plan, Today's hero and the week strip open it with a session and `onClose`.
+ * Prescription, steps, why drawer, the workout of a strength session, the changes a runner can make:
+ * move, swap, shorten, skip (`AdjustSection`), execution assessment, link. For a session still to
+ * run the change section comes before the watch, how it went and the linked activity, so a tap on
+ * Skip is answered near where it was made. For a session that is settled (completed, partial or
+ * linked) the section is only the sentence that says why it cannot change, and it stays after the
+ * activity and the assessment, which are what the runner opened the sheet for. The sheet is one
+ * exported component: Plan, Today's hero and the week strip open it with a session and `onClose`.
  */
 export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const settings = useSettings()
@@ -369,6 +373,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const [whyOpen, setWhyOpen] = useState(false)
   const original = session.original
   const estimate = session.distanceEstimate ?? null
+  const settled = isSettledForChange(session)
 
   return (
     <>
@@ -450,6 +455,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
 
           {session.kind === 'strength' ? <SessionStrengthSection session={session} /> : null}
           <FuelSessionSection session={session} />
+          {settled ? null : <AdjustSection session={session} />}
           <WristSection session={session} workout={workout.data} />
           {session.execution !== null ? (
             <Assessment
@@ -459,7 +465,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
             />
           ) : null}
           <LinkSection session={session} units={units} />
-          <AdjustSection session={session} />
+          {settled ? <AdjustSection session={session} /> : null}
         </div>
       </Sheet>
       <WhyDrawer

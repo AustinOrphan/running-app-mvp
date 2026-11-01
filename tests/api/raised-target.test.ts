@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { assertCleanCopy } from '../../shared/copy/lint.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
+import { minutesToHours1 } from '../../shared/units.ts'
 import type { Deps } from '../../server/app.ts'
 import { replanActivePlan } from '../../server/services/planEngine.ts'
 import type {
@@ -192,7 +193,7 @@ describe('H22: a target raised within the limit', () => {
     // The re-plan did other work (a busy day closed), so this revision is one the list shows.
     expect(made.diff?.empty).toBe(false)
     expect(made.summary).toContain(
-      "Week of Mon 26 Oct: the target set by hand, 230 min, stays; the plan's own figure would be 209 min.",
+      "Week of Mon 26 Oct: the target set by hand, 3.8 h, stays; the plan's own figure would be 3.5 h.",
     )
     assertCleanCopy(made.summary, 'revision summary')
     const served = (await client(ctx, f.u).get('/api/plan/revisions')).body as PlanRevisionView[]
@@ -286,7 +287,7 @@ describe('H23: a target raised past the limit', () => {
     ])
     expect(made.diff?.empty).toBe(false)
     expect(made.summary).toContain(
-      'Week of Mon 26 Oct: the target set by hand, 400 min, is lowered to 247 min, the most the limits allow that week (growth over two weeks stays within 30%).',
+      'Week of Mon 26 Oct: the target set by hand, 6.7 h, is lowered to 4.1 h, the most the limits allow that week (growth over two weeks stays within 30%).',
     )
     assertCleanCopy(made.summary, 'revision summary')
   })
@@ -367,7 +368,7 @@ describe('H23: a target raised past the limit', () => {
       }),
     ])
     expect(made.summary).toContain(
-      "Week of Mon 19 Oct: the target set by hand, 400 min, is lowered to 260 min, the plan's own figure that week, which the limits do not go under.",
+      "Week of Mon 19 Oct: the target set by hand, 6.7 h, is lowered to 4.3 h, the plan's own figure that week, which the limits do not go under.",
     )
     assertCleanCopy(made.summary, 'revision summary')
     // the plan's own figure is not the ramp's limit, so the week is the plan's again
@@ -791,7 +792,7 @@ describe('a week run past its plan', () => {
   test('the summary and the diff word the week as run past its plan', async () => {
     const { f, planned, ran, made } = await runPastPlan('overshoot-revision@example.com')
 
-    const sentence = `Week of Mon 19 Oct was run past its plan: ${String(ran)} min against ${String(planned)} min; the weeks after it are drawn from the plan.`
+    const sentence = `Week of Mon 19 Oct was run past its plan: ${minutesToHours1(ran)} h against ${minutesToHours1(planned)} h; the weeks after it are drawn from the plan.`
     expect(made.summary).toContain(sentence)
     assertCleanCopy(made.summary, 'revision summary')
 

@@ -9,8 +9,3 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
-
-/* --accent has a value for each theme, so the link follows light and dark. */
-.link {
-  color: var(--accent);
-}

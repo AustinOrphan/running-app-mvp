@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { gradeLegend } from '../../../shared/copy/grades.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { GradeBadge } from '../GradeBadge.tsx'
 import type { PageWords } from './strengthPageText.ts'
@@ -13,8 +14,9 @@ export interface AboutCardProps {
 /**
  * About (design 11.3, part 8; 4.5): what the programme does and does not claim, in four sentences,
  * with the grade of each kind of figure, the defaults that are defaults, and the safety line. The
- * grades are read from the Params the figures come from, so a regrade reaches the page; the page
- * states no figure for injuries and no chance of one (G5).
+ * grades are read from the Params the figures come from, so a regrade reaches the page, and the
+ * legend says what each grade shown means from the same map as every badge (`gradeLegend`); the
+ * page states no figure for injuries and no chance of one (G5).
  */
 export function AboutCard({ benefit, words }: AboutCardProps) {
   const headingId = useId()
@@ -41,7 +43,7 @@ export function AboutCard({ benefit, words }: AboutCardProps) {
           </li>
         ))}
       </ul>
-      <p className={styles.note}>{words.say('strength.page.about-defaults')}</p>
+      <p className={styles.note}>{gradeLegend(grades.map((item) => item.grade))}</p>
       <p className={styles.note}>{words.say('strength.safety')}</p>
     </section>
   )

@@ -238,11 +238,45 @@ describe('the lines of a diff', () => {
       flagsRemoved: ['peak'],
     }
     expect(text([], 'km', [week])).toEqual([
-      'Week of 26 Oct: running time 240 min to 220 min, now a recovery week, no longer a peak week',
+      'Week of 26 Oct: running time 4.0 h to 3.7 h, now a recovery week, no longer a peak week',
     ])
     expect(
       text([], 'km', [{ ...week, runMinAfter: 240, flagsAdded: ['x'], flagsRemoved: [] }]),
     ).toEqual(['Week of 26 Oct: updated'])
+  })
+
+  it.each([
+    [245, 247],
+    [45, 50],
+    [120, 119],
+    [247, 245],
+  ])(
+    'never reads a change of %i to %i minutes as "to" the same figure: a total is written at 0.1 h',
+    (before, after) => {
+      const week: WeekDiffLine = {
+        weekStart: '2026-10-26',
+        runMinBefore: before,
+        runMinAfter: after,
+        flagsAdded: [],
+        flagsRemoved: [],
+      }
+      const [line] = text([], 'km', [week])
+      expect(line).toBe('Week of 26 Oct: updated')
+      // with a stage change the line says that and leaves the figure out
+      const [staged] = text([], 'km', [{ ...week, flagsAdded: ['recovery'] }])
+      expect(staged).toBe('Week of 26 Oct: now a recovery week')
+    },
+  )
+
+  it('still reads a change that shows at 0.1 h as before and after', () => {
+    const week: WeekDiffLine = {
+      weekStart: '2026-10-26',
+      runMinBefore: 245,
+      runMinAfter: 252,
+      flagsAdded: [],
+      flagsRemoved: [],
+    }
+    expect(text([], 'km', [week])).toEqual(['Week of 26 Oct: running time 4.1 h to 4.2 h'])
   })
 
   it('reads a week taken as run as run past its plan, not as a target that rose', () => {
@@ -254,14 +288,14 @@ describe('the lines of a diff', () => {
       flagsRemoved: [],
     }
     expect(text([], 'km', [week])).toEqual([
-      'Week of 26 Oct: run past its plan, 144 min against 79 min',
+      'Week of 26 Oct: run past its plan, 2.4 h against 1.3 h',
     ])
     expect(text([], 'mi', [week])).toEqual([
-      'Week of 26 Oct: run past its plan, 144 min against 79 min',
+      'Week of 26 Oct: run past its plan, 2.4 h against 1.3 h',
     ])
     // The other flags of the line still read as before, after the words for the week as run.
     expect(text([], 'km', [{ ...week, flagsAdded: [...week.flagsAdded, 'disrupted'] }])).toEqual([
-      'Week of 26 Oct: run past its plan, 144 min against 79 min, now touched by a rest window',
+      'Week of 26 Oct: run past its plan, 2.4 h against 1.3 h, now touched by a rest window',
     ])
     for (const units of UNITS) {
       assertCleanCopy(text([], units, [week])[0]!, 'overshoot diff line')
@@ -276,10 +310,10 @@ describe('the lines of a diff', () => {
       flagsAdded: [],
       flagsRemoved: [],
     }
-    expect(text([], 'km', [week])).toEqual(['Week of 26 Oct: running time 79 min to 144 min'])
+    expect(text([], 'km', [week])).toEqual(['Week of 26 Oct: running time 1.3 h to 2.4 h'])
     // A flag without the planned minutes, or a plan not under the minutes run, says nothing new.
     expect(text([], 'km', [{ ...week, flagsAdded: ['overshoot'] }])).toEqual([
-      'Week of 26 Oct: running time 79 min to 144 min',
+      'Week of 26 Oct: running time 1.3 h to 2.4 h',
     ])
   })
 

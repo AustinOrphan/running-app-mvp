@@ -238,6 +238,5 @@
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
-  color: var(--accent);
   font-weight: 600;
 }

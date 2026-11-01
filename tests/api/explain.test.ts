@@ -452,8 +452,10 @@ describe('GET /api/explain: the answer', () => {
     const plan = await generatePlan(user, goal.id)
     const week = await explained(`subject=week&weekStart=${plan.weeks[1]!.weekStart}`)
     expect(week.rules).toEqual(['g-2', 'g-6', 'J5'])
+    // the week before the second week of the plan is the current one, still in progress: it reads
+    // as the plan has it, not as a total run
     expect(factsOf(week, 'g-2').map((f) => f.template)).toEqual([
-      'explain.g2-last-week',
+      'explain.g2-last-week-planned',
       'explain.g2-ramp',
       'explain.g2-plan-week',
     ])

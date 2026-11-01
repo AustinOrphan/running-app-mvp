@@ -782,7 +782,7 @@ describe('fuel API: logs', () => {
     })
     const said = await getLog(user, outside.id)
     expect(said?.counts).toBe(
-      `The run was shorter than ${String(P.h7.logMinDurationMin.value)} min, so it does not count toward your ladder.`,
+      'The run was shorter than 2 h, so it does not count toward your ladder.',
     )
   })
 

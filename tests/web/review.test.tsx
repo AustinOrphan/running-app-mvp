@@ -810,7 +810,7 @@ describe('ReviewPage', () => {
         within(region).getByRole('list', { name: 'Changes in this update' }),
       ).getAllByRole('listitem')
       expect(changes).toHaveLength(2)
-      expect(changes[0]).toHaveTextContent('Week of 19 Oct: Weekly running time 320 min to 280 min')
+      expect(changes[0]).toHaveTextContent('Week of 19 Oct: Weekly running time 5.3 h to 4.7 h')
       expect(changes[1]).toHaveTextContent('Week of 19 Oct: Long run 90 min to 80 min')
 
       await user.click(within(region).getByRole('button', { name: 'Why this update' }))
@@ -874,7 +874,7 @@ describe('ReviewPage', () => {
       const region = await screen.findByRole('region', { name: 'What changed' })
       expect(within(region).getByText('After a review')).toBeInTheDocument()
       expect(
-        within(region).getByText('Week of 19 Oct: running time 320 min to 280 min'),
+        within(region).getByText('Week of 19 Oct: running time 5.3 h to 4.7 h'),
       ).toBeInTheDocument()
       expect(
         within(region).getByText('Thu 22 Oct: Threshold intervals 40 min to Easy run 30 min'),

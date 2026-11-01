@@ -42,24 +42,24 @@ export const BRIEF_TEMPLATES = {
   'brief.since-none': tpl('Nothing has changed since this brief.'),
 
   // Last week, and what the weekly decision made of it.
-  'brief.last-week-ran-of': tpl('Last week you ran {actual} of {planned} planned minutes.', {
-    actual: 'count',
-    planned: 'count',
+  'brief.last-week-ran-of': tpl('Last week you ran {actual} of {planned} planned.', {
+    actual: 'weekMinutes',
+    planned: 'weekMinutes',
   }),
-  'brief.last-week-ran': tpl('Last week you ran {actual}.', { actual: 'minutes' }),
+  'brief.last-week-ran': tpl('Last week you ran {actual}.', { actual: 'weekMinutes' }),
   'brief.last-week-none': tpl('No running was logged last week.'),
   'brief.decision-progress': tpl('The plan moves on: next week is up to {minutes}.', {
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
   'brief.decision-hold': tpl('The plan holds steady: next week is up to {minutes}.', {
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
   'brief.decision-reduce': tpl('The plan eases: next week is up to {minutes}.', {
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
   'brief.decision-post-race': tpl(
     'The weeks after your race follow a set return schedule: next week is up to {minutes}.',
-    { minutes: 'minutes' },
+    { minutes: 'weekMinutes' },
   ),
   // The same four when the suggested minutes are zero (a week with nothing run before it, a week
   // held by a rest window): "up to 0 min" would read as a plan with nothing in it.
@@ -169,10 +169,10 @@ export const BRIEF_TEMPLATES = {
   ),
   'brief.noticed-race-week': tpl('This is race week. Race day is {date}.', { date: 'date' }),
   'brief.noticed-taper': tpl('The taper begins this week, with up to {minutes} of running.', {
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
   'brief.noticed-recovery-week': tpl('This is a recovery week, with up to {minutes} of running.', {
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
 
   // The next key session.

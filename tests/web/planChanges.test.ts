@@ -11,12 +11,28 @@ const change = (field: string, from: unknown, to: unknown): PlanChange => ({
 })
 
 describe('describeChange', () => {
+  test.each([
+    [245, 247],
+    [45, 50],
+    [120, 119],
+  ])('a week total of %i to %i minutes that reads the same says it was updated', (from, to) => {
+    const described = describeChange(change('targetRunMin', from, to))
+    expect(described.text).toBe('Weekly running time updated')
+    expect(described.text).not.toMatch(/ to /)
+  })
+
+  test('a week total that shows at 0.1 h still reads from and to', () => {
+    expect(describeChange(change('targetRunMin', 245, 252)).text).toBe(
+      'Weekly running time 4.1 h to 4.2 h',
+    )
+  })
+
   test('names each field in words with its unit', () => {
     expect(describeChange(change('targetRunMin', 320, 280))).toEqual({
       label: 'Weekly running time',
-      from: '320 min',
-      to: '280 min',
-      text: 'Weekly running time 320 min to 280 min',
+      from: '5.3 h',
+      to: '4.7 h',
+      text: 'Weekly running time 5.3 h to 4.7 h',
     })
     expect(describeChange(change('longRunMin', 90, 80)).text).toBe('Long run 90 min to 80 min')
     expect(describeChange(change('runDays', 4, 5)).text).toBe('Run days 4 to 5')

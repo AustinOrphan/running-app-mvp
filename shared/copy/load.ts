@@ -85,7 +85,7 @@ export const LOAD_TEMPLATES = {
   // The focus of a plan week in the rebuild zone, on the week table.
   'load.focus': tpl(
     'Rebuilding toward {minutes} a week',
-    { minutes: 'minutes' },
+    { minutes: 'weekMinutes' },
     { shape: 'label', fallback: 'Rebuilding' },
   ),
 

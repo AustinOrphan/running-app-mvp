@@ -1,4 +1,4 @@
-import { formatQuantity } from '../../shared/copy/quantity.ts'
+import { formatQuantity, formatWeekMinutes } from '../../shared/copy/quantity.ts'
 import type { PlanChange } from '../../shared/engine/types.ts'
 import { zoneChangeOf } from '../../shared/engine/zoneChange.ts'
 import type { PlanPhase, Units } from '../../shared/types.ts'
@@ -10,7 +10,7 @@ export interface ChangeText {
   label: string
   from: string
   to: string
-  /** "Weekly running time 320 min to 280 min" */
+  /** "Weekly running time 5.3 h to 4.7 h" */
   text: string
 }
 
@@ -29,6 +29,9 @@ const withUnit =
   (unit: string): Format =>
   (value) =>
     value === null || value === undefined ? NONE : `${plain(value)} ${unit}`
+/** A week's running time: hours with one decimal, as every week total is worded. */
+const weekTotal: Format = (value) =>
+  typeof value === 'number' && Number.isFinite(value) ? formatWeekMinutes(value) : plain(value)
 const word: Format = (value) => {
   const text = plain(value)
   return text === NONE ? text : text.charAt(0).toUpperCase() + text.slice(1)
@@ -70,7 +73,7 @@ const kind: Format = (value) => (isSessionKind(value) ? sessionKindLabel(value) 
 
 /** Engine fields (see `replan` in `shared/engine/index.ts`) with the label and unit they show. */
 const FIELDS: Record<string, { label: string; format: Format }> = {
-  targetRunMin: { label: 'Weekly running time', format: withUnit('min') },
+  targetRunMin: { label: 'Weekly running time', format: weekTotal },
   longRunMin: { label: 'Long run', format: withUnit('min') },
   runDays: { label: 'Run days', format: plain },
   phase: { label: 'Phase', format: phase },
@@ -136,5 +139,8 @@ export function describeChange(change: PlanChange, units: Units = 'km'): ChangeT
   const format = known?.format ?? plain
   const from = format(change.from)
   const to = format(change.to)
-  return { label, from, to, text: `${label} ${from} to ${to}` }
+  // Two values that read the same ("4.1 h to 4.1 h": a week total changed by a few minutes) say
+  // only that the field was updated.
+  const unchanged = from === to && change.from !== change.to
+  return { label, from, to, text: unchanged ? `${label} updated` : `${label} ${from} to ${to}` }
 }
