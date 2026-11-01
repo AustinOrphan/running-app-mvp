@@ -52,7 +52,7 @@ import { isDuplicate } from './load.ts'
 import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath, strengthBlockPosition } from './macro.ts'
 import { resolveMethod } from './methods.ts'
-import { holdSessions, placeWeek } from './micro.ts'
+import { holdSessions, placeWeek, shakeOutFor } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { planWindows, postRaceWarnings } from './postRace.ts'
 import { predictRace } from './predict.ts'
@@ -658,6 +658,11 @@ function generate(
   const history: SessionSpec[] = [...kept]
   let figureRecord: { index: number; week: WeekDraft } | null = null
   const raceMonday = mondayOf(goal.date)
+  // The day before a race of 90 minutes or more holds a shake-out, and the days before it easy running
+  // only; they may lie in the week before the race week [rule K6]. The cap is K6 applied, the more
+  // conservative rule where K2 and K6 differ for the day [rule G6]: the minutes it removes are not
+  // moved to other days, and the row of the week keeps the figure of K2.
+  const shakeOut = shakeOutFor(goal.date, goal.expectedDurationSec / 60)
   for (let w = 0; w < macro.length; w++) {
     const week = macro[w]!
     const isCurrent = week.weekStart === currentMonday
@@ -859,6 +864,7 @@ function generate(
         ...(rules.length > 0 ? { dayRules: rules } : {}),
         ...(dplan.days.length > 0 ? { windowPlan: true } : {}),
         ...(ceiling ? { ceiling: true } : {}),
+        ...(shakeOut !== undefined ? { shakeOut } : {}),
       })
     // A week a window touches, or that a long hold sends back at the J7 fraction, holds what the
     // window leaves of the plan's own week [rules J9, J7, G-6]: the minutes of the held days, and

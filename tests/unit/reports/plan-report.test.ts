@@ -43,7 +43,7 @@ vi.setConfig({ testTimeout: 30_000 })
  *     console.log(createHash('sha256').update(m.renderMatrixSection()).digest('hex'))
  *   })"
  */
-const MATRIX_DIGEST = '00351558c6fc7f931698b0de21d97185e0b6137d00e9b009a8cd3bf08cac50b7'
+const MATRIX_DIGEST = '0aeb0db569b9aefc33d1602ef06c2d667743f2a256573169cc553e7a1ea957d6'
 
 /**
  * The digest of the section of each method preset (the twelve athletes at the preset, each figure

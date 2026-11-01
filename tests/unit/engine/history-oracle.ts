@@ -69,6 +69,20 @@
 // weeks and the other 141 digests are the same. The taper cut that follows the same reading (task
 // RF2, second review) and the distance of the long run in the week in progress move no digest.
 //
+// Regenerated 2026-11-01 for the last two days before a long race (task RF3, rule K6): the day before
+// a race of 90 minutes or more holds at most `k6.dayBeforeMaxMin` minutes (20) of easy running, and
+// the `k6.easyDaysBefore` days before it (2) hold easy running only. 136 of the 142 digests move: 9
+// of the 12 matrix runners, 17 of the 20 named runners, all 40 of the sweep and all 70 plans of the
+// chains. The six that do not are `matrix novice-5k`, `matrix prior-bsi` and `matrix
+// post-marathon-short-run` (races of 33, 50 and 52 minutes), `h15 short horizon` and `h15 short
+// horizon three years` (5 km, 25 minutes) and `reds hold` (its one run of the race week falls five
+// days before the race). Compared with the engine before (the rule off, by raising
+// `k6.carbLoadMinRaceMin` out of reach), week by week: in all 136 the weeks, the warnings and the
+// checklist are the same and only the race week differs, by one session each: the run of the day
+// before the race is 20 minutes where it was 21 to 48 (1 to 28 minutes shorter, 17 at the median).
+// No session moves to another day, and none is added or removed. The running of the race week of the
+// 136 plans falls from 23,213 to 20,940 minutes.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

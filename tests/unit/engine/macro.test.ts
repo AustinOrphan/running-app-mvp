@@ -300,6 +300,32 @@ describe('macroPlan: taper', () => {
     expect(race?.strengthSessions).toBe(0)
   })
 
+  // A race on a Monday or a Tuesday has no day, or one, before it in its week, and the days after it
+  // are the hold of the race's window: the row of the week falls under the run-day floor of K3 and
+  // under the figure of K2 for a week with all its days. Rule K6 records both as deviations whose
+  // reason is that the days do not exist (task RF3); the one run of a Tuesday race is no larger than a
+  // run of the full week [rules K2, K3, K6, H12].
+  it.each([
+    [0, 0],
+    [1, 1],
+  ])(
+    'gives the race week of a race on day %i of the week %i run day(s) and fewer minutes',
+    (day, runDays) => {
+      const full = plan(goal('marathon', 24)).find((w) => w.phase === 'race')!
+      const date = addDays(TODAY, 24 * 7 + day)
+      const week = plan(goal('marathon', 24, { date })).find((w) => w.phase === 'race')!
+      expect(week.weekStart).toBe(mondayOf(date))
+      expect(week.runDays).toBe(runDays)
+      // under the floor of K3 (a cut of at most P.k3.runDaysMaxCutPct of the run days) and K2's figure
+      expect(week.runDays).toBeLessThan(full.runDays)
+      expect(week.targetRunMin).toBeLessThan(full.targetRunMin)
+      if (runDays === 0) expect(week.targetRunMin).toBe(0)
+      else
+        expect(week.targetRunMin).toBeLessThanOrEqual(Math.ceil(full.targetRunMin / full.runDays))
+      expect(week.longRunMin).toBe(0)
+    },
+  )
+
   it('tapers from the current volume when the race is inside the taper window', () => {
     const weeks = plan(goal('marathon', 1))
     expect(taperWeeks(weeks)).toHaveLength(2)
