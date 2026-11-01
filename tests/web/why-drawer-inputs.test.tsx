@@ -660,6 +660,10 @@ describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
     expectCleanCopy(dialog)
   })
 
+  // The papers come from the research bundle, one lazily loaded chunk of the whole corpus; a full
+  // parallel run can need more than the 1 s default to load it (as in research.test.tsx).
+  const SLOW = { timeout: 8000 }
+
   test("the rule section holds the override's grade D and the records it rests on, each with its level", async () => {
     const { user, dialog } = await openOn(planOf('half', 'three-run-days'), ['P2'])
     const section = await within(dialog).findByRole('region', { name: 'Three run days' })
@@ -668,11 +672,13 @@ describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
     expect(within(section).getByText(/A choice, not a better plan/)).toBeInTheDocument()
 
     // a practice record is level D and a trial is level C: the grades are the records' own
-    const furman = await within(section).findByRole('button', {
-      name: /Services and Training Programs/,
-    })
+    const furman = await within(section).findByRole(
+      'button',
+      { name: /Services and Training Programs/ },
+      SLOW,
+    )
     await user.click(furman)
-    expect(within(section).getByText('Evidence level D')).toBeInTheDocument()
+    expect(await within(section).findByText('Evidence level D', {}, SLOW)).toBeInTheDocument()
     expect(within(section).getByText('book-or-guideline')).toBeInTheDocument()
     const pollock = JSON.parse(
       readFileSync(
@@ -681,11 +687,14 @@ describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
       ),
     ) as { title: string; evidenceLevel: string }
     expect(pollock.evidenceLevel).toBe('C')
-    await user.click(
-      within(section).getByRole('button', { name: new RegExp(pollock.title.slice(0, 30)) }),
+    const trial = await within(section).findByRole(
+      'button',
+      { name: new RegExp(pollock.title.slice(0, 30)) },
+      SLOW,
     )
-    expect(within(section).getByText('Evidence level C')).toBeInTheDocument()
-  })
+    await user.click(trial)
+    expect(await within(section).findByText('Evidence level C', {}, SLOW)).toBeInTheDocument()
+  }, 15_000)
 
   test('P4 states the build against the default, the base taking the difference, and the kinds', async () => {
     const { dialog, figures } = await openOn(planOf('half', 'longer-base'), ['P4', 'E2'])
