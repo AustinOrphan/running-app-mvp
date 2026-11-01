@@ -310,6 +310,12 @@ describe('DisruptionBanner, Extend', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Extend this window' })
     const until = within(dialog).getByLabelText('Until')
     expect(until).toHaveValue('2026-03-21')
+    // the hint says what the last day is for and what the plan adds after it, by the window's reason
+    expect(
+      within(dialog).getByText(
+        'The last day you feel it. The plan adds a symptom-free day and three easy days after it.',
+      ),
+    ).toBeInTheDocument()
     expect(await within(dialog).findByText(/to 2026-03-21/)).toBeInTheDocument()
 
     fireEvent.change(until, { target: { value: '2026-03-23' } })

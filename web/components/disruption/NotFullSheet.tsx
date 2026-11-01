@@ -7,6 +7,7 @@ import {
   raceDayLine,
   runningTimeLine,
   stalePreviewLine,
+  untilHint,
 } from '../../../shared/copy/windowView.ts'
 import type { DisruptionResult, PlanPreview } from '../../../shared/types.ts'
 import { useCreateDisruption, useDisruptions, usePreviewDisruption } from '../../api/disruptions.ts'
@@ -296,7 +297,7 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
           </Field>
           <Field
             label="Until"
-            hint="The last day it affects training. You can change it later."
+            hint={untilHint(reason, units, { changeLater: true })}
             error={errors['endDate']}
           >
             {(a) => (

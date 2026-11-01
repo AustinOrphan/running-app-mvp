@@ -654,6 +654,72 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
     expect(text(facts[2]!)).toBe('The plan sets the week of 19 Oct at up to 4.2 h.')
   })
 
+  describe('a week before the planned one that is not over', () => {
+    /** The g-2 facts of the week of `weekStart`, over the plan of the lost-week context and more weeks. */
+    function rampOf(weekStart: string, more: Array<[string, number]>) {
+      const base = lostWeekCtx()
+      // Wednesday 21 Oct: the week of 19 Oct is in progress
+      expect(base.asOf).toBe('2026-10-21')
+      const ctx = contextOf({
+        ...base.input,
+        existing: {
+          ...base.input.existing!,
+          weeks: [...base.input.existing!.weeks, ...more.map(([start, min]) => week(start, min))],
+        },
+      })
+      return view({ subject: 'week', weekStart }, ctx).groups.find((g) => g.rule === 'g-2')!.facts
+    }
+
+    test('reads as the plan has it: "is planned at", not "was 0 min"', () => {
+      // the week of 2 Nov is three weeks ahead; nothing has been run in it
+      const facts = rampOf('2026-11-09', [
+        ['2026-10-26', 260],
+        ['2026-11-02', 270],
+        ['2026-11-09', 280],
+      ])
+      expect(facts[0]).toMatchObject({
+        id: 'g-2.last-week',
+        template: 'explain.g2-last-week-planned',
+      })
+      expect(text(facts[0]!)).toBe('Running time in the week of 2 Nov is planned at 4.5 h.')
+      expect(text(facts[0]!)).not.toMatch(/\bwas\b/)
+      // a figure of the plan has no run behind it to cite
+      expect(facts[0]!.sources).toEqual([])
+      expect(facts[0]!.window).toEqual({ from: '2026-11-02', to: '2026-11-08' })
+      // the rest of the group is as it was
+      expect(facts.map((f) => f.template).slice(1)).toEqual([
+        'explain.g2-ramp',
+        'explain.g2-plan-week',
+      ])
+    })
+
+    test('the week in progress is planned, not "was": the runs so far are not its total', () => {
+      const [first] = rampOf('2026-10-26', [['2026-10-26', 260]])
+      expect(first!.template).toBe('explain.g2-last-week-planned')
+      expect(text(first!)).toBe('Running time in the week of 19 Oct is planned at 4.2 h.')
+    })
+
+    test('says the plan sets no running when the week is held whole by a rest window', () => {
+      const [first] = rampOf('2026-11-09', [
+        ['2026-11-02', 0],
+        ['2026-11-09', 280],
+      ])
+      expect(first!.template).toBe('explain.g2-plan-week-none')
+      expect(text(first!)).toBe('The plan sets no running for the week of 2 Nov.')
+    })
+
+    test('keeps the sentence of a week run when the plan has no row for the week', () => {
+      const [first] = rampOf('2026-12-07', [['2026-12-07', 280]])
+      expect(first!.template).toBe('explain.g2-last-week')
+    })
+
+    test('a week that is over is still "was", with the runs it counted', () => {
+      const [first] = factsOf('g-2', lostWeekCtx())
+      expect(first!.template).toBe('explain.g2-last-week')
+      expect(first!.sources).toHaveLength(3)
+    })
+  })
+
   test('the ramp is the tightened one of an injury profile', () => {
     const ctx = lostWeekCtx({ injuries: [{ kind: 'bone-stress', year: 2026, month: 8 } as never] })
     const [, ramp] = factsOf('g-2', ctx)

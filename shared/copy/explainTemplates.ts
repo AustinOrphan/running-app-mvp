@@ -32,6 +32,15 @@ export const EXPLAIN_TEMPLATES = {
     week: 'date',
     minutes: 'weekMinutes',
   }),
+  // The same line for a week that is not over: nothing has been run in it to state, so it reads as
+  // the plan has it.
+  'explain.g2-last-week-planned': tpl(
+    'Running time in the week of {week} is planned at {minutes}.',
+    {
+      week: 'date',
+      minutes: 'weekMinutes',
+    },
+  ),
   'explain.g2-ramp': tpl('The plan adds at most {pct} to a week of running.', { pct: 'percent' }),
   'explain.g2-plan-week': tpl('The plan sets the week of {week} at up to {minutes}.', {
     week: 'date',

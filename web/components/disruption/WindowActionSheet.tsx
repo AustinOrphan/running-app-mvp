@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { betterWords, offlineLine, stalePreviewLine } from '../../../shared/copy/windowView.ts'
+import {
+  betterWords,
+  offlineLine,
+  stalePreviewLine,
+  untilHint,
+} from '../../../shared/copy/windowView.ts'
 import { addDays, isIsoDate } from '../../../shared/dates.ts'
 import type { DisruptionResult, DisruptionView } from '../../../shared/types.ts'
 import {
@@ -156,7 +161,7 @@ export function WindowActionSheet(props: WindowActionSheetProps) {
       <>
         <p className={styles.text}>{intro}</p>
         {props.kind === 'extend' && bounds !== null ? (
-          <Field label="Until" hint="The last day it affects training." error={fieldError}>
+          <Field label="Until" hint={untilHint(props.window.reason, units)} error={fieldError}>
             {(a) => (
               <Input
                 {...a}

@@ -1364,6 +1364,19 @@ describe('the Fuel lab page: the target', () => {
     expectCleanCopy(card)
   })
 
+  test('the nausea plan is a disclosure row: it keeps the browser marker, a 44 px row, no link look', () => {
+    const css = readFileSync(
+      join(process.cwd(), 'web/components/fuel/FuelTargetDetails.module.css'),
+      'utf8',
+    )
+    const summary = /\.summary \{([^}]*)\}/.exec(css)?.[1] ?? ''
+    // `display: list-item` keeps the disclosure marker, the cue that the line opens; `flex` drops it
+    expect(summary).toMatch(/display: list-item;/)
+    expect(summary).not.toMatch(/display: (flex|block|inline)/)
+    expect(summary).toMatch(/padding-block: calc\(\(2\.75rem - var\(--lh-sm\)\) \/ 2\);/)
+    expect(summary).toMatch(/cursor: pointer;/)
+  })
+
   test('opens the nausea plan when a warm day brings it forward, and says why the rate stays', async () => {
     // One tolerated run at the floor opens 60 g/h; the forecast is hot, so the target stays put.
     const view = targetFor([loggedRun(1, { servings: 6, gut: 0 })], ENGINE_SETTINGS, true)

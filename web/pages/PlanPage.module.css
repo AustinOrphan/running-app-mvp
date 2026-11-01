@@ -372,6 +372,8 @@
 }
 
 .panel summary {
+  /* 28 px of serif line and 16 of padding: a 44 px row, the size of a tap */
+  padding-block: var(--space-2);
   cursor: pointer;
   font-family: var(--font-serif);
   font-size: var(--text-lg);
@@ -600,9 +602,12 @@ p.weekFiles {
 }
 
 .warningDetails summary {
+  /* A 44 px row: the 22 px line of this size and 11 px above and below. */
+  padding-block: calc((2.75rem - var(--lh-sm)) / 2);
   cursor: pointer;
   color: var(--text-muted);
   font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 
 .items .warningDetails ul {

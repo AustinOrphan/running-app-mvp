@@ -536,6 +536,15 @@ test('the Plan page keeps the watch strip, its chips and the sheet section insid
   await page.setViewportSize({ width: 360, height: 740 })
   // Sending is off in a fresh account: the strip says so and keeps the files one tap away.
   await page.goto('/plan')
+  // The disclosure rows of the page are 44 px taps: Plan checks, What changed, Earlier weeks.
+  for (const row of [
+    page.locator('summary#checks-title'),
+    page.locator('summary').filter({ hasText: 'What changed' }),
+  ]) {
+    const box = await row.boundingBox()
+    expect(box, 'a disclosure row').not.toBeNull()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(43.5)
+  }
   const strip = page.getByRole('region', { name: 'Watch' })
   await expect(strip).toContainText('Sending to your watch is off.')
   await expect(strip.getByRole('link', { name: 'Download this week as .zip' })).toBeVisible()
