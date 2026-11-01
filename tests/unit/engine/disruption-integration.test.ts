@@ -1516,3 +1516,65 @@ describe('the taper of a build that still rises falls below the last week no win
     )
   })
 })
+
+describe('the taper under way keeps the reference of the plan before the window [rules K2, J9]', () => {
+  // Found by the third review of RF2 (2026-11-01). When the first taper week is the current week the
+  // plan has no pre-taper week to draw, and the K2 reference was the level the runner starts from,
+  // the median of the last four weeks. A part week a window left in the last loading week pulled it
+  // down and every taper week with it, though the window held none of their days: the half-marathon
+  // athlete, a travel window of 3 days in the last loading week, planned 153 and 94 against 175 and
+  // 108 at the re-plan of 2027-02-15; the marathon athlete 216, 158 and 101 against 247, 181 and 115
+  // at 2027-02-22. The reference is now the last loading week the window did not touch.
+  //
+  // The chain is re-planned on every Monday to the race, each week run as planned; at every step each
+  // taper week no window touched is at least the same week of the chain with no window, less the
+  // share of its days the window holds (none: the window is in the last loading week).
+  const lostShare = (window: DisruptionWindow, weekStart: string) => {
+    const held = disruptionPlan([window]).days.filter(
+      (d) => d.held && d.date >= weekStart && d.date <= addDays(weekStart, 6),
+    )
+    return held.length / 7
+  }
+
+  it.each([
+    ['half', 2],
+    ['marathon', 3],
+  ])('plans the taper of %s, a taper of %i weeks, as the plan with no window does', (id, weeks) => {
+    const athlete = byId(id)
+    const base = buildPlan(athlete.input)
+    const taper = base.weeks.filter(
+      (w) => (w.isTaper || w.phase === 'race') && !w.flags.includes('post-race'),
+    )
+    expect(taper).toHaveLength(weeks)
+    const lastLoading = base.weeks
+      .filter((w) => w.weekStart < taper[0]!.weekStart && !w.isRecovery && !w.isTaper)
+      .at(-1)!
+    const window = windowOf({
+      id: 'taper-chain',
+      reason: 'travel',
+      startDate: lastLoading.weekStart,
+      endDate: addDays(lastLoading.weekStart, 2),
+    })
+    const without = replanChain(athlete.input)
+    const withWindow = replanChain(athlete.input, { windows: [window] })
+    expect(withWindow).toHaveLength(without.length)
+    let compared = 0
+    withWindow.forEach((step, k) => {
+      if (step.input.today < lastLoading.weekStart) return
+      for (const week of step.draft.weeks) {
+        if (!week.isTaper || week.flags.includes('post-race') || isDisruptedWeek(week.flags))
+          continue
+        if (week.weekStart < mondayOf(step.input.today)) continue
+        const plain = without[k]!.draft.weeks.find((w) => w.weekStart === week.weekStart)!
+        compared += 1
+        expect(
+          week.targetRunMin,
+          `${id}, re-plan of ${step.input.today}, ${week.weekStart}`,
+        ).toBeGreaterThanOrEqual(
+          Math.floor(plain.targetRunMin * (1 - lostShare(window, week.weekStart))),
+        )
+      }
+    })
+    expect(compared).toBeGreaterThan(weeks)
+  })
+})

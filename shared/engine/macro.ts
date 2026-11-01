@@ -1364,7 +1364,23 @@ function planWeeks(
   }
 
   // The reference week for the taper and the post-race weeks is the peak before the taper
-  const reference = preCount > 0 ? Math.max(...target) : start
+  // With no pre-taper week to draw (the taper is under way), the reference is the level the runner
+  // starts from, the median of the last four weeks. A part week a window left in the last of them
+  // pulls that level down, and every taper week falls with it, though the window held none of their
+  // days: the reference is then the last loading week the window did not touch [rules K2, J9].
+  const recentWeeks = (input.existing?.weeks ?? [])
+    .filter((w) => w.weekStart < firstMonday)
+    .sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1))
+    .slice(-4)
+  const partWeek = partWeekOf(windowedWeeks(dplan))
+  const untouchedLevel =
+    preCount === 0 && recentWeeks.some(partWeek)
+      ? lastUntouchedLoading(input.existing?.weeks ?? [], firstMonday, partWeek)
+      : undefined
+  const reference =
+    preCount > 0
+      ? Math.max(...target)
+      : Math.max(start, untouchedLevel === undefined ? 0 : plannedMinOf(untouchedLevel))
   const refDays = preCount > 0 ? prevDays : daysFor(start)
   const refLong = prevLong
   const refGain = hasGain ? prevGain : null
