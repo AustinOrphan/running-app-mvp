@@ -1274,7 +1274,13 @@ function PlanTable({
                 >
                   <td className={styles.week}>
                     {short}
-                    {isCurrent ? <span className={styles.thisWeek}>{thisWeekLabel()}</span> : null}
+                    {/* a space of its own: the margin is only the look, and the name reads "9 Nov This week" */}
+                    {isCurrent ? (
+                      <>
+                        {' '}
+                        <span className={styles.thisWeek}>{thisWeekLabel()}</span>
+                      </>
+                    ) : null}
                   </td>
                   <td className={styles.phase}>
                     <PhaseChip phase={week.phase} flags={week.flags} />
@@ -1292,7 +1298,9 @@ function PlanTable({
                   <td className={styles.actual} data-cell="actual">
                     {runMin === undefined
                       ? ''
-                      : isCurrent && !week.overshoot
+                      : // "of" a week with a target to run toward; a week set at no running (the rest after
+                        // a race, a window over the whole week) has none, and "0.3 of 0.0 h" says nothing
+                        isCurrent && !week.overshoot && Math.round(shownTargetMin(week)) > 0
                         ? weekRanOfText(runMin, shownTargetMin(week))
                         : weekRanText(runMin)}
                     {week.overshoot && runMin !== undefined ? (

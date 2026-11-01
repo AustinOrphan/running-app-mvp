@@ -355,6 +355,34 @@ describe('Plan page', () => {
     expectCleanCopy(container)
   })
 
+  test.each([0, 0.4])(
+    'a current week set at no running (%s min) names what was run, never "of 0.0 h"',
+    async (target) => {
+      const weeks = phases.map((_, i) =>
+        makeWeek(i, i === 2 ? { targetRunMin: target, baselineRunMin: target } : {}),
+      )
+      mockApi(
+        routes(makePlan(weeks), {
+          'GET /api/weeks': () => [makeWeekRow({ weekStart: CURRENT_WEEK, runMin: 20 })],
+        }),
+      )
+      renderWithProviders(<PlanPage />)
+      await screen.findByText('Focus 2')
+      expect(await within(row(CURRENT_WEEK)).findByText('0.3 h run')).toBeInTheDocument()
+      expect(row(CURRENT_WEEK)).not.toHaveTextContent(/ of 0\.0 h/)
+      // a week with a target still reads "of": the guard is for no target only
+    },
+  )
+
+  test('the week cell of the current week reads "9 Nov This week", with a space between', async () => {
+    mockApi(routes(makePlan()))
+    renderWithProviders(<PlanPage />)
+    await screen.findByText('Focus 2')
+    const header = within(row(CURRENT_WEEK)).getByRole('cell', { name: '11 Jan This week' })
+    expect(header.textContent).toBe('11 Jan This week')
+    expect(header.textContent).not.toMatch(/JanThis/)
+  })
+
   test('the current week says "This week" in its row header, and no other week does', async () => {
     const user = userEvent.setup()
     mockApi(routes(makePlan()))
