@@ -21,6 +21,8 @@ import { athletes } from './matrix-fixtures.ts'
 import {
   churnAlongChain,
   describePlan,
+  distanceFromBound,
+  e4Row,
   PLATEAU_TOLERANCE,
   polarizationIndex,
   TREFF_EMPTY_ZONE_FLOOR,
@@ -552,6 +554,304 @@ describe('realised against declared distribution', () => {
   })
 })
 
+describe('the E4 row', () => {
+  const tolerance = P.e4.priorTolerancePp.value
+
+  it('reads the build row from the prior and the tolerance Param: 80/12/8 within 5 points', () => {
+    const row = e4Row('build', 'marathon')
+    expect(row.z1).toEqual({
+      lo: P.e4.z1Prior.value - tolerance,
+      hi: P.e4.z1Prior.value + tolerance,
+    })
+    expect(row.z2).toEqual({
+      lo: P.e4.z2Prior.value - tolerance,
+      hi: P.e4.z2Prior.value + tolerance,
+    })
+    expect(row.z3).toEqual({
+      lo: P.e4.z3Prior.value - tolerance,
+      hi: P.e4.z3Prior.value + tolerance,
+    })
+    // by hand, with the registry at 80/12/8 and 5: 75 to 85, 7 to 17, 3 to 13
+    expect([row.z1, row.z2, row.z3]).toEqual([
+      { lo: 75, hi: 85 },
+      { lo: 7, hi: 17 },
+      { lo: 3, hi: 13 },
+    ])
+    // the label is the weakest grade of the four Params it rests on, with the rule
+    expect(row.basis).toEqual({ value: null, grade: 'C', rule: 'E4' })
+  })
+
+  it('base: Z1 at least 80, Z2 at most 12, Z3 the point 5, for 5 km to marathon alike', () => {
+    for (const goalClass of ['5k', '10k', 'half', 'marathon'] as const) {
+      const row = e4Row('base', goalClass)
+      expect(row.z1).toEqual({ lo: 80, hi: null })
+      expect(row.z2).toEqual({ lo: null, hi: 12 })
+      expect(row.z3).toEqual({ lo: 5, hi: 5 })
+    }
+  })
+
+  it('specific: Z2 at most 25 and Z1 at least the floor, with no figure for Z3', () => {
+    for (const goalClass of ['5k', '10k', 'half', 'marathon'] as const) {
+      const row = e4Row('specific', goalClass)
+      expect(row.z1).toEqual({ lo: P.e4.z1Floor.value, hi: null })
+      expect(row.z2).toEqual({ lo: null, hi: 25 })
+      expect(row.z3).toBeNull()
+    }
+    expect(e4Row('specific', 'marathon').basis.rule).toBe('E4')
+  })
+
+  it('taper and race week read the hard rules only: intensity kept, volume cut', () => {
+    const row = e4Row('taper', 'half')
+    expect(row.z1).toEqual({ lo: P.e4.z1Floor.value, hi: null })
+    expect(row.z2).toEqual({ lo: null, hi: P.e4.z2CapAnyPhase.value })
+    expect(row.z3).toBeNull()
+  })
+
+  it('an ultra goal: Z1 at least 85 in every phase, and in base Z3 at most 5, graded D', () => {
+    for (const goalClass of ['ultra50', 'ultra100k', 'ultra100mi', 'beyond'] as const) {
+      expect(e4Row('base', goalClass)).toMatchObject({
+        z1: { lo: 85, hi: null },
+        z2: null,
+        z3: { lo: null, hi: 5 },
+        basis: { grade: 'D', rule: 'E4' },
+      })
+      for (const phase of ['build', 'specific', 'taper'] as const) {
+        expect(e4Row(phase, goalClass)).toMatchObject({
+          z1: { lo: 85, hi: null },
+          z2: null,
+          z3: null,
+        })
+      }
+    }
+  })
+
+  it('prints the distance from a bound: 0 inside, else signed to the nearest edge', () => {
+    const band = { lo: 75, hi: 85 }
+    expect(distanceFromBound(band, 80)).toBe(0)
+    expect(distanceFromBound(band, 75)).toBe(0)
+    expect(distanceFromBound(band, 85)).toBe(0)
+    expect(distanceFromBound(band, 91.5)).toBeCloseTo(6.5, 12)
+    expect(distanceFromBound(band, 70)).toBe(-5)
+    expect(distanceFromBound({ lo: 80, hi: null }, 99)).toBe(0)
+    expect(distanceFromBound({ lo: null, hi: 12 }, 14)).toBe(2)
+    expect(distanceFromBound({ lo: 5, hi: 5 }, 1)).toBe(-4)
+    expect(distanceFromBound(null, 50)).toBeNull()
+    expect(distanceFromBound(band, null)).toBeNull()
+  })
+})
+
+describe('the distribution of each phase and the work above zone 1', () => {
+  /**
+   * Two base weeks and a build week of a half-marathon plan, a taper week and the race week.
+   *
+   *   week 1 base, 100 min, tid 83/12/5     easy 30 x2, long 40                -> Z1 100
+   *   week 2 base, 100 min, tid 83/12/5     easy 40, strides 20 (6 x 20 s), long 40
+   *                                         -> Z1 98, Z3 2 (strides)
+   *   week 3 build, 225 min, tid 80/12/8    easy 40, threshold 50 (20 min Z2), intervals 45
+   *                                         (4 x 3 min Z3), long 90 -> Z1 193, Z2 20, Z3 12
+   *   week 4 taper, 60 min, tid 80/15/5     easy 20 x3
+   *   week 5 race, 30 min, tid 80/15/5      easy 15 x2 and the race (not a running minute)
+   *   week 6 base, flagged post-race        easy 20 (left out of every phase)
+   *   week 7 base, recovery week            strides 20 x2 (left out: a phase is read over its
+   *                                         loading weeks, as every other distribution figure is)
+   */
+  const day = (n: number, d: number) => addDays(W(n), d)
+  const strides = (n: number, d: number) =>
+    session(day(n, d), 'strides', 20, {
+      structure: [
+        step('steady', 1, 840, 'z1'),
+        step('work', 6, 20, 'strides'),
+        step('recover', 6, 60, 'z1'),
+      ],
+    })
+  const draft = draftOf(
+    [
+      week(1, { phase: 'base', targetRunMin: 100, tid: { z1: 83, z2: 12, z3: 5 } }),
+      week(2, { phase: 'base', targetRunMin: 100, tid: { z1: 83, z2: 12, z3: 5 } }),
+      week(3, { phase: 'build', targetRunMin: 225, tid: { z1: 80, z2: 12, z3: 8 } }),
+      week(4, {
+        phase: 'taper',
+        targetRunMin: 60,
+        isTaper: true,
+        tid: { z1: 80, z2: 15, z3: 5 },
+      }),
+      week(5, {
+        phase: 'race',
+        targetRunMin: 30,
+        isTaper: true,
+        tid: { z1: 80, z2: 15, z3: 5 },
+      }),
+      week(6, { phase: 'base', targetRunMin: 20, flags: ['post-race'] }),
+      week(7, { phase: 'base', targetRunMin: 40, isRecovery: true }),
+    ],
+    [
+      session(day(1, 1), 'easy', 30),
+      session(day(1, 3), 'easy', 30),
+      session(day(1, 6), 'long', 40),
+      session(day(2, 1), 'easy', 40),
+      strides(2, 3),
+      session(day(2, 6), 'long', 40),
+      session(day(3, 1), 'easy', 40),
+      session(day(3, 2), 'threshold', 50, {
+        structure: [
+          step('warmup', 1, 600, 'z1'),
+          step('work', 1, 1200, 'z2'),
+          step('cooldown', 1, 600, 'z1'),
+        ],
+      }),
+      session(day(3, 4), 'intervals', 45, {
+        structure: [
+          step('warmup', 1, 600, 'z1'),
+          step('work', 4, 180, 'z3'),
+          step('recover', 4, 180, 'z1'),
+          step('cooldown', 1, 600, 'z1'),
+        ],
+      }),
+      session(day(3, 6), 'long', 90),
+      session(day(4, 1), 'easy', 20),
+      session(day(4, 3), 'easy', 20),
+      session(day(4, 5), 'easy', 20),
+      session(day(5, 1), 'easy', 15),
+      session(day(5, 3), 'easy', 15),
+      session(day(5, 6), 'race', 180),
+      session(day(6, 1), 'easy', 20),
+      strides(7, 1),
+      strides(7, 3),
+    ],
+  )
+  const d = describePlan(draft, ctx())
+  const phases = d.intensityByPhase.value
+
+  it('has a row for each phase the draft holds, the race week with the taper', () => {
+    // the base row reads the two loading weeks: not the recovery week, not the post-race week
+    expect(phases.map((p) => [p.phase, p.weeks])).toEqual([
+      ['base', 2],
+      ['build', 1],
+      ['taper', 2],
+    ])
+  })
+
+  it('pools the planned minutes of the phase and weights the declared shares by target', () => {
+    const [base, build, taper] = phases
+    // base: Z1 100 + 98, Z3 2, of 200 minutes
+    expect(base!.realised!.z1).toBeCloseTo(99, 9)
+    expect(base!.realised!.z2).toBeCloseTo(0, 9)
+    expect(base!.realised!.z3).toBeCloseTo(1, 9)
+    expect(base!.declared).toEqual({ z1: 83, z2: 12, z3: 5 })
+    // build: 193 / 20 / 12 of 225
+    expect(build!.realised!.z1).toBeCloseTo((193 / 225) * 100, 9)
+    expect(build!.realised!.z2).toBeCloseTo((20 / 225) * 100, 9)
+    expect(build!.realised!.z3).toBeCloseTo((12 / 225) * 100, 9)
+    // taper and race week: 60 + 30 easy minutes, the race itself no running minute
+    expect(taper!.realised).toEqual({ z1: 100, z2: 0, z3: 0 })
+    // declared, weighted by target: (80 x 60 + 80 x 30) / 90, (15 x 60 + 15 x 30) / 90
+    expect(taper!.declared.z1).toBeCloseTo(80, 9)
+    expect(taper!.declared.z2).toBeCloseTo(15, 9)
+  })
+
+  it('leaves the recovery weeks and the post-race return steps out of every phase', () => {
+    expect(phases.reduce((sum, p) => sum + p.weeks, 0)).toBe(5)
+    // the recovery week's 4 strides minutes would lift the base row's zone 3 from 1 to 2.5 percent
+    expect(phases[0]!.realised!.z3).toBeCloseTo(1, 9)
+  })
+
+  it('leaves out the weeks that a start path sets: they are drawn at 100/0/0, not from E4', () => {
+    const programme = { z1: 100, z2: 0, z3: 0 }
+    const mixed = draftOf(
+      [
+        week(1, { phase: 'build', targetRunMin: 60, tid: programme, flags: ['restart-floor'] }),
+        week(2, {
+          phase: 'build',
+          targetRunMin: 60,
+          tid: programme,
+          flags: ['ladder-2', 'run-walk'],
+        }),
+        week(4, {
+          phase: 'build',
+          targetRunMin: 60,
+          tid: programme,
+          flags: ['injury-return', 'injury-level-1'],
+        }),
+        week(3, { phase: 'build', targetRunMin: 225, tid: { z1: 80, z2: 12, z3: 8 } }),
+      ],
+      [
+        session(day(1, 1), 'easy', 60),
+        session(day(2, 1), 'easy', 60),
+        session(day(4, 1), 'easy', 60),
+        ...draft.sessions.filter((s) => s.date >= W(3) && s.date < W(4)),
+      ],
+    )
+    const rows = describePlan(mixed, ctx()).intensityByPhase.value
+    // only the ordinary build week is read against the build row
+    expect(rows.map((p) => [p.phase, p.weeks])).toEqual([['build', 1]])
+    expect(rows[0]!.declared).toEqual({ z1: 80, z2: 12, z3: 8 })
+    expect(rows[0]!.realised!.z1).toBeCloseTo((193 / 225) * 100, 9)
+    expect(rows[0]!.distance.z1).toBeCloseTo((193 / 225) * 100 - 85, 9)
+    // a draft of start-path weeks alone has no phase row at all
+    const programmeOnly = draftOf(mixed.weeks.slice(0, 3), mixed.sessions.slice(0, 3))
+    expect(describePlan(programmeOnly, ctx()).intensityByPhase.value).toEqual([])
+  })
+
+  it('prints the distance of each zone from its E4 bound, as a description', () => {
+    const [base, build, taper] = phases
+    // base: Z1 99 is over 80, Z2 0 is under 12, Z3 1 is 4 under the point 5
+    expect(base!.distance.z1).toBe(0)
+    expect(base!.distance.z2).toBe(0)
+    expect(base!.distance.z3).toBeCloseTo(-4, 9)
+    // build: Z1 85.78 is 0.78 over 85, Z2 8.89 is inside 7 to 17, Z3 5.33 is inside 3 to 13
+    expect(build!.distance.z1).toBeCloseTo((193 / 225) * 100 - 85, 9)
+    expect(build!.distance.z2).toBe(0)
+    expect(build!.distance.z3).toBe(0)
+    // taper: Z3 has no bound
+    expect(taper!.distance).toEqual({ z1: 0, z2: 0, z3: null })
+    expect(taper!.row).toEqual(e4Row('taper', 'half'))
+  })
+
+  it('labels the figure with the E4 Params it rests on', () => {
+    expect(d.intensityByPhase).toMatchObject({ grade: 'C', rule: 'E4' })
+  })
+
+  it('has no phase rows, and no realised mix, for a draft without planned minutes', () => {
+    const empty = describePlan(draftOf([week(1, { phase: 'build', targetRunMin: 60 })]), ctx())
+    expect(empty.intensityByPhase.value).toHaveLength(1)
+    expect(empty.intensityByPhase.value[0]).toMatchObject({
+      realised: null,
+      distance: { z1: null, z2: null, z3: null },
+    })
+    expect(describePlan(draftOf([]), ctx()).intensityByPhase.value).toEqual([])
+  })
+
+  it('counts the minutes above zone 1 of the quality sessions of the loading weeks', () => {
+    // threshold 20 Z2 minutes and intervals 12 Z3 minutes; strides are no quality session here
+    expect(d.qualityWork.value).toEqual({ sessions: 2, workMin: 32, perSession: 16 })
+  })
+
+  it('counts the minutes at or above zone 2 in each loading week', () => {
+    // week 1: none; week 2: 2 (strides); week 3: 20 + 12 = 32
+    expect(d.weeklyZ2Plus.value.rows).toEqual([
+      { weekStart: W(1), min: 0 },
+      { weekStart: W(2), min: 2 },
+      { weekStart: W(3), min: 32 },
+    ])
+    expect(d.weeklyZ2Plus.value.mean).toBeCloseTo(34 / 3, 12)
+    expect(d.weeklyZ2Plus.value.max).toBe(32)
+  })
+
+  it('has no per-session figure without a quality session', () => {
+    const easyOnly = describePlan(
+      draftOf([week(1, { phase: 'base', targetRunMin: 60 })], [session(day(1, 1), 'easy', 60)]),
+      ctx(),
+    )
+    expect(easyOnly.qualityWork.value).toEqual({ sessions: 0, workMin: 0, perSession: null })
+    expect(easyOnly.weeklyZ2Plus.value.mean).toBe(0)
+  })
+
+  it('labels the two figures with the rules they rest on', () => {
+    expect(d.qualityWork).toMatchObject({ grade: 'D', rule: 'F2' })
+    expect(d.weeklyZ2Plus).toMatchObject({ grade: 'D', rule: 'E4, F2' })
+  })
+})
+
 describe("Treff's polarization index", () => {
   const twoDecimals = (shares: { z1: number; z2: number; z3: number }) =>
     Math.round(polarizationIndex(shares).value! * 100) / 100
@@ -865,7 +1165,8 @@ describe('edges', () => {
   })
 
   it('imports only the helpers the proposal names, no limit code and nothing from server/ or web/', () => {
-    // a new import is a decision: this list changes with it
+    // a new import is a decision: this list changes with it. `tid.ts` is the zone counting that the
+    // Why drawer reads too (EV1), so the realised distribution and the drawer's sentence are one count.
     const source = readFileSync(new URL('./plan-metrics.ts', import.meta.url), 'utf8')
     const imports = [...source.matchAll(/^import[^;]*?from '([^']+)'/gms)].map((m) => m[1]!)
     expect([...new Set(imports)].sort()).toEqual([
@@ -874,6 +1175,7 @@ describe('edges', () => {
       '../../../shared/engine/adjust.ts',
       '../../../shared/engine/load.ts',
       '../../../shared/engine/params/index.ts',
+      '../../../shared/engine/tid.ts',
       '../../../shared/engine/types.ts',
     ])
   })

@@ -433,10 +433,17 @@ test('Why on a session gives the figures behind its week, its recovery cycle and
 
   // Each rule is a group named in words, with the runner's own figures under it.
   const zones = await numbersOf(easy!)
-  await expect(
-    zones.numbers.getByRole('group', { name: 'Intensity distribution by phase' }),
-  ).toContainText(
-    /is a (base|build|race-specific|taper|race) week, with about \d+% of running time in zone 1/,
+  const distribution = zones.numbers.getByRole('group', { name: 'Intensity distribution by phase' })
+  // what the week's sessions hold by planned running minutes, how that is counted, then the band
+  // kept as the aim
+  await expect(distribution).toContainText(
+    /Planned running minutes in the week of .+: \d+% in zone 1, \d+% in zone 2 and \d+% in zone 3\./,
+  )
+  await expect(distribution).toContainText(
+    'work blocks at their zone, the rest of a run at zone 1; the race, hikes and strength are left out.',
+  )
+  await expect(distribution).toContainText(
+    /The aim for a (base|build|race-specific|taper|race) week is \d+% in zone 1/,
   )
   await noSidewaysScroll()
   await zones.why.screenshot({ path: test.info().outputPath('why-session-360.png') })

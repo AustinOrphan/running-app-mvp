@@ -6,6 +6,7 @@ import { renderFact } from '../../shared/copy/templates.ts'
 import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
 import { weeklyDecision } from '../../shared/engine/adapt.ts'
 import { explainInputs } from '../../shared/engine/explainInputs.ts'
+import { deliveredShares, wholePercents } from '../../shared/engine/tid.ts'
 import { fitHrModel } from '../../shared/engine/execution.ts'
 import { VOLUME_KINDS } from '../../shared/engine/limits.ts'
 import { resolveTargets } from '../../shared/engine/targets.ts'
@@ -308,6 +309,48 @@ describe('GET /api/explain: the answer', () => {
       kind: 'count',
       n: Math.floor(daysBetween(today, goal.targetDate) / 7),
     })
+  })
+
+  test('E4 counts the race-pace minutes of a 10 km plan in zone 3, as the plan report does', async () => {
+    await seedHistory(user.id)
+    const goal = await ctx.prisma.goal.create({
+      data: {
+        userId: user.id,
+        name: 'Synthetic 10 km',
+        priority: 'A',
+        targetDate: addDays(thisMonday, 7 * 16 + 5),
+        distanceM: 10_000,
+        goalType: 'time',
+        targetTimeSec: 3000,
+        isActive: false,
+      },
+    })
+    const plan = await generatePlan(user, goal.id)
+    // a week of the plan that holds race-pace work
+    const racePace = plan.sessions.find((s) => s.kind === 'race-pace')
+    expect(racePace, 'a 10 km plan holds a race-pace session').toBeDefined()
+    const monday = mondayOf(racePace!.date)
+    const week = plan.sessions.filter((s) => mondayOf(s.date) === monday)
+
+    // the session that cites E4 in that week reads the week it falls in
+    const citing = week.find((s) => s.rules.includes('E4'))
+    expect(citing, 'a session of the week cites E4').toBeDefined()
+    const view = await explained(`subject=session&id=${citing!.id}`)
+    const [held, count] = factsOf(view, 'E4')
+    expect(held!.template).toBe('explain.e4-week')
+    expect(count!.template).toBe('explain.e4-count')
+
+    // the 10 km rule: race pace is in zone 3 (the plan report counts it so), and the half-marathon
+    // rule the drawer used to fall back to puts the same minutes in zone 2
+    const at10k = wholePercents(deliveredShares(week, '10k')!)
+    const atHalf = wholePercents(deliveredShares(week, 'half')!)
+    expect(atHalf.z2).toBeGreaterThan(at10k.z2)
+    expect(at10k.z3).toBeGreaterThan(atHalf.z3)
+    expect([slot(held!, 'z1'), slot(held!, 'z2'), slot(held!, 'z3')]).toEqual([
+      { kind: 'percent', pct: at10k.z1 },
+      { kind: 'percent', pct: at10k.z2 },
+      { kind: 'percent', pct: at10k.z3 },
+    ])
   })
 
   test('the recovery cycle is the one the plan was generated with', async () => {
