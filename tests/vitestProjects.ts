@@ -43,11 +43,11 @@ export const SWEEP_TIMEOUT_MS = 900_000
 
 /**
  * The `mocked` project: the files of `tests/unit/engine` and `tests/unit/shared` that replace a
- * module with `vi.mock()`. The other files of those directories share a worker and its module cache
- * (`isolate: false`), where a mock either never applies, because the real module is already
- * imported, or stays on for the files that follow it (measured 2026-11-01: 157 failures in four
- * files). These keep a worker each. A file that mocks a module and is not here fails
- * `vitest-projects.test.ts`.
+ * module with `vi.mock()`. The other files of those directories, but the sweep files, share a worker
+ * and its module cache (the `pure` project, `isolate: false`), where a mock either never applies,
+ * because the real module is already imported, or stays on for the files that follow it (measured
+ * 2026-11-01: 157 failures in four files). These keep a worker each. A file that mocks a module and
+ * is in neither list fails `vitest-projects.test.ts`.
  */
 export const MOCKED_FILES: readonly string[] = [
   'tests/unit/engine/adapt.test.ts',

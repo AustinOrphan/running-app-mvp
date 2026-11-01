@@ -3,11 +3,13 @@ import { configDefaults, defineConfig } from 'vitest/config'
 import { MOCKED_FILES, SWEEP_FILES, SWEEP_TIMEOUT_MS } from './tests/vitestProjects.ts'
 
 // `tests/unit/engine` and `tests/unit/shared` test pure code (no database, no network, no module
-// state of its own), so their files share a worker and its module cache (`isolate: false`) instead
-// of loading the engine again for each file: the `pure` and `sweep` projects. The files that mock a
-// module keep a worker each (`mocked`), as do the projects that touch module state: `running` in
-// `server/services/sync.ts` and `replanning` in the scheduler (`server`), the DOM and the router
-// (`web`). The lists are in `tests/vitestProjects.ts`.
+// state of its own), so the `pure` project shares a worker and its module cache between files
+// (`isolate: false`) instead of loading the engine again for each one: measured 2026-11-01 at three
+// workers, the unit job took 153 s instead of 169 s. The files that mock a module keep a worker each
+// (`mocked`), as do the projects that touch module state: `running` in `server/services/sync.ts` and
+// `replanning` in the scheduler (`server`), the DOM and the router (`web`). `sweep` keeps isolation
+// too: its few long files gained nothing from sharing (117 s with and without). The file lists are
+// in `tests/vitestProjects.ts`.
 const PURE = ['tests/unit/engine/**/*.test.ts', 'tests/unit/shared/**/*.test.ts']
 
 export default defineConfig({
@@ -46,7 +48,6 @@ export default defineConfig({
           environment: 'node',
           include: [...SWEEP_FILES],
           testTimeout: SWEEP_TIMEOUT_MS,
-          isolate: false,
         },
       },
       {

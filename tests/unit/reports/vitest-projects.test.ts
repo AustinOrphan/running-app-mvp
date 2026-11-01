@@ -14,9 +14,10 @@ import { MOCKED_FILES, SWEEP_FILES, SWEEP_TIMEOUT_MS } from '../../vitestProject
  * where the CI split and the shards can see it.
  *
  * `mocked`: the files of `tests/unit/engine` and `tests/unit/shared` that replace a module with
- * `vi.mock()`. The other files there run without isolation, in a worker that they share, where a
- * mock fails other files in an order that depends on the machine. A file that mocks a module and is
- * not in that list is named here, and the test says where to put it.
+ * `vi.mock()`. The other files there, but the sweep files, run without isolation in the `pure`
+ * project, in a worker that they share, where a mock fails other files in an order that depends on
+ * the machine. A file that mocks a module and is in neither list is named here, and the test says
+ * where to put it.
  */
 
 const ROOT = fileURLToPath(new URL('../../..', import.meta.url))
@@ -114,11 +115,13 @@ describe('a long engine file goes into the sweep project', () => {
 })
 
 describe('a file that mocks a module keeps its worker', () => {
-  test('every file under tests/unit/engine and tests/unit/shared that mocks a module is in the mocked list', () => {
+  test('every file under tests/unit/engine and tests/unit/shared that mocks a module is in the mocked or the sweep list', () => {
     const files = [...sourceFiles(ENGINE), ...sourceFiles(SHARED)]
     expect(files.length).toBeGreaterThan(100)
+    // the sweep project keeps isolation, so a sweep file may mock a module
     const offenders = files.filter(
-      (file) => !MOCKED_FILES.includes(file) && mocksModule(read(file)),
+      (file) =>
+        !MOCKED_FILES.includes(file) && !SWEEP_FILES.includes(file) && mocksModule(read(file)),
     )
     expect(
       offenders,
@@ -142,16 +145,16 @@ describe('a file that mocks a module keeps its worker', () => {
     }
   })
 
-  test('the config isolates the mocked project and nothing else in the engine and shared directories', () => {
-    const mocked = named('mocked')
-    expect(mocked?.include).toEqual([...MOCKED_FILES])
-    expect(mocked?.isolate ?? true).toBe(true)
+  test('the config shares workers in the pure project only', () => {
+    expect(named('mocked')?.include).toEqual([...MOCKED_FILES])
     expect(named('pure')?.exclude).toEqual(expect.arrayContaining([...MOCKED_FILES]))
     expect(named('pure')?.isolate).toBe(false)
-    expect(named('sweep')?.isolate).toBe(false)
-    // the projects that touch module state keep the default
-    expect(named('server')?.isolate ?? true).toBe(true)
-    expect(named('web')?.isolate ?? true).toBe(true)
+    // every other project keeps the default, a worker per file: the mocked files for their mocks,
+    // the sweep files because sharing gained them nothing, `server` and `web` for their module state
+    for (const name of ['mocked', 'sweep', 'server', 'web']) {
+      expect(named(name), name).toBeDefined()
+      expect(named(name)?.isolate ?? true, name).toBe(true)
+    }
   })
 
   test('catches vi.mock and vi.doMock, and not a comment or a spy', () => {
