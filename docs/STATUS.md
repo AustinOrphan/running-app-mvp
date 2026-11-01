@@ -1849,8 +1849,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     ends, a runner's change and a novice's days ending wait for the boundary (ADR 0017's addendum,
     with labelled reasons); the transient holds, a rest window and the weeks after a race, leave the
     preset in place. A plan generated before #615 has untagged weeks, so its first re-plan redraws
-    the current week once under the plan's own shape and says so in the summary. ADR 0017 still
-    reads Proposed on `main`.
+    the current week once under the plan's own shape and says so in the summary.
 
     The e2e hardening (#616). The refused-strength-log case in `tests/e2e/12-today.spec.ts` failed
     one of two CI runs on #605, #610 and #612 ("Test timeout of 30000ms exceeded", then "setOffline:
@@ -1920,8 +1919,7 @@ things stand" gives counts and percentages without a weekly total or a date.
       Mountjoy 2023 correction (`10.1136/bjsports-2023-106994corr1`).
     - For the owner: section (p)'s "no load" sentence for P4 is true of minutes only, since
       `longer-base` adds one threshold session on `trail-50k` and `first-100-mile` (the peak planned
-      load of `trail-50k` rises 35 units; M5, left as written), and ADR 0017 awaits its Accepted
-      stamp.
+      load of `trail-50k` rises 35 units; M5, left as written).
     - Small follow-ups, none urgent: `reloadOnPreloadError` (`web/pwa/register.ts`) reloads even
       when `navigator.onLine` is false, which spends its once-per-minute guard and would drop an
       open sheet (a small `web/` change with a page test); CI installs chromium on every run
