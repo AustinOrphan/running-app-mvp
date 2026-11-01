@@ -220,6 +220,25 @@ describe('npm run restore', () => {
     check.close()
   })
 
+  test('says when the replaced database could not be read and was kept as it was', async () => {
+    makeDatabase('older')
+    expect((await run(backupCommand, [])).status).toBe(0)
+    const [name] = backups()
+    writeFileSync(databaseFile, 'not a database. '.repeat(500))
+
+    const { status, out } = await run(restoreCommand, [join(dir, 'backups', name ?? '')])
+
+    expect(status).toBe(0)
+    expect(out).toMatch(
+      /could not be read, so it was kept as it was, byte for byte, as .*pre-restore-/,
+    )
+    const check = new Database(databaseFile)
+    expect((check.prepare('SELECT label FROM marker').get() as { label: string }).label).toBe(
+      'older',
+    )
+    check.close()
+  })
+
   test('needs exactly one file', async () => {
     expect((await run(restoreCommand, [])).status).toBe(1)
     expect((await run(restoreCommand, ['a.db', 'b.db'])).status).toBe(1)

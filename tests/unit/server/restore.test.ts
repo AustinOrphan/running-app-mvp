@@ -1,4 +1,16 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  truncateSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
@@ -61,21 +73,38 @@ describe('restoreDatabase', () => {
     expect(labelOf(result.keptAs ?? '')).toBe('current')
     // The backup itself is untouched, and nothing is left beside the database.
     expect(labelOf(backup)).toBe('older')
+    expect(result.keptAsIs).toBe(false)
     expect(readdirSync(dir).filter((name) => name.startsWith('app.db'))).toEqual(['app.db'])
   })
+
+  /** The server: a connection in WAL mode that stays open and idle after a read. */
+  function openServer(): Database.Database {
+    const server = new Database(target)
+    server.pragma('journal_mode = WAL')
+    server.prepare('SELECT label FROM marker').get()
+    return server
+  }
+
+  function backdateSidecars(seconds: number): void {
+    const then = new Date(Date.now() - seconds * 1000)
+    for (const suffix of ['-wal', '-shm']) {
+      if (existsSync(`${target}${suffix}`)) utimesSync(`${target}${suffix}`, then, then)
+    }
+  }
 
   test('refuses while another connection holds the database open, and changes nothing', async () => {
     makeDatabase(target, 'current')
     const backup = await backupOf('older')
-    // The server: a connection in WAL mode that stays open, idle.
-    const server = new Database(target)
-    server.pragma('journal_mode = WAL')
+    const server = openServer()
+    // Older than the ten seconds the file check looks at, so the lock is what refuses.
+    backdateSidecars(60)
     try {
       await expect(restoreDatabase(backup, target, { now: NOW })).rejects.toThrow(
-        /open in another process.*Stop the server/,
+        /is open in another process.*Stop the server/,
       )
       expect(existsSync(join(dir, 'app.db.restoring'))).toBe(false)
       expect(existsSync(join(dir, 'backups', 'pre-restore-20261101T091500Z.db'))).toBe(false)
+      expect(existsSync(join(dir, 'backups', 'pre-restore-20261101T091500Z.db.raw'))).toBe(false)
     } finally {
       server.close()
     }
@@ -84,6 +113,20 @@ describe('restoreDatabase', () => {
     // Once the server has stopped, the same restore goes through.
     await restoreDatabase(backup, target, { now: NOW })
     expect(labelOf(target)).toBe('older')
+  })
+
+  test('refuses while the -wal file of a database was written in the last ten seconds', async () => {
+    makeDatabase(target, 'current')
+    const backup = await backupOf('older')
+    const server = openServer()
+    try {
+      await expect(restoreDatabase(backup, target, { now: NOW })).rejects.toThrow(
+        /last 10 seconds.*Stop the server/,
+      )
+    } finally {
+      server.close()
+    }
+    expect(labelOf(target)).toBe('current')
   })
 
   test('refuses a file that fails integrity_check or is not a database', async () => {
@@ -133,5 +176,116 @@ describe('restoreDatabase', () => {
     const nested = join(dir, 'new', 'place', 'app.db')
     await restoreDatabase(backup, nested)
     expect(labelOf(nested)).toBe('older')
+  })
+
+  test('keeps the mode of the database it replaces, not the mode of a read-only backup', async () => {
+    makeDatabase(target, 'current')
+    chmodSync(target, 0o640)
+    const backup = await backupOf('older')
+    chmodSync(backup, 0o444)
+
+    await restoreDatabase(backup, target, { now: NOW })
+
+    expect(statSync(target).mode & 0o777).toBe(0o640)
+    expect(labelOf(target)).toBe('older')
+  })
+
+  test('with no database to replace, a read-only backup is restored writable by its owner', async () => {
+    const backup = await backupOf('older')
+    chmodSync(backup, 0o444)
+    const fresh = join(dir, 'fresh.db')
+
+    await restoreDatabase(backup, fresh)
+
+    expect(statSync(fresh).mode & 0o200).toBe(0o200)
+    expect(labelOf(fresh)).toBe('older')
+  })
+})
+
+/** A WAL-mode database with enough rows and an index to span many pages. */
+function makeBigDatabase(file: string): void {
+  const db = new Database(file)
+  db.pragma('journal_mode = WAL')
+  db.exec('CREATE TABLE marker (label TEXT NOT NULL)')
+  db.exec('CREATE TABLE filler (id INTEGER PRIMARY KEY, body TEXT NOT NULL)')
+  db.exec('CREATE INDEX filler_body ON filler (body)')
+  db.prepare('INSERT INTO marker (label) VALUES (?)').run('current')
+  const insert = db.prepare('INSERT INTO filler (body) VALUES (?)')
+  for (let i = 0; i < 3000; i += 1) insert.run(`row ${i} ${'x'.repeat(40)}`)
+  db.close()
+}
+
+describe('restoreDatabase over a damaged database', () => {
+  const damages: Array<{ name: string; damage: (file: string) => void; asIs: boolean }> = [
+    {
+      name: 'garbage',
+      damage: (file) => writeFileSync(file, 'this is not a SQLite file. '.repeat(400)),
+      asIs: true,
+    },
+    {
+      name: 'a run of damaged pages',
+      damage: (file) => {
+        const bytes = readFileSync(file)
+        const middle = Math.floor(bytes.length / 2)
+        bytes.fill(0xff, middle, middle + 4096)
+        writeFileSync(file, bytes)
+      },
+      asIs: true,
+    },
+    {
+      name: 'a truncated file',
+      damage: (file) => truncateSync(file, Math.floor(statSync(file).size / 2)),
+      asIs: true,
+    },
+    // SQLite opens a file of zero bytes as an empty database, so the ordinary copy works.
+    { name: 'an empty file', damage: (file) => truncateSync(file, 0), asIs: false },
+  ]
+
+  for (const { name, damage, asIs } of damages) {
+    test(`restores over ${name} after a stop, keeping the damaged file`, async () => {
+      makeBigDatabase(target)
+      damage(target)
+      const damaged = readFileSync(target)
+      const backup = await backupOf('older')
+
+      const result = await restoreDatabase(backup, target, { now: NOW })
+
+      expect(labelOf(target)).toBe('older')
+      expect(result.keptAs).toBe(join(dir, 'backups', 'pre-restore-20261101T091500Z.db'))
+      expect(result.keptAsIs).toBe(asIs)
+      expect(existsSync(result.keptAs ?? '')).toBe(true)
+      if (asIs) expect(readFileSync(result.keptAs ?? '').equals(damaged)).toBe(true)
+    })
+  }
+
+  test('keeps the -wal and -shm files of a damaged database beside the copy', async () => {
+    writeFileSync(target, 'this is not a SQLite file. '.repeat(400))
+    writeFileSync(`${target}-wal`, 'frames the damaged file never merged')
+    writeFileSync(`${target}-shm`, 'index of those frames')
+    const longAgo = new Date(Date.now() - 60_000)
+    for (const suffix of ['-wal', '-shm']) utimesSync(`${target}${suffix}`, longAgo, longAgo)
+    const backup = await backupOf('older')
+
+    const result = await restoreDatabase(backup, target, { now: NOW })
+
+    const kept = result.keptAs ?? ''
+    expect(readFileSync(`${kept}-wal`, 'utf8')).toBe('frames the damaged file never merged')
+    expect(readFileSync(`${kept}-shm`, 'utf8')).toBe('index of those frames')
+    expect(readdirSync(dir).filter((name) => name.startsWith('app.db'))).toEqual(['app.db'])
+    expect(labelOf(target)).toBe('older')
+  })
+
+  test('refuses a database it cannot open while its -wal file was written seconds ago', async () => {
+    writeFileSync(target, 'this is not a SQLite file. '.repeat(400))
+    writeFileSync(`${target}-wal`, 'written just now by a process that still runs')
+    const backup = await backupOf('older')
+
+    await expect(restoreDatabase(backup, target, { now: NOW })).rejects.toThrow(
+      /last 10 seconds.*Stop the server/,
+    )
+
+    expect(readFileSync(target, 'utf8').startsWith('this is not a SQLite file')).toBe(true)
+    expect(existsSync(join(dir, 'backups', 'pre-restore-20261101T091500Z.db'))).toBe(false)
+    expect(existsSync(`${target}.restoring`)).toBe(false)
   })
 })

@@ -10,11 +10,14 @@ const HELP = `Usage: npm run restore -- <backup file>
 Replaces the database (DATABASE_URL, default file:./data/app.db) with a backup made by
 npm run backup. Stop the server first: the restore asks the database for an exclusive lock, which
 SQLite refuses while the server holds its connection open (initSqlite puts it in WAL mode), and
-the restore then stops without changing anything.
+the restore then stops without changing anything. A database that is too damaged to open has no
+lock to ask for; then the restore refuses only when its -wal or -shm file was written in the last
+10 seconds, so stopping the server first stays the rule.
 
 In order: the backup is copied next to the database and checked with PRAGMA integrity_check; the
-current database is copied to backups/pre-restore-<UTC timestamp>.db; the database's stale -wal
-and -shm files are removed; the checked copy takes the database's place.
+current database is copied to backups/pre-restore-<UTC timestamp>.db (byte for byte, with its -wal
+and -shm files, when it is damaged); the database's stale -wal and -shm files are removed; the
+checked copy takes the database's place, with the mode and owner of the file it replaces.
 `
 
 const processOutput: Output = {
@@ -52,11 +55,16 @@ export async function restoreCommand(
 
   const result = await restoreDatabase(file, sqliteFilePath(loadDatabaseUrl(env)))
   io.stdout(`Checked ${result.restored}: integrity_check ok.\n`)
-  io.stdout(
-    result.keptAs === null
-      ? `There was no database at ${result.target}, so nothing was kept.\n`
-      : `Kept the replaced database as ${result.keptAs}.\n`,
-  )
+  if (result.keptAs === null) {
+    io.stdout(`There was no database at ${result.target}, so nothing was kept.\n`)
+  } else if (result.keptAsIs) {
+    io.stdout(
+      `The replaced database could not be read, so it was kept as it was, byte for byte, as ` +
+        `${result.keptAs} (with its -wal and -shm files beside it, if it had any).\n`,
+    )
+  } else {
+    io.stdout(`Kept the replaced database as ${result.keptAs}.\n`)
+  }
   if (result.removed.length > 0) io.stdout(`Removed stale ${result.removed.join(', ')}.\n`)
   io.stdout(`Restored ${result.restored} to ${result.target}. Start the server again.\n`)
   return 0
