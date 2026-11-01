@@ -413,7 +413,7 @@ export function dueSlot(now: Date, last: string | null, slot: DailySlot): string
 }
 
 /** How often the daily jobs check whether their slot has come. */
-const SLOT_CHECK_MS = 10 * MINUTE_MS
+export const SLOT_CHECK_MS = 10 * MINUTE_MS
 /** The database copy comes first, before the night's matching and the Monday re-plan write. */
 export const BACKUP_SLOT: DailySlot = { hour: 2, minute: 0 }
 /** Nightly matching runs before the Monday re-plan, so the re-plan sees the week's links. */

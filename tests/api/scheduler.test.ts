@@ -8,6 +8,7 @@ import type { JobsView, PlanRevisionView, PlanWithSessions } from '../../shared/
 import { sqliteFilePath } from '../../server/dbPath.ts'
 import {
   BACKUP_SLOT,
+  dueSlot,
   FOLDER_INTERVAL_MS,
   MATCHING_SLOT,
   PUBLISH_INTERVAL_MS,
@@ -16,12 +17,14 @@ import {
   runPublishJob,
   runReplanJob,
   runWeatherJob,
+  SLOT_CHECK_MS,
   startScheduler,
 } from '../../server/jobs/scheduler.ts'
 import { backupDirectory, integrityProblems } from '../../server/services/backup.ts'
 import { settleBackground } from '../../server/services/sync.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import {
+  blockNetwork,
   client,
   createTestCtx,
   expectNoRefusedFetches,
@@ -217,42 +220,73 @@ describe('the scheduler runs the backup', () => {
   const MINUTE = 60_000
   const backupsDir = () => backupDirectory(sqliteFilePath(ctx.config.databaseUrl))
   const copies = () => (existsSync(backupsDir()) ? readdirSync(backupsDir()) : [])
+  const backupRuns = () =>
+    ctx.prisma.syncRun.count({ where: { userId: user.id, channel: 'job', provider: 'backup' } })
+  let stop: (() => void) | undefined
 
-  afterEach(() => {
-    vi.useRealTimers()
+  /** Nothing from another test: no copy on disk, no backup run, no refused call counted. */
+  async function clean(): Promise<void> {
     rmSync(backupsDir(), { recursive: true, force: true })
+    await ctx.prisma.syncRun.deleteMany({ where: { provider: 'backup' } })
+    blockNetwork(ctx)
+  }
+
+  beforeEach(clean)
+
+  afterEach(async () => {
+    stop?.()
+    stop = undefined
+    vi.useRealTimers()
+    await settleBackground()
+    await clean()
   })
 
   test('once a day at 02:00 local, before the 02:30 matching', async () => {
     expect(BACKUP_SLOT).toEqual({ hour: 2, minute: 0 })
     expect(BACKUP_SLOT.minute).toBeLessThan(MATCHING_SLOT.minute)
-    rmSync(backupsDir(), { recursive: true, force: true })
+
+    // A fixed instant, in the process time zone like the slot (a local constructor and `dueSlot`
+    // both read local time): five minutes before the slot, on a date no zone changes its clock.
+    // The first daily check comes SLOT_CHECK_MS after the start, five minutes past the slot.
+    const start = new Date(2026, 5, 17, BACKUP_SLOT.hour, BACKUP_SLOT.minute - 5)
+    const firstCheck = new Date(start.getTime() + SLOT_CHECK_MS)
+    expect(dueSlot(start, null, BACKUP_SLOT)).toBeNull()
+    expect(dueSlot(firstCheck, null, BACKUP_SLOT)).toBe(todayIso(start))
+
     vi.useFakeTimers({
       toFake: ['Date', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'],
     })
-    vi.setSystemTime(new Date(2026, 9, 21, 1, 55))
-    const stop = startScheduler(
+    vi.setSystemTime(start)
+    stop = startScheduler(
       { prisma: ctx.prisma, config: ctx.config },
       { fetch: noNetwork(ctx.refusedFetches) },
     )
 
-    // the daily check at 01:55 + 10 minutes finds the 02:00 slot passed
-    await vi.advanceTimersByTimeAsync(9 * MINUTE)
+    await vi.advanceTimersByTimeAsync(SLOT_CHECK_MS - MINUTE)
     expect(copies()).toHaveLength(0)
+    expect(await backupRuns()).toBe(0)
+
     await vi.advanceTimersByTimeAsync(2 * MINUTE)
-    await vi.waitFor(() => {
-      expect(copies()).toHaveLength(1)
-    })
-    const runs = await ctx.prisma.syncRun.findMany({
+    // The copy is on disk before the run is recorded, so the run is what the test waits for.
+    await vi.waitFor(
+      async () => {
+        expect(await backupRuns()).toBe(1)
+      },
+      { timeout: 10_000 },
+    )
+    expect(copies()).toHaveLength(1)
+    const [run] = await ctx.prisma.syncRun.findMany({
       where: { userId: user.id, channel: 'job', provider: 'backup' },
     })
-    expect(runs).toHaveLength(1)
-    expect(runs[0]).toMatchObject({ status: 'ok', trigger: 'schedule' })
+    expect(run).toMatchObject({ status: 'ok', trigger: 'schedule', accepted: 1 })
 
     // not again the same day
     await vi.advanceTimersByTimeAsync(3 * 60 * MINUTE)
+    expect(await backupRuns()).toBe(1)
     expect(copies()).toHaveLength(1)
+
     stop()
+    stop = undefined
     await settleBackground()
     expectNoRefusedFetches(ctx)
   })
