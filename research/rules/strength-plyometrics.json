@@ -208,20 +208,26 @@
   },
   {
     "id": "strength-load-progression-double",
-    "statement": "Progress each lift by double progression inside its repetition range: raise the load by one step the equipment can make when every set reaches the top of the range with repetitions in reserve and a recorded count, lower it after a set below the range, and hold it otherwise. The closest published convention is a 2-10% increase when the lifter can do the current workload for one to two repetitions over the desired number; a step larger than 15% of the load is not offered unless it is the smallest step the equipment makes, so a light load can still move. No paper compares ways of progressing a load in runners, so the rule is a default.",
+    "statement": "Progress each lift by double progression inside its repetition range: raise the load by one step the equipment can make when every set reaches the top of the range with repetitions in reserve and a recorded count, lower it after a set below the range, and hold it otherwise. A 2009 consensus stand gave 2-10% when one to two repetitions over the target were possible (not restated in the 2026 update); no step above 15% of the load is offered unless it is the smallest the equipment makes. Count-based loading was not worse than fixed percentages in trained men; no paper compares ways of progressing a load in runners, so it is a default.",
     "parameter": "strength_load_step",
     "value": "one step; at most 15% of the load, or the smallest step the equipment makes",
     "unit": "% of the load",
     "appliesTo": "Every loaded lift of the strength block",
     "grade": "D",
     "confidence": "low",
-    "evidence": ["acsm-2009-progression-models-resistance", "hickmott-2022-autoregulation-meta"]
+    "evidence": [
+      "acsm-2009-progression-models-resistance",
+      "hickmott-2022-autoregulation-meta",
+      "helms-2018-rpe-vs-percent-loading",
+      "graham-2021-rir-autoregulation-fixed",
+      "currier-2026-acsm-resistance-prescription"
+    ]
   },
   {
     "id": "strength-reps-in-reserve-target",
-    "statement": "Set the effort of a lift by the repetitions to leave in reserve (1-3 in the block, 3 or more in a ramp-in, a taper and a return), treat the count as imprecise by about one repetition, and never raise a load on a missing count. Strength gains did not depend on the estimated repetitions in reserve over a wide range, so leaving repetitions is not shown to cost strength.",
+    "statement": "Set the effort of a ramp-in, a taper, a return and the first session of an exercise by leaving 3 or more repetitions in reserve. Treat the count as imprecise: about one repetition near the limit, several far from it and in long sets, and usually an understatement of what is left. Never raise a load on a missing count. No study tests a target for these uses and counts of 3 or more are the least reliable part of the scale, so the value is a default.",
     "parameter": "strength_reps_in_reserve",
-    "value": "1-3 in the block; 3 or more otherwise",
+    "value": "3 or more outside the block",
     "unit": "repetitions in reserve",
     "appliesTo": "Every loaded lift",
     "grade": "D",
@@ -229,7 +235,26 @@
     "evidence": [
       "zourdos-2016-rir-rpe-scale",
       "halperin-2021-rir-prediction-accuracy",
-      "robinson-2024-proximity-failure-meta"
+      "hackett-2017-accuracy-repetitions-failure",
+      "steele-2017-predict-repetitions-failure",
+      "wiedenmann-2026-rir-trainability"
+    ]
+  },
+  {
+    "id": "strength-reps-in-reserve-block-target",
+    "statement": "Stop the heavy sets of a block 1-3 repetitions short of the limit and not at it. Strength gain was the same for sets taken to the limit and sets stopped short in two meta-analyses of randomised trials, did not depend on the estimated repetitions in reserve, and was the same at 1 left as at 4 falling to 1 in a randomised trial of trained people. The 2026 position stand of the American College of Sports Medicine names near the limit or 2-3 left as enough effort and says no exact target can be fixed. The studies are of lifters, not runners, and none tests 1-3 against another target, so the range is a convention inside a supported zone.",
+    "parameter": "strength_block_reps_in_reserve",
+    "value": "1-3 in the block",
+    "unit": "repetitions in reserve",
+    "appliesTo": "Every loaded lift of a block session",
+    "grade": "C",
+    "confidence": "low",
+    "evidence": [
+      "grgic-2022-failure-vs-nonfailure",
+      "vieira-2021-failure-vs-nonfailure",
+      "robinson-2024-proximity-failure-meta",
+      "martikainen-2025-varying-proximity-failure",
+      "currier-2026-acsm-resistance-prescription"
     ]
   },
   {

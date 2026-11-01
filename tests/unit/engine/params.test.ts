@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-10-31.1')
+    expect(PARAMS_VERSION).toBe('2026-10-31.2')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -607,17 +607,39 @@ describe('parameter registry', () => {
     expect(engineRules).toMatch(/rule G-8 sets it, with its Params/)
   })
 
-  it('carries the strength structure F7 as labelled defaults and one grade A planning figure', () => {
+  it('carries the strength structure F7 as labelled defaults, one grade C effort target and one grade A planning figure', () => {
     const f7 = P.f7
     expect(paramsForRule('F7').map((p) => p.id)).toEqual(Object.values(f7).map((p) => p.id))
     expect(Object.keys(f7)).toHaveLength(21)
     for (const p of Object.values(f7)) {
       expect(p.rule, p.id).toBe('F7')
       if (p === f7.expectedBenefitPct) continue
+      expect(lintText(p.note ?? ''), p.id).toEqual([])
+      if (p === f7.heavyRir) continue
       expect(p.grade, p.id).toBe('D')
       expect(p.note, p.id).toMatch(/^Default: /)
-      expect(lintText(p.note ?? ''), p.id).toEqual([])
     }
+    // the block's effort target is the one dose above grade D: stopping short of the limit costs no
+    // strength in lifters (meta-analyses, a trial and the 2026 position stand; task RU1, 2026-10-31)
+    expect(
+      Object.values(f7)
+        .filter((p) => p.grade !== 'D')
+        .map((p) => p.id),
+    ).toEqual(['f7.heavyRir', 'f7.expectedBenefitPct'])
+    expect(f7.heavyRir).toMatchObject({ value: [1, 3], grade: 'C', unit: 'reps in reserve' })
+    expect(f7.heavyRir.evidence).toEqual([
+      'grgic-2022-failure-vs-nonfailure',
+      'vieira-2021-failure-vs-nonfailure',
+      'robinson-2024-proximity-failure-meta',
+      'martikainen-2025-varying-proximity-failure',
+    ])
+    // the easy target stays a default, on the accuracy of the count far from the limit
+    expect(f7.easyRir.evidence).toEqual([
+      'zourdos-2016-rir-rpe-scale',
+      'halperin-2021-rir-prediction-accuracy',
+      'steele-2017-predict-repetitions-failure',
+      'wiedenmann-2026-rir-trainability',
+    ])
     expect(f7.expectedBenefitPct).toMatchObject({ value: [2, 4], grade: 'A', unit: '%' })
     expect(f7.expectedBenefitPct.evidence).toEqual([
       'denadai-2017-explosive-heavy-economy',
@@ -713,9 +735,21 @@ describe('parameter registry', () => {
     expect(f8.e1rmDivisor.evidence).toEqual([
       'nuzzo-2023-reps-at-percent-1rm',
       'reynolds-2006-1rm-prediction',
+      'richens-2014-reps-at-percent-runners',
+      'lesuer-1997-1rm-equations',
     ])
     // the most repetitions to the limit a linear estimate is made from, taken from one study's advice
-    expect(f8.e1rmMaxReps.evidence).toEqual(['reynolds-2006-1rm-prediction'])
+    expect(f8.e1rmMaxReps.evidence).toEqual([
+      'reynolds-2006-1rm-prediction',
+      'nuzzo-2023-reps-at-percent-1rm',
+      'richens-2014-reps-at-percent-runners',
+    ])
+    // the two thresholds cite the 2009 stand and the 2026 update that does not restate its step
+    for (const p of [f8.progressMinRir, f8.bigStepRir]) {
+      expect(p.evidence, p.id).toContain('acsm-2009-progression-models-resistance')
+      expect(p.evidence, p.id).toContain('currier-2026-acsm-resistance-prescription')
+    }
+    expect(f8.bigStepRir.evidence).toContain('wiedenmann-2026-rir-trainability')
     expect(f8.e1rmMaxReps.unit).toBe('reps')
     expect(f8.e1rmMaxReps.note).toMatch(/^Default: taken from the advice of one study/)
     expect(f8.layoffDays.evidence).toEqual(f8.layoffLoadFraction.evidence)
@@ -831,6 +865,13 @@ describe('parameter registry', () => {
     expect(texts.F7).toMatch(/Grade A for the method[^\n]*D for every dose/)
     expect(texts.F8).toMatch(/Grade D throughout/)
     expect(texts.F9).toMatch(/Grade D throughout/)
+    // the effort target says which values carry which grade, and the divisor proposal is recorded
+    // as a proposal (task RU1, 2026-10-31)
+    expect(texts.F7).toContain("except the block's effort target `f7.heavyRir`, grade C")
+    expect(texts.F8).toContain(
+      'Grade C for `f7.heavyRir`; D for `f7.easyRir`, `f8.progressMinRir` and `f8.bigStepRir`',
+    )
+    expect(engineRules).toContain('A larger divisor is proposed (2026-10-31, F8) and not made')
     // the benefit and injury sentences keep to their grade: no performance or prevention promise
     expect(texts.F7).toContain('says nothing about race time')
     expect(texts.F7).toContain('no running-specific reduction in injuries')

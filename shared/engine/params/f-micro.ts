@@ -33,8 +33,36 @@ const MAINTENANCE = [
   'androulakis-2019-minimum-effective-dose',
 ]
 
-/** The progression convention and the one synthesis that compares ways of choosing a load. */
-const PROGRESSION = ['acsm-2009-progression-models-resistance', 'hickmott-2022-autoregulation-meta']
+/** How well lifters count the repetitions left, far from the limit of a set and in long sets. */
+const RIR_ACCURACY = ['steele-2017-predict-repetitions-failure', 'wiedenmann-2026-rir-trainability']
+
+/** Stopping short of the limit of a set: meta-analyses, a trial and the 2026 position stand, all in lifters. */
+const NOT_TO_THE_LIMIT = [
+  'grgic-2022-failure-vs-nonfailure',
+  'vieira-2021-failure-vs-nonfailure',
+  'robinson-2024-proximity-failure-meta',
+  'martikainen-2025-varying-proximity-failure',
+]
+
+/**
+ * The progression convention of 2009 (superseded in 2026), the pooled comparison and the two trials of
+ * choosing a load by the count of repetitions left, and the 2026 update that does not restate the step.
+ */
+const PROGRESSION = [
+  'acsm-2009-progression-models-resistance',
+  'hickmott-2022-autoregulation-meta',
+  'helms-2018-rpe-vs-percent-loading',
+  'graham-2021-rir-autoregulation-fixed',
+  'currier-2026-acsm-resistance-prescription',
+]
+
+/** The repetitions possible at a percentage of the maximum, and how well an equation from them holds. */
+const REPS_AT_PERCENT = [
+  'nuzzo-2023-reps-at-percent-1rm',
+  'reynolds-2006-1rm-prediction',
+  'richens-2014-reps-at-percent-runners',
+  'lesuer-1997-1rm-equations',
+]
 
 /** How strength is kept and lost over a gap. */
 const GAP = ['mujika-2000-detraining-part2', 'bickel-2011-maintenance-dosing-retention']
@@ -380,21 +408,14 @@ export const fMicro = {
       unit: 'sets',
       note: 'Default: sets of each ramp-in lift, the first value in the first week and the second in later weeks.',
     }),
-    easyRir: param('f7.easyRir', 3, 'D', 'F7', REPS_IN_RESERVE, {
+    easyRir: param('f7.easyRir', 3, 'D', 'F7', [...REPS_IN_RESERVE, ...RIR_ACCURACY], {
       unit: 'reps in reserve',
-      note: 'Default: repetitions to leave in reserve in a ramp-in, a taper, a return and the first session of any exercise. The count of repetitions left is imprecise by about one repetition, so it is an effort sketch.',
+      note: 'Default: repetitions to leave in reserve in a ramp-in, a taper, a return and the first session of any exercise. No study tests a target for these uses. The count is least accurate far from the limit of a set, where lifters usually understate what is left (by several repetitions for beginners in long sets), so 3 or more is an effort sketch that errs on the safe side. Stopping short of the limit is not shown to cost strength in lifters.',
     }),
-    heavyRir: param<[number, number]>(
-      'f7.heavyRir',
-      [1, 3],
-      'D',
-      'F7',
-      [...REPS_IN_RESERVE, 'robinson-2024-proximity-failure-meta'],
-      {
-        unit: 'reps in reserve',
-        note: 'Default: repetitions to leave in reserve in a block session; no paper tests a target in runners. Strength gains did not depend on the repetitions left over a wide range in a pooled analysis of lifters.',
-      },
-    ),
+    heavyRir: param<[number, number]>('f7.heavyRir', [1, 3], 'C', 'F7', NOT_TO_THE_LIMIT, {
+      unit: 'reps in reserve',
+      note: 'Repetitions to leave in reserve in a block session. Two meta-analyses of trials in lifters found no strength difference between sets taken to the limit and sets stopped short, a trial in trained people found the same gain at 1 left as at 4 falling to 1, and a 2026 position stand names near the limit or 2 to 3 left as enough effort while saying the evidence cannot fix an exact target. These are lifters and not runners, and the count is imprecise by about a repetition near the limit, so the range is a convention inside a supported zone.',
+    }),
     bodyweightReps: param<[number, number]>('f7.bodyweightReps', [8, 15], 'D', 'F7', [], {
       unit: 'reps',
       note: 'Default: repetition range of a movement done without added load and taken near the limit of a set; the heavy range cannot apply without added load.',
@@ -491,11 +512,11 @@ export const fMicro = {
   f8: {
     progressMinRir: param('f8.progressMinRir', 1, 'D', 'F8', [...PROGRESSION, ...REPS_IN_RESERVE], {
       unit: 'reps in reserve',
-      note: 'Default: repetitions in reserve on every set, at the top of the range, to add one step. No study in runners compares ways of choosing the next load.',
+      note: 'Default: repetitions in reserve on every set, at the top of the range, to add one step. Choosing the load by the count was not worse than fixed percentages in trained lifters, and a 2009 position stand advised a rise at one to two repetitions over the target, but that stand is superseded. No trial tests a threshold and none was done in runners or beginners.',
     }),
-    bigStepRir: param('f8.bigStepRir', 4, 'D', 'F8', PROGRESSION, {
+    bigStepRir: param('f8.bigStepRir', 4, 'D', 'F8', [...PROGRESSION, ...RIR_ACCURACY], {
       unit: 'reps in reserve',
-      note: 'Default: repetitions in reserve on every set, at the top of the range, that earn two steps.',
+      note: 'Default: repetitions in reserve on every set, at the top of the range, that earn two steps. Counts of 4 or more are the least accurate part of the scale (errors of 2 to 5 repetitions on long leg press sets before practice, usually understating what is left), and no study tests a two-step rule.',
     }),
     maxStepPct: param('f8.maxStepPct', 15, 'D', 'F8', ['acsm-2009-progression-models-resistance'], {
       unit: '%',
@@ -521,20 +542,24 @@ export const fMicro = {
       unit: '% 1RM',
       note: 'Default: the first ramp-in load as a share of an entered or estimated maximum.',
     }),
-    e1rmDivisor: param(
-      'f8.e1rmDivisor',
-      30,
+    e1rmDivisor: param('f8.e1rmDivisor', 30, 'D', 'F8', REPS_AT_PERCENT, {
+      note: 'Default: the divisor of the linear estimate, load x (1 + (reps + reps in reserve) / divisor). A divisor of 30 fits the bench press counts of a large pooled analysis, while the pooled leg press counts and the counts of 8 runners imply a larger divisor for lower-body lifts, so the estimate can overstate a maximum there. No paper validates it in runners; it is an estimate, never a test.',
+    }),
+    e1rmMaxReps: param(
+      'f8.e1rmMaxReps',
+      10,
       'D',
       'F8',
-      ['nuzzo-2023-reps-at-percent-1rm', 'reynolds-2006-1rm-prediction'],
+      [
+        'reynolds-2006-1rm-prediction',
+        'nuzzo-2023-reps-at-percent-1rm',
+        'richens-2014-reps-at-percent-runners',
+      ],
       {
-        note: 'Default: the divisor of the linear estimate, load x (1 + (reps + reps in reserve) / divisor). No paper validates it in runners; it is an estimate, never a test.',
+        unit: 'reps',
+        note: 'Default: taken from the advice of one study of the leg press and chest press that a linear equation use no more than 10 repetitions, the most repetitions to the limit (repetitions done plus repetitions left) in a set that gives an estimate. A set above it gives none. In one study runners reached 20 to 40 leg press repetitions at 80 to 70% of the maximum, where a linear equation breaks down. No paper validates the figure in runners.',
       },
     ),
-    e1rmMaxReps: param('f8.e1rmMaxReps', 10, 'D', 'F8', ['reynolds-2006-1rm-prediction'], {
-      unit: 'reps',
-      note: 'Default: taken from the advice of one study of the leg press and chest press that a linear equation use no more than 10 repetitions, the most repetitions to the limit (repetitions done plus repetitions left) in a set that gives an estimate. A set above it gives none. No paper validates the figure in runners.',
-    }),
     startFractionBodyweight: param<Record<string, number>>(
       'f8.startFractionBodyweight',
       {
