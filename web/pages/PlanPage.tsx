@@ -60,6 +60,9 @@ import {
   cycleChoiceLabel,
   cycleFieldLabel,
   cycleHintLines,
+  thisWeekLabel,
+  weekRanOfText,
+  weekRanText,
   type CycleChoice,
 } from '../../shared/copy/pageCopy.ts'
 import {
@@ -1110,6 +1113,48 @@ function DaysRow({
   )
 }
 
+/**
+ * The phase runs of the weeks a table shows: consecutive weeks that read the same phase label ("Base
+ * 1", "Race week", "After the race"). The first week of a run carries the run's heading, the focus
+ * line most of its weeks have (the earliest of equals), so a run of ten weeks prints it once. A
+ * week whose own focus differs from its run's (a recovery week, a step of the run-walk ladder)
+ * keeps its line in its row, so nothing the plan says about a week is left out.
+ */
+function phaseRuns(
+  weeks: readonly PlanWeek[],
+): Map<string, { heading: string | null; ownFocus: string | null }> {
+  const info = new Map<string, { heading: string | null; ownFocus: string | null }>()
+  let start = 0
+  while (start < weeks.length) {
+    const label = weekPhaseLabel(weeks[start]!)
+    let end = start
+    while (end < weeks.length && weekPhaseLabel(weeks[end]!) === label) end += 1
+    const run = weeks.slice(start, end)
+    const counts = new Map<string, number>()
+    for (const week of run) {
+      const focus = (week.focus ?? '').trim()
+      if (focus !== '') counts.set(focus, (counts.get(focus) ?? 0) + 1)
+    }
+    let common: string | null = null
+    let most = 0
+    for (const [focus, count] of counts) {
+      if (count > most) {
+        common = focus
+        most = count
+      }
+    }
+    run.forEach((week, index) => {
+      const focus = (week.focus ?? '').trim()
+      info.set(week.weekStart, {
+        heading: index === 0 ? common : null,
+        ownFocus: focus !== '' && focus !== common ? focus : null,
+      })
+    })
+    start = end
+  }
+  return info
+}
+
 function PlanTable({
   plan,
   sessions,
@@ -1139,6 +1184,7 @@ function PlanTable({
       : 0
   const [showEarlier, setShowEarlier] = useState(false)
   const shownWeeks = showEarlier ? plan.weeks : plan.weeks.slice(earlierCount)
+  const runs = phaseRuns(shownWeeks)
   const sessionsByWeek = new Map<string, PlanSessionView[]>()
   for (const session of sessions) {
     sessionsByWeek.set(session.weekStart, [
@@ -1209,8 +1255,15 @@ function PlanTable({
             const short = formatShortDate(week.weekStart)
             const weekSessions = sessionsByWeek.get(week.weekStart) ?? []
             const expanded = weekSessions.length > 0 && open.has(week.weekStart)
+            const run = runs.get(week.weekStart)
+            const heading = run?.heading ?? null
             return (
               <Fragment key={week.weekStart}>
+                {heading !== null ? (
+                  <tr className={styles.phaseHeading}>
+                    <td colSpan={10}>{heading}</td>
+                  </tr>
+                ) : null}
                 <tr
                   data-week={week.weekStart}
                   data-cutback={cutback ? 'true' : undefined}
@@ -1219,7 +1272,10 @@ function PlanTable({
                   aria-current={isCurrent ? 'date' : undefined}
                   className={styles.row}
                 >
-                  <td className={styles.week}>{short}</td>
+                  <td className={styles.week}>
+                    {short}
+                    {isCurrent ? <span className={styles.thisWeek}>{thisWeekLabel()}</span> : null}
+                  </td>
                   <td className={styles.phase}>
                     <PhaseChip phase={week.phase} flags={week.flags} />
                     {cutback ? <span className={styles.cutback}>cutback</span> : null}
@@ -1234,7 +1290,11 @@ function PlanTable({
                     <TargetCell week={week} units={units} />
                   </td>
                   <td className={styles.actual} data-cell="actual">
-                    {runMin === undefined ? '' : hours(runMin)}
+                    {runMin === undefined
+                      ? ''
+                      : isCurrent && !week.overshoot
+                        ? weekRanOfText(runMin, shownTargetMin(week))
+                        : weekRanText(runMin)}
                     {week.overshoot && runMin !== undefined ? (
                       <OvershootNote ranMin={runMin} plannedMin={week.plannedRunMin} />
                     ) : null}
@@ -1255,7 +1315,7 @@ function PlanTable({
                   <td className={styles.number} data-cell="strength">
                     {week.strengthSessions}
                   </td>
-                  <td className={styles.focus}>{week.focus}</td>
+                  <td className={styles.focus}>{run?.ownFocus ?? ''}</td>
                   <td className={styles.edit}>
                     {weekSessions.length > 0 ? (
                       <Button

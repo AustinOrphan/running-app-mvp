@@ -8,6 +8,7 @@
 // Ids are `<area>.<name>`; both sets are spread into `TEMPLATES`.
 import { P } from '../engine/params/index.ts'
 import type { RecoveryCycle } from '../engine/types.ts'
+import { minutesToHours1 } from '../units.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
 
 export const PAGE_TEMPLATES = {
@@ -70,6 +71,16 @@ export const PAGE_TEMPLATES = {
     'Two building weeks, then a lighter one. It suits a new runner or a return from a break.',
   ),
 
+  // A row of the Plan page's week table: the word that marks the current week, and the figure run
+  // so far, named, with its target when the week still has one to run toward ("2.5 of 5.2 h run").
+  'plan.week.this': tpl('This week', {}, { shape: 'label' }),
+  'plan.week.ran': tpl('{ran} run', { ran: 'weekMinutes' }, { shape: 'label' }),
+  'plan.week.ran-of': tpl(
+    '{ran} of {target} run',
+    { ran: 'text', target: 'weekMinutes' },
+    { shape: 'label' },
+  ),
+
   // The screening on the Profile page: the question about the cycle.
   'profile.screening.cycle': tpl(
     'Periods that have stopped or become irregular, or other changes to the cycle',
@@ -119,6 +130,23 @@ export function providerMessage<K extends ProviderMessageId>(
 ): string {
   const template: Template = PROVIDER_TEMPLATES[id]
   return render(template, slots as SlotValues<SlotSpec>, 'km')
+}
+
+/** The mark of the current week's row on the Plan page. */
+export const thisWeekLabel = (): string => render(PAGE_TEMPLATES['plan.week.this'], {}, 'km')
+
+/** The minutes run in a week, named: "2.5 h run". */
+export function weekRanText(ranMin: number): string {
+  return render(PAGE_TEMPLATES['plan.week.ran'], { ran: { kind: 'minutes', min: ranMin } }, 'km')
+}
+
+/** The minutes run so far in a week that has a target, named: "2.5 of 5.2 h run". */
+export function weekRanOfText(ranMin: number, targetMin: number): string {
+  return render(
+    PAGE_TEMPLATES['plan.week.ran-of'],
+    { ran: minutesToHours1(ranMin), target: { kind: 'minutes', min: targetMin } },
+    'km',
+  )
 }
 
 /** What the recovery-cycle field offers: leave it to the plan, or choose one of the two cycles. */

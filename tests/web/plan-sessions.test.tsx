@@ -1174,7 +1174,8 @@ describe('Plan page, a week run past its plan', () => {
     // 79 minutes is 1.3 hours; the raised target of 144 minutes (2.4 hours) is not shown as one.
     expect(cell(CURRENT, 'target').textContent?.trim()).toBe('1.3\u00a0h')
     expect(cell(CURRENT, 'target')).not.toHaveTextContent('2.4')
-    expect(cell(CURRENT, 'actual').textContent).toBe('2.4\u00a0h1.1 h over the plan')
+    // the run is named, and a week run past its plan has no target to be "of"
+    expect(cell(CURRENT, 'actual').textContent).toBe('2.4 h run1.1 h over the plan')
     expect(within(row(CURRENT)).getAllByText('1.1 h over the plan')).toHaveLength(1)
     expect(screen.getAllByText(/over the plan/)).toHaveLength(1)
     expectCleanCopy(document.body)
@@ -1192,9 +1193,14 @@ describe('Plan page, a week run past its plan', () => {
 
     // The row text of a normal week, target and run beside each other: no note, no extra element.
     expect(cell('2027-01-04', 'target').textContent?.trim()).toBe('5.0\u00a0h')
-    expect(cell('2027-01-04', 'actual').textContent).toBe('4.7\u00a0h')
+    expect(cell('2027-01-04', 'actual').textContent).toBe('4.7 h run')
+    // the focus line is the heading row's, once for the run, and not in the row
     expect(row('2027-01-04').textContent).toBe(
-      '4 JanBase 5.0\u00a0h4.7\u00a0hLong run 90\u00a0min, 4 run days, strength 190\u00a0min—41Week focus 0DaysEdit',
+      '4 JanBase 5.0\u00a0h4.7 h runLong run 90\u00a0min, 4 run days, strength 190\u00a0min—41DaysEdit',
+    )
+    expect(screen.getAllByText('Week focus 0')).toHaveLength(1)
+    expect(screen.getByText('Week focus 0').closest('tr')).toBe(
+      row('2027-01-04').previousElementSibling,
     )
     expect(cell('2027-01-18', 'target').textContent?.trim()).toBe('5.0\u00a0h')
     expect(cell('2027-01-18', 'actual').textContent).toBe('')

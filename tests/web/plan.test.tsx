@@ -322,6 +322,53 @@ describe('Plan page', () => {
     expect(within(row('2027-01-04')).getByText('7.0 h')).toBeInTheDocument()
   })
 
+  test('a phase prints its focus line once, above the first week of its run, and a week with a line of its own keeps it', async () => {
+    const weeks = [
+      makeWeek(0, { phase: 'base1', focus: 'Aerobic base: easy running' }),
+      makeWeek(1, { phase: 'base1', focus: 'Aerobic base: easy running' }),
+      makeWeek(2, { phase: 'base1', focus: 'Aerobic base: easy running' }),
+      makeWeek(3, { phase: 'base1', focus: 'Aerobic base: easy running' }),
+      makeWeek(4, { phase: 'base1', focus: 'Recovery week: lighter volume', flags: ['recovery'] }),
+      makeWeek(5, { phase: 'base1', focus: 'Aerobic base: easy running' }),
+      makeWeek(6, { phase: 'build', focus: 'Build: steady volume with quality work' }),
+      makeWeek(7, { phase: 'build', focus: 'Build: steady volume with quality work' }),
+    ]
+    mockApi(routes(makePlan(weeks)))
+    const { container } = renderWithProviders(<PlanPage />)
+    await screen.findByText('Aerobic base: easy running')
+
+    // one heading row for the Base run (from this week on: the earlier weeks are folded) and one
+    // for the Build run
+    expect(screen.getAllByText('Aerobic base: easy running')).toHaveLength(1)
+    expect(screen.getAllByText('Build: steady volume with quality work')).toHaveLength(1)
+    const heading = screen.getByText('Aerobic base: easy running').closest('tr')!
+    expect(heading.nextElementSibling).toBe(row(CURRENT_WEEK))
+    expect(row(CURRENT_WEEK).querySelector('td:last-of-type')).not.toHaveTextContent(/Aerobic/)
+    // the recovery week says its own line in its row; the weeks that match their heading say none
+    expect(within(row(addDays(START, 28))).getByText('Recovery week: lighter volume')).toBeVisible()
+    expect(row(CURRENT_WEEK)).not.toHaveTextContent('Aerobic base')
+    expect(row(addDays(START, 35))).not.toHaveTextContent('Aerobic base')
+    expect(row(addDays(START, 42))).not.toHaveTextContent('steady volume')
+    // every phase heading comes right before the first row of its run
+    const build = screen.getByText('Build: steady volume with quality work').closest('tr')!
+    expect(build.nextElementSibling).toBe(row(addDays(START, 42)))
+    expectCleanCopy(container)
+  })
+
+  test('the current week says "This week" in its row header, and no other week does', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(makePlan()))
+    renderWithProviders(<PlanPage />)
+    await screen.findByText('Focus 2')
+    await user.click(screen.getByRole('button', { name: 'Earlier weeks (2)' }))
+
+    expect(screen.getAllByText('This week')).toHaveLength(1)
+    const header = row(CURRENT_WEEK).querySelector<HTMLElement>('td:first-child')!
+    expect(within(header).getByText('This week')).toBeInTheDocument()
+    expect(row(CURRENT_WEEK)).toHaveAttribute('aria-current', 'date')
+    expect(within(row('2027-01-04')).queryByText('This week')).not.toBeInTheDocument()
+  })
+
   test('the weeks before this Monday sit behind "Earlier weeks (2)", closed, with the current week first', async () => {
     const user = userEvent.setup()
     mockApi(routes(makePlan()))
@@ -443,10 +490,11 @@ describe('Plan page', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Earlier weeks (2)' }))
     await waitFor(() => {
-      expect(within(row('2026-12-28')).getByText('2.5 h')).toBeInTheDocument()
+      expect(within(row('2026-12-28')).getByText('2.5 h run')).toBeInTheDocument()
     })
-    expect(within(row('2027-01-04')).getByText('3.3 h')).toBeInTheDocument()
-    expect(within(row(CURRENT_WEEK)).getByText('1.0 h')).toBeInTheDocument()
+    expect(within(row('2027-01-04')).getByText('3.3 h run')).toBeInTheDocument()
+    // the current week names its figure and what it is of: 1.0 of the 7.0 h of the week
+    expect(within(row(CURRENT_WEEK)).getByText('1.0 of 7.0 h run')).toBeInTheDocument()
     const future = row('2027-01-18').querySelector('[data-cell="actual"]')
     expect(future).not.toBeNull()
     expect(future?.textContent).toBe('')

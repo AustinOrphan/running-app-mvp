@@ -40,9 +40,10 @@ test('create a goal, activate it, generate a plan and edit one week with a note'
   await expect(table.getByText('Taper', { exact: true }).first()).toBeVisible()
   // The weeks after the race (the post-race window, counted in days) keep the race phase but read
   // "After the race".
-  const raceRow = table.getByRole('row', { name: /Race week/ })
+  // The race week's own row, not the heading row above it that says its focus.
+  const raceRow = table.locator('tr[data-race="true"]')
   await expect(raceRow).toBeVisible()
-  await expect(raceRow).toHaveAttribute('data-race', 'true')
+  await expect(raceRow).toContainText('Race week')
   await expect(table.getByRole('row', { name: /After the race/ }).first()).toBeVisible()
 
   // Edit a future week: a changed target needs a note.
