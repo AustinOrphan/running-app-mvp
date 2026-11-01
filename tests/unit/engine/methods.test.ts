@@ -661,9 +661,8 @@ describe('the offered presets on the twelve matrix athletes', () => {
         const plan = buildPlan(input)
         const base = runnerDefaults.get(id)!
         // the checklist, no minutes added to any week, no week target raised, the race kept [G6];
-        // what the default plan already fails (four sweep runners fail the spacing item at the
-        // default, #48 at steady and standard only; `history-sweep.test.ts` pins the list) is not
-        // the preset's
+        // what the default plan already fails is not the preset's (four sweep runners failed the
+        // spacing item at the default until RF2; `history-sweep.test.ts` holds that none does)
         const windows = input.disruptions ?? []
         const inherited = problemsOf(a, windows, base, base)
         expect(problemsOf(a, windows, plan, base).filter((p) => !inherited.includes(p))).toEqual([])

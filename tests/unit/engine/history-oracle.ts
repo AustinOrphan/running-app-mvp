@@ -52,6 +52,13 @@
 // week, only the sessions of the race week differ in the moved plans; the weeks, the warnings and
 // the checklist are the same. `h13 rest window` moves a second time, for its race week.
 //
+// Regenerated 2026-10-31 for the spacing across the Monday (task RF2): the first quality session of a
+// week no longer falls on the day after a long run that follows a quality day, so the long run is not
+// between two quality days (F3) when a plan starts on a Saturday. Three of the 142 digests move,
+// `sweep #16`, `sweep #28` and `sweep #36` (half marathons whose plan starts on 2026-10-24): in each
+// one session differs, the threshold run of Monday 2026-10-26 is an easy run of the same minutes; the
+// weeks, the warnings and the other sessions are the same.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

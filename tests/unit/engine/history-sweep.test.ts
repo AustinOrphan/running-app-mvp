@@ -12,7 +12,7 @@
 // the mean of the weeks run passes the planned baseline and must change nothing elsewhere.
 //
 // The seed picks a sample; a failure names the runner by its index to replay it.
-import { describe, expect, it, test, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState, historyBlock } from '../../../shared/engine/athlete.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
@@ -291,45 +291,23 @@ describe('the rebuild zone over a seeded sweep of synthetic runners', () => {
     2 * BUDGET_MS,
   )
 
-  // KNOWN FAILURE, found at the review of M2 (three runners) and counted by M5 (2026-10-31, four runners
-  // of the 150); not fixed here. A plan made on a Saturday opens with a threshold session on the
-  // Saturday, the long run on the Sunday and the first quality session of the next week on the Monday,
-  // so the long run sits between two quality days (rule F3), and the checklist's spacing item fails. The
-  // four runners are half-marathon runners whose plan starts on 2026-10-24; #16, #28 and #36 fail at
-  // every position of the load setting and #48 at steady and standard. The plans of a method preset
-  // inherit the failure (`methods.test.ts` compares a preset with the failures of the default plan,
-  // and the matrix has no such athlete). The list is pinned, so a partial fix or a new failure shows
-  // here, and the second test passes, and goes red, when the engine places the first week so that no
-  // runner fails.
-  const SPACING_FAILURES: Record<string, Position[]> = {
-    '#16 half 1y block 10x4x81 ended 10': ['steady', 'standard', 'upper'],
-    '#28 half 3y block 5x2x55 ended 13': ['steady', 'standard', 'upper'],
-    '#36 half 1y block 8x4x35 ended 6': ['steady', 'standard', 'upper'],
-    '#48 half 3y block 8x2x57 ended 7': ['steady', 'standard'],
-  }
-
-  const spacingFailures = (): Record<string, Position[]> => {
-    const out: Record<string, Position[]> = {}
+  // Found at the review of M2 (three runners) and counted by M5 (2026-10-31, four runners of the 150),
+  // fixed by RF2. A plan made on a Saturday opens with a threshold session on the Saturday and the long
+  // run on the Sunday, and the first quality session of the next week sat on the Monday, so the long
+  // run was between two quality days across the Monday (rule F3) and the checklist's spacing item
+  // failed. The four runners are half-marathon runners whose plan starts on 2026-10-24 (#16, #28 and
+  // #36 at every position of the load setting, #48 at steady and standard). F3 has no exception for
+  // the first, part week: the placement of the week after it keeps a quality day off the day after a
+  // long run that follows one (`placeWeek`).
+  it('passes the spacing item of the checklist for every runner and position', () => {
+    const failing: string[] = []
     for (const c of cases) {
       for (const position of POSITIONS) {
-        const failed = planOf(c.name, position).checklist.some((i) => i.id === 'spacing' && !i.ok)
-        if (failed) (out[c.name] ??= []).push(position)
+        const item = planOf(c.name, position).checklist.find((i) => i.id === 'spacing')!
+        if (!item.ok) failing.push(`${c.name} at ${position}: ${item.detail}`)
       }
     }
-    return out
-  }
-
-  it('fails the spacing item of the checklist for the four runners listed, in the first week, and for no other', () => {
-    expect(spacingFailures()).toEqual(SPACING_FAILURES)
-    // the item is the one that fails: the long run between two quality days
-    for (const name of Object.keys(SPACING_FAILURES)) {
-      const item = planOf(name, 'steady').checklist.find((i) => i.id === 'spacing')!
-      expect(item.detail).toBe('the long run on 2026-10-25 sits between two quality days')
-    }
-  })
-
-  test.fails('passes the spacing item of the checklist for every runner and position', () => {
-    expect(spacingFailures()).toEqual({})
+    expect(failing).toEqual([])
   })
 
   it(
