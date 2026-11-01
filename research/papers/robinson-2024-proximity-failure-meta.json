@@ -11,14 +11,14 @@
   "population": "Resistance training trials in which proximity to failure could be estimated as repetitions in reserve (RIR); mixed training status. Not runners; the abstract gives no count of studies or participants.",
   "sampleSize": null,
   "evidenceLevel": "A",
-  "topics": ["strength-plyometrics"],
+  "topics": ["strength-plyometrics", "strength-autoregulation"],
   "findings": [
     "A series of exploratory multilevel meta-regressions of strength and hypertrophy outcomes against the estimated repetitions in reserve of each intervention, adjusted for load, method of volume equating, duration and training status. The RIR of each effect was estimated from the description of the training in each study.",
     "In all best-fit models for strength, the confidence intervals of the marginal slopes for estimated RIR contained the null, which the authors read as a negligible relationship with strength gains.",
     "In all best-fit models for muscle hypertrophy the slopes were negative with intervals that excluded the null: muscle size increased as sets ended closer to failure.",
     "The authors conclude that strength gains were similar across a wide range of RIR, while hypertrophy improves closer to failure, and they caution that the analysis is exploratory and the RIR estimates are indirect."
   ],
-  "limitations": "Exploratory, with modest model fit and RIR values inferred by the authors from the training descriptions, not measured; the outcomes are maximal strength and muscle size in lifting trials, not running economy or performance. The abstract gives neither the number of studies nor the RIR range covered. Abstract read; full text not read.",
+  "limitations": "Exploratory, with modest model fit and RIR values inferred by the authors from the training descriptions, not measured; the outcomes are maximal strength and muscle size in lifting trials, not running economy or performance. The abstract gives neither the number of studies nor the RIR range covered. Abstract read; full text not read (closed access; a preprint on SportRxiv, 10.51224/srxiv.295, exists and was not used).",
   "implications": [
     "A block that leaves repetitions in reserve (the engine's target is 1-3 for heavy work and 3 or more for a ramp-in, a taper and a return) is not shown to cost strength, because the strength gain did not depend on RIR across the range studied. The values themselves are not tested here and stay grade D.",
     "Gives no support for working to failure to build strength, and none for the opposite; hypertrophy is not a goal of the strength block."
@@ -28,7 +28,34 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title (en dash in Crossref), Sports Med 54:2209-2231, issued 2024-07-06, seven authors and DOI match. Europe PMC abstract (PMID 38970765) read; every statement above is in it. The abstract states neither study count, participants nor the RIR range, so none is given.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title (en dash in Crossref), Sports Med 54:2209-2231, issued 2024-07-06, seven authors and DOI match. Europe PMC abstract (PMID 38970765) read; every statement above is in it. The abstract states neither study count, participants nor the RIR range, so none is given. Re-read 2026-10-31 for task RU1: abstract re-read on Europe PMC (PMID 38970765); the full text is closed access and was not fetched.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was re-read on Europe PMC (PMID 38970765) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access); a SportRxiv preprint is listed by Crossref and was not used."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Seven named authors; Europe PMC holds the affiliations (Florida Atlantic University Muscle Physiology Laboratory for Robinson, Pelland and Remmert; Deakin University for Refalo; Auckland University of Technology for Jukic). No separate university record was fetched. No interest is stated in the abstract; Zourdos co-developed the scale."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published July 2024, not corrected; a Crossref title search found no comment letter. It postdates grgic-2022-failure-vs-nonfailure and vieira-2021-failure-vs-nonfailure and agrees with them on strength."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Strength gain independent of RIR agrees with grgic-2022-failure-vs-nonfailure and vieira-2021-failure-vs-nonfailure and with currier-2026-acsm-resistance-prescription, but the reviews share trials. The RIR of each effect was estimated by the authors from descriptions, the abstract gives neither a study count nor the RIR range, and 'a wide range' cannot be given a number from it. Held."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population: resistance training trials of mixed training status; no runners; the abstract gives no count. Use for runners and for the engine's 1-3 in reserve is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (an exploratory meta-regression, level A for its design); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
   }
 }

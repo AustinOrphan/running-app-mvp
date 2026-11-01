@@ -1,0 +1,61 @@
+{
+  "id": "richens-2014-reps-at-percent-runners",
+  "title": "The relationship between the number of repetitions performed at given intensities is different in endurance and strength trained athletes",
+  "authors": "Richens B, Cleather D",
+  "year": 2014,
+  "journal": "Biology of Sport",
+  "doi": "10.5604/20831862.1099047",
+  "pmid": "24899782",
+  "url": "https://doi.org/10.5604/20831862.1099047",
+  "design": "cross-sectional",
+  "population": "16 male university students: 8 endurance runners (age 20.9 ± 1.5 years, 63.3 kg; at least 2 years of track or cross-country training at 800 m or more; no resistance training) and 8 weightlifters (22.4 ± 3.3 years, 79.8 kg; at least 2 years of weightlifting, mean 4.1 years).",
+  "sampleSize": 16,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation", "strength-plyometrics"],
+  "findings": [
+    "Each man had a leg press 1RM tested and then, on three further days at least 48 hours apart and in random order, did repetitions to fatigue at 90, 80 and 70% of his 1RM, with a three-second lowering and as fast a lift as possible.",
+    "The runners' 1RM was 188.4 ± 13.8 kg and the weightlifters' 335.6 ± 48.6 kg.",
+    "Repetitions completed: runners 10.8 ± 3.9 at 90%, 19.8 ± 6.4 at 80% and 39.9 ± 17.6 at 70% of 1RM; weightlifters 7.0 ± 2.1, 11.8 ± 2.7 and 17.9 ± 2.8. The runners did significantly more repetitions than the weightlifters at 70% and 80% (p < 0.05) and not at 90%.",
+    "The commonly used repetition tables (those of Baechle and Earle, and of Mayhew and colleagues) predicted the leg press poorly in both groups (the authors' Figure 1 comparison, described in the text). The authors suggest that traditional guidelines may underestimate the repetitions possible at a given percentage, particularly for endurance-trained athletes, and name two explanations: endurance adaptations, or runners' unfamiliarity with heavy loading, which may have made their 1RM test submaximal."
+  ],
+  "limitations": "Eight men a group, one machine exercise, a convenience sample of students, runners with no resistance training whose 1RM may have been under-tested (the authors raise this). The spread among the runners is wide (39.9 ± 17.6 repetitions at 70%). No women, no masters runners, no free-weight squat or hinge, and the runners were young and trained at 800 m or more, not recreational runners of a marathon or ultra. The conflict statement says none.",
+  "implications": [
+    "The only runner data in the corpus on repetitions at a percentage of 1RM: untrained-in-lifting runners did about 11, 20 and 40 leg-press repetitions at 90, 80 and 70% of 1RM, against 7, 12 and 18 for weightlifters. The engine's linear equation with divisor 30 predicts 3, 8 and 13 repetitions at those percentages (computed here, not a finding of the paper). An estimate of a maximum made from repetitions to the limit therefore overstates a runner's maximum, more so as the repetitions rise, which is the direction of less safety margin.",
+    "It supports a cap on the repetitions an estimate is made from (`f8.e1rmMaxReps`) and, with the pooled figures of nuzzo-2023-reps-at-percent-1rm, a divisor larger than 30 for lower-body lifts; it does not give a divisor itself."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title (capitals in Crossref), Biology of Sport 31(2):157-161, April 2014, two authors, no updated-by notice. Europe PMC PMID 24899782, PMC4042664 (open access). Abstract and full text read: Methods, Table 2, Results and Discussion; Figure 1 is not read (image). The predicted repetitions of the engine's equation in the implications are computed.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC4042664) on 2026-10-31 with Table 2; every number is from the abstract, Methods or Table 2. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Two named authors, both at the School of Sport, Health and Applied Sciences, St Mary's University, Twickenham, as Europe PMC holds. No separate university record was fetched. Conflict statement: none. Cleather is also an author of graham-2021-rir-autoregulation-fixed."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published April 2014, not corrected. nuzzo-2023-reps-at-percent-1rm (2023) cites studies in which endurance athletes did more repetitions at 75% of 1RM or less and says the data are too few to analyse them; it does not supersede this study."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Agreed in direction by nuzzo-2023-reps-at-percent-1rm (a meta-regression noting that endurance athletes can do more repetitions at loads up to 75% of 1RM, from three studies it did not analyse) and by the earlier studies this paper cites (Desgorces; Panissa), which were not read. At 90% of 1RM the two groups did not differ here. second pass: held. The runner counts have no second source that was read: the remark of nuzzo-2023-reps-at-percent-1rm on endurance athletes rests on three studies it did not analyse (this one, Desgorces 2010 and Miranda 2021), and neither of the other two was read by either pass. The pooled leg press interval of nuzzo-2023 (13.1, 9.8-17.5 at 80% and 19.0, 14.2-25.5 at 70%) agrees with the weightlifters here (11.8 and 17.9) and not with the runners (19.8 and 39.9), and the runners had no lifting experience, so their first 1RM may have been submaximal, as the authors say."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 8 young male middle-distance and cross-country runners without lifting experience, leg press only. Use for recreational and ultra runners, women, older runners and free-weight lifts is extrapolated and labelled so."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31"
+  }
+}

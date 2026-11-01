@@ -1,0 +1,62 @@
+{
+  "id": "wiedenmann-2026-rir-trainability",
+  "title": "Trainability of repetitions-in-reserve estimation in younger and older adults: a parallel-group repeated-measures study",
+  "authors": "Wiedenmann T, Kunellis D, Rappelt L, Held S, Wicker P, Donath L",
+  "year": 2026,
+  "journal": "BMC Sports Science, Medicine and Rehabilitation",
+  "doi": "10.1186/s13102-026-01997-y",
+  "pmid": "42632893",
+  "url": "https://doi.org/10.1186/s13102-026-01997-y",
+  "design": "experimental-repeated-measures",
+  "population": "26 recreationally active adults with some resistance training experience and none with RIR: 13 younger (age 33 ± 7, 9 women) and 13 older (age 67 ± 4, 7 women); 30 were enrolled and 4 withdrew. Not runners.",
+  "sampleSize": 26,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "After a familiarisation session, six sessions 5-10 days apart: before each, a 1RM test; then three sets of bench press and leg press at random loads of 75% and 85% of the tested 1RM. In each set the person called the repetition after which they expected 4 and 2 repetitions to remain, then continued to concentric failure. No feedback was given on accuracy.",
+    "At the first session the younger group's mean absolute error at 2 in reserve was 1.6 repetitions (bench press) and 2.9 (leg press), and at 4 in reserve 2.4 and 4.6; the older group's were 1.2 and 2.5 at 2 and 2.1 and 4.6 at 4. Both groups underestimated the repetitions left. Sets averaged 10.9-11.0 repetitions (bench press) and 13.3-14.6 (leg press).",
+    "Error was lower at 2 than at 4 in reserve (mean difference -1.04 repetitions, 95% CI -1.30 to -0.78) and lower for the bench press than the leg press (-1.42, -1.96 to -0.88). Error rose with the repetitions to failure (leg press r about 0.42-0.50 at 2 and 0.54-0.58 at 4; bench press 0.19-0.26 and 0.47-0.55).",
+    "Error fell with practice in both age groups, significantly from session 4: by session 6 the younger group's error was 0.8 (bench press) and 1.4 (leg press) at 2 in reserve and 1.5 and 2.3 at 4 in reserve. The older group's fell by 0.4-2.1. No age-group or interaction effect was found.",
+    "The authors conclude that RIR estimation is a trainable skill with no age difference, that four to six sessions of familiarisation are advisable, and that targets nearer failure (for example 2 in reserve) are generally preferable because errors of one to two repetitions are unlikely to matter."
+  ],
+  "limitations": "26 people; the sample size was set for the effect of session and the age comparison is exploratory, not a test of equivalence. Six sessions over six weeks, fixed exercise order, sets of 11-15 repetitions at 75-85% of 1RM on the bench press and leg press, so heavy sets of 3-6 repetitions and free-weight squats were not tested. The participants were not novices to lifting. Errors are in whole repetitions. Not runners.",
+  "implications": [
+    "Before practice, a call of 4 in reserve was off by about 2-5 repetitions in leg press sets of 13-15 repetitions and a call of 2 by about 1-3; both halved within six sessions. Two reasons follow for the engine: a threshold at 4 in reserve (`f8.bigStepRir`) sits on the least accurate part of the scale, and a lifter's first sessions of recording are the least reliable. The direction is underestimation, so a reported count understates the true reserve.",
+    "Older adults were as accurate and as trainable as younger ones, which gives no reason to set a different RIR threshold for masters runners. This is evidence on bench press and leg press, not on the squat or hinge lifts."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, BMC Sports Science, Medicine and Rehabilitation 18(1):375, online 2026-08-20, six authors, CC BY 4.0, no updated-by notice. Europe PMC PMID 42632893, PMC13499321 (open access). Abstract and full text read: Methods, Results (Table 1 and the text of Table 2), Discussion; Figures 1 and 2 and the supplementary tables were not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC13499321) on 2026-10-31; every number is from the Results text or Tables 1 and 2. The DOI resolves in Crossref, which lists no updated-by notice. Figures and supplementary tables were not read."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Six named authors; Europe PMC holds the affiliations (German Sport University Cologne; IST University of Applied Sciences, Dusseldorf; Bielefeld University). No separate university record was fetched. The competing-interests statement says none; funding is the open-access agreement of Bielefeld University."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published August 2026, the newest paper in this set; no correction. It cites the earlier trainability studies, which were not read here, and reports that two found no improvement where baseline errors were already about one repetition or less."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Agrees with steele-2017-predict-repetitions-failure (inexperienced lifters make larger errors), halperin-2021-rir-prediction-accuracy and zourdos-2021-intraset-rir-accuracy (error grows with distance from failure and repetition count) and with martikainen-2025-varying-proximity-failure (error at 3 in reserve falls with practice). Different groups for each. second pass: held. The accuracy pattern (a smaller error at 2 than at 4 in reserve, a larger one with more repetitions, an understated reserve) is agreed by hackett-2017-accuracy-repetitions-failure, zourdos-2021-intraset-rir-accuracy and halperin-2021-rir-prediction-accuracy. The trainability finding, which findings 4 and 5 state, has one corroborating record, martikainen-2025-varying-proximity-failure, which is itself held (only the group that varied its target changed its error at 3 in reserve, and the groups did not differ), and the paper's own discussion calls the earlier trainability studies inconsistent (two with no gain at a baseline error of about one repetition, two with small gains). The age comparison is exploratory, as the paper says."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 26 recreationally active adults aged 18-40 and 60-80, bench press and leg press at 75-85% of 1RM, sets of about 11-15 repetitions. Use for heavy sets of 3-6 repetitions, free-weight lifts and runners is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small repeated-measures study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31"
+  }
+}

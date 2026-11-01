@@ -1,0 +1,61 @@
+{
+  "id": "refalo-2023-rir-accuracy-bench",
+  "title": "Accuracy of Intraset Repetitions-in-Reserve Predictions During the Bench Press Exercise in Resistance-Trained Male and Female Subjects",
+  "authors": "Refalo MC, Remmert JF, Pelland JC, Robinson ZP, Zourdos MC, Hamilton DL, Fyfe JJ, Helms ER",
+  "year": 2024,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000004653",
+  "pmid": "37967832",
+  "url": "https://doi.org/10.1519/jsc.0000000000004653",
+  "design": "cross-sectional",
+  "population": "24 resistance-trained men (12) and women (12) who did the barbell bench press at 75% of 1RM. Not runners.",
+  "sampleSize": 24,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "In two sessions each person did two bench-press sets to momentary failure at 75% of 1RM and said when they perceived they had reached 1 or 3 repetitions in reserve.",
+    "Accuracy was high across all sets and sessions: the raw error (direction kept) was -0.17 ± 1.00 and the absolute error 0.65 ± 0.78 repetitions for the 1 and 3 in reserve predictions together.",
+    "The raw and absolute errors were statistically equivalent within an equivalence range of 1 repetition between the 1-RIR and 3-RIR predictions, between set 1 and set 2 and between session 1 and session 2. No relationship was found with sex, years of resistance training or relative bench-press strength.",
+    "The authors conclude that resistance-trained people can predict 1 and 3 repetitions in reserve with high absolute accuracy on the barbell bench press, with a minor tendency to underpredict, so RIR prescriptions may inform proximity to failure."
+  ],
+  "limitations": "Abstract read; the full text is closed access and was not fetched. One upper-body barbell lift at 75% of 1RM (about 10 repetitions), in 24 resistance-trained people; the accuracy of lower-body lifts, of heavy sets of 3-6 repetitions and of untrained people is not tested. Several authors developed the scale (Zourdos, Helms) and share authors with other records here. An equivalence range of 1 repetition is the authors' choice.",
+  "implications": [
+    "For trained people on a free-weight lift, calls of 1 and 3 repetitions in reserve were within about one repetition of the truth, which are the two values the engine uses for its block and easy targets. It sits against the larger errors of the 16-repetition squat sets of zourdos-2021-intraset-rir-accuracy: accuracy depends on the lift and the repetition count.",
+    "It does not show the same for novices, for lower-body lifts or for sets of 3-6 repetitions, so the engine's thresholds stay defaults."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, J Strength Cond Res 38(3):e78-e85, online 2023-11-30 and print March 2024 (record year 2024, the volume year; Europe PMC also 2024), eight authors, no updated-by notice. Abstract read on Europe PMC (PMID 37967832); every figure above is in it. The full text was not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 37967832) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Eight named authors; Europe PMC holds the affiliations (Deakin University; Florida Atlantic University Muscle Physiology Laboratory; Auckland University of Technology for Helms). No separate university record was fetched. No interest is stated in the abstract; Helms and Zourdos developed the scale."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published November 2023 (print March 2024), not corrected. It postdates halperin-2021-rir-prediction-accuracy and finds smaller errors at 1 and 3 in reserve, for a different lift and repetition count."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Agrees that trained lifters predict within about one repetition near failure (hackett-2017-accuracy-repetitions-failure, an independent group) and that sex and experience do not matter (halperin-2021, remmert-2023-rir-accuracy-trained-untrained); disagrees in size with zourdos-2021-intraset-rir-accuracy. It shares authors with that paper and with remmert-2023 and robinson-2024-proximity-failure-meta, so those count as one family. The larger error is used for caution (G6)."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 24 resistance-trained men and women, barbell bench press, 75% of 1RM. Use for lower-body lifts, heavy sets of 3-6 repetitions, novices and runners is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
+  }
+}

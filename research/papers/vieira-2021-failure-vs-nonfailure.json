@@ -1,0 +1,62 @@
+{
+  "id": "vieira-2021-failure-vs-nonfailure",
+  "title": "Effects of Resistance Training Performed to Failure or Not to Failure on Muscle Strength, Hypertrophy, and Power Output: A Systematic Review With Meta-Analysis",
+  "authors": "Vieira AF, Umpierre D, Teodoro JL, Lisboa SC, Baroni BM, Izquierdo M, Cadore EL",
+  "year": 2021,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0000000000003936",
+  "pmid": "33555822",
+  "url": "https://doi.org/10.1519/jsc.0000000000003936",
+  "design": "meta-analysis",
+  "population": "13 randomised and non-randomised studies of resistance training of at least 6 weeks in adults that compared training to failure with training not to failure; the abstract gives no participant count or age. Not runners.",
+  "sampleSize": null,
+  "evidenceLevel": "A",
+  "topics": ["strength-autoregulation", "strength-plyometrics"],
+  "findings": [
+    "Searched three databases for randomised and non-randomised studies of at least 6 weeks in adults comparing resistance training to failure (RTF) with not to failure (RTNF) on strength, hypertrophy and power. Thirteen studies were included and effects were pooled as standardised mean differences with random-effects models.",
+    "Maximal strength: no difference overall (SMD -0.08, p = 0.642); RTNF gave a greater strength gain when volumes were not equalised (SMD -0.34, p = 0.048).",
+    "Muscle hypertrophy: RTF gave a greater increase overall (SMD 0.75, p = 0.005), with no difference when volumes were equalised.",
+    "Muscle power: no difference overall (SMD -0.20, p = 0.239); RTNF gave a greater improvement when volumes were not equalised (SMD -0.61, p = 0.025).",
+    "The authors conclude that not training to failure may give comparable or even greater gains in maximal dynamic strength and power, with no difference in hypertrophy once volumes are equalised."
+  ],
+  "limitations": "Abstract read; the full text is closed access and was not fetched. The abstract gives neither the number of participants nor the quality ratings, and it does not say how failure was defined. It pools randomised and non-randomised studies. The hypertrophy result reverses once volume is equalised, as the authors say. Adults of unstated age; no runners or endurance athletes.",
+  "implications": [
+    "A second, independent meta-analysis finds no strength advantage for training to failure and an advantage for not training to failure where non-failure groups did more work. Together with grgic-2022-failure-vs-nonfailure it supports leaving repetitions in reserve in the strength block (`f7.heavyRir`) without a strength penalty in lifters.",
+    "It gives no figure for how many repetitions to leave and no data for runners or for work done beside running."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, J Strength Cond Res 35(4):1165-1175, online 2021-02-04, seven authors, no updated-by notice. Abstract read on Europe PMC (PMID 33555822); every figure above is in it. The full text was not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 33555822) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Seven named authors; Europe PMC holds the affiliations of the first authors (Exercise Research Laboratory and Department of Public Health, Federal University of Rio Grande do Sul, Brazil). No separate university record was fetched. No interest is stated in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published February 2021, not corrected. Later reviews in the corpus agree on strength: grgic-2022-failure-vs-nonfailure, refalo-2022-proximity-hypertrophy (hypertrophy) and robinson-2024-proximity-failure-meta."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Agrees with grgic-2022-failure-vs-nonfailure (a different group; no strength difference, non-failure favoured when volume was not equated) and robinson-2024-proximity-failure-meta. The reviews share many of the same trials, so they are not independent evidence of the underlying studies."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population: adults in studies of 6 weeks or more; the abstract gives no ages or training status. Use for runners, for work done beside running and for the heavy sets of the block is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a meta-analysis, level A); the caps by class are for sources outside the journals. The abstract does not give the quality of the included studies."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
+  }
+}

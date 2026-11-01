@@ -441,10 +441,10 @@ test('a set short of the range gives a lighter next load, with its reason in the
   await liftIn(logging, 'Goblet squat').getByRole('button', { name: 'Why: Goblet squat' }).click()
   const drawer = page.getByRole('dialog', { name: 'Why this?' })
   await expect(drawer.getByText(reason)).toBeVisible()
-  // the rule is named with its grade: a default that no study in runners has tested
+  // the rule is named with its grade: a default that no trial has tested in runners
   await expect(drawer.getByText('Strength load progression').first()).toBeVisible()
   await expect(
-    drawer.getByText(/No study in runners compares ways of choosing the next load\./),
+    drawer.getByText(/No trial tests a threshold and none was done in runners or beginners\./),
   ).toBeVisible()
 })
 

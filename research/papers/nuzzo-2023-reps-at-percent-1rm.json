@@ -11,24 +11,57 @@
   "population": "952 repetitions-to-failure tests in 7289 individuals in 452 groups from 269 studies; 66% male, 97% healthy, 92% under 59 years, 60% resistance trained; the bench press (42%) and the leg press (14%) were the most studied exercises",
   "sampleSize": 7289,
   "evidenceLevel": "A",
-  "topics": ["strength-plyometrics"],
+  "topics": ["strength-plyometrics", "strength-autoregulation"],
   "findings": [
     "A meta-regression estimated the mean and the between-individuals standard deviation of the number of repetitions completed to failure at each percentage of the one repetition maximum (1RM).",
     "The mean repetitions were best described by natural cubic splines and the standard deviation by a linear model, and both fell as the percentage of 1RM rose.",
     "More repetitions were completed in the leg press than the bench press across the loading range, so separate tables were built for these two exercises; the authors found little influence of sex, age or training status and so give one general table for all other exercises.",
-    "The authors note that more data are needed for tables of other exercises."
+    "The authors note that more data are needed for tables of other exercises.",
+    "Eligible studies were journal papers in English that tested (and did not estimate) the 1RM, then took a repetitions-to-failure set in a non-fatigued state and reported group means with a measure of variance. The search was, in the authors' words, thorough but not systematic (January and February 2023). 425 groups and 898 tests from 6970 people entered the models; the others lacked a variance.",
+    "From the Discussion's rounded values: in the general model about 5 repetitions at 90% and about 15 at 70% of 1RM, against 4 and 11 in the textbook table; for the bench press about 4, 9 and 14 at 90, 80 and 70%, and for the leg press about 9, 13 and 19 (13.1, 95% CI 9.8-17.5 at 80% and 19.0, 14.2-25.5 at 70%; bench press 8.8, 7.7-10.1 and 14.1, 12.4-16.1).",
+    "The between-person standard deviation of repetitions fell as the load rose: 2.51 repetitions at 80% and 4.36 at 60% of 1RM.",
+    "Almost every contrast for sex, age and training status had a ratio interval that included 1, so the authors give one general table; the bench press against the leg press was the exception, with fewer repetitions on the bench press up to about 50% of 1RM.",
+    "The authors note that some results suggest endurance athletes can do more repetitions than strength-power athletes at loads of 75% of 1RM or less, and say the data were too few to analyse it."
   ],
-  "limitations": "Few studies cover lower-body free-weight lifts such as the squat or the Romanian deadlift; the abstract gives no table values; the tests were to failure in healthy, mostly young adults. Abstract read on Europe PMC (open access); the tables were not read.",
+  "limitations": "The search was not systematic (the authors say so) and the groups were mostly young, healthy, male and resistance-trained, with few studies of the free-weight squat or hinge. The tables of values at each percentage are in Figures 2 to 4, which are images and were not read; the figures quoted come from the Discussion text and are rounded. Endurance athletes were not analysed. Two authors (Nuzzo, Pinto) were previously employed by a maker of resistance-exercise equipment. Full text read 2026-10-31.",
   "implications": [
-    "The number of repetitions possible at a given percentage of the maximum is not linear and varies between people and exercises, so an equation that converts repetitions to a maximum is an approximation. The engine uses the linear form only for a starting load, a ceiling and a labelled estimate (f8.e1rmDivisor), never for a test.",
-    "No sex, age or training-status adjustment is supported by this analysis, consistent with the rule that sex never changes the dose."
+    "The number of repetitions possible at a given percentage of the maximum is not linear, varies between people and differs by exercise, so an equation that converts repetitions to a maximum is an approximation, and a more uncertain one at lighter loads. The engine uses the linear form only for a starting load, a ceiling and a labelled estimate (f8.e1rmDivisor), never for a test.",
+    "Computed here from the quoted values, not a finding of the paper: the engine's linear estimate with divisor 30 puts 90, 80 and 70% of 1RM at about 3, 8 and 13 repetitions to failure, and every pooled figure above is higher. A divisor that fits the bench press values is about 33-36; the leg press values imply about 44-52 at 70-80% and about 81 at 90%, and the general model about 35-45. So for lower-body lifts a divisor of 30 overstates a maximum estimated from repetitions. The paper itself gives no equation or divisor.",
+    "No sex, age or training-status adjustment is supported by this analysis, consistent with the rule that sex never changes the dose (A5, G-4); the one group it could not analyse, endurance athletes, is the one the engine serves (see richens-2014-reps-at-percent-runners)."
   ],
   "verification": {
     "doiResolved": true,
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title, Sports Med 54:303-321, issued online 2023-10-04 (Europe PMC year 2024), four authors and DOI match. Europe PMC abstract (PMID 37792272, PMC10933212) read; every figure above is in it.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title, Sports Med 54:303-321, issued online 2023-10-04 (Europe PMC year 2024), four authors and DOI match. Europe PMC abstract (PMID 37792272, PMC10933212) read; every figure above is in it. Re-read in full 2026-10-31 for task RU1 on Europe PMC (PMC10933212, open access): Methods, Results and Discussion; Figures 2 to 4 (the tables of values) are images and were not read, so the values come from the Discussion text.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The full text was read on Europe PMC (PMC10933212) on 2026-10-31; the values quoted are the Discussion's own rounded figures. Figures 2 to 4, which hold the full tables, are images and were not read. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Four named authors; Europe PMC holds the affiliations (Centre for Human Performance, Edith Cowan University for Nuzzo, Pinto and Nosaka; Solent University, Southampton for Steele). No separate university record was fetched. Interests declared: Nuzzo and Pinto were previously employed at Vitruvian, a company that designs and sells resistance-exercise equipment."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published online October 2023 (print February 2024), not corrected; a SportRxiv preprint exists and was not used. It supersedes the textbook table it updates and the older small studies; nothing later was found."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Agrees with richens-2014-reps-at-percent-runners on the lower body (more repetitions in the leg press than the bench press; runners higher still) and with reynolds-2006-1rm-prediction and lesuer-1997-1rm-equations that the relation is not linear and equations are biased. Steele is an author of this paper and of some accuracy papers, which does not bear on this finding."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 66% male, 97% healthy, 92% under 59, 60% resistance trained; bench press 42% and leg press 14% of tests; endurance athletes not analysed. Use for runners and for the squat and hinge lifts is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a meta-regression of 269 studies, level A); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31"
   }
 }

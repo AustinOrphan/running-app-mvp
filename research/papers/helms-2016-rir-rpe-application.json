@@ -1,0 +1,63 @@
+{
+  "id": "helms-2016-rir-rpe-application",
+  "title": "Application of the Repetitions in Reserve-Based Rating of Perceived Exertion Scale for Resistance Training",
+  "authors": "Helms ER, Cronin J, Storey A, Zourdos MC",
+  "year": 2016,
+  "journal": "Strength & Conditioning Journal",
+  "doi": "10.1519/ssc.0000000000000218",
+  "pmid": "27531969",
+  "url": "https://doi.org/10.1519/ssc.0000000000000218",
+  "design": "narrative-review",
+  "population": "A practitioner column (Evidence-Based Personal Training) on the repetitions-in-reserve (RIR) rating of perceived exertion scale for lifters. The data it cites were from novice and experienced lifters squatting and from experienced men squatting and bench pressing. Not runners.",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "Describes the 1-10 RIR-based scale of Zourdos et al. 2016, in which 10 means no repetition left. Scores 5-10 carry RIR descriptors and scores 1-4 effort descriptors. Scores of 5-6 are grouped as 4-6 repetitions in reserve because lifters give a range more easily when more than 3 are left. The column notes that a scale of this type first appeared in a 2008 powerlifting manual.",
+    "Advises that novice lifters practise recording RIR but do not base intensity or progression on it alone until their accuracy is shown: use it first as an extra variable beside the usual training data, check accuracy with a set stopped short of failure and then a set to failure at the same load, and once past the novice stage test rating accuracy in a dedicated session.",
+    "Says repetitions left are hard to judge far from failure, so the scale is not suited to low or moderate intensity (under 80% of 1RM) high-velocity power training if an accurate count is wanted. It gives RIR of 2-3 for force-dominant power sets of 1-5 repetitions above 80% of 1RM.",
+    "For maximal strength it recommends 1-6RM loads (80-100% of 1RM): 6 repetitions with 0 left, 5 with 1, 4 with 2 and 3 with 3 are roughly equal in load, about 83% of 1RM. The conversion table behind this rests on the mean scores of trained squatters in one study. The authors warn it is not an absolute conversion: the standard deviation at 8 repetitions at 70% was 1.2, so about two thirds of lifters would report between 2 and 4 left.",
+    "Advises some work at RPE 10 (no repetition left) for specificity, with caution about regular failure training, which it says can change resting hormone concentrations without superior strength gain against stopping 1-2 repetitions short (citing one study). For muscle size it advises 6-12 repetitions at 0-2 in reserve and mostly 2-4 in reserve for the main lifts.",
+    "States that, when written, RIR data existed only for novice and experienced men and women squatting and for experienced men squatting and bench pressing; differences between sexes, single-joint and machine exercises had not been studied."
+  ],
+  "limitations": "A practitioner column and a narrative review, not a systematic search. Two of its authors developed the scale it describes and the biography says Helms co-owns a coaching business. Tables 1 and 2 (the scale and the conversion table) and the figure are images that were not read: the image host answered with a bot check, which was not circumvented. The first definition of the scale in the text (10 RPE = 1 RIR) contradicts its later statements (RPE 10 = 0 in reserve), a misprint. Its numbers come from lifters, not runners, and none is tested against a training outcome.",
+  "implications": [
+    "Supports counting repetitions in reserve as an effort target near the limit of a set and treating the count as unreliable far from it. It also supports the engine's choices to keep a missing count from raising a load and to ask for the top of the repetition range as well as the count (F8.4, F8.5), so the count never acts alone.",
+    "Its strength advice (1-6RM, 0-3 left) sits beside the engine's heavy range of 3-6 repetitions with 1-3 in reserve (`f7.heavyRir`), but it is opinion and gives no trial of that range. The novice advice (record the count, do not rely on it alone) is the reason the engine's thresholds stay defaults."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, Strength & Conditioning Journal 38(4):42-49, August 2016, four authors, CC BY-NC-ND 4.0, no updated-by notice. Europe PMC PMID 27531969, PMC4961270 (author manuscript, open access). Full text read on Europe PMC; Tables 1 and 2 and the figure not read (images, bot check).",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The author manuscript was read in full on Europe PMC (PMC4961270) on 2026-10-31 apart from Tables 1 and 2 and the figure, which are images behind a bot check that was not circumvented. Every finding is the text's own statement. The DOI resolves in Crossref, which lists no updated-by notice."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Four named authors; Europe PMC holds the affiliations: Sport Performance Research Institute New Zealand, AUT University (Helms, Cronin, Storey; Cronin also Edith Cowan University) and Florida Atlantic University (Zourdos). No separate university record was fetched. Interests: Zourdos is first author of the scale paper it describes, and the biography says Helms co-owns 3D Muscle Journey LLC; the conflicts statement says none."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published August 2016 and not corrected. Later papers in the corpus test what it assumed: the accuracy of the count (halperin-2021-rir-prediction-accuracy, hackett-2017-accuracy-repetitions-failure, zourdos-2021-intraset-rir-accuracy) and RIR-based loading in trials (helms-2018-rpe-vs-percent-loading, graham-2021-rir-autoregulation-fixed). They confirm that accuracy falls far from failure."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "Agreed for the point that the count is least reliable far from failure (hackett-2017-accuracy-repetitions-failure, an independent group; halperin-2021-rir-prediction-accuracy). Not agreed for the point that novices are less accurate: steele-2017-predict-repetitions-failure agrees, while halperin-2021, hackett-2017, remmert-2023-rir-accuracy-trained-untrained and zourdos-2021-intraset-rir-accuracy found no effect of training status. The conflict is recorded and the cautious reading (a missing count holds the load) is used (G6)."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: novice and experienced lifters, squat and bench press, strength and size goals. Use for runners, novices on lower-body machines or hinge lifts is extrapolated and labelled so in the implications."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a narrative review, level D); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31"
+  }
+}

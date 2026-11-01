@@ -1,0 +1,61 @@
+{
+  "id": "remmert-2023-rir-accuracy-trained-untrained",
+  "title": "Accuracy of Predicted Intraset Repetitions in Reserve (RIR) in Single- and Multi-Joint Resistance Exercises Among Trained and Untrained Men and Women",
+  "authors": "Remmert JF, Laurson KR, Zourdos MC",
+  "year": 2023,
+  "journal": "Perceptual and Motor Skills",
+  "doi": "10.1177/00315125231169868",
+  "pmid": "37036795",
+  "url": "https://doi.org/10.1177/00315125231169868",
+  "design": "cross-sectional",
+  "population": "58 university students: 27 men (mean age 22, training experience 66 months) and 31 women (mean age 20, 22 months), trained and untrained, on machine-based biceps curl, triceps pushdown and seated row. Not runners.",
+  "sampleSize": 58,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "Each person did a 5RM test on three machine exercises (biceps curl, triceps pushdown, seated row), from which 1RM was estimated, and then four sets of each exercise to momentary failure at 72.5% of the estimated 1RM. During each set they said when they first perceived 5 repetitions in reserve and then predicted the count on every repetition until failure.",
+    "The difference between the repetitions actually done and the predicted count (RIRDIFF) showed no three-way interaction (p = 0.435), and sex (p = 0.917), training experience (p = 0.462) and experience in rating RIR did not affect it (p = 0.462-0.917).",
+    "Proximity to failure and set number had significant main effects (p < 0.01) and exercise did not (p = 0.688): predictions were more accurate closer to failure and in later sets.",
+    "The authors conclude that intraset RIR predictions were more accurate near failure and in later sets, and that sex, training experience and prior experience of rating RIR did not significantly influence accuracy on machine-based single-joint exercises."
+  ],
+  "limitations": "Abstract read; the full text is closed access and was not fetched. The abstract gives no error size or direction. Machine exercises for the arms and back (the abstract calls them single-joint), with 1RM estimated from a 5RM test; no squat, hinge or calf lift. Trained and untrained were set by months of experience and the abstract does not define untrained. University students; no runners.",
+  "implications": [
+    "In people from untrained to trained, men and women, accuracy did not differ by sex or training experience and improved near failure and in later sets. It supports the engine's rule that sex never changes a threshold (A5, G-4) and its caution about the first set of a session, and it gives no reason to give a novice a different threshold.",
+    "The exercises are upper-body machines, so it says little about the squat, hinge and calf lifts of the catalogue."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, Perceptual and Motor Skills 130(3):1239-1254, online 2023-04-10, three authors, no updated-by notice. Abstract read on Europe PMC (PMID 37036795); every figure above is in it. The title says single- and multi-joint while the abstract describes single-joint machine movements; the record follows the abstract. The full text was not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 37036795) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Three named authors; Europe PMC holds the affiliations (School of Kinesiology and Recreation, Illinois State University; Florida Atlantic University for Zourdos). No separate university record was fetched. No interest is stated in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published April 2023, not corrected. It agrees with halperin-2021-rir-prediction-accuracy on training status and on the effect of distance from failure; refalo-2023-rir-accuracy-bench, a later paper, found no relation to sex or experience either."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "No effect of training experience agrees with halperin-2021-rir-prediction-accuracy, hackett-2017-accuracy-repetitions-failure, zourdos-2021-intraset-rir-accuracy and refalo-2023-rir-accuracy-bench; it conflicts with steele-2017-predict-repetitions-failure and zourdos-2016-rir-rpe-scale. Recorded; the cautious reading is used (G6). Zourdos is an author of this paper and of three of the others, so those count as one family."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 58 students on three upper-body machine exercises at 72.5% of estimated 1RM. Use for lower-body free-weight lifts, heavy sets of 3-6 repetitions and runners is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
+  }
+}

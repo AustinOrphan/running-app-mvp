@@ -1,0 +1,60 @@
+{
+  "id": "lesuer-1997-1rm-equations",
+  "title": "The Accuracy of Prediction Equations for Estimating 1-RM Performance in the Bench Press, Squat, and Deadlift",
+  "authors": "LeSuer DA, McCormick JH, Mayhew JL, Wasserstein RL, Arnold MD",
+  "year": 1997,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/00124278-199711000-00001",
+  "pmid": null,
+  "url": "https://doi.org/10.1519/00124278-199711000-00001",
+  "design": "cross-sectional",
+  "population": "67 untrained college students (40 men and 27 women) enrolled in weight-training classes who did four 45-minute practice sessions before testing. Not runners.",
+  "sampleSize": 67,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "The study compared the accuracy of 7 equations that predict a 1RM from repetitions to fatigue, for the bench press, the squat and the deadlift, against the 1RM each student achieved.",
+    "All correlations between predicted and achieved 1RM were high (r above 0.95).",
+    "For the bench press, the average difference between achieved and predicted weight was significantly different from zero in all but 2 of the equations; for the squat, in all but 1; and all of the equations significantly underestimated the deadlift despite the high correlations."
+  ],
+  "limitations": "Only the abstract was read, on the publisher's page (the journal's own record; the paper is not indexed by PubMed or Europe PMC); the full text is behind the publisher's access control and was not fetched. The abstract does not name the 7 equations, the number of repetitions used or the direction of the bench-press and squat differences, so it does not say which way the engine's form is biased. Untrained college students, 1997, one session; no runners.",
+  "implications": [
+    "Equations that rank people correctly can still be biased in absolute terms: on the squat, 6 of 7 equations differed significantly from the achieved 1RM, and on the bench press 5 of 7. An estimate of a maximum from repetitions is a label and not a test, as the engine already labels it. The deadlift was underestimated by all of them, so the bias is not the same for every lift.",
+    "It gives no value for `f8.e1rmDivisor` and does not say whether the linear form with a divisor of 30 is among the equations that were unbiased."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "publisher",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, J Strength Cond Res 11(4):211-213, November 1997, five authors, no updated-by notice. Crossref lists two DOIs for the paper (this one and 10.1519/1533-4287(1997)011<0211:taopef>2.3.co;2); the record uses the first. Europe PMC holds no record and Crossref no abstract. The abstract was read on the publisher's page (journals.lww.com, fetched with a plain HTTP client, HTTP 200); the PDF was not fetched.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on the publisher's page on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Five named authors; the publisher page lists the affiliations: Washburn University (Health, Physical Education & Exercise Science; Academic Affairs), the Human Performance Lab of Northeast Missouri State University, the Wellness/Fitness Lab of Clark College and Popeye's Cardio Fitness Center, Topeka. No separate university record was fetched. No interest is stated."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 1997, not corrected. nuzzo-2023-reps-at-percent-1rm (7289 people, 269 studies) supersedes it for the repetitions at a percentage of 1RM; the claim here, that the equations are biased, is consistent with it."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Consistent with reynolds-2006-1rm-prediction (the repetition-load relation is nonlinear, so a linear equation holds only to about 10 repetitions) and nuzzo-2023-reps-at-percent-1rm. Different samples and lifts; none names the equations compared here."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 67 untrained college students, bench press, squat and deadlift. Use for runners, for the squat and hinge lifts of the catalogue, and for a maximum estimated from repetitions plus reported repetitions in reserve is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
+  }
+}

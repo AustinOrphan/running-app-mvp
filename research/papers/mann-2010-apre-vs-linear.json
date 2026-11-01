@@ -1,0 +1,60 @@
+{
+  "id": "mann-2010-apre-vs-linear",
+  "title": "The Effect of Autoregulatory Progressive Resistance Exercise vs. Linear Periodization on Strength Improvement in College Athletes",
+  "authors": "Mann JB, Thyfault JP, Ivey PA, Sayers SP",
+  "year": 2010,
+  "journal": "Journal of Strength and Conditioning Research",
+  "doi": "10.1519/jsc.0b013e3181def4a6",
+  "pmid": "20543732",
+  "url": "https://doi.org/10.1519/jsc.0b013e3181def4a6",
+  "design": "controlled-trial",
+  "population": "23 Division I college football players (2.65 ± 0.8 training years): 12 trained with autoregulatory progressive resistance exercise (APRE) and 11 with linear periodization (LP), in two separate years of preseason training. Not randomised. Not runners.",
+  "sampleSize": 23,
+  "evidenceLevel": "C",
+  "topics": ["strength-autoregulation"],
+  "findings": [
+    "APRE is a method in which athletes progress at their own pace from daily and weekly variations in performance, unlike linear periodization, where intensity rises by a set amount each week. The study compared 6 weeks of each in football players, with the groups trained in two separate years.",
+    "APRE gave a greater improvement in bench press 1RM (93.4 ± 103 N against -0.40 ± 49.6 N; ANCOVA p = 0.02), in estimated squat 1RM (192.7 ± 199 N against 37.2 ± 155 N; ANOVA p = 0.05) and in repetitions at 225 lb on the bench press (3.17 ± 2.86 against -0.09 ± 2.40; p = 0.02).",
+    "The authors conclude that APRE was more effective than linear periodization for increasing the bench press and squat over 6 weeks."
+  ],
+  "limitations": "Abstract read; the full text is closed access and was not fetched. The groups were trained in separate years and were not randomised, so cohort differences are possible. 23 men, 6 weeks, college football players; the squat figure is an estimate (not a tested 1RM, per the abstract's wording 'estimated 1RM squat strength'). The abstract does not describe the APRE rules, the baseline strength of the groups or the volume each did. No runners.",
+  "implications": [
+    "The nearest published comparison to a progression rule that sets the next load from the repetitions achieved in the last session, against a fixed schedule: it favoured the reps-based method over 6 weeks in trained football players. It is a weak design and APRE's rule is not the engine's (the engine needs every set at the top of the range with a recorded count in reserve), so it supports the direction of F8 and nothing more.",
+    "It tests no threshold of repetitions in reserve and nothing in runners."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-10-31 for task RU1. Crossref: title, J Strength Cond Res 24(7):1718-1723, July 2010, four authors, no updated-by notice. Abstract read on Europe PMC (PMID 20543732); every figure above is in it. The full text was not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was read on Europe PMC (PMID 20543732) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Four named authors; Europe PMC holds the first author's affiliation (Department of Athletic Performance, University of Missouri). No separate university record was fetched. No interest is stated in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published July 2010, not corrected. Later syntheses of autoregulation in the corpus (hickmott-2022-autoregulation-meta) cover RIR-based and velocity-based loading and did not include it; no later trial of APRE against a fixed schedule was found."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "One non-randomised study. In direction it agrees with helms-2018-rpe-vs-percent-loading and graham-2021-rir-autoregulation-fixed (effort-based progression not worse than fixed), but those test a different mechanism (a target effort chosen each session) and not a rule on repetitions achieved. Held."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 23 college football players, 6 weeks, bench press and estimated squat. Use for runners, novices and the lifts of the catalogue is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a small non-randomised trial, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
+  }
+}

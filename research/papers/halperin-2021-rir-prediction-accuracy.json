@@ -11,7 +11,7 @@
   "population": "Healthy participants who predicted how many repetitions they could complete to task failure in resistance exercises; 13 publications covering 12 studies and 414 participants in the meta-analysis. Not runners.",
   "sampleSize": 414,
   "evidenceLevel": "A",
-  "topics": ["strength-plyometrics"],
+  "topics": ["strength-plyometrics", "strength-autoregulation"],
   "findings": [
     "Searched PubMed, SPORTDiscus and Google Scholar in January 2021; 16 publications were eligible and 13 (12 studies, 414 participants) entered the meta-analysis.",
     "Across 262 effect sizes in 12 clusters, participants tended to underpredict the number of repetitions to task failure by 0.95 repetitions (95% CI 0.17-1.73), with considerable heterogeneity (I2 = 97.9%).",
@@ -19,7 +19,7 @@
     "Training status (beta = -0.006) and upper against lower body exercise (difference -0.58 repetitions, 95% CI -2.32 to 1.16) did not influence accuracy; the between-participant standard deviation was 1.45 repetitions (95% CI 0.99-2.12).",
     "The authors conclude that participants were imperfect in predicting proximity to failure whatever their training background, and that accuracy can be improved closer to failure, with heavier loads or in later sets; whether this error is acceptable remains to be determined."
   ],
-  "limitations": "A scoping review with an exploratory meta-analysis and very high heterogeneity; the studies differ in how task failure was explained and confirmed. Healthy participants, with age and sex mix not given in the abstract; no runners and no study that links the error to a training outcome or an injury. Abstract read; full text not read.",
+  "limitations": "A scoping review with an exploratory meta-analysis and very high heterogeneity; the studies differ in how task failure was explained and confirmed. Healthy participants, with age and sex mix not given in the abstract; no runners and no study that links the error to a training outcome or an injury. Abstract read; full text not read (the journal page shows the abstract only; a preprint of the review exists on OSF, is marked not peer reviewed and was not used).",
   "implications": [
     "A runner's count of repetitions in reserve is an imprecise number: the typical error is about one repetition, with an individual spread of about one and a half, and it shrinks for heavier loads and sets that end closer to failure. A load rule that reads it should not treat 1 and 2 in reserve as different facts, and should hold the load when the count is missing.",
     "The mean error is an underprediction of the repetitions left. The direction is not used to relax any engine threshold: the load rule stays conservative (grade D)."
@@ -29,7 +29,34 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title, Sports Med 52:377-390, issued online 2021-09-20 (Europe PMC year 2022), seven authors and DOI match. Europe PMC abstract (PMID 34542869) read; every figure above is in it. The year is Crossref's online year.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title, Sports Med 52:377-390, issued online 2021-09-20 (Europe PMC year 2022), seven authors and DOI match. Europe PMC abstract (PMID 34542869) read; every figure above is in it. The year is Crossref's online year. Re-read 2026-10-31 for task RU1: abstract re-read on Europe PMC (PMID 34542869) and on the journal page; the full text was not read.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was re-read on Europe PMC (PMID 34542869) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The journal page shows the abstract only; the full text was not read, and a preprint on OSF was seen at its header and not used. second pass: the abstract was re-read on the publisher's page on 2026-10-31 and matches the findings. The author's OSF preprint (marked not peer reviewed) was also read for context; no gate rests on it and it is not cited."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Seven named authors; Europe PMC holds the affiliations: School of Public Health, Tel-Aviv University (Halperin, Malleron, Har-Nir) and Faculty of Sport, Health and Social Sciences, Solent University, Southampton (the others). No separate university record was fetched. No interest is stated in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published online September 2021 (print February 2022), not corrected; a Crossref title search found no comment letter. Its search closed in January 2021, so later accuracy papers (refalo-2023-rir-accuracy-bench, remmert-2023-rir-accuracy-trained-untrained, wiedenmann-2026-rir-trainability) are outside it; they agree on the dependence on distance from failure and repetition count."
+    },
+    "r4": {
+      "result": "pass",
+      "note": "Underprediction and the dependence on distance from failure are agreed by hackett-2017-accuracy-repetitions-failure and zourdos-2021-intraset-rir-accuracy (independent groups) and by steele-2017-predict-repetitions-failure (which shares two authors, so is not independent). The finding that training status does not matter conflicts with steele-2017 and zourdos-2016-rir-rpe-scale; the conflict is recorded in their records."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: healthy participants in 12 studies (414 people) across many exercises; no runners. Use for runners and for heavy sets of 3-6 repetitions is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (an exploratory meta-analysis with I2 of 97.9%, level A for its design); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
   }
 }

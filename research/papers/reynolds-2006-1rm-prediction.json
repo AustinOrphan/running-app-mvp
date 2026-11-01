@@ -11,7 +11,7 @@
   "population": "70 adults (34 men, 36 women) aged 18-69 years who completed 1, 5, 10 and 20 repetition maximum tests on the flat barbell bench press (chest press) and the plate-loaded leg press",
   "sampleSize": 70,
   "evidenceLevel": "C",
-  "topics": ["strength-plyometrics"],
+  "topics": ["strength-plyometrics", "strength-autoregulation"],
   "findings": [
     "The decrease in the load lifted from 1 to 5, 10 and 20 repetitions to failure was nonlinear for both lifts; the nonlinear fit was much closer than a linear one (leg press standard error 2.6 kg nonlinear against 11.0 kg linear; chest press 0.2 kg against 2.6 kg).",
     "The 5RM data gave the best prediction of 1RM: R2 for the 5, 10 and 20RM conditions was 0.974, 0.933 and 0.915 for the leg press and 0.993, 0.976 and 0.955 for the chest press. The leg press equation from 5RM was 1RM = 1.0970 x 5RM weight (kg) + 14.2546, with a standard error of 16.16 kg.",
@@ -27,7 +27,34 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title, J Strength Cond Res 20(3):584, 2006, three authors and DOI match. Europe PMC abstract (PMID 16937972) read; every figure above is in it.",
-    "checkedAt": "2026-10-25"
+    "notes": "Crossref 2026-10-25: title, J Strength Cond Res 20(3):584, 2006, three authors and DOI match. Europe PMC abstract (PMID 16937972) read; every figure above is in it. Re-read 2026-10-31 for task RU1: abstract re-read on Europe PMC (PMID 16937972); the full text is closed access and was not fetched.",
+    "checkedAt": "2026-10-31"
+  },
+  "vetting": {
+    "r1": {
+      "result": "pass",
+      "note": "The abstract was re-read on Europe PMC (PMID 16937972) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access)."
+    },
+    "r2": {
+      "result": "pass",
+      "note": "Three named authors; Europe PMC holds the first author's affiliation (Exercise Physiology Laboratories, Exercise Science Program, University of New Mexico). No separate university record was fetched. No interest is stated in the abstract."
+    },
+    "r3": {
+      "result": "pass",
+      "note": "Published 2006, not corrected. nuzzo-2023-reps-at-percent-1rm (7289 people, 269 studies) supersedes it for the repetitions at a percentage of 1RM; its advice to use a linear equation to no more than 10 repetitions is not contradicted, and richens-2014-reps-at-percent-runners shows runners reaching 20-40 repetitions at 80-70% of 1RM."
+    },
+    "r4": {
+      "result": "hold",
+      "note": "The advice of 10 repetitions is this one study's. nuzzo-2023-reps-at-percent-1rm, lesuer-1997-1rm-equations and richens-2014-reps-at-percent-runners agree that the repetition and load relation is not linear and that equations are biased, but none states a limit. Held."
+    },
+    "r5": {
+      "result": "pass",
+      "note": "Population stated: 70 adults aged 18-69, flat bench press and plate-loaded leg press. Use for the squat, hinge and calf lifts and for runners is extrapolated."
+    },
+    "r6": {
+      "result": "n/a",
+      "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
+    },
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
   }
 }
