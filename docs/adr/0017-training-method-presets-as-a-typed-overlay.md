@@ -191,9 +191,10 @@ Alternatives:
   each override against the default with the grade of each Param, the grade of the choice and the
   reason a preset reads as the default. The Generate form offers the choice with its fit notes, the
   Plan page shows `method` in a Plan shape panel, and the sentences are `shared/copy/method.ts`.
-- M6 adds the change in place through `computeReplan` with the current week held. A preset that is
-  held or inapplicable changes run days when the hold starts or ends; M6 guards a run-day switch in
-  the middle of a plan as the transient holds are guarded.
+- As of M6 (2026-10-31) the preset changes in place, through `computeReplan` with the current week held
+  (see the addendum below). A preset that is held or inapplicable changes run days when the hold
+  starts or ends; the guard keeps a run-day switch out of the middle of a week, except for a hold
+  that starts.
 - Whether P2 reaches marathon goals, with a weekly-minutes cap or a cross-training session kind, is
   undecided (decision 6). It needs a new grade D `Param` on the whitelist and an applicability change
   in `methods.ts`.
@@ -211,3 +212,67 @@ Alternatives:
 - A new overridable value needs an id in `OVERRIDE_IDS`, a reader that calls `effective`, a bound in
   `methods.test.ts`, a `Param` under its rule and the section (p) text; the source scan fails on a
   direct read.
+
+## Addendum: changing the shape in place (M6, 2026-10-31)
+
+Decision 8 of the proposal's section 7: the runner changes the preset of an active plan in place, as
+the load setting is changed, through `computeReplan` with the current week held, as one undoable
+revision; the run-day switch of follow-up 27 is guarded as the transient holds are.
+
+- **The action.** `PUT /api/plan/method` (`{ method: PresetId }`) calls `commitMethod`, which runs
+  `computeReplan` with a `method` argument and writes one `PlanRevision` through `applyReplan` with
+  reason `method-change`, a `PlanDiff` from the rows written and an undo payload whose `setting` holds the
+  load position, the preset or both. The same preset as stored writes nothing. A preset that the goal
+  or a hold reads as the plan's own shape is stored as asked and served with its reason, as at
+  generation. `PlanRevision.reason` is a string column, so there is no migration.
+- **The shape of a week.** A week drawn under a preset carries the flag `shape-<preset>`
+  (`shared/engine/shape.ts`). The plan's own shape has none, so the default plan and the oracle do not
+  move, and a week a start programme sets (a ladder, an injury return, the floor week) has none: it is
+  the programme's whatever the shape. Undo restores the flags with the rows.
+- **The guard.** When the shape in effect at a re-plan differs from the shape the stored current week
+  has, `replan` draws the current week again under the shape it has, with the weekly decision, the
+  windows and the ramp applied as to any week, draws the weeks after it from the sessions that week now
+  holds, and the new shape starts with the week after it (`heldWeek`). This is the stored recovery week
+  of follow-up 27 (#570) for the shape: the week as announced is kept. It holds for a change by the
+  runner, a hold ending and a novice's days ending, and it lasts for every re-plan until the next
+  Monday, because the current week then still carries the old flag. A re-plan that finds the shape
+  changed says so in its summary (templates in `shared/copy/revision.ts`).
+- **A hold that starts applies at once.** The resolver reads a preset under a persistent hold as the
+  plan's own shape, so the current week cannot be drawn again under the preset while the hold lasts;
+  the week is drawn under the plan's own shape, and the summary says the shape returned to its own
+  and why.
+
+Reasons:
+
+- **Fact:** `resolveMethod` takes the effective shape from the input and the athlete state alone, with
+  no way to name one (`methods.ts`, read 2026-10-31), so a shape that a hold reads as the default
+  cannot be drawn.
+- **Fact:** The weekly decision of rule J5 caps or reduces the current week at a Monday re-plan
+  (`computeReplan`, read 2026-10-31), and the injury ramp of G-3 caps a week from the day the injury is
+  on file. Keeping the stored rows of the current week would have skipped both for that week.
+- **Fact:** `tests/unit/engine/method-change.test.ts` (2026-10-31) runs a hold that starts at week 6
+  and ends at week 10 under `three-run-days`, and a change of method on the Thursday of a week on every
+  matrix athlete: no check fails that the re-plan without the change passes, no week plans more than
+  the plan's own, and a re-plan of the plan it stored gives it back.
+- **Rule:** `CLAUDE.md`: a re-plan and a `PlanRevision` are written only through `computeReplan`,
+  `applyReplan` and `recordPlanWrite` (ADR 0007); summaries are templates in `shared/copy/`.
+- **Rule:** Decision 8 of the proposal, answered 2026-10-31: in place, the current week held, one
+  undoable revision.
+- **Opinion:** A hold is a condition of the runner and applies at once, so safety wins over the
+  stability of the week's shape; the end of a hold is not urgent and waits for the week to turn.
+- **Opinion:** A flag on the week is the least state: it is written with the row, restored by an undo
+  and read by the next re-plan, where a stamp in `Plan.options` would need its own undo.
+- **Preference:** The flag is named `shape-<preset>`, after the Plan page's word for it.
+
+Alternatives:
+
+- **Keep the stored rows of the current week.** Against (**Fact**): the safety caps above are skipped,
+  and the weeks after it are drawn from a week of another shape than the stored one.
+- **Defer the whole change to the next Monday.** Against (**Opinion**): a re-plan dated the next Monday
+  would read the minutes run so far in the current week as that week's volume, as `estimateState`
+  reads the activities up to `today` (read 2026-10-31), and would take the weekly decision on a week
+  that has not ended. Not tried.
+- **A stamp of the applied shape in `Plan.options`.** Against (**Opinion**): it needs its own undo and
+  reaches the served options; a flag on the week needs neither.
+- **A shape per week inside `macro.ts` and `micro.ts`.** Against (**Opinion**): the readers resolve the
+  preset once per plan, and a per-week resolution touches every reader of the four values.
