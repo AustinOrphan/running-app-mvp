@@ -502,7 +502,15 @@ const drifts = new Map<Method, () => { cases: Case[]; steps: number }>(
  * small and stays: at the re-plan that reports a mild niggle open from that Monday, a second pass of
  * `longer-base` on the 50 km trail athlete moves 2 to 7 minutes between the sessions of the current
  * week (the easy runs 27 to 25, the long run 162 to 169, the strides run 27 to 24) where the default
- * gives its week back; the cause is not traced.
+ * gives its week back. Traced by RF2: it is not the return from a window and shares no cause with
+ * the collapse. The week's minutes are the same at both passes (243); what moves is how they are
+ * shared. The window's own cap (`holdWeek`) keeps the long run and leaves the preset's week at 252
+ * minutes where the default's is 243; the cap that holds a preset to the default plan [rule G6]
+ * (`capWeek(planWeek, limit.target)`) then takes the 9 minutes off every session by the same share,
+ * the long run included (169 to 162). At the second pass the week is already at 243, the cap has
+ * nothing to take and the long run keeps its 169. Capping a week a window touched with `holdWeek`
+ * as the window does would give the one answer at both passes, and moves every preset plan that a
+ * window reaches: a task of its own, so the case stays.
  */
 const DRIFTS: Record<Method, string[]> = {
   default: [],
