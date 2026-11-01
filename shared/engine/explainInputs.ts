@@ -79,6 +79,7 @@ import {
 import { isLoadingWeek, rungCount } from './startWeeks.ts'
 import { liftFor, percentOfMax, workoutFor } from './strength.ts'
 import { resolveTargets } from './targets.ts'
+import { deliveredShares, wholePercents } from './tid.ts'
 import type {
   AthleteState,
   Boundary,
@@ -2508,23 +2509,43 @@ function recoveryCycleFacts(scope: Scope): InputFact[] {
   return facts
 }
 
+/**
+ * E4: what the week's sessions hold, then the shares the plan drew the week from. The first is the
+ * sessions' own time in each zone from the planned minutes (`deliveredShares`, the count the plan
+ * report measures too); the second is `WeekDraft.tid`, the E4 band, kept as the aim. They differ on
+ * a real plan and the first is the one that is true of the sessions. A week with no planned running
+ * has no mix to count and says so.
+ */
 function intensityFacts(scope: Scope): InputFact[] {
   const { ctx, next } = scope
   const week = plannedWeek(ctx, next)
   if (week === null) return [gap('E4', 'explain.plan-gap', {})]
+  const window = { window: weekWindow(next) }
+  const sessions = (ctx.input.existing?.sessions ?? []).filter((s) => mondayOf(s.date) === next)
+  const delivered = deliveredShares(sessions, (ctx.race ?? ctx.input.goal).distanceClass)
+  if (delivered === null) {
+    return [make('E4', 'week', 'explain.e4-week-none', { week: weekOf(next) }, window)]
+  }
+  const whole = wholePercents(delivered)
   return [
     make(
       'E4',
       'week',
       'explain.e4-week',
+      { week: weekOf(next), z1: percent(whole.z1), z2: percent(whole.z2), z3: percent(whole.z3) },
+      window,
+    ),
+    make(
+      'E4',
+      'aim',
+      'explain.e4-aim',
       {
-        week: weekOf(next),
         phase: PHASE_WORDS[week.phase],
         z1: percent(week.tid.z1),
         z2: percent(week.tid.z2),
         z3: percent(week.tid.z3),
       },
-      { window: weekWindow(next) },
+      window,
     ),
   ]
 }

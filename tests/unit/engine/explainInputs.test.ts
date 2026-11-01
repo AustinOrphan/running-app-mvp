@@ -85,10 +85,13 @@ import type {
   ExplainView,
   InputFact,
   Quantity,
+  SessionKind,
+  Step,
   StrengthContext,
   StrengthSessionRef,
   WeekDraft,
 } from '../../../shared/engine/types.ts'
+import { deliveredShares } from '../../../shared/engine/tid.ts'
 import { buildZones } from '../../../shared/engine/zones.ts'
 import { formatLoad } from '../../../shared/domain/weight.ts'
 import type {
@@ -3016,14 +3019,36 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
     })
   })
 
-  test('E4 gives the phase and the shares of the week it is asked about', () => {
+  test('E4 states what the week holds by planned minutes, then the aim it was drawn from', () => {
     const ctx = ctxOf('marathon')
-    const [week] = factsOf('E4', ctx)
+    const [week, aim, ...rest] = factsOf('E4', ctx)
+    expect(rest).toEqual([])
     const stored = ctx.input.existing!.weeks.find((w) => w.weekStart === MONDAY)!
-    expect(slot(week!, 'z1', 'percent').pct).toBe(stored.tid.z1)
-    expect(slot(week!, 'z2', 'percent').pct).toBe(stored.tid.z2)
-    expect(slot(week!, 'z3', 'percent').pct).toBe(stored.tid.z3)
-    expect(text(week!)).toContain(`is a base week`)
+    const sessions = ctx.input.existing!.sessions.filter((s) => mondayOf(s.date) === MONDAY)
+    // the first fact is the sessions' own time in each zone, as whole percents that add up to 100
+    expect(week!.id).toBe('e4.week')
+    expect(week!.template).toBe('explain.e4-week')
+    const held = deliveredShares(sessions, 'marathon')!
+    const shown = [
+      slot(week!, 'z1', 'percent').pct,
+      slot(week!, 'z2', 'percent').pct,
+      slot(week!, 'z3', 'percent').pct,
+    ]
+    expect(shown.reduce((sum, n) => sum + n, 0)).toBe(100)
+    for (const [i, exact] of [held.z1, held.z2, held.z3].entries()) {
+      expect(Math.abs(shown[i]! - exact)).toBeLessThan(1)
+    }
+    expect(text(week!)).toBe(
+      `Planned minutes in the week of 19 Oct: ${String(shown[0])}% in zone 1, ${String(shown[1])}% in zone 2 and ${String(shown[2])}% in zone 3, with work blocks at their zone and the rest at zone 1.`,
+    )
+    // the second is the band the plan drew the week from, kept as the aim
+    expect(aim!.id).toBe('e4.aim')
+    expect(slot(aim!, 'z1', 'percent').pct).toBe(stored.tid.z1)
+    expect(slot(aim!, 'z2', 'percent').pct).toBe(stored.tid.z2)
+    expect(slot(aim!, 'z3', 'percent').pct).toBe(stored.tid.z3)
+    expect(text(aim!)).toBe(
+      `The aim for a base week is ${String(stored.tid.z1)}% in zone 1, ${String(stored.tid.z2)}% in zone 2 and ${String(stored.tid.z3)}% in zone 3.`,
+    )
     // a session reads the week it falls in
     const later = ctx.input.existing!.sessions.find(
       (s) => s.date >= addDays(MONDAY, 14) && s.rules.includes('E4'),
@@ -3031,10 +3056,85 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
     const monday = addDays(mondayOf(later.date), 0)
     const forSession = view({ subject: 'session', id: later.id }, ctx).groups.find(
       (g) => g.rule === 'E4',
-    )!.facts[0]!
+    )!.facts
     const storedLater = ctx.input.existing!.weeks.find((w) => w.weekStart === monday)!
-    expect(forSession.window).toEqual({ from: monday, to: addDays(monday, 6) })
-    expect(slot(forSession, 'z1', 'percent').pct).toBe(storedLater.tid.z1)
+    expect(forSession.map((f) => f.window)).toEqual([
+      { from: monday, to: addDays(monday, 6) },
+      { from: monday, to: addDays(monday, 6) },
+    ])
+    expect(slot(forSession[1]!, 'z1', 'percent').pct).toBe(storedLater.tid.z1)
+  })
+
+  test('E4 counts a week of known sessions: threshold work in zone 2, interval work in zone 3', () => {
+    // Tue easy 40, Wed threshold 50 (20 min zone 2), Fri intervals 45 (4 x 3 min zone 3), Sun long
+    // 90: zone 1 193, zone 2 20, zone 3 12 of 225 minutes, 85.78 / 8.89 / 5.33 percent. By largest
+    // remainder the whole percents are 86 / 9 / 5.
+    const base = ctxOf('marathon')
+    const step = (
+      kind: 'warmup' | 'work' | 'recover' | 'cooldown',
+      reps: number,
+      sec: number,
+      zone: 'z1' | 'z2' | 'z3',
+    ) => ({ kind, reps, durationSec: sec, distanceM: null, zone })
+    const template = base.input.existing!.sessions[0]!
+    const made = (day: number, kind: SessionKind, durationMin: number, structure: Step[] = []) => ({
+      ...template,
+      id: `known-${String(day)}`,
+      date: addDays(MONDAY, day),
+      kind,
+      durationMin,
+      structure,
+    })
+    const known = [
+      made(1, 'easy', 40),
+      made(2, 'threshold', 50, [
+        step('warmup', 1, 600, 'z1'),
+        step('work', 1, 1200, 'z2'),
+        step('cooldown', 1, 600, 'z1'),
+      ]),
+      made(4, 'intervals', 45, [
+        step('warmup', 1, 600, 'z1'),
+        step('work', 4, 180, 'z3'),
+        step('recover', 4, 180, 'z1'),
+        step('cooldown', 1, 600, 'z1'),
+      ]),
+      made(6, 'long', 90),
+    ]
+    const existing = base.input.existing!
+    const ctx = {
+      ...base,
+      input: {
+        ...base.input,
+        existing: {
+          weeks: existing.weeks,
+          sessions: [...existing.sessions.filter((s) => mondayOf(s.date) !== MONDAY), ...known],
+        },
+      },
+    }
+    expect(text(factsOf('E4', ctx)[0]!)).toBe(
+      'Planned minutes in the week of 19 Oct: 86% in zone 1, 9% in zone 2 and 5% in zone 3, with work blocks at their zone and the rest at zone 1.',
+    )
+  })
+
+  test('E4 says so when the plan sets no running in the week', () => {
+    const base = ctxOf('marathon')
+    const existing = base.input.existing!
+    const ctx = {
+      ...base,
+      input: {
+        ...base.input,
+        existing: {
+          weeks: existing.weeks,
+          sessions: existing.sessions.filter((s) => mondayOf(s.date) !== MONDAY),
+        },
+      },
+    }
+    const facts = factsOf('E4', ctx)
+    expect(facts).toHaveLength(1)
+    expect(facts[0]).toMatchObject({ id: 'e4.week', template: 'explain.e4-week-none' })
+    expect(text(facts[0]!)).toBe(
+      'The plan sets no running for the week of 19 Oct, so no minutes fall in any zone.',
+    )
   })
 
   test('E6 names the start path the plan was drawn with', () => {
