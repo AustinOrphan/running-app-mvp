@@ -3,6 +3,7 @@ import {
   climbAndDescent,
   emptySamples,
   haversineM,
+  KG_PER,
   nearestValues,
   parseAppleDate,
   roundCoordinate,
@@ -57,7 +58,6 @@ const KNOWN_METRICS = new Set([
   'vo2_max',
 ])
 
-const KG_PER: Record<string, number> = { kg: 1, lb: 0.45359237, lbs: 0.45359237, g: 0.001 }
 const HOURS_TO_SEC: Record<string, number> = { hr: 3600, h: 3600, min: 60, s: 1, sec: 1 }
 
 const round1 = (value: number): number => Math.round(value * 10) / 10

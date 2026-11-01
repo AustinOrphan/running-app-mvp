@@ -310,7 +310,12 @@ const T_VO2 = 'HKQuantityTypeIdentifierVO2Max'
 const T_SLEEP = 'HKCategoryTypeIdentifierSleepAnalysis'
 const T_HEART_RATE = 'HKQuantityTypeIdentifierHeartRate'
 
-const KG_PER: Record<string, number> = { kg: 1, lb: 0.45359237, lbs: 0.45359237, g: 0.001 }
+/**
+ * Kilograms in one body-mass unit, by the lower-case unit name. The export parser here and the
+ * Health Auto Export provider (`server/providers/appleHealth.ts`) both convert through it; a unit
+ * missing from the table is skipped, never guessed.
+ */
+export const KG_PER: Record<string, number> = { kg: 1, lb: 0.45359237, lbs: 0.45359237, g: 0.001 }
 
 interface DayFields {
   restingHr?: { ms: number; value: number }
