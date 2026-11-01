@@ -18,6 +18,14 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
   `npm run -s plan:report` by hand before and after a `PARAMS_VERSION` bump and paste the delta of the
   two outputs into the PR.
 - `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`.
+- `npm run backup` and `npm run restore -- <file>` (`scripts/`; the logic is in
+  `server/services/backup.ts` and `restore.ts`). Copies go to `backups/` beside the database file.
+  `db:migrate` and the Docker `CMD` run `backup --before-migrate` first, which copies only when a
+  migration is pending and none is recorded as failed; the daily job (`runBackupJob`, 02:00)
+  records a `backup` job run. The two scripts import nothing that loads the generated Prisma client
+  (they run before `prisma generate` on a fresh clone; the file location is in `server/dbPath.ts`,
+  and `scriptImports.test.ts` walks their imports). The README section "Backup, restore and
+  update" is the operator's guide.
 - `npm run icons`: renders the PNG icons in `web/public` from `icon.svg` with Playwright's chromium
   (no image library); commit the four PNGs it writes.
 - `npx prettier --check .` is the formatting gate in CI; run `npm run format` to fix it.

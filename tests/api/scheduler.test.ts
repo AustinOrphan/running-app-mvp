@@ -1,19 +1,38 @@
+import { existsSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import Database from 'better-sqlite3'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
-import type { PlanRevisionView, PlanWithSessions } from '../../shared/types.ts'
+import type { JobsView, PlanRevisionView, PlanWithSessions } from '../../shared/types.ts'
+import { sqliteFilePath } from '../../server/dbPath.ts'
 import {
+  BACKUP_SLOT,
+  dueSlot,
   FOLDER_INTERVAL_MS,
+  MATCHING_SLOT,
   PUBLISH_INTERVAL_MS,
   PUBLISH_MORNING_SLOT,
+  runBackupJob,
   runPublishJob,
   runReplanJob,
   runWeatherJob,
+  SLOT_CHECK_MS,
   startScheduler,
 } from '../../server/jobs/scheduler.ts'
+import { backupDirectory, integrityProblems } from '../../server/services/backup.ts'
 import { settleBackground } from '../../server/services/sync.ts'
 import { fakeFetch } from '../fakeFetch.ts'
-import { client, createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
+import {
+  blockNetwork,
+  client,
+  createTestCtx,
+  expectNoRefusedFetches,
+  noNetwork,
+  seedUser,
+  type TestCtx,
+  type TestUser,
+} from './helpers.ts'
 import {
   connectIntervals,
   enablePublishing,
@@ -103,6 +122,173 @@ describe('runWeatherJob', () => {
     await runWeatherJob({ prisma: ctx.prisma, config: ctx.config }, { fetch: down, now: NOW })
     const row = await ctx.prisma.activity.findUniqueOrThrow({ where: { id: run.id } })
     expect(row.tempC).toBeNull()
+  })
+})
+
+describe('runBackupJob', () => {
+  const backupsDir = () => backupDirectory(sqliteFilePath(ctx.config.databaseUrl))
+  const runsOf = (userId: string) =>
+    ctx.prisma.syncRun.findMany({
+      where: { userId, channel: 'job', provider: 'backup' },
+      orderBy: { startedAt: 'asc' },
+    })
+
+  beforeEach(() => {
+    rmSync(backupsDir(), { recursive: true, force: true })
+  })
+
+  afterEach(async () => {
+    await ctx.prisma.syncRun.deleteMany({ where: { provider: 'backup' } })
+    await ctx.prisma.user.deleteMany({ where: { email: { startsWith: 'backup-job' } } })
+  })
+
+  test('copies the live database beside it and records a backup run for every user', async () => {
+    const second = await seedUser(ctx, { email: 'backup-job-second@example.com' })
+
+    await runBackupJob({ prisma: ctx.prisma, config: ctx.config }, { now: NOW })
+
+    const names = readdirSync(backupsDir())
+    expect(names).toEqual(['app-20260320T120000Z.db'])
+    const copy = join(backupsDir(), names[0] ?? '')
+    expect(integrityProblems(copy)).toEqual([])
+    // The copy holds what the server's own connection wrote.
+    const db = new Database(copy)
+    const emails = (db.prepare('SELECT email FROM User').all() as Array<{ email: string }>).map(
+      (row) => row.email,
+    )
+    db.close()
+    expect(emails).toEqual(expect.arrayContaining([user.email, second.email]))
+
+    for (const runner of [user, second]) {
+      const runs = await runsOf(runner.id)
+      expect(runs).toHaveLength(1)
+      expect(runs[0]).toMatchObject({
+        channel: 'job',
+        provider: 'backup',
+        trigger: 'schedule',
+        status: 'ok',
+        accepted: 1,
+        failed: 0,
+        message: null,
+      })
+    }
+    const jobs = (await client(ctx, user).get('/api/jobs')).body as JobsView
+    expect(jobs.jobs.find((job) => job.provider === 'backup')).toMatchObject({
+      channel: 'job',
+      status: 'ok',
+      accepted: 1,
+    })
+  })
+
+  test('prunes older ordinary backups by the default rule and leaves other files', async () => {
+    const dir = backupsDir()
+    // The job creates the folder; make it first so the old files can be put in it.
+    await runBackupJob(
+      { prisma: ctx.prisma, config: ctx.config },
+      { now: new Date('2026-03-19T02:00:00Z') },
+    )
+    writeFileSync(join(dir, 'app-20260101T020000Z.db'), 'x')
+    writeFileSync(join(dir, 'app-20260101T030000Z.db'), 'x')
+    writeFileSync(join(dir, 'pre-migrate-20260101T020000Z.db'), 'x')
+
+    await runBackupJob({ prisma: ctx.prisma, config: ctx.config }, { now: NOW })
+
+    expect(readdirSync(dir).sort()).toEqual([
+      'app-20260101T030000Z.db',
+      'app-20260319T020000Z.db',
+      'app-20260320T120000Z.db',
+      'pre-migrate-20260101T020000Z.db',
+    ])
+  })
+
+  test('records an error run and prunes nothing when the copy cannot be made', async () => {
+    const dir = dirname(sqliteFilePath(ctx.config.databaseUrl))
+    const config = { ...ctx.config, databaseUrl: `file:${join(dir, 'missing.db')}` }
+
+    await expect(
+      runBackupJob({ prisma: ctx.prisma, config }, { now: NOW }),
+    ).resolves.toBeUndefined()
+
+    const [run] = await runsOf(user.id)
+    expect(run).toMatchObject({ status: 'error', accepted: 0 })
+    expect(run?.message).toBeTruthy()
+    expect(readdirSync(dir)).not.toContain('backups')
+  })
+})
+
+describe('the scheduler runs the backup', () => {
+  const MINUTE = 60_000
+  const backupsDir = () => backupDirectory(sqliteFilePath(ctx.config.databaseUrl))
+  const copies = () => (existsSync(backupsDir()) ? readdirSync(backupsDir()) : [])
+  const backupRuns = () =>
+    ctx.prisma.syncRun.count({ where: { userId: user.id, channel: 'job', provider: 'backup' } })
+  let stop: (() => void) | undefined
+
+  /** Nothing from another test: no copy on disk, no backup run, no refused call counted. */
+  async function clean(): Promise<void> {
+    rmSync(backupsDir(), { recursive: true, force: true })
+    await ctx.prisma.syncRun.deleteMany({ where: { provider: 'backup' } })
+    blockNetwork(ctx)
+  }
+
+  beforeEach(clean)
+
+  afterEach(async () => {
+    stop?.()
+    stop = undefined
+    vi.useRealTimers()
+    await settleBackground()
+    await clean()
+  })
+
+  test('once a day at 02:00 local, before the 02:30 matching', async () => {
+    expect(BACKUP_SLOT).toEqual({ hour: 2, minute: 0 })
+    expect(BACKUP_SLOT.minute).toBeLessThan(MATCHING_SLOT.minute)
+
+    // A fixed instant, in the process time zone like the slot (a local constructor and `dueSlot`
+    // both read local time): five minutes before the slot, on a date no zone changes its clock.
+    // The first daily check comes SLOT_CHECK_MS after the start, five minutes past the slot.
+    const start = new Date(2026, 5, 17, BACKUP_SLOT.hour, BACKUP_SLOT.minute - 5)
+    const firstCheck = new Date(start.getTime() + SLOT_CHECK_MS)
+    expect(dueSlot(start, null, BACKUP_SLOT)).toBeNull()
+    expect(dueSlot(firstCheck, null, BACKUP_SLOT)).toBe(todayIso(start))
+
+    vi.useFakeTimers({
+      toFake: ['Date', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'],
+    })
+    vi.setSystemTime(start)
+    stop = startScheduler(
+      { prisma: ctx.prisma, config: ctx.config },
+      { fetch: noNetwork(ctx.refusedFetches) },
+    )
+
+    await vi.advanceTimersByTimeAsync(SLOT_CHECK_MS - MINUTE)
+    expect(copies()).toHaveLength(0)
+    expect(await backupRuns()).toBe(0)
+
+    await vi.advanceTimersByTimeAsync(2 * MINUTE)
+    // The copy is on disk before the run is recorded, so the run is what the test waits for.
+    await vi.waitFor(
+      async () => {
+        expect(await backupRuns()).toBe(1)
+      },
+      { timeout: 10_000 },
+    )
+    expect(copies()).toHaveLength(1)
+    const [run] = await ctx.prisma.syncRun.findMany({
+      where: { userId: user.id, channel: 'job', provider: 'backup' },
+    })
+    expect(run).toMatchObject({ status: 'ok', trigger: 'schedule', accepted: 1 })
+
+    // not again the same day
+    await vi.advanceTimersByTimeAsync(3 * 60 * MINUTE)
+    expect(await backupRuns()).toBe(1)
+    expect(copies()).toHaveLength(1)
+
+    stop()
+    stop = undefined
+    await settleBackground()
+    expectNoRefusedFetches(ctx)
   })
 })
 
