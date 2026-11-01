@@ -44,6 +44,14 @@
 // which is the plan of the same runner with no window; the weeks before it and the other 141 digests
 // are the same.
 //
+// Regenerated 2026-10-31 for the runs of the race week (task RF2, finding 6 of RF1): the race week
+// placed a run on the race day, which the race replaces, so a share of its minutes was never run.
+// Its runs go on the days before the race. 139 of the 142 digests move: 69 of the 72 runners and all
+// 70 plans of the chains; the three that do not (`matrix novice-5k`, `matrix post-marathon-short-run`
+// and `reds hold`) place the same race week as before. Compared with the engine before, week by
+// week, only the sessions of the race week differ in the moved plans; the weeks, the warnings and
+// the checklist are the same. `h13 rest window` moves a second time, for its race week.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

@@ -612,6 +612,16 @@ function generate(
       dplan.days.length === 0 ? [] : dayRulesIn(dplan, { from: week.weekStart, to: weekEnd })
     const closedBase = weekRules.length === 0 ? closed : new Set(closed)
     for (const rule of weekRules) if (rule.held) closed.add(rule.date)
+    // The race week of the goal places its runs before the race day: the race is the session of its
+    // day, and the days after it are the hold of the race's window, whose first return step is the
+    // tail below. The week's minutes are the shake-out before the race, so no slot is left to a run
+    // that the race replaces [rules K2, K6, H12].
+    const raceDays =
+      week.weekStart === raceMonday
+        ? [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(week.weekStart, i)).filter((d) => d >= goal.date)
+        : []
+    const closedForRuns = (dates: ReadonlySet<string>): AthleteProfile =>
+      closeDates(input.profile, week.weekStart, new Set([...dates, ...raceDays]))
     // What the current week has run so far: the recorded activities, and the sessions kept from the
     // replaced plan that no activity stands for (finished without a recorded run). A day with a
     // run, done or kept, is one run day: a session finished today and its activity are the same run.
@@ -708,13 +718,15 @@ function generate(
       const room = Math.floor(gainCap.allowed - done.gain - runningGain(keptToRun) + 1e-9)
       if (planWeek.gainTargetM > room) planWeek = { ...planWeek, gainTargetM: Math.max(0, room) }
     }
-    // The race week of the goal is placed as before: the days after the race are dropped below, and
-    // its minutes stay before the race. Every other week keeps the windows its days fall in.
+    // The race week of the goal is placed with the post-race window of its own race left out (its
+    // days are closed above). Every other week keeps the windows its days fall in.
     const placing = windows.filter(
       (w) => !(w.race.date === goal.date && mondayOf(w.race.date) === week.weekStart),
     )
     const profile =
       closed.size > 0 ? closeDates(input.profile, week.weekStart, closed) : input.profile
+    // the profile the runs are placed on: the days open to running before the race day
+    const runProfile = raceDays.length === 0 ? profile : closedForRuns(closed)
     const place = (
       target: WeekDraft,
       on: AthleteProfile,
@@ -780,7 +792,7 @@ function generate(
       let longLost = false
       const minByDate: Record<string, number> = {}
       if (ruled.length > 0 && (planWeek.targetRunMin > 0 || planWeek.strengthSessions > 0)) {
-        const baseline = place(planWeek, closeDates(input.profile, week.weekStart, closedBase), [])
+        const baseline = place(planWeek, closedForRuns(closedBase), [])
         baselineAhead = runningMinutes(baseline)
         for (const s of baseline) {
           if (VOLUME_KINDS.has(s.kind)) minByDate[s.date] = (minByDate[s.date] ?? 0) + s.durationMin
@@ -882,7 +894,7 @@ function generate(
         : planWeek
     let sessions =
       planWeek.targetRunMin > 0 || planWeek.strengthSessions > 0
-        ? place(placingWeek, profile, weekRules, ceiling)
+        ? place(placingWeek, runProfile, weekRules, ceiling)
         : []
     // A hold trims the week's next quality session, once a week [rules J5, design 4.3].
     const trimmedAlready = kept.some((s) => inWeek(s) && isTrimmed(s.rules))
@@ -1030,7 +1042,7 @@ function generate(
           bound !== undefined && capped.targetRunMin > bound.placed
             ? holdWeek(capped, bound.placed)
             : capped,
-          closeDates(input.profile, week.weekStart, closedBase),
+          closedForRuns(closedBase),
           [],
         ),
       ).filter((s) => s.date < goal.date || mondayOf(s.date) > raceMonday)
@@ -1412,7 +1424,7 @@ export function replan(
     )
     // A week the replaced plan has not started is held to the plan's own figure for it, not to the
     // minutes its sessions placed: those fall short of the figure by what the placement cannot use
-    // (the run on the day of the race, a trimmed session, rounding), and held to them each
+    // (a trimmed session, rounding), and held to them each
     // re-plan of the same Monday would take the shortfall again [rule G-6]. The sessions stay the
     // bound where a window touches the week, as its cap charges the held days against them, but
     // never above the figure: a closed day must not hold a week to more than it was without it.

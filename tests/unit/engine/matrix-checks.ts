@@ -177,6 +177,32 @@ export function describePlanMatrix(
       expect(plan.paramsVersion).toMatch(/^\d{4}-\d{2}-\d{2}/)
     })
 
+    // The race is the session of its day [rules K2, K6, H12]. The race week placed a run on the race
+    // day, which the race replaces, so a share of the week's minutes was never run, and closing the
+    // weekday of the race changed the runs of the week (found by RF1, fixed by RF2).
+    it('places the runs of the race week before the race day: closing the weekday of the race leaves them as they are', () => {
+      const raceDate = a.input.goal.date
+      const monday = mondayOf(raceDate)
+      const weekday = WEEKDAYS[daysBetween(monday, raceDate)]!
+      const closed = buildPlan({
+        ...a.input,
+        profile: {
+          ...a.input.profile,
+          availability: {
+            ...a.input.profile.availability,
+            [weekday]: { available: false, maxMin: 0 },
+          },
+        },
+      })
+      const runs = (p: PlanDraft) =>
+        p.sessions.filter((s) => mondayOf(s.date) === monday && ANY_RUN.has(s.kind))
+      expect(runs(plan).every((s) => s.date < raceDate || s.flags.includes('post-race'))).toBe(true)
+      // the days of the runs may differ (the weeks before are placed otherwise), their minutes do not
+      const minutes = (p: PlanDraft) => runs(p).reduce((sum, s) => sum + s.durationMin, 0)
+      expect(runs(closed)).toHaveLength(runs(plan).length)
+      expect(minutes(closed)).toBe(minutes(plan))
+    })
+
     it('keeps no session on an unavailable day or above the day limit', () => {
       const bad: string[] = []
       for (const s of plan.sessions) {

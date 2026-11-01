@@ -1315,16 +1315,22 @@ function planWeeks(
     const i = preCount + k
     const weekStart = addDays(firstMonday, 7 * i)
     const caps = capsOf(weekStart)
-    const t = Math.max(0, Math.min(floorEps(reference * (mult[k] ?? 0)), prevTarget - 1))
+    const isRace = k === taperCount - 1
+    const cutDays = (P.k3.runDaysMaxCutPct.value / 100) * ((k + 1) / taperCount)
+    const wantedDays = Math.ceil(refDays * (1 - cutDays) - EPS)
+    // The race week holds its runs on the days before the race, the race being the session of its
+    // day. With fewer such days than run days it holds fewer runs at the size of the others, not the
+    // same minutes on fewer days [rules K2, K3].
+    const daysBefore = isRace ? daysBetween(raceMonday, goal.date) : 7
+    const runShare = daysBefore < wantedDays ? daysBefore / wantedDays : 1
+    const t = Math.max(0, Math.min(floorEps(reference * (mult[k] ?? 0) * runShare), prevTarget - 1))
     prevTarget = t
     target.push(t)
-    const isRace = k === taperCount - 1
     const long = isRace ? 0 : Math.max(0, Math.min(prevTaperLong, floorEps(t * share), caps.min))
     longRun.push(long)
     longM.push(distanceOf(long, caps))
     prevTaperLong = isRace ? prevTaperLong : long
-    const cutDays = (P.k3.runDaysMaxCutPct.value / 100) * ((k + 1) / taperCount)
-    runDays.push(Math.ceil(refDays * (1 - cutDays) - EPS))
+    runDays.push(Math.min(wantedDays, daysBefore))
     gain.push(refGain === null ? null : floorTo10(refGain * (t / Math.max(reference, 1))))
     record(i, weekStart, true)
   }

@@ -1017,7 +1017,8 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
     // stored and re-planned with nothing new moved an easy session to another day, at 8 of the 11
     // compliant race-week steps that follow no hold. The week holds a run on the day of the race, which
     // the race replaces, and the re-plan held the week to the minutes the sessions placed, so each pass
-    // shed a share of the week. A week the replaced plan has not started is held to its figure.
+    // shed a share of the week. A week the replaced plan has not started is held to its figure (and
+    // since RF2 the race week holds no run on the day of the race).
     it('gives the plan back at the race-week step of the compliant chains', () => {
       expect(
         compliantDrifts()

@@ -136,6 +136,38 @@ describe('buildPlan', () => {
       }
     }
   })
+
+  // The race is the session of its day [rules K2, K3, H12]. The race week used to place a run on the
+  // race day, which the race replaces, so a share of its minutes was never run (found by RF1, fixed by
+  // RF2); its runs go on the days before the race, and a race early in the week, with fewer days
+  // before it than run days, holds fewer runs at the size of the others and not the same minutes on
+  // fewer days (a run of 103 minutes the day before a half marathon on a Tuesday).
+  it.each([0, 1, 2, 3, 4, 5, 6])(
+    'places the runs of the race week on the days before a race on day %i of the week',
+    (day) => {
+      const monday = mondayOf(half.input.goal.date)
+      const date = addDays(monday, day)
+      const full = buildPlan(half.input).weeks.find((w) => w.weekStart === monday)!
+      const plan = buildPlan({ ...half.input, goal: { ...half.input.goal, date } })
+      const week = plan.weeks.find((w) => w.weekStart === monday)!
+      const inWeek = plan.sessions.filter((s) => mondayOf(s.date) === monday)
+      expect(plan.sessions.filter((s) => s.date === date).map((s) => s.kind)).toEqual(['race'])
+      const runs = inWeek.filter(
+        (s) => !['strength', 'mobility', 'rest', 'race', 'hike'].includes(s.kind),
+      )
+      // nothing on the race day or after it but the return steps of the race's window
+      expect(runs.every((s) => s.date < date || s.flags.includes('post-race'))).toBe(true)
+      const before = runs.filter((s) => s.date < date)
+      expect(before).toHaveLength(Math.min(full.runDays, day))
+      expect(week.runDays).toBe(Math.min(full.runDays, day))
+      // the week holds its minutes, in runs no longer than those of a week with all its days
+      expect(before.reduce((n, s) => n + s.durationMin, 0)).toBe(week.targetRunMin)
+      for (const s of before) {
+        expect(s.durationMin).toBeLessThanOrEqual(Math.ceil(full.targetRunMin / full.runDays))
+      }
+      expect(failed(plan.checklist)).toEqual([])
+    },
+  )
 })
 
 describe('replan', () => {
