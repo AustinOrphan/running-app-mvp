@@ -253,6 +253,43 @@ describe('buildPlan: the last two days before a race of 90 minutes or more', () 
     expect(failed(plan.checklist)).toEqual([])
   })
 
+  // The week's climbing is shared out by minutes. The cut run keeps its share in proportion to the
+  // minutes it keeps, the rest is left unplaced like its minutes, and the other runs keep the climbing
+  // they had (review of RF3, finding 3).
+  it('leaves the other runs of the week as they were and takes the climbing of the cut run with its minutes', () => {
+    const a = athlete('trail-50k')
+    const race = a.input.goal.date
+    const param = P.k6.carbLoadMinRaceMin as { value: number }
+    const saved = param.value
+    const week = (plan: PlanDraft) =>
+      plan.sessions.filter(
+        (s) =>
+          mondayOf(s.date) === mondayOf(race) &&
+          !NOT_RUNS.includes(s.kind) &&
+          !s.flags.includes('post-race'),
+      )
+    let without: SessionSpec[]
+    try {
+      param.value = Number.POSITIVE_INFINITY
+      without = week(buildPlan(a.input))
+    } finally {
+      param.value = saved
+    }
+    const withRule = week(buildPlan(a.input))
+    const dayBefore = addDays(race, -1)
+    const was = without.find((s) => s.date === dayBefore)!
+    const now = withRule.find((s) => s.date === dayBefore)!
+    expect(was.gainM).toBeGreaterThan(0)
+    expect(now.durationMin).toBe(cap)
+    expect(now.durationMin).toBeLessThan(was.durationMin)
+    // the climbing goes with the minutes: the same share of it as of the minutes, rounded down
+    expect(now.gainM).toBe(Math.floor((was.gainM! * now.durationMin) / was.durationMin))
+    // nothing else of the week differs, the climbing of the other runs included
+    expect(withRule.filter((s) => s.date !== dayBefore)).toEqual(
+      without.filter((s) => s.date !== dayBefore),
+    )
+  })
+
   it.each([
     [89, false],
     [90, true],

@@ -274,7 +274,9 @@ export function placeWeek(
       s.date < week.weekStart ||
       (s.date <= weekEnd && slots[daysBetween(week.weekStart, s.date)]?.open === false),
   )
-  const runs = planRuns(week, ctx, slots, before, caps, limits, windows)
+  // the minutes the shake-out cuts from a day's run, by day [rule K6]
+  const cuts = new Map<number, number>()
+  const runs = planRuns(week, ctx, slots, before, caps, limits, windows, cuts)
   capIntensity(runs, week, ctx.zones)
   // the runs are cut to the shake-out; no later step gives the day more than that
   for (const slot of slots) {
@@ -296,6 +298,7 @@ export function placeWeek(
   const afterRace = week.flags.includes('post-race')
   const fuelRuns = fuelPracticeRuns(runs, specs, week)
   const sessions: SessionSpec[] = []
+  const cutBy = new Map<SessionSpec, number>()
   for (const [i, run] of runs.entries()) {
     const spec = specs[i]!
     // `prescribe` marks every 'b2b' session as day 1; the second day of a pair is day 2 only.
@@ -313,7 +316,7 @@ export function placeWeek(
     ])
     const withFuel = fuel ? unique([...spec.rules, 'H7']) : spec.rules
     const rules = shake ? unique([...withFuel, 'K6']) : withFuel
-    sessions.push({
+    const session: SessionSpec = {
       ...spec,
       date: slots[run.day]!.date,
       order: 0,
@@ -327,13 +330,27 @@ export function placeWeek(
             rules: unique([...rules, 'H12']),
           }
         : {}),
-    })
+    }
+    sessions.push(session)
+    const cut = cuts.get(run.day)
+    if (cut !== undefined) cutBy.set(session, cut)
   }
   // The weekly gain is split here, to the metre and within each run's limit, not per prescription.
   if (week.gainTargetM !== null && week.gainTargetM > 0) {
     for (const s of sessions) if (RUN_KINDS.has(s.kind)) s.gainM = null
   }
-  fillDistanceAndGain(sessions, week, (date) => caps[daysBetween(week.weekStart, date)]!.gainM)
+  // a day whose run the shake-out dropped leaves its share of the climbing unplaced, as its minutes
+  const dropped = [...cuts].reduce(
+    (sum, [day, cut]) => (runs.some((r) => r.day === day) ? sum : sum + cut),
+    0,
+  )
+  fillDistanceAndGain(
+    sessions,
+    week,
+    (date) => caps[daysBetween(week.weekStart, date)]!.gainM,
+    cutBy,
+    dropped,
+  )
   for (const day of strength) {
     const spec = prescribe('strength', strengthMinutes(week), ctx.zones, week, {
       ultra: ctx.ultra === true,
@@ -502,6 +519,7 @@ function planRuns(
   caps: RunCaps[],
   limits: PlaceLimits,
   windows: readonly PostRaceWindow[],
+  cuts: Map<number, number>,
 ): RunPlan[] {
   const { profile, state } = ctx
   const method = ctx.method ?? 'default'
@@ -693,7 +711,9 @@ function planRuns(
   others.forEach((day, i) => {
     const cap = slots[day]!.shakeMaxMin
     if (cap === undefined || minutes[i]! <= cap) return
-    minutes[i] = cap < P.fplace.minRunDayMin.value ? 0 : cap
+    const kept = cap < P.fplace.minRunDayMin.value ? 0 : cap
+    cuts.set(day, minutes[i]! - kept)
+    minutes[i] = kept
   })
 
   // Quality days: spacing F1 and F3, not the day before the long run if it can be helped.
@@ -1306,12 +1326,17 @@ function distribute(total: number, caps: number[]): number[] {
 /**
  * The long run gets its distance. The weekly gain goes to the runs without a gain of their own, by
  * minutes, to the metre, and never above a run's own gain limit (`gainCap`); what no run can take
- * is left out.
+ * is left out. A run the shake-out cut [rule K6] (`cutBy`: the minutes cut from it; `dropped`: the
+ * minutes of runs dropped) shares in the climbing at the minutes it had before the cut and keeps that
+ * share in proportion to the minutes it keeps; the rest is left unplaced, as the minutes are, and the
+ * other runs keep the climbing they had.
  */
 function fillDistanceAndGain(
   sessions: SessionSpec[],
   week: WeekDraft,
   gainCap: (date: string) => number,
+  cutBy: ReadonlyMap<SessionSpec, number>,
+  dropped: number,
 ): void {
   if (week.longRunM !== null && week.longRunMin > 0) {
     for (const s of sessions) {
@@ -1327,13 +1352,14 @@ function fillDistanceAndGain(
     const open = runs.filter((s) => s.gainM === null)
     const taken = runs.reduce((sum, s) => sum + (s.gainM ?? 0), 0)
     const left = Math.max(0, Math.floor(week.gainTargetM - taken))
+    const was = (s: SessionSpec) => s.durationMin + (cutBy.get(s) ?? 0)
     const shares = allocate(
       left,
-      open.map((s) => s.durationMin),
-      open.map((s) => Math.floor(gainCap(s.date))),
+      [...open.map(was), ...(dropped > 0 ? [dropped] : [])],
+      [...open.map((s) => Math.floor(gainCap(s.date))), ...(dropped > 0 ? [left] : [])],
     )
     open.forEach((s, i) => {
-      s.gainM = shares[i]!
+      s.gainM = cutBy.has(s) ? Math.floor((shares[i]! * s.durationMin) / was(s)) : shares[i]!
     })
   }
 }
