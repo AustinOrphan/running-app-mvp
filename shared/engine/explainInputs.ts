@@ -79,6 +79,7 @@ import {
 import { isLoadingWeek, rungCount } from './startWeeks.ts'
 import { liftFor, percentOfMax, workoutFor } from './strength.ts'
 import { resolveTargets } from './targets.ts'
+import { deliveredShares, isDrawnOutsideE4, wholePercents } from './tid.ts'
 import type {
   AthleteState,
   Boundary,
@@ -2508,25 +2509,58 @@ function recoveryCycleFacts(scope: Scope): InputFact[] {
   return facts
 }
 
+/**
+ * E4: what the week's sessions hold, how that is counted, then the shares the plan drew the week
+ * from. The first is the sessions' own time in each zone from the planned running minutes
+ * (`deliveredShares`, the count the plan report measures too, so not the race, a hike or strength);
+ * the third is `WeekDraft.tid`, the E4 band, kept as the aim. They differ on a real plan and the
+ * first is the one that is true of the sessions. Race-pace work counts by the class of the goal
+ * race, so a request with no goal says so and counts nothing. A week with no planned running, or
+ * with the race alone, has no mix to count and says so; a week a start path or the return after the
+ * race sets (`isDrawnOutsideE4`) states no aim, as rule E4 did not draw it.
+ */
 function intensityFacts(scope: Scope): InputFact[] {
   const { ctx, next } = scope
   const week = plannedWeek(ctx, next)
   if (week === null) return [gap('E4', 'explain.plan-gap', {})]
-  return [
+  if (ctx.race === null) return noGoal('E4')
+  const window = { window: weekWindow(next) }
+  const sessions = (ctx.input.existing?.sessions ?? []).filter((s) => mondayOf(s.date) === next)
+  const delivered = deliveredShares(sessions, ctx.race.distanceClass)
+  if (delivered === null) {
+    const template = sessions.some((s) => s.kind === 'race')
+      ? 'explain.e4-week-race'
+      : 'explain.e4-week-none'
+    return [make('E4', 'week', template, { week: weekOf(next) }, window)]
+  }
+  const whole = wholePercents(delivered)
+  const facts = [
     make(
       'E4',
       'week',
       'explain.e4-week',
-      {
-        week: weekOf(next),
-        phase: PHASE_WORDS[week.phase],
-        z1: percent(week.tid.z1),
-        z2: percent(week.tid.z2),
-        z3: percent(week.tid.z3),
-      },
-      { window: weekWindow(next) },
+      { week: weekOf(next), z1: percent(whole.z1), z2: percent(whole.z2), z3: percent(whole.z3) },
+      window,
     ),
+    make('E4', 'count', 'explain.e4-count', {}, window),
   ]
+  if (!isDrawnOutsideE4(week.flags)) {
+    facts.push(
+      make(
+        'E4',
+        'aim',
+        'explain.e4-aim',
+        {
+          phase: PHASE_WORDS[week.phase],
+          z1: percent(week.tid.z1),
+          z2: percent(week.tid.z2),
+          z3: percent(week.tid.z3),
+        },
+        window,
+      ),
+    )
+  }
+  return facts
 }
 
 function startPathFacts(scope: Scope): InputFact[] {
@@ -3692,6 +3726,7 @@ const RACE_RULES: ReadonlySet<string> = new Set(
     'D6',
     'D7',
     'E2',
+    'E4',
     'H2',
     'H4',
     'H5',

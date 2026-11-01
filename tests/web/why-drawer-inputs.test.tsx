@@ -22,7 +22,10 @@ import type {
   Param,
   PresetId,
   Quantity,
+  SessionKind,
   SourceRef,
+  Step,
+  ZoneKey,
 } from '../../shared/engine/types.ts'
 import type { ResearchParams, Units, UserSettings } from '../../shared/types.ts'
 import { ExplainButton } from '../../web/components/ExplainButton.tsx'
@@ -36,6 +39,8 @@ import {
   type MockRoutes,
 } from './helpers.tsx'
 import { at, h1, scenario, SPARSE } from '../unit/engine/history-fixtures.ts'
+import { spec } from '../unit/engine/e8-fixtures.ts'
+import { weekFixture } from '../unit/engine/fixtures.ts'
 import { athletes } from '../unit/engine/matrix-fixtures.ts'
 
 // The drawer's "From your numbers": the figures come from GET /api/explain, are worded by
@@ -805,6 +810,158 @@ describe('WhyDrawer, the plan shape [rules P1 to P4]', () => {
         rule,
       ).toEqual([['insufficient', 'explain.plan-gap']])
     }
+  })
+})
+
+describe('WhyDrawer, the intensity distribution [rule E4]', () => {
+  const MONDAY = '2026-10-19'
+  const e4Registry: ResearchParams = {
+    version: 'v',
+    params: [P.e4.z1Prior, P.e4.z2Prior, P.e4.z3Prior, P.e4.priorTolerancePp],
+  }
+  const stride = (kind: Step['kind'], reps: number, durationSec: number, zone: ZoneKey): Step => ({
+    kind,
+    reps,
+    durationSec,
+    distanceM: null,
+    zone,
+  })
+
+  /**
+   * A stored marathon plan of one build week, declared 80/12/8 and drawn with a known mix:
+   *   Tue easy 40, Wed threshold 50 (20 min in zone 2), Fri intervals 45 (4 x 3 min in zone 3),
+   *   Sun long 90: zone 1 193, zone 2 20, zone 3 12 of 225 planned minutes, which is 85.78 / 8.89 /
+   *   5.33 percent and, as whole percents that add up to 100, 86 / 9 / 5.
+   */
+  function knownWeek(): EngineInput {
+    const input = athletes().find((a) => a.id === 'marathon')!.input
+    const at = (day: number) => {
+      const date = new Date(`${MONDAY}T00:00:00Z`)
+      date.setUTCDate(date.getUTCDate() + day)
+      return date.toISOString().slice(0, 10)
+    }
+    const session = (
+      day: number,
+      kind: SessionKind,
+      durationMin: number,
+      structure: Step[] = [],
+    ) => ({
+      ...spec(at(day), kind, { durationMin, structure }),
+      id: `e4-${String(day)}`,
+      status: 'planned',
+      activityId: null,
+    })
+    return {
+      ...input,
+      today: MONDAY,
+      existing: {
+        weeks: [
+          weekFixture({
+            weekStart: MONDAY,
+            phase: 'build',
+            targetRunMin: 225,
+            tid: { z1: 80, z2: 12, z3: 8 },
+          }),
+        ],
+        sessions: [
+          session(1, 'easy', 40),
+          session(2, 'threshold', 50, [
+            stride('warmup', 1, 600, 'z1'),
+            stride('work', 1, 1200, 'z2'),
+            stride('cooldown', 1, 600, 'z1'),
+          ]),
+          session(4, 'intervals', 45, [
+            stride('warmup', 1, 600, 'z1'),
+            stride('work', 4, 180, 'z3'),
+            stride('recover', 4, 180, 'z1'),
+            stride('cooldown', 1, 600, 'z1'),
+          ]),
+          session(6, 'long', 90),
+        ],
+      },
+    }
+  }
+
+  function e4View(input: EngineInput): ExplainView {
+    const state = estimateState(input)
+    const ctx: ExplainContext = {
+      asOf: input.today,
+      input,
+      state,
+      zones: buildZones(input.profile, state, input.today),
+      readiness: readinessSnapshot(input, input.today),
+      goal: null,
+      prediction: null,
+      hrModel: null,
+      decision: null,
+      race: input.goal,
+    }
+    return explainInputs({ subject: 'rules', rules: ['E4'] }, ctx)
+  }
+
+  test('says what the sessions of the week hold, how that is counted, and keeps the band as the aim', async () => {
+    const figures = e4View(knownWeek())
+    mockApi(drawerRoutes(() => figures, 'km', { 'GET /api/research/params': () => e4Registry }))
+    const { open } = renderButton({ subject: 'rules', rules: ['E4'] }, ['E4'])
+    await open()
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const group = await within(dialog).findByRole('group', {
+      name: 'Intensity distribution by phase',
+    })
+    const sentences = within(group)
+      .getAllByRole('listitem')
+      .map((item) => item.querySelector('p')?.textContent)
+    expect(sentences).toEqual([
+      'Planned running minutes in the week of 19 Oct: 86% in zone 1, 9% in zone 2 and 5% in zone 3.',
+      'Time in a zone is counted from planned minutes: work blocks at their zone, the rest of a run at zone 1; the race, hikes and strength are left out.',
+      'The aim for a build week is 80% in zone 1, 12% in zone 2 and 8% in zone 3.',
+    ])
+    // the old sentence declared the band as what the week holds
+    expect(within(dialog).queryByText(/with about 80% of running time/)).not.toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  test('a week with no planned running says so and states no aim', async () => {
+    const input = knownWeek()
+    const figures = e4View({ ...input, existing: { ...input.existing!, sessions: [] } })
+    mockApi(drawerRoutes(() => figures, 'km', { 'GET /api/research/params': () => e4Registry }))
+    const { open } = renderButton({ subject: 'rules', rules: ['E4'] }, ['E4'])
+    await open()
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const group = await within(dialog).findByRole('group', {
+      name: 'Intensity distribution by phase',
+    })
+    expect(
+      within(group).getByText(
+        'The plan sets no running for the week of 19 Oct, so no minutes fall in any zone.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(group).queryByText(/The aim for/)).not.toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  test('a week whose only running is the race says so, and does not say it has no running', async () => {
+    const input = knownWeek()
+    const race = { ...input.existing!.sessions[0]!, id: 'e4-race', kind: 'race' as const }
+    const figures = e4View({ ...input, existing: { ...input.existing!, sessions: [race] } })
+    mockApi(drawerRoutes(() => figures, 'km', { 'GET /api/research/params': () => e4Registry }))
+    const { open } = renderButton({ subject: 'rules', rules: ['E4'] }, ['E4'])
+    await open()
+
+    const dialog = await screen.findByRole('dialog', { name: 'Why this?' })
+    const group = await within(dialog).findByRole('group', {
+      name: 'Intensity distribution by phase',
+    })
+    expect(
+      within(group).getByText(
+        'The week of 19 Oct holds the race and no other planned running, so no running minutes fall in any zone.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(group).queryByText(/The plan sets no running/)).not.toBeInTheDocument()
+    expect(within(group).queryByText(/The aim for/)).not.toBeInTheDocument()
+    expectCleanCopy(dialog)
   })
 })
 

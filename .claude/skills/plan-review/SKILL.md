@@ -32,7 +32,11 @@ judgement by a language model, and no outcome validates a plan or a weighting of
 Run `npm run plan:report` first (`npm run -s plan:report -- --matrix-only` is quick and covers the
 twelve matrix plans). Read its header notes before any figure: the headroom is a pure ratio that
 reads negative under the novice minimum step, the G-8 rebuild zone, G-3 and the start-path
-exemptions, and the realised distribution differs from the declared one by two harness choices.
+exemptions, and the realised distribution differs from the declared one mostly because the sessions
+hold less work than the declared shares (the per-phase table and note 9 print the gap). The two
+choices of note 2, where strides and race pace count, belong to the counting that the Why drawer
+reads too: race pace leaves the Z1 share as it is and moves minutes between zones 2 and 3 (about 12
+points of the specific phase of the 10 km matrix plan), and strides are a minute or two a session.
 
 Take the plan's scorecard block from the report if it is a matrix plan. A sweep plan has no block of
 its own: its stratum is in the sweep tables, or run `describePlan` on it in a scratch script
