@@ -436,12 +436,13 @@ function cutBase(
   before: readonly WeekDraft[],
   partFigure: (week: WeekDraft) => number | null,
   loadingOnly = true,
+  figureOf: (week: WeekDraft) => number = (x) => x.targetRunMin,
 ): number | undefined {
   for (let i = before.length - 1; i >= 0; i -= 1) {
     const x = before[i]!
     if (loadingOnly && (x.isRecovery || x.isTaper)) continue
     const figure = partFigure(x)
-    if (figure === null) return x.targetRunMin
+    if (figure === null) return figureOf(x)
     if (Number.isFinite(figure)) return figure
   }
   return undefined
@@ -558,6 +559,22 @@ function generate(
         )
         .at(-1)
       week = reduceWeek(week, lastLoad)
+    }
+    // The recovery week in progress stays cut from the loading week before it as that week stands in
+    // the plan: the plan being replaced cut it from the week as it was drawn, and that week may since
+    // have been held lower, so that the cut of the stored week no longer reads 25% [rules E3, J9].
+    if (
+      week.weekStart === currentMonday &&
+      week.isRecovery &&
+      !week.isTaper &&
+      !week.flags.includes('post-race')
+    ) {
+      const base = cutBase(pastWeeks, (x) =>
+        windowed.includes(x.weekStart) || isDisruptedWeek(x.flags) ? Infinity : null,
+      )
+      if (base !== undefined) {
+        week = capWeek(week, Math.floor(base * (1 - P.e3.recoveryWeekCutPct.value / 100) + 1e-9))
+      }
     }
     // A week drawn under a shape other than the plan's own says so, so that the next re-plan can
     // tell the shape it replaces from the shape that applies then (`replan`).
@@ -761,8 +778,16 @@ function generate(
         }
         return unwindowed.get(x.weekStart) ?? x.targetRunMin
       }
+      // The week in progress is read as its row will stand: held below the week drawn by the figure of
+      // the plan being replaced, the week cut from it falls from that figure and not from the week
+      // drawn, or it would stand above its cut, a recovery week, or above it, a race week
+      // [rules E3, K2, G-6].
+      const figureOf = (x: WeekDraft) =>
+        figureRecord !== null && macro[figureRecord.index] === x
+          ? figureRecord.week.targetRunMin
+          : x.targetRunMin
       if (week.isRecovery && !week.flags.includes('post-race')) {
-        const base = cutBase(before, partFigure)
+        const base = cutBase(before, partFigure, true, figureOf)
         const cut = P.e3.recoveryWeekCutPct.value / 100
         if (base !== undefined) {
           planWeek = capWeek(planWeek, Math.floor(base * (1 - cut) + 1e-9))
@@ -772,9 +797,10 @@ function generate(
         // figure a part week has without the window), and below the last week no window touched, which
         // is how the checklist reads the fall. Where loading weeks still rise into the taper the two
         // differ, and the lesser wins [rules K2, J9, G6].
-        const prev = cutBase(before, partFigure, false)
-        const clean = before.findLast((x) => !x.isRecovery && !touchedBy(x))?.targetRunMin
-        const base = Math.min(prev ?? Infinity, clean ?? Infinity)
+        const prev = cutBase(before, partFigure, false, figureOf)
+        const clean = before.findLast((x) => !x.isRecovery && !touchedBy(x))
+        const cleanFigure = clean === undefined ? undefined : figureOf(clean)
+        const base = Math.min(prev ?? Infinity, cleanFigure ?? Infinity)
         if (Number.isFinite(base)) planWeek = capWeek(planWeek, Math.max(0, base - 1))
       }
     }
@@ -1145,17 +1171,6 @@ function generate(
     const ahead = [...inside, ...afterRace, ...keptToRun].filter((s) => s.date >= today)
     const weekMin = done.minutes + runningMinutes(ahead)
     volumes.set(week.weekStart, weekMin)
-    // The restart week after a long hold is a baseline for the weeks after it when the J7 share holds
-    // it, a recovery week or not; the cadence cutting it below the share leaves it a recovery week
-    // like another [rules J7, J9, E3].
-    if (week.isRecovery && !week.isTaper) {
-      const share = restartShares(dplan, (weekStart) => volumes.get(weekStart)).get(week.weekStart)
-      const target = planWeek.targetRunMin + done.minutes + keptMin
-      if (share !== undefined && share > 0 && target >= share) {
-        skip.delete(week.weekStart)
-        restartKept.add(week.weekStart)
-      }
-    }
     // a short window's week enters the bounding ramp at the minutes it holds without the window
     freeVolumes.set(
       week.weekStart,
@@ -1198,6 +1213,23 @@ function generate(
           index: w,
           week: remainingOfWeek(week, { minutes: 0, runDays: 0 }, new Set(), 0, figure),
         }
+      }
+    }
+    // The restart week after a long hold is a baseline for the weeks after it when the J7 share holds
+    // it, a recovery week or not; the cadence cutting it below the share leaves it a recovery week
+    // like another [rules J7, J9, E3]. The week is read as its row in the plan will stand, which is
+    // how the checklist reads it: for the week in progress that is the week drawn, or the figure of
+    // the plan being replaced that holds it, and not the minutes left to place.
+    if (week.isRecovery && !week.isTaper) {
+      const share = restartShares(dplan, (weekStart) => volumes.get(weekStart)).get(week.weekStart)
+      const target = isCurrent
+        ? figureRecord !== null && figureRecord.index === w
+          ? figureRecord.week.targetRunMin
+          : macro[w]!.targetRunMin
+        : planWeek.targetRunMin + done.minutes + keptMin
+      if (share !== undefined && share > 0 && target >= share) {
+        skip.delete(week.weekStart)
+        restartKept.add(week.weekStart)
       }
     }
     // A loading week as placed that uses the rebuild zone says what it rebuilds toward. It is the

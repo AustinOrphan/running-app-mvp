@@ -1578,3 +1578,55 @@ describe('the taper under way keeps the reference of the plan before the window 
     expect(compared).toBeGreaterThan(weeks)
   })
 })
+
+describe('the checklist accepts every re-plan after a hold of 21 or 28 days [rules E3, K2, J9, G-2]', () => {
+  // Found by the third review of RF2 (2026-11-01). With the long run's distance following its minutes
+  // (67331196) re-plans that had been refused for another reason stopped failing, and 26 newly failed
+  // the checklist, so `applyReplan` answered 422 and wrote nothing, in four chains: the week after
+  // the restart week above what the 30% ceiling allows (trail-50k, first-100-mile), a recovery week
+  // not cut 20% from the week before it that the chain kept to the race (sparse-100-mile), and a
+  // race week standing above the first taper week (reds-hold). Three readings differed between the
+  // generator and the checklist, which refuses a draft: the restart week the J7 share holds is read
+  // by the figure its row will stand at (for the week in progress, the figure of the plan being
+  // replaced that holds it, not the minutes left to place); a recovery week or a race week after the
+  // week in progress is cut from that row and not from the week drawn; the recovery week in progress is
+  // cut from the loading week before it as it stands; and the restart floor week, a block of its own
+  // for the generator, is one for the cadence item too.
+  //
+  // Two start Mondays of each of the four athletes, a niggle of 21 or 28 days that opens on the
+  // Saturday before; every re-plan to the race passes the checklist. The grid of 12 athletes, holds
+  // of 7, 14, 21 and 28 days and every start Monday is `window-grids.test.ts`, by hand.
+  const CASES: Array<[string, number, number]> = [
+    ['trail-50k', 21, 2],
+    ['trail-50k', 28, 4],
+    ['first-100-mile', 21, 4],
+    ['first-100-mile', 28, 17],
+    ['sparse-100-mile', 21, 4],
+    ['sparse-100-mile', 28, 6],
+    ['reds-hold', 28, 1],
+    ['reds-hold', 28, 13],
+  ]
+
+  it.each(CASES)(
+    'passes the checklist at every re-plan of %s, a niggle of %i days from the Monday %i weeks on',
+    (id, days, weeksOn) => {
+      const start = addDays(addDays(mondayOf(TODAY), 7 * weeksOn), -2)
+      const window = windowOf({
+        id: 'chain',
+        reason: 'niggle',
+        startDate: start,
+        endDate: addDays(start, days - 1),
+        pain: 0,
+      })
+      const chain = replanChain(byId(id).input, { windows: [window] })
+      const failing = chain.flatMap((step) =>
+        step.draft.checklist
+          .filter((c) => !c.ok)
+          .map((c) => `re-plan of ${step.input.today}: ${c.id}: ${c.detail}`),
+      )
+      expect(failing).toEqual([])
+      expect(chain.length).toBeGreaterThan(weeksOn + days / 7)
+    },
+    120_000,
+  )
+})
