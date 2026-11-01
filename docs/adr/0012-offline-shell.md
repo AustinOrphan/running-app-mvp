@@ -24,7 +24,9 @@ dependency are used.
   are kept at install in `rl-shell-<build id>`. The build id is twelve hex digits over the worker's
   source and the name and bytes of each kept file. Two builds are kept; `/assets/*` is served from any
   kept build, newest first. The worker skips waiting and claims open pages. `main.tsx` reloads once on
-  `vite:preloadError`, and not again within a minute.
+  `vite:preloadError`, and not again within a minute. While the browser reports offline it does not
+  reload at all, because a reload cannot fetch a newer build, and the sheet shows its "did not
+  open" notice instead (amended 2026-10-31; `tests/web/offline.test.tsx`).
 - **Strategies.** Navigations and the five API reads are network first with a 2.5 s limit: the
   network's answer, else the kept copy when the request fails, answers 502 to 504 or is not answered
   in time. An answer that arrives after the copy was served is kept for next time. Kept files of the

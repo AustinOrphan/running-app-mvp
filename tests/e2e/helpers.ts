@@ -267,10 +267,11 @@ const SHEET_CHUNK = /\/assets\/\w+Sheets?-[\w-]+\.js$/
  * Runs `navigate` (a `goto` or a `reload`) and returns once the app has fetched the code of its
  * lazy sheets and has no request in flight. The app fetches it when the main thread is idle
  * (`warmSheets`, within 5 s), which on a slow runner comes after the page's first assertions. A
- * spec that cuts the connection sooner fails those fetches, and the failed preload makes the app
- * reload itself into the browser's offline page (`reloadOnPreloadError`), so the page never comes
- * back. The installed app has the service worker to hold the code; these specs block it. Load the
- * page through this before any `setOffline(true)` outside `17-offline.spec.ts`.
+ * spec that cuts the connection sooner fails those fetches, and a sheet opened offline then shows
+ * its "did not open" notice instead of its form (`lazySheets.tsx`; `reloadOnPreloadError` leaves
+ * the failed preload alone while the browser is offline). The installed app has the service worker
+ * to hold the code; these specs block it. Load the page through this before any
+ * `setOffline(true)` outside `17-offline.spec.ts`.
  */
 export async function loadWithSheetCode(
   page: Page,
