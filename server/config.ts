@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DEFAULT_DATABASE_URL } from './dbPath.ts'
 
 export interface Config {
   databaseUrl: string
@@ -10,7 +11,6 @@ export interface Config {
 }
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
-const DEFAULT_DATABASE_URL = 'file:./data/app.db'
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1).default(DEFAULT_DATABASE_URL),
@@ -52,15 +52,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     allowRegistration: parsed.ALLOW_REGISTRATION,
     logLevel: parsed.LOG_LEVEL,
   }
-}
-
-/**
- * `DATABASE_URL` alone, with the same default and the same rule that an empty value counts as
- * unset. The backup and restore scripts read only this variable, so they need no `SESSION_SECRET`.
- */
-export function loadDatabaseUrl(env: NodeJS.ProcessEnv): string {
-  const value = env.DATABASE_URL
-  return value === undefined || value === '' ? DEFAULT_DATABASE_URL : value
 }
 
 /** Loads `.env` from the working directory into `process.env`; a missing file is fine. */

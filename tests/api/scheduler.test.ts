@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import { addDays, todayIso } from '../../shared/dates.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { JobsView, PlanRevisionView, PlanWithSessions } from '../../shared/types.ts'
-import { sqliteFilePath } from '../../server/db.ts'
+import { sqliteFilePath } from '../../server/dbPath.ts'
 import {
   BACKUP_SLOT,
   FOLDER_INTERVAL_MS,

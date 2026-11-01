@@ -3,8 +3,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { loadDatabaseUrl } from '../../../server/config.ts'
-import { sqliteFilePath } from '../../../server/db.ts'
+import { loadDatabaseUrl, sqliteFilePath } from '../../../server/dbPath.ts'
 import {
   backupDirectory,
   backupName,
@@ -12,6 +11,7 @@ import {
   createBackup,
   DEFAULT_RETENTION,
   hasPendingMigrations,
+  migrationStatus,
   integrityProblems,
   listOrdinaryBackups,
   parseBackupStamp,
@@ -249,6 +249,25 @@ describe('selectPruned', () => {
     expect(selectPruned(files, { newest: 0 })).toHaveLength(5)
   })
 
+  test('never lists the protected file, even when the rule would drop it (a clock set back)', () => {
+    // Seven days newer than the copy just written, over four weeks: the rule fills up without it.
+    const newer = [
+      '20990105T020000Z',
+      '20990106T020000Z',
+      '20990107T020000Z',
+      '20990114T020000Z',
+      '20990121T020000Z',
+      '20990128T020000Z',
+      '20990204T020000Z',
+    ].map(file)
+    const written = file('20261101T020000Z')
+    expect(names(selectPruned([...newer, written]))).toEqual([written.name])
+    expect(names(selectPruned([...newer, written], DEFAULT_RETENTION, written.name))).toEqual([])
+    expect(names(selectPruned([...newer, written], { newest: 3 }, written.name))).toHaveLength(
+      newer.length - 3,
+    )
+  })
+
   test('prunes nothing from an empty list', () => {
     expect(selectPruned([])).toEqual([])
   })
@@ -295,7 +314,7 @@ describe('pruneBackups', () => {
   })
 })
 
-describe('hasPendingMigrations', () => {
+describe('hasPendingMigrations and migrationStatus', () => {
   function migrationsFolder(...names: string[]): string {
     const folder = join(dir, 'migrations')
     mkdirSync(folder, { recursive: true })
@@ -304,41 +323,65 @@ describe('hasPendingMigrations', () => {
     return folder
   }
 
-  function databaseWithApplied(...applied: Array<{ name: string; finished: boolean }>): string {
+  /** Rows as Prisma writes them: finished, started and not finished (failed), or rolled back. */
+  type Row = { name: string; state: 'finished' | 'failed' | 'rolled-back' }
+
+  function databaseWith(...rows: Row[]): string {
     const file = join(dir, 'app.db')
     const db = new Database(file)
     db.exec(
       'CREATE TABLE _prisma_migrations (migration_name TEXT NOT NULL, finished_at DATETIME, rolled_back_at DATETIME)',
     )
     const insert = db.prepare(
-      'INSERT INTO _prisma_migrations (migration_name, finished_at) VALUES (?, ?)',
+      'INSERT INTO _prisma_migrations (migration_name, finished_at, rolled_back_at) VALUES (?, ?, ?)',
     )
-    for (const row of applied) insert.run(row.name, row.finished ? '2026-10-01 00:00:00' : null)
+    const at = '2026-10-01 00:00:00'
+    for (const row of rows) {
+      insert.run(
+        row.name,
+        row.state === 'finished' ? at : null,
+        row.state === 'rolled-back' ? at : null,
+      )
+    }
     db.close()
     return file
   }
 
   test('is false when every folder is applied', () => {
     const folder = migrationsFolder('001_init', '002_more')
-    const file = databaseWithApplied(
-      { name: '001_init', finished: true },
-      { name: '002_more', finished: true },
+    const file = databaseWith(
+      { name: '001_init', state: 'finished' },
+      { name: '002_more', state: 'finished' },
     )
     expect(hasPendingMigrations(file, folder)).toBe(false)
+    expect(migrationStatus(file, folder)).toEqual({ pending: false, failed: [] })
   })
 
-  test('is true when a folder is not applied, or its run did not finish', () => {
+  test('is true when a folder is not applied', () => {
     const folder = migrationsFolder('001_init', '002_more')
-    expect(
-      hasPendingMigrations(databaseWithApplied({ name: '001_init', finished: true }), folder),
-    ).toBe(true)
+    const file = databaseWith({ name: '001_init', state: 'finished' })
+    expect(hasPendingMigrations(file, folder)).toBe(true)
+    expect(migrationStatus(file, folder).failed).toEqual([])
   })
 
-  test('is true for a migration that started and did not finish', () => {
-    const folder = migrationsFolder('001_init')
-    expect(
-      hasPendingMigrations(databaseWithApplied({ name: '001_init', finished: false }), folder),
-    ).toBe(true)
+  test('is false while a failed migration is recorded: migrate refuses, and a copy would replace the one from before the first attempt', () => {
+    const folder = migrationsFolder('001_init', '002_more')
+    const file = databaseWith(
+      { name: '001_init', state: 'finished' },
+      { name: '002_more', state: 'failed' },
+    )
+    expect(hasPendingMigrations(file, folder)).toBe(false)
+    expect(migrationStatus(file, folder)).toEqual({ pending: false, failed: ['002_more'] })
+  })
+
+  test('is true for the folder that a rolled-back row names: migrate runs it again', () => {
+    const folder = migrationsFolder('001_init', '002_more')
+    const file = databaseWith(
+      { name: '001_init', state: 'finished' },
+      { name: '002_more', state: 'rolled-back' },
+    )
+    expect(hasPendingMigrations(file, folder)).toBe(true)
+    expect(migrationStatus(file, folder)).toEqual({ pending: true, failed: [] })
   })
 
   test('is true when it cannot be told: no migrations table, or no migrations folder', () => {
@@ -348,7 +391,7 @@ describe('hasPendingMigrations', () => {
     expect(hasPendingMigrations(file, folder)).toBe(true)
     expect(
       hasPendingMigrations(
-        databaseWithApplied({ name: '001_init', finished: true }),
+        databaseWith({ name: '001_init', state: 'finished' }),
         join(dir, 'no-such-folder'),
       ),
     ).toBe(true)

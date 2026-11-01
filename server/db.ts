@@ -1,7 +1,7 @@
-import { isAbsolute, resolve } from 'node:path'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
 import { Prisma, PrismaClient } from '../generated/prisma/client.ts'
 import { withDataVersion } from './dataVersion.ts'
+import { resolveSqliteUrl } from './dbPath.ts'
 
 export { PrismaClient }
 
@@ -43,31 +43,6 @@ export type {
   WellnessDay,
   WristPublication,
 } from '../generated/prisma/client.ts'
-
-/**
- * A relative `file:` URL resolves against `prisma/` under the working directory, as it did under
- * Prisma 6, so the CLI and the client open the same file. Keep this in step with prisma.config.ts.
- */
-function resolveSqliteUrl(url: string): string {
-  const path = url.replace(/^file:/, '').split('?')[0] ?? ''
-  if (!url.startsWith('file:') || isAbsolute(path)) return url
-  return `file:${resolve(process.cwd(), 'prisma', path)}`
-}
-
-/**
- * The absolute path of the SQLite file that a `file:` URL names, resolved as the client resolves it
- * (see `resolveSqliteUrl`). The backup and restore scripts use it to find the file and its folder.
- */
-export function sqliteFilePath(databaseUrl: string): string {
-  if (!databaseUrl.startsWith('file:')) {
-    throw new Error(`DATABASE_URL must be a file: URL for a SQLite database, not ${databaseUrl}.`)
-  }
-  return (
-    resolveSqliteUrl(databaseUrl)
-      .replace(/^file:/, '')
-      .split('?')[0] ?? ''
-  )
-}
 
 /**
  * The client carries a data version (`server/dataVersion.ts`): every write to a state model, and

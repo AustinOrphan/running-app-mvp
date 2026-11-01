@@ -96,6 +96,32 @@ describe('npm run backup', () => {
     expect(readdirSync(dir).includes('backups')).toBe(false)
   })
 
+  test('--before-migrate makes no copy while a failed migration is recorded, however often it runs', async () => {
+    makeDatabase()
+    const db = new Database(databaseFile)
+    db.exec(
+      'CREATE TABLE _prisma_migrations (migration_name TEXT NOT NULL, finished_at DATETIME, rolled_back_at DATETIME)',
+    )
+    const insert = db.prepare(
+      'INSERT INTO _prisma_migrations (migration_name, finished_at) VALUES (?, ?)',
+    )
+    const folders = readdirSync('prisma/migrations', { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+    const failed = folders[folders.length - 1] ?? ''
+    for (const name of folders) insert.run(name, name === failed ? null : '2026-10-01 00:00:00')
+    db.close()
+
+    // The restart loop: every start asks again, and none writes a copy of the half-migrated schema.
+    for (let start = 0; start < 3; start += 1) {
+      const { status, out } = await run(backupCommand, ['--before-migrate'])
+      expect(status).toBe(0)
+      expect(out).toContain(`A failed migration is recorded (${failed})`)
+      expect(out).toContain('no copy is made')
+    }
+    expect(readdirSync(dir).includes('backups')).toBe(false)
+  })
+
   test('a plain backup of a missing database fails', async () => {
     const { status, err } = await run(backupCommand, [])
     expect(status).toBe(1)
@@ -129,6 +155,28 @@ describe('npm run backup', () => {
     const { out } = await run(backupCommand, [])
     expect(out).toContain('Pruned 1: app-20260101T020000Z.db')
     expect(backups().filter((name) => name.startsWith('app-'))).toHaveLength(2)
+  })
+
+  test('never prunes the copy it just wrote, whatever its stamp (a clock set back)', async () => {
+    makeDatabase()
+    mkdirSync(join(dir, 'backups'))
+    // Seven days and four more weeks, all later than today: the rule fills up without the new copy.
+    const later = ['0105', '0106', '0107', '0114', '0121', '0128', '0204'].map(
+      (day) => `app-2099${day}T020000Z.db`,
+    )
+    for (const name of later) writeFileSync(join(dir, 'backups', name), 'x')
+
+    const { status, out } = await run(backupCommand, [])
+
+    expect(status).toBe(0)
+    expect(out).not.toContain('Pruned')
+    expect(backups().filter((name) => name.startsWith('app-'))).toHaveLength(later.length + 1)
+    const written = /Backup written: (.+)\n/.exec(out)?.[1] ?? ''
+    expect(readdirSync(join(dir, 'backups'))).toContain(written.split('/').pop())
+
+    const keep = await run(backupCommand, ['--keep', '2'])
+    expect(keep.status).toBe(0)
+    expect(backups().filter((name) => name.startsWith('app-'))).toHaveLength(3)
   })
 
   test('rejects a bad --keep, --keep with --before-migrate, and an unknown flag', async () => {

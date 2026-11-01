@@ -1,17 +1,17 @@
 import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { basename, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
-import { loadDatabaseUrl, loadEnvFileIfPresent } from '../server/config.ts'
-import { sqliteFilePath } from '../server/db.ts'
+import { loadEnvFileIfPresent } from '../server/config.ts'
+import { loadDatabaseUrl, sqliteFilePath } from '../server/dbPath.ts'
 import {
   backupDirectory,
   createBackup,
-  hasPendingMigrations,
+  migrationStatus,
   pruneBackups,
   RETENTION_RULE,
   type Retention,
 } from '../server/services/backup.ts'
+import { isMainModule } from './isMain.ts'
 
 const HELP = `Usage: npm run backup -- [--keep <n>]
        npm run backup -- --before-migrate
@@ -26,8 +26,9 @@ database file.
   --keep <n>        Prune to the newest n app-*.db files instead of the default rule.
   --before-migrate  pre-migrate-<UTC timestamp>.db, with no pruning, and only when a folder in
                     prisma/migrations (relative to the working directory) is not yet applied to the
-                    database. With no database file, or none pending, nothing is copied and the
-                    exit status is 0.
+                    database. With no database file, none pending, or a failed migration recorded
+                    (the migrate command refuses until it is resolved), nothing is copied and
+                    the exit status is 0.
 
 Only app-*.db files are pruned; pre-migrate and pre-restore copies stay until deleted by hand.
 `
@@ -104,9 +105,20 @@ export async function backupCommand(
     return 1
   }
 
-  if (beforeMigrate && !hasPendingMigrations(databaseFile, resolve('prisma', 'migrations'))) {
-    io.stdout('No migration is pending; no copy made before the migration.\n')
-    return 0
+  if (beforeMigrate) {
+    const migrations = migrationStatus(databaseFile, resolve('prisma', 'migrations'))
+    if (migrations.failed.length > 0) {
+      io.stdout(
+        `A failed migration is recorded (${migrations.failed.join(', ')}); the migrate command ` +
+          'will refuse until it is resolved, so no copy is made. Keep the pre-migrate copy from ' +
+          'before the first attempt.\n',
+      )
+      return 0
+    }
+    if (!migrations.pending) {
+      io.stdout('No migration is pending; no copy made before the migration.\n')
+      return 0
+    }
   }
 
   const copy = await createBackup(databaseFile, {
@@ -114,13 +126,13 @@ export async function backupCommand(
   })
   io.stdout(`Backup written: ${copy.path}\nSize: ${formatSize(copy.bytes)}\nintegrity_check: ok\n`)
   if (!beforeMigrate) {
-    const pruned = pruneBackups(backupDirectory(databaseFile), retention)
+    const pruned = pruneBackups(backupDirectory(databaseFile), retention, basename(copy.path))
     if (pruned.length > 0) io.stdout(`Pruned ${pruned.length}: ${pruned.join(', ')}\n`)
   }
   return 0
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMainModule(import.meta.url)) {
   try {
     loadEnvFileIfPresent()
     process.exitCode = await backupCommand(process.argv.slice(2), process.env)

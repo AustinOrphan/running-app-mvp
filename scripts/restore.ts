@@ -1,9 +1,9 @@
-import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
-import { loadDatabaseUrl, loadEnvFileIfPresent } from '../server/config.ts'
-import { sqliteFilePath } from '../server/db.ts'
+import { loadEnvFileIfPresent } from '../server/config.ts'
+import { loadDatabaseUrl, sqliteFilePath } from '../server/dbPath.ts'
 import { restoreDatabase } from '../server/services/restore.ts'
 import type { Output } from './backup.ts'
+import { isMainModule } from './isMain.ts'
 
 const HELP = `Usage: npm run restore -- <backup file>
 
@@ -62,7 +62,7 @@ export async function restoreCommand(
   return 0
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMainModule(import.meta.url)) {
   try {
     loadEnvFileIfPresent()
     process.exitCode = await restoreCommand(process.argv.slice(2), process.env)

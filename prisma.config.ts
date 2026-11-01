@@ -10,7 +10,7 @@ try {
 
 /**
  * A relative `file:` URL resolves against `prisma/`, as it did under Prisma 6. Keep this in step
- * with `resolveSqliteUrl` in server/db.ts. It is repeated here because the Docker image runs the
+ * with `resolveSqliteUrl` in server/dbPath.ts. It is repeated here because the Docker image runs the
  * CLI without the server sources.
  */
 function resolveSqliteUrl(url: string): string {

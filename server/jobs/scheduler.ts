@@ -1,8 +1,10 @@
+import { basename } from 'node:path'
 import { todayIso } from '../../shared/dates.ts'
 import { FOLDER_SCAN_MINUTES } from '../../shared/limits.ts'
 import type { SyncStatus, SyncTrigger } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
-import { sqliteFilePath, type PrismaClient } from '../db.ts'
+import type { PrismaClient } from '../db.ts'
+import { sqliteFilePath } from '../dbPath.ts'
 import { createLogger } from '../logger.ts'
 import { PROVIDERS } from '../providers/registry.ts'
 import { backupDirectory, createBackup, pruneBackups } from '../services/backup.ts'
@@ -247,7 +249,7 @@ export async function runBackupJob(
   try {
     const file = sqliteFilePath(deps.config.databaseUrl)
     const copy = await createBackup(file, { kind: 'ordinary', now: opts.now })
-    const pruned = pruneBackups(backupDirectory(file))
+    const pruned = pruneBackups(backupDirectory(file), undefined, basename(copy.path))
     log?.info({ bytes: copy.bytes, pruned: pruned.length }, 'database backed up')
   } catch (error) {
     log?.warn({ reason: safeMessage(error) }, 'scheduled backup failed')

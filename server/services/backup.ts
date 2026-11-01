@@ -85,14 +85,24 @@ export function integrityProblems(file: string): string[] {
   }
 }
 
+export interface MigrationStatus {
+  /** Whether `prisma migrate deploy` has a migration to apply (always false while one has failed). */
+  pending: boolean
+  /** Migrations that `_prisma_migrations` records as started and neither finished nor rolled back. */
+  failed: string[]
+}
+
 /**
- * Whether `prisma migrate deploy` would apply anything to `databaseFile`: a folder in
- * `migrationsDir` that `_prisma_migrations` does not list as finished. True also when that cannot
- * be told (no folder, no table), because a copy that was not needed costs a file and one that was
- * needed and skipped costs the data. It lets `--before-migrate` copy before a migration and not at
- * every start of a container whose schema is current.
+ * What `prisma migrate deploy` would find in `databaseFile`. A folder in `migrationsDir` that
+ * `_prisma_migrations` does not list as finished (a rolled-back row counts as not finished) is
+ * pending. A row that was started and neither finished nor rolled back is a failed migration:
+ * `migrate deploy` refuses with P3009 until it is resolved, so nothing is pending in the sense of
+ * "a migration is about to run", and the database holds a half-applied schema that no new copy
+ * should replace in `backups/` (the copy from before the first attempt is the one to keep). When
+ * the state cannot be read (no folder, no table) a migration counts as pending, because a copy that
+ * was not needed costs a file and one that was needed and skipped costs the data.
  */
-export function hasPendingMigrations(databaseFile: string, migrationsDir: string): boolean {
+export function migrationStatus(databaseFile: string, migrationsDir: string): MigrationStatus {
   let db: Database.Database | undefined
   try {
     const folders = readdirSync(migrationsDir, { withFileTypes: true })
@@ -100,17 +110,27 @@ export function hasPendingMigrations(databaseFile: string, migrationsDir: string
       .map((entry) => entry.name)
     db = new Database(databaseFile, { fileMustExist: true })
     const rows = db
-      .prepare(
-        'SELECT migration_name AS name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL',
-      )
-      .all() as Array<{ name: string }>
-    const applied = new Set(rows.map((row) => row.name))
-    return folders.some((name) => !applied.has(name))
+      .prepare('SELECT migration_name AS name, finished_at, rolled_back_at FROM _prisma_migrations')
+      .all() as Array<{ name: string; finished_at: unknown; rolled_back_at: unknown }>
+    const failed = rows
+      .filter((row) => row.finished_at === null && row.rolled_back_at === null)
+      .map((row) => row.name)
+    const applied = new Set(
+      rows
+        .filter((row) => row.finished_at !== null && row.rolled_back_at === null)
+        .map((row) => row.name),
+    )
+    return { pending: failed.length === 0 && folders.some((name) => !applied.has(name)), failed }
   } catch {
-    return true
+    return { pending: true, failed: [] }
   } finally {
     db?.close()
   }
+}
+
+/** Whether a copy is due before `prisma migrate deploy`: see `migrationStatus`. */
+export function hasPendingMigrations(databaseFile: string, migrationsDir: string): boolean {
+  return migrationStatus(databaseFile, migrationsDir).pending
 }
 
 function discard(file: string): void {
@@ -212,11 +232,12 @@ const utcWeek = (at: Date): string => mondayOf(utcDay(at))
  * The backups that `retention` does not keep, newest first. `{ newest: n }` keeps the newest n;
  * the default rule keeps the newest backup of each of the 7 most recent days (UTC) that have one,
  * and the newest of each of the 4 most recent ISO weeks that have one. The newest backup is always
- * kept.
+ * kept, and so is `protectedName` when given.
  */
 export function selectPruned(
   files: readonly BackupFile[],
   retention: Retention = DEFAULT_RETENTION,
+  protectedName?: string,
 ): BackupFile[] {
   const sorted = [...files].sort(newestFirst)
   const kept = new Set<string>()
@@ -226,12 +247,21 @@ export function selectPruned(
     keepNewestPerBucket(sorted, utcDay, retention.days, kept)
     keepNewestPerBucket(sorted, utcWeek, retention.weeks, kept)
   }
+  if (protectedName !== undefined) kept.add(protectedName)
   return sorted.filter((file) => !kept.has(file.name))
 }
 
-/** Removes the ordinary backups in `dir` that `retention` does not keep; returns their names. */
-export function pruneBackups(dir: string, retention: Retention = DEFAULT_RETENTION): string[] {
-  const pruned = selectPruned(listOrdinaryBackups(dir), retention)
+/**
+ * Removes the ordinary backups in `dir` that `retention` does not keep; returns their names. The
+ * file named `protectedName` stays whatever its stamp: the backup just written must not be pruned
+ * by the run that reports it, as it would be after the clock was set back.
+ */
+export function pruneBackups(
+  dir: string,
+  retention: Retention = DEFAULT_RETENTION,
+  protectedName?: string,
+): string[] {
+  const pruned = selectPruned(listOrdinaryBackups(dir), retention, protectedName)
   for (const file of pruned) discard(join(dir, file.name))
   return pruned.map((file) => file.name)
 }
