@@ -7,6 +7,7 @@ import { estimateState } from '../../../shared/engine/athlete.ts'
 import {
   disruptionPlan,
   holdRestartWeeks,
+  restartShares,
   windowedWeeks,
 } from '../../../shared/engine/disruption.ts'
 import { loadPosition } from '../../../shared/engine/loadSetting.ts'
@@ -238,11 +239,13 @@ export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
   // the restart week of a long hold that the J7 share holds is a baseline whether or not the cadence
   // made it a recovery week [rules J7, J9]
   const targets = new Map(plan.weeks.map((w) => [w.weekStart, w.targetRunMin]))
+  const holds = disruptionPlan(input.disruptions ?? [])
   const restart = holdRestartWeeks(
-    disruptionPlan(input.disruptions ?? []),
+    holds,
     (weekStart) => totals.get(weekStart),
     (weekStart) => targets.get(weekStart),
   )
+  const shares = restartShares(holds, (weekStart) => totals.get(weekStart))
   const loading = plan.weeks.filter(
     (w) => w.weekStart > currentMonday && (isLoading(w) || restart.includes(w.weekStart)),
   )
@@ -250,8 +253,18 @@ export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
   const tolerance = 2
   for (let i = 2; i < loading.length; i += 1) {
     const week = loading[i]!
-    // the restart week is exempt from the ramp up to its J7 share [rule J9]
-    if (restart.includes(week.weekStart)) continue
+    // The restart week is exempt from the ramp up to its J7 share [rule J9]: it is checked against
+    // the share and not against the weeks before it, which a window has emptied.
+    if (restart.includes(week.weekStart)) {
+      const share = shares.get(week.weekStart) ?? 0
+      const held = totals.get(week.weekStart) ?? 0
+      if (held > share + tolerance) {
+        report.problems.push(
+          `${week.weekStart}: restart week plans ${held.toFixed(1)} min above its J7 share of ${share} min`,
+        )
+      }
+      continue
+    }
     const total = totals.get(week.weekStart) ?? 0
     const planned = Math.max(
       totals.get(loading[i - 1]!.weekStart) ?? 0,

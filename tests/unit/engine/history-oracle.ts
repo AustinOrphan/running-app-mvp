@@ -59,6 +59,16 @@
 // one session differs, the threshold run of Monday 2026-10-26 is an easy run of the same minutes; the
 // weeks, the warnings and the other sessions are the same.
 //
+// Regenerated 2026-11-01 (task RF2, review) for the cut of the recovery week after a part week: the
+// recovery week was cut from the loading week before it as placed, which is the part week a window
+// leaves, and is now cut from the figure that week has without the window. One of the 142 digests
+// moves, `h13 rest window` (an illness of 5 days from 2026-10-22, 6 days off, under the 7 days of
+// the first J7 tier, so no restart share applies): the recovery week of 2026-11-02 plans 49 minutes
+// in place of 34, which is its week in the plan of the same runner with no window, with its strides
+// session (24 min on 2026-11-02) and a long run of 25 minutes on 2026-11-08 in place of 20; the other
+// weeks and the other 141 digests are the same. The taper cut that follows the same reading (task
+// RF2, second review) and the distance of the long run in the week in progress move no digest.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'
