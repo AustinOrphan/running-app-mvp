@@ -5,6 +5,7 @@
 import { mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { resolveMethod, type MethodPosition } from '../../../shared/engine/methods.ts'
+import { withShape } from '../../../shared/engine/shape.ts'
 import type { EngineInput, PlanDraft, PresetId, SessionKind } from '../../../shared/engine/types.ts'
 import { planMinutes } from './disruption-fixtures.ts'
 import { TODAY } from './matrix-fixtures.ts'
@@ -58,8 +59,18 @@ export const withMethod = (input: EngineInput, method: PresetId): EngineInput =>
   options: { ...input.options, method },
 })
 
-/** The plan as the digests read it: the version of the Params is left out. */
-export const text = (plan: PlanDraft): string => JSON.stringify({ ...plan, paramsVersion: '' })
+/**
+ * The plan as the digests read it: the version of the Params is left out, and so is the
+ * `shape-<preset>` flag of a week (`shape.ts`). The flag records the shape a week was drawn under, for
+ * the next re-plan; it is no part of what the week plans, so two plans with the same weeks and sessions
+ * read the same whichever preset drew them.
+ */
+export const text = (plan: PlanDraft): string =>
+  JSON.stringify({
+    ...plan,
+    paramsVersion: '',
+    weeks: plan.weeks.map((week) => withShape(week, 'default')),
+  })
 
 /** The kinds that count as a run in a week. */
 export const RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([

@@ -13,6 +13,7 @@ import { shapeFlag, shapeOfFlags, withShape } from '../../../shared/engine/shape
 import type { EngineInput, PlanDraft, PresetId, SessionKind } from '../../../shared/engine/types.ts'
 import { activity, wellnessDay } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
+import { aboveDefault } from './method-fixtures.ts'
 
 const NOT_RUNS: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'strength',
@@ -129,6 +130,23 @@ const shapeOf = (draft: PlanDraft, monday: string): PresetId =>
   shapeOfFlags(draft.weeks.find((w) => w.weekStart === monday)!.flags)
 
 const failed = (draft: PlanDraft): string[] => draft.checklist.filter((c) => !c.ok).map((c) => c.id)
+
+/**
+ * The default plan of the input of a step, the plan G6 holds every re-plan to. The stored weeks of a
+ * preset's chain carry the shape flag, which a re-plan reads as the shape the current week was drawn
+ * under; the default plan of the same weeks is drawn without it.
+ */
+function defaultOn(input: EngineInput): PlanDraft {
+  const stored = input.existing
+  return replan({
+    ...input,
+    options: { ...input.options, method: 'default' },
+    existing:
+      stored === null
+        ? null
+        : { ...stored, weeks: stored.weeks.map((week) => withShape(week, 'default')) },
+  }).draft
+}
 
 describe('the shape flag of a week', () => {
   it('is written for a preset, never for the plan’s own shape, and read back', () => {
@@ -255,6 +273,12 @@ describe('a persistent hold that starts and ends between weekly re-plans [follow
     for (const { monday, draft } of steps) expect(failed(draft), monday).toEqual([])
   })
 
+  it('plans no minute, no week target and no peak above the default plan at any re-plan, the held one included [rule G6]', () => {
+    for (const { monday, input, draft } of steps) {
+      expect(aboveDefault(defaultOn(input), draft), monday).toEqual([])
+    }
+  })
+
   it('draws the held week as the re-plan without the guard draws it: nothing but its shape is kept', () => {
     // without the stored shape the same re-plan reads three run days for the week
     const { input, draft, monday } = at(10)
@@ -315,11 +339,13 @@ describe('a change of method in the middle of a plan [decision 8, follow-up 27]'
     expect(Math.max(...after.map((w) => runDaysOf(plain.draft, w.weekStart)))).toBeGreaterThan(3)
   })
 
-  it('adds no load to any week, as the plan’s own shape would not', () => {
+  it('adds no load to any week, as the plan’s own shape would not [rule G6]', () => {
     for (const week of changed.draft.weeks) {
       const own = plain.draft.weeks.find((w) => w.weekStart === week.weekStart)!
       expect(week.targetRunMin, week.weekStart).toBeLessThanOrEqual(own.targetRunMin)
     }
+    // nor a planned minute in a week, nor the peak
+    expect(aboveDefault(plain.draft, changed.draft)).toEqual([])
   })
 
   it('passes the plan checks', () => {
@@ -357,6 +383,12 @@ describe('a change of method in the middle of a plan [decision 8, follow-up 27]'
           expect(shapeOf(d, week.weekStart), `${m} ${week.weekStart}`).toBe('three-run-days')
           expect(runDaysOf(d, week.weekStart), `${m} ${week.weekStart}`).toBeLessThanOrEqual(3)
         }
+      }
+    })
+
+    it('plan no minute, no week target and no peak above the default plan of their own input [rule G6]', () => {
+      for (const { monday: m, input, draft: d } of steps) {
+        expect(aboveDefault(defaultOn(input), d), m).toEqual([])
       }
     })
 
@@ -406,11 +438,8 @@ describe('a change of method on every matrix athlete [decision 8]', () => {
     const position = resolveMethod(asked, estimateState(asked), changed.draft.weeks)
     // no check fails that the plan without the change passes
     expect(failed(changed.draft)).toEqual(failed(plain.draft))
-    // no week above the plan's own
-    for (const week of changed.draft.weeks) {
-      const own = plain.draft.weeks.find((w) => w.weekStart === week.weekStart)!
-      expect(week.targetRunMin, week.weekStart).toBeLessThanOrEqual(own.targetRunMin)
-    }
+    // no week target, no planned week and no peak above the plan's own [rule G6]
+    expect(aboveDefault(plain.draft, changed.draft)).toEqual([])
     if (position.effective === 'default') {
       expect(changed.heldWeek).toBeNull()
       expect(changed.draft.weeks.some((w) => shapeOfFlags(w.flags) !== 'default')).toBe(false)

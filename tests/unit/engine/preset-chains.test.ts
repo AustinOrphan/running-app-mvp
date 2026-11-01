@@ -28,6 +28,7 @@ import { estimateState } from '../../../shared/engine/athlete.ts'
 import { dayRuleOn, disruptionPlan, injuryReports } from '../../../shared/engine/disruption.ts'
 import { replan } from '../../../shared/engine/index.ts'
 import { loadPosition } from '../../../shared/engine/loadSetting.ts'
+import { withShape } from '../../../shared/engine/shape.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { DisruptionWindow, EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
 import { HARD_OR_STRIDES, RUNNING, windowOf } from './disruption-fixtures.ts'
@@ -123,12 +124,27 @@ function lazy<T>(make: () => T): () => T {
 const where = (id: string, scenario: Scenario, k: number, step: ReplanStep): string =>
   `${scenario}: ${id} step ${String(k)} (${step.input.today})`
 
-/** The default plan of the input of a step: the plan G6 holds a preset to, worked out once. */
+/**
+ * The default plan of the input of a step: the plan G6 holds a preset to, worked out once. The
+ * stored plan of a preset's chain carries the `shape-<preset>` flag on its weeks, which tells a
+ * re-plan the shape the current week was drawn under (M6, follow-up 27): a re-plan asked for the
+ * default would keep that week under the preset's shape and draw the weeks after it from it. The
+ * default plan of the same input is the default plan of the same weeks, so the flag is left off the
+ * stored weeks here.
+ */
 const defaults = new WeakMap<EngineInput, PlanDraft>()
 function defaultOn(input: EngineInput): PlanDraft {
   let plan = defaults.get(input)
   if (plan === undefined) {
-    plan = replan({ ...input, options: { ...input.options, method: 'default' } }).draft
+    const stored = input.existing
+    plan = replan({
+      ...input,
+      options: { ...input.options, method: 'default' },
+      existing:
+        stored === null
+          ? null
+          : { ...stored, weeks: stored.weeks.map((week) => withShape(week, 'default')) },
+    }).draft
     defaults.set(input, plan)
   }
   return plan
@@ -410,15 +426,15 @@ describe.each(OFFERED)('the preset along the chains at %s', (method) => {
 
   it('plans the days of the default for the weeks ahead while the niggle is reported, and the cap again after it (three-run-days)', () => {
     if (method !== 'three-run-days') return
-    // the run days switch with the reading, twice: pinned as a fact for M6's guard
-    const ahead = (step: ReplanStep) =>
-      Math.max(
-        ...step.draft.weeks
-          .filter((w) => w.weekStart >= mondayOf(step.input.today))
-          .map((w) => w.runDays),
-      )
+    // the run days switch with the reading, twice. A hold that starts applies at once. The re-plan
+    // on which it ends (step 11) keeps the week it is in under the shape that week was drawn under,
+    // the plan's own (M6's guard, follow-up 27), so the cap is back with the week after it.
+    const runDays = (step: ReplanStep, from: string) =>
+      Math.max(...step.draft.weeks.filter((w) => w.weekStart >= from).map((w) => w.runDays))
+    const ahead = (step: ReplanStep) => runDays(step, mondayOf(step.input.today))
     for (const id of ['half', 'returning']) {
-      const days = chainOf(id, 'niggle', method).map(ahead)
+      const chain = chainOf(id, 'niggle', method)
+      const days = chain.map(ahead)
       expect(
         days.slice(0, 4).every((d) => d <= 3),
         `${id} before the report`,
@@ -427,9 +443,20 @@ describe.each(OFFERED)('the preset along the chains at %s', (method) => {
         days.slice(4, 11).some((d) => d > 3),
         `${id} while it is reported`,
       ).toBe(true)
+      // the week the hold ends in is held, and no other week is, before it or after it
+      const held = chain.map((step) => replan(step.input).heldWeek)
+      expect(held.indexOf(mondayOf(chain[11]!.input.today)), `${id} held week`).toBe(11)
       expect(
-        days.slice(11).every((d) => d <= 3),
+        held.filter((week) => week !== null),
+        `${id} held weeks`,
+      ).toHaveLength(1)
+      expect(
+        chain.slice(11).every((step) => runDays(step, addDays(mondayOf(step.input.today), 7)) <= 3),
         `${id} after it`,
+      ).toBe(true)
+      expect(
+        days.slice(12).every((d) => d <= 3),
+        `${id} the weeks after it`,
       ).toBe(true)
     }
   })
