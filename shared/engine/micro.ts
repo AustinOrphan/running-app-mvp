@@ -140,6 +140,33 @@ interface Slot {
   windowCap?: boolean
   /** A window keeps quality sessions off the day [rule J9]. */
   quiet?: boolean
+  /** The day holds easy running only, no long run either: a day before a long race [rule K6]. */
+  easyOnly?: boolean
+  /** The most the run of the day before a long race holds [rule K6]; the minutes it cuts are not made up. */
+  shakeMaxMin?: number
+}
+
+/**
+ * The last days before a race of `k6.carbLoadMinRaceMin` minutes or more [rule K6]: the day before
+ * holds a shake-out of at most `maxMin` minutes, and the days from `easyFrom` to the day before hold
+ * easy running only (no quality session, no long run). The minutes the cap removes are not made up
+ * on other days. The dates may lie in the week before the race week (a race early in the week).
+ */
+export interface ShakeOut {
+  dayBefore: string
+  easyFrom: string
+  maxMin: number
+}
+
+/** The shake-out rule for a race on `raceDate` expected to last `expectedMin`; none for a shorter race. */
+export function shakeOutFor(raceDate: string, expectedMin: number): ShakeOut | undefined {
+  if (expectedMin < P.k6.carbLoadMinRaceMin.value) return undefined
+  return {
+    dayBefore: addDays(raceDate, -1),
+    // the day before the race is always one of the easy days
+    easyFrom: addDays(raceDate, -Math.max(1, P.k6.easyDaysBefore.value)),
+    maxMin: P.k6.dayBeforeMaxMin.value,
+  }
 }
 
 interface RunPlan {
@@ -201,6 +228,11 @@ export function placeWeek(
      * week, so it may hold a single run, as a taper or recovery week does.
      */
     ceiling?: boolean
+    /**
+     * The race of the plan lasts `k6.carbLoadMinRaceMin` minutes or more: the days before it that fall
+     * in this week hold a shake-out and easy running [rule K6].
+     */
+    shakeOut?: ShakeOut
     /** No run of the week carries more than this: the 16 km of a 5 km or 10 km goal [rules D7]. */
     longRunMaxM?: number
     /** The goal is an ultra: its strength sessions cite H10 beside F7 [rules E5, H10]. */
@@ -233,6 +265,7 @@ export function placeWeek(
     ctx.prevSessions.filter((s) => VOLUME_KINDS.has(s.kind)).map((s) => s.date),
   )
   applyDayRules(slots, ctx.dayRules ?? [])
+  applyShakeOut(slots, ctx.shakeOut)
   // Earlier weeks, plus sessions kept on closed days of this week (a re-plan keeps finished
   // sessions), so spacing and pair limits see them [rules F1, F3, H3].
   const weekEnd = addDays(week.weekStart, 6)
@@ -241,8 +274,16 @@ export function placeWeek(
       s.date < week.weekStart ||
       (s.date <= weekEnd && slots[daysBetween(week.weekStart, s.date)]?.open === false),
   )
-  const runs = planRuns(week, ctx, slots, before, caps, limits, windows)
+  // the minutes the shake-out cuts from a day's run, by day [rule K6]
+  const cuts = new Map<number, number>()
+  const runs = planRuns(week, ctx, slots, before, caps, limits, windows, cuts)
   capIntensity(runs, week, ctx.zones)
+  // the runs are cut to the shake-out; no later step gives the day more than that
+  for (const slot of slots) {
+    if (slot.shakeMaxMin === undefined) continue
+    slot.capMin = Math.min(slot.capMin, slot.shakeMaxMin)
+    if (slot.runMaxMin !== undefined) slot.runMaxMin = Math.min(slot.runMaxMin, slot.shakeMaxMin)
+  }
   // The lifts the week already holds: finished or kept sessions on its closed days (a re-plan keeps
   // them). They count against the week's lifts and the days beside them are not preferred [rule F4].
   const heldLifts = before
@@ -257,6 +298,7 @@ export function placeWeek(
   const afterRace = week.flags.includes('post-race')
   const fuelRuns = fuelPracticeRuns(runs, specs, week)
   const sessions: SessionSpec[] = []
+  const cutBy = new Map<SessionSpec, number>()
   for (const [i, run] of runs.entries()) {
     const spec = specs[i]!
     // `prescribe` marks every 'b2b' session as day 1; the second day of a pair is day 2 only.
@@ -265,13 +307,16 @@ export function placeWeek(
       : spec.flags
     // fuel practice changes the flags and the rule list of a run, never its minutes or targets [H7]
     const fuel = fuelRuns.has(i)
+    // the shake-out cites K6, so the Why drawer says why the run is short [rule K6]
+    const shake = slots[run.day]!.shakeMaxMin !== undefined
     const flags = unique<SessionFlag>([
       ...(fuel ? (['fuel-practice'] as const) : []),
       ...specFlags,
       ...run.flags,
     ])
-    const rules = fuel ? unique([...spec.rules, 'H7']) : spec.rules
-    sessions.push({
+    const withFuel = fuel ? unique([...spec.rules, 'H7']) : spec.rules
+    const rules = shake ? unique([...withFuel, 'K6']) : withFuel
+    const session: SessionSpec = {
       ...spec,
       date: slots[run.day]!.date,
       order: 0,
@@ -285,13 +330,27 @@ export function placeWeek(
             rules: unique([...rules, 'H12']),
           }
         : {}),
-    })
+    }
+    sessions.push(session)
+    const cut = cuts.get(run.day)
+    if (cut !== undefined) cutBy.set(session, cut)
   }
   // The weekly gain is split here, to the metre and within each run's limit, not per prescription.
   if (week.gainTargetM !== null && week.gainTargetM > 0) {
     for (const s of sessions) if (RUN_KINDS.has(s.kind)) s.gainM = null
   }
-  fillDistanceAndGain(sessions, week, (date) => caps[daysBetween(week.weekStart, date)]!.gainM)
+  // a day whose run the shake-out dropped leaves its share of the climbing unplaced, as its minutes
+  const dropped = [...cuts].reduce(
+    (sum, [day, cut]) => (runs.some((r) => r.day === day) ? sum : sum + cut),
+    0,
+  )
+  fillDistanceAndGain(
+    sessions,
+    week,
+    (date) => caps[daysBetween(week.weekStart, date)]!.gainM,
+    cutBy,
+    dropped,
+  )
   for (const day of strength) {
     const spec = prescribe('strength', strengthMinutes(week), ctx.zones, week, {
       ultra: ctx.ultra === true,
@@ -460,6 +519,7 @@ function planRuns(
   caps: RunCaps[],
   limits: PlaceLimits,
   windows: readonly PostRaceWindow[],
+  cuts: Map<number, number>,
 ): RunPlan[] {
   const { profile, state } = ctx
   const method = ctx.method ?? 'default'
@@ -588,10 +648,12 @@ function planRuns(
     // week): look for the largest set of non-consecutive days instead.
     const days = spacedDays(runDays)
     if (days.length > order.length) {
-      const longDay = nearest(days, preferred)
+      // the days before a long race hold no long run [rule K6]
+      const longCandidates = days.filter((d) => slots[d]!.easyOnly !== true)
+      const longDay = nearest(longCandidates.length > 0 ? longCandidates : days, preferred)
       order.length = 0
       order.push(longDay, ...days.filter((d) => d !== longDay))
-      fixed = longMin > 0 ? [longPlan(longDay)] : []
+      fixed = longMin > 0 && longCandidates.length > 0 ? [longPlan(longDay)] : []
       longDays = fixed.map((r) => r.day)
     }
   }
@@ -644,6 +706,15 @@ function planRuns(
   if (spare > 0 && longest !== undefined && room(longest) > 0) {
     minutes[longest]! += Math.min(spare, room(longest))
   }
+  // The day before a long race holds a shake-out [rule K6]: the run is cut to its cap, a cap under
+  // the run day minimum leaves the day without a run, and what is cut is not made up on other days.
+  others.forEach((day, i) => {
+    const cap = slots[day]!.shakeMaxMin
+    if (cap === undefined || minutes[i]! <= cap) return
+    const kept = cap < P.fplace.minRunDayMin.value ? 0 : cap
+    cuts.set(day, minutes[i]! - kept)
+    minutes[i] = kept
+  })
 
   // Quality days: spacing F1 and F3, not the day before the long run if it can be helped.
   let quality = Math.min(week.qualitySessions, P.f2.qualitySessionsPerWeek.value)
@@ -734,8 +805,10 @@ function planRuns(
 
   function chooseLongDay(minutes: number): number | null {
     // A window's cap never squeezes the long run into a short day: it goes where it fits, or the
-    // week has none [rule J9].
-    const squeezes = (day: number) => slots[day]!.windowCap === true && slots[day]!.capMin < minutes
+    // week has none [rule J9]. The days before a long race hold no long run [rule K6].
+    const squeezes = (day: number) =>
+      (slots[day]!.windowCap === true && slots[day]!.capMin < minutes) ||
+      slots[day]!.easyOnly === true
     if (usable(preferred) && !squeezes(preferred)) return preferred
     const days = slots
       .map((s) => s.day)
@@ -1090,6 +1163,21 @@ function applyDayRules(slots: Slot[], rules: readonly DayRule[]): void {
 }
 
 /**
+ * The days before a long race [rule K6]: from `easyFrom` to the day before, easy running only (no
+ * quality session, no long run); the day before also holds at most the shake-out. A date outside the
+ * week is ignored.
+ */
+function applyShakeOut(slots: Slot[], shakeOut: ShakeOut | undefined): void {
+  if (shakeOut === undefined) return
+  for (const slot of slots) {
+    if (slot.date < shakeOut.easyFrom || slot.date > shakeOut.dayBefore) continue
+    slot.quiet = true
+    slot.easyOnly = true
+    if (slot.date === shakeOut.dayBefore) slot.shakeMaxMin = shakeOut.maxMin
+  }
+}
+
+/**
  * Rest days for the hold of a post-race window: one session a day from `from` on, with the hold
  * copy. The race day itself carries the race and gets none [rules H12].
  */
@@ -1238,12 +1326,17 @@ function distribute(total: number, caps: number[]): number[] {
 /**
  * The long run gets its distance. The weekly gain goes to the runs without a gain of their own, by
  * minutes, to the metre, and never above a run's own gain limit (`gainCap`); what no run can take
- * is left out.
+ * is left out. A run the shake-out cut [rule K6] (`cutBy`: the minutes cut from it; `dropped`: the
+ * minutes of runs dropped) shares in the climbing at the minutes it had before the cut and keeps that
+ * share in proportion to the minutes it keeps; the rest is left unplaced, as the minutes are, and the
+ * other runs keep the climbing they had.
  */
 function fillDistanceAndGain(
   sessions: SessionSpec[],
   week: WeekDraft,
   gainCap: (date: string) => number,
+  cutBy: ReadonlyMap<SessionSpec, number>,
+  dropped: number,
 ): void {
   if (week.longRunM !== null && week.longRunMin > 0) {
     for (const s of sessions) {
@@ -1259,13 +1352,14 @@ function fillDistanceAndGain(
     const open = runs.filter((s) => s.gainM === null)
     const taken = runs.reduce((sum, s) => sum + (s.gainM ?? 0), 0)
     const left = Math.max(0, Math.floor(week.gainTargetM - taken))
+    const was = (s: SessionSpec) => s.durationMin + (cutBy.get(s) ?? 0)
     const shares = allocate(
       left,
-      open.map((s) => s.durationMin),
-      open.map((s) => Math.floor(gainCap(s.date))),
+      [...open.map(was), ...(dropped > 0 ? [dropped] : [])],
+      [...open.map((s) => Math.floor(gainCap(s.date))), ...(dropped > 0 ? [left] : [])],
     )
     open.forEach((s, i) => {
-      s.gainM = shares[i]!
+      s.gainM = cutBy.has(s) ? Math.floor((shares[i]! * s.durationMin) / was(s)) : shares[i]!
     })
   }
 }

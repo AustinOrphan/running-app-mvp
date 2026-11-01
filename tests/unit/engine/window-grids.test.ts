@@ -21,14 +21,28 @@
 //    every second week, the days before run as planned, with a niggle of 28 days: the load items of
 //    the checklist pass, the fall of the taper among them (a race week redrawn above the plan before
 //    failed it on those days). 7,362 re-plans.
+// 4. The race week of a long race at a cap of 0 and at the two presets (the third review of RF3): the
+//    9 matrix athletes with a race of 90 minutes or more; the shake-out cap at 20, at 0 and at 10 minutes
+//    and the presets `three-run-days` and `longer-base`; the chain re-planned on each day from the
+//    Tuesday to the Saturday of every week, each week run as planned, and its race week re-planned
+//    three more times with each pass stored: the runs still to come are the first pass's every time,
+//    the day before the race holds no more than the cap, and the race week holds no more running to
+//    come than the same week with the rule off (the rule never adds running, G6).
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
-import { buildPlan } from '../../../shared/engine/index.ts'
-import type { DisruptionWindow } from '../../../shared/engine/types.ts'
+import { buildPlan, replan } from '../../../shared/engine/index.ts'
+import { P } from '../../../shared/engine/params/index.ts'
+import type {
+  DisruptionWindow,
+  EngineInput,
+  PlanDraft,
+  PresetId,
+} from '../../../shared/engine/types.ts'
 import { LOAD_ITEMS } from './history-properties.ts'
 import { windowOf, withWindows } from './disruption-fixtures.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
 import { replanChain } from './replan-steps.ts'
+import { withStoredPlan } from './sim-athlete.ts'
 
 // The test timeout (15 minutes) is the `sweep` project's (`tests/vitestProjects.ts`).
 const byHand = describe.skipIf(process.env.WINDOW_GRIDS_FULL === undefined)
@@ -169,5 +183,92 @@ byHand('the grids of the third review of RF2 (by hand)', () => {
     expect(replans).toBeGreaterThan(7_000)
     expect(fall).toEqual([])
     expect(held.length).toBeLessThanOrEqual(31)
+  })
+
+  it('keeps the race week of a long race through its re-plans at a cap of 0 and under the presets', () => {
+    const NOT_RUNS = ['strength', 'mobility', 'rest', 'race', 'hike', 'cross']
+    const runsToCome = (draft: PlanDraft, from: string): Array<[string, string, number]> =>
+      draft.sessions
+        .filter(
+          (s) =>
+            s.date >= from &&
+            mondayOf(s.date) === mondayOf(from) &&
+            !NOT_RUNS.includes(s.kind) &&
+            !s.flags.includes('post-race'),
+        )
+        .map((s): [string, string, number] => [s.date, s.kind, s.durationMin])
+    const minutes = (list: Array<[string, string, number]>) => list.reduce((n, r) => n + r[2], 0)
+    const cap = P.k6.dayBeforeMaxMin as { value: number }
+    const threshold = P.k6.carbLoadMinRaceMin as { value: number }
+    const savedCap = cap.value
+    const savedThreshold = threshold.value
+    const variants: Array<{ name: string; cap: number; method?: PresetId }> = [
+      { name: 'cap 0', cap: 0 },
+      { name: 'cap 10', cap: 10 },
+      { name: 'three-run-days', cap: savedCap, method: 'three-run-days' },
+      { name: 'longer-base', cap: savedCap, method: 'longer-base' },
+    ]
+    const failures: string[] = []
+    let chains = 0
+    try {
+      for (const athlete of athletes()) {
+        if (athlete.input.goal.expectedDurationSec / 60 < savedThreshold) continue
+        for (const variant of variants) {
+          const input: EngineInput = {
+            ...athlete.input,
+            options: {
+              ...athlete.input.options,
+              ...(variant.method === undefined ? {} : { method: variant.method }),
+            },
+          }
+          for (const weekday of [1, 2, 3, 4, 5]) {
+            const last = (): ReturnType<typeof replanChain>[number] => {
+              const steps = replanChain(input, { weekday })
+              return steps.at(-1)!
+            }
+            cap.value = variant.cap
+            const on = last()
+            const raceWeek = mondayOf(input.goal.date)
+            if (mondayOf(on.input.today) !== raceWeek) continue
+            chains += 1
+            const label = `${athlete.id}, ${variant.name}, re-plan on ${on.input.today}`
+            const today = on.input.today
+            const first = runsToCome(on.draft, today)
+            let step: EngineInput = on.input
+            let draft = on.draft
+            for (let pass = 2; pass <= 4; pass += 1) {
+              step = withStoredPlan({ settled: step, draft })
+              draft = replan(step).draft
+              const again = runsToCome(draft, today)
+              if (JSON.stringify(again) !== JSON.stringify(first)) {
+                failures.push(
+                  `${label}, pass ${String(pass)}: ${JSON.stringify(again)} for ${JSON.stringify(first)}`,
+                )
+              }
+            }
+            const dayBefore = addDays(input.goal.date, -1)
+            for (const [date, , min] of first) {
+              if (date === dayBefore && min > variant.cap)
+                failures.push(`${label}: ${String(min)} min the day before`)
+            }
+            // the same week with the rule off
+            threshold.value = Number.POSITIVE_INFINITY
+            const off = last()
+            threshold.value = savedThreshold
+            if (minutes(first) > minutes(runsToCome(off.draft, today))) {
+              failures.push(
+                `${label}: ${String(minutes(first))} min to come, ${String(minutes(runsToCome(off.draft, today)))} with the rule off`,
+              )
+            }
+          }
+        }
+      }
+    } finally {
+      cap.value = savedCap
+      threshold.value = savedThreshold
+    }
+    console.log(`race-week grid: ${chains} chains, ${failures.length} failures`)
+    expect(chains).toBeGreaterThan(100)
+    expect(failures).toEqual([])
   })
 })

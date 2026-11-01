@@ -1,0 +1,35 @@
+{
+  "id": "sherman-1981-exercise-diet-glycogen",
+  "title": "Effect of exercise-diet manipulation on muscle glycogen and its subsequent utilization during performance",
+  "authors": "Sherman WM, Costill DL, Fink WJ, Miller JM",
+  "year": 1981,
+  "journal": "International Journal of Sports Medicine",
+  "doi": "10.1055/s-2008-1034594",
+  "pmid": "7333741",
+  "url": "https://doi.org/10.1055/s-2008-1034594",
+  "design": "other",
+  "population": "Trained runners (the abstract states neither their number nor their sex)",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["taper"],
+  "findings": [
+    "Three exercise-diet regimens were compared for muscle glycogen supercompensation and for the performance of a 20.9-km run: 3 days of a 15% carbohydrate diet then 3 days of 70% (trial A), 3 days of 50% then 3 days of 70% (trial B), and 6 days of 50% (trial C).",
+    "Each trial used a 5-day depletion-taper exercise sequence on the treadmill at 73% of VO2max, with runs of 90, 40, 40, 20 and 20 min; a day of rest preceded the 20.9-km performance run.",
+    "Muscle glycogen of the gastrocnemius rose to 207, 203 and 159 mmol glucosyl units per kg wet tissue in trials A, B and C.",
+    "The performance run used more glycogen after trials A and B (5.0 and 5.1 mmol per km) than after trial C (3.1 mmol per km), but run times and post-run glycogen did not differ between the trials; the authors conclude that carbohydrate loading was of no benefit to trained runners over 20.9 km."
+  ],
+  "limitations": "The abstract gives neither the number of runners nor their sex; the abstract gives no run time, and the performance run of 20.9 km is about a half marathon (any duration is an inference, not a finding); the diet and the exercise sequence were changed together, so the running of the last days is not tested apart from the diet; no study arm compares a run on the day before the performance run with a rest day.",
+  "implications": [
+    "The nearest protocol in the corpus to a shake-out (inference): the last two runs before the performance run were 20 min at 73% of VO2max and the day before it was a rest day. It tested the diet and not the running of the last days.",
+    "A raised glycogen store did not shorten a 20.9-km run in trained runners, so the carbohydrate guidance of the final days is a statement about glycogen and long races and never a promise of time (inference).",
+    "No numeric taper parameter is justified from this study alone."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Added 2026-11-01 for task RF3 (the last two days before a long race, rule K6). Crossref: Int J Sports Med, May 1981, Sherman first author, four authors, no updated-by notice. Abstract read in Europe PMC (PMID 7333741) and every number above is its own; the abstract states no sample size, so sampleSize is null. Design label is the nearest fit: the abstract says three trials without saying that the same runners did all three.",
+    "checkedAt": "2026-11-01"
+  }
+}
