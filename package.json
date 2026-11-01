@@ -23,7 +23,7 @@
     "pretest": "prisma generate",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "db:migrate": "prisma migrate deploy",
+    "db:migrate": "tsx scripts/backup.ts --before-migrate && prisma migrate deploy",
     "db:studio": "prisma studio",
     "research:check": "tsx scripts/research-check.ts",
     "research:verify": "tsx scripts/research-verify.ts",
