@@ -131,6 +131,19 @@ const shapeOf = (draft: PlanDraft, monday: string): PresetId =>
 
 const failed = (draft: PlanDraft): string[] => draft.checklist.filter((c) => !c.ok).map((c) => c.id)
 
+const ISO = /\d{4}-\d{2}-\d{2}/g
+const AGGREGATE = /^\d+ week\(s\), from the week of /
+
+/** The warnings of a draft about the week of `monday`: their message names a day of it as a date. */
+const weekWarnings = (draft: PlanDraft, monday: string): string[] =>
+  draft.warnings
+    .filter(
+      (w) =>
+        !AGGREGATE.test(w.message) &&
+        (w.message.match(ISO) ?? []).some((d) => d >= monday && d <= addDays(monday, 6)),
+    )
+    .map((w) => `${w.code}|${w.message}`)
+
 /**
  * The default plan of the input of a step, the plan G6 holds every re-plan to. The stored weeks of a
  * preset's chain carry the shape flag, which a re-plan reads as the shape the current week was drawn
@@ -329,6 +342,8 @@ describe('a change of method in the middle of a plan [decision 8, follow-up 27]'
       plain.draft.weeks.find((w) => w.weekStart === monday),
     )
     expect(shapeOf(changed.draft, monday)).toBe('default')
+    // and says of it what the plain re-plan says
+    expect(weekWarnings(changed.draft, monday)).toEqual(weekWarnings(plain.draft, monday))
     const after = changed.draft.weeks.filter((w) => w.weekStart > monday)
     expect(after.length).toBeGreaterThan(8)
     for (const week of after) {
@@ -461,5 +476,70 @@ describe('a change of method on every matrix athlete [decision 8]', () => {
     const again = replan({ ...asked, existing: stored(changed.draft, today) })
     expect(again.draft).toEqual(changed.draft)
     expect(again.heldWeek).toBe(changed.heldWeek)
+  })
+})
+
+describe('the warnings of a held week [rules g-1, g-2, g-6]', () => {
+  // The held pass places nothing in the week and takes its sessions as fixed, so it says nothing of
+  // them. The re-plan keeps the warnings the pass that drew the week gave it: a week run past its
+  // plan (`overshoot-week`) and a run with no reference run to bound it (`spike-no-reference`).
+  it('keeps each warning the plain re-plan gives the week, on every matrix athlete', () => {
+    let checked = 0
+    for (const athlete of athletes()) {
+      const lead = season(athlete.input, { until: 4 })
+      if (lead.steps.length < 4) continue
+      for (const step of lead.steps.slice(1)) {
+        const { monday, draft, input: before } = step
+        for (const day of [0, 3]) {
+          const today = addDays(monday, day)
+          const base: EngineInput = {
+            ...athlete.input,
+            today,
+            activities: [...before.activities, ...ran(draft, monday, today)],
+            existing: stored(draft, today),
+          }
+          const plain = replan(base)
+          for (const method of ['three-run-days', 'longer-base'] as const) {
+            const changed = replan(withMethod(base, method))
+            if (changed.heldWeek === null) continue
+            const said = new Set(changed.draft.warnings.map((w) => `${w.code}|${w.message}`))
+            for (const warning of weekWarnings(plain.draft, monday)) {
+              checked += 1
+              expect(said.has(warning), `${athlete.id} ${today} ${method}: ${warning}`).toBe(true)
+            }
+          }
+        }
+      }
+    }
+    // the check is not vacuous: the plain re-plans do warn of weeks that a change holds
+    expect(checked).toBeGreaterThan(0)
+  }, 60_000)
+
+  it('keeps the warning of a week run past its plan', () => {
+    const lead = season(half.input, { until: 3 })
+    const { monday, draft, input: before } = lead.steps.at(-1)!
+    const today = addDays(monday, 3)
+    // a long run on Monday, far above what the week holds: the week stands as run
+    const extra = activity(monday, {
+      id: 'run-past-plan',
+      durationSec: 400 * 60,
+      distanceM: 400 * 170,
+    })
+    const base: EngineInput = {
+      ...half.input,
+      today,
+      activities: [...before.activities, ...ran(draft, monday, today), extra],
+      existing: stored(draft, today),
+    }
+    const plain = replan(base)
+    expect(plain.draft.warnings.map((w) => w.code)).toContain('overshoot-week')
+    for (const method of ['three-run-days', 'longer-base'] as const) {
+      const changed = replan(withMethod(base, method))
+      expect(changed.heldWeek, method).toBe(monday)
+      expect(
+        changed.draft.warnings.filter((w) => w.code === 'overshoot-week'),
+        method,
+      ).toEqual(plain.draft.warnings.filter((w) => w.code === 'overshoot-week'))
+    }
   })
 })

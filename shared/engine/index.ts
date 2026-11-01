@@ -1424,11 +1424,33 @@ function drawn(
     },
     weekOffset,
   )
+  // The held pass places nothing in the week and takes its sessions as fixed, so it says nothing of
+  // them: the warnings the re-plan draws for the week itself (a week run past its plan, a run with no
+  // reference run to bound it) are the ones of the pass that drew it.
+  const said = new Set(held.warnings.map((w) => `${w.code}|${w.message}`))
+  const ofWeek = own.warnings.filter(
+    (w) => namesWeek(w, current) && !said.has(`${w.code}|${w.message}`),
+  )
   return {
     draft: {
       ...held,
       weeks: held.weeks.map((week) => (week.weekStart === current ? ownWeek : week)),
+      warnings: [...held.warnings, ...ofWeek],
     },
     heldWeek: current,
   }
+}
+
+/** An aggregate warning counts the weeks from a first one on; its later weeks belong to one pass. */
+const ACROSS_WEEKS = /^\d+ week\(s\), from the week of /
+
+/**
+ * Whether a warning is about the week of `monday`: its message names a day of that week as a date.
+ * The warnings of the engine about one week or one session do (`overshoot-week`, the guards'); an
+ * aggregate over weeks (`availability-limits-runs`, `spike-run-dropped`) does not count.
+ */
+function namesWeek(warning: EngineWarning, monday: string): boolean {
+  if (ACROSS_WEEKS.test(warning.message)) return false
+  const end = addDays(monday, 6)
+  return (warning.message.match(/\d{4}-\d{2}-\d{2}/g) ?? []).some((d) => d >= monday && d <= end)
 }
