@@ -574,7 +574,6 @@
   align-items: center;
   min-height: 2.75rem;
   margin: 0;
-  color: var(--accent);
 }
 
 p.weekFiles {

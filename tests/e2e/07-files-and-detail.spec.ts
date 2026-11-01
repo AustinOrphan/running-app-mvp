@@ -127,3 +127,35 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
     'true',
   )
 })
+
+test('a link with no class of its own is the app’s accent in both colour schemes, never the browser’s blue', async ({
+  page,
+  baseURL,
+}) => {
+  await signedInApi(page, baseURL ?? '')
+  await page.goto('/activities/no-such-activity')
+  const link = page.getByRole('link', { name: 'All activities' })
+  await expect(link).toBeVisible()
+
+  /** The colour of the link, and what `var(--accent)` computes to on the same page. */
+  const colours = () =>
+    link.evaluate((el) => {
+      const probe = document.createElement('span')
+      probe.style.color = 'var(--accent)'
+      document.body.append(probe)
+      const accent = getComputedStyle(probe).color
+      probe.remove()
+      return { link: getComputedStyle(el).color, accent }
+    })
+
+  await page.emulateMedia({ colorScheme: 'light' })
+  const light = await colours()
+  expect(light.link).toBe(light.accent)
+  expect(light.link).not.toBe('rgb(0, 0, 238)')
+
+  await page.emulateMedia({ colorScheme: 'dark' })
+  const dark = await colours()
+  expect(dark.link).toBe(dark.accent)
+  // the dark accent is the lighter lavender of the tokens, not the light scheme's indigo
+  expect(dark.link).not.toBe(light.link)
+})
