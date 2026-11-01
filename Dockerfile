@@ -40,7 +40,8 @@ USER node
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://localhost:' + (process.env.PORT || 3001) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-# Every start copies the database to /data/backups before it migrates (a fresh volume has nothing to
-# copy), and a copy that fails integrity_check stops the start. exec replaces the shell, so node is
-# PID 1 and receives SIGTERM for its graceful shutdown.
+# A start copies the database to /data/backups before it migrates only when a migration is pending
+# (a current schema, a fresh volume and a recorded failed migration each make no copy), and a copy
+# that fails integrity_check stops the start. exec replaces the shell, so node is PID 1 and receives
+# SIGTERM for its graceful shutdown.
 CMD ["sh", "-c", "node dist/scripts/backup.js --before-migrate && npx prisma migrate deploy && exec node dist/server/index.js"]

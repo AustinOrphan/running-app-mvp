@@ -441,15 +441,20 @@ answers, the password hash, and the integrations' tokens (encrypted with a key d
 `SESSION_SECRET`, so a restore under a different `SESSION_SECRET` needs the integrations connected
 again). Copying backups off the machine, and encrypting them there, is the operator's job: the app
 sends them nowhere, and a copy on the same disk does not survive the loss of the disk. In Docker,
-`docker compose cp app:/data/backups ./` copies the folder out.
+`docker compose cp app:/data/backups ./` copies the folder out; it fails until `/data/backups`
+exists, so take one backup first with `docker compose exec app node dist/scripts/backup.js`.
 
 ### Restore
 
-Stop the server first. The restore asks the database for an exclusive lock, which SQLite refuses
-while the server's connection is open (the server keeps it in WAL mode), and stops without changing
-anything. Once the file passes `integrity_check`, the restore copies the current database aside as
-`pre-restore-<UTC timestamp>.db`, removes the stale `-wal` and `-shm` files, and puts the backup in
-place. To undo a restore, restore that `pre-restore` file.
+Stop the server first. The restore refuses, and changes nothing, while the database looks in use:
+it asks the database for an exclusive lock, which SQLite refuses while the server's connection is
+open (the server keeps it in WAL mode), and it refuses when the `-wal` or `-shm` file was written in
+the last 10 seconds (after a crash, wait that long). Once the file passes `integrity_check`, the
+restore copies the current database aside as `pre-restore-<UTC timestamp>.db`, removes the stale
+`-wal` and `-shm` files, and puts the backup in place with the mode and owner of the file it
+replaces. A current database too damaged for SQLite to copy (garbage, truncated, damaged pages) is
+kept byte for byte, with its `-wal` and `-shm` files beside the copy, so a damaged database can be
+restored over. To undo a restore, restore that `pre-restore` file.
 
 In a checkout:
 
@@ -472,34 +477,56 @@ and start the container again.
 
 A backup kept elsewhere goes into the volume first, for example
 `docker compose cp ./app-20261101T020000Z.db app:/data/backups/` (this works while the container is
-stopped).
+stopped, once `/data/backups` exists: run one backup first, as under Backups).
 
 ### Update
 
+Stop the server first, so that nothing writes to the database while it is migrated.
+
 ```sh
+# stop the running server, then:
 git pull
 npm ci
 npm run db:migrate   # copies the database to backups/pre-migrate-<timestamp>.db if a migration is pending, then migrates
 npm run build
-npm start            # after stopping the running server
+npm start
 ```
 
-`npm run db:migrate` stops before migrating if the copy fails its check. With Docker, `git pull`
-and `docker compose up -d --build` do the same: the image copies the database to `/data/backups`
-before `prisma migrate deploy` when a migration is pending, and a failed copy stops the container
-from starting (see `docker compose logs app`).
+With Docker, the migration runs when the new container starts:
+
+```sh
+docker compose stop app
+git pull
+docker compose up -d --build
+```
+
+`npm run db:migrate` stops before migrating if the copy fails its check. The image does the same:
+it copies the database to `/data/backups` before `prisma migrate deploy` when a migration is
+pending, and a failed copy stops the container from starting (see `docker compose logs app`). No
+copy is made when nothing is pending, and none while a failed migration is recorded: `migrate
+deploy` then refuses on every start, and the copy from before the first attempt stays the one to
+keep.
 
 ### Roll back
 
 A pre-migrate copy holds the data as it was before the update, so rolling back loses what was
-entered since. Restore it first, from the checkout that has the scripts, then go back to the earlier
-code:
+entered since. Take the copy from the start of that update, the oldest `pre-migrate` file made since
+you began it (`ls -l backups/` and compare the times), not a later one: after a migration that
+failed part way, a later copy could hold the half-migrated schema. Restore it first, from the
+checkout that has the scripts, then go back to the earlier code:
 
-1. Stop the server.
-2. Restore the newest `pre-migrate` copy (`ls backups/`), as under Restore. The data written since
-   the update stays in the new `pre-restore` copy.
+1. Stop the server (`docker compose stop app` with Docker).
+2. Restore that `pre-migrate` copy, as under Restore. The data written since the update stays in
+   the new `pre-restore` copy.
 3. Check out the previous tag (`git checkout <tag>`), run `npm ci` and `npm run build`, and start the
    server. With Docker, run `docker compose up -d --build` after the checkout instead.
+
+A restored copy from before the first attempt has no failed migration recorded. If the database
+still holds one (`migrate deploy` stops with P3009 and names it), and the cause is fixed so that the
+migration should run again, mark it with
+`npx prisma migrate resolve --rolled-back <migration name>` (with Docker,
+`docker compose run --rm app npx prisma migrate resolve --rolled-back <migration name>`), then
+start the server.
 
 ## Resetting the password
 
