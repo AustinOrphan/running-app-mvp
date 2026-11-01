@@ -41,7 +41,12 @@ import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { WristChip } from '../components/WristStatus.tsx'
 import { WristStrip, weekHasRuns } from '../components/WristStrip.tsx'
 import { DisruptionBanners } from '../components/disruption/DisruptionBanner.tsx'
-import { LoadSettingSheet, NotFullSheet, ReplanSheet } from '../components/lazySheets.tsx'
+import {
+  LoadSettingSheet,
+  NotFullSheet,
+  PlanShapeSheet,
+  ReplanSheet,
+} from '../components/lazySheets.tsx'
 import {
   formatLongDate,
   formatShortDate,
@@ -64,6 +69,8 @@ import {
   loadTradeoff,
 } from '../../shared/copy/load.ts'
 import {
+  planShapeChangeLabel,
+  planShapeChangeName,
   planShapeHold,
   planShapePanelText,
   planShapePanelTitle,
@@ -782,23 +789,44 @@ function LoadPanel({ load }: { load: LoadPosition }) {
  * the grade line. A shape chosen that reads as the plan's own (a goal it is not for, a persistent
  * hold, a novice's start weeks, no base to lengthen) leads with the choice and the reason, as the
  * load setting's panel does. The plan payload says which applies (`PlanWithSessions.method`); the
- * page never works it out. A change to the shape is made on the Generate form.
+ * page never works it out. "Change" opens the sheet that changes the shape in place: the weeks
+ * after the current one are drawn again, and the current week stays as it was drawn.
  */
 function ShapePanel({
   method,
+  goalId,
+  held,
   onWhy,
 }: {
   method: MethodPosition
+  goalId: string
+  /** The persistent hold the server reports for the runner, which reads a shape as the plan's own. */
+  held: PersistentHold | null
   onWhy: (why: WhyTarget) => void
 }) {
   const text = planShapePanelText(method)
+  const goals = useGoals()
+  const [changing, setChanging] = useState(false)
+  const goal = goals.data?.find((g) => g.id === goalId)
+  const distanceClass = goal?.distanceM != null ? distanceClassOf(goal.distanceM) : null
   return (
     <section aria-labelledby="shape-title" className={styles.panel}>
       <div className={styles.panelHead}>
         <h2 id="shape-title" className={styles.panelTitle}>
           {planShapePanelTitle()}
         </h2>
-        <WhyButton rules={planShapeWhyRules(method)} label={planShapeWhyLabel()} onOpen={onWhy} />
+        <div className={styles.panelActions}>
+          <WhyButton rules={planShapeWhyRules(method)} label={planShapeWhyLabel()} onOpen={onWhy} />
+          <Button
+            variant="secondary"
+            aria-label={planShapeChangeName()}
+            onClick={() => {
+              setChanging(true)
+            }}
+          >
+            {planShapeChangeLabel()}
+          </Button>
+        </div>
       </div>
       {text.lead === null ? (
         <p className={styles.setting}>
@@ -814,6 +842,16 @@ function ShapePanel({
         </>
       )}
       <p className={styles.muted}>{text.grade}</p>
+      {changing ? (
+        <PlanShapeSheet
+          current={method.requested}
+          distanceClass={distanceClass}
+          held={held}
+          onClose={() => {
+            setChanging(false)
+          }}
+        />
+      ) : null}
     </section>
   )
 }
@@ -859,7 +897,14 @@ function PlanOverview({
         </section>
       ) : null}
       {plan.load !== null ? <LoadPanel load={plan.load} /> : null}
-      {plan.method !== null ? <ShapePanel method={plan.method} onWhy={onWhy} /> : null}
+      {plan.method !== null ? (
+        <ShapePanel
+          method={plan.method}
+          goalId={plan.goalId}
+          held={planShapeHold(plan.method, plan.load)}
+          onWhy={onWhy}
+        />
+      ) : null}
       {plan.warnings.length > 0 ? (
         <section aria-labelledby="warnings-title" className={styles.panel}>
           <h2 id="warnings-title" className={styles.panelTitle}>

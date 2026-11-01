@@ -350,6 +350,13 @@
   margin: 0;
 }
 
+/* The actions of a panel that has more than one: they stay together and wrap as one. */
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .panelTitle {
   margin: 0 0 var(--space-2);
   font-family: var(--font-serif);

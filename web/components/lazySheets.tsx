@@ -66,6 +66,9 @@ export const StrengthSetupSheet = lazySheet(() =>
 export const LoadSettingSheet = lazySheet(() =>
   import('./LoadSettingSheet.tsx').then((module) => module.LoadSettingSheet),
 )
+export const PlanShapeSheet = lazySheet(() =>
+  import('./PlanShapeSheet.tsx').then((module) => module.PlanShapeSheet),
+)
 export const NotFullSheet = lazySheet(() =>
   import('./disruption/NotFullSheet.tsx').then((module) => module.NotFullSheet),
 )
