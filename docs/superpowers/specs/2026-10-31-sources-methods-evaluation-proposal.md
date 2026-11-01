@@ -1,9 +1,11 @@
 # Sources beyond the corpus, a methods layer and an evaluation harness — proposal
 
-Status: Proposed 2026-10-31; owner decisions recorded 2026-10-31 (section 7), one part open
-(decision 6). Changes no code, Param, rule text or research record. It answers the
-owner's three requests: which sources beyond the corpus should inform plans and how they are vetted;
-how plans could follow different methods; which tools would test and evaluate plans. Baseline:
+Status: Implemented 2026-10-31 for S0 to S2, S4, H0 to H5, M0 to M6 (see `docs/STATUS.md`,
+follow-up 28); open: RU1 to RU3, S3, H2b. Proposed 2026-10-31; owner decisions recorded 2026-10-31
+(section 7), one part open (decision 6). As proposed, this document changed no code, Param, rule text
+or research record. It answers the owner's three requests: which sources beyond the corpus
+should inform plans and how they are vetted; how plans could follow different methods; which tools
+would test and evaluate plans. Baseline:
 `main` at `bb63e675` (`PARAMS_VERSION` `2026-10-25.6`, 396 papers, 632 Params), re-read at
 `b3e1093b` (docs and test fixes only). Four research reports and two reviews were data: every source
 was checked against `research/papers` and Crossref on 2026-10-31, abstracts relied on were read on
@@ -506,72 +508,92 @@ One task per engineer, own worktree from `origin/main`, test first, after its de
 takes the next free number at merge (0015 at `b3e1093b`) and labels every reason Fact, Rule,
 Opinion or Preference; each corpus change adds a README method entry.
 
-- **S0. Three record edits.** S. Skill `research-update`: the Daniels citation in its record and
-  the note of `longRunShareOfWeek`; the Tyler and Mountjoy corrections. No value or grade changes.
+- **S0. Three record edits.** S. Done in #600. Skill `research-update`: the Daniels citation in its
+  record and the note of `longRunShareOfWeek`; the Tyler and Mountjoy corrections. No value or grade
+  changes.
 - **S1. Corrections check.** S. Done in #596. `scripts/research-verify.ts`: a pure function over a
   stored Crossref message, tested in `tests/unit/research/` without network; a run by hand reports
   four notices.
-- **S2. Rubric and book fields.** M. Decisions 1, 2, 4. `research/README.md` (R1 to R6, sign-off;
-  S4 re-vets the 19 records), the skill ("add a source outside the journals"), optional fields in
-  `paperSchema`, the workflow's paper schema and `write-corpus.mjs` with tests; a `params.test.ts`
-  case that a Param citing only practice sources is D; `PaperCard` shows `url`; the watch list; ADR.
-- **S4. Re-vet the 19 practice records.** M. Decision 2. Depends S2. Each of the 19 is read against
-  R1 to R6 (3.3) and states its gate results in `vetting` (3.4, B). A change to a Param's value or
-  grade is not part of this task and goes through `research-update`.
-- **S3. First book records.** M each. Depends S2 and S4; the question of fact is answered. From
-  read pages only: works a preset would credit (Pierce, Murr and Moss; Lydiard), then corpus
-  gaps (Koop 2nd ed., Daniels 4th, Pfitzinger 4th); topic `training-methods`.
+- **S2. Rubric and book fields.** M. Done in #602. Decisions 1, 2, 4. `research/README.md` (R1 to
+  R6, sign-off; S4 re-vets the 19 records), the skill ("add a source outside the journals"),
+  optional fields in `paperSchema`, the workflow's paper schema and `write-corpus.mjs` with tests; a
+  `params.test.ts` case that a Param citing only practice sources is D; `PaperCard` shows `url`; the
+  watch list; ADR.
+- **S4. Re-vet the 19 practice records.** M. Done in #606 (two passes, S4 and S4b; 15 pass and 4
+  stay on `PREDATES_RUBRIC`). Decision 2. Depends S2. Each of the 19 is read against R1 to R6 (3.3)
+  and states its gate results in `vetting` (3.4, B). A change to a Param's value or grade is not
+  part of this task and goes through `research-update`.
+- **S3. First book records.** M each. Open: the owner reads the pages. Depends S2 and S4; the
+  question of fact is answered. From read pages only: works a preset would credit (Pierce, Murr and
+  Moss; Lydiard), then corpus gaps (Koop 2nd ed., Daniels 4th, Pfitzinger 4th); topic
+  `training-methods`.
 - **H0. Plan metrics.** S to M. Done in #597. `plan-metrics.ts` and `plan-metrics.test.ts` with
   hand-computed cases, reusing `monotonyStrain`, `RUN_KINDS` and `pairSessions`; no engine file
   changes.
-- **H1. Report, bands, scorecard, scan.** M. Depends H0. `tests/reports/plan-report.ts` (outside
-  the Vitest include; `scripts/` imports nothing from `tests/`), run by a new `npm run plan:report`
-  with a CLAUDE.md Commands line: the 5.1 table over matrix and sweep; Knopp's marathon bands as a
-  fixture with source id and read date; a scorecard per plan; `harness-isolation.test.ts` (5).
-- **H2. Simulator.** M to L. Depends H0. `tests/unit/engine/sim-athlete.ts`, a scorer, the ragged
-  level, a measured chain time, metamorphic cases. **H2b** (S): the other two levels.
-- **H3 to H5.** S each. H3: `.claude/skills/plan-review/SKILL.md`, output headed unvalidated. H4: the
-  back-test in `data/`, counts only, with baseline skill and interval score; no change to L7,
-  `backtest.ts` or `trackRecord.ts`. H5: the G-5 sentence through `research-update`, and the ADR.
+- **H1. Report, bands, scorecard, scan.** M. Done in #601. Depends H0.
+  `tests/reports/plan-report.ts` (outside the Vitest include; `scripts/` imports nothing from
+  `tests/`), run by a new `npm run plan:report` with a CLAUDE.md Commands line: the 5.1 table over
+  matrix and sweep; Knopp's marathon bands as a fixture with source id and read date; a scorecard
+  per plan; `harness-isolation.test.ts` (5).
+- **H2. Simulator.** M to L. Done in #604; most of the engine defects it found were fixed in #608
+  (RF1), the rest are RF2, open (`docs/STATUS.md`, follow-up 28). Depends H0.
+  `tests/unit/engine/sim-athlete.ts`, a scorer, the ragged level, a measured chain time, metamorphic
+  cases. **H2b** (S, open): the tuning of the other two levels (H2 shipped all three, with their
+  rates as named constants).
+- **H3 to H5.** S each. Done: H3 in #601, H4 in #603, H5 in #605. H3:
+  `.claude/skills/plan-review/SKILL.md`, output headed unvalidated. H4: the back-test in `data/`,
+  counts only, with baseline skill and interval score; no change to L7, `backtest.ts` or
+  `trackRecord.ts`. H5: the G-5 sentence through `research-update`, and the ADR.
 - **M0. Finding 5.** S. Done in #587. Default: `PlanPage.tsx` (an Automatic state),
   `GeneratePlanRequest`, `tests/web/plan.test.tsx`; no engine change, so the oracle holds. The
   alternative adds `macro.ts`, `checklist.ts`, the two reversed tests and a stored-3:1 chain case,
   naming each moved digest.
-- **M1. Research update for methods.** M. Skill `research-update`: the candidates of 4.1 and 4.2
-  read in that session, topic `training-methods`, section (p) with `**P1 ` to `**P4 ` headings.
-- **M2. Preset type and override points.** M. Depends M1, H1. `shared/engine/types.ts`,
-  `params/p-methods.ts`, the resolver, the five readers and `checklist.ts`, `server/routes/plan.ts`,
-  `server/serialize.ts`, `GeneratePlanRequest`, an ADR. Absent and `default` give today's plans byte
-  for byte (a `method: 'default'` case in `history-oracle.test.ts`); a test rejects ids outside 4.4;
-  API tests reject an unknown method and read an inapplicable one as the default. **Validation.**
-- **M3. Presets and holds.** M. Depends M2. Decision 6. `p-methods.ts`, the kind table,
-  applicability by class, holds through the persistent `holdOf` reasons, `methods.test.ts` bounds.
-- **M4. Form, Why drawer, copy.** L. Depends M3. `PlanPage.tsx` (fit notes from `useProfile`),
-  `WhyDrawer.tsx`, `INPUT_BUILDERS`, `ruleTitles.ts`, templates in `shared/copy/` passing `lint.ts`;
-  page tests by role and name; an e2e spec at the next free number (20 at `b3e1093b`).
-- **M5. Presets across matrix and chains.** L. Depends M3, H1. `matrix.test.ts` at every preset;
-  `replanChain` per preset, with a rest window opening and closing mid-plan; the fixed-point
-  relation; fidelity from finished sessions (run days, quality count, long-run share); an H1 column.
-- **M6. Change action.** M. Decision 8. Decided: ships with M3 to M5. A `PUT` in
+- **M1. Research update for methods.** M. Done in #607 (second pass M1b). Skill `research-update`:
+  the candidates of 4.1 and 4.2 read in that session, topic `training-methods`, section (p) with
+  `**P1 ` to `**P4 ` headings.
+- **M2. Preset type and override points.** M. Done in #610. Depends M1, H1.
+  `shared/engine/types.ts`, `params/p-methods.ts`, the resolver, the five readers and
+  `checklist.ts`, `server/routes/plan.ts`, `server/serialize.ts`, `GeneratePlanRequest`, an ADR.
+  Absent and `default` give today's plans byte for byte (a `method: 'default'` case in
+  `history-oracle.test.ts`); a test rejects ids outside 4.4; API tests reject an unknown method and
+  read an inapplicable one as the default. **Validation.**
+- **M3. Presets and holds.** M. Done in #610 (the Params, the kind table, applicability and the
+  holds) and #612 (the two decisions it left). Depends M2. Decision 6. `p-methods.ts`, the kind
+  table, applicability by class, holds through the persistent `holdOf` reasons, `methods.test.ts`
+  bounds.
+- **M4. Form, Why drawer, copy.** L. Done in #611. Depends M3. `PlanPage.tsx` (fit notes from
+  `useProfile`), `WhyDrawer.tsx`, `INPUT_BUILDERS`, `ruleTitles.ts`, templates in `shared/copy/`
+  passing `lint.ts`; page tests by role and name; an e2e spec at the next free number (20 at
+  `b3e1093b`).
+- **M5. Presets across matrix and chains.** L. Done in #612. Depends M3, H1. `matrix.test.ts` at
+  every preset; `replanChain` per preset, with a rest window opening and closing mid-plan; the
+  fixed-point relation; fidelity from finished sessions (run days, quality count, long-run share);
+  an H1 column.
+- **M6. Change action.** M. Done in #615. Decision 8. Decided: ships with M3 to M5. A `PUT` in
   `server/routes/plan.ts`, a commit in `planActions.ts` like `commitLoadSetting`, a `method`
   argument through `computeReplan` with the current week held, its diff and undo `setting`,
-  `PlanRevisionReason`, `shared/copy/revision.ts`, `web/api/plan.ts`, a sheet; the run-day switch
-  of follow-up 27 guarded as the transient holds are (4.5); API, page and chain tests.
-- **RU1. RIR research update.** S. Skill `research-update`: the Params `f7.heavyRir`,
-  `f8.progressMinRir` and `f8.bigStepRir` (grade D); Zourdos 2016 and the RIR-based RPE
-  literature, read in that session; gap 2 of the strength spec (no paper mentions RIR).
-- **RU2. Plateau research update.** M. Decision 10. Skill `research-update`: progressive builds
-  against early plateaus (Finding 3: six of twelve matrix plans reach their class ceiling within
-  nine weeks); whether the ceiling is the evidence, whether the class `peakWeeklyMin` or the
-  history-informed ceiling (ADR 0013) should bind, and what the literature says about volume
-  inside a plateau. It ends in a rule change, which names each moved oracle digest, or a stated
-  reason in the Why drawer.
-- **C. Close.** S, after each wave: a `docs/STATUS.md` entry with counts and the oracle result.
+  `PlanRevisionReason`, `shared/copy/revision.ts`, `web/api/plan.ts`, a sheet; the run-day switch of
+  follow-up 27 guarded as the transient holds are (4.5); API, page and chain tests.
+- **RU1. RIR research update.** S. Open. Skill `research-update`: the Params `f7.heavyRir`,
+  `f8.progressMinRir` and `f8.bigStepRir` (grade D); Zourdos 2016 and the RIR-based RPE literature,
+  read in that session; gap 2 of the strength spec (no paper mentions RIR).
+- **RU2. Plateau research update.** M. Open. Decision 10. Skill `research-update`: progressive
+  builds against early plateaus (Finding 3: six of twelve matrix plans reach their class ceiling
+  within nine weeks); whether the ceiling is the evidence, whether the class `peakWeeklyMin` or the
+  history-informed ceiling (ADR 0013) should bind, and what the literature says about volume inside
+  a plateau. It ends in a rule change, which names each moved oracle digest, or a stated reason in
+  the Why drawer.
+- **RU3. Rest days between return runs.** S. Open; a value question for the owner. S4b (#606) found
+  that `injuryReturn.restDaysBetween` is 1 day while the tendon table it takes its levels from (the
+  Sanford record) says 2 to 3 days between runs, so the Param is less conservative than its source.
+  Skill `research-update`; a change names each moved oracle digest.
+- **C. Close.** S, after each wave: a `docs/STATUS.md` entry with counts and the oracle result. Done
+  for this build in `docs/STATUS.md`, follow-up 28.
 
 Every decision of section 7 is answered, so only the open part of decision 6 (P2 for marathon
-goals) waits for the owner. S0, S2, H3, RU1 and RU2 wait on nothing. S4 waits on S2; S3 on S2 and
-S4; H0 is done (#597), so H1, H2 and H4 are free to start; H5 waits on H1; M1 to M5 on S2 and H1,
-in the order of their own dependencies; M6 on M3.
+goals) waits for the owner. Every task above is done except RU1, RU2, RU3, S3 and H2b, and none of
+those waits on another task: S3 waits on the owner's reading of the pages, RU3 on the owner's
+answer, and RU1, RU2 and H2b on a session to run them.
 
 ## Appendix A. Sources
 

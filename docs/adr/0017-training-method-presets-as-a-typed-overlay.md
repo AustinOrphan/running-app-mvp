@@ -1,6 +1,6 @@
 # 0017. Training-method presets as a typed overlay
 
-Status: Proposed 2026-10-31
+Status: Accepted 2026-10-31 (#610)
 
 Builds on ADR 0005, ADR 0007 and ADR 0013. Adds the resolver of rules P1 to P4 and the two `Param`s of
 P2 and P4 (`research/engine-rules.md`, section (p)). The reasoning is section 4 of
