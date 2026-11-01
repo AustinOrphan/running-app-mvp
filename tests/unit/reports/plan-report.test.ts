@@ -3,7 +3,7 @@
 // no G5 word appears. The matrix section is pinned by a digest, as the oracle pins the plans, and so
 // is the section of each method preset (task M5): "D, a choice", the figures beside the default's.
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { PARAMS_VERSION } from '../../../shared/engine/index.ts'
 import { SWEEP_COUNT, SWEEP_SEED, sweepCases } from '../engine/history-sweep.ts'
 import { OFFERED, READING, type Offered } from '../engine/method-fixtures.ts'
@@ -27,6 +27,10 @@ import {
   windowRows,
   yearsOfRunner,
 } from '../../reports/plan-report.ts'
+
+// A section of the report plans the twelve athletes at the default and at two presets: a few seconds
+// on a development machine and more beside the other test files.
+vi.setConfig({ testTimeout: 30_000 })
 
 /**
  * The digest of the matrix section (the five tables, the bands and the twelve scorecards). It
