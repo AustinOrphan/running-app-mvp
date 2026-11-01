@@ -448,6 +448,72 @@ export function returnWeeks(plan: DisruptionPlan): string[] {
   return [...new Set(weeks)].sort()
 }
 
+/**
+ * The Mondays of the weeks in which a window holds or caps a day, ascending: weeks that lost
+ * running to it, and so part weeks [rules J9, g-2]. A week the window only keeps easy (the tail
+ * after a niggle or an illness) loses no minute and is not one.
+ */
+export function windowedWeeks(plan: DisruptionPlan): string[] {
+  const weeks = plan.days
+    .filter((rule) => rule.held || rule.maxRunMin !== null)
+    .map((rule) => mondayOf(rule.date))
+  return [...new Set(weeks)].sort()
+}
+
+/**
+ * The first full week after each hold sent back at the J7 fraction, by Monday, with the share of
+ * the reference week it is held to: the J7 fraction of the reference (`holdReference`, read from
+ * `volumeOf`), in whole minutes. A week that two holds send back takes the lesser share. A hold
+ * whose reference week is unknown (0) has no share to hold the week to and gives 0 [rules J7, J9].
+ */
+export function restartShares(
+  plan: DisruptionPlan,
+  volumeOf: (weekStart: string) => number | undefined,
+): Map<string, number> {
+  const shares = new Map<string, number>()
+  for (const hold of plan.holds) {
+    if (hold.fraction >= 1) continue
+    const share = wholeMin(holdReference(hold, volumeOf) * hold.fraction)
+    const known = shares.get(hold.fullWeekStart)
+    shares.set(hold.fullWeekStart, known === undefined ? share : Math.min(known, share))
+  }
+  return new Map([...shares].sort(([a], [b]) => (a < b ? -1 : 1)))
+}
+
+/**
+ * The Mondays of the restart weeks that are a ramp baseline, ascending: a first full week after a
+ * long hold (`restartShares`) that the J7 share holds, that is whose target `targetOf` is at the
+ * share. It is the baseline of the weeks after it even when the cadence made it a recovery week, as
+ * the post-race restart is [rules J7, J9, H12]. A restart week the cadence cuts below the share is
+ * a recovery week like any other and sets no baseline, so the weeks after it ramp from the last
+ * loading week, and so is one with no share to be held at [rule E3].
+ */
+export function holdRestartWeeks(
+  plan: DisruptionPlan,
+  volumeOf: (weekStart: string) => number | undefined,
+  targetOf: (weekStart: string) => number | undefined,
+): string[] {
+  return [...restartShares(plan, volumeOf)]
+    .filter(([weekStart, share]) => share > 0 && (targetOf(weekStart) ?? -1) >= share)
+    .map(([weekStart]) => weekStart)
+}
+
+/**
+ * The Mondays of the weeks that hold days of a hold sent back at the J7 fraction (`returnWeeks`),
+ * ascending: the weeks of such a layoff, the return week among them when it holds one of its days.
+ * The first full week after it is not one of them.
+ */
+export function longHoldWeeks(plan: DisruptionPlan): string[] {
+  const weeks: string[] = []
+  for (const hold of plan.holds) {
+    if (hold.fraction >= 1) continue
+    for (let monday = mondayOf(hold.from); monday <= hold.to; monday = addDays(monday, 7)) {
+      weeks.push(monday)
+    }
+  }
+  return [...new Set(weeks)].sort()
+}
+
 /** The rules of the dates in `range`, ascending; the days of a week to place. */
 export function dayRulesIn(plan: DisruptionPlan, range: DateRange = {}): DayRule[] {
   return plan.days.filter((rule) => inRange(rule.date, range))

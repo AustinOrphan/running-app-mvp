@@ -852,11 +852,20 @@ function planRuns(
     const pairDays = pair === null ? [] : pair.map((r) => r.day)
     const firstLong = longDays.length > 0 ? Math.min(...longDays) : null
     const lastLong = longDays.length > 0 ? Math.max(...longDays) : null
+    // The long runs already placed before this week's own, or kept in it: F3 holds across the Monday,
+    // so a quality day before one of them takes none after it [rule F3].
+    const earlierLongs = before.filter((s) => s.kind === 'long').map((s) => offsetOf(s.date))
+    const earlierHard = [...fixedHard, ...prevHard]
     for (let k = count; k > 0; k -= 1) {
       let best: { key: number[]; combo: number[] } | null = null
       for (const combo of combinations(days, k)) {
         const hard = [...fixedHard, ...combo, ...prevHard].sort((a, b) => a - b)
         if (!spacedOut(hard, pairDays)) continue
+        if (
+          earlierLongs.some((long) => earlierHard.includes(long - 1) && combo.includes(long + 1))
+        ) {
+          continue
+        }
         if (firstLong !== null && lastLong !== null && fixed[0]!.kind === 'long') {
           const sandwiched =
             [...combo, ...prevHard].includes(firstLong - 1) &&

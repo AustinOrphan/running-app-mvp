@@ -34,8 +34,9 @@ function again(input: EngineInput, draft: PlanDraft): { input: EngineInput; draf
 }
 
 describe('the race week, stored and re-planned with nothing new [rules g-6, K2]', () => {
-  // The race week holds a run on the day of the race, which the race replaces. The plan sheds that
-  // run once; it must not shed another run, or another share of the week, at every re-plan.
+  // The race week held a run on the day of the race, which the race replaces, and each re-plan shed
+  // another share of the week (RF1). Since RF2 it places its runs before the race, and a second pass
+  // must still give the same week.
   it.each(['half', 'marathon', 'first-100-mile'])(
     'gives the plan of %s back, pass after pass',
     (id) => {

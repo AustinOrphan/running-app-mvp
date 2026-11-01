@@ -14,10 +14,11 @@
 //   same plan at every step of every ragged chain, and feeding the step's plan back as the stored plan
 //   gives it back at every compliant and ragged step, after a hold and in the race week included. It
 //   does not in the first week of a start path or in a held week a window touches (RF1, not fixed).
-// - "a closed day never raises a week": holds for the compliant level at every step and for the ragged
-//   level at every step that carries no start-path week and where the day does not empty the week,
-//   after a hold included. It does not hold in a start-path plan, or when the day empties the week
-//   (RF1, not fixed).
+// - "a closed day never raises a week": holds for the compliant and the ragged level at every step,
+//   after a hold included, the plans of a start path included, and a week the day empties included
+//   (RF2: the weeks after an emptied week ramp from the last week run, never from the typical week,
+//   and the cut of a recovery week is taken from the week the window did not touch, or from the
+//   figure a touched week has without the window).
 import { isDeepStrictEqual } from 'node:util'
 import { afterAll, describe, expect, it, test, vi } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
@@ -1016,7 +1017,8 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
     // stored and re-planned with nothing new moved an easy session to another day, at 8 of the 11
     // compliant race-week steps that follow no hold. The week holds a run on the day of the race, which
     // the race replaces, and the re-plan held the week to the minutes the sessions placed, so each pass
-    // shed a share of the week. A week the replaced plan has not started is held to its figure.
+    // shed a share of the week. A week the replaced plan has not started is held to its figure (and
+    // since RF2 the race week holds no run on the day of the race).
     it('gives the plan back at the race-week step of the compliant chains', () => {
       expect(
         compliantDrifts()
@@ -1058,12 +1060,16 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
       gaitChange: false,
     })
 
-    /** Cases where closing one day raised a week's target or its planned run minutes. */
+    /**
+     * Cases where closing one day raised a week's target or its planned run minutes, and how many of
+     * the checks closed the day that leaves the week of the step with no run (`emptied`).
+     */
     const raises = (level: SimLevel, name: string) =>
-      lazy((): { cases: Case[]; checks: number } =>
+      lazy((): { cases: Case[]; checks: number; emptied: number } =>
         timed(name, () => {
           const cases: Case[] = []
           let checks = 0
+          let emptied = 0
           all.forEach((athlete, index) => {
             const chain = chainOf(level, index)
             const draw = mulberry32(seedOf(index) ^ 0x5eed)
@@ -1102,8 +1108,11 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
                   if (minutes > before)
                     found.push(`minutes ${week} ${String(before)} -> ${String(minutes)}`)
                 }
+                const monday = mondayOf(step.settled.today)
+                const empties =
+                  (base.get(monday) ?? 0) > 0 && (planMinutes(variant).get(monday) ?? 0) === 0
+                if (empties) emptied += 1
                 if (found.length > 0) {
-                  const monday = mondayOf(step.settled.today)
                   cases.push({
                     ...caseOf(
                       athlete.id,
@@ -1111,14 +1120,13 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
                       k,
                       `closing ${day}: ${found.slice(0, 2).join('; ')}`,
                     ),
-                    emptied:
-                      (base.get(monday) ?? 0) > 0 && (planMinutes(variant).get(monday) ?? 0) === 0,
+                    emptied: empties,
                   })
                 }
               }
             })
           })
-          return { cases, checks }
+          return { cases, checks, emptied }
         }),
       )
     const compliantRaises = raises('compliant', 'a closed day (compliant)')
@@ -1129,36 +1137,51 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
       expect(compliantRaises().cases.map(label)).toEqual([])
     })
 
-    /** The steps the relation holds in: not the plans of a start path, and not a week the day empties. */
-    const held = (c: Case) => !c.programme && !c.emptied
-
     // Found by H2 (2026-10-31) and fixed in part by RF1: at ragged steps that follow a hold, a one-day
     // rest window raised a week. Closing a day moved a week a window touches from the plan's figure to
     // the minutes the plan placed as its bound, and where the plan had placed more than its figure
     // (a session raised to the shortest run) the week rose; the bound of such a week is now the lesser
-    // of the two.
-    it('holds at the ragged steps, after a progress decision or a hold, that carry no start-path week and keep a run in the week', () => {
+    // of the two. A week the day empties was left open by RF1 and is fixed by RF2: see the next test.
+    it('holds at the ragged steps, after a progress decision or a hold, the plans of a start path included', () => {
       expect(raggedRaises().checks).toBeGreaterThan(500)
-      expect(raggedRaises().cases.filter(held).map(label)).toEqual([])
+      expect(raggedRaises().cases.map(label)).toEqual([])
     })
 
-    // KNOWN LIMITS, observed by H2 and RF1 (2026-10-31) and not fixed. (1) A day that empties the
-    // week: on the hot-race chain at 2026-11-30 (after a hold, a window active), closing the last day
-    // of the current week leaves it with no minutes, and the weeks after it go from 106, 116 and 127
-    // minutes to 223, 245 and 269. A week with nothing placed has no baseline for the ramp of G-2, and
-    // the ramp starts from the typical week, as it does for a layoff of the runner's (J7). The plan
-    // with the day open anchors on the 97 minutes placed, so no baseline can serve both without
-    // planning the weeks after an emptied week at nothing: that is a rule to choose (J9 or the
-    // relation), not a defect to patch. (2) The plans of a start path, whose first-week minutes are
-    // the programme's and shift with the day closed. (3) Other seeds also found tiny weeks (a target
-    // of 12 to 14 minutes) placed above their target once a window touches them. The case list is the
-    // failure message; this passes when none is left.
-    test.fails('holds when the day empties the week, and in the plans of a start path', () => {
-      expect(
-        raggedRaises()
-          .cases.filter((c) => !held(c))
-          .map(label),
-      ).toEqual([])
+    // Found by H2 and RF1 (2026-10-31), fixed by RF2. On the hot-race chain at 2026-11-30 (after a hold,
+    // an illness window active), closing the last day of the current week left it with no minutes, and
+    // the weeks after it went from 106, 116 and 127 minutes to 223, 245 and 269: a week with nothing
+    // placed was no baseline, and the ramp started from the typical week, above the plan with the day
+    // open. The plan with the day open took the 97 minutes placed in the week as its baseline, which is
+    // the other fault: the weeks after a window planned from what the window left. Both now ramp from
+    // the last week run before the window (253 minutes, 2026-11-16), the J7 step-back, which is a
+    // Preference recorded in J9: 278, 305 and 330 minutes, the same with the day open and closed.
+    it('holds when the day empties the week: the weeks after it ramp from the last week run (hot-race, 2026-11-30)', () => {
+      expect(raggedRaises().emptied).toBeGreaterThan(0)
+      const index = all.findIndex((a) => a.id === 'hot-race')
+      const step = chainOf('ragged', index).steps.find((s) => s.settled.today === '2026-11-30')!
+      const window = closedDay('2026-12-06')
+      const variant = replanMonday({
+        ...step.settled,
+        disruptions: [...(step.settled.disruptions ?? []), window],
+      }).draft
+      const open = planMinutes(step.draft)
+      const closed = planMinutes(variant)
+      // the day is the last open day of the week: the week keeps no run
+      expect(open.get('2026-11-30')!).toBeGreaterThan(0)
+      expect(closed.get('2026-11-30') ?? 0).toBe(0)
+      const lastRun = estimateState(step.settled).weeks.find((w) => w.weekStart === '2026-11-16')!
+      const target = (draft: PlanDraft, week: string) =>
+        draft.weeks.find((w) => w.weekStart === week)!.targetRunMin
+      for (const week of ['2026-12-14', '2026-12-21', '2026-12-28']) {
+        expect(target(variant, week), week).toBeLessThanOrEqual(target(step.draft, week))
+        expect(closed.get(week)!, week).toBeLessThanOrEqual(open.get(week)!)
+        // never from the typical week (229 minutes: 223 to 269 before RF2), never from the 97 minutes
+        // the window left in the week (106 to 127): the climb starts at the last week run
+        expect(target(variant, week), week).toBeGreaterThanOrEqual(lastRun.runMin)
+      }
+      expect(target(variant, '2026-12-14')).toBeLessThanOrEqual(
+        Math.floor(lastRun.runMin * (1 + P.g2.rampSoft.value) + 1e-9),
+      )
     })
   })
 })

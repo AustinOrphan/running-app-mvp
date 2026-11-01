@@ -425,6 +425,11 @@ export interface RampContext {
   /** Weeks that are no baseline (`rampSkipWeeks`). */
   skip: ReadonlySet<string>
   /**
+   * Weeks a window took days from [rules J9]: part weeks, which count as a baseline only beside
+   * another week and never alone (`highestBaseline`).
+   */
+  partial?: ReadonlySet<string>
+  /**
    * The first week of a start path [rules E6]: exempt from G-2 up to its minutes, and a baseline
    * at those minutes for the weeks after it, a part week included.
    */
@@ -564,7 +569,10 @@ export interface WeekRampLimits {
  * `skip` are left out; when every week of the window is, the window moves back, at most to the
  * lookback of the 2-week ceiling, to the first week that is not, so the weeks after a run of
  * recovery or taper weeks (or after a race) are measured against the last loading week. The
- * restart floor week counts at its floor minutes at least. Null when no week is known.
+ * restart floor week counts at its floor minutes at least. A week in `partial` (a week a window took
+ * days from) counts when it lies in the window, but never alone: a window left with only such
+ * weeks moves back as it does for skipped ones, so the minutes a window left cannot be the whole
+ * baseline of the weeks after it [rules J9, J7]. Null when no week is known.
  */
 export function highestBaseline(
   values: ReadonlyMap<string, number>,
@@ -572,10 +580,12 @@ export function highestBaseline(
   weekStart: string,
   lag: number,
   floor: RampContext['floor'] = null,
+  partial: ReadonlySet<string> | undefined = undefined,
 ): number | null {
   const count = P.g2.baselineWeeks.value
   const lookback = Math.max(count, P.g2.ceilingLookbackWeeks.value)
   let best: number | null = null
+  let partialBest: number | null = null
   for (let k = 0; k < lookback; k += 1) {
     // past the window, only a window that found nothing keeps looking
     if (k >= count && best !== null) break
@@ -587,10 +597,16 @@ export function highestBaseline(
       continue
     } else {
       v = values.get(week)
+      if (partial?.has(week) === true) {
+        if (v !== undefined && k < count)
+          partialBest = partialBest === null ? v : Math.max(partialBest, v)
+        continue
+      }
     }
     if (v !== undefined) best = best === null ? v : Math.max(best, v)
   }
-  return best
+  if (partialBest === null) return best
+  return best === null ? partialBest : Math.max(best, partialBest)
 }
 
 const positive = (value: number | null): number | null =>
@@ -600,7 +616,8 @@ const positive = (value: number | null): number | null =>
 export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits | null {
   const typical = ctx.typicalWeekMin > 0 ? ctx.typicalWeekMin : null
   const planned =
-    positive(highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor)) ?? typical
+    positive(highestBaseline(ctx.volumes, ctx.skip, weekStart, 1, ctx.floor, ctx.partial)) ??
+    typical
   if (planned === null) return null
   const base = responseBaseline(planned, ctx.response, ctx.novice)
   // The floor week is the ceiling baseline of the week right after it too, which would otherwise be
@@ -613,7 +630,7 @@ export function rampLimits(ctx: RampContext, weekStart: string): WeekRampLimits 
   const ceilingBase =
     positive(
       Math.max(
-        highestBaseline(ctx.volumes, ctx.skip, weekStart, window, ctx.floor) ?? 0,
+        highestBaseline(ctx.volumes, ctx.skip, weekStart, window, ctx.floor, ctx.partial) ?? 0,
         afterFloor ? Math.max(ctx.volumes.get(ctx.floor!.weekStart) ?? 0, ctx.floor!.minutes) : 0,
       ),
     ) ?? planned

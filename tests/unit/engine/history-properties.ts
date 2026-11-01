@@ -4,6 +4,12 @@
 // `responseBasis`), so a mistake there cannot hide behind itself.
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
+import {
+  disruptionPlan,
+  holdRestartWeeks,
+  restartShares,
+  windowedWeeks,
+} from '../../../shared/engine/disruption.ts'
 import { loadPosition } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { plannedMinOf } from '../../../shared/engine/limits.ts'
@@ -230,11 +236,36 @@ export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
   // at standard and upper in a continued plan the baseline may be the mean of the weeks run
   const mean = expectedResponse(input)?.meanMin ?? null
   const currentMonday = mondayOf(input.today)
-  const loading = plan.weeks.filter((w) => w.weekStart > currentMonday && isLoading(w))
+  // the restart week of a long hold that the J7 share holds is a baseline whether or not the cadence
+  // made it a recovery week [rules J7, J9]
+  const targets = new Map(plan.weeks.map((w) => [w.weekStart, w.targetRunMin]))
+  const holds = disruptionPlan(input.disruptions ?? [])
+  // The look back for the reference week of a hold reads a week with no run as 0 minutes and stops at
+  // a week it does not know: `weeklyTotals` has no entry for a week without a run, so the weeks of the
+  // athlete state fill them in, as they do for the engine.
+  const ran = new Map(estimateState(input).weeks.map((w) => [w.weekStart, w.runMin]))
+  const volumeOf = (weekStart: string) => totals.get(weekStart) ?? ran.get(weekStart)
+  const restart = holdRestartWeeks(holds, volumeOf, (weekStart) => targets.get(weekStart))
+  const shares = restartShares(holds, volumeOf)
+  const loading = plan.weeks.filter(
+    (w) => w.weekStart > currentMonday && (isLoading(w) || restart.includes(w.weekStart)),
+  )
   const report: ZoneReport = { checked: 0, zoneWeeks: 0, problems: [] }
   const tolerance = 2
   for (let i = 2; i < loading.length; i += 1) {
     const week = loading[i]!
+    // The restart week is exempt from the ramp up to its J7 share [rule J9]: it is checked against
+    // the share and not against the weeks before it, which a window has emptied.
+    if (restart.includes(week.weekStart)) {
+      const share = shares.get(week.weekStart) ?? 0
+      const held = totals.get(week.weekStart) ?? 0
+      if (held > share + tolerance) {
+        report.problems.push(
+          `${week.weekStart}: restart week plans ${held.toFixed(1)} min above its J7 share of ${share} min`,
+        )
+      }
+      continue
+    }
     const total = totals.get(week.weekStart) ?? 0
     const planned = Math.max(
       totals.get(loading[i - 1]!.weekStart) ?? 0,
@@ -271,16 +302,21 @@ export function ceilingProblems(input: EngineInput, plan: PlanDraft): string[] {
   const totals = weeklyTotals(input, plan)
   const at = (weekStart: string, back: number) => totals.get(addDays(weekStart, -7 * back)) ?? 0
   const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
+  // the weeks a window took days from [rule J9]: part weeks, a baseline beside another week and
+  // never alone, so the weeks before them count when one of the two is such a week
+  const touched = new Set(windowedWeeks(disruptionPlan(input.disruptions ?? [])))
   const problems: string[] = []
   const from = addDays(mondayOf(input.today), 28)
   for (const w of plan.weeks) {
     if (w.weekStart < from || w.flags.includes('post-race')) continue
     const total = at(w.weekStart, 0)
     const afterFloor = floor !== undefined && daysBetween(floor.weekStart, w.weekStart) === 7
+    const partial = [2, 3].some((back) => touched.has(addDays(w.weekStart, -7 * back)))
     const ceilingBase = Math.max(
       at(w.weekStart, 2),
       at(w.weekStart, 3),
       afterFloor ? at(w.weekStart, 1) : 0,
+      partial ? Math.max(at(w.weekStart, 4), at(w.weekStart, 5)) : 0,
     )
     if (ceilingBase > 0 && total > ceilingBase * (1 + P.g2.rampCeilingTwoWeeks.value) + 2) {
       problems.push(

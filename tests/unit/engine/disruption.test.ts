@@ -21,12 +21,16 @@ import {
   disruptionPlan,
   disruptionWeekCap,
   heldDates,
+  holdRestartWeeks,
   illnessGate,
   injuryReportOf,
+  longHoldWeeks,
   RUN_CAP_MAX_MIN,
   restartFraction,
+  restartShares,
   restSessions,
   validateDisruption,
+  windowedWeeks,
   windowPhase,
   type DisruptionDraft,
   type DisruptionIssueCode,
@@ -460,6 +464,181 @@ describe('return fractions', () => {
     // A travel window holds its own days; an illness holds the symptom-free day as well.
     expect(plan(rest(MON, 8)).holds[0]!.layoffDays).toBe(8)
     expect(plan(rest(MON, 6, { reason: 'illness-above-neck' })).holds[0]!.layoffDays).toBe(7)
+  })
+})
+
+describe('part weeks, long holds and restart weeks [rules J7, J9]', () => {
+  // Monday 19 October 2026 is the first Monday below; the four weeks before it ran 100, 200, 300 and
+  // 400 minutes (21 September to 12 October), a reference week of 250 (the median).
+  const RUN: Record<string, number> = {
+    '2026-09-21': 100,
+    '2026-09-28': 200,
+    '2026-10-05': 300,
+    '2026-10-12': 400,
+  }
+  const volumeOf = (weekStart: string) => RUN[weekStart]
+  const NEXT = '2026-10-26'
+  const THEN = '2026-11-02'
+
+  describe('windowedWeeks', () => {
+    it('is empty without a window', () => {
+      expect(windowedWeeks(plan())).toEqual([])
+    })
+
+    it('lists the week of a held day', () => {
+      expect(windowedWeeks(plan(rest(MON, 3)))).toEqual([MON])
+      expect(windowedWeeks(plan(rest(addDays(MON, 2), 1, { reason: 'niggle', pain: 0 })))).toEqual([
+        MON,
+      ])
+    })
+
+    it('lists the week of a day a window caps, though it holds no day', () => {
+      const capped = win({
+        reason: 'niggle',
+        mode: 'limited',
+        maxRunMin: 20,
+        pain: 0,
+        startDate: addDays(MON, 2),
+        endDate: addDays(MON, 4),
+      })
+      const p = plan(capped)
+      expect(p.holds).toEqual([])
+      expect(windowedWeeks(p)).toEqual([MON])
+    })
+
+    it('does not list a week that holds only the easy tail after the window', () => {
+      // Friday and Saturday held; Monday to Wednesday of the next week are quiet days, not lost ones
+      const p = plan(rest(addDays(MON, 4), 2, { reason: 'niggle', pain: 0 }))
+      expect(
+        p.days.filter((d) => d.date >= NEXT).every((d) => !d.held && d.maxRunMin === null),
+      ).toBe(true)
+      expect(p.days.filter((d) => d.date >= NEXT).length).toBeGreaterThan(0)
+      expect(windowedWeeks(p)).toEqual([MON])
+    })
+
+    it('lists the week of the symptom-free day an illness holds', () => {
+      // Saturday and Sunday of illness, and the Monday after is held to see the symptoms gone
+      const p = plan(rest(addDays(MON, 5), 2, { reason: 'illness-above-neck' }))
+      expect(windowedWeeks(p)).toEqual([MON, NEXT])
+    })
+
+    it('lists every week of a long hold once, ascending', () => {
+      const p = plan(rest(addDays(MON, 5), 10))
+      expect(windowedWeeks(p)).toEqual([MON, NEXT, THEN])
+      // two windows in one week list it once
+      const twice = plan(
+        win({ id: 'a' }),
+        win({ id: 'b', startDate: addDays(MON, 4), endDate: addDays(MON, 5) }),
+      )
+      expect(windowedWeeks(twice)).toEqual([MON])
+    })
+  })
+
+  describe('longHoldWeeks', () => {
+    it('has no week for a hold under 7 days, which restarts at 100%', () => {
+      expect(longHoldWeeks(plan(rest(MON, 6)))).toEqual([])
+      expect(longHoldWeeks(plan())).toEqual([])
+    })
+
+    it('has the weeks that hold a day of a hold of 7 days, and not the full week after it', () => {
+      const p = plan(rest(MON, 7))
+      expect(p.holds[0]).toMatchObject({ returnWeekStart: NEXT, fullWeekStart: NEXT })
+      expect(longHoldWeeks(p)).toEqual([MON])
+    })
+
+    it('has every week a longer hold holds a day in, the return week among them', () => {
+      const p = plan(rest(addDays(MON, 5), 10))
+      expect(p.holds[0]).toMatchObject({ returnWeekStart: THEN, fullWeekStart: '2026-11-09' })
+      expect(longHoldWeeks(p)).toEqual([MON, NEXT, THEN])
+    })
+
+    it('leaves out the weeks of a short hold when another hold is long', () => {
+      const p = plan(rest(MON, 3), rest(THEN, 11, { id: 'w2' }))
+      expect(p.holds.map((h) => h.fraction)).toEqual([1, P.j7.restart7to14.value])
+      expect(longHoldWeeks(p)).toEqual([THEN, '2026-11-09'])
+    })
+  })
+
+  describe('restartShares', () => {
+    it('gives the J7 fraction of the reference week in whole minutes, by the first full week', () => {
+      const p = plan(rest(MON, 7))
+      expect(restartShares(p, volumeOf)).toEqual(new Map([[NEXT, 225]]))
+      // rounded down, never up: a fraction of 0.9 of 255 is 229.5
+      const odd = (weekStart: string) => (weekStart === '2026-10-12' ? 255 : undefined)
+      expect(restartShares(p, odd)).toEqual(new Map([[NEXT, Math.floor(255 * 0.9 + 1e-9)]]))
+    })
+
+    it('takes the reference from the weeks before the hold, whichever day of its week it starts', () => {
+      expect(restartShares(plan(rest(addDays(MON, 5), 10)), volumeOf)).toEqual(
+        new Map([['2026-11-09', 225]]),
+      )
+    })
+
+    it('follows the tier of the layoff', () => {
+      const deep = plan(rest(MON, 29))
+      expect(deep.holds[0]!.fraction).toBe(P.j7.restartOver28.value)
+      expect(restartShares(deep, volumeOf).get(deep.holds[0]!.fullWeekStart)).toBe(125)
+    })
+
+    it('has no share for a hold under 7 days, nor for a hold whose reference week is unknown', () => {
+      expect(restartShares(plan(rest(MON, 6)), volumeOf).size).toBe(0)
+      expect(restartShares(plan(rest(MON, 7)), () => undefined)).toEqual(new Map([[NEXT, 0]]))
+    })
+
+    it('lists the holds ascending, and takes the lesser share of a week that two holds send back', () => {
+      const p = plan(rest(MON, 7), rest(addDays(MON, 21), 15, { id: 'w2' }))
+      expect([...restartShares(p, volumeOf).keys()]).toEqual([NEXT, '2026-11-30'])
+      const hold = p.holds[0]!
+      const both = { ...p, holds: [{ ...hold, fraction: 0.5 }, hold] }
+      expect(restartShares(both, volumeOf)).toEqual(new Map([[NEXT, 125]]))
+    })
+  })
+
+  describe('holdRestartWeeks', () => {
+    const p = plan(rest(MON, 7))
+
+    it('keeps the restart week the J7 share holds, a recovery week or not', () => {
+      // the share is 225 minutes: at it, and above it
+      expect(holdRestartWeeks(p, volumeOf, () => 225)).toEqual([NEXT])
+      expect(holdRestartWeeks(p, volumeOf, () => 400)).toEqual([NEXT])
+    })
+
+    it('leaves out a restart week the cadence cut below the share: a recovery week like another', () => {
+      expect(holdRestartWeeks(p, volumeOf, () => 224)).toEqual([])
+      expect(holdRestartWeeks(p, volumeOf, () => 0)).toEqual([])
+    })
+
+    it('leaves out a week the plan does not hold, and a hold with no share to be held at', () => {
+      expect(holdRestartWeeks(p, volumeOf, () => undefined)).toEqual([])
+      expect(
+        holdRestartWeeks(
+          p,
+          () => undefined,
+          () => 100,
+        ),
+      ).toEqual([])
+    })
+
+    it('has no restart week for a hold under 7 days', () => {
+      expect(holdRestartWeeks(plan(rest(MON, 6)), volumeOf, () => 1000)).toEqual([])
+    })
+
+    it('reads each week by its own target, ascending', () => {
+      // the weeks run between the two holds give the second its reference week too
+      const ran = (weekStart: string) =>
+        ({ ...RUN, '2026-10-19': 300, '2026-10-26': 100, '2026-11-02': 200 })[weekStart]
+      const two = plan(rest(MON, 7), rest(addDays(MON, 21), 15, { id: 'w2' }))
+      const shares = restartShares(two, ran)
+      const [first, second] = [...shares.keys()] as [string, string]
+      expect(shares.get(second)).toBeGreaterThan(0)
+      const targets = new Map([
+        [first, shares.get(first)! + 5],
+        [second, shares.get(second)! - 1],
+      ])
+      expect(holdRestartWeeks(two, ran, (w) => targets.get(w))).toEqual([first])
+      targets.set(second, shares.get(second)!)
+      expect(holdRestartWeeks(two, ran, (w) => targets.get(w))).toEqual([first, second])
+    })
   })
 })
 

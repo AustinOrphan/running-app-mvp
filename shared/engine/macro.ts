@@ -13,6 +13,13 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { breakRestart, runsReaching, weekEvidence } from './adapt.ts'
 import { bmiOf } from './athlete.ts'
+import {
+  disruptionPlan,
+  holdRestartWeeks,
+  isDisruptedWeek,
+  restartShares,
+  windowedWeeks,
+} from './disruption.ts'
 import { peakLongRunMin, peakWeeklyMin, trainingPace } from './goal.ts'
 import {
   completedReference,
@@ -336,6 +343,29 @@ function carriedPhases(
 }
 
 /**
+ * A week of the plan being replaced that a window took days from: one the windows now reported
+ * reach, or one the plan stored as cut by an earlier window (its flags). Its figure is the minutes
+ * the window left, and no base for the weeks after it [rule J9].
+ */
+const partWeekOf = (touched: readonly string[]) => (w: WeekDraft) =>
+  touched.includes(w.weekStart) || isDisruptedWeek(w.flags)
+
+/**
+ * The last loading week of the plan being replaced that lies before `firstMonday` and that no
+ * window touched: the week an E3 cut or a carried-on sequence is sized from, never a part week
+ * [rules J9, E3].
+ */
+function lastUntouchedLoading(
+  weeks: readonly WeekDraft[],
+  firstMonday: string,
+  isPart: (week: WeekDraft) => boolean,
+): WeekDraft | undefined {
+  return [...weeks]
+    .filter((w) => w.weekStart < firstMonday && !w.isRecovery && !w.isTaper && !isPart(w))
+    .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))[0]
+}
+
+/**
  * Where a re-plan restarts the loading sequence: the working target of the current week in the plan
  * it replaces, not the typical week, so the Monday re-plan does not flatten the progression. In a
  * recovery week the sequence continues from the work week before it (`paused`). The start is held
@@ -358,19 +388,29 @@ function replanAnchor(
   if (weeks === undefined || state.layoffDays >= P.j7.tier1Days.value) return null
   const current = weeks.find((w) => w.weekStart === firstMonday)
   if (current === undefined || current.isTaper || current.phase === 'race') return null
-  const work = current.isRecovery
-    ? [...weeks]
-        .filter((w) => w.weekStart < firstMonday && !w.isRecovery && !w.isTaper)
-        .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))[0]
-    : current
-  if (work === undefined || work.targetRunMin <= 0 || !Number.isFinite(stepCap)) return null
+  // A week a window took days from is a part week, stored at the minutes the window left: it is no
+  // week to carry the sequence on from. The work week is the last loading week it did not touch, and
+  // a part week that is the current one carries on from the higher of the two [rules J9, J7, g-2].
+  const touched = windowedWeeks(disruptionPlan(input.disruptions ?? []))
+  const lastUntouched = lastUntouchedLoading(weeks, firstMonday, partWeekOf(touched))
+  const work = current.isRecovery ? lastUntouched : current
+  const worked =
+    work === undefined
+      ? 0
+      : isDisruptedWeek(current.flags) && !current.isRecovery
+        ? Math.max(
+            plannedMinOf(work),
+            lastUntouched === undefined ? 0 : plannedMinOf(lastUntouched),
+          )
+        : plannedMinOf(work)
+  if (work === undefined || worked <= 0 || !Number.isFinite(stepCap)) return null
   // A week run past its target is stored at the minutes run; the loading sequence carries on from
   // the minutes it was planned at, so an overshoot lifts nothing after it [rules g-2, g-6].
   // A hold keeps the volume it caps the week at, and the sequence carries on from that week. Read
   // from the stored week alone it would carry on from the cap at a second re-plan of the same
   // Monday and from the plan before the cap at the first [rules J5, G-6].
   const held = current.isRecovery || heldCap === undefined ? Infinity : heldCap
-  return { minutes: Math.min(plannedMinOf(work), stepCap, held), paused: current.isRecovery }
+  return { minutes: Math.min(worked, stepCap, held), paused: current.isRecovery }
 }
 
 /** Quality sessions wanted in a pre-taper week before the run-day cap [rules F2, H1]. */
@@ -908,14 +948,43 @@ function planWeeks(
       .map((w) => w.weekStart),
   )
   if (lead.restart !== null) restartWeeks.add(lead.restart)
+  // the restart week after a long hold is a baseline for the weeks after it when the J7 share holds
+  // it, a recovery week or not [rules J7, J9]
+  const dplan = disruptionPlan(input.disruptions ?? [])
+  const pastRows = new Map((input.existing?.weeks ?? []).map((w) => [w.weekStart, w.targetRunMin]))
+  const holdRestarts = holdRestartWeeks(
+    dplan,
+    (weekStart) => volumes.get(weekStart),
+    (weekStart) => (weekStart < firstMonday ? pastRows.get(weekStart) : undefined),
+  )
+  // The restart week of a long hold that the cadence made a recovery week is cut from the last
+  // loading week the window did not touch, and is held at the J7 share where that is less: the
+  // sequence drawn here restarts from the typical week, which the window has pulled down, and a cut
+  // from it would stack the E3 cut on a step back that is already taken [rules E3, J7, J9].
+  const restartShare = restartShares(dplan, (weekStart) => volumes.get(weekStart))
+  const untouchedBase = lastUntouchedLoading(
+    input.existing?.weeks ?? [],
+    firstMonday,
+    partWeekOf(windowedWeeks(dplan)),
+  )
   const pastLow = (input.existing?.weeks ?? [])
-    .filter((w) => w.weekStart < firstMonday && (w.isRecovery || w.isTaper))
+    .filter(
+      (w) =>
+        w.weekStart < firstMonday &&
+        (w.isTaper || (w.isRecovery && !holdRestarts.includes(w.weekStart))),
+    )
     .map((w) => w.weekStart)
   const skip = rampSkipWeeks(input.today, pastLow)
   const exempt = new Map<string, RampExemption>()
   const rampCtx: RampContext = {
     volumes,
     skip,
+    // A week a window took days from is a part week, a baseline beside another week and never
+    // alone. Only the weeks run are such: the weeks drawn here are drawn without the windows, which
+    // `generate` applies [rules J9, g-2].
+    partial: new Set(
+      windowedWeeks(disruptionPlan(input.disruptions ?? [])).filter((w) => w < firstMonday),
+    ),
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),
     exempt,
@@ -1215,7 +1284,11 @@ function planWeeks(
       continue
     }
     if (ph.isRecovery) {
-      const t = floorEps(lastWork * (1 - cut))
+      let t = floorEps(lastWork * (1 - cut))
+      const held = restartShare.get(weekStart)
+      if (held !== undefined && untouchedBase !== undefined) {
+        t = Math.max(t, Math.min(held, floorEps(plannedMinOf(untouchedBase) * (1 - cut))))
+      }
       target.push(t)
       const long = Math.min(
         prevLong > 0 ? floorEps(prevLong * (1 - cut)) : rawLong,
@@ -1291,7 +1364,52 @@ function planWeeks(
   }
 
   // The reference week for the taper and the post-race weeks is the peak before the taper
-  const reference = preCount > 0 ? Math.max(...target) : start
+  // With no pre-taper week to draw (the taper is under way), the reference is the level the runner
+  // starts from, the median of the last weeks with a run. A part week a window left among them pulls
+  // that level down, and every taper week falls with it, though the window held none of their days:
+  // the reference is then the greater of the starting level and the last loading week the window did
+  // not touch [rules K2, J9]. It is bounded by the plan being replaced, week by week: no taper, race
+  // or post-race week is drawn above the same week of the plan before, which a re-plan of the
+  // week in progress (the Monday pins it to that plan's figure, no other day does) would otherwise
+  // redraw from the peak before the hold [rule G-6, relation 5.3].
+  const storedRows = new Map((input.existing?.weeks ?? []).map((w) => [w.weekStart, w]))
+  const touchedWeeks = windowedWeeks(dplan)
+  const partStart = (weekStart: string) =>
+    touchedWeeks.includes(weekStart) || isDisruptedWeek(storedRows.get(weekStart)?.flags ?? [])
+  // the weeks the starting level is the median of (`estimateState`, the weeks of the athlete state)
+  const levelWeeks = state.weeks
+    .slice(0, -1)
+    .filter((w) => w.runMin > 0)
+    .slice(-P.a5.typicalWeekCount.value)
+  const untouchedLevel =
+    preCount === 0 && levelWeeks.some((w) => partStart(w.weekStart))
+      ? lastUntouchedLoading(input.existing?.weeks ?? [], firstMonday, partWeekOf(touchedWeeks))
+      : undefined
+  /** The most a taper, race or post-race week may hold: that week in the plan being replaced. */
+  // The ceiling holds for the same race only, as the phases carried across a re-plan do
+  // (`carriedPhases`): when the goal date has moved, the plan being replaced has its race, taper and
+  // post-race weeks on other Mondays, and a week of the new race capped by the old plan's row of the
+  // same Monday would be capped by a post-race row.
+  const sameRace =
+    storedRows.get(raceMonday)?.phase === 'race' &&
+    !storedRows.get(raceMonday)!.flags.includes('post-race')
+  const heldByPlanBefore = (weekStart: string): number => {
+    const was = storedRows.get(weekStart)
+    if (
+      untouchedLevel === undefined ||
+      !sameRace ||
+      was === undefined ||
+      isDisruptedWeek(was.flags)
+    ) {
+      return Infinity
+    }
+    const taperOrAfter = was.isTaper || was.phase === 'race' || was.flags.includes('post-race')
+    return taperOrAfter ? plannedMinOf(was) : Infinity
+  }
+  const reference =
+    preCount > 0
+      ? Math.max(...target)
+      : Math.max(start, untouchedLevel === undefined ? 0 : plannedMinOf(untouchedLevel))
   const refDays = preCount > 0 ? prevDays : daysFor(start)
   const refLong = prevLong
   const refGain = hasGain ? prevGain : null
@@ -1302,16 +1420,29 @@ function planWeeks(
     const i = preCount + k
     const weekStart = addDays(firstMonday, 7 * i)
     const caps = capsOf(weekStart)
-    const t = Math.max(0, Math.min(floorEps(reference * (mult[k] ?? 0)), prevTarget - 1))
+    const isRace = k === taperCount - 1
+    const cutDays = (P.k3.runDaysMaxCutPct.value / 100) * ((k + 1) / taperCount)
+    const wantedDays = Math.ceil(refDays * (1 - cutDays) - EPS)
+    // The race week holds its runs on the days before the race, the race being the session of its
+    // day. With fewer such days than run days it holds fewer runs at the size of the others, not the
+    // same minutes on fewer days [rules K2, K3].
+    const daysBefore = isRace ? daysBetween(raceMonday, goal.date) : 7
+    const runShare = daysBefore < wantedDays ? daysBefore / wantedDays : 1
+    const t = Math.max(
+      0,
+      Math.min(
+        floorEps(reference * (mult[k] ?? 0) * runShare),
+        prevTarget - 1,
+        heldByPlanBefore(weekStart),
+      ),
+    )
     prevTarget = t
     target.push(t)
-    const isRace = k === taperCount - 1
     const long = isRace ? 0 : Math.max(0, Math.min(prevTaperLong, floorEps(t * share), caps.min))
     longRun.push(long)
     longM.push(distanceOf(long, caps))
     prevTaperLong = isRace ? prevTaperLong : long
-    const cutDays = (P.k3.runDaysMaxCutPct.value / 100) * ((k + 1) / taperCount)
-    runDays.push(Math.ceil(refDays * (1 - cutDays) - EPS))
+    runDays.push(Math.min(wantedDays, daysBefore))
     gain.push(refGain === null ? null : floorTo10(refGain * (t / Math.max(reference, 1))))
     record(i, weekStart, true)
   }
@@ -1487,7 +1618,7 @@ function planWeeks(
     ...runDayCap(method),
     limits: { runs, today: input.today },
   })
-  weeks.push(...afterWeeks)
+  weeks.push(...afterWeeks.map((w) => heldTo(w, heldByPlanBefore(w.weekStart))))
   return { weeks, raceWeekTail: raceWeekTail ?? null }
 }
 
@@ -1496,6 +1627,20 @@ function planWeeks(
  * majority of a seven-day week, a count and not a tunable threshold, so it is not a Param.
  */
 const WINDOW_MAJORITY_DAYS = 4
+
+/** The week held to `cap` minutes, its long run and climb with it by the same share; a cap above its target leaves it as it is. */
+function heldTo(week: WeekDraft, cap: number): WeekDraft {
+  if (cap >= week.targetRunMin) return week
+  const share = week.targetRunMin > 0 ? cap / week.targetRunMin : 0
+  return {
+    ...week,
+    targetRunMin: cap,
+    longRunMin: Math.floor(week.longRunMin * share + 1e-9),
+    longRunM: week.longRunM === null ? null : Math.round((week.longRunM * share) / 100) * 100,
+    gainTargetM:
+      week.gainTargetM === null ? null : Math.round((week.gainTargetM * share) / 10) * 10,
+  }
+}
 
 /** The run-day cap a preset that lowers it gives the weeks after a past race (`windowWeeks`), else none. */
 const runDayCap = (method: PresetId): { runDayCap?: number } =>

@@ -93,6 +93,36 @@ describe('placeWeek', () => {
     }
   })
 
+  // Found by H2 and M5 (2026-10-31), fixed by RF2. A plan made on a Saturday opens with a quality
+  // session on the Saturday and the long run on the Sunday; the week after it put its first quality
+  // session on the Monday, and the long run sat between two quality days across the Monday (rule F3).
+  it('keeps the long run of the week before out from between two quality days, across the Monday', () => {
+    const prev = [
+      session({ date: '2026-10-31', kind: 'threshold', durationMin: 40 }),
+      session({ date: '2026-11-01', kind: 'long', durationMin: 90 }),
+    ]
+    for (const longRunDay of ['wed', 'thu', 'fri', 'sat'] as const) {
+      const sessions = place(week({ runDays: 5, qualitySessions: 2 }), {
+        profile: profile({ longRunDay }),
+        prev,
+      })
+      // no quality session on the Monday, and the week keeps its quality elsewhere
+      expect(
+        sessions.filter((s) => HARD.includes(s.kind) && dayOf(s) === 0),
+        longRunDay,
+      ).toEqual([])
+      expect(
+        sessions.some((s) => HARD.includes(s.kind)),
+        longRunDay,
+      ).toBe(true)
+    }
+    // a long run with no quality day before it leaves the Monday free to take one
+    const free = place(week({ runDays: 5, qualitySessions: 2 }), {
+      prev: [session({ date: '2026-11-01', kind: 'long', durationMin: 90 })],
+    })
+    expect(free.some((s) => HARD.includes(s.kind) && dayOf(s) === 0)).toBe(true)
+  })
+
   it('uses only available days and respects the day limits', () => {
     const avail = availability({
       mon: { available: false, maxMin: null },

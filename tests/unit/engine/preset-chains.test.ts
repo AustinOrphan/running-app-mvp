@@ -10,9 +10,12 @@
 //   gets the preset the plan asked for;
 // - a re-plan with nothing new returns the plan it replaces (the fixed point of RF1,
 //   `sim-athlete.test.ts`), step 0 left out as there.
-// Two things do not hold, found by M5 and not fixed (see the lists in the file): the weeks after a
-// window plan a small share of the plan before it, at the default and at both presets, and a re-plan
-// with nothing new gives its plan back at every step but two, one for each preset.
+// Found by M5 (2026-10-31) and fixed by RF2: the weeks after a window planned a small share of the
+// plan before it, at the default and at both presets (a part week was the whole baseline of the
+// weeks after it, `highestBaseline`), and a re-plan with nothing new did not give its plan back at
+// two steps, the collapse seen from the other side. One thing does not hold, not fixed (see the list
+// in the file): a second pass of `longer-base` on the 50 km trail athlete moves minutes between the
+// sessions of the current week.
 //
 // The windows are shapes of the rest-window sweep (`rest-window-sweep.ts`): an illness above the
 // neck of 7 days and a niggle of 3 days, each starting on the Saturday before the fifth Monday of
@@ -166,7 +169,8 @@ interface Case {
  * A week in the 28 days after a window closes plans at least this share of the same week in the
  * plan before it, outside recovery and taper weeks: the deepest restart share of J7 (a layoff over
  * 28 days restarts at 50%). A preference of this file, not a rule: J7 sets the return week and the
- * climb after it follows the ramp, and the cases that fall far under it are listed below.
+ * climb after it follows the ramp, so a week can fall under the share of the plan before only where
+ * a rule other than the window draws it, and none does in these chains (RF2).
  */
 const RETURN_FLOOR = P.j7.restartOver28.value
 
@@ -205,54 +209,36 @@ function returnWeeks(method: Method, scenario: Scenario): Case[] {
   return out
 }
 
-/**
- * The cases of the weeks after a window that plan under the share above, found by M5 (2026-10-31)
- * and not fixed here; the default has all but one. At the re-plan that reports the 7-day illness
- * open, every week after the window plans 16 to 29 minutes where the plan before had 190 to 330:
- * `hot-race` at the default, and with it at both presets (`three-run-days` does not name its
- * marathon goal, and `longer-base` reads the same weeks), and the half-marathon athlete at
- * `three-run-days` alone. At the re-plan that reports a 3-day mild niggle open, the weeks after the
- * window plan 33% to 38% of the plan before for `half`, `returning` and `sparse-100-mile`, at every
- * method. The checklist passes, as no item reads a week against the plan before it, and the next
- * re-plan draws the weeks again, so the plan is back one step later. The default method on the same
- * input plans the same weeks as the preset (a test below), so the defect is in the return from a
- * window, not in a preset.
- */
-const MONDAY_RETURNS = [
-  'monday: half step 4',
-  'monday: returning step 4',
-  'monday: sparse-100-mile step 4',
-]
-const RETURN_COLLAPSES: Record<Method, string[]> = {
-  default: ['illness: hot-race step 4', ...MONDAY_RETURNS],
-  'three-run-days': ['illness: half step 4', 'illness: hot-race step 4', ...MONDAY_RETURNS],
-  'longer-base': ['illness: hot-race step 4', ...MONDAY_RETURNS],
-}
-
+// Found by M5 (2026-10-31) and fixed by RF2. At the re-plan that reported the 7-day illness open, every
+// week after the window planned 16 to 29 minutes where the plan before had 190 to 330 (`hot-race` at
+// the default and at both presets, the half-marathon athlete at `three-run-days`), and at the re-plan
+// that reported a 3-day mild niggle open the weeks after it planned 33% to 38% of the plan before
+// (`half`, `returning`, `sparse-100-mile`). The week the window left with a few minutes was the only
+// baseline of the weeks after it, a recovery week between them having been skipped; now a part week
+// counts beside another week and never alone, so those weeks are measured against the last week run
+// (J7), bounded by the plan before. The direct cases are in `disruption-integration.test.ts`.
 describe.each(METHODS)('the weeks after a window at %s', (method) => {
   const cases = lazy(() => SCENARIO_NAMES.flatMap((s) => returnWeeks(method, s)))
 
-  it('plan at least the deepest J7 share of the plan before, but the listed cases', () => {
-    expect(cases().map((c) => c.id)).toEqual(RETURN_COLLAPSES[method])
+  it('plan at least the deepest J7 share of the plan before', () => {
+    expect(cases().map((c) => c.detail)).toEqual([])
   })
-
-  if (RETURN_COLLAPSES[method].length > 0) {
-    test.fails('plan at least the deepest J7 share of the plan before', () => {
-      expect(cases().map((c) => c.detail)).toEqual([])
-    })
-  }
 })
 
-describe('the collapse of the half-marathon athlete at three-run-days', () => {
-  it('is the plan the default method draws from the same input, so it is not the preset that collapses it', () => {
+describe('the half-marathon athlete at three-run-days after the illness', () => {
+  it('draws the plan the default method draws from the same input, so the preset does not change the return', () => {
     const step = chainOf('half', 'illness', 'three-run-days')[4]!
     expect(targets(defaultOn(step.input))).toEqual(targets(step.draft))
     // the weeks after the window, against the same Monday of the default chain
     const base = chainOf('half', 'illness', 'default')[4]!
-    const after = step.draft.weeks.filter((w) => w.weekStart > ILLNESS.endDate)
+    const after = step.draft.weeks.filter((w) => w.weekStart > ILLNESS.endDate && !w.isRecovery)
     const before = new Map(base.draft.weeks.map((w) => [w.weekStart, w.targetRunMin]))
-    expect(Math.max(...after.slice(1, 8).map((w) => w.targetRunMin))).toBeLessThan(40)
-    expect(Math.min(...after.slice(1, 8).map((w) => before.get(w.weekStart)!))).toBeGreaterThan(150)
+    expect(after.length).toBeGreaterThan(7)
+    for (const w of after.slice(0, 8)) {
+      expect(w.targetRunMin, w.weekStart).toBeGreaterThanOrEqual(
+        RETURN_FLOOR * before.get(w.weekStart)!,
+      )
+    }
   })
 })
 
@@ -510,18 +496,25 @@ const drifts = new Map<Method, () => { cases: Case[]; steps: number }>(
 /**
  * The cases where a re-plan with nothing new does not return the plan it replaces, over the steps of
  * the four chains of every athlete at each method (step 0 left out, as in RF1). Found by M5
- * (2026-10-31) and not fixed here. The first is the collapse above seen from the other side: the plan
- * the step stored is the one that is wrong, and the second pass draws the weeks again from the
- * minutes it finds; `hot-race` collapses at every method and gives its plan back, since the weeks it
- * stored are the weeks it draws again. The second is small: at the re-plan that reports a mild niggle
- * open from that Monday, a second pass of `longer-base` on the 50 km trail athlete moves 2 to 7
- * minutes between the sessions of the current week (the easy runs 27 to 25, the long run 162 to 169,
- * the strides run 27 to 24) where the default gives its week back; the cause is
- * not traced, and no other athlete does it.
+ * (2026-10-31). The first was the collapse above seen from the other side, `three-run-days` on the
+ * half-marathon athlete: the plan the step stored was the one that was wrong, and the second pass
+ * drew the weeks again from the minutes it found; RF2 fixed it with the collapse. The second is
+ * small and stays: at the re-plan that reports a mild niggle open from that Monday, a second pass of
+ * `longer-base` on the 50 km trail athlete moves 2 to 7 minutes between the sessions of the current
+ * week (the easy runs 27 to 25, the long run 162 to 169, the strides run 27 to 24) where the default
+ * gives its week back. Traced by RF2: it is not the return from a window and shares no cause with
+ * the collapse. The week's minutes are the same at both passes (243); what moves is how they are
+ * shared. The window's own cap (`holdWeek`) keeps the long run and leaves the preset's week at 252
+ * minutes where the default's is 243; the cap that holds a preset to the default plan [rule G6]
+ * (`capWeek(planWeek, limit.target)`) then takes the 9 minutes off every session by the same share,
+ * the long run included (169 to 162). At the second pass the week is already at 243, the cap has
+ * nothing to take and the long run keeps its 169. Capping a week a window touched with `holdWeek`
+ * as the window does would give the one answer at both passes, and moves every preset plan that a
+ * window reaches: a task of its own, so the case stays.
  */
 const DRIFTS: Record<Method, string[]> = {
   default: [],
-  'three-run-days': ['illness: half step 4'],
+  'three-run-days': [],
   'longer-base': ['monday: trail-50k step 4'],
 }
 

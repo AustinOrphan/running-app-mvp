@@ -36,6 +36,39 @@
 // 21, 20 and 20 min for the half; 48 min in place of 38 and 39 for the first 100 miles), the weeks
 // are the same.
 //
+// Regenerated 2026-10-31 for the weeks after a window (task RF2): the weeks after a rest window were
+// drawn from the minutes the window left in the week it touched, and are now drawn from the last week
+// run before it (J7), a part week counting beside another week and never alone. One of the 142
+// digests moves, `h13 rest window` (an illness of 5 days, 6 days off, in the first week of a plan of
+// about 60 minutes): the weeks after the window plan 66, 72 and 79 minutes in place of 50, 55 and 60,
+// which is the plan of the same runner with no window; the weeks before it and the other 141 digests
+// are the same.
+//
+// Regenerated 2026-10-31 for the runs of the race week (task RF2, finding 6 of RF1): the race week
+// placed a run on the race day, which the race replaces, so a share of its minutes was never run.
+// Its runs go on the days before the race. 139 of the 142 digests move: 69 of the 72 runners and all
+// 70 plans of the chains; the three that do not (`matrix novice-5k`, `matrix post-marathon-short-run`
+// and `reds hold`) place the same race week as before. Compared with the engine before, week by
+// week, only the sessions of the race week differ in the moved plans; the weeks, the warnings and
+// the checklist are the same. `h13 rest window` moves a second time, for its race week.
+//
+// Regenerated 2026-10-31 for the spacing across the Monday (task RF2): the first quality session of a
+// week no longer falls on the day after a long run that follows a quality day, so the long run is not
+// between two quality days (F3) when a plan starts on a Saturday. Three of the 142 digests move,
+// `sweep #16`, `sweep #28` and `sweep #36` (half marathons whose plan starts on 2026-10-24): in each
+// one session differs, the threshold run of Monday 2026-10-26 is an easy run of the same minutes; the
+// weeks, the warnings and the other sessions are the same.
+//
+// Regenerated 2026-11-01 (task RF2, review) for the cut of the recovery week after a part week: the
+// recovery week was cut from the loading week before it as placed, which is the part week a window
+// leaves, and is now cut from the figure that week has without the window. One of the 142 digests
+// moves, `h13 rest window` (an illness of 5 days from 2026-10-22, 6 days off, under the 7 days of
+// the first J7 tier, so no restart share applies): the recovery week of 2026-11-02 plans 49 minutes
+// in place of 34, which is its week in the plan of the same runner with no window, with its strides
+// session (24 min on 2026-11-02) and a long run of 25 minutes on 2026-11-08 in place of 20; the other
+// weeks and the other 141 digests are the same. The taper cut that follows the same reading (task
+// RF2, second review) and the distance of the long run in the week in progress move no digest.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

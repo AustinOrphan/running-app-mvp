@@ -14,8 +14,11 @@ import {
   disruptionPlan,
   disruptionWeekCap,
   holdReference,
+  holdRestartWeeks,
   isDisruptedWeek,
+  restartFraction,
   returnWeeks,
+  windowedWeeks,
 } from './disruption.ts'
 import {
   injuryTight,
@@ -162,20 +165,24 @@ export function draftRamp(
   const floorWeek = sortedWeeks(draft)
     .filter((w) => w.flags.includes('restart-floor'))
     .at(-1)
+  const windows = disruptionPlan(input.disruptions ?? [])
+  // the post-race weeks are baselines for the weeks after them, and exempt themselves [H12]
+  const skip = rampSkipWeeks(
+    input.today,
+    draft.weeks
+      .filter((w) => (w.isRecovery || w.isTaper) && !isRecoveryOnly(w))
+      .map((w) => w.weekStart),
+  )
   const ctx = {
     volumes: volume,
-    // the post-race weeks are baselines for the weeks after them, and exempt themselves [H12]
-    skip: rampSkipWeeks(
-      input.today,
-      draft.weeks
-        .filter((w) => (w.isRecovery || w.isTaper) && !isRecoveryOnly(w))
-        .map((w) => w.weekStart),
-    ),
+    skip,
+    // a week a window took days from is a part week, a baseline beside another week and never alone
+    partial: new Set(windowedWeeks(windows)),
     floor:
       floorWeek === undefined
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
-    exempt: startExemptions(draft.weeks, returnWeeks(disruptionPlan(input.disruptions ?? []))),
+    exempt: startExemptions(draft.weeks, returnWeeks(windows)),
     ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
   const weeks: DraftWeekTotal[] = []
@@ -187,6 +194,19 @@ export function draftRamp(
     const total = done + planned
     volume.set(weekStart, total)
     weeks.push({ weekStart, done, planned, total })
+  }
+  // The restart week after a long hold is a baseline for the weeks after it when the J7 share holds
+  // it, a recovery week or not; one the cadence cuts below the share is a recovery week like another
+  // [rules J7, J9, E3].
+  const rows = new Map(draft.weeks.map((w) => [w.weekStart, w]))
+  const restarts = holdRestartWeeks(
+    windows,
+    (weekStart) => volume.get(weekStart),
+    (weekStart) => rows.get(weekStart)?.targetRunMin,
+  )
+  for (const weekStart of restarts) {
+    const row = rows.get(weekStart)
+    if (row?.isRecovery === true && !row.isTaper && !isRecoveryOnly(row)) skip.delete(weekStart)
   }
   return { ctx, weeks }
 }
@@ -302,10 +322,17 @@ function recoveryCadence(
       continue
     }
     // The weeks of a start path follow their own steps and repeats [rules E6]: they carry no
-    // recovery week, and the weeks after them open a new block.
-    if (isStartPathWeek(week)) {
+    // recovery week, and the weeks after them open a new block. The restart floor week is counted as
+    // one, which is an exemption from E3 and not a reading of the generator: the generator draws the
+    // weeks of a floor start path (six of them in the review's case) with no recovery week and does
+    // not count the floor week as a block of its own, so that three loading weeks and a recovery week
+    // follow the floor week that the cadence would otherwise count as four in a row. A Preference
+    // (no study), recorded under E3 in the rules. The floor week spends the longer first block of a
+    // plan that opens on it, so that the block after it is the cycle and no longer.
+    if (isStartPathWeek(week) || week.flags.includes('restart-floor')) {
       run = 0
       lastLoad = null
+      if (week.flags.includes('restart-floor')) first = false
       continue
     }
     if (week.isRecovery) {
@@ -379,18 +406,20 @@ function taper(draft: PlanDraft): ChecklistResult {
   }
   const failures: string[] = []
   const first = taperWeeks[0]!
-  const before = weeks.filter((w) => w.weekStart < first.weekStart && !w.isRecovery).slice(-1)[0]
-  if (before !== undefined && first.targetRunMin >= before.targetRunMin) {
-    failures.push(`taper starts at ${first.targetRunMin} min, not below ${before.targetRunMin} min`)
-  }
-  for (let i = 1; i < taperWeeks.length; i++) {
-    const prev = taperWeeks[i - 1]!
-    const week = taperWeeks[i]!
-    if (week.targetRunMin >= prev.targetRunMin) {
+  // A week a window took days from holds the minutes the window left, and the taper is cut from the
+  // week as it has no window [rules K2, J9]: the fall is read from the last week no window touched.
+  let reference = weeks
+    .filter((w) => w.weekStart < first.weekStart && !w.isRecovery && !isDisruptedWeek(w.flags))
+    .slice(-1)[0]
+  for (const week of taperWeeks) {
+    if (reference !== undefined && week.targetRunMin >= reference.targetRunMin) {
       failures.push(
-        `week of ${week.weekStart} (${week.targetRunMin} min) does not fall from ${prev.targetRunMin} min`,
+        week === first
+          ? `taper starts at ${week.targetRunMin} min, not below ${reference.targetRunMin} min`
+          : `week of ${week.weekStart} (${week.targetRunMin} min) does not fall from ${reference.targetRunMin} min`,
       )
     }
+    if (!isDisruptedWeek(week.flags)) reference = week
   }
   // the runs of the race week after the race belong to the return steps, not to the taper [H12]
   const taperSessions = draft.sessions.filter((s) => !s.flags.includes('post-race'))
@@ -577,8 +606,29 @@ function breakRestartItem(
       rules,
     )
   }
-  const { restartMin, fraction } = breakRestart(state.layoffDays, state.typicalWeekMin)
   const first = sortedWeeks(draft).find((w) => w.weekStart >= mondayOf(input.today))
+  // A layoff a window holds is sized as the generator sizes it [rule J9]: the J7 fraction of the
+  // reference week of the hold (`holdReference`, the median of the weeks before the window), where the
+  // typical week is pulled down by the part week the window left. The week the item reads is the
+  // return week or the first full week of the hold; a break with no window is read as before.
+  const hold = disruptionPlan(input.disruptions ?? []).holds.find(
+    (h) =>
+      h.fraction < 1 &&
+      (h.returnWeekStart === mondayOf(input.today) || h.fullWeekStart === mondayOf(input.today)),
+  )
+  const ran = new Map(state.weeks.map((w) => [w.weekStart, w.runMin]))
+  const reference = hold === undefined ? 0 : holdReference(hold, (weekStart) => ran.get(weekStart))
+  // The fraction of the hold counts the days it holds; the layoff counts the days since the last run,
+  // which are more when the runner stopped before the window (J7 reads the whole break), so the
+  // lesser of the two stands.
+  const windowed = hold !== undefined && reference > 0
+  const fraction = windowed
+    ? Math.min(hold.fraction, restartFraction(state.layoffDays))
+    : restartFraction(state.layoffDays)
+  const restartMin = windowed
+    ? Math.floor(reference * fraction + 1e-9)
+    : breakRestart(state.layoffDays, state.typicalWeekMin).restartMin
+  const typical = windowed ? reference : state.typicalWeekMin
   // The first week of a start path, and a ladder week that carries on from the weeks before the
   // break, start above the restart volume by design [rules E6].
   const floorMin =
@@ -593,8 +643,8 @@ function breakRestartItem(
     'break-restart',
     planned <= limit,
     planned <= limit
-      ? `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, from a restart at ${Math.round(fraction * 100)}% of ${state.typicalWeekMin} min.`
-      : `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, above ${Math.round(limit)} min (${Math.round(fraction * 100)}% of ${state.typicalWeekMin} min, plus one step).`,
+      ? `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, from a restart at ${Math.round(fraction * 100)}% of ${typical} min.`
+      : `After ${state.layoffDays} days off the first week holds ${Math.round(planned)} min, above ${Math.round(limit)} min (${Math.round(fraction * 100)}% of ${typical} min, plus one step).`,
     rules,
   )
 }

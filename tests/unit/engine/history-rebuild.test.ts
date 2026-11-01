@@ -723,6 +723,31 @@ describe('H13: the windows around a race and a rest window', () => {
   })
 })
 
+describe('H13: the zone property reads a hold as the engine does', () => {
+  it('feeds the look back of the reference week the weeks with no run as 0 (returning, a niggle of 10 days)', () => {
+    // `weeklyTotals` has no entry for a week without a run, so the look back stopped at the first gap:
+    // the share of the restart week of 2026-11-16 read 113 minutes where the engine's is 167, and the
+    // week (145 minutes) was reported above it
+    const returning = athletes().find((a) => a.id === 'returning')!
+    const input: EngineInput = {
+      ...returning.input,
+      disruptions: [
+        windowOf({
+          id: 'w',
+          reason: 'niggle',
+          startDate: '2026-11-02',
+          endDate: '2026-11-11',
+          pain: 0,
+        }),
+      ],
+    }
+    const plan = buildPlan(input)
+    const restart = plan.weeks.find((w) => w.weekStart === '2026-11-16')!
+    expect(restart.targetRunMin).toBeGreaterThan(113)
+    expect(zoneReport(input, plan).problems).toEqual([])
+  })
+})
+
 describe('H15: a race 12 weeks away', () => {
   it('ends the zone at the peak week of the plan, and leaves the taper as it was', () => {
     for (const position of LIFTED) {
