@@ -187,9 +187,10 @@ Alternatives:
 
 - No plan changes for a runner who asks for nothing. `PARAMS_VERSION` is `2026-10-31.1`;
   `npm run plan:report` differs from the report before it in the version line only.
-- Rules P1 to P4 are policy-only in Explain (`POLICY_ONLY_RULES`) and have titles. The form, the fit
-  notes, the Why drawer rows (each override against the default, the grade, the reason a preset reads
-  as the default) and the copy are M4; the page does not show `method` yet.
+- Rules P1 to P4 have titles. As of M4 (2026-10-31) they have builders in Explain (`INPUT_BUILDERS`):
+  each override against the default with the grade of each Param, the grade of the choice and the
+  reason a preset reads as the default. The Generate form offers the choice with its fit notes, the
+  Plan page shows `method` in a Plan shape panel, and the sentences are `shared/copy/method.ts`.
 - M6 adds the change in place through `computeReplan` with the current week held. A preset that is
   held or inapplicable changes run days when the hold starts or ends; M6 guards a run-day switch in
   the middle of a plan as the transient holds are guarded.

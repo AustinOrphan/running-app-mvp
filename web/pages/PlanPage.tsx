@@ -12,6 +12,7 @@ import { fieldErrors } from '../api/client.ts'
 import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useDisruptions } from '../api/disruptions.ts'
 import { useGoals } from '../api/goals.ts'
+import { useProfile } from '../api/profile.ts'
 import {
   useGeneratePlan,
   useMarkRevisionsSeen,
@@ -30,6 +31,7 @@ import { EmptyState } from '../components/EmptyState.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { LoadField } from '../components/LoadField.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { PlanShapeField } from '../components/PlanShapeField.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { SessionSheet, sessionSummary } from '../components/SessionSheet.tsx'
 import { Sheet } from '../components/Sheet.tsx'
@@ -61,6 +63,14 @@ import {
   loadPanelTitle,
   loadTradeoff,
 } from '../../shared/copy/load.ts'
+import {
+  planShapeHold,
+  planShapePanelText,
+  planShapePanelTitle,
+  planShapeRows,
+  planShapeWhyLabel,
+  planShapeWhyRules,
+} from '../../shared/copy/method.ts'
 import { overshootNote, plannedBaselineLine } from '../../shared/copy/overshoot.ts'
 import { newMarker } from '../../shared/copy/revisionView.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
@@ -71,8 +81,15 @@ import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
 import { groupWarnings, localiseEngineText } from '../components/engineText.ts'
+import type { PersistentHold } from '../../shared/engine/holds.ts'
 import type { LoadPosition } from '../../shared/engine/loadSetting.ts'
-import type { EngineWarning, LoadAppetite, RecoveryCycle } from '../../shared/engine/types.ts'
+import type { MethodPosition } from '../../shared/engine/methods.ts'
+import type {
+  EngineWarning,
+  LoadAppetite,
+  PresetId,
+  RecoveryCycle,
+} from '../../shared/engine/types.ts'
 import type {
   DisruptionView,
   Goal,
@@ -149,6 +166,10 @@ interface GenerateFormProps {
   initialLoad?: LoadAppetite | undefined
   /** The recovery cycle to start from: the one the plan being replaced holds, when it holds one. */
   initialCycle?: RecoveryCycle | null | undefined
+  /** The plan shape to start from: the one the plan being replaced was generated with. */
+  initialMethod?: PresetId | undefined
+  /** The persistent hold the server reports for the runner, read from the plan being replaced. */
+  held?: PersistentHold | null | undefined
   onDone?: () => void
 }
 
@@ -157,10 +178,13 @@ function GenerateForm({
   initialGoalId,
   initialLoad,
   initialCycle,
+  initialMethod,
+  held = null,
   onDone,
 }: GenerateFormProps) {
   const toast = useToast()
   const generate = useGeneratePlan()
+  const profile = useProfile()
   const preferred =
     goals.find((g) => g.id === initialGoalId) ?? goals.find((g) => g.isActive) ?? goals[0]
   const [goalId, setGoalId] = useState(preferred?.id ?? '')
@@ -168,13 +192,20 @@ function GenerateForm({
   const [cycle, setCycle] = useState<CycleChoice>(initialCycle ?? 'auto')
   const [strength, setStrength] = useState<'0' | '1' | '2'>('2')
   const [load, setLoad] = useState<LoadAppetite>(initialLoad ?? 'steady')
+  // The plan shape the runner picked; the one shown and sent is read from it below.
+  const [method, setMethod] = useState<PresetId>(initialMethod ?? 'default')
   const [polarized, setPolarized] = useState<'off' | 'on'>('off')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const chosen = goals.find((g) => g.id === goalId)
   // The polarized model is offered for 5 to 10 km goals only.
-  const shortGoal =
-    chosen?.distanceM != null && ['5k', '10k'].includes(distanceClassOf(chosen.distanceM))
+  const distanceClass = chosen?.distanceM != null ? distanceClassOf(chosen.distanceM) : null
+  const shortGoal = distanceClass === '5k' || distanceClass === '10k'
+  // A shape that is not for the goal's distance is shown disabled, and a pick of it reads as the
+  // plan's own shape, which is what the form shows and sends.
+  const shapeRows = planShapeRows(distanceClass, profile.data?.availability ?? null)
+  const shape =
+    shapeRows.find((row) => row.value === method)?.disabled === true ? 'default' : method
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -184,6 +215,7 @@ function GenerateForm({
         ...(cycle === 'auto' ? {} : { recoveryCycle: cycle }),
         strengthSessions: Number(strength) as 0 | 1 | 2,
         loadAppetite: load,
+        ...(shape === 'default' ? {} : { method: shape }),
         ...(shortGoal && polarized === 'on' ? { tidModel: 'polarized' as const } : {}),
       },
     }
@@ -243,6 +275,7 @@ function GenerateForm({
         onChange={setStrength}
       />
       <LoadField value={load} onChange={setLoad} />
+      <PlanShapeField rows={shapeRows} value={shape} onChange={setMethod} held={held} />
       {shortGoal ? (
         <Segmented<'off' | 'on'>
           label="Polarized specific phase"
@@ -744,6 +777,47 @@ function LoadPanel({ load }: { load: LoadPosition }) {
   )
 }
 
+/**
+ * The plan shape in effect [rules P1 to P4]: the shape the plan has, one line of what it does and
+ * the grade line. A shape chosen that reads as the plan's own (a goal it is not for, a persistent
+ * hold, a novice's start weeks, no base to lengthen) leads with the choice and the reason, as the
+ * load setting's panel does. The plan payload says which applies (`PlanWithSessions.method`); the
+ * page never works it out. A change to the shape is made on the Generate form.
+ */
+function ShapePanel({
+  method,
+  onWhy,
+}: {
+  method: MethodPosition
+  onWhy: (why: WhyTarget) => void
+}) {
+  const text = planShapePanelText(method)
+  return (
+    <section aria-labelledby="shape-title" className={styles.panel}>
+      <div className={styles.panelHead}>
+        <h2 id="shape-title" className={styles.panelTitle}>
+          {planShapePanelTitle()}
+        </h2>
+        <WhyButton rules={planShapeWhyRules(method)} label={planShapeWhyLabel()} onOpen={onWhy} />
+      </div>
+      {text.lead === null ? (
+        <p className={styles.setting}>
+          <strong>{text.name}</strong> <span className={styles.muted}>{text.help}</span>
+        </p>
+      ) : (
+        <>
+          <p className={styles.setting}>
+            <strong>{text.lead.choice}</strong>
+            {text.lead.rest}
+          </p>
+          <p className={styles.muted}>{text.help}</p>
+        </>
+      )}
+      <p className={styles.muted}>{text.grade}</p>
+    </section>
+  )
+}
+
 /** Version-2 plans: feasibility, the load setting, warnings, the plan checks and the revision list. */
 function PlanOverview({
   plan,
@@ -785,6 +859,7 @@ function PlanOverview({
         </section>
       ) : null}
       {plan.load !== null ? <LoadPanel load={plan.load} /> : null}
+      {plan.method !== null ? <ShapePanel method={plan.method} onWhy={onWhy} /> : null}
       {plan.warnings.length > 0 ? (
         <section aria-labelledby="warnings-title" className={styles.panel}>
           <h2 id="warnings-title" className={styles.panelTitle}>
@@ -1293,6 +1368,8 @@ export function PlanPage() {
               initialGoalId={plan.data.goalId}
               initialLoad={plan.data.load?.requested}
               initialCycle={plan.data.recoveryCycle}
+              initialMethod={plan.data.method?.requested}
+              held={planShapeHold(plan.data.method, plan.data.load)}
               onDone={() => {
                 setRegenerating(false)
               }}
