@@ -8,7 +8,7 @@
 import { addDays } from '../dates.ts'
 import type { DisruptionReason, DisruptionView, Units } from '../types.ts'
 import { P } from '../engine/params/index.ts'
-import { countPhrase } from './quantity.ts'
+import { countPhrase, sameWeekHours } from './quantity.ts'
 import { windowRuleFact } from './revision.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -250,8 +250,9 @@ function symptomFreeWait(): string {
  * line does not.
  */
 export function runningTimeLine(figures: { before: number; after: number }, units: Units): string {
-  if (figures.before === figures.after) {
-    return render(t['window-view.minutes-same'], { total: mins(figures.before) }, units)
+  // Totals that read the same at 0.1 h (120 and 119 minutes) are "stays at", not "2.0 h becomes 2.0 h".
+  if (figures.before === figures.after || sameWeekHours(figures.before, figures.after)) {
+    return render(t['window-view.minutes-same'], { total: mins(figures.after) }, units)
   }
   const slots = { before: mins(figures.before), after: mins(figures.after) }
   return figures.after < figures.before

@@ -151,6 +151,28 @@ describe('the preview lines', () => {
     )
   })
 
+  it.each([
+    [245, 247],
+    [45, 50],
+    [120, 119],
+    [119, 120],
+  ])(
+    'says "stays at" for totals that read the same at 0.1 h: %i and %i minutes',
+    (before, after) => {
+      const line = runningTimeLine({ before, after }, 'km')
+      expect(line).toMatch(/^Running time over the next four weeks stays at \d+\.\d h\.$/)
+      // never "2.0 h becomes 2.0 h", and no word about rest that was not taken away
+      expect(line).not.toMatch(/becomes/)
+      expect(line).not.toMatch(/not added back/)
+    },
+  )
+
+  it('still says "becomes" for totals that differ at 0.1 h', () => {
+    expect(runningTimeLine({ before: 245, after: 252 }, 'km')).toBe(
+      'Running time over the next four weeks: 4.1 h becomes 4.2 h.',
+    )
+  })
+
   it('has fixed words for the race day, a replaced preview, a lost connection and the removal', () => {
     expect(raceDayLine('km')).toBe(
       'The window includes race day. The plan keeps the race; whether to start is your decision.',

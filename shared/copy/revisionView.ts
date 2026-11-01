@@ -22,6 +22,7 @@ import type {
   Units,
   WeekDiffLine,
 } from '../types.ts'
+import { sameWeekHours } from './quantity.ts'
 import { REVISION_TEMPLATES } from './revision.ts'
 import { render, tpl, type Template } from './template.ts'
 
@@ -395,7 +396,12 @@ function weekLine(week: WeekDiffLine, units: Units): string {
         units,
       ),
     )
-  } else if (week.runMinBefore !== week.runMinAfter) {
+  } else if (
+    week.runMinBefore !== week.runMinAfter &&
+    // a change under the 0.1 h a week total is written at would read "4.1 h to 4.1 h": the line
+    // then says what else changed, or that the week was updated
+    !sameWeekHours(week.runMinBefore, week.runMinAfter)
+  ) {
     pieces.push(
       render(
         t['diff.week.minutes'],

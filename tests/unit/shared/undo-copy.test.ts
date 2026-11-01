@@ -245,6 +245,40 @@ describe('the lines of a diff', () => {
     ).toEqual(['Week of 26 Oct: updated'])
   })
 
+  it.each([
+    [245, 247],
+    [45, 50],
+    [120, 119],
+    [247, 245],
+  ])(
+    'never reads a change of %i to %i minutes as "to" the same figure: a total is written at 0.1 h',
+    (before, after) => {
+      const week: WeekDiffLine = {
+        weekStart: '2026-10-26',
+        runMinBefore: before,
+        runMinAfter: after,
+        flagsAdded: [],
+        flagsRemoved: [],
+      }
+      const [line] = text([], 'km', [week])
+      expect(line).toBe('Week of 26 Oct: updated')
+      // with a stage change the line says that and leaves the figure out
+      const [staged] = text([], 'km', [{ ...week, flagsAdded: ['recovery'] }])
+      expect(staged).toBe('Week of 26 Oct: now a recovery week')
+    },
+  )
+
+  it('still reads a change that shows at 0.1 h as before and after', () => {
+    const week: WeekDiffLine = {
+      weekStart: '2026-10-26',
+      runMinBefore: 245,
+      runMinAfter: 252,
+      flagsAdded: [],
+      flagsRemoved: [],
+    }
+    expect(text([], 'km', [week])).toEqual(['Week of 26 Oct: running time 4.1 h to 4.2 h'])
+  })
+
   it('reads a week taken as run as run past its plan, not as a target that rose', () => {
     const week: WeekDiffLine = {
       weekStart: '2026-10-26',

@@ -5,6 +5,7 @@ import {
   formatQuantity,
   formatRange,
   formatWeekMinutes,
+  sameWeekHours,
   ordinal,
   quantityIssue,
 } from '../../../shared/copy/quantity.ts'
@@ -97,6 +98,14 @@ describe('formatQuantity', () => {
     expect(formatWeekMinutes(114)).toBe('1.9 h')
     expect(formatWeekMinutes(1218)).toBe('20.3 h')
     expect(formatWeekMinutes(390)).toBe('6.5 h')
+  })
+
+  test('two week totals read the same when they are under 0.1 h apart in the rounding', () => {
+    expect(sameWeekHours(245, 247)).toBe(true)
+    expect(sameWeekHours(45, 50)).toBe(true)
+    expect(sameWeekHours(120, 119)).toBe(true)
+    expect(sameWeekHours(245, 252)).toBe(false)
+    expect(sameWeekHours(120, 126)).toBe(false)
   })
 
   test('heart rate, percentages, shares, counts and temperatures', () => {

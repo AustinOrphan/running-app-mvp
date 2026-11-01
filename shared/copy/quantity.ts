@@ -229,6 +229,15 @@ export function formatQuantity(
 }
 
 /**
+ * Whether two week totals read the same: a change of a few minutes is under the 0.1 h a week total
+ * is written at, so "245 min to 247 min" would read "4.1 h to 4.1 h". A line that says a total
+ * changed checks this first and words the change another way when it is true.
+ */
+export function sameWeekHours(beforeMin: number, afterMin: number): boolean {
+  return formatWeekMinutes(beforeMin) === formatWeekMinutes(afterMin)
+}
+
+/**
  * An air temperature in the runner's units, to whole degrees: "50 °F" with miles, "10 °C" with
  * kilometres. The one rule for the air: the activity page's weather and Today's cooler start both
  * word it here. A `temp` quantity is the other kind of temperature, a WBGT reading or a heat

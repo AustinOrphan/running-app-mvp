@@ -139,5 +139,8 @@ export function describeChange(change: PlanChange, units: Units = 'km'): ChangeT
   const format = known?.format ?? plain
   const from = format(change.from)
   const to = format(change.to)
-  return { label, from, to, text: `${label} ${from} to ${to}` }
+  // Two values that read the same ("4.1 h to 4.1 h": a week total changed by a few minutes) say
+  // only that the field was updated.
+  const unchanged = from === to && change.from !== change.to
+  return { label, from, to, text: unchanged ? `${label} updated` : `${label} ${from} to ${to}` }
 }
