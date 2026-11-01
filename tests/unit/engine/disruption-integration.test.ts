@@ -12,6 +12,7 @@ import {
   disruptionPlan,
   holdReference,
   illnessDays,
+  windowedWeeks,
 } from '../../../shared/engine/disruption.ts'
 import { matchSessions } from '../../../shared/engine/execution.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
@@ -1186,4 +1187,121 @@ describe('the weeks after a window start from the last week run [rules J7, J9, g
       },
     )
   })
+})
+
+describe('the restart week of a hold is cut from a week the window left [rules E3, J7, J9]', () => {
+  // Found by the review of RF2 (2026-11-01). The cut of a recovery week was taken from the loading
+  // week before it, and for a restart week that is still ahead that week is the part week the
+  // window has just capped: on the hot-race chain with a niggle of 14 days from 2026-11-22 the
+  // restart week of 2026-12-07 planned 24 minutes against 247 before, and `holdRestartWeeks` made it
+  // the whole baseline of the weeks after it (22, 22, 22 ...). The cut is taken from the figure the
+  // touched week has without the window, or from the last loading week the window left; the restart
+  // week is the lesser of that cut and the J7 share, and it is a baseline only when the share holds it.
+  //
+  // Each case reports the window on a Monday of four in a row, the Saturday before, so that every
+  // alignment of the recovery cadence with the return is read, and re-plans every Monday until the
+  // one before the restart week. The restart week is not under three quarters of the J7 share, or, as
+  // a recovery week, of the lesser of the share and the E3 cut of the last loading week before the
+  // window. Each of the next four loading weeks is at least the restart week as placed and at least
+  // half of the lesser of the plan before and the reference week. Where the 30-day reference of G-1
+  // has aged out and places the restart week under four fifths of its target (a layoff of 21 days
+  // leaves few runs in it), the weeks after it grow from the minutes placed, and the last two checks
+  // are not made.
+  const REPORT_MONDAYS = [4, 5, 6, 7].map((n) => addDays(mondayOf(TODAY), 7 * n))
+  const CUT = 1 - P.e3.recoveryWeekCutPct.value / 100
+  const target = (plan: PlanDraft, weekStart: string) =>
+    plan.weeks.find((w) => w.weekStart === weekStart)!.targetRunMin
+  const weeksBetween = (from: string, to: string) =>
+    Math.round((Date.parse(to) - Date.parse(from)) / (7 * 864e5))
+  const loadingWeeks = (plan: PlanDraft, after: string) =>
+    plan.weeks
+      .filter((w) => w.weekStart > after)
+      .filter((w) => !w.isRecovery && !w.isTaper && w.phase !== 'race')
+      .filter((w) => !w.flags.includes('post-race'))
+      .slice(0, 4)
+
+  describe.each(['hot-race', 'half', 'marathon', 'first-100-mile'])('%s', (id) => {
+    it.each([10, 15, 21])(
+      'plans the restart week and the weeks after it from the weeks the window left, after a hold of %i days',
+      (days) => {
+        for (const monday of REPORT_MONDAYS) {
+          const start = addDays(monday, -2)
+          const window = windowOf({
+            id: 'cut',
+            reason: 'niggle',
+            startDate: start,
+            endDate: addDays(start, days - 1),
+            pain: 0,
+          })
+          const touched = windowedWeeks(disruptionPlan([window]))
+          const hold = disruptionPlan([window]).holds[0]!
+          const restart = hold.fullWeekStart
+          const reportStep = weeksBetween(mondayOf(TODAY), monday)
+          // the last re-plan that sees the restart week ahead is the one a week before it
+          const lastStep = reportStep + weeksBetween(monday, restart) - 1
+          const chain = replanChain(byId(id).input, { windows: [window], maxSteps: lastStep })
+          const planBefore = chain[reportStep - 1]!.draft
+          const lastLoading = planBefore.weeks
+            .filter((w) => w.weekStart < mondayOf(hold.from))
+            .filter((w) => !w.isRecovery && !w.isTaper && !touched.includes(w.weekStart))
+            .at(-1)!
+          const cut = Math.floor(lastLoading.targetRunMin * CUT + 1e-9)
+          for (let s = reportStep; s <= lastStep; s += 1) {
+            const step = chain[s]!
+            const where = `${id}, ${days} days from ${start}, re-plan of ${step.input.today}`
+            const run = new Map(estimateState(step.input).weeks.map((w) => [w.weekStart, w.runMin]))
+            const reference = holdReference(hold, (w) => run.get(w))
+            const share = Math.floor(reference * hold.fraction + 1e-9)
+            const row = step.draft.weeks.find((w) => w.weekStart === restart)!
+            const bound = row.isRecovery ? Math.min(share, cut) : share
+            expect(row.targetRunMin, `${where}: the restart week`).toBeGreaterThanOrEqual(
+              0.75 * bound,
+            )
+            const placed = planMinutes(step.draft).get(restart) ?? 0
+            // the 30-day reference of G-1 holds the restart week down: the weeks after it grow from it
+            if (placed < 0.8 * row.targetRunMin) continue
+            for (const week of loadingWeeks(step.draft, restart)) {
+              const was = planBefore.weeks.find((w) => w.weekStart === week.weekStart)!
+              expect(
+                week.targetRunMin,
+                `${where}: ${week.weekStart} against the restart week`,
+              ).toBeGreaterThanOrEqual(placed)
+              expect(
+                week.targetRunMin,
+                `${where}: ${week.weekStart} against the plan before`,
+              ).toBeGreaterThanOrEqual(0.5 * Math.min(was.targetRunMin, reference))
+            }
+          }
+        }
+      },
+      240_000,
+    )
+  })
+
+  it('keeps the weeks after a niggle of 14 days from 2026-11-22 near the plan at every re-plan (hot-race)', () => {
+    // the reviewer's case: step 5 planned R24 L22 L22 L22 against R247 L330, and step 7 collapsed again
+    const window = windowOf({
+      id: 'w',
+      reason: 'niggle',
+      startDate: '2026-11-22',
+      endDate: '2026-12-05',
+      pain: 0,
+    })
+    const chain = replanChain(byId('hot-race').input, { windows: [window], maxSteps: 10 })
+    const before = chain[4]!.draft
+    const restart = '2026-12-07'
+    for (let s = 5; s <= 10; s += 1) {
+      const step = chain[s]!
+      const where = `re-plan of ${step.input.today}`
+      expect(
+        step.draft.weeks.find((w) => w.weekStart === restart)!.targetRunMin,
+        where,
+      ).toBeGreaterThanOrEqual(0.5 * target(before, restart))
+      for (const week of loadingWeeks(step.draft, restart)) {
+        expect(week.targetRunMin, `${where}: ${week.weekStart}`).toBeGreaterThanOrEqual(
+          0.5 * target(before, week.weekStart),
+        )
+      }
+    }
+  }, 240_000)
 })

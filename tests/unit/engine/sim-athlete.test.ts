@@ -14,11 +14,11 @@
 //   same plan at every step of every ragged chain, and feeding the step's plan back as the stored plan
 //   gives it back at every compliant and ragged step, after a hold and in the race week included. It
 //   does not in the first week of a start path or in a held week a window touches (RF1, not fixed).
-// - "a closed day never raises a week": holds for the compliant level at every step and for the ragged
-//   level at every step that carries no start-path week, after a hold included, and a week the day
-//   empties included (RF2: the weeks after an emptied week ramp from the last week run, never from
-//   the typical week). It does not hold in a start-path plan, nor for a tiny week of one (RF1, RF2,
-//   not fixed).
+// - "a closed day never raises a week": holds for the compliant and the ragged level at every step,
+//   after a hold included, the plans of a start path included, and a week the day empties included
+//   (RF2: the weeks after an emptied week ramp from the last week run, never from the typical week,
+//   and the cut of a recovery week is taken from the week the window did not touch, or from the
+//   figure a touched week has without the window).
 import { isDeepStrictEqual } from 'node:util'
 import { afterAll, describe, expect, it, test, vi } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
@@ -1137,17 +1137,14 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
       expect(compliantRaises().cases.map(label)).toEqual([])
     })
 
-    /** The steps the relation holds in: not the plans of a start path. */
-    const held = (c: Case) => !c.programme
-
     // Found by H2 (2026-10-31) and fixed in part by RF1: at ragged steps that follow a hold, a one-day
     // rest window raised a week. Closing a day moved a week a window touches from the plan's figure to
     // the minutes the plan placed as its bound, and where the plan had placed more than its figure
     // (a session raised to the shortest run) the week rose; the bound of such a week is now the lesser
     // of the two. A week the day empties was left open by RF1 and is fixed by RF2: see the next test.
-    it('holds at the ragged steps, after a progress decision or a hold, that carry no start-path week', () => {
+    it('holds at the ragged steps, after a progress decision or a hold, the plans of a start path included', () => {
       expect(raggedRaises().checks).toBeGreaterThan(500)
-      expect(raggedRaises().cases.filter(held).map(label)).toEqual([])
+      expect(raggedRaises().cases.map(label)).toEqual([])
     })
 
     // Found by H2 and RF1 (2026-10-31), fixed by RF2. On the hot-race chain at 2026-11-30 (after a hold,
@@ -1185,25 +1182,6 @@ describe('metamorphic relations on the real re-plan [Segura 2016]', () => {
       expect(target(variant, '2026-12-14')).toBeLessThanOrEqual(
         Math.floor(lastRun.runMin * (1 + P.g2.rampSoft.value) + 1e-9),
       )
-    })
-
-    // KNOWN LIMITS, observed by H2 and RF1 (2026-10-31), examined by RF2 and not fixed. (1) The plans
-    // of a start path, whose first-week minutes are the programme's and shift with the day closed.
-    // (2) A tiny week of one: on the first-100-mile chain at 2027-04-05 (after a hold, the plan at 0
-    // to 30 minutes a week after a layoff) closing 2027-04-12 leaves the first return step after the
-    // race, the week of 2027-05-24, a target of 30 minutes in both plans, placed at 25 with the day
-    // open and at 30 with it closed. The 30-day run limit that places it (G-1) holds the 20 and 22
-    // minute runs of the taper and race weeks in the open plan, and none in the closed plan, whose
-    // taper and race weeks the day empties. A closed day lowers the runs before a week and so the
-    // limit on its runs, which G-1 reads from them; no ramp or baseline sets it, so the fix is not in
-    // the weeks after a window and the case stays. The list is the failure message; this passes when
-    // none is left.
-    test.fails('holds in the plans of a start path and for their tiny weeks', () => {
-      expect(
-        raggedRaises()
-          .cases.filter((c) => !held(c))
-          .map(label),
-      ).toEqual([])
     })
   })
 })

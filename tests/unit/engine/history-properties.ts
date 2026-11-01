@@ -4,7 +4,11 @@
 // `responseBasis`), so a mistake there cannot hide behind itself.
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { disruptionPlan, windowedWeeks } from '../../../shared/engine/disruption.ts'
+import {
+  disruptionPlan,
+  holdRestartWeeks,
+  windowedWeeks,
+} from '../../../shared/engine/disruption.ts'
 import { loadPosition } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { plannedMinOf } from '../../../shared/engine/limits.ts'
@@ -231,11 +235,23 @@ export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
   // at standard and upper in a continued plan the baseline may be the mean of the weeks run
   const mean = expectedResponse(input)?.meanMin ?? null
   const currentMonday = mondayOf(input.today)
-  const loading = plan.weeks.filter((w) => w.weekStart > currentMonday && isLoading(w))
+  // the restart week of a long hold that the J7 share holds is a baseline whether or not the cadence
+  // made it a recovery week [rules J7, J9]
+  const targets = new Map(plan.weeks.map((w) => [w.weekStart, w.targetRunMin]))
+  const restart = holdRestartWeeks(
+    disruptionPlan(input.disruptions ?? []),
+    (weekStart) => totals.get(weekStart),
+    (weekStart) => targets.get(weekStart),
+  )
+  const loading = plan.weeks.filter(
+    (w) => w.weekStart > currentMonday && (isLoading(w) || restart.includes(w.weekStart)),
+  )
   const report: ZoneReport = { checked: 0, zoneWeeks: 0, problems: [] }
   const tolerance = 2
   for (let i = 2; i < loading.length; i += 1) {
     const week = loading[i]!
+    // the restart week is exempt from the ramp up to its J7 share [rule J9]
+    if (restart.includes(week.weekStart)) continue
     const total = totals.get(week.weekStart) ?? 0
     const planned = Math.max(
       totals.get(loading[i - 1]!.weekStart) ?? 0,

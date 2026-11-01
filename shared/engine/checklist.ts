@@ -165,22 +165,16 @@ export function draftRamp(
     .filter((w) => w.flags.includes('restart-floor'))
     .at(-1)
   const windows = disruptionPlan(input.disruptions ?? [])
-  // the restart week after a long hold is a baseline for the weeks after it, a recovery week or not
-  const holdRestarts = holdRestartWeeks(windows)
+  // the post-race weeks are baselines for the weeks after them, and exempt themselves [H12]
+  const skip = rampSkipWeeks(
+    input.today,
+    draft.weeks
+      .filter((w) => (w.isRecovery || w.isTaper) && !isRecoveryOnly(w))
+      .map((w) => w.weekStart),
+  )
   const ctx = {
     volumes: volume,
-    // the post-race weeks are baselines for the weeks after them, and exempt themselves [H12]
-    skip: rampSkipWeeks(
-      input.today,
-      draft.weeks
-        .filter(
-          (w) =>
-            (w.isRecovery || w.isTaper) &&
-            !isRecoveryOnly(w) &&
-            !(w.isRecovery && !w.isTaper && holdRestarts.includes(w.weekStart)),
-        )
-        .map((w) => w.weekStart),
-    ),
+    skip,
     // a week a window took days from is a part week, a baseline beside another week and never alone
     partial: new Set(windowedWeeks(windows)),
     floor:
@@ -199,6 +193,19 @@ export function draftRamp(
     const total = done + planned
     volume.set(weekStart, total)
     weeks.push({ weekStart, done, planned, total })
+  }
+  // The restart week after a long hold is a baseline for the weeks after it when the J7 share holds
+  // it, a recovery week or not; one the cadence cuts below the share is a recovery week like another
+  // [rules J7, J9, E3].
+  const rows = new Map(draft.weeks.map((w) => [w.weekStart, w]))
+  const restarts = holdRestartWeeks(
+    windows,
+    (weekStart) => volume.get(weekStart),
+    (weekStart) => rows.get(weekStart)?.targetRunMin,
+  )
+  for (const weekStart of restarts) {
+    const row = rows.get(weekStart)
+    if (row?.isRecovery === true && !row.isTaper && !isRecoveryOnly(row)) skip.delete(weekStart)
   }
   return { ctx, weeks }
 }
