@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { expect, type APIResponse, type Page } from '@playwright/test'
+import { expect, type APIResponse, type Page, type Request } from '@playwright/test'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type {
   EquipmentConfig,
@@ -258,6 +258,49 @@ export function queued(page: Page): Promise<number> {
       }
     })
   })
+}
+
+/** The chunk of a sheet that opens on a tap (`lazySheets.tsx`), such as `DoneSheet-<hash>.js`. */
+const SHEET_CHUNK = /\/assets\/\w+Sheets?-[\w-]+\.js$/
+
+/**
+ * Runs `navigate` (a `goto` or a `reload`) and returns once the app has fetched the code of its
+ * lazy sheets and has no request in flight. The app fetches it when the main thread is idle
+ * (`warmSheets`, within 5 s), which on a slow runner comes after the page's first assertions. A
+ * spec that cuts the connection sooner fails those fetches, and the failed preload makes the app
+ * reload itself into the browser's offline page (`reloadOnPreloadError`), so the page never comes
+ * back. The installed app has the service worker to hold the code; these specs block it. Load the
+ * page through this before any `setOffline(true)` outside `17-offline.spec.ts`.
+ */
+export async function loadWithSheetCode(
+  page: Page,
+  navigate: () => Promise<unknown>,
+): Promise<void> {
+  const open = new Set<Request>()
+  let warming = false
+  const started = (request: Request) => {
+    open.add(request)
+    if (SHEET_CHUNK.test(new URL(request.url()).pathname)) warming = true
+  }
+  const ended = (request: Request) => {
+    open.delete(request)
+  }
+  page.on('request', started)
+  page.on('requestfinished', ended)
+  page.on('requestfailed', ended)
+  try {
+    await navigate()
+    await expect
+      .poll(() => warming && open.size === 0, {
+        message: 'the page has fetched the code of its sheets',
+        timeout: 15_000,
+      })
+      .toBe(true)
+  } finally {
+    page.off('request', started)
+    page.off('requestfinished', ended)
+    page.off('requestfailed', ended)
+  }
 }
 
 // ---- A strength day (strength design 11.1, 13) ---------------------------------------------------

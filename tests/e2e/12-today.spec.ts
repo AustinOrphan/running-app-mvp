@@ -9,6 +9,7 @@ import type {
 } from '../../shared/types.ts'
 import { SLOT_BUDGETS_PX } from '../../web/components/today/slots.ts'
 import {
+  loadWithSheetCode,
   relativeDates,
   resetData,
   serveTallestStrengthDay,
@@ -95,6 +96,7 @@ async function queued(): Promise<number> {
 }
 
 const CHECKIN_WRITES = '**/api/checkins/*'
+const STRENGTH_LOG_WRITES = '**/api/strength/logs/*'
 
 /** The slots that draw nothing while the page shows the phone's copy: they need the server. */
 const OFFLINE_EMPTY_SLOTS = ['watch', 'brief']
@@ -360,7 +362,7 @@ test('once the check-in is answered Done is inside the viewport at 360 x 740 and
 test('with the connection gone and the offline note on the page Done keeps both limits', async () => {
   const { today } = relativeDates()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.reload()
+  await loadWithSheetCode(page, () => page.reload())
   const card = page.getByRole('article', { name: planned.title })
   const read = page.getByRole('region', { name: 'Readiness' })
   await expect(read.getByRole('radiogroup', { name: 'How do you feel today?' })).toBeVisible()
@@ -464,7 +466,7 @@ test('at 1280 x 800 Today stands in two columns, the session first and the week 
 
 test('Done with no connection keeps a draft and turns Save off, then logs the run once', async () => {
   const { today } = relativeDates()
-  await page.reload()
+  await loadWithSheetCode(page, () => page.reload())
   const card = page.getByRole('article', { name: planned.title })
   await expect(card).toBeVisible()
 
@@ -742,13 +744,21 @@ test('a strength log the server refuses when it is finally sent leaves a notice 
   // The session of the last case is logged; start over with a session still to be done.
   strengthDay = await strengthOnlyToday(page, baseURL ?? '')
   await page.setViewportSize({ width: 360, height: 740 })
-  await page.goto('/')
+  await loadWithSheetCode(page, () => page.goto('/'))
   const card = page.getByRole('article', { name: strengthDay.title })
   await expect(card.getByRole('button', { name: 'Log sets' })).toBeVisible()
 
-  // saved with no connection: kept on the phone
-  await page.context().setOffline(true)
+  // The server turns the replay down (the session was deleted meanwhile). The refusal is in place
+  // before the connection returns: the browser announces the return with an `online` event, and
+  // the page replays the log at once, so a route made after that would let the real server take it.
+  const refusal = {
+    status: 409,
+    json: { error: { code: 'conflict', message: 'That session no longer exists.' } },
+  }
+  await page.route(STRENGTH_LOG_WRITES, (route) => route.fulfill(refusal))
   try {
+    // saved with no connection: kept on the phone
+    await page.context().setOffline(true)
     await card.getByRole('button', { name: 'Log sets' }).click()
     const sheet = page.getByRole('dialog', { name: /^Strength, / })
     await sheet.getByRole('button', { name: 'As suggested' }).click()
@@ -756,20 +766,15 @@ test('a strength log the server refuses when it is finally sent leaves a notice 
     await expect(toast(page, /^Strength log saved on this phone/)).toBeVisible()
     await expect(sheet).toBeHidden()
     expect(await queued()).toBe(1)
-  } finally {
-    await page.context().setOffline(false)
-  }
 
-  // the connection returns and the server turns the replay down (the session was deleted meanwhile)
-  const refusal = {
-    status: 409,
-    json: { error: { code: 'conflict', message: 'That session no longer exists.' } },
-  }
-  await page.route('**/api/strength/logs/*', (route) => route.fulfill(refusal))
-  try {
-    await page.evaluate(() => {
-      window.dispatchEvent(new Event('online'))
-    })
+    // the connection returns, the page replays the log, and the answer to that PUT is the refusal
+    const replay = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PUT' &&
+        /^\/api\/strength\/logs\/[\w-]+$/.test(new URL(response.url()).pathname),
+    )
+    await page.context().setOffline(false)
+    expect((await replay).status()).toBe(409)
     const notice = page.getByText(
       'A strength log saved on this phone was not accepted and was removed. Enter it again if it still applies.',
     )
@@ -793,7 +798,8 @@ test('a strength log the server refuses when it is finally sent leaves a notice 
     await expect(dismiss).toBeHidden()
     expect(await doneBottom(strengthDay.title, 'Log sets')).toBeLessThan(withNotice)
   } finally {
-    await page.unroute('**/api/strength/logs/*')
+    await page.context().setOffline(false)
+    await page.unroute(STRENGTH_LOG_WRITES)
     await page.setViewportSize({ width: 1280, height: 720 })
   }
 })
