@@ -448,6 +448,44 @@ export function returnWeeks(plan: DisruptionPlan): string[] {
   return [...new Set(weeks)].sort()
 }
 
+/**
+ * The Mondays of the weeks in which a window holds or caps a day, ascending: weeks that lost
+ * running to it, and so part weeks [rules J9, g-2]. A week the window only keeps easy (the tail
+ * after a niggle or an illness) loses no minute and is not one.
+ */
+export function windowedWeeks(plan: DisruptionPlan): string[] {
+  const weeks = plan.days
+    .filter((rule) => rule.held || rule.maxRunMin !== null)
+    .map((rule) => mondayOf(rule.date))
+  return [...new Set(weeks)].sort()
+}
+
+/**
+ * The Mondays of the first full weeks after a hold sent back at the J7 fraction, ascending: the
+ * restart week, held at the share of the reference week. It is the baseline of the weeks after it
+ * even when the cadence makes it a recovery week, as the post-race restart is [rules J7, J9, H12].
+ */
+export function holdRestartWeeks(plan: DisruptionPlan): string[] {
+  const weeks = plan.holds.filter((hold) => hold.fraction < 1).map((hold) => hold.fullWeekStart)
+  return [...new Set(weeks)].sort()
+}
+
+/**
+ * The Mondays of the weeks that hold days of a hold sent back at the J7 fraction (`returnWeeks`),
+ * ascending: the weeks of such a layoff, the return week among them when it holds one of its days.
+ * The first full week after it is not one of them.
+ */
+export function longHoldWeeks(plan: DisruptionPlan): string[] {
+  const weeks: string[] = []
+  for (const hold of plan.holds) {
+    if (hold.fraction >= 1) continue
+    for (let monday = mondayOf(hold.from); monday <= hold.to; monday = addDays(monday, 7)) {
+      weeks.push(monday)
+    }
+  }
+  return [...new Set(weeks)].sort()
+}
+
 /** The rules of the dates in `range`, ascending; the days of a week to place. */
 export function dayRulesIn(plan: DisruptionPlan, range: DateRange = {}): DayRule[] {
   return plan.days.filter((rule) => inRange(rule.date, range))

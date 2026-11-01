@@ -13,6 +13,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Activity } from '../types.ts'
 import { breakRestart, runsReaching, weekEvidence } from './adapt.ts'
 import { bmiOf } from './athlete.ts'
+import { disruptionPlan, holdRestartWeeks, windowedWeeks } from './disruption.ts'
 import { peakLongRunMin, peakWeeklyMin, trainingPace } from './goal.ts'
 import {
   completedReference,
@@ -908,14 +909,26 @@ function planWeeks(
       .map((w) => w.weekStart),
   )
   if (lead.restart !== null) restartWeeks.add(lead.restart)
+  // the restart week after a long hold is a baseline for the weeks after it, a recovery week or not
+  const holdRestarts = holdRestartWeeks(disruptionPlan(input.disruptions ?? []))
   const pastLow = (input.existing?.weeks ?? [])
-    .filter((w) => w.weekStart < firstMonday && (w.isRecovery || w.isTaper))
+    .filter(
+      (w) =>
+        w.weekStart < firstMonday &&
+        (w.isTaper || (w.isRecovery && !holdRestarts.includes(w.weekStart))),
+    )
     .map((w) => w.weekStart)
   const skip = rampSkipWeeks(input.today, pastLow)
   const exempt = new Map<string, RampExemption>()
   const rampCtx: RampContext = {
     volumes,
     skip,
+    // A week a window took days from is a part week, a baseline beside another week and never
+    // alone. Only the weeks run are such: the weeks drawn here are drawn without the windows, which
+    // `generate` applies [rules J9, g-2].
+    partial: new Set(
+      windowedWeeks(disruptionPlan(input.disruptions ?? [])).filter((w) => w < firstMonday),
+    ),
     // a restart floor week of the plan being replaced stays the baseline of the weeks after it
     floor: pastFloor(input, firstMonday),
     exempt,

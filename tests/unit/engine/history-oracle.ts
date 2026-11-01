@@ -36,6 +36,14 @@
 // 21, 20 and 20 min for the half; 48 min in place of 38 and 39 for the first 100 miles), the weeks
 // are the same.
 //
+// Regenerated 2026-10-31 for the weeks after a window (task RF2): the weeks after a rest window were
+// drawn from the minutes the window left in the week it touched, and are now drawn from the last week
+// run before it (J7), a part week counting beside another week and never alone. One of the 142
+// digests moves, `h13 rest window` (an illness of 5 days, 6 days off, in the first week of a plan of
+// about 60 minutes): the weeks after the window plan 66, 72 and 79 minutes in place of 50, 55 and 60,
+// which is the plan of the same runner with no window; the weeks before it and the other 141 digests
+// are the same.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

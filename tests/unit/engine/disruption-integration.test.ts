@@ -7,7 +7,12 @@ import { COPY_MAX_CHARS } from '../../../shared/copy/limits.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
-import { dayRuleOn, disruptionPlan, illnessDays } from '../../../shared/engine/disruption.ts'
+import {
+  dayRuleOn,
+  disruptionPlan,
+  holdReference,
+  illnessDays,
+} from '../../../shared/engine/disruption.ts'
 import { matchSessions } from '../../../shared/engine/execution.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
 import { buildPlan, keptByReplan, replan, runChecklist } from '../../../shared/engine/index.ts'
@@ -31,6 +36,7 @@ import {
   withWindows,
 } from './disruption-fixtures.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
+import { replanChain } from './replan-steps.ts'
 
 const all = athletes()
 const byId = (id: string) => all.find((a) => a.id === id)!
@@ -1065,4 +1071,119 @@ describe('a long hold leaves the guards nothing to cut', () => {
       }
     },
   )
+})
+
+describe('the weeks after a window start from the last week run [rules J7, J9, g-2]', () => {
+  // Weekly re-plans of a matrix athlete, each week run exactly as planned (`replanChain`): the runner
+  // reports a window at the first Monday on or after its first day and honours it from that day. The
+  // fifth Monday of the chain is the first re-plan that sees it, and the plan of the Monday before
+  // is the plan before the window. The week the window left with a few minutes was once the whole
+  // baseline of the weeks after it: they planned 16 to 29 minutes where the plan before had 190 to
+  // 330 (found by M5, fixed by RF2).
+  const OPENING = addDays(mondayOf(TODAY), 28)
+  const SOFT = 1 + P.g2.rampSoft.value
+  const loadingAfter = (plan: PlanDraft, weekStart: string) =>
+    plan.weeks.filter(
+      (w) => w.weekStart > weekStart && !w.isRecovery && !w.isTaper && w.phase !== 'race',
+    )
+  const target = (plan: PlanDraft, weekStart: string) =>
+    plan.weeks.find((w) => w.weekStart === weekStart)!.targetRunMin
+
+  describe('a 7-day illness, the Saturday before the fifth Monday (J7: 8 days off, 90%)', () => {
+    const illness = windowOf({
+      id: 'ill',
+      reason: 'illness-above-neck',
+      startDate: addDays(OPENING, -2),
+      endDate: addDays(OPENING, 4),
+    })
+    const hold = disruptionPlan([illness]).holds[0]!
+
+    it('is a layoff of 8 days that restarts at 90% of the reference week, in the first full week after the return week', () => {
+      expect(hold).toMatchObject({
+        layoffDays: 8,
+        fraction: P.j7.restart7to14.value,
+        runFrom: addDays(OPENING, 6),
+        returnWeekStart: OPENING,
+        fullWeekStart: addDays(OPENING, 7),
+      })
+    })
+
+    it.each(['hot-race', 'half', 'trail-50k', 'sparse-100-mile'])(
+      'holds the first full week of %s at the share and climbs from it by the ramp, never above the plan before',
+      (id) => {
+        const chain = replanChain(byId(id).input, { windows: [illness] })
+        const before = chain[3]!.draft
+        const step = chain[4]!
+        expect(step.input.today).toBe(OPENING)
+        // the reference week of the hold, from the weeks as run (the plan was run exactly)
+        const run = new Map(estimateState(step.input).weeks.map((w) => [w.weekStart, w.runMin]))
+        const share = Math.floor(holdReference(hold, (w) => run.get(w)) * hold.fraction)
+        const minutes = planMinutes(step.draft)
+        const full = minutes.get(hold.fullWeekStart)!
+        expect(full).toBeLessThanOrEqual(share)
+        expect(full).toBeGreaterThanOrEqual(Math.min(share, target(before, hold.fullWeekStart)) - 3)
+        // the weeks after it climb from it: none under it, none above the ramp step over the
+        // loading week before it, none above the plan before the window
+        let last = full
+        for (const week of loadingAfter(step.draft, hold.fullWeekStart)) {
+          const planned = minutes.get(week.weekStart) ?? 0
+          expect(planned, week.weekStart).toBeGreaterThanOrEqual(Math.min(last, full))
+          expect(planned, week.weekStart).toBeLessThanOrEqual(Math.floor(last * SOFT + 1e-9) + 1)
+          expect(week.targetRunMin, week.weekStart).toBeLessThanOrEqual(
+            target(before, week.weekStart),
+          )
+          last = planned
+        }
+        // the restart is not a collapse: a loading week four weeks after the window holds at least
+        // the deepest restart share of the plan before
+        const four = loadingAfter(step.draft, hold.fullWeekStart)[3]!
+        expect(four.targetRunMin).toBeGreaterThanOrEqual(
+          P.j7.restartOver28.value * target(before, four.weekStart),
+        )
+      },
+    )
+  })
+
+  describe('a mild niggle of 3 days from the fifth Monday (J7: under 7 days, 100%)', () => {
+    const niggle = windowOf({
+      id: 'nig',
+      reason: 'niggle',
+      startDate: OPENING,
+      endDate: addDays(OPENING, 2),
+      pain: P.pain.flagScore.value - 1,
+    })
+
+    it('is no layoff to restart from', () => {
+      expect(disruptionPlan([niggle]).holds[0]).toMatchObject({
+        layoffDays: 3,
+        fraction: P.j7.restartUnder7.value,
+      })
+    })
+
+    it.each(['half', 'returning', 'sparse-100-mile'])(
+      'returns %s to the last week it ran and no further than the plan before the window',
+      (id) => {
+        const chain = replanChain(byId(id).input, { windows: [niggle] })
+        const before = chain[3]!.draft
+        const step = chain[4]!
+        const minutes = planMinutes(step.draft)
+        // the week it touched holds what the window left
+        expect(minutes.get(OPENING)!).toBeLessThan(target(before, OPENING))
+        // the last loading week run before the window (the plan was run exactly)
+        const lastRun = before.weeks
+          .filter((w) => w.weekStart < OPENING && !w.isRecovery && !w.isTaper)
+          .at(-1)!
+        const run = planMinutes(before).get(lastRun.weekStart)!
+        const after = loadingAfter(step.draft, OPENING)
+        // J7: 100% of the week before the break, then the normal limits: the week after the touched
+        // one is not under it, and none passes the plan before the window
+        expect(minutes.get(after[0]!.weekStart)!).toBeGreaterThanOrEqual(run)
+        for (const week of after) {
+          expect(week.targetRunMin, week.weekStart).toBeLessThanOrEqual(
+            target(before, week.weekStart),
+          )
+        }
+      },
+    )
+  })
 })

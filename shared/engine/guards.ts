@@ -53,6 +53,11 @@ export interface GuardOptions {
    */
   lowWeeks?: Iterable<string>
   /**
+   * Mondays of the weeks a window took days from [rules J9]: part weeks, a baseline beside another
+   * week and never alone (`RampContext.partial`).
+   */
+  partialWeeks?: Iterable<string>
+  /**
    * Mondays of the post-race return weeks [rules H12]: exempt from the weekly ramp as a return to
    * an established base, like the start path's first week. Every session still obeys G-1.
    */
@@ -198,6 +203,7 @@ export function applyGuards(
   const rampCtx: RampContext = {
     volumes: volume,
     skip: rampSkipWeeks(asOf, options.lowWeeks ?? []),
+    partial: new Set(options.partialWeeks ?? []),
     floor,
     exempt: options.exempt,
     ...rampBasis(state, options.rebuild ?? null, options.response ?? null),

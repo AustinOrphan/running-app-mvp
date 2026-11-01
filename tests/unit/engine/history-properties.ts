@@ -4,6 +4,7 @@
 // `responseBasis`), so a mistake there cannot hide behind itself.
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
+import { disruptionPlan, windowedWeeks } from '../../../shared/engine/disruption.ts'
 import { loadPosition } from '../../../shared/engine/loadSetting.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { plannedMinOf } from '../../../shared/engine/limits.ts'
@@ -271,16 +272,21 @@ export function ceilingProblems(input: EngineInput, plan: PlanDraft): string[] {
   const totals = weeklyTotals(input, plan)
   const at = (weekStart: string, back: number) => totals.get(addDays(weekStart, -7 * back)) ?? 0
   const floor = plan.weeks.find((w) => w.flags.includes('restart-floor'))
+  // the weeks a window took days from [rule J9]: part weeks, a baseline beside another week and
+  // never alone, so the weeks before them count when one of the two is such a week
+  const touched = new Set(windowedWeeks(disruptionPlan(input.disruptions ?? [])))
   const problems: string[] = []
   const from = addDays(mondayOf(input.today), 28)
   for (const w of plan.weeks) {
     if (w.weekStart < from || w.flags.includes('post-race')) continue
     const total = at(w.weekStart, 0)
     const afterFloor = floor !== undefined && daysBetween(floor.weekStart, w.weekStart) === 7
+    const partial = [2, 3].some((back) => touched.has(addDays(w.weekStart, -7 * back)))
     const ceilingBase = Math.max(
       at(w.weekStart, 2),
       at(w.weekStart, 3),
       afterFloor ? at(w.weekStart, 1) : 0,
+      partial ? Math.max(at(w.weekStart, 4), at(w.weekStart, 5)) : 0,
     )
     if (ceilingBase > 0 && total > ceilingBase * (1 + P.g2.rampCeilingTwoWeeks.value) + 2) {
       problems.push(

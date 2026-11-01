@@ -14,8 +14,10 @@ import {
   disruptionPlan,
   disruptionWeekCap,
   holdReference,
+  holdRestartWeeks,
   isDisruptedWeek,
   returnWeeks,
+  windowedWeeks,
 } from './disruption.ts'
 import {
   injuryTight,
@@ -162,20 +164,30 @@ export function draftRamp(
   const floorWeek = sortedWeeks(draft)
     .filter((w) => w.flags.includes('restart-floor'))
     .at(-1)
+  const windows = disruptionPlan(input.disruptions ?? [])
+  // the restart week after a long hold is a baseline for the weeks after it, a recovery week or not
+  const holdRestarts = holdRestartWeeks(windows)
   const ctx = {
     volumes: volume,
     // the post-race weeks are baselines for the weeks after them, and exempt themselves [H12]
     skip: rampSkipWeeks(
       input.today,
       draft.weeks
-        .filter((w) => (w.isRecovery || w.isTaper) && !isRecoveryOnly(w))
+        .filter(
+          (w) =>
+            (w.isRecovery || w.isTaper) &&
+            !isRecoveryOnly(w) &&
+            !(w.isRecovery && !w.isTaper && holdRestarts.includes(w.weekStart)),
+        )
         .map((w) => w.weekStart),
     ),
+    // a week a window took days from is a part week, a baseline beside another week and never alone
+    partial: new Set(windowedWeeks(windows)),
     floor:
       floorWeek === undefined
         ? null
         : { weekStart: floorWeek.weekStart, minutes: floorWeek.targetRunMin },
-    exempt: startExemptions(draft.weeks, returnWeeks(disruptionPlan(input.disruptions ?? []))),
+    exempt: startExemptions(draft.weeks, returnWeeks(windows)),
     ...rampBasis(state, rebuildZone(input, state), responseBasis(input, state)),
   }
   const weeks: DraftWeekTotal[] = []
