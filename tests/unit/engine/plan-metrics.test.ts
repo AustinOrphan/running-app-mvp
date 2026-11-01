@@ -755,6 +755,43 @@ describe('the distribution of each phase and the work above zone 1', () => {
     expect(phases[0]!.realised!.z3).toBeCloseTo(1, 9)
   })
 
+  it('leaves out the weeks that a start path sets: they are drawn at 100/0/0, not from E4', () => {
+    const programme = { z1: 100, z2: 0, z3: 0 }
+    const mixed = draftOf(
+      [
+        week(1, { phase: 'build', targetRunMin: 60, tid: programme, flags: ['restart-floor'] }),
+        week(2, {
+          phase: 'build',
+          targetRunMin: 60,
+          tid: programme,
+          flags: ['ladder-2', 'run-walk'],
+        }),
+        week(4, {
+          phase: 'build',
+          targetRunMin: 60,
+          tid: programme,
+          flags: ['injury-return', 'injury-level-1'],
+        }),
+        week(3, { phase: 'build', targetRunMin: 225, tid: { z1: 80, z2: 12, z3: 8 } }),
+      ],
+      [
+        session(day(1, 1), 'easy', 60),
+        session(day(2, 1), 'easy', 60),
+        session(day(4, 1), 'easy', 60),
+        ...draft.sessions.filter((s) => s.date >= W(3) && s.date < W(4)),
+      ],
+    )
+    const rows = describePlan(mixed, ctx()).intensityByPhase.value
+    // only the ordinary build week is read against the build row
+    expect(rows.map((p) => [p.phase, p.weeks])).toEqual([['build', 1]])
+    expect(rows[0]!.declared).toEqual({ z1: 80, z2: 12, z3: 8 })
+    expect(rows[0]!.realised!.z1).toBeCloseTo((193 / 225) * 100, 9)
+    expect(rows[0]!.distance.z1).toBeCloseTo((193 / 225) * 100 - 85, 9)
+    // a draft of start-path weeks alone has no phase row at all
+    const programmeOnly = draftOf(mixed.weeks.slice(0, 3), mixed.sessions.slice(0, 3))
+    expect(describePlan(programmeOnly, ctx()).intensityByPhase.value).toEqual([])
+  })
+
   it('prints the distance of each zone from its E4 bound, as a description', () => {
     const [base, build, taper] = phases
     // base: Z1 99 is over 80, Z2 0 is under 12, Z3 1 is 4 under the point 5

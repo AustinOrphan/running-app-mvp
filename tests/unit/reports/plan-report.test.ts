@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { PARAMS_VERSION } from '../../../shared/engine/index.ts'
 import { SWEEP_COUNT, SWEEP_SEED, sweepCases } from '../engine/history-sweep.ts'
 import { OFFERED, READING, type Offered } from '../engine/method-fixtures.ts'
+import { isDrawnOutsideE4 } from '../../../shared/engine/tid.ts'
 import { BAND_LABEL } from '../../reports/bands.ts'
 import {
   assertReportClean,
@@ -43,7 +44,7 @@ vi.setConfig({ testTimeout: 30_000 })
  *     console.log(createHash('sha256').update(m.renderMatrixSection()).digest('hex'))
  *   })"
  */
-const MATRIX_DIGEST = '38798a530f8c66ded1ce32d82ae8093d2a100588eda05cdfabef0103768b60e4'
+const MATRIX_DIGEST = '03251644434eb7efe60a6c8287e3e59ac96cb6a3fe1f003bb31e014ed7aac8c7'
 
 /**
  * The digest of the section of each method preset (the twelve athletes at the preset, each figure
@@ -236,6 +237,34 @@ describe('the intensity of each phase against the E4 row', () => {
     const realised = rowOf('marathon', 'build')[col('Realised')]!
     expect(declared).toBe('80.0 / 12.0 / 8.0')
     expect(realised).not.toBe(declared)
+  })
+
+  it('leaves the weeks of a start path out of the phases, and says so', () => {
+    // the ladder weeks of the novice 5 km plan are drawn at 100/0/0 by E6: no build row reads +15.0
+    const novice = matrixRows().find((r) => r.id === 'novice-5k')!
+    const ladder = novice.plan.weeks.filter((w) => isDrawnOutsideE4(w.flags))
+    expect(ladder.length).toBeGreaterThan(0)
+    const rows = novice.d.intensityByPhase.value
+    const counted = rows.reduce((sum, p) => sum + p.weeks, 0)
+    const loadingOrTaper = novice.d.weeks.filter(
+      (w) => w.type === 'loading' || w.type === 'taper' || w.type === 'race',
+    )
+    const left = ladder.filter((w) => loadingOrTaper.some((l) => l.weekStart === w.weekStart))
+    expect(left.length).toBeGreaterThan(0)
+    expect(counted).toBe(loadingOrTaper.length - left.length)
+    for (const row of body.filter((r) => r[0] === 'novice-5k')) {
+      expect(row[col('Distance from the row')], row[2]).not.toBe('+15.0 / -7.0 / -3.0')
+    }
+    const text = renderReport({ matrixOnly: true })
+    expect(text).toContain('the weeks of a start path are left out')
+    expect(text).toContain('the race itself is not counted')
+  })
+
+  it('names the counting of the realised column as the one the Why drawer reads', () => {
+    const text = renderReport({ matrixOnly: true })
+    expect(text).toContain('the counting that the Why drawer uses too (`shared/engine/tid.ts`)')
+    expect(text).toContain('no race, hike or strength')
+    expect(text).not.toContain('two choices of this report')
   })
 
   it('gives the notes for the row and the work figures, and says the distance is never minimised', () => {

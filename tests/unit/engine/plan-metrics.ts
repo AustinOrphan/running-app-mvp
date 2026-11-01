@@ -23,6 +23,7 @@ import { monotonyStrain } from '../../../shared/engine/load.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import {
   countsAsVolume,
+  isDrawnOutsideE4,
   percentOfMinutes,
   plannedZoneMinutes,
   zoneMinutes,
@@ -215,7 +216,7 @@ export interface E4Row {
 
 export interface PhaseIntensity {
   phase: TidPhase
-  /** Loading weeks of the phase in the draft (the taper row: the taper weeks and the race week). */
+  /** Loading weeks of the phase that E4 draws (the taper row: the taper weeks and the race week). */
   weeks: number
   /** The weeks' `tid` weighted by target minutes. */
   declared: ZoneShares
@@ -413,7 +414,8 @@ export const TID_PHASES: readonly TidPhase[] = ['base', 'build', 'specific', 'ta
 
 /**
  * The weeks a phase's row is read over: the loading weeks, as every other distribution figure is,
- * and the taper weeks with the race week. Recovery weeks and the post-race return steps are left out.
+ * and the taper weeks with the race week. Recovery weeks are left out, and so are the weeks that a
+ * start path or the return after the race sets and rule E4 does not (`isDrawnOutsideE4`).
  */
 const TID_WEEK_TYPES: ReadonlySet<WeekType> = new Set<WeekType>(['loading', 'taper', 'race'])
 
@@ -729,7 +731,10 @@ export function describePlan(draft: PlanDraft, input: PlanContext): PlanDescript
   const intensityByPhase: PhaseIntensity[] = []
   for (const phase of TID_PHASES) {
     const inPhase = draftWeeks.filter(
-      (w) => tidPhaseOf(w.phase) === phase && TID_WEEK_TYPES.has(weekTypeOf(w)),
+      (w) =>
+        tidPhaseOf(w.phase) === phase &&
+        TID_WEEK_TYPES.has(weekTypeOf(w)) &&
+        !isDrawnOutsideE4(w.flags),
     )
     if (inPhase.length === 0) continue
     const phaseTarget = inPhase.reduce((sum, w) => sum + w.targetRunMin, 0)
