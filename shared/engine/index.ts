@@ -347,11 +347,14 @@ function remainingOfWeek(
   const runDays = Math.max(0, week.runDays - done.runDays - keptRunDates.size)
   const target = stillPlanned === null ? left : Math.min(left, stillPlanned)
   const share = week.targetRunMin > 0 ? target / week.targetRunMin : 0
+  // the long run stays as long as the target allows, and its distance with it, at the pace it had
+  const longRunMin = Math.min(week.longRunMin, target)
+  const longShare = week.longRunMin > 0 ? longRunMin / week.longRunMin : 0
   return {
     ...week,
     targetRunMin: target,
-    longRunMin: Math.min(week.longRunMin, target),
-    longRunM: week.longRunM === null ? null : Math.round((week.longRunM * share) / 100) * 100,
+    longRunMin,
+    longRunM: week.longRunM === null ? null : Math.round((week.longRunM * longShare) / 100) * 100,
     gainTargetM:
       week.gainTargetM === null ? null : Math.round((week.gainTargetM * share) / 10) * 10,
     runDays,

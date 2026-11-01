@@ -1203,10 +1203,25 @@ describe('the restart week of a hold is cut from a week the window left [rules E
   // one before the restart week. The restart week is not under three quarters of the J7 share, or, as
   // a recovery week, of the lesser of the share and the E3 cut of the last loading week before the
   // window. Each of the next four loading weeks is at least the restart week as placed and at least
-  // half of the lesser of the plan before and the reference week. Where the 30-day reference of G-1
-  // has aged out and places the restart week under four fifths of its target (a layoff of 21 days
-  // leaves few runs in it), the weeks after it grow from the minutes placed, and the last two checks
-  // are not made.
+  // half of the lesser of the plan before and the reference week.
+  //
+  // STILL PINNED (RF4), found by the second review of RF2: three re-plans of the half-marathon
+  // athlete after a hold of 21 days leave a loading week a few percent under that half (92 against
+  // 101, 99 against 107, 115 against 124 minutes). The J7 return week of such a hold is prorated by
+  // its open days and plans a couple of runs of about 28 and 20 minutes; they are the only runs in the
+  // 30-day reference of G-1 when the restart week is placed, so its runs stay under 1.1 times the
+  // longest of them (three runs of 30 minutes, 84 to 105 placed against a target of 147 to 169), and
+  // the weeks after it grow from the minutes placed. It is the prorated return week taken with G-1,
+  // not the window code: the same activities with no window reported plan the restart week lower
+  // still (52 minutes in the case of 2026-12-07). Each case is listed by its re-plan; a case that fails and is
+  // not listed fails the test, and a listed one that passes does too.
+  const STILL_PINNED: Record<string, string[]> = {
+    'half, 21 days': [
+      'half, 21 days from 2026-11-14, re-plan of 2026-11-30',
+      'half, 21 days from 2026-11-21, re-plan of 2026-12-07',
+      'half, 21 days from 2026-12-05, re-plan of 2026-12-21',
+    ],
+  }
   const REPORT_MONDAYS = [4, 5, 6, 7].map((n) => addDays(mondayOf(TODAY), 7 * n))
   const CUT = 1 - P.e3.recoveryWeekCutPct.value / 100
   const target = (plan: PlanDraft, weekStart: string) =>
@@ -1224,6 +1239,7 @@ describe('the restart week of a hold is cut from a week the window left [rules E
     it.each([10, 15, 21])(
       'plans the restart week and the weeks after it from the weeks the window left, after a hold of %i days',
       (days) => {
+        const weakCases: string[] = []
         for (const monday of REPORT_MONDAYS) {
           const start = addDays(monday, -2)
           const window = windowOf({
@@ -1258,21 +1274,17 @@ describe('the restart week of a hold is cut from a week the window left [rules E
               0.75 * bound,
             )
             const placed = planMinutes(step.draft).get(restart) ?? 0
-            // the 30-day reference of G-1 holds the restart week down: the weeks after it grow from it
-            if (placed < 0.8 * row.targetRunMin) continue
-            for (const week of loadingWeeks(step.draft, restart)) {
+            const weak = loadingWeeks(step.draft, restart).some((week) => {
               const was = planBefore.weeks.find((w) => w.weekStart === week.weekStart)!
-              expect(
-                week.targetRunMin,
-                `${where}: ${week.weekStart} against the restart week`,
-              ).toBeGreaterThanOrEqual(placed)
-              expect(
-                week.targetRunMin,
-                `${where}: ${week.weekStart} against the plan before`,
-              ).toBeGreaterThanOrEqual(0.5 * Math.min(was.targetRunMin, reference))
-            }
+              return (
+                week.targetRunMin < placed ||
+                week.targetRunMin < 0.5 * Math.min(was.targetRunMin, reference)
+              )
+            })
+            if (weak) weakCases.push(where)
           }
         }
+        expect(weakCases).toEqual(STILL_PINNED[`${id}, ${days} days`] ?? [])
       },
       240_000,
     )
@@ -1383,4 +1395,59 @@ describe('the taper is cut from the week as it has no window [rules K2, J9]', ()
       },
     )
   })
+})
+
+describe('the long run of the week in progress keeps its pace [rules J7, J9, g-1]', () => {
+  // Found by the second review of RF2 (2026-11-01). `remainingOfWeek` held the long run to the
+  // minutes left in the week but scaled its distance by the share of the whole week, so the return
+  // week of a hold of 21 days, planned as the week in progress, got a long run of 28 minutes over
+  // 1633 m (17 minutes a kilometre, where the plan's other long runs sit near 6). Once the runs before
+  // the hold had aged out of the 30-day reference of G-1 it was the only distance in it, the distance
+  // limit fell to about 2100 m, and the restart week placed three runs of 12 minutes (36 of 169).
+  // The distance now follows the minutes. Every long run with a distance, in the weeks ahead of every
+  // re-plan, is within 15% of the median pace of the long runs of its plan.
+  const PACE_BAND = 0.15
+  const minPerKm = (s: SessionSpec) => s.durationMin / (s.distanceM! / 1000)
+
+  it.each(['half', 'hot-race', 'marathon', 'first-100-mile', 'masters'])(
+    'plans the long runs of %s, with a hold of 21 days, at one pace',
+    (id) => {
+      let checked = 0
+      for (const n of [4, 6]) {
+        const monday = addDays(mondayOf(TODAY), 7 * n)
+        const start = addDays(monday, -2)
+        const window = windowOf({
+          id: 'pace',
+          reason: 'niggle',
+          startDate: start,
+          endDate: addDays(start, 20),
+          pain: 0,
+        })
+        const chain = replanChain(byId(id).input, { windows: [window], maxSteps: n + 4 })
+        for (const step of chain.slice(n)) {
+          const longRuns = step.draft.sessions.filter(
+            (s) =>
+              (s.kind === 'long' || s.kind === 'long-fast-finish') &&
+              s.date >= step.input.today &&
+              s.durationMin > 0 &&
+              s.distanceM !== null &&
+              s.distanceM > 0,
+          )
+          if (longRuns.length === 0) continue
+          const paces = longRuns.map(minPerKm).sort((a, b) => a - b)
+          const median = paces[Math.floor(paces.length / 2)]!
+          for (const run of longRuns) {
+            checked += 1
+            expect(
+              minPerKm(run),
+              `${id}, re-plan of ${step.input.today}, ${run.date}: ${run.durationMin} min over ${run.distanceM} m`,
+            ).toBeLessThanOrEqual(median * (1 + PACE_BAND))
+            expect(minPerKm(run)).toBeGreaterThanOrEqual(median * (1 - PACE_BAND))
+          }
+        }
+      }
+      expect(checked).toBeGreaterThan(10)
+    },
+    120_000,
+  )
 })
