@@ -20,7 +20,7 @@
 //   and the cut of a recovery week is taken from the week the window did not touch, or from the
 //   figure a touched week has without the window).
 import { isDeepStrictEqual } from 'node:util'
-import { afterAll, describe, expect, it, test, vi } from 'vitest'
+import { afterAll, describe, expect, it, test } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import {
@@ -67,10 +67,8 @@ import {
 } from './sim-athlete.ts'
 
 const SEED = 20_261_031
-// The two relations together should run in under a minute (decision 11); the test timeout is twice
-// that, so a slow machine fails the assertion with the elapsed time and not a bare timeout.
-const BUDGET_MS = 60_000
-vi.setConfig({ testTimeout: 2 * BUDGET_MS })
+// The two relations together should run in under a minute (decision 11). The test timeout is the
+// `sweep` project's (`tests/vitestProjects.ts`), which is a ceiling far above that and not the budget.
 
 const all = athletes()
 const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const

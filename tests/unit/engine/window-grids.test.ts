@@ -28,7 +28,7 @@
 //    three more times with each pass stored: the runs still to come are the first pass's every time,
 //    the day before the race holds no more than the cap, and the race week holds no more running to
 //    come than the same week with the rule off (the rule never adds running, G6).
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -44,8 +44,7 @@ import { athletes, TODAY } from './matrix-fixtures.ts'
 import { replanChain } from './replan-steps.ts'
 import { withStoredPlan } from './sim-athlete.ts'
 
-vi.setConfig({ testTimeout: 900_000 })
-
+// The test timeout (15 minutes) is the `sweep` project's (`tests/vitestProjects.ts`).
 const byHand = describe.skipIf(process.env.WINDOW_GRIDS_FULL === undefined)
 
 /** The windows of the re-plan grid: a niggle of 7 to 28 days, an illness of 10 and 14 days. */

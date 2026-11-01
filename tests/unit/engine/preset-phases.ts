@@ -9,7 +9,7 @@
 // three workers: run it at each `PARAMS_VERSION` bump, beside `npm run plan:report`,
 //
 //   PRESET_PHASES_FULL=1 npx vitest run tests/unit/engine/preset-phases-sweep
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { addDays } from '../../../shared/dates.ts'
 import { buildPlan } from '../../../shared/engine/index.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -78,17 +78,17 @@ export interface PhaseOptions {
   minStartPlans?: number
   /** By hand: skipped unless `PRESET_PHASES_FULL` is set. */
   byHand?: boolean
-  /** The test timeout, a multiple of the time a development machine takes (default 3 minutes). */
-  timeoutMs?: number
 }
 
-/** One test: every runner with the race at every shift, no problem found. */
+/**
+ * One test: every runner with the race at every shift, no problem found. The test timeout is the
+ * `sweep` project's (`tests/vitestProjects.ts`): every file that calls this is in it.
+ */
 export function describePhases(
   title: string,
   runners: readonly Runner[],
-  { shifts = SHIFTS, minStartPlans = 0, byHand = false, timeoutMs = 180_000 }: PhaseOptions = {},
+  { shifts = SHIFTS, minStartPlans = 0, byHand = false }: PhaseOptions = {},
 ): void {
-  vi.setConfig({ testTimeout: timeoutMs })
   const suite = byHand ? describe.skipIf(process.env.PRESET_PHASES_FULL === undefined) : describe
   suite(title, () => {
     it('never decrease and keep the build to p4.buildWeeks, with the race moved later', () => {

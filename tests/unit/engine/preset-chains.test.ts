@@ -25,7 +25,7 @@
 // Every preset is grade D, a choice and not a better plan: the chains check that a preset plan is a
 // plan inside every limit, never that it is better than the default's.
 import { isDeepStrictEqual } from 'node:util'
-import { describe, expect, it, test, vi } from 'vitest'
+import { describe, expect, it, test } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { dayRuleOn, disruptionPlan, injuryReports } from '../../../shared/engine/disruption.ts'
@@ -49,9 +49,8 @@ import { REST_SWEEP_KINDS, REST_SWEEP_LENGTHS } from './rest-window-sweep.ts'
 import { withStoredPlan } from './sim-athlete.ts'
 
 // The chains of 12 athletes at three methods and three scenarios, and a re-plan at each of their
-// steps, take about a minute: the timeout is that, twice, so a slow machine fails the assertion with
-// a message and not a bare timeout.
-vi.setConfig({ testTimeout: 120_000 })
+// steps, take about a minute: the file is in the `sweep` project (`tests/vitestProjects.ts`), which
+// sets the test timeout, far above that.
 
 const all = athletes()
 
