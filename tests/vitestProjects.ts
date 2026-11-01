@@ -36,7 +36,11 @@ export const SWEEP_FILES: readonly string[] = [
  * The one test timeout of the `sweep` project, 15 minutes. It is the longest any of its files asked
  * for before (the by-hand grids and the full phases sweep, 900,000 ms each), so none of them can run
  * out of time by moving here. The files that run in `npm run test` took 1 to 6 minutes before and
- * now share it, which is looser; what bounds a sweep that grows is its own budget assertion
- * (`BUDGET_MS`, which reads the elapsed time and fails with it) and the timeout of the CI job.
+ * now share it, which is looser. A sweep that grows is bounded by this ceiling and, where a test
+ * passes its own timeout as the third argument (`methods`, `disruption-integration`,
+ * `history-sweep`, `disruption-sweep`), by that. Only `history-sweep` and `disruption-sweep` also
+ * assert a budget (`BUDGET_MS`, which reads the elapsed time and fails with it). The `sweeps` job
+ * cap in `.github/workflows/ci.yml` is 20 minutes, above this ceiling, so that Vitest times a
+ * hung test out and names it before the job is killed.
  */
 export const SWEEP_TIMEOUT_MS = 900_000

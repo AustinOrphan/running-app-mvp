@@ -56,7 +56,9 @@ jobs:
 
   sweeps:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Above the 15 minutes of the sweep project's test timeout, so that Vitest times a hung test out
+    # and names it before the job is killed.
+    timeout-minutes: 20
     strategy:
       # A red shard does not hide what the other one finds.
       fail-fast: false
