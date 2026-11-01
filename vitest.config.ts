@@ -1,16 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { configDefaults, defineConfig } from 'vitest/config'
-import { MOCKED_FILES, SWEEP_FILES, SWEEP_TIMEOUT_MS } from './tests/vitestProjects.ts'
-
-// `tests/unit/engine` and `tests/unit/shared` test pure code (no database, no network, no module
-// state of its own), so the `pure` project shares a worker and its module cache between files
-// (`isolate: false`) instead of loading the engine again for each one: measured 2026-11-01 at three
-// workers, the unit job took 153 s instead of 169 s. The files that mock a module keep a worker each
-// (`mocked`), as do the projects that touch module state: `running` in `server/services/sync.ts` and
-// `replanning` in the scheduler (`server`), the DOM and the router (`web`). `sweep` keeps isolation
-// too: its few long files gained nothing from sharing (117 s with and without). The file lists are
-// in `tests/vitestProjects.ts`.
-const PURE = ['tests/unit/engine/**/*.test.ts', 'tests/unit/shared/**/*.test.ts']
+import { SWEEP_FILES, SWEEP_TIMEOUT_MS } from './tests/vitestProjects.ts'
 
 export default defineConfig({
   test: {
@@ -20,29 +10,15 @@ export default defineConfig({
           name: 'server',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts', 'tests/api/**/*.test.ts'],
-          exclude: [...configDefaults.exclude, ...PURE],
+          // the sweep files run in the `sweep` project, once
+          exclude: [...configDefaults.exclude, ...SWEEP_FILES],
           globalSetup: ['tests/globalSetup.ts'],
         },
       },
       {
-        test: {
-          name: 'pure',
-          environment: 'node',
-          include: PURE,
-          exclude: [...configDefaults.exclude, ...SWEEP_FILES, ...MOCKED_FILES],
-          isolate: false,
-        },
-      },
-      {
-        test: {
-          name: 'mocked',
-          environment: 'node',
-          include: [...MOCKED_FILES],
-        },
-      },
-      {
         // The long engine files, in their own project so that CI runs them in their own jobs
-        // (`npm run test:sweep`). The one test timeout is here.
+        // (`npm run test:sweep`). The one test timeout is here; the list is in
+        // `tests/vitestProjects.ts`.
         test: {
           name: 'sweep',
           environment: 'node',

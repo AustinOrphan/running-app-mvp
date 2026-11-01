@@ -205,15 +205,11 @@ its build runs `prisma migrate deploy` as a smoke test.
   `expectNoRefusedFetches(ctx)` so an unplanned call still fails the test, and set `ctx.fetch` to a
   `fakeFetch` to plan calls.
 - Page tests use `tests/web/helpers.tsx`; query by role and accessible name.
-- Vitest projects (`vitest.config.ts`; the file lists are in `tests/vitestProjects.ts`): `server`
-  (`tests/api` and the rest of `tests/unit`) and `web` keep a worker per file. `tests/unit/engine` and
-  `tests/unit/shared` are split in three: `pure` shares workers between files (`isolate: false`);
-  `sweep` (the engine files that take about 10 s or more, with the one test timeout of the project;
-  CI shards it) and `mocked` (the files that call `vi.mock`, because a mock fails the other files of
-  a shared worker) keep a worker per file. A long engine file goes into `SWEEP_FILES`, not into a
-  `vi.setConfig({ testTimeout })` of its own, and a file that mocks a module into `MOCKED_FILES`;
-  `vitest-projects.test.ts` fails on either. A test in `pure` must not leave module state behind
-  (restore an env stub, a spy, a time zone).
+- Vitest projects (`vitest.config.ts`): `server` (`tests/api` and `tests/unit`), `web` and `sweep`
+  (the engine files that take about 10 s or more, listed in `SWEEP_FILES` in
+  `tests/vitestProjects.ts`, with the one test timeout of the project; CI shards it). A long engine
+  file goes into `SWEEP_FILES`, not into a `vi.setConfig({ testTimeout })` of its own;
+  `vitest-projects.test.ts` fails on the latter. Every project isolates its files.
 - E2E specs in `tests/e2e` drive the UI by role and label, use dates computed from the clock,
   and call `resetData()` and `signedInApi()` from `tests/e2e/helpers.ts` so each spec stands on
   its own. `01-auth.spec.ts` owns the empty database and must stay first. No sleeps; rely on

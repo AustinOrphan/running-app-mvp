@@ -1,6 +1,6 @@
 /**
- * The file lists behind two projects of `vitest.config.ts`. They are data in a module with no import
- * so that the config and `tests/unit/reports/vitest-projects.test.ts` read one list.
+ * The file list behind the `sweep` project of `vitest.config.ts`. It is data in a module with no
+ * import so that the config and `tests/unit/reports/vitest-projects.test.ts` read one list.
  */
 
 /**
@@ -10,7 +10,7 @@
  * (`npm run test:sweep -- --shard=1/2`) and so that the rest keeps the default 5 s test timeout.
  *
  * A new file that needs a longer timeout than the default is added here, not given a private
- * `vi.setConfig({ testTimeout })`; the test named above fails on the latter.
+ * `vi.setConfig({ testTimeout })`; `tests/unit/reports/vitest-projects.test.ts` fails on the latter.
  *
  * Paths from the repository root, slowest first (seconds in `npm run test`, two workers).
  */
@@ -40,20 +40,3 @@ export const SWEEP_FILES: readonly string[] = [
  * (`BUDGET_MS`, which reads the elapsed time and fails with it) and the timeout of the CI job.
  */
 export const SWEEP_TIMEOUT_MS = 900_000
-
-/**
- * The `mocked` project: the files of `tests/unit/engine` and `tests/unit/shared` that replace a
- * module with `vi.mock()`. The other files of those directories, but the sweep files, share a worker
- * and its module cache (the `pure` project, `isolate: false`), where a mock either never applies,
- * because the real module is already imported, or stays on for the files that follow it (measured
- * 2026-11-01: 157 failures in four files). These keep a worker each. A file that mocks a module and
- * is in neither list fails `vitest-projects.test.ts`.
- */
-export const MOCKED_FILES: readonly string[] = [
-  'tests/unit/engine/adapt.test.ts',
-  'tests/unit/engine/execution.test.ts',
-  'tests/unit/engine/goal.test.ts',
-  'tests/unit/engine/micro.test.ts',
-  'tests/unit/engine/predict.test.ts',
-  'tests/unit/shared/appleHealth.test.ts',
-]
