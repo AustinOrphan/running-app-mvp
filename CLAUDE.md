@@ -8,8 +8,8 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
 - `npm run check`: `check:static` (lint, `prettier --check .`, typecheck, `research:check`), then
   every Vitest project. Must pass before every commit.
 - `npm run test:unit` (every Vitest project except `sweep`) and `npm run test:sweep` (the `sweep`
-  project: the long engine files; accepts `-- --shard=1/2`) are the two halves of `npm test` that CI
-  runs in separate jobs.
+  project: the long engine files) are the two halves of `npm test` that CI runs in separate jobs;
+  both accept `-- --shard=1/2`.
 - `npm run build`: Vite build into `dist/web`, server compiled into `dist/server`.
 - `npm run test:e2e`: Playwright (chromium) against the production build, on a fresh SQLite file
   that the config's `webServer` creates and migrates. Run `npm run build` first.
@@ -28,10 +28,10 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
 ## Gates
 
 CI (`.github/workflows/ci.yml`) runs four jobs side by side, each with `npm ci`: `static` (the audit,
-then `npm run check:static`), `unit` (`npm run test:unit`), `sweeps` (`npm run test:sweep` in two
-shards) and `e2e` (the chromium install, `npm run build`, `npm run test:e2e`, and the Playwright
-report uploaded on failure). A fifth job, `ci`, fails unless the four succeeded; it is the one check
-that branch protection reads. The Docker image must still build (`docker build .`) after a change to
+then `npm run check:static`), `unit` (`npm run test:unit` in two shards, `--shard=1/2` and `2/2`),
+`sweeps` (`npm run test:sweep` in two shards) and `e2e` (the chromium install, `npm run build`,
+`npm run test:e2e`, and the Playwright report uploaded on failure). A fifth job, `ci`, fails unless
+the four succeeded; it is the one check that branch protection reads. The Docker image must still build (`docker build .`) after a change to
 dependencies, the `Dockerfile`, a migration or how the web build is emitted (`web/sw/buildSw.ts`);
 its build runs `prisma migrate deploy` as a smoke test.
 

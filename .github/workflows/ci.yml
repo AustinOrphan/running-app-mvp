@@ -38,6 +38,11 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      # A red shard does not hide what the other one finds.
+      fail-fast: false
+      matrix:
+        shard: ['1/2', '2/2']
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -45,8 +50,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Every Vitest project except `sweep` (server and API, pure engine and shared code, web).
-      - run: npm run test:unit
+      # Every Vitest project except `sweep` (server and API, engine and shared code, web), two
+      # shards by file.
+      - run: npm run test:unit -- --shard=${{ matrix.shard }}
 
   sweeps:
     runs-on: ubuntu-latest
