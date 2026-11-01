@@ -12,6 +12,7 @@ import {
   disruptionPlan,
   holdReference,
   illnessDays,
+  isDisruptedWeek,
   windowedWeeks,
 } from '../../../shared/engine/disruption.ts'
 import { matchSessions } from '../../../shared/engine/execution.ts'
@@ -1450,4 +1451,68 @@ describe('the long run of the week in progress keeps its pace [rules J7, J9, g-1
     },
     120_000,
   )
+})
+
+describe('the taper of a build that still rises falls below the last week no window touched [rules K2, J9, G6]', () => {
+  // Found by the third review of RF2 (2026-11-01), a regression of the taper cut: the engine cut the
+  // first taper week from the figure the touched last loading week has without the window, and the
+  // checklist reads the fall from the last week no window touched. They agree while the loading
+  // weeks plateau. A hold earlier in the plan holds a build back so that its weeks still climb into
+  // the taper, and a short window in the last loading week then left the first taper week above the
+  // last untouched week: the plan failed its own `taper` item and `applyReplan` answered 422. The
+  // taper is cut from the lesser of the two (G6: of two readings, the more conservative).
+  const LENGTHS = [1, 3]
+  const OFFSETS = [0, 2, 4]
+
+  describe.each([
+    ['half', 28, 7],
+    ['marathon', 28, 7],
+    ['returning', 21, 7],
+  ])('%s, a niggle of %i days %i weeks before the taper', (id, hold, weeksBefore) => {
+    const athlete = byId(id)
+    const base = buildPlan(athlete.input)
+    const first = base.weeks.find((w) => w.isTaper)!
+    const lastLoading = base.weeks
+      .filter((w) => w.weekStart < first.weekStart && !w.isRecovery && !w.isTaper)
+      .at(-1)!
+    const start = addDays(first.weekStart, -7 * weeksBefore - 2)
+    const niggle = windowOf({
+      id: 'a',
+      reason: 'niggle',
+      startDate: start,
+      endDate: addDays(start, hold - 1),
+      pain: 0,
+    })
+
+    it('has loading weeks that still rise into the taper', () => {
+      const plan = buildPlan(withWindows(athlete, niggle))
+      const loading = plan.weeks.filter(
+        (w) => w.weekStart <= lastLoading.weekStart && !w.isRecovery && !w.isTaper,
+      )
+      expect(loading.at(-1)!.targetRunMin).toBeGreaterThan(loading.at(-2)!.targetRunMin)
+    })
+
+    it.each(LENGTHS.flatMap((length) => OFFSETS.map((offset) => [length, offset] as const)))(
+      'passes the taper item after a travel window of %i days at +%i days of the last loading week',
+      (length, offset) => {
+        const from = addDays(lastLoading.weekStart, offset)
+        const travel = windowOf({
+          id: 'b',
+          reason: 'travel',
+          startDate: from,
+          endDate: addDays(from, length - 1),
+        })
+        const plan = buildPlan(withWindows(athlete, niggle, travel))
+        const taper = plan.checklist.find((c) => c.id === 'taper')!
+        expect(taper.ok, taper.detail).toBe(true)
+        const untouched = plan.weeks
+          .filter(
+            (w) => w.weekStart < first.weekStart && !w.isRecovery && !isDisruptedWeek(w.flags),
+          )
+          .at(-1)!
+        const week = plan.weeks.find((w) => w.weekStart === first.weekStart)!
+        expect(week.targetRunMin).toBeLessThan(untouched.targetRunMin)
+      },
+    )
+  })
 })

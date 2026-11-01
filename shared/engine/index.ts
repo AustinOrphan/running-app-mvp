@@ -741,6 +741,11 @@ function generate(
       // windows now reported
       const part = (x: WeekDraft) =>
         windowed.includes(x.weekStart) || (x.weekStart < currentMonday && isDisruptedWeek(x.flags))
+      // a week the checklist reads as disrupted: one with any day a window rules, or a return week
+      const touchedBy = (x: WeekDraft) =>
+        x.weekStart < currentMonday
+          ? isDisruptedWeek(x.flags)
+          : disruptionWeekCap(dplan, x.weekStart, { referenceMin: 0, baselineMin: 0 }) !== null
       const untouched = () => cutBase(before, (x) => (part(x) ? Infinity : null))
       const storedCut = (weekStart: string) =>
         (input.existing?.weeks ?? []).some(
@@ -763,9 +768,14 @@ function generate(
           planWeek = capWeek(planWeek, Math.floor(base * (1 - cut) + 1e-9))
         }
       } else if (week.isTaper && before.length > 0) {
-        // the week before it falls to the taper: read as the cut of a recovery week reads it
+        // The taper falls below the week before it, read as the cut of a recovery week reads it (the
+        // figure a part week has without the window), and below the last week no window touched, which
+        // is how the checklist reads the fall. Where loading weeks still rise into the taper the two
+        // differ, and the lesser wins [rules K2, J9, G6].
         const prev = cutBase(before, partFigure, false)
-        if (prev !== undefined) planWeek = capWeek(planWeek, Math.max(0, prev - 1))
+        const clean = before.findLast((x) => !x.isRecovery && !touchedBy(x))?.targetRunMin
+        const base = Math.min(prev ?? Infinity, clean ?? Infinity)
+        if (Number.isFinite(base)) planWeek = capWeek(planWeek, Math.max(0, base - 1))
       }
     }
     // Inside the weekly ramp and the gain ramp, over what is run and placed [rules g-2, H4].
