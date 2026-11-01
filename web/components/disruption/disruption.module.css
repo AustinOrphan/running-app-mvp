@@ -289,6 +289,20 @@
   gap: var(--space-3);
 }
 
+/*
+ * Apply change and Cancel stay at the bottom of the sheet while the rows of the change scroll under
+ * them, on the sheet's own surface, so a change a tap has asked for can be applied without hunting
+ * for the button.
+ */
+.adjustPanel .adjustButtons {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
 .adjustPanel:focus {
   outline: none;
 }

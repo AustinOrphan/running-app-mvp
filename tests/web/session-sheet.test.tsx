@@ -393,6 +393,21 @@ describe('SessionSheet', () => {
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ activityId: 'act2' })
   })
 
+  test('puts "Change this session" before the watch and the linked activity', async () => {
+    renderSheet(makeSession())
+    const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    const change = await within(dialog).findByRole('region', { name: 'Change this session' })
+    const watch = within(dialog).getByRole('region', { name: 'On your watch' })
+    const linked = within(dialog).getByRole('region', { name: 'Linked activity' })
+    const before = (a: HTMLElement, b: HTMLElement) =>
+      (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    expect(before(change, watch)).toBe(true)
+    expect(before(change, linked)).toBe(true)
+    // the prescription and the fuel come first, as before
+    const prescription = within(dialog).getByRole('region', { name: 'Prescription' })
+    expect(before(prescription, change)).toBe(true)
+  })
+
   test('holds the change section: a move is asked about, applied with its hash, and the sheet stays', async () => {
     const user = userEvent.setup()
     const dry = {

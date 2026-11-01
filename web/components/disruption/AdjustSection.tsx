@@ -85,6 +85,8 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
   const heading = useRef<HTMLHeadingElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const resultBox = useRef<HTMLDivElement>(null)
+  // The change whose answer has been brought into view, so one choice scrolls once.
+  const shownFor = useRef<PlanAdjustment | null>(null)
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const units = settings.data?.units ?? 'km'
 
@@ -106,6 +108,20 @@ export function AdjustSection({ session, onApplied }: AdjustSectionProps) {
   const todayView = useToday({ enabled: swapOpen })
   const today = todayView.data?.date
   const dry = useAdjustPreview(session.id, pending)
+  const answered = dry.data !== undefined
+
+  // The answer to a change chosen with a button (or a list) is below the controls, and on a sheet
+  // already at its height cap that is off the screen: bring it in, by the least scroll. A typed
+  // field that has focus keeps the view where the runner is typing, and a device with no
+  // `scrollIntoView` (a test's DOM) has nothing to call.
+  useEffect(() => {
+    if (pending === null || !answered || shownFor.current === pending) return
+    shownFor.current = pending
+    const active = document.activeElement
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return
+    const box: { scrollIntoView?: (options: ScrollIntoViewOptions) => void } | null = panel.current
+    box?.scrollIntoView?.({ block: 'nearest' })
+  }, [pending, answered])
 
   const settled =
     session.status === 'completed' || session.status === 'partial' || session.activityId !== null

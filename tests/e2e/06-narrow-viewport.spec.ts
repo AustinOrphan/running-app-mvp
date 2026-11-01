@@ -640,6 +640,80 @@ test('the Plan page keeps the watch strip, its chips and the sheet section insid
   }
 })
 
+test('a tap on Skip in the session sheet shows what would change, with Apply change on screen', async () => {
+  const { lastWednesday, raceDate, thisMonday } = relativeDates()
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  const goal = (await api.post('/goals', {
+    name: 'Sheet marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+
+  const size = { width: 360, height: 740 }
+  await page.setViewportSize(size)
+  await page.goto('/plan')
+  // this week's days are open when the page opens; open its first run still to do
+  await page
+    .locator(`tr[data-days-for="${thisMonday}"] button[data-status="planned"]`)
+    .first()
+    .click()
+  const dialog = page.getByRole('dialog')
+  const change = dialog.getByRole('region', { name: 'Change this session' })
+  // Measure after the slide-up animation ends.
+  await dialog.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+
+  // The change section is not the last: the watch and the linked activity come after it.
+  const names = await dialog
+    .getByRole('region')
+    .evaluateAll((regions) =>
+      regions.map((region) => region.querySelector('h3')?.textContent ?? ''),
+    )
+  expect(names.indexOf('Change this session')).toBeGreaterThan(-1)
+  expect(names.indexOf('Change this session')).toBeLessThan(names.indexOf('Linked activity'))
+
+  // Skip sits at the foot of the screen, so the answer that mounts below it starts off screen.
+  const skip = change.getByRole('button', { name: 'Skip session' })
+  await skip.evaluate((el) => {
+    el.scrollIntoView({ block: 'end' })
+  })
+  await skip.click()
+  const check = change.getByRole('status', { name: 'Check of this change' })
+  await expect(check.getByText('What would change')).toBeVisible()
+  // The answer came into view with its buttons: both inside the screen and not under anything.
+  const apply = check.getByRole('button', { name: 'Apply change' })
+  const cancel = check.getByRole('button', { name: 'Cancel' })
+  await expect(apply).toBeVisible()
+  for (const [name, button] of [
+    ['Apply change', apply],
+    ['Cancel', cancel],
+  ] as const) {
+    const box = await button.boundingBox()
+    expect(box, name).not.toBeNull()
+    expect((box?.y ?? 0) + (box?.height ?? 0), name).toBeLessThanOrEqual(size.height)
+    expect(box?.y ?? -1, name).toBeGreaterThanOrEqual(0)
+    expect(await isUncovered(button), name).toBe(true)
+  }
+  // Scrolled back up to the rows of the change, the buttons stay at the foot of the sheet.
+  await check.getByText('What would change').scrollIntoViewIfNeeded()
+  expect(await isUncovered(apply)).toBe(true)
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+
+  // Cancel changes nothing.
+  await cancel.click()
+  await expect(change.getByText('What would change')).toBeHidden()
+})
+
 test('the Fuel lab and an open fuel log fit 360 px, with every control reachable', async () => {
   const { lastWednesday, raceDate, today } = relativeDates()
   await resetData()

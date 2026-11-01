@@ -358,9 +358,11 @@ function LinkSection({ session, units }: { session: PlanSession; units: Units | 
 }
 
 /**
- * Prescription, steps, why drawer, the workout of a strength session, linked activity, execution
- * assessment, link, and the changes a runner can make: move, swap, shorten, skip (`AdjustSection`). The sheet is one exported
- * component: Plan, Today's hero and the week strip open it with a session and `onClose`.
+ * Prescription, steps, why drawer, the workout of a strength session, the changes a runner can make:
+ * move, swap, shorten, skip (`AdjustSection`, which comes before the sections a runner reads once
+ * and leaves: the watch, how it went, the linked activity), execution assessment, link. The sheet
+ * is one exported component: Plan, Today's hero and the week strip open it with a session and
+ * `onClose`.
  */
 export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const settings = useSettings()
@@ -450,6 +452,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
 
           {session.kind === 'strength' ? <SessionStrengthSection session={session} /> : null}
           <FuelSessionSection session={session} />
+          <AdjustSection session={session} />
           <WristSection session={session} workout={workout.data} />
           {session.execution !== null ? (
             <Assessment
@@ -459,7 +462,6 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
             />
           ) : null}
           <LinkSection session={session} units={units} />
-          <AdjustSection session={session} />
         </div>
       </Sheet>
       <WhyDrawer
