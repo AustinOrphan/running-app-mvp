@@ -45,14 +45,16 @@ const SIDECARS = ['-wal', '-shm']
 const QUIET_MS = 10_000
 
 /**
- * Refuses when the `-wal` or `-shm` file of `file` was written in the last ten seconds. A server
+ * Refuses when the `-wal` or `-shm` file of `file` was written within ten seconds of now. A server
  * that has stopped writes nothing, so this only catches one that is still running; stopping it
- * first stays the rule.
+ * first stays the rule. The distance is absolute: a file stamped far in the future (the clock was
+ * set back since it was written) is as stale as one stamped long ago, not busy until the clock
+ * catches up, while a stamp a few seconds ahead (a skew between clocks) still counts as recent.
  */
 function assertQuiet(file: string): void {
   for (const suffix of SIDECARS) {
     const sibling = `${file}${suffix}`
-    if (existsSync(sibling) && Date.now() - statSync(sibling).mtimeMs < QUIET_MS) {
+    if (existsSync(sibling) && Math.abs(Date.now() - statSync(sibling).mtimeMs) < QUIET_MS) {
       throw new Error(
         `${file} may be open in another process, most likely the server: ${sibling} was written ` +
           `in the last ${QUIET_MS / 1000} seconds. Stop the server, wait a few seconds, then restore.`,
@@ -123,8 +125,9 @@ function renameWithSidecars(from: string, to: string): void {
  * the log, which is right for a sound database and would lose it for a damaged one. A database that
  * SQLite can read is then copied again with the online backup (a log left by a crash is included,
  * and the copy is checked), and the first copy is dropped. A damaged one, which SQLite cannot copy
- * consistently, keeps the first copy under the final name. Throws, and keeps nothing, when the
- * database is open in another process.
+ * consistently, keeps the first copy under the final name. Throws, and keeps nothing (a first copy
+ * that failed part way is removed too), when the database is open in another process or a copy
+ * fails.
  */
 async function keepAside(
   target: string,
@@ -134,8 +137,8 @@ async function keepAside(
   mkdirSync(dir, { recursive: true })
   const path = join(dir, backupName('pre-restore', now ?? new Date()))
   const raw = `${path}.raw`
-  copyWithSidecars(target, raw)
   try {
+    copyWithSidecars(target, raw)
     if (probeLock(target) === 'free') {
       try {
         const copy = await createBackup(target, { kind: 'pre-restore', now })

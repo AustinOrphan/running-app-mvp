@@ -275,6 +275,50 @@ describe('restoreDatabase over a damaged database', () => {
     expect(labelOf(target)).toBe('older')
   })
 
+  test('does not wait for a -wal file stamped in the future (a clock set back since it was written)', async () => {
+    writeFileSync(target, 'this is not a SQLite file. '.repeat(400))
+    writeFileSync(`${target}-wal`, 'frames the damaged file never merged')
+    const ahead = new Date(Date.now() + 3_600_000)
+    utimesSync(`${target}-wal`, ahead, ahead)
+    const backup = await backupOf('older')
+
+    const result = await restoreDatabase(backup, target, { now: NOW })
+
+    expect(labelOf(target)).toBe('older')
+    expect(readFileSync(`${result.keptAs ?? ''}-wal`, 'utf8')).toBe(
+      'frames the damaged file never merged',
+    )
+  })
+
+  test('still counts a -wal file a few seconds ahead of the clock as recent', async () => {
+    writeFileSync(target, 'this is not a SQLite file. '.repeat(400))
+    writeFileSync(`${target}-wal`, 'written by a process whose clock runs a little fast')
+    const ahead = new Date(Date.now() + 3_000)
+    utimesSync(`${target}-wal`, ahead, ahead)
+    const backup = await backupOf('older')
+
+    await expect(restoreDatabase(backup, target, { now: NOW })).rejects.toThrow(/last 10 seconds/)
+  })
+
+  test('removes the first copy when it fails part way: no .raw file is left in backups/', async () => {
+    makeDatabase(target, 'current')
+    // A directory where the -wal file would be: the main file is copied, then the copy of the
+    // -wal file fails. Back-dated, so that the file check does not refuse first.
+    mkdirSync(`${target}-wal`)
+    const longAgo = new Date(Date.now() - 60_000)
+    utimesSync(`${target}-wal`, longAgo, longAgo)
+    const before = readFileSync(target)
+    const backup = await backupOf('older')
+
+    await expect(restoreDatabase(backup, target, { now: NOW })).rejects.toThrow()
+
+    expect(
+      readdirSync(join(dir, 'backups')).filter((name) => name.includes('pre-restore')),
+    ).toEqual([])
+    expect(existsSync(`${target}.restoring`)).toBe(false)
+    expect(readFileSync(target).equals(before)).toBe(true)
+  })
+
   test('refuses a database it cannot open while its -wal file was written seconds ago', async () => {
     writeFileSync(target, 'this is not a SQLite file. '.repeat(400))
     writeFileSync(`${target}-wal`, 'written just now by a process that still runs')
