@@ -302,8 +302,8 @@ verifies. The gaps are numbered for reference.
 
 | #   | Gap                                     | What the corpus lacks                                                                                                                                                                                             | Kind of paper to add                                                                                                                | Default until then (grade D)                                                                                                                             |
 | --- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Progression scheme                      | Nothing compares linear, double, percentage-based or autoregulated progression in any population. The one template is a fixed 4 x 4RM, 3 a week, 8 weeks (`storen-2008-maximal-strength-economy`)                 | A systematic review or RCT of load-progression models in resistance training, ideally in endurance runners                          | Double progression inside a 3-6 rep range: top of the range on every set with reps to spare raises the load by one step (F8)                             |
-| 2   | Reps-in-reserve autoregulation          | No paper mentions repetitions in reserve, RIR or autoregulation                                                                                                                                                   | A validation of RIR or effort-based load prescription in trained and untrained lifters; a trial of autoregulated against fixed load | Targets of 1-3 in reserve in the block and 3 or more in ramp-in, taper and return; an unrecorded RIR holds the load                                      |
+| 1   | Progression scheme                      | Amended 2026-10-31: no comparison in runners or of double progression, only count-based against fixed loading in lifters (4.6). The one template is a fixed 4 x 4RM (`storen-2008-maximal-strength-economy`)      | A systematic review or RCT of load-progression models in resistance training, ideally in endurance runners                          | Double progression inside a 3-6 rep range: top of the range on every set with reps to spare raises the load by one step (F8)                             |
+| 2   | Reps-in-reserve autoregulation          | Amended 2026-10-31: the corpus holds the RIR scale, the accuracy of the count, stopping short of the limit and count-based loading, all in lifters (4.6); nothing in runners                                      | A validation of RIR or effort-based load prescription in trained and untrained lifters; a trial of autoregulated against fixed load | 1-3 in reserve in the block (grade C since 2026-10-31) and 3 or more in ramp-in, taper and return (D); an unrecorded RIR holds the load                  |
 | 3   | Minimal effective dose                  | `spiering-2021-minimal-dose` is the only maintenance evidence: a narrative review, general population, no athletes                                                                                                | A trial of 1 against 2 sessions a week and 1 against 2-3 sets in endurance runners through a racing phase                           | 1 session a week, 2 sets per lift at the kept relative load, plyometrics at 60 contacts                                                                  |
 | 4   | Masters runners                         | Two small trials (`piacentini-2013-masters-runners`, n=16; `eihara-2024-middle-aged-pt-rt`, n=20); no one over about 50; no women                                                                                 | An RCT of heavy resistance training in runners over 50, women and men, with economy and injury outcomes                             | The general prescription; a 4-week ramp-in from age 40; no age-based cut                                                                                 |
 | 5   | Calf and plantar-flexor dosing          | One correlation (`eihara-2024-middle-aged-pt-rt`, r -0.477, n=20) supports "include heavy calf raises"; no paper gives sets, reps, load, tempo, knee angle or Achilles tolerance                                  | A dose-response trial of calf-raise loading in distance runners, with Achilles and calf injury outcomes                             | The heavy rep range and effort targets of the other lifts; standing and bent-knee or single-leg raises alternate; slow lowering                          |
@@ -312,13 +312,19 @@ verifies. The gaps are numbered for reference.
 | 8   | Strength in the taper                   | No evidence on strength during a taper; `bosquet-2007-taper-meta-analysis` supports cutting volume and keeping intensity and frequency for endurance                                                              | A taper trial that keeps against stops resistance training before a long race                                                       | One light session a week until the race week, load kept, two sets, no plyometrics; none in the race week (as the engine plans today)                     |
 | 9   | Women                                   | No female-only trial; 8 women in `storen-2008-maximal-strength-economy`; `zanini-2025-strength-economy-durability-rct` and `giovanelli-2017-ultra-sep` are male only                                              | Female-only or sex-stratified strength trials in distance runners                                                                   | Sex never changes the dose (A5, G-4)                                                                                                                     |
 | 10  | 100-mile and trail runners              | One 25-person male ultra study (`giovanelli-2017-ultra-sep`); `pastor-2022-trail-determinants-distances` is a cross-section                                                                                       | Training trials in ultra and trail runners                                                                                          | The general prescription, labelled "extrapolated" for ultra goals                                                                                        |
-| 11  | Repetitions to a one-rep maximum        | No paper validates a repetitions-to-maximum equation                                                                                                                                                              | A validation of repetition-based maximum prediction in runners and recreational lifters                                             | The linear form `load x (1 + (reps + RIR) / 30)`, used for starting loads, a 90% ceiling and display, labelled an estimate                               |
+| 11  | Repetitions to a one-rep maximum        | Amended 2026-10-31: no validation in runners; pooled counts and one study of 8 runners imply a larger divisor than 30 for lower-body lifts (4.6)                                                                  | A validation of repetition-based maximum prediction in runners and recreational lifters                                             | The linear form `load x (1 + (reps + RIR) / 30)` for starting loads, a 90% ceiling and display, labelled an estimate; larger divisor proposed (4.6)      |
 | 12  | Barbell lifting by recreational runners | No injury or technique data                                                                                                                                                                                       | A cohort of recreational runners starting barbell lifts                                                                             | Barbell lifts only for a runner who describes themself as experienced (section 6.2)                                                                      |
 
 Amended by the owner's decisions of 2026-10-24 (section 18): the default of gap 6 also steps the
 dose only after a completed running week (section 8.2), and the default of gap 12 is replaced:
 barbell lifts are offered after the ramp-in to any lifting level that has the equipment (section
 7.2), which the owner chose over the experienced-only default. The gaps themselves stand.
+
+Amended 2026-10-31 (task RU1): the search quoted above predates the gap pass of 2026-10-25, which
+had already added the RIR scale, the accuracy of the count, a synthesis of autoregulation and the
+papers on estimating a maximum, and RU1 then read that literature in the source and added 18
+records. Rows 1, 2 and 11 say what the corpus now holds; section 4.6 has the account. The gaps
+stand: nothing is tested in runners.
 
 ### 4.5 What the app says about benefit
 
@@ -328,6 +334,47 @@ full block, which is small, takes the whole block, and says nothing about race t
 the strongest support; jumps help at slower paces; the evidence for 100-mile runners is thin and the
 loads and sets are defaults. The app states no injury-prevention figure and never shows a personal
 injury probability (G5).
+
+### 4.6 What the corpus holds on repetitions in reserve (amended 2026-10-31)
+
+The corpus search of 2026-10-24 that opens section 4.4 predates the gap pass of 2026-10-25 (396
+papers), which had already added the RIR scale (`zourdos-2016-rir-rpe-scale`), the accuracy of the
+count (`halperin-2021-rir-prediction-accuracy`), one synthesis of autoregulation
+(`hickmott-2022-autoregulation-meta`) and the papers on estimating a maximum. Task RU1 (README
+method step 18, topic `strength-autoregulation`) read that literature in the source on
+2026-10-31, added 18 records (424 papers) and re-read seven. What the corpus holds now, by gap:
+
+- **The count (gap 2).** Near the limit of a set the count is good to about one repetition; far
+  from it and in long sets it is off by several, usually understating what is left. One study finds
+  beginners understate most and five find no effect of training status; accuracy improved with a
+  few sessions of practice in two studies.
+- **Stopping short of the limit (gap 2).** No strength cost in lifters in two meta-analyses, a
+  meta-regression and a randomised trial. The 2026 position stand of the American College of Sports
+  Medicine names near the limit or 2-3 in reserve as enough effort and says no exact target can be
+  fixed.
+- **Loads set by the count (gap 1).** Not worse than fixed percentages in trained men, in a pooled
+  estimate and two small trials. The 2009 stand's step criterion (2-10%) is superseded and not
+  restated.
+- **Repetitions to a maximum (gap 11).** The pooled counts for lower-body lifts imply a divisor
+  larger than 30 (about 44 to 81 against about 33 to 36 for the bench press); the one study of
+  runners counted 11, 20 and 40 leg press repetitions at 90, 80 and 70% of 1RM in 8 men.
+
+Nothing is tested in runners, on heavy sets of 3-6 repetitions with a squat, hinge or calf raise,
+or for a threshold of the count. The six Params after the pass:
+
+| Param               | Value  | Grade | After RU1                                                                                                   |
+| ------------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------- |
+| `f7.heavyRir`       | [1, 3] | C     | Extrapolated from lifters; the numbers 1 and 3 remain a convention inside a supported zone                  |
+| `f7.easyRir`        | 3      | D     | No study of ramp-in, taper, return or first-session targets; counts of 3 or more are the least accurate     |
+| `f8.progressMinRir` | 1      | D     | Count-based loading is not worse than percentages; no trial tests a threshold; the 2009 stand is superseded |
+| `f8.bigStepRir`     | 4      | D     | Counts of 4 or more are the least accurate part of the scale; no study tests a two-step rule                |
+| `f8.e1rmDivisor`    | 30     | D     | Fits the bench press; lower-body lifts imply a larger divisor. A larger divisor is proposed and not made    |
+| `f8.e1rmMaxReps`    | 10     | D     | One study's advice; runners reach 20-40 repetitions at 80-70% of 1RM, which no linear equation follows     |
+
+No value changed. `PARAMS_VERSION` moved to `2026-10-31.2` because `f7.heavyRir` changed grade.
+A larger `f8.e1rmDivisor` moves every displayed estimate, the 90% ceiling and the first load from an
+anchor toward less load (G6), so it is the owner's decision; no paper prints a divisor and the
+tables of the pooled counts were not read in full.
 
 ## 5. Shared contracts
 
@@ -505,7 +552,7 @@ each grade D value carries a note that says it is a default. "Evidence" lists id
 | `f7.rampInReps`              | [6, 8]           | D     | Lighter loads for a technique base (`flib.heavyRampInWeeks` text)                                                                                   |
 | `f7.rampInSets`              | [2, 3]           | D     | The first ramp-in week uses the first value, later weeks the second                                                                                 |
 | `f7.easyRir`                 | 3                | D     | Reps to leave in ramp-in, taper and return sessions                                                                                                 |
-| `f7.heavyRir`                | [1, 3]           | D     | Reps to leave in block sessions; no paper in the corpus (gap 2)                                                                                     |
+| `f7.heavyRir`                | [1, 3]           | C     | Reps to leave in block sessions; amended 2026-10-31 (RU1): grade C, stopping short of the limit costs no strength in lifters (4.6)                  |
 | `f7.bodyweightReps`          | [8, 15]          | D     | Rep range of a bodyweight movement taken near the limit; the heavy range cannot apply without added load                                            |
 | `f7.lowerSeconds`            | 3 s              | D     | The lowering phase of a lift (H5, gap 7); `temesi-2015-female-neuromuscular-fatigue` is the rationale only                                          |
 | `f7.plyoStartContacts`       | 40               | D     | Start of the ground-contact ladder (gap 6)                                                                                                          |
