@@ -208,9 +208,11 @@ Alternatives:
   default with the reason `no-base`; of the twelve matrix athletes that is `post-marathon-short-run`.
 - A preset's week target is the default's where the default places short, and the minutes it places
   are the default's: a preset plan can read a week below its own drawn target, as the default does in
-  those weeks. Three runners of the sweep (#16, #28 and #36) fail the checklist's spacing item at the
-  default (the long run between two quality days in the first week), so `methods.test.ts` compares a
-  preset with the failures of the default plan and not with none; the item is not a preset's.
+  those weeks. Four runners of the sweep (#16, #28, #36 and #48) fail the checklist's spacing item at
+  the default (the long run between two quality days in the first week of a plan that starts on a
+  Saturday; #48 at steady and standard only, the others at all three positions of the load setting;
+  `history-sweep.test.ts` pins the list), so `methods.test.ts` compares a preset with the failures of
+  the default plan and not with none; the item is not a preset's.
 - A new overridable value needs an id in `OVERRIDE_IDS`, a reader that calls `effective`, a bound in
   `methods.test.ts`, a `Param` under its rule and the section (p) text; the source scan fails on a
   direct read.
