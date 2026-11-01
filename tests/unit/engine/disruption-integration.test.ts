@@ -1206,22 +1206,27 @@ describe('the restart week of a hold is cut from a week the window left [rules E
   // window. Each of the next four loading weeks is at least the restart week as placed and at least
   // half of the lesser of the plan before and the reference week.
   //
-  // STILL PINNED (RF4), found by the second review of RF2: three re-plans of the half-marathon
-  // athlete after a hold of 21 days leave a loading week a few percent under that half (92 against
-  // 101, 99 against 107, 115 against 124 minutes). The J7 return week of such a hold is prorated by
-  // its open days and plans a couple of runs of about 28 and 20 minutes; they are the only runs in the
-  // 30-day reference of G-1 when the restart week is placed, so its runs stay under 1.1 times the
-  // longest of them (three runs of 30 minutes, 84 to 105 placed against a target of 147 to 169), and
-  // the weeks after it grow from the minutes placed. It is the prorated return week taken with G-1,
-  // not the window code: the same activities with no window reported plan the restart week lower
-  // still (52 minutes in the case of 2026-12-07). Each case is listed by its re-plan; a case that fails and is
-  // not listed fails the test, and a listed one that passes does too.
-  const STILL_PINNED: Record<string, string[]> = {
-    'half, 21 days': [
-      'half, 21 days from 2026-11-14, re-plan of 2026-11-30',
-      'half, 21 days from 2026-11-21, re-plan of 2026-12-07',
-      'half, 21 days from 2026-12-05, re-plan of 2026-12-21',
-    ],
+  // STILL PINNED (RF4), found by the second review of RF2: three re-plans of the half-marathon athlete
+  // after a hold of 21 days leave a loading week a few percent under the least it may be (the
+  // restart week as placed, and half of the lesser of the plan before and the reference week). The
+  // weeks, with their least in brackets:
+  // - 2026-11-30, a hold from 2026-11-14: 2026-12-21 at 92 (101) and 2026-12-28 at 99 (107.5);
+  // - 2026-12-07, a hold from 2026-11-21: 2026-12-21 at 99 (101) and 2026-12-28 at 105 (113);
+  // - 2026-12-21, a hold from 2026-12-05: 2027-01-11 at 115 (124).
+  // The J7 return week of such a hold is prorated by its open days and plans a couple of runs of about
+  // 28 and 20 minutes; they are the only runs in the 30-day reference of G-1 when the restart week is
+  // placed, so its runs stay under 1.1 times the longest of them (three runs of 30 minutes: 84, 90 and
+  // 105 placed against targets of 158, 169 and 147), and the weeks after it grow from the minutes
+  // placed. It is the prorated return week taken with G-1, and in part not the window code: with the
+  // window not reported the same activities plan the restart week at 50 minutes (the first case) and
+  // 36 (the second), lower still; the third re-plan comes after the hold and plans the same week with
+  // or without it. Each case is listed by its re-plan with the least share of its bound that its
+  // weakest week may have (the share now, to two places, rounded down): a case that fails and is not
+  // listed fails the test, a listed one that passes does too, and one that gets worse fails.
+  const STILL_PINNED: Record<string, number> = {
+    'half, 21 days from 2026-11-14, re-plan of 2026-11-30': 0.91,
+    'half, 21 days from 2026-11-21, re-plan of 2026-12-07': 0.92,
+    'half, 21 days from 2026-12-05, re-plan of 2026-12-21': 0.92,
   }
   const REPORT_MONDAYS = [4, 5, 6, 7].map((n) => addDays(mondayOf(TODAY), 7 * n))
   const CUT = 1 - P.e3.recoveryWeekCutPct.value / 100
@@ -1241,6 +1246,7 @@ describe('the restart week of a hold is cut from a week the window left [rules E
       'plans the restart week and the weeks after it from the weeks the window left, after a hold of %i days',
       (days) => {
         const weakCases: string[] = []
+        const lowestShares = new Map<string, number>()
         for (const monday of REPORT_MONDAYS) {
           const start = addDays(monday, -2)
           const window = windowOf({
@@ -1275,17 +1281,35 @@ describe('the restart week of a hold is cut from a week the window left [rules E
               0.75 * bound,
             )
             const placed = planMinutes(step.draft).get(restart) ?? 0
-            const weak = loadingWeeks(step.draft, restart).some((week) => {
+            // each of the four weeks against the least it may be: the restart week as placed, and
+            // half of the lesser of the plan before and the reference week
+            const shares = loadingWeeks(step.draft, restart).map((week) => {
               const was = planBefore.weeks.find((w) => w.weekStart === week.weekStart)!
-              return (
-                week.targetRunMin < placed ||
-                week.targetRunMin < 0.5 * Math.min(was.targetRunMin, reference)
-              )
+              const least = Math.max(placed, 0.5 * Math.min(was.targetRunMin, reference))
+              return {
+                week: week.weekStart,
+                target: week.targetRunMin,
+                least,
+                share: week.targetRunMin / least,
+              }
             })
-            if (weak) weakCases.push(where)
+            const lowest = shares.reduce((a, b) => (b.share < a.share ? b : a))
+            if (lowest.share < 1) {
+              weakCases.push(where)
+              lowestShares.set(where, lowest.share)
+            }
           }
         }
-        expect(weakCases).toEqual(STILL_PINNED[`${id}, ${days} days`] ?? [])
+        const pinned = Object.keys(STILL_PINNED).filter((k) =>
+          k.startsWith(`${id}, ${days} days from `),
+        )
+        expect(weakCases).toEqual(pinned)
+        for (const where of pinned) {
+          expect(
+            lowestShares.get(where)!,
+            `${where}: the weakest week against its bound`,
+          ).toBeGreaterThanOrEqual(STILL_PINNED[where]!)
+        }
       },
       240_000,
     )
@@ -1355,7 +1379,7 @@ describe('the taper is cut from the week as it has no window [rules K2, J9]', ()
     })
 
     it.each(HOLDS)(
-      'holds the first taper week up after a hold of %i days from the Monday of the last loading week',
+      'holds every taper week up after a hold of %i days from the Monday of the last loading week',
       (days) => {
         const window = windowOf({
           id: 'taper',
@@ -1365,32 +1389,36 @@ describe('the taper is cut from the week as it has no window [rules K2, J9]', ()
         })
         const dplan = disruptionPlan([window])
         const plan = buildPlan(withWindows(athlete, window))
-        const week = plan.weeks.find((w) => w.weekStart === first.weekStart)!
-        // the days of the taper week the window holds, and the J7 fraction when the window sends the
-        // runner back in it
-        const lost = dplan.days.filter(
-          (d) => d.held && d.date >= first.weekStart && d.date <= addDays(first.weekStart, 6),
-        ).length
-        const hold = dplan.holds.find(
-          (h) => h.returnWeekStart === first.weekStart || h.fullWeekStart === first.weekStart,
-        )
-        const fraction = hold === undefined ? 1 : hold.fraction
-        // a day's minutes are not an equal share of the week (the long run weighs more)
-        const floor = Math.floor(first.targetRunMin * ((7 - lost) / 7) * fraction * UNEQUAL_DAYS)
-        expect(week.targetRunMin, `${days} days: ${lost} of 7 days held`).toBeGreaterThanOrEqual(
-          floor,
-        )
-        if (lost === 0 && fraction === 1) {
-          // a window that leaves the taper week alone leaves its K2 figure alone: not under the
-          // multiplier of the last loading week no window touched
-          const untouched = plan.weeks
-            .filter((w) => w.weekStart < lastLoading.weekStart && !w.isRecovery && !w.isTaper)
-            .at(-1)!
-          const multiplier = taperMultipliers(weeks)[0]!
-          expect(week.targetRunMin).toBeGreaterThanOrEqual(
-            Math.floor(untouched.targetRunMin * multiplier * UNEQUAL_DAYS),
+        // the last loading week no window touched: the K2 multipliers are of that week
+        const untouched = plan.weeks
+          .filter((w) => w.weekStart < lastLoading.weekStart && !w.isRecovery && !w.isTaper)
+          .at(-1)!
+        const multipliers = taperMultipliers(weeks)
+        taperWeeks.forEach((wk, k) => {
+          const week = plan.weeks.find((w) => w.weekStart === wk.weekStart)!
+          // the days of the week the window holds, and the J7 fraction when the window sends the
+          // runner back in it
+          const lost = dplan.days.filter(
+            (d) => d.held && d.date >= wk.weekStart && d.date <= addDays(wk.weekStart, 6),
+          ).length
+          const hold = dplan.holds.find(
+            (h) =>
+              h.fraction < 1 &&
+              (h.returnWeekStart === wk.weekStart || h.fullWeekStart === wk.weekStart),
           )
-        }
+          const fraction = hold === undefined ? 1 : hold.fraction
+          const where = `${days} days, taper week ${k + 1} (${wk.weekStart}): ${lost} of 7 days held`
+          // a day's minutes are not an equal share of the week (the long run weighs more)
+          const floor = Math.floor(wk.targetRunMin * ((7 - lost) / 7) * fraction * UNEQUAL_DAYS)
+          expect(week.targetRunMin, where).toBeGreaterThanOrEqual(floor)
+          if (!isDisruptedWeek(week.flags)) {
+            // a week no window touched keeps its K2 figure: not under the multiplier of the last
+            // loading week no window touched
+            expect(week.targetRunMin, `${where}: the K2 multiplier`).toBeGreaterThanOrEqual(
+              Math.floor(untouched.targetRunMin * multipliers[k]! * UNEQUAL_DAYS),
+            )
+          }
+        })
         // and the taper still falls week by week, as the checklist reads it
         expect(plan.checklist.find((c) => c.id === 'taper')!.ok).toBe(true)
       },
@@ -1404,7 +1432,7 @@ describe('the long run of the week in progress keeps its pace [rules J7, J9, g-1
   // week of a hold of 21 days, planned as the week in progress, got a long run of 28 minutes over
   // 1633 m (17 minutes a kilometre, where the plan's other long runs sit near 6). Once the runs before
   // the hold had aged out of the 30-day reference of G-1 it was the only distance in it, the distance
-  // limit fell to about 2100 m, and the restart week placed three runs of 12 minutes (36 of 169).
+  // limit fell with it, and the restart week placed three runs of 12 minutes (36 of 169).
   // The distance now follows the minutes. Every long run with a distance, in the weeks ahead of every
   // re-plan, is within 15% of the median pace of the long runs of its plan.
   const PACE_BAND = 0.15

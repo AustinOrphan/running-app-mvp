@@ -240,12 +240,13 @@ export function zoneReport(input: EngineInput, plan: PlanDraft): ZoneReport {
   // made it a recovery week [rules J7, J9]
   const targets = new Map(plan.weeks.map((w) => [w.weekStart, w.targetRunMin]))
   const holds = disruptionPlan(input.disruptions ?? [])
-  const restart = holdRestartWeeks(
-    holds,
-    (weekStart) => totals.get(weekStart),
-    (weekStart) => targets.get(weekStart),
-  )
-  const shares = restartShares(holds, (weekStart) => totals.get(weekStart))
+  // The look back for the reference week of a hold reads a week with no run as 0 minutes and stops at
+  // a week it does not know: `weeklyTotals` has no entry for a week without a run, so the weeks of the
+  // athlete state fill them in, as they do for the engine.
+  const ran = new Map(estimateState(input).weeks.map((w) => [w.weekStart, w.runMin]))
+  const volumeOf = (weekStart: string) => totals.get(weekStart) ?? ran.get(weekStart)
+  const restart = holdRestartWeeks(holds, volumeOf, (weekStart) => targets.get(weekStart))
+  const shares = restartShares(holds, volumeOf)
   const loading = plan.weeks.filter(
     (w) => w.weekStart > currentMonday && (isLoading(w) || restart.includes(w.weekStart)),
   )
