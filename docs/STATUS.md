@@ -3,7 +3,7 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-10-31.
+Last update: 2026-11-01.
 
 ## Where things stand
 
@@ -1673,8 +1673,9 @@ things stand" gives counts and percentages without a weekly total or a date.
     owner validation at 2026-10-23 is byte-identical, and 0 of 25 replayed re-plans of the real
     history changed. Not changed: a stored recovery week that the count already places keeps
     winning over a floor start (`lifts`).
-28. Sources, methods and evaluation (2026-10-31). Done in #585 to #616; the last paragraphs list
-    what is open and who owns it. The owner's three requests of 2026-10-31 were which sources beyond
+28. Sources, methods and evaluation (2026-10-31). Done in #585 to #616, and on 2026-11-01 in #618
+    to #621 (the paragraphs headed "After the build closed"); the last paragraphs list what is open
+    and who owns it. The owner's three requests of 2026-10-31 were which sources beyond
     the corpus should inform plans and how they are vetted, how plans could follow different
     methods, and which tools would test and evaluate plans. The proposal
     (`docs/superpowers/specs/2026-10-31-sources-methods-evaluation-proposal.md`, #585) was written
@@ -1890,10 +1891,119 @@ things stand" gives counts and percentages without a weekly total or a date.
     three files); the simulator's figures are printed by a `SIM_FIGURES=1` run of
     `sim-athlete.test.ts`.
 
+    After the build closed (2026-11-01). RU1 and RU1b (#619): the literature on repetitions in
+    reserve (RIR) read in the source, 18 records added (406 to 424 papers) and 7 earlier ones
+    re-read, the topic `strength-autoregulation`, and the six RIR `Param`s of rules F7 and F8
+    re-derived. One grade changed, `f7.heavyRir` from D to C, and no value; `PARAMS_VERSION` went
+    from `2026-10-31.1` to `2026-10-31.2`, `history-oracle.json` is unchanged and the owner
+    validation is identical (`buildPlan` reads no strength `Param`). The second pass read each
+    record's source before opening RU1's notes. It agreed on 145 of 150 gates and moved three R4
+    results from pass to hold (`wiedenmann-2026-rir-trainability`,
+    `richens-2014-reps-at-percent-runners` and `currier-2026-acsm-resistance-prescription`). It
+    judged the grade C on `f7.heavyRir` justified, narrowly: five syntheses agree that stopping
+    short of the limit costs no strength and one randomised trial spans the engine's range, but the
+    five sources overlap, no study tests 1 to 3 against another target and the outcome is a
+    one-repetition maximum in lifters, not running economy (D would also stand, B would not). It
+    reported eight finding-level items and applied none, because each would move a finding, a level
+    or a `Param`: the owner adjudicates them. It confirmed the divisor figures (the implied divisor
+    is 33 to 36 for the bench press, 44 to 81 for the leg press and 79 to 97 for runners, against
+    the `f8.e1rmDivisor` of 30), and the value stays: a larger divisor is supported for lower-body
+    lifts and not for the bench press, and a change would be toward less load (G6). The e2e lesson:
+    the first CI run of #619 failed one e2e case, the strength Why-drawer assertion, which read the
+    former closing sentence of the `f8.progressMinRir` note that RU1 had rewritten, so a research
+    pass that rewrites a `Param` note needs `npm run test:e2e`, not only `npm run check`.
+
+    RF2 (#621): the engine defects that H2, RF1 and M5 left pinned. RF2 added or changed no
+    `Param`, so it changes no `PARAMS_VERSION`; there is no schema, copy or `server/` change; the
+    expected fails fell from 8 to 2. The first round fixed five findings. (1) The return from a
+    window collapsed the weeks after it (16 to 29 minutes against 190 to 330 after a 7-day
+    illness) because the part week a window left was the only ramp baseline once a recovery week
+    sat between them; rule J9, "The weeks after a window", now counts a part week as a G-2 baseline
+    beside another week and never alone, keeps the restart week after a hold of 7 days or more as
+    the baseline of the weeks after it, and bounds the ramp so a window never raises a week
+    (relation 5.3). (2) A closed day that empties the current week no longer lowers the weeks after
+    it: they ramp from the last week run, never above the plan with the day open (a Preference in
+    J9). (3) The race week placed a run on the race day that the race replaced, so a share of K2's
+    minutes was never run and closing that weekday changed the week (K6, "Where the runs of the
+    race week go"). (4) One of the two fixed-point residuals was the window collapse and went with
+    it; the other, `longer-base` on trail-50k with a Monday niggle, was traced and stays pinned. (5)
+    The `spacing` item passes for all 150 sweep runners (F3 had no exception for a first part
+    week). Moved digests: finding 3 moved 139 of the 142 history-oracle digests (69 of 72 runners
+    and all 70 chain plans) and the matrix digest of the plan report, only in the sessions of the
+    race week; finding 5 moved 3 (`sweep #16`, `#28` and `#36`); the second round moved one,
+    `h13 rest window` (moved once already by the window fix); the later rounds moved none, and the
+    oracle was regenerated only with its test's command.
+
+    Review of RF2. Five adversarial reviews followed the first round (three lenses, two refuters per
+    finding) and confirmed 4, 4, 8, 10 and 3 findings; 23 were in the branch's own commits and are
+    fixed, and 6 were already on main and belong to RF4. The second round's one cause, behind three
+    of its four findings: the E3 recovery cut read the window-shrunk part week as the previous
+    loading week, so a restart week on a recovery cadence was cut to about 24 minutes and then
+    became the whole baseline of the weeks after it. The third round found the taper cut (a window
+    in the last loading week pulled the taper to 0 minutes for the half-marathon and the marathon
+    athlete) and fixed `remainingOfWeek`: the long run of the week in progress was held to the
+    minutes left but carried a distance scaled by the whole week's share, so a 54-minute, 9,000 m
+    long run capped at 28 minutes carried 1,633 m (about 17 min/km), and once the runs before a
+    21-day window aged out of the 30-day window that run was the only G-1 distance reference and
+    every run of the restart week became 12 minutes. The distance now follows the long run's own
+    minutes (28 minutes over 4,667 m, 6.0 min/km); the fix applies to every mid-week re-plan, not
+    only those with a window, and moves no digest. The fourth and fifth rounds and the closing
+    items cut the taper from the lesser of two readings, bounded a taper under way by the weeks of
+    the plan before (only against the plan of the same race, so a moved goal date does not take a
+    post-race row), made the generator and the checklist read one baseline after a hold, read the
+    hold's reference week and the tier of the whole layoff in the `break-restart` item, and made
+    the restart floor week spend the first-block allowance. The reset at the restart floor week is
+    an exemption from E3 (a Preference, no study), because the start path of a floor restart is
+    six weeks and carries no recovery week.
+
+    Readings and observations from RF2. Recorded as Preferences: the closed day (J9); a restart
+    week that the cadence cuts below the J7 share is not a baseline, and the next week returns to
+    110% of the last week run before the window, bounded by the plan before it (J9; the
+    alternative, that the restart week stays a baseline and the return slows by a week, is the
+    owner's call); the E3 exemption above. Observations left as rule questions, listed below: the
+    day before a race now carries a run (K6, RF3), the marathon final-week decrease (K2) and
+    `afterBreak` on the second Monday after an illness. A 28-day hold returns more slowly than at
+    the first round's tip (1483 loading minutes against 2585 for the masters athlete), as J7 and J9
+    say. Gates at `269cc3d7`: `npm run check` (285 files, 17018 tests passed, 2 expected fail, 9
+    skipped, `research:check` ok), `npm run build`, `npm run test:e2e` (102 passed),
+    `npx prettier --check .` and the preset phase sweep. The by-hand grids (`WINDOW_GRIDS_FULL=1`,
+    about 9 minutes) failed no checklist item in 1,296 taper plans and 38,432 re-plans; the day
+    grid of 7,362 mid-week re-plans has 0 failing the fall of the taper and 31 holding a taper or
+    race week 2 to 7 minutes above its row (RF4). Owner validation, counts only: the state,
+    warnings, checklist (0 of 15 failing) and weeks table are identical to `owner-plan-c3`, and the
+    one difference is the sessions-per-week line, where the race week holds 7 sessions where it
+    held 6 (the run on the day before the race, RF3's subject). What stays pinned: two expected
+    fails (the simulator's fixed point at the first week of a start path and at a held week a
+    window touches, and the `longer-base` residual below) and the three enumerated half-athlete
+    cases with a 21-day hold in the restart-week sweep (RF4: J7 proration with G-1).
+
+    #618 did the three small follow-ups of the build's close. `reloadOnPreloadError`
+    (`web/pwa/register.ts`) no longer reloads while the browser reports offline, because a reload
+    cannot fetch a newer build and would drop an open sheet; the once-per-minute guard's record is
+    neither read nor written then, and ADR 0012's shell bullet gained the exception. CI caches the
+    Playwright browsers (`actions/cache@v6` on `~/.cache/ms-playwright`, keyed by the installed
+    Playwright version, with a five-minute timeout on the install of a miss, after two runs were
+    cancelled at that step after 20 minutes; the first green run on a Playwright version fills the
+    cache). `KG_PER` is exported from `shared/importers/appleHealth.ts` and imported by
+    `server/providers/appleHealth.ts`, so the unit table exists once.
+
+    #620 closed the two Dependabot alerts open on 2026-10-31. body-parser (alert 256, high, a denial
+    of service by trailing bytes after a compressed request body) is transitive under
+    `express@5.3.0`, whose `^2.3.0` range admits the patched `2.4.0`, so `npm update body-parser`
+    moved only its lockfile entry; the release notes touch neither the `express.json` limits nor the
+    auth-before-parse order, and 2.4.0 also decodes `Content-Encoding: zstd` where 2.3.0 answered
+    status 415. minimatch (alert 265, medium, dev scope only, a globparts amplification) is patched
+    only in `11.0.1`, no parent range admits it (eslint 9, `@eslint/config-array`,
+    `@eslint/eslintrc` and `@typescript-eslint/typescript-estree` declare `^3.1.5` or `^10.2.2`,
+    and their newest releases still do), and `npm audit fix` offers only `--force`, which would
+    install eslint 4; so `package.json` gained `"overrides": { "minimatch": "^11.0.1" }` and one
+    `minimatch@11.0.3` serves all four parents. The override goes once the parents declare a
+    patched range. `npm audit` at the moderate level went from 12 vulnerabilities (11 moderate, 1
+    high) to 0; `npm run check`, the build, the e2e suite and `docker build .` passed. Not
+    verified: a real zstd-compressed request against the running app.
+
     Still open, and who owns it:
 
-    - RU1, the RIR research update (`f7.heavyRir`, `f8.progressMinRir` and `f8.bigStepRir`, grade D;
-      Zourdos 2016 and the RIR-based RPE literature): a `research-update` session, running.
     - RU2, the plateau research update (decision 10: whether the class `peakWeeklyMin` or the
       history-informed ceiling of ADR 0013 should bind, and what the literature says about volume
       inside a plateau; it ends in a rule change naming each moved oracle digest, or in a stated
@@ -1907,10 +2017,47 @@ things stand" gives counts and percentages without a weekly total or a date.
       owner reads the pages, every book being treated as held.
     - H2b, the tuning of the simulator's other two levels (H2 shipped all three with named rates): a
       session, open.
-    - RF2, the engine work that H2, RF1 and M5 left: the return from a window (J9 and J7, the
-      emptied week), the race-day run slot, the `spacing` item at four sweep runners and the
-      residual fixed-point cases; each fix turns a `test.fails` into a plain assert and names the
-      oracle digests it moves: an engine session, running.
+    - RF3, the day before a race of 90 minutes or more: K6 asks for little running in the final 24
+      to 48 hours and no `Param` implements it, so a full race week now places a run there (48
+      minutes for a first 100-mile). The task is a K6 shake-out rule with a grade D `Param` for the
+      most minutes on the day before a race, and easy running only on the two days before, through
+      the `research-update` skill; the brief is written, and the session is running or queued.
+    - RF4, the cases #621 pinned: the three half-athlete cases with a 21-day hold in the
+      restart-week sweep (`STILL_PINNED` in the test, the cause in a comment: the J7-prorated return
+      week gets two short runs that are the only runs in the restart week's 30-day G-1 reference, so
+      the weeks after it grow from what was placed; the window code is not the cause, J7 proration
+      with G-1 is), and the other cases #621 lists under "Still pinned, and RF4": mid-week re-plans
+      of a taper in progress and of plain plans that fail the `taper` and `tid` items in the
+      reviewers' harness (unverified against a stored plan), the erosion of a held plan's recovery
+      week, the 31 mid-week re-plans of the day grid that hold a taper or race week 2 to 7 minutes
+      above its row, the `tid` item of the reds-hold Tuesday chain, and the start path of a floor
+      restart, which carries no recovery week. The simulator's fixed point at the first week of a
+      start path and at a held week a window touches stays a `test.fails` beside them.
+    - The K2 final-week question: the marathon's final-week decrease is now K2's own figure (0.35 /
+      0.55 gives about 36%; the plan report reads 36.5% for the marathon, masters and hot-race
+      plans, where it read 49.2%), against the practice band of 46 to 54% (Knopp 2024); the old
+      accidental shed had put it inside the band. A change is a K2 `Param` change (grade D
+      multipliers), the owner's call.
+    - `afterBreak` stacking on the second Monday after an illness: it still applies there (the
+      half-marathon athlete's first full week after an illness goes 193 to 129), as on main.
+      Related: a plan moves between re-plans after a long hold, because the macrocycle restarts
+      from the typical week after a break at one Monday and carries on from the stored plan at the
+      next (hot-race, 14 days: 248, 238 and 319 at three successive re-plans).
+    - The `longer-base` preset residual: on a window-touched week the window's own cap (`holdWeek`)
+      keeps the long run and leaves the preset's week at 252 against the default's 243, then the G6
+      cap (`capWeek`) shrinks every session by the same share. Capping a window-touched week with
+      `holdWeek` is a one-line fix that moves every preset plan a window reaches, so it is its own
+      task (pinned in `preset-chains`: trail-50k, Monday niggle).
+    - The first-100-mile ragged `taper` item at 0-minute taper weeks: the simulator's checklist
+      failed 1 of 29 steps before RF2 and 4 of 29 after, at the taper weeks of a runner collapsed to
+      0 to 30 minutes a week. The failures first appear in the window fix, not in the race-week
+      commit; no baseline chain fails the `taper` item, the second round left them as they are, and
+      the fourth and fifth rounds left the checklist counts unchanged in all 48 chains.
+    - The harness: `plan-metrics.ts` reads a window's part week as the G-2 baseline and skips a
+      restart week that the cadence cut, so the rest-window sweep's soft-step headroom minima (-295
+      to -99 by stratum, against -47 to -13 on main) and its 89 of 576 plans under -47 are a
+      construction of the report, not of the engine, whose checklist passes all 576 plans. Teaching
+      the report the engine's reading is a harness follow-up.
     - The P2 marathon extension (a weekly-minutes cap or a cross-training session kind; decision 6):
       the owner has not said.
     - By hand, for the owner: the Higdon advanced 5K page (a second read or the owner's sign-off
@@ -1920,13 +2067,74 @@ things stand" gives counts and percentages without a weekly total or a date.
     - For the owner: section (p)'s "no load" sentence for P4 is true of minutes only, since
       `longer-base` adds one threshold session on `trail-50k` and `first-100-mile` (the peak planned
       load of `trail-50k` rises 35 units; M5, left as written).
-    - Small follow-ups, none urgent: `reloadOnPreloadError` (`web/pwa/register.ts`) reloads even
-      when `navigator.onLine` is false, which spends its once-per-minute guard and would drop an
-      open sheet (a small `web/` change with a page test); CI installs chromium on every run
-      (`npx playwright install --with-deps chromium` in `.github/workflows/ci.yml`) with no cache of
-      the browsers; Apple Health's `KG_PER` table is defined twice
-      (`server/providers/appleHealth.ts` and `shared/importers/appleHealth.ts`); the two readings of
-      Treff's index that #605 recorded.
+    - For the owner: RU1b's eight items, reported and not applied (finding 7 of
+      `hickmott-2022-autoregulation-meta`, which reads repetitions left beyond the call as "before
+      failure"; finding 3 of `martikainen-2025-varying-proximity-failure` and finding 4 of
+      `wiedenmann-2026-rir-trainability`, which overstate their sources slightly; finding 5 of
+      `helms-2018-rpe-vs-percent-loading`, which drops "at all times"; level A of Robinson 2024 and
+      Halperin 2021; the `evidence` list of `f7.heavyRir`, which omits the 2026 stand that its note
+      cites; the `f8.e1rmDivisor` note, which says 30 "fits" bench-press counts that imply 33 to 36;
+      and step 18 of the method in `research/README.md`, whose "about 44 to 81" is the leg-press
+      range alone), and the `f8.e1rmDivisor` value itself (30; a larger one is supported for
+      lower-body lifts and not for the bench press).
+    - Small follow-up, not urgent: the two readings of Treff's index that #605 recorded.
+
+29. Audit: the best it can be (2026-11-01). A six-lens audit (ultra coach quality, the
+    self-adjusting loop, product, evidence process, reliability and privacy, and evaluation) made
+    60 findings; two refuters per finding were told to refute by default. Six were confirmed:
+
+    1. Race day is unplanned: the race session targets RPE 8 to 9 for a 34-hour race,
+       `h11.belowVt1Share` (`shared/engine/params/h-ultra.ts`) and the four `k6.*` Params
+       (`shared/engine/params/k-taper.ts`) are read by nothing, `FUEL_KINDS.race`
+       (`shared/engine/fuel.ts`) is `false`, and rule E12's race plan has no design. The fix is
+       step 1, an ultra race-effort `Param` and the Z1 ceiling, then step 2, a race plan derived on
+       read in the ADR 0014 shape, as the strength workout is.
+    2. The Why drawer declares an intensity mix that the plan does not deliver (the marathon build
+       about 91/7/2 against the 80/12/8 declared, the 100-mile build 98/1/0 against 85/10/5), and
+       `e4.priorTolerancePp` (`shared/engine/params/e-macro.ts`) is read by nothing. The owner
+       decides intent or truth; G6 favours the truth.
+    3. There is no backup, restore, pre-migration copy or rollback path (the README's one command
+       needs a `sqlite3` binary that the image lacks). Open as #624, under review.
+    4. There was no dependency gate (the body-parser advisory sat open for 7 days while about 40 PRs
+       merged). Done in #622: an `npm audit --omit=dev --audit-level=high` step in CI, a `docker`
+       ecosystem and major-version ignores in `.github/dependabot.yml` (the `@prisma/*` ignore is
+       confirmed only on Dependabot's first run); branch protection stays follow-up 11.
+    5. There is no trends or season view: `useWellness` (`web/api/wellness.ts`) has no consumer,
+       and the charts stop at 12 weeks (`web/pages/StatsPage.tsx`).
+    6. The README's weather privacy sentence is false: GPS activities and race climates always go
+       to Open-Meteo, and `useHomeWeather` gates only the home fallback. Corrected in this PR.
+
+    The narrowed survivors, one sentence each:
+
+    - A Today note for a source that has gone silent or needs authentication.
+    - The reminder channel, parked as E18.
+    - CI `check` takes about 680 s on the runner.
+    - Heat acclimation for a runner whose spring is cool.
+    - Sign-out-everywhere.
+    - Quieting the health probe in the logs.
+    - A Docker smoke job in CI.
+    - Nine Params graded above their best cited paper.
+    - Steps in the Today card.
+    - An after-run block that never states an inferred effort verdict.
+    - A sensitivity probe in the plan report.
+
+    Refuted, with the reason: vertical specificity (the probe ran at 9,000 m of gain, far above the
+    matrix fixture); hiking as a stimulus (lab energetics only); a daylight module
+    (`crossesDarkness` is already true for any 100-mile); a logistics checklist (no source); a
+    rehearsal ledger (rows exist, E11 undesigned); a tune-up race (follow-up 4); a Smashrun provider
+    (intervals.icu feeds the app); rescheduling downgraded sessions (G-6, grade B); an offline run
+    log (decision 27); sharing (a non-goal); a sex-invariance relation (G-3's BMI rule); edge
+    athletes (300 plans green); a 60-paper full-text pass (disclosed); a retraction scan (S0 and S1
+    done).
+
+    Owner decisions pending: whether the race plan is effort-only or carries splits and a private
+    checkpoint table; intent or truth for the intensity mix; RF3's two defaults and the K2
+    final-week question; the backup destination and its encryption; branch protection; whether a
+    trends page holds weight and prediction history; the reminder channel; passive heat; and one
+    integer of session state.
+
+    Recommended order: RF3, race plan step 1, intensity honesty, backup (#624, open), the CI audit
+    gate (done in #622), race plan step 2, trends, the silent-source note, CI time.
 
 ## Clean-up after the merges
 

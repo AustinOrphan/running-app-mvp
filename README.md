@@ -230,12 +230,24 @@ tool, or any app that can write files to iCloud Drive, Dropbox, Syncthing or a n
 
 ### Weather and privacy
 
-The app otherwise makes no third-party requests. With weather on, a background job sends
-Open-Meteo (no account or key) the start location of each activity, rounded to about one
-kilometre, and its time; for an activity without a location it uses the home location from the
-Profile page when "use the home location for weather" is on. Turn that off, and leave the home
-location empty, to send nothing. Providers see only what you connect: the app calls intervals.icu,
-Strava and Garmin only after you connect them, and only for your own account.
+The app otherwise makes no third-party requests. Weather comes from Open-Meteo (no account or key),
+and no setting turns the lookups off. A background job runs every ten minutes and sends:
+
+- For each activity with a start location, that location rounded to a cell of 0.1 degree (about 11
+  km from north to south). An activity of the last five days is asked for by that cell alone (the
+  past seven days there); an older one is asked for by the dates it falls on. Indoor activities (a
+  treadmill, virtual or indoor subtype) are never sent.
+- For each target or considered goal that is still ahead, has a distance and has coordinates of its
+  own, the race location rounded to 0.01 degree (about 1 km), with the race's month and day in
+  each of the last three years.
+- When a home location is saved, a forecast request for the home location rounded to 0.1 degree,
+  repeated about once an hour.
+
+The Profile page's "Use the home location for weather when a run has no start location" adds the
+saved home location as the place for activities without a start location and for goals without
+coordinates. It does not stop the requests above, and leaving the home location empty stops only
+the forecast and that fallback. Providers see only what is connected: the app calls intervals.icu,
+Strava and Garmin only after they are connected, and only for the connected account.
 
 ## Sessions on the watch
 
