@@ -41,7 +41,7 @@ export const METHOD_TEMPLATES = {
     { days: 'text' },
   ),
   'method.help.longer-base': tpl(
-    "Strides only in the base, for up to {weeks} more weeks, then hills and threshold runs. No week plans more minutes than the plan's own shape.",
+    "Strides only in the base, for up to {weeks} more weeks, then threshold and hill runs. No week plans more minutes than the plan's own shape.",
     { weeks: 'text' },
   ),
 
@@ -110,7 +110,7 @@ export const METHOD_TEMPLATES = {
     },
   ),
   'method.fact.kinds': tpl(
-    'Quality runs: strides only in the base, then hills and threshold runs in the build (grade {grade}).',
+    'Quality runs: strides only in the base, then threshold and hill runs in the build (grade {grade}).',
     { grade: 'text' },
   ),
   'method.fact.grade': tpl(
