@@ -7,8 +7,7 @@
 //
 // Budget: the matrix (312 plans) and the sample (120 plans) take about 19 seconds on a development
 // machine, where a longer-base plan is a double generation (the default is planned beside it, rule
-// G6). The timeout is three minutes, so a runner two to three times slower fails an assertion with
-// its message and not a bare timeout.
+// G6). The file is in the `sweep` project (`tests/vitestProjects.ts`), which sets the test timeout.
 import { SWEEP_COUNT, SWEEP_SEED, sweepCases } from './history-sweep.ts'
 import { athletes } from './matrix-fixtures.ts'
 import { describePhases } from './preset-phases.ts'

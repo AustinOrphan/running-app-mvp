@@ -12,7 +12,7 @@
 // the mean of the weeks run passes the planned baseline and must change nothing elsewhere.
 //
 // The seed picks a sample; a failure names the runner by its index to replay it.
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { estimateState, historyBlock } from '../../../shared/engine/athlete.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
@@ -47,12 +47,11 @@ const COUNT = SWEEP_COUNT
 // The budget of the phase 3a design: the sweep runs in under 60 s on a development machine. The
 // GitHub runners take two to three times as long (35 s and 62 s measured on 2026-10-25), so the
 // budget holds three times that: a guard against the sweep growing without bound, not a benchmark.
-// The test timeout is twice the budget, so a slow machine fails the assertion with the elapsed time
-// instead of a bare timeout.
+// The test timeout of the `sweep` project (`tests/vitestProjects.ts`) is far above the budget, so a
+// slow machine fails the assertion with the elapsed time instead of a bare timeout.
 const BUDGET_MS = 180_000
-// Every test of this file walks the 150 cases, so each one takes the budget's timeout in place of
-// the 5 s default: on a GitHub runner the cumulative-minutes case alone took 5.2 s on 2026-10-25.
-vi.setConfig({ testTimeout: 2 * BUDGET_MS })
+// Every test of this file walks the 150 cases, so each one needs that timeout in place of the 5 s
+// default: on a GitHub runner the cumulative-minutes case alone took 5.2 s on 2026-10-25.
 /** The runners and the re-plans of the response part of the sweep. */
 const RESPONSE_COUNT = 12
 const RESPONSE_STEPS = 5
