@@ -1218,9 +1218,9 @@ describe('the restart week of a hold is cut from a week the window left [rules E
   // placed, so its runs stay under 1.1 times the longest of them (three runs of 30 minutes: 84, 90 and
   // 105 placed against targets of 158, 169 and 147), and the weeks after it grow from the minutes
   // placed. It is the prorated return week taken with G-1, and in part not the window code: with the
-  // window not reported the same activities plan the restart week at 50 minutes (the first case) and
-  // 36 (the second), lower still; the third re-plan comes after the hold and plans the same week with
-  // or without it. Each case is listed by its re-plan with the least share of its bound that its
+  // window not reported the same activities place 50 and 20 minutes in the restart week of the first
+  // two cases, lower still; the third re-plan comes after the hold and places the same 105 with or
+  // without it. Each case is listed by its re-plan with the least share of its bound that its
   // weakest week may have (the share now, to two places, rounded down): a case that fails and is not
   // listed fails the test, a listed one that passes does too, and one that gets worse fails.
   const STILL_PINNED: Record<string, number> = {
@@ -1617,9 +1617,11 @@ describe('the checklist accepts every re-plan after a hold of 21 or 28 days [rul
   // generator and the checklist, which refuses a draft: the restart week the J7 share holds is read
   // by the figure its row will stand at (for the week in progress, the figure of the plan being
   // replaced that holds it, not the minutes left to place); a recovery week or a race week after the
-  // week in progress is cut from that row and not from the week drawn; the recovery week in progress is
-  // cut from the loading week before it as it stands; and the restart floor week, a block of its own
-  // for the generator, is one for the cadence item too.
+  // week in progress is cut from that row and not from the week drawn; and the recovery week in
+  // progress is cut from the loading week before it as it stands. A fourth difference is not
+  // settled: the checklist counts a restart floor week as the start of a block, an exemption from E3
+  // (a Preference, under E3 in the rules), where the generator draws the weeks of a floor start path
+  // with no recovery week (`cycleOption.test.ts` pins what the item then checks).
   //
   // Two start Mondays of each of the four athletes, a niggle of 21 or 28 days that opens on the
   // Saturday before; every re-plan to the race passes the checklist. The grid of 12 athletes, holds

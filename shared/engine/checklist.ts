@@ -321,8 +321,12 @@ function recoveryCadence(
       continue
     }
     // The weeks of a start path follow their own steps and repeats [rules E6]: they carry no
-    // recovery week, and the weeks after them open a new block. The restart floor week is one, as the
-    // generator counts it (`keepCadenceAcrossReplan`).
+    // recovery week, and the weeks after them open a new block. The restart floor week is counted as
+    // one, which is an exemption from E3 and not a reading of the generator: the generator draws the
+    // weeks of a floor start path (six of them in the review's case) with no recovery week and does
+    // not count the floor week as a block of its own, so that three loading weeks and a recovery week
+    // follow the floor week that the cadence would otherwise count as four in a row. A Preference
+    // (no study), recorded under E3 in the rules.
     if (isStartPathWeek(week) || week.flags.includes('restart-floor')) {
       run = 0
       lastLoad = null

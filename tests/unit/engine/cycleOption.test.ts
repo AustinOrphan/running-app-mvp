@@ -79,3 +79,51 @@ describe('the recovery cycle option', () => {
     expect(failed(decided, { recoveryCycle: '3:1' })).toEqual([])
   })
 })
+
+describe('the restart floor week in the cadence item [rule E3]', () => {
+  // The checklist counts a restart floor week as the start of a block (an exemption from E3, a
+  // Preference recorded under E3 in the rules): the generator draws the weeks of a floor start path
+  // with no recovery week and does not count the floor week as a block of its own. The item is
+  // asked of hand-made drafts, from the weeks of a real plan whose flags and recovery weeks are set.
+  const input = athlete('half').input
+  const plan = buildPlan(input)
+  const cadence = (pattern: string): { ok: boolean; detail: string } => {
+    // L a loading week, R a recovery week (under the week before it), F a restart floor week
+    const weeks = plan.weeks.slice(0, pattern.length).map((w, i): WeekDraft => {
+      const kind = pattern[i]!
+      const recovery = kind === 'R'
+      return {
+        ...w,
+        isRecovery: recovery,
+        isTaper: false,
+        phase: 'base',
+        targetRunMin: recovery ? 70 : 100,
+        flags: kind === 'F' ? ['restart-floor'] : recovery ? ['recovery'] : [],
+      }
+    })
+    const item = runChecklist({ ...plan, weeks }, input).find((c) => c.id === 'recovery-cadence')!
+    return { ok: item.ok, detail: item.detail }
+  }
+
+  it('counts the cycle of three from a recovery week', () => {
+    expect(cadence('LLLRLLLR').ok).toBe(true)
+    // the first block of a plan may run a week longer; a later one may not
+    expect(cadence('LLLLRLLL').ok).toBe(true)
+    expect(cadence('LLRLLLLR').ok).toBe(false)
+  })
+
+  it('lets three loading weeks and a recovery week follow a floor week', () => {
+    expect(cadence('LLRFLLLR').ok).toBe(true)
+    expect(cadence('LLRFLLRL').ok).toBe(true)
+  })
+
+  it('still refuses four loading weeks in a row after a floor week', () => {
+    const item = cadence('LLRFLLLLR')
+    expect(item.ok).toBe(false)
+    expect(item.detail).toMatch(/4 loading weeks in a row/)
+  })
+
+  it('counts the loading weeks before a floor week apart from those after it', () => {
+    expect(cadence('LLLFLLLR').ok).toBe(true)
+  })
+})
