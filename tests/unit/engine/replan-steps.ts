@@ -34,6 +34,11 @@ export interface ReplanChainOptions {
    */
   weekday?: number
   /**
+   * The goal date moves to `date` from the first re-plan on or after `at`, as the runner moves the
+   * race: the stored plan has the old race, the re-plan the new.
+   */
+  moveGoal?: { at: string; date: string }
+  /**
    * Windows the runner reports [rule J9]: each joins the input of the first re-plan on or after its
    * first day and stays in it, closed or not, as the simulator reports its own. The runner honours
    * a window whether or not the plan in force knew of it: no run on a day of a rest window, and a
@@ -51,14 +56,17 @@ export interface ReplanStepsOptions extends ReplanChainOptions {
 
 /** The first plan of `first` and a re-plan on every Monday after it, until the race week. */
 export function replanChain(first: EngineInput, options: ReplanChainOptions = {}): ReplanStep[] {
-  const { scale = 1, maxSteps = Infinity, windows = [], weekday = 0 } = options
+  const { scale = 1, maxSteps = Infinity, windows = [], weekday = 0, moveGoal } = options
   let draft = buildPlan(first)
   let activities = first.activities
   const steps: ReplanStep[] = [{ draft, input: first }]
-  const raceMonday = mondayOf(first.goal.date)
+  const goalOn = (day: string) =>
+    moveGoal !== undefined && day >= moveGoal.at ? moveGoal.date : first.goal.date
   for (
     let monday = addDays(mondayOf(first.today), 7 + weekday);
-    mondayOf(monday) <= raceMonday && monday <= first.goal.date && steps.length <= maxSteps;
+    mondayOf(monday) <= mondayOf(goalOn(monday)) &&
+    monday <= goalOn(monday) &&
+    steps.length <= maxSteps;
   ) {
     const factor = typeof scale === 'number' ? scale : scale(steps.length)
     const ran = draft.sessions
@@ -85,6 +93,7 @@ export function replanChain(first: EngineInput, options: ReplanChainOptions = {}
     const reported = windows.filter((w) => w.startDate <= monday)
     const input: EngineInput = {
       ...first,
+      goal: { ...first.goal, date: goalOn(monday) },
       today: monday,
       activities,
       ...(reported.length > 0 ? { disruptions: [...(first.disruptions ?? []), ...reported] } : {}),

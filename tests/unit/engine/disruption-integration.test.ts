@@ -1839,3 +1839,61 @@ describe('the break-restart item reads the reference week of a hold [rules J7, J
     expect(item.detail).toMatch(/75% of 270 min/)
   })
 })
+
+describe('a goal date moved during a taper under way [rules K2, H12, J9]', () => {
+  // Found by the last review of RF2 (2026-11-01). The ceiling of a taper under way (no taper, race or
+  // post-race week above the same week of the plan before) was keyed by calendar week. When the goal
+  // date moved between the stored plan and the re-plan, a week of the new race was capped by the old
+  // plan's row of the same Monday, which may be a post-race row: trail-50k, a niggle of 28 days from
+  // 2027-01-16, the race moved from 2027-03-06 to 03-13 at the re-plan of 03-01, planned a race week
+  // of 30 minutes where it had 74 (the K2 week of a taper after that hold), and post-race weeks of 33,
+  // 36 and 108 where they had 60, 99 and 108. The ceiling now holds for the same race only, as the
+  // phases carried across a re-plan do: the stored plan must have its race week (not a post-race one)
+  // on the Monday of the goal date.
+  const athlete = byId('trail-50k')
+  const raceMonday = mondayOf(athlete.input.goal.date)
+  const window = windowOf({
+    id: 'moved',
+    reason: 'niggle',
+    startDate: '2027-01-16',
+    endDate: addDays('2027-01-16', 27),
+    pain: 0,
+  })
+  const weeksOf = (plan: PlanDraft, from: string, count: number) =>
+    plan.weeks.filter((w) => w.weekStart >= from).slice(0, count)
+
+  it('has the race of the case on 2027-03-06', () => {
+    expect(athlete.input.goal.date).toBe('2027-03-06')
+    expect(raceMonday).toBe('2027-03-01')
+  })
+
+  it('plans the race week of a race moved a week later as the plan with a taper under way does', () => {
+    const date = addDays(athlete.input.goal.date, 7)
+    const chain = replanChain(athlete.input, {
+      windows: [window],
+      moveGoal: { at: raceMonday, date },
+    })
+    const step = chain.find((s) => s.input.today === raceMonday)!
+    expect(step.input.goal.date).toBe(date)
+    const [taper, race, ...post] = weeksOf(step.draft, raceMonday, 5)
+    expect(taper!.isTaper).toBe(true)
+    expect(race!.phase).toBe('race')
+    // the race week stands above the old plan's post-race row of the same Monday (30 minutes)
+    expect(race!.targetRunMin).toBe(74)
+    expect(post.map((w) => w.targetRunMin)).toEqual([60, 99, 108])
+    expect(step.draft.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+
+  it('plans the post-race weeks of a race moved a week earlier as the plan with a taper under way does', () => {
+    const at = addDays(raceMonday, -7)
+    const date = addDays(athlete.input.goal.date, -7)
+    const chain = replanChain(athlete.input, { windows: [window], moveGoal: { at, date } })
+    const step = chain.find((s) => s.input.today === at)!
+    expect(step.input.goal.date).toBe(date)
+    const [race, ...post] = weeksOf(step.draft, at, 4)
+    expect(race!.phase).toBe('race')
+    // the weeks after the new race stand above the old plan's post-race rows of the same Mondays
+    expect(post.map((w) => w.targetRunMin)).toEqual([60, 99, 108])
+    expect(step.draft.checklist.filter((c) => !c.ok)).toEqual([])
+  })
+})

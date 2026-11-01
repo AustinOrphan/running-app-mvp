@@ -1386,9 +1386,21 @@ function planWeeks(
       ? lastUntouchedLoading(input.existing?.weeks ?? [], firstMonday, partWeekOf(touchedWeeks))
       : undefined
   /** The most a taper, race or post-race week may hold: that week in the plan being replaced. */
+  // The ceiling holds for the same race only, as the phases carried across a re-plan do
+  // (`carriedPhases`): when the goal date has moved, the plan being replaced has its race, taper and
+  // post-race weeks on other Mondays, and a week of the new race capped by the old plan's row of the
+  // same Monday would be capped by a post-race row.
+  const sameRace =
+    storedRows.get(raceMonday)?.phase === 'race' &&
+    !storedRows.get(raceMonday)!.flags.includes('post-race')
   const heldByPlanBefore = (weekStart: string): number => {
     const was = storedRows.get(weekStart)
-    if (untouchedLevel === undefined || was === undefined || isDisruptedWeek(was.flags)) {
+    if (
+      untouchedLevel === undefined ||
+      !sameRace ||
+      was === undefined ||
+      isDisruptedWeek(was.flags)
+    ) {
       return Infinity
     }
     const taperOrAfter = was.isTaper || was.phase === 'race' || was.flags.includes('post-race')
