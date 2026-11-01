@@ -1786,6 +1786,45 @@ describe('the break-restart item reads the reference week of a hold [rules J7, J
     },
   )
 
+  it('reads the tier of the whole layoff when the runner stopped before the window (half)', () => {
+    // no run for 12 days, then an illness of 8 days from 2027-01-02: at the re-plan of 01-11 the layoff
+    // is 23 days, which J7 restarts at 75%, where the hold of the window alone (9 days) says 90%; the
+    // item read 90% and its message said "after 23 days off, a restart at 90%"
+    const window = windowOf({
+      id: 'ill',
+      reason: 'illness-above-neck',
+      startDate: '2027-01-02',
+      endDate: '2027-01-09',
+    })
+    const chain = replanChain(byId('half').input, { windows: [window] })
+    const base = chain.find((s) => s.input.today === '2027-01-11')!
+    const input = {
+      ...base.input,
+      activities: base.input.activities.filter(
+        (a) => a.date < '2026-12-21' || a.date > '2027-01-01',
+      ),
+    }
+    const state = estimateState(input)
+    expect(state.layoffDays).toBe(23)
+    const draft = replan(input).draft
+    const item = draft.checklist.find((c) => c.id === 'break-restart')!
+    expect(item.ok, item.detail).toBe(true)
+    expect(item.detail).toMatch(/After 23 days off .* a restart at 75% of 270 min/)
+    // a first week that the tier of the hold alone would allow (90% of 270, plus a step) is refused
+    const today = input.today
+    const inflated = draft.sessions.map((s, i) =>
+      i ===
+      draft.sessions.findIndex((x) => x.date >= today && x.kind === 'easy' && x.durationMin > 0)
+        ? { ...s, durationMin: s.durationMin + 60 }
+        : s,
+    )
+    const refused = runChecklist({ ...draft, sessions: inflated }, input).find(
+      (c) => c.id === 'break-restart',
+    )!
+    expect(refused.ok, refused.detail).toBe(false)
+    expect(refused.detail).toMatch(/75% of 270 min, plus one step/)
+  })
+
   it('names the reference week of the hold in the half-marathon case', () => {
     const window = windowOf({
       id: 'ill',

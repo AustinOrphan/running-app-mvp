@@ -16,6 +16,7 @@ import {
   holdReference,
   holdRestartWeeks,
   isDisruptedWeek,
+  restartFraction,
   returnWeeks,
   windowedWeeks,
 } from './disruption.ts'
@@ -617,11 +618,17 @@ function breakRestartItem(
   )
   const ran = new Map(state.weeks.map((w) => [w.weekStart, w.runMin]))
   const reference = hold === undefined ? 0 : holdReference(hold, (weekStart) => ran.get(weekStart))
-  const { restartMin, fraction } =
-    hold !== undefined && reference > 0
-      ? { restartMin: Math.floor(reference * hold.fraction + 1e-9), fraction: hold.fraction }
-      : breakRestart(state.layoffDays, state.typicalWeekMin)
-  const typical = hold !== undefined && reference > 0 ? reference : state.typicalWeekMin
+  // The fraction of the hold counts the days it holds; the layoff counts the days since the last run,
+  // which are more when the runner stopped before the window (J7 reads the whole break), so the
+  // lesser of the two stands.
+  const windowed = hold !== undefined && reference > 0
+  const fraction = windowed
+    ? Math.min(hold.fraction, restartFraction(state.layoffDays))
+    : restartFraction(state.layoffDays)
+  const restartMin = windowed
+    ? Math.floor(reference * fraction + 1e-9)
+    : breakRestart(state.layoffDays, state.typicalWeekMin).restartMin
+  const typical = windowed ? reference : state.typicalWeekMin
   // The first week of a start path, and a ladder week that carries on from the weeks before the
   // break, start above the restart volume by design [rules E6].
   const floorMin =
