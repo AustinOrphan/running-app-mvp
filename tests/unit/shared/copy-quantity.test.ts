@@ -4,6 +4,7 @@ import {
   formatNumber,
   formatQuantity,
   formatRange,
+  formatWeekMinutes,
   ordinal,
   quantityIssue,
 } from '../../../shared/copy/quantity.ts'
@@ -79,9 +80,23 @@ describe('formatQuantity', () => {
     expect(at(0)).toBe('0 s')
   })
 
-  test('plan minutes keep minutes', () => {
-    expect(formatQuantity({ kind: 'minutes', min: 105 }, 'km')).toBe('105 min')
-    expect(formatQuantity({ kind: 'minutes', min: 1.5 }, 'km')).toBe('1.5 min')
+  test('a session length reads in minutes under two hours and in hours and minutes from there', () => {
+    const at = (min: number) => formatQuantity({ kind: 'minutes', min }, 'km')
+    expect(at(1.5)).toBe('1.5 min')
+    expect(at(105)).toBe('105 min')
+    expect(at(119)).toBe('119 min')
+    expect(at(120)).toBe('2 h')
+    expect(at(175)).toBe('2 h 55 min')
+    expect(at(240)).toBe('4 h')
+    expect(at(125.4)).toBe('2 h 5 min')
+  })
+
+  test('a week total reads as hours with one decimal, the same in km and miles', () => {
+    expect(formatWeekMinutes(0)).toBe('0.0 h')
+    expect(formatWeekMinutes(69)).toBe('1.1 h')
+    expect(formatWeekMinutes(114)).toBe('1.9 h')
+    expect(formatWeekMinutes(1218)).toBe('20.3 h')
+    expect(formatWeekMinutes(390)).toBe('6.5 h')
   })
 
   test('heart rate, percentages, shares, counts and temperatures', () => {

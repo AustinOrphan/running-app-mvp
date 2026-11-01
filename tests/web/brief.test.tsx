@@ -224,10 +224,8 @@ describe('Brief page: a brief', () => {
       'Since this brief',
     ])
     // The headline: last week as a figure and the decision, then the race.
-    expect(screen.getByText('Last week you ran 212 of 240 planned minutes.')).toBeInTheDocument()
-    expect(
-      screen.getByText('The plan holds steady: next week is up to 220 min.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Last week you ran 3.5 h of 4.0 h planned.')).toBeInTheDocument()
+    expect(screen.getByText('The plan holds steady: next week is up to 3.7 h.')).toBeInTheDocument()
     expect(screen.getByText('Synthetic half is 8 weeks away.')).toBeInTheDocument()
     expectCleanCopy(container)
   })

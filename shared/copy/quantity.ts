@@ -11,11 +11,14 @@ import {
 import { DEFAULT_WEIGHT_UNIT, isWeightUnit, loadParts } from '../domain/weight.ts'
 import type { Quantity } from '../engine/types.ts'
 import type { Units, WeightUnit } from '../types.ts'
-import { FEET_PER_METRE, formatDuration, milesToM, NO_VALUE } from '../units.ts'
+import { FEET_PER_METRE, formatDuration, milesToM, minutesToHours1, NO_VALUE } from '../units.ts'
 
 export type { Quantity }
 
 const METRES_PER_KM = 1000
+
+/** A session length from this many minutes reads in hours and minutes ("2 h 55 min"). */
+const SESSION_HOURS_FROM_MIN = 120
 
 /** A formatted number and the unit text after it, kept apart so a range can share the unit. */
 export interface QuantityParts {
@@ -118,6 +121,31 @@ function durationParts(sec: number): QuantityParts {
   return { num: text, suffix: '' }
 }
 
+/**
+ * A session length: minutes below two hours ("45 min", "90 min"), hours and minutes from two hours
+ * on ("2 h", "2 h 55 min"). A week's total is not a session: `formatWeekMinutes` writes it.
+ */
+function sessionMinutesParts(min: number): QuantityParts {
+  if (min < SESSION_HOURS_FROM_MIN) return { num: trimmed(min, 1), suffix: ' min' }
+  const total = Math.round(min)
+  const hours = Math.floor(total / 60)
+  const rest = total % 60
+  return {
+    num: rest === 0 ? `${String(hours)} h` : `${String(hours)} h ${String(rest)} min`,
+    suffix: '',
+  }
+}
+
+/**
+ * A week's running time, the one unit for a week total anywhere a sentence states one: hours with
+ * one decimal ("6.5 h"), as the Plan rows and the week meter write it. The figure is kept in
+ * minutes (a `minutes` quantity); a template declares the slot as `weekMinutes` to have it read
+ * like this, so no sentence picks the unit for itself.
+ */
+export function formatWeekMinutes(min: number): string {
+  return `${minutesToHours1(min)} h`
+}
+
 function dateParts(q: Extract<Quantity, { kind: 'date' }>): QuantityParts {
   switch (q.style) {
     case 'weekday':
@@ -158,7 +186,7 @@ export function quantityParts(
     case 'duration':
       return durationParts(q.sec)
     case 'minutes':
-      return { num: trimmed(q.min, 1), suffix: ' min' }
+      return sessionMinutesParts(q.min)
     case 'bpm':
       return { num: trimmed(q.bpm, 1), suffix: ' bpm' }
     case 'percent':

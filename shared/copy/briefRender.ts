@@ -63,7 +63,7 @@ function lastWeekLine(lastWeek: BriefLastWeek, units: Units): string {
   }
   return render(
     BRIEF_TEMPLATES['brief.last-week-ran-of'],
-    { actual: count(lastWeek.ranMin), planned: count(lastWeek.plannedMin) },
+    { actual: minutes(lastWeek.ranMin), planned: minutes(lastWeek.plannedMin) },
     units,
   )
 }

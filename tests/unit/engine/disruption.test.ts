@@ -1202,8 +1202,10 @@ describe('window copy', () => {
     expect(render('start-too-old')).toBe(
       `A window can start up to ${String(P.j9.maxBackdateDays.value)} days ago.`,
     )
+    // A session length of two hours or more reads in hours: the 240 minutes of the range read "4 h".
+    expect(RUN_CAP_MAX_MIN).toBe(240)
     expect(render('cap-out-of-range')).toBe(
-      `The longest run can be ${String(P.fplace.easyRunMinMin.value)} min to ${String(RUN_CAP_MAX_MIN)} min.`,
+      `The longest run can be ${String(P.fplace.easyRunMinMin.value)} min to 4 h.`,
     )
     expect(withValue(P.j9.maxWindowDays, 21, () => render('too-long'))).toBe(
       'A window can last up to 21 days.',

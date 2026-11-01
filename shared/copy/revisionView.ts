@@ -104,14 +104,14 @@ export const REVISION_VIEW_TEMPLATES = {
   'diff.week': tpl('Week of {week}: {what}', { week: 'date', what: 'text' }, { shape: 'label' }),
   'diff.week.minutes': tpl(
     'running time {before} to {after}',
-    { before: 'minutes', after: 'minutes' },
+    { before: 'weekMinutes', after: 'weekMinutes' },
     { shape: 'label' },
   ),
   // A week the re-plan took as run (rules g-2, g-6): the plan stays what it was, and the minutes run
   // are the record beside it, where the line would otherwise read as a target that rose.
   'diff.week.overshoot': tpl(
     'run past its plan, {ran} against {planned}',
-    { ran: 'minutes', planned: 'minutes' },
+    { ran: 'weekMinutes', planned: 'weekMinutes' },
     { shape: 'label' },
   ),
   'diff.week.updated': tpl('updated', {}, { shape: 'label' }),

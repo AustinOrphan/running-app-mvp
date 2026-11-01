@@ -70,19 +70,19 @@ function specFacts(over: Partial<BriefFacts> = {}): BriefFacts {
 describe('the headline', () => {
   test('cites last week and the decision as the spec words them', () => {
     expect(briefHeadline(specFacts(), 'km')).toEqual([
-      'Last week you ran 212 of 240 planned minutes.',
-      'The plan holds steady: next week is up to 220 min.',
+      'Last week you ran 3.5 h of 4.0 h planned.',
+      'The plan holds steady: next week is up to 3.7 h.',
     ])
   })
 
   test('has a sentence for each decision, with “eases” for a reduction', () => {
     const line = (kind: 'progress' | 'hold' | 'reduce' | 'post-race') =>
       briefHeadline(specFacts({ decision: { kind, nextWeekTargetMin: 180 } }), 'km')[1]
-    expect(line('progress')).toBe('The plan moves on: next week is up to 180 min.')
-    expect(line('hold')).toBe('The plan holds steady: next week is up to 180 min.')
-    expect(line('reduce')).toBe('The plan eases: next week is up to 180 min.')
+    expect(line('progress')).toBe('The plan moves on: next week is up to 3.0 h.')
+    expect(line('hold')).toBe('The plan holds steady: next week is up to 3.0 h.')
+    expect(line('reduce')).toBe('The plan eases: next week is up to 3.0 h.')
     expect(line('post-race')).toBe(
-      'The weeks after your race follow a set return schedule: next week is up to 180 min.',
+      'The weeks after your race follow a set return schedule: next week is up to 3.0 h.',
     )
   })
 
@@ -92,7 +92,7 @@ describe('the headline', () => {
         specFacts({ lastWeek: { weekStart: LAST_MONDAY, ranMin: 95, plannedMin: null } }),
         'km',
       )[0],
-    ).toBe('Last week you ran 95 min.')
+    ).toBe('Last week you ran 1.6 h.')
     expect(
       briefHeadline(
         specFacts({ lastWeek: { weekStart: LAST_MONDAY, ranMin: 0, plannedMin: 240 } }),
@@ -107,7 +107,7 @@ describe('the headline', () => {
       specFacts({ lastWeek: { weekStart: LAST_MONDAY, ranMin: 25, plannedMin: 0 } }),
       'km',
     )
-    expect(line).toBe('Last week you ran 25 min.')
+    expect(line).toBe('Last week you ran 0.4 h.')
   })
 
   test('leaves the number out when the suggested minutes are zero', () => {
@@ -118,7 +118,7 @@ describe('the headline', () => {
     expect(line('reduce')).toBe('The plan eases next week.')
     expect(line('post-race')).toBe('The weeks after your race follow a set return schedule.')
     for (const kind of ['progress', 'hold', 'reduce', 'post-race'] as const) {
-      expect(line(kind)).not.toMatch(/\b0 min\b/)
+      expect(line(kind)).not.toMatch(/\b0(?:\.0)? (?:min|h)\b/)
       assertCleanCopy(line(kind) ?? '', kind)
     }
   })

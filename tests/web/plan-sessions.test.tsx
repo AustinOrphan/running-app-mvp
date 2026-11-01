@@ -561,7 +561,7 @@ describe('Plan page, What changed', () => {
     await userEvent.setup().click(within(changed).getByText('What changed'))
     expect(within(changed).getByText('Weekly update')).toBeInTheDocument()
     expect(
-      within(changed).getByText('Week of 11 Jan: running time 300 min to 270 min'),
+      within(changed).getByText('Week of 11 Jan: running time 5.0 h to 4.5 h'),
     ).toBeInTheDocument()
     expect(
       within(changed).getByText('Thu 14 Jan: Threshold intervals 40 min to Easy run 30 min'),

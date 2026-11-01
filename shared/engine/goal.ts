@@ -1,6 +1,7 @@
 // Goal model and feasibility [rules section d]. Pure: no I/O, no clock; `today` is an argument.
 import { daysBetween, mondayOf } from '../dates.ts'
 import type { Goal } from '../types.ts'
+import { minutesToHours1 } from '../units.ts'
 import { startWeekMin, ultraRunCapMin } from './limits.ts'
 import { effective } from './methods.ts'
 import { P } from './params/index.ts'
@@ -475,7 +476,7 @@ export function feasibility(
       notes.push({
         code: 'weekly-path',
         severity: 'info',
-        message: `Weekly running time sets the pace for this goal: growing from about ${Math.round(startMin)} to ${targetMin} minutes a week within the ramp limits takes longer than building the long run. This only labels the outlook; the plan keeps every limit.`,
+        message: `Weekly running time sets the pace for this goal: growing from about ${minutesToHours1(startMin)} to ${minutesToHours1(targetMin)} h a week within the ramp limits takes longer than building the long run. This only labels the outlook; the plan keeps every limit.`,
         rules: ['D4'],
       })
     }

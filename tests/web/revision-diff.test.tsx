@@ -148,7 +148,7 @@ describe('PlanDiffView', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual([
-      'Week of 11 Jan: running time 300 min to 270 min',
+      'Week of 11 Jan: running time 5.0 h to 4.5 h',
       'Thu 14 Jan: Threshold intervals 40 min to Easy run 30 min',
       'Sat 16 Jan: Long run 105 min, added',
       'Sun 17 Jan: Easy run 45 min, taken out',
@@ -294,9 +294,9 @@ describe('RevisionDiff', () => {
       diff: { ...revisionWithDiff().diff!, targets },
     })
     renderWithProviders(<RevisionDiff revision={revision} units="km" />)
-    const summary = screen.getByText(/the target set by hand, 230 min, stays/)
+    const summary = screen.getByText(/the target set by hand, 3\.8 h, stays/)
     expect(summary).toHaveTextContent(
-      "Week of Mon 11 Jan: the target set by hand, 230 min, stays; the plan's own figure would be 209 min. Week of Mon 18 Jan: the target set by hand, 400 min, is lowered to 247 min, the most the limits allow that week (growth over two weeks stays within 30%).",
+      "Week of Mon 11 Jan: the target set by hand, 3.8 h, stays; the plan's own figure would be 3.5 h. Week of Mon 18 Jan: the target set by hand, 6.7 h, is lowered to 4.1 h, the most the limits allow that week (growth over two weeks stays within 30%).",
     )
     expectCleanCopy(document.body)
   })
@@ -308,7 +308,7 @@ describe('RevisionDiff', () => {
     })
     renderWithProviders(<RevisionDiff revision={revision} units="km" />)
     const rows = screen.getAllByRole('listitem')
-    expect(rows[0]).toHaveTextContent('Week of 11 Jan: running time 300 min to 270 min')
+    expect(rows[0]).toHaveTextContent('Week of 11 Jan: running time 5.0 h to 4.5 h')
     expect(rows[0]).toHaveTextContent('The weekly build moved with your recent running.')
     expect(rows[1]).toHaveTextContent(
       'The next quality session is a little shorter. Last week called for holding steady, so the plan did not step up.',
@@ -385,7 +385,7 @@ describe('RevisionDiff', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual([
-      'Week of 18 Jan: Weekly running time 330 min to 300 min',
+      'Week of 18 Jan: Weekly running time 5.5 h to 5.0 h',
       expect.stringMatching(/^Week of 11 Jan: Declined proposal for threshold pace/),
     ])
     // Nothing to restore: the reason is a muted line, and there is no button.

@@ -94,6 +94,7 @@ import type {
 import { deliveredShares } from '../../../shared/engine/tid.ts'
 import { buildZones } from '../../../shared/engine/zones.ts'
 import { formatLoad } from '../../../shared/domain/weight.ts'
+import { minutesToHours1 } from '../../../shared/units.ts'
 import type {
   Activity,
   AthleteProfile,
@@ -644,13 +645,13 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
       'explain.g2-ramp',
       'explain.g2-plan-week',
     ])
-    expect(text(facts[0]!)).toBe('Running time in the week of 12 Oct was 212 min.')
+    expect(text(facts[0]!)).toBe('Running time in the week of 12 Oct was 3.5 h.')
     expect(facts[0]!.sources.map((s) => s.id).sort()).toEqual(['a1', 'a2', 'a3'])
     expect(facts[0]!.window).toEqual({ from: '2026-10-12', to: '2026-10-18' })
     expect(text(facts[1]!)).toBe(
       `The plan adds at most ${String(P.g2.rampSoft.value * 100)}% to a week of running.`,
     )
-    expect(text(facts[2]!)).toBe('The plan sets the week of 19 Oct at up to 250 min.')
+    expect(text(facts[2]!)).toBe('The plan sets the week of 19 Oct at up to 4.2 h.')
   })
 
   test('the ramp is the tightened one of an injury profile', () => {
@@ -663,10 +664,10 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
   test('g-6 compares last week with its plan and caps the next week', () => {
     const ctx = lostWeekCtx()
     const [completion, cap] = factsOf('g-6', ctx)
-    expect(text(completion!)).toBe('In the week of 12 Oct you ran 212 min of 240 min planned.')
+    expect(text(completion!)).toBe('In the week of 12 Oct you ran 3.5 h of 4.0 h planned.')
     // min(250 planned, 212 run x 1.10) = 233
     expect(text(cap!)).toBe(
-      `The week of 19 Oct is capped at 233 min: the lower of the plan and the week before plus ${String(P.g2.rampSoft.value * 100)}%.`,
+      `The week of 19 Oct is capped at 3.9 h: the lower of the plan and the week before plus ${String(P.g2.rampSoft.value * 100)}%.`,
     )
   })
 
@@ -680,8 +681,8 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
     expect(slot(j5[0]!, 'minutes', 'minutes').min).toBe(192)
     const cap = g6.find((f) => f.id === 'g-6.cap')!
     expect(slot(cap, 'minutes', 'minutes').min).toBe(192)
-    expect(text(cap)).toContain('capped at 192 min')
-    expect(text(j5[0]!)).toContain('up to 192 min')
+    expect(text(cap)).toContain('capped at 3.2 h')
+    expect(text(j5[0]!)).toContain('up to 3.2 h')
   })
 
   test('g-6 and J5 give the same cap under the rebuild zone of a plan at standard [rules g-8]', () => {
@@ -824,7 +825,7 @@ describe('g-2 and g-6: the ramp and lost volume', () => {
     const signal = decision.signals.find((s) => s.code === 'completion-low')!
     expect(signal.detail).toContain('31 of 63 planned minutes were run')
     const completion = g6.find((f) => f.id === 'g-6.completion')!
-    expect(text(completion)).toBe('In the week of 12 Oct you ran 31 min of 63 min planned.')
+    expect(text(completion)).toBe('In the week of 12 Oct you ran 0.5 h of 1.1 h planned.')
     const shortfall = j5.find((f) => f.template === 'explain.j5-completion')!
     expect(slot(shortfall, 'actual', 'minutes').min).toBe(31)
     expect(slot(shortfall, 'planned', 'minutes').min).toBe(63)
@@ -874,9 +875,9 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
     `Long runs keep the ${String(P.g1.windowDays.value)}-day rule, and weekly growth stays within ${pct(P.g2.rampCeilingTwoWeeks.value)}% over ${countPhrase(P.g2.ceilingWindowWeeks.value, 'week')} apart from the start and return weeks.`
   /** The block's score is the mean of its weeks without the highest, and the sentence says so. */
   const blockSentence = (ago: string, minutes: number) =>
-    `Four steady weeks ending ${ago} ago; without the highest, they averaged ${String(minutes)} min a week.`
+    `Four steady weeks ending ${ago} ago; without the highest, they averaged ${minutesToHours1(minutes)} h a week.`
   const zoneSentence = (ceilingMin: number, step: number) =>
-    `While a week is under ${String(Math.round(ceilingMin))} min, the plan adds up to ${pct(step)}% a week; past that it adds up to ${pct(P.g2.rampSoft.value)}%.`
+    `While a week is under ${minutesToHours1(Math.round(ceilingMin))} h, the plan adds up to ${pct(step)}% a week; past that it adds up to ${pct(P.g2.rampSoft.value)}%.`
   const gapSentence = (weeks: number) =>
     `No four steady weeks in the last ${String(weeks)} weeks, so the plan builds from recent weeks.`
   // A runner whose weeks after the summer block run at 1.6 times the plan, re-planned every Monday
@@ -1004,7 +1005,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
       const ago = countPhrase(daysBetween(opened.endWeek, mondayOf(step.input.today)) / 7, 'week')
       expect(text(facts[0]!)).toBe(blockSentence(ago, 280))
       expect(text(facts[1]!)).toBe(
-        `This plan began with that block, counted at 100% of its size, and keeps it until a week reaches ${String(Math.round(zone.ceilingMin))} min.`,
+        `This plan began with that block, counted at 100% of its size, and keeps it until a week reaches ${minutesToHours1(Math.round(zone.ceilingMin))} h.`,
       )
       expect(slot(facts[1]!, 'share', 'share').fraction).toBe(opened.taper)
       expect(slot(facts[1]!, 'minutes', 'minutes').min).toBe(Math.round(zone.ceilingMin))
@@ -1263,7 +1264,7 @@ describe('g-8: the history block, the zone, the setting and the response', () =>
         ]
         expect(weekMinutes, `step ${String(k)}`).toContain(planned)
         expect(text(fact)).toBe(
-          `The last ${String(P.g8.responseWeeks.value)} weeks averaged ${String(Math.round(mean!))} min a week, above the ${String(planned)} min planned, so the next week builds from ${String(from)} min.`,
+          `The last ${String(P.g8.responseWeeks.value)} weeks averaged ${minutesToHours1(Math.round(mean!))} h a week, above the ${minutesToHours1(planned)} h planned, so the next week builds from ${minutesToHours1(from)} h.`,
         )
         expect(fact.state).toBe('used')
       }
@@ -2070,7 +2071,7 @@ describe('J2 to J5 and J7: readiness, the decision and breaks', () => {
     )!.facts
     const completion = facts.find((f) => f.template === 'explain.j5-completion')!
     expect(text(completion)).toBe(
-      `60 min of 200 min planned were run, under the ${String(P.j5.completionHoldShare.value * 100)}% the plan looks for.`,
+      `1.0 h of 3.3 h planned were run, under the ${String(P.j5.completionHoldShare.value * 100)}% the plan looks for.`,
     )
   })
 
@@ -2866,7 +2867,7 @@ describe('after a break: E6, D4, D7 and K1 read the state the plan was drawn fro
     )
     // the block's score is the mean of its weeks without the highest, and the sentence says so
     expect(text(standard[2]!)).toBe(
-      'That block is 4 steady weeks that, without the highest, averaged at least 90 min a week and ended within 12 weeks.',
+      'That block is 4 steady weeks that, without the highest, averaged at least 1.5 h a week and ended within 12 weeks.',
     )
     for (const fact of standard) {
       expect(lintText(text(fact)), fact.id).toEqual([])
@@ -2938,9 +2939,7 @@ describe('after a break: E6, D4, D7 and K1 read the state the plan was drawn fro
     // round(200 x 0.75): the tier below 180 min, as the plan used it
     expect(tier!.template).toBe('explain.d7-tier-break')
     expect(slot(tier!, 'typical', 'minutes').min).toBe(150)
-    expect(text(tier!)).toMatch(
-      /^After your break the plan restarts from a typical week of 150 min/,
-    )
+    expect(text(tier!)).toMatch(/^After your break the plan restarts from a typical week of 2\.5 h/)
     // the cap the plan held its longest run to, not the one the unadjusted week would give
     const capFor = (state: ExplainContext['state']) => {
       const pace = trainingPace(state, ctx.race!)
@@ -3633,7 +3632,7 @@ describe('zero minutes are not a number to state', () => {
   test('g-6 leaves the cap out when nothing was run to build on', () => {
     const facts = factsOf('g-6', twoWeeks(100, 110))
     expect(facts.map((f) => f.id)).toEqual(['g-6.completion'])
-    expect(text(facts[0]!)).toBe('In the week of 12 Oct you ran 0 min of 100 min planned.')
+    expect(text(facts[0]!)).toBe('In the week of 12 Oct you ran 0.0 h of 1.7 h planned.')
   })
 })
 

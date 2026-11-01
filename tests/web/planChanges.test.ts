@@ -14,9 +14,9 @@ describe('describeChange', () => {
   test('names each field in words with its unit', () => {
     expect(describeChange(change('targetRunMin', 320, 280))).toEqual({
       label: 'Weekly running time',
-      from: '320 min',
-      to: '280 min',
-      text: 'Weekly running time 320 min to 280 min',
+      from: '5.3 h',
+      to: '4.7 h',
+      text: 'Weekly running time 5.3 h to 4.7 h',
     })
     expect(describeChange(change('longRunMin', 90, 80)).text).toBe('Long run 90 min to 80 min')
     expect(describeChange(change('runDays', 4, 5)).text).toBe('Run days 4 to 5')

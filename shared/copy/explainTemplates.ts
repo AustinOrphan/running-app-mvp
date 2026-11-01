@@ -30,12 +30,12 @@ export const EXPLAIN_TEMPLATES = {
   // g-2: the weekly ramp
   'explain.g2-last-week': tpl('Running time in the week of {week} was {minutes}.', {
     week: 'date',
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
   'explain.g2-ramp': tpl('The plan adds at most {pct} to a week of running.', { pct: 'percent' }),
   'explain.g2-plan-week': tpl('The plan sets the week of {week} at up to {minutes}.', {
     week: 'date',
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
   // A week set at no running (a rest window, the rest after a race) has no minutes to state.
   'explain.g2-plan-week-none': tpl('The plan sets no running for the week of {week}.', {
@@ -49,12 +49,12 @@ export const EXPLAIN_TEMPLATES = {
   // g-6: lost volume is never made up
   'explain.g6-completion': tpl('In the week of {week} you ran {actual} of {planned} planned.', {
     week: 'date',
-    actual: 'minutes',
-    planned: 'minutes',
+    actual: 'weekMinutes',
+    planned: 'weekMinutes',
   }),
   'explain.g6-cap': tpl(
     'The week of {week} is capped at {minutes}: the lower of the plan and the week before plus {pct}.',
-    { week: 'date', minutes: 'minutes', pct: 'percent' },
+    { week: 'date', minutes: 'weekMinutes', pct: 'percent' },
   ),
   'explain.g6-gap': tpl(
     'No planned minutes are on file for the week of {week}, so there is nothing to compare your running with.',
@@ -71,7 +71,7 @@ export const EXPLAIN_TEMPLATES = {
     {
       blocks: 'text',
       ago: 'text',
-      minutes: 'minutes',
+      minutes: 'weekMinutes',
     },
   ),
   'explain.g8-taper': tpl(
@@ -83,11 +83,11 @@ export const EXPLAIN_TEMPLATES = {
   ),
   'explain.g8-kept': tpl(
     'This plan began with that block, counted at {share} of its size, and keeps it until a week reaches {minutes}.',
-    { share: 'share', minutes: 'minutes' },
+    { share: 'share', minutes: 'weekMinutes' },
   ),
   'explain.g8-zone': tpl(
     'While a week is under {minutes}, the plan adds up to {pct} a week; past that it adds up to {soft}.',
-    { minutes: 'minutes', pct: 'percent', soft: 'percent' },
+    { minutes: 'weekMinutes', pct: 'percent', soft: 'percent' },
   ),
   'explain.g8-setting': tpl(
     'Load setting: {position}. It sets how fast the plan adds running time while rebuilding.',
@@ -99,7 +99,7 @@ export const EXPLAIN_TEMPLATES = {
   }),
   'explain.g8-response': tpl(
     'The last {n} weeks averaged {mean} a week, above the {planned} planned, so the next week builds from {from}.',
-    { n: 'count', mean: 'minutes', planned: 'minutes', from: 'minutes' },
+    { n: 'count', mean: 'weekMinutes', planned: 'weekMinutes', from: 'weekMinutes' },
   ),
   'explain.g8-none': tpl(
     'No {blocks} in the last {weeks} weeks, so the plan builds from recent weeks.',
@@ -326,15 +326,15 @@ export const EXPLAIN_TEMPLATES = {
   // J5: the weekly decision
   'explain.j5-progress': tpl(
     'For the week of {week} the plan reads progress, so the next week is up to {minutes}.',
-    { week: 'date', minutes: 'minutes' },
+    { week: 'date', minutes: 'weekMinutes' },
   ),
   'explain.j5-hold': tpl(
     'For the week of {week} the plan holds the volume, so the next week is up to {minutes}.',
-    { week: 'date', minutes: 'minutes' },
+    { week: 'date', minutes: 'weekMinutes' },
   ),
   'explain.j5-reduce': tpl(
     'For the week of {week} the plan eases the volume, so the next week is up to {minutes}.',
-    { week: 'date', minutes: 'minutes' },
+    { week: 'date', minutes: 'weekMinutes' },
   ),
   // The same three sentences when the suggested minutes are zero: "up to 0 min" would read as a
   // week with nothing to run, which is not what the decision says.
@@ -349,7 +349,7 @@ export const EXPLAIN_TEMPLATES = {
   }),
   'explain.j5-completion': tpl(
     '{actual} of {planned} planned were run, under the {share} the plan looks for.',
-    { actual: 'minutes', planned: 'minutes', share: 'share' },
+    { actual: 'weekMinutes', planned: 'weekMinutes', share: 'share' },
   ),
   'explain.j5-reds': tpl('The energy-availability screen showed {n} signs, so progression holds.', {
     n: 'count',
@@ -748,12 +748,12 @@ export const EXPLAIN_TEMPLATES = {
   ),
   'explain.d7-tier': tpl(
     'Your typical week is {typical}, which caps the longest run for this goal at {cap}.',
-    { typical: 'minutes', cap: 'minutes' },
+    { typical: 'weekMinutes', cap: 'minutes' },
   ),
   // After a break of 7 days or more the plan restarts from a lower typical week [rules J7].
   'explain.d7-tier-break': tpl(
     'After your break the plan restarts from a typical week of {typical}, which caps the longest run for this goal at {cap}.',
-    { typical: 'minutes', cap: 'minutes' },
+    { typical: 'weekMinutes', cap: 'minutes' },
   ),
   'explain.d7-gap': tpl(
     'The longest run for a 5 km or 10 km goal comes from your typical week; no weeks with a run are on file.',
@@ -777,7 +777,7 @@ export const EXPLAIN_TEMPLATES = {
   ),
   'explain.e3-next': tpl(
     'The next recovery week in your plan starts on {week}, with up to {minutes} of running.',
-    { week: 'date', minutes: 'minutes' },
+    { week: 'date', minutes: 'weekMinutes' },
   ),
   // A recovery week that a rest window holds whole has no minutes to state.
   'explain.e3-next-none': tpl(
@@ -832,7 +832,7 @@ export const EXPLAIN_TEMPLATES = {
   ),
   'explain.e6-lift-block-weeks': tpl(
     'That block is {blocks} steady weeks that, without the highest, averaged at least {minimum} a week and ended within {weeks} weeks.',
-    { blocks: 'count', minimum: 'minutes', weeks: 'count' },
+    { blocks: 'count', minimum: 'weekMinutes', weeks: 'count' },
   ),
   'explain.e6-injury': tpl(
     'You start on the return ladder at runs of {session}, because of an injury in your profile.',
@@ -840,7 +840,7 @@ export const EXPLAIN_TEMPLATES = {
   ),
   'explain.e6-none': tpl(
     'You already run enough to skip a start path: the plan builds from your start level of {level} a week.',
-    { level: 'minutes' },
+    { level: 'weekMinutes' },
   ),
   // The gap names what is missing only; the path sentence beside it says where the plan starts.
   'explain.e6-gap': tpl('No run is on file in the last {days} days.', { days: 'count' }),
@@ -1040,7 +1040,7 @@ export const EXPLAIN_TEMPLATES = {
   ),
   'explain.k2-week': tpl('The taper week of {week} is set at up to {minutes}.', {
     week: 'date',
-    minutes: 'minutes',
+    minutes: 'weekMinutes',
   }),
   // A taper week that a rest window holds whole has no minutes to state.
   'explain.k2-week-none': tpl('The taper week of {week} has no running set.', { week: 'date' }),

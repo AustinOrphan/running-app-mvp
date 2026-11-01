@@ -495,7 +495,7 @@ describe('the weekly target [rules G-2, G-6]', () => {
     expect(over.guards[0]).toMatchObject({
       rules: ['G-2', 'G-6'],
       message:
-        'The week of Mon 26 Oct would hold 175 min of running, above its 150 min target (rules G-2, G-6).',
+        'The week of Mon 26 Oct would hold 2.9 h of running, above its 2.5 h target (rules G-2, G-6).',
     })
     expect(
       check(skipped, { type: 'restore' }, sessions, { weekTargetMin: 175, completedRuns: LONG_RUN })

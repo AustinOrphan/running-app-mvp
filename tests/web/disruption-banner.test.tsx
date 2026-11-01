@@ -96,7 +96,7 @@ describe('DisruptionBanner, the line for each phase', () => {
       { reason: 'travel', mode: 'limited', maxRunMin: 30, phase: 'limited' },
       'Travelling: runs up to 30 min until Fri 20 Mar.',
     ],
-    ['the return week', { phase: 'returning', returnWeekMin: 240 }, 'Return week: up to 240 min.'],
+    ['the return week', { phase: 'returning', returnWeekMin: 240 }, 'Return week: up to 4.0 h.'],
     [
       'a window that has not started',
       { phase: 'upcoming', startDate: '2026-03-23', endDate: '2026-03-25' },

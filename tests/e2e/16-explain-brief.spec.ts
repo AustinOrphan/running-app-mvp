@@ -479,7 +479,7 @@ test('Why on a plan check gives the taper of the plan from the goal', async () =
   )
   if (plan.checklist[index]!.rules.includes('K2')) {
     await expect(numbers.getByRole('group', { name: 'Taper volume' })).toContainText(
-      /The taper week of \d{1,2} \w{3} is set at up to \d+ min\./,
+      /The taper week of \d{1,2} \w{3} is set at up to \d+\.\d h\./,
     )
   }
   await noSidewaysScroll()

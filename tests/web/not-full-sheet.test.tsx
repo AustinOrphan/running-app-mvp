@@ -423,7 +423,7 @@ describe('Not 100%, step 3', () => {
     ).toBeInTheDocument()
     expect(
       within(dialog).getByText(
-        'Running time over the next four weeks: 1,140 min becomes 1,010 min. The minutes you rest are not added back.',
+        'Running time over the next four weeks: 19.0 h becomes 16.8 h. The minutes you rest are not added back.',
       ),
     ).toBeInTheDocument()
     const worth = within(dialog).getByRole('list', { name: 'Worth knowing' })
@@ -469,7 +469,7 @@ describe('Not 100%, step 3', () => {
     await toReview(user, dialog)
     expect(
       within(dialog).getByText(
-        'Running time over the next four weeks: 600 min becomes 480 min. The minutes you rest are not added back.',
+        'Running time over the next four weeks: 10.0 h becomes 8.0 h. The minutes you rest are not added back.',
       ),
     ).toBeInTheDocument()
   })
@@ -592,7 +592,7 @@ describe('Not 100%, step 3', () => {
     ).not.toBeInTheDocument()
     expect(
       within(dialog).getByText(
-        'Running time over the next four weeks: 1,140 min becomes 980 min. The minutes you rest are not added back.',
+        'Running time over the next four weeks: 19.0 h becomes 16.3 h. The minutes you rest are not added back.',
       ),
     ).toBeInTheDocument()
 

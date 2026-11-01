@@ -33,7 +33,7 @@ export const WINDOW_VIEW_TEMPLATES = {
     'Easy running only until {until}. Hard sessions return on {date}.',
     { until: 'date', date: 'date' },
   ),
-  'window-view.banner.returning': tpl('Return week: up to {max}.', { max: 'minutes' }),
+  'window-view.banner.returning': tpl('Return week: up to {max}.', { max: 'weekMinutes' }),
   'window-view.banner.returning-open': tpl(
     'Return week: a gentler build back to the planned week.',
   ),
@@ -55,17 +55,17 @@ export const WINDOW_VIEW_TEMPLATES = {
   // The preview of a window: the running time it changes, and what it cannot decide for the runner.
   'window-view.minutes-less': tpl(
     'Running time over the next four weeks: {before} becomes {after}. The minutes you rest are not added back.',
-    { before: 'text', after: 'text' },
+    { before: 'weekMinutes', after: 'weekMinutes' },
   ),
   'window-view.minutes-more': tpl(
     'Running time over the next four weeks: {before} becomes {after}.',
     {
-      before: 'text',
-      after: 'text',
+      before: 'weekMinutes',
+      after: 'weekMinutes',
     },
   ),
   'window-view.minutes-same': tpl('Running time over the next four weeks stays at {total}.', {
-    total: 'text',
+    total: 'weekMinutes',
   }),
   'window-view.race-day': tpl(
     'The window includes race day. The plan keeps the race; whether to start is your decision.',
@@ -186,24 +186,17 @@ function symptomFreeWait(): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 }
 
-/** "1,240 min": a total of minutes with a thousands separator, for a sum across weeks. */
-export function totalMinutesText(min: number): string {
-  return `${Math.round(min).toLocaleString('en-US')} min`
-}
-
 /**
- * The running-time line of a preview: the minutes the next four weeks hold now and after the
- * action. Only a line that shows minutes taken away says they are not added back; undoing or
- * shortening a window can give minutes back, and that line does not.
+ * The running-time line of a preview: the time the next four weeks hold now and after the action,
+ * as hours ("20.3 h becomes 17.4 h"), the unit of a week's total. Only a line that shows time taken
+ * away says it is not added back; undoing or shortening a window can give time back, and that
+ * line does not.
  */
 export function runningTimeLine(figures: { before: number; after: number }, units: Units): string {
   if (figures.before === figures.after) {
-    return render(t['window-view.minutes-same'], { total: totalMinutesText(figures.before) }, units)
+    return render(t['window-view.minutes-same'], { total: mins(figures.before) }, units)
   }
-  const slots = {
-    before: totalMinutesText(figures.before),
-    after: totalMinutesText(figures.after),
-  }
+  const slots = { before: mins(figures.before), after: mins(figures.after) }
   return figures.after < figures.before
     ? render(t['window-view.minutes-less'], slots, units)
     : render(t['window-view.minutes-more'], slots, units)

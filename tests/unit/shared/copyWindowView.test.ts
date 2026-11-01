@@ -12,7 +12,6 @@ import {
   restPromptWords,
   runningTimeLine,
   stalePreviewLine,
-  totalMinutesText,
   windowBannerLine,
   type BannerWindow,
 } from '../../../shared/copy/windowView.ts'
@@ -66,7 +65,7 @@ describe('windowBannerLine', () => {
     expect(line({ reason: 'travel', mode: 'limited', maxRunMin: 30, phase: 'limited' })).toBe(
       'Travelling: runs up to 30 min until Sat 24 Oct.',
     )
-    expect(line({ phase: 'returning', returnWeekMin: 240 })).toBe('Return week: up to 240 min.')
+    expect(line({ phase: 'returning', returnWeekMin: 240 })).toBe('Return week: up to 4.0 h.')
   })
 
   it('reads the n-3 wait from the Params, not from a number in the text', () => {
@@ -134,21 +133,21 @@ describe('windowBannerLine', () => {
 })
 
 describe('the preview lines', () => {
-  it('writes a total of minutes with a thousands separator', () => {
-    expect(totalMinutesText(1240)).toBe('1,240 min')
-    expect(totalMinutesText(980.4)).toBe('980 min')
-    expect(totalMinutesText(0)).toBe('0 min')
+  it('writes a total of running time as hours with one decimal, the unit of a week', () => {
+    expect(runningTimeLine({ before: 1218, after: 1044 }, 'km')).toContain('20.3 h becomes 17.4 h')
+    expect(runningTimeLine({ before: 0, after: 0 }, 'km')).toContain('stays at 0.0 h')
+    expect(runningTimeLine({ before: 980.4, after: 980.4 }, 'km')).toContain('stays at 16.3 h')
   })
 
-  it('says minutes taken away are not added back, and only then', () => {
+  it('says time taken away is not added back, and only then', () => {
     expect(runningTimeLine({ before: 1240, after: 1020 }, 'km')).toBe(
-      'Running time over the next four weeks: 1,240 min becomes 1,020 min. The minutes you rest are not added back.',
+      'Running time over the next four weeks: 20.7 h becomes 17.0 h. The minutes you rest are not added back.',
     )
     expect(runningTimeLine({ before: 1020, after: 1240 }, 'km')).toBe(
-      'Running time over the next four weeks: 1,020 min becomes 1,240 min.',
+      'Running time over the next four weeks: 17.0 h becomes 20.7 h.',
     )
     expect(runningTimeLine({ before: 900, after: 900 }, 'km')).toBe(
-      'Running time over the next four weeks stays at 900 min.',
+      'Running time over the next four weeks stays at 15.0 h.',
     )
   })
 

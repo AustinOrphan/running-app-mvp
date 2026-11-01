@@ -301,13 +301,13 @@ describe('the body of a window', () => {
       'a longest run under the least easy run',
       cold({ reason: 'travel', mode: 'limited', maxRunMin: 10 }),
       'maxRunMin',
-      /20 min to 240 min/,
+      /20 min to 4 h/,
     ],
     [
       'a longest run above the range',
       cold({ reason: 'travel', mode: 'limited', maxRunMin: 300 }),
       'maxRunMin',
-      /20 min to 240 min/,
+      /20 min to 4 h/,
     ],
     [
       'a rest window with a run length',

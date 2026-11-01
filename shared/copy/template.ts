@@ -6,16 +6,24 @@
 // everywhere else, so a page never shows "undefined" or "NaN".
 import type { Quantity } from '../engine/types.ts'
 import type { Units, WeightUnit } from '../types.ts'
-import { formatQuantity, quantityIssue } from './quantity.ts'
+import { formatQuantity, formatWeekMinutes, quantityIssue } from './quantity.ts'
 
-/** What a slot holds: one kind of `Quantity`, or `text` for words that are not numbers. */
-export type SlotKind = Quantity['kind'] | 'text'
+/**
+ * What a slot holds: one kind of `Quantity`, `text` for words that are not numbers, or
+ * `weekMinutes`, a week's running time. A `weekMinutes` slot takes a `minutes` quantity, as every
+ * stored figure of a week is kept, and reads it as hours (`formatWeekMinutes`), so the unit of a
+ * week total is set here and not in each sentence.
+ */
+export type SlotKind = Quantity['kind'] | 'weekMinutes' | 'text'
 export type SlotSpec = Readonly<Record<string, SlotKind>>
+
+/** The kind of `Quantity` that a slot of kind `K` takes. */
+type QuantityKindOf<K extends SlotKind> = K extends 'weekMinutes' ? 'minutes' : K
 
 /** The value a slot of kind `K` takes. */
 export type SlotValue<K extends SlotKind> = K extends 'text'
   ? string
-  : Extract<Quantity, { kind: K }>
+  : Extract<Quantity, { kind: QuantityKindOf<K> }>
 
 /** The values `render` needs for a template with slots `S`; a template with no slots takes none. */
 export type SlotValues<S extends SlotSpec> = [keyof S] extends [never]
@@ -126,7 +134,8 @@ function slotIssue(kind: SlotKind, value: unknown): string | null {
   const issue = quantityIssue(value)
   if (issue !== null) return `needs a ${kind}: ${issue}`
   const actual = (value as { kind: string }).kind
-  return actual === kind ? null : `needs a ${kind}, got a ${actual}`
+  const expected = kind === 'weekMinutes' ? 'minutes' : kind
+  return actual === expected ? null : `needs a ${kind}, got a ${actual}`
 }
 
 /**
@@ -170,9 +179,9 @@ export function render<S extends SlotSpec>(
     }
     const value = values[name]
     if (slotIssue(kind, value) !== null) return '' // reported above
-    return kind === 'text'
-      ? (value as string)
-      : formatQuantity(value as Quantity, units, weightUnit)
+    if (kind === 'text') return value as string
+    if (kind === 'weekMinutes') return formatWeekMinutes((value as { min: number }).min)
+    return formatQuantity(value as Quantity, units, weightUnit)
   })
 
   const strict = isCopyStrict()
@@ -190,6 +199,7 @@ const SAMPLES: { readonly [K in SlotKind]: SlotValue<K> } = {
   climb: { kind: 'climb', m: 1200 },
   duration: { kind: 'duration', sec: 99600 },
   minutes: { kind: 'minutes', min: 105 },
+  weekMinutes: { kind: 'minutes', min: 1218 },
   bpm: { kind: 'bpm', bpm: 165 },
   percent: { kind: 'percent', pct: 12.5 },
   share: { kind: 'share', fraction: 0.825 },
