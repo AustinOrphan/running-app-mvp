@@ -2102,8 +2102,7 @@ things stand" gives counts and percentages without a weekly total or a date.
     5. There is no trends or season view: `useWellness` (`web/api/wellness.ts`) has no consumer,
        and the charts stop at 12 weeks (`web/pages/StatsPage.tsx`).
     6. The README's weather privacy sentence is false: GPS activities and race climates always go
-       to Open-Meteo, and `useHomeWeather` gates only the home fallback. The sentence has not been
-       changed.
+       to Open-Meteo, and `useHomeWeather` gates only the home fallback. Corrected in this PR.
 
     The narrowed survivors, one sentence each:
 
