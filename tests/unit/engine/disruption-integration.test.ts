@@ -18,7 +18,7 @@ import { matchSessions } from '../../../shared/engine/execution.ts'
 import { applyGuards } from '../../../shared/engine/guards.ts'
 import { buildPlan, keptByReplan, replan, runChecklist } from '../../../shared/engine/index.ts'
 import { injuryTight, tightRamp, weeklyRamp } from '../../../shared/engine/limits.ts'
-import { startPath } from '../../../shared/engine/macro.ts'
+import { startPath, taperMultipliers } from '../../../shared/engine/macro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { illnessPhase } from '../../../shared/engine/readiness.ts'
 import type {
@@ -1304,4 +1304,83 @@ describe('the restart week of a hold is cut from a week the window left [rules E
       }
     }
   }, 240_000)
+})
+
+describe('the taper is cut from the week as it has no window [rules K2, J9]', () => {
+  // Found by the second review of RF2 (2026-11-01). The taper was held below the week before it as
+  // placed (`before.at(-1).targetRunMin - 1`), so a window in the last loading week, which shrinks or
+  // empties that week, took the taper down with it: the half-marathon athlete planned 0 minutes in
+  // both taper weeks after a hold of 7 days, and the marathon athlete 0, 0, 0 (the checklist's taper
+  // item failed). The taper now falls from the figure the part week has without the window, as the
+  // cut of a recovery week does, and the checklist reads the fall from the last week no window touched.
+  //
+  // The window opens on the Monday of the last loading week before the taper, so that a hold of 3 days
+  // leaves the taper week alone, one of 7 days ends on the Sunday and sends the taper week back as
+  // the return week, and one of 10 and one of 15 days run into it (3 and 7 days of it held). The
+  // half-marathon athlete tapers over 2 weeks (the race week is the second) and the marathon athlete
+  // over 3.
+  const HOLDS = [3, 7, 10, 15]
+  const UNEQUAL_DAYS = 0.9
+
+  describe.each([
+    ['half', 2],
+    ['marathon', 3],
+  ])('%s, a taper of %i weeks', (id, weeks) => {
+    const athlete = byId(id)
+    const base = buildPlan(athlete.input)
+    const taperWeeks = base.weeks.filter(
+      (w) => (w.isTaper || w.phase === 'race') && !w.flags.includes('post-race'),
+    )
+    const first = taperWeeks[0]!
+    const lastLoading = base.weeks
+      .filter((w) => w.weekStart < first.weekStart && !w.isRecovery && !w.isTaper)
+      .at(-1)!
+
+    it('has the taper the case is about', () => {
+      expect(taperWeeks).toHaveLength(weeks)
+      expect(first.isTaper).toBe(true)
+    })
+
+    it.each(HOLDS)(
+      'holds the first taper week up after a hold of %i days from the Monday of the last loading week',
+      (days) => {
+        const window = windowOf({
+          id: 'taper',
+          reason: 'travel',
+          startDate: lastLoading.weekStart,
+          endDate: addDays(lastLoading.weekStart, days - 1),
+        })
+        const dplan = disruptionPlan([window])
+        const plan = buildPlan(withWindows(athlete, window))
+        const week = plan.weeks.find((w) => w.weekStart === first.weekStart)!
+        // the days of the taper week the window holds, and the J7 fraction when the window sends the
+        // runner back in it
+        const lost = dplan.days.filter(
+          (d) => d.held && d.date >= first.weekStart && d.date <= addDays(first.weekStart, 6),
+        ).length
+        const hold = dplan.holds.find(
+          (h) => h.returnWeekStart === first.weekStart || h.fullWeekStart === first.weekStart,
+        )
+        const fraction = hold === undefined ? 1 : hold.fraction
+        // a day's minutes are not an equal share of the week (the long run weighs more)
+        const floor = Math.floor(first.targetRunMin * ((7 - lost) / 7) * fraction * UNEQUAL_DAYS)
+        expect(week.targetRunMin, `${days} days: ${lost} of 7 days held`).toBeGreaterThanOrEqual(
+          floor,
+        )
+        if (lost === 0 && fraction === 1) {
+          // a window that leaves the taper week alone leaves its K2 figure alone: not under the
+          // multiplier of the last loading week no window touched
+          const untouched = plan.weeks
+            .filter((w) => w.weekStart < lastLoading.weekStart && !w.isRecovery && !w.isTaper)
+            .at(-1)!
+          const multiplier = taperMultipliers(weeks)[0]!
+          expect(week.targetRunMin).toBeGreaterThanOrEqual(
+            Math.floor(untouched.targetRunMin * multiplier * UNEQUAL_DAYS),
+          )
+        }
+        // and the taper still falls week by week, as the checklist reads it
+        expect(plan.checklist.find((c) => c.id === 'taper')!.ok).toBe(true)
+      },
+    )
+  })
 })

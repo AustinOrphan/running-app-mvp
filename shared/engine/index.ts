@@ -421,20 +421,22 @@ function takenAsRun(week: WeekDraft, ranMin: number): WeekDraft {
 }
 
 /**
- * The figure a recovery week is cut from [rule E3]: that of the last loading week before it. A week
- * a window took days from is a part week, and the minutes the window left are no base: `partFigure`
- * is null for a week no window touched; for one that is, it is the figure the week has without the
- * window (the cut is then taken from that, as a day closed in the week must not change the cut of
- * the week after it, relation 5.3), or Infinity where the week was run or stored as cut, and the cut
- * then goes back to the last loading week the window left. Undefined where there is none.
+ * The figure a cut is taken from: that of the last week before it (the last loading week for the
+ * cut of a recovery week [rule E3], any week for the fall of a taper [rule K2]). A week a window took
+ * days from is a part week, and the minutes the window left are no base: `partFigure` is null for a
+ * week no window touched; for one that is, it is the figure the week has without the window (the cut
+ * is then taken from that, as a day closed in the week must not change the cut of the week after it,
+ * relation 5.3), or Infinity where the week was run or stored as cut, and the cut then goes back to
+ * the last week the window left. Undefined where there is none.
  */
 function cutBase(
   before: readonly WeekDraft[],
   partFigure: (week: WeekDraft) => number | null,
+  loadingOnly = true,
 ): number | undefined {
   for (let i = before.length - 1; i >= 0; i -= 1) {
     const x = before[i]!
-    if (x.isRecovery || x.isTaper) continue
+    if (loadingOnly && (x.isRecovery || x.isTaper)) continue
     const figure = partFigure(x)
     if (figure === null) return x.targetRunMin
     if (Number.isFinite(figure)) return figure
@@ -732,33 +734,35 @@ function generate(
     // [rules E3, K2, J9].
     if (!isCurrent && keptAhead.length === 0) {
       const before = [...pastWeeks, ...macro.slice(0, w)]
+      // a week a window took days from: stored as cut by an earlier window, or reached by the
+      // windows now reported
+      const part = (x: WeekDraft) =>
+        windowed.includes(x.weekStart) || (x.weekStart < currentMonday && isDisruptedWeek(x.flags))
+      const untouched = () => cutBase(before, (x) => (part(x) ? Infinity : null))
+      const storedCut = (weekStart: string) =>
+        (input.existing?.weeks ?? []).some(
+          (o) => o.weekStart === weekStart && isDisruptedWeek(o.flags),
+        )
+      const partFigure = (x: WeekDraft) => {
+        if (!part(x)) return null
+        if (x.weekStart < currentMonday) return Infinity
+        // the week in progress, stored as cut by a window of the plan it replaces, draws its
+        // sequence from the last week the window left when that is higher
+        if (x.weekStart === currentMonday && storedCut(x.weekStart)) {
+          return Math.max(x.targetRunMin, untouched() ?? 0)
+        }
+        return unwindowed.get(x.weekStart) ?? x.targetRunMin
+      }
       if (week.isRecovery && !week.flags.includes('post-race')) {
-        // a week a window took days from: stored as cut by an earlier window, or reached by the
-        // windows now reported
-        const part = (x: WeekDraft) =>
-          windowed.includes(x.weekStart) ||
-          (x.weekStart < currentMonday && isDisruptedWeek(x.flags))
-        const untouched = cutBase(before, (x) => (part(x) ? Infinity : null))
-        const storedCut = (weekStart: string) =>
-          (input.existing?.weeks ?? []).some(
-            (o) => o.weekStart === weekStart && isDisruptedWeek(o.flags),
-          )
-        const base = cutBase(before, (x) => {
-          if (!part(x)) return null
-          if (x.weekStart < currentMonday) return Infinity
-          // the week in progress, stored as cut by a window of the plan it replaces, draws its
-          // sequence from the last week the window left when that is higher
-          if (x.weekStart === currentMonday && storedCut(x.weekStart)) {
-            return Math.max(x.targetRunMin, untouched ?? 0)
-          }
-          return unwindowed.get(x.weekStart) ?? x.targetRunMin
-        })
+        const base = cutBase(before, partFigure)
         const cut = P.e3.recoveryWeekCutPct.value / 100
         if (base !== undefined) {
           planWeek = capWeek(planWeek, Math.floor(base * (1 - cut) + 1e-9))
         }
       } else if (week.isTaper && before.length > 0) {
-        planWeek = capWeek(planWeek, Math.max(0, before.at(-1)!.targetRunMin - 1))
+        // the week before it falls to the taper: read as the cut of a recovery week reads it
+        const prev = cutBase(before, partFigure, false)
+        if (prev !== undefined) planWeek = capWeek(planWeek, Math.max(0, prev - 1))
       }
     }
     // Inside the weekly ramp and the gain ramp, over what is run and placed [rules g-2, H4].

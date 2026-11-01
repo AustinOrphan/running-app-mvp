@@ -398,18 +398,20 @@ function taper(draft: PlanDraft): ChecklistResult {
   }
   const failures: string[] = []
   const first = taperWeeks[0]!
-  const before = weeks.filter((w) => w.weekStart < first.weekStart && !w.isRecovery).slice(-1)[0]
-  if (before !== undefined && first.targetRunMin >= before.targetRunMin) {
-    failures.push(`taper starts at ${first.targetRunMin} min, not below ${before.targetRunMin} min`)
-  }
-  for (let i = 1; i < taperWeeks.length; i++) {
-    const prev = taperWeeks[i - 1]!
-    const week = taperWeeks[i]!
-    if (week.targetRunMin >= prev.targetRunMin) {
+  // A week a window took days from holds the minutes the window left, and the taper is cut from the
+  // week as it has no window [rules K2, J9]: the fall is read from the last week no window touched.
+  let reference = weeks
+    .filter((w) => w.weekStart < first.weekStart && !w.isRecovery && !isDisruptedWeek(w.flags))
+    .slice(-1)[0]
+  for (const week of taperWeeks) {
+    if (reference !== undefined && week.targetRunMin >= reference.targetRunMin) {
       failures.push(
-        `week of ${week.weekStart} (${week.targetRunMin} min) does not fall from ${prev.targetRunMin} min`,
+        week === first
+          ? `taper starts at ${week.targetRunMin} min, not below ${reference.targetRunMin} min`
+          : `week of ${week.weekStart} (${week.targetRunMin} min) does not fall from ${reference.targetRunMin} min`,
       )
     }
+    if (!isDisruptedWeek(week.flags)) reference = week
   }
   // the runs of the race week after the race belong to the return steps, not to the taper [H12]
   const taperSessions = draft.sessions.filter((s) => !s.flags.includes('post-race'))
