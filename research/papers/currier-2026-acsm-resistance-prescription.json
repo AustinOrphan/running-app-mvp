@@ -47,17 +47,17 @@
       "note": "Published March 2026 and the latest consensus; it supersedes acsm-2009-progression-models-resistance, which is why that record is marked superseded. It postdates and agrees with grgic-2022-failure-vs-nonfailure, vieira-2021-failure-vs-nonfailure and refalo-2022-proximity-hypertrophy."
     },
     "r4": {
-      "result": "pass",
-      "note": "That failure is not necessary for strength agrees with grgic-2022-failure-vs-nonfailure (Schoenfeld is an author of both, so not independent), vieira-2021-failure-vs-nonfailure (a different group) and robinson-2024-proximity-failure-meta; martikainen-2025-varying-proximity-failure (a randomised trial) found no strength difference between 1 and 4-to-1 in reserve. The 2-3 in reserve target is the panel's view and no read source tests it directly."
+      "result": "hold",
+      "note": "That failure is not necessary for strength agrees with grgic-2022-failure-vs-nonfailure (Schoenfeld is an author of both, so not independent), vieira-2021-failure-vs-nonfailure (a different group) and robinson-2024-proximity-failure-meta; martikainen-2025-varying-proximity-failure (a randomised trial) found no strength difference between 1 and 4-to-1 in reserve. The 2-3 in reserve target is the panel's view and no read source tests it directly. second pass: held. The conclusion on failure summarises the reviews it cites for it (Davies 2016, which is not in the corpus, grgic-2022-failure-vs-nonfailure, vieira-2021-failure-vs-nonfailure and a 2024 umbrella review), and the sentence on near-failure or 2-3 in reserve cites, beside robinson-2024-proximity-failure-meta and refalo-2022-proximity-hypertrophy, a 2024 trial of the Refalo group and the practitioner column helms-2016-rir-rpe-application. The agreement with those records is therefore that of one body of trials and not independent confirmation, and Schoenfeld is an author of the stand, of grgic-2022 and of martikainen-2025-varying-proximity-failure, the one trial in the corpus outside that body."
     },
     "r5": {
       "result": "pass",
-      "note": "Population stated: healthy adults in randomised trials of at least 6 weeks, outcomes of strength, size, power and function. Use for runners, for concurrent training and for the engine's heavy sets is extrapolated; the stand does not cover endurance athletes."
+      "note": "Population stated: healthy adults in randomised trials of at least 6 weeks, outcomes of strength, size, power and function. Use for runners, for concurrent training and for the engine's heavy sets is extrapolated; the stand does not cover endurance athletes. second pass: pass kept. The stand's own section on running performance finds insufficient data to say whether standard resistance training changes running performance against no training, and only velocity-based training was positive against standard training, so the stand adds no support for the runner case beyond what it says for healthy adults."
     },
     "r6": {
       "result": "n/a",
       "note": "A journal paper; a consensus statement is graded by content, not by its label. The statement that failure is not necessary rests on 137 reviews and is graded A; the 2-3 in reserve target and the progression remarks are the panel's view and are weaker, as the record's limitations say."
     },
-    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31"
   }
 }

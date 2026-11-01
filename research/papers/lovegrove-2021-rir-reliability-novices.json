@@ -34,7 +34,7 @@
   "vetting": {
     "r1": {
       "result": "pass",
-      "note": "The abstract was read on Europe PMC (PMID 36135029) on 2026-10-31 and every finding is its own wording, apart from the equation percentages marked as computed. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access)."
+      "note": "The abstract was read on Europe PMC (PMID 36135029) on 2026-10-31 and every finding is its own wording, apart from the equation percentages marked as computed. The DOI resolves in Crossref, which lists no updated-by notice. The full text was not read (closed access). second pass: the author's accepted manuscript (St Mary's University repository, eprint 5473, a Word file) was read in full on 2026-10-31 and the abstract's findings match it. It adds that a coach chose the load step after each set from the felt count while consulting a textbook table of repetitions at a percentage (Haff and Triplett, the manuscript's reference 8), so the loads are not independent of that table. Two figures differ inside the manuscript: the deadlift load at 1 in reserve for sets of 8 is 77.2% of 1RM in its Results text and 79.2% in its abstract (the record follows the published abstract), and the mean age is 17.6 years in the Methods and 17.3 in the abstract. The version of record was not read."
     },
     "r2": {
       "result": "pass",
@@ -56,6 +56,6 @@
       "result": "n/a",
       "note": "A journal paper keeps the level of its design (a small repeated-measures study, level C); the caps by class are for sources outside the journals."
     },
-    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (RU1 read the abstract only; RU1b also read the author's accepted manuscript)"
   }
 }

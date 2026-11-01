@@ -35,7 +35,7 @@
   "vetting": {
     "r1": {
       "result": "pass",
-      "note": "The abstract was re-read on Europe PMC (PMID 34542869) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The journal page shows the abstract only; the full text was not read, and a preprint on OSF was seen at its header and not used."
+      "note": "The abstract was re-read on Europe PMC (PMID 34542869) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The journal page shows the abstract only; the full text was not read, and a preprint on OSF was seen at its header and not used. second pass: the abstract was re-read on the publisher's page on 2026-10-31 and matches the findings. The author's OSF preprint (marked not peer reviewed) was also read for context; no gate rests on it and it is not cited."
     },
     "r2": {
       "result": "pass",
@@ -57,6 +57,6 @@
       "result": "n/a",
       "note": "A journal paper keeps the level of its design (an exploratory meta-analysis with I2 of 97.9%, level A for its design); the caps by class are for sources outside the journals."
     },
-    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (abstract only)"
   }
 }

@@ -43,7 +43,7 @@
     },
     "r3": {
       "result": "pass",
-      "note": "Published March 2022 (search to January 2020), not corrected; a Crossref title search found no comment letter on it. Later reviews agree: refalo-2022-proximity-hypertrophy and robinson-2024-proximity-failure-meta, both read here. A 2026 meta-analysis (10.1186/s13102-026-01861-z) was located and not read."
+      "note": "Published March 2022 (search to January 2020), not corrected; a Crossref title search found no comment letter on it. Later reviews agree: refalo-2022-proximity-hypertrophy and robinson-2024-proximity-failure-meta, both read here. A 2026 meta-analysis (10.1186/s13102-026-01861-z) was located and not read. second pass: the 2026 meta-analysis that the first pass located (10.1186/s13102-026-01861-z, Wu et al., 20 randomised trials, 556 healthy adults) was read in full on Europe PMC (PMC13377779) on 2026-10-31. It favours training short of the limit for dynamic strength (SMD 0.24, 95% CI 0.06 to 0.42; 0.38 in trained people), so it agrees with this review and does not supersede it. It is not in the corpus."
     },
     "r4": {
       "result": "pass",
@@ -57,6 +57,6 @@
       "result": "n/a",
       "note": "A journal paper keeps the level of its design (a meta-analysis of randomised trials of moderate to good quality, level A); the caps by class are for sources outside the journals."
     },
-    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31"
   }
 }

@@ -34,7 +34,7 @@
   "vetting": {
     "r1": {
       "result": "pass",
-      "note": "The abstract was re-read on Europe PMC (PMID 26049792) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text is closed access and was not read."
+      "note": "The abstract was re-read on Europe PMC (PMID 26049792) on 2026-10-31 and every finding is its own wording. The DOI resolves in Crossref, which lists no updated-by notice. The full text is closed access and was not read. second pass: the abstract was re-read on Europe PMC and the author's accepted manuscript (the journal's ahead-of-print file in the Auckland University of Technology repository, handle 10292/12176) was read on 2026-10-31. Findings 1 to 4 match it. It adds 23 men and 6 women (12 and 3 in the experienced group) and mean ratings at 1RM of 9.80 (experienced) and 8.96 (novice). The version of record was not read."
     },
     "r2": {
       "result": "pass",
@@ -56,6 +56,6 @@
       "result": "n/a",
       "note": "A journal paper keeps the level of its design (a cross-sectional study, level C); the caps by class are for sources outside the journals."
     },
-    "signedOff": "RU1, one reading pass, 2026-10-31 (abstract only); second pass or owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31 (RU1 read the abstract only; RU1b also read the author's accepted manuscript)"
   }
 }

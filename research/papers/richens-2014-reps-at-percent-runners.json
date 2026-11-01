@@ -45,8 +45,8 @@
       "note": "Published April 2014, not corrected. nuzzo-2023-reps-at-percent-1rm (2023) cites studies in which endurance athletes did more repetitions at 75% of 1RM or less and says the data are too few to analyse them; it does not supersede this study."
     },
     "r4": {
-      "result": "pass",
-      "note": "Agreed in direction by nuzzo-2023-reps-at-percent-1rm (a meta-regression noting that endurance athletes can do more repetitions at loads up to 75% of 1RM, from three studies it did not analyse) and by the earlier studies this paper cites (Desgorces; Panissa), which were not read. At 90% of 1RM the two groups did not differ here."
+      "result": "hold",
+      "note": "Agreed in direction by nuzzo-2023-reps-at-percent-1rm (a meta-regression noting that endurance athletes can do more repetitions at loads up to 75% of 1RM, from three studies it did not analyse) and by the earlier studies this paper cites (Desgorces; Panissa), which were not read. At 90% of 1RM the two groups did not differ here. second pass: held. The runner counts have no second source that was read: the remark of nuzzo-2023-reps-at-percent-1rm on endurance athletes rests on three studies it did not analyse (this one, Desgorces 2010 and Miranda 2021), and neither of the other two was read by either pass. The pooled leg press interval of nuzzo-2023 (13.1, 9.8-17.5 at 80% and 19.0, 14.2-25.5 at 70%) agrees with the weightlifters here (11.8 and 17.9) and not with the runners (19.8 and 39.9), and the runners had no lifting experience, so their first 1RM may have been submaximal, as the authors say."
     },
     "r5": {
       "result": "pass",
@@ -56,6 +56,6 @@
       "result": "n/a",
       "note": "A journal paper keeps the level of its design (a small cross-sectional study, level C); the caps by class are for sources outside the journals."
     },
-    "signedOff": "RU1, one reading pass, 2026-10-31; second pass or owner sign-off pending at merge"
+    "signedOff": "two independent reading passes, RU1 and RU1b, 2026-10-31"
   }
 }
