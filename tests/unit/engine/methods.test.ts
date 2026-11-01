@@ -478,12 +478,12 @@ describe('novices and the E6 start paths', () => {
 
   it.each([
     ['post-marathon-short-run', 'ladder', 0],
-    ['post-marathon-short-run', 'ladder', 28],
     ['sparse-100-mile', 'floor', 0],
+    // the race 77 days later gives the ladder a base of its own to follow: the preset applies
+    ['post-marathon-short-run', 'ladder', 77],
   ] as const)(
     '%s, race %i days later: the %s start path plans its own weeks, which a preset leaves as they are',
     (id, kind, later) => {
-      // the race moved later gives the default a base to fall in the ladder's weeks
       const athlete = byId(id)
       const input = {
         ...athlete.input,
@@ -497,10 +497,12 @@ describe('novices and the E6 start paths', () => {
       for (const method of OFFERED) {
         const plan = buildPlan(withMethod(input, method))
         for (const week of startWeeks) {
-          // the programme sets the week and the default's phase labels it [rules E6, P4]: the preset's
-          // own draw of the phases would file the week under base where the default files it under build
+          // the programme sets the week; only the phase it is filed under follows the preset's own draw
           const own = plan.weeks.find((w) => w.weekStart === week.weekStart)
-          expect(own, `${method} ${week.weekStart}`).toEqual(week)
+          expect({ ...own, phase: null }, `${method} ${week.weekStart}`).toEqual({
+            ...week,
+            phase: null,
+          })
           const sessions = (p: PlanDraft) =>
             JSON.stringify(
               p.sessions.filter(
@@ -513,19 +515,22 @@ describe('novices and the E6 start paths', () => {
     },
   )
 
-  it('post-marathon-short-run: a ladder that covers the base leaves no base week, so longer-base reads the default', () => {
-    // the ladder runs 11 weeks, the whole of base and build; the one base week of the preset's own
-    // draw would be its first ladder week, which the default files under build
+  it('post-marathon-short-run: a ladder that covers the base leaves no base week of its own, so longer-base reads the default and is the default plan', () => {
+    // the ladder runs 11 weeks, the whole of base and build: the one base week of the preset's own draw
+    // would be its first ladder week, a week the programme sets
     const athlete = byId('post-marathon-short-run')
     const input = withMethod(athlete.input, 'longer-base')
     const plan = buildPlan(input)
-    expect(plan.weeks.filter((w) => w.phase === 'base')).toEqual([])
     expect(positionOf(input, plan)).toEqual({
       requested: 'longer-base',
       effective: 'default',
       reason: 'no-base',
     })
     expect(text(plan)).toBe(text(buildPlan(athlete.input)))
+    // the base weeks the plan holds, if any, are weeks of the ladder
+    for (const week of plan.weeks.filter((w) => w.phase === 'base')) {
+      expect(week.flags.some((f) => f.startsWith('ladder-'))).toBe(true)
+    }
   })
 })
 
@@ -541,6 +546,26 @@ describe('a plan with no base week [rule P4]', () => {
     expect(some).toEqual({ requested: 'longer-base', effective: 'longer-base', reason: null })
     // without the weeks the question is not asked
     expect(resolveMethod(input, state).effective).toBe('longer-base')
+  })
+
+  it("counts only the base weeks outside a start path: a ladder, a floor or an injury-return week is the programme's", () => {
+    const own = { phase: 'base', flags: ['strength-block'] }
+    for (const flags of [
+      ['ladder-1', 'run-walk'],
+      ['restart-floor'],
+      ['injury-return', 'injury-level-0'],
+    ]) {
+      const start = { phase: 'base', flags }
+      expect(resolveMethod(input, state, [start, { phase: 'build' }]).reason, flags.join()).toBe(
+        'no-base',
+      )
+      expect(
+        resolveMethod(input, state, [start, own, { phase: 'build' }]).reason,
+        flags.join(),
+      ).toBe(null)
+    }
+    // a week with no flags (a week made by hand) counts as it did
+    expect(resolveMethod(input, state, [{ phase: 'base' }]).reason).toBeNull()
   })
 
   it('does not ask three-run-days for a base week', () => {
@@ -597,9 +622,9 @@ describe('the default and the absent method are the same plan [rule P1]', () => 
     },
   )
 
-  it('moves no default plan when the build row or the start-week labels of a preset change', () => {
-    // the oracle pins the digests of the default; this reads the cause: the kind table of a preset
-    // and the phase labels it gives a start-path week are read for a preset plan only (task M5)
+  it('moves no default plan when the build row of longer-base changes', () => {
+    // the oracle pins the digests of the default; this reads the cause: the kind table of a preset is
+    // read for a preset plan only (task M5)
     const before = all.map((a) => text(buildPlan(a.input)))
     const half = withMethod(byId('half').input, 'longer-base')
     const own = text(buildPlan(half))

@@ -102,8 +102,8 @@ Reasons:
   marathon or longer, one novice, one held by a recent injury). `longer-base` applies to eight
   (first-100-mile, half, hot-race, marathon, masters, returning, sparse-100-mile, trail-50k) and
   reads as the default for four (the novice 5 km plan with no base week, `post-marathon-short-run`
-  whose ladder of 11 weeks covers its base, and the two held plans; before the start-path weeks kept
-  the default's phase it applied to nine, task M5, 2026-10-31). Both presets fail no checklist item
+  whose ladder of 11 weeks covers its base, and the two held plans; M2 counted the first base week
+  of that ladder and applied the preset to nine, task M5, 2026-10-31). Both presets fail no checklist item
   that the default plan passes, and `three-run-days` holds every week to three run days where it
   applies.
 - **Fact:** The default plan places short of its target where a session cannot hold its share (a
@@ -202,10 +202,14 @@ Alternatives:
   section (p)): a build week with one quality session (a goal of 100 km or more, a week with few open
   days) keeps the default's threshold, and hills take the second session. With hills first those weeks
   held hills alone.
-- A week of a start path (a ladder, an injury-return level or the restart floor) is filed under the
-  phase the default files it under, whatever the preset's own draw of the phases says (decided
-  2026-10-31, task M5, section (p)). A plan whose only base weeks are start-path weeks reads the
-  default with the reason `no-base`; of the twelve matrix athletes that is `post-marathon-short-run`.
+- A week of a start path (a ladder, an injury-return level or the restart floor) keeps the phase the
+  preset's own draw gives it, with the programme's sessions, and only a base week outside a start path
+  counts as a base to lengthen (decided 2026-10-31, task M5, section (p)). A plan whose only base weeks
+  are start-path weeks reads the default with the reason `no-base` and draws the default's phases whole,
+  so it is the default plan; of the twelve matrix athletes that is `post-marathon-short-run`. The phases
+  of a `longer-base` plan never decrease and its build is at most 4 weeks (`preset-phases.test.ts`, the
+  matrix and the 150 sweep runners with the race 0 to 175 days later); an earlier relabel of the
+  start-path weeks alone had left plans reading build, base, build.
 - A preset's week target is the default's where the default places short, and the minutes it places
   are the default's: a preset plan can read a week below its own drawn target, as the default does in
   those weeks. Four runners of the sweep (#16, #28, #36 and #48) fail the checklist's spacing item at
