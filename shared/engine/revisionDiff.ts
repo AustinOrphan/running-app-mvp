@@ -87,7 +87,7 @@ export interface AttributionContext {
   /** Monday of the week the decision caps. */
   cappedWeek: string
   disruptionId: string | null
-  /** The runner made the change: an edit of one session, or an undo. */
+  /** The runner made the change: an edit of one session, an undo, or a change of plan shape. */
   byRunner: boolean
   holds: PlanDiff['holds']
   ownerWeeks: ReadonlySet<string>
@@ -103,9 +103,11 @@ export function attributionContext(diff: PlanDiff, facts: RevisionFacts): Attrib
     cappedWeek: mondayOf(facts.writtenOn),
     disruptionId: facts.disruptionId,
     // A re-plan the runner asked for (reason 'owner' with no session edit among its changes) is
-    // the engine's own work and is attributed like the weekly one.
+    // the engine's own work and is attributed like the weekly one. A change of plan shape is the
+    // runner's choice, and every line it moves follows from it.
     byRunner:
       facts.reason === 'undo' ||
+      facts.reason === 'method-change' ||
       (facts.reason === 'owner' &&
         (facts.changeFields ?? []).some((field) => field.startsWith('session.'))),
     holds: diff.holds,

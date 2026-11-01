@@ -15,6 +15,8 @@ const SHEETS = [
   'components/disruption/NotFullSheet.tsx',
   'components/disruption/ReplanSheet.tsx',
   'components/disruption/WindowActionSheet.tsx',
+  'components/LoadSettingSheet.tsx',
+  'components/PlanShapeSheet.tsx',
   'pages/RaceResultSheet.tsx',
 ]
 

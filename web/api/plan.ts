@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
-import type { EngineInput, LoadAppetite } from '../../shared/engine/types.ts'
+import type { EngineInput, LoadAppetite, PresetId } from '../../shared/engine/types.ts'
 import type {
   AdjustResult,
   ArchivedPlanView,
   LoadSettingResult,
+  MethodChangeResult,
   PlanAction,
   PlanAdjustment,
   PlanGuardView,
@@ -255,6 +256,20 @@ export function useChangeLoadSetting() {
   return useMutation({
     mutationFn: (loadAppetite: LoadAppetite) =>
       api<LoadSettingResult>('PUT', '/plan/load', { loadAppetite }),
+    onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
+  })
+}
+
+/**
+ * Changes the method preset of the plan (`PUT /api/plan/method`): the server stores the preset and
+ * draws the weeks after the current one again with it, as one revision that undoes like any other.
+ * The readers of the plan are read again (`invalidatePlanReaders`): the panel, the weeks, the
+ * revision list, the brief and Today follow the plan.
+ */
+export function useChangeMethod() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (method: PresetId) => api<MethodChangeResult>('PUT', '/plan/method', { method }),
     onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
   })
 }

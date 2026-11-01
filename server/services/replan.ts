@@ -19,6 +19,8 @@ import {
   changesSummary,
   decisionSummary,
   loadSettingSummary,
+  methodChangeSummary,
+  methodFlipSummary,
   overshootsSummary,
   stalePreviewMessage,
   targetsSummary,
@@ -38,13 +40,16 @@ import {
 } from '../../shared/engine/limits.ts'
 import { loadPosition, rebuildZone } from '../../shared/engine/loadSetting.ts'
 import { progressionHold } from '../../shared/engine/macro.ts'
+import { resolveMethod } from '../../shared/engine/methods.ts'
 import { P } from '../../shared/engine/params/index.ts'
+import { shapeOfFlags, takesShape } from '../../shared/engine/shape.ts'
 import type {
   AthleteState,
   EngineInput,
   LoadAppetite,
   PlanChange,
   PlanDraft,
+  PresetId,
   WeekDraft,
   WeeklyDecision,
 } from '../../shared/engine/types.ts'
@@ -249,9 +254,19 @@ export interface LoadSettingChange {
 }
 
 /**
+ * A change of the plan's method preset [rules P1 to P4, decision 8 of the methods proposal].
+ * `before` is null when the plan stored none (read as the plan's own shape). An undo puts it back
+ * with the rows, and only while the plan still holds `after`.
+ */
+export interface MethodChange {
+  before: PresetId | null
+  after: PresetId
+}
+
+/**
  * What it takes to reverse a revision (design 4.2), stored as JSON in `PlanRevision.undo`. It holds
- * rows, never plan-level derived columns (those are recomputed), and the load setting when the
- * revision changed it. Server only: no route sends it.
+ * rows, never plan-level derived columns (those are recomputed), and the plan options the revision
+ * changed: the load setting or the method preset. Server only: no route sends it.
  */
 export interface UndoPayload {
   v: 1
@@ -267,11 +282,11 @@ export interface UndoPayload {
     updated: Array<{ id: string; before: Record<string, unknown>; hash: string }>
   }
   /**
-   * The load setting the revision changed, absent on a revision that left it alone and on every
-   * payload stored before the setting had an action. An undo puts `before` back, and only while the
-   * plan still holds `after`: a later change of the setting is an edit since (`scopeUndo`).
+   * The plan options the revision changed, each absent when the revision left it alone and on every
+   * payload stored before the option had an action. An undo puts `before` back, and only while the
+   * plan still holds `after`: a later change of the option is an edit since (`scopeUndo`).
    */
-  setting?: { loadAppetite: LoadSettingChange }
+  setting?: { loadAppetite?: LoadSettingChange; method?: MethodChange }
 }
 
 /** The columns an undo restores: every scalar column of the table except `updatedAt`. */
@@ -378,7 +393,7 @@ export function revisionParts(writes: {
   /** The window rows the write created or changed (E5): they are part of what an undo restores. */
   disruptions?: UndoPayload['disruptions']
   holds?: PlanDiff['holds']
-  /** The load setting the write changed: it is part of what an undo restores. */
+  /** The plan options the write changed: they are part of what an undo restores. */
   setting?: UndoPayload['setting']
 }): {
   diff: PlanDiff
@@ -394,7 +409,7 @@ export function revisionParts(writes: {
   })
   const disruptions = writes.disruptions ?? { created: [], updated: [] }
   // A window written without any session or week changing still has something to restore, and so
-  // does a load setting changed where no week moved.
+  // does a load setting or a method changed where no week moved.
   const touched = disruptions.created.length + disruptions.updated.length > 0
   if (diff.empty && !touched && !writes.setting) return { diff, undo: null }
   return {
@@ -545,6 +560,13 @@ export interface ReplanArgs {
    * records the old position for an undo.
    */
   loadAppetite?: LoadAppetite
+  /**
+   * Set by the action that changes the method preset. The plan's stored options then take the preset
+   * as asked, the weeks after the current one are drawn with the shape that applies, the current week
+   * keeps the shape it was drawn under, and the revision takes the summary of the change and records
+   * the old preset for an undo.
+   */
+  method?: PresetId
 }
 
 /** A past session that a rest window skips, written before the re-plan's own rows. */
@@ -807,6 +829,39 @@ export function raisedTargetLimits(args: {
 }
 
 /**
+ * The change of shape a re-plan makes to the weeks it draws [rules P1 to P4]: among the weeks from
+ * the one after a held current week (the current week when none is held), the first whose shape
+ * differs from the one stored for it, the shape it now has and the Monday it starts, and how many
+ * weeks run from there to the end of the plan. Null when no week changes shape. A stored week with no
+ * shape flag was drawn under the plan's own shape, unless it was a start programme's (`takesShape`),
+ * which has none to change.
+ */
+export function shapeChange(
+  rows: readonly PlanWeekRow[],
+  weeks: readonly WeekDraft[],
+  args: { today: string; held: boolean },
+): { now: PresetId; from: string; weeks: number } | null {
+  const from = args.held ? addDays(mondayOf(args.today), 7) : mondayOf(args.today)
+  const stored = new Map(rows.map((row) => [row.weekStart, toPlanWeek(row).flags]))
+  const ahead = weeks.filter((week) => week.weekStart >= from && takesShape(week.flags))
+  // a week that was a start programme's had no shape to lose: it turning ordinary is no change of
+  // shape, and a week the plan did not hold before was drawn under the plan's own
+  const changed = ahead.filter((week) => {
+    const flags = stored.get(week.weekStart)
+    if (flags !== undefined && !takesShape(flags)) return false
+    return shapeOfFlags(week.flags) !== (flags === undefined ? 'default' : shapeOfFlags(flags))
+  })
+  const first = changed[0]
+  return first === undefined
+    ? null
+    : {
+        now: shapeOfFlags(first.flags),
+        from: first.weekStart,
+        weeks: ahead.filter((week) => week.weekStart >= first.weekStart).length,
+      }
+}
+
+/**
  * Decides a re-plan of the active plan from the updated state and writes nothing. A failed quality
  * checklist is not thrown here: it is in `draft.checklist`, and `applyReplan` refuses to write it.
  */
@@ -834,11 +889,11 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // the switches shows up in the next re-plan's diff, and a preview and its commit agree (design
   // 10.5). `applyReplan` stores the options it was computed with.
   const stored = parsePlanOptions(plan.options)
-  const options = await withGutTrainingOption(
-    prisma,
-    userId,
-    args.loadAppetite === undefined ? stored : { ...stored, loadAppetite: args.loadAppetite },
-  )
+  const options = await withGutTrainingOption(prisma, userId, {
+    ...stored,
+    ...(args.loadAppetite === undefined ? {} : { loadAppetite: args.loadAppetite }),
+    ...(args.method === undefined ? {} : { method: args.method }),
+  })
   const gathered = await gatherEngineInput(
     deps,
     { userId, goalId: plan.goalId, today, options },
@@ -891,7 +946,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // A hold trims the next quality session of the week it caps; a reduce makes it a recovery week.
   const decisions: Record<string, WeeklyDecision['decision']> =
     decision !== null && decidedWeek !== null ? { [decidedWeek]: decision.decision } : {}
-  const { draft, changes } = replan({ ...input, weekCaps }, { decisions })
+  const { draft, changes, heldWeek } = replan({ ...input, weekCaps }, { decisions })
   const targetLimits = raisedTargetLimits({ rows: weekRows, draft, input, state, decidedWeek })
 
   const reason: PlanRevisionReason =
@@ -899,15 +954,43 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // A change of the load setting leads with the position and its step, in place of the count of
   // week-level changes; the weekly decision follows as for any re-plan. A week taken as run is
   // worded as run past its plan, after the lead of the summary.
+  const shape = shapeChange(weekRows, draft.weeks, { today, held: heldWeek !== null })
+  const position = resolveMethod(input, state, draft.weeks)
+  // A change of the method leads with the shape asked for and the weeks drawn again; any other
+  // re-plan that finds the shape in effect changed since the plan was written says so after its lead.
   const lead =
-    args.loadAppetite === undefined
-      ? describeChanges(changes)
-      : loadSettingSummary(loadPosition(input, state))
+    args.method !== undefined
+      ? methodChangeSummary({
+          requested: args.method,
+          reason: position.reason,
+          weeks: shape?.weeks ?? 0,
+          from: shape?.from ?? currentMonday,
+          held: heldWeek !== null,
+        })
+      : args.loadAppetite === undefined
+        ? describeChanges(changes)
+        : loadSettingSummary(loadPosition(input, state))
+  const flip =
+    args.method === undefined && shape !== null
+      ? methodFlipSummary({
+          now: shape.now,
+          reason: position.reason,
+          from: shape.from,
+          held: heldWeek !== null,
+        })
+      : null
+  // A rest-window action leads with what it did to the window; a change of shape that the same
+  // re-plan found follows it, as it follows the lead of any other re-plan.
   const baseSummary = [
-    args.window?.summary ??
-      [lead, decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null]
-        .filter((line): line is string => line !== null)
-        .join(' '),
+    args.window === undefined
+      ? [
+          lead,
+          flip,
+          decision ? decisionSummary(decision.decision, decision.nextWeekTargetMin) : null,
+        ]
+          .filter((line): line is string => line !== null)
+          .join(' ')
+      : [args.window.summary, flip].filter((line): line is string => line !== null).join(' '),
     overshootsSummary(weeksTakenAsRun(weekRows, draft.weeks, today)),
   ]
     .filter((part) => part !== '')
@@ -929,9 +1012,18 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     headRevisionId,
     options,
     setting:
-      args.loadAppetite === undefined
+      args.loadAppetite === undefined && args.method === undefined
         ? null
-        : { loadAppetite: { before: stored.loadAppetite ?? null, after: args.loadAppetite } },
+        : {
+            ...(args.loadAppetite === undefined
+              ? {}
+              : {
+                  loadAppetite: { before: stored.loadAppetite ?? null, after: args.loadAppetite },
+                }),
+            ...(args.method === undefined
+              ? {}
+              : { method: { before: stored.method ?? null, after: args.method } }),
+          },
     reason,
     // The scheduler asks for 'weekly' and nothing else does; a request never writes an automatic revision.
     auto: args.reason === 'weekly',

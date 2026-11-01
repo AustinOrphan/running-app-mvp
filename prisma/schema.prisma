@@ -247,7 +247,7 @@ model PlanRevision {
   id           String    @id @default(cuid())
   planId       String
   createdAt    DateTime  @default(now())
-  reason       String // 'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch'
+  reason       String // 'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch' | 'method-change'
   summary      String
   changes      String    @default("[]") // JSON text: PlanChange[]
   auto         Boolean   @default(false) // written by the scheduler, not by a request

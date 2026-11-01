@@ -25,6 +25,7 @@ import type {
   Param,
   PlanChange,
   Prediction,
+  PresetId,
   Quantity,
   ReadinessSnapshot,
   RecoveryCycle,
@@ -461,9 +462,10 @@ export interface PlanWeek {
   /** Version-2 plans only: TID targets in percent of running time. */
   tid: { z1: number; z2: number; z3: number } | null
   /**
-   * Version-2 plans only: recovery, taper, strength, gut-training, heat-acclimation, and the two a
+   * Version-2 plans only: recovery, taper, strength, gut-training, heat-acclimation, the two a
    * rest window sets: `disrupted` (a window touches a day of the week) and `disruption-return` (the
-   * week is held to the J7 restart fraction).
+   * week is held to the J7 restart fraction), and `shape-<preset>` on a week drawn under a method
+   * preset (`shared/engine/shape.ts`; the plan's own shape has none).
    */
   flags: string[]
   gainTargetM: number | null
@@ -642,7 +644,15 @@ export interface PlanSessionView extends PlanSession {
   distanceEstimate: DistanceEstimate | null
 }
 export type PlanRevisionReason =
-  'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch'
+  | 'generate'
+  | 'weekly'
+  | 'review'
+  | 'owner'
+  | 'break'
+  | 'disruption'
+  | 'undo'
+  | 'goal-switch'
+  | 'method-change'
 export interface PlanRevision {
   id: string
   planId: string
@@ -975,6 +985,15 @@ export interface UndoResult {
  */
 export interface LoadSettingResult {
   loadAppetite: LoadAppetite
+  revision: PlanRevisionView | null
+}
+/**
+ * The answer to `PUT /api/plan/method`: the shape asked for, and the revision that recorded the
+ * change, or null when the plan already held that shape and nothing was written. The shape in
+ * effect, and why it differs from the one asked for, is read from the plan (`PlanWithSessions.method`).
+ */
+export interface MethodChangeResult {
+  method: PresetId
   revision: PlanRevisionView | null
 }
 /**

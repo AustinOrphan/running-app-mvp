@@ -119,7 +119,13 @@ migration or how the web build is emitted (`web/sw/buildSw.ts`); its build runs
   direct read. The default is today's plan byte for byte (the oracle). A preset that applies is held
   week by week to the default plan of the same input (`WeekLimit`, `generate` in
   `shared/engine/index.ts`), so it never plans more. A new overridable value needs an id, a reader, a
-  bound in `methods.test.ts` and a grade D Param under its rule.
+  bound in `methods.test.ts` and a grade D Param under its rule. A week drawn under a preset carries
+  the flag `shape-<preset>` (`shared/engine/shape.ts`; the plan's own shape and a start programme's
+  weeks carry none), and a re-plan whose shape in effect differs from the stored current week's draws
+  that week again under the shape it has (`replan` in `index.ts`, `heldWeek`), except that a persistent
+  hold that starts applies at once: the resolver cannot draw a shape it reads as the default (ADR 0017,
+  addendum). The change of the preset in place is `PUT /api/plan/method` (`commitMethod`, reason
+  `method-change`).
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`

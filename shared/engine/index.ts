@@ -53,6 +53,7 @@ import { planWindows, postRaceWarnings } from './postRace.ts'
 import { predictRace } from './predict.ts'
 import { focalBoneActive, isQualityKind } from './readiness.ts'
 import { prescribe } from './sessions.ts'
+import { shapeOfFlags, takesShape, withShape } from './shape.ts'
 import {
   isLoadingWeek,
   isProgrammeWeek,
@@ -222,6 +223,12 @@ interface Keep {
   /** The kept sessions that a recorded activity stands for; its run is counted from the activity. */
   matched: ReadonlySet<KeptSession>
   decisions: NonNullable<ReplanOptions['decisions']>
+  /**
+   * The Monday of a week whose sessions are all in `sessions` (a week held under the shape it was
+   * drawn under, `replan`): nothing more is placed in it and its week row is not drawn again from
+   * the macrocycle. The weeks after it read its kept sessions as the minutes it holds.
+   */
+  heldWeek?: string
 }
 
 /** Options of a re-plan beyond the engine input. */
@@ -497,7 +504,9 @@ function generate(
         .at(-1)
       week = reduceWeek(week, lastLoad)
     }
-    macro.push(week)
+    // A week drawn under a shape other than the plan's own says so, so that the next re-plan can
+    // tell the shape it replaces from the shape that applies then (`replan`).
+    macro.push(takesShape(week.flags) ? withShape(week, method) : week)
   }
   const keptDates = new Set(kept.filter((s) => s.date >= today).map((s) => s.date))
   // The post-race windows the plan's days fall in: a past race's, and the goal race's [rules H12].
@@ -612,6 +621,20 @@ function generate(
         keptMin,
         keep.stillPlanned.get(week.weekStart) ?? null,
       )
+    }
+    // A held week has every session it is going to have: nothing more is placed in it.
+    const held = keep.heldWeek === week.weekStart
+    if (held) {
+      planWeek = {
+        ...planWeek,
+        targetRunMin: 0,
+        longRunMin: 0,
+        longRunM: planWeek.longRunM === null ? null : 0,
+        gainTargetM: planWeek.gainTargetM === null ? null : 0,
+        strengthSessions: 0,
+        qualitySessions: 0,
+        runDays: 0,
+      }
     }
     // A recovery week stays cut from the loading week before it, and a taper week below the week
     // before it, as placed [rules E3, K2].
@@ -931,7 +954,7 @@ function generate(
     gains.set(week.weekStart, done.gain + runningGain(ahead))
     // The current week's logged minutes are taken as they are, after the weeks that follow were
     // drawn and capped from the planned week [rules g-2, g-6].
-    if (isCurrent) {
+    if (isCurrent && !held) {
       const taken = takenAsRun(macro[w]!, done.minutes + keptMin)
       if (taken !== macro[w]) {
         overshot.push({
@@ -1219,7 +1242,7 @@ function unstartedWeek(
 export function replan(
   input: EngineInput,
   options: ReplanOptions = {},
-): { draft: PlanDraft; changes: PlanChange[] } {
+): { draft: PlanDraft; changes: PlanChange[]; heldWeek: string | null } {
   const existing = input.existing
   const currentMonday = mondayOf(input.today)
   const oldWeeks = existing?.weeks ?? []
@@ -1286,19 +1309,16 @@ export function replan(
     plannedOn.set(s.date, (plannedOn.get(s.date) ?? 0) + s.durationMin)
   }
   const matched = new Set(kept.filter((_, i) => keptRows[i]!.activityId !== null))
-  const draft = generate(
-    input,
-    {
-      sessions: kept,
-      toRun,
-      stillPlanned,
-      figure,
-      plannedOn,
-      matched,
-      decisions: options.decisions ?? {},
-    },
-    pastWeeks.length,
-  )
+  const keep: Keep = {
+    sessions: kept,
+    toRun,
+    stillPlanned,
+    figure,
+    plannedOn,
+    matched,
+    decisions: options.decisions ?? {},
+  }
+  const { draft, heldWeek } = drawn(input, keep, oldWeeks, pastWeeks.length)
   const keptSet = new Set<SessionSpec>(kept)
   const weeks = [...pastWeeks, ...draft.weeks]
   const merged: PlanDraft = { ...draft, weeks, checklist: runChecklist({ ...draft, weeks }, input) }
@@ -1348,5 +1368,89 @@ export function replan(
       })
     }
   }
-  return { draft: merged, changes }
+  return { draft: merged, changes, heldWeek }
+}
+
+/**
+ * The draft of a re-plan, with the current week held under the shape it was drawn under when that is
+ * not the shape that applies now [rules P1 to P4, follow-up 27]. A week's shape is fixed when it
+ * begins: a change of the shape in effect between two re-plans (a method change by the runner, a
+ * persistent hold starting or ending, a novice's days ending) reaches the weeks after the current
+ * one, and the current week is drawn again under the shape it has, with every other rule of the
+ * re-plan (the weekly decision, the windows, the ramp) applied to it as to any week. The weeks after
+ * it are drawn from the sessions the current week now holds, so the ramp and the spacing read the
+ * week as it will be.
+ *
+ * A shape that the resolver now reads as the plan's own (a hold starting) cannot be drawn again for
+ * the current week: the hold is a condition of the runner and applies at once, so the current week
+ * is drawn under the plan's own shape and `heldWeek` is null. A plan whose current week is not
+ * stored has no shape to hold.
+ */
+function drawn(
+  input: EngineInput,
+  keep: Keep,
+  oldWeeks: readonly WeekDraft[],
+  weekOffset: number,
+): { draft: PlanDraft; heldWeek: string | null } {
+  const current = mondayOf(input.today)
+  const live = generate(input, keep, weekOffset)
+  const stored = oldWeeks.find((week) => week.weekStart === current)
+  const liveWeek = live.weeks.find((week) => week.weekStart === current)
+  // a week a start programme sets is the programme's whatever the shape: there is nothing to hold
+  if (stored === undefined || liveWeek === undefined || !takesShape(stored.flags)) {
+    return { draft: live, heldWeek: null }
+  }
+  const was = shapeOfFlags(stored.flags)
+  if (was === shapeOfFlags(liveWeek.flags)) return { draft: live, heldWeek: null }
+  // the current week as it is drawn under the shape it has: forced, and used only if it applies
+  const own = generate({ ...input, options: { ...input.options, method: was } }, keep, weekOffset)
+  const ownWeek = own.weeks.find((week) => week.weekStart === current)
+  if (ownWeek === undefined || shapeOfFlags(ownWeek.flags) !== was) {
+    return { draft: live, heldWeek: null }
+  }
+  const already = new Set<SessionSpec>(keep.sessions)
+  // the race is drawn by the held pass itself, so its copy stays out
+  const sessions = own.sessions.filter(
+    (s) =>
+      !already.has(s) && s.kind !== 'race' && s.date >= input.today && mondayOf(s.date) === current,
+  )
+  const held = generate(
+    input,
+    {
+      ...keep,
+      sessions: [...keep.sessions, ...sessions],
+      toRun: new Set([...keep.toRun, ...sessions]),
+      heldWeek: current,
+    },
+    weekOffset,
+  )
+  // The held pass places nothing in the week and takes its sessions as fixed, so it says nothing of
+  // them: the warnings the re-plan draws for the week itself (a week run past its plan, a run with no
+  // reference run to bound it) are the ones of the pass that drew it.
+  const said = new Set(held.warnings.map((w) => `${w.code}|${w.message}`))
+  const ofWeek = own.warnings.filter(
+    (w) => namesWeek(w, current) && !said.has(`${w.code}|${w.message}`),
+  )
+  return {
+    draft: {
+      ...held,
+      weeks: held.weeks.map((week) => (week.weekStart === current ? ownWeek : week)),
+      warnings: [...held.warnings, ...ofWeek],
+    },
+    heldWeek: current,
+  }
+}
+
+/** An aggregate warning counts the weeks from a first one on; its later weeks belong to one pass. */
+const ACROSS_WEEKS = /^\d+ week\(s\), from the week of /
+
+/**
+ * Whether a warning is about the week of `monday`: its message names a day of that week as a date.
+ * The warnings of the engine about one week or one session do (`overshoot-week`, the guards'); an
+ * aggregate over weeks (`availability-limits-runs`, `spike-run-dropped`) does not count.
+ */
+function namesWeek(warning: EngineWarning, monday: string): boolean {
+  if (ACROSS_WEEKS.test(warning.message)) return false
+  const end = addDays(monday, 6)
+  return (warning.message.match(/\d{4}-\d{2}-\d{2}/g) ?? []).some((d) => d >= monday && d <= end)
 }

@@ -346,6 +346,7 @@ describe('RevisionDiff', () => {
       disruption: 'Rest window',
       undo: 'Undo',
       'goal-switch': 'New plan for another goal',
+      'method-change': 'Plan shape changed',
     }
     for (const [reason, label] of Object.entries(labels)) {
       const { unmount } = renderWithProviders(

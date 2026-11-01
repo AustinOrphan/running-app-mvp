@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { loadTradeoff } from '../../shared/copy/load.ts'
-import { loadSettingSummary } from '../../shared/copy/revision.ts'
+import { loadSettingSummary, methodChangeSummary } from '../../shared/copy/revision.ts'
 import type { LoadHold, LoadPosition } from '../../shared/engine/loadSetting.ts'
 import type { MethodPosition, MethodReason } from '../../shared/engine/methods.ts'
 import type { LoadAppetite } from '../../shared/engine/types.ts'
@@ -1445,6 +1445,35 @@ describe('Plan page, changing the load setting', () => {
     expect(putLoad(calls)).toHaveLength(0)
   })
 
+  test('stays open while the change is under way, and says the toast when it settles', async () => {
+    const user = userEvent.setup()
+    mockApi(routes(makeV2Plan(), { 'PUT /api/plan/load': () => changed('standard') }))
+    const answer = globalThis.fetch
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if ((init?.method ?? 'GET').toUpperCase() === 'PUT') await gate
+      return answer(input, init)
+    })
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Standard' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Apply' }))
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Close' })).toBeDisabled()
+    })
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByTestId('sheet-scrim'))
+    expect(screen.getByRole('dialog', { name: 'Change load setting' })).toBeInTheDocument()
+    release()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Change load setting' })).not.toBeInTheDocument()
+    })
+    expect(await screen.findByText('Load setting changed')).toBeInTheDocument()
+  })
+
   test('Cancel closes the sheet and sends nothing', async () => {
     const user = userEvent.setup()
     const { calls } = mockApi(routes(makeV2Plan()))
@@ -1478,6 +1507,386 @@ describe('Plan page, changing the load setting', () => {
     const alert = await within(dialog).findByRole('alert')
     expect(alert).toHaveTextContent('The plan did not pass the plan checks')
     expect(screen.getByRole('dialog', { name: 'Change load setting' })).toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+})
+
+// Changing the plan shape in place [rules P1 to P4, decision 8 of the methods proposal]: the panel's
+// Change opens the Generate form's choice in a sheet, Save sends it in one request, and the toast is
+// the summary of the revision the server wrote.
+describe('Plan page, changing the plan shape', () => {
+  const method = (over: Partial<MethodPosition> = {}): MethodPosition => ({
+    requested: 'default',
+    effective: 'default',
+    reason: null,
+    ...over,
+  })
+  // the goal of these plans is a half marathon, which every shape is offered for
+  const halfGoal = { ...goal, name: 'Spring half', distanceM: 21098 } as Goal
+  const putMethod = (calls: Array<{ method: string; url: string }>) =>
+    calls.filter((c) => c.method === 'PUT' && c.url === '/api/plan/method')
+  const TITLE = 'Change plan shape'
+
+  /** The plan the server holds, so that a page that asks again after a change reads the new one. */
+  function stateful(plan: PlanWithSessions, extra: MockRoutes = {}) {
+    let current = plan
+    return {
+      set: (next: PlanWithSessions) => {
+        current = next
+      },
+      routes: routes(plan, {
+        'GET /api/plan': () => current,
+        'GET /api/goals': () => [halfGoal],
+        ...extra,
+      }),
+    }
+  }
+
+  async function openSheet(user: ReturnType<typeof userEvent.setup>) {
+    const panel = await screen.findByRole('region', { name: 'Plan shape' })
+    await user.click(within(panel).getByRole('button', { name: TITLE }))
+    return screen.findByRole('dialog', { name: TITLE })
+  }
+
+  const summaryOf = (weeks: number) =>
+    methodChangeSummary({
+      requested: 'three-run-days',
+      reason: null,
+      weeks,
+      from: '2027-01-18',
+      held: true,
+    })
+  const changedTo = (summary: string) => ({
+    method: 'three-run-days',
+    revision: makeRevision({
+      id: 'method-1',
+      reason: 'method-change',
+      auto: false,
+      summary,
+    }),
+  })
+
+  test('the panel has a Change action beside Why, named for its panel', async () => {
+    mockApi(routes(makeV2Plan({ method: method() }), { 'GET /api/goals': () => [halfGoal] }))
+    renderPlan()
+    const panel = await screen.findByRole('region', { name: 'Plan shape' })
+    expect(
+      within(panel)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['Why this shape', TITLE])
+    // the visible word is "Change", as on the load setting's panel, and its name says which panel
+    const change = within(panel).getByRole('button', { name: TITLE })
+    expect(change).toHaveTextContent('Change')
+    expect(change).toBeEnabled()
+    // the load setting's own button keeps its name
+    const load = screen.getByRole('region', { name: 'Load setting' })
+    expect(within(load).getByRole('button', { name: 'Change' })).toBeEnabled()
+    expectCleanCopy(panel)
+  })
+
+  test('Change opens a sheet with the three shapes, the shape chosen now marked, one line of help each and the grade', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(
+        makeV2Plan({ method: method({ requested: 'longer-base', effective: 'longer-base' }) }),
+        {
+          'GET /api/goals': () => [halfGoal],
+        },
+      ),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+
+    // the Generate form's field: one radio group, the three shapes, the plan's choice checked
+    const group = within(dialog).getByRole('radiogroup', { name: 'Plan shape' })
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((radio) => radio.getAttribute('aria-labelledby')),
+    ).toHaveLength(3)
+    expect(within(group).getByRole('radio', { name: "The plan's own shape" })).not.toBeChecked()
+    expect(within(group).getByRole('radio', { name: 'Three run days a week' })).not.toBeChecked()
+    const current = within(group).getByRole('radio', { name: 'A longer base' })
+    expect(current).toBeChecked()
+    expect(current).toHaveAccessibleDescription(/The shape chosen now/)
+    expect(within(group).getAllByText('The shape chosen now')).toHaveLength(1)
+    // a line of help for each, the days open and the grade of the choice
+    expect(
+      within(dialog).getByText(/^Run days follow your weekly minutes and the days you have free/),
+    ).toBeVisible()
+    expect(within(dialog).getByText(/^At most three run days a week\./)).toBeVisible()
+    expect(
+      within(dialog).getByText(/^Strides only in the base, for up to two more weeks/),
+    ).toBeVisible()
+    expect(
+      await within(dialog).findByText(/^You have 7 days open; three run days leave four free\./),
+    ).toBeVisible()
+    expect(within(dialog).getByText('A choice, not a better plan (grade D).')).toBeVisible()
+    // what saving does, and where the change is undone
+    expect(
+      within(dialog).getByText(
+        'Saving draws the weeks after this one again with this shape. This week stays as it was drawn.',
+      ),
+    ).toBeVisible()
+    expect(
+      within(dialog).getByText('A change to the weeks can be undone from What changed.'),
+    ).toBeVisible()
+    // the buttons: Save stays off while the choice is the plan's own
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeEnabled()
+    expectCleanCopy(dialog)
+  })
+
+  test('Save sends the shape in one request, reads the plan again, closes the sheet and shows the shape after', async () => {
+    const user = userEvent.setup()
+    const plan = makeV2Plan({ method: method() })
+    const server = stateful(plan, {
+      'PUT /api/plan/method': () => {
+        server.set(
+          makeV2Plan({
+            method: method({ requested: 'three-run-days', effective: 'three-run-days' }),
+          }),
+        )
+        return changedTo(summaryOf(8))
+      },
+    })
+    const { calls } = mockApi(server.routes)
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Three run days a week' }))
+    const before = calls.length
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: TITLE })).not.toBeInTheDocument()
+    })
+    expect(putMethod(calls)).toHaveLength(1)
+    expect(putMethod(calls)[0]).toMatchObject({ body: { method: 'three-run-days' } })
+    // the plan, its revisions and the readers that follow the plan are asked for again
+    await waitFor(() => {
+      const after = calls.slice(before).map((c) => c.url)
+      expect(after).toContain('/api/plan')
+      expect(after).toContain('/api/plan/revisions')
+    })
+    // and the panel shows the shape the plan has now
+    const panel = screen.getByRole('region', { name: 'Plan shape' })
+    await waitFor(() => {
+      expect(within(panel).getByText('Three run days a week', { selector: 'strong' })).toBeVisible()
+    })
+    expect(within(panel).queryByText("The plan's own shape", { selector: 'strong' })).toBeNull()
+  })
+
+  test('stays open while the change is under way, so the toast and a refusal are said by the sheet that asked', async () => {
+    const user = userEvent.setup()
+    const summary = summaryOf(8)
+    mockApi(
+      routes(makeV2Plan({ method: method() }), {
+        'GET /api/goals': () => [halfGoal],
+        'PUT /api/plan/method': () => changedTo(summary),
+      }),
+    )
+    // the request waits until the test lets it go, as a slow server does
+    const answer = globalThis.fetch
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if ((init?.method ?? 'GET').toUpperCase() === 'PUT') await gate
+      return answer(input, init)
+    })
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Three run days a week' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    // Close is off, and Escape and the scrim do nothing, until the answer comes
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Close' })).toBeDisabled()
+    })
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByTestId('sheet-scrim'))
+    expect(screen.getByRole('dialog', { name: TITLE })).toBeInTheDocument()
+
+    release()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: TITLE })).not.toBeInTheDocument()
+    })
+    const toast = await screen.findByRole('status')
+    await waitFor(() => {
+      expect(toast).toHaveTextContent(summary)
+    })
+  })
+
+  test('the toast after Save is the summary of the revision, sentence by sentence', async () => {
+    const user = userEvent.setup()
+    const summary = summaryOf(8)
+    expect(summary).toMatch(
+      /^Plan shape changed to three run days a week\. 8 weeks redrawn from .+\. This week stays as it was drawn\.$/,
+    )
+    mockApi(
+      routes(makeV2Plan({ method: method() }), {
+        'GET /api/goals': () => [halfGoal],
+        'PUT /api/plan/method': () => changedTo(summary),
+      }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Three run days a week' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    const toast = await screen.findByRole('status')
+    await waitFor(() => {
+      expect(toast).toHaveTextContent(summary)
+    })
+    expect(screen.queryByText('Plan shape changed')).not.toBeInTheDocument()
+    expectCleanCopy(toast)
+  })
+
+  test('the toast says why a shape that reads as the plan’s own does not apply, at once', async () => {
+    const user = userEvent.setup()
+    const summary = methodChangeSummary({
+      requested: 'longer-base',
+      reason: 'held:recent-injury',
+      weeks: 0,
+      from: '2027-01-18',
+      held: false,
+    })
+    expect(summary).toBe(
+      "Plan shape changed to a longer base. The plan's own shape applies for now: held while a recent injury is on file.",
+    )
+    mockApi(
+      routes(makeV2Plan({ method: method() }), {
+        'GET /api/goals': () => [halfGoal],
+        'PUT /api/plan/method': () => ({ ...changedTo(summary), method: 'longer-base' }),
+      }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'A longer base' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    const toast = await screen.findByRole('status')
+    await waitFor(() => {
+      expect(toast).toHaveTextContent(summary)
+    })
+    expectCleanCopy(toast)
+  })
+
+  test('says "Plan shape changed" when the plan already held the shape and no revision was written', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan({ method: method() }), {
+        'GET /api/goals': () => [halfGoal],
+        'PUT /api/plan/method': () => ({ method: 'three-run-days', revision: null }),
+      }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Three run days a week' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Plan shape changed')).toBeInTheDocument()
+  })
+
+  test('the shape the plan asks for disables Save, also while it reads as the plan’s own, and sends nothing', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(
+        makeV2Plan({
+          method: method({ requested: 'three-run-days', reason: 'held:recent-injury' }),
+        }),
+        { 'GET /api/goals': () => [halfGoal] },
+      ),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    const save = within(dialog).getByRole('button', { name: 'Save' })
+    // the sheet starts from what the plan asks for, not from what applies
+    expect(within(dialog).getByRole('radio', { name: 'Three run days a week' })).toBeChecked()
+    expect(
+      within(dialog).getByText("Held at the plan's own shape while a recent injury is on file."),
+    ).toBeVisible()
+    expect(save).toBeDisabled()
+    await user.click(within(dialog).getByRole('radio', { name: "The plan's own shape" }))
+    expect(save).toBeEnabled()
+    await user.click(within(dialog).getByRole('radio', { name: 'Three run days a week' }))
+    expect(save).toBeDisabled()
+    await user.click(save)
+    expect(putMethod(calls)).toHaveLength(0)
+  })
+
+  test('sends the plan’s own shape when the runner goes back to it', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(
+        makeV2Plan({
+          method: method({ requested: 'three-run-days', effective: 'three-run-days' }),
+        }),
+        {
+          'GET /api/goals': () => [halfGoal],
+          'PUT /api/plan/method': () => ({ method: 'default', revision: null }),
+        },
+      ),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: "The plan's own shape" }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(putMethod(calls)).toHaveLength(1)
+    })
+    expect(putMethod(calls)[0]).toMatchObject({ body: { method: 'default' } })
+  })
+
+  test('shows three run days disabled for a goal it is not for, with the reason', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(routes(makeV2Plan({ method: method() })))
+    renderPlan()
+    const dialog = await openSheet(user)
+    const three = within(dialog).getByRole('radio', { name: 'Three run days a week' })
+    expect(three).toBeDisabled()
+    expect(within(dialog).getByText('Not for a marathon or longer')).toBeInTheDocument()
+    expect(within(dialog).getByRole('radio', { name: 'A longer base' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled()
+    await user.click(three)
+    expect(putMethod(calls)).toHaveLength(0)
+  })
+
+  test('Cancel closes the sheet and sends nothing', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi(
+      routes(makeV2Plan({ method: method() }), { 'GET /api/goals': () => [halfGoal] }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'A longer base' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog', { name: TITLE })).not.toBeInTheDocument()
+    expect(putMethod(calls)).toHaveLength(0)
+  })
+
+  test('a refusal is said in the sheet, which stays open', async () => {
+    const user = userEvent.setup()
+    mockApi(
+      routes(makeV2Plan({ method: method() }), {
+        'GET /api/goals': () => [halfGoal],
+        'PUT /api/plan/method': () => ({
+          status: 422,
+          body: {
+            error: {
+              code: 'validation',
+              message: 'The plan did not pass the plan checks, so it was not published.',
+            },
+          },
+        }),
+      }),
+    )
+    renderPlan()
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'A longer base' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert).toHaveTextContent('The plan did not pass the plan checks')
+    expect(screen.getByRole('dialog', { name: TITLE })).toBeInTheDocument()
     expectCleanCopy(dialog)
   })
 })
@@ -1711,7 +2120,7 @@ describe('Plan page, the plan shape', () => {
       },
     )
 
-    test('offers no change here: only Why, until the Plan page has a change action', async () => {
+    test('offers Why and the change action, and nothing else', async () => {
       mockApi(
         routes(
           makeV2Plan({ method: method({ requested: 'longer-base', effective: 'longer-base' }) }),
@@ -1723,7 +2132,7 @@ describe('Plan page, the plan shape', () => {
         within(region)
           .getAllByRole('button')
           .map((button) => button.getAttribute('aria-label')),
-      ).toEqual(['Why this shape'])
+      ).toEqual(['Why this shape', 'Change plan shape'])
     })
 
     test('sits after the load setting, and a plan with no method has no panel', async () => {

@@ -106,6 +106,42 @@ test('choose three run days on a 10 km goal, see it on the Plan page and in the 
   await page.getByRole('button', { name: 'Regenerate plan' }).click()
   const sheet = page.getByRole('dialog', { name: 'Regenerate plan' })
   await expect(sheet.getByRole('radio', { name: 'Three run days a week' })).toBeChecked()
+  await sheet.getByRole('button', { name: 'Close' }).click()
+  await expect(sheet).toBeHidden()
+
+  // Change the shape in place: the sheet marks the shape the plan has, Save sends the choice, the
+  // toast is the summary of the revision, and the panel shows the new shape. The runner opens on a
+  // start programme, whose weeks are the programme's whatever the shape, so no week is held here
+  // (the API tests hold one).
+  const before = (await api.get('/plan')) as PlanWithSessions
+  await panel.getByRole('button', { name: 'Change plan shape' }).click()
+  const change = page.getByRole('dialog', { name: 'Change plan shape' })
+  await expect(change.getByRole('radio', { name: 'Three run days a week' })).toBeChecked()
+  await expect(change.getByText('The shape chosen now')).toBeVisible()
+  await expect(change.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await change.getByRole('radio', { name: 'A longer base' }).check()
+  await change.getByRole('button', { name: 'Save' }).click()
+  await expect(
+    toast(page, /^Plan shape changed to a longer base\. \d+ weeks redrawn from .+\./),
+  ).toBeVisible()
+  await expect(change).toBeHidden()
+  await expect(panel.getByText('A longer base', { exact: true })).toBeVisible()
+
+  // The plan has the new shape, the current week is as it was drawn, and the revision is on the list.
+  const after = (await api.get('/plan')) as PlanWithSessions
+  expect(after.method).toEqual({
+    requested: 'longer-base',
+    effective: 'longer-base',
+    reason: null,
+  })
+  const current = (plan: PlanWithSessions) =>
+    plan.sessions
+      .filter((s) => s.weekStart === thisMonday)
+      .map((s) => [s.id, s.date, s.kind, s.durationMin])
+  expect(current(after)).toEqual(current(before))
+  expect(after.weeks.some((week) => week.flags.includes('shape-longer-base'))).toBe(true)
+  const revisions = (await api.get('/plan/revisions')) as Array<{ reason: string; summary: string }>
+  expect(revisions[0]).toMatchObject({ reason: 'method-change' })
 })
 
 test('a marathon goal shows three run days disabled and offers the longer base', async ({

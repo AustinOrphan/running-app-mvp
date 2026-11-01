@@ -19,6 +19,7 @@ import { replan, runChecklist } from '../../shared/engine/index.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import {
   isLoadAppetite,
+  isPresetId,
   type ChecklistResult,
   type EngineInput,
   type EngineWarning,
@@ -66,6 +67,7 @@ import {
   weekHash,
   EMPTY_DIFF_MARK,
   type LoadSettingChange,
+  type MethodChange,
   type SessionContent,
   type UndoPayload,
   type WeekContent,
@@ -90,14 +92,27 @@ function isRowSets(value: unknown): boolean {
   return Array.isArray(sets.created) && Array.isArray(sets.deleted) && Array.isArray(sets.updated)
 }
 
-/** The load setting a stored payload records, or undefined when it holds none or an unreadable one. */
+/**
+ * The plan options a stored payload records, or undefined when it holds none. Each option is read on
+ * its own: one that names no position or preset is dropped and the other is kept.
+ */
 function readSetting(value: unknown): UndoPayload['setting'] {
   if (typeof value !== 'object' || value === null) return undefined
-  const change = (value as { loadAppetite?: { before?: unknown; after?: unknown } }).loadAppetite
-  const before = change?.before
-  if (!isLoadAppetite(change?.after)) return undefined
-  if (before !== null && !isLoadAppetite(before)) return undefined
-  return { loadAppetite: { before, after: change.after } }
+  const { loadAppetite, method } = value as {
+    loadAppetite?: { before?: unknown; after?: unknown }
+    method?: { before?: unknown; after?: unknown }
+  }
+  const setting: NonNullable<UndoPayload['setting']> = {}
+  if (
+    isLoadAppetite(loadAppetite?.after) &&
+    (loadAppetite.before === null || isLoadAppetite(loadAppetite.before))
+  ) {
+    setting.loadAppetite = { before: loadAppetite.before, after: loadAppetite.after }
+  }
+  if (isPresetId(method?.after) && (method.before === null || isPresetId(method.before))) {
+    setting.method = { before: method.before, after: method.after }
+  }
+  return setting.loadAppetite === undefined && setting.method === undefined ? undefined : setting
 }
 
 /** The stored undo payload, or null when there is none or it cannot be read (nothing to restore). */
@@ -126,6 +141,22 @@ export function readPayload(text: string | null): UndoPayload | null {
 export function optionsWithSetting(text: string | null, change: LoadSettingChange): string {
   const { loadAppetite: _current, ...rest } = parsePlanOptions(text)
   return JSON.stringify(change.before === null ? rest : { ...rest, loadAppetite: change.before })
+}
+
+/** The same for the method preset: the preset before the revision, or none when the plan stored none. */
+export function optionsWithMethod(text: string | null, change: MethodChange): string {
+  const { method: _current, ...rest } = parsePlanOptions(text)
+  return JSON.stringify(change.before === null ? rest : { ...rest, method: change.before })
+}
+
+/** The plan's options text with every option a payload changed put back as it recorded it. */
+export function optionsRestored(
+  text: string | null,
+  setting: NonNullable<UndoPayload['setting']>,
+): string {
+  const load =
+    setting.loadAppetite === undefined ? text : optionsWithSetting(text, setting.loadAppetite)
+  return setting.method === undefined ? (load ?? '{}') : optionsWithMethod(load, setting.method)
 }
 
 /** A revision read once: its payload, its diff and the safety rules it cites. */
@@ -307,14 +338,20 @@ export function scopeUndo(
   }
   if (payload.setting !== undefined) {
     scoped.setting = payload.setting
-    const held = parsePlanOptions(index.planOptions.get(args.planId)).loadAppetite ?? 'steady'
+    const held = parsePlanOptions(index.planOptions.get(args.planId))
+    // each option the revision changed must still stand as the revision left it
+    const left =
+      (payload.setting.loadAppetite === undefined ||
+        (held.loadAppetite ?? 'steady') === payload.setting.loadAppetite.after) &&
+      (payload.setting.method === undefined ||
+        (held.method ?? 'default') === payload.setting.method.after)
     rows.push({
       kind: 'setting',
       id: args.planId,
       weekStart: null,
       title: null,
       date: null,
-      standing: held === payload.setting.loadAppetite.after ? 'as-left' : 'edited',
+      standing: left ? 'as-left' : 'edited',
     })
   }
 
@@ -987,7 +1024,7 @@ export async function planUndo(
   const restoredOptions =
     scoped.payload.setting === undefined
       ? plan.options
-      : optionsWithSetting(plan.options, scoped.payload.setting.loadAppetite)
+      : optionsRestored(plan.options, scoped.payload.setting)
   const writes = restoreWrites({ sessions: sessionRows, weeks: weekRows }, scoped.payload)
   const diff = restoreDiff(writes)
   const stored = existingFrom(

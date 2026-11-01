@@ -10,6 +10,12 @@ export interface SheetProps {
   title: string
   children: ReactNode
   footer?: ReactNode
+  /**
+   * An action started in the sheet is under way. The sheet stays open until it settles: Close is
+   * disabled and Escape and a click on the scrim do nothing, so what the action reports (a toast,
+   * a refusal) is still said by the sheet that asked for it, which a closed sheet cannot do.
+   */
+  busy?: boolean
 }
 
 /**
@@ -39,14 +45,14 @@ const focusable =
  * scrim close it, Tab stays inside (also when focus has fallen to the page), and focus goes back to
  * whatever opened it, or to the main landmark when the opener is gone and focus is lost with it.
  */
-export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
+export function Sheet({ open, onClose, title, children, footer, busy = false }: SheetProps) {
   const titleId = useId()
   const root = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   useEffect(() => {
-    onCloseRef.current = onClose
+    onCloseRef.current = busy ? () => undefined : onClose
   })
 
   useEffect(() => {
@@ -119,7 +125,11 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
 
   return createPortal(
     <div ref={root} className={styles.root}>
-      <div className={styles.scrim} data-testid="sheet-scrim" onClick={onClose} />
+      <div
+        className={styles.scrim}
+        data-testid="sheet-scrim"
+        onClick={busy ? undefined : onClose}
+      />
       <div
         ref={panel}
         role="dialog"
@@ -133,7 +143,7 @@ export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
           <h2 id={titleId} className={styles.title}>
             {title}
           </h2>
-          <Button variant="quiet" onClick={onClose}>
+          <Button variant="quiet" disabled={busy} onClick={onClose}>
             Close
           </Button>
         </div>
