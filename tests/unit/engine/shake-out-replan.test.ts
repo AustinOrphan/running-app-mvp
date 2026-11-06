@@ -385,3 +385,66 @@ describe('a method preset: the race week is cut once', () => {
     }
   })
 })
+
+describe('a method preset re-planned in a started race week', () => {
+  // The preset is held to the minutes the default places before the race, under the same stored plan
+  // [rules G6, K6]: the default's minutes after the race (the first return step, when the race is
+  // early in the week) are the week's tail and were counted in the bound, which let a preset keep
+  // the minutes the cut took from the default's day before. A skipped session in the week is the
+  // case the review named; a grid of 1,920 cases found no week where the two differ (the by-hand grid
+  // of `window-grids.test.ts` reruns it), so this is a guard for the bound and not a failing case.
+  const total = (draft: PlanDraft, today: string) =>
+    runs(draft.sessions, mondayOf(today), today).reduce((n, r) => n + r[2], 0)
+
+  it.each([
+    ['longer-base', undefined],
+    ['longer-base', 'polarized'],
+    ['three-run-days', undefined],
+    ['three-run-days', 'polarized'],
+  ] as const)(
+    'keeps %s (tid model %s) within the default placed under the same plan',
+    (method, tid) => {
+      const a = athlete('half').input
+      const monday = mondayOf(a.goal.date)
+      for (const [race, day] of [
+        [4, 1],
+        [4, 2],
+        [4, 3],
+        [5, 2],
+        [5, 4],
+      ] as const) {
+        const base: EngineInput = {
+          ...a,
+          goal: { ...a.goal, date: addDays(monday, race) },
+          options: { ...a.options, ...(tid === undefined ? {} : { tidModel: tid }), method },
+        }
+        const today = addDays(monday, day)
+        for (const skipped of [[], [addDays(monday, race - 1)]]) {
+          const first = buildPlan(base)
+          const done = first.sessions
+            .filter((s) => s.date < today && !NOT_RUNS.includes(s.kind))
+            .map((s) =>
+              activity(s.date, {
+                id: `done-${s.date}`,
+                durationSec: s.durationMin * 60,
+                distanceM: s.distanceM ?? s.durationMin * 170,
+              }),
+            )
+          const current: EngineInput = {
+            ...base,
+            today,
+            activities: [...base.activities, ...done],
+            existing: storedAt(first, today, skipped),
+          }
+          const preset = replan(current).draft
+          const plain = replan({
+            ...current,
+            options: { ...current.options, method: 'default' },
+          }).draft
+          const label = `race on day ${String(race)}, re-plan on day ${String(day)}, ${String(skipped.length)} skipped`
+          expect(total(preset, today), label).toBeLessThanOrEqual(total(plain, today))
+        }
+      }
+    },
+  )
+})

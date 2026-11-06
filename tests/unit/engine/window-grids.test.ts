@@ -28,6 +28,13 @@
 //    three more times with each pass stored: the runs still to come are the first pass's every time,
 //    the day before the race holds no more than the cap, and the race week holds no more running to
 //    come than the same week with the rule off (the rule never adds running, G6).
+// 5. A method preset in a started race week (the fourth review of RF3, item D): the 8 matrix athletes
+//    with a race of 90 minutes or more (not the one with a hold); the presets `three-run-days` and
+//    `longer-base`, with and without the polarized model of intensity; the race on each day from
+//    the Wednesday to the Sunday, re-planned on each day before it with its days before run as planned,
+//    with no session skipped and with the first, the last and the next session skipped in advance
+//    (1,920 cases): the minutes the preset still plans before the race are never above those of the
+//    default re-planned under the same stored plan.
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
@@ -38,6 +45,7 @@ import type {
   PlanDraft,
   PresetId,
 } from '../../../shared/engine/types.ts'
+import { activity } from './e8-fixtures.ts'
 import { LOAD_ITEMS } from './history-properties.ts'
 import { windowOf, withWindows } from './disruption-fixtures.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
@@ -269,6 +277,94 @@ byHand('the grids of the third review of RF2 (by hand)', () => {
     }
     console.log(`race-week grid: ${chains} chains, ${failures.length} failures`)
     expect(chains).toBeGreaterThan(100)
+    expect(failures).toEqual([])
+  })
+
+  it('keeps a method preset in a started race week within the default placed under the same plan', () => {
+    const NOT_RUNS = ['strength', 'mobility', 'rest', 'race', 'hike', 'cross']
+    const toCome = (draft: PlanDraft, from: string): number =>
+      draft.sessions
+        .filter(
+          (s) =>
+            s.date >= from &&
+            mondayOf(s.date) === mondayOf(from) &&
+            !NOT_RUNS.includes(s.kind) &&
+            !s.flags.includes('post-race'),
+        )
+        .reduce((n, s) => n + s.durationMin, 0)
+    const failures: string[] = []
+    let cases = 0
+    for (const athlete of athletes()) {
+      if (athlete.id === 'reds-hold' || athlete.input.goal.expectedDurationSec / 60 < 90) continue
+      const monday = mondayOf(athlete.input.goal.date)
+      for (const tid of [undefined, 'polarized'] as const) {
+        for (const method of ['three-run-days', 'longer-base'] as const) {
+          for (let race = 2; race <= 6; race += 1) {
+            const base: EngineInput = {
+              ...athlete.input,
+              goal: { ...athlete.input.goal, date: addDays(monday, race) },
+              options: {
+                ...athlete.input.options,
+                ...(tid === undefined ? {} : { tidModel: tid }),
+                method,
+              },
+            }
+            const first = buildPlan(base)
+            for (let day = 1; day < race; day += 1) {
+              const today = addDays(monday, day)
+              const done = first.sessions
+                .filter((s) => s.date < today && !NOT_RUNS.includes(s.kind))
+                .map((s) =>
+                  activity(s.date, {
+                    id: `done-${s.date}`,
+                    durationSec: s.durationMin * 60,
+                    distanceM: s.distanceM ?? s.durationMin * 170,
+                  }),
+                )
+              for (const skipped of [
+                [],
+                [addDays(monday, day)],
+                [addDays(monday, race - 1)],
+                [addDays(monday, day + 1)],
+              ]) {
+                const current: EngineInput = {
+                  ...base,
+                  today,
+                  activities: [...base.activities, ...done],
+                  existing: {
+                    weeks: first.weeks,
+                    sessions: first.sessions.map((s, i) => ({
+                      ...s,
+                      id: `s${String(i)}`,
+                      status:
+                        s.date < today
+                          ? 'completed'
+                          : skipped.includes(s.date)
+                            ? 'skipped'
+                            : 'planned',
+                      activityId: null,
+                    })),
+                  },
+                }
+                const preset = toCome(replan(current).draft, today)
+                const plain = toCome(
+                  replan({ ...current, options: { ...current.options, method: 'default' } }).draft,
+                  today,
+                )
+                cases += 1
+                if (preset > plain) {
+                  failures.push(
+                    `${athlete.id}, ${method}, ${tid ?? 'pyramidal'}, race on day ${String(race)}, re-plan on day ${String(day)}, skipped ${skipped.join(' ') || 'none'}: ${String(preset)} min against ${String(plain)}`,
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    console.log(`preset grid: ${cases} cases, ${failures.length} above the default`)
+    expect(cases).toBe(1920)
     expect(failures).toEqual([])
   })
 })

@@ -1270,14 +1270,14 @@ function generate(
       ).filter((s) => s.date < goal.date || mondayOf(s.date) > raceMonday)
       freeLimit = {
         target: capped.targetRunMin,
-        placed: runningMinutes([...freeSessions, ...afterRace]),
+        placed: runningMinutes(freeSessions),
       }
     }
     placed.push(...inside, ...rest, ...afterRace, ...windowRest)
     history.push(...inside, ...afterRace)
     record?.set(week.weekStart, {
       target: planWeek.targetRunMin,
-      placed: runningMinutes([...inside, ...afterRace]),
+      placed: runningMinutes(inside),
       ...(freeLimit === undefined ? {} : { free: freeLimit }),
     })
 
@@ -1473,10 +1473,12 @@ function generate(
 /**
  * What the default plan does in one week, in the units `generate` places a week in: `target` is the
  * running minutes the week is placed against (what is left of the week, after the caps) and `placed`
- * the running minutes the placement gives it, which are fewer when a session places short of its
- * share. A method preset is held to both [rule G6]. `free` is the same for the week as it would be
- * without the windows, set on a week a short window took days from: the week the preset's own
- * ramp puts back (`generate`).
+ * the running minutes the placement gives it before the race (the runs of the first return step in
+ * the race week are the week's own tail, which the preset places by the same steps), which are fewer
+ * when a session places short of its share and where the shake-out cuts the day before a long race.
+ * A method preset is held to both, and to `placed` as the net of the cut it makes itself [rules G6,
+ * K6]. `free` is the same for the week as it would be without the windows, set on a week a short
+ * window took days from: the week the preset's own ramp puts back (`generate`).
  */
 interface WeekLimit {
   target: number
