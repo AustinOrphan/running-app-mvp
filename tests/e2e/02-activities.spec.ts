@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
+import { createPrisma, initSqlite } from '../../server/db.ts'
+import { E2E_DATABASE_URL } from './env.ts'
 import { relativeDates, resetData, signedInApi, toast } from './helpers.ts'
 
 test('logging a run from the Activities page shows it in the list and on the dashboard', async ({
@@ -71,6 +73,55 @@ test('a run logged for today opens its own page, the post-run screen, and the to
   // the run is in the list behind it (the case above is the back-fill that stays on the list)
   await page.getByRole('link', { name: 'All activities' }).click()
   await expect(page.getByRole('button', { name: /^Run 45:00 5\.00 mi/ })).toBeVisible()
+})
+
+test('a row says its pace is the elapsed one when the moving time differs, and stays as compact at 360 px', async ({
+  page,
+  baseURL,
+}) => {
+  const { today } = relativeDates()
+  const api = await signedInApi(page, baseURL ?? '')
+  await resetData()
+  const run = (await api.post('/activities', {
+    date: addDays(today, -3),
+    type: 'run',
+    durationSec: 45 * 60,
+    distanceM: 8047,
+  })) as { id: string }
+  await api.post('/activities', {
+    date: addDays(today, -4),
+    type: 'run',
+    durationSec: 45 * 60,
+    distanceM: 8047,
+  })
+  // the API has no moving time to give; a recording source stores one, so the row is written
+  // straight to the table, as other specs write what the API cannot
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    await prisma.activity.update({ where: { id: run.id }, data: { movingSec: 43 * 60 } })
+  } finally {
+    await prisma.$disconnect()
+  }
+
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/activities')
+  const rows = page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('link', { name: /^Details, Run on / }) })
+  const withMoving = rows.filter({ has: page.getByText('elapsed') })
+  const without = rows.filter({ hasNot: page.getByText('elapsed') })
+  await expect(withMoving).toHaveCount(1)
+  await expect(without).toHaveCount(1)
+  await expect(withMoving.getByText('9:00 /mi')).toBeVisible()
+  // the row that qualifies its pace is no taller than the one that does not
+  const [tall, short] = await Promise.all([withMoving.boundingBox(), without.boundingBox()])
+  expect(tall?.height).toBeLessThanOrEqual(short?.height ?? 0)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    ),
+  ).toBe(false)
 })
 
 test('a duration the form cannot read is reported and nothing is saved', async ({

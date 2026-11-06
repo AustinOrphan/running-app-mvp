@@ -1,12 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
+  ACTIVITY_ELAPSED_QUALIFIER,
   ACTIVITY_MORE_ERROR,
   activityCountText,
   activityMoreLabel,
+  activityPaceLabel,
   activitySetsText,
 } from '../../shared/copy/activityList.ts'
 import { todayIso } from '../../shared/dates.ts'
+import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
 import type { ActivityListItem, ActivityType, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import {
@@ -78,6 +81,8 @@ function ActivityRow({
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
     activity.distanceM > 0
+  // the pace of a row is the elapsed one; with a moving time that differs, the row says so
+  const elapsedPace = showPace && movingTimeDiffers(activity)
   const source = sourceLabel(activity.source)
 
   return (
@@ -95,7 +100,14 @@ function ActivityRow({
           ) : null}
           {showPace && activity.distanceM !== null ? (
             <span className={styles.pace}>
+              {/* The pace is the elapsed one: with a moving time that differs, it says so */}
+              <span className="visually-hidden">{`${activityPaceLabel(elapsedPace)}: `}</span>
               {formatPace(activity.durationSec, activity.distanceM, units)}
+              {elapsedPace ? (
+                <span className={styles.qualifier} aria-hidden="true">
+                  {` ${ACTIVITY_ELAPSED_QUALIFIER}`}
+                </span>
+              ) : null}
             </span>
           ) : null}
           {source !== null ? <span className={styles.source}>{source}</span> : null}

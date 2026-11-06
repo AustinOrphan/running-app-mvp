@@ -211,7 +211,7 @@ describe('ActivityDetailPage', () => {
     expect(screen.getByText('Mon 2 Mar 2026, 07:30')).toBeInTheDocument()
     const summary = screen.getByRole('region', { name: 'Summary' })
     expect(figureOf(summary, 'Distance')).toBe('3.11 mi')
-    expect(figureOf(summary, 'Pace')).toBe('9:39 /mi')
+    expect(figureOf(summary, 'Elapsed pace')).toBe('9:39 /mi')
     expect(figureOf(summary, 'Duration')).toBe('30:00')
     expect(figureOf(summary, 'Moving time')).toBe('29:10')
     expect(figureOf(summary, 'Average HR')).toBe('148 bpm')
@@ -224,7 +224,8 @@ describe('ActivityDetailPage', () => {
     renderDetail({ units: 'km' })
     const summary = await screen.findByRole('region', { name: 'Summary' })
     expect(figureOf(summary, 'Distance')).toBe('5.00 km')
-    expect(figureOf(summary, 'Pace')).toBe('6:00 /km')
+    expect(figureOf(summary, 'Elapsed pace')).toBe('6:00 /km')
+    expect(figureOf(summary, 'Moving pace')).toBe('5:50 /km')
     expect(figureOf(summary, 'Elevation gain')).toBe('60 m')
   })
 
@@ -232,12 +233,12 @@ describe('ActivityDetailPage', () => {
     const TERMS = [
       'Duration',
       'Distance',
-      'Pace',
+      'Elapsed pace',
+      'Moving pace',
       'Elevation gain',
       'Average HR',
       'Max HR',
       'Moving time',
-      'Moving pace',
       'Elevation loss',
       'Cadence',
     ]
@@ -290,6 +291,59 @@ describe('ActivityDetailPage', () => {
           .map((t) => t.textContent),
       ).toEqual(['Duration', 'Distance', 'Pace'])
       expect(within(summary).getByText('Entered by hand')).toBeInTheDocument()
+    })
+
+    describe('which pace is which', () => {
+      const withMoving = (movingSec: number | null) => {
+        const base = makeDetail()
+        return { ...base, activity: { ...base.activity, movingSec } }
+      }
+
+      test('with a moving pace beside it, the first is the elapsed pace and the second the moving pace', async () => {
+        renderDetail({ detail: withMoving(1750) })
+        const summary = await screen.findByRole('region', { name: 'Summary' })
+        // the figure that leads is still the elapsed one, from the duration
+        expect(figureOf(summary, 'Elapsed pace')).toBe('9:39 /mi')
+        expect(figureOf(summary, 'Moving pace')).toBe('9:23 /mi')
+        expect(termOf(summary, 'Pace')).toBeUndefined()
+        // the two paces stand side by side in the readings
+        const labels = within(summary)
+          .getAllByRole('term')
+          .map((term) => term.textContent)
+        expect(labels.indexOf('Moving pace')).toBe(labels.indexOf('Elapsed pace') + 1)
+      })
+
+      test('with no moving time there is one pace, and it is "Pace"', async () => {
+        renderDetail({ detail: withMoving(null) })
+        const summary = await screen.findByRole('region', { name: 'Summary' })
+        expect(figureOf(summary, 'Pace')).toBe('9:39 /mi')
+        expect(termOf(summary, 'Elapsed pace')).toBeUndefined()
+        expect(termOf(summary, 'Moving pace')).toBeUndefined()
+        expect(termOf(summary, 'Moving time')).toBeUndefined()
+      })
+
+      test('a moving time within a second of the elapsed time is the same time: one pace, "Pace"', async () => {
+        renderDetail({ detail: withMoving(1800) })
+        const summary = await screen.findByRole('region', { name: 'Summary' })
+        expect(figureOf(summary, 'Pace')).toBe('9:39 /mi')
+        expect(termOf(summary, 'Elapsed pace')).toBeUndefined()
+        expect(termOf(summary, 'Moving pace')).toBeUndefined()
+      })
+
+      test('an activity with no pace gets neither label', async () => {
+        const base = makeDetail()
+        renderDetail({
+          detail: {
+            ...base,
+            activity: { ...base.activity, type: 'cross', movingSec: 1750 },
+          },
+        })
+        const summary = await screen.findByRole('region', { name: 'Summary' })
+        expect(termOf(summary, 'Pace')).toBeUndefined()
+        expect(termOf(summary, 'Elapsed pace')).toBeUndefined()
+        expect(termOf(summary, 'Moving pace')).toBeUndefined()
+        expect(termOf(summary, 'Moving time')).toBeDefined()
+      })
     })
 
     test('the type steps are the tokens: xl for the lead figures, 22 px for readings, 15 px for the line', () => {

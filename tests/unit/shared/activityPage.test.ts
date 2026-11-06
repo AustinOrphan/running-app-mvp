@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   ACTIVITY_PAGE_TEMPLATES,
   againstThePlanHeading,
+  movingPaceLabel,
   noLinkedSession,
+  paceLabel,
   plannedAgainstRan,
 } from '../../../shared/copy/activityPage.ts'
 import { assertCleanCopy } from '../../../shared/copy/lint.ts'
@@ -65,6 +67,12 @@ describe('the sentences of the activity page', () => {
     expect(noLinkedSession(true, 'mi')).toBe('This activity is not linked to a planned session.')
   })
 
+  it('labels the paces: "Pace" alone, and "Elapsed pace" beside "Moving pace"', () => {
+    expect(paceLabel(false, 'mi')).toBe('Pace')
+    expect(paceLabel(true, 'mi')).toBe('Elapsed pace')
+    expect(movingPaceLabel('km')).toBe('Moving pace')
+  })
+
   it('heads the block "Against the plan"', () => {
     expect(againstThePlanHeading('km')).toBe('Against the plan')
   })
@@ -77,6 +85,8 @@ describe('the sentences of the activity page', () => {
       noLinkedSession(false, 'km'),
       noLinkedSession(true, 'km'),
       againstThePlanHeading('km'),
+      paceLabel(true, 'km'),
+      movingPaceLabel('km'),
     ]) {
       assertCleanCopy(line, 'The activity page')
     }

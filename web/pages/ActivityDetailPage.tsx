@@ -2,10 +2,13 @@ import { useId, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   againstThePlanHeading,
+  movingPaceLabel,
   noLinkedSession,
+  paceLabel,
   plannedAgainstRan,
 } from '../../shared/copy/activityPage.ts'
 import { formatAirTemperature } from '../../shared/copy/quantity.ts'
+import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
 import type { Activity, ActivityDetail, HrHistogram, Lap, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import { useActivityDetail, useDeleteActivity, useSaveFeedback } from '../api/activities.ts'
@@ -86,8 +89,10 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
     activity.distanceM > 0
-  const movingDiffers =
-    activity.movingSec !== null && Math.abs(activity.movingSec - activity.durationSec) >= 1
+  const movingDiffers = movingTimeDiffers(activity)
+  // The pace the page leads with is the elapsed one. When a moving pace stands beside it, the first
+  // says which it is; with only one pace, it is "Pace".
+  const movingPace = hasPace && movingDiffers && activity.movingSec !== null
   const subtype = activity.subtype
   const distance =
     activity.distanceM !== null && activity.type !== 'strength'
@@ -103,8 +108,15 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
     hasPace && activity.distanceM !== null ? (
       <Reading
         key="pace"
-        label="Pace"
+        label={paceLabel(movingPace, units)}
         value={formatPace(activity.durationSec, activity.distanceM, units)}
+      />
+    ) : null,
+    movingPace && activity.distanceM !== null && activity.movingSec !== null ? (
+      <Reading
+        key="moving-pace"
+        label={movingPaceLabel(units)}
+        value={formatPace(activity.movingSec, activity.distanceM, units)}
       />
     ) : null,
     activity.elevationGainM !== null ? (
@@ -122,13 +134,6 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
     ) : null,
     activity.movingSec !== null && movingDiffers ? (
       <Reading key="moving" label="Moving time" value={formatDuration(activity.movingSec)} />
-    ) : null,
-    hasPace && activity.distanceM !== null && activity.movingSec !== null && movingDiffers ? (
-      <Reading
-        key="moving-pace"
-        label="Moving pace"
-        value={formatPace(activity.movingSec, activity.distanceM, units)}
-      />
     ) : null,
     hasPace && activity.gapDistanceM !== null && activity.gapDistanceM > 0 ? (
       <Reading

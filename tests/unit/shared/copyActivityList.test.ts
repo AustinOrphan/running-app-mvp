@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'vitest'
 import {
+  ACTIVITY_ELAPSED_QUALIFIER,
   ACTIVITY_LIST_TEMPLATES,
   ACTIVITY_MORE_ERROR,
   activityCountText,
   activityMoreLabel,
+  activityPaceLabel,
   activitySetsText,
 } from '../../../shared/copy/activityList.ts'
 import { lintText } from '../../../shared/copy/lint.ts'
@@ -24,6 +26,14 @@ describe('activityCountText', () => {
 
   test('reads a list that shrank under the screen as a whole one', () => {
     expect(activityCountText(150, 140)).toBe('140 activities')
+  })
+})
+
+describe('the pace of a row', () => {
+  test('is "Pace", or "Elapsed pace" when the moving time differs, with a muted "elapsed" beside it', () => {
+    expect(activityPaceLabel(false)).toBe('Pace')
+    expect(activityPaceLabel(true)).toBe('Elapsed pace')
+    expect(ACTIVITY_ELAPSED_QUALIFIER).toBe('elapsed')
   })
 })
 

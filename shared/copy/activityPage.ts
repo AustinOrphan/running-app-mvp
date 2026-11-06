@@ -16,6 +16,13 @@ import { render, tpl, type Template } from './template.ts'
 export const ACTIVITY_PAGE_TEMPLATES = {
   'activity-page.against-heading': tpl('Against the plan', {}, { shape: 'label' }),
 
+  // The labels of the paces in the summary. The pace the page leads with is the elapsed one, from
+  // `durationSec`; a moving time that differs adds a moving pace beside it, and then the first
+  // says which it is. Without a moving pace there is only one, and it is "Pace".
+  'activity-page.pace': tpl('Pace', {}, { shape: 'label' }),
+  'activity-page.elapsed-pace': tpl('Elapsed pace', {}, { shape: 'label' }),
+  'activity-page.moving-pace': tpl('Moving pace', {}, { shape: 'label' }),
+
   // The line over a run's assessment: the session it filled and what the run was. A run with a
   // distance names it; a run without one, and an activity that is not a run, name the time only.
   'activity-page.planned-ran': tpl(
@@ -91,4 +98,17 @@ export function noLinkedSession(sessionOnDay: boolean, units: Units): string {
 /** The heading of the block. */
 export function againstThePlanHeading(units: Units): string {
   return render(T['activity-page.against-heading'], {}, units)
+}
+
+/**
+ * The label of the pace the summary leads with: "Pace", or "Elapsed pace" when a moving pace is
+ * shown beside it, so the two are told apart.
+ */
+export function paceLabel(movingPaceShown: boolean, units: Units): string {
+  return render(T[movingPaceShown ? 'activity-page.elapsed-pace' : 'activity-page.pace'], {}, units)
+}
+
+/** The label of the moving pace shown beside the elapsed one. */
+export function movingPaceLabel(units: Units): string {
+  return render(T['activity-page.moving-pace'], {}, units)
 }
