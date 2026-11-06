@@ -75,6 +75,31 @@ describe('WeeklyHoursChart, the default chart', () => {
   })
 })
 
+describe('WeeklyHoursChart, the Tab stop of the picture', () => {
+  const draw = (compact: boolean) =>
+    render(
+      <WeeklyHoursChart
+        compact={compact}
+        weeks={weeks(5, 120)}
+        planned={planned(5)}
+        ariaLabel="Run hours per week"
+      />,
+    )
+
+  test("the default chart keeps the chart library's own stop: its svg takes Tab", () => {
+    const { container } = draw(false)
+    expect(container.querySelector('svg')).toHaveAttribute('tabindex', '0')
+    expect(container.querySelector('[role="application"]')).not.toBeNull()
+  })
+
+  test('the compact chart adds no Tab stop and no application role: it is a picture under buttons', () => {
+    const { container } = draw(true)
+    expect(container.querySelector('svg')).not.toBeNull()
+    expect(container.querySelector('[tabindex="0"]')).toBeNull()
+    expect(container.querySelector('[role="application"]')).toBeNull()
+  })
+})
+
 describe('WeeklyHoursChart, compact', () => {
   test('is the bars alone: one image with the given name, no axes, grid, caption or table', () => {
     const { container } = render(

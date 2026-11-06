@@ -361,6 +361,23 @@ describe('the bars and the brackets', () => {
     expect(season.querySelector('[data-run]')?.closest('[aria-hidden="true"]')).not.toBeNull()
   })
 
+  test('hides the chart from assistive technology: no image in the strip, the chart inside aria-hidden', async () => {
+    mockApi(routes(plan()))
+    renderPlan()
+    const { chart } = await bars()
+    const season = await strip()
+    // the chart has drawn (its image role is there in the DOM) and a reader still finds no image
+    expect(chart).toHaveAttribute('role', 'img')
+    expect(within(season).queryByRole('img')).toBeNull()
+    expect(chart.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(season.contains(chart.closest('[aria-hidden="true"]'))).toBe(true)
+    // and nothing in the picture takes a Tab stop, so the buttons are the only ones of the strip
+    expect(chart.querySelector('[tabindex="0"]')).toBeNull()
+    const stops = [...season.querySelectorAll<HTMLElement>('[tabindex="0"]')]
+    expect(stops).toHaveLength(1)
+    expect(stops[0]!.tagName).toBe('BUTTON')
+  })
+
   test('says what the bars are under them: solid is actual, outline is planned', async () => {
     mockApi(routes(plan()))
     renderPlan()
