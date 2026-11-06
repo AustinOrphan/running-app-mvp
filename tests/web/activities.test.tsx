@@ -1,11 +1,16 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { Route, Routes, useParams } from 'react-router-dom'
 import { describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import type { Activity, ActivityListItem, ImportBatch, Units } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
-import { parseDistanceInput, parseDurationInput } from '../../web/pages/ActivityForm.tsx'
+import {
+  opensItsPage,
+  parseDistanceInput,
+  parseDurationInput,
+} from '../../web/pages/ActivityForm.tsx'
 import { ImportDialog } from '../../web/pages/ImportDialog.tsx'
 import { makeActivity } from '../factories.ts'
 import {
@@ -548,6 +553,120 @@ describe('Activities page', () => {
         '/api/activities?from=2026-03-01&to=2026-03-31&type=race&limit=50&offset=0',
       )
     })
+  })
+})
+
+describe('Activities page: where a saved activity lands', () => {
+  /** What the activity page shows in the tests: the id it was opened on. */
+  function OpenedActivity() {
+    const { id } = useParams()
+    return <p>{`Opened activity ${id ?? ''}`}</p>
+  }
+
+  const NEW_ID = 'new-run'
+
+  function renderRoutes(opts: { routes?: MockRoutes; activities?: ActivityListItem[] } = {}) {
+    const api = mockApi({
+      'GET /api/settings': () => settings('mi'),
+      'GET /api/activities': activityRoute(opts.activities ?? []),
+      'POST /api/activities': ({ body }) => ({
+        status: 201,
+        body: makeActivity({ id: NEW_ID, ...(body as Partial<Activity>) }),
+      }),
+      ...opts.routes,
+    })
+    renderWithProviders(
+      <ToastProvider>
+        <Routes>
+          <Route path="/activities" element={<ActivitiesPage />} />
+          <Route path="/activities/:id" element={<OpenedActivity />} />
+        </Routes>
+      </ToastProvider>,
+      { route: '/activities' },
+    )
+    return api
+  }
+
+  /** Opens "Log activity", dates the run and saves it. */
+  async function logRunOn(date: string) {
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Log activity' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Log activity' })
+    fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: date } })
+    await user.type(within(dialog).getByLabelText('Duration'), '45')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    return dialog
+  }
+
+  test.each([
+    ['today', todayIso()],
+    ['yesterday', addDays(todayIso(), -1)],
+  ])('a run saved for %s opens on its own page, the post-run screen', async (_day, date) => {
+    const api = renderRoutes()
+    await logRunOn(date)
+    expect(await screen.findByText(`Opened activity ${NEW_ID}`)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Log activity' })).not.toBeInTheDocument()
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1)
+    // the toast of the save is still said on the page it lands on
+    expect(await screen.findByText('Run saved')).toBeInTheDocument()
+  })
+
+  test.each([
+    ['the day before yesterday', addDays(todayIso(), -2)],
+    ['a week ago', addDays(todayIso(), -7)],
+    ['last year', addDays(todayIso(), -365)],
+  ])('a run saved for %s is a back-fill and stays on the list', async (_day, date) => {
+    renderRoutes()
+    await logRunOn(date)
+    expect(await screen.findByText('Run saved')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('heading', { name: 'Activities', level: 1 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Log activity' })).toBeInTheDocument()
+    expect(screen.queryByText(/Opened activity/)).not.toBeInTheDocument()
+  })
+
+  test('a run the server refused keeps the sheet open and goes nowhere', async () => {
+    renderRoutes({
+      routes: {
+        'POST /api/activities': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'The server did not respond.' } },
+        }),
+      },
+    })
+    const dialog = await logRunOn(todayIso())
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Activity not saved.')
+    expect(screen.queryByText(/Opened activity/)).not.toBeInTheDocument()
+  })
+
+  test('editing a row of today stays on the list: only a new activity opens its page', async () => {
+    const row = makeActivity({ id: 'today1', date: todayIso(), durationSec: 1800, distanceM: 5000 })
+    const api = renderRoutes({
+      activities: [row],
+      routes: { 'PUT /api/activities/today1': () => row },
+    })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: /3\.11 mi/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(api.calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Opened activity/)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Activities', level: 1 })).toBeInTheDocument()
+  })
+
+  test('the rule is today and yesterday, and no other day', () => {
+    expect(opensItsPage(todayIso())).toBe(true)
+    expect(opensItsPage(addDays(todayIso(), -1))).toBe(true)
+    expect(opensItsPage(addDays(todayIso(), -2))).toBe(false)
+    expect(opensItsPage(addDays(todayIso(), 1))).toBe(false)
   })
 })
 

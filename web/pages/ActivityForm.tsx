@@ -1,7 +1,8 @@
 import { useId, useState, type FormEvent } from 'react'
-import { todayIso } from '../../shared/dates.ts'
+import { useNavigate } from 'react-router-dom'
+import { addDays, todayIso } from '../../shared/dates.ts'
 import { MAX_DURATION_SEC } from '../../shared/limits.ts'
-import type { ActivityListItem, ActivityType, Feel, Units } from '../../shared/types.ts'
+import type { Activity, ActivityListItem, ActivityType, Feel, Units } from '../../shared/types.ts'
 import { formatDuration, kmToM, mToKm, mToMiles, milesToM } from '../../shared/units.ts'
 import {
   useCreateActivity,
@@ -55,6 +56,17 @@ const TYPE_OPTIONS = (Object.keys(TYPE_LABELS) as ActivityType[]).map((value) =>
 
 const M_PER_FOOT = 0.3048
 export const DURATION_HINT = 'Enter minutes like 45, or 0:45:00'
+
+/**
+ * Whether a newly saved activity of this day opens on its own page: today and yesterday are the
+ * run the runner has just come in from, and its page is the post-run screen (the result against the
+ * plan, then the rating). An older day is a back-fill, entered one run after another, which stays
+ * on the list.
+ */
+export function opensItsPage(date: string): boolean {
+  const today = todayIso()
+  return date === today || date === addDays(today, -1)
+}
 
 /**
  * A bare number is minutes; `m:ss` and `h:mm:ss` are read as written. Seconds, and minutes
@@ -163,6 +175,7 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
   const settings = useSettings()
   const units: Units = settings.data?.units ?? 'mi'
   const toast = useToast()
+  const navigate = useNavigate()
   const create = useCreateActivity()
   const update = useUpdateActivity()
   const remove = useDeleteActivity()
@@ -272,9 +285,10 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
     }
     setErrors({})
     setFormError(null)
+    let created: Activity | null = null
     try {
       if (activity) await update.mutateAsync({ id: activity.id, input: built.input })
-      else await create.mutateAsync(built.input)
+      else created = await create.mutateAsync(built.input)
     } catch (err) {
       const mapped: Errors = {}
       for (const [path, message] of Object.entries(fieldErrors(err))) {
@@ -289,6 +303,10 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
     }
     toast.show(`${TYPE_LABELS[built.input.type]} saved`)
     onClose()
+    // A new activity of today or yesterday opens on its own page; an edit and a back-fill stay.
+    if (created !== null && opensItsPage(built.input.date)) {
+      void navigate(`/activities/${encodeURIComponent(created.id)}`)
+    }
   }
 
   async function deleteActivity(target: ActivityListItem) {

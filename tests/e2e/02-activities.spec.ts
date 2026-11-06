@@ -45,6 +45,34 @@ test('logging a run from the Activities page shows it in the list and on the das
   await expect(page.getByText('No activities yet.')).toBeVisible()
 })
 
+test('a run logged for today opens its own page, the post-run screen, and the toast goes with it', async ({
+  page,
+  baseURL,
+}) => {
+  await signedInApi(page, baseURL ?? '')
+  await resetData()
+
+  await page.goto('/activities')
+  await page.getByRole('button', { name: 'Log activity' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Log activity' })
+  // the date is today unless the runner changes it
+  await sheet.getByLabel('Duration').fill('45')
+  await sheet.getByLabel('Distance (mi)').fill('5')
+  await sheet.getByRole('button', { name: 'Save' }).click()
+
+  await expect(page).toHaveURL(/\/activities\/[^/?]+$/)
+  await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Summary' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Against the plan' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'How did it go?' })).toBeVisible()
+  await expect(toast(page, 'Run saved')).toBeVisible()
+  await expect(sheet).toBeHidden()
+
+  // the run is in the list behind it (the case above is the back-fill that stays on the list)
+  await page.getByRole('link', { name: 'All activities' }).click()
+  await expect(page.getByRole('button', { name: /^Run 45:00 5\.00 mi/ })).toBeVisible()
+})
+
 test('a duration the form cannot read is reported and nothing is saved', async ({
   page,
   baseURL,
