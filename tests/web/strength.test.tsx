@@ -3020,24 +3020,19 @@ describe('the Strength page: the rows of the next session (UX critique of 2026-1
     expect(logSets.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  test('"Log sets" is the one primary action and "Add a past session" is quiet', async () => {
+  test('"Log sets" is the one primary button of the card and "Add a past session" is quiet', async () => {
     await open(makeWorkout())
-    const sections = readFileSync(
-      join(process.cwd(), 'web/components/strength/StrengthSections.module.css'),
-      'utf8',
-    )
-    const button = readFileSync(join(process.cwd(), 'web/components/Button.module.css'), 'utf8')
-    expect(button).toMatch(/\.primary \{/)
-    expect(button).toMatch(/\.quiet \{/)
-    // the figure is a serif at the secondary step, the line under the name is the small muted one
-    expect(sections).toMatch(
-      /\.rowLoad \{[^}]*font-family: var\(--font-serif\);[^}]*font-size: var\(--text-lg\);/s,
-    )
-    expect(sections).toMatch(
-      /\.rowLine \{[^}]*color: var\(--text-muted\);[^}]*font-size: var\(--text-sm\);/s,
-    )
-    expect(sections).toMatch(/\.liftHead \{[^}]*justify-content: space-between;/s)
-    expect(sections).not.toMatch(/\.rowLoad \{[^}]*--text-(xl|display)/s)
+    const logSets = next().getByRole('button', { name: 'Log sets' })
+    const past = next().getByRole('button', { name: 'Add a past session' })
+    // the rendered class of each is the variant it was given (the modules hash the name)
+    expect(logSets.className).toMatch(/_primary_/)
+    expect(past.className).toMatch(/_quiet_/)
+    expect(past.className).not.toMatch(/_primary_/)
+    // the only primary button in the card is Log sets
+    const primaries = next()
+      .getAllByRole('button')
+      .filter((button) => /_primary_/.test(button.className))
+    expect(primaries).toEqual([logSets])
   })
 
   test('the jumps keep a row of their own: ground contacts for the eye, and a "Suggested" sentence, as the lifts have, for a screen reader', async () => {
@@ -4678,6 +4673,19 @@ describe('the Strength page: a log the server refused when it was sent later (de
 
 describe('the stylesheets of the Strength page (design 11.7)', () => {
   const css = (file: string) => readFileSync(join(process.cwd(), 'web', file), 'utf8')
+
+  test('a lift of the Next session card: the load is a serif figure at the secondary step, and the line under the name is the small muted one', () => {
+    const sections = css('components/strength/StrengthSections.module.css')
+    expect(sections).toMatch(
+      /\.rowLoad \{[^}]*font-family: var\(--font-serif\);[^}]*font-size: var\(--text-lg\);/s,
+    )
+    expect(sections).toMatch(
+      /\.rowLine \{[^}]*color: var\(--text-muted\);[^}]*font-size: var\(--text-sm\);/s,
+    )
+    expect(sections).toMatch(/\.liftHead \{[^}]*justify-content: space-between;/s)
+    // --text-xl is the page title's and --text-display the Today hero's
+    expect(sections).not.toMatch(/\.rowLoad \{[^}]*--text-(xl|display)/s)
+  })
 
   test('a setup choice is a 44 px target and the sheets wrap instead of scrolling sideways', () => {
     const sheets = css('components/strength/SetupSheets.module.css')
