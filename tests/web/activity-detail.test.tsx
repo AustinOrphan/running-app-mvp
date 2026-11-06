@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { EXECUTION_TEMPLATES } from '../../shared/copy/execution.ts'
+import { render } from '../../shared/copy/template.ts'
 import { stepNote } from '../../shared/engine/fuelCopy.ts'
 import type { ExecutionAssessment } from '../../shared/engine/types.ts'
 import { fromGrams } from '../../shared/domain/weight.ts'
@@ -11,6 +13,7 @@ import type {
   ActivityDetail,
   Feel,
   FuelLogView,
+  PlanSessionView,
   PlanWithSessions,
   StrengthLog,
   Units,
@@ -21,6 +24,7 @@ import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { loggedRun, logOf, makeLab, saved } from './fuel-fixtures.ts'
 import {
+  delayResponses,
   expectCleanCopy,
   expectTouchScale,
   mockApi,
@@ -168,6 +172,26 @@ function renderDetail(
   return api
 }
 
+/** What stood out on the run: one climb, so the section has a sentence to show. */
+const GRADE_STANDOUT_VIEW = {
+  items: [
+    {
+      id: 'design-explain.grade',
+      template: 'standout.grade',
+      slots: {
+        gain: { kind: 'climb', m: 400 },
+        distance: { kind: 'distance', m: 8000 },
+        grade: { kind: 'percent', pct: 5 },
+      },
+      rule: 'design-explain',
+      sources: [],
+      moreSources: 0,
+      state: 'used',
+    },
+  ],
+  more: 0,
+}
+
 /** The `<dt>` of a labelled figure inside a region (a term takes no name from its content). */
 function termOf(region: HTMLElement, label: string): HTMLElement | undefined {
   return within(region)
@@ -302,11 +326,24 @@ describe('ActivityDetailPage', () => {
     expect(screen.getAllByText(/against time in minutes/i).length).toBeGreaterThan(0)
   })
 
-  test('no stream means no charts and a plain line saying so', async () => {
+  test('no stream means no Charts section at all, and no line saying so', async () => {
     renderDetail({ detail: makeDetail({ stream: null, laps: null, hasFile: false }) })
     await screen.findByRole('heading', { level: 1, name: 'Run' })
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
-    expect(screen.getByText('No chart data for this activity.')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Charts' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/No chart data/)).not.toBeInTheDocument()
+  })
+
+  test('a stream with nothing to draw gets no Charts section either', async () => {
+    const detail = makeDetail()
+    renderDetail({
+      detail: {
+        ...detail,
+        stream: detail.stream && { ...detail.stream, d: null, hr: null, alt: null },
+      },
+    })
+    await screen.findByRole('heading', { level: 1, name: 'Run' })
+    expect(screen.queryByRole('region', { name: 'Charts' })).not.toBeInTheDocument()
   })
 
   test('laps table', async () => {
@@ -382,29 +419,8 @@ describe('ActivityDetailPage', () => {
     expect(screen.queryByRole('link', { name: 'Download original file' })).not.toBeInTheDocument()
   })
 
-  test('What stood out sits above How did it go? on a run', async () => {
-    renderDetail({
-      routes: {
-        'GET /api/activities/a1/standout': () => ({
-          items: [
-            {
-              id: 'design-explain.grade',
-              template: 'standout.grade',
-              slots: {
-                gain: { kind: 'climb', m: 400 },
-                distance: { kind: 'distance', m: 8000 },
-                grade: { kind: 'percent', pct: 5 },
-              },
-              rule: 'design-explain',
-              sources: [],
-              moreSources: 0,
-              state: 'used',
-            },
-          ],
-          more: 0,
-        }),
-      },
-    })
+  test('How did it go? sits above What stood out on a run', async () => {
+    renderDetail({ routes: { 'GET /api/activities/a1/standout': () => GRADE_STANDOUT_VIEW } })
     const standout = await screen.findByRole('region', { name: 'What stood out' })
     expect(
       await within(standout).findByText(
@@ -413,8 +429,36 @@ describe('ActivityDetailPage', () => {
     ).toBeInTheDocument()
     const feedback = screen.getByRole('region', { name: 'How did it go?' })
     expect(
-      standout.compareDocumentPosition(feedback) & Node.DOCUMENT_POSITION_FOLLOWING,
+      feedback.compareDocumentPosition(standout) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+  })
+
+  test('nothing unusual on a run leaves out What stood out, and nothing stands in while it loads', async () => {
+    const api = renderDetail()
+    await screen.findByRole('region', { name: 'How did it go?' })
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.url === '/api/activities/a1/standout')).toBe(true)
+    })
+    await settle()
+    expect(screen.queryByRole('region', { name: 'What stood out' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Nothing unusual/)).not.toBeInTheDocument()
+  })
+
+  test('a failed load of What stood out keeps the section, with its plain line', async () => {
+    renderDetail({
+      routes: {
+        'GET /api/activities/a1/standout': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'No.' } },
+        }),
+      },
+    })
+    const standout = await screen.findByRole('region', { name: 'What stood out' })
+    expect(
+      within(standout).getByText(
+        'What stood out could not be loaded. Reload the page to try again.',
+      ),
+    ).toBeInTheDocument()
   })
 
   test('a strength activity has no What stood out', async () => {
@@ -750,6 +794,299 @@ describe('ActivityDetailPage', () => {
       'href',
       '/activities',
     )
+  })
+})
+
+// ---- The post-run screen: the result against the plan, then the rating, then the recording -----
+
+describe('ActivityDetailPage: against the plan', () => {
+  const sentence = (id: keyof typeof EXECUTION_TEMPLATES, slots: Record<string, unknown> = {}) =>
+    render(EXECUTION_TEMPLATES[id], slots as never, 'km')
+  const PLANNED = '30 min against 55 min planned (55%).'
+  const ON_TARGET = sentence('execution.intensity-on')
+  const GUESSED = sentence('execution.effort-harder')
+  const RATED = sentence('execution.effort-harder-rpe', {
+    rpe: { kind: 'count', n: 8 },
+    low: { kind: 'count', n: 3 },
+    high: { kind: 'count', n: 4 },
+  })
+  const withLines = (
+    lines: string[],
+    parts: Partial<ExecutionAssessment['effort']['parts']> = {},
+    over: Partial<ExecutionAssessment> = {},
+  ): ExecutionAssessment => ({ ...makeExecution(1, parts), ...over, lines })
+  const block = () => screen.findByRole('region', { name: 'Against the plan' })
+  const linkedPlan = (execution: ExecutionAssessment | null, over: Partial<PlanSessionView> = {}) =>
+    makeV2Plan({
+      sessions: [
+        makeSession({
+          id: 's1',
+          status: 'completed',
+          activityId: 'a1',
+          title: 'Long run',
+          durationMin: 175,
+          execution,
+          ...over,
+        }),
+      ],
+    })
+  const rated = (rpe: number | null, feel: Feel | null = null) => {
+    const base = makeDetail()
+    return { ...base, activity: { ...base.activity, rpe, feel } }
+  }
+
+  test('a run that filled a session says what was planned and what was run, then the assessment', async () => {
+    renderDetail({ plan: linkedPlan(withLines([PLANNED, ON_TARGET])) })
+    const section = await block()
+    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(
+      within(section).getByText('Planned: Long run, 2 h 55 min. Ran: 30 min, 3.1 mi.'),
+    ).toBeInTheDocument()
+    expect(within(section).getByText(ON_TARGET)).toBeInTheDocument()
+    // the context line comes first, and the page's own sentences state no grade
+    const lines = within(section)
+      .getAllByText(/./)
+      .filter((node) => node.tagName === 'P')
+      .map((node) => node.textContent)
+    expect(lines).toEqual([
+      'Planned: Long run, 2 h 55 min. Ran: 30 min, 3.1 mi.',
+      PLANNED,
+      ON_TARGET,
+    ])
+    expectCleanCopy(section)
+  })
+
+  test('the figures read in kilometres for a runner who chose them', async () => {
+    renderDetail({ plan: linkedPlan(withLines([PLANNED])), units: 'km' })
+    const section = await block()
+    expect(
+      await within(section).findByText('Planned: Long run, 2 h 55 min. Ran: 30 min, 5 km.'),
+    ).toBeInTheDocument()
+  })
+
+  test('a rated run shows the effort line with the rating in it', async () => {
+    renderDetail({
+      detail: rated(8),
+      plan: linkedPlan(withLines([PLANNED, ON_TARGET, RATED], { rpeDelta: 4.5 })),
+    })
+    const section = await block()
+    expect(await within(section).findByText(RATED)).toBeInTheDocument()
+    expect(within(section).getByText(ON_TARGET)).toBeInTheDocument()
+  })
+
+  test('a feel counts as a rating too', async () => {
+    renderDetail({
+      detail: rated(null, 1),
+      plan: linkedPlan(withLines([PLANNED, GUESSED], { feel: 1 })),
+    })
+    expect(await within(await block()).findByText(GUESSED)).toBeInTheDocument()
+  })
+
+  test('an unrated run never shows the effort verdict that heart rate and pace inferred', async () => {
+    renderDetail({ plan: linkedPlan(withLines([PLANNED, ON_TARGET, GUESSED])) })
+    const section = await block()
+    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(within(section).getByText(ON_TARGET)).toBeInTheDocument()
+    expect(within(section).queryByText(GUESSED)).not.toBeInTheDocument()
+    expect(section.textContent).not.toMatch(/Effort/)
+    // the ask for a rating stays where the rating is, in "How did it go?"
+    expect(
+      within(screen.getByRole('region', { name: 'How did it go?' })).getByText(RATING_ASK),
+    ).toBeInTheDocument()
+  })
+
+  test('every guessed effort sentence is left out of an unrated run, the "matched" one too', async () => {
+    renderDetail({
+      plan: linkedPlan(
+        withLines([
+          PLANNED,
+          sentence('execution.effort-matched'),
+          sentence('execution.spike', { days: { kind: 'count', n: 30 } }),
+        ]),
+      ),
+    })
+    const section = await block()
+    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(within(section).queryByText('Effort matched expectation.')).not.toBeInTheDocument()
+    // the other sentences of the assessment stay
+    expect(within(section).getByText(/^Longer or steeper than the longest run/)).toBeInTheDocument()
+  })
+
+  test('an RPE does not rate an activity of a different kind than its session', async () => {
+    renderDetail({
+      detail: rated(7),
+      plan: linkedPlan(
+        withLines([PLANNED, GUESSED], { hrResidualZ: 1.4 }, { completion: 'modified' }),
+      ),
+    })
+    const section = await block()
+    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(within(section).queryByText(GUESSED)).not.toBeInTheDocument()
+  })
+
+  test('a session with no assessment yet gives the context line alone', async () => {
+    renderDetail({ plan: linkedPlan(null) })
+    const section = await block()
+    expect(
+      await within(section).findByText('Planned: Long run, 2 h 55 min. Ran: 30 min, 3.1 mi.'),
+    ).toBeInTheDocument()
+    expect(
+      within(section)
+        .getAllByText(/./)
+        .filter((node) => node.tagName === 'P'),
+    ).toHaveLength(1)
+  })
+
+  test('a run with no distance gives its time alone', async () => {
+    const run = makeDetail()
+    renderDetail({
+      detail: { ...run, activity: { ...run.activity, distanceM: null } },
+      plan: linkedPlan(null),
+    })
+    expect(
+      await within(await block()).findByText('Planned: Long run, 2 h 55 min. Ran: 30 min.'),
+    ).toBeInTheDocument()
+  })
+
+  test('a strength activity says "Did", not "Ran"', async () => {
+    const base = makeDetail()
+    renderDetail({
+      detail: { ...base, activity: { ...base.activity, type: 'strength', distanceM: null } },
+      plan: linkedPlan(null, { kind: 'strength', title: 'Strength', durationMin: 40 }),
+    })
+    expect(
+      await within(await block()).findByText('Planned: Strength, 40 min. Did: 30 min.'),
+    ).toBeInTheDocument()
+  })
+
+  test('a run with no linked session and no plan says that no session was planned', async () => {
+    renderDetail({ plan: null })
+    const section = await block()
+    expect(
+      await within(section).findByText('No session was planned for this day.'),
+    ).toBeInTheDocument()
+    expect(within(section).queryByText(/^Planned:/)).not.toBeInTheDocument()
+    expectCleanCopy(section)
+  })
+
+  test('a plan with no session on the day says the same, and a rest day is no session', async () => {
+    renderDetail({
+      plan: makeV2Plan({
+        sessions: [
+          makeSession({ id: 'rest', date: '2026-03-02', kind: 'rest', title: 'Rest' }),
+          makeSession({ id: 'later', date: '2026-03-03', title: 'Easy run' }),
+        ],
+      }),
+    })
+    expect(
+      await within(await block()).findByText('No session was planned for this day.'),
+    ).toBeInTheDocument()
+  })
+
+  test('a session on the day that is not this run’s is not called "no session planned"', async () => {
+    renderDetail({
+      plan: makeV2Plan({
+        sessions: [
+          makeSession({
+            id: 'other',
+            date: '2026-03-02',
+            activityId: 'someone-else',
+            status: 'completed',
+          }),
+        ],
+      }),
+    })
+    const section = await block()
+    expect(
+      await within(section).findByText('This activity is not linked to a planned session.'),
+    ).toBeInTheDocument()
+    expect(
+      within(section).queryByText('No session was planned for this day.'),
+    ).not.toBeInTheDocument()
+  })
+
+  test('says nothing, and never fails the page, when the plan did not load', async () => {
+    const api = renderDetail({
+      routes: {
+        'GET /api/plan': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'No.' } },
+        }),
+      },
+    })
+    await screen.findByRole('region', { name: 'How did it go?' })
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.url === '/api/plan')).toBe(true)
+    })
+    await settle()
+    expect(screen.queryByRole('region', { name: 'Against the plan' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/No session was planned/)).not.toBeInTheDocument()
+  })
+
+  test('holds its place, and states no absence, until the plan is read', async () => {
+    const api = renderDetail({ plan: linkedPlan(withLines([PLANNED])) })
+    delayResponses(40)
+    expect(await screen.findByRole('region', { name: 'Against the plan' })).toBeInTheDocument()
+    expect(screen.queryByText('No session was planned for this day.')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('This activity is not linked to a planned session.'),
+    ).not.toBeInTheDocument()
+    expect(await screen.findByText(PLANNED)).toBeInTheDocument()
+    expect(api.calls.some((c) => c.url === '/api/plan')).toBe(true)
+  })
+
+  test('the page reads in the order of the post-run screen', async () => {
+    const base = makeDetail()
+    const runs = [loggedRun(1, { servings: 6, gut: 1, nausea: 0, activityId: 'a1' })]
+    renderDetail({
+      detail: {
+        ...base,
+        activity: {
+          ...base.activity,
+          durationSec: 3 * 3600,
+          distanceM: 30_000,
+          notes: 'Easy loop',
+        },
+      },
+      plan: linkedPlan(withLines([PLANNED, ON_TARGET])),
+      routes: {
+        'GET /api/activities/a1/standout': () => GRADE_STANDOUT_VIEW,
+        'GET /api/fuel/logs/a1': () => logOf(runs, 'a1'),
+        'GET /api/fuel': () => makeLab(runs),
+      },
+    })
+    await screen.findByRole('region', { name: 'What stood out' })
+    await screen.findByRole('region', { name: 'Fuel' })
+    await screen.findByText(PLANNED)
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent)
+    expect(headings).toEqual([
+      'Summary',
+      'Against the plan',
+      'How did it go?',
+      'Fuel',
+      'Charts',
+      'Laps',
+      'Weather',
+      'Heart rate distribution',
+      'What stood out',
+      'Notes',
+    ])
+  })
+
+  test('an empty run reads: summary, against the plan, how did it go, and nothing between or after but what it has', async () => {
+    renderDetail({
+      detail: makeDetail({ stream: null, laps: null, hasFile: false }),
+      plan: null,
+    })
+    await screen.findByText('No session was planned for this day.')
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent)
+    expect(headings.slice(0, 3)).toEqual(['Summary', 'Against the plan', 'How did it go?'])
+    expect(headings).not.toContain('Charts')
+    expect(headings).not.toContain('What stood out')
   })
 })
 

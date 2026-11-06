@@ -123,7 +123,6 @@ export const STANDOUT_TEMPLATES = {
 
   // The card
   'standout.heading': tpl('What stood out', {}, { shape: 'label' }),
-  'standout.empty': tpl('Nothing unusual to report on this run.'),
   'standout.error': tpl('What stood out could not be loaded. Reload the page to try again.'),
 
   // What a Why button names, so the accessible names of a card's buttons tell them apart.

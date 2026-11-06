@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
-import { relativeDates, resetData, signedInApi } from './helpers.ts'
+import { planWithRunToday, relativeDates, resetData, signedInApi } from './helpers.ts'
 
 /** The height of the tab bar that sits over the foot of a phone's viewport. */
 const TAB_BAR_PX = 56
@@ -104,21 +104,31 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
   await second.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByText('1 activity')).toBeVisible()
 
-  // Detail page: summary, charts, laps and the original file.
+  // Detail page: summary, the result against the plan, charts, laps and the original file.
+  const standoutRead = page.waitForResponse((response) =>
+    /\/api\/activities\/[^/]+\/standout$/.test(new URL(response.url()).pathname),
+  )
   await page.getByRole('link', { name: /^Details, Run on / }).click()
   await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Summary' })).toBeVisible()
   await expect(page.getByText('Synthetic Watch')).toBeVisible()
+  // no plan, so no session to set the run against: one neutral line, above the rating
+  const against = page.getByRole('region', { name: 'Against the plan' })
+  await expect(against.getByText('No session was planned for this day.')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'How did it go?' })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Pace, average / })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Heart rate, average / })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Elevation, from / })).toBeVisible()
   const laps = page.getByRole('table', { name: 'Laps' })
   await expect(laps.getByRole('row')).toHaveCount(3)
   await expect(page.getByRole('heading', { name: 'Heart rate distribution' })).toBeVisible()
-  // The import described the run: its card loads, with a sentence or a plain "nothing unusual".
-  const standout = page.getByRole('region', { name: 'What stood out' })
-  await expect(standout.locator('p').first()).toBeVisible()
-  await expect(standout.getByText(/could not be loaded/)).toBeHidden()
+  // The import described the run: its facts load. A run with nothing unusual has no card, and a
+  // card that is there never says it could not load.
+  expect((await standoutRead).ok()).toBe(true)
+  await expect(page.getByText('Nothing unusual to report on this run.')).toBeHidden()
+  await expect(
+    page.getByRole('region', { name: 'What stood out' }).getByText(/could not be loaded/),
+  ).toBeHidden()
   await expect(page.getByRole('link', { name: 'Download original file' })).toBeVisible()
 
   // Today lists the unrated run; rating it from the card removes it from the card.
@@ -212,6 +222,77 @@ test('the activity page leads with the run’s figures, in three sizes, at 390 x
       type: `activity first screen ${String(viewport.width)}x${String(viewport.height)}`,
       description: `Summary ends at ${String(Math.round((first?.y ?? 0) + (first?.height ?? 0)))} px of ${String(viewport.height - TAB_BAR_PX)} px`,
     })
+  }
+})
+
+test('a run that filled a planned session opens on its result, then the rating, then the recording', async ({
+  page,
+  baseURL,
+}) => {
+  const { today } = relativeDates()
+  const origin = baseURL ?? ''
+  const api = await signedInApi(page, origin)
+  const planned = await planWithRunToday(api, page, origin, 'Post-run marathon')
+  // The run that fulfils it: logged by hand, and linked to the session by the server at once.
+  const run = (await api.post('/activities', {
+    date: today,
+    type: 'run',
+    durationSec: planned.durationMin * 60,
+    distanceM: planned.durationMin * 160,
+  })) as { id: string }
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto(`/activities/${run.id}`)
+    const summary = page.getByRole('region', { name: 'Summary' })
+    const against = page.getByRole('region', { name: 'Against the plan' })
+    const feedback = page.getByRole('region', { name: 'How did it go?' })
+    // the context line names the session and sets the run beside it; the assessment follows
+    const title = planned.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    await expect(against.getByText(new RegExp(`^Planned: ${title}, .*Ran: `))).toBeVisible()
+    await expect(against.getByText(/ against .* planned \(\d+%\)\.$/)).toBeVisible()
+    // an unrated run is never told how hard it was: no effort verdict before the runner rates it
+    await expect(against.getByText(/^Effort /)).toBeHidden()
+
+    // the order of the post-run screen, top to bottom
+    const tops = await Promise.all(
+      [summary, against, feedback].map(async (section) => (await section.boundingBox())?.y ?? -1),
+    )
+    expect(tops[0]).toBeGreaterThan(0)
+    expect(tops[1]).toBeGreaterThan(tops[0] ?? 0)
+    expect(tops[2]).toBeGreaterThan(tops[1] ?? 0)
+
+    // The first screen is what the phone shows above the tab bar. The page has no fold test of
+    // its own: the summary and the whole result against the plan must fit above it, and where the
+    // rating starts is measured and attached (at 390 x 844 its heading is in view and the chips
+    // begin; at 360 x 740 it starts below the fold).
+    const visible = viewport.height - TAB_BAR_PX
+    const bottomOf = async (locator: Locator) => {
+      const box = await locator.boundingBox()
+      return box === null ? Number.NaN : Math.round(box.y + box.height)
+    }
+    expect(
+      await bottomOf(against.getByText(/ against .* planned \(\d+%\)\.$/)),
+    ).toBeLessThanOrEqual(visible)
+    const measured = {
+      summaryEnds: await bottomOf(summary),
+      resultEnds: await bottomOf(against),
+      ratingHeadingEnds: await bottomOf(feedback.getByRole('heading', { name: 'How did it go?' })),
+      rpeRowEnds: await bottomOf(feedback.getByRole('group', { name: 'RPE' })),
+    }
+    const info = test.info()
+    await info.attach(`post-run-${String(viewport.width)}x${String(viewport.height)}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+    info.annotations.push({
+      type: `post-run first screen ${String(viewport.width)}x${String(viewport.height)}`,
+      description: `above the tab bar to ${String(visible)} px; ${JSON.stringify(measured)}`,
+    })
+    expect(await scrollsSideways(page)).toBe(false)
   }
 })
 

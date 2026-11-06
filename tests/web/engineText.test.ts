@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'vitest'
+import { EXECUTION_TEMPLATES } from '../../shared/copy/execution.ts'
+import { render } from '../../shared/copy/template.ts'
 import { allParams } from '../../shared/engine/params/index.ts'
-import type { EngineWarning } from '../../shared/engine/types.ts'
+import type { EngineWarning, ExecutionAssessment } from '../../shared/engine/types.ts'
 import {
+  assessmentLines,
+  EFFORT_FROM_GUESS,
   groupWarnings,
   localiseEngineText,
   localiseParamNote,
@@ -222,5 +226,57 @@ describe('unratedEffortNote', () => {
   test('adds the caveat only where there is a score to call a guess', () => {
     expect(unratedEffortNote(1, 'completed')).toMatch(/low-confidence guess/)
     expect(unratedEffortNote(null, 'completed')).not.toMatch(/low-confidence guess/)
+  })
+})
+
+describe('assessmentLines', () => {
+  const sentence = (id: keyof typeof EXECUTION_TEMPLATES) =>
+    render(EXECUTION_TEMPLATES[id], {}, 'km')
+  const assessment = (lines: string[]): ExecutionAssessment => ({
+    completion: 'completed',
+    intensity: 'on',
+    effort: {
+      score: 1,
+      confidence: 'low',
+      parts: { rpeDelta: null, feel: null, hrResidualZ: 1.4, paceResidualPct: null },
+    },
+    conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
+    flags: [],
+    lines,
+  })
+
+  test('keeps every sentence for a rated run', () => {
+    const lines = [
+      '54 min against 60 min planned (90%).',
+      sentence('execution.intensity-on'),
+      sentence('execution.effort-harder'),
+    ]
+    expect(assessmentLines(assessment(lines), true)).toEqual(lines)
+  })
+
+  test('drops the effort verdict that heart rate and pace inferred, and only that', () => {
+    const rest = [
+      '54 min against 60 min planned (90%).',
+      sentence('execution.intensity-above'),
+      sentence('execution.hr-unqualified'),
+      sentence('execution.pain-bone'),
+    ]
+    for (const id of EFFORT_FROM_GUESS) {
+      const lines = [rest[0]!, rest[1]!, sentence(id), ...rest.slice(2)]
+      expect(assessmentLines(assessment(lines), false), id).toEqual(rest)
+    }
+  })
+
+  test('names every effort sentence that carries no rating, and none that does', () => {
+    const effort = Object.entries(EXECUTION_TEMPLATES).filter(([id]) =>
+      id.startsWith('execution.effort-'),
+    )
+    expect(effort.length).toBeGreaterThan(EFFORT_FROM_GUESS.length)
+    for (const [id, template] of effort) {
+      const carriesRating = Object.keys(template.slots).length > 0
+      expect(EFFORT_FROM_GUESS.includes(id as (typeof EFFORT_FROM_GUESS)[number]), id).toBe(
+        !carriesRating,
+      )
+    }
   })
 })

@@ -69,6 +69,18 @@
   max-width: var(--prose-max);
 }
 
+/* A sentence of the "Against the plan" block: the context line and the assessment, one to a line. */
+.line {
+  margin: 0;
+  max-width: var(--prose-max);
+  /* A unit alone on the last line ("3.4 / mi.") reads as a mistake; the browser balances it. */
+  text-wrap: pretty;
+}
+
+.line + .line {
+  margin-top: var(--space-2);
+}
+
 .charts {
   display: flex;
   flex-direction: column;

@@ -1,5 +1,10 @@
 import { useId, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  againstThePlanHeading,
+  noLinkedSession,
+  plannedAgainstRan,
+} from '../../shared/copy/activityPage.ts'
 import { formatAirTemperature } from '../../shared/copy/quantity.ts'
 import type { Activity, ActivityDetail, HrHistogram, Lap, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
@@ -14,7 +19,7 @@ import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.ts
 import { Figure } from '../components/Figure.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
-import { ratingCounts, unratedEffortNote } from '../components/engineText.ts'
+import { assessmentLines, ratingCounts, unratedEffortNote } from '../components/engineText.ts'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -175,6 +180,7 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
 
 const CHANNELS: StreamChannel[] = ['pace', 'hr', 'alt']
 
+/** The charts of the recording's stream; nothing at all for an activity that has no stream to draw. */
 function Charts({ detail, units }: { detail: ActivityDetail; units: Units }) {
   const { activity, stream } = detail
   const channels = CHANNELS.filter(
@@ -183,17 +189,61 @@ function Charts({ detail, units }: { detail: ActivityDetail; units: Units }) {
   const hasData =
     stream !== null &&
     channels.some((channel) => buildSeries(stream, channel, units).some((p) => p.y !== null))
+  if (stream === null || !hasData) return null
   return (
     <Section title="Charts">
-      {stream !== null && hasData ? (
-        <div className={styles.charts}>
-          {channels.map((channel) => (
-            <StreamChart key={channel} stream={stream} channel={channel} units={units} />
-          ))}
-        </div>
-      ) : (
-        <p className={styles.muted}>No chart data for this activity.</p>
-      )}
+      <div className={styles.charts}>
+        {channels.map((channel) => (
+          <StreamChart key={channel} stream={stream} channel={channel} units={units} />
+        ))}
+      </div>
+    </Section>
+  )
+}
+
+/**
+ * How the activity went against the plan: the session it filled and the activity side by side, then
+ * the sentences of the session's assessment. An effort verdict that heart rate and pace inferred is
+ * not among them (`assessmentLines`): it shows only with the runner's own rating behind it, as
+ * "What stood out" states an effort only from a rating. An activity no session is linked to gets one
+ * neutral line. Nothing shows if the plan could not be read, and a skeleton stands in until it is.
+ */
+function AgainstThePlan({ activity, units }: { activity: Activity; units: Units }) {
+  const plan = usePlan()
+  const title = againstThePlanHeading(units)
+  if (plan.data === undefined) {
+    return plan.isError ? null : (
+      <Section title={title}>
+        <Skeleton lines={2} />
+      </Section>
+    )
+  }
+  const sessions = plan.data?.sessions ?? []
+  const session = sessions.find((candidate) => candidate.activityId === activity.id)
+  if (session === undefined) {
+    // a rest day is not a session the runner was asked to do
+    const sessionOnDay = sessions.some(
+      (candidate) => candidate.date === activity.date && candidate.kind !== 'rest',
+    )
+    return (
+      <Section title={title}>
+        <p className={styles.line}>{noLinkedSession(sessionOnDay, units)}</p>
+      </Section>
+    )
+  }
+  const { execution } = session
+  const lines =
+    execution === null
+      ? []
+      : assessmentLines(execution, ratingCounts(execution.completion, activity))
+  return (
+    <Section title={title}>
+      <p className={styles.line}>{plannedAgainstRan(session, activity, units)}</p>
+      {lines.map((line) => (
+        <p key={line} className={styles.line}>
+          {line}
+        </p>
+      ))}
     </Section>
   )
 }
@@ -516,8 +566,17 @@ export function ActivityDetailPage() {
         <Link to="/activities">All activities</Link>
       </p>
 
+      {/* The post-run screen: the figures, how they stood against the plan, the ask for a rating and
+          the fuel of a long run come first; the recording's detail follows. */}
       <Summary activity={activity} units={units} />
       {activity.type === 'strength' ? <ActivitySets activity={activity} /> : null}
+      <AgainstThePlan activity={activity} units={units} />
+      {/* Keyed on the stored values, so the pickers start again from them when they change. */}
+      <Feedback
+        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}
+        activity={activity}
+      />
+      <FuelSection activity={activity} />
       <Charts detail={detail.data} units={units} />
       {laps !== null && laps.length > 0 ? (
         <LapsTable laps={laps} units={units} hasPace={hasPace} />
@@ -527,12 +586,6 @@ export function ActivityDetailPage() {
       {activity.type === 'run' || activity.type === 'race' ? (
         <StandoutCard activityId={activity.id} units={units} />
       ) : null}
-      <FuelSection activity={activity} />
-      {/* Keyed on the stored values, so the pickers start again from them when they change. */}
-      <Feedback
-        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}
-        activity={activity}
-      />
       {activity.notes !== null ? (
         <Section title="Notes">
           <p className={styles.notes}>{activity.notes}</p>

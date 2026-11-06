@@ -1,6 +1,8 @@
 import type { EngineWarning, ExecutionAssessment } from '../../shared/engine/types.ts'
 import type { Units } from '../../shared/types.ts'
+import { EXECUTION_TEMPLATES } from '../../shared/copy/execution.ts'
 import { formatQuantity } from '../../shared/copy/quantity.ts'
+import { render } from '../../shared/copy/template.ts'
 import { formatShortDate } from './format.ts'
 
 const FEET_PER_METRE = 3.28084
@@ -140,6 +142,35 @@ export function groupWarnings(
       rules: [...new Set(items.flatMap((w) => w.rules))],
     }
   })
+}
+
+/**
+ * The effort sentences an assessment writes without a figure of the runner's own: the ones with no
+ * rating slots. With no rating behind the verdict (`ratingCounts` is false) the engine states one of
+ * these from heart rate and pace alone, so a page that shows the lines as the runner's effort drops
+ * them (`assessmentLines`). The ones that carry the rating ("RPE 8 against 3-5 expected") exist only
+ * for a rated run.
+ */
+export const EFFORT_FROM_GUESS = [
+  'execution.effort-harder',
+  'execution.effort-much-harder',
+  'execution.effort-easier',
+  'execution.effort-much-easier',
+  'execution.effort-matched',
+] as const satisfies ReadonlyArray<keyof typeof EXECUTION_TEMPLATES>
+
+/**
+ * The sentences of an assessment a page may show as how the run went against the plan: all of them
+ * for a rated run, and for an unrated one all but the effort verdict, which heart rate and pace
+ * inferred and which is never stated as the runner's effort (the rule of `shared/engine/standout.ts`:
+ * an effort verdict shows only with the runner's own rating behind it). The sentences are written on
+ * the server from stored facts in kilometres, and these have no distance in them, so they match the
+ * templates rendered here word for word.
+ */
+export function assessmentLines(execution: ExecutionAssessment, rated: boolean): string[] {
+  if (rated) return execution.lines
+  const guessed = new Set(EFFORT_FROM_GUESS.map((id) => render(EXECUTION_TEMPLATES[id], {}, 'km')))
+  return execution.lines.filter((line) => !guessed.has(line))
 }
 
 /** The ask for a rating, wherever the app shows or invites the feedback behind an effort verdict. */
