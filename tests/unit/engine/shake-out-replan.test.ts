@@ -267,6 +267,25 @@ describe('the week before a Monday race with a window on the Saturday', () => {
   })
 })
 
+describe('the week before a Monday race with a window on the Friday', () => {
+  // The long run of the week is on the Friday, the day the window rules: the window takes it and it is
+  // not moved. The target of the week is found on the week without it, or the share-out of the runs
+  // left is not the one the plan drew and every re-plan sheds a share of them (36, 33, 30, 28).
+  const fridayBefore = addDays(raceMonday, 4)
+
+  it.each([
+    ['rest', resting(fridayBefore)],
+    ['limited to 25 minutes', limited(fridayBefore, 25)],
+  ])('gives the week back on the Tuesday and on the Wednesday: %s', (_, window) => {
+    const input = { ...mondayRace, disruptions: [window] }
+    const result = replanPasses(input, addDays(raceMonday, 1))
+    // the plan has no long run: the window took it
+    expect(result.stored.map((r) => r[1])).not.toContain('long')
+    expectStored(result)
+    expectStored(replanPasses(input, addDays(raceMonday, 2)))
+  })
+})
+
 describe('the week before a Monday race of the marathon athlete', () => {
   // The marathon athlete's taper week holds a long run that the re-plan places longer than the plan did
   // (74 minutes for 63), with the rule off as well; the week the chain re-plans on the Tuesday is not

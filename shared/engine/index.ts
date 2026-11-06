@@ -767,6 +767,19 @@ function generate(
       }
       return targetForNet(net, cutAt)
     }
+    // The days a window rules from today on, and whether the week as placed has its long run on one of
+    // them (a held day, or a day with a cap under the run): the window takes the run and it is not
+    // moved [rule J9]. The target of the week is found on the week as the window path will leave it.
+    const ruledAhead = weekRules.filter((r) => r.date >= today && (r.held || r.maxRunMin !== null))
+    const longLostIn = (baseline: SessionSpec[]): boolean =>
+      baseline.some((s) => {
+        const rule = ruledAhead.find((r) => r.date === s.date)
+        return (
+          LONG_RUNS.has(s.kind) &&
+          rule !== undefined &&
+          (rule.held || (rule.maxRunMin !== null && s.durationMin > rule.maxRunMin))
+        )
+      })
     // What the current week has run so far: the recorded activities, and the sessions kept from the
     // replaced plan that no activity stands for (finished without a recorded run). A day with a
     // run, done or kept, is one run day: a session finished today and its activity are the same run.
@@ -822,11 +835,21 @@ function generate(
           (r.held || r.maxRunMin !== null) &&
           (keep.plannedOn.get(r.date) ?? 0) > (r.maxRunMin ?? 0),
       )
+      // the week as the window path will leave it: without the long run a window takes
+      const draftAt = (target: number): WeekDraft => {
+        const w = remainingOfWeek(week, done, keptRunDates, keptMin, target)
+        return !newOnDayBefore &&
+          ruledAhead.length > 0 &&
+          w.targetRunMin > 0 &&
+          longLostIn(place(w, closedForRuns(closedBase), [], false, 'easy'))
+          ? withoutLongRun(w)
+          : w
+      }
       const bound =
         still === null || (figure !== undefined && figure === still)
           ? still
           : grossFor(
-              (target) => remainingOfWeek(week, done, keptRunDates, keptMin, target),
+              draftAt,
               still,
               newOnDayBefore ? closedForRuns(closedBase) : runProfile,
               newOnDayBefore ? [] : weekRules,
@@ -958,7 +981,7 @@ function generate(
     if (!isCurrent && keptAhead.length === 0) unwindowed.set(week.weekStart, planWeek.targetRunMin)
     if (weekRules.length > 0 || returning.length > 0) {
       // the minutes the plan had on the days a window rules, from the week placed without it
-      const ruled = weekRules.filter((r) => r.date >= today && (r.held || r.maxRunMin !== null))
+      const ruled = ruledAhead
       let baselineAhead = planWeek.targetRunMin
       let longLost = false
       const minByDate: Record<string, number> = {}
@@ -982,14 +1005,7 @@ function generate(
           }
         }
         // a long run on a held day, or above the cap of its day, is lost and not moved
-        longLost = baseline.some((s) => {
-          const rule = ruled.find((r) => r.date === s.date)
-          return (
-            LONG_RUNS.has(s.kind) &&
-            rule !== undefined &&
-            (rule.held || (rule.maxRunMin !== null && s.durationMin > rule.maxRunMin))
-          )
-        })
+        longLost = longLostIn(baseline)
       }
       const baselineMin = done.minutes + keptMin + baselineAhead
       // A held day already past cost an equal share of the week, unless the replaced plan's own
