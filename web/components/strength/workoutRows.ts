@@ -12,8 +12,9 @@ import { strengthWords, type StrengthWords } from './strengthText.ts'
 export const WORKOUT_ROWS_MAX = 5
 
 /**
- * The most characters the hero's trunk row has: the row is one line at 360 px, where the hero's
- * content is 328 px wide. Measured in chromium at 15 px Libre Franklin with lining, tabular figures
+ * The most characters the Today hero's trunk row has: the row is one line at 360 px, where the
+ * hero's content is 328 px wide, at the hero's 15 px. The Plan's session sheet shows the same rows
+ * at the 17 px body size, where the widest pairs wrap at 360 px; the budget is not theirs. Measured in chromium at 15 px Libre Franklin with lining, tabular figures
  * (2026-11-06): the widest row of 45 characters or fewer that the engine can make is "Pallof press
  * 2x8–12, farmer carry 2x30–45 s." at 312.0 px (the words-only row "Banded lateral walk and farmer
  * carry, 2 sets." is 305.5 px), 16 px (5%) under the line; the next rows up, "Side plank 2x30–45 s,

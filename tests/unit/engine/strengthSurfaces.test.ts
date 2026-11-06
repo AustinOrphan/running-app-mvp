@@ -465,6 +465,7 @@ const HOLDS = ['side-plank', 'farmer-carry']
 
 interface TrunkRow {
   where: string
+  template: StrengthWorkout['template']
   avoid: string[]
   ids: string[]
   text: string
@@ -476,7 +477,15 @@ function everyTrunkRow(): TrunkRow[] {
     const text = workoutRows(workout, 'km', 'lb').find((r) => r.key === 'trunk')?.text
     return text === undefined
       ? []
-      : [{ where, avoid, ids: workout.trunk.map((lift) => lift.exerciseId), text }]
+      : [
+          {
+            where,
+            template: workout.template,
+            avoid,
+            ids: workout.trunk.map((lift) => lift.exerciseId),
+            text,
+          },
+        ]
   })
 }
 
@@ -485,6 +494,17 @@ describe('the hero row of the trunk work fits its one line at 360 px for every p
 
   it('reads every equipment set, session, template, lighter day and set of left-out movements', () => {
     expect(rows.length).toBeGreaterThan(1500)
+    // the six templates are all there, each as `strengthTemplate` gives it for the weeks built
+    expect([...new Set(rows.map((r) => r.template))].sort()).toEqual([
+      'heavy',
+      'lighter-week',
+      'maintenance',
+      'ramp-in',
+      'return',
+      'taper',
+    ])
+    // and the taper's single movement is a row of its own
+    expect(rows.some((r) => r.template === 'taper' && r.ids.length === 1)).toBe(true)
     // the pairs of the brief: session B of a runner with bands is the banded pair, and with only
     // dumbbells the two holds
     const plain = rows.filter((r) => r.avoid.length === 0)

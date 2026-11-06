@@ -186,12 +186,32 @@ export interface TrunkWorkout {
 }
 
 /**
+ * The weeks that give each template of `strengthTemplate` in the synthetic plan (30 weeks, the
+ * first 12 of them a block): a week of the block's ramp-in, a heavy one and a recovery one, and
+ * outside the block a plain week, a taper week and a return week (the flags are the engine's).
+ */
+const TRUNK_WEEKS: ReadonlyArray<{
+  template: StrengthWorkout['template']
+  week: number
+  flags: string[]
+  isRecovery: boolean
+}> = [
+  { template: 'ramp-in', week: 1, flags: [], isRecovery: false },
+  { template: 'heavy', week: 5, flags: [], isRecovery: false },
+  { template: 'lighter-week', week: 5, flags: [], isRecovery: true },
+  { template: 'maintenance', week: 25, flags: [], isRecovery: false },
+  { template: 'taper', week: 25, flags: ['taper'], isRecovery: false },
+  { template: 'return', week: 25, flags: ['injury-return'], isRecovery: false },
+]
+
+/**
  * Every trunk workout the engine can make: each of the equipment sets that decide which trunk
- * movements are usable (the bands, the dumbbells or kettlebells), session A and B, the templates
- * that differ (a ramp-in week, a block week, the taper), a day of lower readiness, and every set of
- * trunk movements a runner can leave out in the setup, which is what brings the third to the fifth
- * movement of the order into the pair. The surfaces that write the trunk work read from here, so
- * a new way for the engine to pair two movements is one every one of them is held to.
+ * movements are usable (the bands, the dumbbells or kettlebells), session A and B, each of the six
+ * templates (`TRUNK_WEEKS`: a ramp-in, a heavy and a lighter block week, maintenance, the taper and
+ * a return week), a day of lower readiness, and every set of trunk movements a runner can leave out
+ * in the setup, which is what brings the third to the fifth movement of the order into the pair.
+ * The surfaces that write the trunk work read from here, so a new way for the engine to pair two
+ * movements is one every one of them is held to.
  */
 export function everyTrunkWorkout(): TrunkWorkout[] {
   const equipment: EquipmentKind[][] = [
@@ -203,7 +223,7 @@ export function everyTrunkWorkout(): TrunkWorkout[] {
   ]
   const out: TrunkWorkout[] = []
   for (const kinds of equipment) {
-    for (const week of [1, 5, 25]) {
+    for (const { template, week, flags, isRecovery } of TRUNK_WEEKS) {
       for (const rank of [0, 1] as const) {
         for (const lighter of [false, true]) {
           for (let mask = 0; mask < 1 << TRUNK_IDS.length; mask += 1) {
@@ -213,13 +233,16 @@ export function everyTrunkWorkout(): TrunkWorkout[] {
               { equipment: have(...kinds), avoid },
               {
                 today: session.date,
+                weeks: plan(30, 12).map((w, i) =>
+                  i === week ? { ...w, flags: [...w.flags, ...flags], isRecovery } : w,
+                ),
                 readiness: lighter
                   ? { date: session.date, state: 'possible-fatigue', pain: null, illness: 'clear' }
                   : null,
               },
             )
             out.push({
-              where: `${kinds.join('+') || 'no equipment'}, week ${String(week)}, ${rank === 0 ? 'A' : 'B'}${lighter ? ', lighter day' : ''}, leaving out [${avoid.join(', ')}]`,
+              where: `${kinds.join('+') || 'no equipment'}, ${template}, ${rank === 0 ? 'A' : 'B'}${lighter ? ', lighter day' : ''}, leaving out [${avoid.join(', ')}]`,
               avoid,
               workout: workoutFor({ ...ctx, weightUnit: 'lb' }, session),
             })
