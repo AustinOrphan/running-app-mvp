@@ -114,6 +114,9 @@ for (const viewport of WIDTHS) {
       console.log(`first screen ${JSON.stringify(measured)}`)
       // the strip, whole, is on the first screen: above the tab bar that covers its foot
       expect(measured.stripBottom).toBeLessThanOrEqual(measured.tabBarTop)
+      // and the Feasibility panel the page used to open on starts on the first screen too, under it
+      expect(measured.feasibilityTop).toBeGreaterThanOrEqual(measured.stripBottom)
+      expect(measured.feasibilityTop).toBeLessThan(measured.tabBarTop)
 
       // A tap on a week to come scrolls to its row and opens its days.
       const later = plan.weeks.find((w) => w.weekStart === addDays(thisMonday, 7 * 3))
