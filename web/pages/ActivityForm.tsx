@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addDays, todayIso } from '../../shared/dates.ts'
@@ -10,7 +11,7 @@ import {
   useUpdateActivity,
   type ActivityInput,
 } from '../api/activities.ts'
-import { ApiError, fieldErrors } from '../api/client.ts'
+import { ApiError, fieldErrors, keys } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
@@ -176,6 +177,8 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
   const units: Units = settings.data?.units ?? 'mi'
   const toast = useToast()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [landing, setLanding] = useState(false)
   const create = useCreateActivity()
   const update = useUpdateActivity()
   const remove = useDeleteActivity()
@@ -211,7 +214,7 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
-  const saving = create.isPending || update.isPending
+  const saving = create.isPending || update.isPending || landing
   const hasDistance = type !== 'strength'
   const distanceUnitLabel = units === 'mi' ? 'mi' : 'km'
   const elevationUnitLabel = units === 'mi' ? 'ft' : 'm'
@@ -301,10 +304,18 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
       setFormError(`Activity not saved. ${reason} Your entries are still in the form; try again.`)
       return
     }
+    const landsOnPage = created !== null && opensItsPage(built.input.date)
+    if (landsOnPage) {
+      // The save has linked the run to its session on the server, and the plan this page may hold
+      // is from before it: nothing on the list watches the plan, so it was only marked old. Read it
+      // again before the page of the run opens, which is read against it.
+      setLanding(true)
+      await queryClient.refetchQueries({ queryKey: [keys.plan] })
+    }
     toast.show(`${TYPE_LABELS[built.input.type]} saved`)
     onClose()
     // A new activity of today or yesterday opens on its own page; an edit and a back-fill stay.
-    if (created !== null && opensItsPage(built.input.date)) {
+    if (created !== null && landsOnPage) {
       void navigate(`/activities/${encodeURIComponent(created.id)}`)
     }
   }

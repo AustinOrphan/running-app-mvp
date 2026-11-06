@@ -2,10 +2,12 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { QueryClient } from '@tanstack/react-query'
 import { Route, Routes, useParams } from 'react-router-dom'
 import { describe, expect, test, vi } from 'vitest'
 import { addDays, todayIso } from '../../shared/dates.ts'
 import type { Activity, ActivityListItem, ImportBatch, Units } from '../../shared/types.ts'
+import { api, keys } from '../../web/api/client.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import {
@@ -20,6 +22,7 @@ import {
   activityRoute,
   expectCleanCopy,
   expectTouchScale,
+  makeTestQueryClient,
   mockApi,
   renderWithProviders,
   type MockRoutes,
@@ -625,7 +628,9 @@ describe('Activities page: where a saved activity lands', () => {
 
   const NEW_ID = 'new-run'
 
-  function renderRoutes(opts: { routes?: MockRoutes; activities?: ActivityListItem[] } = {}) {
+  function renderRoutes(
+    opts: { routes?: MockRoutes; activities?: ActivityListItem[]; queryClient?: QueryClient } = {},
+  ) {
     const api = mockApi({
       'GET /api/settings': () => settings('mi'),
       'GET /api/activities': activityRoute(opts.activities ?? []),
@@ -642,9 +647,25 @@ describe('Activities page: where a saved activity lands', () => {
           <Route path="/activities/:id" element={<OpenedActivity />} />
         </Routes>
       </ToastProvider>,
-      { route: '/activities' },
+      {
+        route: '/activities',
+        ...(opts.queryClient === undefined ? {} : { queryClient: opts.queryClient }),
+      },
     )
     return api
+  }
+
+  /**
+   * A client that holds the plan, as one does once the Plan or Today page was open: the query is
+   * there, with the function that reads it, and nothing on the list watches it.
+   */
+  function holdingAPlan(): QueryClient {
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryDefaults([keys.plan], {
+      queryFn: () => api('GET', '/plan'),
+    })
+    queryClient.setQueryData([keys.plan], null)
+    return queryClient
   }
 
   /** Opens "Log activity", dates the run and saves it. */
@@ -686,6 +707,25 @@ describe('Activities page: where a saved activity lands', () => {
     expect(screen.getByRole('heading', { name: 'Activities', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Log activity' })).toBeInTheDocument()
     expect(screen.queryByText(/Opened activity/)).not.toBeInTheDocument()
+  })
+
+  test('reads the plan again before the page of the run opens, which is read against it', async () => {
+    // the plan this client holds is from before the save linked the run to its session; nothing on
+    // the list watches it, so the write only marked it old
+    const queryClient = holdingAPlan()
+    const api = renderRoutes({ queryClient, routes: { 'GET /api/plan': () => null } })
+    await logRunOn(todayIso())
+    expect(await screen.findByText(`Opened activity ${NEW_ID}`)).toBeInTheDocument()
+    // the stand-in page reads no plan: what was read was read by the sheet, before it opened
+    expect(api.calls.filter((call) => call.url === '/api/plan')).toHaveLength(1)
+  })
+
+  test('a back-fill does not wait for the plan, which its page does not open on', async () => {
+    const queryClient = holdingAPlan()
+    const api = renderRoutes({ queryClient, routes: { 'GET /api/plan': () => null } })
+    await logRunOn(addDays(todayIso(), -9))
+    expect(await screen.findByText('Run saved')).toBeInTheDocument()
+    expect(api.calls.filter((call) => call.url === '/api/plan')).toHaveLength(0)
   })
 
   test('a run the server refused keeps the sheet open and goes nowhere', async () => {

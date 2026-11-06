@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -12,7 +13,7 @@ import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
 import type { Activity, ActivityDetail, HrHistogram, Lap, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import { useActivityDetail, useDeleteActivity, useSaveFeedback } from '../api/activities.ts'
-import { ApiError } from '../api/client.ts'
+import { ApiError, keys } from '../api/client.ts'
 import { usePlan } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
@@ -214,10 +215,21 @@ function Charts({ detail, units }: { detail: ActivityDetail; units: Units }) {
  * neutral line. Nothing shows if the plan could not be read, and a skeleton stands in until it is.
  */
 function AgainstThePlan({ activity, units }: { activity: Activity; units: Units }) {
+  const queryClient = useQueryClient()
+  // A plan that was marked old by a write (a run just logged links to its session on the server) is
+  // read again as the block mounts; what it holds until then is the plan from before the write, in
+  // which the run is not linked yet. The block waits for that read, and only for that one: a plan
+  // read since the block mounted is the plan as it is, and a later read (after a rating is saved)
+  // leaves the block as it is.
+  const [mount] = useState(() => ({
+    at: Date.now(),
+    invalidated: queryClient.getQueryState([keys.plan])?.isInvalidated === true,
+  }))
   const plan = usePlan()
+  const waiting = mount.invalidated && plan.isFetching && plan.dataUpdatedAt < mount.at
   const title = againstThePlanHeading(units)
-  if (plan.data === undefined) {
-    return plan.isError ? null : (
+  if (plan.data === undefined || waiting) {
+    return plan.isError && plan.data === undefined ? null : (
       <Section title={title}>
         <Skeleton lines={2} />
       </Section>

@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { QueryClient } from '@tanstack/react-query'
 import { Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { EXECUTION_TEMPLATES } from '../../shared/copy/execution.ts'
@@ -19,6 +20,7 @@ import type {
   Units,
   UserSettings,
 } from '../../shared/types.ts'
+import { keys } from '../../web/api/client.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { makeActivity } from '../factories.ts'
@@ -27,6 +29,7 @@ import {
   delayResponses,
   expectCleanCopy,
   expectTouchScale,
+  makeTestQueryClient,
   mockApi,
   renderWithProviders,
   type MockRoutes,
@@ -144,6 +147,8 @@ function renderDetail(
     units?: Units
     plan?: PlanWithSessions | null
     routes?: MockRoutes
+    /** A client the test has put something in before the page mounts. */
+    queryClient?: QueryClient
   } = {},
 ) {
   const detail = opts.detail ?? makeDetail()
@@ -167,7 +172,10 @@ function renderDetail(
         <Route path="/activities" element={<p>Activities list</p>} />
       </Routes>
     </ToastProvider>,
-    { route: '/activities/a1' },
+    {
+      route: '/activities/a1',
+      ...(opts.queryClient === undefined ? {} : { queryClient: opts.queryClient }),
+    },
   )
   return api
 }
@@ -1108,6 +1116,52 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(
       within(section).queryByText('No session was planned for this day.'),
     ).not.toBeInTheDocument()
+  })
+
+  test('waits for the plan that was marked old by a write, and never says "not linked" from the one before it', async () => {
+    // a hand-logged run was linked to its session on the server; the plan this client holds is from
+    // before, with the session unlinked, and was only marked old (nothing on the list watched it)
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData(
+      [keys.plan],
+      makeV2Plan({
+        sessions: [
+          makeSession({ id: 's1', date: '2026-03-02', title: 'Long run', durationMin: 175 }),
+        ],
+      }),
+    )
+    await queryClient.invalidateQueries({ queryKey: [keys.plan], refetchType: 'none' })
+    const api = renderDetail({ plan: linkedPlan(withLines([PLANNED])), queryClient })
+    delayResponses(60)
+    const section = await block()
+    expect(within(section).queryByText(/not linked/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/No session/)).not.toBeInTheDocument()
+    // the plan as the server has it now: the run is linked to the session
+    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(within(section).queryByText(/not linked/)).not.toBeInTheDocument()
+    expect(api.calls.some((call) => call.url === '/api/plan')).toBe(true)
+  })
+
+  test('does not hold the block back for the reads that follow, such as the one after a rating is saved', async () => {
+    const user = userEvent.setup()
+    const api = renderDetail({
+      plan: linkedPlan(withLines([PLANNED])),
+      routes: { 'PATCH /api/activities/a1/feedback': () => ({}) },
+    })
+    const section = await block()
+    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    delayResponses(80)
+    await user.click(screen.getByRole('button', { name: 'RPE 7' }))
+    await user.click(
+      within(screen.getByRole('region', { name: 'How did it go?' })).getByRole('button', {
+        name: 'Save',
+      }),
+    )
+    await waitFor(() => {
+      expect(api.calls.filter((call) => call.url === '/api/plan').length).toBeGreaterThan(1)
+    })
+    // the plan is read again, and the block keeps what it says
+    expect(screen.getByText(PLANNED)).toBeInTheDocument()
   })
 
   test('says nothing, and never fails the page, when the plan did not load', async () => {
