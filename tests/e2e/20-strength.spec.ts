@@ -232,6 +232,70 @@ test('a change of equipment and of the weight unit is followed by the next worko
   await expect(rowOf(next, 'Tempo squat')).toBeVisible()
 })
 
+test('the Next session card keeps Log sets on the first screen at 390 x 844 and 360 x 740, with each load as a figure', async ({
+  page,
+  baseURL,
+}) => {
+  const { api } = await startDay(page, baseURL)
+  await saveStrengthSetup(api)
+  const tabBar = 56
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/strength')
+    const next = page.getByRole('region', { name: 'Next session' })
+    const logSets = next.getByRole('button', { name: 'Log sets' })
+    await expect(logSets).toBeVisible()
+    const visible = viewport.height - tabBar
+
+    // "Log sets" is in the header row, beside the heading, so it is in view whatever the rows are
+    const heading = await next.getByRole('heading', { name: 'Next session' }).boundingBox()
+    const button = await logSets.boundingBox()
+    expect(button).not.toBeNull()
+    expect((button?.y ?? Number.POSITIVE_INFINITY) + (button?.height ?? 0)).toBeLessThanOrEqual(
+      visible,
+    )
+    expect(Math.abs((button?.y ?? 0) - (heading?.y ?? 0))).toBeLessThan(40)
+    // the first lift: its name at the left and its load at the right, at 22 px, over a muted 15 px line
+    const first = next.getByRole('listitem').first()
+    const name = await first.locator('span').first().boundingBox()
+    const load = first.getByText(/^\d+(\.\d+)? lb$/)
+    const loadBox = await load.boundingBox()
+    expect(loadBox?.x ?? 0).toBeGreaterThan((name?.x ?? 0) + (name?.width ?? 0))
+    expect(await load.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))).toBe(22)
+    const line = first.getByText(/^\d+ sets? of /)
+    expect(await line.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))).toBe(15)
+    // The rows the first screen holds, measured and attached: the three lifts and the next row
+    // are inside it at both sizes (five rows at 360 x 740, all six at 390 x 844), and before the
+    // rows were set apart "Log sets" stood below the sixth row, under the fold at both.
+    const rows = next.getByRole('listitem')
+    const bottoms = await Promise.all(
+      (await rows.all()).map(async (row) => {
+        const box = await row.boundingBox()
+        return box === null ? Number.NaN : Math.round(box.y + box.height)
+      }),
+    )
+    for (const bottom of bottoms.slice(0, 4)) expect(bottom).toBeLessThanOrEqual(visible)
+    const info = test.info()
+    await info.attach(`strength-${String(viewport.width)}x${String(viewport.height)}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+    info.annotations.push({
+      type: `strength first screen ${String(viewport.width)}x${String(viewport.height)}`,
+      description: `above the tab bar to ${String(visible)} px; row bottoms ${JSON.stringify(bottoms)}`,
+    })
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      ),
+    ).toBe(false)
+  }
+})
+
 // ---- Logging ---------------------------------------------------------------------------------------
 
 test('a session is logged as suggested in three interactions from the Strength page', async ({
@@ -371,8 +435,10 @@ test('the next load rises one step after a session at the top of the range with 
   await expect(sheet).toBeHidden()
   for (const name of progressing) {
     await expect(rowOf(next, name)).toContainText('Suggested 45 lb')
-    await expect(rowOf(next, name)).toContainText('Up one step')
   }
+  // both lifts moved the same way, so the card says so once under its subtitle, not on each row
+  await expect(next.getByText('Up one step')).toHaveCount(1)
+  await expect(next.getByRole('listitem').getByText('Up one step')).toHaveCount(0)
   const after = await nextStrengthWorkout(api)
   expect(after.sessionId).not.toBe(first.sessionId)
   for (const id of ['goblet-squat', 'dumbbell-rdl']) {

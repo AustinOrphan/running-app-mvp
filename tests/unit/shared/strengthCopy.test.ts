@@ -380,6 +380,33 @@ describe('the sentences of design 11.6', () => {
     ).toBe(`Side plank and dead bug, ${String(P.f7.trunkSets.value)} sets.`)
   })
 
+  it('sets the figures of a lift row apart: the load, the prescription and the reps left', () => {
+    const load = { kind: 'load', g: toGrams(110, 'lb') } as const
+    expect(say('strength.row.load', { load })).toBe('110 lb')
+    expect(say('strength.row.load', { load }, 'kg')).toBe('50 kg')
+    expect(say('strength.row.sets-many', { n: count(4), amount: '3 to 6' })).toBe(
+      '4 sets of 3 to 6',
+    )
+    expect(say('strength.row.sets-one', { n: count(1), amount: '5' })).toBe('1 set of 5')
+    expect(
+      say('strength.row.amount-measure', {
+        amount: '30 to 45',
+        measure: say('strength.measure.seconds'),
+      }),
+    ).toBe('30 to 45 seconds')
+    expect(say('strength.row.reserve-range', { lo: count(1), hi: count(3) })).toBe(
+      '1 to 3 in reserve',
+    )
+    expect(say('strength.row.reserve-min', { n: count(3) })).toBe('3 or more in reserve')
+    expect(
+      say('strength.row.line', {
+        prescription: '2 sets of 6 to 8',
+        reserve: say('strength.row.reserve-min', { n: count(3) }),
+      }),
+    ).toBe('2 sets of 6 to 8, 3 or more in reserve')
+    expect(say('strength.row.contacts', { contacts: count(40) })).toBe('40 contacts')
+  })
+
   it('reads the same grams in the runner’s weight unit, so a change of unit reaches old logs', () => {
     const load = { kind: 'load', g: toGrams(115, 'lb') } as const
     expect(say('strength.reason.hold-step', { load, pct: percent(15) })).toContain('from 115 lb')

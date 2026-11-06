@@ -2684,6 +2684,166 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
   })
 })
 
+describe('the Strength page: the rows of the next session (UX critique of 2026-11-01)', () => {
+  const next = () => region('Next session')
+  /** The row of an exercise in the Next session card. */
+  const rowOf = (name: string): HTMLElement => {
+    const row = within(screen.getByRole('region', { name: 'Next session' }))
+      .getAllByRole('listitem')
+      .find((item) => within(item).queryByText(name, { exact: true }) !== null)
+    if (row === undefined) throw new Error(`No row for ${name}`)
+    return row
+  }
+  const open = async (workout: StrengthWorkout, settings?: UserSettings) => {
+    openPage({
+      view: pageView({ next: [workout] }),
+      ...(settings === undefined ? {} : { settings }),
+    })
+    await page()
+  }
+
+  test('a lift is its name, its load as a figure and its prescription in one muted line under the name', async () => {
+    await open(makeWorkout())
+    const row = rowOf('Back squat')
+    expect(within(row).getByText('110 lb')).toBeVisible()
+    expect(within(row).getByText('4 sets of 3 to 6, 1 to 3 in reserve')).toBeVisible()
+    // the figures are for the eye; the one sentence is what a screen reader and a spec read
+    expect(within(row).getByText('110 lb')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(row).getByText('4 sets of 3 to 6, 1 to 3 in reserve')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+    const sentence = within(row).getByText(
+      'Suggested 110 lb, four sets of 3 to 6 reps, leave 1 to 3 in reserve.',
+    )
+    expect(sentence).toHaveClass('visually-hidden')
+    expect(sentence).not.toHaveAttribute('aria-hidden')
+    // the name comes before the load in the row, so a screen reader reads the name first
+    expect(
+      within(row).getByText('Back squat').compareDocumentPosition(within(row).getByText('110 lb')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  test('the load follows the runner’s weight unit through the one formatter, on the same grams', async () => {
+    await open(makeWorkout(), SETTINGS_KG)
+    expect(within(rowOf('Back squat')).getByText('50 kg')).toBeVisible()
+    expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('18.25 kg')).toBeVisible()
+    expect(next().queryByText(/ lb/)).not.toBeInTheDocument()
+  })
+
+  test('a lift with no load has no figure and keeps its reps line', async () => {
+    await open(makeWorkout())
+    const row = rowOf('Standing calf raise')
+    expect(within(row).getByText('3 sets of 8 to 15, 1 to 3 in reserve')).toBeVisible()
+    expect(row.querySelector('[class*="rowLoad"]')).toBeNull()
+    expect(within(row).queryByText(/ lb$/)).not.toBeInTheDocument()
+  })
+
+  test('a lift counted in seconds says so, and one with no reps-left target says no more than its sets', async () => {
+    await open(makeWorkout())
+    const row = rowOf('Side plank')
+    expect(within(row).getByText('2 sets of 30 to 45 seconds')).toBeVisible()
+    expect(within(row).getByText('Suggested two sets of 30 to 45 seconds.')).toBeInTheDocument()
+  })
+
+  test('one set and an exact count read as "1 set of 5"', async () => {
+    await open(
+      makeWorkout({
+        lifts: [
+          squat({ sets: 1, range: { min: 5, max: 5 }, targets: [5], rir: { min: 2, max: 2 } }),
+        ],
+      }),
+    )
+    expect(within(rowOf('Back squat')).getByText('1 set of 5, 2 or more in reserve')).toBeVisible()
+  })
+
+  test('says what the rules did to a load only on the rows where the words differ', async () => {
+    await open(makeWorkout())
+    // the squat went up a step and the deadlift holds: each says so on its own row
+    expect(within(rowOf('Back squat')).getByText('Up one step')).toBeVisible()
+    expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('The load holds')).toBeVisible()
+    expect(next().getAllByText('The load holds')).toHaveLength(1)
+    expect(next().getAllByText('Up one step')).toHaveLength(1)
+  })
+
+  test('when every lift holds it says so once, under the subtitle, and not on the rows', async () => {
+    await open(makeWorkout({ lifts: [squat({ change: 'hold' }), rdl(), calf()] }))
+    const said = next().getAllByText('The load holds')
+    expect(said).toHaveLength(1)
+    expect(said[0]?.closest('li')).toBeNull()
+    // under the line that gives the day and the minutes
+    expect(
+      next()
+        .getByText('Wed 18 Mar. About 40 min planned.')
+        .compareDocumentPosition(said[0] as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  test('the same word on every lift is said once, whichever word it is', async () => {
+    await open(
+      makeWorkout({
+        lifts: [squat(), rdl({ change: 'increase' })],
+        plyo: null,
+        trunk: [],
+      }),
+    )
+    const said = next().getAllByText('Up one step')
+    expect(said).toHaveLength(1)
+    expect(said[0]?.closest('li')).toBeNull()
+  })
+
+  test('a first session, which has no word for its loads, says nothing of a change', async () => {
+    await open(makeWorkout({ lifts: [squat({ change: 'start' }), rdl({ change: 'start' })] }))
+    expect(next().queryByText(/^(The load holds|Up one step|Lighter day)$/)).not.toBeInTheDocument()
+  })
+
+  test('puts "Log sets" in the header row beside the heading, and "Add a past session" under the list', async () => {
+    await open(makeWorkout())
+    const heading = next().getByRole('heading', { name: 'Next session' })
+    const logSets = next().getByRole('button', { name: 'Log sets' })
+    expect(heading.parentElement).toContainElement(logSets)
+    const list = next().getByRole('list')
+    const past = next().getByRole('button', { name: 'Add a past session' })
+    expect(list).not.toContainElement(logSets)
+    expect(heading.parentElement).not.toContainElement(past)
+    expect(list.compareDocumentPosition(past) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(logSets.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  test('"Log sets" is the one primary action and "Add a past session" is quiet', async () => {
+    await open(makeWorkout())
+    const sections = readFileSync(
+      join(process.cwd(), 'web/components/strength/StrengthSections.module.css'),
+      'utf8',
+    )
+    const button = readFileSync(join(process.cwd(), 'web/components/Button.module.css'), 'utf8')
+    expect(button).toMatch(/\.primary \{/)
+    expect(button).toMatch(/\.quiet \{/)
+    // the figure is a serif at the secondary step, the line under the name is the small muted one
+    expect(sections).toMatch(
+      /\.rowLoad \{[^}]*font-family: var\(--font-serif\);[^}]*font-size: var\(--text-lg\);/s,
+    )
+    expect(sections).toMatch(
+      /\.rowLine \{[^}]*color: var\(--text-muted\);[^}]*font-size: var\(--text-sm\);/s,
+    )
+    expect(sections).toMatch(/\.liftHead \{[^}]*justify-content: space-between;/s)
+    expect(sections).not.toMatch(/\.rowLoad \{[^}]*--text-(xl|display)/s)
+  })
+
+  test('the jumps keep a row of their own, with their contacts, and the sentence of the Today row', async () => {
+    await open(makeWorkout())
+    const row = rowOf('Pogo hops')
+    expect(within(row).getByText('40 contacts')).toBeVisible()
+    expect(within(row).getByText('Pogo hops, 40 contacts.')).toHaveClass('visually-hidden')
+  })
+
+  test('every sentence of a row passes the lint', async () => {
+    await open(makeWorkout())
+    expectCleanCopy(next().getByRole('list'))
+  })
+})
+
 describe('the Strength page: a log with no session planned (design 9.1, 11.3)', () => {
   const none = () => pageView({ next: [], lifts: [], recent: [], block: null })
   const ahead = makeWorkout({ sessionId: 's9z', date: '2026-03-20' })

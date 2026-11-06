@@ -498,6 +498,41 @@ export const STRENGTH_TEMPLATES = {
     { shape: 'label' },
   ),
 
+  // A lift as a row of the Strength page's Next session card (UX critique of 2026-11-01): the figures
+  // set apart, not one sentence a lift. The name stands at the left and the load at the right as a
+  // figure; under the name a muted line gives the prescription and the reps left. The sentence of
+  // `strength.sheet.suggested` stays as the row's text for a screen reader and for the specs that
+  // read a row by it. `amount` is "6 to 8", with the measure after it ("30 to 45 seconds") for a lift
+  // that does not count reps; a count of one set has its own template.
+  'strength.row.load': tpl('{load}', { load: 'load' }, { shape: 'label' }),
+  'strength.row.sets-one': tpl(
+    '{n} set of {amount}',
+    { n: 'count', amount: 'text' },
+    { shape: 'label', fallback: 'Sets' },
+  ),
+  'strength.row.sets-many': tpl(
+    '{n} sets of {amount}',
+    { n: 'count', amount: 'text' },
+    { shape: 'label', fallback: 'Sets' },
+  ),
+  'strength.row.amount-measure': tpl(
+    '{amount} {measure}',
+    { amount: 'text', measure: 'text' },
+    { shape: 'label', fallback: 'Amount' },
+  ),
+  'strength.row.reserve-min': tpl('{n} or more in reserve', { n: 'count' }, { shape: 'label' }),
+  'strength.row.reserve-range': tpl(
+    '{lo} to {hi} in reserve',
+    { lo: 'count', hi: 'count' },
+    { shape: 'label' },
+  ),
+  'strength.row.line': tpl(
+    '{prescription}, {reserve}',
+    { prescription: 'text', reserve: 'text' },
+    { shape: 'label', fallback: 'Sets' },
+  ),
+  'strength.row.contacts': tpl('{contacts} contacts', { contacts: 'count' }, { shape: 'label' }),
+
   // What a set counts, and the words of its controls.
   'strength.measure.reps': tpl('reps', {}, { shape: 'label' }),
   'strength.measure.seconds': tpl('seconds', {}, { shape: 'label' }),

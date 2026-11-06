@@ -108,6 +108,33 @@
   font-variant-numeric: lining-nums tabular-nums;
 }
 
+/* A lift of the Next session card: the name at the left and its load at the right as a figure, then
+   the prescription in a muted line. The load is a serif figure at --text-lg, as the secondary figures
+   of the other record pages are; --text-xl stays with the page title. */
+.liftHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.rowLoad {
+  flex: none;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-variant-numeric: lining-nums tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rowLine {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
 .tag {
   color: var(--text-muted);
   font-size: var(--text-xs);

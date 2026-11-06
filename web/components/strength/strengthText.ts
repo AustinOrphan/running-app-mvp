@@ -94,6 +94,41 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     )
   }
 
+  /**
+   * A lift as a row of the Strength page: its name, its load as a figure, the muted line under the
+   * name ("2 sets of 6 to 8, 3 or more in reserve") and the one sentence of `suggestion`, which a
+   * screen reader and the specs read in place of the figures. `reserved` says the line names the
+   * reps left, which the page glosses once, under the first row that does.
+   */
+  function row(lift: WorkoutLift): LiftRowText {
+    const { range, rir } = lift
+    const amount =
+      range.min === range.max
+        ? say('strength.sheet.amount-one', { n: count(range.min) })
+        : say('strength.sheet.amount-range', { lo: count(range.min), hi: count(range.max) })
+    const measured = measureOf(lift.exerciseId)
+    const prescription = say(lift.sets === 1 ? 'strength.row.sets-one' : 'strength.row.sets-many', {
+      n: count(lift.sets),
+      amount:
+        measured === 'reps'
+          ? amount
+          : say('strength.row.amount-measure', { amount, measure: measure(measured) }),
+    })
+    const reserve =
+      rir === null
+        ? null
+        : rir.min === rir.max
+          ? say('strength.row.reserve-min', { n: count(rir.min) })
+          : say('strength.row.reserve-range', { lo: count(rir.min), hi: count(rir.max) })
+    return {
+      name: name(lift.exerciseId),
+      load: lift.loadG === null ? null : say('strength.row.load', { load: load(lift.loadG) }),
+      line: reserve === null ? prescription : say('strength.row.line', { prescription, reserve }),
+      reserved: reserve !== null,
+      sentence: suggestion(lift),
+    }
+  }
+
   /** The reason of a lift's load: its first fact, as the Why drawer words it; null when it has none. */
   function reason(lift: WorkoutLift): string | null {
     const [fact] = lift.basis.facts
@@ -187,10 +222,24 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     nextLine,
     saved,
     count,
+    row,
   }
 }
 
 export type StrengthWords = ReturnType<typeof strengthWords>
+
+/** The parts of a lift's row on the Strength page (`StrengthWords.row`). */
+export interface LiftRowText {
+  name: string
+  /** The load in the runner's unit; null for a lift with no added load. */
+  load: string | null
+  /** The prescription and the reps left, one muted line. */
+  line: string
+  /** Whether `line` names the reps left. */
+  reserved: boolean
+  /** The whole suggestion as one sentence. */
+  sentence: string
+}
 
 /**
  * What a load of an exercise done with an implement means (design 5.2), as the line shown beside the
