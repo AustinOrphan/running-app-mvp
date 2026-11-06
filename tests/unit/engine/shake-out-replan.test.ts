@@ -105,6 +105,27 @@ function replanPasses(
 
 const total = (list: Run[]) => list.reduce((n, r) => n + r[2], 0)
 
+/**
+ * The runs still to come are the stored runs' days and kinds, with the same minutes in all; a share
+ * that is not a whole number of minutes leaves a minute to the first run of the week in progress and
+ * not to the run it fell to when the plan was drawn (a main without the rule does the same), so each
+ * run is within a minute of the stored one, and the passes are the first pass byte for byte.
+ */
+function expectStoredWithinAMinute({ stored, passes }: Passes) {
+  expect(stored.length).toBeGreaterThan(0)
+  const sum = (list: Run[]) => list.reduce((n, r) => n + r[2], 0)
+  passes.forEach((pass, i) => {
+    const label = `pass ${String(i + 1)}`
+    expect(
+      pass.map((r) => [r[0], r[1]]),
+      label,
+    ).toEqual(stored.map((r) => [r[0], r[1]]))
+    expect(sum(pass), label).toBe(sum(stored))
+    pass.forEach((r, k) => expect(Math.abs(r[2] - stored[k]![2]), label).toBeLessThanOrEqual(1))
+    expect(JSON.stringify(pass), label).toBe(JSON.stringify(passes[0]))
+  })
+}
+
 function expectStored({ stored, passes }: Passes) {
   expect(stored.length).toBeGreaterThan(0)
   passes.forEach((pass, i) => expect(pass, `pass ${String(i + 1)}`).toEqual(stored))
@@ -195,6 +216,27 @@ describe('a window known on the day before', () => {
       const result = replanPasses(input, mondayOf(a.goal.date))
       expect(result.stored.length).toBeGreaterThan(2)
       expectStored(result)
+    },
+  )
+
+  it.each([
+    ['rest', resting(addDays(raceMonday, 6))],
+    ['limited to 14 minutes', limited(addDays(raceMonday, 6), 14)],
+    ['limited to 25 minutes', limited(addDays(raceMonday, 6), 25)],
+  ])('gives the week before a Monday race back with a Sunday window: %s', (_, window) => {
+    const input = { ...mondayRace, disruptions: [window] }
+    for (const day of [1, 3]) {
+      expectStoredWithinAMinute(replanPasses(input, addDays(raceMonday, day)))
+    }
+  })
+
+  it.each([10, 14, 19])(
+    'gives the week of a Saturday race back with a limit of %i minutes on the Friday',
+    (limit) => {
+      const input = { ...hundred, disruptions: [limited(friday, limit)] }
+      for (const day of [1, 3]) {
+        expectStoredWithinAMinute(replanPasses(input, addDays(raceMonday, day)))
+      }
     },
   )
 })
