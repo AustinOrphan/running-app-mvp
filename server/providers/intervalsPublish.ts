@@ -43,6 +43,14 @@ const MESSAGE_MAX = 200
 const DEFAULT_RETRY_AFTER_SEC = 15 * 60
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
+/**
+ * An event's `start_date_local`: a local date-time (`yyyy-MM-dd'T'HH:mm:ss`), which intervals.icu
+ * parses strictly; the day alone is refused with a 422 ("Text '2026-11-16' could not be parsed at
+ * index 10"). Midnight means the workout has no start time: it sits on its day. The calendar read
+ * takes either form back (`list` keeps the first ten characters).
+ */
+const startDateLocal = (date: string): string => `${date}T00:00:00`
+
 /** Warning codes of an `UpsertOutcome`; the service words them. */
 export const WARNING_UNPARSED_STEPS = 'unparsed-steps'
 export const WARNING_NO_MAX_HR = 'no-max-hr'
@@ -448,9 +456,9 @@ interface Prepared {
 }
 
 /**
- * The event as intervals.icu takes it. `start_date_local` is the day alone, so the workout has no
- * start time. The type is `Run` for every kind, the hike too, because the heart-rate percentages
- * come from the Run settings.
+ * The event as intervals.icu takes it, for a create and for an update alike. `start_date_local` is
+ * the day at midnight, so the workout has no start time (`startDateLocal`). The type is `Run` for
+ * every kind, the hike too, because the heart-rate percentages come from the Run settings.
  */
 function prepare(workout: OutboundWorkout, index: number, ref: PublishReference): Prepared {
   const { text, warnings } = renderIntervalsDescription(workout.plan, ref)
@@ -460,7 +468,7 @@ function prepare(workout: OutboundWorkout, index: number, ref: PublishReference)
     warnings,
     body: {
       category: 'WORKOUT',
-      start_date_local: workout.date,
+      start_date_local: startDateLocal(workout.date),
       type: 'Run',
       name: workout.name,
       description: text,

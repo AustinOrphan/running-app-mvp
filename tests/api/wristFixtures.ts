@@ -71,10 +71,32 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
     headers: { 'content-type': 'application/json', ...headers },
   })
 
+/** The local date-time form intervals.icu parses `start_date_local` with. */
+const LOCAL_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/
+
+/**
+ * The 422 intervals.icu answers a write whose `start_date_local` is not a local date-time, with the
+ * message it gave for the day alone (seen on a live publish, 2026-11); null when the value parses.
+ * One bad event refuses the whole call.
+ */
+function startDateProblem(item: Record<string, unknown>): Response | null {
+  const value = item['start_date_local']
+  if (typeof value === 'string' && LOCAL_DATE_TIME.test(value)) return null
+  const shown = typeof value === 'string' ? value : String(value)
+  return json(
+    {
+      error: `Invalid start_date_local: Text '${shown}' could not be parsed at index ${String(shown.length)} [${shown}]`,
+    },
+    422,
+  )
+}
+
 /**
  * A small intervals.icu: events created in bulk (an `external_id` that exists is updated, as the
  * upsert flag does for the app that made it), updated by id (404 for an unknown id), listed by day
- * and deleted in bulk. Every call is recorded; `hooks` take over one kind of call.
+ * and deleted in bulk. Every call is recorded; `hooks` take over one kind of call. A write whose
+ * `start_date_local` is not a local date-time (the day alone, say) is refused with a 422 and
+ * stores nothing, as intervals.icu does (`startDateProblem`).
  */
 export function fakeIntervals(athleteId: string = ATHLETE_ID): FakeIntervals {
   const athleteBase = `${BASE}/athlete/${athleteId}`
@@ -110,7 +132,7 @@ export function fakeIntervals(athleteId: string = ATHLETE_ID): FakeIntervals {
     const event: RemoteEvent = {
       id,
       external_id: typeof item['external_id'] === 'string' ? item['external_id'] : null,
-      start_date_local: `${String(item['start_date_local']).slice(0, 10)}T00:00:00`,
+      start_date_local: String(item['start_date_local']),
       name: text(item['name'], ''),
       description: text(item['description'], ''),
       category: text(item['category'], 'WORKOUT'),
@@ -156,6 +178,10 @@ export function fakeIntervals(athleteId: string = ATHLETE_ID): FakeIntervals {
       const body = await record(req)
       const hooked = await fake.hooks.create?.(req, body)
       if (hooked) return hooked
+      for (const item of body as Array<Record<string, unknown>>) {
+        const refused = startDateProblem(item)
+        if (refused !== null) return refused
+      }
       const created = (body as Array<Record<string, unknown>>).map((item) => {
         const existing = [...events.values()].find((e) => e.external_id === item['external_id'])
         return view(store(item, existing?.id ?? nextId++))
@@ -186,6 +212,8 @@ export function fakeIntervals(athleteId: string = ATHLETE_ID): FakeIntervals {
       if (hooked) return hooked
       const id = Number(new URL(req.url).pathname.split('/').pop())
       if (!events.has(id)) return json({ error: 'Not found' }, 404)
+      const refused = startDateProblem(body as Record<string, unknown>)
+      if (refused !== null) return refused
       return json(view(store(body as Record<string, unknown>, id)))
     },
   })

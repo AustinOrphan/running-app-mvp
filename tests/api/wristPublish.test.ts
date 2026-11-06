@@ -31,6 +31,7 @@ import {
 } from './helpers.ts'
 import {
   API_KEY,
+  EVENTS,
   connectIntervals,
   enablePublishing,
   fakeIntervals,
@@ -162,6 +163,59 @@ describe('publishForUser', () => {
       [today, 'sent'],
       [addDays(today, 13), 'sent'],
     ])
+  })
+
+  test('sends the day at midnight on a create and on an update, which intervals.icu needs', async () => {
+    const { u, planId } = await runner('start-date@example.com')
+    const date = addDays(today, 2)
+    const [session] = await place(ctx, planId, [{ date, kind: 'easy' }])
+
+    // intervals.icu refuses a day alone (see the fake), so a run that sends one stores no event
+    expect(await publish(u)).toMatchObject({ status: 'ok', sent: 1, failed: 0 })
+    const [event] = fake.byDate()
+    expect(event!.start_date_local).toBe(`${date}T00:00:00`)
+    expect(fake.made('POST', 'events/bulk')[0]?.body).toMatchObject([
+      { start_date_local: `${date}T00:00:00` },
+    ])
+
+    const moved = addDays(today, 4)
+    await ctx.prisma.planSession.update({
+      where: { id: session!.id },
+      data: { date: moved, weekStart: mondayOf(moved) },
+    })
+    fake.forget()
+    expect(await publish(u)).toMatchObject({ status: 'ok', sent: 1, failed: 0 })
+    expect(fake.made('PUT', `events/${String(event!.id)}`)[0]?.body).toMatchObject({
+      start_date_local: `${moved}T00:00:00`,
+    })
+    expect(fake.events.get(event!.id)!.start_date_local).toBe(`${moved}T00:00:00`)
+    expect((await rowsOf(u))[0]).toMatchObject({ state: 'sent', failCode: null, date: moved })
+  })
+
+  test('the fake intervals.icu refuses a day alone with its real message, on a create and an update', async () => {
+    const body = (date: string) =>
+      JSON.stringify([{ start_date_local: date, external_id: 'rl-abc123-x', name: 'Easy run' }])
+    const create = await fake.fetch(`${EVENTS}/bulk`, { method: 'POST', body: body('2026-11-16') })
+    expect(create.status).toBe(422)
+    expect(await create.json()).toEqual({
+      error:
+        "Invalid start_date_local: Text '2026-11-16' could not be parsed at index 10 [2026-11-16]",
+    })
+    expect(fake.events.size).toBe(0)
+
+    // a create that parses, then an update with a day alone: refused, and the event stays as it was
+    const ok = await fake.fetch(`${EVENTS}/bulk`, {
+      method: 'POST',
+      body: body('2026-11-16T00:00:00'),
+    })
+    expect(ok.status).toBe(200)
+    const [event] = (await ok.json()) as Array<{ id: number }>
+    const update = await fake.fetch(`${EVENTS}/${String(event!.id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ start_date_local: '2026-11-17' }),
+    })
+    expect(update.status).toBe(422)
+    expect(fake.events.get(event!.id)!.start_date_local).toBe('2026-11-16T00:00:00')
   })
 
   test('writes nothing when the content is unchanged, and stores no row for an idle tick', async () => {

@@ -504,7 +504,7 @@ describe('intervals.icu upsert', () => {
     const sent = calls[0]?.body as Array<Record<string, unknown>>
     expect(sent[0]).toEqual({
       category: 'WORKOUT',
-      start_date_local: workouts[0]?.date,
+      start_date_local: `${workouts[0]!.date}T00:00:00`,
       type: 'Run',
       name: 'Easy run, 45 min',
       description: renderIntervalsDescription(workouts[0]!.plan, REF).text,
@@ -512,7 +512,7 @@ describe('intervals.icu upsert', () => {
     })
   })
 
-  it('sends a date with no time part, a public title and the external id', async () => {
+  it('sends the day at midnight, a public title and the external id', async () => {
     const bodies: Array<Record<string, unknown>> = []
     const ctx = makeCtx({
       [`POST ${EVENTS}/bulk`]: async (req) => {
@@ -528,7 +528,8 @@ describe('intervals.icu upsert', () => {
     await intervalsPublish.upsert(workouts, REF, ctx)
     expect(bodies).toHaveLength(workouts.length)
     for (const body of bodies) {
-      expect(body['start_date_local']).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      // a local date-time: intervals.icu refuses the day alone
+      expect(body['start_date_local']).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00$/)
       expect(body['external_id']).toMatch(/^rl-abc123-ext\d+$/)
       expect(body['category']).toBe('WORKOUT')
       expect(JSON.stringify(body)).not.toMatch(/injur|illness|pain|return|post-race|run-walk/i)
@@ -565,7 +566,7 @@ describe('intervals.icu upsert', () => {
     const [outcome] = await intervalsPublish.upsert([moved], REF, ctx)
     expect(puts).toHaveLength(1)
     expect(puts[0]?.url).toBe(`${EVENTS}/777`)
-    expect(puts[0]?.body['start_date_local']).toBe('2026-03-14')
+    expect(puts[0]?.body['start_date_local']).toBe('2026-03-14T00:00:00')
     expect(puts[0]?.body['external_id']).toBe('rl-abc123-ext1')
     expect(outcome).toEqual({
       externalId: 'rl-abc123-ext1',
