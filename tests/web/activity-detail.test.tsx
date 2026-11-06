@@ -1286,6 +1286,44 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(within(section).queryByText(/Planned: Long run/)).not.toBeInTheDocument()
   })
 
+  test('shows the skeleton, not the failure, while a plan marked old is read again after a read that failed', async () => {
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData(
+      [keys.plan],
+      planOfTheWeek([
+        makeSession({ id: 's1', date: '2026-03-02', title: 'Long run', durationMin: 175 }),
+      ]),
+    )
+    await queryClient.invalidateQueries({ queryKey: [keys.plan], refetchType: 'none' })
+    let failing = true
+    renderDetail({
+      queryClient,
+      routes: {
+        'GET /api/plan': () =>
+          failing
+            ? { status: 500, body: { error: { code: 'internal', message: 'No.' } } }
+            : linkedPlan(withLines([PLANNED])),
+      },
+    })
+    expect(await within(await block()).findByText(NOT_LOADED)).toBeInTheDocument()
+    // the next read is held open; the query keeps the status of the read before until it ends
+    failing = false
+    delayResponses(700)
+    await act(async () => {
+      void queryClient.refetchQueries({ queryKey: [keys.plan] })
+      await Promise.resolve()
+    })
+    await settle()
+    expect(queryClient.isFetching({ queryKey: [keys.plan] })).toBe(1)
+    expect(queryClient.getQueryState([keys.plan])?.status).toBe('error')
+    expect(screen.queryByText(NOT_LOADED)).not.toBeInTheDocument()
+    expect(await within(await block()).findByRole('group', { name: 'Loading' })).toBeVisible()
+    expect(screen.queryByText(NOT_LOADED)).not.toBeInTheDocument()
+    // and the block, once the read has answered
+    expect(await within(await block()).findByText(PLANNED)).toBeInTheDocument()
+    expect(screen.queryByText(NOT_LOADED)).not.toBeInTheDocument()
+  })
+
   test('keeps the plan it has when a later read of a plan it was given fresh fails', async () => {
     // not marked old when the page opened: the plan read is the plan as it was, and a failed read
     // after it leaves what the block says

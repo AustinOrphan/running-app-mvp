@@ -232,7 +232,8 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
   // which the run is not linked yet. The block shows nothing of that plan: it waits for the read, and
   // only for that one, since a plan read after the block mounted is the plan as it is and a later
   // read (after a rating is saved) leaves the block as it is. If that read fails, the block says
-  // so; it never falls back to the plan from before.
+  // so; it never falls back to the plan from before. A query that failed keeps its error status
+  // while the next read runs, so the line shows only when no read is in flight.
   const [mount] = useState(() => ({
     at: Date.now(),
     invalidated: queryClient.getQueryState([keys.plan])?.isInvalidated === true,
@@ -243,7 +244,7 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
   if (plan.data === undefined || fromBefore) {
     return (
       <Section title={title}>
-        {plan.isError ? (
+        {plan.isError && !plan.isFetching ? (
           <p className={styles.line}>{planNotLoaded(units)}</p>
         ) : (
           <Skeleton lines={2} />
