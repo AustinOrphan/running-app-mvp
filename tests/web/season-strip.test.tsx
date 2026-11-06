@@ -186,6 +186,19 @@ describe('the season strip, its buttons and its words', () => {
     expect(buttons[10]).toHaveAccessibleName('Week of 22 Feb, after the race, 6.7 h planned')
   })
 
+  test('shares one request for the minutes run with the week table', async () => {
+    const { calls } = mockApi(routes(plan()))
+    renderPlan()
+    const group = within(await strip()).getByRole('group', { name: 'Weeks of the plan' })
+    // the strip and the table have both read the weeks: the buttons carry them, so does the row
+    await waitFor(() => {
+      expect(within(group).getAllByRole('button')[0]).toHaveAccessibleName(/3\.3 h run$/)
+      expect(within(row(CURRENT)).getByText('1.5 of 5.7 h run')).toBeInTheDocument()
+    })
+    const requests = calls.filter((call) => call.url.startsWith('/api/weeks'))
+    expect(requests.map((call) => call.url)).toEqual([`/api/weeks?from=${START}&to=${CURRENT}`])
+  })
+
   test('names the minutes run of the weeks that have been read, and "This week" on the current one', async () => {
     mockApi(routes(plan()))
     renderPlan()
