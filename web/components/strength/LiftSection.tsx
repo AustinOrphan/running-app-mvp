@@ -344,6 +344,9 @@ export function LiftSection({
                     label={countName}
                     value={row.count}
                     inputMode="numeric"
+                    {...(measure === 'seconds'
+                      ? { unit: words.measureShort(measure), spokenUnit: measureWord }
+                      : {})}
                     lowerLabel={words.say('strength.sheet.lower-count', {
                       measure: measureWord,
                       amount,

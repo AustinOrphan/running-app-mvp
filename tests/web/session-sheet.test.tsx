@@ -691,7 +691,7 @@ describe('SessionSheet: the Strength section', () => {
       'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
       'Pogo hops, 40 ground contacts.',
-      'Side plank, 2 sets.',
+      'Side plank 2x30–45 s each side.',
     ])
     expect(within(strength).getByText('Lift at least 3 hours before or after a run.')).toBeVisible()
     expect(within(strength).getByRole('button', { name: 'Log sets' })).toBeVisible()

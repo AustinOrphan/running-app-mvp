@@ -15,6 +15,11 @@ export interface StepperProps {
   raiseEnds?: boolean
   /** The unit shown after the field and read as its description: "lb". */
   unit?: string
+  /**
+   * What a screen reader says for the unit when the shown one is an abbreviation ("seconds" for
+   * "s"): the shown unit is then hidden from it, and the description is this.
+   */
+  spokenUnit?: string
   /** The id of another element that describes the field: what a load means. */
   describedBy?: string | undefined
   /** The field holds something the save cannot read. */
@@ -39,6 +44,7 @@ export function Stepper({
   lowerEnds = false,
   raiseEnds = false,
   unit,
+  spokenUnit,
   describedBy,
   invalid = false,
   onType,
@@ -86,10 +92,19 @@ export function Stepper({
       >
         <span aria-hidden="true">+</span>
       </button>
-      {unit === undefined ? null : (
+      {unit === undefined ? null : spokenUnit === undefined ? (
         <span id={unitId} className={styles.unit}>
           {unit}
         </span>
+      ) : (
+        <>
+          <span className={styles.unit} aria-hidden="true">
+            {unit}
+          </span>
+          <span id={unitId} className="visually-hidden">
+            {spokenUnit}
+          </span>
+        </>
       )}
     </div>
   )

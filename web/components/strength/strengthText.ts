@@ -34,6 +34,11 @@ export function measureOf(exerciseId: string): Measure {
   return exerciseById(exerciseId)?.measure ?? 'reps'
 }
 
+/** Whether the catalogue has the exercise done on one side and then the other (the side plank). */
+export function isEachSide(exerciseId: string): boolean {
+  return exerciseById(exerciseId)?.eachSide === true
+}
+
 const count = (n: number): Quantity => ({ kind: 'count', n })
 const load = (g: number): Quantity => ({ kind: 'load', g })
 
@@ -63,6 +68,17 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     return say(`strength.measure.${m}`)
   }
 
+  /** The unit beside a count where there is little room: "s" for seconds, the word for the rest. */
+  function measureShort(m: Measure): string {
+    return m === 'seconds' ? say('strength.measure.seconds-short') : measure(m)
+  }
+
+  /** The measure of a lift as the sentence says it: "reps", "seconds", "seconds each side". */
+  function measureWithSide(lift: WorkoutLift): string {
+    const word = measure(measureOf(lift.exerciseId))
+    return isEachSide(lift.exerciseId) ? say('strength.row.each-side', { amount: word }) : word
+  }
+
   /** The one-line suggestion of a lift, as design 9.1 words it. */
   function suggestion(lift: WorkoutLift): string {
     const { range, rir } = lift
@@ -72,7 +88,7 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
         range.min === range.max
           ? say('strength.sheet.amount-one', { n: count(range.min) })
           : say('strength.sheet.amount-range', { lo: count(range.min), hi: count(range.max) }),
-      measure: measure(measureOf(lift.exerciseId)),
+      measure: measureWithSide(lift),
     }
     const carried: Record<string, Quantity | string> =
       lift.loadG === null ? {} : { load: load(lift.loadG) }
@@ -95,24 +111,53 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
   }
 
   /**
+   * What a set counts, with its measure where it needs one: "6 to 8" for a lift that has a reps-left
+   * target (the reserve says they are reps), "8 to 12 reps" and "30 to 45 seconds" for a movement that
+   * has none, and "each side" after it for a movement done on one side and then the other (the
+   * catalogue says which). `short` is for a row with little room: the range is "30-45", and a
+   * count of seconds is "s".
+   */
+  function amountText(lift: WorkoutLift, short: boolean): string {
+    const { range, rir } = lift
+    const ends = { lo: count(range.min), hi: count(range.max) }
+    const amount =
+      range.min === range.max
+        ? say('strength.sheet.amount-one', { n: count(range.min) })
+        : say(short ? 'strength.hero.amount-range' : 'strength.sheet.amount-range', ends)
+    const counted = measureOf(lift.exerciseId)
+    const named =
+      counted === 'reps' && rir !== null
+        ? amount
+        : say('strength.row.amount-measure', {
+            amount,
+            measure: short ? measureShort(counted) : measure(counted),
+          })
+    return isEachSide(lift.exerciseId) ? say('strength.row.each-side', { amount: named }) : named
+  }
+
+  /**
+   * A trunk movement of a hero row or the session sheet: "Side plank 2 x 30-45 s each side",
+   * with its sets, its amount and its measure.
+   */
+  function trunkItem(lift: WorkoutLift): string {
+    return say('strength.hero.trunk-item', {
+      exercise: name(lift.exerciseId),
+      sets: count(lift.sets),
+      amount: amountText(lift, true),
+    })
+  }
+
+  /**
    * A lift as a row of the Strength page: its name, its load as a figure, the muted line under the
    * name ("2 sets of 6 to 8, 3 or more in reserve") and the one sentence of `suggestion`, which a
    * screen reader and the specs read in place of the figures. `reserved` says the line names the
    * reps left, which the page glosses once, under the first row that does.
    */
   function row(lift: WorkoutLift): LiftRowText {
-    const { range, rir } = lift
-    const amount =
-      range.min === range.max
-        ? say('strength.sheet.amount-one', { n: count(range.min) })
-        : say('strength.sheet.amount-range', { lo: count(range.min), hi: count(range.max) })
-    const measured = measureOf(lift.exerciseId)
+    const { rir } = lift
     const prescription = say(lift.sets === 1 ? 'strength.row.sets-one' : 'strength.row.sets-many', {
       n: count(lift.sets),
-      amount:
-        measured === 'reps'
-          ? amount
-          : say('strength.row.amount-measure', { amount, measure: measure(measured) }),
+      amount: amountText(lift, false),
     })
     const reserve =
       rir === null
@@ -223,6 +268,8 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     saved,
     count,
     row,
+    trunkItem,
+    measureShort,
   }
 }
 

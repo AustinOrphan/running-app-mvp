@@ -204,6 +204,20 @@ export const STRENGTH_TEMPLATES = {
     movement: 'text',
     contacts: 'count',
   }),
+  // A trunk movement carries its amount and its measure, as a lift carries its reps: "Side plank 2x30-45 s
+  // each side". The row is the movements of the session, one after another, so it is written
+  // close: the range joins its ends with a dash and a count of seconds is "s". `amount` is "8-12
+  // reps", or "30-45 s" with "each side" after it for a movement done on one side and then the
+  // other (the catalogue says which).
+  'strength.hero.trunk-item': tpl(
+    '{exercise} {sets}x{amount}',
+    { exercise: 'text', sets: 'count', amount: 'text' },
+    { shape: 'label', fallback: 'Trunk work' },
+  ),
+  'strength.hero.amount-range': tpl('{lo}–{hi}', { lo: 'count', hi: 'count' }, { shape: 'label' }),
+  'strength.hero.trunk-amounts': tpl('{items}.', { items: 'text' }),
+  // More movements than the hero has room to give an amount each (the engine makes two, and one in
+  // the taper) are named, with the sets they share.
   'strength.hero.trunk-row': tpl('{movements}, {sets} sets.', {
     movements: 'text',
     sets: 'count',
@@ -536,6 +550,13 @@ export const STRENGTH_TEMPLATES = {
     { prescription: 'text', reserve: 'text' },
     { shape: 'label', fallback: 'Sets' },
   ),
+  // A hold is counted in seconds, a movement done on one side and then the other says so, and a
+  // movement with no reps-left target (the trunk work) names its measure: "8 to 12 reps".
+  'strength.row.each-side': tpl(
+    '{amount} each side',
+    { amount: 'text' },
+    { shape: 'label', fallback: 'Each side' },
+  ),
   'strength.row.contacts': tpl(
     '{contacts} ground contacts',
     { contacts: 'count' },
@@ -555,6 +576,8 @@ export const STRENGTH_TEMPLATES = {
   // What a set counts, and the words of its controls.
   'strength.measure.reps': tpl('reps', {}, { shape: 'label' }),
   'strength.measure.seconds': tpl('seconds', {}, { shape: 'label' }),
+  // The unit beside a count of seconds where there is little room: a stepper, a row of the history.
+  'strength.measure.seconds-short': tpl('s', {}, { shape: 'label' }),
   'strength.measure.contacts': tpl('contacts', {}, { shape: 'label' }),
   'strength.measure.load': tpl('load', {}, { shape: 'label' }),
   'strength.measure.reps-left': tpl('reps left', {}, { shape: 'label' }),

@@ -95,6 +95,11 @@ export interface Exercise {
   /** Equipment that makes it easier or safer but is not required (a step for a hip thrust). */
   optionalNeeds: readonly EquipmentKind[]
   measure: Measure
+  /**
+   * Done on one side and then the other, so a prescription says "each side" (the side plank). A
+   * count is of one side's work.
+   */
+  eachSide?: true
   basis: LoadBasis
   /** The next harder movement, reached by progression, a swap or a pin and not by the ladder. */
   harder: ExerciseId | null
@@ -362,6 +367,7 @@ const SPECS: Readonly<Record<ExerciseId, ExerciseSpec>> = {
     needs: [],
     optionalNeeds: [],
     measure: 'seconds',
+    eachSide: true,
     basis: 'bodyweight',
     harder: null,
     serves: TRUNK,

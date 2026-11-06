@@ -372,12 +372,46 @@ describe('the sentences of design 11.6', () => {
         contacts: count(P.f7.maintenancePlyoContacts.value),
       }),
     ).toBe(`Pogo hops, ${String(P.f7.maintenancePlyoContacts.value)} ground contacts.`)
+    // a trunk movement carries its amount and its measure
+    const sets = String(P.f7.trunkSets.value)
+    const hold = say('strength.hero.trunk-item', {
+      exercise: name('side-plank'),
+      sets: count(P.f7.trunkSets.value),
+      amount: say('strength.row.each-side', {
+        amount: say('strength.row.amount-measure', {
+          amount: say('strength.hero.amount-range', { lo: count(30), hi: count(45) }),
+          measure: say('strength.measure.seconds-short'),
+        }),
+      }),
+    })
+    expect(hold).toBe(`Side plank ${sets}x30–45 s each side`)
+    const reps = say('strength.hero.trunk-item', {
+      exercise: name('dead-bug').toLowerCase(),
+      sets: count(P.f7.trunkSets.value),
+      amount: say('strength.row.amount-measure', {
+        amount: say('strength.hero.amount-range', { lo: count(8), hi: count(12) }),
+        measure: say('strength.measure.reps'),
+      }),
+    })
+    expect(reps).toBe(`dead bug ${sets}x8–12 reps`)
+    expect(say('strength.hero.trunk-amounts', { items: `${hold}, ${reps}` })).toBe(
+      `Side plank ${sets}x30–45 s each side, dead bug ${sets}x8–12 reps.`,
+    )
+    // more movements than the hero has room to give an amount each are named, with their sets
     expect(
       say('strength.hero.trunk-row', {
         movements: `${name('side-plank')} and ${name('dead-bug').toLowerCase()}`,
         sets: count(P.f7.trunkSets.value),
       }),
-    ).toBe(`Side plank and dead bug, ${String(P.f7.trunkSets.value)} sets.`)
+    ).toBe(`Side plank and dead bug, ${sets} sets.`)
+  })
+
+  it('writes the amount of a hold in seconds, "s" where room is short, and "2 × 30 s" for sets that agree', () => {
+    expect(say('strength.measure.seconds')).toBe('seconds')
+    expect(say('strength.measure.seconds-short')).toBe('s')
+    expect(say('strength.row.each-side', { amount: '30 to 45 seconds' })).toBe(
+      '30 to 45 seconds each side',
+    )
   })
 
   it('sets the figures of a lift row apart: the load, the prescription and the reps left', () => {

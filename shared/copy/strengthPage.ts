@@ -207,6 +207,12 @@ export const STRENGTH_PAGE_TEMPLATES = {
     { load: 'load', count: 'count', left: 'count' },
     { shape: 'label' },
   ),
+  // Sets of a hold that agree are one line: "2 × 30 s".
+  'strength.page.set-held-run': tpl(
+    '{n} × {count} {measure}',
+    { n: 'count', count: 'count', measure: 'text' },
+    { shape: 'label' },
+  ),
   'strength.page.set-bare': tpl(
     '{count} {measure}',
     { count: 'count', measure: 'text' },

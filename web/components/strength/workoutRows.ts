@@ -11,6 +11,9 @@ import { strengthWords, type StrengthWords } from './strengthText.ts'
 /** The most rows a hero shows: three lifts, the jumps and the trunk movements. */
 export const WORKOUT_ROWS_MAX = 5
 
+/** The most trunk movements a row gives an amount each: the engine's two (`trunkOf`). */
+export const TRUNK_AMOUNTS_MAX = 2
+
 /** One row of a workout. */
 export interface WorkoutRow {
   /** Stable within a workout. */
@@ -42,6 +45,16 @@ function joinNames(names: string[]): string {
   return lowered.length === 0 ? last : `${lowered.join(', ')} and ${last}`
 }
 
+/** "Side plank 2 x 30-45 s each side, dead bug 2 x 8-12 reps": the trunk movements of a row. */
+function joinItems(lifts: readonly WorkoutLift[], words: StrengthWords): string {
+  return lifts
+    .map((lift, index) => {
+      const item = words.trunkItem(lift)
+      return index === 0 ? item : `${item.charAt(0).toLowerCase()}${item.slice(1)}`
+    })
+    .join(', ')
+}
+
 /**
  * The usual load of a lift on a lighter day, or null when there is none to offer. The engine keeps
  * the load it started from in `usualLoadG` whenever the cut changed anything, so a cut that only
@@ -66,7 +79,7 @@ function liftRow(words: StrengthWords, lift: WorkoutLift, usual: boolean): strin
   const exercise = words.name(lift.exerciseId)
   const { rir } = lift
   if (rir === null) {
-    return words.say('strength.hero.trunk-row', { movements: exercise, sets: count(lift.sets) })
+    return words.say('strength.hero.trunk-amounts', { items: words.trunkItem(lift) })
   }
   const base = {
     exercise,
@@ -128,12 +141,18 @@ export function workoutRows(
   }
   const [firstTrunk] = workout.trunk
   if (firstTrunk !== undefined) {
+    // Each movement with its sets, its amount and its measure: a hold says how long, a reps
+    // movement how many. The engine makes two movements (one in the taper), and the hero's fold
+    // has room for two amounts; a row of more, which only a test builds, names them and their sets.
     rows.push({
       key: 'trunk',
-      text: words.say('strength.hero.trunk-row', {
-        movements: joinNames(workout.trunk.map((lift) => words.name(lift.exerciseId))),
-        sets: count(firstTrunk.sets),
-      }),
+      text:
+        workout.trunk.length <= TRUNK_AMOUNTS_MAX
+          ? words.say('strength.hero.trunk-amounts', { items: joinItems(workout.trunk, words) })
+          : words.say('strength.hero.trunk-row', {
+              movements: joinNames(workout.trunk.map((lift) => words.name(lift.exerciseId))),
+              sets: count(firstTrunk.sets),
+            }),
       exerciseId: null,
       rule: null,
     })

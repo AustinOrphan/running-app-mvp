@@ -20,12 +20,12 @@ export interface LiftHistoryProps {
 }
 
 /**
- * A set in words: "110 lb x 5, 2 left"; "110 lb, 30 seconds" for a load held; "30 seconds" with no
- * load; and no "left" without a count of reps left.
+ * A set in words: "110 lb x 5, 2 left"; "110 lb, 30 s" for a load held; "30 s" with no load; and no
+ * "left" without a count of reps left. A count of seconds is written "s", as in the logging sheet.
  */
 function setText(words: PageWords, exerciseId: string, set: HistorySet): string {
   const kind = measureOf(exerciseId)
-  const measure = words.measure(kind)
+  const measure = words.measureShort(kind)
   const count = words.count(set.count)
   const left = set.rir === null ? null : words.count(set.rir)
   if (set.loadG === null) {
@@ -42,6 +42,42 @@ function setText(words: PageWords, exerciseId: string, set: HistorySet): string 
   return left === null
     ? words.say('strength.page.set-load', { load, count, measure })
     : words.say('strength.page.set-load-left', { load, count, measure, left })
+}
+
+/**
+ * The lines a session lists for one lift: a line a set, except that the sets of a hold with no load
+ * and no reps left that agree are one line, "2 x 30 s", as the trunk work is prescribed. Sets that
+ * differ, or that carry a load or a reps-left count, stay a line each.
+ */
+function setLines(
+  words: PageWords,
+  exerciseId: string,
+  sets: readonly HistorySet[],
+): Array<{ key: number; text: string }> {
+  const grouped = measureOf(exerciseId) === 'seconds'
+  const lines: Array<{ key: number; text: string; run: number; set: HistorySet }> = []
+  for (const set of sets) {
+    const last = lines.at(-1)
+    const same =
+      grouped &&
+      last !== undefined &&
+      set.loadG === null &&
+      set.rir === null &&
+      last.set.loadG === null &&
+      last.set.rir === null &&
+      last.set.count === set.count
+    if (same) {
+      last.run += 1
+      last.text = words.say('strength.page.set-held-run', {
+        n: words.count(last.run),
+        count: words.count(set.count),
+        measure: words.measureShort('seconds'),
+      })
+    } else {
+      lines.push({ key: set.position, text: setText(words, exerciseId, set), run: 1, set })
+    }
+  }
+  return lines.map(({ key, text }) => ({ key, text }))
 }
 
 /** The one-line starting point the runner entered, when there is one. */
@@ -75,8 +111,8 @@ function SessionRow({
       </th>
       <td>
         <ul className={styles.sets}>
-          {session.sets.map((set) => (
-            <li key={set.position}>{setText(words, exerciseId, set)}</li>
+          {setLines(words, exerciseId, session.sets).map((line) => (
+            <li key={line.key}>{line.text}</li>
           ))}
         </ul>
       </td>

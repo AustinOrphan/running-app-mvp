@@ -4,6 +4,7 @@ import { COPY_MAX_CHARS } from '../../shared/copy/limits.ts'
 import type { Units, WeightUnit } from '../../shared/types.ts'
 import { blocksOf, withUsualLoad } from '../../web/components/strength/strengthForm.ts'
 import {
+  TRUNK_AMOUNTS_MAX,
   WORKOUT_ROWS_MAX,
   minutesPhrase,
   usualLoadOf,
@@ -37,7 +38,7 @@ describe('workoutRows', () => {
       'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
       'Pogo hops, 40 ground contacts.',
-      'Side plank, 2 sets.',
+      'Side plank 2x30–45 s each side.',
     ])
     expect(rows.map((row) => row.key)).toEqual([
       'lift-back-squat',
@@ -72,15 +73,40 @@ describe('workoutRows', () => {
     ])
   })
 
-  test('names several jump movements and several trunk movements in one row each', () => {
+  test('names several jump movements in one row, and gives each trunk movement its amount and measure', () => {
     const workout = makeWorkout({
       plyo: { contacts: 60, movements: ['pogo-hop', 'line-hop'] },
-      trunk: [plank(), plank({ exerciseId: 'dead-bug' }), plank({ exerciseId: 'pallof-press' })],
+      trunk: [plank(), plank({ exerciseId: 'dead-bug', range: { min: 8, max: 12 } })],
     })
     expect(texts(workoutRows(workout, 'km', 'lb')).slice(-2)).toEqual([
       'Pogo hops and line hops, 60 ground contacts.',
-      'Side plank, dead bug and pallof press, 2 sets.',
+      'Side plank 2x30–45 s each side, dead bug 2x8–12 reps.',
     ])
+  })
+
+  test('says a hold in seconds, "each side" from the catalogue, and a reps movement in reps', () => {
+    const rows = (trunk: ReturnType<typeof plank>[]) =>
+      texts(workoutRows(makeWorkout({ plyo: null, trunk }), 'km', 'lb')).at(-1)
+    expect(rows([plank()])).toBe('Side plank 2x30–45 s each side.')
+    expect(rows([plank({ exerciseId: 'farmer-carry' })])).toBe('Farmer carry 2x30–45 s.')
+    expect(rows([plank({ exerciseId: 'dead-bug', range: { min: 8, max: 12 } })])).toBe(
+      'Dead bug 2x8–12 reps.',
+    )
+    // a single count reads as one number, and one set as one
+    expect(
+      rows([plank({ exerciseId: 'pallof-press', sets: 1, range: { min: 10, max: 10 } })]),
+    ).toBe('Pallof press 1x10 reps.')
+  })
+
+  test(`gives an amount to at most ${String(TRUNK_AMOUNTS_MAX)} trunk movements, and names more with their sets`, () => {
+    const workout = makeWorkout({
+      plyo: null,
+      trunk: [plank(), plank({ exerciseId: 'dead-bug' }), plank({ exerciseId: 'pallof-press' })],
+    })
+    expect(texts(workoutRows(workout, 'km', 'lb')).at(-1)).toBe(
+      'Side plank, dead bug and pallof press, 2 sets.',
+    )
+    expect(TRUNK_AMOUNTS_MAX).toBe(2)
   })
 
   test(`is never more than ${String(WORKOUT_ROWS_MAX)} rows: a lift gives way to the jumps and the trunk work`, () => {
@@ -127,7 +153,7 @@ describe('workoutRows', () => {
 
   test('words a lift with no effort target as the trunk movements are worded', () => {
     const workout = makeWorkout({ lifts: [plank({ exerciseId: 'farmer-carry' })], trunk: [] })
-    expect(texts(workoutRows(workout, 'km', 'lb'))[0]).toBe('Farmer carry, 2 sets.')
+    expect(texts(workoutRows(workout, 'km', 'lb'))[0]).toBe('Farmer carry 2x30–45 s.')
   })
 
   test('says nothing of the estimated maximum, whatever the lift read for it', () => {

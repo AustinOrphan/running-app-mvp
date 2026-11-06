@@ -460,6 +460,38 @@ describe('the steppers', () => {
   })
 })
 
+describe('a hold on the logging sheet (a count of seconds)', () => {
+  test('shows its unit beside the value, so a logged 30 reads as 30 s, and its names say seconds', async () => {
+    open()
+    await sheet()
+    const group = screen.getByRole('group', { name: 'Side plank, set 1, seconds' })
+    const shown = within(group).getByText('s')
+    expect(shown).toBeVisible()
+    expect(shown).toHaveAttribute('aria-hidden', 'true')
+    // a screen reader says seconds, in the description of the field, and not the letter
+    expect(field('Side plank', 1, 'seconds')).toHaveAccessibleDescription('seconds')
+    expect(within(group).getByRole('button', { name: 'Lower the seconds by 5' })).toBeVisible()
+    expect(within(group).getByRole('button', { name: 'Raise the seconds by 5' })).toBeVisible()
+    // the stepper of reps and the one of contacts have no such unit
+    expect(
+      within(screen.getByRole('group', { name: 'Back squat, set 1, reps' })).queryByText('s'),
+    ).not.toBeInTheDocument()
+    expect(
+      within(screen.getByRole('group', { name: 'Pogo hops, set 1, contacts' })).queryByText('s'),
+    ).not.toBeInTheDocument()
+  })
+
+  test('reads each set of a hold with its unit in the suggestion too: "seconds each side"', async () => {
+    open()
+    await sheet()
+    expect(
+      within(screen.getByRole('region', { name: 'Side plank' })).getByText(
+        'Suggested two sets of 30 to 45 seconds each side.',
+      ),
+    ).toBeVisible()
+  })
+})
+
 describe('"As suggested" and the reps-left scale', () => {
   test('"As suggested" fills every set with the load, the target and the lowest reps left of the range', async () => {
     open()
@@ -2610,7 +2642,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
       next.getByText('Suggested three sets of 8 to 15 reps, leave 1 to 3 in reserve.'),
     ).toBeVisible()
     expect(next.getByText('Suggested 40 ground contacts.')).toBeInTheDocument()
-    expect(next.getByText('Suggested two sets of 30 to 45 seconds.')).toBeVisible()
+    expect(next.getByText('Suggested two sets of 30 to 45 seconds each side.')).toBeVisible()
     expect(next.getByText('Lift at least 3 hours before or after a run.')).toBeVisible()
     // a word for what the rules did, never colour alone
     expect(next.getByText('Up one step')).toBeVisible()
@@ -2797,11 +2829,45 @@ describe('the Strength page: the rows of the next session (UX critique of 2026-1
     expect(within(row).queryByText(/ lb$/)).not.toBeInTheDocument()
   })
 
-  test('a lift counted in seconds says so, and one with no reps-left target says no more than its sets', async () => {
+  test('a hold says how long and on which sides: "2 sets of 30 to 45 seconds each side"', async () => {
     await open(makeWorkout())
     const row = rowOf('Side plank')
-    expect(within(row).getByText('2 sets of 30 to 45 seconds')).toBeVisible()
-    expect(within(row).getByText('Suggested two sets of 30 to 45 seconds.')).toBeInTheDocument()
+    expect(within(row).getByText('2 sets of 30 to 45 seconds each side')).toBeVisible()
+    expect(
+      within(row).getByText('Suggested two sets of 30 to 45 seconds each side.'),
+    ).toBeInTheDocument()
+    // a hold has no reps-left target, so the line names no reserve
+    expect(within(row).queryByText(/in reserve/)).not.toBeInTheDocument()
+  })
+
+  test('a trunk movement counted in reps says "reps": "2 sets of 8 to 12 reps"', async () => {
+    await open(
+      makeWorkout({
+        trunk: [plank({ exerciseId: 'dead-bug', range: { min: 8, max: 12 }, targets: [8, 8] })],
+      }),
+    )
+    const row = rowOf('Dead bug')
+    expect(within(row).getByText('2 sets of 8 to 12 reps')).toBeVisible()
+    expect(within(row).getByText('Suggested two sets of 8 to 12 reps.')).toBeInTheDocument()
+    // a lift with a reps-left target keeps the shorter line: its reserve says the count is reps
+    expect(
+      within(rowOf('Back squat')).getByText('4 sets of 3 to 6, 1 to 3 in reserve'),
+    ).toBeVisible()
+  })
+
+  test('says "each side" for the movements the catalogue marks, and for no other', async () => {
+    await open(
+      makeWorkout({
+        trunk: [
+          plank(),
+          plank({ exerciseId: 'farmer-carry' }),
+          plank({ exerciseId: 'pallof-press', range: { min: 8, max: 12 }, targets: [8, 8] }),
+        ],
+      }),
+    )
+    expect(within(rowOf('Side plank')).getByText(/each side$/)).toBeVisible()
+    expect(within(rowOf('Farmer carry')).getByText('2 sets of 30 to 45 seconds')).toBeVisible()
+    expect(within(rowOf('Pallof press')).getByText('2 sets of 8 to 12 reps')).toBeVisible()
   })
 
   test('one set and an exact count read as "1 set of 5"', async () => {
@@ -3373,8 +3439,85 @@ describe('the Strength page: the lifts and the history of one lift (design 11.3,
     await page('Lifts')
     await userEvent.setup().click(screen.getByRole('button', { name: 'History of Side plank' }))
     const table = await screen.findByRole('region', { name: 'History of Side plank' })
-    expect(within(table).getByText('30 seconds', { selector: 'li' })).toBeVisible()
+    expect(within(table).getByText('30 s', { selector: 'li' })).toBeVisible()
     expect(within(table).getByText('Taper')).toBeVisible()
+  })
+})
+
+describe('the Strength page: the sets of a hold (design 11.3, 6.3)', () => {
+  const holdHistory = (
+    sets: Array<{ count: number; loadG?: number | null; rir?: number | null }>,
+  ) => ({
+    'GET /api/strength/exercises/side-plank': () => ({
+      exerciseId: 'side-plank',
+      anchor: null,
+      summary: { ...RDL_SUMMARY, exerciseId: 'side-plank', workingLoadG: null },
+      sessions: [
+        {
+          logId: LOG_LAST,
+          date: '2026-03-12',
+          mode: 'normal',
+          sets: sets.map((set, position) => ({
+            position,
+            loadG: set.loadG ?? null,
+            count: set.count,
+            rir: set.rir ?? null,
+          })),
+          heaviest: null,
+          workingLoadG: null,
+          estimateG: null,
+        },
+      ],
+    }),
+  })
+
+  async function openHistory(routes: MockRoutes) {
+    openPage({
+      view: pageView({
+        lifts: [SQUAT_SUMMARY, { ...RDL_SUMMARY, exerciseId: 'side-plank', workingLoadG: null }],
+      }),
+      routes,
+    })
+    await page('Lifts')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'History of Side plank' }))
+    return screen.findByRole('region', { name: 'History of Side plank' })
+  }
+
+  test('sets of a hold that agree are one line, "2 × 30 s"', async () => {
+    const table = await openHistory(holdHistory([{ count: 30 }, { count: 30 }]))
+    expect(within(table).getByText('2 × 30 s', { selector: 'li' })).toBeVisible()
+    expect(within(table).queryByText('30 s', { selector: 'li' })).not.toBeInTheDocument()
+  })
+
+  test('sets of a hold that differ stay a line each, in seconds', async () => {
+    const table = await openHistory(holdHistory([{ count: 30 }, { count: 45 }, { count: 45 }]))
+    const lines = within(table)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
+    expect(lines).toEqual(['30 s', '2 × 45 s'])
+  })
+
+  test('a hold with reps left or a load is not folded into a count', async () => {
+    const table = await openHistory(
+      holdHistory([
+        { count: 30, rir: 2 },
+        { count: 30, rir: 2 },
+      ]),
+    )
+    expect(
+      within(table)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['30 s, 2 left', '30 s, 2 left'])
+  })
+
+  test('the sets of a lift counted in reps are a line each, as they were', async () => {
+    openPage({ routes: { 'GET /api/strength/exercises/back-squat': () => squatHistory() } })
+    await page('Lifts')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'History of Back squat' }))
+    const table = await screen.findByRole('region', { name: 'History of Back squat' })
+    expect(within(table).queryByText(/×/)).not.toBeInTheDocument()
+    expect(within(table).getAllByText(/^105 lb x 5, 2 left$/).length).toBeGreaterThan(1)
   })
 })
 

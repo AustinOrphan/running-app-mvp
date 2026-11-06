@@ -1353,7 +1353,7 @@ describe('ActivityDetailPage: a strength activity', () => {
       ['Dumbbell Romanian deadlift', '1', '35 lb', '6', 'Not recorded'],
       ['Dumbbell Romanian deadlift', '2', '35 lb', '6', 'Not recorded'],
       ['Standing calf raise', '1', 'No added load', '12', '3'],
-      ['Side plank', '1', 'No added load', '30 seconds', 'Not recorded'],
+      ['Side plank', '1', 'No added load', '30 s', 'Not recorded'],
     ])
     expect(within(section).getByRole('button', { name: 'Edit sets' })).toBeVisible()
     expect(within(section).queryByRole('button', { name: 'Add the sets' })).not.toBeInTheDocument()

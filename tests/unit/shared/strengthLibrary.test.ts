@@ -412,6 +412,12 @@ describe('the catalogue of design 7.1', () => {
     expect(EXERCISES.filter((e) => e.retired === true)).toEqual([])
   })
 
+  it('says which movement is done on one side and then the other, and counts it in seconds', () => {
+    // a prescription says "each side" for these and no other: the words come from this flag
+    expect(EXERCISES.filter((e) => e.eachSide === true).map((e) => e.id)).toEqual(['side-plank'])
+    expect(exerciseById('side-plank')?.measure).toBe('seconds')
+  })
+
   it('looks an exercise up by id, and says no to an id it has never held', () => {
     expect(exerciseById('back-squat')?.slot).toBe('knee')
     expect(exerciseById('bench-press')).toBeUndefined()

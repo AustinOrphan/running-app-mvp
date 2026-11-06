@@ -296,6 +296,38 @@ test('the Next session card keeps Log sets on the first screen at 390 x 844 and 
   }
 })
 
+test('a hold says how long and on which sides on the card, in the hero and on the logging sheet', async ({
+  page,
+  baseURL,
+}) => {
+  const { session, api } = await startDay(page, baseURL)
+  await saveStrengthSetup(api)
+  await page.setViewportSize({ width: 390, height: 844 })
+
+  // the Strength page: each trunk movement with its amount and its measure
+  await page.goto('/strength')
+  const next = page.getByRole('region', { name: 'Next session' })
+  await expect(rowOf(next, 'Side plank')).toContainText('2 sets of 30 to 45 seconds each side')
+  await expect(rowOf(next, 'Dead bug')).toContainText('2 sets of 8 to 12 reps')
+
+  // Today's hero: the same movements, written close, in one row
+  await page.goto('/')
+  const hero = page.getByRole('article', { name: session.title })
+  await expect(hero.getByRole('listitem').last()).toHaveText(
+    'Side plank 2x30–45 s each side, dead bug 2x8–12 reps.',
+  )
+
+  // the logging sheet: the value of a hold is followed by its unit, and the names say seconds
+  await hero.getByRole('button', { name: 'Log sets' }).click()
+  const sheet = loggingSheet(page)
+  const hold = liftIn(sheet, 'Side plank').getByRole('group', {
+    name: 'Side plank, set 1, seconds',
+  })
+  await expect(hold.getByText('s', { exact: true })).toBeVisible()
+  await expect(hold.getByRole('textbox', { name: 'Side plank, set 1, seconds' })).toBeVisible()
+  await expect(hold.getByRole('button', { name: 'Raise the seconds by 5' })).toBeVisible()
+})
+
 // ---- Logging ---------------------------------------------------------------------------------------
 
 test('the logging sheet opens on the first lift at 390 x 844 and 360 x 740, with its 0 to 5 row labelled', async ({
