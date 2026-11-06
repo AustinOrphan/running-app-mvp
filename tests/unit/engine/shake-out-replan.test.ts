@@ -230,6 +230,33 @@ describe('the race week re-planned with a window on the day before', () => {
     expectStored(replanPasses(hundred, today, [], [limited(friday, 25)]))
   })
 
+  it.each([0, 10, 14])(
+    'takes only the minutes of another day from a second window, with the cap at %i minutes',
+    (cap) => {
+      // the cap leaves the day before without a run, so the plan has nothing there to compare a new
+      // window with; a window on another day takes its own minutes only, and the run the window
+      // rules loses what it is above the limit
+      const param = P.k6.dayBeforeMaxMin as { value: number }
+      const saved = param.value
+      try {
+        param.value = cap
+        const wednesday = addDays(raceMonday, 2)
+        const result = replanPasses(
+          hundred,
+          addDays(raceMonday, 1),
+          [],
+          [resting(friday), limited(wednesday, 30)],
+        )
+        expect(result.stored.map((r) => r[0])).not.toContain(friday)
+        const expected = result.stored.map((r): Run => (r[0] === wednesday ? [r[0], r[1], 30] : r))
+        expect(expected.map((r) => r[2])).toEqual([48, 30, 48])
+        result.passes.forEach((pass, i) => expect(pass, `pass ${String(i + 1)}`).toEqual(expected))
+      } finally {
+        param.value = saved
+      }
+    },
+  )
+
   it('gives the week back with a rest window on the day before', () => {
     const input = { ...hundred, disruptions: [resting(friday)] }
     const today = addDays(raceMonday, 1)

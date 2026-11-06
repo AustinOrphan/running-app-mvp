@@ -175,12 +175,19 @@ export function shakeOutFor(raceDate: string, expectedMin: number): ShakeOut | u
  * placed at `t`. The cut never falls as the target rises and is a share of it, so the iterates
  * `net`, `net + cutAt(net)`, ... rise to that point and stop; with two runs left the cut is half the
  * target and the error halves on each pass, so a net of a few hundred minutes needs about ten.
+ * `from` is where the search starts, `net` by default: a week placed at a target that holds fewer runs
+ * than the plan has left (the run count falls with the target) can show no cut, so the search
+ * starts from the minutes the plan holds and not from the part of them that is not the cut.
  * Two values that alternate (the placement moves by a minute with the run count) give the lower:
  * a re-plan is never above the plan before it [rule G6].
  */
-export function targetForNet(net: number, cutAt: (target: number) => number): number {
+export function targetForNet(
+  net: number,
+  cutAt: (target: number) => number,
+  from: number = net,
+): number {
   const trail: number[] = []
-  let target = net
+  let target = from
   for (let pass = 0; pass < 64; pass++) {
     const next = net + cutAt(target)
     if (next === target) return target

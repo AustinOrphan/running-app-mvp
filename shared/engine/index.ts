@@ -818,6 +818,9 @@ function generate(
         }
       : { minutes: 0, gain: 0, runDays: 0 }
     const keptMin = runningMinutes(keptToRun)
+    // what the share-out gives the day before a long race in the week in progress, read where the
+    // bound of the week is found [rule K6]
+    let dayBeforeShare: number | null = null
     let planWeek = week
     if (isCurrent || keptAhead.length > 0) {
       const keptRunDates = new Set(keptAhead.filter(isRun).map((s) => s.date))
@@ -825,35 +828,49 @@ function generate(
       const figure = keep.figure.get(week.weekStart)
       // The plan's own figure for a week it has not started is a target; the minutes its sessions place
       // are net of the shake-out, and the week is placed at the target that places them [rule K6]. The
-      // placement meets the windows the plan already knows. A window that is new on the day before, one
-      // under the minutes the plan still has there, takes those minutes from the week: the target is
-      // found without it, and the window path below takes its cost from that placement.
-      const newOnDayBefore = weekRules.some(
-        (r) =>
-          shakeOut !== undefined &&
-          r.date === shakeOut.dayBefore &&
-          (r.held || r.maxRunMin !== null) &&
-          (keep.plannedOn.get(r.date) ?? 0) > (r.maxRunMin ?? 0),
-      )
-      // the week as the window path will leave it: without the long run a window takes
+      // target is found on the week without the windows and without the day before: the other runs
+      // of the week are the minutes the plan still has on its other days, and the day before is
+      // what the share-out gives it, which the window path below takes its cost from whether the
+      // plan knew the window or not.
       const draftAt = (target: number): WeekDraft => {
         const w = remainingOfWeek(week, done, keptRunDates, keptMin, target)
-        return !newOnDayBefore &&
-          ruledAhead.length > 0 &&
+        // the week as the window path will leave it: without the long run a window takes
+        return ruledAhead.length > 0 &&
           w.targetRunMin > 0 &&
           longLostIn(place(w, closedForRuns(closedBase), [], false, 'easy'))
           ? withoutLongRun(w)
           : w
       }
-      const bound =
-        still === null || (figure !== undefined && figure === still)
-          ? still
-          : grossFor(
-              draftAt,
-              still,
-              newOnDayBefore ? closedForRuns(closedBase) : runProfile,
-              newOnDayBefore ? [] : weekRules,
-            )
+      // The windows the plan being replaced keeps to (its minutes on the day are within the limit) are
+      // met by the placement, as they were; a window it does not keep to is new, and takes its minutes
+      // from the week below. The day before is left to the share-out: the other runs are the minutes
+      // the plan still has on its other days, and what the day before is given is read from the same
+      // placement, whether it holds or drops the run, with a window or without.
+      const dayBefore = shakeOut?.dayBefore ?? ''
+      const stored = keep.plannedOn.get(dayBefore) ?? 0
+      const others = still === null ? 0 : still - stored
+      const fitRules = weekRules.filter(
+        (r) =>
+          r.date !== dayBefore &&
+          !(
+            (r.held || r.maxRunMin !== null) &&
+            (keep.plannedOn.get(r.date) ?? 0) > (r.maxRunMin ?? 0)
+          ),
+      )
+      const shareOn = (target: number): number => {
+        const w = draftAt(target)
+        if (w.targetRunMin <= 0) return 0
+        return runningMinutes(
+          place(w, closedForRuns(closedBase), fitRules, ceilingOf(w), 'easy').filter(
+            (s) => s.date === dayBefore,
+          ),
+        )
+      }
+      // with no other run left the day before is the whole of the bound
+      const fitted =
+        still !== null && !(figure !== undefined && figure === still) && shakeHere && others > 0
+      const bound = fitted ? targetForNet(others, shareOn, still) : still
+      if (fitted) dayBeforeShare = shareOn(bound!)
       planWeek = remainingOfWeek(week, done, keptRunDates, keptMin, bound)
     }
     // A held week has every session it is going to have: nothing more is placed in it.
@@ -1001,7 +1018,15 @@ function generate(
         // nothing a second time [rules J9, G-6].
         if (keep.stillPlanned.has(week.weekStart)) {
           for (const r of ruled) {
+            // the day before a long race is read from the week as the share-out gives it, not from the
+            // minutes the plan left there after its own cap [rule K6]
+            if (r.date === shakeOut?.dayBefore) continue
             if ((keep.plannedOn.get(r.date) ?? 0) <= (r.maxRunMin ?? 0)) minByDate[r.date] = 0
+          }
+          // the window takes from the day before what the share-out gave it, not what the baseline
+          // gives it at the target the windows the plan keeps to were met at
+          if (dayBeforeShare !== null && ruled.some((r) => r.date === shakeOut?.dayBefore)) {
+            minByDate[shakeOut!.dayBefore] = dayBeforeShare
           }
         }
         // a long run on a held day, or above the cap of its day, is lost and not moved
