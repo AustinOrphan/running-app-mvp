@@ -5,6 +5,7 @@ import {
   movingPaceLabel,
   noLinkedSession,
   paceLabel,
+  planNotLoaded,
   plannedAgainstRan,
 } from '../../../shared/copy/activityPage.ts'
 import { assertCleanCopy } from '../../../shared/copy/lint.ts'
@@ -74,6 +75,12 @@ describe('the sentences of the activity page', () => {
     )
   })
 
+  it('says the plan could not be loaded, and states nothing about the plan', () => {
+    expect(planNotLoaded('mi')).toBe(
+      'The plan could not be loaded, so this activity is not set against it. Reload the page to try again.',
+    )
+  })
+
   it('labels the paces: "Pace" alone, and "Elapsed pace" beside "Moving pace"', () => {
     expect(paceLabel(false, 'mi')).toBe('Pace')
     expect(paceLabel(true, 'mi')).toBe('Elapsed pace')
@@ -92,6 +99,7 @@ describe('the sentences of the activity page', () => {
       noLinkedSession('no-session', 'km'),
       noLinkedSession('other-session', 'km'),
       noLinkedSession('no-plan', 'km'),
+      planNotLoaded('km'),
       againstThePlanHeading('km'),
       paceLabel(true, 'km'),
       movingPaceLabel('km'),

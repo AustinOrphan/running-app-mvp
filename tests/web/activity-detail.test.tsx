@@ -1246,22 +1246,58 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(screen.queryByText(NOT_LINKED)).not.toBeInTheDocument()
   })
 
-  test('says nothing, and never fails the page, when the plan did not load', async () => {
-    const api = renderDetail({
-      routes: {
-        'GET /api/plan': () => ({
-          status: 500,
-          body: { error: { code: 'internal', message: 'No.' } },
-        }),
-      },
-    })
+  const PLAN_FAILS: MockRoutes = {
+    'GET /api/plan': () => ({
+      status: 500,
+      body: { error: { code: 'internal', message: 'No.' } },
+    }),
+  }
+  const NOT_LOADED =
+    'The plan could not be loaded, so this activity is not set against it. Reload the page to try again.'
+
+  test('says the plan could not be loaded, and never fails the page, when the plan did not load', async () => {
+    const api = renderDetail({ routes: PLAN_FAILS })
     await screen.findByRole('region', { name: 'How did it go?' })
+    expect(await within(await block()).findByText(NOT_LOADED)).toBeInTheDocument()
+    expect(api.calls.some((c) => c.url === '/api/plan')).toBe(true)
+    // it states nothing about the plan
+    expect(screen.queryByText(NO_SESSION)).not.toBeInTheDocument()
+    expect(screen.queryByText(NOT_LINKED)).not.toBeInTheDocument()
+    expect(screen.queryByText(/There is no current plan/)).not.toBeInTheDocument()
+  })
+
+  test('says the plan could not be loaded, not "not linked", when the read of a plan marked old fails', async () => {
+    // the plan this client holds is from before the run was linked to its session; the read that
+    // would replace it fails, and the plan from before is not what the block may go on
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData(
+      [keys.plan],
+      planOfTheWeek([
+        makeSession({ id: 's1', date: '2026-03-02', title: 'Long run', durationMin: 175 }),
+      ]),
+    )
+    await queryClient.invalidateQueries({ queryKey: [keys.plan], refetchType: 'none' })
+    const api = renderDetail({ routes: PLAN_FAILS, queryClient })
+    const section = await block()
+    expect(await within(section).findByText(NOT_LOADED)).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url === '/api/plan')).toHaveLength(1)
+    expect(within(section).queryByText(NOT_LINKED)).not.toBeInTheDocument()
+    expect(within(section).queryByText(NO_SESSION)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/Planned: Long run/)).not.toBeInTheDocument()
+  })
+
+  test('keeps the plan it has when a later read of a plan it was given fresh fails', async () => {
+    // not marked old when the page opened: the plan read is the plan as it was, and a failed read
+    // after it leaves what the block says
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData([keys.plan], linkedPlan(withLines([PLANNED])))
+    renderDetail({ routes: PLAN_FAILS, queryClient })
+    expect(await within(await block()).findByText(PLANNED)).toBeInTheDocument()
     await waitFor(() => {
-      expect(api.calls.some((c) => c.url === '/api/plan')).toBe(true)
+      expect(queryClient.getQueryState([keys.plan])?.status).toBe('error')
     })
-    await settle()
-    expect(screen.queryByRole('region', { name: 'Against the plan' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/No session of the current plan/)).not.toBeInTheDocument()
+    expect(screen.getByText(PLANNED)).toBeInTheDocument()
+    expect(screen.queryByText(NOT_LOADED)).not.toBeInTheDocument()
   })
 
   test('holds its place, and states no absence, until the plan is read', async () => {

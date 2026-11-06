@@ -5,6 +5,7 @@ import {
   againstThePlanHeading,
   movingPaceLabel,
   noLinkedSession,
+  planNotLoaded,
   paceLabel,
   plannedAgainstRan,
   type PlanOnTheDay,
@@ -221,26 +222,32 @@ function Charts({ detail, units }: { detail: ActivityDetail; units: Units }) {
  * the sentences of the session's assessment. An effort verdict that heart rate and pace inferred is
  * not among them (`assessmentLines`): it shows only with the runner's own rating behind it, as
  * "What stood out" states an effort only from a rating. An activity no session is linked to gets one
- * neutral line. Nothing shows if the plan could not be read, and a skeleton stands in until it is.
+ * neutral line. A skeleton stands in until the plan is read, and a plan that could not be read gets
+ * one line saying so, not a guess about the run.
  */
 function AgainstThePlan({ activity, units }: { activity: Activity; units: Units }) {
   const queryClient = useQueryClient()
   // A plan that was marked old by a write (a run just logged links to its session on the server) is
   // read again as the block mounts; what it holds until then is the plan from before the write, in
-  // which the run is not linked yet. The block waits for that read, and only for that one: a plan
-  // read since the block mounted is the plan as it is, and a later read (after a rating is saved)
-  // leaves the block as it is.
+  // which the run is not linked yet. The block shows nothing of that plan: it waits for the read, and
+  // only for that one, since a plan read after the block mounted is the plan as it is and a later
+  // read (after a rating is saved) leaves the block as it is. If that read fails, the block says
+  // so; it never falls back to the plan from before.
   const [mount] = useState(() => ({
     at: Date.now(),
     invalidated: queryClient.getQueryState([keys.plan])?.isInvalidated === true,
   }))
   const plan = usePlan()
-  const waiting = mount.invalidated && plan.isFetching && plan.dataUpdatedAt < mount.at
+  const fromBefore = mount.invalidated && plan.dataUpdatedAt < mount.at
   const title = againstThePlanHeading(units)
-  if (plan.data === undefined || waiting) {
-    return plan.isError && plan.data === undefined ? null : (
+  if (plan.data === undefined || fromBefore) {
+    return (
       <Section title={title}>
-        <Skeleton lines={2} />
+        {plan.isError ? (
+          <p className={styles.line}>{planNotLoaded(units)}</p>
+        ) : (
+          <Skeleton lines={2} />
+        )}
       </Section>
     )
   }

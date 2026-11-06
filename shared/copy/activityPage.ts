@@ -50,6 +50,12 @@ export const ACTIVITY_PAGE_TEMPLATES = {
   ),
   'activity-page.not-linked': tpl('This activity is not linked to a session of the current plan.'),
   'activity-page.no-plan': tpl('There is no current plan to set this activity against.'),
+
+  // The plan could not be read, so the block cannot say what it is set against. It says that, as
+  // "What stood out" does for its own failed load, and states nothing about the plan.
+  'activity-page.plan-not-loaded': tpl(
+    'The plan could not be loaded, so this activity is not set against it. Reload the page to try again.',
+  ),
 } satisfies Record<string, Template>
 
 const T = ACTIVITY_PAGE_TEMPLATES
@@ -123,4 +129,9 @@ export function paceLabel(movingPaceShown: boolean, units: Units): string {
 /** The label of the moving pace shown beside the elapsed one. */
 export function movingPaceLabel(units: Units): string {
   return render(T['activity-page.moving-pace'], {}, units)
+}
+
+/** The line for a plan that could not be read. */
+export function planNotLoaded(units: Units): string {
+  return render(T['activity-page.plan-not-loaded'], {}, units)
 }
