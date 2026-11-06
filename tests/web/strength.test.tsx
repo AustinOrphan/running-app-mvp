@@ -9,6 +9,7 @@ import { formatLoad, fromGrams, stepFrom, toGrams } from '../../shared/domain/we
 import { P } from '../../shared/engine/params/index.ts'
 import { estimateOneRm, structuresFor } from '../../shared/engine/strength.ts'
 import type {
+  StrengthLiftSummary,
   StrengthNextLoad,
   StrengthSettings,
   StrengthSnapshot,
@@ -3276,6 +3277,49 @@ describe('the Strength page: the lifts and the history of one lift (design 11.3,
         'The estimated maximum is worked out from sets, not tested. It is a rough guide.',
       ),
     ).toBeVisible()
+  })
+
+  describe('the Last change row of a lift whose load has not moved', () => {
+    const only = (...lifts: StrengthLiftSummary[]) => openPage({ view: pageView({ lifts }) })
+
+    test('says the load is the same for a lift with a load that was done in two sessions', async () => {
+      only({ ...RDL_SUMMARY, sessionCount: 2 })
+      await page('Lifts')
+      expect(
+        within(
+          liftRow('Dumbbell Romanian deadlift').getByText('Last change').closest('div')!,
+        ).getByText('Same load as last time'),
+      ).toBeVisible()
+    })
+
+    test('says nothing of a change for a lift that was done once: there is nothing to compare', async () => {
+      only({ ...RDL_SUMMARY, sessionCount: 1 })
+      await page('Lifts')
+      const row = liftRow('Dumbbell Romanian deadlift')
+      expect(row.getByText('Last load')).toBeVisible()
+      expect(row.queryByText('Last change')).not.toBeInTheDocument()
+      expect(row.queryByText(/as last time/)).not.toBeInTheDocument()
+    })
+
+    test('says nothing of a change for a lift with no added load, however often it was done', async () => {
+      only({
+        ...RDL_SUMMARY,
+        exerciseId: 'standing-calf-raise',
+        workingLoadG: null,
+        sessionCount: 5,
+      })
+      await page('Lifts')
+      const row = liftRow('Standing calf raise')
+      expect(row.getByText('No added load')).toBeVisible()
+      expect(row.queryByText('Last change')).not.toBeInTheDocument()
+      expect(row.queryByText(/as last time/)).not.toBeInTheDocument()
+    })
+
+    test('still words a move of the load, whatever the session count says', async () => {
+      only({ ...SQUAT_SUMMARY, sessionCount: 1 })
+      await page('Lifts')
+      expect(screen.getByText('Up from 100 lb to 105 lb, Thu 12 Mar')).toBeVisible()
+    })
   })
 
   test('words a load that came down, and a lift with no added load', async () => {

@@ -36,7 +36,7 @@ export const SQUAT_SUMMARY: StrengthLiftSummary = {
   sessionCount: 3,
 }
 
-/** A dumbbell Romanian deadlift that has not moved and has no estimate. */
+/** A dumbbell Romanian deadlift done in two sessions at one load, with no estimate. */
 export const RDL_SUMMARY: StrengthLiftSummary = {
   exerciseId: 'dumbbell-rdl',
   lastDate: '2026-03-12',
@@ -44,7 +44,7 @@ export const RDL_SUMMARY: StrengthLiftSummary = {
   workingLoadG: lb(35),
   estimateG: null,
   lastChange: null,
-  sessionCount: 1,
+  sessionCount: 2,
 }
 
 /** The ids of the two logs of the page view: long enough for the outbox's route to match them. */
