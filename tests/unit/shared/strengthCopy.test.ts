@@ -705,6 +705,14 @@ describe('the sentences of the logging sheet (design 9.1)', () => {
     )
   })
 
+  it('labels the row of the scale and the disclosure that holds the safety line', () => {
+    expect(say('strength.sheet.all-sets-first')).toBe('Reps left in reserve, all sets')
+    expect(say('strength.sheet.all-sets-reps-left')).toBe('Reps left, all sets')
+    expect(say('strength.sheet.about')).toBe('Safety and how to log')
+    // the long label is the vocabulary's own "Reps left in reserve" with the scope after it
+    expect(say('strength.sheet.all-sets-first')).toContain(say('strength.label.reps-left-first'))
+  })
+
   it('takes the top of the reps-left scale and the bounds of a field as figures, not words', () => {
     expect(say('strength.sheet.reps-left-hint', { max: count(5) })).toBe(
       'Reps left in reserve: 5 means 5 or more. Tap a value again to clear it.',

@@ -195,6 +195,11 @@ export function StrengthForm({
   const anyLast = state.blocks.some((block) => hasLast(block, lastOf))
   const addable = canAddSet(state.blocks)
   const hasEffort = state.blocks.some((block) => block.shown.rir !== null)
+  // The first lift whose sets carry a reps-left scale spells the scale out in its row, so the row of
+  // 0 to 5 under "All sets" says what it counts where the runner first meets it.
+  const firstRepsLeft = state.blocks.find(
+    (block) => block.shown.rir !== null && block.rows.length > 0,
+  )?.key
   const editing = log !== undefined
   // A lift of another exercise is read from the server for the session the workout stands for; a
   // saved log being edited stands for none.
@@ -314,22 +319,29 @@ export function StrengthForm({
       onSubmit={onSubmit}
     >
       <div className={styles.intro}>
+        {/* One line before the lifts: the day, the unit and, for a log that starts from another
+            session, where the workout came from. The safety line and how to log are one tap away. */}
         <p className={styles.muted}>
-          {words.say('strength.sheet.date-unit', {
-            date: { kind: 'date', iso: date, style: 'weekday' },
-            unit: words.unitName(),
-          })}
+          <span>
+            {words.say('strength.sheet.date-unit', {
+              date: { kind: 'date', iso: date, style: 'weekday' },
+              unit: words.unitName(),
+            })}
+          </span>
+          {start === null ? null : (
+            <>
+              {' '}
+              <span>
+                {words.startLine(
+                  start,
+                  workout.template,
+                  date,
+                  asOf !== undefined && mondayOf(asOf) === mondayOf(date),
+                )}
+              </span>
+            </>
+          )}
         </p>
-        {start === null ? null : (
-          <p className={styles.muted}>
-            {words.startLine(
-              start,
-              workout.template,
-              date,
-              asOf !== undefined && mondayOf(asOf) === mondayOf(date),
-            )}
-          </p>
-        )}
         {lighterDay ? (
           <p className={styles.note}>
             {anyUsual
@@ -350,13 +362,18 @@ export function StrengthForm({
             </Link>
           </p>
         ) : null}
-        <p className={styles.muted}>{words.say('strength.safety')}</p>
-        <p className={styles.muted}>
-          {words.say('strength.sheet.warmup')}
-          {hasEffort
-            ? ` ${words.say('strength.sheet.reps-left-hint', { max: words.count(REPS_LEFT_MAX) })}`
-            : ''}
-        </p>
+        <details className={styles.about}>
+          <summary>{words.say('strength.sheet.about')}</summary>
+          <div className={styles.aboutBody}>
+            <p className={styles.muted}>{words.say('strength.safety')}</p>
+            <p className={styles.muted}>
+              {words.say('strength.sheet.warmup')}
+              {hasEffort
+                ? ` ${words.say('strength.sheet.reps-left-hint', { max: words.count(REPS_LEFT_MAX) })}`
+                : ''}
+            </p>
+          </div>
+        </details>
       </div>
 
       {editing ? null : (
@@ -393,6 +410,7 @@ export function StrengthForm({
         {state.blocks.map((block) => (
           <LiftSection
             key={block.key}
+            firstRepsLeft={block.key === firstRepsLeft}
             block={block}
             workout={workout}
             words={words}

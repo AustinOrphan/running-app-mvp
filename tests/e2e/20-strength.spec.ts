@@ -298,6 +298,68 @@ test('the Next session card keeps Log sets on the first screen at 390 x 844 and 
 
 // ---- Logging ---------------------------------------------------------------------------------------
 
+test('the logging sheet opens on the first lift at 390 x 844 and 360 x 740, with its 0 to 5 row labelled', async ({
+  page,
+  baseURL,
+}) => {
+  const { api } = await startDay(page, baseURL)
+  await saveStrengthSetup(api)
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/strength')
+    await page
+      .getByRole('region', { name: 'Next session' })
+      .getByRole('button', { name: 'Log sets' })
+      .click()
+    const sheet = loggingSheet(page)
+    // one line before the lifts; the safety line and how to log are behind a row, closed
+    await expect(sheet.getByText(/Loads are in pounds\.$/)).toBeVisible()
+    const disclosure = sheet.getByText('Safety and how to log')
+    await expect(disclosure).toBeVisible()
+    await expect(sheet.getByText(/^Stop a set if anything hurts/)).toBeHidden()
+
+    // The first lift and the labelled row of 0 to 5 are inside the screen (the sheet slides up, so
+    // the boxes are read once it has settled); where the first set starts is measured and attached.
+    const [first] = await exercisesIn(sheet)
+    expect(first).toBeDefined()
+    const lift = liftIn(sheet, first ?? '')
+    const label = lift.getByText('Reps left in reserve, all sets')
+    await expect(label).toBeVisible()
+    const visible = viewport.height
+    const bottomOf = async (locator: Locator) => {
+      const box = await locator.boundingBox()
+      return box === null ? Number.POSITIVE_INFINITY : Math.round(box.y + box.height)
+    }
+    const heading = lift.getByRole('heading', { level: 3 })
+    await expect.poll(() => bottomOf(heading)).toBeLessThan(visible)
+    await expect.poll(() => bottomOf(label)).toBeLessThan(visible)
+    const firstSet = lift.getByRole('textbox', { name: `${first ?? ''}, set 1, reps` })
+    const info = test.info()
+    await info.attach(`strength-sheet-${String(viewport.width)}x${String(viewport.height)}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+    info.annotations.push({
+      type: `strength sheet ${String(viewport.width)}x${String(viewport.height)}`,
+      description: JSON.stringify({
+        heading: await bottomOf(heading),
+        scaleLabel: await bottomOf(label),
+        firstSet: await bottomOf(firstSet),
+        screen: visible,
+      }),
+    })
+    // the disclosure opens on a tap and says the safety line
+    await disclosure.click()
+    await expect(sheet.getByText(/^Stop a set if anything hurts/)).toBeVisible()
+    await sheet.getByRole('button', { name: 'Close' }).click()
+    await expect(sheet).toBeHidden()
+  }
+})
+
 test('a session is logged as suggested in three interactions from the Strength page', async ({
   page,
   baseURL,

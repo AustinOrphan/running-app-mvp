@@ -248,12 +248,13 @@ describe('the sheet a workout opens as (design 9.1)', () => {
     const dialog = await sheet()
     expect(within(dialog).getByRole('form', { name: 'Strength, heavy, session A' })).toBeVisible()
     expect(within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')).toBeVisible()
+    // the safety line and the warm-up note are there, behind the disclosure that opens on a tap
     expect(
       within(dialog).getByText(
         'Stop a set if anything hurts or form changes. Learn barbell lifts from a coach before adding load.',
       ),
-    ).toBeVisible()
-    expect(within(dialog).getByText(/Warm-up sets are not logged\./)).toBeVisible()
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText(/Warm-up sets are not logged\./)).toBeInTheDocument()
 
     // the squat: four sets at 110 lb, the counts to aim at, nothing recorded as left
     expect(values('Back squat', 'load')).toEqual(['110', '110', '110', '110'])
@@ -522,9 +523,64 @@ describe('"As suggested" and the reps-left scale', () => {
     expect(repsLeft('Back squat')).toEqual([null, null, null, null])
   })
 
+  test('opens on the lifts: one line before the first lift, and the rest behind a disclosure', async () => {
+    open()
+    const dialog = await sheet()
+    const form = within(dialog).getByRole('form', { name: 'Strength, heavy, session A' })
+    const first = within(form).getByRole('region', { name: 'Back squat' })
+    // every visible paragraph that comes before the first lift
+    const before = [...form.querySelectorAll('p')].filter(
+      (paragraph) =>
+        paragraph.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING &&
+        !paragraph.closest('details'),
+    )
+    expect(before.map((paragraph) => paragraph.textContent)).toEqual([
+      'Wed 18 Mar. Loads are in pounds.',
+    ])
+    // the rest is behind a row that says what is in it, closed until it is tapped
+    const disclosure = within(form).getByText('Safety and how to log')
+    expect(disclosure).toBeVisible()
+    expect(disclosure.closest('details')).not.toHaveAttribute('open')
+    const safety = within(form).getByText(/^Stop a set if anything hurts/)
+    expect(safety).not.toBeVisible()
+    await userEvent.setup().click(disclosure)
+    expect(safety).toBeVisible()
+    expect(within(form).getByText(/Warm-up sets are not logged\./)).toBeVisible()
+  })
+
+  test('says where a log starts from on the same line as the date, and no more', async () => {
+    open({ start: 'next-planned' })
+    const dialog = await sheet()
+    const line = within(dialog).getByText('Wed 18 Mar. Loads are in pounds.').closest('p')
+    expect(line).toHaveTextContent(
+      'Wed 18 Mar. Loads are in pounds. From the next planned session.',
+    )
+    expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
+  })
+
+  test('labels the row of 0 to 5: the first lift says reps left in reserve, the others reps left', async () => {
+    open()
+    const dialog = await sheet()
+    const labels = within(dialog)
+      .getAllByText(/, all sets$/)
+      .map((label) => label.textContent)
+    expect(labels).toEqual([
+      'Reps left in reserve, all sets',
+      'Reps left, all sets',
+      'Reps left, all sets',
+    ])
+    // each label stands over the scale it names, in the section of its lift
+    expect(region('Back squat').getByText('Reps left in reserve, all sets')).toBeInTheDocument()
+    // the names of the controls are what they were
+    expect(
+      screen.getByRole('button', { name: 'All sets, Back squat, reps left 2' }),
+    ).toBeInTheDocument()
+  })
+
   test('says what the top of the scale means, once', async () => {
     open()
     const dialog = await sheet()
+    await userEvent.setup().click(within(dialog).getByText('Safety and how to log'))
     expect(
       within(dialog).getByText(
         /Reps left in reserve: 5 means 5 or more\. Tap a value again to clear it\./,

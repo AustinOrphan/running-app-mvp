@@ -33,6 +33,29 @@
   color: var(--danger);
 }
 
+/* The safety line and how to log, behind one row of 44 px: the sheet opens on the lifts. */
+.about {
+  max-width: var(--prose-max);
+}
+
+.about summary {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.aboutBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
 .quick {
   display: flex;
   flex-wrap: wrap;

@@ -576,7 +576,13 @@ export const STRENGTH_TEMPLATES = {
     { measure: 'text', amount: 'count' },
     { shape: 'label', fallback: 'Raise' },
   ),
-  'strength.sheet.all-sets': tpl('All sets', {}, { shape: 'label' }),
+  // The label over the row of 0 to 5 that sets the reps left for every set of a lift: the first lift
+  // of the sheet spells the scale out, the others say it shorter.
+  'strength.sheet.all-sets-first': tpl('Reps left in reserve, all sets', {}, { shape: 'label' }),
+  'strength.sheet.all-sets-reps-left': tpl('Reps left, all sets', {}, { shape: 'label' }),
+  // The disclosure under the date and unit: the safety line, that warm-ups are not logged, and what
+  // the top of the reps-left scale means. The sheet opens on the lifts, and these are one tap away.
+  'strength.sheet.about': tpl('Safety and how to log', {}, { shape: 'label' }),
   'strength.sheet.all-sets-for': tpl(
     'All sets, {exercise}, reps left',
     { exercise: 'text' },
