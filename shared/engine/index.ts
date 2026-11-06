@@ -1018,9 +1018,11 @@ function generate(
         // nothing a second time [rules J9, G-6].
         if (keep.stillPlanned.has(week.weekStart)) {
           for (const r of ruled) {
-            // the day before a long race is read from the week as the share-out gives it, not from the
-            // minutes the plan left there after its own cap [rule K6]
-            if (r.date === shakeOut?.dayBefore) continue
+            // In a week the bound was found for, the day before is read from that placement, not from
+            // the minutes the plan left there after its own cap [rule K6]. Where it was not found (a
+            // week not yet started, bounded by its figure) a day the plan keeps to the rule costs
+            // nothing a second time, the day before included.
+            if (r.date === shakeOut?.dayBefore && dayBeforeShare !== null) continue
             if ((keep.plannedOn.get(r.date) ?? 0) <= (r.maxRunMin ?? 0)) minByDate[r.date] = 0
           }
           // the window takes from the day before what the share-out gave it, not what the baseline

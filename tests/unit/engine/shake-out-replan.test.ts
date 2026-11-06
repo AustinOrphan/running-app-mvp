@@ -175,6 +175,30 @@ describe('the race week re-planned with nothing new: the bound counts the cut', 
   })
 })
 
+describe('a window known on the day before', () => {
+  // The plan was built with the window, so its row and its sessions are net of what the window costs.
+  // A week not yet started is re-planned on the Monday from that row, and a week in progress from the
+  // minutes still planned: the window costs nothing a second time, and the day before is read from the
+  // placement that meets the window, whether the window leaves it a run or not.
+  it.each([
+    ['first-100-mile', 'rest', (d: string) => resting(d)],
+    ['first-100-mile', 'limited to 14 minutes', (d: string) => limited(d, 14)],
+    ['first-100-mile', 'limited to 25 minutes', (d: string) => limited(d, 25)],
+    ['trail-50k', 'rest', (d: string) => resting(d)],
+    ['trail-50k', 'limited to 14 minutes', (d: string) => limited(d, 14)],
+    ['trail-50k', 'limited to 25 minutes', (d: string) => limited(d, 25)],
+  ])(
+    'gives the week back on the Monday: %s, %s',
+    (id: string, _: string, window: (d: string) => DisruptionWindow) => {
+      const a = athlete(id).input
+      const input = { ...a, disruptions: [window(addDays(a.goal.date, -1))] }
+      const result = replanPasses(input, mondayOf(a.goal.date))
+      expect(result.stored.length).toBeGreaterThan(2)
+      expectStored(result)
+    },
+  )
+})
+
 describe('a week of long runs with two runs left', () => {
   // With the day before and one other run left, the cut is half the target and the search for the
   // target that places the minutes the plan still has needs a pass for each halving of the cut: a
