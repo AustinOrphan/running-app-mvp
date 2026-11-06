@@ -2136,6 +2136,9 @@ things stand" gives counts and percentages without a weekly total or a date.
     Recommended order: RF3, race plan step 1, intensity honesty, backup (#624, open), the CI audit
     gate (done in #622), race plan step 2, trends, the silent-source note, CI time.
 
+    2026-11-06: intervals.icu rejects a bare-day `start_date_local`; events are sent at
+    `T00:00:00` and `DELIVERY_VERSION` is 3 (W1).
+
 ## Clean-up after the merges
 
 - Delete obsolete remote branches: `feat/comprehensive-ci-cd-infrastructure`,

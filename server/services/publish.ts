@@ -87,8 +87,12 @@ export const INCOMPLETE_REFERENCE_TTL_MS = PUBLISH_BACKSTOP_MS
  * Bump when a renderer changes what an event holds (the intervals.icu text, the event body), so
  * every event is sent again with the new text. An event the runner deleted stays deleted while its
  * day, name and text are unchanged (`contentHashes`): the bump alone never brings it back.
+ *
+ * 2: the text says "By effort" on a day led by effort.
+ * 3: `start_date_local` is a local date-time (`<day>T00:00:00`), so a row intervals.icu refused for
+ * the day alone, which waits for new content once it has used its attempts, is sent again.
  */
-export const DELIVERY_VERSION = 2
+export const DELIVERY_VERSION = 3
 /** Back-off of a send that did not go through: `min(2^attempts, 60)` minutes. */
 const MAX_BACKOFF_MIN = 60
 /** A rejected workout is tried this many times in all (the first and two retries). */
