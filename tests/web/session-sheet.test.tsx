@@ -675,7 +675,7 @@ describe('SessionSheet: the Strength section', () => {
     })
   }
 
-  const section = async (name = 'Strength, heavy A') =>
+  const section = async (name = 'Strength, heavy, session A') =>
     within(await screen.findByRole('dialog', { name: 'Strength' })).findByRole('region', { name })
 
   test("shows the template and week, the lifts, the jumps and the trunk work, from the page's own payload", async () => {
@@ -690,7 +690,7 @@ describe('SessionSheet: the Strength section', () => {
       'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
       'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
-      'Pogo hops, 40 contacts.',
+      'Pogo hops, 40 ground contacts.',
       'Side plank, 2 sets.',
     ])
     expect(within(strength).getByText('Lift at least 3 hours before or after a run.')).toBeVisible()
@@ -761,11 +761,13 @@ describe('SessionSheet: the Strength section', () => {
     expect(within(strength).queryByText(/^As of today/)).not.toBeInTheDocument()
     const user = userEvent.setup()
     await user.click(within(strength).getByRole('button', { name: 'Log sets' }))
-    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     await user.click(await within(sheet).findByRole('button', { name: 'As suggested' }))
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+      ).not.toBeInTheDocument()
     })
     expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
       date: '2027-01-11',
@@ -780,7 +782,7 @@ describe('SessionSheet: the Strength section', () => {
     renderStrength(strengthSession())
     const strength = await section()
     await user.click(within(strength).getByRole('button', { name: 'Log sets' }))
-    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     expect(
       await within(sheet).findByRole('textbox', { name: 'Back squat, set 1, load' }),
     ).toHaveValue('110')
@@ -814,11 +816,13 @@ describe('SessionSheet: the Strength section', () => {
     })
     const strength = await section()
     await user.click(within(strength).getByRole('button', { name: 'Log sets' }))
-    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     await user.click(await within(sheet).findByRole('button', { name: 'As suggested' }))
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+      ).not.toBeInTheDocument()
     })
     expect(within(strength).getByText('Strength log saved.')).toBeVisible()
     expect(within(strength).queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
@@ -830,11 +834,13 @@ describe('SessionSheet: the Strength section', () => {
     renderStrength(strengthSession(), { [`PUT /api/strength/logs/${LOG_ID}`]: () => unreachable })
     const strength = await section()
     await user.click(within(strength).getByRole('button', { name: 'Log sets' }))
-    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const sheet = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     await user.click(await within(sheet).findByRole('button', { name: 'As suggested' }))
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+      ).not.toBeInTheDocument()
     })
     expect(
       within(strength).getByText(

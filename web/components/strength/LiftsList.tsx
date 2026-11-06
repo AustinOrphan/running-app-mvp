@@ -79,7 +79,7 @@ function LiftRow({
           <dt>{words.say('strength.page.lift-change')}</dt>
           <dd>
             {lift.lastChange === null
-              ? words.say('strength.page.change-none')
+              ? words.say('strength.label.same-load')
               : changeText(words, lift.lastChange)}
           </dd>
         </div>

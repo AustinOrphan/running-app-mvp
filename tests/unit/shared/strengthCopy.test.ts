@@ -371,7 +371,7 @@ describe('the sentences of design 11.6', () => {
         movement: say('strength.name.pogo-hop'),
         contacts: count(P.f7.maintenancePlyoContacts.value),
       }),
-    ).toBe(`Pogo hops, ${String(P.f7.maintenancePlyoContacts.value)} contacts.`)
+    ).toBe(`Pogo hops, ${String(P.f7.maintenancePlyoContacts.value)} ground contacts.`)
     expect(
       say('strength.hero.trunk-row', {
         movements: `${name('side-plank')} and ${name('dead-bug').toLowerCase()}`,
@@ -404,7 +404,33 @@ describe('the sentences of design 11.6', () => {
         reserve: say('strength.row.reserve-min', { n: count(3) }),
       }),
     ).toBe('2 sets of 6 to 8, 3 or more in reserve')
-    expect(say('strength.row.contacts', { contacts: count(40) })).toBe('40 contacts')
+    expect(say('strength.row.contacts', { contacts: count(40) })).toBe('40 ground contacts')
+  })
+
+  it('words the jumps as the lifts are worded: "Suggested", and ground contacts', () => {
+    expect(say('strength.sheet.suggested-contacts', { contacts: count(40) })).toBe(
+      'Suggested 40 ground contacts.',
+    )
+    // the Today row and the session sheet's row say the same
+    expect(
+      say('strength.hero.plyo-row', {
+        movement: say('strength.name.pogo-hop'),
+        contacts: count(20),
+      }),
+    ).toBe('Pogo hops, 20 ground contacts.')
+  })
+
+  it('glosses "in reserve" in words, in the third person', () => {
+    expect(say('strength.row.gloss')).toBe('In reserve: reps that could still have been done.')
+  })
+
+  it('says the unchanged load in one phrase, and keeps "hold" for plan holds', () => {
+    expect(say('strength.label.same-load')).toBe('Same load as last time')
+    // no label or word of the Strength page calls a load a hold: the plan's holds are the plan's
+    for (const [id, template] of Object.entries(TEMPLATES)) {
+      if (!id.startsWith('strength.label.') && !id.startsWith('strength.page.')) continue
+      expect(`${template.text} ${template.fallback}`, id).not.toMatch(/\bholds?\b/i)
+    }
   })
 
   it('reads the same grams in the runner’s weight unit, so a change of unit reaches old logs', () => {
@@ -537,10 +563,13 @@ describe('the sentences of design 11.6', () => {
     )
   })
 
-  it('heads a session as design 9.1 does', () => {
+  it('heads a session with its template and names the letter a session', () => {
     expect(
       say('strength.heading', { template: say('strength.template.heavy'), variant: 'A' }),
-    ).toBe('Strength, heavy A')
+    ).toBe('Strength, heavy, session A')
+    expect(
+      say('strength.heading', { template: say('strength.template.ramp-in'), variant: 'B' }),
+    ).toBe('Strength, ramp-in, session B')
   })
 
   it('uses the words of the vocabulary table', () => {
@@ -553,7 +582,7 @@ describe('the sentences of design 11.6', () => {
         'strength.label.heaviest-set',
         'strength.label.lighter-day',
         'strength.label.up-one-step',
-        'strength.label.load-holds',
+        'strength.label.same-load',
         'strength.label.log-sets',
         'strength.label.add-sets',
       ].map((id) => say(id as StrengthTemplateId)),
@@ -565,7 +594,7 @@ describe('the sentences of design 11.6', () => {
       'Heaviest set',
       'Lighter day',
       'Up one step',
-      'The load holds',
+      'Same load as last time',
       'Log sets',
       'Add the sets',
     ])

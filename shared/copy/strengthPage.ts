@@ -111,6 +111,12 @@ export const STRENGTH_PAGE_TEMPLATES = {
   'strength.page.block-none': tpl(
     'No strength block runs this week. Maintenance sessions are short and keep the loads.',
   ),
+  // What the letter of "Strength, ramp-in, session A" means: the sessions of a week take turns, and
+  // the lead lift is the knee lift in A and the hip lift in B (`liftsOf`, `shared/engine/strength.ts`),
+  // in the words of the page's own slot names.
+  'strength.page.sessions-ab': tpl(
+    'Sessions take turns: A leads with squats and steps, B with hinges and bridges.',
+  ),
   // `weeks` reads "three weeks" (from `flib.heavyRampInWeeks` or the runner's own length), `of` is
   // the last week of the block.
   'strength.page.follows-ramp-in': tpl(
@@ -160,7 +166,6 @@ export const STRENGTH_PAGE_TEMPLATES = {
     { from: 'load', to: 'load', date: 'date' },
     { shape: 'label' },
   ),
-  'strength.page.change-none': tpl('The load has not moved', {}, { shape: 'label' }),
   'strength.page.lift-last': tpl('Last session', {}, { shape: 'label' }),
   'strength.page.lift-history': tpl('History', {}, { shape: 'label' }),
   'strength.page.lift-history-for': tpl(

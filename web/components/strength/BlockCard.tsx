@@ -14,6 +14,11 @@ export interface BlockCardProps {
   block: StrengthBlockView | null
   /** The benefit sentence of design 4.5, worded from the view's facts; null when the view has none. */
   benefit: string | null
+  /**
+   * A session is planned, so "Strength, ramp-in, session A" is on the page: the card says what the
+   * letter means, in one line.
+   */
+  sessions: boolean
   words: PageWords
 }
 
@@ -22,7 +27,7 @@ export interface BlockCardProps {
  * sentence with the grade of the figure it restates, and a link to the research page. The grade is
  * the Param's own, so a regrade of the figure reaches the page.
  */
-export function BlockCard({ block, benefit, words }: BlockCardProps) {
+export function BlockCard({ block, benefit, sessions, words }: BlockCardProps) {
   const headingId = useId()
   return (
     <section aria-labelledby={headingId} className={styles.section}>
@@ -37,6 +42,7 @@ export function BlockCard({ block, benefit, words }: BlockCardProps) {
           <p className={styles.lead}>{words.follows(block)}</p>
         </>
       )}
+      {sessions ? <p className={styles.lead}>{words.say('strength.page.sessions-ab')}</p> : null}
       {benefit === null ? null : <p className={styles.lead}>{benefit}</p>}
       <div className={styles.actions}>
         <GradeBadge grade={P.f7.expectedBenefitPct.grade} />

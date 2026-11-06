@@ -1339,7 +1339,7 @@ describe('ActivityDetailPage: a strength activity', () => {
     })
     const section = await sectionOf()
     await user.click(await within(section).findByRole('button', { name: 'Edit sets' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     // the sets as they were logged, with the rules' own steps for the saved equipment
     const reps = await within(dialog).findByRole('textbox', { name: 'Back squat, set 3, reps' })
     expect(reps).toHaveValue('4')
@@ -1351,7 +1351,9 @@ describe('ActivityDetailPage: a strength activity', () => {
     )
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+      ).not.toBeInTheDocument()
     })
     const put = api.calls.find((call) => call.method === 'PUT')
     expect(put?.url).toBe(`/api/strength/logs/${LOG_ID}`)
@@ -1387,7 +1389,7 @@ describe('ActivityDetailPage: a strength activity', () => {
     // an import brought no sets: the sheet starts from the day's own start, off the plan
     vi.stubGlobal('crypto', { randomUUID: () => LOG_ID })
     await user.click(within(section).getByRole('button', { name: 'Add the sets' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     expect(await within(dialog).findByText('From the next planned session.')).toBeVisible()
     expect(
       api.calls.filter((call) => call.url.startsWith('/api/strength/workout')).map((c) => c.url),
@@ -1395,7 +1397,9 @@ describe('ActivityDetailPage: a strength activity', () => {
     await user.click(within(dialog).getByRole('button', { name: 'As suggested' }))
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+      ).not.toBeInTheDocument()
     })
     // the sets attach to this activity, on its own day, and link no other session
     const put = api.calls.find((call) => call.method === 'PUT')
@@ -1431,7 +1435,7 @@ describe('ActivityDetailPage: a strength activity', () => {
     })
     await settle()
     await user.click(await within(section).findByRole('button', { name: 'Add the sets' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     expect(
       api.calls.filter((call) => call.url.startsWith('/api/strength/workout')).map((c) => c.url),
     ).toEqual([`/api/strength/workout?date=${DAY}&sessionId=s1`])

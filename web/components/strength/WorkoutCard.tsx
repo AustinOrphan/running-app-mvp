@@ -36,7 +36,7 @@ function changeWord(words: PageWords, lift: WorkoutLift): string | null {
     case 'increase':
       return words.say('strength.label.up-one-step')
     case 'hold':
-      return words.say('strength.label.load-holds')
+      return words.say('strength.label.same-load')
     case 'lighter-day':
       return words.say('strength.label.lighter-day')
     case 'start':
@@ -70,10 +70,13 @@ function LiftRow({
   words,
   lift,
   tag,
+  gloss,
 }: {
   words: PageWords
   lift: WorkoutLift
   tag: string | null
+  /** What "in reserve" means, on the first row that says it. */
+  gloss: string | null
 }) {
   const row = words.row(lift)
   return (
@@ -90,6 +93,7 @@ function LiftRow({
       <span className={styles.rowLine} aria-hidden="true">
         {row.line}
       </span>
+      {gloss === null ? null : <span className={styles.rowLine}>{gloss}</span>}
       {tag === null ? null : <span className={styles.tag}>{tag}</span>}
     </li>
   )
@@ -166,6 +170,10 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
   // say the same; the rows carry the word only where it tells them apart.
   const everyLift = workout === null ? [] : [...workout.lifts, ...workout.trunk]
   const shared = sharedChange(words, everyLift)
+  // "In reserve" is said in words once, under the first row that names the reps left.
+  const glossed = everyLift.find((lift) => lift.rir !== null)?.exerciseId
+  const gloss = (lift: WorkoutLift): string | null =>
+    lift.exerciseId === glossed ? words.say('strength.row.gloss') : null
 
   return (
     <section aria-labelledby={headingId} className={styles.section}>
@@ -226,18 +234,18 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
                 words={words}
                 lift={lift}
                 tag={shared === null ? changeWord(words, lift) : null}
+                gloss={gloss(lift)}
               />
             ))}
             {workout.plyo === null
               ? null
               : workout.plyo.movements.map((movement) => (
                   <li key={movement} className={styles.item}>
-                    <div className={styles.liftHead} aria-hidden="true">
+                    <div className={styles.liftHead}>
                       <span className={styles.rowName}>{words.name(movement)}</span>
                     </div>
                     <span className="visually-hidden">
-                      {words.say('strength.hero.plyo-row', {
-                        movement: words.name(movement),
+                      {words.say('strength.sheet.suggested-contacts', {
                         contacts: words.count(workout.plyo?.contacts ?? 0),
                       })}
                     </span>
@@ -254,6 +262,7 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
                 words={words}
                 lift={lift}
                 tag={shared === null ? changeWord(words, lift) : null}
+                gloss={gloss(lift)}
               />
             ))}
           </ul>

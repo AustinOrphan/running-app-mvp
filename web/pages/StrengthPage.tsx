@@ -122,7 +122,7 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
               )
             }}
           />
-          <BlockCard block={view.block} benefit={benefit} words={words} />
+          <BlockCard block={view.block} benefit={benefit} sessions={next !== null} words={words} />
           <CountPrompt view={view} words={words} />
           <LiftsList
             lifts={view.lifts}

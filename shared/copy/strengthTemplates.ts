@@ -200,7 +200,7 @@ export const STRENGTH_TEMPLATES = {
     '{exercise}: {sets} x {lo} to {hi}, leave {rir} or more.',
     { exercise: 'text', sets: 'count', lo: 'count', hi: 'count', rir: 'count' },
   ),
-  'strength.hero.plyo-row': tpl('{movement}, {contacts} contacts.', {
+  'strength.hero.plyo-row': tpl('{movement}, {contacts} ground contacts.', {
     movement: 'text',
     contacts: 'count',
   }),
@@ -261,8 +261,10 @@ export const STRENGTH_TEMPLATES = {
   ),
 
   // ---- Where a session stands in the block (design 8.1, 9.1, 11.3) ------------------------------
+  // "Strength, ramp-in, session A": the letter is named for what it is, a session. The two sessions
+  // of a week take turns, and the Strength page's block card says how they differ.
   'strength.heading': tpl(
-    'Strength, {template} {variant}',
+    'Strength, {template}, session {variant}',
     { template: 'text', variant: 'text' },
     { shape: 'label', fallback: 'Strength' },
   ),
@@ -302,7 +304,10 @@ export const STRENGTH_TEMPLATES = {
   'strength.label.heaviest-set': tpl('Heaviest set', {}, { shape: 'label' }),
   'strength.label.lighter-day': tpl('Lighter day', {}, { shape: 'label' }),
   'strength.label.up-one-step': tpl('Up one step', {}, { shape: 'label' }),
-  'strength.label.load-holds': tpl('The load holds', {}, { shape: 'label' }),
+  // The one phrase for a load the rules left where it was, on the Next session card and in the Lifts
+  // list. "Hold" is the plan's word for a plan hold (a persistent hold, a progression hold) and is not
+  // used of a load here.
+  'strength.label.same-load': tpl('Same load as last time', {}, { shape: 'label' }),
   'strength.label.log-sets': tpl('Log sets', {}, { shape: 'label' }),
   'strength.label.add-sets': tpl('Add the sets', {}, { shape: 'label' }),
   'strength.label.edit-sets': tpl('Edit sets', {}, { shape: 'label' }),
@@ -531,7 +536,21 @@ export const STRENGTH_TEMPLATES = {
     { prescription: 'text', reserve: 'text' },
     { shape: 'label', fallback: 'Sets' },
   ),
-  'strength.row.contacts': tpl('{contacts} contacts', { contacts: 'count' }, { shape: 'label' }),
+  'strength.row.contacts': tpl(
+    '{contacts} ground contacts',
+    { contacts: 'count' },
+    { shape: 'label' },
+  ),
+  // The jumps have a sentence of their own, as the lifts have `strength.sheet.suggested`: it says
+  // "Suggested" like its siblings, and it is what a screen reader reads under the movement's name.
+  'strength.sheet.suggested-contacts': tpl(
+    'Suggested {contacts} ground contacts.',
+    { contacts: 'count' },
+    { fallback: 'The suggestion is in the workout.' },
+  ),
+  // What "in reserve" means, said once under the first row that has it. The strength copy is
+  // addressed to nobody in particular (a test keeps "you" out), so the reps are the set's.
+  'strength.row.gloss': tpl('In reserve: reps that could still have been done.'),
 
   // What a set counts, and the words of its controls.
   'strength.measure.reps': tpl('reps', {}, { shape: 'label' }),

@@ -40,7 +40,7 @@ async function startDay(page: Page, baseURL: string | undefined, withRun = false
   return { session, origin, api }
 }
 
-/** The logging sheet, however it was opened: its title names the session ("Strength, ramp-in A"). */
+/** The logging sheet, however it was opened: its title names the session ("Strength, ramp-in, session A"). */
 function loggingSheet(page: Page): Locator {
   return page.getByRole('dialog', { name: /^Strength, / })
 }

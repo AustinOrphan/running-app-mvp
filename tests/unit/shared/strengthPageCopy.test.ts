@@ -151,6 +151,16 @@ describe('the words of the page', () => {
     for (const line of lines) expect(line).toMatch(/\.$/)
   })
 
+  it('says what the letter of a session means, in the page’s own words for the slots', () => {
+    const line = words.say('strength.page.sessions-ab')
+    expect(line).toBe(
+      'Sessions take turns: A leads with squats and steps, B with hinges and bridges.',
+    )
+    // the slot names the Lifts list uses: the knee lift leads A and the hip lift leads B
+    expect(line.toLowerCase()).toContain(words.slot('knee').toLowerCase())
+    expect(line.toLowerCase()).toContain(words.slot('hip').toLowerCase())
+  })
+
   it('names every exercise of the catalogue the page can show', () => {
     for (const exercise of EXERCISES) {
       expect(words.name(exercise.id), exercise.id).not.toBe(exercise.id)
