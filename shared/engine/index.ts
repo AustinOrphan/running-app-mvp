@@ -867,12 +867,21 @@ function generate(
       // with no other run left the day before is the whole of the bound
       const fitted =
         still !== null && !(figure !== undefined && figure === still) && shakeHere && others > 0
-      const bound = fitted ? targetForNet(others, shareOn, still) : still
+      let bound = still
       if (fitted) {
-        dayBeforeShare = shareOn(bound!)
-        knownOnDayBefore = fitRules.filter(
-          (r) => r.date === dayBefore && (r.held || r.maxRunMin !== null),
-        )
+        const fixed = targetForNet(others, shareOn, still)
+        const share = shareOn(fixed)
+        // A week that cannot hold a run on the day before at any target near the plan's (too few
+        // minutes for two runs of the shortest length, say) is not the week the plan had: the
+        // search would settle on the target of the other runs alone and drop the run the plan keeps
+        // there. The minutes stored are then the bound, as for a week not fitted.
+        if (share > 0 || stored === 0) {
+          bound = fixed
+          dayBeforeShare = share
+          knownOnDayBefore = fitRules.filter(
+            (r) => r.date === dayBefore && (r.held || r.maxRunMin !== null),
+          )
+        }
       }
       planWeek = remainingOfWeek(week, done, keptRunDates, keptMin, bound)
     }

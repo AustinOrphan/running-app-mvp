@@ -405,6 +405,34 @@ describe('the week before a Monday race of the marathon athlete', () => {
   })
 })
 
+describe('a week too short to place the day before at any target', () => {
+  // The marathon athlete's race week on a Saturday: runs of 23 minutes, the Friday shake-out 20. Two
+  // days left on the Thursday (23 and 20) and a placement of that week at any target gives one run on
+  // the Thursday, the two runs being under the shortest easy run at the target of the stored minutes.
+  // The fit of the bound found the target of the other runs alone (23), a placement with no run on the
+  // day before, and each re-plan dropped the 20 minutes the plan kept there; the stored minutes are
+  // the bound where the fit finds no day before (they were moved to the Thursday, as in a week no
+  // window touches).
+  const marathon = athlete('marathon').input
+  const saturday: EngineInput = {
+    ...marathon,
+    goal: { ...marathon.goal, date: addDays(mondayOf(marathon.goal.date), 5) },
+  }
+  const thursday = addDays(mondayOf(saturday.goal.date), 3)
+  const fridayOf = addDays(saturday.goal.date, -1)
+
+  it.each([
+    ['no window', saturday],
+    ['a limit of 25 minutes on the Friday', { ...saturday, disruptions: [limited(fridayOf, 25)] }],
+  ])('keeps the minutes stored for the Thursday and the Friday: %s', (_, input) => {
+    const { stored, passes } = replanPasses(input, thursday)
+    expect(stored.map((r) => r[0])).toContain(fridayOf)
+    passes.forEach((pass, i) => expect(total(pass), `pass ${String(i + 1)}`).toBe(total(stored)))
+    expect(JSON.stringify(passes[1])).toBe(JSON.stringify(passes[0]))
+    expect(JSON.stringify(passes[2])).toBe(JSON.stringify(passes[0]))
+  })
+})
+
 describe('a method preset: the race week is cut once', () => {
   // The default places the week net of the cut and the preset is held to those minutes [rule G6]; the
   // preset is cut by its own cap, so it is placed at the target whose placement, cut once, totals them
