@@ -41,10 +41,15 @@ export const ACTIVITY_PAGE_TEMPLATES = {
     { fallback: 'This activity filled a planned session.' },
   ),
 
-  // No session is linked to the activity. When a session stands on its day the plan does not call
-  // the activity that session's, so the line says that and not that nothing was planned.
-  'activity-page.no-session-planned': tpl('No session was planned for this day.'),
-  'activity-page.not-linked': tpl('This activity is not linked to a planned session.'),
+  // No session is linked to the activity. Both lines are about the current plan, the only one the
+  // page reads: a session of an archived plan (after a goal switch or a new plan) is not looked for,
+  // so the lines do not say that nothing was planned. When a session of the current plan stands on
+  // the day, the line says the activity is not that session's, and not that nothing was planned.
+  'activity-page.no-session-planned': tpl(
+    'No session of the current plan was planned for this day.',
+  ),
+  'activity-page.not-linked': tpl('This activity is not linked to a session of the current plan.'),
+  'activity-page.no-plan': tpl('There is no current plan to set this activity against.'),
 } satisfies Record<string, Template>
 
 const T = ACTIVITY_PAGE_TEMPLATES
@@ -86,13 +91,20 @@ export function plannedAgainstRan(
   )
 }
 
-/** The line for an activity that no session is linked to; `sessionOnDay` is whether the plan has one on its day. */
-export function noLinkedSession(sessionOnDay: boolean, units: Units): string {
-  return render(
-    sessionOnDay ? T['activity-page.not-linked'] : T['activity-page.no-session-planned'],
-    {},
-    units,
-  )
+/**
+ * What the plan has on the day of an activity no session is linked to: no plan at all, no session
+ * on the day, or a session of the current plan that is not this activity's.
+ */
+export type PlanOnTheDay = 'no-plan' | 'no-session' | 'other-session'
+
+/** The line for an activity that no session is linked to. */
+export function noLinkedSession(onTheDay: PlanOnTheDay, units: Units): string {
+  const id = {
+    'no-plan': 'activity-page.no-plan',
+    'no-session': 'activity-page.no-session-planned',
+    'other-session': 'activity-page.not-linked',
+  } as const
+  return render(T[id[onTheDay]], {}, units)
 }
 
 /** The heading of the block. */

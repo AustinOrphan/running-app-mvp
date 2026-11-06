@@ -62,9 +62,16 @@ describe('the sentences of the activity page', () => {
     ).toBe('Planned: Long run, 2 h 55 min. Did: 1 h.')
   })
 
-  it('says that no session was planned, or that the activity is not linked to the one that was', () => {
-    expect(noLinkedSession(false, 'mi')).toBe('No session was planned for this day.')
-    expect(noLinkedSession(true, 'mi')).toBe('This activity is not linked to a planned session.')
+  it('says of the current plan that no session was planned, or that the activity is not linked to the one that was', () => {
+    expect(noLinkedSession('no-session', 'mi')).toBe(
+      'No session of the current plan was planned for this day.',
+    )
+    expect(noLinkedSession('other-session', 'mi')).toBe(
+      'This activity is not linked to a session of the current plan.',
+    )
+    expect(noLinkedSession('no-plan', 'mi')).toBe(
+      'There is no current plan to set this activity against.',
+    )
   })
 
   it('labels the paces: "Pace" alone, and "Elapsed pace" beside "Moving pace"', () => {
@@ -82,8 +89,9 @@ describe('the sentences of the activity page', () => {
       plannedAgainstRan(LONG, RAN, 'mi'),
       plannedAgainstRan(LONG, { ...RAN, distanceM: null }, 'km'),
       plannedAgainstRan(LONG, { type: 'strength', durationSec: 2400, distanceM: null }, 'km'),
-      noLinkedSession(false, 'km'),
-      noLinkedSession(true, 'km'),
+      noLinkedSession('no-session', 'km'),
+      noLinkedSession('other-session', 'km'),
+      noLinkedSession('no-plan', 'km'),
       againstThePlanHeading('km'),
       paceLabel(true, 'km'),
       movingPaceLabel('km'),

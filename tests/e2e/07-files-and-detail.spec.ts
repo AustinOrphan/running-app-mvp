@@ -112,9 +112,11 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
   await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Summary' })).toBeVisible()
   await expect(page.getByText('Synthetic Watch')).toBeVisible()
-  // no plan, so no session to set the run against: one neutral line, above the rating
+  // no plan, so nothing to set the run against: one neutral line, above the rating
   const against = page.getByRole('region', { name: 'Against the plan' })
-  await expect(against.getByText('No session was planned for this day.')).toBeVisible()
+  await expect(
+    against.getByText('There is no current plan to set this activity against.'),
+  ).toBeVisible()
   await expect(page.getByRole('region', { name: 'How did it go?' })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Pace, average / })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Heart rate, average / })).toBeVisible()

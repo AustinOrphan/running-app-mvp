@@ -34,7 +34,7 @@ import {
   renderWithProviders,
   type MockRoutes,
 } from './helpers.tsx'
-import { makeSession, makeV2Plan } from './plan-fixtures.ts'
+import { makeSession, makeV2Plan, makeV2Week } from './plan-fixtures.ts'
 import {
   DAY,
   SETTINGS as STRENGTH_USER_SETTINGS,
@@ -895,6 +895,17 @@ describe('ActivityDetailPage: against the plan', () => {
         }),
       ],
     })
+  /** A plan whose first week is the week of the activity (Monday 2 March 2026), with these sessions. */
+  const planOfTheWeek = (sessions: PlanSessionView[], over: Partial<PlanWithSessions> = {}) =>
+    makeV2Plan({
+      startDate: '2026-02-23',
+      weeks: [
+        makeV2Week(0, { weekStart: '2026-02-23' }),
+        makeV2Week(1, { weekStart: '2026-03-02' }),
+      ],
+      sessions,
+      ...over,
+    })
   const rated = (rpe: number | null, feel: Feel | null = null) => {
     const base = makeDetail()
     return { ...base, activity: { ...base.activity, rpe, feel } }
@@ -1072,50 +1083,86 @@ describe('ActivityDetailPage: against the plan', () => {
     ).toBeInTheDocument()
   })
 
-  test('a run with no linked session and no plan says that no session was planned', async () => {
+  test('a run with no linked session and no plan at all says there is no plan to set it against', async () => {
     renderDetail({ plan: null })
     const section = await block()
     expect(
-      await within(section).findByText('No session was planned for this day.'),
+      await within(section).findByText('There is no current plan to set this activity against.'),
     ).toBeInTheDocument()
     expect(within(section).queryByText(/^Planned:/)).not.toBeInTheDocument()
     expectCleanCopy(section)
   })
 
-  test('a plan with no session on the day says the same, and a rest day is no session', async () => {
+  test('a plan with no session on the day says so of the current plan, and a rest day is no session', async () => {
     renderDetail({
-      plan: makeV2Plan({
-        sessions: [
-          makeSession({ id: 'rest', date: '2026-03-02', kind: 'rest', title: 'Rest' }),
-          makeSession({ id: 'later', date: '2026-03-03', title: 'Easy run' }),
-        ],
-      }),
-    })
-    expect(
-      await within(await block()).findByText('No session was planned for this day.'),
-    ).toBeInTheDocument()
-  })
-
-  test('a session on the day that is not this run’s is not called "no session planned"', async () => {
-    renderDetail({
-      plan: makeV2Plan({
-        sessions: [
-          makeSession({
-            id: 'other',
-            date: '2026-03-02',
-            activityId: 'someone-else',
-            status: 'completed',
-          }),
-        ],
-      }),
+      plan: planOfTheWeek([
+        makeSession({ id: 'rest', date: '2026-03-02', kind: 'rest', title: 'Rest' }),
+        makeSession({ id: 'later', date: '2026-03-03', title: 'Easy run' }),
+      ]),
     })
     const section = await block()
     expect(
-      await within(section).findByText('This activity is not linked to a planned session.'),
+      await within(section).findByText('No session of the current plan was planned for this day.'),
     ).toBeInTheDocument()
+    expectCleanCopy(section)
+  })
+
+  test('a session of the current plan on the day that is not this run’s is not called "no session planned"', async () => {
+    renderDetail({
+      plan: planOfTheWeek([
+        makeSession({
+          id: 'other',
+          date: '2026-03-02',
+          activityId: 'someone-else',
+          status: 'completed',
+        }),
+      ]),
+    })
+    const section = await block()
     expect(
-      within(section).queryByText('No session was planned for this day.'),
-    ).not.toBeInTheDocument()
+      await within(section).findByText(
+        'This activity is not linked to a session of the current plan.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section).queryByText(/No session/)).not.toBeInTheDocument()
+    expectCleanCopy(section)
+  })
+
+  test('leaves the block out for a run from before the first week of the current plan', async () => {
+    // the plan starts the week after the run: a session of an archived plan may have been this
+    // run's, and the page does not read it, so it says nothing of the run being unplanned
+    const api = renderDetail({
+      plan: planOfTheWeek([makeSession({ id: 'later', date: '2026-03-10' })], {
+        startDate: '2026-03-09',
+        weeks: [makeV2Week(0, { weekStart: '2026-03-09' })],
+      }),
+    })
+    await screen.findByRole('region', { name: 'How did it go?' })
+    await waitFor(() => {
+      expect(api.calls.some((call) => call.url === '/api/plan')).toBe(true)
+    })
+    await settle()
+    expect(screen.queryByRole('region', { name: 'Against the plan' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/current plan/)).not.toBeInTheDocument()
+  })
+
+  test('a run from the first week of the plan, or later, still gets its line', async () => {
+    renderDetail({
+      plan: planOfTheWeek([makeSession({ id: 'x', date: '2026-03-04' })], {
+        startDate: '2026-03-02',
+        weeks: [makeV2Week(0, { weekStart: '2026-03-02' })],
+      }),
+    })
+    expect(
+      await within(await block()).findByText(
+        'No session of the current plan was planned for this day.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  test('a run linked to a session of the current plan is never left out, whatever the weeks say', async () => {
+    renderDetail({ plan: linkedPlan(withLines([PLANNED])) })
+    expect(await within(await block()).findByText(PLANNED)).toBeInTheDocument()
   })
 
   test('waits for the plan that was marked old by a write, and never says "not linked" from the one before it', async () => {
@@ -1179,16 +1226,18 @@ describe('ActivityDetailPage: against the plan', () => {
     })
     await settle()
     expect(screen.queryByRole('region', { name: 'Against the plan' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/No session was planned/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/No session of the current plan/)).not.toBeInTheDocument()
   })
 
   test('holds its place, and states no absence, until the plan is read', async () => {
     const api = renderDetail({ plan: linkedPlan(withLines([PLANNED])) })
     delayResponses(40)
     expect(await screen.findByRole('region', { name: 'Against the plan' })).toBeInTheDocument()
-    expect(screen.queryByText('No session was planned for this day.')).not.toBeInTheDocument()
     expect(
-      screen.queryByText('This activity is not linked to a planned session.'),
+      screen.queryByText('No session of the current plan was planned for this day.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('This activity is not linked to a session of the current plan.'),
     ).not.toBeInTheDocument()
     expect(await screen.findByText(PLANNED)).toBeInTheDocument()
     expect(api.calls.some((c) => c.url === '/api/plan')).toBe(true)
@@ -1239,7 +1288,7 @@ describe('ActivityDetailPage: against the plan', () => {
       detail: makeDetail({ stream: null, laps: null, hasFile: false }),
       plan: null,
     })
-    await screen.findByText('No session was planned for this day.')
+    await screen.findByText('There is no current plan to set this activity against.')
     const headings = screen
       .getAllByRole('heading', { level: 2 })
       .map((heading) => heading.textContent)

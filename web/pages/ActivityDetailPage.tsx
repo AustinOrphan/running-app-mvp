@@ -7,10 +7,19 @@ import {
   noLinkedSession,
   paceLabel,
   plannedAgainstRan,
+  type PlanOnTheDay,
 } from '../../shared/copy/activityPage.ts'
 import { formatAirTemperature } from '../../shared/copy/quantity.ts'
 import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
-import type { Activity, ActivityDetail, HrHistogram, Lap, Units } from '../../shared/types.ts'
+import { mondayOf } from '../../shared/dates.ts'
+import type {
+  Activity,
+  ActivityDetail,
+  HrHistogram,
+  Lap,
+  PlanWithSessions,
+  Units,
+} from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import { useActivityDetail, useDeleteActivity, useSaveFeedback } from '../api/activities.ts'
 import { ApiError, keys } from '../api/client.ts'
@@ -238,13 +247,22 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
   const sessions = plan.data?.sessions ?? []
   const session = sessions.find((candidate) => candidate.activityId === activity.id)
   if (session === undefined) {
+    // The current plan is the one this page reads. A run from before its first week was never
+    // meant to stand against it, and a session of an archived plan is not looked for, so the block
+    // says nothing about it instead of calling it unplanned.
+    if (plan.data !== null && activity.date < firstWeekOf(plan.data)) return null
     // a rest day is not a session the runner was asked to do
-    const sessionOnDay = sessions.some(
-      (candidate) => candidate.date === activity.date && candidate.kind !== 'rest',
-    )
+    const onTheDay: PlanOnTheDay =
+      plan.data === null
+        ? 'no-plan'
+        : sessions.some(
+              (candidate) => candidate.date === activity.date && candidate.kind !== 'rest',
+            )
+          ? 'other-session'
+          : 'no-session'
     return (
       <Section title={title}>
-        <p className={styles.line}>{noLinkedSession(sessionOnDay, units)}</p>
+        <p className={styles.line}>{noLinkedSession(onTheDay, units)}</p>
       </Section>
     )
   }
@@ -260,6 +278,12 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
       ))}
     </Section>
   )
+}
+
+/** The Monday of the plan's first week: the day before it is not part of the plan. */
+function firstWeekOf(plan: PlanWithSessions): string {
+  const [first] = plan.weeks.map((week) => week.weekStart).sort()
+  return first ?? mondayOf(plan.startDate)
 }
 
 function LapsTable({ laps, units, hasPace }: { laps: Lap[]; units: Units; hasPace: boolean }) {
