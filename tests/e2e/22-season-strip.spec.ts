@@ -1,0 +1,179 @@
+import { expect, test, type Page } from '@playwright/test'
+import { addDays, formatShortDate } from '../../shared/dates.ts'
+import type { PlanWithSessions } from '../../shared/types.ts'
+import { relativeDates, resetData, signedInApi } from './helpers.ts'
+
+// The season strip above the Plan page's week table, read by role and tapped, at the two phone
+// widths the app is checked at. The same case measures what the first screen holds.
+
+const WIDTHS = [
+  { width: 390, height: 844 },
+  { width: 360, height: 740 },
+]
+
+/** A runner with some history, an active marathon goal and a plan from this Monday. */
+async function seedPlan(page: Page, baseURL: string | undefined): Promise<PlanWithSessions> {
+  const { today, lastWednesday, raceDate } = relativeDates()
+  const api = await signedInApi(page, baseURL ?? '')
+  await resetData()
+  for (let i = 0; i < 8; i += 1) {
+    await api.post('/activities', {
+      date: addDays(lastWednesday, -3 * i),
+      type: 'run',
+      durationSec: (35 + i) * 60,
+      distanceM: 6000 + i * 300,
+    })
+  }
+  // a run today, so this week has minutes run and the strip draws a solid bar for it
+  await api.post('/activities', { date: today, type: 'run', durationSec: 40 * 60, distanceM: 7000 })
+  const goal = (await api.post('/goals', {
+    name: 'Strip marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+  return (await api.get('/plan')) as PlanWithSessions
+}
+
+for (const viewport of WIDTHS) {
+  test.describe(`the season strip at ${String(viewport.width)} px`, () => {
+    test.use({ viewport })
+
+    test('reads by role, answers a tap, and leaves the first screen measured', async ({
+      page,
+      baseURL,
+    }) => {
+      const { thisMonday } = relativeDates()
+      const plan = await seedPlan(page, baseURL)
+      const weeks = plan.weeks.length
+      expect(weeks).toBeGreaterThan(20)
+
+      await page.goto('/plan')
+      const season = page.getByRole('region', { name: 'Season' })
+      await expect(season).toBeVisible()
+
+      // The strip's accessible form: the plan in a sentence, then one button per week.
+      await expect(season).toHaveAccessibleDescription(
+        new RegExp(
+          `^A ${String(weeks)}-week plan: .*race week of ${formatShortDate(plan.raceWeekStart)}.* This week is the week of ${formatShortDate(thisMonday)}\\.$`,
+        ),
+      )
+      const group = season.getByRole('group', { name: 'Weeks of the plan' })
+      const buttons = group.getByRole('button')
+      await expect(buttons).toHaveCount(weeks)
+      const now = group.getByRole('button', { name: /^This week, week of / })
+      await expect(now).toHaveCount(1)
+      await expect(now).toHaveAttribute('aria-current', 'date')
+      await expect(now).toHaveAccessibleName(/, 0\.\d h run$/)
+
+      // The bars: one outline per week, a solid bar for the week with the run, one flag.
+      const bars = season.locator('[data-compact="true"]')
+      await expect(bars.locator('rect[fill="none"]')).toHaveCount(weeks)
+      await expect(bars.locator('rect[fill="var(--chart-actual)"]')).toHaveCount(1)
+      await expect(bars.locator('[data-mark="race"]')).toHaveCount(1)
+      await expect(bars.locator('[data-mark="current"]')).toHaveCount(1)
+
+      // A button sits over the bar of its week, and the page does not scroll sideways.
+      for (const index of [0, Math.floor(weeks / 2), weeks - 1]) {
+        const bar = await bars.locator('rect[fill="none"]').nth(index).boundingBox()
+        const button = await buttons.nth(index).boundingBox()
+        expect(bar, `bar ${String(index)}`).not.toBeNull()
+        expect(button, `button ${String(index)}`).not.toBeNull()
+        const barCentre = (bar?.x ?? 0) + (bar?.width ?? 0) / 2
+        const buttonCentre = (button?.x ?? 0) + (button?.width ?? 0) / 2
+        expect(Math.abs(barCentre - buttonCentre)).toBeLessThan(1)
+      }
+      const widest = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(widest).toBeLessThanOrEqual(0)
+
+      // The first screen: the header, the strip, and what follows it down to the tab bar.
+      const tabBar = await page.getByRole('navigation', { name: 'Primary' }).boundingBox()
+      const strip = await season.boundingBox()
+      const currentRow = await page.locator('tr[aria-current="date"]').boundingBox()
+      const feasibility = await page.getByRole('heading', { name: 'Feasibility' }).boundingBox()
+      const column = await buttons.nth(1).boundingBox()
+      expect(tabBar).not.toBeNull()
+      expect(strip).not.toBeNull()
+      expect(currentRow).not.toBeNull()
+      expect(feasibility).not.toBeNull()
+      const measured = {
+        viewport: `${String(viewport.width)}x${String(viewport.height)}`,
+        tabBarTop: Math.round(tabBar?.y ?? 0),
+        stripTop: Math.round(strip?.y ?? 0),
+        stripBottom: Math.round((strip?.y ?? 0) + (strip?.height ?? 0)),
+        stripHeight: Math.round(strip?.height ?? 0),
+        weekColumnWidth: Math.round((column?.width ?? 0) * 10) / 10,
+        feasibilityTop: Math.round(feasibility?.y ?? 0),
+        thisWeekRowTop: Math.round(currentRow?.y ?? 0),
+      }
+      test.info().annotations.push({ type: 'first-screen', description: JSON.stringify(measured) })
+      console.log(`first screen ${JSON.stringify(measured)}`)
+      // the strip, whole, is on the first screen: above the tab bar that covers its foot
+      expect(measured.stripBottom).toBeLessThanOrEqual(measured.tabBarTop)
+      // and the Feasibility panel the page used to open on starts on the first screen too, under it
+      expect(measured.feasibilityTop).toBeGreaterThanOrEqual(measured.stripBottom)
+      expect(measured.feasibilityTop).toBeLessThan(measured.tabBarTop)
+
+      // A tap on a week to come scrolls to its row and opens its days.
+      const later = plan.weeks.find((w) => w.weekStart === addDays(thisMonday, 7 * 3))
+      if (later === undefined) throw new Error('The plan has no week three weeks from now.')
+      const laterRow = page.locator(`tr[data-week="${later.weekStart}"]`)
+      const laterDays = laterRow.getByRole('button', { name: /^Days for week of/ })
+      await expect(laterDays).toHaveAttribute('aria-expanded', 'false')
+      await group
+        .getByRole('button', { name: new RegExp(`^Week of ${formatShortDate(later.weekStart)},`) })
+        .click()
+      await expect(laterDays).toHaveAttribute('aria-expanded', 'true')
+      await expect(laterRow).toBeInViewport()
+      await expect(laterRow).toBeFocused()
+      // the scroll is smooth: the row settles in the upper half of the screen
+      await expect
+        .poll(() => laterRow.evaluate((row) => row.getBoundingClientRect().top))
+        .toBeLessThan(viewport.height / 2)
+    })
+
+    test('a tap on a week before this Monday opens "Earlier weeks" first', async ({
+      page,
+      baseURL,
+    }) => {
+      const { thisMonday } = relativeDates()
+      const plan = await seedPlan(page, baseURL)
+      // Three weeks on, by the page's own clock: the first three weeks of the plan are behind it.
+      await page.clock.setFixedTime(new Date(`${addDays(thisMonday, 21)}T12:00:00`))
+      await page.goto('/plan')
+
+      const season = page.getByRole('region', { name: 'Season' })
+      await expect(season).toBeVisible()
+      const earlier = page.getByRole('button', { name: 'Earlier weeks (3)' })
+      await expect(earlier).toHaveAttribute('aria-expanded', 'false')
+      await expect(
+        season.getByRole('button', { name: /^This week, week of / }),
+      ).toHaveAccessibleName(
+        new RegExp(`^This week, week of ${formatShortDate(addDays(thisMonday, 21))},`),
+      )
+      await expect(season).toHaveAccessibleDescription(
+        new RegExp(`This week is the week of ${formatShortDate(addDays(thisMonday, 21))}\\.$`),
+      )
+
+      const second = plan.weeks[1]
+      if (second === undefined) throw new Error('The plan has no second week.')
+      const row = page.locator(`tr[data-week="${second.weekStart}"]`)
+      await expect(row).toHaveCount(0)
+      await season
+        .getByRole('button', { name: new RegExp(`^Week of ${formatShortDate(second.weekStart)},`) })
+        .click()
+
+      await expect(earlier).toHaveAttribute('aria-expanded', 'true')
+      await expect(row).toBeInViewport()
+      await expect(row).toBeFocused()
+      await expect(row.getByRole('button', { name: /^Days for week of/ })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
+    })
+  })
+}

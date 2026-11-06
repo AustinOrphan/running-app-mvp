@@ -22,6 +22,7 @@ import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
+import { SEASON_TEMPLATES } from './season.ts'
 import { SESSION_STATUS_TEMPLATES } from './sessionStatus.ts'
 import { STRENGTH_PAGE_TEMPLATES } from './strengthPage.ts'
 import { STRENGTH_REVIEW_TEMPLATES } from './strengthReview.ts'
@@ -42,6 +43,7 @@ export const TEMPLATES = {
   ...TODAY_TEMPLATES,
   ...EXECUTION_TEMPLATES,
   ...SESSION_STATUS_TEMPLATES,
+  ...SEASON_TEMPLATES,
   ...DATA_IN_USE_TEMPLATES,
   ...DISTANCE_ESTIMATE_TEMPLATES,
   ...FUEL_TEMPLATES,

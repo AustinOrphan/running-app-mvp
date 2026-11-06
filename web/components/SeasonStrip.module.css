@@ -1,0 +1,89 @@
+/* The season above the week table: bars, the buttons laid over them, and the phase brackets under
+   them. The three share one column per plan week (`--weeks`), so a button and a bracket sit exactly
+   over and under the bars of their weeks; the compact chart draws one band per week across its
+   whole box, with no axis and no margin at the sides. */
+.strip {
+  max-width: 52rem;
+  margin: 0 0 var(--space-5);
+}
+
+.plot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.bars {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+/* The chart's own wrapper is positioned, which paints it over a sibling that is not: the columns
+   take their own layer so a tap lands on a button and never on the bars under it. */
+.weeks {
+  position: relative;
+  z-index: 1;
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
+}
+
+/* A week's column: invisible until the pointer or the keyboard is on it. The column is the whole
+   height of the bars, so a tap just above a short bar still lands on its week. */
+.week {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  cursor: pointer;
+}
+
+.week:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.week:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 0;
+}
+
+.brackets {
+  grid-area: 2 / 1;
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
+  align-items: start;
+  min-height: 1.5rem;
+  margin-top: var(--space-1);
+}
+
+/* An open-topped bracket under the weeks of a phase; a name goes under it where it fits. */
+.bracket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  margin: 0 1px;
+}
+
+.bracket::before {
+  content: '';
+  align-self: stretch;
+  height: 5px;
+  border: 1px solid var(--border-strong);
+  border-top: 0;
+}
+
+.bracketLabel {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  white-space: nowrap;
+}
+
+.legend {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}

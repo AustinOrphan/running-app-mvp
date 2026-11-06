@@ -21,10 +21,15 @@ function Unavailable() {
   )
 }
 
-/** A chart that loads on first use; `place` names the class that holds its height meanwhile. */
+type Place = 'weekly' | 'season' | 'monthly' | 'stream' | 'track' | 'estimate'
+
+/**
+ * A chart that loads on first use; `place` names the class that holds its height meanwhile, or
+ * picks it from the props when one chart has more than one height.
+ */
 function lazyChart<P extends object>(
   load: () => Promise<ComponentType<P>>,
-  place: 'weekly' | 'monthly' | 'stream' | 'track' | 'estimate',
+  place: Place | ((props: P) => Place),
 ): ComponentType<P> {
   const Loaded = lazy(async () => {
     try {
@@ -35,7 +40,14 @@ function lazyChart<P extends object>(
   }) as unknown as ComponentType<P>
   return function LazyChart(props: P) {
     return (
-      <Suspense fallback={<div className={`skeleton ${styles[place]}`} aria-hidden="true" />}>
+      <Suspense
+        fallback={
+          <div
+            className={`skeleton ${styles[typeof place === 'function' ? place(props) : place]}`}
+            aria-hidden="true"
+          />
+        }
+      >
         <Loaded {...props} />
       </Suspense>
     )
@@ -45,7 +57,9 @@ function lazyChart<P extends object>(
 const loadWeeklyHoursChart = () =>
   import('./WeeklyHoursChart.tsx').then((module) => module.WeeklyHoursChart)
 
-export const WeeklyHoursChart = lazyChart(loadWeeklyHoursChart, 'weekly')
+export const WeeklyHoursChart = lazyChart(loadWeeklyHoursChart, (props) =>
+  props.compact === true ? 'season' : 'weekly',
+)
 export const MonthlyHoursChart = lazyChart(
   () => import('./MonthlyHoursChart.tsx').then((module) => module.MonthlyHoursChart),
   'monthly',

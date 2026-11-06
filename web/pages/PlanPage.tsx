@@ -2,6 +2,7 @@ import {
   Fragment,
   useEffect,
   useId,
+  useRef,
   useState,
   type CSSProperties,
   type FormEvent,
@@ -33,6 +34,7 @@ import { LoadField } from '../components/LoadField.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { PlanShapeField } from '../components/PlanShapeField.tsx'
 import { Segmented } from '../components/Segmented.tsx'
+import { SeasonStrip } from '../components/SeasonStrip.tsx'
 import { SessionSheet, sessionSummary } from '../components/SessionSheet.tsx'
 import { Sheet } from '../components/Sheet.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -53,6 +55,7 @@ import {
   formatWeekday,
   weekPhaseLabel,
 } from '../components/format.ts'
+import { actualRange, planSpan } from '../components/season.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { estimateAboutText } from '../../shared/copy/distanceEstimate.ts'
 import {
@@ -1155,23 +1158,29 @@ function phaseRuns(
   return info
 }
 
+/** A week the season strip asked for. A new object is a new request, even for the same week. */
+interface WeekReveal {
+  weekStart: string
+}
+
 function PlanTable({
   plan,
   sessions,
+  reveal,
   onOpenSession,
 }: {
   plan: PlanWithSessions
   sessions: PlanSessionView[]
+  /** A week the season strip asked for: its row is shown, its days opened and the page scrolled to it. */
+  reveal: WeekReveal | null
   onOpenSession: (id: string) => void
 }) {
   const units = useSettings().data?.units
   const [editing, setEditing] = useState<PlanWeek | null>(null)
   const currentMonday = mondayOf(todayIso())
   const isV2 = plan.generatorVersion >= 2
-  const first = plan.weeks[0]?.weekStart ?? plan.startDate
-  const last = plan.weeks[plan.weeks.length - 1]?.weekStart ?? first
-  const to = currentMonday < first ? first : currentMonday > last ? last : currentMonday
-  const weeks = useWeeks({ from: first, to })
+  const { first, last } = planSpan(plan)
+  const weeks = useWeeks(actualRange(plan, currentMonday))
   const actual = new Map((weeks.data ?? []).map((w) => [w.weekStart, w.runMin]))
   // The current week opens to its days at first; other weeks open on request.
   const [open, setOpen] = useState<Set<string>>(() => new Set([currentMonday]))
@@ -1183,6 +1192,25 @@ function PlanTable({
       ? plan.weeks.filter((week) => week.weekStart < currentMonday).length
       : 0
   const [showEarlier, setShowEarlier] = useState(false)
+  // The season strip asks for a week: the weeks before this Monday are shown and the week's days
+  // opened. The request is handled once, by identity, while rendering, so the row is on the page
+  // when the effect scrolls to it.
+  const [handled, setHandled] = useState<WeekReveal | null>(null)
+  if (reveal !== null && reveal !== handled) {
+    setHandled(reveal)
+    if (reveal.weekStart < currentMonday) setShowEarlier(true)
+    setOpen((current) => new Set(current).add(reveal.weekStart))
+  }
+  const body = useRef<HTMLTableSectionElement>(null)
+  useEffect(() => {
+    if (reveal === null) return
+    const row = body.current?.querySelector<HTMLElement>(`tr[data-week="${reveal.weekStart}"]`)
+    if (row === null || row === undefined) return
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    row.scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' })
+    // Focus follows the scroll, so the next Tab reaches the row's own buttons.
+    row.focus({ preventScroll: true })
+  }, [reveal])
   const shownWeeks = showEarlier ? plan.weeks : plan.weeks.slice(earlierCount)
   const runs = phaseRuns(shownWeeks)
   const sessionsByWeek = new Map<string, PlanSessionView[]>()
@@ -1226,7 +1254,7 @@ function PlanTable({
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody ref={body}>
           {earlierCount > 0 ? (
             <tr className={styles.earlierRow}>
               <td colSpan={10}>
@@ -1270,6 +1298,7 @@ function PlanTable({
                   data-race={race ? 'true' : undefined}
                   data-taper={week.phase === 'taper' ? 'true' : undefined}
                   aria-current={isCurrent ? 'date' : undefined}
+                  tabIndex={-1}
                   className={styles.row}
                 >
                   <td className={styles.week}>
@@ -1405,6 +1434,7 @@ export function PlanPage() {
   const [why, setWhy] = useState<WhyTarget | null>(null)
   const [notFull, setNotFull] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [reveal, setReveal] = useState<WeekReveal | null>(null)
 
   if (plan.isError || goals.isError) {
     return (
@@ -1485,6 +1515,12 @@ export function PlanPage() {
         }
       />
       {hasSessions ? <PlanWindows /> : null}
+      <SeasonStrip
+        plan={plan.data}
+        onSelectWeek={(weekStart) => {
+          setReveal({ weekStart })
+        }}
+      />
       {hasSessions ? <WristStrip sessions={sessions} /> : null}
       {hasSessions ? (
         <PlanOverview
@@ -1498,7 +1534,12 @@ export function PlanPage() {
           }}
         />
       ) : null}
-      <PlanTable plan={plan.data} sessions={sessions} onOpenSession={setOpenSessionId} />
+      <PlanTable
+        plan={plan.data}
+        sessions={sessions}
+        reveal={reveal}
+        onOpenSession={setOpenSessionId}
+      />
       {openSession !== undefined ? (
         <SessionSheet
           key={openSession.id}
