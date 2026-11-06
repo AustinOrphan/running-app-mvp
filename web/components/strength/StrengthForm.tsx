@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { countPhrase } from '../../../shared/copy/quantity.ts'
-import { mondayOf } from '../../../shared/dates.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type {
   PinnedSlot,
@@ -205,7 +204,6 @@ export function StrengthForm({
   // saved log being edited stands for none.
   const liftRead = editing ? null : liftReadOf(workout, start)
   const explainable = start !== 'maintenance'
-  const asOf = view.data?.asOf
   // Until the setup is saved the workout is bodyweight only (design 6.1): the sheet says so and
   // offers it, on the surfaces that are not the Strength page, whose own card makes the offer.
   const onStrengthPage = useLocation().pathname === '/strength'
@@ -319,29 +317,10 @@ export function StrengthForm({
       onSubmit={onSubmit}
     >
       <div className={styles.intro}>
-        {/* One line before the lifts: the day, the unit and, for a log that starts from another
-            session, where the workout came from. The safety line and how to log are one tap away. */}
-        <p className={styles.muted}>
-          <span>
-            {words.say('strength.sheet.date-unit', {
-              date: { kind: 'date', iso: date, style: 'weekday' },
-              unit: words.unitName(),
-            })}
-          </span>
-          {start === null ? null : (
-            <>
-              {' '}
-              <span>
-                {words.startLine(
-                  start,
-                  workout.template,
-                  date,
-                  asOf !== undefined && mondayOf(asOf) === mondayOf(date),
-                )}
-              </span>
-            </>
-          )}
-        </p>
+        {/* The day and the unit are the sheet's subtitle. The one muted line before the lifts is the
+            safety line (design 9.1: the header carries it once; ADR 0014 and rule S12 name it as a
+            control of the barbell decision), so it is never behind a tap. */}
+        <p className={styles.muted}>{words.say('strength.safety')}</p>
         {lighterDay ? (
           <p className={styles.note}>
             {anyUsual
@@ -365,7 +344,6 @@ export function StrengthForm({
         <details className={styles.about}>
           <summary>{words.say('strength.sheet.about')}</summary>
           <div className={styles.aboutBody}>
-            <p className={styles.muted}>{words.say('strength.safety')}</p>
             <p className={styles.muted}>
               {words.say('strength.sheet.warmup')}
               {hasEffort

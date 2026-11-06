@@ -1,6 +1,12 @@
 import { useState } from 'react'
+import { mondayOf } from '../../../shared/dates.ts'
 import type { StrengthLog, StrengthWorkout } from '../../../shared/types.ts'
-import { useStrengthUnits, useStrengthWorkoutFor, type DayRead } from '../../api/strength.ts'
+import {
+  useStrengthUnits,
+  useStrengthView,
+  useStrengthWorkoutFor,
+  type DayRead,
+} from '../../api/strength.ts'
 import { Button } from '../Button.tsx'
 import { Sheet } from '../Sheet.tsx'
 import { Skeleton } from '../Skeleton.tsx'
@@ -88,6 +94,7 @@ interface Kept {
 export function StrengthSheet(props: StrengthSheetProps) {
   const { date, sessionId, activityId, log, usualLoads, onClose, onSaved } = props
   const units = useStrengthUnits()
+  const view = useStrengthView()
   const day = useStrengthWorkoutFor({
     ...(props.read ?? { date }),
     enabled: props.read !== undefined,
@@ -113,8 +120,37 @@ export function StrengthSheet(props: StrengthSheetProps) {
     kept === null
       ? words.say('strength.sheet.title-plain')
       : words.heading(kept.workout.template, kept.workout.variant)
+  // The day and the unit, and where a log that starts from another session started: the sheet's
+  // subtitle, so the safety line is the one muted line the form opens with.
+  const asOf = view.data?.asOf
+  const spoken =
+    units.data === undefined ? null : strengthWords(units.data.units, units.data.weightUnit)
+  const subtitle =
+    spoken === null ? undefined : (
+      <>
+        <span>
+          {spoken.say('strength.sheet.date-unit', {
+            date: { kind: 'date', iso: date, style: 'weekday' },
+            unit: spoken.unitName(),
+          })}
+        </span>
+        {kept === null || kept.start === null ? null : (
+          <>
+            {' '}
+            <span>
+              {spoken.startLine(
+                kept.start,
+                kept.workout.template,
+                date,
+                asOf !== undefined && mondayOf(asOf) === mondayOf(date),
+              )}
+            </span>
+          </>
+        )}
+      </>
+    )
   return (
-    <Sheet open onClose={onClose} title={title}>
+    <Sheet open onClose={onClose} title={title} subtitle={subtitle}>
       {units.isError ? (
         <p role="alert" className={styles.alert}>
           {words.say('strength.sheet.settings-error')}

@@ -734,10 +734,10 @@ describe('the sentences of the logging sheet (design 9.1)', () => {
     )
   })
 
-  it('labels the row of the scale and the disclosure that holds the safety line', () => {
+  it('labels the row of the scale and the disclosure that holds how to log', () => {
     expect(say('strength.sheet.all-sets-first')).toBe('Reps left in reserve, all sets')
     expect(say('strength.sheet.all-sets-reps-left')).toBe('Reps left, all sets')
-    expect(say('strength.sheet.about')).toBe('Safety and how to log')
+    expect(say('strength.sheet.about')).toBe('How to log')
     // the long label is the vocabulary's own "Reps left in reserve" with the scope after it
     expect(say('strength.sheet.all-sets-first')).toContain(say('strength.label.reps-left-first'))
   })

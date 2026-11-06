@@ -350,9 +350,11 @@ test('the logging sheet opens on the first lift at 390 x 844 and 360 x 740, with
     const sheet = loggingSheet(page)
     // one line before the lifts; the safety line and how to log are behind a row, closed
     await expect(sheet.getByText(/Loads are in pounds\.$/)).toBeVisible()
-    const disclosure = sheet.getByText('Safety and how to log')
+    const disclosure = sheet.getByText('How to log')
     await expect(disclosure).toBeVisible()
-    await expect(sheet.getByText(/^Stop a set if anything hurts/)).toBeHidden()
+    // the safety line is in view with nothing opened; the warm-up note is behind the disclosure
+    await expect(sheet.getByText(/^Stop a set if anything hurts/)).toBeVisible()
+    await expect(sheet.getByText(/Warm-up sets are not logged\./)).toBeHidden()
 
     // The first lift and the labelled row of 0 to 5 are inside the screen (the sheet slides up, so
     // the boxes are read once it has settled); where the first set starts is measured and attached.
@@ -384,9 +386,9 @@ test('the logging sheet opens on the first lift at 390 x 844 and 360 x 740, with
         screen: visible,
       }),
     })
-    // the disclosure opens on a tap and says the safety line
+    // the disclosure opens on a tap and says that warm-ups are not logged
     await disclosure.click()
-    await expect(sheet.getByText(/^Stop a set if anything hurts/)).toBeVisible()
+    await expect(sheet.getByText(/Warm-up sets are not logged\./)).toBeVisible()
     await sheet.getByRole('button', { name: 'Close' }).click()
     await expect(sheet).toBeHidden()
   }

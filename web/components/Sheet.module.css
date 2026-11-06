@@ -38,9 +38,19 @@
   padding: var(--space-4) var(--space-4) var(--space-2);
 }
 
+.heading {
+  min-width: 0;
+}
+
 .title {
   font-size: var(--text-lg);
   line-height: var(--lh-lg);
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 
 .body {
