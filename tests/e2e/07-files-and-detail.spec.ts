@@ -1,5 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import type { Api } from './helpers.ts'
+import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
+import { createPrisma, initSqlite } from '../../server/db.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
+import { E2E_DATABASE_URL } from './env.ts'
 import { planWithRunToday, relativeDates, resetData, signedInApi } from './helpers.ts'
 
 /** The height of the tab bar that sits over the foot of a phone's viewport. */
@@ -15,6 +19,32 @@ async function scrollsSideways(page: Page): Promise<boolean> {
   return page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   )
+}
+
+/**
+ * A plan with an easy run today (expected RPE 2 to 3). The plan's own run for today may be another
+ * kind, so an easy one is moved here, as `strengthOnlyToday` moves a strength session: the API's own
+ * move may refuse the day, and the page only ever reads today.
+ */
+async function easyRunToday(api: Api, page: Page, origin: string): Promise<PlanSession> {
+  const planned = await planWithRunToday(api, page, origin, 'Post-run marathon')
+  if (planned.kind === 'easy') return planned
+  const { today, thisMonday } = relativeDates()
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const easy = plan.sessions.find((session) => session.kind === 'easy' && session.id !== planned.id)
+  if (easy === undefined) throw new Error('The plan has no easy run to move to today.')
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    await prisma.planSession.deleteMany({ where: { planId: easy.planId, date: today } })
+    await prisma.planSession.update({
+      where: { id: easy.id },
+      data: { date: today, weekStart: thisMonday },
+    })
+  } finally {
+    await prisma.$disconnect()
+  }
+  return { ...easy, date: today, weekStart: thisMonday }
 }
 
 interface UploadFile {
@@ -234,14 +264,26 @@ test('a run that filled a planned session opens on its result, then the rating, 
   const { today } = relativeDates()
   const origin = baseURL ?? ''
   const api = await signedInApi(page, origin)
-  const planned = await planWithRunToday(api, page, origin, 'Post-run marathon')
-  // The run that fulfils it: logged by hand, and linked to the session by the server at once.
+  const planned = await easyRunToday(api, page, origin)
+  // With a threshold pace the server has a pace band for the session, and so a verdict on effort
+  // from the pace alone, whatever the runner has rated.
+  await api.put('/profile', { thresholdPaceSecPerKm: 330 })
+  // The run that fulfils it: logged by hand, faster than the band, and linked to the session by the
+  // server at once. It is unrated.
   const run = (await api.post('/activities', {
     date: today,
     type: 'run',
     durationSec: planned.durationMin * 60,
-    distanceM: planned.durationMin * 160,
+    distanceM: planned.durationMin * 220,
   })) as { id: string }
+  const served = async (): Promise<string[]> => {
+    const plan = (await api.get('/plan')) as PlanWithSessions
+    return plan.sessions.find((session) => session.activityId === run.id)?.execution?.lines ?? []
+  }
+  // the premise: the server has written an effort sentence for the unrated run, from the pace
+  expect((await served()).filter((line) => line.startsWith('Effort '))).toEqual([
+    'Effort felt harder than expected.',
+  ])
 
   for (const viewport of [
     { width: 390, height: 844 },
@@ -256,7 +298,9 @@ test('a run that filled a planned session opens on its result, then the rating, 
     const title = planned.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     await expect(against.getByText(new RegExp(`^Planned: ${title}, .*Ran: `))).toBeVisible()
     await expect(against.getByText(/ against .* planned \(\d+%\)\.$/)).toBeVisible()
-    // an unrated run is never told how hard it was: no effort verdict before the runner rates it
+    // an unrated run is never told how hard it was: the server wrote "harder than expected" from
+    // the pace, and the page does not say it until the runner's own rating supports it
+    await expect(against.getByText(/^Intensity /)).toBeVisible()
     await expect(against.getByText(/^Effort /)).toBeHidden()
 
     // the order of the post-run screen, top to bottom
@@ -296,6 +340,32 @@ test('a run that filled a planned session opens on its result, then the rating, 
     })
     expect(await scrollsSideways(page)).toBe(false)
   }
+
+  // An RPE inside the expected band of 2 to 3 does not make the pace's verdict the runner's: the
+  // server's sentence now quotes the rating, and the page still leaves it out.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/activities/${run.id}`)
+  const against = page.getByRole('region', { name: 'Against the plan' })
+  const rate = async (rpe: number) => {
+    const feedback = page.getByRole('region', { name: 'How did it go?' })
+    await feedback.getByRole('button', { name: `RPE ${String(rpe)}`, exact: true }).click()
+    await feedback.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status').getByText('Feedback saved')).toBeVisible()
+  }
+  await rate(3)
+  expect(
+    (await served()).some((line) =>
+      /^Effort felt (much )?harder than expected\. RPE 3 against/.test(line),
+    ),
+  ).toBe(true)
+  await expect(against.getByText(/^Intensity /)).toBeVisible()
+  await expect(against.getByText(/^Effort /)).toBeHidden()
+
+  // An RPE above the band supports it, and the sentence shows with the rating in it.
+  await rate(8)
+  await expect(
+    against.getByText(/^Effort felt (much )?harder than expected\. RPE 8 against 2-3 expected/),
+  ).toBeVisible()
 })
 
 test('a link with no class of its own is the app’s accent in both colour schemes, never the browser’s blue', async ({
