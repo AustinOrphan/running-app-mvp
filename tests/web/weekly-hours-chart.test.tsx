@@ -249,7 +249,7 @@ describe('WeeklyHoursChart, compact', () => {
     expect(Number(solid[0]!.getAttribute('height'))).toBeGreaterThanOrEqual(2)
   })
 
-  test('tells two weeks apart by their date, not by the label they would print', () => {
+  test('draws a bar in its own band for each week when two weeks print the same short label', () => {
     // 53 weeks on, the same Monday has the same short label
     const long = [
       { weekStart: '2027-01-04', runMin: 60 },
@@ -264,6 +264,16 @@ describe('WeeklyHoursChart, compact', () => {
         ariaLabel="A long plan"
       />,
     )
-    expect(bars(container).outlined).toHaveLength(3)
+    const { outlined } = bars(container)
+    expect(outlined).toHaveLength(3)
+    // three bands of 640 / 3 px, one bar centred in each; keyed by label the first two would share
+    const centres = outlined.map(
+      (rect) => Number(rect.getAttribute('x')) + Number(rect.getAttribute('width')) / 2,
+    )
+    const band = 640 / 3
+    centres.forEach((centre, index) => {
+      // recharts rounds a bar's x to a whole pixel
+      expect(Math.abs(centre - band * (index + 0.5))).toBeLessThanOrEqual(1)
+    })
   })
 })

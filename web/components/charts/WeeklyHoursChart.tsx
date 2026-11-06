@@ -170,8 +170,6 @@ export function WeeklyHoursChart({
     ? Math.max(1, peak * COMPACT_HEADROOM)
     : Math.max(2, Math.ceil(peak / 2) * 2)
   const ticks = [0, ceiling / 2, ceiling]
-  // The weeks are unique by their date; two weeks of a long plan can share a short label.
-  const category = compact ? 'weekStart' : 'label'
 
   const chart = (
     <div
@@ -194,8 +192,8 @@ export function WeeklyHoursChart({
           {compact ? null : <CartesianGrid {...gridProps} />}
           {/* Bars on different category axes are laid out independently, so the planned bar
                 sits centred behind the actual one instead of beside it. */}
-          <XAxis dataKey={category} {...axisProps} interval="preserveStartEnd" hide={compact} />
-          <XAxis xAxisId="planned" dataKey={category} hide />
+          <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" hide={compact} />
+          <XAxis xAxisId="planned" dataKey="label" hide />
           <YAxis
             {...axisProps}
             width={28}

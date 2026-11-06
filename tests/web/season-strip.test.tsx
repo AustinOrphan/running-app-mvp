@@ -289,15 +289,12 @@ describe('the bars and the brackets', () => {
     const data = plan()
     mockApi(routes(data))
     renderPlan()
-    const { outlined, solid } = await bars()
-    expect(outlined).toHaveLength(data.weeks.length)
+    const { chart } = await bars()
     // 14 Dec, 28 Dec, 4 Jan and this week ran; 21 Dec ran nothing and the weeks to come none
     await waitFor(() => {
-      expect(
-        document.querySelectorAll('[data-compact="true"] rect[fill="var(--chart-actual)"]'),
-      ).toHaveLength(4)
+      expect(chart.querySelectorAll('rect[fill="none"]')).toHaveLength(data.weeks.length)
+      expect(chart.querySelectorAll('rect[fill="var(--chart-actual)"]')).toHaveLength(4)
     })
-    expect(solid.length).toBeLessThanOrEqual(4)
   })
 
   test('shows the cutback weeks shorter by their own height', async () => {
