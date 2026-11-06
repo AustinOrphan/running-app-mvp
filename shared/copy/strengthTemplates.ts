@@ -200,10 +200,30 @@ export const STRENGTH_TEMPLATES = {
     '{exercise}: {sets} x {lo} to {hi}, leave {rir} or more.',
     { exercise: 'text', sets: 'count', lo: 'count', hi: 'count', rir: 'count' },
   ),
-  'strength.hero.plyo-row': tpl('{movement}, {contacts} contacts.', {
+  'strength.hero.plyo-row': tpl('{movement}, {contacts} ground contacts.', {
     movement: 'text',
     contacts: 'count',
   }),
+  // A trunk movement carries its amount, as a lift carries its reps: "Side plank 2x30–45 s, dead
+  // bug 2x8–12". The hero's row has the room of one line at 360 px, so it is written close: the range
+  // joins its ends with a dash, a count of seconds is "s" (a bare 30 would not say what is counted),
+  // and "reps" and "each side" are left to the Strength page's card and the logging sheet.
+  'strength.hero.trunk-item': tpl(
+    '{exercise} {sets}x{amount}',
+    { exercise: 'text', sets: 'count', amount: 'text' },
+    { shape: 'label', fallback: 'Trunk work' },
+  ),
+  'strength.hero.amount-range': tpl('{lo}–{hi}', { lo: 'count', hi: 'count' }, { shape: 'label' }),
+  // Movements that share their sets and their amount say them once: "Banded lateral walk and
+  // pallof press 2x8–12" (written twice it is two lines at 360 px).
+  'strength.hero.trunk-shared': tpl(
+    '{movements} {sets}x{amount}',
+    { movements: 'text', sets: 'count', amount: 'text' },
+    { shape: 'label', fallback: 'Trunk work' },
+  ),
+  'strength.hero.trunk-amounts': tpl('{items}.', { items: 'text' }),
+  // A row whose amounts do not fit the line (`TRUNK_ROW_CHARS_MAX` in `workoutRows.ts`) names its
+  // movements and the sets they share. Only a runner who leaves out other trunk movements gets one.
   'strength.hero.trunk-row': tpl('{movements}, {sets} sets.', {
     movements: 'text',
     sets: 'count',
@@ -261,8 +281,10 @@ export const STRENGTH_TEMPLATES = {
   ),
 
   // ---- Where a session stands in the block (design 8.1, 9.1, 11.3) ------------------------------
+  // "Strength, ramp-in, session A": the letter is named for what it is, a session. The two sessions
+  // of a week take turns, and the Strength page's block card says how they differ.
   'strength.heading': tpl(
-    'Strength, {template} {variant}',
+    'Strength, {template}, session {variant}',
     { template: 'text', variant: 'text' },
     { shape: 'label', fallback: 'Strength' },
   ),
@@ -302,7 +324,14 @@ export const STRENGTH_TEMPLATES = {
   'strength.label.heaviest-set': tpl('Heaviest set', {}, { shape: 'label' }),
   'strength.label.lighter-day': tpl('Lighter day', {}, { shape: 'label' }),
   'strength.label.up-one-step': tpl('Up one step', {}, { shape: 'label' }),
-  'strength.label.load-holds': tpl('The load holds', {}, { shape: 'label' }),
+  // The rules move a load two steps at once when every set was at the top of the range with the
+  // reps left that the big step asks for (`strength.reason.increase-two`).
+  'strength.label.up-two-steps': tpl('Up two steps', {}, { shape: 'label' }),
+  // The one phrase for a load the rules left where it was, on the Next session card and in the Lifts
+  // list. It claims no equality with the load of the last session logged: the rules' working load is
+  // that of the latest normal session, and a lighter day in between lifted less. "Hold" is the plan's
+  // word for a plan hold (a persistent hold, a progression hold) and is not used of a load here.
+  'strength.label.load-unchanged': tpl('Load unchanged', {}, { shape: 'label' }),
   'strength.label.log-sets': tpl('Log sets', {}, { shape: 'label' }),
   'strength.label.add-sets': tpl('Add the sets', {}, { shape: 'label' }),
   'strength.label.edit-sets': tpl('Edit sets', {}, { shape: 'label' }),
@@ -322,29 +351,29 @@ export const STRENGTH_TEMPLATES = {
     { fallback: REASON_FALLBACK },
   ),
   'strength.reason.hold-unrecorded': tpl(
-    'The count of reps left was not recorded, so the load holds.',
+    'The count of reps left was not recorded, so the load stays unchanged.',
   ),
   'strength.reason.hold-range': tpl(
-    'Not every set of {exercise} reached {top} reps yet, so the load holds and each set aims one rep higher.',
+    'Not every set of {exercise} reached {top} reps yet, so the load stays unchanged and each set aims one rep higher.',
     { exercise: 'text', top: 'count' },
     { fallback: REASON_FALLBACK },
   ),
   // `pct` is `f8.maxStepPct`.
   'strength.reason.hold-step': tpl(
-    'The next step up from {load} would be more than {pct} of the load, so the load holds.',
+    'The next step up from {load} would be more than {pct} of the load, so the load stays unchanged.',
     { load: 'load', pct: 'percent' },
     { fallback: REASON_FALLBACK },
   ),
   // `pct` is the top of `flib.heavyMinPct1rm`.
   'strength.reason.hold-ceiling': tpl(
-    'The next step would pass {pct} of the estimated maximum, so the load holds.',
+    'The next step would pass {pct} of the estimated maximum, so the load stays unchanged.',
     { pct: 'percent' },
     { fallback: REASON_FALLBACK },
   ),
   // Every set reached the top of the range but one had too few reps left to earn a step (rule F8.5
   // asks for `f8.progressMinRir`); `reps` is that count in words ("one rep"), built from the Param.
   'strength.reason.hold-effort': tpl(
-    'Every set of {exercise} reached {top} reps, but a set had fewer than {reps} left, so the load holds.',
+    'Every set of {exercise} reached {top} reps, but a set had fewer than {reps} left, so the load stays unchanged.',
     { exercise: 'text', top: 'count', reps: 'text' },
     { fallback: REASON_FALLBACK },
   ),
@@ -498,9 +527,67 @@ export const STRENGTH_TEMPLATES = {
     { shape: 'label' },
   ),
 
+  // A lift as a row of the Strength page's Next session card (UX critique of 2026-11-01): the figures
+  // set apart, not one sentence a lift. The name stands at the left and the load at the right as a
+  // figure; under the name a muted line gives the prescription and the reps left. The sentence of
+  // `strength.sheet.suggested` stays as the row's text for a screen reader and for the specs that
+  // read a row by it. `amount` is "6 to 8", with the measure after it ("30 to 45 seconds") for a lift
+  // that does not count reps; a count of one set has its own template.
+  'strength.row.load': tpl('{load}', { load: 'load' }, { shape: 'label' }),
+  'strength.row.sets-one': tpl(
+    '{n} set of {amount}',
+    { n: 'count', amount: 'text' },
+    { shape: 'label', fallback: 'Sets' },
+  ),
+  'strength.row.sets-many': tpl(
+    '{n} sets of {amount}',
+    { n: 'count', amount: 'text' },
+    { shape: 'label', fallback: 'Sets' },
+  ),
+  'strength.row.amount-measure': tpl(
+    '{amount} {measure}',
+    { amount: 'text', measure: 'text' },
+    { shape: 'label', fallback: 'Amount' },
+  ),
+  'strength.row.reserve-min': tpl('{n} or more in reserve', { n: 'count' }, { shape: 'label' }),
+  'strength.row.reserve-range': tpl(
+    '{lo} to {hi} in reserve',
+    { lo: 'count', hi: 'count' },
+    { shape: 'label' },
+  ),
+  'strength.row.line': tpl(
+    '{prescription}, {reserve}',
+    { prescription: 'text', reserve: 'text' },
+    { shape: 'label', fallback: 'Sets' },
+  ),
+  // A hold is counted in seconds, a movement done on one side and then the other says so, and a
+  // movement with no reps-left target (the trunk work) names its measure: "8 to 12 reps".
+  'strength.row.each-side': tpl(
+    '{amount} each side',
+    { amount: 'text' },
+    { shape: 'label', fallback: 'Each side' },
+  ),
+  'strength.row.contacts': tpl(
+    '{contacts} ground contacts',
+    { contacts: 'count' },
+    { shape: 'label' },
+  ),
+  // The jumps have a sentence of their own, as the lifts have `strength.sheet.suggested`: it says
+  // "Suggested" like its siblings, and it is what a screen reader reads under the movement's name.
+  'strength.sheet.suggested-contacts': tpl(
+    'Suggested {contacts} ground contacts.',
+    { contacts: 'count' },
+    { fallback: 'The suggestion is in the workout.' },
+  ),
+  // What "in reserve" means, said once under the first row that has it. The strength copy is
+  // addressed to nobody in particular (a test keeps "you" out), so the reps are the set's.
+  'strength.row.gloss': tpl('In reserve: reps that could still have been done.'),
+
   // What a set counts, and the words of its controls.
   'strength.measure.reps': tpl('reps', {}, { shape: 'label' }),
   'strength.measure.seconds': tpl('seconds', {}, { shape: 'label' }),
+  // The unit beside a count of seconds where there is little room: a stepper, a row of the history.
+  'strength.measure.seconds-short': tpl('s', {}, { shape: 'label' }),
   'strength.measure.contacts': tpl('contacts', {}, { shape: 'label' }),
   'strength.measure.load': tpl('load', {}, { shape: 'label' }),
   'strength.measure.reps-left': tpl('reps left', {}, { shape: 'label' }),
@@ -522,7 +609,13 @@ export const STRENGTH_TEMPLATES = {
     { measure: 'text', amount: 'count' },
     { shape: 'label', fallback: 'Raise' },
   ),
-  'strength.sheet.all-sets': tpl('All sets', {}, { shape: 'label' }),
+  // The label over the row of 0 to 5 that sets the reps left for every set of a lift: the first lift
+  // of the sheet spells the scale out, the others say it shorter.
+  'strength.sheet.all-sets-first': tpl('Reps left in reserve, all sets', {}, { shape: 'label' }),
+  'strength.sheet.all-sets-reps-left': tpl('Reps left, all sets', {}, { shape: 'label' }),
+  // The disclosure under the safety line: that warm-ups are not logged, and what the top of the
+  // reps-left scale means. The sheet opens on the lifts, and these are one tap away.
+  'strength.sheet.about': tpl('How to log', {}, { shape: 'label' }),
   'strength.sheet.all-sets-for': tpl(
     'All sets, {exercise}, reps left',
     { exercise: 'text' },

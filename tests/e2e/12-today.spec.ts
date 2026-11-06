@@ -6,8 +6,10 @@ import type {
   StrengthView,
   TodayHeat,
   TodayView,
+  WorkoutLift,
 } from '../../shared/types.ts'
 import { SLOT_BUDGETS_PX } from '../../web/components/today/slots.ts'
+import { everyTrunkWorkout } from '../unit/engine/strength-fixtures.ts'
 import {
   loadWithSheetCode,
   relativeDates,
@@ -710,6 +712,46 @@ test('at 390 x 844 and 360 x 740 Log sets is inside the fold on a strength day, 
     await page.unroute(TODAY_REQUEST)
     await page.setViewportSize({ width: 1280, height: 720 })
   }
+})
+
+test('at 360 px the trunk row is one line for every pair of trunk movements the engine makes', async () => {
+  // The fold test above serves the widest pair; this one renders every pair, those of a runner who
+  // leaves movements out of the setup included, because a row of two lines is 22 px more.
+  const card = page.getByRole('article', { name: strengthDay.title })
+  const pairs = new Map<string, WorkoutLift[]>()
+  for (const { workout } of everyTrunkWorkout()) {
+    if (workout.trunk.length === 0) continue
+    pairs.set(workout.trunk.map((lift) => lift.exerciseId).join(), workout.trunk)
+  }
+  expect(pairs.size).toBeGreaterThan(15)
+  await page.setViewportSize({ width: 360, height: 740 })
+  const widest: string[] = []
+  try {
+    for (const trunk of pairs.values()) {
+      await serveTallestStrengthDay(page, strengthDay, trunk)
+      await page.reload()
+      const rows = card.getByRole('list', { name: /^Strength, / }).getByRole('listitem')
+      await expect(rows).toHaveCount(5)
+      const row = rows.last()
+      const { height, lineHeight, width, text } = await row.evaluate((element) => ({
+        height: element.getBoundingClientRect().height,
+        lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight),
+        width: element.getBoundingClientRect().width,
+        text: element.textContent,
+      }))
+      expect(height, text).toBeLessThan(lineHeight * 1.5)
+      widest.push(`${String(text.length)} ${text} (${String(width)} px wide)`)
+      await page.unroute(TODAY_REQUEST)
+    }
+    expect(await scrollsSideways()).toBe(false)
+  } finally {
+    await page.unroute(TODAY_REQUEST)
+    await page.setViewportSize({ width: 1280, height: 720 })
+  }
+  widest.sort((a, b) => Number.parseInt(b, 10) - Number.parseInt(a, 10))
+  test
+    .info()
+    .annotations.push({ type: 'longest-trunk-rows', description: widest.slice(0, 3).join(' | ') })
 })
 
 test('Log sets opens the logging sheet from the hero; logging as suggested is three interactions and the hero says it is done', async () => {

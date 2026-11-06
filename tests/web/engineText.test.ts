@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'vitest'
+import { EXECUTION_TEMPLATES } from '../../shared/copy/execution.ts'
+import { render } from '../../shared/copy/template.ts'
 import { allParams } from '../../shared/engine/params/index.ts'
-import type { EngineWarning } from '../../shared/engine/types.ts'
+import type { EngineWarning, ExecutionAssessment } from '../../shared/engine/types.ts'
 import {
+  assessmentLines,
   groupWarnings,
   localiseEngineText,
   localiseParamNote,
@@ -222,5 +225,127 @@ describe('unratedEffortNote', () => {
   test('adds the caveat only where there is a score to call a guess', () => {
     expect(unratedEffortNote(1, 'completed')).toMatch(/low-confidence guess/)
     expect(unratedEffortNote(null, 'completed')).not.toMatch(/low-confidence guess/)
+  })
+})
+
+describe('assessmentLines', () => {
+  const BAND: readonly [number, number] = [2, 3]
+  const sentence = (id: keyof typeof EXECUTION_TEMPLATES, slots: Record<string, unknown> = {}) =>
+    render(EXECUTION_TEMPLATES[id], slots as never, 'km')
+  const count = (n: number) => ({ kind: 'count', n }) as const
+  const quoted = (rpe: number) =>
+    sentence('execution.effort-harder-rpe', { rpe: count(rpe), low: count(2), high: count(3) })
+  /** An assessment of a session whose band is 2 to 3 (middle 2.5), rated as given. */
+  const assessment = (
+    lines: string[],
+    rating: { rpe?: number; feel?: number } = {},
+    score: ExecutionAssessment['effort']['score'] = 1,
+  ): ExecutionAssessment => ({
+    completion: 'completed',
+    intensity: 'on',
+    effort: {
+      score,
+      confidence: 'low',
+      parts: {
+        rpeDelta: rating.rpe === undefined ? null : rating.rpe - 2.5,
+        feel: rating.feel ?? null,
+        hrResidualZ: 1.4,
+        paceResidualPct: null,
+      },
+    },
+    conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
+    flags: [],
+    lines,
+  })
+  const PLANNED = '54 min against 60 min planned (90%).'
+  const ON = sentence('execution.intensity-on')
+
+  test('keeps the sentences that are not about effort, whatever the rating', () => {
+    const lines = [PLANNED, ON, sentence('execution.hr-unqualified')]
+    expect(assessmentLines(assessment(lines), BAND)).toEqual(lines)
+    expect(assessmentLines(assessment(lines, { rpe: 3 }), BAND)).toEqual(lines)
+  })
+
+  test('drops the effort sentence of a run with no rating', () => {
+    const lines = [PLANNED, ON, sentence('execution.effort-harder')]
+    expect(assessmentLines(assessment(lines), BAND)).toEqual([PLANNED, ON])
+  })
+
+  test('drops a harder verdict beside an RPE inside the band, quoted RPE and all', () => {
+    for (const rpe of [2, 3]) {
+      const lines = [PLANNED, quoted(rpe)]
+      expect(assessmentLines(assessment(lines, { rpe }), BAND), `RPE ${String(rpe)}`).toEqual([
+        PLANNED,
+      ])
+    }
+  })
+
+  test('drops a harder verdict beside a feel of 0, or below it', () => {
+    const lines = [PLANNED, sentence('execution.effort-harder')]
+    expect(assessmentLines(assessment(lines, { feel: 0 }), BAND)).toEqual([PLANNED])
+    expect(assessmentLines(assessment(lines, { feel: -1 }), BAND)).toEqual([PLANNED])
+  })
+
+  test('keeps a harder verdict, quoting the RPE, when the RPE is above the band', () => {
+    const lines = [PLANNED, quoted(5)]
+    expect(assessmentLines(assessment(lines, { rpe: 5 }), BAND)).toEqual(lines)
+  })
+
+  test('keeps a harder verdict when the feel is above 0', () => {
+    const lines = [PLANNED, sentence('execution.effort-much-harder')]
+    expect(assessmentLines(assessment(lines, { feel: 2 }, 2), BAND)).toEqual(lines)
+  })
+
+  test('says a verdict only the feel supports without the RPE that does not', () => {
+    // the RPE is inside the band, the feel is above 0: harder, in the sentence that quotes no RPE
+    const lines = [PLANNED, quoted(3)]
+    expect(assessmentLines(assessment(lines, { rpe: 3, feel: 1 }), BAND)).toEqual([
+      PLANNED,
+      sentence('execution.effort-harder'),
+    ])
+  })
+
+  test('keeps an easier verdict when the RPE is below the band or the feel below 0, and drops it otherwise', () => {
+    const lines = [PLANNED, sentence('execution.effort-easier')]
+    expect(assessmentLines(assessment(lines, { rpe: 1 }, -1), BAND)).toEqual(lines)
+    expect(assessmentLines(assessment(lines, { feel: -1 }, -1), BAND)).toEqual(lines)
+    expect(assessmentLines(assessment(lines, { rpe: 2 }, -1), BAND)).toEqual([PLANNED])
+    expect(assessmentLines(assessment(lines, { feel: 0 }, -1), BAND)).toEqual([PLANNED])
+    expect(assessmentLines(assessment(lines, { feel: 1 }, -1), BAND)).toEqual([PLANNED])
+  })
+
+  test('keeps "as expected" for an RPE inside the band or a feel of 0, and drops it otherwise', () => {
+    const lines = [PLANNED, sentence('execution.effort-matched')]
+    expect(assessmentLines(assessment(lines, { rpe: 2 }, 0), BAND)).toEqual(lines)
+    expect(assessmentLines(assessment(lines, { feel: 0 }, 0), BAND)).toEqual(lines)
+    expect(assessmentLines(assessment(lines, { rpe: 6 }, 0), BAND)).toEqual([PLANNED])
+    expect(assessmentLines(assessment(lines, {}, 0), BAND)).toEqual([PLANNED])
+  })
+
+  test('reads the RPE from the band it is given, so a session with another band is read against it', () => {
+    // RPE 7 is above the band of an easy run and inside the band of intervals
+    const lines = [PLANNED, quoted(7)]
+    expect(assessmentLines(assessment(lines, { rpe: 7 }), BAND)).toEqual(lines)
+    const intervals = assessment(lines, { rpe: 7 })
+    intervals.effort.parts.rpeDelta = 7 - 7.5
+    expect(assessmentLines(intervals, [7, 8])).toEqual([PLANNED])
+  })
+
+  test('with no band there is no RPE to read, and only the feel can support a verdict', () => {
+    const lines = [PLANNED, sentence('execution.effort-harder')]
+    expect(assessmentLines(assessment(lines, { rpe: 8 }), null)).toEqual([PLANNED])
+    expect(assessmentLines(assessment(lines, { feel: 1 }), null)).toEqual(lines)
+  })
+
+  test('names every effort sentence of the registry, so a new one is not shown unchecked', () => {
+    const ids = Object.keys(EXECUTION_TEMPLATES).filter((id) => id.startsWith('execution.effort-'))
+    expect(ids).toHaveLength(7)
+    // each is dropped when no rating stands behind it (a sentence the helper did not know would stay)
+    for (const id of ids) {
+      const key = id as keyof typeof EXECUTION_TEMPLATES
+      const quotes = Object.keys(EXECUTION_TEMPLATES[key].slots).length > 0
+      const line = sentence(key, quotes ? { rpe: count(5), low: count(2), high: count(3) } : {})
+      expect(assessmentLines(assessment([line]), BAND), id).toEqual([])
+    }
   })
 })

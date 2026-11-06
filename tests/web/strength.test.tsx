@@ -9,6 +9,7 @@ import { formatLoad, fromGrams, stepFrom, toGrams } from '../../shared/domain/we
 import { P } from '../../shared/engine/params/index.ts'
 import { estimateOneRm, structuresFor } from '../../shared/engine/strength.ts'
 import type {
+  StrengthLiftSummary,
   StrengthNextLoad,
   StrengthSettings,
   StrengthSnapshot,
@@ -52,6 +53,7 @@ import {
   makeLog,
   makeView,
   makeWorkout,
+  plank,
   rdl,
   savedLog,
   set,
@@ -161,7 +163,7 @@ function open(options: Options = {}): Rig {
 }
 
 /** The sheet once it has drawn its lifts. */
-async function sheet(name = 'Strength, heavy A') {
+async function sheet(name = 'Strength, heavy, session A') {
   const dialog = await screen.findByRole('dialog', { name })
   await within(dialog).findAllByRole('region')
   return dialog
@@ -208,7 +210,7 @@ describe('the offer to set up strength in the sheet (design 6.1)', () => {
 
   test('is a line with a link to the setup while the workout is built for bodyweight only', async () => {
     open({ workout: { ...bodyweightWorkout(), setupSaved: false } })
-    const dialog = await sheet('Strength, ramp-in A')
+    const dialog = await sheet('Strength, ramp-in, session A')
     expect(within(dialog).getByText(offer)).toBeVisible()
     const link = within(dialog).getByRole('link', { name: 'Set up strength' })
     expect(link).toHaveAttribute('href', '/strength')
@@ -233,7 +235,7 @@ describe('the offer to set up strength in the sheet (design 6.1)', () => {
     await page('Set up strength')
     const user = userEvent.setup()
     await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).queryByText(offer)).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Close' }))
     // the page's own card is where the offer is
@@ -245,14 +247,15 @@ describe('the sheet a workout opens as (design 9.1)', () => {
   test('is filled from the workout: its loads, its target in each set, no reps left, the planned minutes', async () => {
     open()
     const dialog = await sheet()
-    expect(within(dialog).getByRole('form', { name: 'Strength, heavy A' })).toBeVisible()
+    expect(within(dialog).getByRole('form', { name: 'Strength, heavy, session A' })).toBeVisible()
     expect(within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')).toBeVisible()
+    // the safety line is in view with nothing opened; the warm-up note is behind the disclosure
     expect(
       within(dialog).getByText(
         'Stop a set if anything hurts or form changes. Learn barbell lifts from a coach before adding load.',
       ),
     ).toBeVisible()
-    expect(within(dialog).getByText(/Warm-up sets are not logged\./)).toBeVisible()
+    expect(within(dialog).getByText(/Warm-up sets are not logged\./)).toBeInTheDocument()
 
     // the squat: four sets at 110 lb, the counts to aim at, nothing recorded as left
     expect(values('Back squat', 'load')).toEqual(['110', '110', '110', '110'])
@@ -301,7 +304,7 @@ describe('the sheet a workout opens as (design 9.1)', () => {
         <StrengthSheet workout={makeWorkout()} date={DAY} onClose={vi.fn()} onSaved={vi.fn()} />
       </ToastProvider>,
     )
-    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       'The weight unit could not be read. Close this and try again.',
     )
@@ -311,7 +314,7 @@ describe('the sheet a workout opens as (design 9.1)', () => {
 
   test('names the template and the variant in its heading, and the lighter-day line only on a lighter day', async () => {
     open({ workout: makeWorkout({ template: 'ramp-in', variant: 'B' }) })
-    const dialog = await sheet('Strength, ramp-in B')
+    const dialog = await sheet('Strength, ramp-in, session B')
     expect(within(dialog).queryByText(/Lighter today/)).toBeNull()
   })
 })
@@ -319,7 +322,7 @@ describe('the sheet a workout opens as (design 9.1)', () => {
 describe('a lift with no load', () => {
   test('is a bodyweight path with no load field and nothing to step but the count', async () => {
     open({ workout: bodyweightWorkout() })
-    await sheet('Strength, ramp-in A')
+    await sheet('Strength, ramp-in, session A')
     for (const name of ['Tempo squat', 'Hip thrust (glute bridge)', 'Standing calf raise']) {
       const scope = region(name)
       expect(scope.queryByRole('group', { name: /load$/ })).toBeNull()
@@ -338,7 +341,7 @@ describe('a lift with no load', () => {
       workout: bodyweightWorkout(),
       routes: { [`PUT ${LOG_URL}`]: () => savedLog(LOG_ID) },
     })
-    await sheet('Strength, ramp-in A')
+    await sheet('Strength, ramp-in, session A')
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => {
@@ -458,6 +461,38 @@ describe('the steppers', () => {
   })
 })
 
+describe('a hold on the logging sheet (a count of seconds)', () => {
+  test('shows its unit beside the value, so a logged 30 reads as 30 s, and its names say seconds', async () => {
+    open()
+    await sheet()
+    const group = screen.getByRole('group', { name: 'Side plank, set 1, seconds' })
+    const shown = within(group).getByText('s')
+    expect(shown).toBeVisible()
+    expect(shown).toHaveAttribute('aria-hidden', 'true')
+    // a screen reader says seconds, in the description of the field, and not the letter
+    expect(field('Side plank', 1, 'seconds')).toHaveAccessibleDescription('seconds')
+    expect(within(group).getByRole('button', { name: 'Lower the seconds by 5' })).toBeVisible()
+    expect(within(group).getByRole('button', { name: 'Raise the seconds by 5' })).toBeVisible()
+    // the stepper of reps and the one of contacts have no such unit
+    expect(
+      within(screen.getByRole('group', { name: 'Back squat, set 1, reps' })).queryByText('s'),
+    ).not.toBeInTheDocument()
+    expect(
+      within(screen.getByRole('group', { name: 'Pogo hops, set 1, contacts' })).queryByText('s'),
+    ).not.toBeInTheDocument()
+  })
+
+  test('reads each set of a hold with its unit in the suggestion too: "seconds each side"', async () => {
+    open()
+    await sheet()
+    expect(
+      within(screen.getByRole('region', { name: 'Side plank' })).getByText(
+        'Suggested two sets of 30 to 45 seconds each side.',
+      ),
+    ).toBeVisible()
+  })
+})
+
 describe('"As suggested" and the reps-left scale', () => {
   test('"As suggested" fills every set with the load, the target and the lowest reps left of the range', async () => {
     open()
@@ -521,9 +556,74 @@ describe('"As suggested" and the reps-left scale', () => {
     expect(repsLeft('Back squat')).toEqual([null, null, null, null])
   })
 
+  test('opens on the lifts: the day and unit in the header, the safety line in view, the rest behind a disclosure', async () => {
+    open()
+    const dialog = await sheet()
+    const form = within(dialog).getByRole('form', { name: 'Strength, heavy, session A' })
+    const first = within(form).getByRole('region', { name: 'Back squat' })
+    // the safety line is visible without opening anything, and it is the one muted line of the form
+    // before the first lift
+    const safety = within(form).getByText(/^Stop a set if anything hurts/)
+    expect(safety).toBeVisible()
+    expect(safety.closest('details')).toBeNull()
+    const before = [...form.querySelectorAll('p')].filter(
+      (paragraph) =>
+        paragraph.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING &&
+        !paragraph.closest('details'),
+    )
+    expect(before.map((paragraph) => paragraph.textContent)).toEqual([
+      'Stop a set if anything hurts or form changes. Learn barbell lifts from a coach before adding load.',
+    ])
+    // the day and the unit are the sheet's subtitle, in its header and not in the form
+    const date = within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')
+    expect(date).toBeVisible()
+    expect(form).not.toContainElement(date)
+    expect(dialog.compareDocumentPosition(date) & Node.DOCUMENT_POSITION_CONTAINED_BY).toBeTruthy()
+    // the dialog is still named by its title alone
+    expect(screen.getByRole('dialog', { name: 'Strength, heavy, session A' })).toBe(dialog)
+    // the warm-up note and the reps-left hint are behind a row that says what is in it
+    const disclosure = within(form).getByText('How to log')
+    expect(disclosure).toBeVisible()
+    expect(disclosure.closest('details')).not.toHaveAttribute('open')
+    const warmup = within(form).getByText(/Warm-up sets are not logged\./)
+    expect(warmup).not.toBeVisible()
+    await userEvent.setup().click(disclosure)
+    expect(warmup).toBeVisible()
+  })
+
+  test('says where a log starts from beside the day, in the header, and no more', async () => {
+    open({ start: 'next-planned' })
+    const dialog = await sheet()
+    const subtitle = within(dialog).getByText('Wed 18 Mar. Loads are in pounds.').parentElement
+    expect(subtitle).toHaveTextContent(
+      'Wed 18 Mar. Loads are in pounds. From the next planned session.',
+    )
+    expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
+  })
+
+  test('labels the row of 0 to 5: the first lift says reps left in reserve, the others reps left', async () => {
+    open()
+    const dialog = await sheet()
+    const labels = within(dialog)
+      .getAllByText(/, all sets$/)
+      .map((label) => label.textContent)
+    expect(labels).toEqual([
+      'Reps left in reserve, all sets',
+      'Reps left, all sets',
+      'Reps left, all sets',
+    ])
+    // each label stands over the scale it names, in the section of its lift
+    expect(region('Back squat').getByText('Reps left in reserve, all sets')).toBeInTheDocument()
+    // the names of the controls are what they were
+    expect(
+      screen.getByRole('button', { name: 'All sets, Back squat, reps left 2' }),
+    ).toBeInTheDocument()
+  })
+
   test('says what the top of the scale means, once', async () => {
     open()
     const dialog = await sheet()
+    await userEvent.setup().click(within(dialog).getByText('How to log'))
     expect(
       within(dialog).getByText(
         /Reps left in reserve: 5 means 5 or more\. Tap a value again to clear it\./,
@@ -1121,7 +1221,7 @@ describe('where a workout came from (design 9.1)', () => {
   test('a log started from this week’s maintenance session says so, reads its lifts by the day alone and offers no Why', async () => {
     const maintenance = makeWorkout({ sessionId: `maintenance-${DAY}`, template: 'maintenance' })
     const { calls } = open({ workout: maintenance, start: 'maintenance', sessionId: null })
-    const dialog = await sheet('Strength, maintenance A')
+    const dialog = await sheet('Strength, maintenance, session A')
     expect(await within(dialog).findByText("From this week's maintenance session.")).toBeVisible()
     expect(screen.queryByRole('button', { name: /^Why:/ })).toBeNull()
     await waitFor(() => {
@@ -1198,7 +1298,7 @@ describe('where a workout came from (design 9.1)', () => {
       start: 'maintenance',
       sessionId: null,
     })
-    const dialog = await sheet('Strength, maintenance A')
+    const dialog = await sheet('Strength, maintenance, session A')
     expect(
       await within(dialog).findByText('From the maintenance session of the week of 2 Mar.'),
     ).toBeVisible()
@@ -1266,7 +1366,7 @@ describe('a sheet that reads its workout (design 9.1)', () => {
       sessionId: null,
       routes: { 'GET /api/strength/workout': dayRoute(maintenance, 'maintenance') },
     })
-    const dialog = await sheet('Strength, maintenance A')
+    const dialog = await sheet('Strength, maintenance, session A')
     expect(within(dialog).getByText("From this week's maintenance session.")).toBeVisible()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Swap: Back squat' })).toBeEnabled()
@@ -1550,7 +1650,7 @@ describe('what a load means, beside the field (design 5.2)', () => {
 
   test('is not shown on the bodyweight path, where there is no load field', async () => {
     open({ workout: bodyweightWorkout() })
-    const dialog = await sheet('Strength, ramp-in A')
+    const dialog = await sheet('Strength, ramp-in, session A')
     expect(
       within(dialog).queryByText(
         /Total, including the bar|Stack or plate total|Weight of one dumbbell or kettlebell|Added weight/,
@@ -2300,12 +2400,12 @@ describe('the copy', () => {
       settings: { ...SETTINGS, weightUnit: 'kg', units: 'km' },
       workout: bodyweightWorkout(),
     })
-    expectCleanCopy(await sheet('Strength, ramp-in A'))
+    expectCleanCopy(await sheet('Strength, ramp-in, session A'))
   })
 
   test('passes the lint on a workout the engine derives', async () => {
     open({ workout: engineWorkout(0) })
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expectCleanCopy(dialog)
   })
 })
@@ -2316,7 +2416,7 @@ describe('what the sheet shows of a workout the engine derives', () => {
     async (variant) => {
       const workout = engineWorkout(variant)
       open({ workout })
-      await sheet(`Strength, ${workout.template} ${workout.variant}`)
+      await sheet(`Strength, ${workout.template}, session ${workout.variant}`)
       const words = strengthWords('mi', 'lb')
       expect(workout.lifts.length).toBeGreaterThan(1)
       for (const lift of [...workout.lifts, ...workout.trunk]) {
@@ -2541,7 +2641,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     openPage()
     await page()
     const next = region('Next session')
-    expect(next.getByText('Strength, heavy A')).toBeVisible()
+    expect(next.getByText('Strength, heavy, session A')).toBeVisible()
     expect(next.getByText('Wed 18 Mar. About 40 min planned.')).toBeVisible()
     expect(
       next.getByText('Suggested 110 lb, four sets of 3 to 6 reps, leave 1 to 3 in reserve.'),
@@ -2552,12 +2652,12 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     expect(
       next.getByText('Suggested three sets of 8 to 15 reps, leave 1 to 3 in reserve.'),
     ).toBeVisible()
-    expect(next.getByText('Pogo hops, 40 contacts.')).toBeVisible()
-    expect(next.getByText('Suggested two sets of 30 to 45 seconds.')).toBeVisible()
+    expect(next.getByText('Suggested 40 ground contacts.')).toBeInTheDocument()
+    expect(next.getByText('Suggested two sets of 30 to 45 seconds each side.')).toBeVisible()
     expect(next.getByText('Lift at least 3 hours before or after a run.')).toBeVisible()
     // a word for what the rules did, never colour alone
     expect(next.getByText('Up one step')).toBeVisible()
-    expect(next.getByText('The load holds')).toBeVisible()
+    expect(next.getByText('Load unchanged')).toBeVisible()
   })
 
   test('shows the loads in kilograms for a runner who chose them, on the same grams', async () => {
@@ -2577,7 +2677,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     await page()
     const user = userEvent.setup()
     await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'As suggested' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -2602,7 +2702,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     const user = userEvent.setup()
     expect(region('Next session').getByText('Fri 20 Mar. About 40 min planned.')).toBeVisible()
     await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'As suggested' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -2619,7 +2719,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     await page()
     const user = userEvent.setup()
     await user.click(region('Next session').getByRole('button', { name: 'Log sets' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
   })
 
@@ -2627,7 +2727,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     openPage()
     await page()
     await userEvent.setup().click(region('Next session').getByRole('button', { name: 'Log sets' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).queryByText(/^From /)).toBeNull()
   })
 
@@ -2640,7 +2740,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
       target: { value: '2026-03-10' },
     })
     await user.click(screen.getByRole('button', { name: 'Continue' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
   })
 
@@ -2671,7 +2771,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
 
     fireEvent.change(day, { target: { value: '2026-03-10' } })
     await user.click(screen.getByRole('button', { name: 'Continue' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).getByText('Tue 10 Mar. Loads are in pounds.')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'As suggested' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -2681,6 +2781,322 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     const body = putBody(calls)
     expect(body.date).toBe('2026-03-10')
     expect(body).not.toHaveProperty('sessionId')
+  })
+})
+
+describe('the Strength page: the rows of the next session (UX critique of 2026-11-01)', () => {
+  const next = () => region('Next session')
+  /** The row of an exercise in the Next session card. */
+  const rowOf = (name: string): HTMLElement => {
+    const row = within(screen.getByRole('region', { name: 'Next session' }))
+      .getAllByRole('listitem')
+      .find((item) => within(item).queryByText(name, { exact: true }) !== null)
+    if (row === undefined) throw new Error(`No row for ${name}`)
+    return row
+  }
+  const open = async (workout: StrengthWorkout, settings?: UserSettings) => {
+    openPage({
+      view: pageView({ next: [workout] }),
+      ...(settings === undefined ? {} : { settings }),
+    })
+    await page()
+  }
+
+  test('a lift is its name, its load as a figure and its prescription in one muted line under the name', async () => {
+    await open(makeWorkout())
+    const row = rowOf('Back squat')
+    expect(within(row).getByText('110 lb')).toBeVisible()
+    expect(within(row).getByText('4 sets of 3 to 6, 1 to 3 in reserve')).toBeVisible()
+    // the figures are for the eye; the one sentence is what a screen reader and a spec read
+    expect(within(row).getByText('110 lb')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(row).getByText('4 sets of 3 to 6, 1 to 3 in reserve')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+    const sentence = within(row).getByText(
+      'Suggested 110 lb, four sets of 3 to 6 reps, leave 1 to 3 in reserve.',
+    )
+    expect(sentence).toHaveClass('visually-hidden')
+    expect(sentence).not.toHaveAttribute('aria-hidden')
+    // the name comes before the load in the row, so a screen reader reads the name first
+    expect(
+      within(row).getByText('Back squat').compareDocumentPosition(within(row).getByText('110 lb')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  test('the load follows the runner’s weight unit through the one formatter, on the same grams', async () => {
+    await open(makeWorkout(), SETTINGS_KG)
+    expect(within(rowOf('Back squat')).getByText('50 kg')).toBeVisible()
+    expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('18.25 kg')).toBeVisible()
+    expect(next().queryByText(/ lb/)).not.toBeInTheDocument()
+  })
+
+  test('a lift with no load has no figure and keeps its reps line', async () => {
+    await open(makeWorkout())
+    const row = rowOf('Standing calf raise')
+    expect(within(row).getByText('3 sets of 8 to 15, 1 to 3 in reserve')).toBeVisible()
+    expect(row.querySelector('[class*="rowLoad"]')).toBeNull()
+    expect(within(row).queryByText(/ lb$/)).not.toBeInTheDocument()
+  })
+
+  test('a hold says how long and on which sides: "2 sets of 30 to 45 seconds each side"', async () => {
+    await open(makeWorkout())
+    const row = rowOf('Side plank')
+    expect(within(row).getByText('2 sets of 30 to 45 seconds each side')).toBeVisible()
+    expect(
+      within(row).getByText('Suggested two sets of 30 to 45 seconds each side.'),
+    ).toBeInTheDocument()
+    // a hold has no reps-left target, so the line names no reserve
+    expect(within(row).queryByText(/in reserve/)).not.toBeInTheDocument()
+  })
+
+  test('a trunk movement counted in reps says "reps": "2 sets of 8 to 12 reps"', async () => {
+    await open(
+      makeWorkout({
+        trunk: [plank({ exerciseId: 'dead-bug', range: { min: 8, max: 12 }, targets: [8, 8] })],
+      }),
+    )
+    const row = rowOf('Dead bug')
+    expect(within(row).getByText('2 sets of 8 to 12 reps')).toBeVisible()
+    expect(within(row).getByText('Suggested two sets of 8 to 12 reps.')).toBeInTheDocument()
+    // a lift with a reps-left target keeps the shorter line: its reserve says the count is reps
+    expect(
+      within(rowOf('Back squat')).getByText('4 sets of 3 to 6, 1 to 3 in reserve'),
+    ).toBeVisible()
+  })
+
+  test('says "each side" for the movements the catalogue marks, and for no other', async () => {
+    await open(
+      makeWorkout({
+        trunk: [
+          plank(),
+          plank({ exerciseId: 'farmer-carry' }),
+          plank({ exerciseId: 'pallof-press', range: { min: 8, max: 12 }, targets: [8, 8] }),
+        ],
+      }),
+    )
+    expect(within(rowOf('Side plank')).getByText(/each side$/)).toBeVisible()
+    expect(within(rowOf('Farmer carry')).getByText('2 sets of 30 to 45 seconds')).toBeVisible()
+    expect(within(rowOf('Pallof press')).getByText('2 sets of 8 to 12 reps')).toBeVisible()
+  })
+
+  test('one set and an exact count read as "1 set of 5"', async () => {
+    await open(
+      makeWorkout({
+        lifts: [
+          squat({ sets: 1, range: { min: 5, max: 5 }, targets: [5], rir: { min: 2, max: 2 } }),
+        ],
+      }),
+    )
+    expect(within(rowOf('Back squat')).getByText('1 set of 5, 2 or more in reserve')).toBeVisible()
+  })
+
+  test('says what the rules did to a load only on the rows where the words differ', async () => {
+    await open(makeWorkout())
+    // the squat went up a step and the deadlift holds: each says so on its own row
+    expect(within(rowOf('Back squat')).getByText('Up one step')).toBeVisible()
+    expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('Load unchanged')).toBeVisible()
+    expect(next().getAllByText('Load unchanged')).toHaveLength(1)
+    expect(next().getAllByText('Up one step')).toHaveLength(1)
+  })
+
+  test('when every lift holds it says so once, under the subtitle, and not on the rows', async () => {
+    await open(makeWorkout({ lifts: [squat({ change: 'hold' }), rdl(), calf()] }))
+    const said = next().getAllByText('Load unchanged')
+    expect(said).toHaveLength(1)
+    expect(said[0]?.closest('li')).toBeNull()
+    // under the line that gives the day and the minutes
+    expect(
+      next()
+        .getByText('Wed 18 Mar. About 40 min planned.')
+        .compareDocumentPosition(said[0] as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  test('the same word on every lift is said once, whichever word it is', async () => {
+    await open(
+      makeWorkout({
+        lifts: [squat(), rdl({ change: 'increase' })],
+        plyo: null,
+        trunk: [],
+      }),
+    )
+    const said = next().getAllByText('Up one step')
+    expect(said).toHaveLength(1)
+    expect(said[0]?.closest('li')).toBeNull()
+  })
+
+  test('a first session, which has no word for its loads, says nothing of a change', async () => {
+    await open(makeWorkout({ lifts: [squat({ change: 'start' }), rdl({ change: 'start' })] }))
+    expect(next().queryByText(/^(Load unchanged|Up one step|Lighter day)$/)).not.toBeInTheDocument()
+  })
+
+  test('says a change of a lone loaded lift on its own row: a note under the subtitle would have no subject', async () => {
+    // one lift with a load, the rest bodyweight
+    await open(makeWorkout({ lifts: [squat({ change: 'hold' }), calf()], plyo: null, trunk: [] }))
+    expect(within(rowOf('Back squat')).getByText('Load unchanged')).toBeVisible()
+    expect(next().getAllByText('Load unchanged')).toHaveLength(1)
+  })
+
+  describe('a load that moved two steps', () => {
+    const twoSteps: WorkoutLift['basis'] = {
+      rule: 'F8',
+      facts: [
+        {
+          template: 'strength.reason.increase-two',
+          slots: {
+            exercise: 'Back squat',
+            top: { kind: 'count', n: 6 },
+            rir: { kind: 'count', n: 3 },
+          },
+        },
+      ],
+    }
+    const oneStep: WorkoutLift['basis'] = {
+      rule: 'F8',
+      facts: [
+        {
+          template: 'strength.reason.increase',
+          slots: { exercise: 'Dumbbell Romanian deadlift', top: { kind: 'count', n: 6 } },
+        },
+      ],
+    }
+
+    test('is "Up two steps", not "Up one step"', async () => {
+      await open(
+        makeWorkout({
+          lifts: [squat({ change: 'increase', basis: twoSteps }), rdl({ change: 'hold' })],
+          plyo: null,
+          trunk: [],
+        }),
+      )
+      expect(within(rowOf('Back squat')).getByText('Up two steps')).toBeVisible()
+      expect(next().queryByText('Up one step')).not.toBeInTheDocument()
+    })
+
+    test('is not folded into one note with a lift that moved one step', async () => {
+      await open(
+        makeWorkout({
+          lifts: [
+            squat({ change: 'increase', basis: twoSteps }),
+            rdl({ change: 'increase', basis: oneStep }),
+          ],
+          plyo: null,
+          trunk: [],
+        }),
+      )
+      expect(within(rowOf('Back squat')).getByText('Up two steps')).toBeVisible()
+      expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('Up one step')).toBeVisible()
+    })
+
+    test('is said once when every loaded lift moved two steps', async () => {
+      await open(
+        makeWorkout({
+          lifts: [
+            squat({ change: 'increase', basis: twoSteps }),
+            rdl({ change: 'increase', basis: twoSteps }),
+          ],
+          plyo: null,
+          trunk: [],
+        }),
+      )
+      const said = next().getAllByText('Up two steps')
+      expect(said).toHaveLength(1)
+      expect(said[0]?.closest('li')).toBeNull()
+    })
+  })
+
+  test('puts "Log sets" in the header row beside the heading, and "Add a past session" under the list', async () => {
+    await open(makeWorkout())
+    const heading = next().getByRole('heading', { name: 'Next session' })
+    const logSets = next().getByRole('button', { name: 'Log sets' })
+    expect(heading.parentElement).toContainElement(logSets)
+    const list = next().getByRole('list')
+    const past = next().getByRole('button', { name: 'Add a past session' })
+    expect(list).not.toContainElement(logSets)
+    expect(heading.parentElement).not.toContainElement(past)
+    expect(list.compareDocumentPosition(past) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(logSets.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  test('"Log sets" is the one primary button of the card and "Add a past session" is quiet', async () => {
+    await open(makeWorkout())
+    const logSets = next().getByRole('button', { name: 'Log sets' })
+    const past = next().getByRole('button', { name: 'Add a past session' })
+    // the rendered class of each is the variant it was given (the modules hash the name)
+    expect(logSets.className).toMatch(/_primary_/)
+    expect(past.className).toMatch(/_quiet_/)
+    expect(past.className).not.toMatch(/_primary_/)
+    // the only primary button in the card is Log sets
+    const primaries = next()
+      .getAllByRole('button')
+      .filter((button) => /_primary_/.test(button.className))
+    expect(primaries).toEqual([logSets])
+  })
+
+  test('the jumps keep a row of their own: ground contacts for the eye, and a "Suggested" sentence, as the lifts have, for a screen reader', async () => {
+    await open(makeWorkout())
+    const row = rowOf('Pogo hops')
+    expect(within(row).getByText('40 ground contacts')).toBeVisible()
+    expect(within(row).getByText('Suggested 40 ground contacts.')).toHaveClass('visually-hidden')
+  })
+
+  test('every sentence of a row passes the lint', async () => {
+    await open(makeWorkout())
+    expectCleanCopy(next().getByRole('list'))
+  })
+
+  test('glosses "in reserve" once, under the first row that names the reps left, and nowhere else', async () => {
+    await open(makeWorkout())
+    const gloss = next().getAllByText('In reserve: reps that could still have been done.')
+    expect(gloss).toHaveLength(1)
+    // the squat is the first row with a reps-left target, and the gloss is in its row
+    expect(rowOf('Back squat')).toContainElement(gloss[0] as HTMLElement)
+    expect(gloss[0]).not.toHaveAttribute('aria-hidden')
+  })
+
+  test('puts the gloss on the first lift that has a reps-left target, not on one that has none', async () => {
+    await open(makeWorkout({ lifts: [], plyo: null, trunk: [plank(), squat()] }))
+    expect(rowOf('Back squat')).toContainElement(
+      next().getByText('In reserve: reps that could still have been done.'),
+    )
+    expect(rowOf('Side plank')).not.toHaveTextContent(/In reserve:/)
+  })
+
+  test('has no gloss when no row names the reps left', async () => {
+    await open(makeWorkout({ lifts: [], plyo: null, trunk: [plank()] }))
+    expect(next().queryByText(/^In reserve:/)).not.toBeInTheDocument()
+  })
+
+  test('heads the card with the letter named a session, and the block card says what A and B are', async () => {
+    await open(makeWorkout())
+    expect(next().getByText('Strength, heavy, session A')).toBeVisible()
+    expect(
+      region('This block').getByText(
+        'Sessions take turns: A leads with squats and steps, B with hinges and bridges.',
+      ),
+    ).toBeVisible()
+  })
+
+  test('leaves out the line about A and B when no session is planned', async () => {
+    openPage({ view: pageView({ next: [], lifts: [], recent: [], block: null }) })
+    await page()
+    expect(screen.queryByText(/^Sessions take turns/)).not.toBeInTheDocument()
+  })
+
+  test('says "Load unchanged" in the Lifts list for a load that has not moved, in the words of the card', async () => {
+    await open(makeWorkout())
+    // the deadlift has not moved since it was first logged, and its next load is the same
+    expect(region('Lifts').getByText('Load unchanged')).toBeVisible()
+    expect(next().getByText('Load unchanged')).toBeVisible()
+    expect(screen.queryByText('The load has not moved')).not.toBeInTheDocument()
+  })
+
+  test('uses no "hold" for a load anywhere on the page', async () => {
+    await open(makeWorkout({ lifts: [squat({ change: 'hold' }), rdl()], plyo: null, trunk: [] }))
+    expect(screen.queryByText(/\bholds?\b/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/has not moved/i)).not.toBeInTheDocument()
   })
 })
 
@@ -2703,7 +3119,7 @@ describe('the Strength page: a log with no session planned (design 9.1, 11.3)', 
     // the sheet is there while the workout is read
     const loading = await screen.findByRole('dialog', { name: 'Strength' })
     expect(within(loading).getByText('Reading the workout.')).toBeVisible()
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
     expect(within(dialog).getByText('Wed 18 Mar. Loads are in pounds.')).toBeVisible()
     expect(dayReads(calls)).toEqual([`/api/strength/workout?date=${DAY}`])
@@ -2734,7 +3150,7 @@ describe('the Strength page: a log with no session planned (design 9.1, 11.3)', 
     await userEvent
       .setup()
       .click(region('Next session').getByRole('button', { name: 'Log a session' }))
-    const dialog = await sheet('Strength, maintenance A')
+    const dialog = await sheet('Strength, maintenance, session A')
     expect(await within(dialog).findByText("From this week's maintenance session.")).toBeVisible()
     expectCleanCopy(dialog)
   })
@@ -2754,7 +3170,7 @@ describe('the Strength page: a log with no session planned (design 9.1, 11.3)', 
       target: { value: '2026-03-10' },
     })
     await user.click(screen.getByRole('button', { name: 'Continue' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).getByText('Tue 10 Mar. Loads are in pounds.')).toBeVisible()
     expect(within(dialog).getByText('From the next planned session.')).toBeVisible()
     expect(dayReads(calls)).toEqual(['/api/strength/workout?date=2026-03-10'])
@@ -2814,7 +3230,7 @@ describe('the Strength page: focus around the past session flow (design 11.7)', 
     })
     const proceed = screen.getByRole('button', { name: 'Continue' })
     await user.click(proceed)
-    await sheet('Strength, heavy A')
+    await sheet('Strength, heavy, session A')
     // Escape closes the sheet and keeps what was entered; the control that opened it is still there
     await user.keyboard('{Escape}')
     await waitFor(() => {
@@ -2825,7 +3241,7 @@ describe('the Strength page: focus around the past session flow (design 11.7)', 
 
     // and the same after a save
     await user.click(proceed)
-    await sheet('Strength, heavy A')
+    await sheet('Strength, heavy, session A')
     await user.click(screen.getByRole('button', { name: 'As suggested' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => {
@@ -2920,13 +3336,56 @@ describe('the Strength page: the lifts and the history of one lift (design 11.3,
     // a lift whose load has not moved and that has no estimate says the first and shows none of the second
     const rdlRow = liftRow('Dumbbell Romanian deadlift')
     expect(rdlRow.getByText('35 lb')).toBeVisible()
-    expect(rdlRow.getByText('The load has not moved')).toBeVisible()
+    expect(rdlRow.getByText('Load unchanged')).toBeVisible()
     expect(rdlRow.queryByText('Estimated maximum')).not.toBeInTheDocument()
     expect(
       region('Lifts').getByText(
         'The estimated maximum is worked out from sets, not tested. It is a rough guide.',
       ),
     ).toBeVisible()
+  })
+
+  describe('the Last change row of a lift whose load has not moved', () => {
+    const only = (...lifts: StrengthLiftSummary[]) => openPage({ view: pageView({ lifts }) })
+
+    test('says the load is the same for a lift with a load that was done in two sessions', async () => {
+      only({ ...RDL_SUMMARY, sessionCount: 2 })
+      await page('Lifts')
+      expect(
+        within(
+          liftRow('Dumbbell Romanian deadlift').getByText('Last change').closest('div')!,
+        ).getByText('Load unchanged'),
+      ).toBeVisible()
+    })
+
+    test('says nothing of a change for a lift that was done once: there is nothing to compare', async () => {
+      only({ ...RDL_SUMMARY, sessionCount: 1 })
+      await page('Lifts')
+      const row = liftRow('Dumbbell Romanian deadlift')
+      expect(row.getByText('Last load')).toBeVisible()
+      expect(row.queryByText('Last change')).not.toBeInTheDocument()
+      expect(row.queryByText(/as last time/)).not.toBeInTheDocument()
+    })
+
+    test('says nothing of a change for a lift with no added load, however often it was done', async () => {
+      only({
+        ...RDL_SUMMARY,
+        exerciseId: 'standing-calf-raise',
+        workingLoadG: null,
+        sessionCount: 5,
+      })
+      await page('Lifts')
+      const row = liftRow('Standing calf raise')
+      expect(row.getByText('No added load')).toBeVisible()
+      expect(row.queryByText('Last change')).not.toBeInTheDocument()
+      expect(row.queryByText(/as last time/)).not.toBeInTheDocument()
+    })
+
+    test('still words a move of the load, whatever the session count says', async () => {
+      only({ ...SQUAT_SUMMARY, sessionCount: 1 })
+      await page('Lifts')
+      expect(screen.getByText('Up from 100 lb to 105 lb, Thu 12 Mar')).toBeVisible()
+    })
   })
 
   test('words a load that came down, and a lift with no added load', async () => {
@@ -3100,8 +3559,85 @@ describe('the Strength page: the lifts and the history of one lift (design 11.3,
     await page('Lifts')
     await userEvent.setup().click(screen.getByRole('button', { name: 'History of Side plank' }))
     const table = await screen.findByRole('region', { name: 'History of Side plank' })
-    expect(within(table).getByText('30 seconds', { selector: 'li' })).toBeVisible()
+    expect(within(table).getByText('30 s', { selector: 'li' })).toBeVisible()
     expect(within(table).getByText('Taper')).toBeVisible()
+  })
+})
+
+describe('the Strength page: the sets of a hold (design 11.3, 6.3)', () => {
+  const holdHistory = (
+    sets: Array<{ count: number; loadG?: number | null; rir?: number | null }>,
+  ) => ({
+    'GET /api/strength/exercises/side-plank': () => ({
+      exerciseId: 'side-plank',
+      anchor: null,
+      summary: { ...RDL_SUMMARY, exerciseId: 'side-plank', workingLoadG: null },
+      sessions: [
+        {
+          logId: LOG_LAST,
+          date: '2026-03-12',
+          mode: 'normal',
+          sets: sets.map((set, position) => ({
+            position,
+            loadG: set.loadG ?? null,
+            count: set.count,
+            rir: set.rir ?? null,
+          })),
+          heaviest: null,
+          workingLoadG: null,
+          estimateG: null,
+        },
+      ],
+    }),
+  })
+
+  async function openHistory(routes: MockRoutes) {
+    openPage({
+      view: pageView({
+        lifts: [SQUAT_SUMMARY, { ...RDL_SUMMARY, exerciseId: 'side-plank', workingLoadG: null }],
+      }),
+      routes,
+    })
+    await page('Lifts')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'History of Side plank' }))
+    return screen.findByRole('region', { name: 'History of Side plank' })
+  }
+
+  test('sets of a hold that agree are one line, "2 × 30 s"', async () => {
+    const table = await openHistory(holdHistory([{ count: 30 }, { count: 30 }]))
+    expect(within(table).getByText('2 × 30 s', { selector: 'li' })).toBeVisible()
+    expect(within(table).queryByText('30 s', { selector: 'li' })).not.toBeInTheDocument()
+  })
+
+  test('sets of a hold that differ stay a line each, in seconds', async () => {
+    const table = await openHistory(holdHistory([{ count: 30 }, { count: 45 }, { count: 45 }]))
+    const lines = within(table)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
+    expect(lines).toEqual(['30 s', '2 × 45 s'])
+  })
+
+  test('a hold with reps left or a load is not folded into a count', async () => {
+    const table = await openHistory(
+      holdHistory([
+        { count: 30, rir: 2 },
+        { count: 30, rir: 2 },
+      ]),
+    )
+    expect(
+      within(table)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['30 s, 2 left', '30 s, 2 left'])
+  })
+
+  test('the sets of a lift counted in reps are a line each, as they were', async () => {
+    openPage({ routes: { 'GET /api/strength/exercises/back-squat': () => squatHistory() } })
+    await page('Lifts')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'History of Back squat' }))
+    const table = await screen.findByRole('region', { name: 'History of Back squat' })
+    expect(within(table).queryByText(/×/)).not.toBeInTheDocument()
+    expect(within(table).getAllByText(/^105 lb x 5, 2 left$/).length).toBeGreaterThan(1)
   })
 })
 
@@ -3115,7 +3651,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     expect(recent.getByText('five sets, 40 min.')).toBeVisible()
     expect(recent.getByText('Thu 5 Mar')).toBeVisible()
     expect(recent.getByText('two sets, 40 min.')).toBeVisible()
-    expect(recent.getAllByText('Strength, heavy A')).toHaveLength(2)
+    expect(recent.getAllByText('Strength, heavy, session A')).toHaveLength(2)
   })
 
   test('deletes a session after asking, and reads the page again', async () => {
@@ -3186,7 +3722,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     await page('Recent sessions')
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
-    await sheet('Strength, heavy A')
+    await sheet('Strength, heavy, session A')
     // the sheet opens with what was saved, the details open because there are some
     expect(screen.getByRole('button', { name: 'Effort 7' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('textbox', { name: 'Note' })).toHaveValue('Felt steady')
@@ -3213,7 +3749,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     await page('Recent sessions')
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
-    await sheet('Strength, heavy A')
+    await sheet('Strength, heavy, session A')
     expect(values('Back squat', 'load')).toEqual(['105', '105', '105'])
 
     // the bar is sold in another tab and the page reads again: the sheet is as it was opened
@@ -3232,7 +3768,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
       expect(region('Recent sessions').getAllByRole('listitem')).toHaveLength(1)
     })
     expect(values('Back squat', 'load')).toEqual(['105', '105', '105'])
-    expect(screen.getByRole('dialog', { name: 'Strength, heavy A' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: 'Strength, heavy, session A' })).toBeVisible()
     // and the bar's steps are the ones it was opened with: a press moves one jump of the bar
     const first = within(screen.getByRole('group', { name: 'Back squat, set 1, load' }))
     await user.click(first.getByRole('button', { name: 'Raise the load by one step' }))
@@ -3250,7 +3786,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     await page('Recent sessions')
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
-    await sheet('Strength, heavy A')
+    await sheet('Strength, heavy, session A')
     const first = within(screen.getByRole('group', { name: 'Back squat, set 1, load' }))
     await user.click(first.getByRole('button', { name: 'Raise the load by one step' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -3265,7 +3801,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     ).toEqual([`/api/strength/logs/${LOG_LAST}`])
     // the next edit opens on what was kept (the queued body), not on the log as the server holds it
     await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
-    await sheet('Strength, heavy A')
+    await sheet('Strength, heavy, session A')
     expect(values('Back squat', 'load')).toEqual(['110', '105', '105'])
     connected = true
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -3286,7 +3822,7 @@ describe('the Strength page: the recent sessions (design 11.3)', () => {
     await page('Recent sessions')
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Edit the session of Thu 12 Mar' }))
-    const dialog = await sheet('Strength, heavy A')
+    const dialog = await sheet('Strength, heavy, session A')
     expect(within(dialog).getByText('Thu 12 Mar. Loads are in pounds.')).toBeVisible()
 
     // the sets as they were logged, the reps left, the minutes, and nothing of the plan they came from
@@ -4137,6 +4673,19 @@ describe('the Strength page: a log the server refused when it was sent later (de
 
 describe('the stylesheets of the Strength page (design 11.7)', () => {
   const css = (file: string) => readFileSync(join(process.cwd(), 'web', file), 'utf8')
+
+  test('a lift of the Next session card: the load is a serif figure at the secondary step, and the line under the name is the small muted one', () => {
+    const sections = css('components/strength/StrengthSections.module.css')
+    expect(sections).toMatch(
+      /\.rowLoad \{[^}]*font-family: var\(--font-serif\);[^}]*font-size: var\(--text-lg\);/s,
+    )
+    expect(sections).toMatch(
+      /\.rowLine \{[^}]*color: var\(--text-muted\);[^}]*font-size: var\(--text-sm\);/s,
+    )
+    expect(sections).toMatch(/\.liftHead \{[^}]*justify-content: space-between;/s)
+    // --text-xl is the page title's and --text-display the Today hero's
+    expect(sections).not.toMatch(/\.rowLoad \{[^}]*--text-(xl|display)/s)
+  })
 
   test('a setup choice is a 44 px target and the sheets wrap instead of scrolling sideways', () => {
     const sheets = css('components/strength/SetupSheets.module.css')

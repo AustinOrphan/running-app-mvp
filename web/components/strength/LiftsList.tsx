@@ -47,6 +47,8 @@ function LiftRow({
   onSelect: () => void
 }) {
   const exercise = words.name(lift.exerciseId)
+  const change =
+    lift.lastChange === null ? unchangedText(words, lift) : changeText(words, lift.lastChange)
   return (
     <li className={styles.item}>
       <div className={styles.head}>
@@ -75,14 +77,12 @@ function LiftRow({
             <dd>{words.say('strength.page.about-load', { load: words.load(lift.estimateG) })}</dd>
           </div>
         )}
-        <div className={styles.fact}>
-          <dt>{words.say('strength.page.lift-change')}</dt>
-          <dd>
-            {lift.lastChange === null
-              ? words.say('strength.page.change-none')
-              : changeText(words, lift.lastChange)}
-          </dd>
-        </div>
+        {change === null ? null : (
+          <div className={styles.fact}>
+            <dt>{words.say('strength.page.lift-change')}</dt>
+            <dd>{change}</dd>
+          </div>
+        )}
         <div className={styles.fact}>
           <dt>{words.say('strength.page.lift-last')}</dt>
           <dd>{formatQuantity(words.day(lift.lastDate, 'weekday'), units, weightUnit)}</dd>
@@ -90,6 +90,20 @@ function LiftRow({
       </dl>
     </li>
   )
+}
+
+/**
+ * What the Last change row says of a lift whose working load has not moved (`lastChange` is null):
+ * the load is unchanged, but only for a lift with a load that was done in two sessions or more, since a
+ * comparison needs two. A lift done once has nothing to compare, and a lift with no added load has
+ * no load to keep, so their rows have no Last change at all. The payload counts the sessions of
+ * every mode (`sessionCount`), not only the normal ones the load is read from, so this is the
+ * nearest the page can come without the engine's own count.
+ */
+function unchangedText(words: PageWords, lift: StrengthLiftSummary): string | null {
+  return lift.workingLoadG !== null && lift.sessionCount >= 2
+    ? words.say('strength.label.load-unchanged')
+    : null
 }
 
 /**

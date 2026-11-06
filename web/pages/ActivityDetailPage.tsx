@@ -1,19 +1,39 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  againstThePlanHeading,
+  movingPaceLabel,
+  noLinkedSession,
+  planNotLoaded,
+  paceLabel,
+  plannedAgainstRan,
+  type PlanOnTheDay,
+} from '../../shared/copy/activityPage.ts'
 import { formatAirTemperature } from '../../shared/copy/quantity.ts'
-import type { Activity, ActivityDetail, HrHistogram, Lap, Units } from '../../shared/types.ts'
+import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
+import { mondayOf } from '../../shared/dates.ts'
+import type {
+  Activity,
+  ActivityDetail,
+  HrHistogram,
+  Lap,
+  PlanWithSessions,
+  Units,
+} from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
 import { useActivityDetail, useDeleteActivity, useSaveFeedback } from '../api/activities.ts'
-import { ApiError } from '../api/client.ts'
+import { ApiError, keys } from '../api/client.ts'
 import { usePlan } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { Figure } from '../components/Figure.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
-import { ratingCounts, unratedEffortNote } from '../components/engineText.ts'
+import { assessmentLines, ratingCounts, unratedEffortNote } from '../components/engineText.ts'
 import { formatLongDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
@@ -45,7 +65,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Figure({ label, value }: { label: string; value: string }) {
+function Reading({ label, value }: { label: string; value: string }) {
   return (
     <div className={styles.figure}>
       <dt>{label}</dt>
@@ -64,69 +84,103 @@ function wind(kph: number, units: Units): string {
     : `${String(Math.round(kph))} km/h`
 }
 
+/** A distance as its number and unit, so the lead figure can set the unit smaller. */
+function distanceParts(metres: number, units: Units): { value: string; unit?: string } {
+  const [value = '', unit] = formatDistance(metres, units).split(' ')
+  return unit === undefined ? { value } : { value, unit }
+}
+
+/**
+ * The summary in three tiers: duration and distance as the lead figures; pace, climb and heart rate
+ * as the readings under them; kind, device and source as one muted line, because they describe the
+ * record and are not a figure of the run.
+ */
 function Summary({ activity, units }: { activity: Activity; units: Units }) {
   const hasPace =
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
     activity.distanceM > 0
-  const movingDiffers =
-    activity.movingSec !== null && Math.abs(activity.movingSec - activity.durationSec) >= 1
+  const movingDiffers = movingTimeDiffers(activity)
+  // The pace the page leads with is the elapsed one. When a moving pace stands beside it, the first
+  // says which it is; with only one pace, it is "Pace".
+  const movingPace = hasPace && movingDiffers && activity.movingSec !== null
   const subtype = activity.subtype
-  const source = sourceLabel(activity.source) ?? 'Entered by hand'
+  const distance =
+    activity.distanceM !== null && activity.type !== 'strength'
+      ? distanceParts(activity.distanceM, units)
+      : null
+  const described = [
+    subtype === null ? null : subtype.charAt(0).toUpperCase() + subtype.slice(1),
+    activity.deviceName,
+    sourceLabel(activity.source) ?? 'Entered by hand',
+  ].filter((part) => part !== null)
+  // The four a runner reads first, then the figures only some recordings have.
+  const readings = [
+    hasPace && activity.distanceM !== null ? (
+      <Reading
+        key="pace"
+        label={paceLabel(movingPace, units)}
+        value={formatPace(activity.durationSec, activity.distanceM, units)}
+      />
+    ) : null,
+    movingPace && activity.distanceM !== null && activity.movingSec !== null ? (
+      <Reading
+        key="moving-pace"
+        label={movingPaceLabel(units)}
+        value={formatPace(activity.movingSec, activity.distanceM, units)}
+      />
+    ) : null,
+    activity.elevationGainM !== null ? (
+      <Reading
+        key="gain"
+        label="Elevation gain"
+        value={elevation(activity.elevationGainM, units)}
+      />
+    ) : null,
+    activity.avgHr !== null ? (
+      <Reading key="avg-hr" label="Average HR" value={`${String(activity.avgHr)} bpm`} />
+    ) : null,
+    activity.maxHr !== null ? (
+      <Reading key="max-hr" label="Max HR" value={`${String(activity.maxHr)} bpm`} />
+    ) : null,
+    activity.movingSec !== null && movingDiffers ? (
+      <Reading key="moving" label="Moving time" value={formatDuration(activity.movingSec)} />
+    ) : null,
+    hasPace && activity.gapDistanceM !== null && activity.gapDistanceM > 0 ? (
+      <Reading
+        key="gap"
+        label="Grade-adjusted pace"
+        value={formatPace(activity.durationSec, activity.gapDistanceM, units)}
+      />
+    ) : null,
+    activity.elevationLossM !== null ? (
+      <Reading
+        key="loss"
+        label="Elevation loss"
+        value={elevation(activity.elevationLossM, units)}
+      />
+    ) : null,
+    activity.avgCadence !== null ? (
+      <Reading key="cadence" label="Cadence" value={`${String(activity.avgCadence)} spm`} />
+    ) : null,
+    activity.avgPowerW !== null ? (
+      <Reading key="power" label="Power" value={`${String(activity.avgPowerW)} W`} />
+    ) : null,
+  ].filter((reading) => reading !== null)
   return (
     <Section title="Summary">
-      <dl className={styles.figures}>
+      <dl className={styles.lead}>
         <Figure label="Duration" value={formatDuration(activity.durationSec)} />
-        {activity.movingSec !== null && movingDiffers ? (
-          <Figure label="Moving time" value={formatDuration(activity.movingSec)} />
-        ) : null}
-        {activity.distanceM !== null && activity.type !== 'strength' ? (
-          <Figure label="Distance" value={formatDistance(activity.distanceM, units)} />
-        ) : null}
-        {hasPace && activity.distanceM !== null ? (
+        {distance === null ? null : (
           <Figure
-            label="Pace"
-            value={formatPace(activity.durationSec, activity.distanceM, units)}
+            label="Distance"
+            value={distance.value}
+            {...(distance.unit === undefined ? {} : { unit: distance.unit })}
           />
-        ) : null}
-        {hasPace && activity.distanceM !== null && activity.movingSec !== null && movingDiffers ? (
-          <Figure
-            label="Moving pace"
-            value={formatPace(activity.movingSec, activity.distanceM, units)}
-          />
-        ) : null}
-        {hasPace && activity.gapDistanceM !== null && activity.gapDistanceM > 0 ? (
-          <Figure
-            label="Grade-adjusted pace"
-            value={formatPace(activity.durationSec, activity.gapDistanceM, units)}
-          />
-        ) : null}
-        {activity.elevationGainM !== null ? (
-          <Figure label="Elevation gain" value={elevation(activity.elevationGainM, units)} />
-        ) : null}
-        {activity.elevationLossM !== null ? (
-          <Figure label="Elevation loss" value={elevation(activity.elevationLossM, units)} />
-        ) : null}
-        {activity.avgHr !== null ? (
-          <Figure label="Average HR" value={`${String(activity.avgHr)} bpm`} />
-        ) : null}
-        {activity.maxHr !== null ? (
-          <Figure label="Max HR" value={`${String(activity.maxHr)} bpm`} />
-        ) : null}
-        {activity.avgCadence !== null ? (
-          <Figure label="Cadence" value={`${String(activity.avgCadence)} spm`} />
-        ) : null}
-        {activity.avgPowerW !== null ? (
-          <Figure label="Power" value={`${String(activity.avgPowerW)} W`} />
-        ) : null}
-        {subtype !== null ? (
-          <Figure label="Kind" value={subtype.charAt(0).toUpperCase() + subtype.slice(1)} />
-        ) : null}
-        {activity.deviceName !== null ? (
-          <Figure label="Device" value={activity.deviceName} />
-        ) : null}
-        <Figure label="Source" value={source} />
+        )}
       </dl>
+      {readings.length > 0 ? <dl className={styles.readings}>{readings}</dl> : null}
+      <p className={styles.muted}>{described.join(' · ')}</p>
       {activity.duplicateStatus === 'confirmed' ? (
         <p className={styles.note}>Marked as a duplicate. It is not counted in totals.</p>
       ) : null}
@@ -142,6 +196,7 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
 
 const CHANNELS: StreamChannel[] = ['pace', 'hr', 'alt']
 
+/** The charts of the recording's stream; nothing at all for an activity that has no stream to draw. */
 function Charts({ detail, units }: { detail: ActivityDetail; units: Units }) {
   const { activity, stream } = detail
   const channels = CHANNELS.filter(
@@ -150,19 +205,93 @@ function Charts({ detail, units }: { detail: ActivityDetail; units: Units }) {
   const hasData =
     stream !== null &&
     channels.some((channel) => buildSeries(stream, channel, units).some((p) => p.y !== null))
+  if (stream === null || !hasData) return null
   return (
     <Section title="Charts">
-      {stream !== null && hasData ? (
-        <div className={styles.charts}>
-          {channels.map((channel) => (
-            <StreamChart key={channel} stream={stream} channel={channel} units={units} />
-          ))}
-        </div>
-      ) : (
-        <p className={styles.muted}>No chart data for this activity.</p>
-      )}
+      <div className={styles.charts}>
+        {channels.map((channel) => (
+          <StreamChart key={channel} stream={stream} channel={channel} units={units} />
+        ))}
+      </div>
     </Section>
   )
+}
+
+/**
+ * How the activity went against the plan: the session it filled and the activity side by side, then
+ * the sentences of the session's assessment. An effort verdict that heart rate and pace inferred is
+ * not among them (`assessmentLines`): it shows only with the runner's own rating behind it, as
+ * "What stood out" states an effort only from a rating. An activity no session is linked to gets one
+ * neutral line. A skeleton stands in until the plan is read, and a plan that could not be read gets
+ * one line saying so, not a guess about the run.
+ */
+function AgainstThePlan({ activity, units }: { activity: Activity; units: Units }) {
+  const queryClient = useQueryClient()
+  // A plan that was marked old by a write (a run just logged links to its session on the server) is
+  // read again as the block mounts; what it holds until then is the plan from before the write, in
+  // which the run is not linked yet. The block shows nothing of that plan: it waits for the read, and
+  // only for that one, since a plan read after the block mounted is the plan as it is and a later
+  // read (after a rating is saved) leaves the block as it is. If that read fails, the block says
+  // so; it never falls back to the plan from before. A query that failed keeps its error status
+  // while the next read runs, so the line shows only when no read is in flight.
+  const [mount] = useState(() => ({
+    at: Date.now(),
+    invalidated: queryClient.getQueryState([keys.plan])?.isInvalidated === true,
+  }))
+  const plan = usePlan()
+  const fromBefore = mount.invalidated && plan.dataUpdatedAt < mount.at
+  const title = againstThePlanHeading(units)
+  if (plan.data === undefined || fromBefore) {
+    return (
+      <Section title={title}>
+        {plan.isError && !plan.isFetching ? (
+          <p className={styles.line}>{planNotLoaded(units)}</p>
+        ) : (
+          <Skeleton lines={2} />
+        )}
+      </Section>
+    )
+  }
+  const sessions = plan.data?.sessions ?? []
+  const session = sessions.find((candidate) => candidate.activityId === activity.id)
+  if (session === undefined) {
+    // The current plan is the one this page reads. A run from before its first week was never
+    // meant to stand against it, and a session of an archived plan is not looked for, so the block
+    // says nothing about it instead of calling it unplanned.
+    if (plan.data !== null && activity.date < firstWeekOf(plan.data)) return null
+    // a rest day is not a session the runner was asked to do
+    const onTheDay: PlanOnTheDay =
+      plan.data === null
+        ? 'no-plan'
+        : sessions.some(
+              (candidate) => candidate.date === activity.date && candidate.kind !== 'rest',
+            )
+          ? 'other-session'
+          : 'no-session'
+    return (
+      <Section title={title}>
+        <p className={styles.line}>{noLinkedSession(onTheDay, units)}</p>
+      </Section>
+    )
+  }
+  const { execution } = session
+  const lines = execution === null ? [] : assessmentLines(execution, session.target.rpe)
+  return (
+    <Section title={title}>
+      <p className={styles.line}>{plannedAgainstRan(session, activity, units)}</p>
+      {lines.map((line) => (
+        <p key={line} className={styles.line}>
+          {line}
+        </p>
+      ))}
+    </Section>
+  )
+}
+
+/** The Monday of the plan's first week: the day before it is not part of the plan. */
+function firstWeekOf(plan: PlanWithSessions): string {
+  const [first] = plan.weeks.map((week) => week.weekStart).sort()
+  return first ?? mondayOf(plan.startDate)
 }
 
 function LapsTable({ laps, units, hasPace }: { laps: Lap[]; units: Units; hasPace: boolean }) {
@@ -230,15 +359,15 @@ function Weather({ activity, units }: { activity: Activity; units: Units }) {
     <Section title="Weather">
       <dl className={styles.figures}>
         {tempC !== null ? (
-          <Figure label="Temperature" value={formatAirTemperature(tempC, units)} />
+          <Reading label="Temperature" value={formatAirTemperature(tempC, units)} />
         ) : null}
         {dewPointC !== null ? (
-          <Figure label="Dew point" value={formatAirTemperature(dewPointC, units)} />
+          <Reading label="Dew point" value={formatAirTemperature(dewPointC, units)} />
         ) : null}
         {humidityPct !== null ? (
-          <Figure label="Humidity" value={`${String(humidityPct)}%`} />
+          <Reading label="Humidity" value={`${String(humidityPct)}%`} />
         ) : null}
-        {windKph !== null ? <Figure label="Wind" value={wind(windKph, units)} /> : null}
+        {windKph !== null ? <Reading label="Wind" value={wind(windKph, units)} /> : null}
       </dl>
       {weatherSource !== null ? (
         <p className={styles.muted}>{`Source: ${WEATHER_SOURCES[weatherSource]}.`}</p>
@@ -302,7 +431,7 @@ function HeartRate({ activity }: { activity: Activity }) {
       ) : null}
       {decoupling !== null ? (
         <dl className={styles.figures}>
-          <Figure label="Aerobic decoupling" value={`${decoupling.toFixed(1)}%`} />
+          <Reading label="Aerobic decoupling" value={`${decoupling.toFixed(1)}%`} />
         </dl>
       ) : null}
       {decoupling !== null ? (
@@ -483,8 +612,17 @@ export function ActivityDetailPage() {
         <Link to="/activities">All activities</Link>
       </p>
 
+      {/* The post-run screen: the figures, how they stood against the plan, the ask for a rating and
+          the fuel of a long run come first; the recording's detail follows. */}
       <Summary activity={activity} units={units} />
       {activity.type === 'strength' ? <ActivitySets activity={activity} /> : null}
+      <AgainstThePlan activity={activity} units={units} />
+      {/* Keyed on the stored values, so the pickers start again from them when they change. */}
+      <Feedback
+        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}
+        activity={activity}
+      />
+      <FuelSection activity={activity} />
       <Charts detail={detail.data} units={units} />
       {laps !== null && laps.length > 0 ? (
         <LapsTable laps={laps} units={units} hasPace={hasPace} />
@@ -494,12 +632,6 @@ export function ActivityDetailPage() {
       {activity.type === 'run' || activity.type === 'race' ? (
         <StandoutCard activityId={activity.id} units={units} />
       ) : null}
-      <FuelSection activity={activity} />
-      {/* Keyed on the stored values, so the pickers start again from them when they change. */}
-      <Feedback
-        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}
-        activity={activity}
-      />
       {activity.notes !== null ? (
         <Section title="Notes">
           <p className={styles.notes}>{activity.notes}</p>

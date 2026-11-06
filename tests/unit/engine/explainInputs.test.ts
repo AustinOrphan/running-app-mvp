@@ -4323,7 +4323,7 @@ describe('F7, F8 and F9: a strength session', () => {
         ],
       })
       expect(said(groupOf(ask(unrecorded, heavy, 'back-squat'), 'F8'))).toContain(
-        'The count of reps left was not recorded, so the load holds.',
+        'The count of reps left was not recorded, so the load stays unchanged.',
       )
     })
 

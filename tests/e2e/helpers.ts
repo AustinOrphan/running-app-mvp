@@ -372,14 +372,27 @@ export async function strengthOnlyToday(
 const TODAY_REQUEST = '**/api/today'
 
 /**
- * Serves `GET /api/today` with the tallest strength day: the session's own payload with five rows
- * (three lifts with long names, the jumps and three trunk movements) on a day of lower readiness,
- * which adds the line and the switch to the usual load. The fold has to hold for it too. The route
- * stays until the page calls `unroute('**\/api/today')`.
+ * The widest trunk pair the engine makes without a runner leaving movements out: session B of a
+ * runner who owns bands, banded lateral walk and pallof press, 8 to 12 reps each (`f7.trunkReps`).
+ * Written out twice it was 335.8 px, two lines at 360 px; the row says the sets and the amount once.
+ */
+export const WIDEST_TRUNK_PAIR: WorkoutLift[] = [
+  plank({ exerciseId: 'banded-lateral-walk', range: { min: 8, max: 12 }, targets: [8, 8] }),
+  plank({ exerciseId: 'pallof-press', range: { min: 8, max: 12 }, targets: [8, 8] }),
+]
+
+/**
+ * Serves `GET /api/today` with the tallest strength day the engine makes: the session's own payload
+ * with five rows (three lifts with long names, the one jump movement and the two trunk movements
+ * of `trunkOf`, by default the widest pair, `WIDEST_TRUNK_PAIR`) on a day of lower readiness, which
+ * adds the line and the switch to the usual load. The fold has to hold for it too. `trunk` stands in
+ * for the trunk movements, so a spec can serve the other pairs. The route stays until the page calls
+ * `unroute('**\/api/today')`.
  */
 export async function serveTallestStrengthDay(
   page: Page,
   session: PlanSession,
+  trunk: WorkoutLift[] = WIDEST_TRUNK_PAIR,
 ): Promise<StrengthWorkout> {
   const tallest = makeWorkout({
     sessionId: session.id,
@@ -395,8 +408,8 @@ export async function serveTallestStrengthDay(
       rdl({ sets: 2, targets: [6, 6] }),
       rdl({ exerciseId: 'standing-calf-raise', slot: 'calf', sets: 2, targets: [12, 12] }),
     ],
-    plyo: { contacts: 60, movements: ['pogo-hop', 'line-hop'] },
-    trunk: [plank(), plank({ exerciseId: 'dead-bug' }), plank({ exerciseId: 'pallof-press' })],
+    plyo: { contacts: 60, movements: ['pogo-hop'] },
+    trunk,
   })
   await page.route(TODAY_REQUEST, async (route) => {
     // The browser revalidates with the tag it holds; a 304 has no body to change.

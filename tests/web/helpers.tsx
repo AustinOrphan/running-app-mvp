@@ -131,10 +131,21 @@ export function explainOf(drawer: HTMLElement): unknown {
   return JSON.parse(drawer.getAttribute('data-explain') ?? 'null')
 }
 
-export function renderWithProviders(ui: ReactElement, opts: { route?: string } = {}): RenderResult {
-  const queryClient = new QueryClient({
+/**
+ * A query client as the page tests use it: no retries. A test that has to put something in the cache
+ * before the page mounts makes one, and hands it to `renderWithProviders`.
+ */
+export function makeTestQueryClient(): QueryClient {
+  return new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
+}
+
+export function renderWithProviders(
+  ui: ReactElement,
+  opts: { route?: string; queryClient?: QueryClient } = {},
+): RenderResult {
+  const queryClient = opts.queryClient ?? makeTestQueryClient()
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[opts.route ?? '/']}>{ui}</MemoryRouter>

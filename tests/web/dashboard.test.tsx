@@ -603,7 +603,7 @@ describe('DashboardPage: a strength session', () => {
     }),
   }
 
-  const rowsOf = (card: HTMLElement, name = 'Strength, heavy A'): string[] =>
+  const rowsOf = (card: HTMLElement, name = 'Strength, heavy, session A'): string[] =>
     within(within(card).getByRole('list', { name }))
       .getAllByRole('listitem')
       .map((item) => item.textContent ?? '')
@@ -620,8 +620,8 @@ describe('DashboardPage: a strength session', () => {
       'Back squat: 4 x 3 to 6, 110 lb, leave 1 to 3.',
       'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
-      'Pogo hops, 40 contacts.',
-      'Side plank, 2 sets.',
+      'Pogo hops, 40 ground contacts.',
+      'Side plank 2x30–45 s.',
     ])
     // the hero keeps its title, the planned minutes and its action row
     expect(within(card).getByRole('heading', { level: 2, name: 'Strength' })).toBeVisible()
@@ -642,7 +642,7 @@ describe('DashboardPage: a strength session', () => {
   test('reads the loads in the weight unit of the settings, and a bodyweight lift has no load', async () => {
     renderToday(strengthDay(bodyweightWorkout()), routes(inKilograms))
     const bodyweight = await screen.findByRole('article', { name: 'Strength' })
-    expect(rowsOf(bodyweight, 'Strength, ramp-in A')).toEqual([
+    expect(rowsOf(bodyweight, 'Strength, ramp-in, session A')).toEqual([
       'Tempo squat: 3 x 8 to 15, leave 1 to 3.',
       'Hip thrust (glute bridge): 3 x 8 to 15, leave 1 to 3.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
@@ -660,7 +660,7 @@ describe('DashboardPage: a strength session', () => {
     const card = await screen.findByRole('article', { name: 'Strength' })
     const rows = rowsOf(card)
     expect(rows).toHaveLength(5)
-    expect(rows.slice(-2)).toEqual(['Pogo hops, 40 contacts.', 'Side plank, 2 sets.'])
+    expect(rows.slice(-2)).toEqual(['Pogo hops, 40 ground contacts.', 'Side plank 2x30–45 s.'])
   })
 
   test('Log sets opens the logging sheet for the session; saving closes it and returns focus to the title', async () => {
@@ -669,11 +669,13 @@ describe('DashboardPage: a strength session', () => {
     const { api } = renderToday(strengthDay(), routes())
     const card = await screen.findByRole('article', { name: 'Strength' })
     await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+      ).not.toBeInTheDocument()
     })
     const put = api.calls.find((call) => call.method === 'PUT')
     expect(put?.url).toBe(`/api/strength/logs/${LOG_ID}`)
@@ -688,9 +690,11 @@ describe('DashboardPage: a strength session', () => {
     renderToday(strengthDay(), routes())
     const card = await screen.findByRole('article', { name: 'Strength' })
     await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-    await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     await user.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+    ).not.toBeInTheDocument()
     expect(within(card).getByRole('button', { name: 'Log sets' })).toHaveFocus()
   })
 
@@ -712,7 +716,7 @@ describe('DashboardPage: a strength session', () => {
     )
     const card = await screen.findByRole('article', { name: 'Strength' })
     await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     const load = await within(dialog).findByRole('textbox', { name: 'Back squat, set 1, load' })
     expect(load).toHaveValue('110')
 
@@ -778,13 +782,17 @@ describe('DashboardPage: a strength session', () => {
     await user.click(screen.getByRole('button', { name: 'Wednesday 18 Mar, Planned' }))
     const sessionSheet = await screen.findByRole('dialog', { name: 'Strength' })
     expect(within(sessionSheet).getByText('Planned')).toBeVisible()
-    const section = await within(sessionSheet).findByRole('region', { name: 'Strength, heavy A' })
+    const section = await within(sessionSheet).findByRole('region', {
+      name: 'Strength, heavy, session A',
+    })
     await user.click(within(section).getByRole('button', { name: 'Log sets' }))
-    const logging = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+    const logging = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
     await user.click(await within(logging).findByRole('button', { name: 'As suggested' }))
     await user.click(within(logging).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+      ).not.toBeInTheDocument()
     })
     // the sheet under it is the session as the next read of Today holds it, not the one it opened on
     await waitFor(() => {
@@ -825,7 +833,7 @@ describe('DashboardPage: a strength session', () => {
       // the cut in sets still stands, so the line says that and no more
       expect(within(card).getByText('Usual loads, with one set fewer.')).toBeVisible()
       await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       expect(
         await within(dialog).findByRole('textbox', { name: 'Back squat, set 1, load' }),
       ).toHaveValue('110')
@@ -845,7 +853,7 @@ describe('DashboardPage: a strength session', () => {
       expect(usual).toHaveAttribute('aria-pressed', 'false')
       expect(rowsOf(card)[0]).toBe('Back squat: 3 x 3 to 6, 100 lb, leave 1 to 3.')
       await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       expect(
         await within(dialog).findByRole('textbox', { name: 'Back squat, set 1, load' }),
       ).toHaveValue('100')
@@ -857,15 +865,17 @@ describe('DashboardPage: a strength session', () => {
       renderToday(strengthDay(lighterDayWorkout()), routes())
       const card = await screen.findByRole('article', { name: 'Strength' })
       await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-      const first = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const first = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       const set1 = await within(first).findByRole('group', { name: 'Back squat, set 1, load' })
       await user.click(within(set1).getByRole('button', { name: 'Raise the load by one step' }))
       await user.keyboard('{Escape}')
-      expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+      ).not.toBeInTheDocument()
 
       await user.click(within(card).getByRole('button', { name: 'Use the usual load' }))
       await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-      const again = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const again = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       // the draft is what the sheet opens on: the raised set, and the others as they were left
       expect(
         await within(again).findByRole('textbox', { name: 'Back squat, set 1, load' }),
@@ -884,17 +894,19 @@ describe('DashboardPage: a strength session', () => {
       )
       const card = await screen.findByRole('article', { name: 'Strength' })
       await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+        expect(
+          screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+        ).not.toBeInTheDocument()
       })
       expect(getOutbox().getState().entries).toHaveLength(1)
 
       await user.click(within(card).getByRole('button', { name: 'Use the usual load' }))
       await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-      const again = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const again = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       // the queued body is the sheet's state on reopen: the lighter load it was saved with
       expect(
         await within(again).findByRole('textbox', { name: 'Back squat, set 1, load' }),
@@ -956,7 +968,7 @@ describe('DashboardPage: a strength session', () => {
       expectCleanCopy(container)
 
       await user.click(item)
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       expect(
         await within(dialog).findByRole('textbox', { name: 'Back squat, set 1, load' }),
       ).toHaveValue('110')
@@ -970,11 +982,13 @@ describe('DashboardPage: a strength session', () => {
       await user.click(
         within(card).getByRole('button', { name: 'Strength, 40 minutes: open the workout' }),
       )
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+        expect(
+          screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+        ).not.toBeInTheDocument()
       })
       expect(api.calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
         sessionId: SESSION_ID,
@@ -1060,7 +1074,7 @@ describe('DashboardPage: a strength session', () => {
       await user.click(
         within(card).getByRole('button', { name: 'Strength, 40 minutes: open the workout' }),
       )
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))
       await waitFor(() => {
@@ -1081,11 +1095,13 @@ describe('DashboardPage: a strength session', () => {
         name: 'Strength, 40 minutes: open the workout',
       })
       await user.click(item)
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+        expect(
+          screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+        ).not.toBeInTheDocument()
       })
       // the run's title is not where focus goes: the sheet gives it back to the item
       expect(item).toHaveFocus()
@@ -1116,7 +1132,7 @@ describe('DashboardPage: a strength session', () => {
       await user.click(
         within(card).getByRole('button', { name: 'Strength, 40 minutes: open the workout' }),
       )
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))
       await waitFor(() => {
@@ -1166,11 +1182,13 @@ describe('DashboardPage: a strength session', () => {
       )
       const card = await screen.findByRole('article', { name: 'Strength' })
       await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       await user.click(await within(dialog).findByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+        expect(
+          screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+        ).not.toBeInTheDocument()
       })
       // kept on the phone, and nothing to say yet
       expect(getOutbox().getState().entries).toHaveLength(1)
@@ -1224,7 +1242,7 @@ describe('DashboardPage: a strength session', () => {
       const card = await screen.findByRole('article', { name: 'Strength' })
       expect(rowsOf(card)).toHaveLength(5)
       await user.click(within(card).getByRole('button', { name: 'Log sets' }))
-      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy A' })
+      const dialog = await screen.findByRole('dialog', { name: 'Strength, heavy, session A' })
       // the lifts, their loads and the unit come from the kept payload and settings
       expect(
         await within(dialog).findByRole('textbox', { name: 'Back squat, set 1, load' }),
@@ -1237,7 +1255,9 @@ describe('DashboardPage: a strength session', () => {
       await user.click(within(dialog).getByRole('button', { name: 'As suggested' }))
       await user.click(within(dialog).getByRole('button', { name: 'Save' }))
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Strength, heavy A' })).not.toBeInTheDocument()
+        expect(
+          screen.queryByRole('dialog', { name: 'Strength, heavy, session A' }),
+        ).not.toBeInTheDocument()
       })
       // the save is kept on the phone, as one entry
       expect(

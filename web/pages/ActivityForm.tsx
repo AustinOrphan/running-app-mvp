@@ -1,7 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
-import { todayIso } from '../../shared/dates.ts'
+import { useNavigate } from 'react-router-dom'
+import { addDays, todayIso } from '../../shared/dates.ts'
 import { MAX_DURATION_SEC } from '../../shared/limits.ts'
-import type { ActivityListItem, ActivityType, Feel, Units } from '../../shared/types.ts'
+import type { Activity, ActivityListItem, ActivityType, Feel, Units } from '../../shared/types.ts'
 import { formatDuration, kmToM, mToKm, mToMiles, milesToM } from '../../shared/units.ts'
 import {
   useCreateActivity,
@@ -9,7 +11,7 @@ import {
   useUpdateActivity,
   type ActivityInput,
 } from '../api/activities.ts'
-import { ApiError, fieldErrors } from '../api/client.ts'
+import { ApiError, fieldErrors, keys } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { Field, Input, Textarea } from '../components/Field.tsx'
@@ -55,6 +57,17 @@ const TYPE_OPTIONS = (Object.keys(TYPE_LABELS) as ActivityType[]).map((value) =>
 
 const M_PER_FOOT = 0.3048
 export const DURATION_HINT = 'Enter minutes like 45, or 0:45:00'
+
+/**
+ * Whether a newly saved activity of this day opens on its own page: today and yesterday are the
+ * run the runner has just come in from, and its page is the post-run screen (the result against the
+ * plan, then the rating). An older day is a back-fill, entered one run after another, which stays
+ * on the list.
+ */
+export function opensItsPage(date: string): boolean {
+  const today = todayIso()
+  return date === today || date === addDays(today, -1)
+}
 
 /**
  * A bare number is minutes; `m:ss` and `h:mm:ss` are read as written. Seconds, and minutes
@@ -163,6 +176,9 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
   const settings = useSettings()
   const units: Units = settings.data?.units ?? 'mi'
   const toast = useToast()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [landing, setLanding] = useState(false)
   const create = useCreateActivity()
   const update = useUpdateActivity()
   const remove = useDeleteActivity()
@@ -198,7 +214,7 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
   const [formError, setFormError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
-  const saving = create.isPending || update.isPending
+  const saving = create.isPending || update.isPending || landing
   const hasDistance = type !== 'strength'
   const distanceUnitLabel = units === 'mi' ? 'mi' : 'km'
   const elevationUnitLabel = units === 'mi' ? 'ft' : 'm'
@@ -272,9 +288,10 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
     }
     setErrors({})
     setFormError(null)
+    let created: Activity | null = null
     try {
       if (activity) await update.mutateAsync({ id: activity.id, input: built.input })
-      else await create.mutateAsync(built.input)
+      else created = await create.mutateAsync(built.input)
     } catch (err) {
       const mapped: Errors = {}
       for (const [path, message] of Object.entries(fieldErrors(err))) {
@@ -287,8 +304,20 @@ function ActivityFormSheet({ onClose, activity }: ActivityFormProps) {
       setFormError(`Activity not saved. ${reason} Your entries are still in the form; try again.`)
       return
     }
+    const landsOnPage = created !== null && opensItsPage(built.input.date)
+    if (landsOnPage) {
+      // The save has linked the run to its session on the server, and the plan this page may hold
+      // is from before it: nothing on the list watches the plan, so it was only marked old. Read it
+      // again before the page of the run opens, which is read against it.
+      setLanding(true)
+      await queryClient.refetchQueries({ queryKey: [keys.plan] })
+    }
     toast.show(`${TYPE_LABELS[built.input.type]} saved`)
     onClose()
+    // A new activity of today or yesterday opens on its own page; an edit and a back-fill stay.
+    if (created !== null && landsOnPage) {
+      void navigate(`/activities/${encodeURIComponent(created.id)}`)
+    }
   }
 
   async function deleteActivity(target: ActivityListItem) {

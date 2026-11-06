@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { countPhrase } from '../../../shared/copy/quantity.ts'
-import { mondayOf } from '../../../shared/dates.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type {
   PinnedSlot,
@@ -195,12 +194,16 @@ export function StrengthForm({
   const anyLast = state.blocks.some((block) => hasLast(block, lastOf))
   const addable = canAddSet(state.blocks)
   const hasEffort = state.blocks.some((block) => block.shown.rir !== null)
+  // The first lift whose sets carry a reps-left scale spells the scale out in its row, so the row of
+  // 0 to 5 under "All sets" says what it counts where the runner first meets it.
+  const firstRepsLeft = state.blocks.find(
+    (block) => block.shown.rir !== null && block.rows.length > 0,
+  )?.key
   const editing = log !== undefined
   // A lift of another exercise is read from the server for the session the workout stands for; a
   // saved log being edited stands for none.
   const liftRead = editing ? null : liftReadOf(workout, start)
   const explainable = start !== 'maintenance'
-  const asOf = view.data?.asOf
   // Until the setup is saved the workout is bodyweight only (design 6.1): the sheet says so and
   // offers it, on the surfaces that are not the Strength page, whose own card makes the offer.
   const onStrengthPage = useLocation().pathname === '/strength'
@@ -314,22 +317,10 @@ export function StrengthForm({
       onSubmit={onSubmit}
     >
       <div className={styles.intro}>
-        <p className={styles.muted}>
-          {words.say('strength.sheet.date-unit', {
-            date: { kind: 'date', iso: date, style: 'weekday' },
-            unit: words.unitName(),
-          })}
-        </p>
-        {start === null ? null : (
-          <p className={styles.muted}>
-            {words.startLine(
-              start,
-              workout.template,
-              date,
-              asOf !== undefined && mondayOf(asOf) === mondayOf(date),
-            )}
-          </p>
-        )}
+        {/* The day and the unit are the sheet's subtitle. The one muted line before the lifts is the
+            safety line (design 9.1: the header carries it once; ADR 0014 and rule S12 name it as a
+            control of the barbell decision), so it is never behind a tap. */}
+        <p className={styles.muted}>{words.say('strength.safety')}</p>
         {lighterDay ? (
           <p className={styles.note}>
             {anyUsual
@@ -350,13 +341,17 @@ export function StrengthForm({
             </Link>
           </p>
         ) : null}
-        <p className={styles.muted}>{words.say('strength.safety')}</p>
-        <p className={styles.muted}>
-          {words.say('strength.sheet.warmup')}
-          {hasEffort
-            ? ` ${words.say('strength.sheet.reps-left-hint', { max: words.count(REPS_LEFT_MAX) })}`
-            : ''}
-        </p>
+        <details className={styles.about}>
+          <summary>{words.say('strength.sheet.about')}</summary>
+          <div className={styles.aboutBody}>
+            <p className={styles.muted}>
+              {words.say('strength.sheet.warmup')}
+              {hasEffort
+                ? ` ${words.say('strength.sheet.reps-left-hint', { max: words.count(REPS_LEFT_MAX) })}`
+                : ''}
+            </p>
+          </div>
+        </details>
       </div>
 
       {editing ? null : (
@@ -393,6 +388,7 @@ export function StrengthForm({
         {state.blocks.map((block) => (
           <LiftSection
             key={block.key}
+            firstRepsLeft={block.key === firstRepsLeft}
             block={block}
             workout={workout}
             words={words}

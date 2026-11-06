@@ -25,8 +25,9 @@ import type { Quantity, StrengthContext } from '../../../shared/engine/types.ts'
 import type { StrengthWorkout, Units, WeightUnit, WorkoutLift } from '../../../shared/types.ts'
 import { asSuggested, blocksOf } from '../../../web/components/strength/strengthForm.ts'
 import { strengthWords } from '../../../web/components/strength/strengthText.ts'
-import { workoutRows } from '../../../web/components/strength/workoutRows.ts'
+import { TRUNK_ROW_CHARS_MAX, workoutRows } from '../../../web/components/strength/workoutRows.ts'
 import {
+  everyTrunkWorkout,
   have,
   lb,
   log,
@@ -425,5 +426,127 @@ describe('one workout on every surface', () => {
         all.find((c) => c.name === 'maintenance with machines')?.workout as StrengthWorkout,
       ).week,
     ).toBeNull()
+  })
+})
+
+describe('the hero row of the trunk work, read over what the engine makes', () => {
+  const all = cases()
+
+  it('is pinned to the engine: it makes two trunk movements (one in the taper) and one jump movement', () => {
+    const trunk = all.map((c) => c.workout.trunk.length)
+    // the row writes a pair; a third movement would be a different row, and a different measurement
+    expect(Math.max(...trunk)).toBe(2)
+    expect(all.find((c) => c.name === 'taper')?.workout.trunk).toHaveLength(1)
+    for (const c of all) {
+      expect(c.workout.trunk.length, c.name).toBeLessThanOrEqual(2)
+      expect(c.workout.plyo?.movements.length ?? 0, c.name).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('gives every trunk movement of every engine workout its amount, and never falls back to names', () => {
+    for (const c of all) {
+      if (c.workout.trunk.length === 0) continue
+      const row = workoutRows(c.workout, 'km', c.weightUnit).find((r) => r.key === 'trunk')
+      expect(row, c.name).toBeDefined()
+      const text = row?.text ?? ''
+      expect(text, c.name).not.toMatch(/ sets\.$/)
+      for (const lift of c.workout.trunk) {
+        const range =
+          lift.range.min === lift.range.max
+            ? String(lift.range.min)
+            : `${String(lift.range.min)}\u2013${String(lift.range.max)}`
+        expect(text, `${c.name}: ${lift.exerciseId}`).toContain(`${String(lift.sets)}x${range}`)
+      }
+    }
+  })
+})
+
+const HOLDS = ['side-plank', 'farmer-carry']
+
+interface TrunkRow {
+  where: string
+  template: StrengthWorkout['template']
+  avoid: string[]
+  ids: string[]
+  text: string
+}
+
+/** The hero's trunk row of every trunk workout the engine can make (`everyTrunkWorkout`). */
+function everyTrunkRow(): TrunkRow[] {
+  return everyTrunkWorkout().flatMap(({ where, avoid, workout }) => {
+    const text = workoutRows(workout, 'km', 'lb').find((r) => r.key === 'trunk')?.text
+    return text === undefined
+      ? []
+      : [
+          {
+            where,
+            template: workout.template,
+            avoid,
+            ids: workout.trunk.map((lift) => lift.exerciseId),
+            text,
+          },
+        ]
+  })
+}
+
+describe('the hero row of the trunk work fits its one line at 360 px for every pair the engine makes', () => {
+  const rows = everyTrunkRow()
+
+  it('reads every equipment set, session, template, lighter day and set of left-out movements', () => {
+    expect(rows.length).toBeGreaterThan(1500)
+    // the six templates are all there, each as `strengthTemplate` gives it for the weeks built
+    expect([...new Set(rows.map((r) => r.template))].sort()).toEqual([
+      'heavy',
+      'lighter-week',
+      'maintenance',
+      'ramp-in',
+      'return',
+      'taper',
+    ])
+    // and the taper's single movement is a row of its own
+    expect(rows.some((r) => r.template === 'taper' && r.ids.length === 1)).toBe(true)
+    // the pairs of the brief: session B of a runner with bands is the banded pair, and with only
+    // dumbbells the two holds
+    const plain = rows.filter((r) => r.avoid.length === 0)
+    expect(plain.some((r) => r.ids.join() === 'banded-lateral-walk,pallof-press')).toBe(true)
+    expect(plain.some((r) => r.ids.join() === 'farmer-carry,side-plank')).toBe(true)
+  })
+
+  it(`never writes a row of more than ${String(TRUNK_ROW_CHARS_MAX)} characters`, () => {
+    // 45 characters is 312 px at the widest and 328 px is the line: the measurement is in the note
+    // of `TRUNK_ROW_CHARS_MAX`, and `12-today.spec.ts` renders the rows at 360 px
+    const longest = rows.reduce((a, b) => (b.text.length > a.text.length ? b : a))
+    expect(longest.text.length, `${longest.where}: ${longest.text}`).toBeLessThanOrEqual(
+      TRUNK_ROW_CHARS_MAX,
+    )
+  })
+
+  it('writes the amounts of every pair a runner gets without leaving movements out', () => {
+    for (const row of rows.filter((r) => r.avoid.length === 0)) {
+      expect(row.text, row.where).not.toMatch(/ sets\.$/)
+      expect(row.text, row.where).toMatch(/\d+x\d/)
+    }
+  })
+
+  it('names the movements and their sets only for banded lateral walk beside a hold, which needs leaving movements out', () => {
+    const named = rows.filter((r) => / sets\.$/.test(r.text))
+    expect(named.length).toBeGreaterThan(0)
+    for (const row of named) {
+      expect(row.avoid.length, row.where).toBeGreaterThan(0)
+      expect(row.ids, row.where).toContain('banded-lateral-walk')
+      expect(
+        row.ids.some((id) => HOLDS.includes(id)),
+        row.where,
+      ).toBe(true)
+    }
+    // and every such pair is among them: written out they are 49 characters and more
+    const widePairs = rows.filter(
+      (r) =>
+        r.ids.length === 2 &&
+        r.ids.includes('banded-lateral-walk') &&
+        r.ids.some((id) => HOLDS.includes(id)),
+    )
+    expect(widePairs.length).toBeGreaterThan(0)
+    for (const row of widePairs) expect(row.text, row.where).toMatch(/ sets\.$/)
   })
 })

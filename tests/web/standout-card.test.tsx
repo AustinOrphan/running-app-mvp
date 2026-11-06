@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, test } from 'vitest'
 import type { StandoutView } from '../../shared/copy/standoutRender.ts'
@@ -81,15 +81,17 @@ describe('StandoutCard', () => {
     ).toBeInTheDocument()
   })
 
-  test('says nothing unusual when there is nothing to report', async () => {
-    renderCard({ items: [], more: 0 })
-    const card = await screen.findByRole('region', { name: 'What stood out' })
-    expect(
-      await within(card).findByText('Nothing unusual to report on this run.'),
-    ).toBeInTheDocument()
-    expect(within(card).queryByRole('list')).not.toBeInTheDocument()
-    expect(within(card).queryByRole('button')).not.toBeInTheDocument()
-    expectCleanCopy(card)
+  test('renders nothing when there is nothing to report, and nothing while the facts load', async () => {
+    const { api, container } = renderCard({ items: [], more: 0 })
+    // before the answer: no heading and no skeleton stand in for the card
+    expect(container).toBeEmptyDOMElement()
+    await waitFor(() => {
+      expect(api.calls.some((call) => call.url === '/api/activities/a1/standout')).toBe(true)
+    })
+    await settle()
+    expect(screen.queryByRole('region', { name: 'What stood out' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Nothing unusual/)).not.toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 
   test('says so, quietly, when the facts did not load', async () => {

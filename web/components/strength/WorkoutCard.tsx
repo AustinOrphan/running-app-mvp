@@ -28,15 +28,22 @@ export interface WorkoutCardProps {
   onPast: (workout: StrengthWorkout | null, date: string) => void
 }
 
+/** The rules moved this load two steps, not one: the reason they give says so. */
+function movedTwoSteps(lift: WorkoutLift): boolean {
+  return lift.basis.facts.some((fact) => fact.template === 'strength.reason.increase-two')
+}
+
 /** A word for what the rules did to a lift's load, where there is one: never colour alone. */
 function changeWord(words: PageWords, lift: WorkoutLift): string | null {
   // a movement with no added load has no load to move or to hold
   if (lift.loadG === null) return null
   switch (lift.change) {
     case 'increase':
-      return words.say('strength.label.up-one-step')
+      return words.say(
+        movedTwoSteps(lift) ? 'strength.label.up-two-steps' : 'strength.label.up-one-step',
+      )
     case 'hold':
-      return words.say('strength.label.load-holds')
+      return words.say('strength.label.load-unchanged')
     case 'lighter-day':
       return words.say('strength.label.lighter-day')
     case 'start':
@@ -47,13 +54,59 @@ function changeWord(words: PageWords, lift: WorkoutLift): string | null {
   }
 }
 
-/** One lift or trunk movement: its name, the suggestion and a word for the change. */
-function LiftRow({ words, lift }: { words: PageWords; lift: WorkoutLift }) {
-  const tag = changeWord(words, lift)
+/**
+ * The word for the change of the lifts that have a load, when two or more of them have one and it is
+ * the same word: the card says it once under its subtitle and leaves it off the rows. A word said of
+ * one lift alone would have no subject up there, so a lone loaded lift keeps it on its own row.
+ * "Up one step" and "Up two steps" are two words, so lifts that moved by different amounts are not
+ * folded into one note. Null when the words differ, or when there is none to say (no lift has a load,
+ * or the rules did not move them: a first session).
+ */
+function sharedChange(words: PageWords, lifts: readonly WorkoutLift[]): string | null {
+  const loaded = lifts.filter((lift) => lift.loadG !== null).map((lift) => changeWord(words, lift))
+  const [first] = loaded
+  return loaded.length >= 2 &&
+    first !== undefined &&
+    first !== null &&
+    loaded.every((word) => word === first)
+    ? first
+    : null
+}
+
+/**
+ * One lift or trunk movement. The name stands at the left and the load at the right as a figure,
+ * with the prescription and the reps left in a muted line under the name (a bodyweight lift has no
+ * load, and keeps its line). A word for the change shows only when the rows differ in it. The whole
+ * suggestion stays as visually hidden text, which a screen reader reads in place of the figures.
+ */
+function LiftRow({
+  words,
+  lift,
+  tag,
+  gloss,
+}: {
+  words: PageWords
+  lift: WorkoutLift
+  tag: string | null
+  /** What "in reserve" means, on the first row that says it. */
+  gloss: string | null
+}) {
+  const row = words.row(lift)
   return (
     <li className={styles.item}>
-      <span className={styles.rowName}>{words.name(lift.exerciseId)}</span>
-      <span className={styles.rowText}>{words.suggestion(lift)}</span>
+      <div className={styles.liftHead}>
+        <span className={styles.rowName}>{row.name}</span>
+        {row.load === null ? null : (
+          <span className={styles.rowLoad} aria-hidden="true">
+            {row.load}
+          </span>
+        )}
+      </div>
+      <span className="visually-hidden">{row.sentence}</span>
+      <span className={styles.rowLine} aria-hidden="true">
+        {row.line}
+      </span>
+      {gloss === null ? null : <span className={styles.rowLine}>{gloss}</span>}
       {tag === null ? null : <span className={styles.tag}>{tag}</span>}
     </li>
   )
@@ -89,7 +142,7 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
 
   const pastButton = (
     <Button
-      variant="secondary"
+      variant={workout === null ? 'secondary' : 'quiet'}
       aria-expanded={pastOpen}
       onClick={() => {
         setPastOpen((open) => !open)
@@ -126,11 +179,33 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
     </form>
   ) : null
 
+  // The lifts that have a load say what the rules did to it once, under the subtitle, when they all
+  // say the same; the rows carry the word only where it tells them apart.
+  const everyLift = workout === null ? [] : [...workout.lifts, ...workout.trunk]
+  const shared = sharedChange(words, everyLift)
+  // "In reserve" is said in words once, under the first row that names the reps left.
+  const glossed = everyLift.find((lift) => lift.rir !== null)?.exerciseId
+  const gloss = (lift: WorkoutLift): string | null =>
+    lift.exerciseId === glossed ? words.say('strength.row.gloss') : null
+
   return (
     <section aria-labelledby={headingId} className={styles.section}>
-      <h2 id={headingId} className={styles.heading}>
-        {words.say('strength.page.next-heading')}
-      </h2>
+      {/* "Log sets" is the card's one primary action, beside the heading and above the rows. */}
+      <div className={styles.head}>
+        <h2 id={headingId} className={styles.heading}>
+          {words.say('strength.page.next-heading')}
+        </h2>
+        {workout === null ? null : (
+          <Button
+            variant="primary"
+            onClick={() => {
+              onLog(workout)
+            }}
+          >
+            {words.say('strength.label.log-sets')}
+          </Button>
+        )}
+      </div>
       {workout === null ? (
         <>
           <p className={styles.lead}>{words.say('strength.page.next-empty')}</p>
@@ -161,41 +236,51 @@ export function WorkoutCard({ workout, asOf, words, separation, onLog, onPast }:
               minutes: words.minutes(workout.budgetMin),
             })}
           </p>
+          {shared === null ? null : <p className={styles.note}>{shared}</p>}
           {workout.setupSaved ? null : (
             <p className={styles.note}>{words.say('strength.page.bodyweight-only')}</p>
           )}
           <ul className={styles.list}>
             {workout.lifts.map((lift) => (
-              <LiftRow key={lift.exerciseId} words={words} lift={lift} />
+              <LiftRow
+                key={lift.exerciseId}
+                words={words}
+                lift={lift}
+                tag={shared === null ? changeWord(words, lift) : null}
+                gloss={gloss(lift)}
+              />
             ))}
             {workout.plyo === null
               ? null
               : workout.plyo.movements.map((movement) => (
                   <li key={movement} className={styles.item}>
-                    <span className={styles.rowText}>
-                      {words.say('strength.hero.plyo-row', {
-                        movement: words.name(movement),
+                    <div className={styles.liftHead}>
+                      <span className={styles.rowName}>{words.name(movement)}</span>
+                    </div>
+                    <span className="visually-hidden">
+                      {words.say('strength.sheet.suggested-contacts', {
+                        contacts: words.count(workout.plyo?.contacts ?? 0),
+                      })}
+                    </span>
+                    <span className={styles.rowLine} aria-hidden="true">
+                      {words.say('strength.row.contacts', {
                         contacts: words.count(workout.plyo?.contacts ?? 0),
                       })}
                     </span>
                   </li>
                 ))}
             {workout.trunk.map((lift) => (
-              <LiftRow key={lift.exerciseId} words={words} lift={lift} />
+              <LiftRow
+                key={lift.exerciseId}
+                words={words}
+                lift={lift}
+                tag={shared === null ? changeWord(words, lift) : null}
+                gloss={gloss(lift)}
+              />
             ))}
           </ul>
           {separation === null ? null : <p className={styles.note}>{separation}</p>}
-          <div className={styles.actions}>
-            <Button
-              variant="primary"
-              onClick={() => {
-                onLog(workout)
-              }}
-            >
-              {words.say('strength.label.log-sets')}
-            </Button>
-            {pastButton}
-          </div>
+          <div className={styles.flush}>{pastButton}</div>
           {pastForm}
         </>
       )}

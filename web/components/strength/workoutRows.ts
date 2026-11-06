@@ -11,6 +11,20 @@ import { strengthWords, type StrengthWords } from './strengthText.ts'
 /** The most rows a hero shows: three lifts, the jumps and the trunk movements. */
 export const WORKOUT_ROWS_MAX = 5
 
+/**
+ * The most characters the Today hero's trunk row has: the row is one line at 360 px, where the
+ * hero's content is 328 px wide, at the hero's 15 px. The Plan's session sheet shows the same rows
+ * at the 17 px body size, where the widest pairs wrap at 360 px; the budget is not theirs. Measured in chromium at 15 px Libre Franklin with lining, tabular figures
+ * (2026-11-06): the widest row of 45 characters or fewer that the engine can make is "Pallof press
+ * 2x8–12, farmer carry 2x30–45 s." at 312.0 px (the words-only row "Banded lateral walk and farmer
+ * carry, 2 sets." is 305.5 px), 16 px (5%) under the line; the next rows up, "Side plank 2x30–45 s,
+ * banded lateral walk 2x8–12." (49 characters) and "Banded lateral walk 2x8–12, farmer carry
+ * 2x30–45 s." (51), are 349.9 and 366.0 px, two lines. A row over the budget names its movements
+ * and their sets instead. `strengthSurfaces.test.ts` holds every row the engine makes to it, and
+ * `12-today.spec.ts` measures the rendered row at 360 px.
+ */
+export const TRUNK_ROW_CHARS_MAX = 45
+
 /** One row of a workout. */
 export interface WorkoutRow {
   /** Stable within a workout. */
@@ -42,6 +56,16 @@ function joinNames(names: string[]): string {
   return lowered.length === 0 ? last : `${lowered.join(', ')} and ${last}`
 }
 
+/** "Side plank 2 x 30-45 s each side, dead bug 2 x 8-12 reps": the trunk movements of a row. */
+function joinItems(lifts: readonly WorkoutLift[], words: StrengthWords): string {
+  return lifts
+    .map((lift, index) => {
+      const item = words.trunkItem(lift)
+      return index === 0 ? item : `${item.charAt(0).toLowerCase()}${item.slice(1)}`
+    })
+    .join(', ')
+}
+
 /**
  * The usual load of a lift on a lighter day, or null when there is none to offer. The engine keeps
  * the load it started from in `usualLoadG` whenever the cut changed anything, so a cut that only
@@ -66,7 +90,7 @@ function liftRow(words: StrengthWords, lift: WorkoutLift, usual: boolean): strin
   const exercise = words.name(lift.exerciseId)
   const { rir } = lift
   if (rir === null) {
-    return words.say('strength.hero.trunk-row', { movements: exercise, sets: count(lift.sets) })
+    return words.say('strength.hero.trunk-amounts', { items: words.trunkItem(lift) })
   }
   const base = {
     exercise,
@@ -126,19 +150,31 @@ export function workoutRows(
       rule: null,
     })
   }
-  const [firstTrunk] = workout.trunk
-  if (firstTrunk !== undefined) {
-    rows.push({
-      key: 'trunk',
-      text: words.say('strength.hero.trunk-row', {
-        movements: joinNames(workout.trunk.map((lift) => words.name(lift.exerciseId))),
-        sets: count(firstTrunk.sets),
-      }),
-      exerciseId: null,
-      rule: null,
-    })
-  }
+  const trunk = trunkRow(workout.trunk, words)
+  if (trunk !== null) rows.push({ key: 'trunk', text: trunk, exerciseId: null, rule: null })
   return rows
+}
+
+/**
+ * The one row of the trunk movements, or null for a workout with none: each movement with its sets,
+ * its amount and its measure (a hold says how long, a reps movement how many). Movements that share
+ * the sets and the amount say them once. The row has the room of one line (`TRUNK_ROW_CHARS_MAX`);
+ * one that would be longer names the movements and their sets, and the amounts are the logging
+ * sheet's and the Strength page's.
+ */
+function trunkRow(trunk: readonly WorkoutLift[], words: StrengthWords): string | null {
+  const [first] = trunk
+  if (first === undefined) return null
+  const shared = trunk.every(
+    (lift) => lift.sets === first.sets && words.trunkAmount(lift) === words.trunkAmount(first),
+  )
+  const names = joinNames(trunk.map((lift) => words.name(lift.exerciseId)))
+  const items =
+    trunk.length > 1 && shared ? words.trunkSharedItem(names, first) : joinItems(trunk, words)
+  const amounts = words.say('strength.hero.trunk-amounts', { items })
+  return amounts.length <= TRUNK_ROW_CHARS_MAX
+    ? amounts
+    : words.say('strength.hero.trunk-row', { movements: names, sets: count(first.sets) })
 }
 
 /** "40 minutes": the planned time of a workout in words, for an accessible name. */

@@ -40,7 +40,7 @@ async function startDay(page: Page, baseURL: string | undefined, withRun = false
   return { session, origin, api }
 }
 
-/** The logging sheet, however it was opened: its title names the session ("Strength, ramp-in A"). */
+/** The logging sheet, however it was opened: its title names the session ("Strength, ramp-in, session A"). */
 function loggingSheet(page: Page): Locator {
   return page.getByRole('dialog', { name: /^Strength, / })
 }
@@ -232,7 +232,167 @@ test('a change of equipment and of the weight unit is followed by the next worko
   await expect(rowOf(next, 'Tempo squat')).toBeVisible()
 })
 
+test('the Next session card keeps Log sets on the first screen at 390 x 844 and 360 x 740, with each load as a figure', async ({
+  page,
+  baseURL,
+}) => {
+  const { api } = await startDay(page, baseURL)
+  await saveStrengthSetup(api)
+  const tabBar = 56
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/strength')
+    const next = page.getByRole('region', { name: 'Next session' })
+    const logSets = next.getByRole('button', { name: 'Log sets' })
+    await expect(logSets).toBeVisible()
+    const visible = viewport.height - tabBar
+
+    // "Log sets" is in the header row, beside the heading, so it is in view whatever the rows are
+    const heading = await next.getByRole('heading', { name: 'Next session' }).boundingBox()
+    const button = await logSets.boundingBox()
+    expect(button).not.toBeNull()
+    expect((button?.y ?? Number.POSITIVE_INFINITY) + (button?.height ?? 0)).toBeLessThanOrEqual(
+      visible,
+    )
+    expect(Math.abs((button?.y ?? 0) - (heading?.y ?? 0))).toBeLessThan(40)
+    // the first lift: its name at the left and its load at the right, at 22 px, over a muted 15 px line
+    const first = next.getByRole('listitem').first()
+    const name = await first.locator('span').first().boundingBox()
+    const load = first.getByText(/^\d+(\.\d+)? lb$/)
+    const loadBox = await load.boundingBox()
+    expect(loadBox?.x ?? 0).toBeGreaterThan((name?.x ?? 0) + (name?.width ?? 0))
+    expect(await load.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))).toBe(22)
+    const line = first.getByText(/^\d+ sets? of /)
+    expect(await line.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))).toBe(15)
+    // The rows the first screen holds, measured and attached: the three lifts and the next row
+    // are inside it at both sizes (five rows at 360 x 740, all six at 390 x 844), and before the
+    // rows were set apart "Log sets" stood below the sixth row, under the fold at both.
+    const rows = next.getByRole('listitem')
+    const bottoms = await Promise.all(
+      (await rows.all()).map(async (row) => {
+        const box = await row.boundingBox()
+        return box === null ? Number.NaN : Math.round(box.y + box.height)
+      }),
+    )
+    for (const bottom of bottoms.slice(0, 4)) expect(bottom).toBeLessThanOrEqual(visible)
+    const info = test.info()
+    await info.attach(`strength-${String(viewport.width)}x${String(viewport.height)}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+    info.annotations.push({
+      type: `strength first screen ${String(viewport.width)}x${String(viewport.height)}`,
+      description: `above the tab bar to ${String(visible)} px; row bottoms ${JSON.stringify(bottoms)}`,
+    })
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      ),
+    ).toBe(false)
+  }
+})
+
+test('a hold says how long and on which sides on the card, in the hero and on the logging sheet', async ({
+  page,
+  baseURL,
+}) => {
+  const { session, api } = await startDay(page, baseURL)
+  await saveStrengthSetup(api)
+  await page.setViewportSize({ width: 390, height: 844 })
+
+  // the Strength page: each trunk movement with its amount and its measure
+  await page.goto('/strength')
+  const next = page.getByRole('region', { name: 'Next session' })
+  await expect(rowOf(next, 'Side plank')).toContainText('2 sets of 30 to 45 seconds each side')
+  await expect(rowOf(next, 'Dead bug')).toContainText('2 sets of 8 to 12 reps')
+
+  // Today's hero: the same movements, written close, in one row
+  await page.goto('/')
+  const hero = page.getByRole('article', { name: session.title })
+  await expect(hero.getByRole('listitem').last()).toHaveText(
+    'Side plank 2x30–45 s, dead bug 2x8–12.',
+  )
+
+  // the logging sheet: the value of a hold is followed by its unit, and the names say seconds
+  await hero.getByRole('button', { name: 'Log sets' }).click()
+  const sheet = loggingSheet(page)
+  const hold = liftIn(sheet, 'Side plank').getByRole('group', {
+    name: 'Side plank, set 1, seconds',
+  })
+  await expect(hold.getByText('s', { exact: true })).toBeVisible()
+  await expect(hold.getByRole('textbox', { name: 'Side plank, set 1, seconds' })).toBeVisible()
+  await expect(hold.getByRole('button', { name: 'Raise the seconds by 5' })).toBeVisible()
+})
+
 // ---- Logging ---------------------------------------------------------------------------------------
+
+test('the logging sheet opens on the first lift at 390 x 844 and 360 x 740, with its 0 to 5 row labelled', async ({
+  page,
+  baseURL,
+}) => {
+  const { api } = await startDay(page, baseURL)
+  await saveStrengthSetup(api)
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/strength')
+    await page
+      .getByRole('region', { name: 'Next session' })
+      .getByRole('button', { name: 'Log sets' })
+      .click()
+    const sheet = loggingSheet(page)
+    // one line before the lifts; the safety line and how to log are behind a row, closed
+    await expect(sheet.getByText(/Loads are in pounds\.$/)).toBeVisible()
+    const disclosure = sheet.getByText('How to log')
+    await expect(disclosure).toBeVisible()
+    // the safety line is in view with nothing opened; the warm-up note is behind the disclosure
+    await expect(sheet.getByText(/^Stop a set if anything hurts/)).toBeVisible()
+    await expect(sheet.getByText(/Warm-up sets are not logged\./)).toBeHidden()
+
+    // The first lift and the labelled row of 0 to 5 are inside the screen (the sheet slides up, so
+    // the boxes are read once it has settled); where the first set starts is measured and attached.
+    const [first] = await exercisesIn(sheet)
+    expect(first).toBeDefined()
+    const lift = liftIn(sheet, first ?? '')
+    const label = lift.getByText('Reps left in reserve, all sets')
+    await expect(label).toBeVisible()
+    const visible = viewport.height
+    const bottomOf = async (locator: Locator) => {
+      const box = await locator.boundingBox()
+      return box === null ? Number.POSITIVE_INFINITY : Math.round(box.y + box.height)
+    }
+    const heading = lift.getByRole('heading', { level: 3 })
+    await expect.poll(() => bottomOf(heading)).toBeLessThan(visible)
+    await expect.poll(() => bottomOf(label)).toBeLessThan(visible)
+    const firstSet = lift.getByRole('textbox', { name: `${first ?? ''}, set 1, reps` })
+    const info = test.info()
+    await info.attach(`strength-sheet-${String(viewport.width)}x${String(viewport.height)}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+    info.annotations.push({
+      type: `strength sheet ${String(viewport.width)}x${String(viewport.height)}`,
+      description: JSON.stringify({
+        heading: await bottomOf(heading),
+        scaleLabel: await bottomOf(label),
+        firstSet: await bottomOf(firstSet),
+        screen: visible,
+      }),
+    })
+    // the disclosure opens on a tap and says that warm-ups are not logged
+    await disclosure.click()
+    await expect(sheet.getByText(/Warm-up sets are not logged\./)).toBeVisible()
+    await sheet.getByRole('button', { name: 'Close' }).click()
+    await expect(sheet).toBeHidden()
+  }
+})
 
 test('a session is logged as suggested in three interactions from the Strength page', async ({
   page,
@@ -371,8 +531,10 @@ test('the next load rises one step after a session at the top of the range with 
   await expect(sheet).toBeHidden()
   for (const name of progressing) {
     await expect(rowOf(next, name)).toContainText('Suggested 45 lb')
-    await expect(rowOf(next, name)).toContainText('Up one step')
   }
+  // both lifts moved the same way, so the card says so once under its subtitle, not on each row
+  await expect(next.getByText('Up one step')).toHaveCount(1)
+  await expect(next.getByRole('listitem').getByText('Up one step')).toHaveCount(0)
   const after = await nextStrengthWorkout(api)
   expect(after.sessionId).not.toBe(first.sessionId)
   for (const id of ['goblet-squat', 'dumbbell-rdl']) {

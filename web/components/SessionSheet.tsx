@@ -29,7 +29,7 @@ import { WhyDrawer } from './WhyDrawer.tsx'
 import { WristSection } from './WristStatus.tsx'
 import { AdjustSection, isSettledForChange } from './disruption/AdjustSection.tsx'
 import { SessionTargets } from './today/SessionTargets.tsx'
-import { unratedEffortNote } from './engineText.ts'
+import { assessmentLines, unratedEffortNote } from './engineText.ts'
 import {
   formatClimb,
   formatLongDate,
@@ -196,14 +196,18 @@ export function SheetTargets({ targets, units }: { targets: ResolvedTargets; uni
 
 function Assessment({
   execution,
+  band,
   activityId,
   units,
 }: {
   execution: ExecutionAssessment
+  /** The session's expected RPE range, which the effort sentences are read against. */
+  band: readonly [number, number]
   activityId: string | null
   units: Units | undefined
 }) {
   const { effort, conditions } = execution
+  const lines = assessmentLines(execution, band)
   const effortText =
     effort.score === null
       ? 'Effort not assessed'
@@ -230,9 +234,9 @@ function Assessment({
           <li key={flag}>{ASSESSMENT_FLAG_LABELS[flag]}</li>
         ))}
       </ul>
-      {execution.lines.length > 0 ? (
+      {lines.length > 0 ? (
         <div className={styles.lines}>
-          {execution.lines.map((line) => (
+          {lines.map((line) => (
             <p key={line}>{line}</p>
           ))}
         </div>
@@ -460,6 +464,7 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
           {session.execution !== null ? (
             <Assessment
               execution={session.execution}
+              band={session.target.rpe}
               activityId={session.activityId}
               units={units}
             />

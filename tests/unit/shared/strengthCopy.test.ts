@@ -260,7 +260,7 @@ describe('the sentences of design 11.6', () => {
 
   it('says that a missing count holds the load', () => {
     expect(say('strength.reason.hold-unrecorded')).toBe(
-      'The count of reps left was not recorded, so the load holds.',
+      'The count of reps left was not recorded, so the load stays unchanged.',
     )
   })
 
@@ -371,13 +371,121 @@ describe('the sentences of design 11.6', () => {
         movement: say('strength.name.pogo-hop'),
         contacts: count(P.f7.maintenancePlyoContacts.value),
       }),
-    ).toBe(`Pogo hops, ${String(P.f7.maintenancePlyoContacts.value)} contacts.`)
+    ).toBe(`Pogo hops, ${String(P.f7.maintenancePlyoContacts.value)} ground contacts.`)
+    // a trunk movement of the hero's row carries its sets and its amount, written close
+    const sets = String(P.f7.trunkSets.value)
+    const hold = say('strength.hero.trunk-item', {
+      exercise: name('side-plank'),
+      sets: count(P.f7.trunkSets.value),
+      amount: say('strength.row.amount-measure', {
+        amount: say('strength.hero.amount-range', { lo: count(30), hi: count(45) }),
+        measure: say('strength.measure.seconds-short'),
+      }),
+    })
+    expect(hold).toBe(`Side plank ${sets}x30–45 s`)
+    const reps = say('strength.hero.trunk-item', {
+      exercise: name('dead-bug').toLowerCase(),
+      sets: count(P.f7.trunkSets.value),
+      amount: say('strength.hero.amount-range', { lo: count(8), hi: count(12) }),
+    })
+    expect(reps).toBe(`dead bug ${sets}x8–12`)
+    expect(say('strength.hero.trunk-amounts', { items: `${hold}, ${reps}` })).toBe(
+      `Side plank ${sets}x30–45 s, dead bug ${sets}x8–12.`,
+    )
+    // movements that share their sets and their amount say them once
+    expect(
+      say('strength.hero.trunk-shared', {
+        movements: `${name('banded-lateral-walk')} and ${name('pallof-press').toLowerCase()}`,
+        sets: count(P.f7.trunkSets.value),
+        amount: say('strength.hero.amount-range', { lo: count(8), hi: count(12) }),
+      }),
+    ).toBe(`Banded lateral walk and pallof press ${sets}x8–12`)
+    // a row too long for its line is named, with the sets they share
     expect(
       say('strength.hero.trunk-row', {
         movements: `${name('side-plank')} and ${name('dead-bug').toLowerCase()}`,
         sets: count(P.f7.trunkSets.value),
       }),
-    ).toBe(`Side plank and dead bug, ${String(P.f7.trunkSets.value)} sets.`)
+    ).toBe(`Side plank and dead bug, ${sets} sets.`)
+  })
+
+  it('writes the amount of a hold in seconds, "s" where room is short, and "2 × 30 s" for sets that agree', () => {
+    expect(say('strength.measure.seconds')).toBe('seconds')
+    expect(say('strength.measure.seconds-short')).toBe('s')
+    expect(say('strength.row.each-side', { amount: '30 to 45 seconds' })).toBe(
+      '30 to 45 seconds each side',
+    )
+  })
+
+  it('sets the figures of a lift row apart: the load, the prescription and the reps left', () => {
+    const load = { kind: 'load', g: toGrams(110, 'lb') } as const
+    expect(say('strength.row.load', { load })).toBe('110 lb')
+    expect(say('strength.row.load', { load }, 'kg')).toBe('50 kg')
+    expect(say('strength.row.sets-many', { n: count(4), amount: '3 to 6' })).toBe(
+      '4 sets of 3 to 6',
+    )
+    expect(say('strength.row.sets-one', { n: count(1), amount: '5' })).toBe('1 set of 5')
+    expect(
+      say('strength.row.amount-measure', {
+        amount: '30 to 45',
+        measure: say('strength.measure.seconds'),
+      }),
+    ).toBe('30 to 45 seconds')
+    expect(say('strength.row.reserve-range', { lo: count(1), hi: count(3) })).toBe(
+      '1 to 3 in reserve',
+    )
+    expect(say('strength.row.reserve-min', { n: count(3) })).toBe('3 or more in reserve')
+    expect(
+      say('strength.row.line', {
+        prescription: '2 sets of 6 to 8',
+        reserve: say('strength.row.reserve-min', { n: count(3) }),
+      }),
+    ).toBe('2 sets of 6 to 8, 3 or more in reserve')
+    expect(say('strength.row.contacts', { contacts: count(40) })).toBe('40 ground contacts')
+  })
+
+  it('words the jumps as the lifts are worded: "Suggested", and ground contacts', () => {
+    expect(say('strength.sheet.suggested-contacts', { contacts: count(40) })).toBe(
+      'Suggested 40 ground contacts.',
+    )
+    // the Today row and the session sheet's row say the same
+    expect(
+      say('strength.hero.plyo-row', {
+        movement: say('strength.name.pogo-hop'),
+        contacts: count(20),
+      }),
+    ).toBe('Pogo hops, 20 ground contacts.')
+  })
+
+  it('glosses "in reserve" in words, in the third person', () => {
+    expect(say('strength.row.gloss')).toBe('In reserve: reps that could still have been done.')
+  })
+
+  it('words the reasons a load is kept as "stays unchanged", and claims no equality with the last load', () => {
+    const reasons = ids.filter((id) => id.startsWith('strength.reason.hold-'))
+    expect(reasons).toHaveLength(5)
+    for (const id of reasons) {
+      const { text } = STRENGTH_TEMPLATES[id]
+      expect(text, id).toMatch(/so the load stays unchanged/)
+      expect(text, id).not.toMatch(/\bholds?\b/i)
+    }
+    // the phrase on the card and in the Lifts list says nothing of "last time": after a lighter day
+    // the load the rules keep is not the one lifted last
+    expect(say('strength.label.load-unchanged')).not.toMatch(/last time|same/i)
+  })
+
+  it('says a move of one step and a move of two apart', () => {
+    expect(say('strength.label.up-one-step')).toBe('Up one step')
+    expect(say('strength.label.up-two-steps')).toBe('Up two steps')
+  })
+
+  it('says the unchanged load in one phrase, and keeps "hold" for plan holds', () => {
+    expect(say('strength.label.load-unchanged')).toBe('Load unchanged')
+    // no label or word of the Strength page calls a load a hold: the plan's holds are the plan's
+    for (const [id, template] of Object.entries(TEMPLATES)) {
+      if (!id.startsWith('strength.label.') && !id.startsWith('strength.page.')) continue
+      expect(`${template.text} ${template.fallback}`, id).not.toMatch(/\bholds?\b/i)
+    }
   })
 
   it('reads the same grams in the runner’s weight unit, so a change of unit reaches old logs', () => {
@@ -394,11 +502,11 @@ describe('the sentences of design 11.6', () => {
       slots: { load: { kind: 'load', g: 49895 }, pct: percent(P.f8.maxStepPct.value) },
     } as const
     expect(renderFact(fact, 'km')).toBe(
-      'The next step up from 110 lb would be more than 15% of the load, so the load holds.',
+      'The next step up from 110 lb would be more than 15% of the load, so the load stays unchanged.',
     )
     expect(renderFact(fact, 'km', 'lb')).toBe(renderFact(fact, 'mi'))
     expect(renderFact(fact, 'km', 'kg')).toBe(
-      'The next step up from 50 kg would be more than 15% of the load, so the load holds.',
+      'The next step up from 50 kg would be more than 15% of the load, so the load stays unchanged.',
     )
   })
 
@@ -468,19 +576,21 @@ describe('the sentences of design 11.6', () => {
     ).toBe('Back squat has no sets logged yet, so it starts at 70% of the estimated maximum.')
     expect(
       say('strength.reason.hold-ceiling', { pct: percent(P.flib.heavyMinPct1rm.range?.[1] ?? 0) }),
-    ).toBe('The next step would pass 90% of the estimated maximum, so the load holds.')
+    ).toBe('The next step would pass 90% of the estimated maximum, so the load stays unchanged.')
     expect(
       say('strength.reason.hold-step', {
         load: { kind: 'load', g: toGrams(50, 'lb') },
         pct: percent(P.f8.maxStepPct.value),
       }),
-    ).toBe('The next step up from 50 lb would be more than 15% of the load, so the load holds.')
+    ).toBe(
+      'The next step up from 50 lb would be more than 15% of the load, so the load stays unchanged.',
+    )
   })
 
   it('says why a set with too few reps left holds the load, with the count from the Param', () => {
     const reps = countPhrase(P.f8.progressMinRir.value, 'rep')
     expect(say('strength.reason.hold-effort', { exercise: squat, top: count(repsHi), reps })).toBe(
-      `Every set of Back squat reached ${String(repsHi)} reps, but a set had fewer than one rep left, so the load holds.`,
+      `Every set of Back squat reached ${String(repsHi)} reps, but a set had fewer than one rep left, so the load stays unchanged.`,
     )
     // a Param of two would change the sentence, not leave "one" in it
     expect(
@@ -510,10 +620,13 @@ describe('the sentences of design 11.6', () => {
     )
   })
 
-  it('heads a session as design 9.1 does', () => {
+  it('heads a session with its template and names the letter a session', () => {
     expect(
       say('strength.heading', { template: say('strength.template.heavy'), variant: 'A' }),
-    ).toBe('Strength, heavy A')
+    ).toBe('Strength, heavy, session A')
+    expect(
+      say('strength.heading', { template: say('strength.template.ramp-in'), variant: 'B' }),
+    ).toBe('Strength, ramp-in, session B')
   })
 
   it('uses the words of the vocabulary table', () => {
@@ -526,7 +639,7 @@ describe('the sentences of design 11.6', () => {
         'strength.label.heaviest-set',
         'strength.label.lighter-day',
         'strength.label.up-one-step',
-        'strength.label.load-holds',
+        'strength.label.load-unchanged',
         'strength.label.log-sets',
         'strength.label.add-sets',
       ].map((id) => say(id as StrengthTemplateId)),
@@ -538,7 +651,7 @@ describe('the sentences of design 11.6', () => {
       'Heaviest set',
       'Lighter day',
       'Up one step',
-      'The load holds',
+      'Load unchanged',
       'Log sets',
       'Add the sets',
     ])
@@ -647,6 +760,14 @@ describe('the sentences of the logging sheet (design 9.1)', () => {
     expect(say('strength.sheet.remove-for', { exercise: squat, set: count(3) })).toBe(
       'Remove: Back squat, set 3',
     )
+  })
+
+  it('labels the row of the scale and the disclosure that holds how to log', () => {
+    expect(say('strength.sheet.all-sets-first')).toBe('Reps left in reserve, all sets')
+    expect(say('strength.sheet.all-sets-reps-left')).toBe('Reps left, all sets')
+    expect(say('strength.sheet.about')).toBe('How to log')
+    // the long label is the vocabulary's own "Reps left in reserve" with the scope after it
+    expect(say('strength.sheet.all-sets-first')).toContain(say('strength.label.reps-left-first'))
   })
 
   it('takes the top of the reps-left scale and the bounds of a field as figures, not words', () => {

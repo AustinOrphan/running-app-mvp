@@ -1,6 +1,51 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
+import type { Api } from './helpers.ts'
+import type { PlanSession, PlanWithSessions } from '../../shared/types.ts'
+import { createPrisma, initSqlite } from '../../server/db.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
-import { resetData, signedInApi } from './helpers.ts'
+import { E2E_DATABASE_URL } from './env.ts'
+import { planWithRunToday, relativeDates, resetData, signedInApi } from './helpers.ts'
+
+/** The height of the tab bar that sits over the foot of a phone's viewport. */
+const TAB_BAR_PX = 56
+
+/** The computed font size of an element, in pixels. */
+async function fontPx(locator: Locator): Promise<number> {
+  return locator.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))
+}
+
+/** Whether the page is wider than the window. */
+async function scrollsSideways(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  )
+}
+
+/**
+ * A plan with an easy run today (expected RPE 2 to 3). The plan's own run for today may be another
+ * kind, so an easy one is moved here, as `strengthOnlyToday` moves a strength session: the API's own
+ * move may refuse the day, and the page only ever reads today.
+ */
+async function easyRunToday(api: Api, page: Page, origin: string): Promise<PlanSession> {
+  const planned = await planWithRunToday(api, page, origin, 'Post-run marathon')
+  if (planned.kind === 'easy') return planned
+  const { today, thisMonday } = relativeDates()
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  const easy = plan.sessions.find((session) => session.kind === 'easy' && session.id !== planned.id)
+  if (easy === undefined) throw new Error('The plan has no easy run to move to today.')
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    await prisma.planSession.deleteMany({ where: { planId: easy.planId, date: today } })
+    await prisma.planSession.update({
+      where: { id: easy.id },
+      data: { date: today, weekStart: thisMonday },
+    })
+  } finally {
+    await prisma.$disconnect()
+  }
+  return { ...easy, date: today, weekStart: thisMonday }
+}
 
 interface UploadFile {
   name: string
@@ -89,21 +134,33 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
   await second.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByText('1 activity')).toBeVisible()
 
-  // Detail page: summary, charts, laps and the original file.
+  // Detail page: summary, the result against the plan, charts, laps and the original file.
+  const standoutRead = page.waitForResponse((response) =>
+    /\/api\/activities\/[^/]+\/standout$/.test(new URL(response.url()).pathname),
+  )
   await page.getByRole('link', { name: /^Details, Run on / }).click()
   await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Summary' })).toBeVisible()
   await expect(page.getByText('Synthetic Watch')).toBeVisible()
+  // no plan, so nothing to set the run against: one neutral line, above the rating
+  const against = page.getByRole('region', { name: 'Against the plan' })
+  await expect(
+    against.getByText('There is no current plan to set this activity against.'),
+  ).toBeVisible()
+  await expect(page.getByRole('region', { name: 'How did it go?' })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Pace, average / })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Heart rate, average / })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Elevation, from / })).toBeVisible()
   const laps = page.getByRole('table', { name: 'Laps' })
   await expect(laps.getByRole('row')).toHaveCount(3)
   await expect(page.getByRole('heading', { name: 'Heart rate distribution' })).toBeVisible()
-  // The import described the run: its card loads, with a sentence or a plain "nothing unusual".
-  const standout = page.getByRole('region', { name: 'What stood out' })
-  await expect(standout.locator('p').first()).toBeVisible()
-  await expect(standout.getByText(/could not be loaded/)).toBeHidden()
+  // The import described the run: its facts load. A run with nothing unusual has no card, and a
+  // card that is there never says it could not load.
+  expect((await standoutRead).ok()).toBe(true)
+  await expect(page.getByText('Nothing unusual to report on this run.')).toBeHidden()
+  await expect(
+    page.getByRole('region', { name: 'What stood out' }).getByText(/could not be loaded/),
+  ).toBeHidden()
   await expect(page.getByRole('link', { name: 'Download original file' })).toBeVisible()
 
   // Today lists the unrated run; rating it from the card removes it from the card.
@@ -126,6 +183,189 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
     'aria-pressed',
     'true',
   )
+})
+
+test('the activity page leads with the run’s figures, in three sizes, at 390 x 844 and 360 x 740', async ({
+  page,
+  baseURL,
+}) => {
+  const { today } = relativeDates()
+  const api = await signedInApi(page, baseURL ?? '')
+  await resetData()
+  // The long run of the critique: 3:05:00 over 17.46 mi, entered by hand.
+  const run = (await api.post('/activities', {
+    date: today,
+    type: 'run',
+    subtype: 'trail',
+    durationSec: 3 * 3600 + 5 * 60,
+    distanceM: 28_100,
+    avgHr: 148,
+    maxHr: 171,
+    elevationGainM: 320,
+  })) as { id: string }
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto(`/activities/${run.id}`)
+    const summary = page.getByRole('region', { name: 'Summary' })
+    await expect(summary).toBeVisible()
+
+    // tier 1: duration and distance at 32 px (--text-xl), the unit smaller and muted beside it
+    const duration = summary.getByText('3:05:00', { exact: true })
+    const distance = summary.getByText('17.46', { exact: true })
+    expect(await fontPx(duration)).toBe(32)
+    expect(await fontPx(distance)).toBe(32)
+    expect(await fontPx(summary.getByText('mi', { exact: true }))).toBe(22)
+    // one row: both lead figures sit on the same line
+    const durationBox = await duration.boundingBox()
+    const distanceBox = await distance.boundingBox()
+    expect(durationBox?.y).toBe(distanceBox?.y)
+
+    // tier 2: pace, climb and the two heart rates at 22 px, two by two
+    const pace = summary.getByText(/^\d+:\d\d \/mi$/)
+    const gain = summary.getByText(/^\d+ ft$/)
+    const averageHr = summary.getByText('148 bpm', { exact: true })
+    const maxHr = summary.getByText('171 bpm', { exact: true })
+    for (const reading of [pace, gain, averageHr, maxHr]) expect(await fontPx(reading)).toBe(22)
+    const [paceBox, gainBox, averageBox, maxBox] = await Promise.all(
+      [pace, gain, averageHr, maxHr].map((reading) => reading.boundingBox()),
+    )
+    expect(paceBox?.y).toBe(gainBox?.y)
+    expect(averageBox?.y).toBe(maxBox?.y)
+    expect(averageBox?.y).toBeGreaterThan(paceBox?.y ?? Number.POSITIVE_INFINITY)
+
+    // tier 3: kind and source as one muted 15 px line, on one line at both widths
+    const described = summary.getByText('Trail · Entered by hand', { exact: true })
+    expect(await fontPx(described)).toBe(15)
+    expect((await described.boundingBox())?.height).toBeLessThanOrEqual(22)
+
+    // the page has no fold test: the first screen is measured and attached, not asserted
+    expect(await scrollsSideways(page)).toBe(false)
+    const first = await summary.boundingBox()
+    const info = test.info()
+    await info.attach(`activity-${String(viewport.width)}x${String(viewport.height)}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+    info.annotations.push({
+      type: `activity first screen ${String(viewport.width)}x${String(viewport.height)}`,
+      description: `Summary ends at ${String(Math.round((first?.y ?? 0) + (first?.height ?? 0)))} px of ${String(viewport.height - TAB_BAR_PX)} px`,
+    })
+  }
+})
+
+test('a run that filled a planned session opens on its result, then the rating, then the recording', async ({
+  page,
+  baseURL,
+}) => {
+  const { today } = relativeDates()
+  const origin = baseURL ?? ''
+  const api = await signedInApi(page, origin)
+  const planned = await easyRunToday(api, page, origin)
+  // With a threshold pace the server has a pace band for the session, and so a verdict on effort
+  // from the pace alone, whatever the runner has rated.
+  await api.put('/profile', { thresholdPaceSecPerKm: 330 })
+  // The run that fulfils it: logged by hand, faster than the band, and linked to the session by the
+  // server at once. It is unrated.
+  const run = (await api.post('/activities', {
+    date: today,
+    type: 'run',
+    durationSec: planned.durationMin * 60,
+    distanceM: planned.durationMin * 220,
+  })) as { id: string }
+  const served = async (): Promise<string[]> => {
+    const plan = (await api.get('/plan')) as PlanWithSessions
+    return plan.sessions.find((session) => session.activityId === run.id)?.execution?.lines ?? []
+  }
+  // the premise: the server has written an effort sentence for the unrated run, from the pace
+  expect((await served()).filter((line) => line.startsWith('Effort '))).toEqual([
+    'Effort felt harder than expected.',
+  ])
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto(`/activities/${run.id}`)
+    const summary = page.getByRole('region', { name: 'Summary' })
+    const against = page.getByRole('region', { name: 'Against the plan' })
+    const feedback = page.getByRole('region', { name: 'How did it go?' })
+    // the context line names the session and sets the run beside it; the assessment follows
+    const title = planned.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    await expect(against.getByText(new RegExp(`^Planned: ${title}, .*Ran: `))).toBeVisible()
+    await expect(against.getByText(/ against .* planned \(\d+%\)\.$/)).toBeVisible()
+    // an unrated run is never told how hard it was: the server wrote "harder than expected" from
+    // the pace, and the page does not say it until the runner's own rating supports it
+    await expect(against.getByText(/^Intensity /)).toBeVisible()
+    await expect(against.getByText(/^Effort /)).toBeHidden()
+
+    // the order of the post-run screen, top to bottom
+    const tops = await Promise.all(
+      [summary, against, feedback].map(async (section) => (await section.boundingBox())?.y ?? -1),
+    )
+    expect(tops[0]).toBeGreaterThan(0)
+    expect(tops[1]).toBeGreaterThan(tops[0] ?? 0)
+    expect(tops[2]).toBeGreaterThan(tops[1] ?? 0)
+
+    // The first screen is what the phone shows above the tab bar. The page has no fold test of
+    // its own: the summary and the whole result against the plan must fit above it, and where the
+    // rating starts is measured and attached (at 390 x 844 its heading is in view and the chips
+    // begin; at 360 x 740 it starts below the fold).
+    const visible = viewport.height - TAB_BAR_PX
+    const bottomOf = async (locator: Locator) => {
+      const box = await locator.boundingBox()
+      return box === null ? Number.NaN : Math.round(box.y + box.height)
+    }
+    expect(
+      await bottomOf(against.getByText(/ against .* planned \(\d+%\)\.$/)),
+    ).toBeLessThanOrEqual(visible)
+    const measured = {
+      summaryEnds: await bottomOf(summary),
+      resultEnds: await bottomOf(against),
+      ratingHeadingEnds: await bottomOf(feedback.getByRole('heading', { name: 'How did it go?' })),
+      rpeRowEnds: await bottomOf(feedback.getByRole('group', { name: 'RPE' })),
+    }
+    const info = test.info()
+    await info.attach(`post-run-${String(viewport.width)}x${String(viewport.height)}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+    info.annotations.push({
+      type: `post-run first screen ${String(viewport.width)}x${String(viewport.height)}`,
+      description: `above the tab bar to ${String(visible)} px; ${JSON.stringify(measured)}`,
+    })
+    expect(await scrollsSideways(page)).toBe(false)
+  }
+
+  // An RPE inside the expected band of 2 to 3 does not make the pace's verdict the runner's: the
+  // server's sentence now quotes the rating, and the page still leaves it out.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/activities/${run.id}`)
+  const against = page.getByRole('region', { name: 'Against the plan' })
+  const rate = async (rpe: number) => {
+    const feedback = page.getByRole('region', { name: 'How did it go?' })
+    await feedback.getByRole('button', { name: `RPE ${String(rpe)}`, exact: true }).click()
+    await feedback.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status').getByText('Feedback saved')).toBeVisible()
+  }
+  await rate(3)
+  expect(
+    (await served()).some((line) =>
+      /^Effort felt (much )?harder than expected\. RPE 3 against/.test(line),
+    ),
+  ).toBe(true)
+  await expect(against.getByText(/^Intensity /)).toBeVisible()
+  await expect(against.getByText(/^Effort /)).toBeHidden()
+
+  // An RPE above the band supports it, and the sentence shows with the rating in it.
+  await rate(8)
+  await expect(
+    against.getByText(/^Effort felt (much )?harder than expected\. RPE 8 against 2-3 expected/),
+  ).toBeVisible()
 })
 
 test('a link with no class of its own is the app’s accent in both colour schemes, never the browser’s blue', async ({

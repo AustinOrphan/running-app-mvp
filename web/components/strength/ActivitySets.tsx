@@ -23,13 +23,13 @@ function numbered(log: StrengthLog): Array<{ set: StrengthSet; number: number }>
     })
 }
 
-/** A count in its measure: reps are the number, seconds and contacts say so. */
+/** A count in its measure: reps are the number, seconds read "30 s" and contacts say so. */
 function countText(words: PageWords, set: StrengthSet): string {
   return measureOf(set.exerciseId) === 'reps'
     ? String(set.count)
     : words.say('strength.page.set-bare', {
         count: words.count(set.count),
-        measure: words.measure(measureOf(set.exerciseId)),
+        measure: words.measureShort(measureOf(set.exerciseId)),
       })
 }
 

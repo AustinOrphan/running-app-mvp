@@ -34,6 +34,11 @@ export function measureOf(exerciseId: string): Measure {
   return exerciseById(exerciseId)?.measure ?? 'reps'
 }
 
+/** Whether the catalogue has the exercise done on one side and then the other (the side plank). */
+export function isEachSide(exerciseId: string): boolean {
+  return exerciseById(exerciseId)?.eachSide === true
+}
+
 const count = (n: number): Quantity => ({ kind: 'count', n })
 const load = (g: number): Quantity => ({ kind: 'load', g })
 
@@ -63,6 +68,17 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     return say(`strength.measure.${m}`)
   }
 
+  /** The unit beside a count where there is little room: "s" for seconds, the word for the rest. */
+  function measureShort(m: Measure): string {
+    return m === 'seconds' ? say('strength.measure.seconds-short') : measure(m)
+  }
+
+  /** The measure of a lift as the sentence says it: "reps", "seconds", "seconds each side". */
+  function measureWithSide(lift: WorkoutLift): string {
+    const word = measure(measureOf(lift.exerciseId))
+    return isEachSide(lift.exerciseId) ? say('strength.row.each-side', { amount: word }) : word
+  }
+
   /** The one-line suggestion of a lift, as design 9.1 words it. */
   function suggestion(lift: WorkoutLift): string {
     const { range, rir } = lift
@@ -72,7 +88,7 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
         range.min === range.max
           ? say('strength.sheet.amount-one', { n: count(range.min) })
           : say('strength.sheet.amount-range', { lo: count(range.min), hi: count(range.max) }),
-      measure: measure(measureOf(lift.exerciseId)),
+      measure: measureWithSide(lift),
     }
     const carried: Record<string, Quantity | string> =
       lift.loadG === null ? {} : { load: load(lift.loadG) }
@@ -92,6 +108,92 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
       lift.loadG === null ? 'strength.sheet.suggested-bodyweight' : 'strength.sheet.suggested',
       { ...slots, ...carried },
     )
+  }
+
+  /**
+   * What a set counts, with its measure where it needs one: "6 to 8" for a lift that has a reps-left
+   * target (the reserve says they are reps), "8 to 12 reps" and "30 to 45 seconds" for a movement that
+   * has none, and "each side" after it for a movement done on one side and then the other (the
+   * catalogue says which). `short` is for the hero's row, which has the room of one line: the range
+   * is "30-45", a count of seconds is "s", and neither "reps" nor "each side" is said (the card and
+   * the sheet say both).
+   */
+  function amountText(lift: WorkoutLift, short: boolean): string {
+    const { range, rir } = lift
+    const ends = { lo: count(range.min), hi: count(range.max) }
+    const amount =
+      range.min === range.max
+        ? say('strength.sheet.amount-one', { n: count(range.min) })
+        : say(short ? 'strength.hero.amount-range' : 'strength.sheet.amount-range', ends)
+    const counted = measureOf(lift.exerciseId)
+    // a lift with a reps-left target is counted in reps, and the reserve says so; the hero's row
+    // leaves "reps" out of a trunk movement too, and names a hold's unit because "30" alone is not
+    const named =
+      counted === 'reps' && (rir !== null || short)
+        ? amount
+        : say('strength.row.amount-measure', {
+            amount,
+            measure: short ? measureShort(counted) : measure(counted),
+          })
+    return isEachSide(lift.exerciseId) && !short
+      ? say('strength.row.each-side', { amount: named })
+      : named
+  }
+
+  /**
+   * A trunk movement of a hero row (Today and the session sheet): "Side plank 2x30-45 s" or "Dead
+   * bug 2x8-12", with its sets and its amount, written close for the one line the row has.
+   */
+  function trunkItem(lift: WorkoutLift): string {
+    return say('strength.hero.trunk-item', {
+      exercise: name(lift.exerciseId),
+      sets: count(lift.sets),
+      amount: amountText(lift, true),
+    })
+  }
+
+  /**
+   * Trunk movements that share their sets and their amount, as one item of a hero row: "Banded
+   * lateral walk and pallof press 2x8-12". `names` is the movements, already joined.
+   */
+  function trunkSharedItem(names: string, lift: WorkoutLift): string {
+    return say('strength.hero.trunk-shared', {
+      movements: names,
+      sets: count(lift.sets),
+      amount: amountText(lift, true),
+    })
+  }
+
+  /** What the hero's row says of a trunk movement's amount ("30-45 s"): equal text is a shared dose. */
+  function trunkAmount(lift: WorkoutLift): string {
+    return amountText(lift, true)
+  }
+
+  /**
+   * A lift as a row of the Strength page: its name, its load as a figure, the muted line under the
+   * name ("2 sets of 6 to 8, 3 or more in reserve") and the one sentence of `suggestion`, which a
+   * screen reader and the specs read in place of the figures. `reserved` says the line names the
+   * reps left, which the page glosses once, under the first row that does.
+   */
+  function row(lift: WorkoutLift): LiftRowText {
+    const { rir } = lift
+    const prescription = say(lift.sets === 1 ? 'strength.row.sets-one' : 'strength.row.sets-many', {
+      n: count(lift.sets),
+      amount: amountText(lift, false),
+    })
+    const reserve =
+      rir === null
+        ? null
+        : rir.min === rir.max
+          ? say('strength.row.reserve-min', { n: count(rir.min) })
+          : say('strength.row.reserve-range', { lo: count(rir.min), hi: count(rir.max) })
+    return {
+      name: name(lift.exerciseId),
+      load: lift.loadG === null ? null : say('strength.row.load', { load: load(lift.loadG) }),
+      line: reserve === null ? prescription : say('strength.row.line', { prescription, reserve }),
+      reserved: reserve !== null,
+      sentence: suggestion(lift),
+    }
   }
 
   /** The reason of a lift's load: its first fact, as the Why drawer words it; null when it has none. */
@@ -187,10 +289,28 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     nextLine,
     saved,
     count,
+    row,
+    trunkItem,
+    trunkSharedItem,
+    trunkAmount,
+    measureShort,
   }
 }
 
 export type StrengthWords = ReturnType<typeof strengthWords>
+
+/** The parts of a lift's row on the Strength page (`StrengthWords.row`). */
+export interface LiftRowText {
+  name: string
+  /** The load in the runner's unit; null for a lift with no added load. */
+  load: string | null
+  /** The prescription and the reps left, one muted line. */
+  line: string
+  /** Whether `line` names the reps left. */
+  reserved: boolean
+  /** The whole suggestion as one sentence. */
+  sentence: string
+}
 
 /**
  * What a load of an exercise done with an implement means (design 5.2), as the line shown beside the

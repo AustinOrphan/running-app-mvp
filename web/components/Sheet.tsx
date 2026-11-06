@@ -8,6 +8,8 @@ export interface SheetProps {
   open: boolean
   onClose: () => void
   title: string
+  /** A muted line or two under the title, in the header: the day and the unit of a log. */
+  subtitle?: ReactNode
   children: ReactNode
   footer?: ReactNode
   /**
@@ -45,7 +47,15 @@ const focusable =
  * scrim close it, Tab stays inside (also when focus has fallen to the page), and focus goes back to
  * whatever opened it, or to the main landmark when the opener is gone and focus is lost with it.
  */
-export function Sheet({ open, onClose, title, children, footer, busy = false }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  busy = false,
+}: SheetProps) {
   const titleId = useId()
   const root = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -140,9 +150,12 @@ export function Sheet({ open, onClose, title, children, footer, busy = false }: 
         onKeyDown={trapTab}
       >
         <div className={styles.header}>
-          <h2 id={titleId} className={styles.title}>
-            {title}
-          </h2>
+          <div className={styles.heading}>
+            <h2 id={titleId} className={styles.title}>
+              {title}
+            </h2>
+            {subtitle === undefined ? null : <div className={styles.subtitle}>{subtitle}</div>}
+          </div>
           <Button variant="quiet" disabled={busy} onClick={onClose}>
             Close
           </Button>

@@ -941,6 +941,40 @@ describe('ReviewPage', () => {
       expect(screen.getByText('The weekly decision is not ready yet.')).toBeInTheDocument()
     })
 
+    test('leaves out an effort verdict that no rating of the runner supports', async () => {
+      renderReview({
+        plan: v2Plan([
+          makeSession({
+            id: 's1',
+            status: 'completed',
+            activityId: 'a1',
+            execution: {
+              completion: 'completed',
+              intensity: 'on',
+              effort: {
+                score: 1,
+                confidence: 'low',
+                parts: { rpeDelta: null, feel: null, hrResidualZ: 1.4, paceResidualPct: null },
+              },
+              conditions: { wbgtC: null, heatAdjusted: false, gradeAdjusted: false },
+              flags: [],
+              lines: [
+                '45 min against 45 planned (100%).',
+                'Intensity stayed in the target range.',
+                'Effort felt harder than expected.',
+              ],
+            },
+          }),
+        ]),
+        weeks: { [W]: fullWeek },
+      })
+      await ready()
+      const section = screen.getByRole('region', { name: 'Planned sessions' })
+      expect(within(section).getByText('45 min against 45 planned (100%).')).toBeInTheDocument()
+      expect(within(section).getByText('Intensity stayed in the target range.')).toBeInTheDocument()
+      expect(within(section).queryByText(/^Effort felt/)).not.toBeInTheDocument()
+    })
+
     test('lists the sessions of the week with what happened, in words that never say missed or behind', async () => {
       const user = userEvent.setup()
       renderReview({

@@ -40,6 +40,8 @@ const PINNABLE: ReadonlySet<string> = new Set<PinnedSlot>(['knee', 'hip', 'calf'
 
 export interface LiftSectionProps {
   block: Block
+  /** The first lift with a reps-left scale: its "all sets" row says what the scale counts in full. */
+  firstRepsLeft: boolean
   workout: StrengthWorkout
   words: StrengthWords
   weightUnit: WeightUnit
@@ -79,6 +81,7 @@ export interface LiftSectionProps {
  */
 export function LiftSection({
   block,
+  firstRepsLeft,
   workout,
   words,
   weightUnit,
@@ -253,7 +256,9 @@ export function LiftSection({
       {shown.rir !== null && rows.length > 0 ? (
         <div className={styles.allSets}>
           <span className={styles.repsLeftLabel} aria-hidden="true">
-            {words.say('strength.sheet.all-sets')}
+            {words.say(
+              firstRepsLeft ? 'strength.sheet.all-sets-first' : 'strength.sheet.all-sets-reps-left',
+            )}
           </span>
           <div className={styles.repsLeft}>
             <ScalePicker
@@ -339,6 +344,9 @@ export function LiftSection({
                     label={countName}
                     value={row.count}
                     inputMode="numeric"
+                    {...(measure === 'seconds'
+                      ? { unit: words.measureShort(measure), spokenUnit: measureWord }
+                      : {})}
                     lowerLabel={words.say('strength.sheet.lower-count', {
                       measure: measureWord,
                       amount,

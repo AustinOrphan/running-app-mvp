@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
+import { createPrisma, initSqlite } from '../../server/db.ts'
+import { E2E_DATABASE_URL } from './env.ts'
 import { relativeDates, resetData, signedInApi, toast } from './helpers.ts'
 
 test('logging a run from the Activities page shows it in the list and on the dashboard', async ({
@@ -43,6 +45,95 @@ test('logging a run from the Activities page shows it in the list and on the das
   await edit.getByRole('button', { name: 'Delete activity' }).click()
   await expect(toast(page, 'Activity deleted')).toBeVisible()
   await expect(page.getByText('No activities yet.')).toBeVisible()
+})
+
+test('a run logged for today opens its own page, the post-run screen, and the toast goes with it', async ({
+  page,
+  baseURL,
+}) => {
+  await signedInApi(page, baseURL ?? '')
+  await resetData()
+
+  await page.goto('/activities')
+  await page.getByRole('button', { name: 'Log activity' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Log activity' })
+  // the date is today unless the runner changes it
+  await sheet.getByLabel('Duration').fill('45')
+  await sheet.getByLabel('Distance (mi)').fill('5')
+  await sheet.getByRole('button', { name: 'Save' }).click()
+
+  await expect(page).toHaveURL(/\/activities\/[^/?]+$/)
+  await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Summary' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Against the plan' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'How did it go?' })).toBeVisible()
+  await expect(toast(page, 'Run saved')).toBeVisible()
+  await expect(sheet).toBeHidden()
+
+  // the run is in the list behind it (the case above is the back-fill that stays on the list)
+  await page.getByRole('link', { name: 'All activities' }).click()
+  await expect(page.getByRole('button', { name: /^Run 45:00 5\.00 mi/ })).toBeVisible()
+})
+
+test('a long row from a source tells a screen reader its pace is the elapsed one, and is no taller at 360 px', async ({
+  page,
+  baseURL,
+}) => {
+  const { today } = relativeDates()
+  const api = await signedInApi(page, baseURL ?? '')
+  await resetData()
+  // The longest row there is: a source label, a 100-mile distance and a 30-hour duration. Every row
+  // that has a moving time carries a source label (a manual row has none), so this is the row.
+  const long = {
+    type: 'run',
+    durationSec: 30 * 3600,
+    distanceM: 160_934,
+  }
+  const withMoving = (await api.post('/activities', {
+    ...long,
+    date: addDays(today, -3),
+  })) as { id: string }
+  const without = (await api.post('/activities', {
+    ...long,
+    date: addDays(today, -4),
+  })) as { id: string }
+  // the API makes manual rows with no moving time and no source; a recording stores both, so the
+  // rows are written straight to the table, as other specs write what the API cannot
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    await prisma.activity.update({
+      where: { id: withMoving.id },
+      data: { movingSec: 29 * 3600, source: 'garmin', providerKey: 'garmin:pace-a' },
+    })
+    await prisma.activity.update({
+      where: { id: without.id },
+      data: { source: 'garmin', providerKey: 'garmin:pace-b' },
+    })
+  } finally {
+    await prisma.$disconnect()
+  }
+
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/activities')
+  const rows = page
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('link', { name: /^Details, Run on / }) })
+  await expect(rows).toHaveCount(2)
+  // told apart by the label a screen reader reads, which is all the row says of it
+  const elapsed = rows.filter({ has: page.getByRole('button', { name: /Elapsed pace/ }) })
+  const plain = rows.filter({ has: page.getByRole('button', { name: /Pace: / }) })
+  await expect(elapsed).toHaveCount(1)
+  await expect(plain).toHaveCount(1)
+  await expect(elapsed.getByText('elapsed', { exact: true })).toHaveCount(0)
+  // the row that qualifies its pace is no taller than the same row without a moving time
+  const [tall, short] = await Promise.all([elapsed.boundingBox(), plain.boundingBox()])
+  expect(tall?.height).toBeLessThanOrEqual(short?.height ?? 0)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    ),
+  ).toBe(false)
 })
 
 test('a duration the form cannot read is reported and nothing is saved', async ({
