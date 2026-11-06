@@ -28,7 +28,7 @@ describe('the box of a chart that measures itself', () => {
 
   test.each(drawn)('%s wraps the container in a box that clips', (name) => {
     const source = readFileSync(join(CHARTS, `${name}.tsx`), 'utf8')
-    expect(source).toMatch(/className=\{styles\.chart\}>\s*<ResponsiveContainer/)
+    expect(source).toMatch(/className=\{styles\.chart\}\s*>\s*<ResponsiveContainer/)
     const css = readFileSync(join(CHARTS, `${name}.module.css`), 'utf8')
     const rule = /\.chart\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
     expect(rule).toMatch(/overflow:\s*hidden/)

@@ -6,6 +6,10 @@
   height: 12.5rem;
 }
 
+.season {
+  height: 5rem;
+}
+
 .monthly {
   height: 12.5rem;
   margin-bottom: var(--space-4);
