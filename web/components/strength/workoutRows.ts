@@ -11,7 +11,10 @@ import { strengthWords, type StrengthWords } from './strengthText.ts'
 /** The most rows a hero shows: three lifts, the jumps and the trunk movements. */
 export const WORKOUT_ROWS_MAX = 5
 
-/** The most trunk movements a row gives an amount each: the engine's two (`trunkOf`). */
+/**
+ * The most trunk movements a row gives an amount each: the engine's two (`trunkOf`, one in the
+ * taper), which `strengthSurfaces.test.ts` pins to the engine's own output.
+ */
 export const TRUNK_AMOUNTS_MAX = 2
 
 /** One row of a workout. */
@@ -142,8 +145,8 @@ export function workoutRows(
   const [firstTrunk] = workout.trunk
   if (firstTrunk !== undefined) {
     // Each movement with its sets, its amount and its measure: a hold says how long, a reps
-    // movement how many. The engine makes two movements (one in the taper), and the hero's fold
-    // has room for two amounts; a row of more, which only a test builds, names them and their sets.
+    // movement how many. The engine makes two movements (one in the taper), written close enough
+    // for one line at 360 px; a row of more, which the engine never makes, names them and their sets.
     rows.push({
       key: 'trunk',
       text:

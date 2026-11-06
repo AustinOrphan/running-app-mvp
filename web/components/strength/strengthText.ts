@@ -114,8 +114,9 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
    * What a set counts, with its measure where it needs one: "6 to 8" for a lift that has a reps-left
    * target (the reserve says they are reps), "8 to 12 reps" and "30 to 45 seconds" for a movement that
    * has none, and "each side" after it for a movement done on one side and then the other (the
-   * catalogue says which). `short` is for a row with little room: the range is "30-45", and a
-   * count of seconds is "s".
+   * catalogue says which). `short` is for the hero's row, which has the room of one line: the range
+   * is "30-45", a count of seconds is "s", and neither "reps" nor "each side" is said (the card and
+   * the sheet say both).
    */
   function amountText(lift: WorkoutLift, short: boolean): string {
     const { range, rir } = lift
@@ -125,19 +126,23 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
         ? say('strength.sheet.amount-one', { n: count(range.min) })
         : say(short ? 'strength.hero.amount-range' : 'strength.sheet.amount-range', ends)
     const counted = measureOf(lift.exerciseId)
+    // a lift with a reps-left target is counted in reps, and the reserve says so; the hero's row
+    // leaves "reps" out of a trunk movement too, and names a hold's unit because "30" alone is not
     const named =
-      counted === 'reps' && rir !== null
+      counted === 'reps' && (rir !== null || short)
         ? amount
         : say('strength.row.amount-measure', {
             amount,
             measure: short ? measureShort(counted) : measure(counted),
           })
-    return isEachSide(lift.exerciseId) ? say('strength.row.each-side', { amount: named }) : named
+    return isEachSide(lift.exerciseId) && !short
+      ? say('strength.row.each-side', { amount: named })
+      : named
   }
 
   /**
-   * A trunk movement of a hero row or the session sheet: "Side plank 2 x 30-45 s each side",
-   * with its sets, its amount and its measure.
+   * A trunk movement of a hero row (Today and the session sheet): "Side plank 2x30-45 s" or "Dead
+   * bug 2x8-12", with its sets and its amount, written close for the one line the row has.
    */
   function trunkItem(lift: WorkoutLift): string {
     return say('strength.hero.trunk-item', {

@@ -25,7 +25,7 @@ import type { Quantity, StrengthContext } from '../../../shared/engine/types.ts'
 import type { StrengthWorkout, Units, WeightUnit, WorkoutLift } from '../../../shared/types.ts'
 import { asSuggested, blocksOf } from '../../../web/components/strength/strengthForm.ts'
 import { strengthWords } from '../../../web/components/strength/strengthText.ts'
-import { workoutRows } from '../../../web/components/strength/workoutRows.ts'
+import { TRUNK_AMOUNTS_MAX, workoutRows } from '../../../web/components/strength/workoutRows.ts'
 import {
   have,
   lb,
@@ -425,5 +425,37 @@ describe('one workout on every surface', () => {
         all.find((c) => c.name === 'maintenance with machines')?.workout as StrengthWorkout,
       ).week,
     ).toBeNull()
+  })
+})
+
+describe('the hero row of the trunk work, read over what the engine makes', () => {
+  const all = cases()
+
+  it('is pinned to the engine: it makes two trunk movements (one in the taper) and one jump movement', () => {
+    const trunk = all.map((c) => c.workout.trunk.length)
+    // the most trunk movements any workout of the engine holds is what the hero gives an amount each
+    expect(Math.max(...trunk)).toBe(TRUNK_AMOUNTS_MAX)
+    expect(all.find((c) => c.name === 'taper')?.workout.trunk).toHaveLength(1)
+    for (const c of all) {
+      expect(c.workout.trunk.length, c.name).toBeLessThanOrEqual(TRUNK_AMOUNTS_MAX)
+      expect(c.workout.plyo?.movements.length ?? 0, c.name).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('gives every trunk movement of every engine workout its amount, and never falls back to names', () => {
+    for (const c of all) {
+      if (c.workout.trunk.length === 0) continue
+      const row = workoutRows(c.workout, 'km', c.weightUnit).find((r) => r.key === 'trunk')
+      expect(row, c.name).toBeDefined()
+      const text = row?.text ?? ''
+      expect(text, c.name).not.toMatch(/ sets\.$/)
+      for (const lift of c.workout.trunk) {
+        const range =
+          lift.range.min === lift.range.max
+            ? String(lift.range.min)
+            : `${String(lift.range.min)}\u2013${String(lift.range.max)}`
+        expect(text, `${c.name}: ${lift.exerciseId}`).toContain(`${String(lift.sets)}x${range}`)
+      }
+    }
   })
 })

@@ -372,30 +372,25 @@ describe('the sentences of design 11.6', () => {
         contacts: count(P.f7.maintenancePlyoContacts.value),
       }),
     ).toBe(`Pogo hops, ${String(P.f7.maintenancePlyoContacts.value)} ground contacts.`)
-    // a trunk movement carries its amount and its measure
+    // a trunk movement of the hero's row carries its sets and its amount, written close
     const sets = String(P.f7.trunkSets.value)
     const hold = say('strength.hero.trunk-item', {
       exercise: name('side-plank'),
       sets: count(P.f7.trunkSets.value),
-      amount: say('strength.row.each-side', {
-        amount: say('strength.row.amount-measure', {
-          amount: say('strength.hero.amount-range', { lo: count(30), hi: count(45) }),
-          measure: say('strength.measure.seconds-short'),
-        }),
+      amount: say('strength.row.amount-measure', {
+        amount: say('strength.hero.amount-range', { lo: count(30), hi: count(45) }),
+        measure: say('strength.measure.seconds-short'),
       }),
     })
-    expect(hold).toBe(`Side plank ${sets}x30–45 s each side`)
+    expect(hold).toBe(`Side plank ${sets}x30–45 s`)
     const reps = say('strength.hero.trunk-item', {
       exercise: name('dead-bug').toLowerCase(),
       sets: count(P.f7.trunkSets.value),
-      amount: say('strength.row.amount-measure', {
-        amount: say('strength.hero.amount-range', { lo: count(8), hi: count(12) }),
-        measure: say('strength.measure.reps'),
-      }),
+      amount: say('strength.hero.amount-range', { lo: count(8), hi: count(12) }),
     })
-    expect(reps).toBe(`dead bug ${sets}x8–12 reps`)
+    expect(reps).toBe(`dead bug ${sets}x8–12`)
     expect(say('strength.hero.trunk-amounts', { items: `${hold}, ${reps}` })).toBe(
-      `Side plank ${sets}x30–45 s each side, dead bug ${sets}x8–12 reps.`,
+      `Side plank ${sets}x30–45 s, dead bug ${sets}x8–12.`,
     )
     // more movements than the hero has room to give an amount each are named, with their sets
     expect(

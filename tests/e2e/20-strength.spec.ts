@@ -314,7 +314,7 @@ test('a hold says how long and on which sides on the card, in the hero and on th
   await page.goto('/')
   const hero = page.getByRole('article', { name: session.title })
   await expect(hero.getByRole('listitem').last()).toHaveText(
-    'Side plank 2x30–45 s each side, dead bug 2x8–12 reps.',
+    'Side plank 2x30–45 s, dead bug 2x8–12.',
   )
 
   // the logging sheet: the value of a hold is followed by its unit, and the names say seconds

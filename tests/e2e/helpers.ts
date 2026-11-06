@@ -372,10 +372,11 @@ export async function strengthOnlyToday(
 const TODAY_REQUEST = '**/api/today'
 
 /**
- * Serves `GET /api/today` with the tallest strength day: the session's own payload with five rows
- * (three lifts with long names, the jumps and three trunk movements) on a day of lower readiness,
- * which adds the line and the switch to the usual load. The fold has to hold for it too. The route
- * stays until the page calls `unroute('**\/api/today')`.
+ * Serves `GET /api/today` with the tallest strength day the engine makes: the session's own payload
+ * with five rows (three lifts with long names, the one jump movement and the two trunk movements of
+ * `trunkOf`, a hold and a reps movement with the ranges of `f7.trunkHoldSec` and `f7.trunkReps`) on
+ * a day of lower readiness, which adds the line and the switch to the usual load. The fold has to
+ * hold for it too. The route stays until the page calls `unroute('**\/api/today')`.
  */
 export async function serveTallestStrengthDay(
   page: Page,
@@ -395,8 +396,11 @@ export async function serveTallestStrengthDay(
       rdl({ sets: 2, targets: [6, 6] }),
       rdl({ exerciseId: 'standing-calf-raise', slot: 'calf', sets: 2, targets: [12, 12] }),
     ],
-    plyo: { contacts: 60, movements: ['pogo-hop', 'line-hop'] },
-    trunk: [plank(), plank({ exerciseId: 'dead-bug' }), plank({ exerciseId: 'pallof-press' })],
+    plyo: { contacts: 60, movements: ['pogo-hop'] },
+    trunk: [
+      plank({ range: { min: 30, max: 45 }, targets: [30, 30] }),
+      plank({ exerciseId: 'dead-bug', range: { min: 8, max: 12 }, targets: [8, 8] }),
+    ],
   })
   await page.route(TODAY_REQUEST, async (route) => {
     // The browser revalidates with the tag it holds; a 304 has no body to change.

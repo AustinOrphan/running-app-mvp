@@ -38,7 +38,7 @@ describe('workoutRows', () => {
       'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
       'Pogo hops, 40 ground contacts.',
-      'Side plank 2x30–45 s each side.',
+      'Side plank 2x30–45 s.',
     ])
     expect(rows.map((row) => row.key)).toEqual([
       'lift-back-squat',
@@ -80,22 +80,24 @@ describe('workoutRows', () => {
     })
     expect(texts(workoutRows(workout, 'km', 'lb')).slice(-2)).toEqual([
       'Pogo hops and line hops, 60 ground contacts.',
-      'Side plank 2x30–45 s each side, dead bug 2x8–12 reps.',
+      'Side plank 2x30–45 s, dead bug 2x8–12.',
     ])
   })
 
-  test('says a hold in seconds, "each side" from the catalogue, and a reps movement in reps', () => {
+  test("writes a hold with its unit and a reps movement as a bare count, close, for the hero's one line", () => {
     const rows = (trunk: ReturnType<typeof plank>[]) =>
       texts(workoutRows(makeWorkout({ plyo: null, trunk }), 'km', 'lb')).at(-1)
-    expect(rows([plank()])).toBe('Side plank 2x30–45 s each side.')
+    expect(rows([plank()])).toBe('Side plank 2x30–45 s.')
     expect(rows([plank({ exerciseId: 'farmer-carry' })])).toBe('Farmer carry 2x30–45 s.')
     expect(rows([plank({ exerciseId: 'dead-bug', range: { min: 8, max: 12 } })])).toBe(
-      'Dead bug 2x8–12 reps.',
+      'Dead bug 2x8–12.',
     )
+    // "each side" and "reps" are the card's and the logging sheet's words, not the hero's
+    expect(rows([plank()])).not.toMatch(/each side|reps/)
     // a single count reads as one number, and one set as one
     expect(
       rows([plank({ exerciseId: 'pallof-press', sets: 1, range: { min: 10, max: 10 } })]),
-    ).toBe('Pallof press 1x10 reps.')
+    ).toBe('Pallof press 1x10.')
   })
 
   test(`gives an amount to at most ${String(TRUNK_AMOUNTS_MAX)} trunk movements, and names more with their sets`, () => {

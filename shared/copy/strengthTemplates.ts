@@ -204,11 +204,10 @@ export const STRENGTH_TEMPLATES = {
     movement: 'text',
     contacts: 'count',
   }),
-  // A trunk movement carries its amount and its measure, as a lift carries its reps: "Side plank 2x30-45 s
-  // each side". The row is the movements of the session, one after another, so it is written
-  // close: the range joins its ends with a dash and a count of seconds is "s". `amount` is "8-12
-  // reps", or "30-45 s" with "each side" after it for a movement done on one side and then the
-  // other (the catalogue says which).
+  // A trunk movement carries its amount, as a lift carries its reps: "Side plank 2x30–45 s, dead
+  // bug 2x8–12". The hero's row has the room of one line at 360 px, so it is written close: the range
+  // joins its ends with a dash, a count of seconds is "s" (a bare 30 would not say what is counted),
+  // and "reps" and "each side" are left to the Strength page's card and the logging sheet.
   'strength.hero.trunk-item': tpl(
     '{exercise} {sets}x{amount}',
     { exercise: 'text', sets: 'count', amount: 'text' },

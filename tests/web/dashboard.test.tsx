@@ -621,7 +621,7 @@ describe('DashboardPage: a strength session', () => {
       'Dumbbell Romanian deadlift: 3 x 3 to 6, 40 lb, leave 2 or more.',
       'Standing calf raise: 3 x 8 to 15, leave 1 to 3.',
       'Pogo hops, 40 ground contacts.',
-      'Side plank 2x30–45 s each side.',
+      'Side plank 2x30–45 s.',
     ])
     // the hero keeps its title, the planned minutes and its action row
     expect(within(card).getByRole('heading', { level: 2, name: 'Strength' })).toBeVisible()
@@ -660,10 +660,7 @@ describe('DashboardPage: a strength session', () => {
     const card = await screen.findByRole('article', { name: 'Strength' })
     const rows = rowsOf(card)
     expect(rows).toHaveLength(5)
-    expect(rows.slice(-2)).toEqual([
-      'Pogo hops, 40 ground contacts.',
-      'Side plank 2x30–45 s each side.',
-    ])
+    expect(rows.slice(-2)).toEqual(['Pogo hops, 40 ground contacts.', 'Side plank 2x30–45 s.'])
   })
 
   test('Log sets opens the logging sheet for the session; saving closes it and returns focus to the title', async () => {
