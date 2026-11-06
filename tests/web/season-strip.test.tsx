@@ -164,7 +164,7 @@ describe('the season strip, its buttons and its words', () => {
     const season = await strip()
     const expected = seasonDescription(seasonRuns(data.weeks), CURRENT)
     expect(expected).toBe(
-      'A 12-week plan: base to 28 Dec, build to 18 Jan, specific to 1 Feb, taper, race week of 15 Feb, then 2 weeks after the race. This week is the week of 11 Jan.',
+      'A 12-week plan: base to 3 Jan, build to 24 Jan, specific to 7 Feb, taper, race week of 15 Feb, then 2 weeks after the race. This week is the week of 11 Jan.',
     )
     expect(season).toHaveAccessibleDescription(expected)
     expect(expected).not.toMatch(/target/i)

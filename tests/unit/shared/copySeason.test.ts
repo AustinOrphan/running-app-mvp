@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { addDays } from '../../../shared/dates.ts'
 import { COPY_MAX_CHARS } from '../../../shared/copy/limits.ts'
 import { assertCleanCopy } from '../../../shared/copy/lint.ts'
 import {
@@ -46,20 +47,34 @@ describe('the words of the season strip', () => {
 })
 
 describe('seasonDescription', () => {
-  it('reads the phases in order, each to the Monday of its last week, the race week by its own', () => {
+  it('reads the phases in order, each to the Sunday that ends its last week, the race week by its Monday', () => {
     expect(seasonDescription(SEASON, '2026-11-09')).toBe(
-      'A 25-week plan: base to 7 Dec, build to 1 Feb, specific to 12 Apr, taper, race week of 26 Apr. This week is the week of 9 Nov.',
+      'A 25-week plan: base to 13 Dec, build to 7 Feb, specific to 18 Apr, taper, race week of 26 Apr. This week is the week of 9 Nov.',
     )
+  })
+
+  it('ends each phase on the Sunday before the next one begins, so no phase seems a week short', () => {
+    const text = seasonDescription(SEASON, '2026-11-09')
+    const end = (date: string) => addDays(date, -1)
+    // Base ends on the Sunday before Build's first Monday, and so on down the plan
+    expect(end(SEASON[1]!.firstWeek)).toBe('2026-12-13')
+    expect(text).toContain('base to 13 Dec')
+    expect(end(SEASON[2]!.firstWeek)).toBe('2027-02-07')
+    expect(text).toContain('build to 7 Feb')
+    expect(end(SEASON[3]!.firstWeek)).toBe('2027-04-18')
+    expect(text).toContain('specific to 18 Apr')
+    // the one taper week, 19 to 25 Apr, is followed by the race week of 26 Apr
+    expect(addDays(SEASON[3]!.firstWeek, 7)).toBe(SEASON[4]!.firstWeek)
   })
 
   it('leaves the date off the phase just before the race week, and keeps it when none follows', () => {
     const noTaper = [SEASON[0]!, SEASON[2]!, SEASON[4]!]
     expect(seasonDescription(noTaper, '2026-11-09')).toContain(
-      'base to 7 Dec, specific, race week of 26 Apr.',
+      'base to 13 Dec, specific, race week of 26 Apr.',
     )
     const unfinished = [SEASON[0]!, SEASON[1]!]
     expect(seasonDescription(unfinished, '2026-11-09')).toContain(
-      'A 13-week plan: base to 7 Dec, build to 1 Feb.',
+      'A 13-week plan: base to 13 Dec, build to 7 Feb.',
     )
   })
 
@@ -83,7 +98,7 @@ describe('seasonDescription', () => {
       run('Race week', 'race', '2027-01-18', '2027-01-18', 1),
     ]
     expect(seasonDescription(v1, '2026-11-09')).toContain(
-      'restart to 16 Nov, base 1 to 7 Dec, endurance to 28 Dec, peak, race week of 18 Jan.',
+      'restart to 22 Nov, base 1 to 13 Dec, endurance to 3 Jan, peak, race week of 18 Jan.',
     )
   })
 

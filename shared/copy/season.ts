@@ -7,6 +7,7 @@
 // A phase is named as the week table names it ("Base", "Specific", "Taper", "Race week", "After the
 // race"); the page passes the names, so this file knows no phase. The dates are the Mondays the
 // table rows carry.
+import { addDays } from '../dates.ts'
 import { render, tpl, type Template } from './template.ts'
 import { weekRanText } from './pageCopy.ts'
 
@@ -91,10 +92,12 @@ export interface SeasonRun {
 const STORED_UNITS = 'km'
 
 /**
- * The strip's description: "A 29-week plan: base to 7 Dec, build to 1 Feb, specific to 12 Apr,
- * taper, race week of 26 Apr. This week is the week of 9 Nov." Each phase reads "to" the Monday of
- * its last week; the phase just before the race week reads bare, since the race week's own date
- * follows it. `thisMonday` is the Monday of today.
+ * The strip's description: "A 25-week plan: base to 13 Dec, build to 7 Feb, specific to 18 Apr,
+ * taper, race week of 26 Apr. This week is the week of 9 Nov." A phase reads "to" the Sunday that
+ * ends its last week, as a block of plan weeks does elsewhere (the gut-training weeks); the race
+ * week and this week are named by their Monday, as the week table names a row. The phase just
+ * before the race week reads bare, since the race week's own date follows it, and a plan with one
+ * taper week then does not read as one with two. `thisMonday` is the Monday of today.
  */
 export function seasonDescription(runs: readonly SeasonRun[], thisMonday: string): string {
   const first = runs[0]
@@ -121,7 +124,7 @@ export function seasonDescription(runs: readonly SeasonRun[], thisMonday: string
     if (runs[index + 1]?.kind === 'race') return phase
     return render(
       SEASON_TEMPLATES['season.run-to'],
-      { phase, date: { kind: 'date', iso: run.lastWeek } },
+      { phase, date: { kind: 'date', iso: addDays(run.lastWeek, 6) } },
       STORED_UNITS,
     )
   })
