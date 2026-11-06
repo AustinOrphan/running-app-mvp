@@ -168,27 +168,122 @@ function renderDetail(
   return api
 }
 
+/** The `<dt>` of a labelled figure inside a region (a term takes no name from its content). */
+function termOf(region: HTMLElement, label: string): HTMLElement | undefined {
+  return within(region)
+    .queryAllByRole('term')
+    .find((term) => term.textContent === label)
+}
+
+/** The value text of a labelled figure (a `<dt>` and its `<dd>`) inside a region. */
+function figureOf(region: HTMLElement, label: string): string | null {
+  return termOf(region, label)?.nextElementSibling?.textContent ?? null
+}
+
 describe('ActivityDetailPage', () => {
   test('summary shows the type, date, time, distance and pace', async () => {
     renderDetail()
     expect(await screen.findByRole('heading', { level: 1, name: 'Run' })).toBeInTheDocument()
     expect(screen.getByText('Mon 2 Mar 2026, 07:30')).toBeInTheDocument()
     const summary = screen.getByRole('region', { name: 'Summary' })
-    expect(within(summary).getByText('3.11 mi')).toBeInTheDocument()
-    expect(within(summary).getByText('9:39 /mi')).toBeInTheDocument()
-    expect(within(summary).getByText('30:00')).toBeInTheDocument()
-    expect(within(summary).getByText('29:10')).toBeInTheDocument()
-    expect(within(summary).getByText('148 bpm')).toBeInTheDocument()
-    expect(within(summary).getByText('Example Watch')).toBeInTheDocument()
-    expect(within(summary).getByText('197 ft')).toBeInTheDocument()
+    expect(figureOf(summary, 'Distance')).toBe('3.11 mi')
+    expect(figureOf(summary, 'Pace')).toBe('9:39 /mi')
+    expect(figureOf(summary, 'Duration')).toBe('30:00')
+    expect(figureOf(summary, 'Moving time')).toBe('29:10')
+    expect(figureOf(summary, 'Average HR')).toBe('148 bpm')
+    expect(figureOf(summary, 'Max HR')).toBe('171 bpm')
+    expect(within(summary).getByText('Example Watch · Strava')).toBeInTheDocument()
+    expect(figureOf(summary, 'Elevation gain')).toBe('197 ft')
   })
 
   test('units follow settings', async () => {
     renderDetail({ units: 'km' })
     const summary = await screen.findByRole('region', { name: 'Summary' })
-    expect(within(summary).getByText('5.00 km')).toBeInTheDocument()
-    expect(within(summary).getByText('6:00 /km')).toBeInTheDocument()
-    expect(within(summary).getByText('60 m')).toBeInTheDocument()
+    expect(figureOf(summary, 'Distance')).toBe('5.00 km')
+    expect(figureOf(summary, 'Pace')).toBe('6:00 /km')
+    expect(figureOf(summary, 'Elevation gain')).toBe('60 m')
+  })
+
+  describe('the summary in three tiers', () => {
+    const TERMS = [
+      'Duration',
+      'Distance',
+      'Pace',
+      'Elevation gain',
+      'Average HR',
+      'Max HR',
+      'Moving time',
+      'Moving pace',
+      'Elevation loss',
+      'Cadence',
+    ]
+
+    test('duration and distance lead, the readings follow and kind, device and source are one line', async () => {
+      const base = makeDetail()
+      renderDetail({
+        detail: { ...base, activity: { ...base.activity, subtype: 'trail' } },
+      })
+      const summary = await screen.findByRole('region', { name: 'Summary' })
+      const terms = within(summary).getAllByRole('term')
+      expect(terms.map((term) => term.textContent)).toEqual(TERMS)
+      // tier 1: duration and distance share a list, apart from the readings
+      const lead = terms[0]?.closest('dl')
+      expect(terms[1]?.closest('dl')).toBe(lead)
+      // tier 2: the readings share the next list
+      const readings = terms[2]?.closest('dl')
+      expect(readings).not.toBe(lead)
+      for (const term of terms.slice(2)) expect(term.closest('dl')).toBe(readings)
+      // tier 3: one muted line, in no list, and the labels Kind and Source are not figures
+      expect(within(summary).getByText('Trail · Example Watch · Strava')).toBeInTheDocument()
+      expect(termOf(summary, 'Kind')).toBeUndefined()
+      expect(termOf(summary, 'Source')).toBeUndefined()
+    })
+
+    test('the distance carries its unit beside the value, set apart from it', async () => {
+      renderDetail()
+      const summary = await screen.findByRole('region', { name: 'Summary' })
+      const distance = termOf(summary, 'Distance')?.nextElementSibling ?? null
+      expect(distance).not.toBeNull()
+      expect(within(distance as HTMLElement).getByText('3.11')).toBeInTheDocument()
+      expect(within(distance as HTMLElement).getByText('mi')).toBeInTheDocument()
+      // the words read as one figure ("3.11 mi"), with the space in the text
+      expect(distance?.textContent).toBe('3.11 mi')
+    })
+
+    test('a hand-entered run names its source on the muted line and leaves out what it lacks', async () => {
+      renderDetail({
+        detail: makeDetail({
+          activity: makeActivity({ id: 'a1', durationSec: 2700, distanceM: 8000 }),
+          stream: null,
+          laps: null,
+          hasFile: false,
+        }),
+      })
+      const summary = await screen.findByRole('region', { name: 'Summary' })
+      expect(
+        within(summary)
+          .getAllByRole('term')
+          .map((t) => t.textContent),
+      ).toEqual(['Duration', 'Distance', 'Pace'])
+      expect(within(summary).getByText('Entered by hand')).toBeInTheDocument()
+    })
+
+    test('the type steps are the tokens: xl for the lead figures, 22 px for readings, 15 px for the line', () => {
+      const figure = readFileSync(join(process.cwd(), 'web/components/Figure.module.css'), 'utf8')
+      expect(figure).toMatch(/\.value \{[^}]*font-size: var\(--text-xl\);/s)
+      expect(figure).toMatch(
+        /\.unit \{[^}]*color: var\(--text-muted\);[^}]*font-size: var\(--text-lg\);/s,
+      )
+      // the hero's display step is not borrowed
+      expect(figure).not.toMatch(/font-size: var\(--text-display/)
+      const page = readFileSync(
+        join(process.cwd(), 'web/pages/ActivityDetailPage.module.css'),
+        'utf8',
+      )
+      expect(page).toMatch(/\.figure dd \{[^}]*font-size: var\(--text-lg\);/s)
+      expect(page).toMatch(/\.note,\n\.muted \{[^}]*font-size: var\(--text-sm\);/s)
+      expect(page).not.toMatch(/font-size: var\(--text-display/)
+    })
   })
 
   test('pace, heart rate and elevation charts share the page', async () => {
@@ -278,7 +373,7 @@ describe('ActivityDetailPage', () => {
     renderDetail()
     const link = await screen.findByRole('link', { name: 'Download original file' })
     expect(link).toHaveAttribute('href', '/api/activities/a1/file')
-    expect(screen.getByText('Strava')).toBeInTheDocument()
+    expect(screen.getByText('Example Watch · Strava')).toBeInTheDocument()
   })
 
   test('no download link when there is no file', async () => {

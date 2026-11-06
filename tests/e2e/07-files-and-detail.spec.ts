@@ -1,6 +1,21 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
-import { resetData, signedInApi } from './helpers.ts'
+import { relativeDates, resetData, signedInApi } from './helpers.ts'
+
+/** The height of the tab bar that sits over the foot of a phone's viewport. */
+const TAB_BAR_PX = 56
+
+/** The computed font size of an element, in pixels. */
+async function fontPx(locator: Locator): Promise<number> {
+  return locator.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))
+}
+
+/** Whether the page is wider than the window. */
+async function scrollsSideways(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  )
+}
 
 interface UploadFile {
   name: string
@@ -126,6 +141,78 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
     'aria-pressed',
     'true',
   )
+})
+
+test('the activity page leads with the run’s figures, in three sizes, at 390 x 844 and 360 x 740', async ({
+  page,
+  baseURL,
+}) => {
+  const { today } = relativeDates()
+  const api = await signedInApi(page, baseURL ?? '')
+  await resetData()
+  // The long run of the critique: 3:05:00 over 17.46 mi, entered by hand.
+  const run = (await api.post('/activities', {
+    date: today,
+    type: 'run',
+    subtype: 'trail',
+    durationSec: 3 * 3600 + 5 * 60,
+    distanceM: 28_100,
+    avgHr: 148,
+    maxHr: 171,
+    elevationGainM: 320,
+  })) as { id: string }
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto(`/activities/${run.id}`)
+    const summary = page.getByRole('region', { name: 'Summary' })
+    await expect(summary).toBeVisible()
+
+    // tier 1: duration and distance at 32 px (--text-xl), the unit smaller and muted beside it
+    const duration = summary.getByText('3:05:00', { exact: true })
+    const distance = summary.getByText('17.46', { exact: true })
+    expect(await fontPx(duration)).toBe(32)
+    expect(await fontPx(distance)).toBe(32)
+    expect(await fontPx(summary.getByText('mi', { exact: true }))).toBe(22)
+    // one row: both lead figures sit on the same line
+    const durationBox = await duration.boundingBox()
+    const distanceBox = await distance.boundingBox()
+    expect(durationBox?.y).toBe(distanceBox?.y)
+
+    // tier 2: pace, climb and the two heart rates at 22 px, two by two
+    const pace = summary.getByText(/^\d+:\d\d \/mi$/)
+    const gain = summary.getByText(/^\d+ ft$/)
+    const averageHr = summary.getByText('148 bpm', { exact: true })
+    const maxHr = summary.getByText('171 bpm', { exact: true })
+    for (const reading of [pace, gain, averageHr, maxHr]) expect(await fontPx(reading)).toBe(22)
+    const [paceBox, gainBox, averageBox, maxBox] = await Promise.all(
+      [pace, gain, averageHr, maxHr].map((reading) => reading.boundingBox()),
+    )
+    expect(paceBox?.y).toBe(gainBox?.y)
+    expect(averageBox?.y).toBe(maxBox?.y)
+    expect(averageBox?.y).toBeGreaterThan(paceBox?.y ?? Number.POSITIVE_INFINITY)
+
+    // tier 3: kind and source as one muted 15 px line, on one line at both widths
+    const described = summary.getByText('Trail · Entered by hand', { exact: true })
+    expect(await fontPx(described)).toBe(15)
+    expect((await described.boundingBox())?.height).toBeLessThanOrEqual(22)
+
+    // the page has no fold test: the first screen is measured and attached, not asserted
+    expect(await scrollsSideways(page)).toBe(false)
+    const first = await summary.boundingBox()
+    const info = test.info()
+    await info.attach(`activity-${String(viewport.width)}x${String(viewport.height)}`, {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    })
+    info.annotations.push({
+      type: `activity first screen ${String(viewport.width)}x${String(viewport.height)}`,
+      description: `Summary ends at ${String(Math.round((first?.y ?? 0) + (first?.height ?? 0)))} px of ${String(viewport.height - TAB_BAR_PX)} px`,
+    })
+  }
 })
 
 test('a link with no class of its own is the app’s accent in both colour schemes, never the browser’s blue', async ({

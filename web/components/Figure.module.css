@@ -1,0 +1,37 @@
+/* A record page's lead figure: the value at --text-xl with the unit one step smaller in muted type
+   beside it, the shape of the Today hero's `.display` and `.unit` one rung down. --text-display
+   stays the hero's alone, so the hero is the loudest figure in the app. No box: space alone. */
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.figure dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.figure dd {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.value {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.unit {
+  color: var(--text-muted);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}

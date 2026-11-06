@@ -11,6 +11,7 @@ import { Button } from '../components/Button.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { Figure } from '../components/Figure.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
 import { ratingCounts, unratedEffortNote } from '../components/engineText.ts'
@@ -45,7 +46,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Figure({ label, value }: { label: string; value: string }) {
+function Reading({ label, value }: { label: string; value: string }) {
   return (
     <div className={styles.figure}>
       <dt>{label}</dt>
@@ -64,6 +65,17 @@ function wind(kph: number, units: Units): string {
     : `${String(Math.round(kph))} km/h`
 }
 
+/** A distance as its number and unit, so the lead figure can set the unit smaller. */
+function distanceParts(metres: number, units: Units): { value: string; unit?: string } {
+  const [value = '', unit] = formatDistance(metres, units).split(' ')
+  return unit === undefined ? { value } : { value, unit }
+}
+
+/**
+ * The summary in three tiers: duration and distance as the lead figures; pace, climb and heart rate
+ * as the readings under them; kind, device and source as one muted line, because they describe the
+ * record and are not a figure of the run.
+ */
 function Summary({ activity, units }: { activity: Activity; units: Units }) {
   const hasPace =
     (activity.type === 'run' || activity.type === 'race') &&
@@ -72,61 +84,82 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
   const movingDiffers =
     activity.movingSec !== null && Math.abs(activity.movingSec - activity.durationSec) >= 1
   const subtype = activity.subtype
-  const source = sourceLabel(activity.source) ?? 'Entered by hand'
+  const distance =
+    activity.distanceM !== null && activity.type !== 'strength'
+      ? distanceParts(activity.distanceM, units)
+      : null
+  const described = [
+    subtype === null ? null : subtype.charAt(0).toUpperCase() + subtype.slice(1),
+    activity.deviceName,
+    sourceLabel(activity.source) ?? 'Entered by hand',
+  ].filter((part) => part !== null)
+  // The four a runner reads first, then the figures only some recordings have.
+  const readings = [
+    hasPace && activity.distanceM !== null ? (
+      <Reading
+        key="pace"
+        label="Pace"
+        value={formatPace(activity.durationSec, activity.distanceM, units)}
+      />
+    ) : null,
+    activity.elevationGainM !== null ? (
+      <Reading
+        key="gain"
+        label="Elevation gain"
+        value={elevation(activity.elevationGainM, units)}
+      />
+    ) : null,
+    activity.avgHr !== null ? (
+      <Reading key="avg-hr" label="Average HR" value={`${String(activity.avgHr)} bpm`} />
+    ) : null,
+    activity.maxHr !== null ? (
+      <Reading key="max-hr" label="Max HR" value={`${String(activity.maxHr)} bpm`} />
+    ) : null,
+    activity.movingSec !== null && movingDiffers ? (
+      <Reading key="moving" label="Moving time" value={formatDuration(activity.movingSec)} />
+    ) : null,
+    hasPace && activity.distanceM !== null && activity.movingSec !== null && movingDiffers ? (
+      <Reading
+        key="moving-pace"
+        label="Moving pace"
+        value={formatPace(activity.movingSec, activity.distanceM, units)}
+      />
+    ) : null,
+    hasPace && activity.gapDistanceM !== null && activity.gapDistanceM > 0 ? (
+      <Reading
+        key="gap"
+        label="Grade-adjusted pace"
+        value={formatPace(activity.durationSec, activity.gapDistanceM, units)}
+      />
+    ) : null,
+    activity.elevationLossM !== null ? (
+      <Reading
+        key="loss"
+        label="Elevation loss"
+        value={elevation(activity.elevationLossM, units)}
+      />
+    ) : null,
+    activity.avgCadence !== null ? (
+      <Reading key="cadence" label="Cadence" value={`${String(activity.avgCadence)} spm`} />
+    ) : null,
+    activity.avgPowerW !== null ? (
+      <Reading key="power" label="Power" value={`${String(activity.avgPowerW)} W`} />
+    ) : null,
+  ].filter((reading) => reading !== null)
   return (
     <Section title="Summary">
-      <dl className={styles.figures}>
+      <dl className={styles.lead}>
         <Figure label="Duration" value={formatDuration(activity.durationSec)} />
-        {activity.movingSec !== null && movingDiffers ? (
-          <Figure label="Moving time" value={formatDuration(activity.movingSec)} />
-        ) : null}
-        {activity.distanceM !== null && activity.type !== 'strength' ? (
-          <Figure label="Distance" value={formatDistance(activity.distanceM, units)} />
-        ) : null}
-        {hasPace && activity.distanceM !== null ? (
+        {distance === null ? null : (
           <Figure
-            label="Pace"
-            value={formatPace(activity.durationSec, activity.distanceM, units)}
+            label="Distance"
+            value={distance.value}
+            {...(distance.unit === undefined ? {} : { unit: distance.unit })}
           />
-        ) : null}
-        {hasPace && activity.distanceM !== null && activity.movingSec !== null && movingDiffers ? (
-          <Figure
-            label="Moving pace"
-            value={formatPace(activity.movingSec, activity.distanceM, units)}
-          />
-        ) : null}
-        {hasPace && activity.gapDistanceM !== null && activity.gapDistanceM > 0 ? (
-          <Figure
-            label="Grade-adjusted pace"
-            value={formatPace(activity.durationSec, activity.gapDistanceM, units)}
-          />
-        ) : null}
-        {activity.elevationGainM !== null ? (
-          <Figure label="Elevation gain" value={elevation(activity.elevationGainM, units)} />
-        ) : null}
-        {activity.elevationLossM !== null ? (
-          <Figure label="Elevation loss" value={elevation(activity.elevationLossM, units)} />
-        ) : null}
-        {activity.avgHr !== null ? (
-          <Figure label="Average HR" value={`${String(activity.avgHr)} bpm`} />
-        ) : null}
-        {activity.maxHr !== null ? (
-          <Figure label="Max HR" value={`${String(activity.maxHr)} bpm`} />
-        ) : null}
-        {activity.avgCadence !== null ? (
-          <Figure label="Cadence" value={`${String(activity.avgCadence)} spm`} />
-        ) : null}
-        {activity.avgPowerW !== null ? (
-          <Figure label="Power" value={`${String(activity.avgPowerW)} W`} />
-        ) : null}
-        {subtype !== null ? (
-          <Figure label="Kind" value={subtype.charAt(0).toUpperCase() + subtype.slice(1)} />
-        ) : null}
-        {activity.deviceName !== null ? (
-          <Figure label="Device" value={activity.deviceName} />
-        ) : null}
-        <Figure label="Source" value={source} />
+        )}
       </dl>
+      {readings.length > 0 ? <dl className={styles.readings}>{readings}</dl> : null}
+      <p className={styles.muted}>{described.join(' · ')}</p>
       {activity.duplicateStatus === 'confirmed' ? (
         <p className={styles.note}>Marked as a duplicate. It is not counted in totals.</p>
       ) : null}
@@ -230,15 +263,15 @@ function Weather({ activity, units }: { activity: Activity; units: Units }) {
     <Section title="Weather">
       <dl className={styles.figures}>
         {tempC !== null ? (
-          <Figure label="Temperature" value={formatAirTemperature(tempC, units)} />
+          <Reading label="Temperature" value={formatAirTemperature(tempC, units)} />
         ) : null}
         {dewPointC !== null ? (
-          <Figure label="Dew point" value={formatAirTemperature(dewPointC, units)} />
+          <Reading label="Dew point" value={formatAirTemperature(dewPointC, units)} />
         ) : null}
         {humidityPct !== null ? (
-          <Figure label="Humidity" value={`${String(humidityPct)}%`} />
+          <Reading label="Humidity" value={`${String(humidityPct)}%`} />
         ) : null}
-        {windKph !== null ? <Figure label="Wind" value={wind(windKph, units)} /> : null}
+        {windKph !== null ? <Reading label="Wind" value={wind(windKph, units)} /> : null}
       </dl>
       {weatherSource !== null ? (
         <p className={styles.muted}>{`Source: ${WEATHER_SOURCES[weatherSource]}.`}</p>
@@ -302,7 +335,7 @@ function HeartRate({ activity }: { activity: Activity }) {
       ) : null}
       {decoupling !== null ? (
         <dl className={styles.figures}>
-          <Figure label="Aerobic decoupling" value={`${decoupling.toFixed(1)}%`} />
+          <Reading label="Aerobic decoupling" value={`${decoupling.toFixed(1)}%`} />
         </dl>
       ) : null}
       {decoupling !== null ? (

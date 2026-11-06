@@ -14,6 +14,24 @@
   line-height: var(--lh-lg);
 }
 
+/* The summary's first tier: duration and distance, side by side, wrapping only when a phone is too
+   narrow for both. The figures themselves are the shared `Figure` (--text-xl, unit muted). */
+.lead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin: 0 0 var(--space-5);
+}
+
+/* The second tier: pace, climb and the two heart rates in two columns at the 22 px of a reading. */
+.readings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-5);
+  max-width: 30rem;
+  margin: 0;
+}
+
 .figures {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
