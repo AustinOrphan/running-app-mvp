@@ -7,6 +7,7 @@ import {
   placeWeek,
   strengthMinutes,
   strengthOffDay,
+  targetForNet,
 } from '../../../shared/engine/micro.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { postRaceWindow, windowWeeks } from '../../../shared/engine/postRace.ts'
@@ -1222,5 +1223,43 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
     // level 3 is 15 min; from a 9-min run the bound is 9 + 3 = 12 (more than 1.10 x 9)
     expect(runsOf(placeStart(injury, { recent: 9 })).map((s) => s.durationMin)).toEqual([12, 12])
     expect(runsOf(placeStart(injury, { recent: 30 })).map((s) => s.durationMin)).toEqual([15, 15])
+  })
+})
+
+describe('targetForNet [rule K6]', () => {
+  // The cut of a week of `runs` runs when the day before is one of them: its share of the target less
+  // the cap, nothing under the cap. The target that places `net` minutes once the cut is taken is the
+  // least target with `target - cut(target) = net`, found here by a plain search over targets.
+  const cutOf = (runs: number, cap: number) => (target: number) =>
+    Math.max(0, Math.floor(target / runs) - cap)
+  const search = (net: number, cutAt: (target: number) => number): number | undefined => {
+    for (let target = net; target <= 6 * net + 200; target++) {
+      if (target - cutAt(target) === net) return target
+    }
+    return undefined
+  }
+
+  it.each([2, 3, 5])('finds the least target by search for a week of %i runs left', (runs) => {
+    for (const cap of [0, 10, 20]) {
+      const cutAt = cutOf(runs, cap)
+      for (let net = 1; net <= 3000; net += 7) {
+        const found = search(net, cutAt)
+        expect(found, `net ${String(net)} is placed by some target`).toBeDefined()
+        expect(
+          targetForNet(net, cutAt),
+          `${String(runs)} runs, cap ${String(cap)}, net ${String(net)}`,
+        ).toBe(found)
+      }
+    }
+  })
+
+  it('stops at once when the week has no cut', () => {
+    expect(targetForNet(144, () => 0)).toBe(144)
+  })
+
+  it('takes the lower of two values that alternate', () => {
+    // net 90: 90 asks for a cut of 10 (target 100), 100 for 11 (target 101), 101 for 10 (target 100)
+    const cutAt = (target: number) => (target === 100 ? 11 : 10)
+    expect(targetForNet(90, cutAt)).toBe(100)
   })
 })

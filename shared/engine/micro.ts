@@ -169,6 +169,29 @@ export function shakeOutFor(raceDate: string, expectedMin: number): ShakeOut | u
   }
 }
 
+/**
+ * The target whose placement, cut by the shake-out once, totals `net` minutes [rule K6]: the least
+ * `target` with `target = net + cutAt(target)`, where `cutAt(t)` is what the cap removes from a week
+ * placed at `t`. The cut never falls as the target rises and is a share of it, so the iterates
+ * `net`, `net + cutAt(net)`, ... rise to that point and stop; with two runs left the cut is half the
+ * target and the error halves on each pass, so a net of a few hundred minutes needs about ten.
+ * Two values that alternate (the placement moves by a minute with the run count) give the lower:
+ * a re-plan is never above the plan before it [rule G6].
+ */
+export function targetForNet(net: number, cutAt: (target: number) => number): number {
+  const trail: number[] = []
+  let target = net
+  for (let pass = 0; pass < 64; pass++) {
+    const next = net + cutAt(target)
+    if (next === target) return target
+    trail.push(target)
+    const seen = trail.indexOf(next)
+    if (seen !== -1) return Math.min(...trail.slice(seen))
+    target = next
+  }
+  return Math.min(target, trail.at(-1) ?? target)
+}
+
 interface RunPlan {
   day: number
   kind: SessionKind

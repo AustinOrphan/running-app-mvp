@@ -52,7 +52,7 @@ import { isDuplicate } from './load.ts'
 import { rebuildZone, responseBasis } from './loadSetting.ts'
 import { macroPlanDraft, redsHold, startPath, strengthBlockPosition } from './macro.ts'
 import { resolveMethod } from './methods.ts'
-import { holdSessions, placeWeek, shakeOutFor } from './micro.ts'
+import { holdSessions, placeWeek, shakeOutFor, targetForNet } from './micro.ts'
 import { P, PARAMS_VERSION } from './params/index.ts'
 import { planWindows, postRaceWarnings } from './postRace.ts'
 import { predictRace } from './predict.ts'
@@ -765,13 +765,7 @@ function generate(
         const open = runningMinutes(place(w, on, rules, ceilingOf(w), 'easy'))
         return open - runningMinutes(place(w, on, rules, ceilingOf(w), 'cap'))
       }
-      let target = net
-      for (let pass = 0; pass < 6; pass++) {
-        const next = net + cutAt(target)
-        if (next === target) break
-        target = next
-      }
-      return target
+      return targetForNet(net, cutAt)
     }
     // What the current week has run so far: the recorded activities, and the sessions kept from the
     // replaced plan that no activity stands for (finished without a recorded run). A day with a

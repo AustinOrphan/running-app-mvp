@@ -175,6 +175,39 @@ describe('the race week re-planned with nothing new: the bound counts the cut', 
   })
 })
 
+describe('a week of long runs with two runs left', () => {
+  // With the day before and one other run left, the cut is half the target and the search for the
+  // target that places the minutes the plan still has needs a pass for each halving of the cut: a
+  // week of 92 minute runs needs more than the six passes the search was limited to, and each re-plan
+  // took a minute more from the run (92, 91, 90, 89).
+  const heavy: EngineInput = {
+    ...hundred,
+    activities: hundred.activities.map((a) => ({
+      ...a,
+      durationSec: a.durationSec * 3.2,
+      distanceM: a.distanceM === null ? null : a.distanceM * 3.2,
+    })),
+  }
+
+  it.each([20, 0])('gives the Thursday back over three passes at a cap of %i minutes', (cap) => {
+    const param = P.k6.dayBeforeMaxMin as { value: number }
+    const saved = param.value
+    try {
+      param.value = cap
+      const result = replanPasses(heavy, addDays(raceMonday, 3))
+      // the week is long enough for the case: the Thursday run is above the cut's first six passes
+      expect(result.stored[0]![2]).toBeGreaterThan(90)
+      expect(result.stored.length).toBe(cap === 0 ? 1 : 2)
+      expectStored(result)
+      // the passes after the first are byte for byte the first
+      expect(JSON.stringify(result.passes[1])).toBe(JSON.stringify(result.passes[0]))
+      expect(JSON.stringify(result.passes[2])).toBe(JSON.stringify(result.passes[0]))
+    } finally {
+      param.value = saved
+    }
+  })
+})
+
 describe('the race week re-planned with a window on the day before', () => {
   it.each([25, 47])('gives the week back with a limited window of %i minutes', (cap) => {
     // the window is known to the stored plan; its limit is above the shake-out, and the share-out
