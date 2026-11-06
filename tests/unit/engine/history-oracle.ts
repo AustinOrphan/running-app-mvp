@@ -101,6 +101,12 @@
 // chains). Checked by putting the old sentence back: all 142 digests matched, so only that text
 // differs.
 //
+// Checked 2026-11-06 (task RF3, round 4): the digests were regenerated with the command above and
+// none moved, all 142 are those of the regeneration before. The round changes how a week in progress
+// is bounded (a search to its fixed point, a window that takes the long run, a window on the day before
+// with a cap of 0, the minutes a preset is held to), and a Monday re-plan, which the chains are, starts
+// the week, so no plan of the oracle meets any of them.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'
