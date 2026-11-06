@@ -2657,7 +2657,7 @@ describe('the Strength page: the next session (design 11.3, 6.4)', () => {
     expect(next.getByText('Lift at least 3 hours before or after a run.')).toBeVisible()
     // a word for what the rules did, never colour alone
     expect(next.getByText('Up one step')).toBeVisible()
-    expect(next.getByText('Same load as last time')).toBeVisible()
+    expect(next.getByText('Load unchanged')).toBeVisible()
   })
 
   test('shows the loads in kilograms for a runner who chose them, on the same grams', async () => {
@@ -2896,16 +2896,14 @@ describe('the Strength page: the rows of the next session (UX critique of 2026-1
     await open(makeWorkout())
     // the squat went up a step and the deadlift holds: each says so on its own row
     expect(within(rowOf('Back squat')).getByText('Up one step')).toBeVisible()
-    expect(
-      within(rowOf('Dumbbell Romanian deadlift')).getByText('Same load as last time'),
-    ).toBeVisible()
-    expect(next().getAllByText('Same load as last time')).toHaveLength(1)
+    expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('Load unchanged')).toBeVisible()
+    expect(next().getAllByText('Load unchanged')).toHaveLength(1)
     expect(next().getAllByText('Up one step')).toHaveLength(1)
   })
 
   test('when every lift holds it says so once, under the subtitle, and not on the rows', async () => {
     await open(makeWorkout({ lifts: [squat({ change: 'hold' }), rdl(), calf()] }))
-    const said = next().getAllByText('Same load as last time')
+    const said = next().getAllByText('Load unchanged')
     expect(said).toHaveLength(1)
     expect(said[0]?.closest('li')).toBeNull()
     // under the line that gives the day and the minutes
@@ -2931,9 +2929,7 @@ describe('the Strength page: the rows of the next session (UX critique of 2026-1
 
   test('a first session, which has no word for its loads, says nothing of a change', async () => {
     await open(makeWorkout({ lifts: [squat({ change: 'start' }), rdl({ change: 'start' })] }))
-    expect(
-      next().queryByText(/^(Same load as last time|Up one step|Lighter day)$/),
-    ).not.toBeInTheDocument()
+    expect(next().queryByText(/^(Load unchanged|Up one step|Lighter day)$/)).not.toBeInTheDocument()
   })
 
   test('puts "Log sets" in the header row beside the heading, and "Add a past session" under the list', async () => {
@@ -3019,11 +3015,11 @@ describe('the Strength page: the rows of the next session (UX critique of 2026-1
     expect(screen.queryByText(/^Sessions take turns/)).not.toBeInTheDocument()
   })
 
-  test('says "Same load as last time" in the Lifts list for a load that has not moved, in the words of the card', async () => {
+  test('says "Load unchanged" in the Lifts list for a load that has not moved, in the words of the card', async () => {
     await open(makeWorkout())
     // the deadlift has not moved since it was first logged, and its next load is the same
-    expect(region('Lifts').getByText('Same load as last time')).toBeVisible()
-    expect(next().getByText('Same load as last time')).toBeVisible()
+    expect(region('Lifts').getByText('Load unchanged')).toBeVisible()
+    expect(next().getByText('Load unchanged')).toBeVisible()
     expect(screen.queryByText('The load has not moved')).not.toBeInTheDocument()
   })
 
@@ -3270,7 +3266,7 @@ describe('the Strength page: the lifts and the history of one lift (design 11.3,
     // a lift whose load has not moved and that has no estimate says the first and shows none of the second
     const rdlRow = liftRow('Dumbbell Romanian deadlift')
     expect(rdlRow.getByText('35 lb')).toBeVisible()
-    expect(rdlRow.getByText('Same load as last time')).toBeVisible()
+    expect(rdlRow.getByText('Load unchanged')).toBeVisible()
     expect(rdlRow.queryByText('Estimated maximum')).not.toBeInTheDocument()
     expect(
       region('Lifts').getByText(
@@ -3288,7 +3284,7 @@ describe('the Strength page: the lifts and the history of one lift (design 11.3,
       expect(
         within(
           liftRow('Dumbbell Romanian deadlift').getByText('Last change').closest('div')!,
-        ).getByText('Same load as last time'),
+        ).getByText('Load unchanged'),
       ).toBeVisible()
     })
 

@@ -318,9 +318,10 @@ export const STRENGTH_TEMPLATES = {
   'strength.label.lighter-day': tpl('Lighter day', {}, { shape: 'label' }),
   'strength.label.up-one-step': tpl('Up one step', {}, { shape: 'label' }),
   // The one phrase for a load the rules left where it was, on the Next session card and in the Lifts
-  // list. "Hold" is the plan's word for a plan hold (a persistent hold, a progression hold) and is not
-  // used of a load here.
-  'strength.label.same-load': tpl('Same load as last time', {}, { shape: 'label' }),
+  // list. It claims no equality with the load of the last session logged: the rules' working load is
+  // that of the latest normal session, and a lighter day in between lifted less. "Hold" is the plan's
+  // word for a plan hold (a persistent hold, a progression hold) and is not used of a load here.
+  'strength.label.load-unchanged': tpl('Load unchanged', {}, { shape: 'label' }),
   'strength.label.log-sets': tpl('Log sets', {}, { shape: 'label' }),
   'strength.label.add-sets': tpl('Add the sets', {}, { shape: 'label' }),
   'strength.label.edit-sets': tpl('Edit sets', {}, { shape: 'label' }),
@@ -340,29 +341,29 @@ export const STRENGTH_TEMPLATES = {
     { fallback: REASON_FALLBACK },
   ),
   'strength.reason.hold-unrecorded': tpl(
-    'The count of reps left was not recorded, so the load holds.',
+    'The count of reps left was not recorded, so the load stays unchanged.',
   ),
   'strength.reason.hold-range': tpl(
-    'Not every set of {exercise} reached {top} reps yet, so the load holds and each set aims one rep higher.',
+    'Not every set of {exercise} reached {top} reps yet, so the load stays unchanged and each set aims one rep higher.',
     { exercise: 'text', top: 'count' },
     { fallback: REASON_FALLBACK },
   ),
   // `pct` is `f8.maxStepPct`.
   'strength.reason.hold-step': tpl(
-    'The next step up from {load} would be more than {pct} of the load, so the load holds.',
+    'The next step up from {load} would be more than {pct} of the load, so the load stays unchanged.',
     { load: 'load', pct: 'percent' },
     { fallback: REASON_FALLBACK },
   ),
   // `pct` is the top of `flib.heavyMinPct1rm`.
   'strength.reason.hold-ceiling': tpl(
-    'The next step would pass {pct} of the estimated maximum, so the load holds.',
+    'The next step would pass {pct} of the estimated maximum, so the load stays unchanged.',
     { pct: 'percent' },
     { fallback: REASON_FALLBACK },
   ),
   // Every set reached the top of the range but one had too few reps left to earn a step (rule F8.5
   // asks for `f8.progressMinRir`); `reps` is that count in words ("one rep"), built from the Param.
   'strength.reason.hold-effort': tpl(
-    'Every set of {exercise} reached {top} reps, but a set had fewer than {reps} left, so the load holds.',
+    'Every set of {exercise} reached {top} reps, but a set had fewer than {reps} left, so the load stays unchanged.',
     { exercise: 'text', top: 'count', reps: 'text' },
     { fallback: REASON_FALLBACK },
   ),

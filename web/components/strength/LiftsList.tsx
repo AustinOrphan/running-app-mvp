@@ -94,7 +94,7 @@ function LiftRow({
 
 /**
  * What the Last change row says of a lift whose working load has not moved (`lastChange` is null):
- * the same load, but only for a lift with a load that was done in two sessions or more, since a
+ * the load is unchanged, but only for a lift with a load that was done in two sessions or more, since a
  * comparison needs two. A lift done once has nothing to compare, and a lift with no added load has
  * no load to keep, so their rows have no Last change at all. The payload counts the sessions of
  * every mode (`sessionCount`), not only the normal ones the load is read from, so this is the
@@ -102,7 +102,7 @@ function LiftRow({
  */
 function unchangedText(words: PageWords, lift: StrengthLiftSummary): string | null {
   return lift.workingLoadG !== null && lift.sessionCount >= 2
-    ? words.say('strength.label.same-load')
+    ? words.say('strength.label.load-unchanged')
     : null
 }
 

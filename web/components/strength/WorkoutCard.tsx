@@ -36,7 +36,7 @@ function changeWord(words: PageWords, lift: WorkoutLift): string | null {
     case 'increase':
       return words.say('strength.label.up-one-step')
     case 'hold':
-      return words.say('strength.label.same-load')
+      return words.say('strength.label.load-unchanged')
     case 'lighter-day':
       return words.say('strength.label.lighter-day')
     case 'start':

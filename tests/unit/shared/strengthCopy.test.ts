@@ -260,7 +260,7 @@ describe('the sentences of design 11.6', () => {
 
   it('says that a missing count holds the load', () => {
     expect(say('strength.reason.hold-unrecorded')).toBe(
-      'The count of reps left was not recorded, so the load holds.',
+      'The count of reps left was not recorded, so the load stays unchanged.',
     )
   })
 
@@ -453,8 +453,21 @@ describe('the sentences of design 11.6', () => {
     expect(say('strength.row.gloss')).toBe('In reserve: reps that could still have been done.')
   })
 
+  it('words the reasons a load is kept as "stays unchanged", and claims no equality with the last load', () => {
+    const reasons = ids.filter((id) => id.startsWith('strength.reason.hold-'))
+    expect(reasons).toHaveLength(5)
+    for (const id of reasons) {
+      const { text } = STRENGTH_TEMPLATES[id]
+      expect(text, id).toMatch(/so the load stays unchanged/)
+      expect(text, id).not.toMatch(/\bholds?\b/i)
+    }
+    // the phrase on the card and in the Lifts list says nothing of "last time": after a lighter day
+    // the load the rules keep is not the one lifted last
+    expect(say('strength.label.load-unchanged')).not.toMatch(/last time|same/i)
+  })
+
   it('says the unchanged load in one phrase, and keeps "hold" for plan holds', () => {
-    expect(say('strength.label.same-load')).toBe('Same load as last time')
+    expect(say('strength.label.load-unchanged')).toBe('Load unchanged')
     // no label or word of the Strength page calls a load a hold: the plan's holds are the plan's
     for (const [id, template] of Object.entries(TEMPLATES)) {
       if (!id.startsWith('strength.label.') && !id.startsWith('strength.page.')) continue
@@ -476,11 +489,11 @@ describe('the sentences of design 11.6', () => {
       slots: { load: { kind: 'load', g: 49895 }, pct: percent(P.f8.maxStepPct.value) },
     } as const
     expect(renderFact(fact, 'km')).toBe(
-      'The next step up from 110 lb would be more than 15% of the load, so the load holds.',
+      'The next step up from 110 lb would be more than 15% of the load, so the load stays unchanged.',
     )
     expect(renderFact(fact, 'km', 'lb')).toBe(renderFact(fact, 'mi'))
     expect(renderFact(fact, 'km', 'kg')).toBe(
-      'The next step up from 50 kg would be more than 15% of the load, so the load holds.',
+      'The next step up from 50 kg would be more than 15% of the load, so the load stays unchanged.',
     )
   })
 
@@ -550,19 +563,21 @@ describe('the sentences of design 11.6', () => {
     ).toBe('Back squat has no sets logged yet, so it starts at 70% of the estimated maximum.')
     expect(
       say('strength.reason.hold-ceiling', { pct: percent(P.flib.heavyMinPct1rm.range?.[1] ?? 0) }),
-    ).toBe('The next step would pass 90% of the estimated maximum, so the load holds.')
+    ).toBe('The next step would pass 90% of the estimated maximum, so the load stays unchanged.')
     expect(
       say('strength.reason.hold-step', {
         load: { kind: 'load', g: toGrams(50, 'lb') },
         pct: percent(P.f8.maxStepPct.value),
       }),
-    ).toBe('The next step up from 50 lb would be more than 15% of the load, so the load holds.')
+    ).toBe(
+      'The next step up from 50 lb would be more than 15% of the load, so the load stays unchanged.',
+    )
   })
 
   it('says why a set with too few reps left holds the load, with the count from the Param', () => {
     const reps = countPhrase(P.f8.progressMinRir.value, 'rep')
     expect(say('strength.reason.hold-effort', { exercise: squat, top: count(repsHi), reps })).toBe(
-      `Every set of Back squat reached ${String(repsHi)} reps, but a set had fewer than one rep left, so the load holds.`,
+      `Every set of Back squat reached ${String(repsHi)} reps, but a set had fewer than one rep left, so the load stays unchanged.`,
     )
     // a Param of two would change the sentence, not leave "one" in it
     expect(
@@ -611,7 +626,7 @@ describe('the sentences of design 11.6', () => {
         'strength.label.heaviest-set',
         'strength.label.lighter-day',
         'strength.label.up-one-step',
-        'strength.label.same-load',
+        'strength.label.load-unchanged',
         'strength.label.log-sets',
         'strength.label.add-sets',
       ].map((id) => say(id as StrengthTemplateId)),
@@ -623,7 +638,7 @@ describe('the sentences of design 11.6', () => {
       'Heaviest set',
       'Lighter day',
       'Up one step',
-      'Same load as last time',
+      'Load unchanged',
       'Log sets',
       'Add the sets',
     ])
