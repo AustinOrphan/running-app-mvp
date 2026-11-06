@@ -6,6 +6,7 @@ import {
   isPostRace,
   isRaceWeek,
   planSpan,
+  seasonBarSizes,
   seasonFigures,
   seasonMarks,
   seasonRuns,
@@ -154,5 +155,30 @@ describe('seasonFigures', () => {
     expect(seasonFigures([over], new Map()).planned).toEqual([
       { weekStart: '2026-11-09', targetRunMin: 200 },
     ])
+  })
+})
+
+describe('seasonBarSizes', () => {
+  test('gives the phone sizes of the compact chart at the width of a season of about 31 weeks', () => {
+    // 358 px over 31 weeks
+    expect(seasonBarSizes(358 / 31)).toEqual({ planned: 8, actual: 4 })
+  })
+
+  test('takes about three quarters of a column, up to 24 px, and half of that for the solid bar', () => {
+    expect(seasonBarSizes(358 / 24)).toEqual({ planned: 11, actual: 6 })
+    expect(seasonBarSizes(100)).toEqual({ planned: 24, actual: 12 })
+  })
+
+  test('keeps the outline a stroke narrower than its column, so outlines never touch, at any length', () => {
+    // 40 weeks and 45 weeks still keep the 6 px floor; past that the floor gives way to the column
+    expect(seasonBarSizes(358 / 40).planned).toBe(6)
+    expect(seasonBarSizes(358 / 45).planned).toBe(6)
+    for (const weeks of [46, 52, 60, 80, 120]) {
+      const band = 358 / weeks
+      const { planned, actual } = seasonBarSizes(band)
+      expect(planned + 1.5, `${String(weeks)} weeks`).toBeLessThanOrEqual(band)
+      expect(actual).toBeLessThanOrEqual(planned)
+      expect(planned).toBeGreaterThanOrEqual(1)
+    }
   })
 })

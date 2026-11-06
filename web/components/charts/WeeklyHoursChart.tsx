@@ -11,7 +11,7 @@ import {
 import type { WeekRow } from '../../../shared/types.ts'
 import { minutesToHours1 } from '../../../shared/units.ts'
 import { formatShortDate } from '../format.ts'
-import { axisProps, chartColors, ChartTooltip, gridProps } from './theme.ts'
+import { axisProps, chartColors, ChartTooltip, gridProps, plannedStrokeWidth } from './theme.ts'
 import styles from './WeeklyHoursChart.module.css'
 
 /** What a week's bars say beyond their height; the compact chart draws each as a shape. */
@@ -64,7 +64,7 @@ const COMPACT_MARGIN = { top: 4, right: 0, bottom: 9, left: 0 }
 /** A week that was run shows at least this much of a solid bar (px). */
 const MIN_ACTUAL_PX = 2
 
-const PLANNED_STROKE = 1.5
+const PLANNED_STROKE = plannedStrokeWidth
 const MUTED_OPACITY = 0.55
 
 /** The flag of the race week: a pole from the bar's top and a pennant, 12 px tall. */

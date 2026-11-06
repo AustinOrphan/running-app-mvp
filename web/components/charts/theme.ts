@@ -16,6 +16,9 @@ export const chartColors = {
   result: 'var(--chart-2)',
 } as const
 
+/** Stroke of the outlined planned bar (px); the compact season strip keeps its bars a stroke narrower than their column. */
+export const plannedStrokeWidth = 1.5
+
 const tickStyle = {
   fill: 'var(--text-muted)',
   fontFamily: 'var(--font-sans)',

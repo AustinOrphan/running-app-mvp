@@ -5,6 +5,7 @@ import type { SeasonRun } from '../../shared/copy/season.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import type { PlanWeek } from '../../shared/types.ts'
 import type { WeekMark } from './charts/WeeklyHoursChart.tsx'
+import { plannedStrokeWidth } from './charts/theme.ts'
 import { weekPhaseLabel } from './format.ts'
 
 type PlanSpan = { weeks: readonly Pick<PlanWeek, 'weekStart'>[]; startDate: string }
@@ -96,4 +97,29 @@ export function seasonFigures(
       targetRunMin: shownTargetMin(week),
     })),
   }
+}
+
+/** The share of a week's column the outlined bar takes, and the limits of its width in px. */
+const PLANNED_SHARE = 0.72
+const PLANNED_MIN = 6
+const PLANNED_MAX = 24
+/** The solid bar is half the outline; both stay readable at the narrowest and the widest. */
+const ACTUAL_MIN = 3
+const ACTUAL_MAX = 12
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+/**
+ * The widths of the two bars for a column `band` px wide. The outline takes about three quarters of
+ * its column, from 6 px at a phone's 11 px a week to 24 px on a wide screen; its floor gives way to
+ * the column less the outline's own stroke, so the outlines of a long plan never touch. The solid
+ * bar is half the outline and never wider than it.
+ */
+export function seasonBarSizes(band: number): { planned: number; actual: number } {
+  const room = Math.max(1, Math.floor(band - plannedStrokeWidth))
+  const planned = Math.min(room, Math.round(clamp(band * PLANNED_SHARE, PLANNED_MIN, PLANNED_MAX)))
+  const actual = Math.min(planned, Math.round(clamp(planned / 2, ACTUAL_MIN, ACTUAL_MAX)))
+  return { planned, actual }
 }

@@ -19,25 +19,14 @@ import type { PlanWithWeeks } from '../../shared/types.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { WeeklyHoursChart, warmWeeklyHoursChart } from './charts/lazyCharts.tsx'
 import { weekPhaseLabel } from './format.ts'
-import { actualRange, seasonFigures, seasonMarks, seasonRuns } from './season.ts'
+import { actualRange, seasonBarSizes, seasonFigures, seasonMarks, seasonRuns } from './season.ts'
 import styles from './SeasonStrip.module.css'
 
 /** The width the strip is laid out for until it has been measured: a phone 390 px wide. */
 const FALLBACK_WIDTH = 358
-/** The share of a week's column the outlined bar takes, and the limits of its width in px. */
-const PLANNED_SHARE = 0.72
-const PLANNED_MIN = 6
-const PLANNED_MAX = 24
-/** The solid bar is half the outline; both stay readable at the narrowest and the widest. */
-const ACTUAL_MIN = 3
-const ACTUAL_MAX = 12
 /** What a letter of a bracket's name takes at the chart's text size, and what its ends take. */
 const LABEL_CHAR_PX = 7
 const LABEL_PAD_PX = 6
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
 
 /** The width of an element in px, measured after layout and whenever it changes. */
 function useWidth(ref: { current: HTMLElement | null }): number {
@@ -113,8 +102,7 @@ export function SeasonStrip({
   const description = seasonDescription(runs, currentMonday)
 
   const band = width / count
-  const plannedBarSize = Math.round(clamp(band * PLANNED_SHARE, PLANNED_MIN, PLANNED_MAX))
-  const actualBarSize = Math.round(clamp(plannedBarSize / 2, ACTUAL_MIN, ACTUAL_MAX))
+  const barSizes = seasonBarSizes(band)
 
   // The one Tab stop is the week that was last on, else this week, else the first. A plan that
   // is replaced by a shorter one leaves the last week it has.
@@ -156,8 +144,8 @@ export function SeasonStrip({
             weeks={figures.weeks}
             planned={figures.planned}
             marks={marks}
-            plannedBarSize={plannedBarSize}
-            actualBarSize={actualBarSize}
+            plannedBarSize={barSizes.planned}
+            actualBarSize={barSizes.actual}
             ariaLabel={description}
           />
         </div>

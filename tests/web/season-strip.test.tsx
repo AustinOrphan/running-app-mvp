@@ -555,3 +555,34 @@ describe('the strip on its own: its Tab stop and its keys', () => {
     expect(prevented).toBe(true)
   })
 })
+
+describe('the strip on a plan of 60 weeks', () => {
+  test('draws the outlines a stroke narrower than their columns, so none touches the next', async () => {
+    mockApi(routes(plan()))
+    const weeks = Array.from({ length: 60 }, (_, index) =>
+      makeV2Week(index, { weekStart: addDays(START, 7 * index), phase: 'base', targetRunMin: 300 }),
+    )
+    const queries = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const { container } = render(
+      <QueryClientProvider client={queries}>
+        <MemoryRouter>
+          <SeasonStrip plan={{ ...plan(), weeks }} onSelectWeek={() => {}} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const outlined = await waitFor(() => {
+      const found = [...container.querySelectorAll<SVGRectElement>('rect[fill="none"]')]
+      expect(found).toHaveLength(60)
+      return found
+    })
+    // 358 px over 60 weeks is a column of 5.97 px: the 6 px floor would run into the next outline
+    const band = 358 / 60
+    const width = Number(outlined[0]!.getAttribute('width'))
+    expect(width + 1.5).toBeLessThanOrEqual(band)
+    const left = Number(outlined[1]!.getAttribute('x'))
+    const right = Number(outlined[0]!.getAttribute('x')) + width
+    expect(left - right).toBeGreaterThanOrEqual(1.5)
+  })
+})
