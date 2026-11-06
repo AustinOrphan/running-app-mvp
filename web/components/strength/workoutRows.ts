@@ -12,10 +12,17 @@ import { strengthWords, type StrengthWords } from './strengthText.ts'
 export const WORKOUT_ROWS_MAX = 5
 
 /**
- * The most trunk movements a row gives an amount each: the engine's two (`trunkOf`, one in the
- * taper), which `strengthSurfaces.test.ts` pins to the engine's own output.
+ * The most characters the hero's trunk row has: the row is one line at 360 px, where the hero's
+ * content is 328 px wide. Measured in chromium at 15 px Libre Franklin with lining, tabular figures
+ * (2026-11-06): the widest row of 45 characters or fewer that the engine can make is "Pallof press
+ * 2x8–12, farmer carry 2x30–45 s." at 312.0 px (the words-only row "Banded lateral walk and farmer
+ * carry, 2 sets." is 305.5 px), 16 px (5%) under the line; the next rows up, "Side plank 2x30–45 s,
+ * banded lateral walk 2x8–12." (49 characters) and "Banded lateral walk 2x8–12, farmer carry
+ * 2x30–45 s." (51), are 349.9 and 366.0 px, two lines. A row over the budget names its movements
+ * and their sets instead. `strengthSurfaces.test.ts` holds every row the engine makes to it, and
+ * `12-today.spec.ts` measures the rendered row at 360 px.
  */
-export const TRUNK_AMOUNTS_MAX = 2
+export const TRUNK_ROW_CHARS_MAX = 45
 
 /** One row of a workout. */
 export interface WorkoutRow {
@@ -142,25 +149,31 @@ export function workoutRows(
       rule: null,
     })
   }
-  const [firstTrunk] = workout.trunk
-  if (firstTrunk !== undefined) {
-    // Each movement with its sets, its amount and its measure: a hold says how long, a reps
-    // movement how many. The engine makes two movements (one in the taper), written close enough
-    // for one line at 360 px; a row of more, which the engine never makes, names them and their sets.
-    rows.push({
-      key: 'trunk',
-      text:
-        workout.trunk.length <= TRUNK_AMOUNTS_MAX
-          ? words.say('strength.hero.trunk-amounts', { items: joinItems(workout.trunk, words) })
-          : words.say('strength.hero.trunk-row', {
-              movements: joinNames(workout.trunk.map((lift) => words.name(lift.exerciseId))),
-              sets: count(firstTrunk.sets),
-            }),
-      exerciseId: null,
-      rule: null,
-    })
-  }
+  const trunk = trunkRow(workout.trunk, words)
+  if (trunk !== null) rows.push({ key: 'trunk', text: trunk, exerciseId: null, rule: null })
   return rows
+}
+
+/**
+ * The one row of the trunk movements, or null for a workout with none: each movement with its sets,
+ * its amount and its measure (a hold says how long, a reps movement how many). Movements that share
+ * the sets and the amount say them once. The row has the room of one line (`TRUNK_ROW_CHARS_MAX`);
+ * one that would be longer names the movements and their sets, and the amounts are the logging
+ * sheet's and the Strength page's.
+ */
+function trunkRow(trunk: readonly WorkoutLift[], words: StrengthWords): string | null {
+  const [first] = trunk
+  if (first === undefined) return null
+  const shared = trunk.every(
+    (lift) => lift.sets === first.sets && words.trunkAmount(lift) === words.trunkAmount(first),
+  )
+  const names = joinNames(trunk.map((lift) => words.name(lift.exerciseId)))
+  const items =
+    trunk.length > 1 && shared ? words.trunkSharedItem(names, first) : joinItems(trunk, words)
+  const amounts = words.say('strength.hero.trunk-amounts', { items })
+  return amounts.length <= TRUNK_ROW_CHARS_MAX
+    ? amounts
+    : words.say('strength.hero.trunk-row', { movements: names, sets: count(first.sets) })
 }
 
 /** "40 minutes": the planned time of a workout in words, for an accessible name. */

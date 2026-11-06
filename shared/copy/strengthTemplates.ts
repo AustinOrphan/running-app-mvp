@@ -214,9 +214,16 @@ export const STRENGTH_TEMPLATES = {
     { shape: 'label', fallback: 'Trunk work' },
   ),
   'strength.hero.amount-range': tpl('{lo}–{hi}', { lo: 'count', hi: 'count' }, { shape: 'label' }),
+  // Movements that share their sets and their amount say them once: "Banded lateral walk and
+  // pallof press 2x8–12" (written twice it is two lines at 360 px).
+  'strength.hero.trunk-shared': tpl(
+    '{movements} {sets}x{amount}',
+    { movements: 'text', sets: 'count', amount: 'text' },
+    { shape: 'label', fallback: 'Trunk work' },
+  ),
   'strength.hero.trunk-amounts': tpl('{items}.', { items: 'text' }),
-  // More movements than the hero has room to give an amount each (the engine makes two, and one in
-  // the taper) are named, with the sets they share.
+  // A row whose amounts do not fit the line (`TRUNK_ROW_CHARS_MAX` in `workoutRows.ts`) names its
+  // movements and the sets they share. Only a runner who leaves out other trunk movements gets one.
   'strength.hero.trunk-row': tpl('{movements}, {sets} sets.', {
     movements: 'text',
     sets: 'count',

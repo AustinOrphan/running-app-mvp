@@ -392,7 +392,15 @@ describe('the sentences of design 11.6', () => {
     expect(say('strength.hero.trunk-amounts', { items: `${hold}, ${reps}` })).toBe(
       `Side plank ${sets}x30–45 s, dead bug ${sets}x8–12.`,
     )
-    // more movements than the hero has room to give an amount each are named, with their sets
+    // movements that share their sets and their amount say them once
+    expect(
+      say('strength.hero.trunk-shared', {
+        movements: `${name('banded-lateral-walk')} and ${name('pallof-press').toLowerCase()}`,
+        sets: count(P.f7.trunkSets.value),
+        amount: say('strength.hero.amount-range', { lo: count(8), hi: count(12) }),
+      }),
+    ).toBe(`Banded lateral walk and pallof press ${sets}x8–12`)
+    // a row too long for its line is named, with the sets they share
     expect(
       say('strength.hero.trunk-row', {
         movements: `${name('side-plank')} and ${name('dead-bug').toLowerCase()}`,

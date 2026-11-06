@@ -153,6 +153,23 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
   }
 
   /**
+   * Trunk movements that share their sets and their amount, as one item of a hero row: "Banded
+   * lateral walk and pallof press 2x8-12". `names` is the movements, already joined.
+   */
+  function trunkSharedItem(names: string, lift: WorkoutLift): string {
+    return say('strength.hero.trunk-shared', {
+      movements: names,
+      sets: count(lift.sets),
+      amount: amountText(lift, true),
+    })
+  }
+
+  /** What the hero's row says of a trunk movement's amount ("30-45 s"): equal text is a shared dose. */
+  function trunkAmount(lift: WorkoutLift): string {
+    return amountText(lift, true)
+  }
+
+  /**
    * A lift as a row of the Strength page: its name, its load as a figure, the muted line under the
    * name ("2 sets of 6 to 8, 3 or more in reserve") and the one sentence of `suggestion`, which a
    * screen reader and the specs read in place of the figures. `reserved` says the line names the
@@ -274,6 +291,8 @@ export function strengthWords(units: Units, weightUnit: WeightUnit) {
     count,
     row,
     trunkItem,
+    trunkSharedItem,
+    trunkAmount,
     measureShort,
   }
 }

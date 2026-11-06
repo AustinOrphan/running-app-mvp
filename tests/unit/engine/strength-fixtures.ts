@@ -2,6 +2,7 @@
 // equipment and logs, and the logged sets of a lift. No real history, equipment or names.
 import { addDays } from '../../../shared/dates.ts'
 import { toGrams } from '../../../shared/domain/weight.ts'
+import { workoutFor } from '../../../shared/engine/strength.ts'
 import type {
   LoggedSet,
   StrengthContext,
@@ -10,7 +11,7 @@ import type {
   StrengthSessionRef,
   StrengthWeek,
 } from '../../../shared/engine/types.ts'
-import type { EquipmentConfig, EquipmentKind } from '../../../shared/types.ts'
+import type { EquipmentConfig, EquipmentKind, StrengthWorkout } from '../../../shared/types.ts'
 
 /** Whole pounds as grams, the way a stored load is. */
 export const lb = (pounds: number): number => toGrams(pounds, 'lb')
@@ -165,4 +166,67 @@ export function liftLog(
           ],
     ...entry,
   })
+}
+
+/** The trunk movements of the engine's catalogue, in the order of `TRUNK_ORDER` for session A. */
+export const TRUNK_IDS = [
+  'side-plank',
+  'dead-bug',
+  'banded-lateral-walk',
+  'pallof-press',
+  'farmer-carry',
+] as const
+
+/** A strength workout the engine made, and the setup it made it for. */
+export interface TrunkWorkout {
+  where: string
+  /** The trunk movements the runner left out in the setup. */
+  avoid: string[]
+  workout: StrengthWorkout
+}
+
+/**
+ * Every trunk workout the engine can make: each of the equipment sets that decide which trunk
+ * movements are usable (the bands, the dumbbells or kettlebells), session A and B, the templates
+ * that differ (a ramp-in week, a block week, the taper), a day of lower readiness, and every set of
+ * trunk movements a runner can leave out in the setup, which is what brings the third to the fifth
+ * movement of the order into the pair. The surfaces that write the trunk work read from here, so
+ * a new way for the engine to pair two movements is one every one of them is held to.
+ */
+export function everyTrunkWorkout(): TrunkWorkout[] {
+  const equipment: EquipmentKind[][] = [
+    [],
+    ['bands'],
+    ['dumbbells'],
+    ['kettlebells', 'bands'],
+    ['barbell', 'dumbbells', 'bands', 'step'],
+  ]
+  const out: TrunkWorkout[] = []
+  for (const kinds of equipment) {
+    for (const week of [1, 5, 25]) {
+      for (const rank of [0, 1] as const) {
+        for (const lighter of [false, true]) {
+          for (let mask = 0; mask < 1 << TRUNK_IDS.length; mask += 1) {
+            const avoid = TRUNK_IDS.filter((_, i) => (mask & (1 << i)) !== 0)
+            const session = sessionRef(week, rank, week === 25 ? { durationMin: 25 } : {})
+            const ctx = withSetup(
+              { equipment: have(...kinds), avoid },
+              {
+                today: session.date,
+                readiness: lighter
+                  ? { date: session.date, state: 'possible-fatigue', pain: null, illness: 'clear' }
+                  : null,
+              },
+            )
+            out.push({
+              where: `${kinds.join('+') || 'no equipment'}, week ${String(week)}, ${rank === 0 ? 'A' : 'B'}${lighter ? ', lighter day' : ''}, leaving out [${avoid.join(', ')}]`,
+              avoid,
+              workout: workoutFor({ ...ctx, weightUnit: 'lb' }, session),
+            })
+          }
+        }
+      }
+    }
+  }
+  return out
 }
