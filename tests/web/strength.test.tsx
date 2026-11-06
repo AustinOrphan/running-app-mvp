@@ -2932,6 +2932,81 @@ describe('the Strength page: the rows of the next session (UX critique of 2026-1
     expect(next().queryByText(/^(Load unchanged|Up one step|Lighter day)$/)).not.toBeInTheDocument()
   })
 
+  test('says a change of a lone loaded lift on its own row: a note under the subtitle would have no subject', async () => {
+    // one lift with a load, the rest bodyweight
+    await open(makeWorkout({ lifts: [squat({ change: 'hold' }), calf()], plyo: null, trunk: [] }))
+    expect(within(rowOf('Back squat')).getByText('Load unchanged')).toBeVisible()
+    expect(next().getAllByText('Load unchanged')).toHaveLength(1)
+  })
+
+  describe('a load that moved two steps', () => {
+    const twoSteps: WorkoutLift['basis'] = {
+      rule: 'F8',
+      facts: [
+        {
+          template: 'strength.reason.increase-two',
+          slots: {
+            exercise: 'Back squat',
+            top: { kind: 'count', n: 6 },
+            rir: { kind: 'count', n: 3 },
+          },
+        },
+      ],
+    }
+    const oneStep: WorkoutLift['basis'] = {
+      rule: 'F8',
+      facts: [
+        {
+          template: 'strength.reason.increase',
+          slots: { exercise: 'Dumbbell Romanian deadlift', top: { kind: 'count', n: 6 } },
+        },
+      ],
+    }
+
+    test('is "Up two steps", not "Up one step"', async () => {
+      await open(
+        makeWorkout({
+          lifts: [squat({ change: 'increase', basis: twoSteps }), rdl({ change: 'hold' })],
+          plyo: null,
+          trunk: [],
+        }),
+      )
+      expect(within(rowOf('Back squat')).getByText('Up two steps')).toBeVisible()
+      expect(next().queryByText('Up one step')).not.toBeInTheDocument()
+    })
+
+    test('is not folded into one note with a lift that moved one step', async () => {
+      await open(
+        makeWorkout({
+          lifts: [
+            squat({ change: 'increase', basis: twoSteps }),
+            rdl({ change: 'increase', basis: oneStep }),
+          ],
+          plyo: null,
+          trunk: [],
+        }),
+      )
+      expect(within(rowOf('Back squat')).getByText('Up two steps')).toBeVisible()
+      expect(within(rowOf('Dumbbell Romanian deadlift')).getByText('Up one step')).toBeVisible()
+    })
+
+    test('is said once when every loaded lift moved two steps', async () => {
+      await open(
+        makeWorkout({
+          lifts: [
+            squat({ change: 'increase', basis: twoSteps }),
+            rdl({ change: 'increase', basis: twoSteps }),
+          ],
+          plyo: null,
+          trunk: [],
+        }),
+      )
+      const said = next().getAllByText('Up two steps')
+      expect(said).toHaveLength(1)
+      expect(said[0]?.closest('li')).toBeNull()
+    })
+  })
+
   test('puts "Log sets" in the header row beside the heading, and "Add a past session" under the list', async () => {
     await open(makeWorkout())
     const heading = next().getByRole('heading', { name: 'Next session' })

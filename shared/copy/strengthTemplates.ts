@@ -317,6 +317,9 @@ export const STRENGTH_TEMPLATES = {
   'strength.label.heaviest-set': tpl('Heaviest set', {}, { shape: 'label' }),
   'strength.label.lighter-day': tpl('Lighter day', {}, { shape: 'label' }),
   'strength.label.up-one-step': tpl('Up one step', {}, { shape: 'label' }),
+  // The rules move a load two steps at once when every set was at the top of the range with the
+  // reps left that the big step asks for (`strength.reason.increase-two`).
+  'strength.label.up-two-steps': tpl('Up two steps', {}, { shape: 'label' }),
   // The one phrase for a load the rules left where it was, on the Next session card and in the Lifts
   // list. It claims no equality with the load of the last session logged: the rules' working load is
   // that of the latest normal session, and a lighter day in between lifted less. "Hold" is the plan's

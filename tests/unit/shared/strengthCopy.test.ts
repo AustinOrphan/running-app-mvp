@@ -466,6 +466,11 @@ describe('the sentences of design 11.6', () => {
     expect(say('strength.label.load-unchanged')).not.toMatch(/last time|same/i)
   })
 
+  it('says a move of one step and a move of two apart', () => {
+    expect(say('strength.label.up-one-step')).toBe('Up one step')
+    expect(say('strength.label.up-two-steps')).toBe('Up two steps')
+  })
+
   it('says the unchanged load in one phrase, and keeps "hold" for plan holds', () => {
     expect(say('strength.label.load-unchanged')).toBe('Load unchanged')
     // no label or word of the Strength page calls a load a hold: the plan's holds are the plan's

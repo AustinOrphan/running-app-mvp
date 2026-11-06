@@ -28,13 +28,20 @@ export interface WorkoutCardProps {
   onPast: (workout: StrengthWorkout | null, date: string) => void
 }
 
+/** The rules moved this load two steps, not one: the reason they give says so. */
+function movedTwoSteps(lift: WorkoutLift): boolean {
+  return lift.basis.facts.some((fact) => fact.template === 'strength.reason.increase-two')
+}
+
 /** A word for what the rules did to a lift's load, where there is one: never colour alone. */
 function changeWord(words: PageWords, lift: WorkoutLift): string | null {
   // a movement with no added load has no load to move or to hold
   if (lift.loadG === null) return null
   switch (lift.change) {
     case 'increase':
-      return words.say('strength.label.up-one-step')
+      return words.say(
+        movedTwoSteps(lift) ? 'strength.label.up-two-steps' : 'strength.label.up-one-step',
+      )
     case 'hold':
       return words.say('strength.label.load-unchanged')
     case 'lighter-day':
@@ -48,14 +55,20 @@ function changeWord(words: PageWords, lift: WorkoutLift): string | null {
 }
 
 /**
- * The word for the change of the lifts that have a load, when it is the same word for all of them:
- * the card says it once under its subtitle and leaves it off the rows. Null when the words differ,
- * or when there is none to say (no lift has a load, or the rules did not move them: a first session).
+ * The word for the change of the lifts that have a load, when two or more of them have one and it is
+ * the same word: the card says it once under its subtitle and leaves it off the rows. A word said of
+ * one lift alone would have no subject up there, so a lone loaded lift keeps it on its own row.
+ * "Up one step" and "Up two steps" are two words, so lifts that moved by different amounts are not
+ * folded into one note. Null when the words differ, or when there is none to say (no lift has a load,
+ * or the rules did not move them: a first session).
  */
 function sharedChange(words: PageWords, lifts: readonly WorkoutLift[]): string | null {
   const loaded = lifts.filter((lift) => lift.loadG !== null).map((lift) => changeWord(words, lift))
   const [first] = loaded
-  return first !== undefined && first !== null && loaded.every((word) => word === first)
+  return loaded.length >= 2 &&
+    first !== undefined &&
+    first !== null &&
+    loaded.every((word) => word === first)
     ? first
     : null
 }
