@@ -144,33 +144,72 @@ export function groupWarnings(
   })
 }
 
-/**
- * The effort sentences an assessment writes without a figure of the runner's own: the ones with no
- * rating slots. With no rating behind the verdict (`ratingCounts` is false) the engine states one of
- * these from heart rate and pace alone, so a page that shows the lines as the runner's effort drops
- * them (`assessmentLines`). The ones that carry the rating ("RPE 8 against 3-5 expected") exist only
- * for a rated run.
- */
-export const EFFORT_FROM_GUESS = [
-  'execution.effort-harder',
-  'execution.effort-much-harder',
-  'execution.effort-easier',
-  'execution.effort-much-easier',
-  'execution.effort-matched',
-] as const satisfies ReadonlyArray<keyof typeof EXECUTION_TEMPLATES>
+type EffortId = Extract<keyof typeof EXECUTION_TEMPLATES, `execution.effort-${string}`>
+
+/** The way of each effort sentence: harder than expected (1), easier (-1) or as expected (0). */
+const EFFORT_DIRECTION: Record<EffortId, -1 | 0 | 1> = {
+  'execution.effort-harder': 1,
+  'execution.effort-harder-rpe': 1,
+  'execution.effort-much-harder': 1,
+  'execution.effort-much-harder-rpe': 1,
+  'execution.effort-easier': -1,
+  'execution.effort-much-easier': -1,
+  'execution.effort-matched': 0,
+}
+
+/** The sentence of the same verdict that quotes no RPE, for the two that do. */
+const WITHOUT_RPE: Partial<Record<EffortId, EffortId>> = {
+  'execution.effort-harder-rpe': 'execution.effort-harder',
+  'execution.effort-much-harder-rpe': 'execution.effort-much-harder',
+}
 
 /**
- * The sentences of an assessment a page may show as how the run went against the plan: all of them
- * for a rated run, and for an unrated one all but the effort verdict, which heart rate and pace
- * inferred and which is never stated as the runner's effort (the rule of `shared/engine/standout.ts`:
- * an effort verdict shows only with the runner's own rating behind it). The sentences are written on
- * the server from stored facts in kilometres, and these have no distance in them, so they match the
- * templates rendered here word for word.
+ * Each effort sentence by what it says before its first slot ("Effort felt harder than expected. RPE
+ * " for the one that quotes the rating, the whole sentence for the others), the longest first so a
+ * line is read as the most specific sentence it starts with.
  */
-export function assessmentLines(execution: ExecutionAssessment, rated: boolean): string[] {
-  if (rated) return execution.lines
-  const guessed = new Set(EFFORT_FROM_GUESS.map((id) => render(EXECUTION_TEMPLATES[id], {}, 'km')))
-  return execution.lines.filter((line) => !guessed.has(line))
+const EFFORT_SENTENCES = (
+  Object.keys(EXECUTION_TEMPLATES) as Array<keyof typeof EXECUTION_TEMPLATES>
+)
+  .filter((id): id is EffortId => id.startsWith('execution.effort-'))
+  .map((id) => ({ id, prefix: EXECUTION_TEMPLATES[id].text.split('{')[0] ?? '' }))
+  .sort((a, b) => b.prefix.length - a.prefix.length)
+
+/**
+ * The sentences of an assessment a page may show as how the run went against the plan. An effort
+ * sentence stays only when the runner's own rating supports its way, the test of `effortFact` in
+ * `shared/engine/standout.ts`: harder when the RPE is above the session's expected band or the feel is
+ * above 0, easier when the RPE is below it or the feel is below 0, as expected when the RPE is in the
+ * band or the feel is 0. The engine blends heart rate and pace into the verdict as well, and a verdict
+ * they tipped over the line is not the runner's effort, so it is dropped, quoted RPE and "as
+ * expected" included. A verdict only the feel supports does not quote an RPE that does not: it is
+ * said in the sentence that quotes none. The other sentences (completion, intensity, conditions, pain)
+ * stay as they are. `band` is the session's own expected RPE range (`session.target.rpe`), and the
+ * RPE is recovered from the stored distance to its middle (`rpeDelta`), so the three pages that show
+ * an assessment (this activity's, the Session sheet's and the Review page's) read the same rating.
+ */
+export function assessmentLines(
+  execution: ExecutionAssessment,
+  band: readonly [number, number] | null,
+): string[] {
+  const { rpeDelta, feel } = execution.effort.parts
+  const rpe =
+    rpeDelta === null || band === null ? null : Math.round(rpeDelta + (band[0] + band[1]) / 2)
+  const rpeSays = (way: -1 | 0 | 1): boolean => {
+    if (rpe === null || band === null) return false
+    return way > 0 ? rpe > band[1] : way < 0 ? rpe < band[0] : rpe >= band[0] && rpe <= band[1]
+  }
+  const feelSays = (way: -1 | 0 | 1): boolean =>
+    feel !== null && (way > 0 ? feel > 0 : way < 0 ? feel < 0 : feel === 0)
+  return execution.lines.flatMap((line) => {
+    const sentence = EFFORT_SENTENCES.find(({ prefix }) => line.startsWith(prefix))
+    if (sentence === undefined) return [line]
+    const way = EFFORT_DIRECTION[sentence.id]
+    if (rpeSays(way)) return [line]
+    if (!feelSays(way)) return []
+    const plain = WITHOUT_RPE[sentence.id]
+    return [plain === undefined ? line : render(EXECUTION_TEMPLATES[plain], {}, 'km')]
+  })
 }
 
 /** The ask for a rating, wherever the app shows or invites the feedback behind an effort verdict. */

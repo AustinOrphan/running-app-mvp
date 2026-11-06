@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { resolveTargets } from '../../shared/engine/targets.ts'
@@ -330,6 +330,54 @@ describe('SessionSheet', () => {
       expect(
         within(note).getByRole('link', { name: 'Open the activity to rate it.' }),
       ).toHaveAttribute('href', '/activities/act1')
+    })
+
+    describe('the sentence of the verdict, against the session’s expected RPE of 6 to 7', () => {
+      const harder = 'Effort felt harder than expected.'
+      const quoted = 'Effort felt harder than expected. RPE 6 against 6-7 expected for this kind.'
+      const sheetWith = (
+        lines: string[],
+        parts: Partial<NonNullable<PlanSession['execution']>['effort']['parts']>,
+      ) =>
+        renderSheet(
+          makeSession({
+            status: 'completed',
+            activityId: 'act1',
+            execution: {
+              ...unrated,
+              effort: { ...unrated.effort, parts: { ...unrated.effort.parts, ...parts } },
+              lines: ['45 min against 45 planned (100%).', ...lines],
+            },
+          }),
+        )
+
+      test('is left out for a run with no rating, the planned-time sentence stays', async () => {
+        sheetWith([harder], {})
+        const dialog = await screen.findByRole('dialog')
+        expect(within(dialog).getByText('45 min against 45 planned (100%).')).toBeInTheDocument()
+        expect(within(dialog).queryByText(harder)).not.toBeInTheDocument()
+      })
+
+      test('is left out beside an RPE inside the band, the pace having tipped it', async () => {
+        sheetWith([quoted], { rpeDelta: -0.5, hrResidualZ: 1.4 })
+        const dialog = await screen.findByRole('dialog')
+        expect(within(dialog).queryByText(quoted)).not.toBeInTheDocument()
+      })
+
+      test('is left out beside a feel of "as expected"', async () => {
+        sheetWith([harder], { feel: 0 })
+        const dialog = await screen.findByRole('dialog')
+        expect(within(dialog).queryByText(harder)).not.toBeInTheDocument()
+      })
+
+      test('stays beside an RPE above the band, and beside a feel above 0', async () => {
+        const above = 'Effort felt harder than expected. RPE 9 against 6-7 expected for this kind.'
+        sheetWith([above], { rpeDelta: 2.5 })
+        expect(await screen.findByText(above)).toBeInTheDocument()
+        cleanup()
+        sheetWith([harder], { feel: 1 })
+        expect(await screen.findByText(harder)).toBeInTheDocument()
+      })
     })
 
     test.each([

@@ -46,7 +46,7 @@ import { Skeleton } from '../components/Skeleton.tsx'
 import { ReviewCountPrompt, ReviewLifts } from '../components/strength/ReviewStrength.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { formatShortDate, formatWeekday, weekPhaseLabel } from '../components/format.ts'
-import { localiseEngineText } from '../components/engineText.ts'
+import { assessmentLines, localiseEngineText } from '../components/engineText.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { WhyDrawer } from '../components/WhyDrawer.tsx'
 import { PROPOSAL_LABELS, proposalValueText } from '../components/zoneFormat.ts'
@@ -685,7 +685,10 @@ function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
               <span className={styles.sessionStatus}>{sessionStatusLabel(session.status)}</span>
             </div>
             {/* The engine's lines already cover completion, intensity, effort and conditions. */}
-            {session.execution?.lines.map((line, i) => (
+            {(session.execution === null
+              ? []
+              : assessmentLines(session.execution, session.target.rpe)
+            ).map((line, i) => (
               <p key={i} className={styles.sessionLine}>
                 {line}
               </p>

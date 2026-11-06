@@ -237,10 +237,7 @@ function AgainstThePlan({ activity, units }: { activity: Activity; units: Units 
     )
   }
   const { execution } = session
-  const lines =
-    execution === null
-      ? []
-      : assessmentLines(execution, ratingCounts(execution.completion, activity))
+  const lines = execution === null ? [] : assessmentLines(execution, session.target.rpe)
   return (
     <Section title={title}>
       <p className={styles.line}>{plannedAgainstRan(session, activity, units)}</p>

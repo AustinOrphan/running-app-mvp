@@ -859,11 +859,14 @@ describe('ActivityDetailPage: against the plan', () => {
   const PLANNED = '30 min against 55 min planned (55%).'
   const ON_TARGET = sentence('execution.intensity-on')
   const GUESSED = sentence('execution.effort-harder')
-  const RATED = sentence('execution.effort-harder-rpe', {
-    rpe: { kind: 'count', n: 8 },
-    low: { kind: 'count', n: 3 },
-    high: { kind: 'count', n: 4 },
-  })
+  // the fixture session's expected RPE is 6 to 7 (middle 6.5)
+  const quoted = (rpe: number) =>
+    sentence('execution.effort-harder-rpe', {
+      rpe: { kind: 'count', n: rpe },
+      low: { kind: 'count', n: 6 },
+      high: { kind: 'count', n: 7 },
+    })
+  const RATED = quoted(8)
   const withLines = (
     lines: string[],
     parts: Partial<ExecutionAssessment['effort']['parts']> = {},
@@ -921,7 +924,7 @@ describe('ActivityDetailPage: against the plan', () => {
   test('a rated run shows the effort line with the rating in it', async () => {
     renderDetail({
       detail: rated(8),
-      plan: linkedPlan(withLines([PLANNED, ON_TARGET, RATED], { rpeDelta: 4.5 })),
+      plan: linkedPlan(withLines([PLANNED, ON_TARGET, RATED], { rpeDelta: 1.5 })),
     })
     const section = await block()
     expect(await within(section).findByText(RATED)).toBeInTheDocument()
@@ -934,6 +937,54 @@ describe('ActivityDetailPage: against the plan', () => {
       plan: linkedPlan(withLines([PLANNED, GUESSED], { feel: 1 })),
     })
     expect(await within(await block()).findByText(GUESSED)).toBeInTheDocument()
+  })
+
+  test('a harder verdict beside an RPE inside the expected band is left out: the pace tipped it', async () => {
+    renderDetail({
+      detail: rated(6),
+      plan: linkedPlan(withLines([PLANNED, ON_TARGET, quoted(6)], { rpeDelta: -0.5 })),
+    })
+    const section = await block()
+    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(within(section).getByText(ON_TARGET)).toBeInTheDocument()
+    expect(section.textContent).not.toMatch(/Effort/)
+  })
+
+  test('a harder verdict beside a feel of "as expected" is left out', async () => {
+    renderDetail({
+      detail: rated(null, 0),
+      plan: linkedPlan(withLines([PLANNED, GUESSED], { feel: 0 })),
+    })
+    const section = await block()
+    expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
+    expect(within(section).queryByText(GUESSED)).not.toBeInTheDocument()
+  })
+
+  test('an RPE above the band shows the verdict, quoting the rating', async () => {
+    renderDetail({
+      detail: rated(9),
+      plan: linkedPlan(withLines([PLANNED, quoted(9)], { rpeDelta: 2.5 })),
+    })
+    expect(await within(await block()).findByText(quoted(9))).toBeInTheDocument()
+  })
+
+  test('a feel below 0 shows an easier verdict', async () => {
+    const easier = sentence('execution.effort-easier')
+    renderDetail({
+      detail: rated(null, -1),
+      plan: linkedPlan(withLines([PLANNED, easier], { feel: -1 }, {})),
+    })
+    expect(await within(await block()).findByText(easier)).toBeInTheDocument()
+  })
+
+  test('a feel above 0 does not carry an RPE inside the band into the sentence', async () => {
+    renderDetail({
+      detail: rated(6, 1),
+      plan: linkedPlan(withLines([PLANNED, quoted(6)], { rpeDelta: -0.5, feel: 1 })),
+    })
+    const section = await block()
+    expect(await within(section).findByText(GUESSED)).toBeInTheDocument()
+    expect(within(section).queryByText(quoted(6))).not.toBeInTheDocument()
   })
 
   test('an unrated run never shows the effort verdict that heart rate and pace inferred', async () => {
