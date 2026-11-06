@@ -866,6 +866,85 @@ describe('retry rules', () => {
     expect((await rowsOf(u))[0]).toMatchObject({ attempts: 1, date: moved })
   })
 
+  test('a bump of the delivery version sends a rejected row that used its attempts again, and not an owner-removed one', async () => {
+    const { u, planId } = await runner('rejected-bump@example.com')
+    const removedDate = addDays(today, 2)
+    const rejectedDate = addDays(today, 3)
+    const message = `Invalid start_date_local: Text '${rejectedDate}' could not be parsed at index 10 [${rejectedDate}]`
+
+    // one run the runner deleted by hand in intervals.icu
+    await place(ctx, planId, [{ date: removedDate, kind: 'easy' }])
+    await publish(u)
+    const [gone] = fake.byDate()
+    const removed = { date: removedDate, name: gone!.name, description: gone!.description }
+    fake.events.clear()
+    await publish(u)
+    expect((await rowsOf(u))[0]).toMatchObject({ state: 'owner-removed', date: removedDate })
+
+    // and one that intervals.icu refuses on each of its three attempts
+    await place(ctx, planId, [{ date: rejectedDate, kind: 'easy' }])
+    const refused: Array<Record<string, unknown>> = []
+    fake.hooks.create = (_req, body) => {
+      refused.push(...(body as Array<Record<string, unknown>>))
+      return json({ error: message }, 422)
+    }
+    for (const minutes of [0, 2, 6]) {
+      vi.setSystemTime(at(minutes))
+      await publish(u)
+    }
+    expect(refused).toHaveLength(3)
+    expect((await rowsOf(u))[1]).toMatchObject({
+      state: 'failed',
+      failCode: 'rejected',
+      failMessage: `intervals.icu did not accept the workout: ${message}`,
+      attempts: 3,
+      nextAttemptAt: null,
+    })
+    // at this version it waits for new content or "Send again", however long
+    vi.setSystemTime(at(600))
+    await publish(u)
+    expect(refused).toHaveLength(3)
+
+    // The rows as version 2 stored them, the one that sent the day alone: the same content hashed
+    // under version 2.
+    expect(DELIVERY_VERSION).toBeGreaterThanOrEqual(3)
+    const rejected = {
+      date: rejectedDate,
+      name: String(refused[0]!['name']),
+      description: String(refused[0]!['description']),
+    }
+    const before = (parts: typeof removed): string => contentHashes(parts)[DELIVERY_VERSION - 2]!
+    await ctx.prisma.wristPublication.updateMany({
+      where: { userId: u.id, date: rejectedDate },
+      data: { desiredHash: before(rejected) },
+    })
+    await ctx.prisma.wristPublication.updateMany({
+      where: { userId: u.id, date: removedDate },
+      data: { desiredHash: before(removed), sentHash: before(removed) },
+    })
+
+    // intervals.icu takes the event now; the next run sends the rejected row, and only that one
+    delete fake.hooks.create
+    fake.forget()
+    vi.setSystemTime(at(601))
+    expect(await publish(u)).toMatchObject({ status: 'ok', sent: 1, failed: 0, withdrawn: 0 })
+    const posted = fake.made('POST', 'events/bulk')
+    expect(posted).toHaveLength(1)
+    expect(posted[0]?.body).toMatchObject([{ start_date_local: `${rejectedDate}T00:00:00` }])
+    expect(fake.byDate().map(dayOf)).toEqual([rejectedDate])
+    expect(await rowsOf(u)).toMatchObject([
+      { date: removedDate, state: 'owner-removed', sentHash: before(removed) },
+      {
+        date: rejectedDate,
+        state: 'sent',
+        sentHash: contentHash(rejected),
+        failCode: null,
+        failMessage: null,
+        attempts: 0,
+      },
+    ])
+  })
+
   test('a rate limit pauses the channel for the time intervals.icu gave, and keeps what was done', async () => {
     const { u, planId } = await runner('rate-limit@example.com')
     await place(ctx, planId, [{ date: tomorrow, kind: 'easy' }])
