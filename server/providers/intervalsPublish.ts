@@ -44,10 +44,11 @@ const DEFAULT_RETRY_AFTER_SEC = 15 * 60
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
 /**
- * An event's `start_date_local`: a local date-time (`yyyy-MM-dd'T'HH:mm:ss`), which intervals.icu
- * parses strictly; the day alone is refused with a 422 ("Text '2026-11-16' could not be parsed at
- * index 10"). Midnight means the workout has no start time: it sits on its day. The calendar read
- * takes either form back (`list` keeps the first ten characters).
+ * An event's `start_date_local`: a local date-time (`yyyy-MM-dd'T'HH:mm:ss`). The day alone is
+ * refused with the message "Invalid start_date_local: Text '<day>' could not be parsed at index
+ * 10"; the status of that refusal is not recorded. Midnight means the workout has no start time: it
+ * sits on its day. The calendar read takes either form back (`list` keeps the first ten
+ * characters).
  */
 const startDateLocal = (date: string): string => `${date}T00:00:00`
 

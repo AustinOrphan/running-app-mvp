@@ -75,9 +75,10 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
 const LOCAL_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/
 
 /**
- * The 422 intervals.icu answers a write whose `start_date_local` is not a local date-time, with the
- * message it gave for the day alone (seen on a live publish, 2026-11); null when the value parses.
- * One bad event refuses the whole call.
+ * The refusal of a write whose `start_date_local` is not a local date-time; null when the value
+ * parses. The message is the one seen for the day alone on a live publish (2026-11); only the
+ * message was recorded there, so the 422 is the fake's choice. One bad event refuses the whole
+ * call.
  */
 function startDateProblem(item: Record<string, unknown>): Response | null {
   const value = item['start_date_local']
@@ -96,7 +97,7 @@ function startDateProblem(item: Record<string, unknown>): Response | null {
  * upsert flag does for the app that made it), updated by id (404 for an unknown id), listed by day
  * and deleted in bulk. Every call is recorded; `hooks` take over one kind of call. A write whose
  * `start_date_local` is not a local date-time (the day alone, say) is refused with a 422 and
- * stores nothing, as intervals.icu does (`startDateProblem`).
+ * stores nothing (`startDateProblem`).
  */
 export function fakeIntervals(athleteId: string = ATHLETE_ID): FakeIntervals {
   const athleteBase = `${BASE}/athlete/${athleteId}`
