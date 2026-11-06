@@ -881,6 +881,8 @@ describe('ActivityDetailPage: against the plan', () => {
     over: Partial<ExecutionAssessment> = {},
   ): ExecutionAssessment => ({ ...makeExecution(1, parts), ...over, lines })
   const block = () => screen.findByRole('region', { name: 'Against the plan' })
+  const NOT_LINKED = 'This activity is not linked to a session of the current plan.'
+  const NO_SESSION = 'No session of the current plan was planned for this day.'
   const linkedPlan = (execution: ExecutionAssessment | null, over: Partial<PlanSessionView> = {}) =>
     makeV2Plan({
       sessions: [
@@ -1167,25 +1169,24 @@ describe('ActivityDetailPage: against the plan', () => {
 
   test('waits for the plan that was marked old by a write, and never says "not linked" from the one before it', async () => {
     // a hand-logged run was linked to its session on the server; the plan this client holds is from
-    // before, with the session unlinked, and was only marked old (nothing on the list watched it)
+    // before, with the session unlinked, and was only marked old (nothing on the list watched it).
+    // Its weeks hold the run's day and a session on it, so the block would say "not linked" from it.
     const queryClient = makeTestQueryClient()
     queryClient.setQueryData(
       [keys.plan],
-      makeV2Plan({
-        sessions: [
-          makeSession({ id: 's1', date: '2026-03-02', title: 'Long run', durationMin: 175 }),
-        ],
-      }),
+      planOfTheWeek([
+        makeSession({ id: 's1', date: '2026-03-02', title: 'Long run', durationMin: 175 }),
+      ]),
     )
     await queryClient.invalidateQueries({ queryKey: [keys.plan], refetchType: 'none' })
     const api = renderDetail({ plan: linkedPlan(withLines([PLANNED])), queryClient })
     delayResponses(60)
     const section = await block()
-    expect(within(section).queryByText(/not linked/)).not.toBeInTheDocument()
-    expect(within(section).queryByText(/No session/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(NOT_LINKED)).not.toBeInTheDocument()
+    expect(within(section).queryByText(NO_SESSION)).not.toBeInTheDocument()
     // the plan as the server has it now: the run is linked to the session
     expect(await within(section).findByText(PLANNED)).toBeInTheDocument()
-    expect(within(section).queryByText(/not linked/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(NOT_LINKED)).not.toBeInTheDocument()
     expect(api.calls.some((call) => call.url === '/api/plan')).toBe(true)
   })
 
