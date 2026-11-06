@@ -1212,6 +1212,40 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(screen.getByText(PLANNED)).toBeInTheDocument()
   })
 
+  test('keeps the block for the read after a rating is saved, though the plan was marked old when the page opened', async () => {
+    const user = userEvent.setup()
+    const queryClient = makeTestQueryClient()
+    queryClient.setQueryData(
+      [keys.plan],
+      planOfTheWeek([
+        makeSession({ id: 's1', date: '2026-03-02', title: 'Long run', durationMin: 175 }),
+      ]),
+    )
+    await queryClient.invalidateQueries({ queryKey: [keys.plan], refetchType: 'none' })
+    const api = renderDetail({
+      plan: linkedPlan(withLines([PLANNED])),
+      queryClient,
+      routes: { 'PATCH /api/activities/a1/feedback': () => ({}) },
+    })
+    const reads = () => api.calls.filter((call) => call.url === '/api/plan').length
+    // the first read, the one the page waited for: the plan as the server has it now
+    expect(await within(await block()).findByText(PLANNED)).toBeInTheDocument()
+    expect(reads()).toBe(1)
+    delayResponses(200)
+    await user.click(screen.getByRole('button', { name: 'RPE 7' }))
+    await user.click(
+      within(screen.getByRole('region', { name: 'How did it go?' })).getByRole('button', {
+        name: 'Save',
+      }),
+    )
+    await waitFor(() => {
+      expect(reads()).toBe(2)
+    })
+    // the second read is in flight, and its plan is no older than the page: the block keeps its words
+    expect(screen.getByText(PLANNED)).toBeInTheDocument()
+    expect(screen.queryByText(NOT_LINKED)).not.toBeInTheDocument()
+  })
+
   test('says nothing, and never fails the page, when the plan did not load', async () => {
     const api = renderDetail({
       routes: {
