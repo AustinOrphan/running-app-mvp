@@ -116,11 +116,14 @@ export function SeasonStrip({
   const plannedBarSize = Math.round(clamp(band * PLANNED_SHARE, PLANNED_MIN, PLANNED_MAX))
   const actualBarSize = Math.round(clamp(plannedBarSize / 2, ACTUAL_MIN, ACTUAL_MAX))
 
-  // The one Tab stop is the week that was last on, else this week, else the first.
+  // The one Tab stop is the week that was last on, else this week, else the first. A plan that
+  // is replaced by a shorter one leaves the last week it has.
   const currentIndex = plan.weeks.findIndex((week) => week.weekStart === currentMonday)
-  const stop = stopped ?? Math.max(0, currentIndex)
+  const stop = Math.min(count - 1, stopped ?? Math.max(0, currentIndex))
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    // A key with a modifier is the browser's or the system's (history, zoom, a shortcut).
+    if (event.altKey || event.ctrlKey || event.metaKey) return
     const next = movedTo(event.key, index, count)
     if (next === null) return
     event.preventDefault()

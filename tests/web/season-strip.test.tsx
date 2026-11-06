@@ -1,9 +1,12 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays } from '../../shared/dates.ts'
 import { seasonDescription } from '../../shared/copy/season.ts'
 import type { Goal, PlanPhase, PlanWithSessions, WeekRow } from '../../shared/types.ts'
+import { SeasonStrip } from '../../web/components/SeasonStrip.tsx'
 import { seasonRuns } from '../../web/components/season.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
@@ -494,5 +497,61 @@ describe('the strip when the weeks run do not load', () => {
     )
     // the table says so once; the strip adds no second alert
     expect(await screen.findAllByRole('alert')).toHaveLength(1)
+  })
+})
+
+describe('the strip on its own: its Tab stop and its keys', () => {
+  function strip(data: PlanWithSessions, client: QueryClient) {
+    return (
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <SeasonStrip plan={data} onSelectWeek={() => {}} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+  }
+  const client = () =>
+    new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  const tabStops = () => screen.getAllByRole('button').filter((button) => button.tabIndex === 0)
+
+  test('keeps one Tab stop when the plan is replaced by a shorter one', async () => {
+    mockApi(routes(plan()))
+    const longPlan = plan()
+    const shortPlan = { ...plan(), weeks: plan().weeks.slice(0, 4) }
+    const queries = client()
+    const view = render(strip(longPlan, queries))
+    const buttons = await screen.findAllByRole('button')
+    act(() => {
+      buttons[11]!.focus()
+    })
+    expect(tabStops()).toEqual([buttons[11]])
+
+    // a regenerate that gives four weeks: the stop that was on the twelfth is not lost
+    view.rerender(strip(shortPlan, queries))
+    expect(screen.getAllByRole('button')).toHaveLength(4)
+    expect(tabStops()).toHaveLength(1)
+    expect(tabStops()[0]).toBe(screen.getAllByRole('button')[3])
+  })
+
+  test.each([
+    ['ArrowRight', { ctrlKey: true }],
+    ['ArrowLeft', { metaKey: true }],
+    ['ArrowLeft', { altKey: true }],
+    ['Home', { ctrlKey: true }],
+    ['End', { metaKey: true }],
+  ])('leaves %s with %o to the browser: no move, not prevented', async (key, modifier) => {
+    mockApi(routes(plan()))
+    render(strip(plan(), client()))
+    const buttons = await screen.findAllByRole('button')
+    act(() => {
+      buttons[5]!.focus()
+    })
+    const notPrevented = fireEvent.keyDown(buttons[5]!, { key, ...modifier })
+    expect(notPrevented).toBe(true)
+    expect(buttons[5]).toHaveFocus()
+    expect(tabStops()).toEqual([buttons[5]])
+    // the same key without the modifier does move, and is the strip's own
+    const prevented = !fireEvent.keyDown(buttons[5]!, { key })
+    expect(prevented).toBe(true)
   })
 })
