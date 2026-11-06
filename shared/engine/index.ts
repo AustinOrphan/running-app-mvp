@@ -739,14 +739,16 @@ function generate(
       week.weekStart >= mondayOf(dplan.days[0]!.date) &&
       w.targetRunMin < week.targetRunMin
     // The shake-out cuts the day before a long race from its share of the week [rule K6]. A bound that
-    // comes from minutes placed (what the replaced plan still has planned, what the default plan
-    // places for a preset) is net of that cut, and a target set to `net` minutes is spread over the
-    // runs, the day before included, and the cap cuts the day before again, so each pass would shed the
-    // cut once more. `grossFor` is the target whose placement, cut once, totals `net`: the net minutes
-    // and the cut of the placement they ask for, found by placing the week without the cap and with it
-    // until the cut stops moving. The cut is the share the share-out gives the day less what the cap
-    // leaves, all of the share where the cap drops the run. A week with no day before the race still
-    // ahead in it has no cut, and the net minutes are the target. A week a window holds works from
+    // comes from minutes placed is net of that cut, and a target set to `net` minutes is spread over
+    // the runs, the day before included, and the cap cuts the day before again, so each pass would
+    // shed the cut once more. `grossFor` serves the limit of a method preset (what the default plan
+    // places, net of its own cut): the target whose placement, cut once, totals `net`, the net
+    // minutes and the cut of the placement they ask for, found by placing the week without the cap
+    // and with it until the cut stops moving. The cut is the share the share-out gives the day less
+    // what the cap leaves, all of the share where the cap drops the run. A week with no day before
+    // the race still ahead in it has no cut, and the net minutes are the target. The bound of the
+    // plan being replaced is found in the block of the week in progress below (`targetForNet` with
+    // the share of the day before, from the minutes stored), and a week a window holds works from
     // the target of the plan before the window (the baseline below), which is not net of the cut.
     const shakeHere =
       shakeOut !== undefined &&

@@ -107,6 +107,12 @@
 // with a cap of 0, the minutes a preset is held to), and a Monday re-plan, which the chains are, starts
 // the week, so no plan of the oracle meets any of them.
 //
+// Checked 2026-11-06 (task RF3, round 5): the digests were regenerated with the command above and
+// none moved, all 142 are those of the regeneration before. The round changes the Monday re-plan of
+// a week a known window on the day before touches, the placement that bounds a week in progress when
+// that window is known, and the bound of a week too short to place the day before; no plan of the
+// oracle meets any of them.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

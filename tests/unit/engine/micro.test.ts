@@ -1242,7 +1242,7 @@ describe('targetForNet [rule K6]', () => {
   it.each([2, 3, 5])('finds the least target by search for a week of %i runs left', (runs) => {
     for (const cap of [0, 10, 20]) {
       const cutAt = cutOf(runs, cap)
-      for (let net = 1; net <= 3000; net += 7) {
+      for (let net = 1; net <= 3000; net++) {
         const found = search(net, cutAt)
         expect(found, `net ${String(net)} is placed by some target`).toBeDefined()
         expect(
@@ -1255,6 +1255,14 @@ describe('targetForNet [rule K6]', () => {
 
   it('stops at once when the week has no cut', () => {
     expect(targetForNet(144, () => 0)).toBe(144)
+  })
+
+  it('finds the fixed point it is started from, not always the least', () => {
+    // under 60 minutes the week holds too few runs to have the day before, so no cut: net 50 is its
+    // own fixed point (a placement with no run on the day before), and so is 60, with a cut of 10
+    const cutAt = (target: number) => (target < 60 ? 0 : Math.floor(target / 2) - 20)
+    expect(targetForNet(50, cutAt)).toBe(50)
+    expect(targetForNet(50, cutAt, 100)).toBe(60)
   })
 
   it('takes the lower of two values that alternate', () => {

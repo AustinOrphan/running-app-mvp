@@ -32,9 +32,10 @@
 //    with a race of 90 minutes or more (not the one with a hold); the presets `three-run-days` and
 //    `longer-base`, with and without the polarized model of intensity; the race on each day from
 //    the Wednesday to the Sunday, re-planned on each day before it with its days before run as planned,
-//    with no session skipped and with the first, the last and the next session skipped in advance
-//    (1,920 cases): the minutes the preset still plans before the race are never above those of the
-//    default re-planned under the same stored plan.
+//    with no session skipped and with the session of the day, the last day before the race and the
+//    next day skipped in advance (each set once and never the race day: 1,472 cases): the minutes
+//    the preset still plans before the race are never above those of the default re-planned under
+//    the same stored plan.
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'
@@ -321,12 +322,10 @@ byHand('the grids of the third review of RF2 (by hand)', () => {
                     distanceM: s.distanceM ?? s.durationMin * 170,
                   }),
                 )
-              for (const skipped of [
-                [],
-                [addDays(monday, day)],
-                [addDays(monday, race - 1)],
-                [addDays(monday, day + 1)],
-              ]) {
+              // each set once: today's session, the last day before the race and the next day, none
+              // of them the race day, which the race fills
+              const skipDays = [...new Set([day, race - 1, day + 1])].filter((d) => d < race)
+              for (const skipped of [[], ...skipDays.map((d) => [addDays(monday, d)])]) {
                 const current: EngineInput = {
                   ...base,
                   today,
@@ -364,7 +363,7 @@ byHand('the grids of the third review of RF2 (by hand)', () => {
       }
     }
     console.log(`preset grid: ${cases} cases, ${failures.length} above the default`)
-    expect(cases).toBe(1920)
+    expect(cases).toBe(1472)
     expect(failures).toEqual([])
   })
 })

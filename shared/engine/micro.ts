@@ -170,14 +170,17 @@ export function shakeOutFor(raceDate: string, expectedMin: number): ShakeOut | u
 }
 
 /**
- * The target whose placement, cut by the shake-out once, totals `net` minutes [rule K6]: the least
+ * The target whose placement, cut by the shake-out once, totals `net` minutes [rule K6]: a
  * `target` with `target = net + cutAt(target)`, where `cutAt(t)` is what the cap removes from a week
- * placed at `t`. The cut never falls as the target rises and is a share of it, so the iterates
- * `net`, `net + cutAt(net)`, ... rise to that point and stop; with two runs left the cut is half the
- * target and the error halves on each pass, so a net of a few hundred minutes needs about ten.
- * `from` is where the search starts, `net` by default: a week placed at a target that holds fewer runs
- * than the plan has left (the run count falls with the target) can show no cut, so the search
- * starts from the minutes the plan holds and not from the part of them that is not the cut.
+ * placed at `t`, found by iterating `target = net + cutAt(target)` from `from` until it stops. The
+ * cut never falls as the target rises and is a share of it, so from `net` the iterates `net`,
+ * `net + cutAt(net)`, ... rise to the least such target and stop; with two runs left the cut is half
+ * the target and the error halves on each pass, so a net of a few hundred minutes needs about ten.
+ * `from` is where the search starts, `net` by default. The least fixed point can be a placement with
+ * no run on the day before (a target low enough that the week holds fewer runs than the plan has
+ * left, the run count falling with the target, shows no cut), so a caller that knows the day before
+ * keeps its run starts from the minutes the plan holds, and the result is the fixed point the
+ * iteration reaches from there, not always the least.
  * Two values that alternate (the placement moves by a minute with the run count) give the lower:
  * a re-plan is never above the plan before it [rule G6].
  */

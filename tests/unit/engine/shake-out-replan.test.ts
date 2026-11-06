@@ -488,7 +488,7 @@ describe('a method preset re-planned in a started race week', () => {
   // [rules G6, K6]: the default's minutes after the race (the first return step, when the race is
   // early in the week) are the week's tail and were counted in the bound, which let a preset keep
   // the minutes the cut took from the default's day before. A skipped session in the week is the
-  // case the review named; a grid of 1,920 cases found no week where the two differ (the by-hand grid
+  // case the review named; a grid of 1,472 cases found no week where the two differ (the by-hand grid
   // of `window-grids.test.ts` reruns it), so this is a guard for the bound and not a failing case.
   const total = (draft: PlanDraft, today: string) =>
     runs(draft.sessions, mondayOf(today), today).reduce((n, r) => n + r[2], 0)
