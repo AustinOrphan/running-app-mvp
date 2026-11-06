@@ -102,10 +102,16 @@
   align-items: baseline;
   padding: var(--space-3) 0 var(--space-3) var(--space-3);
   border-top: 1px solid var(--border);
+  scroll-margin-top: var(--space-4);
 }
 
 .row td {
   padding: 0;
+}
+
+/* The season strip scrolls to a row and focuses it; the ring sits inside the row's own edges. */
+.row:focus-visible {
+  outline-offset: -2px;
 }
 
 .row[data-cutback='true'] {
