@@ -205,32 +205,39 @@ describe('Activities page', () => {
   describe('which pace a row shows (the elapsed one)', () => {
     const run = (over: Partial<Activity> = {}): ActivityListItem =>
       makeActivity({ id: 'r1', durationSec: 2700, distanceM: 8047, ...over })
-    test('a row with no moving time keeps the label "Pace" and no qualifier', async () => {
+
+    test('a row with no moving time keeps the label "Pace"', async () => {
       renderPage({ activities: [run()] })
       const pace = await screen.findByText('9:00 /mi')
       expect(pace).toHaveTextContent('Pace: 9:00 /mi')
-      expect(screen.queryByText('elapsed')).not.toBeInTheDocument()
       expect(screen.queryByText(/Elapsed pace/)).not.toBeInTheDocument()
     })
 
-    test('a row whose moving time differs says the pace is the elapsed one, in its name and in a muted word', async () => {
+    test('a row whose moving time differs tells a screen reader the pace is the elapsed one, and shows nothing more', async () => {
       renderPage({ activities: [run({ movingSec: 2600 })] })
       const pace = await screen.findByText('9:00 /mi')
-      // the label a screen reader reads before the figure
-      expect(pace).toHaveTextContent('Elapsed pace: 9:00 /mi elapsed')
+      // the label a screen reader reads before the figure, and nothing else on the line
+      expect(pace).toHaveTextContent('Elapsed pace: 9:00 /mi')
+      expect(pace.textContent).toBe('Elapsed pace: 9:00 /mi')
       expect(within(pace).getByText('Elapsed pace:')).toHaveClass('visually-hidden')
-      // the muted word beside the figure is not read twice
-      expect(within(pace).getByText('elapsed')).toHaveAttribute('aria-hidden', 'true')
+      expect(screen.queryByText('elapsed')).not.toBeInTheDocument()
       // the figure is still the one from the elapsed time
       expect(pace.firstChild?.nextSibling?.textContent).toBe('9:00 /mi')
       expectCleanCopy(pace)
     })
 
-    test('a moving time within a second of the elapsed time is the same time, so no qualifier', async () => {
+    test('the row is named for it: its button says Elapsed pace', async () => {
+      renderPage({ activities: [run({ movingSec: 2600 })] })
+      expect(
+        await screen.findByRole('button', { name: /Elapsed pace: ?9:00 \/mi/ }),
+      ).toBeInTheDocument()
+    })
+
+    test('a moving time within a second of the elapsed time is the same time, so the label stays "Pace"', async () => {
       renderPage({ activities: [run({ movingSec: 2700 })] })
       const pace = await screen.findByText('9:00 /mi')
       expect(pace).toHaveTextContent('Pace: 9:00 /mi')
-      expect(screen.queryByText('elapsed')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Elapsed/)).not.toBeInTheDocument()
     })
 
     test('a row with no pace (a strength row, a run with no distance) has neither label', async () => {
@@ -242,21 +249,20 @@ describe('Activities page', () => {
       })
       await screen.findAllByText(/^\d+:\d\d$/)
       expect(screen.queryByText(/Pace/)).not.toBeInTheDocument()
-      expect(screen.queryByText('elapsed')).not.toBeInTheDocument()
     })
 
     test('reads in kilometres too, and the row keeps its date, type, duration and distance', async () => {
       renderPage({ units: 'km', activities: [run({ movingSec: 2600 })] })
       const pace = await screen.findByText('5:36 /km')
-      expect(pace).toHaveTextContent('Elapsed pace: 5:36 /km elapsed')
+      expect(pace).toHaveTextContent('Elapsed pace: 5:36 /km')
       expect(screen.getByText('45:00')).toBeInTheDocument()
       expect(screen.getByText('8.05 km')).toBeInTheDocument()
     })
 
-    test('keeps the figure and its qualifier together, so the row stays compact at 360 px', () => {
+    test('adds no width to the line: no wrapping rule and no extra element for the qualifier', () => {
       const css = readFileSync(join(process.cwd(), 'web/pages/ActivitiesPage.module.css'), 'utf8')
-      expect(css).toMatch(/\.pace \{[^}]*white-space: nowrap;/s)
-      expect(css).toMatch(/\.qualifier \{[^}]*font-size: var\(--text-xs\);/s)
+      expect(css).not.toMatch(/\.qualifier/)
+      expect(css).not.toMatch(/\.pace \{[^}]*white-space: nowrap;/s)
     })
   })
 

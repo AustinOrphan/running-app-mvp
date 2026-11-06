@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest'
 import {
-  ACTIVITY_ELAPSED_QUALIFIER,
   ACTIVITY_LIST_TEMPLATES,
   ACTIVITY_MORE_ERROR,
   activityCountText,
@@ -30,10 +29,9 @@ describe('activityCountText', () => {
 })
 
 describe('the pace of a row', () => {
-  test('is "Pace", or "Elapsed pace" when the moving time differs, with a muted "elapsed" beside it', () => {
+  test('is "Pace", or "Elapsed pace" when the moving time differs, in the label a screen reader reads', () => {
     expect(activityPaceLabel(false)).toBe('Pace')
     expect(activityPaceLabel(true)).toBe('Elapsed pace')
-    expect(ACTIVITY_ELAPSED_QUALIFIER).toBe('elapsed')
   })
 })
 

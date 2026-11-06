@@ -24,12 +24,12 @@ export const ACTIVITY_LIST_TEMPLATES = {
     { shape: 'label', fallback: 'Show more' },
   ),
   'activity-list.more-error': tpl('More activities did not load. Try again.'),
-  // The pace of a row. The list shows the elapsed pace (from `durationSec`) and has room for no
-  // second one, so a row whose activity has a different moving time says which pace this is: the
-  // label a screen reader reads, and a muted word beside the figure.
+  // The pace of a row. The list shows the elapsed pace (from `durationSec`) throughout and has room
+  // for no second one, so a row whose activity has a different moving time says which pace this is
+  // in the label a screen reader reads. Nothing is added to the line: a row with a source label, a
+  // long distance and a long duration is already full at 360 px.
   'activity-list.pace': tpl('Pace', {}, { shape: 'label' }),
   'activity-list.pace-elapsed': tpl('Elapsed pace', {}, { shape: 'label' }),
-  'activity-list.elapsed': tpl('elapsed', {}, { shape: 'label' }),
   // The figure of a strength row in place of a distance (strength design 11.4): the sets logged.
   'activity-list.sets.none': tpl('No sets', {}, { shape: 'label' }),
   'activity-list.sets.one': tpl('1 set', {}, { shape: 'label' }),
@@ -84,9 +84,6 @@ export function activityPaceLabel(movingTimeDiffers: boolean): string {
     UNITS,
   )
 }
-
-/** The muted word beside the pace of a row whose moving time differs: "elapsed". */
-export const ACTIVITY_ELAPSED_QUALIFIER = render(T['activity-list.elapsed'], {}, UNITS)
 
 /**
  * The figure of a strength row: "9 sets", "1 set" or "No sets". `sets` is the number the list sends

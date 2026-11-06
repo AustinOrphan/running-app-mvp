@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  ACTIVITY_ELAPSED_QUALIFIER,
   ACTIVITY_MORE_ERROR,
   activityCountText,
   activityMoreLabel,
@@ -100,14 +99,9 @@ function ActivityRow({
           ) : null}
           {showPace && activity.distanceM !== null ? (
             <span className={styles.pace}>
-              {/* The pace is the elapsed one: with a moving time that differs, it says so */}
+              {/* The pace is the elapsed one: with a moving time that differs, a screen reader is told so */}
               <span className="visually-hidden">{`${activityPaceLabel(elapsedPace)}: `}</span>
               {formatPace(activity.durationSec, activity.distanceM, units)}
-              {elapsedPace ? (
-                <span className={styles.qualifier} aria-hidden="true">
-                  {` ${ACTIVITY_ELAPSED_QUALIFIER}`}
-                </span>
-              ) : null}
             </span>
           ) : null}
           {source !== null ? <span className={styles.source}>{source}</span> : null}

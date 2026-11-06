@@ -132,13 +132,6 @@
 .pace {
   font-family: var(--font-sans);
   font-variant-numeric: lining-nums tabular-nums;
-  /* the figure and its qualifier wrap together, so a row stays compact at 360 px */
-  white-space: nowrap;
-}
-
-/* "elapsed", the word beside the pace of an activity whose moving time differs */
-.qualifier {
-  font-size: var(--text-xs);
 }
 
 .duplicate {

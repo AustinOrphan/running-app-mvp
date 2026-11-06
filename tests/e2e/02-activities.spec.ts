@@ -75,31 +75,41 @@ test('a run logged for today opens its own page, the post-run screen, and the to
   await expect(page.getByRole('button', { name: /^Run 45:00 5\.00 mi/ })).toBeVisible()
 })
 
-test('a row says its pace is the elapsed one when the moving time differs, and stays as compact at 360 px', async ({
+test('a long row from a source tells a screen reader its pace is the elapsed one, and is no taller at 360 px', async ({
   page,
   baseURL,
 }) => {
   const { today } = relativeDates()
   const api = await signedInApi(page, baseURL ?? '')
   await resetData()
-  const run = (await api.post('/activities', {
+  // The longest row there is: a source label, a 100-mile distance and a 30-hour duration. Every row
+  // that has a moving time carries a source label (a manual row has none), so this is the row.
+  const long = {
+    type: 'run',
+    durationSec: 30 * 3600,
+    distanceM: 160_934,
+  }
+  const withMoving = (await api.post('/activities', {
+    ...long,
     date: addDays(today, -3),
-    type: 'run',
-    durationSec: 45 * 60,
-    distanceM: 8047,
   })) as { id: string }
-  await api.post('/activities', {
+  const without = (await api.post('/activities', {
+    ...long,
     date: addDays(today, -4),
-    type: 'run',
-    durationSec: 45 * 60,
-    distanceM: 8047,
-  })
-  // the API has no moving time to give; a recording source stores one, so the row is written
-  // straight to the table, as other specs write what the API cannot
+  })) as { id: string }
+  // the API makes manual rows with no moving time and no source; a recording stores both, so the
+  // rows are written straight to the table, as other specs write what the API cannot
   const prisma = createPrisma(E2E_DATABASE_URL)
   try {
     await initSqlite(prisma)
-    await prisma.activity.update({ where: { id: run.id }, data: { movingSec: 43 * 60 } })
+    await prisma.activity.update({
+      where: { id: withMoving.id },
+      data: { movingSec: 29 * 3600, source: 'garmin', providerKey: 'garmin:pace-a' },
+    })
+    await prisma.activity.update({
+      where: { id: without.id },
+      data: { source: 'garmin', providerKey: 'garmin:pace-b' },
+    })
   } finally {
     await prisma.$disconnect()
   }
@@ -109,13 +119,15 @@ test('a row says its pace is the elapsed one when the moving time differs, and s
   const rows = page
     .getByRole('listitem')
     .filter({ has: page.getByRole('link', { name: /^Details, Run on / }) })
-  const withMoving = rows.filter({ has: page.getByText('elapsed') })
-  const without = rows.filter({ hasNot: page.getByText('elapsed') })
-  await expect(withMoving).toHaveCount(1)
-  await expect(without).toHaveCount(1)
-  await expect(withMoving.getByText('9:00 /mi')).toBeVisible()
-  // the row that qualifies its pace is no taller than the one that does not
-  const [tall, short] = await Promise.all([withMoving.boundingBox(), without.boundingBox()])
+  await expect(rows).toHaveCount(2)
+  // told apart by the label a screen reader reads, which is all the row says of it
+  const elapsed = rows.filter({ has: page.getByRole('button', { name: /Elapsed pace/ }) })
+  const plain = rows.filter({ has: page.getByRole('button', { name: /Pace: / }) })
+  await expect(elapsed).toHaveCount(1)
+  await expect(plain).toHaveCount(1)
+  await expect(elapsed.getByText('elapsed', { exact: true })).toHaveCount(0)
+  // the row that qualifies its pace is no taller than the same row without a moving time
+  const [tall, short] = await Promise.all([elapsed.boundingBox(), plain.boundingBox()])
   expect(tall?.height).toBeLessThanOrEqual(short?.height ?? 0)
   expect(
     await page.evaluate(
