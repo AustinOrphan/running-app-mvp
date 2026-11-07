@@ -139,6 +139,7 @@ const primary: Item[] = [
       '/brief',
       '/goals',
       '/stats',
+      '/trends',
       '/settings',
       '/integrations',
       '/profile',
@@ -156,6 +157,7 @@ const primary: Item[] = [
 const secondary = [
   { to: '/goals', label: 'Goals' },
   { to: '/stats', label: 'Stats' },
+  { to: '/trends', label: 'Trends' },
   { to: '/settings', label: 'Settings' },
 ]
 
@@ -168,7 +170,7 @@ function isCurrent(pathname: string, paths: string[]): boolean {
 /**
  * A bottom tab bar below 900px and a left rail from 900px; the same five items in both. Only the
  * primary item carries `aria-current`, so exactly one link is announced as the current page; the
- * rail's Goals, Stats and Settings links mark themselves with `data-current` for styling only.
+ * rail's Goals, Stats, Trends and Settings links mark themselves with `data-current` for styling only.
  */
 export function Nav() {
   const { pathname } = useLocation()

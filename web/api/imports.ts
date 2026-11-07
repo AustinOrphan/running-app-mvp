@@ -58,6 +58,7 @@ function invalidateImportData(queryClient: ReturnType<typeof useQueryClient>): P
     invalidateActivityData(queryClient),
     queryClient.invalidateQueries({ queryKey: [keys.imports] }),
     queryClient.invalidateQueries({ queryKey: [keys.wellness] }),
+    queryClient.invalidateQueries({ queryKey: [keys.trends] }),
   ])
 }
 

@@ -68,7 +68,7 @@ const PLANNED_STROKE = plannedStrokeWidth
 const MUTED_OPACITY = 0.55
 
 /** The flag of the race week: a pole from the bar's top and a pennant, 12 px tall. */
-function RaceFlag({ x, y }: { x: number; y: number }) {
+export function RaceFlag({ x, y }: { x: number; y: number }) {
   return (
     <path
       data-mark="race"

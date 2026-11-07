@@ -21,6 +21,7 @@ import { SettingsPage } from './pages/SettingsPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
 import { StatsPage } from './pages/StatsPage.tsx'
 import { StrengthPage } from './pages/StrengthPage.tsx'
+import { TrendsPage } from './pages/TrendsPage.tsx'
 import { useOutboxReplay } from './pwa/outbox.ts'
 
 /** Sends first-run visitors to /setup and signed-out visitors to /login. */
@@ -78,6 +79,7 @@ export function App() {
           <Route path="/brief/:weekStart" element={<BriefPage />} />
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/stats" element={<StatsPage />} />
+          <Route path="/trends" element={<TrendsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />

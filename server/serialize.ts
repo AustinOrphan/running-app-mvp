@@ -24,6 +24,7 @@ import type {
   WellnessDay as WellnessDayRow,
   WristPublication as WristPublicationRow,
 } from './db.ts'
+import type { WellnessSeriesRow } from '../shared/domain/trends.ts'
 import type {
   CourseSnapshot,
   LoggedPrediction,
@@ -967,6 +968,22 @@ export async function loadActivityCores(
     type: row.type as ActivityType,
     duplicateStatus: row.duplicateStatus as DuplicateStatus,
   }))
+}
+
+/**
+ * The columns of the nights the Trends page reads (date, resting heart rate, rMSSD, sleep), in no
+ * particular order, for an inclusive range. It takes four columns of a window the snapshot does not
+ * hold (`WELLNESS_DAYS`), so the engine input is untouched (ADR 0019). `hrvSdnn` is never read.
+ */
+export async function loadWellnessSeries(
+  prisma: Pick<PrismaClient, 'wellnessDay'>,
+  userId: string,
+  opts: { from: string; to: string },
+): Promise<WellnessSeriesRow[]> {
+  return prisma.wellnessDay.findMany({
+    where: { userId, date: { gte: opts.from, lte: opts.to } },
+    select: { date: true, restingHr: true, hrvRmssd: true, sleepSec: true },
+  })
 }
 
 /** The column a list never reads: the heart-rate histogram is the largest and only the detail needs it. */
