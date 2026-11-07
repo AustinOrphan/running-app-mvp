@@ -92,3 +92,12 @@ export const RACE_CHECKPOINT_NAME_MAX = 60
 export const RACE_CHECKPOINT_CLIMB_MAX_M = 20_000
 /** The longest cutoff, in seconds: 400 hours of elapsed time. */
 export const RACE_CHECKPOINT_CUTOFF_MAX_SEC = 400 * 3600
+
+// My paces (rule C9, ADR 0020). Sanity bounds on the custom course a request can name, not
+// training guidance: the distance of a goal is bounded the same way.
+
+/** Shortest and longest custom course, in metres. */
+export const PACES_CUSTOM_MIN_M = 1000
+export const PACES_CUSTOM_MAX_M = 500_000
+/** The most climb a custom course can name, in metres. */
+export const PACES_CUSTOM_GAIN_MAX_M = 50_000
