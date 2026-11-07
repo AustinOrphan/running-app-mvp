@@ -7,6 +7,7 @@ import { BriefLine } from '../BriefLine.tsx'
 import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
 import { FuelTargetLine } from '../fuel/FuelTargetLine.tsx'
+import { RaceSlot } from '../race/RaceSlot.tsx'
 import { StrengthSetupCard } from '../strength/StrengthSetupCard.tsx'
 import { DisruptionSlot } from './DisruptionSlot.tsx'
 import { usePhoneCopy } from './phoneCopy.ts'
@@ -84,6 +85,24 @@ function FuelPromptMount() {
   )
 }
 
+/**
+ * RP2: the race-week card (rule H14), in the week group. The payload's `race` slot holds the days
+ * to go and the carbohydrate line, so the card adds no request and shows from a copy of Today kept
+ * offline. Nothing is drawn before the settings, which give the units, are in the cache.
+ */
+function RaceMount() {
+  const today = useLoaded<TodayView>(keys.today)
+  const settings = useLoaded<UserSettings>(keys.settings)
+  const summary = today?.coach.slots.race ?? null
+  return (
+    <SlotFrame name="race">
+      {summary === null || settings === undefined ? null : (
+        <RaceSlot summary={summary} units={settings.units} />
+      )}
+    </SlotFrame>
+  )
+}
+
 /** The line itself, in its frame: the frame appears only while the line has something to say. */
 function WatchLine({ item }: { item: WristItem | undefined }) {
   const line = useWristLine(item)
@@ -140,4 +159,5 @@ export const SLOT_MOUNTS: Partial<Record<SlotName, ComponentType>> = {
   fuel: FuelTargetMount,
   watch: WatchMount,
   fuelPrompt: FuelPromptMount,
+  race: RaceMount,
 }

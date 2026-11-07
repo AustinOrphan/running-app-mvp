@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { useRacePlan } from '../api/race.ts'
 import { Segmented } from '../components/Segmented.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { useTheme, type Theme } from '../components/Nav.tsx'
@@ -22,23 +23,34 @@ const links = [
   { to: '/settings', label: 'Settings', note: 'Units, display name, export' },
 ]
 
+/** Shown while the current goal is an ultra with a race still to come. */
+const RACE_LINK = {
+  to: '/race',
+  label: 'Race plan',
+  note: render(TEMPLATES['race.plan.more-note'], {}, 'km'),
+}
+
 /** The phone-width list for pages that are not in the tab bar, plus the theme choice. */
 export function MorePage() {
   const { theme, setTheme } = useTheme()
+  // The race plan exists for the goal race of an ultra only; the row waits for the answer.
+  const hasRacePlan = useRacePlan().data?.plan != null
 
   return (
     <>
       <PageHeader title="More" />
       <nav aria-label="More pages">
         <ul className={styles.list}>
-          {links.map((link) => (
-            <li key={link.to}>
-              <Link to={link.to} className={styles.row}>
-                <span className={styles.label}>{link.label}</span>
-                <span className={styles.note}>{link.note}</span>
-              </Link>
-            </li>
-          ))}
+          {(hasRacePlan ? [...links.slice(0, 2), RACE_LINK, ...links.slice(2)] : links).map(
+            (link) => (
+              <li key={link.to}>
+                <Link to={link.to} className={styles.row}>
+                  <span className={styles.label}>{link.label}</span>
+                  <span className={styles.note}>{link.note}</span>
+                </Link>
+              </li>
+            ),
+          )}
         </ul>
       </nav>
       <section className={styles.theme}>

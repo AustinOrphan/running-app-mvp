@@ -2,6 +2,7 @@ import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
 import type { MethodPosition } from './engine/methods.ts'
+import type { RacePlan, RacePlanSummary } from './engine/racePlan.ts'
 import type { HistorySession, LiftHistory, WeekHistory } from './engine/strength.ts'
 import type {
   AthleteState,
@@ -1354,6 +1355,22 @@ export interface TodaySlots {
    * `fuelPrompt` frame below the fold holds its card; it has no slot of its own.
    */
   strengthSetup: StrengthSetupOffer | null
+  /**
+   * The race plan for the viewed day (rule H14, ADR 0018), cut from the plan `GET /api/race/plan`
+   * serves: days to the race, the K6 carbohydrate line from two days before, and the block the
+   * race-day sheet shows (effort, fuel, fluid, safety card). Null outside race week
+   * (`r1.raceWeekCardDays` days before the race, the race day included), for a goal that is not an
+   * ultra and once the race is over. It is no budgeted slot: the card sits in the week group below
+   * the fold.
+   */
+  race: RacePlanSummary | null
+}
+/** Why `GET /api/race/plan` has no plan to give. */
+export type RacePlanReason = 'no-goal' | 'no-distance' | 'not-ultra' | 'race-over'
+/** The answer of `GET /api/race/plan`: the plan, or null with the reason. */
+export interface RacePlanView {
+  plan: RacePlan | null
+  reason: RacePlanReason | null
 }
 /** The strength session that makes Today offer "Set up strength". */
 export interface StrengthSetupOffer {

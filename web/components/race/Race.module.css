@@ -1,0 +1,167 @@
+/* The pieces of the race plan: the page's sections, the three parts of the race, the fuel block and
+   the Today card. `min-width: 0` and wrapping keep every line inside a 328 px column at 360 px. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  max-width: var(--page-max);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+
+.section > * {
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.subheading {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.headline {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.text {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.note {
+  margin: 0;
+  max-width: var(--prose-max);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  max-width: var(--prose-max);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.parts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.partWindow {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.nausea {
+  max-width: var(--prose-max);
+}
+
+/* A 44 px row, so the disclosure is a comfortable tap target; `display: list-item` keeps the marker. */
+.summary {
+  display: list-item;
+  padding-block: calc((2.75rem - var(--lh-sm)) / 2);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.link:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* The Today card in the week group and the race-day block of the session sheet. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: var(--page-max);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+
+.card > * {
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.sheetBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

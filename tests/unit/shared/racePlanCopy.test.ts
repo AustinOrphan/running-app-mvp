@@ -243,6 +243,8 @@ describe('fuel and fluid words', () => {
     const floor = describeRacePlan(PLANS[8]![1], 'km').fuel
     expect(floor.basis).toMatch(/floor is the rate/)
     expect(floor.certainty).toBeNull()
+    // the few-hours label belongs to a tolerated rate; the floor is the tested range
+    expect(floor.fewHours).toBeNull()
   })
 
   it('carries the low-certainty label above the floor and the clinician line with a gut condition', () => {

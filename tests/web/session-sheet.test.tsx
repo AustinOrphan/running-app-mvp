@@ -706,6 +706,7 @@ describe('SessionSheet: the Strength section', () => {
           fuelPrompt: null,
           strength: workout,
           strengthSetup: null,
+          race: null,
         },
       }),
       ...over,
@@ -957,6 +958,7 @@ describe('SessionSheet: the Strength section', () => {
                 fuelPrompt: null,
                 strength: makeWorkout({ date: '2027-01-14' }),
                 strengthSetup: null,
+                race: null,
               },
             }),
           }),
@@ -1002,6 +1004,7 @@ describe('SessionSheet: the Strength section', () => {
               fuelPrompt: null,
               strength: makeWorkout({ date: '2027-01-13' }),
               strengthSetup: null,
+              race: null,
             },
           }),
         }),
@@ -1018,5 +1021,42 @@ describe('SessionSheet: the Strength section', () => {
     expect(screen.queryByRole('region', { name: /^Strength/ })).not.toBeInTheDocument()
     expect(calls.some((call) => call.url.startsWith('/api/strength'))).toBe(false)
     expect(calls.some((call) => call.url === '/api/today')).toBe(false)
+  })
+})
+
+describe('the race plan block (rule H14)', () => {
+  const raceSession = (zone: 'z1' | 'z3') =>
+    makeSession({
+      id: 'race1',
+      kind: 'race',
+      title: 'Race',
+      date: '2027-01-13',
+      durationMin: 1800,
+      target: { zone, rpe: [3, 4], hr: null, paceSecPerKm: null, heatNote: null },
+      flags: [],
+    })
+
+  const noTargets: MockRoutes = { 'GET /api/fuel/targets': () => [] }
+
+  test('an ultra race session links to the race plan', async () => {
+    renderSheet(raceSession('z1'), noTargets)
+    const sheet = await screen.findByRole('dialog', { name: 'Race' })
+    expect(await within(sheet).findByRole('link', { name: 'Open the race plan' })).toHaveAttribute(
+      'href',
+      '/race',
+    )
+  })
+
+  test('a race stored in the race-pace zone (a shorter race) has no race plan block', async () => {
+    renderSheet(raceSession('z3'), noTargets)
+    const sheet = await screen.findByRole('dialog', { name: 'Race' })
+    await within(sheet).findByText('Prescription')
+    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
+  })
+
+  test('a run has no race plan block', async () => {
+    renderSheet(makeSession())
+    const sheet = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    expect(within(sheet).queryByRole('link', { name: 'Open the race plan' })).toBeNull()
   })
 })

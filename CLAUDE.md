@@ -189,6 +189,13 @@ its build runs `prisma migrate deploy` as a smoke test.
 - The `strength.state` memo (`memoByVersion`) is the one read of the strength window (the setup, the
   anchors and 26 weeks of logs), ADR 0009's rule applied: a rule or a surface asks for the memo and
   never queries the strength tables.
+- The race plan of an ultra goal (rule H14, ADR 0018) is derived on read in `shared/engine/racePlan.ts`
+  (`racePlanFor`; the carbohydrate rate is `raceFuelFor` in `fuel.ts`) and stored nowhere. Its words are
+  `shared/copy/racePlan.ts` (`describeRacePlan`, `describeRaceSummary`), and the server reads it only through
+  `loadRacePlan` (`server/services/racePlan.ts`, memo `race.plan`), so the Race page, the Today slot `race`
+  and the race-day block of the session sheet render one object. The plan reads no forecast (the race heat
+  is the `ClimateCache` normal), states no pace, split or rate above a tolerated rung, and is not on the
+  watch, the feed or the brief (`racePlanIsolation.test.ts`). `FUEL_KINDS.race` stays false.
 - `Sheet` (`web/components/Sheet.tsx`) is stack-aware: only the topmost open sheet answers Tab and
   Escape, and the ones under it are `inert`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are

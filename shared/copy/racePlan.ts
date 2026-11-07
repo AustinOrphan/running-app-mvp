@@ -32,7 +32,7 @@ import type {
   RaceWeek,
 } from '../engine/racePlan.ts'
 import { P } from '../engine/params/index.ts'
-import type { Units } from '../types.ts'
+import type { RacePlanReason, Units } from '../types.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
 import { render, tpl, type SlotSpec, type SlotValues, type Template } from './template.ts'
 import { TODAY_TEMPLATES } from './today.ts'
@@ -51,6 +51,7 @@ export const RACE_PLAN_TEMPLATES = {
     'The race plan is for ultra distances. A shorter race keeps its session as planned.',
   ),
   'race.plan.empty.race-over': tpl('This race is over, so there is no plan to show.'),
+  'race.plan.offline': tpl('The race plan needs a connection. Try again when you are back online.'),
   'race.plan.days-to-go': tpl('{n} days to go', { n: 'count' }, { shape: 'label' }),
   'race.plan.days-to-go-one': tpl('1 day to go', {}, { shape: 'label' }),
   'race.plan.race-day': tpl('Race day', {}, { shape: 'label' }),
@@ -144,6 +145,7 @@ export const RACE_PLAN_TEMPLATES = {
   ),
 
   // ---- Heat --------------------------------------------------------------------------------------
+  'race.plan.heat.heading': tpl('Heat', {}, { shape: 'label' }),
   'race.plan.heat.climate': tpl(
     'Race heat is a WBGT of {temp}, typical for the date and not a forecast.',
     { temp: 'temp' },
@@ -272,6 +274,33 @@ export function daysToGoText(daysToRace: number, units: Units): string {
   return say(T['race.plan.days-to-go'], { n: count(daysToRace) }, units)
 }
 
+const EMPTY_TEMPLATES = {
+  'no-goal': T['race.plan.empty.no-goal'],
+  'no-distance': T['race.plan.empty.no-distance'],
+  'not-ultra': T['race.plan.empty.not-ultra'],
+  'race-over': T['race.plan.empty.race-over'],
+} satisfies Record<RacePlanReason, Template>
+
+/** The line the page shows when there is no plan, and why. */
+export function raceEmptyText(reason: RacePlanReason, units: Units): string {
+  return say(EMPTY_TEMPLATES[reason], {}, units)
+}
+
+/** The line the page shows when the plan cannot be read. */
+export function raceOfflineText(units: Units): string {
+  return say(T['race.plan.offline'], {}, units)
+}
+
+/** The title of the page, the heading of the sheet block when it has no summary to show. */
+export function raceTitleText(units: Units): string {
+  return say(T['race.plan.title'], {}, units)
+}
+
+/** The label of every link to the page. */
+export function raceOpenText(units: Units): string {
+  return say(T['race.plan.open'], {}, units)
+}
+
 // ---------------------------------------------------------------------------------------------
 // The words of one plan
 // ---------------------------------------------------------------------------------------------
@@ -312,6 +341,8 @@ export interface RaceFuelText {
   aid: string | null
   lock: string | null
   fluid: string
+  /** The label of the link to the Fuel lab, shown when only the floor was tolerated. */
+  labLink: string
   nausea: { heading: string; lines: string[]; open: boolean }
   eah: { heading: string; lines: string[] }
 }
@@ -337,6 +368,7 @@ export interface RacePlanText {
   parts: RacePartText[]
   climbing: { heading: string; lines: string[] } | null
   fuel: RaceFuelText
+  heatHeading: string
   heat: string[]
   raceWeek: RaceWeekText | null
   dark: { heading: string; lines: string[] } | null
@@ -517,8 +549,8 @@ export function describeRaceFuel(
           : say(T['race.plan.fuel.floor'], {}, units),
     certainty: fuel.lowCertainty ? lowCertaintyLine() : null,
     multiCarb: fuel.multiCarbRequired ? multi : null,
-    fewHours: say(T['race.plan.fuel.few-hours'], {}, units),
-    hot: fuel.hot ? say(T['race.plan.fuel.hot'], {}, units) : null,
+    fewHours: fuel.basis === 'tolerated' ? say(T['race.plan.fuel.few-hours'], {}, units) : null,
+    hot: fuel.hot && fuel.basis === 'tolerated' ? say(T['race.plan.fuel.hot'], {}, units) : null,
     total: say(
       T['race.plan.fuel.total'],
       {
@@ -531,6 +563,7 @@ export function describeRaceFuel(
     aid: plan.supportLevel === 'aided' ? say(T['race.plan.fuel.aid'], {}, units) : null,
     lock: fuel.basis === 'locked' ? gutConditionLock() : null,
     fluid: fluidLine(),
+    labLink: say(T['race.plan.fuel.link'], {}, units),
     nausea: nauseaPlan(fuel.nauseaPlanOpen),
     eah: eahText(plan.eahStronger),
   }
@@ -648,6 +681,7 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
             ],
           },
     fuel: describeRaceFuel(plan, units),
+    heatHeading: say(T['race.plan.heat.heading'], {}, units),
     heat: heatLines(plan, units),
     raceWeek: plan.raceWeek === null ? null : describeRaceWeek(plan.raceWeek, units),
     dark:

@@ -179,6 +179,7 @@ describe("Today: today's session", () => {
             fuelPrompt: null,
             strength: makeWorkout(),
             strengthSetup: null,
+            race: null,
           },
         }),
       }),

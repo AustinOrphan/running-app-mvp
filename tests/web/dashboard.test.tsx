@@ -263,6 +263,7 @@ describe('DashboardPage: the fuel slots', () => {
     fuelPrompt: null,
     strength: null,
     strengthSetup: null,
+    race: null,
   }
   const withSlots = (slots: Partial<TodayCoach['slots']>, hero = longRun()): TodayView =>
     makeToday({
@@ -531,6 +532,7 @@ describe('DashboardPage: a strength session', () => {
     fuelPrompt: null,
     strength: null,
     strengthSetup: null,
+    race: null,
   }
   const unreachable = {
     status: 503,
@@ -1280,6 +1282,7 @@ describe('DashboardPage: the offer to set up strength (design 6.1)', () => {
     fuelPrompt: null,
     strength: null,
     strengthSetup: null,
+    race: null,
   }
   const OFFER = { sessionId: SESSION_ID, date: '2026-03-20' }
   const withSlots = (slots: Partial<TodayCoach['slots']>): TodayView => {

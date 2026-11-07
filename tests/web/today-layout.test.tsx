@@ -155,6 +155,7 @@ function fullDay(): TodayView {
         fuelPrompt: makeFuelPrompts(),
         strength: null,
         strengthSetup: null,
+        race: null,
       },
     }),
   })

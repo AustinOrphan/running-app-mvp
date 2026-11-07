@@ -32,6 +32,7 @@ const EMPTY_SLOTS: TodayCoach['slots'] = {
   fuelPrompt: null,
   strength: null,
   strengthSetup: null,
+  race: null,
 }
 
 /** A day with the easy run `s1` as its hero and the given items in the `watch` slot. */
