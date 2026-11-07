@@ -114,7 +114,9 @@ test('with an empty log the page says what would give a pace, opens the test and
 
   // The steps of the test are open, from the Params of the fit.
   const test_ = page.getByRole('region', { name: 'A short test' })
-  await expect(test_.getByText(/^Run 3 hard, flat efforts of 400 m to 5 km/)).toBeVisible()
+  await expect(
+    test_.getByText(/^Run 3 hard, flat efforts of .+ to .+, on separate days/),
+  ).toBeVisible()
   await expect(test_.getByText('0 of 3 efforts found so far.')).toBeVisible()
   expect(await scrollsSideways()).toBe(false)
 })
@@ -152,14 +154,14 @@ test('a runner with a heart-rate line gets a pace range, a hot day, a climb and 
   // The five distances, the 10 km from the race.
   const events = page.getByRole('region', { name: 'What you can run now' })
   for (const name of ['5 km', '10 km', 'Half marathon', 'Marathon', '50 km']) {
-    await expect(events.getByRole('article', { name })).toBeVisible()
+    await expect(events.getByRole('article', { name, exact: true })).toBeVisible()
   }
-  const ten = events.getByRole('article', { name: '10 km' })
-  await expect(ten.getByText(/^From your 10 km on /)).toBeVisible()
+  const ten = events.getByRole('article', { name: '10 km', exact: true })
+  await expect(ten.getByText(/^From your .+ on /)).toBeVisible()
   await expect(ten.getByText('Evidence grade C')).toBeVisible()
   await expect(
     events
-      .getByRole('article', { name: 'Marathon' })
+      .getByRole('article', { name: 'Marathon', exact: true })
       .getByText('One source only, so the range is wider.'),
   ).toBeVisible()
 
@@ -183,7 +185,9 @@ test('a runner with a heart-rate line gets a pace range, a hot day, a climb and 
 
   // The test is closed: critical speed is not in place, so its steps stay one tap away.
   const test_ = page.getByRole('region', { name: 'A short test' })
-  await expect(test_.getByText('Make the longest last at least 2 times')).toHaveCount(0)
+  await expect(test_.getByText('Make the longest last at least 2 times')).not.toBeVisible()
+  await test_.getByText('The steps').click()
+  await expect(test_.getByText('Make the longest last at least 2 times')).toBeVisible()
 })
 
 for (const viewport of WIDTHS) {

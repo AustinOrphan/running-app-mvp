@@ -48,6 +48,9 @@ export function EventsSection({ view, units, course, onCourse, busy }: EventsSec
         ))}
       </ul>
       <p className={styles.note}>{pacesText('paces.events.no-weather')}</p>
+      {gradesShown(rows).length === 0 ? null : (
+        <p className={styles.note}>{gradeLegend(gradesShown(rows))}</p>
+      )}
 
       <h3 id={customId} className={styles.subheading}>
         {pacesText('paces.custom.heading')}
@@ -57,9 +60,6 @@ export function EventsSection({ view, units, course, onCourse, busy }: EventsSec
         {view.custom === null ? null : <EventCard row={view.custom} units={units} />}
       </div>
 
-      {gradesShown(rows).length === 0 ? null : (
-        <p className={styles.note}>{gradeLegend(gradesShown(rows))}</p>
-      )}
       <HowMade
         lines={[
           pacesText('paces.events.how-time'),
