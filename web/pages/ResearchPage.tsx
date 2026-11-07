@@ -24,11 +24,11 @@ const RESEARCH_CONTEXT = render(TEMPLATES['research.context'], {}, 'km')
 type GradeFilter = 'all' | 'A' | 'B' | 'C' | 'D'
 
 const gradeOptions: Array<{ value: GradeFilter; label: string }> = [
-  { value: 'all', label: 'All grades' },
-  { value: 'A', label: 'Grade A' },
-  { value: 'B', label: 'Grade B' },
-  { value: 'C', label: 'Grade C' },
-  { value: 'D', label: 'Grade D' },
+  { value: 'all', label: 'All', name: 'All grades' },
+  { value: 'A', label: 'A', name: 'Grade A' },
+  { value: 'B', label: 'B', name: 'Grade B' },
+  { value: 'C', label: 'C', name: 'Grade C' },
+  { value: 'D', label: 'D', name: 'Grade D' },
 ]
 
 /** Sections of a topic file that the page shows from the structured data instead. */
@@ -399,7 +399,13 @@ export function ResearchPage() {
       </p>
       <Legend />
       <div className={styles.filter}>
-        <Segmented label="Rule grade" options={gradeOptions} value={filter} onChange={setFilter} />
+        <Segmented
+          label="Grade"
+          showLabel
+          options={gradeOptions}
+          value={filter}
+          onChange={setFilter}
+        />
       </div>
       {body}
     </>

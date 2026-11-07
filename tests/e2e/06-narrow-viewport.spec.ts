@@ -165,6 +165,33 @@ test('the Activities type filter needs no scrolling at 360 px', async () => {
   await expect(group).toBeVisible()
   const overflow = await group.evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(overflow).toBeLessThanOrEqual(0)
+  await expectOneLineOptions(group)
+})
+
+/** Every option of a segmented control is one line tall and its word fits inside its own cell. */
+async function expectOneLineOptions(group: Locator) {
+  for (const option of await group.getByRole('radio').all()) {
+    const fits = await option.evaluate((el) => ({
+      height: el.getBoundingClientRect().height,
+      overflow: el.scrollWidth - el.clientWidth,
+    }))
+    expect(fits.height, 'one line, 44 px or more').toBeLessThanOrEqual(50)
+    expect(fits.height).toBeGreaterThanOrEqual(44)
+    expect(fits.overflow, 'the word fits its cell').toBeLessThanOrEqual(0)
+  }
+}
+
+test('the Research grade filter is one short row labelled Grade at 360 px', async () => {
+  await page.goto('/research')
+  const group = page.getByRole('radiogroup', { name: 'Grade' })
+  await expect(group).toBeVisible()
+  await expect(group.getByRole('radio')).toHaveCount(5)
+  await expect(group.getByRole('radio', { name: 'Grade A' })).toBeVisible()
+  await expectOneLineOptions(group)
+  expect(await group.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
 })
 
 test('the Stats page does not scroll sideways at 360 px; wide tables scroll inside', async () => {

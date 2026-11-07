@@ -9,8 +9,11 @@
 }
 
 .option {
-  flex: 1 1 0;
+  /* Each option is as wide as its word plus padding and the spare room is shared, so a long word
+     ("Strength") never runs into its neighbour; a row that is still too wide scrolls. */
+  flex: 1 0 auto;
   min-width: 0;
+  white-space: nowrap;
   min-height: calc(var(--control-h) - 2px);
   padding: 0 var(--space-3);
   border: 0;
@@ -40,8 +43,13 @@
 
 @media (max-width: 420px) {
   .option {
-    padding: 0 var(--space-1);
+    padding: 0 var(--space-2);
   }
+}
+
+.fit {
+  width: fit-content;
+  max-width: 100%;
 }
 
 /* Five short words on a 360 px row: smaller type, and just enough padding to keep them apart. */

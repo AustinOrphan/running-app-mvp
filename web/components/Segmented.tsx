@@ -4,7 +4,8 @@ import styles from './Segmented.module.css'
 
 export interface SegmentedProps<T extends string> {
   label: string
-  options: Array<{ value: T; label: string }>
+  /** `name` is what a screen reader says when the visible label is short ("A" reads "Grade A"). */
+  options: Array<{ value: T; label: string; name?: string }>
   value: T
   onChange: (v: T) => void
   /**
@@ -12,6 +13,8 @@ export interface SegmentedProps<T extends string> {
    * field's, and the group is described by all of the paragraphs.
    */
   hint?: string | readonly string[]
+  /** Shows the label above the control, as a field's label, without a hint. */
+  showLabel?: boolean
   /**
    * What the arrow keys do. `select` (the default) moves and selects, as a radio group does.
    * `focus` only moves focus, and Space or Enter selects: for a choice that is saved the moment it
@@ -20,6 +23,8 @@ export interface SegmentedProps<T extends string> {
   arrows?: 'select' | 'focus'
   /** Smaller type and tighter padding, so five short words fit a 360 px row without scrolling. */
   dense?: boolean
+  /** The width of its own options instead of the full row, for a control that sits beside a heading. */
+  fit?: boolean
 }
 
 /** A scale of short numbers (1 to 10) is set in two equal rows, so no cell is narrower than a thumb. */
@@ -38,8 +43,10 @@ export function Segmented<T extends string>({
   value,
   onChange,
   hint,
+  showLabel = false,
   arrows = 'select',
   dense = false,
+  fit = false,
 }: SegmentedProps<T>) {
   const id = useId()
   const buttons = useRef<Array<HTMLButtonElement | null>>([])
@@ -77,7 +84,7 @@ export function Segmented<T extends string>({
 
   const grid = isNumberScale(options)
   const lines = hint === undefined ? [] : typeof hint === 'string' ? [hint] : hint
-  const labelled = lines.length > 0
+  const labelled = lines.length > 0 || showLabel
   const group = (
     <div
       role="radiogroup"
@@ -86,7 +93,7 @@ export function Segmented<T extends string>({
       aria-describedby={
         labelled ? lines.map((_, index) => `${id}-hint-${String(index)}`).join(' ') : undefined
       }
-      className={`${styles.group} ${dense ? styles.dense : ''} ${grid ? styles.grid : ''}`}
+      className={`${styles.group} ${dense ? styles.dense : ''} ${grid ? styles.grid : ''} ${fit ? styles.fit : ''}`}
       style={grid ? ({ '--cols': Math.ceil(options.length / 2) } as CSSProperties) : undefined}
     >
       {options.map((option, index) => (
@@ -98,6 +105,7 @@ export function Segmented<T extends string>({
           type="button"
           role="radio"
           aria-checked={option.value === value}
+          aria-label={option.name}
           tabIndex={index === tabStop ? 0 : -1}
           className={styles.option}
           onClick={() => {
