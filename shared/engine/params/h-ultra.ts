@@ -514,6 +514,17 @@ export const hUltra = {
       unit: '% of race time',
       note: 'Keep HR at or below VT1 for about this share of race time and flag any planned effort above VT2.',
     }),
+    raceRpe: param<[number, number]>(
+      'h11.raceRpe',
+      [3, 4],
+      'D',
+      'H11',
+      ['fornasiero-2018-ultra-intensity', 'bok-2022-subjective-intensity'],
+      {
+        unit: 'CR-10',
+        note: "Default: the race effort of an ultra on the CR-10 scale, the same band as the long run. A mapping of 'at or below VT1 for about 85% of race time' (grade C) onto CR-10 that no study gives.",
+      },
+    ),
   },
   h12: {
     reducedDays: param(
