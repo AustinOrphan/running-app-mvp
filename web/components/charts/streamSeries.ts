@@ -39,7 +39,8 @@ export function streamXAxis(stream: StreamData): 'distance' | 'time' {
 /** Pace at bucket `i`, from the running done in the preceding window. */
 function paceAt(stream: StreamData, i: number, units: Units): number | null {
   const d = stream.d
-  if (d === null) return null
+  // The first bucket is a start from standing: one bucket of running, not a pace.
+  if (d === null || i === 0) return null
   const endSec = (k: number): number | null => {
     if (k < 0) return 0
     const start = num(stream.t[k])
@@ -89,4 +90,26 @@ export function buildSeries(
     points.push({ x, y })
   }
   return points
+}
+
+/** A pause longer than this is a real break in the line; a shorter run of empty buckets is only sparse sampling. */
+const MAX_BRIDGED_GAP_SEC = 300
+
+/**
+ * The points a chart draws: only the buckets that have a value, with one gap marker where more than
+ * `MAX_BRIDGED_GAP_SEC` of the run has none. A channel sampled every few buckets (a value, then nulls)
+ * therefore stays one line, while a real pause still breaks it.
+ */
+export function drawablePoints(points: SeriesPoint[], sampleSec: number): SeriesPoint[] {
+  const maxBuckets = Math.max(1, Math.round(MAX_BRIDGED_GAP_SEC / sampleSec))
+  const out: SeriesPoint[] = []
+  let last = -1
+  points.forEach((point, index) => {
+    if (point.y === null) return
+    const previous = out.at(-1)
+    if (previous && index - last > maxBuckets) out.push({ x: previous.x, y: null })
+    out.push(point)
+    last = index
+  })
+  return out
 }

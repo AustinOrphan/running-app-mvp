@@ -4,6 +4,7 @@ import type { ActivityStreamData } from '../../shared/types.ts'
 import { StreamChart, yAxisWidth } from '../../web/components/charts/StreamChart.tsx'
 import {
   buildSeries,
+  drawablePoints,
   streamXAxis,
   type StreamData,
 } from '../../web/components/charts/streamSeries.ts'
@@ -50,7 +51,11 @@ describe('buildSeries', () => {
     const points = buildSeries(makeStream(), 'pace', 'km')
     expect(points).toHaveLength(12)
     expect(points[11]?.x).toBeCloseTo(0.36, 5)
-    for (const point of points) expect(point.y).toBeCloseTo(333.33, 1)
+    for (const point of points.slice(1)) expect(point.y).toBeCloseTo(333.33, 1)
+  })
+
+  test('the first bucket has no pace: it is a start from standing', () => {
+    expect(buildSeries(makeStream(), 'pace', 'km')[0]?.y).toBeNull()
   })
 
   test('pace in seconds per mile, x in miles', () => {
@@ -92,6 +97,27 @@ describe('buildSeries', () => {
 
   test('a channel the stream lacks gives no points', () => {
     expect(buildSeries(makeStream({ hr: null }), 'hr', 'km')).toEqual([])
+  })
+})
+
+describe('drawablePoints', () => {
+  test('a channel sampled every sixth bucket stays one line', () => {
+    const hr = Array.from({ length: 60 }, (_, i) => (i % 6 === 0 ? 140 + i : null))
+    const t = hr.map((_, i) => i * 10)
+    const points = buildSeries(makeStream({ t, d: t.map((_, i) => (i + 1) * 30), hr }), 'hr', 'km')
+    const drawn = drawablePoints(points, 10)
+    expect(drawn).toHaveLength(10)
+    expect(drawn.every((p) => p.y !== null)).toBe(true)
+  })
+
+  test('a pause of more than five minutes breaks the line once', () => {
+    const points = Array.from({ length: 100 }, (_, i) => ({
+      x: i,
+      y: i < 10 || i >= 60 ? 150 : null,
+    }))
+    const drawn = drawablePoints(points, 10)
+    expect(drawn.filter((p) => p.y === null)).toHaveLength(1)
+    expect(drawn).toHaveLength(10 + 1 + 40)
   })
 })
 
