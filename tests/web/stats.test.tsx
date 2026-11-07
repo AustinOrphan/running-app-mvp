@@ -156,10 +156,15 @@ describe('StatsPage', () => {
     })
     renderWithProviders(<StatsPage />)
     expect(await screen.findByRole('alert')).toHaveTextContent('Stats did not load.')
+    const retry = screen.getByRole('button', { name: 'Try again' })
+    retry.focus()
     const statsCalls = () => calls.filter((c) => c.url.startsWith('/api/stats')).length
     const before = statsCalls()
     failing = false
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    fireEvent.click(retry)
+    // The error block stays mounted while the retry runs, so focus is not dropped.
+    expect(retry).toBeInTheDocument()
+    expect(retry).toHaveAttribute('aria-busy', 'true')
     expect(await screen.findByRole('table', { name: 'Monthly totals' })).toBeInTheDocument()
     expect(statsCalls()).toBe(before + 1)
   })
@@ -208,9 +213,15 @@ describe('StatsPage', () => {
     fireEvent.click(more)
     const all = screen.getByRole('table', { name: 'Weekly history, last 26 weeks' })
     expect(within(all).getAllByRole('row')).toHaveLength(27)
-    expect(screen.getByRole('button', { name: 'Show the last 12 weeks' })).toHaveAttribute(
+    // One label, so the state is announced through aria-expanded and a polite status.
+    expect(screen.getByRole('button', { name: 'Show all weeks' })).toHaveAttribute(
       'aria-expanded',
       'true',
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 26 weeks')
+    expect(screen.getByRole('button', { name: 'Show all weeks' })).toHaveAttribute(
+      'aria-controls',
+      screen.getByRole('region', { name: 'Weekly history table' }).id,
     )
   })
 

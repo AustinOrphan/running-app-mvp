@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace, minutesToHours1 } from '../../shared/units.ts'
@@ -8,6 +8,7 @@ import { useWeeks } from '../api/weeks.ts'
 import { MonthlyHoursChart, WeeklyHoursChart } from '../components/charts/lazyCharts.tsx'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
+import { focusMain, isFocusLost } from '../components/focusMain.ts'
 import { formatShortDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { ScrollTable } from '../components/ScrollTable.tsx'
@@ -53,8 +54,14 @@ export function StatsPage() {
   const settings = useSettings()
   const online = useOnline()
   const [allWeeks, setAllWeeks] = useState(false)
+  const [retrying, setRetrying] = useState(false)
+  const historyId = useId()
 
-  if (stats.isError || weeks.isError || settings.isError) {
+  const failed = stats.isError || weeks.isError || settings.isError
+  const loaded = stats.data !== undefined && weeks.data !== undefined && settings.data !== undefined
+  // A retry sends the failed queries back to pending; the error block stays up until they answer,
+  // so the button that holds focus is not replaced by the skeleton.
+  if (!loaded && (failed || retrying)) {
     return (
       <>
         <PageHeader title="Stats" />
@@ -68,10 +75,20 @@ export function StatsPage() {
             }
             action={
               <Button
+                busy={retrying}
                 onClick={() => {
-                  if (stats.isError) void stats.refetch()
-                  if (weeks.isError) void weeks.refetch()
-                  if (settings.isError) void settings.refetch()
+                  setRetrying(true)
+                  void Promise.allSettled([
+                    ...(stats.isError ? [stats.refetch()] : []),
+                    ...(weeks.isError ? [weeks.refetch()] : []),
+                    ...(settings.isError ? [settings.refetch()] : []),
+                  ]).then(() => {
+                    setRetrying(false)
+                    // When the answer replaces this block, focus goes to the page, not to the top.
+                    setTimeout(() => {
+                      if (isFocusLost()) focusMain()
+                    }, 0)
+                  })
                 }}
               >
                 Try again
@@ -262,7 +279,7 @@ export function StatsPage() {
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Weekly history</h2>
-        <ScrollTable label="Weekly history table">
+        <ScrollTable id={historyId} label="Weekly history table">
           <table className={styles.table}>
             <caption className="visually-hidden">{`Weekly history, last ${String(shownHistory.length)} weeks`}</caption>
             <thead>
@@ -296,12 +313,16 @@ export function StatsPage() {
             <Button
               variant="quiet"
               aria-expanded={allWeeks}
+              aria-controls={historyId}
               onClick={() => {
                 setAllWeeks((open) => !open)
               }}
             >
-              {allWeeks ? 'Show the last 12 weeks' : 'Show all weeks'}
+              Show all weeks
             </Button>
+            <p role="status" className="visually-hidden">
+              {`Showing ${String(shownHistory.length)} weeks`}
+            </p>
           </div>
         ) : null}
       </section>

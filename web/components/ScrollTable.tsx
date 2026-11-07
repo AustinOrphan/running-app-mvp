@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import styles from './ScrollTable.module.css'
 
 export interface ScrollTableProps {
+  id?: string
   /** The accessible name of the region: what the table is ("Monthly totals table"). */
   label: string
   /** Extra class for a box that also bounds the height or draws a frame. */
@@ -14,9 +15,10 @@ export interface ScrollTableProps {
  * The region takes focus, so a keyboard reaches every column, and an edge fade (a shadow where
  * more is hidden, no script) shows which side has more. The page itself never scrolls sideways.
  */
-export function ScrollTable({ label, className, children }: ScrollTableProps) {
+export function ScrollTable({ id, label, className, children }: ScrollTableProps) {
   return (
     <div
+      id={id}
       role="region"
       aria-label={label}
       tabIndex={0}

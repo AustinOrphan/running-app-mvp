@@ -247,7 +247,26 @@ describe('TrendsPage, running per week', () => {
     const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
     // 94 weeks have nothing; the ten from 2026-01-12 are drawn, and the caption names the start.
     expect(within(table).getAllByRole('row')).toHaveLength(11)
-    expect(screen.getAllByText('Records start 12 Jan.').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Records start the week of 12 Jan.').length).toBeGreaterThan(0)
+    // The chart is named for the span it draws, not the range it was asked for.
+    expect(chart).toHaveAccessibleName(
+      'Run hours per week, since the week of 12 Jan. Latest complete week 4.0 h.',
+    )
+    expect(chart.closest('figure')).not.toHaveAccessibleName('Records start the week of 12 Jan.')
+  })
+
+  test('draws a quiet stretch at the start of a range when older records exist', async () => {
+    // Records in the first ten weeks and the last fourteen; nothing between. The 6 month range
+    // starts inside the lull, but the history's first record is older, so no week is cut.
+    const lull = history().map((week, i) =>
+      i >= 10 && i < 90 ? makeWeekRow({ weekStart: week.weekStart }) : week,
+    )
+    localStorage.setItem('trends-range', '6')
+    mockTrends({ weeks: lull })
+    renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /^Run hours per week, last 6 months\./ })
+    expect(within(chart.closest('figure') as HTMLElement).getAllByRole('row')).toHaveLength(27)
+    expect(screen.queryByText(/^Records start the week of/)).not.toBeInTheDocument()
   })
 
   test('draws every week and no caption when the records reach the start of the range', async () => {
@@ -346,7 +365,7 @@ describe('TrendsPage, recovery readings', () => {
     expect(panel).toContainElement(note)
     expect(
       await screen.findByRole('img', {
-        name: /^Overnight HRV in ms, weekly mean, last 12 months\./,
+        name: /^Overnight HRV in ms, weekly mean, since the week of \d{1,2} \w{3}\./,
       }),
     ).toBeVisible()
     expect(

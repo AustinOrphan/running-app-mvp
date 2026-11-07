@@ -24,6 +24,8 @@ export type TrendsRunMetric = 'time' | 'distance'
 export interface TrendsRunChartProps {
   /** The weeks drawn, oldest first, the last of them the current week when it is in range. */
   weeks: readonly WeekRow[]
+  /** The first week with a record in the whole history; weeks before it are not drawn. */
+  firstRecord?: string | null
   metric: TrendsRunMetric
   units: Units
   /** The Monday of today's week: its bar is outlined and has no point on the line. */
@@ -81,16 +83,14 @@ function ValueBar({ x, y, width, height, payload }: BarShapeProps) {
  */
 export function TrendsRunChart({
   weeks: allWeeks,
+  firstRecord = null,
   metric,
   units,
   currentWeek,
   ariaLabel,
 }: TrendsRunChartProps) {
   // Weeks before the first record are not drawn as zero; the caption says where the records start.
-  const { weeks, cutBefore } = cropToFirstRecord(
-    allWeeks,
-    (week) => week.runMin > 0 || week.crossMin > 0 || week.raceMin > 0 || week.strengthSessions > 0,
-  )
+  const { weeks, cutBefore } = cropToFirstRecord(allWeeks, firstRecord)
   const perUnitM = units === 'mi' ? 1609.344 : 1000
   const points: Point[] = weeks.map((week) => {
     const current = week.weekStart === currentWeek
@@ -208,9 +208,7 @@ export function TrendsRunChart({
           </span>
         ))}
       </div>
-      {cutBefore === null ? null : (
-        <figcaption className={styles.start}>{recordsStart(cutBefore)}</figcaption>
-      )}
+      {cutBefore === null ? null : <p className={styles.start}>{recordsStart(cutBefore)}</p>}
       {/* The wrapper holds the width of the seven-column table; a bare absolute table would widen the page. */}
       <div className="visually-hidden">
         <table>
