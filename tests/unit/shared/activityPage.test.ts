@@ -81,7 +81,7 @@ describe('the sentences of the activity page', () => {
     )
   })
 
-  it('labels the paces: "Pace" alone, and "Elapsed pace" beside "Moving pace"', () => {
+  it('labels the paces: "Pace" alone, and "Moving pace" ahead of "Elapsed pace"', () => {
     expect(paceLabel(false, 'mi')).toBe('Pace')
     expect(paceLabel(true, 'mi')).toBe('Elapsed pace')
     expect(movingPaceLabel('km')).toBe('Moving pace')

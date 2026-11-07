@@ -219,6 +219,7 @@ describe('ActivityDetailPage', () => {
     expect(screen.getByText('Mon 2 Mar 2026, 07:30')).toBeInTheDocument()
     const summary = screen.getByRole('region', { name: 'Summary' })
     expect(figureOf(summary, 'Distance')).toBe('3.11 mi')
+    expect(figureOf(summary, 'Moving pace')).toBe('9:23 /mi')
     expect(figureOf(summary, 'Elapsed pace')).toBe('9:39 /mi')
     expect(figureOf(summary, 'Duration')).toBe('30:00')
     expect(figureOf(summary, 'Moving time')).toBe('29:10')
@@ -241,8 +242,8 @@ describe('ActivityDetailPage', () => {
     const TERMS = [
       'Duration',
       'Distance',
-      'Elapsed pace',
       'Moving pace',
+      'Elapsed pace',
       'Elevation gain',
       'Average HR',
       'Max HR',
@@ -307,18 +308,18 @@ describe('ActivityDetailPage', () => {
         return { ...base, activity: { ...base.activity, movingSec } }
       }
 
-      test('with a moving pace beside it, the first is the elapsed pace and the second the moving pace', async () => {
+      test('with a moving pace, the first is the moving pace and the second the elapsed pace', async () => {
         renderDetail({ detail: withMoving(1750) })
         const summary = await screen.findByRole('region', { name: 'Summary' })
-        // the figure that leads is still the elapsed one, from the duration
+        // the figure that leads is the moving one; the elapsed one, from the duration, follows
         expect(figureOf(summary, 'Elapsed pace')).toBe('9:39 /mi')
         expect(figureOf(summary, 'Moving pace')).toBe('9:23 /mi')
         expect(termOf(summary, 'Pace')).toBeUndefined()
-        // the two paces stand side by side in the readings
+        // the two paces stand side by side in the readings, the moving one first
         const labels = within(summary)
           .getAllByRole('term')
           .map((term) => term.textContent)
-        expect(labels.indexOf('Moving pace')).toBe(labels.indexOf('Elapsed pace') + 1)
+        expect(labels.indexOf('Elapsed pace')).toBe(labels.indexOf('Moving pace') + 1)
       })
 
       test('with no moving time there is one pace, and it is "Pace"', async () => {

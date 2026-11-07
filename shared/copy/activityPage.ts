@@ -119,14 +119,14 @@ export function againstThePlanHeading(units: Units): string {
 }
 
 /**
- * The label of the pace the summary leads with: "Pace", or "Elapsed pace" when a moving pace is
- * shown beside it, so the two are told apart.
+ * The label of the elapsed pace: "Pace" alone, or "Elapsed pace" when the moving pace leads and this
+ * one stands second, so the two are told apart.
  */
 export function paceLabel(movingPaceShown: boolean, units: Units): string {
   return render(T[movingPaceShown ? 'activity-page.elapsed-pace' : 'activity-page.pace'], {}, units)
 }
 
-/** The label of the moving pace shown beside the elapsed one. */
+/** The label of the moving pace, which leads when it differs from the elapsed one. */
 export function movingPaceLabel(units: Units): string {
   return render(T['activity-page.moving-pace'], {}, units)
 }

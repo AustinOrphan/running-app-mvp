@@ -29,7 +29,7 @@ export const ACTIVITY_LIST_TEMPLATES = {
   // in the label a screen reader reads. Nothing is added to the line: a row with a source label, a
   // long distance and a long duration is already full at 360 px.
   'activity-list.pace': tpl('Pace', {}, { shape: 'label' }),
-  'activity-list.pace-elapsed': tpl('Elapsed pace', {}, { shape: 'label' }),
+  'activity-list.pace-moving': tpl('Moving pace', {}, { shape: 'label' }),
   // The figure of a strength row in place of a distance (strength design 11.4): the sets logged.
   'activity-list.sets.none': tpl('No sets', {}, { shape: 'label' }),
   'activity-list.sets.one': tpl('1 set', {}, { shape: 'label' }),
@@ -73,13 +73,13 @@ export function activityMoreLabel(n: number): string {
 export const ACTIVITY_MORE_ERROR = render(T['activity-list.more-error'], {}, UNITS)
 
 /**
- * What a row's pace is: "Pace", or "Elapsed pace" for an activity whose moving time differs from
- * its elapsed time, because the pace a row shows is always the elapsed one. A screen reader reads it
- * before the figure.
+ * What a row's pace is: "Pace", or "Moving pace" for an activity whose moving time differs from its
+ * elapsed time, because that row shows the pace of the moving time. A screen reader reads it before
+ * the figure.
  */
 export function activityPaceLabel(movingTimeDiffers: boolean): string {
   return render(
-    T[movingTimeDiffers ? 'activity-list.pace-elapsed' : 'activity-list.pace'],
+    T[movingTimeDiffers ? 'activity-list.pace-moving' : 'activity-list.pace'],
     {},
     UNITS,
   )

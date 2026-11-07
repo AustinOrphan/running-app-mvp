@@ -80,8 +80,8 @@ function ActivityRow({
     (activity.type === 'run' || activity.type === 'race') &&
     activity.distanceM !== null &&
     activity.distanceM > 0
-  // the pace of a row is the elapsed one; with a moving time that differs, the row says so
-  const elapsedPace = showPace && movingTimeDiffers(activity)
+  // a row with a moving time that differs shows the moving pace and says so; the duration is elapsed
+  const movingPace = showPace && activity.movingSec !== null && movingTimeDiffers(activity)
   const source = sourceLabel(activity.source)
 
   return (
@@ -99,9 +99,13 @@ function ActivityRow({
           ) : null}
           {showPace && activity.distanceM !== null ? (
             <span className={styles.pace}>
-              {/* The pace is the elapsed one: with a moving time that differs, a screen reader is told so */}
-              <span className="visually-hidden">{`${activityPaceLabel(elapsedPace)}: `}</span>
-              {formatPace(activity.durationSec, activity.distanceM, units)}
+              {/* With a moving time that differs, the pace is the moving one and a screen reader is told so */}
+              <span className="visually-hidden">{`${activityPaceLabel(movingPace)}: `}</span>
+              {formatPace(
+                movingPace && activity.movingSec !== null ? activity.movingSec : activity.durationSec,
+                activity.distanceM,
+                units,
+              )}
             </span>
           ) : null}
           {source !== null ? <span className={styles.source}>{source}</span> : null}

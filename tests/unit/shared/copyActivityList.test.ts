@@ -29,9 +29,9 @@ describe('activityCountText', () => {
 })
 
 describe('the pace of a row', () => {
-  test('is "Pace", or "Elapsed pace" when the moving time differs, in the label a screen reader reads', () => {
+  test('is "Pace", or "Moving pace" when the moving time differs, in the label a screen reader reads', () => {
     expect(activityPaceLabel(false)).toBe('Pace')
-    expect(activityPaceLabel(true)).toBe('Elapsed pace')
+    expect(activityPaceLabel(true)).toBe('Moving pace')
   })
 })
 
