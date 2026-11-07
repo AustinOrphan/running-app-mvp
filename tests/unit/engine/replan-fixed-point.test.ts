@@ -9,7 +9,7 @@ import { buildPlan, keptByReplan, replan } from '../../../shared/engine/index.ts
 import type { EngineInput, PlanDraft } from '../../../shared/engine/types.ts'
 import { wellnessDay } from './e8-fixtures.ts'
 import { athletes } from './matrix-fixtures.ts'
-import { replanSteps } from './replan-steps.ts'
+import { replanChain, replanSteps } from './replan-steps.ts'
 import {
   EXACT_RATES,
   replanMonday,
@@ -111,6 +111,72 @@ describe('a taper under way, stored and re-planned with nothing new [rules K2, G
       }
     },
   )
+})
+
+describe('a kept taper under way gives way to a new race day and to a layoff [rules K2, K3, G-6, J7]', () => {
+  // Found by the review of RF4. The rows of a taper under way are kept from the plan being replaced
+  // for the same race, and a race moved to another day of its week is not: the race week was sized for
+  // the old day (its run days and its minutes). The marathon athlete's race on Tuesday 2027-03-09,
+  // moved to Sunday 03-14 at the re-plan of 03-01, planned a race week of 28 minutes where a race on
+  // that Sunday has 132; the reverse move kept 115 minutes on one run day. A layoff of 7 days or more
+  // found during the taper sizes the level by the J7 restart (`afterBreak`), which a kept row would
+  // bypass: 29 days without a run left the week in progress at 181 minutes and the race week at 115.
+  const marathon = athletes().find((a) => a.id === 'marathon')!
+  const at = '2027-03-01'
+  const moved = (from: string, to: string) => {
+    const input: EngineInput = { ...marathon.input, goal: { ...marathon.input.goal, date: from } }
+    const chain = replanChain(input, { moveGoal: { at, date: to } })
+    const k = chain.findIndex((s) => s.input.today === at)
+    return { before: chain[k - 1]!, step: chain[k]! }
+  }
+  const raceWeek = (draft: PlanDraft) => draft.weeks.find((w) => w.weekStart === '2027-03-08')!
+
+  it.each([
+    ['2027-03-09', '2027-03-14', 132, 4],
+    ['2027-03-14', '2027-03-12', 132, 4],
+    ['2027-03-14', '2027-03-09', 33, 1],
+  ])(
+    'draws the race week of a race moved from %s to %s again, then keeps it pass after pass',
+    (from, to, minutes, runDays) => {
+      const { step } = moved(from, to)
+      expect(step.input.goal.date).toBe(to)
+      expect(raceWeek(step.draft)).toMatchObject({ targetRunMin: minutes, runDays })
+      // the weeks from the race week on, and their sessions, are the same on every pass (the week in
+      // progress is bounded by the minutes the plan before still has, which the move changes)
+      const fromRaceWeek = (d: PlanDraft) => ({
+        weeks: d.weeks.filter((w) => w.weekStart >= '2027-03-08'),
+        sessions: d.sessions.filter((x) => x.date >= '2027-03-08'),
+      })
+      let { input, draft } = { input: step.input, draft: step.draft }
+      for (let pass = 2; pass <= 4; pass += 1) {
+        const next = again(input, draft)
+        expect(fromRaceWeek(next.draft), `pass ${String(pass)}`).toEqual(fromRaceWeek(step.draft))
+        ;({ input, draft } = next)
+      }
+    },
+  )
+
+  it('sizes the taper by the J7 restart after 29 days without a run, not by the rows kept', () => {
+    const step = replanChain(marathon.input).find((s) => s.input.today === at)!
+    const stored = raceWeek(step.draft).targetRunMin
+    expect(stored).toBe(115)
+    const idle: EngineInput = {
+      ...step.input,
+      activities: step.input.activities.filter((a) => a.date <= addDays(at, -29)),
+    }
+    const draft = replan(idle).draft
+    const week = (start: string) => draft.weeks.find((w) => w.weekStart === start)!
+    expect(week(at).targetRunMin).toBeLessThan(
+      step.draft.weeks.find((w) => w.weekStart === at)!.targetRunMin,
+    )
+    expect(raceWeek(draft).targetRunMin).toBeLessThan(stored)
+    let { input, draft: last } = { input: idle, draft }
+    for (let pass = 2; pass <= 4; pass += 1) {
+      const next = again(input, last)
+      expect(next.draft, `pass ${String(pass)}`).toEqual(draft)
+      ;({ input, draft: last } = next)
+    }
+  })
 })
 
 describe('the race week re-planned on a day of it, stored and re-planned again [rules g-6, K2, K6]', () => {
