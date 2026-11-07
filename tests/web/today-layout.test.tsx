@@ -187,10 +187,10 @@ describe('DashboardPage: the layout', () => {
     }
     const order = [
       named('disruption'),
-      screen.getByRole('region', { name: 'Readiness' }),
       hero,
       named('fuel'),
       named('watch'),
+      screen.getByRole('region', { name: 'Readiness' }),
       screen.getByRole('region', { name: 'This week' }),
       named('brief'),
       named('fuelPrompt'),

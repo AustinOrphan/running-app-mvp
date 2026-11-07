@@ -175,6 +175,20 @@ export function DashboardPage() {
             )}
             <TodaySlot name="disruption" />
 
+            {coach.hero !== null ? (
+              <SessionHero
+                hero={coach.hero}
+                heat={view.heat}
+                next={coach.next}
+                units={units}
+                readOnly={day === 'past'}
+              />
+            ) : planned ? (
+              <NoSession next={coach.next} units={units} />
+            ) : null}
+            {/* Under the session, not over it: the note has no height budget, and above Done it
+                would push Done past the fold (ADR 0012). */}
+            <OfflineNote view={view} units={units} />
             <ReadinessRead
               verdict={verdictShown}
               signals={coach.signals}
@@ -197,20 +211,6 @@ export function DashboardPage() {
                 />
               )}
             </ReadinessRead>
-            {coach.hero !== null ? (
-              <SessionHero
-                hero={coach.hero}
-                heat={view.heat}
-                next={coach.next}
-                units={units}
-                readOnly={day === 'past'}
-              />
-            ) : planned ? (
-              <NoSession next={coach.next} units={units} />
-            ) : null}
-            {/* Under the session, not over it: the note has no height budget, and above Done it
-                would push Done past the fold (ADR 0012). */}
-            <OfflineNote view={view} units={units} />
             <PlanNotice
               hasPlan={planned}
               weekInPlan={coach.weekStrip?.targetRunMin != null}
