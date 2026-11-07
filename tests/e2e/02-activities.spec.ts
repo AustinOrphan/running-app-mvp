@@ -26,7 +26,7 @@ test('logging a run from the Activities page shows it in the list and on the das
   await expect(toast(page, 'Run saved')).toBeVisible()
   await expect(sheet).toBeHidden()
 
-  const row = page.getByRole('link', { name: /^Run, 5\.00 mi, 45:00/ })
+  const row = page.getByRole('link', { name: /^Run, [^,]+, 5\.00 mi, 45:00/ })
   await expect(row).toBeVisible()
   await expect(page.getByText('1 activity')).toBeVisible()
 
@@ -77,7 +77,7 @@ test('a run logged for today opens its own page, the post-run screen, and the to
 
   // the run is in the list behind it (the case above is the back-fill that stays on the list)
   await page.getByRole('link', { name: 'All activities' }).click()
-  await expect(page.getByRole('link', { name: /^Run, 5\.00 mi, 45:00/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Run, [^,]+, 5\.00 mi, 45:00/ })).toBeVisible()
 })
 
 test('a long row from a source shows the moving pace and names it, and is no taller at 360 px', async ({

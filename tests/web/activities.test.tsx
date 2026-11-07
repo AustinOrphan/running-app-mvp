@@ -187,7 +187,9 @@ describe('Activities page', () => {
       renderPage({ activities: [strength(sets)] })
       await screen.findByText(text)
       // one link names the kind and the figures in reading order
-      expect(screen.getByRole('link', { name: `Strength, ${text}, 40:00` })).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: `Strength, Mon 2 Mar, ${text}, 40:00` }),
+      ).toBeInTheDocument()
       // no distance and no dash stand in the cell, and a strength row has no pace
       expect(screen.queryByText('–')).not.toBeInTheDocument()
       expect(screen.queryByText(/\/mi$/)).not.toBeInTheDocument()
@@ -220,11 +222,13 @@ describe('Activities page', () => {
     })
   })
 
-  test('a row is one link to its activity, named by kind, distance, duration and pace; nothing says Details', async () => {
+  test('a row is one link to its activity, named by kind, day, distance, duration and pace; nothing says Details', async () => {
     renderPage({
       activities: [makeActivity({ id: 'r9', durationSec: 2700, distanceM: 8047 })],
     })
-    const link = await screen.findByRole('link', { name: 'Run, 5.00 mi, 45:00, Pace 9:00 /mi' })
+    const link = await screen.findByRole('link', {
+      name: 'Run, Mon 2 Mar, 5.00 mi, 45:00, Pace 9:00 /mi',
+    })
     expect(link).toHaveAttribute('href', '/activities/r9')
     expect(screen.queryByRole('link', { name: /Details/ })).not.toBeInTheDocument()
     expect(screen.queryByText('Details')).not.toBeInTheDocument()
@@ -232,7 +236,12 @@ describe('Activities page', () => {
     expect(screen.queryByRole('button', { name: /5\.00 mi/ })).not.toBeInTheDocument()
   })
 
-  test('the date range is behind a Dates button, closed at first and open once a date is set', async () => {
+  test('a row with no distance leaves the dash out of its name', async () => {
+    renderPage({ activities: [makeActivity({ id: 'r8', durationSec: 2700, distanceM: null })] })
+    expect(await screen.findByRole('link', { name: 'Run, Mon 2 Mar, 45:00' })).toBeInTheDocument()
+  })
+
+  test('the date range is behind a Dates button that folds and opens whatever is set, and a set range stays in force', async () => {
     const user = userEvent.setup()
     renderPage({ activities: [makeActivity()] })
     await screen.findByText('30:00')
@@ -242,9 +251,15 @@ describe('Activities page', () => {
     await user.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } })
-    // a range that is set cannot be hidden: the filter would act out of sight
+    // The toggle folds the fields away and the filter stays, said next to the button; focus stays on it.
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).toHaveFocus()
+    expect(screen.queryByLabelText('From')).not.toBeInTheDocument()
+    expect(screen.getByText('from 1 Mar')).toBeInTheDocument()
     await user.click(toggle)
     expect(screen.getByLabelText('From')).toHaveValue('2026-03-01')
+    expect(screen.queryByText('from 1 Mar')).not.toBeInTheDocument()
   })
 
   test('km users see km and pace per km', async () => {

@@ -110,7 +110,8 @@ function ActivityRow({
         className={styles.row}
         aria-label={[
           TYPE_LABELS[activity.type],
-          distance,
+          formatWeekday(activity.date) + ' ' + formatShortDate(activity.date),
+          distance === EN_DASH ? null : distance,
           duration,
           pace === null ? null : `${activityPaceLabel(movingPace)} ${pace}`,
           note,
@@ -242,7 +243,16 @@ export function ActivitiesPage() {
   }
 
   // A range that is set keeps its fields in view, so a filter is never active out of sight.
-  const showDates = datesOpen || from !== '' || to !== ''
+  const showDates = datesOpen
+  const rangeText =
+    from === '' && to === ''
+      ? null
+      : [
+          from === '' ? null : `from ${formatShortDate(from)}`,
+          to === '' ? null : `to ${formatShortDate(to)}`,
+        ]
+          .filter((part) => part !== null)
+          .join(' ')
   const filtersActive = typeFilter !== 'all' || from !== '' || to !== '' || duplicatesOnly
   const rows = (loaded ?? []).filter((row) => !duplicatesOnly || row.duplicateStatus === 'possible')
   // The duplicates view also lists confirmed rows, so a wrong confirmation can be undone.
@@ -362,17 +372,23 @@ export function ActivitiesPage() {
             value={typeFilter}
             onChange={setTypeFilter}
           />
-          <Button
-            variant="quiet"
-            className={styles.datesToggle}
-            aria-expanded={showDates}
-            aria-controls={datesId}
-            onClick={() => {
-              setDatesOpen(!showDates)
-            }}
-          >
-            Dates
-          </Button>
+          <div className={styles.datesBar}>
+            <Button
+              variant="quiet"
+              className={styles.datesToggle}
+              aria-expanded={showDates}
+              aria-controls={datesId}
+              onClick={() => {
+                setDatesOpen(!showDates)
+              }}
+            >
+              Dates
+            </Button>
+            {/* A range that is set stays in force when the fields are folded away, and says so here. */}
+            {!showDates && rangeText !== null ? (
+              <span className={styles.rangeText}>{rangeText}</span>
+            ) : null}
+          </div>
           {showDates ? (
             <div id={datesId} className={styles.dates}>
               <Field label="From">
