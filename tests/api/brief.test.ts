@@ -160,6 +160,39 @@ async function updated(label: string): Promise<Runner & { revisionId: string }> 
 // ---------------------------------------------------------------------------------------------
 
 describe('the weekly job', () => {
+  test('a re-plan that only rewrites the purpose text of stored sessions has an empty diff and no changes in the brief', async () => {
+    const r = await runner(email())
+    // Sessions stored before the wording change carry the old purpose text.
+    const old = await ctx.prisma.planSession.updateMany({
+      where: { planId: r.plan.id, kind: 'threshold' },
+      data: {
+        purpose:
+          'Threshold work at or below critical speed minus 1 km/h, as one bout or cruise intervals.',
+      },
+    })
+    expect(old.count).toBeGreaterThan(0)
+    await runReplanJob(deps(), { now: MONDAY_NOON })
+    const weekly = await ctx.prisma.planRevision.findFirst({
+      where: { planId: r.plan.id, reason: 'weekly' },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (weekly !== null) {
+      const diff = JSON.parse(weekly.diff ?? 'null') as { empty: boolean } | null
+      expect(diff?.empty).toBe(true)
+    }
+    const listed = await r.c.get('/api/plan/revisions')
+    expect((listed.body as Array<{ reason: string }>).filter((v) => v.reason === 'weekly')).toEqual(
+      [],
+    )
+    // the stored text may move to the new wording without a word to the runner
+    const after = await ctx.prisma.planSession.findMany({
+      where: { planId: r.plan.id, kind: 'threshold' },
+    })
+    expect(after.every((row) => !/km\/h/.test(row.purpose ?? ''))).toBe(true)
+    const row = await briefOf(r.u.id)
+    expect(readFacts(row!.facts)!.changes?.count ?? 0).toBe(0)
+  })
+
   test('writes the brief after its re-plan: the revision, the changes with causes, the key session', async () => {
     const r = await updated(email())
     const row = await briefOf(r.u.id)

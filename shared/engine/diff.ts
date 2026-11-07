@@ -179,10 +179,22 @@ function weekLines(writes: RowWrites<DiffWeekRow>): WeekDiffLine[] {
 }
 
 /**
+ * Whether a line shows the runner something: a session added or removed, or one whose date, kind,
+ * size, structure or status moved. A row rewritten for its purpose text alone has no field, so a
+ * write made only of those leaves the diff empty and no revision is listed for it.
+ */
+export function isVisibleLine(line: Pick<SessionDiffLine, 'change' | 'fields'>): boolean {
+  return line.change !== 'changed' || line.fields.length > 0
+}
+
+const isVisible = isVisibleLine
+
+/**
  * The diff of one write. Every row written is one line: `totals.added`, `removed` and `changed`
  * equal the sessions created, deleted and updated, and `totals.weeksChanged` the weeks written.
  * `runMinBefore` and `runMinAfter` sum the working targets of those weeks (a created week has none
- * before, a deleted week none after). `targets` is left out when the write met no raised target, so
+ * before, a deleted week none after). A diff whose session lines are all purpose-only rewrites is
+ * `empty`. `targets` is left out when the write met no raised target, so
  * a diff without one reads as before.
  */
 export function diffPlans(writes: PlanWrites): PlanDiff {
@@ -204,6 +216,6 @@ export function diffPlans(writes: PlanWrites): PlanDiff {
       runMinBefore: weeks.reduce((sum, week) => sum + week.runMinBefore, 0),
       runMinAfter: weeks.reduce((sum, week) => sum + week.runMinAfter, 0),
     },
-    empty: sessions.length === 0 && weeks.length === 0 && holds.length === 0,
+    empty: !sessions.some(isVisible) && weeks.length === 0 && holds.length === 0,
   }
 }

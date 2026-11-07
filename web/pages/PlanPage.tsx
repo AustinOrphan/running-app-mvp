@@ -61,7 +61,14 @@ import {
 } from '../components/format.ts'
 import { UndoControl } from '../components/revisions/UndoControl.tsx'
 import { planStripSentence, planStripText } from '../../shared/copy/planStrip.ts'
-import { addDays, formatWeekdayName, mondayOf, todayIso } from '../../shared/dates.ts'
+import {
+  addDays,
+  formatWeekdayName,
+  isoDateInZone,
+  mondayOf,
+  todayIso,
+} from '../../shared/dates.ts'
+import { isVisibleLine } from '../../shared/engine/diff.ts'
 import { actualRange, planSpan } from '../components/season.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { estimateAboutText } from '../../shared/copy/distanceEstimate.ts'
@@ -1066,14 +1073,21 @@ const ChangedSessions = createContext<ReadonlySet<string>>(new Set())
 /** How long after the weekly update the strip stays under the header, in days. */
 const STRIP_DAYS = 3
 
+/** The session lines of a revision that show the runner something (not a purpose-only rewrite). */
+function visibleLines(revision: PlanRevisionView) {
+  return (revision.diff?.sessions ?? []).filter(isVisibleLine)
+}
+
 /**
  * The most recent update the scheduler wrote that is still worth a line: a weekly revision from the
  * last few days that changed something and has not been undone. Null otherwise.
  */
 function latestUpdate(
   revisions: PlanRevisionView[] | undefined,
-  today: string,
+  server: { date: string; tz: string } | undefined,
 ): PlanRevisionView | null {
+  // The weekly job runs on the server's day, so the age and the weekday are read in its zone.
+  if (server === undefined) return null
   const found = (revisions ?? []).find(
     (revision) =>
       revision.reason === 'weekly' &&
@@ -1081,7 +1095,10 @@ function latestUpdate(
       revision.undo.undoneAt === null &&
       revision.diff !== null &&
       !revision.diff.empty &&
-      todayIso(new Date(revision.createdAt)) >= addDays(today, -STRIP_DAYS),
+      (visibleLines(revision).length > 0 ||
+        revision.diff.weeks.length > 0 ||
+        revision.diff.holds.length > 0) &&
+      isoDateInZone(new Date(revision.createdAt), server.tz) >= addDays(server.date, -STRIP_DAYS),
   )
   return found ?? null
 }
@@ -1091,11 +1108,19 @@ function latestUpdate(
  * renders nothing while the revisions load or when the list does not load: the "What changed" panel
  * below reports that failure, and a strip that only repeated it would be noise.
  */
-function UpdateStrip({ revision, units }: { revision: PlanRevisionView; units: Units }) {
-  const created = todayIso(new Date(revision.createdAt))
+function UpdateStrip({
+  revision,
+  units,
+  tz,
+}: {
+  revision: PlanRevisionView
+  units: Units
+  tz: string
+}) {
+  const created = isoDateInZone(new Date(revision.createdAt), tz)
   const sentence = planStripSentence(
     formatWeekdayName(created),
-    revision.diff?.sessions.length ?? 0,
+    visibleLines(revision).length,
     units,
   )
   return (
@@ -1532,11 +1557,24 @@ export function PlanPage() {
   const units = useSettings().data?.units
   // Only a plan that has sessions has revisions with a diff to show.
   const revisions = usePlanRevisions({ enabled: (plan.data?.generatorVersion ?? 1) >= 2 })
-  const update = latestUpdate(revisions.data, todayIso())
+  // The server's day is asked for only when an update could be worth a strip.
+  const serverToday = useToday({
+    enabled: (revisions.data ?? []).some(
+      (revision) =>
+        revision.reason === 'weekly' &&
+        revision.auto &&
+        revision.undo.undoneAt === null &&
+        revision.diff !== null &&
+        !revision.diff.empty,
+    ),
+  }).data
+  const update = latestUpdate(revisions.data, serverToday)
   const changedSessions = new Set(
-    update?.diff?.sessions
-      .filter((line) => line.change !== 'removed')
-      .map((line) => line.externalId),
+    update === null
+      ? []
+      : visibleLines(update)
+          .filter((line) => line.change !== 'removed')
+          .map((line) => line.externalId),
   )
 
   if (plan.isError || goals.isError) {
@@ -1634,7 +1672,9 @@ export function PlanPage() {
         }
       />
       {hasSessions ? <PlanWindows /> : null}
-      {update !== null ? <UpdateStrip revision={update} units={units ?? 'mi'} /> : null}
+      {update !== null ? (
+        <UpdateStrip revision={update} units={units ?? 'mi'} tz={serverToday?.tz ?? 'UTC'} />
+      ) : null}
       <SeasonStrip
         plan={plan.data}
         onSelectWeek={(weekStart) => {
