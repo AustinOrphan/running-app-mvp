@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { configure, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays } from '../../shared/dates.ts'
 import {
@@ -12,6 +12,11 @@ import { monthTicks } from '../../web/components/charts/monthTicks.ts'
 import { TrendsPage } from '../../web/pages/TrendsPage.tsx'
 import { makeWeekRow } from '../factories.ts'
 import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
+
+// The charts load as a lazy chunk, which a busy CI runner can take more than the default second
+// to resolve (a push run failed on it while its pull_request twin passed), so every find in this
+// file waits up to 6 s, as the integrations page test does for its chart.
+configure({ asyncUtilTimeout: 6000 })
 
 // The fixed clock is Wednesday 2026-03-18; this week starts on Monday 2026-03-16 and 104 weeks
 // end on it.
