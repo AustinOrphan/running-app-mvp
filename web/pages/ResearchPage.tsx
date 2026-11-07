@@ -23,7 +23,7 @@ const RESEARCH_CONTEXT = render(TEMPLATES['research.context'], {}, 'km')
 
 type GradeFilter = 'all' | 'A' | 'B' | 'C' | 'D'
 
-const gradeOptions: Array<{ value: GradeFilter; label: string }> = [
+const gradeOptions: Array<{ value: GradeFilter; label: string; name: string }> = [
   { value: 'all', label: 'All', name: 'All grades' },
   { value: 'A', label: 'A', name: 'Grade A' },
   { value: 'B', label: 'B', name: 'Grade B' },
