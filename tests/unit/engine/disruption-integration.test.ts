@@ -37,6 +37,7 @@ import {
   windowOf,
   withWindows,
 } from './disruption-fixtures.ts'
+import { LOAD_ITEMS } from './history-properties.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
 import { replanChain } from './replan-steps.ts'
 
@@ -1596,8 +1597,7 @@ describe('the taper under way keeps the reference of the plan before the window 
         if (week.weekStart < mondayOf(step.input.today)) continue
         const plain = without[k]!.draft.weeks.find((w) => w.weekStart === week.weekStart)!
         // the week of the chain with no window, and not above the same week of the plan before: a
-        // re-plan of the race week of the marathon athlete raises it with no window (115 to 132), and
-        // a window never raises a week
+        // window never raises a week
         const was = withWindow[k - 1]?.draft.weeks.find((w) => w.weekStart === week.weekStart)
         const least = Math.min(plain.targetRunMin, was?.targetRunMin ?? Infinity)
         compared += 1
@@ -1607,25 +1607,18 @@ describe('the taper under way keeps the reference of the plan before the window 
         ).toBeGreaterThanOrEqual(Math.floor(least * (1 - lostShare(window, week.weekStart))))
       }
       // and no taper, race or post-race week is above the same week of the plan before, once the
-      // taper is under way; where the chain with no window raises a week the same way (the race
-      // week of the marathon athlete, 115 to 132, found by the review and not this branch's), the
-      // chain with the window is held to that chain
+      // taper is under way (the race week of the marathon athlete rose from 115 to 132 at the
+      // re-plan of the week before it, with no window, until RF4)
       if (mondayOf(step.input.today) < taper[0]!.weekStart) return
       for (const week of step.draft.weeks) {
         if (!(week.isTaper || week.phase === 'race' || week.flags.includes('post-race'))) continue
         const before = withWindow[k - 1]!.draft.weeks.find((w) => w.weekStart === week.weekStart)
         if (before === undefined || isDisruptedWeek(week.flags)) continue
-        const plain = without[k]!.draft.weeks.find((w) => w.weekStart === week.weekStart)
-        const plainBefore = without[k - 1]!.draft.weeks.find((w) => w.weekStart === week.weekStart)
-        const raisedAnyway =
-          plain !== undefined &&
-          plainBefore !== undefined &&
-          plain.targetRunMin > plainBefore.targetRunMin
         bounded += 1
         expect(
           week.targetRunMin,
           `${id}, re-plan of ${step.input.today}, ${week.weekStart}: against the plan before`,
-        ).toBeLessThanOrEqual(raisedAnyway ? plain.targetRunMin : before.targetRunMin)
+        ).toBeLessThanOrEqual(before.targetRunMin)
       }
     })
     expect(compared).toBeGreaterThan(weeks)
@@ -1698,6 +1691,73 @@ describe('a re-plan on any day of the taper keeps to the plan before [rules K2, 
       expect(bounded).toBeGreaterThan(5)
     })
   })
+})
+
+describe('a race week under way keeps its row through the re-plans of the days of it [rules K2, G-6, J9]', () => {
+  // Found by the third review of RF2 (2026-11-01) and listed for RF4: on 31 of the 7,362 re-plans of
+  // the day grid (`window-grids.test.ts`) a taper or race week held 2 to 7 minutes above its row. The
+  // minutes were not planned after the re-plan: the days before it had been run as the plan
+  // being replaced placed them, and the row of the week, drawn again at each re-plan from the level
+  // the runner starts from (the median of the last weeks with a run), had fallen below them (29
+  // minutes run against a row of 27, novice-5k, a niggle of 28 days from 2026-12-05, the Tuesday of
+  // the race week). A taper under way is now kept as the plan being replaced has it, for the same
+  // race, so the row does not move while nothing touches the week.
+  //
+  // The 31 cases of that grid, by athlete, the first day of the niggle of 28 days, and the weekdays
+  // (1 Tuesday, 3 Thursday, 5 Saturday) of the re-plans that failed: every re-plan of the chain
+  // passes the load items of the checklist, and the race week stands at the row it had.
+  const CASES: Array<[string, string, number[]]> = [
+    ['novice-5k', '2026-12-05', [1, 3, 5]],
+    ['half', '2026-12-05', [5]],
+    ['half', '2026-12-19', [1, 3, 5]],
+    ['marathon', '2026-12-19', [1, 5]],
+    ['marathon', '2027-01-02', [5]],
+    ['trail-50k', '2026-12-19', [1, 5]],
+    ['first-100-mile', '2027-02-13', [3]],
+    ['first-100-mile', '2027-02-27', [1, 3, 5]],
+    ['masters', '2026-12-05', [3, 5]],
+    ['returning', '2026-11-21', [3]],
+    ['returning', '2026-12-19', [1, 3]],
+    ['prior-bsi', '2026-10-24', [1, 3, 5]],
+    ['prior-bsi', '2026-11-21', [1, 5]],
+    ['hot-race', '2027-01-30', [5]],
+    ['sparse-100-mile', '2027-03-27', [1, 3, 5]],
+    ['reds-hold', '2026-12-19', [3]],
+  ]
+  it('lists the 31 cases of the grid', () => {
+    expect(CASES.flatMap(([, , days]) => days)).toHaveLength(31)
+  })
+
+  it.each(CASES)(
+    'passes the load items at every re-plan of %s, a niggle of 28 days from %s, on weekdays %j',
+    (id, start, weekdays) => {
+      const athlete = byId(id)
+      const window = windowOf({
+        id: 'race-week-row',
+        reason: 'niggle',
+        startDate: start,
+        endDate: addDays(start, 27),
+        pain: 0,
+      })
+      const raceMonday = mondayOf(athlete.input.goal.date)
+      for (const weekday of weekdays) {
+        const chain = replanChain(athlete.input, { windows: [window], weekday })
+        const failing = chain.flatMap((step) =>
+          step.draft.checklist
+            .filter((c) => !c.ok && LOAD_ITEMS.includes(c.id))
+            .map((c) => `re-plan of ${step.input.today}: ${c.id}: ${c.detail}`),
+        )
+        expect(failing, `weekday ${String(weekday)}`).toEqual([])
+        // the re-plan in the race week finds the row the re-plan of the week before left
+        const k = chain.findIndex((step) => mondayOf(step.input.today) === raceMonday)
+        expect(k).toBeGreaterThan(0)
+        const rowAt = (i: number) =>
+          chain[i]!.draft.weeks.find((w) => w.weekStart === raceMonday)!.targetRunMin
+        expect(rowAt(k), `weekday ${String(weekday)}`).toBe(rowAt(k - 1))
+      }
+    },
+    120_000,
+  )
 })
 
 describe('the checklist accepts every re-plan after a hold of 21 or 28 days [rules E3, K2, J9, G-2]', () => {

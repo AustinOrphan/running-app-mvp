@@ -1371,7 +1371,10 @@ function planWeeks(
   // not touch [rules K2, J9]. It is bounded by the plan being replaced, week by week: no taper, race
   // or post-race week is drawn above the same week of the plan before, which a re-plan of the
   // week in progress (the Monday pins it to that plan's figure, no other day does) would otherwise
-  // redraw from the peak before the hold [rule G-6, relation 5.3].
+  // redraw from the peak before the hold [rule G-6, relation 5.3]. The level moves with every week
+  // run, so the bound holds for a taper under way whether or not a window lies among those weeks
+  // (RF4): a taper or race week of the plan being replaced that no window touched is kept at its row
+  // (`keptByPlanBefore`), and no post-race week is drawn above its row.
   const storedRows = new Map((input.existing?.weeks ?? []).map((w) => [w.weekStart, w]))
   const touchedWeeks = windowedWeeks(dplan)
   const partStart = (weekStart: string) =>
@@ -1385,7 +1388,6 @@ function planWeeks(
     preCount === 0 && levelWeeks.some((w) => partStart(w.weekStart))
       ? lastUntouchedLoading(input.existing?.weeks ?? [], firstMonday, partWeekOf(touchedWeeks))
       : undefined
-  /** The most a taper, race or post-race week may hold: that week in the plan being replaced. */
   // The ceiling holds for the same race only, as the phases carried across a re-plan do
   // (`carriedPhases`): when the goal date has moved, the plan being replaced has its race, taper and
   // post-race weeks on other Mondays, and a week of the new race capped by the old plan's row of the
@@ -1393,11 +1395,22 @@ function planWeeks(
   const sameRace =
     storedRows.get(raceMonday)?.phase === 'race' &&
     !storedRows.get(raceMonday)!.flags.includes('post-race')
+  // The race on the same day: the plan being replaced has its race session on the goal date. A goal
+  // date moved to another day of the same week leaves the Monday the same, but the rows of the race
+  // week were sized for the old day (its run days), so the taper is drawn again.
+  const sameRaceDay =
+    sameRace &&
+    (input.existing?.sessions ?? []).some((x) => x.kind === 'race' && x.date === goal.date)
+  /**
+   * The most a taper, race or post-race week of a taper under way may hold: that week in the plan
+   * being replaced. Where a window lies among the weeks of the starting level the bound is the one
+   * of the Monday (RF2); without one it holds for the same race day (RF4).
+   */
   const heldByPlanBefore = (weekStart: string): number => {
     const was = storedRows.get(weekStart)
     if (
-      untouchedLevel === undefined ||
-      !sameRace ||
+      preCount > 0 ||
+      !(untouchedLevel === undefined ? sameRaceDay : sameRace) ||
       was === undefined ||
       isDisruptedWeek(was.flags)
     ) {
@@ -1405,6 +1418,35 @@ function planWeeks(
     }
     const taperOrAfter = was.isTaper || was.phase === 'race' || was.flags.includes('post-race')
     return taperOrAfter ? plannedMinOf(was) : Infinity
+  }
+  /**
+   * The row of a taper or race week the plan being replaced holds, for a taper under way. The weeks
+   * of a taper under way are drawn from the level the runner starts from, which moves with every
+   * week run (it is the median of the last weeks with a run), so a re-plan with nothing new drew them
+   * again: the race week of a marathon from 115 to 132 minutes, and, after a hold that had ended
+   * weeks before, a race week to fewer minutes than the runs already made in it. The taper under way
+   * is kept as the plan being replaced has it, for the same race, where no window touched the week
+   * [rules K2, G-6, J9]. Undefined where the taper has weeks still to be drawn from the peak, where
+   * the plan has no such week, where the race is on another day than the plan being replaced has it,
+   * where a layoff of `j7.tier1Days` days or more is found (the J7 restart sizes the level then),
+   * where a window left its flags on it, and where a weekly decision caps the week (the cap is the
+   * row's bound, and its long run shrinks with it).
+   */
+  const keptByPlanBefore = (weekStart: string): WeekDraft | undefined => {
+    const was = storedRows.get(weekStart)
+    if (
+      preCount > 0 ||
+      !sameRaceDay ||
+      state.layoffDays >= P.j7.tier1Days.value ||
+      was === undefined ||
+      isDisruptedWeek(was.flags) ||
+      was.flags.includes('post-race') ||
+      !(was.isTaper || was.phase === 'race') ||
+      input.weekCaps?.[weekStart] !== undefined
+    ) {
+      return undefined
+    }
+    return was
   }
   const reference =
     preCount > 0
@@ -1428,11 +1470,14 @@ function planWeeks(
     // same minutes on fewer days [rules K2, K3].
     const daysBefore = isRace ? daysBetween(raceMonday, goal.date) : 7
     const runShare = daysBefore < wantedDays ? daysBefore / wantedDays : 1
+    const kept = keptByPlanBefore(weekStart)
     const t = Math.max(
       0,
       Math.min(
-        floorEps(reference * (mult[k] ?? 0) * runShare),
-        prevTarget - 1,
+        kept === undefined ? floorEps(reference * (mult[k] ?? 0) * runShare) : plannedMinOf(kept),
+        // the first week of a taper under way falls from the level the runner starts from, which
+        // is no bound on the row the plan being replaced holds for it
+        k === 0 && kept !== undefined ? Infinity : prevTarget - 1,
         heldByPlanBefore(weekStart),
       ),
     )

@@ -20,7 +20,8 @@
 // 3. The re-plan day grid: the same chains re-planned on a Tuesday, a Thursday and a Saturday of
 //    every second week, the days before run as planned, with a niggle of 28 days: the load items of
 //    the checklist pass, the fall of the taper among them (a race week redrawn above the plan before
-//    failed it on those days). 7,362 re-plans.
+//    failed it on those days), and no taper or race week holds more than its row (31 did until RF4: the
+//    row had fallen below the minutes run). 7,362 re-plans.
 // 4. The race week of a long race at a cap of 0 and at the two presets (the third review of RF3): the
 //    9 matrix athletes with a race of 90 minutes or more; the shake-out cap at 20, at 0 and at 10 minutes
 //    and the presets `three-run-days` and `longer-base`; the chain re-planned on each day from the
@@ -192,11 +193,11 @@ byHand('the grids of the third review of RF2 (by hand)', () => {
       }
     }
     // The fall of the taper is the finding of the final review: no taper, race or post-race week is
-    // drawn above the plan before. Another failure of the same item stands in the grid, found by the
-    // same run and present before this branch's last fix: on 31 of the re-plans a taper or race week
-    // holds a few minutes more than its row (the minutes run on the days before the re-plan and the
-    // minutes planned after it, against the figure of the plan being replaced that pins the row). It
-    // is listed for RF4, with its ceiling.
+    // drawn above the plan before. A second failure of the same item stood in the grid until RF4: on
+    // 31 of the re-plans a taper or race week held a few minutes more than its row. They were the
+    // minutes run on the days before the re-plan, which the row, drawn again from the level the
+    // runner starts from, had fallen below. A taper under way is now kept at its row, so none holds
+    // more; `disruption-integration.test.ts` lists the 31 cases.
     const held = failures.filter((f) => /holds \d+ min, above its/.test(f))
     const fall = failures.filter((f) => !held.includes(f))
     console.log(
@@ -204,7 +205,7 @@ byHand('the grids of the third review of RF2 (by hand)', () => {
     )
     expect(replans).toBeGreaterThan(7_000)
     expect(fall).toEqual([])
-    expect(held.length).toBeLessThanOrEqual(31)
+    expect(held, held.join('\n')).toEqual([])
   })
 
   it('keeps the race week of a long race through its re-plans at a cap of 0 and under the presets', () => {
