@@ -263,6 +263,7 @@ const UNIT_RULES: Readonly<Record<string, UnitRule>> = {
   readings: noun('readings', 'reading'),
   reps: noun('repetitions', 'repetition'),
   'reps in reserve': noun('repetitions in reserve', 'repetition in reserve'),
+  rows: noun('rows', 'row'),
   runs: noun('runs', 'run'),
   'runs per week': noun('runs per week', 'run per week'),
   'sessions in a row': noun('sessions in a row', 'session in a row'),

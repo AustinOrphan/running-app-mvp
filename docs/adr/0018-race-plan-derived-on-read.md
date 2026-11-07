@@ -4,10 +4,10 @@ Status: Proposed 2026-11-07
 
 Builds on ADR 0005, 0009, 0010, 0011, 0012 and 0014. Adds rule H14 to `research/engine-rules.md` and
 amends H6, H11 and K6 there. The design is `docs/superpowers/specs/2026-11-07-race-plan-design.md`;
-steps 1 to 3 of its plan are built first (the effort, fuel, heat, dark-hours and race-week plan, with
+steps 1 to 3 of its plan were built first (the effort, fuel, heat, dark-hours and race-week plan, with
 the Race page, the More row, the Today slot and the race-day block of the session sheet). Step 4 (the
-checkpoint table and splits) and step 5 (the Race page offline) stay in the design, and the decision
-below about the table holds when step 4 is built.
+checkpoint table and the arrival ranges, task RP3) is built on top of them. Step 5 (the Race page
+offline) stays in the design.
 
 ## Context
 
@@ -24,13 +24,26 @@ zone 1 ceiling, the acclimation credit and, from step 4, the runner's checkpoint
 every read and stored nowhere.
 
 - `racePlanFor` in `shared/engine/racePlan.ts` and `raceFuelFor` in `shared/engine/fuel.ts`; text in
-  `shared/copy/racePlan.ts` under the G5 lint. `splitsFor` in `shared/engine/raceSplits.ts` follows in
-  step 4.
-- The checkpoint table (step 4) is the runner's own data in one state model, replaced as a whole.
+  `shared/copy/racePlan.ts` under the G5 lint. `splitsFor` in `shared/engine/raceSplits.ts` (step 4)
+  returns the arrival ranges of the runner's rows and the finish.
+- The checkpoint table (step 4) is the runner's own data in one state model, `RaceCheckpoint`,
+  replaced as a whole by `PUT /api/race/checkpoints` (a name, a distance, and optionally the climb and
+  descent since the previous row and a cutoff in elapsed seconds; at most `r1.maxCheckpoints` rows).
+  The plan's memo reads the rows, so a save drops it. The rows are private: they appear in no fixture
+  made from real data, no log and nowhere in the repository, and a refused save names a row index and
+  a field and never a value.
 - Effort is one instruction for the whole race; fuel never exceeds a tolerated rung; heat is climate
-  normals for the race date and does not change the prediction; splits (step 4) are "about" ranges
-  scaled from the finish prediction with no downhill credit; the cutoff is shown beside the range and
-  never compared to it or used to steer the target.
+  normals for the race date and does not change the prediction; the arrival ranges (step 4) are
+  "about" ranges scaled from the finish prediction by each row's share of the course, with no downhill
+  credit and no widening of an interior row, and the finish row is the expected range itself; the
+  cutoff is shown beside the range as the runner's own fact and never compared to it or used to steer
+  the target.
+- A segment weighs its distance plus `l5.gainEquivalentM` metres of flat per metre of climb. A segment
+  with no climb of its own takes `r1.unenteredClimbShare` of the course climb left after the entered
+  rows, spread by distance (nothing when the goal holds no course climb).
+- Grams to carry per segment are shown for an `aided` race only, as an estimate (the rate of the fuel
+  line over the time of the segment) with the few-hours label; a `self` race calls the rows course
+  points and shows no aid wording and no grams per segment.
 - Ultra classes only (every class above the marathon, as H11). Shorter goals keep today's race session.
 - `Goal.supportLevel` `self` drops aid-station wording; aid time (R2) does not apply to it.
 - The race is not published to any device or feed.
@@ -65,6 +78,20 @@ every read and stored nowhere.
   payload is cached already and carries the race-week card and the race-day block.
 - **Opinion:** a Param read by nothing is a finding of the audit (follow-up 29), so the Params of step 4
   (`r1.maxCheckpoints`, `r1.unenteredClimbShare`) are added with the code that reads them.
+- **Fact:** the plan's memo reads the rows and the memo key is the data version (ADR 0009), so
+  `RaceCheckpoint` is in `STATE_MODELS` (`server/dataVersion.ts`) and a save drops the memoised plan;
+  `tests/unit/server/modelClassification.test.ts` holds the list to the schema. The rows are written
+  and read in `server/services/raceCheckpoints.ts` only (`racePlanIsolation.test.ts`).
+- **Fact:** the corpus holds no study of segment times in an ultra: `l5.gainEquivalentM` is grade D and
+  rests on short-trail work and a review (gap R3), so the interior rows carry no widening that a number
+  could claim, and the page says in words that the weights are defaults and that speed tends to fall
+  late in a long race (gap R1; direction only).
+- **Fact:** validation messages are fixed text and the route logs no body (`pino-http` logs the request
+  line); `tests/api/raceCheckpoints.test.ts` sends rows whose values it then searches for in the
+  response and in every log line of a rejected and an accepted save (2026-11-07).
+- **Fact:** the backup copies the whole SQLite file (`server/services/backup.ts`), so the table is
+  included with no code, and no export route covers goals (the only export is the activities CSV), so
+  no export work was needed (read 2026-11-07).
 - **Opinion:** one object gives one definition of the race; a cross-surface test holds the page, Today
   and the sheet to it.
 - **Opinion:** a range scaled from the prediction and shown as "about" is less likely to read as a
@@ -84,12 +111,20 @@ every read and stored nowhere.
   inside a segment, which the table lacks.
 - **Solar module now.** For (Opinion): correct dark hours. Against (Fact): no race time zone is
   stored; the dark hours use the D1 clock (`d1Dark`, 06:00 to 20:00), labelled as a default.
+- **Widen each interior row toward the late edge.** For (Opinion): errors accumulate late in a race.
+  Against (Fact): no study sizes the error of where along the course the time falls (R3) or the late
+  slowdown (R1), and a number with no source reads as more certain than it is; the words say it.
+- **Check the weights against the runner's own long runs.** Against (Rule): it would read real history
+  in a public repository, and it measures training pace, not race pace (design, section 7).
 - **Sixth offline read for the Race page.** For (Opinion): the page is wanted without signal. Against
   (Rule): the allowlist is five reads (ADR 0012) and the Race page would put weight-derived grams and
   later checkpoint names on the device. Deferred to its own amendment.
 
 ## Consequences
 
-Three `r1` Params (grade D) and a `PARAMS_VERSION` bump with no plan digest change. Rule H14, amended
-H6, H11 and K6, and gaps R1 to R5. A future watch or feed export of a race must call `racePlanFor`,
-and ADR 0008 needs an amendment first. Step 4 adds a state model, a migration case and two Params.
+Five `r1` Params (grade D; three with steps 2 and 3, two with step 4) and a `PARAMS_VERSION` bump
+with no plan digest change. Rule H14, amended H6, H11 and K6, and gaps R1 to R5. A future watch or feed
+export of a race must call `racePlanFor`, and ADR 0008 needs an amendment first. Step 4 adds a state
+model, `RaceCheckpoint`, with its migration and its migration case, two routes under `requireAuth`, a
+table and an editor sheet on the Race page, and a note in the H14 rule text. The Race page and the
+editor need a connection (step 5 is not built).

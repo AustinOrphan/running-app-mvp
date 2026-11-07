@@ -5,11 +5,11 @@
 // `shared/copy/racePlan.ts`, so the page, the Today card and the session sheet cannot say
 // different things.
 //
-// What it does not do, on purpose: no pace and no split (the corpus holds no study of pace by third
-// or by segment, gaps R1 to R3), no time at an aid station (R2), no rate above a tolerated rung
-// (G6, R4), no downhill credit (I11), no sleep advice (R5) and no comparison of a cutoff with the
-// expected range. The checkpoint table and the splits of the design (step 4) would add a
-// `checkpoints` input and a `splits` block; nothing here prevents them.
+// What it does not do, on purpose: no pace and no late-race slowdown (the corpus holds no study of
+// pace by third or by segment, gaps R1 to R3), no time at an aid station (R2), no rate above a
+// tolerated rung (G6, R4), no downhill credit (I11), no sleep advice (R5) and no comparison of a
+// cutoff with the expected range. The runner's checkpoint table adds arrival ranges, scaled from
+// the expected range by the share of the course (`raceSplits.ts`, step 4 of the design).
 //
 // Pure: no clock, no I/O. `today` and the weather arrive as data. Every number comes from `P`.
 import { addDays, daysBetween } from '../dates.ts'
@@ -20,6 +20,8 @@ import { isHotForSteering } from './heat.ts'
 import { shakeOutFor } from './micro.ts'
 import { P } from './params/index.ts'
 import { rangeLabel } from './predict.ts'
+import { clockAt, type RaceClock } from './raceClock.ts'
+import { splitsFor, type CheckpointInput, type RaceSplits } from './raceSplits.ts'
 import type { GoalModel, LadderResult, Prediction } from './types.ts'
 
 const SEC_PER_MIN = 60
@@ -47,16 +49,13 @@ export interface RacePlanInput {
   weightKg: number | null
   /** The heat acclimation credit from 0 to 1 as of `today` (`AthleteState.heatAcclimation`). */
   acclimationCredit: number
+  /** The runner's own course points for the goal (`RaceCheckpoint`); empty when there are none. */
+  checkpoints: readonly CheckpointInput[]
   /** The server's day. */
   today: string
 }
 
-/** A time of day on a race day: `day` 0 is the race date, 1 the day after. */
-export interface RaceClock {
-  /** `HH:MM`. */
-  time: string
-  day: number
-}
+export type { RaceClock }
 
 /** Why the plan is thinner than it could be; the page says each in a line. */
 export type RaceNotice =
@@ -188,6 +187,8 @@ export interface RacePlan {
   heat: RaceHeat
   /** Null when the race does not cross darkness (D1). */
   dark: RaceDark | null
+  /** Arrival ranges for the runner's checkpoints and the finish; null without any row. */
+  splits: RaceSplits | null
   notices: RaceNotice[]
   /** Every rule id behind the plan, once, in order. */
   rules: string[]
@@ -218,17 +219,6 @@ export interface RacePlanSummary {
 // ---------------------------------------------------------------------------------------------
 
 const pad2 = (n: number): string => String(n).padStart(2, '0')
-
-/** The clock after `sec` seconds from a start at `startMin` minutes after midnight, to the minute. */
-export function clockAt(startMin: number, sec: number): RaceClock {
-  const total = startMin + Math.round(sec / SEC_PER_MIN)
-  const day = Math.floor(total / MIN_PER_DAY)
-  const within = total - day * MIN_PER_DAY
-  return {
-    time: `${pad2(Math.floor(within / MIN_PER_HOUR))}:${pad2(within % MIN_PER_HOUR)}`,
-    day,
-  }
-}
 
 /** Minutes of `[fromMin, toMin]` (minutes after midnight of the race date) outside daylight. */
 function nightMinutes(fromMin: number, toMin: number): number {
@@ -415,6 +405,17 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
   if (input.z1CeilingBpm === null) notices.push('no-heart-rate')
   if (wbgt === null) notices.push('no-climate')
 
+  const [rateLow, rateHigh] = fuel.range ?? [fuel.gPerH, fuel.gPerH]
+  const splits = splitsFor({
+    distanceM: goal.distanceM,
+    courseGainM: goal.gainM,
+    supportLevel: input.supportLevel,
+    checkpoints: input.checkpoints,
+    expected: { lowSec: expected.lowSec, highSec: expected.highSec, midSec: expected.midSec },
+    startMin: startMinutes(expected.start),
+    rateGPerH: [rateLow, rateHigh],
+  })
+
   const blocks = [
     expected.rules,
     effort.rules,
@@ -423,6 +424,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
     heat.rules,
     dark?.rules ?? [],
     raceWeek?.rules ?? [],
+    splits?.rules ?? [],
   ]
   return {
     goalId: goal.goalId,
@@ -442,6 +444,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
     raceWeek,
     heat,
     dark,
+    splits,
     notices,
     rules: [...new Set(['H14', ...blocks.flat()])],
   }

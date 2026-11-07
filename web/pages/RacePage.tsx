@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   daysToGoText,
   describeRacePlan,
@@ -14,6 +14,8 @@ import { useSettings } from '../api/settings.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
+import { CheckpointSheet } from '../components/race/CheckpointSheet.tsx'
+import { CheckpointTable } from '../components/race/CheckpointTable.tsx'
 import { RaceFuelBlock, RaceWeekBlock } from '../components/race/RaceBlocks.tsx'
 import cardStyles from '../components/race/Race.module.css'
 import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
@@ -23,6 +25,7 @@ import styles from './RacePage.module.css'
 function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
   const text = useMemo(() => describeRacePlan(plan, units), [plan, units])
   const { expected, effort, climbing, heat, raceWeek, dark } = text
+  const [editing, setEditing] = useState(false)
   return (
     <div className={styles.page}>
       <section className={cardStyles.section} aria-labelledby="race-expected">
@@ -110,6 +113,23 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
           </div>
         </section>
       )}
+
+      <CheckpointTable
+        plan={plan}
+        units={units}
+        onEdit={() => {
+          setEditing(true)
+        }}
+      />
+      {editing ? (
+        <CheckpointSheet
+          plan={plan}
+          units={units}
+          onClose={() => {
+            setEditing(false)
+          }}
+        />
+      ) : null}
 
       <section className={cardStyles.section} aria-labelledby="race-fuel">
         <h2 id="race-fuel" className={cardStyles.heading}>

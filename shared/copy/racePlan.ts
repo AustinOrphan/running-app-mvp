@@ -10,7 +10,8 @@
 //   renders the sentence next to the Param.
 // - A figure that belongs to a study (the 65 km race, the 220 km race) is written as that study's
 //   own, with its population, as the H11 line of Explain does.
-// - No sentence compares a cutoff with the range, asks for a finish time or says "behind".
+// - No sentence compares a cutoff with the range, asks for a finish time or says "behind". The
+//   cutoff and the arrival range of a checkpoint are two plain facts in two separate lines.
 //
 // Pure. The sentences that fuel, fluid and the safety card already have (`fuelCopy.ts`) are
 // reused, not written again.
@@ -31,6 +32,7 @@ import type {
   RaceThird,
   RaceWeek,
 } from '../engine/racePlan.ts'
+import type { SplitRow } from '../engine/raceSplits.ts'
 import { P } from '../engine/params/index.ts'
 import type { RacePlanReason, Units } from '../types.ts'
 import { RACE_CARB_ROUND_G } from './limits.ts'
@@ -240,6 +242,130 @@ export const RACE_PLAN_TEMPLATES = {
     low: 'count',
     high: 'count',
   }),
+
+  // ---- Checkpoints (step 4): the runner's own course points, "course points" when self-supported --
+  'race.plan.points.heading': tpl('Checkpoints', {}, { shape: 'label' }),
+  'race.plan.points.heading-self': tpl('Course points', {}, { shape: 'label' }),
+  'race.plan.points.empty': tpl(
+    'Add the checkpoints of the course to see about when you reach each one. The plan works without them.',
+  ),
+  'race.plan.points.empty-self': tpl(
+    'Add course points to see about when you reach each one. The plan works without them.',
+  ),
+  'race.plan.points.edit': tpl('Edit checkpoints', {}, { shape: 'label' }),
+  'race.plan.points.edit-self': tpl('Edit course points', {}, { shape: 'label' }),
+  'race.plan.points.finish': tpl('Finish', {}, { shape: 'label' }),
+  'race.plan.points.list': tpl('Arrival times by point', {}, { shape: 'label' }),
+  'race.plan.points.at': tpl(
+    '{distance} from the start',
+    { distance: 'distance' },
+    { shape: 'label' },
+  ),
+  'race.plan.points.arrival-clock-at': tpl('About {at}', { at: 'text' }, { shape: 'label' }),
+  'race.plan.points.arrival-elapsed-at': tpl(
+    'About {at} into the race',
+    { at: 'duration' },
+    { shape: 'label' },
+  ),
+  'race.plan.points.arrival-clock': tpl(
+    'About {from} to {to}',
+    { from: 'text', to: 'text' },
+    { shape: 'label' },
+  ),
+  'race.plan.points.arrival-elapsed': tpl(
+    'About {from} to {to} into the race',
+    { from: 'duration', to: 'duration' },
+    { shape: 'label' },
+  ),
+  'race.plan.points.segment': tpl('{distance} since the previous point.', { distance: 'distance' }),
+  'race.plan.points.climb-entered': tpl('{climb} of climb, as entered.', { climb: 'climb' }),
+  'race.plan.points.climb-shared': tpl(
+    'About {climb} of climb, shared out from the course total.',
+    {
+      climb: 'climb',
+    },
+  ),
+  'race.plan.points.descent': tpl('{climb} of descent, shown and not counted.', { climb: 'climb' }),
+  'race.plan.points.day': tpl('Day', {}, { shape: 'label' }),
+  'race.plan.points.night': tpl('Night', {}, { shape: 'label' }),
+  'race.plan.points.climb-tag': tpl('Climb by effort', {}, { shape: 'label' }),
+  'race.plan.points.carry': tpl('Carry about {low} to {high} g of carbohydrate.', {
+    low: 'count',
+    high: 'count',
+  }),
+  'race.plan.points.cutoff-clock': tpl('Cutoff {clock}', { clock: 'text' }, { shape: 'label' }),
+  'race.plan.points.cutoff-elapsed': tpl(
+    'Cutoff {elapsed} into the race',
+    { elapsed: 'duration' },
+    { shape: 'label' },
+  ),
+  'race.plan.points.weights': tpl(
+    'The course is shared out by distance, counting each unit of climb as {n} units of flat. Climb left out is spread over the segments without one.',
+    { n: 'count' },
+  ),
+  'race.plan.points.late': tpl(
+    'Speed tends to fall late in a long race, so the later end of each range is the likelier one.',
+  ),
+  'race.plan.points.defaults': tpl('These weights are defaults, not a model of your course.'),
+  'race.plan.points.carry-note': tpl(
+    'Grams to carry are an estimate: the carbohydrate rate above, over the time of each segment.',
+  ),
+  'race.plan.points.ignored': tpl('Points at or past the finish are left out: {n}.', {
+    n: 'count',
+  }),
+  'race.plan.points.climb-over': tpl(
+    'The climb you entered adds up to more than the climb on the goal, so the rest counts as flat.',
+  ),
+  'race.plan.points.climb-unknown': tpl(
+    'The goal holds no course climb, so segments without a climb of their own count as flat.',
+  ),
+
+  // ---- The editor of the table ---------------------------------------------------------------------
+  'race.plan.points.sheet': tpl('Edit checkpoints', {}, { shape: 'label' }),
+  'race.plan.points.sheet-self': tpl('Edit course points', {}, { shape: 'label' }),
+  'race.plan.points.sheet-hint': tpl(
+    'Add the points in any order. Only the name and the distance are needed; the rest sharpens the times.',
+  ),
+  'race.plan.points.add': tpl('Add a checkpoint', {}, { shape: 'label' }),
+  'race.plan.points.add-self': tpl('Add a course point', {}, { shape: 'label' }),
+  'race.plan.points.remove': tpl('Remove', {}, { shape: 'label' }),
+  'race.plan.points.save': tpl('Save', {}, { shape: 'label' }),
+  'race.plan.points.saved': tpl('Saved', {}, { shape: 'label' }),
+  'race.plan.points.save-failed': tpl('Not saved. Try again when you are back online.'),
+  'race.plan.points.field-name': tpl('Name', {}, { shape: 'label' }),
+  'race.plan.points.field-distance': tpl(
+    'Distance from the start ({unit})',
+    { unit: 'text' },
+    { shape: 'label' },
+  ),
+  'race.plan.points.field-gain': tpl('Climb since the previous point (m)', {}, { shape: 'label' }),
+  'race.plan.points.field-loss': tpl(
+    'Descent since the previous point (m)',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.points.field-cutoff': tpl(
+    'Cutoff, hours and minutes into the race',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.points.field-cutoff-clock': tpl('Cutoff, time of day', {}, { shape: 'label' }),
+  'race.plan.points.field-cutoff-day': tpl('Cutoff, day', {}, { shape: 'label' }),
+  'race.plan.points.cutoff-as': tpl('Cutoff entered as', {}, { shape: 'label' }),
+  'race.plan.points.cutoff-as-elapsed': tpl('Time into the race', {}, { shape: 'label' }),
+  'race.plan.points.cutoff-as-clock': tpl('Time of day', {}, { shape: 'label' }),
+  'race.plan.points.day-0': tpl('Race day', {}, { shape: 'label' }),
+  'race.plan.points.day-n': tpl('Day {n}', { n: 'count' }, { shape: 'label' }),
+  'race.plan.points.point-n': tpl('Point {n}', { n: 'count' }, { shape: 'label' }),
+  'race.plan.points.err-name': tpl('Give the point a name of up to 60 characters.'),
+  'race.plan.points.err-distance': tpl(
+    'Enter a distance past the start and before the finish, like 42.5.',
+  ),
+  'race.plan.points.err-duplicate': tpl('Each point needs its own distance.'),
+  'race.plan.points.err-metres': tpl('Enter whole metres, like 800.'),
+  'race.plan.points.err-cutoff': tpl('Enter hours and minutes, like 9:30.'),
+  'race.plan.points.err-clock': tpl('Enter a time of day that falls after the start.'),
+  'race.plan.points.err-count': tpl('There is room for {n} points.', { n: 'count' }),
 } satisfies Record<string, Template>
 
 export type RacePlanTemplateId = keyof typeof RACE_PLAN_TEMPLATES
@@ -691,6 +817,228 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
       dark === null
         ? null
         : { heading: say(T['race.plan.dark.heading'], {}, units), lines: darkLines },
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The words of the checkpoint table (step 4)
+// ---------------------------------------------------------------------------------------------
+
+export interface RacePointRowText {
+  /** The runner's name for the point, or the word for the finish. */
+  name: string
+  finish: boolean
+  distance: string
+  /** The arrival range, as a clock with a start time and as time into the race without one. */
+  arrival: string
+  segment: string
+  climb: string | null
+  descent: string | null
+  /** Day or night, climb by effort: short labels. */
+  tags: string[]
+  carry: string | null
+  /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
+  cutoff: string[]
+}
+
+export interface RacePointsText {
+  heading: string
+  /** The line for a plan with no rows. */
+  empty: string
+  edit: string
+  list: string
+  rows: RacePointRowText[]
+  /** What the table leaves out or could not use: a count, a climb over the course. */
+  notices: string[]
+  /** How the ranges are made, in words. */
+  notes: string[]
+}
+
+/** The text of the checkpoint table for a plan: the rows, or the empty state when there are none. */
+export function describeRacePoints(plan: RacePlan, units: Units): RacePointsText {
+  const self = plan.supportLevel === 'self'
+  const splits = plan.splits
+  const heading = self ? T['race.plan.points.heading-self'] : T['race.plan.points.heading']
+  const edit = self ? T['race.plan.points.edit-self'] : T['race.plan.points.edit']
+  const base = {
+    heading: say(heading, {}, units),
+    empty: say(self ? T['race.plan.points.empty-self'] : T['race.plan.points.empty'], {}, units),
+    edit: say(edit, {}, units),
+    list: say(T['race.plan.points.list'], {}, units),
+  }
+  if (splits === null) return { ...base, rows: [], notices: [], notes: [] }
+
+  const tolerated = plan.fuel.basis === 'tolerated'
+  const notices: string[] = []
+  if (splits.ignored > 0) {
+    notices.push(say(T['race.plan.points.ignored'], { n: count(splits.ignored) }, units))
+  }
+  if (splits.climbOverCourse) notices.push(say(T['race.plan.points.climb-over'], {}, units))
+  if (splits.climbUnknown) notices.push(say(T['race.plan.points.climb-unknown'], {}, units))
+
+  const notes = [
+    say(T['race.plan.points.weights'], { n: count(P.l5.gainEquivalentM.value) }, units),
+    say(T['race.plan.points.defaults'], {}, units),
+    say(T['race.plan.points.late'], {}, units),
+  ]
+  if (splits.rows.some((row) => row.carryG !== null)) {
+    notes.push(say(T['race.plan.points.carry-note'], {}, units))
+    if (tolerated) notes.push(say(T['race.plan.fuel.few-hours'], {}, units))
+  }
+  return {
+    ...base,
+    rows: splits.rows.map((row) => pointRowText(row, units)),
+    notices,
+    notes,
+  }
+}
+
+/** The arrival range, or one time when both ends are the same (a plan with no prediction). */
+function arrivalText(row: SplitRow, units: Units): string {
+  if (row.clock === null) {
+    return row.lowSec === row.highSec
+      ? say(T['race.plan.points.arrival-elapsed-at'], { at: duration(row.lowSec) }, units)
+      : say(
+          T['race.plan.points.arrival-elapsed'],
+          { from: duration(row.lowSec), to: duration(row.highSec) },
+          units,
+        )
+  }
+  const from = clockText(row.clock.from)
+  const to = clockText(row.clock.to)
+  return from === to
+    ? say(T['race.plan.points.arrival-clock-at'], { at: from }, units)
+    : say(T['race.plan.points.arrival-clock'], { from, to }, units)
+}
+
+/** The climb line, chosen on the figure as it will be printed: a climb that rounds to 0 says nothing. */
+function climbText(row: SplitRow, units: Units): string | null {
+  const m = roundTo(row.gainM, row.gainEntered ? 1 : 10)
+  if (m <= 0) return null
+  return say(
+    row.gainEntered ? T['race.plan.points.climb-entered'] : T['race.plan.points.climb-shared'],
+    { climb: { kind: 'climb', m } },
+    units,
+  )
+}
+
+/** The grams to carry, each end rounded; nothing when the rounded high end is 0. */
+function carryText(row: SplitRow, units: Units): string | null {
+  if (row.carryG === null) return null
+  const low = roundTo(row.carryG[0], RACE_CARB_ROUND_G)
+  const high = roundTo(row.carryG[1], RACE_CARB_ROUND_G)
+  if (high <= 0) return null
+  return say(T['race.plan.points.carry'], { low: count(low), high: count(high) }, units)
+}
+
+function pointRowText(row: SplitRow, units: Units): RacePointRowText {
+  const tags: string[] = []
+  if (row.night !== null) {
+    tags.push(say(row.night ? T['race.plan.points.night'] : T['race.plan.points.day'], {}, units))
+  }
+  if (row.climbByEffort) tags.push(say(T['race.plan.points.climb-tag'], {}, units))
+  const cutoff: string[] = []
+  if (row.cutoffSec !== null) {
+    if (row.cutoffClock !== null) {
+      cutoff.push(
+        say(T['race.plan.points.cutoff-clock'], { clock: clockText(row.cutoffClock) }, units),
+      )
+    }
+    cutoff.push(
+      say(T['race.plan.points.cutoff-elapsed'], { elapsed: duration(row.cutoffSec) }, units),
+    )
+  }
+  return {
+    name: row.name ?? say(T['race.plan.points.finish'], {}, units),
+    finish: row.finish,
+    distance: say(
+      T['race.plan.points.at'],
+      { distance: { kind: 'distance', m: row.distanceM } },
+      units,
+    ),
+    arrival: arrivalText(row, units),
+    segment: say(
+      T['race.plan.points.segment'],
+      { distance: { kind: 'distance', m: row.segmentM } },
+      units,
+    ),
+    climb: climbText(row, units),
+    descent:
+      row.lossM === null || row.lossM <= 0
+        ? null
+        : say(T['race.plan.points.descent'], { climb: { kind: 'climb', m: row.lossM } }, units),
+    tags,
+    carry: carryText(row, units),
+    cutoff,
+  }
+}
+
+/** The labels, hints and refusals of the checkpoint editor sheet. */
+export interface RacePointsEditorText {
+  title: string
+  hint: string
+  add: string
+  remove: string
+  save: string
+  saved: string
+  saveFailed: string
+  name: string
+  distance: string
+  gain: string
+  loss: string
+  cutoff: string
+  cutoffClock: string
+  cutoffDay: string
+  cutoffAs: string
+  asElapsed: string
+  asClock: string
+  errName: string
+  errDistance: string
+  errDuplicate: string
+  errMetres: string
+  errCutoff: string
+  errClock: string
+  pointN: (n: number) => string
+  dayN: (day: number) => string
+  errCount: (max: number) => string
+}
+
+/** The words of the editor sheet; `self` calls the rows course points. */
+export function describeRacePointsEditor(
+  args: { supportLevel: 'aided' | 'self' },
+  units: Units,
+): RacePointsEditorText {
+  const self = args.supportLevel === 'self'
+  return {
+    title: say(self ? T['race.plan.points.sheet-self'] : T['race.plan.points.sheet'], {}, units),
+    hint: say(T['race.plan.points.sheet-hint'], {}, units),
+    add: say(self ? T['race.plan.points.add-self'] : T['race.plan.points.add'], {}, units),
+    remove: say(T['race.plan.points.remove'], {}, units),
+    save: say(T['race.plan.points.save'], {}, units),
+    saved: say(T['race.plan.points.saved'], {}, units),
+    saveFailed: say(T['race.plan.points.save-failed'], {}, units),
+    name: say(T['race.plan.points.field-name'], {}, units),
+    distance: say(T['race.plan.points.field-distance'], { unit: units }, units),
+    gain: say(T['race.plan.points.field-gain'], {}, units),
+    loss: say(T['race.plan.points.field-loss'], {}, units),
+    cutoff: say(T['race.plan.points.field-cutoff'], {}, units),
+    cutoffClock: say(T['race.plan.points.field-cutoff-clock'], {}, units),
+    cutoffDay: say(T['race.plan.points.field-cutoff-day'], {}, units),
+    cutoffAs: say(T['race.plan.points.cutoff-as'], {}, units),
+    asElapsed: say(T['race.plan.points.cutoff-as-elapsed'], {}, units),
+    asClock: say(T['race.plan.points.cutoff-as-clock'], {}, units),
+    errName: say(T['race.plan.points.err-name'], {}, units),
+    errDistance: say(T['race.plan.points.err-distance'], {}, units),
+    errDuplicate: say(T['race.plan.points.err-duplicate'], {}, units),
+    errMetres: say(T['race.plan.points.err-metres'], {}, units),
+    errCutoff: say(T['race.plan.points.err-cutoff'], {}, units),
+    errClock: say(T['race.plan.points.err-clock'], {}, units),
+    pointN: (n) => say(T['race.plan.points.point-n'], { n: count(n) }, units),
+    dayN: (day) =>
+      day <= 0
+        ? say(T['race.plan.points.day-0'], {}, units)
+        : say(T['race.plan.points.day-n'], { n: count(day + 1) }, units),
+    errCount: (max) => say(T['race.plan.points.err-count'], { n: count(max) }, units),
   }
 }
 

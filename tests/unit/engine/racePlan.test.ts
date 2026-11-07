@@ -85,6 +85,7 @@ function input(overrides: Partial<RacePlanInput> = {}): RacePlanInput {
     ladder: UNTRIED,
     weightKg: 70,
     acclimationCredit: 0.4,
+    checkpoints: [],
     today: TODAY,
     ...overrides,
   }
@@ -549,5 +550,51 @@ describe('summaryOf', () => {
     expect(summary?.fluid).toBe(plan.fluid)
     expect(summary?.raceWeek).toBe(plan.raceWeek)
     expect(summary?.eahStronger).toBe(plan.eahStronger)
+  })
+})
+
+describe('racePlanFor: the checkpoint table (step 4)', () => {
+  const POINTS = [
+    { name: 'Checkpoint A', distanceM: 50_000, gainM: null, lossM: null, cutoffSec: null },
+    { name: 'Checkpoint B', distanceM: 110_000, gainM: 1500, lossM: 900, cutoffSec: 20 * HOUR },
+  ]
+
+  it('has no splits without rows, and its rules do not mention L5', () => {
+    const plan = planOf()
+    expect(plan.splits).toBeNull()
+    expect(plan.rules).not.toContain('L5')
+  })
+
+  it('scales the expected range: the finish row is the range of the plan, every other row lies inside it', () => {
+    const plan = planOf({ checkpoints: POINTS })
+    const rows = plan.splits?.rows ?? []
+    expect(rows).toHaveLength(3)
+    const finish = rows.at(-1)
+    expect([finish?.lowSec, finish?.highSec]).toEqual([plan.expected.lowSec, plan.expected.highSec])
+    for (const row of rows) {
+      expect(row.lowSec).toBeGreaterThanOrEqual(0)
+      expect(row.highSec).toBeLessThanOrEqual(plan.expected.highSec)
+    }
+    expect(plan.rules).toEqual(expect.arrayContaining(['H14', 'L5']))
+  })
+
+  it('uses the start time for clocks and the tolerated rate for the grams to carry', () => {
+    const plan = planOf({ checkpoints: POINTS, ladder: TOLERATED_60 })
+    const rows = plan.splits?.rows ?? []
+    expect(rows[0]?.clock?.from.time).toMatch(/^\d\d:\d\d$/)
+    const total = rows.reduce((sum, row) => sum + (row.carryG?.[0] ?? 0), 0)
+    expect(total).toBeCloseTo(plan.fuel.totalG[0], 4)
+    const noStart = planOf({ checkpoints: POINTS, goal: goal({ startTime: null }) })
+    expect(noStart.splits?.rows.every((row) => row.clock === null)).toBe(true)
+  })
+
+  it('leaves the rest of the plan as it was', () => {
+    const { splits: _without, rules: _rules, ...plain } = planOf()
+    const { splits: _with, rules: _rulesWith, ...withRows } = planOf({ checkpoints: POINTS })
+    expect(withRows).toEqual(plain)
+  })
+
+  it('is determined by its input', () => {
+    expect(planOf({ checkpoints: POINTS })).toEqual(planOf({ checkpoints: POINTS }))
   })
 })

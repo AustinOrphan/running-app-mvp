@@ -82,3 +82,13 @@ export const STRENGTH_LOGS_MAX_DAYS = 366
 export const STRENGTH_WORKOUTS_MAX_DAYS = 62
 /** The most sessions `GET /api/strength/exercises/:id` lists (design 9.5). */
 export const STRENGTH_HISTORY_MAX_SESSIONS = 60
+
+// The race plan's course points (rule H14, ADR 0018). Sanity bounds on what a form can send, not
+// training guidance; the number of rows is the Param `r1.maxCheckpoints`.
+
+/** Longest checkpoint name, in characters. */
+export const RACE_CHECKPOINT_NAME_MAX = 60
+/** The most climb or descent one segment between two course points may hold, in metres. */
+export const RACE_CHECKPOINT_CLIMB_MAX_M = 20_000
+/** The longest cutoff, in seconds: 400 hours of elapsed time. */
+export const RACE_CHECKPOINT_CUTOFF_MAX_SEC = 400 * 3600

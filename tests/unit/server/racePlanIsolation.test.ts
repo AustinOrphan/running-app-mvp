@@ -39,12 +39,16 @@ const ENGINE_ALLOWED = [
   'server/services/racePlan.ts',
   'shared/copy/racePlan.ts',
   'shared/types.ts',
+  'web/components/race/CheckpointSheet.tsx',
+  'web/components/race/CheckpointTable.tsx',
   'web/components/race/RaceSlot.tsx',
   'web/pages/RacePage.tsx',
 ]
 
 const COPY_ALLOWED = [
   'shared/copy/templates.ts',
+  'web/components/race/CheckpointSheet.tsx',
+  'web/components/race/CheckpointTable.tsx',
   'web/components/race/RaceBlocks.tsx',
   'web/components/race/RaceSessionSection.tsx',
   'web/components/race/RaceSlot.tsx',
@@ -67,6 +71,29 @@ describe('who reads the race plan', () => {
     ])
   })
 
+  test('only the race plan, its copy and the shared types import the splits module', () => {
+    expect(importers('shared/engine/raceSplits.ts')).toEqual([
+      'shared/copy/racePlan.ts',
+      'shared/engine/racePlan.ts',
+      'shared/types.ts',
+    ])
+  })
+
+  test('only the race service and its route read the checkpoint service, and only it touches the table', () => {
+    expect(importers('server/services/raceCheckpoints.ts')).toEqual([
+      'server/routes/race.ts',
+      'server/services/racePlan.ts',
+    ])
+    const touching = FILES.filter(
+      (file) =>
+        file.startsWith('server/') &&
+        /\.raceCheckpoint\b|\$queryRaw[^;]*RaceCheckpoint/.test(
+          readFileSync(join(ROOT, file), 'utf8'),
+        ),
+    )
+    expect(touching).toEqual(['server/services/raceCheckpoints.ts'])
+  })
+
   test('nothing that delivers a session, a feed or a brief imports the plan or its copy', () => {
     const delivery = FILES.filter((file) =>
       /^(server\/providers\/|shared\/workouts\/|server\/services\/(workouts|workoutFit|publish|calendar|ics|wristItems|brief|fuelLine)\.ts$|shared\/copy\/(publish|workouts|brief\w*)\.ts$|shared\/engine\/brief\.ts$)/.test(
@@ -75,7 +102,9 @@ describe('who reads the race plan', () => {
     )
     expect(delivery.length).toBeGreaterThan(8)
     const offences = delivery.filter((file) =>
-      /racePlan|race\.plan\./.test(readFileSync(join(ROOT, file), 'utf8')),
+      /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\./.test(
+        readFileSync(join(ROOT, file), 'utf8'),
+      ),
     )
     expect(offences).toEqual([])
   })

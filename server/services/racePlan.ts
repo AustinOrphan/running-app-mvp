@@ -10,6 +10,7 @@ import type { RacePlanView } from '../../shared/types.ts'
 import { goalModelFor, loadAthleteContext, memoByVersion } from './athleteState.ts'
 import type { SnapshotDeps } from './athleteState.ts'
 import { loadFuelState } from './fuel.ts'
+import { listRaceCheckpoints } from './raceCheckpoints.ts'
 
 export type RaceDeps = SnapshotDeps
 
@@ -38,9 +39,11 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
   if (model === null) return { plan: null, reason: 'no-distance' }
   if (!model.isUltra) return { plan: null, reason: 'not-ultra' }
 
-  const [prediction, fuel] = await Promise.all([
+  const [prediction, fuel, checkpoints] = await Promise.all([
     context.prediction(goal.id),
     loadFuelState(deps, userId),
+    // The one read of the table besides its own route: the plan's memo drops with a save.
+    listRaceCheckpoints(deps.prisma, { userId, goalId: goal.id }),
   ])
   const plan = racePlanFor({
     goal: model,
@@ -50,6 +53,7 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
     ladder: fuel.ladder,
     weightKg: context.profile.weightKg,
     acclimationCredit: context.state.heatAcclimation,
+    checkpoints,
     today,
   })
   return { plan, reason: null }

@@ -1594,6 +1594,135 @@ function verifyStrength(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT count(*) AS n FROM "StrengthLog"')).toEqual([{ n: 1 }])
 }
 
+/**
+ * The previous release's rows around a goal race: two runners, a goal with a plan and a prediction,
+ * a second goal of the same runner and a goal of the other runner. The checkpoint table is new, so
+ * nothing carries over; the case checks that every row survives, that the table starts empty and
+ * what its keys, indexes and cascades are. The names are synthetic ("Checkpoint A").
+ */
+function seedRaceCheckpointRelease(db: DatabaseSync): void {
+  for (const [id, email] of [
+    ['u1', 'runner@example.com'],
+    ['u2', 'other@example.com'],
+  ] as const) {
+    insert(db, 'User', { id, email, passwordHash: 'not-a-real-hash', updatedAt: STAMP })
+  }
+  for (const [id, userId, name, distanceM] of [
+    ['g1', 'u1', 'Synthetic 100 miler', 160_934],
+    ['g2', 'u1', 'Synthetic half', 21_098],
+    ['g3', 'u2', 'Synthetic 100 miler', 160_934],
+  ] as const) {
+    insert(db, 'Goal', {
+      id,
+      userId,
+      name,
+      priority: 'A',
+      targetDate: '2027-06-12',
+      distanceM,
+      supportLevel: 'self',
+      updatedAt: STAMP,
+    })
+  }
+  insert(db, 'Plan', {
+    id: 'p1',
+    userId: 'u1',
+    goalId: 'g1',
+    name: 'Synthetic plan',
+    startDate: '2026-10-19',
+    raceWeekStart: '2027-06-07',
+    status: 'active',
+    generatorVersion: 2,
+    updatedAt: STAMP,
+  })
+  insert(db, 'PredictionLog', {
+    ...predictionRow('pred1', withToday('2026-10-21'), STAMP),
+    weekStart: '2026-10-19',
+    loggedOn: '2026-10-21',
+  })
+}
+
+function verifyRaceCheckpoints(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // The goals, the plan and the prediction kept their rows, and the new table starts empty.
+  expect(rowsOf(db, 'SELECT id, "supportLevel" FROM "Goal" ORDER BY id')).toEqual([
+    { id: 'g1', supportLevel: 'self' },
+    { id: 'g2', supportLevel: 'self' },
+    { id: 'g3', supportLevel: 'self' },
+  ])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "Plan"')).toEqual([{ n: 1 }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "PredictionLog"')).toEqual([{ n: 1 }])
+  expect(tableNames(db)).toContain('RaceCheckpoint')
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "RaceCheckpoint"')).toEqual([{ n: 0 }])
+  expectIndex(db, 'RaceCheckpoint', ['goalId', 'distanceM'], true)
+  expectIndex(db, 'RaceCheckpoint', ['userId'], false)
+
+  // A row with only a name and a distance leaves the optional columns empty.
+  const row = { userId: 'u1', goalId: 'g1', updatedAt: STAMP }
+  insert(db, 'RaceCheckpoint', { id: 'c1', ...row, name: 'Checkpoint A', distanceM: 20_000 })
+  expect(
+    rowsOf(db, `SELECT "gainM", "lossM", "cutoffSec" FROM "RaceCheckpoint" WHERE id = 'c1'`),
+  ).toEqual([{ gainM: null, lossM: null, cutoffSec: null }])
+  expect(
+    rowsOf(db, `SELECT "createdAt" FROM "RaceCheckpoint" WHERE id = 'c1'`)[0]?.createdAt,
+    'createdAt defaults to now',
+  ).not.toBeNull()
+
+  // One row per distance on a goal; the same distance on another goal is fine.
+  expect(() => {
+    insert(db, 'RaceCheckpoint', { id: 'c2', ...row, name: 'Checkpoint B', distanceM: 20_000 })
+  }).toThrow(/UNIQUE/)
+  insert(db, 'RaceCheckpoint', {
+    id: 'c3',
+    ...row,
+    goalId: 'g2',
+    name: 'Checkpoint A',
+    distanceM: 20_000,
+  })
+  insert(db, 'RaceCheckpoint', {
+    id: 'c4',
+    ...row,
+    name: 'Checkpoint B',
+    distanceM: 45_000,
+    gainM: 900,
+    lossM: 400,
+    cutoffSec: 36_000,
+  })
+  insert(db, 'RaceCheckpoint', {
+    id: 'c5',
+    userId: 'u2',
+    goalId: 'g3',
+    name: 'Checkpoint A',
+    distanceM: 20_000,
+    updatedAt: STAMP,
+  })
+  expect(() => {
+    insert(db, 'RaceCheckpoint', { id: 'c6', ...row, goalId: 'missing', name: 'x', distanceM: 1 })
+  }).toThrow(/FOREIGN KEY/)
+  expect(() => {
+    insert(db, 'RaceCheckpoint', { id: 'c7', ...row, userId: 'missing', name: 'x', distanceM: 2 })
+  }).toThrow(/FOREIGN KEY/)
+
+  const keys = rowsOf(db, 'PRAGMA foreign_key_list("RaceCheckpoint")')
+    .map((k) => ({ from: k.from, table: k.table, onDelete: k.on_delete }))
+    .sort((a, b) => String(a.from).localeCompare(String(b.from)))
+  expect(keys).toEqual([
+    { from: 'goalId', table: 'Goal', onDelete: 'CASCADE' },
+    { from: 'userId', table: 'User', onDelete: 'CASCADE' },
+  ])
+
+  // Deleting a goal deletes its rows; the same runner's other goal keeps its own.
+  db.exec(`DELETE FROM "Goal" WHERE id = 'g1'`)
+  expect(rowsOf(db, 'SELECT id FROM "RaceCheckpoint" ORDER BY id')).toEqual([
+    { id: 'c3' },
+    { id: 'c5' },
+  ])
+  // Everything goes with the runner; the other runner's rows stay.
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, 'SELECT id FROM "RaceCheckpoint"')).toEqual([{ id: 'c5' }])
+}
+
 function verifyShowBodyWeight(db: DatabaseSync, before: Snapshot): void {
   expectNothingLost(before, db)
   expectConsistent(db)
@@ -1698,6 +1827,11 @@ const CASES: FixtureCase[] = [
     migration: 'show_body_weight',
     seed: seedStrengthRelease,
     verify: verifyShowBodyWeight,
+  },
+  {
+    migration: 'race_checkpoints',
+    seed: seedRaceCheckpointRelease,
+    verify: verifyRaceCheckpoints,
   },
 ]
 

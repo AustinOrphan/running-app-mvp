@@ -526,7 +526,7 @@ export const hUltra = {
       },
     ),
   },
-  // The race plan (rule H14, ADR 0018). All three are display structure of a sketch, not findings.
+  // The race plan (rule H14, ADR 0018). All five are display structure of a sketch, not findings.
   r1: {
     thirds: param('r1.thirds', 3, 'D', 'H14', [], {
       unit: 'parts',
@@ -539,6 +539,14 @@ export const hUltra = {
     raceWeekCardDays: param('r1.raceWeekCardDays', 7, 'D', 'H14', [], {
       unit: 'days',
       note: 'Default: Today shows the race-week card from this many days before the race. A choice of display, not a finding.',
+    }),
+    maxCheckpoints: param('r1.maxCheckpoints', 40, 'D', 'H14', [], {
+      unit: 'rows',
+      note: 'Default: the most course points one goal may hold. An input limit that keeps the table readable on a phone; no study sizes it.',
+    }),
+    unenteredClimbShare: param('r1.unenteredClimbShare', 1, 'D', 'H14', [], {
+      unit: 'fraction',
+      note: 'Default: the share of the course climb left after the rows that name their climb, spread over the other segments by distance (1 spreads all of it, 0 treats those segments as flat). It sets only how the weights of the arrival ranges (L5) divide the course; no study sizes it.',
     }),
   },
   h12: {

@@ -6,6 +6,8 @@ import { lintText } from '../../../shared/copy/lint.ts'
 import {
   clockText,
   describeRacePlan,
+  describeRacePoints,
+  describeRacePointsEditor,
   describeRaceSummary,
   RACE_PLAN_TEMPLATES,
 } from '../../../shared/copy/racePlan.ts'
@@ -74,6 +76,7 @@ function input(overrides: Partial<RacePlanInput> = {}): RacePlanInput {
     ladder: ladderOf([run(0), run(1), run(2)]),
     weightKg: 70,
     acclimationCredit: 0.4,
+    checkpoints: [],
     today: '2026-06-09',
     ...overrides,
   }
@@ -327,5 +330,194 @@ describe('clockText', () => {
     expect(clockText({ time: '06:00', day: 0 })).toBe('06:00')
     expect(clockText({ time: '09:30', day: 1 })).toBe('09:30 the next day')
     expect(clockText({ time: '03:10', day: 2 })).toBe('03:10 on day 3')
+  })
+})
+
+describe('the words of the checkpoint table', () => {
+  const POINTS = [
+    { name: 'Checkpoint A', distanceM: 50_000, gainM: 2000, lossM: 300, cutoffSec: 9 * HOUR },
+    { name: 'Checkpoint B', distanceM: 110_000, gainM: null, lossM: null, cutoffSec: null },
+    { name: 'Checkpoint C', distanceM: 170_000, gainM: null, lossM: null, cutoffSec: null },
+  ]
+  const WITH_ROWS: Array<[string, RacePlan]> = [
+    ['aided', racePlanFor(input({ checkpoints: POINTS, ladder: ladderOf([run(0), run(1)]) }))],
+    ['self-supported', racePlanFor(input({ checkpoints: POINTS, supportLevel: 'self' }))],
+    ['no start time', racePlanFor(input({ checkpoints: POINTS, goal: goal({ startTime: null }) }))],
+    ['no course climb', racePlanFor(input({ checkpoints: POINTS, goal: goal({ gainM: 0 }) }))],
+  ]
+
+  it.each(WITH_ROWS)('pass the G5 lint in both unit systems: %s', (_name, plan) => {
+    for (const units of UNITS) {
+      const lines = allText(describeRacePoints(plan, units))
+      expect(lines.length).toBeGreaterThan(5)
+      for (const line of lines) expect(lintText(line), line).toEqual([])
+    }
+  })
+
+  it('says the empty state when the runner has no rows, in the words of the support level', () => {
+    expect(describeRacePoints(PLANS[0]![1], 'km').empty).toMatch(/The plan works without them/)
+    expect(describeRacePoints(PLANS[0]![1], 'km').heading).toBe('Checkpoints')
+    expect(describeRacePoints(PLANS[1]![1], 'km').heading).toBe('Course points')
+    expect(describeRacePoints(PLANS[1]![1], 'km').rows).toEqual([])
+  })
+
+  it('calls the rows course points and shows no aid wording or grams for a self-supported race', () => {
+    const text = describeRacePoints(WITH_ROWS[1]![1], 'km')
+    const joined = allText(text).join('\n')
+    expect(text.heading).toBe('Course points')
+    expect(text.edit).toBe('Edit course points')
+    expect(joined).not.toMatch(/aid|checkpoint(?!\s[A-C])/i)
+    expect(text.rows.every((row) => row.carry === null)).toBe(true)
+    const aided = describeRacePoints(WITH_ROWS[0]![1], 'km')
+    expect(aided.rows.every((row) => row.carry !== null)).toBe(true)
+    expect(aided.notes.join(' ')).toMatch(/estimate/)
+  })
+
+  it('carries the few-hours label with the grams, once a rung above the floor was tolerated', () => {
+    expect(describeRacePoints(WITH_ROWS[0]![1], 'km').notes.join(' ')).toMatch(/few hours/)
+  })
+
+  it('states the weights from l5.gainEquivalentM and says the later end of a range is the likelier one', () => {
+    const notes = describeRacePoints(WITH_ROWS[0]![1], 'km').notes.join(' ')
+    expect(notes).toContain(`climb as ${String(P.l5.gainEquivalentM.value)} units of flat`)
+    expect(notes).toMatch(/the later end of each range is the likelier one/)
+    expect(notes).toMatch(/defaults/)
+  })
+
+  it('shows a cutoff and an arrival range as two lines that never mention each other', () => {
+    for (const [name, plan] of WITH_ROWS) {
+      for (const units of UNITS) {
+        for (const row of describeRacePoints(plan, units).rows) {
+          expect(row.arrival, name).toMatch(/^About /)
+          expect(row.arrival, name).not.toMatch(/cutoff/i)
+          for (const line of row.cutoff) {
+            expect(line, name).toMatch(/^Cutoff /)
+            expect(line, name).not.toMatch(/about|arriv|range/i)
+          }
+          const text = allText(row).join(' ')
+          expect(text, name).not.toMatch(
+            /\b(before|after|inside|within|ahead|beat|margin|safe|enough)\b/i,
+          )
+        }
+      }
+    }
+    const first = describeRacePoints(WITH_ROWS[0]![1], 'km').rows[0]!
+    expect(first.cutoff).toEqual(['Cutoff 15:00', 'Cutoff 9 h into the race'])
+    expect(describeRacePoints(WITH_ROWS[2]![1], 'km').rows[0]!.cutoff).toEqual([
+      'Cutoff 9 h into the race',
+    ])
+  })
+
+  it('gives the clock with a start time and the time into the race without one', () => {
+    const clock = describeRacePoints(WITH_ROWS[0]![1], 'km').rows[0]!
+    const elapsed = describeRacePoints(WITH_ROWS[2]![1], 'km').rows[0]!
+    expect(clock.arrival).toMatch(/^About \d\d:\d\d( the next day)? to \d\d:\d\d/)
+    expect(elapsed.arrival).toMatch(/into the race$/)
+  })
+
+  it('names the finish, the climb as entered or shared, the descent as not counted, and the tags', () => {
+    const rows = describeRacePoints(WITH_ROWS[0]![1], 'km').rows
+    expect(rows.map((row) => row.name)).toEqual(['Checkpoint A', 'Checkpoint B', 'Finish'])
+    expect(rows[0]?.climb).toBe('2000 m of climb, as entered.')
+    expect(rows[1]?.climb).toMatch(/^About \d+ m of climb, shared out from the course total\.$/)
+    expect(rows[0]?.descent).toBe('300 m of descent, shown and not counted.')
+    expect(rows[0]?.tags).toContain('Climb by effort')
+    expect(rows[0]?.tags.some((tag) => tag === 'Day' || tag === 'Night')).toBe(true)
+    const miles = describeRacePoints(WITH_ROWS[0]![1], 'mi').rows[0]!
+    expect(miles.climb).toMatch(/ft of climb/)
+    expect(miles.distance).toMatch(/mi from the start$/)
+  })
+
+  it('says what the table leaves out, and when the climb cannot be shared', () => {
+    const past = racePlanFor(
+      input({
+        checkpoints: [...POINTS, { ...POINTS[0]!, name: 'Checkpoint D', distanceM: 999_999 }],
+      }),
+    )
+    expect(describeRacePoints(past, 'km').notices).toEqual([
+      'Points at or past the finish are left out: 2.',
+    ])
+    const over = racePlanFor(
+      input({
+        goal: goal({ gainM: 1000 }),
+        checkpoints: [{ ...POINTS[0]!, gainM: 1500 }],
+      }),
+    )
+    expect(describeRacePoints(over, 'km').notices.join(' ')).toMatch(/adds up to more than/)
+    const none = describeRacePoints(WITH_ROWS[3]![1], 'km').notices.join(' ')
+    expect(none).toMatch(/holds no course climb/)
+  })
+
+  it('says one time, not a range from a time to itself, when both ends are the same', () => {
+    // With no prediction the expected time is the goal's own, so the ends are equal.
+    const clock = racePlanFor(input({ checkpoints: POINTS, prediction: null }))
+    const elapsed = racePlanFor(
+      input({ checkpoints: POINTS, prediction: null, goal: goal({ startTime: null }) }),
+    )
+    for (const units of UNITS) {
+      for (const plan of [clock, elapsed]) {
+        // The finish row is the expected time itself, so its two ends are one value.
+        const finish = describeRacePoints(plan, units).rows.at(-1)
+        expect(finish?.arrival).not.toMatch(/ to /)
+        expect(finish?.arrival).toMatch(/^About /)
+      }
+    }
+    const finishClock = describeRacePoints(clock, 'km').rows.at(-1)?.arrival ?? ''
+    expect(finishClock).toMatch(/^About \d\d:\d\d( the next day| on day \d)?$/)
+    expect(describeRacePoints(elapsed, 'km').rows.at(-1)?.arrival).toBe('About 30 h into the race')
+    // A real range keeps its two ends.
+    expect(describeRacePoints(WITH_ROWS[0]![1], 'km').rows.at(-1)?.arrival).toMatch(/ to /)
+  })
+
+  it('leaves out a carry line that rounds to 0 g and a climb line that rounds to 0 m', () => {
+    const tiny = racePlanFor(
+      input({
+        goal: goal({ gainM: 3 }),
+        checkpoints: [
+          { name: 'Checkpoint A', distanceM: 20, gainM: null, lossM: null, cutoffSec: null },
+        ],
+      }),
+    )
+    const rows = describeRacePoints(tiny, 'km').rows
+    expect(rows[0]?.carry).toBeNull()
+    expect(rows[0]?.climb).toBeNull()
+    expect(rows.at(-1)?.carry).toMatch(/^Carry about \d+ to \d+ g of carbohydrate\.$/)
+    for (const units of UNITS) {
+      for (const row of describeRacePoints(tiny, units).rows) {
+        expect(row.carry ?? '').not.toMatch(/about 0 to 0/)
+        expect(row.climb ?? '').not.toMatch(/About 0 (m|ft)/)
+      }
+    }
+    // An entered climb of 1 m is said; the 3 m left over rounds to 0 and is not.
+    const rounded = racePlanFor(
+      input({
+        goal: goal({ gainM: 4 }),
+        checkpoints: [
+          { name: 'Checkpoint A', distanceM: 80_467, gainM: 1, lossM: null, cutoffSec: null },
+        ],
+      }),
+    )
+    const [first, second] = describeRacePoints(rounded, 'km').rows
+    expect(first?.climb).toBe('1 m of climb, as entered.')
+    expect(second?.climb).toBeNull()
+  })
+
+  it('has an editor whose words follow the support level and the room left', () => {
+    const aided = describeRacePointsEditor({ supportLevel: 'aided' }, 'km')
+    const self = describeRacePointsEditor({ supportLevel: 'self' }, 'mi')
+    expect(aided.add).toBe('Add a checkpoint')
+    expect(self.add).toBe('Add a course point')
+    expect(self.distance).toBe('Distance from the start (mi)')
+    expect(aided.pointN(2)).toBe('Point 2')
+    expect(aided.dayN(0)).toBe('Race day')
+    expect(aided.dayN(1)).toBe('Day 2')
+    expect(aided.errCount(P.r1.maxCheckpoints.value)).toBe(
+      `There is room for ${String(P.r1.maxCheckpoints.value)} points.`,
+    )
+    for (const editor of [aided, self]) {
+      for (const [key, value] of Object.entries(editor)) {
+        if (typeof value === 'string') expect(lintText(value), key).toEqual([])
+      }
+    }
   })
 })

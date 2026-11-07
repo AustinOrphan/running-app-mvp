@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import type { RacePlanView } from '../../shared/types.ts'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { RaceCheckpointRow, RaceCheckpointsView, RacePlanView } from '../../shared/types.ts'
 import { api, keys } from './client.ts'
 
 /**
@@ -17,5 +17,36 @@ export function useRacePlan(options: { enabled?: boolean } = {}) {
     queryFn: () => api<RacePlanView>('GET', '/race/plan'),
     staleTime: 0,
     enabled: options.enabled ?? true,
+  })
+}
+
+/**
+ * The runner's own course points for the goal race, in metres, nearest the start first. Private:
+ * the answer is not one of the reads the service worker keeps (ADR 0012), and the editor asks
+ * again each time it opens.
+ */
+export function useRaceCheckpoints(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: [keys.race, 'checkpoints'],
+    queryFn: () => api<RaceCheckpointsView>('GET', '/race/checkpoints'),
+    staleTime: 0,
+    enabled: options.enabled ?? true,
+  })
+}
+
+/**
+ * Replaces the whole table. The plan, the table and Today are read again afterwards: the arrival
+ * times follow the rows, and the race-week card reads the same plan.
+ */
+export function useSaveRaceCheckpoints() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (checkpoints: RaceCheckpointRow[]) =>
+      api<RaceCheckpointsView>('PUT', '/race/checkpoints', { checkpoints }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [keys.race] }),
+        queryClient.invalidateQueries({ queryKey: [keys.today] }),
+      ]),
   })
 }
