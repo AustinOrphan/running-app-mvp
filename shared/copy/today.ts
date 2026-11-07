@@ -216,6 +216,9 @@ export const TODAY_TEMPLATES = {
   'today.done.offline': tpl('Needs a connection. Your entries stay on this phone.'),
   'today.done.saved-run': tpl('Run saved', {}, { shape: 'label' }),
   'today.done.saved-session': tpl('Session saved', {}, { shape: 'label' }),
+  // The toast's one action: the page of the entry just saved.
+  'today.done.see-run': tpl('See the run', {}, { shape: 'label' }),
+  'today.done.see-session': tpl('See the session', {}, { shape: 'label' }),
   'today.done.not-saved': tpl('Not saved. {reason} Your entries are still here; try again.', {
     reason: 'text',
   }),
@@ -334,6 +337,15 @@ export const TODAY_TEMPLATES = {
     duration: 'duration',
   }),
   'today.hero.logged-time': tpl('Logged: {duration}.', { duration: 'duration' }),
+  // The rating ask under a logged run that has no rating yet (the hero's own, before the card of
+  // older runs below).
+  'today.rate.heading': tpl('Rate this run', {}, { shape: 'label' }),
+  'today.rate.caption': tpl(
+    'Optional. A rating of effort or feel is what lets the plan adjust. Rate any or all of it.',
+  ),
+  'today.rate.save': tpl('Save rating', {}, { shape: 'label' }),
+  'today.rate.saved': tpl('Rating saved.'),
+  'today.rate.not-saved': tpl('Rating not saved. {reason} Try again.', { reason: 'text' }),
   'today.hero.also': tpl('Also today: {sessions}.', { sessions: 'text' }),
   'today.hero.nothing-planned': tpl('Nothing is planned today.'),
   'today.hero.next': tpl('Next: {date}, {title}, {duration}.', {

@@ -231,6 +231,10 @@ describe('Today: the race countdown', () => {
     expect(race.querySelector('p')).toHaveTextContent('87 days to the race')
     expect(within(race).getByText('Example Half, Sat 13 Jun 2026')).toBeInTheDocument()
     expect(within(race).queryByText(/Finish estimate/)).not.toBeInTheDocument()
+    expect(within(race).getByRole('link', { name: /87 days to the race/ })).toHaveAttribute(
+      'href',
+      '/race',
+    )
   })
 
   test('says "Race day" on the day, and marks a provisional date', async () => {

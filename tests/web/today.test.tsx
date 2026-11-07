@@ -208,6 +208,80 @@ describe("Today: today's session", () => {
     expect(within(card).queryByRole('button', { name: 'Not today' })).not.toBeInTheDocument()
   })
 
+  test('the logged run links to its page', async () => {
+    const run = makeActivity({ id: 'r1', date: TODAY, durationSec: 2700, distanceM: 8047, rpe: 5 })
+    const session = makeSession({ status: 'completed', activityId: 'r1' })
+    render(
+      makeToday({
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({ hero: makeHero({ session, linkedRun: run }) }),
+      }),
+    )
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    expect(within(card).getByRole('link', { name: 'Logged: 5.00 mi in 45 min.' })).toHaveAttribute(
+      'href',
+      '/activities/r1',
+    )
+    // A rated run asks nothing more.
+    expect(within(card).queryByRole('button', { name: 'RPE 6' })).not.toBeInTheDocument()
+  })
+
+  describe('an unrated logged run', () => {
+    const run = makeActivity({ id: 'r1', date: TODAY, durationSec: 2700, distanceM: 8047 })
+    const session = makeSession({ status: 'completed', activityId: 'r1' })
+    const unratedDay = () =>
+      makeToday({
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({ hero: makeHero({ session, linkedRun: run }) }),
+        unrated: [run],
+      })
+
+    test('is rated in the hero through the feedback PATCH, once, and keeps focus on the answer', async () => {
+      const user = userEvent.setup()
+      const { api } = render(unratedDay(), {
+        'PATCH /api/activities/r1/feedback': () => ({}),
+      })
+      const card = await screen.findByRole('article', { name: 'Easy run' })
+      const ask = within(card).getByRole('region', { name: 'Rate this run' })
+      // the card below does not ask about the same run a second time
+      expect(screen.queryByRole('region', { name: 'How did it go?' })).not.toBeInTheDocument()
+      const save = within(ask).getByRole('button', { name: 'Save rating' })
+      expect(save).toBeDisabled()
+      await user.click(within(ask).getByRole('button', { name: 'RPE 6' }))
+      await user.click(within(ask).getByRole('button', { name: 'As expected' }))
+      await user.click(save)
+      const saved = await within(card).findByText('Rating saved.')
+      expect(saved).toHaveFocus()
+      expect(await screen.findByText('Feedback saved')).toBeInTheDocument()
+      const patches = api.calls.filter((call) => call.method === 'PATCH')
+      expect(patches).toHaveLength(1)
+      expect(patches[0]).toMatchObject({
+        url: '/api/activities/r1/feedback',
+        body: { rpe: 6, feel: 0, pain: null },
+      })
+    })
+
+    test('a failed save says so and keeps the chosen answers', async () => {
+      const user = userEvent.setup()
+      render(unratedDay(), {
+        'PATCH /api/activities/r1/feedback': () => ({
+          status: 500,
+          body: { error: { code: 'internal', message: 'Server error' } },
+        }),
+      })
+      const ask = await screen.findByRole('region', { name: 'Rate this run' })
+      await user.click(within(ask).getByRole('button', { name: 'RPE 6' }))
+      await user.click(within(ask).getByRole('button', { name: 'Save rating' }))
+      expect(await within(ask).findByRole('alert')).toHaveTextContent(
+        'Rating not saved. Server error Try again.',
+      )
+      expect(within(ask).getByRole('button', { name: 'RPE 6' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    })
+  })
+
   test('version-1 plans return no sessions and the page still renders', async () => {
     render(makeToday())
     await screen.findByRole('heading', { level: 1, name: 'Today' })
@@ -936,6 +1010,14 @@ describe('Today: Done', () => {
     expectCleanCopy(container)
   })
 
+  test('the Done toast offers the saved run', async () => {
+    const user = userEvent.setup()
+    render(withEasyRun(), { 'POST /api/activities': () => ({ id: 'new1' }) })
+    const sheet = await openDone(user)
+    await user.click(within(sheet).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('button', { name: 'See the run' })).toBeInTheDocument()
+  })
+
   test('Save posts one run with the planned figures, exactly as planned', async () => {
     const user = userEvent.setup()
     const { api } = render(withEasyRun(), { 'POST /api/activities': () => ({}) })
@@ -1240,6 +1322,18 @@ describe('Today: Not today', () => {
 })
 
 describe('Today: How did it go? toast', () => {
+  test('each run in the card links to its page', async () => {
+    const newest = makeActivity({ id: 'r2', date: '2026-03-17', type: 'run' })
+    const older = makeActivity({ id: 'r1', date: '2026-03-15', type: 'run' })
+    render(makeToday({ unrated: [older, newest] }))
+    const card = await screen.findByRole('region', { name: 'How did it go?' })
+    const links = within(card).getAllByRole('link')
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/activities/r2',
+      '/activities/r1',
+    ])
+  })
+
   test('"Feedback saved" shows although the rated run leaves the card', async () => {
     const user = userEvent.setup()
     // After the save the server reports the run as rated, so the card drops it and unmounts.

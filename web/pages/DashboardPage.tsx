@@ -123,6 +123,12 @@ export function DashboardPage() {
   // over is read-only (an answer would be filed under that day, and Done would log against it).
   const day = dayState(view, phoneCopy)
   const waiting = outbox.entries.some((entry) => entry.url === checkinUrl(view.date))
+  // The hero asks about the run logged against today's session, so the card below leaves it out.
+  const heroAsksRating =
+    day !== 'past' &&
+    coach.hero !== null &&
+    coach.hero.advice !== 'rest' &&
+    coach.hero.session.kind !== 'rest'
   const verdictShown =
     waiting && coach.verdict?.code === 'no-signals' ? SAVED_ON_PHONE : coach.verdict
 
@@ -197,6 +203,7 @@ export function DashboardPage() {
             <FeedbackCard
               unrated={view.unrated}
               units={units}
+              exclude={heroAsksRating ? (coach.hero?.linkedRun?.id ?? null) : null}
               onSaved={() => {
                 toast.show('Feedback saved')
               }}

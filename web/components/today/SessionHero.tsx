@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { estimateText, nextWithEstimateText } from '../../../shared/copy/distanceEstimate.ts'
 import { sessionStatusLabel } from '../../../shared/copy/sessionStatus.ts'
 import { render } from '../../../shared/copy/template.ts'
@@ -13,6 +14,7 @@ import { DoneSheet, NotFullSheet, StrengthSheet } from '../lazySheets.tsx'
 import { strengthWords } from '../strength/strengthText.ts'
 import { useTodayStrength } from '../strength/strengthToday.ts'
 import { KnowToday } from './KnowToday.tsx'
+import { RunRating } from './RunRating.tsx'
 import { NotFullEntry } from './NotFullEntry.tsx'
 import { NotTodaySheet } from './NotTodaySheet.tsx'
 import { SessionActions } from './SessionActions.tsx'
@@ -209,7 +211,17 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
             )}
           </div>
           {linkedRun === null ? null : (
-            <p className={styles.muted}>{loggedLine(linkedRun, units)}</p>
+            <>
+              <p className={styles.muted}>
+                <Link
+                  to={`/activities/${encodeURIComponent(linkedRun.id)}`}
+                  className={styles.runLink}
+                >
+                  {loggedLine(linkedRun, units)}
+                </Link>
+              </p>
+              {readOnly ? null : <RunRating key={linkedRun.id} run={linkedRun} units={units} />}
+            </>
           )}
           {strengthHero ? (
             <StrengthRows workout={strength} units={units} weightUnit={weightUnit} usual={usual} />
