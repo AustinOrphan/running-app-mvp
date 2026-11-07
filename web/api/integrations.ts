@@ -13,6 +13,7 @@ function invalidateSyncData(queryClient: QueryClient): Promise<unknown> {
     queryClient.invalidateQueries({ queryKey: [keys.syncRuns] }),
     queryClient.invalidateQueries({ queryKey: [keys.imports] }),
     queryClient.invalidateQueries({ queryKey: [keys.wellness] }),
+    queryClient.invalidateQueries({ queryKey: [keys.trends] }),
     invalidateActivityData(queryClient),
   ])
 }

@@ -59,6 +59,7 @@ export function trendsRouter(deps: Deps): Router {
           hrv: weeklyBands(byDate, weekStarts, 'hrv', cyclic),
           restingHr: weeklyBands(byDate, weekStarts, 'resting-hr', cyclic),
           sleep: weeklySleep(byDate, weekStarts),
+          cycleBaseline: cyclic,
         }
       },
     )

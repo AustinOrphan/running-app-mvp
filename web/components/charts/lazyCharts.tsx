@@ -21,7 +21,8 @@ function Unavailable() {
   )
 }
 
-type Place = 'weekly' | 'season' | 'monthly' | 'stream' | 'track' | 'estimate' | 'trendsRun'
+type Place =
+  'weekly' | 'season' | 'monthly' | 'stream' | 'track' | 'estimate' | 'trendsRun' | 'recovery'
 
 /**
  * A chart that loads on first use; `place` names the class that holds its height meanwhile, or
@@ -79,6 +80,10 @@ export const EstimatedMaxChart = lazyChart(
 export const TrendsRunChart = lazyChart(
   () => import('./TrendsRunChart.tsx').then((module) => module.TrendsRunChart),
   'trendsRun',
+)
+export const RecoveryChart = lazyChart(
+  () => import('./RecoveryChart.tsx').then((module) => module.RecoveryChart),
+  'recovery',
 )
 
 /**

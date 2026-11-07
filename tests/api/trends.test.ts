@@ -70,7 +70,10 @@ describe('GET /api/trends', () => {
   test('is three empty series for a runner with no wellness rows, and has no weight key', async () => {
     const res = await getTrends()
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ asOf: TODAY, recovery: { hrv: [], restingHr: [], sleep: [] } })
+    expect(res.body).toEqual({
+      asOf: TODAY,
+      recovery: { hrv: [], restingHr: [], sleep: [], cycleBaseline: false },
+    })
     expect(JSON.stringify(res.body)).not.toMatch(/weight/i)
   })
 
@@ -79,7 +82,12 @@ describe('GET /api/trends', () => {
     const res = await getTrends()
     expect(res.status).toBe(200)
     const view = res.body as TrendsView
-    expect(Object.keys(view.recovery).sort()).toEqual(['hrv', 'restingHr', 'sleep'])
+    expect(Object.keys(view.recovery).sort()).toEqual([
+      'cycleBaseline',
+      'hrv',
+      'restingHr',
+      'sleep',
+    ])
     expect(view.recovery.hrv).toHaveLength(104)
     expect(view.recovery.hrv[0]!.weekStart).toBe(addDays(LAST, -7 * 103))
     expect(view.recovery.hrv.at(-1)!.weekStart).toBe(LAST)
@@ -166,6 +174,8 @@ describe('GET /api/trends', () => {
       update: { sex: 'female' },
     })
     const cyclic = (await getTrends()).body as TrendsView
+    expect(cyclic.recovery.cycleBaseline).toBe(true)
+    expect(plain.recovery.cycleBaseline).toBe(false)
     expect(cyclic.recovery.hrv.at(-2)!.readings).toBe(12)
     expect(cyclic.recovery.hrv.at(-2)!.low).not.toBeNull()
   })

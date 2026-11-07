@@ -1,8 +1,14 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays } from '../../shared/dates.ts'
-import type { Units, UserSettings, WeekRow } from '../../shared/types.ts'
-import { monthTicks } from '../../web/components/charts/TrendsRunChart.tsx'
+import {
+  seriesByDate,
+  weeklyBands,
+  weeklySleep,
+  type WellnessSeriesRow,
+} from '../../shared/domain/trends.ts'
+import type { TrendsView, Units, UserSettings, WeekRow } from '../../shared/types.ts'
+import { monthTicks } from '../../web/components/charts/monthTicks.ts'
 import { TrendsPage } from '../../web/pages/TrendsPage.tsx'
 import { makeWeekRow } from '../factories.ts'
 import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
@@ -36,8 +42,48 @@ function history(): WeekRow[] {
   })
 }
 
-function mockTrends(opts: { units?: Units; weeks?: WeekRow[] } = {}) {
+/** The 104 Mondays the server answers, oldest first. */
+const WEEK_STARTS = Array.from({ length: 104 }, (_, i) => addDays(FIRST_WEEK, 7 * i))
+
+/**
+ * The view the server would answer for these nights: the same pure functions over a synthetic
+ * series, a night a day for `days` days before today (rMSSD 55 to 65, resting heart rate 48 to 52,
+ * sleep 6.5 to 8 h), with the nights in `skip` left out.
+ */
+function recoveryView(
+  opts: {
+    days?: number
+    skip?: (back: number) => boolean
+    sdnnOnly?: boolean
+    cyclic?: boolean
+  } = {},
+): TrendsView {
+  const rows: WellnessSeriesRow[] = []
+  for (let back = 0; back < (opts.days ?? 200); back += 1) {
+    if (opts.skip?.(back)) continue
+    rows.push({
+      date: addDays('2026-03-18', -back),
+      hrvRmssd: opts.sdnnOnly === true ? null : 55 + ((back * 7) % 11),
+      restingHr: 48 + ((back * 3) % 5),
+      sleepSec: Math.round((6.5 + ((back * 5) % 4) * 0.5) * 3600),
+    })
+  }
+  const byDate = seriesByDate(rows)
+  const cyclic = opts.cyclic === true
+  return {
+    asOf: '2026-03-18',
+    recovery: {
+      hrv: weeklyBands(byDate, WEEK_STARTS, 'hrv', cyclic),
+      restingHr: weeklyBands(byDate, WEEK_STARTS, 'resting-hr', cyclic),
+      sleep: weeklySleep(byDate, WEEK_STARTS),
+      cycleBaseline: cyclic,
+    },
+  }
+}
+
+function mockTrends(opts: { units?: Units; weeks?: WeekRow[]; trends?: TrendsView } = {}) {
   return mockApi({
+    'GET /api/trends': () => opts.trends ?? recoveryView(),
     'GET /api/weeks': () => opts.weeks ?? history(),
     'GET /api/settings': () => settings(opts.units ?? 'km'),
   })
@@ -114,12 +160,12 @@ describe('TrendsPage, running per week', () => {
     expect(within(group).getByRole('radio', { name: '12 months' })).toBeChecked()
 
     fireEvent.click(within(group).getByRole('radio', { name: '24 months' }))
-    const wide = await screen.findByRole('table', { name: /last 24 months/ })
+    const wide = await screen.findByRole('table', { name: /^Run hours per week, last 24 months/ })
     expect(within(wide).getAllByRole('row')).toHaveLength(1 + 104)
     expect(localStorage.getItem('trends-range')).toBe('24')
 
     fireEvent.click(within(group).getByRole('radio', { name: '6 months' }))
-    const narrow = await screen.findByRole('table', { name: /last 6 months/ })
+    const narrow = await screen.findByRole('table', { name: /^Run hours per week, last 6 months/ })
     expect(within(narrow).getAllByRole('row')).toHaveLength(1 + 26)
   })
 
@@ -185,7 +231,7 @@ describe('TrendsPage, running per week', () => {
     const { container } = renderWithProviders(<TrendsPage />)
     expect(await screen.findByText('No runs in this range yet.')).toBeInTheDocument()
     expect(screen.getByRole('radiogroup', { name: 'Range' })).toBeInTheDocument()
-    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /^Run hours per week/ })).not.toBeInTheDocument()
     expectCleanCopy(container)
   })
 
@@ -195,6 +241,7 @@ describe('TrendsPage, running per week', () => {
         status: 500,
         body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
       }),
+      'GET /api/trends': () => recoveryView(),
       'GET /api/settings': () => settings('km'),
     })
     renderWithProviders(<TrendsPage />)
@@ -206,6 +253,10 @@ describe('TrendsPage, running per week', () => {
   test('offline with no data, says Trends need a connection and what still works', async () => {
     setOnline(false)
     mockApi({
+      'GET /api/trends': () => ({
+        status: 503,
+        body: { error: { code: 'offline', message: 'x' } },
+      }),
       'GET /api/weeks': () => ({ status: 503, body: { error: { code: 'offline', message: 'x' } } }),
       'GET /api/settings': () => ({
         status: 503,
@@ -218,6 +269,191 @@ describe('TrendsPage, running per week', () => {
     )
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expectCleanCopy(container)
+  })
+})
+
+describe('TrendsPage, recovery readings', () => {
+  test('draws heart-rate variability, resting heart rate and sleep, each with its caption and range', async () => {
+    mockTrends()
+    const { container } = renderWithProviders(<TrendsPage />)
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Recovery readings' }),
+    ).toBeVisible()
+    for (const name of ['Overnight HRV', 'Resting heart rate', 'Sleep']) {
+      expect(screen.getByRole('heading', { level: 3, name })).toBeInTheDocument()
+    }
+    expect(
+      screen.getByText(
+        'Weekly mean of overnight rMSSD in ms, for weeks with at least 4 nights recorded.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Weekly mean of resting heart rate in bpm, for weeks with at least 4 nights recorded.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Weekly mean of recorded sleep in hours, for weeks with at least 4 nights recorded. No range is drawn.',
+      ),
+    ).toBeInTheDocument()
+    // The band is the recent range of Today's baseline, named as that and never as a verdict.
+    const band =
+      'The band is your recent range: the mean of the latest 10 readings within the 21 days before the week, plus or minus 1 SD.'
+    expect(screen.getAllByText(band)).toHaveLength(2)
+    expect(
+      screen.getByText('These readings never change a plan by themselves.'),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('img', {
+        name: /^Overnight HRV in ms, weekly mean, last 12 months\./,
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('img', { name: /^Resting heart rate in bpm, weekly mean/ }),
+    ).toBeVisible()
+    expect(screen.getByRole('img', { name: /^Sleep in hours, weekly mean/ })).toBeVisible()
+    expectCleanCopy(container)
+  })
+
+  test('gives each chart a hidden table of week, mean, nights, low and high', async () => {
+    const view = recoveryView()
+    mockTrends({ trends: view })
+    renderWithProviders(<TrendsPage />)
+    const table = await screen.findByRole('table', { name: /^Overnight HRV in ms, weekly mean/ })
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((h) => h.textContent),
+    ).toEqual(['Week of', 'Mean (ms)', 'Nights', 'Low (ms)', 'High (ms)'])
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(1 + 52)
+    // The last row is the current week, as the server computed it.
+    const week = view.recovery.hrv.at(-1)!
+    expect(
+      within(rows.at(-1)!)
+        .getAllByRole('cell')
+        .map((c) => c.textContent),
+    ).toEqual([
+      week.mean === null ? '' : week.mean.toFixed(0),
+      String(week.nights),
+      week.low === null ? '' : week.low.toFixed(0),
+      week.high === null ? '' : week.high.toFixed(0),
+    ])
+    expect(week.low).not.toBeNull()
+    // Sleep has no range: the low and high cells are empty on every row.
+    const sleep = await screen.findByRole('table', { name: /^Sleep in hours, weekly mean/ })
+    for (const row of within(sleep).getAllByRole('row').slice(1)) {
+      const cells = within(row).getAllByRole('cell')
+      expect([cells[2]!.textContent, cells[3]!.textContent]).toEqual(['', ''])
+    }
+  })
+
+  test('leaves a week without enough nights blank, never filled in', async () => {
+    // Nothing recorded between 22 and 28 days ago.
+    mockTrends({ trends: recoveryView({ skip: (back) => back >= 22 && back <= 28 }) })
+    renderWithProviders(<TrendsPage />)
+    const table = await screen.findByRole('table', {
+      name: /^Resting heart rate in bpm, weekly mean/,
+    })
+    const blank = within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .filter((row) => within(row).getAllByRole('cell')[0]!.textContent === '')
+    expect(blank.length).toBeGreaterThanOrEqual(1)
+    for (const row of blank) {
+      expect(Number(within(row).getAllByRole('cell')[1]!.textContent)).toBeLessThan(4)
+    }
+  })
+
+  test('says the recent range is still being built, with the count, before ten readings', async () => {
+    mockTrends({ trends: recoveryView({ days: 6 }) })
+    renderWithProviders(<TrendsPage />)
+    const building = await screen.findAllByText(
+      /^The recent range is still being built: \d of 10 readings\.$/,
+    )
+    expect(building).toHaveLength(2)
+    expect(screen.queryByText(/^The band is your recent range/)).not.toBeInTheDocument()
+  })
+
+  test('reads the 35 days before a week for the cycle-aware profile', async () => {
+    mockTrends({ trends: recoveryView({ cyclic: true }) })
+    renderWithProviders(<TrendsPage />)
+    expect(
+      await screen.findByText(
+        'The band is your recent range: the mean of the readings within the 35 days before the week, plus or minus 1 SD.',
+      ),
+    ).toBeInTheDocument()
+    // Resting heart rate has no cycle handling, as on Today.
+    expect(
+      screen.getByText(
+        'The band is your recent range: the mean of the latest 10 readings within the 21 days before the week, plus or minus 1 SD.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  test('says so when the source holds only SDNN, and draws the other two', async () => {
+    mockTrends({ trends: recoveryView({ sdnnOnly: true }) })
+    renderWithProviders(<TrendsPage />)
+    expect(await screen.findByText('No rMSSD readings yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /^Overnight HRV/ })).not.toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: /^Resting heart rate in bpm/ })).toBeVisible()
+  })
+
+  test('says so when there is no night at all', async () => {
+    mockTrends({
+      trends: {
+        asOf: '2026-03-18',
+        recovery: { hrv: [], restingHr: [], sleep: [], cycleBaseline: false },
+      },
+    })
+    renderWithProviders(<TrendsPage />)
+    expect(await screen.findByText('No rMSSD readings yet.')).toBeInTheDocument()
+    expect(screen.getByText('No resting heart rate readings yet.')).toBeInTheDocument()
+    expect(screen.getByText('No sleep readings yet.')).toBeInTheDocument()
+  })
+
+  test('follows the range switch', async () => {
+    mockTrends()
+    renderWithProviders(<TrendsPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Range' })
+    fireEvent.click(within(group).getByRole('radio', { name: '6 months' }))
+    const table = await screen.findByRole('table', {
+      name: /^Sleep in hours, weekly mean, last 6 months/,
+    })
+    expect(within(table).getAllByRole('row')).toHaveLength(1 + 26)
+  })
+
+  test('says the readings did not load and leaves the running weeks', async () => {
+    mockApi({
+      'GET /api/trends': () => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
+      }),
+      'GET /api/weeks': () => history(),
+      'GET /api/settings': () => settings('km'),
+    })
+    renderWithProviders(<TrendsPage />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The recovery readings did not load. Reload the page to try again.',
+    )
+    expect(await screen.findByRole('img', { name: /^Run hours per week/ })).toBeVisible()
+  })
+
+  test('says Trends need a connection when the readings cannot load offline', async () => {
+    setOnline(false)
+    mockApi({
+      'GET /api/trends': () => ({
+        status: 503,
+        body: { error: { code: 'offline', message: 'x' } },
+      }),
+      'GET /api/weeks': () => history(),
+      'GET /api/settings': () => settings('km'),
+    })
+    renderWithProviders(<TrendsPage />)
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Trends need a connection. Today, the plan and the log work offline.',
+    )
   })
 })
 

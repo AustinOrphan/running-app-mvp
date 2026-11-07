@@ -1,12 +1,22 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
-import { TRENDS_TEMPLATES, trendsText } from '../../shared/copy/trends.ts'
+import {
+  bandBuilding,
+  bandCaption,
+  nightsCaption,
+  recoveryAria,
+  TRENDS_TEMPLATES,
+  trendsText,
+} from '../../shared/copy/trends.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
-import type { Units, WeekRow } from '../../shared/types.ts'
+import { MIN_NIGHTS_PER_MEAN } from '../../shared/domain/trends.ts'
+import { P } from '../../shared/engine/params/index.ts'
+import type { TrendsView, TrendWeek, Units, WeekRow } from '../../shared/types.ts'
 import { useSettings } from '../api/settings.ts'
+import { useTrends } from '../api/trends.ts'
 import { useWeeks } from '../api/weeks.ts'
-import { TrendsRunChart } from '../components/charts/lazyCharts.tsx'
+import { RecoveryChart, TrendsRunChart } from '../components/charts/lazyCharts.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
@@ -113,6 +123,123 @@ function RunningSection({ weeks, units, currentWeek, months }: RunningProps) {
   )
 }
 
+type Recovery = TrendsView['recovery']
+
+interface PanelProps {
+  heading: string
+  caption: string
+  /** How the band is built, or null for a series with no band. */
+  bandLine: string | null
+  none: string
+  weeks: readonly TrendWeek[]
+  unit: string
+  decimals: number
+  months: number
+  /** What the chart is, for its accessible name. */
+  name: string
+}
+
+/** One recovery reading: its caption, the range line, the chart, or a line saying none exist. */
+function RecoveryPanel({
+  heading,
+  caption,
+  bandLine,
+  none,
+  weeks,
+  unit,
+  decimals,
+  months,
+  name,
+}: PanelProps) {
+  const latest = [...weeks].reverse().find((week) => week.mean !== null)?.mean ?? null
+  return (
+    <div className={styles.panel}>
+      <h3 className={styles.subheading}>{heading}</h3>
+      {weeks.length === 0 ? (
+        <p className={styles.caption}>{none}</p>
+      ) : (
+        <>
+          <p className={styles.caption}>{caption}</p>
+          {bandLine !== null ? <p className={styles.caption}>{bandLine}</p> : null}
+          <RecoveryChart
+            weeks={weeks}
+            unit={unit}
+            decimals={decimals}
+            band={bandLine !== null}
+            ariaLabel={recoveryAria(
+              name,
+              months,
+              latest === null ? null : `${latest.toFixed(decimals)} ${unit}`,
+            )}
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+/** The words under a heart-rate-variability or resting-heart-rate panel about its band. */
+function bandLineOf(
+  weeks: readonly TrendWeek[],
+  signal: 'hrv' | 'resting-hr',
+  cyclic: boolean,
+): string | null {
+  const last = weeks.at(-1)
+  if (last === undefined) return null
+  return last.low !== null ? bandCaption(signal, cyclic) : bandBuilding(last.readings ?? 0)
+}
+
+interface RecoverySectionProps {
+  recovery: Recovery
+  months: number
+  weekCount: number
+}
+
+/** The three recovery readings against the runner's recent range (rule T1): no verdicts. */
+function RecoverySection({ recovery, months, weekCount }: RecoverySectionProps) {
+  const hrv = recovery.hrv.slice(-weekCount)
+  const restingHr = recovery.restingHr.slice(-weekCount)
+  const sleep = recovery.sleep.slice(-weekCount)
+  return (
+    <>
+      <RecoveryPanel
+        heading={text('trends.hrv.heading')}
+        caption={nightsCaption('trends.hrv.caption', MIN_NIGHTS_PER_MEAN)}
+        bandLine={bandLineOf(hrv, 'hrv', recovery.cycleBaseline)}
+        none={text('trends.hrv.none')}
+        weeks={hrv}
+        unit="ms"
+        decimals={0}
+        months={months}
+        name="Overnight HRV in ms"
+      />
+      <RecoveryPanel
+        heading={text('trends.rhr.heading')}
+        caption={nightsCaption('trends.rhr.caption', MIN_NIGHTS_PER_MEAN)}
+        bandLine={bandLineOf(restingHr, 'resting-hr', false)}
+        none={text('trends.rhr.none')}
+        weeks={restingHr}
+        unit="bpm"
+        decimals={0}
+        months={months}
+        name="Resting heart rate in bpm"
+      />
+      <RecoveryPanel
+        heading={text('trends.sleep.heading')}
+        caption={nightsCaption('trends.sleep.caption', P.j5.sleepMinNights.value)}
+        bandLine={null}
+        none={text('trends.sleep.none')}
+        weeks={sleep}
+        unit="h"
+        decimals={1}
+        months={months}
+        name="Sleep in hours"
+      />
+      <p className={styles.caption}>{text('trends.recovery.note')}</p>
+    </>
+  )
+}
+
 /** Months of running over a range the runner picks, drawn as descriptive pictures (rule T1). */
 export function TrendsPage() {
   const online = useOnline()
@@ -120,6 +247,7 @@ export function TrendsPage() {
   const thisWeek = mondayOf(todayIso())
   const weeks = useWeeks({ from: addDays(thisWeek, -7 * (MAX_WEEKS - 1)), to: thisWeek })
   const settings = useSettings()
+  const trends = useTrends()
 
   const title = text('trends.title')
   if (weeks.isError || settings.isError) {
@@ -165,6 +293,26 @@ export function TrendsPage() {
         currentWeek={thisWeek}
         months={chosen.months}
       />
+      <section className={styles.section} aria-labelledby="trends-recovery-heading">
+        <h2 id="trends-recovery-heading" className={styles.heading}>
+          {text('trends.recovery.heading')}
+        </h2>
+        {trends.isError ? (
+          online ? (
+            <p role="alert">{text('trends.recovery.error')}</p>
+          ) : (
+            <p role="status">{text('trends.offline')}</p>
+          )
+        ) : trends.data === undefined ? (
+          <div className={`skeleton ${styles.pending}`} aria-busy="true" aria-label="Loading" />
+        ) : (
+          <RecoverySection
+            recovery={trends.data.recovery}
+            months={chosen.months}
+            weekCount={chosen.weeks}
+          />
+        )}
+      </section>
     </>
   )
 }

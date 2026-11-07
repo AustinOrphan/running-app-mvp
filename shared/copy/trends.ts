@@ -46,6 +46,16 @@ export const TRENDS_TEMPLATES = {
 
   // Recovery readings
   'trends.recovery.heading': tpl('Recovery readings', {}, { shape: 'label' }),
+  'trends.recovery.aria': tpl(
+    '{name}, weekly mean, last {months} months. Latest week with enough nights: {value}.',
+    { name: 'text', months: 'count', value: 'text' },
+    { fallback: 'Weekly mean of a recovery reading.' },
+  ),
+  'trends.recovery.aria-none': tpl(
+    '{name}, weekly mean, last {months} months. No week has enough nights yet.',
+    { name: 'text', months: 'count' },
+    { fallback: 'Weekly mean of a recovery reading.' },
+  ),
   'trends.recovery.note': tpl('These readings never change a plan by themselves.'),
   'trends.hrv.heading': tpl('Overnight HRV', {}, { shape: 'label' }),
   'trends.hrv.caption': tpl(
@@ -132,4 +142,15 @@ export function bandBuilding(readings: number): string {
     { readings: count(readings), needed: count(P.j4.minReadings.value) },
     'km',
   )
+}
+
+/** The accessible name of a recovery chart: what it shows and its latest weekly mean, if any. */
+export function recoveryAria(name: string, months: number, latest: string | null): string {
+  return latest === null
+    ? render(TRENDS_TEMPLATES['trends.recovery.aria-none'], { name, months: count(months) }, 'km')
+    : render(
+        TRENDS_TEMPLATES['trends.recovery.aria'],
+        { name, months: count(months), value: latest },
+        'km',
+      )
 }

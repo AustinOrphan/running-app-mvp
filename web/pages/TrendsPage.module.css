@@ -23,3 +23,13 @@
 .pending {
   height: 14rem;
 }
+
+.panel {
+  margin-bottom: var(--space-5);
+}
+
+.subheading {
+  margin-bottom: var(--space-1);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}

@@ -18,6 +18,10 @@ export function useSaveWellness() {
   return useMutation({
     mutationFn: ({ date, input }: { date: string; input: WellnessSaveInput }) =>
       api<WellnessDay>('PUT', `/wellness/${encodeURIComponent(date)}`, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [keys.wellness] }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [keys.wellness] }),
+        queryClient.invalidateQueries({ queryKey: [keys.trends] }),
+      ]),
   })
 }

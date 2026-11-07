@@ -171,6 +171,8 @@ export interface TrendsView {
     hrv: TrendWeek[]
     restingHr: TrendWeek[]
     sleep: TrendWeek[]
+    /** The heart-rate-variability range reads the 35-day cycle baseline (the female profile). */
+    cycleBaseline: boolean
   }
 }
 export type Feel = -2 | -1 | 0 | 1 | 2

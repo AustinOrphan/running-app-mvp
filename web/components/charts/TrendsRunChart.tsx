@@ -12,6 +12,7 @@ import {
 import type { Units, WeekRow } from '../../../shared/types.ts'
 import { formatDistance, minutesToHours1 } from '../../../shared/units.ts'
 import { formatShortDate } from '../format.ts'
+import { monthStep, monthTicks, tickLabel } from './monthTicks.ts'
 import { axisProps, chartColors, ChartTooltip, gridProps } from './theme.ts'
 import styles from './TrendsRunChart.module.css'
 import { RaceFlag } from './WeeklyHoursChart.tsx'
@@ -42,36 +43,11 @@ interface Point {
 
 /** Width of the value axis (px); the strength squares leave the same room on the left. */
 const AXIS_WIDTH = 40
+/** Room on the right for the last month's label, which is centred on its week (px). */
+const RIGHT_ROOM = 12
 /** Room above the tallest week for the flag of a race week (px). */
 const FLAG_ROOM = 16
 const MAX_SQUARES = 4
-
-const monthName = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
-
-/**
- * The Mondays that carry an x tick: the first week of a calendar month, every `step` months from
- * January, so a 24-month range names eight months and not a hundred and four weeks.
- */
-export function monthTicks(weekStarts: readonly string[], step: number): string[] {
-  return weekStarts.filter((weekStart) => {
-    const day = Number(weekStart.slice(8, 10))
-    const month = Number(weekStart.slice(5, 7))
-    // The Monday that opens a month is the first Monday on or after the 1st.
-    return day <= 7 && (month - 1) % step === 0
-  })
-}
-
-function tickLabel(weekStart: string): string {
-  const month = monthName.format(new Date(`${weekStart.slice(0, 7)}-01T00:00:00Z`))
-  return weekStart.slice(5, 7) === '01' ? `${month} ${weekStart.slice(2, 4)}` : month
-}
-
-/** Months between ticks so that the labels of a phone-width chart do not touch. */
-function monthStep(weekCount: number): number {
-  if (weekCount <= 30) return 1
-  if (weekCount <= 60) return 2
-  return 3
-}
 
 function ValueBar({ x, y, width, height, payload }: BarShapeProps) {
   const point = payload as Point
@@ -138,7 +114,7 @@ export function TrendsRunChart({
           <ComposedChart
             accessibilityLayer
             data={points}
-            margin={{ top: FLAG_ROOM, right: 0, bottom: 0, left: 0 }}
+            margin={{ top: FLAG_ROOM, right: RIGHT_ROOM, bottom: 0, left: 0 }}
           >
             <CartesianGrid {...gridProps} />
             <XAxis
@@ -207,6 +183,7 @@ export function TrendsRunChart({
         style={{
           gridTemplateColumns: `repeat(${String(Math.max(1, weeks.length))}, minmax(0, 1fr))`,
           marginLeft: `${String(AXIS_WIDTH)}px`,
+          marginRight: `${String(RIGHT_ROOM)}px`,
         }}
         aria-hidden="true"
         data-testid="strength-squares"

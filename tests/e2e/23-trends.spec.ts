@@ -43,9 +43,22 @@ async function seedRunning(api: Api): Promise<void> {
   }
 }
 
+/** A night a day for 70 days before today: rMSSD, resting heart rate and sleep. */
+async function seedNights(api: Api): Promise<void> {
+  const { today } = relativeDates()
+  for (let back = 1; back <= 70; back += 1) {
+    await api.put(`/wellness/${addDays(today, -back)}`, {
+      hrvRmssd: 55 + ((back * 7) % 11),
+      restingHr: 48 + ((back * 3) % 5),
+      sleepSec: Math.round((6.5 + ((back * 5) % 4) * 0.5) * 3600),
+    })
+  }
+}
+
 test('Trends reads by role, switches range and stays inside 360 px', async ({ page, baseURL }) => {
   const api = await signedInApi(page, baseURL ?? '')
   await seedRunning(api)
+  await seedNights(api)
 
   // From More, as a phone reaches it.
   await page.goto('/more')
@@ -66,12 +79,36 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   await expect(squares.locator('[data-strength="2"]')).toHaveCount(1)
   expect(await overflow(page)).toBeLessThanOrEqual(0)
 
+  // The recovery readings: three panels, each with its caption, its range line and its table.
+  await expect(page.getByRole('heading', { level: 2, name: 'Recovery readings' })).toBeVisible()
+  for (const name of [
+    /^Overnight HRV in ms, weekly mean/,
+    /^Resting heart rate in bpm, weekly mean/,
+  ]) {
+    await expect(page.getByRole('img', { name })).toBeVisible()
+  }
+  await expect(page.getByRole('img', { name: /^Sleep in hours, weekly mean/ })).toBeVisible()
+  await expect(
+    page.getByText(/^The band is your recent range: the mean of the latest 10 readings/),
+  ).toHaveCount(2)
+  await expect(page.getByText('These readings never change a plan by themselves.')).toBeVisible()
+  const hrvTable = page.getByRole('table', { name: /^Overnight HRV in ms, weekly mean/ })
+  await expect(hrvTable.getByRole('row')).toHaveCount(1 + 52)
+  await expect(hrvTable.getByRole('columnheader')).toHaveText([
+    'Week of',
+    'Mean (ms)',
+    'Nights',
+    'Low (ms)',
+    'High (ms)',
+  ])
+  expect(await overflow(page)).toBeLessThanOrEqual(0)
+
   // 24 months, then 6, each with its own hidden table; the page stays inside the window.
   const range = page.getByRole('radiogroup', { name: 'Range' })
   await range.getByRole('radio', { name: '24 months' }).click()
   const wide = page.getByRole('table', { name: /^Run hours per week, last 24 months\./ })
   await expect(wide.getByRole('row')).toHaveCount(1 + 104)
-  await expect(page.getByRole('img', { name: /last 24 months/ })).toBeVisible()
+  await expect(page.getByRole('img', { name: /^Run hours per week, last 24 months/ })).toBeVisible()
   expect(await overflow(page)).toBeLessThanOrEqual(0)
   await range.getByRole('radio', { name: '6 months' }).click()
   await expect(
@@ -102,6 +139,8 @@ test('Trends says there are no runs when the range holds none', async ({ page, b
   await api.get('/settings')
   await page.goto('/trends')
   await expect(page.getByText('No runs in this range yet.')).toBeVisible()
+  await expect(page.getByText('No rMSSD readings yet.')).toBeVisible()
+  await expect(page.getByText('No sleep readings yet.')).toBeVisible()
   await expect(page.getByRole('radiogroup', { name: 'Range' })).toBeVisible()
   expect(await overflow(page)).toBeLessThanOrEqual(0)
 })
