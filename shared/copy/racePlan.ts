@@ -64,10 +64,20 @@ export const RACE_PLAN_TEMPLATES = {
 
   // ---- Expected time (the range comes from `today.race.estimate` and `today.race.wide`) --------
   'race.plan.expected.heading': tpl('Expected time', {}, { shape: 'label' }),
-  'race.plan.expected.estimate': tpl(
-    'About {duration}, from the goal. A recent race or a few long runs would give a range.',
-    { duration: 'duration' },
+  'race.plan.expected.figure': tpl('{duration}', { duration: 'duration' }, { shape: 'label' }),
+  'race.plan.expected.source-range': tpl('Most likely time. Finish estimate {low} to {high}.', {
+    low: 'duration',
+    high: 'duration',
+  }),
+  'race.plan.expected.source-goal': tpl(
+    'From the goal. A recent race or a few long runs would give a range.',
   ),
+  'race.plan.firm.heading': tpl('How firm is this', {}, { shape: 'label' }),
+  'race.plan.firm.link-prediction': tpl('Add a race result', {}, { shape: 'label' }),
+  'race.plan.firm.link-start-time': tpl('Add a start time', {}, { shape: 'label' }),
+  'race.plan.firm.link-heart-rate': tpl('Set your heart rate', {}, { shape: 'label' }),
+  'race.plan.firm.link-climate': tpl('Save the climate', {}, { shape: 'label' }),
+  'race.plan.firm.about': tpl('About these ranges', {}, { shape: 'label' }),
   'race.plan.expected.clock': tpl('Start {start}. Finish about {range}.', {
     start: 'text',
     range: 'text',
@@ -439,8 +449,10 @@ export function raceOpenText(units: Units): string {
 
 export interface RaceExpectedText {
   heading: string
-  /** The range and the most likely time, or the goal's own estimate. */
-  headline: string
+  /** The time as one figure: the most likely time, or the goal's own. */
+  figure: string
+  /** Where the figure comes from, with its range when there is one. */
+  source: string
   /** Start and finish clock; null without a start time. */
   clock: string | null
   /** How the range was widened or rounded, and the wide-on-purpose line. */
@@ -494,7 +506,9 @@ export interface RacePlanText {
   title: string
   daysToGo: string
   sketch: string
-  notices: string[]
+  firmHeading: string
+  aboutRanges: string
+  notices: RaceNoticeText[]
   expected: RaceExpectedText
   effort: { heading: string; instruction: string; study: string; readingAid: string }
   parts: RacePartText[]
@@ -506,17 +520,40 @@ export interface RacePlanText {
   dark: { heading: string; lines: string[] } | null
 }
 
-function noticeText(notice: RaceNotice, units: Units): string {
+function noticeText(notice: RaceNotice, units: Units): RaceNoticeText {
   switch (notice) {
     case 'no-prediction':
-      return say(T['race.plan.notice.no-prediction'], {}, units)
+      return {
+        text: say(T['race.plan.notice.no-prediction'], {}, units),
+        link: say(T['race.plan.firm.link-prediction'], {}, units),
+        to: 'goals',
+      }
     case 'no-start-time':
-      return say(T['race.plan.notice.no-start-time'], {}, units)
+      return {
+        text: say(T['race.plan.notice.no-start-time'], {}, units),
+        link: say(T['race.plan.firm.link-start-time'], {}, units),
+        to: 'goals',
+      }
     case 'no-heart-rate':
-      return say(T['race.plan.notice.no-heart-rate'], {}, units)
+      return {
+        text: say(T['race.plan.notice.no-heart-rate'], {}, units),
+        link: say(T['race.plan.firm.link-heart-rate'], {}, units),
+        to: 'profile',
+      }
     case 'no-climate':
-      return say(T['race.plan.notice.no-climate'], {}, units)
+      return {
+        text: say(T['race.plan.notice.no-climate'], {}, units),
+        link: say(T['race.plan.firm.link-climate'], {}, units),
+        to: 'goals',
+      }
   }
+}
+
+/** One line of "How firm is this": what is missing, and the page that fills it in. */
+export interface RaceNoticeText {
+  text: string
+  link: string
+  to: 'goals' | 'profile'
 }
 
 /** The instruction repeated in every part: the heart rate ceiling and the effort, or the effort. */
@@ -537,18 +574,15 @@ function instructionText(effort: RacePlan['effort'], units: Units): string {
 function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
   const { expected } = plan
   const notes: string[] = []
-  const headline =
+  const figure = say(T['race.plan.expected.figure'], { duration: duration(expected.midSec) }, units)
+  const source =
     expected.basis === 'prediction'
-      ? render(
-          TODAY_TEMPLATES['today.race.estimate'],
-          {
-            low: duration(expected.lowSec),
-            high: duration(expected.highSec),
-            likely: duration(expected.midSec),
-          },
+      ? say(
+          T['race.plan.expected.source-range'],
+          { low: duration(expected.lowSec), high: duration(expected.highSec) },
           units,
         )
-      : say(T['race.plan.expected.estimate'], { duration: duration(expected.midSec) }, units)
+      : say(T['race.plan.expected.source-goal'], {}, units)
   const clock =
     expected.start === null || expected.finish === null
       ? null
@@ -572,7 +606,7 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
   notes.push(
     say(T['race.plan.expected.round'], { step: minutes(P.r1.arrivalRoundMin.value) }, units),
   )
-  return { heading: say(T['race.plan.expected.heading'], {}, units), headline, clock, notes }
+  return { heading: say(T['race.plan.expected.heading'], {}, units), figure, source, clock, notes }
 }
 
 function heatLines(plan: RacePlan, units: Units): string[] {
@@ -780,6 +814,8 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
     title: say(T['race.plan.title'], {}, units),
     daysToGo: daysToGoText(plan.daysToRace, units),
     sketch: say(T['race.plan.sketch'], {}, units),
+    firmHeading: say(T['race.plan.firm.heading'], {}, units),
+    aboutRanges: say(T['race.plan.firm.about'], {}, units),
     notices: plan.notices.map((notice) => noticeText(notice, units)),
     expected: expectedText(plan, units),
     effort: {

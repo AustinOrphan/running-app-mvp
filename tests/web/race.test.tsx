@@ -84,7 +84,10 @@ function planWith(
 
 describe('RacePage', () => {
   test('lays out the sections of the plan in reading order, from the one object', async () => {
-    const plan = planWith()
+    const plan = {
+      ...planWith(),
+      notices: ['no-prediction', 'no-heart-rate', 'no-climate'] as RacePlan['notices'],
+    }
     mockApi({
       'GET /api/race/plan': () => ({ plan, reason: null }),
       'GET /api/settings': () => SETTINGS,
@@ -103,7 +106,18 @@ describe('RacePage', () => {
       'Dark hours',
     ])
     const text = describeRacePlan(plan, 'km')
-    expect(screen.getByText(text.expected.headline)).toBeInTheDocument()
+    // the time is one figure, and what is missing sits in one "How firm is this" list with its links
+    expect(screen.getByText(text.expected.figure)).toBeInTheDocument()
+    expect(screen.getByText(text.expected.source)).toBeInTheDocument()
+    expect(text.notices).toHaveLength(3)
+    for (const notice of text.notices) {
+      const item = screen.getByText(notice.text).closest('li')
+      expect(item).not.toBeNull()
+      expect(within(item as HTMLElement).getByRole('link', { name: notice.link })).toHaveAttribute(
+        'href',
+        `/${notice.to}`,
+      )
+    }
     // the instruction stands once over the parts and once in each of them
     expect(screen.getAllByText(text.effort.instruction)).toHaveLength(plan.thirds.length + 1)
     for (const part of text.parts) {
