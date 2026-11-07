@@ -146,6 +146,33 @@ export interface StatsView {
   /** The longest runs, longest first. */
   longest: ActivityCore[]
 }
+/**
+ * One week of a recovery series on the Trends page [rule T1]. `mean` is null under the minimum
+ * number of recorded nights (`nights`); `low` and `high` are the runner's recent range at the
+ * week's Monday, null before `j4.minReadings` earlier readings exist (`readings` counts them) and
+ * always null for sleep.
+ */
+export interface TrendWeek {
+  weekStart: string
+  mean: number | null
+  nights: number
+  low: number | null
+  high: number | null
+  readings: number | null
+}
+/**
+ * `GET /api/trends`: the recovery readings by week over the last 104 weeks, oldest first. Running
+ * weeks come from `GET /api/weeks`. A series with no reading in any week is an empty array.
+ * Heart-rate variability is rMSSD in ms, resting heart rate is bpm and sleep is hours.
+ */
+export interface TrendsView {
+  asOf: string
+  recovery: {
+    hrv: TrendWeek[]
+    restingHr: TrendWeek[]
+    sleep: TrendWeek[]
+  }
+}
 export type Feel = -2 | -1 | 0 | 1 | 2
 /** Aligned arrays of equal length; `null` when the source had no such channel. */
 export interface ActivityStreamData {
