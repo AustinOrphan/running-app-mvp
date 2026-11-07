@@ -100,4 +100,9 @@ describe('links', () => {
     expect(accentIn(media)).toBe(accentIn(darkBlock))
     expect(accentIn(lightBlock)).not.toBe(accentIn(darkBlock))
   })
+
+  test('the word Why starts at the text edge: its padding is taken back by a negative margin', () => {
+    const why = read(join(root, 'components', 'ExplainButton.module.css'))
+    expect(why).toMatch(/\.why \{[^}]*margin-left: calc\(var\(--space-4\) \* -1\);/)
+  })
 })
