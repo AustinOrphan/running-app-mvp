@@ -30,6 +30,7 @@ import { Button } from '../components/Button.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
 import { Figure } from '../components/Figure.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
@@ -571,7 +572,13 @@ export function ActivityDetailPage() {
             This activity was not found. <Link to="/activities">All activities</Link>
           </p>
         ) : (
-          <p role="alert">The activity did not load. Reload the page to try again.</p>
+          <ErrorState
+            what="The activity"
+            retrying={detail.isFetching}
+            onRetry={() => {
+              void detail.refetch()
+            }}
+          />
         )}
       </>
     )

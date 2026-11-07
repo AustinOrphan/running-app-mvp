@@ -1240,3 +1240,31 @@ test('a four-hour trail run keeps its charts before the rating form and does not
     true,
   )
 })
+
+test('a failed Activities read shows one Try again button at 390 px and the list after it', async () => {
+  await resetData()
+  await api.post('/activities', {
+    date: relativeDates().lastWednesday,
+    type: 'run',
+    durationSec: 45 * 60,
+    distanceM: 8047,
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  // The client retries a failed read itself, so the route fails every request until Try again.
+  let failing = true
+  await page.route('**/api/activities?**', async (route) => {
+    if (failing) return route.abort()
+    return route.continue()
+  })
+  await page.goto('/activities')
+  const alert = page.getByRole('alert').filter({ hasText: 'Activities did not load.' })
+  await expect(alert).toBeVisible()
+  failing = false
+  const retry = alert.getByRole('button', { name: 'Try again' })
+  expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await retry.click()
+  await expect(page.getByText('45:00', { exact: true })).toBeVisible()
+  await expect(alert).toBeHidden()
+  await page.unroute('**/api/activities?**')
+  await page.setViewportSize({ width: 360, height: 740 })
+})

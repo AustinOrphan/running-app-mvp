@@ -21,6 +21,7 @@ import { ApiError } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
 import { Field, Input } from '../components/Field.tsx'
 import { formatShortDate, formatWeekday } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -210,7 +211,8 @@ export function ActivitiesPage() {
   const total = duplicatesOnly ? whole.data?.length : paged.data?.total
   // A page that failed leaves the rows already read in place; only a failed first read is an error.
   const moreFailed = !duplicatesOnly && paged.isFetchNextPageError
-  const loadFailed = activities.isError && !moreFailed
+  // Rows already on the screen stay when a later read fails; only a list with none is an error.
+  const loadFailed = activities.isError && !moreFailed && loaded === undefined
 
   const moreButton = useRef<HTMLButtonElement>(null)
   const countStatus = useRef<HTMLParagraphElement>(null)
@@ -286,9 +288,13 @@ export function ActivitiesPage() {
     )
   } else if (loadFailed) {
     body = (
-      <p role="alert" className={styles.error}>
-        Activities did not load. Reload the page to try again.
-      </p>
+      <ErrorState
+        what="Activities"
+        retrying={activities.isFetching}
+        onRetry={() => {
+          void activities.refetch()
+        }}
+      />
     )
   } else if (loading) {
     body = <Skeleton lines={5} />

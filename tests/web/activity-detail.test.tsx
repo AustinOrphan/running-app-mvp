@@ -397,6 +397,26 @@ describe('ActivityDetailPage', () => {
     expect(screen.getAllByText(/against time in minutes/i).length).toBeGreaterThan(0)
   })
 
+  test('a detail that did not load says so with a Try again button that reads it again', async () => {
+    const user = userEvent.setup()
+    let fail = true
+    const api = renderDetail({
+      routes: {
+        'GET /api/activities/a1/detail': () =>
+          fail
+            ? { status: 500, body: { error: { code: 'internal', message: 'Server error.' } } }
+            : makeDetail(),
+      },
+    })
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('The activity did not load.')
+    expectCleanCopy(alert)
+    fail = false
+    await user.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('region', { name: 'Summary' })).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url === '/api/activities/a1/detail')).toHaveLength(2)
+  })
+
   test('no stream means no Charts section at all, and no line saying so', async () => {
     renderDetail({ detail: makeDetail({ stream: null, laps: null, hasFile: false }) })
     await screen.findByRole('heading', { level: 1, name: 'Run' })

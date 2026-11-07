@@ -892,6 +892,33 @@ describe('Activities page: paging', () => {
     expect(screen.getByRole('button', { name: 'Show 50 more' })).toBeInTheDocument()
   })
 
+  test('a list that did not load says so with one Try again button, and shows the rows after it', async () => {
+    const user = userEvent.setup()
+    const serve = activityRoute([makeActivity()])
+    let fail = true
+    const api = renderPage({
+      routes: {
+        'GET /api/activities': (req) =>
+          fail
+            ? { status: 500, body: { error: { code: 'internal', message: 'Server error.' } } }
+            : serve(req),
+      },
+    })
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Activities did not load.')
+    expect(alert).toHaveTextContent('The server did not answer. Try again in a moment.')
+    expect(within(alert).getAllByRole('button')).toHaveLength(1)
+    expectCleanCopy(alert)
+    const before = api.calls.filter((c) => c.url.startsWith('/api/activities')).length
+    fail = false
+    await user.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('30:00')).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url.startsWith('/api/activities')).length).toBeGreaterThan(
+      before,
+    )
+    expect(screen.queryByText(/did not load/)).not.toBeInTheDocument()
+  })
+
   test('a page that did not load says so, keeps the rows and tries again on the next press', async () => {
     const user = userEvent.setup()
     const serve = activityRoute(history(120))
