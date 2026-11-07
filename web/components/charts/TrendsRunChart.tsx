@@ -41,8 +41,11 @@ interface Point {
   race: boolean
 }
 
-/** Width of the value axis (px); the strength squares leave the same room on the left. */
-const AXIS_WIDTH = 40
+/**
+ * Width of the value axis (px); the strength squares leave the same room on the left. The ticks are
+ * bare numbers (up to four digits fit); the unit is in the caption above the chart.
+ */
+const AXIS_WIDTH = 36
 /** Room on the right for the last month's label, which is centred on its week (px). */
 const RIGHT_ROOM = 12
 /** Room above the tallest week for the flag of a race week (px). */
@@ -97,7 +100,6 @@ export function TrendsRunChart({
   const peak = Math.max(0, ...points.map((p) => Math.max(p.value, p.mean ?? 0)))
   // An even ceiling keeps the three ticks (0, half, ceiling) on whole numbers.
   const ceiling = Math.max(2, Math.ceil(peak / 2) * 2)
-  const unitWord = metric === 'time' ? 'h' : units
   const ticks = monthTicks(
     weeks.map((w) => w.weekStart),
     monthStep(weeks.length),
@@ -129,7 +131,6 @@ export function TrendsRunChart({
               width={AXIS_WIDTH}
               domain={[0, ceiling]}
               ticks={[0, ceiling / 2, ceiling]}
-              tickFormatter={(value: number) => `${String(value)} ${unitWord}`}
             />
             <Tooltip
               content={(props) => {

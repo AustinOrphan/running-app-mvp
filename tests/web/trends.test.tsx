@@ -196,11 +196,11 @@ describe('TrendsPage, running per week', () => {
     const show = await screen.findByRole('radiogroup', { name: 'Show' })
     expect(
       screen.getByText(
-        'Bars are run time per week. The line is the mean of that week and the three before it.',
+        'Bars are run hours per week. The line is the mean of that week and the three before it.',
       ),
     ).toBeInTheDocument()
     fireEvent.click(within(show).getByRole('radio', { name: 'Distance' }))
-    expect(screen.getByText('Bars are run distance per week.')).toBeInTheDocument()
+    expect(screen.getByText('Bars are run distance per week, in mi.')).toBeInTheDocument()
     expect(
       await screen.findByRole('img', {
         name: 'Run distance per week, last 12 months. Latest complete week 24.9 mi.',
@@ -265,7 +265,7 @@ describe('TrendsPage, running per week', () => {
     })
     const { container } = renderWithProviders(<TrendsPage />)
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Trends need a connection. Today, the plan and the log work offline.',
+      'Trends need a connection. Today works offline.',
     )
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expectCleanCopy(container)
@@ -301,9 +301,13 @@ describe('TrendsPage, recovery readings', () => {
     const band =
       'The band is your recent range: the mean of the latest 10 readings within the 21 days before the week, plus or minus 1 SD.'
     expect(screen.getAllByText(band)).toHaveLength(2)
-    expect(
-      screen.getByText('These readings never change a plan by themselves.'),
-    ).toBeInTheDocument()
+    // One line, under the HRV panel only: sleep and resting heart rate can corroborate a hold.
+    const note = screen.getByText('Heart-rate variability alone never changes a plan.')
+    expect(screen.getAllByText('Heart-rate variability alone never changes a plan.')).toHaveLength(
+      1,
+    )
+    const panel = screen.getByRole('heading', { level: 3, name: 'Overnight HRV' }).parentElement
+    expect(panel).toContainElement(note)
     expect(
       await screen.findByRole('img', {
         name: /^Overnight HRV in ms, weekly mean, last 12 months\./,
@@ -452,7 +456,7 @@ describe('TrendsPage, recovery readings', () => {
     })
     renderWithProviders(<TrendsPage />)
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Trends need a connection. Today, the plan and the log work offline.',
+      'Trends need a connection. Today works offline.',
     )
   })
 })

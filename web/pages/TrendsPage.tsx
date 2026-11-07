@@ -6,6 +6,7 @@ import {
   bandCaption,
   nightsCaption,
   recoveryAria,
+  runCaption,
   TRENDS_TEMPLATES,
   trendsText,
 } from '../../shared/copy/trends.ts'
@@ -100,9 +101,7 @@ function RunningSection({ weeks, units, currentWeek, months }: RunningProps) {
               { value: 'distance', label: 'Distance' },
             ]}
           />
-          <p className={styles.caption}>
-            {text(metric === 'time' ? 'trends.run.caption-time' : 'trends.run.caption-distance')}
-          </p>
+          <p className={styles.caption}>{runCaption(metric, units)}</p>
           <TrendsRunChart
             weeks={weeks}
             metric={metric}
@@ -137,6 +136,8 @@ interface PanelProps {
   months: number
   /** What the chart is, for its accessible name. */
   name: string
+  /** One line under the chart, or null. */
+  note?: string
 }
 
 /** One recovery reading: its caption, the range line, the chart, or a line saying none exist. */
@@ -150,6 +151,7 @@ function RecoveryPanel({
   decimals,
   months,
   name,
+  note,
 }: PanelProps) {
   const latest = [...weeks].reverse().find((week) => week.mean !== null)?.mean ?? null
   return (
@@ -172,6 +174,7 @@ function RecoveryPanel({
               latest === null ? null : `${latest.toFixed(decimals)} ${unit}`,
             )}
           />
+          {note === undefined ? null : <p className={styles.caption}>{note}</p>}
         </>
       )}
     </div>
@@ -212,6 +215,7 @@ function RecoverySection({ recovery, months, weekCount }: RecoverySectionProps) 
         decimals={0}
         months={months}
         name="Overnight HRV in ms"
+        note={text('trends.recovery.note')}
       />
       <RecoveryPanel
         heading={text('trends.rhr.heading')}
@@ -235,7 +239,6 @@ function RecoverySection({ recovery, months, weekCount }: RecoverySectionProps) 
         months={months}
         name="Sleep in hours"
       />
-      <p className={styles.caption}>{text('trends.recovery.note')}</p>
     </>
   )
 }

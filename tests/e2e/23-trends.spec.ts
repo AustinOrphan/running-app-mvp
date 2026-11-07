@@ -91,7 +91,7 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   await expect(
     page.getByText(/^The band is your recent range: the mean of the latest 10 readings/),
   ).toHaveCount(2)
-  await expect(page.getByText('These readings never change a plan by themselves.')).toBeVisible()
+  await expect(page.getByText('Heart-rate variability alone never changes a plan.')).toBeVisible()
   const hrvTable = page.getByRole('table', { name: /^Overnight HRV in ms, weekly mean/ })
   await expect(hrvTable.getByRole('row')).toHaveCount(1 + 52)
   await expect(hrvTable.getByRole('columnheader')).toHaveText([
@@ -126,7 +126,7 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
     .getByRole('radiogroup', { name: 'Show' })
     .getByRole('radio', { name: 'Distance' })
     .click()
-  await expect(page.getByText('Bars are run distance per week.')).toBeVisible()
+  await expect(page.getByText(/^Bars are run distance per week, in (km|mi)\.$/)).toBeVisible()
   await expect(
     page.getByRole('img', { name: /^Run distance per week, last 6 months\./ }),
   ).toBeVisible()

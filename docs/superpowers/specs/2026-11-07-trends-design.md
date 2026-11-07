@@ -57,13 +57,13 @@ Captions (templates, one per construction):
 - Resting heart rate: "Weekly mean of resting heart rate in bpm. The band is your recent range: the mean of the latest 10 readings within the 21 days before the week, plus or minus 1 SD."
 - Sleep: "Weekly mean of recorded sleep in hours. No range is drawn."
 
-SDNN is never plotted or mixed; a source with only SDNN shows "No rMSSD readings yet." One line under the panels: "These readings never change a plan by themselves." (J4: HRV alone never triggers.)
+SDNN is never plotted or mixed; a source with only SDNN shows "No rMSSD readings yet." One line under the heart-rate-variability panel only: "Heart-rate variability alone never changes a plan." (J4: HRV alone never triggers; sleep and resting heart rate can corroborate a hold on Today, J5, so no line claims they change nothing.)
 
 **Body weight** (only when shown in Settings). A neutral line (`--text-muted`) of weekly means, one marker per week with at least 2 weigh-ins (page constant), in the runner's weight unit; the y axis spans at least 15 percent of the median so ordinary variation does not read as a slope (page constant). Caption: "Mean of each week's weigh-ins. A scale varies by a kilogram or more within a day, so read the line, not a point." Footnote: "If your weight has changed without you meaning it to, say so in the energy screen on Profile." (link). No goal line, no change figure, no BMI, no colour but the neutral ink.
 
 **Weight hidden** (the default): the section does not exist and the page never mentions it. **Weight gated** (two or more REDs flags in the latest screening): only "Body weight is not charted while the energy screen has open flags. The screen and where to find care are on Profile." (link).
 
-**States.** Loading: a skeleton per section at the chart height. No run in the range: `EmptyState` "No runs in this range yet." Offline with no data (`useOnline`): "Trends need a connection. Today, the plan and the log work offline." Error: `role="alert"` with a reload instruction, as Stats.
+**States.** Loading: a skeleton per section at the chart height. No run in the range: `EmptyState` "No runs in this range yet." Offline with no data (`useOnline`): "Trends need a connection. Today works offline. (ADR 0012 keeps only Today and four other reads offline.)" Error: `role="alert"` with a reload instruction, as Stats.
 
 **Settings.** A new section "Trends" after Appearance: Segmented "Body weight on Trends: Hidden | Shown", saved on change like the weight unit, with "Hidden by default. Hiding removes the chart from the page and keeps every weigh-in."
 
@@ -142,7 +142,7 @@ Alternatives: (a) a tab on Stats: rejected, different job and different gating (
 ## 7. Risks and arguments against the whole feature
 
 - **Any trend invites chasing.** A rising line reads as a goal. Mitigation: no targets, no aim line, no change figures, no marker on a week, captions that say what a point is. The 4-week line is still a progression picture, and a runner who reads it as a ladder may overreach. The weekly decision, not the picture, sets load (ADR 0005).
-- **Recovery panels over-read wearable noise.** Weekly means of nightly values still carry device error (J4 floors of 6 to 10 percent), and a device change shifts the level. The band is the runner's own and moves with them, so a slow drift is invisible by construction. The resting-heart-rate band is grade D. The panels can look authoritative; the line "never change a plan by themselves" is on the page.
+- **Recovery panels over-read wearable noise.** Weekly means of nightly values still carry device error (J4 floors of 6 to 10 percent), and a device change shifts the level. The band is the runner's own and moves with them, so a slow drift is invisible by construction. The resting-heart-rate band is grade D. The panels can look authoritative; the line "Heart-rate variability alone never changes a plan." is under the HRV panel.
 - **Weight.** Even opt-in, a chart can feed checking. Mitigations: the default, the flag gate, no deltas, no goal, a neutral line and the Profile pointer. The gates are not access control (section 6). If that is not acceptable, drop step 5; no other step carries weight.
 - **Overlap with Today, Plan and Stats.** Three pages draw weekly bars. Today answers "this week", Plan "the season ahead", Trends "the last year", Stats "totals and look-ups". If that is blurry, fold Trends into Stats instead of removing sections.
 - **Cost.** One page, one route, one rule, one ADR, a permanent surface to keep under the copy lint and the 360 px layout. A 24-month weekly bar is narrow; that range exists for shape and the hidden table is the exact form.

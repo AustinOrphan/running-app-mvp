@@ -13,7 +13,7 @@ export const TRENDS_TEMPLATES = {
     'Weeks and months of what was run and logged, against your own recent ranges. Nothing here is a target.',
   ),
   'trends.more-note': tpl('Months of running and recovery readings', {}, { shape: 'label' }),
-  'trends.offline': tpl('Trends need a connection. Today, the plan and the log work offline.'),
+  'trends.offline': tpl('Trends need a connection. Today works offline.'),
   'trends.error': tpl('Trends did not load. Reload the page to try again.'),
   'trends.recovery.error': tpl('The recovery readings did not load. Reload the page to try again.'),
 
@@ -22,9 +22,13 @@ export const TRENDS_TEMPLATES = {
   'trends.run.empty': tpl('No runs in this range yet.'),
   'trends.run.empty-body': tpl('Log a run or import a file and the weeks show up here.'),
   'trends.run.caption-time': tpl(
-    'Bars are run time per week. The line is the mean of that week and the three before it.',
+    'Bars are run hours per week. The line is the mean of that week and the three before it.',
   ),
-  'trends.run.caption-distance': tpl('Bars are run distance per week.'),
+  'trends.run.caption-distance': tpl(
+    'Bars are run distance per week, in {unit}.',
+    { unit: 'text' },
+    { fallback: 'Bars are run distance per week.' },
+  ),
   'trends.run.marks': tpl('A flag marks a race week. Squares are strength sessions.'),
   'trends.run.this-week': tpl('The outlined bar is this week so far.'),
   'trends.run.strength-link': tpl('Lifts and loads are on Strength', {}, { shape: 'label' }),
@@ -56,7 +60,7 @@ export const TRENDS_TEMPLATES = {
     { name: 'text', months: 'count' },
     { fallback: 'Weekly mean of a recovery reading.' },
   ),
-  'trends.recovery.note': tpl('These readings never change a plan by themselves.'),
+  'trends.recovery.note': tpl('Heart-rate variability alone never changes a plan.'),
   'trends.hrv.heading': tpl('Overnight HRV', {}, { shape: 'label' }),
   'trends.hrv.caption': tpl(
     'Weekly mean of overnight rMSSD in ms, for weeks with at least {nights} nights recorded.',
@@ -153,4 +157,11 @@ export function recoveryAria(name: string, months: number, latest: string | null
         { name, months: count(months), value: latest },
         'km',
       )
+}
+
+/** The line under the metric switch: what the bars are, with the unit the axis leaves out. */
+export function runCaption(metric: 'time' | 'distance', units: 'km' | 'mi'): string {
+  return metric === 'time'
+    ? trendsText('trends.run.caption-time')
+    : render(TRENDS_TEMPLATES['trends.run.caption-distance'], { unit: units }, units)
 }
