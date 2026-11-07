@@ -19,8 +19,8 @@ export interface MondayBriefProps {
 
 /**
  * Monday on Today. A plan that the weekly update changed at night should not wait under the week
- * strip to be found, so while the brief is unopened and it changed sessions, this card leads the
- * session column: one sentence (how many sessions changed and the next key session), the link
+ * strip to be found, so while the brief is unopened and it changed sessions, this card stands
+ * directly under the session hero: one sentence (how many sessions changed and the next key session), the link
  * that opens the brief, and the undo of the update. Undo is the revision's own control: it asks
  * the server what undoing would change and applies it only on a second tap. A review that is due
  * gets its link beside the card. Opening the brief marks it seen and the line goes back to its
