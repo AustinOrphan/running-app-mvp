@@ -13,6 +13,7 @@ import { ACTIVITY_PAGE_TEMPLATES } from './activityPage.ts'
 import { BRIEF_TEMPLATES } from './briefTemplates.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { DISTANCE_ESTIMATE_TEMPLATES } from './distanceEstimate.ts'
+import { ERROR_TEMPLATES } from './errors.ts'
 import { EXECUTION_TEMPLATES } from './execution.ts'
 import { FUEL_UI_TEMPLATES } from './fuelUi.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
@@ -72,6 +73,7 @@ export const TEMPLATES = {
   ...STRENGTH_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,
   ...SETTINGS_TEMPLATES,
+  ...ERROR_TEMPLATES,
   ...STRENGTH_PAGE_TEMPLATES,
   ...STRENGTH_REVIEW_TEMPLATES,
   ...PAGE_TEMPLATES,

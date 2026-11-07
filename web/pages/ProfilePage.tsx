@@ -27,6 +27,7 @@ import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -1099,9 +1100,11 @@ export function ProfilePage() {
     return (
       <>
         <PageHeader title="Profile" />
-        <p role="alert" className={styles.error}>
-          The profile did not load. The server did not respond; reload the page to try again.
-        </p>
+        <ErrorState
+          subject="The profile"
+          onRetry={() => profile.refetch()}
+          retrying={profile.isFetching}
+        />
       </>
     )
   }

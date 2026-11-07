@@ -16,6 +16,7 @@ import { useSettings } from '../api/settings.ts'
 import { ActivateConfirm } from '../components/ActivateConfirm.tsx'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
 import { localiseEngineText } from '../components/engineText.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
@@ -879,9 +880,7 @@ export function GoalsPage() {
   let body
   if (goals.isError) {
     body = (
-      <p role="alert" className={styles.error}>
-        Goals did not load. The server did not respond; reload the page to try again.
-      </p>
+      <ErrorState subject="Goals" onRetry={() => goals.refetch()} retrying={goals.isFetching} />
     )
   } else if (goals.isPending) {
     body = <Skeleton lines={4} />

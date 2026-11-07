@@ -9,6 +9,7 @@ import { useLogout } from '../api/auth.ts'
 import { fieldErrors } from '../api/client.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
 import { Field, Input } from '../components/Field.tsx'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -282,9 +283,11 @@ export function SettingsPage() {
     return (
       <>
         <PageHeader title="Settings" />
-        <p role="alert" className={styles.alert}>
-          Settings did not load. The server did not respond; reload the page to try again.
-        </p>
+        <ErrorState
+          subject="Settings"
+          onRetry={() => settings.refetch()}
+          retrying={settings.isFetching}
+        />
       </>
     )
   }

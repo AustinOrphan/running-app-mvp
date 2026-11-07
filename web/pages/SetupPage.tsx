@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useSetup, useSetupStatus } from '../api/auth.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
 import { Field, Input } from '../components/Field.tsx'
 import { PasswordInput } from '../components/PasswordInput.tsx'
 import styles from './SetupPage.module.css'
@@ -32,9 +33,7 @@ export function SetupPage() {
   if (status.isError) {
     return (
       <main className={styles.page}>
-        <p role="alert" className={styles.alert}>
-          The server did not respond. Reload the page to try again.
-        </p>
+        <ErrorState subject="Setup" onRetry={() => status.refetch()} retrying={status.isFetching} />
       </main>
     )
   }
