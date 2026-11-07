@@ -126,6 +126,12 @@
 // without `ultra`: all 78 digests matched those before, so no minute, day, distance or other
 // session moved.
 //
+// Regenerated 2026-11-07 (task RF4): one digest moves, `chain first-100-mile 28`, the re-plan of the
+// race week's Monday. A taper under way is kept as the plan being replaced holds it (rules K2, G-6):
+// its post-race weeks were drawn again at 171, 321 and 368 minutes against the 72, 162 and 180 of the
+// plan before, and are now those of the plan before. The 141 other digests are those of the
+// regeneration before; no plan built whole (no stored plan) meets the change.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

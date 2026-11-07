@@ -56,6 +56,63 @@ describe('the race week, stored and re-planned with nothing new [rules g-6, K2]'
   )
 })
 
+describe('a taper under way, stored and re-planned with nothing new [rules K2, G-6]', () => {
+  // The taper under way was drawn again at each re-plan from the level the runner starts from, the
+  // median of the last weeks with a run, which moves with every week run. The race week of a marathon
+  // went from 115 to 132 minutes at the re-plan of the week before it (found by the review of RF3 and
+  // recorded as older than it), 106 minutes to run against 119, with nothing new; a first 100-mile's
+  // post-race weeks went from 72, 162 and 180 to 171, 321 and 368 at the re-plan of its race week
+  // (RF4). A re-plan of a taper under way keeps the taper, race and post-race weeks the plan being
+  // replaced holds, and a second, a third and a fourth pass give the plan back.
+  const NOT_RUNS = ['strength', 'mobility', 'rest', 'race', 'hike', 'cross']
+  const toCome = (draft: PlanDraft, monday: string, from: string): number =>
+    draft.sessions
+      .filter((s) => mondayOf(s.date) === monday && s.date >= from && !NOT_RUNS.includes(s.kind))
+      .reduce((sum, s) => sum + s.durationMin, 0)
+
+  it.each(['marathon', 'masters', 'hot-race', 'first-100-mile'])(
+    'plans no more of %s than the plan before at each Monday re-plan of the taper',
+    (id) => {
+      const steps = replanSteps(id)
+      const taperStart = steps[0]!.draft.weeks.find((w) => w.isTaper)!.weekStart
+      let compared = 0
+      steps.forEach((step, k) => {
+        if (k === 0 || mondayOf(step.input.today) < taperStart) return
+        const before = steps[k - 1]!
+        for (const week of step.draft.weeks) {
+          if (week.weekStart < mondayOf(step.input.today)) continue
+          if (!(week.isTaper || week.phase === 'race' || week.flags.includes('post-race'))) continue
+          const was = before.draft.weeks.find((w) => w.weekStart === week.weekStart)
+          if (was === undefined) continue
+          const label = `${id}, re-plan of ${step.input.today}, week of ${week.weekStart}`
+          compared += 1
+          expect(week.targetRunMin, label).toBeLessThanOrEqual(was.targetRunMin)
+          expect(toCome(step.draft, week.weekStart, step.input.today), label).toBeLessThanOrEqual(
+            toCome(before.draft, week.weekStart, step.input.today),
+          )
+        }
+      })
+      expect(compared).toBeGreaterThan(3)
+    },
+  )
+
+  it.each(['marathon', 'masters', 'hot-race'])(
+    'gives the plan of %s back on the Monday of the last taper week before the race week, pass after pass',
+    (id) => {
+      const steps = replanSteps(id)
+      const raceMonday = mondayOf(steps[0]!.input.goal.date)
+      const step = steps.find((s) => mondayOf(s.input.today) === addDays(raceMonday, -7))!
+      expect(step).toBeDefined()
+      let { input, draft } = { input: step.input, draft: step.draft }
+      for (let pass = 2; pass <= 4; pass += 1) {
+        const next = again(input, draft)
+        expect(next.draft, `pass ${String(pass)}`).toEqual(step.draft)
+        ;({ input, draft } = next)
+      }
+    },
+  )
+})
+
 describe('the race week re-planned on a day of it, stored and re-planned again [rules g-6, K2, K6]', () => {
   // A long race's day before is cut to a shake-out from its share of the week. The week in progress
   // is bounded by the minutes its replaced plan still has, so the run must count at its share, or each

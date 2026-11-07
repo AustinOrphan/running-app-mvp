@@ -2029,9 +2029,20 @@ things stand" gives counts and percentages without a weekly total or a date.
       with G-1 is), and the other cases #621 lists under "Still pinned, and RF4": mid-week re-plans
       of a taper in progress and of plain plans that fail the `taper` and `tid` items in the
       reviewers' harness (unverified against a stored plan), the erosion of a held plan's recovery
-      week, the 31 mid-week re-plans of the day grid that hold a taper or race week 2 to 7 minutes
-      above its row, the `tid` item of the reds-hold Tuesday chain, and the start path of a floor
-      restart, which carries no recovery week. The simulator's fixed point at the first week of a
+      week, the `tid` item of the reds-hold Tuesday chain, and the start path of a floor
+      restart, which carries no recovery week. Done in RF4 (scoped to the cases that plan more than
+      the stored plan): the 31 mid-week re-plans of the day grid that held a taper or race week 2 to 7
+      minutes above its row, and the race week of the marathon, masters and hot-race athletes that
+      went from 115 to 132 minutes at the re-plan of the week before it (and a first 100-mile's
+      post-race weeks, 72, 162 and 180 to 171, 321 and 368, at the re-plan of its race week). One
+      cause: a taper under way was drawn again at each re-plan from the level the runner starts
+      from, which moves with every week run. `macro.ts` now keeps a taper or race week of the plan
+      being replaced at its row, for the same race and where no window touched it, and bounds the
+      post-race weeks by their rows; the day grid has none above its row. The residual that plans
+      less than the stored plan stays recorded: in the weekly chains of the matrix, 727 weeks of
+      re-plans made in a taper under way were compared with the plan before; no taper or race week
+      differs, and 112 post-race weeks are drawn lower than the plan before (the moving level, in the
+      conservative direction, G6). The simulator's fixed point at the first week of a
       start path and at a held week a window touches stays a `test.fails` beside them.
     - The K2 final-week question: the marathon's final-week decrease is now K2's own figure (0.35 /
       0.55 gives about 36%; the plan report reads 36.5% for the marathon, masters and hot-race
