@@ -106,7 +106,7 @@ test('enters two points and reads their arrival ranges, the cutoff and the finis
   await expect(b.getByText(/of descent, shown and not counted/)).toBeVisible()
   await expect(b.getByText(/^Cutoff 03:00 the next day$/)).toBeVisible()
   const finish = list.getByRole('article', { name: 'Finish' })
-  await expect(finish.getByText(/^About /)).toBeVisible()
+  await expect(finish.getByText(/^About \d\d:\d\d/)).toBeVisible()
   // grams to carry for an aided race, labelled an estimate
   await expect(a.getByText(/^Carry about \d+ to \d+ g of carbohydrate\.$/)).toBeVisible()
   await expect(page.getByText(/Grams to carry are an estimate/)).toBeVisible()
