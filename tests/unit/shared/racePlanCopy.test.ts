@@ -448,6 +448,60 @@ describe('the words of the checkpoint table', () => {
     expect(none).toMatch(/holds no course climb/)
   })
 
+  it('says one time, not a range from a time to itself, when both ends are the same', () => {
+    // With no prediction the expected time is the goal's own, so the ends are equal.
+    const clock = racePlanFor(input({ checkpoints: POINTS, prediction: null }))
+    const elapsed = racePlanFor(
+      input({ checkpoints: POINTS, prediction: null, goal: goal({ startTime: null }) }),
+    )
+    for (const units of UNITS) {
+      for (const plan of [clock, elapsed]) {
+        // The finish row is the expected time itself, so its two ends are one value.
+        const finish = describeRacePoints(plan, units).rows.at(-1)
+        expect(finish?.arrival).not.toMatch(/ to /)
+        expect(finish?.arrival).toMatch(/^About /)
+      }
+    }
+    const finishClock = describeRacePoints(clock, 'km').rows.at(-1)?.arrival ?? ''
+    expect(finishClock).toMatch(/^About \d\d:\d\d( the next day| on day \d)?$/)
+    expect(describeRacePoints(elapsed, 'km').rows.at(-1)?.arrival).toBe('About 30 h into the race')
+    // A real range keeps its two ends.
+    expect(describeRacePoints(WITH_ROWS[0]![1], 'km').rows.at(-1)?.arrival).toMatch(/ to /)
+  })
+
+  it('leaves out a carry line that rounds to 0 g and a climb line that rounds to 0 m', () => {
+    const tiny = racePlanFor(
+      input({
+        goal: goal({ gainM: 3 }),
+        checkpoints: [
+          { name: 'Checkpoint A', distanceM: 20, gainM: null, lossM: null, cutoffSec: null },
+        ],
+      }),
+    )
+    const rows = describeRacePoints(tiny, 'km').rows
+    expect(rows[0]?.carry).toBeNull()
+    expect(rows[0]?.climb).toBeNull()
+    expect(rows.at(-1)?.carry).toMatch(/^Carry about \d+ to \d+ g of carbohydrate\.$/)
+    for (const units of UNITS) {
+      for (const row of describeRacePoints(tiny, units).rows) {
+        expect(row.carry ?? '').not.toMatch(/about 0 to 0/)
+        expect(row.climb ?? '').not.toMatch(/About 0 (m|ft)/)
+      }
+    }
+    // An entered climb of 1 m is said; the 3 m left over rounds to 0 and is not.
+    const rounded = racePlanFor(
+      input({
+        goal: goal({ gainM: 4 }),
+        checkpoints: [
+          { name: 'Checkpoint A', distanceM: 80_467, gainM: 1, lossM: null, cutoffSec: null },
+        ],
+      }),
+    )
+    const [first, second] = describeRacePoints(rounded, 'km').rows
+    expect(first?.climb).toBe('1 m of climb, as entered.')
+    expect(second?.climb).toBeNull()
+  })
+
   it('has an editor whose words follow the support level and the room left', () => {
     const aided = describeRacePointsEditor({ supportLevel: 'aided' }, 'km')
     const self = describeRacePointsEditor({ supportLevel: 'self' }, 'mi')

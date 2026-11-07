@@ -261,6 +261,12 @@ export const RACE_PLAN_TEMPLATES = {
     { distance: 'distance' },
     { shape: 'label' },
   ),
+  'race.plan.points.arrival-clock-at': tpl('About {at}', { at: 'text' }, { shape: 'label' }),
+  'race.plan.points.arrival-elapsed-at': tpl(
+    'About {at} into the race',
+    { at: 'duration' },
+    { shape: 'label' },
+  ),
   'race.plan.points.arrival-clock': tpl(
     'About {from} to {to}',
     { from: 'text', to: 'text' },
@@ -887,6 +893,44 @@ export function describeRacePoints(plan: RacePlan, units: Units): RacePointsText
   }
 }
 
+/** The arrival range, or one time when both ends are the same (a plan with no prediction). */
+function arrivalText(row: SplitRow, units: Units): string {
+  if (row.clock === null) {
+    return row.lowSec === row.highSec
+      ? say(T['race.plan.points.arrival-elapsed-at'], { at: duration(row.lowSec) }, units)
+      : say(
+          T['race.plan.points.arrival-elapsed'],
+          { from: duration(row.lowSec), to: duration(row.highSec) },
+          units,
+        )
+  }
+  const from = clockText(row.clock.from)
+  const to = clockText(row.clock.to)
+  return from === to
+    ? say(T['race.plan.points.arrival-clock-at'], { at: from }, units)
+    : say(T['race.plan.points.arrival-clock'], { from, to }, units)
+}
+
+/** The climb line, chosen on the figure as it will be printed: a climb that rounds to 0 says nothing. */
+function climbText(row: SplitRow, units: Units): string | null {
+  const m = roundTo(row.gainM, row.gainEntered ? 1 : 10)
+  if (m <= 0) return null
+  return say(
+    row.gainEntered ? T['race.plan.points.climb-entered'] : T['race.plan.points.climb-shared'],
+    { climb: { kind: 'climb', m } },
+    units,
+  )
+}
+
+/** The grams to carry, each end rounded; nothing when the rounded high end is 0. */
+function carryText(row: SplitRow, units: Units): string | null {
+  if (row.carryG === null) return null
+  const low = roundTo(row.carryG[0], RACE_CARB_ROUND_G)
+  const high = roundTo(row.carryG[1], RACE_CARB_ROUND_G)
+  if (high <= 0) return null
+  return say(T['race.plan.points.carry'], { low: count(low), high: count(high) }, units)
+}
+
 function pointRowText(row: SplitRow, units: Units): RacePointRowText {
   const tags: string[] = []
   if (row.night !== null) {
@@ -912,49 +956,19 @@ function pointRowText(row: SplitRow, units: Units): RacePointRowText {
       { distance: { kind: 'distance', m: row.distanceM } },
       units,
     ),
-    arrival:
-      row.clock === null
-        ? say(
-            T['race.plan.points.arrival-elapsed'],
-            { from: duration(row.lowSec), to: duration(row.highSec) },
-            units,
-          )
-        : say(
-            T['race.plan.points.arrival-clock'],
-            { from: clockText(row.clock.from), to: clockText(row.clock.to) },
-            units,
-          ),
+    arrival: arrivalText(row, units),
     segment: say(
       T['race.plan.points.segment'],
       { distance: { kind: 'distance', m: row.segmentM } },
       units,
     ),
-    climb:
-      row.gainM <= 0
-        ? null
-        : say(
-            row.gainEntered
-              ? T['race.plan.points.climb-entered']
-              : T['race.plan.points.climb-shared'],
-            { climb: { kind: 'climb', m: roundTo(row.gainM, row.gainEntered ? 1 : 10) } },
-            units,
-          ),
+    climb: climbText(row, units),
     descent:
       row.lossM === null || row.lossM <= 0
         ? null
         : say(T['race.plan.points.descent'], { climb: { kind: 'climb', m: row.lossM } }, units),
     tags,
-    carry:
-      row.carryG === null
-        ? null
-        : say(
-            T['race.plan.points.carry'],
-            {
-              low: count(roundTo(row.carryG[0], RACE_CARB_ROUND_G)),
-              high: count(roundTo(row.carryG[1], RACE_CARB_ROUND_G)),
-            },
-            units,
-          ),
+    carry: carryText(row, units),
     cutoff,
   }
 }
