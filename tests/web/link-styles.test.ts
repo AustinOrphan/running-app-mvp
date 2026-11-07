@@ -104,5 +104,7 @@ describe('links', () => {
   test('the word Why starts at the text edge: its padding is taken back by a negative margin', () => {
     const why = read(join(root, 'components', 'ExplainButton.module.css'))
     expect(why).toMatch(/\.why \{[^}]*margin-left: calc\(var\(--space-4\) \* -1\);/)
+    // after another control it stays put, or it would lie over that control's edge and take its taps
+    expect(why).toMatch(/:is\(button, a[^)]*\) \+ \.why \{[^}]*margin-left: 0;/)
   })
 })

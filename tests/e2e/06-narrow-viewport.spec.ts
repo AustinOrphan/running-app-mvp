@@ -1294,3 +1294,66 @@ test('the first run is on the first screen of Activities at 360 px, with the dat
     true,
   )
 })
+
+test('a tap on the right edge of Decline declines, and Why after it does not cover the button', async () => {
+  const { lastWednesday, raceDate } = relativeDates()
+  await resetData()
+  await api.post('/activities', {
+    date: lastWednesday,
+    type: 'run',
+    durationSec: 45 * 60,
+    distanceM: 8047,
+  })
+  const goal = (await api.post('/goals', {
+    name: 'Edge marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+  // The server proposes no zone change for this log, so the proposal is served to the page.
+  let declined = 0
+  await page.route('**/api/zones/proposals', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    return route.fulfill({
+      json:
+        declined > 0
+          ? []
+          : [
+              {
+                id: 'zp1',
+                boundary: 'thresholdPace',
+                from: 330,
+                to: 320,
+                observations: 3,
+                reason: 'The last 3 threshold sessions felt easier than expected.',
+                rules: ['C8'],
+              },
+            ],
+    })
+  })
+  await page.route('**/api/zones/proposals/zp1/decline', async (route) => {
+    declined += 1
+    return route.fulfill({ status: 204 })
+  })
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/review')
+  const decline = page.getByRole('button', { name: /^Decline / })
+  await decline.scrollIntoViewIfNeeded()
+  const box = await decline.boundingBox()
+  expect(box).not.toBeNull()
+  const why = page.getByRole('button', { name: /^Why: .*change$/ })
+  const whyBox = await why.boundingBox()
+  // the two buttons do not overlap
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual((whyBox?.x ?? 0) + 0.5)
+  // a tap 3 px inside Decline's right edge lands on Decline
+  await page.mouse.click(
+    (box?.x ?? 0) + (box?.width ?? 0) - 3,
+    (box?.y ?? 0) + (box?.height ?? 0) / 2,
+  )
+  await expect.poll(() => declined).toBe(1)
+  await expect(page.getByRole('dialog', { name: 'Evidence' })).toHaveCount(0)
+  await page.unroute('**/api/zones/proposals')
+  await page.unroute('**/api/zones/proposals/zp1/decline')
+})

@@ -4,9 +4,15 @@
    (`--info-line`, the line height of the note's text), so the icon sits on the first line and the
    note is no taller for it. The right margin pulls the circle to the edge of the note's padding. */
 /* The word "Why": the button keeps its padding as the touch area, and the margin takes the padding
-   back, so the visible word starts at the same edge as the paragraph above it. */
+   back, so the visible word starts at the same edge as the paragraph above it. Only where the word
+   starts its row or follows text: after another control (Accept, Decline, Edit) the margin would lay
+   the Why button over that control's edge and take its taps, so there it stays put. */
 .why {
   margin-left: calc(var(--space-4) * -1);
+}
+
+:is(button, a, input, select, textarea, [role='button']) + .why {
+  margin-left: 0;
 }
 
 .info {
