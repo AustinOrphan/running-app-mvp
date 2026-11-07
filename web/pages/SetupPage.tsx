@@ -68,13 +68,9 @@ export function SetupPage() {
   return (
     <main className={styles.page}>
       <form className={styles.form} onSubmit={onSubmit} noValidate>
-        <h1>Set up your training log</h1>
+        <p className={styles.wordmark}>Running log</p>
+        <h1>Set up your log</h1>
         <p className={styles.intro}>Create the one account for this install.</p>
-        {formError !== undefined ? (
-          <p role="alert" className={styles.alert}>
-            {formError}
-          </p>
-        ) : null}
         <Field label="Email" error={errors['email']}>
           {(control) => (
             <Input
@@ -130,6 +126,13 @@ export function SetupPage() {
             />
           )}
         </Field>
+        <div className={styles.alertSlot}>
+          {formError !== undefined ? (
+            <p role="alert" className={styles.alert}>
+              {formError}
+            </p>
+          ) : null}
+        </div>
         <Button type="submit" variant="primary" loading={setup.isPending}>
           Create account
         </Button>

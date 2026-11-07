@@ -29,7 +29,7 @@ describe('SetupPage', () => {
     const { container } = renderWithProviders(<Pages />, { route: '/setup' })
     const typist = userEvent.setup()
 
-    await screen.findByRole('heading', { name: 'Set up your training log' })
+    await screen.findByRole('heading', { name: 'Set up your log' })
     await typist.type(screen.getByLabelText('Email'), 'runner@example.com')
     await typist.type(screen.getByLabelText('Password'), 'a-long-enough-pass')
     await typist.type(screen.getByLabelText('Confirm password'), 'a-different-pass')
@@ -66,7 +66,7 @@ describe('SetupPage', () => {
     renderWithProviders(<Pages />, { route: '/setup' })
     const typist = userEvent.setup()
 
-    await screen.findByRole('heading', { name: 'Set up your training log' })
+    await screen.findByRole('heading', { name: 'Set up your log' })
     const password = screen.getByLabelText('Password')
     expect(password).toHaveAccessibleDescription('At least 12 characters.')
 
@@ -103,7 +103,7 @@ describe('SetupPage', () => {
     renderWithProviders(<Pages />, { route: '/setup' })
     const typist = userEvent.setup()
 
-    await screen.findByRole('heading', { name: 'Set up your training log' })
+    await screen.findByRole('heading', { name: 'Set up your log' })
     expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'password')
     await typist.click(screen.getByRole('button', { name: 'Show passwords' }))
     expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'text')
@@ -152,6 +152,14 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
     expect(screen.getByLabelText('Email')).toHaveValue('runner@example.com')
+    // the refusal is announced and sits under the password, so no field moves when it appears
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Invalid email or password')
+    expect(
+      screen.getByLabelText('Password').compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(screen.getByText('Running log')).toBeInTheDocument()
 
     await typist.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(

@@ -8,7 +8,7 @@ test('a fresh database sends visitors to setup, then setup, sign out and sign in
 }) => {
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup$/)
-  await expect(page.getByRole('heading', { name: 'Set up your training log' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Set up your log' })).toBeVisible()
 
   await page.getByLabel('Email').fill(RUNNER.email)
   await page.getByLabel('Display name (optional)').fill('Test Runner')
@@ -31,8 +31,12 @@ test('a fresh database sends visitors to setup, then setup, sign out and sign in
 
   await page.getByLabel('Email').fill(RUNNER.email)
   await page.getByLabel('Password').fill('not the right password')
+  const fieldTop = async () => (await page.getByLabel('Email').boundingBox())?.y
+  const before = await fieldTop()
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByRole('alert')).toHaveText('Invalid email or password')
+  // the refusal has its own line under the password: the fields stay where they were
+  expect(await fieldTop()).toBe(before)
 
   await page.getByLabel('Password').fill(RUNNER.password)
   await page.getByRole('button', { name: 'Sign in' }).click()

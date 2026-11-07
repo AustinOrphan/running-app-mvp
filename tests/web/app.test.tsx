@@ -16,9 +16,7 @@ describe('App routing', () => {
       'GET /api/auth/me': () => signedOut,
     })
     renderWithProviders(<App />)
-    expect(
-      await screen.findByRole('heading', { name: 'Set up your training log' }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Set up your log' })).toBeInTheDocument()
   })
 
   test('goes to login when set up but signed out', async () => {
