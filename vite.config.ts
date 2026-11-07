@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { researchTrimPlugin } from './web/researchTrim.ts'
 import { serviceWorkerPlugin } from './web/sw/buildSw.ts'
 import { precompressPlugin } from './web/sw/precompress.ts'
 
@@ -7,7 +8,7 @@ export default defineConfig({
   root: 'web',
   // The service worker is written into the build after the bundle (ADR 0012); the compressed copies
   // come last, so they include the worker and the worker's file list does not.
-  plugins: [react(), serviceWorkerPlugin(), precompressPlugin()],
+  plugins: [react(), researchTrimPlugin(), serviceWorkerPlugin(), precompressPlugin()],
   build: {
     outDir: '../dist/web',
     emptyOutDir: true,

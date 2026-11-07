@@ -501,7 +501,6 @@ describe('citations', () => {
     topics: [],
     findings: [],
     limitations: '',
-    implications: [],
   }
 
   test('a short citation keeps a multi-word surname and drops the initials', () => {
