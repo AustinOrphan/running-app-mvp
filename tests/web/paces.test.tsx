@@ -10,7 +10,14 @@ import { buildZones } from '../../shared/engine/zones.ts'
 import type { MyPacesView, Units, UserSettings } from '../../shared/types.ts'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { MyPacesPage } from '../../web/pages/MyPacesPage.tsx'
-import { paces, profileFixture, RUNS, stateWith, TODAY } from '../unit/engine/myPacesFixtures.ts'
+import {
+  paces,
+  profileFixture,
+  run,
+  RUNS,
+  stateWith,
+  TODAY,
+} from '../unit/engine/myPacesFixtures.ts'
 import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 
 function settings(units: Units): UserSettings {
@@ -88,7 +95,7 @@ describe('MyPacesPage: the easy pace', () => {
       .map((term) => term.textContent)
     expect(terms).toEqual([
       'Cool and flat',
-      `Hot day, WBGT ${String(P.i9.warnWbgtC.value)} °C`,
+      `Hot day, WBGT ${String(P.i9.warnWbgtC.value)} °C, default heat rise`,
       `Climb of ${String(P.c9.exampleGradePct.value)}%`,
     ])
     expect(within(easy).getAllByRole('definition')).toHaveLength(3)
@@ -120,6 +127,31 @@ describe('MyPacesPage: the easy pace', () => {
       within(easy).getByText(
         `A pace from your own heart rate needs ${String(P.hrModel.minQualifyingRuns.value)} steady, flat runs with heart rate in ${String(P.hrModel.windowWeeks.value)} weeks. 3 so far.`,
       ),
+    ).toBeInTheDocument()
+  })
+
+  test('says a line that cannot be read yet leaves zone 1 standing in, and names a default heat rise', async () => {
+    // nine runs, all at 140 bpm whatever the speed: a flat line
+    const flat = Array.from({ length: 9 }, (_, i) => run(i, 3 + i * 0.005, {}, 140))
+    const { routes } = serve(stateWith(FITNESS), flat)
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const easy = await screen.findByRole('region', { name: 'Easy pace' })
+    expect(
+      within(easy).getByText(/^Your heart-rate line does not give an easy pace yet/),
+    ).toBeInTheDocument()
+    expect(within(easy).queryByText(/default heat rise/)).toBeNull()
+  })
+
+  test('says in the disclosure that the heat rise is a default until hot runs of the runner exist', async () => {
+    const user = userEvent.setup()
+    const { routes } = serve()
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const easy = await screen.findByRole('region', { name: 'Easy pace' })
+    await user.click(within(easy).getByText('How this is made'))
+    expect(
+      within(easy).getByText(/^The hot day uses a default rise of heart rate with heat/),
     ).toBeInTheDocument()
   })
 
@@ -220,13 +252,13 @@ describe('MyPacesPage: what you can run now', () => {
     expect(
       within(ten).getByText(/^From your 10 km on 14 Mar and your critical speed\.$/),
     ).toBeInTheDocument()
-    expect(within(ten).getByText('Evidence grade C')).toBeInTheDocument()
+    expect(within(ten).getByText('Evidence grade D')).toBeInTheDocument()
     // the fifty: wide on purpose, and a source from critical speed only
     const fifty = within(events).getByRole('article', { name: '50 km' })
     expect(
       within(fifty).getByText('The range is wide on purpose at this length.'),
     ).toBeInTheDocument()
-    expect(within(events).getByText(/^Grade C: /)).toBeInTheDocument()
+    expect(within(events).getByText(/^Grade D: /)).toBeInTheDocument()
   })
 
   test('says a distance the data cannot support is not predicted yet', async () => {
@@ -263,6 +295,32 @@ describe('MyPacesPage: what you can run now', () => {
       expect(within(events).queryByRole('article', { name: '15.00 km' })).toBeNull()
     })
     expect(within(events).getByLabelText('Distance (km)')).toHaveValue('')
+  })
+
+  test('keeps the page when the course does not load, and says so in its row', async () => {
+    const user = userEvent.setup()
+    const { routes } = serve()
+    mockApi({
+      ...routes,
+      'GET /api/paces': ({ query }) =>
+        query.get('distanceM') === null
+          ? (routes['GET /api/paces'] as (r: { query: URLSearchParams }) => unknown)({ query })
+          : { status: 500, body: { error: { code: 'server' } } },
+    })
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const events = await screen.findByRole('region', { name: 'What you can run now' })
+    await user.type(within(events).getByLabelText('Distance (km)'), '15')
+    await user.click(within(events).getByRole('button', { name: 'Show paces' }))
+    expect(await within(events).findByRole('alert')).toHaveTextContent(
+      'That distance did not load. Try it again, or clear it.',
+    )
+    // the rest of the page stands, and the course can be cleared
+    expect(screen.getByRole('region', { name: 'Easy pace' })).toBeInTheDocument()
+    expect(within(events).getByRole('article', { name: '10 km' })).toBeInTheDocument()
+    await user.click(within(events).getByRole('button', { name: 'Clear' }))
+    await waitFor(() => {
+      expect(within(events).queryByRole('alert')).toBeNull()
+    })
   })
 
   test('checks the distance and the climb before asking', async () => {

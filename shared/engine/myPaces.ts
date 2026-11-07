@@ -42,8 +42,12 @@ export interface EasyPace {
   sample: { runs: number; since: string } | null
   confidence: 'moderate' | 'low'
   grade: Grade
-  /** The example hot day through the line's heat term; null unless the basis is the line. */
-  hot: { wbgtC: number; range: PaceBand } | null
+  /**
+   * The example hot day through the line's heat term; null unless the basis is the line. `own` is
+   * true when the runner has hot runs enough (`hrModel.shrinkagePriorRuns`) for the term to be
+   * theirs; with fewer it is the population default (rule I7) and the page says so.
+   */
+  hot: { wbgtC: number; range: PaceBand; own: boolean } | null
   /** The example climb through the cost of the grade. */
   climb: { gradePct: number; range: PaceBand }
   rules: string[]
@@ -160,6 +164,21 @@ function speedAtHr(model: HrModel, bpm: number): number | null {
   return Number.isFinite(speed) && speed > 0 ? speed : null
 }
 
+/**
+ * Whether the line can be read at this speed (rule C9): steep enough to say which speed meets a
+ * heart rate, inside the speeds it was fitted on widened by a margin (beyond them it extrapolates),
+ * not slower than a walk, and under critical speed or, with none, under a ceiling on easy speed.
+ */
+function lineSpeaksAt(model: HrModel, speed: number, csMps: number | null): boolean {
+  if (!(model.slopeBpmPerMps >= P.c9.lineMinSlopeBpmPerMps.value)) return false
+  const margin = P.c9.lineSpeedMargin.value
+  if (speed < model.minSpeedMps * (1 - margin) || speed > model.maxSpeedMps * (1 + margin)) {
+    return false
+  }
+  if (speed < P.c9.walkingFloorMps.value) return false
+  return csMps === null ? speed <= P.c9.maxEasySpeedMps.value : speed < csMps
+}
+
 /** The slow edge of Z1 from its fast edge, the shape of the zones' own Z1 pace range. */
 function bandFromFast(fastSecPerKm: number): PaceBand {
   return [Math.round(fastSecPerKm * P.c2.z1PaceSlowFactor.value), Math.round(fastSecPerKm)]
@@ -173,15 +192,21 @@ function hrBasedPace(
   const ceiling = ceilingOf(zones)
   if (hrModel === null || ceiling === null || sample.first === null) return null
   const speed = speedAtHr(hrModel, ceiling)
-  // An easy pace at or above critical speed is not easy: the line does not describe that range.
-  if (speed === null || (state.fitness.csMps !== null && speed >= state.fitness.csMps)) return null
+  // A line that cannot be read at the ceiling gives no pace: the zones answer instead.
+  if (speed === null || !lineSpeaksAt(hrModel, speed, state.fitness.csMps)) return null
 
   const range = bandFromFast(paceOf(speed))
   const hotWbgt = P.i9.warnWbgtC.value
-  // The line's heat term is zero only when it was never fitted to any heat; then it says nothing.
+  // The heat term is always positive (the population prior moves it by shrinkage); it is the
+  // runner's own only with hot runs of their own, and the hot figure says which.
+  const hotSpeed = speedAtHr(hrModel, ceiling - hrModel.heatBpmPerC * heatExcessC(hotWbgt))
   const hot =
-    hrModel.heatBpmPerC > 0
-      ? speedAtHr(hrModel, ceiling - hrModel.heatBpmPerC * heatExcessC(hotWbgt))
+    hotSpeed !== null && hotSpeed >= P.c9.walkingFloorMps.value
+      ? {
+          wbgtC: hotWbgt,
+          range: bandFromFast(paceOf(hotSpeed)),
+          own: hrModel.hotRuns >= P.hrModel.shrinkagePriorRuns.value,
+        }
       : null
   const factor = climbFactor()
   return {
@@ -191,8 +216,15 @@ function hrBasedPace(
     ceilingBandBpm: zones.lt1Hr === null ? null : (zones.lt1Hr.band[1] - zones.lt1Hr.band[0]) / 2,
     sample: { runs: hrModel.runs, since: sample.first },
     confidence: zones.lt1Hr?.source === 'hrmax-age' ? 'low' : 'moderate',
-    grade: lowestGrade(gradesOf([P.hrModel.minQualifyingRuns, P.c2.z1PaceSlowFactor])),
-    hot: hot === null ? null : { wbgtC: hotWbgt, range: bandFromFast(paceOf(hot)) },
+    grade: lowestGrade(
+      gradesOf([
+        P.hrModel.minQualifyingRuns,
+        P.c2.z1PaceSlowFactor,
+        P.c9.lineSpeedMargin,
+        P.c9.lineMinSlopeBpmPerMps,
+      ]),
+    ),
+    hot,
     climb: { gradePct: P.c9.exampleGradePct.value, range: scaleBand(range, factor) },
     rules: ['C9', 'C2', 'C4', 'A8', 'I11', ...(hot === null ? [] : ['I7', 'I9'])].sort(),
   }
@@ -224,16 +256,55 @@ function zoneBasedPace(zones: ZoneSet): EasyPace | null {
 const RACE_METHODS = new Set(['personal-exponent', 'riegel', 'same-distance', 'single-anchor'])
 const CS_METHODS = new Set(['critical-speed', 'cs-durability', 'cs-fraction'])
 
-/** The Params a method of `predictFromState` stands on, for its grade. */
+/** The Params of the critical-speed fit of rule A6 that every critical-speed method reads. */
+const CS_FIT_PARAMS: ReadonlyArray<Param<unknown>> = [
+  P.a6.csMinEfforts,
+  P.a6.csMinDistanceM,
+  P.a6.csMaxDistanceM,
+  P.a6.csWindowDays,
+  P.a6.csBandInnerEdgesM,
+  P.a6.csMinTimeSpreadRatio,
+]
+
+/**
+ * The Params a method of `predictFromState` reads, for its grade: the ones named in the method and
+ * the ones of the fit it stands on (the race exponent of A6, the critical-speed fit of A6). A grade
+ * D default among them sets the grade of the figure, so the grade is the lowest of all.
+ */
 const METHOD_PARAMS: Record<string, ReadonlyArray<Param<unknown>>> = {
-  'personal-exponent': [P.l1.personalExponentMinRaces],
-  riegel: [P.l1.riegelExponent],
-  'same-distance': [P.l1.sameDistanceTolerancePct],
-  'single-anchor': [P.l2.singleAnchorSlowdownPct],
-  'critical-speed': [P.l1.csExtrapolationMaxMin],
-  'cs-durability': [P.l2.csFractionLowDecoupling],
-  'cs-fraction': [P.l2.csFractionAt150Min],
+  'personal-exponent': [
+    P.l1.personalExponentMinRaces,
+    P.a6.exponentMinRaces,
+    P.a6.exponentMinDistanceRatio,
+    P.a6.exponentPlausible,
+  ],
+  riegel: [P.l1.riegelExponent, P.l1.riegelMaxTargetM],
+  'same-distance': [P.l1.sameDistanceTolerancePct, P.l1.riegelExponent],
+  'single-anchor': [P.l2.singleAnchorSlowdownPct, P.l2.singleAnchorMaxM, P.l1.riegelExponent],
+  'critical-speed': [P.l1.csExtrapolationMaxMin, ...CS_FIT_PARAMS],
+  'cs-durability': [
+    P.l2.csFractionLowDecoupling,
+    P.l2.csFractionHighDecoupling,
+    P.l2.decouplingLowBelow,
+    P.l2.decouplingHighFrom,
+    ...CS_FIT_PARAMS,
+  ],
+  'cs-fraction': [
+    P.l2.csFractionAt60Min,
+    P.l2.csFractionAt150Min,
+    P.l2.csFractionAt360Min,
+    P.l4.csFractionFloor,
+    ...CS_FIT_PARAMS,
+  ],
 }
+
+/** The Params that widen or move a range beyond its method (rules L3, L5). */
+const SINGLE_SOURCE_PARAMS = [P.l3.singleSourceWideningPct, P.l3.minSources]
+const CLIMB_PARAMS = [
+  P.l5.gainEquivalentM,
+  P.l5.trailIntervalWideningPct,
+  P.l5.gainWideningPctPerMPerKm,
+]
 
 function rowOf(spec: EventSpec, state: AthleteState, prediction: Prediction | null): EventRow {
   const label = rangeLabel(spec)
@@ -280,7 +351,8 @@ function rowOf(spec: EventSpec, state: AthleteState, prediction: Prediction | nu
       ...gradesOf(methods.flatMap((m) => METHOD_PARAMS[m] ?? [])),
       // The floor of the interval is set by the distance (L2, L4, L6).
       label.grade,
-      ...(spec.gainM > 0 ? gradesOf([P.l5.gainEquivalentM]) : []),
+      ...(prediction.rules.includes('L3') ? gradesOf(SINGLE_SOURCE_PARAMS) : []),
+      ...(spec.gainM > 0 ? gradesOf(CLIMB_PARAMS) : []),
     ]),
     wide: label.wide,
     singleSource: prediction.rules.includes('L3'),

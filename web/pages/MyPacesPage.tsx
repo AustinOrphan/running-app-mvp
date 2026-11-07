@@ -28,7 +28,7 @@ export function MyPacesPage() {
   const online = useOnline()
   const [course, setCourse] = useState<CustomCourse | null>(null)
   const settings = useSettings()
-  const paces = useMyPaces(course)
+  const { paces, custom } = useMyPaces(course)
   const title = pacesText('paces.title')
   const context = pacesText('paces.context')
 
@@ -75,11 +75,13 @@ export function MyPacesPage() {
         <EasyPaceSection easy={view.easy} units={units} />
         <ZonesSection units={units} />
         <EventsSection
-          view={view}
+          events={view.events}
           units={units}
           course={course}
           onCourse={setCourse}
-          busy={paces.isPlaceholderData}
+          custom={course === null ? null : (custom.data ?? null)}
+          customFailed={course !== null && custom.isError}
+          busy={course !== null && custom.isFetching}
         />
         <TestSection test={view.test} units={units} thin={thin} />
       </div>

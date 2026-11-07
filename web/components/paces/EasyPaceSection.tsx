@@ -4,6 +4,7 @@ import { gradeLegend } from '../../../shared/copy/grades.ts'
 import { PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
 import { render } from '../../../shared/copy/template.ts'
 import type { EasyPace, MyPaces } from '../../../shared/engine/myPaces.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import type { Units } from '../../../shared/types.ts'
 import { GradeBadge } from '../GradeBadge.tsx'
 import { HowMade } from './HowMade.tsx'
@@ -48,10 +49,23 @@ function confidenceLine(pace: EasyPace, units: Units): string {
 }
 
 /** What the figures are made from, one sentence each, with the rule it comes from. */
-function howLines(pace: EasyPace): string[] {
+function howLines(pace: EasyPace, units: Units): string[] {
+  const heat =
+    pace.hot === null
+      ? []
+      : [
+          pace.hot.own
+            ? pacesText('paces.easy.how-heat-own')
+            : render(
+                T['paces.easy.how-heat-default'],
+                { n: { kind: 'count', n: P.hrModel.shrinkagePriorRuns.value } },
+                units,
+              ),
+        ]
   return [
     pacesText(pace.basis === 'hr-model' ? 'paces.easy.how-hr' : 'paces.easy.how-zones'),
-    pacesText('paces.easy.how-scenarios'),
+    ...heat,
+    pacesText('paces.easy.how-climb'),
     pacesText('paces.easy.how-grade'),
   ]
 }
@@ -141,7 +155,7 @@ export function EasyPaceSection({ easy, units }: EasyPaceSectionProps) {
                 {pace.hot === null ? null : (
                   <Scenario
                     label={render(
-                      T['paces.easy.row-hot'],
+                      T[pace.hot.own ? 'paces.easy.row-hot' : 'paces.easy.row-hot-default'],
                       { wbgt: { kind: 'temp', c: pace.hot.wbgtC } },
                       units,
                     )}
@@ -166,21 +180,23 @@ export function EasyPaceSection({ easy, units }: EasyPaceSectionProps) {
           </div>
           {pace.basis !== 'hr-model' && easy.hr.ceiling ? (
             <p className={styles.note}>
-              {render(
-                T['paces.easy.upgrade'],
-                {
-                  need: { kind: 'count', n: easy.hr.need },
-                  weeks: { kind: 'count', n: easy.hr.windowWeeks },
-                  have: { kind: 'count', n: easy.hr.runs },
-                },
-                units,
-              )}
+              {easy.hr.runs >= easy.hr.need
+                ? pacesText('paces.easy.line-unclear')
+                : render(
+                    T['paces.easy.upgrade'],
+                    {
+                      need: { kind: 'count', n: easy.hr.need },
+                      weeks: { kind: 'count', n: easy.hr.windowWeeks },
+                      have: { kind: 'count', n: easy.hr.runs },
+                    },
+                    units,
+                  )}
             </p>
           ) : null}
         </>
       )}
       <HowMade
-        lines={pace === null ? [pacesText('paces.easy.how-zones')] : howLines(pace)}
+        lines={pace === null ? [pacesText('paces.easy.how-zones')] : howLines(pace, units)}
         subject="the easy pace"
         rules={pace === null ? ['C9', 'C2', 'C4', 'A8'] : pace.rules}
       />

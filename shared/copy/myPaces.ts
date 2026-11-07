@@ -47,6 +47,11 @@ export const PACES_TEMPLATES = {
   ),
   'paces.easy.row-cool': tpl('Cool and flat', {}, { shape: 'label' }),
   'paces.easy.row-hot': tpl('Hot day, WBGT {wbgt}', { wbgt: 'temp' }, { shape: 'label' }),
+  'paces.easy.row-hot-default': tpl(
+    'Hot day, WBGT {wbgt}, default heat rise',
+    { wbgt: 'temp' },
+    { shape: 'label' },
+  ),
   'paces.easy.row-climb': tpl('Climb of {grade}', { grade: 'percent' }, { shape: 'label' }),
   'paces.easy.scenarios': tpl(
     'Heat lifts your heart rate at the same pace, and a climb costs more for the same speed, so both slow the pace that keeps you easy.',
@@ -57,6 +62,9 @@ export const PACES_TEMPLATES = {
   'paces.easy.upgrade': tpl(
     'A pace from your own heart rate needs {need} steady, flat runs with heart rate in {weeks} weeks. {have} so far.',
     { need: 'count', weeks: 'count', have: 'count' },
+  ),
+  'paces.easy.line-unclear': tpl(
+    'Your heart-rate line does not give an easy pace yet, because your runs cover a narrow range of speeds. Zone 1 stands in.',
   ),
   'paces.easy.none-heading': tpl('No easy pace yet', {}, { shape: 'label' }),
   'paces.easy.none-hr': tpl(
@@ -75,9 +83,14 @@ export const PACES_TEMPLATES = {
   'paces.easy.how-zones': tpl(
     'The range is zone 1 of your zones (C2, C4): a share of critical speed, or the threshold pace on your profile.',
   ),
-  'paces.easy.how-scenarios': tpl(
-    'The hot day moves the line by your own heat term (A8, I7) at the heat limit of the plan (I9). The climb uses the cost of running on a grade (I11).',
+  'paces.easy.how-heat-own': tpl(
+    'The hot day moves the line by your own heat term (A8, I7) at the heat limit of the plan (I9).',
   ),
+  'paces.easy.how-heat-default': tpl(
+    'The hot day uses a default rise of heart rate with heat (I7, I9) until you have {n} hot runs of your own.',
+    { n: 'count' },
+  ),
+  'paces.easy.how-climb': tpl('The climb uses the cost of running on a grade (I11).'),
   'paces.easy.how-grade': tpl(
     'This is a grade D default (C9): a working range to run by, not a measured threshold.',
   ),
@@ -125,7 +138,7 @@ export const PACES_TEMPLATES = {
     'One source widens the range (L3), and no range is narrower than its minimum (L6).',
   ),
   'paces.events.how-climb': tpl('Climb counts as flat distance, and trail widens the range (L5).'),
-  'paces.events.how-grade': tpl('The grade is the lowest among the Params of the method used.'),
+  'paces.events.how-grade': tpl('The grade is the lowest among the Params the figure reads.'),
   'paces.events.no-weather': tpl('No weather is applied: heat on the day would slow these.'),
 
   // A course of your own
@@ -136,6 +149,7 @@ export const PACES_TEMPLATES = {
   'paces.custom.clear': tpl('Clear', {}, { shape: 'label' }),
   'paces.custom.distance-error': tpl('Enter a distance, like 12.5.'),
   'paces.custom.climb-error': tpl('Enter whole metres, like 400.'),
+  'paces.custom.load-error': tpl('That distance did not load. Try it again, or clear it.'),
   'paces.custom.range-error': tpl('That distance is out of range.'),
 
   // The test the engine supports

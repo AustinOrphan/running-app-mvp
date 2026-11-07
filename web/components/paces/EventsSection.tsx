@@ -3,7 +3,7 @@ import { gradeLegend } from '../../../shared/copy/grades.ts'
 import { pacesText } from '../../../shared/copy/myPaces.ts'
 import type { EventRow } from '../../../shared/engine/myPaces.ts'
 import type { Grade } from '../../../shared/engine/types.ts'
-import type { MyPacesView, Units } from '../../../shared/types.ts'
+import type { Units } from '../../../shared/types.ts'
 import type { CustomCourse as Course } from '../../api/paces.ts'
 import { CustomCourse } from './CustomCourse.tsx'
 import { EventCard } from './EventCard.tsx'
@@ -11,10 +11,14 @@ import { HowMade } from './HowMade.tsx'
 import styles from './Paces.module.css'
 
 export interface EventsSectionProps {
-  view: MyPacesView
+  events: readonly EventRow[]
   units: Units
   course: Course | null
   onCourse: (course: Course | null) => void
+  /** The row of the course the runner named; null until it answers. */
+  custom: EventRow | null
+  /** The request for the course failed; the rest of the page stands. */
+  customFailed: boolean
   /** The answer for a new course is on its way; the previous one stays on screen. */
   busy: boolean
 }
@@ -29,10 +33,18 @@ function gradesShown(rows: readonly EventRow[]): Grade[] {
  * range with its basis and the grade of its method, and no goal needed. One legend under the cards
  * says what the grades mean; one disclosure traces the figures to their rules.
  */
-export function EventsSection({ view, units, course, onCourse, busy }: EventsSectionProps) {
+export function EventsSection({
+  events,
+  units,
+  course,
+  onCourse,
+  custom,
+  customFailed,
+  busy,
+}: EventsSectionProps) {
   const headingId = useId()
   const customId = useId()
-  const rows = view.custom === null ? view.events : [...view.events, view.custom]
+  const rows = custom === null ? events : [...events, custom]
   const rules = [...new Set(['C9', 'L1', 'L6', ...rows.flatMap((row) => row.rules)])]
   return (
     <section id="events" className={styles.section} aria-labelledby={headingId}>
@@ -41,7 +53,7 @@ export function EventsSection({ view, units, course, onCourse, busy }: EventsSec
       </h2>
       <p className={styles.note}>{pacesText('paces.events.context')}</p>
       <ul className={styles.cards} aria-label={pacesText('paces.events.heading')}>
-        {view.events.map((row) => (
+        {events.map((row) => (
           <li key={row.key}>
             <EventCard row={row} units={units} />
           </li>
@@ -57,7 +69,13 @@ export function EventsSection({ view, units, course, onCourse, busy }: EventsSec
       </h3>
       <CustomCourse units={units} course={course} onCourse={onCourse} />
       <div className={styles.result} aria-live="polite" aria-busy={busy}>
-        {view.custom === null ? null : <EventCard row={view.custom} units={units} />}
+        {customFailed ? (
+          <p role="alert" className={styles.note}>
+            {pacesText('paces.custom.load-error')}
+          </p>
+        ) : custom === null ? null : (
+          <EventCard row={custom} units={units} />
+        )}
       </div>
 
       <HowMade

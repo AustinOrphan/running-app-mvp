@@ -31,6 +31,11 @@ export interface HrModel {
   /** HR added per degree of WBGT above the optimum band, after shrinkage towards the prior. */
   heatBpmPerC: number
   residualSdBpm: number
+  /** Runs among those fitted that were hot enough to carry a heat term; the heat term is the prior's at few. */
+  hotRuns: number
+  /** The slowest and the fastest grade-adjusted speed fitted, m/s: the line is read inside them. */
+  minSpeedMps: number
+  maxSpeedMps: number
 }
 
 /** Context of an assessment. `hrModel` and `checkin` are optional: without them those parts drop out. */
@@ -411,6 +416,9 @@ export function fitHrModel(activities: Activity[], today: string): HrModel | nul
     slopeBpmPerMps: slope,
     heatBpmPerC: heat,
     residualSdBpm: Math.max(sd, P.hrModel.minResidualSdBpm.value),
+    hotRuns,
+    minSpeedMps: Math.min(...points.map((p) => p.v)),
+    maxSpeedMps: Math.max(...points.map((p) => p.v)),
   }
 }
 

@@ -137,7 +137,7 @@ test('a runner with a heart-rate line gets a pace range, a hot day, a climb and 
   const terms = easy.getByRole('term')
   await expect(terms).toHaveCount(3)
   await expect(terms.nth(0)).toHaveText('Cool and flat')
-  await expect(terms.nth(1)).toHaveText(/^Hot day, WBGT 25 °C$/)
+  await expect(terms.nth(1)).toHaveText(/^Hot day, WBGT 25 °C, default heat rise$/)
   await expect(terms.nth(2)).toHaveText('Climb of 5%')
 
   // The first screen at 390 x 844: the heading, the jump links and the lead figure are in view.
@@ -158,7 +158,7 @@ test('a runner with a heart-rate line gets a pace range, a hot day, a climb and 
   }
   const ten = events.getByRole('article', { name: '10 km', exact: true })
   await expect(ten.getByText(/^From your .+ on /)).toBeVisible()
-  await expect(ten.getByText('Evidence grade C')).toBeVisible()
+  await expect(ten.getByText('Evidence grade D')).toBeVisible()
   await expect(
     events
       .getByRole('article', { name: 'Marathon', exact: true })
@@ -209,20 +209,66 @@ for (const viewport of WIDTHS) {
   }
 }
 
-test('the jump links work from the keyboard and the page has no red', async () => {
+test('the page works from the keyboard: Tab to a jump link, Enter, and open a disclosure', async () => {
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/paces')
   const nav = page.getByRole('navigation', { name: 'On this page' })
+  await nav.getByRole('link', { name: 'Easy pace' }).focus()
+  await page.keyboard.press('Tab')
   const zones = nav.getByRole('link', { name: 'Zones' })
-  await zones.focus()
   await expect(zones).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/#zones$/)
-  // The words of the page pass the copy discipline: no "behind", "missed" or exclamation mark.
-  const body = (await page.getByRole('main').textContent()) ?? ''
-  expect(body).not.toMatch(/\b(behind|missed|failed|streak)\b|!/i)
+  await expect(page.getByRole('heading', { level: 2, name: 'Zones' })).toBeInViewport()
+
+  // A disclosure opens and closes from its summary with the keyboard.
+  const how = page.getByRole('region', { name: 'Easy pace' }).getByText('How this is made')
+  await how.focus()
+  await expect(how).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('region', { name: 'Easy pace' }).getByText(/\(A8\)/)).toBeVisible()
+  await page.keyboard.press('Enter')
+  await expect(
+    page.getByRole('region', { name: 'Easy pace' }).getByText(/\(A8\)/),
+  ).not.toBeVisible()
 })
+
+for (const scheme of ['light', 'dark'] as const) {
+  test(`nothing on the page is drawn in red, in ${scheme} (rule G5), and its words are plain`, async () => {
+    await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'no-preference' })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/paces')
+    await expect(page.getByRole('region', { name: 'What you can run now' })).toBeVisible()
+    // Every colour the page paints (text, background, border, outline) is read as the browser
+    // computes it; a colour is red when its red channel leads both others by 60 or more.
+    const reds = await page.evaluate(() => {
+      const red = (value: string): boolean => {
+        const found = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(value)
+        if (found === null) return false
+        const [r, g, b] = [Number(found[1]), Number(found[2]), Number(found[3])]
+        const alpha = found[4] === undefined ? 1 : Number(found[4])
+        return alpha > 0 && r - g >= 60 && r - b >= 60
+      }
+      const found: string[] = []
+      for (const element of document.querySelectorAll('main, main *')) {
+        const style = getComputedStyle(element)
+        for (const property of [
+          'color',
+          'backgroundColor',
+          'borderTopColor',
+          'outlineColor',
+        ] as const) {
+          if (red(style[property])) found.push(`${element.tagName.toLowerCase()} ${property}`)
+        }
+      }
+      return found
+    })
+    expect(reds).toEqual([])
+    const body = (await page.getByRole('main').textContent()) ?? ''
+    expect(body).not.toMatch(/\b(behind|missed|failed|streak)\b|!/i)
+  })
+}
 
 test('Profile and a goal prediction link to the page', async () => {
   const { today } = relativeDates()

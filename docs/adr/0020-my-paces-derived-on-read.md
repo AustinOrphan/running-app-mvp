@@ -3,7 +3,7 @@
 Status: Proposed 2026-11-07
 
 Builds on ADR 0005, 0009, 0010 and 0012. Adds rule C9 to `research/engine-rules.md` and the Param
-`c9.exampleGradePct`; `PARAMS_VERSION` is `2026-11-07.5`.
+`c9.exampleGradePct`; `PARAMS_VERSION` is `2026-11-07.6`.
 
 ## Context
 
@@ -25,15 +25,20 @@ the race plan (ADR 0018) and the strength workout (ADR 0014) are.
 - Easy pace, in order: the speed at which the runner's own line meets the top of zone 1, as a range to
   the slow edge of zone 1 (`c2.z1PaceSlowFactor`); else the zone 1 pace range of the zones, named by
   the anchor it came from (a tested threshold pace or critical speed); else none, with what would give
-  one. A line that puts easy running at or above critical speed is not used.
-- A hot day moves the line by the runner's own heat term at `i9.warnWbgtC`; a climb moves the pace by
+  one. The line is used only where it speaks: a minimum slope, the solved speed inside the fitted
+  speeds widened by a margin, not slower than a walk and under critical speed (or, with none, under
+  a ceiling on easy speed), all Params of rule C9 (grade D).
+- A hot day moves the line by its heat term at `i9.warnWbgtC`. The term is the runner's own with
+  `hrModel.shrinkagePriorRuns` or more hot runs and the population default otherwise, and the page
+  labels the figure so; a climb moves the pace by
   the cost ratio of `c9.exampleGradePct` (5%). A basis with no line shows the climb and no heat figure.
 - The zones are not read again: the page shows `GET /api/zones` through `ZoneSummary`, the component
   the Profile uses.
 - Events are the five standard distances (`shared/domain/paceEvents.ts`) and one course the runner
   names, with its climb. Each is `predictFromState` with no goal and no race-day weather. The grade of
-  an event is the lowest grade among the Params of the methods it used, the floor of its interval and,
-  with climb, `l5.gainEquivalentM`.
+  an event is the lowest grade among the Params it reads: the methods', the fit they stand on (A6),
+  the widening for one source (`l3.singleSourceWideningPct`) or for climb (L5) and the floor of its
+  interval. Almost every row is therefore grade D, because a default sets the figure.
 - Thin data offers the critical-speed test of rule A6, worded from the Params of the fit.
 - The memo `paces.view` is keyed by data version and day. A custom course is one more `eventRow` over
   the same snapshot and is outside the memo. The response carries a tag of the data version, the day

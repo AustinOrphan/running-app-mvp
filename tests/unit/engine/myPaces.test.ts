@@ -6,7 +6,7 @@ import { fitHrModel } from '../../../shared/engine/execution.ts'
 import { eventRow } from '../../../shared/engine/myPaces.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { gradeAdjustedSpeed } from '../../../shared/engine/terrain.ts'
-import { paces, profileFixture, RUNS, stateWith, TODAY } from './myPacesFixtures.ts'
+import { paces, profileFixture, run, RUNS, stateWith, TODAY } from './myPacesFixtures.ts'
 
 describe('easy pace from the heart-rate line [C9, A8, C2]', () => {
   it('meets the top of Z1 on the line, and runs to the slow edge of Z1', () => {
@@ -43,6 +43,8 @@ describe('easy pace from the heart-rate line [C9, A8, C2]', () => {
     const model = fitHrModel(RUNS, TODAY)!
     const pace = view.easy.pace!
     expect(pace.hot?.wbgtC).toBe(P.i9.warnWbgtC.value)
+    // no hot run among the nine: the heat term is the population default, and the figure says so
+    expect(pace.hot?.own).toBe(false)
     const excess = P.i9.warnWbgtC.value - P.conditions.heatAdjustAboveWbgtC.value
     const speed = (zones.hr!.z1[1] - model.heatBpmPerC * excess - 90) / 20
     expect(pace.hot?.range[1]).toBe(Math.round(1000 / speed))
@@ -65,6 +67,82 @@ describe('easy pace from the heart-rate line [C9, A8, C2]', () => {
     const state = stateWith({ csMps: 2.5, dPrimeM: 150, csEfforts: 3 })
     const pace = paces({ state }).view.easy.pace
     expect(pace?.basis).toBe('critical-speed')
+  })
+})
+
+describe('where the heart-rate line speaks [C9]', () => {
+  const cs = { csMps: 3.5, dPrimeM: 150, csEfforts: 3 }
+  /** Nine runs at 3.00 to 3.04 m/s with the heart rates the caller gives. */
+  const narrow = (hr: (i: number) => number) =>
+    Array.from({ length: 9 }, (_, i) => run(i, 3 + i * 0.005, {}, hr(i)))
+
+  it('says hot runs of the runner own make the heat term theirs', () => {
+    const hot = RUNS.map((r, i) =>
+      i < P.hrModel.shrinkagePriorRuns.value ? { ...r, tempC: 30, humidityPct: 70 } : r,
+    )
+    const model = fitHrModel(hot, TODAY)!
+    expect(model.hotRuns).toBeGreaterThanOrEqual(P.hrModel.shrinkagePriorRuns.value)
+    const { view } = paces({ activities: hot })
+    expect(view.easy.pace?.hot?.own).toBe(true)
+  })
+
+  it('gives no pace from a flat line with no critical speed to bound it', () => {
+    // every run at 140 bpm whatever the speed: the slope is nothing, the "easy speed" unbounded
+    const { view } = paces({ activities: narrow(() => 140) })
+    expect(view.easy.pace).toBeNull()
+  })
+
+  it('gives no pace from a nearly flat line whose solved speed is inside the fitted ones', () => {
+    // heart rate 148 to 149 bpm across 2.6 to 3.4 m/s: the 148 bpm ceiling is met inside the runs,
+    // but a slope this small cannot say at which speed
+    const runs = Array.from({ length: 9 }, (_, i) =>
+      run(i, 2.6 + i * 0.1, {}, Math.round(145.4 + (2.6 + i * 0.1))),
+    )
+    const model = fitHrModel(runs, TODAY)!
+    expect(model.slopeBpmPerMps).toBeGreaterThan(0)
+    expect(model.slopeBpmPerMps).toBeLessThan(P.c9.lineMinSlopeBpmPerMps.value)
+    expect(paces({ activities: runs }).view.easy.pace).toBeNull()
+  })
+
+  it('falls back to the zones from a flat line', () => {
+    const { zones, view } = paces({ state: stateWith(cs), activities: narrow(() => 140) })
+    expect(view.easy.pace?.basis).toBe('critical-speed')
+    expect(view.easy.pace?.range).toEqual(zones.pace!.z1)
+  })
+
+  it('gives no pace from a line whose intercept sits near the ceiling', () => {
+    // HR = 146 + 5 x speed: the line meets 148 bpm at 0.4 m/s, below every fitted run and a walk
+    const runs = Array.from({ length: 9 }, (_, i) =>
+      run(i, 2.6 + i * 0.1, {}, Math.round(146 + 5 * (2.6 + i * 0.1))),
+    )
+    const model = fitHrModel(runs, TODAY)!
+    expect(model.slopeBpmPerMps).toBeGreaterThanOrEqual(P.c9.lineMinSlopeBpmPerMps.value - 1)
+    const { view } = paces({ activities: runs })
+    expect(view.easy.pace).toBeNull()
+  })
+
+  it('gives no pace when the ceiling lies beyond the speeds fitted', () => {
+    // runs at 3.00 to 3.04 m/s on the line HR = 90 + 20 x speed; a ceiling of 132 bpm meets it at 2.1
+    const profile = { ...profileFixture, hrMax: 170 }
+    const { view } = paces({
+      profile,
+      activities: narrow((i) => Math.round(90 + 20 * (3 + i * 0.005))),
+    })
+    expect(view.easy.pace).toBeNull()
+  })
+
+  it('gives no pace faster than the ceiling on easy speed when nothing bounds it', () => {
+    // fitted at 4.0 to 5.0 m/s on HR = 100 + 10 x speed, the line meets 148 bpm at 4.8 m/s
+    const runs = Array.from({ length: 9 }, (_, i) =>
+      run(i, 4 + i * 0.125, {}, Math.round(100 + 10 * (4 + i * 0.125))),
+    )
+    expect(paces({ activities: runs }).view.easy.pace).toBeNull()
+    // with a critical speed above it, the same line is a pace
+    const bounded = paces({
+      state: stateWith({ csMps: 5.5, dPrimeM: 150, csEfforts: 3 }),
+      activities: runs,
+    })
+    expect(bounded.view.easy.pace?.basis).toBe('hr-model')
   })
 })
 
@@ -126,7 +204,8 @@ describe('the events [C9, L1 to L6]', () => {
     expect(ten?.basis.cs).toEqual({ csMps: 3.5, efforts: 3 })
     expect(ten?.methods).toEqual(['riegel', 'critical-speed'])
     expect(ten?.singleSource).toBe(false)
-    expect(ten?.grade).toBe('C')
+    // the fit of critical speed and the widening for one source are grade D defaults (A6, L3)
+    expect(ten?.grade).toBe('D')
     expect(ten?.rules).toEqual(expect.arrayContaining(['L1', 'L6']))
   })
 

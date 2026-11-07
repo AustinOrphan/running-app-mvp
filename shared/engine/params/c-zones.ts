@@ -290,6 +290,22 @@ export const cZones = {
     ),
   },
   c9: {
+    lineSpeedMargin: param('c9.lineSpeedMargin', 0.1, 'D', 'C9', [], {
+      unit: 'fraction of speed',
+      note: 'Default: the heart-rate line is read at most this share beyond the slowest and the fastest speed it was fitted on; outside that it is an extrapolation and the easy pace comes from the zones.',
+    }),
+    lineMinSlopeBpmPerMps: param('c9.lineMinSlopeBpmPerMps', 5, 'D', 'C9', [], {
+      unit: 'bpm per m/s',
+      note: 'Default: a line flatter than this does not say which speed meets a heart rate, so it gives no easy pace.',
+    }),
+    walkingFloorMps: param('c9.walkingFloorMps', 1.5, 'D', 'C9', [], {
+      unit: 'm/s',
+      note: 'Default: an easy pace from the line is never slower than a brisk walk of this speed.',
+    }),
+    maxEasySpeedMps: param('c9.maxEasySpeedMps', 4.5, 'D', 'C9', [], {
+      unit: 'm/s',
+      note: 'Default: with no critical speed to bound it, an easy pace from the line is never faster than this speed (a 3:42 per km pace).',
+    }),
     exampleGradePct: param(
       'c9.exampleGradePct',
       5,

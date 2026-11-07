@@ -12,9 +12,15 @@ export { profileFixture }
 
 export const TODAY = '2026-06-30'
 
-export function run(i: number, speedMps: number, over: Partial<Activity> = {}): Activity {
+export function run(
+  i: number,
+  speedMps: number,
+  over: Partial<Activity> = {},
+  /** The run's average heart rate; by default on the line HR = 90 + 20 x speed. */
+  hr: number = Math.round(90 + 20 * speedMps),
+): Activity {
   const durationSec = 40 * 60
-  const avgHr = Math.round(90 + 20 * speedMps)
+  const avgHr = hr
   return {
     id: `m${String(i)}`,
     userId: 'u1',
