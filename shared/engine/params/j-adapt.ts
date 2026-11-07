@@ -463,6 +463,12 @@ export const jAdapt = {
       },
     ),
   },
+  j10: {
+    silentDays: param('j10.silentDays', 4, 'D', 'J10', RESTART, {
+      unit: 'days',
+      note: 'Default: a connected source whose newest run lies more than this many days back, with 2 or more runs planned since, is named on Today. 4 sits under the first J7 tier (j7.tier1Days, 7), so the question comes before the layoff reading, and is more than the 2 or 3 days of rest that a plan of 3 or 4 run days leaves between runs. No study sets it; the evidence is the J7 bound it sits under.',
+    }),
+  },
   n1: {
     bsiReturnDays: param<number[]>(
       'n1.bsiReturnDays',

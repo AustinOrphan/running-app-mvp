@@ -426,4 +426,57 @@ describe('Today: the cooler start and the notes', () => {
     expect(within(notes).getByRole('link')).toHaveAttribute('href', '/integrations')
     expectCleanCopy(container)
   })
+
+  test('the notes about a source are links to the integrations page, one per source', async () => {
+    // Two silent sources share one code; a repeated React key would be reported on the console.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const since = (iso: string) => ({ kind: 'date', iso, style: 'short' }) as const
+      const { container } = renderToday(
+        makeToday({
+          coach: makeCoach({
+            health: {
+              possibleDuplicates: 0,
+              pastUnconfirmedWeeks: 0,
+              lastWeekReady: false,
+              notes: [
+                {
+                  code: 'source-needs-auth',
+                  template: 'today.health.source-needs-auth',
+                  slots: { source: 'Strava' },
+                  href: '/integrations',
+                },
+                {
+                  code: 'source-silent',
+                  template: 'today.health.source-silent',
+                  slots: { source: 'Garmin Connect', since: since('2026-03-12') },
+                  href: '/integrations',
+                },
+                {
+                  code: 'source-silent',
+                  template: 'today.health.source-silent',
+                  slots: { source: 'Watched folder', since: since('2026-03-10') },
+                  href: '/integrations',
+                },
+              ],
+            },
+          }),
+        }),
+      )
+      const notes = await screen.findByRole('region', { name: 'Health notes' })
+      const links = within(notes).getAllByRole('link')
+      expect(links.map((link) => link.textContent)).toEqual([
+        'Strava needs signing in again; runs since then have not arrived.',
+        'No run has arrived from Garmin Connect since 12 Mar. If you ran, check the upload; if you did not, nothing is needed.',
+        'No run has arrived from Watched folder since 10 Mar. If you ran, check the upload; if you did not, nothing is needed.',
+      ])
+      for (const link of links) expect(link).toHaveAttribute('href', '/integrations')
+      expectCleanCopy(container)
+      expect(
+        error.mock.calls.filter((call) => call.some((arg) => String(arg).includes('same key'))),
+      ).toEqual([])
+    } finally {
+      error.mockRestore()
+    }
+  })
 })

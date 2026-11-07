@@ -2144,6 +2144,12 @@ things stand" gives counts and percentages without a weekly total or a date.
     `h11.belowVt1Share`, and `PARAMS_VERSION` is `2026-11-06.1`. Step 2 (the race plan derived on
     read) is open.
 
+    2026-11-06: the silent-source note shipped (J10): rule J10 and `j10.silentDays` (grade D, 4
+    days), a Today note for a connected source that has stored no run for more than 4 days while
+    the plan asked for two, a note at once for a connection that needs signing in again, and an
+    ETag stamp for the `Integration` rows; no plan, weekly job, brief or review changed, and
+    `PARAMS_VERSION` is `2026-11-06.2`.
+
 ## Clean-up after the merges
 
 - Delete obsolete remote branches: `feat/comprehensive-ci-cd-infrastructure`,

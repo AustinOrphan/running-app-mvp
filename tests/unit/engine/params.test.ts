@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-06.1')
+    expect(PARAMS_VERSION).toBe('2026-11-06.2')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -455,6 +455,38 @@ describe('parameter registry', () => {
     for (const row of ['Disruption window length', 'Disruption back-dating', 'Niggle easy days']) {
       expect(engineRules, row).toMatch(new RegExp(`^\\| ${row} `, 'm'))
     }
+  })
+
+  it('carries the silent-source rule J10 as one labelled default under the first J7 tier', () => {
+    const silent = P.j10.silentDays
+    expect([silent.id, silent.value, silent.unit, silent.grade, silent.rule]).toEqual([
+      'j10.silentDays',
+      4,
+      'days',
+      'D',
+      'J10',
+    ])
+    expect(silent.note).toMatch(/default/i)
+    // the note comes before the layoff reading, and cites the bound it sits under
+    expect(silent.value).toBeLessThan(P.j7.tier1Days.value)
+    expect(silent.evidence).toEqual(P.j7.tier1Days.evidence)
+    expect(paramsForRule('J10').map((p) => p.id)).toEqual(['j10.silentDays'])
+  })
+
+  it('states rule J10 in engine-rules.md with its parameter, evidence and table row', () => {
+    const start = engineRules.indexOf('- **J10 ')
+    const end = engineRules.indexOf('## (k) Taper and race week')
+    expect(start).toBeGreaterThan(engineRules.indexOf('- **J9 '))
+    expect(end).toBeGreaterThan(start)
+    const j10Text = engineRules.slice(start, end)
+    for (const p of paramsForRule('J10')) {
+      expect(j10Text, p.id).toContain(`\`${p.id}\``)
+      const missing = p.evidence.filter((id) => !j10Text.includes(id))
+      expect(missing, p.id).toEqual([])
+    }
+    expect(j10Text).toContain('`j7.tier1Days`')
+    expect(j10Text).toMatch(/grade D as a whole/i)
+    expect(engineRules).toMatch(/^\| Silent source note /m)
   })
 
   it('carries the four standout thresholds under design-explain as labelled defaults', () => {

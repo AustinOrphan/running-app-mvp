@@ -3596,6 +3596,9 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'g-7',
   // adaptation inputs
   'J1',
+  // the Today note about a source that has stored no run: read from the connections and their last
+  // stored run when Today is built, never an input to a plan, so no plan session cites it
+  'J10',
   // ultra structure and fuel wording: the rule fixes the shape of the plan or the words of the
   // fuel card (drink to thirst, no body-mass scaling, no fixed volumes), so no runner figure is
   // stated; the pairs, the weeks and the fuel runs of the plan itself are listed on the plan

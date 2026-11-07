@@ -8,8 +8,9 @@ import styles from './HealthNotes.module.css'
 /**
  * The red-flag notes of the readiness read, each with its rules behind an info icon at the right
  * end of its line (named "Why", as the button was), then the notes that registered producers add
- * (sync paused, a weekly update that did not run), each linking to where it can be put right. A
- * note states a fact; none of them is an alarm.
+ * (sync paused, a weekly update that did not run, a source that needs signing in or has sent no run
+ * for days), each linking to where it can be put right. A note states a fact; none of them is an
+ * alarm.
  */
 export function HealthNotes({
   flags,
@@ -35,10 +36,11 @@ export function HealthNotes({
             />
           </li>
         ))}
-        {notes.map((note) => {
+        {notes.map((note, index) => {
           const text = renderFact(note, units)
+          // Two sources can carry the same code (one note per source), so the position joins it.
           return (
-            <li key={note.code} className={styles.note}>
+            <li key={`${note.code}-${index}`} className={styles.note}>
               <p className={styles.noteText}>
                 {note.href === null ? (
                   text

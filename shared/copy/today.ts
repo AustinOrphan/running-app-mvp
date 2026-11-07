@@ -220,6 +220,21 @@ export const TODAY_TEMPLATES = {
     "Sync is paused to stay within the service's limits, and picks up again on its own.",
   ),
   'today.health.update-not-run': tpl("This week's plan update has not run yet."),
+  // The notes about a source that delivers runs (rule J10). Neither says that a run was not made:
+  // the second asks, and says that nothing is needed when there was no run.
+  'today.health.source-needs-auth': tpl(
+    '{source} needs signing in again; runs since then have not arrived.',
+    { source: 'text' },
+    { fallback: 'A source needs signing in again; runs since then have not arrived.' },
+  ),
+  'today.health.source-silent': tpl(
+    'No run has arrived from {source} since {since}. If you ran, check the upload; if you did not, nothing is needed.',
+    { source: 'text', since: 'date' },
+    {
+      fallback:
+        'No run has arrived from a source for several days. If you ran, check the upload; if you did not, nothing is needed.',
+    },
+  ),
 
   // The days of the week strip, as their accessible names.
   'today.week.done': tpl('Done', {}, { shape: 'label' }),
