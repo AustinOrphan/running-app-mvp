@@ -1,6 +1,9 @@
+/* `clip` also holds the visually hidden data table: a table ignores the 1 px width of
+   `.visually-hidden` and sized itself to its text, which widened a 360 px page by 18 px. */
 .figure {
   position: relative;
   margin: 0;
+  overflow: clip;
 }
 
 /* The chart draws once at its initialDimension (640 px) before it measures this box; clipping keeps

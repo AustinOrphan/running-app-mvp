@@ -1361,7 +1361,7 @@ describe('ActivityDetailPage: against the plan', () => {
     expect(api.calls.some((c) => c.url === '/api/plan')).toBe(true)
   })
 
-  test('the page reads in the order of the post-run screen', async () => {
+  test('the page reads in order: figures, charts, the plan, the rating, fuel, then the detail', async () => {
     const base = makeDetail()
     const runs = [loggedRun(1, { servings: 6, gut: 1, nausea: 0, activityId: 'a1' })]
     renderDetail({
@@ -1389,10 +1389,10 @@ describe('ActivityDetailPage: against the plan', () => {
       .map((heading) => heading.textContent)
     expect(headings).toEqual([
       'Summary',
+      'Charts',
       'Against the plan',
       'How did it go?',
       'Fuel',
-      'Charts',
       'Laps',
       'Weather',
       'Heart rate distribution',
