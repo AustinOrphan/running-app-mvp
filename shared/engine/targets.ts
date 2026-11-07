@@ -47,6 +47,10 @@ const sameRange = (a: Range | null, b: Range | null): boolean =>
  * - Z1 with a heart rate: `hr-ceiling` at the top of the current Z1. Z2 and Z3: `hr-band` from
  *   the current zones. Without zones for it the stored heart rate stands, then pace, then effort.
  * - Threshold, intervals, race pace and the race: `pace`, the stored work band.
+ * - The race of an ultra goal, stored in zone 1 [rule H11]: a zone session, `hr-ceiling` at the top
+ *   of the current Z1, else `effort` with the stored range. It never leads with pace and reads no
+ *   pace from the zones: the course sets the pace. A race stored in the race-pace zone (a plan
+ *   drawn before H11 read the class, and every shorter class) keeps the line above.
  * - Hills, hike, cross-training and strength: `effort`. A hike or cross-training session still
  *   carries the stored Z1 ceiling, and a threshold session the current Z2 band, as secondary text;
  *   intervals and hill repeats carry none, because heart rate lags the work.
@@ -61,9 +65,11 @@ export function resolveTargets(
   const { kind, target } = session
   const hrZone =
     target.zone === 'z1' || target.zone === 'z2' || target.zone === 'z3' ? target.zone : null
+  // the race of an ultra goal is stored in zone 1: a zone session with a ceiling and no pace
+  const zoneRace = kind === 'race' && hrZone === 'z1'
   // Z1 to Z3 sessions of other kinds lead with their heart rate and pace guide from the zones;
   // effort and work-pace sessions show heart rate only when the stored target carries one.
-  const leadsWithZones = !EFFORT_KINDS.has(kind) && !WORK_PACE_KINDS.has(kind)
+  const leadsWithZones = zoneRace || (!EFFORT_KINDS.has(kind) && !WORK_PACE_KINDS.has(kind))
 
   let fromZones = false
   let changed = false
@@ -82,8 +88,9 @@ export function resolveTargets(
   const hrCeiling = hrZone === 'z1' && hr !== null ? hr[1] : null
   const hrRange = (hrZone === 'z2' || hrZone === 'z3') && hr !== null ? hr : null
 
-  let pace: Range | null = target.paceSecPerKm === null ? null : copy(target.paceSecPerKm)
-  if (hrZone !== null && leadsWithZones) {
+  let pace: Range | null =
+    zoneRace || target.paceSecPerKm === null ? null : copy(target.paceSecPerKm)
+  if (hrZone !== null && leadsWithZones && !zoneRace) {
     const current = zones?.pace?.[hrZone] ?? null
     if (current !== null) {
       pace = copy(current)
@@ -96,8 +103,9 @@ export function resolveTargets(
     hrCeiling !== null ? 'hr-ceiling' : hrRange !== null ? 'hr-band' : null
   let mode: ResolvedTargets['mode']
   if (EFFORT_KINDS.has(kind)) mode = 'effort'
-  else if (WORK_PACE_KINDS.has(kind)) mode = pace !== null ? 'pace' : (byHeartRate ?? 'effort')
-  else mode = byHeartRate ?? (pace !== null ? 'pace' : 'effort')
+  else if (WORK_PACE_KINDS.has(kind) && !zoneRace) {
+    mode = pace !== null ? 'pace' : (byHeartRate ?? 'effort')
+  } else mode = byHeartRate ?? (pace !== null ? 'pace' : 'effort')
 
   const hot = options.hot && !NO_HEAT_NOTE_KINDS.has(kind)
   if (hot) mode = 'effort'

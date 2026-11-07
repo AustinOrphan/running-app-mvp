@@ -435,6 +435,9 @@ function bandZone(session: SessionSpec): 'z1' | 'z2' | 'z3' | null {
 }
 
 function paceBandOf(session: SessionSpec, ctx: ExecutionContext): [number, number] | null {
+  // the course sets the pace of a race: only its own stored band stands, never the pace of its
+  // zone (the race of an ultra goal is stored in zone 1 [rule H11])
+  if (session.kind === 'race') return session.target.paceSecPerKm
   const zone = bandZone(session)
   return session.target.paceSecPerKm ?? (zone ? (ctx.zones.pace?.[zone] ?? null) : null)
 }

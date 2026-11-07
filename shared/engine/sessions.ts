@@ -43,7 +43,10 @@ export interface PrescribeContext {
    * run. The session is cut to its `minutes` when that is shorter.
    */
   blueprint?: readonly number[]
-  /** A strength session of an ultra goal also cites H10 [rules E5, H10]. */
+  /**
+   * The goal is an ultra, any class above the marathon: a strength session also cites H10 [rules E5,
+   * H10], and the race is run to a heart-rate ceiling and an easy effort [rules K6, H11].
+   */
   ultra?: boolean
   /** The week's place in its strength block, week k of n; null or absent outside a block. */
   blockPosition?: { week: number; of: number } | null
@@ -138,6 +141,18 @@ const LIBRARY: Record<SessionKind, LibraryEntry> = {
   },
 }
 
+/**
+ * The race of an ultra goal [rules K6, H11]: the top of zone 1 is the ceiling and the effort is
+ * `h11.raceRpe`; the course sets the pace, so no pace is stated. The purpose holds no figure: the
+ * heart rate and the effort are the target rows.
+ */
+const ULTRA_RACE: LibraryEntry = {
+  zone: 'z1',
+  purpose:
+    'Race day: keep the heart rate at or below the zone 1 ceiling for most of the day; climb by effort and hike the steep parts.',
+  rules: ['K6', 'H11'],
+}
+
 const TITLES: Record<SessionKind, string> = {
   easy: 'Easy run',
   recovery: 'Recovery run',
@@ -176,15 +191,24 @@ export const RUN_KINDS: ReadonlySet<SessionKind> = new Set<SessionKind>([
   'b2b',
 ])
 
-/** The library entry for a session kind [rules F, session library]. */
-export function sessionLibrary(kind: SessionKind): SessionTemplate {
-  const entry = LIBRARY[kind]
+/**
+ * The library entry for a session kind [rules F, session library]. The race of an ultra goal
+ * (`ctx.ultra`) has its own entry and effort [rules K6, H11]; every other kind and class reads the
+ * table of C4, and this is the one place the two are told apart.
+ */
+export function sessionLibrary(
+  kind: SessionKind,
+  ctx: Pick<PrescribeContext, 'ultra'> = {},
+): SessionTemplate {
+  const ultraRace = kind === 'race' && ctx.ultra === true
+  const entry = ultraRace ? ULTRA_RACE : LIBRARY[kind]
+  const rpe = ultraRace ? P.h11.raceRpe : P.expectedRpe[kind]
   return {
     kind,
     zone: entry.zone,
     purpose: entry.purpose,
     rules: [...entry.rules],
-    rpe: [...P.expectedRpe[kind].value] as [number, number],
+    rpe: [...rpe.value] as [number, number],
   }
 }
 
@@ -505,7 +529,7 @@ export function prescribe(
   week: WeekDraft,
   ctx: PrescribeContext = {},
 ): SessionSpec {
-  const lib = sessionLibrary(kind)
+  const lib = sessionLibrary(kind, ctx)
   const duration = kind === 'rest' ? 0 : Math.round(minutes)
   const flags: SessionFlag[] = []
   const rules = [...lib.rules]
@@ -614,7 +638,8 @@ export function prescribe(
     pace = racePace
     hr = zones.hr?.z2 ?? null
   } else if (kind === 'race') {
-    pace = racePace
+    // the race of an ultra goal is a zone 1 session: the heart rate set above, and no pace
+    pace = zoneKey === 'z1' ? null : racePace
   } else if (kind === 'hills' || kind === 'hike') {
     pace = null
     hr = kind === 'hike' ? (zones.hr?.z1 ?? null) : null

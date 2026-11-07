@@ -1548,7 +1548,11 @@ function raceSession(input: EngineInput, zones: ZoneSet, week: WeekDraft): Sessi
     goal.goalType === 'time' && goal.targetTimeSec !== null && goal.distanceM > 0
       ? Math.round(goal.targetTimeSec / (goal.distanceM / 1000))
       : null
-  const spec = prescribe('race', minutes, zones, week, { goalPaceSecPerKm: goalPace })
+  // every class above the marathon is an ultra (`goal.isUltra`), and its race is run to a ceiling [H11]
+  const spec = prescribe('race', minutes, zones, week, {
+    goalPaceSecPerKm: goalPace,
+    ultra: goal.isUltra,
+  })
   const flags = new Set(spec.flags)
   if (goal.raceWbgtC !== null) flags.add('heat')
   if (goal.crossesDarkness) flags.add('night')

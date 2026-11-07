@@ -400,6 +400,38 @@ describe('replan', () => {
     expect(out.draft.weeks).toEqual(plan.weeks)
   })
 
+  it('draws the race of an ultra goal again: a stored race of the old form takes the zone 1 target [rule H11]', () => {
+    const ultra = athlete('first-100-mile')
+    const first = buildPlan(ultra.input)
+    // the race as a plan drawn before H11 stored it: the race-pace zone, no heart rate, no pace
+    const stored: PlanDraft = {
+      ...first,
+      sessions: first.sessions.map((s) =>
+        s.kind === 'race'
+          ? {
+              ...s,
+              target: {
+                zone: 'race-pace',
+                rpe: [...P.expectedRpe.race.value],
+                hr: null,
+                paceSecPerKm: null,
+                heatNote: null,
+              },
+              purpose: 'Race day: run by effort, follow the fuel and pacing plan.',
+              rules: ['K6'],
+            }
+          : s,
+      ),
+    }
+    const raceOf = (draft: PlanDraft) => draft.sessions.find((s) => s.kind === 'race')!
+    expect(raceOf(stored).target.zone).toBe('race-pace')
+    const out = replan({ ...ultra.input, existing: asExisting(stored) })
+    expect(raceOf(out.draft).target).toEqual(raceOf(first).target)
+    expect(raceOf(out.draft).target.zone).toBe('z1')
+    expect(raceOf(out.draft).rules).toEqual(['K6', 'H11'])
+    expect(raceOf(out.draft).durationMin).toBe(raceOf(stored).durationMin)
+  })
+
   describe('a week later', () => {
     const later = addDays(TODAY, 7)
     const thisMonday = mondayOf(later)

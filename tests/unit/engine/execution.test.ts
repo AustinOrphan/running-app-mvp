@@ -389,6 +389,58 @@ describe('assessExecution intensity', () => {
     const wrist = activity({ avgHr: 150 })
     expect(assessExecution(session(), wrist, CTX).flags).toContain('hr-unqualified')
   })
+
+  describe('a race: the course sets the pace [rule H11]', () => {
+    // the race of an ultra goal is stored in zone 1 with a heart rate and no pace
+    const ultraRace = session({
+      kind: 'race',
+      durationMin: 1200,
+      target: { zone: 'z1', rpe: [3, 4], hr: [110, 130], paceSecPerKm: null, heatNote: null },
+    })
+    // 100 km in 20 h = 720 s/km, far slower than the Z1 pace band of 390 to 420
+    const raced = activity({ type: 'race', durationSec: 72000, distanceM: 100000 })
+
+    it('is not read against the pace of its zone, so no pace residual and no intensity from pace', () => {
+      const out = assessExecution(ultraRace, { ...raced, gapDistanceM: 100000 }, CTX)
+      expect(out.intensity).toBe('unknown')
+      expect(out.effort.parts.paceResidualPct).toBeNull()
+    })
+
+    it('is read against its stored heart rate, the top of zone 1 being the ceiling', () => {
+      const hist = (secByBin: number[]) => ({ start: 100, width: 10, sec: secByBin })
+      // bins 100-110, 110-120, 120-130, 130-140; band 110-130
+      const within = activity({
+        ...raced,
+        avgHr: 120,
+        hrHistogram: hist([2000, 30000, 36000, 4000]),
+      })
+      expect(assessExecution(ultraRace, within, CTX).intensity).toBe('on')
+      const over = activity({ ...raced, avgHr: 134, hrHistogram: hist([0, 4000, 20000, 48000]) })
+      expect(assessExecution(ultraRace, over, CTX).intensity).toBe('above')
+    })
+
+    it('keeps the stored pace band of a race that has one', () => {
+      const timed = session({
+        kind: 'race',
+        durationMin: 240,
+        target: {
+          zone: 'race-pace',
+          rpe: [8, 9],
+          hr: null,
+          paceSecPerKm: [350, 330],
+          heatNote: null,
+        },
+      })
+      // 42.2 km in 4 h = 341 s/km, inside the band
+      const marathon = activity({
+        type: 'race',
+        durationSec: 14400,
+        distanceM: 42200,
+        gapDistanceM: 42200,
+      })
+      expect(assessExecution(timed, marathon, CTX).intensity).toBe('on')
+    })
+  })
 })
 
 describe('assessExecution conditions and flags', () => {

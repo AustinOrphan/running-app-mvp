@@ -475,6 +475,71 @@ describe('prescribe: other quality and special sessions', () => {
     expect(s.durationMin).toBe(240)
   })
 
+  describe('the race of an ultra goal [rules K6, H11]', () => {
+    const ultra = (over: Partial<ZoneSet> = {}, goalPaceSecPerKm: number | null = null) =>
+      prescribe('race', 1200, zones(over), week(), { ultra: true, goalPaceSecPerKm })
+
+    it('is a zone 1 session: the current Z1 band is the heart rate, there is no pace', () => {
+      const s = ultra()
+      expect(s.target.zone).toBe('z1')
+      expect(s.target.hr).toEqual(zones().hr!.z1)
+      expect(s.target.paceSecPerKm).toBeNull()
+      expect(s.durationMin).toBe(1200)
+    })
+
+    it('carries no pace even with a goal pace, which the course overrides', () => {
+      expect(ultra({}, 380).target.paceSecPerKm).toBeNull()
+    })
+
+    it('is run to h11.raceRpe, never above the long-run range', () => {
+      const s = ultra()
+      expect(s.target.rpe).toEqual(P.h11.raceRpe.value)
+      expect(s.target.rpe[1]).toBeLessThanOrEqual(P.expectedRpe.long.value[1])
+    })
+
+    it('cites K6 and H11 and has its own purpose, with no figure in it', () => {
+      const s = ultra()
+      expect(s.rules).toEqual(['K6', 'H11'])
+      expect(s.purpose).toBe(
+        'Race day: keep the heart rate at or below the zone 1 ceiling for most of the day; climb by effort and hike the steep parts.',
+      )
+      // "zone 1" is a name; no heart rate, effort or minutes figure sits in the sentence
+      expect(s.purpose.replace('zone 1', '')).not.toMatch(/\d/)
+      expect(lintText(s.purpose)).toEqual([])
+      expect(lintText(s.title)).toEqual([])
+    })
+
+    it('has no heart rate without zones, and the effort still stands', () => {
+      const s = ultra({ hr: null, pace: null })
+      expect(s.target.zone).toBe('z1')
+      expect(s.target.hr).toBeNull()
+      expect(s.target.paceSecPerKm).toBeNull()
+      expect(s.target.rpe).toEqual(P.h11.raceRpe.value)
+    })
+
+    it('leaves every shorter goal as it was: the goal-pace band, the race expectation, K6 alone', () => {
+      const s = prescribe('race', 240, zones(), week(), { ultra: false, goalPaceSecPerKm: 340 })
+      const without = prescribe('race', 240, zones(), week(), { goalPaceSecPerKm: 340 })
+      expect(s).toEqual(without)
+      expect(s.target.zone).toBe('race-pace')
+      expect(s.target.hr).toBeNull()
+      expect(s.target.paceSecPerKm).not.toBeNull()
+      expect(s.target.rpe).toEqual(P.expectedRpe.race.value)
+      expect(s.rules).toEqual(['K6'])
+      expect(s.purpose).toBe('Race day: run by effort, follow the fuel and pacing plan.')
+    })
+
+    it('changes the race alone: no other kind reads the flag but the strength session', () => {
+      for (const kind of KINDS.filter((k) => k !== 'race' && k !== 'strength')) {
+        expect(prescribe(kind, 60, zones(), week(), { ultra: true }), kind).toEqual(
+          prescribe(kind, 60, zones(), week()),
+        )
+      }
+      expect(sessionLibrary('race', { ultra: true }).zone).toBe('z1')
+      expect(sessionLibrary('race').zone).toBe('race-pace')
+    })
+  })
+
   it('writes copy without blame words', () => {
     for (const kind of KINDS) {
       const s = prescribe(kind, 60, zones(), week())
