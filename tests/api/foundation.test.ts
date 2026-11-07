@@ -141,6 +141,7 @@ describe('row serializers', () => {
       lastSyncAt: null,
       lastSyncStatus: null,
       lastError: null,
+      pausedUntil: null,
     })
     const row = await ctx.prisma.integration.create({
       data: {
