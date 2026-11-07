@@ -10,6 +10,7 @@ import { fieldErrors } from '../api/client.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -278,20 +279,21 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
 
 export function SettingsPage() {
   const settings = useSettings()
+  const view = useLoadView(settings)
 
-  if (settings.isError) {
+  if (view === 'failed' || view === 'retrying') {
     return (
       <>
         <PageHeader title="Settings" />
         <ErrorState
           subject="Settings"
           onRetry={() => settings.refetch()}
-          retrying={settings.isFetching}
+          retrying={view === 'retrying'}
         />
       </>
     )
   }
-  if (settings.isPending) {
+  if (settings.data === undefined) {
     return <div className="skeleton" aria-busy="true" aria-label="Loading" />
   }
   return <SettingsForm initial={settings.data} />

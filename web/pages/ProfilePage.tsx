@@ -28,6 +28,7 @@ import { useSettings } from '../api/settings.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -1095,20 +1096,21 @@ export function ProfilePage() {
   const profile = useProfile()
   // Pace is typed in the runner's unit; a failed settings load falls back to the stored km.
   const settings = useSettings()
+  const view = useLoadView(profile)
 
-  if (profile.isError) {
+  if (view === 'failed' || view === 'retrying') {
     return (
       <>
         <PageHeader title="Profile" />
         <ErrorState
           subject="The profile"
           onRetry={() => profile.refetch()}
-          retrying={profile.isFetching}
+          retrying={view === 'retrying'}
         />
       </>
     )
   }
-  if (profile.isPending || settings.isPending) {
+  if (profile.data === undefined || settings.isPending) {
     return <div className="skeleton" aria-busy="true" aria-label="Loading" />
   }
   const units = settings.data?.units ?? 'km'

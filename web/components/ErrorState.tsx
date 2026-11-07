@@ -9,14 +9,18 @@ export interface ErrorStateProps {
   subject: string
   /** The query's `refetch`; the button runs it. */
   onRetry: () => unknown
-  /** True while the retry runs. */
+  /**
+   * True while the retry runs. The button stays in place and focusable but busy (`aria-busy`,
+   * `aria-disabled`, clicks ignored), so focus stays on it; never the `disabled` attribute.
+   */
   retrying?: boolean
 }
 
 /**
  * A failed load: one sentence naming what happened, one muted line, one button that tries again.
- * Offline, the sentence says so. Same shape as `EmptyState`; no illustration. A page that holds a
- * cached payload keeps showing it and does not render this.
+ * Offline, the sentence says so. Same shape as `EmptyState`; no illustration. A page draws this
+ * only while its query has no data (`useLoadView` is `failed` or `retrying`); one that holds data
+ * keeps it when a background refetch fails. Keep it mounted through the retry, with `retrying` set.
  */
 export function ErrorState({ subject, onRetry, retrying = false }: ErrorStateProps) {
   const online = useOnline()
@@ -32,7 +36,7 @@ export function ErrorState({ subject, onRetry, retrying = false }: ErrorStatePro
       <div className={styles.action}>
         <Button
           variant="primary"
-          loading={retrying}
+          busy={retrying}
           onClick={() => {
             void onRetry()
           }}
