@@ -39,12 +39,16 @@ const ENGINE_ALLOWED = [
   'server/services/racePlan.ts',
   'shared/copy/racePlan.ts',
   'shared/types.ts',
+  'web/components/race/CheckpointSheet.tsx',
+  'web/components/race/CheckpointTable.tsx',
   'web/components/race/RaceSlot.tsx',
   'web/pages/RacePage.tsx',
 ]
 
 const COPY_ALLOWED = [
   'shared/copy/templates.ts',
+  'web/components/race/CheckpointSheet.tsx',
+  'web/components/race/CheckpointTable.tsx',
   'web/components/race/RaceBlocks.tsx',
   'web/components/race/RaceSessionSection.tsx',
   'web/components/race/RaceSlot.tsx',
@@ -64,6 +68,14 @@ describe('who reads the race plan', () => {
     expect(importers('server/services/racePlan.ts')).toEqual([
       'server/routes/race.ts',
       'server/services/todaySlots.ts',
+    ])
+  })
+
+  test('only the race plan, its copy and the shared types import the splits module', () => {
+    expect(importers('shared/engine/raceSplits.ts')).toEqual([
+      'shared/copy/racePlan.ts',
+      'shared/engine/racePlan.ts',
+      'shared/types.ts',
     ])
   })
 

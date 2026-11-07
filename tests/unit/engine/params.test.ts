@@ -359,7 +359,7 @@ describe('parameter registry', () => {
       ['r1.arrivalRoundMin', 10, 'min', 'D', 'H14', []],
       ['r1.raceWeekCardDays', 7, 'days', 'D', 'H14', []],
       ['r1.maxCheckpoints', 40, 'rows', 'D', 'H14', []],
-      ['r1.unenteredClimbShare', 1, 'share', 'D', 'H14', []],
+      ['r1.unenteredClimbShare', 1, 'fraction', 'D', 'H14', []],
     ])
     for (const p of r1) {
       expect(p.note, p.id).toMatch(/^Default:/)

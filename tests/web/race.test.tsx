@@ -1,14 +1,20 @@
 // The Race page, the More row, the Today card and the race-day block of the session sheet (rule
 // H14, ADR 0018): each reads the one plan, and every sentence passes the copy lint.
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, test } from 'vitest'
-import { describeRacePlan, describeRaceSummary } from '../../shared/copy/racePlan.ts'
+import {
+  describeRacePlan,
+  describeRacePoints,
+  describeRaceSummary,
+} from '../../shared/copy/racePlan.ts'
 import { addDays } from '../../shared/dates.ts'
 import { replayLadder } from '../../shared/engine/fuel.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
 import type { RacePlan } from '../../shared/engine/racePlan.ts'
+import type { CheckpointInput } from '../../shared/engine/raceSplits.ts'
 import type { GoalModel } from '../../shared/engine/types.ts'
-import type { PlanSession, UserSettings } from '../../shared/types.ts'
+import type { PlanSession, RaceCheckpointsView, UserSettings } from '../../shared/types.ts'
 import { keys } from '../../web/api/client.ts'
 import { RaceSessionSection } from '../../web/components/race/RaceSessionSection.tsx'
 import { TodaySlot } from '../../web/components/today/TodaySlot.tsx'
@@ -52,6 +58,7 @@ function goal(over: Partial<GoalModel> = {}): GoalModel {
 function planWith(
   over: Partial<GoalModel> = {},
   supportLevel: 'aided' | 'self' = 'aided',
+  checkpoints: CheckpointInput[] = [],
 ): RacePlan {
   return JSON.parse(
     JSON.stringify(
@@ -67,7 +74,7 @@ function planWith(
         }),
         weightKg: 70,
         acclimationCredit: 0.2,
-        checkpoints: [],
+        checkpoints,
         today: TODAY,
       }),
     ),
@@ -88,6 +95,7 @@ describe('RacePage', () => {
       'Expected time',
       'Effort',
       'Climbing',
+      'Checkpoints',
       'Fuel and fluid',
       'Heat',
       'Race week',
@@ -300,5 +308,172 @@ describe('the race-day block of the session sheet', () => {
   test('is the link alone when Today has not been read', () => {
     renderWithProviders(<RaceSessionSection session={RACE_SESSION} units="km" />)
     expect(screen.getByRole('link', { name: 'Open the race plan' })).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The checkpoint table (step 4)
+// ---------------------------------------------------------------------------------------------
+
+const POINTS: CheckpointInput[] = [
+  { name: 'Checkpoint A', distanceM: 50_000, gainM: 1200, lossM: 300, cutoffSec: 9 * HOUR },
+  { name: 'Checkpoint B', distanceM: 110_000, gainM: null, lossM: null, cutoffSec: null },
+]
+
+const ROWS_VIEW = (plan: RacePlan): RaceCheckpointsView => ({
+  goalId: plan.goalId,
+  distanceM: plan.distanceM,
+  checkpoints: POINTS,
+})
+
+describe('RacePage: the checkpoint table', () => {
+  test('says the plan works without a table, and offers to edit it', async () => {
+    mockApi({
+      'GET /api/race/plan': () => ({ plan: planWith(), reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    const { container } = renderWithProviders(<RacePage />, { route: '/race' })
+    const section = (await screen.findByRole('heading', { level: 2, name: 'Checkpoints' }))
+      .parentElement!
+    expect(within(section).getByText(/The plan works without them/)).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Edit checkpoints' })).toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
+  test('lists a row for each point and the finish, with the arrival, the cutoff and the notes', async () => {
+    const plan = planWith({}, 'aided', POINTS)
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    const { container } = renderWithProviders(<RacePage />, { route: '/race' })
+    const text = describeRacePoints(plan, 'km')
+    const list = await screen.findByRole('list', { name: text.list })
+    const rows = within(list).getAllByRole('article')
+    expect(rows.map((row) => row.getAttribute('aria-label'))).toEqual([
+      'Checkpoint A',
+      'Checkpoint B',
+      'Finish',
+    ])
+    const first = within(rows[0]!)
+    expect(first.getByText(text.rows[0]!.arrival)).toBeInTheDocument()
+    // The cutoff stands in its own lines, apart from the arrival range.
+    for (const line of text.rows[0]!.cutoff) {
+      const element = first.getByText(line)
+      expect(element.textContent).not.toMatch(/About/)
+    }
+    expect(first.getByText(/Cutoff 15:00/)).toBeInTheDocument()
+    expect(first.getByText(/Cutoff 9 h into the race/)).toBeInTheDocument()
+    expect(first.queryByText(/Cutoff.*About|About.*Cutoff/)).toBeNull()
+    expect(within(rows[2]!).getByText(text.rows[2]!.arrival)).toBeInTheDocument()
+    expect(screen.getAllByText(/Carry about \d+ to \d+ g of carbohydrate/)).toHaveLength(3)
+    for (const note of text.notes) expect(screen.getByText(note)).toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
+  test('calls the rows course points and drops grams and aid wording for a self-supported race', async () => {
+    const plan = planWith({}, 'self', POINTS)
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    const { container } = renderWithProviders(<RacePage />, { route: '/race' })
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Course points' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit course points' })).toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/aid station|Checkpoints|Carry about/i)
+  })
+
+  test('opens the editor with the saved rows, and a save sends them in metres and replaces the table', async () => {
+    const plan = planWith({}, 'aided', POINTS)
+    const { calls } = mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/race/checkpoints': () => ROWS_VIEW(plan),
+      'PUT /api/race/checkpoints': ({ body }) => ({
+        goalId: plan.goalId,
+        distanceM: plan.distanceM,
+        checkpoints: (body as { checkpoints: CheckpointInput[] }).checkpoints,
+      }),
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await user.click(await screen.findByRole('button', { name: 'Edit checkpoints' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit checkpoints' })
+    const first = await within(dialog).findByRole('group', { name: 'Point 1' })
+    expect(within(first).getByLabelText('Name')).toHaveValue('Checkpoint A')
+    expect(within(first).getByLabelText('Distance from the start (km)')).toHaveValue('50')
+
+    // Add a third point, out of order, with a clock cutoff on the second day.
+    await user.click(within(dialog).getByRole('button', { name: 'Add a checkpoint' }))
+    const third = await within(dialog).findByRole('group', { name: 'Point 3' })
+    await user.type(within(third).getByLabelText('Name'), 'Checkpoint C')
+    await user.type(within(third).getByLabelText('Distance from the start (km)'), '20')
+    await user.selectOptions(within(third).getByLabelText('Cutoff entered as'), 'clock')
+    await user.type(within(third).getByLabelText('Cutoff, time of day'), '03:30')
+    await user.selectOptions(within(third).getByLabelText('Cutoff, day'), '1')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    const sent = (calls.find((c) => c.method === 'PUT')!.body as { checkpoints: CheckpointInput[] })
+      .checkpoints
+    expect(sent).toEqual([
+      { name: 'Checkpoint C', distanceM: 20_000, gainM: null, lossM: null, cutoffSec: 21.5 * HOUR },
+      { name: 'Checkpoint A', distanceM: 50_000, gainM: 1200, lossM: 300, cutoffSec: 9 * HOUR },
+      { name: 'Checkpoint B', distanceM: 110_000, gainM: null, lossM: null, cutoffSec: null },
+    ])
+  })
+
+  test('refuses a point with no name, a distance past the finish and a repeated distance, and sends nothing', async () => {
+    const plan = planWith({}, 'aided', POINTS)
+    const { calls } = mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/race/checkpoints': () => ROWS_VIEW(plan),
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await user.click(await screen.findByRole('button', { name: 'Edit checkpoints' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit checkpoints' })
+    await within(dialog).findByRole('group', { name: 'Point 1' })
+    await user.click(within(dialog).getByRole('button', { name: 'Add a checkpoint' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Add a checkpoint' }))
+    const third = await within(dialog).findByRole('group', { name: 'Point 3' })
+    const fourth = within(dialog).getByRole('group', { name: 'Point 4' })
+    await user.type(within(third).getByLabelText('Distance from the start (km)'), '999')
+    await user.type(within(fourth).getByLabelText('Name'), 'Checkpoint D')
+    await user.type(within(fourth).getByLabelText('Distance from the start (km)'), '50')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    expect(await within(third).findByText(/Give the point a name/)).toBeInTheDocument()
+    expect(within(third).getByText(/past the start and before the finish/)).toBeInTheDocument()
+    expect(within(fourth).getByText(/needs its own distance/)).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'PUT')).toEqual([])
+  })
+
+  test('removes a point from the editor', async () => {
+    const plan = planWith({}, 'aided', POINTS)
+    const { calls } = mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/race/checkpoints': () => ROWS_VIEW(plan),
+      'PUT /api/race/checkpoints': () => ROWS_VIEW(plan),
+    })
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await user.click(await screen.findByRole('button', { name: 'Edit checkpoints' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit checkpoints' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Remove Point 1' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    expect(
+      (
+        calls.find((c) => c.method === 'PUT')!.body as { checkpoints: CheckpointInput[] }
+      ).checkpoints.map((row) => row.name),
+    ).toEqual(['Checkpoint B'])
   })
 })

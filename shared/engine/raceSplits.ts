@@ -72,6 +72,8 @@ export interface SplitRow {
   climbByEffort: boolean
   /** The runner's cutoff in elapsed seconds, or null. */
   cutoffSec: number | null
+  /** The cutoff as a time of day; null without a cutoff or without a start time. */
+  cutoffClock: RaceClock | null
 }
 
 export interface RaceSplits {
@@ -181,6 +183,10 @@ export function splitsFor(input: SplitsInput): RaceSplits | null {
       carryG: aided ? [rateLow * hours, rateHigh * hours] : null,
       climbByEffort: hours > 0 && gain / hours >= P.h4.climbNoteGainPerHourM.value,
       cutoffSec: s.checkpoint?.cutoffSec ?? null,
+      cutoffClock:
+        startMin === null || s.checkpoint?.cutoffSec == null
+          ? null
+          : clockAt(startMin, s.checkpoint.cutoffSec),
     }
   })
 

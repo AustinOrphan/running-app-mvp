@@ -545,7 +545,7 @@ export const hUltra = {
       note: 'Default: the most course points one goal may hold. An input limit that keeps the table readable on a phone; no study sizes it.',
     }),
     unenteredClimbShare: param('r1.unenteredClimbShare', 1, 'D', 'H14', [], {
-      unit: 'share',
+      unit: 'fraction',
       note: 'Default: the share of the course climb left after the rows that name their climb, spread over the other segments by distance (1 spreads all of it, 0 treats those segments as flat). It sets only how the weights of the arrival ranges (L5) divide the course; no study sizes it.',
     }),
   },
