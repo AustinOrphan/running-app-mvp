@@ -95,6 +95,8 @@ for (const viewport of WIDTHS) {
       const strip = await season.boundingBox()
       const currentRow = await page.locator('tr[aria-current="date"]').boundingBox()
       const feasibility = await page.getByRole('heading', { name: 'Feasibility' }).boundingBox()
+      const rowCell = page.locator('tr[aria-current="date"]').first()
+      await expect(rowCell).toBeVisible()
       const column = await buttons.nth(1).boundingBox()
       expect(tabBar).not.toBeNull()
       expect(strip).not.toBeNull()
@@ -114,9 +116,11 @@ for (const viewport of WIDTHS) {
       console.log(`first screen ${JSON.stringify(measured)}`)
       // the strip, whole, is on the first screen: above the tab bar that covers its foot
       expect(measured.stripBottom).toBeLessThanOrEqual(measured.tabBarTop)
-      // and the Feasibility panel the page used to open on starts on the first screen too, under it
-      expect(measured.feasibilityTop).toBeGreaterThanOrEqual(measured.stripBottom)
-      expect(measured.feasibilityTop).toBeLessThan(measured.tabBarTop)
+      // this week's row is on the first screen too, under the strip and above the tab bar; the
+      // explanatory panels (Feasibility first) come after the table
+      expect(measured.thisWeekRowTop).toBeGreaterThanOrEqual(measured.stripBottom)
+      expect(measured.thisWeekRowTop).toBeLessThan(measured.tabBarTop)
+      expect(measured.feasibilityTop).toBeGreaterThan(measured.thisWeekRowTop)
 
       // A tap on a week to come scrolls to its row and opens its days.
       const later = plan.weeks.find((w) => w.weekStart === addDays(thisMonday, 7 * 3))

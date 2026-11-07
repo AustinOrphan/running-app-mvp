@@ -1,20 +1,23 @@
 // Elapsed time and moving time of an activity. `durationSec` is the elapsed time for every source
 // (intervals.icu `elapsed_time`, Strava `elapsed_time`, the total elapsed time of a FIT file), and
-// `movingSec` is the moving time where the source gives one. The pace the app leads with is the
-// elapsed one; the moving pace is a second figure beside it, shown when the two times differ.
+// `movingSec` is the moving time where the source gives one. Duration is the elapsed
+// time everywhere (the plan credits elapsed minutes); the pace leads with the moving figure when the
+// two times differ, and the elapsed pace is the second figure.
 import type { Activity } from '../types.ts'
 
 /** A moving time this many seconds from the elapsed time is a different time, not rounding. */
 const MOVING_DIFFERS_SEC = 1
 
 /**
- * Whether the activity has a moving time that stands apart from its elapsed time. The detail page
- * shows a second, moving, pace when it does, and says which pace is which; the list qualifies the
- * pace it shows as the elapsed one.
+ * Whether the activity has a moving time (above zero: a zero is a missing reading, not a stop of
+ * the whole run) that stands apart from its elapsed time. The detail page
+ * leads with the moving pace when it does, with the elapsed pace second and each named; the list
+ * shows the moving pace and names it.
  */
 export function movingTimeDiffers(activity: Pick<Activity, 'durationSec' | 'movingSec'>): boolean {
   return (
     activity.movingSec !== null &&
+    activity.movingSec > 0 &&
     Math.abs(activity.movingSec - activity.durationSec) >= MOVING_DIFFERS_SEC
   )
 }

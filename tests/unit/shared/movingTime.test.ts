@@ -12,6 +12,10 @@ describe('movingTimeDiffers', () => {
     expect(movingTimeDiffers({ durationSec: 1800, movingSec: 1799.5 })).toBe(false)
   })
 
+  it('is false for a moving time of zero, which is a missing reading', () => {
+    expect(movingTimeDiffers({ durationSec: 1800, movingSec: 0 })).toBe(false)
+  })
+
   it('is true from a second apart, whichever time is the longer', () => {
     expect(movingTimeDiffers({ durationSec: 1800, movingSec: 1799 })).toBe(true)
     expect(movingTimeDiffers({ durationSec: 1800, movingSec: 1750 })).toBe(true)

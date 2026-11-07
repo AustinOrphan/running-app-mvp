@@ -101,8 +101,8 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
     activity.distanceM !== null &&
     activity.distanceM > 0
   const movingDiffers = movingTimeDiffers(activity)
-  // The pace the page leads with is the elapsed one. When a moving pace stands beside it, the first
-  // says which it is; with only one pace, it is "Pace".
+  // With a moving time that differs, the moving pace leads and the elapsed pace is the second
+  // figure, each named; with only one pace, it is the elapsed one and is "Pace".
   const movingPace = hasPace && movingDiffers && activity.movingSec !== null
   const subtype = activity.subtype
   const distance =
@@ -116,18 +116,18 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
   ].filter((part) => part !== null)
   // The four a runner reads first, then the figures only some recordings have.
   const readings = [
-    hasPace && activity.distanceM !== null ? (
-      <Reading
-        key="pace"
-        label={paceLabel(movingPace, units)}
-        value={formatPace(activity.durationSec, activity.distanceM, units)}
-      />
-    ) : null,
     movingPace && activity.distanceM !== null && activity.movingSec !== null ? (
       <Reading
         key="moving-pace"
         label={movingPaceLabel(units)}
         value={formatPace(activity.movingSec, activity.distanceM, units)}
+      />
+    ) : null,
+    hasPace && activity.distanceM !== null ? (
+      <Reading
+        key="pace"
+        label={paceLabel(movingPace, units)}
+        value={formatPace(activity.durationSec, activity.distanceM, units)}
       />
     ) : null,
     activity.elevationGainM !== null ? (

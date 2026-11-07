@@ -715,7 +715,7 @@ describe('Plan page, What changed', () => {
 describe('Plan page, rest windows', () => {
   const todayRoute = { 'GET /api/today': () => makeToday({ date: '2027-01-13' }) }
 
-  test('the header has Not 100% alone, the two actions on the plan sit in the Plan shape panel, and Not 100% opens the sheet', async () => {
+  test('the header has Plan settings and Not 100%, the two actions on the plan sit in the Plan shape panel, and Not 100% opens the sheet', async () => {
     const user = userEvent.setup()
     mockApi(
       routes(
@@ -730,13 +730,25 @@ describe('Plan page, rest windows', () => {
       within(header)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual(['Not 100%'])
+    ).toEqual(['Plan settings', 'Not 100%'])
     const panel = await screen.findByRole('region', { name: 'Plan shape' })
     expect(
       within(panel)
         .getAllByRole('button')
         .map((button) => button.textContent),
     ).toEqual(['Why', 'Change', 'Update plan from latest data', 'Regenerate plan'])
+    // "Plan settings" scrolls to the panels under the week table and focuses the first heading
+    const scrolled = vi.fn()
+    Element.prototype.scrollIntoView = scrolled
+    await user.click(within(header).getByRole('button', { name: 'Plan settings' }))
+    expect(scrolled).toHaveBeenCalledTimes(1)
+    const target = scrolled.mock.contexts[0] as HTMLElement
+    expect(target).toBe(document.activeElement)
+    expect(target.tagName).toBe('H2')
+    expect(screen.getByRole('table').compareDocumentPosition(target)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(panel.parentElement).toContainElement(target)
     await user.click(within(header).getByRole('button', { name: 'Not 100%' }))
     const dialog = await screen.findByRole('dialog', { name: 'Not 100%' })
     expect(await within(dialog).findByRole('radio', { name: /Ill, above the neck/ })).toBeVisible()
