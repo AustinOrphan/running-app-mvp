@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
@@ -13,7 +13,6 @@ import { Field, Input } from '../components/Field.tsx'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
-import { useToast } from '../components/Toast.tsx'
 import { useOfflineStatus, type OfflineStatus } from '../pwa/register.ts'
 import styles from './SettingsPage.module.css'
 
@@ -27,9 +26,12 @@ const OFFLINE_USE = {
   refused: TEMPLATES['today.offline.use-refused'],
 } satisfies Record<OfflineStatus, (typeof TEMPLATES)['today.offline.use-ready']>
 
+/** How long "Saved" stays, and how long the name field waits after the last key before it saves. */
+const SAVED_MS = 3000
+const NAME_PAUSE_MS = 800
+
 function SettingsForm({ initial }: { initial: UserSettings }) {
   const navigate = useNavigate()
-  const toast = useToast()
   const { theme, setTheme } = useTheme()
   const update = useUpdateSettings()
   const logout = useLogout()
@@ -46,20 +48,43 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const [showBodyWeight, setShowBodyWeight] = useState(initial.showBodyWeight === true)
   const [displayName, setDisplayName] = useState(initial.displayName ?? '')
 
-  const errors = fieldErrors(update.error)
-  const otherError =
-    update.isError && Object.keys(errors).length === 0
-      ? 'Settings not saved. The server did not accept the change; try again.'
-      : undefined
+  const [flash, setFlash] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const nameTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  function save(patch: SettingsPatch, onFailure?: () => void) {
-    update.mutate(patch, {
-      onSuccess: (next) => {
+  useEffect(
+    () => () => {
+      clearTimeout(flashTimer.current)
+      clearTimeout(nameTimer.current)
+    },
+    [],
+  )
+
+  /** The one "Saved" of the page: shown for three seconds, announced politely. */
+  function confirm() {
+    setFlash(true)
+    clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => {
+      setFlash(false)
+    }, SAVED_MS)
+  }
+
+  /** Saves one change now. A refusal is reported by `onFailure`; the typed value is the caller's to keep. */
+  function save(patch: SettingsPatch, onFailure: (error: unknown) => void) {
+    setFailure(null)
+    setNameError(null)
+    update.mutateAsync(patch).then(
+      (next) => {
         setSaved(next)
-        toast.show('Settings saved')
+        confirm()
       },
-      onError: onFailure,
-    })
+      (error: unknown) => {
+        setFlash(false)
+        onFailure(error)
+      },
+    )
   }
 
   function onUnitsChange(next: Units) {
@@ -68,6 +93,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     setUnits(next)
     save({ units: next }, () => {
       setUnits(previous)
+      setFailure(render(TEMPLATES['settings.not-saved'], {}, previous))
     })
   }
 
@@ -77,6 +103,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     setWeightUnit(next)
     save({ weightUnit: next }, () => {
       setWeightUnit(previous)
+      setFailure(render(TEMPLATES['settings.not-saved'], {}, units))
     })
   }
 
@@ -85,17 +112,39 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     setShowBodyWeight(next)
     save({ showBodyWeight: next }, () => {
       setShowBodyWeight(previous)
+      setFailure(render(TEMPLATES['settings.not-saved'], {}, units))
     })
+  }
+
+  function onThemeChange(next: Theme) {
+    setTheme(next)
+    confirm()
+  }
+
+  /** Saves the display name if it differs from what the server holds; the typed text always stays. */
+  function saveName(value: string) {
+    clearTimeout(nameTimer.current)
+    const name = value.trim()
+    if (name === (saved.displayName ?? '')) return
+    save({ displayName: name }, (error) => {
+      setNameError(
+        fieldErrors(error)['displayName'] ??
+          render(TEMPLATES['settings.name-not-saved'], {}, units),
+      )
+    })
+  }
+
+  function onNameChange(value: string) {
+    setDisplayName(value)
+    clearTimeout(nameTimer.current)
+    nameTimer.current = setTimeout(() => {
+      saveName(value)
+    }, NAME_PAUSE_MS)
   }
 
   function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const name = displayName.trim()
-    if (name === (saved.displayName ?? '')) {
-      toast.show('Settings saved')
-      return
-    }
-    save({ displayName: name })
+    saveName(displayName)
   }
 
   function onSignOut() {
@@ -109,6 +158,11 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   return (
     <>
       <PageHeader title="Settings" context={saved.email} />
+      <div className={styles.status} role="status" aria-live="polite" aria-label="Save status">
+        {flash ? (
+          <span className={styles.saved}>{render(TEMPLATES['settings.saved'], {}, units)}</span>
+        ) : null}
+      </div>
       <form className={`${styles.section} ${styles.first}`} onSubmit={onSubmit} noValidate>
         <Segmented<Units>
           label="Distance units"
@@ -130,7 +184,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             { value: 'kg', label: render(TEMPLATES['strength.page.unit-kilograms'], {}, units) },
           ]}
         />
-        <Field label="Display name" error={errors['displayName']}>
+        <Field label="Display name" error={nameError ?? undefined}>
           {(control) => (
             <Input
               {...control}
@@ -138,21 +192,19 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
               value={displayName}
               autoComplete="name"
               onChange={(event) => {
-                setDisplayName(event.target.value)
+                onNameChange(event.target.value)
+              }}
+              onBlur={() => {
+                saveName(displayName)
               }}
             />
           )}
         </Field>
-        {otherError !== undefined ? (
+        {failure === null ? null : (
           <p role="alert" className={styles.alert}>
-            {otherError}
+            {failure}
           </p>
-        ) : null}
-        <div>
-          <Button type="submit" variant="primary" loading={update.isPending}>
-            Save settings
-          </Button>
-        </div>
+        )}
       </form>
 
       <section className={styles.section} aria-labelledby="appearance-heading">
@@ -162,7 +214,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         <Segmented<Theme>
           label="Theme"
           value={theme}
-          onChange={setTheme}
+          onChange={onThemeChange}
           options={[
             { value: 'system', label: 'System' },
             { value: 'light', label: 'Light' },

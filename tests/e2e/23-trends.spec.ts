@@ -164,7 +164,7 @@ test('Trends draws body weight only after Settings turns it on, and hiding it de
     page.getByText('Hiding the chart deletes nothing. Every weigh-in stays.'),
   ).toBeVisible()
   await page.getByRole('checkbox', { name: 'Show body weight on Trends' }).check()
-  await expect(page.getByText('Settings saved')).toBeVisible()
+  await expect(page.getByRole('status', { name: 'Save status' }).getByText('Saved')).toBeVisible()
 
   // On: the chart, in the runner's unit, with its hidden table of weekly means.
   await page.goto('/trends')
@@ -181,7 +181,7 @@ test('Trends draws body weight only after Settings turns it on, and hiding it de
   // Off again: the section goes, and every weigh-in is still there.
   await page.goto('/settings')
   await page.getByRole('checkbox', { name: 'Show body weight on Trends' }).uncheck()
-  await expect(page.getByText('Settings saved')).toBeVisible()
+  await expect(page.getByRole('status', { name: 'Save status' }).getByText('Saved')).toBeVisible()
   await page.goto('/trends')
   await expect(page.getByRole('heading', { level: 2, name: 'Recovery readings' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Body weight' })).toHaveCount(0)

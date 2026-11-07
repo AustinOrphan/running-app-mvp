@@ -25,6 +25,7 @@ import { RACE_PLAN_TEMPLATES } from './racePlan.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
 import { SEASON_TEMPLATES } from './season.ts'
+import { SETTINGS_TEMPLATES } from './settings.ts'
 import { SESSION_STATUS_TEMPLATES } from './sessionStatus.ts'
 import { STRENGTH_PAGE_TEMPLATES } from './strengthPage.ts'
 import { STRENGTH_REVIEW_TEMPLATES } from './strengthReview.ts'
@@ -70,6 +71,7 @@ export const TEMPLATES = {
   ...BRIEF_TEMPLATES,
   ...STRENGTH_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,
+  ...SETTINGS_TEMPLATES,
   ...STRENGTH_PAGE_TEMPLATES,
   ...STRENGTH_REVIEW_TEMPLATES,
   ...PAGE_TEMPLATES,
