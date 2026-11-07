@@ -51,11 +51,13 @@ describe('buildSeries', () => {
     const points = buildSeries(makeStream(), 'pace', 'km')
     expect(points).toHaveLength(12)
     expect(points[11]?.x).toBeCloseTo(0.36, 5)
-    for (const point of points.slice(1)) expect(point.y).toBeCloseTo(333.33, 1)
+    for (const point of points.slice(5)) expect(point.y).toBeCloseTo(333.33, 1)
   })
 
-  test('the first bucket has no pace: it is a start from standing', () => {
-    expect(buildSeries(makeStream(), 'pace', 'km')[0]?.y).toBeNull()
+  test('the first minute has no pace: less than a window of running is a start from standing', () => {
+    const points = buildSeries(makeStream(), 'pace', 'km')
+    expect(points.slice(0, 5).every((p) => p.y === null)).toBe(true)
+    expect(points[5]?.y).not.toBeNull()
   })
 
   test('pace in seconds per mile, x in miles', () => {

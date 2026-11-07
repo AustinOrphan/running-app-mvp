@@ -39,15 +39,17 @@ export function streamXAxis(stream: StreamData): 'distance' | 'time' {
 /** Pace at bucket `i`, from the running done in the preceding window. */
 function paceAt(stream: StreamData, i: number, units: Units): number | null {
   const d = stream.d
-  // The first bucket is a start from standing: one bucket of running, not a pace.
-  if (d === null || i === 0) return null
+  if (d === null) return null
+  const back = Math.max(1, Math.round(PACE_WINDOW_SEC / stream.sampleSec))
+  // The start from standing has less than a window of running behind it: its pace is a spike at the
+  // axis, not a reading. A stream shorter than one window keeps what it has.
+  if (i + 1 < back && stream.t.length >= back) return null
   const endSec = (k: number): number | null => {
     if (k < 0) return 0
     const start = num(stream.t[k])
     return start === null ? null : start + stream.sampleSec
   }
   const distanceAt = (k: number): number | null => (k < 0 ? 0 : num(d[k]))
-  const back = Math.max(1, Math.round(PACE_WINDOW_SEC / stream.sampleSec))
   const from = Math.max(i - back, -1)
   const t1 = endSec(i)
   const t0 = endSec(from)
