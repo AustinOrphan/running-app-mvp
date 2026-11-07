@@ -45,6 +45,9 @@ export const STATE_MODELS = [
   'StrengthSet',
   // The snapshot's prediction reads the race climate, so a refresh must drop a memoised prediction.
   'ClimateCache',
+  // The runner's course points (rule H14, ADR 0018): the memoised race plan reads them and only the
+  // runner writes them, so a save must drop the plan.
+  'RaceCheckpoint',
 ] as const
 
 /**

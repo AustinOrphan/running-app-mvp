@@ -3,6 +3,7 @@ import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
 import type { MethodPosition } from './engine/methods.ts'
 import type { RacePlan, RacePlanSummary } from './engine/racePlan.ts'
+import type { CheckpointInput } from './engine/raceSplits.ts'
 import type { HistorySession, LiftHistory, WeekHistory } from './engine/strength.ts'
 import type {
   AthleteState,
@@ -1400,6 +1401,16 @@ export type RacePlanReason = 'no-goal' | 'no-distance' | 'not-ultra' | 'race-ove
 export interface RacePlanView {
   plan: RacePlan | null
   reason: RacePlanReason | null
+}
+/** One course point of the goal race, as the runner entered it (rule H14, ADR 0018). */
+export type RaceCheckpointRow = CheckpointInput
+/** The answer of `GET` and `PUT /api/race/checkpoints`: the current goal's rows, start first. */
+export interface RaceCheckpointsView {
+  /** The goal the rows belong to; null when the runner has no goal. */
+  goalId: string | null
+  /** The goal's distance in metres; the finish is implicit, so a row sits below it. */
+  distanceM: number | null
+  checkpoints: RaceCheckpointRow[]
 }
 /** The strength session that makes Today offer "Set up strength". */
 export interface StrengthSetupOffer {

@@ -44,6 +44,7 @@ model User {
   strengthLifts     StrengthLift[]
   strengthLogs      StrengthLog[]
   strengthSets      StrengthSet[]
+  raceCheckpoints   RaceCheckpoint[]
 }
 
 model Activity {
@@ -148,10 +149,11 @@ model Goal {
   raceLng         Float?
   supportLevel    String   @default("aided") // 'aided' | 'self'
 
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plans       Plan[]
-  predictions PredictionLog[]
-  raceResult  RaceResult?
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plans           Plan[]
+  predictions     PredictionLog[]
+  raceResult      RaceResult?
+  raceCheckpoints RaceCheckpoint[]
 
   @@index([userId])
 }
@@ -764,4 +766,26 @@ model StrengthSet {
 
   @@index([logId, position])
   @@index([userId, exerciseId])
+}
+
+// The runner's own course points for the goal race (rule H14, ADR 0018). Private: the names and
+// distances are the runner's, and a fixture names its rows "Checkpoint A". The table of a goal is
+// replaced as a whole (`saveRaceCheckpoints`), so a row has no identity outside this table.
+model RaceCheckpoint {
+  id        String   @id @default(cuid())
+  userId    String
+  goalId    String
+  name      String // 1 to 60 characters, plain text
+  distanceM Int // from the start, metres (ADR 0003); the finish is implicit
+  gainM     Int? // climb since the previous row, metres
+  lossM     Int? // descent since the previous row, metres
+  cutoffSec Int? // elapsed seconds from the start
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, distanceM])
+  @@index([userId])
 }
