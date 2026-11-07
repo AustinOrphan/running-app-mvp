@@ -9,6 +9,15 @@ const TAPER_LENGTH = [
   'smyth-2021-marathon-taper-big-data',
 ]
 
+// The last days before a long race (K6): the carbohydrate protocols and the taper reviews, no study
+// of a run on the day before a race.
+const LAST_DAYS = [
+  'bussau-2002-carb-loading-one-day',
+  'sherman-1981-exercise-diet-glycogen',
+  'bosquet-2007-taper-meta-analysis',
+  'mujika-2003-taper-scientific-bases',
+]
+
 export const kTaper = {
   k1: {
     maxDays: param('k1.maxDays', 21, 'A', 'K1', TAPER_LENGTH, {
@@ -144,6 +153,14 @@ export const kTaper = {
         note: 'For races of this duration or more.',
       },
     ),
+    dayBeforeMaxMin: param('k6.dayBeforeMaxMin', 20, 'D', 'K6', LAST_DAYS, {
+      unit: 'min',
+      note: 'Default: a shake-out; no study tests the day-before run. The day before a race of k6.carbLoadMinRaceMin or more holds at most this many minutes of easy running (0 is a rest day, which the one protocol in the corpus used). The week is not made up on other days: the minutes the cap removes stay unplaced, under the K2 figure of the week (G6).',
+    }),
+    easyDaysBefore: param('k6.easyDaysBefore', 2, 'D', 'K6', LAST_DAYS, {
+      unit: 'days',
+      note: 'Default: no study tests the last day for a quality session or a long run. The days before a race of k6.carbLoadMinRaceMin or more (the day before included) hold easy running only: no quality session and no long run.',
+    }),
     firstHalfWarningCsFraction: param(
       'k6.firstHalfWarningCsFraction',
       0.94,

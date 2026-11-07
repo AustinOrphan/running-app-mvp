@@ -69,6 +69,30 @@
 // weeks and the other 141 digests are the same. The taper cut that follows the same reading (task
 // RF2, second review) and the distance of the long run in the week in progress move no digest.
 //
+// Regenerated 2026-11-01 for the last two days before a long race (task RF3, rule K6): the day before
+// a race of 90 minutes or more holds at most `k6.dayBeforeMaxMin` minutes (20) of easy running, and
+// the `k6.easyDaysBefore` days before it (2) hold easy running only. 136 of the 142 digests move: 9
+// of the 12 matrix runners, 17 of the 20 named runners, all 40 of the sweep and all 70 plans of the
+// chains. The six that do not are `matrix novice-5k`, `matrix prior-bsi` and `matrix
+// post-marathon-short-run` (races of 33, 50 and 52 minutes), `h15 short horizon` and `h15 short
+// horizon three years` (5 km, 25 minutes) and `reds hold` (its one run of the race week falls five
+// days before the race). Compared with the engine before (the rule off, by raising
+// `k6.carbLoadMinRaceMin` out of reach), week by week: in all 136 the weeks, the warnings and the
+// checklist are the same and only the race week differs, by one session each: the run of the day
+// before the race is 20 minutes where it was 21 to 48 (1 to 28 minutes shorter, 17 at the median).
+// No session moves to another day, and none is added or removed. The running of the race week of the
+// 136 plans falls from 23,213 to 20,940 minutes.
+//
+// Regenerated 2026-11-01 (task RF3, review): the paragraph above said that one session differs in each
+// of the 136 plans. In 77 of them the cut run's climbing was also shared out again over the other runs
+// of the race week, so those runs' climbing changed: the 4 matrix runners with climbing in the race
+// week, 16 sweep runners, 17 named runners and 40 chain plans. The climbing of the cut run now goes
+// with its minutes (the run keeps its share in proportion to the minutes it keeps, the rest is left
+// unplaced) and the other runs keep the climbing they had. 77 of the 142 digests move against that
+// regeneration and the set that differs from the engine before the rule stays 136. Compared with the
+// engine before, all 136 differ in exactly one session, the run of the day before, in every field. The
+// bound of a week in progress and the baseline of a window (index.ts) move no digest.
+//
 // Regenerated 2026-11-01 (task UX1, item 1) for the unit of the weekly-path note: the feasibility
 // note `weekly-path` of an ultra goal gave the start and the target week in minutes ("growing from
 // about 60 to 534 minutes a week") and now gives them in hours ("growing from about 1.0 to 8.9 h a
@@ -76,6 +100,18 @@
 // plans that carry the note (14 runners, 12 sweep cases and 8 plans of the `first-100-mile`
 // chains). Checked by putting the old sentence back: all 142 digests matched, so only that text
 // differs.
+//
+// Checked 2026-11-06 (task RF3, round 4): the digests were regenerated with the command above and
+// none moved, all 142 are those of the regeneration before. The round changes how a week in progress
+// is bounded (a search to its fixed point, a window that takes the long run, a window on the day before
+// with a cap of 0, the minutes a preset is held to), and a Monday re-plan, which the chains are, starts
+// the week, so no plan of the oracle meets any of them.
+//
+// Checked 2026-11-06 (task RF3, round 5): the digests were regenerated with the command above and
+// none moved, all 142 are those of the regeneration before. The round changes the Monday re-plan of
+// a week a known window on the day before touches, the placement that bounds a week in progress when
+// that window is known, and the bound of a week too short to place the day before; no plan of the
+// oracle meets any of them.
 //
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.

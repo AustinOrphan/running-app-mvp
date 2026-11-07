@@ -16,6 +16,8 @@ import type {
 } from '../../../shared/engine/types.ts'
 import { activity } from './e8-fixtures.ts'
 import { athletes, TODAY } from './matrix-fixtures.ts'
+import { replanSteps } from './replan-steps.ts'
+import { withStoredPlan } from './sim-athlete.ts'
 
 const all = athletes()
 const athlete = (id: string) => all.find((a) => a.id === id)!
@@ -160,14 +162,231 @@ describe('buildPlan', () => {
       const before = runs.filter((s) => s.date < date)
       expect(before).toHaveLength(Math.min(full.runDays, day))
       expect(week.runDays).toBe(Math.min(full.runDays, day))
-      // the week holds its minutes, in runs no longer than those of a week with all its days
-      expect(before.reduce((n, s) => n + s.durationMin, 0)).toBe(week.targetRunMin)
-      for (const s of before) {
-        expect(s.durationMin).toBeLessThanOrEqual(Math.ceil(full.targetRunMin / full.runDays))
-      }
+      // the week holds its minutes, in runs no longer than those of a week with all its days, but
+      // for the shake-out of the day before the race (a half marathon runs 90 minutes or more): the
+      // cap takes what the run held above it, and the minutes are not made up on the other days
+      const share = Math.ceil(full.targetRunMin / full.runDays)
+      const held = before.reduce((n, s) => n + s.durationMin, 0)
+      expect(held).toBeLessThanOrEqual(week.targetRunMin)
+      expect(week.targetRunMin - held).toBeLessThanOrEqual(
+        Math.max(0, share - P.k6.dayBeforeMaxMin.value),
+      )
+      for (const s of before) expect(s.durationMin).toBeLessThanOrEqual(share)
       expect(failed(plan.checklist)).toEqual([])
     },
   )
+})
+
+// The last two days before a race of `k6.carbLoadMinRaceMin` minutes or more [rule K6, task RF3]: the
+// day before holds at most a shake-out of `k6.dayBeforeMaxMin` minutes, the days before the race
+// (`k6.easyDaysBefore`, the day before included) hold easy running only, and what the cap removes is
+// not made up on other days. A race early in the week reaches into the week before.
+describe('buildPlan: the last two days before a race of 90 minutes or more', () => {
+  const half = athlete('half')
+  const NOT_RUNS = ['strength', 'mobility', 'rest', 'race', 'hike', 'cross']
+  const EASY = ['easy', 'recovery']
+  const cap = P.k6.dayBeforeMaxMin.value
+  const easyDays = P.k6.easyDaysBefore.value
+  const runsOn = (plan: PlanDraft, date: string) =>
+    plan.sessions.filter(
+      (s) => s.date === date && !NOT_RUNS.includes(s.kind) && !s.flags.includes('post-race'),
+    )
+  const minutes = (list: SessionSpec[]) => list.reduce((n, s) => n + s.durationMin, 0)
+  /** The runs of the race week before the race day. */
+  const beforeRace = (plan: PlanDraft, race: string) =>
+    plan.sessions.filter(
+      (s) =>
+        mondayOf(s.date) === mondayOf(race) &&
+        s.date < race &&
+        !NOT_RUNS.includes(s.kind) &&
+        !s.flags.includes('post-race'),
+    )
+  /** What the rule asks of the days before a race, as a list of what is wrong. */
+  const wrongBefore = (plan: PlanDraft, race: string): string[] => {
+    const wrong: string[] = []
+    const dayBefore = runsOn(plan, addDays(race, -1))
+    if (minutes(dayBefore) > cap) wrong.push(`${minutes(dayBefore)} min the day before`)
+    for (let k = 1; k <= easyDays; k++) {
+      for (const s of runsOn(plan, addDays(race, -k))) {
+        if (!EASY.includes(s.kind)) wrong.push(`${s.kind} ${k} day(s) before`)
+      }
+    }
+    return wrong
+  }
+
+  it('holds a shake-out the day before a Saturday 100-mile race and does not make up the minutes', () => {
+    const a = athlete('first-100-mile')
+    const race = a.input.goal.date
+    const plan = buildPlan(a.input)
+    expect(addDays(mondayOf(race), 5)).toBe(race)
+    const week = plan.weeks.find((w) => w.weekStart === mondayOf(race))!
+    const friday = runsOn(plan, addDays(race, -1))
+    expect(friday.map((s) => s.kind)).toEqual(['easy'])
+    expect(minutes(friday)).toBe(cap)
+    // the Why drawer of the short run names the rule
+    expect(friday[0]!.rules).toContain('K6')
+    expect(runsOn(plan, addDays(race, -2)).map((s) => s.kind)).toEqual(['easy'])
+    expect(wrongBefore(plan, race)).toEqual([])
+    // the four other runs keep the size they had (48 min of the 240 over 5 runs): the 28 minutes
+    // the cap removes from Friday are not packed into them, and the figure of the week stays K2's
+    const share = Math.ceil(week.targetRunMin / week.runDays)
+    const others = beforeRace(plan, race).filter((s) => s.date !== addDays(race, -1))
+    expect(others.map((s) => s.durationMin)).toEqual([share, share, share, share])
+    expect(minutes(beforeRace(plan, race))).toBe(week.targetRunMin - (share - cap))
+    expect(failed(plan.checklist)).toEqual([])
+  })
+
+  it('caps the day before a Sunday marathon and leaves the other runs of the week as they are', () => {
+    const a = athlete('marathon')
+    const race = a.input.goal.date
+    const plan = buildPlan(a.input)
+    expect(addDays(mondayOf(race), 6)).toBe(race)
+    const week = plan.weeks.find((w) => w.weekStart === mondayOf(race))!
+    const saturday = runsOn(plan, addDays(race, -1))
+    expect(saturday.map((s) => [s.kind, s.durationMin])).toEqual([['easy', cap]])
+    const share = Math.ceil(week.targetRunMin / week.runDays)
+    expect(share).toBeGreaterThan(cap)
+    for (const s of beforeRace(plan, race).filter((r) => r.date < addDays(race, -1))) {
+      expect(s.durationMin).toBeLessThanOrEqual(share)
+    }
+    expect(wrongBefore(plan, race)).toEqual([])
+    expect(failed(plan.checklist)).toEqual([])
+  })
+
+  // The week's climbing is shared out by minutes. The cut run keeps its share in proportion to the
+  // minutes it keeps, the rest is left unplaced like its minutes, and the other runs keep the climbing
+  // they had (review of RF3, finding 3).
+  it('leaves the other runs of the week as they were and takes the climbing of the cut run with its minutes', () => {
+    const a = athlete('trail-50k')
+    const race = a.input.goal.date
+    const param = P.k6.carbLoadMinRaceMin as { value: number }
+    const saved = param.value
+    const week = (plan: PlanDraft) =>
+      plan.sessions.filter(
+        (s) =>
+          mondayOf(s.date) === mondayOf(race) &&
+          !NOT_RUNS.includes(s.kind) &&
+          !s.flags.includes('post-race'),
+      )
+    let without: SessionSpec[]
+    try {
+      param.value = Number.POSITIVE_INFINITY
+      without = week(buildPlan(a.input))
+    } finally {
+      param.value = saved
+    }
+    const withRule = week(buildPlan(a.input))
+    const dayBefore = addDays(race, -1)
+    const was = without.find((s) => s.date === dayBefore)!
+    const now = withRule.find((s) => s.date === dayBefore)!
+    expect(was.gainM).toBeGreaterThan(0)
+    expect(now.durationMin).toBe(cap)
+    expect(now.durationMin).toBeLessThan(was.durationMin)
+    // the climbing goes with the minutes: the same share of it as of the minutes, rounded down
+    expect(now.gainM).toBe(Math.floor((was.gainM! * now.durationMin) / was.durationMin))
+    // nothing else of the week differs, the climbing of the other runs included
+    expect(withRule.filter((s) => s.date !== dayBefore)).toEqual(
+      without.filter((s) => s.date !== dayBefore),
+    )
+  })
+
+  it.each([
+    [89, false],
+    [90, true],
+  ])('applies to a race expected to last %i minutes: %s', (min, capped) => {
+    const race = { ...half.input.goal, expectedDurationSec: min * 60 }
+    const plan = buildPlan({ ...half.input, goal: race })
+    const saturday = minutes(runsOn(plan, addDays(race.date, -1)))
+    // the threshold is k6.carbLoadMinRaceMin; under it the week is placed as the runs of the race
+    // week go (a run of the share of the week on the day before)
+    expect(P.k6.carbLoadMinRaceMin.value).toBe(90)
+    if (capped) expect(saturday).toBe(cap)
+    else expect(saturday).toBeGreaterThan(cap)
+  })
+
+  // The days before a Saturday race are Thursday and Friday: a runner who is free on those two days
+  // only gets a week of two runs that would have held the strides of the week on Thursday.
+  it('keeps the quality session of the race week off the two days before a Saturday race', () => {
+    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
+    const availability = Object.fromEntries(
+      days.map((d) => [
+        d,
+        d === 'thu' || d === 'fri'
+          ? half.input.profile.availability[d]
+          : { available: false, maxMin: 0 },
+      ]),
+    ) as typeof half.input.profile.availability
+    const race = addDays(mondayOf(half.input.goal.date), 5)
+    const plan = buildPlan({
+      ...half.input,
+      goal: { ...half.input.goal, date: race },
+      profile: { ...half.input.profile, availability },
+    })
+    expect(runsOn(plan, addDays(race, -2)).map((s) => s.kind)).toEqual(['easy'])
+    expect(runsOn(plan, addDays(race, -1)).map((s) => s.kind)).toEqual(['easy'])
+    expect(minutes(runsOn(plan, addDays(race, -1)))).toBeLessThanOrEqual(cap)
+    const week = plan.sessions.filter((s) => mondayOf(s.date) === mondayOf(race))
+    expect(week.some((s) => s.kind === 'strides')).toBe(false)
+  })
+
+  it.each([0, 1, 2, 3, 4, 5, 6])(
+    'keeps the two days before a race on day %i of the week short and easy',
+    (day) => {
+      const date = addDays(mondayOf(half.input.goal.date), day)
+      const plan = buildPlan({ ...half.input, goal: { ...half.input.goal, date } })
+      expect(wrongBefore(plan, date)).toEqual([])
+      expect(plan.sessions.filter((s) => s.date === date).map((s) => s.kind)).toEqual(['race'])
+      expect(failed(plan.checklist)).toEqual([])
+    },
+  )
+
+  // A race on a Monday or a Tuesday has its day before (and, on a Monday, its second day before) in
+  // the last taper week, which places its own runs by the same rule: its long run is not on them.
+  it.each([0, 1])('reaches into the week before for a race on day %i of the week', (day) => {
+    const date = addDays(mondayOf(half.input.goal.date), day)
+    const plan = buildPlan({ ...half.input, goal: { ...half.input.goal, date } })
+    const before = addDays(mondayOf(date), -7)
+    const lastWeek = plan.sessions.filter((s) => mondayOf(s.date) === before)
+    expect(wrongBefore(plan, date)).toEqual([])
+    expect(lastWeek.some((s) => s.kind === 'long')).toBe(true)
+    const prevDay = addDays(date, -1)
+    expect(minutes(runsOn(plan, prevDay))).toBeLessThanOrEqual(cap)
+  })
+
+  it('makes the day before a rest day when the cap is 0, without making the minutes up', () => {
+    const param = P.k6.dayBeforeMaxMin as { value: number }
+    const saved = param.value
+    try {
+      param.value = 0
+      const race = half.input.goal.date
+      const plan = buildPlan(half.input)
+      const week = plan.weeks.find((w) => w.weekStart === mondayOf(race))!
+      expect(runsOn(plan, addDays(race, -1))).toEqual([])
+      const share = Math.ceil(week.targetRunMin / week.runDays)
+      for (const s of beforeRace(plan, race)) expect(s.durationMin).toBeLessThanOrEqual(share)
+      expect(wrongBefore(plan, race)).toEqual([])
+      expect(failed(plan.checklist)).toEqual([])
+    } finally {
+      param.value = saved
+    }
+  })
+
+  it('reads the number of easy days from k6.easyDaysBefore', () => {
+    const param = P.k6.easyDaysBefore as { value: number }
+    const saved = param.value
+    const date = addDays(mondayOf(half.input.goal.date), 3)
+    const input = { ...half.input, goal: { ...half.input.goal, date } }
+    const strides = (plan: PlanDraft) =>
+      plan.sessions.filter((s) => mondayOf(s.date) === mondayOf(date) && s.kind === 'strides')
+    try {
+      // a Thursday race: Monday is the third day before it
+      expect(strides(buildPlan(input)).map((s) => s.date)).toEqual([addDays(mondayOf(date), 0)])
+      param.value = 3
+      expect(strides(buildPlan(input))).toEqual([])
+    } finally {
+      param.value = saved
+    }
+  })
 })
 
 describe('replan', () => {
@@ -669,5 +888,104 @@ describe('entry points', () => {
     const decision = engine.weeklyDecision(a.input, addDays(mondayOf(TODAY), -7))
     expect(['progress', 'hold', 'reduce']).toContain(decision.decision)
     expect(decision.nextWeekTargetMin).toBeGreaterThan(0)
+  })
+})
+
+// The race week of a race of 90 minutes or more, re-planned on a day of it with the days before run as
+// planned: the runs still to come are the stored runs again, pass after pass, and the day before the
+// race is still the shake-out. The cap cuts the day before from its share of the week, so the bound of
+// a started week counts the day before at that share and not at its cap, or each pass would cut it
+// again and shed a share of the other runs [rules K6, K2, G-6].
+describe('replan: the shake-out of the race week', () => {
+  const NOT_RUNS = ['strength', 'mobility', 'rest', 'race', 'hike', 'cross']
+  const cap = P.k6.dayBeforeMaxMin.value
+  type Run = [string, string, number]
+  /** The runs of the race week from `from` on, as date, kind and minutes. */
+  const runsFrom = (sessions: ReadonlyArray<SessionSpec>, monday: string, from: string): Run[] =>
+    sessions
+      .filter((s) => mondayOf(s.date) === monday && s.date >= from && !NOT_RUNS.includes(s.kind))
+      .filter((s) => !s.flags.includes('post-race'))
+      .map((s): Run => [s.date, s.kind, s.durationMin])
+
+  // The chain re-plans every week on the same day, each week run as planned (`replanSteps`); its last
+  // step is the re-plan on `day` of the race week, and the passes after it store the plan and re-plan
+  // it with nothing new. The 100-mile week is also the week the plan drew on the Monday: 48 minutes
+  // four times and the shake-out, as on a main without the rule.
+  it.each([
+    ['first-100-mile', 1],
+    ['first-100-mile', 2],
+    ['first-100-mile', 3],
+    ['first-100-mile', 4],
+    ['marathon', 1],
+    ['marathon', 2],
+    ['marathon', 3],
+    ['marathon', 4],
+    ['marathon', 5],
+  ] as const)(
+    'gives back the runs of the %s race week to come when it is re-planned on day %i, pass after pass',
+    (id, day) => {
+      const steps = replanSteps(id, { weekday: day })
+      const last = steps.at(-1)!
+      const race = last.input.goal.date
+      const monday = mondayOf(race)
+      const today = addDays(monday, day)
+      expect(last.input.today).toBe(today)
+      const figure = (p: PlanDraft) => p.weeks.find((w) => w.weekStart === monday)!.targetRunMin
+      const first = runsFrom(steps[0]!.draft.sessions, monday, today)
+      const pass1 = runsFrom(last.draft.sessions, monday, today)
+      expect(pass1.length).toBeGreaterThan(0)
+      // the first-100-mile week is the Monday plan's: the stored runs come back
+      if (id === 'first-100-mile') expect(pass1).toEqual(first)
+      let input = last.input
+      let draft = last.draft
+      for (let pass = 2; pass <= 4; pass += 1) {
+        input = withStoredPlan({ settled: input, draft })
+        draft = replan(input).draft
+        expect(runsFrom(draft.sessions, monday, today), `pass ${pass}`).toEqual(pass1)
+        expect(figure(draft), `pass ${pass}`).toBe(figure(last.draft))
+        // the `tid` item reads weeks long past that a chain's second pass draws from the history
+        // it was given; it fails alike with the rule off, and is not what is asked here
+        expect(
+          failed(draft.checklist).filter((id) => id !== 'tid'),
+          `pass ${pass}`,
+        ).toEqual([])
+      }
+      // the day before the race is a shake-out in every pass
+      for (const [date, , min] of pass1)
+        if (date === addDays(race, -1)) expect(min).toBeLessThanOrEqual(cap)
+    },
+  )
+
+  // A limited window on a day of the week holds that day to its limit. The shake-out is cut once, from
+  // the share of the day before: the days the window does not rule keep the minutes they had, and the
+  // cut is not taken again from the hold target.
+  it('cuts the day before once when a window rules another day of the race week', () => {
+    const a = athlete('first-100-mile')
+    const race = a.input.goal.date
+    const monday = mondayOf(race)
+    const base = buildPlan(a.input)
+    const tuesday = addDays(monday, 1)
+    const window = {
+      id: 'w1',
+      reason: 'travel' as const,
+      mode: 'limited' as const,
+      startDate: tuesday,
+      endDate: tuesday,
+      maxRunMin: 30,
+      pain: null,
+      gaitChange: false,
+    }
+    const plan = buildPlan({ ...a.input, disruptions: [window] })
+    const runs = (p: PlanDraft) =>
+      Object.fromEntries(runsFrom(p.sessions, monday, monday).map(([date, , min]) => [date, min]))
+    const before = runs(base)
+    const after = runs(plan)
+    expect(after[tuesday]).toBe(30)
+    for (const day of [0, 2, 3]) {
+      const date = addDays(monday, day)
+      expect(after[date], date).toBe(before[date])
+    }
+    expect(after[addDays(race, -1)]).toBe(cap)
+    expect(failed(plan.checklist)).toEqual([])
   })
 })

@@ -27,6 +27,15 @@ All 13 researcher entries resolved in Crossref and matched title, journal, year 
 - **Heat, altitude and travel.** These are flagged as unresolved [pyne-2009-peaking-limitations].
 - **Taper-by-age and taper-by-fitness interactions.** Nothing in the corpus tests them directly.
 - **Recreational randomized trials.** There are none in the corpus. The only recreational evidence is observational [smyth-2021-marathon-taper-big-data].
+- **The last two days before a race.** No study tests a run on the day before a race, or the last day for a quality session, against any outcome (see below).
+
+### The last two days before a long race (2026-11-01, task RF3)
+
+Written before rule K6 was given numbers for the days before a race of 90 minutes or more, from the corpus and from two online searches on 2026-11-01 (Europe PMC and Crossref, on a shake-out, a run the day before a race and the final days of a marathon or ultra taper), which found no study of a run on those days and one protocol that fixes the running of its last days.
+
+What the corpus holds. One day of a high-carbohydrate diet (10 g per kg a day) in eight men who stayed physically inactive raised muscle glycogen to the level of three days, so the final 24-48 hours need no running and no depletion phase [bussau-2002-carb-loading-one-day]. The one protocol that tapered the running as well ran a 5-day sequence of 90, 40, 40, 20 and 20 min before a 20.9-km run, with a rest day between the last run and the test, and found that the loading raised the glycogen and did not change the run time of trained runners [sherman-1981-exercise-diet-glycogen]. The reviews put the volume cut of a taper at 41-60% on average and up to 60-90% in the review of Mujika and Padilla, and keep intensity and frequency, a cut of no more than 20%, so the final days are the low end of a taper that keeps its run days and not a stop of it [bosquet-2007-taper-meta-analysis, mujika-2003-taper-scientific-bases]. Muscle glycogen rises progressively across a taper, the markers of muscle damage fall, and mood and sleep improve [mujika-2004-taper-physiology]. Elite marathoners cut their continuous volume to about 53% of regular, which says nothing of the last days singly [spilsbury-2015-elite-runner-taper-survey].
+
+What it does not hold. No study compares a short run, a rest day and no change on the day before a race, or says on which day the last quality session or the last long run should fall. The carbohydrate studies measured glycogen with the athletes inactive or resting before the test, in eight men and in runners of unstated number, and neither timed a race longer than a half marathon (the abstract of the second gives no run time for its 20.9 km, and any duration is an inference); the taper reviews say nothing of single days. The size of a shake-out and the number of easy days are therefore a design default (grade D) and not a finding: a cap of 20 min is the length of the last two runs of the one protocol, and that protocol rested on the day before the test, so a rest day (a cap of 0) is as well supported as a short run. A rest day the day before is also the more conservative choice (G6); a run is kept only so that the taper keeps its run days (K3).
 
 ### How the engine should use it
 
@@ -68,6 +77,7 @@ All 13 researcher entries resolved in Crossref and matched title, journal, year 
 - Wearable-era data: no validated rule for using overnight HRV, resting HR or training-load metrics to individualize taper depth; Hug 2014 (n=9) used single-day post-exercise measures.
 - Optimal weekly step split within the 41-60% band, and whether progressive beats step in short tapers, are not established; weekly multipliers are design choices.
 - Pre-race week nutrition and sleep guidance rests on small physiological studies (n=8) without race-performance outcomes; sodium, hydration and caffeine strategies were not covered.
+- No study of a shake-out run, a rest day or no change on the day before a race, or of the last day for quality work or a long run, was found (searched 2026-11-01); the cap on the day before and the count of easy days in rule K6 are grade D defaults (task RF3).
 - A 2023-2026 consensus statement or recent marathon/ultra taper trial may exist but was not found in the searches run; recommend a targeted follow-up search for 2024-2026 work.
 
 ## Papers
@@ -88,3 +98,4 @@ All 13 researcher entries resolved in Crossref and matched title, journal, year 
 - [timpka-2020-health-complaints-heat-taper] Timpka T et al. (2020). Health complaints and heat stress prevention strategies during taper as predictors of peaked athletic performance at the 2015 World Athletics Championship in hot conditions. _Journal of Science and Medicine in Sport_. https://doi.org/10.1016/j.jsams.2019.10.024 — prospective-cohort, level C
 - [hug-2014-taper-marathon-hrv] Hug B et al. (2014). Tapering for marathon and cardiac autonomic function. _International Journal of Sports Medicine_. https://doi.org/10.1055/s-0033-1361184 — other, level C
 - [bussau-2002-carb-loading-one-day] Bussau VA et al. (2002). Carbohydrate loading in human muscle: an improved 1 day protocol. _European Journal of Applied Physiology_. https://doi.org/10.1007/s00421-002-0621-5 — experimental-crossover, level C
+- [sherman-1981-exercise-diet-glycogen] Sherman WM et al. (1981). Effect of exercise-diet manipulation on muscle glycogen and its subsequent utilization during performance. _International Journal of Sports Medicine_. https://doi.org/10.1055/s-2008-1034594 — other, level C

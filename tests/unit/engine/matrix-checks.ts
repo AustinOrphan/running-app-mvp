@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { buildPlan, explain } from '../../../shared/engine/index.ts'
+import { P } from '../../../shared/engine/params/index.ts'
 import { ownWindow, windowViolations } from '../../../shared/engine/postRace.ts'
 import type { PlanDraft, SessionKind, SessionSpec } from '../../../shared/engine/types.ts'
 import type { Weekday } from '../../../shared/types.ts'
@@ -201,6 +202,36 @@ export function describePlanMatrix(
       const minutes = (p: PlanDraft) => runs(p).reduce((sum, s) => sum + s.durationMin, 0)
       expect(runs(closed)).toHaveLength(runs(plan).length)
       expect(minutes(closed)).toBe(minutes(plan))
+    })
+
+    // The last two days before a race of `k6.carbLoadMinRaceMin` minutes or more [rule K6, task RF3]:
+    // the day before holds at most a shake-out of `k6.dayBeforeMaxMin` minutes, and the
+    // `k6.easyDaysBefore` days before the race (the day before included) hold easy running only, no
+    // quality session and no long run. A shorter race keeps the week as RF2 placed it, and the
+    // shake-out is the only run that cites K6 beside the race.
+    it('holds a shake-out the day before a race of 90 minutes or more and easy running the days before it', () => {
+      const raceDate = a.input.goal.date
+      const long = a.input.goal.expectedDurationSec / 60 >= P.k6.carbLoadMinRaceMin.value
+      const runsOn = (date: string) =>
+        plan.sessions.filter(
+          (s) => s.date === date && ANY_RUN.has(s.kind) && !s.flags.includes('post-race'),
+        )
+      const cited = plan.sessions.filter((s) => s.kind !== 'race' && s.rules.includes('K6'))
+      if (!long) {
+        expect(cited).toEqual([])
+        return
+      }
+      const bad: string[] = []
+      const dayBefore = runsOn(addDays(raceDate, -1))
+      const shakeOut = dayBefore.reduce((sum, s) => sum + s.durationMin, 0)
+      if (shakeOut > P.k6.dayBeforeMaxMin.value) bad.push(`${shakeOut} min the day before`)
+      for (let k = 1; k <= P.k6.easyDaysBefore.value; k++) {
+        for (const s of runsOn(addDays(raceDate, -k))) {
+          if (s.kind !== 'easy' && s.kind !== 'recovery') bad.push(`${s.kind} ${k} day(s) before`)
+        }
+      }
+      expect(bad).toEqual([])
+      expect(cited.every((s) => s.date === addDays(raceDate, -1))).toBe(true)
     })
 
     it('keeps no session on an unavailable day or above the day limit', () => {

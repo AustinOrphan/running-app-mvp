@@ -56,6 +56,32 @@ describe('the race week, stored and re-planned with nothing new [rules g-6, K2]'
   )
 })
 
+describe('the race week re-planned on a day of it, stored and re-planned again [rules g-6, K2, K6]', () => {
+  // A long race's day before is cut to a shake-out from its share of the week. The week in progress
+  // is bounded by the minutes its replaced plan still has, so the run must count at its share, or each
+  // pass cuts it again and sheds a share of the runs that nothing changed (the review of RF3). The
+  // chain re-plans every week on the same day of the week, each week run as planned.
+  it.each([
+    ['half', 1],
+    ['half', 3],
+    ['half', 5],
+    ['first-100-mile', 1],
+    ['first-100-mile', 3],
+    ['first-100-mile', 4],
+  ] as const)('gives the plan of %s back on day %i of the week, pass after pass', (id, day) => {
+    const last = replanSteps(id, { weekday: day }).at(-1)!
+    const monday = mondayOf(last.input.goal.date)
+    expect(last.input.today).toBe(addDays(monday, day))
+    let { input, draft } = { input: last.input, draft: last.draft }
+    for (let pass = 2; pass <= 4; pass += 1) {
+      const next = again(input, draft)
+      expect(weekMin(next.draft, monday), `pass ${String(pass)}`).toBe(weekMin(last.draft, monday))
+      expect(next.draft, `pass ${String(pass)}`).toEqual(last.draft)
+      ;({ input, draft } = next)
+    }
+  })
+})
+
 describe('a held week, stored and re-planned with nothing new [rules J5, G-6]', () => {
   // A runner who runs 75% of every session: every Monday re-plan holds (completion under
   // `j5.completionHoldShare`), caps the week at the minutes run and a step, and trims the next
