@@ -73,6 +73,8 @@ export const PAGE_TEMPLATES = {
 
   // A row of the Plan page's week table: the word that marks the current week, and the figure run
   // so far, named, with its target when the week still has one to run toward ("2.5 of 5.2 h run").
+  // The header link that goes to the panels under the week table: the plan-wide actions and settings.
+  'plan.settings-link': tpl('Plan settings', {}, { shape: 'label' }),
   'plan.week.this': tpl('This week', {}, { shape: 'label' }),
   'plan.week.ran': tpl('{ran} run', { ran: 'weekMinutes' }, { shape: 'label' }),
   'plan.week.ran-of': tpl(
@@ -133,6 +135,10 @@ export function providerMessage<K extends ProviderMessageId>(
 }
 
 /** The mark of the current week's row on the Plan page. */
+/** The header link to the panels under the week table. */
+export const planSettingsLabel = (): string =>
+  render(PAGE_TEMPLATES['plan.settings-link'], {}, 'km')
+
 export const thisWeekLabel = (): string => render(PAGE_TEMPLATES['plan.week.this'], {}, 'km')
 
 /** The minutes run in a week, named: "2.5 h run". */

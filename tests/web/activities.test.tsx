@@ -206,6 +206,13 @@ describe('Activities page', () => {
     const run = (over: Partial<Activity> = {}): ActivityListItem =>
       makeActivity({ id: 'r1', durationSec: 2700, distanceM: 8047, ...over })
 
+    test('a moving time of zero is a missing reading: the row keeps "Pace" and the elapsed figure', async () => {
+      renderPage({ activities: [run({ movingSec: 0 })] })
+      const pace = await screen.findByText('9:00 /mi')
+      expect(pace).toHaveTextContent('Pace: 9:00 /mi')
+      expect(screen.queryByText(/Moving pace/)).not.toBeInTheDocument()
+    })
+
     test('a row with no moving time keeps the label "Pace"', async () => {
       renderPage({ activities: [run()] })
       const pace = await screen.findByText('9:00 /mi')

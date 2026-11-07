@@ -15,7 +15,7 @@ export function weekHasRuns(sessions: readonly PlanSession[], weekStart: string)
 }
 
 /**
- * The strip at the top of the Plan page: how the next 14 days of runs stand on their way to the
+ * The strip under the Plan page's week table: how the next 14 days of runs stand on their way to the
  * watch, "Send again" when some are stuck, and this week's workout files as a zip. The counts come
  * from the server; offline, or while the status cannot be read, only the download stays. With
  * sending off, the strip says so and points to the files and to Integrations.

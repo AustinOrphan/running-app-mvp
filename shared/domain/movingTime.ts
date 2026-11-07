@@ -9,13 +9,15 @@ import type { Activity } from '../types.ts'
 const MOVING_DIFFERS_SEC = 1
 
 /**
- * Whether the activity has a moving time that stands apart from its elapsed time. The detail page
+ * Whether the activity has a moving time (above zero: a zero is a missing reading, not a stop of
+ * the whole run) that stands apart from its elapsed time. The detail page
  * leads with the moving pace when it does, with the elapsed pace second and each named; the list
  * shows the moving pace and names it.
  */
 export function movingTimeDiffers(activity: Pick<Activity, 'durationSec' | 'movingSec'>): boolean {
   return (
     activity.movingSec !== null &&
+    activity.movingSec > 0 &&
     Math.abs(activity.movingSec - activity.durationSec) >= MOVING_DIFFERS_SEC
   )
 }

@@ -339,6 +339,14 @@ describe('ActivityDetailPage', () => {
         expect(termOf(summary, 'Moving pace')).toBeUndefined()
       })
 
+      test('a moving time of zero is a missing reading: one pace, "Pace", and no dash', async () => {
+        renderDetail({ detail: withMoving(0) })
+        const summary = await screen.findByRole('region', { name: 'Summary' })
+        expect(figureOf(summary, 'Pace')).toBe('9:39 /mi')
+        expect(termOf(summary, 'Moving pace')).toBeUndefined()
+        expect(termOf(summary, 'Moving time')).toBeUndefined()
+      })
+
       test('an activity with no pace gets neither label', async () => {
         const base = makeDetail()
         renderDetail({

@@ -24,10 +24,10 @@ export const ACTIVITY_LIST_TEMPLATES = {
     { shape: 'label', fallback: 'Show more' },
   ),
   'activity-list.more-error': tpl('More activities did not load. Try again.'),
-  // The pace of a row. The list shows the elapsed pace (from `durationSec`) throughout and has room
-  // for no second one, so a row whose activity has a different moving time says which pace this is
-  // in the label a screen reader reads. Nothing is added to the line: a row with a source label, a
-  // long distance and a long duration is already full at 360 px.
+  // The pace of a row. The list has room for one pace: the moving pace (from `movingSec`) when the
+  // activity has a moving time that differs from its elapsed time, otherwise the elapsed pace. A
+  // moving-pace row says so in the label a screen reader reads. Nothing is added to the line: a row
+  // with a source label, a long distance and a long duration is already full at 360 px.
   'activity-list.pace': tpl('Pace', {}, { shape: 'label' }),
   'activity-list.pace-moving': tpl('Moving pace', {}, { shape: 'label' }),
   // The figure of a strength row in place of a distance (strength design 11.4): the sets logged.

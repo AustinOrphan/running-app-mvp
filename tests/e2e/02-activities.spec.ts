@@ -75,7 +75,7 @@ test('a run logged for today opens its own page, the post-run screen, and the to
   await expect(page.getByRole('button', { name: /^Run 45:00 5\.00 mi/ })).toBeVisible()
 })
 
-test('a long row from a source tells a screen reader its pace is the elapsed one, and is no taller at 360 px', async ({
+test('a long row from a source shows the moving pace and names it, and is no taller at 360 px', async ({
   page,
   baseURL,
 }) => {
@@ -121,13 +121,13 @@ test('a long row from a source tells a screen reader its pace is the elapsed one
     .filter({ has: page.getByRole('link', { name: /^Details, Run on / }) })
   await expect(rows).toHaveCount(2)
   // told apart by the label a screen reader reads, which is all the row says of it
-  const elapsed = rows.filter({ has: page.getByRole('button', { name: /Moving pace/ }) })
+  const moving = rows.filter({ has: page.getByRole('button', { name: /Moving pace/ }) })
   const plain = rows.filter({ has: page.getByRole('button', { name: /Pace: / }) })
-  await expect(elapsed).toHaveCount(1)
+  await expect(moving).toHaveCount(1)
   await expect(plain).toHaveCount(1)
-  await expect(elapsed.getByText('elapsed', { exact: true })).toHaveCount(0)
+  await expect(moving.getByText('elapsed', { exact: true })).toHaveCount(0)
   // the row that qualifies its pace is no taller than the same row without a moving time
-  const [tall, short] = await Promise.all([elapsed.boundingBox(), plain.boundingBox()])
+  const [tall, short] = await Promise.all([moving.boundingBox(), plain.boundingBox()])
   expect(tall?.height).toBeLessThanOrEqual(short?.height ?? 0)
   expect(
     await page.evaluate(

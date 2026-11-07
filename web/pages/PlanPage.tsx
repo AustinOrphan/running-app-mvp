@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type FormEvent,
+  type RefObject,
   type SyntheticEvent,
 } from 'react'
 import { Link } from 'react-router-dom'
@@ -63,6 +64,7 @@ import {
   cycleChoiceLabel,
   cycleFieldLabel,
   cycleHintLines,
+  planSettingsLabel,
   thisWeekLabel,
   weekRanOfText,
   weekRanText,
@@ -891,7 +893,6 @@ function ShapePanel({
   )
 }
 
-/** Version-2 plans: feasibility, the load setting, warnings, the plan checks and the revision list. */
 /**
  * The plan's warnings start with the feasibility notes (`warnings = [...notes, ...]` in the
  * engine), and the Feasibility panel prints those: a warning with the code of a note is not printed
@@ -952,12 +953,16 @@ function PlanWarnings({
   )
 }
 
+/** Version-2 plans: feasibility, the load setting, the plan shape, the plan checks and the revision list. */
 function PlanOverview({
+  anchor,
   plan,
   onWhy,
   onUpdate,
   onRegenerate,
 }: {
+  /** The panels' wrapper: the "Plan settings" link in the header scrolls to it. */
+  anchor: RefObject<HTMLDivElement>
   plan: PlanWithSessions
   onWhy: (why: WhyTarget) => void
   onUpdate: () => void
@@ -969,7 +974,7 @@ function PlanOverview({
   const feasibility = plan.feasibility
 
   return (
-    <div className={`${styles.overview} ${styles.overviewAfter}`}>
+    <div ref={anchor} className={`${styles.overview} ${styles.overviewAfter}`}>
       {feasibility !== null ? (
         <section aria-labelledby="feasibility-title" className={styles.panel}>
           <h2 id="feasibility-title" className={styles.panelTitle}>
@@ -1461,6 +1466,7 @@ export function PlanPage() {
   const [notFull, setNotFull] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [reveal, setReveal] = useState<WeekReveal | null>(null)
+  const settings = useRef<HTMLDivElement>(null)
 
   if (plan.isError || goals.isError) {
     return (
@@ -1511,6 +1517,17 @@ export function PlanPage() {
   const hasSessions = plan.data.generatorVersion >= 2
   const sessions = hasSessions ? plan.data.sessions : []
   const openSession = sessions.find((s) => s.id === openSessionId)
+  // "Plan settings" in the header: scroll to the panels under the week table and focus the first
+  // heading there (the wrapper itself when it holds none), so the next Tab reaches their buttons.
+  const goToSettings = () => {
+    const target = settings.current
+    if (target === null) return
+    const heading = target.querySelector<HTMLElement>('h2, summary') ?? target
+    heading.tabIndex = -1
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    heading.scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' })
+    heading.focus({ preventScroll: true })
+  }
 
   return (
     <>
@@ -1519,14 +1536,19 @@ export function PlanPage() {
         context={`${plan.data.name}. Race week of ${formatShortDate(plan.data.raceWeekStart)}.`}
         actions={
           hasSessions ? (
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setNotFull(true)
-              }}
-            >
-              Not 100%
-            </Button>
+            <>
+              <Button variant="quiet" onClick={goToSettings}>
+                {planSettingsLabel()}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setNotFull(true)
+                }}
+              >
+                Not 100%
+              </Button>
+            </>
           ) : (
             // A version-1 plan has no plan shape panel to hold the action.
             <Button
@@ -1557,6 +1579,7 @@ export function PlanPage() {
       {hasSessions ? <WristStrip sessions={sessions} /> : null}
       {hasSessions ? (
         <PlanOverview
+          anchor={settings}
           plan={plan.data}
           onWhy={setWhy}
           onUpdate={() => {
