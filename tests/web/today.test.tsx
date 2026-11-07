@@ -660,6 +660,22 @@ describe('Today: the check-in sheet', () => {
     ).toBeVisible()
     expect(within(sheet).getByRole('button', { name: 'Pain today 10' })).toBeVisible()
     expect(within(sheet).getByRole('textbox', { name: 'Pain area' })).toBeVisible()
+    // Every scale says which end is which, before anything is saved.
+    for (const line of [
+      '1 fresh, 5 drained.',
+      '1 none, 5 very sore.',
+      '1 poor, 5 good.',
+      '1 low, 5 good.',
+      '1 calm, 5 very stressed.',
+    ]) {
+      expect(within(sheet).getByText(line)).toBeVisible()
+    }
+    expect(within(sheet).getByRole('textbox', { name: 'Pain area' })).toHaveAccessibleDescription(
+      'Optional. Where it hurts, in a few words.',
+    )
+    expect(
+      within(sheet).getByRole('checkbox', { name: 'Point tenderness on a bone' }),
+    ).toHaveAccessibleDescription(/^Tick this if pressing on one spot of a bone hurts\./)
     expectCleanCopy(container)
   })
 
@@ -681,8 +697,11 @@ describe('Today: the check-in sheet', () => {
       expect(within(sheet).getByRole('button', { name: 'Fatigue 1' })).toHaveFocus()
     })
     expect(
-      within(sheet).getByText('Saved for today. Change any answer and save again.'),
+      within(sheet).getByText('Saved for today. 3 is normal. Change any answer and save again.'),
     ).toBeVisible()
+    // The direction of every scale stays on screen after the first save.
+    expect(within(sheet).getByText('1 fresh, 5 drained.')).toBeVisible()
+    expect(within(sheet).getByText('1 poor, 5 good.')).toBeVisible()
     expect(within(sheet).getByRole('button', { name: 'Save check-in' })).toBeDisabled()
   })
 

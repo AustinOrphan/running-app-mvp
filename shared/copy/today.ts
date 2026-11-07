@@ -130,8 +130,21 @@ export const TODAY_TEMPLATES = {
   'today.checkin.sheet-new': tpl(
     'Optional. 1 to 5, where 3 is normal. These answers come first when the plan checks readiness.',
   ),
-  'today.checkin.sheet-saved': tpl('Saved for today. Change any answer and save again.'),
+  'today.checkin.sheet-saved': tpl(
+    'Saved for today. 3 is normal. Change any answer and save again.',
+  ),
   'today.checkin.pain-hint': tpl('0 is none, 10 is the worst.'),
+  // The end labels of the five scales, so the direction is never a guess. Soreness, fatigue and
+  // stress rise when things are worse; sleep and mood fall (readiness reads them that way).
+  'today.checkin.scale-fatigue': tpl('1 fresh, 5 drained.'),
+  'today.checkin.scale-soreness': tpl('1 none, 5 very sore.'),
+  'today.checkin.scale-sleep': tpl('1 poor, 5 good.'),
+  'today.checkin.scale-mood': tpl('1 low, 5 good.'),
+  'today.checkin.scale-stress': tpl('1 calm, 5 very stressed.'),
+  'today.checkin.pain-area-hint': tpl('Optional. Where it hurts, in a few words.'),
+  'today.checkin.bone-hint': tpl(
+    'Tick this if pressing on one spot of a bone hurts. Progression then holds until a later check-in clears it.',
+  ),
   'today.checkin.toast-sent': tpl('Check-in saved', {}, { shape: 'label' }),
   'today.checkin.toast-queued': tpl('Check-in saved on this phone', {}, { shape: 'label' }),
   // `reason` is the server's own sentence, quoted.

@@ -57,6 +57,16 @@ describe('Today templates', () => {
     }
   })
 
+  test('the check-in scales say which end is which, and 3 stays normal after a save', () => {
+    const say = (id: keyof typeof TODAY_TEMPLATES) => renderFact({ template: id, slots: {} }, 'km')
+    expect(say('today.checkin.scale-fatigue')).toBe('1 fresh, 5 drained.')
+    expect(say('today.checkin.scale-soreness')).toBe('1 none, 5 very sore.')
+    expect(say('today.checkin.scale-sleep')).toBe('1 poor, 5 good.')
+    expect(say('today.checkin.scale-mood')).toBe('1 low, 5 good.')
+    expect(say('today.checkin.scale-stress')).toBe('1 calm, 5 very stressed.')
+    expect(say('today.checkin.sheet-saved')).toContain('3 is normal')
+  })
+
   test('the check-in link reads as adding a window while one is open', () => {
     const words = (id: 'today.checkin.hurt' | 'today.checkin.hurt-window') =>
       render(TEMPLATES[id], {}, 'km')
