@@ -49,7 +49,7 @@ import type { ExecutionFindings, InputFact, SessionKind, SourceRef } from './typ
  * stored insight of another version is computed again on the next read. Raise it with any change
  * to which findings a run gets.
  */
-export const STANDOUT_VERSION = 1
+export const STANDOUT_VERSION = 2
 
 /** The planned session a run fulfils, with the assessment stored for it. */
 export interface StandoutSession {
@@ -57,6 +57,8 @@ export interface StandoutSession {
   date: string
   kind: SessionKind
   durationMin: number
+  /** The effort the planned session expects, its stored target: the range an RPE is read against. */
+  expectedRpe: readonly [number, number]
   assessment: ExecutionFindings
 }
 
@@ -145,7 +147,7 @@ function effortFact({ input, activity }: Prepared): InputFact | null {
   if (session === null) return null
   const { score, parts } = session.assessment.effort
   if (score === null || score === 0 || !hasSubjectivePart(parts)) return null
-  const [low, high] = P.expectedRpe[session.kind].value
+  const [low, high] = session.expectedRpe
   const harder = score > 0
   const sources = [activitySource(activity), sessionSource(session)]
   const rpe = activity.rpe

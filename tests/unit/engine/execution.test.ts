@@ -266,6 +266,59 @@ describe('assessExecution effort', () => {
     expect(out.effort.confidence).toBe('low')
   })
 
+  describe('against the effort the session itself expects [rule H11]', () => {
+    const ultraRace = session({
+      kind: 'race',
+      durationMin: 1200,
+      target: { zone: 'z1', rpe: [3, 4], hr: [110, 130], paceSecPerKm: null, heatNote: null },
+    })
+    const marathonRace = session({
+      kind: 'race',
+      durationMin: 240,
+      target: {
+        zone: 'race-pace',
+        rpe: [...P.expectedRpe.race.value],
+        hr: null,
+        paceSecPerKm: [350, 330],
+        heatNote: null,
+      },
+    })
+    const rated = (rpe: number) => activity({ type: 'race', rpe, distanceM: null })
+
+    it('reads an ultra race rated 4 as expected and one rated 8 as harder', () => {
+      const expected = assessExecution(ultraRace, rated(4), CTX).effort
+      expect(expected.parts.rpeDelta).toBe(0.5)
+      expect(expected.score).toBe(0)
+      const harder = assessExecution(ultraRace, rated(8), CTX).effort
+      expect(harder.parts.rpeDelta).toBe(4.5)
+      expect(harder.score).toBeGreaterThanOrEqual(1)
+    })
+
+    it('reads a marathon race rated 8 as expected, as the table of C4 has it', () => {
+      const out = assessExecution(marathonRace, rated(8), CTX).effort
+      expect(out.parts.rpeDelta).toBe(-0.5)
+      expect(out.score).toBe(0)
+      // the range comes from the stored target, which the table of the kind equals for a race
+      expect(marathonRace.target.rpe).toEqual(P.expectedRpe.race.value)
+    })
+
+    it('reads a rating against the stored range of any session, not the table of its kind', () => {
+      const stored = session({
+        target: {
+          zone: 'z2',
+          rpe: [6, 7],
+          hr: [130, 145],
+          paceSecPerKm: [390, 350],
+          heatNote: null,
+        },
+      })
+      // an easy run stored at 6 to 7 and rated 7 is as expected; against the easy table (2 to 3) it is harder
+      expect(assessExecution(stored, activity({ rpe: 7, distanceM: null }), CTX).effort.score).toBe(
+        0,
+      )
+    })
+  })
+
   it('uses the pace residual against the target band on a grade-adjusted pace', () => {
     // 10 km in 55 min = 330 s/km against a 350-390 band: faster, so harder.
     const out = assessExecution(

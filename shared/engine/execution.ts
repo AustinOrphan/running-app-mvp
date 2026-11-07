@@ -574,7 +574,9 @@ export function assessExecution(
 
   // Effort parts, positive meaning harder than expected. A different kind of activity has no
   // expectation to compare with, so only the feel rating counts.
-  const expected = P.expectedRpe[session.kind].value
+  // the effort the session itself expects (its stored target), not the table of its kind: the race
+  // of an ultra goal is rated against the easy effort it was planned at [rule H11]
+  const expected = session.target.rpe
   const rpeDelta =
     !modified && activity.rpe !== null ? round1(activity.rpe - midpoint(expected)) : null
   const feel = activity.feel

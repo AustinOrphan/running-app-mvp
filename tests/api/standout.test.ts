@@ -468,6 +468,53 @@ describe('the assessment of the session a run fulfils', () => {
     expect(templates(await viewOf(u, run.id))).not.toContain('standout.effort-harder-rpe')
   })
 
+  test('reads the rating against the range the session stored: an ultra race and a marathon race [rule H11]', async () => {
+    const u = await newUser()
+    const ultra = await addRun(u.id, 1, { rpe: 8, type: 'race' })
+    const marathon = await addRun(u.id, 2, { rpe: 8, type: 'race' })
+    const { rows } = await planWith(u.id, [
+      { date: addDays(today, -1), kind: 'race', min: 1200 },
+      { date: addDays(today, -2), kind: 'race', min: 240 },
+    ])
+    await ctx.prisma.planSession.update({
+      where: { id: rows[0]!.id },
+      data: {
+        activityId: ultra.id,
+        linkSource: 'auto',
+        execution: execution(),
+        target: JSON.stringify({ zone: 'z1', rpe: [3, 4], hr: [110, 130], paceSecPerKm: null }),
+      },
+    })
+    await ctx.prisma.planSession.update({
+      where: { id: rows[1]!.id },
+      data: {
+        activityId: marathon.id,
+        linkSource: 'auto',
+        execution: execution({
+          effort: {
+            score: 1,
+            confidence: 'moderate',
+            parts: { rpeDelta: -0.5, feel: null, hrResidualZ: null, paceResidualPct: null },
+          },
+        }),
+        target: JSON.stringify({ zone: 'race-pace', rpe: [8, 9], hr: null, paceSecPerKm: null }),
+      },
+    })
+    // a rating of 8 is beyond the 3 to 4 an ultra race expects, and the sentence says so
+    const harder = await viewOf(u, ultra.id)
+    expect(harder.items).toHaveLength(1)
+    expect(harder.items[0]).toMatchObject({
+      template: 'standout.effort-harder-rpe',
+      slots: {
+        rpe: { kind: 'count', n: 8 },
+        low: { kind: 'count', n: 3 },
+        high: { kind: 'count', n: 4 },
+      },
+    })
+    // the same rating is inside the 8 to 9 a marathon race expects: no verdict
+    expect(templates(await viewOf(u, marathon.id))).not.toContain('standout.effort-harder-rpe')
+  })
+
   test('is found in an archived plan too', async () => {
     const u = await newUser()
     const run = await addRun(u.id, 1, { rpe: 8 })

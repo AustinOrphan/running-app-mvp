@@ -4,7 +4,11 @@ import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import { doneEntryFor } from '../../shared/domain/doneEntry.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { renderFact } from '../../shared/copy/templates.ts'
-import type { ExecutionAssessment, StoredAssessment } from '../../shared/engine/types.ts'
+import type {
+  ExecutionAssessment,
+  SessionKind,
+  StoredAssessment,
+} from '../../shared/engine/types.ts'
 import type {
   ParsedActivity,
   PlanRevision,
@@ -80,6 +84,12 @@ const TARGET = JSON.stringify({
   paceSecPerKm: null,
   heatNote: null,
 })
+/**
+ * The target a session of `kind` stores: the effort of its kind in C4, which the assessment reads
+ * the rating against (the stored target, not the table: rule H11).
+ */
+const targetOf = (kind: string): string =>
+  JSON.stringify({ ...JSON.parse(TARGET), rpe: P.expectedRpe[kind as SessionKind].value })
 const WORK = JSON.stringify([
   { kind: 'warmup', reps: 1, durationSec: 600, distanceM: null, zone: 'z1' },
   { kind: 'work', reps: 4, durationSec: 300, distanceM: null, zone: 'z3' },
@@ -140,7 +150,7 @@ async function planWith(
           title: `${s.kind} run`,
           durationMin: s.min,
           structure: s.structure ?? '[]',
-          target: TARGET,
+          target: targetOf(s.kind),
           purpose: 'Synthetic.',
           status: s.status ?? 'planned',
         },
