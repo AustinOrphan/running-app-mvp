@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { StatsPage } from '../../web/pages/StatsPage.tsx'
 import type { Activity, Units, UserSettings, WeekRow } from '../../shared/types.ts'
@@ -184,16 +184,41 @@ describe('StatsPage', () => {
     ).toBeInTheDocument()
   })
 
-  test('weekly history table lists the last 26 weeks with run hours, runs, run days and long-run share (an en dash when null)', async () => {
+  test('weekly history lists the last 12 weeks with run hours, runs, run days and long-run share (an en dash when null), and "Show all weeks" adds the rest', async () => {
     mockStats()
     renderWithProviders(<StatsPage />)
-    const table = await screen.findByRole('table', { name: 'Weekly history, last 26 weeks' })
+    const table = await screen.findByRole('table', { name: 'Weekly history, last 12 weeks' })
     const rows = within(table).getAllByRole('row')
-    expect(rows).toHaveLength(27)
+    expect(rows).toHaveLength(13)
     // Newest week first.
     expect(within(rows[1] as HTMLElement).getByRole('rowheader')).toHaveTextContent('16 Mar')
     expect(cellTexts(rows[1] as HTMLElement)).toEqual(['2.5', '3', '3', '50%'])
     expect(cellTexts(rows[2] as HTMLElement)).toEqual(['0.0', '0', '0', '–'])
+
+    const more = screen.getByRole('button', { name: 'Show all weeks' })
+    expect(more).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(more)
+    const all = screen.getByRole('table', { name: 'Weekly history, last 26 weeks' })
+    expect(within(all).getAllByRole('row')).toHaveLength(27)
+    expect(screen.getByRole('button', { name: 'Show the last 12 weeks' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+  })
+
+  test('every table sits in a focusable, labelled region that scrolls on its own', async () => {
+    mockStats()
+    renderWithProviders(<StatsPage />)
+    await screen.findByRole('table', { name: 'Monthly totals' })
+    for (const name of [
+      'Monthly totals table',
+      'Yearly totals table',
+      'Longest runs table',
+      'Fastest efforts table',
+      'Weekly history table',
+    ]) {
+      expect(screen.getByRole('region', { name })).toHaveAttribute('tabindex', '0')
+    }
   })
 
   test('no runs: "No runs yet. Stats appear after the first run." and no charts', async () => {

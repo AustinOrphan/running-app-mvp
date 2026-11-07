@@ -1,21 +1,13 @@
-/* The table scrolls inside its own box, both ways, so a phone never scrolls the page sideways. The
-   box takes focus (it is a labelled region), so the focus ring is its own. */
+/* The box is a `ScrollTable` (focus ring and edge fades); this adds the frame and the height cap. */
 .scroll {
   max-height: 26rem;
-  overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-raised);
-}
-
-.scroll:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-offset);
 }
 
 .table {
   width: 100%;
-  min-width: 40rem;
+  min-width: 52rem;
   border-collapse: collapse;
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
@@ -56,8 +48,9 @@
   white-space: nowrap;
 }
 
-/* The note is a sentence: it wraps, and the other cells stay on one line. */
+/* The note is a sentence: it wraps within a measure that keeps it to two lines, and the other cells
+   stay on one line. */
 .table td.result {
-  min-width: 16rem;
+  min-width: 22rem;
   white-space: normal;
 }
