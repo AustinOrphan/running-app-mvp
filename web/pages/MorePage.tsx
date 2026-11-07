@@ -11,6 +11,11 @@ const links = [
   { to: '/brief', label: 'Weekly brief', note: 'What changed and the next key session' },
   { to: '/goals', label: 'Goals', note: 'Races you are training for' },
   { to: '/stats', label: 'Stats', note: 'Fastest efforts, monthly and yearly totals' },
+  {
+    to: '/trends',
+    label: 'Trends',
+    note: render(TEMPLATES['trends.more-note'], {}, 'km'),
+  },
   { to: '/integrations', label: 'Integrations', note: 'Sync activities from other services' },
   { to: '/profile', label: 'Profile', note: 'Heart rate, availability and injury history' },
   { to: '/research', label: 'Research', note: render(TEMPLATES['research.context'], {}, 'km') },
@@ -22,6 +27,9 @@ const links = [
   },
   { to: '/settings', label: 'Settings', note: 'Units, display name, export' },
 ]
+
+/** The Race plan row follows Trends. */
+const TRENDS_AT = links.findIndex((link) => link.to === '/trends') + 1
 
 /** Shown while the current goal is an ultra with a race still to come. */
 const RACE_LINK = {
@@ -41,16 +49,17 @@ export function MorePage() {
       <PageHeader title="More" />
       <nav aria-label="More pages">
         <ul className={styles.list}>
-          {(hasRacePlan ? [...links.slice(0, 2), RACE_LINK, ...links.slice(2)] : links).map(
-            (link) => (
-              <li key={link.to}>
-                <Link to={link.to} className={styles.row}>
-                  <span className={styles.label}>{link.label}</span>
-                  <span className={styles.note}>{link.note}</span>
-                </Link>
-              </li>
-            ),
-          )}
+          {(hasRacePlan
+            ? [...links.slice(0, TRENDS_AT), RACE_LINK, ...links.slice(TRENDS_AT)]
+            : links
+          ).map((link) => (
+            <li key={link.to}>
+              <Link to={link.to} className={styles.row}>
+                <span className={styles.label}>{link.label}</span>
+                <span className={styles.note}>{link.note}</span>
+              </Link>
+            </li>
+          ))}
         </ul>
       </nav>
       <section className={styles.theme}>

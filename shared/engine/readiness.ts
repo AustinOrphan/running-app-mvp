@@ -147,6 +147,83 @@ export function poorSubjective(checkin: Checkin | null): boolean {
   )
 }
 
+/** The rows the baseline reads: the two readings of a night, by date. */
+type BaselineRow = { hrvRmssd?: number | null; restingHr?: number | null }
+
+/** The signals that have a baseline of readings before a date [rules J4]. */
+export type BaselineSignal = 'hrv' | 'resting-hr'
+
+/**
+ * The readings before `date` that a baseline is built from, newest first [rules J4]. This is the one
+ * selection: `hrvOn` and `restingHrEval` read their baselines through it, and `recentRange` (Trends,
+ * rule T1) reads the same readings.
+ * - `hrv`: rMSSD on the ln scale, every valid reading within `j4.lookbackDays` before the date
+ *   (`j4.cycleBaselineDays` for the cycle-aware profile, which keeps them all), otherwise the newest
+ *   `j4.windowDays` of them. `lookback` is the length of that window in days.
+ * - `resting-hr`: resting heart rate on its own scale, the newest `j4.windowDays` within
+ *   `j4.lookbackDays`; there is no cycle handling, so `cyclic` does not change it.
+ */
+export function baselineReadings(
+  byDate: ReadonlyMap<string, BaselineRow>,
+  date: string,
+  signal: BaselineSignal,
+  cyclic: boolean,
+): { values: number[]; lookback: number } {
+  if (signal === 'resting-hr') {
+    const lookback = P.j4.lookbackDays.value
+    const values: number[] = []
+    for (let k = 1; k <= lookback && values.length < P.j4.windowDays.value; k++) {
+      const v = validPositive(byDate.get(addDays(date, -k))?.restingHr)
+      if (v !== null) values.push(v)
+    }
+    return { values, lookback }
+  }
+  const lookback = cyclic ? P.j4.cycleBaselineDays.value : P.j4.lookbackDays.value
+  const prior: number[] = []
+  for (let k = 1; k <= lookback; k++) {
+    const v = validPositive(byDate.get(addDays(date, -k))?.hrvRmssd)
+    if (v !== null) prior.push(Math.log(v))
+  }
+  return { values: cyclic ? prior : prior.slice(0, P.j4.windowDays.value), lookback }
+}
+
+/** The runner's recent range of a reading on a date, in the units of the reading. */
+export interface RecentRange {
+  low: number
+  high: number
+  mean: number
+  /** Earlier readings the range is built from. */
+  readings: number
+}
+
+/**
+ * The runner's recent range on `date` [rules J4, T1]: the mean of the baseline readings before the
+ * date plus or minus `j4.sdBelowMean` SD. Heart-rate variability is computed on the ln scale and
+ * returned in ms (`exp(mean +- band)`); resting heart rate on its own scale in bpm. The range is
+ * null below `j4.minReadings` readings. The lower edge of the heart-rate-variability range is the
+ * bound `hrvOn` flags against; the upper edge and the resting-heart-rate range are display-only and
+ * the noise-floor drop and the decline chain are not part of it.
+ */
+export function recentRange(
+  byDate: ReadonlyMap<string, BaselineRow>,
+  date: string,
+  signal: BaselineSignal,
+  cyclic: boolean,
+): RecentRange | null {
+  const { values } = baselineReadings(byDate, date, signal, cyclic)
+  if (values.length < P.j4.minReadings.value) return null
+  const m = mean(values)
+  const band = P.j4.sdBelowMean.value * sampleSd(values)
+  return signal === 'hrv'
+    ? {
+        low: Math.exp(m - band),
+        high: Math.exp(m + band),
+        mean: Math.exp(m),
+        readings: values.length,
+      }
+    : { low: m - band, high: m + band, mean: m, readings: values.length }
+}
+
 interface HrvEval {
   /** Earlier readings plus today's own, as the snapshot reports them. */
   readings: number
@@ -171,13 +248,7 @@ interface HrvEval {
  */
 function hrvOn(ctx: Ctx, date: string): HrvEval {
   const cyclic = ctx.input.profile.sex === 'female'
-  const lookback = cyclic ? P.j4.cycleBaselineDays.value : P.j4.lookbackDays.value
-  const prior: number[] = []
-  for (let k = 1; k <= lookback; k++) {
-    const v = validPositive(ctx.byDate.get(addDays(date, -k))?.hrvRmssd)
-    if (v !== null) prior.push(Math.log(v))
-  }
-  const base = cyclic ? prior : prior.slice(0, P.j4.windowDays.value)
+  const { values: base, lookback } = baselineReadings(ctx.byDate, date, 'hrv', cyclic)
   const latestMs = validPositive(ctx.byDate.get(date)?.hrvRmssd)
   const latest = latestMs === null ? null : Math.log(latestMs)
   const baseline = base.length
@@ -243,11 +314,7 @@ interface RestingHrEval {
 function restingHrEval(ctx: Ctx, date: string): RestingHrEval {
   const latest = validPositive(ctx.byDate.get(date)?.restingHr)
   if (latest === null) return { latest: null, mean: null, flag: false }
-  const base: number[] = []
-  for (let k = 1; k <= P.j4.lookbackDays.value && base.length < P.j4.windowDays.value; k++) {
-    const v = validPositive(ctx.byDate.get(addDays(date, -k))?.restingHr)
-    if (v !== null) base.push(v)
-  }
+  const base = baselineReadings(ctx.byDate, date, 'resting-hr', false).values
   if (base.length < P.j4.minReadings.value) return { latest, mean: null, flag: false }
   const baseMean = mean(base)
   return { latest, mean: baseMean, flag: latest >= baseMean + P.j4.restingHrAboveBpm.value }

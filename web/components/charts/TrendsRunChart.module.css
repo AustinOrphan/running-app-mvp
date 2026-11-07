@@ -1,0 +1,36 @@
+.figure {
+  position: relative;
+  margin: 0;
+}
+
+/* The chart draws once at its initialDimension (640 px) before it measures this box; clipping keeps
+   that first frame from widening the page of a phone. Keep the height in step with `.trendsRun` in
+   lazyCharts.module.css. */
+.chart {
+  width: 100%;
+  height: 14rem;
+  overflow: hidden;
+}
+
+/* One column per week, in the columns of the bars above (the left margin is the value axis). */
+.squares {
+  display: grid;
+  align-items: start;
+  margin-top: var(--space-1);
+  min-height: 1rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.square {
+  display: block;
+  width: 100%;
+  max-width: 6px;
+  aspect-ratio: 1;
+  background: var(--chart-2);
+}

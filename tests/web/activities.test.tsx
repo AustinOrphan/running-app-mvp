@@ -202,34 +202,42 @@ describe('Activities page', () => {
     expect(screen.getByText('5:36 /km')).toBeInTheDocument()
   })
 
-  describe('which pace a row shows (the elapsed one)', () => {
+  describe('which pace a row shows (the moving one when the times differ)', () => {
     const run = (over: Partial<Activity> = {}): ActivityListItem =>
       makeActivity({ id: 'r1', durationSec: 2700, distanceM: 8047, ...over })
+
+    test('a moving time of zero is a missing reading: the row keeps "Pace" and the elapsed figure', async () => {
+      renderPage({ activities: [run({ movingSec: 0 })] })
+      const pace = await screen.findByText('9:00 /mi')
+      expect(pace).toHaveTextContent('Pace: 9:00 /mi')
+      expect(screen.queryByText(/Moving pace/)).not.toBeInTheDocument()
+    })
 
     test('a row with no moving time keeps the label "Pace"', async () => {
       renderPage({ activities: [run()] })
       const pace = await screen.findByText('9:00 /mi')
       expect(pace).toHaveTextContent('Pace: 9:00 /mi')
-      expect(screen.queryByText(/Elapsed pace/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Moving pace/)).not.toBeInTheDocument()
     })
 
-    test('a row whose moving time differs tells a screen reader the pace is the elapsed one, and shows nothing more', async () => {
+    test('a row whose moving time differs shows the moving pace, tells a screen reader so, and shows nothing more', async () => {
       renderPage({ activities: [run({ movingSec: 2600 })] })
-      const pace = await screen.findByText('9:00 /mi')
+      const pace = await screen.findByText('8:40 /mi')
       // the label a screen reader reads before the figure, and nothing else on the line
-      expect(pace).toHaveTextContent('Elapsed pace: 9:00 /mi')
-      expect(pace.textContent).toBe('Elapsed pace: 9:00 /mi')
-      expect(within(pace).getByText('Elapsed pace:')).toHaveClass('visually-hidden')
+      expect(pace).toHaveTextContent('Moving pace: 8:40 /mi')
+      expect(pace.textContent).toBe('Moving pace: 8:40 /mi')
+      expect(within(pace).getByText('Moving pace:')).toHaveClass('visually-hidden')
       expect(screen.queryByText('elapsed')).not.toBeInTheDocument()
-      // the figure is still the one from the elapsed time
-      expect(pace.firstChild?.nextSibling?.textContent).toBe('9:00 /mi')
+      // the figure is the one from the moving time; the duration beside it stays elapsed
+      expect(pace.firstChild?.nextSibling?.textContent).toBe('8:40 /mi')
+      expect(screen.getByText('45:00')).toBeInTheDocument()
       expectCleanCopy(pace)
     })
 
-    test('the row is named for it: its button says Elapsed pace', async () => {
+    test('the row is named for it: its button says Moving pace', async () => {
       renderPage({ activities: [run({ movingSec: 2600 })] })
       expect(
-        await screen.findByRole('button', { name: /Elapsed pace: ?9:00 \/mi/ }),
+        await screen.findByRole('button', { name: /Moving pace: ?8:40 \/mi/ }),
       ).toBeInTheDocument()
     })
 
@@ -253,8 +261,8 @@ describe('Activities page', () => {
 
     test('reads in kilometres too, and the row keeps its date, type, duration and distance', async () => {
       renderPage({ units: 'km', activities: [run({ movingSec: 2600 })] })
-      const pace = await screen.findByText('5:36 /km')
-      expect(pace).toHaveTextContent('Elapsed pace: 5:36 /km')
+      const pace = await screen.findByText('5:23 /km')
+      expect(pace).toHaveTextContent('Moving pace: 5:23 /km')
       expect(screen.getByText('45:00')).toBeInTheDocument()
       expect(screen.getByText('8.05 km')).toBeInTheDocument()
     })

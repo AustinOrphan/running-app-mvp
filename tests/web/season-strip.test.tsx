@@ -142,7 +142,7 @@ const row = (weekStart: string) => {
 const lastScrolledTo = () => scrolled.mock.contexts[scrolled.mock.contexts.length - 1] as Element
 
 describe('the season strip, its buttons and its words', () => {
-  test('sits under the header, above the watch strip and the prose of the plan', async () => {
+  test('sits under the header, above the week table, the watch strip and the prose of the plan', async () => {
     mockApi(routes(plan()))
     renderPlan()
     const season = await strip()
@@ -153,8 +153,11 @@ describe('the season strip, its buttons and its words', () => {
       Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
     expect(order(header, season)).toBe(true)
     expect(order(season, feasibility)).toBe(true)
-    expect(order(season, await screen.findByRole('region', { name: 'Watch' }))).toBe(true)
-    expect(order(feasibility, table)).toBe(true)
+    const watch = await screen.findByRole('region', { name: 'Watch' })
+    expect(order(season, table)).toBe(true)
+    // the week table comes before the explanatory panels and the watch card
+    expect(order(table, watch)).toBe(true)
+    expect(order(table, feasibility)).toBe(true)
     // the regions the page already had keep their names
     expect(screen.getByRole('region', { name: 'Load setting' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Plan shape' })).toBeInTheDocument()

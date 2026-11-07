@@ -38,6 +38,7 @@ import { SYNC_TEMPLATES } from './sync.ts'
 import { TODAY_TEMPLATES } from './today.ts'
 import { WORKOUT_TEMPLATES } from './workouts.ts'
 import { TRACK_RECORD_TEMPLATES } from './trackRecord.ts'
+import { TRENDS_TEMPLATES } from './trends.ts'
 
 export const TEMPLATES = {
   ...REVISION_TEMPLATES,
@@ -65,6 +66,7 @@ export const TEMPLATES = {
   ...WORKOUT_TEMPLATES,
   ...STANDOUT_TEMPLATES,
   ...TRACK_RECORD_TEMPLATES,
+  ...TRENDS_TEMPLATES,
   ...BRIEF_TEMPLATES,
   ...STRENGTH_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,

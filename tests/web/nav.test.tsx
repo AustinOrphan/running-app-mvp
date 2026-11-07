@@ -28,19 +28,25 @@ describe('Nav', () => {
     expect(current.map((l) => l.textContent)).toEqual(['Plan'])
   })
 
-  test.each(['/more', '/goals', '/stats', '/settings', '/integrations', '/profile', '/strength'])(
-    'More is current on %s',
-    (route) => {
-      renderWithProviders(<Nav />, { route })
-      const current = primaryLinks().filter((l) => l.getAttribute('aria-current') === 'page')
-      expect(current.map((l) => l.textContent)).toEqual(['More'])
-      // Both groups share the DOM at every width, so only one link in the whole nav may be current.
-      const everywhere = screen
-        .getAllByRole('link')
-        .filter((l) => l.getAttribute('aria-current') === 'page')
-      expect(everywhere.map((l) => l.textContent)).toEqual(['More'])
-    },
-  )
+  test.each([
+    '/more',
+    '/goals',
+    '/stats',
+    '/trends',
+    '/settings',
+    '/integrations',
+    '/profile',
+    '/strength',
+  ])('More is current on %s', (route) => {
+    renderWithProviders(<Nav />, { route })
+    const current = primaryLinks().filter((l) => l.getAttribute('aria-current') === 'page')
+    expect(current.map((l) => l.textContent)).toEqual(['More'])
+    // Both groups share the DOM at every width, so only one link in the whole nav may be current.
+    const everywhere = screen
+      .getAllByRole('link')
+      .filter((l) => l.getAttribute('aria-current') === 'page')
+    expect(everywhere.map((l) => l.textContent)).toEqual(['More'])
+  })
 
   test('Today is current only on the root path', () => {
     renderWithProviders(<Nav />, { route: '/' })
@@ -48,12 +54,13 @@ describe('Nav', () => {
     expect(current.map((l) => l.textContent)).toEqual(['Today'])
   })
 
-  test('the rail group lists Goals, Stats and Settings', () => {
+  test('the rail group lists Goals, Stats, Trends and Settings', () => {
     renderWithProviders(<Nav />, { route: '/stats' })
     const group = within(screen.getByRole('navigation', { name: 'Other pages' }))
     expect(group.getAllByRole('link').map((l) => l.textContent)).toEqual([
       'Goals',
       'Stats',
+      'Trends',
       'Settings',
     ])
     expect(group.getByRole('link', { name: 'Stats' })).toHaveAttribute('data-current', 'true')
