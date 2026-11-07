@@ -20,6 +20,7 @@ import { GRADE_TEMPLATES } from './grades.ts'
 import { LOAD_TEMPLATES } from './load.ts'
 import { METHOD_TEMPLATES } from './method.ts'
 import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
+import { PACES_TEMPLATES } from './myPaces.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
 import { RACE_PLAN_TEMPLATES } from './racePlan.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
@@ -63,6 +64,7 @@ export const TEMPLATES = {
   ...LOAD_TEMPLATES,
   ...METHOD_TEMPLATES,
   ...OVERSHOOT_TEMPLATES,
+  ...PACES_TEMPLATES,
   ...WORKOUT_TEMPLATES,
   ...STANDOUT_TEMPLATES,
   ...TRACK_RECORD_TEMPLATES,

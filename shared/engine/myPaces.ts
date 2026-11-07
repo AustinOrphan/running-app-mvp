@@ -36,6 +36,8 @@ export interface EasyPace {
   range: PaceBand
   /** The heart rate the range answers to; null unless the basis is the heart-rate line. */
   ceilingBpm: number | null
+  /** Half the width of that ceiling's band (rule C7), in bpm; null with the ceiling. */
+  ceilingBandBpm: number | null
   /** The runs the heart-rate line stands on and the day of the earliest; null for the zone bases. */
   sample: { runs: number; since: string } | null
   confidence: 'moderate' | 'low'
@@ -186,6 +188,7 @@ function hrBasedPace(
     basis: 'hr-model',
     range,
     ceilingBpm: ceiling,
+    ceilingBandBpm: zones.lt1Hr === null ? null : (zones.lt1Hr.band[1] - zones.lt1Hr.band[0]) / 2,
     sample: { runs: hrModel.runs, since: sample.first },
     confidence: zones.lt1Hr?.source === 'hrmax-age' ? 'low' : 'moderate',
     grade: lowestGrade(gradesOf([P.hrModel.minQualifyingRuns, P.c2.z1PaceSlowFactor])),
@@ -204,6 +207,7 @@ function zoneBasedPace(zones: ZoneSet): EasyPace | null {
     basis: tested ? 'threshold-pace' : 'critical-speed',
     range: [z1[0], z1[1]],
     ceilingBpm: null,
+    ceilingBandBpm: null,
     sample: null,
     confidence: tested ? 'moderate' : 'low',
     grade: lowestGrade(gradesOf([P.c2.z1PaceSlowFactor, ...(tested ? [] : [P.c4.lt1CsFraction])])),

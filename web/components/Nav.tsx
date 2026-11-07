@@ -138,6 +138,7 @@ const primary: Item[] = [
       '/more',
       '/brief',
       '/goals',
+      '/paces',
       '/stats',
       '/trends',
       '/settings',

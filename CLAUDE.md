@@ -139,6 +139,10 @@ its build runs `prisma migrate deploy` as a smoke test.
   hold that starts applies at once: the resolver cannot draw a shape it reads as the default (ADR 0017,
   addendum). The change of the preset in place is `PUT /api/plan/method` (`commitMethod`, reason
   `method-change`).
+- My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
+  (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
+  `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
+  figure on it is a range and a sketch; a new number is a Param under C9.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
