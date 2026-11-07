@@ -178,5 +178,20 @@
       "kiviniemi-2007-hrv-guided-rct",
       "walsh-2021-sleep-athlete-consensus"
     ]
+  },
+  {
+    "id": "trends-descriptive-only",
+    "statement": "Trends over months show what was run and logged and nothing else: no target, no aim line, no marker for a value inside or outside a range, no ratio of recent to earlier load, and no path to the engine. The recent range for heart-rate variability is the readiness baseline (ln rMSSD) read as the mean plus or minus one SD; the resting heart rate range uses the same width and is a display construction; sleep has no range. Readings never change a plan by themselves.",
+    "parameter": "trends_display_rule",
+    "value": "descriptive_only",
+    "unit": null,
+    "appliesTo": "All runners viewing the Trends page",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "kiviniemi-2007-hrv-guided-rct",
+      "bellenger-2016-autonomic-hr-meta-analysis",
+      "mountjoy-2023-reds-consensus"
+    ]
   }
 ]
