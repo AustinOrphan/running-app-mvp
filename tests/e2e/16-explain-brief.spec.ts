@@ -240,7 +240,7 @@ test('an unopened brief with changes leads Today in a card, at 360 and 1280 px, 
     await card360Opens()
   } finally {
     await page.unroute(route)
-    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.setViewportSize({ width: 360, height: 740 })
   }
 
   async function card360Opens() {
