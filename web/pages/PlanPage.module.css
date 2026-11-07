@@ -365,11 +365,16 @@
   line-height: var(--lh-sm);
 }
 
-/* Version-2 overview: feasibility, warnings, checks and revisions on one paper, set off by rules. */
+/* Version-2 overview: warnings above the week table; feasibility, load, shape, checks and revisions
+   below it, on one paper, set off by rules. */
 .overview {
   display: flex;
   flex-direction: column;
   margin-bottom: var(--space-5);
+}
+
+.overviewAfter {
+  margin-top: var(--space-5);
 }
 
 .panel {

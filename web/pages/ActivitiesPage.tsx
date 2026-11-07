@@ -102,7 +102,9 @@ function ActivityRow({
               {/* With a moving time that differs, the pace is the moving one and a screen reader is told so */}
               <span className="visually-hidden">{`${activityPaceLabel(movingPace)}: `}</span>
               {formatPace(
-                movingPace && activity.movingSec !== null ? activity.movingSec : activity.durationSec,
+                movingPace && activity.movingSec !== null
+                  ? activity.movingSec
+                  : activity.durationSec,
                 activity.distanceM,
                 units,
               )}

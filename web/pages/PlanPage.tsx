@@ -892,6 +892,66 @@ function ShapePanel({
 }
 
 /** Version-2 plans: feasibility, the load setting, warnings, the plan checks and the revision list. */
+/**
+ * The plan's warnings start with the feasibility notes (`warnings = [...notes, ...]` in the
+ * engine), and the Feasibility panel prints those: a warning with the code of a note is not printed
+ * a second time.
+ */
+function warningsToShow(plan: PlanWithSessions) {
+  const noteCodes = new Set((plan.feasibility?.notes ?? []).map((note) => note.code))
+  return plan.warnings.filter((warning) => !noteCodes.has(warning.code))
+}
+
+/**
+ * The warnings, above the week table: they are the one panel that asks the runner to read before
+ * acting on the plan. The explanatory panels (Feasibility, load, shape, checks, changes) follow the
+ * table in `PlanOverview`.
+ */
+function PlanWarnings({
+  plan,
+  onWhy,
+}: {
+  plan: PlanWithSessions
+  onWhy: (why: WhyTarget) => void
+}) {
+  const units = useSettings().data?.units ?? 'mi'
+  const warnings = warningsToShow(plan)
+  if (warnings.length === 0) return null
+  return (
+    <div className={styles.overview}>
+      {warnings.length > 0 ? (
+        <section aria-labelledby="warnings-title" className={styles.panel}>
+          <h2 id="warnings-title" className={styles.panelTitle}>
+            Warnings
+          </h2>
+          <ul className={styles.items}>
+            {groupWarnings(warnings, units).map((group) => (
+              <li key={group.code}>
+                <span className={styles.warningText}>
+                  <span>
+                    <strong>{SEVERITY_LABELS[group.severity]}</strong> {group.summary}
+                  </span>
+                  {group.details.length > 1 ? (
+                    <details className={styles.warningDetails}>
+                      <summary>Show each one</summary>
+                      <ul>
+                        {group.details.map((detail, index) => (
+                          <li key={`${String(index)}-${detail}`}>{detail}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
+                </span>
+                <WhyButton rules={group.rules} label="Why this warning" onOpen={onWhy} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </div>
+  )
+}
+
 function PlanOverview({
   plan,
   onWhy,
@@ -907,14 +967,9 @@ function PlanOverview({
   const units = useSettings().data?.units ?? 'mi'
   const passed = plan.checklist.filter((item) => item.ok).length
   const feasibility = plan.feasibility
-  // The plan's warnings start with the feasibility notes (`warnings = [...notes, ...]` in the
-  // engine), and the Feasibility panel prints those: a warning with the code of a note is not
-  // printed a second time.
-  const noteCodes = new Set((feasibility?.notes ?? []).map((note) => note.code))
-  const warnings = plan.warnings.filter((warning) => !noteCodes.has(warning.code))
 
   return (
-    <div className={styles.overview}>
+    <div className={`${styles.overview} ${styles.overviewAfter}`}>
       {feasibility !== null ? (
         <section aria-labelledby="feasibility-title" className={styles.panel}>
           <h2 id="feasibility-title" className={styles.panelTitle}>
@@ -956,35 +1011,6 @@ function PlanOverview({
           <PlanWideActions onUpdate={onUpdate} onRegenerate={onRegenerate} />
         </div>
       )}
-      {warnings.length > 0 ? (
-        <section aria-labelledby="warnings-title" className={styles.panel}>
-          <h2 id="warnings-title" className={styles.panelTitle}>
-            Warnings
-          </h2>
-          <ul className={styles.items}>
-            {groupWarnings(warnings, units).map((group) => (
-              <li key={group.code}>
-                <span className={styles.warningText}>
-                  <span>
-                    <strong>{SEVERITY_LABELS[group.severity]}</strong> {group.summary}
-                  </span>
-                  {group.details.length > 1 ? (
-                    <details className={styles.warningDetails}>
-                      <summary>Show each one</summary>
-                      <ul>
-                        {group.details.map((detail, index) => (
-                          <li key={`${String(index)}-${detail}`}>{detail}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
-                </span>
-                <WhyButton rules={group.rules} label="Why this warning" onOpen={onWhy} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
       {plan.checklist.length > 0 ? (
         <section aria-labelledby="checks-title" className={styles.panel}>
           <details>
@@ -1521,6 +1547,13 @@ export function PlanPage() {
           setReveal({ weekStart })
         }}
       />
+      {hasSessions ? <PlanWarnings plan={plan.data} onWhy={setWhy} /> : null}
+      <PlanTable
+        plan={plan.data}
+        sessions={sessions}
+        reveal={reveal}
+        onOpenSession={setOpenSessionId}
+      />
       {hasSessions ? <WristStrip sessions={sessions} /> : null}
       {hasSessions ? (
         <PlanOverview
@@ -1534,12 +1567,6 @@ export function PlanPage() {
           }}
         />
       ) : null}
-      <PlanTable
-        plan={plan.data}
-        sessions={sessions}
-        reveal={reveal}
-        onOpenSession={setOpenSessionId}
-      />
       {openSession !== undefined ? (
         <SessionSheet
           key={openSession.id}
