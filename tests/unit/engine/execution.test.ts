@@ -266,6 +266,59 @@ describe('assessExecution effort', () => {
     expect(out.effort.confidence).toBe('low')
   })
 
+  describe('against the effort the session itself expects [rule H11]', () => {
+    const ultraRace = session({
+      kind: 'race',
+      durationMin: 1200,
+      target: { zone: 'z1', rpe: [3, 4], hr: [110, 130], paceSecPerKm: null, heatNote: null },
+    })
+    const marathonRace = session({
+      kind: 'race',
+      durationMin: 240,
+      target: {
+        zone: 'race-pace',
+        rpe: [...P.expectedRpe.race.value],
+        hr: null,
+        paceSecPerKm: [350, 330],
+        heatNote: null,
+      },
+    })
+    const rated = (rpe: number) => activity({ type: 'race', rpe, distanceM: null })
+
+    it('reads an ultra race rated 4 as expected and one rated 8 as harder', () => {
+      const expected = assessExecution(ultraRace, rated(4), CTX).effort
+      expect(expected.parts.rpeDelta).toBe(0.5)
+      expect(expected.score).toBe(0)
+      const harder = assessExecution(ultraRace, rated(8), CTX).effort
+      expect(harder.parts.rpeDelta).toBe(4.5)
+      expect(harder.score).toBeGreaterThanOrEqual(1)
+    })
+
+    it('reads a marathon race rated 8 as expected, as the table of C4 has it', () => {
+      const out = assessExecution(marathonRace, rated(8), CTX).effort
+      expect(out.parts.rpeDelta).toBe(-0.5)
+      expect(out.score).toBe(0)
+      // the range comes from the stored target, which the table of the kind equals for a race
+      expect(marathonRace.target.rpe).toEqual(P.expectedRpe.race.value)
+    })
+
+    it('reads a rating against the stored range of any session, not the table of its kind', () => {
+      const stored = session({
+        target: {
+          zone: 'z2',
+          rpe: [6, 7],
+          hr: [130, 145],
+          paceSecPerKm: [390, 350],
+          heatNote: null,
+        },
+      })
+      // an easy run stored at 6 to 7 and rated 7 is as expected; against the easy table (2 to 3) it is harder
+      expect(assessExecution(stored, activity({ rpe: 7, distanceM: null }), CTX).effort.score).toBe(
+        0,
+      )
+    })
+  })
+
   it('uses the pace residual against the target band on a grade-adjusted pace', () => {
     // 10 km in 55 min = 330 s/km against a 350-390 band: faster, so harder.
     const out = assessExecution(
@@ -388,6 +441,58 @@ describe('assessExecution intensity', () => {
   it('flags HR that is present but unqualified', () => {
     const wrist = activity({ avgHr: 150 })
     expect(assessExecution(session(), wrist, CTX).flags).toContain('hr-unqualified')
+  })
+
+  describe('a race: the course sets the pace [rule H11]', () => {
+    // the race of an ultra goal is stored in zone 1 with a heart rate and no pace
+    const ultraRace = session({
+      kind: 'race',
+      durationMin: 1200,
+      target: { zone: 'z1', rpe: [3, 4], hr: [110, 130], paceSecPerKm: null, heatNote: null },
+    })
+    // 100 km in 20 h = 720 s/km, far slower than the Z1 pace band of 390 to 420
+    const raced = activity({ type: 'race', durationSec: 72000, distanceM: 100000 })
+
+    it('is not read against the pace of its zone, so no pace residual and no intensity from pace', () => {
+      const out = assessExecution(ultraRace, { ...raced, gapDistanceM: 100000 }, CTX)
+      expect(out.intensity).toBe('unknown')
+      expect(out.effort.parts.paceResidualPct).toBeNull()
+    })
+
+    it('is read against its stored heart rate, the top of zone 1 being the ceiling', () => {
+      const hist = (secByBin: number[]) => ({ start: 100, width: 10, sec: secByBin })
+      // bins 100-110, 110-120, 120-130, 130-140; band 110-130
+      const within = activity({
+        ...raced,
+        avgHr: 120,
+        hrHistogram: hist([2000, 30000, 36000, 4000]),
+      })
+      expect(assessExecution(ultraRace, within, CTX).intensity).toBe('on')
+      const over = activity({ ...raced, avgHr: 134, hrHistogram: hist([0, 4000, 20000, 48000]) })
+      expect(assessExecution(ultraRace, over, CTX).intensity).toBe('above')
+    })
+
+    it('keeps the stored pace band of a race that has one', () => {
+      const timed = session({
+        kind: 'race',
+        durationMin: 240,
+        target: {
+          zone: 'race-pace',
+          rpe: [8, 9],
+          hr: null,
+          paceSecPerKm: [350, 330],
+          heatNote: null,
+        },
+      })
+      // 42.2 km in 4 h = 341 s/km, inside the band
+      const marathon = activity({
+        type: 'race',
+        durationSec: 14400,
+        distanceM: 42200,
+        gapDistanceM: 42200,
+      })
+      expect(assessExecution(timed, marathon, CTX).intensity).toBe('on')
+    })
   })
 })
 

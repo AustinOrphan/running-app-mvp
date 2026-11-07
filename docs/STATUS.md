@@ -2139,6 +2139,11 @@ things stand" gives counts and percentages without a weekly total or a date.
     2026-11-06: intervals.icu rejects a bare-day `start_date_local`; events are sent at
     `T00:00:00` and `DELIVERY_VERSION` is 3 (W1).
 
+    2026-11-06: race plan step 1 shipped (RP1): the race session of an ultra goal runs to the zone 1
+    ceiling and `h11.raceRpe` (grade D, 3 to 4) with no pace, the Why states it from
+    `h11.belowVt1Share`, and `PARAMS_VERSION` is `2026-11-06.1`. Step 2 (the race plan derived on
+    read) is open.
+
 ## Clean-up after the merges
 
 - Delete obsolete remote branches: `feat/comprehensive-ci-cd-infrastructure`,

@@ -60,6 +60,22 @@ function parseAssessment(text: string | null): ExecutionFindings | null {
   }
 }
 
+/**
+ * The effort a planned session expects: the range of its stored target, which the race of an ultra
+ * goal sets apart from the table of its kind [rule H11]; the table of C4 when the target is unreadable.
+ */
+function expectedRpeOf(kind: SessionKind, target: string): [number, number] {
+  try {
+    const rpe = (JSON.parse(target) as { rpe?: unknown }).rpe
+    if (Array.isArray(rpe) && rpe.length === 2 && rpe.every((n) => typeof n === 'number')) {
+      return [rpe[0] as number, rpe[1] as number]
+    }
+  } catch {
+    // an unreadable target falls back to the table below
+  }
+  return [...P.expectedRpe[kind].value]
+}
+
 interface Link {
   session: StandoutSession | null
   basis: string
@@ -72,7 +88,14 @@ interface Link {
 async function linkOf(deps: DepsWithPrisma, userId: string, activityId: string): Promise<Link> {
   const row = await deps.prisma.planSession.findFirst({
     where: { activityId, plan: { userId } },
-    select: { id: true, date: true, kind: true, durationMin: true, execution: true },
+    select: {
+      id: true,
+      date: true,
+      kind: true,
+      durationMin: true,
+      target: true,
+      execution: true,
+    },
   })
   const assessment = row === null ? null : parseAssessment(row.execution)
   if (row === null || row.execution === null || assessment === null) {
@@ -84,6 +107,7 @@ async function linkOf(deps: DepsWithPrisma, userId: string, activityId: string):
       date: row.date,
       kind: row.kind as SessionKind,
       durationMin: row.durationMin,
+      expectedRpe: expectedRpeOf(row.kind as SessionKind, row.target),
       assessment,
     },
     basis: createHash('sha1').update(`${row.id}:${row.execution}`).digest('hex'),

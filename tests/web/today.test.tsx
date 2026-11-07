@@ -4,6 +4,9 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { Checkin, DisruptionSlot, DisruptionView, TodayView } from '../../shared/types.ts'
+import { buildPlan } from '../../shared/engine/index.ts'
+import { P } from '../../shared/engine/params/index.ts'
+import { resolveTargets } from '../../shared/engine/targets.ts'
 import { getOutbox } from '../../web/pwa/outbox.ts'
 import { makeActivity } from '../factories.ts'
 import { explainOf, expectCleanCopy, expectTouchScale, type MockRoutes } from './helpers.tsx'
@@ -27,6 +30,7 @@ import {
   makeToday,
   TODAY,
 } from './today-fixtures.ts'
+import { athletes } from '../unit/engine/matrix-fixtures.ts'
 import { SESSION_ID, makeView, makeWorkout } from './strength-fixtures.ts'
 import { renderToday as render, startToday } from './today-render.tsx'
 
@@ -71,6 +75,43 @@ describe("Today: today's session", () => {
     expect(within(card).getByText('Effort and heart rate come first.')).toBeInTheDocument()
     expect(within(card).getByText('3 to 4 out of 10')).toBeInTheDocument()
     expect(within(card).getByText('Aerobic base at an easy effort.')).toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
+  test('on the race day of a 100-mile goal leads with the heart-rate ceiling and the effort, and states no pace [rule H11]', async () => {
+    // the race session the engine plans for the matrix athlete of a first 100-mile goal, with the
+    // targets the server resolves for it, as Today's hero is served
+    const athlete = athletes().find((a) => a.id === 'first-100-mile')!
+    const plan = buildPlan(athlete.input)
+    const race = plan.sessions.find((s) => s.kind === 'race')!
+    const session = makeSession({ ...race, id: 'race1', date: TODAY, weekStart: '2026-03-16' })
+    const target = { ...resolveTargets(race, plan.zones, { hot: false }), climbNote: null }
+    expect(target.mode).toBe('hr-ceiling')
+    const hero = makeHero({ session, target })
+    const { container } = render(
+      makeToday({
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({ hero }),
+      }),
+    )
+    const card = await screen.findByRole('article', { name: race.title })
+    // one row per figure, the ceiling first: no pace row
+    expect(
+      within(card)
+        .getAllByRole('term')
+        .map((term) => term.textContent),
+    ).toEqual(['Heart rate', 'Effort'])
+    expect(
+      within(card)
+        .getAllByRole('definition')
+        .map((value) => value.textContent),
+    ).toEqual([
+      `under ${String(plan.zones.hr!.z1[1])} bpm`,
+      `${String(P.h11.raceRpe.value[0])} to ${String(P.h11.raceRpe.value[1])} out of 10`,
+    ])
+    expect(within(card).queryByText('Pace')).not.toBeInTheDocument()
+    expect(within(card).queryByText(/\/mi$/)).not.toBeInTheDocument()
+    expect(within(card).getByText(race.purpose)).toBeInTheDocument()
     expectCleanCopy(container)
   })
 

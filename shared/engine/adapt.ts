@@ -95,9 +95,13 @@ interface Observation {
   excluded: boolean
 }
 
-/** Effort score from RPE against the expected range and the feel rating (design 4.2 weights). */
-function feedbackScore(kind: SessionKind, activity: Activity): number | null {
-  const [lo, hi] = P.expectedRpe[kind].value
+/**
+ * Effort score from RPE against the range the session expects (its stored target, so the race of
+ * an ultra goal is rated against its own easy effort [rule H11]) and the feel rating (design 4.2
+ * weights).
+ */
+function feedbackScore(expected: readonly [number, number], activity: Activity): number | null {
+  const [lo, hi] = expected
   const parts: Array<{ weight: number; units: number }> = []
   if (activity.rpe !== null) {
     parts.push({
@@ -138,7 +142,7 @@ function observations(
     out.push({
       date: s.date,
       kind: s.kind,
-      score: feedbackScore(s.kind, activity),
+      score: feedbackScore(s.target.rpe, activity),
       // Built from RPE and feel only.
       subjective: true,
       excluded: pain || s.flags.includes('heat'),

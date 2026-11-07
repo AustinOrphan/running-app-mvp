@@ -6,7 +6,9 @@ import { addDays, daysBetween, mondayOf } from '../../../shared/dates.ts'
 import { afterBreak } from '../../../shared/engine/adapt.ts'
 import { estimateState } from '../../../shared/engine/athlete.ts'
 import { startLevelMin } from '../../../shared/engine/limits.ts'
+import { distanceClassOf } from '../../../shared/engine/goal.ts'
 import { buildPlan, runChecklist } from '../../../shared/engine/index.ts'
+import { resolveTargets } from '../../../shared/engine/targets.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { EngineInput, PlanDraft, SessionSpec } from '../../../shared/engine/types.ts'
 import { problemsOf, windowOf } from './disruption-fixtures.ts'
@@ -168,6 +170,93 @@ describe('plan matrix: per-athlete expectations', () => {
     expect(plan.prediction!.highSec).toBeGreaterThan(plan.prediction!.predictedSec)
     const race: SessionSpec = plan.sessions.find((s) => s.kind === 'race')!
     expect(race.target.paceSecPerKm).not.toBeNull()
+  })
+})
+
+describe('plan matrix: the race session [rules K6, H11]', () => {
+  const sessionOf = (plan: PlanDraft): SessionSpec => {
+    const races = plan.sessions.filter((s) => s.kind === 'race')
+    expect(races).toHaveLength(1)
+    return races[0]!
+  }
+  const ultraIds = ['trail-50k', 'first-100-mile', 'sparse-100-mile', 'reds-hold']
+  const shorterIds = [
+    'novice-5k',
+    'half',
+    'marathon',
+    'masters',
+    'returning',
+    'prior-bsi',
+    'hot-race',
+    'post-marathon-short-run',
+  ]
+
+  it('is run by an ultra goal to the zone 1 ceiling and an easy effort, with no pace', () => {
+    for (const id of ultraIds) {
+      const a = all.find((x) => x.id === id)!
+      expect(a.input.goal.isUltra, id).toBe(true)
+      const plan = planOf(a)
+      const race = sessionOf(plan)
+      expect(race.target.zone, id).toBe('z1')
+      expect(race.target.hr, id).toEqual(plan.zones.hr!.z1)
+      expect(race.target.paceSecPerKm, id).toBeNull()
+      expect(race.target.rpe, id).toEqual(P.h11.raceRpe.value)
+      expect(race.target.rpe[1], id).toBeLessThanOrEqual(P.expectedRpe.long.value[1])
+      expect(race.rules, id).toEqual(['K6', 'H11'])
+      expect(race.purpose, id).toMatch(/zone 1 ceiling/)
+      // the minutes, the day and the distance are the goal's, as before
+      expect(race.durationMin, id).toBe(Math.round(a.input.goal.expectedDurationSec / 60))
+      expect(race.date, id).toBe(a.input.goal.date)
+      expect(race.distanceM, id).toBe(a.input.goal.distanceM)
+    }
+  })
+
+  it('is the same for every class above the marathon', () => {
+    const a = all.find((x) => x.id === 'first-100-mile')!
+    const classes: Array<[number, string]> = [
+      [50_000, 'ultra50'],
+      [100_000, 'ultra100k'],
+      [160_934, 'ultra100mi'],
+      [250_000, 'beyond'],
+    ]
+    for (const [distanceM, distanceClass] of classes) {
+      // the goal of the athlete at another distance: the class and the flag follow the distance
+      const goal = { ...a.input.goal, distanceM, distanceClass: distanceClassOf(distanceM) }
+      expect(goal.distanceClass).toBe(distanceClass)
+      expect(goal.isUltra).toBe(true)
+      const race = sessionOf(buildPlan({ ...a.input, goal }))
+      expect(race.target.zone, distanceClass).toBe('z1')
+      expect(race.target.paceSecPerKm, distanceClass).toBeNull()
+      expect(race.target.rpe, distanceClass).toEqual(P.h11.raceRpe.value)
+      expect(race.rules, distanceClass).toEqual(['K6', 'H11'])
+    }
+  })
+
+  it('keeps the goal-pace band, the race effort of C4 and K6 alone for every shorter goal', () => {
+    for (const id of shorterIds) {
+      const a = all.find((x) => x.id === id)!
+      expect(a.input.goal.isUltra, id).toBe(false)
+      const race = sessionOf(planOf(a))
+      expect(race.target.zone, id).toBe('race-pace')
+      expect(race.target.hr, id).toBeNull()
+      expect(race.target.rpe, id).toEqual(P.expectedRpe.race.value)
+      expect(race.rules, id).toEqual(['K6'])
+      expect(race.purpose, id).toBe('Race day: run by effort, follow the fuel and pacing plan.')
+    }
+  })
+
+  it('has the first 100-mile athlete run the race at the top of zone 1, rated 3 to 4 out of 10', () => {
+    const a = all.find((x) => x.id === 'first-100-mile')!
+    const plan = planOf(a)
+    const race = sessionOf(plan)
+    expect(race.date).toBe('2027-05-08')
+    const targets = resolveTargets(race, plan.zones, { hot: false })
+    expect(targets.mode).toBe('hr-ceiling')
+    expect(targets.hrCeiling).toBe(plan.zones.hr!.z1[1])
+    expect(targets.paceSecPerKm).toBeNull()
+    expect(targets.rpe).toEqual(P.h11.raceRpe.value)
+    // the night flag and the fuel ladder do not depend on the target
+    expect(race.flags).toContain('night')
   })
 })
 

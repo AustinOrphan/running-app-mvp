@@ -113,6 +113,19 @@
 // that window is known, and the bound of a week too short to place the day before; no plan of the
 // oracle meets any of them.
 //
+// Regenerated 2026-11-06 (task RP1, rule H11) for the race of an ultra goal: its race session is a
+// zone 1 session with the current Z1 band as its heart rate, no pace, the effort `h11.raceRpe`, the
+// purpose "Race day: keep the heart rate at or below the zone 1 ceiling ..." and the rules K6 and H11.
+// Before it the session was in the race-pace zone with the goal-pace band (none for a finish goal),
+// the effort C4 expects of a race, the purpose "Race day: run by effort, follow the fuel and pacing
+// plan." and the rule K6. 78 of the 142 digests move: the plans of the two ultra classes in the
+// oracle (2 of `ultra50`, 76 of `ultra100mi`), which are 4 matrix runners, 16 sweep cases, 40 plans
+// of the weekly re-plan chains and 18 other runners. The 64 plans of the classes up to the marathon
+// are the digests before it. Checked by putting the zone, the heart rate, the pace, the effort, the
+// purpose and the rules of each moved plan's race session back to what `prescribe` gives a race
+// without `ultra`: all 78 digests matched those before, so no minute, day, distance or other
+// session moved.
+//
 // The close of the load-progression plan (task L7) may remove this file with its test: from there
 // the owner validation is the oracle.
 import { createHash } from 'node:crypto'

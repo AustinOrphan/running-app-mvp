@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-01.1')
+    expect(PARAMS_VERSION).toBe('2026-11-06.1')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -305,6 +305,45 @@ describe('parameter registry', () => {
     expect(h7Text).toContain('**Copy guard.**')
     expect(h7Text).toContain(`${P.h7.hotDayWbgtC.value} C or more`)
     expect(h7Text).toContain(`${P.h7.hotDayAirTempC.value} C or more`)
+  })
+
+  it('carries the race effort of an ultra (rule H11) as a labelled default, never above the long run', () => {
+    const effort = P.h11.raceRpe
+    expect([effort.id, effort.grade, effort.rule, effort.unit]).toEqual([
+      'h11.raceRpe',
+      'D',
+      'H11',
+      'CR-10',
+    ])
+    expect(effort.evidence).toEqual([
+      'fornasiero-2018-ultra-intensity',
+      'bok-2022-subjective-intensity',
+    ])
+    expect(effort.note).toMatch(/^Default:/)
+    expect(effort.note).toMatch(/no study gives/)
+    // an ultra race target never exceeds the long-run range, and the range is a range
+    expect(effort.value[0]).toBeLessThanOrEqual(effort.value[1])
+    expect(effort.value[1]).toBeLessThanOrEqual(P.expectedRpe.long.value[1])
+    // the share it maps keeps its own grade
+    expect(P.h11.belowVt1Share.grade).toBe('C')
+    expect(paramsForRule('H11').map((p) => p.id)).toEqual(['h11.belowVt1Share', 'h11.raceRpe'])
+  })
+
+  it('states the race effort of rule H11 in engine-rules.md with its grades, evidence and table row', () => {
+    const start = engineRules.indexOf('- **H11 ')
+    const text = engineRules.slice(start, engineRules.indexOf('- **H12 ', start))
+    expect(start).toBeGreaterThan(-1)
+    expect(text).toContain('Read by the engine (added 2026-11-06)')
+    for (const id of paramsForRule('H11').flatMap((p) => p.evidence)) expect(text, id).toContain(id)
+    for (const cls of ['ultra50', 'ultra100k', 'ultra100mi', 'beyond']) expect(text).toContain(cls)
+    expect(text).toContain('`h11.raceRpe`')
+    expect(text).toContain('`h11.belowVt1Share`')
+    expect(text).toContain(`${String(P.h11.raceRpe.value[0])} to ${String(P.h11.raceRpe.value[1])}`)
+    expect(text).toContain(
+      `${String(P.expectedRpe.race.value[0])} to ${String(P.expectedRpe.race.value[1])}`,
+    )
+    expect(engineRules).toMatch(/^\| Ultra race effort \(CR-10\) /m)
+    expect(lintText(text)).toEqual([])
   })
 
   it('transcribes the post-race window of rule H12', () => {

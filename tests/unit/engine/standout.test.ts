@@ -111,6 +111,7 @@ function session(over: Partial<StandoutSession> = {}): StandoutSession {
     date: ASOF,
     kind: 'easy',
     durationMin: 40,
+    expectedRpe: P.expectedRpe.easy.value,
     assessment: assessment(),
     ...over,
   }
@@ -307,6 +308,54 @@ describe('effort (2 and 3)', () => {
   test('says nothing about a run that matched expectation', () => {
     const matched = session({ assessment: assessment({ effort: effort(0, true) }) })
     expect(standoutFacts(inputFor(run(1, { rpe: high + 3 }), { session: matched }))).toEqual([])
+  })
+
+  describe('against the effort the session itself expects [rule H11]', () => {
+    const [raceLow, raceHigh] = P.h11.raceRpe.value
+    // the race of an ultra goal expects the easy effort of h11.raceRpe; that of a marathon, C4's 8 to 9
+    const ultraRace = (score: -2 | -1 | 0 | 1 | 2) =>
+      session({
+        kind: 'race',
+        expectedRpe: P.h11.raceRpe.value,
+        assessment: assessment({ effort: effort(score, true) }),
+      })
+    const marathonRace = (score: -2 | -1 | 0 | 1 | 2) =>
+      session({
+        kind: 'race',
+        expectedRpe: P.expectedRpe.race.value,
+        assessment: assessment({ effort: effort(score, true) }),
+      })
+
+    test('a rating of 8 on an ultra race is harder, and the sentence names the easy range', () => {
+      const facts = standoutFacts(inputFor(run(1, { rpe: 8 }), { session: ultraRace(2) }))
+      const fact = only(facts, 'effort-harder')
+      expect(fact).toMatchObject({ template: 'standout.effort-harder-rpe' })
+      expect(fact?.slots).toEqual({
+        rpe: { kind: 'count', n: 8 },
+        low: { kind: 'count', n: raceLow },
+        high: { kind: 'count', n: raceHigh },
+      })
+    })
+
+    test('a rating at the top of the range of an ultra race is as expected', () => {
+      // the score leans on the rating, which is not beyond the range: no verdict is printed
+      expect(standoutFacts(inputFor(run(1, { rpe: raceHigh }), { session: ultraRace(1) }))).toEqual(
+        [],
+      )
+      expect(standoutFacts(inputFor(run(1, { rpe: raceLow }), { session: ultraRace(-1) }))).toEqual(
+        [],
+      )
+    })
+
+    test('a rating of 8 on a marathon race is as expected, and 6 is easier', () => {
+      expect(standoutFacts(inputFor(run(1, { rpe: 8 }), { session: marathonRace(0) }))).toEqual([])
+      expect(standoutFacts(inputFor(run(1, { rpe: 8 }), { session: marathonRace(1) }))).toEqual([])
+      const easier = standoutFacts(inputFor(run(1, { rpe: 6 }), { session: marathonRace(-1) }))
+      expect(only(easier, 'effort-easier')?.slots).toMatchObject({
+        low: { kind: 'count', n: P.expectedRpe.race.value[0] },
+        high: { kind: 'count', n: P.expectedRpe.race.value[1] },
+      })
+    })
   })
 })
 

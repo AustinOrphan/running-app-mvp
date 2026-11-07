@@ -435,6 +435,9 @@ function bandZone(session: SessionSpec): 'z1' | 'z2' | 'z3' | null {
 }
 
 function paceBandOf(session: SessionSpec, ctx: ExecutionContext): [number, number] | null {
+  // the course sets the pace of a race: only its own stored band stands, never the pace of its
+  // zone (the race of an ultra goal is stored in zone 1 [rule H11])
+  if (session.kind === 'race') return session.target.paceSecPerKm
   const zone = bandZone(session)
   return session.target.paceSecPerKm ?? (zone ? (ctx.zones.pace?.[zone] ?? null) : null)
 }
@@ -571,7 +574,9 @@ export function assessExecution(
 
   // Effort parts, positive meaning harder than expected. A different kind of activity has no
   // expectation to compare with, so only the feel rating counts.
-  const expected = P.expectedRpe[session.kind].value
+  // the effort the session itself expects (its stored target), not the table of its kind: the race
+  // of an ultra goal is rated against the easy effort it was planned at [rule H11]
+  const expected = session.target.rpe
   const rpeDelta =
     !modified && activity.rpe !== null ? round1(activity.rpe - midpoint(expected)) : null
   const feel = activity.feel

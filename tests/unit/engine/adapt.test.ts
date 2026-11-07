@@ -442,6 +442,32 @@ describe('weeklyDecision (J5, G-6)', () => {
     expect(codes(weeklyDecision(i, WEEK, { efficiency: STABLE }))).toEqual(['subjective-decline'])
   })
 
+  it('reads the rating against the range the session stored, not the table of its kind [rule H11]', () => {
+    const rated = runs([50, 50, 50, 50]).map((a) => ({ ...a, rpe: 8 }))
+    const linked = (rpe: [number, number]) =>
+      weekSessions().map((s, n) => ({
+        ...s,
+        status: 'completed',
+        activityId: `act${n}`,
+        target: { ...s.target, rpe },
+      }))
+    const decision = (rpe: [number, number]) =>
+      weeklyDecision(
+        base({
+          activities: rated,
+          existing: {
+            weeks: [weekDraft(WEEK, 200), weekDraft(NEXT, 210)],
+            sessions: linked(rpe),
+          },
+        }),
+        WEEK,
+        { efficiency: STABLE },
+      )
+    // a rating of 8 on sessions stored at an easy 2 to 3 is a decline; on sessions stored at 8 to 9 it is not
+    expect(codes(decision([2, 3]))).toEqual(['subjective-decline'])
+    expect(codes(decision([8, 9]))).toEqual([])
+  })
+
   it('counts a high review fatigue rating or persistent symptoms', () => {
     const fatigued = base({ reviews: [review(WEEK, { fatigue: 7 })] })
     expect(codes(weeklyDecision(fatigued, WEEK, { efficiency: STABLE }))).toEqual([

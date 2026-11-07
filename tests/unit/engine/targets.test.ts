@@ -5,7 +5,8 @@ import { P } from '../../../shared/engine/params/index.ts'
 import { easedSession } from '../../../shared/engine/readiness.ts'
 import { climbNote, resolveTargets } from '../../../shared/engine/targets.ts'
 import type { SessionSpec } from '../../../shared/engine/types.ts'
-import { prescribed, zoneSetFixture } from './fixtures.ts'
+import { prescribe } from '../../../shared/engine/sessions.ts'
+import { prescribed, weekFixture, zoneSetFixture } from './fixtures.ts'
 
 const zones = zoneSetFixture()
 const cold = { hot: false }
@@ -146,6 +147,123 @@ describe('resolveTargets: work paced by the stored band', () => {
     expect(resolveTargets(intervals, noPace, cold)).toMatchObject({
       mode: 'effort',
       hrRange: null,
+    })
+  })
+})
+
+describe('resolveTargets: the race of an ultra goal [rule H11]', () => {
+  /** The race session an ultra goal plans against `against`, dated like `prescribed`. */
+  const ultraRace = (against = zones, goalPaceSecPerKm: number | null = null): SessionSpec => ({
+    ...prescribe('race', 1200, against, weekFixture(), { ultra: true, goalPaceSecPerKm }),
+    date: '2026-07-10',
+    order: 1,
+  })
+
+  it('leads with the heart-rate ceiling at the top of the current Z1 and reads no pace', () => {
+    const t = resolveTargets(ultraRace(), zones, cold)
+    expect(t).toEqual({
+      zone: 'z1',
+      mode: 'hr-ceiling',
+      hrCeiling: 140,
+      hrRange: null,
+      paceSecPerKm: null,
+      rpe: P.h11.raceRpe.value,
+      hot: false,
+      hotNote: null,
+      zonesNote: null,
+      source: 'zones',
+    })
+  })
+
+  it('reads no pace from the zones, with or without a goal pace on the plan', () => {
+    for (const goal of [null, 330]) {
+      const t = resolveTargets(ultraRace(zones, goal), zones, cold)
+      expect(t.paceSecPerKm, String(goal)).toBeNull()
+      expect(t.mode, String(goal)).toBe('hr-ceiling')
+    }
+    // a stored pace of a plan that drew one is not shown either: the course sets the pace
+    const stored = { ...ultraRace(), target: { ...ultraRace().target, paceSecPerKm: [390, 340] } }
+    expect(resolveTargets(stored as SessionSpec, zones, cold).paceSecPerKm).toBeNull()
+  })
+
+  it('takes the ceiling from the current zones and says when they changed after planning', () => {
+    const planned = ultraRace(
+      zoneSetFixture({ hr: { z1: [110, 132], z2: [132, 150], z3: [150, 168] } }),
+    )
+    const t = resolveTargets(planned, zones, cold)
+    expect(t).toMatchObject({ mode: 'hr-ceiling', hrCeiling: 140, source: 'zones' })
+    expect(t.zonesNote).toMatch(/zones/)
+  })
+
+  it('goes by effort with the stored range when no heart rate is known, never by pace', () => {
+    const bare = zoneSetFixture({ hr: null, pace: null })
+    const t = resolveTargets(ultraRace(bare), bare, cold)
+    expect(t).toMatchObject({
+      mode: 'effort',
+      hrCeiling: null,
+      hrRange: null,
+      paceSecPerKm: null,
+      rpe: P.h11.raceRpe.value,
+      source: 'plan',
+    })
+    // zones that hold a pace and no heart rate still give no pace row for the race
+    const paceOnly = zoneSetFixture({ hr: null })
+    expect(resolveTargets(ultraRace(paceOnly), paceOnly, cold)).toMatchObject({
+      mode: 'effort',
+      paceSecPerKm: null,
+    })
+    expect(resolveTargets(ultraRace(bare), null, cold)).toMatchObject({ mode: 'effort' })
+  })
+
+  it('falls back to the stored heart rate when the zones have none', () => {
+    const t = resolveTargets(ultraRace(), zoneSetFixture({ hr: null, pace: null }), cold)
+    expect(t).toMatchObject({ mode: 'hr-ceiling', hrCeiling: 140, source: 'plan' })
+  })
+
+  it('goes by effort on a hot day, with the hot note and the ceiling as secondary text', () => {
+    const t = resolveTargets(ultraRace(), zones, hot)
+    expect(t).toMatchObject({
+      mode: 'effort',
+      hot: true,
+      hrCeiling: 140,
+      paceSecPerKm: null,
+      rpe: P.h11.raceRpe.value,
+    })
+    expect(t.hotNote).toMatch(/heat/i)
+  })
+
+  it('leaves the race of a shorter goal on its stored pace band', () => {
+    const marathon = prescribed('race')
+    expect(marathon.target.zone).toBe('race-pace')
+    const t = resolveTargets(marathon, zones, cold)
+    expect(t).toMatchObject({
+      zone: 'race-pace',
+      mode: 'pace',
+      hrCeiling: null,
+      paceSecPerKm: marathon.target.paceSecPerKm,
+      rpe: P.expectedRpe.race.value,
+      source: 'plan',
+    })
+  })
+
+  it('leaves a race stored before H11 read the class as it was planned', () => {
+    // a plan drawn before the change: the race-pace zone, no heart rate, no pace, the race effort
+    const old: SessionSpec = {
+      ...prescribed('race'),
+      target: {
+        zone: 'race-pace',
+        rpe: P.expectedRpe.race.value,
+        hr: null,
+        paceSecPerKm: null,
+        heatNote: null,
+      },
+    }
+    expect(resolveTargets(old, zones, cold)).toMatchObject({
+      zone: 'race-pace',
+      mode: 'effort',
+      hrCeiling: null,
+      paceSecPerKm: null,
+      rpe: P.expectedRpe.race.value,
     })
   })
 })
