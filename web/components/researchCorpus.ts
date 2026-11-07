@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 
-/** One verified paper of `research/papers/*.json` (the schema is checked by `npm run research:check`). */
+/**
+ * One verified paper of `research/papers/*.json` (the schema is checked by `npm run research:check`),
+ * as far as the pages show it: the build drops the rest (`researchTrim.ts`).
+ */
 export interface CorpusPaper {
   id: string
   title: string
@@ -18,7 +21,6 @@ export interface CorpusPaper {
   topics: string[]
   findings: string[]
   limitations: string
-  implications: string[]
   /** Only on a `book-or-guideline` record (`paperSchema` in `scripts/research-check.ts`). */
   edition?: string
   isbn?: string

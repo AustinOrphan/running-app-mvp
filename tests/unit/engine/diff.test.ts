@@ -56,6 +56,27 @@ describe('diffPlans', () => {
     })
   })
 
+  it('is empty when every updated session differs only in text the diff does not show', () => {
+    // the purpose text is not a column of the diff: the pair reads identical, as after a rewording
+    const diff = diffPlans({
+      sessions: { created: [], deleted: [], updated: [{ before: session(), after: session() }] },
+      weeks: NONE.weeks,
+    })
+    expect(diff.sessions.map((l) => [l.change, l.fields])).toEqual([['changed', []]])
+    expect(diff.totals.changed).toBe(1)
+    expect(diff.empty).toBe(true)
+    expect(
+      diffPlans({
+        sessions: {
+          created: [],
+          deleted: [],
+          updated: [{ before: session(), after: session({ durationMin: 35 }) }],
+        },
+        weeks: NONE.weeks,
+      }).empty,
+    ).toBe(false)
+  })
+
   it('makes one line for every row written, and the totals count them', () => {
     const diff = diffPlans({
       sessions: {

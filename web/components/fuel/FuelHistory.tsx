@@ -2,6 +2,7 @@ import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import { rateText } from '../../../shared/engine/fuelCopy.ts'
 import type { FuelHistoryRow } from '../../../shared/types.ts'
+import { ScrollTable } from '../ScrollTable.tsx'
 import { fuelText, labText } from './fuelText.ts'
 import labStyles from './FuelLab.module.css'
 import styles from './FuelHistory.module.css'
@@ -14,8 +15,8 @@ export interface FuelHistoryProps {
 /**
  * What each logged run did to the ladder, newest first: the run, the rate taken against the rate
  * tried, the two scores and the replayed note. The table scrolls inside a labelled region that
- * takes focus, so a keyboard reaches every row and a phone scrolls sideways inside the box rather
- * than the page. The notes are worked out again on every read, so a late weather fill can change
+ * takes focus (`ScrollTable`), so a keyboard reaches every row and a phone scrolls sideways inside
+ * the box rather than the page. The notes are worked out again on every read, so a late weather fill can change
  * one; the line under the table says so.
  */
 export function FuelHistory({ history }: FuelHistoryProps) {
@@ -29,12 +30,7 @@ export function FuelHistory({ history }: FuelHistoryProps) {
         <p className={labStyles.lead}>{labText.historyEmpty()}</p>
       ) : (
         <>
-          <div
-            role="region"
-            aria-label={labText.historyLabel()}
-            tabIndex={0}
-            className={styles.scroll}
-          >
+          <ScrollTable label={labText.historyLabel()} className={styles.scroll}>
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -73,7 +69,7 @@ export function FuelHistory({ history }: FuelHistoryProps) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
           <p className={labStyles.note}>{labText.historyNote()}</p>
         </>
       )}

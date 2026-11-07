@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { PrismaClient } from './db.ts'
+import compression from 'compression'
 import cookieParser from 'cookie-parser'
 import express, { type Express } from 'express'
 import helmet from 'helmet'
@@ -91,6 +92,11 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
       },
     }),
   )
+
+  // API responses over 1 kB are gzipped or brotli-compressed for a client that accepts it (the
+  // `compression` package: it negotiates, sets `Vary` and skips types that do not compress). The
+  // built files are not compressed here; `mountStatic` serves copies made at build time.
+  app.use('/api', compression({ threshold: 1024 }))
 
   // Before the API routers, so every API call shares one budget. It stops at `/api`: the hashed
   // assets, the manifest, the icons and the index fallback that `mountStatic` serves are cheap and

@@ -3,6 +3,7 @@
 // prediction in that order; replan keeps the past and recomputes the future. The other entry
 // points delegate to the module that owns the rule.
 import { loadFocus } from '../copy/load.ts'
+import { agree, plural } from '../copy/quantity.ts'
 import { addDays, mondayOf } from '../dates.ts'
 import { HOLD_TRIM_RULE, isHoldTrim, isToRun, isTrimmed } from '../domain/sessionStatus.ts'
 import type { AthleteProfile, PlanSessionStatus, Weekday } from '../types.ts'
@@ -1450,7 +1451,7 @@ function generate(
     warnings.push({
       code: 'availability-limits-runs',
       severity: 'info',
-      message: `${shortOfDays.length} week(s), from the week of ${first.weekStart}, have room for fewer run days (${first.fit}) than the ${first.wanted} planned${first.spaced ? ', as the open days leave too few with a rest day between runs' : ''}, so those weeks hold the runs on the days that fit.`,
+      message: `${plural(shortOfDays.length, 'week')}, from the week of ${first.weekStart}, ${agree(shortOfDays.length, 'has', 'have')} room for fewer run days (${first.fit}) than the ${first.wanted} planned${first.spaced ? ', as the open days leave too few with a rest day between runs' : ''}, so ${agree(shortOfDays.length, 'that week holds', 'those weeks hold')} the runs on the days that fit.`,
       rules: ['F5'],
     })
   }
@@ -1459,7 +1460,7 @@ function generate(
     warnings.push({
       code: 'spike-run-dropped',
       severity: 'info',
-      message: `${tooShort.length} week(s), from the week of ${first.weekStart}, hold no run: ${P.g1.spikeRatioWarn.value}x the longest run of the last ${P.g1.windowDays.value} days is ${first.room} min, under the ${first.minimum}-minute minimum for a run in those weeks, so those runs are left out.`,
+      message: `${plural(tooShort.length, 'week')}, from the week of ${first.weekStart}, ${agree(tooShort.length, 'holds', 'hold')} no run: ${P.g1.spikeRatioWarn.value}x the longest run of the last ${P.g1.windowDays.value} days is ${first.room} min, under the ${first.minimum}-minute minimum for a run in ${agree(tooShort.length, 'that week', 'those weeks')}, so ${agree(tooShort.length, 'that run is', 'those runs are')} left out.`,
       rules: ['g-1', 'F5'],
     })
   }

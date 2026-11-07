@@ -18,12 +18,12 @@ export function MonthlyHoursChart({ points, ariaLabel }: MonthlyHoursChartProps)
         height="100%"
         initialDimension={{ width: 640, height: 200 }}
       >
-        <BarChart data={points} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
+        <BarChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid {...gridProps} />
           <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" />
           <YAxis
             {...axisProps}
-            width={28}
+            width={36}
             domain={[0, ceiling]}
             ticks={[0, ceiling / 2, ceiling]}
           />

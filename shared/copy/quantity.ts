@@ -296,6 +296,19 @@ export function countPhrase(n: number, noun: string): string {
 }
 
 /**
+ * "1 week", "3 weeks": the count in digits with the noun in the plural unless the count is one. For
+ * a sentence the engine writes about a count it computed; no "(s)" in the text.
+ */
+export function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`
+}
+
+/** The verb form that agrees with a count: `agree(n, 'steps', 'step')` is "steps" for one, else "step". */
+export function agree(n: number, one: string, many: string): string {
+  return n === 1 ? one : many
+}
+
+/**
  * A whole number as an English ordinal in digits: "1st", "2nd", "3rd", "4th", "11th", "21st". The
  * teens take "th" (11th, 12th, 13th), as do 0 and every digit from 4 to 9.
  */

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { addDays, weekStartsBetween } from '../../../shared/dates.ts'
 import {
   MIN_NIGHTS_PER_MEAN,
+  cropStart,
+  cropToFirstRecord,
+  firstRecordWeek,
   MIN_WEIGHINS_PER_WEEK,
   seriesByDate,
   weeklyBands,
@@ -156,5 +159,37 @@ describe('weightWeeks', () => {
       { date: addDays(MONDAY, 1), weightKg: null },
     ]
     expect(weightWeeks(rows, [MONDAY])).toEqual([])
+  })
+})
+
+describe('the first record and the crop', () => {
+  const weeks = ['2026-01-05', '2026-01-12', '2026-01-19', '2026-01-26'].map((weekStart, i) => ({
+    weekStart,
+    n: i === 2 || i === 3 ? 1 : 0,
+  }))
+
+  it('finds the first week with a record in a whole history', () => {
+    expect(firstRecordWeek(weeks, (w) => w.n > 0)).toBe('2026-01-19')
+    expect(firstRecordWeek(weeks, () => false)).toBeNull()
+  })
+
+  it('cuts a range that reaches back past the first record, and names that Monday', () => {
+    const out = cropToFirstRecord(weeks, '2026-01-19')
+    expect(out.weeks.map((w) => w.weekStart)).toEqual(['2026-01-19', '2026-01-26'])
+    expect(out.cutBefore).toBe('2026-01-19')
+    expect(cropStart(weeks, '2026-01-19')).toBe('2026-01-19')
+  })
+
+  it('draws a quiet stretch at the start of a range that begins after the first record', () => {
+    // The history's first record is older than this range, so the empty weeks are real zeros.
+    const out = cropToFirstRecord(weeks, '2025-11-03')
+    expect(out.weeks).toHaveLength(4)
+    expect(out.cutBefore).toBeNull()
+    expect(cropStart(weeks, '2026-01-05')).toBeNull()
+  })
+
+  it('keeps a range whole when the history has no record', () => {
+    expect(cropToFirstRecord(weeks, null).cutBefore).toBeNull()
+    expect(cropStart([], '2026-01-05')).toBeNull()
   })
 })

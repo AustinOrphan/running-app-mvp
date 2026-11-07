@@ -3,7 +3,7 @@
 import { addDays } from '../dates.ts'
 import { baselineReadings, recentRange } from '../engine/readiness.ts'
 import { P } from '../engine/params/index.ts'
-import type { TrendWeek, TrendWeightWeek } from '../types.ts'
+import type { TrendWeek, TrendWeightWeek, WeekRow } from '../types.ts'
 
 /**
  * Nights a weekly mean of heart-rate variability or resting heart rate needs. A display default
@@ -139,3 +139,51 @@ export function weightWeeks(
   })
   return weeks.some((week) => week.weighIns > 0) ? weeks : []
 }
+
+/** Where a chart starts: the weeks from the first record on, and the Monday that week starts. */
+export interface CroppedWeeks<T> {
+  weeks: T[]
+  /** The Monday of the first record when weeks before it were cut; null when nothing was cut. */
+  cutBefore: string | null
+}
+
+/** The Monday of the first week of `weeks` that `hasRecord` accepts, or null when none does. */
+export function firstRecordWeek<T extends { weekStart: string }>(
+  weeks: readonly T[],
+  hasRecord: (week: T) => boolean,
+): string | null {
+  return weeks.find(hasRecord)?.weekStart ?? null
+}
+
+/**
+ * Where a range's plot starts. `firstRecord` is the first record of the whole history, not of the
+ * range, so a quiet stretch at the start of a short range is drawn and a range reaching back past
+ * the first record is cut to it. Null when nothing is cut (no record at all, or the range starts
+ * on or after the first record).
+ */
+export function cropStart(
+  weeks: readonly { weekStart: string }[],
+  firstRecord: string | null,
+): string | null {
+  const first = weeks[0]
+  return first !== undefined && firstRecord !== null && first.weekStart < firstRecord
+    ? firstRecord
+    : null
+}
+
+/** The weeks of a range from the first record on; whole when the range starts on or after it. */
+export function cropToFirstRecord<T extends { weekStart: string }>(
+  weeks: readonly T[],
+  firstRecord: string | null,
+): CroppedWeeks<T> {
+  const start = cropStart(weeks, firstRecord)
+  if (start === null) return { weeks: [...weeks], cutBefore: null }
+  return { weeks: weeks.filter((week) => week.weekStart >= start), cutBefore: start }
+}
+
+/** A week with anything logged: a run, cross-training, a race or a strength session. */
+export const weekHasRecord = (week: WeekRow): boolean =>
+  week.runMin > 0 || week.crossMin > 0 || week.raceMin > 0 || week.strengthSessions > 0
+
+/** A week with a recovery reading: at least one recorded night. */
+export const trendWeekHasRecord = (week: TrendWeek): boolean => week.nights > 0
