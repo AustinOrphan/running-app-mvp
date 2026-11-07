@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useState } from 'react'
 
 /** What a page draws for one read: its skeleton, the failed-load state, the same while it retries, or its data. */
 export type LoadView = 'loading' | 'failed' | 'retrying' | 'ready'
@@ -27,8 +27,12 @@ export function loadViewOf(query: LoadQuery, failedBefore: boolean): LoadView {
  * every render, before any early return.
  */
 export function useLoadView(query: LoadQuery): LoadView {
-  const failed = useRef(false)
-  if (query.data !== undefined) failed.current = false
-  else if (query.isError) failed.current = true
-  return loadViewOf(query, failed.current)
+  const [failed, setFailed] = useState(false)
+  // Derived state, set while rendering as React allows: it follows the query at once, with no extra paint.
+  if (query.data !== undefined) {
+    if (failed) setFailed(false)
+  } else if (query.isError && !failed) {
+    setFailed(true)
+  }
+  return loadViewOf(query, failed || query.isError)
 }

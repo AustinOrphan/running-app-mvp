@@ -418,7 +418,8 @@ describe('SettingsPage', () => {
     // the units save (the first PUT) answers last
     const answer = globalThis.fetch
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-      const slow = init?.method === 'PUT' && String(init.body).includes('"units"')
+      const slow =
+        init?.method === 'PUT' && typeof init.body === 'string' && init.body.includes('"units"')
       const response = await answer(input, init)
       if (slow) await new Promise((resolve) => setTimeout(resolve, 250))
       return response

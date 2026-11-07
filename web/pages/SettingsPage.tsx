@@ -62,10 +62,12 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const heldName = useRef(initial.displayName ?? '')
   const namePending = useRef(false)
   const sendLeftover = useRef<(name: string) => void>(() => {})
-  sendLeftover.current = (name) => {
-    // The page is going away with a change not yet sent: send it, with nobody left to show the answer.
-    update.mutateAsync({ displayName: name }).catch(() => {})
-  }
+  useEffect(() => {
+    sendLeftover.current = (name) => {
+      // The page is going away with a change not yet sent: send it, with nobody left to show the answer.
+      update.mutateAsync({ displayName: name }).catch(() => {})
+    }
+  })
 
   useEffect(
     () => () => {
