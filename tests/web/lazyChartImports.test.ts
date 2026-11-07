@@ -15,6 +15,7 @@ const CHARTS = [
   'StreamChart',
   'PredictionTrackChart',
   'EstimatedMaxChart',
+  'TrendsRunChart',
 ]
 
 /** The module specifiers an `import` or `export ... from` statement loads when the app runs. */

@@ -22,6 +22,7 @@ describe('the box of a chart that measures itself', () => {
       'MonthlyHoursChart',
       'PredictionTrackChart',
       'StreamChart',
+      'TrendsRunChart',
       'WeeklyHoursChart',
     ])
   })

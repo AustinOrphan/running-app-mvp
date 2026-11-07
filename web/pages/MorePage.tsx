@@ -10,6 +10,11 @@ const links = [
   { to: '/brief', label: 'Weekly brief', note: 'What changed and the next key session' },
   { to: '/goals', label: 'Goals', note: 'Races you are training for' },
   { to: '/stats', label: 'Stats', note: 'Fastest efforts, monthly and yearly totals' },
+  {
+    to: '/trends',
+    label: 'Trends',
+    note: render(TEMPLATES['trends.more-note'], {}, 'km'),
+  },
   { to: '/integrations', label: 'Integrations', note: 'Sync activities from other services' },
   { to: '/profile', label: 'Profile', note: 'Heart rate, availability and injury history' },
   { to: '/research', label: 'Research', note: render(TEMPLATES['research.context'], {}, 'km') },
