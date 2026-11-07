@@ -49,7 +49,7 @@ import { athleteKey, loadAthleteContext, type AthleteContext } from './athleteSt
 import { briefStamp } from './brief.ts'
 import { todayDisruptions } from './disruptions.ts'
 import { inputFromContext, loadForecast, sessionSpec } from './engineInput.ts'
-import { jobNotesStamp, todayHealth } from './todayHealth.ts'
+import { jobNotesStamp, sourceNotesStamp, todayHealth } from './todayHealth.ts'
 import { buildSlots } from './todaySlots.ts'
 import { forecastStamp } from './weatherCache.ts'
 
@@ -106,6 +106,8 @@ export function registerTodayStamp(stamp: ChangeStamp): () => void {
 
 // The sync-paused and weekly-update notes read `SyncRun`, which the data version does not cover.
 registerTodayStamp(jobNotesStamp)
+// The source notes (J10) read `Integration`, which the data version does not cover either.
+registerTodayStamp(sourceNotesStamp)
 // The brief slot reads `WeeklyBrief`, which it does not cover either. The stamp is called through
 // an arrow because `brief.ts` reaches this module through `planEngine.ts`: its binding is read at
 // the first request, not while the modules load.

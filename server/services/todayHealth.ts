@@ -1,17 +1,22 @@
 // The data-health block of the Today payload (phase 3a design 7.4): three counts the page used to
 // work out in the browser from four separate reads (activities, weeks, reviews, plan), and the
 // notes that registered producers add (E3: sync paused, weekly update not run; E1: tomorrow's
-// session not on the watch). The counts read the athlete snapshot only; a producer receives the
-// snapshot too and may read a table of its own. The producer of the two notes of the job log is
-// registered at the end of this file, and its ETag stamp in `today.ts`.
-import { addDays, mondayOf } from '../../shared/dates.ts'
+// session not on the watch; J10: a source that needs signing in or has stored no run for days). The
+// counts read the athlete snapshot only; a producer receives the snapshot too and may read a table
+// of its own. The producers of the job-log notes and of the source notes are registered at the end
+// of this file, and their ETag stamps in `today.ts`.
+import { addDays, daysBetween, mondayOf, todayIso } from '../../shared/dates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import { aggregateWeeks } from '../../shared/domain/weeks.ts'
+import { P } from '../../shared/engine/params/index.ts'
+import { RUN_KINDS } from '../../shared/engine/sessions.ts'
 import type { HealthNote, TodayHealth } from '../../shared/types.ts'
 import { publishable } from '../../shared/workouts/labels.ts'
 import type { Deps } from '../app.ts'
 import { REPLAN_SLOT, weekSlotStart, weeklyUpdateStatus } from '../jobs/weeklyUpdate.ts'
 import { createLogger } from '../logger.ts'
+import { PROVIDERS } from '../providers/registry.ts'
+import type { PrismaClient } from '../db.ts'
 import { latestJobRuns, safeMessage } from './syncLog.ts'
 import type { AthleteContext } from './athleteState.ts'
 import { readWristItems } from './wristItems.ts'
@@ -219,4 +224,148 @@ export async function jobNotesStamp({
   return `jobs:${latest?.status === 'paused' ? 'paused' : 'ok'}:${slot === null ? 'none' : String(slot.getTime())}`
 }
 
+// ---------------------------------------------------------------------------------------------
+// The notes about a source (J10: needs signing in, has stored no run for days)
+// ---------------------------------------------------------------------------------------------
+
+/** What a source can stand for: a provider that brings runs in by pull, push or folder scan. */
+const RUN_CHANNELS: ReadonlySet<string> = new Set(['pull', 'push', 'folder'])
+
+/** The activity types a source is silent about: its runs and its races. */
+const RUN_TYPES = ['run', 'race']
+
+interface SourceRow {
+  provider: string
+  label: string
+  status: string
+  pausedUntil: Date | null
+  createdAt: Date
+}
+
+/**
+ * The runner's `Integration` rows for the providers that bring runs in, in the registry's display
+ * order. `Integration` is outside the data version, so a reader of these rows adds the change stamp
+ * `sourceNotesStamp`. A row of a provider that is no longer registered, or that only publishes or
+ * uploads, is not a source of runs and is left out.
+ */
+async function sourceRows(prisma: PrismaClient, userId: string): Promise<SourceRow[]> {
+  const labels = new Map(
+    Object.values(PROVIDERS)
+      .filter(({ info }) => info.channels.some((channel) => RUN_CHANNELS.has(channel)))
+      .map(({ info }) => [info.key, info.label]),
+  )
+  const rows = await prisma.integration.findMany({
+    where: { userId, provider: { in: [...labels.keys()] } },
+    select: { provider: true, status: true, pausedUntil: true, createdAt: true },
+  })
+  const order = [...labels.keys()]
+  return rows
+    .map((row) => ({ ...row, label: labels.get(row.provider) ?? row.provider }))
+    .sort((a, b) => order.indexOf(a.provider) - order.indexOf(b.provider))
+}
+
+/** A pull that a rate limit paused has `pausedUntil` in the future. */
+function isPaused(row: SourceRow, now: Date): boolean {
+  return row.pausedUntil !== null && row.pausedUntil.getTime() > now.getTime()
+}
+
+/**
+ * J10: a source whose connection needs signing in is named at once, and a connected source that
+ * has stored no run for more than `j10.silentDays` days is named when the stored plan asked for
+ * at least two runs since its last one. One note per source, each leading to the integrations page.
+ * Nothing is said for a connection in `error` (the integrations page shows it), a source paused by
+ * a rate limit, or a runner with no such connection. The sentence asks whether a run was made and
+ * never says it was not: the runner may have rested, and a note that asks costs less than a plan
+ * that waits (G6), so no other reader (the weekly decision, the layoff reading, the brief, the
+ * review) looks at the silence.
+ *
+ * The newest run of a source is one row read by the `[userId, date]` index (`findFirst`, newest
+ * date first), at most one per source and one source per provider that brings runs in, so five
+ * rows at most. It is not a read of the engine window: that is a snapshot of every source at once,
+ * which cannot say which source stored a run. A source that has stored none is counted from the
+ * day it was connected. The notes carry the snapshot's day, so a day-ahead preview shows today's.
+ */
+export async function sourceHealthNotes({
+  deps,
+  userId,
+  context,
+}: HealthNoteArgs): Promise<HealthNote[]> {
+  const { prisma } = deps
+  const rows = await sourceRows(prisma, userId)
+  if (rows.length === 0) return []
+  const now = new Date()
+  const today = context.asOf
+  const silentDays = P.j10.silentDays.value
+  const plannedRuns = (context.existing()?.sessions ?? [])
+    .filter((session) => RUN_KINDS.has(session.kind) || session.kind === 'race')
+    .map((session) => session.date)
+
+  const notes = await Promise.all(
+    rows.map(async (row): Promise<HealthNote | null> => {
+      if (row.status === 'needs_auth') {
+        return {
+          code: 'source-needs-auth',
+          template: 'today.health.source-needs-auth',
+          slots: { source: row.label },
+          href: '/integrations',
+        }
+      }
+      if (row.status !== 'connected' || isPaused(row, now)) return null
+      const newest = await prisma.activity.findFirst({
+        where: { userId, source: row.provider, type: { in: RUN_TYPES } },
+        orderBy: { date: 'desc' },
+        select: { date: true },
+      })
+      const since = newest?.date ?? todayIso(row.createdAt)
+      if (daysBetween(since, today) <= silentDays) return null
+      if (plannedRuns.filter((date) => date > since && date <= today).length < 2) return null
+      return {
+        code: 'source-silent',
+        template: 'today.health.source-silent',
+        slots: { source: row.label, since: { kind: 'date', iso: since, style: 'short' } },
+        href: '/integrations',
+      }
+    }),
+  )
+  return notes.filter((note) => note !== null)
+}
+
+/**
+ * What moves the page's ETag for the source notes. `Integration` is outside the data version, so
+ * each source's status, `pausedUntil` (and whether it is still in the future, which changes with
+ * the clock and no write), and `createdAt` (the day a source with no run counts from) are read
+ * here, with the newest run date of each source; a new run is a state write and the data version
+ * already moves for it. A status that flips to `needs_auth` with no other write moves the tag.
+ */
+export async function sourceNotesStamp({
+  deps,
+  userId,
+}: {
+  deps: Deps
+  userId: string
+}): Promise<string> {
+  const { prisma } = deps
+  const rows = await sourceRows(prisma, userId)
+  if (rows.length === 0) return 'sources:none'
+  const now = new Date()
+  const newest = await prisma.activity.groupBy({
+    by: ['source'],
+    where: { userId, source: { in: rows.map((row) => row.provider) }, type: { in: RUN_TYPES } },
+    _max: { date: true },
+  })
+  const newestBySource = new Map(newest.map((group) => [group.source, group._max.date]))
+  const parts = rows.map((row) =>
+    [
+      row.provider,
+      row.status,
+      row.pausedUntil === null ? 'none' : String(row.pausedUntil.getTime()),
+      isPaused(row, now) ? 'paused' : 'open',
+      String(row.createdAt.getTime()),
+      newestBySource.get(row.provider) ?? 'no-run',
+    ].join('.'),
+  )
+  return `sources:${parts.join(',')}`
+}
+
 registerHealthNoteProducer(jobHealthNotes)
+registerHealthNoteProducer(sourceHealthNotes)
