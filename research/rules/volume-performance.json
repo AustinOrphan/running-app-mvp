@@ -275,5 +275,22 @@
       "buist-2008-graded-training",
       "higdon-2024-novice-5k"
     ]
+  },
+  {
+    "id": "volume-weekly-plateau-hold",
+    "statement": "Hold weekly volume at the larger of the class peak and the runner's start level from the week it is reached to the taper, with the recovery weeks of E3. Do not raise the class peak, or let a rebuild ceiling raise the ceiling, on association data; the start level is read when a plan is generated or after a break, and a re-plan carries on from the stored week, so weeks run above the plan do not lift the ceiling. No study measures a hold, its length, or the time to step up again.",
+    "parameter": "peakWeeklyMin",
+    "value": "ceiling = max(class peak, start level)",
+    "unit": "min/week",
+    "appliesTo": "Weekly target of every plan once it reaches the ceiling",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "dejonglempke-2025-boston-volume-frequency",
+      "billat-2001-top-class-marathoners",
+      "tonnessen-2014-year-before-gold",
+      "vesterinen-2016-volume-or-intensity-adaptation",
+      "midgley-2007-training-determinants-review"
+    ]
   }
 ]

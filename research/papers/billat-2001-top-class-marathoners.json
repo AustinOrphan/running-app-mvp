@@ -1,0 +1,34 @@
+{
+  "id": "billat-2001-top-class-marathoners",
+  "title": "Physical and training characteristics of top-class marathon runners",
+  "authors": "Billat V, Demarle A, Slawinski J, Paiva M, Koralsztein J",
+  "year": 2001,
+  "journal": "Medicine & Science in Sports & Exercise",
+  "doi": "10.1097/00005768-200112000-00018",
+  "pmid": "11740304",
+  "url": "https://doi.org/10.1097/00005768-200112000-00018",
+  "design": "cross-sectional",
+  "population": "20 marathon runners: five top-class (personal best under 2 h 11 min for men, 2 h 32 min for women) and five high-level (under 2 h 16 min, 2 h 38 min) in each sex.",
+  "sampleSize": 20,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance", "intensity-distribution"],
+  "findings": [
+    "Marathon time was inversely correlated with peak oxygen uptake (r = -0.73, P < 0.01), which predicted 59% of its variance.",
+    "Top-class men were less economical than high-level men: energy cost at marathon speed 212 +/- 17 against 195 +/- 14 mL/km/kg (P = 0.03); the women showed no difference.",
+    "In both sexes the top-class runners trained more total kilometres a week and at a higher velocity (the velocities over 3000 m and 10,000 m).",
+    "The authors conclude that high energy output seems to be the discriminating factor for top-class male marathon runners, who trained at higher relative intensities."
+  ],
+  "limitations": "Twenty elite runners in two small groups per sex; the abstract gives no kilometres a week and no number of runners per comparison beyond five. Training was compared between groups, not followed over time, and says nothing about how a runner reaches a given volume or how long it is held. Elite volumes do not transfer to recreational runners. Abstract read; full text not read.",
+  "implications": [
+    "At the top of the sport, runners with faster marathon times trained both more kilometres and at higher velocities than slightly slower elite runners. It supports reading volume and intensity as two levers that both differ at the top, and gives no reason to treat a recreational runner's weekly peak as a level that is reached once and held for good.",
+    "It sets no weekly level and no length of a plateau, and it is a between-runner comparison."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-11-07: title, Med Sci Sports Exerc 33(12):2089-2097, 2001-12, five authors and DOI match; no update notice. Europe PMC abstract (PMID 11740304) read; every figure above is in it.",
+    "checkedAt": "2026-11-07"
+  }
+}

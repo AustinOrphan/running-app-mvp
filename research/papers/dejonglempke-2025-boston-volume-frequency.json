@@ -1,0 +1,34 @@
+{
+  "id": "dejonglempke-2025-boston-volume-frequency",
+  "title": "Training Volume and Training Frequency Changes Associated with Boston Marathon Race Performance",
+  "authors": "DeJong Lempke A, Ackerman K, Stellingwerff T, Burke L, Baggish A, d'Hemecourt P, Dyer S, Troyanos C",
+  "year": 2025,
+  "journal": "Sports Medicine",
+  "doi": "10.1007/s40279-025-02304-4",
+  "pmid": "40913707",
+  "url": "https://doi.org/10.1007/s40279-025-02304-4",
+  "design": "cross-sectional",
+  "population": "917 adult registrants of the 2022 Boston Marathon (495 women, finish 3:53 +/- 0:37 h, 64.4 +/- 24 km/week; 422 men, 3:35 +/- 0:39 h, 67.6 +/- 26.2 km/week), surveyed one month before the race.",
+  "sampleSize": 917,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance"],
+  "findings": [
+    "Runners reported training one month before the race; training in the 12-4 months and the 4-0 months before the race, and the change between the two (training frequency changes), were related to chip time in linear regressions that accounted for experience and demographics.",
+    "Higher running distance a week, more running sessions a week, more quality (hard) sessions a week and higher average distance, in both periods, were associated with faster times (p <= 0.050), as was more cross-training in the 4-0 months before the race (p < 0.001).",
+    "Runners whose running sessions a week decreased between the two periods had faster times and better performance than those who maintained or increased.",
+    "The authors conclude that habitually higher training exposure over 12-4 and 4-0 months, with a relatively reduced training frequency in the last 4 months, contributed to better marathon performance."
+  ],
+  "limitations": "Self-reported training and a cross-sectional design: an association, not an effect, and the runners who train more are different runners. Registrants of one major marathon are a self-selected group. The abstract reports that volume was higher in faster runners and gives no curve, plateau or ceiling. The change in frequency in the last 4 months mixes a taper with other causes. Abstract read; full text not read.",
+  "implications": [
+    "Adds a 917-runner cross-sectional association of weekly distance, sessions and quality sessions held over the year before a marathon with faster times: volume is higher in faster runners across the range reported (about 64-68 km/week on average), as the earlier cohorts found. It is between-runner and cannot set a ceiling for one runner.",
+    "A fall in sessions a week in the last 4 months went with better times, which fits a taper and does not speak to the weeks of a plateau."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-11-07: title, Sports Med 56(1):243-256, online 2025-09-06, eight authors and DOI match; no update notice. Europe PMC abstract (PMID 40913707) read; the figures above are in it.",
+    "checkedAt": "2026-11-07"
+  }
+}

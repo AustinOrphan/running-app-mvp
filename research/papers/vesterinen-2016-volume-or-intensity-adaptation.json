@@ -1,0 +1,34 @@
+{
+  "id": "vesterinen-2016-volume-or-intensity-adaptation",
+  "title": "Predictors of individual adaptation to high-volume or high-intensity endurance training in recreational endurance runners",
+  "authors": "Vesterinen V, Hakkinen K, Laine T, Hynynen E, Mikkola J, Nummela A",
+  "year": 2016,
+  "journal": "Scandinavian Journal of Medicine & Science in Sports",
+  "doi": "10.1111/sms.12530",
+  "pmid": "26247789",
+  "url": "https://doi.org/10.1111/sms.12530",
+  "design": "controlled-trial",
+  "population": "37 recreational endurance runners who completed an 8-week preparation period, then were matched into a high-volume group (HVT) and a high-intensity group (HIT) for 8 weeks. The abstract does not state the sizes of the two groups or how the runners were matched.",
+  "sampleSize": 37,
+  "evidenceLevel": "C",
+  "topics": ["volume-performance", "intensity-distribution"],
+  "findings": [
+    "After the 8-week preparation period, 37 recreational runners were matched into a high-volume group, which increased running volume, and a high-intensity group, which increased intensity, for the next 8 weeks.",
+    "The high-intensity group improved peak treadmill running speed by 3.1 +/- 2.8% (P < 0.001); the high-volume group changed 0.5 +/- 1.9%, not significant.",
+    "Individual changes in peak treadmill speed varied widely: -2.8 to 4.1% in the high-volume group and 0 to 10.2% in the high-intensity group.",
+    "Baseline night-time high-frequency heart-rate variability power related negatively to the change in peak speed in the high-volume group (r = -0.74, P = 0.006) and positively in the high-intensity group (r = 0.63, P = 0.039); the authors conclude that night-time HRV can be used to individualise training in recreational runners."
+  ],
+  "limitations": "Recreational runners over one 8-week period after an 8-week preparation, with a treadmill speed end point and no race, injury or ultra-distance outcome. Allocation was by matching and the abstract does not say how; group sizes are not given. The correlations with HRV come from small subgroups. A result for extra volume on top of the volume the runners already ran, not for holding volume. Abstract read; full text not read.",
+  "implications": [
+    "In recreational runners who had just completed an 8-week preparation period, 8 weeks of more volume gave no significant change in peak speed while 8 weeks of more intensity gave 3.1%. It is a controlled comparison of what to add after a base (another is zinner-2018-tid-mesocycles-recreational), and it fits keeping the intensity of the build and specific phases as the lever (F6, H1 for goals under 100 km). The runners were not at a volume plateau, so it does not test holding volume.",
+    "It measures peak speed, not endurance at the length of a marathon or an ultra, and says nothing for 100-mile goals, where volume is the variable associated with outcome (H1). It sets no length of a plateau and no weekly level."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-11-07: title, Scand J Med Sci Sports 26(8):885-893, six authors and DOI match; online 2015-08-06, volume year 2016, and the stored year 2016 is within one year of Crossref's. No update notice. Europe PMC abstract (PMID 26247789) read; every figure above is in it. Design set to controlled-trial because the abstract names two matched groups without stating randomisation.",
+    "checkedAt": "2026-11-07"
+  }
+}

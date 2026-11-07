@@ -3578,6 +3578,10 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   // plan structure and session library
   'E1',
   'E5',
+  // the weekly plateau: the rule fixes the shape of the plan (the class peak, or the start level
+  // when that is higher, is the one ceiling, held flat to the taper) and states that no study sets
+  // a ceiling or the length of a hold; the weeks of the plan itself are listed on the plan
+  'E7',
   'F1',
   'F2',
   'F3',
