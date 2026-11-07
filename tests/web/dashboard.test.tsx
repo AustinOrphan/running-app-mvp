@@ -209,7 +209,11 @@ describe('DashboardPage: the history below the first screen', () => {
   test('asks for nothing until the foot of the page comes near', async () => {
     const { api } = renderToday(planned(), history)
     await screen.findByRole('article', { name: 'Easy run' })
-    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+    expect(api.calls.map((call) => call.url).sort()).toEqual([
+      '/api/integrations',
+      '/api/settings',
+      '/api/today',
+    ])
     expect(screen.queryByText(/^Last 28 days$/)).not.toBeInTheDocument()
   })
 
@@ -637,7 +641,11 @@ describe('DashboardPage: a strength session', () => {
     expect(within(card).queryByText(/^Lighter today/)).not.toBeInTheDocument()
     expect(card.textContent).not.toMatch(/maximum|\b200\b/i)
     // the hero adds no request to the first screen
-    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+    expect(api.calls.map((call) => call.url).sort()).toEqual([
+      '/api/integrations',
+      '/api/settings',
+      '/api/today',
+    ])
     expectCleanCopy(container)
   })
 
@@ -1316,7 +1324,11 @@ describe('DashboardPage: the offer to set up strength (design 6.1)', () => {
     expect(slot).toHaveAttribute('data-slot', 'fuelPrompt')
     expect(slot).not.toHaveAttribute('data-budget-px')
     // the first screen's two requests are all there were
-    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+    expect(api.calls.map((call) => call.url).sort()).toEqual([
+      '/api/integrations',
+      '/api/settings',
+      '/api/today',
+    ])
   })
 
   test('is not there once the setup is saved or no session is within the week', async () => {

@@ -70,7 +70,9 @@ describe('Today: the watch line', () => {
   test('asks the server for nothing: the payload carries the line', async () => {
     const { api } = renderToday(dayWith([makeWristItem({ status: 'on-watch' })]))
     await slotOf()
+    // The services list is the check control's, not the watch line's.
     expect([...new Set(api.calls.map((call) => call.url))].sort()).toEqual([
+      '/api/integrations',
       '/api/settings',
       '/api/today',
     ])
@@ -137,6 +139,7 @@ describe('Today: the watch line', () => {
     mockApi({
       'GET /api/today': () => view,
       'GET /api/settings': () => settingsOf(),
+      'GET /api/integrations': () => [],
     })
     renderWithProviders(
       <ToastProvider>

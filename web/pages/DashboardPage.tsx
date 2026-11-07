@@ -9,6 +9,8 @@ import { useServerToday } from '../api/today.ts'
 import buttonStyles from '../components/Button.module.css'
 import { formatWeekdayDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { CheckRunsButton, CheckRunsNote } from '../components/today/CheckRuns.tsx'
+import { useCheckRuns, type CheckRuns as CheckRunsState } from '../components/today/checkRuns.ts'
 import { CheckinRow } from '../components/today/CheckinRow.tsx'
 import { DataHealth } from '../components/today/DataHealth.tsx'
 import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
@@ -58,6 +60,36 @@ const SAVED_ON_PHONE: ReadinessVerdict = {
 /** Two columns from the width at which the side rail replaces the tab bar (spec 7.6). */
 const TWO_COLUMNS = '(min-width: 900px)'
 
+function TodayHeader({ context, checkRuns }: { context?: string; checkRuns?: CheckRunsState }) {
+  return (
+    <>
+      <PageHeader
+        title="Today"
+        context={context}
+        inlineActions
+        actions={
+          <>
+            {checkRuns === undefined ? null : <CheckRunsButton state={checkRuns} />}
+            <Link
+              to="/activities?new=1"
+              className={`${buttonStyles.button} ${buttonStyles.quiet} ${styles.log}`}
+            >
+              Log activity
+            </Link>
+          </>
+        }
+      />
+      {checkRuns === undefined ? null : <CheckRunsNote state={checkRuns} />}
+    </>
+  )
+}
+
+/** The header with the "Check for new runs" control, which reads the connected services. */
+function HeaderWithCheck({ context }: { context?: string }) {
+  const checkRuns = useCheckRuns()
+  return <TodayHeader context={context} checkRuns={checkRuns} />
+}
+
 /**
  * Today: one coach payload (`GET /api/today`) and the settings render the first screen. The
  * readiness read and the session lead; the week, the update line, the race and the rest follow.
@@ -77,21 +109,10 @@ export function DashboardPage() {
   const phoneCopy = usePhoneCopy(todayView.data)
   const verdict = useRef<HTMLParagraphElement>(null)
 
-  const header = (context?: string) => (
-    <PageHeader
-      title="Today"
-      context={context}
-      inlineActions
-      actions={
-        <Link
-          to="/activities?new=1"
-          className={`${buttonStyles.button} ${buttonStyles.quiet} ${styles.log}`}
-        >
-          Log activity
-        </Link>
-      }
-    />
-  )
+  // The check control asks the server for the connected services, so it joins the header only once
+  // the first screen is on the page: the payload and the settings are the first screen's reads.
+  const header = (context?: string, live = false) =>
+    live ? <HeaderWithCheck context={context} /> : <TodayHeader context={context} />
 
   // A read that fails after one that worked (the midnight refetch with the connection down) keeps
   // the last payload on the page; the error replaces the page only when there is nothing to show.
@@ -134,7 +155,7 @@ export function DashboardPage() {
 
   return (
     <>
-      {header(formatWeekdayDate(view.date))}
+      {header(formatWeekdayDate(view.date), true)}
       <div className={styles.page}>
         <HealthNotes flags={view.readiness.redFlags} notes={coach.health.notes} units={units} />
         <div className={styles.columns} data-layout={twoColumns ? 'two' : 'one'}>

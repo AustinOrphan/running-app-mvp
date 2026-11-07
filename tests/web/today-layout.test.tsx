@@ -449,7 +449,7 @@ describe('RecentWeeks: the chart and its data', () => {
     })
     await screen.findByRole('article', { name: 'Long run' })
     const requested = () => api.calls.map((call) => call.url.split('?')[0]).sort()
-    expect(requested()).toEqual(['/api/settings', '/api/today'])
+    expect(requested()).toEqual(['/api/integrations', '/api/settings', '/api/today'])
     expect(screen.queryByRole('img', { name: /Run hours per week/ })).not.toBeInTheDocument()
 
     act(() => {

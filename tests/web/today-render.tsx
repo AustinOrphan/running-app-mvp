@@ -27,6 +27,8 @@ export function renderToday(today: TodayView, extra: MockRoutes = {}, units: Uni
   const api = mockApi({
     'GET /api/today': () => today,
     'GET /api/settings': () => settingsOf(units),
+    // No service is connected unless a test says so, so the header has no check control.
+    'GET /api/integrations': () => [],
     ...extra,
   })
   const view = renderWithProviders(

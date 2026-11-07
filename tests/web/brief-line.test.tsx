@@ -271,13 +271,21 @@ describe('Today', () => {
     const { api } = renderToday(todayWith(makeItem({ weekStart: '2026-03-16', seen: false })))
     const region = await screen.findByRole('region', { name: 'Weekly brief' })
     expect(region.closest('[data-slot]')).toHaveAttribute('data-slot', 'brief')
-    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+    expect(api.calls.map((call) => call.url).sort()).toEqual([
+      '/api/integrations',
+      '/api/settings',
+      '/api/today',
+    ])
   })
 
   test('a week with no brief has no line, and still only the two requests', async () => {
     const { api } = renderToday(todayWith(null))
     await screen.findByRole('region', { name: 'Readiness' })
     expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
-    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+    expect(api.calls.map((call) => call.url).sort()).toEqual([
+      '/api/integrations',
+      '/api/settings',
+      '/api/today',
+    ])
   })
 })

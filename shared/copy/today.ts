@@ -223,6 +223,30 @@ export const TODAY_TEMPLATES = {
     reason: 'text',
   }),
 
+  // Check for new runs (the control in Today's header). `source` is the name of the service or
+  // services that answered, written by the caller from their labels.
+  'today.check.label': tpl('Check for new runs', {}, { shape: 'label' }),
+  'today.check.busy': tpl('Checking for new runs.'),
+  'today.check.arrived-one': tpl(
+    'One new run added from {source}',
+    { source: 'text' },
+    { shape: 'label' },
+  ),
+  'today.check.arrived-many': tpl(
+    '{count} new runs added from {source}',
+    { count: 'count', source: 'text' },
+    { shape: 'label' },
+  ),
+  'today.check.none': tpl('No new runs', {}, { shape: 'label' }),
+  // `reason` is the service's or the server's own sentence, quoted.
+  'today.check.failed': tpl('Could not check {source}. {reason} Try again.', {
+    source: 'text',
+    reason: 'text',
+  }),
+  'today.check.slow': tpl('{source} has not answered yet. Its runs show once it does.', {
+    source: 'text',
+  }),
+
   // The race countdown.
   'today.race.estimate': tpl('Finish estimate {low} to {high}, most likely about {likely}.', {
     low: 'duration',
