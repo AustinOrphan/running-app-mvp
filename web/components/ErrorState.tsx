@@ -26,8 +26,15 @@ export function ErrorState({ subject, onRetry, retrying = false }: ErrorStatePro
   const online = useOnline()
   const slots = { subject: subject }
   return (
-    <div className={styles.error} role="alert">
-      <p className={styles.title}>
+    <div className={styles.error}>
+      {/* The sentence is the alert, and it is remounted for each attempt: while a retry runs it is plain
+          text, so a second failure appears as a new alert and is announced again. The button below
+          stays mounted, so focus stays on it. */}
+      <p
+        key={retrying ? 'retrying' : 'failed'}
+        role={retrying ? undefined : 'alert'}
+        className={styles.title}
+      >
         {render(TEMPLATES[online ? 'error.load' : 'error.load-offline'], slots, 'km')}
       </p>
       <p className={styles.body}>

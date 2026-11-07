@@ -144,6 +144,27 @@ describe('ErrorState on a failed load', () => {
     expect(await screen.findByRole('radiogroup', { name: 'Distance units' })).toBeInTheDocument()
   })
 
+  test('a second failed retry is announced again as a new alert', async () => {
+    let reads = 0
+    mockApi({
+      'GET /api/settings': () => {
+        reads += 1
+        return reads < 3 ? FAILED : { email: 'runner@example.com', displayName: null, units: 'mi' }
+      },
+    })
+    delayResponses(100)
+    renderWithProviders(<SettingsPage />)
+    const first = await screen.findByRole('alert')
+    expect(first).toHaveTextContent('Settings did not load.')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    // while the retry runs the sentence is plain text, and the button is the same one
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    const second = await screen.findByRole('alert')
+    expect(second).toHaveTextContent('Settings did not load.')
+    expect(second).not.toBe(first)
+  })
+
   test('offline, the sentence says the page needs a connection', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     mockApi({ 'GET /api/settings': () => FAILED })
