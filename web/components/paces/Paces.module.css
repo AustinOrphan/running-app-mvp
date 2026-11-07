@@ -1,0 +1,352 @@
+/* My paces: the easy pace as a lead figure, the zones, the events as cards and the test. One column
+   at 360 px, columns from 640 px, three event cards a row from 1000 px. `min-width: 0` and wrapping
+   keep every figure inside a 328 px column. Colour is the tokens only, so dark follows; the only
+   transition uses --dur-fast, which collapses under reduced motion. No red anywhere (rule G5). */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: var(--page-max);
+}
+
+.page > * {
+  min-width: 0;
+}
+
+/* The jump links under the header: 44 px tall chips that wrap. */
+.jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.chip:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+@media (hover: hover) {
+  .chip:hover {
+    background: var(--surface-sunken);
+  }
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+  scroll-margin-top: var(--space-4);
+}
+
+.section > * {
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+.subheading {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 600;
+}
+
+.text {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.note {
+  margin: 0;
+  max-width: var(--prose-max);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* The easy pace: the lead on the left, the hot day and the climb on the right from 640 px. */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+@media (min-width: 40rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: start;
+    column-gap: var(--space-6);
+  }
+}
+
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.figureValue {
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.figureUnit {
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.scenarios {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.scenario {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.scenario:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.scenario dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.scenario dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Nothing to show yet: what would give it, in a quiet box. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+}
+
+/* The event cards. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.stat dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.stat dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.statValue {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.statUnit {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.statRange {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* A course of the runner's own. */
+.form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+@media (min-width: 40rem) {
+  .form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.result {
+  min-width: 0;
+}
+
+/* The disclosures: a 44 px row, so the summary is a comfortable tap target. */
+.how {
+  max-width: var(--prose-max);
+}
+
+.summary {
+  display: list-item;
+  padding-block: calc((2.75rem - var(--lh-sm)) / 2);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.howList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.link:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+  max-width: var(--prose-max);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}

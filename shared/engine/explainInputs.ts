@@ -3608,6 +3608,9 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   // (ADR 0018), not from the athlete snapshot an Explain reads; it has no builder until a surface
   // of the plan asks "why" of one line
   'H14',
+  // My paces is derived on its own page from the zones, the heart-rate line and the predictions
+  // (ADR 0020), not from the snapshot an Explain reads; its Why buttons open the rules it cites
+  'C9',
   // environment read on the day, not from the snapshot: the weather index and the training-heat
   // advice come from the cached forecast when Today or a session is read, and the rest are
   // conventions on how a hot, cold, steep or high course is described

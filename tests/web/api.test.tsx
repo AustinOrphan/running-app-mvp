@@ -686,8 +686,11 @@ describe('the plan readers', () => {
         { wrapper },
       )
       await act(() => result.current.mutateAsync('z1'))
-      // The decision is written to the revision log, which the brief lists under "Since this brief".
-      expect(rootsOf(invalidate)).toEqual([...READERS, keys.zones, keys.zoneProposals].sort())
+      // The decision is written to the revision log, which the brief lists under "Since this brief",
+      // and it moves the zones My paces reads.
+      expect(rootsOf(invalidate)).toEqual(
+        [...READERS, keys.zones, keys.zoneProposals, keys.paces].sort(),
+      )
     },
   )
 
