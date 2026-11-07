@@ -11,6 +11,7 @@ import { EmptyState } from '../components/EmptyState.tsx'
 import { formatShortDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { ScrollTable } from '../components/ScrollTable.tsx'
+import { useOnline } from '../components/useOnline.ts'
 import { Skeleton } from '../components/Skeleton.tsx'
 import styles from './StatsPage.module.css'
 
@@ -50,13 +51,34 @@ export function StatsPage() {
   const stats = useStats()
   const weeks = useWeeks({ from: addDays(thisWeek, -7 * (HISTORY_WEEKS - 1)), to: thisWeek })
   const settings = useSettings()
+  const online = useOnline()
   const [allWeeks, setAllWeeks] = useState(false)
 
   if (stats.isError || weeks.isError || settings.isError) {
     return (
       <>
         <PageHeader title="Stats" />
-        <p role="alert">Stats did not load. Reload the page to try again.</p>
+        <div role="alert">
+          <EmptyState
+            title="Stats did not load."
+            body={
+              online
+                ? 'The server did not answer. Your runs are safe.'
+                : 'There is no connection right now. Your runs are safe.'
+            }
+            action={
+              <Button
+                onClick={() => {
+                  if (stats.isError) void stats.refetch()
+                  if (weeks.isError) void weeks.refetch()
+                  if (settings.isError) void settings.refetch()
+                }}
+              >
+                Try again
+              </Button>
+            }
+          />
+        </div>
       </>
     )
   }

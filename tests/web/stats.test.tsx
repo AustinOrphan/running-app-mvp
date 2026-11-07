@@ -141,19 +141,27 @@ describe('StatsPage', () => {
     expectCleanCopy(container)
   })
 
-  test('says so when the statistics did not load', async () => {
-    mockApi({
-      'GET /api/stats': () => ({
-        status: 500,
-        body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
-      }),
+  test('says so when the statistics did not load, and Try again reads them once more', async () => {
+    let failing = true
+    const { calls } = mockApi({
+      'GET /api/stats': () =>
+        failing
+          ? {
+              status: 500,
+              body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
+            }
+          : statsOf(activities),
       'GET /api/weeks': () => history(),
       'GET /api/settings': () => settings('mi'),
     })
     renderWithProviders(<StatsPage />)
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Stats did not load. Reload the page to try again.',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Stats did not load.')
+    const statsCalls = () => calls.filter((c) => c.url.startsWith('/api/stats')).length
+    const before = statsCalls()
+    failing = false
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('table', { name: 'Monthly totals' })).toBeInTheDocument()
+    expect(statsCalls()).toBe(before + 1)
   })
 
   test('the header says totals come from runs and that races count only for fastest efforts', async () => {
