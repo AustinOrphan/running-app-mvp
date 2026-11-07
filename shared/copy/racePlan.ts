@@ -68,10 +68,9 @@ export const RACE_PLAN_TEMPLATES = {
     'About {duration}, from the goal. A recent race or a few long runs would give a range.',
     { duration: 'duration' },
   ),
-  'race.plan.expected.clock': tpl('Start {start}. Finish about {from} to {to}.', {
+  'race.plan.expected.clock': tpl('Start {start}. Finish about {range}.', {
     start: 'text',
-    from: 'text',
-    to: 'text',
+    range: 'text',
   }),
   'race.plan.expected.round': tpl('Times are rounded to {step}, and the range outward.', {
     step: 'minutes',
@@ -121,13 +120,7 @@ export const RACE_PLAN_TEMPLATES = {
     },
     { shape: 'label' },
   ),
-  'race.plan.part.clock': tpl(
-    '{from} to {to} on the clock',
-    { from: 'text', to: 'text' },
-    {
-      shape: 'label',
-    },
-  ),
+  'race.plan.part.clock': tpl('{range} on the clock', { range: 'text' }, { shape: 'label' }),
   'race.plan.part.dark': tpl('About {time} of this part falls outside daylight.', {
     time: 'minutes',
   }),
@@ -267,11 +260,7 @@ export const RACE_PLAN_TEMPLATES = {
     { at: 'duration' },
     { shape: 'label' },
   ),
-  'race.plan.points.arrival-clock': tpl(
-    'About {from} to {to}',
-    { from: 'text', to: 'text' },
-    { shape: 'label' },
-  ),
+  'race.plan.points.arrival-clock': tpl('About {range}', { range: 'text' }, { shape: 'label' }),
   'race.plan.points.arrival-elapsed': tpl(
     'About {from} to {to} into the race',
     { from: 'duration', to: 'duration' },
@@ -394,6 +383,18 @@ export function clockText(clock: RaceClock): string {
   if (clock.day === 0) return clock.time
   if (clock.day === 1) return `${clock.time} the next day`
   return `${clock.time} on day ${String(clock.day + 1)}`
+}
+
+/**
+ * Two ends of a range on the clock: one time when both read alike ("17:10 the next day"), the day named
+ * once when both fall on the same later day ("17:10 to 19:30 the next day"), each with its own day otherwise.
+ */
+export function clockRangeText(from: RaceClock, to: RaceClock): string {
+  if (from.day === to.day && from.time === to.time) return clockText(from)
+  if (from.day === to.day && from.day > 0) {
+    return `${from.time} to ${clockText(to)}`
+  }
+  return `${clockText(from)} to ${clockText(to)}`
 }
 
 /** The label of the days to the race: "Race day", "1 day to go" or "9 days to go". */
@@ -553,8 +554,7 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
           T['race.plan.expected.clock'],
           {
             start: expected.start,
-            from: clockText(expected.finish.from),
-            to: clockText(expected.finish.to),
+            range: clockRangeText(expected.finish.from, expected.finish.to),
           },
           units,
         )
@@ -638,7 +638,7 @@ function partText(plan: RacePlan, third: RaceThird, units: Units): RacePartText 
         ? null
         : say(
             T['race.plan.part.clock'],
-            { from: clockText(third.clock.from), to: clockText(third.clock.to) },
+            { range: clockRangeText(third.clock.from, third.clock.to) },
             units,
           ),
     instruction: instructionText(plan.effort, units),
@@ -904,11 +904,14 @@ function arrivalText(row: SplitRow, units: Units): string {
           units,
         )
   }
-  const from = clockText(row.clock.from)
-  const to = clockText(row.clock.to)
-  return from === to
-    ? say(T['race.plan.points.arrival-clock-at'], { at: from }, units)
-    : say(T['race.plan.points.arrival-clock'], { from, to }, units)
+  const at = clockText(row.clock.from)
+  return at === clockText(row.clock.to)
+    ? say(T['race.plan.points.arrival-clock-at'], { at }, units)
+    : say(
+        T['race.plan.points.arrival-clock'],
+        { range: clockRangeText(row.clock.from, row.clock.to) },
+        units,
+      )
 }
 
 /** The climb line, chosen on the figure as it will be printed: a climb that rounds to 0 says nothing. */
