@@ -6,6 +6,7 @@ import type {
   BriefView,
   PlanRevisionView,
   PlanWithSessions,
+  TodayView,
 } from '../../shared/types.ts'
 import type { Deps } from '../../server/app.ts'
 import { loadConfig } from '../../server/config.ts'
@@ -188,6 +189,70 @@ test("Today's brief line fits its 52 px slot at 360 px and opens the brief", asy
   await line.getByRole('link').click()
   await expect(page.getByRole('heading', { level: 1, name: 'Weekly brief' })).toBeVisible()
   await expect(page).toHaveURL(/\/brief$/)
+})
+
+test('an unopened brief with changes leads Today in a card, at 360 and 1280 px, and its link opens the brief', async () => {
+  // The server's payload with the brief slot as the Monday update leaves it: unopened, three
+  // sessions changed. The brief itself is read as it is, so the card shows without the undo.
+  const route = '**/api/today'
+  await page.route(route, async (handler) => {
+    const headers = { ...handler.request().headers() }
+    delete headers['if-none-match']
+    const response = await handler.fetch({ headers })
+    const view = (await response.json()) as TodayView
+    const brief = view.coach.slots.brief
+    const slots = {
+      ...view.coach.slots,
+      brief: brief === null ? null : { ...brief, seen: false, changeCount: 3, undone: false },
+    }
+    await handler.fulfill({
+      response,
+      json: {
+        ...view,
+        coach: {
+          ...view.coach,
+          slots,
+          health: { ...view.coach.health, lastWeekReady: true },
+        },
+      },
+    })
+  })
+  try {
+    for (const [width, height] of [
+      [360, 740],
+      [1280, 800],
+    ] as const) {
+      await page.setViewportSize({ width, height })
+      await page.goto('/')
+      const card = page.getByRole('region', { name: 'The plan was updated' })
+      await expect(card).toBeVisible()
+      // First in the session column: above the readiness read and the session.
+      const readiness = page.getByRole('region', { name: 'Readiness' })
+      expect((await boxOf(card)).y).toBeLessThan((await boxOf(readiness)).y)
+      await expect(card.getByRole('link', { name: 'Open the brief' })).toBeVisible()
+      await expect(page.getByRole('link', { name: /Review last week/ })).toBeVisible()
+      // The quiet line is not drawn twice, nor the review link at the foot.
+      await expect(page.getByRole('region', { name: 'Weekly brief' })).toBeHidden()
+      await expect(page.getByRole('link', { name: 'Last week is ready to review.' })).toBeHidden()
+      await noSidewaysScroll()
+      await page.screenshot({ path: test.info().outputPath(`monday-card-${String(width)}.png`) })
+    }
+    await card360Opens()
+  } finally {
+    await page.unroute(route)
+    await page.setViewportSize({ width: 1280, height: 720 })
+  }
+
+  async function card360Opens() {
+    await page.setViewportSize({ width: 360, height: 740 })
+    await page.goto('/')
+    await page
+      .getByRole('region', { name: 'The plan was updated' })
+      .getByRole('link', { name: 'Open the brief' })
+      .click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Weekly brief' })).toBeVisible()
+    await expect(page).toHaveURL(/\/brief$/)
+  }
 })
 
 test('the brief lists a change with its cause, in one column on a phone and two from 900 px', async () => {

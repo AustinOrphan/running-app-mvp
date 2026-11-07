@@ -7,8 +7,16 @@ import styles from './DataHealth.module.css'
  * Links to possible duplicates, past weeks without confirmed data and a review that is due. The
  * counts come from the server (`coach.health`), which also holds the producers' notes.
  */
-export function DataHealth({ health }: { health: TodayHealth }) {
-  const { possibleDuplicates, pastUnconfirmedWeeks, lastWeekReady } = health
+export function DataHealth({
+  health,
+  reviewShownAbove = false,
+}: {
+  health: TodayHealth
+  /** The review link already leads the page (`MondayBrief`), so it is not repeated here. */
+  reviewShownAbove?: boolean
+}) {
+  const { possibleDuplicates, pastUnconfirmedWeeks } = health
+  const lastWeekReady = health.lastWeekReady && !reviewShownAbove
   if (possibleDuplicates === 0 && pastUnconfirmedWeeks === 0 && !lastWeekReady) return null
 
   return (

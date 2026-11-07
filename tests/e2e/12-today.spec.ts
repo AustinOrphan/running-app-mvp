@@ -506,6 +506,110 @@ test('Done with no connection keeps a draft and turns Save off, then logs the ru
   expect(after.sessions.find((session) => session.id === planned.id)?.status).toBe('completed')
 })
 
+test('the logged run on the hero links to its page, which names the same run', async () => {
+  const { today } = relativeDates()
+  await page.goto('/')
+  const card = page.getByRole('article', { name: planned.title })
+  const link = card.getByRole('link', { name: /^Logged: / })
+  await expect(link).toBeVisible()
+  expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+  await link.click()
+  await expect(page).toHaveURL(/\/activities\/[^/?]+$/)
+  await expect(page.getByRole('region', { name: 'Summary' })).toBeVisible()
+  await expect(page.getByText(new RegExp(`${today.slice(0, 4)}`)).first()).toBeVisible()
+  await page.goBack()
+})
+
+test('Check for new runs asks the connected service, names what arrived and shows the run on Today', async () => {
+  const { today } = relativeDates()
+  const yesterday = addDays(today, -1)
+  const before = new Date(Date.now() - 5 * 60_000).toISOString()
+  let after: string | null = null
+  const services = () => [
+    {
+      provider: 'intervals',
+      info: {
+        key: 'intervals',
+        label: 'Intervals.icu',
+        experimental: false,
+        channels: ['pull', 'push', 'publish'],
+        wellness: true,
+        docsUrl: '',
+      },
+      status: 'connected',
+      config: {},
+      pushEnabled: false,
+      lastSyncAt: after ?? before,
+      lastSyncStatus: 'ok',
+      lastError: null,
+    },
+  ]
+  // A fake service: the sync route stores the run the way an import would, then the list shows a
+  // newer pull. Nothing leaves the machine.
+  await page.route(/\/api\/integrations(\/|$)/, async (route) => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    if (request.method() === 'POST' && path === '/api/integrations/intervals/sync') {
+      await api.post('/activities', {
+        date: yesterday,
+        type: 'run',
+        durationSec: 30 * 60,
+        distanceM: 4800,
+      })
+      after = new Date().toISOString()
+      await route.fulfill({ status: 202, json: services()[0] })
+    } else if (path === '/api/integrations/intervals/runs') {
+      await route.fulfill({
+        json: [
+          {
+            id: 'fake-run',
+            provider: 'intervals',
+            channel: 'pull',
+            trigger: 'manual',
+            startedAt: after,
+            finishedAt: after,
+            status: 'ok',
+            accepted: 1,
+            duplicate: 0,
+            failed: 0,
+            wellnessStatus: 'none',
+            wellnessDays: null,
+            wellnessTotal: null,
+            message: null,
+            failures: [],
+            importBatchId: null,
+          },
+        ],
+      })
+    } else {
+      await route.fulfill({ json: services() })
+    }
+  })
+  try {
+    await page.goto('/')
+    const button = page.getByRole('button', { name: 'Check for new runs' })
+    await expect(button).toBeVisible()
+    await expect(page.getByRole('region', { name: 'How did it go?' })).toBeHidden()
+    await button.click()
+    await expect(toast(page, 'One new run added from Intervals.icu')).toBeVisible()
+    await expect(button).toBeEnabled()
+    await expect(button).not.toHaveAttribute('aria-busy', 'true')
+    // Today read again: the new run is waiting for a rating, and its line opens its page.
+    const rate = page.getByRole('region', { name: 'How did it go?' })
+    await expect(rate).toBeVisible()
+    await expect(rate.getByRole('link').first()).toHaveAttribute('href', /^\/activities\//)
+    // On a phone the control is an icon the size of a thumb target, and nothing scrolls sideways.
+    await page.setViewportSize({ width: 360, height: 740 })
+    const box = (await button.boundingBox())!
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    expect(box.height).toBeGreaterThanOrEqual(44)
+    expect(await scrollsSideways()).toBe(false)
+  } finally {
+    await page.unroute(/\/api\/integrations(\/|$)/)
+    await page.setViewportSize({ width: 1280, height: 720 })
+  }
+})
+
 test('one tap saves the check-in, folds the row and moves focus to the verdict', async () => {
   const { today } = relativeDates()
   await page.goto('/')

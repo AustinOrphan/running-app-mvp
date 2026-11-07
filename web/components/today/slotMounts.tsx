@@ -3,14 +3,14 @@ import type { ComponentType, ReactNode } from 'react'
 import { addDays } from '../../../shared/dates.ts'
 import type { TodayView, UserSettings, WristItem } from '../../../shared/types.ts'
 import { keys } from '../../api/client.ts'
-import { BriefLine } from '../BriefLine.tsx'
+import { BriefLine, briefLeads } from '../BriefLine.tsx'
 import { useWristLine, WristLineText } from '../WristLine.tsx'
 import { FuelPromptCard } from '../fuel/FuelPromptCard.tsx'
 import { FuelTargetLine } from '../fuel/FuelTargetLine.tsx'
 import { RaceSlot } from '../race/RaceSlot.tsx'
 import { StrengthSetupCard } from '../strength/StrengthSetupCard.tsx'
 import { DisruptionSlot } from './DisruptionSlot.tsx'
-import { usePhoneCopy } from './phoneCopy.ts'
+import { dayState, usePhoneCopy } from './phoneCopy.ts'
 import { SlotFrame } from './SlotFrame.tsx'
 import type { SlotName } from './slots.ts'
 
@@ -140,6 +140,9 @@ function BriefMount() {
   const phoneCopy = usePhoneCopy(today)
   const item = today?.coach.slots.brief ?? null
   if (phoneCopy || item === null || settings === undefined) return null
+  // An unopened brief with changes leads the session column (`MondayBrief`), so it is not drawn
+  // twice.
+  if (briefLeads(item) && today !== undefined && dayState(today, phoneCopy) === 'today') return null
   return (
     <SlotFrame name="brief">
       <BriefLine item={item} units={settings.units} />

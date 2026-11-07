@@ -7,6 +7,7 @@ import { useSettings } from '../api/settings.ts'
 import { checkinUrl } from '../api/checkins.ts'
 import { useServerToday } from '../api/today.ts'
 import buttonStyles from '../components/Button.module.css'
+import { briefLeads } from '../components/BriefLine.tsx'
 import { formatWeekdayDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { CheckRunsButton, CheckRunsNote } from '../components/today/CheckRuns.tsx'
@@ -17,6 +18,7 @@ import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
 import { FeedbackCard } from '../components/today/FeedbackCard.tsx'
 import { HealthNotes } from '../components/today/HealthNotes.tsx'
 import { History } from '../components/today/History.tsx'
+import { MondayBrief } from '../components/today/MondayBrief.tsx'
 import { OfflineNote } from '../components/today/OfflineNote.tsx'
 import { dayState, usePhoneCopy } from '../components/today/phoneCopy.ts'
 import { PlanNotice } from '../components/today/PlanNotice.tsx'
@@ -150,6 +152,10 @@ export function DashboardPage() {
     coach.hero !== null &&
     coach.hero.advice !== 'rest' &&
     coach.hero.session.kind !== 'rest'
+  // An unopened brief with changes leads the session column. The brief is the server's, which the
+  // phone's copy of an earlier day may no longer match, so the copy keeps the quiet line (none).
+  const leadingBrief =
+    !phoneCopy && day === 'today' && briefLeads(coach.slots.brief) ? coach.slots.brief : null
   const verdictShown =
     waiting && coach.verdict?.code === 'no-signals' ? SAVED_ON_PHONE : coach.verdict
 
@@ -160,6 +166,13 @@ export function DashboardPage() {
         <HealthNotes flags={view.readiness.redFlags} notes={coach.health.notes} units={units} />
         <div className={styles.columns} data-layout={twoColumns ? 'two' : 'one'}>
           <div className={styles.column}>
+            {leadingBrief === null ? null : (
+              <MondayBrief
+                item={leadingBrief}
+                reviewDue={coach.health.lastWeekReady}
+                units={units}
+              />
+            )}
             <TodaySlot name="disruption" />
 
             <ReadinessRead
@@ -230,7 +243,7 @@ export function DashboardPage() {
               }}
             />
             {coach.race === null ? null : <RaceCountdown race={coach.race} units={units} />}
-            <DataHealth health={coach.health} />
+            <DataHealth health={coach.health} reviewShownAbove={leadingBrief !== null} />
           </div>
         </div>
         <History today={view.date} units={units} />

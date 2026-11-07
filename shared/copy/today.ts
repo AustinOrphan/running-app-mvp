@@ -247,6 +247,12 @@ export const TODAY_TEMPLATES = {
     source: 'text',
   }),
 
+  // Monday on Today: while the weekly update's brief is unopened and it changed sessions, a card
+  // leads the session column (`MondayBrief`), and a review that is due gets its own link beside it.
+  'today.monday.title': tpl('The plan was updated', {}, { shape: 'label' }),
+  'today.monday.review': tpl('Review last week', {}, { shape: 'label' }),
+  'today.monday.review-note': tpl('A few answers keep the next update accurate.'),
+
   // The race countdown.
   'today.race.estimate': tpl('Finish estimate {low} to {high}, most likely about {likely}.', {
     low: 'duration',

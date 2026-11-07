@@ -5,6 +5,15 @@ import type { BriefListItem, Units } from '../../shared/types.ts'
 import styles from './BriefLine.module.css'
 
 /**
+ * Whether the brief leads Today in a card of its own instead of waiting in its place under the
+ * week: it is unopened and the update changed sessions that are still changed. A brief that
+ * changed nothing, was undone or has been opened keeps the quiet line.
+ */
+export function briefLeads(item: BriefListItem | null): item is BriefListItem {
+  return item !== null && !item.seen && !item.undone && item.changeCount > 0
+}
+
+/**
  * Today's line on the weekly brief: how many sessions the update changed and the next key session,
  * worded by `renderBriefLine` from the `brief` slot of the Today payload (the item of
  * `GET /api/briefs`). The whole line is the link to the brief, so the tap target is the 52 px the
