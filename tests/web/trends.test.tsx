@@ -501,7 +501,7 @@ describe('TrendsPage, body weight', () => {
     ).toBeVisible()
     expect(
       screen.getByText(
-        "Mean of each week's weigh-ins, for weeks with at least 2 weigh-ins. A scale varies by a kilogram or more within a day, so read the line, not a point.",
+        "Mean of each week's weigh-ins, for weeks with at least 2 weigh-ins. A scale varies within a day, so read the line, not a point.",
       ),
     ).toBeVisible()
     const table = await screen.findByRole('table', { name: /^Body weight, weekly mean/ })
@@ -536,6 +536,22 @@ describe('TrendsPage, body weight', () => {
     renderWithProviders(<TrendsPage />)
     expect(await screen.findByText('No weigh-ins yet.')).toBeVisible()
     expect(screen.queryByRole('img', { name: /^Body weight/ })).not.toBeInTheDocument()
+  })
+
+  test('says there are no weigh-ins, and draws no axis, when no week has enough of them', async () => {
+    mockTrends({
+      trends: weightView({
+        weight: WEEK_STARTS.map((weekStart, i) => ({
+          weekStart,
+          grams: null,
+          weighIns: i === 100 ? 1 : 0,
+        })),
+      }),
+    })
+    renderWithProviders(<TrendsPage />)
+    expect(await screen.findByText('No weigh-ins yet.')).toBeVisible()
+    expect(screen.queryByRole('img', { name: /^Body weight/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /^Body weight/ })).not.toBeInTheDocument()
   })
 
   test('with the screening gate, draws no chart and says so neutrally, with a link to Profile', async () => {

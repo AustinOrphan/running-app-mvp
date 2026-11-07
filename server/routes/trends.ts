@@ -77,7 +77,8 @@ export function trendsRouter(deps: Deps): Router {
         }
       },
     )
-    // Weight is a display choice (ADR 0019): off, nothing is read and no key is sent; at
+    // Weight is a display choice (ADR 0019): off, the route never selects
+    // `weightKg` and the payload carries no weight; at
     // `j5.redsHoldFlags` open flags, only the reason is sent. Neither gate restricts the data path.
     let weight: WeightPart = {}
     if (account?.showBodyWeight === true) {

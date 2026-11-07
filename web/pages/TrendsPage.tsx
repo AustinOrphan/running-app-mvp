@@ -272,7 +272,7 @@ function WeightSection({ view, unit, months, weekCount }: WeightSectionProps) {
           {text('trends.weight.gated')}{' '}
           <Link to="/profile">{text('trends.weight.gated-link')}</Link>
         </p>
-      ) : weeks.length === 0 ? (
+      ) : latest === null ? (
         <p className={styles.caption}>{text('trends.weight.none')}</p>
       ) : (
         <>

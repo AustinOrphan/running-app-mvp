@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { TrendsView } from '../../shared/types.ts'
+import { loadWeightSeries } from '../../server/serialize.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
 import {
   client,
@@ -10,6 +11,12 @@ import {
   type TestCtx,
   type TestUser,
 } from './helpers.ts'
+
+// The real loader, wrapped so a test can see whether the route called it.
+vi.mock('../../server/serialize.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../server/serialize.ts')>()
+  return { ...original, loadWeightSeries: vi.fn(original.loadWeightSeries) }
+})
 
 let ctx: TestCtx
 let user: TestUser
@@ -249,18 +256,17 @@ describe('GET /api/trends weight', () => {
     client(ctx, user).put('/api/settings').send({ showBodyWeight }).expect(200)
   const screen = (answers: Record<string, boolean>) =>
     client(ctx, user).post('/api/screenings').send({ date: TODAY, answers }).expect(201)
-  const weightSelects = (calls: readonly unknown[][]) =>
-    calls.filter((call) => {
-      const args = call[0] as { select?: Record<string, boolean> } | undefined
-      return args?.select !== undefined && 'weightKg' in args.select
-    })
+  // The snapshot's own wellness read has no select, so weightKg is loaded there whatever the
+  // setting (ADR 0019); what the route controls is its own weight query and the payload.
+  beforeEach(() => {
+    vi.mocked(loadWeightSeries).mockClear()
+  })
 
-  test('has no weight key while the switch is off, and never selects the column', async () => {
+  test('has no weight key while the switch is off, and the route never calls the weight loader', async () => {
     await seedWeighIns(1, [70, 71])
-    const findMany = vi.spyOn(ctx.prisma.wellnessDay, 'findMany')
     const res = await getTrends()
     expect(Object.keys(res.body as object).sort()).toEqual(['asOf', 'recovery'])
-    expect(weightSelects(findMany.mock.calls)).toHaveLength(0)
+    expect(loadWeightSeries).not.toHaveBeenCalled()
   })
 
   test('carries the weekly means in grams once the switch is on, with gaps as null', async () => {
@@ -296,15 +302,14 @@ describe('GET /api/trends weight', () => {
     expect(await ctx.prisma.wellnessDay.count({ where: { weightKg: { not: null } } })).toBe(2)
   })
 
-  test('at two open flags the switch gives the reason and no series, and reads no weight', async () => {
+  test('at two open flags the switch gives the reason and no series, and calls no weight loader', async () => {
     await seedWeighIns(1, [70, 71])
     await turn(true)
     await screen({ weightLoss: true, cycle: false, fatigue: true })
-    const findMany = vi.spyOn(ctx.prisma.wellnessDay, 'findMany')
     const body = (await getTrends()).body as TrendsView
     expect(body.weightGate).toBe('reds')
     expect(body).not.toHaveProperty('weight')
-    expect(weightSelects(findMany.mock.calls)).toHaveLength(0)
+    expect(loadWeightSeries).not.toHaveBeenCalled()
   })
 
   test('one open flag does not gate, and a clearer screening lifts the gate', async () => {

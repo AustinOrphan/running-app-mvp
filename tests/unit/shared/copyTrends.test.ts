@@ -90,8 +90,10 @@ describe('the words of the Trends page', () => {
 
   it('states the weight caption and the accessible names from the page constants', () => {
     expect(weightCaption(2)).toBe(
-      "Mean of each week's weigh-ins, for weeks with at least 2 weigh-ins. A scale varies by a kilogram or more within a day, so read the line, not a point.",
+      "Mean of each week's weigh-ins, for weeks with at least 2 weigh-ins. A scale varies within a day, so read the line, not a point.",
     )
+    // The caption states no figure in a unit, so it reads the same for a runner in pounds or kilograms.
+    expect(weightCaption(2)).not.toMatch(/\b(kg|lb|kilograms?|pounds?)\b/i)
     expect(weightAria(12, '70.3 kg')).toBe(
       'Body weight, weekly mean, last 12 months. Latest week with enough weigh-ins: 70.3 kg.',
     )

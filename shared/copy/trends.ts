@@ -22,7 +22,7 @@ export const TRENDS_TEMPLATES = {
   // range, so a difference between weeks or a direction cannot be rendered.
   'trends.weight.heading': tpl('Body weight', {}, { shape: 'label' }),
   'trends.weight.caption': tpl(
-    "Mean of each week's weigh-ins, for weeks with at least {count} weigh-ins. A scale varies by a kilogram or more within a day, so read the line, not a point.",
+    "Mean of each week's weigh-ins, for weeks with at least {count} weigh-ins. A scale varies within a day, so read the line, not a point.",
     { count: 'count' },
   ),
   'trends.weight.none': tpl('No weigh-ins yet.'),
