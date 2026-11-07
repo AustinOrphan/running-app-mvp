@@ -26,6 +26,10 @@ type NumberStyle =
   | 'climbM'
   /** 12 km/h is "12 km/h" or "7.5 mph" */
   | 'speedKmh'
+  /** 4.5 m/s is "16.2 km/h" or "10 mph" */
+  | 'speedMps'
+  /** 5 bpm per m/s is "1.39 bpm per km/h" or "2.24 bpm per mph" */
+  | 'bpmPerMps'
   /** 420 s/km is "7:00 /km" or "11:16 /mi" */
   | 'paceSecPerKm'
   /** 9000 s is "2 h 30 min" */
@@ -92,6 +96,7 @@ const UNIT_RULES: Readonly<Record<string, UnitRule>> = {
 
   // Fractions of one: the value reads as a percentage of what it is a fraction of.
   fraction: frac('{value}'),
+  'fraction of speed': frac('{value} of speed'),
   'fraction of CS': frac('{value} of critical speed'),
   'fraction of HRmax': frac('{value} of maximum heart rate'),
   'fraction of day 1': frac('{value} of day 1'),
@@ -143,6 +148,8 @@ const UNIT_RULES: Readonly<Record<string, UnitRule>> = {
   km: style('distanceKm', '{value}'),
   'km/week': style('distanceKm', '{value} per week'),
   'km/h': style('speedKmh', '{value}'),
+  'm/s': style('speedMps', '{value}'),
+  'bpm per m/s': style('bpmPerMps', '{value}'),
   'km/h below CS': style('speedKmh', '{value} below critical speed'),
   m: style('distanceM', '{value}'),
   'm/h': style('climbM', '{value} per hour'),
@@ -322,6 +329,13 @@ function partsFor(kind: NumberStyle, n: number, units: Units): QuantityParts | n
       return q({ kind: 'climb', m: n })
     case 'speedKmh':
       return q({ kind: 'speed', kmh: n })
+    case 'speedMps':
+      return q({ kind: 'speed', kmh: n * 3.6 })
+    case 'bpmPerMps':
+      // A heart-rate rise for each unit of speed, in the runner's speed unit.
+      return units === 'mi'
+        ? { num: formatNumber(Math.round(n * 0.44704 * 100) / 100), suffix: ' bpm per mph' }
+        : { num: formatNumber(Math.round((n / 3.6) * 100) / 100), suffix: ' bpm per km/h' }
     case 'paceSecPerKm':
       return q({ kind: 'pace', secPerKm: n })
     case 'seconds':

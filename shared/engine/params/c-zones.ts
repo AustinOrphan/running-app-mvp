@@ -304,7 +304,7 @@ export const cZones = {
     }),
     maxEasySpeedMps: param('c9.maxEasySpeedMps', 4.5, 'D', 'C9', [], {
       unit: 'm/s',
-      note: 'Default: with no critical speed to bound it, an easy pace from the line is never faster than this speed (a 3:42 per km pace).',
+      note: 'Default: with no critical speed to bound it, an easy pace from the line is never faster than this speed.',
     }),
     exampleGradePct: param(
       'c9.exampleGradePct',
