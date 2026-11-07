@@ -2085,7 +2085,9 @@ things stand" gives counts and percentages without a weekly total or a date.
 
     1. Race day is unplanned: the race session targets RPE 8 to 9 for a 34-hour race,
        `h11.belowVt1Share` (`shared/engine/params/h-ultra.ts`) and the four `k6.*` Params
-       (`shared/engine/params/k-taper.ts`) are read by nothing, `FUEL_KINDS.race`
+       (`shared/engine/params/k-taper.ts`) are read by nothing (update 2026-11-07: only two of the
+       `k6.*` Params still have no reader, see the entry of that date below),
+       `FUEL_KINDS.race`
        (`shared/engine/fuel.ts`) is `false`, and rule E12's race plan has no design. The fix is
        step 1, an ultra race-effort `Param` and the Z1 ceiling, then step 2, a race plan derived on
        read in the ADR 0014 shape, as the strength workout is.
@@ -2149,6 +2151,21 @@ things stand" gives counts and percentages without a weekly total or a date.
     the plan asked for two, a note at once for a connection that needs signing in again, and an
     ETag stamp for the `Integration` rows; no plan, weekly job, brief or review changed, and
     `PARAMS_VERSION` is `2026-11-06.2`.
+
+    2026-11-07: update to finding 1. Four of the Params it lists as read by nothing are read now:
+    `h11.belowVt1Share` by the Explain builder and template of H11 (`explainInputs.ts`,
+    `explainTemplates.ts`), and `k6.carbLoadMinRaceMin`, `k6.easyDaysBefore` and
+    `k6.dayBeforeMaxMin` by `shakeOutFor` in `micro.ts`. Only `k6.carbLoadGPerKgDay` and
+    `k6.carbLoadFinalHours` had no reader on that date (a search of `shared`, `server`, `web`, `scripts` and
+    `tests` outside `shared/engine/params/`). The race plan reads both.
+
+    2026-11-07: race plan steps 2 and 3 built (RP2, ADR 0018 proposed, rule H14, design
+    `docs/superpowers/specs/2026-11-07-race-plan-design.md`): the plan derived on read for an ultra
+    goal (`shared/engine/racePlan.ts`, `raceFuelFor` in `fuel.ts`, `shared/copy/racePlan.ts`), the
+    Race page, a More row, the Today `race` slot in race week, the race-day block of the session
+    sheet, three `r1` Params (grade D) and `PARAMS_VERSION` `2026-11-07.1`; no plan digest moved.
+    Step 4 (checkpoints and splits) and step 5 (the Race page offline) are open, and so are the
+    research passes R1 to R5 (`research/engine-rules.md`, "Top evidence gaps").
 
 ## Clean-up after the merges
 
