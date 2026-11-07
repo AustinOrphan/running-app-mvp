@@ -1,0 +1,35 @@
+{
+  "id": "tonnessen-2014-year-before-gold",
+  "title": "The road to gold: training and peaking characteristics in the year prior to a gold medal endurance performance",
+  "authors": "Tonnessen E, Sylta O, Haugen T, Hem E, Svendsen I, Seiler S",
+  "year": 2014,
+  "journal": "PLoS ONE",
+  "doi": "10.1371/journal.pone.0101796",
+  "pmid": "25019608",
+  "url": "https://doi.org/10.1371/journal.pone.0101796",
+  "design": "retrospective-cohort",
+  "population": "11 Olympic and World Champion cross-country skiers and biathletes (4 men aged 28 +/- 1 y, VO2max 85 +/- 5 mL/min/kg; 7 women aged 25 +/- 4 y, VO2max 73 +/- 3). Not runners.",
+  "sampleSize": 11,
+  "evidenceLevel": "C",
+  "topics": ["periodization-recovery", "intensity-distribution"],
+  "findings": [
+    "The 11 athletes reported one year of day-to-day training before the best competition of their career: about 800 h and 500 sessions a year, about 500 h of it sport-specific, 94% aerobic endurance training.",
+    "Of the aerobic training about 90% was low intensity (below the first lactate threshold) and 10% high intensity by time; 23% of sessions were classed as high-intensity sessions.",
+    "Volume and specificity followed a traditional periodization model, but the absolute volume of high-intensity training stayed stable across phases, and its pattern tended to become more polarized in the competition phase.",
+    "Training volume, frequency and intensity were unchanged from the pre-peaking to the peaking period; volume fell 32 +/- 15% (P < 0.01) from the preparation period to the peaking phase.",
+    "The athletes did not follow tapering practice derived from short-term experimental studies: only 3 of 11 took a rest day in the last 5 days before the competition."
+  ],
+  "limitations": "Eleven elite skiers and biathletes, a different sport from running, with training reported after the fact for one year by the athletes. Descriptive: no comparison group and no outcome other than the best competition itself. Volumes (about 800 h a year) are far above those of a recreational runner. Abstract read; full text not read.",
+  "implications": [
+    "A description of what elite endurance athletes did in the weeks before a best performance: volume, frequency and intensity held, the absolute amount of hard work held across phases, and the fall in volume coming between preparation and peaking. It is consistent with holding a plateau until the taper and with not raising the amount of hard work inside it.",
+    "It is not a test of holding, in another sport, and it gives no number of weeks for a plateau or a level for it; it does not support a higher weekly peak for a recreational runner."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-11-07: title, PLoS ONE 9(7):e101796, 2014-07-14, six authors and DOI match. No update notice. Europe PMC abstract (PMID 25019608) read; every figure above is in it.",
+    "checkedAt": "2026-11-07"
+  }
+}

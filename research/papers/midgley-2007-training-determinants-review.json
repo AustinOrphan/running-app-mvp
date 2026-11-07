@@ -1,0 +1,34 @@
+{
+  "id": "midgley-2007-training-determinants-review",
+  "title": "Training to enhance the physiological determinants of long-distance running performance: can valid recommendations be given to runners and coaches based on current scientific knowledge?",
+  "authors": "Midgley A, McNaughton L, Jones A",
+  "year": 2007,
+  "journal": "Sports Medicine",
+  "doi": "10.2165/00007256-200737100-00003",
+  "pmid": "17887811",
+  "url": "https://doi.org/10.2165/00007256-200737100-00003",
+  "design": "narrative-review",
+  "population": "Training studies of trained distance runners, as reviewed.",
+  "sampleSize": null,
+  "evidenceLevel": "D",
+  "topics": ["volume-performance", "periodization-recovery"],
+  "findings": [
+    "Relatively few training studies involve trained distance runners, and they often add one or more bouts of training to the runners' normal training, which was typically not described or only briefly described.",
+    "Other limits named: only a few studies had more than one experimental group, the runners' training load was not controlled during the study, and sample sizes were small and low in statistical power.",
+    "Knowledge of chronic adaptations comes largely from sedentary people, and applying it directly to runners is unlikely to be valid.",
+    "The authors conclude there is insufficient direct scientific evidence to formulate training recommendations for runners and that scientists should be cautious in giving them, while holding that worthwhile recommendations can still be built by integrating training studies with other physiological knowledge."
+  ],
+  "limitations": "A 2007 narrative review of VO2max, lactate threshold and running economy; it predates the large cohorts and meta-analyses of volume and intensity distribution in the corpus and does not address weekly volume, plateaus or ultra training. Abstract read; full text not read.",
+  "implications": [
+    "A statement from the literature on trained runners that no trial gives direct support for how to progress or hold training in them. It is cited for the absence of evidence on holding a plateau and not for any value.",
+    "Dated: later work (the meta-analyses and cohorts of the volume-performance and intensity-distribution topics) has filled part of what it found missing, though none tests the length of a plateau."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref 2026-11-07: title, Sports Med 37(10):857-880, 2007, three authors and DOI match; no update notice. Europe PMC abstract (PMID 17887811) read; the statements above are in it.",
+    "checkedAt": "2026-11-07"
+  }
+}
