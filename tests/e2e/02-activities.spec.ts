@@ -26,7 +26,7 @@ test('logging a run from the Activities page shows it in the list and on the das
   await expect(toast(page, 'Run saved')).toBeVisible()
   await expect(sheet).toBeHidden()
 
-  const row = page.getByRole('button', { name: /^Run 45:00 5\.00 mi/ })
+  const row = page.getByRole('link', { name: /^Run, 5\.00 mi, 45:00/ })
   await expect(row).toBeVisible()
   await expect(page.getByText('1 activity')).toBeVisible()
 
@@ -36,13 +36,18 @@ test('logging a run from the Activities page shows it in the list and on the das
   await page.getByRole('region', { name: 'Disclaimer' }).scrollIntoViewIfNeeded()
   await expect(page.getByText('1 run, 5.00 mi in the last 28 days')).toBeVisible()
 
-  // The edit sheet opens on the saved values and the row can be deleted again.
+  // The row opens the activity's page; its edit sheet opens on the saved values, and the
+  // activity can be deleted again from the page.
   await page.goto('/activities')
   await row.click()
+  await expect(page).toHaveURL(/\/activities\/[^/?]+$/)
+  await page.getByRole('button', { name: 'Edit' }).click()
   const edit = page.getByRole('dialog', { name: 'Edit activity' })
   await expect(edit.getByLabel('Duration')).toHaveValue('45:00')
-  await edit.getByRole('button', { name: 'Delete', exact: true }).click()
-  await edit.getByRole('button', { name: 'Delete activity' }).click()
+  await edit.getByRole('button', { name: 'Close' }).click()
+  await expect(edit).toBeHidden()
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await page.getByRole('button', { name: 'Delete activity' }).click()
   await expect(toast(page, 'Activity deleted')).toBeVisible()
   await expect(page.getByText('No activities yet.')).toBeVisible()
 })
@@ -72,7 +77,7 @@ test('a run logged for today opens its own page, the post-run screen, and the to
 
   // the run is in the list behind it (the case above is the back-fill that stays on the list)
   await page.getByRole('link', { name: 'All activities' }).click()
-  await expect(page.getByRole('button', { name: /^Run 45:00 5\.00 mi/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Run, 5\.00 mi, 45:00/ })).toBeVisible()
 })
 
 test('a long row from a source shows the moving pace and names it, and is no taller at 360 px', async ({
@@ -118,11 +123,11 @@ test('a long row from a source shows the moving pace and names it, and is no tal
   await page.goto('/activities')
   const rows = page
     .getByRole('listitem')
-    .filter({ has: page.getByRole('link', { name: /^Details, Run on / }) })
+    .filter({ has: page.getByRole('link', { name: /^Run, / }) })
   await expect(rows).toHaveCount(2)
   // told apart by the label a screen reader reads, which is all the row says of it
-  const moving = rows.filter({ has: page.getByRole('button', { name: /Moving pace/ }) })
-  const plain = rows.filter({ has: page.getByRole('button', { name: /Pace: / }) })
+  const moving = rows.filter({ has: page.getByRole('link', { name: /Moving pace/ }) })
+  const plain = rows.filter({ has: page.getByRole('link', { name: /, Pace \d/ }) })
   await expect(moving).toHaveCount(1)
   await expect(plain).toHaveCount(1)
   await expect(moving.getByText('elapsed', { exact: true })).toHaveCount(0)
@@ -176,10 +181,10 @@ test('a long history pages 50 at a time, and Stats reads its totals from the ser
 
   await page.goto('/activities')
   await expect(page.getByText('Showing 50 of 55 activities')).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Run/ })).toHaveCount(50)
+  await expect(page.getByRole('link', { name: /^Run/ })).toHaveCount(50)
   await page.getByRole('button', { name: 'Show 5 more' }).click()
   await expect(page.getByText('55 activities', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Run/ })).toHaveCount(55)
+  await expect(page.getByRole('link', { name: /^Run/ })).toHaveCount(55)
   await expect(page.getByRole('button', { name: /^Show \d+ more$/ })).toHaveCount(0)
 
   requested.length = 0

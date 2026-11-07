@@ -1268,3 +1268,29 @@ test('a failed Activities read shows one Try again button at 390 px and the list
   await page.unroute('**/api/activities?**')
   await page.setViewportSize({ width: 360, height: 740 })
 })
+
+test('the first run is on the first screen of Activities at 360 px, with the dates behind a button', async () => {
+  await resetData()
+  for (const back of [3, 4, 5]) {
+    await api.post('/activities', {
+      date: addDays(relativeDates().today, -back),
+      type: 'run',
+      durationSec: 45 * 60,
+      distanceM: 8047,
+    })
+  }
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/activities')
+  const first = page.getByRole('link', { name: /^Run, / }).first()
+  await expect(first).toBeVisible()
+  const box = await first.boundingBox()
+  // above the tab bar (56 px) at the foot of the first screen
+  expect((box?.y ?? 9999) + (box?.height ?? 0)).toBeLessThanOrEqual(740 - 56)
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await expect(page.getByLabel('From')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Dates' }).click()
+  await expect(page.getByLabel('From')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+})

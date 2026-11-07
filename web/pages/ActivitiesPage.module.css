@@ -79,59 +79,55 @@
   border-top: 1px solid var(--border);
 }
 
-.main {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.detailLink {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-h);
-  padding: 0 var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
+/*
+ * The whole row is one link. Its figures sit in fixed columns (distance, duration, pace) in tabular
+ * numerals and are right-aligned, so they line up down a list of 133 runs; the source is muted text
+ * under the kind. At 360 px the three columns take 228 px and the kind keeps the other 76.
+ */
 .row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.25rem 4.5rem 4.5rem;
   align-items: baseline;
-  gap: var(--space-1) var(--space-4);
-  flex: 1 1 auto;
-  min-width: 0;
+  gap: var(--space-1) var(--space-2);
+  min-height: var(--control-h);
   padding: var(--space-3) 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  color: var(--text);
+  text-decoration: none;
 }
 
 .type {
-  min-width: 5.5rem;
+  min-width: 0;
   font-weight: 600;
 }
 
 .figure,
 .pace {
-  font-family: var(--font-serif);
-  font-size: var(--text-base);
+  text-align: right;
   font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
 }
 
-.pace,
-.source {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
+.figure {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
 }
 
 .pace {
+  color: var(--text-muted);
   font-family: var(--font-sans);
-  font-variant-numeric: lining-nums tabular-nums;
+  font-size: var(--text-sm);
+}
+
+.source {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.datesToggle {
+  align-self: flex-start;
+  margin-left: calc(var(--space-4) * -1);
 }
 
 .duplicate {

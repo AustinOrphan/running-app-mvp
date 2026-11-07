@@ -63,12 +63,10 @@ function groupByDate(rows: ActivityListItem[]): Array<{ date: string; rows: Acti
 function ActivityRow({
   activity,
   units,
-  onEdit,
   restorable = false,
 }: {
   activity: ActivityListItem
   units: Units
-  onEdit: () => void
   /** Offers to undo a confirmed duplicate, so the row counts again. */
   restorable?: boolean
 }) {
@@ -84,46 +82,48 @@ function ActivityRow({
   // a row with a moving time that differs shows the moving pace and says so; the duration is elapsed
   const movingPace = showPace && activity.movingSec !== null && movingTimeDiffers(activity)
   const source = sourceLabel(activity.source)
+  const distance = hasDistance
+    ? activity.distanceM === null
+      ? EN_DASH
+      : formatDistance(activity.distanceM, units)
+    : sets
+  const duration = formatDuration(activity.durationSec)
+  const pace =
+    showPace && activity.distanceM !== null
+      ? formatPace(
+          movingPace && activity.movingSec !== null ? activity.movingSec : activity.durationSec,
+          activity.distanceM,
+          units,
+        )
+      : null
+  const note =
+    activity.duplicateStatus === 'confirmed'
+      ? [source, 'Duplicate, not counted'].filter((part) => part !== null).join(' · ')
+      : source
 
   return (
     <li className={styles.item}>
-      <div className={styles.main}>
-        <button type="button" className={styles.row} onClick={onEdit}>
-          <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
-          <span className={styles.figure}>{formatDuration(activity.durationSec)}</span>
-          {hasDistance ? (
-            <span className={styles.figure}>
-              {activity.distanceM === null ? EN_DASH : formatDistance(activity.distanceM, units)}
-            </span>
-          ) : sets !== null ? (
-            <span className={styles.figure}>{sets}</span>
-          ) : null}
-          {showPace && activity.distanceM !== null ? (
-            <span className={styles.pace}>
-              {/* With a moving time that differs, the pace is the moving one and a screen reader is told so */}
-              <span className="visually-hidden">{`${activityPaceLabel(movingPace)}: `}</span>
-              {formatPace(
-                movingPace && activity.movingSec !== null
-                  ? activity.movingSec
-                  : activity.durationSec,
-                activity.distanceM,
-                units,
-              )}
-            </span>
-          ) : null}
-          {source !== null ? <span className={styles.source}>{source}</span> : null}
-          {activity.duplicateStatus === 'confirmed' ? (
-            <span className={styles.source}>Duplicate, not counted</span>
-          ) : null}
-        </button>
-        <Link
-          to={`/activities/${encodeURIComponent(activity.id)}`}
-          className={styles.detailLink}
-          aria-label={`Details, ${TYPE_LABELS[activity.type]} on ${formatShortDate(activity.date)}`}
-        >
-          Details
-        </Link>
-      </div>
+      {/* The whole row is the link to the activity; editing is on its page. The name is the kind,
+          the figures in reading order and the pace with its label. */}
+      <Link
+        to={`/activities/${encodeURIComponent(activity.id)}`}
+        className={styles.row}
+        aria-label={[
+          TYPE_LABELS[activity.type],
+          distance,
+          duration,
+          pace === null ? null : `${activityPaceLabel(movingPace)} ${pace}`,
+          note,
+        ]
+          .filter((part) => part !== null && part !== '')
+          .join(', ')}
+      >
+        <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
+        <span className={styles.figure}>{distance ?? ''}</span>
+        <span className={styles.figure}>{duration}</span>
+        <span className={styles.pace}>{pace ?? ''}</span>
+        {note !== null && note !== '' ? <span className={styles.source}>{note}</span> : null}
+      </Link>
       {restorable && activity.duplicateStatus === 'confirmed' ? (
         <div className={styles.duplicate}>
           <div className={styles.duplicateActions}>
@@ -186,11 +186,12 @@ export function ActivitiesPage() {
   const adding = params.get('new') === '1'
   const duplicatesOnly = params.get('duplicates') === '1'
   const confirmedHeadingId = useId()
+  const datesId = useId()
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [editing, setEditing] = useState<ActivityListItem | null>(null)
+  const [datesOpen, setDatesOpen] = useState(false)
   const [importing, setImporting] = useState(false)
 
   const settings = useSettings()
@@ -240,6 +241,8 @@ export function ActivitiesPage() {
     )
   }
 
+  // A range that is set keeps its fields in view, so a filter is never active out of sight.
+  const showDates = datesOpen || from !== '' || to !== ''
   const filtersActive = typeFilter !== 'all' || from !== '' || to !== '' || duplicatesOnly
   const rows = (loaded ?? []).filter((row) => !duplicatesOnly || row.duplicateStatus === 'possible')
   // The duplicates view also lists confirmed rows, so a wrong confirmation can be undone.
@@ -328,14 +331,7 @@ export function ActivitiesPage() {
         <h2 className={styles.date}>{dateHeading(group.date)}</h2>
         <ul className={styles.list}>
           {group.rows.map((row) => (
-            <ActivityRow
-              key={row.id}
-              activity={row}
-              units={units}
-              onEdit={() => {
-                setEditing(row)
-              }}
-            />
+            <ActivityRow key={row.id} activity={row} units={units} />
           ))}
         </ul>
       </section>
@@ -366,34 +362,47 @@ export function ActivitiesPage() {
             value={typeFilter}
             onChange={setTypeFilter}
           />
-          <div className={styles.dates}>
-            <Field label="From">
-              {(control) => (
-                <Input
-                  {...control}
-                  type="date"
-                  max={to || undefined}
-                  value={from}
-                  onChange={(e) => {
-                    setFrom(e.target.value)
-                  }}
-                />
-              )}
-            </Field>
-            <Field label="To">
-              {(control) => (
-                <Input
-                  {...control}
-                  type="date"
-                  min={from || undefined}
-                  value={to}
-                  onChange={(e) => {
-                    setTo(e.target.value)
-                  }}
-                />
-              )}
-            </Field>
-          </div>
+          <Button
+            variant="quiet"
+            className={styles.datesToggle}
+            aria-expanded={showDates}
+            aria-controls={datesId}
+            onClick={() => {
+              setDatesOpen(!showDates)
+            }}
+          >
+            Dates
+          </Button>
+          {showDates ? (
+            <div id={datesId} className={styles.dates}>
+              <Field label="From">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="date"
+                    max={to || undefined}
+                    value={from}
+                    onChange={(e) => {
+                      setFrom(e.target.value)
+                    }}
+                  />
+                )}
+              </Field>
+              <Field label="To">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="date"
+                    min={from || undefined}
+                    value={to}
+                    onChange={(e) => {
+                      setTo(e.target.value)
+                    }}
+                  />
+                )}
+              </Field>
+            </div>
+          ) : null}
           {duplicatesOnly ? (
             <p className={styles.notice}>
               Showing possible duplicates only.{' '}
@@ -443,15 +452,7 @@ export function ActivitiesPage() {
               <h3 className={styles.date}>{dateHeading(group.date)}</h3>
               <ul className={styles.list}>
                 {group.rows.map((row) => (
-                  <ActivityRow
-                    key={row.id}
-                    activity={row}
-                    units={units}
-                    restorable
-                    onEdit={() => {
-                      setEditing(row)
-                    }}
-                  />
+                  <ActivityRow key={row.id} activity={row} units={units} restorable />
                 ))}
               </ul>
             </div>
@@ -460,11 +461,9 @@ export function ActivitiesPage() {
       ) : null}
 
       <ActivityForm
-        open={adding || editing !== null}
-        activity={editing ?? undefined}
+        open={adding}
         onClose={() => {
-          setEditing(null)
-          if (adding) setFlag('new', false)
+          setFlag('new', false)
         }}
       />
       <ImportDialog
