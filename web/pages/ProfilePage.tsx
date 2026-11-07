@@ -253,14 +253,27 @@ function toProfile(
   const { units, weightUnit } = body
   // Text left as shown keeps the stored value, so a save never drifts a height or weight that was only shown rounded.
   const shown = toDraft(initial, body)
-  const height =
+  // Untouched means the text is the one shown for the stored value; every other number is converted.
+  const typedHeight =
     draft.heightCm === shown.heightCm
-      ? initial.heightCm
+      ? undefined
       : parseNumber(draft.heightCm, 'heightCm', problems, { integer: false })
-  const weight =
+  const typedWeight =
     draft.weightKg === shown.weightKg
-      ? initial.weightKg
+      ? undefined
       : parseNumber(draft.weightKg, 'weightKg', problems, { integer: false })
+  const height =
+    typedHeight === undefined
+      ? initial.heightCm
+      : typedHeight === null
+        ? null
+        : heightCm(typedHeight, units)
+  const weight =
+    typedWeight === undefined
+      ? initial.weightKg
+      : typedWeight === null
+        ? null
+        : bodyWeightKg(typedWeight, weightUnit)
   const int = { integer: true }
   const availability = {} as Availability
   for (const { value } of WEEKDAYS) {
@@ -289,9 +302,8 @@ function toProfile(
   return {
     birthYear: parseNumber(draft.birthYear, 'birthYear', problems, int),
     sex: draft.sex === '' ? null : draft.sex,
-    heightCm: height === null || height === initial.heightCm ? height : heightCm(height, units),
-    weightKg:
-      weight === null || weight === initial.weightKg ? weight : bodyWeightKg(weight, weightUnit),
+    heightCm: height,
+    weightKg: weight,
     hrMax: parseNumber(draft.hrMax, 'hrMax', problems, int),
     hrMaxSource: draft.hrMaxSource === '' ? null : draft.hrMaxSource,
     hrRest: parseNumber(draft.hrRest, 'hrRest', problems, int),

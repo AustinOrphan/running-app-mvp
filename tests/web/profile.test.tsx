@@ -264,6 +264,27 @@ describe('ProfilePage', () => {
     expect(puts(api)[1]?.body).toMatchObject({ heightCm: 172.7, weightKg: 68.04 })
   })
 
+  test('a typed number is converted even when it equals the stored metric number', async () => {
+    // stored 70 cm and 70 kg: typing 70 in inches and 70 in pounds is a change, not "untouched"
+    const { api, user } = setup(makeProfile({ heightCm: 70, weightKg: 70 }), {
+      'GET /api/settings': () => ({
+        email: 'runner@example.com',
+        displayName: null,
+        units: 'mi',
+        weightUnit: 'lb',
+      }),
+    })
+    await loaded()
+    expect(screen.getByRole('textbox', { name: 'Height (in)' })).toHaveValue('27.6')
+    await type(user, 'Height (in)', '70')
+    await type(user, 'Weight (lb)', '70')
+    await user.click(screen.getByRole('button', { name: 'Save profile' }))
+    await waitFor(() => {
+      expect(puts(api)).toHaveLength(1)
+    })
+    expect(puts(api)[0]?.body).toMatchObject({ heightCm: 177.8, weightKg: 31.75 })
+  })
+
   test('kilograms and centimetres for a runner who chose them', async () => {
     setup(makeProfile({ heightCm: 170, weightKg: 64.5 }), {
       'GET /api/settings': () => ({
