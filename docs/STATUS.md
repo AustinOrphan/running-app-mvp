@@ -2012,9 +2012,12 @@ things stand" gives counts and percentages without a weekly total or a date.
       peak is the one ceiling (the larger of it and the start level), that the rebuild ceiling of
       ADR 0013 is a step zone and caps nothing, and that no study measures a hold, its length or a
       time to step up; five papers added (430), `PARAMS_VERSION` 2026-11-07.4 for the four class
-      peaks' new rule id and evidence, no plan and no oracle digest moved. Open for the owner: a
-      position that lets the rebuild ceiling lift the ceiling (R is above the ceiling for 16 of 54
-      half-marathon runners of the history sweep at Upper), which is more load on grade D evidence.
+      peaks' new rule id and evidence, no plan and no oracle digest moved. A re-plan carries on from
+      the stored week, so weeks run above the plan do not lift the ceiling (pinned in
+      `plateau-ceiling.test.ts`). Open for the owner, all more load on grade D evidence: a position
+      that lets the rebuild ceiling lift the ceiling (R is above the ceiling for 16 of 54
+      half-marathon runners of the history sweep at Upper, new plans), and a re-plan that raises the
+      ceiling by the weeks run.
     - RU3, `injuryReturn.restDaysBetween` against its tendon source (S4b, #606: the Param is 1 day,
       the table it takes its levels from says 2 to 3 days between runs, so the Param is less
       conservative than its source): a value question for the owner.

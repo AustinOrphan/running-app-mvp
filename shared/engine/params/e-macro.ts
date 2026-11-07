@@ -604,35 +604,35 @@ export const eMacro = {
   peakWeeklyMin: {
     '5k': param('peakWeeklyMin.5k', 180, 'D', 'E7', CLASS_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: "Default: peak weekly running time for a 5K goal; never above what the ramp allows. The ceiling of a plan is the larger of this value and the runner's start level; no study sets a weekly ceiling or the length of a hold at it (rule E7).",
+      note: 'Default: peak weekly running time for a 5K goal; never above what the ramp allows. The ceiling of a plan is the larger of this value and the start level read when the plan is generated or after a break; a re-plan carries on from the stored week, so weeks run above the plan do not lift it. No study sets a weekly ceiling or the length of a hold at it (rule E7).',
     }),
     '10k': param('peakWeeklyMin.10k', 210, 'D', 'E7', CLASS_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: "Default: peak weekly running time for a 10K goal; never above what the ramp allows. The ceiling of a plan is the larger of this value and the runner's start level; no study sets a weekly ceiling or the length of a hold at it (rule E7).",
+      note: 'Default: peak weekly running time for a 10K goal; never above what the ramp allows. The ceiling of a plan is the larger of this value and the start level read when the plan is generated or after a break; a re-plan carries on from the stored week, so weeks run above the plan do not lift it. No study sets a weekly ceiling or the length of a hold at it (rule E7).',
     }),
     half: param('peakWeeklyMin.half', 270, 'D', 'E7', CLASS_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: "Default: peak weekly running time for a half-marathon; the D3 floor can raise it for a time goal. The ceiling of a plan is the larger of this value and the runner's start level; no study sets a weekly ceiling or the length of a hold at it (rule E7).",
+      note: 'Default: peak weekly running time for a half-marathon; the D3 floor can raise it for a time goal. The ceiling of a plan is the larger of this value and the start level read when the plan is generated or after a break; a re-plan carries on from the stored week, so weeks run above the plan do not lift it. No study sets a weekly ceiling or the length of a hold at it (rule E7).',
     }),
     marathon: param('peakWeeklyMin.marathon', 330, 'D', 'E7', CLASS_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: "Default: peak weekly running time for a marathon; the D3 floor can raise it for a time goal. The ceiling of a plan is the larger of this value and the runner's start level; no study sets a weekly ceiling or the length of a hold at it (rule E7).",
+      note: 'Default: peak weekly running time for a marathon; the D3 floor can raise it for a time goal. The ceiling of a plan is the larger of this value and the start level read when the plan is generated or after a break; a re-plan carries on from the stored week, so weeks run above the plan do not lift it. No study sets a weekly ceiling or the length of a hold at it (rule E7).',
     }),
     ultra50: param('peakWeeklyMin.ultra50', 390, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: "Default: peak weekly running time for a 50K ultra; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number. The ceiling of a plan is the larger of this value and the runner's start level, and nothing sets the length of a hold at it (rule E7).",
+      note: 'Default: peak weekly running time for a 50K ultra; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number. The ceiling of a plan is the larger of this value and the start level read when the plan is generated or after a break; a re-plan carries on from the stored week, so weeks run above the plan do not lift it. Nothing sets the length of a hold at it (rule E7).',
     }),
     ultra100k: param('peakWeeklyMin.ultra100k', 480, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: "Default: peak weekly running time for 100K; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number. The ceiling of a plan is the larger of this value and the runner's start level, and nothing sets the length of a hold at it (rule E7).",
+      note: 'Default: peak weekly running time for 100K; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number. The ceiling of a plan is the larger of this value and the start level read when the plan is generated or after a break; a re-plan carries on from the stored week, so weeks run above the plan do not lift it. Nothing sets the length of a hold at it (rule E7).',
     }),
     ultra100mi: param('peakWeeklyMin.ultra100mi', 600, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: "Default: peak weekly running time for 100 miles; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number. The ceiling of a plan is the larger of this value and the runner's start level, and nothing sets the length of a hold at it (rule E7).",
+      note: 'Default: peak weekly running time for 100 miles; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number. The ceiling of a plan is the larger of this value and the start level read when the plan is generated or after a break; a re-plan carries on from the stored week, so weeks run above the plan do not lift it. Nothing sets the length of a hold at it (rule E7).',
     }),
     beyond: param('peakWeeklyMin.beyond', 660, 'D', 'D4', ULTRA_WEEKLY_PEAK, {
       unit: 'min per week',
-      note: "Default: peak weekly running time for goals beyond 100 miles; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number. The ceiling of a plan is the larger of this value and the runner's start level, and nothing sets the length of a hold at it (rule E7).",
+      note: 'Default: peak weekly running time for goals beyond 100 miles; never above what the ramp allows. The D4 feasibility label also grows the week to it at the weekly ramp (label only). Weekly volume and frequency, not the longest run, are what ultra studies associate with outcomes; no study sets this number. The ceiling of a plan is the larger of this value and the start level read when the plan is generated or after a break; a re-plan carries on from the stored week, so weeks run above the plan do not lift it. Nothing sets the length of a hold at it (rule E7).',
     }),
   },
   peakLongRunMin: {
