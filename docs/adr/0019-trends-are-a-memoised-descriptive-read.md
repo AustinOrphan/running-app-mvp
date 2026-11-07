@@ -5,9 +5,7 @@ Status: Proposed 2026-11-07
 Builds on ADR 0005, ADR 0009 and ADR 0012. Adds rule T1 (`research/engine-rules.md`, section (q)). The
 design is `docs/superpowers/specs/2026-11-07-trends-design.md`. This record covers the first release of
 the page (steps 1 to 4 of the design: rule T1, the baseline helper, the read model, the running half
-and the recovery panels). Body weight (step 5 of the design) is a later change with its own
-addendum; the decisions the design took for it are listed at the end so that they are not lost, and
-nothing in this release implements them.
+and the recovery panels). Body weight (step 5 of the design) is the addendum at the end.
 
 ## Context
 
@@ -79,22 +77,33 @@ activities but 60 days of wellness (`WELLNESS_DAYS`).
   A 24-month weekly bar is narrow; that range exists for shape and the hidden table is the exact form.
 - Today and the page share `baselineReadings`: a change to the baseline of rule J4 moves both.
 
-## Later change: body weight (not built in this release)
+## Addendum 2026-11-07: body weight (step 5 of the design)
 
-Decided in the design review of 2026-11-06 and recorded here so that the later change starts from it.
-Body weight is health data with a known harm path for a runner with unintended weight change or
-energy-deficiency flags (rule n-4).
+Decided in the design review of 2026-11-06 and built in step 5. Body weight is health data with a
+known harm path for a runner with unintended weight change or energy-deficiency flags (rule n-4).
 
-- `User.showBodyWeight` defaults to false. When false the response has no weight key and the memo
-  never selects the column. When the latest screening holds `j5.redsHoldFlags` (2) or more flags the
-  response carries `weightGate: 'reds'` and no series. Hiding deletes nothing.
-- The gates are display gates. `weightKg` is in the 60-day snapshot (the wellness `findMany` has no
-  `select`) and every column is returned by `GET /api/wellness`, so an authenticated request can read
-  weights whatever the setting. Restricting both is a separate change.
-- `showBodyWeight` would travel in `/api/settings`, which ADR 0012 keeps on the offline allowlist;
-  the flag moves to an uncached route if the cache showing that weight tracking is on is not
-  acceptable.
+- `User.showBodyWeight` (migration `show_body_weight`) defaults to false and is saved from Settings,
+  section "Trends", with `PUT /api/settings`. When false the response has no weight key and the
+  route never selects `weightKg` (`loadWeightSeries` is not called). When the latest screening holds
+  `j5.redsHoldFlags` (2) or more flags the response carries `weightGate: 'reds'` and no series, and
+  the column is not selected either. Otherwise `weight` is one entry per week of the 104
+  (`weekStart`, `grams`, `weighIns`): the mean of the week's weigh-ins in integer grams, null under
+  `MIN_WEIGHINS_PER_WEEK` (2, a page default). It is memoised as `trends.weight`; the switch and the
+  flag count are read outside the memo on every request, so a change of either shows at once.
+- The gate is a display choice; the data path stays as it is (open question 1 of the design). `weightKg`
+  is in the 60-day snapshot (the wellness `findMany` has no `select`) and every column is returned by
+  `GET /api/wellness`, so an authenticated request can read weights whatever the setting. Restricting
+  both is a separate change. Hiding the chart deletes nothing.
+- `showBodyWeight` travels in `/api/settings`, which ADR 0012 keeps on the offline allowlist, and in
+  `/api/auth/me`. Accepted: the device cache then shows that weight tracking is on, next to health
+  data it already holds (Today). The flag moves to an uncached route if that stops being acceptable.
+- The page draws weekly means in the runner's weight unit, gaps as gaps and a hidden data table. It
+  draws no goal, no change figure, no colour but the neutral ink and no verdict; the weight templates
+  take no slot except the mean, the unit and the count of weigh-ins, so a difference cannot be
+  rendered. With the gate closed, one neutral line says weight is not shown while the screening has
+  open items.
 - **Opinion:** weight is a display choice for a runner who asks for it, off by default and never
   judged; arguable, because the setting and the flag gate restrict no access to the number.
-- The seam in this release: `TrendsView` has no weight key and `buildTrendsView` in
-  `server/routes/trends.ts` is the one place the response is assembled.
+- **Fact:** `j5.redsHoldFlags` is 2 and rule n-4 holds progression and shows a clinician prompt at
+  that count (`shared/engine/params/j-adapt.ts`, `research/engine-rules.md`, read 2026-11-07), so the
+  same count stops the page drawing weight.

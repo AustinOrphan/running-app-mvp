@@ -32,6 +32,7 @@ const SETTINGS: UserSettings = {
   displayName: null,
   units: 'km',
   weightUnit: 'lb',
+  showBodyWeight: false,
 }
 
 function goal(over: Partial<GoalModel> = {}): GoalModel {

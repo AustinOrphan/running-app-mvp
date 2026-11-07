@@ -23,6 +23,7 @@ const settings: UserSettings = {
   displayName: null,
   units: 'mi',
   weightUnit: 'lb',
+  showBodyWeight: false,
 }
 const START = '2026-12-28'
 const CURRENT_WEEK = '2027-01-11'

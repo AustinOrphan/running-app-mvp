@@ -3,7 +3,7 @@
 import { addDays } from '../dates.ts'
 import { baselineReadings, recentRange } from '../engine/readiness.ts'
 import { P } from '../engine/params/index.ts'
-import type { TrendWeek } from '../types.ts'
+import type { TrendWeek, TrendWeightWeek } from '../types.ts'
 
 /**
  * Nights a weekly mean of heart-rate variability or resting heart rate needs. A display default
@@ -104,4 +104,38 @@ export function weeklySleep(byDate: SeriesByDate, weekStarts: readonly string[])
     }
   })
   return weeks.some((week) => week.nights > 0) ? weeks : []
+}
+
+/** Weigh-ins a weekly mean of body weight needs. A page default, as `MIN_NIGHTS_PER_MEAN` is. */
+export const MIN_WEIGHINS_PER_WEEK = 2
+
+/** The columns of a night the weight series reads. */
+export interface WeightSeriesRow {
+  date: string
+  weightKg: number | null
+}
+
+/**
+ * One entry per week of `weekStarts` for body weight: the mean of the week's weigh-ins in integer
+ * grams, null under `MIN_WEIGHINS_PER_WEEK`. No difference, change or direction is computed. A
+ * series with no weigh-in in any week is empty.
+ */
+export function weightWeeks(
+  rows: readonly WeightSeriesRow[],
+  weekStarts: readonly string[],
+): TrendWeightWeek[] {
+  const byDate = new Map(rows.map((row) => [row.date, row.weightKg]))
+  const weeks = weekStarts.map((weekStart): TrendWeightWeek => {
+    const values: number[] = []
+    for (let k = 0; k < 7; k++) {
+      const value = byDate.get(addDays(weekStart, k))
+      if (valid(value)) values.push(value)
+    }
+    return {
+      weekStart,
+      grams: values.length >= MIN_WEIGHINS_PER_WEEK ? Math.round(mean(values) * 1000) : null,
+      weighIns: values.length,
+    }
+  })
+  return weeks.some((week) => week.weighIns > 0) ? weeks : []
 }

@@ -17,6 +17,39 @@ export const TRENDS_TEMPLATES = {
   'trends.error': tpl('Trends did not load. Reload the page to try again.'),
   'trends.recovery.error': tpl('The recovery readings did not load. Reload the page to try again.'),
 
+  // Body weight: drawn only on the runner's choice and without a verdict. The slots are structural
+  // (a test requires them): the weekly mean, the unit, a count of weigh-ins and the months of the
+  // range, so a difference between weeks or a direction cannot be rendered.
+  'trends.weight.heading': tpl('Body weight', {}, { shape: 'label' }),
+  'trends.weight.caption': tpl(
+    "Mean of each week's weigh-ins, for weeks with at least {count} weigh-ins. A scale varies within a day, so read the line, not a point.",
+    { count: 'count' },
+  ),
+  'trends.weight.none': tpl('No weigh-ins yet.'),
+  'trends.weight.aria': tpl(
+    'Body weight, weekly mean, last {months} months. Latest week with enough weigh-ins: {mean}.',
+    { months: 'count', mean: 'text' },
+    { fallback: 'Body weight, weekly mean.' },
+  ),
+  'trends.weight.aria-none': tpl(
+    'Body weight, weekly mean, last {months} months. No week has enough weigh-ins yet.',
+    { months: 'count' },
+    { fallback: 'Body weight, weekly mean.' },
+  ),
+  'trends.weight.footnote': tpl(
+    'If your weight has changed without you meaning it to, say so in',
+    {},
+    { shape: 'label' },
+  ),
+  'trends.weight.footnote-link': tpl('the energy screen on Profile', {}, { shape: 'label' }),
+  'trends.weight.gated': tpl('Body weight is not shown while the screening has open items.'),
+  'trends.weight.gated-link': tpl('The screening and where to find care are on Profile.'),
+
+  // Settings: the one switch that lets the page draw body weight (off by default, ADR 0019)
+  'trends.settings.heading': tpl('Trends', {}, { shape: 'label' }),
+  'trends.settings.show-weight': tpl('Show body weight on Trends', {}, { shape: 'label' }),
+  'trends.settings.hiding-note': tpl('Hiding the chart deletes nothing. Every weigh-in stays.'),
+
   // Running per week
   'trends.run.heading': tpl('Running per week', {}, { shape: 'label' }),
   'trends.run.empty': tpl('No runs in this range yet.'),
@@ -157,6 +190,18 @@ export function recoveryAria(name: string, months: number, latest: string | null
         { name, months: count(months), value: latest },
         'km',
       )
+}
+
+/** The weigh-ins a weekly mean of body weight needs, for its caption. */
+export function weightCaption(weighIns: number): string {
+  return render(TRENDS_TEMPLATES['trends.weight.caption'], { count: count(weighIns) }, 'km')
+}
+
+/** The accessible name of the weight chart: what it shows and its latest weekly mean, if any. */
+export function weightAria(months: number, latest: string | null): string {
+  return latest === null
+    ? render(TRENDS_TEMPLATES['trends.weight.aria-none'], { months: count(months) }, 'km')
+    : render(TRENDS_TEMPLATES['trends.weight.aria'], { months: count(months), mean: latest }, 'km')
 }
 
 /** The line under the metric switch: what the bars are, with the unit the axis leaves out. */

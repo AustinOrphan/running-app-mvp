@@ -42,6 +42,7 @@ describe('settings', () => {
       displayName: null,
       units: 'mi',
       weightUnit: 'lb',
+      showBodyWeight: false,
     })
 
     const put = await client(ctx, user)
@@ -53,6 +54,7 @@ describe('settings', () => {
       displayName: 'Sam',
       units: 'km',
       weightUnit: 'lb',
+      showBodyWeight: false,
     })
 
     const after = await client(ctx, user).get('/api/settings')
@@ -64,6 +66,7 @@ describe('settings', () => {
       displayName: 'Sam',
       units: 'mi',
       weightUnit: 'lb',
+      showBodyWeight: false,
     })
   })
 
@@ -90,6 +93,26 @@ describe('settings', () => {
     // The session user the web app reads at start-up carries it too.
     const me = await client(ctx, user).get('/api/auth/me')
     expect(me.body).toMatchObject({ weightUnit: 'lb' })
+  })
+
+  test('PUT saves the body-weight switch, off by default, and rejects anything but a boolean', async () => {
+    expect((await client(ctx, user).get('/api/settings')).body).toMatchObject({
+      showBodyWeight: false,
+    })
+    const on = await client(ctx, user).put('/api/settings').send({ showBodyWeight: true })
+    expect(on.status).toBe(200)
+    expect(on.body).toMatchObject({ showBodyWeight: true })
+    // A change to another setting leaves the switch alone; the session user carries it too.
+    const km = await client(ctx, user).put('/api/settings').send({ units: 'km' })
+    expect(km.body).toMatchObject({ units: 'km', showBodyWeight: true })
+    expect((await client(ctx, user).get('/api/auth/me')).body).toMatchObject({
+      showBodyWeight: true,
+    })
+    const bad = await client(ctx, user).put('/api/settings').send({ showBodyWeight: 'yes' })
+    expect(bad.status).toBe(400)
+    expect(json(bad).error.details.issues[0]?.path).toBe('showBodyWeight')
+    const off = await client(ctx, user).put('/api/settings').send({ showBodyWeight: false })
+    expect(off.body).toMatchObject({ showBodyWeight: false })
   })
 
   test('PUT validates: units must be mi or km, displayName at most 80 characters (empty string becomes null), unknown keys such as email are rejected', async () => {

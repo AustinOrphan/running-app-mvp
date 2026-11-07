@@ -60,6 +60,20 @@ export function loadParts(grams: number, unit: WeightUnit): LoadParts | null {
   return { num: String(fromGrams(grams, unit)), suffix: ` ${unit}` }
 }
 
+/**
+ * A body weight in `unit` to one decimal. A body weight is not a load: it is not moved onto the
+ * equipment grid (0.5 lb, 0.25 kg) that `fromGrams` rounds to, only to a tenth.
+ */
+export function bodyWeightIn(grams: number, unit: WeightUnit): number {
+  return Math.round((grams / GRAMS_PER_UNIT[unit]) * 10) / 10
+}
+
+/** "70.3 kg", "155 lb". A weight that cannot be shown gives a dash. */
+export function formatBodyWeight(grams: number, unit: WeightUnit): string {
+  if (!Number.isFinite(grams) || grams <= 0) return NO_VALUE
+  return `${bodyWeightIn(grams, unit)} ${unit}`
+}
+
 /** "115 lb", "47.5 lb", "52.25 kg". A load that cannot be shown gives a dash. */
 export function formatLoad(grams: number, unit: WeightUnit): string {
   const parts = loadParts(grams, unit)

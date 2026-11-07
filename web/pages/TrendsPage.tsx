@@ -9,15 +9,18 @@ import {
   runCaption,
   TRENDS_TEMPLATES,
   trendsText,
+  weightAria,
+  weightCaption,
 } from '../../shared/copy/trends.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
-import { MIN_NIGHTS_PER_MEAN } from '../../shared/domain/trends.ts'
+import { MIN_NIGHTS_PER_MEAN, MIN_WEIGHINS_PER_WEEK } from '../../shared/domain/trends.ts'
+import { DEFAULT_WEIGHT_UNIT, formatBodyWeight, isWeightUnit } from '../../shared/domain/weight.ts'
 import { P } from '../../shared/engine/params/index.ts'
-import type { TrendsView, TrendWeek, Units, WeekRow } from '../../shared/types.ts'
+import type { TrendsView, TrendWeek, Units, WeekRow, WeightUnit } from '../../shared/types.ts'
 import { useSettings } from '../api/settings.ts'
 import { useTrends } from '../api/trends.ts'
 import { useWeeks } from '../api/weeks.ts'
-import { RecoveryChart, TrendsRunChart } from '../components/charts/lazyCharts.tsx'
+import { RecoveryChart, TrendsRunChart, WeightChart } from '../components/charts/lazyCharts.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
@@ -243,6 +246,52 @@ function RecoverySection({ recovery, months, weekCount }: RecoverySectionProps) 
   )
 }
 
+interface WeightSectionProps {
+  view: TrendsView
+  unit: WeightUnit
+  months: number
+  weekCount: number
+}
+
+/**
+ * Body weight, on the runner's choice only (ADR 0019). The section exists when the response carries
+ * a series or the reason there is none; with neither key the page never mentions weight. Weekly
+ * means only: no goal, no change figure, no verdict.
+ */
+function WeightSection({ view, unit, months, weekCount }: WeightSectionProps) {
+  if (view.weight === undefined && view.weightGate === undefined) return null
+  const weeks = (view.weight ?? []).slice(-weekCount)
+  const latest = [...weeks].reverse().find((week) => week.grams !== null)?.grams ?? null
+  return (
+    <section className={styles.section} aria-labelledby="trends-weight-heading">
+      <h2 id="trends-weight-heading" className={styles.heading}>
+        {text('trends.weight.heading')}
+      </h2>
+      {view.weight === undefined ? (
+        <p className={styles.caption}>
+          {text('trends.weight.gated')}{' '}
+          <Link to="/profile">{text('trends.weight.gated-link')}</Link>
+        </p>
+      ) : latest === null ? (
+        <p className={styles.caption}>{text('trends.weight.none')}</p>
+      ) : (
+        <>
+          <p className={styles.caption}>{weightCaption(MIN_WEIGHINS_PER_WEEK)}</p>
+          <WeightChart
+            weeks={weeks}
+            unit={unit}
+            ariaLabel={weightAria(months, latest === null ? null : formatBodyWeight(latest, unit))}
+          />
+          <p className={styles.caption}>
+            {text('trends.weight.footnote')}{' '}
+            <Link to="/profile">{text('trends.weight.footnote-link')}</Link>.
+          </p>
+        </>
+      )}
+    </section>
+  )
+}
+
 /** Months of running over a range the runner picks, drawn as descriptive pictures (rule T1). */
 export function TrendsPage() {
   const online = useOnline()
@@ -316,6 +365,16 @@ export function TrendsPage() {
           />
         )}
       </section>
+      {trends.data === undefined ? null : (
+        <WeightSection
+          view={trends.data}
+          unit={
+            isWeightUnit(settings.data.weightUnit) ? settings.data.weightUnit : DEFAULT_WEIGHT_UNIT
+          }
+          months={chosen.months}
+          weekCount={chosen.weeks}
+        />
+      )}
     </>
   )
 }

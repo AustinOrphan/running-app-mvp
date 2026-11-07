@@ -132,6 +132,7 @@ const SETTINGS: UserSettings = {
   displayName: null,
   units: 'km',
   weightUnit: 'lb',
+  showBodyWeight: false,
 }
 
 /** `navigator.onLine` as the test needs it. */

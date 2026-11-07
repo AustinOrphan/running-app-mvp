@@ -24,9 +24,15 @@ import {
   restWindowCombos,
 } from './rest-window-sweep.ts'
 
-// The budget of design 9.8: the sweep runs in under 60 s. The test timeout below is twice that, so
-// a slow machine fails the assertion with the elapsed time instead of a bare timeout.
+// The budget of design 9.8: the sweep runs in under 60 s. It is measured in CPU time of this
+// process (user and system), not on the wall clock, so a runner busy with other jobs does not fail
+// it: CI saw 127 s of wall clock on a run whose twin passed. The test timeout below is twice the
+// budget, so a slow machine fails the assertion with the time spent instead of a bare timeout.
 const BUDGET_MS = 60_000
+const cpuMs = (since: NodeJS.CpuUsage): number => {
+  const used = process.cpuUsage(since)
+  return Math.round((used.user + used.system) / 1000)
+}
 
 const all = athletes()
 const baselines = new Map(all.map((a) => [a.id, buildPlan(a.input)]))
@@ -74,7 +80,7 @@ describe('seeded sweep of rest windows over the matrix', () => {
   })
 
   it('keeps every invariant, builds the same plan twice and restores the plan on removal (under 60 s)', () => {
-    const started = Date.now()
+    const started = process.cpuUsage()
     const failures: string[] = []
     for (const [n, combo] of sample.entries()) {
       const { athlete: a, window } = combo
@@ -122,8 +128,8 @@ describe('seeded sweep of rest windows over the matrix', () => {
       }
     }
     expect(failures).toEqual([])
-    const elapsedMs = Date.now() - started
-    expect(elapsedMs, `the sweep took ${String(elapsedMs)} ms`).toBeLessThan(BUDGET_MS)
+    const spentMs = cpuMs(started)
+    expect(spentMs, `the sweep took ${String(spentMs)} ms of CPU`).toBeLessThan(BUDGET_MS)
   }, 120_000)
 
   it('resumes the plan after a 7-day illness that ended before today (prior-bsi, 2026-10-12 to 2026-10-18)', () => {
