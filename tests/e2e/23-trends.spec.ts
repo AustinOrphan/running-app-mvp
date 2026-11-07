@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { addDays } from '../../shared/dates.ts'
+import { addDays, daysBetween, mondayOf } from '../../shared/dates.ts'
 import { relativeDates, resetData, signedInApi } from './helpers.ts'
 
 // The Trends page at a phone's 360 px: months of running read by role, the range switch, the hidden
@@ -71,7 +71,13 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   const chart = page.getByRole('img', { name: /^Run hours per week, last 12 months\./ })
   await expect(chart).toBeVisible()
   const table = page.getByRole('table', { name: /^Run hours per week, last 12 months\./ })
-  await expect(table.getByRole('row')).toHaveCount(1 + 52)
+  // The plot starts at the first week with a record (the oldest run is 20 weeks back), not at the
+  // edge of the range, and a muted line names the start.
+  const { thisMonday, today } = relativeDates()
+  const firstRunWeek = mondayOf(addDays(thisMonday, -7 - 3 * 45))
+  const runWeeks = daysBetween(firstRunWeek, thisMonday) / 7 + 1
+  await expect(table.getByRole('row')).toHaveCount(1 + runWeeks)
+  await expect(page.getByText(/^Records start \d{1,2} \w{3}\.$/).first()).toBeVisible()
   await expect(table.getByRole('row', { name: /Yes$/ })).toHaveCount(1)
 
   // Strength squares stand under the weeks that held a session.
@@ -93,7 +99,10 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   ).toHaveCount(2)
   await expect(page.getByText('Heart-rate variability alone never changes a plan.')).toBeVisible()
   const hrvTable = page.getByRole('table', { name: /^Overnight HRV in ms, weekly mean/ })
-  await expect(hrvTable.getByRole('row')).toHaveCount(1 + 52)
+  const firstNightWeek = mondayOf(addDays(today, -70))
+  await expect(hrvTable.getByRole('row')).toHaveCount(
+    1 + daysBetween(firstNightWeek, thisMonday) / 7 + 1,
+  )
   await expect(hrvTable.getByRole('columnheader')).toHaveText([
     'Week of',
     'Mean (ms)',
@@ -107,13 +116,13 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   const range = page.getByRole('radiogroup', { name: 'Range' })
   await range.getByRole('radio', { name: '24 months' }).click()
   const wide = page.getByRole('table', { name: /^Run hours per week, last 24 months\./ })
-  await expect(wide.getByRole('row')).toHaveCount(1 + 104)
+  await expect(wide.getByRole('row')).toHaveCount(1 + runWeeks)
   await expect(page.getByRole('img', { name: /^Run hours per week, last 24 months/ })).toBeVisible()
   expect(await overflow(page)).toBeLessThanOrEqual(0)
   await range.getByRole('radio', { name: '6 months' }).click()
   await expect(
     page.getByRole('table', { name: /^Run hours per week, last 6 months\./ }).getByRole('row'),
-  ).toHaveCount(1 + 26)
+  ).toHaveCount(1 + runWeeks)
 
   // The choice is remembered on this device.
   await page.reload()
