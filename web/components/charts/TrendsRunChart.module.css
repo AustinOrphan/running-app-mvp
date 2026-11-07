@@ -34,3 +34,11 @@
   aspect-ratio: 1;
   background: var(--chart-2);
 }
+
+/* One muted line where the plot starts at the first record rather than at the range's edge. */
+.start {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

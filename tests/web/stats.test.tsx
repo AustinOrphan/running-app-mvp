@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { StatsPage } from '../../web/pages/StatsPage.tsx'
 import type { Activity, Units, UserSettings, WeekRow } from '../../shared/types.ts'
@@ -141,19 +141,32 @@ describe('StatsPage', () => {
     expectCleanCopy(container)
   })
 
-  test('says so when the statistics did not load', async () => {
-    mockApi({
-      'GET /api/stats': () => ({
-        status: 500,
-        body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
-      }),
+  test('says so when the statistics did not load, and Try again reads them once more', async () => {
+    let failing = true
+    const { calls } = mockApi({
+      'GET /api/stats': () =>
+        failing
+          ? {
+              status: 500,
+              body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
+            }
+          : statsOf(activities),
       'GET /api/weeks': () => history(),
       'GET /api/settings': () => settings('mi'),
     })
     renderWithProviders(<StatsPage />)
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Stats did not load. Reload the page to try again.',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Stats did not load.')
+    const retry = screen.getByRole('button', { name: 'Try again' })
+    retry.focus()
+    const statsCalls = () => calls.filter((c) => c.url.startsWith('/api/stats')).length
+    const before = statsCalls()
+    failing = false
+    fireEvent.click(retry)
+    // The error block stays mounted while the retry runs, so focus is not dropped.
+    expect(retry).toBeInTheDocument()
+    expect(retry).toHaveAttribute('aria-busy', 'true')
+    expect(await screen.findByRole('table', { name: 'Monthly totals' })).toBeInTheDocument()
+    expect(statsCalls()).toBe(before + 1)
   })
 
   test('the header says totals come from runs and that races count only for fastest efforts', async () => {
@@ -184,16 +197,47 @@ describe('StatsPage', () => {
     ).toBeInTheDocument()
   })
 
-  test('weekly history table lists the last 26 weeks with run hours, runs, run days and long-run share (an en dash when null)', async () => {
+  test('weekly history lists the last 12 weeks with run hours, runs, run days and long-run share (an en dash when null), and "Show all weeks" adds the rest', async () => {
     mockStats()
     renderWithProviders(<StatsPage />)
-    const table = await screen.findByRole('table', { name: 'Weekly history, last 26 weeks' })
+    const table = await screen.findByRole('table', { name: 'Weekly history, last 12 weeks' })
     const rows = within(table).getAllByRole('row')
-    expect(rows).toHaveLength(27)
+    expect(rows).toHaveLength(13)
     // Newest week first.
     expect(within(rows[1] as HTMLElement).getByRole('rowheader')).toHaveTextContent('16 Mar')
     expect(cellTexts(rows[1] as HTMLElement)).toEqual(['2.5', '3', '3', '50%'])
     expect(cellTexts(rows[2] as HTMLElement)).toEqual(['0.0', '0', '0', '–'])
+
+    const more = screen.getByRole('button', { name: 'Show all weeks' })
+    expect(more).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(more)
+    const all = screen.getByRole('table', { name: 'Weekly history, last 26 weeks' })
+    expect(within(all).getAllByRole('row')).toHaveLength(27)
+    // One label, so the state is announced through aria-expanded and a polite status.
+    expect(screen.getByRole('button', { name: 'Show all weeks' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 26 weeks')
+    expect(screen.getByRole('button', { name: 'Show all weeks' })).toHaveAttribute(
+      'aria-controls',
+      screen.getByRole('region', { name: 'Weekly history table' }).id,
+    )
+  })
+
+  test('every table sits in a focusable, labelled region that scrolls on its own', async () => {
+    mockStats()
+    renderWithProviders(<StatsPage />)
+    await screen.findByRole('table', { name: 'Monthly totals' })
+    for (const name of [
+      'Monthly totals table',
+      'Yearly totals table',
+      'Longest runs table',
+      'Fastest efforts table',
+      'Weekly history table',
+    ]) {
+      expect(screen.getByRole('region', { name })).toHaveAttribute('tabindex', '0')
+    }
   })
 
   test('no runs: "No runs yet. Stats appear after the first run." and no charts', async () => {

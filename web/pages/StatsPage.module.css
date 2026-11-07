@@ -9,11 +9,6 @@
   line-height: var(--lh-lg);
 }
 
-.tableWrap {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
 .table {
   width: 100%;
   max-width: 48rem;
@@ -56,4 +51,8 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
+}
+
+.more {
+  margin-top: var(--space-3);
 }
