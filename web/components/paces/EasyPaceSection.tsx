@@ -175,7 +175,11 @@ export function EasyPaceSection({ easy, units }: EasyPaceSectionProps) {
               </dl>
               <p className={styles.note}>
                 {pace.hot === null
-                  ? pacesText('paces.easy.hot-none')
+                  ? pacesText(
+                      pace.basis === 'hr-model'
+                        ? 'paces.easy.hot-none'
+                        : 'paces.easy.hot-none-zones',
+                    )
                   : pacesText('paces.easy.scenarios')}
               </p>
             </div>

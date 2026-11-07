@@ -57,6 +57,9 @@ export const PACES_TEMPLATES = {
   'paces.easy.scenarios': tpl(
     'Heat lifts your heart rate at the same pace, and a climb costs more for the same speed, so both slow the pace that keeps you easy.',
   ),
+  'paces.easy.hot-none-zones': tpl(
+    'Heat cannot be put in minutes without your own heart-rate line. On a hot day, go by effort.',
+  ),
   'paces.easy.hot-none': tpl(
     'Heat cannot be put in minutes from this line. On a hot day, go by effort.',
   ),

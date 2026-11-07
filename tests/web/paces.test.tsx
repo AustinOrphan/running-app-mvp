@@ -122,13 +122,40 @@ describe('MyPacesPage: the easy pace', () => {
     expect(
       within(easy).getByText(/^Confidence is low: the range is a share of critical speed/),
     ).toBeInTheDocument()
-    expect(within(easy).getByText(/^Heat cannot be put in minutes/)).toBeInTheDocument()
+    expect(
+      within(easy).getByText(
+        'Heat cannot be put in minutes without your own heart-rate line. On a hot day, go by effort.',
+      ),
+    ).toBeInTheDocument()
     expect(within(easy).getAllByRole('term')).toHaveLength(2)
     expect(
       within(easy).getByText(
         `A pace from your own heart rate needs ${String(P.hrModel.minQualifyingRuns.value)} steady, flat runs with heart rate in ${String(P.hrModel.windowWeeks.value)} weeks. 3 so far.`,
       ),
     ).toBeInTheDocument()
+  })
+
+  test('with a line whose hot day falls outside the runs, shows no hot row and names the line', async () => {
+    // HR = 100 + 12 x speed on 2.5 to 3.3 m/s, a ceiling of 135 bpm: the hot speed is about 1.9 m/s
+    const runs = Array.from({ length: 9 }, (_, i) =>
+      run(i, 2.5 + i * 0.1, {}, Math.round(100 + 12 * (2.5 + i * 0.1))),
+    )
+    const { view, routes } = serve(stateWith(FITNESS), runs, 'km', {
+      ...profileFixture,
+      hrMax: 173,
+    })
+    expect(view.easy.pace?.basis).toBe('hr-model')
+    expect(view.easy.pace?.hot).toBeNull()
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const easy = await screen.findByRole('region', { name: 'Easy pace' })
+    expect(within(easy).getAllByRole('term')).toHaveLength(2)
+    expect(
+      within(easy).getByText(
+        'Heat cannot be put in minutes from this line. On a hot day, go by effort.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(easy).queryByText(/without your own heart-rate line/)).toBeNull()
   })
 
   // One reading of each reason the heart-rate line gives no pace, each in its own words.
