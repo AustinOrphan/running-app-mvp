@@ -52,9 +52,10 @@
   max-width: 100%;
 }
 
-/* Five short words on a 360 px row: smaller type, and just enough padding to keep them apart. */
+/* Short words on a 360 px row: smaller type, and padding that keeps each word off its neighbours'
+   edges now that options size to their word. */
 .dense .option {
-  padding: 0 2px;
+  padding: 0 var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
 }
