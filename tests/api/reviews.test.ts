@@ -142,6 +142,49 @@ describe('GET /api/reviews', () => {
     expect(rows[1]?.id).toBe('')
   })
 
+  test('prefills fatigue and symptoms from the week check-ins, and not for a saved review', async () => {
+    const checkin = (date: string, over: Record<string, unknown>) =>
+      ctx.prisma.wellnessDay.create({
+        data: { userId: user.id, date, source: 'manual', fatigue: 4, soreness: 3, ...over },
+      })
+    await checkin('2026-03-02', {})
+    await checkin('2026-03-03', { fatigue: 5, soreness: 4 })
+    await checkin('2026-03-04', { fatigue: 4 })
+    // a day with only a wellness figure is not a check-in
+    await ctx.prisma.wellnessDay.create({
+      data: { userId: user.id, date: '2026-03-05', source: 'manual', restingHr: 52 },
+    })
+    // a check-in of the next week does not count toward this one
+    await checkin('2026-03-10', { fatigue: 1 })
+
+    const res = await list(`?from=${W}&to=${W1}`, user)
+    expect(res.body[0]).toMatchObject({
+      weekStart: W,
+      prefill: {
+        checkinDays: 3,
+        fatigue: 8,
+        fatigueAverage: 4.3,
+        fatigueDays: 3,
+        symptoms: 'mild',
+        symptomsBasis: 'soreness',
+      },
+    })
+    // one check-in day is too few to suggest an answer
+    expect(res.body[1]).toMatchObject({
+      weekStart: W1,
+      prefill: { checkinDays: 1, fatigue: null, symptoms: null },
+    })
+
+    await put(W, { dataStatus: 'complete', finalDecision: 'hold', finalNextMin: 300 })
+    const after = await list(`?from=${W}&to=${W}`, user)
+    expect(after.body[0]).not.toHaveProperty('prefill')
+  })
+
+  test('a week without check-ins carries no prefill', async () => {
+    const res = await list(`?from=${W}&to=${W3}`, user)
+    for (const row of res.body) expect(row).not.toHaveProperty('prefill')
+  })
+
   test('defaults to the twelve weeks ending this week', async () => {
     const res = await list('', user)
     const rows = res.body
@@ -175,8 +218,11 @@ describe('GET /api/reviews', () => {
     const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
     const res = await list(`?from=${W1}&to=${W3}`, user)
     expect(res.status).toBe(200)
-    expect(findMany).toHaveBeenCalledTimes(1)
-    const args = findMany.mock.calls[0]![0]!
+    // The athlete snapshot (ADR 0009) reads the check-ins' window with whole rows; the weeks come
+    // from one read of six columns.
+    const bounded = findMany.mock.calls.filter(([args]) => args?.select !== undefined)
+    expect(bounded).toHaveLength(1)
+    const args = bounded[0]![0]!
     expect(args.where).toEqual({ userId: user.id, date: { gte: '2025-03-10', lte: '2026-03-29' } })
     expect(Object.keys(args.select ?? {}).sort()).toEqual([
       'date',

@@ -1,5 +1,7 @@
 import {
+  createContext,
   Fragment,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -28,6 +30,7 @@ import { useSettings } from '../api/settings.ts'
 import { useToday } from '../api/today.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { useWristStatus, weekZipHref } from '../api/wrist.ts'
+import type { PlanRevisionView } from '../../shared/types.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
@@ -56,6 +59,9 @@ import {
   formatWeekday,
   weekPhaseLabel,
 } from '../components/format.ts'
+import { UndoControl } from '../components/revisions/UndoControl.tsx'
+import { planStripSentence, planStripText } from '../../shared/copy/planStrip.ts'
+import { addDays, formatWeekdayName, mondayOf, todayIso } from '../../shared/dates.ts'
 import { actualRange, planSpan } from '../components/season.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { estimateAboutText } from '../../shared/copy/distanceEstimate.ts'
@@ -91,7 +97,6 @@ import { newMarker } from '../../shared/copy/revisionView.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { fileRefusalSentence, weekLinkLabel } from '../../shared/copy/workouts.ts'
 import { distanceClassOf } from '../../shared/engine/goal.ts'
-import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import { minutesToHours1 } from '../../shared/units.ts'
@@ -1055,6 +1060,57 @@ function sessionMeta(session: PlanSessionView, units: Units | undefined): string
   return parts.filter((part) => part !== '').join(', ')
 }
 
+/** The sessions the latest plan update changed, by `externalId`; their day cards carry a mark. */
+const ChangedSessions = createContext<ReadonlySet<string>>(new Set())
+
+/** How long after the weekly update the strip stays under the header, in days. */
+const STRIP_DAYS = 3
+
+/**
+ * The most recent update the scheduler wrote that is still worth a line: a weekly revision from the
+ * last few days that changed something and has not been undone. Null otherwise.
+ */
+function latestUpdate(
+  revisions: PlanRevisionView[] | undefined,
+  today: string,
+): PlanRevisionView | null {
+  const found = (revisions ?? []).find(
+    (revision) =>
+      revision.reason === 'weekly' &&
+      revision.auto &&
+      revision.undo.undoneAt === null &&
+      revision.diff !== null &&
+      !revision.diff.empty &&
+      todayIso(new Date(revision.createdAt)) >= addDays(today, -STRIP_DAYS),
+  )
+  return found ?? null
+}
+
+/**
+ * "Updated Monday: 2 sessions changed", with the undo of the revision and the way to the brief. It
+ * renders nothing while the revisions load or when the list does not load: the "What changed" panel
+ * below reports that failure, and a strip that only repeated it would be noise.
+ */
+function UpdateStrip({ revision, units }: { revision: PlanRevisionView; units: Units }) {
+  const created = todayIso(new Date(revision.createdAt))
+  const sentence = planStripSentence(
+    formatWeekdayName(created),
+    revision.diff?.sessions.length ?? 0,
+    units,
+  )
+  return (
+    <section aria-label={planStripText('plan.strip.label', units)} className={styles.updateStrip}>
+      <p className={styles.updateText}>{sentence}</p>
+      <div className={styles.updateActions}>
+        <Link to={`/brief/${mondayOf(created)}`} className={styles.updateLink}>
+          {planStripText('plan.strip.brief', units)}
+        </Link>
+      </div>
+      {revision.undo.available ? <UndoControl revision={revision} units={units} /> : null}
+    </section>
+  )
+}
+
 /** One card per day with sessions; each session opens the session sheet. */
 function DayCards({
   week,
@@ -1070,6 +1126,7 @@ function DayCards({
   wrist: ReadonlyMap<string, WristItem>
   onOpen: (id: string) => void
 }) {
+  const changed = useContext(ChangedSessions)
   const byDate = new Map<string, PlanSessionView[]>()
   for (const session of sessions) {
     byDate.set(session.date, [...(byDate.get(session.date) ?? []), session])
@@ -1096,6 +1153,11 @@ function DayCards({
               >
                 <span className={styles.sessionTitle}>{session.title}</span>
                 <span className={styles.sessionMeta}>{sessionMeta(session, units)}</span>
+                {changed.has(session.externalId) ? (
+                  <span className={styles.changedMark}>
+                    {planStripText('plan.strip.changed-mark', units ?? 'mi')}
+                  </span>
+                ) : null}
                 {wrist.has(session.id) ? <WristChip item={wrist.get(session.id)!} /> : null}
               </button>
             ))}
@@ -1467,6 +1529,15 @@ export function PlanPage() {
   const [updating, setUpdating] = useState(false)
   const [reveal, setReveal] = useState<WeekReveal | null>(null)
   const settings = useRef<HTMLDivElement>(null)
+  const units = useSettings().data?.units
+  // Only a plan that has sessions has revisions with a diff to show.
+  const revisions = usePlanRevisions({ enabled: (plan.data?.generatorVersion ?? 1) >= 2 })
+  const update = latestUpdate(revisions.data, todayIso())
+  const changedSessions = new Set(
+    update?.diff?.sessions
+      .filter((line) => line.change !== 'removed')
+      .map((line) => line.externalId),
+  )
 
   if (plan.isError || goals.isError) {
     return (
@@ -1563,6 +1634,7 @@ export function PlanPage() {
         }
       />
       {hasSessions ? <PlanWindows /> : null}
+      {update !== null ? <UpdateStrip revision={update} units={units ?? 'mi'} /> : null}
       <SeasonStrip
         plan={plan.data}
         onSelectWeek={(weekStart) => {
@@ -1570,12 +1642,14 @@ export function PlanPage() {
         }}
       />
       {hasSessions ? <PlanWarnings plan={plan.data} onWhy={setWhy} /> : null}
-      <PlanTable
-        plan={plan.data}
-        sessions={sessions}
-        reveal={reveal}
-        onOpenSession={setOpenSessionId}
-      />
+      <ChangedSessions.Provider value={changedSessions}>
+        <PlanTable
+          plan={plan.data}
+          sessions={sessions}
+          reveal={reveal}
+          onOpenSession={setOpenSessionId}
+        />
+      </ChangedSessions.Provider>
       {hasSessions ? <WristStrip sessions={sessions} /> : null}
       {hasSessions ? (
         <PlanOverview

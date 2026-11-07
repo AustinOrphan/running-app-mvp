@@ -1,7 +1,14 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { overshootTodayLine } from '../../shared/copy/overshoot.ts'
+import {
+  prefillAcceptedStatus,
+  prefillHasAnswer,
+  prefillLines,
+  REVIEW_PREFILL_TEMPLATES,
+} from '../../shared/copy/reviewPrefill.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
+import { render } from '../../shared/copy/template.ts'
 import { addDays, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
@@ -370,6 +377,7 @@ function WeekReview({
   const headingId = useId()
   const noteId = useId()
   const changedId = useId()
+  const prefillId = useId()
 
   const [dataStatus, setDataStatus] = useState<DataStatus>(review.dataStatus)
   const [fatigue, setFatigue] = useState(review.fatigue === null ? '' : String(review.fatigue))
@@ -385,6 +393,24 @@ function WeekReview({
   const [failure, setFailure] = useState<string | null>(null)
   const [replanned, setReplanned] = useState<ReplanOutcome | null>(null)
   const [why, setWhy] = useState<WhyTarget | null>(null)
+  const [prefillTaken, setPrefillTaken] = useState(false)
+
+  // The check-ins the week already holds: confirmed with one tap, or changed in the groups below.
+  const prefill = review.reviewedAt === null ? (review.prefill ?? null) : null
+  const prefillShown = prefill !== null && prefillHasAnswer(prefill)
+  const prefillMatches =
+    prefill !== null &&
+    (prefill.fatigue === null || fatigue === String(prefill.fatigue)) &&
+    (prefill.symptoms === null || symptoms === prefill.symptoms)
+
+  function takePrefill() {
+    if (prefill === null) return
+    if (prefill.fatigue !== null) setFatigue(String(prefill.fatigue))
+    if (prefill.symptoms !== null) setSymptoms(prefill.symptoms)
+    setPrefillTaken(true)
+  }
+
+  const prefillText = prefill !== null ? prefillLines(prefill) : null
 
   const suggestInput: SuggestInput | null = planWeek
     ? {
@@ -500,6 +526,28 @@ function WeekReview({
       </section>
 
       <section className={styles.section}>
+        {prefillShown && prefillText !== null ? (
+          <section aria-labelledby={prefillId} className={styles.prefill}>
+            <h3 id={prefillId}>
+              {render(REVIEW_PREFILL_TEMPLATES['review.prefill.heading'], {}, units)}
+            </h3>
+            <ul className={styles.prefillLines}>
+              <li>{prefillText.fatigue}</li>
+              <li>{prefillText.symptoms}</li>
+            </ul>
+            <p className={styles.muted}>{prefillText.basis}</p>
+            <div className={styles.prefillActions}>
+              <Button variant="secondary" onClick={takePrefill}>
+                {prefillMatches
+                  ? `\u2713 ${render(REVIEW_PREFILL_TEMPLATES['review.prefill.accepted'], {}, units)}`
+                  : render(REVIEW_PREFILL_TEMPLATES['review.prefill.accept'], {}, units)}
+              </Button>
+              <p role="status" className={styles.muted}>
+                {prefillTaken && prefillMatches ? prefillAcceptedStatus() : ''}
+              </p>
+            </div>
+          </section>
+        ) : null}
         <Group label="Data status">
           <Segmented<DataStatus>
             label="Data status"

@@ -1,3 +1,4 @@
+import type { ReviewPrefill } from './domain/review.ts'
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
@@ -567,7 +568,11 @@ export type ReviewSignals = WeeklyDecision['signals']
  * A review as a version-2 plan returns it: the engine's weekly decision sits in the `suggested*`
  * fields and `signals` carries the signals behind it. Version-1 plans get a plain review.
  */
-export type ReviewView = WeeklyReview & { signals?: ReviewSignals }
+export type ReviewView = WeeklyReview & {
+  signals?: ReviewSignals
+  /** What the week's check-ins suggest for fatigue and symptoms; absent without a check-in. */
+  prefill?: ReviewPrefill
+}
 
 /** What saving returns: the review, plus for a version-2 plan the re-plan the review triggered. */
 export type SavedReview = ReviewView & {

@@ -634,3 +634,48 @@ p.weekFiles {
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
+
+/* The strip under the header after the weekly update: what changed, the brief, the undo. */
+.updateStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.updateText {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.updateActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.updateLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-h);
+}
+
+.updateStrip > div:last-child:not(.updateActions) {
+  flex-basis: 100%;
+}
+
+.changedMark {
+  margin-top: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
