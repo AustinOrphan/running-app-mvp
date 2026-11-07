@@ -453,10 +453,10 @@ describe('H1: the appendix runner, a strong block and sparse weeks since (one ye
   it('names the zone in the progression detail where it applied, and only there', () => {
     expect(detailOf(steady)).toBe('Every week is within the weekly ramp.')
     expect(detailOf(planAt(h1(), 'standard'))).toMatch(
-      /^Every week is within the weekly ramp; \d+ week\(s\) use the rebuild step of 12% a week, up to 196 min\.$/,
+      /^Every week is within the weekly ramp; \d+ weeks? uses? the rebuild step of 12% a week, up to 196 min\.$/,
     )
     expect(detailOf(planAt(h1(), 'upper'))).toMatch(
-      /^Every week is within the weekly ramp; \d+ week\(s\) use the rebuild step of 14% a week, up to 238 min\.$/,
+      /^Every week is within the weekly ramp; \d+ weeks? uses? the rebuild step of 14% a week, up to 238 min\.$/,
     )
     for (const position of POSITIONS) expect(lintText(detailOf(planAt(h1(), position)))).toEqual([])
     // the checklist keeps its fifteen items
@@ -495,7 +495,7 @@ describe('H1: the appendix runner, a strong block and sparse weeks since (one ye
       const pct = Math.round(zone.step * 100)
       expect(detail).toMatch(
         new RegExp(
-          `^Every week is within the ceiling; 1 week\\(s\\) step above the soft ${String(pct)}% and carry a warning; `,
+          `^Every week is within the ceiling; 1 week steps above the soft ${String(pct)}% and carries a warning; `,
         ),
       )
       expect(detail).not.toContain('soft 10%')

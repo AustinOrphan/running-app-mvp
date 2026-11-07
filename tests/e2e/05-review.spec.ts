@@ -27,6 +27,10 @@ test('a weekly review of the finished week changes next week target on the plan 
       })
     }
   }
+  // Three check-ins in the week under review: the form offers them as its answers.
+  for (const day of [0, 1, 2]) {
+    await api.put(`/checkins/${addDays(thisMonday, -7 + day)}`, { fatigue: 3, soreness: 3 })
+  }
   const goal = (await api.post('/goals', {
     name: 'Test marathon',
     priority: 'A',
@@ -48,14 +52,21 @@ test('a weekly review of the finished week changes next week target on the plan 
   await expect(page.getByText(/^Week of /)).toBeVisible()
 
   await page.getByRole('radio', { name: 'Data complete' }).click()
-  await page
-    .getByRole('radiogroup', { name: 'Fatigue (1-10)' })
-    .getByRole('radio', { name: '3', exact: true })
-    .click()
-  await page
-    .getByRole('radiogroup', { name: 'Symptoms' })
-    .getByRole('radio', { name: 'None' })
-    .click()
+  // The check-ins fill fatigue and symptoms with one tap; nothing is typed by hand.
+  const card = page.getByRole('region', { name: "From this week's check-ins" })
+  await expect(
+    card.getByText('Fatigue 5 of 10, from an average of 3 of 5 over 3 days.'),
+  ).toBeVisible()
+  await card.getByRole('button', { name: 'Looks right' }).click()
+  await expect(card.getByText(/filled in from the check-ins/)).toBeVisible()
+  await expect(
+    page
+      .getByRole('radiogroup', { name: 'Fatigue (1-10)' })
+      .getByRole('radio', { name: '5', exact: true }),
+  ).toBeChecked()
+  await expect(
+    page.getByRole('radiogroup', { name: 'Symptoms' }).getByRole('radio', { name: 'None' }),
+  ).toBeChecked()
 
   // The week before a version-2 plan has no weekly decision to suggest.
   await expect(page.getByText('There is no plan for this week.')).toBeVisible()

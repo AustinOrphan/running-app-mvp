@@ -1478,7 +1478,7 @@ describe('a ladder week that fewer than three spaced days can hold [rules F5, E6
     expect(notes).toHaveLength(1)
     // the part week of the start and the eight whole ladder weeks after it, counted in one note
     expect(notes[0]!.message).toMatch(
-      /^9 week\(s\), from the week of 2026-10-19, have room for fewer run days/,
+      /^9 weeks, from the week of 2026-10-19, have room for fewer run days/,
     )
     expect(plan.checklist.filter((c) => !c.ok)).toEqual([])
   })

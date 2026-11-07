@@ -21,7 +21,9 @@ import { LOAD_TEMPLATES } from './load.ts'
 import { METHOD_TEMPLATES } from './method.ts'
 import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
+import { PLAN_STRIP_TEMPLATES } from './planStrip.ts'
 import { RACE_PLAN_TEMPLATES } from './racePlan.ts'
+import { REVIEW_PREFILL_TEMPLATES } from './reviewPrefill.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
 import { SEASON_TEMPLATES } from './season.ts'
@@ -70,6 +72,8 @@ export const TEMPLATES = {
   ...BRIEF_TEMPLATES,
   ...STRENGTH_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,
+  ...REVIEW_PREFILL_TEMPLATES,
+  ...PLAN_STRIP_TEMPLATES,
   ...STRENGTH_PAGE_TEMPLATES,
   ...STRENGTH_REVIEW_TEMPLATES,
   ...PAGE_TEMPLATES,
