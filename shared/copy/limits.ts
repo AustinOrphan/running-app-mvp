@@ -28,3 +28,6 @@ export const COPY_MAX_CHARS = 160
 
 /** Readiness signals Today names under the verdict, noted ones first. */
 export const SIGNAL_LIMIT = 3
+
+/** Grams of carbohydrate that the race plan rounds its totals and its race-week grams to (rule H14). */
+export const RACE_CARB_ROUND_G = 10

@@ -4,6 +4,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, AthleteProfile, WeekRow } from '../types.ts'
 import { injuryReports } from './disruption.ts'
+import { isHeatExposure } from './heat.ts'
 import { countsTowardReference } from './limits.ts'
 import {
   criticalSpeed,
@@ -390,17 +391,7 @@ function durabilityOf(runs: Activity[]): AthleteState['durability'] {
 
 /** Heat acclimation credit, 0..1: gained on exposure days, lost at a fixed rate otherwise [I8]. */
 function heatCredit(acts: Activity[], today: string): number {
-  const exposed = new Set(
-    acts
-      .filter(
-        (a) =>
-          a.type !== 'strength' &&
-          a.tempC !== null &&
-          a.tempC >= P.acclim.exposureTempC.value &&
-          a.durationSec / 60 >= P.acclim.exposureMinDurationMin.value,
-      )
-      .map((a) => a.date),
-  )
+  const exposed = new Set(acts.filter(isHeatExposure).map((a) => a.date))
   const gain = 1 / P.i8.blockDays.value
   const decay = P.i8.decayPctPerDay.value / 100
   const days = P.i8.zeroCreditDays.value

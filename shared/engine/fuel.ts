@@ -8,7 +8,13 @@
 // (ADR 0005, 0011). Pure and deterministic: no clock, no I/O; the days and the weather arrive as
 // data. Every number comes from the registry `P`.
 import { mondayOf } from '../dates.ts'
-import { fuelTotals, minutesOf, multiCarbShare, ratePerHour } from '../domain/fuel.ts'
+import {
+  fuelTotals,
+  minutesOf,
+  multiCarbShare,
+  ratePerHour,
+  SECONDS_PER_HOUR,
+} from '../domain/fuel.ts'
 import { isToRun } from '../domain/sessionStatus.ts'
 import { eahText, fuelWatchText } from './fuelCopy.ts'
 import { weatherIndex, type WeatherIndex } from './heat.ts'
@@ -481,4 +487,62 @@ export function eahCard(options: { eventHours: number | null; hot: boolean }): E
     options.hot ||
     (options.eventHours !== null && options.eventHours > P.n7.eahStrongerAlertHours.value)
   return { stronger, ...eahText(stronger) }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The race (rule H14, ADR 0018)
+// ---------------------------------------------------------------------------------------------
+
+/** Why the race rate is the rate it is. */
+export type RaceFuelBasis =
+  /** The highest rung that the runner's own runs tolerated. */
+  | 'tolerated'
+  /** No rung above the floor was tolerated: the floor is the rate. */
+  | 'floor'
+  /** A diagnosed gut condition keeps the floor. */
+  | 'locked'
+
+/** The carbohydrate rate of a race and what goes with it, as data; the words are `racePlan` copy. */
+export interface RaceFuel extends RungRate {
+  rungIndex: number
+  basis: RaceFuelBasis
+  lowCertainty: boolean
+  multiCarbRequired: boolean
+  /** The race is hot for fuel (`isHotForFuel` on the race's WBGT): no run at race heat was counted. */
+  hot: boolean
+  nauseaPlanOpen: boolean
+  /** The hours that the totals run over: the expected time, taken over elapsed time (rule H7). */
+  hours: number
+  /** The carbohydrate over `hours`, low to high, in grams; the two ends are equal for a single rate. */
+  totalG: [number, number]
+}
+
+/**
+ * The carbohydrate rate of a race: the highest rung the runner's runs tolerated, the floor when
+ * none was, and the floor with a diagnosed gut condition. It is never the rung in trial and never
+ * above a tolerated rung (rule G6): a race of a day or more is far from what a run of a few hours
+ * showed, so the plan offers no higher rate. `FUEL_KINDS.race` stays false, so the fuel slot, the
+ * watch line and the calendar text of the race session are unchanged. The totals run over the
+ * expected elapsed time, since eating happens at stops (rule H7). `hot` only labels the rate: the
+ * ladder counts a tolerated run on a day that was not hot only, so a hot race is outside what any
+ * rung showed.
+ */
+export function raceFuelFor(
+  ladder: LadderResult,
+  options: { hot: boolean; expectedSec: number },
+): RaceFuel {
+  const rung = rungAt(ladder.rungs, ladder.locked ? 0 : Math.max(ladder.toleratedIndex, 0))
+  const hours = Math.max(0, options.expectedSec) / SECONDS_PER_HOUR
+  const [low, high] = rung.range ?? [rung.gPerH, rung.gPerH]
+  return {
+    ...rateOf(rung),
+    rungIndex: rung.index,
+    basis: ladder.locked ? 'locked' : ladder.toleratedIndex >= 0 ? 'tolerated' : 'floor',
+    lowCertainty: rung.lowCertainty,
+    multiCarbRequired: rung.multiCarbRequired,
+    hot: options.hot,
+    nauseaPlanOpen: options.hot || ladder.nauseaForward,
+    hours,
+    totalG: [low * hours, high * hours],
+  }
 }
