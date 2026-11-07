@@ -20,9 +20,10 @@
   font-weight: 600;
 }
 
-/* One line is kept for a refusal, so the fields do not move when it appears. */
+/* Two lines are kept for a refusal (the longest wraps once at 328 px), so the fields do not move when
+   it appears. */
 .alertSlot {
-  min-height: var(--lh-sm);
+  min-height: calc(var(--lh-sm) * 2);
 }
 
 .form {
