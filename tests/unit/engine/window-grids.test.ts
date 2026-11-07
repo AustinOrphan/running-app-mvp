@@ -43,7 +43,8 @@
 //    Monday before the race, its earlier days run as planned, three times with each pass stored
 //    (3,645 chains, 10,935 passes). Where the same case with the rule off gives the stored minutes
 //    back, the rule gives them back, and where the rule-free engine never exceeds them, the rule
-//    does not either.
+//    does not either. The 174 passes below the stored plan that the marathon and hot-race runners
+//    also draw at 42bc480f are excused and counted; none above it is.
 import { describe, expect, it } from 'vitest'
 import { addDays, mondayOf } from '../../../shared/dates.ts'
 import { buildPlan, replan } from '../../../shared/engine/index.ts'

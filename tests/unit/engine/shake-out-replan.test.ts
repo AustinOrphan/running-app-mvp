@@ -405,14 +405,14 @@ describe('the week before a Monday race of the marathon athlete', () => {
   })
 })
 
-describe('a week too short to place the day before at any target', () => {
-  // The marathon athlete's race week on a Saturday: runs of 23 minutes, the Friday shake-out 20. Two
-  // days left on the Thursday (23 and 20) and a placement of that week at any target gives one run on
-  // the Thursday, the two runs being under the shortest easy run at the target of the stored minutes.
-  // The fit of the bound found the target of the other runs alone (23), a placement with no run on the
-  // day before, and each re-plan dropped the 20 minutes the plan kept there; the stored minutes are
-  // the bound where the fit finds no day before (they were moved to the Thursday, as in a week no
-  // window touches).
+describe('a week with fewer run days left than runs stored', () => {
+  // The marathon athlete's race week on a Saturday: runs of 23 minutes, the Friday shake-out 20. The
+  // row of the re-plan has 4 run days and 3 are done by the Thursday, so one run day is left for the
+  // 2 runs the plan keeps (the Thursday's 23 and the Friday's 20), and a placement of the rest of the
+  // week at any target gives one run, on the Thursday. The fit of the bound found the target of the
+  // other runs alone (23), a placement with no run on the day before, and each re-plan dropped the
+  // 20 minutes the plan kept there. The minutes stored are the bound where the fit finds no day
+  // before, and the 20 minutes land on the Thursday.
   const marathon = athlete('marathon').input
   const saturday: EngineInput = {
     ...marathon,
@@ -424,9 +424,10 @@ describe('a week too short to place the day before at any target', () => {
   it.each([
     ['no window', saturday],
     ['a limit of 25 minutes on the Friday', { ...saturday, disruptions: [limited(fridayOf, 25)] }],
-  ])('keeps the minutes stored for the Thursday and the Friday: %s', (_, input) => {
+  ])('keeps the minutes stored, placed on the Thursday: %s', (_, input) => {
     const { stored, passes } = replanPasses(input, thursday)
     expect(stored.map((r) => r[0])).toContain(fridayOf)
+    expect(passes[0]!.map((r) => r[0])).toEqual([thursday])
     passes.forEach((pass, i) => expect(total(pass), `pass ${String(i + 1)}`).toBe(total(stored)))
     expect(JSON.stringify(passes[1])).toBe(JSON.stringify(passes[0]))
     expect(JSON.stringify(passes[2])).toBe(JSON.stringify(passes[0]))

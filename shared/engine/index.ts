@@ -881,10 +881,11 @@ function generate(
       if (fitted) {
         const fixed = targetForNet(others, shareOn, stillBefore)
         const share = shareOn(fixed)
-        // A week that cannot hold a run on the day before at any target near the plan's (too few
-        // minutes for two runs of the shortest length, say) is not the week the plan had: the
-        // search would settle on the target of the other runs alone and drop the run the plan keeps
-        // there. The minutes stored are then the bound, as for a week not fitted.
+        // The remaining run days of the week (the row's run days less those done) can be fewer than
+        // the runs the plan keeps: the placement then has no run on the day before at any target, the
+        // search would settle on the target of the other runs alone, and the run the plan keeps
+        // there would be dropped. The minutes stored are then the bound, as for a week not fitted,
+        // and they land on the run days the week has left.
         if (share > 0 || stored === 0) {
           bound = fixed
           dayBeforeShare = share
@@ -1027,10 +1028,13 @@ function generate(
       let longLost = false
       const minByDate: Record<string, number> = {}
       if (ruled.length > 0 && (planWeek.targetRunMin > 0 || planWeek.strengthSessions > 0)) {
-        // The week as the plan places it before a window reaches it, the days before a long race easy
-        // and not cut: the target is spread over the runs at their shares, a window on a day takes what
-        // the plan had on that day, and the cap cuts the day before once, from the placed result. No
-        // long run lies on the days before the race, so a window there takes none [rules K6, J9].
+        // The week as the plan places it, the days before a long race easy and not cut. Where the
+        // bound of the week was fitted, the placement meets the windows the plan knew on the day
+        // before (`knownOnDayBefore`), as the fit did; in any other week it is placed without them
+        // and the stored-minutes reading below holds. The target is spread over the runs at their
+        // shares, a window on a day takes what the plan had on that day, and the cap cuts the day
+        // before once, from the placed result. No long run lies on the days before the race, so a
+        // window there takes none [rules K6, J9].
         const baseline = place(
           planWeek,
           closedForRuns(closedBase),
