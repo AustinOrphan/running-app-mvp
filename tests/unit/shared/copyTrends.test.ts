@@ -9,6 +9,8 @@ import {
   TRENDS_TEMPLATES,
   trendsText,
   type PlainTrendsId,
+  weightAria,
+  weightCaption,
 } from '../../../shared/copy/trends.ts'
 
 describe('the words of the Trends page', () => {
@@ -60,6 +62,46 @@ describe('the words of the Trends page', () => {
     for (const line of lines) {
       assertCleanCopy(line, line)
       expect(line.length, line).toBeLessThanOrEqual(COPY_MAX_CHARS)
+    }
+  })
+
+  it('gives the weight templates no slot but the mean, a count and the months, so no change can be rendered', () => {
+    const weightIds = (
+      Object.keys(TRENDS_TEMPLATES) as Array<keyof typeof TRENDS_TEMPLATES>
+    ).filter((id) => id.startsWith('trends.weight.'))
+    expect(weightIds.length).toBeGreaterThan(0)
+    for (const id of weightIds) {
+      for (const slot of Object.keys(TRENDS_TEMPLATES[id].slots)) {
+        expect(['mean', 'unit', 'count', 'months'], `${id}: ${slot}`).toContain(slot)
+      }
+    }
+    const all = weightIds.map((id) => TRENDS_TEMPLATES[id].text).join('\n')
+    for (const word of [
+      /\bgain/i,
+      /\bloss\b/i,
+      /\blost\b/i,
+      /\bgoal\b/i,
+      /\bBMI\b/,
+      /\bideal\b/i,
+    ]) {
+      expect(all).not.toMatch(word)
+    }
+  })
+
+  it('states the weight caption and the accessible names from the page constants', () => {
+    expect(weightCaption(2)).toBe(
+      "Mean of each week's weigh-ins, for weeks with at least 2 weigh-ins. A scale varies within a day, so read the line, not a point.",
+    )
+    // The caption states no figure in a unit, so it reads the same for a runner in pounds or kilograms.
+    expect(weightCaption(2)).not.toMatch(/\b(kg|lb|kilograms?|pounds?)\b/i)
+    expect(weightAria(12, '70.3 kg')).toBe(
+      'Body weight, weekly mean, last 12 months. Latest week with enough weigh-ins: 70.3 kg.',
+    )
+    expect(weightAria(12, null)).toBe(
+      'Body weight, weekly mean, last 12 months. No week has enough weigh-ins yet.',
+    )
+    for (const line of [weightCaption(2), weightAria(12, '70.3 kg'), weightAria(6, null)]) {
+      assertCleanCopy(line, line)
     }
   })
 

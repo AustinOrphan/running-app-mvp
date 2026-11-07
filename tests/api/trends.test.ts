@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { TrendsView } from '../../shared/types.ts'
+import { loadWeightSeries } from '../../server/serialize.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
 import {
   client,
@@ -10,6 +11,12 @@ import {
   type TestCtx,
   type TestUser,
 } from './helpers.ts'
+
+// The real loader, wrapped so a test can see whether the route called it.
+vi.mock('../../server/serialize.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../server/serialize.ts')>()
+  return { ...original, loadWeightSeries: vi.fn(original.loadWeightSeries) }
+})
 
 let ctx: TestCtx
 let user: TestUser
@@ -230,5 +237,103 @@ describe('GET /api/trends reads', () => {
     const after = (await getTrends()).body as TrendsView
     expect(loaderCalls(findMany.mock.calls)).toHaveLength(1)
     expect(after.recovery.hrv.at(-2)!.mean).not.toBe(before.recovery.hrv.at(-2)!.mean)
+  })
+})
+
+describe('GET /api/trends weight', () => {
+  /** A weigh-in on each of the two days after the Monday `weeksBack` weeks before this week's. */
+  async function seedWeighIns(weeksBack: number, kgs: [number, number]): Promise<void> {
+    const monday = addDays(LAST, -7 * weeksBack)
+    for (const [i, weightKg] of kgs.entries()) {
+      await ctx.prisma.wellnessDay.upsert({
+        where: { userId_date: { userId: user.id, date: addDays(monday, i) } },
+        create: { userId: user.id, date: addDays(monday, i), weightKg, source: 'manual' },
+        update: { weightKg },
+      })
+    }
+  }
+  const turn = (showBodyWeight: boolean) =>
+    client(ctx, user).put('/api/settings').send({ showBodyWeight }).expect(200)
+  const screen = (answers: Record<string, boolean>) =>
+    client(ctx, user).post('/api/screenings').send({ date: TODAY, answers }).expect(201)
+  // The snapshot's own wellness read has no select, so weightKg is loaded there whatever the
+  // setting (ADR 0019); what the route controls is its own weight query and the payload.
+  beforeEach(() => {
+    vi.mocked(loadWeightSeries).mockClear()
+  })
+
+  test('has no weight key while the switch is off, and the route never calls the weight loader', async () => {
+    await seedWeighIns(1, [70, 71])
+    const res = await getTrends()
+    expect(Object.keys(res.body as object).sort()).toEqual(['asOf', 'recovery'])
+    expect(loadWeightSeries).not.toHaveBeenCalled()
+  })
+
+  test('carries the weekly means in grams once the switch is on, with gaps as null', async () => {
+    await seedWeighIns(1, [70, 71])
+    await ctx.prisma.wellnessDay.create({
+      data: { userId: user.id, date: addDays(LAST, -14), weightKg: 80, source: 'manual' },
+    })
+    await turn(true)
+    const body = (await getTrends()).body as TrendsView
+    expect(body.weightGate).toBeUndefined()
+    expect(body.weight).toHaveLength(104)
+    const byWeek = new Map(body.weight!.map((w) => [w.weekStart, w]))
+    expect(byWeek.get(addDays(LAST, -7))).toEqual({
+      weekStart: addDays(LAST, -7),
+      grams: 70500,
+      weighIns: 2,
+    })
+    // One weigh-in is under the minimum: no mean, and the count says why.
+    expect(byWeek.get(addDays(LAST, -14))).toEqual({
+      weekStart: addDays(LAST, -14),
+      grams: null,
+      weighIns: 1,
+    })
+    expect(byWeek.get(addDays(LAST, -21))!.grams).toBeNull()
+  })
+
+  test('turning the switch off again drops the key and deletes no weigh-in', async () => {
+    await seedWeighIns(1, [70, 71])
+    await turn(true)
+    expect((await getTrends()).body).toHaveProperty('weight')
+    await turn(false)
+    expect(Object.keys((await getTrends()).body as object).sort()).toEqual(['asOf', 'recovery'])
+    expect(await ctx.prisma.wellnessDay.count({ where: { weightKg: { not: null } } })).toBe(2)
+  })
+
+  test('at two open flags the switch gives the reason and no series, and calls no weight loader', async () => {
+    await seedWeighIns(1, [70, 71])
+    await turn(true)
+    await screen({ weightLoss: true, cycle: false, fatigue: true })
+    const body = (await getTrends()).body as TrendsView
+    expect(body.weightGate).toBe('reds')
+    expect(body).not.toHaveProperty('weight')
+    expect(loadWeightSeries).not.toHaveBeenCalled()
+  })
+
+  test('one open flag does not gate, and a clearer screening lifts the gate', async () => {
+    await seedWeighIns(1, [70, 71])
+    await turn(true)
+    await screen({ weightLoss: true })
+    expect((await getTrends()).body).toHaveProperty('weight')
+    await screen({ weightLoss: true, fatigue: true })
+    expect((await getTrends()).body).toHaveProperty('weightGate', 'reds')
+    await screen({ weightLoss: false })
+    expect((await getTrends()).body).toHaveProperty('weight')
+  })
+
+  test('is scoped to the signed-in runner', async () => {
+    const other = await seedUser(ctx, { email: 'other@example.com' })
+    await ctx.prisma.wellnessDay.createMany({
+      data: [0, 1].map((i) => ({
+        userId: other.id,
+        date: addDays(LAST, -7 + i),
+        weightKg: 90,
+        source: 'manual',
+      })),
+    })
+    await turn(true)
+    expect((await getTrends()).body).toMatchObject({ weight: [] })
   })
 })

@@ -70,6 +70,7 @@ const settingsRoute = (units: Units) => ({
     displayName: null,
     units,
     weightUnit: 'lb',
+    showBodyWeight: false,
   }),
 })
 

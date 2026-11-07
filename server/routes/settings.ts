@@ -8,6 +8,7 @@ import type { Units, UserSettings } from '../../shared/types.ts'
 const updateSchema = z.strictObject({
   units: z.enum(['mi', 'km']).optional(),
   weightUnit: z.enum(['lb', 'kg']).optional(),
+  showBodyWeight: z.boolean().optional(),
   displayName: z
     .string()
     .trim()
@@ -26,12 +27,14 @@ export function settingsRouter(deps: Deps): Router {
     displayName: string | null
     units: string
     weightUnit: string
+    showBodyWeight: boolean
   }) {
     const settings: UserSettings = {
       email: user.email,
       displayName: user.displayName,
       units: user.units as Units,
       weightUnit: toWeightUnit(user.weightUnit),
+      showBodyWeight: user.showBodyWeight,
     }
     return settings
   }
@@ -51,6 +54,7 @@ export function settingsRouter(deps: Deps): Router {
       data: {
         ...(body.units === undefined ? {} : { units: body.units }),
         ...(body.weightUnit === undefined ? {} : { weightUnit: body.weightUnit }),
+        ...(body.showBodyWeight === undefined ? {} : { showBodyWeight: body.showBodyWeight }),
         ...(body.displayName === undefined ? {} : { displayName: body.displayName }),
       },
     })

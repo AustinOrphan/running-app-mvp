@@ -17,6 +17,7 @@ const CHARTS = [
   'EstimatedMaxChart',
   'TrendsRunChart',
   'RecoveryChart',
+  'WeightChart',
 ]
 
 /** The module specifiers an `import` or `export ... from` statement loads when the app runs. */

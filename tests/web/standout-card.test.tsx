@@ -38,6 +38,7 @@ const settings = (units: Units) => ({
     displayName: null,
     units,
     weightUnit: 'lb',
+    showBodyWeight: false,
   }),
 })
 

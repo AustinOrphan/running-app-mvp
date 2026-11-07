@@ -280,6 +280,7 @@ export const SETTINGS: UserSettings = {
   displayName: null,
   units: 'mi',
   weightUnit: 'lb',
+  showBodyWeight: false,
 }
 
 export const STRENGTH_SETTINGS: StrengthSettings = {

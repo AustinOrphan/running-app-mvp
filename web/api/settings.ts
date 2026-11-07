@@ -6,6 +6,8 @@ export interface SettingsPatch {
   units?: Units
   /** The unit strength loads are shown in (strength design 5.2); saved by the same route as `units`. */
   weightUnit?: WeightUnit
+  /** Whether Trends draws the body-weight chart (ADR 0019); turning it off deletes nothing. */
+  showBodyWeight?: boolean
   displayName?: string | null
 }
 
@@ -33,6 +35,7 @@ export function useUpdateSettings() {
           keys.settings,
           keys.me,
           ...(patch.weightUnit === undefined ? [] : [keys.strength, keys.today]),
+          ...(patch.showBodyWeight === undefined ? [] : [keys.trends]),
         ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       ),
   })

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { addDays, weekStartsBetween } from '../../../shared/dates.ts'
 import {
   MIN_NIGHTS_PER_MEAN,
+  MIN_WEIGHINS_PER_WEEK,
   seriesByDate,
   weeklyBands,
   weeklySleep,
+  weightWeeks,
   type WellnessSeriesRow,
 } from '../../../shared/domain/trends.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -125,5 +127,34 @@ describe('weeklySleep', () => {
 
   it('is empty when no night was recorded', () => {
     expect(weeklySleep(seriesByDate([night(MONDAY, { restingHr: 50 })]), WEEKS)).toEqual([])
+  })
+})
+
+describe('weightWeeks', () => {
+  it('is the mean of a week in integer grams, null under the minimum, with no change figure', () => {
+    const rows = [
+      { date: MONDAY, weightKg: 70.1 },
+      { date: addDays(MONDAY, 3), weightKg: 70.4 },
+      { date: addDays(MONDAY, -7), weightKg: 75 },
+    ]
+    const weeks = weightWeeks(rows, [addDays(MONDAY, -14), addDays(MONDAY, -7), MONDAY])
+    expect(weeks).toEqual([
+      { weekStart: addDays(MONDAY, -14), grams: null, weighIns: 0 },
+      { weekStart: addDays(MONDAY, -7), grams: null, weighIns: 1 },
+      { weekStart: MONDAY, grams: 70250, weighIns: 2 },
+    ])
+    expect(MIN_WEIGHINS_PER_WEEK).toBe(2)
+    for (const week of weeks) {
+      expect(Object.keys(week).sort()).toEqual(['grams', 'weekStart', 'weighIns'])
+    }
+  })
+
+  it('ignores a weigh-in outside the weeks and a reading that is not a weight', () => {
+    const rows = [
+      { date: addDays(MONDAY, 7), weightKg: 70 },
+      { date: MONDAY, weightKg: 0 },
+      { date: addDays(MONDAY, 1), weightKg: null },
+    ]
+    expect(weightWeeks(rows, [MONDAY])).toEqual([])
   })
 })

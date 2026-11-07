@@ -133,6 +133,64 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   expect(await overflow(page)).toBeLessThanOrEqual(0)
 })
 
+test('Trends draws body weight only after Settings turns it on, and hiding it deletes nothing', async ({
+  page,
+  baseURL,
+}) => {
+  const api = await signedInApi(page, baseURL ?? '')
+  await resetData()
+  await api.put('/settings', { showBodyWeight: false, weightUnit: 'kg' })
+  const { thisMonday } = relativeDates()
+  // Two weigh-ins in each of the last six complete weeks.
+  for (let week = 1; week <= 6; week += 1) {
+    for (const day of [0, 2]) {
+      await api.put(`/wellness/${addDays(thisMonday, -7 * week + day)}`, {
+        weightKg: 70 + week * 0.2 + day * 0.1,
+      })
+    }
+  }
+
+  // Off by default: no section, no word about weight.
+  await page.goto('/trends')
+  await expect(page.getByRole('heading', { level: 2, name: 'Running per week' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Recovery readings' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Body weight' })).toHaveCount(0)
+  await expect(page.getByText(/weigh-in/i)).toHaveCount(0)
+
+  // Settings: the Trends section, one switch and a line saying hiding deletes nothing.
+  await page.goto('/settings')
+  await expect(page.getByRole('heading', { level: 2, name: 'Trends' })).toBeVisible()
+  await expect(
+    page.getByText('Hiding the chart deletes nothing. Every weigh-in stays.'),
+  ).toBeVisible()
+  await page.getByRole('checkbox', { name: 'Show body weight on Trends' }).check()
+  await expect(page.getByText('Settings saved')).toBeVisible()
+
+  // On: the chart, in the runner's unit, with its hidden table of weekly means.
+  await page.goto('/trends')
+  await expect(page.getByRole('heading', { level: 2, name: 'Body weight' })).toBeVisible()
+  await expect(
+    page.getByRole('img', { name: /^Body weight, weekly mean, last 12 months\./ }),
+  ).toBeVisible()
+  const table = page.getByRole('table', { name: /^Body weight, weekly mean, last 12 months\./ })
+  await expect(table.getByRole('row')).toHaveCount(1 + 52)
+  await expect(table.getByRole('columnheader')).toHaveText(['Week of', 'Mean (kg)', 'Weigh-ins'])
+  await expect(table.getByRole('cell', { name: '70.3', exact: true })).toHaveCount(1)
+  expect(await overflow(page)).toBeLessThanOrEqual(0)
+
+  // Off again: the section goes, and every weigh-in is still there.
+  await page.goto('/settings')
+  await page.getByRole('checkbox', { name: 'Show body weight on Trends' }).uncheck()
+  await expect(page.getByText('Settings saved')).toBeVisible()
+  await page.goto('/trends')
+  await expect(page.getByRole('heading', { level: 2, name: 'Recovery readings' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Body weight' })).toHaveCount(0)
+  const kept = (await api.get(
+    `/wellness?from=${addDays(thisMonday, -7 * 6)}&to=${addDays(thisMonday, -1)}`,
+  )) as Array<{ weightKg: number | null }>
+  expect(kept.filter((day) => day.weightKg !== null)).toHaveLength(12)
+})
+
 test('Trends says there are no runs when the range holds none', async ({ page, baseURL }) => {
   const api = await signedInApi(page, baseURL ?? '')
   await resetData()

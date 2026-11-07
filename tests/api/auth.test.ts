@@ -58,6 +58,7 @@ test(
       displayName: 'Sam',
       units: 'mi',
       weightUnit: 'lb',
+      showBodyWeight: false,
     })
     expect(JSON.stringify(res.body)).not.toContain('passwordHash')
 
@@ -331,6 +332,7 @@ test('me', async () => {
     displayName: null,
     units: 'mi',
     weightUnit: 'lb',
+    showBodyWeight: false,
   })
 
   const noneToken = [
