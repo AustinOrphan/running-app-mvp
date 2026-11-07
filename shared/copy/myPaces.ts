@@ -3,6 +3,7 @@
 // sketch to run by, never a promise or a target, and the page says so. `PACES_TEMPLATES` is spread
 // into `TEMPLATES`. Figures arrive as quantities in the runner's units; the rule ids in the "how
 // these are made" lines are the ones the engine cites.
+import type { LineIssue } from '../engine/myPaces.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const PACES_TEMPLATES = {
@@ -57,14 +58,23 @@ export const PACES_TEMPLATES = {
     'Heat lifts your heart rate at the same pace, and a climb costs more for the same speed, so both slow the pace that keeps you easy.',
   ),
   'paces.easy.hot-none': tpl(
-    'Heat cannot be put in minutes without your own heart-rate line. On a hot day, go by effort.',
+    'Heat cannot be put in minutes from this line. On a hot day, go by effort.',
   ),
   'paces.easy.upgrade': tpl(
     'A pace from your own heart rate needs {need} steady, flat runs with heart rate in {weeks} weeks. {have} so far.',
     { need: 'count', weeks: 'count', have: 'count' },
   ),
-  'paces.easy.line-unclear': tpl(
-    'Your heart-rate line does not give an easy pace yet, because your runs cover a narrow range of speeds. Zone 1 stands in.',
+  'paces.easy.line-flat': tpl(
+    'Your heart-rate line is too flat to say which speed meets your zone 1 ceiling yet. Zone 1 stands in.',
+  ),
+  'paces.easy.line-outside': tpl(
+    'Your zone 1 ceiling sits outside the speeds of your steady runs, so the line cannot be read there yet. Zone 1 stands in.',
+  ),
+  'paces.easy.line-fast': tpl(
+    'The line puts your easy pace faster than easy running can be, so it is not used yet. Zone 1 stands in.',
+  ),
+  'paces.easy.line-slow': tpl(
+    'The line puts your easy pace slower than a brisk walk, so it is not used yet. Zone 1 stands in.',
   ),
   'paces.easy.none-heading': tpl('No easy pace yet', {}, { shape: 'label' }),
   'paces.easy.none-hr': tpl(
@@ -190,4 +200,16 @@ export type PlainPacesId = {
 /** A sentence or label of the page that has no slot. */
 export function pacesText(id: PlainPacesId): string {
   return render(PACES_TEMPLATES[id], {}, 'km')
+}
+
+const LINE_ISSUE_IDS = {
+  flat: 'paces.easy.line-flat',
+  'outside-runs': 'paces.easy.line-outside',
+  'too-fast': 'paces.easy.line-fast',
+  'too-slow': 'paces.easy.line-slow',
+} as const satisfies Record<LineIssue, PlainPacesId>
+
+/** Why the heart-rate line gave no easy pace, in plain words and with no blame. */
+export function lineIssueText(issue: LineIssue): string {
+  return pacesText(LINE_ISSUE_IDS[issue])
 }

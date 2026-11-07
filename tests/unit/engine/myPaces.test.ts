@@ -146,6 +146,79 @@ describe('where the heart-rate line speaks [C9]', () => {
   })
 })
 
+describe('the hot day is held to the same bounds as the cool one [C9]', () => {
+  // HR = 100 + 12 x speed on runs of 2.5 to 3.3 m/s, a ceiling of 135 bpm (hrMax 173 x 0.78)
+  const runs = Array.from({ length: 9 }, (_, i) =>
+    run(i, 2.5 + i * 0.1, {}, Math.round(100 + 12 * (2.5 + i * 0.1))),
+  )
+  const profile = { ...profileFixture, hrMax: 173 }
+
+  it('shows no hot figure when the heat moves the speed below the fitted ones', () => {
+    const model = fitHrModel(runs, TODAY)!
+    const { zones, view } = paces({ profile, activities: runs })
+    const ceiling = zones.hr!.z1[1]
+    expect(ceiling).toBe(135)
+    const pace = view.easy.pace!
+    // cool: (135 - intercept) / slope is about 2.9 m/s, inside 2.5 to 3.3 widened by the margin
+    const cool = (ceiling - model.interceptBpm) / model.slopeBpmPerMps
+    expect(cool).toBeGreaterThan(model.minSpeedMps * (1 - P.c9.lineSpeedMargin.value))
+    expect(pace.basis).toBe('hr-model')
+    expect(pace.range[1]).toBe(Math.round(1000 / cool))
+    // hot: the heat shift of about 12 bpm puts the line at about 1.9 m/s, under 2.25 m/s
+    const excess = P.i9.warnWbgtC.value - P.conditions.heatAdjustAboveWbgtC.value
+    const hot = (ceiling - model.heatBpmPerC * excess - model.interceptBpm) / model.slopeBpmPerMps
+    expect(hot).toBeLessThan(model.minSpeedMps * (1 - P.c9.lineSpeedMargin.value))
+    expect(hot).toBeGreaterThan(P.c9.walkingFloorMps.value)
+    expect(pace.hot).toBeNull()
+    expect(pace.rules).not.toContain('I9')
+  })
+})
+
+describe('why the line gives no pace [C9]', () => {
+  const cs = { csMps: 3.5, dPrimeM: 150, csEfforts: 3 }
+  const on = (speeds: number[], hr: (v: number) => number) =>
+    speeds.map((v, i) => run(i, v, {}, hr(v)))
+  const line = (v: number) => Math.round(90 + 20 * v)
+
+  it('is null when the line speaks, and when there is no line or ceiling to read', () => {
+    expect(paces({}).view.easy.lineIssue).toBeNull()
+    expect(paces({ activities: RUNS.slice(0, 3) }).view.easy.lineIssue).toBeNull()
+  })
+
+  it('names a line too flat to say', () => {
+    const runs = on([2.6, 2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4], () => 140)
+    expect(paces({ activities: runs }).view.easy.lineIssue).toBe('flat')
+  })
+
+  it('names a ceiling outside the speeds the runs cover', () => {
+    const profile = { ...profileFixture, hrMax: 170 }
+    const runs = on([3, 3.005, 3.01, 3.015, 3.02, 3.025, 3.03, 3.035, 3.04], line)
+    expect(paces({ profile, activities: runs }).view.easy.lineIssue).toBe('outside-runs')
+  })
+
+  it('names a line that never reaches the ceiling as outside the runs', () => {
+    // HR = 150 + 8 x speed: every run is above the 148 bpm ceiling, so no speed meets it
+    const runs = on([2.6, 2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4], (v) => Math.round(150 + 8 * v))
+    expect(paces({ activities: runs }).view.easy.lineIssue).toBe('outside-runs')
+  })
+
+  it('names a pace faster than easy running can be', () => {
+    const runs = on([4, 4.125, 4.25, 4.375, 4.5, 4.625, 4.75, 4.875, 5], (v) =>
+      Math.round(100 + 10 * v),
+    )
+    expect(paces({ activities: runs }).view.easy.lineIssue).toBe('too-fast')
+    const bounded = paces({ state: stateWith({ ...cs, csMps: 4.7 }), activities: runs })
+    expect(bounded.view.easy.lineIssue).toBe('too-fast')
+  })
+
+  it('names a pace slower than a walk', () => {
+    // a ceiling of 118 bpm meets HR = 90 + 20 x speed at 1.4 m/s, inside runs of 1.2 to 1.8
+    const profile = { ...profileFixture, hrMax: 151 }
+    const runs = on([1.2, 1.275, 1.35, 1.425, 1.5, 1.575, 1.65, 1.725, 1.8], line)
+    expect(paces({ profile, activities: runs }).view.easy.lineIssue).toBe('too-slow')
+  })
+})
+
 describe('easy pace from the zones, else none [C9, C2, C4]', () => {
   it('takes the Z1 pace range of the zones when no line qualifies, from critical speed', () => {
     const state = stateWith({ csMps: 3.5, dPrimeM: 150, csEfforts: 3 })

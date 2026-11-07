@@ -32,8 +32,8 @@ async function scrollsSideways(): Promise<boolean> {
 }
 
 /**
- * Nine steady flat runs inside the last eight weeks on the line HR = 90 + 20 x speed, speeds 2.6 to
- * 3.4 m/s, and a 10 km race 40 days ago. With a measured maximum of 190 the top of zone 1 is 148
+ * Nine steady flat runs inside the last eight weeks on the line HR = 90 + 20 x speed, speeds 2.3 to
+ * 3.1 m/s, and a 10 km race 40 days ago. With a measured maximum of 190 the top of zone 1 is 148
  * bpm, where the line meets 2.9 m/s.
  */
 async function seedRunner(): Promise<void> {
@@ -44,7 +44,7 @@ async function seedRunner(): Promise<void> {
     const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
     const durationSec = 40 * 60
     for (let i = 0; i < 9; i += 1) {
-      const speed = 2.6 + i * 0.1
+      const speed = 2.3 + i * 0.1
       const avgHr = Math.round(90 + 20 * speed)
       const metres = Math.round(speed * durationSec)
       await prisma.activity.create({

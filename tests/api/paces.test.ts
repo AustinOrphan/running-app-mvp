@@ -49,13 +49,13 @@ async function withMeasuredMax(user: TestUser): Promise<void> {
 }
 
 /**
- * Nine steady flat runs inside the last eight weeks, on the line HR = 90 + 20 x speed, speeds 2.6
- * to 3.4 m/s: the line meets 148 bpm at 2.9 m/s.
+ * Nine steady flat runs inside the last eight weeks, on the line HR = 90 + 20 x speed, speeds 2.3
+ * to 3.1 m/s: the line meets 148 bpm at 2.9 m/s, and its hot-day speed stays inside the fitted ones.
  */
 async function withSteadyRuns(user: TestUser): Promise<void> {
   const durationSec = 40 * 60
   for (let i = 0; i < 9; i += 1) {
-    const speed = 2.6 + i * 0.1
+    const speed = 2.3 + i * 0.1
     const avgHr = Math.round(90 + 20 * speed)
     const metres = Math.round(speed * durationSec)
     await ctx.prisma.activity.create({

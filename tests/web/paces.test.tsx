@@ -38,8 +38,9 @@ function serve(
   state = stateWith(FITNESS),
   activities = RUNS,
   units: Units = 'km',
+  profile = profileFixture,
 ): { view: MyPacesView; routes: Parameters<typeof mockApi>[0] } {
-  const { view, zones } = paces({ state, activities, events: [...PACE_EVENTS] })
+  const { view, zones } = paces({ state, activities, profile, events: [...PACE_EVENTS] })
   const full: MyPacesView = { ...view, custom: null }
   return {
     view: full,
@@ -130,17 +131,54 @@ describe('MyPacesPage: the easy pace', () => {
     ).toBeInTheDocument()
   })
 
-  test('says a line that cannot be read yet leaves zone 1 standing in, and names a default heat rise', async () => {
-    // nine runs, all at 140 bpm whatever the speed: a flat line
-    const flat = Array.from({ length: 9 }, (_, i) => run(i, 3 + i * 0.005, {}, 140))
-    const { routes } = serve(stateWith(FITNESS), flat)
+  // One reading of each reason the heart-rate line gives no pace, each in its own words.
+  const speeds = (from: number, step: number) =>
+    Array.from({ length: 9 }, (_, i) => from + i * step)
+  test.each([
+    {
+      reason: 'flat',
+      runs: speeds(2.6, 0.1).map((v, i) => run(i, v, {}, 140)),
+      hrMax: 190,
+      words: /^Your heart-rate line is too flat to say which speed meets your zone 1 ceiling/,
+    },
+    {
+      reason: 'outside-runs',
+      runs: speeds(3, 0.005).map((v, i) => run(i, v)),
+      hrMax: 170,
+      words: /^Your zone 1 ceiling sits outside the speeds of your steady runs/,
+    },
+    {
+      reason: 'too-fast',
+      runs: speeds(4, 0.125).map((v, i) => run(i, v, {}, Math.round(100 + 10 * v))),
+      hrMax: 190,
+      words: /^The line puts your easy pace faster than easy running can be/,
+    },
+    {
+      reason: 'too-slow',
+      runs: speeds(1.2, 0.075).map((v, i) => run(i, v)),
+      hrMax: 151,
+      words: /^The line puts your easy pace slower than a brisk walk/,
+    },
+  ])('says why a $reason line leaves zone 1 standing in', async ({ runs, hrMax, words }) => {
+    const { view, routes } = serve(stateWith(FITNESS), runs, 'km', { ...profileFixture, hrMax })
+    expect(view.easy.pace?.basis).not.toBe('hr-model')
     mockApi(routes)
     renderWithProviders(<MyPacesPage />, { route: '/paces' })
     const easy = await screen.findByRole('region', { name: 'Easy pace' })
-    expect(
-      within(easy).getByText(/^Your heart-rate line does not give an easy pace yet/),
-    ).toBeInTheDocument()
+    expect(within(easy).getByText(words)).toBeInTheDocument()
     expect(within(easy).queryByText(/default heat rise/)).toBeNull()
+    expect(within(easy).queryByText(/steady, flat runs with heart rate in/)).toBeNull()
+  })
+
+  test('with no zones to stand in, says the reason instead of asking for more runs', async () => {
+    const flat = speeds(2.6, 0.1).map((v, i) => run(i, v, {}, 140))
+    const { routes } = serve(stateWith({}), flat)
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const easy = await screen.findByRole('region', { name: 'Easy pace' })
+    expect(within(easy).getByText('No easy pace yet')).toBeInTheDocument()
+    expect(within(easy).getByText(/^Your heart-rate line is too flat/)).toBeInTheDocument()
+    expect(within(easy).queryByText(/^Wear a heart-rate monitor/)).toBeNull()
   })
 
   test('says in the disclosure that the heat rise is a default until hot runs of the runner exist', async () => {

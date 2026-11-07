@@ -114,6 +114,8 @@ export interface MyPaces {
   asOf: string
   easy: {
     pace: EasyPace | null
+    /** Why the heart-rate line gave no pace though there is one and a ceiling to read it at. */
+    lineIssue: LineIssue | null
     /** The Z1 pace range of the zones, whatever the basis, for a comparison; null without one. */
     zoneRange: PaceBand | null
     hr: HrLineNeeds
@@ -165,18 +167,33 @@ function speedAtHr(model: HrModel, bpm: number): number | null {
 }
 
 /**
- * Whether the line can be read at this speed (rule C9): steep enough to say which speed meets a
- * heart rate, inside the speeds it was fitted on widened by a margin (beyond them it extrapolates),
- * not slower than a walk, and under critical speed or, with none, under a ceiling on easy speed.
+ * Why the line gives no easy pace, a closed set the page words one by one: `flat` (too little slope
+ * to say which speed meets a heart rate), `outside-runs` (the speed lies beyond the speeds the line
+ * was fitted on, widened by a margin, or the line never reaches the ceiling), `too-fast` (at or above
+ * critical speed or, with none, above the ceiling on easy speed) and `too-slow` (slower than a walk).
  */
-function lineSpeaksAt(model: HrModel, speed: number, csMps: number | null): boolean {
-  if (!(model.slopeBpmPerMps >= P.c9.lineMinSlopeBpmPerMps.value)) return false
+export type LineIssue = 'flat' | 'outside-runs' | 'too-fast' | 'too-slow'
+
+/** The slowest speed the line is read at: the fitted speeds widened by a margin, never a walk. */
+function slowestReadableMps(model: HrModel): number {
+  return Math.max(model.minSpeedMps * (1 - P.c9.lineSpeedMargin.value), P.c9.walkingFloorMps.value)
+}
+
+/**
+ * Why the line cannot be read at this speed (rule C9), or null when it can: steep enough, inside
+ * the fitted speeds widened by a margin, not slower than a walk, and under critical speed or, with
+ * none, under a ceiling on easy speed. `speed` null is a line that never reaches the heart rate.
+ */
+function lineIssueAt(model: HrModel, speed: number | null, csMps: number | null): LineIssue | null {
+  if (!(model.slopeBpmPerMps >= P.c9.lineMinSlopeBpmPerMps.value)) return 'flat'
+  if (speed === null) return 'outside-runs'
   const margin = P.c9.lineSpeedMargin.value
   if (speed < model.minSpeedMps * (1 - margin) || speed > model.maxSpeedMps * (1 + margin)) {
-    return false
+    return 'outside-runs'
   }
-  if (speed < P.c9.walkingFloorMps.value) return false
-  return csMps === null ? speed <= P.c9.maxEasySpeedMps.value : speed < csMps
+  if (speed < P.c9.walkingFloorMps.value) return 'too-slow'
+  if (csMps === null ? speed > P.c9.maxEasySpeedMps.value : speed >= csMps) return 'too-fast'
+  return null
 }
 
 /** The slow edge of Z1 from its fast edge, the shape of the zones' own Z1 pace range. */
@@ -187,21 +204,36 @@ function bandFromFast(fastSecPerKm: number): PaceBand {
 function hrBasedPace(
   input: MyPacesInput,
   sample: { runs: number; first: string | null },
-): EasyPace | null {
+): { pace: EasyPace | null; issue: LineIssue | null } {
   const { hrModel, zones, state } = input
   const ceiling = ceilingOf(zones)
-  if (hrModel === null || ceiling === null || sample.first === null) return null
+  if (hrModel === null || ceiling === null || sample.first === null) {
+    return { pace: null, issue: null }
+  }
   const speed = speedAtHr(hrModel, ceiling)
   // A line that cannot be read at the ceiling gives no pace: the zones answer instead.
-  if (speed === null || !lineSpeaksAt(hrModel, speed, state.fitness.csMps)) return null
+  const issue = lineIssueAt(hrModel, speed, state.fitness.csMps)
+  if (issue !== null || speed === null) return { pace: null, issue }
+  return { pace: hrPaceAt(input, sample.first, ceiling, speed, hrModel), issue: null }
+}
 
+function hrPaceAt(
+  input: MyPacesInput,
+  since: string,
+  ceiling: number,
+  speed: number,
+  hrModel: HrModel,
+): EasyPace {
+  const { zones } = input
   const range = bandFromFast(paceOf(speed))
   const hotWbgt = P.i9.warnWbgtC.value
-  // The heat term is always positive (the population prior moves it by shrinkage); it is the
-  // runner's own only with hot runs of their own, and the hot figure says which.
+  // The hot speed is held to the same slow bound as the cool one: below the fitted speeds the line
+  // extrapolates, and then there is no hot figure and the page says to go by effort. The heat term
+  // is always positive (the population prior moves it by shrinkage); it is the runner's own only
+  // with hot runs of their own, and the hot figure says which.
   const hotSpeed = speedAtHr(hrModel, ceiling - hrModel.heatBpmPerC * heatExcessC(hotWbgt))
   const hot =
-    hotSpeed !== null && hotSpeed >= P.c9.walkingFloorMps.value
+    hotSpeed !== null && hotSpeed >= slowestReadableMps(hrModel)
       ? {
           wbgtC: hotWbgt,
           range: bandFromFast(paceOf(hotSpeed)),
@@ -214,7 +246,7 @@ function hrBasedPace(
     range,
     ceilingBpm: ceiling,
     ceilingBandBpm: zones.lt1Hr === null ? null : (zones.lt1Hr.band[1] - zones.lt1Hr.band[0]) / 2,
-    sample: { runs: hrModel.runs, since: sample.first },
+    sample: { runs: hrModel.runs, since },
     confidence: zones.lt1Hr?.source === 'hrmax-age' ? 'low' : 'moderate',
     grade: lowestGrade(
       gradesOf([
@@ -379,11 +411,13 @@ export function eventRow(state: AthleteState, spec: EventSpec): EventRow {
 export function myPaces(input: MyPacesInput, events: readonly EventSpec[]): MyPaces {
   const { state, zones, today } = input
   const sample = hrModelSample(input.activities, today)
-  const pace = hrBasedPace(input, sample) ?? zoneBasedPace(zones)
+  const fromLine = hrBasedPace(input, sample)
+  const pace = fromLine.pace ?? zoneBasedPace(zones)
   return {
     asOf: today,
     easy: {
       pace,
+      lineIssue: fromLine.issue,
       zoneRange: zones.pace === null ? null : [zones.pace.z1[0], zones.pace.z1[1]],
       hr: {
         runs: sample.runs,

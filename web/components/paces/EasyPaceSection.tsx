@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import { gradeLegend } from '../../../shared/copy/grades.ts'
-import { PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
+import { lineIssueText, PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
 import { render } from '../../../shared/copy/template.ts'
 import type { EasyPace, MyPaces } from '../../../shared/engine/myPaces.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -84,7 +84,9 @@ function NoPace({ easy, units }: { easy: MyPaces['easy']; units: Units }) {
   return (
     <div className={styles.empty}>
       <p className={styles.emptyTitle}>{pacesText('paces.easy.none-heading')}</p>
-      {easy.hr.ceiling ? (
+      {easy.lineIssue !== null ? (
+        <p className={styles.text}>{lineIssueText(easy.lineIssue)}</p>
+      ) : easy.hr.ceiling ? (
         <p className={styles.text}>
           {render(
             T['paces.easy.none-hr'],
@@ -180,8 +182,8 @@ export function EasyPaceSection({ easy, units }: EasyPaceSectionProps) {
           </div>
           {pace.basis !== 'hr-model' && easy.hr.ceiling ? (
             <p className={styles.note}>
-              {easy.hr.runs >= easy.hr.need
-                ? pacesText('paces.easy.line-unclear')
+              {easy.lineIssue !== null
+                ? lineIssueText(easy.lineIssue)
                 : render(
                     T['paces.easy.upgrade'],
                     {

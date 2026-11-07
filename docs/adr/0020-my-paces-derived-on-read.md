@@ -27,7 +27,10 @@ the race plan (ADR 0018) and the strength workout (ADR 0014) are.
   the anchor it came from (a tested threshold pace or critical speed); else none, with what would give
   one. The line is used only where it speaks: a minimum slope, the solved speed inside the fitted
   speeds widened by a margin, not slower than a walk and under critical speed (or, with none, under
-  a ceiling on easy speed), all Params of rule C9 (grade D).
+  a ceiling on easy speed), all Params of rule C9 (grade D). The hot-day speed is held to the same slow bound (the fitted speeds widened by the margin,
+  never a walk); beyond it there is no hot figure and the page says to go by effort. When the line
+  does not speak, the view says why in one of four plain lines (flat, outside the runs, too fast, too
+  slow).
 - A hot day moves the line by its heat term at `i9.warnWbgtC`. The term is the runner's own with
   `hrModel.shrinkagePriorRuns` or more hot runs and the population default otherwise, and the page
   labels the figure so; a climb moves the pace by

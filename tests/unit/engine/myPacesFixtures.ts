@@ -71,8 +71,8 @@ export function run(
   }
 }
 
-/** Nine steady flat runs on the line HR = 90 + 20 x speed, speeds 2.6 to 3.4 m/s. */
-export const RUNS = Array.from({ length: 9 }, (_, i) => run(i, 2.6 + i * 0.1))
+/** Nine steady flat runs on the line HR = 90 + 20 x speed, speeds 2.3 to 3.1 m/s. */
+export const RUNS = Array.from({ length: 9 }, (_, i) => run(i, 2.3 + i * 0.1))
 
 export function stateWith(
   fitness: Partial<AthleteState['fitness']> = {},
