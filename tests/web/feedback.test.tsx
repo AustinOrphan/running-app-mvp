@@ -5,6 +5,7 @@ import type { Activity } from '../../shared/types.ts'
 import { FeelPicker } from '../../web/components/FeelPicker.tsx'
 import { ScalePicker } from '../../web/components/ScalePicker.tsx'
 import { ToastProvider } from '../../web/components/Toast.tsx'
+import { ActivityForm } from '../../web/pages/ActivityForm.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
 import { makeActivity } from '../factories.ts'
 import {
@@ -255,18 +256,26 @@ describe('Activities list and form', () => {
     return api
   }
 
-  test('each row links to the detail page', async () => {
+  test('each row is a link to the detail page', async () => {
     renderList([makeActivity({ id: 'a9', date: '2026-03-17', type: 'run' })])
-    const link = await screen.findByRole('link', { name: /^Details/ })
+    const link = await screen.findByRole('link', { name: /^Run, / })
     expect(link).toHaveAttribute('href', '/activities/a9')
   })
 
   test('the edit sheet carries feel and pain and sends them back', async () => {
     const user = userEvent.setup()
-    const api = renderList([
-      makeActivity({ id: 'a9', date: '2026-03-17', type: 'run', feel: 1, pain: 3 }),
-    ])
-    await user.click(await screen.findByRole('button', { name: /3\.11 mi/ }))
+    const row = makeActivity({ id: 'a9', date: '2026-03-17', type: 'run', feel: 1, pain: 3 })
+    const api = mockApi({
+      'GET /api/settings': () => settings,
+      'GET /api/activities': () => activityPage([row]),
+      'PUT /api/activities/a9': () => ({}),
+    })
+    // the list no longer opens the sheet; the activity page does, and the sheet is the same
+    renderWithProviders(
+      <ToastProvider>
+        <ActivityForm open activity={row} onClose={() => {}} />
+      </ToastProvider>,
+    )
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     expect(within(dialog).getByRole('button', { name: 'Harder' })).toHaveAttribute(
       'aria-pressed',
