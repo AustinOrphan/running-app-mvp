@@ -234,6 +234,19 @@ const RUN_CHANNELS: ReadonlySet<string> = new Set(['pull', 'push', 'folder'])
 /** The activity types a source is silent about: its runs and its races. */
 const RUN_TYPES = ['run', 'race']
 
+/**
+ * The `Activity.source` values that a provider's runs are stored under, where they differ from the
+ * provider's key: the watched folder stores its activities as `file` (`ingest` in `folder.ts`;
+ * only its `ImportBatch` carries `folder`). A hand-uploaded activity file is stored as `file` too,
+ * so it counts as a delivery from the folder. A pull or push provider stores its runs under its
+ * key (`sync.ts`, `routes/ingest.ts`), so it needs no row here.
+ */
+const STORED_AS: Readonly<Record<string, readonly string[]>> = { folder: ['file'] }
+
+function storedAs(provider: string): string[] {
+  return [...(STORED_AS[provider] ?? [provider])]
+}
+
 interface SourceRow {
   provider: string
   label: string
@@ -312,7 +325,7 @@ export async function sourceHealthNotes({
       }
       if (row.status !== 'connected' || isPaused(row, now)) return null
       const newest = await prisma.activity.findFirst({
-        where: { userId, source: row.provider, type: { in: RUN_TYPES } },
+        where: { userId, source: { in: storedAs(row.provider) }, type: { in: RUN_TYPES } },
         orderBy: { date: 'desc' },
         select: { date: true },
       })
@@ -334,8 +347,9 @@ export async function sourceHealthNotes({
  * What moves the page's ETag for the source notes. `Integration` is outside the data version, so
  * each source's status, `pausedUntil` (and whether it is still in the future, which changes with
  * the clock and no write), and `createdAt` (the day a source with no run counts from) are read
- * here, with the newest run date of each source; a new run is a state write and the data version
- * already moves for it. A status that flips to `needs_auth` with no other write moves the tag.
+ * here. The newest run of a source is not: `Activity` is a state model, so the data version already
+ * moves for any run written, and a stamp of it would repeat that. A status that flips to
+ * `needs_auth` with no other write moves the tag.
  */
 export async function sourceNotesStamp({
   deps,
@@ -348,12 +362,6 @@ export async function sourceNotesStamp({
   const rows = await sourceRows(prisma, userId)
   if (rows.length === 0) return 'sources:none'
   const now = new Date()
-  const newest = await prisma.activity.groupBy({
-    by: ['source'],
-    where: { userId, source: { in: rows.map((row) => row.provider) }, type: { in: RUN_TYPES } },
-    _max: { date: true },
-  })
-  const newestBySource = new Map(newest.map((group) => [group.source, group._max.date]))
   const parts = rows.map((row) =>
     [
       row.provider,
@@ -361,7 +369,6 @@ export async function sourceNotesStamp({
       row.pausedUntil === null ? 'none' : String(row.pausedUntil.getTime()),
       isPaused(row, now) ? 'paused' : 'open',
       String(row.createdAt.getTime()),
-      newestBySource.get(row.provider) ?? 'no-run',
     ].join('.'),
   )
   return `sources:${parts.join(',')}`

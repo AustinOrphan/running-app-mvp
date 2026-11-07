@@ -133,6 +133,12 @@ async function connect(
   })
 }
 
+/**
+ * The `Activity.source` of what the watched folder stores (`ingest` in `server/services/folder.ts`):
+ * `file`, not the provider key `folder`, which only the `ImportBatch` of a scan carries.
+ */
+const FOLDER_STORES = 'file'
+
 /** A stored activity that a source delivered. */
 async function delivered(u: TestUser, source: string, date: string, type = 'run') {
   return ctx.prisma.activity.create({
@@ -295,7 +301,7 @@ describe('GET /api/today: a silent source', () => {
     await connect(u, 'garmin')
     await connect(u, 'strava', { createdAt: new Date(2026, 9, 11, 12) })
     await delivered(u, 'garmin', daysAgo(9))
-    await delivered(u, 'folder', daysAgo(6))
+    await delivered(u, FOLDER_STORES, daysAgo(6))
     const notes = await sourceNotesFor(u)
     expect(notes.map((note) => [note.code, note.slots.source])).toEqual([
       ['source-silent', 'Strava'],
@@ -304,6 +310,30 @@ describe('GET /api/today: a silent source', () => {
     ])
     // Strava never delivered a run, so it counts from the day it was connected.
     expect(notes[0]!.slots.since).toEqual({ kind: 'date', iso: daysAgo(10), style: 'short' })
+  })
+
+  test('reads the runs of a watched folder under the source the folder stores, file', async () => {
+    const u = await runnerPlanning('sources-folder@example.com', [daysAgo(3), daysAgo(1)])
+    // Connected ten days ago: a lookup that missed the folder's runs would count from that day.
+    await connect(u, 'folder', { createdAt: new Date(2026, 9, 11, 12) })
+    await delivered(u, FOLDER_STORES, daysAgo(2))
+    expect(await sourceNotesFor(u)).toEqual([])
+
+    // The same folder, quiet since its last file: named, with the day of that file.
+    const quiet = await runnerPlanning('sources-folder-quiet@example.com', [daysAgo(3), daysAgo(1)])
+    await connect(quiet, 'folder', { createdAt: new Date(2026, 9, 11, 12) })
+    await delivered(quiet, FOLDER_STORES, daysAgo(6))
+    expect(await sourceNotesFor(quiet)).toEqual([
+      {
+        code: 'source-silent',
+        template: 'today.health.source-silent',
+        slots: {
+          source: 'Watched folder',
+          since: { kind: 'date', iso: daysAgo(6), style: 'short' },
+        },
+        href: '/integrations',
+      },
+    ])
   })
 
   test('counts a source that has stored no run from the day it was connected', async () => {
@@ -383,6 +413,26 @@ describe('GET /api/today: the tag of the source notes', () => {
     expect(sourceNotes(notesOf(mended))).toEqual([])
   })
 
+  test('a request holding the current tag reads the connections and no activity', async () => {
+    const u = await runnerPlanning('sources-tag-reads@example.com', [daysAgo(3), daysAgo(1)])
+    await connect(u, 'strava')
+    await delivered(u, 'strava', daysAgo(1))
+    const tag = tagOf(await getToday(u))
+    type Delegate = Record<string, (...args: unknown[]) => unknown>
+    const activity = ctx.prisma.activity as unknown as Delegate
+    const activityReads = ['findMany', 'findFirst', 'count', 'aggregate', 'groupBy'].map((method) =>
+      vi.spyOn(activity, method),
+    )
+    const connectionReads = vi.spyOn(ctx.prisma.integration as unknown as Delegate, 'findMany')
+    try {
+      expect((await getToday(u).set('If-None-Match', tag)).status).toBe(304)
+      expect(connectionReads).toHaveBeenCalledTimes(1)
+      for (const spy of activityReads) expect(spy).not.toHaveBeenCalled()
+    } finally {
+      for (const spy of [...activityReads, connectionReads]) spy.mockRestore()
+    }
+  })
+
   test('moves when a pause ends by the clock, and when the connection is removed', async () => {
     const u = await runnerPlanning('sources-tag-clock@example.com', [daysAgo(3), daysAgo(1)])
     const row = await connect(u, 'strava', {
@@ -404,7 +454,7 @@ describe('GET /api/today: the tag of the source notes', () => {
     expect(sourceNotes(notesOf(removed))).toEqual([])
   })
 
-  test('moves when the source stores a run, through the data version and the newest run date', async () => {
+  test('moves when the source stores a run, through the data version', async () => {
     const u = await runnerPlanning('sources-tag-run@example.com', [daysAgo(3), daysAgo(1)])
     await connect(u, 'strava')
     await delivered(u, 'strava', daysAgo(6))
