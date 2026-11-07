@@ -3,7 +3,30 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-11-01.
+Last update: 2026-11-07.
+
+## Waiting on the owner (2026-11-07)
+
+Each item names the default that holds until the owner answers.
+
+1. **Collect the sources.** Books (pages photographed with the copyright page): _Daniels' Running
+   Formula_ 4th ed. (the long-run limit), _Run Less, Run Faster_ 3rd ed. (the 3PLUS2 chapters),
+   Lydiard and Gilmour 1997 (the phase lengths), Koop 2nd ed. (recovery after a race, long run by
+   distance), Pfitzinger 4th ed. (low). Papers, full text: Tyler 2016 with its erratum, Ely 2007,
+   Mountjoy 2023 with its correction, Warden 2014, Zourdos 2016, Jukic 2024, Paulsen 2025, Doherty
+   2020, Bourdon 2017, Keogh 2016. Pages saved from a browser: the Higdon advanced 5K plan, the
+   original Couch-to-5K text. Into `data/sources/` (git-ignored). Default: the rules that cite them
+   keep their present grades.
+2. **Rest days between runs on an injury-return ladder** (RU3): `injuryReturn.restDaysBetween` is 1
+   day; its tendon source says 2 to 3. Recommended: 2. Default: 1 until answered.
+3. **Passive heat before a warm race** (the heat pass): may the plan suggest sauna or hot-water
+   immersion, not only running in the heat? Default: no; only runs at 25 °C or more count.
+4. **A runner who runs more than planned** (rule E7, RU2): a re-plan carries on from the stored
+   week, so weeks run above the plan never lift the weekly ceiling; only a new plan reads the
+   level. Default: as is (the cautious choice; no study supports lifting it).
+5. **Move the live copy to an always-on home server.** The service files and the cutover runbook
+   are in the owner's private homelab repository, not yet committed there. Default: the live copy
+   stays on the laptop under tmux, and its scheduled jobs stop whenever the laptop sleeps.
 
 ## Where things stand
 
