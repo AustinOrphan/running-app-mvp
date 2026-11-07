@@ -853,7 +853,15 @@ function generate(
       // whether it holds the run or drops it.
       const dayBefore = shakeOut?.dayBefore ?? ''
       const stored = keep.plannedOn.get(dayBefore) ?? 0
-      const others = still === null ? 0 : still - stored
+      // What the plan still has before the race, up to and including the day before. The return runs
+      // after the race (flagged `post-race`, in the tail of the race week) are placed apart from the
+      // week's minutes, so they are no part of the bound of the other runs [rules G-6, K6, H12].
+      const firstDay = week.weekStart > today ? week.weekStart : today
+      let stillBefore = 0
+      for (const [date, minutes] of keep.plannedOn) {
+        if (date >= firstDay && date <= dayBefore) stillBefore += minutes
+      }
+      const others = still === null ? 0 : stillBefore - stored
       const isNew = (r: DayRule) =>
         (r.held || r.maxRunMin !== null) && (keep.plannedOn.get(r.date) ?? 0) > (r.maxRunMin ?? 0)
       const fitRules = weekRules.filter((r) => !isNew(r))
@@ -871,7 +879,7 @@ function generate(
         still !== null && !(figure !== undefined && figure === still) && shakeHere && others > 0
       let bound = still
       if (fitted) {
-        const fixed = targetForNet(others, shareOn, still)
+        const fixed = targetForNet(others, shareOn, stillBefore)
         const share = shareOn(fixed)
         // A week that cannot hold a run on the day before at any target near the plan's (too few
         // minutes for two runs of the shortest length, say) is not the week the plan had: the
@@ -883,6 +891,8 @@ function generate(
           knownOnDayBefore = fitRules.filter(
             (r) => r.date === dayBefore && (r.held || r.maxRunMin !== null),
           )
+        } else {
+          bound = stillBefore
         }
       }
       planWeek = remainingOfWeek(week, done, keptRunDates, keptMin, bound)

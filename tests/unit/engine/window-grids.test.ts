@@ -502,28 +502,27 @@ byHand('the grids of the third review of RF2 (by hand)', () => {
       cap.value = savedCap
       threshold.value = savedThreshold
     }
-    // The weeks of the marathon, hot-race and returning runners are runs of 20 to 30 minutes, and a
-    // limit of 25 minutes on the day before sits between the shortest easy run and the run the share
-    // gives the day: the passes below are the ones the engine before the rounds on the day before
-    // (42bc480f) also draws, 186 in all and the same passes, and the weeks of a Monday race of the
-    // hot-race runner. They are listed for a later task and kept out of the assertion.
-    const residual = [
+    // The passes below the stored plan that the engine before the rounds on the day before (42bc480f)
+    // also draws, 174 of them in 58 chains: the marathon and hot-race runners (weeks of runs of 23
+    // minutes) with a limit of 25 minutes on the day before, the limit sitting between the shortest
+    // easy run and the share of the day, and the weeks of a Monday race of the hot-race runner. They
+    // are listed for a later task and kept out of the assertion, with their number pinned. No pass
+    // above the stored plan is excused.
+    const residualBelow: RegExp[] = [
       /^(marathon|hot-race), .* limit 25 /,
       /^hot-race, race on day 0, /,
-      /^half, race on day 5, limit 25 on the day before, cap (0|10), re-plan on day 0/,
-      /^returning, race on day 5, limit 25 on the day before, cap (0|10), re-plan on day 2, pass 2/,
     ]
-    const excused = (line: string) => residual.some((pattern) => pattern.test(line))
-    const below = lost.filter((line) => !excused(line))
-    const above = gained.filter((line) => !excused(line))
+    const excusedBelow = lost.filter((line) => residualBelow.some((pattern) => pattern.test(line)))
+    const below = lost.filter((line) => !excusedBelow.includes(line))
     console.log(
-      `known-window grid: ${chains} chains, ${passes} passes, ${held} chains the rule-free engine holds, ${below.length} passes below the stored plan where it holds them and ${above.length} above where it does not exceed them (${lost.length + gained.length - below.length - above.length} more excused)`,
+      `known-window grid: ${chains} chains, ${passes} passes, ${held} chains the rule-free engine holds, ${below.length} passes below the stored plan where it holds them and ${gained.length} above where it does not exceed them (${excusedBelow.length} below excused)`,
     )
     for (const line of below) console.log(`  below: ${line}`)
-    for (const line of above) console.log(`  above: ${line}`)
+    for (const line of gained) console.log(`  above: ${line}`)
+    for (const line of excusedBelow) console.log(`  excused below: ${line}`)
     expect(chains).toBe(3645)
     expect(below).toEqual([])
-    expect(above).toEqual([])
-    expect(lost.length + gained.length).toBeLessThanOrEqual(186)
+    expect(gained).toEqual([])
+    expect(excusedBelow.length).toBe(174)
   })
 })

@@ -433,6 +433,49 @@ describe('a week too short to place the day before at any target', () => {
   })
 })
 
+describe('a race early in the week: the return runs after it are no part of the bound', () => {
+  // The week of a race on the Thursday or the Saturday holds a return run after it, flagged
+  // `post-race` and placed apart from the minutes before the race. The minutes the plan still had
+  // counted it, so the fit of the other runs took it for one of them and the week was placed above
+  // the stored one: 46 stored, 46, 61 and 46 planned over three passes; 81 stored and 83; 27 stored
+  // and 20, 36 and 20. The window is known on the day before and its limit is above the cap.
+  it.each([
+    ['marathon', 3, 0, 0],
+    ['marathon', 3, 10, 0],
+    ['hot-race', 3, 0, 0],
+    ['hot-race', 3, 10, 0],
+    ['half', 5, 0, 0],
+    ['half', 5, 10, 0],
+    ['returning', 5, 0, 2],
+    ['returning', 5, 10, 2],
+  ])(
+    'gives the week back: %s, race on day %i, cap %i, re-plan on day %i',
+    (id, raceDay, cap, day) => {
+      const a = athlete(id).input
+      const race = addDays(mondayOf(a.goal.date), raceDay)
+      const input: EngineInput = {
+        ...a,
+        goal: { ...a.goal, date: race },
+        disruptions: [limited(addDays(race, -1), 25)],
+      }
+      const param = P.k6.dayBeforeMaxMin as { value: number }
+      const saved = param.value
+      try {
+        param.value = cap
+        const { stored, passes } = replanPasses(input, addDays(mondayOf(race), day))
+        expect(stored.length).toBeGreaterThan(0)
+        passes.forEach((pass, i) =>
+          expect(total(pass), `pass ${String(i + 1)}`).toBe(total(stored)),
+        )
+        expect(JSON.stringify(passes[1])).toBe(JSON.stringify(passes[0]))
+        expect(JSON.stringify(passes[2])).toBe(JSON.stringify(passes[0]))
+      } finally {
+        param.value = saved
+      }
+    },
+  )
+})
+
 describe('a method preset: the race week is cut once', () => {
   // The default places the week net of the cut and the preset is held to those minutes [rule G6]; the
   // preset is cut by its own cap, so it is placed at the target whose placement, cut once, totals them
