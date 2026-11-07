@@ -50,6 +50,7 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
     ladder: fuel.ladder,
     weightKg: context.profile.weightKg,
     acclimationCredit: context.state.heatAcclimation,
+    checkpoints: [],
     today,
   })
   return { plan, reason: null }

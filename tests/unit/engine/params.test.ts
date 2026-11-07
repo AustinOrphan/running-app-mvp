@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-07.1')
+    expect(PARAMS_VERSION).toBe('2026-11-07.2')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -346,12 +346,20 @@ describe('parameter registry', () => {
     expect(lintText(text)).toEqual([])
   })
 
-  it('carries the race plan of rule H14 as three labelled defaults, read by the plan', () => {
-    const r1 = [P.r1.thirds, P.r1.arrivalRoundMin, P.r1.raceWeekCardDays]
+  it('carries the race plan of rule H14 as five labelled defaults, read by the plan', () => {
+    const r1 = [
+      P.r1.thirds,
+      P.r1.arrivalRoundMin,
+      P.r1.raceWeekCardDays,
+      P.r1.maxCheckpoints,
+      P.r1.unenteredClimbShare,
+    ]
     expect(r1.map((p) => [p.id, p.value, p.unit, p.grade, p.rule, p.evidence])).toEqual([
       ['r1.thirds', 3, 'parts', 'D', 'H14', []],
       ['r1.arrivalRoundMin', 10, 'min', 'D', 'H14', []],
       ['r1.raceWeekCardDays', 7, 'days', 'D', 'H14', []],
+      ['r1.maxCheckpoints', 40, 'rows', 'D', 'H14', []],
+      ['r1.unenteredClimbShare', 1, 'share', 'D', 'H14', []],
     ])
     for (const p of r1) {
       expect(p.note, p.id).toMatch(/^Default:/)
@@ -365,7 +373,13 @@ describe('parameter registry', () => {
     const text = engineRules.slice(start, engineRules.indexOf('## (i) Environment', start))
     expect(start).toBeGreaterThan(-1)
     expect(text).toContain('Read by the engine (added 2026-11-07)')
-    for (const id of ['r1.thirds', 'r1.arrivalRoundMin', 'r1.raceWeekCardDays']) {
+    for (const id of [
+      'r1.thirds',
+      'r1.arrivalRoundMin',
+      'r1.raceWeekCardDays',
+      'r1.maxCheckpoints',
+      'r1.unenteredClimbShare',
+    ]) {
       expect(text, id).toContain(`\`${id}\``)
     }
     for (const id of [

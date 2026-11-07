@@ -74,6 +74,7 @@ function input(overrides: Partial<RacePlanInput> = {}): RacePlanInput {
     ladder: ladderOf([run(0), run(1), run(2)]),
     weightKg: 70,
     acclimationCredit: 0.4,
+    checkpoints: [],
     today: '2026-06-09',
     ...overrides,
   }

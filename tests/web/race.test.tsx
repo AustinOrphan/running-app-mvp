@@ -67,6 +67,7 @@ function planWith(
         }),
         weightKg: 70,
         acclimationCredit: 0.2,
+        checkpoints: [],
         today: TODAY,
       }),
     ),
