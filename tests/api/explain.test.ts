@@ -420,9 +420,10 @@ describe('GET /api/explain: the answer', () => {
         expect(sentence).not.toMatch(/\d{4}-\d{2}-\d{2}|NaN|undefined/)
       }
     }
-    // the body carries no sentence: values are numbers, ISO dates and short words
+    // the body carries no sentence: values are numbers, ISO dates and short words. The number must
+    // start the token, so a random id that ends in, say, "553km" is not read as a quantity.
     const body = JSON.stringify(view)
-    expect(body).not.toMatch(/\d(\.\d+)? ?(km|mi|bpm|min|ft)\b/)
+    expect(body).not.toMatch(/(?<![\w.])\d+(\.\d+)? ?(km|mi|bpm|min|ft)\b/)
   })
 
   test('the targets are the ones the plan page and the watch read', async () => {
