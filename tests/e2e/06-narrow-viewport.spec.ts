@@ -3,6 +3,7 @@ import { addDays } from '../../shared/dates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import type { PlanSession, PlanWithSessions, WristItem, WristStatus } from '../../shared/types.ts'
 import { publishable } from '../../shared/workouts/labels.ts'
+import { buildFit } from '../fixtures/fit/buildFit.ts'
 import {
   logStrengthSession,
   nextStrengthWorkout,
@@ -1137,4 +1138,56 @@ test('the Strength page and its setup and logging sheets fit 360 px with every c
   expect(await isUncovered(pinned), 'Save at the end of the sheet').toBe(true)
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
+})
+
+test('a trail run with charts does not scroll sideways at 360 px', async () => {
+  await resetData()
+  const start = new Date()
+  start.setDate(start.getDate() - 1)
+  start.setHours(7, 0, 0, 0)
+  const durationSec = 60 * 60
+  const speedMps = 2.6
+  const bytes = buildFit({
+    serial: 4_100_000_006,
+    utcOffsetMin: -start.getTimezoneOffset(),
+    productName: 'Synthetic Watch',
+    sessions: [
+      {
+        sport: 1,
+        subSport: 3,
+        startUnix: Math.floor(start.getTime() / 1000),
+        durationSec,
+        distanceM: durationSec * speedMps,
+        ascentM: 300,
+        descentM: 290,
+        avgHr: 142,
+        maxHr: 165,
+        records: Array.from({ length: durationSec / 10 + 1 }, (_, i) => ({
+          t: i * 10,
+          distanceM: i * 10 * speedMps,
+          speedMps,
+          hr: 140 + Math.round(10 * Math.sin(i / 40)),
+          altitudeM: 300 + Math.round(60 * Math.sin(i / 90)),
+        })),
+      },
+    ],
+  })
+  await page.goto('/activities')
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: 'Import activities' })
+  await sheet.getByRole('radio', { name: 'Activity files' }).check()
+  await sheet.getByLabel('Activity files (FIT, GPX, TCX, ZIP)').setInputFiles({
+    name: 'trail.fit',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from(bytes),
+  })
+  await sheet.getByRole('button', { name: 'Import files' }).click()
+  await expect(sheet.getByText('1 imported, 0 already imported, 0 skipped')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('link', { name: /^Details, Run on / }).click()
+  await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
+  // The charts are lazy chunks, and each carries a hidden table of its figures.
+  await expect(page.getByRole('img', { name: /^Pace, average / })).toBeVisible()
+  await expect(page.getByRole('img', { name: /^Elevation, from / })).toBeVisible()
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
 })

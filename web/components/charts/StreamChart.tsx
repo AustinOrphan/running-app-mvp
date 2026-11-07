@@ -191,23 +191,27 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
       <figcaption className={styles.caption}>
         {`${NAMES[channel]}, ${unitCaption}, against ${xName}.`}
       </figcaption>
-      <table className="visually-hidden">
-        <caption>{label}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{axis === 'distance' ? `Distance (${units})` : 'Time (min)'}</th>
-            <th scope="col">{NAMES[channel]}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
-              <th scope="row">{xFormat(row.x)}</th>
-              <td>{formatValue(channel, units, row.y)}</td>
+      {/* The wrapper clips the table: `overflow` does not apply to a table, and a hidden table as wide
+          as its no-wrap caption pushed the page 15 px sideways at 360 px. */}
+      <div className="visually-hidden">
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{axis === 'distance' ? `Distance (${units})` : 'Time (min)'}</th>
+              <th scope="col">{NAMES[channel]}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={index}>
+                <th scope="row">{xFormat(row.x)}</th>
+                <td>{formatValue(channel, units, row.y)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   )
 }
