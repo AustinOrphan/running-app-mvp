@@ -132,7 +132,7 @@ const shapeOf = (draft: PlanDraft, monday: string): PresetId =>
 const failed = (draft: PlanDraft): string[] => draft.checklist.filter((c) => !c.ok).map((c) => c.id)
 
 const ISO = /\d{4}-\d{2}-\d{2}/g
-const AGGREGATE = /^\d+ week\(s\), from the week of /
+const AGGREGATE = /^\d+ weeks?, from the week of /
 
 /** The warnings of a draft about the week of `monday`: their message names a day of it as a date. */
 const weekWarnings = (draft: PlanDraft, monday: string): string[] =>

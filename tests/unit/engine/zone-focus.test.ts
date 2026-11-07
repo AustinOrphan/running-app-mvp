@@ -41,7 +41,7 @@ function checklistZoneWeeks(input: EngineInput, plan: PlanDraft): string[] {
 /** How many weeks the progression item of the checklist says use the rebuild step. */
 function checklistCount(plan: PlanDraft): number {
   const detail = plan.checklist.find((c) => c.id === 'progression')!.detail
-  const found = /(\d+) week\(s\) use the rebuild step/.exec(detail)
+  const found = /(\d+) weeks? uses? the rebuild step/.exec(detail)
   return found === null ? 0 : Number(found[1])
 }
 
