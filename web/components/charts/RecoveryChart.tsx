@@ -8,6 +8,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { recordsStart } from '../../../shared/copy/trends.ts'
+import { cropToFirstRecord } from '../../../shared/domain/trends.ts'
 import type { TrendWeek } from '../../../shared/types.ts'
 import { formatShortDate } from '../format.ts'
 import { monthStep, monthTicks, tickLabel } from './monthTicks.ts'
@@ -60,7 +62,15 @@ export function recoveryScale(values: readonly number[]): {
  * a week for sitting inside or outside the band (rule T1). The figures are in a visually hidden
  * table: week, mean, nights, low and high.
  */
-export function RecoveryChart({ weeks, unit, decimals, band, ariaLabel }: RecoveryChartProps) {
+export function RecoveryChart({
+  weeks: allWeeks,
+  unit,
+  decimals,
+  band,
+  ariaLabel,
+}: RecoveryChartProps) {
+  // Weeks before the first night with a reading are not drawn; the caption says where they start.
+  const { weeks, cutBefore } = cropToFirstRecord(allWeeks, (week) => week.nights > 0)
   const points: Point[] = weeks.map((week) => ({
     weekStart: week.weekStart,
     label: formatShortDate(week.weekStart),
@@ -145,6 +155,9 @@ export function RecoveryChart({ weeks, unit, decimals, band, ariaLabel }: Recove
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      {cutBefore === null ? null : (
+        <figcaption className={styles.start}>{recordsStart(cutBefore)}</figcaption>
+      )}
       {/* The wrapper holds the width of the table; a bare absolute table would widen the page. */}
       <div className="visually-hidden">
         <table>

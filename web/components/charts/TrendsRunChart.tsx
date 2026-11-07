@@ -9,6 +9,8 @@ import {
   YAxis,
   type BarShapeProps,
 } from 'recharts'
+import { recordsStart } from '../../../shared/copy/trends.ts'
+import { cropToFirstRecord } from '../../../shared/domain/trends.ts'
 import type { Units, WeekRow } from '../../../shared/types.ts'
 import { formatDistance, minutesToHours1 } from '../../../shared/units.ts'
 import { formatShortDate } from '../format.ts'
@@ -78,12 +80,17 @@ function ValueBar({ x, y, width, height, payload }: BarShapeProps) {
  * each week, in the same columns. The figures are in a visually hidden table.
  */
 export function TrendsRunChart({
-  weeks,
+  weeks: allWeeks,
   metric,
   units,
   currentWeek,
   ariaLabel,
 }: TrendsRunChartProps) {
+  // Weeks before the first record are not drawn as zero; the caption says where the records start.
+  const { weeks, cutBefore } = cropToFirstRecord(
+    allWeeks,
+    (week) => week.runMin > 0 || week.crossMin > 0 || week.raceMin > 0 || week.strengthSessions > 0,
+  )
   const perUnitM = units === 'mi' ? 1609.344 : 1000
   const points: Point[] = weeks.map((week) => {
     const current = week.weekStart === currentWeek
@@ -201,6 +208,9 @@ export function TrendsRunChart({
           </span>
         ))}
       </div>
+      {cutBefore === null ? null : (
+        <figcaption className={styles.start}>{recordsStart(cutBefore)}</figcaption>
+      )}
       {/* The wrapper holds the width of the seven-column table; a bare absolute table would widen the page. */}
       <div className="visually-hidden">
         <table>

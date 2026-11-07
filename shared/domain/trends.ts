@@ -139,3 +139,24 @@ export function weightWeeks(
   })
   return weeks.some((week) => week.weighIns > 0) ? weeks : []
 }
+
+/** Where a chart starts: the weeks from the first one with a record, and the day it starts. */
+export interface CroppedWeeks<T> {
+  weeks: T[]
+  /** The Monday of the first record when weeks before it were cut; null when nothing was cut. */
+  cutBefore: string | null
+}
+
+/**
+ * Crops a series to its first record, so weeks before the runner had any data are not drawn as
+ * zero. `hasRecord` says whether a week has anything logged. A series with no record at all is
+ * returned whole; `cutBefore` is set only when a week was dropped.
+ */
+export function cropToFirstRecord<T extends { weekStart: string }>(
+  weeks: readonly T[],
+  hasRecord: (week: T) => boolean,
+): CroppedWeeks<T> {
+  const first = weeks.findIndex(hasRecord)
+  if (first <= 0) return { weeks: [...weeks], cutBefore: null }
+  return { weeks: weeks.slice(first), cutBefore: weeks[first]!.weekStart }
+}

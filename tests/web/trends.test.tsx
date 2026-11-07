@@ -237,6 +237,31 @@ describe('TrendsPage, running per week', () => {
     expect(screen.getByText('The outlined bar is this week so far.')).toBeInTheDocument()
   })
 
+  test('starts the plot at the first record and says where the records start', async () => {
+    const recent = history().map((week, i) =>
+      i < 94 ? makeWeekRow({ weekStart: week.weekStart }) : week,
+    )
+    mockTrends({ weeks: recent })
+    renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /Run hours per week/ })
+    const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
+    // 94 weeks have nothing; the ten from 2026-01-12 are drawn, and the caption names the start.
+    expect(within(table).getAllByRole('row')).toHaveLength(11)
+    expect(screen.getAllByText('Records start 12 Jan.').length).toBeGreaterThan(0)
+  })
+
+  test('draws every week and no caption when the records reach the start of the range', async () => {
+    mockTrends()
+    renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /Run hours per week/ })
+    expect(
+      within(chart.closest('figure') as HTMLElement).getAllByRole('row').length,
+    ).toBeGreaterThan(40)
+    expect(
+      within(chart.closest('figure') as HTMLElement).queryByText(/Records start/),
+    ).not.toBeInTheDocument()
+  })
+
   test('says so when the range holds no run, with the range switch still there', async () => {
     mockTrends({ weeks: history().map((w) => ({ ...w, runMin: 0, runM: 0 })) })
     const { container } = renderWithProviders(<TrendsPage />)
@@ -342,7 +367,10 @@ describe('TrendsPage, recovery readings', () => {
         .map((h) => h.textContent),
     ).toEqual(['Week of', 'Mean (ms)', 'Nights', 'Low (ms)', 'High (ms)'])
     const rows = within(table).getAllByRole('row')
-    expect(rows).toHaveLength(1 + 52)
+    // The plot starts at the first week with a night; the weeks before it are not drawn.
+    const last52 = view.recovery.hrv.slice(-52)
+    const drawn = last52.slice(last52.findIndex((w) => w.nights > 0))
+    expect(rows).toHaveLength(1 + drawn.length)
     // The last row is the current week, as the server computed it.
     const week = view.recovery.hrv.at(-1)!
     expect(

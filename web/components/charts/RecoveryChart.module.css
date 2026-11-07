@@ -11,3 +11,11 @@
   height: 8.75rem;
   overflow: hidden;
 }
+
+/* One muted line where the plot starts at the first record rather than at the range's edge. */
+.start {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

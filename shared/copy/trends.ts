@@ -63,6 +63,7 @@ export const TRENDS_TEMPLATES = {
     { fallback: 'Bars are run distance per week.' },
   ),
   'trends.run.marks': tpl('A flag marks a race week. Squares are strength sessions.'),
+  'trends.records-start': tpl('Records start {date}.', { date: 'date' }),
   'trends.run.this-week': tpl('The outlined bar is this week so far.'),
   'trends.run.strength-link': tpl('Lifts and loads are on Strength', {}, { shape: 'label' }),
   'trends.run.aria-time': tpl(
@@ -140,6 +141,15 @@ export type PlainTrendsId = {
 /** A sentence or label of the page that has no slot. */
 export function trendsText(id: PlainTrendsId): string {
   return render(TRENDS_TEMPLATES[id], {}, 'km')
+}
+
+/** The line under a chart that was cropped to the first week with a record. */
+export function recordsStart(weekStart: string): string {
+  return render(
+    TRENDS_TEMPLATES['trends.records-start'],
+    { date: { kind: 'date', iso: weekStart, style: 'short' } },
+    'km',
+  )
 }
 
 const count = (n: number) => ({ kind: 'count' as const, n })

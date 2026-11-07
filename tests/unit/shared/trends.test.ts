@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays, weekStartsBetween } from '../../../shared/dates.ts'
 import {
   MIN_NIGHTS_PER_MEAN,
+  cropToFirstRecord,
   MIN_WEIGHINS_PER_WEEK,
   seriesByDate,
   weeklyBands,
@@ -156,5 +157,25 @@ describe('weightWeeks', () => {
       { date: addDays(MONDAY, 1), weightKg: null },
     ]
     expect(weightWeeks(rows, [MONDAY])).toEqual([])
+  })
+})
+
+describe('cropToFirstRecord', () => {
+  const weeks = ['2026-01-05', '2026-01-12', '2026-01-19', '2026-01-26'].map((weekStart, i) => ({
+    weekStart,
+    n: i === 2 || i === 3 ? 1 : 0,
+  }))
+
+  it('starts at the first week with a record and names that Monday', () => {
+    const out = cropToFirstRecord(weeks, (w) => w.n > 0)
+    expect(out.weeks.map((w) => w.weekStart)).toEqual(['2026-01-19', '2026-01-26'])
+    expect(out.cutBefore).toBe('2026-01-19')
+  })
+
+  it('keeps a series that starts with a record, and a series with none, whole', () => {
+    expect(cropToFirstRecord(weeks.slice(2), (w) => w.n > 0).cutBefore).toBeNull()
+    const none = cropToFirstRecord(weeks, () => false)
+    expect(none.weeks).toHaveLength(4)
+    expect(none.cutBefore).toBeNull()
   })
 })
