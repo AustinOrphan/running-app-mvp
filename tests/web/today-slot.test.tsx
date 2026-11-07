@@ -18,6 +18,7 @@ describe('slot budgets', () => {
       watch: 24,
       brief: 52,
       fuelPrompt: null,
+      race: null,
     })
   })
 })

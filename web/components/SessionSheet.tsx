@@ -22,6 +22,7 @@ import { useSettings } from '../api/settings.ts'
 import { Button } from './Button.tsx'
 import { Field, Select } from './Field.tsx'
 import { FuelSessionSection } from './fuel/FuelSessionSection.tsx'
+import { RaceSessionSection } from './race/RaceSessionSection.tsx'
 import { SessionStrengthSection } from './strength/SessionStrengthSection.tsx'
 import { Sheet } from './Sheet.tsx'
 import { useToast } from './Toast.tsx'
@@ -458,6 +459,10 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
           </section>
 
           {session.kind === 'strength' ? <SessionStrengthSection session={session} /> : null}
+          {/* The race of an ultra goal is stored in zone 1 (rule H11); a shorter race has no plan. */}
+          {session.kind === 'race' && session.target.zone === 'z1' && units !== undefined ? (
+            <RaceSessionSection session={session} units={units} />
+          ) : null}
           <FuelSessionSection session={session} />
           {settled ? null : <AdjustSection session={session} />}
           <WristSection session={session} workout={workout.data} />

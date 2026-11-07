@@ -4,6 +4,7 @@ import {
   heatAbilityMultiplier,
   heatPenaltyPct,
   heatWarning,
+  isHeatExposure,
   isHotForSteering,
   liljegrenWbgt,
   trainingHeatAdvice,
@@ -430,5 +431,25 @@ describe('acclimationCredit (rules I8)', () => {
       expect(c).toBeGreaterThanOrEqual(0)
       expect(c).toBeLessThanOrEqual(1)
     }
+  })
+})
+
+describe('isHeatExposure (rules I8)', () => {
+  const run = { type: 'run', tempC: P.acclim.exposureTempC.value, durationSec: 3600 }
+
+  it('counts a run at the exposure temperature and duration', () => {
+    expect(isHeatExposure(run)).toBe(true)
+    expect(
+      isHeatExposure({ ...run, durationSec: P.acclim.exposureMinDurationMin.value * 60 }),
+    ).toBe(true)
+  })
+
+  it('does not count a cooler or shorter run, one without a temperature, or strength work', () => {
+    expect(isHeatExposure({ ...run, tempC: P.acclim.exposureTempC.value - 0.1 })).toBe(false)
+    expect(
+      isHeatExposure({ ...run, durationSec: P.acclim.exposureMinDurationMin.value * 60 - 1 }),
+    ).toBe(false)
+    expect(isHeatExposure({ ...run, tempC: null })).toBe(false)
+    expect(isHeatExposure({ ...run, type: 'strength' })).toBe(false)
   })
 })

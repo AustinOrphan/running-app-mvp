@@ -161,6 +161,7 @@ export const keys = {
   brief: 'brief',
   fuel: 'fuel',
   strength: 'strength',
+  race: 'race',
   today: 'today',
   zones: 'zones',
   zoneProposals: 'zoneProposals',

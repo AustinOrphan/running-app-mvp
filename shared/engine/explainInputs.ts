@@ -54,6 +54,7 @@ import {
   weeklyRamp,
   wholeMinutes,
 } from './limits.ts'
+import { isHeatExposure } from './heat.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
 import { blockLiftMin, loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
 import { effective, overrides, resolveMethod, type MethodPosition } from './methods.ts'
@@ -3316,14 +3317,7 @@ function heatAdaptationFacts(rule: 'I8' | 'H13'): Builder {
     const credit = ctx.state.heatAcclimation
     const days = P.i8.zeroCreditDays.value
     const window = lastDays(ctx, days + 1)
-    const exposed = countedUpTo(ctx).filter(
-      (a) =>
-        a.type !== 'strength' &&
-        a.date >= window.from &&
-        a.tempC !== null &&
-        a.tempC >= P.acclim.exposureTempC.value &&
-        a.durationSec / 60 >= P.acclim.exposureMinDurationMin.value,
-    )
+    const exposed = countedUpTo(ctx).filter((a) => a.date >= window.from && isHeatExposure(a))
     if (!(credit > 0)) {
       return [
         gap(
@@ -3606,6 +3600,10 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'H3',
   'H8',
   'H9',
+  // the race plan is derived on its own page from the goal, the prediction and the fuel ladder
+  // (ADR 0018), not from the athlete snapshot an Explain reads; it has no builder until a surface
+  // of the plan asks "why" of one line
+  'H14',
   // environment read on the day, not from the snapshot: the weather index and the training-heat
   // advice come from the cached forecast when Today or a session is read, and the rest are
   // conventions on how a hot, cold, steep or high course is described

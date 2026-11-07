@@ -385,6 +385,25 @@ export function isHotForSteering(
 // ---------------------------------------------------------------------------------------------
 
 /**
+ * Whether an activity counts as a heat exposure day [rules I8]: not strength work, an air
+ * temperature of `acclim.exposureTempC` or more, and at least `acclim.exposureMinDurationMin`
+ * minutes. The one predicate behind the snapshot's credit (`athlete.ts`), the I8 and H13 Explain
+ * builder and the race plan's credit, so the three cannot drift apart.
+ */
+export function isHeatExposure(activity: {
+  type: string
+  tempC: number | null
+  durationSec: number
+}): boolean {
+  return (
+    activity.type !== 'strength' &&
+    activity.tempC !== null &&
+    activity.tempC >= P.acclim.exposureTempC.value &&
+    activity.durationSec / 60 >= P.acclim.exposureMinDurationMin.value
+  )
+}
+
+/**
  * Acclimation credit from 0 to 1, decaying with time since exposure [rules I8].
  *
  * Each distinct exposure day on or before `today` adds 1 / `i8.blockDays` of credit, up to 1.

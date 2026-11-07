@@ -129,7 +129,14 @@ describe('Layout', () => {
   })
 })
 
+/** The More page asks whether the goal race has a plan; these tests answer that there is none. */
+function noRacePlan(): void {
+  mockApi({ 'GET /api/race/plan': () => ({ plan: null, reason: 'no-goal' }) })
+}
+
 describe('MorePage', () => {
+  beforeEach(noRacePlan)
+
   test('the Settings note names only what Settings offers: no import', () => {
     renderWithProviders(<MorePage />, { route: '/more' })
     const settings = within(screen.getByRole('navigation', { name: 'More pages' })).getByRole(
@@ -162,6 +169,8 @@ describe('MorePage', () => {
 })
 
 describe('Strength navigation', () => {
+  beforeEach(noRacePlan)
+
   test('More lists Strength with its note, and the link goes to /strength', () => {
     renderWithProviders(<MorePage />, { route: '/more' })
     const nav = within(screen.getByRole('navigation', { name: 'More pages' }))
@@ -216,6 +225,8 @@ describe('Strength navigation', () => {
 })
 
 describe('Weekly brief navigation', () => {
+  beforeEach(noRacePlan)
+
   test('More lists Weekly brief, and the link goes to /brief', () => {
     renderWithProviders(<MorePage />, { route: '/more' })
     const nav = within(screen.getByRole('navigation', { name: 'More pages' }))

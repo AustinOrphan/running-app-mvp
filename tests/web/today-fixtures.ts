@@ -207,6 +207,7 @@ export function makeCoach(over: Partial<TodayCoach> = {}): TodayCoach {
       fuelPrompt: null,
       strength: null,
       strengthSetup: null,
+      race: null,
     },
     ...over,
   }

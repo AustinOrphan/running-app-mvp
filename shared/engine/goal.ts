@@ -30,7 +30,7 @@ export function distanceClassOf(distanceM: number): DistanceClass {
 }
 
 /** Minutes after midnight for 'HH:MM', or null when the string is not a valid start time. */
-function startMinutes(startTime: string | null): number | null {
+export function startMinutes(startTime: string | null): number | null {
   if (startTime === null) return null
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(startTime)
   if (!match) return null

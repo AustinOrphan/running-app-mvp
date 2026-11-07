@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-06.2')
+    expect(PARAMS_VERSION).toBe('2026-11-07.1')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -344,6 +344,48 @@ describe('parameter registry', () => {
     )
     expect(engineRules).toMatch(/^\| Ultra race effort \(CR-10\) /m)
     expect(lintText(text)).toEqual([])
+  })
+
+  it('carries the race plan of rule H14 as three labelled defaults, read by the plan', () => {
+    const r1 = [P.r1.thirds, P.r1.arrivalRoundMin, P.r1.raceWeekCardDays]
+    expect(r1.map((p) => [p.id, p.value, p.unit, p.grade, p.rule, p.evidence])).toEqual([
+      ['r1.thirds', 3, 'parts', 'D', 'H14', []],
+      ['r1.arrivalRoundMin', 10, 'min', 'D', 'H14', []],
+      ['r1.raceWeekCardDays', 7, 'days', 'D', 'H14', []],
+    ])
+    for (const p of r1) {
+      expect(p.note, p.id).toMatch(/^Default:/)
+      expect(lintText(p.note ?? ''), p.id).toEqual([])
+    }
+    expect(paramsForRule('H14').map((p) => p.id)).toEqual(r1.map((p) => p.id))
+  })
+
+  it('states the race plan of rule H14 in engine-rules.md and the readings it adds to H6, H11 and K6', () => {
+    const start = engineRules.indexOf('- **H14 ')
+    const text = engineRules.slice(start, engineRules.indexOf('## (i) Environment', start))
+    expect(start).toBeGreaterThan(-1)
+    expect(text).toContain('Read by the engine (added 2026-11-07)')
+    for (const id of ['r1.thirds', 'r1.arrivalRoundMin', 'r1.raceWeekCardDays']) {
+      expect(text, id).toContain(`\`${id}\``)
+    }
+    for (const id of [
+      'h11.raceRpe',
+      'h11.belowVt1Share',
+      'k6.carbLoadGPerKgDay',
+      'k6.carbLoadFinalHours',
+      'i11.lateDescentCostIncrease',
+      'i6.lowConfidenceEventHours',
+    ]) {
+      expect(text, id).toContain(`\`${id}\``)
+    }
+    expect(lintText(text)).toEqual([])
+    for (const rule of ['H6', 'H11', 'K6']) {
+      const at = engineRules.indexOf(`- **${rule} `)
+      expect(engineRules.slice(at, at + 12000), rule).toMatch(
+        /Read (by the engine|a second way) \(added 2026-11-07\)/,
+      )
+    }
+    for (const gap of ['R1', 'R2', 'R3', 'R4', 'R5']) expect(engineRules).toContain(`**${gap} `)
   })
 
   it('transcribes the post-race window of rule H12', () => {

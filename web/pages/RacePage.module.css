@@ -1,0 +1,13 @@
+/* The race plan is one column of sections in reading order: the expected time, the effort and its
+   parts, climbing, fuel and fluid, heat, race week, dark hours, the disclaimer. `min-width: 0` lets a
+   long line wrap inside a flex child instead of widening the page at 360 px. */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: var(--page-max);
+}
+
+.page > * {
+  min-width: 0;
+}

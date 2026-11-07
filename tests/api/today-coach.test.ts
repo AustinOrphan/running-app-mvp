@@ -337,6 +337,7 @@ describe('GET /api/today: the coach payload', () => {
       fuelPrompt: null,
       strength: null,
       strengthSetup: null,
+      race: null,
     })
   })
 
@@ -1277,6 +1278,7 @@ describe('GET /api/today: slots', () => {
       fuelPrompt: null,
       strength: null,
       strengthSetup: null,
+      race: null,
     })
     expect(coach.hero).not.toBeNull()
   })
@@ -1458,11 +1460,12 @@ describe('GET /api/today: cost', () => {
     // the watch slot's read of the channel, the note about tomorrow's run (the publications), the
     // brief slot's read of the row and the fuel replay's three (the switches, the logs, the weeks
     // of every plan; its session lookup is skipped without a log). Warm is 17, the seventeen of the
-    // list above, and the data version is read four times (the tag, the snapshot and the fuel
-    // replay's memo once for each of the two fuel slots).
+    // list above, and the data version is read five times (the tag, the snapshot, the fuel replay's
+    // memo once for each of the two fuel slots, and the race plan's memo, which answers null for
+    // a goal that is not an ultra without a query of its own).
     expect(coldTotal).toBe(32)
     expect(warm.models).toHaveLength(17)
-    expect(warm.raw).toBe(4)
+    expect(warm.raw).toBe(5)
   })
 
   test('no request path calls the network, empty or stale caches included', async () => {

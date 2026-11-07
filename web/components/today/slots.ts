@@ -10,10 +10,14 @@
  * | `watch`      | wrist line, under the session actions   | E1    | 24 px  |
  * | `brief`      | weekly brief line                       | E4    | 52 px  |
  * | `fuelPrompt` | prompt cards, below the fold            | E6    | none   |
+ * | `race`       | race-week card of an ultra goal         | RP2   | none   |
  *
  * Where each sits, in DOM order: `disruption` at the top of the session group, over the readiness
  * read; `fuel` in the hero, under the targets; `watch` in the hero, under Done, Explain and Not
  * today; `brief` in the week group, under the week strip; `fuelPrompt` lower in the week group.
+ * The `race` slot sits in the week group, above the fuel prompts: the race-week card (rule H14),
+ * from `r1.raceWeekCardDays` days before an ultra goal's race. It is below the fold on a phone and has
+ * no budget, so it cannot move Done.
  * The `fuelPrompt` frame holds the fuel log card (E6) and, the first time a strength session falls
  * within a week while the setup is not saved, the "Set up strength" card (E14, design 6.1): the page
  * places no slot of its own for strength, and neither card has a budget.
@@ -62,6 +66,7 @@ export const SLOT_BUDGETS_PX = {
   watch: 24,
   brief: 52,
   fuelPrompt: null,
+  race: null,
 } as const satisfies Record<string, number | null>
 
 export type SlotName = keyof typeof SLOT_BUDGETS_PX

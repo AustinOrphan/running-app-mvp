@@ -180,6 +180,7 @@ export function DashboardPage() {
           <div className={styles.column}>
             {coach.weekStrip === null ? null : <WeekStrip strip={coach.weekStrip} units={units} />}
             <TodaySlot name="brief" />
+            <TodaySlot name="race" />
             <TodaySlot name="fuelPrompt" />
 
             <FeedbackCard

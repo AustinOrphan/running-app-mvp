@@ -20,6 +20,7 @@ import { ReviewPage } from './pages/ReviewPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
 import { SetupPage } from './pages/SetupPage.tsx'
 import { StatsPage } from './pages/StatsPage.tsx'
+import { RacePage } from './pages/RacePage.tsx'
 import { StrengthPage } from './pages/StrengthPage.tsx'
 import { TrendsPage } from './pages/TrendsPage.tsx'
 import { useOutboxReplay } from './pwa/outbox.ts'
@@ -86,6 +87,7 @@ export function App() {
           <Route path="/research" element={<ResearchPage />} />
           <Route path="/fuel" element={<FuelLabPage />} />
           <Route path="/strength" element={<StrengthPage />} />
+          <Route path="/race" element={<RacePage />} />
           <Route path="/more" element={<MorePage />} />
         </Route>
       </Route>

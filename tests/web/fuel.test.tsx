@@ -2370,6 +2370,7 @@ describe('navigation to the Fuel lab', () => {
       'GET /api/auth/me': () => user,
       'GET /api/fuel': () => fullLab({ prompts: [] }),
       'GET /api/settings': () => settings,
+      'GET /api/race/plan': () => ({ plan: null, reason: 'no-goal' }),
     })
     renderWithProviders(<App />, { route: '/more' })
     await tap.click(await screen.findByRole('link', { name: /Fuel lab/ }))

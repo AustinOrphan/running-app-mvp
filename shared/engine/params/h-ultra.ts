@@ -526,6 +526,21 @@ export const hUltra = {
       },
     ),
   },
+  // The race plan (rule H14, ADR 0018). All three are display structure of a sketch, not findings.
+  r1: {
+    thirds: param('r1.thirds', 3, 'D', 'H14', [], {
+      unit: 'parts',
+      note: 'Default: the expected race time is read in this many equal parts, each with its own facts (clock window, daytime heat, dark hours, fuel total). Structural: no study splits a race into parts, and the effort is the same in every part.',
+    }),
+    arrivalRoundMin: param('r1.arrivalRoundMin', 10, 'D', 'H14', [], {
+      unit: 'min',
+      note: 'Default: the ends of the expected time and the part windows round to this many minutes, outward for the range. A guard against false precision on a grade D prediction; a preference, not a finding.',
+    }),
+    raceWeekCardDays: param('r1.raceWeekCardDays', 7, 'D', 'H14', [], {
+      unit: 'days',
+      note: 'Default: Today shows the race-week card from this many days before the race. A choice of display, not a finding.',
+    }),
+  },
   h12: {
     reducedDays: param(
       'h12.reducedDays',
