@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { addDays } from '../../../shared/dates.ts'
 import { remainingPlan } from '../../../shared/domain/adaptation.ts'
 import { isToRun } from '../../../shared/domain/sessionStatus.ts'
-import { weekStrip } from '../../../shared/domain/weekStrip.ts'
+import { showWeekAdvisory, weekStrip } from '../../../shared/domain/weekStrip.ts'
 import { aggregateWeeks } from '../../../shared/domain/weeks.ts'
 import type { SessionKind } from '../../../shared/engine/types.ts'
 import type { PlanSessionStatus, PlanSessionView, WeekStripMark } from '../../../shared/types.ts'
@@ -289,5 +289,20 @@ describe('weekStrip: purity', () => {
     const input = { today: TODAY, sessions, activities, targetRunMin: 300 }
     expect(weekStrip(input)).toEqual(weekStrip(input))
     expect(JSON.stringify({ sessions, activities })).toBe(before)
+  })
+})
+
+describe('showWeekAdvisory', () => {
+  const base = { windowOpen: false, heroKind: 'threshold', verdictCode: 'ready' } as const
+  test('shows on an ordinary day, whatever the session', () => {
+    expect(showWeekAdvisory(base)).toBe(true)
+    expect(showWeekAdvisory({ ...base, heroKind: null, verdictCode: null })).toBe(true)
+    expect(showWeekAdvisory({ ...base, verdictCode: 'low-plan-stays' })).toBe(true)
+  })
+  test('is left out while a window is open, on a rest day and for an easy or rest verdict', () => {
+    expect(showWeekAdvisory({ ...base, windowOpen: true })).toBe(false)
+    expect(showWeekAdvisory({ ...base, heroKind: 'rest' })).toBe(false)
+    expect(showWeekAdvisory({ ...base, verdictCode: 'easy' })).toBe(false)
+    expect(showWeekAdvisory({ ...base, verdictCode: 'rest' })).toBe(false)
   })
 })

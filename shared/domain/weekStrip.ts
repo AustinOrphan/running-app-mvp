@@ -138,3 +138,23 @@ export function weekStrip(input: WeekStripInput): WeekStrip {
     distanceEstimateM: weekDistanceEstimateM(days.flatMap((day) => day.sessions)),
   }
 }
+
+export interface WeekAdvisoryGate {
+  /** A pain, illness or injury window is open. */
+  windowOpen: boolean
+  /** The kind of the day's main session; null when nothing is planned. */
+  heroKind: SessionKind | null
+  /** The readiness verdict's code, or null when the day has none. */
+  verdictCode: string | null
+}
+
+/**
+ * Whether the week strip may say what reaching the weekly target would take. The line is a sketch,
+ * not a quota, so it stays out of the days when the plan itself asks for less: a window is open,
+ * the day is a rest day, or readiness says an easy run or a rest day is the better choice.
+ */
+export function showWeekAdvisory(gate: WeekAdvisoryGate): boolean {
+  if (gate.windowOpen) return false
+  if (gate.heroKind === 'rest') return false
+  return gate.verdictCode !== 'easy' && gate.verdictCode !== 'rest'
+}

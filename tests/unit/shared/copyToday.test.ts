@@ -38,6 +38,9 @@ describe('Today templates', () => {
       'lighter-week': 'Recent signals have stayed low for several days. A lighter week may help.',
       'no-signals': 'No readiness signals yet. One tap below adds the first.',
     }
+    expect(renderFact({ template: 'today.verdict.ready-no-session', slots: {} }, 'km')).toBe(
+      'Signals are normal. The plan stays as it is.',
+    )
     for (const [code, sentence] of Object.entries(verdicts)) {
       expect(renderFact({ template: `today.verdict.${code}`, slots: {} }, 'km')).toBe(sentence)
     }
@@ -45,7 +48,7 @@ describe('Today templates', () => {
 
   test('the verdicts under a window name the day, and none says "Ready as planned."', () => {
     const verdicts: Record<WindowVerdictCode, string> = {
-      'window-rest': 'A rest day of the window.',
+      'window-rest': 'The window keeps today at rest.',
       'window-limited': 'A day of limited running.',
       'window-easy': 'Easy running only today.',
       'window-return': 'A day of the return week.',
@@ -211,7 +214,10 @@ describe('hero copy', () => {
 
   test('the week reads in minutes a day, without a minimum', () => {
     expect(say('today.week.advisory', { perDay: { kind: 'minutes', min: 34 } })).toBe(
-      '34 min a day left, through Sunday',
+      'Reaching the weekly target would take about 34 min a day through Sunday. Optional.',
+    )
+    expect(say('today.week.advisory-last', { perDay: { kind: 'minutes', min: 34 } })).toBe(
+      'Reaching the weekly target would take about 34 min today. Optional.',
     )
     expect(
       say('today.week.day-logged', {

@@ -60,7 +60,16 @@ function DayFace({ day, units }: { day: WeekStripDay; units: Units }) {
  * the sketch Meter. A day with sessions opens its sheet. The strip describes and never grades: a
  * past day with a run still to do reads "planned, no run logged".
  */
-export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units }) {
+export function WeekStrip({
+  strip,
+  units,
+  advisory = true,
+}: {
+  strip: WeekStripView
+  units: Units
+  /** False leaves out what reaching the target would take (`showWeekAdvisory`). */
+  advisory?: boolean
+}) {
   // The sheet is opened on the session as the strip holds it now, by id, so a read of Today that
   // changes the session (a log that settles it) changes the sheet too, as the Plan page's does.
   const [openId, setOpenId] = useState<string | null>(null)
@@ -122,20 +131,17 @@ export function WeekStrip({ strip, units }: { strip: WeekStripView; units: Units
       {weekEstimateM === null ? null : (
         <p className={styles.caption}>{weekStripEstimateText(weekEstimateM, units)}</p>
       )}
-      {advice === null || advice.perDayMin === null ? null : (
-        <p className={styles.advisory}>
-          <span className={styles.advisoryLine}>
-            {advice.remainingMin === 0
-              ? render(TEMPLATES['today.week.nothing-left'], {}, units)
-              : render(
-                  TEMPLATES['today.week.advisory'],
-                  { perDay: { kind: 'minutes', min: advice.perDayMin } },
-                  units,
-                )}
-          </span>{' '}
-          <span className={styles.caption}>
-            {render(TEMPLATES['today.week.advisory-caption'], {}, units)}
-          </span>
+      {!advisory || advice === null || advice.perDayMin === null ? null : (
+        <p className={styles.caption}>
+          {advice.remainingMin === 0
+            ? render(TEMPLATES['today.week.nothing-left'], {}, units)
+            : render(
+                TEMPLATES[
+                  advice.remainingDays === 1 ? 'today.week.advisory-last' : 'today.week.advisory'
+                ],
+                { perDay: { kind: 'minutes', min: advice.perDayMin } },
+                units,
+              )}
         </p>
       )}
       {open === null ? null : (

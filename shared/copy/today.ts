@@ -17,6 +17,9 @@ export const TODAY_TEMPLATES = {
   ),
   // Low signals on a day with a harder run (long, race, hike) or with no run at all.
   'today.verdict.low-plan-stays': tpl('Signals are a little low. The plan stays as it is.'),
+  // A day with no run to do (a rest day, or nothing planned) and normal signals: "Ready as planned."
+  // would sit over "Nothing is planned today." and read as a contradiction.
+  'today.verdict.ready-no-session': tpl('Signals are normal. The plan stays as it is.'),
   'today.verdict.easy': tpl('An easy run is the better choice today.'),
   'today.verdict.rest': tpl('A rest day is the better choice today.'),
   'today.verdict.lighter-week': tpl(
@@ -26,7 +29,7 @@ export const TODAY_TEMPLATES = {
   // While a window is open the band states it, and the verdict names the day instead of "Ready as
   // planned." (`windowVerdict`): a rest day, a day of limited running, the easy tail, the return
   // week. Each is a state of the day, so none repeats the window's dates or limits.
-  'today.verdict.window-rest': tpl('A rest day of the window.'),
+  'today.verdict.window-rest': tpl('The window keeps today at rest.'),
   'today.verdict.window-limited': tpl('A day of limited running.'),
   'today.verdict.window-easy': tpl('Easy running only today.'),
   'today.verdict.window-return': tpl('A day of the return week.'),
@@ -267,14 +270,18 @@ export const TODAY_TEMPLATES = {
     { weekday: 'weekday', date: 'date', mark: 'text', logged: 'minutes' },
     { shape: 'label' },
   ),
-  // The advisory split of what is left of the week's target. Advice, not a minimum.
+  // The advisory split of what is left of the week's target. Advice, not a minimum: it reads as
+  // optional, and the last day of the week has its own wording. It is left out while a window is
+  // open, on a rest day and when the verdict is an easy or a rest day (`showWeekAdvisory`).
   'today.week.advisory': tpl(
-    '{perDay} a day left, through Sunday',
+    'Reaching the weekly target would take about {perDay} a day through Sunday. Optional.',
     { perDay: 'minutes' },
-    { shape: 'label' },
+  ),
+  'today.week.advisory-last': tpl(
+    'Reaching the weekly target would take about {perDay} today. Optional.',
+    { perDay: 'minutes' },
   ),
   'today.week.nothing-left': tpl('Nothing left to plan this week', {}, { shape: 'label' }),
-  'today.week.advisory-caption': tpl('advisory', {}, { shape: 'label' }),
 
   // The targets of the session, as the hero's term list reads them: a term, its value and, when
   // the day calls for it, a note. The order of the terms follows the lead (`resolveTargets`).

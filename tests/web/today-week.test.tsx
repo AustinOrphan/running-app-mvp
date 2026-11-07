@@ -94,8 +94,56 @@ describe('Today: the week strip', () => {
       '3.1 of 7.5 hours',
     )
     expect(within(strip).getByText('3.1 h of 7.5 h target')).toBeInTheDocument()
-    expect(within(strip).getByText('66 min a day left, through Sunday')).toBeInTheDocument()
-    expect(within(strip).getByText('advisory')).toBeInTheDocument()
+    expect(
+      within(strip).getByText(
+        'Reaching the weekly target would take about 66 min a day through Sunday. Optional.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(strip).queryByText('advisory')).not.toBeInTheDocument()
+  })
+
+  test.each([
+    ['a rest day', { hero: makeHero({ session: makeSession({ kind: 'rest' }), target: null }) }],
+    [
+      'an easy-run verdict',
+      { verdict: { code: 'easy', template: 'today.verdict.easy', slots: {} } },
+    ],
+    ['a rest verdict', { verdict: { code: 'rest', template: 'today.verdict.rest', slots: {} } }],
+  ] as const)('leaves out the advisory line on %s, but keeps the meter', async (_name, over) => {
+    renderToday(
+      makeToday({
+        coach: makeCoach({
+          ...over,
+          weekStrip: makeStrip(
+            {
+              runMin: 186,
+              targetRunMin: 450,
+              remaining: { remainingMin: 264, remainingDays: 4, perDayMin: 66 },
+            },
+            week,
+          ),
+        }),
+      }),
+    )
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    expect(within(strip).getByRole('meter', { name: 'Run time this week' })).toBeInTheDocument()
+    expect(within(strip).queryByText(/Reaching the weekly target/)).not.toBeInTheDocument()
+  })
+
+  test('the last day of the week has its own wording', async () => {
+    renderToday(
+      withWeek({
+        runMin: 400,
+        targetRunMin: 450,
+        remaining: { remainingMin: 50, remainingDays: 1, perDayMin: 50 },
+      }),
+    )
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    expect(
+      within(strip).getByText(
+        'Reaching the weekly target would take about 50 min today. Optional.',
+      ),
+    ).toBeInTheDocument()
   })
 
   test('says nothing is left to plan once the week is covered', async () => {

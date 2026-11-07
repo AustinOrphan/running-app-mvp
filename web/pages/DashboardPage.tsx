@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { showWeekAdvisory } from '../../shared/domain/weekStrip.ts'
 import { isOpen } from '../../shared/domain/windowDay.ts'
 import type { ReadinessVerdict, TodayCoach } from '../../shared/types.ts'
 import { useSettings } from '../api/settings.ts'
@@ -178,7 +179,17 @@ export function DashboardPage() {
           </div>
 
           <div className={styles.column}>
-            {coach.weekStrip === null ? null : <WeekStrip strip={coach.weekStrip} units={units} />}
+            {coach.weekStrip === null ? null : (
+              <WeekStrip
+                strip={coach.weekStrip}
+                units={units}
+                advisory={showWeekAdvisory({
+                  windowOpen: coach.disruptions.some(isOpen),
+                  heroKind: coach.hero?.session.kind ?? null,
+                  verdictCode: coach.verdict?.code ?? null,
+                })}
+              />
+            )}
             <TodaySlot name="brief" />
             <TodaySlot name="race" />
             <TodaySlot name="fuelPrompt" />

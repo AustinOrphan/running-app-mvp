@@ -13,7 +13,7 @@ import type {
 } from '../../shared/types.ts'
 import { expectCleanCopy, type MockRoutes } from './helpers.tsx'
 import { makePreview, makeV2Plan, makeWindow } from './plan-fixtures.ts'
-import { makeCoach, makeHero, makeSession, makeToday } from './today-fixtures.ts'
+import { makeCoach, makeHero, makeSession, makeStrip, makeToday } from './today-fixtures.ts'
 import { renderToday as render, startToday } from './today-render.tsx'
 
 // STATUS follow-up 19: a window is stated once (the band), the verdict names the day instead of
@@ -128,13 +128,21 @@ function sheetRoutes(today: () => TodayView): MockRoutes {
 
 describe('Today inside an illness window: the window is stated once', () => {
   test('one element states the window, and the verdict names the day', async () => {
-    const { container } = render(insideWindows([illness()]))
+    const { container } = render(
+      insideWindows([illness()], undefined, {
+        weekStrip: makeStrip({
+          runMin: 60,
+          targetRunMin: 300,
+          remaining: { remainingMin: 240, remainingDays: 5, perDayMin: 48 },
+        }),
+      }),
+    )
     const band = await screen.findByRole('region', { name: 'Rest window' })
     expect(within(band).getByText(WINDOW_LINE)).toBeInTheDocument()
 
     // the verdict says what the day is, never "Ready as planned."
     const read = screen.getByRole('region', { name: 'Readiness' })
-    expect(within(read).getByRole('status')).toHaveTextContent('A rest day of the window.')
+    expect(within(read).getByRole('status')).toHaveTextContent('The window keeps today at rest.')
     expect(screen.queryByText(/Ready as planned/)).not.toBeInTheDocument()
 
     // nothing else says the illness a second or a third time
@@ -146,6 +154,9 @@ describe('Today inside an illness window: the window is stated once', () => {
     ).toHaveLength(1)
     // the readings that are not the window stay
     expect(within(read).getByText('Check-in: feeling normal.')).toBeInTheDocument()
+    // a window asks for less than the plan, so the week's target is not restated as a daily amount
+    expect(screen.getByRole('meter', { name: 'Run time this week' })).toBeInTheDocument()
+    expect(screen.queryByText(/Reaching the weekly target/)).not.toBeInTheDocument()
     expectCleanCopy(container)
   })
 
