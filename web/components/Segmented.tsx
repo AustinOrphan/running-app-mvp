@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useId, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import fieldStyles from './Field.module.css'
 import styles from './Segmented.module.css'
 
@@ -20,6 +20,11 @@ export interface SegmentedProps<T extends string> {
   arrows?: 'select' | 'focus'
   /** Smaller type and tighter padding, so five short words fit a 360 px row without scrolling. */
   dense?: boolean
+}
+
+/** A scale of short numbers (1 to 10) is set in two equal rows, so no cell is narrower than a thumb. */
+function isNumberScale(options: Array<{ label: string }>): boolean {
+  return options.length > 6 && options.every((option) => /^\d{1,2}$/.test(option.label))
 }
 
 /**
@@ -70,6 +75,7 @@ export function Segmented<T extends string>({
     buttons.current[next]?.focus()
   }
 
+  const grid = isNumberScale(options)
   const lines = hint === undefined ? [] : typeof hint === 'string' ? [hint] : hint
   const labelled = lines.length > 0
   const group = (
@@ -80,7 +86,8 @@ export function Segmented<T extends string>({
       aria-describedby={
         labelled ? lines.map((_, index) => `${id}-hint-${String(index)}`).join(' ') : undefined
       }
-      className={`${styles.group} ${dense ? styles.dense : ''}`}
+      className={`${styles.group} ${dense ? styles.dense : ''} ${grid ? styles.grid : ''}`}
+      style={grid ? ({ '--cols': Math.ceil(options.length / 2) } as CSSProperties) : undefined}
     >
       {options.map((option, index) => (
         <button

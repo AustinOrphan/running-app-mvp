@@ -54,14 +54,14 @@ describe('FeelPicker', () => {
 })
 
 describe('ScalePicker', () => {
-  test('keeps every step in one row of equal columns, however many there are', () => {
+  test('sets every step in equal columns: pain as 6 and 5, RPE as 5 and 5', () => {
     const { rerender } = render(
       <ScalePicker legend="Pain" min={0} max={10} value={null} onChange={() => {}} />,
     )
     const group = screen.getByRole('group', { name: 'Pain' })
     expect(within(group).getAllByRole('button')).toHaveLength(11)
     const row = within(group).getAllByRole('button')[0]!.parentElement!
-    expect(row.style.getPropertyValue('--steps')).toBe('11')
+    expect(row.style.getPropertyValue('--cols')).toBe('6')
     rerender(<ScalePicker legend="RPE" min={1} max={10} value={4} onChange={() => {}} />)
     const rpe = screen.getByRole('group', { name: 'RPE' })
     expect(within(rpe).getAllByRole('button')).toHaveLength(10)

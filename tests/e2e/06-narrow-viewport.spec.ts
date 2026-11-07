@@ -68,6 +68,17 @@ test('every Fatigue rating sits inside its control at 360 px and can be chosen',
       groupBox.x + groupBox.width + 0.5,
     )
   }
+  // Ten cells in two equal rows, each at least 44 px wide and tall (they were 32 px wide in one row).
+  const cells = await group.getByRole('radio').all()
+  expect(cells).toHaveLength(10)
+  const tops = new Set<number>()
+  for (const cell of cells) {
+    const box = await cell.boundingBox()
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44)
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+    tops.add(Math.round(box?.y ?? 0))
+  }
+  expect(tops.size).toBe(2)
   await group.getByRole('radio', { name: '10', exact: true }).click()
   await expect(group.getByRole('radio', { name: '10', exact: true })).toBeChecked()
 })

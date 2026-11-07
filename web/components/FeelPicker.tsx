@@ -20,20 +20,22 @@ export function FeelPicker({ value, onChange }: FeelPickerProps) {
   return (
     <fieldset className={styles.fieldset}>
       <legend>How it felt</legend>
-      <div className={styles.feelChips}>
-        {FEEL_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            className={styles.chip}
-            aria-pressed={value === option.value}
-            onClick={() => {
-              onChange(value === option.value ? null : option.value)
-            }}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div className={styles.feel}>
+        <div className={styles.feelChips}>
+          {FEEL_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={styles.chip}
+              aria-pressed={value === option.value}
+              onClick={() => {
+                onChange(value === option.value ? null : option.value)
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
       <p className={styles.hint}>Against what you expected. Tap again to clear.</p>
     </fieldset>
