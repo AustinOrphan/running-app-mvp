@@ -11,14 +11,15 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  displayName  String?
-  units        String   @default("mi") // 'mi' | 'km'
-  weightUnit   String   @default("lb") // 'lb' | 'kg'; strength loads are shown in it (the migration sets 'kg' where units = 'km')
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  displayName    String?
+  units          String   @default("mi") // 'mi' | 'km'
+  weightUnit     String   @default("lb") // 'lb' | 'kg'; strength loads are shown in it (the migration sets 'kg' where units = 'km')
+  showBodyWeight Boolean  @default(false) // Trends draws a weight chart only when true (ADR 0019); false hides it and deletes nothing
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   activities        Activity[]
   importBatches     ImportBatch[]

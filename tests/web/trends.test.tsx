@@ -19,7 +19,13 @@ const THIS_WEEK = '2026-03-16'
 const FIRST_WEEK = addDays(THIS_WEEK, -7 * 103)
 
 function settings(units: Units): UserSettings {
-  return { email: 'runner@example.com', displayName: null, units, weightUnit: 'lb' }
+  return {
+    email: 'runner@example.com',
+    displayName: null,
+    units,
+    weightUnit: 'lb',
+    showBodyWeight: false,
+  }
 }
 
 /** 104 weeks: 4 h a week, a race week, two strength sessions in one week, the current week short. */

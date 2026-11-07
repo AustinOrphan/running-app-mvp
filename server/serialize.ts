@@ -24,7 +24,7 @@ import type {
   WellnessDay as WellnessDayRow,
   WristPublication as WristPublicationRow,
 } from './db.ts'
-import type { WellnessSeriesRow } from '../shared/domain/trends.ts'
+import type { WeightSeriesRow, WellnessSeriesRow } from '../shared/domain/trends.ts'
 import type {
   CourseSnapshot,
   LoggedPrediction,
@@ -983,6 +983,22 @@ export async function loadWellnessSeries(
   return prisma.wellnessDay.findMany({
     where: { userId, date: { gte: opts.from, lte: opts.to } },
     select: { date: true, restingHr: true, hrvRmssd: true, sleepSec: true },
+  })
+}
+
+/**
+ * The weigh-ins of an inclusive range, for the Trends weight series. Called only when the runner
+ * has turned body weight on and the screening is below `j5.redsHoldFlags` (ADR 0019), so the column
+ * is selected on no other path of the page.
+ */
+export async function loadWeightSeries(
+  prisma: Pick<PrismaClient, 'wellnessDay'>,
+  userId: string,
+  opts: { from: string; to: string },
+): Promise<WeightSeriesRow[]> {
+  return prisma.wellnessDay.findMany({
+    where: { userId, date: { gte: opts.from, lte: opts.to }, weightKg: { not: null } },
+    select: { date: true, weightKg: true },
   })
 }
 

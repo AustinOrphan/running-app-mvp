@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { trendsText } from '../../shared/copy/trends.ts'
 import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../../shared/domain/weight.ts'
 import type { Units, UserSettings, WeightUnit } from '../../shared/types.ts'
 import { useLogout } from '../api/auth.ts'
@@ -41,6 +42,8 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(
     isWeightUnit(initial.weightUnit) ? initial.weightUnit : DEFAULT_WEIGHT_UNIT,
   )
+  // a cached answer from before the switch existed has none, and reads as off
+  const [showBodyWeight, setShowBodyWeight] = useState(initial.showBodyWeight === true)
   const [displayName, setDisplayName] = useState(initial.displayName ?? '')
 
   const errors = fieldErrors(update.error)
@@ -74,6 +77,14 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     setWeightUnit(next)
     save({ weightUnit: next }, () => {
       setWeightUnit(previous)
+    })
+  }
+
+  function onShowBodyWeightChange(next: boolean) {
+    const previous = showBodyWeight
+    setShowBodyWeight(next)
+    save({ showBodyWeight: next }, () => {
+      setShowBodyWeight(previous)
     })
   }
 
@@ -156,6 +167,26 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             { value: 'dark', label: 'Dark' },
           ]}
         />
+      </section>
+
+      <section className={styles.section} aria-labelledby="trends-heading">
+        <h2 id="trends-heading" className={styles.heading}>
+          {trendsText('trends.settings.heading')}
+        </h2>
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={showBodyWeight}
+            aria-describedby="trends-weight-note"
+            onChange={(event) => {
+              onShowBodyWeightChange(event.target.checked)
+            }}
+          />
+          {trendsText('trends.settings.show-weight')}
+        </label>
+        <p id="trends-weight-note" className={styles.note}>
+          {trendsText('trends.settings.hiding-note')}
+        </p>
       </section>
 
       <section className={styles.section} aria-labelledby="data-heading">

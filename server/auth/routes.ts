@@ -28,6 +28,7 @@ interface UserRow {
   displayName: string | null
   units: string
   weightUnit: string
+  showBodyWeight: boolean
 }
 
 function toSessionUser(row: UserRow): SessionUser {
@@ -37,6 +38,7 @@ function toSessionUser(row: UserRow): SessionUser {
     displayName: row.displayName,
     units: row.units as Units,
     weightUnit: toWeightUnit(row.weightUnit),
+    showBodyWeight: row.showBodyWeight,
   }
 }
 

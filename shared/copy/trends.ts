@@ -17,6 +17,11 @@ export const TRENDS_TEMPLATES = {
   'trends.error': tpl('Trends did not load. Reload the page to try again.'),
   'trends.recovery.error': tpl('The recovery readings did not load. Reload the page to try again.'),
 
+  // Settings: the one switch that lets the page draw body weight (off by default, ADR 0019)
+  'trends.settings.heading': tpl('Trends', {}, { shape: 'label' }),
+  'trends.settings.show-weight': tpl('Show body weight on Trends', {}, { shape: 'label' }),
+  'trends.settings.hiding-note': tpl('Hiding the chart deletes nothing. Every weigh-in stays.'),
+
   // Running per week
   'trends.run.heading': tpl('Running per week', {}, { shape: 'label' }),
   'trends.run.empty': tpl('No runs in this range yet.'),

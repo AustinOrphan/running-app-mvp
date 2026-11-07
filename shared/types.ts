@@ -162,12 +162,28 @@ export interface TrendWeek {
   readings: number | null
 }
 /**
+ * One week of the body-weight series [rule T1]: the mean of the week's weigh-ins in integer grams,
+ * null under the minimum number of weigh-ins (`weighIns` counts them).
+ */
+export interface TrendWeightWeek {
+  weekStart: string
+  grams: number | null
+  weighIns: number
+}
+/**
  * `GET /api/trends`: the recovery readings by week over the last 104 weeks, oldest first. Running
  * weeks come from `GET /api/weeks`. A series with no reading in any week is an empty array.
  * Heart-rate variability is rMSSD in ms, resting heart rate is bpm and sleep is hours.
+ *
+ * `weight` is present only when the runner has turned body weight on (`UserSettings.showBodyWeight`)
+ * and fewer than `j5.redsHoldFlags` flags are open in the latest screening. With the switch on and
+ * that many flags, `weightGate` is 'reds' and there is no series. With the switch off neither key
+ * exists. The gates are display choices, not access control (ADR 0019).
  */
 export interface TrendsView {
   asOf: string
+  weight?: TrendWeightWeek[]
+  weightGate?: 'reds'
   recovery: {
     hrv: TrendWeek[]
     restingHr: TrendWeek[]
@@ -575,6 +591,11 @@ export interface UserSettings {
    * kilograms for a runner who had chosen kilometres.
    */
   weightUnit: WeightUnit
+  /**
+   * Whether Trends may draw a body-weight chart (ADR 0019). Off by default; turning it off hides
+   * the chart and deletes no weigh-in.
+   */
+  showBodyWeight: boolean
 }
 export interface SessionUser extends UserSettings {
   id: string

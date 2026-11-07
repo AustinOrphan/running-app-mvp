@@ -1594,6 +1594,45 @@ function verifyStrength(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT count(*) AS n FROM "StrengthLog"')).toEqual([{ n: 1 }])
 }
 
+function verifyShowBodyWeight(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Every runner of the previous release reads false: weight stays hidden until it is turned on.
+  expect(rowsOf(db, 'SELECT id, "showBodyWeight" FROM "User" ORDER BY id')).toEqual([
+    { id: 'u1', showBodyWeight: 0 },
+    { id: 'u2', showBodyWeight: 0 },
+    { id: 'u3', showBodyWeight: 0 },
+  ])
+  // The plan, its linked sessions and the activities are untouched by the column add.
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "Activity"')).toEqual([{ n: 3 }])
+  expect(rowsOf(db, 'SELECT count(*) AS n FROM "Plan"')).toEqual([{ n: 1 }])
+  expect(rowsOf(db, `SELECT id, "activityId" FROM "PlanSession" ORDER BY id`)).toEqual([
+    { id: 's1', activityId: 'a1' },
+    { id: 's2', activityId: 'a2' },
+  ])
+  // The other settings kept their values.
+  expect(rowsOf(db, 'SELECT id, units, "weightUnit" FROM "User" ORDER BY id')).toEqual([
+    { id: 'u1', units: 'km', weightUnit: 'lb' },
+    { id: 'u2', units: 'mi', weightUnit: 'lb' },
+    { id: 'u3', units: 'mi', weightUnit: 'lb' },
+  ])
+  // A runner added afterwards, who chose nothing, reads false; the switch can be turned on.
+  insert(db, 'User', {
+    id: 'u4',
+    email: 'new@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  expect(rowsOf(db, `SELECT "showBodyWeight" FROM "User" WHERE id = 'u4'`)).toEqual([
+    { showBodyWeight: 0 },
+  ])
+  db.exec(`UPDATE "User" SET "showBodyWeight" = 1 WHERE id = 'u1'`)
+  expect(rowsOf(db, `SELECT "showBodyWeight" FROM "User" WHERE id = 'u1'`)).toEqual([
+    { showBodyWeight: 1 },
+  ])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -1654,6 +1693,11 @@ const CASES: FixtureCase[] = [
     migration: 'strength',
     seed: seedStrengthRelease,
     verify: verifyStrength,
+  },
+  {
+    migration: 'show_body_weight',
+    seed: seedStrengthRelease,
+    verify: verifyShowBodyWeight,
   },
 ]
 
