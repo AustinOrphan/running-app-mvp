@@ -2782,6 +2782,35 @@ function nightFacts(scope: Scope): InputFact[] {
   ]
 }
 
+/**
+ * H11, the race target of an ultra goal: the heart-rate ceiling at the top of the current zone 1,
+ * or the effort of `h11.raceRpe` when the zones hold no heart rate, and the share of the time that
+ * the runners of the study spent below the first threshold (`h11.belowVt1Share`). The rule is in
+ * force for an ultra goal only, so another goal has nothing for it to state, as with H10.
+ */
+function racePacingFacts(scope: Scope): InputFact[] {
+  const { ctx } = scope
+  const { race } = ctx
+  if (race === null) return noGoal('H11')
+  if (!race.isUltra) return []
+  const z1 = ctx.zones.hr?.z1 ?? null
+  const [low, high] = P.h11.raceRpe.value
+  const target =
+    z1 === null
+      ? make('H11', 'race', 'explain.h11-race-effort', { low: count(low), high: count(high) })
+      : make(
+          'H11',
+          'race',
+          'explain.h11-race',
+          { ceiling: bpm(z1[1]) },
+          { sources: [profileSource(ctx)] },
+        )
+  return [
+    target,
+    make('H11', 'study', 'explain.h11-study', { share: percent(P.h11.belowVt1Share.value) }),
+  ]
+}
+
 function fuelBlockFacts(scope: Scope): InputFact[] {
   const { ctx, next } = scope
   const weeks = planWeeks(ctx)
@@ -3484,6 +3513,7 @@ export const INPUT_BUILDERS: Readonly<Record<string, Builder>> = {
   F8: strengthLoadFacts,
   F9: strengthLighterFacts,
   H10: strengthFacts,
+  H11: racePacingFacts,
   H12: postRaceFacts,
   H13: heatAdaptationFacts('H13'),
   H2: timeOnFeetFacts,
@@ -3573,7 +3603,6 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'H3',
   'H8',
   'H9',
-  'H11',
   // environment read on the day, not from the snapshot: the weather index and the training-heat
   // advice come from the cached forecast when Today or a session is read, and the rest are
   // conventions on how a hot, cold, steep or high course is described
@@ -3764,6 +3793,7 @@ const RACE_RULES: ReadonlySet<string> = new Set(
     'H5',
     'H6',
     'H10',
+    'H11',
     'H12',
     'I2',
     'I3',

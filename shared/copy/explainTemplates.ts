@@ -906,6 +906,21 @@ export const EXPLAIN_TEMPLATES = {
   'explain.h10-outside': tpl('The week of {week} is outside the strength block.', {
     week: 'date',
   }),
+  // H11: the race target of an ultra goal, in two sentences to stay within the 160 characters of a
+  // template (`COPY_MAX_CHARS`): the target (a ceiling, or an effort where the zones hold no heart
+  // rate) and the study behind it, whose share is `h11.belowVt1Share`
+  'explain.h11-race': tpl(
+    'The race target is a heart-rate ceiling at the top of zone 1, {ceiling}.',
+    { ceiling: 'bpm' },
+  ),
+  'explain.h11-race-effort': tpl('The race target is an effort of {low} to {high} out of 10.', {
+    low: 'count',
+    high: 'count',
+  }),
+  'explain.h11-study': tpl(
+    'This is because amateur runners in a 65 km mountain race spent about {share} of the time below the first threshold.',
+    { share: 'percent' },
+  ),
 
   // ---------------------------------------------------------------------------------------------
   // F7 to F9: strength sessions and loads (strength design 10.5, ADR 0014). The reasons behind a

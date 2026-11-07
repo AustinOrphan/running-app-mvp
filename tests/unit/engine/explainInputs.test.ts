@@ -2848,7 +2848,21 @@ describe('D1 to D7: the goal', () => {
 
   test('every goal rule says there is no goal when the runner has none', () => {
     const none = contextOf(emptyInput(), { goal: null, race: null })
-    for (const rule of ['D1', 'D2', 'D3', 'D4', 'D5', 'D7', 'H2', 'H4', 'H5', 'H6', 'H12', 'K1']) {
+    for (const rule of [
+      'D1',
+      'D2',
+      'D3',
+      'D4',
+      'D5',
+      'D7',
+      'H2',
+      'H4',
+      'H5',
+      'H6',
+      'H11',
+      'H12',
+      'K1',
+    ]) {
       expect(factsOf(rule, none)[0], rule).toMatchObject({
         template: 'explain.goal-gap',
         state: 'insufficient',
@@ -3516,6 +3530,56 @@ describe('the goal on the course: H2, H4 to H6, H12 and O1', () => {
     expect(past.window!.from).toBe(addDays(TODAY, -4))
   })
 
+  test('H11 gives the race target of an ultra goal, the ceiling at the top of zone 1, and the share the study found below the first threshold', () => {
+    const ctx = ctxOf('first-100-mile')
+    const [target, study, ...rest] = factsOf('H11', ctx)
+    expect(rest).toEqual([])
+    expect(target).toMatchObject({ id: 'h11.race', template: 'explain.h11-race', state: 'used' })
+    expect(slot(target!, 'ceiling', 'bpm').bpm).toBe(ctx.zones.hr!.z1[1])
+    expect(text(target!)).toBe(
+      `The race target is a heart-rate ceiling at the top of zone 1, ${String(ctx.zones.hr!.z1[1])} bpm.`,
+    )
+    expect(target!.sources.map((source) => source.kind)).toEqual(['profile'])
+    // the share is read from the Param that states it (it was read by nothing before)
+    expect(study).toMatchObject({ id: 'h11.study', template: 'explain.h11-study', state: 'used' })
+    expect(slot(study!, 'share', 'percent').pct).toBe(P.h11.belowVt1Share.value)
+    expect(text(study!)).toBe(
+      `This is because amateur runners in a 65 km mountain race spent about ${String(P.h11.belowVt1Share.value)}% of the time below the first threshold.`,
+    )
+  })
+
+  test('H11 gives the effort of h11.raceRpe where the zones hold no heart rate', () => {
+    const base = ctxOf('first-100-mile')
+    const ctx = { ...base, zones: { ...base.zones, hr: null, pace: null } }
+    const [target, study, ...rest] = factsOf('H11', ctx)
+    expect(rest).toEqual([])
+    expect(target).toMatchObject({ id: 'h11.race', template: 'explain.h11-race-effort' })
+    expect(slot(target!, 'low', 'count').n).toBe(P.h11.raceRpe.value[0])
+    expect(slot(target!, 'high', 'count').n).toBe(P.h11.raceRpe.value[1])
+    expect(text(target!)).toBe(
+      `The race target is an effort of ${String(P.h11.raceRpe.value[0])} to ${String(P.h11.raceRpe.value[1])} out of 10.`,
+    )
+    expect(target!.sources).toEqual([])
+    // the study sentence is the same with or without a heart rate
+    expect(study).toMatchObject({ id: 'h11.study', template: 'explain.h11-study' })
+    expect(slot(study!, 'share', 'percent').pct).toBe(P.h11.belowVt1Share.value)
+  })
+
+  test('H11 is the ultra rule: a shorter goal has nothing for it to state, and the drawer of the race session lists it', () => {
+    expect(factsOf('H11', ctxOf('marathon'))).toEqual([])
+    expect(factsOf('H11', ctxOf('trail-50k'))[0]).toMatchObject({ template: 'explain.h11-race' })
+    // the race session of an ultra goal cites H11, so its drawer holds the fact
+    const ctx = ctxOf('first-100-mile')
+    const race = ctx.input.existing!.sessions.find((s) => s.kind === 'race')!
+    expect(race.rules).toEqual(['K6', 'H11'])
+    const group = view({ subject: 'session', id: race.id }, ctx).groups.find(
+      (g) => g.rule === 'H11',
+    )
+    expect(group?.facts.map((f) => f.template)).toEqual(['explain.h11-race', 'explain.h11-study'])
+    // H11 reads the goal as the engine models it, so the server computes it for a request that lists it
+    expect(explainNeeds(['H11'])).toMatchObject({ race: true })
+  })
+
   test('O1 gives the ceiling a watch alerts above, from the zones, and the floor of the band', () => {
     const [ceiling] = factsOf('O1')
     expect(slot(ceiling!, 'bpm', 'bpm').bpm).toBe(richCtx.zones.hr!.z1[1])
@@ -3719,6 +3783,7 @@ describe('insufficient states', () => {
       case 'H5':
       case 'H6':
       case 'H10':
+      case 'H11':
       case 'H12':
       case 'K1':
       case 'n-7':
