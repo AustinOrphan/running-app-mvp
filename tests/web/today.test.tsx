@@ -193,7 +193,7 @@ describe("Today: today's session", () => {
   })
 
   test('a completed session is labelled and shows the run that was logged', async () => {
-    const run = makeActivity({ id: 'r1', date: TODAY, durationSec: 2700, distanceM: 8047 })
+    const run = makeActivity({ id: 'r1', date: TODAY, durationSec: 2280, distanceM: 6000 })
     const session = makeSession({ status: 'completed', activityId: 'r1' })
     render(
       makeToday({
@@ -203,9 +203,22 @@ describe("Today: today's session", () => {
     )
     const card = await screen.findByRole('article', { name: 'Easy run' })
     expect(within(card).getByText('Completed')).toBeInTheDocument()
-    expect(within(card).getByText('Logged: 5.00 mi in 45 min.')).toBeInTheDocument()
+    // After a run the display number is what was run, with its distance beside it; the plan is
+    // the quiet line under it.
+    expect(card.querySelector('p span')).toHaveTextContent('38')
+    expect(within(card).getByText('3.73 mi')).toBeInTheDocument()
+    expect(within(card).getByText('Planned: Easy run, 45 min')).toBeInTheDocument()
+    expect(within(card).queryByText(/Logged:/)).not.toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: 'Not today' })).not.toBeInTheDocument()
+  })
+
+  test('before a run the display number is the planned duration', async () => {
+    render(withEasyRun())
+    const card = await screen.findByRole('article', { name: 'Easy run' })
+    expect(card.querySelector('p span')).toHaveTextContent('45')
+    expect(within(card).queryByText(/^Planned: /)).not.toBeInTheDocument()
+    expect(within(card).queryByRole('link', { name: 'See the run' })).not.toBeInTheDocument()
   })
 
   test('the logged run links to its page', async () => {
@@ -218,7 +231,7 @@ describe("Today: today's session", () => {
       }),
     )
     const card = await screen.findByRole('article', { name: 'Easy run' })
-    expect(within(card).getByRole('link', { name: 'Logged: 5.00 mi in 45 min.' })).toHaveAttribute(
+    expect(within(card).getByRole('link', { name: 'See the run' })).toHaveAttribute(
       'href',
       '/activities/r1',
     )

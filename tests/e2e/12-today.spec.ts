@@ -510,7 +510,7 @@ test('the logged run on the hero links to its page, which names the same run', a
   const { today } = relativeDates()
   await page.goto('/')
   const card = page.getByRole('article', { name: planned.title })
-  const link = card.getByRole('link', { name: /^Logged: / })
+  const link = card.getByRole('link', { name: 'See the run' })
   await expect(link).toBeVisible()
   expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   await link.click()

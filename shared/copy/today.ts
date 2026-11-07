@@ -376,6 +376,8 @@ export const TODAY_TEMPLATES = {
   'today.rate.save': tpl('Save rating', {}, { shape: 'label' }),
   'today.rate.saved': tpl('Rating saved.'),
   'today.rate.not-saved': tpl('Rating not saved. {reason} Try again.', { reason: 'text' }),
+  // The link under the figures of a session that has a run: the run's own page.
+  'today.hero.see-run': tpl('See the run', {}, { shape: 'label' }),
   'today.hero.also': tpl('Also today: {sessions}.', { sessions: 'text' }),
   'today.hero.nothing-planned': tpl('Nothing is planned today.'),
   'today.hero.next': tpl('Next: {date}, {title}, {duration}.', {
