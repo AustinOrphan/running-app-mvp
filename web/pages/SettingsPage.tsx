@@ -28,6 +28,9 @@ const OFFLINE_USE = {
   refused: TEMPLATES['today.offline.use-refused'],
 } satisfies Record<OfflineStatus, (typeof TEMPLATES)['today.offline.use-ready']>
 
+/** The settings that save by themselves, each with its own rollback. */
+type SettingKey = 'units' | 'weightUnit' | 'showBodyWeight' | 'displayName'
+
 /** How long "Saved" stays, and how long the name field waits after the last key before it saves. */
 const SAVED_MS = 3000
 const NAME_PAUSE_MS = 800
@@ -55,8 +58,11 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const [nameError, setNameError] = useState<string | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const nameTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  // The newest save: only its answer may change `saved`, the error or the Saved flash.
+  // The newest save of all: only its answer may change `saved` and the Saved flash. The newest save
+  // of each field: only its failure rolls that field back or sets its error, so a failure that a later
+  // save of the same field has replaced does nothing, and any other failure is never lost.
   const newest = useRef(0)
+  const newestOf = useRef<Partial<Record<SettingKey, number>>>({})
   // For the cleanup: the name as typed, the name the server holds, and whether a save is waiting.
   const typedName = useRef(initial.displayName ?? '')
   const heldName = useRef(initial.displayName ?? '')
@@ -89,8 +95,9 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   }
 
   /** Saves one change now. A refusal is reported by `onFailure`; the typed value is the caller's to keep. */
-  function save(patch: SettingsPatch, onFailure: (error: unknown) => void) {
+  function save(key: SettingKey, patch: SettingsPatch, onFailure: (error: unknown) => void) {
     const mine = ++newest.current
+    newestOf.current[key] = mine
     setFailure(null)
     update.mutateAsync(patch).then(
       (next) => {
@@ -100,9 +107,8 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         confirm()
       },
       (error: unknown) => {
-        if (mine !== newest.current) return
-        setFlash(false)
-        onFailure(error)
+        if (mine === newest.current) setFlash(false)
+        if (newestOf.current[key] === mine) onFailure(error)
       },
     )
   }
@@ -111,7 +117,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     if (next === units) return
     const previous = units
     setUnits(next)
-    save({ units: next }, () => {
+    save('units', { units: next }, () => {
       setUnits(previous)
       setFailure(render(TEMPLATES['settings.not-saved'], {}, previous))
     })
@@ -121,7 +127,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     if (next === weightUnit) return
     const previous = weightUnit
     setWeightUnit(next)
-    save({ weightUnit: next }, () => {
+    save('weightUnit', { weightUnit: next }, () => {
       setWeightUnit(previous)
       setFailure(render(TEMPLATES['settings.not-saved'], {}, units))
     })
@@ -130,7 +136,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   function onShowBodyWeightChange(next: boolean) {
     const previous = showBodyWeight
     setShowBodyWeight(next)
-    save({ showBodyWeight: next }, () => {
+    save('showBodyWeight', { showBodyWeight: next }, () => {
       setShowBodyWeight(previous)
       setFailure(render(TEMPLATES['settings.not-saved'], {}, units))
     })
@@ -148,7 +154,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     const name = value.trim()
     if (name === heldName.current) return
     setNameError(null)
-    save({ displayName: name }, (error) => {
+    save('displayName', { displayName: name }, (error) => {
       setNameError(
         fieldErrors(error)['displayName'] ??
           render(TEMPLATES['settings.name-not-saved'], {}, units),

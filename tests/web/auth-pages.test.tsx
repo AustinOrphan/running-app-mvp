@@ -405,7 +405,7 @@ describe('SettingsPage', () => {
     expect(screen.getByLabelText('Display name')).toHaveValue('Sam')
   })
 
-  test('settings: only the newest save answers; an older one that fails late changes nothing', async () => {
+  test('settings: a save that fails after a newer one rolls back its own field and not the shared Saved', async () => {
     const { calls } = mockApi(
       settingsRoutes((body) => {
         const patch = body as { units?: string; displayName?: string }
@@ -438,8 +438,14 @@ describe('SettingsPage', () => {
       expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(2)
     })
     await new Promise((resolve) => setTimeout(resolve, 400))
-    // the older save failed after the newer one succeeded: no alert, and Saved is still showing
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    // the older save failed after the newer one succeeded: its own field is rolled back to what the
+    // server holds, the name stays as saved, and Saved (the newer save's) is still showing
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: 'Miles' })).toBeChecked()
+    })
+    expect(screen.getByRole('radio', { name: 'Kilometres' })).not.toBeChecked()
+    expect(screen.getByLabelText('Display name')).toHaveValue('Sam')
+    expect(screen.getByRole('alert')).toHaveTextContent('Not saved.')
     expect(screen.getByRole('status', { name: 'Save status' })).toHaveTextContent('Saved')
   })
 
