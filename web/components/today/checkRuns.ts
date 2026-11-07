@@ -57,6 +57,12 @@ interface Pending {
   asked: Record<string, { before: string | null; label: string }>
   /** Services whose request was refused, with the server's words. */
   refused: Record<string, string>
+  /**
+   * Every sync request has been answered (202 or refusal). The finish waits for this: a status
+   * list that already shows a newer pull while a request is still in flight must not end the
+   * check early, or the late answer would start a second one and announce the same runs twice.
+   */
+  answered: boolean
 }
 
 export interface CheckRuns {
@@ -108,6 +114,7 @@ export function useCheckRuns(): CheckRuns {
           ]),
         ),
         refused: {},
+        answered: false,
       }
       setPending(next)
       const answers = await Promise.allSettled(
@@ -119,7 +126,7 @@ export function useCheckRuns(): CheckRuns {
         next.refused[targets[index]!.provider] =
           reason instanceof ApiError ? reason.message : 'Something went wrong.'
       })
-      setPending({ ...next, refused: { ...next.refused } })
+      setPending({ ...next, refused: { ...next.refused }, answered: true })
     },
     [mutateAsync],
   )
@@ -127,7 +134,7 @@ export function useCheckRuns(): CheckRuns {
   // The finish: every asked service has refused, shown a newer `lastSyncAt`, or run out of wait.
   // Then the runs that ended are read for their counts, and the page is told.
   useEffect(() => {
-    if (pending === null) return
+    if (pending === null || !pending.answered) return
     const open = Object.keys(pending.asked).filter((key) => pending.refused[key] === undefined)
     const itemOf = (key: string) => list?.find((candidate) => candidate.provider === key)
     const finished = (key: string) => {

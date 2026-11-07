@@ -1,10 +1,18 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { IntegrationStatus, ProviderInfo, SyncRunView } from '../../shared/types.ts'
-import { expectCleanCopy, type MockRoutes } from './helpers.tsx'
+import {
+  expectCleanCopy,
+  makeTestQueryClient,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
+import { ToastProvider } from '../../web/components/Toast.tsx'
+import { DashboardPage } from '../../web/pages/DashboardPage.tsx'
 import { makeCoach, makeToday } from './today-fixtures.ts'
-import { renderToday, startToday } from './today-render.tsx'
+import { renderToday, settingsOf, startToday } from './today-render.tsx'
 
 // The "Check for new runs" control of Today's header (build list item 1): the same sync route as
 // the Integrations page, one pull when Today opens with a stale one, and a toast naming what came.
@@ -121,6 +129,8 @@ describe('Today: check for new runs', () => {
       await screen.findByText('3 new runs added from Intervals.icu and Strava'),
     ).toBeInTheDocument()
     expect(state.syncs.sort()).toEqual(['intervals', 'strava'])
+    // One announcement for the whole check, however many services answered.
+    expect(screen.getAllByText(/new runs? added/)).toHaveLength(1)
     // The button is usable again and kept focus throughout.
     await waitFor(() => {
       expect(button).not.toHaveAttribute('aria-busy', 'true')
@@ -164,6 +174,46 @@ describe('Today: check for new runs', () => {
     await waitFor(() => {
       expect(button).not.toHaveAttribute('aria-busy', 'true')
     })
+  })
+
+  test('announces once when the services list shows the finished pull before the request is answered', async () => {
+    const user = userEvent.setup()
+    const after = minutesAgo(0)
+    const { routes } = fakeServices([service('intervals', 'Intervals.icu')], minutesAgo(5), after)
+    const queryClient = makeTestQueryClient()
+    mockApi({
+      'GET /api/today': () => makeToday({ coach: makeCoach() }),
+      'GET /api/settings': () => settingsOf(),
+      ...routes,
+      'GET /api/integrations/intervals/runs': () => [run(after, 1)],
+    })
+    renderWithProviders(
+      <ToastProvider>
+        <DashboardPage />
+      </ToastProvider>,
+      { queryClient },
+    )
+    const button = await screen.findByRole('button', { name: 'Check for new runs' })
+    // Hold the sync answer back, as a slow connection does, while the server has already run it.
+    const answer = globalThis.fetch
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await answer(input, init)
+      if (init?.method === 'POST' && (typeof input === 'string' ? input : '').includes('/sync'))
+        await gate
+      return response
+    })
+    await user.click(button)
+    // The list is read again meanwhile and shows the new pull.
+    await queryClient.invalidateQueries({ queryKey: ['integrations'] })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    release()
+    expect(await screen.findByText('One new run added from Intervals.icu')).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(screen.getAllByText('One new run added from Intervals.icu')).toHaveLength(1)
   })
 
   test('says so when nothing new came', async () => {
