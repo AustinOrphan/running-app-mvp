@@ -170,6 +170,7 @@ export const keys = {
   explain: 'explain',
   state: 'state',
   stats: 'stats',
+  trends: 'trends',
   wrist: 'wrist',
 } as const
 
