@@ -116,6 +116,7 @@ export const RULE_TITLES: Record<string, string> = {
   J7: 'Breaks',
   J8: 'Fatigue states',
   J9: 'Rest windows and returns',
+  J10: 'Silent sources',
   // (k) taper
   K1: 'Taper length',
   K2: 'Taper volume',

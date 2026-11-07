@@ -457,6 +457,38 @@ describe('parameter registry', () => {
     }
   })
 
+  it('carries the silent-source rule J10 as one labelled default under the first J7 tier', () => {
+    const silent = P.j10.silentDays
+    expect([silent.id, silent.value, silent.unit, silent.grade, silent.rule]).toEqual([
+      'j10.silentDays',
+      4,
+      'days',
+      'D',
+      'J10',
+    ])
+    expect(silent.note).toMatch(/default/i)
+    // the note comes before the layoff reading, and cites the bound it sits under
+    expect(silent.value).toBeLessThan(P.j7.tier1Days.value)
+    expect(silent.evidence).toEqual(P.j7.tier1Days.evidence)
+    expect(paramsForRule('J10').map((p) => p.id)).toEqual(['j10.silentDays'])
+  })
+
+  it('states rule J10 in engine-rules.md with its parameter, evidence and table row', () => {
+    const start = engineRules.indexOf('- **J10 ')
+    const end = engineRules.indexOf('## (k) Taper and race week')
+    expect(start).toBeGreaterThan(engineRules.indexOf('- **J9 '))
+    expect(end).toBeGreaterThan(start)
+    const j10Text = engineRules.slice(start, end)
+    for (const p of paramsForRule('J10')) {
+      expect(j10Text, p.id).toContain(`\`${p.id}\``)
+      const missing = p.evidence.filter((id) => !j10Text.includes(id))
+      expect(missing, p.id).toEqual([])
+    }
+    expect(j10Text).toContain('`j7.tier1Days`')
+    expect(j10Text).toMatch(/grade D as a whole/i)
+    expect(engineRules).toMatch(/^\| Silent source note /m)
+  })
+
   it('carries the four standout thresholds under design-explain as labelled defaults', () => {
     const s = P.standout
     expect(
