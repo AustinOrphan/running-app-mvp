@@ -140,7 +140,7 @@ Corpus coverage (greps of `research/papers` on 2026-11-07, 425 papers):
 | Vertical speed changes with distance in a 220 km race | Direction, C (27 runners, one race, correlational) | `jeker-2020-vertical-speed-ultra`; slot wording matches that population |
 | Descents cost more late; slower finishers lose most downhill time late | Direction, C | `vernillo-2015-fatigue-energy-cost`, `genitrini-2022-downhill-pacing` |
 | Heat slows a 161 km race about 8%; pace converges at night | One cohort, C | `parise-2011-161km-pacing-heat`; I6 daytime-only is rule text, low confidence over 6 h |
-| Fuel floor, rungs, tolerance, GI as a leading DNF reason | Yes, A to C | `tiller-2019-issn-ultra-nutrition`, `jeukendrup-2014-cho-intake`, `costa-2017-eigs-sr`, `stuempfle-2015-gi-distress-wser`; no study ties a rung to a race result |
+| Fuel floor, rungs, tolerance, GI symptoms as a reason for dropping out | Yes, A to C | `tiller-2019-issn-ultra-nutrition`, `jeukendrup-2014-cho-intake`, `costa-2017-eigs-sr`, `stuempfle-2015-gi-distress-wser`; no study ties a rung to a race result |
 | Thirst-led fluid, EAH card, sodium not preventive | Yes, A/B | `hewbutler-2015-eah-consensus`, `hewbutler-2017-eah-update`, `hoffman-2013-eah-hydration-161km`, `hoffman-2015-sodium-supplementation-eah` |
 | 8 to 10 g/kg/day for 24 to 48 h | Thin, C | `bussau-2002-carb-loading-one-day` (8 inactive men, 1 day), `sherman-1981-exercise-diet-glycogen`; none in ultra runners |
 | Heat acclimation credit and decay | Yes, A (D for the 40 days) | `racinais-2015-heat-consensus`, `daanen-2018-acclimation-decay` |

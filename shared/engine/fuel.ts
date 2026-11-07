@@ -508,7 +508,7 @@ export interface RaceFuel extends RungRate {
   basis: RaceFuelBasis
   lowCertainty: boolean
   multiCarbRequired: boolean
-  /** The race is hot for fuel (`isHotForFuel` on the race's WBGT): no run at race heat was counted. */
+  /** The race is hot for fuel (`isHotForFuel` on the race's WBGT): no run known to be at race heat was counted (a run without weather counts as cool). */
   hot: boolean
   nauseaPlanOpen: boolean
   /** The hours that the totals run over: the expected time, taken over elapsed time (rule H7). */

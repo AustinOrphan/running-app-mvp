@@ -196,7 +196,8 @@ describe('figures that restate a Param come from the Param', () => {
     expect(week?.carbMass).toContain('70 kg')
     expect(week?.carbMass).toContain(`${String(70 * lowG)} to ${String(70 * highG)} g`)
     expect(week?.shake).toContain(`${String(P.k6.dayBeforeMaxMin.value)} min`)
-    expect(week?.evidence).toMatch(/eight endurance-trained men/)
+    expect(week?.evidence).toMatch(/eight endurance-trained men 10 g per kg a day for 3 days/)
+    expect(week?.evidence).toMatch(/lower end of the range .* engine choices/)
   })
 
   it('asks for the weight when the profile holds none', () => {
@@ -235,7 +236,8 @@ describe('fuel and fluid words', () => {
     expect(cool.fewHours).toMatch(/few hours/)
     expect(cool.hot).toBeNull()
     const hot = describeRacePlan(PLANS[2]![1], 'km').fuel
-    expect(hot.hot).toMatch(/No run at race heat/)
+    expect(hot.hot).toMatch(/no run known to be at race heat/)
+    expect(hot.hot).toMatch(/without weather counts as cool/)
     expect(hot.nausea.open).toBe(true)
   })
 

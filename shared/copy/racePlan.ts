@@ -182,7 +182,7 @@ export const RACE_PLAN_TEMPLATES = {
     'That tolerance came from runs of a few hours. A race is much longer.',
   ),
   'race.plan.fuel.hot': tpl(
-    'Tolerated on cooler days. No run at race heat counted toward this rate.',
+    'Tolerated on cooler days. A run without weather counts as cool, so no run known to be at race heat counted.',
   ),
   'race.plan.fuel.total': tpl('About {low} to {high} g over the expected time.', {
     low: 'count',
@@ -207,7 +207,10 @@ export const RACE_PLAN_TEMPLATES = {
   }),
   'race.plan.week.days': tpl('That covers {from} to {to}.', { from: 'date', to: 'date' }),
   'race.plan.week.evidence': tpl(
-    'The range comes from a small trial of eight endurance-trained men who stayed inactive. It measured muscle glycogen, not race results.',
+    'The trial fed eight endurance-trained men 10 g per kg a day for 3 days at rest, and measured muscle glycogen, not race results.',
+  ),
+  'race.plan.week.engine': tpl(
+    'The lower end of the range and the length of the window are engine choices.',
   ),
   'race.plan.week.shake': tpl(
     'The plan keeps the day before to at most {min} of easy running, and easy running only from {date}.',
@@ -607,7 +610,7 @@ export function describeRaceWeek(week: RaceWeek, units: Units): RaceWeekText {
       },
       units,
     ),
-    evidence: say(T['race.plan.week.evidence'], {}, units),
+    evidence: `${say(T['race.plan.week.evidence'], {}, units)} ${say(T['race.plan.week.engine'], {}, units)}`,
     shake: say(
       T['race.plan.week.shake'],
       {
