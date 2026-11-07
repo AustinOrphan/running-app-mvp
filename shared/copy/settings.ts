@@ -9,4 +9,5 @@ export const SETTINGS_TEMPLATES = {
   'settings.name-not-saved': tpl(
     'Not saved. The name stays in the field; change it or leave the field to try again.',
   ),
+  'settings.name-alert': tpl('Display name not saved.'),
 } as const

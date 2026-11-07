@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { LoginPage } from '../../web/pages/LoginPage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
@@ -375,7 +375,89 @@ describe('SettingsPage', () => {
     await typist.tab()
     expect(await screen.findByText(/^Not saved\. The name stays in the field/)).toBeInTheDocument()
     expect(screen.getByLabelText('Display name')).toHaveValue('Sam')
+    // the refusal is announced, not only drawn beside the field
+    expect(await screen.findByRole('alert')).toHaveTextContent('Display name not saved.')
     expectCleanCopy(document.body)
+  })
+
+  test('settings: a refused name stays on screen while another setting saves', async () => {
+    mockApi(
+      settingsRoutes((body) => {
+        if ((body as { displayName?: string }).displayName !== undefined) {
+          return { status: 500, body: { error: { code: 'internal', message: 'Boom' } } }
+        }
+        return { email: user.email, displayName: null, units: 'km', ...(body as object) }
+      }),
+    )
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.type(screen.getByLabelText('Display name'), 'Sam')
+    await typist.tab()
+    expect(await screen.findByText(/^Not saved\. The name stays/)).toBeInTheDocument()
+    await typist.click(screen.getByRole('radio', { name: 'Kilometres' }))
+    expect(
+      await within(screen.getByRole('status', { name: 'Save status' })).findByText('Saved'),
+    ).toBeInTheDocument()
+    // the units save is not the name's: its error is still there
+    expect(screen.getAllByText(/^Not saved\. The name stays/).length).toBeGreaterThan(0)
+    expect(screen.getByLabelText('Display name')).toHaveValue('Sam')
+  })
+
+  test('settings: only the newest save answers; an older one that fails late changes nothing', async () => {
+    const { calls } = mockApi(
+      settingsRoutes((body) => {
+        const patch = body as { units?: string; displayName?: string }
+        if (patch.units !== undefined) {
+          return { status: 500, body: { error: { code: 'internal', message: 'Boom' } } }
+        }
+        return { email: user.email, displayName: patch.displayName ?? null, units: 'mi' }
+      }),
+    )
+    // the units save (the first PUT) answers last
+    const answer = globalThis.fetch
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const slow = init?.method === 'PUT' && String(init.body).includes('"units"')
+      const response = await answer(input, init)
+      if (slow) await new Promise((resolve) => setTimeout(resolve, 250))
+      return response
+    })
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.click(screen.getByRole('radio', { name: 'Kilometres' }))
+    await typist.type(screen.getByLabelText('Display name'), 'Sam')
+    await typist.tab()
+    expect(
+      await within(screen.getByRole('status', { name: 'Save status' })).findByText('Saved'),
+    ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(2)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    // the older save failed after the newer one succeeded: no alert, and Saved is still showing
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Save status' })).toHaveTextContent('Saved')
+  })
+
+  test('settings: leaving the page with a name not yet saved sends it', async () => {
+    const { calls } = mockApi(
+      settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
+    )
+    const view = renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.type(screen.getByLabelText('Display name'), 'Sam')
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(0)
+    view.unmount()
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
+        { displayName: 'Sam' },
+      ])
+    })
   })
 
   test('settings: Weight units sits beside Distance units, reads pounds by default, and saves the choice by itself', async () => {

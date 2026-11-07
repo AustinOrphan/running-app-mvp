@@ -55,11 +55,24 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const [nameError, setNameError] = useState<string | null>(null)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const nameTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // The newest save: only its answer may change `saved`, the error or the Saved flash.
+  const newest = useRef(0)
+  // For the cleanup: the name as typed, the name the server holds, and whether a save is waiting.
+  const typedName = useRef(initial.displayName ?? '')
+  const heldName = useRef(initial.displayName ?? '')
+  const namePending = useRef(false)
+  const sendLeftover = useRef<(name: string) => void>(() => {})
+  sendLeftover.current = (name) => {
+    // The page is going away with a change not yet sent: send it, with nobody left to show the answer.
+    update.mutateAsync({ displayName: name }).catch(() => {})
+  }
 
   useEffect(
     () => () => {
       clearTimeout(flashTimer.current)
       clearTimeout(nameTimer.current)
+      const name = typedName.current.trim()
+      if (namePending.current && name !== heldName.current) sendLeftover.current(name)
     },
     [],
   )
@@ -75,14 +88,17 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
 
   /** Saves one change now. A refusal is reported by `onFailure`; the typed value is the caller's to keep. */
   function save(patch: SettingsPatch, onFailure: (error: unknown) => void) {
+    const mine = ++newest.current
     setFailure(null)
-    setNameError(null)
     update.mutateAsync(patch).then(
       (next) => {
+        if (mine !== newest.current) return
+        heldName.current = next.displayName ?? ''
         setSaved(next)
         confirm()
       },
       (error: unknown) => {
+        if (mine !== newest.current) return
         setFlash(false)
         onFailure(error)
       },
@@ -126,8 +142,10 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   /** Saves the display name if it differs from what the server holds; the typed text always stays. */
   function saveName(value: string) {
     clearTimeout(nameTimer.current)
+    namePending.current = false
     const name = value.trim()
-    if (name === (saved.displayName ?? '')) return
+    if (name === heldName.current) return
+    setNameError(null)
     save({ displayName: name }, (error) => {
       setNameError(
         fieldErrors(error)['displayName'] ??
@@ -138,6 +156,8 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
 
   function onNameChange(value: string) {
     setDisplayName(value)
+    typedName.current = value
+    namePending.current = true
     clearTimeout(nameTimer.current)
     nameTimer.current = setTimeout(() => {
       saveName(value)
@@ -202,6 +222,12 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             />
           )}
         </Field>
+        {/* the field's own error is not a live region: this says it aloud once */}
+        {nameError === null ? null : (
+          <p role="alert" className={styles.visuallyHidden}>
+            {render(TEMPLATES['settings.name-alert'], {}, units)}
+          </p>
+        )}
         {failure === null ? null : (
           <p role="alert" className={styles.alert}>
             {failure}
