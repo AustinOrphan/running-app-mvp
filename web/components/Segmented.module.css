@@ -52,10 +52,10 @@
   max-width: 100%;
 }
 
-/* Short words on a 360 px row: smaller type, and padding that keeps each word off its neighbours'
-   edges now that options size to their word. */
+/* Five short words on a 360 px row: smaller type, and just enough padding to keep them apart. A
+   control that takes only its own width (`fit`) has room for more. */
 .dense .option {
-  padding: 0 var(--space-3);
+  padding: 0 2px;
   font-size: var(--text-sm);
   font-weight: 600;
 }
@@ -82,4 +82,8 @@
 
 .grid .option[aria-checked='true'] {
   background: var(--accent-soft);
+}
+
+.fit.dense .option {
+  padding: 0 var(--space-3);
 }
