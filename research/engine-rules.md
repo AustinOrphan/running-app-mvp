@@ -124,6 +124,11 @@ Version 1, 2026-10-22. This document integrates 20 topic syntheses into one rule
   - Move a boundary only after 3 concordant observations (D).
   - Re-estimate paces from fresh data after any break of 2 weeks or more [coyle-1984-detraining-time-course].
   - Watch-reported LT pace is never an anchor; it overestimates by 12.7-25.8% MAPE. Watch LT HR is advisory. Grade C [lu-2025-smartwatch-lactate-threshold].
+- **C9 My paces.** A read of the zones, the heart-rate line and the predictions, derived on every request and stored nowhere. Grade D.
+  - Easy pace: the speed at which the runner's own heart-rate-at-speed line (A8: steady flat runs of the last 8 weeks, at least 8 of them) meets the top of Z1 (C2, C4), in cool air on the flat, as a range from that pace to the slow edge of Z1 (`c2.z1PaceSlowFactor`). Without a line that qualifies, the Z1 pace range of the zones (a tested threshold pace or critical speed, C2, C4, C8); without either, no easy pace. The page says what would qualify.
+  - Heat: the line is moved by the runner's own heat term (A8, I7) at the heat-steering WBGT (I9). A climb: the pace is moved by the cost ratio of the grade (I11, `c9.exampleGradePct`, a default of 5%) [minetti-2002-gradient-cost, vernillo-2017-graded-running-review].
+  - Predictions for 5 km, 10 km, the half, the marathon, 50 km and a custom distance (with climb as L5 counts it) are the L rules unchanged (L1 to L6), with no goal, no race-day heat and no new model. The method's grade is the lowest grade among the Params of the method used.
+  - Thin data: the critical-speed test of A6 (`a6.csMinEfforts` hard flat efforts of 0.4 to 5 km on separate days, the longest lasting at least `a6.csMinTimeSpreadRatio` times the shortest, within `a6.csWindowDays`) and the heart-rate runs of A8.
 
 ## (d) Goal modelling and feasibility
 

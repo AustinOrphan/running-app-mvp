@@ -289,4 +289,17 @@ export const cZones = {
       },
     ),
   },
+  c9: {
+    exampleGradePct: param(
+      'c9.exampleGradePct',
+      5,
+      'D',
+      'C9',
+      ['minetti-2002-gradient-cost', 'vernillo-2017-graded-running-review'],
+      {
+        unit: '% grade',
+        note: 'Default: the one climb My paces uses to show how a hill moves the easy pace; the cost of the grade itself is I11, so any other grade follows the same curve.',
+      },
+    ),
+  },
 } satisfies ParamGroups

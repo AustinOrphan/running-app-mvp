@@ -43,6 +43,7 @@ export const RULE_TITLES: Record<string, string> = {
   C6: 'Intervals above critical speed',
   C7: 'Boundaries as ranges',
   C8: 'Updating zones',
+  C9: 'My paces',
   // (d) goal
   D1: 'Goal record',
   D2: 'Goal type',

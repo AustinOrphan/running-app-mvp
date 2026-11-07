@@ -316,6 +316,8 @@ interface ModelPoint {
   v: number
   h: number
   hr: number
+  /** The run's day, `YYYY-MM-DD`. */
+  date: string
 }
 
 /**
@@ -329,7 +331,37 @@ function modelPoint(a: Activity): ModelPoint | null {
   if (!hrDataUsable(a) || steadyShare(a) < P.hrModel.steadyMinShare.value) return null
   const v = speedMps(a)
   if (v === null) return null
-  return { v, h: heatExcessC(wbgtOf(a)), hr: a.avgHr }
+  return { v, h: heatExcessC(wbgtOf(a)), hr: a.avgHr, date: a.date }
+}
+
+/** The points of the runs inside the last `hrModel.windowWeeks` weeks, in the order they are given. */
+function windowPoints(activities: Activity[], today: string): ModelPoint[] {
+  const windowDays = P.hrModel.windowWeeks.value * 7
+  const points: ModelPoint[] = []
+  for (const a of activities) {
+    const age = daysBetween(a.date, today)
+    if (age < 0 || age >= windowDays) continue
+    const point = modelPoint(a)
+    if (point !== null) points.push(point)
+  }
+  return points
+}
+
+/**
+ * The runs the HR-at-pace model is fitted from: how many qualify in the window and the day of the
+ * earliest. It is what the model is built on, whether or not there are enough of them
+ * (`hrModel.minQualifyingRuns`), so a page can say how far a runner is from a fit.
+ */
+export function hrModelSample(
+  activities: Activity[],
+  today: string,
+): { runs: number; first: string | null } {
+  const points = windowPoints(activities, today)
+  const first = points.reduce<string | null>(
+    (earliest, p) => (earliest === null || p.date < earliest ? p.date : earliest),
+    null,
+  )
+  return { runs: points.length, first }
 }
 
 /**
@@ -339,14 +371,7 @@ function modelPoint(a: Activity): ModelPoint | null {
  * never a guess.
  */
 export function fitHrModel(activities: Activity[], today: string): HrModel | null {
-  const windowDays = P.hrModel.windowWeeks.value * 7
-  const points: ModelPoint[] = []
-  for (const a of activities) {
-    const age = daysBetween(a.date, today)
-    if (age < 0 || age >= windowDays) continue
-    const point = modelPoint(a)
-    if (point !== null) points.push(point)
-  }
+  const points = windowPoints(activities, today)
   const n = points.length
   if (n < P.hrModel.minQualifyingRuns.value) return null
 
