@@ -327,12 +327,11 @@ export const RACE_PLAN_TEMPLATES = {
     { unit: 'text' },
     { shape: 'label' },
   ),
-  'race.plan.points.field-gain': tpl('Climb since the previous point (m)', {}, { shape: 'label' }),
-  'race.plan.points.field-loss': tpl(
-    'Descent since the previous point (m)',
-    {},
-    { shape: 'label' },
-  ),
+  'race.plan.points.field-gain': tpl('Climb ({unit})', { unit: 'text' }, { shape: 'label' }),
+  'race.plan.points.field-loss': tpl('Descent ({unit})', { unit: 'text' }, { shape: 'label' }),
+  'race.plan.points.field-climb-hint': tpl('Since the previous point, in {unit}.', {
+    unit: 'text',
+  }),
   'race.plan.points.field-cutoff': tpl(
     'Cutoff, hours and minutes into the race',
     {},
@@ -351,7 +350,10 @@ export const RACE_PLAN_TEMPLATES = {
     'Enter a distance past the start and before the finish, like 42.5.',
   ),
   'race.plan.points.err-duplicate': tpl('Each point needs its own distance.'),
-  'race.plan.points.err-metres': tpl('Enter whole metres, like 800.'),
+  'race.plan.points.err-metres': tpl('Enter whole {unit}, like {example}.', {
+    unit: 'text',
+    example: 'text',
+  }),
   'race.plan.points.err-cutoff': tpl('Enter hours and minutes, like 9:30.'),
   'race.plan.points.err-clock': tpl('Enter a time of day that falls after the start.'),
   'race.plan.points.err-count': tpl('There is room for {n} points.', { n: 'count' }),
@@ -989,6 +991,8 @@ export interface RacePointsEditorText {
   distance: string
   gain: string
   loss: string
+  /** The line under the climb and descent fields: since the previous point, in the runner's unit. */
+  climbHint: string
   cutoff: string
   cutoffClock: string
   cutoffDay: string
@@ -1012,6 +1016,8 @@ export function describeRacePointsEditor(
   units: Units,
 ): RacePointsEditorText {
   const self = args.supportLevel === 'self'
+  const climbUnit = units === 'mi' ? 'ft' : 'm'
+  const climbUnitPlural = units === 'mi' ? 'feet' : 'metres'
   return {
     title: say(self ? T['race.plan.points.sheet-self'] : T['race.plan.points.sheet'], {}, units),
     hint: say(T['race.plan.points.sheet-hint'], {}, units),
@@ -1022,8 +1028,9 @@ export function describeRacePointsEditor(
     saveFailed: say(T['race.plan.points.save-failed'], {}, units),
     name: say(T['race.plan.points.field-name'], {}, units),
     distance: say(T['race.plan.points.field-distance'], { unit: units }, units),
-    gain: say(T['race.plan.points.field-gain'], {}, units),
-    loss: say(T['race.plan.points.field-loss'], {}, units),
+    gain: say(T['race.plan.points.field-gain'], { unit: climbUnit }, units),
+    loss: say(T['race.plan.points.field-loss'], { unit: climbUnit }, units),
+    climbHint: say(T['race.plan.points.field-climb-hint'], { unit: climbUnitPlural }, units),
     cutoff: say(T['race.plan.points.field-cutoff'], {}, units),
     cutoffClock: say(T['race.plan.points.field-cutoff-clock'], {}, units),
     cutoffDay: say(T['race.plan.points.field-cutoff-day'], {}, units),
@@ -1033,7 +1040,11 @@ export function describeRacePointsEditor(
     errName: say(T['race.plan.points.err-name'], {}, units),
     errDistance: say(T['race.plan.points.err-distance'], {}, units),
     errDuplicate: say(T['race.plan.points.err-duplicate'], {}, units),
-    errMetres: say(T['race.plan.points.err-metres'], {}, units),
+    errMetres: say(
+      T['race.plan.points.err-metres'],
+      { unit: climbUnitPlural, example: units === 'mi' ? '2600' : '800' },
+      units,
+    ),
     errCutoff: say(T['race.plan.points.err-cutoff'], {}, units),
     errClock: say(T['race.plan.points.err-clock'], {}, units),
     pointN: (n) => say(T['race.plan.points.point-n'], { n: count(n) }, units),

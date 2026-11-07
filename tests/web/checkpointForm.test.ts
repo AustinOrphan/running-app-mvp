@@ -2,8 +2,10 @@
 import { describe, expect, test } from 'vitest'
 import {
   blankDraft,
+  climbInputText,
   draftFrom,
   elapsedText,
+  parseClimb,
   parseDrafts,
   parseElapsed,
   type DraftContext,
@@ -32,6 +34,34 @@ describe('parseElapsed', () => {
   test('writes the same shape back', () => {
     expect(elapsedText(9.5 * HOUR)).toBe('9:30')
     expect(elapsedText(65 * 60)).toBe('1:05')
+  })
+})
+
+describe('climb in the runner’s unit', () => {
+  test('shows feet for miles and metres for km, and reads them back as metres', () => {
+    expect(climbInputText(800, 'km')).toBe('800')
+    expect(climbInputText(800, 'mi')).toBe('2625')
+    expect(climbInputText(null, 'mi')).toBe('')
+    expect(parseClimb('2625', 'mi')).toBe(800)
+    expect(parseClimb('800', 'km')).toBe(800)
+    expect(parseClimb('', 'mi')).toBeNull()
+    expect(parseClimb('26.5', 'mi')).toBeUndefined()
+  })
+
+  test('feet typed in miles go out as metres; an untouched value keeps its stored metres', () => {
+    const mi: DraftContext = { ...KM, units: 'mi' }
+    const typed = parseDrafts([draft({ gain: '2625', loss: '1000' })], mi)
+    expect(typed.rows[0]?.row.gainM).toBe(800)
+    expect(typed.rows[0]?.row.lossM).toBe(305)
+    const stored = {
+      name: 'Checkpoint A',
+      distanceM: 1000,
+      gainM: 801,
+      lossM: null,
+      cutoffSec: null,
+    }
+    const again = parseDrafts([draftFrom(stored, 'k', 'mi')], mi)
+    expect(again.rows[0]?.row.gainM).toBe(801)
   })
 })
 

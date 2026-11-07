@@ -112,6 +112,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
       <form className={`${styles.section} ${styles.first}`} onSubmit={onSubmit} noValidate>
         <Segmented<Units>
           label="Distance units"
+          hint="Distances, pace and climb."
           value={units}
           onChange={onUnitsChange}
           options={[
@@ -121,6 +122,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         />
         <Segmented<WeightUnit>
           label={render(TEMPLATES['strength.page.weight-units'], {}, units)}
+          hint="Body weight and strength loads."
           value={weightUnit}
           onChange={onWeightUnitChange}
           options={[

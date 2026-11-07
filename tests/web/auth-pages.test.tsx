@@ -339,7 +339,11 @@ describe('SettingsPage', () => {
       screen
         .getAllByRole('radiogroup')
         .slice(0, 2)
-        .map((group) => group.getAttribute('aria-label')),
+        .map(
+          (group) =>
+            group.getAttribute('aria-label') ??
+            document.getElementById(group.getAttribute('aria-labelledby') ?? '')?.textContent,
+        ),
     ).toEqual(['Distance units', 'Weight units'])
 
     await typist.click(screen.getByRole('radio', { name: 'Kilograms' }))

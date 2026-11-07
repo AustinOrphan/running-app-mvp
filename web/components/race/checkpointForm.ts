@@ -8,6 +8,7 @@ import {
   RACE_CHECKPOINT_NAME_MAX,
 } from '../../../shared/limits.ts'
 import type { RaceCheckpointRow, Units } from '../../../shared/types.ts'
+import { FEET_PER_METRE } from '../../../shared/units.ts'
 import { distanceInputText, parseDistance, parseMetres } from '../goalFormat.ts'
 
 const SEC_PER_MIN = 60
@@ -36,6 +37,22 @@ export type PointErrors = Partial<
   Record<PointField, 'name' | 'distance' | 'duplicate' | 'metres' | 'cutoff' | 'clock'>
 >
 
+/** Climb or descent as the runner types it: whole feet for miles, whole metres for km; blank for none. */
+export function climbInputText(m: number | null, units: Units): string {
+  if (m === null) return ''
+  return String(units === 'mi' ? Math.round(m * FEET_PER_METRE) : m)
+}
+
+/**
+ * Metres from climb text in the runner's unit: blank is null, a non-whole number is undefined. Feet
+ * are rounded to the nearest metre, which is below the 3 ft the text can express.
+ */
+export function parseClimb(text: string, units: Units): number | null | undefined {
+  const value = parseMetres(text)
+  if (value === null || value === undefined || units === 'km') return value
+  return Math.round(value / FEET_PER_METRE)
+}
+
 /** Whole hours and minutes as `H:MM`; seconds below a minute are left to the stored value. */
 export function elapsedText(sec: number): string {
   const minutes = Math.round(sec / SEC_PER_MIN)
@@ -47,8 +64,8 @@ export function draftFrom(row: RaceCheckpointRow, key: string, units: Units): Po
     key,
     name: row.name,
     distance: distanceInputText(row.distanceM, units),
-    gain: row.gainM === null ? '' : String(row.gainM),
-    loss: row.lossM === null ? '' : String(row.lossM),
+    gain: climbInputText(row.gainM, units),
+    loss: climbInputText(row.lossM, units),
     cutoffMode: 'elapsed',
     cutoff: row.cutoffSec === null ? '' : elapsedText(row.cutoffSec),
     cutoffDay: 0,
@@ -119,11 +136,11 @@ function parseOne(
     if (
       original !== null &&
       stored !== undefined &&
-      text === (stored === null ? '' : String(stored))
+      text === climbInputText(stored, context.units)
     ) {
       return stored
     }
-    const value = parseMetres(text)
+    const value = parseClimb(text, context.units)
     if (value === undefined || (value ?? 0) > RACE_CHECKPOINT_CLIMB_MAX_M) {
       errors[field] = 'metres'
       return null

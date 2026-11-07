@@ -161,7 +161,7 @@ function Editor({ plan, units, rows, onClose }: EditorProps) {
                 )}
               </Field>
               <div className={styles.row}>
-                <Field label={text.gain} error={message(own.gain)}>
+                <Field label={text.gain} hint={text.climbHint} error={message(own.gain)}>
                   {(a) => (
                     <Input
                       {...a}
@@ -173,7 +173,7 @@ function Editor({ plan, units, rows, onClose }: EditorProps) {
                     />
                   )}
                 </Field>
-                <Field label={text.loss} error={message(own.loss)}>
+                <Field label={text.loss} hint={text.climbHint} error={message(own.loss)}>
                   {(a) => (
                     <Input
                       {...a}
