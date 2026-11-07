@@ -467,6 +467,105 @@ describe('TrendsPage, recovery readings', () => {
   })
 })
 
+describe('TrendsPage, body weight', () => {
+  /** Two weigh-ins in each of the last 20 weeks, 70.0 kg then 70.5 kg (mean 70 250 g); the week before has one. */
+  function weightView(over: Partial<TrendsView> = {}): TrendsView {
+    return {
+      ...recoveryView(),
+      weight: WEEK_STARTS.map((weekStart, i) =>
+        i >= 84
+          ? { weekStart, grams: 70_250, weighIns: 2 }
+          : { weekStart, grams: null, weighIns: 0 },
+      ),
+      ...over,
+    }
+  }
+
+  test('never mentions weight when the response has no weight key', async () => {
+    mockTrends()
+    const { container } = renderWithProviders(<TrendsPage />)
+    expect(await screen.findByRole('img', { name: /^Sleep in hours/ })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Body weight' })).not.toBeInTheDocument()
+    expect(container.textContent ?? '').not.toMatch(/weight|weigh-in/i)
+  })
+
+  test('draws weekly means in the runner unit with a hidden table, and no verdict', async () => {
+    mockTrends({ trends: weightView(), units: 'km' })
+    const { container } = renderWithProviders(<TrendsPage />)
+    expect(await screen.findByRole('heading', { level: 2, name: 'Body weight' })).toBeVisible()
+    // The runner's weight unit is pounds in these settings: 70.25 kg is 154.9 lb.
+    expect(
+      await screen.findByRole('img', {
+        name: 'Body weight, weekly mean, last 12 months. Latest week with enough weigh-ins: 154.9 lb.',
+      }),
+    ).toBeVisible()
+    expect(
+      screen.getByText(
+        "Mean of each week's weigh-ins, for weeks with at least 2 weigh-ins. A scale varies by a kilogram or more within a day, so read the line, not a point.",
+      ),
+    ).toBeVisible()
+    const table = await screen.findByRole('table', { name: /^Body weight, weekly mean/ })
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((h) => h.textContent),
+    ).toEqual(['Week of', 'Mean (lb)', 'Weigh-ins'])
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(1 + 52)
+    // A week with too few weigh-ins is a blank cell, never filled in.
+    expect(
+      within(rows[1]!)
+        .getAllByRole('cell')
+        .map((c) => c.textContent),
+    ).toEqual(['', '0'])
+    expect(
+      within(rows.at(-1)!)
+        .getAllByRole('cell')
+        .map((c) => c.textContent),
+    ).toEqual(['154.9', '2'])
+    expect(screen.getByRole('link', { name: 'the energy screen on Profile' })).toHaveAttribute(
+      'href',
+      '/profile',
+    )
+    expect(container.textContent ?? '').not.toMatch(/\b(gain|gained|loss|lost|goal|BMI)\b/i)
+    expectCleanCopy(container)
+  })
+
+  test('says there are no weigh-ins when the series is empty', async () => {
+    mockTrends({ trends: weightView({ weight: [] }) })
+    renderWithProviders(<TrendsPage />)
+    expect(await screen.findByText('No weigh-ins yet.')).toBeVisible()
+    expect(screen.queryByRole('img', { name: /^Body weight/ })).not.toBeInTheDocument()
+  })
+
+  test('with the screening gate, draws no chart and says so neutrally, with a link to Profile', async () => {
+    const view = recoveryView()
+    mockTrends({ trends: { ...view, weightGate: 'reds' } })
+    const { container } = renderWithProviders(<TrendsPage />)
+    expect(await screen.findByRole('heading', { level: 2, name: 'Body weight' })).toBeVisible()
+    expect(
+      screen.getByText('Body weight is not shown while the screening has open items.'),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'The screening and where to find care are on Profile.' }),
+    ).toHaveAttribute('href', '/profile')
+    expect(screen.queryByRole('img', { name: /^Body weight/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /^Body weight/ })).not.toBeInTheDocument()
+    expectCleanCopy(container)
+  })
+
+  test('follows the range switch', async () => {
+    mockTrends({ trends: weightView() })
+    renderWithProviders(<TrendsPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Range' })
+    fireEvent.click(within(group).getByRole('radio', { name: '6 months' }))
+    const table = await screen.findByRole('table', {
+      name: /^Body weight, weekly mean, last 6 months/,
+    })
+    expect(within(table).getAllByRole('row')).toHaveLength(1 + 26)
+  })
+})
+
 describe('the month ticks of the running chart', () => {
   const weeks = Array.from({ length: 104 }, (_, i) => addDays(FIRST_WEEK, 7 * i))
 

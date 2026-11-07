@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bodyWeightIn,
   DEFAULT_WEIGHT_UNIT,
+  formatBodyWeight,
   formatLoad,
   fromGrams,
   isWeightUnit,
@@ -500,5 +502,22 @@ describe('equipment entered in one unit and used in the other', () => {
     const poundsBar = stepsFor([POUNDS_BARBELL], 'barbell', 'lb') as LoadSteps
     expect(roundDownToStep(poundsBar, sevenGramsShort, 'lb')).toBe(toGrams(50, 'lb'))
     expect(stepFrom(poundsBar, sevenGramsShort, -1, 'lb')).toBe(toGrams(45, 'lb'))
+  })
+})
+
+describe('body weight', () => {
+  it('is shown to a tenth in the runner unit, not moved onto the equipment grid', () => {
+    expect(bodyWeightIn(70_250, 'kg')).toBe(70.3)
+    expect(bodyWeightIn(70_250, 'lb')).toBe(154.9)
+    expect(formatBodyWeight(70_250, 'kg')).toBe('70.3 kg')
+    expect(formatBodyWeight(70_250, 'lb')).toBe('154.9 lb')
+    // A load rounds to the grid (0.25 kg); a body weight does not.
+    expect(formatLoad(70_250, 'kg')).toBe('70.25 kg')
+  })
+
+  it('gives a dash for a weight that cannot be shown', () => {
+    for (const grams of [0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(formatBodyWeight(grams, 'kg')).toBe(NO_VALUE)
+    }
   })
 })

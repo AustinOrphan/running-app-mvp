@@ -85,6 +85,10 @@ export const RecoveryChart = lazyChart(
   () => import('./RecoveryChart.tsx').then((module) => module.RecoveryChart),
   'recovery',
 )
+export const WeightChart = lazyChart(
+  () => import('./WeightChart.tsx').then((module) => module.WeightChart),
+  'recovery',
+)
 
 /**
  * Asks for the weekly chart's code before the chart renders, for a screen that reads the weeks it

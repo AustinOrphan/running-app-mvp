@@ -265,6 +265,42 @@ describe('SettingsPage', () => {
     expectCleanCopy(document.body)
   })
 
+  test('settings: the Trends section has one switch, off by default, that saves by itself and says hiding deletes nothing', async () => {
+    const { calls } = mockApi(
+      settingsRoutes((body) => ({
+        email: user.email,
+        displayName: null,
+        units: 'mi',
+        weightUnit: 'lb',
+        showBodyWeight: false,
+        ...(body as object),
+      })),
+    )
+    const { container } = renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    expect(screen.getByRole('heading', { level: 2, name: 'Trends' })).toBeInTheDocument()
+    const box = screen.getByRole('checkbox', { name: 'Show body weight on Trends' })
+    expect(box).not.toBeChecked()
+    expect(box).toHaveAccessibleDescription(
+      'Hiding the chart deletes nothing. Every weigh-in stays.',
+    )
+
+    await typist.click(box)
+    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    expect(box).toBeChecked()
+    await typist.click(box)
+    await waitFor(() => {
+      expect(box).not.toBeChecked()
+    })
+    expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
+      { showBodyWeight: true },
+      { showBodyWeight: false },
+    ])
+    expectCleanCopy(container)
+  })
+
   test('settings: saving a display name sends only the changed field', async () => {
     const { calls } = mockApi(
       settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
