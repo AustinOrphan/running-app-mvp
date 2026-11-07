@@ -1,5 +1,4 @@
 import { useId } from 'react'
-import { Button } from '../Button.tsx'
 import type { SetupPart } from './setupForm.ts'
 import type { PageWords } from './strengthPageText.ts'
 import styles from './StrengthSections.module.css'
@@ -40,20 +39,28 @@ export function SetupCard({ words, onOpen }: SetupCardProps) {
         {words.say('strength.page.setup-heading')}
       </h2>
       <p className={styles.lead}>{words.say('strength.page.setup-lead')}</p>
-      <ul className={styles.list}>
+      <ul className={styles.setupRows}>
         {PARTS.map(({ part, name, note }) => (
-          <li key={part} className={styles.item}>
-            <div>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  onOpen(part)
-                }}
-              >
-                {words.say(name)}
-              </Button>
-            </div>
-            <span className={styles.note}>{words.say(note)}</span>
+          <li key={part}>
+            <button
+              type="button"
+              className={styles.setupRow}
+              aria-label={words.say(name)}
+              aria-describedby={`${headingId}-${part}`}
+              onClick={() => {
+                onOpen(part)
+              }}
+            >
+              <span className={styles.setupText}>
+                <span className={styles.setupName}>{words.say(name)}</span>
+                <span id={`${headingId}-${part}`} className={styles.note}>
+                  {words.say(note)}
+                </span>
+              </span>
+              <span className={styles.chevron} aria-hidden="true">
+                ›
+              </span>
+            </button>
           </li>
         ))}
       </ul>
