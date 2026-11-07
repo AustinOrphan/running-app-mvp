@@ -16,13 +16,22 @@ export const CHECK_WAIT_MS = 90_000
 
 const UNITS = 'km'
 
-/** The services that can be asked now: connected, able to pull, and not waiting out a pause. */
-export function pullTargets(list: readonly IntegrationStatus[] | undefined): IntegrationStatus[] {
+/**
+ * The services that can be asked now: connected (or `error`, as after one failed pull, which the
+ * scheduler and the Integrations page still try), able to pull, and not inside a rate-limit pause
+ * (`pausedUntil`, the server's own end of it).
+ */
+export function pullTargets(
+  list: readonly IntegrationStatus[] | undefined,
+  now: number = Date.now(),
+): IntegrationStatus[] {
   return (list ?? []).filter(
     (item) =>
-      item.status === 'connected' &&
+      (item.status === 'connected' || item.status === 'error') &&
       item.info.channels.includes('pull') &&
-      item.lastSyncStatus !== 'paused',
+      (item.pausedUntil === null ||
+        item.pausedUntil === undefined ||
+        new Date(item.pausedUntil).getTime() <= now),
   )
 }
 
@@ -163,22 +172,38 @@ export function useCheckRuns(): CheckRuns {
           )
           continue
         }
+        let run: SyncRunView | undefined
         try {
           const runs = await api<SyncRunView[]>(
             'GET',
             `/integrations/${encodeURIComponent(key)}/runs?limit=5`,
           )
-          const run = runs.find(
+          run = runs.find(
             (candidate) =>
               item.lastSyncAt !== null &&
               new Date(candidate.startedAt).getTime() === new Date(item.lastSyncAt).getTime(),
           )
-          if (run !== undefined && run.accepted > 0) {
-            arrived += run.accepted
-            arrivedFrom.push(label)
-          }
         } catch {
           // The counts are a nicety: the status list already says the run ended.
+        }
+        if (run !== undefined && run.accepted > 0) {
+          arrived += run.accepted
+          arrivedFrom.push(label)
+        }
+        // A run that stopped on a rate limit or lost items is not "no new runs": say what the
+        // service said.
+        const ended = run?.status ?? item.lastSyncStatus
+        if (ended === 'paused' || ended === 'partial') {
+          failures.push(
+            render(
+              TEMPLATES['today.check.partial'],
+              {
+                source: label,
+                reason: item.lastError ?? run?.message ?? 'Some items were not read.',
+              },
+              UNITS,
+            ),
+          )
         }
       }
       if (cancelled) return

@@ -318,6 +318,8 @@ export interface IntegrationStatus {
   lastSyncAt: string | null
   lastSyncStatus: string | null
   lastError: string | null
+  /** The end of a rate-limit pause, ISO; null when the service is not paused. */
+  pausedUntil: string | null
 }
 
 // The sync and job log (spec 4.7): one finished run per row.

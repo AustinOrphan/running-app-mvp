@@ -212,12 +212,9 @@ describe('hero copy', () => {
     expect(say('today.hero.rest-day', {})).toBe('Rest day.')
   })
 
-  test('the week reads in minutes a day, without a minimum', () => {
-    expect(say('today.week.advisory', { perDay: { kind: 'minutes', min: 34 } })).toBe(
-      'Reaching the weekly target would take about 34 min a day through Sunday. Optional.',
-    )
-    expect(say('today.week.advisory-last', { perDay: { kind: 'minutes', min: 34 } })).toBe(
-      'Reaching the weekly target would take about 34 min today. Optional.',
+  test('the rest of the week is a description of the plan, without a minimum', () => {
+    expect(say('today.week.rest-planned', { total: { kind: 'minutes', min: 190 } })).toBe(
+      'Planned for the rest of the week: 3 h 10 min.',
     )
     expect(
       say('today.week.day-logged', {

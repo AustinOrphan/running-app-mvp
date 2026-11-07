@@ -130,11 +130,14 @@ describe('Today inside an illness window: the window is stated once', () => {
   test('one element states the window, and the verdict names the day', async () => {
     const { container } = render(
       insideWindows([illness()], undefined, {
-        weekStrip: makeStrip({
-          runMin: 60,
-          targetRunMin: 300,
-          remaining: { remainingMin: 240, remainingDays: 5, perDayMin: 48 },
-        }),
+        weekStrip: makeStrip(
+          {
+            runMin: 60,
+            targetRunMin: 300,
+            remaining: { remainingMin: 240, remainingDays: 5, perDayMin: 48 },
+          },
+          { '2026-03-19': { mark: 'planned', sessions: [makeSession({ date: '2026-03-19' })] } },
+        ),
       }),
     )
     const band = await screen.findByRole('region', { name: 'Rest window' })
@@ -156,7 +159,7 @@ describe('Today inside an illness window: the window is stated once', () => {
     expect(within(read).getByText('Check-in: feeling normal.')).toBeInTheDocument()
     // a window asks for less than the plan, so the week's target is not restated as a daily amount
     expect(screen.getByRole('meter', { name: 'Run time this week' })).toBeInTheDocument()
-    expect(screen.queryByText(/Reaching the weekly target/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Planned for the rest of the week/)).not.toBeInTheDocument()
     expectCleanCopy(container)
   })
 

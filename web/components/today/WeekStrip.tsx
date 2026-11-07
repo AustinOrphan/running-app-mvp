@@ -10,6 +10,7 @@ import type {
   WeekStripDay,
 } from '../../../shared/types.ts'
 import { minutesToHours1 } from '../../../shared/units.ts'
+import { plannedRestOfWeekMin } from '../../../shared/domain/weekStrip.ts'
 import { formatWeekday } from '../format.ts'
 import { Meter } from '../Meter.tsx'
 import { SessionSheet } from '../SessionSheet.tsx'
@@ -79,7 +80,7 @@ export function WeekStrip({
       : (strip.days.flatMap((day) => day.sessions).find((s) => s.id === openId) ?? null)
   const empty = strip.days.every((d) => d.mark === 'free' && d.runMin === 0)
   if (empty && strip.targetRunMin === null) return null
-  const advice = strip.remaining
+  const plannedMin = plannedRestOfWeekMin(strip)
   // `?? null`: an answer the phone kept from before the estimate existed has no field.
   const weekEstimateM = strip.distanceEstimateM ?? null
   // A week run past its plan: the meter's tick is the planned figure and the caption says how far
@@ -123,7 +124,7 @@ export function WeekStrip({
         <Meter
           valueMin={strip.runMin}
           targetMin={strip.targetRunMin}
-          remainingMin={advice?.remainingMin ?? null}
+          remainingMin={strip.remaining?.remainingMin ?? null}
           label="Run time this week"
           captionText={overshootLine ?? undefined}
         />
@@ -131,17 +132,13 @@ export function WeekStrip({
       {weekEstimateM === null ? null : (
         <p className={styles.caption}>{weekStripEstimateText(weekEstimateM, units)}</p>
       )}
-      {!advisory || advice === null || advice.perDayMin === null ? null : (
+      {!advisory || plannedMin === 0 ? null : (
         <p className={styles.caption}>
-          {advice.remainingMin === 0
-            ? render(TEMPLATES['today.week.nothing-left'], {}, units)
-            : render(
-                TEMPLATES[
-                  advice.remainingDays === 1 ? 'today.week.advisory-last' : 'today.week.advisory'
-                ],
-                { perDay: { kind: 'minutes', min: advice.perDayMin } },
-                units,
-              )}
+          {render(
+            TEMPLATES['today.week.rest-planned'],
+            { total: { kind: 'minutes', min: plannedMin } },
+            units,
+          )}
         </p>
       )}
       {open === null ? null : (

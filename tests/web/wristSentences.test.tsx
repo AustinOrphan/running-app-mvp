@@ -73,6 +73,7 @@ function intervals(over: Partial<IntegrationStatus>): IntegrationStatus {
     lastSyncAt: null,
     lastSyncStatus: null,
     lastError: null,
+    pausedUntil: null,
     ...over,
   }
 }

@@ -5,7 +5,7 @@ import type { BriefListItem, Units } from '../../shared/types.ts'
 import styles from './BriefLine.module.css'
 
 /**
- * Whether the brief leads Today in a card of its own instead of waiting in its place under the
+ * Whether the brief stands under the session in a card of its own instead of waiting in its place under the
  * week: it is unopened and the update changed sessions that are still changed. A brief that
  * changed nothing, was undone or has been opened keeps the quiet line.
  */

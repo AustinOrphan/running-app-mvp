@@ -239,6 +239,37 @@ describe("Today: today's session", () => {
     expect(within(card).queryByRole('button', { name: 'RPE 6' })).not.toBeInTheDocument()
   })
 
+  test('a strength day after logging links to the session and asks no run rating', async () => {
+    const log = makeActivity({
+      id: 's1',
+      date: TODAY,
+      type: 'strength',
+      durationSec: 1800,
+      distanceM: null,
+    })
+    const session = makeSession({
+      kind: 'strength',
+      title: 'Strength',
+      status: 'completed',
+      activityId: 's1',
+    })
+    render(
+      makeToday({
+        sessions: [{ session, advice: 'as-planned', reasons: [] }],
+        coach: makeCoach({ hero: makeHero({ session, linkedRun: log }) }),
+        unrated: [],
+      }),
+    )
+    const card = await screen.findByRole('article', { name: 'Strength' })
+    expect(within(card).getByRole('link', { name: 'See the session' })).toHaveAttribute(
+      'href',
+      '/activities/s1',
+    )
+    expect(within(card).queryByRole('link', { name: 'See the run' })).not.toBeInTheDocument()
+    expect(within(card).queryByRole('region', { name: 'Rate this run' })).not.toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: 'RPE 6' })).not.toBeInTheDocument()
+  })
+
   describe('an unrated logged run', () => {
     const run = makeActivity({ id: 'r1', date: TODAY, durationSec: 2700, distanceM: 8047 })
     const session = makeSession({ status: 'completed', activityId: 'r1' })

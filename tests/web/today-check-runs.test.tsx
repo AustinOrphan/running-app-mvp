@@ -32,6 +32,7 @@ function service(
     lastSyncAt: minutesAgo(5),
     lastSyncStatus: 'ok',
     lastError: null,
+    pausedUntil: null,
     ...over,
   }
 }
@@ -195,6 +196,62 @@ describe('Today: check for new runs', () => {
     expect(button).toBeEnabled()
     expectCleanCopy(container)
   })
+
+  test('a service whose last pull failed is still asked, and the control stays', async () => {
+    const user = userEvent.setup()
+    const after = minutesAgo(0)
+    const { state, routes } = fakeServices(
+      [service('intervals', 'Intervals.icu', { status: 'error', lastError: 'It answered 500.' })],
+      minutesAgo(5),
+      after,
+    )
+    renderToday(makeToday({ coach: makeCoach() }), {
+      ...routes,
+      'GET /api/integrations/intervals/runs': () => [run(after, 1)],
+    })
+    await user.click(await screen.findByRole('button', { name: 'Check for new runs' }))
+    expect(await screen.findByText('One new run added from Intervals.icu')).toBeInTheDocument()
+    expect(state.syncs).toEqual(['intervals'])
+  })
+
+  test('a service inside its rate-limit pause is not asked, and the control goes away', async () => {
+    const paused = service('intervals', 'Intervals.icu', {
+      pausedUntil: new Date(NOW + 30 * 60_000).toISOString(),
+      lastSyncStatus: 'paused',
+    })
+    renderToday(makeToday({ coach: makeCoach() }), {
+      'GET /api/integrations': () => [paused],
+    })
+    await screen.findByRole('link', { name: 'Log activity' })
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Check for new runs' })).not.toBeInTheDocument()
+    })
+  })
+
+  test.each([
+    ['paused', 'Rate limit reached.'],
+    ['partial', 'Two files could not be read.'],
+  ] as const)(
+    'a pull that ends %s is not "no new runs": it says what the service said',
+    async (status, said) => {
+      const user = userEvent.setup()
+      const after = minutesAgo(0)
+      const { routes } = fakeServices(
+        [service('intervals', 'Intervals.icu', { lastSyncStatus: status, lastError: said })],
+        minutesAgo(5),
+        after,
+      )
+      renderToday(makeToday({ coach: makeCoach() }), {
+        ...routes,
+        'GET /api/integrations/intervals/runs': () => [{ ...run(after, 0), status }],
+      })
+      await user.click(await screen.findByRole('button', { name: 'Check for new runs' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        `Intervals.icu did not finish. ${said} Try again later.`,
+      )
+      expect(screen.queryByText('No new runs')).not.toBeInTheDocument()
+    },
+  )
 
   test('is off while the browser has no connection', async () => {
     Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })

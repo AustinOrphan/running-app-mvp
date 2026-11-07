@@ -18,6 +18,7 @@ import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
 import { FeedbackCard } from '../components/today/FeedbackCard.tsx'
 import { HealthNotes } from '../components/today/HealthNotes.tsx'
 import { History } from '../components/today/History.tsx'
+import { isRunLike } from '../components/today/RunRating.tsx'
 import { MondayBrief } from '../components/today/MondayBrief.tsx'
 import { OfflineNote } from '../components/today/OfflineNote.tsx'
 import { dayState, usePhoneCopy } from '../components/today/phoneCopy.ts'
@@ -151,8 +152,10 @@ export function DashboardPage() {
     day !== 'past' &&
     coach.hero !== null &&
     coach.hero.advice !== 'rest' &&
-    coach.hero.session.kind !== 'rest'
-  // An unopened brief with changes leads the session column. The brief is the server's, which the
+    coach.hero.session.kind !== 'rest' &&
+    coach.hero.linkedRun !== null &&
+    isRunLike(coach.hero.linkedRun)
+  // An unopened brief with changes stands under the session hero. The brief is the server's, which the
   // phone's copy of an earlier day may no longer match, so the copy keeps the quiet line (none).
   const leadingBrief =
     !phoneCopy && day === 'today' && briefLeads(coach.slots.brief) ? coach.slots.brief : null
@@ -166,13 +169,6 @@ export function DashboardPage() {
         <HealthNotes flags={view.readiness.redFlags} notes={coach.health.notes} units={units} />
         <div className={styles.columns} data-layout={twoColumns ? 'two' : 'one'}>
           <div className={styles.column}>
-            {leadingBrief === null ? null : (
-              <MondayBrief
-                item={leadingBrief}
-                reviewDue={coach.health.lastWeekReady}
-                units={units}
-              />
-            )}
             <TodaySlot name="disruption" />
 
             {coach.hero !== null ? (
@@ -186,6 +182,15 @@ export function DashboardPage() {
             ) : planned ? (
               <NoSession next={coach.next} units={units} />
             ) : null}
+            {/* Under the session and over the readiness read: the session leads, and a plan that
+                changed overnight is read before the check-in. */}
+            {leadingBrief === null ? null : (
+              <MondayBrief
+                item={leadingBrief}
+                reviewDue={coach.health.lastWeekReady}
+                units={units}
+              />
+            )}
             {/* Under the session, not over it: the note has no height budget, and above Done it
                 would push Done past the fold (ADR 0012). */}
             <OfflineNote view={view} units={units} />

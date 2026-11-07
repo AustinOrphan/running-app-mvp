@@ -9,6 +9,11 @@ import { FeedbackFields, type FeedbackValues } from '../FeelPicker.tsx'
 import { useToast } from '../Toast.tsx'
 import styles from './RunRating.module.css'
 
+/** The activities the rating ask is for: runs and races, as the server's list of unrated runs is. */
+export function isRunLike(activity: Pick<Activity, 'type'>): boolean {
+  return activity.type === 'run' || activity.type === 'race'
+}
+
 /** A run counts as unrated on Today while it has neither an effort rating nor a feel. */
 export function isUnrated(run: Pick<Activity, 'rpe' | 'feel'>): boolean {
   return run.rpe === null && run.feel === null

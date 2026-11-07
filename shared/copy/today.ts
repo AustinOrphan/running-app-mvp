@@ -243,12 +243,16 @@ export const TODAY_TEMPLATES = {
     source: 'text',
     reason: 'text',
   }),
+  'today.check.partial': tpl('{source} did not finish. {reason} Try again later.', {
+    source: 'text',
+    reason: 'text',
+  }),
   'today.check.slow': tpl('{source} has not answered yet. Its runs show once it does.', {
     source: 'text',
   }),
 
   // Monday on Today: while the weekly update's brief is unopened and it changed sessions, a card
-  // leads the session column (`MondayBrief`), and a review that is due gets its own link beside it.
+  // stands under the session hero (`MondayBrief`), and a review that is due gets its own link beside it.
   'today.monday.title': tpl('The plan was updated', {}, { shape: 'label' }),
   'today.monday.review': tpl('Review last week', {}, { shape: 'label' }),
   'today.monday.review-note': tpl('A few answers keep the next update accurate.'),
@@ -303,18 +307,12 @@ export const TODAY_TEMPLATES = {
     { weekday: 'weekday', date: 'date', mark: 'text', logged: 'minutes' },
     { shape: 'label' },
   ),
-  // The advisory split of what is left of the week's target. Advice, not a minimum: it reads as
-  // optional, and the last day of the week has its own wording. It is left out while a window is
-  // open, on a rest day and when the verdict is an easy or a rest day (`showWeekAdvisory`).
-  'today.week.advisory': tpl(
-    'Reaching the weekly target would take about {perDay} a day through Sunday. Optional.',
-    { perDay: 'minutes' },
-  ),
-  'today.week.advisory-last': tpl(
-    'Reaching the weekly target would take about {perDay} today. Optional.',
-    { perDay: 'minutes' },
-  ),
-  'today.week.nothing-left': tpl('Nothing left to plan this week', {}, { shape: 'label' }),
+  // What the plan holds for the rest of the week, as a description (`plannedRestOfWeekMin`), never
+  // what the target would take. It is left out while a window is open, on a rest day and when the
+  // verdict is an easy day, a rest day or a lighter week (`showWeekAdvisory`).
+  'today.week.rest-planned': tpl('Planned for the rest of the week: {total}.', {
+    total: 'minutes',
+  }),
 
   // The targets of the session, as the hero's term list reads them: a term, its value and, when
   // the day calls for it, a note. The order of the terms follows the lead (`resolveTargets`).
@@ -378,6 +376,7 @@ export const TODAY_TEMPLATES = {
   'today.rate.not-saved': tpl('Rating not saved. {reason} Try again.', { reason: 'text' }),
   // The link under the figures of a session that has a run: the run's own page.
   'today.hero.see-run': tpl('See the run', {}, { shape: 'label' }),
+  'today.hero.see-session': tpl('See the session', {}, { shape: 'label' }),
   'today.hero.also': tpl('Also today: {sessions}.', { sessions: 'text' }),
   'today.hero.nothing-planned': tpl('Nothing is planned today.'),
   'today.hero.next': tpl('Next: {date}, {title}, {duration}.', {

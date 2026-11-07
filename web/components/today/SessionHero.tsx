@@ -14,7 +14,7 @@ import { DoneSheet, NotFullSheet, StrengthSheet } from '../lazySheets.tsx'
 import { strengthWords } from '../strength/strengthText.ts'
 import { useTodayStrength } from '../strength/strengthToday.ts'
 import { KnowToday } from './KnowToday.tsx'
-import { RunRating } from './RunRating.tsx'
+import { isRunLike, RunRating } from './RunRating.tsx'
 import { NotFullEntry } from './NotFullEntry.tsx'
 import { NotTodaySheet } from './NotTodaySheet.tsx'
 import { SessionActions } from './SessionActions.tsx'
@@ -231,10 +231,18 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
                   to={`/activities/${encodeURIComponent(linkedRun.id)}`}
                   className={styles.runLink}
                 >
-                  {render(TEMPLATES['today.hero.see-run'], {}, units)}
+                  {render(
+                    TEMPLATES[
+                      isRunLike(linkedRun) ? 'today.hero.see-run' : 'today.hero.see-session'
+                    ],
+                    {},
+                    units,
+                  )}
                 </Link>
               </p>
-              {readOnly ? null : <RunRating key={linkedRun.id} run={linkedRun} units={units} />}
+              {readOnly || !isRunLike(linkedRun) ? null : (
+                <RunRating key={linkedRun.id} run={linkedRun} units={units} />
+              )}
             </>
           )}
           {strengthHero ? (

@@ -209,7 +209,7 @@ describe('DashboardPage: the layout', () => {
     expect(screen.getByRole('radiogroup', { name: 'How do you feel today?' })).toBeInTheDocument()
   })
 
-  test('an unopened brief with changes leads the session column, with the review beside it', async () => {
+  test('an unopened brief with changes stands under the session hero, with the review beside it', async () => {
     media = controlMedia(false)
     const day = fullDay()
     day.coach.slots.brief = makeItem({ seen: false, changeCount: 2 })
@@ -221,11 +221,11 @@ describe('DashboardPage: the layout', () => {
     const card = screen.getByRole('region', { name: 'The plan was updated' })
     const review = screen.getByRole('link', { name: /Review last week/ })
     const [session, week] = Array.from(hero.closest('[data-layout]')?.children ?? [])
-    // First in the session column: before the disruption slot, the readiness read and the hero.
-    expect(session?.firstElementChild?.contains(card)).toBe(true)
-    expect(follows(card, container.querySelector('[data-slot="disruption"]')!)).toBe(true)
+    // Under the session hero and over the readiness read, in the session column.
+    expect(session?.contains(card)).toBe(true)
+    expect(follows(container.querySelector('[data-slot="disruption"]')!, hero)).toBe(true)
+    expect(follows(hero, card)).toBe(true)
     expect(follows(card, screen.getByRole('region', { name: 'Readiness' }))).toBe(true)
-    expect(follows(card, hero)).toBe(true)
     expect(session?.contains(review)).toBe(true)
     // The line is not drawn a second time under the week, and the review link is not repeated.
     expect(week?.querySelector('[data-slot="brief"]')).toBeNull()

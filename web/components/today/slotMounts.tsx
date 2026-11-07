@@ -140,7 +140,7 @@ function BriefMount() {
   const phoneCopy = usePhoneCopy(today)
   const item = today?.coach.slots.brief ?? null
   if (phoneCopy || item === null || settings === undefined) return null
-  // An unopened brief with changes leads the session column (`MondayBrief`), so it is not drawn
+  // An unopened brief with changes stands under the session hero (`MondayBrief`), so it is not drawn
   // twice.
   if (briefLeads(item) && today !== undefined && dayState(today, phoneCopy) === 'today') return null
   return (

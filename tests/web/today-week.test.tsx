@@ -94,12 +94,10 @@ describe('Today: the week strip', () => {
       '3.1 of 7.5 hours',
     )
     expect(within(strip).getByText('3.1 h of 7.5 h target')).toBeInTheDocument()
-    expect(
-      within(strip).getByText(
-        'Reaching the weekly target would take about 66 min a day through Sunday. Optional.',
-      ),
-    ).toBeInTheDocument()
-    expect(within(strip).queryByText('advisory')).not.toBeInTheDocument()
+    // A description of the plan, not of what the target would take: the sessions still to run
+    // from today (Wed, Fri, Sat and Sun in this week, 45 min each).
+    expect(within(strip).getByText('Planned for the rest of the week: 3 h.')).toBeInTheDocument()
+    expect(within(strip).queryByText(/target would take/)).not.toBeInTheDocument()
   })
 
   test.each([
@@ -109,6 +107,10 @@ describe('Today: the week strip', () => {
       { verdict: { code: 'easy', template: 'today.verdict.easy', slots: {} } },
     ],
     ['a rest verdict', { verdict: { code: 'rest', template: 'today.verdict.rest', slots: {} } }],
+    [
+      'a lighter-week verdict',
+      { verdict: { code: 'lighter-week', template: 'today.verdict.lighter-week', slots: {} } },
+    ],
   ] as const)('leaves out the advisory line on %s, but keeps the meter', async (_name, over) => {
     renderToday(
       makeToday({
@@ -127,36 +129,67 @@ describe('Today: the week strip', () => {
     )
     const strip = await screen.findByRole('region', { name: 'This week' })
     expect(within(strip).getByRole('meter', { name: 'Run time this week' })).toBeInTheDocument()
-    expect(within(strip).queryByText(/Reaching the weekly target/)).not.toBeInTheDocument()
+    expect(within(strip).queryByText(/Planned for the rest of the week/)).not.toBeInTheDocument()
   })
 
-  test('the last day of the week has its own wording', async () => {
+  test('adds up only the run sessions still to run from today', async () => {
+    const days: Record<string, Partial<WeekStripView['days'][number]>> = {
+      '2026-03-17': {
+        mark: 'done',
+        runMin: 40,
+        sessions: [
+          makeSession({ id: 'p', date: '2026-03-17', status: 'completed', durationMin: 40 }),
+        ],
+      },
+      '2026-03-18': {
+        mark: 'planned',
+        sessions: [
+          makeSession({ id: 'a', date: '2026-03-18', durationMin: 50 }),
+          makeSession({ id: 'b', date: '2026-03-18', kind: 'strength', durationMin: 30 }),
+        ],
+      },
+      '2026-03-20': {
+        mark: 'planned',
+        sessions: [makeSession({ id: 'c', date: '2026-03-20', durationMin: 80, status: 'moved' })],
+      },
+      '2026-03-21': {
+        mark: 'skipped',
+        sessions: [
+          makeSession({ id: 'd', date: '2026-03-21', durationMin: 60, status: 'skipped' }),
+        ],
+      },
+    }
     renderToday(
-      withWeek({
-        runMin: 400,
-        targetRunMin: 450,
-        remaining: { remainingMin: 50, remainingDays: 1, perDayMin: 50 },
+      makeToday({
+        coach: makeCoach({ weekStrip: makeStrip({ runMin: 40, targetRunMin: 300 }, days) }),
       }),
     )
     const strip = await screen.findByRole('region', { name: 'This week' })
+    // 50 + 80 min: the strength session, the done one and the skipped one are not run time to come.
     expect(
-      within(strip).getByText(
-        'Reaching the weekly target would take about 50 min today. Optional.',
-      ),
+      within(strip).getByText('Planned for the rest of the week: 2 h 10 min.'),
     ).toBeInTheDocument()
   })
 
-  test('says nothing is left to plan once the week is covered', async () => {
+  test('says nothing about the rest of the week when no run is left in it', async () => {
     renderToday(
-      withWeek({
-        runMin: 460,
-        targetRunMin: 450,
-        remaining: { remainingMin: 0, remainingDays: 4, perDayMin: 0 },
+      makeToday({
+        coach: makeCoach({
+          weekStrip: makeStrip(
+            {
+              runMin: 460,
+              targetRunMin: 450,
+              remaining: { remainingMin: 0, remainingDays: 4, perDayMin: 0 },
+            },
+            {},
+          ),
+        }),
       }),
     )
     const strip = await screen.findByRole('region', { name: 'This week' })
-    expect(within(strip).getByText('Nothing left to plan this week')).toBeInTheDocument()
     expect(within(strip).getByText('0.2 h past target')).toBeInTheDocument()
+    expect(within(strip).queryByText(/Planned for the rest of the week/)).not.toBeInTheDocument()
+    expect(within(strip).queryByText(/left to plan/)).not.toBeInTheDocument()
   })
 
   test('a week run past its plan reads against the planned figure, with how far the run lies over it', async () => {
@@ -176,7 +209,6 @@ describe('Today: the week strip', () => {
     )
     expect(within(strip).getByText('Ran 2.4 h of 1.3 h planned, 1.1 h over')).toBeInTheDocument()
     expect(within(strip).queryByText(/past target/)).not.toBeInTheDocument()
-    expect(within(strip).getByText('Nothing left to plan this week')).toBeInTheDocument()
     expectCleanCopy(container)
   })
 

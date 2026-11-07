@@ -8,7 +8,7 @@ import { makePreview, makeRevision } from './plan-fixtures.ts'
 import { makeCoach, makeHero, makeToday } from './today-fixtures.ts'
 import { renderToday, startToday } from './today-render.tsx'
 
-// Monday on Today (build list item 3): an unopened brief that changed sessions leads the session
+// Monday on Today (build list item 3): an unopened brief that changed sessions stands under the session
 // column with Open and Undo, and a review that is due stands beside it.
 
 beforeEach(startToday)

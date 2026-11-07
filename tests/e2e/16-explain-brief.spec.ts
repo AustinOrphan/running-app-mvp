@@ -191,7 +191,7 @@ test("Today's brief line fits its 52 px slot at 360 px and opens the brief", asy
   await expect(page).toHaveURL(/\/brief$/)
 })
 
-test('an unopened brief with changes leads Today in a card, at 360 and 1280 px, and its link opens the brief', async () => {
+test('an unopened brief with changes stands under the session in a card, at 360 and 1280 px, and its link opens the brief', async () => {
   // The server's payload with the brief slot as the Monday update leaves it: unopened, three
   // sessions changed. The brief itself is read as it is, so the card shows without the undo.
   const route = '**/api/today'
@@ -226,14 +226,26 @@ test('an unopened brief with changes leads Today in a card, at 360 and 1280 px, 
       await page.goto('/')
       const card = page.getByRole('region', { name: 'The plan was updated' })
       await expect(card).toBeVisible()
-      // First in the session column: above the readiness read and the session.
+      // Under the session hero and over the readiness read.
       const readiness = page.getByRole('region', { name: 'Readiness' })
+      const hero = page.getByRole('article').first()
+      expect((await boxOf(card)).y).toBeGreaterThan((await boxOf(hero)).y)
       expect((await boxOf(card)).y).toBeLessThan((await boxOf(readiness)).y)
       await expect(card.getByRole('link', { name: 'Open the brief' })).toBeVisible()
       await expect(page.getByRole('link', { name: /Review last week/ })).toBeVisible()
       // The quiet line is not drawn twice, nor the review link at the foot.
       await expect(page.getByRole('region', { name: 'Weekly brief' })).toBeHidden()
       await expect(page.getByRole('link', { name: 'Last week is ready to review.' })).toBeHidden()
+      // The session leads: with the card on the page Done is still inside the fold.
+      const done = await boxOf(
+        page.getByRole('article').first().getByRole('button', { name: 'Done', exact: true }),
+      )
+      const doneAt = done.y + done.height
+      test.info().annotations.push({
+        type: `monday-card-${String(width)}x${String(height)}`,
+        description: `Done ends at ${String(doneAt)} px; the card ends at ${String((await boxOf(card)).y + (await boxOf(card)).height)} px`,
+      })
+      expect(doneAt).toBeLessThanOrEqual(height)
       await noSidewaysScroll()
       await page.screenshot({ path: test.info().outputPath(`monday-card-${String(width)}.png`) })
     }
