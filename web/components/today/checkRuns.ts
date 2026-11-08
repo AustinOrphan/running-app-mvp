@@ -58,9 +58,10 @@ interface Pending {
   /** Services whose request was refused, with the server's words. */
   refused: Record<string, string>
   /**
-   * Every sync request has been answered (202 or refusal). The finish waits for this: a status
-   * list that already shows a newer pull while a request is still in flight must not end the
-   * check early, or the late answer would start a second one and announce the same runs twice.
+   * Every sync request has been answered (202 or refusal), or `CHECK_WAIT_MS` has passed without
+   * the answer, so a request that never settles reads as slow. The finish waits for this: a
+   * status list that already shows a newer pull while a request is still in flight must not end
+   * the check early, or the late answer would start a second one and announce the same runs twice.
    */
   answered: boolean
 }
@@ -92,6 +93,8 @@ export function useCheckRuns(): CheckRuns {
   const [pending, setPending] = useState<Pending | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const busy = useRef(false)
+  // The check in progress; an answer that comes after it ended (or timed out) is ignored.
+  const live = useRef<Pending | null>(null)
   const listRef = useRef(list)
   useEffect(() => {
     listRef.current = list
@@ -116,10 +119,26 @@ export function useCheckRuns(): CheckRuns {
         refused: {},
         answered: false,
       }
+      live.current = next
       setPending(next)
-      const answers = await Promise.allSettled(
-        targets.map((item) => mutateAsync({ provider: item.provider })),
-      )
+      // The answers are waited for no longer than the check itself is: a request that never
+      // settles ends as slow, and its late answer changes nothing.
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const timedOut = new Promise<'timeout'>((resolve) => {
+        timer = setTimeout(() => {
+          resolve('timeout')
+        }, CHECK_WAIT_MS)
+      })
+      const answers = await Promise.race([
+        Promise.allSettled(targets.map((item) => mutateAsync({ provider: item.provider }))),
+        timedOut,
+      ])
+      clearTimeout(timer)
+      if (live.current !== next) return
+      if (answers === 'timeout') {
+        setPending({ ...next, refused: { ...next.refused }, answered: true })
+        return
+      }
       answers.forEach((answer, index) => {
         if (answer.status === 'fulfilled') return
         const reason: unknown = answer.reason
@@ -239,6 +258,7 @@ export function useCheckRuns(): CheckRuns {
         setProblem(lines.length === 0 ? null : lines.join(' '))
       }
       busy.current = false
+      live.current = null
       setPending(null)
     })()
     return () => {

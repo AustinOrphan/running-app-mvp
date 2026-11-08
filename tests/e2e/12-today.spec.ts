@@ -593,18 +593,16 @@ test('Check for new runs asks the connected service, names what arrived and show
     const button = page.getByRole('button', { name: 'Check for new runs' })
     await expect(button).toBeVisible()
     await expect(page.getByRole('region', { name: 'How did it go?' })).toBeHidden()
+    await expect(page.getByRole('region', { name: 'Rate this run' })).toBeHidden()
     await button.click()
     await expect(toast(page, 'One new run added from Intervals.icu')).toBeVisible()
     await expect(button).toBeEnabled()
     await expect(button).not.toHaveAttribute('aria-busy', 'true')
-    // Today read again: the new run is waiting for a rating. The server may have linked it to the
-    // week's session, which then asks in the hero ("Rate this run"), or left it unlinked, which
-    // lists it in the card ("How did it go?"). Either way a link opens its page.
-    const ask = page.getByRole('region', { name: /^(How did it go\?|Rate this run)$/ })
-    await expect(ask).toBeVisible()
-    await expect(
-      page.getByRole('link', { name: 'See the run' }).or(ask.getByRole('link')).first(),
-    ).toHaveAttribute('href', /^\/activities\//)
+    // Today read again: the day's session already has its run (the Done test above), so the new
+    // run is not linked and waits for a rating in the card, whose line opens its page.
+    const rate = page.getByRole('region', { name: 'How did it go?' })
+    await expect(rate).toBeVisible()
+    await expect(rate.getByRole('link').first()).toHaveAttribute('href', /^\/activities\//)
     // On a phone the control is an icon the size of a thumb target, and nothing scrolls sideways.
     await page.setViewportSize({ width: 360, height: 740 })
     const box = (await button.boundingBox())!

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { IntegrationStatus, ProviderInfo, SyncRunView } from '../../shared/types.ts'
@@ -214,6 +214,54 @@ describe('Today: check for new runs', () => {
     expect(await screen.findByText('One new run added from Intervals.icu')).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 300))
     expect(screen.getAllByText('One new run added from Intervals.icu')).toHaveLength(1)
+  })
+
+  test('a sync request that never settles ends as slow after 90 seconds, and a later press works', async () => {
+    const { state, routes } = fakeServices(
+      [service('intervals', 'Intervals.icu')],
+      minutesAgo(5),
+      minutesAgo(0),
+    )
+    renderToday(makeToday({ coach: makeCoach() }), {
+      ...routes,
+      'GET /api/integrations/intervals/runs': () => [],
+    })
+    const button = await screen.findByRole('button', { name: 'Check for new runs' })
+    const answer = globalThis.fetch
+    let hold = true
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await answer(input, init)
+      if (
+        hold &&
+        init?.method === 'POST' &&
+        (typeof input === 'string' ? input : '').includes('/sync')
+      ) {
+        await new Promise(() => {})
+      }
+      return response
+    })
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(NOW)
+    fireEvent.click(button)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(90_000)
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Intervals.icu has not answered yet. Its runs show once it does.',
+    )
+    expect(button).not.toHaveAttribute('aria-busy', 'true')
+    // The control is not stuck: a later press asks again.
+    hold = false
+    fireEvent.click(button)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(state.syncs).toEqual(['intervals', 'intervals'])
+    vi.useRealTimers()
   })
 
   test('says so when nothing new came', async () => {
