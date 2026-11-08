@@ -4,6 +4,7 @@
 // named "your recent range" and never "the one Today uses". Every sentence is a template, so the
 // shared G5 lint renders it; `TRENDS_TEMPLATES` is spread into `TEMPLATES`.
 import { P } from '../engine/params/index.ts'
+import type { Units } from '../types.ts'
 import { render, tpl } from './template.ts'
 
 export const TRENDS_TEMPLATES = {
@@ -16,6 +17,9 @@ export const TRENDS_TEMPLATES = {
   'trends.offline': tpl('Trends need a connection. Today works offline.'),
   'trends.error': tpl('Trends did not load. Reload the page to try again.'),
   'trends.recovery.error': tpl('The recovery readings did not load. Reload the page to try again.'),
+  'trends.runs.error': tpl(
+    'The long-run and heart-rate panels did not load. Reload the page to try again.',
+  ),
 
   // Body weight: drawn only on the runner's choice and without a verdict. The slots are structural
   // (a test requires them): the weekly mean, the unit, a count of weigh-ins and the months of the
@@ -131,6 +135,95 @@ export const TRENDS_TEMPLATES = {
       needed: 'count',
     },
   ),
+
+  // Heart-rate drift on long runs (rule A7, shown under T1). The stored drift figure is described,
+  // never judged: no band, no aim, no word for better or worse.
+  'trends.drift.heading': tpl('Heart-rate drift on long runs', {}, { shape: 'label' }),
+  'trends.drift.caption': tpl(
+    'Each dot is one flat run with a heart-rate stream. Height is the rise in heart rate per unit of speed from the first half to the second.',
+  ),
+  'trends.drift.size': tpl(
+    "Bigger dots are longer runs. One run's figure moves with the day, so read the dots together.",
+  ),
+  'trends.drift.hills': tpl(
+    'Runs that climb more than {gain} per {unit} are left out: a climbing second half reads as drift, and wrist heart rate is not trusted on hills.',
+    { gain: 'climb', unit: 'text' },
+    { fallback: 'Runs that climb a lot are left out.' },
+  ),
+  'trends.drift.filled': tpl(
+    'Filled dots are runs of {from} to {to} in air under {heat}. Hollow dots are the other runs.',
+    { from: 'minutes', to: 'minutes', heat: 'temp' },
+  ),
+  'trends.drift.median': tpl(
+    'Median {pct} over {count} comparable runs of about {duration} on cool days.',
+    { pct: 'percent', count: 'count', duration: 'minutes' },
+    { fallback: 'The median of the comparable runs.' },
+  ),
+  'trends.drift.comparable': tpl(
+    'Comparable runs are within {tol} in length and {temp} in temperature of each other.',
+    { tol: 'percent', temp: 'temp' },
+  ),
+  'trends.drift.building': tpl(
+    'No median yet: the largest set of comparable runs holds {count} of {needed}.',
+    { count: 'count', needed: 'count' },
+  ),
+  'trends.drift.no-group': tpl(
+    'No median yet. It needs {needed} comparable runs of {from} to {to} in air under {heat}.',
+    { needed: 'count', from: 'minutes', to: 'minutes', heat: 'temp' },
+  ),
+  'trends.drift.empty': tpl('No long-run readings in this range yet.'),
+  'trends.drift.empty-body': tpl(
+    'A reading needs a flat run with a heart-rate stream, from a watch file or a synced account. A spreadsheet import has none.',
+  ),
+  'trends.drift.aria': tpl(
+    'Heart-rate drift of {count} flat runs, {span}. Latest {pct} on {date}.',
+    { count: 'count', span: 'text', pct: 'percent', date: 'date' },
+    { fallback: 'Heart-rate drift of flat long runs.' },
+  ),
+  'trends.drift.aria-none': tpl(
+    'Heart-rate drift of flat long runs, {span}. No run has a reading yet.',
+    { span: 'text' },
+    { fallback: 'Heart-rate drift of flat long runs.' },
+  ),
+
+  // Heart rate at one speed (rule A11, shown under T1). One reference pace, read from the runner's
+  // own line in each window; no point is compared with another and none is called a gain or a loss.
+  'trends.hr.heading': tpl('Heart rate at one speed', {}, { shape: 'label' }),
+  'trends.hr.caption': tpl(
+    'Each point is the heart rate your own line gives at {pace} in cool air, from the steady flat runs of the {weeks} weeks to that date.',
+    { pace: 'pace', weeks: 'count' },
+  ),
+  'trends.hr.reference': tpl(
+    'The pace is the middle of the paces your lines were fitted on, in the months shown.',
+  ),
+  'trends.hr.overlap': tpl(
+    'A point comes every {step} weeks, so neighbouring points share runs. A gap means too few runs, or a window that did not run this pace.',
+    { step: 'count' },
+  ),
+  'trends.hr.needs': tpl(
+    'A point needs {runs} steady flat runs with heart rate in {weeks} weeks, and {pace} among the paces they covered.',
+    { runs: 'count', weeks: 'count', pace: 'pace' },
+  ),
+  'trends.hr.moves': tpl(
+    'Sleep, caffeine, heat, tiredness and wrist-sensor error also move heart rate at a given speed. This page does not say how much change counts.',
+  ),
+  'trends.hr.empty': tpl('No heart-rate line in this range yet.'),
+  'trends.hr.empty-body': tpl(
+    'A line needs {runs} steady flat runs with heart rate within {weeks} weeks. The latest {weeks} weeks have {have}.',
+    { runs: 'count', weeks: 'count', have: 'count' },
+  ),
+  'trends.hr.aria': tpl(
+    'Heart rate at {pace}, one point per {weeks}-week window, {span}. Latest point: {bpm}.',
+    { pace: 'pace', weeks: 'count', span: 'text', bpm: 'bpm' },
+    { fallback: 'Heart rate at one speed, by window.' },
+  ),
+  'trends.hr.aria-none': tpl(
+    'Heart rate at one speed, {span}. No window has a point yet.',
+    { span: 'text' },
+    { fallback: 'Heart rate at one speed, by window.' },
+  ),
+  'trends.hr.gap-runs': tpl('Too few runs', {}, { shape: 'label' }),
+  'trends.hr.gap-pace': tpl('Pace not run in this window', {}, { shape: 'label' }),
 } as const
 
 /** The ids of the templates that take no slot. */
@@ -231,4 +324,157 @@ export function runCaption(metric: 'time' | 'distance', units: 'km' | 'mi'): str
   return metric === 'time'
     ? trendsText('trends.run.caption-time')
     : render(TRENDS_TEMPLATES['trends.run.caption-distance'], { unit: units }, units)
+}
+
+const PER_KM = 1000
+const M_PER_MILE = 1609.344
+
+/**
+ * The climb limit of the drift panel in the runner's unit: `hrModel.maxGainPerKm` metres per
+ * kilometre, or the same climb over a mile in feet per mile.
+ */
+export function driftHillsLine(units: Units): string {
+  const perKm = P.hrModel.maxGainPerKm.value
+  const miles = units === 'mi'
+  return render(
+    TRENDS_TEMPLATES['trends.drift.hills'],
+    {
+      gain: { kind: 'climb', m: miles ? (perKm * M_PER_MILE) / PER_KM : perKm },
+      unit: miles ? 'mile' : 'km',
+    },
+    units,
+  )
+}
+
+/** The length and air temperature that make a long run a candidate of rule A7. */
+const durabilityBounds = () => ({
+  from: { kind: 'minutes' as const, min: P.a7.thresholdDropAfterMin.value },
+  to: { kind: 'minutes' as const, min: P.a7.driftInferenceLimitMin.value },
+  heat: { kind: 'temp' as const, c: P.a7.heatExcludeC.value },
+})
+
+/** Which dots are filled: the runs rule A7 reads durability from. */
+export function driftFilledLine(): string {
+  return render(TRENDS_TEMPLATES['trends.drift.filled'], durabilityBounds(), 'km')
+}
+
+/** When two runs are comparable (rule A7). */
+export function driftComparableLine(): string {
+  return render(
+    TRENDS_TEMPLATES['trends.drift.comparable'],
+    {
+      tol: { kind: 'percent', pct: Math.round(P.a7.comparableDurationTolerance.value * 100) },
+      temp: { kind: 'temp', c: P.a7.comparableTempToleranceC.value },
+    },
+    'km',
+  )
+}
+
+/** "Median 4.1% over 5 comparable runs of about 2 h on cool days." The length rounds to 10 minutes. */
+export function driftMedianLine(pct: number, runs: number, medianMin: number): string {
+  return render(
+    TRENDS_TEMPLATES['trends.drift.median'],
+    {
+      pct: { kind: 'percent', pct },
+      count: count(runs),
+      duration: { kind: 'minutes', min: Math.round(medianMin / 10) * 10 },
+    },
+    'km',
+  )
+}
+
+/** Why there is no median line: a set too small to read, or no set at all. */
+export function driftNoMedianLine(runs: number): string {
+  return runs === 0
+    ? render(
+        TRENDS_TEMPLATES['trends.drift.no-group'],
+        { needed: count(P.a7.minComparableRuns.value), ...durabilityBounds() },
+        'km',
+      )
+    : render(
+        TRENDS_TEMPLATES['trends.drift.building'],
+        { count: count(runs), needed: count(P.a7.minComparableRuns.value) },
+        'km',
+      )
+}
+
+/** The accessible name of the drift chart: what it shows and its latest dot, if any. */
+export function driftAria(
+  span: string,
+  latest: { count: number; pct: number; date: string } | null,
+): string {
+  return latest === null
+    ? render(TRENDS_TEMPLATES['trends.drift.aria-none'], { span }, 'km')
+    : render(
+        TRENDS_TEMPLATES['trends.drift.aria'],
+        {
+          count: count(latest.count),
+          span,
+          pct: { kind: 'percent', pct: latest.pct },
+          date: { kind: 'date', iso: latest.date, style: 'short' },
+        },
+        'km',
+      )
+}
+
+const paceOf = (mps: number) => ({ kind: 'pace' as const, secPerKm: PER_KM / mps })
+
+/** What a point of the heart-rate panel is, at the reference pace. */
+export function hrCaption(referenceMps: number, units: Units): string {
+  return render(
+    TRENDS_TEMPLATES['trends.hr.caption'],
+    { pace: paceOf(referenceMps), weeks: count(P.hrModel.windowWeeks.value) },
+    units,
+  )
+}
+
+/** The weeks between two points, and what a gap means. */
+export function hrOverlapLine(stepWeeks: number): string {
+  return render(TRENDS_TEMPLATES['trends.hr.overlap'], { step: count(stepWeeks) }, 'km')
+}
+
+/** What a point needs, for a panel with a reference pace. */
+export function hrNeedsLine(referenceMps: number, units: Units): string {
+  return render(
+    TRENDS_TEMPLATES['trends.hr.needs'],
+    {
+      runs: count(P.hrModel.minQualifyingRuns.value),
+      weeks: count(P.hrModel.windowWeeks.value),
+      pace: paceOf(referenceMps),
+    },
+    units,
+  )
+}
+
+/** What would fill the panel, with the runs the latest window has. */
+export function hrEmptyBody(have: number): string {
+  return render(
+    TRENDS_TEMPLATES['trends.hr.empty-body'],
+    {
+      runs: count(P.hrModel.minQualifyingRuns.value),
+      weeks: count(P.hrModel.windowWeeks.value),
+      have: count(have),
+    },
+    'km',
+  )
+}
+
+/** The accessible name of the heart-rate chart: the pace, the span and the latest point, if any. */
+export function hrAria(
+  span: string,
+  reference: { mps: number; latestBpm: number | null },
+  units: Units,
+): string {
+  return reference.latestBpm === null
+    ? render(TRENDS_TEMPLATES['trends.hr.aria-none'], { span }, units)
+    : render(
+        TRENDS_TEMPLATES['trends.hr.aria'],
+        {
+          pace: paceOf(reference.mps),
+          weeks: count(P.hrModel.windowWeeks.value),
+          span,
+          bpm: { kind: 'bpm', bpm: reference.latestBpm },
+        },
+        units,
+      )
 }

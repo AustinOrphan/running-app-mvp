@@ -5,6 +5,17 @@ import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import {
   bandBuilding,
   bandCaption,
+  driftAria,
+  driftComparableLine,
+  driftFilledLine,
+  driftHillsLine,
+  driftMedianLine,
+  driftNoMedianLine,
+  hrAria,
+  hrCaption,
+  hrEmptyBody,
+  hrNeedsLine,
+  hrOverlapLine,
   nightsCaption,
   TRENDS_TEMPLATES,
   trendsText,
@@ -102,6 +113,92 @@ describe('the words of the Trends page', () => {
     )
     for (const line of [weightCaption(2), weightAria(12, '70.3 kg'), weightAria(6, null)]) {
       assertCleanCopy(line, line)
+    }
+  })
+
+  it("words the drift panel from the Params of rules A7 and B2, in the runner's unit", () => {
+    expect(driftFilledLine()).toBe(
+      'Filled dots are runs of 90 min to 3 h in air under 25 °C. Hollow dots are the other runs.',
+    )
+    expect(driftComparableLine()).toBe(
+      'Comparable runs are within 20% in length and 5 °C in temperature of each other.',
+    )
+    expect(driftHillsLine('km')).toContain('more than 15 m per km are left out')
+    // 15 m per km is 24 m per mile, 79 ft.
+    expect(driftHillsLine('mi')).toContain('more than 79 ft per mile are left out')
+    expect(driftMedianLine(4.1, 5, 118)).toBe(
+      'Median 4.1% over 5 comparable runs of about 2 h on cool days.',
+    )
+    expect(driftNoMedianLine(2)).toBe(
+      'No median yet: the largest set of comparable runs holds 2 of 3.',
+    )
+    expect(driftNoMedianLine(0)).toBe(
+      'No median yet. It needs 3 comparable runs of 90 min to 3 h in air under 25 °C.',
+    )
+    expect(driftAria('last 12 months', { count: 6, pct: -1.2, date: '2026-05-04' })).toBe(
+      'Heart-rate drift of 6 flat runs, last 12 months. Latest -1.2% on 4 May.',
+    )
+    expect(driftAria('last 12 months', null)).toBe(
+      'Heart-rate drift of flat long runs, last 12 months. No run has a reading yet.',
+    )
+  })
+
+  it("words the heart-rate panel from the Params of rules A8 and C9, with the pace in the runner's unit", () => {
+    expect(hrCaption(2.8, 'km')).toBe(
+      'Each point is the heart rate your own line gives at 5:57 /km in cool air, from the steady flat runs of the 8 weeks to that date.',
+    )
+    expect(hrCaption(2.8, 'mi')).toContain('9:35 /mi')
+    expect(hrNeedsLine(2.8, 'km')).toBe(
+      'A point needs 8 steady flat runs with heart rate in 8 weeks, and 5:57 /km among the paces they covered.',
+    )
+    expect(hrOverlapLine(4)).toContain('A point comes every 4 weeks')
+    expect(hrEmptyBody(5)).toBe(
+      'A line needs 8 steady flat runs with heart rate within 8 weeks. The latest 8 weeks have 5.',
+    )
+    expect(hrAria('last 12 months', { mps: 2.8, latestBpm: 146 }, 'km')).toBe(
+      'Heart rate at 5:57 /km, one point per 8-week window, last 12 months. Latest point: 146 bpm.',
+    )
+    expect(hrAria('last 12 months', { mps: 2.8, latestBpm: null }, 'km')).toBe(
+      'Heart rate at one speed, last 12 months. No window has a point yet.',
+    )
+  })
+
+  it('keeps every sentence of the two panels clean under G5 and short, in both unit systems', () => {
+    for (const units of ['km', 'mi'] as const) {
+      const lines = [
+        driftHillsLine(units),
+        driftFilledLine(),
+        driftComparableLine(),
+        driftMedianLine(-0.4, 12, 185),
+        driftNoMedianLine(0),
+        driftNoMedianLine(2),
+        driftAria('since the week of 24 Aug', { count: 12, pct: 7.25, date: '2026-05-04' }),
+        driftAria('last 6 months', null),
+        hrCaption(2.1, units),
+        hrCaption(4.2, units),
+        hrOverlapLine(4),
+        hrNeedsLine(3.3, units),
+        hrEmptyBody(0),
+        hrAria('last 24 months', { mps: 3.3, latestBpm: 171 }, units),
+        hrAria('last 24 months', { mps: 3.3, latestBpm: null }, units),
+      ]
+      for (const line of lines) {
+        assertCleanCopy(line, line)
+        expect(line.length, line).toBeLessThanOrEqual(COPY_MAX_CHARS)
+      }
+    }
+  })
+
+  it('writes no grade on the runner in the drift or heart-rate panels', () => {
+    const all = Object.entries(TRENDS_TEMPLATES)
+      .filter(([id]) => id.startsWith('trends.drift.') || id.startsWith('trends.hr.'))
+      .map(([, template]) => template.text)
+      .join('\\n')
+    for (const word of [
+      /\\b(better|worse|good|poor|bad|improv\\w*|declin\\w*|fitter|fitness|durab\\w*|efficien\\w*)\\b/i,
+      /\\b(normal|healthy|concern\\w*|warning|alert)\\b/i,
+    ]) {
+      expect(all).not.toMatch(word)
     }
   })
 
