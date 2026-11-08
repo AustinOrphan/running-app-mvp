@@ -236,6 +236,18 @@ export const lPredict = {
         note: 'Default: 100 m of gain counts as 1 km of flat distance (the km-effort convention); road CS and race anchors are flat-equivalent.',
       },
     ),
+    personalBlendFaster: param('l5.personalBlendFaster', 0.25, 'D', 'L5', [], {
+      unit: 'fraction of the difference',
+      note: "Default: when the runner's own climbing is faster than the default, a quarter of the difference is used. Smaller than the slower weight because a change toward more speed needs stronger evidence (G6). No study sizes it.",
+    }),
+    personalBlendSlower: param('l5.personalBlendSlower', 0.5, 'D', 'L5', [], {
+      unit: 'fraction of the difference',
+      note: "Default: when the runner's own climbing is slower than the default, half the difference is used. Larger than the faster weight (G6), and not 1 because the ratios come from steady runs and are shrunk toward the default. No study sizes it.",
+    }),
+    personalBlendMaxShiftPct: param('l5.personalBlendMaxShiftPct', 3, 'D', 'L5', [], {
+      unit: '% of predicted time',
+      note: 'Default: the personal climb moves a predicted time by at most 3% of the prediction made with the default, whatever the curve says. No study sizes it; it is the size of the minimum band of L6.',
+    }),
     gainWideningPctPerMPerKm: param(
       'l5.gainWideningPctPerMPerKm',
       1,

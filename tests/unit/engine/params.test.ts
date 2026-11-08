@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-07.8')
+    expect(PARAMS_VERSION).toBe('2026-11-08.1')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
