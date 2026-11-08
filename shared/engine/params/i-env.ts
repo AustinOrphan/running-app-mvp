@@ -408,17 +408,17 @@ export const iEnv = {
       unit: '%',
       note: 'Default: how many percent lower the leave-one-run-out error of a band must be than the Minetti error for the personal ratio to show.',
     }),
-    minBacktestRuns: param('i13.minBacktestRuns', 5, 'D', 'I13', BACKTEST, {
+    minBacktestRuns: param('i13.minBacktestRuns', 7, 'D', 'I13', BACKTEST, {
       unit: 'runs',
-      note: 'Default: runs a band must have been tested on before its comparison with Minetti counts.',
+      note: 'Default: runs a band must have been tested on before its comparison with Minetti counts. Seven is also the fewest pairs the sign test at i13.maxSignTestP of 0.01 can pass on (7 wins in 7 pairs is p = 0.0078; 6 in 6 is 0.0156), so a lower value would not bind.',
     }),
-    minTestBandMin: param('i13.minTestBandMin', 1, 'D', 'I13', BACKTEST, {
+    minTestBandMin: param('i13.minTestBandMin', 1, 'D', 'I13', [], {
       unit: 'min',
       note: 'Default: minutes a held-out run needs in a band to be tested there.',
     }),
-    maxSignTestP: param('i13.maxSignTestP', 0.01, 'D', 'I13', BACKTEST, {
+    maxSignTestP: param('i13.maxSignTestP', 0.01, 'D', 'I13', [], {
       unit: 'fraction',
-      note: 'Default: the largest one-sided sign-test probability for a band to show the personal ratio. In the leave-one-run-out pairs of the band, the personal error must be the lower one more often than a coin toss would give. Chosen against synthetic runners who follow Minetti exactly (npm run grade:report).',
+      note: 'Default: the largest one-sided sign-test probability for a band to show the personal ratio. In the leave-one-run-out pairs of the band, the personal error must be the lower one more often than a coin toss would give. At 0.01 a band needs at least 7 tested pairs, all won. Chosen against synthetic runners who follow Minetti exactly (false-band rates in evidence gap 32).',
     }),
     walkingMajorityShare: param('i13.walkingMajorityShare', 0.5, 'D', 'I13', [], {
       unit: 'fraction of time',

@@ -38,7 +38,7 @@ export type BandReason =
   | 'few-runs'
   /** One of the two open steep ends: always Minetti (rule I13). */
   | 'steep-end'
-  /** Tested on fewer than `i13.minBacktestRuns` runs. */
+  /** Tested on fewer runs than the gate can pass on: `i13.minBacktestRuns`, and the fewest at which the sign test can pass at all. */
   | 'untested'
   /** Tested, and not lower in error than Minetti by `i13.minGainOverDefaultPct`. */
   | 'no-gain'
@@ -73,7 +73,7 @@ export interface GradeBand {
   runs: number
   /** Speed relative to flat from Minetti: one over the cost ratio at `midPct`. */
   defaultRatio: number
-  /** The shrunk personal ratio; null when the band does not speak. Shown only when `source` is personal. */
+  /** The shrunk personal ratio; null when the band does not speak and for the two open steep ends. Shown only when `source` is personal. */
   personalRatio: number | null
   /** The ratio to show. */
   ratio: number
@@ -222,6 +222,17 @@ export function signTestP(wins: number, n: number): number {
   return Math.min(1, p)
 }
 
+/**
+ * The fewest tested pairs at which the sign test can pass: the smallest n for which n wins in n
+ * pairs has a probability of at most `i13.maxSignTestP` (7 at 0.01). Below it no result can show a
+ * personal ratio, so the band reads untested and not inconsistent.
+ */
+export function minSignTestPairs(): number {
+  let n = 1
+  while (signTestP(n, n) > P.i13.maxSignTestP.value && n < 1000) n += 1
+  return n
+}
+
 function toTest(t: Tally): BandTest | null {
   if (t.runs === 0) return null
   const maePersonalPct = (t.personal / t.runs) * 100
@@ -312,7 +323,8 @@ export function gradeCurve(runs: readonly GradeCurveRun[], today: string): Grade
     if (b === FLAT_BAND) reason = 'flat'
     else if (isSteepEnd(b)) reason = 'steep-end'
     else if (pooled.reason) reason = pooled.reason
-    else if (!bandTest || bandTest.runs < P.i13.minBacktestRuns.value) reason = 'untested'
+    else if (!bandTest || bandTest.runs < Math.max(P.i13.minBacktestRuns.value, minSignTestPairs()))
+      reason = 'untested'
     else if (bandTest.gainPct < P.i13.minGainOverDefaultPct.value) reason = 'no-gain'
     else if (bandTest.signTestP > P.i13.maxSignTestP.value) reason = 'inconsistent'
     else reason = 'personal'

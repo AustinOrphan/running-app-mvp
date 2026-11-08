@@ -5,6 +5,7 @@ import {
   gainEquivalent,
   gradeCurve,
   personalGainEquivalent,
+  minSignTestPairs,
   signTestP,
   type GradeCurveRun,
 } from '../../../shared/engine/gradeCurve.ts'
@@ -239,6 +240,37 @@ describe('gradeCurve backtest', () => {
       expect(band.minutes).toBeCloseTo(b.bands[i]!.minutes, 9)
     })
     expect(a.overall!.gainPct).toBeCloseTo(b.overall!.gainPct, 9)
+  })
+})
+
+describe('the floor of tested pairs', () => {
+  // A runner whose 3 to 6% band is exactly 1.0 of flat, with no day-to-day noise: the personal
+  // ratio beats Minetti in every pair, so only the number of pairs decides the reason.
+  const flatBand5 = scaledCurve(0.5).map((ratio, i) => (i === 5 ? 1 : ratio))
+  const runsOf = (count: number) => syntheticRuns(athlete(flatBand5, 0), count, TODAY, 41, 2)
+
+  test('the sign test at 0.01 cannot pass below 7 pairs, and minBacktestRuns is 7', () => {
+    expect(minSignTestPairs()).toBe(7)
+    expect(P.i13.minBacktestRuns.value).toBe(7)
+    expect(signTestP(6, 6)).toBeGreaterThan(P.i13.maxSignTestP.value)
+    expect(signTestP(7, 7)).toBeLessThanOrEqual(P.i13.maxSignTestP.value)
+  })
+
+  test.each([5, 6])('%i of %i pairs, all won, read untested and not inconsistent', (count) => {
+    const band = gradeCurve(runsOf(count), TODAY).bands[5]!
+    expect(band.test!.runs).toBe(count)
+    expect(band.test!.wins).toBe(count)
+    expect(band.reason).toBe('untested')
+    expect(band.source).toBe('default')
+  })
+
+  test('7 of 7 pairs, all won, read personal', () => {
+    const band = gradeCurve(runsOf(7), TODAY).bands[5]!
+    expect(band.test!.runs).toBe(7)
+    expect(band.test!.wins).toBe(7)
+    expect(band.test!.signTestP).toBeLessThanOrEqual(P.i13.maxSignTestP.value)
+    expect(band.reason).toBe('personal')
+    expect(band.source).toBe('personal')
   })
 })
 
