@@ -1339,13 +1339,14 @@ test('a trail run with charts does not scroll sideways at 360 px', async () => {
   await sheet.getByRole('button', { name: 'Import files' }).click()
   await expect(sheet.getByText('1 imported, 0 already imported, 0 skipped')).toBeVisible()
   await sheet.getByRole('button', { name: 'Done' }).click()
-  await page.getByRole('link', { name: /^Details, Run on / }).click()
+  await page.getByRole('link', { name: /^Run, / }).click()
   await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
   // The charts are lazy chunks, and each carries a hidden table of its figures.
   await expect(page.getByRole('img', { name: /^Pace, average / })).toBeVisible()
   await expect(page.getByRole('img', { name: /^Elevation, from / })).toBeVisible()
   expect(await pageOverflow()).toBeLessThanOrEqual(0)
 })
+
 test('a four-hour trail run keeps its charts before the rating form and does not widen the page at 360 px', async () => {
   await resetData()
   const start = new Date()
