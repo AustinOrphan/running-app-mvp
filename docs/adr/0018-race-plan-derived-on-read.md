@@ -90,8 +90,11 @@ every read and stored nowhere.
   line); `tests/api/raceCheckpoints.test.ts` sends rows whose values it then searches for in the
   response and in every log line of a rejected and an accepted save (2026-11-07).
 - **Fact:** the backup copies the whole SQLite file (`server/services/backup.ts`), so the table is
-  included with no code, and no export route covers goals (the only export is the activities CSV), so
-  no export work was needed (read 2026-11-07).
+  included with no code, and no export route covered goals (the only export was the activities CSV), so
+  no export work was needed (read 2026-11-07). Superseded 2026-11-08 (task X1): `GET /api/export`
+  (`server/services/exportArchive.ts`) now writes `race-checkpoints.json` for the runner's own
+  download; it is the one reader of the table besides the checkpoint service
+  (`racePlanIsolation.test.ts`), and the plan itself stays derived and out of the archive.
 - **Opinion:** one object gives one definition of the race; a cross-surface test holds the page, Today
   and the sheet to it.
 - **Opinion:** a range scaled from the prediction and shown as "about" is less likely to read as a
