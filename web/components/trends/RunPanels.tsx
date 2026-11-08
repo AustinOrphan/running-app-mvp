@@ -3,12 +3,15 @@ import {
   driftAria,
   driftComparableLine,
   driftFilledLine,
+  driftHollowOnlyLine,
   driftHillsLine,
   driftMedianLine,
   driftNoMedianLine,
+  driftSizeLine,
   hrAria,
   hrCaption,
   hrEmptyBody,
+  hrEmptyPaceBody,
   hrNeedsLine,
   hrOverlapLine,
   spanText,
@@ -65,13 +68,15 @@ interface PanelProps {
 }
 
 /** Heart-rate drift of each flat long run in the range, with the median of the A7 group (rule T1). */
-function DriftPanel({ view, from, months }: Omit<PanelProps, 'units'>) {
+function DriftPanel({ view, from, months, units }: PanelProps) {
   const runs = view.longRuns.filter((run) => run.date >= from)
   if (runs.length === 0) {
     return <EmptyState title={text('trends.drift.empty')} body={text('trends.drift.empty-body')} />
   }
   const group = durabilityGroup(runs)
-  const inGroup = new Set(group?.runs.map(runKey))
+  // A dot is filled only once its group makes a median: with fewer runs nothing is read from them.
+  const median = group?.medianPct ?? null
+  const inGroup = new Set(median === null ? [] : group?.runs.map(runKey))
   const latest = runs[runs.length - 1]!
   return (
     <>
@@ -79,7 +84,8 @@ function DriftPanel({ view, from, months }: Omit<PanelProps, 'units'>) {
       <DurabilityChart
         runs={runs}
         inGroup={inGroup}
-        median={group?.medianPct ?? null}
+        median={median}
+        units={units}
         from={from}
         to={view.asOf}
         ariaLabel={driftAria(spanText(months, null), {
@@ -91,12 +97,12 @@ function DriftPanel({ view, from, months }: Omit<PanelProps, 'units'>) {
       <p className={styles.figure}>
         {group !== null && group.medianPct !== null
           ? driftMedianLine(group.medianPct, group.runs.length, group.medianMin)
-          : driftNoMedianLine(group?.runs.length ?? 0)}
+          : driftNoMedianLine(group?.runs.length ?? 0, units)}
       </p>
       <p className={styles.caption}>
-        {driftFilledLine()} {driftComparableLine()}
+        {median === null ? driftHollowOnlyLine() : driftFilledLine()} {driftComparableLine(units)}
       </p>
-      <p className={styles.caption}>{text('trends.drift.size')}</p>
+      <p className={styles.caption}>{driftSizeLine()}</p>
     </>
   )
 }
@@ -107,7 +113,16 @@ function SpeedPanel({ view, from, months, units }: PanelProps) {
   const series = fixedSpeedSeries(windows)
   const drawn = series.points.filter((point) => point.bpm !== null)
   const latestBpm = drawn.at(-1)?.bpm ?? null
-  if (series.referenceMps === null || drawn.length === 0) {
+  if (series.referenceMps !== null && drawn.length === 0) {
+    // Some window has a line, but none ran the reference pace: say that, not the run count.
+    return (
+      <EmptyState
+        title={text('trends.hr.empty')}
+        body={hrEmptyPaceBody(series.referenceMps, units)}
+      />
+    )
+  }
+  if (series.referenceMps === null) {
     const have = view.hrWindows.at(-1)?.qualifying ?? 0
     return <EmptyState title={text('trends.hr.empty')} body={hrEmptyBody(have)} />
   }
@@ -121,6 +136,7 @@ function SpeedPanel({ view, from, months, units }: PanelProps) {
         ariaLabel={hrAria(spanText(months, null), { mps: series.referenceMps, latestBpm }, units)}
       />
       <p className={styles.caption}>{text('trends.hr.reference')}</p>
+      <p className={styles.caption}>{text('trends.hr.heat')}</p>
       <p className={styles.caption}>{hrOverlapLine(HR_WINDOW_STEP_DAYS / 7)}</p>
       <p className={styles.caption}>{hrNeedsLine(series.referenceMps, units)}</p>
       <p className={styles.caption}>{text('trends.hr.moves')}</p>
@@ -164,7 +180,7 @@ export function RunPanels({ months, weekCount, units }: RunPanelsProps) {
     <>
       <Section id="trends-drift-heading" heading={text('trends.drift.heading')}>
         {body((data) => (
-          <DriftPanel view={data} from={from} months={months} />
+          <DriftPanel view={data} from={from} months={months} units={units} />
         ))}
         {view === undefined ? null : <p className={styles.caption}>{driftHillsLine(units)}</p>}
       </Section>

@@ -5,6 +5,7 @@
 // shared G5 lint renders it; `TRENDS_TEMPLATES` is spread into `TEMPLATES`.
 import { P } from '../engine/params/index.ts'
 import type { Units } from '../types.ts'
+import { formatAirTemperature } from './quantity.ts'
 import { render, tpl } from './template.ts'
 
 export const TRENDS_TEMPLATES = {
@@ -142,7 +143,8 @@ export const TRENDS_TEMPLATES = {
     'Each dot is one flat run with a heart-rate stream. Height is the rise in heart rate per unit of speed from the first half to the second.',
   ),
   'trends.drift.size': tpl(
-    "Bigger dots are longer runs. One run's figure moves with the day, so read the dots together.",
+    "Dot area follows run length, up to {cap}. One run's figure moves with the day, so read the dots together.",
+    { cap: 'minutes' },
   ),
   'trends.drift.hills': tpl(
     'Runs that climb more than {gain} per {unit} are left out: a climbing second half reads as drift, and wrist heart rate is not trusted on hills.',
@@ -150,8 +152,11 @@ export const TRENDS_TEMPLATES = {
     { fallback: 'Runs that climb a lot are left out.' },
   ),
   'trends.drift.filled': tpl(
-    'Filled dots are runs of {from} to {to} in air under {heat}. Hollow dots are the other runs.',
-    { from: 'minutes', to: 'minutes', heat: 'temp' },
+    'Filled dots are the largest set of comparable runs, which the median is read from. Hollow dots are every other run.',
+  ),
+  'trends.drift.hollow-only': tpl(
+    'All dots are rings until {needed} comparable runs make a median.',
+    { needed: 'count' },
   ),
   'trends.drift.median': tpl(
     'Median {pct} over {count} comparable runs of about {duration} on cool days.',
@@ -159,8 +164,8 @@ export const TRENDS_TEMPLATES = {
     { fallback: 'The median of the comparable runs.' },
   ),
   'trends.drift.comparable': tpl(
-    'Comparable runs are within {tol} in length and {temp} in temperature of each other.',
-    { tol: 'percent', temp: 'temp' },
+    'Comparable runs last {from} to {to} in air under {heat}, within {tol} in length and {temp} in temperature of each other.',
+    { from: 'minutes', to: 'minutes', heat: 'text', tol: 'percent', temp: 'text' },
   ),
   'trends.drift.building': tpl(
     'No median yet: the largest set of comparable runs holds {count} of {needed}.',
@@ -168,7 +173,7 @@ export const TRENDS_TEMPLATES = {
   ),
   'trends.drift.no-group': tpl(
     'No median yet. It needs {needed} comparable runs of {from} to {to} in air under {heat}.',
-    { needed: 'count', from: 'minutes', to: 'minutes', heat: 'temp' },
+    { needed: 'count', from: 'minutes', to: 'minutes', heat: 'text' },
   ),
   'trends.drift.empty': tpl('No long-run readings in this range yet.'),
   'trends.drift.empty-body': tpl(
@@ -189,8 +194,11 @@ export const TRENDS_TEMPLATES = {
   // own line in each window; no point is compared with another and none is called a gain or a loss.
   'trends.hr.heading': tpl('Heart rate at one speed', {}, { shape: 'label' }),
   'trends.hr.caption': tpl(
-    'Each point is the heart rate your own line gives at {pace} in cool air, from the steady flat runs of the {weeks} weeks to that date.',
+    'Each point is the heart rate your own line gives at {pace} on a cool day, from the steady flat runs of the {weeks} weeks to that date.',
     { pace: 'pace', weeks: 'count' },
+  ),
+  'trends.hr.heat': tpl(
+    'Hot runs are corrected for heat; a run with no weather recorded counts as cool.',
   ),
   'trends.hr.reference': tpl(
     'The pace is the middle of the paces your lines were fitted on, in the months shown.',
@@ -200,8 +208,8 @@ export const TRENDS_TEMPLATES = {
     { step: 'count' },
   ),
   'trends.hr.needs': tpl(
-    'A point needs {runs} steady flat runs with heart rate in {weeks} weeks, and {pace} among the paces they covered.',
-    { runs: 'count', weeks: 'count', pace: 'pace' },
+    'A point needs {runs} steady flat runs with heart rate in {weeks} weeks, and {pace} within {margin} of the paces they covered.',
+    { runs: 'count', weeks: 'count', pace: 'pace', margin: 'percent' },
   ),
   'trends.hr.moves': tpl(
     'Sleep, caffeine, heat, tiredness and wrist-sensor error also move heart rate at a given speed. This page does not say how much change counts.',
@@ -210,6 +218,10 @@ export const TRENDS_TEMPLATES = {
   'trends.hr.empty-body': tpl(
     'A line needs {runs} steady flat runs with heart rate within {weeks} weeks. The latest {weeks} weeks have {have}.',
     { runs: 'count', weeks: 'count', have: 'count' },
+  ),
+  'trends.hr.empty-pace-body': tpl(
+    'No window of this range ran {pace} or a pace near it, so no point can be read at one pace.',
+    { pace: 'pace' },
   ),
   'trends.hr.aria': tpl(
     'Heart rate at {pace}, one point per {weeks}-week window, {span}. Latest point: {bpm}.',
@@ -345,27 +357,55 @@ export function driftHillsLine(units: Units): string {
   )
 }
 
-/** The length and air temperature that make a long run a candidate of rule A7. */
-const durabilityBounds = () => ({
-  from: { kind: 'minutes' as const, min: P.a7.thresholdDropAfterMin.value },
-  to: { kind: 'minutes' as const, min: P.a7.driftInferenceLimitMin.value },
-  heat: { kind: 'temp' as const, c: P.a7.heatExcludeC.value },
+/** An air temperature in the runner's unit: the one rule for the air (`formatAirTemperature`). */
+const airText = (c: number, units: Units): string => formatAirTemperature(c, units)
+
+/** A difference of air temperature: 5 degrees Celsius is 9 degrees Fahrenheit, with no 32 added. */
+const airDifferenceText = (c: number, units: Units): string =>
+  units === 'mi' ? `${String(Math.round((c * 9) / 5))} °F` : `${String(Math.round(c))} °C`
+
+const minutes = (min: number) => ({ kind: 'minutes' as const, min })
+
+/** The length of a long run and the air it needs to be a candidate of rule A7. */
+const durabilityBounds = (units: Units) => ({
+  from: minutes(P.a7.thresholdDropAfterMin.value),
+  to: minutes(P.a7.driftInferenceLimitMin.value),
+  heat: airText(P.a7.heatExcludeC.value, units),
 })
 
-/** Which dots are filled: the runs rule A7 reads durability from. */
+/** Which dots are filled: the largest set of comparable runs, once it makes a median. */
 export function driftFilledLine(): string {
-  return render(TRENDS_TEMPLATES['trends.drift.filled'], durabilityBounds(), 'km')
+  return render(TRENDS_TEMPLATES['trends.drift.filled'], {}, 'km')
 }
 
-/** When two runs are comparable (rule A7). */
-export function driftComparableLine(): string {
+/** Why no dot is filled yet. */
+export function driftHollowOnlyLine(): string {
+  return render(
+    TRENDS_TEMPLATES['trends.drift.hollow-only'],
+    { needed: count(P.a7.minComparableRuns.value) },
+    'km',
+  )
+}
+
+/** The longest run whose dot grows with its length: the drift inference limit of rule A7. */
+export function driftSizeLine(): string {
+  return render(
+    TRENDS_TEMPLATES['trends.drift.size'],
+    { cap: minutes(P.a7.driftInferenceLimitMin.value) },
+    'km',
+  )
+}
+
+/** Which runs are candidates and when two are comparable (rule A7). */
+export function driftComparableLine(units: Units): string {
   return render(
     TRENDS_TEMPLATES['trends.drift.comparable'],
     {
+      ...durabilityBounds(units),
       tol: { kind: 'percent', pct: Math.round(P.a7.comparableDurationTolerance.value * 100) },
-      temp: { kind: 'temp', c: P.a7.comparableTempToleranceC.value },
+      temp: airDifferenceText(P.a7.comparableTempToleranceC.value, units),
     },
-    'km',
+    units,
   )
 }
 
@@ -383,12 +423,12 @@ export function driftMedianLine(pct: number, runs: number, medianMin: number): s
 }
 
 /** Why there is no median line: a set too small to read, or no set at all. */
-export function driftNoMedianLine(runs: number): string {
+export function driftNoMedianLine(runs: number, units: Units): string {
   return runs === 0
     ? render(
         TRENDS_TEMPLATES['trends.drift.no-group'],
-        { needed: count(P.a7.minComparableRuns.value), ...durabilityBounds() },
-        'km',
+        { needed: count(P.a7.minComparableRuns.value), ...durabilityBounds(units) },
+        units,
       )
     : render(
         TRENDS_TEMPLATES['trends.drift.building'],
@@ -440,6 +480,7 @@ export function hrNeedsLine(referenceMps: number, units: Units): string {
       runs: count(P.hrModel.minQualifyingRuns.value),
       weeks: count(P.hrModel.windowWeeks.value),
       pace: paceOf(referenceMps),
+      margin: { kind: 'percent', pct: Math.round(P.c9.lineSpeedMargin.value * 100) },
     },
     units,
   )
@@ -476,4 +517,13 @@ export function hrAria(
         },
         units,
       )
+}
+
+/** Why no point can be read at one pace, though some window has a line. */
+export function hrEmptyPaceBody(referenceMps: number, units: Units): string {
+  return render(
+    TRENDS_TEMPLATES['trends.hr.empty-pace-body'],
+    { pace: paceOf(referenceMps) },
+    units,
+  )
 }

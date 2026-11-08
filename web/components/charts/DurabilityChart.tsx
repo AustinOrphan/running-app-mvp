@@ -8,6 +8,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { formatAirTemperature } from '../../../shared/copy/quantity.ts'
+import { P } from '../../../shared/engine/params/index.ts'
+import type { Units } from '../../../shared/types.ts'
 import { runKey, type TrendLongRun } from '../../../shared/domain/trendsRuns.ts'
 import { formatShortDate } from '../format.ts'
 import { dayNumber, dayTickLabel, rangeTicks } from './dayTicks.ts'
@@ -24,6 +27,8 @@ export interface DurabilityChartProps {
   /** First and last day of the range, `YYYY-MM-DD`: the x axis spans them whatever the runs are. */
   from: string
   to: string
+  /** The runner's units: the air temperature is worded in them. */
+  units: Units
   /** The accessible name of the chart and the caption of its hidden table. */
   ariaLabel: string
 }
@@ -40,17 +45,16 @@ interface Point {
 
 /** Width of the value axis (px). */
 const AXIS_WIDTH = 40
-/** Radius of the smallest and the largest dot (px); the area follows the run's length. */
-const MIN_RADIUS = 3.5
+/** Radius of the dot of a run at the length where it stops growing (px). */
 const MAX_RADIUS = 8
-/** Lengths (minutes) the dot sizes span; a longer or shorter run takes the end size. */
-const SIZE_FROM_MIN = 40
-const SIZE_TO_MIN = 180
 
-/** Radius of the dot of a run: the area, not the radius, grows with its length. */
+/**
+ * Radius of the dot of a run: its area is proportional to its length up to the drift inference
+ * limit of rule A7 (180 min), where it stops growing, so a longer run is not drawn larger.
+ */
 export function dotRadius(min: number): number {
-  const t = Math.min(1, Math.max(0, (min - SIZE_FROM_MIN) / (SIZE_TO_MIN - SIZE_FROM_MIN)))
-  return MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * Math.sqrt(t)
+  const cap = P.a7.driftInferenceLimitMin.value
+  return MAX_RADIUS * Math.sqrt(Math.min(Math.max(min, 0), cap) / cap)
 }
 
 /**
@@ -81,10 +85,19 @@ interface DotProps {
 function Dot({ cx, cy, payload }: DotProps) {
   if (cx === undefined || cy === undefined || payload === undefined) return null
   const r = dotRadius(payload.min)
+  // The whole disc is the hit target, ring or not: a transparent fill takes the pointer, `none` would not.
   return payload.filled ? (
     <circle cx={cx} cy={cy} r={r} fill={chartColors.run} fillOpacity={0.85} />
   ) : (
-    <circle cx={cx} cy={cy} r={r - 0.75} fill="none" stroke={chartColors.run} strokeWidth={1.5} />
+    <circle
+      cx={cx}
+      cy={cy}
+      r={r - 0.75}
+      fill="transparent"
+      stroke={chartColors.run}
+      strokeWidth={1.5}
+      pointerEvents="all"
+    />
   )
 }
 
@@ -98,6 +111,7 @@ export function DurabilityChart({
   runs,
   inGroup,
   median,
+  units,
   from,
   to,
   ariaLabel,
@@ -161,7 +175,10 @@ export function DurabilityChart({
                       { name: 'Length', value: lengthText(point.min) },
                       {
                         name: 'Air',
-                        value: point.tempC === null ? 'Not recorded' : `${String(point.tempC)} °C`,
+                        value:
+                          point.tempC === null
+                            ? 'Not recorded'
+                            : formatAirTemperature(point.tempC, units),
                       },
                       { name: 'In the median', value: point.filled ? 'Yes' : 'No' },
                     ]}
@@ -196,7 +213,7 @@ export function DurabilityChart({
               <th scope="col">Run on</th>
               <th scope="col">Drift (%)</th>
               <th scope="col">Length (min)</th>
-              <th scope="col">Air (°C)</th>
+              <th scope="col">Air temperature</th>
               <th scope="col">In the median</th>
             </tr>
           </thead>
@@ -206,7 +223,7 @@ export function DurabilityChart({
                 <th scope="row">{point.label}</th>
                 <td>{String(point.pct)}</td>
                 <td>{String(Math.round(point.min))}</td>
-                <td>{point.tempC === null ? '' : String(point.tempC)}</td>
+                <td>{point.tempC === null ? '' : formatAirTemperature(point.tempC, units)}</td>
                 <td>{point.filled ? 'Yes' : 'No'}</td>
               </tr>
             ))}

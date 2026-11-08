@@ -10,6 +10,7 @@ import {
 import type { Deps } from '../app.ts'
 import { parse } from '../errors.ts'
 import { loadRunSeries } from '../serialize.ts'
+import { TRENDS_WEEKS } from './trends.ts'
 import { memoByVersion } from '../services/athleteState.ts'
 
 /** The view takes no parameters; an unknown one is a mistake worth a 400, not a silent ignore. */
@@ -20,7 +21,7 @@ export const TRENDS_RUNS_MEMO = 'trends.runs'
 
 /**
  * GET /api/trends/runs: the two run-based panels of the Trends page (rules T1 and A11, ADR 0019).
- * `longRuns` are the flat runs of the last 104 weeks with a stored drift reading; `hrWindows` are the
+ * `longRuns` are the flat runs of the last 104 weeks (to the day, as the page's 24 months) with a stored drift reading; `hrWindows` are the
  * heart-rate line of eight-week windows ending every four weeks, `fitHrModel` per window. One
  * column-limited read of the runs (`loadRunSeries`), memoised by data version and day; a warm
  * request reads nothing. The read ignores the snapshot on purpose: it reaches back past the
@@ -41,7 +42,14 @@ export function trendsRunsRouter(deps: Deps): Router {
           from: addDays(today, -runHistoryDays()),
           to: today,
         })
-        return { asOf: today, longRuns: longRunReadings(runs), hrWindows: hrWindows(runs, today) }
+        // The loader reaches back past the page for the oldest window's eight weeks; the dots stop
+        // at the page's longest range, so `longRuns` never holds a run the page cannot draw.
+        const first = addDays(today, -(TRENDS_WEEKS * 7) + 1)
+        return {
+          asOf: today,
+          longRuns: longRunReadings(runs).filter((run) => run.date >= first),
+          hrWindows: hrWindows(runs, today),
+        }
       },
     )
     res.json(view)

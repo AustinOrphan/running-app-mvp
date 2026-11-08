@@ -103,11 +103,14 @@ describe('Trends, heart-rate drift on long runs', () => {
       screen.getByText(/^Median \d(\.\d)?% over 6 comparable runs of about 2 h on cool days\.$/),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/Filled dots are runs of 90 min to 3 h in air under 25 °C\./),
+      screen.getByText(/^Filled dots are the largest set of comparable runs/),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/Comparable runs are within 20% in length and 5 °C/),
+      screen.getByText(
+        /Comparable runs last 90 min to 3 h in air under 25 °C, within 20% in length/,
+      ),
     ).toBeInTheDocument()
+    expect(screen.getByText(/^Dot area follows run length, up to 3 h\./)).toBeInTheDocument()
     expect(
       screen.getByText(
         'Runs that climb more than 15 m per km are left out: a climbing second half reads as drift, and wrist heart rate is not trusted on hills.',
@@ -120,7 +123,7 @@ describe('Trends, heart-rate drift on long runs', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((c) => c.textContent),
-    ).toEqual(['Run on', 'Drift (%)', 'Length (min)', 'Air (°C)', 'In the median'])
+    ).toEqual(['Run on', 'Drift (%)', 'Length (min)', 'Air temperature', 'In the median'])
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 6)
     expect(within(table).getAllByText('Yes')).toHaveLength(6)
     expectCleanCopy(container)
@@ -129,11 +132,35 @@ describe('Trends, heart-rate drift on long runs', () => {
   test('says how far a thin set is from a median, and what a median needs', async () => {
     mockPage(view({ longRuns: longRuns(2) }))
     renderWithProviders(<TrendsPage />)
-    await screen.findByRole('img', { name: /^Heart-rate drift of 2 flat runs/ })
+    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 2 flat runs/ })
     expect(
       screen.getByText('No median yet: the largest set of comparable runs holds 2 of 3.'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/^Median /)).not.toBeInTheDocument()
+    // Two comparable runs make no median, so no dot is filled and the table answers No for both.
+    expect(
+      screen.getByText(/^All dots are rings until 3 comparable runs make a median\./),
+    ).toBeInTheDocument()
+    const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
+    expect(within(table).getAllByText('No')).toHaveLength(2)
+    expect(within(table).queryByText('Yes')).not.toBeInTheDocument()
+  })
+
+  test('words the air in degrees Fahrenheit for a runner in miles', async () => {
+    mockPage(view({ longRuns: longRuns(6) }), 'mi')
+    renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 6 flat runs/ })
+    const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((c) => c.textContent),
+    ).toContain('Air temperature')
+    expect(within(table).getAllByText(/ °F$/)).toHaveLength(6)
+    expect(within(table).queryByText(/ °C$/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/in air under 77 °F, within 20% in length and 9 °F in temperature/),
+    ).toBeInTheDocument()
   })
 
   test('draws runs that are not candidates as rings and gives no median for them', async () => {
@@ -195,6 +222,31 @@ describe('Trends, heart-rate drift on long runs', () => {
 })
 
 describe('Trends, heart rate at one speed', () => {
+  test('says no window ran the pace when lines exist that do not meet at one pace', async () => {
+    const line = (min: number, max: number) => ({
+      runs: 9,
+      interceptBpm: 90,
+      slopeBpmPerMps: 20,
+      minSpeedMps: min,
+      maxSpeedMps: max,
+    })
+    // Two lines fitted on paces too far apart: the median of their middles is read by neither.
+    const windows = hrWindows([], TODAY).map((window, i, all) =>
+      i === all.length - 1
+        ? { ...window, qualifying: 9, line: line(3.3, 3.5) }
+        : i === all.length - 4
+          ? { ...window, qualifying: 9, line: line(1.9, 2.1) }
+          : window,
+    )
+    mockPage(view({ hrWindows: windows }))
+    renderWithProviders(<TrendsPage />)
+    expect(await screen.findByText('No heart-rate line in this range yet.')).toBeInTheDocument()
+    expect(
+      screen.getByText(/^No window of this range ran \d:\d\d \/km or a pace near it/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^A line needs 8 steady flat runs/)).not.toBeInTheDocument()
+  })
+
   test('draws a point per window at one pace of the runner, with a hidden table', async () => {
     mockPage(view({ hrWindows: hrWindows(STEADY, TODAY) }))
     const { container } = renderWithProviders(<TrendsPage />)
@@ -206,7 +258,7 @@ describe('Trends, heart rate at one speed', () => {
     )
     expect(
       screen.getByText(
-        /^Each point is the heart rate your own line gives at \d:\d\d \/km in cool air, from the steady flat runs of the 8 weeks to that date\.$/,
+        /^Each point is the heart rate your own line gives at \d:\d\d \/km on a cool day, from the steady flat runs of the 8 weeks to that date\.$/,
       ),
     ).toBeInTheDocument()
     expect(

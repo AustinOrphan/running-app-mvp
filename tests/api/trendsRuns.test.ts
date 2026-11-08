@@ -113,7 +113,13 @@ describe('GET /api/trends/runs', () => {
 
   test('reaches back past the 365 days of the snapshot, to the start of the oldest window', async () => {
     await ctx.prisma.activity.createMany({
-      data: [longRun(user.id, 700, 3), longRun(user.id, 400, 5), longRun(user.id, 900, 8)],
+      data: [
+        longRun(user.id, 700, 3),
+        longRun(user.id, 400, 5),
+        // Past the 728 days of the page's longest range, though the loader reads to 756.
+        longRun(user.id, 740, 6),
+        longRun(user.id, 900, 8),
+      ],
     })
     const view = (await getRuns()).body as TrendsRunsView
     expect(view.longRuns.map((r) => r.decouplingPct)).toEqual([3, 5])

@@ -115,11 +115,11 @@ at one speed. They add rule A11 and an amendment of T1 (`research/engine-rules.m
 paper, migration or environment variable, and `PARAMS_VERSION` is unchanged.
 
 - `GET /api/trends/runs` (`server/routes/trendsRuns.ts`) answers `longRuns` (the flat runs of the last
-  104 weeks with a stored `Activity.decouplingPct`) and `hrWindows` (26 windows of
+  728 days, the page's 104 weeks, with a stored `Activity.decouplingPct`) and `hrWindows` (26 windows of
   `hrModel.windowWeeks` weeks ending every 28 days, `fitHrModel` per window). It is memoised as
   `trends.runs` by data version and day from one column-limited read, `loadRunSeries`
   (`server/serialize.ts`): runs only, flagged duplicates left out, the 14 columns the drift and the
-  heart-rate fit read, from 104 weeks back plus the eight weeks the oldest window reads. The shape is
+  heart-rate fit read, from 756 days back (the oldest of the 26 windows ends 700 days back and reads the eight weeks before it); `longRuns` is cut to 728. The shape is
   `TrendsRunsView` in `shared/domain/trendsRuns.ts`.
 - What the page draws is computed on the client from those rows (`durabilityGroup`,
   `fixedSpeedSeries`), so the range switch moves the median line and the reference speed with the

@@ -55,11 +55,12 @@ describe('the scales of the run panels', () => {
   })
 
   test('a dot grows in area with the length of the run, between two sizes', () => {
-    expect(dotRadius(10)).toBeCloseTo(3.5, 6)
+    // Area is proportional to length up to the 180 min cap of rule A7, then stops growing.
+    expect(dotRadius(180)).toBeCloseTo(8, 6)
     expect(dotRadius(300)).toBeCloseTo(8, 6)
-    expect(dotRadius(120)).toBeGreaterThan(dotRadius(60))
-    // Area, not radius, is proportional to length above the floor: the half-way run is not half-way in radius.
-    expect(dotRadius(110)).toBeGreaterThan((3.5 + 8) / 2)
+    expect(dotRadius(90) ** 2).toBeCloseTo(dotRadius(180) ** 2 / 2, 6)
+    expect(dotRadius(45) ** 2).toBeCloseTo(dotRadius(90) ** 2 / 2, 6)
+    expect(dotRadius(0)).toBe(0)
   })
 
   test('the heart-rate axis spans at least a tenth of the median, so a small change reads as a line', () => {

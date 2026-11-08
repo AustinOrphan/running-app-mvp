@@ -106,6 +106,7 @@ export function EfficiencyChart({ points, from, to, ariaLabel }: EfficiencyChart
             />
             <YAxis {...axisProps} width={AXIS_WIDTH} domain={domain} ticks={ticks} />
             <Tooltip
+              filterNull={false}
               content={(props) => {
                 const row = (props.payload?.[0] as { payload?: Row } | undefined)?.payload
                 if (row === undefined) return null

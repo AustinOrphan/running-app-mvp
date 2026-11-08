@@ -255,6 +255,19 @@ async function seedRunPanels(): Promise<void> {
         },
       })
     }
+    // A 45-minute run with a reading is a dot but no candidate of rule A7: a ring.
+    await prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: addDays(today, -3),
+        type: 'run',
+        durationSec: 2700,
+        distanceM: 8000,
+        elevationGainM: 20,
+        tempC: 14,
+        decouplingPct: 9,
+      },
+    })
     await prisma.activity.create({
       data: {
         userId: user.id,
@@ -318,19 +331,22 @@ test.describe('the run panels', () => {
     await page.goto('/trends')
 
     const drift = page.getByRole('region', { name: 'Heart-rate drift on long runs' })
-    await expect(drift.getByRole('img', { name: /^Heart-rate drift of 6 flat runs/ })).toBeVisible()
+    await expect(drift.getByRole('img', { name: /^Heart-rate drift of 7 flat runs/ })).toBeVisible()
     await expect(
       drift.getByText(/^Median \d(\.\d)?% over 6 comparable runs of about 2 h on cool days\.$/),
     ).toBeVisible()
     await expect(
-      drift.getByText(/Filled dots are runs of 90 min to 3 h in air under 25 °C\./),
+      drift.getByText(/^Filled dots are the largest set of comparable runs/),
+    ).toBeVisible()
+    await expect(
+      drift.getByText(/Comparable runs last 90 min to 3 h in air under (25 °C|77 °F)/),
     ).toBeVisible()
     await expect(
       drift.getByText(/Runs that climb more than (15 m per km|79 ft per mile)/),
     ).toBeVisible()
-    const driftTable = drift.getByRole('table', { name: /^Heart-rate drift of 6 flat runs/ })
+    const driftTable = drift.getByRole('table', { name: /^Heart-rate drift of 7 flat runs/ })
     // Six flat runs; the hilly run of 900 m is not among them.
-    await expect(driftTable.getByRole('row')).toHaveCount(1 + 6)
+    await expect(driftTable.getByRole('row')).toHaveCount(1 + 7)
     // Oldest first: drift 7 down to 2, and never the 15 of the hilly run.
     await expect(driftTable.locator('tbody tr td:nth-child(2)')).toHaveText([
       '7',
@@ -339,6 +355,7 @@ test.describe('the run panels', () => {
       '4',
       '3',
       '2',
+      '9',
     ])
 
     const speed = page.getByRole('region', { name: 'Heart rate at one speed' })
@@ -361,6 +378,27 @@ test.describe('the run panels', () => {
     expect(await overflow(page)).toBeLessThanOrEqual(0)
   })
 
+  test('a hovered ring and a hovered gap each have their tooltip', async ({ page, baseURL }) => {
+    await signedInApi(page, baseURL ?? '')
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/trends')
+    const drift = page.getByRole('region', { name: 'Heart-rate drift on long runs' })
+    await expect(drift.getByRole('img')).toBeVisible()
+    // The ring is hollow: the pointer lands in its middle, and the tooltip still answers.
+    await drift.locator('svg circle[fill="transparent"]').first().hover()
+    const tooltip = page.locator('div[class*="_tooltip_"]')
+    await expect(tooltip).toContainText('In the median')
+    await expect(tooltip).toContainText('Drift9%')
+
+    const speed = page.getByRole('region', { name: 'Heart rate at one speed' })
+    await speed.getByRole('img').scrollIntoViewIfNeeded()
+    const plot = await speed.getByRole('img').boundingBox()
+    expect(plot).not.toBeNull()
+    // The oldest window sits at the left of the plot, past the value axis, and had no runs.
+    await page.mouse.move(plot!.x + 60, plot!.y + plot!.height / 2)
+    await expect(tooltip).toContainText('Too few runs')
+  })
+
   test('the range switch from the keyboard moves both panels', async ({ page, baseURL }) => {
     await signedInApi(page, baseURL ?? '')
     await page.setViewportSize({ width: 390, height: 844 })
@@ -372,7 +410,7 @@ test.describe('the run panels', () => {
     await page.keyboard.press('ArrowRight')
     await expect(range.getByRole('radio', { name: '24 months' })).toBeChecked()
     await expect(
-      page.getByRole('img', { name: /^Heart-rate drift of 6 flat runs, last 24 months/ }),
+      page.getByRole('img', { name: /^Heart-rate drift of 7 flat runs, last 24 months/ }),
     ).toBeVisible()
     await expect(
       page
