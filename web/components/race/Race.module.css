@@ -22,6 +22,7 @@
 
 .subheading {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: var(--text-base);
   line-height: var(--lh-base);
 }

@@ -113,6 +113,12 @@
 
 .noteField {
   margin-top: var(--space-2);
+  min-width: 0;
+}
+
+/* The label names the stop, so it is as long as the name. */
+.noteField label {
+  overflow-wrap: anywhere;
 }
 
 /* The printed note: nothing on the screen, where the field above shows it. */
