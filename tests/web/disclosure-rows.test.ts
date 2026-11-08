@@ -35,3 +35,12 @@ describe('the disclosure rows of the Plan page', () => {
     expect(rule(css, '.earlierToggle')).toMatch(/min-height: 2\.75rem;/)
   })
 })
+
+describe('the refusal line of the sign-in and setup forms', () => {
+  test.each(['pages/LoginPage.module.css', 'pages/SetupPage.module.css'])(
+    '%s keeps two lines, so a refusal that wraps at 328 px moves no field',
+    (file) => {
+      expect(rule(sheet(file), '.alertSlot')).toMatch(/min-height: calc\(var\(--lh-sm\) \* 2\);/)
+    },
+  )
+})

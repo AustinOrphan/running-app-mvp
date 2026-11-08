@@ -13,19 +13,23 @@ import { ACTIVITY_PAGE_TEMPLATES } from './activityPage.ts'
 import { BRIEF_TEMPLATES } from './briefTemplates.ts'
 import { DATA_IN_USE_TEMPLATES } from './dataInUse.ts'
 import { DISTANCE_ESTIMATE_TEMPLATES } from './distanceEstimate.ts'
+import { ERROR_TEMPLATES } from './errors.ts'
 import { EXECUTION_TEMPLATES } from './execution.ts'
 import { FUEL_UI_TEMPLATES } from './fuelUi.ts'
 import { GOALS_TEMPLATES } from './goals.ts'
 import { GRADE_TEMPLATES } from './grades.ts'
-import { LOAD_ERROR_TEMPLATES } from './loadError.ts'
 import { LOAD_TEMPLATES } from './load.ts'
 import { METHOD_TEMPLATES } from './method.ts'
 import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
+import { PACES_TEMPLATES } from './myPaces.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
+import { PLAN_STRIP_TEMPLATES } from './planStrip.ts'
 import { RACE_PLAN_TEMPLATES } from './racePlan.ts'
+import { REVIEW_PREFILL_TEMPLATES } from './reviewPrefill.ts'
 import { ADJUST_TEMPLATES, REVISION_TEMPLATES, WINDOW_TEMPLATES } from './revision.ts'
 import { REVISION_VIEW_TEMPLATES } from './revisionView.ts'
 import { SEASON_TEMPLATES } from './season.ts'
+import { SETTINGS_TEMPLATES } from './settings.ts'
 import { SESSION_STATUS_TEMPLATES } from './sessionStatus.ts'
 import { STRENGTH_PAGE_TEMPLATES } from './strengthPage.ts'
 import { STRENGTH_REVIEW_TEMPLATES } from './strengthReview.ts'
@@ -62,9 +66,9 @@ export const TEMPLATES = {
   ...GOALS_TEMPLATES,
   ...GRADE_TEMPLATES,
   ...LOAD_TEMPLATES,
-  ...LOAD_ERROR_TEMPLATES,
   ...METHOD_TEMPLATES,
   ...OVERSHOOT_TEMPLATES,
+  ...PACES_TEMPLATES,
   ...WORKOUT_TEMPLATES,
   ...STANDOUT_TEMPLATES,
   ...TRACK_RECORD_TEMPLATES,
@@ -72,6 +76,10 @@ export const TEMPLATES = {
   ...BRIEF_TEMPLATES,
   ...STRENGTH_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,
+  ...SETTINGS_TEMPLATES,
+  ...ERROR_TEMPLATES,
+  ...REVIEW_PREFILL_TEMPLATES,
+  ...PLAN_STRIP_TEMPLATES,
   ...STRENGTH_PAGE_TEMPLATES,
   ...STRENGTH_REVIEW_TEMPLATES,
   ...PAGE_TEMPLATES,

@@ -237,6 +237,50 @@ describe('TrendsPage, running per week', () => {
     expect(screen.getByText('The outlined bar is this week so far.')).toBeInTheDocument()
   })
 
+  test('starts the plot at the first record and says where the records start', async () => {
+    const recent = history().map((week, i) =>
+      i < 94 ? makeWeekRow({ weekStart: week.weekStart }) : week,
+    )
+    mockTrends({ weeks: recent })
+    renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /Run hours per week/ })
+    const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
+    // 94 weeks have nothing; the ten from 2026-01-12 are drawn, and the caption names the start.
+    expect(within(table).getAllByRole('row')).toHaveLength(11)
+    expect(screen.getAllByText('Records start the week of 12 Jan.').length).toBeGreaterThan(0)
+    // The chart is named for the span it draws, not the range it was asked for.
+    expect(chart).toHaveAccessibleName(
+      'Run hours per week, since the week of 12 Jan. Latest complete week 4.0 h.',
+    )
+    expect(chart.closest('figure')).not.toHaveAccessibleName('Records start the week of 12 Jan.')
+  })
+
+  test('draws a quiet stretch at the start of a range when older records exist', async () => {
+    // Records in the first ten weeks and the last fourteen; nothing between. The 6 month range
+    // starts inside the lull, but the history's first record is older, so no week is cut.
+    const lull = history().map((week, i) =>
+      i >= 10 && i < 90 ? makeWeekRow({ weekStart: week.weekStart }) : week,
+    )
+    localStorage.setItem('trends-range', '6')
+    mockTrends({ weeks: lull })
+    renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /^Run hours per week, last 6 months\./ })
+    expect(within(chart.closest('figure') as HTMLElement).getAllByRole('row')).toHaveLength(27)
+    expect(screen.queryByText(/^Records start the week of/)).not.toBeInTheDocument()
+  })
+
+  test('draws every week and no caption when the records reach the start of the range', async () => {
+    mockTrends()
+    renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /Run hours per week/ })
+    expect(
+      within(chart.closest('figure') as HTMLElement).getAllByRole('row').length,
+    ).toBeGreaterThan(40)
+    expect(
+      within(chart.closest('figure') as HTMLElement).queryByText(/Records start/),
+    ).not.toBeInTheDocument()
+  })
+
   test('says so when the range holds no run, with the range switch still there', async () => {
     mockTrends({ weeks: history().map((w) => ({ ...w, runMin: 0, runM: 0 })) })
     const { container } = renderWithProviders(<TrendsPage />)
@@ -321,7 +365,7 @@ describe('TrendsPage, recovery readings', () => {
     expect(panel).toContainElement(note)
     expect(
       await screen.findByRole('img', {
-        name: /^Overnight HRV in ms, weekly mean, last 12 months\./,
+        name: /^Overnight HRV in ms, weekly mean, since the week of \d{1,2} \w{3}\./,
       }),
     ).toBeVisible()
     expect(
@@ -342,7 +386,10 @@ describe('TrendsPage, recovery readings', () => {
         .map((h) => h.textContent),
     ).toEqual(['Week of', 'Mean (ms)', 'Nights', 'Low (ms)', 'High (ms)'])
     const rows = within(table).getAllByRole('row')
-    expect(rows).toHaveLength(1 + 52)
+    // The plot starts at the first week with a night; the weeks before it are not drawn.
+    const last52 = view.recovery.hrv.slice(-52)
+    const drawn = last52.slice(last52.findIndex((w) => w.nights > 0))
+    expect(rows).toHaveLength(1 + drawn.length)
     // The last row is the current week, as the server computed it.
     const week = view.recovery.hrv.at(-1)!
     expect(

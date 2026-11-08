@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { addDays } from '../../shared/dates.ts'
+import { addDays, daysBetween, mondayOf } from '../../shared/dates.ts'
 import { relativeDates, resetData, signedInApi } from './helpers.ts'
 
 // The Trends page at a phone's 360 px: months of running read by role, the range switch, the hidden
@@ -68,10 +68,16 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   await expect(page.getByText('Nothing here is a target.')).toBeVisible()
 
   // The 12-month chart, with its lazy chunk drawn, and its hidden table of the same weeks.
-  const chart = page.getByRole('img', { name: /^Run hours per week, last 12 months\./ })
+  const chart = page.getByRole('img', { name: /^Run hours per week, since the week of / })
   await expect(chart).toBeVisible()
-  const table = page.getByRole('table', { name: /^Run hours per week, last 12 months\./ })
-  await expect(table.getByRole('row')).toHaveCount(1 + 52)
+  const table = page.getByRole('table', { name: /^Run hours per week, since the week of / })
+  // The plot starts at the first week with a record (the oldest run is 20 weeks back), not at the
+  // edge of the range, and a muted line names the start.
+  const { thisMonday, today } = relativeDates()
+  const firstRunWeek = mondayOf(addDays(thisMonday, -7 - 3 * 45))
+  const runWeeks = daysBetween(firstRunWeek, thisMonday) / 7 + 1
+  await expect(table.getByRole('row')).toHaveCount(1 + runWeeks)
+  await expect(page.getByText(/^Records start the week of \d{1,2} \w{3}\.$/).first()).toBeVisible()
   await expect(table.getByRole('row', { name: /Yes$/ })).toHaveCount(1)
 
   // Strength squares stand under the weeks that held a session.
@@ -93,7 +99,10 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   ).toHaveCount(2)
   await expect(page.getByText('Heart-rate variability alone never changes a plan.')).toBeVisible()
   const hrvTable = page.getByRole('table', { name: /^Overnight HRV in ms, weekly mean/ })
-  await expect(hrvTable.getByRole('row')).toHaveCount(1 + 52)
+  const firstNightWeek = mondayOf(addDays(today, -70))
+  await expect(hrvTable.getByRole('row')).toHaveCount(
+    1 + daysBetween(firstNightWeek, thisMonday) / 7 + 1,
+  )
   await expect(hrvTable.getByRole('columnheader')).toHaveText([
     'Week of',
     'Mean (ms)',
@@ -106,14 +115,16 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
   // 24 months, then 6, each with its own hidden table; the page stays inside the window.
   const range = page.getByRole('radiogroup', { name: 'Range' })
   await range.getByRole('radio', { name: '24 months' }).click()
-  const wide = page.getByRole('table', { name: /^Run hours per week, last 24 months\./ })
-  await expect(wide.getByRole('row')).toHaveCount(1 + 104)
-  await expect(page.getByRole('img', { name: /^Run hours per week, last 24 months/ })).toBeVisible()
+  const wide = page.getByRole('table', { name: /^Run hours per week, since the week of / })
+  await expect(wide.getByRole('row')).toHaveCount(1 + runWeeks)
+  await expect(
+    page.getByRole('img', { name: /^Run hours per week, since the week of / }),
+  ).toBeVisible()
   expect(await overflow(page)).toBeLessThanOrEqual(0)
   await range.getByRole('radio', { name: '6 months' }).click()
   await expect(
-    page.getByRole('table', { name: /^Run hours per week, last 6 months\./ }).getByRole('row'),
-  ).toHaveCount(1 + 26)
+    page.getByRole('table', { name: /^Run hours per week, since the week of / }).getByRole('row'),
+  ).toHaveCount(1 + runWeeks)
 
   // The choice is remembered on this device.
   await page.reload()
@@ -128,7 +139,7 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
     .click()
   await expect(page.getByText(/^Bars are run distance per week, in (km|mi)\.$/)).toBeVisible()
   await expect(
-    page.getByRole('img', { name: /^Run distance per week, last 6 months\./ }),
+    page.getByRole('img', { name: /^Run distance per week, since the week of / }),
   ).toBeVisible()
   expect(await overflow(page)).toBeLessThanOrEqual(0)
 })
@@ -164,7 +175,7 @@ test('Trends draws body weight only after Settings turns it on, and hiding it de
     page.getByText('Hiding the chart deletes nothing. Every weigh-in stays.'),
   ).toBeVisible()
   await page.getByRole('checkbox', { name: 'Show body weight on Trends' }).check()
-  await expect(page.getByText('Settings saved')).toBeVisible()
+  await expect(page.getByRole('status', { name: 'Save status' }).getByText('Saved')).toBeVisible()
 
   // On: the chart, in the runner's unit, with its hidden table of weekly means.
   await page.goto('/trends')
@@ -181,7 +192,7 @@ test('Trends draws body weight only after Settings turns it on, and hiding it de
   // Off again: the section goes, and every weigh-in is still there.
   await page.goto('/settings')
   await page.getByRole('checkbox', { name: 'Show body weight on Trends' }).uncheck()
-  await expect(page.getByText('Settings saved')).toBeVisible()
+  await expect(page.getByRole('status', { name: 'Save status' }).getByText('Saved')).toBeVisible()
   await page.goto('/trends')
   await expect(page.getByRole('heading', { level: 2, name: 'Recovery readings' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Body weight' })).toHaveCount(0)

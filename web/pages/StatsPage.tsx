@@ -1,3 +1,4 @@
+import { useId, useState } from 'react'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
 import type { Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace, minutesToHours1 } from '../../shared/units.ts'
@@ -5,14 +6,20 @@ import { useSettings } from '../api/settings.ts'
 import { useStats } from '../api/stats.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { MonthlyHoursChart, WeeklyHoursChart } from '../components/charts/lazyCharts.tsx'
+import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
+import { focusMain, isFocusLost } from '../components/focusMain.ts'
 import { formatShortDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { ScrollTable } from '../components/ScrollTable.tsx'
+import { useOnline } from '../components/useOnline.ts'
 import { Skeleton } from '../components/Skeleton.tsx'
 import styles from './StatsPage.module.css'
 
 const HISTORY_WEEKS = 26
 const CHART_WEEKS = 12
+// Weeks the history table shows before "Show all weeks" (the page reads 26).
+const HISTORY_SHOWN = 12
 const CHART_MONTHS = 12
 const NO_VALUE = '–'
 
@@ -45,12 +52,50 @@ export function StatsPage() {
   const stats = useStats()
   const weeks = useWeeks({ from: addDays(thisWeek, -7 * (HISTORY_WEEKS - 1)), to: thisWeek })
   const settings = useSettings()
+  const online = useOnline()
+  const [allWeeks, setAllWeeks] = useState(false)
+  const [retrying, setRetrying] = useState(false)
+  const historyId = useId()
 
-  if (stats.isError || weeks.isError || settings.isError) {
+  const failed = stats.isError || weeks.isError || settings.isError
+  const loaded = stats.data !== undefined && weeks.data !== undefined && settings.data !== undefined
+  // A retry sends the failed queries back to pending; the error block stays up until they answer,
+  // so the button that holds focus is not replaced by the skeleton.
+  if (!loaded && (failed || retrying)) {
     return (
       <>
         <PageHeader title="Stats" />
-        <p role="alert">Stats did not load. Reload the page to try again.</p>
+        <div role="alert">
+          <EmptyState
+            title="Stats did not load."
+            body={
+              online
+                ? 'The server did not answer. Your runs are safe.'
+                : 'There is no connection right now. Your runs are safe.'
+            }
+            action={
+              <Button
+                busy={retrying}
+                onClick={() => {
+                  setRetrying(true)
+                  void Promise.allSettled([
+                    ...(stats.isError ? [stats.refetch()] : []),
+                    ...(weeks.isError ? [weeks.refetch()] : []),
+                    ...(settings.isError ? [settings.refetch()] : []),
+                  ]).then(() => {
+                    setRetrying(false)
+                    // When the answer replaces this block, focus goes to the page, not to the top.
+                    setTimeout(() => {
+                      if (isFocusLost()) focusMain()
+                    }, 0)
+                  })
+                }}
+              >
+                Try again
+              </Button>
+            }
+          />
+        </div>
       </>
     )
   }
@@ -86,6 +131,7 @@ export function StatsPage() {
   }))
   const weekRows = weeks.data
   const history = [...weekRows].reverse()
+  const shownHistory = allWeeks ? history : history.slice(0, HISTORY_SHOWN)
 
   return (
     <>
@@ -107,12 +153,7 @@ export function StatsPage() {
       <section className={styles.section}>
         <h2 className={styles.heading}>Monthly totals</h2>
         <MonthlyHoursChart points={monthPoints} ariaLabel="Run hours per month" />
-        <div
-          className={styles.tableWrap}
-          tabIndex={0}
-          role="region"
-          aria-label="Monthly totals table"
-        >
+        <ScrollTable label="Monthly totals table">
           <table className={styles.table}>
             <caption className="visually-hidden">Monthly totals</caption>
             <thead>
@@ -136,17 +177,12 @@ export function StatsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollTable>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Yearly totals</h2>
-        <div
-          className={styles.tableWrap}
-          tabIndex={0}
-          role="region"
-          aria-label="Yearly totals table"
-        >
+        <ScrollTable label="Yearly totals table">
           <table className={styles.table}>
             <caption className="visually-hidden">Yearly totals</caption>
             <thead>
@@ -168,17 +204,12 @@ export function StatsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollTable>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Longest runs</h2>
-        <div
-          className={styles.tableWrap}
-          tabIndex={0}
-          role="region"
-          aria-label="Longest runs table"
-        >
+        <ScrollTable label="Longest runs table">
           <table className={styles.table}>
             <caption className="visually-hidden">Longest runs</caption>
             <thead>
@@ -206,18 +237,13 @@ export function StatsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollTable>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Fastest efforts</h2>
         {efforts.length > 0 ? (
-          <div
-            className={styles.tableWrap}
-            tabIndex={0}
-            role="region"
-            aria-label="Fastest efforts table"
-          >
+          <ScrollTable label="Fastest efforts table">
             <table className={styles.table}>
               <caption className="visually-hidden">Fastest efforts</caption>
               <thead>
@@ -241,7 +267,7 @@ export function StatsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
         ) : null}
         {missing.length > 0 ? (
           <p className={styles.note}>{`No qualifying run yet for ${missing.join(', ')}.`}</p>
@@ -253,14 +279,9 @@ export function StatsPage() {
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Weekly history</h2>
-        <div
-          className={styles.tableWrap}
-          tabIndex={0}
-          role="region"
-          aria-label="Weekly history table"
-        >
+        <ScrollTable id={historyId} label="Weekly history table">
           <table className={styles.table}>
-            <caption className="visually-hidden">Weekly history, last 26 weeks</caption>
+            <caption className="visually-hidden">{`Weekly history, last ${String(shownHistory.length)} weeks`}</caption>
             <thead>
               <tr>
                 <th scope="col">Week of</th>
@@ -271,7 +292,7 @@ export function StatsPage() {
               </tr>
             </thead>
             <tbody>
-              {history.map((week) => (
+              {shownHistory.map((week) => (
                 <tr key={week.weekStart}>
                   <th scope="row">{formatShortDate(week.weekStart)}</th>
                   <td>{minutesToHours1(week.runMin)}</td>
@@ -286,7 +307,24 @@ export function StatsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollTable>
+        {history.length > HISTORY_SHOWN ? (
+          <div className={styles.more}>
+            <Button
+              variant="quiet"
+              aria-expanded={allWeeks}
+              aria-controls={historyId}
+              onClick={() => {
+                setAllWeeks((open) => !open)
+              }}
+            >
+              Show all weeks
+            </Button>
+            <p role="status" className="visually-hidden">
+              {`Showing ${String(shownHistory.length)} weeks`}
+            </p>
+          </div>
+        ) : null}
       </section>
     </>
   )

@@ -31,6 +31,7 @@ import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
@@ -561,8 +562,9 @@ export function ActivityDetailPage() {
   const detail = useActivityDetail(id)
   const settings = useSettings()
   const [editing, setEditing] = useState(false)
+  const loadView = useLoadView(detail)
 
-  if (detail.isError) {
+  if (loadView === 'failed' || loadView === 'retrying') {
     const missing = detail.error instanceof ApiError && detail.error.status === 404
     return (
       <>
@@ -573,11 +575,9 @@ export function ActivityDetailPage() {
           </p>
         ) : (
           <ErrorState
-            what="The activity"
-            retrying={detail.isFetching}
-            onRetry={() => {
-              void detail.refetch()
-            }}
+            subject="The activity"
+            retrying={loadView === 'retrying'}
+            onRetry={() => detail.refetch()}
           />
         )}
       </>

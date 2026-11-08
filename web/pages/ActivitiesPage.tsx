@@ -22,6 +22,7 @@ import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
 import { formatShortDate, formatWeekday } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -213,8 +214,10 @@ export function ActivitiesPage() {
   const total = duplicatesOnly ? whole.data?.length : paged.data?.total
   // A page that failed leaves the rows already read in place; only a failed first read is an error.
   const moreFailed = !duplicatesOnly && paged.isFetchNextPageError
-  // Rows already on the screen stay when a later read fails; only a list with none is an error.
-  const loadFailed = activities.isError && !moreFailed && loaded === undefined
+  // Rows already on the screen stay when a later read fails (data wins in `useLoadView`); only a
+  // list with none is an error, and its retry keeps the error state mounted.
+  const loadView = useLoadView(activities)
+  const loadFailed = loadView === 'failed' || loadView === 'retrying'
 
   const moreButton = useRef<HTMLButtonElement>(null)
   const countStatus = useRef<HTMLParagraphElement>(null)
@@ -302,11 +305,9 @@ export function ActivitiesPage() {
   } else if (loadFailed) {
     body = (
       <ErrorState
-        what="Activities"
-        retrying={activities.isFetching}
-        onRetry={() => {
-          void activities.refetch()
-        }}
+        subject="Activities"
+        retrying={loadView === 'retrying'}
+        onRetry={() => activities.refetch()}
       />
     )
   } else if (loading) {

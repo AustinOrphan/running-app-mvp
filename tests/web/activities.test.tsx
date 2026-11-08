@@ -21,6 +21,7 @@ import { makeActivity } from '../factories.ts'
 import {
   activityPage,
   activityRoute,
+  delayResponses,
   expectCleanCopy,
   expectTouchScale,
   makeTestQueryClient,
@@ -946,7 +947,7 @@ describe('Activities page: paging', () => {
     expect(screen.getByRole('button', { name: 'Show 50 more' })).toBeInTheDocument()
   })
 
-  test('a list that did not load says so with one Try again button, and shows the rows after it', async () => {
+  test('a list that did not load says so with one Try again button, keeps focus on it through the retry and shows the rows after', async () => {
     const user = userEvent.setup()
     const serve = activityRoute([makeActivity()])
     let fail = true
@@ -960,12 +961,19 @@ describe('Activities page: paging', () => {
     })
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Activities did not load.')
-    expect(alert).toHaveTextContent('The server did not answer. Try again in a moment.')
-    expect(within(alert).getAllByRole('button')).toHaveLength(1)
-    expectCleanCopy(alert)
+    expectCleanCopy(document.body)
+    const retry = screen.getByRole('button', { name: 'Try again' })
+    expect(screen.getAllByRole('button', { name: 'Try again' })).toHaveLength(1)
     const before = api.calls.filter((c) => c.url.startsWith('/api/activities')).length
     fail = false
-    await user.click(within(alert).getByRole('button', { name: 'Try again' }))
+    delayResponses(150)
+    await user.click(retry)
+    // the read is back to pending: the same button is still mounted, focused and busy
+    const during = screen.getByRole('button', { name: 'Try again' })
+    expect(during).toBe(retry)
+    expect(during).toHaveFocus()
+    expect(during).toHaveAttribute('aria-busy', 'true')
+    expect(during).not.toBeDisabled()
     expect(await screen.findByText('30:00')).toBeInTheDocument()
     expect(api.calls.filter((c) => c.url.startsWith('/api/activities')).length).toBeGreaterThan(
       before,

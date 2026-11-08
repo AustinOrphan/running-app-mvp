@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'vitest'
-import { nextMinutesFor, suggestAction, type SuggestInput } from '../../../shared/domain/review.ts'
+import {
+  nextMinutesFor,
+  prefillFromCheckins,
+  suggestAction,
+  type CheckinDay,
+  type SuggestInput,
+} from '../../../shared/domain/review.ts'
 import { makeWeekRow } from '../../factories.ts'
 
 type Review = NonNullable<SuggestInput['review']>
@@ -223,5 +229,75 @@ describe('nextMinutesFor', () => {
   test('agrees with the minutes of the suggestion', () => {
     const s = suggestAction(input())
     expect(s.suggestedNextMin).toBe(nextMinutesFor(s.action, input()))
+  })
+})
+
+describe('prefillFromCheckins', () => {
+  const WEEK = '2026-03-02'
+  const day = (n: number, over: Partial<CheckinDay> = {}): CheckinDay => ({
+    date: `2026-03-0${String(n + 2)}`,
+    fatigue: 3,
+    soreness: 3,
+    ...over,
+  })
+
+  test('nothing without a check-in in the week', () => {
+    expect(prefillFromCheckins(WEEK, [])).toBeNull()
+    expect(prefillFromCheckins(WEEK, [{ date: '2026-03-10', fatigue: 3 }])).toBeNull()
+    // a wellness-only row (no answer) is not a check-in
+    expect(prefillFromCheckins(WEEK, [{ date: '2026-03-03' }])).toBeNull()
+  })
+
+  test('a normal week reads as fatigue 5 and no symptoms', () => {
+    const p = prefillFromCheckins(WEEK, [day(0), day(1), day(2)])
+    expect(p).toMatchObject({
+      checkinDays: 3,
+      fatigue: 5,
+      fatigueAverage: 3,
+      fatigueDays: 3,
+      symptoms: 'none',
+      symptomsBasis: 'none',
+    })
+  })
+
+  test('maps the 1 to 5 average onto 1 to 10', () => {
+    const at = (value: number) =>
+      prefillFromCheckins(WEEK, [day(0, { fatigue: value }), day(1, { fatigue: value })])?.fatigue
+    expect([1, 2, 3, 4, 5].map(at)).toEqual([1, 3, 5, 7, 9])
+    expect(
+      prefillFromCheckins(WEEK, [day(0, { fatigue: 4 }), day(1, { fatigue: 5 })])?.fatigue,
+    ).toBe(8)
+  })
+
+  test('one day is too few to suggest anything', () => {
+    const p = prefillFromCheckins(WEEK, [day(0)])
+    expect(p).toMatchObject({ checkinDays: 1, fatigue: null, symptoms: null })
+  })
+
+  test('soreness, pain and illness make the symptoms mild', () => {
+    expect(prefillFromCheckins(WEEK, [day(0), day(1, { soreness: 4 })])?.symptomsBasis).toBe(
+      'soreness',
+    )
+    expect(prefillFromCheckins(WEEK, [day(0), day(1, { painScore: 1 })])).toMatchObject({
+      symptoms: 'mild',
+      symptomsBasis: 'pain',
+    })
+    expect(prefillFromCheckins(WEEK, [day(0), day(1, { illness: true })])).toMatchObject({
+      symptoms: 'mild',
+      symptomsBasis: 'illness',
+    })
+  })
+
+  test('pain of 4 or more on three days, or bone tenderness once, is persistent', () => {
+    const sore = [0, 1, 2].map((n) => day(n, { painScore: 4 }))
+    expect(prefillFromCheckins(WEEK, sore)).toMatchObject({
+      symptoms: 'persistent',
+      symptomsBasis: 'pain',
+    })
+    expect(prefillFromCheckins(WEEK, sore.slice(0, 2))?.symptoms).toBe('mild')
+    expect(prefillFromCheckins(WEEK, [day(0), day(1, { painFocalBone: true })])).toMatchObject({
+      symptoms: 'persistent',
+      symptomsBasis: 'bone',
+    })
   })
 })

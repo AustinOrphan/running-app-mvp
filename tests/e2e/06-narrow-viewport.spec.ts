@@ -1178,69 +1178,6 @@ test('the Strength page and its setup and logging sheets fit 360 px with every c
   await expect(sheet).toBeHidden()
 })
 
-test('a four-hour trail run keeps its charts before the rating form and does not widen the page at 360 px', async () => {
-  await resetData()
-  const start = new Date()
-  start.setDate(start.getDate() - 1)
-  start.setHours(6, 0, 0, 0)
-  const durationSec = 255 * 60
-  const speedMps = (19.67 * 1609.344) / durationSec
-  // Heart rate only on every sixth record and elevation on every ninth: a sparsely sampled stream.
-  const records = Array.from({ length: durationSec / 10 + 1 }, (_, i) => ({
-    t: i * 10,
-    distanceM: i * 10 * speedMps,
-    speedMps,
-    ...(i % 6 === 0 ? { hr: 135 + Math.round(15 * Math.sin(i / 200)) } : {}),
-    ...(i % 9 === 0 ? { altitudeM: 400 + Math.round(300 * Math.sin(i / 300)) } : {}),
-  }))
-  const bytes = buildFit({
-    serial: 4_100_000_009,
-    utcOffsetMin: -start.getTimezoneOffset(),
-    productName: 'Synthetic Watch',
-    sessions: [
-      {
-        sport: 1,
-        subSport: 3,
-        startUnix: Math.floor(start.getTime() / 1000),
-        durationSec,
-        distanceM: speedMps * durationSec,
-        avgHr: 140,
-        maxHr: 168,
-        records,
-      },
-    ],
-  })
-  await page.goto('/activities')
-  await page.getByRole('button', { name: 'Import', exact: true }).click()
-  const sheet = page.getByRole('dialog', { name: 'Import activities' })
-  await sheet.getByRole('radio', { name: 'Activity files' }).check()
-  await sheet.getByLabel('Activity files (FIT, GPX, TCX, ZIP)').setInputFiles({
-    name: 'trail.fit',
-    mimeType: 'application/octet-stream',
-    buffer: Buffer.from(bytes),
-  })
-  await sheet.getByRole('button', { name: 'Import files' }).click()
-  await sheet.getByRole('button', { name: 'Done' }).click()
-  const listed = (await api.get('/activities')) as
-    Array<{ id: string }> | { items: Array<{ id: string }> }
-  const [first] = Array.isArray(listed) ? listed : listed.items
-  await page.goto(`/activities/${first?.id ?? ''}`)
-
-  const charts = page.getByRole('region', { name: 'Charts' })
-  await expect(charts).toBeVisible()
-  // Every channel draws a line: the heart-rate and elevation paths are not empty.
-  for (const name of [/^Heart rate, average/, /^Elevation, from/]) {
-    const path = charts.getByRole('img', { name }).locator('path.recharts-curve').first()
-    await expect(path).toHaveAttribute('d', /^M/)
-  }
-  const top = (name: string) =>
-    page.getByRole('region', { name }).evaluate((el) => el.getBoundingClientRect().top)
-  expect(await top('Charts')).toBeLessThan(await top('How did it go?'))
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
-    true,
-  )
-})
-
 test('a failed Activities read shows one Try again button at 390 px and the list after it', async () => {
   await resetData()
   await api.post('/activities', {
@@ -1260,7 +1197,7 @@ test('a failed Activities read shows one Try again button at 390 px and the list
   const alert = page.getByRole('alert').filter({ hasText: 'Activities did not load.' })
   await expect(alert).toBeVisible()
   failing = false
-  const retry = alert.getByRole('button', { name: 'Try again' })
+  const retry = page.getByRole('button', { name: 'Try again' })
   expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
   await retry.click()
   await expect(page.getByText('45:00', { exact: true })).toBeVisible()
@@ -1356,4 +1293,118 @@ test('a tap on the right edge of Decline declines, and Why after it does not cov
   await expect(page.getByRole('dialog', { name: 'Evidence' })).toHaveCount(0)
   await page.unroute('**/api/zones/proposals')
   await page.unroute('**/api/zones/proposals/zp1/decline')
+})
+
+test('a trail run with charts does not scroll sideways at 360 px', async () => {
+  await resetData()
+  const start = new Date()
+  start.setDate(start.getDate() - 1)
+  start.setHours(7, 0, 0, 0)
+  const durationSec = 60 * 60
+  const speedMps = 2.6
+  const bytes = buildFit({
+    serial: 4_100_000_006,
+    utcOffsetMin: -start.getTimezoneOffset(),
+    productName: 'Synthetic Watch',
+    sessions: [
+      {
+        sport: 1,
+        subSport: 3,
+        startUnix: Math.floor(start.getTime() / 1000),
+        durationSec,
+        distanceM: durationSec * speedMps,
+        ascentM: 300,
+        descentM: 290,
+        avgHr: 142,
+        maxHr: 165,
+        records: Array.from({ length: durationSec / 10 + 1 }, (_, i) => ({
+          t: i * 10,
+          distanceM: i * 10 * speedMps,
+          speedMps,
+          hr: 140 + Math.round(10 * Math.sin(i / 40)),
+          altitudeM: 300 + Math.round(60 * Math.sin(i / 90)),
+        })),
+      },
+    ],
+  })
+  await page.goto('/activities')
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: 'Import activities' })
+  await sheet.getByRole('radio', { name: 'Activity files' }).check()
+  await sheet.getByLabel('Activity files (FIT, GPX, TCX, ZIP)').setInputFiles({
+    name: 'trail.fit',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from(bytes),
+  })
+  await sheet.getByRole('button', { name: 'Import files' }).click()
+  await expect(sheet.getByText('1 imported, 0 already imported, 0 skipped')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('link', { name: /^Details, Run on / }).click()
+  await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
+  // The charts are lazy chunks, and each carries a hidden table of its figures.
+  await expect(page.getByRole('img', { name: /^Pace, average / })).toBeVisible()
+  await expect(page.getByRole('img', { name: /^Elevation, from / })).toBeVisible()
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+})
+test('a four-hour trail run keeps its charts before the rating form and does not widen the page at 360 px', async () => {
+  await resetData()
+  const start = new Date()
+  start.setDate(start.getDate() - 1)
+  start.setHours(6, 0, 0, 0)
+  const durationSec = 255 * 60
+  const speedMps = (19.67 * 1609.344) / durationSec
+  // Heart rate only on every sixth record and elevation on every ninth: a sparsely sampled stream.
+  const records = Array.from({ length: durationSec / 10 + 1 }, (_, i) => ({
+    t: i * 10,
+    distanceM: i * 10 * speedMps,
+    speedMps,
+    ...(i % 6 === 0 ? { hr: 135 + Math.round(15 * Math.sin(i / 200)) } : {}),
+    ...(i % 9 === 0 ? { altitudeM: 400 + Math.round(300 * Math.sin(i / 300)) } : {}),
+  }))
+  const bytes = buildFit({
+    serial: 4_100_000_009,
+    utcOffsetMin: -start.getTimezoneOffset(),
+    productName: 'Synthetic Watch',
+    sessions: [
+      {
+        sport: 1,
+        subSport: 3,
+        startUnix: Math.floor(start.getTime() / 1000),
+        durationSec,
+        distanceM: speedMps * durationSec,
+        avgHr: 140,
+        maxHr: 168,
+        records,
+      },
+    ],
+  })
+  await page.goto('/activities')
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: 'Import activities' })
+  await sheet.getByRole('radio', { name: 'Activity files' }).check()
+  await sheet.getByLabel('Activity files (FIT, GPX, TCX, ZIP)').setInputFiles({
+    name: 'trail.fit',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from(bytes),
+  })
+  await sheet.getByRole('button', { name: 'Import files' }).click()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  const listed = (await api.get('/activities')) as
+    Array<{ id: string }> | { items: Array<{ id: string }> }
+  const [first] = Array.isArray(listed) ? listed : listed.items
+  await page.goto(`/activities/${first?.id ?? ''}`)
+
+  const charts = page.getByRole('region', { name: 'Charts' })
+  await expect(charts).toBeVisible()
+  // Every channel draws a line: the heart-rate and elevation paths are not empty.
+  for (const name of [/^Heart rate, average/, /^Elevation, from/]) {
+    const path = charts.getByRole('img', { name }).locator('path.recharts-curve').first()
+    await expect(path).toHaveAttribute('d', /^M/)
+  }
+  const top = (name: string) =>
+    page.getByRole('region', { name }).evaluate((el) => el.getBoundingClientRect().top)
+  expect(await top('Charts')).toBeLessThan(await top('How did it go?'))
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
 })

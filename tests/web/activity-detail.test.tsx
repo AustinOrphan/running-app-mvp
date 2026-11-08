@@ -410,9 +410,9 @@ describe('ActivityDetailPage', () => {
     })
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('The activity did not load.')
-    expectCleanCopy(alert)
+    expectCleanCopy(document.body)
     fail = false
-    await user.click(within(alert).getByRole('button', { name: 'Try again' }))
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('region', { name: 'Summary' })).toBeInTheDocument()
     expect(api.calls.filter((c) => c.url === '/api/activities/a1/detail')).toHaveLength(2)
   })

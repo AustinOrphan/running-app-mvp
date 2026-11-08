@@ -1542,8 +1542,10 @@ describe('the Fuel lab page: the history', () => {
       'utf8',
     )
     const rule = /\.scroll\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
-    expect(rule).toMatch(/overflow:\s*auto/)
     expect(rule).toMatch(/max-height:/)
+    // The overflow and the focus ring come from the shared ScrollTable box.
+    const box = readFileSync(join(process.cwd(), 'web/components/ScrollTable.module.css'), 'utf8')
+    expect(/\.scroll\s*\{([^}]*)\}/.exec(box)?.[1] ?? '').toMatch(/overflow:\s*auto/)
   })
 
   test('says in the exact words that nothing is logged yet, and draws no table', async () => {

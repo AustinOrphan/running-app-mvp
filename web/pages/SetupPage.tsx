@@ -3,6 +3,8 @@ import { Navigate } from 'react-router-dom'
 import { useSetup, useSetupStatus } from '../api/auth.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { Button } from '../components/Button.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
 import { PasswordInput } from '../components/PasswordInput.tsx'
 import styles from './SetupPage.module.css'
@@ -20,6 +22,7 @@ function setupMessage(error: unknown): string {
 export function SetupPage() {
   const status = useSetupStatus()
   const setup = useSetup()
+  const statusView = useLoadView(status)
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
@@ -29,16 +32,18 @@ export function SetupPage() {
 
   // Checked first: creating the account marks setup as done, which must not bounce to /login.
   if (setup.isSuccess) return <Navigate to="/" replace />
-  if (status.isError) {
+  if (statusView === 'failed' || statusView === 'retrying') {
     return (
       <main className={styles.page}>
-        <p role="alert" className={styles.alert}>
-          The server did not respond. Reload the page to try again.
-        </p>
+        <ErrorState
+          subject="Setup"
+          onRetry={() => status.refetch()}
+          retrying={statusView === 'retrying'}
+        />
       </main>
     )
   }
-  if (status.isPending) {
+  if (status.data === undefined) {
     return (
       <main className={styles.page} aria-busy="true">
         <div className="skeleton" aria-label="Loading" />
@@ -69,13 +74,9 @@ export function SetupPage() {
   return (
     <main className={styles.page}>
       <form className={styles.form} onSubmit={onSubmit} noValidate>
-        <h1>Set up your training log</h1>
+        <p className={styles.wordmark}>Running log</p>
+        <h1>Set up your log</h1>
         <p className={styles.intro}>Create the one account for this install.</p>
-        {formError !== undefined ? (
-          <p role="alert" className={styles.alert}>
-            {formError}
-          </p>
-        ) : null}
         <Field label="Email" error={errors['email']}>
           {(control) => (
             <Input
@@ -131,6 +132,13 @@ export function SetupPage() {
             />
           )}
         </Field>
+        <div className={styles.alertSlot}>
+          {formError !== undefined ? (
+            <p role="alert" className={styles.alert}>
+              {formError}
+            </p>
+          ) : null}
+        </div>
         <Button type="submit" variant="primary" loading={setup.isPending}>
           Create account
         </Button>

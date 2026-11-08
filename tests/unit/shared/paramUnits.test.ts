@@ -123,6 +123,14 @@ describe('describeParamValue', () => {
     expect(km({ value: 20, unit: 'hour of day' })).toBe('20:00')
   })
 
+  test('speeds in m/s and heart-rate slopes per m/s follow the runner s units (rule C9)', () => {
+    expect(km({ value: 1.5, unit: 'm/s' })).toBe('5.4 km/h')
+    expect(mi({ value: 1.5, unit: 'm/s' })).toBe('3.4 mph')
+    expect(km({ value: 5, unit: 'bpm per m/s' })).toBe('1.39 bpm per km/h')
+    expect(mi({ value: 5, unit: 'bpm per m/s' })).toBe('2.24 bpm per mph')
+    expect(km({ value: 0.1, unit: 'fraction of speed' })).toBe('10% of speed')
+  })
+
   test('counts are singular for one', () => {
     expect(km({ value: 1, unit: 'days' })).toBe('1 day')
     expect(km({ value: 14, unit: 'days' })).toBe('14 days')

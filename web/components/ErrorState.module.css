@@ -1,6 +1,3 @@
-/* The same voice and rhythm as EmptyState: serif sentence, muted line, one button. The text is not
-   red: the spec keeps danger colour for a form's field errors, and a failed read is not the
-   runner's mistake. */
 .error {
   display: flex;
   flex-direction: column;

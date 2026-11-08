@@ -53,7 +53,7 @@ interface BodyProps {
 
 /**
  * The sections in the order a phone shows them: setup (until it is saved), the next session, the
- * block, the lifts, the history of one lift, the recent sessions, equipment and units, and about.
+ * block, the lifts (a section with nothing to show stays out until it has something), the history of one lift, the recent sessions, equipment and units, and about.
  * From 900 px the first four stand in the left column and the next four in the right, so the DOM
  * order is the reading order at every width.
  */
@@ -122,30 +122,45 @@ function StrengthBody({ view, units, weightUnit }: BodyProps) {
               )
             }}
           />
-          <BlockCard block={view.block} benefit={benefit} sessions={next !== null} words={words} />
+          {view.block === null && next === null ? null : (
+            <BlockCard
+              block={view.block}
+              benefit={benefit}
+              sessions={next !== null}
+              words={words}
+            />
+          )}
           <CountPrompt view={view} words={words} />
-          <LiftsList
-            lifts={view.lifts}
-            selected={lift}
-            words={words}
-            units={units}
-            weightUnit={weightUnit}
-            onSelect={setLift}
-          />
+          {view.lifts.length === 0 ? null : (
+            <LiftsList
+              lifts={view.lifts}
+              selected={lift}
+              words={words}
+              units={units}
+              weightUnit={weightUnit}
+              onSelect={setLift}
+            />
+          )}
         </div>
         <div className={styles.column}>
-          <LiftHistory exerciseId={lift} words={words} units={units} weightUnit={weightUnit} />
+          {view.lifts.length === 0 && lift === null ? null : (
+            <LiftHistory exerciseId={lift} words={words} units={units} weightUnit={weightUnit} />
+          )}
           <StrengthNotes view={view} words={words} />
-          <RecentSessions
-            logs={view.recent}
-            words={words}
-            units={units}
-            weightUnit={weightUnit}
-            onEdit={(log) => {
-              setLogging({ kind: 'edit', log })
-            }}
-          />
-          <UnitsSection view={view} words={words} weightUnit={weightUnit} onOpen={setPart} />
+          {view.recent.length === 0 ? null : (
+            <RecentSessions
+              logs={view.recent}
+              words={words}
+              units={units}
+              weightUnit={weightUnit}
+              onEdit={(log) => {
+                setLogging({ kind: 'edit', log })
+              }}
+            />
+          )}
+          {view.setupSaved ? (
+            <UnitsSection view={view} words={words} weightUnit={weightUnit} onOpen={setPart} />
+          ) : null}
           <AboutCard benefit={benefit} words={words} />
         </div>
       </div>

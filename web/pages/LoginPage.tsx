@@ -48,12 +48,8 @@ export function LoginPage() {
   return (
     <main className={styles.page}>
       <form className={styles.form} onSubmit={onSubmit} noValidate>
+        <p className={styles.wordmark}>Running log</p>
         <h1>Sign in</h1>
-        {formError !== undefined ? (
-          <p role="alert" className={styles.alert}>
-            {formError}
-          </p>
-        ) : null}
         <Field label="Email" error={errors['email']}>
           {(control) => (
             <Input
@@ -82,6 +78,13 @@ export function LoginPage() {
             />
           )}
         </Field>
+        <div className={styles.alertSlot}>
+          {formError !== undefined ? (
+            <p role="alert" className={styles.alert}>
+              {formError}
+            </p>
+          ) : null}
+        </div>
         <Button type="submit" variant="primary" loading={login.isPending}>
           Sign in
         </Button>

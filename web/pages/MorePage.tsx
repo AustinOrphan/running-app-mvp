@@ -10,6 +10,11 @@ import styles from './MorePage.module.css'
 const links = [
   { to: '/brief', label: 'Weekly brief', note: 'What changed and the next key session' },
   { to: '/goals', label: 'Goals', note: 'Races you are training for' },
+  {
+    to: '/paces',
+    label: 'My paces',
+    note: render(TEMPLATES['paces.more-note'], {}, 'km'),
+  },
   { to: '/stats', label: 'Stats', note: 'Fastest efforts, monthly and yearly totals' },
   {
     to: '/trends',

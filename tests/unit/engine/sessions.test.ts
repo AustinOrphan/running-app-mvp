@@ -206,6 +206,14 @@ describe('prescribe: steady runs', () => {
 })
 
 describe('prescribe: threshold', () => {
+  it('words the purpose without a speed difference, in a miles app too', () => {
+    const s = prescribe('threshold', 60, zones(), week())
+    expect(s.purpose).toBe(
+      'Steady threshold effort, in one block or as cruise intervals; the pace range above is the target.',
+    )
+    expect(s.purpose).not.toMatch(/km\/h|critical speed/)
+  })
+
   it('keeps the work at least 1.0 km/h under critical speed for athletes who are not well trained', () => {
     const s = prescribe('threshold', 60, zones(), week())
     const [slow, fast] = s.target.paceSecPerKm ?? [0, 0]

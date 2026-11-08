@@ -2,7 +2,7 @@ import type { Deps } from '../app.ts'
 import { addDays, mondayOf } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
 import { activityLoadStart, aggregateWeeks } from '../../shared/domain/weeks.ts'
-import { suggestAction, type Suggestion } from '../../shared/domain/review.ts'
+import { prefillFromCheckins, suggestAction, type Suggestion } from '../../shared/domain/review.ts'
 import type { WeeklyDecision } from '../../shared/engine/types.ts'
 import type {
   PlanWeek,
@@ -15,6 +15,7 @@ import type {
 import { HttpError, validationError } from '../errors.ts'
 import { createLogger } from '../logger.ts'
 import { loadActivityCores, toPlanWeek, toWeeklyReview } from '../serialize.ts'
+import { loadAthleteContext } from './athleteState.ts'
 import { replanActivePlan, weeklyDecisions } from './planEngine.ts'
 import { viewRevision } from './revisions.ts'
 
@@ -208,6 +209,12 @@ export async function listReviews(
     ? await weeklyDecisions(deps, { userId, today, weekStarts: open })
     : new Map<string, WeeklyDecision>()
 
+  // The week's check-ins come from the snapshot (ADR 0009), read once for every open week.
+  const wantsPrefill = weekStarts.some(
+    (weekStart) => weekStart <= today && byWeek.get(weekStart)?.reviewedAt == null,
+  )
+  const checkins = wantsPrefill ? (await loadAthleteContext(deps, { userId, today })).wellness : []
+
   return weekStarts.map((weekStart): ReviewView => {
     const review = byWeek.get(weekStart) ?? synthetic(userId, weekStart, now)
     if (review.reviewedAt !== null) return review
@@ -228,6 +235,8 @@ export async function listReviews(
       suggestedNextMin: suggestion?.suggestedNextMin ?? null,
     }
     if (v2?.signals) view.signals = v2.signals
+    const prefill = weekStart <= today ? prefillFromCheckins(weekStart, checkins) : null
+    if (prefill) view.prefill = prefill
     return view
   })
 }

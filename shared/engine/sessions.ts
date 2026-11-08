@@ -540,7 +540,8 @@ export function prescribe(
   switch (kind) {
     case 'threshold':
       built = buildThreshold(duration, zones, ctx)
-      purpose = `Threshold work at or below critical speed minus ${built.margin ?? 0} km/h, as one bout or cruise intervals.`
+      purpose =
+        'Steady threshold effort, in one block or as cruise intervals; the pace range above is the target.'
       break
     case 'intervals':
       built = buildIntervals(duration, zones, ctx)

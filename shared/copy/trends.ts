@@ -63,34 +63,37 @@ export const TRENDS_TEMPLATES = {
     { fallback: 'Bars are run distance per week.' },
   ),
   'trends.run.marks': tpl('A flag marks a race week. Squares are strength sessions.'),
+  'trends.records-start': tpl('Records start the week of {date}.', { date: 'date' }),
+  'trends.span.months': tpl('last {months} months', { months: 'count' }, { shape: 'label' }),
+  'trends.span.since': tpl('since the week of {date}', { date: 'date' }, { shape: 'label' }),
   'trends.run.this-week': tpl('The outlined bar is this week so far.'),
   'trends.run.strength-link': tpl('Lifts and loads are on Strength', {}, { shape: 'label' }),
   'trends.run.aria-time': tpl(
-    'Run hours per week, last {months} months. Latest complete week {time}.',
-    { months: 'count', time: 'weekMinutes' },
+    'Run hours per week, {span}. Latest complete week {time}.',
+    { span: 'text', time: 'weekMinutes' },
     { fallback: 'Run hours per week.' },
   ),
   'trends.run.aria-distance': tpl(
-    'Run distance per week, last {months} months. Latest complete week {distance}.',
-    { months: 'count', distance: 'distance' },
+    'Run distance per week, {span}. Latest complete week {distance}.',
+    { span: 'text', distance: 'distance' },
     { fallback: 'Run distance per week.' },
   ),
   'trends.run.aria-none': tpl(
-    'Run time per week, last {months} months.',
-    { months: 'count' },
+    'Run time per week, {span}.',
+    { span: 'text' },
     { fallback: 'Run time per week.' },
   ),
 
   // Recovery readings
   'trends.recovery.heading': tpl('Recovery readings', {}, { shape: 'label' }),
   'trends.recovery.aria': tpl(
-    '{name}, weekly mean, last {months} months. Latest week with enough nights: {value}.',
-    { name: 'text', months: 'count', value: 'text' },
+    '{name}, weekly mean, {span}. Latest week with enough nights: {value}.',
+    { name: 'text', span: 'text', value: 'text' },
     { fallback: 'Weekly mean of a recovery reading.' },
   ),
   'trends.recovery.aria-none': tpl(
-    '{name}, weekly mean, last {months} months. No week has enough nights yet.',
-    { name: 'text', months: 'count' },
+    '{name}, weekly mean, {span}. No week has enough nights yet.',
+    { name: 'text', span: 'text' },
     { fallback: 'Weekly mean of a recovery reading.' },
   ),
   'trends.recovery.note': tpl('Heart-rate variability alone never changes a plan.'),
@@ -142,6 +145,15 @@ export function trendsText(id: PlainTrendsId): string {
   return render(TRENDS_TEMPLATES[id], {}, 'km')
 }
 
+/** The line under a chart that was cropped to the first week with a record. */
+export function recordsStart(weekStart: string): string {
+  return render(
+    TRENDS_TEMPLATES['trends.records-start'],
+    { date: { kind: 'date', iso: weekStart, style: 'short' } },
+    'km',
+  )
+}
+
 const count = (n: number) => ({ kind: 'count' as const, n })
 
 /** The nights a weekly mean needs, for the caption of a signal. */
@@ -181,15 +193,25 @@ export function bandBuilding(readings: number): string {
   )
 }
 
-/** The accessible name of a recovery chart: what it shows and its latest weekly mean, if any. */
-export function recoveryAria(name: string, months: number, latest: string | null): string {
-  return latest === null
-    ? render(TRENDS_TEMPLATES['trends.recovery.aria-none'], { name, months: count(months) }, 'km')
+/**
+ * The span a chart's name gives: "last 12 months", or "since the week of 24 Aug" when the plot was
+ * cut to the first record (`since` is that Monday).
+ */
+export function spanText(months: number, since: string | null): string {
+  return since === null
+    ? render(TRENDS_TEMPLATES['trends.span.months'], { months: count(months) }, 'km')
     : render(
-        TRENDS_TEMPLATES['trends.recovery.aria'],
-        { name, months: count(months), value: latest },
+        TRENDS_TEMPLATES['trends.span.since'],
+        { date: { kind: 'date', iso: since, style: 'short' } },
         'km',
       )
+}
+
+/** The accessible name of a recovery chart: what it shows and its latest weekly mean, if any. */
+export function recoveryAria(name: string, span: string, latest: string | null): string {
+  return latest === null
+    ? render(TRENDS_TEMPLATES['trends.recovery.aria-none'], { name, span }, 'km')
+    : render(TRENDS_TEMPLATES['trends.recovery.aria'], { name, span, value: latest }, 'km')
 }
 
 /** The weigh-ins a weekly mean of body weight needs, for its caption. */

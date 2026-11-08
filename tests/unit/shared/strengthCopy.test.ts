@@ -8,7 +8,7 @@ import {
   describeParamValue,
   isMappedUnit,
 } from '../../../shared/copy/paramUnits.ts'
-import { countPhrase } from '../../../shared/copy/quantity.ts'
+import { agree, countPhrase, plural } from '../../../shared/copy/quantity.ts'
 import {
   STRENGTH_TEMPLATES,
   type StrengthTemplateId,
@@ -951,5 +951,15 @@ describe('the Params of rules F7 to F9 in the drawer', () => {
     expect(text).not.toMatch(/back-squat|[{}"]/)
     expect(describeParamValue(P.f8.startFractionBodyweight, 'mi')).toBe(text)
     expect(describeParamRange(P.f8.startFractionBodyweight, 'km')).toBeNull()
+  })
+})
+
+describe('plural and agree', () => {
+  it('count in digits with no "(s)" and a verb that agrees', () => {
+    expect(plural(1, 'week')).toBe('1 week')
+    expect(plural(0, 'week')).toBe('0 weeks')
+    expect(plural(3, 'run')).toBe('3 runs')
+    expect(agree(1, 'steps', 'step')).toBe('steps')
+    expect(agree(2, 'steps', 'step')).toBe('step')
   })
 })

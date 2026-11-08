@@ -29,6 +29,11 @@ export function isWeightUnit(value: unknown): value is WeightUnit {
   return typeof value === 'string' && Object.hasOwn(GRAMS_PER_UNIT, value)
 }
 
+/** Kilograms (two decimals) from a body weight typed in `unit`; NaN when `value` is not finite. */
+export function bodyWeightKg(value: number, unit: WeightUnit): number {
+  return Math.round(((value * GRAMS_PER_UNIT[unit]) / 1000) * 100) / 100
+}
+
 /**
  * A value typed in `unit` as the nearest whole gram. A value that is not finite gives NaN, which
  * the callers (Zod on the server, the sheet's field) reject before it is stored.

@@ -1,7 +1,9 @@
+import type { ReviewPrefill } from './domain/review.ts'
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
 import type { MethodPosition } from './engine/methods.ts'
+import type { EventRow, MyPaces } from './engine/myPaces.ts'
 import type { RacePlan, RacePlanSummary } from './engine/racePlan.ts'
 import type { CheckpointInput } from './engine/raceSplits.ts'
 import type { HistorySession, LiftHistory, WeekHistory } from './engine/strength.ts'
@@ -567,7 +569,11 @@ export type ReviewSignals = WeeklyDecision['signals']
  * A review as a version-2 plan returns it: the engine's weekly decision sits in the `suggested*`
  * fields and `signals` carries the signals behind it. Version-1 plans get a plain review.
  */
-export type ReviewView = WeeklyReview & { signals?: ReviewSignals }
+export type ReviewView = WeeklyReview & {
+  signals?: ReviewSignals
+  /** What the week's check-ins suggest for fatigue and symptoms; absent without a check-in. */
+  prefill?: ReviewPrefill
+}
 
 /** What saving returns: the review, plus for a version-2 plan the re-plan the review triggered. */
 export type SavedReview = ReviewView & {
@@ -1422,6 +1428,13 @@ export type RacePlanReason = 'no-goal' | 'no-distance' | 'not-ultra' | 'race-ove
 export interface RacePlanView {
   plan: RacePlan | null
   reason: RacePlanReason | null
+}
+/**
+ * The answer of `GET /api/paces` (rule C9, ADR 0020): the easy pace, the events and the test, and
+ * the row of the custom course when the request named one. The zones are `GET /api/zones`.
+ */
+export interface MyPacesView extends MyPaces {
+  custom: EventRow | null
 }
 /** One course point of the goal race, as the runner entered it (rule H14, ADR 0018). */
 export type RaceCheckpointRow = CheckpointInput

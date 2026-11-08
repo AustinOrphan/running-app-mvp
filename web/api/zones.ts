@@ -28,7 +28,7 @@ function useDecideProposal(decision: 'accept' | 'decline') {
     // written to the revision log, which the plan page lists as "What changed" and the weekly brief
     // lists as "Since this brief", so the readers of the plan are read again as well.
     onSuccess: () =>
-      invalidatePlanReaders(queryClient, undefined, [keys.zones, keys.zoneProposals]),
+      invalidatePlanReaders(queryClient, undefined, [keys.zones, keys.zoneProposals, keys.paces]),
   })
 }
 
