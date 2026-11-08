@@ -3,13 +3,16 @@ import { Link } from 'react-router-dom'
 import { rateText } from '../../../shared/engine/fuelCopy.ts'
 import type { FuelHistoryRow } from '../../../shared/types.ts'
 import { ScrollTable } from '../ScrollTable.tsx'
-import { useMediaQuery } from '../useMediaQuery.ts'
+import { useNarrowContainer } from '../useNarrowContainer.ts'
 import { fuelText, labText } from './fuelText.ts'
 import labStyles from './FuelLab.module.css'
 import styles from './FuelHistory.module.css'
 
-/** Below this width the five columns of the table do not fit, and the result is the last one. */
-const STACKED_QUERY = '(max-width: 39.99rem)'
+/**
+ * Below this width of the section the five columns of the table do not fit, and the result is the
+ * last one. The section's own width is read, not the window's: the side rail takes room from it.
+ */
+const STACKED_BELOW_REM = 40
 
 export interface FuelHistoryProps {
   /** The latest logged runs, newest first, each with the sentence its replay gave it. */
@@ -20,15 +23,15 @@ export interface FuelHistoryProps {
  * What each logged run did to the ladder, newest first: the run, the rate taken against the rate
  * tried, the two scores and the replayed note. The table scrolls inside a labelled region that
  * takes focus (`ScrollTable`), so a keyboard reaches every row and a phone scrolls sideways inside
- * the box rather than the page. Below 40 rem the table is a list of runs instead, so the result of
+ * the box rather than the page. Where the section is under 40 rem wide the table is a list of runs instead, so the result of
  * each is on screen without scrolling. The notes are worked out again on every read, so a late weather fill can change
  * one; the line under the table says so.
  */
 export function FuelHistory({ history }: FuelHistoryProps) {
   const headingId = useId()
-  const stacked = useMediaQuery(STACKED_QUERY)
+  const [section, stacked] = useNarrowContainer<HTMLElement>(STACKED_BELOW_REM)
   return (
-    <section aria-labelledby={headingId} className={labStyles.section}>
+    <section ref={section} aria-labelledby={headingId} className={labStyles.section}>
       <h2 id={headingId} className={labStyles.heading}>
         {labText.historyHeading()}
       </h2>

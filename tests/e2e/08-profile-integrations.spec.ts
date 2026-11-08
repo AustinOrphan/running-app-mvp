@@ -50,7 +50,10 @@ test('the integrations page lists every provider without calling out to any of t
     if (url.protocol.startsWith('http') && url.origin !== origin) offOrigin.push(request.url())
   })
   await page.goto('/more')
-  await page.getByRole('link', { name: /^Integrations/ }).click()
+  await page
+    .getByRole('navigation', { name: 'More pages' })
+    .getByRole('link', { name: /^Integrations/ })
+    .click()
   await expect(page.getByRole('heading', { name: 'Integrations', level: 1 })).toBeVisible()
 
   const providers = ['intervals.icu', 'Strava', 'Garmin Connect', 'Apple Health', 'Watched folder']

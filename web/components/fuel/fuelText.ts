@@ -197,9 +197,10 @@ export const labText = {
       row.gut === null
         ? say(T['fuel.lab.history-gut-missing'], {})
         : say(T['fuel.lab.history-gut'], { gut: fuelText.scoreValue(row.gut) }),
-      ...(row.nausea === null
-        ? []
-        : [say(T['fuel.lab.history-nausea'], { nausea: fuelText.scoreValue(row.nausea) })]),
+      // The table has a Nausea column whether or not it was answered, so the line says both.
+      say(T['fuel.lab.history-nausea'], {
+        nausea: row.nausea === null ? labText.notAnswered() : fuelText.scoreValue(row.nausea),
+      }),
     ].join(' '),
 
   productsHeading: () => say(T['fuel.lab.products-heading'], {}),

@@ -71,7 +71,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
-    padding: var(--space-6) var(--space-3) var(--space-4);
+    padding: var(--space-6) var(--space-3) var(--space-4)
+      max(var(--space-3), env(safe-area-inset-left, 0px));
     overflow-y: auto;
     overscroll-behavior: contain;
     border-top: 0;
@@ -179,11 +180,13 @@
     height: 1.25rem;
   }
 
-  /* A mouse needs less height than a thumb; the rail has to fit a short window without scrolling. */
+  /* A mouse needs less height than a thumb. With these rows the rail fits a window about 780 px
+     tall (a 1280 by 800 laptop) without scrolling; a shorter one scrolls the rail inside its own
+     box, with the theme button last. */
   @media (pointer: fine) {
     .chrome {
       gap: var(--space-4);
-      padding-top: var(--space-5);
+      padding-top: var(--space-4);
     }
 
     .link {
@@ -191,7 +194,7 @@
     }
 
     .sublink {
-      height: 1.875rem;
+      height: 1.75rem;
     }
   }
 

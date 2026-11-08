@@ -30,7 +30,7 @@
 /* With the side rail (from 720px) the toast stands beside it, not over the tab bar. */
 @media (min-width: 720px) {
   .region {
-    left: calc(var(--rail-w) + var(--gutter));
+    left: calc(var(--rail-w) + max(var(--gutter), env(safe-area-inset-left, 0px)));
     right: auto;
     bottom: var(--space-5);
     width: 24rem;

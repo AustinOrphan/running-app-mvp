@@ -1536,12 +1536,9 @@ describe('the Fuel lab page: the history', () => {
     expectCleanCopy(scroller)
   })
 
-  test('below 40 rem a run is a stacked item with its result on screen, not a table', async () => {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query === '(max-width: 39.99rem)',
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    }))
+  test('in a section under 40 rem a run is a stacked item with its result on screen, not a table', async () => {
+    // The section is 300 px wide, whatever the window: the rail takes room too.
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ width: 300 } as DOMRect)
     try {
       const lab = fullLab()
       renderLab(lab)
@@ -1559,11 +1556,12 @@ describe('the Fuel lab page: the history', () => {
         expect(within(item).getByText(entry.note)).toBeInTheDocument()
       })
       // The second run: 67 g/h taken against 60, gut none, nausea not answered.
-      expect(items[1]).toHaveTextContent('67 g/h taken, target 60 g/h. Gut: None, 0 of 4.')
-      expect(items[1]).not.toHaveTextContent('Nausea')
+      expect(items[1]).toHaveTextContent(
+        '67 g/h taken, target 60 g/h. Gut: None, 0 of 4. Nausea: Not answered.',
+      )
       expectCleanCopy(list)
     } finally {
-      vi.unstubAllGlobals()
+      vi.restoreAllMocks()
     }
   })
 
