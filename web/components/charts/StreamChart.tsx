@@ -14,7 +14,7 @@ import { formatDuration } from '../../../shared/units.ts'
 import {
   buildSeries,
   drawablePoints,
-  metresPerUnit,
+  distanceLabelToMetres,
   streamXAxis,
   type SeriesPoint,
   type StreamChannel,
@@ -59,7 +59,7 @@ function CursorReporter({
   metres: number | null
 }) {
   useEffect(() => {
-    cursor.set(active && metres !== null && Number.isFinite(metres) ? metres : null)
+    cursor.set(active ? metres : null)
   }, [cursor, active, metres])
   useEffect(
     () => () => {
@@ -208,7 +208,7 @@ export function StreamChart({ stream, channel, units = 'mi', cursor }: StreamCha
                     <CursorReporter
                       cursor={cursor}
                       active={props.active === true}
-                      metres={Number(props.label) * metresPerUnit(units)}
+                      metres={distanceLabelToMetres(props.label, units)}
                     />
                   )}
                   <ChartTooltip
