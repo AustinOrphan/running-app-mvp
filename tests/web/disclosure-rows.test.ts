@@ -25,10 +25,8 @@ describe('the disclosure rows of the Plan page', () => {
     expect(summary).toMatch(/padding-block: var\(--space-2\);/)
   })
 
-  test('"Show each one" is 44 px: a 22 px line with the rest of the height split above and below', () => {
-    const summary = rule(css, '.warningDetails summary')
-    expect(summary).toMatch(/line-height: var\(--lh-sm\);/)
-    expect(summary).toMatch(/padding-block: calc\(\(2\.75rem - var\(--lh-sm\)\) \/ 2\);/)
+  test('a warning line is a 44 px row', () => {
+    expect(rule(css, '.warningToggle')).toMatch(/min-height: 2\.75rem;/)
   })
 
   test('"Earlier weeks" is a 44 px row', () => {

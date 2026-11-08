@@ -915,10 +915,53 @@ function warningsToShow(plan: PlanWithSessions) {
   return plan.warnings.filter((warning) => !noteCodes.has(warning.code))
 }
 
+/** The weightiest first: what holds the plan back, then a caution, then a note. */
+const SEVERITY_RANK: Record<EngineWarning['severity'], number> = { hold: 0, warn: 1, info: 2 }
+
+/**
+ * One warning as one line: its severity and its sentence on a line that ends in an ellipsis when it
+ * is long, and the text in the page whole (a screen reader reads all of it). Tapping the line opens
+ * it to its full height, with each message of a grouped warning under it.
+ */
+function WarningRow({
+  group,
+  onWhy,
+}: {
+  group: ReturnType<typeof groupWarnings>[number]
+  onWhy: (why: WhyTarget) => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <li className={styles.warning}>
+      <button
+        type="button"
+        className={styles.warningToggle}
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((current) => !current)
+        }}
+      >
+        <span className={styles.warningLine}>
+          <strong>{SEVERITY_LABELS[group.severity]}</strong> {group.summary}
+        </span>
+      </button>
+      <WhyButton rules={group.rules} label="Why this warning" onOpen={onWhy} />
+      {open && group.details.length > 1 ? (
+        <ul className={styles.warningList}>
+          {group.details.map((detail, index) => (
+            <li key={`${String(index)}-${detail}`}>{detail}</li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  )
+}
+
 /**
  * The warnings, above the week table: they are the one panel that asks the runner to read before
- * acting on the plan. The explanatory panels (Feasibility, load, shape, checks, changes) follow the
- * table in `PlanOverview`.
+ * acting on the plan, so each takes one line, the weightiest first, and the week row stays on the
+ * first screen however many there are. The explanatory panels (Feasibility, load, shape, checks,
+ * changes) follow the table in `PlanOverview`.
  */
 function PlanWarnings({
   plan,
@@ -930,37 +973,22 @@ function PlanWarnings({
   const units = useSettings().data?.units ?? 'mi'
   const warnings = warningsToShow(plan)
   if (warnings.length === 0) return null
+  // `sort` is stable: warnings of one weight keep the engine's order.
+  const groups = groupWarnings(warnings, units).sort(
+    (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity],
+  )
   return (
     <div className={styles.overview}>
-      {warnings.length > 0 ? (
-        <section aria-labelledby="warnings-title" className={styles.panel}>
-          <h2 id="warnings-title" className={styles.panelTitle}>
-            Warnings
-          </h2>
-          <ul className={styles.items}>
-            {groupWarnings(warnings, units).map((group) => (
-              <li key={group.code}>
-                <span className={styles.warningText}>
-                  <span>
-                    <strong>{SEVERITY_LABELS[group.severity]}</strong> {group.summary}
-                  </span>
-                  {group.details.length > 1 ? (
-                    <details className={styles.warningDetails}>
-                      <summary>Show each one</summary>
-                      <ul>
-                        {group.details.map((detail, index) => (
-                          <li key={`${String(index)}-${detail}`}>{detail}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
-                </span>
-                <WhyButton rules={group.rules} label="Why this warning" onOpen={onWhy} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <section aria-labelledby="warnings-title" className={`${styles.panel} ${styles.warnings}`}>
+        <h2 id="warnings-title" className={styles.panelTitle}>
+          Warnings
+        </h2>
+        <ul className={styles.warningItems}>
+          {groups.map((group) => (
+            <WarningRow key={group.code} group={group} onWhy={onWhy} />
+          ))}
+        </ul>
+      </section>
     </div>
   )
 }

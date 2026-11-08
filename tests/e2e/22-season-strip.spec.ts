@@ -37,6 +37,31 @@ async function seedPlan(page: Page, baseURL: string | undefined): Promise<PlanWi
   return (await api.get('/plan')) as PlanWithSessions
 }
 
+/** Gives the plan two warnings of different weights, each long enough to run past one phone line. */
+async function withTwoWarnings(page: Page) {
+  await page.route('**/api/plan', async (route) => {
+    const response = await route.fetch()
+    const plan = (await response.json()) as PlanWithSessions
+    plan.warnings = [
+      {
+        code: 'sunday-caution',
+        severity: 'info',
+        message:
+          'Only one day of this week is left, so its target is a sketch and what you run today sets the week.',
+        rules: ['H4'],
+      },
+      {
+        code: 'sunday-held',
+        severity: 'hold',
+        message:
+          'The week after this one is held at the weekly ramp limit, so the long run stays where it is.',
+        rules: ['H4'],
+      },
+    ]
+    await route.fulfill({ response, json: plan })
+  })
+}
+
 for (const viewport of WIDTHS) {
   test.describe(`the season strip at ${String(viewport.width)} px`, () => {
     test.use({ viewport })
@@ -50,9 +75,22 @@ for (const viewport of WIDTHS) {
       const weeks = plan.weeks.length
       expect(weeks).toBeGreaterThan(20)
 
+      // The worst day for the first screen: two warnings above the table, as a Sunday brings (the
+      // week has one day left and the plan says so). Each takes one line, so the week row holds.
+      await withTwoWarnings(page)
       await page.goto('/plan')
       const season = page.getByRole('region', { name: 'Season' })
       await expect(season).toBeVisible()
+      const warnings = page.getByRole('region', { name: 'Warnings' })
+      await expect(warnings.getByRole('listitem')).toHaveCount(2)
+      // The weightiest first, and each warning one line of a tap's height.
+      const lines = warnings.getByRole('button', { name: /^(Held back|Caution|Note) / })
+      await expect(lines.first()).toHaveAccessibleName(/^Held back The week after this one/)
+      for (const line of await lines.all()) {
+        const box = await line.boundingBox()
+        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+        expect(box?.height ?? 0).toBeLessThan(52)
+      }
 
       // The strip's accessible form: the plan in a sentence, then one button per week.
       await expect(season).toHaveAccessibleDescription(
@@ -94,11 +132,6 @@ for (const viewport of WIDTHS) {
       const tabBar = await page.getByRole('navigation', { name: 'Primary' }).boundingBox()
       const strip = await season.boundingBox()
       const currentRow = await page.locator('tr[aria-current="date"]').boundingBox()
-      // The warnings above the table come and go with the day: on a Sunday the week has one day
-      // left and the plan says so. They sit between the strip and the table, so their block, with
-      // the gap above it, is taken out of the row's place; the layout under test is the strip and
-      // the table.
-      const warnings = await page.getByRole('region', { name: 'Warnings' }).boundingBox()
       const feasibility = await page.getByRole('heading', { name: 'Feasibility' }).boundingBox()
       const rowCell = page.locator('tr[aria-current="date"]').first()
       await expect(rowCell).toBeVisible()
@@ -116,10 +149,6 @@ for (const viewport of WIDTHS) {
         weekColumnWidth: Math.round((column?.width ?? 0) * 10) / 10,
         feasibilityTop: Math.round(feasibility?.y ?? 0),
         thisWeekRowTop: Math.round(currentRow?.y ?? 0),
-        warningsSpace:
-          warnings === null
-            ? 0
-            : Math.round(warnings.height + warnings.y - ((strip?.y ?? 0) + (strip?.height ?? 0))),
       }
       test.info().annotations.push({ type: 'first-screen', description: JSON.stringify(measured) })
       console.log(`first screen ${JSON.stringify(measured)}`)
@@ -128,7 +157,7 @@ for (const viewport of WIDTHS) {
       // this week's row is on the first screen too, under the strip and above the tab bar; the
       // explanatory panels (Feasibility first) come after the table
       expect(measured.thisWeekRowTop).toBeGreaterThanOrEqual(measured.stripBottom)
-      expect(measured.thisWeekRowTop - measured.warningsSpace).toBeLessThan(measured.tabBarTop)
+      expect(measured.thisWeekRowTop).toBeLessThan(measured.tabBarTop)
       expect(measured.feasibilityTop).toBeGreaterThan(measured.thisWeekRowTop)
 
       // A tap on a week to come scrolls to its row and opens its days.
