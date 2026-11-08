@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { describeRacePoints } from '../../../shared/copy/racePlan.ts'
 import type { RacePlan } from '../../../shared/engine/racePlan.ts'
 import type { Units } from '../../../shared/types.ts'
@@ -10,6 +11,8 @@ export interface CheckpointTableProps {
   plan: RacePlan
   units: Units
   onEdit: () => void
+  /** More controls beside Edit: the course import. */
+  actions?: ReactNode
 }
 
 /**
@@ -18,7 +21,7 @@ export interface CheckpointTableProps {
  * to carry. The cutoff and the arrival range of a row are two facts in two lines; nothing here sets
  * one against the other. The words are `describeRacePoints`'s; this lays them out.
  */
-export function CheckpointTable({ plan, units, onEdit }: CheckpointTableProps) {
+export function CheckpointTable({ plan, units, onEdit, actions }: CheckpointTableProps) {
   const text = describeRacePoints(plan, units)
   return (
     <section className={styles.section} aria-labelledby="race-points">
@@ -72,6 +75,7 @@ export function CheckpointTable({ plan, units, onEdit }: CheckpointTableProps) {
       )}
       <div className={styles.actions}>
         <Button onClick={onEdit}>{text.edit}</Button>
+        {actions}
         {plan.splits === null ? null : (
           <ExplainButton
             subject="the arrival times"

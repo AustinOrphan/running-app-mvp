@@ -53,7 +53,6 @@ export const RACE_PLAN_TEMPLATES = {
     'The race plan is for ultra distances. A shorter race keeps its session as planned.',
   ),
   'race.plan.empty.race-over': tpl('This race is over, so there is no plan to show.'),
-  'race.plan.offline': tpl('The race plan needs a connection. Try again when you are back online.'),
   'race.plan.days-to-go': tpl('{n} days to go', { n: 'count' }, { shape: 'label' }),
   'race.plan.days-to-go-one': tpl('1 day to go', {}, { shape: 'label' }),
   'race.plan.race-day': tpl('Race day', {}, { shape: 'label' }),
@@ -367,6 +366,65 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.points.err-cutoff': tpl('Enter hours and minutes, like 9:30.'),
   'race.plan.points.err-clock': tpl('Enter a time of day that falls after the start.'),
   'race.plan.points.err-count': tpl('There is room for {n} points.', { n: 'count' }),
+
+  // ---- Checkpoints from a course file --------------------------------------------------------------
+  'race.plan.course.import': tpl('Import course GPX', {}, { shape: 'label' }),
+  'race.plan.course.file-label': tpl('Course GPX file', {}, { shape: 'label' }),
+  'race.plan.course.reading': tpl('Reading the course file.'),
+  'race.plan.course.err-unreadable': tpl(
+    'That file could not be read as a course. Choose a GPX file that holds a track.',
+  ),
+  'race.plan.course.err-large': tpl('That file is over {n} MB. Choose a smaller GPX file.', {
+    n: 'count',
+  }),
+  'race.plan.course.sheet': tpl('Checkpoints from the course', {}, { shape: 'label' }),
+  'race.plan.course.summary': tpl(
+    'Course in the file: {distance}, {gain} of climb and {loss} of descent.',
+    { distance: 'distance', gain: 'climb', loss: 'climb' },
+  ),
+  'race.plan.course.summary-flat': tpl(
+    'Course in the file: {distance}. The file holds no elevation, so the climb is left blank.',
+    { distance: 'distance' },
+  ),
+  'race.plan.course.from-waypoints': tpl(
+    'Proposed from the waypoints in the file: {n}. Rename, drop or add points, then type the cutoffs.',
+    { n: 'count' },
+  ),
+  'race.plan.course.spaced': tpl(
+    'The file holds no waypoints, so the points below are spaced evenly, about one in every {spacing}. Rename them and move each to its real place.',
+    { spacing: 'distance' },
+  ),
+  'race.plan.course.off-track': tpl(
+    'Waypoints more than {distance} from the track are left out: {n}.',
+    { distance: 'distance', n: 'count' },
+  ),
+  'race.plan.course.merged': tpl(
+    'Waypoints within {distance} of an earlier one are merged into it: {n}.',
+    { distance: 'distance', n: 'count' },
+  ),
+  'race.plan.course.edge': tpl('Waypoints at the start or the finish are left out: {n}.', {
+    n: 'count',
+  }),
+  'race.plan.course.length-differs': tpl(
+    'The track is {track} long and the goal {goal}. The distances below follow the track.',
+    { track: 'distance', goal: 'distance' },
+  ),
+  'race.plan.course.replaces': tpl('Saving replaces the checkpoints you have now.'),
+  'race.plan.course.point-name': tpl('Point {n}', { n: 'count' }, { shape: 'label' }),
+  'race.plan.course.profile-label': tpl(
+    'Elevation profile, from {low} to {high}',
+    { low: 'climb', high: 'climb' },
+    { shape: 'label' },
+  ),
+  'race.plan.course.profile-caption': tpl(
+    'Elevation in {unit} against distance in {distanceUnit}. Dots mark the checkpoints.',
+    { unit: 'text', distanceUnit: 'text' },
+  ),
+  'race.plan.course.table-profile': tpl('Elevation along the course', {}, { shape: 'label' }),
+  'race.plan.course.table-points': tpl('Checkpoints on the course', {}, { shape: 'label' }),
+  'race.plan.course.col-distance': tpl('Distance ({unit})', { unit: 'text' }, { shape: 'label' }),
+  'race.plan.course.col-elevation': tpl('Elevation ({unit})', { unit: 'text' }, { shape: 'label' }),
+  'race.plan.course.col-name': tpl('Name', {}, { shape: 'label' }),
 } satisfies Record<string, Template>
 
 export type RacePlanTemplateId = keyof typeof RACE_PLAN_TEMPLATES
@@ -426,11 +484,6 @@ const EMPTY_TEMPLATES = {
 /** The line the page shows when there is no plan, and why. */
 export function raceEmptyText(reason: RacePlanReason, units: Units): string {
   return say(EMPTY_TEMPLATES[reason], {}, units)
-}
-
-/** The line the page shows when the plan cannot be read. */
-export function raceOfflineText(units: Units): string {
-  return say(T['race.plan.offline'], {}, units)
 }
 
 /** The title of the page, the heading of the sheet block when it has no summary to show. */
@@ -1089,6 +1142,149 @@ export function describeRacePointsEditor(
         ? say(T['race.plan.points.day-0'], {}, units)
         : say(T['race.plan.points.day-n'], { n: count(day + 1) }, units),
     errCount: (max) => say(T['race.plan.points.err-count'], { n: count(max) }, units),
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The words of the course import
+// ---------------------------------------------------------------------------------------------
+
+/** The fixed words of the import: the button, the file field, the refusals and the sheet. */
+export interface RaceCourseText {
+  importLabel: string
+  fileLabel: string
+  reading: string
+  errUnreadable: string
+  errLarge: (mb: number) => string
+  sheetTitle: string
+  replaces: string
+  pointName: (n: number) => string
+}
+
+export function describeRaceCourse(units: Units): RaceCourseText {
+  return {
+    importLabel: say(T['race.plan.course.import'], {}, units),
+    fileLabel: say(T['race.plan.course.file-label'], {}, units),
+    reading: say(T['race.plan.course.reading'], {}, units),
+    errUnreadable: say(T['race.plan.course.err-unreadable'], {}, units),
+    errLarge: (mb) => say(T['race.plan.course.err-large'], { n: count(mb) }, units),
+    sheetTitle: say(T['race.plan.course.sheet'], {}, units),
+    replaces: say(T['race.plan.course.replaces'], {}, units),
+    pointName: (n) => say(T['race.plan.course.point-name'], { n: count(n) }, units),
+  }
+}
+
+/** What the proposal was made from, for the lines above the rows. */
+export interface RaceCourseProposalFacts {
+  distanceM: number
+  gainM: number | null
+  lossM: number | null
+  basis: 'waypoints' | 'spaced'
+  /** The waypoints the rows were made from. */
+  waypoints: number
+  /** The gap between the evenly spaced rows. */
+  spacingM: number
+  offTrack: number
+  offTrackM: number
+  merged: number
+  mergeM: number
+  edge: number
+  /** The goal's distance when it differs from the track's by enough to say so; else null. */
+  goalDistanceM: number | null
+}
+
+export function describeRaceCourseProposal(
+  facts: RaceCourseProposalFacts,
+  units: Units,
+): { summary: string; source: string; notices: string[] } {
+  const distance = (m: number) => ({ kind: 'distance', m }) as const
+  const summary =
+    facts.gainM === null || facts.lossM === null
+      ? say(T['race.plan.course.summary-flat'], { distance: distance(facts.distanceM) }, units)
+      : say(
+          T['race.plan.course.summary'],
+          {
+            distance: distance(facts.distanceM),
+            gain: { kind: 'climb', m: facts.gainM },
+            loss: { kind: 'climb', m: facts.lossM },
+          },
+          units,
+        )
+  const source =
+    facts.basis === 'waypoints'
+      ? say(T['race.plan.course.from-waypoints'], { n: count(facts.waypoints) }, units)
+      : say(T['race.plan.course.spaced'], { spacing: distance(facts.spacingM) }, units)
+  const notices: string[] = []
+  if (facts.goalDistanceM !== null) {
+    notices.push(
+      say(
+        T['race.plan.course.length-differs'],
+        { track: distance(facts.distanceM), goal: distance(facts.goalDistanceM) },
+        units,
+      ),
+    )
+  }
+  if (facts.offTrack > 0) {
+    notices.push(
+      say(
+        T['race.plan.course.off-track'],
+        { distance: distance(facts.offTrackM), n: count(facts.offTrack) },
+        units,
+      ),
+    )
+  }
+  if (facts.merged > 0) {
+    notices.push(
+      say(
+        T['race.plan.course.merged'],
+        { distance: distance(facts.mergeM), n: count(facts.merged) },
+        units,
+      ),
+    )
+  }
+  if (facts.edge > 0) notices.push(say(T['race.plan.course.edge'], { n: count(facts.edge) }, units))
+  return { summary, source, notices }
+}
+
+/** The labels of the elevation profile chart and its hidden tables. */
+export interface RaceCourseProfileText {
+  /** The picture's name for a screen reader, with its lowest and highest points. */
+  label: string
+  caption: string
+  tableProfile: string
+  tablePoints: string
+  colDistance: string
+  colElevation: string
+  colName: string
+  /** `km` or `mi`, and `m` or `ft`: the axes' units. */
+  distanceUnit: string
+  elevationUnit: string
+}
+
+export function describeRaceCourseProfile(
+  range: { lowM: number; highM: number },
+  units: Units,
+): RaceCourseProfileText {
+  const distanceUnit = units === 'mi' ? 'mi' : 'km'
+  const elevationUnit = units === 'mi' ? 'ft' : 'm'
+  return {
+    label: say(
+      T['race.plan.course.profile-label'],
+      { low: { kind: 'climb', m: range.lowM }, high: { kind: 'climb', m: range.highM } },
+      units,
+    ),
+    caption: say(
+      T['race.plan.course.profile-caption'],
+      { unit: elevationUnit, distanceUnit },
+      units,
+    ),
+    tableProfile: say(T['race.plan.course.table-profile'], {}, units),
+    tablePoints: say(T['race.plan.course.table-points'], {}, units),
+    colDistance: say(T['race.plan.course.col-distance'], { unit: distanceUnit }, units),
+    colElevation: say(T['race.plan.course.col-elevation'], { unit: elevationUnit }, units),
+    colName: say(T['race.plan.course.col-name'], {}, units),
+    distanceUnit,
+    elevationUnit,
   }
 }
 

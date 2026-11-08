@@ -2,7 +2,7 @@
 // H14, ADR 0018): each reads the one plan, and every sentence passes the copy lint.
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import {
   describeRacePlan,
   describeRacePoints,
@@ -20,6 +20,7 @@ import { RaceSessionSection } from '../../web/components/race/RaceSessionSection
 import { TodaySlot } from '../../web/components/today/TodaySlot.tsx'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { RacePage } from '../../web/pages/RacePage.tsx'
+import { courseGpx } from '../fixtures/course/buildCourseGpx.ts'
 import { expectCleanCopy, makeTestQueryClient, mockApi, renderWithProviders } from './helpers.tsx'
 import { makeCoach, makeToday } from './today-fixtures.ts'
 
@@ -186,7 +187,7 @@ describe('RacePage', () => {
     expect(screen.queryByRole('heading', { level: 2 })).toBeNull()
   })
 
-  test('says it needs a connection when the plan cannot be read', async () => {
+  test('says the plan did not load when it cannot be read, and offers to try again', async () => {
     mockApi({
       'GET /api/race/plan': () => ({
         status: 503,
@@ -195,7 +196,8 @@ describe('RacePage', () => {
       'GET /api/settings': () => SETTINGS,
     })
     renderWithProviders(<RacePage />, { route: '/race' })
-    expect(await screen.findByRole('alert')).toHaveTextContent(/needs a connection/)
+    expect(await screen.findByRole('alert')).toHaveTextContent('The race plan did not load.')
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 })
 
@@ -490,5 +492,140 @@ describe('RacePage: the checkpoint table', () => {
         calls.find((c) => c.method === 'PUT')!.body as { checkpoints: CheckpointInput[] }
       ).checkpoints.map((row) => row.name),
     ).toEqual(['Checkpoint B'])
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The course import
+// ---------------------------------------------------------------------------------------------
+
+describe('RacePage: Import course GPX', () => {
+  const gpxFile = (text: string, name = 'course.gpx') =>
+    new File([text], name, { type: 'application/gpx+xml' })
+
+  function setup(plan: RacePlan = planWith()) {
+    return mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/race/checkpoints': () => ROWS_VIEW(plan),
+      'PUT /api/race/checkpoints': ({ body }) => ({
+        goalId: plan.goalId,
+        distanceM: plan.distanceM,
+        checkpoints: (body as { checkpoints: CheckpointInput[] }).checkpoints,
+      }),
+    })
+  }
+
+  test('proposes the waypoints, lets the runner rename, drop and type a cutoff, and sends only the confirmed rows', async () => {
+    const { calls } = setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    const file = gpxFile(
+      courseGpx({
+        waypoints: [
+          { name: 'Station A', at: 40 },
+          { name: 'Station B', at: 90 },
+          { name: 'Station C', at: 120 },
+        ],
+      }),
+    )
+    await user.upload(screen.getByLabelText('Course GPX file'), file)
+
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(within(dialog).getByText(/Proposed from the waypoints in the file: 3/)).toBeVisible()
+    expect(within(dialog).getByText(/Course in the file: 161\.\d km/)).toBeVisible()
+    // The saved table is not read: the rows come from the file.
+    expect(calls.filter((c) => c.url.includes('/race/checkpoints'))).toEqual([])
+    const first = await within(dialog).findByRole('group', { name: 'Point 1' })
+    expect(within(first).getByLabelText('Name')).toHaveValue('Station A')
+    expect(within(first).getByLabelText('Climb (m)')).not.toHaveValue('')
+
+    await user.clear(within(first).getByLabelText('Name'))
+    await user.type(within(first).getByLabelText('Name'), 'Lower station')
+    await user.type(within(first).getByLabelText('Cutoff, hours and minutes into the race'), '9:30')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Point 2' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    const sent = (calls.find((c) => c.method === 'PUT')!.body as { checkpoints: CheckpointInput[] })
+      .checkpoints
+    expect(sent.map((row) => row.name)).toEqual(['Lower station', 'Station C'])
+    expect(sent[0]!.cutoffSec).toBe(9.5 * HOUR)
+    expect(sent[1]!.cutoffSec).toBeNull()
+    // Only the rows go: no track and no waypoint list.
+    expect(Object.keys(calls.find((c) => c.method === 'PUT')!.body as object)).toEqual([
+      'checkpoints',
+    ])
+    expect(JSON.stringify(calls.find((c) => c.method === 'PUT')!.body).length).toBeLessThan(600)
+  })
+
+  test('draws the profile with a hidden table of the course and the checkpoints', async () => {
+    setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(
+      screen.getByLabelText('Course GPX file'),
+      gpxFile(courseGpx({ waypoints: [{ name: 'Station A', at: 40 }] })),
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(
+      await within(dialog).findByRole('img', { name: /^Elevation profile, from \d+ m to \d+ m$/ }),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText(/Dots mark the checkpoints/)).toBeVisible()
+    const table = await within(dialog).findByRole('table', { name: 'Checkpoints on the course' })
+    expect(within(table).getByRole('rowheader', { name: 'Station A' })).toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  test('proposes evenly spaced rows, and says so, when the file has no waypoints', async () => {
+    setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(courseGpx()))
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(
+      within(dialog).getByText(
+        /The file holds no waypoints, so the points below are spaced evenly/,
+      ),
+    ).toBeVisible()
+    expect(await within(dialog).findByRole('group', { name: 'Point 1' })).toBeInTheDocument()
+  })
+
+  test('says the saved table is replaced when the plan already has rows', async () => {
+    setup(planWith({}, 'aided', POINTS))
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(courseGpx()))
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(within(dialog).getByText('Saving replaces the checkpoints you have now.')).toBeVisible()
+  })
+
+  test('says in one sentence that a file is not a course, and opens nothing', async () => {
+    setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile('<kml></kml>'))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'That file could not be read as a course. Choose a GPX file that holds a track.',
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  test('works with no connection until the save', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const { calls } = setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(courseGpx()))
+    expect(await screen.findByRole('dialog', { name: 'Checkpoints from the course' })).toBeVisible()
+    expect(calls.filter((c) => c.method === 'PUT')).toEqual([])
   })
 })

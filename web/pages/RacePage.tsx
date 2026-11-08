@@ -4,7 +4,6 @@ import {
   daysToGoText,
   describeRacePlan,
   raceEmptyText,
-  raceOfflineText,
   raceTitleText,
 } from '../../shared/copy/racePlan.ts'
 import type { RacePlan } from '../../shared/engine/racePlan.ts'
@@ -12,11 +11,15 @@ import type { Units } from '../../shared/types.ts'
 import { rulesRef } from '../api/explain.ts'
 import { useRacePlan } from '../api/race.ts'
 import { useSettings } from '../api/settings.ts'
+import { ErrorState } from '../components/ErrorState.tsx'
 import { ExplainButton } from '../components/ExplainButton.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { CheckpointSheet } from '../components/race/CheckpointSheet.tsx'
 import { CheckpointTable } from '../components/race/CheckpointTable.tsx'
+import { CourseImportButton } from '../components/race/CourseImportButton.tsx'
+import type { CourseImport } from '../components/race/courseImport.ts'
 import { RaceFuelBlock, RaceWeekBlock } from '../components/race/RaceBlocks.tsx'
 import cardStyles from '../components/race/Race.module.css'
 import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
@@ -27,6 +30,8 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
   const text = useMemo(() => describeRacePlan(plan, units), [plan, units])
   const { expected, effort, climbing, heat, raceWeek, dark } = text
   const [editing, setEditing] = useState(false)
+  // A course read from a file: the editor opens on the rows proposed from it.
+  const [course, setCourse] = useState<CourseImport | null>(null)
   return (
     <div className={styles.page}>
       <section className={cardStyles.section} aria-labelledby="race-expected">
@@ -134,13 +139,25 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
         onEdit={() => {
           setEditing(true)
         }}
+        actions={
+          <CourseImportButton
+            units={units}
+            goalDistanceM={plan.distanceM}
+            onRead={(read) => {
+              setCourse(read)
+              setEditing(true)
+            }}
+          />
+        }
       />
       {editing ? (
         <CheckpointSheet
           plan={plan}
           units={units}
+          course={course ?? undefined}
           onClose={() => {
             setEditing(false)
+            setCourse(null)
           }}
         />
       ) : null}
@@ -234,6 +251,7 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
  */
 export function RacePage() {
   const race = useRacePlan()
+  const raceView = useLoadView(race)
   const settings = useSettings()
   const units = settings.data?.units ?? (settings.isError ? 'km' : undefined)
   const view = race.data
@@ -246,10 +264,12 @@ export function RacePage() {
   return (
     <>
       <PageHeader title={raceTitleText(units ?? 'km')} context={context} />
-      {race.isError ? (
-        <p role="alert" className={cardStyles.error}>
-          {raceOfflineText(units ?? 'km')}
-        </p>
+      {raceView === 'failed' || raceView === 'retrying' ? (
+        <ErrorState
+          subject="The race plan"
+          onRetry={() => race.refetch()}
+          retrying={raceView === 'retrying'}
+        />
       ) : view === undefined || units === undefined ? (
         <Skeleton lines={6} />
       ) : plan === null ? (

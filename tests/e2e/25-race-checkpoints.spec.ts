@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
+import { courseGpx } from '../fixtures/course/buildCourseGpx.ts'
 import { relativeDates, resetData, signedInApi, toast, type Api } from './helpers.ts'
 
 // The runner's checkpoint table on the Race page (rule H14, ADR 0018, step 4 of the race plan):
@@ -183,4 +184,72 @@ test('a self-supported race calls them course points, with no aid wording and no
   const text = (await section.textContent()) ?? ''
   expect(text).not.toMatch(/aid|checkpoint(?!\s[A-C])|Carry about|Grams to carry/i)
   expect(await scrollsSideways()).toBe(false)
+})
+
+test('imports a course GPX file: proposes its waypoints, draws the profile, and saves only the confirmed rows', async () => {
+  await api.put(`/goals/${goalId}`, { supportLevel: 'aided' })
+  await page.goto('/race')
+  const file = courseGpx({
+    waypoints: [
+      { name: 'Station A', at: 40 },
+      { name: 'Station B', at: 90 },
+      { name: 'Station C', at: 120 },
+    ],
+  })
+  await page.getByLabel('Course GPX file').setInputFiles({
+    name: 'example-course.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(file),
+  })
+  const dialog = page.getByRole('dialog', { name: 'Checkpoints from the course' })
+  await expect(dialog).toBeVisible()
+  await expect(
+    dialog.getByText('Proposed from the waypoints in the file: 3.', { exact: false }),
+  ).toBeVisible()
+  await expect(
+    dialog.getByRole('img', { name: /^Elevation profile, from \d+ (m|ft) to \d+ (m|ft)$/ }),
+  ).toBeVisible()
+  await expect(dialog.getByRole('group', { name: 'Point 3' })).toBeVisible()
+  // the dialog holds its width at 360 px, the chart included
+  expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+  await page.screenshot({ path: test.info().outputPath('course-import-360.png') })
+
+  const first = dialog.getByRole('group', { name: 'Point 1' })
+  await expect(first.getByLabel('Name')).toHaveValue('Station A')
+  await first.getByLabel('Name').fill('Lower station')
+  await first.getByLabel('Cutoff, hours and minutes into the race').fill('9:30')
+  await dialog.getByRole('button', { name: 'Remove Point 2' }).click()
+  await dialog.getByRole('button', { name: 'Save' }).click()
+  await expect(toast(page, 'Saved')).toBeVisible()
+  await expect(dialog).toBeHidden()
+
+  const list = page.getByRole('list', { name: 'Arrival times by point' })
+  await expect(list.getByRole('article')).toHaveCount(3)
+  await expect(
+    list
+      .getByRole('article', { name: 'Lower station' })
+      .getByText('Cutoff 9 h 30 min into the race'),
+  ).toBeVisible()
+  await expect(list.getByRole('article', { name: 'Station C' })).toBeVisible()
+  await expect(list.getByRole('article', { name: 'Station B' })).toHaveCount(0)
+  // the table holds the rows alone: nothing of the track was stored
+  const saved = (await api.get('/race/checkpoints')) as {
+    checkpoints: Array<Record<string, unknown>>
+  }
+  expect(saved.checkpoints.map((row) => Object.keys(row).sort())).toEqual([
+    ['cutoffSec', 'distanceM', 'gainM', 'lossM', 'name'],
+    ['cutoffSec', 'distanceM', 'gainM', 'lossM', 'name'],
+  ])
+  expect(await scrollsSideways()).toBe(false)
+})
+
+test('a file that is not a course says so and opens nothing', async () => {
+  await page.goto('/race')
+  await page.getByLabel('Course GPX file').setInputFiles({
+    name: 'not-a-course.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from('<gpx></gpx>'),
+  })
+  await expect(page.getByRole('alert')).toContainText('That file could not be read as a course')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
 })

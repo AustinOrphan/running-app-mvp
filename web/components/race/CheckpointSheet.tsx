@@ -1,5 +1,10 @@
-import { useId, useRef, useState, type FormEvent } from 'react'
-import { describeRacePointsEditor, raceOfflineText } from '../../../shared/copy/racePlan.ts'
+import { useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import {
+  describeRaceCourse,
+  describeRaceCourseProfile,
+  describeRaceCourseProposal,
+  describeRacePointsEditor,
+} from '../../../shared/copy/racePlan.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { RacePlan } from '../../../shared/engine/racePlan.ts'
 import { startMinutes } from '../../../shared/engine/goal.ts'
@@ -7,8 +12,12 @@ import { RACE_CHECKPOINT_NAME_MAX } from '../../../shared/limits.ts'
 import type { RaceCheckpointRow, Units } from '../../../shared/types.ts'
 import { fieldErrors } from '../../api/client.ts'
 import { useRaceCheckpoints, useSaveRaceCheckpoints } from '../../api/race.ts'
+import { CourseProfileChart } from '../charts/lazyCharts.tsx'
+import { parseDistance } from '../goalFormat.ts'
 import { Button } from '../Button.tsx'
+import { ErrorState } from '../ErrorState.tsx'
 import { Field, Input, Select } from '../Field.tsx'
+import { useLoadView } from '../loadView.ts'
 import { Sheet } from '../Sheet.tsx'
 import { Skeleton } from '../Skeleton.tsx'
 import { useToast } from '../Toast.tsx'
@@ -21,6 +30,7 @@ import {
   type PointErrors,
   type PointField,
 } from './checkpointForm.ts'
+import type { CourseImport } from './courseImport.ts'
 import styles from './CheckpointSheet.module.css'
 
 /** The server's field names: the draft field each belongs to and the refusal it shows. */
@@ -39,14 +49,67 @@ interface EditorProps {
   plan: RacePlan
   units: Units
   rows: RaceCheckpointRow[]
+  /** The course the rows were proposed from, when the editor was opened by an import. */
+  course: CourseImport | null
   onClose: () => void
 }
 
-function Editor({ plan, units, rows, onClose }: EditorProps) {
+/** The summary, the lines about how the rows were made, and the elevation profile of an import. */
+function CourseBlock({
+  course,
+  drafts,
+  units,
+  replaces,
+}: {
+  course: CourseImport
+  drafts: readonly PointDraft[]
+  units: Units
+  replaces: boolean
+}) {
+  const words = describeRaceCourse(units)
+  const proposal = describeRaceCourseProposal(course.facts, units)
+  const heights = course.course.profile.flatMap((p) => (p.altM === null ? [] : [p.altM]))
+  const profileText = describeRaceCourseProfile(
+    { lowM: Math.min(...heights), highM: Math.max(...heights) },
+    units,
+  )
+  // The dots follow what is typed: a row dragged to another distance, or dropped, moves or goes.
+  const marks = useMemo(
+    () =>
+      drafts.flatMap((draft, index) => {
+        const distanceM = parseDistance(draft.distance, units)
+        return distanceM === null
+          ? []
+          : [{ name: draft.name.trim() || `${String(index + 1)}`, distanceM }]
+      }),
+    [drafts, units],
+  )
+  return (
+    <div className={styles.course}>
+      <p className={styles.hint}>{proposal.summary}</p>
+      <CourseProfileChart
+        profile={course.course.profile}
+        marks={marks}
+        units={units}
+        text={profileText}
+      />
+      <p className={styles.hint}>{proposal.source}</p>
+      {proposal.notices.map((notice) => (
+        <p key={notice} className={styles.hint}>
+          {notice}
+        </p>
+      ))}
+      {replaces ? <p className={styles.hint}>{words.replaces}</p> : null}
+    </div>
+  )
+}
+
+function Editor({ plan, units, rows, course, onClose }: EditorProps) {
   const formId = useId()
   const toast = useToast()
   const save = useSaveRaceCheckpoints()
   const text = describeRacePointsEditor({ supportLevel: plan.supportLevel }, units)
+  const courseWords = describeRaceCourse(units)
   const nextKey = useRef(rows.length)
   const newKey = () => `point-${String(nextKey.current++)}`
   const [drafts, setDrafts] = useState<PointDraft[]>(() =>
@@ -121,7 +184,7 @@ function Editor({ plan, units, rows, onClose }: EditorProps) {
     <Sheet
       open
       onClose={onClose}
-      title={text.title}
+      title={course === null ? text.title : courseWords.sheetTitle}
       busy={save.isPending}
       footer={
         <Button type="submit" form={formId} variant="primary" loading={save.isPending}>
@@ -130,6 +193,14 @@ function Editor({ plan, units, rows, onClose }: EditorProps) {
       }
     >
       <form id={formId} className={styles.form} onSubmit={submit} noValidate>
+        {course === null ? null : (
+          <CourseBlock
+            course={course}
+            drafts={drafts}
+            units={units}
+            replaces={(plan.splits?.rows.length ?? 0) > 1}
+          />
+        )}
         <p className={styles.hint}>{text.hint}</p>
         {drafts.map((draft, index) => {
           const own = errors[index] ?? {}
@@ -290,6 +361,12 @@ function Editor({ plan, units, rows, onClose }: EditorProps) {
 export interface CheckpointSheetProps {
   plan: RacePlan
   units: Units
+  /**
+   * A course read from a GPX file: the editor then starts from the rows proposed from it, shows the
+   * profile, and a save replaces the table. The saved table is not read, so an import works with
+   * no connection until the save.
+   */
+  course?: CourseImport
   onClose: () => void
 }
 
@@ -299,21 +376,35 @@ export interface CheckpointSheetProps {
  * time into the race or, with a start time, as a time of day. A save replaces the whole table. The
  * rows are the runner's private data; a refusal is shown on the point and field it names.
  */
-export function CheckpointSheet({ plan, units, onClose }: CheckpointSheetProps) {
-  const query = useRaceCheckpoints()
+export function CheckpointSheet({ plan, units, course, onClose }: CheckpointSheetProps) {
+  const query = useRaceCheckpoints({ enabled: course === undefined })
+  const loadView = useLoadView(query)
   const text = describeRacePointsEditor({ supportLevel: plan.supportLevel }, units)
+  if (course !== undefined) {
+    return <Editor plan={plan} units={units} rows={course.rows} course={course} onClose={onClose} />
+  }
   if (query.data === undefined) {
     return (
       <Sheet open onClose={onClose} title={text.title}>
-        {query.isError ? (
-          <p role="alert" className={styles.error}>
-            {raceOfflineText(units)}
-          </p>
+        {loadView === 'failed' || loadView === 'retrying' ? (
+          <ErrorState
+            subject="The checkpoints"
+            onRetry={() => query.refetch()}
+            retrying={loadView === 'retrying'}
+          />
         ) : (
           <Skeleton lines={4} />
         )}
       </Sheet>
     )
   }
-  return <Editor plan={plan} units={units} rows={query.data.checkpoints} onClose={onClose} />
+  return (
+    <Editor
+      plan={plan}
+      units={units}
+      rows={query.data.checkpoints}
+      course={null}
+      onClose={onClose}
+    />
+  )
 }

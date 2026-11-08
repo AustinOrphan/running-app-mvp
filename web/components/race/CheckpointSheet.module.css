@@ -48,3 +48,11 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
+
+/* The summary of an imported course, its profile and the lines about how the rows were made. */
+.course {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}

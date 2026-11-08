@@ -6,6 +6,9 @@ import { lintText } from '../../../shared/copy/lint.ts'
 import {
   clockRangeText,
   clockText,
+  describeRaceCourse,
+  describeRaceCourseProfile,
+  describeRaceCourseProposal,
   describeRacePlan,
   describeRacePoints,
   describeRacePointsEditor,
@@ -543,5 +546,64 @@ describe('the words of the checkpoint table', () => {
         if (typeof value === 'string') expect(lintText(value), key).toEqual([])
       }
     }
+  })
+})
+
+describe('the words of the course import', () => {
+  const facts = {
+    distanceM: 161_000,
+    gainM: 6_200,
+    lossM: 6_100,
+    basis: 'waypoints' as const,
+    waypoints: 18,
+    spacingM: 15_000,
+    offTrack: 2,
+    offTrackM: 300,
+    merged: 1,
+    mergeM: 50,
+    edge: 2,
+    goalDistanceM: 150_000,
+  }
+
+  it.each(UNITS)('pass the G5 lint in %s', (units) => {
+    const proposals = [
+      describeRaceCourseProposal(facts, units),
+      describeRaceCourseProposal({ ...facts, basis: 'spaced', gainM: null, lossM: null }, units),
+    ]
+    const words = [
+      allText(describeRaceCourse(units)),
+      allText(proposals),
+      allText(describeRaceCourseProfile({ lowM: 300, highM: 900 }, units)),
+      [describeRaceCourse(units).errLarge(25), describeRaceCourse(units).pointName(3)],
+    ].flat()
+    expect(words.length).toBeGreaterThan(20)
+    for (const line of words) expect(lintText(line), line).toEqual([])
+  })
+
+  it('says each fact once and nothing that sets a pace or a target', () => {
+    const text = describeRaceCourseProposal(facts, 'km')
+    expect(text.summary).toBe('Course in the file: 161 km, 6200 m of climb and 6100 m of descent.')
+    expect(text.source).toBe(
+      'Proposed from the waypoints in the file: 18. Rename, drop or add points, then type the cutoffs.',
+    )
+    expect(text.notices).toHaveLength(4)
+    expect(text.notices.join(' ')).toMatch(/goal 150 km/)
+    const joined = [text.summary, text.source, ...text.notices].join('\n')
+    expect(joined).not.toMatch(/\d:\d\d ?\/ ?(km|mi)|\b(pace|split|target time|goal time)\b/i)
+  })
+
+  it('reads the climb in feet for miles, and names the axes', () => {
+    expect(describeRaceCourseProposal(facts, 'mi').summary).toContain('ft of climb')
+    const profile = describeRaceCourseProfile({ lowM: 300, highM: 900 }, 'mi')
+    expect(profile.distanceUnit).toBe('mi')
+    expect(profile.elevationUnit).toBe('ft')
+    expect(profile.caption).toBe(
+      'Elevation in ft against distance in mi. Dots mark the checkpoints.',
+    )
+  })
+
+  it('says no climb when the file holds no elevation', () => {
+    const flat = describeRaceCourseProposal({ ...facts, gainM: null, lossM: null }, 'km')
+    expect(flat.summary).toContain('no elevation')
   })
 })
