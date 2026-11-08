@@ -163,9 +163,7 @@ test("the Rehearsal block counts a night run and downhill time from the runner's
       await page.setViewportSize({ width: viewport.width, height: viewport.height })
       await page.goto('/race')
       const block = page.getByRole('region', { name: 'Rehearsal' })
-      await expect(
-        block.getByText(/^Night runs: 1 since .*, 1 h 30 min in the dark\.$/),
-      ).toBeVisible()
+      await expect(block.getByText(/^Night runs: 1 since .*, 90 min in the dark\.$/)).toBeVisible()
       await expect(block.getByText('Downhill: 30 min on grades of 6% or steeper.')).toBeVisible()
       await expect(block.getByText('Long runs with 10 min or more of it: 1.')).toBeVisible()
       const text = (await block.textContent()) ?? ''
