@@ -92,7 +92,7 @@ describe('the run and rating routes', () => {
     expect((await r.store.read()).map((e) => e.held)).toEqual([true, true])
 
     r.send.mockImplementation(() =>
-      Promise.resolve<SendResult>({ kind: 'refused', reason: 'Already logged.', conflict: true }),
+      Promise.resolve<SendResult>({ kind: 'refused', reason: 'Already logged.' }),
     )
     await r.outbox.flush()
     expect(r.outbox.getState().notices.map((n) => n.message)).toEqual([
@@ -357,6 +357,37 @@ describe('replay', () => {
     await outbox.flush()
     expect(send).not.toHaveBeenCalled()
     expect(await store.read()).toEqual([])
+  })
+
+  test('a run and a rating never age out, where a check-in does', async () => {
+    const { outbox, store, send, online, clock } = rig()
+    const RUN = '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+    online.value = false
+    await outbox.save(OTHER_URL, { fatigue: 1 })
+    await outbox.save(RUN, { date: DAY })
+    await outbox.save('/api/activities/r1/feedback', { rpe: 5 })
+    clock.now += OUTBOX_MAX_AGE_MS + 1
+    online.value = true
+    await outbox.flush()
+    expect(send.mock.calls.map(([entry]) => entry.url)).toEqual([
+      RUN,
+      '/api/activities/r1/feedback',
+    ])
+    expect(await store.read()).toEqual([])
+  })
+
+  test('a conflict found on replay tells the listeners and says only the server sentence', async () => {
+    const r = rig({ send: () => Promise.resolve({ kind: 'retry' }) })
+    const RUN = '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+    await r.outbox.save(RUN, { date: DAY })
+    const seen: string[] = []
+    r.outbox.onConflict((entry) => seen.push(entry.url))
+    r.send.mockImplementation(() =>
+      Promise.resolve<SendResult>({ kind: 'refused', reason: 'Already logged.', conflict: true }),
+    )
+    await r.outbox.flush()
+    expect(seen).toEqual([RUN])
+    expect(r.outbox.getState().notices.map((n) => n.message)).toEqual(['Already logged.'])
   })
 
   test('a send that never answers counts as no connection, and does not hold the queue', async () => {

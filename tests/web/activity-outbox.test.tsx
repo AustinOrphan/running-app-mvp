@@ -129,9 +129,38 @@ describe('a Done through the outbox', () => {
       await getOutbox().flush()
     })
     expect(getOutbox().getState().entries).toEqual([])
-    expect(result.current.notices.notices.map((n) => n.message)).toEqual([
-      `A run saved on this phone was not added. ${ALREADY} Enter it again if it still applies.`,
-    ])
+    expect(result.current.notices.notices.map((n) => n.message)).toEqual([ALREADY])
+  })
+})
+
+describe('a conflict found on replay', () => {
+  test('reads Today again, so the card agrees with the notice', async () => {
+    let connected = false
+    mockApi({ [`PUT ${doneUrl(ID)}`]: () => (connected ? conflict : offline) })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(
+      () => {
+        useOutboxReplay('u1')
+        return useSaveDone()
+      },
+      {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children),
+      },
+    )
+    await act(async () => {
+      await result.current.mutateAsync({ id: ID, body: BODY })
+    })
+    invalidate.mockClear()
+    connected = true
+    await act(async () => {
+      await getOutbox().flush()
+    })
+    const keysRead = invalidate.mock.calls.map(
+      ([filter]) => (filter as { queryKey: string[] }).queryKey[0],
+    )
+    expect(keysRead).toContain('today')
   })
 })
 

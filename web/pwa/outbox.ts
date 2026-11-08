@@ -16,6 +16,7 @@
 // - A 4xx (any other) drops the entry with one message. A 401 clears the whole queue, and so does
 //   sign-out and a new sign-in: the queue holds health data (ADR 0012). An entry older than 7 days
 //   is dropped.
+// - A run and a rating never expire: they are the only record of the run (ADR 0012, second addendum).
 // - Replays start on `online`, on a return to the foreground and when the app opens.
 // - The queue belongs to the signed-in user. Each entry carries the id it was queued under, and
 //   `adopt` drops the entries of anyone else before the first replay, so a queue that outlived a
@@ -52,6 +53,11 @@ export interface OutboxRoute {
    * another phone had already logged), where the generic notice only says it was removed.
    */
   quoteReason?: boolean
+  /**
+   * False for a write that must not age out: a run or rating is the only record of it, the PUT is
+   * idempotent and its date is historical. Absent means the entry is dropped after `OUTBOX_MAX_AGE_MS`.
+   */
+  expires?: boolean
 }
 
 /**
@@ -94,6 +100,7 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
     combine: 'replace',
     invalidates: [...ACTIVITY_DATA_KEYS],
     quoteReason: true,
+    expires: false,
   },
   {
     // `PUT /api/activities/:id/feedback` stores the rating keys it names (effort, feel, pain) and
@@ -103,6 +110,7 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
     combine: 'merge',
     invalidates: [...ACTIVITY_DATA_KEYS],
     quoteReason: true,
+    expires: false,
   },
 ]
 
@@ -407,6 +415,8 @@ export interface Outbox {
   dismissNotice(id: number): void
   /** Called after each entry the server accepted. Returns the way to stop listening. */
   onSent(listener: (entry: OutboxEntry) => void): () => void
+  /** Called after each entry the server refused with a 409. Returns the way to stop listening. */
+  onConflict(listener: (entry: OutboxEntry) => void): () => void
 }
 
 const bySeq = (a: OutboxEntry, b: OutboxEntry): number => a.seq - b.seq
@@ -492,6 +502,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
   const sendTimeoutMs = deps.sendTimeoutMs ?? OUTBOX_SEND_TIMEOUT_MS
   const listeners = new Set<() => void>()
   const sentListeners = new Set<(entry: OutboxEntry) => void>()
+  const conflictListeners = new Set<(entry: OutboxEntry) => void>()
   let state: OutboxState = { entries: [], notices: [] }
   let nextNoticeId = 1
   let running: Promise<Report> | null = null
@@ -515,7 +526,9 @@ export function createOutbox(deps: OutboxDeps): Outbox {
   async function expire(): Promise<OutboxEntry[]> {
     const cutoff = now() - OUTBOX_MAX_AGE_MS
     const entries = await store.transact((current) => {
-      const fresh = current.filter((entry) => entry.queuedAt >= cutoff)
+      const fresh = current.filter(
+        (entry) => entry.queuedAt >= cutoff || routeOf(entry.url)?.expires === false,
+      )
       return fresh.length === current.length ? current : fresh
     })
     publish({ entries: [...entries].sort(bySeq) })
@@ -571,12 +584,15 @@ export function createOutbox(deps: OutboxDeps): Outbox {
         for (const listener of [...sentListeners]) listener(next)
         continue
       }
+      if (result.conflict === true) for (const listener of [...conflictListeners]) listener(next)
       report.refused.set(next.url, { reason: result.reason, conflict: result.conflict === true })
       if (!waiting.has(next.url)) {
         const route = routeOf(next.url)
         const what = route?.label ?? 'entry'
-        const message =
-          route?.quoteReason === true
+        // A conflict is said once, in the server's own sentence: there is nothing to enter again.
+        const message = result.conflict
+          ? result.reason
+          : route?.quoteReason === true
             ? render(TEMPLATES['today.outbox.dropped-why'], { what, reason: result.reason }, 'mi')
             : render(TEMPLATES['today.outbox.dropped'], { what }, 'mi')
         publish({ notices: [...state.notices, { id: nextNoticeId++, url: next.url, message }] })
@@ -672,6 +688,12 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     clear,
     dismissNotice(id) {
       publish({ notices: state.notices.filter((notice) => notice.id !== id) })
+    },
+    onConflict(listener) {
+      conflictListeners.add(listener)
+      return () => {
+        conflictListeners.delete(listener)
+      }
     },
     onSent(listener) {
       sentListeners.add(listener)
@@ -790,6 +812,10 @@ export function useOutboxReplay(userId: string | null): void {
     const stopListening = outbox.onSent((entry) => {
       void refreshAfterSend(queryClient, entry.url)
     })
+    // A run another phone logged first: Today is read again, so the card agrees with the notice.
+    const stopConflicts = outbox.onConflict((entry) => {
+      void refreshAfterSend(queryClient, entry.url)
+    })
     void outbox.adopt(userId).then(() => {
       ready = true
       flush()
@@ -800,6 +826,7 @@ export function useOutboxReplay(userId: string | null): void {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
       stopListening()
+      stopConflicts()
     }
   }, [queryClient, userId])
 }
