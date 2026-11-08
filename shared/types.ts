@@ -629,6 +629,11 @@ export interface UserSettings {
    * the chart and deletes no weigh-in.
    */
   showBodyWeight: boolean
+  /**
+   * Whether the track read leaves out the first and last 200 m of a run's map (M1a), so a
+   * screenshot never shows where the runner starts. On by default; the stored track is whole.
+   */
+  hideMapEnds: boolean
 }
 export interface SessionUser extends UserSettings {
   id: string

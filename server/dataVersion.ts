@@ -60,6 +60,12 @@ export const STATE_MODELS = [
 export const NON_STATE_MODELS = [
   'ActivityStream',
   'ActivityFile',
+  // The simplified route of a run for its map (M1a). Derived from the stored file or stream, written
+  // by the import and by the `track` backfill job, and read by no snapshot, memo or deliverable:
+  // only `GET /api/activities/:id/track` reads it, straight from the table. As state, each backfill
+  // write would drop the snapshot it was computed from. `activityStore.ts` and `trackBackfill.ts`
+  // are its only writers.
+  'ActivityTrack',
   'ImportBatch',
   'ImportedFile',
   'Integration',

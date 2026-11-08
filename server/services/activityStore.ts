@@ -12,6 +12,8 @@ import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
 import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
+import { buildTrack, hasTrack } from '../../shared/importers/files/track.ts'
+import type { Track } from '../../shared/importers/files/track.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 
 export interface StoreOptions {
@@ -35,6 +37,21 @@ function roundOrNull(value: number | null): number | null {
 /** Start coordinates are kept to 0.01 degrees (about 1 km). */
 function roundCoordinate(value: number | null): number | null {
   return value === null ? null : Math.round(value * 100) / 100
+}
+
+/** The `ActivityTrack` columns of a built track. */
+export function trackRow(track: Track) {
+  return {
+    v: track.v,
+    polyline: track.polyline,
+    distM: JSON.stringify(track.distM),
+    pointCount: track.pointCount,
+    minLat: track.bbox.minLat,
+    minLng: track.bbox.minLng,
+    maxLat: track.bbox.maxLat,
+    maxLng: track.bbox.maxLng,
+    toleranceM: track.toleranceM,
+  }
 }
 
 /**
@@ -86,6 +103,10 @@ export async function storeParsed(
     decouplingPct: summary.decouplingPct,
     gapDistanceM: roundOrNull(summary.gapDistanceM),
   }
+  // A run with positions keeps its simplified route; a treadmill run or one with none keeps no row,
+  // and a re-import without positions leaves a track it already has.
+  const track =
+    parsed.route && hasTrack(parsed.type, parsed.subtype) ? buildTrack(parsed.route) : null
   const startLat = roundCoordinate(parsed.startLat)
   const startLng = roundCoordinate(parsed.startLng)
 
@@ -146,6 +167,15 @@ export async function storeParsed(
         create: { activityId, ...streamRow },
         update: streamRow,
       })
+
+      if (track) {
+        const row = trackRow(track)
+        await tx.activityTrack.upsert({
+          where: { activityId },
+          create: { activityId, ...row },
+          update: row,
+        })
+      }
 
       if (opts.file && sha256 !== null && gz !== null) {
         const fileRow = {

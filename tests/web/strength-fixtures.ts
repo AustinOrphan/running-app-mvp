@@ -281,6 +281,7 @@ export const SETTINGS: UserSettings = {
   units: 'mi',
   weightUnit: 'lb',
   showBodyWeight: false,
+  hideMapEnds: true,
 }
 
 export const STRENGTH_SETTINGS: StrengthSettings = {
