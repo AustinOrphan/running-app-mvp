@@ -140,16 +140,25 @@ export const TRENDS_TEMPLATES = {
   // never judged: no band, no aim, no word for better or worse.
   'trends.drift.heading': tpl('Heart-rate drift on long runs', {}, { shape: 'label' }),
   'trends.drift.caption': tpl(
-    'Each dot is one flat run with a heart-rate stream. Height is the rise in heart rate per unit of speed from the first half to the second.',
+    'Each mark is one run with a heart-rate stream. Height is the rise in heart rate per unit of speed from the first half to the second.',
   ),
   'trends.drift.size': tpl(
     "Dot area follows run length, up to {cap}. One run's figure moves with the day, so read the dots together.",
     { cap: 'minutes' },
   ),
   'trends.drift.hills': tpl(
-    'Runs that climb more than {gain} per {unit} are left out: a climbing second half reads as drift, and wrist heart rate is not trusted on hills.',
+    'A run that climbs more than {gain} per {unit} is drawn only when its heart rate passes the checks. A climbing second half reads as drift.',
     { gain: 'climb', unit: 'text' },
-    { fallback: 'Runs that climb a lot are left out.' },
+    { fallback: 'A hilly run is drawn only when its heart rate passes the checks.' },
+  ),
+  'trends.drift.hilly': tpl(
+    'Diamonds are hilly runs whose heart rate passed the checks. Their drift is on grade-adjusted pace, over the clean part of the stream.',
+  ),
+  'trends.drift.curve': tpl(
+    "A diamond is read against today's grade curve, so it can move a little when the curve changes.",
+  ),
+  'trends.drift.checks': tpl(
+    'The checks look for heart rate that follows cadence, jumps, gaps, flat lines, and a fall while effort rises. Diamonds are not part of the median.',
   ),
   'trends.drift.filled': tpl(
     'Filled dots are the largest set of comparable runs, which the median is read from. Hollow dots are every other run.',
@@ -177,24 +186,24 @@ export const TRENDS_TEMPLATES = {
   ),
   'trends.drift.empty': tpl('No long-run readings in this range yet.'),
   'trends.drift.empty-body': tpl(
-    'A reading needs a flat run with a heart-rate stream, from a watch file or a synced account. A spreadsheet import has none.',
+    'A reading needs a run long enough to split in two, with a heart-rate stream from a watch file or synced account. A spreadsheet import has none.',
   ),
   'trends.drift.aria': tpl(
-    'Heart-rate drift of {count} flat runs, {span}. Latest {pct} on {date}.',
+    'Heart-rate drift of {count} runs, {span}. Latest {pct} on {date}.',
     { count: 'count', span: 'text', pct: 'percent', date: 'date' },
-    { fallback: 'Heart-rate drift of flat long runs.' },
+    { fallback: 'Heart-rate drift of long runs.' },
   ),
   'trends.drift.aria-none': tpl(
-    'Heart-rate drift of flat long runs, {span}. No run has a reading yet.',
+    'Heart-rate drift of long runs, {span}. No run has a reading yet.',
     { span: 'text' },
-    { fallback: 'Heart-rate drift of flat long runs.' },
+    { fallback: 'Heart-rate drift of long runs.' },
   ),
 
   // Heart rate at one speed (rule A11, shown under T1). One reference pace, read from the runner's
   // own line in each window; no point is compared with another and none is called a gain or a loss.
   'trends.hr.heading': tpl('Heart rate at one speed', {}, { shape: 'label' }),
   'trends.hr.caption': tpl(
-    'Each point is the heart rate your own line gives at {pace} on a cool day, from the steady flat runs of the {weeks} weeks to that date.',
+    'Each point is the heart rate your own line gives at {pace} on a cool day, from the steady runs of the {weeks} weeks to that date.',
     { pace: 'pace', weeks: 'count' },
   ),
   'trends.hr.heat': tpl(
@@ -208,15 +217,25 @@ export const TRENDS_TEMPLATES = {
     { step: 'count' },
   ),
   'trends.hr.needs': tpl(
-    'A point needs {runs} steady flat runs with heart rate in {weeks} weeks, and {pace} within {margin} of the paces they covered.',
+    'A point needs {runs} steady runs with heart rate in {weeks} weeks, and {pace} within {margin} of the paces they covered.',
     { runs: 'count', weeks: 'count', pace: 'pace', margin: 'percent' },
+  ),
+  'trends.hr.hilly': tpl(
+    'Includes {count} hilly runs whose heart rate passed the checks, on grade-adjusted pace.',
+    { count: 'count' },
+  ),
+  'trends.hr.hilly-scope': tpl(
+    'The count covers the windows drawn, and a run that sits in two windows counts once.',
+  ),
+  'trends.hr.hilly-one': tpl(
+    'Includes 1 hilly run whose heart rate passed the checks, on grade-adjusted pace.',
   ),
   'trends.hr.moves': tpl(
     'Sleep, caffeine, heat, tiredness and wrist-sensor error also move heart rate at a given speed. This page does not say how much change counts.',
   ),
   'trends.hr.empty': tpl('No heart-rate line in this range yet.'),
   'trends.hr.empty-body': tpl(
-    'A line needs {runs} steady flat runs with heart rate within {weeks} weeks. The latest {weeks} weeks have {have}.',
+    'A line needs {runs} steady runs with heart rate within {weeks} weeks. The latest {weeks} weeks have {have}.',
     { runs: 'count', weeks: 'count', have: 'count' },
   ),
   'trends.hr.empty-pace': tpl('No point can be read at one pace in this range.'),
@@ -466,6 +485,14 @@ export function hrCaption(referenceMps: number, units: Units): string {
     { pace: paceOf(referenceMps), weeks: count(P.hrModel.windowWeeks.value) },
     units,
   )
+}
+
+/** How many hilly runs the drawn points include; null when there are none to name. */
+export function hrHillyLine(hillyRuns: number): string | null {
+  if (hillyRuns <= 0) return null
+  return hillyRuns === 1
+    ? render(TRENDS_TEMPLATES['trends.hr.hilly-one'], {}, 'km')
+    : render(TRENDS_TEMPLATES['trends.hr.hilly'], { count: count(hillyRuns) }, 'km')
 }
 
 /** The weeks between two points, and what a gap means. */

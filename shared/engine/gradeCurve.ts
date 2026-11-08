@@ -129,6 +129,11 @@ function defaultRatio(index: number): number {
   return 1 / minettiCost(midPct(index) / 100)
 }
 
+/** Minetti's speed relative to flat in every band, in band order: the curve before any personal band shows. */
+export function defaultBandRatios(): number[] {
+  return Array.from({ length: BAND_COUNT }, (_, band) => defaultRatio(band))
+}
+
 /** A run that passed the eligibility test, reduced to what the pooling needs. */
 interface Prepared {
   sec: number[]

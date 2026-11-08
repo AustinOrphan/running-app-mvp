@@ -23,6 +23,8 @@ export interface EfficiencyChartProps {
   to: string
   /** The accessible name of the chart and the caption of its hidden table. */
   ariaLabel: string
+  /** Which hilly runs the points include (rule A11, HQ1), added to the table caption; null when none. */
+  hillyNote?: string | null
 }
 
 interface Row {
@@ -68,7 +70,13 @@ export function gapText(point: FixedSpeedPoint): string {
  * No band, no aim and no colour for a direction (rule T1, A11). The figures are in a visually
  * hidden table: window end, heart rate, the runs fitted and the runs that qualified.
  */
-export function EfficiencyChart({ points, from, to, ariaLabel }: EfficiencyChartProps) {
+export function EfficiencyChart({
+  points,
+  from,
+  to,
+  ariaLabel,
+  hillyNote = null,
+}: EfficiencyChartProps) {
   const rows: Row[] = points.map((point) => ({
     day: dayNumber(point.end),
     end: point.end,
@@ -143,13 +151,14 @@ export function EfficiencyChart({ points, from, to, ariaLabel }: EfficiencyChart
       {/* The wrapper holds the width of the table; a bare absolute table would widen the page. */}
       <div className="visually-hidden">
         <table>
-          <caption>{ariaLabel}</caption>
+          <caption>{hillyNote === null ? ariaLabel : `${ariaLabel} ${hillyNote}`}</caption>
           <thead>
             <tr>
               <th scope="col">Window ending</th>
               <th scope="col">Heart rate (bpm)</th>
               <th scope="col">Runs fitted</th>
               <th scope="col">Runs in the window</th>
+              <th scope="col">Hilly runs among them</th>
             </tr>
           </thead>
           <tbody>
@@ -159,6 +168,7 @@ export function EfficiencyChart({ points, from, to, ariaLabel }: EfficiencyChart
                 <td>{row.bpm === null ? gapText(row.point) : String(row.bpm)}</td>
                 <td>{row.point.fitted === null ? '' : String(row.point.fitted)}</td>
                 <td>{String(row.point.qualifying)}</td>
+                <td>{String(row.point.hilly)}</td>
               </tr>
             ))}
           </tbody>

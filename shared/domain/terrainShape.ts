@@ -17,3 +17,5 @@ export const TERRAIN_WINDOW_M = 60
  * where running speed changes fastest (rolling terrain), wide open ends for the steep tails.
  */
 export const TERRAIN_EDGES_PCT: readonly number[] = [-15, -10, -6, -3, 3, 6, 10, 15]
+/** Number of bands: one more than the edges. */
+export const TERRAIN_BAND_COUNT = TERRAIN_EDGES_PCT.length + 1

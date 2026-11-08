@@ -235,7 +235,7 @@ const WIDTHS = [
 
 /**
  * Six two-hour runs on cool days, one a week, with drift readings of 2 to 7 percent; one hilly long
- * run, which the drift panel leaves out; and fifty steady flat runs, one every four days, on the
+ * run, which the drift panel leaves out; and fifty steady runs, one every four days, on the
  * line HR = 90 + 20 x speed (2.4 to 3.0 m/s).
  */
 async function seedRunPanels(): Promise<void> {
@@ -334,7 +334,7 @@ test.describe('the run panels', () => {
     await page.goto('/trends')
 
     const drift = page.getByRole('region', { name: 'Heart-rate drift on long runs' })
-    await expect(drift.getByRole('img', { name: /^Heart-rate drift of 7 flat runs/ })).toBeVisible()
+    await expect(drift.getByRole('img', { name: /^Heart-rate drift of 7 runs/ })).toBeVisible()
     await expect(
       drift.getByText(/^Median \d(\.\d)?% over 6 comparable runs of about 2 h on cool days\.$/),
     ).toBeVisible()
@@ -345,9 +345,11 @@ test.describe('the run panels', () => {
       drift.getByText(/Comparable runs last 90 min to 3 h in air under (25 °C|77 °F)/),
     ).toBeVisible()
     await expect(
-      drift.getByText(/Runs that climb more than (15 m per km|79 ft per mile)/),
+      drift.getByText(
+        /A run that climbs more than (15 m per km|79 ft per mile) is drawn only when/,
+      ),
     ).toBeVisible()
-    const driftTable = drift.getByRole('table', { name: /^Heart-rate drift of 7 flat runs/ })
+    const driftTable = drift.getByRole('table', { name: /^Heart-rate drift of 7 runs/ })
     // Six flat runs; the hilly run of 900 m is not among them.
     await expect(driftTable.getByRole('row')).toHaveCount(1 + 7)
     // Oldest first: drift 7 down to 2, and never the 15 of the hilly run.
@@ -374,6 +376,7 @@ test.describe('the run panels', () => {
       'Heart rate (bpm)',
       'Runs fitted',
       'Runs in the window',
+      'Hilly runs among them',
     ])
     // Thirteen windows end inside 12 months; the oldest had no run and say why.
     await expect(speedTable.getByRole('row')).toHaveCount(1 + 13)
@@ -413,7 +416,7 @@ test.describe('the run panels', () => {
     await page.keyboard.press('ArrowRight')
     await expect(range.getByRole('radio', { name: '24 months' })).toBeChecked()
     await expect(
-      page.getByRole('img', { name: /^Heart-rate drift of 7 flat runs, last 24 months/ }),
+      page.getByRole('img', { name: /^Heart-rate drift of 7 runs, last 24 months/ }),
     ).toBeVisible()
     await expect(
       page

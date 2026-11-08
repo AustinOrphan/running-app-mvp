@@ -40,6 +40,7 @@ export function makeActivity(over: Partial<Activity> = {}): Activity {
     weatherSource: null,
     hrHistogram: null,
     terrainBins: null,
+    hrQuality: null,
     decouplingPct: null,
     gapDistanceM: null,
     feel: null,
@@ -99,6 +100,8 @@ export function trendRun(over: Partial<TrendRun> = {}): TrendRun {
     humidityPct: null,
     windKph: null,
     decouplingPct: 4,
+    terrainBins: null,
+    hrQuality: null,
     ...over,
   }
 }
