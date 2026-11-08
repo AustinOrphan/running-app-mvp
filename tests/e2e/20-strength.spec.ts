@@ -113,13 +113,19 @@ test('the setup is saved with a barbell and dumbbells from the Set up strength c
     ),
   ).toBeVisible()
   await expect(rowOf(next, 'Tempo squat')).toBeVisible()
-  await expect(offer.getByRole('button')).toHaveText([
+  for (const name of [
     'Weight unit',
     'Equipment',
     'Lifting history',
     'Exercises',
     'Starting points',
-  ])
+  ]) {
+    await expect(offer.getByRole('button', { name, exact: true })).toBeVisible()
+  }
+  // the sections that have nothing yet stay out until they do
+  for (const name of ['Lifts', 'Recent sessions', 'Equipment and units']) {
+    await expect(page.getByRole('region', { name })).toHaveCount(0)
+  }
 
   await offer.getByRole('button', { name: 'Equipment', exact: true }).click()
   const sheet = page.getByRole('dialog', { name: 'Equipment' })
@@ -665,7 +671,10 @@ test('a runner with no equipment logs bodyweight lifts with no load field, then 
   await expect(page.getByRole('region', { name: 'Set up strength' })).toBeVisible()
 
   // a setup saved with no equipment ends the offer and keeps the workout bodyweight
-  await page.getByRole('button', { name: 'Edit lifting history' }).click()
+  await page
+    .getByRole('region', { name: 'Set up strength' })
+    .getByRole('button', { name: 'Lifting history', exact: true })
+    .click()
   const history = page.getByRole('dialog', { name: 'Lifting history' })
   await history.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(toast(page, 'Strength setup saved')).toBeVisible()

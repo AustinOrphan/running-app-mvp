@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
 import {
+  clockRangeText,
   clockText,
   describeRacePlan,
   describeRacePoints,
@@ -330,6 +331,29 @@ describe('clockText', () => {
     expect(clockText({ time: '06:00', day: 0 })).toBe('06:00')
     expect(clockText({ time: '09:30', day: 1 })).toBe('09:30 the next day')
     expect(clockText({ time: '03:10', day: 2 })).toBe('03:10 on day 3')
+  })
+})
+
+describe('clockRangeText', () => {
+  it('prints one clock when both ends read alike, with the day once', () => {
+    expect(clockRangeText({ time: '17:10', day: 1 }, { time: '17:10', day: 1 })).toBe(
+      '17:10 the next day',
+    )
+    expect(clockRangeText({ time: '17:10', day: 0 }, { time: '17:10', day: 0 })).toBe('17:10')
+  })
+  it('names a shared later day once and each day when they differ', () => {
+    expect(clockRangeText({ time: '17:10', day: 1 }, { time: '19:30', day: 1 })).toBe(
+      '17:10 to 19:30 the next day',
+    )
+    expect(clockRangeText({ time: '05:00', day: 0 }, { time: '07:30', day: 0 })).toBe(
+      '05:00 to 07:30',
+    )
+    expect(clockRangeText({ time: '23:10', day: 0 }, { time: '01:30', day: 1 })).toBe(
+      '23:10 to 01:30 the next day',
+    )
+    expect(clockRangeText({ time: '17:10', day: 1 }, { time: '03:30', day: 2 })).toBe(
+      '17:10 the next day to 03:30 on day 3',
+    )
   })
 })
 
