@@ -1187,7 +1187,7 @@ describe('Today: Done', () => {
     expect(screen.queryByRole('dialog', { name: "Log today's run" })).not.toBeInTheDocument()
     const card = screen.getByRole('article', { name: 'Easy run' })
     expect(within(card).getByRole('status')).toHaveTextContent(
-      'Saved on this phone. It goes up when you are back online.',
+      'Saved on this phone, waiting to go up.',
     )
     expect(within(card).queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
     expect(window.localStorage.getItem('rl_done_draft_2026-03-18')).toBeNull()

@@ -113,6 +113,21 @@ describe('purging the drafts', () => {
   })
 })
 
+describe('a run and a rating waiting on the phone', () => {
+  test('purgeDeviceData empties both with the rest of the outbox', async () => {
+    const outbox = await queuedOutbox()
+    await outbox.save('/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10', {
+      date: '2026-03-18',
+      type: 'run',
+      durationSec: 2700,
+    })
+    await outbox.save('/api/activities/r1/feedback', { rpe: 6, pain: 3 })
+    expect(outbox.getState().entries.length).toBeGreaterThanOrEqual(2)
+    await purgeDeviceData()
+    expect(outbox.getState().entries).toEqual([])
+  })
+})
+
 describe('signing out', () => {
   test('removes the drafts along with the cache and the queue', async () => {
     seedDevice()

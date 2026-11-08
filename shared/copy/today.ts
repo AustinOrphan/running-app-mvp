@@ -233,6 +233,8 @@ export const TODAY_TEMPLATES = {
   ),
   // Shown on Today while a Done waits in the outbox, and as the toast when it is queued.
   'today.done.queued': tpl('Saved on this phone. It goes up when you are back online.'),
+  // The quiet line in the session card while that Done waits (the toast says the long version once).
+  'today.done.waiting': tpl('Saved on this phone, waiting to go up.'),
   // The toast when a queued write reaches the server.
   'today.done.sent-later': tpl('The run saved on this phone has gone up.'),
   'today.rate.sent-later': tpl('The rating saved on this phone has gone up.'),

@@ -279,7 +279,7 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
 
       {queuedDone === null || strengthHero ? null : (
         <p role="status" className={styles.muted}>
-          {render(TEMPLATES['today.done.queued'], {}, units)}
+          {render(TEMPLATES['today.done.waiting'], {}, units)}
         </p>
       )}
       <SessionActions
