@@ -256,27 +256,49 @@ describe('Trends, heart rate at one speed', () => {
 })
 
 describe('Trends, the run panels fail', () => {
-  test('tell one failure once, keep both headings and leave the rest of the page', async () => {
+  test('tell one failure once with a retry, and leave the rest of the page', async () => {
     mockPage('error')
     renderWithProviders(<TrendsPage />)
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The long-run and heart-rate panels did not load. Reload the page to try again.',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('The run data did not load.')
     expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Heart-rate drift on long runs' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Heart rate at one speed' }),
+      screen.getByRole('heading', { level: 2, name: 'Long runs and heart rate' }),
     ).toBeInTheDocument()
     expect(await screen.findByRole('img', { name: /^Run hours per week/ })).toBeVisible()
+  })
+
+  test('draw the panels when the retry succeeds', async () => {
+    let calls = 0
+    const weeks = Array.from({ length: 104 }, (_, i) =>
+      makeWeekRow({ weekStart: addDays(THIS_WEEK, -7 * (103 - i)), runMin: 240, runM: 40_000 }),
+    )
+    mockApi({
+      'GET /api/trends/runs': () => {
+        calls += 1
+        return calls === 1
+          ? { status: 500, body: { error: { code: 'internal', message: 'Something went wrong.' } } }
+          : view({ longRuns: longRuns(6) })
+      },
+      'GET /api/trends': () => ({
+        asOf: TODAY,
+        recovery: { hrv: [], restingHr: [], sleep: [], cycleBaseline: false },
+      }),
+      'GET /api/weeks': () => weeks,
+      'GET /api/settings': () => settings('km'),
+    })
+    renderWithProviders(<TrendsPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(
+      await screen.findByRole('img', { name: /^Heart-rate drift of 6 flat runs/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   test('say they need a connection when offline', async () => {
     vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
     mockPage('error')
     renderWithProviders(<TrendsPage />)
-    await screen.findAllByText('Trends need a connection. Today works offline.')
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('The run data needs a connection.')
   })
 })

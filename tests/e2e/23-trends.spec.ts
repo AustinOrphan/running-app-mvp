@@ -474,16 +474,12 @@ test.describe('the run panels', () => {
     await page.setViewportSize({ width: 360, height: 740 })
     await page.goto('/trends')
     await expect(
-      page
-        .getByRole('alert')
-        .filter({ hasText: 'The long-run and heart-rate panels did not load.' }),
+      page.getByRole('alert').filter({ hasText: 'The run data did not load.' }),
     ).toHaveCount(1)
     await expect(
-      page.getByRole('heading', { level: 2, name: 'Heart-rate drift on long runs' }),
+      page.getByRole('heading', { level: 2, name: 'Long runs and heart rate' }),
     ).toBeVisible()
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Heart rate at one speed' }),
-    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
     await expect(page.getByRole('img', { name: /^Run hours per week/ })).toBeVisible()
     expect(await overflow(page)).toBeLessThanOrEqual(0)
   })

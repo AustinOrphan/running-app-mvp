@@ -17,9 +17,8 @@ export const TRENDS_TEMPLATES = {
   'trends.offline': tpl('Trends need a connection. Today works offline.'),
   'trends.error': tpl('Trends did not load. Reload the page to try again.'),
   'trends.recovery.error': tpl('The recovery readings did not load. Reload the page to try again.'),
-  'trends.runs.error': tpl(
-    'The long-run and heart-rate panels did not load. Reload the page to try again.',
-  ),
+  'trends.runs.heading': tpl('Long runs and heart rate', {}, { shape: 'label' }),
+  'trends.runs.subject': tpl('The run data', {}, { shape: 'label' }),
 
   // Body weight: drawn only on the runner's choice and without a verdict. The slots are structural
   // (a test requires them): the weekly mean, the unit, a count of weigh-ins and the months of the

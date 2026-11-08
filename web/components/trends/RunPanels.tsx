@@ -26,7 +26,8 @@ import type { Units } from '../../../shared/types.ts'
 import { useTrendsRuns } from '../../api/trends.ts'
 import { DurabilityChart, EfficiencyChart } from '../charts/lazyCharts.tsx'
 import { EmptyState } from '../EmptyState.tsx'
-import { useOnline } from '../useOnline.ts'
+import { ErrorState } from '../ErrorState.tsx'
+import { useLoadView } from '../loadView.ts'
 import styles from './RunPanels.module.css'
 
 const text = trendsText
@@ -133,35 +134,42 @@ function SpeedPanel({ view, from, months, units }: PanelProps) {
  * `GET /api/trends/runs`, so a failure is told once and each panel keeps its heading.
  */
 export function RunPanels({ months, weekCount, units }: RunPanelsProps) {
-  const online = useOnline()
   const runs = useTrendsRuns()
+  const loadView = useLoadView(runs)
   const view = runs.data
   const from = view === undefined ? '' : addDays(view.asOf, -(weekCount * 7) + 1)
 
-  const body = (announce: boolean, show: (view: TrendsRunsView) => ReactNode): ReactNode => {
-    if (runs.isError) {
-      return online ? (
-        <p role={announce ? 'alert' : undefined}>{text('trends.runs.error')}</p>
-      ) : (
-        <p role={announce ? 'status' : undefined}>{text('trends.offline')}</p>
-      )
-    }
-    if (view === undefined) {
-      return <div className={`skeleton ${styles.pending}`} aria-busy="true" aria-label="Loading" />
-    }
-    return show(view)
+  // Without data the two panels fail together, so one section tells it once and keeps the retry
+  // button mounted; the rest of the page is not touched.
+  if (loadView === 'failed' || loadView === 'retrying') {
+    return (
+      <Section id="trends-runs-heading" heading={text('trends.runs.heading')}>
+        <ErrorState
+          subject={text('trends.runs.subject')}
+          onRetry={runs.refetch}
+          retrying={loadView === 'retrying'}
+        />
+      </Section>
+    )
   }
+
+  const body = (show: (view: TrendsRunsView) => ReactNode): ReactNode =>
+    view === undefined ? (
+      <div className={`skeleton ${styles.pending}`} aria-busy="true" aria-label="Loading" />
+    ) : (
+      show(view)
+    )
 
   return (
     <>
       <Section id="trends-drift-heading" heading={text('trends.drift.heading')}>
-        {body(true, (data) => (
+        {body((data) => (
           <DriftPanel view={data} from={from} months={months} />
         ))}
         {view === undefined ? null : <p className={styles.caption}>{driftHillsLine(units)}</p>}
       </Section>
       <Section id="trends-hr-heading" heading={text('trends.hr.heading')}>
-        {body(false, (data) => (
+        {body((data) => (
           <SpeedPanel view={data} from={from} months={months} units={units} />
         ))}
       </Section>
