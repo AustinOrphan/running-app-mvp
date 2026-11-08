@@ -3623,6 +3623,9 @@ export const POLICY_ONLY_RULES: ReadonlySet<string> = new Set([
   'I10',
   'I11',
   'I12',
+  // the personal grade curve is derived on read from the terrain bins of the runs and shown on My
+  // paces (a later batch); no plan line rests on it, so an Explain has nothing to open
+  'I13',
   // taper structure and race-week wording: K1 and K2 state the plan's own figures
   'K3',
   'K4',

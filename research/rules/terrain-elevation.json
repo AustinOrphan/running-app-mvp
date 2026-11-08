@@ -167,5 +167,20 @@
     "grade": "C",
     "confidence": "moderate",
     "evidence": ["wehrlin-2006-altitude-linear"]
+  },
+  {
+    "id": "terrain-elevation-personal-grade-curve",
+    "statement": "A runner's own speed-by-gradient curve (speed in each grade band over the run's own flat speed, pooled over steady runs) may be shown beside the Minetti curve only for a band where a leave-one-run-out test shows a lower error than Minetti by a set margin and consistently; the open steep ends keep Minetti. No study tests this; every number is a default. Display only.",
+    "parameter": "personal_grade_curve_gate",
+    "value": "10% lower error, tested on at least 7 runs (the sign-test floor), sign test at most 0.01",
+    "unit": "qualitative",
+    "appliesTo": "My paces display of one runner's steady runs; not predictions, plans or zones",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "minetti-2002-gradient-cost",
+      "lemire-2021-economy-slopes-correlated",
+      "jaen-carrillo-2026-trail-digital-twin"
+    ]
   }
 ]

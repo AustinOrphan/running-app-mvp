@@ -1,0 +1,34 @@
+{
+  "id": "lemire-2021-economy-slopes-correlated",
+  "title": "Level, Uphill, and Downhill Running Economy Values Are Correlated Except on Steep Slopes",
+  "authors": "Lemire M, Falbriard M, Aminian K, Millet GP, Meyer F",
+  "year": 2021,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2021.697315",
+  "pmid": "34276417",
+  "url": "https://doi.org/10.3389/fphys.2021.697315",
+  "design": "cross-sectional",
+  "population": "29 healthy subjects; 4-min treadmill bouts at 8, 10, 12 and 14 km/h on slopes of -20, -10, -5, 0, +5, +10, +15 and +20%",
+  "sampleSize": 29,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Oxygen and energy costs of running were correlated between all slopes when pooled over speeds (all r2 at least 0.27, p at most 0.021), except between the steepest uphill (+20%) and the level and the steepest downhill (-20%) slopes.",
+    "Economy was inversely related to knee-extensor isometric torque in level and downhill running (except at -20%), but not on any uphill slope; the authors conclude that on steep slopes of about 20% either way, running energetics are determined by different factors (reduced bouncing mechanism, muscle strength for negative slopes, cardiopulmonary fitness for positive slopes).",
+    "The optimal downhill grade (lowest oxygen cost) varied between running speeds and ranged from -14% to -20%."
+  ],
+  "limitations": "Laboratory treadmill, 4-minute bouts, 29 healthy subjects of mixed fitness; energy cost, not the speed a runner keeps over a long outdoor run. The abstract does not state the sex split or fitness level.",
+  "implications": [
+    "Energetics on steep slopes (about 20% either way) differ from those on level and shallow slopes, so a figure measured on shallow slopes does not carry to the steep ends; the I13 curve keeps the open steep ends on the default.",
+    "The paper gives no evidence for or against a personal speed-by-gradient curve. It measures energy cost on a treadmill, not the speed a runner keeps outdoors.",
+    "The downhill optimum is not fixed at -20% and moves with speed (-14% to -20%); the Minetti minimum is a population figure."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Front Physiol 12:697315, 2021-07-01, five authors match. Europe PMC / PubMed PMID 34276417 abstract supports all findings. The sex split and fitness level are not in the abstract.",
+    "checkedAt": "2026-11-07"
+  }
+}

@@ -7,24 +7,17 @@
 // mean. The thresholds the curve applies to them (minutes per band, runs per band, shrinkage) are
 // the I13 Params of the grade-curve batch. The one engine number used here, the walking floor, is
 // `c9.walkingFloorMps`, and the value used is stored with the bins.
+import {
+  TERRAIN_BINS_VERSION,
+  TERRAIN_EDGES_PCT,
+  TERRAIN_WINDOW_M,
+} from '../../domain/terrainShape.ts'
 import { P } from '../../engine/params/index.ts'
 import type { ActivityStreamData, ActivityType, TerrainBins } from '../../types.ts'
 
-/** Version of the stored shape. A change of the edges, the window or the rules below raises it. */
-export const TERRAIN_BINS_VERSION = 1
-/**
- * Distance the grade is measured over, in metres. A distance window, not the time window of the
- * gap-distance grade, so a slow climb is no noisier than a fast one. Data preparation: about the
- * smallest span over which the rounded altitude steps and GNSS height noise (a few metres) stop
- * dominating a grade of a few percent. Stored with the bins.
- */
-export const TERRAIN_WINDOW_M = 60
-/**
- * Band edges in percent grade. A grade equal to an edge belongs to the band above it. The band
- * that holds 0 (-3 to 3) is the flat band the curve divides by. Data preparation: narrow bands
- * where running speed changes fastest (rolling terrain), wide open ends for the steep tails.
- */
-export const TERRAIN_EDGES_PCT: readonly number[] = [-15, -10, -6, -3, 3, 6, 10, 15]
+// The shape constants (version, window, edges) live in `shared/domain/terrainShape.ts`: the grade
+// curve reads them too and `shared/engine` does not import from the importers.
+export { TERRAIN_BINS_VERSION, TERRAIN_EDGES_PCT, TERRAIN_WINDOW_M }
 /** Same figure as `MOVING_SPEED_MPS` in summarize.ts (a test pins them): slower is standing still. */
 export const TERRAIN_STOPPED_MPS = 0.5
 /**
