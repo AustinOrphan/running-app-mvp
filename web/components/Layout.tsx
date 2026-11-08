@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import styles from './Layout.module.css'
 import { Nav, restoreTheme } from './Nav.tsx'
+import { Skeleton } from './Skeleton.tsx'
 import { ToastProvider } from './Toast.tsx'
 
 export { useTheme } from './Nav.tsx'
@@ -20,7 +21,9 @@ export function Layout() {
       <Nav />
       <main id="main" tabIndex={-1} className={styles.main}>
         <div className={styles.content}>
-          <Outlet />
+          <Suspense fallback={<Skeleton />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
     </ToastProvider>

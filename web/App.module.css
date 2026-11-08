@@ -1,0 +1,7 @@
+/* The failed first load sits outside the layout, so it carries its own gutter and measure. */
+.gate {
+  width: 100%;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter);
+}
