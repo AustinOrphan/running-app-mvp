@@ -1,0 +1,33 @@
+{
+  "id": "jaen-carrillo-2026-trail-digital-twin",
+  "title": "A Physics-Based Digital Twin for Trail Running Race Performance Prediction: A Proof-of-Concept Study",
+  "authors": "Jaén-Carrillo D, Pattis D",
+  "year": 2026,
+  "journal": "Sensors",
+  "doi": "10.3390/s26123731",
+  "pmid": "42356703",
+  "url": "https://doi.org/10.3390/s26123731",
+  "design": "modelling",
+  "population": "13 trail-running race sessions; Minetti-based grade-adjusted pace model with individual calibration",
+  "sampleSize": 13,
+  "evidenceLevel": "D",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "A grade-adjusted pace model built on Minetti's fifth-degree cost polynomial, with an altitude correction, a TRIMP-based fatigue term and a pacing-decay factor, was calibrated per runner by grid search against 13 race sessions.",
+    "Across four stages of model complexity, R2 rose from 0.763 to 0.905.",
+    "Leave-one-out cross-validation (n = 13) gave R2 = 0.864, MAE = 18.2 min, MAPE = 11.1% and a small positive bias (+2.0 min)."
+  ],
+  "limitations": "Proof of concept on 13 race sessions; the abstract does not say how many runners they came from, and the individual calibration fitted race-level parameters (a sustainable fraction and a pacing-decay slope), not a personal cost-by-grade curve. The model predicts finish time, not speed by grade band.",
+  "implications": [
+    "The Minetti polynomial is in use as the terrain core of an individually calibrated trail model, and leave-one-out validation is the evaluation the authors chose for small personal data; this is the precedent for the leave-one-run-out test in rule I13.",
+    "It does not show that a personal cost-by-grade curve beats Minetti; no study found in the corpus search does."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Sensors 26(12):3731, 2026-06-11, two authors match. Europe PMC record (PMID 42356703) abstract supports all findings. The number of runners behind the 13 sessions is not in the abstract.",
+    "checkedAt": "2026-11-07"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "lemire-2021-economy-slopes-correlated",
+  "title": "Level, Uphill, and Downhill Running Economy Values Are Correlated Except on Steep Slopes",
+  "authors": "Lemire M, Falbriard M, Aminian K, Millet GP, Meyer F",
+  "year": 2021,
+  "journal": "Frontiers in Physiology",
+  "doi": "10.3389/fphys.2021.697315",
+  "pmid": "34276417",
+  "url": "https://doi.org/10.3389/fphys.2021.697315",
+  "design": "cross-sectional",
+  "population": "29 healthy subjects; 4-min treadmill bouts at 8, 10, 12 and 14 km/h on slopes of -20, -10, -5, 0, +5, +10, +15 and +20%",
+  "sampleSize": 29,
+  "evidenceLevel": "C",
+  "topics": ["terrain-elevation"],
+  "findings": [
+    "Oxygen and energy costs of running were correlated between all slopes when pooled over speeds (all r2 at least 0.27, p at most 0.021), except between the steepest uphill (+20%) and the level and the steepest downhill (-20%) slopes.",
+    "Running economy at level and shallow slopes is related to knee-extensor strength; on steep slopes of about 20% either way, running energetics are determined by different factors (reduced bouncing mechanism, muscle strength for negative slopes, cardiopulmonary fitness for positive slopes).",
+    "The optimal downhill grade (lowest oxygen cost) varied between running speeds and ranged from -14% to -20%."
+  ],
+  "limitations": "Laboratory treadmill, 4-minute bouts, 29 healthy subjects of mixed fitness; energy cost, not the speed a runner keeps over a long outdoor run. The abstract does not state the sex split or fitness level.",
+  "implications": [
+    "A runner's cost on shallow slopes tracks their level cost, but not on slopes of about 20%: a personal curve is plausible on rolling terrain and unreliable at the steep ends, so steep bands stay on the default.",
+    "The downhill optimum is not fixed at -20% and moves with speed (-14% to -20%); the Minetti minimum is a population figure."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref: Front Physiol 12:697315, 2021-07-01, five authors match. Europe PMC / PubMed PMID 34276417 abstract supports all findings. The sex split and fitness level are not in the abstract.",
+    "checkedAt": "2026-11-07"
+  }
+}
