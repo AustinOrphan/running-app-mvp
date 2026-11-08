@@ -3,7 +3,7 @@ import type { RangeLabel } from '../types.ts'
 import { estimateState } from './athlete.ts'
 import { heatPenaltyPct } from './heat.ts'
 import { P } from './params/index.ts'
-import type { AthleteState, EngineInput, Param, Prediction } from './types.ts'
+import type { AthleteState, ClimbBlend, EngineInput, Param, Prediction } from './types.ts'
 
 /** What is being predicted: the course, not the athlete. */
 export interface PredictTarget {
@@ -45,13 +45,26 @@ function fmtTime(sec: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+/** A signed change in whole minutes ("+1 min", "-2 min"); under half a minute reads in words. */
+export function signedMinutes(sec: number): string {
+  const min = Math.round(Math.abs(sec) / SEC_PER_MIN)
+  if (min === 0) return 'less than a minute'
+  return `${sec < 0 ? '-' : '+'}${min} min`
+}
+
 function fmtKm(m: number): string {
   return `${(Math.round(m / 100) / 10).toFixed(1)} km`
 }
 
-/** Distance with gain converted to flat metres; road models and race anchors are flat-equivalent. */
-function effectiveDistanceM(target: PredictTarget): number {
-  return target.distanceM + Math.max(0, target.gainM) * P.l5.gainEquivalentM.value
+/**
+ * Distance with gain converted to flat metres; road models and race anchors are flat-equivalent.
+ * `gainEquivalentM` is `l5.gainEquivalentM` unless the runner's own climbing is blended in.
+ */
+function effectiveDistanceM(
+  target: PredictTarget,
+  gainEquivalentM: number = P.l5.gainEquivalentM.value,
+): number {
+  return target.distanceM + Math.max(0, target.gainM) * gainEquivalentM
 }
 
 /** The race closest to the target distance (log scale); ties go to the later date. */
@@ -84,10 +97,15 @@ function distinctDistances(races: Race[]): number {
 }
 
 /** L1: personal exponent, then Riegel up to 21.1 km, then the single-anchor placeholder [L2]. */
-function raceEstimate(state: AthleteState, target: PredictTarget): Estimate | null {
+function raceEstimate(
+  state: AthleteState,
+  target: PredictTarget,
+  gainEquivalentM: number,
+): Estimate | null {
   const races = state.fitness.races
-  const dEff = effectiveDistanceM(target)
-  const anchor = nearestAnchor(races, dEff)
+  const dEff = effectiveDistanceM(target, gainEquivalentM)
+  // The anchor is chosen with the default figure, so the blend scales a time and never swaps the race.
+  const anchor = nearestAnchor(races, effectiveDistanceM(target))
   if (!anchor) return null
   const anchorText = `${fmtKm(anchor.distanceM)} in ${fmtTime(anchor.timeSec)} on ${anchor.date}`
   const scaled = (exponent: number) => anchor.timeSec * Math.pow(dEff / anchor.distanceM, exponent)
@@ -187,10 +205,14 @@ function solveFractionTimeSec(distanceM: number, csMps: number): number {
 }
 
 /** L1: CS fit up to 60 min; beyond that the CS-fraction prior with durability [L2, L4]. */
-function csEstimate(state: AthleteState, target: PredictTarget): Estimate | null {
+function csEstimate(
+  state: AthleteState,
+  target: PredictTarget,
+  gainEquivalentM: number,
+): Estimate | null {
   const cs = state.fitness.csMps
   if (cs === null || !(cs > 0)) return null
-  const dEff = effectiveDistanceM(target)
+  const dEff = effectiveDistanceM(target, gainEquivalentM)
   const dPrime = Math.max(0, state.fitness.dPrimeM ?? 0)
   const fitSec = dEff > dPrime ? (dEff - dPrime) / cs : dEff / cs
   if (fitSec <= P.l1.csExtrapolationMaxMin.value * SEC_PER_MIN) {
@@ -232,9 +254,13 @@ function csEstimate(state: AthleteState, target: PredictTarget): Estimate | null
  * unless the floor implies a faster time than the race does, in which case the floor stands alone
  * (the runner has shown at least that fitness since the race).
  */
-function basePrediction(state: AthleteState, target: PredictTarget): Base | null {
-  const race = raceEstimate(state, target)
-  const cs = csEstimate(state, target)
+function basePrediction(
+  state: AthleteState,
+  target: PredictTarget,
+  gainEquivalentM: number = P.l5.gainEquivalentM.value,
+): Base | null {
+  const race = raceEstimate(state, target, gainEquivalentM)
+  const cs = csEstimate(state, target, gainEquivalentM)
   let estimates = [race, cs].filter((e): e is Estimate => e !== null)
   let floorNote: string | null = null
   if (race && cs && state.fitness.csTrainingSince != null) {
@@ -250,6 +276,46 @@ function basePrediction(state: AthleteState, target: PredictTarget): Base | null
   if (estimates.length === 0) return null
   const sec = estimates.reduce((sum, e) => sum + e.sec, 0) / estimates.length
   return { sec, estimates, floorNote }
+}
+
+/**
+ * The runner's own climbing blended into the gain-equivalent [rule L5]: `default * (1 + w * (ratio -
+ * 1))`, where the ratio is the runner's climbing over Minetti's on the same bands (I13), with `w` smaller when the personal value would make the runner faster (G6), and the
+ * change to the time held to `l5.personalBlendMaxShiftPct` of the default prediction. Null when the
+ * course has no gain, the state has no personal climbing band, or the blend moves nothing.
+ */
+function climbBlend(
+  state: AthleteState,
+  target: PredictTarget,
+  base: Base,
+): { blend: ClimbBlend; base: Base } | null {
+  const personal = state.climb
+  if (!personal || !(target.gainM > 0)) return null
+  const defaultM = P.l5.gainEquivalentM.value
+  const personalM = defaultM * personal.ratio
+  const weight =
+    personalM < defaultM ? P.l5.personalBlendFaster.value : P.l5.personalBlendSlower.value
+  const blendedM = defaultM + weight * (personalM - defaultM)
+  const blended = basePrediction(state, target, blendedM)
+  if (!blended) return null
+  const raw = blended.sec - base.sec
+  const cap = (P.l5.personalBlendMaxShiftPct.value / 100) * base.sec
+  const capped = Math.abs(raw) > cap
+  // Past the cap the figure is scaled back with the time, so the splits weigh climb as the time does.
+  const keep = capped ? cap / Math.abs(raw) : 1
+  const shift = raw * keep
+  if (Math.round(shift) === 0) return null
+  return {
+    base: { ...base, sec: base.sec + shift },
+    blend: {
+      runs: personal.runs,
+      defaultM,
+      personalM,
+      usedM: defaultM + keep * (blendedM - defaultM),
+      shiftSec: shift,
+      capped,
+    },
+  }
 }
 
 /** The Param that sets the least half-width of the interval for a course of this distance. */
@@ -286,8 +352,10 @@ export function rangeLabel(target: Pick<PredictTarget, 'distanceM'>): RangeLabel
  */
 export function predictFromState(state: AthleteState, target: PredictTarget): Prediction | null {
   if (!(target.distanceM > 0)) return null
-  const base = basePrediction(state, target)
-  if (!base) return null
+  const defaultBase = basePrediction(state, target)
+  if (!defaultBase) return null
+  const climb = climbBlend(state, target, defaultBase)
+  const base = climb?.base ?? defaultBase
 
   const rules = new Set<string>(['L6'])
   const conditions: string[] = []
@@ -300,7 +368,7 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
 
   let sec = base.sec
   if (target.gainM > 0) {
-    const flatKm = fmtKm(target.gainM * P.l5.gainEquivalentM.value)
+    const flatKm = fmtKm(target.gainM * (climb?.blend.usedM ?? P.l5.gainEquivalentM.value))
     conditions.push(`${Math.round(target.gainM)} m of gain counted as ${flatKm} of flat distance.`)
     rules.add('L5')
   }
@@ -324,6 +392,14 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
         'Race-day heat is not applied: no marathon-equivalent ability to scale it by.',
       )
     }
+  }
+
+  // Heat scales the whole time, so it scales the shift from the runner's own climbing too.
+  const climbShiftSec = climb === null ? 0 : climb.blend.shiftSec * (sec / base.sec)
+  if (climb !== null) {
+    conditions.push(
+      `Includes your own speed on climbs from ${climb.blend.runs} runs, moving this by ${signedMinutes(climbShiftSec)}.`,
+    )
   }
 
   // Interval: at least the band for the distance, at least the spread between sources.
@@ -374,6 +450,7 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
     conditions,
     rules: [...rules].sort(),
     ...(trainingSince === null ? {} : { trainingSince }),
+    ...(climb === null ? {} : { climb: { ...climb.blend, shiftSec: Math.round(climbShiftSec) } }),
   }
 }
 

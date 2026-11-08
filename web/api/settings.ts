@@ -8,6 +8,8 @@ export interface SettingsPatch {
   weightUnit?: WeightUnit
   /** Whether Trends draws the body-weight chart (ADR 0019); turning it off deletes nothing. */
   showBodyWeight?: boolean
+  /** Whether a run's map leaves out its first and last 200 m (M1a). */
+  hideMapEnds?: boolean
   displayName?: string | null
 }
 
@@ -36,6 +38,7 @@ export function useUpdateSettings() {
           keys.me,
           ...(patch.weightUnit === undefined ? [] : [keys.strength, keys.today]),
           ...(patch.showBodyWeight === undefined ? [] : [keys.trends]),
+          ...(patch.hideMapEnds === undefined ? [] : [keys.activityDetail]),
         ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       ),
   })

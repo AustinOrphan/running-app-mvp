@@ -109,6 +109,26 @@ const PLANS: Array<[string, RacePlan]> = [
   ],
   ['floor only', racePlanFor(input({ ladder: ladderOf([]) }))],
   ['no darkness', racePlanFor(input({ goal: goal({ crossesDarkness: false }) }))],
+  [
+    'own climbing moved the time',
+    racePlanFor(
+      input({
+        prediction: {
+          predictedSec: 31 * HOUR,
+          lowSec: 27 * HOUR,
+          highSec: 37 * HOUR,
+          climb: {
+            runs: 23,
+            defaultM: 10,
+            personalM: 7,
+            usedM: 9.25,
+            shiftSec: -900,
+            capped: false,
+          },
+        },
+      }),
+    ),
+  ],
 ]
 
 const UNITS: Units[] = ['km', 'mi']
@@ -435,6 +455,60 @@ describe('the words of the checkpoint table', () => {
     expect(notes).toContain(`climb as ${String(P.l5.gainEquivalentM.value)} units of flat`)
     expect(notes).toMatch(/the later end of each range is the likelier one/)
     expect(notes).toMatch(/defaults/)
+  })
+
+  it('says when the runner own climbing moved the weights, and only then', () => {
+    const own = racePlanFor(
+      input({
+        checkpoints: [
+          { name: 'Checkpoint A', distanceM: 40_000, gainM: null, lossM: null, cutoffSec: null },
+        ],
+        prediction: {
+          predictedSec: 31 * HOUR,
+          lowSec: 27 * HOUR,
+          highSec: 37 * HOUR,
+          climb: {
+            runs: 23,
+            defaultM: 10,
+            personalM: 7,
+            usedM: 9.25,
+            shiftSec: -900,
+            capped: false,
+          },
+        },
+      }),
+    )
+    const expected = describeRacePlan(own, 'km').expected.notes.join(' ')
+    expect(expected).toContain(
+      'Includes your own speed on climbs from 23 runs, moving this by -15 min.',
+    )
+    expect(expected).toContain('at most 3%')
+    expect(describeRacePoints(own, 'km').notes.join(' ')).toContain(
+      'each unit of climb counts as 9.3 units of flat, not 10',
+    )
+    const same = racePlanFor(
+      input({
+        checkpoints: [
+          { name: 'Checkpoint A', distanceM: 40_000, gainM: null, lossM: null, cutoffSec: null },
+        ],
+        prediction: {
+          predictedSec: 31 * HOUR,
+          lowSec: 27 * HOUR,
+          highSec: 37 * HOUR,
+          climb: {
+            runs: 23,
+            defaultM: 10,
+            personalM: 10,
+            usedM: 10.02,
+            shiftSec: 60,
+            capped: false,
+          },
+        },
+      }),
+    )
+    expect(describeRacePoints(same, 'km').notes.join(' ')).not.toMatch(/blended in/)
+    const plain = describeRacePlan(PLANS[0]![1], 'km').expected.notes.join(' ')
+    expect(plain).not.toMatch(/your own speed/i)
   })
 
   it('shows a cutoff and an arrival range as two lines that never mention each other', () => {

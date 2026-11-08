@@ -280,6 +280,11 @@ export interface AthleteState {
   efficiency: { current: number | null; trendPct: number | null; samples: number }
   durability: { decouplingMedianPct: number | null; samples: number }
   /**
+   * The runner's climbing against Minetti's from the curve of rule I13 (below 1: climbs faster), and
+   * the runs behind its passing climbing bands; null without a personal climbing band (rule L5).
+   */
+  climb?: { ratio: number; runs: number } | null
+  /**
    * The steadiest recent block of weeks that counts toward a rebuild [rules g-8], or null when no
    * four consecutive weeks qualify. Computed from the weeks the state already holds (the snapshot's
    * activities, no query of its own).
@@ -355,6 +360,21 @@ export interface ChecklistResult {
   detail: string
   rules: string[]
 }
+/** What the runner's own climbing did to a prediction (rule L5): present only when it moved it. */
+export interface ClimbBlend {
+  /** Runs behind the climbing bands of the curve (rule I13) that passed its test. */
+  runs: number
+  /** `l5.gainEquivalentM`. */
+  defaultM: number
+  /** The default scaled by the runner's climbing ratio, `personalClimbRatio` of the curve. */
+  personalM: number
+  /** The figure the prediction used, after the weight and the cap on the shift. */
+  usedM: number
+  /** Signed change to the predicted time in seconds; negative is faster. */
+  shiftSec: number
+  /** The cap `l5.personalBlendMaxShiftPct` held the shift back. */
+  capped: boolean
+}
 export interface Prediction {
   method: string
   predictedSec: number
@@ -364,6 +384,8 @@ export interface Prediction {
   rules: string[]
   /** The first day of the window when a critical-speed fit from training stands behind it (A6). */
   trainingSince?: string
+  /** Set when the runner's own climbing moved the time (rule L5). */
+  climb?: ClimbBlend
 }
 export interface PlanDraft {
   weeks: WeekDraft[]

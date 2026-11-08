@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { gradeLegend } from '../../../shared/copy/grades.ts'
-import { PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
+import { climbWeightsLine, PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
 import { render } from '../../../shared/copy/template.ts'
 import type { EventRow } from '../../../shared/engine/myPaces.ts'
 import type { Grade } from '../../../shared/engine/types.ts'
@@ -95,6 +95,9 @@ export function EventsSection({
           pacesText('paces.events.how-time'),
           pacesText('paces.events.how-range'),
           pacesText('paces.events.how-climb'),
+          ...(rows.some((row) => row.ownClimb !== null)
+            ? [pacesText('paces.events.how-climb-own'), climbWeightsLine(units)]
+            : []),
           pacesText('paces.events.how-grade'),
         ]}
         subject="the predicted times"

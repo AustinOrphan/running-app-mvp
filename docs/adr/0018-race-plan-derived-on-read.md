@@ -38,7 +38,9 @@ every read and stored nowhere.
   credit and no widening of an interior row, and the finish row is the expected range itself; the
   cutoff is shown beside the range as the runner's own fact and never compared to it or used to steer
   the target.
-- A segment weighs its distance plus `l5.gainEquivalentM` metres of flat per metre of climb. A segment
+- A segment weighs its distance plus `l5.gainEquivalentM` metres of flat per metre of climb, or, when the
+  runner's own climbing moved the prediction (rule L5, 2026-11-08), the figure that prediction used
+  (`Prediction.climb.usedM`), and the plan says so. A segment
   with no climb of its own takes `r1.unenteredClimbShare` of the course climb left after the entered
   rows, spread by distance (nothing when the goal holds no course climb).
 - Grams to carry per segment are shown for an `aided` race only, as an estimate (the rate of the fuel

@@ -2304,6 +2304,27 @@ describe('L1 to L6: the prediction', () => {
     expect(factsOf('L5')).toEqual([])
   })
 
+  test('L5 adds the runner own climbing, once, when it moved the prediction', () => {
+    const ctx = contextOf(withEfforts(trail.input))
+    const moved = {
+      ...ctx,
+      prediction: {
+        ...ctx.prediction!,
+        climb: { runs: 23, defaultM: 10, personalM: 7, usedM: 9.25, shiftSec: 125, capped: false },
+      },
+    }
+    const facts = factsOf('L5', moved)
+    const own = facts.find((f) => f.id === 'l5.own-climb')!
+    expect(slot(own, 'runs', 'count').n).toBe(23)
+    expect(own.slots.shift).toBe('+2 min')
+    expect(facts.map((f) => f.id)).toContain('l5.own-climb-weights')
+    expect(factsOf('L5', ctx).map((f) => f.id)).not.toContain('l5.own-climb')
+    // The climb line states the figure used and that it includes the runner's own climbing.
+    const climbFact = facts.find((f) => f.id === 'l5.climb')!
+    expect(climbFact.template).toBe('explain.l5-climb-own')
+    expect(slot(climbFact, 'distance', 'distance').m).toBe(trail.input.goal.gainM * 9.25)
+  })
+
   test('L6 gives the predicted time and range and the least range for the distance', () => {
     const [range, floor] = factsOf('L6')
     const p = richCtx.prediction!

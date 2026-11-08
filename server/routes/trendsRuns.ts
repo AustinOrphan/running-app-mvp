@@ -12,6 +12,7 @@ import { parse } from '../errors.ts'
 import { loadRunSeries } from '../serialize.ts'
 import { TRENDS_WEEKS } from './trends.ts'
 import { memoByVersion } from '../services/athleteState.ts'
+import { bandRatios } from '../services/trendsCurve.ts'
 
 /** The view takes no parameters; an unknown one is a mistake worth a 400, not a silent ignore. */
 const query = z.strictObject({})
@@ -45,9 +46,11 @@ export function trendsRunsRouter(deps: Deps): Router {
         // The loader reaches back past the page for the oldest window's eight weeks; the dots stop
         // at the page's longest range, so `longRuns` never holds a run the page cannot draw.
         const first = addDays(today, -(TRENDS_WEEKS * 7) + 1)
+        // A hilly run's drift divides the speed of each terrain band by its ratio to flat (B2, HQ1).
+        const ratios = bandRatios(runs, today)
         return {
           asOf: today,
-          longRuns: longRunReadings(runs).filter((run) => run.date >= first),
+          longRuns: longRunReadings(runs, ratios).filter((run) => run.date >= first),
           hrWindows: hrWindows(runs, today),
         }
       },

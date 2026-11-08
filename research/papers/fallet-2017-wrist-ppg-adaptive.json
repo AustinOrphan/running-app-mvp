@@ -1,0 +1,33 @@
+{
+  "id": "fallet-2017-wrist-ppg-adaptive",
+  "title": "Robust heart rate estimation using wrist-type photoplethysmographic signals during physical exercise: an approach based on adaptive filtering",
+  "authors": "Fallet S, Vesin JM",
+  "year": 2017,
+  "journal": "Physiological Measurement",
+  "doi": "10.1088/1361-6579/aa506e",
+  "pmid": "28055986",
+  "url": "https://doi.org/10.1088/1361-6579/aa506e",
+  "design": "modelling",
+  "population": "Two datasets of wrist-type PPG records: running subjects, and subjects performing different kinds of arm and forearm movements",
+  "sampleSize": null,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "PPG signals are easily corrupted by motion artifacts when the subjects perform physical exercise.",
+    "Adaptive noise cancellation with accelerometer data followed by an adaptive band-pass filter gave average absolute errors of 1.40 +/- 0.60 bpm on the running dataset and 4.28 +/- 3.16 bpm on the arm and forearm movement dataset.",
+    "The method is fully automatic and has an average estimation delay of 0.93 s."
+  ],
+  "limitations": "An algorithm paper on research datasets, using raw PPG and accelerometer signals; the abstract gives no sample size and no device list, and the result does not transfer to a commercial watch's output.",
+  "implications": [
+    "Wrist heart-rate error depends on how the wrist moves, and was larger for varied arm movements than for running; this supports caution on variable-movement runs, not any threshold.",
+    "The HQ1 checks do not use the accelerometer and are not a validated artefact detector."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, Physiol Meas 38(2):155-170, published online 5 January 2017, authors Fallet and Vesin. Abstract read in Europe PMC (PMID 28055986); the numbers are copied from it. Sample size is not in the abstract. Design recorded as modelling: an algorithm evaluated on research datasets.",
+    "checkedAt": "2026-11-08"
+  }
+}

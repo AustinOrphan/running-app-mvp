@@ -1,6 +1,7 @@
 import FitParser from 'fit-file-parser'
 import type { ParsedFit } from 'fit-file-parser'
-import type { Lap, ParsedActivity } from '../../types.ts'
+import type { HrSource, Lap, ParsedActivity } from '../../types.ts'
+import { hrSourceOfDeviceInfos } from './hrSource.ts'
 import {
   classifySport,
   elevationGainLoss,
@@ -15,6 +16,7 @@ import {
   withIndex,
 } from './summarize.ts'
 import type { RawPoint } from './summarize.ts'
+import { validPosition } from './track.ts'
 
 type Message = Record<string, unknown>
 
@@ -106,6 +108,11 @@ function lapsOf(laps: Message[], startMs: number, endMs: number, foot: boolean):
   return out
 }
 
+/** The heart-rate source of a stored FIT file, for runs imported before it was read (`hrSource.ts`). */
+export function fitHrSource(bytes: Uint8Array): HrSource {
+  return hrSourceOfDeviceInfos((decode(bytes).device_infos ?? []) as Message[])
+}
+
 /** One activity per FIT session. Throws `RangeError` with a reason for an unreadable file. */
 export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedActivity[] {
   const fit = decode(bytes)
@@ -193,6 +200,22 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const startLat = lat ?? (firstPositioned ? num(firstPositioned, 'position_lat') : null)
     const startLng = lng ?? (firstPositioned ? num(firstPositioned, 'position_long') : null)
 
+    const route = recordsBySession[index]!.flatMap((record) => {
+      const rLat = num(record, 'position_lat')
+      const rLng = num(record, 'position_long')
+      const time = ms(record['timestamp'])
+      return rLat !== null && rLng !== null && validPosition(rLat, rLng)
+        ? [
+            {
+              lat: rLat,
+              lng: rLng,
+              d: num(record, 'distance'),
+              t: time === null ? null : Math.max(0, (time - startMs) / 1000),
+            },
+          ]
+        : []
+    })
+
     const startUtc = msToUtcIso(startMs)
     const utcOffsetMin =
       fileOffset !== null && Math.abs(fileOffset) <= MAX_OFFSET_MIN
@@ -221,8 +244,10 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       avgCadence: avgCadence === null ? null : Math.round(avgCadence),
       avgPowerW: avgPower === null ? null : Math.round(avgPower),
       deviceName: deviceName(infos),
+      hrSource: hrSourceOfDeviceInfos(infos),
       startLat: startLat === null ? null : roundCoord(startLat),
       startLng: startLng === null ? null : roundCoord(startLng),
+      route: route.length > 0 ? route : null,
       samples,
       laps: lapsOf(laps, startMs, endMs, foot),
     })

@@ -154,6 +154,15 @@ its build runs `prisma migrate deploy` as a smoke test.
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
   figure on it is a range and a sketch; a new number is a Param under C9.
+- Heart-rate quality (rule B2, batch HQ1, ADR 0019 addendum): `Activity.hrQuality` (JSON `HrQuality`) is
+  written by `storeParsed` (`computeHrQuality`, `shared/importers/files/hrQuality.ts`) and by the
+  `hr-quality` job (`backfillHrQuality`, every 5 minutes, newest runs first), which also computes again a
+  summary whose `th` (the eight data-preparation thresholds) differs from the current ones. It stores
+  counts only; whether a run passes is read by `hrQualityPasses` (`shared/engine/hrQuality.ts`): at least
+  `hrModel.minDurationMin` of moving time, and an external-sensor source (FIT `device_info`, `hrSource.ts`) or at
+  least `b2.qMinCleanShare` clean. Only the Trends panels read it, through `HrFitOptions.hilly` and
+  `longRunReadings`; `fitHrModel`, My paces, the zones, A7 and C9 stay flat-only. A new check or threshold
+  is a `b2.q` Param, a `HR_QUALITY_VERSION` bump when its meaning changes, and a Params version.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`
@@ -220,6 +229,15 @@ its build runs `prisma migrate deploy` as a smoke test.
   (`?view=card`, `describeRaceCard`) is a view of the same rows, kept offline as the sixth read of
   ADR 0012; its crew notes are `race-crew:` keys in `web/pwa/drafts.ts`, on the device only, and
   `RaceCard.module.css` holds the print layout.
+- Run tracks (M1a): a parsed run carries `route` (every recorded position, not stored as it is). `buildTrack`
+  (`shared/importers/files/track.ts`) simplifies it with Douglas-Peucker at 5 m, caps it at 2,000 points and
+  encodes a precision-5 polyline with the cumulative metres per kept point; these constants are data
+  preparation, not engine Params. `ActivityTrack` (non-state) is written only by `storeParsed` and the `track`
+  backfill (`server/services/trackBackfill.ts`); `Activity.trackV` records that the positions were looked for,
+  so a treadmill run or one with none has no row and is not looked for again. A pull provider's positions
+  come from `fetchRoute` (intervals.icu `latlng` stream: latitudes in `data`, longitudes in `data2`). The
+  stored track is whole; `GET /api/activities/:id/track` cuts the first and last 200 m while
+  `User.hideMapEnds` is on (the default), and nothing else may serve the stored polyline.
 - `Sheet` (`web/components/Sheet.tsx`) is stack-aware: only the topmost open sheet answers Tab and
   Escape, and the ones under it are `inert`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are

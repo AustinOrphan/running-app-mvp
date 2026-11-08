@@ -489,3 +489,73 @@ describe('predictRace', () => {
     expect(predictRace(input)).toEqual(predictRace(input))
   })
 })
+
+describe('predictFromState: the runner own climbing, a little [L5, I13]', () => {
+  const D = P.l5.gainEquivalentM.value
+  const base = (): AthleteState => {
+    const sec = 1500 * Math.pow(10500 / 5000, RIEGEL)
+    return makeState({
+      races: [race('2026-09-01', 5000, 1500)],
+      csMps: 10500 / sec,
+      dPrimeM: 0,
+    })
+  }
+  /** The state with a climbing ratio that would put the full figure at `personalM` flat m per m. */
+  const withClimb = (personalM: number | null, runs = 23): AthleteState => ({
+    ...base(),
+    climb: personalM === null ? null : { ratio: personalM / D, runs },
+  })
+  const hilly = road(10000, { surface: 'trail', gainM: 50 })
+
+  it('keeps the default when the state holds no personal climb, or the course has no gain', () => {
+    const plain = predictFromState(base(), hilly)!
+    expect(predictFromState(withClimb(null), hilly)).toEqual(plain)
+    expect(plain.climb).toBeUndefined()
+    const flat = road(10000)
+    expect(predictFromState(withClimb(6), flat)).toEqual(predictFromState(base(), flat))
+  })
+
+  it('moves toward a faster personal figure by the faster weight, and says so', () => {
+    const plain = predictFromState(base(), hilly)!
+    const p = predictFromState(withClimb(D - 2), hilly)!
+    expect(p.predictedSec).toBeLessThan(plain.predictedSec)
+    expect(p.climb?.usedM).toBeCloseTo(D + P.l5.personalBlendFaster.value * -2, 6)
+    expect(p.climb?.shiftSec).toBe(p.predictedSec - plain.predictedSec)
+    expect(p.climb?.runs).toBe(23)
+    expect(p.conditions.join(' ')).toMatch(
+      /Includes your own speed on climbs from 23 runs, moving this by (-\d+ min|less than a minute)\./,
+    )
+    expect(p.rules).toContain('L5')
+  })
+
+  it('weighs a slower personal figure more than an equal faster one (G6)', () => {
+    const plain = predictFromState(base(), hilly)!
+    const faster = predictFromState(withClimb(D - 1), hilly)!
+    const slower = predictFromState(withClimb(D + 1), hilly)!
+    const gainFast = plain.predictedSec - faster.predictedSec
+    const gainSlow = slower.predictedSec - plain.predictedSec
+    expect(gainFast).toBeGreaterThan(0)
+    expect(gainSlow / gainFast).toBeCloseTo(
+      P.l5.personalBlendSlower.value / P.l5.personalBlendFaster.value,
+      0,
+    )
+  })
+
+  it('holds the shift to the cap, in either direction, and flags it', () => {
+    const steep = road(10000, { surface: 'trail', gainM: 400 })
+    const plain = predictFromState(base(), steep)!
+    const cap = (P.l5.personalBlendMaxShiftPct.value / 100) * plain.predictedSec
+    for (const personal of [0.5, 80]) {
+      const p = predictFromState(withClimb(personal), steep)!
+      expect(p.climb?.capped).toBe(true)
+      expect(Math.abs(p.predictedSec - plain.predictedSec)).toBeLessThanOrEqual(Math.ceil(cap))
+      expect(Math.abs(p.climb!.shiftSec)).toBeGreaterThan(cap * 0.9)
+    }
+  })
+
+  it('does not narrow the interval', () => {
+    const plain = predictFromState(base(), hilly)!
+    const p = predictFromState(withClimb(D - 1), hilly)!
+    expect(halfWidthPct(p)).toBeCloseTo(halfWidthPct(plain), 1)
+  })
+})
