@@ -134,9 +134,9 @@ describe('the words of the Trends page', () => {
     expect(driftComparableLine('mi')).toBe(
       'Comparable runs last 90 min to 3 h in air under 77 °F, within 20% in length and 9 °F in temperature of each other.',
     )
-    expect(driftHillsLine('km')).toContain('more than 15 m per km are left out')
+    expect(driftHillsLine('km')).toContain('more than 15 m per km is drawn only when')
     // 15 m per km is 24 m per mile, 79 ft.
-    expect(driftHillsLine('mi')).toContain('more than 79 ft per mile are left out')
+    expect(driftHillsLine('mi')).toContain('more than 79 ft per mile is drawn only when')
     expect(driftMedianLine(4.1, 5, 118)).toBe(
       'Median 4.1% over 5 comparable runs of about 2 h on cool days.',
     )
@@ -147,27 +147,27 @@ describe('the words of the Trends page', () => {
       'No median yet. It needs 3 comparable runs of 90 min to 3 h in air under 25 °C.',
     )
     expect(driftAria('last 12 months', { count: 6, pct: -1.2, date: '2026-05-04' })).toBe(
-      'Heart-rate drift of 6 flat runs, last 12 months. Latest -1.2% on 4 May.',
+      'Heart-rate drift of 6 runs, last 12 months. Latest -1.2% on 4 May.',
     )
     expect(driftAria('last 12 months', null)).toBe(
-      'Heart-rate drift of flat long runs, last 12 months. No run has a reading yet.',
+      'Heart-rate drift of long runs, last 12 months. No run has a reading yet.',
     )
   })
 
   it("words the heart-rate panel from the Params of rules A8 and C9, with the pace in the runner's unit", () => {
     expect(hrCaption(2.8, 'km')).toBe(
-      'Each point is the heart rate your own line gives at 5:57 /km on a cool day, from the steady flat runs of the 8 weeks to that date.',
+      'Each point is the heart rate your own line gives at 5:57 /km on a cool day, from the steady runs of the 8 weeks to that date.',
     )
     expect(hrCaption(2.8, 'mi')).toContain('9:35 /mi')
     expect(hrNeedsLine(2.8, 'km')).toBe(
-      'A point needs 8 steady flat runs with heart rate in 8 weeks, and 5:57 /km within 10% of the paces they covered.',
+      'A point needs 8 steady runs with heart rate in 8 weeks, and 5:57 /km within 10% of the paces they covered.',
     )
     expect(hrEmptyPaceBody(2.8, 'km')).toBe(
       'No window of this range ran 5:57 /km or a pace near it, so no point can be read at one pace.',
     )
     expect(hrOverlapLine(4)).toContain('A point comes every 4 weeks')
     expect(hrEmptyBody(5)).toBe(
-      'A line needs 8 steady flat runs with heart rate within 8 weeks. The latest 8 weeks have 5.',
+      'A line needs 8 steady runs with heart rate within 8 weeks. The latest 8 weeks have 5.',
     )
     expect(hrAria('last 12 months', { mps: 2.8, latestBpm: 146 }, 'km')).toBe(
       'Heart rate at 5:57 /km, one point per 8-week window, last 12 months. Latest point: 146 bpm.',

@@ -10,6 +10,7 @@ import {
   driftSizeLine,
   hrAria,
   hrCaption,
+  hrHillyLine,
   hrEmptyBody,
   hrEmptyPaceBody,
   hrNeedsLine,
@@ -22,6 +23,7 @@ import {
   durabilityGroup,
   fixedSpeedSeries,
   HR_WINDOW_STEP_DAYS,
+  hillyRunsDrawn,
   runKey,
   type TrendsRunsView,
 } from '../../../shared/domain/trendsRuns.ts'
@@ -103,6 +105,12 @@ function DriftPanel({ view, from, months, units }: PanelProps) {
         {median === null ? driftHollowOnlyLine() : driftFilledLine()} {driftComparableLine(units)}
       </p>
       <p className={styles.caption}>{driftSizeLine()}</p>
+      {runs.some((run) => run.hilly) ? (
+        <>
+          <p className={styles.caption}>{text('trends.drift.hilly')}</p>
+          <p className={styles.caption}>{text('trends.drift.checks')}</p>
+        </>
+      ) : null}
     </>
   )
 }
@@ -113,6 +121,7 @@ function SpeedPanel({ view, from, months, units }: PanelProps) {
   const series = fixedSpeedSeries(windows)
   const drawn = series.points.filter((point) => point.bpm !== null)
   const latestBpm = drawn.at(-1)?.bpm ?? null
+  const hillyNote = hrHillyLine(hillyRunsDrawn(windows, series.points))
   if (series.referenceMps !== null && drawn.length === 0) {
     // Some window has a line, but none ran the reference pace: say that, not the run count.
     return (
@@ -134,7 +143,9 @@ function SpeedPanel({ view, from, months, units }: PanelProps) {
         from={from}
         to={view.asOf}
         ariaLabel={hrAria(spanText(months, null), { mps: series.referenceMps, latestBpm }, units)}
+        hillyNote={hillyNote}
       />
+      {hillyNote === null ? null : <p className={styles.caption}>{hillyNote}</p>}
       <p className={styles.caption}>{text('trends.hr.reference')}</p>
       <p className={styles.caption}>{text('trends.hr.heat')}</p>
       <p className={styles.caption}>{hrOverlapLine(HR_WINDOW_STEP_DAYS / 7)}</p>

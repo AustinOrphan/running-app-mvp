@@ -201,8 +201,10 @@ export type WindowGap = 'few-runs' | 'speed-not-run'
 /** One window as the heart-rate panel draws it. */
 export interface FixedSpeedPoint {
   end: string
-  /** Steady flat runs inside the window. */
+  /** Steady runs inside the window, hilly ones that passed included. */
   qualifying: number
+  /** Of those, the hilly runs that passed the heart-rate checks. */
+  hilly: number
   /** Runs the line was fitted on, or null with no line. */
   fitted: number | null
   /** The line's heart rate at the reference speed, whole bpm; null in a gap. */
@@ -231,7 +233,12 @@ export function fixedSpeedSeries(windows: readonly TrendHrWindow[]): FixedSpeedS
   const referenceMps = mids.length === 0 ? null : median(mids)
   const margin = P.c9.lineSpeedMargin.value
   const points = windows.map((w): FixedSpeedPoint => {
-    const base = { end: w.end, qualifying: w.qualifying, fitted: w.line?.runs ?? null }
+    const base = {
+      end: w.end,
+      qualifying: w.qualifying,
+      hilly: w.hillyRuns.length,
+      fitted: w.line?.runs ?? null,
+    }
     if (w.line === null || referenceMps === null) {
       return { ...base, bpm: null, gap: 'few-runs' }
     }
@@ -246,4 +253,20 @@ export function fixedSpeedSeries(windows: readonly TrendHrWindow[]): FixedSpeedS
     }
   })
   return { referenceMps, points }
+}
+
+/**
+ * How many different hilly runs the drawn points (those with a value) include: a run sits in the
+ * windows that overlap it, so the windows' counts are not added. Rule A11, batch HQ1.
+ */
+export function hillyRunsDrawn(
+  windows: readonly TrendHrWindow[],
+  points: readonly FixedSpeedPoint[],
+): number {
+  const seen = new Set<string>()
+  windows.forEach((window, index) => {
+    if (points[index]?.bpm === null || points[index] === undefined) return
+    for (const key of window.hillyRuns) seen.add(key)
+  })
+  return seen.size
 }

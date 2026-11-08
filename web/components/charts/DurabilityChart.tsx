@@ -18,7 +18,7 @@ import styles from './DurabilityChart.module.css'
 import { axisProps, chartColors, ChartTooltip, gridProps } from './theme.ts'
 
 export interface DurabilityChartProps {
-  /** The runs drawn, oldest first. */
+  /** The runs drawn, oldest first; a hilly run is drawn as a diamond. */
   runs: readonly TrendLongRun[]
   /** The `runKey` of the runs the median is read from; they are drawn filled, the others hollow. */
   inGroup: ReadonlySet<string>
@@ -41,6 +41,7 @@ interface Point {
   min: number
   tempC: number | null
   filled: boolean
+  hilly: boolean
 }
 
 /** Width of the value axis (px). */
@@ -81,10 +82,27 @@ interface DotProps {
   payload?: Point
 }
 
-/** One run: a filled dot when the median is read from it, a ring when it is not. */
+/**
+ * One run: a diamond for a hilly run whose heart rate passed the checks (grade-adjusted drift, never
+ * in the median), a filled dot when the median is read from the run, a ring when it is not. The
+ * three differ in shape, not only in tone.
+ */
 function Dot({ cx, cy, payload }: DotProps) {
   if (cx === undefined || cy === undefined || payload === undefined) return null
   const r = dotRadius(payload.min)
+  if (payload.hilly) {
+    // The same area as the dot of that length: a diamond of area 2h^2 equals pi r^2.
+    const h = r * Math.sqrt(Math.PI / 2)
+    return (
+      <polygon
+        points={`${String(cx)},${String(cy - h)} ${String(cx + h)},${String(cy)} ${String(cx)},${String(cy + h)} ${String(cx - h)},${String(cy)}`}
+        fill={chartColors.run}
+        fillOpacity={0.85}
+        stroke={chartColors.run}
+        strokeWidth={1}
+      />
+    )
+  }
   // The whole disc is the hit target, ring or not: a transparent fill takes the pointer, `none` would not.
   return payload.filled ? (
     <circle cx={cx} cy={cy} r={r} fill={chartColors.run} fillOpacity={0.85} />
@@ -123,7 +141,8 @@ export function DurabilityChart({
     pct: run.decouplingPct,
     min: run.durationSec / 60,
     tempC: run.tempC,
-    filled: inGroup.has(runKey(run)),
+    filled: !run.hilly && inGroup.has(runKey(run)),
+    hilly: run.hilly,
   }))
   const { domain, ticks } = driftScale([
     ...points.map((p) => p.pct),
@@ -180,6 +199,7 @@ export function DurabilityChart({
                             ? 'Not recorded'
                             : formatAirTemperature(point.tempC, units),
                       },
+                      { name: 'Terrain', value: point.hilly ? 'Hilly, grade-adjusted' : 'Flat' },
                       { name: 'In the median', value: point.filled ? 'Yes' : 'No' },
                     ]}
                   />
@@ -214,6 +234,7 @@ export function DurabilityChart({
               <th scope="col">Drift (%)</th>
               <th scope="col">Length (min)</th>
               <th scope="col">Air temperature</th>
+              <th scope="col">Terrain</th>
               <th scope="col">In the median</th>
             </tr>
           </thead>
@@ -224,6 +245,7 @@ export function DurabilityChart({
                 <td>{String(point.pct)}</td>
                 <td>{String(Math.round(point.min))}</td>
                 <td>{point.tempC === null ? '' : formatAirTemperature(point.tempC, units)}</td>
+                <td>{point.hilly ? 'Hilly, grade-adjusted' : 'Flat'}</td>
                 <td>{point.filled ? 'Yes' : 'No'}</td>
               </tr>
             ))}

@@ -146,3 +146,40 @@ paper, migration or environment variable, and `PARAMS_VERSION` is unchanged.
 - **Opinion:** a reference speed taken from the range shown is better than a fixed one, because a
   fixed speed would sit outside the speeds of a short range and leave every window a gap; the cost is
   that the pace in the caption changes with the range.
+
+## Addendum 2026-11-08: hilly runs whose heart rate passed (batch HQ1)
+
+Accepted 2026-11-08 (owner, "the middle path seems worth trying").
+
+### Decision
+
+- Rule B2 gains five per-run checks on the stored 10 s stream (cadence lock, spikes, dropouts, flat
+  lines, and heart rate falling while the grade-adjusted effort rises). `computeHrQuality`
+  (`shared/importers/files/hrQuality.ts`) counts the flagged moving seconds into `Activity.hrQuality`
+  beside the heart-rate source read from the FIT `device_info` (`hrSource.ts`). Import and the
+  `hr-quality` backfill job (`server/services/hrQualityBackfill.ts`, modelled on `terrain`) write it.
+- Whether a run passes is read from the counts (`hrQualityPasses`, `shared/engine/hrQuality.ts`), never
+  stored, so a new threshold needs no backfill. The ten `b2.q*` Params are grade D; eight are data
+  preparation and two (`b2.qMinCleanShare`, `b2.qMinHalfCleanMin`) decide which runs the panels draw.
+- The drift panel draws a hilly run that passes as a diamond with a grade-adjusted drift
+  (`gaDecouplingPct`: per-band, per-half clean seconds, metres and heart rate times seconds, divided
+  by the band ratios of the runner's grade curve, `bandRatios`). The heart-rate panel's fit takes
+  passing hilly runs through `HrFitOptions.hilly`, which only `hrWindows` sets, and names how many.
+- The engine is untouched: `fitHrModel`, `hrAgainstModel`, My paces, the zones, the A7 test and the C9
+  easy pace use the flat-only default, and `plan:report` is unchanged apart from the Params version.
+- `loadRunSeries` reads two more columns, `hrQuality` and `terrainBins` (the grade curve needs the
+  bins of the runs it already loads); the read is still one query.
+
+### Reasons
+
+- **Fact:** a Fenix 5 had 13% MAPE on one trail run [navalta-2020-trail-running-hr]; no study validates
+  a rescue of hilly wrist data, and none of the ten numbers (evidence gap 33). The panels mark such runs.
+- **Fact:** on 76 stored runs of one runner, all FIT files list the watch's own heart-rate sensor
+  (`device_type` `whr`, `source_type` `local`) and none an external one (read 2026-11-08), so every
+  source there is `wrist`.
+- **Rule:** the A7 test and the C9 pace stay flat-only until the owner decides otherwise (task HQ1).
+- **Opinion:** a pass read from the counts beats a stored pass, because the two engine numbers can
+  then move with a Params version and no job; the cost is that the page cannot list passes without
+  the Params.
+- **Opinion:** a diamond in the drift panel keeps hilly drift out of the median, which a dot would
+  suggest; the cost is a third mark to learn.
