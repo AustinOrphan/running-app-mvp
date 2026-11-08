@@ -110,6 +110,26 @@ describe('PUT /api/activities/done/:activityId', () => {
     expect(await ctx.prisma.activity.count({ where: { id: laptop } })).toBe(0)
   })
 
+  test('two phones marking one session done at once store exactly one run', async () => {
+    const session = await ctx.prisma.planSession.findFirst({
+      where: { planId: fx.plan.id, kind: { in: [...RUN_KINDS] }, activityId: null },
+      orderBy: { date: 'asc' },
+    })
+    if (!session) throw new Error('The fixture plan has no open run session.')
+    const ids = [randomUUID(), randomUUID()]
+    const results = await Promise.all(
+      ids.map((id) =>
+        client(ctx, fx.u)
+          .put(`/api/activities/done/${id}`)
+          .send(body(session.date, { sessionId: session.id })),
+      ),
+    )
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409])
+    expect(await ctx.prisma.activity.count({ where: { id: { in: ids } } })).toBe(1)
+    const linked = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: session.id } })
+    expect(ids).toContain(linked.activityId)
+  })
+
   test('a session the plan no longer holds does not lose the run', async () => {
     const id = randomUUID()
     const res = await client(ctx, fx.u)

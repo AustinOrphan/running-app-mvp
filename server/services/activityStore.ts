@@ -226,7 +226,10 @@ export interface ManualActivityInput {
 }
 
 /** The tables a write beside a manual activity may use inside its transaction. */
-export type ManualActivityDb = Pick<PrismaClient, 'activity' | 'strengthLog' | 'strengthSet'>
+export type ManualActivityDb = Pick<
+  PrismaClient,
+  'activity' | 'strengthLog' | 'strengthSet' | 'planSession'
+>
 
 export interface ManualActivityOptions {
   /**
@@ -338,9 +341,26 @@ export async function saveDoneActivity(
     }
   }
   try {
+    // The claim of the session is part of the create: two sends for one session (or a sync that
+    // matched it first) cannot both pass, and the loser's activity is rolled back with its 409.
     const activity = await createManualActivity(deps, userId, input, {
       id: activityId,
-      ...(linkTo === undefined ? {} : { sessionId: linkTo }),
+      ...(linkTo === undefined
+        ? {}
+        : {
+            sessionId: linkTo,
+            within: async (tx, row) => {
+              const { count } = await tx.planSession.updateMany({
+                where: { id: linkTo, activityId: null },
+                data: { activityId: row.id, linkSource: 'owner' },
+              })
+              if (count === 0) {
+                throw conflict(render(TEMPLATES['today.done.already-logged'], {}, 'mi'), {
+                  sessionId,
+                })
+              }
+            },
+          }),
     })
     return { activity, created: true }
   } catch (error) {
