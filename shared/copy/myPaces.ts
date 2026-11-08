@@ -291,7 +291,7 @@ export const PACES_TEMPLATES = {
     'On a descent the default is the most speed equal effort allows (I13, I11), so your own figure can sit under it.',
   ),
   'paces.terrain.how-display': tpl(
-    'Predictions read this a little (L5): only on climbing grades whose test passed, and by at most a few percent of the time. No plan or zone reads it.',
+    'Predictions read this a little (L5), on grades whose test passed. Neither the training plan nor the zones read it; the race plan’s times follow the prediction.',
   ),
   'paces.terrain.how-grade': tpl(
     'This is a grade D default (I13): a way to look at your runs, not a measured threshold.',

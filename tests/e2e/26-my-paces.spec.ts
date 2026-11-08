@@ -254,7 +254,11 @@ test('with enough steady runs on grades the climb row and the table show the run
   await grades.getByText('How this is made').click()
   await expect(grades.getByText(/leaving each run out in turn/)).toBeVisible()
   await expect(grades.getByText(/a sign test at 1%\), on at least 7 tested runs/)).toBeVisible()
-  await expect(grades.getByText(/^Predictions read this a little \(L5\)/)).toBeVisible()
+  await expect(
+    grades.getByText(
+      /^Predictions read this a little \(L5\).*the race plan.s times follow the prediction\.$/,
+    ),
+  ).toBeVisible()
   await grades.getByRole('button', { name: 'Why: the speed by grade' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
