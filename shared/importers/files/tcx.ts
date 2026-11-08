@@ -14,6 +14,7 @@ import {
   toUtcIso,
 } from './summarize.ts'
 import type { RawPoint } from './summarize.ts'
+import { validPosition } from './track.ts'
 
 /** Every `Activity`, including those inside a multisport session. */
 function activitiesOf(root: XmlNode): XmlNode[] {
@@ -132,6 +133,9 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     })
 
     const change = samples.alt ? elevationGainLoss(samples.alt) : null
+    const route = trackpoints.flatMap((tp) =>
+      validPosition(tp.lat, tp.lng) ? [{ lat: tp.lat!, lng: tp.lng!, d: tp.raw.d ?? null }] : [],
+    )
     const located = trackpoints.find((tp) => tp.lat !== null && tp.lng !== null)
     const avgHr = mean((samples.hr ?? []).filter((v) => v > 0))
     const avgCadence = mean(samples.cad ?? [])
@@ -157,6 +161,7 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       deviceName: device,
       startLat: located?.lat != null ? roundCoord(located.lat) : null,
       startLng: located?.lng != null ? roundCoord(located.lng) : null,
+      route: route.length > 0 ? route : null,
       samples,
       laps: parsedLaps,
     })

@@ -1,5 +1,6 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser'
 import type { ParsedActivity } from '../../types.ts'
+import { validPosition } from './track.ts'
 import {
   classifySport,
   elevationGainLoss,
@@ -169,6 +170,9 @@ export function parseGpx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const startUtc = msToUtcIso(first.ms)
     const change = samples.alt ? elevationGainLoss(samples.alt) : null
     const located = points.find((p) => p.lat !== null && p.lng !== null)
+    const route = points.flatMap((p, i) =>
+      validPosition(p.lat, p.lng) ? [{ lat: p.lat!, lng: p.lng!, d: raw[i]!.d ?? null }] : [],
+    )
     const avgHr = mean((samples.hr ?? []).filter((v) => v > 0))
     const avgCadence = mean(samples.cad ?? [])
     const avgPower = mean(samples.pwr ?? [])
@@ -192,6 +196,7 @@ export function parseGpx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       deviceName: creator,
       startLat: located?.lat != null ? roundCoord(located.lat) : null,
       startLng: located?.lng != null ? roundCoord(located.lng) : null,
+      route: route.length > 0 ? route : null,
       samples,
       laps: [],
     })
