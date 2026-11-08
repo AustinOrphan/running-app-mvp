@@ -10,7 +10,8 @@ export interface CustomCourse {
 }
 
 /**
- * The easy pace, what the runner can run now at the standard distances, the test the engine
+ * The easy pace, the runner's speed by grade next to the default (`terrain`, rule I13, display
+ * only), what the runner can run now at the standard distances, the test the engine
  * supports (`paces`), and the row of a course of their own when they name one (`custom`), rule C9,
  * ADR 0020. The server derives it on every read from the activities and the profile, so a write
  * that changes either invalidates the key (`ACTIVITY_DATA_KEYS`, the profile and the zones); it is

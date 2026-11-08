@@ -3,10 +3,12 @@ import { pacesText } from '../../shared/copy/myPaces.ts'
 import { useMyPaces, type CustomCourse } from '../api/paces.ts'
 import { useSettings } from '../api/settings.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { Skeleton } from '../components/Skeleton.tsx'
-import { useOnline } from '../components/useOnline.ts'
 import { EasyPaceSection } from '../components/paces/EasyPaceSection.tsx'
 import { EventsSection } from '../components/paces/EventsSection.tsx'
+import { TerrainSection } from '../components/paces/TerrainSection.tsx'
 import { TestSection } from '../components/paces/TestSection.tsx'
 import { ZonesSection } from '../components/paces/ZonesSection.tsx'
 import styles from '../components/paces/Paces.module.css'
@@ -14,33 +16,46 @@ import styles from '../components/paces/Paces.module.css'
 const JUMPS = [
   { href: '#easy', label: 'Easy pace' },
   { href: '#zones', label: 'Zones' },
+  { href: '#grades', label: 'Climbs and descents' },
   { href: '#events', label: 'What you can run now' },
   { href: '#test', label: 'A short test' },
 ] as const
 
 /**
  * My paces (rule C9, ADR 0020): the easy pace, the zones as the runner trains by them and what they
- * can run now at the standard distances and at one of their own, all derived on the server from the
+ * can run now at the standard distances and at one of their own, and their speed on each grade
+ * (rule I13, display only), all derived on the server from the
  * runner's own runs and stored nowhere. The page only lays out what `GET /api/paces` and
  * `GET /api/zones` send; the words are `shared/copy/myPaces.ts`.
  */
 export function MyPacesPage() {
-  const online = useOnline()
   const [course, setCourse] = useState<CustomCourse | null>(null)
   const settings = useSettings()
   const { paces, custom } = useMyPaces(course)
   const title = pacesText('paces.title')
   const context = pacesText('paces.context')
+  // The page needs both reads; a failure of either is one failed load, and the retry asks again for
+  // the one that failed.
+  const loaded = useLoadView({
+    data: paces.data !== undefined && settings.data !== undefined ? true : undefined,
+    isError: paces.isError || settings.isError,
+    isFetching: paces.isFetching || settings.isFetching,
+  })
 
-  if (paces.isError || settings.isError) {
+  if (loaded === 'failed' || loaded === 'retrying') {
     return (
       <>
         <PageHeader title={title} />
-        {online ? (
-          <p role="alert">{pacesText('paces.error')}</p>
-        ) : (
-          <p role="status">{pacesText('paces.offline')}</p>
-        )}
+        <ErrorState
+          subject={title}
+          retrying={loaded === 'retrying'}
+          onRetry={() =>
+            Promise.all([
+              paces.isError ? paces.refetch() : null,
+              settings.isError ? settings.refetch() : null,
+            ])
+          }
+        />
       </>
     )
   }
@@ -74,6 +89,7 @@ export function MyPacesPage() {
         </nav>
         <EasyPaceSection easy={view.easy} units={units} />
         <ZonesSection units={units} />
+        <TerrainSection curve={view.terrain} units={units} />
         <EventsSection
           events={view.events}
           units={units}

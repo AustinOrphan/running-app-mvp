@@ -6,6 +6,8 @@ import { fitHrModel } from '../../../shared/engine/execution.ts'
 import { eventRow } from '../../../shared/engine/myPaces.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { gradeAdjustedSpeed } from '../../../shared/engine/terrain.ts'
+import type { Activity } from '../../../shared/types.ts'
+import { athlete, scaledCurve, syntheticRuns } from './gradeCurve-fixtures.ts'
 import { paces, profileFixture, run, RUNS, stateWith, TODAY } from './myPacesFixtures.ts'
 
 describe('easy pace from the heart-rate line [C9, A8, C2]', () => {
@@ -331,5 +333,57 @@ describe('the events [C9, L1 to L6]', () => {
   it('reports a critical speed as done once the efforts give one', () => {
     const state = stateWith({ csMps: 3.5, dPrimeM: 150, csEfforts: 4 })
     expect(paces({ state }).view.test).toMatchObject({ efforts: 4, done: true })
+  })
+})
+
+describe('the climb row and the grade table from the runner own curve [I13]', () => {
+  const who = athlete(scaledCurve(0.5), 0.03)
+  /** Synthetic runs with terrain bins, as activities, on top of the nine runs of the line. */
+  const withBins = (count: number): Activity[] =>
+    syntheticRuns(who, count, TODAY, 21, 2).map((r, i) =>
+      run(100 + i, 3, { id: r.id, date: r.date, terrainBins: r.bins }),
+    )
+  const climbBand = (view: ReturnType<typeof paces>['view']) =>
+    view.terrain.bands.find((band) => band.fromPct === 3 && band.toPct === 6)!
+
+  it('keeps Minetti and says why when the runs carry no bins', () => {
+    const { view } = paces({})
+    const climb = view.easy.pace!.climb
+    expect(climb.source).toBe('default')
+    expect(climb.reason).toBe('few-minutes')
+    expect(climb.bandIndex).toBe(climbBand(view).index)
+    expect(view.terrain.eligibleRuns).toBe(0)
+    expect(view.terrain.bands.every((band) => band.source === 'default')).toBe(true)
+    expect(view.easy.pace!.rules).toContain('I13')
+  })
+
+  it('moves the climb by the own ratio of the band when the curve shows it', () => {
+    const { view } = paces({ activities: [...RUNS, ...withBins(40)] })
+    const band = climbBand(view)
+    expect(band.source).toBe('personal')
+    const pace = view.easy.pace!
+    expect(pace.climb.source).toBe('personal')
+    expect(pace.climb.reason).toBe('personal')
+    expect(pace.climb.range).toEqual([
+      Math.round(pace.range[0] / band.ratio),
+      Math.round(pace.range[1] / band.ratio),
+    ])
+    // scaledCurve(0.5) is half as steep as Minetti, so the climb is faster than the default one
+    const minetti = gradeAdjustedSpeed(1, P.c9.exampleGradePct.value / 100)
+    expect(pace.climb.range[1]).toBeLessThan(Math.round(pace.range[1] * minetti))
+  })
+
+  it('reads runs only: races and flagged duplicates give no bins to the curve', () => {
+    const extra = withBins(40)
+    const races = extra.map((a) => ({ ...a, type: 'race' as const }))
+    const dups = extra.map((a) => ({ ...a, duplicateStatus: 'confirmed' as const }))
+    expect(paces({ activities: [...RUNS, ...races] }).view.terrain.eligibleRuns).toBe(0)
+    expect(paces({ activities: [...RUNS, ...dups] }).view.terrain.eligibleRuns).toBe(0)
+  })
+
+  it('changes no prediction', () => {
+    const plain = paces({}).view.events
+    const rich = paces({ activities: [...RUNS, ...withBins(40)] }).view.events
+    expect(rich).toEqual(plain)
   })
 })
