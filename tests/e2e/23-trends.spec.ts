@@ -376,6 +376,7 @@ test.describe('the run panels', () => {
       'Heart rate (bpm)',
       'Runs fitted',
       'Runs in the window',
+      'Hilly runs among them',
     ])
     // Thirteen windows end inside 12 months; the oldest had no run and say why.
     await expect(speedTable.getByRole('row')).toHaveCount(1 + 13)
