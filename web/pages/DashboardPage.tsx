@@ -162,94 +162,140 @@ export function DashboardPage() {
   const verdictShown =
     waiting && coach.verdict?.code === 'no-signals' ? SAVED_ON_PHONE : coach.verdict
 
+  // A rest day: nothing to run, so on a desktop the week and its meter move up under the "Next:"
+  // line (the left column), and the check-in and the rest stand in the right column as an aside. A
+  // phone keeps one column in the order of the session first.
+  const restDay =
+    coach.hero === null
+      ? planned
+      : coach.hero.advice === 'rest' || coach.hero.session.kind === 'rest'
+  const weekStrip =
+    coach.weekStrip === null ? null : (
+      <WeekStrip
+        strip={coach.weekStrip}
+        units={units}
+        advisory={showWeekAdvisory({
+          windowOpen: coach.disruptions.some(isOpen),
+          heroKind: coach.hero?.session.kind ?? null,
+          verdictCode: coach.verdict?.code ?? null,
+        })}
+      />
+    )
+  const sessionBlock =
+    coach.hero !== null ? (
+      <SessionHero
+        hero={coach.hero}
+        heat={view.heat}
+        next={coach.next}
+        units={units}
+        readOnly={day === 'past'}
+      />
+    ) : planned ? (
+      <NoSession next={coach.next} units={units} />
+    ) : null
+  // Under the session and over the readiness read: the session leads, and a plan that changed
+  // overnight is read before the check-in.
+  const briefBlock =
+    leadingBrief === null ? null : (
+      <MondayBrief item={leadingBrief} reviewDue={coach.health.lastWeekReady} units={units} />
+    )
+  // Under the session, not over it: the note has no height budget, and above Done it would push
+  // Done past the fold (ADR 0012).
+  const offlineBlock = <OfflineNote view={view} units={units} />
+  const readinessBlock = (
+    <ReadinessRead
+      verdict={verdictShown}
+      signals={coach.signals}
+      units={units}
+      verdictRef={verdict}
+    >
+      {day !== 'today' ? undefined : (
+        <CheckinRow
+          key={view.date}
+          date={view.date}
+          checkin={view.checkin}
+          boneActive={view.readiness.redFlags.some((flag) => flag.code === 'focal-bone-pain')}
+          windowOpen={coach.disruptions.some(isOpen)}
+          units={units}
+          onAnswered={() => {
+            verdict.current?.focus()
+          }}
+        />
+      )}
+    </ReadinessRead>
+  )
+  const planNotice = (
+    <PlanNotice
+      hasPlan={planned}
+      weekInPlan={coach.weekStrip?.targetRunMin != null}
+      hasGoal={coach.race !== null}
+    />
+  )
+  const feedbackBlock = (
+    <FeedbackCard
+      unrated={view.unrated}
+      units={units}
+      exclude={heroAsksRating ? (coach.hero?.linkedRun?.id ?? null) : null}
+      onSaved={() => {
+        toast.show('Feedback saved')
+      }}
+    />
+  )
+  const raceBlock = coach.race === null ? null : <RaceCountdown race={coach.race} units={units} />
+  const healthBlock = <DataHealth health={coach.health} reviewShownAbove={leadingBrief !== null} />
+  const restColumns = twoColumns && restDay
+
   return (
     <>
       {header(formatWeekdayDate(view.date), true)}
       <div className={styles.page}>
         <HealthNotes flags={view.readiness.redFlags} notes={coach.health.notes} units={units} />
-        <div className={styles.columns} data-layout={twoColumns ? 'two' : 'one'}>
-          <div className={styles.column}>
-            <TodaySlot name="disruption" />
-
-            {coach.hero !== null ? (
-              <SessionHero
-                hero={coach.hero}
-                heat={view.heat}
-                next={coach.next}
-                units={units}
-                readOnly={day === 'past'}
-              />
-            ) : planned ? (
-              <NoSession next={coach.next} units={units} />
-            ) : null}
-            {/* Under the session and over the readiness read: the session leads, and a plan that
-                changed overnight is read before the check-in. */}
-            {leadingBrief === null ? null : (
-              <MondayBrief
-                item={leadingBrief}
-                reviewDue={coach.health.lastWeekReady}
-                units={units}
-              />
-            )}
-            {/* Under the session, not over it: the note has no height budget, and above Done it
-                would push Done past the fold (ADR 0012). */}
-            <OfflineNote view={view} units={units} />
-            <ReadinessRead
-              verdict={verdictShown}
-              signals={coach.signals}
-              units={units}
-              verdictRef={verdict}
-            >
-              {day !== 'today' ? undefined : (
-                <CheckinRow
-                  key={view.date}
-                  date={view.date}
-                  checkin={view.checkin}
-                  boneActive={view.readiness.redFlags.some(
-                    (flag) => flag.code === 'focal-bone-pain',
-                  )}
-                  windowOpen={coach.disruptions.some(isOpen)}
-                  units={units}
-                  onAnswered={() => {
-                    verdict.current?.focus()
-                  }}
-                />
-              )}
-            </ReadinessRead>
-            <PlanNotice
-              hasPlan={planned}
-              weekInPlan={coach.weekStrip?.targetRunMin != null}
-              hasGoal={coach.race !== null}
-            />
-          </div>
-
-          <div className={styles.column}>
-            {coach.weekStrip === null ? null : (
-              <WeekStrip
-                strip={coach.weekStrip}
-                units={units}
-                advisory={showWeekAdvisory({
-                  windowOpen: coach.disruptions.some(isOpen),
-                  heroKind: coach.hero?.session.kind ?? null,
-                  verdictCode: coach.verdict?.code ?? null,
-                })}
-              />
-            )}
-            <TodaySlot name="brief" />
-            <TodaySlot name="race" />
-            <TodaySlot name="fuelPrompt" />
-
-            <FeedbackCard
-              unrated={view.unrated}
-              units={units}
-              exclude={heroAsksRating ? (coach.hero?.linkedRun?.id ?? null) : null}
-              onSaved={() => {
-                toast.show('Feedback saved')
-              }}
-            />
-            {coach.race === null ? null : <RaceCountdown race={coach.race} units={units} />}
-            <DataHealth health={coach.health} reviewShownAbove={leadingBrief !== null} />
-          </div>
+        <div
+          className={styles.columns}
+          data-layout={twoColumns ? 'two' : 'one'}
+          data-day={restColumns ? 'rest' : undefined}
+        >
+          {restColumns ? (
+            <>
+              <div className={styles.column}>
+                <TodaySlot name="disruption" />
+                {sessionBlock}
+                {weekStrip}
+                {briefBlock}
+                {offlineBlock}
+                <TodaySlot name="brief" />
+              </div>
+              <div className={styles.column}>
+                {readinessBlock}
+                {planNotice}
+                <TodaySlot name="race" />
+                <TodaySlot name="fuelPrompt" />
+                {feedbackBlock}
+                {raceBlock}
+                {healthBlock}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.column}>
+                <TodaySlot name="disruption" />
+                {sessionBlock}
+                {briefBlock}
+                {offlineBlock}
+                {readinessBlock}
+                {planNotice}
+              </div>
+              <div className={styles.column}>
+                {weekStrip}
+                <TodaySlot name="brief" />
+                <TodaySlot name="race" />
+                <TodaySlot name="fuelPrompt" />
+                {feedbackBlock}
+                {raceBlock}
+                {healthBlock}
+              </div>
+            </>
+          )}
         </div>
         <History today={view.date} units={units} />
         <DisclaimerNote />

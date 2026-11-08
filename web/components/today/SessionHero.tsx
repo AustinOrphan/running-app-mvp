@@ -53,7 +53,7 @@ export function NoSession({ next, units }: { next: PlanSessionView | null; units
       <p className={styles.emptyLine}>
         {render(TEMPLATES['today.hero.nothing-planned'], {}, units)}
       </p>
-      {line === null ? null : <p className={styles.muted}>{line}</p>}
+      {line === null ? null : <p className={styles.nextLine}>{line}</p>}
     </section>
   )
 }
