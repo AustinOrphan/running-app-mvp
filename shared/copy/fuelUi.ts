@@ -172,6 +172,27 @@ export const FUEL_UI_TEMPLATES = {
   'fuel.lab.rate-cell': tpl('{rate} g/h', { rate: 'count' }, { shape: 'label' }),
   'fuel.lab.not-recorded': tpl('Not recorded', {}, { shape: 'label' }),
   'fuel.lab.not-answered': tpl('Not answered', {}, { shape: 'label' }),
+  // One run of the history on a narrow screen, where the table would hide its last column: the date,
+  // then these sentences in a line, then the note the replay gave it.
+  'fuel.lab.history-rate': tpl(
+    '{rate} g/h taken, target {target}.',
+    { rate: 'count', target: 'text' },
+    { fallback: 'Rate taken.' },
+  ),
+  'fuel.lab.history-rate-missing': tpl(
+    'Rate not recorded, target {target}.',
+    { target: 'text' },
+    {
+      fallback: 'Rate not recorded.',
+    },
+  ),
+  'fuel.lab.history-gut': tpl('Gut: {gut}.', { gut: 'text' }, { fallback: 'Gut scored.' }),
+  'fuel.lab.history-gut-missing': tpl('Gut not recorded.'),
+  'fuel.lab.history-nausea': tpl(
+    'Nausea: {nausea}.',
+    { nausea: 'text' },
+    { fallback: 'Nausea scored.' },
+  ),
 
   // Products: the list, its form and what archiving does
   'fuel.lab.products-heading': tpl('Products', {}, { shape: 'label' }),

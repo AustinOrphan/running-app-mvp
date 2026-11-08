@@ -1536,6 +1536,37 @@ describe('the Fuel lab page: the history', () => {
     expectCleanCopy(scroller)
   })
 
+  test('below 40 rem a run is a stacked item with its result on screen, not a table', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 39.99rem)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    try {
+      const lab = fullLab()
+      renderLab(lab)
+      const list = await screen.findByRole('list', { name: 'Fuel history, newest first' })
+      expect(screen.queryByRole('table')).not.toBeInTheDocument()
+      const items = within(list).getAllByRole('listitem')
+      expect(items).toHaveLength(lab.history.length)
+      lab.history.forEach((entry, index) => {
+        const item = items[index]
+        if (item === undefined) throw new Error('An item for every log.')
+        expect(within(item).getByRole('link')).toHaveAttribute(
+          'href',
+          `/activities/${entry.log.activityId}`,
+        )
+        expect(within(item).getByText(entry.note)).toBeInTheDocument()
+      })
+      // The second run: 67 g/h taken against 60, gut none, nausea not answered.
+      expect(items[1]).toHaveTextContent('67 g/h taken, target 60 g/h. Gut: None, 0 of 4.')
+      expect(items[1]).not.toHaveTextContent('Nausea')
+      expectCleanCopy(list)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   test('scrolls inside its own box in both directions, so the page never scrolls sideways', () => {
     const css = readFileSync(
       join(process.cwd(), 'web/components/fuel/FuelHistory.module.css'),

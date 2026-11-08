@@ -54,3 +54,44 @@
   min-width: 22rem;
   white-space: normal;
 }
+
+/* Below 40 rem: one run per item, the date first, the figures in a line, then what it did. */
+.stack {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.run:last-child {
+  border-bottom: 0;
+}
+
+.date {
+  align-self: flex-start;
+  min-height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+}
+
+.line,
+.run .note {
+  margin: 0;
+}
+
+.run .note {
+  color: var(--text-muted);
+}

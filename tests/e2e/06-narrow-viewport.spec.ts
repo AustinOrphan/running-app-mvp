@@ -888,8 +888,9 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto('/fuel')
   await expect(page.getByRole('heading', { name: 'Fuel lab', level: 1 })).toBeVisible()
-  const history = page.getByRole('region', { name: 'Fuel history, newest first' })
-  await expect(history.getByRole('row')).toHaveCount(3)
+  // Below 40 rem the history is a list of runs, so the gut result is on screen with no sideways scroll.
+  const history = page.getByRole('list', { name: 'Fuel history, newest first' })
+  await expect(history.getByRole('listitem')).toHaveCount(2)
   const width = page.viewportSize()?.width ?? 0
   const height = page.viewportSize()?.height ?? 0
 
@@ -908,7 +909,7 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
     )
   }
 
-  // The page: nothing pushes it sideways, and the history table scrolls inside its own box.
+  // The page: nothing pushes it sideways, and every run's result is inside the screen.
   expect(await pageOverflow(), 'the lab page').toBeLessThanOrEqual(0)
   expect(await pastRightEdge(page.getByRole('main')), 'past the right edge').toEqual([])
   // The grades on the ladder are explained in a line of the page, since a phone shows no hover
@@ -923,9 +924,12 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
   const historyBox = await history.boundingBox()
   expect((historyBox?.x ?? -1) + (historyBox?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
   expect(historyBox?.x ?? -1).toBeGreaterThanOrEqual(0)
-  expect(await history.evaluate((el) => el.scrollWidth > el.clientWidth), 'table scrolls').toBe(
-    true,
-  )
+  for (const gut of await history.getByText(/Gut: /).all()) {
+    await gut.scrollIntoViewIfNeeded()
+    const box = await gut.boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? 0), 'the gut result').toBeLessThanOrEqual(width + 0.5)
+    expect(await isUncovered(gut), 'the gut result is not under the tab bar').toBe(true)
+  }
 
   // Every button of the lab is on screen when scrolled to and is at least 44 px tall.
   for (const name of ['Add a product', 'Save settings']) {

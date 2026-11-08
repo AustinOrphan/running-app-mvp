@@ -181,6 +181,26 @@ export const labText = {
   rateCell: (gPerH: number) => say(T['fuel.lab.rate-cell'], { rate: count(Math.round(gPerH)) }),
   notRecorded: () => say(T['fuel.lab.not-recorded'], {}),
   notAnswered: () => say(T['fuel.lab.not-answered'], {}),
+  historyLine: (row: {
+    rateGPerH: number | null
+    target: string
+    gut: number | null
+    nausea: number | null
+  }) =>
+    [
+      row.rateGPerH === null
+        ? say(T['fuel.lab.history-rate-missing'], { target: row.target })
+        : say(T['fuel.lab.history-rate'], {
+            rate: count(Math.round(row.rateGPerH)),
+            target: row.target,
+          }),
+      row.gut === null
+        ? say(T['fuel.lab.history-gut-missing'], {})
+        : say(T['fuel.lab.history-gut'], { gut: fuelText.scoreValue(row.gut) }),
+      ...(row.nausea === null
+        ? []
+        : [say(T['fuel.lab.history-nausea'], { nausea: fuelText.scoreValue(row.nausea) })]),
+    ].join(' '),
 
   productsHeading: () => say(T['fuel.lab.products-heading'], {}),
   productsLead: () => say(T['fuel.lab.products-lead'], {}),
