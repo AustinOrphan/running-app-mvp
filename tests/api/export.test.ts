@@ -3,7 +3,7 @@ import { request as httpRequest, type IncomingMessage } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { gzipSync } from 'node:zlib'
 import { unzipSync } from 'fflate'
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { todayIso } from '../../shared/dates.ts'
 import {
   EXCLUDED_MODELS,
@@ -11,6 +11,9 @@ import {
   ORIGINAL_FILES_DIR,
 } from '../../server/services/exportArchive.ts'
 import { schemaModels } from '../schemaModels.ts'
+import { verifyZip } from '../zipCrc.ts'
+import { exportEntryCount } from '../../server/services/exportArchive.ts'
+import { MAX_ZIP_ENTRIES } from '../../server/services/zipWriter.ts'
 import {
   client,
   createTestCtx,
@@ -37,14 +40,31 @@ afterAll(async () => {
   await ctx.close()
 })
 
-/** The archive as bytes; supertest does not buffer a zip on its own. */
-async function download(user: TestUser): Promise<{
+/** A one-time download token for this runner (step one of an export). */
+async function mint(user: TestUser): Promise<string> {
+  const res = await client(ctx, user).post('/api/export/token')
+  expect(res.status).toBe(200)
+  return (res.body as { token: string }).token
+}
+
+/** The archive as bytes; supertest does not buffer a zip on its own. A 429 at the token step is returned as is. */
+async function download(
+  user: TestUser,
+  token?: string,
+): Promise<{
   status: number
   headers: Record<string, string>
   body: Buffer
 }> {
+  if (token === undefined) {
+    const minted = await client(ctx, user).post('/api/export/token')
+    if (minted.status !== 200) {
+      return { status: minted.status, headers: minted.headers, body: Buffer.alloc(0) }
+    }
+    token = (minted.body as { token: string }).token
+  }
   const res = await client(ctx, user)
-    .get('/api/export')
+    .get(`/api/export?token=${encodeURIComponent(token)}`)
     .set('Accept-Encoding', 'gzip, br')
     .buffer(true)
     .parse((response, done) => {
@@ -76,11 +96,67 @@ describe('GET /api/export', () => {
     const res = await client(ctx).get('/api/export')
     expect(res.status).toBe(401)
     expect(res.headers['content-type']).toMatch(/json/)
+    expect((await client(ctx).post('/api/export/token')).status).toBe(401)
   })
 
   test('a query is parsed: an unknown parameter is a 400', async () => {
-    const res = await client(ctx, runner).get('/api/export?format=tar')
+    const token = await mint(runner)
+    const res = await client(ctx, runner).get(`/api/export?token=${token}&format=tar`)
     expect(res.status).toBe(400)
+  })
+
+  describe('the one-time download token', () => {
+    test('a GET without a token is a 403 and starts no export', async () => {
+      const res = await client(ctx, runner).get('/api/export')
+      expect(res.status).toBe(403)
+      expect(res.headers['content-type']).toMatch(/json/)
+      // No lock was taken: a token still works afterwards.
+      expect((await download(runner)).status).toBe(200)
+    })
+
+    test('a made-up token is a 403', async () => {
+      expect((await client(ctx, runner).get('/api/export?token=nope')).status).toBe(403)
+    })
+
+    test('a token works once', async () => {
+      const token = await mint(runner)
+      expect((await download(runner, token)).status).toBe(200)
+      expect((await download(runner, token)).status).toBe(403)
+    })
+
+    test('a token belongs to the runner who asked for it', async () => {
+      const token = await mint(runner)
+      expect((await download(other, token)).status).toBe(403)
+      // The refused use also spent it.
+      expect((await download(runner, token)).status).toBe(403)
+    })
+
+    test('a token is good for about a minute', async () => {
+      const token = await mint(runner)
+      const now = Date.now()
+      const spy = vi.spyOn(Date, 'now').mockReturnValue(now + 61_000)
+      try {
+        expect((await client(ctx, runner).get(`/api/export?token=${token}`)).status).toBe(403)
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    test('the token step is a POST behind the same-origin guard', async () => {
+      const res = await client(ctx, runner)
+        .post('/api/export/token')
+        .set('Origin', 'http://evil.example')
+        .set('Host', 'app.test')
+      expect(res.status).toBe(403)
+    })
+
+    test('HEAD does no work and takes no token', async () => {
+      const token = await mint(runner)
+      const head = await client(ctx, runner).head(`/api/export?token=${token}`)
+      expect(head.status).toBe(405)
+      // The token was not spent.
+      expect((await download(runner, token)).status).toBe(200)
+    })
   })
 
   test('every model of the schema is in a file of the archive or named as left out', () => {
@@ -119,6 +195,15 @@ describe('GET /api/export', () => {
       zip = res.body
       headers = res.headers
       entries = entriesOf(zip)
+    })
+
+    test('the pre-flight count equals the number of files in the archive', async () => {
+      expect(await exportEntryCount(ctx.prisma, runner.id)).toBe(Object.keys(entries).length)
+    })
+
+    test('every entry checks out end to end: sizes, descriptors and CRC-32', () => {
+      const verified = verifyZip(zip)
+      expect(verified.map((e) => e.name).sort()).toEqual(Object.keys(entries).sort())
     })
 
     test('is a zip with the right name, uncompressed by the transport and never cached', () => {
@@ -272,6 +357,34 @@ describe('GET /api/export', () => {
     expect(text(entries, 'README.txt')).toContain('FILES')
   })
 
+  test('an account with more files than a ZIP holds is refused before any byte is sent', async () => {
+    const huge = await seedUser(ctx, { email: 'huge@example.com' })
+    const gz = gzipSync(Buffer.from('x'))
+    const count = MAX_ZIP_ENTRIES // plus the fixed files and tables, so over the limit
+    const activities = Array.from({ length: count }, (_, i) => ({
+      id: `huge-${String(i)}`,
+      userId: huge.id,
+      date: '2026-01-01',
+      type: 'run',
+      durationSec: 60,
+    }))
+    await ctx.prisma.activity.createMany({ data: activities })
+    await ctx.prisma.activityFile.createMany({
+      data: activities.map((a, i) => ({
+        activityId: a.id,
+        format: 'fit',
+        sizeBytes: 1,
+        sha256: String(i),
+        gz,
+      })),
+    })
+    const res = await download(huge)
+    expect(res.status).toBe(413)
+    expect(res.headers['content-type']).toMatch(/json/)
+    const refusal = JSON.parse(res.body.toString()) as { error: { details: { code: string } } }
+    expect(refusal.error.details.code).toBe('export-too-many-files')
+  }, 60_000)
+
   describe('one export at a time', () => {
     test('a second request gets 429 while the first is running, and works once it has ended', async () => {
       const busy = await seedUser(ctx, { email: 'busy@example.com' })
@@ -300,11 +413,13 @@ describe('GET /api/export', () => {
       const server = ctx.app.listen(0)
       try {
         const { port } = server.address() as AddressInfo
+        const firstToken = await mint(busy)
+        const secondToken = await mint(busy)
         const first = await new Promise<IncomingMessage>((resolve, reject) => {
           const req = httpRequest(
             {
               port,
-              path: '/api/export',
+              path: `/api/export?token=${firstToken}`,
               headers: { Cookie: busy.cookie, Host: 'app.test', Origin: 'http://app.test' },
             },
             (response) => {
@@ -316,11 +431,14 @@ describe('GET /api/export', () => {
           req.end()
         })
         expect(first.statusCode).toBe(200)
-        const second = await client(ctx, busy).get('/api/export')
+        const second = await client(ctx, busy).get(`/api/export?token=${secondToken}`)
         expect(second.status).toBe(429)
-        expect((second.body as { error: { message: string } }).error.message).toMatch(
-          /already running/,
-        )
+        type Refusal = { error: { details: { code: string } } }
+        expect((second.body as Refusal).error.details.code).toBe('export-running')
+        // And no token is given out while one runs.
+        const third = await client(ctx, busy).post('/api/export/token')
+        expect(third.status).toBe(429)
+        expect((third.body as Refusal).error.details.code).toBe('export-running')
         // Another runner is not held up.
         expect((await download(runner)).status).toBe(200)
         first.destroy()

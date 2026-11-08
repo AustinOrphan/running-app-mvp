@@ -9,10 +9,10 @@
 // `ZipLimitError` rather than written wrongly: ZIP64, that is an archive, an entry or an entry
 // count past the 32-bit and 16-bit fields.
 import { Readable, pipeline } from 'node:stream'
-import { crc32, createDeflateRaw, deflateRawSync } from 'node:zlib'
+import { crc32, createDeflateRaw } from 'node:zlib'
 
-/** The largest single buffer that is deflated in one synchronous call. */
-const WHOLE_ENTRY_MAX = 8 * 1024 * 1024
+/** The most entries one archive can hold without ZIP64 (the 16-bit entry count). */
+export const MAX_ZIP_ENTRIES = 0xffff
 
 export type ZipMethod = 'deflate' | 'store'
 
@@ -42,7 +42,6 @@ const VERSION_NEEDED = 20
 /** Bit 3: sizes and CRC follow the data. Bit 11: the name is UTF-8. */
 const FLAGS = 0x0808
 const MAX_32 = 0xffffffff
-const MAX_ENTRIES = 0xffff
 
 function dosDateTime(date: Date): { time: number; day: number } {
   const year = Math.min(Math.max(date.getUTCFullYear(), 1980), 2107)
@@ -102,15 +101,6 @@ async function* entryData(
     for await (const chunk of counted()) {
       done.compressedSize += chunk.length
       yield chunk
-    }
-  } else if (entry.data instanceof Uint8Array && entry.data.length <= WHOLE_ENTRY_MAX) {
-    // One buffer already in memory: the synchronous call frees its native zlib state at once. A
-    // stream per entry holds about 250 KB of native memory until the garbage collector gets to its
-    // wrapper, and an archive of thousands of original files would pile that up.
-    for await (const chunk of counted()) {
-      const packed = deflateRawSync(chunk)
-      done.compressedSize += packed.length
-      yield packed
     }
   } else {
     const deflate = createDeflateRaw()
@@ -198,7 +188,8 @@ export async function* zipStream(
   }
 
   for await (const entry of entries) {
-    if (records.length >= MAX_ENTRIES) throw new ZipLimitError('The archive has too many entries.')
+    if (records.length >= MAX_ZIP_ENTRIES)
+      throw new ZipLimitError('The archive has too many entries.')
     const name = checkName(entry.name)
     if (seen.has(entry.name)) throw new Error(`Duplicate ZIP entry name: ${entry.name}`)
     seen.add(entry.name)

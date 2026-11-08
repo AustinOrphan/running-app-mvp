@@ -6,6 +6,7 @@ import { crc32, inflateRawSync } from 'node:zlib'
 import { unzipSync } from 'fflate'
 import { describe, expect, test } from 'vitest'
 import { zipStream, type ZipEntry } from '../../../server/services/zipWriter.ts'
+import { verifyZip } from '../../zipCrc.ts'
 
 async function build(entries: ZipEntry[], modified = new Date(Date.UTC(2026, 10, 8, 12, 30, 10))) {
   const parts: Buffer[] = []
@@ -123,6 +124,39 @@ describe('zipStream', () => {
     expect(Buffer.from(files['x.txt']!).toString()).toBe('one,two,three')
     expect(Buffer.from(files['y.txt']!).toString()).toBe('ab')
     expect(log.indexOf('entry 2')).toBeGreaterThan(log.indexOf('chunk three'))
+  })
+
+  test('every CRC-32 and size is right end to end: streamed, chunked, stored and whole entries', async () => {
+    async function* chunks(): AsyncGenerator<Uint8Array> {
+      for (let i = 0; i < 40; i++) {
+        await Promise.resolve()
+        yield Buffer.alloc(50_000, i)
+      }
+    }
+    const zip = await build([
+      { name: 'streamed.bin', data: chunks() },
+      { name: 'streamed-stored.bin', data: chunks(), method: 'store' },
+      { name: 'whole.txt', data: Buffer.from('whole\n'.repeat(1000)) },
+      { name: 'whole-stored.txt', data: Buffer.from('stored\n'), method: 'store' },
+      { name: 'empty.txt', data: new Uint8Array() },
+    ])
+    const entries = verifyZip(zip)
+    expect(entries.map((e) => e.name)).toEqual([
+      'streamed.bin',
+      'streamed-stored.bin',
+      'whole.txt',
+      'whole-stored.txt',
+      'empty.txt',
+    ])
+    expect(entries[0]!.data).toHaveLength(2_000_000)
+    expect(entries[1]!.data.equals(entries[0]!.data)).toBe(true)
+  })
+
+  test('the verifier catches a flipped byte', async () => {
+    const zip = await build([{ name: 'a.txt', data: Buffer.from('abcdef'), method: 'store' }])
+    const at = zip.indexOf('abcdef')
+    zip[at] = zip[at]! ^ 0xff
+    expect(() => verifyZip(zip)).toThrow(/CRC-32/)
   })
 
   test('an empty archive is just the end record', async () => {

@@ -128,6 +128,7 @@ export function client(ctx: TestCtx, user?: TestUser) {
   const agent = request(ctx.app)
   return {
     get: (url: string) => prepare(agent.get(url)),
+    head: (url: string) => prepare(agent.head(url)),
     post: (url: string) => prepare(agent.post(url)),
     put: (url: string) => prepare(agent.put(url)),
     patch: (url: string) => prepare(agent.patch(url)),

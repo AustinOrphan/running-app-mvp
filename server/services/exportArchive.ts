@@ -129,7 +129,8 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'avgHr, maxHr: beats per minute. avgCadence: steps per minute. avgPowerW: watts.',
         'tempC, dewPointC: degrees Celsius. windKph: kilometres per hour. humidityPct: percent.',
         'startLat, startLng: degrees, rounded to 0.01.',
-        'hrHistogram, terrainBins: the stored analysis of the stream, as JSON.',
+        'hrHistogram: {start, width, sec}. Heart-rate bins of width bpm from start bpm; sec[i] is the seconds spent in bin i.',
+        'terrainBins: where moving time went by grade band, from the stream. Band i holds grades from edgesPct[i-1] up to edgesPct[i] percent (open at both ends), so each array has edgesPct.length + 1 entries. sec: moving seconds per band. m: metres per band. walkSec: the part of sec spent under walkMps (metres per second). windowM: the smoothing window in metres. flatCv: how steady the flat running was (standard deviation over mean of segment speed), or null. v: the shape version.',
         'duplicateOfId, duplicateStatus: the duplicate pass’s link and verdict.',
       ],
       json: ['hrHistogram', 'terrainBins'],
@@ -147,8 +148,9 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'The recorded streams and laps of the activities that have them, one row per activity.',
       fields: [
         'activityId: the activity in activities.json.',
-        'sampleSec: seconds between samples.',
-        'data: the sampled series (see the keys in each row); laps: the lap list.',
+        'sampleSec: the spacing the series were thinned to, in seconds.',
+        'data: aligned arrays of one length, one value per sample, null when the source had no such channel. t: seconds since the start. d: distance in metres. hr: heart rate in beats per minute. alt: altitude in metres. cad: cadence in steps per minute. pwr: power in watts.',
+        'laps: a list of {startSec, durationSec (seconds), distanceM (metres), avgHr, maxHr (beats per minute), avgCadence (steps per minute)}; null when there were none.',
       ],
       json: ['data', 'laps'],
       pageRows: STREAM_PAGE_ROWS,
@@ -704,6 +706,9 @@ export function readmeText(tables: readonly Table[]): string {
     '  - A field that is null had no value.',
     '  - activities.csv is the one file in miles: minutes with two decimals, miles with four.',
     '',
+    'Limits: the archive is a plain ZIP, which holds at most 65,535 files and 4 GiB. An account',
+    'over either limit is refused before any byte is sent (the page shows an error).',
+    '',
     'Not included: your password and its hash, the session secret, the keys, tokens and secrets of',
     'connected sources, the calendar feed’s token, and caches the app rebuilds on its own',
     `(${Object.keys(EXCLUDED_MODELS).join(', ')}).`,
@@ -775,4 +780,14 @@ export function exportArchive(
   now: Date = new Date(),
 ): AsyncGenerator<Buffer> {
   return zipStream(exportEntries(prisma, userId, now), { modified: now })
+}
+
+/**
+ * How many files the archive will hold: the fixed ones, one per table, and one per original file.
+ * Counted before the stream starts so that an account past the ZIP limit is refused up front.
+ */
+export async function exportEntryCount(prisma: PrismaClient, userId: string): Promise<number> {
+  const originals = await prisma.activityFile.count({ where: { activity: { userId } } })
+  // README.txt, activities.csv and export-info.json, then the tables, then the original files.
+  return 3 + exportTables(prisma, userId).length + originals
 }
