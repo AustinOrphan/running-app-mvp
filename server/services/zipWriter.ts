@@ -9,7 +9,10 @@
 // `ZipLimitError` rather than written wrongly: ZIP64, that is an archive, an entry or an entry
 // count past the 32-bit and 16-bit fields.
 import { Readable, pipeline } from 'node:stream'
-import { crc32, createDeflateRaw } from 'node:zlib'
+import { crc32, createDeflateRaw, deflateRawSync } from 'node:zlib'
+
+/** The largest single buffer that is deflated in one synchronous call. */
+const WHOLE_ENTRY_MAX = 8 * 1024 * 1024
 
 export type ZipMethod = 'deflate' | 'store'
 
@@ -99,6 +102,15 @@ async function* entryData(
     for await (const chunk of counted()) {
       done.compressedSize += chunk.length
       yield chunk
+    }
+  } else if (entry.data instanceof Uint8Array && entry.data.length <= WHOLE_ENTRY_MAX) {
+    // One buffer already in memory: the synchronous call frees its native zlib state at once. A
+    // stream per entry holds about 250 KB of native memory until the garbage collector gets to its
+    // wrapper, and an archive of thousands of original files would pile that up.
+    for await (const chunk of counted()) {
+      const packed = deflateRawSync(chunk)
+      done.compressedSize += packed.length
+      yield packed
     }
   } else {
     const deflate = createDeflateRaw()

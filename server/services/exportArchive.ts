@@ -20,7 +20,7 @@ import { zipStream, type ZipEntry } from './zipWriter.ts'
 const PAGE_ROWS = 200
 /** Stored original files and streams are large; a smaller page keeps a page of them small. */
 const FILE_PAGE_ROWS = 5
-const STREAM_PAGE_ROWS = 20
+const STREAM_PAGE_ROWS = 5
 
 /** Folder of the uploaded files inside the archive. */
 export const ORIGINAL_FILES_DIR = 'original-files'
