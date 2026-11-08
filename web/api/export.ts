@@ -5,7 +5,7 @@ const FALLBACK_NAME = 'running-log-export.zip'
 
 function isErrorBody(value: unknown): value is { error: { code: string; message: string } } {
   if (typeof value !== 'object' || value === null || !('error' in value)) return false
-  const error = (value as { error: unknown }).error
+  const error = value.error
   return typeof error === 'object' && error !== null && 'message' in error
 }
 
