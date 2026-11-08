@@ -57,10 +57,16 @@ function FeedbackItem({
   const waiting = useRef<HTMLParagraphElement>(null)
   // The Save button held focus and is gone once the rating waits; focus goes to the line that says so.
   const pickers = useRef<HTMLDivElement>(null)
+  // Set by the runner's own Save, so a rating that was already waiting when the page opened does
+  // not take focus.
+  const saved = useRef(false)
   useEffect(() => {
     if (queued) {
       pickers.current?.setAttribute('inert', '')
-      waiting.current?.focus()
+      if (saved.current) {
+        saved.current = false
+        waiting.current?.focus()
+      }
     } else pickers.current?.removeAttribute('inert')
   }, [queued])
 
@@ -86,9 +92,17 @@ function FeedbackItem({
             onClick={() => {
               // The saved run drops out of the card, which unmounts this item before a mutate-level
               // onSuccess could fire. The promise settles anyway, and the page owns the toast.
-              save.mutateAsync(value).then(onSaved, () => {
-                // The error shows in the card; there is nothing more to do here.
-              })
+              saved.current = true
+              save.mutateAsync(value).then(
+                (landed) => {
+                  if (landed === 'sent') saved.current = false
+                  onSaved(landed)
+                },
+                () => {
+                  saved.current = false
+                  // The error shows in the card; there is nothing more to do here.
+                },
+              )
             }}
           >
             Save

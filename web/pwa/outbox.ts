@@ -114,6 +114,16 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
   },
 ]
 
+/** The `details.code` of the 409 for a session that already has a run (`server/services/activityStore.ts`). */
+const SESSION_LOGGED = 'session-logged'
+
+/**
+ * After this many failed sends an entry is parked: moved behind the others, so one that fails the
+ * same way every time (a deterministic 5xx or 429) does not hold the queue for good. It is kept,
+ * not dropped, and tried again behind the rest.
+ */
+export const OUTBOX_PARK_AFTER = 5
+
 /** An entry older than this is dropped unsent. */
 export const OUTBOX_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -144,6 +154,10 @@ export interface OutboxEntry {
    * saved on this phone, so the page says when it has gone up.
    */
   held?: boolean
+  /** Failed sends since the entry was queued or last parked. */
+  attempts?: number
+  /** True once the entry has been moved behind the others after `OUTBOX_PARK_AFTER` failed sends. */
+  parked?: boolean
 }
 
 /** A refusal the page shows once, inline, near what was lost. */
@@ -552,6 +566,26 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     publish({ entries: [...entries].sort(bySeq) })
   }
 
+  /**
+   * Records a send that could not go out. Everything still queued is marked `held`; the entry that
+   * failed counts the attempt and, at `OUTBOX_PARK_AFTER`, goes behind the others (`parked`).
+   */
+  async function failed(entry: OutboxEntry): Promise<{ entries: OutboxEntry[]; parked: boolean }> {
+    let parked = false
+    const entries = await store.transact((current) => {
+      const last = current.reduce((highest, e) => Math.max(highest, e.seq), 0)
+      return current.map((e) => {
+        if (e.url !== entry.url) return e.held === true ? e : { ...e, held: true }
+        const attempts = (e.attempts ?? 0) + 1
+        if (attempts < OUTBOX_PARK_AFTER) return { ...e, held: true, attempts }
+        parked = true
+        return { ...e, held: true, attempts: 0, parked: true, seq: last + 1 }
+      })
+    })
+    publish({ entries: [...entries].sort(bySeq) })
+    return { entries, parked }
+  }
+
   async function pass(): Promise<void> {
     let entries = await expire()
     const tried = new Set<string>()
@@ -568,9 +602,27 @@ export function createOutbox(deps: OutboxDeps): Outbox {
       tried.add(`${next.url}#${String(next.version)}`)
       const result = await sendWithTimeout(send, next, sendTimeoutMs)
       if (result.kind === 'retry') {
-        halted = true
-        await holdAll()
-        return
+        const outcome = await failed(next)
+        if (!outcome.parked) {
+          halted = true
+          return
+        }
+        // Parked behind the others: the rest of the queue goes on.
+        if (next.parked !== true) {
+          const what = routeOf(next.url)?.label ?? 'entry'
+          publish({
+            notices: [
+              ...state.notices,
+              {
+                id: nextNoticeId++,
+                url: next.url,
+                message: render(TEMPLATES['today.outbox.parked'], { what }, 'mi'),
+              },
+            ],
+          })
+        }
+        entries = outcome.entries
+        continue
       }
       if (result.kind === 'unauthorized') {
         halted = true
@@ -717,7 +769,15 @@ export async function sendEntry(entry: OutboxEntry, signal?: AbortSignal): Promi
     const { status } = error
     if (status === 401) return { kind: 'unauthorized' }
     if (status === 0 || status >= 500 || status === 408 || status === 429) return { kind: 'retry' }
-    return status === 409
+    // Only "this session already has a run" is a conflict in the sense the page words alone: any
+    // other 409 (a session whose kind no longer fits the run) is refused like a 400.
+    const logged =
+      status === 409 &&
+      typeof error.details === 'object' &&
+      error.details !== null &&
+      'code' in error.details &&
+      error.details.code === SESSION_LOGGED
+    return logged
       ? { kind: 'refused', reason: error.message, conflict: true }
       : { kind: 'refused', reason: error.message }
   }

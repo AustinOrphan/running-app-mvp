@@ -579,6 +579,7 @@ describe('SettingsPage', () => {
 
     await typist.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toHaveFocus()
     expect(getOutbox().getState().entries).toHaveLength(1)
 
     await typist.click(screen.getByRole('button', { name: 'Sign out' }))

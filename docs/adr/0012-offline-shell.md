@@ -325,8 +325,18 @@ added by this change.
   form, and a toast says when a held entry has gone up. A 409 sets `conflict` on the refused result: the
   sheet shows the server's sentence in a status line, takes focus, and swaps Save for "Back to Today"; a conflict found on
   replay is a dismissible notice on Today that says the server's sentence alone, and reads Today
-  again so the card agrees. Another refusal on replay quotes the sentence and says to enter it again
-  (`quoteReason`).
+  again so the card agrees. Only the "already has a run" 409 counts as that conflict: it carries
+  `details.code` `session-logged`. Any other 409 (a re-plan changed the session's kind and the run no
+  longer fits it) and every other refusal on replay quote the sentence and say to enter it again
+  (`quoteReason`), so a run is never lost without that said.
+- **Parking.** A run and a rating never expire, so an entry that fails the same way every time (a
+  deterministic 5xx or 429) would hold the queue for good. After 5 failed sends it is moved behind the
+  others (`parked`), kept, and a notice says it stays on the phone and is sent again later; the rest of
+  the queue goes on in the same pass.
+- **Replay.** A repeat of an id also runs the assessment of its linked session when that never
+  happened (a failure after the claim committed), so the replay's 200 describes a finished write.
+  A session a re-plan removed between the check and the claim keeps the run unlinked for the matcher;
+  a 409 is only for a session another activity holds.
 - **Dates.** The sheet sends `session.date` from Today's payload, the server's day. The phone's clock
   and time zone are not read, and no time of day is shown for a queued write.
 - **Expiry.** A run and a rating do not expire (`expires: false` on their routes): the PUT is

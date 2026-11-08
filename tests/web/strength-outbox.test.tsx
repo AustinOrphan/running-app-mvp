@@ -204,7 +204,6 @@ describe('a strength log saved through the outbox', () => {
     expect(answer).toEqual({
       status: 'rejected',
       reason: 'That activity already has a log.',
-      conflict: true,
     })
     expect(getOutbox().getState().entries).toEqual([])
   })

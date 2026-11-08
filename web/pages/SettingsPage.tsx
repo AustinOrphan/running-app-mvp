@@ -46,6 +46,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const waiting = useWaitingRecords()
   const [confirming, setConfirming] = useState(false)
   const warning = useRef<HTMLParagraphElement>(null)
+  const signOut = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (confirming) warning.current?.focus()
   }, [confirming])
@@ -320,7 +321,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
           </p>
         ) : null}
         <div className={styles.signOutActions}>
-          <Button onClick={onSignOut} loading={logout.isPending}>
+          <Button ref={signOut} onClick={onSignOut} loading={logout.isPending}>
             {confirming && waiting !== null
               ? render(TEMPLATES['today.signout-anyway'], {}, units)
               : 'Sign out'}
@@ -330,6 +331,8 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
               variant="quiet"
               onClick={() => {
                 setConfirming(false)
+                // Cancel leaves with the warning; focus goes back to the button that asked.
+                signOut.current?.focus()
               }}
             >
               {render(TEMPLATES['today.signout-cancel'], {}, units)}

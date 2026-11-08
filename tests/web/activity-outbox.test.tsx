@@ -23,7 +23,10 @@ const DAY = '2026-03-18'
 const BODY = { date: DAY, type: 'run' as const, durationSec: 2700, sessionId: 's1' }
 const offline = { status: 503, body: { error: { code: 'internal', message: 'Offline.' } } }
 const ALREADY = 'This session already has a run logged, so the one from this phone was not added.'
-const conflict = { status: 409, body: { error: { code: 'conflict', message: ALREADY } } }
+const conflict = {
+  status: 409,
+  body: { error: { code: 'conflict', message: ALREADY, details: { code: 'session-logged' } } },
+}
 
 function wrapper({ children }: { children: ReactNode }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

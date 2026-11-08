@@ -159,6 +159,11 @@ export const TODAY_TEMPLATES = {
     'A {what} saved on this phone was not accepted and was removed. Enter it again if it still applies.',
     { what: 'text' },
   ),
+  // An entry that kept failing was moved behind the others; it stays on the phone.
+  'today.outbox.parked': tpl(
+    'A {what} saved on this phone has not gone up after several tries. It stays here and is sent again later.',
+    { what: 'text' },
+  ),
   // The control that clears such a notice when nothing the runner does next clears it by itself
   // (a strength log refused on replay, design 9.6).
   // The same, for a write whose refusal is worth quoting (a run or a rating): `reason` is the
