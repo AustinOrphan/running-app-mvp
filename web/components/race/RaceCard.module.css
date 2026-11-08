@@ -93,6 +93,7 @@
 
 .lead {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: var(--text-base);
   line-height: var(--lh-base);
   font-weight: 600;
@@ -101,6 +102,7 @@
 .muted,
 .line {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
@@ -147,6 +149,7 @@
   }
 
   /* No navigation, skip link or page chrome. */
+  :global(html[data-print='race-card']) :global([data-app-chrome]),
   :global(html[data-print='race-card']) :global(nav),
   :global(html[data-print='race-card']) :global(a[href='#main']) {
     display: none !important;

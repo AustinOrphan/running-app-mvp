@@ -2,7 +2,7 @@
 // H14, ADR 0018): each reads the one plan, and every sentence passes the copy lint.
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
   describeRacePlan,
   describeRacePoints,
@@ -25,6 +25,10 @@ import { expectCleanCopy, makeTestQueryClient, mockApi, renderWithProviders } fr
 import { makeCoach, makeToday } from './today-fixtures.ts'
 
 const HOUR = 3600
+
+afterEach(() => {
+  window.localStorage.clear()
+})
 const RACE = '2026-03-20'
 const TODAY = '2026-03-18'
 
@@ -687,6 +691,18 @@ describe('RacePage: Import course GPX', () => {
     expect(sent.every((r, i) => i === 0 || r.distanceM > sent[i - 1]!.distanceM)).toBe(true)
   })
 
+  test('mentions the crew notes in the replace line when the goal has some', async () => {
+    window.localStorage.setItem('race-crew:goal-1:point-500-station-a', 'Drop bag')
+    setup(planWith({}, 'aided', POINTS))
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(courseGpx()))
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(within(dialog).getByText('Saving replaces the checkpoints you have now.')).toBeVisible()
+    expect(within(dialog).getByText(/A crew note stays with a stop while/)).toBeVisible()
+  })
+
   test('proposes evenly spaced rows, and says so, when the file has no waypoints', async () => {
     setup()
     const user = userEvent.setup()
@@ -814,7 +830,7 @@ describe('RacePage: the race card', () => {
     const first = open(plan)
     const field = await screen.findByRole('textbox', { name: 'Crew note for Station A' })
     await user.type(field, 'Drop bag, spare socks')
-    expect(window.localStorage.getItem('race-crew:goal-1:point-50000')).toBe(
+    expect(window.localStorage.getItem('race-crew:goal-1:point-500-station-a')).toBe(
       'Drop bag, spare socks',
     )
     // nothing is sent: no write went to the server
@@ -824,11 +840,11 @@ describe('RacePage: the race card', () => {
       'Drop bag, spare socks',
     )
     await user.clear(screen.getByRole('textbox', { name: 'Crew note for Station A' }))
-    expect(window.localStorage.getItem('race-crew:goal-1:point-50000')).toBeNull()
+    expect(window.localStorage.getItem('race-crew:goal-1:point-500-station-a')).toBeNull()
   })
 
   test('puts the note in the printed card as text, with the field left to the screen', async () => {
-    window.localStorage.setItem('race-crew:goal-1:point-50000', 'Meet at the red tent')
+    window.localStorage.setItem('race-crew:goal-1:point-500-station-a', 'Meet at the red tent')
     open(planWith({}, 'aided', CARD_POINTS))
     const block = await screen.findByRole('article', { name: 'Station A' })
     const printed = within(block).getByText('Crew note:').closest('p')

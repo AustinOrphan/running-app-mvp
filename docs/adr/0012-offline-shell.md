@@ -1,4 +1,4 @@
-# 0012. The installed app opens offline from a hand-written service worker that keeps five reads, and the device's copy of health data is purged with the session
+# 0012. The installed app opens offline from a hand-written service worker that keeps six reads (five at first, the race plan added 2026-11-07), and the device's copy of health data is purged with the session
 
 Status: Accepted 2026-10-23 (#554); amended 2026-11-07 (the race plan is a sixth kept read, see the addendum)
 
@@ -267,8 +267,8 @@ with no signal, so the card was unreadable where it was wanted.
   same copy functions as the page.
 - **Keep `GET /api/race/checkpoints` too.** Against (**Opinion**): the only reader is the editor, which
   cannot save offline, and the plan already holds every row with its arrival range.
-- **The 36-hour limit.** For (**Opinion**): one rule for the answers of the account. Against: see the
-  reason above; it ends before the race does.
+- **The 36-hour limit.** For (**Opinion**): one rule for the answers of the account. Against
+  (**Opinion**): it ends before the race does (see the reason above).
 - **A limit of 14 days like the research parameters.** For (**Opinion**): never expires during a
   race week. Against (**Opinion**): a copy that long serves a plan of a goal that has since changed.
 - **Crew notes on the server.** Against (**Opinion**): a new model and a sync for a line of text, and
@@ -282,5 +282,9 @@ with no signal, so the card was unreadable where it was wanted.
 - A copy kept before the final window holds no race-week block, and a copy shows the plan as of the day
   it was kept: the days to the race are not shown from it.
 - The plan stays off the watch, the feed and the brief (ADR 0018); the card is a page and a print layout.
+- Crew notes are health-adjacent text on the device and go with every purge: a sign-out, a sign-in and a
+  401 empty them, as the drafts are. The card says so beside the notes ("Notes stay on this phone and are
+  cleared when you sign out."). A note is kept under the stop's name and its place to the nearest 100 m, so
+  a renamed or moved stop leaves its note behind.
 - A new cached read is still one change to the allowlist in `web/sw/sw.js`, its test in
   `tests/unit/shared/sw.test.ts` and the list in this ADR.

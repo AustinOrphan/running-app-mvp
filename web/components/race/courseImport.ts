@@ -110,6 +110,14 @@ export function proposeCheckpoints(course: Course, args: ProposeArgs): CourseImp
     })
   }
 
+  // Save refuses a row at or past the goal's distance and a table over the room for it, so the
+  // proposal never opens in a state it cannot be saved from.
+  const fits = (place: Place) => args.goalDistanceM <= 0 || place.distanceM < args.goalDistanceM
+  const beyondGoal = places.filter((place) => !fits(place)).length
+  places = places.filter(fits)
+  const capped = Math.max(0, places.length - args.max)
+  places = places.slice(0, args.max)
+
   const known = course.gainM !== null
   let previous = { gainM: 0, lossM: 0 }
   const named = (place: Place, index: number): string => {
@@ -146,6 +154,9 @@ export function proposeCheckpoints(course: Course, args: ProposeArgs): CourseImp
       merged,
       mergeM: COURSE_MERGE_M,
       edge,
+      beyondGoal,
+      capped,
+      max: args.max,
       goalDistanceM: differs ? args.goalDistanceM : null,
     },
   }

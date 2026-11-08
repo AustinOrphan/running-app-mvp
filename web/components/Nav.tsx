@@ -179,7 +179,7 @@ export function Nav() {
   const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length] ?? 'system'
 
   return (
-    <div className={styles.chrome}>
+    <div className={styles.chrome} data-app-chrome>
       <div className={styles.wordmark}>Running log</div>
       <nav aria-label="Primary" className={styles.primary}>
         <ul className={styles.list}>

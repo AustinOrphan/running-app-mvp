@@ -418,9 +418,7 @@ export const RACE_PLAN_TEMPLATES = {
     { dusk: 'text', dawn: 'text' },
   ),
   'race.plan.card.note-label': tpl('Crew note for {name}', { name: 'text' }, { shape: 'label' }),
-  'race.plan.card.note-hint': tpl(
-    'Kept on this phone only. It is not sent anywhere, and signing out clears it.',
-  ),
+  'race.plan.card.note-hint': tpl('Notes stay on this phone and are cleared when you sign out.'),
   'race.plan.card.note-unsaved': tpl('This browser would not keep the note.'),
   'race.plan.card.note-print': tpl('Crew note', {}, { shape: 'label' }),
   'race.plan.card.estimate-note': tpl(
@@ -473,6 +471,17 @@ export const RACE_PLAN_TEMPLATES = {
     { track: 'distance', goal: 'distance' },
   ),
   'race.plan.course.replaces': tpl('Saving replaces the checkpoints you have now.'),
+  'race.plan.course.notes': tpl(
+    'A crew note stays with a stop while the stop keeps its name and its place.',
+  ),
+  'race.plan.course.beyond-goal': tpl(
+    'Waypoints at or past the goal distance of {goal} are left out: {n}.',
+    { goal: 'distance', n: 'count' },
+  ),
+  'race.plan.course.capped': tpl(
+    'There is room for {max} points, so the first {max} are kept and {n} are left out.',
+    { max: 'count', n: 'count' },
+  ),
   'race.plan.course.pass-name': tpl(
     '{name} ({ordinal} pass)',
     { name: 'text', ordinal: 'text' },
@@ -1207,6 +1216,20 @@ export interface RaceCardText {
   notePrint: string
 }
 
+/**
+ * What a crew note is kept under: the stop's place to the nearest 100 m and its name, so a note
+ * survives a re-import of the same course and a nudge of a few metres, and is left behind (not given
+ * to another stop) when the stop is renamed or moved further.
+ */
+function pointKey(row: SplitRow): string {
+  const slug = (row.name ?? '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40)
+  return `point-${String(Math.round(row.distanceM / 100))}-${slug}`
+}
+
 /** The grams of a leg, each end rounded; nothing when the rounded high end is 0. */
 function cardFuelText(leg: SplitRow, units: Units): string | null {
   if (leg.carryG === null) return null
@@ -1276,14 +1299,17 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
       distance: null,
       arrival: start === null ? null : say(T['race.plan.card.start-at'], { time: start }, units),
       cutoff: [],
-      headlamp: null,
+      headlamp:
+        plan.thirds[0]?.startsInDaylight === false && dark !== null
+          ? say(T['race.plan.card.headlamp'], { dusk: dark.dusk, dawn: dark.dawn }, units)
+          : null,
       ...leg(splits.rows[0]),
       noteLabel: label(startName),
     },
     ...splits.rows.map((row, index): RaceCardBlockText => {
       const point = pointRowText(row, units)
       return {
-        key: row.finish ? 'finish' : `point-${String(row.distanceM)}`,
+        key: row.finish ? 'finish' : pointKey(row),
         name: point.name,
         distance: point.distance,
         arrival: point.arrival,
@@ -1398,6 +1424,7 @@ export interface RaceCourseText {
   errLarge: (mb: number) => string
   sheetTitle: string
   replaces: string
+  notes: string
   pointName: (n: number) => string
   /** A later pass of a place the course passes again: "Station (2nd pass)". */
   passName: (name: string, pass: number) => string
@@ -1422,6 +1449,7 @@ export function describeRaceCourse(units: Units): RaceCourseText {
     errLarge: (mb) => say(T['race.plan.course.err-large'], { n: count(mb) }, units),
     sheetTitle: say(T['race.plan.course.sheet'], {}, units),
     replaces: say(T['race.plan.course.replaces'], {}, units),
+    notes: say(T['race.plan.course.notes'], {}, units),
     pointName: (n) => say(T['race.plan.course.point-name'], { n: count(n) }, units),
     passName: (name, pass) =>
       say(T['race.plan.course.pass-name'], { name, ordinal: ordinalText(pass) }, units),
@@ -1443,6 +1471,11 @@ export interface RaceCourseProposalFacts {
   merged: number
   mergeM: number
   edge: number
+  /** Waypoints at or past the goal distance, left out: Save would refuse them. */
+  beyondGoal: number
+  /** Rows over the room for them, left out, and the room. */
+  capped: number
+  max: number
   /** The goal's distance when it differs from the track's by enough to say so; else null. */
   goalDistanceM: number | null
 }
@@ -1497,6 +1530,20 @@ export function describeRaceCourseProposal(
     )
   }
   if (facts.edge > 0) notices.push(say(T['race.plan.course.edge'], { n: count(facts.edge) }, units))
+  if (facts.beyondGoal > 0 && facts.goalDistanceM !== null) {
+    notices.push(
+      say(
+        T['race.plan.course.beyond-goal'],
+        { goal: distance(facts.goalDistanceM), n: count(facts.beyondGoal) },
+        units,
+      ),
+    )
+  }
+  if (facts.capped > 0) {
+    notices.push(
+      say(T['race.plan.course.capped'], { max: count(facts.max), n: count(facts.capped) }, units),
+    )
+  }
   return { summary, source, notices }
 }
 

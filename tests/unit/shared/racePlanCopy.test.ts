@@ -565,6 +565,9 @@ describe('the words of the course import', () => {
     merged: 1,
     mergeM: 50,
     edge: 2,
+    beyondGoal: 2,
+    capped: 3,
+    max: 40,
     goalDistanceM: 150_000,
   }
 
@@ -589,7 +592,11 @@ describe('the words of the course import', () => {
     expect(text.source).toBe(
       'Proposed from the waypoints in the file: 18. Rename, drop or add points, then type the cutoffs.',
     )
-    expect(text.notices).toHaveLength(4)
+    expect(text.notices).toHaveLength(6)
+    expect(text.notices.join(' ')).toMatch(/goal distance of 150 km are left out: 2/)
+    expect(text.notices.join(' ')).toMatch(
+      /room for 40 points, so the first 40 are kept and 3 are left out/,
+    )
     expect(text.notices.join(' ')).toMatch(/goal 150 km/)
     const joined = [text.summary, text.source, ...text.notices].join('\n')
     expect(joined).not.toMatch(/\d:\d\d ?\/ ?(km|mi)|\b(pace|split|target time|goal time)\b/i)
@@ -688,9 +695,9 @@ describe('the words of the race card', () => {
     ])
     expect(card.blocks.map((block) => block.key)).toEqual([
       'start',
-      'point-50000',
-      'point-110000',
-      'point-150000',
+      'point-500-checkpoint-a',
+      'point-1100-checkpoint-b',
+      'point-1500-checkpoint-c',
       'finish',
     ])
   })
@@ -793,16 +800,33 @@ describe('the words of the race card', () => {
     }
   })
 
-  it('keys a block by its distance, so a crew note stays with its point when it is renamed', () => {
+  it('keys a block by its place to 100 m and its name, so a note follows a re-imported or nudged stop', () => {
     const renamed = racePlanFor(
       input({
         checkpoints: POINTS.map((p, i) => (i === 0 ? { ...p, name: 'Lower station' } : p)),
         ladder: ladderOf([run(0), run(1)]),
       }),
     )
-    expect(describeRaceCard(renamed, 'km').blocks.map((b) => b.key)).toEqual(
-      describeRaceCard(aided, 'km').blocks.map((b) => b.key),
+    const keys = describeRaceCard(aided, 'km').blocks.map((b) => b.key)
+    expect(keys).toEqual([
+      'start',
+      'point-500-checkpoint-a',
+      'point-1100-checkpoint-b',
+      'point-1500-checkpoint-c',
+      'finish',
+    ])
+    // renamed, the stop gets a new key: its note is left behind, not given to another stop
+    const after = describeRaceCard(renamed, 'km').blocks.map((b) => b.key)
+    expect(after[1]).toBe('point-500-lower-station')
+    expect(after.filter((key, i) => key !== keys[i])).toEqual(['point-500-lower-station'])
+    // nudged a few metres, it keeps its key
+    const nudged = racePlanFor(
+      input({
+        checkpoints: POINTS.map((p, i) => (i === 0 ? { ...p, distanceM: p.distanceM + 30 } : p)),
+        ladder: ladderOf([run(0), run(1)]),
+      }),
     )
+    expect(describeRaceCard(nudged, 'km').blocks.map((b) => b.key)).toEqual(keys)
   })
 })
 
@@ -841,5 +865,29 @@ describe('the name of a later pass', () => {
       'Next: the finish, 10.9 km on.',
       null,
     ])
+  })
+})
+
+describe('the start block of the race card', () => {
+  const POINTS = [
+    { name: 'Checkpoint A', distanceM: 50_000, gainM: null, lossM: null, cutoffSec: null },
+  ]
+  const headlamp = (startTime: string | null) =>
+    describeRaceCard(racePlanFor(input({ checkpoints: POINTS, goal: goal({ startTime }) })), 'km')
+      .blocks[0]!.headlamp
+
+  it('names the headlamp when the race starts outside daylight', () => {
+    expect(headlamp('04:00')).toMatch(/^Headlamp: this arrival is outside daylight\. Dusk is /)
+  })
+
+  it('says nothing for a start in daylight or with no start time', () => {
+    expect(headlamp('06:00')).toBeNull()
+    expect(headlamp(null)).toBeNull()
+  })
+
+  it('says the notes stay on the phone and go at sign-out', () => {
+    expect(describeRaceCard(PLANS[0]![1], 'km').noteHint).toBe(
+      'Notes stay on this phone and are cleared when you sign out.',
+    )
   })
 })

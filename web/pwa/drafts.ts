@@ -97,6 +97,20 @@ export function writeCrewNote(id: string, text: string): boolean {
   }
 }
 
+/** Whether any crew note is kept for the goal. */
+export function hasCrewNotes(goalId: string): boolean {
+  try {
+    const prefix = `${RACE_CREW_PREFIX}${goalId}:`
+    const storage = window.localStorage
+    for (let index = 0; index < storage.length; index += 1) {
+      if (storage.key(index)?.startsWith(prefix) === true) return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
 /** Removes every draft. Storage can be blocked (a private window); then there is nothing to remove. */
 export function purgeDrafts(): void {
   try {

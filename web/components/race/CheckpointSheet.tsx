@@ -14,6 +14,7 @@ import { fieldErrors } from '../../api/client.ts'
 import { useRaceCheckpoints, useSaveRaceCheckpoints } from '../../api/race.ts'
 import { CourseProfileChart } from '../charts/lazyCharts.tsx'
 import { parseDistance } from '../goalFormat.ts'
+import { hasCrewNotes } from '../../pwa/drafts.ts'
 import { Button } from '../Button.tsx'
 import { ErrorState } from '../ErrorState.tsx'
 import { Field, Input, Select } from '../Field.tsx'
@@ -60,11 +61,13 @@ function CourseBlock({
   drafts,
   units,
   replaces,
+  notes,
 }: {
   course: CourseImport
   drafts: readonly PointDraft[]
   units: Units
   replaces: boolean
+  notes: boolean
 }) {
   const words = describeRaceCourse(units)
   const proposal = describeRaceCourseProposal(course.facts, units)
@@ -100,6 +103,7 @@ function CourseBlock({
         </p>
       ))}
       {replaces ? <p className={styles.hint}>{words.replaces}</p> : null}
+      {notes ? <p className={styles.hint}>{words.notes}</p> : null}
     </div>
   )
 }
@@ -199,6 +203,7 @@ function Editor({ plan, units, rows, course, onClose }: EditorProps) {
             drafts={drafts}
             units={units}
             replaces={(plan.splits?.rows.length ?? 0) > 1}
+            notes={hasCrewNotes(plan.goalId)}
           />
         )}
         <p className={styles.hint}>{text.hint}</p>

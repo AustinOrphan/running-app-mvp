@@ -209,3 +209,36 @@ describe('readCourseFile', () => {
     await expect(readCourseFile(big, ARGS)).rejects.toMatchObject({ reason: 'large' })
   })
 })
+
+describe('a proposal Save would accept', () => {
+  const course = parseCourse(
+    bytes(
+      courseGpx({
+        waypoints: [20, 40, 60, 80, 100, 120, 140].map((at) => ({ name: `S${String(at)}`, at })),
+      }),
+    ),
+  )
+
+  test('keeps the first rows that fit the room, and counts the rest', () => {
+    const { rows, facts } = proposeCheckpoints(course, { ...ARGS, max: 4 })
+    expect(rows.map((r) => r.name)).toEqual(['S20', 'S40', 'S60', 'S80'])
+    expect(facts).toMatchObject({ capped: 3, max: 4, beyondGoal: 0 })
+  })
+
+  test('leaves out a waypoint at or past the goal distance, and counts it', () => {
+    const { rows, facts } = proposeCheckpoints(course, { ...ARGS, goalDistanceM: 100_000 })
+    expect(rows.every((r) => r.distanceM < 100_000)).toBe(true)
+    expect(rows.map((r) => r.name)).toEqual(['S20', 'S40', 'S60', 'S80'])
+    expect(facts.beyondGoal).toBe(3)
+  })
+
+  test("every row of a proposal passes the editor's own checks", async () => {
+    const { parseDrafts, draftFrom } = await import('../../web/components/race/checkpointForm.ts')
+    const { rows } = proposeCheckpoints(course, { ...ARGS, goalDistanceM: 150_000 })
+    const parsed = parseDrafts(
+      rows.map((r, i) => draftFrom(r, String(i), 'km')),
+      { units: 'km', courseM: 150_000, startMin: null },
+    )
+    expect(parsed.ok).toBe(true)
+  })
+})

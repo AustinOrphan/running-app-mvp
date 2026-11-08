@@ -272,8 +272,12 @@ test('the race card prints on one or two pages, black on white, with no navigati
     .fill('Crew parks at the lower lot and walks up')
   expect(await scrollsSideways()).toBe(false)
 
+  // the rail of a wide screen is app chrome too: the wordmark and the theme button stay off paper
+  await page.setViewportSize({ width: 1280, height: 800 })
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ media: 'print', colorScheme: scheme })
+    await expect(page.getByText('Running log', { exact: true })).toBeHidden()
+    await expect(page.getByText(/^Theme:/)).toBeHidden()
     // no navigation, and the page is black on white whatever the theme
     await expect(page.getByRole('navigation')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Skip to content' })).toBeHidden()
@@ -304,8 +308,27 @@ test('the race card prints on one or two pages, black on white, with no navigati
     }
   }
   await page.emulateMedia({ media: null, colorScheme: null })
+  await page.setViewportSize({ width: 360, height: 740 })
   // the screen is as it was
   await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
+  await api.put('/race/checkpoints', { checkpoints: [] })
+  await page.evaluate(() => {
+    window.localStorage.clear()
+  })
+})
+
+test('a stop with a 60-character name and no break in it does not widen the card at 360 px', async () => {
+  const long = 'W'.repeat(60)
+  await api.put('/race/checkpoints', {
+    checkpoints: [{ name: long, distanceM: 40_000, gainM: 100, lossM: 50, cutoffSec: 9 * 3600 }],
+  })
+  await page.goto('/race?view=card')
+  await expect(page.getByRole('article', { name: long })).toBeVisible()
+  await page.getByRole('textbox', { name: `Crew note for ${long}` }).fill('Z'.repeat(120))
+  expect(await scrollsSideways()).toBe(false)
+  await page.goto('/race')
+  await expect(page.getByRole('article', { name: long })).toBeVisible()
+  expect(await scrollsSideways()).toBe(false)
   await api.put('/race/checkpoints', { checkpoints: [] })
   await page.evaluate(() => {
     window.localStorage.clear()
