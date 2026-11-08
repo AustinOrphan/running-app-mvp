@@ -2,7 +2,14 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import type { Activity, Units } from '../../../shared/types.ts'
-import { useSaveFeedback } from '../../api/activities.ts'
+import {
+  ratingUrl,
+  useActivityNotices,
+  useQueuedRating,
+  useSaveRating,
+  WriteRefused,
+  type Landed,
+} from '../../api/activityOutbox.ts'
 import { ApiError } from '../../api/client.ts'
 import { Button } from '../Button.tsx'
 import { FeedbackFields, type FeedbackValues } from '../FeelPicker.tsx'
@@ -21,28 +28,33 @@ export function isUnrated(run: Pick<Activity, 'rpe' | 'feel'>): boolean {
 
 /**
  * The rating ask for the run logged against today's session: effort, feel and pain, saved through
- * the same PATCH as the "How did it go?" card. It shows only while the run has no rating. A save
- * keeps the block on the page as a line that says so (and takes focus, since the form it replaces
- * held it), because the fresh read of Today would otherwise remove the block under the runner.
+ * the same write as the "How did it go?" card, through the outbox: with no connection it is kept on
+ * the phone and the block says so until it goes up. It shows only while the run has no rating. A
+ * save keeps the block on the page as a line that says so (and takes focus, since the form it
+ * replaces held it), because the fresh read of Today would otherwise remove the block under the
+ * runner. A rating the server refused when it was sent later brings the form back.
  */
 export function RunRating({ run, units }: { run: Activity; units: Units }) {
   const headingId = useId()
-  const save = useSaveFeedback(run.id)
+  const save = useSaveRating(run.id)
+  const queued = useQueuedRating(run.id)
+  const { notices } = useActivityNotices()
+  const refused = notices.some((notice) => notice.url === ratingUrl(run.id))
   const toast = useToast()
   // Starts from the saved pain so a save that only sets RPE or feel does not clear it.
   const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: run.pain })
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState<Landed | null>(null)
   const done = useRef<HTMLParagraphElement>(null)
   const touched = value.rpe !== null || value.feel !== null || value.pain !== run.pain
 
   useEffect(() => {
-    if (saved) done.current?.focus()
+    if (saved !== null) done.current?.focus()
   }, [saved])
 
-  if (saved) {
+  if ((saved !== null && !refused) || queued) {
     return (
       <p ref={done} tabIndex={-1} role="status" className={styles.saved}>
-        {render(TEMPLATES['today.rate.saved'], {}, units)}
+        {render(TEMPLATES[queued ? 'today.rate.waiting' : 'today.rate.saved'], {}, units)}
       </p>
     )
   }
@@ -62,9 +74,13 @@ export function RunRating({ run, units }: { run: Activity; units: Units }) {
           loading={save.isPending}
           onClick={() => {
             save.mutate(value, {
-              onSuccess: () => {
-                setSaved(true)
-                toast.show('Feedback saved')
+              onSuccess: (landed) => {
+                setSaved(landed)
+                toast.show(
+                  landed === 'queued'
+                    ? render(TEMPLATES['today.rate.queued'], {}, units)
+                    : 'Feedback saved',
+                )
               },
             })
           }}
@@ -77,7 +93,10 @@ export function RunRating({ run, units }: { run: Activity; units: Units }) {
           {render(
             TEMPLATES['today.rate.not-saved'],
             {
-              reason: save.error instanceof ApiError ? save.error.message : 'Something went wrong.',
+              reason:
+                save.error instanceof ApiError || save.error instanceof WriteRefused
+                  ? save.error.message
+                  : 'Something went wrong.',
             },
             units,
           )}

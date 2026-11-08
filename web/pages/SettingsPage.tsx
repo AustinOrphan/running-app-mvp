@@ -6,6 +6,7 @@ import { trendsText } from '../../shared/copy/trends.ts'
 import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../../shared/domain/weight.ts'
 import type { Units, UserSettings, WeightUnit } from '../../shared/types.ts'
 import { useLogout } from '../api/auth.ts'
+import { useWaitingRecords } from '../api/activityOutbox.ts'
 import { fieldErrors } from '../api/client.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
@@ -43,6 +44,14 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const update = useUpdateSettings()
   const logout = useLogout()
   const offline = useOfflineStatus()
+  // A run or rating that has not gone up is named before a sign-out clears it.
+  const waiting = useWaitingRecords()
+  const [confirming, setConfirming] = useState(false)
+  const warning = useRef<HTMLParagraphElement>(null)
+  const signOut = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (confirming) warning.current?.focus()
+  }, [confirming])
 
   // What the server holds, as of the last successful save; the form sends only the differences.
   const [saved, setSaved] = useState(initial)
@@ -185,6 +194,11 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   }
 
   function onSignOut() {
+    if (waiting !== null && !confirming) {
+      setConfirming(true)
+      return
+    }
+    setConfirming(false)
     logout.mutate(undefined, {
       onSuccess: () => {
         void navigate('/login', { replace: true })
@@ -323,10 +337,29 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             Not signed out. The server did not respond; try again.
           </p>
         ) : null}
-        <div>
-          <Button onClick={onSignOut} loading={logout.isPending}>
-            Sign out
+        {confirming && waiting !== null ? (
+          <p ref={warning} tabIndex={-1} role="alert" className={styles.alert}>
+            {render(TEMPLATES['today.signout-waiting'], { what: waiting }, units)}
+          </p>
+        ) : null}
+        <div className={styles.signOutActions}>
+          <Button ref={signOut} onClick={onSignOut} loading={logout.isPending}>
+            {confirming && waiting !== null
+              ? render(TEMPLATES['today.signout-anyway'], {}, units)
+              : 'Sign out'}
           </Button>
+          {confirming && waiting !== null ? (
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setConfirming(false)
+                // Cancel leaves with the warning; focus goes back to the button that asked.
+                signOut.current?.focus()
+              }}
+            >
+              {render(TEMPLATES['today.signout-cancel'], {}, units)}
+            </Button>
+          ) : null}
         </div>
       </section>
     </>

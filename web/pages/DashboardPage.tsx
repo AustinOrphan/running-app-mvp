@@ -17,6 +17,7 @@ import { useCheckRuns, type CheckRuns as CheckRunsState } from '../components/to
 import { CheckinRow } from '../components/today/CheckinRow.tsx'
 import { DataHealth } from '../components/today/DataHealth.tsx'
 import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
+import { ActivityNotices } from '../components/today/ActivityNotices.tsx'
 import { FeedbackCard } from '../components/today/FeedbackCard.tsx'
 import { HealthNotes } from '../components/today/HealthNotes.tsx'
 import { History } from '../components/today/History.tsx'
@@ -33,6 +34,8 @@ import { TodaySlot } from '../components/today/TodaySlot.tsx'
 import { WeekStrip } from '../components/today/WeekStrip.tsx'
 import { useToast } from '../components/Toast.tsx'
 import { useMediaQuery } from '../components/useMediaQuery.ts'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { useOutboxState } from '../pwa/outbox.ts'
 import styles from './DashboardPage.module.css'
 
@@ -237,8 +240,12 @@ export function DashboardPage() {
       unrated={view.unrated}
       units={units}
       exclude={heroAsksRating ? (coach.hero?.linkedRun?.id ?? null) : null}
-      onSaved={() => {
-        toast.show('Feedback saved')
+      onSaved={(landed) => {
+        toast.show(
+          landed === 'queued'
+            ? render(TEMPLATES['today.rate.queued'], {}, units)
+            : 'Feedback saved',
+        )
       }}
     />
   )
@@ -261,6 +268,7 @@ export function DashboardPage() {
               <div className={styles.column}>
                 <TodaySlot name="disruption" />
                 {sessionBlock}
+                <ActivityNotices />
                 {weekStrip}
                 {briefBlock}
                 {offlineBlock}
@@ -281,6 +289,7 @@ export function DashboardPage() {
               <div className={styles.column}>
                 <TodaySlot name="disruption" />
                 {sessionBlock}
+                <ActivityNotices />
                 {briefBlock}
                 {offlineBlock}
                 {readinessBlock}

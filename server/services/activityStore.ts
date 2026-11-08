@@ -5,8 +5,11 @@ import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
 import { markDuplicates } from './duplicates.ts'
-import { runExecutionForActivity, runExecutionQuietly } from './execution.ts'
-import { linkPlanSession } from './planEngine.ts'
+import { assessSessionById, runExecutionForActivity, runExecutionQuietly } from './execution.ts'
+import { assertLinkable, linkPlanSession } from './planEngine.ts'
+import { conflict, notFound } from '../errors.ts'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
 import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
@@ -223,20 +226,25 @@ export interface ManualActivityInput {
 }
 
 /** The tables a write beside a manual activity may use inside its transaction. */
-export type ManualActivityDb = Pick<PrismaClient, 'activity' | 'strengthLog' | 'strengthSet'>
+export type ManualActivityDb = Pick<
+  PrismaClient,
+  'activity' | 'strengthLog' | 'strengthSet' | 'planSession'
+>
 
 export interface ManualActivityOptions {
   /**
    * Writes that must stand or fall with the activity, in its transaction: a strength log and its
    * sets. The activity is stored only if this resolves.
    */
-  within?: (tx: ManualActivityDb, activity: ActivityRow) => Promise<void>
+  within?: (tx: ManualActivityDb, activity: ActivityRow) => Promise<void | 'unlinked'>
   /**
    * The planned session the activity fulfils, set as the owner's choice. Without it the matcher
    * ties the activity to a session as for any other. The caller has checked the pair
    * (`assertLinkable`).
    */
   sessionId?: string
+  /** The id the row is stored under, when the client chose it (`saveDoneActivity`). */
+  id?: string
 }
 
 /**
@@ -253,22 +261,139 @@ export async function createManualActivity(
   opts: ManualActivityOptions = {},
 ): Promise<ActivityRow> {
   const { prisma } = deps
-  const data = { ...input, userId, source: 'manual', duplicateStatus: 'none' }
+  const data = {
+    ...input,
+    ...(opts.id === undefined ? {} : { id: opts.id }),
+    userId,
+    source: 'manual',
+    duplicateStatus: 'none',
+  }
   const { within } = opts
+  // `within` answers 'unlinked' when the session it was to claim is gone: the run is kept and the
+  // matcher ties it, as for a run with no session.
+  let unlinked = false
   const created = within
     ? await prisma.$transaction(async (tx) => {
         const row = await tx.activity.create({ data })
-        await within(tx, row)
+        unlinked = (await within(tx, row)) === 'unlinked'
         return row
       })
     : await prisma.activity.create({ data })
   await markDuplicates(prisma, userId, [created.id])
-  if (opts.sessionId === undefined) {
+  if (opts.sessionId === undefined || unlinked) {
     await runExecutionQuietly(deps, { userId, activityId: created.id })
   } else {
     await linkPlanSession(deps, { userId, sessionId: opts.sessionId, activityId: created.id })
   }
   return prisma.activity.findFirstOrThrow({ where: { id: created.id, userId } })
+}
+
+/** The 409 for a session that already has a run; `details.code` tells it from a kind that no longer fits. */
+function alreadyLogged(sessionId: string | undefined) {
+  return conflict(render(TEMPLATES['today.done.already-logged'], {}, 'mi'), {
+    code: SESSION_LOGGED,
+    sessionId,
+  })
+}
+
+/** `details.code` of the 409 `saveDoneActivity` answers when the session already has a run. */
+export const SESSION_LOGGED = 'session-logged'
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
+}
+
+/** What `saveDoneActivity` did: `created` is false for a repeat of an id already stored. */
+export interface SavedDoneActivity {
+  activity: ActivityRow
+  created: boolean
+}
+
+/**
+ * The idempotent create behind "Done" (ADR 0012, the queued writes): the client chooses the
+ * activity's id, so a send that is repeated after a lost answer, or replayed by the outbox, is the
+ * same write and stores one activity. A repeat returns the stored row and changes nothing, so it
+ * never undoes an edit made since. An id held by another runner is as good as unknown (404).
+ *
+ * `sessionId` is the session the runner marked done. When that session already has an activity
+ * (done on another device, or matched from a sync) the write is refused with 409 and nothing is
+ * stored. A session the plan no longer holds is not an error: the run is kept and the matcher ties
+ * it to the plan as for any other, so a run logged at a trailhead is never lost to a re-plan.
+ */
+export async function saveDoneActivity(
+  deps: Deps,
+  userId: string,
+  activityId: string,
+  input: ManualActivityInput,
+  sessionId?: string,
+): Promise<SavedDoneActivity> {
+  const { prisma } = deps
+  const repeat = async (): Promise<SavedDoneActivity | null> => {
+    const existing = await prisma.activity.findUnique({ where: { id: activityId } })
+    if (!existing) return null
+    if (existing.userId !== userId) throw notFound('Activity not found.')
+    // A failure after the claim committed (the assessment) leaves a linked run that was never
+    // assessed; the replay does the missing step before it answers.
+    const unassessed = await prisma.planSession.findFirst({
+      where: { activityId: existing.id, execution: null },
+      select: { id: true },
+    })
+    if (unassessed) await assessSessionById(deps, { userId, sessionId: unassessed.id })
+    return { activity: existing, created: false }
+  }
+  const already = await repeat()
+  if (already) return already
+
+  let linkTo: string | undefined
+  if (sessionId !== undefined) {
+    const session = await prisma.planSession.findFirst({
+      where: { id: sessionId, plan: { userId, status: 'active' } },
+    })
+    if (session) {
+      if (session.activityId !== null) {
+        throw alreadyLogged(sessionId)
+      }
+      await assertLinkable(deps, session, {
+        id: null,
+        type: input.type,
+        subtype: input.subtype ?? null,
+      })
+      linkTo = session.id
+    }
+  }
+  try {
+    // The claim of the session is part of the create: two sends for one session (or a sync that
+    // matched it first) cannot both pass, and the loser's activity is rolled back with its 409.
+    const activity = await createManualActivity(deps, userId, input, {
+      id: activityId,
+      ...(linkTo === undefined
+        ? {}
+        : {
+            sessionId: linkTo,
+            within: async (tx, row) => {
+              const { count } = await tx.planSession.updateMany({
+                where: { id: linkTo, activityId: null },
+                data: { activityId: row.id, linkSource: 'owner' },
+              })
+              if (count === 0) {
+                // Another activity holds the session: refuse. A session a re-plan removed between
+                // the check and the claim holds nothing: keep the run unlinked.
+                const held = await tx.planSession.findFirst({ where: { id: linkTo } })
+                if (held && held.activityId !== null) throw alreadyLogged(sessionId)
+                return 'unlinked'
+              }
+              return undefined
+            },
+          }),
+    })
+    return { activity, created: true }
+  } catch (error) {
+    // Two sends of one id at once: the loser hit the winner's row, and is a repeat.
+    if (!isUniqueViolation(error)) throw error
+    const winner = await repeat()
+    if (winner) return winner
+    throw error
+  }
 }
 
 const WELLNESS_FIELDS = [

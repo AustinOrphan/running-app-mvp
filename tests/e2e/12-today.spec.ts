@@ -466,7 +466,7 @@ test('at 1280 x 800 Today stands in two columns, the session first and the week 
   }
 })
 
-test('Done with no connection keeps a draft and turns Save off, then logs the run once', async () => {
+test('Done closed with no connection keeps a draft, then logs the run once when it is back', async () => {
   const { today } = relativeDates()
   await loadWithSheetCode(page, () => page.reload())
   const card = page.getByRole('article', { name: planned.title })
@@ -476,14 +476,16 @@ test('Done with no connection keeps a draft and turns Save off, then logs the ru
   await card.getByRole('button', { name: 'Done' }).click()
   const sheet = page.getByRole('dialog', { name: "Log today's run" })
   await expect(
-    sheet.getByText('Needs a connection. Your entries stay on this phone.'),
+    sheet.getByText(
+      'No connection. Save keeps this on the phone and sends it when you are back online.',
+    ),
   ).toBeVisible()
-  await expect(sheet.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await expect(sheet.getByRole('button', { name: 'Save' })).toBeEnabled()
   await sheet.getByRole('textbox', { name: 'Duration' }).fill('37')
   await sheet.getByRole('button', { name: 'Close' }).click()
   await expect(sheet).toBeHidden()
 
-  // The connection is back: the sheet opens on the draft, Save works, and the run is posted once.
+  // The connection is back: the sheet opens on the draft, Save works, and the run is sent once.
   await page.context().setOffline(false)
   await card.getByRole('button', { name: 'Done' }).click()
   await expect(sheet.getByRole('textbox', { name: 'Duration' })).toHaveValue('37')

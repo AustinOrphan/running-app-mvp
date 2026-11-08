@@ -18,6 +18,7 @@ function open(userId: string | null) {
         <MemoryRouter>
           <DoneSheet
             plan={{ kind: 'easy', durationMin: 40, distanceM: 6000 }}
+            sessionId="s1"
             date={DATE}
             units="km"
             onClose={vi.fn()}
@@ -46,6 +47,7 @@ describe('the Done draft', () => {
       distance: '6',
       rpe: 6,
       feel: null,
+      pain: null,
     })
     expect(window.localStorage.getItem(`rl_done_draft_${DATE}`)).toBeNull()
   })

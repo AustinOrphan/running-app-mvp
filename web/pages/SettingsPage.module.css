@@ -96,3 +96,9 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.signOutActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
