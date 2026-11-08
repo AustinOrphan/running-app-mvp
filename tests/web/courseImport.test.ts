@@ -1,6 +1,7 @@
 // Checkpoints proposed from a course file (rule H14): the rows, the climb since the previous row, the
 // even spacing when the file names nothing, and the files the page refuses.
 import { describe, expect, test } from 'vitest'
+import { describeRaceCourseProposal } from '../../shared/copy/racePlan.ts'
 import { parseCourse } from '../../shared/importers/files/course.ts'
 import {
   COURSE_MERGE_M,
@@ -98,12 +99,16 @@ describe('proposeCheckpoints', () => {
     expect(facts.gainM).toBeNull()
   })
 
-  test('names the goal distance only when it differs from the track by more than two percent', () => {
+  test('flags a goal distance that differs from the track by more than two percent', () => {
     const course = parseCourse(bytes(courseGpx()))
-    expect(proposeCheckpoints(course, ARGS).facts.goalDistanceM).toBeNull()
-    expect(
-      proposeCheckpoints(course, { ...ARGS, goalDistanceM: 100_000 }).facts.goalDistanceM,
-    ).toBe(100_000)
+    expect(proposeCheckpoints(course, ARGS).facts).toMatchObject({
+      lengthDiffers: false,
+      goalDistanceM: 161_000,
+    })
+    expect(proposeCheckpoints(course, { ...ARGS, goalDistanceM: 100_000 }).facts).toMatchObject({
+      lengthDiffers: true,
+      goalDistanceM: 100_000,
+    })
   })
 
   test('the altitude of the fixture rises, so a flat file is a real difference', () => {
@@ -240,5 +245,50 @@ describe('a proposal Save would accept', () => {
       { units: 'km', courseM: 150_000, startMin: null },
     )
     expect(parsed.ok).toBe(true)
+  })
+})
+
+describe('proposals at the edges of what Save accepts', () => {
+  test('counts a waypoint past a goal that is within two percent of the track, and says so', () => {
+    // a goal 50 m short of the last waypoint, on a track within two percent of the goal
+    const course = parseCourse(
+      bytes(
+        courseGpx({
+          points: 101,
+          waypoints: [
+            { name: 'In', at: 50 },
+            { name: 'Out', at: 99 },
+          ],
+        }),
+      ),
+    )
+    const goal = course.waypoints[1]!.distanceM - 50
+    const { rows, facts } = proposeCheckpoints(course, { ...ARGS, goalDistanceM: goal })
+    expect(rows.map((r) => r.name)).toEqual(['In'])
+    expect(facts).toMatchObject({ beyondGoal: 1, lengthDiffers: false, goalDistanceM: goal })
+    expect(describeRaceCourseProposal(facts, 'km').notices.join(' ')).toMatch(/left out: 1/)
+  })
+
+  test('compares the rounded distance, as the row will be sent', () => {
+    const course = parseCourse(bytes(courseGpx({ waypoints: [{ name: 'Edge', at: 90 }] })))
+    const at = course.waypoints[0]!.distanceM
+    // a goal whose distance rounds to the waypoint's: the row would be at the goal, which Save refuses
+    const goal = Math.round(at)
+    const { rows, facts } = proposeCheckpoints(course, { ...ARGS, goalDistanceM: goal })
+    expect(rows).toEqual([])
+    expect(facts.beyondGoal).toBe(1)
+    const roomy = proposeCheckpoints(course, { ...ARGS, goalDistanceM: goal + 1 })
+    expect(roomy.rows).toHaveLength(1)
+  })
+
+  test('shortens a long base name, not the suffix, so two passes never share a name', () => {
+    const long = 'L'.repeat(60)
+    const course = parseCourse(bytes(courseGpxFrom(outAndBackPoints(), [{ name: long, lon: 0.2 }])))
+    const { rows } = proposeCheckpoints(course, ARGS)
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.name).toBe(long)
+    expect(rows[1]!.name.length).toBeLessThanOrEqual(60)
+    expect(rows[1]!.name).toMatch(/ \(pass 2\)$/)
+    expect(rows[1]!.name).not.toBe(rows[0]!.name)
   })
 })

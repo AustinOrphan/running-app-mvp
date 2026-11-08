@@ -569,6 +569,7 @@ describe('the words of the course import', () => {
     capped: 3,
     max: 40,
     goalDistanceM: 150_000,
+    lengthDiffers: true,
   }
 
   it.each(UNITS)('pass the G5 lint in %s', (units) => {
@@ -600,6 +601,26 @@ describe('the words of the course import', () => {
     expect(text.notices.join(' ')).toMatch(/goal 150 km/)
     const joined = [text.summary, text.source, ...text.notices].join('\n')
     expect(joined).not.toMatch(/\d:\d\d ?\/ ?(km|mi)|\b(pace|split|target time|goal time)\b/i)
+  })
+
+  it('says the beyond-goal notice even when the track is within two percent of the goal', () => {
+    const near = describeRaceCourseProposal(
+      {
+        ...facts,
+        lengthDiffers: false,
+        goalDistanceM: 50_000,
+        distanceM: 50_900,
+        edge: 0,
+        merged: 0,
+        offTrack: 0,
+        capped: 0,
+        beyondGoal: 1,
+      },
+      'km',
+    )
+    expect(near.notices).toEqual([
+      'Waypoints at or past the goal distance of 50 km are left out: 1.',
+    ])
   })
 
   it('reads the climb in feet for miles, and names the axes', () => {

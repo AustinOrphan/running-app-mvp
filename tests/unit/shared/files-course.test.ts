@@ -4,6 +4,7 @@ import {
   courseSampleAt,
   parseCourse,
 } from '../../../shared/importers/files/course.ts'
+import { haversineM } from '../../../shared/importers/files/summarize.ts'
 
 const bytes = (xml: string) => new TextEncoder().encode(xml)
 
@@ -191,5 +192,66 @@ describe('a waypoint on a sparse track', () => {
     const [w] = course.waypoints
     expect(w!.distanceM / course.distanceM).toBeCloseTo(0.25, 2)
     expect(w!.offTrackM).toBeCloseTo(50, -1)
+  })
+})
+
+describe('climb at a snapped waypoint', () => {
+  test('is read between the ends of its segment, not taken from the nearest vertex', () => {
+    // two points 11 km apart rising 100 m to 200 m; a waypoint a quarter of the way along
+    const xml =
+      '<gpx><wpt lat="0" lon="0.025"><name>Quarter</name></wpt>' +
+      '<trk><trkseg><trkpt lat="0" lon="0"><ele>100</ele></trkpt>' +
+      '<trkpt lat="0" lon="0.1"><ele>200</ele></trkpt></trkseg></trk></gpx>'
+    const [w] = parseCourse(bytes(xml)).waypoints
+    expect(w!.gainM).toBe(25)
+    expect(w!.altM).toBeCloseTo(125, 5)
+    expect(w!.lossM).toBe(0)
+  })
+
+  test('on a descent reads the loss the same way', () => {
+    const xml =
+      '<gpx><wpt lat="0" lon="0.075"><name>Late</name></wpt>' +
+      '<trk><trkseg><trkpt lat="0" lon="0"><ele>300</ele></trkpt>' +
+      '<trkpt lat="0" lon="0.1"><ele>200</ele></trkpt></trkseg></trk></gpx>'
+    const [w] = parseCourse(bytes(xml)).waypoints
+    expect(w!.lossM).toBe(75)
+    expect(w!.gainM).toBe(0)
+  })
+})
+
+describe('snapping on a long dense track', () => {
+  test('finds the same places as a plain scan, for waypoints near and far from the track', () => {
+    const n = 20_000
+    const pts = Array.from({ length: n }, (_u, i) => {
+      const lon = (i * 3) / 111_195
+      return `<trkpt lat="${(0.05 * Math.sin(i / 3000)).toFixed(6)}" lon="${lon.toFixed(6)}"><ele>${String(300 + 50 * Math.sin(i / 700))}</ele></trkpt>`
+    }).join('')
+    const marks = [2000, 9000, 15_000]
+      .map((i) => {
+        const lat = (0.05 * Math.sin(i / 3000) + 0.0002).toFixed(6)
+        return `<wpt lat="${lat}" lon="${((i * 3) / 111_195).toFixed(6)}"><name>W${String(i)}</name></wpt>`
+      })
+      .join('')
+    const far = '<wpt lat="1" lon="0.1"><name>Far</name></wpt>'
+    const course = parseCourse(bytes(`<gpx>${marks}${far}<trk><trkseg>${pts}</trkseg></trk></gpx>`))
+    expect(course.waypoints.map((w) => w.name)).toEqual(['W2000', 'W9000', 'W15000'])
+    expect(course.offTrack).toBe(1)
+    // the distance along the track at each waypoint's vertex, by a plain sum of the same steps
+    const at = (i: number) => {
+      let sum = 0
+      for (let k = 1; k <= i; k++) {
+        sum += haversineM(
+          0.05 * Math.sin((k - 1) / 3000),
+          ((k - 1) * 3) / 111_195,
+          0.05 * Math.sin(k / 3000),
+          (k * 3) / 111_195,
+        )
+      }
+      return sum
+    }
+    course.waypoints.forEach((w, i) => {
+      expect(Math.abs(w.distanceM - at([2000, 9000, 15_000][i]!))).toBeLessThan(40) // coordinates are rounded to 0.1 m in the file
+      expect(w.offTrackM).toBeCloseTo(22, -1)
+    })
   })
 })

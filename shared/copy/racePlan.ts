@@ -1476,8 +1476,10 @@ export interface RaceCourseProposalFacts {
   /** Rows over the room for them, left out, and the room. */
   capped: number
   max: number
-  /** The goal's distance when it differs from the track's by enough to say so; else null. */
+  /** The goal's distance in metres; null when the goal holds none. */
   goalDistanceM: number | null
+  /** The track differs from the goal's distance by enough to say so. */
+  lengthDiffers: boolean
 }
 
 export function describeRaceCourseProposal(
@@ -1502,7 +1504,7 @@ export function describeRaceCourseProposal(
       ? say(T['race.plan.course.from-waypoints'], { n: count(facts.waypoints) }, units)
       : say(T['race.plan.course.spaced'], { spacing: distance(facts.spacingM) }, units)
   const notices: string[] = []
-  if (facts.goalDistanceM !== null) {
+  if (facts.lengthDiffers && facts.goalDistanceM !== null) {
     notices.push(
       say(
         T['race.plan.course.length-differs'],

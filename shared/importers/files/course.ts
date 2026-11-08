@@ -114,6 +114,19 @@ function decodeEntities(text: string): string {
   })
 }
 
+/** How far each track point is from `spot`, in metres, on a flat plane: cheap, for ruling points out. */
+function vertexDistances(spot: TrackPoint, points: readonly TrackPoint[]): Float64Array {
+  const rad = Math.PI / 180
+  const ky = rad * 6_371_000
+  const kx = ky * Math.cos(spot.lat * rad)
+  const out = new Float64Array(points.length)
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]!
+    out[i] = Math.hypot((p.lng - spot.lng) * kx, (p.lat - spot.lat) * ky)
+  }
+  return out
+}
+
 /**
  * The nearest point of the segment from `a` to `b` to `spot`: how far along it (0 to 1) and how far
  * off, in metres, on a flat plane around the waypoint (accurate to centimetres at the 300 m snap).
@@ -178,14 +191,26 @@ export function parseCourse(bytes: Uint8Array): Course {
     const spot = pointOf(node, 'ele')
     if (spot === null) return []
     const name = nameOf(node)
-    const passes: Array<{ index: number; at: number; offTrackM: number }> = []
-    let nearest = { index: 0, at: 0, offTrackM: Infinity }
+    type Found = { seg: number; t: number; at: number; offTrackM: number }
+    const passes: Found[] = []
+    let nearest: Found = { seg: 0, t: 0, at: 0, offTrackM: Infinity }
     let lastAt = -Infinity
+    // One cheap pass over the vertices, then the exact projection only onto the segments that can
+    // come within snap distance: a segment of length L has a vertex within snap + L / 2 of any point
+    // within snap of it.
+    const near = vertexDistances(spot, points)
     for (let k = 0; k < points.length - 1; k++) {
-      const hit = nearestOnSegment(spot, points[k]!, points[k + 1]!)
       const length = along[k + 1]! - along[k]!
-      const found = {
-        index: hit.t < 0.5 ? k : k + 1,
+      const reach = COURSE_MAX_OFF_TRACK_M + length / 2 + 10
+      if (near[k]! > reach && near[k + 1]! > reach) {
+        if (near[k]! < nearest.offTrackM)
+          nearest = { seg: k, t: 0, at: along[k]!, offTrackM: near[k]! }
+        continue
+      }
+      const hit = nearestOnSegment(spot, points[k]!, points[k + 1]!)
+      const found: Found = {
+        seg: k,
+        t: hit.t,
         at: along[k]! + hit.t * length,
         offTrackM: hit.distanceM,
       }
@@ -211,7 +236,11 @@ export function parseCourse(bytes: Uint8Array): Course {
   const onTrack = waypoints.filter((w) => !w.off)
 
   // The places to count climb at: evenly spaced along the track, every waypoint, and the end.
-  const wanted = new Set<number>([0, points.length - 1, ...onTrack.map((w) => w.index)])
+  const wanted = new Set<number>([
+    0,
+    points.length - 1,
+    ...onTrack.flatMap((w) => [w.seg, w.seg + 1]),
+  ])
   let next = 1
   for (let i = 1; i < points.length - 1 && next < COURSE_PROFILE_POINTS; i++) {
     if (along[i]! >= (next * total) / COURSE_PROFILE_POINTS) {
@@ -219,13 +248,30 @@ export function parseCourse(bytes: Uint8Array): Course {
       next = Math.floor((along[i]! * COURSE_PROFILE_POINTS) / total) + 1
     }
   }
+  const kept = new Map<number, CourseSample>()
   const sample = (index: number): CourseSample => {
+    const known = kept.get(index)
+    if (known !== undefined) return known
     const change = altitudes === null ? null : elevationGainLoss(altitudes.slice(0, index + 1))
-    return {
+    const made = {
       distanceM: along[index]!,
       altM: altitudes === null ? null : altitudes[index]!,
       gainM: change?.gain ?? 0,
       lossM: change?.loss ?? 0,
+    }
+    kept.set(index, made)
+    return made
+  }
+  /** The sample at a place `t` of the way along segment `seg`: climb and altitude read between its ends. */
+  const between = (seg: number, t: number): CourseSample => {
+    const a = sample(seg)
+    const b = sample(seg + 1)
+    const mix = (x: number, y: number) => x + (y - x) * t
+    return {
+      distanceM: mix(a.distanceM, b.distanceM),
+      altM: a.altM === null || b.altM === null ? null : mix(a.altM, b.altM),
+      gainM: Math.round(mix(a.gainM, b.gainM)),
+      lossM: Math.round(mix(a.lossM, b.lossM)),
     }
   }
   const profile = [...wanted].sort((a, b) => a - b).map(sample)
@@ -238,7 +284,7 @@ export function parseCourse(bytes: Uint8Array): Course {
     profile,
     waypoints: onTrack
       .map((w) => ({
-        ...sample(w.index),
+        ...between(w.seg, w.t),
         distanceM: w.at,
         name: w.name,
         offTrackM: w.offTrackM,
