@@ -166,6 +166,11 @@ export const PACES_TEMPLATES = {
   'paces.event.basis-cs': tpl('From your critical speed, found from {efforts} efforts.', {
     efforts: 'count',
   }),
+  'paces.event.basis-training': tpl(
+    'From your best efforts in training since {date}; these were not races, so the range is wide.',
+    { date: 'date' },
+  ),
+  'paces.event.test-narrow': tpl('A short test narrows it.'),
   'paces.event.single': tpl('One source only, so the range is wider.'),
   'paces.event.climb': tpl(
     'Climb is counted as flat distance, and the range is widened for trail.',
@@ -175,7 +180,7 @@ export const PACES_TEMPLATES = {
     'A race gives the time by a personal exponent or Riegel; critical speed gives it by a fit (L1, L2).',
   ),
   'paces.events.how-range': tpl(
-    'One source widens the range (L3), and no range is narrower than its minimum (L6).',
+    'One source widens the range (L3), a critical speed found from training widens it again (A6), and no range is narrower than its minimum (L6).',
   ),
   'paces.events.how-climb': tpl('Climb counts as flat distance, and trail widens the range (L5).'),
   'paces.events.how-grade': tpl('The grade is the lowest among the Params the figure reads.'),
@@ -307,7 +312,13 @@ export const PACES_TEMPLATES = {
     need: 'count',
   }),
   'paces.test.done': tpl('Critical speed is in place. Further hard efforts keep it current.'),
+  'paces.test.training': tpl(
+    'Critical speed is estimated from your training runs, which are rarely all-out, so the ranges are wide. The steps narrow it.',
+  ),
   'paces.test.care': tpl('Keep a rest day between efforts, and stop if anything hurts.'),
+  'paces.test.how-stretch': tpl(
+    'A run of 0.4 to 5 km is one effort; a longer run gives its fastest stretches (A6).',
+  ),
   'paces.test.how': tpl(
     'The fit is a straight line of distance against time over the best effort of each distance band (A6, L1). It needs the efforts to differ in length.',
   ),

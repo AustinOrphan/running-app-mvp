@@ -30,7 +30,7 @@ function basisLine(row: EventRow, units: Units): string | null {
       units,
     )
   }
-  return cs === null
+  return cs === null || cs.since !== null
     ? null
     : render(T['paces.event.basis-cs'], { efforts: { kind: 'count', n: cs.efforts } }, units)
 }
@@ -75,6 +75,17 @@ export function EventCard({ row, units }: { row: EventRow; units: Units }) {
           </dl>
           {basisLine(row, units) === null ? null : (
             <p className={styles.note}>{basisLine(row, units)}</p>
+          )}
+          {row.basis.cs?.since == null ? null : (
+            <p className={styles.note}>
+              {render(
+                T['paces.event.basis-training'],
+                { date: { kind: 'date', iso: row.basis.cs.since, style: 'short' } },
+                units,
+              )}{' '}
+              {pacesText('paces.event.test-narrow')}{' '}
+              <a href="#test">{pacesText('paces.test.heading')}</a>
+            </p>
           )}
           {row.singleSource ? (
             <p className={styles.note}>{pacesText('paces.event.single')}</p>

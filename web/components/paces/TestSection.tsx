@@ -32,7 +32,9 @@ export function TestSection({ test, units, thin }: TestSectionProps) {
         {pacesText('paces.test.heading')}
       </h2>
       <p className={styles.text}>
-        {test.done ? pacesText('paces.test.done') : pacesText('paces.test.intro')}
+        {test.done
+          ? pacesText(test.fromTraining ? 'paces.test.training' : 'paces.test.done')
+          : pacesText('paces.test.intro')}
       </p>
       <p className={styles.note}>
         {render(
@@ -41,7 +43,7 @@ export function TestSection({ test, units, thin }: TestSectionProps) {
           units,
         )}
       </p>
-      <details className={styles.how} open={thin && !test.done}>
+      <details className={styles.how} open={(thin && !test.done) || test.fromTraining}>
         <summary className={styles.summary}>{pacesText('paces.test.steps')}</summary>
         <ol className={styles.steps}>
           <li>
@@ -71,7 +73,7 @@ export function TestSection({ test, units, thin }: TestSectionProps) {
         <p className={styles.note}>{pacesText('paces.test.care')}</p>
       </details>
       <HowMade
-        lines={[pacesText('paces.test.how')]}
+        lines={[pacesText('paces.test.how'), pacesText('paces.test.how-stretch')]}
         subject="the critical speed test"
         rules={['A6', 'L1']}
       />

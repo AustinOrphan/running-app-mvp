@@ -439,6 +439,38 @@ describe('MyPacesPage: the test', () => {
   })
 })
 
+describe('MyPacesPage: a critical speed from training [A6]', () => {
+  const trained = () =>
+    serve(stateWith({ csMps: 3.2, dPrimeM: 180, csEfforts: 4, csTrainingSince: '2026-08-11' }))
+
+  test('says where the range comes from, that these were not races, and links to the test', async () => {
+    mockApi(trained().routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const events = await screen.findByRole('region', { name: 'What you can run now' })
+    const half = within(events).getByRole('article', { name: 'Half marathon' })
+    expect(
+      within(half).getByText(
+        /^From your best efforts in training since 11 Aug; these were not races, so the range is wide\./,
+      ),
+    ).toBeInTheDocument()
+    expect(within(half).getByRole('link', { name: 'A short test' })).toHaveAttribute(
+      'href',
+      '#test',
+    )
+    expect(within(half).queryByText(/found from 4 efforts/)).not.toBeInTheDocument()
+  })
+
+  test('the test section says the fit is from training and keeps the steps open', async () => {
+    mockApi(trained().routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const test = await screen.findByRole('region', { name: 'A short test' })
+    expect(
+      within(test).getByText(/^Critical speed is estimated from your training runs/),
+    ).toBeInTheDocument()
+    expect(within(test).getByText(/^Run 3 hard, flat efforts/)).toBeVisible()
+  })
+})
+
 describe('MyPacesPage: climbs and descents [I13]', () => {
   /** The nine runs of the line, and `count` more with terrain bins of a runner half as steep as Minetti. */
   const withBins = (count: number) => [
