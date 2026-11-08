@@ -134,9 +134,10 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'hrHistogram: {start, width, sec}. Heart-rate bins of width bpm from start bpm; sec[i] is the seconds spent in bin i.',
         'terrainBins: where moving time went by grade band, from the stream. Band i holds grades from edgesPct[i-1] up to edgesPct[i] percent (open at both ends), so each array has edgesPct.length + 1 entries. sec: moving seconds per band. m: metres per band. walkSec: the part of sec spent under walkMps (metres per second). windowM: the smoothing window in metres. flatCv: how steady the flat running was (standard deviation over mean of segment speed), or null. v: the shape version.',
         'duplicateOfId, duplicateStatus: the duplicate pass’s link and verdict.',
+        'hrQuality: the checks on the run’s heart-rate data, from its stream; null means not checked yet (and for a run with no stream). v: the version. th: the thresholds the counts used. source: strap, wrist or unknown. movingSec: moving seconds. cleanSec: moving seconds that passed every check. lockSec (heart rate locked to the step cadence), spikeSec (jumps larger than a heart makes), dropSec (no heart rate), flatSec (one exact value for a minute or more), mismatchSec (heart rate fell while effort rose sharply): seconds flagged by each check; one second can be flagged by several, so they can add up to more than movingSec minus cleanSec. halves: for runs of 40 minutes or more, the clean seconds, metres and heart rate times seconds of the first and second half by terrain band (the bands of terrainBins), or null. gapDecouplingPct: drift between the halves on grade-adjusted pace, in percent, or null.',
         'trackV: the version of the route extraction (see activity-tracks.json); null means not looked at yet.',
       ],
-      json: ['hrHistogram', 'terrainBins'],
+      json: ['hrHistogram', 'terrainBins', 'hrQuality'],
       find: (take, last) =>
         prisma.activity.findMany({
           where: { ...mine, ...activityAfter(last) },

@@ -44,6 +44,7 @@ export async function seedEverything(
       pain: 2,
       notes: ownMarker,
       terrainBins: JSON.stringify({ flat: 1 }),
+      hrQuality: JSON.stringify({ v: 1, source: 'wrist', movingSec: 1800, cleanSec: 1700 }),
       hrHistogram: JSON.stringify({ z1: 3 }),
     },
   })

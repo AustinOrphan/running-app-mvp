@@ -263,6 +263,10 @@ describe('GET /api/export', () => {
       const run = activities[0]!
       expect(run).toMatchObject({ rpe: 5, feel: 1, pain: 2, notes: ownMarker })
       expect(run['terrainBins']).toEqual({ flat: 1 })
+      expect(run['hrQuality']).toEqual({ v: 1, source: 'wrist', movingSec: 1800, cleanSec: 1700 })
+      // The second activity has none checked yet.
+      expect(activities[1]!['hrQuality']).toBeNull()
+      expect(text(entries, 'README.txt')).toMatch(/hrQuality: the checks/)
       const streams = JSON.parse(text(entries, 'activity-streams.json')) as Record<
         string,
         unknown
