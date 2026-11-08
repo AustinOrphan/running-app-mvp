@@ -11,7 +11,7 @@ import {
 import { addDays } from '../../shared/dates.ts'
 import { replayLadder } from '../../shared/engine/fuel.ts'
 import { racePlanFor, summaryOf } from '../../shared/engine/racePlan.ts'
-import type { RacePlan } from '../../shared/engine/racePlan.ts'
+import type { RacePlan, RacePlanInput } from '../../shared/engine/racePlan.ts'
 import type { CheckpointInput } from '../../shared/engine/raceSplits.ts'
 import type { GoalModel } from '../../shared/engine/types.ts'
 import type { PlanSession, RaceCheckpointsView, UserSettings } from '../../shared/types.ts'
@@ -22,6 +22,7 @@ import { MorePage } from '../../web/pages/MorePage.tsx'
 import { RacePage } from '../../web/pages/RacePage.tsx'
 import { courseGpx, courseGpxFrom, outAndBackPoints } from '../fixtures/course/buildCourseGpx.ts'
 import { expectCleanCopy, makeTestQueryClient, mockApi, renderWithProviders } from './helpers.tsx'
+import { makeActivity } from '../factories.ts'
 import { makeCoach, makeToday } from './today-fixtures.ts'
 
 const HOUR = 3600
@@ -65,6 +66,7 @@ function planWith(
   over: Partial<GoalModel> = {},
   supportLevel: 'aided' | 'self' = 'aided',
   checkpoints: CheckpointInput[] = [],
+  history?: RacePlanInput['history'],
 ): RacePlan {
   return JSON.parse(
     JSON.stringify(
@@ -81,6 +83,7 @@ function planWith(
         weightKg: 70,
         acclimationCredit: 0.2,
         checkpoints,
+        ...(history === undefined ? {} : { history }),
         today: TODAY,
       }),
     ),
@@ -130,6 +133,48 @@ describe('RacePage', () => {
     }
     expect(screen.getByText(text.fuel.rate)).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Disclaimer' })).toBeInTheDocument()
+  })
+
+  test('adds the Rehearsal block after the dark hours, from the one object, in plain facts', async () => {
+    const plan = planWith({}, 'aided', [], {
+      activities: [
+        makeActivity({
+          id: 'r1',
+          date: '2026-03-10',
+          type: 'run',
+          startUtc: '2026-03-11T03:00:00Z',
+          durationSec: 3600,
+          movingSec: 3600,
+        }),
+      ],
+      homeLat: 41.88,
+      homeLng: -87.63,
+    })
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Rehearsal' })
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(headings.slice(-2)).toEqual(['Dark hours', 'Rehearsal'])
+    const region = screen.getByRole('region', { name: 'Rehearsal' })
+    expect(region).toContainElement(heading)
+    const lines = describeRacePlan(plan, 'km').rehearsal!.lines
+    expect(lines[0]).toMatch(/^Night runs: 1 since /)
+    for (const line of lines) expect(within(region).getByText(line)).toBeInTheDocument()
+    expectCleanCopy(region)
+  })
+
+  test('shows the Rehearsal block empty-handed without a red word or a target', async () => {
+    const plan = planWith({}, 'aided', [], { activities: [], homeLat: null, homeLng: null })
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    const region = await screen.findByRole('region', { name: 'Rehearsal' })
+    expect(within(region).getByText(/^No runs since /)).toBeInTheDocument()
   })
 
   test('shows the context under the title and every sentence passes the copy lint', async () => {

@@ -325,3 +325,66 @@ describe('private data', () => {
     expect(theirs).not.toContain('Synthetic 100 miler')
   })
 })
+
+describe('GET /api/race/plan: rehearsal', () => {
+  const bins = {
+    v: 1,
+    windowM: 60,
+    walkMps: 1,
+    edgesPct: [-15, -10, -6, -3, 3, 6, 10, 15],
+    sec: [0, 0, 1800, 0, 3600, 0, 0, 0, 0],
+    m: [0, 0, 3000, 0, 9000, 0, 0, 0, 0],
+    walkSec: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    flatCv: null,
+  }
+
+  async function addRun(user: TestUser, daysAgo: number, startHourUtc: number, withBins: boolean) {
+    const date = addDays(today, -daysAgo)
+    return ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date,
+        type: 'run',
+        durationSec: 5400,
+        movingSec: 5400,
+        distanceM: 12_000,
+        source: 'manual',
+        startUtc: `${date}T${String(startHourUtc).padStart(2, '0')}:00:00Z`,
+        terrainBins: withBins ? JSON.stringify(bins) : null,
+      },
+    })
+  }
+
+  test('counts night runs and downhill time from the history, and follows a new run', async () => {
+    const user = await newUser()
+    await newGoal(user, { daysAhead: 40 })
+    await ctx.prisma.athleteProfile.create({
+      data: { userId: user.id, homeLat: 40.1, homeLng: -105.2, timezone: 'UTC' },
+    })
+    const empty = (await planOf(user)).plan!.rehearsal!
+    expect(empty).toMatchObject({ runs: 0, weeks: P.r1.rehearsalWindowWeeks.value })
+    expect(empty.night).toMatchObject({ runs: 0, darkMin: 0 })
+
+    // 07:00 UTC is midnight to 1 am at the home place: dark in every season.
+    await addRun(user, 2, 7, true)
+    await addRun(user, 3, 18, false)
+    const after = (await planOf(user)).plan!.rehearsal!
+    expect(after.runs).toBe(2)
+    expect(after.night).toMatchObject({ runs: 1, darkMin: 90, unplaced: 0 })
+    expect(after.downhill).toMatchObject({
+      minutes: 30,
+      longRuns: 1,
+      runsWithBins: 1,
+      runsWithoutBins: 1,
+    })
+  })
+
+  test("reads only the runner's own runs", async () => {
+    const runner = await newUser()
+    const other = await newUser()
+    await newGoal(runner, { daysAhead: 40 })
+    await newGoal(other, { daysAhead: 40 })
+    await addRun(runner, 2, 7, true)
+    expect((await planOf(other)).plan!.rehearsal!.runs).toBe(0)
+  })
+})

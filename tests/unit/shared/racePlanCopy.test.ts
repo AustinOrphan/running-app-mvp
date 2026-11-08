@@ -25,7 +25,9 @@ import { P } from '../../../shared/engine/params/index.ts'
 import { racePlanFor, summaryOf } from '../../../shared/engine/racePlan.ts'
 import type { RacePlan, RacePlanInput } from '../../../shared/engine/racePlan.ts'
 import type { FuelRunInput, GoalModel } from '../../../shared/engine/types.ts'
-import type { Units } from '../../../shared/types.ts'
+import { TERRAIN_BINS_VERSION, TERRAIN_EDGES_PCT } from '../../../shared/domain/terrainShape.ts'
+import type { Activity, Units } from '../../../shared/types.ts'
+import { makeActivity } from '../../factories.ts'
 
 const HOUR = 3600
 const RACE = '2026-06-13'
@@ -910,5 +912,102 @@ describe('the start block of the race card', () => {
     expect(describeRaceCard(PLANS[0]![1], 'km').noteHint).toBe(
       'Notes stay on this phone and are cleared when you sign out.',
     )
+  })
+})
+
+describe('the rehearsal block', () => {
+  const chicago = { homeLat: 41.88, homeLng: -87.63 }
+  const bins = (downSec: number) => {
+    const sec = new Array<number>(TERRAIN_EDGES_PCT.length + 1).fill(0)
+    sec[2] = downSec
+    sec[4] = 3000
+    return {
+      v: TERRAIN_BINS_VERSION,
+      windowM: 60,
+      walkMps: 1,
+      edgesPct: [...TERRAIN_EDGES_PCT],
+      sec,
+      m: sec,
+      walkSec: sec.map(() => 0),
+      flatCv: null,
+    }
+  }
+  const at = (id: string, date: string, startUtc: string | null, over: Partial<Activity> = {}) =>
+    makeActivity({ id, date, type: 'run', startUtc, durationSec: 3600, movingSec: 3600, ...over })
+  const withRuns = (runs: Activity[], overrides: Partial<RacePlanInput> = {}) =>
+    describeRacePlan(
+      racePlanFor(input({ history: { activities: runs, ...chicago }, ...overrides })),
+      'km',
+    )
+
+  it('carries no block without history or when the plan asks for neither kind', () => {
+    expect(describeRacePlan(racePlanFor(input()), 'km').rehearsal).toBeNull()
+    const flat = goal({ crossesDarkness: false, lossM: 0 })
+    expect(withRuns([], { goal: flat }).rehearsal).toBeNull()
+  })
+
+  it('says what the runs hold, without a target or a comparison', () => {
+    const runs = [
+      at('n1', '2026-06-01', '2026-06-02T02:00:00Z'),
+      at('n2', '2026-06-03', '2026-06-04T03:00:00Z'),
+      at('d1', '2026-06-05', '2026-06-05T15:00:00Z', {
+        durationSec: 7200,
+        terrainBins: bins(1800),
+      }),
+    ]
+    const block = withRuns(runs).rehearsal!
+    expect(block.heading).toBe('Rehearsal')
+    expect(block.lines[0]).toMatch(/^Night runs: 2 since .*, 2 h in the dark\.$/)
+    expect(block.lines).toContain('Downhill: 30 min on grades of 6% or steeper.')
+    expect(block.lines).toContain('Long runs with 10 min or more of it: 1.')
+    expect(block.lines.some((l) => /no altitude/.test(l))).toBe(true)
+  })
+
+  it('says none plainly and counts runs it cannot place', () => {
+    const block = withRuns([
+      at('day', '2026-06-05', '2026-06-05T15:00:00Z'),
+      at('nostart', '2026-06-06', null),
+    ]).rehearsal!
+    expect(block.lines[0]).toMatch(/^Night runs: none since /)
+    expect(block.lines).toContain(
+      '1 run has no start time or home place, so the sun cannot place it.',
+    )
+  })
+
+  it('says when no run recorded altitude and when there are no runs', () => {
+    const noAlt = withRuns([at('a', '2026-06-05', '2026-06-05T15:00:00Z')], {
+      goal: goal({ crossesDarkness: false }),
+    }).rehearsal!
+    expect(noAlt.lines).toEqual([expect.stringMatching(/^No run since .* recorded altitude/)])
+    expect(withRuns([]).rehearsal!.lines).toEqual([expect.stringMatching(/^No runs since /)])
+  })
+
+  it('passes the G5 lint in both unit systems for each state', () => {
+    const states = [
+      [],
+      [at('n1', '2026-06-01', '2026-06-02T02:00:00Z', { terrainBins: bins(1800) })],
+      [
+        at('d', '2026-06-01', '2026-06-01T15:00:00Z', { terrainBins: bins(0) }),
+        at('x', '2026-06-02', null),
+      ],
+    ]
+    for (const runs of states) {
+      for (const units of UNITS) {
+        const text = describeRacePlan(
+          racePlanFor(input({ history: { activities: runs, ...chicago } })),
+          units,
+        ).rehearsal
+        for (const line of allText(text)) {
+          expect(lintText(line), line).toEqual([])
+          expect(line).not.toMatch(/behind|missed|streak|should/i)
+        }
+      }
+    }
+  })
+
+  it('stays out of the summary and the race card', () => {
+    const plan = racePlanFor(input({ history: { activities: [], ...chicago } }))
+    expect(JSON.stringify(summaryOf(plan, RACE))).not.toMatch(/rehearsal/i)
+    expect(JSON.stringify(describeRaceCard(plan, 'km'))).not.toMatch(/Rehearsal/)
   })
 })

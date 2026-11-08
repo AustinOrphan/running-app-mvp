@@ -266,6 +266,26 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
             </section>
           )}
 
+          {text.rehearsal === null || plan.rehearsal === null ? null : (
+            <section className={cardStyles.section} aria-labelledby="race-rehearsal">
+              <h2 id="race-rehearsal" className={cardStyles.heading}>
+                {text.rehearsal.heading}
+              </h2>
+              {text.rehearsal.lines.map((line) => (
+                <p key={line} className={cardStyles.text}>
+                  {line}
+                </p>
+              ))}
+              <div>
+                <ExplainButton
+                  subject="the rehearsal count"
+                  rules={plan.rehearsal.rules}
+                  explain={rulesRef(plan.rehearsal.rules)}
+                />
+              </div>
+            </section>
+          )}
+
           <DisclaimerNote />
         </>
       )}
