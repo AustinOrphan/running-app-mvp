@@ -34,7 +34,7 @@ const FIT_PADDING = 28
  * The scale bar is never longer than this share of the box, nor this many pixels: on a phone it
  * shares the foot of the map with the credit and must leave room for it.
  */
-const SCALE_MAX_SHARE = 0.22
+const SCALE_MAX_SHARE = 0.14
 const SCALE_MAX_PX = 120
 
 export interface RunMapProps {
