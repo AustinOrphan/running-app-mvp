@@ -279,6 +279,10 @@ export const RACE_PLAN_TEMPLATES = {
     'Dark here means the sun is more than {deg} degrees below the horizon at your home place.',
     { deg: 'count' },
   ),
+  'race.plan.rehearsal.dark-note-runs': tpl(
+    'Dark here means the sun is more than {deg} degrees below the horizon at the place of each run.',
+    { deg: 'count' },
+  ),
   'race.plan.rehearsal.downhill': tpl('Downhill: {time} on grades of {pct} or steeper.', {
     time: 'minutes',
     pct: 'percent',
@@ -1022,7 +1026,9 @@ function rehearsalText(plan: RacePlan, units: Units): RacePlanText['rehearsal'] 
       }
       lines.push(
         say(
-          T['race.plan.rehearsal.dark-note'],
+          night.byRunStart > 0
+            ? T['race.plan.rehearsal.dark-note-runs']
+            : T['race.plan.rehearsal.dark-note'],
           { deg: count(Math.abs(P.r1.darkSunAltitudeDeg.value)) },
           units,
         ),

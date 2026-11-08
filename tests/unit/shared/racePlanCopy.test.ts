@@ -1005,6 +1005,35 @@ describe('the rehearsal block', () => {
     }
   })
 
+  it('reads dark time under two hours in minutes and from two hours in hours, in km and mi', () => {
+    const night = (sec: number) =>
+      at('n', '2026-06-03', '2026-06-04T05:00:00Z', { durationSec: sec, movingSec: sec })
+    for (const units of UNITS) {
+      const lines = (sec: number) =>
+        describeRacePlan(
+          racePlanFor(input({ history: { activities: [night(sec)], ...chicago } })),
+          units,
+        ).rehearsal!.lines
+      expect(lines(5400)[0]).toMatch(/, 90 min in the dark\.$/)
+      expect(lines(7800)[0]).toMatch(/, 2 h 10 min in the dark\.$/)
+    }
+  })
+
+  it('names the place the sun was read at: home, or the place of each run', () => {
+    const home = withRuns([at('h', '2026-06-03', '2026-06-04T05:00:00Z')]).rehearsal!.lines
+    expect(home).toContain(
+      'Dark here means the sun is more than 6 degrees below the horizon at your home place.',
+    )
+    const away = withRuns([
+      at('a', '2026-06-03', '2026-06-04T05:00:00Z', { startLat: 51.5, startLng: 0 }),
+      at('b', '2026-06-04', '2026-06-05T05:00:00Z'),
+    ]).rehearsal!.lines
+    expect(away).toContain(
+      'Dark here means the sun is more than 6 degrees below the horizon at the place of each run.',
+    )
+    expect(away.join(' ')).not.toMatch(/your home place/)
+  })
+
   it('stays out of the summary and the race card', () => {
     const plan = racePlanFor(input({ history: { activities: [], ...chicago } }))
     expect(JSON.stringify(summaryOf(plan, RACE))).not.toMatch(/rehearsal/i)

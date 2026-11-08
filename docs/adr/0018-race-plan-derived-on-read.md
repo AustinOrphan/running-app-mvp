@@ -143,8 +143,10 @@ It is read-only and derived like the rest of the plan.
   hours still use the D1 clock (**Fact:** the race's time zone is still not stored), so the "Solar
   module now" alternative above stays declined for the race and is taken for the rehearsal, where
   the instant and the home place are known.
-- **Place.** The home place of the profile; a run's own start point only when there is no home place;
-  a run with neither, or with no start instant, is counted as unplaced and said so, never as day.
+- **Place.** The run's own start point first, so a run away from home sits under its own sun; the
+  home place of the profile for a run with no coordinates; a run with neither, or with no start
+  instant, is counted as unplaced and said so, never as day. The sun is sampled over the elapsed span
+  and the dark minutes are scaled by moving over elapsed time.
 - **Words.** Plain counts, no target, no comparison with the ask, no colour (G5). Six grade D `r1`
   Params (window, dark altitude, minimum dark minutes, long run, descent band, sustained descent),
   `PARAMS_VERSION` raised, no plan digest change.

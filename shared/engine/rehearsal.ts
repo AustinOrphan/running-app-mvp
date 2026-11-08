@@ -15,7 +15,7 @@ const DAYS_PER_WEEK = 7
 export interface RehearsalInput {
   /** The snapshot's activities (flagged duplicates included; they are left out here). */
   activities: readonly Activity[]
-  /** The profile's home place; without it the run's own start coordinates are tried. */
+  /** The profile's home place, used for a run with no start coordinates of its own. */
   homeLat: number | null
   homeLng: number | null
   today: string
@@ -33,6 +33,9 @@ export interface RehearsalNight {
   darkMin: number
   /** Runs of the window that cannot be placed in the day (no start instant, or no place). */
   unplaced: number
+  /** Placed runs by where the sun was read: the run's own start point, or the home place. */
+  byRunStart: number
+  byHome: number
 }
 
 export interface RehearsalDownhill {
@@ -80,25 +83,42 @@ function nightOf(runs: readonly Activity[], input: RehearsalInput): RehearsalNig
   let count = 0
   let darkTotal = 0
   let unplaced = 0
+  let byRunStart = 0
+  let byHome = 0
   for (const run of runs) {
     const start = run.startUtc === null ? Number.NaN : Date.parse(run.startUtc)
-    const place =
-      home ??
-      (run.startLat !== null && run.startLng !== null
+    // The run's own start point first: a run away from home belongs under its own sun.
+    const own =
+      run.startLat !== null && run.startLng !== null
         ? { lat: run.startLat, lng: run.startLng }
-        : null)
+        : null
+    const place = own ?? home
     if (!Number.isFinite(start) || place === null) {
       unplaced++
       continue
     }
-    const moving = run.movingSec !== null && run.movingSec > 0 ? run.movingSec : run.durationSec
-    const dark = darkMinutesOf(start, moving, place.lat, place.lng, below)
+    if (own === null) byHome++
+    else byRunStart++
+    // The sun is sampled over the elapsed span, so the dark tail of an evening run with stops is
+    // seen; the dark minutes are then scaled by moving over elapsed time, so pauses do not count.
+    const elapsed = run.durationSec
+    const moving =
+      run.movingSec !== null && run.movingSec > 0 ? Math.min(run.movingSec, elapsed) : elapsed
+    const darkElapsed = darkMinutesOf(start, elapsed, place.lat, place.lng, below)
+    const dark = elapsed > 0 ? Math.round((darkElapsed * moving) / elapsed) : 0
     if (dark >= minDark) {
       count++
       darkTotal += dark
     }
   }
-  return { asked: [...P.h6.headlampRehearsalRuns.value], runs: count, darkMin: darkTotal, unplaced }
+  return {
+    asked: [...P.h6.headlampRehearsalRuns.value],
+    runs: count,
+    darkMin: darkTotal,
+    unplaced,
+    byRunStart,
+    byHome,
+  }
 }
 
 /** Seconds on the bands of one run's bins that end at `r1.descentBandMaxPct` or steeper. */

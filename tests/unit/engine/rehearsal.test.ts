@@ -100,6 +100,34 @@ describe('rehearsalFor', () => {
     expect(ownStart.night).toMatchObject({ runs: 1, unplaced: 0 })
   })
 
+  it('places a run by its own start point before the home place', () => {
+    // 21:00 UTC is 16:00 in Chicago (light) and about 22:00 in London in October (dark).
+    const london = { startLat: 51.5, startLng: 0 }
+    const away = runAt('away', '2026-10-10', '2026-10-10T21:00:00Z', london)
+    const r = rehearsalFor(input([away]))!
+    expect(r.night).toMatchObject({ runs: 1, byRunStart: 1, byHome: 0 })
+    const atHome = rehearsalFor(input([runAt('home', '2026-10-10', '2026-10-10T21:00:00Z')]))!
+    expect(atHome.night).toMatchObject({ runs: 0, byRunStart: 0, byHome: 1 })
+    const mixed = rehearsalFor(input([away, runAt('home', '2026-10-10', '2026-10-10T21:00:00Z')]))!
+    expect(mixed.night).toMatchObject({ runs: 1, byRunStart: 1, byHome: 1 })
+  })
+
+  it('samples the elapsed span and scales by moving time, so stops do not count', () => {
+    // Start 18:00 CDT (23:00 UTC) on 10-10, 150 min elapsed, 110 min moving. Civil twilight ends
+    // about 23:40 UTC, so 110 of the 150 elapsed minutes are dark; scaled by 110/150 that is about
+    // 77 (twilight ends about 23:43 UTC). Sampling only the first 110 minutes would give about 70.
+    const evening = runAt('evening', '2026-10-10', '2026-10-10T23:00:00Z', {
+      durationSec: 9000,
+      movingSec: 6600,
+    })
+    const r = rehearsalFor(input([evening]))!
+    expect(r.night!.runs).toBe(1)
+    expect(r.night!.darkMin).toBeGreaterThanOrEqual(74)
+    expect(r.night!.darkMin).toBeLessThanOrEqual(84)
+    const noStops = rehearsalFor(input([{ ...evening, id: 'nostops', movingSec: 9000 }]))!
+    expect(noStops.night!.darkMin).toBeGreaterThanOrEqual(100)
+  })
+
   it('leaves out duplicates, treadmill runs, other types and days outside the window', () => {
     const at = '2026-10-11T02:00:00Z'
     const rows = [
