@@ -11,6 +11,7 @@ import type { GradeBand, GradeCurve } from '../../../shared/engine/gradeCurve.ts
 import { minSignTestPairs } from '../../../shared/engine/gradeCurve.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { Units } from '../../../shared/types.ts'
+import { ScrollTable } from '../ScrollTable.tsx'
 import { HowMade } from './HowMade.tsx'
 import styles from './Paces.module.css'
 
@@ -21,6 +22,11 @@ const PERCENT = 100
 /** A fraction to whole percent, so a share reads "89%" and not "88.57%". */
 function wholePercent(fraction: number): number {
   return Math.round(fraction * PERCENT) / PERCENT
+}
+
+/** A fraction floored to whole percent, so a row under "half or less" never rounds up to above it. */
+function flooredPercent(fraction: number): number {
+  return Math.floor(fraction * PERCENT + 1e-9) / PERCENT
 }
 
 /** Runs a grade must have been tested on: the Param, or the fewest the sign test can pass on. */
@@ -80,7 +86,7 @@ function Walking({ curve, units }: { curve: GradeCurve; units: Units }) {
                 <dd>
                   {render(
                     T['paces.terrain.walk-row'],
-                    { share: { kind: 'share', fraction: wholePercent(band.walkShare ?? 0) } },
+                    { share: { kind: 'share', fraction: flooredPercent(band.walkShare ?? 0) } },
                     units,
                   )}
                 </dd>
@@ -134,7 +140,11 @@ function howLines(units: Units): string[] {
       { grade: { kind: 'percent', pct: TERRAIN_EDGES_PCT[TERRAIN_EDGES_PCT.length - 1] ?? 0 } },
       units,
     ),
-    pacesText('paces.terrain.how-walk'),
+    render(
+      T['paces.terrain.how-walk'],
+      { pace: { kind: 'pace', secPerKm: M_PER_KM / P.c9.walkingFloorMps.value } },
+      units,
+    ),
     pacesText('paces.terrain.how-display'),
     pacesText('paces.terrain.how-grade'),
   ]
@@ -179,50 +189,55 @@ export function TerrainSection({ curve, units }: TerrainSectionProps) {
           <p className={styles.text}>{gap}</p>
         </div>
       )}
-      <table className={styles.table}>
-        <caption className={styles.caption}>{pacesText('paces.terrain.table')}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{pacesText('paces.terrain.col-grade')}</th>
-            <th scope="col">{pacesText('paces.terrain.col-speed')}</th>
-            <th scope="col">{pacesText('paces.terrain.col-source')}</th>
-            <th scope="col">{pacesText('paces.terrain.col-minutes')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {curve.bands.map((band) => (
-            <tr key={band.index}>
-              <th scope="row">{bandLabelText(band, units)}</th>
-              <td className={styles.num}>
-                {render(
-                  T['paces.terrain.share'],
-                  { share: { kind: 'share', fraction: wholePercent(band.ratio) } },
-                  units,
-                )}
-              </td>
-              <td>
-                <span className={styles.source}>
-                  {pacesText(
-                    band.source === 'personal'
-                      ? 'paces.terrain.src-personal'
-                      : 'paces.terrain.src-default',
-                  )}
-                </span>
-                {band.source === 'personal' ? null : (
-                  <span className={styles.why}>{bandWhyText(band.reason)}</span>
-                )}
-              </td>
-              <td className={styles.num}>
-                {render(
-                  T['paces.terrain.minutes'],
-                  { minutes: { kind: 'minutes', min: Math.round(band.minutes) } },
-                  units,
-                )}
-              </td>
+      <ScrollTable label="Speed on each grade table">
+        <table className={styles.table}>
+          <caption className={styles.caption}>{pacesText('paces.terrain.table')}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{pacesText('paces.terrain.col-grade')}</th>
+              <th scope="col">{pacesText('paces.terrain.col-speed')}</th>
+              <th scope="col">{pacesText('paces.terrain.col-source')}</th>
+              <th scope="col">{pacesText('paces.terrain.col-minutes')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {curve.bands.map((band) => (
+              <tr key={band.index}>
+                <th scope="row">{bandLabelText(band, units)}</th>
+                <td className={styles.num}>
+                  {render(
+                    T['paces.terrain.share'],
+                    { share: { kind: 'share', fraction: wholePercent(band.ratio) } },
+                    units,
+                  )}
+                </td>
+                <td>
+                  <span className={styles.source}>
+                    {pacesText(
+                      band.reason === 'flat'
+                        ? 'paces.terrain.why-flat'
+                        : band.source === 'personal'
+                          ? 'paces.terrain.src-personal'
+                          : 'paces.terrain.src-default',
+                    )}
+                  </span>
+                  {band.source === 'personal' || band.reason === 'flat' ? null : (
+                    <span className={styles.why}>{bandWhyText(band.reason)}</span>
+                  )}
+                </td>
+                <td className={styles.num}>
+                  {render(
+                    T['paces.terrain.minutes'],
+                    { minutes: { kind: 'minutes', min: Math.round(band.minutes) } },
+                    units,
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </ScrollTable>
+      <p className={styles.note}>{pacesText('paces.terrain.descent-note')}</p>
       <Walking curve={curve} units={units} />
       <HowMade
         lines={howLines(units)}

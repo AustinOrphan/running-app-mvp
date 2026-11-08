@@ -449,7 +449,7 @@ describe('MyPacesPage: climbs and descents [I13]', () => {
     const table = within(section).getByRole('table')
     expect(within(table).getAllByRole('row')).toHaveLength(10)
     expect(within(table).queryByText('Yours')).toBeNull()
-    expect(within(table).getAllByText('Default')).toHaveLength(9)
+    expect(within(table).getAllByText('Default')).toHaveLength(8)
     expect(within(table).getAllByText('Always the default')).toHaveLength(2)
     expect(
       within(section).getByText(/^No climbing grade has enough runs to say how much you walk/),
@@ -490,7 +490,7 @@ describe('MyPacesPage: climbs and descents [I13]', () => {
     const section = await screen.findByRole('region', { name: 'Climbs and descents' })
     expect(
       within(section).getByText(
-        `No grade shows your own speed yet, so each shows the default. A grade does after ${String(P.i13.minBinMin.value)} min on it in ${String(P.i13.minBinRuns.value)} runs and a test on ${String(P.i13.minBacktestRuns.value)} runs.`,
+        `No grade shows your own speed yet. A grade shows it after ${String(P.i13.minBinMin.value)} min on it in ${String(P.i13.minBinRuns.value)} runs and a test on ${String(P.i13.minBacktestRuns.value)} runs.`,
       ),
     ).toBeInTheDocument()
     expect(
@@ -506,13 +506,36 @@ describe('MyPacesPage: climbs and descents [I13]', () => {
     const from = view.terrain.walkingFromPct
     expect(from).not.toBeNull()
     expect(
-      within(section).getByText(
-        `You walk more than half the time on climbs from ${String(from)}% up.`,
-      ),
+      within(section).getByText(`Walking passes half the time from ${String(from)}%.`),
     ).toBeInTheDocument()
     expect(
       within(section).getByText('Walking here means slower than 11:07 /km.'),
     ).toBeInTheDocument()
+  })
+
+  test('below half, shows the walking shares floored so a row never reads 50% under "half or less"', async () => {
+    const who = {
+      ...athlete(scaledCurve(0.5), 0.03),
+      walkShare: [0, 0, 0, 0, 0, 0.02, 0.2, 0.4999, 0.4],
+    }
+    const activities = [
+      ...RUNS,
+      ...syntheticRuns(who, 40, TODAY, 21, 2).map((r, i) =>
+        run(100 + i, 3, { id: r.id, date: r.date, terrainBins: r.bins }),
+      ),
+    ]
+    const { view, routes } = serve(stateWith(FITNESS), activities)
+    expect(view.terrain.walkingFromPct).toBeNull()
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Climbs and descents' })
+    expect(
+      within(section).getByText(
+        'Walking is half the time or less on every climbing grade that has enough runs to say.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section).queryByText(/^50% of the time walking/)).toBeNull()
+    expect(within(section).getByText('49% of the time walking')).toBeInTheDocument()
   })
 
   test('names the rules, the gate and that it is display only in the disclosure', async () => {

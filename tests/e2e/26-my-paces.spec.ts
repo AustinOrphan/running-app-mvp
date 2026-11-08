@@ -245,9 +245,7 @@ test('with enough steady runs on grades the climb row and the table show the run
   const row = grades.getByRole('row', { name: /^3% to 6%/ })
   await expect(row.getByText('Yours', { exact: true })).toBeVisible()
   await expect(grades.getByRole('row', { name: /^Flat, -3% to 3%/ })).toContainText('100%')
-  await expect(
-    grades.getByText(/^You walk more than half the time on climbs from \d+% up\./),
-  ).toBeVisible()
+  await expect(grades.getByText(/^Walking passes half the time from \d+%\./)).toBeVisible()
   await expect(
     grades.getByText(/^Walking here means slower than \d+:\d{2} \/(km|mi)\.$/),
   ).toBeVisible()

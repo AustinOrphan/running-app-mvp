@@ -206,14 +206,14 @@ export const PACES_TEMPLATES = {
     { min: 'minutes' },
   ),
   'paces.terrain.sparse': tpl(
-    'No grade shows your own speed yet, so each shows the default. A grade does after {minutes} on it in {runs} runs and a test on {tested} runs.',
+    'No grade shows your own speed yet. A grade shows it after {minutes} on it in {runs} runs and a test on {tested} runs.',
     { minutes: 'minutes', runs: 'count', tested: 'count' },
   ),
   'paces.terrain.table': tpl('Speed on each grade', {}, { shape: 'label' }),
   'paces.terrain.col-grade': tpl('Grade', {}, { shape: 'label' }),
   'paces.terrain.col-speed': tpl('Share of flat speed', {}, { shape: 'label' }),
   'paces.terrain.col-source': tpl('Source', {}, { shape: 'label' }),
-  'paces.terrain.col-minutes': tpl('Minutes of running', {}, { shape: 'label' }),
+  'paces.terrain.col-minutes': tpl('Time running', {}, { shape: 'label' }),
   'paces.terrain.band-range': tpl(
     '{from} to {to}',
     { from: 'percent', to: 'percent' },
@@ -239,11 +239,11 @@ export const PACES_TEMPLATES = {
   'paces.terrain.why-no-gain': tpl('Not closer in the test', {}, { shape: 'label' }),
   'paces.terrain.why-inconsistent': tpl('Not consistent', {}, { shape: 'label' }),
   'paces.terrain.walk-heading': tpl('Walking', {}, { shape: 'label' }),
-  'paces.terrain.walk-from': tpl('You walk more than half the time on climbs from {grade} up.', {
+  'paces.terrain.walk-from': tpl('Walking passes half the time from {grade}.', {
     grade: 'percent',
   }),
   'paces.terrain.walk-below': tpl(
-    'You walk less than half the time on every climbing grade that has enough runs to say.',
+    'Walking is half the time or less on every climbing grade that has enough runs to say.',
   ),
   'paces.terrain.walk-row': tpl(
     '{share} of the time walking',
@@ -272,7 +272,11 @@ export const PACES_TEMPLATES = {
     { grade: 'percent' },
   ),
   'paces.terrain.how-walk': tpl(
-    'Walking is time slower than the walking speed of the zones (C9), and the grade is where it passes half the time.',
+    'Walking is time slower than {pace}, the walking floor (C9), and the grade is where it passes half the time.',
+    { pace: 'pace' },
+  ),
+  'paces.terrain.descent-note': tpl(
+    'On a descent the default is the most speed equal effort allows (I13, I11), so your own figure can sit under it.',
   ),
   'paces.terrain.how-display': tpl(
     'This is display only: predictions still count climb as flat distance plus a fixed allowance (L5), and no plan, zone or prediction reads it.',
