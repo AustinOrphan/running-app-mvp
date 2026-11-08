@@ -125,6 +125,11 @@ const median = (values: readonly number[]): number => {
   return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2
 }
 
+/** What identifies a drawn run: two runs on one day differ in length or drift. */
+export function runKey(run: TrendLongRun): string {
+  return `${run.date}|${String(run.durationSec)}|${String(run.decouplingPct)}`
+}
+
 /** The largest group of comparable, cool long runs among the drawn ones, and what the line says [A7]. */
 export interface DurabilityGroup {
   /** The runs the median is taken from, whether or not there are enough for a median line. */

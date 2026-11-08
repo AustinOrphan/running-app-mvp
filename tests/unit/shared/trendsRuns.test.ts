@@ -10,56 +10,11 @@ import {
   runHistoryDays,
   type TrendHrWindow,
   type TrendLongRun,
-  type TrendRun,
 } from '../../../shared/domain/trendsRuns.ts'
 import { P } from '../../../shared/engine/params/index.ts'
-import { makeActivity } from '../../factories.ts'
+import { steadyTrendRun, trendRun } from '../../factories.ts'
 
 const TODAY = '2026-06-30'
-
-/** A run as the loader returns it: the columns, nothing else. */
-function trendRun(over: Partial<TrendRun> = {}): TrendRun {
-  const { date, type, duplicateStatus, movingSec, gapDistanceM } = makeActivity()
-  return {
-    date,
-    type,
-    duplicateStatus,
-    durationSec: 7200,
-    distanceM: 20_000,
-    movingSec,
-    gapDistanceM,
-    avgHr: null,
-    elevationGainM: 40,
-    hrHistogram: null,
-    tempC: 14,
-    humidityPct: null,
-    windKph: null,
-    decouplingPct: 4,
-    ...over,
-  }
-}
-
-/** A steady flat run on the line HR = 90 + 20 x speed, 40 minutes, with a one-bin histogram. */
-function steady(daysAgo: number, speedMps: number): TrendRun {
-  const durationSec = 2400
-  const avgHr = Math.round(90 + 20 * speedMps)
-  return trendRun({
-    date: addDays(TODAY, -daysAgo),
-    durationSec,
-    distanceM: speedMps * durationSec,
-    gapDistanceM: speedMps * durationSec,
-    elevationGainM: 20,
-    avgHr,
-    decouplingPct: null,
-    hrHistogram: {
-      start: 100,
-      width: 5,
-      sec: Array.from({ length: 20 }, (_, bin) =>
-        bin === Math.floor((avgHr - 100) / 5) ? durationSec : 0,
-      ),
-    },
-  })
-}
 
 describe('longRunReadings', () => {
   it('keeps flat runs with a stored reading, oldest first, and nothing else about them', () => {
@@ -150,8 +105,10 @@ describe('hrWindows', () => {
 
   it('fits each window on the runs of its own eight weeks and counts the runs when there are too few', () => {
     // Nine runs inside the 8 weeks before today (speeds 2.3 to 3.1), four far earlier.
-    const recent = Array.from({ length: 9 }, (_, i) => steady(3 + i * 6, 2.3 + i * 0.1))
-    const early = Array.from({ length: 4 }, (_, i) => steady(300 + i * 6, 3))
+    const recent = Array.from({ length: 9 }, (_, i) =>
+      steadyTrendRun(TODAY, 3 + i * 6, 2.3 + i * 0.1),
+    )
+    const early = Array.from({ length: 4 }, (_, i) => steadyTrendRun(TODAY, 300 + i * 6, 3))
     const windows = hrWindows([...recent, ...early], TODAY)
     const last = windows.at(-1)!
     expect(last.qualifying).toBe(9)
@@ -169,7 +126,7 @@ describe('hrWindows', () => {
 
   it('does not read a run that is after the end of the window', () => {
     const windows = hrWindows(
-      Array.from({ length: 9 }, (_, i) => steady(3 + i * 2, 2.3 + i * 0.1)),
+      Array.from({ length: 9 }, (_, i) => steadyTrendRun(TODAY, 3 + i * 2, 2.3 + i * 0.1)),
       TODAY,
     )
     expect(windows.slice(0, -1).every((w) => w.line === null)).toBe(true)

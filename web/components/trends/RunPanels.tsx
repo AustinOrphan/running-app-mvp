@@ -1,0 +1,170 @@
+import type { ReactNode } from 'react'
+import {
+  driftAria,
+  driftComparableLine,
+  driftFilledLine,
+  driftHillsLine,
+  driftMedianLine,
+  driftNoMedianLine,
+  hrAria,
+  hrCaption,
+  hrEmptyBody,
+  hrNeedsLine,
+  hrOverlapLine,
+  spanText,
+  trendsText,
+} from '../../../shared/copy/trends.ts'
+import { addDays } from '../../../shared/dates.ts'
+import {
+  durabilityGroup,
+  fixedSpeedSeries,
+  HR_WINDOW_STEP_DAYS,
+  runKey,
+  type TrendsRunsView,
+} from '../../../shared/domain/trendsRuns.ts'
+import type { Units } from '../../../shared/types.ts'
+import { useTrendsRuns } from '../../api/trends.ts'
+import { DurabilityChart, EfficiencyChart } from '../charts/lazyCharts.tsx'
+import { EmptyState } from '../EmptyState.tsx'
+import { useOnline } from '../useOnline.ts'
+import styles from './RunPanels.module.css'
+
+const text = trendsText
+
+export interface RunPanelsProps {
+  /** Months of the range the page shows, for the names of the charts. */
+  months: number
+  /** Weeks of that range: the panels draw the runs and windows of the last `weekCount` weeks. */
+  weekCount: number
+  units: Units
+}
+
+interface SectionProps {
+  id: string
+  heading: string
+  children: ReactNode
+}
+
+function Section({ id, heading, children }: SectionProps) {
+  return (
+    <section className={styles.section} aria-labelledby={id}>
+      <h2 id={id} className={styles.heading}>
+        {heading}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
+interface PanelProps {
+  view: TrendsRunsView
+  from: string
+  months: number
+  units: Units
+}
+
+/** Heart-rate drift of each flat long run in the range, with the median of the A7 group (rule T1). */
+function DriftPanel({ view, from, months }: Omit<PanelProps, 'units'>) {
+  const runs = view.longRuns.filter((run) => run.date >= from)
+  if (runs.length === 0) {
+    return <EmptyState title={text('trends.drift.empty')} body={text('trends.drift.empty-body')} />
+  }
+  const group = durabilityGroup(runs)
+  const inGroup = new Set(group?.runs.map(runKey))
+  const latest = runs[runs.length - 1]!
+  return (
+    <>
+      <p className={styles.caption}>{text('trends.drift.caption')}</p>
+      <DurabilityChart
+        runs={runs}
+        inGroup={inGroup}
+        median={group?.medianPct ?? null}
+        from={from}
+        to={view.asOf}
+        ariaLabel={driftAria(spanText(months, null), {
+          count: runs.length,
+          pct: latest.decouplingPct,
+          date: latest.date,
+        })}
+      />
+      <p className={styles.figure}>
+        {group !== null && group.medianPct !== null
+          ? driftMedianLine(group.medianPct, group.runs.length, group.medianMin)
+          : driftNoMedianLine(group?.runs.length ?? 0)}
+      </p>
+      <p className={styles.caption}>
+        {driftFilledLine()} {driftComparableLine()}
+      </p>
+      <p className={styles.caption}>{text('trends.drift.size')}</p>
+    </>
+  )
+}
+
+/** The heart rate of the runner's own line at one pace, a point per window (rule A11). */
+function SpeedPanel({ view, from, months, units }: PanelProps) {
+  const windows = view.hrWindows.filter((window) => window.end >= from)
+  const series = fixedSpeedSeries(windows)
+  const drawn = series.points.filter((point) => point.bpm !== null)
+  const latestBpm = drawn.at(-1)?.bpm ?? null
+  if (series.referenceMps === null || drawn.length === 0) {
+    const have = view.hrWindows.at(-1)?.qualifying ?? 0
+    return <EmptyState title={text('trends.hr.empty')} body={hrEmptyBody(have)} />
+  }
+  return (
+    <>
+      <p className={styles.caption}>{hrCaption(series.referenceMps, units)}</p>
+      <EfficiencyChart
+        points={series.points}
+        from={from}
+        to={view.asOf}
+        ariaLabel={hrAria(spanText(months, null), { mps: series.referenceMps, latestBpm }, units)}
+      />
+      <p className={styles.caption}>{text('trends.hr.reference')}</p>
+      <p className={styles.caption}>{hrOverlapLine(HR_WINDOW_STEP_DAYS / 7)}</p>
+      <p className={styles.caption}>{hrNeedsLine(series.referenceMps, units)}</p>
+      <p className={styles.caption}>{text('trends.hr.moves')}</p>
+    </>
+  )
+}
+
+/**
+ * The two run panels of Trends, under the weekly running: heart-rate drift on long runs and the
+ * heart rate the runner's line gives at one speed (rules T1, A7 and A11, ADR 0019). Both read
+ * `GET /api/trends/runs`, so a failure is told once and each panel keeps its heading.
+ */
+export function RunPanels({ months, weekCount, units }: RunPanelsProps) {
+  const online = useOnline()
+  const runs = useTrendsRuns()
+  const view = runs.data
+  const from = view === undefined ? '' : addDays(view.asOf, -(weekCount * 7) + 1)
+
+  const body = (announce: boolean, show: (view: TrendsRunsView) => ReactNode): ReactNode => {
+    if (runs.isError) {
+      return online ? (
+        <p role={announce ? 'alert' : undefined}>{text('trends.runs.error')}</p>
+      ) : (
+        <p role={announce ? 'status' : undefined}>{text('trends.offline')}</p>
+      )
+    }
+    if (view === undefined) {
+      return <div className={`skeleton ${styles.pending}`} aria-busy="true" aria-label="Loading" />
+    }
+    return show(view)
+  }
+
+  return (
+    <>
+      <Section id="trends-drift-heading" heading={text('trends.drift.heading')}>
+        {body(true, (data) => (
+          <DriftPanel view={data} from={from} months={months} />
+        ))}
+        {view === undefined ? null : <p className={styles.caption}>{driftHillsLine(units)}</p>}
+      </Section>
+      <Section id="trends-hr-heading" heading={text('trends.hr.heading')}>
+        {body(false, (data) => (
+          <SpeedPanel view={data} from={from} months={months} units={units} />
+        ))}
+      </Section>
+    </>
+  )
+}

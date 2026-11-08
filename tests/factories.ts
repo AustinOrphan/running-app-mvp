@@ -1,3 +1,5 @@
+import { addDays } from '../shared/dates.ts'
+import type { TrendRun } from '../shared/domain/trendsRuns.ts'
 import type { Activity, ActivityCore, WeekRow } from '../shared/types.ts'
 
 let nextId = 1
@@ -76,4 +78,51 @@ export function makeWeekRow(over: Partial<WeekRow> = {}): WeekRow {
     streak3Plus: 0,
     ...over,
   }
+}
+
+/** A run as the Trends loader returns it (`loadRunSeries`): the columns the two run panels read. */
+export function trendRun(over: Partial<TrendRun> = {}): TrendRun {
+  const { date, type, duplicateStatus, movingSec, gapDistanceM } = makeActivity()
+  return {
+    date,
+    type,
+    duplicateStatus,
+    durationSec: 7200,
+    distanceM: 20_000,
+    movingSec,
+    gapDistanceM,
+    avgHr: null,
+    elevationGainM: 40,
+    hrHistogram: null,
+    tempC: 14,
+    humidityPct: null,
+    windKph: null,
+    decouplingPct: 4,
+    ...over,
+  }
+}
+
+/**
+ * A steady flat run of 40 minutes on the line HR = 90 + 20 x speed, `daysAgo` days before `today`,
+ * with a one-bin heart-rate histogram: the kind of run the heart-rate line is fitted from.
+ */
+export function steadyTrendRun(today: string, daysAgo: number, speedMps: number): TrendRun {
+  const durationSec = 2400
+  const avgHr = Math.round(90 + 20 * speedMps)
+  return trendRun({
+    date: addDays(today, -daysAgo),
+    durationSec,
+    distanceM: speedMps * durationSec,
+    gapDistanceM: speedMps * durationSec,
+    elevationGainM: 20,
+    avgHr,
+    decouplingPct: null,
+    hrHistogram: {
+      start: 100,
+      width: 5,
+      sec: Array.from({ length: 20 }, (_, bin) =>
+        bin === Math.floor((avgHr - 100) / 5) ? durationSec : 0,
+      ),
+    },
+  })
 }
