@@ -290,8 +290,8 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
           Illustrations
         </label>
         <p id="illustrations-note" className={styles.note}>
-          Line drawings on empty pages and on pages that did not load. An experiment; this device
-          only.
+          Line drawings in empty and quiet moments: a rest day, a reviewed week, a page with nothing
+          to show. An experiment; this device only.
         </p>
       </section>
 
