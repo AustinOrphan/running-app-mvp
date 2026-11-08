@@ -30,6 +30,8 @@ import { Button } from '../components/Button.tsx'
 import { StreamChart } from '../components/charts/lazyCharts.tsx'
 import { buildSeries, type StreamChannel } from '../components/charts/streamSeries.ts'
 import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
@@ -560,8 +562,9 @@ export function ActivityDetailPage() {
   const detail = useActivityDetail(id)
   const settings = useSettings()
   const [editing, setEditing] = useState(false)
+  const loadView = useLoadView(detail)
 
-  if (detail.isError) {
+  if (loadView === 'failed' || loadView === 'retrying') {
     const missing = detail.error instanceof ApiError && detail.error.status === 404
     return (
       <>
@@ -571,7 +574,11 @@ export function ActivityDetailPage() {
             This activity was not found. <Link to="/activities">All activities</Link>
           </p>
         ) : (
-          <p role="alert">The activity did not load. Reload the page to try again.</p>
+          <ErrorState
+            subject="The activity"
+            retrying={loadView === 'retrying'}
+            onRetry={() => detail.refetch()}
+          />
         )}
       </>
     )
@@ -612,9 +619,11 @@ export function ActivityDetailPage() {
         <Link to="/activities">All activities</Link>
       </p>
 
-      {/* The post-run screen: the figures, how they stood against the plan, the ask for a rating and
-          the fuel of a long run come first; the recording's detail follows. */}
+      {/* The figures, then the charts of the recording (a long run opens on its shape, not on ten
+          empty rating buttons); how it stood against the plan, the ask for a rating and the fuel
+          follow, and the rest of the recording's detail after them. */}
       <Summary activity={activity} units={units} />
+      <Charts detail={detail.data} units={units} />
       {activity.type === 'strength' ? <ActivitySets activity={activity} /> : null}
       <AgainstThePlan activity={activity} units={units} />
       {/* Keyed on the stored values, so the pickers start again from them when they change. */}
@@ -623,7 +632,6 @@ export function ActivityDetailPage() {
         activity={activity}
       />
       <FuelSection activity={activity} />
-      <Charts detail={detail.data} units={units} />
       {laps !== null && laps.length > 0 ? (
         <LapsTable laps={laps} units={units} hasPace={hasPace} />
       ) : null}

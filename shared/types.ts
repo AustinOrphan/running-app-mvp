@@ -85,6 +85,8 @@ export interface Activity {
   humidityPct: number | null
   weatherSource: 'open-meteo' | 'provider' | 'manual' | null
   hrHistogram: HrHistogram | null
+  /** Time and distance by grade band; null for a type that has none or a run not yet computed. */
+  terrainBins: TerrainBins | null
   decouplingPct: number | null
   gapDistanceM: number | null
   /** -2 much easier .. +2 much harder than expected. */
@@ -111,7 +113,7 @@ export type ActivityCore = Pick<
  * route always sends it; it is optional in the type only because the other routes that answer with
  * an activity (create, update, the detail) are typed through this shape too and do not carry it.
  */
-export type ActivityListItem = Omit<Activity, 'hrHistogram'> & {
+export type ActivityListItem = Omit<Activity, 'hrHistogram' | 'terrainBins'> & {
   strengthSets?: number | null
 }
 /**
@@ -218,6 +220,23 @@ export interface HrHistogram {
   start: number
   width: number
   sec: number[]
+}
+/**
+ * Where a run's moving time went by grade band, from its stream (distance and altitude). Band `i`
+ * holds grades from `edgesPct[i-1]` up to `edgesPct[i]` percent (open at both ends), so every array
+ * has `edgesPct.length + 1` entries. `sec` and `m` are the moving seconds and metres, `walkSec` the
+ * part of `sec` spent under `walkMps`, `flatCv` how steady the flat running was. No per-sample data. `v` is the shape version.
+ */
+export interface TerrainBins {
+  v: number
+  windowM: number
+  walkMps: number
+  edgesPct: number[]
+  sec: number[]
+  m: number[]
+  walkSec: number[]
+  /** Variation of segment speed (2 minutes or more) in the flat band, standard deviation over mean; null if too few segments. */
+  flatCv: number | null
 }
 export interface Injury {
   area: string

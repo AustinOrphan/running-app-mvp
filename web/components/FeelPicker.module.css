@@ -19,13 +19,33 @@
   font-weight: 600;
 }
 
+/*
+ * Five equal chips. Where the container is wide enough (30rem) they share one row; narrower, they
+ * sit three over two with the short row centred, so no word is squeezed and none stands alone.
+ */
+.feel {
+  container-type: inline-size;
+  max-width: 34rem;
+}
+
 .feelChips {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
-  gap: var(--space-2);
+  --gap: var(--space-2);
+  --cols: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap);
+}
+
+@container (min-width: 30rem) {
+  .feelChips {
+    --cols: 5;
+  }
 }
 
 .chip {
+  flex: 0 0 calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));
+  min-width: 0;
   min-height: var(--control-h);
   padding: 0 var(--space-2);
   border: 1px solid var(--border-strong);
@@ -34,6 +54,7 @@
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--text-base);
+  line-height: var(--lh-sm);
   cursor: pointer;
 }
 

@@ -29,9 +29,15 @@ test('importing the Smashrun sample reports the rows, lists them and is idempote
   await expect(first).toBeHidden()
 
   await expect(page.getByText('3 activities')).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Run 30:00 3\.10 mi.*Smashrun$/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Run 45:00 5\.00 mi.*Smashrun$/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Run 1:20:00 8\.00 mi.*Smashrun$/ })).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /^Run, [^,]+, 3\.10 mi, 30:00.*Smashrun$/ }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /^Run, [^,]+, 5\.00 mi, 45:00.*Smashrun$/ }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /^Run, [^,]+, 8\.00 mi, 1:20:00.*Smashrun$/ }),
+  ).toBeVisible()
 
   const second = await importFixture(page)
   await expect(

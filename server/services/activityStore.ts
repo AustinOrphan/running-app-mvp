@@ -8,6 +8,7 @@ import { markDuplicates } from './duplicates.ts'
 import { runExecutionForActivity, runExecutionQuietly } from './execution.ts'
 import { linkPlanSession } from './planEngine.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
+import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 
 export interface StoreOptions {
@@ -76,6 +77,9 @@ export async function storeParsed(
     avgPowerW: roundOrNull(parsed.avgPowerW),
     deviceName: parsed.deviceName,
     hrHistogram: summary.hrHistogram ? JSON.stringify(summary.hrHistogram) : null,
+    terrainBins: hasTerrainBins(parsed.type)
+      ? JSON.stringify(computeTerrainBins(summary.stream, sampleSec))
+      : null,
     decouplingPct: summary.decouplingPct,
     gapDistanceM: roundOrNull(summary.gapDistanceM),
   }

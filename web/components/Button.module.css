@@ -1,3 +1,5 @@
+/* Links and buttons follow one rule: a link in a sentence is underlined (global.css), and an action is
+   bold and not underlined, which is what every variant below is. */
 .button {
   display: inline-flex;
   align-items: center;

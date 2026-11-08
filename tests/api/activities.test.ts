@@ -534,6 +534,27 @@ describe('GET /api/activities pages', () => {
     expect(withStream.body).toMatchObject({ activity: { hrHistogram: HISTOGRAM } })
   })
 
+  test('items omit terrainBins, which the row detail still carries', async () => {
+    const bins = { v: 1, edgesPct: [-3, 3], sec: [0, 60, 0], m: [0, 180, 0] }
+    const stored = await ctx.prisma.activity.create({
+      data: {
+        userId: user.id,
+        date: '2026-03-02',
+        type: 'run',
+        durationSec: 1800,
+        terrainBins: JSON.stringify(bins),
+      },
+    })
+    const [item] = (await page()).body.items
+    expect(item).toMatchObject({ id: stored.id })
+    expect(item).not.toHaveProperty('terrainBins')
+
+    const detail = await client(ctx, user).get(`/api/activities/${stored.id}`)
+    expect(detail.body).toMatchObject({ terrainBins: bins })
+    const withStream = await client(ctx, user).get(`/api/activities/${stored.id}/detail`)
+    expect(withStream.body).toMatchObject({ activity: { terrainBins: bins } })
+  })
+
   test('a page costs two queries, a count and one read that leaves the histogram column out', async () => {
     await seedDays(3)
     const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
@@ -542,7 +563,7 @@ describe('GET /api/activities pages', () => {
     expect(count).toHaveBeenCalledTimes(1)
     expect(findMany).toHaveBeenCalledTimes(1)
     expect(findMany.mock.calls[0]![0]).toMatchObject({
-      omit: { hrHistogram: true },
+      omit: { hrHistogram: true, terrainBins: true },
       skip: 1,
       take: 2,
     })

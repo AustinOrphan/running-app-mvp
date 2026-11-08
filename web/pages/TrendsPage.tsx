@@ -32,6 +32,7 @@ import { RecoveryChart, TrendsRunChart, WeightChart } from '../components/charts
 import { EmptyState } from '../components/EmptyState.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
+import { RunPanels } from '../components/trends/RunPanels.tsx'
 import { useOnline } from '../components/useOnline.ts'
 import styles from './TrendsPage.module.css'
 
@@ -99,14 +100,15 @@ function RunningSection({ weeks, units, currentWeek, months, firstRecord }: Runn
 
   return (
     <section className={styles.section} aria-labelledby="trends-run-heading">
-      <h2 id="trends-run-heading" className={styles.heading}>
-        {text('trends.run.heading')}
-      </h2>
-      {hasRuns ? (
-        <>
+      <div className={styles.headingRow}>
+        <h2 id="trends-run-heading" className={styles.heading}>
+          {text('trends.run.heading')}
+        </h2>
+        {hasRuns ? (
           <Segmented<'time' | 'distance'>
             label="Show"
             dense
+            fit
             value={metric}
             onChange={setMetric}
             options={[
@@ -114,6 +116,10 @@ function RunningSection({ weeks, units, currentWeek, months, firstRecord }: Runn
               { value: 'distance', label: 'Distance' },
             ]}
           />
+        ) : null}
+      </div>
+      {hasRuns ? (
+        <>
           <p className={styles.caption}>{runCaption(metric, units)}</p>
           <TrendsRunChart
             weeks={weeks}
@@ -351,6 +357,7 @@ export function TrendsPage() {
       <Segmented<RangeKey>
         label="Range"
         dense
+        fit
         value={range}
         onChange={(next) => {
           setRange(next)
@@ -365,6 +372,7 @@ export function TrendsPage() {
         months={chosen.months}
         firstRecord={firstRecordWeek(weeks.data, weekHasRecord)}
       />
+      <RunPanels months={chosen.months} weekCount={chosen.weeks} units={settings.data.units} />
       <section className={styles.section} aria-labelledby="trends-recovery-heading">
         <h2 id="trends-recovery-heading" className={styles.heading}>
           {text('trends.recovery.heading')}
