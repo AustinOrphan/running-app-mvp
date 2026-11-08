@@ -200,6 +200,49 @@ describe('MorePage', () => {
     )
   })
 
+  test('groups the pages under Training, Data and You and reaches every page that is not a tab', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    const nav = within(screen.getByRole('navigation', { name: 'More pages' }))
+    const groups = nav.getAllByRole('region')
+    expect(groups.map((g) => within(g).getByRole('heading', { level: 2 }).textContent)).toEqual([
+      'Training',
+      'Data',
+      'You',
+    ])
+    expect(
+      groups.map((g) =>
+        within(g)
+          .getAllByRole('link')
+          .map((l) => l.getAttribute('href')),
+      ),
+    ).toEqual([
+      ['/brief', '/goals', '/paces', '/strength', '/fuel'],
+      ['/stats', '/trends', '/integrations', '/research'],
+      ['/profile', '/settings'],
+    ])
+  })
+
+  test('has no theme control: Settings has it', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    expect(screen.queryByRole('group', { name: 'Theme' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Light|Dark|System/ })).not.toBeInTheDocument()
+  })
+
+  test('the rail and the More page list the same pages', () => {
+    renderWithProviders(
+      <>
+        <Nav />
+        <MorePage />
+      </>,
+      { route: '/more' },
+    )
+    const hrefs = (name: string) =>
+      within(screen.getByRole('navigation', { name }))
+        .getAllByRole('link')
+        .map((l) => l.getAttribute('href'))
+    expect(hrefs('Other pages')).toEqual(hrefs('More pages'))
+  })
+
   test('links to Integrations and Profile', () => {
     renderWithProviders(<MorePage />, { route: '/more' })
     const nav = within(screen.getByRole('navigation', { name: 'More pages' }))

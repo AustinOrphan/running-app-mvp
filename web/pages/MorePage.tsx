@@ -1,84 +1,44 @@
 import { Link } from 'react-router-dom'
-import { render } from '../../shared/copy/template.ts'
-import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { useRacePlan } from '../api/race.ts'
-import { Segmented } from '../components/Segmented.tsx'
+import { Chevron, destinationGroups } from '../components/destinations.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
-import { useTheme, type Theme } from '../components/Nav.tsx'
 import styles from './MorePage.module.css'
 
-const links = [
-  { to: '/brief', label: 'Weekly brief', note: 'What changed and the next key session' },
-  { to: '/goals', label: 'Goals', note: 'Races you are training for' },
-  {
-    to: '/paces',
-    label: 'My paces',
-    note: render(TEMPLATES['paces.more-note'], {}, 'km'),
-  },
-  { to: '/stats', label: 'Stats', note: 'Fastest efforts, monthly and yearly totals' },
-  {
-    to: '/trends',
-    label: 'Trends',
-    note: render(TEMPLATES['trends.more-note'], {}, 'km'),
-  },
-  { to: '/integrations', label: 'Integrations', note: 'Sync activities from other services' },
-  { to: '/profile', label: 'Profile', note: 'Heart rate, availability and injury history' },
-  { to: '/research', label: 'Research', note: render(TEMPLATES['research.context'], {}, 'km') },
-  { to: '/fuel', label: 'Fuel lab', note: 'Fuel targets, products and gut training' },
-  {
-    to: '/strength',
-    label: 'Strength',
-    note: render(TEMPLATES['strength.page.more-note'], {}, 'km'),
-  },
-  { to: '/settings', label: 'Settings', note: 'Units, display name, export' },
-]
-
-/** The Race plan row follows Trends. */
-const TRENDS_AT = links.findIndex((link) => link.to === '/trends') + 1
-
-/** Shown while the current goal is an ultra with a race still to come. */
-const RACE_LINK = {
-  to: '/race',
-  label: 'Race plan',
-  note: render(TEMPLATES['race.plan.more-note'], {}, 'km'),
-}
-
-/** The phone-width list for pages that are not in the tab bar, plus the theme choice. */
+/**
+ * The phone-width list for every page that is not a tab, in three groups (Training, Data, You)
+ * with the tab bar's icons. The side rail lists the same groups, so the theme choice is not here:
+ * Settings has it.
+ */
 export function MorePage() {
-  const { theme, setTheme } = useTheme()
-  // The race plan exists for the goal race of an ultra only; the row waits for the answer.
+  // The race plan exists for the goal race of an ultra goal only; the row waits for the answer.
   const hasRacePlan = useRacePlan().data?.plan != null
 
   return (
     <>
       <PageHeader title="More" />
-      <nav aria-label="More pages">
-        <ul className={styles.list}>
-          {(hasRacePlan
-            ? [...links.slice(0, TRENDS_AT), RACE_LINK, ...links.slice(TRENDS_AT)]
-            : links
-          ).map((link) => (
-            <li key={link.to}>
-              <Link to={link.to} className={styles.row}>
-                <span className={styles.label}>{link.label}</span>
-                <span className={styles.note}>{link.note}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+      <nav aria-label="More pages" className={styles.groups}>
+        {destinationGroups(hasRacePlan).map((group) => (
+          <section key={group.id} aria-labelledby={`more-${group.id}`} className={styles.group}>
+            <h2 id={`more-${group.id}`} className={styles.title}>
+              {group.title}
+            </h2>
+            <ul className={styles.list}>
+              {group.items.map((item) => (
+                <li key={item.to}>
+                  <Link to={item.to} className={styles.row}>
+                    <span className={styles.icon}>{item.icon}</span>
+                    <span className={styles.text}>
+                      <span className={styles.label}>{item.label}</span>
+                      <span className={styles.note}>{item.note}</span>
+                    </span>
+                    <Chevron />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </nav>
-      <section className={styles.theme}>
-        <Segmented<Theme>
-          label="Theme"
-          value={theme}
-          onChange={setTheme}
-          options={[
-            { value: 'system', label: 'System' },
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-          ]}
-        />
-      </section>
     </>
   )
 }

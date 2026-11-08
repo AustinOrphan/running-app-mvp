@@ -485,6 +485,18 @@ for (const size of [
     expect((rowBox?.y ?? 0) + (rowBox?.height ?? 0)).toBeLessThanOrEqual(limit)
     expect(await isUncovered(lastRow)).toBe(true)
 
+    // The last row of the More page, the last link of a list of eleven.
+    await page.goto('/more')
+    const lastLink = page.getByRole('navigation', { name: 'More pages' }).getByRole('link').last()
+    await expect(lastLink).toBeVisible()
+    await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight)
+    })
+    const lastLinkBox = await lastLink.boundingBox()
+    expect(lastLinkBox, 'last More row').not.toBeNull()
+    expect((lastLinkBox?.y ?? 0) + (lastLinkBox?.height ?? 0)).toBeLessThanOrEqual(limit)
+    expect(await isUncovered(lastLink)).toBe(true)
+
     // The Review page's Save button, at the very end of its form.
     await page.goto(`/review`)
     await expect(page.getByText(`Week of`).first()).toBeVisible()
