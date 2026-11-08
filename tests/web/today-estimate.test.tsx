@@ -238,6 +238,7 @@ describe('Today: the week strip', () => {
     })
     await user.click(await screen.findByRole('button', { name: 'Wednesday 18 Mar, Planned' }))
     const sheet = await screen.findByRole('dialog', { name: 'Easy run' })
-    expect(await within(sheet).findByText('about 9 mi at your easy pace')).toBeInTheDocument()
+    const figure = await within(sheet).findByText('about 9 mi')
+    expect(figure.nextElementSibling).toHaveTextContent('At your easy pace')
   })
 })
