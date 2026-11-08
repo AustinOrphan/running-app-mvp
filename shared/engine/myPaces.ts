@@ -10,12 +10,16 @@
 //    zones took their pace anchor from (a tested threshold pace, or critical speed).
 // 3. none: a missing pace is never replaced by a guess, and the view says what would give one.
 // Heat and a climb are shown as one example each: the heat-steering WBGT (`i9.warnWbgtC`) through
-// the line's own heat term, and `c9.exampleGradePct` through the cost of the grade (rule I11).
+// the line's own heat term, and `c9.exampleGradePct` through the cost of the grade (rule I11), or,
+// when the runner's own curve passes its test for the band that holds that grade, through their own
+// speed ratio there (rule I13; display only, the predictions below do not read it).
 //
 // Predictions are `predictFromState`, unchanged: no goal, no race-day weather, the courses of the
 // caller. The grade of a method is the lowest among the Params it reads.
 import type { Activity } from '../types.ts'
 import { heatExcessC, hrModelSample, type HrModel } from './execution.ts'
+import { gradeCurve, type BandReason, type GradeBand, type GradeCurve } from './gradeCurve.ts'
+import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { anchorRaceFor, predictFromState, rangeLabel } from './predict.ts'
 import { gradeAdjustedSpeed } from './terrain.ts'
@@ -48,8 +52,18 @@ export interface EasyPace {
    * theirs; with fewer it is the population default (rule I7) and the page says so.
    */
   hot: { wbgtC: number; range: PaceBand; own: boolean } | null
-  /** The example climb through the cost of the grade. */
-  climb: { gradePct: number; range: PaceBand }
+  /**
+   * The example climb: through the runner's own ratio in the band that holds the grade when the
+   * curve of rule I13 shows one there (`source` personal), else through the cost of the grade
+   * (rule I11), with the reason the curve did not speak. `bandIndex` is the band in `terrain`.
+   */
+  climb: {
+    gradePct: number
+    range: PaceBand
+    source: 'personal' | 'default'
+    reason: BandReason
+    bandIndex: number | null
+  }
   rules: string[]
 }
 
@@ -120,6 +134,8 @@ export interface MyPaces {
     zoneRange: PaceBand | null
     hr: HrLineNeeds
   }
+  /** The runner's speed by grade next to Minetti's, rule I13. Display only. */
+  terrain: GradeCurve
   events: EventRow[]
   test: CsTest
 }
@@ -149,9 +165,41 @@ function scaleBand(band: PaceBand, factor: number): PaceBand {
   return [Math.round(band[0] * factor), Math.round(band[1] * factor)]
 }
 
-/** The cost of the example climb as a ratio of the flat pace: slower by this factor. */
-function climbFactor(): number {
-  return gradeAdjustedSpeed(1, P.c9.exampleGradePct.value / PERCENT)
+/** The band of the curve that holds a grade (a grade on an edge belongs to the band above). */
+function bandAt(curve: GradeCurve, gradePct: number): GradeBand | null {
+  return (
+    curve.bands.find(
+      (band) =>
+        (band.fromPct === null || gradePct >= band.fromPct) &&
+        (band.toPct === null || gradePct < band.toPct),
+    ) ?? null
+  )
+}
+
+/**
+ * The example climb for a flat range: the runner's own ratio when the band that holds the example
+ * grade shows it (rule I13), else the cost of the grade (rule I11), slower by that factor.
+ */
+function climbOf(range: PaceBand, curve: GradeCurve): EasyPace['climb'] {
+  const gradePct = P.c9.exampleGradePct.value
+  const band = bandAt(curve, gradePct)
+  const personal = band !== null && band.source === 'personal'
+  // The cost of the grade is the factor by which the pace grows; a ratio is its inverse (speed).
+  const factor = personal ? 1 / band.ratio : gradeAdjustedSpeed(1, gradePct / PERCENT)
+  return {
+    gradePct,
+    range: scaleBand(range, factor),
+    source: personal ? 'personal' : 'default',
+    reason: band?.reason ?? 'untested',
+    bandIndex: band?.index ?? null,
+  }
+}
+
+/** The runs the curve reads: runs (not races) that are not flagged duplicates. */
+function curveRuns(activities: readonly Activity[]) {
+  return activities
+    .filter((a) => a.type === 'run' && !isDuplicate(a))
+    .map((a) => ({ id: a.id, date: a.date, bins: a.terrainBins }))
 }
 
 /** The top of Z1, the ceiling a heart-rate easy pace answers to; null without a heart-rate zone. */
@@ -203,6 +251,7 @@ function bandFromFast(fastSecPerKm: number): PaceBand {
 
 function hrBasedPace(
   input: MyPacesInput,
+  terrain: GradeCurve,
   sample: { runs: number; first: string | null },
 ): { pace: EasyPace | null; issue: LineIssue | null } {
   const { hrModel, zones, state } = input
@@ -214,11 +263,12 @@ function hrBasedPace(
   // A line that cannot be read at the ceiling gives no pace: the zones answer instead.
   const issue = lineIssueAt(hrModel, speed, state.fitness.csMps)
   if (issue !== null || speed === null) return { pace: null, issue }
-  return { pace: hrPaceAt(input, sample.first, ceiling, speed, hrModel), issue: null }
+  return { pace: hrPaceAt(input, terrain, sample.first, ceiling, speed, hrModel), issue: null }
 }
 
 function hrPaceAt(
   input: MyPacesInput,
+  terrain: GradeCurve,
   since: string,
   ceiling: number,
   speed: number,
@@ -240,7 +290,6 @@ function hrPaceAt(
           own: hrModel.hotRuns >= P.hrModel.shrinkagePriorRuns.value,
         }
       : null
-  const factor = climbFactor()
   return {
     basis: 'hr-model',
     range,
@@ -257,12 +306,12 @@ function hrPaceAt(
       ]),
     ),
     hot,
-    climb: { gradePct: P.c9.exampleGradePct.value, range: scaleBand(range, factor) },
-    rules: ['C9', 'C2', 'C4', 'A8', 'I11', ...(hot === null ? [] : ['I7', 'I9'])].sort(),
+    climb: climbOf(range, terrain),
+    rules: ['C9', 'C2', 'C4', 'A8', 'I11', 'I13', ...(hot === null ? [] : ['I7', 'I9'])].sort(),
   }
 }
 
-function zoneBasedPace(zones: ZoneSet): EasyPace | null {
+function zoneBasedPace(zones: ZoneSet, terrain: GradeCurve): EasyPace | null {
   const z1 = zones.pace?.z1 ?? null
   const source = zones.lt1PaceSecPerKm?.source ?? null
   if (z1 === null || source === null || !(z1[1] > 0)) return null
@@ -276,11 +325,8 @@ function zoneBasedPace(zones: ZoneSet): EasyPace | null {
     confidence: tested ? 'moderate' : 'low',
     grade: lowestGrade(gradesOf([P.c2.z1PaceSlowFactor, ...(tested ? [] : [P.c4.lt1CsFraction])])),
     hot: null,
-    climb: {
-      gradePct: P.c9.exampleGradePct.value,
-      range: scaleBand([z1[0], z1[1]], climbFactor()),
-    },
-    rules: ['C9', 'C2', tested ? 'C5' : 'C4', 'I11'].sort(),
+    climb: climbOf([z1[0], z1[1]], terrain),
+    rules: ['C9', 'C2', tested ? 'C5' : 'C4', 'I11', 'I13'].sort(),
   }
 }
 
@@ -411,8 +457,9 @@ export function eventRow(state: AthleteState, spec: EventSpec): EventRow {
 export function myPaces(input: MyPacesInput, events: readonly EventSpec[]): MyPaces {
   const { state, zones, today } = input
   const sample = hrModelSample(input.activities, today)
-  const fromLine = hrBasedPace(input, sample)
-  const pace = fromLine.pace ?? zoneBasedPace(zones)
+  const terrain = gradeCurve(curveRuns(input.activities), today)
+  const fromLine = hrBasedPace(input, terrain, sample)
+  const pace = fromLine.pace ?? zoneBasedPace(zones, terrain)
   return {
     asOf: today,
     easy: {
@@ -427,6 +474,7 @@ export function myPaces(input: MyPacesInput, events: readonly EventSpec[]): MyPa
         ceiling: ceilingOf(zones) !== null,
       },
     },
+    terrain,
     events: events.map((spec) => eventRow(state, spec)),
     test: {
       efforts: state.fitness.csEfforts,

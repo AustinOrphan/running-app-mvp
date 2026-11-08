@@ -10,6 +10,7 @@ import { buildZones } from '../../shared/engine/zones.ts'
 import type { MyPacesView, Units, UserSettings } from '../../shared/types.ts'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { MyPacesPage } from '../../web/pages/MyPacesPage.tsx'
+import { athlete, scaledCurve, syntheticRuns } from '../unit/engine/gradeCurve-fixtures.ts'
 import {
   paces,
   profileFixture,
@@ -438,6 +439,140 @@ describe('MyPacesPage: the test', () => {
   })
 })
 
+describe('MyPacesPage: climbs and descents [I13]', () => {
+  /** The nine runs of the line, and `count` more with terrain bins of a runner half as steep as Minetti. */
+  const withBins = (count: number) => [
+    ...RUNS,
+    ...syntheticRuns(athlete(scaledCurve(0.5), 0.03), count, TODAY, 21, 2).map((r, i) =>
+      run(100 + i, 3, { id: r.id, date: r.date, terrainBins: r.bins }),
+    ),
+  ]
+
+  test('with no grade data, every grade shows the default and the section says what gives data', async () => {
+    const { routes } = serve()
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Climbs and descents' })
+    expect(within(section).getByText(/^No steady run has grade data yet/)).toBeInTheDocument()
+    const table = within(section).getByRole('table')
+    expect(within(table).getAllByRole('row')).toHaveLength(10)
+    expect(within(table).queryByText('Yours')).toBeNull()
+    expect(within(table).getAllByText('Default')).toHaveLength(8)
+    expect(within(table).getAllByText('Always the default')).toHaveLength(2)
+    expect(
+      within(section).getByText(/^No climbing grade has enough runs to say how much you walk/),
+    ).toBeInTheDocument()
+    const easy = screen.getByRole('region', { name: 'Easy pace' })
+    expect(
+      within(easy).getByText(/^The climb row uses the default cost of a grade: too few minutes/),
+    ).toBeInTheDocument()
+    expect(within(easy).queryByText(/from your own runs on this grade/)).toBeNull()
+  })
+
+  test('with a curve that passes the test, the climb row and the table say whose speed it is', async () => {
+    const { view, routes } = serve(stateWith(FITNESS), withBins(40))
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const easy = await screen.findByRole('region', { name: 'Easy pace' })
+    expect(view.easy.pace!.climb.source).toBe('personal')
+    expect(
+      within(easy).getByText(
+        `Climb of ${String(P.c9.exampleGradePct.value)}%, from your own runs on this grade`,
+      ),
+    ).toBeInTheDocument()
+    expect(within(easy).getByText(/^The climb row uses the speed you kept/)).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Climbs and descents' })
+    expect(within(section).queryByText(/^No steady run has grade data yet/)).toBeNull()
+    expect(within(section).queryByText(/^No grade shows your own speed yet/)).toBeNull()
+    const row = within(section).getByRole('row', { name: /^3% to 6%/ })
+    expect(within(row).getByText('Yours')).toBeInTheDocument()
+    const band = view.terrain.bands.find((b) => b.fromPct === 3)!
+    expect(within(row).getByText(`${String(Math.round(band.ratio * 100))}%`)).toBeInTheDocument()
+    expect(within(section).getByRole('row', { name: /^Flat, -3% to 3%/ })).toHaveTextContent('100%')
+  })
+
+  test('with runs that do not pass yet, says no grade shows the runner own speed and what would', async () => {
+    const { routes } = serve(stateWith(FITNESS), withBins(4))
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Climbs and descents' })
+    expect(
+      within(section).getByText(
+        `No grade shows your own speed yet. A grade shows it after ${String(P.i13.minBinMin.value)} min on it in ${String(P.i13.minBinRuns.value)} runs and a test on ${String(P.i13.minBacktestRuns.value)} runs.`,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(section).getByText(/^From 4 steady runs in the last 52 weeks/),
+    ).toBeInTheDocument()
+  })
+
+  test('gives the grade where walking passes half the time, with the walking speed', async () => {
+    const { view, routes } = serve(stateWith(FITNESS), withBins(40))
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Climbs and descents' })
+    const from = view.terrain.walkingFromPct
+    expect(from).not.toBeNull()
+    expect(
+      within(section).getByText(`Walking passes half the time from ${String(from)}%.`),
+    ).toBeInTheDocument()
+    expect(
+      within(section).getByText('Walking here means slower than 11:07 /km.'),
+    ).toBeInTheDocument()
+  })
+
+  test('below half, shows the walking shares floored so a row never reads 50% under "half or less"', async () => {
+    const who = {
+      ...athlete(scaledCurve(0.5), 0.03),
+      walkShare: [0, 0, 0, 0, 0, 0.02, 0.2, 0.4999, 0.4],
+    }
+    const activities = [
+      ...RUNS,
+      ...syntheticRuns(who, 40, TODAY, 21, 2).map((r, i) =>
+        run(100 + i, 3, { id: r.id, date: r.date, terrainBins: r.bins }),
+      ),
+    ]
+    const { view, routes } = serve(stateWith(FITNESS), activities)
+    expect(view.terrain.walkingFromPct).toBeNull()
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Climbs and descents' })
+    expect(
+      within(section).getByText(
+        'Walking is half the time or less on every climbing grade that has enough runs to say.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(section).queryByText(/^50% of the time walking/)).toBeNull()
+    expect(within(section).getByText('49% of the time walking')).toBeInTheDocument()
+  })
+
+  test('names the rules, the gate and that it is display only in the disclosure', async () => {
+    const { routes } = serve(stateWith(FITNESS), withBins(40))
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const section = await screen.findByRole('region', { name: 'Climbs and descents' })
+    const how = within(section).getByText('How this is made').closest('details')!
+    expect(how).not.toHaveAttribute('open')
+    expect(within(how).getByText(/leaving each run out in turn/)).toBeInTheDocument()
+    expect(
+      within(how).getByText(/a sign test at 1%\), on at least 7 tested runs/),
+    ).toBeInTheDocument()
+    expect(
+      within(how).getByText(/^This is display only: predictions still count climb as flat/),
+    ).toBeInTheDocument()
+    expect(how).toHaveTextContent('I13')
+    expect(how).toHaveTextContent('C9')
+  })
+
+  test('a page with a curve passes the copy lint', async () => {
+    const { routes } = serve(stateWith(FITNESS), withBins(40))
+    mockApi(routes)
+    const { container } = renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    await screen.findByRole('region', { name: 'A short test' })
+    expectCleanCopy(container)
+  })
+})
+
 describe('MyPacesPage: states', () => {
   test('says it did not load, as an alert', async () => {
     mockApi({
@@ -445,9 +580,25 @@ describe('MyPacesPage: states', () => {
       'GET /api/settings': () => settings('km'),
     })
     renderWithProviders(<MyPacesPage />, { route: '/paces' })
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'My paces did not load. Reload the page to try again.',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('My paces did not load.')
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  test('tries again from the failed state, and shows the page when the read answers', async () => {
+    const { routes } = serve()
+    const answer = routes['GET /api/paces']!
+    let calls = 0
+    mockApi({
+      ...routes,
+      'GET /api/paces': (request) => {
+        calls += 1
+        return calls === 1 ? { status: 500, body: { error: { code: 'server' } } } : answer(request)
+      },
+    })
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('region', { name: 'Climbs and descents' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   test('jumps to each section from links under the title', async () => {
@@ -459,7 +610,7 @@ describe('MyPacesPage: states', () => {
       within(nav)
         .getAllByRole('link')
         .map((link) => link.getAttribute('href')),
-    ).toEqual(['#easy', '#zones', '#events', '#test'])
+    ).toEqual(['#easy', '#zones', '#grades', '#events', '#test'])
   })
 
   test('every sentence of the page passes the copy lint', async () => {

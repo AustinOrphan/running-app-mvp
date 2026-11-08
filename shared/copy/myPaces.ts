@@ -3,7 +3,9 @@
 // sketch to run by, never a promise or a target, and the page says so. `PACES_TEMPLATES` is spread
 // into `TEMPLATES`. Figures arrive as quantities in the runner's units; the rule ids in the "how
 // these are made" lines are the ones the engine cites.
+import type { BandReason, GradeBand } from '../engine/gradeCurve.ts'
 import type { LineIssue } from '../engine/myPaces.ts'
+import type { Units } from '../types.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const PACES_TEMPLATES = {
@@ -13,8 +15,6 @@ export const PACES_TEMPLATES = {
     'Your easy pace, your zones and what you can run now, worked out from your own runs. Sketches to run by, not promises.',
   ),
   'paces.more-note': tpl('Easy pace, zones and what you can run now', {}, { shape: 'label' }),
-  'paces.offline': tpl('My paces need a connection. Today works offline.'),
-  'paces.error': tpl('My paces did not load. Reload the page to try again.'),
   'paces.how': tpl('How this is made', {}, { shape: 'label' }),
   'paces.link.profile': tpl('Open Profile', {}, { shape: 'label' }),
   'paces.link.review': tpl('Open the review page', {}, { shape: 'label' }),
@@ -54,6 +54,30 @@ export const PACES_TEMPLATES = {
     { shape: 'label' },
   ),
   'paces.easy.row-climb': tpl('Climb of {grade}', { grade: 'percent' }, { shape: 'label' }),
+  'paces.easy.row-climb-own': tpl(
+    'Climb of {grade}, from your own runs on this grade',
+    { grade: 'percent' },
+    { shape: 'label' },
+  ),
+  'paces.easy.climb-own': tpl(
+    'The climb row uses the speed you kept on this grade in your own runs, not the default cost of a grade.',
+  ),
+  'paces.easy.climb-few-minutes': tpl(
+    'The climb row uses the default cost of a grade: too few minutes on this grade in your runs so far.',
+  ),
+  'paces.easy.climb-few-runs': tpl(
+    'The climb row uses the default cost of a grade: too few runs on this grade so far.',
+  ),
+  'paces.easy.climb-untested': tpl(
+    'The climb row uses the default cost of a grade: your own speed on it is not tested against your later runs yet.',
+  ),
+  'paces.easy.climb-no-gain': tpl(
+    'The climb row uses the default cost of a grade: your own speed on it did not come closer to your later runs than the default.',
+  ),
+  'paces.easy.climb-inconsistent': tpl(
+    'The climb row uses the default cost of a grade: your runs on it do not agree enough yet.',
+  ),
+  'paces.easy.climb-default': tpl('The climb row uses the default cost of a grade.'),
   'paces.easy.scenarios': tpl(
     'Heat lifts your heart rate at the same pace, and a climb costs more for the same speed, so both slow the pace that keeps you easy.',
   ),
@@ -104,6 +128,9 @@ export const PACES_TEMPLATES = {
     { n: 'count' },
   ),
   'paces.easy.how-climb': tpl('The climb uses the cost of running on a grade (I11).'),
+  'paces.easy.how-climb-own': tpl(
+    'The climb uses your own speed on that grade (I13), which passed a test against the cost of a grade (I11).',
+  ),
   'paces.easy.how-grade': tpl(
     'This is a grade D default (C9): a working range to run by, not a measured threshold.',
   ),
@@ -165,6 +192,99 @@ export const PACES_TEMPLATES = {
   'paces.custom.load-error': tpl('That distance did not load. Try it again, or clear it.'),
   'paces.custom.range-error': tpl('That distance is out of range.'),
 
+  // Climbs and descents: the runner's own speed by grade next to the default (rule I13, display only)
+  'paces.terrain.heading': tpl('Climbs and descents', {}, { shape: 'label' }),
+  'paces.terrain.lead': tpl(
+    'Your speed on each grade as a share of your flat speed. The default is the cost of the grade at equal effort; yours is the speed you kept.',
+  ),
+  'paces.terrain.basis': tpl(
+    'From {runs} steady runs in the last {weeks} weeks, with {minutes} on the flat between them.',
+    { runs: 'count', weeks: 'count', minutes: 'minutes' },
+  ),
+  'paces.terrain.none': tpl(
+    'No steady run has grade data yet, so every grade shows the default. A run counts with {min} or more on the flat at a steady pace, from a file with altitude.',
+    { min: 'minutes' },
+  ),
+  'paces.terrain.sparse': tpl(
+    'No grade shows your own speed yet. A grade shows it after {minutes} on it in {runs} runs and a test on {tested} runs.',
+    { minutes: 'minutes', runs: 'count', tested: 'count' },
+  ),
+  'paces.terrain.table': tpl('Speed on each grade', {}, { shape: 'label' }),
+  'paces.terrain.col-grade': tpl('Grade', {}, { shape: 'label' }),
+  'paces.terrain.col-speed': tpl('Share of flat speed', {}, { shape: 'label' }),
+  'paces.terrain.col-source': tpl('Source', {}, { shape: 'label' }),
+  'paces.terrain.col-minutes': tpl('Time running', {}, { shape: 'label' }),
+  'paces.terrain.band-range': tpl(
+    '{from} to {to}',
+    { from: 'percent', to: 'percent' },
+    { shape: 'label' },
+  ),
+  'paces.terrain.band-flat': tpl(
+    'Flat, {from} to {to}',
+    { from: 'percent', to: 'percent' },
+    { shape: 'label' },
+  ),
+  'paces.terrain.band-over': tpl('Over {from}', { from: 'percent' }, { shape: 'label' }),
+  'paces.terrain.band-under': tpl('Under {to}', { to: 'percent' }, { shape: 'label' }),
+  'paces.terrain.share': tpl('{share}', { share: 'share' }, { shape: 'label' }),
+  'paces.terrain.minutes': tpl('{minutes}', { minutes: 'minutes' }, { shape: 'label' }),
+  'paces.terrain.src-personal': tpl('Yours', {}, { shape: 'label' }),
+  'paces.terrain.src-default': tpl('Default', {}, { shape: 'label' }),
+  'paces.terrain.why-flat': tpl('The reference', {}, { shape: 'label' }),
+  'paces.terrain.why-personal': tpl('From your own runs', {}, { shape: 'label' }),
+  'paces.terrain.why-few-minutes': tpl('Too few minutes', {}, { shape: 'label' }),
+  'paces.terrain.why-few-runs': tpl('Too few runs', {}, { shape: 'label' }),
+  'paces.terrain.why-steep-end': tpl('Always the default', {}, { shape: 'label' }),
+  'paces.terrain.why-untested': tpl('Not tested yet', {}, { shape: 'label' }),
+  'paces.terrain.why-no-gain': tpl('Not closer in the test', {}, { shape: 'label' }),
+  'paces.terrain.why-inconsistent': tpl('Not consistent', {}, { shape: 'label' }),
+  'paces.terrain.walk-heading': tpl('Walking', {}, { shape: 'label' }),
+  'paces.terrain.walk-from': tpl('Walking passes half the time from {grade}.', {
+    grade: 'percent',
+  }),
+  'paces.terrain.walk-below': tpl(
+    'Walking is half the time or less on every climbing grade that has enough runs to say.',
+  ),
+  'paces.terrain.walk-row': tpl(
+    '{share} of the time walking',
+    { share: 'share' },
+    { shape: 'label' },
+  ),
+  'paces.terrain.walk-none': tpl(
+    'No climbing grade has enough runs to say how much you walk. A grade does with {minutes} on it in {runs} runs.',
+    { minutes: 'minutes', runs: 'count' },
+  ),
+  'paces.terrain.walk-floor': tpl('Walking here means slower than {pace}.', { pace: 'pace' }),
+  'paces.terrain.how-curve': tpl(
+    'Each run gives its speed on a grade as a share of its own flat speed, which takes out the effort of the day (I13).',
+  ),
+  'paces.terrain.how-default': tpl('The default is the cost of the grade at equal effort (I11).'),
+  'paces.terrain.how-gate': tpl(
+    'A grade shows your speed only if, leaving each run out in turn, your speed from the others is closer to it than the default by {gain} of the default error (I13).',
+    { gain: 'percent' },
+  ),
+  'paces.terrain.how-gate-runs': tpl(
+    'It must also be closer in more runs than chance gives (a sign test at {level}), on at least {runs} tested runs.',
+    { level: 'percent', runs: 'count' },
+  ),
+  'paces.terrain.how-steep': tpl(
+    'Steeper than {grade}, up or down, the default is always used, because the data is thin there (I13).',
+    { grade: 'percent' },
+  ),
+  'paces.terrain.how-walk': tpl(
+    'Walking is time slower than {pace}, the walking floor (C9), and the grade is where it passes half the time.',
+    { pace: 'pace' },
+  ),
+  'paces.terrain.descent-note': tpl(
+    'On a descent the default is the most speed equal effort allows (I13, I11), so your own figure can sit under it.',
+  ),
+  'paces.terrain.how-display': tpl(
+    'This is display only: predictions still count climb as flat distance plus a fixed allowance (L5), and no plan, zone or prediction reads it.',
+  ),
+  'paces.terrain.how-grade': tpl(
+    'This is a grade D default (I13): a way to look at your runs, not a measured threshold.',
+  ),
+
   // The test the engine supports
   'paces.test.heading': tpl('A short test', {}, { shape: 'label' }),
   'paces.test.steps': tpl('The steps', {}, { shape: 'label' }),
@@ -215,4 +335,54 @@ const LINE_ISSUE_IDS = {
 /** Why the heart-rate line gave no easy pace, in plain words and with no blame. */
 export function lineIssueText(issue: LineIssue): string {
   return pacesText(LINE_ISSUE_IDS[issue])
+}
+
+const CLIMB_NOTE_IDS = {
+  personal: 'paces.easy.climb-own',
+  'few-minutes': 'paces.easy.climb-few-minutes',
+  'few-runs': 'paces.easy.climb-few-runs',
+  untested: 'paces.easy.climb-untested',
+  'no-gain': 'paces.easy.climb-no-gain',
+  inconsistent: 'paces.easy.climb-inconsistent',
+  // The example grade sits in a steep end or the flat band only if its Param is moved there.
+  'steep-end': 'paces.easy.climb-default',
+  flat: 'paces.easy.climb-default',
+} as const satisfies Record<BandReason, PlainPacesId>
+
+/** The line under the climb row: whose speed it uses, and when it is the default, why. */
+export function climbNoteText(reason: BandReason): string {
+  return pacesText(CLIMB_NOTE_IDS[reason])
+}
+
+const BAND_WHY_IDS = {
+  flat: 'paces.terrain.why-flat',
+  personal: 'paces.terrain.why-personal',
+  'few-minutes': 'paces.terrain.why-few-minutes',
+  'few-runs': 'paces.terrain.why-few-runs',
+  'steep-end': 'paces.terrain.why-steep-end',
+  untested: 'paces.terrain.why-untested',
+  'no-gain': 'paces.terrain.why-no-gain',
+  inconsistent: 'paces.terrain.why-inconsistent',
+} as const satisfies Record<BandReason, PlainPacesId>
+
+/** Why a band shows what it shows, in a few words for the table. */
+export function bandWhyText(reason: BandReason): string {
+  return pacesText(BAND_WHY_IDS[reason])
+}
+
+/** A band's grades as a label: "3% to 6%", "Over 15%", "Under -15%", "Flat, -3% to 3%". */
+export function bandLabelText(
+  band: Pick<GradeBand, 'fromPct' | 'toPct' | 'reason'>,
+  units: Units,
+): string {
+  const { fromPct, toPct } = band
+  const from = fromPct === null ? null : ({ kind: 'percent', pct: fromPct } as const)
+  const to = toPct === null ? null : ({ kind: 'percent', pct: toPct } as const)
+  if (from !== null && to !== null) {
+    const id = band.reason === 'flat' ? 'paces.terrain.band-flat' : 'paces.terrain.band-range'
+    return render(PACES_TEMPLATES[id], { from, to }, units)
+  }
+  if (from !== null) return render(PACES_TEMPLATES['paces.terrain.band-over'], { from }, units)
+  if (to !== null) return render(PACES_TEMPLATES['paces.terrain.band-under'], { to }, units)
+  return ''
 }

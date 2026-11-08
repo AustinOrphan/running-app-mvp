@@ -340,6 +340,60 @@
   outline-offset: var(--focus-offset);
 }
 
+/* The speed by grade: a real table in the page's width; no horizontal scroll at 328 px, so the
+   cells wrap and the numbers keep their own column. No colour carries a meaning here. */
+.table {
+  width: 100%;
+  min-width: 20rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  border-top: 0;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.table tbody th {
+  font-weight: 500;
+}
+
+.table .num {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.caption {
+  padding-bottom: var(--space-2);
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.source {
+  display: block;
+  font-weight: 600;
+}
+
+.why {
+  display: block;
+  color: var(--text-muted);
+}
+
+.walk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .steps {
   display: flex;
   flex-direction: column;

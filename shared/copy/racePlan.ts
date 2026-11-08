@@ -258,6 +258,55 @@ export const RACE_PLAN_TEMPLATES = {
     high: 'count',
   }),
 
+  // ---- Rehearsal: what the runner's recent runs hold of the night and downhill ask (H6, H5) ----
+  // Descriptive: the ask sits in the dark block and the climbing line, these lines say what was done
+  // and compare nothing (G5).
+  'race.plan.rehearsal.heading': tpl('Rehearsal', {}, { shape: 'label' }),
+  'race.plan.rehearsal.night': tpl('Night runs: {n} since {date}, {time} in the dark.', {
+    n: 'count',
+    date: 'date',
+    time: 'minutes',
+  }),
+  'race.plan.rehearsal.night-none': tpl('Night runs: none since {date}.', { date: 'date' }),
+  'race.plan.rehearsal.unplaced-one': tpl(
+    '1 run has no start time or home place, so the sun cannot place it.',
+  ),
+  'race.plan.rehearsal.unplaced': tpl(
+    '{n} runs have no start time or home place, so the sun cannot place them.',
+    { n: 'count' },
+  ),
+  'race.plan.rehearsal.dark-note': tpl(
+    'Dark here means the sun is more than {deg} degrees below the horizon at your home place.',
+    { deg: 'count' },
+  ),
+  'race.plan.rehearsal.dark-note-runs': tpl(
+    'Dark here means the sun is more than {deg} degrees below the horizon at the place of each run.',
+    { deg: 'count' },
+  ),
+  'race.plan.rehearsal.downhill': tpl('Downhill: {time} on grades of {pct} or steeper.', {
+    time: 'minutes',
+    pct: 'percent',
+  }),
+  'race.plan.rehearsal.downhill-none': tpl('Downhill: none on grades of {pct} or steeper.', {
+    pct: 'percent',
+  }),
+  'race.plan.rehearsal.long': tpl('Long runs with {time} or more of it: {n}.', {
+    time: 'minutes',
+    n: 'count',
+  }),
+  'race.plan.rehearsal.no-altitude-one': tpl(
+    '1 run has no altitude, so it adds nothing to the downhill figure.',
+  ),
+  'race.plan.rehearsal.no-altitude': tpl(
+    '{n} runs have no altitude, so they add nothing to the downhill figure.',
+    { n: 'count' },
+  ),
+  'race.plan.rehearsal.no-altitude-all': tpl(
+    'No run since {date} recorded altitude, so downhill time cannot be counted.',
+    { date: 'date' },
+  ),
+  'race.plan.rehearsal.no-runs': tpl('No runs since {date}.', { date: 'date' }),
+
   // ---- Checkpoints (step 4): the runner's own course points, "course points" when self-supported --
   'race.plan.points.heading': tpl('Checkpoints', {}, { shape: 'label' }),
   'race.plan.points.heading-self': tpl('Course points', {}, { shape: 'label' }),
@@ -678,6 +727,8 @@ export interface RacePlanText {
   heat: string[]
   raceWeek: RaceWeekText | null
   dark: { heading: string; lines: string[] } | null
+  /** What the recent runs hold of the night and downhill ask; null when the plan asks for neither. */
+  rehearsal: { heading: string; lines: string[] } | null
 }
 
 function noticeText(notice: RaceNotice, units: Units): RaceNoticeText {
@@ -946,6 +997,78 @@ export function describeRaceWeek(week: RaceWeek, units: Units): RaceWeekText {
   }
 }
 
+/** The Rehearsal block: the night and downhill counts of the recent runs, in plain facts. */
+function rehearsalText(plan: RacePlan, units: Units): RacePlanText['rehearsal'] {
+  const r = plan.rehearsal
+  if (r === null) return null
+  const date = { kind: 'date', iso: r.from, style: 'short' } as const
+  const lines: string[] = []
+  if (r.runs === 0) {
+    lines.push(say(T['race.plan.rehearsal.no-runs'], { date }, units))
+  } else {
+    const night = r.night
+    if (night !== null) {
+      lines.push(
+        night.runs === 0
+          ? say(T['race.plan.rehearsal.night-none'], { date }, units)
+          : say(
+              T['race.plan.rehearsal.night'],
+              { n: count(night.runs), date, time: minutes(night.darkMin) },
+              units,
+            ),
+      )
+      if (night.unplaced > 0) {
+        lines.push(
+          night.unplaced === 1
+            ? say(T['race.plan.rehearsal.unplaced-one'], {}, units)
+            : say(T['race.plan.rehearsal.unplaced'], { n: count(night.unplaced) }, units),
+        )
+      }
+      lines.push(
+        say(
+          night.byRunStart > 0
+            ? T['race.plan.rehearsal.dark-note-runs']
+            : T['race.plan.rehearsal.dark-note'],
+          { deg: count(Math.abs(P.r1.darkSunAltitudeDeg.value)) },
+          units,
+        ),
+      )
+    }
+    const down = r.downhill
+    if (down !== null) {
+      const pct = percent(Math.abs(down.bandMaxPct))
+      if (down.runsWithBins === 0) {
+        lines.push(say(T['race.plan.rehearsal.no-altitude-all'], { date }, units))
+      } else {
+        lines.push(
+          down.minutes === 0
+            ? say(T['race.plan.rehearsal.downhill-none'], { pct }, units)
+            : say(T['race.plan.rehearsal.downhill'], { time: minutes(down.minutes), pct }, units),
+        )
+        lines.push(
+          say(
+            T['race.plan.rehearsal.long'],
+            { time: minutes(P.r1.sustainedDescentMin.value), n: count(down.longRuns) },
+            units,
+          ),
+        )
+        if (down.runsWithoutBins > 0) {
+          lines.push(
+            down.runsWithoutBins === 1
+              ? say(T['race.plan.rehearsal.no-altitude-one'], {}, units)
+              : say(
+                  T['race.plan.rehearsal.no-altitude'],
+                  { n: count(down.runsWithoutBins) },
+                  units,
+                ),
+          )
+        }
+      }
+    }
+  }
+  return { heading: say(T['race.plan.rehearsal.heading'], {}, units), lines }
+}
+
 /** Every sentence of the Race page for one plan. */
 export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
   const dark = plan.dark
@@ -1015,6 +1138,7 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
       dark === null
         ? null
         : { heading: say(T['race.plan.dark.heading'], {}, units), lines: darkLines },
+    rehearsal: rehearsalText(plan, units),
   }
 }
 

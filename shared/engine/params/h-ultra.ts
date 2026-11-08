@@ -548,6 +548,30 @@ export const hUltra = {
       unit: 'fraction',
       note: 'Default: the share of the course climb left after the rows that name their climb, spread over the other segments by distance (1 spreads all of it, 0 treats those segments as flat). It sets only how the weights of the arrival ranges (L5) divide the course; no study sizes it.',
     }),
+    rehearsalWindowWeeks: param('r1.rehearsalWindowWeeks', 12, 'D', 'H14', [], {
+      unit: 'weeks',
+      note: 'Default: the rehearsal count (night runs, downhill minutes) reads the runs of this many weeks up to today. A choice of display; no study sets how far back a rehearsal still counts.',
+    }),
+    darkSunAltitudeDeg: param('r1.darkSunAltitudeDeg', -6, 'D', 'H14', [], {
+      unit: 'degrees',
+      note: 'Default: a minute of a run is dark when the sun is more than this far below the horizon (the end of civil twilight, when a headlamp is wanted). A convention of the almanac, not a finding.',
+    }),
+    nightRunMinDarkMin: param('r1.nightRunMinDarkMin', 10, 'D', 'H14', [], {
+      unit: 'min',
+      note: 'Default: a run counts as a night run when at least this many of its moving minutes are dark. Keeps a run that ends a few minutes after dusk from counting as a headlamp rehearsal; no study sets it.',
+    }),
+    longRunMin: param('r1.longRunMin', 90, 'D', 'H14', [], {
+      unit: 'min',
+      note: 'Default: a run of this duration or longer is a long run for the downhill count. The plan keeps no flag on a done run, so the count reads the length; no study sets it.',
+    }),
+    descentBandMaxPct: param('r1.descentBandMaxPct', -6, 'D', 'H14', [], {
+      unit: '% grade',
+      note: 'Default: time on grades at or below this (the bands of the terrain bins that end at -6% or steeper) is downhill time for the rehearsal count. It matches the first of the steep descent bands of the grade curve; no study sets it.',
+    }),
+    sustainedDescentMin: param('r1.sustainedDescentMin', 10, 'D', 'H14', [], {
+      unit: 'min',
+      note: 'Default: a long run holds sustained descent when it spent this many minutes or more on the downhill bands. A choice of display; no study sets it.',
+    }),
   },
   h12: {
     reducedDays: param(
