@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
+import { saveDoneActivity } from '../../server/services/activityStore.ts'
+import { addDays, todayIso } from '../../shared/dates.ts'
 import type { Activity, PlanWithSessions } from '../../shared/types.ts'
 import { planFixture, type Fixture } from './adjustFixture.ts'
 import { client, createTestCtx, seedUser, type TestCtx } from './helpers.ts'
@@ -128,6 +130,101 @@ describe('PUT /api/activities/done/:activityId', () => {
     expect(await ctx.prisma.activity.count({ where: { id: { in: ids } } })).toBe(1)
     const linked = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: session.id } })
     expect(ids).toContain(linked.activityId)
+  })
+
+  test('the 409 for a logged session carries its own code, a kind that no longer fits does not', async () => {
+    const open = await ctx.prisma.planSession.findFirst({
+      where: { planId: fx.plan.id, kind: { in: [...RUN_KINDS] }, activityId: null },
+      orderBy: { date: 'desc' },
+    })
+    if (!open) throw new Error('The fixture plan has no open run session.')
+    await client(ctx, fx.u)
+      .put(`/api/activities/done/${randomUUID()}`)
+      .send(body(open.date, { sessionId: open.id }))
+    const taken = await client(ctx, fx.u)
+      .put(`/api/activities/done/${randomUUID()}`)
+      .send(body(open.date, { sessionId: open.id }))
+    expect(taken.status).toBe(409)
+    expect((taken.body as { error: { details: { code: string } } }).error.details.code).toBe(
+      'session-logged',
+    )
+
+    // A re-plan turned another session into strength: the run no longer fits it.
+    const other = await ctx.prisma.planSession.findFirst({
+      where: { planId: fx.plan.id, kind: { in: [...RUN_KINDS] }, activityId: null },
+    })
+    if (!other) throw new Error('The fixture plan has no second open run session.')
+    await ctx.prisma.planSession.update({ where: { id: other.id }, data: { kind: 'strength' } })
+    const wrongKind = await client(ctx, fx.u)
+      .put(`/api/activities/done/${randomUUID()}`)
+      .send(body(other.date, { sessionId: other.id }))
+    expect(wrongKind.status).toBe(409)
+    expect(
+      (wrongKind.body as { error: { details?: { code?: string } } }).error.details?.code,
+    ).toBeUndefined()
+  })
+
+  test('a session a re-plan removes between the check and the claim keeps the run unlinked', async () => {
+    const session = await ctx.prisma.planSession.findFirst({
+      where: { planId: fx.plan.id, kind: { in: [...RUN_KINDS] }, activityId: null },
+      orderBy: { date: 'asc' },
+    })
+    if (!session) throw new Error('The fixture plan has no open run session.')
+    const id = randomUUID()
+    // The check finds the session; a re-plan then removes it before the create claims it.
+    const original = ctx.prisma.planSession.findFirst.bind(ctx.prisma.planSession)
+    const spy = vi.spyOn(ctx.prisma.planSession, 'findFirst').mockImplementation(((
+      ...args: Parameters<typeof original>
+    ) => {
+      spy.mockRestore()
+      return original(...args).then(async (found) => {
+        await ctx.prisma.planSession.delete({ where: { id: session.id } })
+        return found
+      })
+    }) as never)
+    const saved = await saveDoneActivity(
+      ctx,
+      fx.u.id,
+      id,
+      {
+        date: session.date,
+        startTime: null,
+        type: 'run',
+        durationSec: 1800,
+        distanceM: 5000,
+        rpe: null,
+        avgHr: null,
+        maxHr: null,
+        elevationGainM: null,
+        notes: null,
+      },
+      session.id,
+    )
+    expect(saved.created).toBe(true)
+    expect(await ctx.prisma.activity.count({ where: { id } })).toBe(1)
+  })
+
+  test('a replay assesses a linked run whose assessment never happened', async () => {
+    const session = await ctx.prisma.planSession.findFirst({
+      where: { planId: fx.plan.id, kind: { in: [...RUN_KINDS] }, activityId: null },
+      orderBy: { date: 'asc' },
+    })
+    if (!session) throw new Error('The fixture plan has no open run session.')
+    // Assessment reads runs up to today, so the session sits on yesterday.
+    const day = addDays(todayIso(), -1)
+    await ctx.prisma.planSession.update({ where: { id: session.id }, data: { date: day } })
+    const id = randomUUID()
+    const send = () =>
+      client(ctx, fx.u)
+        .put(`/api/activities/done/${id}`)
+        .send(body(day, { sessionId: session.id }))
+    expect((await send()).status).toBe(201)
+    const assessed = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: session.id } })
+    expect(assessed.execution).not.toBeNull()
+    await ctx.prisma.planSession.update({ where: { id: session.id }, data: { execution: null } })
+    expect((await send()).status).toBe(200)
+    const again = await ctx.prisma.planSession.findUniqueOrThrow({ where: { id: session.id } })
+    expect(again.execution).not.toBeNull()
   })
 
   test('a session the plan no longer holds does not lose the run', async () => {

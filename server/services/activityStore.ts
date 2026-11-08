@@ -5,7 +5,7 @@ import type { Activity as ActivityRow, PrismaClient } from '../db.ts'
 import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
 import { markDuplicates } from './duplicates.ts'
-import { runExecutionForActivity, runExecutionQuietly } from './execution.ts'
+import { assessSessionById, runExecutionForActivity, runExecutionQuietly } from './execution.ts'
 import { assertLinkable, linkPlanSession } from './planEngine.ts'
 import { conflict, notFound } from '../errors.ts'
 import { render } from '../../shared/copy/template.ts'
@@ -236,7 +236,7 @@ export interface ManualActivityOptions {
    * Writes that must stand or fall with the activity, in its transaction: a strength log and its
    * sets. The activity is stored only if this resolves.
    */
-  within?: (tx: ManualActivityDb, activity: ActivityRow) => Promise<void>
+  within?: (tx: ManualActivityDb, activity: ActivityRow) => Promise<void | 'unlinked'>
   /**
    * The planned session the activity fulfils, set as the owner's choice. Without it the matcher
    * ties the activity to a session as for any other. The caller has checked the pair
@@ -269,21 +269,35 @@ export async function createManualActivity(
     duplicateStatus: 'none',
   }
   const { within } = opts
+  // `within` answers 'unlinked' when the session it was to claim is gone: the run is kept and the
+  // matcher ties it, as for a run with no session.
+  let unlinked = false
   const created = within
     ? await prisma.$transaction(async (tx) => {
         const row = await tx.activity.create({ data })
-        await within(tx, row)
+        unlinked = (await within(tx, row)) === 'unlinked'
         return row
       })
     : await prisma.activity.create({ data })
   await markDuplicates(prisma, userId, [created.id])
-  if (opts.sessionId === undefined) {
+  if (opts.sessionId === undefined || unlinked) {
     await runExecutionQuietly(deps, { userId, activityId: created.id })
   } else {
     await linkPlanSession(deps, { userId, sessionId: opts.sessionId, activityId: created.id })
   }
   return prisma.activity.findFirstOrThrow({ where: { id: created.id, userId } })
 }
+
+/** The 409 for a session that already has a run; `details.code` tells it from a kind that no longer fits. */
+function alreadyLogged(sessionId: string | undefined) {
+  return conflict(render(TEMPLATES['today.done.already-logged'], {}, 'mi'), {
+    code: SESSION_LOGGED,
+    sessionId,
+  })
+}
+
+/** `details.code` of the 409 `saveDoneActivity` answers when the session already has a run. */
+export const SESSION_LOGGED = 'session-logged'
 
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
@@ -318,6 +332,13 @@ export async function saveDoneActivity(
     const existing = await prisma.activity.findUnique({ where: { id: activityId } })
     if (!existing) return null
     if (existing.userId !== userId) throw notFound('Activity not found.')
+    // A failure after the claim committed (the assessment) leaves a linked run that was never
+    // assessed; the replay does the missing step before it answers.
+    const unassessed = await prisma.planSession.findFirst({
+      where: { activityId: existing.id, execution: null },
+      select: { id: true },
+    })
+    if (unassessed) await assessSessionById(deps, { userId, sessionId: unassessed.id })
     return { activity: existing, created: false }
   }
   const already = await repeat()
@@ -330,7 +351,7 @@ export async function saveDoneActivity(
     })
     if (session) {
       if (session.activityId !== null) {
-        throw conflict(render(TEMPLATES['today.done.already-logged'], {}, 'mi'), { sessionId })
+        throw alreadyLogged(sessionId)
       }
       await assertLinkable(deps, session, {
         id: null,
@@ -355,10 +376,13 @@ export async function saveDoneActivity(
                 data: { activityId: row.id, linkSource: 'owner' },
               })
               if (count === 0) {
-                throw conflict(render(TEMPLATES['today.done.already-logged'], {}, 'mi'), {
-                  sessionId,
-                })
+                // Another activity holds the session: refuse. A session a re-plan removed between
+                // the check and the claim holds nothing: keep the run unlinked.
+                const held = await tx.planSession.findFirst({ where: { id: linkTo } })
+                if (held && held.activityId !== null) throw alreadyLogged(sessionId)
+                return 'unlinked'
               }
+              return undefined
             },
           }),
     })
