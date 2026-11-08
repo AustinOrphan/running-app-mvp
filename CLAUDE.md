@@ -224,6 +224,11 @@ its build runs `prisma migrate deploy` as a smoke test.
   Escape, and the ones under it are `inert`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
   `devDependencies`, so the Docker image installs without them.
+- Queued writes (ADR 0012, second addendum): the outbox takes only idempotent PUTs on `OUTBOX_ROUTES`: the
+  check-in, the fuel log, the strength log, Done (`PUT /api/activities/done/:activityId`, the client's
+  UUID is the activity's id, `saveDoneActivity`; a session that already has a run is a 409) and a
+  rating (`PUT /api/activities/:id/feedback`). Their hooks are in `web/api/activityOutbox.ts`. A new
+  queued write is a route, an idempotency rule on the server and a case in the ADR.
 - Offline shell (ADR 0012): the worker keeps the shell and exactly six API reads (`/api/auth/me`,
   `/api/setup`, `/api/settings`, `/api/today` with or without `?date=`, `/api/race/plan`,
   `/api/research/params`), 200 GETs only, in `rl-api-v1`; a new cached read is a change to the allowlist in `web/sw/sw.js`, to

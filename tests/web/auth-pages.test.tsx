@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { describe, expect, test, vi } from 'vitest'
 import { ToastProvider } from '../../web/components/Toast.tsx'
+import { getOutbox, resetOutboxForTests } from '../../web/pwa/outbox.ts'
 import { LoginPage } from '../../web/pages/LoginPage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
 import { SetupPage } from '../../web/pages/SetupPage.tsx'
@@ -360,6 +361,33 @@ describe('SettingsPage', () => {
     ).toBeInTheDocument()
   })
 
+  test('settings: Illustrations sits under Appearance, is off by default, saves at once on this device and shows the same "Saved"', async () => {
+    localStorage.removeItem('rl_illustrations')
+    const mock = mockApi(
+      settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
+    )
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    const appearance = within(screen.getByRole('region', { name: 'Appearance' }))
+    const box = appearance.getByRole('checkbox', { name: 'Illustrations' })
+    expect(box).not.toBeChecked()
+
+    await typist.click(box)
+    expect(box).toBeChecked()
+    expect(localStorage.getItem('rl_illustrations')).toBe('on')
+    expect(
+      await within(screen.getByRole('status', { name: 'Save status' })).findByText('Saved'),
+    ).toBeInTheDocument()
+    // a device setting: nothing goes to the server
+    expect(mock.calls.some((call) => call.method === 'PUT')).toBe(false)
+
+    await typist.click(box)
+    expect(localStorage.getItem('rl_illustrations')).toBe('off')
+    localStorage.removeItem('rl_illustrations')
+  })
+
   test('settings: a refused display name keeps what was typed and says so beside the field', async () => {
     mockApi(
       settingsRoutes(() => ({
@@ -549,6 +577,42 @@ describe('SettingsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
     expect(calls.some((c) => c.method === 'POST' && c.url === '/api/auth/logout')).toBe(true)
+  })
+
+  test('settings: Sign out with a run waiting names it first and can be cancelled', async () => {
+    resetOutboxForTests()
+    const { calls } = mockApi({
+      ...settingsRoutes(() => ({})),
+      'PUT /api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10': () => ({
+        status: 503,
+        body: { error: { code: 'internal', message: 'Offline.' } },
+      }),
+      'POST /api/auth/logout': () => ({ status: 204, body: undefined }),
+    })
+    await getOutbox().save('/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10', {
+      date: '2026-03-18',
+      type: 'run',
+      durationSec: 1800,
+    })
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.click(screen.getByRole('button', { name: 'Sign out' }))
+    const warning = await screen.findByRole('alert')
+    expect(warning).toHaveTextContent('Not yet sent from this phone: 1 run. Signing out clears it.')
+    expect(warning).toHaveFocus()
+    expect(calls.some((c) => c.url === '/api/auth/logout')).toBe(false)
+
+    await typist.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toHaveFocus()
+    expect(getOutbox().getState().entries).toHaveLength(1)
+
+    await typist.click(screen.getByRole('button', { name: 'Sign out' }))
+    await typist.click(await screen.findByRole('button', { name: 'Sign out anyway' }))
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(getOutbox().getState().entries).toEqual([])
   })
 
   test('settings with an empty display name renders without "null" or "undefined"', async () => {

@@ -899,6 +899,7 @@ export function GoalsPage() {
   } else if (goals.data.length === 0) {
     body = (
       <EmptyState
+        art="plan"
         title="No goals yet."
         body="Add the race you are training for. One goal at a time drives the plan."
         action={

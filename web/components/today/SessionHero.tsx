@@ -7,6 +7,7 @@ import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { isToRun } from '../../../shared/domain/sessionStatus.ts'
 import type { PlanSessionView, TodayHeat, TodayHero, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
+import { useQueuedDone } from '../../api/activityOutbox.ts'
 import { isFocusLost } from '../focusMain.ts'
 import { WhyDrawer } from '../WhyDrawer.tsx'
 import { CoolerStart } from './CoolerStart.tsx'
@@ -105,6 +106,8 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
   }, [sheet])
 
   const { session, advice, eased, target, linkedRun, others } = hero
+  // A Done saved on this phone with no connection: the session reads as waiting until it goes up.
+  const queuedDone = useQueuedDone(session.id)
   const rest = advice === 'rest' || session.kind === 'rest'
   const shown = eased ?? session
   const planned = { title: session.title, duration: minutes(session.durationMin) }
@@ -274,8 +277,13 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
       ) : null}
       {nextText === null ? null : <p className={styles.muted}>{nextText}</p>}
 
+      {queuedDone === null || strengthHero ? null : (
+        <p role="status" className={styles.muted}>
+          {render(TEMPLATES['today.done.waiting'], {}, units)}
+        </p>
+      )}
       <SessionActions
-        canAct={!rest && toRun && (strengthHero ? canLog : !readOnly)}
+        canAct={!rest && toRun && (strengthHero ? canLog : !readOnly && queuedDone === null)}
         canExplain={rules.length > 0}
         primaryLabel={
           strengthHero ? strengthWords(units, weightUnit).say('strength.label.log-sets') : undefined
@@ -327,6 +335,7 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
       {sheet === 'done' ? (
         <DoneSheet
           plan={shown}
+          sessionId={session.id}
           date={session.date}
           units={units}
           onClose={() => {

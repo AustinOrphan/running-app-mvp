@@ -63,14 +63,55 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('the run and rating routes', () => {
+  const DONE = '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+  const RATING = '/api/activities/r1/feedback'
+
+  test('match their own URL and nothing near it', () => {
+    const run = OUTBOX_ROUTES.find((route) => route.label === 'run')
+    const rating = OUTBOX_ROUTES.find((route) => route.label === 'rating')
+    expect(run?.matches(DONE)).toBe(true)
+    expect(rating?.matches(RATING)).toBe(true)
+    for (const url of [
+      '/api/activities',
+      '/api/activities/done',
+      '/api/activities/done/short',
+      '/api/activities/r1',
+      '/api/activities/r1/feedback/extra',
+      '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10/x',
+    ]) {
+      expect(run?.matches(url), url).toBe(false)
+    }
+    expect(rating?.matches('/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10')).toBe(false)
+  })
+
+  test('hold every queued entry when a send cannot go out, and say so in the notice when one is refused later', async () => {
+    const r = rig({ send: () => Promise.resolve({ kind: 'retry' }) })
+    await r.outbox.save(DONE, { date: DAY })
+    await r.outbox.save(RATING, { rpe: 4 })
+    expect((await r.store.read()).map((e) => e.held)).toEqual([true, true])
+
+    r.send.mockImplementation(() =>
+      Promise.resolve<SendResult>({ kind: 'refused', reason: 'Already logged.' }),
+    )
+    await r.outbox.flush()
+    expect(r.outbox.getState().notices.map((n) => n.message)).toEqual([
+      'A run saved on this phone was not added. Already logged. Enter it again if it still applies.',
+      'A rating saved on this phone was not added. Already logged. Enter it again if it still applies.',
+    ])
+  })
+})
+
 describe('the allowlist', () => {
   const route = (label: string) => OUTBOX_ROUTES.find((candidate) => candidate.label === label)
 
-  test('holds the check-in of a day, the fuel log of a run and the strength log of a session, and nothing else', () => {
+  test('holds the check-in of a day, the fuel log of a run, the strength log of a session, a run and a rating, and nothing else', () => {
     expect(OUTBOX_ROUTES.map((entry) => entry.label)).toEqual([
       'check-in',
       'fuel log',
       'strength log',
+      'run',
+      'rating',
     ])
   })
 
@@ -316,6 +357,101 @@ describe('replay', () => {
     await outbox.flush()
     expect(send).not.toHaveBeenCalled()
     expect(await store.read()).toEqual([])
+  })
+
+  test('a run and a rating never age out, where a check-in does', async () => {
+    const { outbox, store, send, online, clock } = rig()
+    const RUN = '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+    online.value = false
+    await outbox.save(OTHER_URL, { fatigue: 1 })
+    await outbox.save(RUN, { date: DAY })
+    await outbox.save('/api/activities/r1/feedback', { rpe: 5 })
+    clock.now += OUTBOX_MAX_AGE_MS + 1
+    online.value = true
+    await outbox.flush()
+    expect(send.mock.calls.map(([entry]) => entry.url)).toEqual([
+      RUN,
+      '/api/activities/r1/feedback',
+    ])
+    expect(await store.read()).toEqual([])
+  })
+
+  test('a conflict found on replay tells the listeners and says only the server sentence', async () => {
+    const r = rig({ send: () => Promise.resolve({ kind: 'retry' }) })
+    const RUN = '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+    await r.outbox.save(RUN, { date: DAY })
+    const seen: string[] = []
+    r.outbox.onConflict((entry) => seen.push(entry.url))
+    r.send.mockImplementation(() =>
+      Promise.resolve<SendResult>({ kind: 'refused', reason: 'Already logged.', conflict: true }),
+    )
+    await r.outbox.flush()
+    expect(seen).toEqual([RUN])
+    expect(r.outbox.getState().notices.map((n) => n.message)).toEqual(['Already logged.'])
+  })
+
+  test('only the already-logged 409 is a conflict; another 409 keeps the framing', async () => {
+    const RUN = '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+    const entry: OutboxEntry = { url: RUN, body: {}, queuedAt: 0, seq: 1, version: 1 }
+    mockApi({
+      [`PUT ${RUN}`]: () => ({
+        status: 409,
+        body: {
+          error: { code: 'conflict', message: 'Logged.', details: { code: 'session-logged' } },
+        },
+      }),
+    })
+    expect(await sendEntry(entry)).toEqual({ kind: 'refused', reason: 'Logged.', conflict: true })
+    mockApi({
+      [`PUT ${RUN}`]: () => ({
+        status: 409,
+        body: { error: { code: 'conflict', message: 'A run cannot fulfil Strength.' } },
+      }),
+    })
+    expect(await sendEntry(entry)).toEqual({
+      kind: 'refused',
+      reason: 'A run cannot fulfil Strength.',
+    })
+
+    // And the notice for the second keeps the "was not added … enter it again" framing.
+    const r = rig({
+      send: () =>
+        Promise.resolve<SendResult>({
+          kind: 'refused',
+          reason: 'A run cannot fulfil Strength.',
+        }),
+    })
+    await r.outbox.save(RUN, { date: DAY })
+    expect(r.outbox.getState().notices).toEqual([])
+    r.online.value = false
+    await r.outbox.save('/api/activities/done/bbbbbbbb-1111-4222-8333-444455556666', { date: DAY })
+    r.online.value = true
+    await r.outbox.flush()
+    expect(r.outbox.getState().notices.map((n) => n.message)).toEqual([
+      'A run saved on this phone was not added. A run cannot fulfil Strength. Enter it again if it still applies.',
+    ])
+  })
+
+  test('an entry that fails five times is parked behind the others, kept, and announced once', async () => {
+    const A = '/api/activities/done/aaaaaaaa-1111-4222-8333-444455556666'
+    const B = '/api/activities/r1/feedback'
+    const r = rig({
+      send: (entry) =>
+        Promise.resolve<SendResult>(entry.url === A ? { kind: 'retry' } : { kind: 'sent' }),
+    })
+    await r.outbox.save(A, { date: DAY })
+    await r.outbox.save(B, { rpe: 4 })
+    // The first save sent nothing of B (A is at the head and failed); four more failures park A.
+    for (let i = 0; i < 4; i += 1) await r.outbox.flush()
+    // Parked at the fifth failure: B goes out in the same pass, A stays, last in the queue.
+    expect((await r.store.read()).map((e) => [e.url, e.parked])).toEqual([[A, true]])
+    expect(r.outbox.getState().notices.map((n) => n.message)).toEqual([
+      'A run saved on this phone has not gone up after several tries. It stays here and is sent again later.',
+    ])
+    // Failing again does not announce it a second time, nor drop it.
+    for (let i = 0; i < 6; i += 1) await r.outbox.flush()
+    expect((await r.store.read()).map((e) => e.url)).toEqual([A])
+    expect(r.outbox.getState().notices).toHaveLength(1)
   })
 
   test('a send that never answers counts as no connection, and does not hold the queue', async () => {

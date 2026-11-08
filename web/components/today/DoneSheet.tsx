@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
@@ -6,7 +6,8 @@ import { doneEntryFor } from '../../../shared/domain/doneEntry.ts'
 import type { SessionKind } from '../../../shared/engine/types.ts'
 import type { Feel, Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
-import { useCreateActivity, type ActivityInput } from '../../api/activities.ts'
+import { type ActivityInput } from '../../api/activities.ts'
+import { newActivityId, useSaveDone, WriteRefused } from '../../api/activityOutbox.ts'
 import { useCachedUserId } from '../../api/auth.ts'
 import { ApiError, fieldErrors } from '../../api/client.ts'
 import {
@@ -33,7 +34,9 @@ export interface DonePlan {
 
 export interface DoneSheetProps {
   plan: DonePlan
-  /** The day the session is on, which is the day the run is logged on. */
+  /** The planned session the run marks done; the server links the run to it. */
+  sessionId: string
+  /** The day the session is on, which is the server's day for it, and the day the run is logged on. */
   date: string
   units: Units
   onClose: () => void
@@ -46,6 +49,7 @@ interface DoneForm {
   distance: string
   rpe: number | null
   feel: Feel | null
+  pain: number | null
 }
 
 type Errors = Partial<Record<'duration' | 'distance' | 'rpe' | 'feel', string>>
@@ -80,6 +84,8 @@ function readDraft(key: string): DoneForm | null {
       distance: draft.distance,
       rpe: typeof rpe === 'number' ? rpe : null,
       feel: typeof feel === 'number' && feel >= -2 && feel <= 2 ? (feel as Feel) : null,
+      pain:
+        typeof draft.pain === 'number' && draft.pain >= 0 && draft.pain <= 10 ? draft.pain : null,
     }
   } catch {
     return null
@@ -103,17 +109,21 @@ function clearDraft(key: string): void {
 }
 
 /**
- * "Log today's run": the session's minutes and distance already filled in, with RPE and how it
- * felt. One Save posts one activity, and the server links it to the session. Changes are kept on
- * this phone as a draft until the run is saved. With no connection Save is off and the sheet says
- * so: an activity is not an idempotent write, so it is never queued for later.
+ * "Log today's run": the session's minutes and distance already filled in, with RPE, how it felt
+ * and pain. One Save writes one activity under an id the sheet chose, so a repeat of the write is
+ * the same write, and the server links the run to the session. With no connection the run is kept
+ * on this phone (the outbox) and goes up later; the sheet says so. Changes are kept as a draft
+ * until the run is saved. A session the server already has a run for (another phone) is refused in
+ * plain words and nothing is stored.
  */
-export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProps) {
+export function DoneSheet({ plan, sessionId, date, units, onClose, onSaved }: DoneSheetProps) {
   const formId = useId()
   const toast = useToast()
   const navigate = useNavigate()
   const online = useOnline()
-  const create = useCreateActivity()
+  const save = useSaveDone()
+  // The id is the write's key: a retry in this sheet repeats the write instead of making a second.
+  const [activityId] = useState(newActivityId)
   const key = draftKey(date, useCachedUserId())
   const entry = doneEntryFor(plan.kind)
   const type = entry.type
@@ -127,10 +137,18 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
         distance: planned,
         rpe: null,
         feel: null,
+        pain: null,
       },
   )
   const [errors, setErrors] = useState<Errors>({})
   const [failure, setFailure] = useState<string | null>(null)
+  // The session was already logged elsewhere: nothing was stored, and saving again cannot help.
+  const [conflict, setConflict] = useState<string | null>(null)
+  const conflictLine = useRef<HTMLParagraphElement>(null)
+  // Save is replaced by "Back to Today" and held focus: it goes to the explanation, which scrolls into view.
+  useEffect(() => {
+    if (conflict !== null) conflictLine.current?.focus()
+  }, [conflict])
 
   function change(patch: Partial<DoneForm>) {
     const next = { ...form, ...patch }
@@ -138,7 +156,7 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
     writeDraft(key, next)
   }
 
-  function build(): { input: ActivityInput } | { errors: Errors } {
+  function build(): { input: ActivityInput & { sessionId: string } } | { errors: Errors } {
     const found: Errors = {}
     const durationSec = parseDurationInput(form.duration)
     if (durationSec === null) found.duration = DURATION_HINT
@@ -158,12 +176,13 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
     if (distanceM !== null) input.distanceM = distanceM
     if (form.rpe !== null) input.rpe = form.rpe
     if (form.feel !== null) input.feel = form.feel
-    return { input }
+    if (form.pain !== null) input.pain = form.pain
+    return { input: { ...input, sessionId } }
   }
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (!online || create.isPending) return
+    if (save.isPending || conflict !== null) return
     const built = build()
     if ('errors' in built) {
       setErrors(built.errors)
@@ -172,37 +191,54 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
     }
     setErrors({})
     setFailure(null)
-    create.mutate(built.input, {
-      onSuccess: (saved) => {
+    // The sheet closes with the save, before a per-call callback would run, so the promise settles here.
+    save.mutateAsync({ id: activityId, body: built.input }).then(
+      (landed) => {
         clearDraft(key)
-        toast.show(
-          render(TEMPLATES[isRun ? 'today.done.saved-run' : 'today.done.saved-session'], {}, units),
-          {
-            action: {
-              label: render(
-                TEMPLATES[isRun ? 'today.done.see-run' : 'today.done.see-session'],
-                {},
-                units,
-              ),
-              onClick: () => {
-                void navigate(`/activities/${encodeURIComponent(saved.id)}`)
+        if (landed === 'queued') {
+          toast.show(render(TEMPLATES['today.done.queued'], {}, units))
+        } else {
+          toast.show(
+            render(
+              TEMPLATES[isRun ? 'today.done.saved-run' : 'today.done.saved-session'],
+              {},
+              units,
+            ),
+            {
+              action: {
+                label: render(
+                  TEMPLATES[isRun ? 'today.done.see-run' : 'today.done.see-session'],
+                  {},
+                  units,
+                ),
+                onClick: () => {
+                  void navigate(`/activities/${encodeURIComponent(activityId)}`)
+                },
               },
             },
-          },
-        )
+          )
+        }
         onSaved()
       },
-      onError: (error) => {
+      (error: unknown) => {
+        if (error instanceof WriteRefused && error.conflict) {
+          clearDraft(key)
+          setConflict(error.message)
+          return
+        }
         const mapped: Errors = {}
         for (const [path, message] of Object.entries(fieldErrors(error))) {
           const field = SERVER_FIELDS[path]
           if (field !== undefined) mapped[field] = message
         }
         setErrors(mapped)
-        const reason = error instanceof ApiError ? error.message : 'Something went wrong.'
+        const reason =
+          error instanceof ApiError || error instanceof WriteRefused
+            ? error.message
+            : 'Something went wrong.'
         setFailure(render(TEMPLATES['today.done.not-saved'], { reason }, units))
       },
-    })
+    )
   }
 
   const sentence =
@@ -237,15 +273,15 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
               {render(TEMPLATES['today.done.offline'], {}, units)}
             </p>
           )}
-          <Button
-            type="submit"
-            form={formId}
-            variant="primary"
-            disabled={!online}
-            loading={create.isPending}
-          >
-            Save
-          </Button>
+          {conflict === null ? (
+            <Button type="submit" form={formId} variant="primary" loading={save.isPending}>
+              Save
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={onSaved}>
+              Back to Today
+            </Button>
+          )}
         </>
       }
     >
@@ -298,6 +334,22 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
             change({ feel })
           }}
         />
+        <ScaleChips
+          legend="Pain"
+          min={0}
+          max={10}
+          touch
+          value={form.pain}
+          onChange={(pain) => {
+            change({ pain })
+          }}
+          hint="0 is none, 10 is the worst. Tap again to clear."
+        />
+        {conflict === null ? null : (
+          <p ref={conflictLine} tabIndex={-1} role="status" className={styles.notice}>
+            {conflict}
+          </p>
+        )}
         {failure === null ? null : (
           <p role="alert" className={styles.notice}>
             {failure}

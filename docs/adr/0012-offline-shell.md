@@ -1,6 +1,6 @@
 # 0012. The installed app opens offline from a hand-written service worker that keeps six reads (five at first, the race plan added 2026-11-07), and the device's copy of health data is purged with the session
 
-Status: Accepted 2026-10-23 (#554); amended 2026-11-07 (#659; the race plan is a sixth kept read, see the addendum)
+Status: Accepted 2026-10-23 (#554); amended 2026-11-07 (#659; the race plan is a sixth kept read, see the addendum); amended 2026-11-07 (Done and a rating are queued writes, see the second addendum)
 
 ## Context
 
@@ -288,3 +288,108 @@ with no signal, so the card was unreadable where it was wanted.
   a renamed or moved stop leaves its note behind.
 - A new cached read is still one change to the allowlist in `web/sw/sw.js`, its test in
   `tests/unit/shared/sw.test.ts` and the list in this ADR.
+
+## Addendum 2026-11-07: Done and a rating are queued writes
+
+### Context
+
+A runner often logs at a trailhead with no signal. Done (`DoneSheet`) posted an activity, which is not
+idempotent, so it was refused offline; the rating of a run used `PATCH`, which the outbox does not take.
+The outbox only holds idempotent PUTs of a URL on its allowlist (`OUTBOX_ROUTES`). No cached read is
+added by this change.
+
+### Decision
+
+- **Done.** `PUT /api/activities/done/:activityId`. The sheet makes a UUID when it opens and the server
+  stores the activity under that id (`saveDoneActivity`, `server/services/activityStore.ts`), so no
+  column or migration is needed. The id has 8 to 64 of `[A-Za-z0-9_-]`. A repeat of an id the runner
+  already owns answers 200 with the stored row and writes nothing, so a replay after a lost answer, or
+  from two tabs, stores one activity and never undoes a later edit. An id held by another runner is a 404. Two sends at once end as one create and one repeat (the loser's unique violation is read as a
+  repeat).
+- **Conflict.** The body carries `sessionId`, the planned session marked done. When that session
+  already has an activity (done on another phone, or matched from a sync) the write is a 409 and
+  stores nothing. The create and the claim of the session are one transaction (`updateMany` where
+  `activityId` is null; a count of 0 rolls the activity back), so two sends for one session end as one
+  201 and one 409, and a failure after the insert cannot leave an unlinked run that a replay would
+  answer 200 for. A session the active plan no longer holds is not an error: the run is kept and the
+  matcher ties it to the plan as for any other run.
+- **Pain.** The sheet gains the 0 to 10 pain scale already used by the rating and the activity page; it
+  is the existing `Activity.pain`. No pain-area chips exist anywhere (the check-in takes a free-text
+  area, stored on the day, not on a run), so none is added here.
+- **Rating.** `PUT /api/activities/:id/feedback`, the same handler as `PATCH` (kept for the activity
+  page). It stores the keys it names and leaves the others, so a second queued rating merges into the
+  first (`combine: 'merge'`) and a replay changes nothing.
+- **Outbox.** Two allowlist entries, `run` and `rating`. An entry whose send could not go out, and the
+  ones behind it, are marked `held`. The page shows a held Done in the session card ("Saved on this
+  phone, waiting to go up.", Done hidden so it cannot be made twice), a held rating in place of its
+  form, and a toast says when a held entry has gone up. A 409 sets `conflict` on the refused result: the
+  sheet shows the server's sentence in a status line, takes focus, and swaps Save for "Back to Today"; a conflict found on
+  replay is a dismissible notice on Today that says the server's sentence alone, and reads Today
+  again so the card agrees. Only the "already has a run" 409 counts as that conflict: it carries
+  `details.code` `session-logged`. Any other 409 (a re-plan changed the session's kind and the run no
+  longer fits it) and every other refusal on replay quote the sentence and say to enter it again
+  (`quoteReason`), so a run is never lost without that said.
+- **Parking.** A run and a rating never expire, so an entry that fails the same way every time (a
+  deterministic 5xx or 429) would hold the queue for good. After 5 failed sends it is moved behind the
+  others (`parked`), kept, and a notice says it stays on the phone and is sent again later; the rest of
+  the queue goes on in the same pass.
+- **Replay.** A repeat of an id also runs the assessment of its linked session when that never
+  happened (a failure after the claim committed), so the replay's 200 describes a finished write.
+  A session a re-plan removed between the check and the claim keeps the run unlinked for the matcher;
+  a 409 is only for a session another activity holds.
+- **Dates.** The sheet sends `session.date` from Today's payload, the server's day. The phone's clock
+  and time zone are not read, and no time of day is shown for a queued write.
+- **Expiry.** A run and a rating do not expire (`expires: false` on their routes): the PUT is
+  idempotent, the date is historical and the entry is the only record of the run. The other entries
+  still drop after 7 days.
+- **Wording.** A write can be held for want of a connection or because the server did not answer, so
+  the toast says "It goes up as soon as the server can be reached."; the card keeps a short line.
+- **Sign-out.** Settings names a waiting run or rating before signing out ("Not yet sent from this
+  phone: 1 run. Signing out clears it.") and offers Cancel. A 401 purges at once, as the rule above
+  requires, and so loses a waiting run without that warning; sign-in on another account does the same.
+- **Purge.** Unchanged. The entries live in the outbox, emptied only by `purgeDeviceData()`; the draft
+  keeps its place in `purgeDrafts()` and now holds the pain value too.
+
+### Reasons
+
+- **Fact:** `saveStrengthLog` is an idempotent replace on a client-chosen id and `OUTBOX_ROUTES` already
+  holds it (`web/pwa/outbox.ts`, read 2026-11-07), so the same shape fits a run.
+- **Fact:** `Activity.id` is a `String @id` with a cuid default (`prisma/schema.prisma`), so a UUID fits
+  and the primary key enforces one row per id, with no new column or unique index. Verified by
+  `tests/api/doneActivity.test.ts` (a replay and two concurrent sends store one row).
+- **Opinion:** Create-if-absent beats replace for a run. The activity can be edited, rated and linked
+  after the first send, and a replay of the first body would silently undo that; the replay window is
+  the minutes after a lost answer.
+- **Opinion:** A conflict on the session beats a possible-duplicate flag. The duplicate pass compares
+  figures and would keep both runs; the runner marked one session done once, and the other phone's run
+  stands.
+- **Opinion:** Keeping the run when its session has moved beats a 404. A 404 would drop the entry
+  (`refused`) and the runner's only record of the run would be gone.
+- **Opinion:** Marking everything behind a failed send `held` beats marking only the failed one: the
+  runner was told all of them are saved on the phone.
+- **Preference:** The long sentence is spoken once, in the toast; the card carries a short line, so a
+  screen reader does not read the same sentence twice.
+
+### Alternatives
+
+- **A `clientId` column with a unique index on `(userId, clientId)`.** Against (**Opinion**): a
+  migration and a state-model entry for what the primary key already gives.
+- **Queue the existing `POST /api/activities`.** Against (**Fact**): a POST is not idempotent, and
+  the outbox rejects a URL outside its allowlist.
+- **Replace the stored activity on a repeat, as the strength log does.** Against (**Opinion**): see the
+  reason above; a strength log is one document the sheet owns, a run is edited elsewhere.
+- **Queue the rating of the activity page as well.** Against (**Opinion**): that page cannot open
+  offline (its detail read is not kept), so it keeps `PATCH`.
+
+### Consequences
+
+- A phone that logs offline and a second device that logs the same session first: the second write is
+  refused with one plain sentence and the phone's run is not stored. The runner can enter it again as
+  an unlinked activity from Activities.
+- A check-in, fuel log or strength log older than 7 days is dropped unsent and without a notice
+  (unchanged); a run and a rating are kept until they go up or the session ends.
+- A 401 (an expired session) clears a waiting run with no warning: the outbox is health data and is
+  emptied only through `purgeDeviceData()`.
+- The `held` flag is stored in the entry in IndexedDB; an entry written by an earlier build has none
+  and is treated as not waiting until its first failed send.
+- The strength sheet's own save of "without sets" still posts an activity and needs a connection.

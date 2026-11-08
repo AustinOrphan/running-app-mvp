@@ -28,3 +28,8 @@
   line-height: var(--lh-sm);
   font-weight: 600;
 }
+
+.notice:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}

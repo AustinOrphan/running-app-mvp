@@ -201,7 +201,10 @@ describe('a strength log saved through the outbox', () => {
     await act(async () => {
       answer = await result.current.save.mutateAsync({ logId: LOG_ID, body: BODY })
     })
-    expect(answer).toEqual({ status: 'rejected', reason: 'That activity already has a log.' })
+    expect(answer).toEqual({
+      status: 'rejected',
+      reason: 'That activity already has a log.',
+    })
     expect(getOutbox().getState().entries).toEqual([])
   })
 })

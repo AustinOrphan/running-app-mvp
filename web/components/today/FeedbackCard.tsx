@@ -1,9 +1,16 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ActivityListItem, Units } from '../../../shared/types.ts'
 import { formatDistance, formatDuration } from '../../../shared/units.ts'
-import { useSaveFeedback } from '../../api/activities.ts'
+import {
+  useQueuedRating,
+  useSaveRating,
+  WriteRefused,
+  type Landed,
+} from '../../api/activityOutbox.ts'
 import { ApiError } from '../../api/client.ts'
+import { render } from '../../../shared/copy/template.ts'
+import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { TYPE_LABELS } from '../../pages/ActivityForm.tsx'
 import { Button } from '../Button.tsx'
 import { FeedbackFields, type FeedbackValues } from '../FeelPicker.tsx'
@@ -39,39 +46,76 @@ function FeedbackItem({
 }: {
   activity: ActivityListItem
   units: Units
-  onSaved: () => void
+  onSaved: (landed: Landed) => void
 }) {
-  const save = useSaveFeedback(activity.id)
+  const save = useSaveRating(activity.id)
+  const queued = useQueuedRating(activity.id)
   // Starts from the saved pain so a save that only sets RPE or feel does not clear it.
   const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: activity.pain })
   const touched = value.rpe !== null || value.feel !== null || value.pain !== activity.pain
   const line = activityLine(activity, units)
+  const waiting = useRef<HTMLParagraphElement>(null)
+  // The Save button held focus and is gone once the rating waits; focus goes to the line that says so.
+  const pickers = useRef<HTMLDivElement>(null)
+  // Set by the runner's own Save, so a rating that was already waiting when the page opened does
+  // not take focus.
+  const saved = useRef(false)
+  useEffect(() => {
+    if (queued) {
+      pickers.current?.setAttribute('inert', '')
+      if (saved.current) {
+        saved.current = false
+        waiting.current?.focus()
+      }
+    } else pickers.current?.removeAttribute('inert')
+  }, [queued])
 
   return (
     <li className={styles.feedbackItem}>
       <p className={styles.feedbackTitle}>
         <RunLink id={activity.id} line={line} />
       </p>
-      <FeedbackFields value={value} onChange={setValue} />
-      <div className={styles.feedbackActions}>
-        <Button
-          variant="primary"
-          disabled={!touched}
-          loading={save.isPending}
-          onClick={() => {
-            // The saved run drops out of the card, which unmounts this item before a mutate-level
-            // onSuccess could fire. The promise settles anyway, and the page owns the toast.
-            save.mutateAsync(value).then(onSaved, () => {
-              // The error shows in the card; there is nothing more to do here.
-            })
-          }}
-        >
-          Save
-        </Button>
+      {/* Waiting on the phone, the pickers stay in view but cannot be changed (there is no Save). */}
+      <div ref={pickers}>
+        <FeedbackFields value={value} onChange={setValue} />
       </div>
+      {queued ? (
+        <p ref={waiting} tabIndex={-1} role="status" className={styles.caption}>
+          {render(TEMPLATES['today.rate.waiting'], {}, units)}
+        </p>
+      ) : (
+        <div className={styles.feedbackActions}>
+          <Button
+            variant="primary"
+            disabled={!touched}
+            loading={save.isPending}
+            onClick={() => {
+              // The saved run drops out of the card, which unmounts this item before a mutate-level
+              // onSuccess could fire. The promise settles anyway, and the page owns the toast.
+              saved.current = true
+              save.mutateAsync(value).then(
+                (landed) => {
+                  if (landed === 'sent') saved.current = false
+                  onSaved(landed)
+                },
+                () => {
+                  saved.current = false
+                  // The error shows in the card; there is nothing more to do here.
+                },
+              )
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      )}
       {save.isError ? (
         <p role="alert" className={styles.feedbackError}>
-          {`Feedback not saved. ${save.error instanceof ApiError ? save.error.message : 'Something went wrong.'} Try again.`}
+          {`Feedback not saved. ${
+            save.error instanceof ApiError || save.error instanceof WriteRefused
+              ? save.error.message
+              : 'Something went wrong.'
+          } Try again.`}
         </p>
       ) : null}
     </li>
@@ -118,7 +162,7 @@ export function FeedbackCard({
 }: {
   unrated: ActivityListItem[]
   units: Units
-  onSaved: () => void
+  onSaved: (landed: Landed) => void
   /** A run the hero already asks about, left out so it is not asked twice. */
   exclude?: string | null
 }) {
