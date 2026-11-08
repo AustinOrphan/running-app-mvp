@@ -14,12 +14,13 @@
   "topics": ["terrain-elevation"],
   "findings": [
     "Oxygen and energy costs of running were correlated between all slopes when pooled over speeds (all r2 at least 0.27, p at most 0.021), except between the steepest uphill (+20%) and the level and the steepest downhill (-20%) slopes.",
-    "Running economy at level and shallow slopes is related to knee-extensor strength; on steep slopes of about 20% either way, running energetics are determined by different factors (reduced bouncing mechanism, muscle strength for negative slopes, cardiopulmonary fitness for positive slopes).",
+    "Economy was inversely related to knee-extensor isometric torque in level and downhill running (except at -20%), but not on any uphill slope; the authors conclude that on steep slopes of about 20% either way, running energetics are determined by different factors (reduced bouncing mechanism, muscle strength for negative slopes, cardiopulmonary fitness for positive slopes).",
     "The optimal downhill grade (lowest oxygen cost) varied between running speeds and ranged from -14% to -20%."
   ],
   "limitations": "Laboratory treadmill, 4-minute bouts, 29 healthy subjects of mixed fitness; energy cost, not the speed a runner keeps over a long outdoor run. The abstract does not state the sex split or fitness level.",
   "implications": [
-    "A runner's cost on shallow slopes tracks their level cost, but not on slopes of about 20%: a personal curve is plausible on rolling terrain and unreliable at the steep ends, so steep bands stay on the default.",
+    "Energetics on steep slopes (about 20% either way) differ from those on level and shallow slopes, so a figure measured on shallow slopes does not carry to the steep ends; the I13 curve keeps the open steep ends on the default.",
+    "The paper gives no evidence for or against a personal speed-by-gradient curve. It measures energy cost on a treadmill, not the speed a runner keeps outdoors.",
     "The downhill optimum is not fixed at -20% and moves with speed (-14% to -20%); the Minetti minimum is a population figure."
   ],
   "verification": {
