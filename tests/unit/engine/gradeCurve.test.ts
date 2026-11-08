@@ -4,11 +4,13 @@ import {
   backtestGradeCurve,
   gainEquivalent,
   gradeCurve,
+  personalClimbOf,
   personalGainEquivalent,
   minSignTestPairs,
   signTestP,
   type GradeCurveRun,
 } from '../../../shared/engine/gradeCurve.ts'
+import type { Activity } from '../../../shared/types.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { athlete, MINETTI_RATIOS, scaledCurve, syntheticRuns } from './gradeCurve-fixtures.ts'
 
@@ -308,5 +310,29 @@ describe('gainEquivalent', () => {
 
   test('a runner no slower on a climb than on the flat has no extra', () => {
     expect(gainEquivalent(5, 1)).toBe(0)
+  })
+})
+
+describe('personalClimbOf', () => {
+  const asActivities = (runs: GradeCurveRun[], type = 'run'): Activity[] =>
+    runs.map(
+      (run) => ({ id: run.id, date: run.date, type, terrainBins: run.bins }) as unknown as Activity,
+    )
+
+  test('is null without a personal climbing band', () => {
+    expect(personalClimbOf([], TODAY)).toBeNull()
+    const runs = syntheticRuns(athlete(scaledCurve(0.5)), 4, TODAY, 3, 2)
+    expect(personalClimbOf(asActivities(runs), TODAY)).toBeNull()
+  })
+
+  test('hands over the figure of the curve and the runs behind it; races are not read', () => {
+    const runs = syntheticRuns(athlete(scaledCurve(0.5)), 40, TODAY, 3, 2)
+    const curve = gradeCurve(runs, TODAY)
+    const climb = personalClimbOf(asActivities(runs), TODAY)
+    expect(climb).toEqual({
+      gainEquivalentM: personalGainEquivalent(curve),
+      runs: curve.eligibleRuns,
+    })
+    expect(personalClimbOf(asActivities(runs, 'race'), TODAY)).toBeNull()
   })
 })

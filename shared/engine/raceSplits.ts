@@ -10,6 +10,7 @@
 //
 // Pure: no clock, no I/O. Every number comes from `P`.
 import type { SupportLevel } from '../types.ts'
+import type { ClimbBlend } from './types.ts'
 import { clockAt, type RaceClock } from './raceClock.ts'
 import { P } from './params/index.ts'
 
@@ -44,6 +45,11 @@ export interface SplitsInput {
   startMin: number | null
   /** The carbohydrate rate in grams per hour, low to high (the tolerated rung). */
   rateGPerH: readonly [number, number]
+  /**
+   * What the runner's own climbing did to the prediction behind the expected range (rule L5); its
+   * `usedM` replaces `l5.gainEquivalentM` in the weights. Absent: the default weighs the climb.
+   */
+  climb?: ClimbBlend | null
 }
 
 export interface SplitRow {
@@ -87,12 +93,14 @@ export interface RaceSplits {
   climbOverCourse: boolean
   /** Some segment has no climb of its own and no course climb to share. */
   climbUnknown: boolean
+  /** The runner's own climbing moved the weights (rule L5); null when the default weighed the climb. */
+  climb: ClimbBlend | null
   rules: string[]
 }
 
-/** The weight of a segment: its distance plus its climb at `l5.gainEquivalentM` flat metres each. */
-function weightOf(segmentM: number, gainM: number): number {
-  return segmentM + P.l5.gainEquivalentM.value * gainM
+/** The weight of a segment: its distance plus its climb at `gainEquivalentM` flat metres each. */
+function weightOf(segmentM: number, gainM: number, gainEquivalentM: number): number {
+  return segmentM + gainEquivalentM * gainM
 }
 
 /** Whether the minute of the day (from midnight) lies inside the D1 daylight clock. */
@@ -111,7 +119,8 @@ function isDaylight(minuteOfDay: number): boolean {
  *    the finish is appended.
  * 2. A segment's climb is the runner's, else `r1.unenteredClimbShare` of the course climb left after
  *    the entered rows, spread over the segments without one by distance (0 without a course climb).
- * 3. A segment weighs its distance plus `l5.gainEquivalentM` metres per metre of climb; the share
+ * 3. A segment weighs its distance plus `l5.gainEquivalentM` metres per metre of climb (the figure
+ *    the prediction used, when the runner's own climbing moved it, rule L5); the share
  *    of the race at a row is the weight up to it over the weight of the course.
  * 4. The arrival range at a row is the expected range times that share, rounded outward to
  *    `r1.arrivalRoundMin`; the finish row is the expected range itself, so an interior row lies
@@ -143,7 +152,8 @@ export function splitsFor(input: SplitsInput): RaceSplits | null {
     s.entered !== null ? s.entered : unenteredM > 0 ? (spread * s.segmentM) / unenteredM : 0,
   )
 
-  const weights = segments.map((s, i) => weightOf(s.segmentM, gains[i] ?? 0))
+  const gainEquivalentM = input.climb?.usedM ?? P.l5.gainEquivalentM.value
+  const weights = segments.map((s, i) => weightOf(s.segmentM, gains[i] ?? 0, gainEquivalentM))
   const total = weights.reduce((sum, w) => sum + w, 0)
 
   const step = P.r1.arrivalRoundMin.value * SEC_PER_MIN
@@ -199,6 +209,7 @@ export function splitsFor(input: SplitsInput): RaceSplits | null {
     courseGainKnown,
     climbOverCourse: courseGainKnown && enteredSum > input.courseGainM,
     climbUnknown: !courseGainKnown && segments.some((s) => s.entered === null),
+    climb: input.climb ?? null,
     rules,
   }
 }

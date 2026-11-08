@@ -311,6 +311,20 @@ describe('the events [C9, L1 to L6]', () => {
     })
   })
 
+  it('marks a row whose time the runner own climbing moved, and no other (L5, I13)', () => {
+    const state = stateWith({ races: [tenK], csMps: 3.5, dPrimeM: 150, csEfforts: 3 })
+    const own = { ...state, climb: { gainEquivalentM: 7, runs: 23 } }
+    const flat = eventRow(own, { key: 'custom', distanceM: 20000, gainM: 0 })
+    const plain = eventRow(state, { key: 'custom', distanceM: 20000, gainM: 800 })
+    const hilly = eventRow(own, { key: 'custom', distanceM: 20000, gainM: 800 })
+    expect(flat.ownClimb).toBeNull()
+    expect(plain.ownClimb).toBeNull()
+    expect(hilly.ownClimb?.runs).toBe(23)
+    expect(hilly.ownClimb?.shiftSec).toBe(hilly.time!.midSec - plain.time!.midSec)
+    expect(hilly.time!.midSec).toBeLessThan(plain.time!.midSec)
+    expect(hilly.grade).toBe('D')
+  })
+
   it('counts climb as flat distance and says so, as a trail course (L5)', () => {
     const state = stateWith({ races: [tenK], csMps: 3.5, dPrimeM: 150, csEfforts: 3 })
     const flat = eventRow(state, { key: 'custom', distanceM: 20000, gainM: 0 })

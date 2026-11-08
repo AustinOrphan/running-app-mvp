@@ -1,7 +1,7 @@
-// The personal speed-by-grade curve [rule I13]. Pure and deterministic; display only, nothing in the
-// plan, the zones or the predictions reads it (`personalGainEquivalent` is the one function that
-// could replace `l5.gainEquivalentM`; replacing it is a later decision of the owner, default no, and
-// no engine path calls it).
+// The personal speed-by-grade curve [rule I13]. Pure and deterministic. My paces shows it. The one
+// other reader is the prediction: `personalClimbOf` hands the state the runner's own flat metres per
+// metre of gain, and `predict.ts` blends it a little into `l5.gainEquivalentM` (rule L5). The plan,
+// the zones and `gapDistanceM` do not read it.
 //
 // A run's terrain bins (`Activity.terrainBins`) give its speed in each grade band. Divided by the
 // run's own flat-band speed the figure no longer depends on the day's effort. Across the runs of
@@ -14,7 +14,8 @@ import {
   TERRAIN_EDGES_PCT,
   TERRAIN_WINDOW_M,
 } from '../domain/terrainShape.ts'
-import type { TerrainBins } from '../types.ts'
+import type { Activity, TerrainBins } from '../types.ts'
+import { isDuplicate } from './load.ts'
 import { P } from './params/index.ts'
 import { minettiCost } from './terrain.ts'
 
@@ -372,8 +373,8 @@ export function gainEquivalent(gradePct: number, ratio: number): number {
 
 /**
  * The climbing bands that show the runner's own ratio, as flat metres per metre of gain, weighted
- * by their minutes; null when no climbing band does. Nothing calls it: whether the personal curve may
- * replace `l5.gainEquivalentM` in predictions is a later decision of the owner, default no.
+ * by their minutes; null when no climbing band does. A prediction blends it into
+ * `l5.gainEquivalentM` with the weights and the cap of rule L5, never in its place.
  */
 export function personalGainEquivalent(curve: GradeCurve): number | null {
   let weight = 0
@@ -384,4 +385,24 @@ export function personalGainEquivalent(curve: GradeCurve): number | null {
     sum += band.minutes * gainEquivalent(band.midPct, band.ratio)
   }
   return weight > 0 ? sum / weight : null
+}
+
+/** The runs the curve reads: runs (not races) that are not flagged duplicates. */
+export function curveRunsOf(activities: readonly Activity[]): GradeCurveRun[] {
+  return activities
+    .filter((a) => a.type === 'run' && !isDuplicate(a))
+    .map((a) => ({ id: a.id, date: a.date, bins: a.terrainBins }))
+}
+
+/**
+ * The runner's own climbing as the state carries it [rule L5]: `personalGainEquivalent` of the
+ * curve on `today` and the runs behind the curve; null when no climbing band shows a personal ratio.
+ */
+export function personalClimbOf(
+  activities: readonly Activity[],
+  today: string,
+): { gainEquivalentM: number; runs: number } | null {
+  const curve = gradeCurve(curveRunsOf(activities), today)
+  const gainEquivalentM = personalGainEquivalent(curve)
+  return gainEquivalentM === null ? null : { gainEquivalentM, runs: curve.eligibleRuns }
 }
