@@ -7,7 +7,8 @@ import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../../shared/domain/weight.ts
 import type { Units, UserSettings, WeightUnit } from '../../shared/types.ts'
 import { useLogout } from '../api/auth.ts'
 import { useWaitingRecords } from '../api/activityOutbox.ts'
-import { fieldErrors } from '../api/client.ts'
+import { ApiError, fieldErrors } from '../api/client.ts'
+import { useDownloadExport } from '../api/export.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
@@ -43,6 +44,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const illustrations = useIllustrations()
   const update = useUpdateSettings()
   const logout = useLogout()
+  const download = useDownloadExport()
   const offline = useOfflineStatus()
   // A run or rating that has not gone up is named before a sign-out clears it.
   const waiting = useWaitingRecords()
@@ -325,6 +327,40 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             Export activities
           </a>
         </p>
+        <p className={styles.note}>{render(TEMPLATES['export.included'], {}, units)}</p>
+        <p className={styles.note}>{render(TEMPLATES['export.not-included'], {}, units)}</p>
+        <div>
+          <Button
+            onClick={() => {
+              download.mutate()
+            }}
+            busy={download.isPending}
+            aria-describedby="export-status"
+          >
+            {render(TEMPLATES['export.button'], {}, units)}
+          </Button>
+        </div>
+        <div id="export-status" role="status" aria-live="polite">
+          {download.isPending ? (
+            <p className={styles.note}>{render(TEMPLATES['export.busy'], {}, units)}</p>
+          ) : null}
+          {download.isSuccess ? (
+            <p className={styles.note}>{render(TEMPLATES['export.done'], {}, units)}</p>
+          ) : null}
+        </div>
+        {download.isError ? (
+          <p role="alert" className={styles.alert}>
+            {render(
+              TEMPLATES[
+                download.error instanceof ApiError && download.error.status === 429
+                  ? 'export.running'
+                  : 'export.error'
+              ],
+              {},
+              units,
+            )}
+          </p>
+        ) : null}
         <p className={styles.note}>{render(OFFLINE_USE[offline], {}, units)}</p>
       </section>
 
