@@ -9,18 +9,20 @@
 //   are kept in `rl-shell-<build id>` at install. Two builds are kept: a page that is still open on
 //   the old build finds its lazy chunks after an update, because `/assets/*` is served from any
 //   kept build. Files of the shell are answered from the cache first.
-// - Network first, with a 2.5 s limit, for navigations and for five API reads: the network's
+// - Network first, with a 2.5 s limit, for navigations and for six API reads: the network's
 //   answer, else the copy kept on the phone when the request fails, answers 502 to 504 or is not
 //   answered in time. A navigation falls back to the kept page.
 // - The API reads are exactly the allowlist below. Only a 200 answer to a GET is kept, in
-//   `rl-api-v1`, and served for 36 hours (14 days for the research parameters). The time limit
+//   `rl-api-v1`, and served for 36 hours (4 days for the race plan, 14 for the research
+//   parameters). The time limit
 //   bounds how long a copy is served; an expired one is deleted when a read meets it, when Today is
 //   saved, and at the first request of each worker's life. A 401 empties the cache, because the
 //   session is gone and the copies are health data of that session.
 // - Today's copy is picked by the server's day: the kept answer whose date is today in the
 //   `tz` it carries, else the newest older one. The page marks that answer `servedFromCache`. The
 //   watch slot and the health note about the watch are stripped from every kept copy, because a
-//   saved "On your watch" or "not on the watch yet" would be false.
+//   saved "On your watch" or "not on the watch yet" would be false. The race plan's copy is marked
+//   the same way and says when it was kept (`savedAt`).
 // - A throttled warm (once in ten minutes) keeps the allowlist filled and fetches tomorrow's
 //   preview, so the app opens offline at a trailhead with the next day's session.
 //
@@ -44,6 +46,8 @@ const NETWORK_TIMEOUT_MS = 2500
 const HOUR_MS = 60 * 60 * 1000
 const API_TTL_MS = 36 * HOUR_MS
 const RESEARCH_TTL_MS = 14 * 24 * HOUR_MS
+/** The race plan outlasts a race: the copy of the evening before is still wanted at hour 35. */
+const RACE_TTL_MS = 4 * 24 * HOUR_MS
 const WARM_INTERVAL_MS = 10 * 60 * 1000
 
 /** The header that carries the time (epoch milliseconds) a kept answer was saved. */
@@ -52,12 +56,14 @@ const SAVED_AT = 'x-rl-saved-at'
 const WARM_STAMP = '/__rl/warm'
 
 const TODAY_PATH = '/api/today'
+const RACE_PATH = '/api/race/plan'
 /** The API reads that are kept: these paths, and nothing else. */
 const API_ROUTES = [
   { path: '/api/auth/me', ttlMs: API_TTL_MS },
   { path: '/api/setup', ttlMs: API_TTL_MS },
   { path: '/api/settings', ttlMs: API_TTL_MS },
   { path: TODAY_PATH, ttlMs: API_TTL_MS },
+  { path: RACE_PATH, ttlMs: RACE_TTL_MS },
   { path: '/api/research/params', ttlMs: RESEARCH_TTL_MS },
 ]
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -228,11 +234,15 @@ async function todayCopy(cache, route) {
   return older.length > 0 ? older[0].response : undefined
 }
 
-/** A copy of Today's answer that tells the page it is the phone's own. */
-async function marked(response) {
+/**
+ * A copy of a kept answer that tells the page it is the phone's own. The race plan's copy also says
+ * when it was kept (`savedAt`, an ISO time): its payload names no time of its own, as Today's does.
+ */
+async function marked(response, savedAt) {
   try {
     const body = await response.json()
     body.servedFromCache = true
+    if (savedAt !== undefined) body.savedAt = new Date(savedAt).toISOString()
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -245,6 +255,10 @@ async function marked(response) {
 /** The kept copy for a request, in the form the page gets it. */
 async function readCopy(url, route) {
   const cache = await caches.open(API_CACHE)
+  if (route.path === RACE_PATH) {
+    const kept = await fresh(cache, url.href, route.ttlMs)
+    return kept === undefined ? undefined : marked(kept, Number(kept.headers.get(SAVED_AT)))
+  }
   if (route.path !== TODAY_PATH) return fresh(cache, url.href, route.ttlMs)
   const copy =
     url.search === '' ? await todayCopy(cache, route) : await fresh(cache, url.href, route.ttlMs)
@@ -419,7 +433,7 @@ async function warmCache(todayDate) {
     if (answer.unauthorized === true) return false
     date = dateOf(answer.body)
   }
-  for (const path of ['/api/auth/me', '/api/setup', '/api/settings']) {
+  for (const path of ['/api/auth/me', '/api/setup', '/api/settings', RACE_PATH]) {
     if ((await ask(path)).unauthorized === true) return false
   }
   // The research parameters hardly change; they are fetched when none are kept.

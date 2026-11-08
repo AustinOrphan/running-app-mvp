@@ -528,13 +528,14 @@ describe('navigations are network first, with a limit of 2.5 s', () => {
   })
 })
 
-describe('the API allowlist is exactly five reads', () => {
+describe('the API allowlist is exactly six reads', () => {
   test.each([
     '/api/auth/me',
     '/api/setup',
     '/api/settings',
     '/api/today',
     '/api/today?date=2026-10-23',
+    '/api/race/plan',
     '/api/research/params',
   ])('%s is handled', (path) => {
     const sw = loadWorker()
@@ -559,6 +560,10 @@ describe('the API allowlist is exactly five reads', () => {
     '/api/research/params?v=2',
     '/api/research',
     '/api/setup?x=1',
+    '/api/race/checkpoints',
+    '/api/race/plan?x=1',
+    '/api/race/plan/',
+    '/api/race',
   ])('%s is left alone', (path) => {
     const sw = loadWorker()
     expect(sw.request(path).responded).toBe(false)
@@ -677,6 +682,8 @@ describe('API reads are network first, and only a 200 is kept', () => {
   })
 })
 
+const RACE_VIEW = { plan: { name: 'Example 100', date: '2026-10-24', daysToRace: 2 }, reason: null }
+
 describe('time limits of a kept copy', () => {
   test('a copy is served for 36 hours and dropped after', async () => {
     const sw = loadWorker()
@@ -696,6 +703,18 @@ describe('time limits of a kept copy', () => {
     })
     await sw.advance(1)
     await expect(answer(sw.request('/api/research/params'))).rejects.toThrow()
+  })
+
+  test('the race plan lasts 4 days, so the copy of the evening before is still there at hour 35 of the race', async () => {
+    const sw = loadWorker()
+    const day = 24 * HOUR
+    await sw.keep('rl-api-v1', '/api/race/plan', RACE_VIEW, START - 4 * day)
+    expect(await (await answer(sw.request('/api/race/plan'))).json()).toMatchObject({
+      plan: RACE_VIEW.plan,
+    })
+    await sw.advance(1)
+    await expect(answer(sw.request('/api/race/plan'))).rejects.toThrow()
+    expect(await sw.kept('rl-api-v1')).toEqual([])
   })
 
   test('a copy with no time stamp is not served', async () => {
@@ -868,6 +887,46 @@ describe("Today's copy", () => {
     const server = readFileSync('server/services/todayHealth.ts', 'utf8')
     expect(server).toContain("code: 'wrist-tomorrow'")
     expect(TEMPLATE).toContain("const WATCH_NOTE_CODES = ['wrist-tomorrow']")
+  })
+
+  test("the race plan's copy is marked as the phone's own and says when it was kept", async () => {
+    const sw = loadWorker()
+    sw.setNetwork(answering({ '/api/race/plan': RACE_VIEW }))
+    const online = sw.request('/api/race/plan')
+    const live = (await (await answer(online)).json()) as Record<string, unknown>
+    expect('servedFromCache' in live).toBe(false)
+    expect('savedAt' in live).toBe(false)
+    await online.settle()
+    // What is kept is the server's answer, unmarked.
+    expect(await sw.read('rl-api-v1', '/api/race/plan')).toEqual(RACE_VIEW)
+
+    await sw.advance(5 * HOUR)
+    sw.setNetwork(() => {
+      throw new TypeError('offline')
+    })
+    const offline = (await (await answer(sw.request('/api/race/plan'))).json()) as Record<
+      string,
+      unknown
+    >
+    expect(offline).toEqual({
+      ...RACE_VIEW,
+      servedFromCache: true,
+      savedAt: new Date(START).toISOString(),
+    })
+  })
+
+  test('a plan the server gave as no plan is kept and marked in the same way', async () => {
+    const sw = loadWorker()
+    const none = { plan: null, reason: 'not-ultra' }
+    sw.setNetwork(answering({ '/api/race/plan': none }))
+    await sw.request('/api/race/plan').settle()
+    sw.setNetwork(() => {
+      throw new TypeError('offline')
+    })
+    expect(await (await answer(sw.request('/api/race/plan'))).json()).toMatchObject({
+      ...none,
+      servedFromCache: true,
+    })
   })
 
   test('the other answers are served as they were kept, with no mark', async () => {
@@ -1064,6 +1123,7 @@ describe('the warm', () => {
     '/api/setup': { needsSetup: false },
     '/api/settings': { units: 'mi' },
     '/api/research/params': { params: [] },
+    '/api/race/plan': { plan: null, reason: 'no-goal' },
     '/api/today?date=2026-10-23': today('2026-10-23', { preview: true }),
   }
 
@@ -1075,6 +1135,7 @@ describe('the warm', () => {
     await read.settle()
     expect((await sw.kept('rl-api-v1')).sort()).toEqual([
       '/api/auth/me',
+      '/api/race/plan',
       '/api/research/params',
       '/api/settings',
       '/api/setup',
@@ -1090,7 +1151,7 @@ describe('the warm', () => {
     sw.setNetwork(answering(NETWORK))
     await sw.request('/api/today').settle()
     const afterFirst = sw.requested.length
-    expect(afterFirst).toBe(6)
+    expect(afterFirst).toBe(7)
 
     await sw.advance(10 * MINUTE - 1)
     await sw.request('/api/today').settle()
@@ -1098,8 +1159,9 @@ describe('the warm', () => {
 
     await sw.advance(1)
     await sw.request('/api/today').settle()
-    // The page's read, then the warm: me, setup, settings and the preview (the research parameters are kept).
-    expect(sw.requested.length).toBe(afterFirst + 1 + 1 + 4)
+    // The page's read, then the warm: me, setup, settings, the race plan and the preview (the research
+    // parameters are kept).
+    expect(sw.requested.length).toBe(afterFirst + 1 + 1 + 5)
   })
 
   test("the day ahead is the day after the payload's date, across a month and a year", async () => {
@@ -1148,7 +1210,7 @@ describe('the warm', () => {
 
     sw.setNetwork(answering(NETWORK))
     await sw.message({ type: 'rl:warm' }).settle() // the signal is back, a moment later
-    expect(await sw.kept('rl-api-v1')).toHaveLength(6)
+    expect(await sw.kept('rl-api-v1')).toHaveLength(7)
     expect(await sw.kept('rl-meta')).toEqual(['/__rl/warm'])
   })
 
@@ -1164,7 +1226,7 @@ describe('the warm', () => {
     sw.setNetwork(answering(NETWORK))
     await sw.message({ type: 'rl:warm' }).settle()
     expect(sw.requested).toContain(`${ORIGIN}/api/today`)
-    expect((await sw.kept('rl-api-v1')).sort()).toHaveLength(6)
+    expect((await sw.kept('rl-api-v1')).sort()).toHaveLength(7)
     const first = sw.requested.length
     await sw.message({ type: 'rl:warm' }).settle()
     expect(sw.requested.length).toBe(first)

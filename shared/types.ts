@@ -1428,6 +1428,13 @@ export type RacePlanReason = 'no-goal' | 'no-distance' | 'not-ultra' | 'race-ove
 export interface RacePlanView {
   plan: RacePlan | null
   reason: RacePlanReason | null
+  /**
+   * Set by the service worker, never the server, on the phone's own copy (ADR 0012, addendum): the
+   * answer was kept earlier and is served because the network did not answer.
+   */
+  servedFromCache?: true
+  /** The ISO time the copy was kept; set with `servedFromCache`. */
+  savedAt?: string
 }
 /**
  * The answer of `GET /api/paces` (rule C9, ADR 0020): the easy pace, the events and the test, and

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   daysToGoText,
   describeRacePlan,
+  raceCopyNoteText,
   raceEmptyText,
   raceTitleText,
 } from '../../shared/copy/racePlan.ts'
@@ -15,6 +16,7 @@ import { ErrorState } from '../components/ErrorState.tsx'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
+import { useOnline } from '../components/useOnline.ts'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { CheckpointSheet } from '../components/race/CheckpointSheet.tsx'
 import { CheckpointTable } from '../components/race/CheckpointTable.tsx'
@@ -23,6 +25,7 @@ import type { CourseImport } from '../components/race/courseImport.ts'
 import { RaceFuelBlock, RaceWeekBlock } from '../components/race/RaceBlocks.tsx'
 import cardStyles from '../components/race/Race.module.css'
 import { DisclaimerNote } from '../components/today/DisclaimerNote.tsx'
+import { usePhoneCopy } from '../components/today/phoneCopy.ts'
 import { formatLongDate } from '../components/format.ts'
 import styles from './RacePage.module.css'
 
@@ -247,7 +250,8 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
  * range, one effort for the whole race in three parts, climbing, fuel and fluid, heat, race week
  * and the hours outside daylight, for the goal race of an ultra. Everything comes from one read of
  * `GET /api/race/plan`; the words are templates over its facts (`describeRacePlan`), so this page
- * works nothing out. It needs a connection; Today's race card shows from the cached Today.
+ * works nothing out. The read is one the service worker keeps (ADR 0012, addendum), so with no
+ * signal the page shows the phone's copy and says when it was saved.
  */
 export function RacePage() {
   const race = useRacePlan()
@@ -256,14 +260,35 @@ export function RacePage() {
   const units = settings.data?.units ?? (settings.isError ? 'km' : undefined)
   const view = race.data
   const plan = view?.plan ?? null
+  const phoneCopy = usePhoneCopy(view)
+  const online = useOnline()
+  const servedFromCache = view?.servedFromCache === true
+  const { refetch } = race
+  // A page that opened on the phone's copy never saw the browser go offline, so the library does not
+  // read the return of the connection as a reconnect: ask again when the browser says it is back.
+  useEffect(() => {
+    if (online && servedFromCache) void refetch()
+  }, [online, servedFromCache, refetch])
+  // A saved copy cannot know how many days are left, so it names the race and the date alone.
   const context =
     plan === null
       ? undefined
-      : `${plan.name}, ${formatLongDate(plan.date)}. ${daysToGoText(plan.daysToRace, units ?? 'km')}.`
+      : phoneCopy
+        ? `${plan.name}, ${formatLongDate(plan.date)}.`
+        : `${plan.name}, ${formatLongDate(plan.date)}. ${daysToGoText(plan.daysToRace, units ?? 'km')}.`
 
   return (
     <>
       <PageHeader title={raceTitleText(units ?? 'km')} context={context} />
+      {/* Always on the page and empty while the answer is the server's, so a note that appears is
+          announced (the same region as Today's). */}
+      <div aria-live="polite" aria-atomic="true" className={styles.copyNote}>
+        {phoneCopy && view !== undefined ? (
+          <p className={cardStyles.note}>
+            {raceCopyNoteText(view.savedAt, new Date(), units ?? 'km')}
+          </p>
+        ) : null}
+      </div>
       {raceView === 'failed' || raceView === 'retrying' ? (
         <ErrorState
           subject="The race plan"

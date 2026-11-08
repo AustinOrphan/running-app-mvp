@@ -204,9 +204,9 @@ its build runs `prisma migrate deploy` as a smoke test.
   Escape, and the ones under it are `inert`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
   `devDependencies`, so the Docker image installs without them.
-- Offline shell (ADR 0012): the worker keeps the shell and exactly five API reads (`/api/auth/me`,
-  `/api/setup`, `/api/settings`, `/api/today` with or without `?date=`, `/api/research/params`), 200
-  GETs only, in `rl-api-v1`; a new cached read is a change to the allowlist in `web/sw/sw.js`, to
+- Offline shell (ADR 0012): the worker keeps the shell and exactly six API reads (`/api/auth/me`,
+  `/api/setup`, `/api/settings`, `/api/today` with or without `?date=`, `/api/race/plan`,
+  `/api/research/params`), 200 GETs only, in `rl-api-v1`; a new cached read is a change to the allowlist in `web/sw/sw.js`, to
   `tests/unit/shared/sw.test.ts` and to the ADR. Health data on the device (`rl-api-v1`, the outbox,
   the drafts) is emptied only through `purgeDeviceData()` in `web/pwa/outbox.ts`, which sign-out,
   sign-in, account creation and every 401 call; extend it rather than adding a second purge. The

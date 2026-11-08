@@ -201,6 +201,69 @@ describe('RacePage', () => {
   })
 })
 
+describe("RacePage: the phone's copy", () => {
+  const SAVED = '2026-03-18T05:12:00.000Z'
+
+  test('says it is the saved copy, when it was saved, and leaves out the days to go', async () => {
+    mockApi({
+      'GET /api/race/plan': () => ({
+        plan: planWith(),
+        reason: null,
+        servedFromCache: true,
+        savedAt: SAVED,
+      }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    const { container } = renderWithProviders(<RacePage />, { route: '/race' })
+    expect(await screen.findByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+    const note = screen.getByText(/^Offline\. Showing the race plan saved (at|on) /)
+    expect(note.closest('[aria-live="polite"]')).not.toBeNull()
+    expect(screen.queryByText(/days to go|Race day/)).toBeNull()
+    expect(screen.getByText(/^Example 100, /)).toBeVisible()
+    expect(container.textContent).not.toMatch(/needs a connection/)
+    expectCleanCopy(container)
+  })
+
+  test("shows no note, and the days to go, for the server's own answer", async () => {
+    mockApi({
+      'GET /api/race/plan': () => ({ plan: planWith(), reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    expect(await screen.findByText(/2 days to go/)).toBeVisible()
+    expect(screen.queryByText(/^Offline\./)).toBeNull()
+  })
+
+  test("asks again when the browser is online, and the server's answer replaces the copy", async () => {
+    let reads = 0
+    mockApi({
+      'GET /api/race/plan': () => {
+        reads += 1
+        return reads === 1
+          ? { plan: planWith(), reason: null, servedFromCache: true, savedAt: SAVED }
+          : { plan: planWith(), reason: null }
+      },
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    expect(await screen.findByText(/2 days to go/)).toBeVisible()
+    expect(screen.queryByText(/^Offline\./)).toBeNull()
+    expect(reads).toBe(2)
+  })
+
+  test('says so when the browser is offline and the copy carries no time', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    mockApi({
+      'GET /api/race/plan': () => ({ plan: planWith(), reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    expect(
+      await screen.findByText('Offline. Showing the race plan saved on this phone.'),
+    ).toBeVisible()
+  })
+})
+
 describe('MorePage: the Race plan row', () => {
   test('is listed with its note when the goal has a plan, and links to /race', async () => {
     mockApi({ 'GET /api/race/plan': () => ({ plan: planWith(), reason: null }) })

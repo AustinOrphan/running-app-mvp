@@ -6,6 +6,7 @@ import {
   planWithRunToday,
   queued,
   relativeDates,
+  resetData,
   saveStrengthSetup,
   signedInApi,
   strengthOnlyToday,
@@ -62,6 +63,7 @@ async function waitForKeptAnswers(): Promise<void> {
         '/api/setup',
         '/api/settings',
         '/api/today',
+        '/api/race/plan',
         '/api/research/params',
         `/api/today?date=${addDays(today, 1)}`,
       ]),
@@ -359,4 +361,59 @@ test('a strength log saved with no connection is kept on the phone and sent once
   expect(after.items.filter((item) => item.type === 'strength')).toHaveLength(1)
   const plan = (await api.get('/plan')) as PlanWithSessions
   expect(plan.sessions.find((item) => item.id === session.id)?.status).toBe('completed')
+})
+
+// The race plan is the sixth kept read (ADR 0012, addendum). It comes last: it makes an ultra goal
+// the current one, which the cases above must not meet.
+test("the race plan opens with no connection from the phone's copy, and says when it was saved", async () => {
+  const { today } = relativeDates()
+  await resetData()
+  const goal = (await api.post('/goals', {
+    name: 'Offline ultra',
+    priority: 'A',
+    targetDate: addDays(today, 7 * 20),
+    distanceM: 160_934,
+    gainM: 5000,
+    lossM: 5000,
+    surface: 'trail',
+    goalType: 'finish',
+    startTime: '06:00',
+    supportLevel: 'aided',
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 0 })
+
+  await page.goto('/race')
+  await expect(page.getByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+  await expect.poll(() => kept(API_CACHE), { timeout: WARM_TIMEOUT }).toContain('/api/race/plan')
+
+  await page.context().setOffline(true)
+  const offline = await page.evaluate(async () => {
+    const response = await fetch('/api/race/plan')
+    return (await response.json()) as { servedFromCache?: boolean; savedAt?: string }
+  })
+  expect(offline.servedFromCache).toBe(true)
+  expect(Number.isNaN(Date.parse(offline.savedAt ?? ''))).toBe(false)
+
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1, name: 'Race plan' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+  await expect(
+    page.getByText(/^Offline\. Showing the race plan saved at \d{2}:\d{2}\.$/),
+  ).toBeVisible()
+  await expect(page.getByText(/needs a connection/)).toHaveCount(0)
+  // the days to go are the server's to say
+  await expect(page.getByText(/days to go/)).toHaveCount(0)
+
+  // What needs the server says so: the saved table is not kept.
+  await page.getByRole('button', { name: 'Edit checkpoints' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Edit checkpoints' })
+  await expect(dialog.getByText('The checkpoint table needs a connection.')).toBeVisible({
+    timeout: 15_000,
+  })
+  await dialog.getByRole('button', { name: 'Close' }).click()
+
+  await page.context().setOffline(false)
+  await expect(page.getByText(/^Offline\./)).toBeHidden()
+  await expect(page.getByText(/days to go/)).toBeVisible()
 })

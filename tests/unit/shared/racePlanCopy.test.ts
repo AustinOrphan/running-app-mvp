@@ -7,6 +7,7 @@ import {
   clockRangeText,
   clockText,
   describeRaceCourse,
+  raceCopyNoteText,
   describeRaceCourseProfile,
   describeRaceCourseProposal,
   describeRacePlan,
@@ -605,5 +606,45 @@ describe('the words of the course import', () => {
   it('says no climb when the file holds no elevation', () => {
     const flat = describeRaceCourseProposal({ ...facts, gainM: null, lossM: null }, 'km')
     expect(flat.summary).toContain('no elevation')
+  })
+})
+
+describe("the note for the phone's copy", () => {
+  const now = new Date('2026-10-23T18:00:00Z')
+
+  it('names the time of a copy kept today, in the given zone', () => {
+    expect(raceCopyNoteText('2026-10-23T11:12:00Z', now, 'km', 'UTC')).toBe(
+      'Offline. Showing the race plan saved at 11:12.',
+    )
+  })
+
+  it('names the day too when the copy was kept on another day', () => {
+    expect(raceCopyNoteText('2026-10-22T21:50:00Z', now, 'mi', 'UTC')).toBe(
+      'Offline. Showing the race plan saved on Thu 22 Oct at 21:50.',
+    )
+  })
+
+  it('reads the day in the zone given, not in UTC', () => {
+    expect(raceCopyNoteText('2026-10-23T03:30:00Z', now, 'km', 'America/Chicago')).toBe(
+      'Offline. Showing the race plan saved on Thu 22 Oct at 22:30.',
+    )
+  })
+
+  it("says only that the copy is the phone's own when it carries no time", () => {
+    for (const savedAt of [undefined, 'not a time']) {
+      expect(raceCopyNoteText(savedAt, now, 'km', 'UTC')).toBe(
+        'Offline. Showing the race plan saved on this phone.',
+      )
+    }
+  })
+
+  it('passes the G5 lint', () => {
+    for (const line of [
+      raceCopyNoteText('2026-10-22T21:50:00Z', now, 'km', 'UTC'),
+      raceCopyNoteText('2026-10-23T11:12:00Z', now, 'km', 'UTC'),
+      raceCopyNoteText(undefined, now, 'km', 'UTC'),
+    ]) {
+      expect(lintText(line), line).toEqual([])
+    }
   })
 })

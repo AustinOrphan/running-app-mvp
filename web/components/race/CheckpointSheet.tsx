@@ -388,7 +388,7 @@ export function CheckpointSheet({ plan, units, course, onClose }: CheckpointShee
       <Sheet open onClose={onClose} title={text.title}>
         {loadView === 'failed' || loadView === 'retrying' ? (
           <ErrorState
-            subject="The checkpoints"
+            subject="The checkpoint table"
             onRetry={() => query.refetch()}
             retrying={loadView === 'retrying'}
           />

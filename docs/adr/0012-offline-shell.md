@@ -1,6 +1,6 @@
 # 0012. The installed app opens offline from a hand-written service worker that keeps five reads, and the device's copy of health data is purged with the session
 
-Status: Accepted 2026-10-23 (#554)
+Status: Accepted 2026-10-23 (#554); amended 2026-11-07 (the race plan is a sixth kept read, see the addendum)
 
 ## Context
 
@@ -205,3 +205,82 @@ Alternatives:
   `tests/unit/shared/sw.test.ts` and the list in this ADR.
 - `docker build .` runs the same Vite build, so the image carries `sw.js`; the healthcheck calls
   `/api/health` and is unaffected.
+
+## Addendum 2026-11-07: the race plan is the sixth kept read
+
+### Context
+
+The race plan (ADR 0018) is read on the Race page, and its checkpoint table is what a crew reads at an
+aid station. The page said "The race plan needs a connection", and a 100-mile race has long stretches
+with no signal, so the card was unreadable where it was wanted.
+
+### Decision
+
+- **Allowlist.** `GET /api/race/plan`, with no query, is the sixth read. Same strategy as the other
+  five: network first with the 2.5 s limit, only a 200 kept, in `rl-api-v1`, stamped with the time. The
+  plan, and the answer for a goal that has none (`plan: null` with its `reason`), are kept alike.
+  `/api/race/checkpoints` is not kept; the plan carries the table's rows and their arrival ranges.
+- **Time limit.** 4 days for this read; the others keep 36 hours and 14 days.
+- **Mark.** The worker serves the copy with `servedFromCache` and with `savedAt`, the ISO time the
+  copy was kept: the payload names no time of its own, where Today's has `coach.generatedAt`. What is
+  stored is the server's answer, unmarked.
+- **Warm.** The warm that follows a fresh Today keeps the race plan with `/api/auth/me`, `/api/setup`
+  and `/api/settings`, so the copy exists for a runner who never opened the Race page on the way to the
+  start.
+- **Page.** The Race page applies the one predicate for the phone's copy (`isPhoneCopy`, the browser
+  says offline or the payload is marked) and then shows "Offline. Showing the race plan saved at
+  06:12." in a polite live region, and leaves out the days to go, which a saved copy cannot know. The
+  editor and the import save need a connection and say so when they fail.
+- **Crew notes.** The free-text note for each checkpoint on the race card is kept in the browser's
+  local storage under `race-crew:`, named in `web/pwa/drafts.ts`, so `purgeDrafts()` and therefore
+  `purgeDeviceData()` empty it. The server never sees a note.
+- **Purge.** Unchanged: `purgeDeviceData()` empties `rl-api-v1`, which holds the plan, and the crew
+  notes with the drafts; the worker empties `rl-api-v1` on a 401.
+
+### Reasons
+
+- **Fact:** The plan holds the zone 1 ceiling in beats per minute, the expected time and its range, and,
+  inside the final window, the carbohydrate load in grams worked out from the runner's body mass
+  (`RacePlan`, `RaceWeek.carbG` in `shared/engine/racePlan.ts`, read 2026-11-07). It is health data on
+  the device and goes under the same purge as the five reads.
+- **Opinion:** 36 hours would end the copy during the race. A runner who last had signal at the start
+  line at 05:00 loses a 36-hour copy at 17:00 the next day, before many finishers of a 100-mile race with
+  a 36 to 48 hour limit. 4 days covers the sync before the start, a race of up to 48 hours and a day of
+  slack, and is still bounded: a phone left signed in keeps the copy for four days at most from the last
+  successful read.
+- **Opinion:** A marked copy beats a banner invented by the page. The page cannot tell a live answer
+  from the worker's by itself when the browser believes it is online (one bar of signal), and the mark is
+  the way the Today note already tells them apart.
+- **Fact:** The warm adds one request, the race plan's, to the three it already made after Today
+  (`/api/auth/me`, `/api/setup`, `/api/settings`), at most once in ten minutes and only while the app is
+  in use (`warmCache` in `web/sw/sw.js`).
+- **Preference:** Carrying `savedAt` in the body, not in a header, is taste: the body is what the page
+  already reads for `servedFromCache`.
+- **Opinion:** Notes kept on the device alone suit a crew card: a note about who meets the runner where
+  is the runner's own, and no server read or sync is needed for it. The cost is that a note does not
+  follow the runner to a second device.
+
+### Alternatives
+
+- **Keep the race card as a page of its own, rendered to a file.** Against (**Opinion**): a second
+  rendering that can say something other than the plan. The card is drawn from the kept plan by the
+  same copy functions as the page.
+- **Keep `GET /api/race/checkpoints` too.** Against (**Opinion**): the only reader is the editor, which
+  cannot save offline, and the plan already holds every row with its arrival range.
+- **The 36-hour limit.** For (**Opinion**): one rule for the answers of the account. Against: see the
+  reason above; it ends before the race does.
+- **A limit of 14 days like the research parameters.** For (**Opinion**): never expires during a
+  race week. Against (**Opinion**): a copy that long serves a plan of a goal that has since changed.
+- **Crew notes on the server.** Against (**Opinion**): a new model and a sync for a line of text, and
+  the note is wanted exactly when there is no connection to sync.
+
+### Consequences
+
+- The device holds the race plan for up to four days after the last read, until the next open sweeps it
+  (the sweep runs at the first request of each worker's life), a sign-out, a 401 or the browser clears
+  the site's data.
+- A copy kept before the final window holds no race-week block, and a copy shows the plan as of the day
+  it was kept: the days to the race are not shown from it.
+- The plan stays off the watch, the feed and the brief (ADR 0018); the card is a page and a print layout.
+- A new cached read is still one change to the allowlist in `web/sw/sw.js`, its test in
+  `tests/unit/shared/sw.test.ts` and the list in this ADR.

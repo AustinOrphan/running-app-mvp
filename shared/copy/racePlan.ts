@@ -53,6 +53,19 @@ export const RACE_PLAN_TEMPLATES = {
     'The race plan is for ultra distances. A shorter race keeps its session as planned.',
   ),
   'race.plan.empty.race-over': tpl('This race is over, so there is no plan to show.'),
+  // The note under the title while the page shows the phone's saved copy (ADR 0012, addendum): the
+  // browser says offline, or the service worker answered from its cache.
+  'race.plan.offline.saved': tpl(
+    'Offline. Showing the race plan saved at {time}.',
+    { time: 'text' },
+    { fallback: 'Offline. Showing the race plan saved on this phone.' },
+  ),
+  'race.plan.offline.saved-earlier': tpl(
+    'Offline. Showing the race plan saved on {date} at {time}.',
+    { date: 'date', time: 'text' },
+    { fallback: 'Offline. Showing the race plan saved earlier on this phone.' },
+  ),
+  'race.plan.offline.saved-phone': tpl('Offline. Showing the race plan saved on this phone.'),
   'race.plan.days-to-go': tpl('{n} days to go', { n: 'count' }, { shape: 'label' }),
   'race.plan.days-to-go-one': tpl('1 day to go', {}, { shape: 'label' }),
   'race.plan.race-day': tpl('Race day', {}, { shape: 'label' }),
@@ -484,6 +497,36 @@ const EMPTY_TEMPLATES = {
 /** The line the page shows when there is no plan, and why. */
 export function raceEmptyText(reason: RacePlanReason, units: Units): string {
   return say(EMPTY_TEMPLATES[reason], {}, units)
+}
+
+/**
+ * The note for a plan read from the phone's copy: the time it was kept, in the phone's zone, with
+ * the day when that is not today ("saved at 06:12", "saved on Fri 23 Oct at 21:50"). Without a time
+ * (a payload that carries none) it says only that the copy is the phone's.
+ */
+export function raceCopyNoteText(
+  savedAt: string | undefined,
+  now: Date,
+  units: Units,
+  zone?: string,
+): string {
+  const saved = savedAt === undefined ? null : new Date(savedAt)
+  if (saved === null || Number.isNaN(saved.getTime())) {
+    return say(T['race.plan.offline.saved-phone'], {}, units)
+  }
+  const time = new Intl.DateTimeFormat('en-GB', {
+    timeZone: zone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(saved)
+  const day = (at: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(at)
+  if (day(saved) === day(now)) return say(T['race.plan.offline.saved'], { time }, units)
+  return say(
+    T['race.plan.offline.saved-earlier'],
+    { date: { kind: 'date', iso: day(saved), style: 'weekday' }, time },
+    units,
+  )
 }
 
 /** The title of the page, the heading of the sheet block when it has no summary to show. */
