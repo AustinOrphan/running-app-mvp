@@ -143,6 +143,7 @@ export function DurabilityChart({
               type="number"
               dataKey="pct"
               width={AXIS_WIDTH}
+              interval={0}
               domain={domain}
               ticks={ticks}
               tickFormatter={(value: number) => `${String(value)}%`}
