@@ -473,6 +473,11 @@ export const RACE_PLAN_TEMPLATES = {
     { track: 'distance', goal: 'distance' },
   ),
   'race.plan.course.replaces': tpl('Saving replaces the checkpoints you have now.'),
+  'race.plan.course.pass-name': tpl(
+    '{name} ({ordinal} pass)',
+    { name: 'text', ordinal: 'text' },
+    { shape: 'label' },
+  ),
   'race.plan.course.point-name': tpl('Point {n}', { n: 'count' }, { shape: 'label' }),
   'race.plan.course.profile-label': tpl(
     'Elevation profile, from {low} to {high}',
@@ -1394,6 +1399,18 @@ export interface RaceCourseText {
   sheetTitle: string
   replaces: string
   pointName: (n: number) => string
+  /** A later pass of a place the course passes again: "Station (2nd pass)". */
+  passName: (name: string, pass: number) => string
+}
+
+/** "2nd", "3rd", "4th", "11th", "21st". */
+function ordinalText(n: number): string {
+  const tens = n % 100
+  const suffix =
+    tens >= 11 && tens <= 13
+      ? 'th'
+      : (({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th')
+  return `${String(n)}${suffix}`
 }
 
 export function describeRaceCourse(units: Units): RaceCourseText {
@@ -1406,6 +1423,8 @@ export function describeRaceCourse(units: Units): RaceCourseText {
     sheetTitle: say(T['race.plan.course.sheet'], {}, units),
     replaces: say(T['race.plan.course.replaces'], {}, units),
     pointName: (n) => say(T['race.plan.course.point-name'], { n: count(n) }, units),
+    passName: (name, pass) =>
+      say(T['race.plan.course.pass-name'], { name, ordinal: ordinalText(pass) }, units),
   }
 }
 

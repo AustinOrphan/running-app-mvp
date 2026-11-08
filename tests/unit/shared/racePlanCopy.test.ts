@@ -805,3 +805,41 @@ describe('the words of the race card', () => {
     )
   })
 })
+
+describe('the name of a later pass', () => {
+  it('reads as plain ordinals', () => {
+    const words = describeRaceCourse('km')
+    expect(words.passName('Station', 2)).toBe('Station (2nd pass)')
+    expect(words.passName('Station', 3)).toBe('Station (3rd pass)')
+    expect(words.passName('Station', 4)).toBe('Station (4th pass)')
+    expect(words.passName('Station', 11)).toBe('Station (11th pass)')
+    expect(words.passName('Station', 22)).toBe('Station (22nd pass)')
+    expect(lintText(words.passName('Station', 2))).toEqual([])
+  })
+
+  it('leaves the card in distance order whatever order the rows were given in', () => {
+    const rows = [
+      { name: 'B (2nd pass)', distanceM: 120_000, gainM: null, lossM: null, cutoffSec: null },
+      { name: 'A', distanceM: 30_000, gainM: null, lossM: null, cutoffSec: null },
+      { name: 'B', distanceM: 70_000, gainM: null, lossM: null, cutoffSec: null },
+      { name: 'A (2nd pass)', distanceM: 150_000, gainM: null, lossM: null, cutoffSec: null },
+    ]
+    const card = describeRaceCard(racePlanFor(input({ checkpoints: rows })), 'km')
+    expect(card.blocks.map((b) => b.name)).toEqual([
+      'Start',
+      'A',
+      'B',
+      'B (2nd pass)',
+      'A (2nd pass)',
+      'Finish',
+    ])
+    expect(card.blocks.map((b) => b.next)).toEqual([
+      'Next: A, 30 km on.',
+      'Next: B, 40 km on.',
+      'Next: B (2nd pass), 50 km on.',
+      'Next: A (2nd pass), 30 km on.',
+      'Next: the finish, 10.9 km on.',
+      null,
+    ])
+  })
+})

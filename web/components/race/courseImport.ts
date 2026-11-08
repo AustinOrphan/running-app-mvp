@@ -9,6 +9,7 @@ import {
   parseCourse,
   type Course,
 } from '../../../shared/importers/files/course.ts'
+import { RACE_CHECKPOINT_NAME_MAX } from '../../../shared/limits.ts'
 import type { RaceCheckpointRow, Units } from '../../../shared/types.ts'
 import { readBlobBytes } from '../../import/blobs.ts'
 
@@ -17,6 +18,7 @@ export const COURSE_FILE_MAX_MB = 25
 export const COURSE_FILE_MAX_BYTES = COURSE_FILE_MAX_MB * 1024 * 1024
 
 /** Waypoints closer than this to the start or the finish are the start and the finish. */
+const NAME_MAX = RACE_CHECKPOINT_NAME_MAX
 const EDGE_M = 100
 /** Two waypoints this close are one place (a station and its drop bag). */
 export const COURSE_MERGE_M = 50
@@ -52,10 +54,13 @@ export interface ProposeArgs {
   goalDistanceM: number
   /** The name of the nth unnamed point. */
   nameFor: (n: number) => string
+  /** A name for a later pass of a place the course passes more than once: "Station (2nd pass)". */
+  passName: (name: string, pass: number) => string
 }
 
 interface Place {
   name: string | null
+  pass: number
   distanceM: number
   gainM: number
   lossM: number
@@ -77,7 +82,14 @@ export function proposeCheckpoints(course: Course, args: ProposeArgs): CourseImp
   for (const w of inside) {
     const last = places[places.length - 1]
     if (last !== undefined && w.distanceM - last.distanceM < COURSE_MERGE_M) merged += 1
-    else places.push({ name: w.name, distanceM: w.distanceM, gainM: w.gainM, lossM: w.lossM })
+    else
+      places.push({
+        name: w.name,
+        pass: w.pass,
+        distanceM: w.distanceM,
+        gainM: w.gainM,
+        lossM: w.lossM,
+      })
   }
 
   const spaced = places.length === 0
@@ -88,15 +100,25 @@ export function proposeCheckpoints(course: Course, args: ProposeArgs): CourseImp
     spacingM = course.distanceM / (n + 1)
     places = Array.from({ length: n }, (_unused, k) => {
       const sample = courseSampleAt(course, (k + 1) * spacingM)
-      return { name: null, distanceM: sample.distanceM, gainM: sample.gainM, lossM: sample.lossM }
+      return {
+        name: null,
+        pass: 1,
+        distanceM: sample.distanceM,
+        gainM: sample.gainM,
+        lossM: sample.lossM,
+      }
     })
   }
 
   const known = course.gainM !== null
   let previous = { gainM: 0, lossM: 0 }
+  const named = (place: Place, index: number): string => {
+    const base = place.name ?? args.nameFor(index + 1)
+    return place.pass > 1 ? args.passName(base, place.pass).slice(0, NAME_MAX) : base
+  }
   const rows = places.map((place, index): RaceCheckpointRow => {
     const row: RaceCheckpointRow = {
-      name: place.name ?? args.nameFor(index + 1),
+      name: named(place, index),
       distanceM: Math.round(place.distanceM),
       gainM: known ? Math.max(0, place.gainM - previous.gainM) : null,
       lossM: known ? Math.max(0, place.lossM - previous.lossM) : null,

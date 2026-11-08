@@ -8,7 +8,13 @@ import {
   proposeCheckpoints,
   readCourseFile,
 } from '../../web/components/race/courseImport.ts'
-import { courseAltitude, courseGpx } from '../fixtures/course/buildCourseGpx.ts'
+import {
+  courseAltitude,
+  courseGpx,
+  courseGpxFrom,
+  loopPoints,
+  outAndBackPoints,
+} from '../fixtures/course/buildCourseGpx.ts'
 
 const bytes = (xml: string) => new TextEncoder().encode(xml)
 const ARGS = {
@@ -16,6 +22,7 @@ const ARGS = {
   max: 40,
   goalDistanceM: 161_000,
   nameFor: (n: number) => `Point ${String(n)}`,
+  passName: (name: string, pass: number) => `${name} (pass ${String(pass)})`,
 }
 
 describe('proposeCheckpoints', () => {
@@ -101,6 +108,84 @@ describe('proposeCheckpoints', () => {
 
   test('the altitude of the fixture rises, so a flat file is a real difference', () => {
     expect(courseAltitude(100)).toBeGreaterThan(courseAltitude(0))
+  })
+})
+
+describe('a course that passes a place more than once', () => {
+  const parse = (xml: string) => parseCourse(bytes(xml))
+
+  test('an out-and-back gives a checkpoint for each pass of each station, in order along the course', () => {
+    const course = parse(
+      courseGpxFrom(outAndBackPoints(), [
+        { name: 'A', lon: 0.1 },
+        { name: 'B', lon: 0.25 },
+        { name: 'C', lon: 0.4 },
+      ]),
+    )
+    const { rows } = proposeCheckpoints(course, ARGS)
+    expect(rows.map((r) => r.name)).toEqual([
+      'A',
+      'B',
+      'C',
+      'C (pass 2)',
+      'B (pass 2)',
+      'A (pass 2)',
+    ])
+    const step = course.distanceM / 99
+    const expected = [10, 25, 40, 59, 74, 89].map((i) => i * step)
+    rows.forEach((r, i) => {
+      expect(Math.abs(r.distanceM - expected[i]!)).toBeLessThan(step * 1.1)
+    })
+    expect(rows.every((r, i) => i === 0 || r.distanceM > rows[i - 1]!.distanceM)).toBe(true)
+    expect(rows.reduce((sum, r) => sum + (r.gainM ?? 0), 0)).toBeLessThanOrEqual(course.gainM!)
+  })
+
+  test('three laps of a loop give three checkpoints for one waypoint', () => {
+    const course = parse(courseGpxFrom(loopPoints(), [{ name: 'Far side', lon: -0.01, lat: 0 }]))
+    expect(course.waypoints).toHaveLength(3)
+    const { rows } = proposeCheckpoints(course, ARGS)
+    expect(rows.map((r) => r.name)).toEqual(['Far side', 'Far side (pass 2)', 'Far side (pass 3)'])
+    const lap = course.distanceM / 3
+    rows.forEach((r, i) => {
+      expect(Math.abs(r.distanceM - (i + 0.5) * lap)).toBeLessThan(lap * 0.05)
+    })
+  })
+
+  test('a point-to-point course is as it was: one pass for each waypoint', () => {
+    const course = parse(
+      courseGpx({
+        waypoints: [
+          { name: 'A', at: 40 },
+          { name: 'B', at: 90 },
+        ],
+      }),
+    )
+    expect(course.waypoints.map((w) => [w.pass, w.passes])).toEqual([
+      [1, 1],
+      [1, 1],
+    ])
+    expect(proposeCheckpoints(course, ARGS).rows.map((r) => r.name)).toEqual(['A', 'B'])
+  })
+
+  test('a waypoint within 300 m of two stretches far apart along the track is two passes', () => {
+    // the way back runs 200 m north of the way out; the waypoint lies between, 100 m from each
+    const course = parse(
+      courseGpxFrom(outAndBackPoints(50, 0.0018), [{ name: 'Between', lon: 0.2, lat: 0.0009 }]),
+    )
+    expect(course.waypoints).toHaveLength(2)
+    expect(course.waypoints[1]!.distanceM - course.waypoints[0]!.distanceM).toBeGreaterThan(50_000)
+    expect(course.waypoints.every((w) => w.offTrackM < 300)).toBe(true)
+  })
+
+  test('a turn within the snap distance of a waypoint is one pass, not two', () => {
+    const course = parse(courseGpxFrom(outAndBackPoints(), [{ name: 'Turn', lon: 0.5 }]))
+    expect(course.waypoints).toHaveLength(1)
+  })
+
+  test('a waypoint that no stretch of the track is near is left out, and counted once', () => {
+    const course = parse(courseGpxFrom(outAndBackPoints(), [{ name: 'Lost', lon: 0.2, lat: 0.05 }]))
+    expect(course.waypoints).toEqual([])
+    expect(course.offTrack).toBe(1)
   })
 })
 

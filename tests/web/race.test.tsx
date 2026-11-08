@@ -20,7 +20,7 @@ import { RaceSessionSection } from '../../web/components/race/RaceSessionSection
 import { TodaySlot } from '../../web/components/today/TodaySlot.tsx'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { RacePage } from '../../web/pages/RacePage.tsx'
-import { courseGpx } from '../fixtures/course/buildCourseGpx.ts'
+import { courseGpx, courseGpxFrom, outAndBackPoints } from '../fixtures/course/buildCourseGpx.ts'
 import { expectCleanCopy, makeTestQueryClient, mockApi, renderWithProviders } from './helpers.tsx'
 import { makeCoach, makeToday } from './today-fixtures.ts'
 
@@ -642,6 +642,49 @@ describe('RacePage: Import course GPX', () => {
     const table = await within(dialog).findByRole('table', { name: 'Checkpoints on the course' })
     expect(within(table).getByRole('rowheader', { name: 'Station A' })).toBeInTheDocument()
     expectCleanCopy(dialog)
+  })
+
+  test('an out-and-back course proposes each station twice, in order, and the dots and table follow', async () => {
+    const { calls } = setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    const xml = courseGpxFrom(outAndBackPoints(), [
+      { name: 'Station C', lon: 0.4 },
+      { name: 'Station A', lon: 0.1 },
+      { name: 'Station B', lon: 0.25 },
+    ])
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(xml))
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    const names = [1, 2, 3, 4, 5, 6].map(
+      (n) =>
+        (
+          within(dialog)
+            .getByRole('group', { name: `Point ${String(n)}` })
+            .querySelector('input') as HTMLInputElement
+        ).value,
+    )
+    expect(names).toEqual([
+      'Station A',
+      'Station B',
+      'Station C',
+      'Station C (2nd pass)',
+      'Station B (2nd pass)',
+      'Station A (2nd pass)',
+    ])
+    const table = await within(dialog).findByRole('table', { name: 'Checkpoints on the course' })
+    const rows = within(table)
+      .getAllByRole('rowheader')
+      .map((cell) => cell.textContent)
+    expect(rows).toEqual(names)
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    const sent = (calls.find((c) => c.method === 'PUT')!.body as { checkpoints: CheckpointInput[] })
+      .checkpoints
+    expect(sent.map((r) => r.name)).toEqual(names)
+    expect(sent.every((r, i) => i === 0 || r.distanceM > sent[i - 1]!.distanceM)).toBe(true)
   })
 
   test('proposes evenly spaced rows, and says so, when the file has no waypoints', async () => {

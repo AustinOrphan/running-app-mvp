@@ -41,6 +41,7 @@ export function CourseImportButton({ units, goalDistanceM, onRead }: CourseImpor
           max: P.r1.maxCheckpoints.value,
           goalDistanceM,
           nameFor: words.pointName,
+          passName: words.passName,
         })
         setState({ kind: 'idle' })
         onRead(course)

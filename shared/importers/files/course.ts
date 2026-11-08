@@ -12,6 +12,13 @@ import { elevationGainLoss, haversineM, toNumber } from './summarize.ts'
 /** A waypoint further than this from every track point is not on the course and is left out. */
 export const COURSE_MAX_OFF_TRACK_M = 300
 
+/**
+ * Two stretches of the track within snap distance of a waypoint are two passes when they lie at
+ * least this far apart along the track. A course is expected to say where an aid station is on each
+ * pass: a track that wanders back within 300 m of a station after less than this counts as one pass.
+ */
+export const COURSE_PASS_GAP_M = 1000
+
 /** The profile keeps about this many points: enough for a chart, few enough to climb-count each. */
 export const COURSE_PROFILE_POINTS = 500
 
@@ -34,6 +41,9 @@ export interface CourseWaypoint extends CourseSample {
   name: string | null
   /** How far the waypoint lies from the nearest track point, in metres. */
   offTrackM: number
+  /** Which pass of the waypoint this is, counting along the track from 1, and how many there are. */
+  pass: number
+  passes: number
 }
 
 export interface Course {
@@ -44,9 +54,9 @@ export interface Course {
   lossM: number | null
   /** The track thinned for a chart, start and end included, in distance order. */
   profile: CourseSample[]
-  /** The waypoints that lie on the track, in distance order. */
+  /** The waypoints that lie on the track, one for each pass, in distance order. */
   waypoints: CourseWaypoint[]
-  /** Waypoints left out for lying further than `COURSE_MAX_OFF_TRACK_M` from the track. */
+  /** Waypoints (not passes) left out for lying further than `COURSE_MAX_OFF_TRACK_M` from the track. */
   offTrack: number
 }
 
@@ -115,22 +125,41 @@ export function parseCourse(bytes: Uint8Array): Course {
   if (!(total > 0)) throw new RangeError('Not a course: the track has no length')
   const altitudes = filledAltitudes(points)
 
+  // A waypoint is placed once for each pass of the track within snap distance: an out-and-back
+  // passes its aid stations twice and each lap of a loop passes them again. Two stretches within
+  // snap distance belong to one pass unless they lie `COURSE_PASS_GAP_M` or more apart along the
+  // track; the closest point of each pass is its place.
   const waypoints = asArray(gpx['wpt']).flatMap((node) => {
     if (!isNode(node)) return []
     const spot = pointOf(node, 'ele')
     if (spot === null) return []
-    let nearest = 0
-    let nearestM = Infinity
+    const name = nameOf(node)
+    const passes: Array<{ index: number; offTrackM: number }> = []
+    let nearest = { index: 0, offTrackM: Infinity }
+    let lastNear = -1
     points.forEach((p, index) => {
       const d = haversineM(spot.lat, spot.lng, p.lat, p.lng)
-      if (d < nearestM) {
-        nearestM = d
-        nearest = index
+      if (d < nearest.offTrackM) nearest = { index, offTrackM: d }
+      if (d > COURSE_MAX_OFF_TRACK_M) return
+      const current = passes[passes.length - 1]
+      if (current === undefined || along[index]! - along[lastNear]! >= COURSE_PASS_GAP_M) {
+        passes.push({ index, offTrackM: d })
+      } else if (d < current.offTrackM) {
+        current.index = index
+        current.offTrackM = d
       }
+      lastNear = index
     })
-    return [{ index: nearest, offTrackM: nearestM, name: nameOf(node) }]
+    if (passes.length === 0) return [{ ...nearest, name, pass: 1, passes: 1, off: true }]
+    return passes.map((pass, n) => ({
+      ...pass,
+      name,
+      pass: n + 1,
+      passes: passes.length,
+      off: false,
+    }))
   })
-  const onTrack = waypoints.filter((w) => w.offTrackM <= COURSE_MAX_OFF_TRACK_M)
+  const onTrack = waypoints.filter((w) => !w.off)
 
   // The places to count climb at: evenly spaced along the track, every waypoint, and the end.
   const wanted = new Set<number>([0, points.length - 1, ...onTrack.map((w) => w.index)])
@@ -159,9 +188,15 @@ export function parseCourse(bytes: Uint8Array): Course {
     lossM: altitudes === null ? null : end.lossM,
     profile,
     waypoints: onTrack
-      .map((w) => ({ ...sample(w.index), name: w.name, offTrackM: w.offTrackM }))
+      .map((w) => ({
+        ...sample(w.index),
+        name: w.name,
+        offTrackM: w.offTrackM,
+        pass: w.pass,
+        passes: w.passes,
+      }))
       .sort((a, b) => a.distanceM - b.distanceM),
-    offTrack: waypoints.length - onTrack.length,
+    offTrack: waypoints.filter((w) => w.off).length,
   }
 }
 
