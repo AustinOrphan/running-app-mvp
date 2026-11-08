@@ -13,7 +13,7 @@ import { lazy, Suspense, useState, type ComponentType } from 'react'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { Button } from './Button.tsx'
-import { ChunkBoundary } from './ChunkBoundary.tsx'
+import { ChunkBoundary, loadChunk } from './ChunkBoundary.tsx'
 import { Sheet } from './Sheet.tsx'
 
 function Unavailable({
@@ -46,7 +46,7 @@ function lazySheet<P extends { onClose: () => void }>(
   load: () => Promise<ComponentType<P>>,
 ): ComponentType<P> {
   loaders.push(load)
-  const make = () => lazy(async () => ({ default: await load() })) as unknown as ComponentType<P>
+  const make = () => lazy(() => loadChunk(load)) as unknown as ComponentType<P>
   let Loaded = make()
   return function LazySheet(props: P) {
     const [version, setVersion] = useState(0)

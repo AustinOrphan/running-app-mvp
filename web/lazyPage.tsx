@@ -1,5 +1,5 @@
 import { lazy, useState, type ComponentType } from 'react'
-import { ChunkBoundary } from './components/ChunkBoundary.tsx'
+import { ChunkBoundary, loadChunk } from './components/ChunkBoundary.tsx'
 import { ErrorState } from './components/ErrorState.tsx'
 
 /** A route's page: loaded the first time the route opens, with `load` to fetch it ahead of that. */
@@ -16,7 +16,7 @@ export interface Page {
  * `ChunkBoundary` for when the document is reloaded instead.
  */
 export function lazyPage(load: () => Promise<ComponentType>): Page {
-  const make = () => lazy(async () => ({ default: await load() }))
+  const make = () => lazy(() => loadChunk(load))
   let Loaded = make()
   function Component() {
     const [version, setVersion] = useState(0)
