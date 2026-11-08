@@ -175,6 +175,9 @@ async function raceBlock(context: AthleteContext, date: string): Promise<TodayRa
             predictedSec: prediction.predictedSec,
             lowSec: prediction.lowSec,
             highSec: prediction.highSec,
+            ...(prediction.trainingSince === undefined
+              ? {}
+              : { trainingSince: prediction.trainingSince }),
           },
     range: goal.distanceM === null ? null : rangeLabel({ distanceM: goal.distanceM }),
   }

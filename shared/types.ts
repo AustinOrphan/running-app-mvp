@@ -1367,7 +1367,10 @@ export interface TodayRace {
   /** The race distance in metres; null when the goal has none. */
   distanceM: number | null
   /** Null when the athlete's state supports no source, or the goal has no distance. */
-  prediction: Pick<Prediction, 'method' | 'predictedSec' | 'lowSec' | 'highSec'> | null
+  prediction: Pick<
+    Prediction,
+    'method' | 'predictedSec' | 'lowSec' | 'highSec' | 'trainingSince'
+  > | null
   /** How wide the range has to be; null when the goal has no distance. */
   range: RangeLabel | null
 }

@@ -443,21 +443,22 @@ describe('MyPacesPage: a critical speed from training [A6]', () => {
   const trained = () =>
     serve(stateWith({ csMps: 3.2, dPrimeM: 180, csEfforts: 4, csTrainingSince: '2026-08-11' }))
 
-  test('says where the range comes from, that these were not races, and links to the test', async () => {
+  test('says once, above the cards, that the times are at most and where they come from, with the test link', async () => {
     mockApi(trained().routes)
     renderWithProviders(<MyPacesPage />, { route: '/paces' })
     const events = await screen.findByRole('region', { name: 'What you can run now' })
-    const half = within(events).getByRole('article', { name: 'Half marathon' })
     expect(
-      within(half).getByText(
-        /^From your best efforts in training since 11 Aug; these were not races, so the range is wide\./,
+      within(events).getAllByText(
+        /^These times are at most\. They rest on your best efforts in training since 11 Aug/,
       ),
-    ).toBeInTheDocument()
-    expect(within(half).getByRole('link', { name: 'A short test' })).toHaveAttribute(
+    ).toHaveLength(1)
+    expect(within(events).getByRole('link', { name: 'A short test' })).toHaveAttribute(
       'href',
       '#test',
     )
-    expect(within(half).queryByText(/found from 4 efforts/)).not.toBeInTheDocument()
+    const half = within(events).getByRole('article', { name: 'Half marathon' })
+    expect(within(half).getByText('Time, at most')).toBeInTheDocument()
+    expect(within(half).queryByText(/in training since/)).not.toBeInTheDocument()
   })
 
   test('the test section says the fit is from training and keeps the steps open', async () => {

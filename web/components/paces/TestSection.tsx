@@ -73,7 +73,18 @@ export function TestSection({ test, units, thin }: TestSectionProps) {
         <p className={styles.note}>{pacesText('paces.test.care')}</p>
       </details>
       <HowMade
-        lines={[pacesText('paces.test.how'), pacesText('paces.test.how-stretch')]}
+        lines={[
+          pacesText('paces.test.how'),
+          render(
+            T['paces.test.how-stretch'],
+            {
+              min: { kind: 'distance', m: test.minM },
+              max: { kind: 'distance', m: test.maxM },
+            },
+            units,
+          ),
+          pacesText('paces.test.how-own'),
+        ]}
         subject="the critical speed test"
         rules={['A6', 'L1']}
       />

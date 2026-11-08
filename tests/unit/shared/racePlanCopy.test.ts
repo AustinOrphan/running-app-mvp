@@ -246,11 +246,14 @@ describe('figures that restate a Param come from the Param', () => {
         },
       }),
     )
-    const notes = describeRacePlan(from, 'km').expected.notes.join(' ')
+    const expected = describeRacePlan(from, 'km').expected
+    const notes = expected.notes.join(' ')
+    expect(expected.source).toMatch(/^At most about this long\./)
     expect(notes).toMatch(/best efforts in training since 11 Aug/)
-    expect(notes).toMatch(/not races, so the range is wide/)
+    expect(notes).toMatch(/not on races/)
     expect(lintText(notes)).toEqual([])
     expect(base.expected.notes.join(' ')).not.toMatch(/in training/)
+    expect(base.expected.source).toMatch(/^Most likely time/)
   })
 
   it('says the low-confidence hours from i6.lowConfidenceEventHours on a hot race', () => {

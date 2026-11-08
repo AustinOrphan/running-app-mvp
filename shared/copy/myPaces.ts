@@ -154,6 +154,10 @@ export const PACES_TEMPLATES = {
   'paces.events.context': tpl(
     'Worked out from your races and your critical speed, with no goal and no weather. Each is a range and a sketch.',
   ),
+  'paces.events.training': tpl(
+    'These times are at most. They rest on your best efforts in training since {date}, not on races; a race or a short test would likely show faster.',
+    { date: 'date' },
+  ),
   'paces.events.none': tpl('Not enough to say yet for this distance.'),
   'paces.event.basis-both': tpl('From your {distance} on {date} and your critical speed.', {
     distance: 'distance',
@@ -166,11 +170,7 @@ export const PACES_TEMPLATES = {
   'paces.event.basis-cs': tpl('From your critical speed, found from {efforts} efforts.', {
     efforts: 'count',
   }),
-  'paces.event.basis-training': tpl(
-    'From your best efforts in training since {date}; these were not races, so the range is wide.',
-    { date: 'date' },
-  ),
-  'paces.event.test-narrow': tpl('A short test narrows it.'),
+  'paces.event.time-at-most': tpl('Time, at most', {}, { shape: 'label' }),
   'paces.event.single': tpl('One source only, so the range is wider.'),
   'paces.event.climb': tpl(
     'Climb is counted as flat distance, and the range is widened for trail.',
@@ -317,7 +317,11 @@ export const PACES_TEMPLATES = {
   ),
   'paces.test.care': tpl('Keep a rest day between efforts, and stop if anything hurts.'),
   'paces.test.how-stretch': tpl(
-    'A run of 0.4 to 5 km is one effort; a longer run gives its fastest stretches (A6).',
+    'A run of {min} to {max} is one effort; a longer run gives its fastest stretches (A6).',
+    { min: 'distance', max: 'distance' },
+  ),
+  'paces.test.how-own': tpl(
+    'When test runs and races give a fit on their own, the stretches of training runs are left out.',
   ),
   'paces.test.how': tpl(
     'The fit is a straight line of distance against time over the best effort of each distance band (A6, L1). It needs the efforts to differ in length.',

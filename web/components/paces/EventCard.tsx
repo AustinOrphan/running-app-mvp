@@ -56,7 +56,9 @@ export function EventCard({ row, units }: { row: EventRow; units: Units }) {
         <>
           <dl className={styles.stats}>
             <div className={styles.stat}>
-              <dt>Time</dt>
+              <dt>
+                {row.basis.cs?.since == null ? 'Time' : pacesText('paces.event.time-at-most')}
+              </dt>
               <dd className={styles.statValue}>{timeText(time.midSec)}</dd>
               <dd
                 className={styles.statRange}
@@ -75,17 +77,6 @@ export function EventCard({ row, units }: { row: EventRow; units: Units }) {
           </dl>
           {basisLine(row, units) === null ? null : (
             <p className={styles.note}>{basisLine(row, units)}</p>
-          )}
-          {row.basis.cs?.since == null ? null : (
-            <p className={styles.note}>
-              {render(
-                T['paces.event.basis-training'],
-                { date: { kind: 'date', iso: row.basis.cs.since, style: 'short' } },
-                units,
-              )}{' '}
-              {pacesText('paces.event.test-narrow')}{' '}
-              <a href="#test">{pacesText('paces.test.heading')}</a>
-            </p>
           )}
           {row.singleSource ? (
             <p className={styles.note}>{pacesText('paces.event.single')}</p>
