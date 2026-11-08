@@ -1,6 +1,6 @@
 # 0012. The installed app opens offline from a hand-written service worker that keeps six reads (five at first, the race plan added 2026-11-07), and the device's copy of health data is purged with the session
 
-Status: Accepted 2026-10-23 (#554); amended 2026-11-07 (the race plan is a sixth kept read, see the addendum)
+Status: Accepted 2026-10-23 (#554); amended 2026-11-07 (#659; the race plan is a sixth kept read, see the addendum)
 
 ## Context
 
