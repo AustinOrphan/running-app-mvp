@@ -21,8 +21,15 @@ import type {
   PlanWithSessions,
   Units,
 } from '../../shared/types.ts'
+import { hasTrack } from '../../shared/importers/files/track.ts'
+import { ROUTE_HEADING, ROUTE_SECTION_NAME } from '../../shared/copy/runMap.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
-import { useActivityDetail, useDeleteActivity, useSaveFeedback } from '../api/activities.ts'
+import {
+  useActivityDetail,
+  useActivityTrack,
+  useDeleteActivity,
+  useSaveFeedback,
+} from '../api/activities.ts'
 import { ApiError, keys } from '../api/client.ts'
 import { usePlan } from '../api/plan.ts'
 import { useSettings } from '../api/settings.ts'
@@ -33,6 +40,8 @@ import { FeedbackFields, type FeedbackValues } from '../components/FeelPicker.ts
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
+import { createDistanceCursor, type DistanceCursor } from '../components/map/distanceCursor.ts'
+import { RunMap, RunMapLoading } from '../components/map/RunMap.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
 import { assessmentLines, ratingCounts, unratedEffortNote } from '../components/engineText.ts'
@@ -55,10 +64,22 @@ const WEATHER_SOURCES: Record<NonNullable<Activity['weatherSource']>, string> = 
   manual: 'Entered by hand',
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  label,
+  children,
+}: {
+  title: string
+  /** An accessible name that differs from the heading's text. */
+  label?: string
+  children: ReactNode
+}) {
   const id = useId()
   return (
-    <section aria-labelledby={id} className={styles.section}>
+    <section
+      {...(label === undefined ? { 'aria-labelledby': id } : { 'aria-label': label })}
+      className={styles.section}
+    >
       <h2 id={id} className={styles.heading}>
         {title}
       </h2>
@@ -196,10 +217,57 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
   )
 }
 
+/**
+ * The route on a map, between the figures and the charts. A run with no track (a treadmill run, no
+ * positions, or nothing left once the ends are hidden) has no section at all.
+ */
+function RouteMap({
+  activity,
+  units,
+  cursor,
+}: {
+  activity: Activity
+  units: Units
+  cursor: DistanceCursor
+}) {
+  const track = useActivityTrack(activity.id)
+  const loadView = useLoadView(track)
+  if (track.data === null) return null
+  if (loadView === 'failed' || loadView === 'retrying') {
+    return (
+      <Section title={ROUTE_HEADING} label={ROUTE_SECTION_NAME}>
+        <ErrorState
+          subject="The route"
+          retrying={loadView === 'retrying'}
+          onRetry={() => track.refetch()}
+          art={false}
+        />
+      </Section>
+    )
+  }
+  return (
+    <Section title={ROUTE_HEADING} label={ROUTE_SECTION_NAME}>
+      {track.data === undefined ? (
+        <RunMapLoading />
+      ) : (
+        <RunMap track={track.data} units={units} distanceM={activity.distanceM} cursor={cursor} />
+      )}
+    </Section>
+  )
+}
+
 const CHANNELS: StreamChannel[] = ['pace', 'hr', 'alt']
 
 /** The charts of the recording's stream; nothing at all for an activity that has no stream to draw. */
-function Charts({ detail, units }: { detail: ActivityDetail; units: Units }) {
+function Charts({
+  detail,
+  units,
+  cursor,
+}: {
+  detail: ActivityDetail
+  units: Units
+  cursor: DistanceCursor
+}) {
   const { activity, stream } = detail
   const channels = CHANNELS.filter(
     (channel) => channel !== 'pace' || activity.type === 'run' || activity.type === 'race',
@@ -212,7 +280,13 @@ function Charts({ detail, units }: { detail: ActivityDetail; units: Units }) {
     <Section title="Charts">
       <div className={styles.charts}>
         {channels.map((channel) => (
-          <StreamChart key={channel} stream={stream} channel={channel} units={units} />
+          <StreamChart
+            key={channel}
+            stream={stream}
+            channel={channel}
+            units={units}
+            cursor={cursor}
+          />
         ))}
       </div>
     </Section>
@@ -562,6 +636,9 @@ export function ActivityDetailPage() {
   const detail = useActivityDetail(id)
   const settings = useSettings()
   const [editing, setEditing] = useState(false)
+  // The distance a chart points at, for the dot on the map. Held outside React state so that a
+  // pointer moving over a chart renders nothing but the dot.
+  const [cursor] = useState(createDistanceCursor)
   const loadView = useLoadView(detail)
 
   if (loadView === 'failed' || loadView === 'retrying') {
@@ -623,7 +700,10 @@ export function ActivityDetailPage() {
           empty rating buttons); how it stood against the plan, the ask for a rating and the fuel
           follow, and the rest of the recording's detail after them. */}
       <Summary activity={activity} units={units} />
-      <Charts detail={detail.data} units={units} />
+      {hasTrack(activity.type, activity.subtype) ? (
+        <RouteMap activity={activity} units={units} cursor={cursor} />
+      ) : null}
+      <Charts detail={detail.data} units={units} cursor={cursor} />
       {activity.type === 'strength' ? <ActivitySets activity={activity} /> : null}
       <AgainstThePlan activity={activity} units={units} />
       {/* Keyed on the stored values, so the pickers start again from them when they change. */}

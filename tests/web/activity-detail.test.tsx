@@ -31,6 +31,7 @@ import {
   expectTouchScale,
   makeTestQueryClient,
   mockApi,
+  noTrackRoute,
   renderWithProviders,
   type MockRoutes,
 } from './helpers.tsx'
@@ -160,6 +161,7 @@ function renderDetail(
     }),
     'GET /api/activities/a1/detail': () => detail,
     'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
+    ...noTrackRoute,
     'GET /api/plan': () => opts.plan ?? null,
     'GET /api/strength': () => makeView(),
     'GET /api/strength/logs': () => [],
@@ -636,6 +638,7 @@ describe('ActivityDetailPage', () => {
         activity: { ...base.activity, ...stored },
       }),
       'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
+      ...noTrackRoute,
       'GET /api/plan': () => null,
       'PATCH /api/activities/a1/feedback': () => {
         stored = { rpe: 8, feel: 1, pain: 0 }
@@ -811,6 +814,7 @@ describe('ActivityDetailPage', () => {
           activity: { ...base.activity, ...stored },
         }),
         'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
+        ...noTrackRoute,
         'GET /api/plan': () => planWith(makeExecution(-1)),
         'PATCH /api/activities/a1/feedback': (req) => {
           const body = req.body as { rpe: number | null; feel: number | null }

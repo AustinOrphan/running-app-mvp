@@ -21,7 +21,7 @@ const PACE_WINDOW_SEC = 60
 const MIN_SPEED_MS = 0.5
 const MAX_PACE_MIN_PER_UNIT = 30
 
-function metresPerUnit(units: Units): number {
+export function metresPerUnit(units: Units): number {
   return units === 'mi' ? M_PER_MILE : 1000
 }
 

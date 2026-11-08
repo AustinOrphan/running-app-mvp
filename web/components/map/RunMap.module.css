@@ -1,0 +1,212 @@
+/* The run map. Every colour and size of the map is a custom property on .map, so a restyle is made
+   here and nowhere else; the app's own tokens (--surface, --accent, ...) feed them. */
+.map {
+  /* size */
+  --map-height: 15rem;
+  --map-trace-width: 4px;
+  --map-casing-width: 8px;
+  --map-marker: 1rem;
+  --map-cut: 0.875rem;
+  --map-dot: 1.125rem;
+  --map-ring: 3px;
+  --map-gap: var(--space-2);
+
+  /* colour */
+  --map-paper: var(--surface);
+  --map-edge: var(--border);
+  --map-trace: var(--accent);
+  --map-casing: var(--surface-raised);
+  --map-marker-ink: var(--accent);
+  --map-marker-paper: var(--surface-raised);
+  --map-cut-ink: var(--text);
+  --map-dot-ink: var(--text);
+  --map-dot-paper: var(--surface-raised);
+  --map-chip: color-mix(in srgb, var(--surface-raised) 86%, transparent);
+  --map-chip-ink: var(--text);
+  --map-tile-filter: grayscale(0.85) contrast(0.78) brightness(1.06);
+  --map-tile-opacity: 0.9;
+
+  margin: 0;
+}
+
+@media (min-width: 720px) {
+  .map {
+    --map-height: 20rem;
+  }
+}
+
+/* Dark: the same two switches as tokens.css (the system preference unless the runner chose light,
+   and the runner's choice of dark). The street map is inverted into a dark one. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .map {
+    --map-casing: var(--surface-sunken);
+    --map-marker-paper: var(--surface-sunken);
+    --map-dot-paper: var(--surface-sunken);
+    --map-tile-filter: invert(1) hue-rotate(180deg) grayscale(0.7) contrast(0.8) brightness(0.8);
+    --map-tile-opacity: 0.85;
+  }
+}
+
+:root[data-theme='dark'] .map {
+  --map-casing: var(--surface-sunken);
+  --map-marker-paper: var(--surface-sunken);
+  --map-dot-paper: var(--surface-sunken);
+  --map-tile-filter: invert(1) hue-rotate(180deg) grayscale(0.7) contrast(0.8) brightness(0.8);
+  --map-tile-opacity: 0.85;
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  height: var(--map-height);
+  overflow: hidden;
+  background: var(--map-paper);
+  border: 1px solid var(--map-edge);
+  border-radius: var(--radius-md);
+  /* a finger on the map scrolls the page: the map has no gesture of its own */
+  touch-action: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.picture {
+  position: absolute;
+  inset: 0;
+}
+
+.tiles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  filter: var(--map-tile-filter);
+  opacity: var(--map-tile-opacity);
+  pointer-events: none;
+}
+
+.tile {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.trace {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.casing,
+.line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.casing {
+  stroke: var(--map-casing);
+  stroke-width: var(--map-casing-width);
+  opacity: 0.9;
+}
+
+.line {
+  stroke: var(--map-trace);
+  stroke-width: var(--map-trace-width);
+}
+
+/* The markers sit at a point of the route; the inline transform moves them there and the negative
+   margin centres them on it. */
+.start,
+.finish,
+.cut,
+.dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+.start,
+.finish {
+  width: var(--map-marker);
+  height: var(--map-marker);
+  margin: calc(var(--map-marker) / -2) 0 0 calc(var(--map-marker) / -2);
+  border: var(--map-ring) solid var(--map-marker-paper);
+  background: var(--map-marker-ink);
+  box-shadow: 0 0 0 1px var(--map-marker-ink);
+}
+
+/* The finish is a ring: the same ink, the paper in the middle. */
+.finish {
+  border-color: var(--map-marker-ink);
+  background: var(--map-marker-paper);
+  box-shadow: 0 0 0 1px var(--map-marker-paper);
+}
+
+/* A cut end is an open dashed ring, so it does not read as a place the run started or finished. */
+.cut {
+  width: var(--map-cut);
+  height: var(--map-cut);
+  margin: calc(var(--map-cut) / -2) 0 0 calc(var(--map-cut) / -2);
+  border: 2px dashed var(--map-cut-ink);
+  background: var(--map-marker-paper);
+}
+
+.dot {
+  width: var(--map-dot);
+  height: var(--map-dot);
+  margin: calc(var(--map-dot) / -2) 0 0 calc(var(--map-dot) / -2);
+  border: var(--map-ring) solid var(--map-dot-paper);
+  background: var(--map-dot-ink);
+  box-shadow: 0 0 0 1px var(--map-dot-ink);
+  /* no transition: the dot goes where the pointer is, and reduced motion has nothing to remove */
+}
+
+.scale,
+.credit {
+  position: absolute;
+  bottom: var(--map-gap);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--map-chip);
+  color: var(--map-chip-ink);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.scale {
+  left: var(--map-gap);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.scaleBar {
+  display: block;
+  height: 0.375rem;
+  border: 2px solid var(--map-chip-ink);
+  border-top: 0;
+  box-sizing: border-box;
+}
+
+.credit {
+  right: var(--map-gap);
+  max-width: calc(100% - 2 * var(--map-gap));
+  padding-block: var(--space-1);
+  text-decoration: underline;
+}
+
+.caption {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.note {
+  display: block;
+}
