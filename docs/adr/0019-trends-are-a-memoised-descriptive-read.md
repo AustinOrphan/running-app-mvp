@@ -107,3 +107,42 @@ known harm path for a runner with unintended weight change or energy-deficiency 
 - **Fact:** `j5.redsHoldFlags` is 2 and rule n-4 holds progression and shows a clinician prompt at
   that count (`shared/engine/params/j-adapt.ts`, `research/engine-rules.md`, read 2026-11-07), so the
   same count stops the page drawing weight.
+
+## Addendum 2026-11-07: the run panels (batch D2-1 of the data track)
+
+Two panels join the page under the weekly running: heart-rate drift on long runs and the heart rate
+at one speed. They add rule A11 and an amendment of T1 (`research/engine-rules.md`); no `Param`,
+paper, migration or environment variable, and `PARAMS_VERSION` is unchanged.
+
+- `GET /api/trends/runs` (`server/routes/trendsRuns.ts`) answers `longRuns` (the flat runs of the last
+  104 weeks with a stored `Activity.decouplingPct`) and `hrWindows` (26 windows of
+  `hrModel.windowWeeks` weeks ending every 28 days, `fitHrModel` per window). It is memoised as
+  `trends.runs` by data version and day from one column-limited read, `loadRunSeries`
+  (`server/serialize.ts`): runs only, flagged duplicates left out, the 14 columns the drift and the
+  heart-rate fit read, from 104 weeks back plus the eight weeks the oldest window reads. The shape is
+  `TrendsRunsView` in `shared/domain/trendsRuns.ts`.
+- What the page draws is computed on the client from those rows (`durabilityGroup`,
+  `fixedSpeedSeries`), so the range switch moves the median line and the reference speed with the
+  runs in view and asks the server for nothing more.
+- `fitHrModel`, `hrModelSample`, `durabilityRuns` and `isDurabilityCandidate` take the columns they
+  read (`HrFitRun`, `DurabilityRun`) instead of a whole `Activity`, and `isFlatRun` is the one test of
+  the climb limit; the logic is unchanged, and the engine tests and `plan:report` are unaffected.
+- The route is not on the offline allowlist; offline the panels say Trends need a connection.
+  Activity writes read it again (`ACTIVITY_DATA_KEYS` holds `keys.trends`).
+
+### Reasons
+
+- **Fact:** the snapshot holds 365 days of activities (`server/services/athleteState.ts`, read
+  2026-11-07), and 26 windows of eight weeks reach back about 100 weeks plus eight, so the read cannot
+  come from the snapshot. It is one more exception to "no new code queries that window", beside the
+  wellness loader and `loadActivityCores`, and `tests/api/trendsRuns.test.ts` pins its column list.
+- **Fact:** the owner's history had 74 of 144 runs with a stream in the last 12 months (counted
+  2026-11-07), so both panels will often be sparse; each says what would fill it.
+- **Rule:** rule B2 does not trust wrist heart rate on hills, so both panels take flat runs only
+  (`hrModel.maxGainPerKm`).
+- **Opinion:** a hill filter on the panel only, leaving the A7 candidate test as it is, keeps a stored
+  descriptor from moving in a display change; the cost is that the panel and the descriptor can pick
+  different runs on a hilly history (open question O4 of the data-track design).
+- **Opinion:** a reference speed taken from the range shown is better than a fixed one, because a
+  fixed speed would sit outside the speeds of a short range and leave every window a gap; the cost is
+  that the pace in the caption changes with the range.
