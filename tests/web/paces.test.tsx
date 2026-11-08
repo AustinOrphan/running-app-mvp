@@ -18,7 +18,13 @@ import {
   stateWith,
   TODAY,
 } from '../unit/engine/myPacesFixtures.ts'
-import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
+import {
+  drawnArt,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  showIllustrations,
+} from './helpers.tsx'
 
 function settings(units: Units): UserSettings {
   return {
@@ -200,10 +206,12 @@ describe('MyPacesPage: the easy pace', () => {
   test('with no zones to stand in, says the reason instead of asking for more runs', async () => {
     const flat = speeds(2.6, 0.1).map((v, i) => run(i, v, {}, 140))
     const { routes } = serve(stateWith({}), flat)
+    showIllustrations()
     mockApi(routes)
     renderWithProviders(<MyPacesPage />, { route: '/paces' })
     const easy = await screen.findByRole('region', { name: 'Easy pace' })
     expect(within(easy).getByText('No easy pace yet')).toBeInTheDocument()
+    expect(drawnArt(easy)).toEqual(['paces'])
     expect(within(easy).getByText(/^Your heart-rate line is too flat/)).toBeInTheDocument()
     expect(within(easy).queryByText(/^Wear a heart-rate monitor/)).toBeNull()
   })

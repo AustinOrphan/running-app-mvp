@@ -5,7 +5,13 @@ import type { Activity, Units, UserSettings, WeekRow } from '../../shared/types.
 import { addDays } from '../../shared/dates.ts'
 import { statsOf } from '../../shared/domain/stats.ts'
 import { makeActivity, makeWeekRow } from '../factories.ts'
-import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
+import {
+  drawnArt,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  showIllustrations,
+} from './helpers.tsx'
 
 // The fixed clock is Wednesday 2026-03-18; 26 weeks end on Monday 2026-03-16.
 const FIRST_WEEK = '2025-09-22'
@@ -154,8 +160,10 @@ describe('StatsPage', () => {
       'GET /api/weeks': () => history(),
       'GET /api/settings': () => settings('mi'),
     })
+    showIllustrations()
     renderWithProviders(<StatsPage />)
     expect(await screen.findByRole('alert')).toHaveTextContent('Stats did not load.')
+    expect(drawnArt()).toEqual(['load'])
     const retry = screen.getByRole('button', { name: 'Try again' })
     retry.focus()
     const statsCalls = () => calls.filter((c) => c.url.startsWith('/api/stats')).length

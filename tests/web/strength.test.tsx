@@ -32,10 +32,12 @@ import { getOutbox, useOutboxReplay } from '../../web/pwa/outbox.ts'
 import { have } from '../unit/engine/strength-fixtures.ts'
 import {
   delayResponses,
+  drawnArt,
   expectCleanCopy,
   explainOf,
   mockApi,
   renderWithProviders,
+  showIllustrations,
   type MockRoutes,
 } from './helpers.tsx'
 import {
@@ -2517,8 +2519,10 @@ describe('the Strength page: its sections and states (design 11.3)', () => {
   })
 
   test('puts "Set up strength" first while the setup is not saved, with its five parts', async () => {
+    showIllustrations()
     openPage({ view: unsavedView() })
     await page('Set up strength')
+    expect(drawnArt()).toEqual(['strength'])
     // a section with nothing in it stays out until it has: no lifts, sessions or saved setup yet
     expect(headings()).toEqual([
       'Set up strength',
