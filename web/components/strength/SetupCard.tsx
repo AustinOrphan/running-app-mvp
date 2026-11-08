@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { Illustration } from '../illustrations/Illustration.tsx'
 import type { SetupPart } from './setupForm.ts'
 import type { PageWords } from './strengthPageText.ts'
 import styles from './StrengthSections.module.css'
@@ -38,6 +39,7 @@ export function SetupCard({ words, onOpen }: SetupCardProps) {
       <h2 id={headingId} className={styles.heading}>
         {words.say('strength.page.setup-heading')}
       </h2>
+      <Illustration art="strength" />
       <p className={styles.lead}>{words.say('strength.page.setup-lead')}</p>
       <ul className={styles.setupRows}>
         {PARTS.map(({ part, name, note }) => (

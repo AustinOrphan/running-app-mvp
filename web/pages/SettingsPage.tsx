@@ -12,6 +12,7 @@ import { Button } from '../components/Button.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
+import { useIllustrations } from '../components/illustrations/useIllustrations.ts'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
@@ -38,6 +39,7 @@ const NAME_PAUSE_MS = 800
 function SettingsForm({ initial }: { initial: UserSettings }) {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
+  const illustrations = useIllustrations()
   const update = useUpdateSettings()
   const logout = useLogout()
   const offline = useOfflineStatus()
@@ -144,6 +146,11 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
 
   function onThemeChange(next: Theme) {
     setTheme(next)
+    confirm()
+  }
+
+  function onIllustrationsChange(next: boolean) {
+    illustrations.setOn(next)
     confirm()
   }
 
@@ -257,6 +264,21 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             { value: 'dark', label: 'Dark' },
           ]}
         />
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={illustrations.on}
+            aria-describedby="illustrations-note"
+            onChange={(event) => {
+              onIllustrationsChange(event.target.checked)
+            }}
+          />
+          Illustrations
+        </label>
+        <p id="illustrations-note" className={styles.note}>
+          Line drawings on empty pages and on pages that did not load. An experiment; this device
+          only.
+        </p>
       </section>
 
       <section className={styles.section} aria-labelledby="trends-heading">

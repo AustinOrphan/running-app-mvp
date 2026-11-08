@@ -21,7 +21,14 @@ import { TodaySlot } from '../../web/components/today/TodaySlot.tsx'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { RacePage } from '../../web/pages/RacePage.tsx'
 import { courseGpx, courseGpxFrom, outAndBackPoints } from '../fixtures/course/buildCourseGpx.ts'
-import { expectCleanCopy, makeTestQueryClient, mockApi, renderWithProviders } from './helpers.tsx'
+import {
+  drawnArt,
+  expectCleanCopy,
+  makeTestQueryClient,
+  mockApi,
+  renderWithProviders,
+  showIllustrations,
+} from './helpers.tsx'
 import { makeActivity } from '../factories.ts'
 import { makeCoach, makeToday } from './today-fixtures.ts'
 
@@ -227,12 +234,14 @@ describe('RacePage', () => {
     ['not-ultra', /for ultra distances/],
     ['race-over', /race is over/],
   ] as const)('says why there is no plan: %s', async (reason, line) => {
+    showIllustrations()
     mockApi({
       'GET /api/race/plan': () => ({ plan: null, reason }),
       'GET /api/settings': () => SETTINGS,
     })
     renderWithProviders(<RacePage />, { route: '/race' })
     expect(await screen.findByText(line)).toBeInTheDocument()
+    expect(drawnArt()).toEqual(['race'])
     expect(screen.queryByRole('heading', { level: 2 })).toBeNull()
   })
 
@@ -512,6 +521,24 @@ describe('RacePage: the checkpoint table', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit course points' })).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/aid station|Checkpoints|Carry about/i)
+  })
+
+  test('a checkpoint table that did not load draws no art in the sheet', async () => {
+    showIllustrations()
+    const plan = planWith({}, 'aided', POINTS)
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/race/checkpoints': () => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'Boom' } },
+      }),
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Edit checkpoints' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit checkpoints' })
+    expect(await within(dialog).findByRole('button', { name: 'Try again' })).toBeVisible()
+    expect(drawnArt(dialog)).toEqual([])
   })
 
   test('opens the editor with the saved rows, and a save sends them in metres and replaces the table', async () => {
