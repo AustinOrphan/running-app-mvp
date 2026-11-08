@@ -9,7 +9,7 @@ import {
   TERRAIN_BINS_VERSION,
   TERRAIN_EDGES_PCT,
   TERRAIN_WINDOW_M,
-} from '../../../shared/importers/files/terrainBins.ts'
+} from '../../../shared/domain/terrainShape.ts'
 import type { TerrainBins } from '../../../shared/types.ts'
 
 /** Mulberry32: a small seeded generator, so every run of a test or the report agrees. */

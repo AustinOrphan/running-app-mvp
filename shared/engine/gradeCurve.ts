@@ -1,6 +1,7 @@
 // The personal speed-by-grade curve [rule I13]. Pure and deterministic; display only, nothing in the
 // plan, the zones or the predictions reads it (`personalGainEquivalent` is the one function that
-// could replace `l5.gainEquivalentM`, and no engine path calls it until the owner decides).
+// could replace `l5.gainEquivalentM`; replacing it is a later decision of the owner, default no, and
+// no engine path calls it).
 //
 // A run's terrain bins (`Activity.terrainBins`) give its speed in each grade band. Divided by the
 // run's own flat-band speed the figure no longer depends on the day's effort. Across the runs of
@@ -12,7 +13,7 @@ import {
   TERRAIN_BINS_VERSION,
   TERRAIN_EDGES_PCT,
   TERRAIN_WINDOW_M,
-} from '../importers/files/terrainBins.ts'
+} from '../domain/terrainShape.ts'
 import type { TerrainBins } from '../types.ts'
 import { P } from './params/index.ts'
 import { minettiCost } from './terrain.ts'
@@ -35,10 +36,14 @@ export type BandReason =
   | 'few-minutes'
   /** Reached by fewer than `i13.minBinRuns` eligible runs. */
   | 'few-runs'
+  /** One of the two open steep ends: always Minetti (rule I13). */
+  | 'steep-end'
   /** Tested on fewer than `i13.minBacktestRuns` runs. */
   | 'untested'
   /** Tested, and not lower in error than Minetti by `i13.minGainOverDefaultPct`. */
   | 'no-gain'
+  /** Lower in mean error, but the runs do not agree: the sign test is above `i13.maxSignTestP`. */
+  | 'inconsistent'
 
 /** Leave-one-run-out error of one band (or of all bands pooled). Errors are relative, in percent. */
 export interface BandTest {
@@ -48,6 +53,10 @@ export interface BandTest {
   maeDefaultPct: number
   /** How much lower the personal error is than the default error, in percent of the default. */
   gainPct: number
+  /** Pairs in which the personal error was the lower of the two. */
+  wins: number
+  /** One-sided sign test: the chance of this many wins or more in the tested pairs if each pair were a coin toss. */
+  signTestP: number
 }
 
 export interface GradeBand {
@@ -56,7 +65,7 @@ export interface GradeBand {
   fromPct: number | null
   /** Upper edge in percent grade; null for the open steep climb. */
   toPct: number | null
-  /** The grade the Minetti ratio is read at: the middle of the band (an open end: half a neighbour's width beyond its edge). */
+  /** The grade the Minetti ratio is read at: the middle of the band (an open end, which always shows Minetti: a nominal half a neighbour's width beyond its edge). */
   midPct: number
   /** Pooled minutes in the band over the eligible runs. */
   minutes: number
@@ -98,6 +107,13 @@ const EDGES = TERRAIN_EDGES_PCT
 const BAND_COUNT = EDGES.length + 1
 /** The band that holds 0: the one the curve divides by. */
 const FLAT_BAND = EDGES.filter((edge) => edge <= 0).length
+/**
+ * The two open ends. The grade a band is read at has no middle there (the band has no outer edge),
+ * and the data is thin; both keep Minetti whatever the test says (rule I13).
+ */
+function isSteepEnd(index: number): boolean {
+  return index === 0 || index === BAND_COUNT - 1
+}
 
 function midPct(index: number): number {
   const lo = EDGES[index - 1]
@@ -191,6 +207,19 @@ interface Tally {
   runs: number
   personal: number
   default: number
+  wins: number
+}
+
+/** P(X >= wins) for X ~ Binomial(n, 1/2): the one-sided sign test. */
+export function signTestP(wins: number, n: number): number {
+  if (n <= 0) return 1
+  const logFact = [0]
+  for (let i = 1; i <= n; i++) logFact.push(logFact[i - 1]! + Math.log(i))
+  let p = 0
+  for (let k = wins; k <= n; k++) {
+    p += Math.exp(logFact[n]! - logFact[k]! - logFact[n - k]! - n * Math.LN2)
+  }
+  return Math.min(1, p)
 }
 
 function toTest(t: Tally): BandTest | null {
@@ -198,7 +227,14 @@ function toTest(t: Tally): BandTest | null {
   const maePersonalPct = (t.personal / t.runs) * 100
   const maeDefaultPct = (t.default / t.runs) * 100
   const gainPct = maeDefaultPct > 0 ? ((maeDefaultPct - maePersonalPct) / maeDefaultPct) * 100 : 0
-  return { runs: t.runs, maePersonalPct, maeDefaultPct, gainPct }
+  return {
+    runs: t.runs,
+    maePersonalPct,
+    maeDefaultPct,
+    gainPct,
+    wins: t.wins,
+    signTestP: signTestP(t.wins, t.runs),
+  }
 }
 
 function backtestPrepared(prepared: Prepared[]): GradeBacktest {
@@ -206,8 +242,9 @@ function backtestPrepared(prepared: Prepared[]): GradeBacktest {
     runs: 0,
     personal: 0,
     default: 0,
+    wins: 0,
   }))
-  const all: Tally = { runs: 0, personal: 0, default: 0 }
+  const all: Tally = { runs: 0, personal: 0, default: 0, wins: 0 }
   let tested = 0
   const minSec = P.i13.minTestBandMin.value * 60
   prepared.forEach((held, k) => {
@@ -215,7 +252,13 @@ function backtestPrepared(prepared: Prepared[]): GradeBacktest {
     let any = false
     for (let b = 0; b < BAND_COUNT; b++) {
       const actual = held.ratio[b]
-      if (b === FLAT_BAND || actual === null || actual === undefined || held.sec[b]! < minSec)
+      if (
+        b === FLAT_BAND ||
+        isSteepEnd(b) ||
+        actual === null ||
+        actual === undefined ||
+        held.sec[b]! < minSec
+      )
         continue
       const personal = pool(others, b).personal
       if (personal === null) continue
@@ -225,6 +268,7 @@ function backtestPrepared(prepared: Prepared[]): GradeBacktest {
         tally.runs += 1
         tally.personal += errPersonal
         tally.default += errDefault
+        if (errPersonal < errDefault) tally.wins += 1
       }
       any = true
     }
@@ -245,7 +289,8 @@ function prepareAll(runs: readonly GradeCurveRun[], today: string): Prepared[] {
 /**
  * Leave-one-run-out test of the personal ratios against Minetti [rule I13]: each eligible run's
  * band ratio is predicted from the other runs (the shrunk pooled ratio, where that band speaks) and
- * from Minetti, and the relative errors are averaged per band.
+ * from Minetti, and the relative errors are averaged per band. The pairs where the personal error is
+ * the lower are counted for the sign test. The open steep ends are not tested.
  */
 export function backtestGradeCurve(runs: readonly GradeCurveRun[], today: string): GradeBacktest {
   return backtestPrepared(prepareAll(runs, today))
@@ -265,9 +310,11 @@ export function gradeCurve(runs: readonly GradeCurveRun[], today: string): Grade
     const fallback = defaultRatio(b)
     let reason: BandReason
     if (b === FLAT_BAND) reason = 'flat'
+    else if (isSteepEnd(b)) reason = 'steep-end'
     else if (pooled.reason) reason = pooled.reason
     else if (!bandTest || bandTest.runs < P.i13.minBacktestRuns.value) reason = 'untested'
     else if (bandTest.gainPct < P.i13.minGainOverDefaultPct.value) reason = 'no-gain'
+    else if (bandTest.signTestP > P.i13.maxSignTestP.value) reason = 'inconsistent'
     else reason = 'personal'
     const personal = reason === 'personal'
     bands.push({
@@ -278,7 +325,7 @@ export function gradeCurve(runs: readonly GradeCurveRun[], today: string): Grade
       minutes: pooled.minutes,
       runs: pooled.runs,
       defaultRatio: fallback,
-      personalRatio: pooled.personal,
+      personalRatio: isSteepEnd(b) ? null : pooled.personal,
       ratio: b === FLAT_BAND ? 1 : personal ? pooled.personal! : fallback,
       source: personal ? 'personal' : 'default',
       reason,
@@ -313,8 +360,8 @@ export function gainEquivalent(gradePct: number, ratio: number): number {
 
 /**
  * The climbing bands that show the runner's own ratio, as flat metres per metre of gain, weighted
- * by their minutes; null when no climbing band does. Nothing calls it yet (decision O3: whether the
- * personal curve may replace `l5.gainEquivalentM` in predictions is the owner's).
+ * by their minutes; null when no climbing band does. Nothing calls it: whether the personal curve may
+ * replace `l5.gainEquivalentM` in predictions is a later decision of the owner, default no.
  */
 export function personalGainEquivalent(curve: GradeCurve): number | null {
   let weight = 0

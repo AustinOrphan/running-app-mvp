@@ -5,6 +5,7 @@ import {
   gainEquivalent,
   gradeCurve,
   personalGainEquivalent,
+  signTestP,
   type GradeCurveRun,
 } from '../../../shared/engine/gradeCurve.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -61,7 +62,9 @@ describe('gradeCurve with no data', () => {
     curve.bands.forEach((band, i) => {
       expect(band.source).toBe('default')
       expect(band.ratio).toBeCloseTo(i === FLAT ? 1 : MINETTI_RATIOS[i]!, 10)
-      expect(band.reason).toBe(i === FLAT ? 'flat' : 'few-minutes')
+      expect(band.reason).toBe(
+        i === FLAT ? 'flat' : i === 0 || i === 8 ? 'steep-end' : 'few-minutes',
+      )
       expect(band.personalRatio).toBeNull()
     })
     expect(personalGainEquivalent(curve)).toBeNull()
@@ -81,14 +84,65 @@ describe('gradeCurve with no data', () => {
 })
 
 describe('gradeCurve backtest', () => {
-  test('a runner who follows Minetti gets no personal band', () => {
-    const runs = syntheticRuns(athlete(MINETTI_RATIOS), 40, TODAY, 2, 2)
-    const curve = gradeCurve(runs, TODAY)
+  test('a runner who follows Minetti rarely gets a personal band, whatever the seed', () => {
+    // The gate is a mean difference and a sign test, so a runner on the default curve can still
+    // meet a false band by chance. Bound: at most 2 of 40 seeds (5%) at 12 and at 40 runs; the
+    // probe of 300 seeds found none at either size.
+    for (const count of [12, 40]) {
+      let seedsWithBand = 0
+      for (let seed = 1; seed <= 40; seed++) {
+        const curve = gradeCurve(
+          syntheticRuns(athlete(MINETTI_RATIOS), count, TODAY, seed, 2),
+          TODAY,
+        )
+        if (curve.bands.some((band) => band.source === 'personal')) seedsWithBand += 1
+      }
+      expect(seedsWithBand, `${count} runs`).toBeLessThanOrEqual(2)
+    }
+  })
+
+  test('the personal curve of a Minetti runner stays near Minetti and gains nothing', () => {
+    const curve = gradeCurve(syntheticRuns(athlete(MINETTI_RATIOS), 40, TODAY, 2, 2), TODAY)
     expect(curve.eligibleRuns).toBeGreaterThan(30)
-    expect(curve.bands.filter((band) => band.source === 'personal')).toEqual([])
-    // the shrunk ratio sits near Minetti and the errors are the noise, so the gain stays small
     expect(curve.overall!.gainPct).toBeLessThan(P.i13.minGainOverDefaultPct.value)
     expect(personalGainEquivalent(curve)).toBeNull()
+  })
+
+  test('the two open steep ends always keep Minetti, whatever the data says', () => {
+    // a runner far from Minetti, with plenty of steep time, so the ends would pass any gate
+    const who = {
+      ...athlete(scaledCurve(0.5)),
+      timeShare: [0.1, 0.05, 0.05, 0.1, 0.4, 0.1, 0.05, 0.05, 0.1],
+    }
+    const runs = syntheticRuns(who, 40, TODAY, 21, 2)
+    const curve = gradeCurve(runs, TODAY)
+    for (const i of [0, 8]) {
+      const band = curve.bands[i]!
+      expect(band.minutes).toBeGreaterThan(P.i13.minBinMin.value)
+      expect(band.reason).toBe('steep-end')
+      expect(band.source).toBe('default')
+      expect(band.personalRatio).toBeNull()
+      expect(band.ratio).toBe(band.defaultRatio)
+      expect(band.test).toBeNull()
+    }
+    expect(curve.bands.some((band) => band.source === 'personal')).toBe(true)
+    expect(backtestGradeCurve(runs, TODAY).bands[0]).toBeNull()
+    expect(backtestGradeCurve(runs, TODAY).bands[8]).toBeNull()
+  })
+
+  test('a band with a lower mean error but no consistent wins stays on the default', () => {
+    const runs = syntheticRuns(athlete(scaledCurve(0.5), 0.12), 40, TODAY, 15, 2)
+    const curve = gradeCurve(runs, TODAY)
+    const inconsistent = curve.bands.filter((band) => band.reason === 'inconsistent')
+    expect(inconsistent.length).toBeGreaterThan(0)
+    for (const band of inconsistent) {
+      expect(band.source).toBe('default')
+      expect(band.test!.gainPct).toBeGreaterThanOrEqual(P.i13.minGainOverDefaultPct.value)
+      expect(band.test!.signTestP).toBeGreaterThan(P.i13.maxSignTestP.value)
+    }
+    for (const band of curve.bands.filter((b) => b.source === 'personal')) {
+      expect(band.test!.signTestP).toBeLessThanOrEqual(P.i13.maxSignTestP.value)
+    }
   })
 
   test('a runner with a smaller grade effect than Minetti gets personal bands where the data is', () => {
@@ -100,6 +154,7 @@ describe('gradeCurve backtest', () => {
       expect(band.reason).toBe('personal')
       expect(band.test!.runs).toBeGreaterThanOrEqual(P.i13.minBacktestRuns.value)
       expect(band.test!.gainPct).toBeGreaterThanOrEqual(P.i13.minGainOverDefaultPct.value)
+      expect(band.test!.signTestP).toBeLessThanOrEqual(P.i13.maxSignTestP.value)
       const truth = scaledCurve(0.5)[band.index]!
       expect(Math.abs(band.ratio - truth)).toBeLessThan(Math.abs(band.defaultRatio - truth))
       expect(band.ratio).toBe(band.personalRatio)
@@ -114,6 +169,8 @@ describe('gradeCurve backtest', () => {
     expect(test.runs).toBeGreaterThan(0)
     expect(test.bands).toHaveLength(9)
     expect(test.bands[FLAT]).toBeNull()
+    expect(test.bands[0]).toBeNull()
+    expect(test.bands[8]).toBeNull()
     expect(test.overall!.runs).toBe(test.bands.reduce((sum, band) => sum + (band?.runs ?? 0), 0))
   })
 
@@ -124,7 +181,9 @@ describe('gradeCurve backtest', () => {
     const reasons = new Set(curve.bands.map((band) => band.reason))
     expect(
       [...reasons].every((reason) =>
-        ['flat', 'few-minutes', 'few-runs', 'untested'].includes(reason),
+        ['flat', 'steep-end', 'few-minutes', 'few-runs', 'untested', 'inconsistent'].includes(
+          reason,
+        ),
       ),
     ).toBe(true)
   })
@@ -141,6 +200,33 @@ describe('gradeCurve backtest', () => {
     expect(dirty!.maePersonalPct).toBeGreaterThan(clean!.maePersonalPct)
   })
 
+  test('a band that only the held-out run reaches is not tested (the held-out run is not pooled)', () => {
+    // Band 6 (6 to 10%) is reached by three runs with 4 minutes each: 12 minutes in 3 runs, so the
+    // full pool speaks. Leaving one out leaves two runs, which does not speak, so no pair can be
+    // formed. A test that pooled the held-out run would form three pairs.
+    const runs = syntheticRuns(athlete(scaledCurve(0.5)), 12, TODAY, 31, 2).map((run, i) => {
+      const bins = run.bins!
+      const flatMps = bins.m[FLAT]! / bins.sec[FLAT]!
+      const sec = i < 3 ? 240 : 0
+      return {
+        ...run,
+        bins: {
+          ...bins,
+          sec: bins.sec.map((s, b) => (b === 6 ? sec : s)),
+          m: bins.m.map((m, b) => (b === 6 ? sec * flatMps * 0.8 : m)),
+          walkSec: bins.walkSec.map((w, b) => (b === 6 ? 0 : w)),
+        },
+      }
+    })
+    const curve = gradeCurve(runs, TODAY)
+    expect(curve.bands[6]!.runs).toBe(3)
+    expect(curve.bands[6]!.minutes).toBeCloseTo(12, 6)
+    expect(curve.bands[6]!.personalRatio).not.toBeNull()
+    expect(backtestGradeCurve(runs, TODAY).bands[6]).toBeNull()
+    expect(curve.bands[6]!.reason).toBe('untested')
+    expect(curve.bands[6]!.source).toBe('default')
+  })
+
   test('the result does not depend on the order of the runs', () => {
     const runs = syntheticRuns(athlete(scaledCurve(0.5)), 20, TODAY, 7, 2)
     const a = gradeCurve([...runs].reverse(), TODAY)
@@ -153,6 +239,15 @@ describe('gradeCurve backtest', () => {
       expect(band.minutes).toBeCloseTo(b.bands[i]!.minutes, 9)
     })
     expect(a.overall!.gainPct).toBeCloseTo(b.overall!.gainPct, 9)
+  })
+})
+
+describe('signTestP', () => {
+  test('is the upper tail of a fair coin', () => {
+    expect(signTestP(5, 5)).toBeCloseTo(1 / 32, 12)
+    expect(signTestP(0, 9)).toBeCloseTo(1, 12)
+    expect(signTestP(7, 10)).toBeCloseTo(176 / 1024, 12)
+    expect(signTestP(1, 0)).toBe(1)
   })
 })
 

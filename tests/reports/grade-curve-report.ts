@@ -74,7 +74,7 @@ export function renderReport(): string {
   const lines: string[] = [
     '# Grade-curve backtest (report only)',
     '',
-    `Rule I13, grade D. Parameters: window ${P.i13.windowWeeks.value} weeks, flat at least ${P.i13.minFlatMin.value} min, flat variation at most ${P.i13.maxFlatSpeedCv.value}, band at least ${P.i13.minBinMin.value} min in ${P.i13.minBinRuns.value} runs, prior ${P.i13.priorMin.value} min, gate: tested on ${P.i13.minBacktestRuns.value} runs and ${P.i13.minGainOverDefaultPct.value}% lower error than Minetti.`,
+    `Rule I13, grade D. Parameters: window ${P.i13.windowWeeks.value} weeks, flat at least ${P.i13.minFlatMin.value} min, flat variation at most ${P.i13.maxFlatSpeedCv.value}, band at least ${P.i13.minBinMin.value} min in ${P.i13.minBinRuns.value} runs, prior ${P.i13.priorMin.value} min, gate: tested on ${P.i13.minBacktestRuns.value} runs and ${P.i13.minGainOverDefaultPct.value}% lower error than Minetti, with a sign test of at most ${P.i13.maxSignTestP.value} over the tested pairs.`,
     "Errors are mean absolute errors of a held-out run's band ratio, relative, in percent. Synthetic runners only.",
     '',
   ]
@@ -97,7 +97,7 @@ export function renderReport(): string {
       curve.overall
         ? `All bands pooled: ${curve.overall.runs} tests, personal error ${pct(curve.overall.maePersonalPct)}, Minetti error ${pct(curve.overall.maeDefaultPct)}, gain ${pct(curve.overall.gainPct)}.`
         : 'All bands pooled: no band was tested.',
-      `Bands that show the runner's own ratio: ${curve.bands.filter((b) => b.source === 'personal').length} of ${curve.bands.length - 1}.`,
+      `Bands that show the runner's own ratio: ${curve.bands.filter((b) => b.source === 'personal').length} of ${curve.bands.filter((b) => b.reason !== 'flat' && b.reason !== 'steep-end').length} (the flat band and the two open steep ends always show Minetti).`,
       '',
     )
   }

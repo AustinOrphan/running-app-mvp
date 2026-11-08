@@ -8,11 +8,10 @@ const HEAT_CONSENSUS = [
   'daanen-2018-acclimation-decay',
   'periard-2015-heat-acclimation-adaptations',
 ]
-const GRADE_CURVE = [
-  'minetti-2002-gradient-cost',
-  'lemire-2021-economy-slopes-correlated',
-  'jaen-carrillo-2026-trail-digital-twin',
-]
+// I13 evidence, only where a paper bears on the value: Minetti on the prior the ratios shrink to,
+// the leave-one-out calibration of a Minetti-based trail model on the gate.
+const MINETTI_ONLY = ['minetti-2002-gradient-cost']
+const BACKTEST = ['jaen-carrillo-2026-trail-digital-twin']
 const MINETTI = ['minetti-2002-gradient-cost', 'vernillo-2017-graded-running-review']
 
 export const iEnv = {
@@ -381,43 +380,47 @@ export const iEnv = {
   // I13: every value is a default. No study fixes any of them; the gate that matters is the
   // runner's own leave-one-run-out test (`shared/engine/gradeCurve.ts`).
   i13: {
-    minFlatMin: param('i13.minFlatMin', 20, 'D', 'I13', GRADE_CURVE, {
+    minFlatMin: param('i13.minFlatMin', 20, 'D', 'I13', [], {
       unit: 'min',
       note: 'Default: a run needs this many minutes in the flat band for its own flat speed to be a steady reference.',
     }),
-    maxFlatSpeedCv: param('i13.maxFlatSpeedCv', 0.15, 'D', 'I13', GRADE_CURVE, {
+    maxFlatSpeedCv: param('i13.maxFlatSpeedCv', 0.15, 'D', 'I13', [], {
       unit: 'fraction',
       note: 'Default: the largest variation (standard deviation over mean) of flat-band speed over segments of up to 120 s for a run to count as steady. Variation faster than about two minutes is averaged out in the bins, so this separates steady runs from long repeats and nothing finer.',
     }),
-    minBinMin: param('i13.minBinMin', 10, 'D', 'I13', GRADE_CURVE, {
+    minBinMin: param('i13.minBinMin', 10, 'D', 'I13', [], {
       unit: 'min',
       note: 'Default: minutes pooled over the eligible runs before a band speaks.',
     }),
-    minBinRuns: param('i13.minBinRuns', 3, 'D', 'I13', GRADE_CURVE, {
+    minBinRuns: param('i13.minBinRuns', 3, 'D', 'I13', [], {
       unit: 'runs',
       note: 'Default: eligible runs that must reach the band before it speaks, so one hilly day cannot stand for a runner.',
     }),
-    priorMin: param('i13.priorMin', 20, 'D', 'I13', GRADE_CURVE, {
+    priorMin: param('i13.priorMin', 20, 'D', 'I13', MINETTI_ONLY, {
       unit: 'min',
       note: 'Default: weight of the Minetti ratio, in minutes, when the personal ratio is shrunk toward it.',
     }),
-    windowWeeks: param('i13.windowWeeks', 52, 'D', 'I13', GRADE_CURVE, {
+    windowWeeks: param('i13.windowWeeks', 52, 'D', 'I13', [], {
       unit: 'weeks',
       note: 'Default: how far back runs count; the athlete snapshot holds 365 days.',
     }),
-    minGainOverDefaultPct: param('i13.minGainOverDefaultPct', 10, 'D', 'I13', GRADE_CURVE, {
+    minGainOverDefaultPct: param('i13.minGainOverDefaultPct', 10, 'D', 'I13', BACKTEST, {
       unit: '%',
       note: 'Default: how many percent lower the leave-one-run-out error of a band must be than the Minetti error for the personal ratio to show.',
     }),
-    minBacktestRuns: param('i13.minBacktestRuns', 5, 'D', 'I13', GRADE_CURVE, {
+    minBacktestRuns: param('i13.minBacktestRuns', 5, 'D', 'I13', BACKTEST, {
       unit: 'runs',
       note: 'Default: runs a band must have been tested on before its comparison with Minetti counts.',
     }),
-    minTestBandMin: param('i13.minTestBandMin', 1, 'D', 'I13', GRADE_CURVE, {
+    minTestBandMin: param('i13.minTestBandMin', 1, 'D', 'I13', BACKTEST, {
       unit: 'min',
       note: 'Default: minutes a held-out run needs in a band to be tested there.',
     }),
-    walkingMajorityShare: param('i13.walkingMajorityShare', 0.5, 'D', 'I13', GRADE_CURVE, {
+    maxSignTestP: param('i13.maxSignTestP', 0.01, 'D', 'I13', BACKTEST, {
+      unit: 'fraction',
+      note: 'Default: the largest one-sided sign-test probability for a band to show the personal ratio. In the leave-one-run-out pairs of the band, the personal error must be the lower one more often than a coin toss would give. Chosen against synthetic runners who follow Minetti exactly (npm run grade:report).',
+    }),
+    walkingMajorityShare: param('i13.walkingMajorityShare', 0.5, 'D', 'I13', [], {
       unit: 'fraction of time',
       note: 'Default: the walking share above which a band counts as walked; half the time.',
     }),
