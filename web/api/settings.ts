@@ -38,6 +38,7 @@ export function useUpdateSettings() {
           keys.me,
           ...(patch.weightUnit === undefined ? [] : [keys.strength, keys.today]),
           ...(patch.showBodyWeight === undefined ? [] : [keys.trends]),
+          ...(patch.hideMapEnds === undefined ? [] : [keys.activityDetail]),
         ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
       ),
   })

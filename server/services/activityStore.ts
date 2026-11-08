@@ -54,6 +54,35 @@ export function trackRow(track: Track) {
   }
 }
 
+/** A stored `ActivityTrack` row as a `Track`; null when its distance list is unreadable. */
+export function toTrack(row: {
+  v: number
+  polyline: string
+  distM: string
+  pointCount: number
+  minLat: number
+  minLng: number
+  maxLat: number
+  maxLng: number
+  toleranceM: number
+}): Track | null {
+  let distM: unknown
+  try {
+    distM = JSON.parse(row.distM)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(distM) || distM.some((d) => typeof d !== 'number')) return null
+  return {
+    v: row.v,
+    polyline: row.polyline,
+    distM: distM as number[],
+    pointCount: row.pointCount,
+    bbox: { minLat: row.minLat, minLng: row.minLng, maxLat: row.maxLat, maxLng: row.maxLng },
+    toleranceM: row.toleranceM,
+  }
+}
+
 /**
  * The only writer of imported activities: upserts by `(userId, providerKey)`. The activity, its
  * stream, the original file and the `ImportedFile` row are written in one transaction, then the

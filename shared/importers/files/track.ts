@@ -196,3 +196,64 @@ export function buildTrack(route: ReadonlyArray<RoutePoint>): Track | null {
 export function hasTrack(type: string, subtype: string | null): boolean {
   return (type === 'run' || type === 'race') && subtype !== 'treadmill'
 }
+
+/** Metres left out at each end of a map when the runner hides the ends (privacy, M1a). */
+export const MAP_END_TRIM_M = 200
+
+/**
+ * The track without its first and last `metres` of recorded distance, or null when nothing would
+ * be left (a run under twice `metres`). The cut falls exactly at `metres`, on a point interpolated
+ * along the segment it lands in, not at the nearest kept vertex, so a straight stretch never keeps
+ * more than the stated distance. `distM` keeps its absolute values, so a chart can still map a
+ * distance to a point; the bounding box is that of the trimmed path.
+ */
+export function trimTrackEnds(track: Track, metres: number): Track | null {
+  const path = decodePolyline(track.polyline)
+  const total = track.distM[track.distM.length - 1] ?? 0
+  const from = metres
+  const to = total - metres
+  if (path.length < 2 || to <= from) return null
+
+  const at = (d: number): [number, number] => {
+    for (let i = 1; i < path.length; i++) {
+      const d0 = track.distM[i - 1]!
+      const d1 = track.distM[i]!
+      if (d <= d1) {
+        const f = d1 === d0 ? 0 : (d - d0) / (d1 - d0)
+        const [aLat, aLng] = path[i - 1]!
+        const [bLat, bLng] = path[i]!
+        return [aLat + (bLat - aLat) * f, aLng + (bLng - aLng) * f]
+      }
+    }
+    return path[path.length - 1]!
+  }
+
+  const points: Array<[number, number]> = [at(from)]
+  const dist: number[] = [from]
+  for (let i = 0; i < path.length; i++) {
+    const d = track.distM[i]!
+    if (d > from && d < to) {
+      points.push(path[i]!)
+      dist.push(d)
+    }
+  }
+  points.push(at(to))
+  dist.push(to)
+
+  const polyline = encodePolyline(points)
+  const kept = decodePolyline(polyline)
+  const lats = kept.map(([lat]) => lat)
+  const lngs = kept.map(([, lng]) => lng)
+  return {
+    ...track,
+    polyline,
+    distM: dist,
+    pointCount: kept.length,
+    bbox: {
+      minLat: Math.min(...lats),
+      minLng: Math.min(...lngs),
+      maxLat: Math.max(...lats),
+      maxLng: Math.max(...lngs),
+    },
+  }
+}

@@ -7,6 +7,7 @@ import {
   decodePolyline,
   encodePolyline,
   hasTrack,
+  trimTrackEnds,
 } from '../../../shared/importers/files/track.ts'
 import { haversineM } from '../../../shared/importers/files/summarize.ts'
 import { buildFit } from '../../fixtures/fit/buildFit.ts'
@@ -181,5 +182,41 @@ describe('route extraction', () => {
     expect(a!.route).toHaveLength(100)
     expect(a!.route![10]!.lng).toBeCloseTo(fixes[10]!.lng, 5)
     expect(a!.route![10]!.d).toBeCloseTo(fixes[10]!.distanceM, 0)
+  })
+})
+
+describe('trimTrackEnds', () => {
+  const fixes = syntheticRun(1800)
+  const track = buildTrack(fixes.map((f) => ({ lat: f.lat, lng: f.lng, d: f.distanceM })))!
+  const total = track.distM[track.distM.length - 1]!
+
+  test('cuts exactly 200 m at each end and keeps absolute distances', () => {
+    const cut = trimTrackEnds(track, 200)!
+    expect(cut.distM[0]).toBe(200)
+    expect(cut.distM[cut.distM.length - 1]).toBe(total - 200)
+    expect(cut.pointCount).toBe(cut.distM.length)
+    expect(decodePolyline(cut.polyline)).toHaveLength(cut.pointCount)
+    expect(cut.bbox.minLat).toBeGreaterThanOrEqual(track.bbox.minLat - 1e-5)
+    expect(cut.bbox.maxLat).toBeLessThanOrEqual(track.bbox.maxLat + 1e-5)
+  })
+
+  test('cuts at the distance even when the kept points are far apart', () => {
+    const straight = buildTrack(
+      Array.from({ length: 101 }, (_, i) => ({ lat: 12 + i * 0.00009, lng: -45, d: i * 10 })),
+    )!
+    expect(straight.pointCount).toBe(2)
+    const cut = trimTrackEnds(straight, 200)!
+    expect(cut.distM).toEqual([200, 800])
+    const [a, b] = decodePolyline(cut.polyline)
+    expect(a![0]).toBeCloseTo(12 + 0.00009 * 20, 5)
+    expect(b![0]).toBeCloseTo(12 + 0.00009 * 80, 5)
+  })
+
+  test('is null when under twice the trim remains', () => {
+    const short = buildTrack(
+      Array.from({ length: 31 }, (_, i) => ({ lat: 12 + i * 0.00009, lng: -45, d: i * 10 })),
+    )!
+    expect(trimTrackEnds(short, 200)).toBeNull()
+    expect(trimTrackEnds(short, 0)).not.toBeNull()
   })
 })

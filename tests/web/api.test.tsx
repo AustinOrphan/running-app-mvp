@@ -9,6 +9,7 @@ import {
   useActivities,
   joinPages,
   useActivityPages,
+  useActivityTrack,
   useCreateActivity,
   useDeleteActivity,
   useResolveDuplicate,
@@ -1027,5 +1028,45 @@ describe('auth hooks', () => {
     expect(calls.at(-1)?.url).toBe('/api/auth/logout')
     expect(queryClient.getQueryData([keys.activities, {}])).toBeUndefined()
     expect(queryClient.getQueryData([keys.me])).toBeNull()
+  })
+})
+
+describe('useActivityTrack', () => {
+  const view = {
+    activityId: 'a1',
+    v: 1,
+    polyline: '_p~iF~ps|U',
+    distM: [200, 800],
+    pointCount: 2,
+    bbox: { minLat: 38.5, minLng: -120.2, maxLat: 38.6, maxLng: -120.1 },
+    endsHiddenM: 200,
+  }
+
+  test('reads the track of one activity', async () => {
+    const { calls } = mockApi({ 'GET /api/activities/a1/track': () => view })
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActivityTrack('a1'), { wrapper })
+    await waitFor(() => expect(result.current.data).toEqual(view))
+    expect(calls).toEqual([{ method: 'GET', url: '/api/activities/a1/track', body: undefined }])
+  })
+
+  test('a 404 is no track, not an error', async () => {
+    mockApi({
+      'GET /api/activities/a1/track': () => ({
+        status: 404,
+        body: { error: { code: 'not_found', message: 'This activity has no track.' } },
+      }),
+    })
+    const { wrapper } = setup()
+    const { result } = renderHook(() => useActivityTrack('a1'), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toBeNull()
+  })
+
+  test('waits for an id', () => {
+    const { calls } = mockApi({})
+    const { wrapper } = setup()
+    renderHook(() => useActivityTrack(undefined), { wrapper })
+    expect(calls).toEqual([])
   })
 })
