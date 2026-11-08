@@ -225,7 +225,7 @@ export interface HrHistogram {
  * Where a run's moving time went by grade band, from its stream (distance and altitude). Band `i`
  * holds grades from `edgesPct[i-1]` up to `edgesPct[i]` percent (open at both ends), so every array
  * has `edgesPct.length + 1` entries. `sec` and `m` are the moving seconds and metres, `walkSec` the
- * part of `sec` spent under `walkMps`. No per-sample data. `v` is the shape version.
+ * part of `sec` spent under `walkMps`, `flatCv` how steady the flat running was. No per-sample data. `v` is the shape version.
  */
 export interface TerrainBins {
   v: number
@@ -235,6 +235,8 @@ export interface TerrainBins {
   sec: number[]
   m: number[]
   walkSec: number[]
+  /** Variation of the step speed in the flat band (standard deviation over mean); null if too few steps. */
+  flatCv: number | null
 }
 export interface Injury {
   area: string

@@ -21,40 +21,45 @@ export const COURSE: Leg[] = [
   { seconds: 600, speed: 3, gradePct: 0 },
 ]
 
-/** One record per second along the legs; altitude follows the grade of the leg being run. */
-function records(legs: Leg[], withAltitude: boolean): FitRecordInput[] {
+/** One record every `everySec` seconds along the legs; altitude follows the grade of the leg being run. */
+function records(legs: Leg[], withAltitude: boolean, everySec: number): FitRecordInput[] {
   const out: FitRecordInput[] = []
   let t = 0
   let distance = 0
   let altitude = 100
+  const record = (speedMps: number): void => {
+    if (t % everySec !== 0) return
+    out.push({
+      t,
+      distanceM: distance,
+      speedMps,
+      ...(withAltitude ? { altitudeM: altitude } : {}),
+    })
+  }
   for (const leg of legs) {
     for (let s = 0; s < leg.seconds; s++) {
-      out.push({
-        t,
-        distanceM: distance,
-        speedMps: leg.speed,
-        ...(withAltitude ? { altitudeM: altitude } : {}),
-      })
+      record(leg.speed)
       t += 1
       distance += leg.speed
       altitude += (leg.speed * leg.gradePct) / 100
     }
   }
-  out.push({
-    t,
-    distanceM: distance,
-    speedMps: 0,
-    ...(withAltitude ? { altitudeM: altitude } : {}),
-  })
+  record(0)
   return out
 }
 
-/** The course as a FIT running file; `startUnix` and `serial` make each file's key distinct. */
+/** The course as a FIT running file (a record every `everySec` seconds, default 1); `startUnix` and `serial` make each file's key distinct. */
 export function courseFit(
   legs: Leg[] = COURSE,
-  opts: { withAltitude?: boolean; startUnix?: number; serial?: number; sport?: number } = {},
+  opts: {
+    withAltitude?: boolean
+    everySec?: number
+    startUnix?: number
+    serial?: number
+    sport?: number
+  } = {},
 ): Uint8Array {
-  const recs = records(legs, opts.withAltitude ?? true)
+  const recs = records(legs, opts.withAltitude ?? true, opts.everySec ?? 1)
   const last = recs[recs.length - 1]!
   const startUnix = opts.startUnix ?? COURSE_START_UNIX
   return buildFit({
