@@ -67,6 +67,7 @@ export function StatsPage() {
         <PageHeader title="Stats" />
         <div role="alert">
           <EmptyState
+            art={online ? 'load' : 'offline'}
             title="Stats did not load."
             body={
               online

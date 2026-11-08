@@ -396,6 +396,7 @@ export function CheckpointSheet({ plan, units, course, onClose }: CheckpointShee
             subject="The checkpoint table"
             onRetry={() => query.refetch()}
             retrying={loadView === 'retrying'}
+            art={false}
           />
         ) : (
           <Skeleton lines={4} />

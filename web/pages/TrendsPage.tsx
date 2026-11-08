@@ -136,7 +136,11 @@ function RunningSection({ weeks, units, currentWeek, months, firstRecord }: Runn
           </p>
         </>
       ) : (
-        <EmptyState title={text('trends.run.empty')} body={text('trends.run.empty-body')} />
+        <EmptyState
+          art="trends"
+          title={text('trends.run.empty')}
+          body={text('trends.run.empty-body')}
+        />
       )}
     </section>
   )
