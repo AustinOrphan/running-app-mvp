@@ -280,7 +280,7 @@ describe('backfillTracks from intervals.icu streams', () => {
     const bad = await pulledRun(user.id, 'bad', '2026-01-06')
     const good = await pulledRun(user.id, 'good', '2026-01-05')
     ctx.fetch = fakeFetch({
-      [`GET ${BASE}/activity/bad/`]: () => new Response('', { status: 500 }),
+      [`GET ${BASE}/activity/bad/`]: () => new Response('', { status: 422 }),
       [`GET ${BASE}/activity/good/`]: () => new Response(streamsBody, { status: 200 }),
     })
     for (let tick = 1; tick < TRACK_MAX_ATTEMPTS; tick++) {
@@ -294,6 +294,58 @@ describe('backfillTracks from intervals.icu streams', () => {
     expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id: bad.id } })).trackV).toBe(1)
     expect(await trackOf(bad.id)).toBeNull()
     expect(await trackOf(good.id)).not.toBeNull()
+  })
+
+  test('an outage never counts toward giving a run up: 5xx, a rejected fetch, a non-JSON body', async () => {
+    await connect()
+    const run = await pulledRun(user.id, 'i1', '2026-01-05')
+    const answers: Array<() => Response | Promise<Response>> = [
+      () => new Response('', { status: 503 }),
+      () => Promise.reject(new TypeError('fetch failed')),
+      () => new Response('<html>Maintenance</html>', { status: 200 }),
+    ]
+    for (let round = 0; round < 2; round++) {
+      for (const answer of answers) {
+        ctx.fetch = fakeFetch({ [`GET ${BASE}/activity/`]: answer })
+        const result = await backfillTracks(ctx, user.id)
+        expect(result.failures).toHaveLength(1)
+        expect(result.failures[0]!.reason).not.toContain('given up')
+        const row = await ctx.prisma.activity.findUniqueOrThrow({ where: { id: run.id } })
+        expect(row.trackV).toBeNull()
+      }
+    }
+    // When the service is back the run still gets its track.
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => new Response(streamsBody, { status: 200 }),
+    })
+    expect(await backfillTracks(ctx, user.id)).toMatchObject({ filled: 1 })
+    expect(await trackOf(run.id)).not.toBeNull()
+  })
+
+  test('a reconnect lifts the auth back-off', async () => {
+    const integration = await connect()
+    await pulledRun(user.id, 'i1', '2026-01-05')
+    let calls = 0
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => {
+        calls += 1
+        return calls === 1
+          ? new Response('', { status: 401 })
+          : new Response(streamsBody, { status: 200 })
+      },
+    })
+    const now = new Date('2026-02-01T12:00:00Z')
+    await backfillTracks(ctx, user.id, { now })
+    await backfillTracks(ctx, user.id, { now: new Date('2026-02-01T12:05:00Z') })
+    expect(calls).toBe(1)
+    // The connect route upserts the same row with a new key.
+    await ctx.prisma.integration.update({
+      where: { id: integration.id },
+      data: { secret: sealSecret({ apiKey: 'new-key' }, ctx.config.sessionSecret) },
+    })
+    const after = await backfillTracks(ctx, user.id, { now: new Date('2026-02-01T12:10:00Z') })
+    expect(calls).toBe(2)
+    expect(after).toMatchObject({ filled: 1 })
   })
 
   test('a 401 stops the stream part for the integration and is not a per-run failure', async () => {

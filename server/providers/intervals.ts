@@ -4,6 +4,7 @@ import { parse, validationError } from '../errors.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 import {
   ProviderAuthError,
+  ProviderHttpError,
   RateLimitPause,
   type FileFormat,
   type ProviderCtx,
@@ -116,7 +117,7 @@ async function pullGet(
   if (response.status === 401 || response.status === 403) {
     throw new ProviderAuthError('intervals.icu rejected the API key. Reconnect with a new key.')
   }
-  throw new Error(`intervals.icu answered HTTP ${response.status}.`)
+  throw new ProviderHttpError(`intervals.icu answered HTTP ${response.status}.`, response.status)
 }
 
 async function pullJson(ctx: ProviderCtx, path: string): Promise<unknown> {

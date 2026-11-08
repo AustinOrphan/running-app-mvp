@@ -2,7 +2,7 @@ import { gunzipSync } from 'node:zlib'
 import type { Deps } from '../app.ts'
 import { SecretError } from '../crypto.ts'
 import { getProvider } from '../providers/registry.ts'
-import { ProviderAuthError, RateLimitPause } from '../providers/types.ts'
+import { ProviderAuthError, ProviderHttpError, RateLimitPause } from '../providers/types.ts'
 import { loadProfile } from '../serialize.ts'
 import { trackRow } from './activityStore.ts'
 import { isSyncing, openIntegration, providerContext } from './sync.ts'
@@ -27,8 +27,11 @@ export const TRACK_AUTH_BACKOFF_MS = 60 * 60_000
 const PROVIDER = 'intervals'
 /** Failed requests per activity since the process started; a restart starts the count again. */
 const attempts = new Map<string, number>()
-/** When the stream part may ask an integration again after an auth refusal. */
-const authBlockedUntil = new Map<string, number>()
+/**
+ * When the stream part may ask an integration again after an auth refusal, with the integration's
+ * `updatedAt` at that time: a reconnect rewrites the row, so it lifts the block.
+ */
+const authBlocked = new Map<string, { until: number; stamp: number }>()
 const RUN_TYPES = ['run', 'race']
 
 export interface TrackBackfillResult {
@@ -46,6 +49,15 @@ export interface TrackBackfillResult {
   pause: { retryAfterSec: number } | null
   /** Runs still waiting for a look. */
   remaining: number
+}
+
+function isAuthBlocked(integration: { id: string; updatedAt: Date }, now: Date): boolean {
+  const block = authBlocked.get(integration.id)
+  return (
+    block !== undefined &&
+    block.until > now.getTime() &&
+    block.stamp === integration.updatedAt.getTime()
+  )
 }
 
 /** A run that may have a track: a run or race, not on a treadmill, not looked at yet. */
@@ -82,9 +94,10 @@ function sessionFor(
  *    first, `TRACK_STREAM_BATCH` per call, only while the integration is connected, not paused and
  *    not syncing. A 429 stops the part and sets the integration's `pausedUntil` as the sync does; a
  *    404 means no streams (marked); a 401 or 403 stops the part for an hour (the sync's needs-auth
- *    handling owns it); any other failure ends the part and leaves the run for the next call, and
- *    after `TRACK_MAX_ATTEMPTS` failures of the same run it is marked with no route and the part
- *    goes on.
+ *    handling owns it); any other failure ends the part and leaves the run for the next call.
+ *    Only a 4xx the provider sent for the run counts toward giving it up: after
+ *    `TRACK_MAX_ATTEMPTS` of them it is marked with no route and the part goes on. A 5xx, a rejected
+ *    fetch or a body that is not JSON is an outage and never counts.
  *
  * A run is written only while `trackV` is still null (an import that wins the race is not
  * overwritten). It never reads the network except through the provider's `fetchRoute`, with the
@@ -185,7 +198,7 @@ export async function backfillTracks(
       result.pause = {
         retryAfterSec: Math.ceil((integration.pausedUntil.getTime() - now.getTime()) / 1000),
       }
-    } else if ((authBlockedUntil.get(integration.id) ?? 0) > now.getTime()) {
+    } else if (isAuthBlocked(integration, now)) {
       // intervals.icu refused the key a moment ago; the sync's needs-auth handling takes it from here.
     } else if (!isSyncing(userId, PROVIDER)) {
       await streamPart(integration)
@@ -229,11 +242,23 @@ export async function backfillTracks(
         }
         if (error instanceof ProviderAuthError) {
           // Not a failure of this run: the key is refused. Leave it to the sync's needs-auth handling.
-          authBlockedUntil.set(row.id, now.getTime() + TRACK_AUTH_BACKOFF_MS)
+          authBlocked.set(row.id, {
+            until: now.getTime() + TRACK_AUTH_BACKOFF_MS,
+            stamp: row.updatedAt.getTime(),
+          })
+          return
+        }
+        const reason = safeMessage(error, secrets)
+        // Only a failure specific to this run counts toward giving it up: a 4xx the provider sent
+        // for it. A rejected fetch, a 5xx or a body that is not JSON says the service is down or
+        // unreachable, which ends this tick's stream part and says nothing about the run.
+        const runSpecific =
+          error instanceof ProviderHttpError && error.status >= 400 && error.status < 500
+        if (!runSpecific) {
+          result.failures.push({ ref: run.providerKey!, reason })
           return
         }
         const tries = (attempts.get(run.id) ?? 0) + 1
-        const reason = safeMessage(error, secrets)
         if (tries < TRACK_MAX_ATTEMPTS) {
           attempts.set(run.id, tries)
           result.failures.push({ ref: run.providerKey!, reason })

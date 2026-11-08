@@ -42,6 +42,17 @@ export class ProviderAuthError extends Error {
   }
 }
 
+/** The remote answered with a status the call does not handle (not 2xx, 404, 429, 401 or 403). */
+export class ProviderHttpError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ProviderHttpError'
+    this.status = status
+  }
+}
+
 /** A pull run that stopped early. The sync service saves `cursor` and pauses the provider. */
 export class RateLimitPause extends Error {
   cursor?: string
