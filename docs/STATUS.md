@@ -27,8 +27,48 @@ Each item names the default that holds until the owner answers.
 5. **Move the live copy to an always-on home server.** The service files and the cutover runbook
    are in the owner's private homelab repository, not yet committed there. Default: the live copy
    stays on the laptop under tmux, and its scheduled jobs stop whenever the laptop sleeps.
+6. **Chest strap or wrist on long trail runs?** The Trends drift and heart-rate panels (D2-1) and
+   the grade curve (I13) leave hilly runs out of every heart-rate figure because wrist heart rate
+   on hills is not trusted (rule B2). Default: wrist; hills stay out.
+7. **May the personal grade curve feed predictions?** I13 (#660) beats the Minetti default on the
+   gentle grades of the owner's own runs, but it is display only (My paces, #663). Default: no;
+   predictions keep `l5.gainEquivalentM` until the curve has been watched for a season.
+8. **A route trace (a map of the run)?** Positions are dropped at import, and a trace would need a
+   stored track, privacy trimming and a drawing with no tile service; it changes no training
+   decision that the elevation and pace charts do not already carry. Default: not built.
+9. **Edit from the activity list.** Each row is one link to the activity's page since #654, and
+   editing happens there. Default: as is.
+10. **Illustrations** (#665): line drawings in empty and failed states behind Settings, Appearance,
+    Illustrations (off by default). The owner tries it on and off and keeps it, drops it, or makes
+    it the default.
 
 ## Where things stand
+
+- **The elite build list, the UI critique batches and the data track (2026-11-07, #648 to #666).**
+  Merged in one day, each reviewed by a Sonnet adversarial panel and fixed before merge:
+  - Today loop (#650, #661): check-in scales with their ends named, Today leading on to the run, its
+    rating and the race plan, a check for new runs, the Monday update under the session, session
+    first, the logged figure after a run.
+  - Engine words and the review (#648): plain session purposes, a prefilled weekly review, Monday's
+    update on Plan.
+  - My paces (#651, #663, rule C9): the easy pace from the runner's own heart-rate line, zones,
+    what the runner can run now at six distances, and the runner's own speed on gentle climbs and
+    descents with where walking starts.
+  - The data track: terrain bins per run with a backfill job (#656), heart-rate drift on long runs
+    and heart rate at one speed on Trends (#657), the personal grade curve behind a
+    leave-one-run-out gate and a sign test (#660, rule I13, two papers added, 432 in the corpus).
+  - Race: a course GPX import that proposes checkpoints, one per pass on out-and-back and loop
+    courses, an offline race card that prints, crew notes on the device (#659, ADR 0012 amended to
+    six kept reads), and the night and downhill rehearsal counts (#664, `PARAMS_VERSION`
+    `2026-11-07.8`).
+  - UI polish batches 1 to 4 (#654, #649, #652, #658, #662): the run page's charts and order, one
+    link per activity row, rating pickers in 44 px cells, scrolling tables, Trends from the first
+    record, Settings saved at once, one `ErrorState` with Try again on every page (`useLoadView`,
+    `combineQueries`), pages loaded on demand with idle prefetch, the rail from 720 px, More in
+    three groups, desktop measures, the Plan week row and compact warnings, the session sheet grid.
+  - The Sunday e2e trap (#653): two specs assumed a weekday and failed from 00:00 UTC on Sundays.
+  - Queued writes (#666): Done, a rating and pain go through the outbox
+    when there is no signal and go up once.
 
 - **Load progression from the runner's history (2026-10-25, `feat/load-progression`, PR #565,
   follow-up 22).** Tasks L0 to L7 of
