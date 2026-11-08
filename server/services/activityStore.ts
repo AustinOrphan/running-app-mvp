@@ -11,6 +11,7 @@ import { conflict, notFound } from '../errors.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
+import { computeHrQuality } from '../../shared/importers/files/hrQuality.ts'
 import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
 import { TRACK_VERSION, buildTrack, hasTrack } from '../../shared/importers/files/track.ts'
 import type { Track } from '../../shared/importers/files/track.ts'
@@ -136,6 +137,9 @@ export async function storeParsed(
     ...(lookedForTrack ? { trackV: TRACK_VERSION } : {}),
     terrainBins: hasTerrainBins(parsed.type)
       ? JSON.stringify(computeTerrainBins(summary.stream, sampleSec))
+      : null,
+    hrQuality: hasTerrainBins(parsed.type)
+      ? JSON.stringify(computeHrQuality(summary.stream, sampleSec, parsed.hrSource ?? 'unknown'))
       : null,
     decouplingPct: summary.decouplingPct,
     gapDistanceM: roundOrNull(summary.gapDistanceM),

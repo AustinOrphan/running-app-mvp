@@ -102,13 +102,71 @@ describe('GET /api/trends/runs', () => {
     })
     const view = (await getRuns()).body as TrendsRunsView
     expect(view.longRuns).toEqual([
-      { date: addDays(TODAY, -60), durationSec: 7200, decouplingPct: 6.1, tempC: 14 },
-      { date: addDays(TODAY, -30), durationSec: 7200, decouplingPct: 4.5, tempC: 14 },
+      { date: addDays(TODAY, -60), durationSec: 7200, decouplingPct: 6.1, hilly: false, tempC: 14 },
+      { date: addDays(TODAY, -30), durationSec: 7200, decouplingPct: 4.5, hilly: false, tempC: 14 },
     ])
     const last = view.hrWindows.at(-1)!
     expect(last.qualifying).toBe(9)
     expect(last.line).toMatchObject({ runs: 9 })
     expect(last.line!.slopeBpmPerMps).toBeCloseTo(20, 0)
+  })
+
+  test('draws a hilly run whose heart rate passed, on grade-adjusted drift, and lists it in the windows', async () => {
+    const flatBand = (value: number) => {
+      const row = new Array<number>(9).fill(0)
+      row[4] = value
+      return row
+    }
+    const quality = (source: 'strap' | 'wrist', cleanSec: number) => ({
+      v: 1,
+      source,
+      movingSec: 7000,
+      cleanSec,
+      lockSec: 0,
+      spikeSec: 0,
+      dropSec: 0,
+      flatSec: 0,
+      mismatchSec: 0,
+      halves: {
+        sec: [flatBand(3400), flatBand(3400)],
+        m: [flatBand(10_200), flatBand(10_200)],
+        hrSec: [flatBand(150 * 3400), flatBand(153 * 3400)],
+      },
+      gapDecouplingPct: 2,
+    })
+    const hilly = (daysAgo: number, hrQuality: unknown) => ({
+      ...longRun(user.id, daysAgo, 11, 400),
+      hrQuality: JSON.stringify(hrQuality),
+    })
+    await ctx.prisma.activity.createMany({
+      data: [
+        hilly(30, quality('wrist', 6800)),
+        // Too little of it clean on a wrist, passed by its source on a strap, no summary at all.
+        hilly(40, quality('wrist', 4000)),
+        hilly(50, quality('strap', 100)),
+        hilly(60, null),
+        ...Array.from({ length: 6 }, (_, i) => steadyRun(user.id, 3 + i * 6, 2.3 + i * 0.1)),
+        // Hilly, steady, forty minutes: they make a line with the six flat runs only when they passed.
+        ...[0, 1].map((i) => ({
+          ...steadyRun(user.id, 40 + i * 4, 2.8 + i * 0.1),
+          elevationGainM: 900,
+          hrQuality: JSON.stringify(quality('strap', 100)),
+        })),
+      ],
+    })
+    const view = (await getRuns()).body as TrendsRunsView
+    expect(
+      view.longRuns
+        .filter((r) => r.durationSec === 7200)
+        .map((r) => [r.date, r.hilly, r.decouplingPct]),
+    ).toEqual([
+      [addDays(TODAY, -50), true, 2],
+      [addDays(TODAY, -30), true, 2],
+    ])
+    // Eight weeks ending on the window that holds both hilly steady runs: 6 flat + 2 hilly.
+    const withHilly = view.hrWindows.filter((w) => w.hillyRuns.length > 0)
+    expect(withHilly.length).toBeGreaterThan(0)
+    expect(withHilly.every((w) => w.hillyRuns.every((key) => key.endsWith('|2400')))).toBe(true)
   })
 
   test('reaches back past the 365 days of the snapshot, to the start of the oldest window', async () => {
@@ -157,9 +215,11 @@ describe('GET /api/trends/runs', () => {
         'elevationGainM',
         'gapDistanceM',
         'hrHistogram',
+        'hrQuality',
         'humidityPct',
         'movingSec',
         'tempC',
+        'terrainBins',
         'type',
         'windKph',
       ].sort(),

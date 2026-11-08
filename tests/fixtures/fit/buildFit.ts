@@ -57,6 +57,11 @@ export interface BuildFitOptions {
   /** Offset written as `activity.local_timestamp - timestamp`, in minutes. */
   utcOffsetMin?: number
   productName?: string
+  /**
+   * Extra `device_info` messages: an external sensor is `{ deviceType: 120, sourceType: 1 }` (an
+   * ANT+ heart-rate device) or `{ deviceType: 1, sourceType: 3 }` (Bluetooth LE heart rate).
+   */
+  deviceInfos?: Array<{ deviceIndex: number; deviceType: number; sourceType: number }>
   /** Leaves out the file_id message. */
   omitFileId?: boolean
   sessions: FitSessionInput[]
@@ -141,6 +146,19 @@ export function buildFit(options: BuildFitOptions): Uint8Array {
           baseType: FitBaseType.String,
           value: FitEncoder.string(options.productName),
         },
+      ],
+      1,
+    )
+  }
+  for (const info of options.deviceInfos ?? []) {
+    enc.writeMessage(
+      23,
+      [
+        u32(253, fitTime(first.startUnix)),
+        u8(0, info.deviceIndex),
+        u8(1, info.deviceType),
+        u16(2, 1),
+        u8(25, info.sourceType),
       ],
       1,
     )

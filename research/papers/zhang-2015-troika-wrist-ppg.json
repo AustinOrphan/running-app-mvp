@@ -1,0 +1,32 @@
+{
+  "id": "zhang-2015-troika-wrist-ppg",
+  "title": "TROIKA: a general framework for heart rate monitoring using wrist-type photoplethysmographic signals during intensive physical exercise",
+  "authors": "Zhang Z, Pi Z, Liu B",
+  "year": 2015,
+  "journal": "IEEE Transactions on Biomedical Engineering",
+  "doi": "10.1109/TBME.2014.2359372",
+  "pmid": "25252274",
+  "url": "https://doi.org/10.1109/TBME.2014.2359372",
+  "design": "modelling",
+  "population": "12 subjects running fast, up to a peak speed of 15 km/h, wearing a wrist-type PPG device with a reference heart rate",
+  "sampleSize": 12,
+  "evidenceLevel": "C",
+  "topics": ["load-quantification"],
+  "findings": [
+    "Wrist-type PPG signals during intensive exercise are contaminated by extremely strong motion artifacts caused by the subjects' hand movements.",
+    "The TROIKA framework (signal decomposition for denoising, sparse signal reconstruction for a high-resolution spectrum, spectral peak tracking with verification) gave an average absolute error of 2.34 beats per minute on the 12 subjects running at up to 15 km/h, with a Pearson correlation of 0.992 against the ground-truth heart rate."
+  ],
+  "limitations": "An algorithm paper on 12 subjects, using raw PPG and accelerometer signals; the abstract does not describe a check that can be run on a watch's already-processed heart rate, and says nothing about hills or about a particular device's firmware.",
+  "implications": [
+    "Motion artifact is the named error source of wrist PPG in running, and detecting and verifying the heart-rate peak is how research algorithms handle it; this supports a data-quality check on stored heart rate, not any threshold.",
+    "The thresholds of the HQ1 checks are design choices; no study validates them on stored 10 s streams."
+  ],
+  "verification": {
+    "doiResolved": true,
+    "metadataMatches": true,
+    "abstractSource": "europepmc",
+    "findingsSupported": true,
+    "notes": "Crossref confirms title, IEEE Trans Biomed Eng 62(2):522-531, February 2015, authors Zhang, Pi, Liu. Abstract read in Europe PMC (PMID 25252274); the numbers are copied from it. Design recorded as modelling: an algorithm evaluated on a small dataset.",
+    "checkedAt": "2026-11-08"
+  }
+}

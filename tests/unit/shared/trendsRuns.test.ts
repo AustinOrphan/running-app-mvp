@@ -12,6 +12,8 @@ import {
   type TrendLongRun,
 } from '../../../shared/domain/trendsRuns.ts'
 import { P } from '../../../shared/engine/params/index.ts'
+import type { HrQuality } from '../../../shared/types.ts'
+import type { TrendRun } from '../../../shared/domain/trendsRuns.ts'
 import { steadyTrendRun, trendRun } from '../../factories.ts'
 
 const TODAY = '2026-06-30'
@@ -23,9 +25,80 @@ describe('longRunReadings', () => {
       trendRun({ date: '2026-03-01', decouplingPct: -1.5, tempC: null }),
     ])
     expect(rows).toEqual([
-      { date: '2026-03-01', durationSec: 7200, decouplingPct: -1.5, tempC: null },
-      { date: '2026-05-10', durationSec: 7200, decouplingPct: 6.2, tempC: 14 },
+      { date: '2026-03-01', durationSec: 7200, decouplingPct: -1.5, hilly: false, tempC: null },
+      { date: '2026-05-10', durationSec: 7200, decouplingPct: 6.2, hilly: false, tempC: 14 },
     ])
+  })
+
+  describe('hilly runs whose heart rate passed (B2, HQ1)', () => {
+    const limit = P.hrModel.maxGainPerKm.value
+    /** A quality summary whose two halves run entirely on the flat band: 2% more heart rate in the second. */
+    const quality = (over: Partial<HrQuality> = {}, secondHr = 153): HrQuality => {
+      const band = (value: number) => {
+        const row = new Array<number>(9).fill(0)
+        row[4] = value
+        return row
+      }
+      return {
+        v: 2,
+        th: '',
+        source: 'wrist',
+        movingSec: 7000,
+        cleanSec: 6800,
+        lockSec: 0,
+        spikeSec: 0,
+        dropSec: 0,
+        flatSec: 0,
+        mismatchSec: 200,
+        halves: {
+          sec: [band(3400), band(3400)],
+          m: [band(10_200), band(10_200)],
+          hrSec: [band(150 * 3400), band(secondHr * 3400)],
+        },
+        gapDecouplingPct: 2,
+        ...over,
+      }
+    }
+    const hillyRun = (over: Partial<TrendRun> = {}) =>
+      trendRun({ elevationGainM: limit * 20 + 100, decouplingPct: 12, ...over })
+
+    it('draws a hilly run that passes with its grade-adjusted drift, never its raw one', () => {
+      const rows = longRunReadings([
+        hillyRun({ date: '2026-05-10', hrQuality: quality() }),
+        trendRun({ date: '2026-05-11', decouplingPct: 4 }),
+      ])
+      expect(rows).toEqual([
+        { date: '2026-05-10', durationSec: 7200, decouplingPct: 2, hilly: true, tempC: 14 },
+        { date: '2026-05-11', durationSec: 7200, decouplingPct: 4, hilly: false, tempC: 14 },
+      ])
+    })
+
+    it('leaves out a hilly run with no summary, a failed one, or too little clean time in a half', () => {
+      const rows = longRunReadings([
+        hillyRun({ date: '2026-05-01' }),
+        hillyRun({ date: '2026-05-02', hrQuality: null }),
+        hillyRun({ date: '2026-05-03', hrQuality: quality({ cleanSec: 5000 }) }),
+        hillyRun({ date: '2026-05-04', hrQuality: quality({ halves: null }) }),
+        hillyRun({
+          date: '2026-05-05',
+          hrQuality: quality({
+            halves: {
+              ...quality().halves!,
+              sec: [[0, 0, 0, 0, 300, 0, 0, 0, 0], quality().halves!.sec[1]],
+            },
+          }),
+        }),
+      ])
+      expect(rows).toEqual([])
+    })
+
+    it('passes a strap by its source, and divides each band by the ratio it is given', () => {
+      const strap = quality({ source: 'strap', cleanSec: 100, movingSec: 7000 })
+      expect(longRunReadings([hillyRun({ hrQuality: strap })]).map((r) => r.hilly)).toEqual([true])
+      // The flat band is the one with all the time: a uniform ratio leaves the drift alone.
+      const doubled = new Array<number>(9).fill(2)
+      expect(longRunReadings([hillyRun({ hrQuality: strap })], doubled)[0]!.decouplingPct).toBe(2)
+    })
   })
 
   it('leaves out a run with no reading, a race and a run that climbs over the hill limit (B2)', () => {
@@ -48,7 +121,21 @@ describe('durabilityGroup', () => {
     date,
     durationSec: min * 60,
     decouplingPct: pct,
+    hilly: false,
     tempC,
+  })
+
+  it('never takes a hilly run into the group, whatever its length and air (A7 is flat-only)', () => {
+    const hilly = { ...longRun('2026-05-09', 120, 9, 12), hilly: true }
+    const flat = [
+      longRun('2026-05-01', 120, 2, 12),
+      longRun('2026-05-02', 120, 3, 12),
+      longRun('2026-05-03', 120, 4, 12),
+    ]
+    const group = durabilityGroup([...flat, hilly])
+    expect(group?.runs).toHaveLength(3)
+    expect(group?.runs.some((run) => run.date === '2026-05-09')).toBe(false)
+    expect(group?.medianPct).toBe(3)
   })
 
   it('is null without a candidate, and has no median under the minimum of runs (A7)', () => {
@@ -144,6 +231,7 @@ describe('fixedSpeedSeries', () => {
   const win = (end: string, fitted: TrendHrWindow['line'], qualifying = 9): TrendHrWindow => ({
     end,
     qualifying,
+    hillyRuns: [],
     line: fitted,
   })
 
@@ -196,5 +284,46 @@ describe('fixedSpeedSeries', () => {
     expect(series.referenceMps).toBeCloseTo(2.8, 6)
     expect(series.points).toHaveLength(1)
     expect(series.points[0]!.bpm).toBe(146)
+  })
+})
+
+describe('hrWindows with hilly runs that passed (B2, HQ1)', () => {
+  const strap: HrQuality = {
+    v: 2,
+    th: '',
+    source: 'strap',
+    movingSec: 2300,
+    cleanSec: 2300,
+    lockSec: 0,
+    spikeSec: 0,
+    dropSec: 0,
+    flatSec: 0,
+    mismatchSec: 0,
+    halves: null,
+    gapDecouplingPct: null,
+  }
+  const hilly = (daysAgo: number, speed: number, hrQuality: HrQuality | null): TrendRun => ({
+    ...steadyTrendRun(TODAY, daysAgo, speed),
+    elevationGainM: 900,
+    hrQuality,
+  })
+  const flat = Array.from({ length: 6 }, (_, i) => steadyTrendRun(TODAY, 3 + i * 6, 2.4 + i * 0.1))
+
+  it('counts a passing hilly run in the fit and names it, and leaves a failing one out', () => {
+    const windows = hrWindows(
+      [...flat, hilly(5, 3.0, strap), hilly(9, 3.1, strap), hilly(11, 3.2, null)],
+      TODAY,
+    )
+    const last = windows.at(-1)!
+    expect(last.qualifying).toBe(8)
+    expect(last.line!.runs).toBe(8)
+    expect(last.hillyRuns).toHaveLength(2)
+    expect(last.hillyRuns[0]).toMatch(/^2026-06-\d\d\|2400$/)
+  })
+
+  it('has no line from six flat runs, and one when hilly runs make up the number', () => {
+    expect(hrWindows(flat, TODAY).at(-1)!.line).toBeNull()
+    const withHilly = hrWindows([...flat, hilly(5, 3.0, strap), hilly(9, 3.1, strap)], TODAY)
+    expect(withHilly.at(-1)!.line).not.toBeNull()
   })
 })

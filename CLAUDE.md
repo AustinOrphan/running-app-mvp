@@ -162,6 +162,15 @@ its build runs `prisma migrate deploy` as a smoke test.
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
   figure on it is a range and a sketch; a new number is a Param under C9.
+- Heart-rate quality (rule B2, batch HQ1, ADR 0019 addendum): `Activity.hrQuality` (JSON `HrQuality`) is
+  written by `storeParsed` (`computeHrQuality`, `shared/importers/files/hrQuality.ts`) and by the
+  `hr-quality` job (`backfillHrQuality`, every 5 minutes, newest runs first), which also computes again a
+  summary whose `th` (the eight data-preparation thresholds) differs from the current ones. It stores
+  counts only; whether a run passes is read by `hrQualityPasses` (`shared/engine/hrQuality.ts`): at least
+  `hrModel.minDurationMin` of moving time, and an external-sensor source (FIT `device_info`, `hrSource.ts`) or at
+  least `b2.qMinCleanShare` clean. Only the Trends panels read it, through `HrFitOptions.hilly` and
+  `longRunReadings`; `fitHrModel`, My paces, the zones, A7 and C9 stay flat-only. A new check or threshold
+  is a `b2.q` Param, a `HR_QUALITY_VERSION` bump when its meaning changes, and a Params version.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`

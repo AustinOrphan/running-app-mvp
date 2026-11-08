@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-08.2')
+    expect(PARAMS_VERSION).toBe('2026-11-08.3')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -1105,5 +1105,20 @@ describe('parameter registry', () => {
     expect(section).toContain('**Every preset is grade D: a choice, not a better plan.**')
     expect(engineRules).toMatch(/^\| Run days, three-run-days preset \(P2\) /m)
     expect(engineRules).toMatch(/^\| Build weeks, longer-base preset \(P4\) /m)
+  })
+  it('carries the per-run heart-rate quality checks of B2 as ten grade D defaults named in the rule (HQ1)', () => {
+    const start = engineRules.indexOf('**Per-run heart-rate quality (amendment of 2026-11-08')
+    const text = engineRules.slice(start, engineRules.indexOf('- **Pace only', start))
+    expect(start).toBeGreaterThan(0)
+    const ids = Object.keys(P.b2)
+      .filter((name) => name.startsWith('q'))
+      .map((name) => P.b2[name as keyof typeof P.b2])
+    expect(ids).toHaveLength(10)
+    for (const p of ids) {
+      expect(p.grade, p.id).toBe('D')
+      expect(p.rule, p.id).toBe('B2')
+      expect(text, p.id).toContain(`\`${p.id}\``)
+    }
+    expect(engineRules).toContain('33. **B2 Wrist heart rate on hilly runs')
   })
 })

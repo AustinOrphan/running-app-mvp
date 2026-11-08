@@ -31,7 +31,7 @@ function settings(units: Units): UserSettings {
   }
 }
 
-/** Fifty steady flat runs, one every four days, on the line HR = 90 + 20 x speed, 2.4 to 3.0 m/s. */
+/** Fifty steady runs, one every four days, on the line HR = 90 + 20 x speed, 2.4 to 3.0 m/s. */
 const STEADY = Array.from({ length: 50 }, (_, i) =>
   steadyTrendRun(TODAY, 2 + i * 4, 2.4 + (i % 7) * 0.1),
 )
@@ -101,9 +101,9 @@ describe('Trends, heart-rate drift on long runs', () => {
   test('draws a dot per run with its median, described and not judged', async () => {
     mockPage(view({ longRuns: longRuns(6) }))
     const { container } = renderWithProviders(<TrendsPage />)
-    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 6 flat runs/ })
+    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 6 runs/ })
     expect(chart).toHaveAccessibleName(
-      'Heart-rate drift of 6 flat runs, last 12 months. Latest 2% on 8 Mar.',
+      'Heart-rate drift of 6 runs, last 12 months. Latest 2% on 8 Mar.',
     )
     // The sentence of the median line is a template over the engine's own group (rule A7).
     expect(
@@ -120,7 +120,7 @@ describe('Trends, heart-rate drift on long runs', () => {
     expect(screen.getByText(/^Dot area follows run length, up to 3 h\./)).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Runs that climb more than 15 m per km are left out: a climbing second half reads as drift, and wrist heart rate is not trusted on hills.',
+        'A run that climbs more than 15 m per km is drawn only when its heart rate passes the checks. A climbing second half reads as drift.',
       ),
     ).toBeInTheDocument()
 
@@ -130,7 +130,14 @@ describe('Trends, heart-rate drift on long runs', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((c) => c.textContent),
-    ).toEqual(['Run on', 'Drift (%)', 'Length (min)', 'Air temperature', 'In the median'])
+    ).toEqual([
+      'Run on',
+      'Drift (%)',
+      'Length (min)',
+      'Air temperature',
+      'Terrain',
+      'In the median',
+    ])
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 6)
     expect(within(table).getAllByText('Yes')).toHaveLength(6)
     expectCleanCopy(container)
@@ -139,7 +146,7 @@ describe('Trends, heart-rate drift on long runs', () => {
   test('says how far a thin set is from a median, and what a median needs', async () => {
     mockPage(view({ longRuns: longRuns(2) }))
     renderWithProviders(<TrendsPage />)
-    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 2 flat runs/ })
+    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 2 runs/ })
     expect(
       screen.getByText('No median yet: the largest set of comparable runs holds 2 of 3.'),
     ).toBeInTheDocument()
@@ -153,10 +160,46 @@ describe('Trends, heart-rate drift on long runs', () => {
     expect(within(table).queryByText('Yes')).not.toBeInTheDocument()
   })
 
+  test('draws a hilly run that passed as a diamond, outside the median, and says so', async () => {
+    const hilly = {
+      date: addDays(TODAY, -3),
+      durationSec: 7200,
+      decouplingPct: 1.4,
+      hilly: true,
+      tempC: 13,
+    }
+    mockPage(view({ longRuns: [...longRuns(6), hilly] }))
+    const { container } = renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 7 runs/ })
+    expect(
+      screen.getByText(
+        'Diamonds are hilly runs whose heart rate passed the checks. Their drift is on grade-adjusted pace, over the clean part of the stream.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/^The checks look for heart rate that follows cadence/),
+    ).toBeInTheDocument()
+    // The median is still read from the six flat runs.
+    expect(screen.getByText(/^Median \d(\.\d)?% over 6 comparable runs/)).toBeInTheDocument()
+    const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
+    const hillyRow = within(table).getByRole('row', { name: /Hilly, grade-adjusted/ })
+    expect(within(hillyRow).getByText('1.4')).toBeInTheDocument()
+    expect(within(hillyRow).getByText('No')).toBeInTheDocument()
+    expect(within(table).getAllByText('Flat')).toHaveLength(6)
+    expectCleanCopy(container)
+  })
+
+  test('names no diamond and no check line when no hilly run passed', async () => {
+    mockPage(view({ longRuns: longRuns(6) }))
+    renderWithProviders(<TrendsPage />)
+    await screen.findByRole('img', { name: /^Heart-rate drift of 6 runs/ })
+    expect(screen.queryByText(/^Diamonds are hilly runs/)).not.toBeInTheDocument()
+  })
+
   test('words the air in degrees Fahrenheit for a runner in miles', async () => {
     mockPage(view({ longRuns: longRuns(6) }), 'mi')
     renderWithProviders(<TrendsPage />)
-    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 6 flat runs/ })
+    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 6 runs/ })
     const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
     expect(
       within(table)
@@ -179,7 +222,7 @@ describe('Trends, heart-rate drift on long runs', () => {
     )
     mockPage(view({ longRuns: short }))
     renderWithProviders(<TrendsPage />)
-    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 4 flat runs/ })
+    const chart = await screen.findByRole('img', { name: /^Heart-rate drift of 4 runs/ })
     const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
     expect(within(table).getAllByText('No')).toHaveLength(4)
     expect(
@@ -194,7 +237,9 @@ describe('Trends, heart-rate drift on long runs', () => {
     renderWithProviders(<TrendsPage />)
     expect(await screen.findByText('No long-run readings in this range yet.')).toBeInTheDocument()
     expect(
-      screen.getByText(/^A reading needs a flat run with a heart-rate stream, from a watch file/),
+      screen.getByText(
+        /^A reading needs a run long enough to split in two, with a heart-rate stream from a watch file/,
+      ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: /^Heart-rate drift/ })).not.toBeInTheDocument()
   })
@@ -208,23 +253,25 @@ describe('Trends, heart-rate drift on long runs', () => {
     mockPage(view({ longRuns: runs }))
     renderWithProviders(<TrendsPage />)
     expect(
-      await screen.findByRole('img', { name: /^Heart-rate drift of 1 flat runs, last 12 months/ }),
+      await screen.findByRole('img', { name: /^Heart-rate drift of 1 runs, last 12 months/ }),
     ).toBeInTheDocument()
     const group = await screen.findByRole('radiogroup', { name: 'Range' })
     fireEvent.click(within(group).getByRole('radio', { name: '24 months' }))
     expect(
-      await screen.findByRole('img', { name: /^Heart-rate drift of 2 flat runs, last 24 months/ }),
+      await screen.findByRole('img', { name: /^Heart-rate drift of 2 runs, last 24 months/ }),
     ).toBeInTheDocument()
     fireEvent.click(within(group).getByRole('radio', { name: '6 months' }))
     expect(
-      await screen.findByRole('img', { name: /^Heart-rate drift of 1 flat runs, last 6 months/ }),
+      await screen.findByRole('img', { name: /^Heart-rate drift of 1 runs, last 6 months/ }),
     ).toBeInTheDocument()
   })
 
   test('words the climb limit in feet per mile for a runner in miles', async () => {
     mockPage(view({ longRuns: longRuns(3) }), 'mi')
     renderWithProviders(<TrendsPage />)
-    expect(await screen.findByText(/more than 79 ft per mile are left out/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(/more than 79 ft per mile is drawn only when/),
+    ).toBeInTheDocument()
   })
 })
 
@@ -254,7 +301,7 @@ describe('Trends, heart rate at one speed', () => {
     expect(
       screen.getByText(/^No window of this range ran \d:\d\d \/km or a pace near it/),
     ).toBeInTheDocument()
-    expect(screen.queryByText(/^A line needs 8 steady flat runs/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^A line needs 8 steady runs/)).not.toBeInTheDocument()
   })
 
   test('draws a point per window at one pace of the runner, with a hidden table', async () => {
@@ -268,14 +315,14 @@ describe('Trends, heart rate at one speed', () => {
     )
     expect(
       screen.getByText(
-        /^Each point is the heart rate your own line gives at \d:\d\d \/km on a cool day, from the steady flat runs of the 8 weeks to that date\.$/,
+        /^Each point is the heart rate your own line gives at \d:\d\d \/km on a cool day, from the steady runs of the 8 weeks to that date\.$/,
       ),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/^A point comes every 4 weeks, so neighbouring points share runs\./),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/^A point needs 8 steady flat runs with heart rate in 8 weeks, and /),
+      screen.getByText(/^A point needs 8 steady runs with heart rate in 8 weeks, and /),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/^Sleep, caffeine, heat, tiredness and wrist-sensor error/),
@@ -286,12 +333,44 @@ describe('Trends, heart rate at one speed', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((c) => c.textContent),
-    ).toEqual(['Window ending', 'Heart rate (bpm)', 'Runs fitted', 'Runs in the window'])
+    ).toEqual([
+      'Window ending',
+      'Heart rate (bpm)',
+      'Runs fitted',
+      'Runs in the window',
+      'Hilly runs among them',
+    ])
     // 12 months of windows every 4 weeks: 13 of them end inside the range.
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 13)
     // The windows older than the runs have no line, and say why instead of a number.
     expect(within(table).getAllByText('Too few runs').length).toBeGreaterThan(0)
     expectCleanCopy(container)
+  })
+
+  test('says how many hilly runs the drawn points include, in the text and the hidden table', async () => {
+    const windows = hrWindows(STEADY, TODAY).map((w, i, all) => {
+      if (w.line === null) return w
+      // Neighbouring windows share runs, so the same hilly run sits in two of them.
+      const keys = [`2026-01-${String(10 + i)}|2400`, `2026-02-${String(1 + (i % 2))}|2400`]
+      return i === all.length - 1
+        ? { ...w, hillyRuns: keys.slice(0, 1) }
+        : { ...w, hillyRuns: keys }
+    })
+    const distinct = new Set(windows.flatMap((w) => (w.line === null ? [] : w.hillyRuns)))
+    mockPage(view({ hrWindows: windows }))
+    renderWithProviders(<TrendsPage />)
+    const chart = await screen.findByRole('img', { name: /^Heart rate at .* one point per 8-week/ })
+    const sentence = `Includes ${String(distinct.size)} hilly runs whose heart rate passed the checks, on grade-adjusted pace.`
+    expect(screen.getByText(sentence)).toBeInTheDocument()
+    const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
+    expect(table).toHaveAccessibleName(expect.stringContaining(sentence))
+  })
+
+  test('names no hilly run when the points are fitted on flat runs only', async () => {
+    mockPage(view({ hrWindows: hrWindows(STEADY, TODAY) }))
+    renderWithProviders(<TrendsPage />)
+    await screen.findByRole('img', { name: /^Heart rate at .* one point per 8-week/ })
+    expect(screen.queryByText(/hilly run/)).not.toBeInTheDocument()
   })
 
   test('reads the pace in miles for a runner in miles', async () => {
@@ -309,7 +388,7 @@ describe('Trends, heart rate at one speed', () => {
     expect(await screen.findByText('No heart-rate line in this range yet.')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'A line needs 8 steady flat runs with heart rate within 8 weeks. The latest 8 weeks have 5.',
+        'A line needs 8 steady runs with heart rate within 8 weeks. The latest 8 weeks have 5.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: /^Heart rate at/ })).not.toBeInTheDocument()
@@ -354,7 +433,7 @@ describe('Trends, the run panels fail', () => {
     renderWithProviders(<TrendsPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(
-      await screen.findByRole('img', { name: /^Heart-rate drift of 6 flat runs/ }),
+      await screen.findByRole('img', { name: /^Heart-rate drift of 6 runs/ }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })

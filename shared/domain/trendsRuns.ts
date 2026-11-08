@@ -6,11 +6,13 @@
 import { addDays } from '../dates.ts'
 import { durabilityRuns } from '../engine/athlete.ts'
 import { fitHrModel, hrModelSample, isFlatRun, type HrFitRun } from '../engine/execution.ts'
+import { defaultBandRatios } from '../engine/gradeCurve.ts'
+import { gaDecouplingPct, hrQualityPasses } from '../engine/hrQuality.ts'
 import { P } from '../engine/params/index.ts'
 import type { Activity } from '../types.ts'
 
 /** The columns of a run the two panels read: what the heart-rate fit reads, and the stored drift. */
-export type TrendRun = HrFitRun & Pick<Activity, 'decouplingPct'>
+export type TrendRun = HrFitRun & Pick<Activity, 'decouplingPct' | 'terrainBins'>
 
 /** Days between the ends of two neighbouring windows: four weeks, so neighbours share half their runs. */
 export const HR_WINDOW_STEP_DAYS = 28
@@ -23,12 +25,17 @@ export function runHistoryDays(): number {
   return HR_WINDOW_STEP_DAYS * (HR_WINDOW_COUNT - 1) + P.hrModel.windowWeeks.value * 7
 }
 
-/** One flat long run with a drift reading, as the long-run panel draws it. */
+/** One long run with a drift reading, as the long-run panel draws it. */
 export interface TrendLongRun {
   date: string
   durationSec: number
-  /** Heart rate per unit of speed in the second half over the first, minus 1, in percent. */
+  /**
+   * Heart rate per unit of speed in the second half over the first, minus 1, in percent. For a hilly
+   * run (`hilly`) the speed is grade-adjusted and only the clean time counts (rule B2, HQ1).
+   */
   decouplingPct: number
+  /** A run that climbs more than `hrModel.maxGainPerKm` per km whose heart rate passed the checks of B2. */
+  hilly: boolean
   /** Air temperature of the run, or null when no weather is stored. */
   tempC: number | null
 }
@@ -48,8 +55,10 @@ export interface TrendHrLine {
 export interface TrendHrWindow {
   /** Last day of the window, `YYYY-MM-DD`. */
   end: string
-  /** Steady flat runs with heart rate inside the window, whether or not there are enough for a line. */
+  /** Steady runs with heart rate inside the window (flat, and hilly ones that passed), whether or not there are enough for a line. */
   qualifying: number
+  /** Of those, the hilly runs that passed the heart-rate checks, by date and length (`date|seconds`). */
+  hillyRuns: string[]
   /** The line, or null with fewer than `hrModel.minQualifyingRuns` runs. */
   line: TrendHrLine | null
 }
@@ -68,27 +77,44 @@ const round = (value: number, places: number): number => {
 }
 
 /**
- * The runs the drift panel draws: runs with a stored drift reading that climbed no more than
- * `hrModel.maxGainPerKm` per kilometre, oldest first. Wrist heart rate is not trusted on hills
- * (B2), and a climbing second half reads as drift, so a hilly run is left out and not marked.
- * Flagged duplicates are the loader's to leave out.
+ * The runs the drift panel draws, oldest first: runs with a stored drift reading that climbed no
+ * more than `hrModel.maxGainPerKm` per kilometre, and hilly runs whose heart rate passed the checks
+ * of B2 and that have a grade-adjusted drift (`gaDecouplingPct` over `ratios`: the speed of each
+ * terrain band relative to flat, the runner's own where rule I13 shows one, Minetti by default).
+ * A hilly run's raw drift is not drawn: a climbing second half reads as drift. Flagged duplicates
+ * are the loader's to leave out.
  */
-export function longRunReadings(runs: readonly TrendRun[]): TrendLongRun[] {
-  return runs
-    .filter(
-      (run) =>
-        run.type === 'run' &&
-        run.decouplingPct !== null &&
-        Number.isFinite(run.decouplingPct) &&
-        isFlatRun(run),
-    )
-    .map((run) => ({
+export function longRunReadings(
+  runs: readonly TrendRun[],
+  ratios: readonly number[] = defaultBandRatios(),
+): TrendLongRun[] {
+  const out: TrendLongRun[] = []
+  for (const run of runs) {
+    if (run.type !== 'run') continue
+    if (isFlatRun(run)) {
+      if (run.decouplingPct === null || !Number.isFinite(run.decouplingPct)) continue
+      out.push({
+        date: run.date,
+        durationSec: run.durationSec,
+        decouplingPct: run.decouplingPct,
+        hilly: false,
+        tempC: run.tempC,
+      })
+      continue
+    }
+    const quality = run.hrQuality ?? null
+    if (quality === null || !hrQualityPasses(quality)) continue
+    const ga = gaDecouplingPct(quality, ratios)
+    if (ga === null) continue
+    out.push({
       date: run.date,
       durationSec: run.durationSec,
-      decouplingPct: run.decouplingPct as number,
+      decouplingPct: ga,
+      hilly: true,
       tempC: run.tempC,
-    }))
-    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    })
+  }
+  return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
 }
 
 /**
@@ -100,10 +126,12 @@ export function hrWindows(runs: readonly HrFitRun[], today: string): TrendHrWind
   const windows: TrendHrWindow[] = []
   for (let k = HR_WINDOW_COUNT - 1; k >= 0; k -= 1) {
     const end = addDays(today, -HR_WINDOW_STEP_DAYS * k)
-    const model = fitHrModel(runs, end)
+    const model = fitHrModel(runs, end, { hilly: true })
+    const sample = hrModelSample(runs, end, { hilly: true })
     windows.push({
       end,
-      qualifying: hrModelSample(runs, end).runs,
+      qualifying: sample.runs,
+      hillyRuns: sample.hillyKeys,
       line:
         model === null
           ? null
@@ -146,13 +174,17 @@ export interface DurabilityGroup {
  * ones of the range. Null when no run qualifies at all.
  */
 export function durabilityGroup(longRuns: readonly TrendLongRun[]): DurabilityGroup | null {
-  const runs = durabilityRuns(longRuns.map((run) => ({ ...run, type: 'run' as const })))
+  // Hilly runs are drawn but never make the group: the engine's A7 test is flat-only (rule B2, HQ1).
+  const runs = durabilityRuns(
+    longRuns.filter((run) => !run.hilly).map((run) => ({ ...run, type: 'run' as const })),
+  )
   if (runs.length === 0) return null
   return {
     runs: runs.map(({ date, durationSec, decouplingPct, tempC }) => ({
       date,
       durationSec,
       decouplingPct,
+      hilly: false,
       tempC,
     })),
     medianPct:
@@ -169,8 +201,10 @@ export type WindowGap = 'few-runs' | 'speed-not-run'
 /** One window as the heart-rate panel draws it. */
 export interface FixedSpeedPoint {
   end: string
-  /** Steady flat runs inside the window. */
+  /** Steady runs inside the window, hilly ones that passed included. */
   qualifying: number
+  /** Of those, the hilly runs that passed the heart-rate checks. */
+  hilly: number
   /** Runs the line was fitted on, or null with no line. */
   fitted: number | null
   /** The line's heart rate at the reference speed, whole bpm; null in a gap. */
@@ -199,7 +233,12 @@ export function fixedSpeedSeries(windows: readonly TrendHrWindow[]): FixedSpeedS
   const referenceMps = mids.length === 0 ? null : median(mids)
   const margin = P.c9.lineSpeedMargin.value
   const points = windows.map((w): FixedSpeedPoint => {
-    const base = { end: w.end, qualifying: w.qualifying, fitted: w.line?.runs ?? null }
+    const base = {
+      end: w.end,
+      qualifying: w.qualifying,
+      hilly: w.hillyRuns.length,
+      fitted: w.line?.runs ?? null,
+    }
     if (w.line === null || referenceMps === null) {
       return { ...base, bpm: null, gap: 'few-runs' }
     }
@@ -214,4 +253,20 @@ export function fixedSpeedSeries(windows: readonly TrendHrWindow[]): FixedSpeedS
     }
   })
   return { referenceMps, points }
+}
+
+/**
+ * How many different hilly runs the drawn points (those with a value) include: a run sits in the
+ * windows that overlap it, so the windows' counts are not added. Rule A11, batch HQ1.
+ */
+export function hillyRunsDrawn(
+  windows: readonly TrendHrWindow[],
+  points: readonly FixedSpeedPoint[],
+): number {
+  const seen = new Set<string>()
+  windows.forEach((window, index) => {
+    if (points[index]?.bpm === null || points[index] === undefined) return
+    for (const key of window.hillyRuns) seen.add(key)
+  })
+  return seen.size
 }
