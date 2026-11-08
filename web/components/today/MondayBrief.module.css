@@ -1,0 +1,83 @@
+/* The card and the review link stand side by side where the column is wide enough, and one over
+   the other on a phone. The space below belongs to the page. */
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.card {
+  flex: 2 1 18rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.sentence {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* The undo control carries a top margin of its own; the link matches it so the two buttons share
+   a baseline, and an opened confirm takes the width it needs. */
+.open {
+  margin-top: var(--space-2);
+}
+
+.actions > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.review {
+  flex: 1 1 12rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: inherit;
+  text-decoration: none;
+}
+
+.review:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.reviewTitle {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.reviewNote {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

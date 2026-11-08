@@ -492,6 +492,17 @@ describe('readinessVerdict', () => {
     sessionKinds: readonly SessionKind[] = ['easy'],
   ) => readinessVerdict({ advice, state, signalCount, sessionKinds })
 
+  it('keeps the code ready but does not say "Ready as planned." over a day with no run', () => {
+    for (const kinds of [[], ['rest'], ['strength']] as const) {
+      const v = verdict('as-planned', 'normal', 2, kinds)
+      expect(v.code).toBe('ready')
+      expect(v.template).toBe('today.verdict.ready-no-session')
+    }
+    expect(verdict('as-planned', 'normal', 2, ['easy', 'strength']).template).toBe(
+      'today.verdict.ready',
+    )
+  })
+
   it('maps the situations to the sentences of the design', () => {
     const cases = [
       [verdict('as-planned', 'normal', 2), 'ready', 'Ready as planned.'],

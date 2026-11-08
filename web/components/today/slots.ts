@@ -22,6 +22,14 @@
  * within a week while the setup is not saved, the "Set up strength" card (E14, design 6.1): the page
  * places no slot of its own for strength, and neither card has a budget.
  *
+ * **The brief, once, under the session.** While the brief is unopened and its update changed
+ * sessions, the `brief` slot draws nothing and `MondayBrief` stands directly under the session hero,
+ * over the readiness read (the session leads Today, owner decision 2026-11-07): the sentence, Open
+ * and Undo, and a review link beside it while a review is due. That card is not a slot and has no
+ * budget. It sits under Done, so it cannot move Done; it does push the readiness read and the
+ * check-in down. Opening the brief marks it seen and the 52 px line returns to its place under the
+ * week.
+ *
  * **What a budget is.** The tallest the content may be, in CSS pixels, at a 360 px viewport (a
  * 328 px column), whatever state it shows. Content that could be taller stays inside its box
  * (`BriefLine` clamps its text to two lines inside one link); it never grows the box. The one

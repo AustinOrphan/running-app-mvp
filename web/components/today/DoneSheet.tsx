@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { doneEntryFor } from '../../../shared/domain/doneEntry.ts'
@@ -110,6 +111,7 @@ function clearDraft(key: string): void {
 export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProps) {
   const formId = useId()
   const toast = useToast()
+  const navigate = useNavigate()
   const online = useOnline()
   const create = useCreateActivity()
   const key = draftKey(date, useCachedUserId())
@@ -171,10 +173,22 @@ export function DoneSheet({ plan, date, units, onClose, onSaved }: DoneSheetProp
     setErrors({})
     setFailure(null)
     create.mutate(built.input, {
-      onSuccess: () => {
+      onSuccess: (saved) => {
         clearDraft(key)
         toast.show(
           render(TEMPLATES[isRun ? 'today.done.saved-run' : 'today.done.saved-session'], {}, units),
+          {
+            action: {
+              label: render(
+                TEMPLATES[isRun ? 'today.done.see-run' : 'today.done.see-session'],
+                {},
+                units,
+              ),
+              onClick: () => {
+                void navigate(`/activities/${encodeURIComponent(saved.id)}`)
+              },
+            },
+          },
         )
         onSaved()
       },

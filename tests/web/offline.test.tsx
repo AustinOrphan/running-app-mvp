@@ -229,7 +229,7 @@ describe('OfflineNote', () => {
     const readiness = screen.getByRole('region', { name: 'Readiness' })
     const follows = (a: Node, b: Node) =>
       (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
-    expect(follows(readiness, card)).toBe(true)
+    expect(follows(card, readiness)).toBe(true)
     expect(follows(card, note)).toBe(true)
   })
 

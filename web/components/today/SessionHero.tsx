@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { estimateText, nextWithEstimateText } from '../../../shared/copy/distanceEstimate.ts'
 import { sessionStatusLabel } from '../../../shared/copy/sessionStatus.ts'
 import { render } from '../../../shared/copy/template.ts'
@@ -13,6 +14,7 @@ import { DoneSheet, NotFullSheet, StrengthSheet } from '../lazySheets.tsx'
 import { strengthWords } from '../strength/strengthText.ts'
 import { useTodayStrength } from '../strength/strengthToday.ts'
 import { KnowToday } from './KnowToday.tsx'
+import { isRunLike, RunRating } from './RunRating.tsx'
 import { NotFullEntry } from './NotFullEntry.tsx'
 import { NotTodaySheet } from './NotTodaySheet.tsx'
 import { SessionActions } from './SessionActions.tsx'
@@ -41,18 +43,6 @@ function nextLine(next: PlanSessionView | null, units: Units): string | null {
     },
     units,
   )
-}
-
-/** The run that was logged against the session, in a sentence. */
-function loggedLine(run: NonNullable<TodayHero['linkedRun']>, units: Units): string {
-  const duration = { kind: 'duration', sec: run.durationSec } as const
-  return run.distanceM === null
-    ? render(TEMPLATES['today.hero.logged-time'], { duration }, units)
-    : render(
-        TEMPLATES['today.hero.logged'],
-        { distance: formatDistance(run.distanceM, units), duration },
-        units,
-      )
 }
 
 /** What a day with no session says, and the next session when there is one. */
@@ -132,25 +122,40 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
     : [...new Set([...shown.rules, ...(advice === 'as-planned' ? [] : ['J3'])])]
   const showNext = rest || !toRun
 
+  // Once a run is logged against the session the figure is what was run, with its distance beside
+  // it, and the plan becomes the quiet line under it (owner decision 2026-11-07). A strength
+  // session has no run to show.
+  const ran = linkedRun !== null && !strengthHero ? linkedRun : null
   const plannedLine =
-    advice === 'rest' && session.kind !== 'rest'
-      ? render(TEMPLATES['today.hero.planned-not-today'], planned, units)
-      : eased !== null
-        ? render(TEMPLATES['today.hero.planned'], planned, units)
-        : null
+    ran !== null
+      ? null
+      : advice === 'rest' && session.kind !== 'rest'
+        ? render(TEMPLATES['today.hero.planned-not-today'], planned, units)
+        : eased !== null
+          ? render(TEMPLATES['today.hero.planned'], planned, units)
+          : null
   // The estimate is the distance the hero shows when it has one ("about 9 mi at your easy pace");
   // otherwise the plan's own distance, which an eased session does not carry.
   const estimate = shown.distanceEstimate ?? null
-  const extent = [
-    estimate !== null
-      ? estimateText(estimate, units)
-      : shown.distanceM === null
-        ? null
-        : formatDistance(shown.distanceM, units),
-    shown.gainM === null || shown.gainM <= 0
-      ? null
-      : render(TEMPLATES['today.hero.climb'], { climb: { kind: 'climb', m: shown.gainM } }, units),
-  ].filter((part): part is string => part !== null)
+  const extent =
+    ran !== null
+      ? ran.distanceM === null
+        ? []
+        : [formatDistance(ran.distanceM, units)]
+      : [
+          estimate !== null
+            ? estimateText(estimate, units)
+            : shown.distanceM === null
+              ? null
+              : formatDistance(shown.distanceM, units),
+          shown.gainM === null || shown.gainM <= 0
+            ? null
+            : render(
+                TEMPLATES['today.hero.climb'],
+                { climb: { kind: 'climb', m: shown.gainM } },
+                units,
+              ),
+        ].filter((part): part is string => part !== null)
   // Logging is for today's page alone: a copy of a day that is over and a preview offer no Log sets.
   const canLog = !readOnly && day === 'today'
   // The day's other strength session is a button when the payload carries its workout and the
@@ -194,7 +199,9 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
         <>
           <div className={styles.figureRow}>
             <p className={styles.figure}>
-              <span className={styles.display}>{String(shown.durationMin)}</span>{' '}
+              <span className={styles.display}>
+                {String(ran === null ? shown.durationMin : Math.round(ran.durationSec / 60))}
+              </span>{' '}
               <span className={styles.unit}>min</span>
             </p>
             {extent.length === 0 ? null : (
@@ -208,8 +215,35 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
               </p>
             )}
           </div>
+          {ran === null ? null : (
+            <p className={styles.muted}>
+              {render(
+                TEMPLATES['today.hero.planned'],
+                { title: session.title, duration: minutes(session.durationMin) },
+                units,
+              )}
+            </p>
+          )}
           {linkedRun === null ? null : (
-            <p className={styles.muted}>{loggedLine(linkedRun, units)}</p>
+            <>
+              <p className={styles.muted}>
+                <Link
+                  to={`/activities/${encodeURIComponent(linkedRun.id)}`}
+                  className={styles.runLink}
+                >
+                  {render(
+                    TEMPLATES[
+                      isRunLike(linkedRun) ? 'today.hero.see-run' : 'today.hero.see-session'
+                    ],
+                    {},
+                    units,
+                  )}
+                </Link>
+              </p>
+              {readOnly || !isRunLike(linkedRun) ? null : (
+                <RunRating key={linkedRun.id} run={linkedRun} units={units} />
+              )}
+            </>
           )}
           {strengthHero ? (
             <StrengthRows workout={strength} units={units} weightUnit={weightUnit} usual={usual} />

@@ -38,6 +38,9 @@ describe('Today templates', () => {
       'lighter-week': 'Recent signals have stayed low for several days. A lighter week may help.',
       'no-signals': 'No readiness signals yet. One tap below adds the first.',
     }
+    expect(renderFact({ template: 'today.verdict.ready-no-session', slots: {} }, 'km')).toBe(
+      'Signals are normal. The plan stays as it is.',
+    )
     for (const [code, sentence] of Object.entries(verdicts)) {
       expect(renderFact({ template: `today.verdict.${code}`, slots: {} }, 'km')).toBe(sentence)
     }
@@ -45,7 +48,7 @@ describe('Today templates', () => {
 
   test('the verdicts under a window name the day, and none says "Ready as planned."', () => {
     const verdicts: Record<WindowVerdictCode, string> = {
-      'window-rest': 'A rest day of the window.',
+      'window-rest': 'The window keeps today at rest.',
       'window-limited': 'A day of limited running.',
       'window-easy': 'Easy running only today.',
       'window-return': 'A day of the return week.',
@@ -55,6 +58,16 @@ describe('Today templates', () => {
       expect(text).toBe(sentence)
       expect(text).not.toMatch(/Ready as planned/)
     }
+  })
+
+  test('the check-in scales say which end is which, and 3 stays normal after a save', () => {
+    const say = (id: keyof typeof TODAY_TEMPLATES) => renderFact({ template: id, slots: {} }, 'km')
+    expect(say('today.checkin.scale-fatigue')).toBe('1 fresh, 5 drained.')
+    expect(say('today.checkin.scale-soreness')).toBe('1 none, 5 very sore.')
+    expect(say('today.checkin.scale-sleep')).toBe('1 poor, 5 good.')
+    expect(say('today.checkin.scale-mood')).toBe('1 low, 5 good.')
+    expect(say('today.checkin.scale-stress')).toBe('1 calm, 5 very stressed.')
+    expect(say('today.checkin.sheet-saved')).toContain('3 is normal')
   })
 
   test('the check-in link reads as adding a window while one is open', () => {
@@ -199,9 +212,9 @@ describe('hero copy', () => {
     expect(say('today.hero.rest-day', {})).toBe('Rest day.')
   })
 
-  test('the week reads in minutes a day, without a minimum', () => {
-    expect(say('today.week.advisory', { perDay: { kind: 'minutes', min: 34 } })).toBe(
-      '34 min a day left, through Sunday',
+  test('the rest of the week is a description of the plan, without a minimum', () => {
+    expect(say('today.week.rest-planned', { total: { kind: 'minutes', min: 190 } })).toBe(
+      'Planned for the rest of the week: 3 h 10 min.',
     )
     expect(
       say('today.week.day-logged', {
