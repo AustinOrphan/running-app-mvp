@@ -946,7 +946,13 @@ function runsAreEasy(kinds: readonly SessionKind[]): boolean {
  */
 export function readinessVerdict(input: VerdictInput): ReadinessVerdict {
   const code = verdictCode(input)
-  return { code, template: VERDICT_TEMPLATES[code], slots: {} }
+  // Normal signals on a day with no run to do keep the code `ready` (a window replaces that code)
+  // but do not say "Ready as planned." over a rest day.
+  const template =
+    code === 'ready' && input.sessionKinds.every((kind) => NOT_RUNNING.has(kind))
+      ? 'today.verdict.ready-no-session'
+      : VERDICT_TEMPLATES[code]
+  return { code, template, slots: {} }
 }
 
 function verdictCode(input: VerdictInput): ReadinessVerdict['code'] {

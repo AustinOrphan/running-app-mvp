@@ -1,0 +1,31 @@
+/* The two run panels sit among the sections of the Trends page and share their rhythm: the same
+   rule above, heading size and muted captions as `TrendsPage.module.css`. */
+.section {
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+
+.heading {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.caption {
+  margin: var(--space-2) 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* The one sentence that states the figure the chart draws: full ink, not muted. */
+.figure {
+  margin: var(--space-2) 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.pending {
+  height: 12rem;
+}

@@ -1,6 +1,8 @@
-/* Tight: the verdict, its readings and the check-in are one thought, and the first screen is
-   measured (tests/e2e/12-today.spec.ts) to keep Done above the fold. */
+/* Tight: the verdict, its readings and the check-in are one thought. It follows the session, so
+   the session leads the first screen (owner decision 2026-11-07). */
 .read {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);

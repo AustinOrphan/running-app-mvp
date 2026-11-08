@@ -2,7 +2,11 @@ import { describe, expect, test } from 'vitest'
 import { addDays } from '../../../shared/dates.ts'
 import { remainingPlan } from '../../../shared/domain/adaptation.ts'
 import { isToRun } from '../../../shared/domain/sessionStatus.ts'
-import { weekStrip } from '../../../shared/domain/weekStrip.ts'
+import {
+  plannedRestOfWeekMin,
+  showWeekAdvisory,
+  weekStrip,
+} from '../../../shared/domain/weekStrip.ts'
 import { aggregateWeeks } from '../../../shared/domain/weeks.ts'
 import type { SessionKind } from '../../../shared/engine/types.ts'
 import type { PlanSessionStatus, PlanSessionView, WeekStripMark } from '../../../shared/types.ts'
@@ -289,5 +293,37 @@ describe('weekStrip: purity', () => {
     const input = { today: TODAY, sessions, activities, targetRunMin: 300 }
     expect(weekStrip(input)).toEqual(weekStrip(input))
     expect(JSON.stringify({ sessions, activities })).toBe(before)
+  })
+})
+
+describe('showWeekAdvisory', () => {
+  const base = { windowOpen: false, heroKind: 'threshold', verdictCode: 'ready' } as const
+  test('shows on an ordinary day, whatever the session', () => {
+    expect(showWeekAdvisory(base)).toBe(true)
+    expect(showWeekAdvisory({ ...base, heroKind: null, verdictCode: null })).toBe(true)
+    expect(showWeekAdvisory({ ...base, verdictCode: 'low-plan-stays' })).toBe(true)
+  })
+  test('is left out while a window is open, on a rest day and for an easy or rest verdict', () => {
+    expect(showWeekAdvisory({ ...base, windowOpen: true })).toBe(false)
+    expect(showWeekAdvisory({ ...base, heroKind: 'rest' })).toBe(false)
+    expect(showWeekAdvisory({ ...base, verdictCode: 'easy' })).toBe(false)
+    expect(showWeekAdvisory({ ...base, verdictCode: 'rest' })).toBe(false)
+    expect(showWeekAdvisory({ ...base, verdictCode: 'lighter-week' })).toBe(false)
+  })
+})
+
+describe('plannedRestOfWeekMin', () => {
+  test('adds up the run sessions still to run from today, and nothing else', () => {
+    const s = strip([
+      session(MON, 'easy', 'completed', { durationMin: 40 }),
+      session(TODAY, 'threshold', 'planned', { durationMin: 50 }),
+      session(TODAY, 'strength', 'planned', { durationMin: 30 }),
+      session(addDays(TODAY, 1), 'long', 'moved', { durationMin: 80 }),
+      session(addDays(TODAY, 2), 'easy', 'skipped', { durationMin: 60 }),
+    ])
+    expect(plannedRestOfWeekMin(s)).toBe(130)
+  })
+  test('is zero when nothing is left', () => {
+    expect(plannedRestOfWeekMin(strip([]))).toBe(0)
   })
 })

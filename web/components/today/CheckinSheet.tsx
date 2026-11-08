@@ -37,11 +37,11 @@ function draftFrom(checkin: Checkin | null, boneActive: boolean): CheckinDraft {
 }
 
 const CHECKIN_SCALES = [
-  ['fatigue', 'Fatigue'],
-  ['soreness', 'Soreness'],
-  ['sleepQuality', 'Sleep quality'],
-  ['mood', 'Mood'],
-  ['stress', 'Stress'],
+  ['fatigue', 'Fatigue', 'today.checkin.scale-fatigue'],
+  ['soreness', 'Soreness', 'today.checkin.scale-soreness'],
+  ['sleepQuality', 'Sleep quality', 'today.checkin.scale-sleep'],
+  ['mood', 'Mood', 'today.checkin.scale-mood'],
+  ['stress', 'Stress', 'today.checkin.scale-stress'],
 ] as const
 
 export interface CheckinSheetProps {
@@ -127,7 +127,7 @@ export function CheckinSheet({
           units,
         )}
       </p>
-      {CHECKIN_SCALES.map(([key, legend]) => (
+      {CHECKIN_SCALES.map(([key, legend, hint]) => (
         <ScalePicker
           key={key}
           legend={legend}
@@ -135,6 +135,7 @@ export function CheckinSheet({
           max={5}
           value={draft[key]}
           touch
+          hint={render(TEMPLATES[hint], {}, units)}
           onChange={(value) => {
             setDraft({ ...draft, [key]: value })
           }}
@@ -175,16 +176,21 @@ export function CheckinSheet({
         </label>
         <Input
           id={`${formId}-area`}
+          aria-describedby={`${formId}-area-hint`}
           value={draft.painArea}
           maxLength={80}
           onChange={(event) => {
             setDraft({ ...draft, painArea: event.target.value })
           }}
         />
+        <p id={`${formId}-area-hint`} className={styles.caption}>
+          {render(TEMPLATES['today.checkin.pain-area-hint'], {}, units)}
+        </p>
       </div>
       <label className={styles.checkLabel}>
         <input
           type="checkbox"
+          aria-describedby={`${formId}-bone-hint`}
           checked={draft.painFocalBone}
           onChange={(event) => {
             setDraft({ ...draft, painFocalBone: event.target.checked })
@@ -192,6 +198,9 @@ export function CheckinSheet({
         />
         Point tenderness on a bone
       </label>
+      <p id={`${formId}-bone-hint`} className={styles.caption}>
+        {render(TEMPLATES['today.checkin.bone-hint'], {}, units)}
+      </p>
     </section>
   )
 

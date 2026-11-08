@@ -115,18 +115,3 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
-
-.advisory {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 var(--space-2);
-  margin: 0;
-}
-
-.advisoryLine {
-  font-family: var(--font-serif);
-  font-size: var(--text-base);
-  line-height: var(--lh-base);
-  font-variant-numeric: lining-nums tabular-nums;
-}

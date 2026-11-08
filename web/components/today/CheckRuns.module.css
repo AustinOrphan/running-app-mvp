@@ -1,0 +1,53 @@
+/* A 44 px icon button on a phone; the words join the icon from 900 px. */
+.icon {
+  flex: none;
+}
+
+/* The words stay in the accessible name at every width; a phone shows only the icon. */
+.label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* With less motion the icon stays still and the button reads as waiting by its dimmed look. */
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+/* A refusal is said plainly, set apart by a bar and weight, never by colour. */
+.note {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--border-strong);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

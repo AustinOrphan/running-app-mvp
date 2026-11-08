@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { raceEstimateSlots } from '../../../shared/copy/today.ts'
 import { renderFact } from '../../../shared/copy/templates.ts'
 import type { TodayRace, Units } from '../../../shared/types.ts'
@@ -14,7 +15,7 @@ export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }
   const { daysToRace, prediction, range } = race
   return (
     <section aria-label="Race" className={styles.race}>
-      <div className={styles.figure}>
+      <Link to="/race" className={styles.figure}>
         <p className={styles.line}>
           {daysToRace === 0 ? (
             <span className={styles.number}>Race day</span>
@@ -28,7 +29,8 @@ export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }
         <p className={styles.caption}>
           {`${race.name}, ${formatLongDate(race.targetDate)}${race.dateProvisional ? ', date provisional' : ''}`}
         </p>
-      </div>
+        <span className={styles.chevron}>Open the race plan</span>
+      </Link>
       {prediction === null ? null : (
         <p className={styles.estimate}>
           {renderFact(
