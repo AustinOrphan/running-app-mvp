@@ -1,6 +1,7 @@
 import FitParser from 'fit-file-parser'
 import type { ParsedFit } from 'fit-file-parser'
-import type { Lap, ParsedActivity } from '../../types.ts'
+import type { HrSource, Lap, ParsedActivity } from '../../types.ts'
+import { hrSourceOfDeviceInfos } from './hrSource.ts'
 import {
   classifySport,
   elevationGainLoss,
@@ -104,6 +105,11 @@ function lapsOf(laps: Message[], startMs: number, endMs: number, foot: boolean):
     })
   }
   return out
+}
+
+/** The heart-rate source of a stored FIT file, for runs imported before it was read (`hrSource.ts`). */
+export function fitHrSource(bytes: Uint8Array): HrSource {
+  return hrSourceOfDeviceInfos((decode(bytes).device_infos ?? []) as Message[])
 }
 
 /** One activity per FIT session. Throws `RangeError` with a reason for an unreadable file. */
@@ -221,6 +227,7 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       avgCadence: avgCadence === null ? null : Math.round(avgCadence),
       avgPowerW: avgPower === null ? null : Math.round(avgPower),
       deviceName: deviceName(infos),
+      hrSource: hrSourceOfDeviceInfos(infos),
       startLat: startLat === null ? null : roundCoord(startLat),
       startLng: startLng === null ? null : roundCoord(startLng),
       samples,

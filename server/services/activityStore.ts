@@ -11,6 +11,7 @@ import { conflict, notFound } from '../errors.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
+import { computeHrQuality } from '../../shared/importers/files/hrQuality.ts'
 import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 
@@ -82,6 +83,9 @@ export async function storeParsed(
     hrHistogram: summary.hrHistogram ? JSON.stringify(summary.hrHistogram) : null,
     terrainBins: hasTerrainBins(parsed.type)
       ? JSON.stringify(computeTerrainBins(summary.stream, sampleSec))
+      : null,
+    hrQuality: hasTerrainBins(parsed.type)
+      ? JSON.stringify(computeHrQuality(summary.stream, sampleSec, parsed.hrSource ?? 'unknown'))
       : null,
     decouplingPct: summary.decouplingPct,
     gapDistanceM: roundOrNull(summary.gapDistanceM),

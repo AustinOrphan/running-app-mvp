@@ -125,7 +125,7 @@ export const bLoad = {
     ),
     qLockMinCadenceSpm: param('b2.qLockMinCadenceSpm', 120, 'D', 'B2', [], {
       unit: 'steps per min',
-      note: 'Default (data preparation): below this cadence the runner is walking or standing, where heart rate and cadence meet by chance; the lock check reads only faster cadence, and doubles a stored cadence under it only when the file recorded one foot.',
+      note: 'Default (data preparation): a cadence below this is walking or standing, or one foot, and heart rate and cadence meet by chance there;the lock check reads a cadence at or above it as steps per minute, and one from half of it up to it as a single foot and doubles it. Below half of it there is no check.',
     }),
     qMismatchWindowSec: param(
       'b2.qMismatchWindowSec',
