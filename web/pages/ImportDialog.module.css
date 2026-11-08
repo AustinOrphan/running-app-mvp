@@ -78,3 +78,34 @@
   height: 10px;
   accent-color: var(--accent);
 }
+
+.newest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.newestTitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: 600;
+}
+
+.newestList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A 44 px row to tap, the text underlined as a link in a sentence is. */
+.newestList a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+  text-decoration: underline;
+}

@@ -39,6 +39,33 @@ export const PAGE_TEMPLATES = {
     },
   ),
 
+  // The Import dialog's result: three counts, each with its own noun phrase so one reads right
+  // whatever the number ("1 already there"), then links to the newest runs the file brought in.
+  'import.result': tpl(
+    '{added} added to your log. {duplicates} already there. {skipped} could not be read.',
+    { added: 'count', duplicates: 'count', skipped: 'count' },
+    { fallback: 'The import finished.' },
+  ),
+  'import.newest': tpl('Newest runs added', {}, { shape: 'label' }),
+  'import.run-link': tpl(
+    '{date}, {kind}, {distance}',
+    { date: 'date', kind: 'text', distance: 'distance' },
+    { shape: 'label', fallback: 'A run' },
+  ),
+  'import.run-link-no-distance': tpl(
+    '{date}, {kind}',
+    { date: 'date', kind: 'text' },
+    { shape: 'label', fallback: 'A run' },
+  ),
+  // The two choices at the top of the form, with the label and the line under it that a wrong
+  // pick would turn into a wrong log: a distance unit that is not the file's scales every run.
+  'import.source.label': tpl('Source', {}, { shape: 'label' }),
+  'import.source.hint': tpl('The app or service the file came from.'),
+  'import.unit.label': tpl('Distance unit in the file', {}, { shape: 'label' }),
+  'import.unit.hint': tpl(
+    'Pick the unit the file writes its distances in. A wrong pick scales every distance in the import.',
+  ),
+
   // Sign-in, for an answer that is none of the specific ones (wrong password, too many attempts,
   // no server).
   'auth.sign-in.error': tpl('Sign-in did not work. Check the details and try again.'),

@@ -123,14 +123,18 @@ test('a FIT file imports once, opens its detail page and is rated from the Today
 
   // Import, then import the same file again: the second pass changes nothing.
   const first = await importRun(page, file)
-  await expect(first.getByText('1 imported, 0 already imported, 0 skipped')).toBeVisible()
+  await expect(
+    first.getByText('1 added to your log. 0 already there. 0 could not be read.'),
+  ).toBeVisible()
   await first.getByRole('button', { name: 'Done' }).click()
   await expect(first).toBeHidden()
   await expect(page.getByText('1 activity')).toBeVisible()
   await expect(page.getByRole('button', { name: /^Run 30:00 .*File import$/ })).toBeVisible()
 
   const second = await importRun(page, file)
-  await expect(second.getByText('0 imported, 1 already imported, 0 skipped')).toBeVisible()
+  await expect(
+    second.getByText('0 added to your log. 1 already there. 0 could not be read.'),
+  ).toBeVisible()
   await second.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByText('1 activity')).toBeVisible()
 

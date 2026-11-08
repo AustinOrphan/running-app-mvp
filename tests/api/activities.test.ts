@@ -438,6 +438,39 @@ describe('GET /api/activities pages', () => {
     expect(Array.isArray(res.body)).toBe(false)
   })
 
+  test('importBatchId lists only the runs of that import, newest first', async () => {
+    const batch = await ctx.prisma.importBatch.create({
+      data: {
+        userId: user.id,
+        source: 'smashrun',
+        rowCount: 2,
+        accepted: 2,
+        skippedDuplicate: 0,
+        skippedInvalid: 0,
+        errors: '[]',
+      },
+    })
+    await seedDays(2)
+    for (const date of ['2026-02-01', '2026-02-10']) {
+      await ctx.prisma.activity.create({
+        data: {
+          userId: user.id,
+          date,
+          type: 'run',
+          durationSec: 1800,
+          distanceM: 5000,
+          source: 'smashrun',
+          importBatchId: batch.id,
+        },
+      })
+    }
+    const res = await page(`importBatchId=${batch.id}&limit=1`)
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ total: 2, nextOffset: 1 })
+    expect(res.body.items.map((a) => a.date)).toEqual(['2026-02-10'])
+    expect((await page('importBatchId=no-such-batch')).body.total).toBe(0)
+  })
+
   test('an empty list is an empty page, not an error', async () => {
     expect((await page()).body).toEqual({
       items: [],

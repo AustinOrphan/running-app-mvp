@@ -22,7 +22,9 @@ test('importing the Smashrun sample reports the rows, lists them and is idempote
   await page.goto('/activities')
 
   const first = await importFixture(page)
-  await expect(first.getByText('3 imported, 0 already imported, 0 skipped')).toBeVisible()
+  await expect(
+    first.getByText('3 added to your log. 0 already there. 0 could not be read.'),
+  ).toBeVisible()
   await first.getByRole('button', { name: 'Done' }).click()
   await expect(first).toBeHidden()
 
@@ -32,7 +34,9 @@ test('importing the Smashrun sample reports the rows, lists them and is idempote
   await expect(page.getByRole('button', { name: /^Run 1:20:00 8\.00 mi.*Smashrun$/ })).toBeVisible()
 
   const second = await importFixture(page)
-  await expect(second.getByText('0 imported, 3 already imported, 0 skipped')).toBeVisible()
+  await expect(
+    second.getByText('0 added to your log. 3 already there. 0 could not be read.'),
+  ).toBeVisible()
   await second.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByText('3 activities')).toBeVisible()
 })
@@ -53,7 +57,9 @@ test('a manual run matching an imported one is flagged and can be confirmed as a
   await page.goto('/activities')
 
   const sheet = await importFixture(page)
-  await expect(sheet.getByText('3 imported, 0 already imported, 0 skipped')).toBeVisible()
+  await expect(
+    sheet.getByText('3 added to your log. 0 already there. 0 could not be read.'),
+  ).toBeVisible()
   await sheet.getByRole('button', { name: 'Done' }).click()
 
   await expect(page.getByText('Possible duplicate')).toBeVisible()

@@ -1,8 +1,10 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
-import type { Units } from '../../shared/types.ts'
+import type { ActivityListItem, Units } from '../../shared/types.ts'
+import { Link } from 'react-router-dom'
 import { ApiError } from '../api/client.ts'
+import { useImportedRuns } from '../api/activities.ts'
 import { useImportFile, useImportFiles, useImportParsed } from '../api/imports.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
@@ -11,6 +13,7 @@ import { Sheet } from '../components/Sheet.tsx'
 import { startAppleExport } from '../import/appleHealthClient.ts'
 import { uploadActivityFiles } from '../import/files.ts'
 import { uploadParsed } from '../import/parsed.ts'
+import { TYPE_LABELS } from './ActivityForm.tsx'
 import styles from './ImportDialog.module.css'
 
 export interface ImportDialogProps {
@@ -38,6 +41,8 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024
 const WORDS_UNITS: Units = 'km'
 /** A re-import lists every skipped row; show a screenful and say how many more there are. */
 const MAX_REASONS_SHOWN = 50
+/** How many of the newest imported runs the result links to. */
+const NEWEST_LINKED = 3
 
 /** What the report screen shows, whichever kind of import produced it. */
 interface Report {
@@ -46,6 +51,8 @@ interface Report {
   skipped: number
   rows: string[]
   notes: string[]
+  /** The batch the runs went in under, for the links to the newest of them. */
+  batchId: string | null
 }
 
 interface Progress {
@@ -62,6 +69,47 @@ function browserTimezone(): string {
   } catch {
     return 'UTC'
   }
+}
+
+/** The newest few runs the import brought in, each a link to its page. */
+function NewestRuns({
+  batchId,
+  units,
+  onOpen,
+}: {
+  batchId: string | null
+  units: Units
+  onOpen: () => void
+}) {
+  const runs = useImportedRuns(batchId, NEWEST_LINKED)
+  const list = runs.data
+  if (list === undefined || list.length === 0) return null
+  return (
+    <div className={styles.newest}>
+      <p className={styles.newestTitle}>{render(TEMPLATES['import.newest'], {}, units)}</p>
+      <ul className={styles.newestList} aria-label={render(TEMPLATES['import.newest'], {}, units)}>
+        {list.map((run) => (
+          <li key={run.id}>
+            <Link to={`/activities/${encodeURIComponent(run.id)}`} onClick={onOpen}>
+              {runLinkText(run, units)}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function runLinkText(run: ActivityListItem, units: Units): string {
+  const date = { kind: 'date', iso: run.date, style: 'weekday' } as const
+  const kind = TYPE_LABELS[run.type]
+  return run.distanceM === null || run.type === 'strength'
+    ? render(TEMPLATES['import.run-link-no-distance'], { date, kind }, units)
+    : render(
+        TEMPLATES['import.run-link'],
+        { date, kind, distance: { kind: 'distance', m: run.distanceM } },
+        units,
+      )
 }
 
 /** Closed, it renders nothing, so every opening starts without the previous file or report. */
@@ -128,6 +176,7 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
           row.line === null ? row.reason : `Line ${row.line}: ${row.reason}`,
         ),
         notes: [],
+        batchId: batch.id,
       })
     } catch (err) {
       const reason = err instanceof ApiError ? err.message : 'The file could not be read.'
@@ -168,6 +217,7 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
           ...summary.skipped.map((entry) => `${entry.name}: ${entry.reason}`),
         ],
         notes: summary.sent === 0 ? ['No FIT, GPX or TCX file was found in the selection.'] : [],
+        batchId: batch?.id ?? null,
       })
     } catch (err) {
       if (controller.signal.aborted) return
@@ -227,6 +277,7 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
           `${plural(summary.wellnessDays, 'wellness day', 'wellness days')} read from the export.`,
           `${plural(exported.routesMatched, 'workout', 'workouts')} matched to a route.`,
         ],
+        batchId: batch?.id ?? null,
       })
     } catch (err) {
       if (controller.signal.aborted) return
@@ -261,6 +312,7 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
   }
 
   if (report) {
+    const units = settings.data?.units ?? 'mi'
     const shown = report.rows.slice(0, MAX_REASONS_SHOWN)
     return (
       <Sheet
@@ -275,8 +327,19 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
       >
         <div className={styles.form}>
           <p className={styles.summary}>
-            {`${report.accepted} imported, ${report.duplicates} already imported, ${report.skipped} skipped`}
+            {render(
+              TEMPLATES['import.result'],
+              {
+                added: { kind: 'count', n: report.accepted },
+                duplicates: { kind: 'count', n: report.duplicates },
+                skipped: { kind: 'count', n: report.skipped },
+              },
+              WORDS_UNITS,
+            )}
           </p>
+          {report.accepted > 0 ? (
+            <NewestRuns batchId={report.batchId} units={units} onOpen={onClose} />
+          ) : null}
           {report.notes.map((note) => (
             <p key={note} className={styles.intro}>
               {note}
@@ -336,10 +399,17 @@ function ImportDialogSheet({ onClose }: ImportDialogProps) {
               ? 'Pick FIT, GPX or TCX files, or a ZIP of them, such as the Garmin or Strava data export. Archives inside archives and .gz files are opened here.'
               : 'Rows already imported are skipped, so a file can be imported again safely.'}
         </p>
-        <Segmented label="Source" options={KIND_OPTIONS} value={kind} onChange={pickKind} />
+        <Segmented
+          label={render(TEMPLATES['import.source.label'], {}, WORDS_UNITS)}
+          hint={render(TEMPLATES['import.source.hint'], {}, WORDS_UNITS)}
+          options={KIND_OPTIONS}
+          value={kind}
+          onChange={pickKind}
+        />
         {kind === 'smashrun' ? (
           <Segmented
-            label="Distance unit in the file"
+            label={render(TEMPLATES['import.unit.label'], {}, WORDS_UNITS)}
+            hint={render(TEMPLATES['import.unit.hint'], {}, WORDS_UNITS)}
             options={UNIT_OPTIONS}
             value={unit}
             onChange={setPickedUnit}

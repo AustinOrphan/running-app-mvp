@@ -1005,11 +1005,18 @@ export async function loadWeightSeries(
 /** The column a list never reads: the heart-rate histogram is the largest and only the detail needs it. */
 const ACTIVITY_LIST_OMIT = { hrHistogram: true } as const
 
-/** The `where` of a user's activities in an inclusive date range, optionally of one type. */
-function activityWhere(userId: string, opts: { from?: string; to?: string; type?: ActivityType }) {
+/**
+ * The `where` of a user's activities in an inclusive date range, optionally of one type or of one
+ * import batch (the runs a file brought in).
+ */
+function activityWhere(
+  userId: string,
+  opts: { from?: string; to?: string; type?: ActivityType; importBatchId?: string },
+) {
   return {
     userId,
     ...(opts.type ? { type: opts.type } : {}),
+    ...(opts.importBatchId ? { importBatchId: opts.importBatchId } : {}),
     ...(opts.from || opts.to
       ? {
           date: {
@@ -1063,7 +1070,14 @@ async function strengthSetCounts(
 export async function loadActivityPage(
   prisma: Pick<PrismaClient, 'activity' | 'strengthLog'>,
   userId: string,
-  opts: { from?: string; to?: string; type?: ActivityType; limit: number; offset: number },
+  opts: {
+    from?: string
+    to?: string
+    type?: ActivityType
+    importBatchId?: string
+    limit: number
+    offset: number
+  },
 ): Promise<ActivityListPage> {
   const where = activityWhere(userId, opts)
   const rows = await prisma.activity.findMany({

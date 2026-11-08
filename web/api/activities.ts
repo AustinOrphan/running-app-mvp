@@ -56,6 +56,8 @@ export interface ActivityParams {
   from?: string
   to?: string
   type?: ActivityType
+  /** Only the runs one import brought in. */
+  importBatchId?: string
 }
 
 /**
@@ -92,7 +94,14 @@ export function invalidateActivityData(queryClient: QueryClient): Promise<unknow
 }
 
 function pageUrl(params: ActivityParams, limit: number, offset: number): string {
-  return `/activities${qs({ from: params.from, to: params.to, type: params.type, limit, offset })}`
+  return `/activities${qs({
+    from: params.from,
+    to: params.to,
+    type: params.type,
+    importBatchId: params.importBatchId,
+    limit,
+    offset,
+  })}`
 }
 
 /**
@@ -225,5 +234,22 @@ export function useSaveFeedback(id: string) {
     mutationFn: (patch: FeedbackPatch) =>
       api<Activity>('PATCH', `/activities/${encodeURIComponent(id)}/feedback`, patch),
     onSuccess: () => invalidateActivityData(queryClient),
+  })
+}
+
+/**
+ * The newest runs an import brought in (`GET /api/activities?importBatchId=`), newest first, for the
+ * import's result to link to. Nothing is asked until there is a batch with runs in it.
+ */
+export function useImportedRuns(batchId: string | null, limit: number) {
+  return useQuery({
+    queryKey: [keys.activities, 'imported', batchId, limit],
+    enabled: batchId !== null,
+    queryFn: () =>
+      api<ActivityListPage>(
+        'GET',
+        `/activities${qs({ importBatchId: batchId ?? undefined, limit, offset: 0 })}`,
+      ),
+    select: (page) => page.items,
   })
 }
