@@ -7,7 +7,7 @@ import {
   activityPaceLabel,
   activitySetsText,
 } from '../../shared/copy/activityList.ts'
-import { todayIso } from '../../shared/dates.ts'
+import { addDays, isIsoDate, todayIso } from '../../shared/dates.ts'
 import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
 import type { ActivityListItem, ActivityType, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
@@ -44,10 +44,25 @@ const FILTER_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
 
 const EN_DASH = '–'
 
+/** Older and later years carry the year so a long list stays unambiguous. */
+function withYear(text: string, date: string): string {
+  return date.slice(0, 4) === todayIso().slice(0, 4) ? text : `${text} ${date.slice(0, 4)}`
+}
+
 function dateHeading(date: string): string {
-  const base = `${formatWeekday(date)} ${formatShortDate(date)}`
-  // Older years carry the year so a long list stays unambiguous.
-  return date.slice(0, 4) === todayIso().slice(0, 4) ? base : `${base} ${date.slice(0, 4)}`
+  return withYear(`${formatWeekday(date)} ${formatShortDate(date)}`, date)
+}
+
+/**
+ * A date the date input holds as the runner types, for the summary beside the Dates button. Only a
+ * real YYYY-MM-DD that reads back as itself has one: a year typed halfway ("0002-03-15") or a fifth
+ * digit ("20266-03-15") is a value the input may hold, and formatting it would throw.
+ */
+function rangeDate(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !isIsoDate(value) || addDays(value, 0) !== value) {
+    return null
+  }
+  return withYear(formatShortDate(value), value)
 }
 
 /** Consecutive rows with the same date; the API already sorts newest first. */
@@ -111,7 +126,7 @@ function ActivityRow({
         className={styles.row}
         aria-label={[
           TYPE_LABELS[activity.type],
-          formatWeekday(activity.date) + ' ' + formatShortDate(activity.date),
+          dateHeading(activity.date),
           distance === EN_DASH ? null : distance,
           duration,
           pace === null ? null : `${activityPaceLabel(movingPace)} ${pace}`,
@@ -247,15 +262,12 @@ export function ActivitiesPage() {
 
   // A range that is set keeps its fields in view, so a filter is never active out of sight.
   const showDates = datesOpen
-  const rangeText =
-    from === '' && to === ''
-      ? null
-      : [
-          from === '' ? null : `from ${formatShortDate(from)}`,
-          to === '' ? null : `to ${formatShortDate(to)}`,
-        ]
-          .filter((part) => part !== null)
-          .join(' ')
+  const rangeText = [
+    rangeDate(from) === null ? null : `from ${rangeDate(from) ?? ''}`,
+    rangeDate(to) === null ? null : `to ${rangeDate(to) ?? ''}`,
+  ]
+    .filter((part) => part !== null)
+    .join(' ')
   const filtersActive = typeFilter !== 'all' || from !== '' || to !== '' || duplicatesOnly
   const rows = (loaded ?? []).filter((row) => !duplicatesOnly || row.duplicateStatus === 'possible')
   // The duplicates view also lists confirmed rows, so a wrong confirmation can be undone.
@@ -273,7 +285,8 @@ export function ActivitiesPage() {
   const remaining = total === undefined || loaded === undefined ? 0 : total - loaded.length
   const showMore = !duplicatesOnly && !badRange && !loadFailed && !loading && paged.hasNextPage
   // The empty state carries its own Log and Import buttons, so the bar and filters wait for data.
-  const showControls = filtersActive || (!loading && !noneAtAll)
+  // The controls stay through a retry of a failed first read, so the button does not move under the finger.
+  const showControls = filtersActive || loadFailed || (!loading && !noneAtAll)
 
   const logButton = (
     <Button
@@ -386,7 +399,7 @@ export function ActivitiesPage() {
               Dates
             </Button>
             {/* A range that is set stays in force when the fields are folded away, and says so here. */}
-            {!showDates && rangeText !== null ? (
+            {!showDates && rangeText !== '' ? (
               <span className={styles.rangeText}>{rangeText}</span>
             ) : null}
           </div>

@@ -131,6 +131,9 @@ describe('parseDistanceInput', () => {
   })
 })
 
+/** The year the date headings add: none for the current year, as the list does. */
+const YEAR_2026 = todayIso().startsWith('2026') ? '' : ' 2026'
+
 describe('Activities page', () => {
   test('empty list shows "No activities yet." with Log and Import actions, never an error', async () => {
     renderPage({})
@@ -189,7 +192,7 @@ describe('Activities page', () => {
       await screen.findByText(text)
       // one link names the kind and the figures in reading order
       expect(
-        screen.getByRole('link', { name: `Strength, Mon 2 Mar, ${text}, 40:00` }),
+        screen.getByRole('link', { name: `Strength, Mon 2 Mar${YEAR_2026}, ${text}, 40:00` }),
       ).toBeInTheDocument()
       // no distance and no dash stand in the cell, and a strength row has no pace
       expect(screen.queryByText('–')).not.toBeInTheDocument()
@@ -228,7 +231,7 @@ describe('Activities page', () => {
       activities: [makeActivity({ id: 'r9', durationSec: 2700, distanceM: 8047 })],
     })
     const link = await screen.findByRole('link', {
-      name: 'Run, Mon 2 Mar, 5.00 mi, 45:00, Pace 9:00 /mi',
+      name: `Run, Mon 2 Mar${YEAR_2026}, 5.00 mi, 45:00, Pace 9:00 /mi`,
     })
     expect(link).toHaveAttribute('href', '/activities/r9')
     expect(screen.queryByRole('link', { name: /Details/ })).not.toBeInTheDocument()
@@ -239,7 +242,9 @@ describe('Activities page', () => {
 
   test('a row with no distance leaves the dash out of its name', async () => {
     renderPage({ activities: [makeActivity({ id: 'r8', durationSec: 2700, distanceM: null })] })
-    expect(await screen.findByRole('link', { name: 'Run, Mon 2 Mar, 45:00' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: `Run, Mon 2 Mar${YEAR_2026}, 45:00` }),
+    ).toBeInTheDocument()
   })
 
   test('the date range is behind a Dates button that folds and opens whatever is set, and a set range stays in force', async () => {
@@ -257,10 +262,38 @@ describe('Activities page', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     expect(toggle).toHaveFocus()
     expect(screen.queryByLabelText('From')).not.toBeInTheDocument()
-    expect(screen.getByText('from 1 Mar')).toBeInTheDocument()
+    expect(screen.getByText(`from 1 Mar${YEAR_2026}`)).toBeInTheDocument()
     await user.click(toggle)
     expect(screen.getByLabelText('From')).toHaveValue('2026-03-01')
-    expect(screen.queryByText('from 1 Mar')).not.toBeInTheDocument()
+    expect(screen.queryByText(`from 1 Mar${YEAR_2026}`)).not.toBeInTheDocument()
+  })
+
+  test('a row of another year carries the year in its name, as its date heading does', async () => {
+    renderPage({ activities: [makeActivity({ id: 'old', date: '2020-03-02' })] })
+    expect(await screen.findByRole('link', { name: /^Run, Mon 2 Mar 2020, / })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Mon 2 Mar 2020' })).toBeInTheDocument()
+  })
+
+  test('a date the input holds half-typed does not crash the page or make a summary', async () => {
+    const user = userEvent.setup()
+    renderPage({ activities: [makeActivity()] })
+    await screen.findByText('30:00')
+    await user.click(screen.getByRole('button', { name: 'Dates' }))
+    for (const typed of ['0002-03-15', '20266-03-15']) {
+      fireEvent.change(screen.getByLabelText('From'), { target: { value: typed } })
+      // the fields are open and the page is still there
+      expect(screen.getByLabelText('From')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Dates' }))
+      expect(screen.queryByText(/^from /)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Dates' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      )
+      await user.click(screen.getByRole('button', { name: 'Dates' }))
+    }
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2020-03-15' } })
+    await user.click(screen.getByRole('button', { name: 'Dates' }))
+    expect(screen.getByText('from 15 Mar 2020')).toBeInTheDocument()
   })
 
   test('km users see km and pace per km', async () => {
@@ -974,6 +1007,9 @@ describe('Activities page: paging', () => {
     expect(during).toHaveFocus()
     expect(during).toHaveAttribute('aria-busy', 'true')
     expect(during).not.toBeDisabled()
+    // Log, Import and the filters stay through the retry, so the button does not move
+    expect(screen.getByRole('button', { name: 'Log activity' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Filter by type' })).toBeInTheDocument()
     expect(await screen.findByText('30:00')).toBeInTheDocument()
     expect(api.calls.filter((c) => c.url.startsWith('/api/activities')).length).toBeGreaterThan(
       before,
