@@ -270,6 +270,53 @@ describe('predictFromState: interval [L2, L5, L6]', () => {
     expect(p?.rules).toContain('L3')
   })
 
+  it('opens only the faster end for a critical speed from training and says since when [A6]', () => {
+    const fit = { csMps: 3.4, dPrimeM: 180, csEfforts: 4 }
+    const measured = predictFromState(makeState(fit), road(HALF))!
+    const trained = predictFromState(
+      makeState({ ...fit, csTrainingSince: '2026-08-11' }),
+      road(HALF),
+    )!
+    expect(trained.predictedSec).toBe(measured.predictedSec)
+    expect(trained.highSec).toBe(measured.highSec)
+    const fast = (p: typeof trained) => (p.predictedSec - p.lowSec) / p.predictedSec
+    expect(fast(trained) / fast(measured)).toBeCloseTo(
+      1 + P.a6.csTrainingWideningPct.value / 100,
+      1,
+    )
+    expect(trained.trainingSince).toBe('2026-08-11')
+    expect(measured.trainingSince).toBeUndefined()
+    expect(trained.rules).toContain('A6')
+    expect(trained.conditions.join(' ')).toMatch(/training since 2026-08-11.*at most/)
+  })
+
+  it('never averages a floor from training with a race: the faster of the two stands alone [A6]', () => {
+    const base = { csMps: 3.4, dPrimeM: 180, csEfforts: 4, csTrainingSince: '2026-08-11' }
+    const race10 = race('2026-09-01', 10000, 3000)
+    // The race implies a much slower half than the floor does: the floor stands alone.
+    const slowRace = predictFromState(makeState({ ...base, races: [race10] }), road(HALF))!
+    const floorAlone = predictFromState(makeState(base), road(HALF))!
+    expect(slowRace.method).toBe(floorAlone.method)
+    expect(slowRace.predictedSec).toBe(floorAlone.predictedSec)
+    expect(slowRace.conditions.join(' ')).toMatch(/faster time than the race/)
+    // The race implies a faster half than the floor: the race stands alone, with no widening.
+    const fastRace = predictFromState(
+      makeState({ ...base, races: [race('2026-09-01', 10000, 2000)] }),
+      road(HALF),
+    )!
+    expect(fastRace.method).toBe('riegel')
+    expect(fastRace.trainingSince).toBeUndefined()
+    expect(fastRace.conditions.join(' ')).toMatch(/implies a slower time than the race/)
+  })
+
+  it('does not widen a race-based prediction for a fit it does not use [A6]', () => {
+    const state = makeState({
+      races: [race('2026-09-01', 10000, 3000)],
+      csTrainingSince: '2026-08-11',
+    })
+    expect(predictFromState(state, road(HALF))?.trainingSince).toBeUndefined()
+  })
+
   it('widens a trail interval by 50% on top', () => {
     const state = agreeing(10000)
     const roadP = predictFromState(state, road(10000))!

@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { gradeLegend } from '../../../shared/copy/grades.ts'
-import { climbWeightsLine, pacesText } from '../../../shared/copy/myPaces.ts'
+import { climbWeightsLine, PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
+import { render } from '../../../shared/copy/template.ts'
 import type { EventRow } from '../../../shared/engine/myPaces.ts'
 import type { Grade } from '../../../shared/engine/types.ts'
 import type { Units } from '../../../shared/types.ts'
@@ -45,6 +46,7 @@ export function EventsSection({
   const headingId = useId()
   const customId = useId()
   const rows = custom === null ? events : [...events, custom]
+  const trainingSince = rows.find((row) => row.basis.cs?.since != null)?.basis.cs?.since ?? null
   const rules = [...new Set(['C9', 'L1', 'L6', ...rows.flatMap((row) => row.rules)])]
   return (
     <section id="events" className={styles.section} aria-labelledby={headingId}>
@@ -52,6 +54,16 @@ export function EventsSection({
         {pacesText('paces.events.heading')}
       </h2>
       <p className={styles.note}>{pacesText('paces.events.context')}</p>
+      {trainingSince === null ? null : (
+        <p className={styles.note}>
+          {render(
+            PACES_TEMPLATES['paces.events.training'],
+            { date: { kind: 'date', iso: trainingSince, style: 'short' } },
+            units,
+          )}{' '}
+          <a href="#test">{pacesText('paces.test.heading')}</a>
+        </p>
+      )}
       <ul className={styles.cards} aria-label={pacesText('paces.events.heading')}>
         {events.map((row) => (
           <li key={row.key}>

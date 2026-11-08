@@ -31,7 +31,7 @@ function basisLine(row: EventRow, units: Units): string | null {
       units,
     )
   }
-  return cs === null
+  return cs === null || cs.since !== null
     ? null
     : render(T['paces.event.basis-cs'], { efforts: { kind: 'count', n: cs.efforts } }, units)
 }
@@ -57,7 +57,9 @@ export function EventCard({ row, units }: { row: EventRow; units: Units }) {
         <>
           <dl className={styles.stats}>
             <div className={styles.stat}>
-              <dt>Time</dt>
+              <dt>
+                {row.basis.cs?.since == null ? 'Time' : pacesText('paces.event.time-at-most')}
+              </dt>
               <dd className={styles.statValue}>{timeText(time.midSec)}</dd>
               <dd
                 className={styles.statRange}

@@ -22,7 +22,8 @@ import type { AthleteState, EngineInput, HistoryBlock } from './types.ts'
 
 const WEEKS_SHOWN = 16
 const DAYS_PER_WEEK = 7
-const INDOOR_OR_TRACK = /treadmill|indoor|track/i
+/** A treadmill, indoor or track run needs no grade correction. */
+export const INDOOR_OR_TRACK = /treadmill|indoor|track/i
 
 const isRun = (a: Activity) => a.type === 'run' || a.type === 'race'
 
@@ -243,12 +244,23 @@ export interface CsEffort {
   activity: Activity
   distanceM: number
   timeSec: number
+  /**
+   * A whole run (`whole`), the fastest stretch of a race (`race`), or the fastest stretch of a longer
+   * training run (`stretch`). Only a `stretch` is an effort of training, probably below what the
+   * runner can hold.
+   */
+  source: 'whole' | 'race' | 'stretch'
 }
 
 /**
  * The efforts critical speed is fitted from [rules A6]: the fastest grade-adjusted effort of each
- * distance band inside the window, in the order the bands were first reached. Fewer than
- * `a6.csMinEfforts` of them give no fit.
+ * distance band inside the window, in the order the bands were first reached. A run whose own
+ * flat-equivalent distance lies in the fit range is one effort; a longer run gives its fastest
+ * stretches at the distances of `a6.csEffortTargetsM` that last `a6.csMinEffortSec` or more (its
+ * `bestEfforts`, when they were read). When the whole runs and the stretches of races give a fit on
+ * their own (the guided test, a race), those are the efforts and the stretches of training runs are
+ * left out, so the fit follows the efforts actually used. Fewer than `a6.csMinEfforts` of them give
+ * no fit.
  */
 export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
   const edges = [
@@ -256,22 +268,37 @@ export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
     ...P.a6.csBandInnerEdgesM.value,
     P.a6.csMaxDistanceM.value,
   ]
-  const best = new Map<number, CsEffort>()
+  const lowest = edges[0]!
+  const highest = edges[edges.length - 1]!
+  const measured = new Map<number, CsEffort>()
+  const all = new Map<number, CsEffort>()
+  const offer = (effort: CsEffort): void => {
+    if (effort.distanceM < lowest || effort.distanceM > highest) return
+    let band = 0
+    while (band + 1 < edges.length - 1 && effort.distanceM >= edges[band + 1]!) band += 1
+    const faster = (held: CsEffort | undefined) =>
+      !held || effort.distanceM / effort.timeSec > held.distanceM / held.timeSec
+    if (effort.source !== 'stretch' && faster(measured.get(band))) measured.set(band, effort)
+    if (faster(all.get(band))) all.set(band, effort)
+  }
   for (const a of runs) {
     const age = daysBetween(a.date, today)
     if (age < 0 || age >= P.a6.csWindowDays.value) continue
     const distanceM = flatDistance(a)
     const timeSec = a.movingSec ?? a.durationSec
-    if (distanceM === null || timeSec <= 0) continue
-    if (distanceM < edges[0]! || distanceM > edges[edges.length - 1]!) continue
-    let band = 0
-    while (band + 1 < edges.length - 1 && distanceM >= edges[band + 1]!) band += 1
-    const held = best.get(band)
-    if (!held || distanceM / timeSec > held.distanceM / held.timeSec) {
-      best.set(band, { activity: a, distanceM, timeSec })
+    if (distanceM !== null && timeSec > 0 && distanceM >= lowest && distanceM <= highest) {
+      offer({ activity: a, distanceM, timeSec, source: 'whole' })
+      continue
+    }
+    for (const e of a.bestEfforts?.efforts ?? []) {
+      if (e.timeSec >= P.a6.csMinEffortSec.value) {
+        const source = a.type === 'race' ? 'race' : 'stretch'
+        offer({ activity: a, distanceM: e.distanceM, timeSec: e.timeSec, source })
+      }
     }
   }
-  return [...best.values()]
+  const solid = [...measured.values()]
+  return criticalSpeed(solid) !== null ? solid : [...all.values()]
 }
 
 function fitnessOf(runs: Activity[], input: EngineInput, today: string): AthleteState['fitness'] {
@@ -287,6 +314,10 @@ function fitnessOf(runs: Activity[], input: EngineInput, today: string): Athlete
     csMps: cs?.csMps ?? null,
     dPrimeM: cs?.dPrimeM ?? null,
     csEfforts: efforts.length,
+    csTrainingSince:
+      cs !== null && efforts.some((e) => e.source === 'stretch')
+        ? addDays(today, 1 - P.a6.csWindowDays.value)
+        : null,
     exponent: personalExponent(races),
     races,
     vo2maxTrend: vo2maxTrend(input, today),

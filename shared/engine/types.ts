@@ -150,6 +150,11 @@ export interface Boundary {
   band: [number, number]
   source: 'tested' | 'cs' | 'dfa' | 'rpe' | 'hrmax-observed' | 'hrmax-age' | 'hrr' | 'profile'
   asOf: string
+  /**
+   * True on a boundary found from a critical speed that uses the stretches of training runs (rule
+   * A6): a floor, so the boundary may sit low. Absent otherwise.
+   */
+  fromTraining?: boolean
 }
 export interface ZoneSet {
   hrMax: Boundary | null
@@ -262,6 +267,12 @@ export interface AthleteState {
     csMps: number | null
     dPrimeM: number | null
     csEfforts: number
+    /**
+     * The first day of the window when the fit uses the stretch of a longer run (rule A6), so it is
+     * a floor and not a measurement; null for a fit from whole runs and races, and with no fit.
+     * Absent reads as null.
+     */
+    csTrainingSince?: string | null
     exponent: number | null
     races: Array<{ date: string; distanceM: number; timeSec: number }>
     vo2maxTrend: number | null
@@ -371,6 +382,8 @@ export interface Prediction {
   highSec: number
   conditions: string[]
   rules: string[]
+  /** The first day of the window when a critical-speed fit from training stands behind it (A6). */
+  trainingSince?: string
   /** Set when the runner's own climbing moved the time (rule L5). */
   climb?: ClimbBlend
 }

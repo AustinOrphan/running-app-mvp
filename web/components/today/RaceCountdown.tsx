@@ -32,12 +32,31 @@ export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }
         <span className={styles.chevron}>Open the race plan</span>
       </Link>
       {prediction === null ? null : (
-        <p className={styles.estimate}>
-          {renderFact(
-            { template: 'today.race.estimate', slots: raceEstimateSlots(prediction) },
-            units,
+        <>
+          <p className={styles.estimate}>
+            {renderFact(
+              {
+                template:
+                  prediction.trainingSince === undefined
+                    ? 'today.race.estimate'
+                    : 'today.race.estimate-floor',
+                slots: raceEstimateSlots(prediction),
+              },
+              units,
+            )}
+          </p>
+          {prediction.trainingSince === undefined ? null : (
+            <p className={styles.estimate}>
+              {renderFact(
+                {
+                  template: 'today.race.floor-basis',
+                  slots: { date: { kind: 'date', iso: prediction.trainingSince, style: 'short' } },
+                },
+                units,
+              )}
+            </p>
           )}
-        </p>
+        </>
       )}
       {range?.wide !== true || race.distanceM === null ? null : (
         <div className={styles.wide}>
