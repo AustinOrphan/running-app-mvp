@@ -453,9 +453,10 @@ describe('predictFromState: the runner own climbing, a little [L5, I13]', () => 
       dPrimeM: 0,
     })
   }
-  const withClimb = (gainEquivalentM: number | null, runs = 23): AthleteState => ({
+  /** The state with a climbing ratio that would put the full figure at `personalM` flat m per m. */
+  const withClimb = (personalM: number | null, runs = 23): AthleteState => ({
     ...base(),
-    climb: gainEquivalentM === null ? null : { gainEquivalentM, runs },
+    climb: personalM === null ? null : { ratio: personalM / D, runs },
   })
   const hilly = road(10000, { surface: 'trail', gainM: 50 })
 

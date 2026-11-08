@@ -268,8 +268,11 @@ export interface AthleteState {
   }
   efficiency: { current: number | null; trendPct: number | null; samples: number }
   durability: { decouplingMedianPct: number | null; samples: number }
-  /** The runner's own flat-metres-per-metre-of-gain from the curve of rule I13, or null (rule L5). */
-  climb?: { gainEquivalentM: number; runs: number } | null
+  /**
+   * The runner's climbing against Minetti's from the curve of rule I13 (below 1: climbs faster), and
+   * the runs behind it; null without a personal climbing band (rule L5).
+   */
+  climb?: { ratio: number; runs: number } | null
   /**
    * The steadiest recent block of weeks that counts toward a rebuild [rules g-8], or null when no
    * four consecutive weeks qualify. Computed from the weeks the state already holds (the snapshot's
@@ -352,7 +355,7 @@ export interface ClimbBlend {
   runs: number
   /** `l5.gainEquivalentM`. */
   defaultM: number
-  /** The runner's own figure, `personalGainEquivalent` of the curve. */
+  /** The default scaled by the runner's climbing ratio, `personalClimbRatio` of the curve. */
   personalM: number
   /** The figure the prediction used, after the weight and the cap on the shift. */
   usedM: number

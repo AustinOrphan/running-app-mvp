@@ -1,6 +1,6 @@
 // The personal speed-by-grade curve [rule I13]. Pure and deterministic. My paces shows it. The one
-// other reader is the prediction: `personalClimbOf` hands the state the runner's own flat metres per
-// metre of gain, and `predict.ts` blends it a little into `l5.gainEquivalentM` (rule L5). The plan,
+// other reader is the prediction: `personalClimbOf` hands the state the runner's climbing as a ratio to
+// Minetti's, and `predict.ts` blends it a little into `l5.gainEquivalentM` (rule L5). The plan,
 // the zones and `gapDistanceM` do not read it.
 //
 // A run's terrain bins (`Activity.terrainBins`) give its speed in each grade band. Divided by the
@@ -372,19 +372,25 @@ export function gainEquivalent(gradePct: number, ratio: number): number {
 }
 
 /**
- * The climbing bands that show the runner's own ratio, as flat metres per metre of gain, weighted
- * by their minutes; null when no climbing band does. A prediction blends it into
- * `l5.gainEquivalentM` with the weights and the cap of rule L5, never in its place.
+ * The runner's climbing against Minetti's, as one ratio [rule L5]: the gain-equivalent of the
+ * climbing bands with the personal ratios where the curve shows them and Minetti elsewhere, over
+ * the gain-equivalent of the same bands with Minetti in every band. Both use the same weights, the
+ * share of a typical course's gain in each climbing band (`l5.climbBandGainShare`), so one gentle
+ * band moves the ratio only by its share. Below 1 the runner climbs faster than Minetti allows for.
+ * Null when no climbing band shows a personal ratio.
  */
-export function personalGainEquivalent(curve: GradeCurve): number | null {
-  let weight = 0
-  let sum = 0
-  for (const band of curve.bands) {
-    if (band.source !== 'personal' || band.midPct <= 0) continue
-    weight += band.minutes
-    sum += band.minutes * gainEquivalent(band.midPct, band.ratio)
-  }
-  return weight > 0 ? sum / weight : null
+export function personalClimbRatio(curve: GradeCurve): number | null {
+  const climbing = curve.bands.filter((band) => band.midPct > 0)
+  if (!climbing.some((band) => band.source === 'personal')) return null
+  const shares = P.l5.climbBandGainShare.value
+  let personal = 0
+  let minetti = 0
+  climbing.forEach((band, i) => {
+    const share = shares[i] ?? 0
+    personal += share * gainEquivalent(band.midPct, band.ratio)
+    minetti += share * gainEquivalent(band.midPct, band.defaultRatio)
+  })
+  return minetti > 0 ? personal / minetti : null
 }
 
 /** The runs the curve reads: runs (not races) that are not flagged duplicates. */
@@ -395,14 +401,14 @@ export function curveRunsOf(activities: readonly Activity[]): GradeCurveRun[] {
 }
 
 /**
- * The runner's own climbing as the state carries it [rule L5]: `personalGainEquivalent` of the
- * curve on `today` and the runs behind the curve; null when no climbing band shows a personal ratio.
+ * The runner's own climbing as the state carries it [rule L5]: `personalClimbRatio` of the curve on
+ * `today` and the runs behind the curve; null when no climbing band shows a personal ratio.
  */
 export function personalClimbOf(
   activities: readonly Activity[],
   today: string,
-): { gainEquivalentM: number; runs: number } | null {
+): { ratio: number; runs: number } | null {
   const curve = gradeCurve(curveRunsOf(activities), today)
-  const gainEquivalentM = personalGainEquivalent(curve)
-  return gainEquivalentM === null ? null : { gainEquivalentM, runs: curve.eligibleRuns }
+  const ratio = personalClimbRatio(curve)
+  return ratio === null ? null : { ratio, runs: curve.eligibleRuns }
 }

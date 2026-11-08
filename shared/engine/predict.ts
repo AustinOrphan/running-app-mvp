@@ -260,8 +260,8 @@ function basePrediction(
 }
 
 /**
- * The runner's own climbing blended into the gain-equivalent [rule L5]: `default + w * (personal -
- * default)`, with `w` smaller when the personal value would make the runner faster (G6), and the
+ * The runner's own climbing blended into the gain-equivalent [rule L5]: `default * (1 + w * (ratio -
+ * 1))`, where the ratio is the runner's climbing over Minetti's on the same bands (I13), with `w` smaller when the personal value would make the runner faster (G6), and the
  * change to the time held to `l5.personalBlendMaxShiftPct` of the default prediction. Null when the
  * course has no gain, the state has no personal climbing band, or the blend moves nothing.
  */
@@ -273,11 +273,10 @@ function climbBlend(
   const personal = state.climb
   if (!personal || !(target.gainM > 0)) return null
   const defaultM = P.l5.gainEquivalentM.value
+  const personalM = defaultM * personal.ratio
   const weight =
-    personal.gainEquivalentM < defaultM
-      ? P.l5.personalBlendFaster.value
-      : P.l5.personalBlendSlower.value
-  const blendedM = defaultM + weight * (personal.gainEquivalentM - defaultM)
+    personalM < defaultM ? P.l5.personalBlendFaster.value : P.l5.personalBlendSlower.value
+  const blendedM = defaultM + weight * (personalM - defaultM)
   const blended = basePrediction(state, target, blendedM)
   if (!blended) return null
   const raw = blended.sec - base.sec
@@ -292,7 +291,7 @@ function climbBlend(
     blend: {
       runs: personal.runs,
       defaultM,
-      personalM: personal.gainEquivalentM,
+      personalM,
       usedM: defaultM + keep * (blendedM - defaultM),
       shiftSec: shift,
       capped,

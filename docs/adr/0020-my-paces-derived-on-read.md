@@ -87,6 +87,7 @@ the race plan (ADR 0018) and the strength workout (ADR 0014) are.
   the curve shows one there, and the cost of the grade (I11) otherwise, with the reason
   (`EasyPace.climb.source`, `reason`). A section "Climbs and descents" lists every band with its
   share of flat speed, its source and its minutes, and the grade where walking passes half the time.
-- Display only: `personalGainEquivalent` stays uncalled and no prediction row reads the curve
-  (`myPaces.test.ts` checks the events are equal with and without bins).
+- Display only until 2026-11-08: no prediction row read the curve. Since then the event rows read it
+  through `personalClimbRatio`, a little and capped (rule L5, owner decision 2026-11-08); the easy
+  pace and the zones still do not.
 - The page's failed load now uses the shared `ErrorState` and `useLoadView`.

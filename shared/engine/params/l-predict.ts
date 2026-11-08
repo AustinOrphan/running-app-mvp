@@ -236,6 +236,17 @@ export const lPredict = {
         note: 'Default: 100 m of gain counts as 1 km of flat distance (the km-effort convention); road CS and race anchors are flat-equivalent.',
       },
     ),
+    climbBandGainShare: param<number[]>(
+      'l5.climbBandGainShare',
+      [0.4, 0.3, 0.2, 0.1],
+      'D',
+      'L5',
+      [],
+      {
+        unit: 'fraction',
+        note: 'Default: the share of a typical course gain climbed at 3 to 6%, 6 to 10%, 10 to 15% and over 15%. An assumption, not a measurement: no study sizes it. It weights the runner climbing ratio, so a gentle band moves it by its share only.',
+      },
+    ),
     personalBlendFaster: param('l5.personalBlendFaster', 0.25, 'D', 'L5', [], {
       unit: 'fraction of the difference',
       note: "Default: when the runner's own climbing is faster than the default, a quarter of the difference is used. Smaller than the slower weight because a change toward more speed needs stronger evidence (G6). No study sizes it.",

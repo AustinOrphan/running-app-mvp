@@ -373,7 +373,7 @@ describe('MyPacesPage: what you can run now', () => {
 
   test('says when the own climbing moved a course, with the weights in How this is made', async () => {
     const user = userEvent.setup()
-    const { routes } = serve({ ...stateWith(FITNESS), climb: { gainEquivalentM: 7, runs: 23 } })
+    const { routes } = serve({ ...stateWith(FITNESS), climb: { ratio: 0.7, runs: 23 } })
     mockApi(routes)
     renderWithProviders(<MyPacesPage />, { route: '/paces' })
     const events = await screen.findByRole('region', { name: 'What you can run now' })
