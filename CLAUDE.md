@@ -20,6 +20,9 @@ Self-hosted training log and planner for one runner. Specs, the task plan and AD
   of `check`; nothing outside `tests/` imports it (`harness-isolation.test.ts`). Run
   `npm run -s plan:report` by hand before and after a `PARAMS_VERSION` bump and paste the delta of the
   two outputs into the PR.
+- `npm run grade:report`: report-only leave-one-run-out backtest of the personal grade curve (rule I13,
+  `shared/engine/gradeCurve.ts`) against Minetti on synthetic runners (`tests/reports/`). Not part of
+  `check`; display only, nothing in the plan or the predictions reads the curve.
 - `npm run dev`, `npm run db:migrate`, `npm run format`, `npm run reset-password -- <email>`.
 - `npm run backup` and `npm run restore -- <file>` (`scripts/`; the logic is in
   `server/services/backup.ts` and `restore.ts`). Copies go to `backups/` beside the database file.

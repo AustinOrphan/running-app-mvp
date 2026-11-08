@@ -32,6 +32,7 @@
     "research:check": "tsx scripts/research-check.ts",
     "research:verify": "tsx scripts/research-verify.ts",
     "plan:report": "tsx tests/reports/plan-report.ts",
+    "grade:report": "tsx tests/reports/grade-curve-report.ts",
     "check:static": "npm run lint && npm run format:check && npm run typecheck && npm run research:check",
     "check": "npm run check:static && npm run test",
     "backup": "tsx scripts/backup.ts",
