@@ -316,13 +316,13 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         ) : null}
         {confirming && waiting !== null ? (
           <p ref={warning} tabIndex={-1} role="alert" className={styles.alert}>
-            {render(TEMPLATES['settings.signout-waiting'], { what: waiting }, units)}
+            {render(TEMPLATES['today.signout-waiting'], { what: waiting }, units)}
           </p>
         ) : null}
         <div className={styles.signOutActions}>
           <Button onClick={onSignOut} loading={logout.isPending}>
             {confirming && waiting !== null
-              ? render(TEMPLATES['settings.signout-anyway'], {}, units)
+              ? render(TEMPLATES['today.signout-anyway'], {}, units)
               : 'Sign out'}
           </Button>
           {confirming && waiting !== null ? (
@@ -332,7 +332,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
                 setConfirming(false)
               }}
             >
-              {render(TEMPLATES['settings.signout-cancel'], {}, units)}
+              {render(TEMPLATES['today.signout-cancel'], {}, units)}
             </Button>
           ) : null}
         </div>

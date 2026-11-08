@@ -168,11 +168,11 @@ export const TODAY_TEMPLATES = {
     { what: 'text', reason: 'text' },
   ),
   // Settings, before signing out with a run or rating that has not gone up (a sign-out clears it).
-  'settings.signout-waiting': tpl('Not yet sent from this phone: {what}. Signing out clears it.', {
+  'today.signout-waiting': tpl('Not yet sent from this phone: {what}. Signing out clears it.', {
     what: 'text',
   }),
-  'settings.signout-anyway': tpl('Sign out anyway', {}, { shape: 'label' }),
-  'settings.signout-cancel': tpl('Cancel', {}, { shape: 'label' }),
+  'today.signout-anyway': tpl('Sign out anyway', {}, { shape: 'label' }),
+  'today.signout-cancel': tpl('Cancel', {}, { shape: 'label' }),
   'today.outbox.dismiss': tpl('Dismiss', {}, { shape: 'label' }),
 
   // A sheet whose code could not be loaded (no connection and no copy kept, or a release replaced
