@@ -64,14 +64,23 @@ export const RACE_PLAN_TEMPLATES = {
 
   // ---- Expected time (the range comes from `today.race.estimate` and `today.race.wide`) --------
   'race.plan.expected.heading': tpl('Expected time', {}, { shape: 'label' }),
-  'race.plan.expected.estimate': tpl(
-    'About {duration}, from the goal. A recent race or a few long runs would give a range.',
-    { duration: 'duration' },
+  'race.plan.expected.figure': tpl('{duration}', { duration: 'duration' }, { shape: 'label' }),
+  'race.plan.expected.source-range': tpl('Most likely time. Finish estimate {low} to {high}.', {
+    low: 'duration',
+    high: 'duration',
+  }),
+  'race.plan.expected.source-goal': tpl(
+    'From the goal. A recent race or a few long runs would give a range.',
   ),
-  'race.plan.expected.clock': tpl('Start {start}. Finish about {from} to {to}.', {
+  'race.plan.firm.heading': tpl('How firm is this', {}, { shape: 'label' }),
+  'race.plan.firm.link-prediction': tpl('Add a race result', {}, { shape: 'label' }),
+  'race.plan.firm.link-start-time': tpl('Add a start time', {}, { shape: 'label' }),
+  'race.plan.firm.link-heart-rate': tpl('Set your heart rate', {}, { shape: 'label' }),
+  'race.plan.firm.link-climate': tpl('Save the climate', {}, { shape: 'label' }),
+  'race.plan.firm.about': tpl('About these ranges', {}, { shape: 'label' }),
+  'race.plan.expected.clock': tpl('Start {start}. Finish about {range}.', {
     start: 'text',
-    from: 'text',
-    to: 'text',
+    range: 'text',
   }),
   'race.plan.expected.round': tpl('Times are rounded to {step}, and the range outward.', {
     step: 'minutes',
@@ -121,13 +130,7 @@ export const RACE_PLAN_TEMPLATES = {
     },
     { shape: 'label' },
   ),
-  'race.plan.part.clock': tpl(
-    '{from} to {to} on the clock',
-    { from: 'text', to: 'text' },
-    {
-      shape: 'label',
-    },
-  ),
+  'race.plan.part.clock': tpl('{range} on the clock', { range: 'text' }, { shape: 'label' }),
   'race.plan.part.dark': tpl('About {time} of this part falls outside daylight.', {
     time: 'minutes',
   }),
@@ -267,11 +270,7 @@ export const RACE_PLAN_TEMPLATES = {
     { at: 'duration' },
     { shape: 'label' },
   ),
-  'race.plan.points.arrival-clock': tpl(
-    'About {from} to {to}',
-    { from: 'text', to: 'text' },
-    { shape: 'label' },
-  ),
+  'race.plan.points.arrival-clock': tpl('About {range}', { range: 'text' }, { shape: 'label' }),
   'race.plan.points.arrival-elapsed': tpl(
     'About {from} to {to} into the race',
     { from: 'duration', to: 'duration' },
@@ -338,12 +337,11 @@ export const RACE_PLAN_TEMPLATES = {
     { unit: 'text' },
     { shape: 'label' },
   ),
-  'race.plan.points.field-gain': tpl('Climb since the previous point (m)', {}, { shape: 'label' }),
-  'race.plan.points.field-loss': tpl(
-    'Descent since the previous point (m)',
-    {},
-    { shape: 'label' },
-  ),
+  'race.plan.points.field-gain': tpl('Climb ({unit})', { unit: 'text' }, { shape: 'label' }),
+  'race.plan.points.field-loss': tpl('Descent ({unit})', { unit: 'text' }, { shape: 'label' }),
+  'race.plan.points.field-climb-hint': tpl('Since the previous point, in {unit}.', {
+    unit: 'text',
+  }),
   'race.plan.points.field-cutoff': tpl(
     'Cutoff, hours and minutes into the race',
     {},
@@ -362,7 +360,10 @@ export const RACE_PLAN_TEMPLATES = {
     'Enter a distance past the start and before the finish, like 42.5.',
   ),
   'race.plan.points.err-duplicate': tpl('Each point needs its own distance.'),
-  'race.plan.points.err-metres': tpl('Enter whole metres, like 800.'),
+  'race.plan.points.err-metres': tpl('Enter whole {unit}, like {example}.', {
+    unit: 'text',
+    example: 'text',
+  }),
   'race.plan.points.err-cutoff': tpl('Enter hours and minutes, like 9:30.'),
   'race.plan.points.err-clock': tpl('Enter a time of day that falls after the start.'),
   'race.plan.points.err-count': tpl('There is room for {n} points.', { n: 'count' }),
@@ -394,6 +395,18 @@ export function clockText(clock: RaceClock): string {
   if (clock.day === 0) return clock.time
   if (clock.day === 1) return `${clock.time} the next day`
   return `${clock.time} on day ${String(clock.day + 1)}`
+}
+
+/**
+ * Two ends of a range on the clock: one time when both read alike ("17:10 the next day"), the day named
+ * once when both fall on the same later day ("17:10 to 19:30 the next day"), each with its own day otherwise.
+ */
+export function clockRangeText(from: RaceClock, to: RaceClock): string {
+  if (from.day === to.day && from.time === to.time) return clockText(from)
+  if (from.day === to.day && from.day > 0) {
+    return `${from.time} to ${clockText(to)}`
+  }
+  return `${clockText(from)} to ${clockText(to)}`
 }
 
 /** The label of the days to the race: "Race day", "1 day to go" or "9 days to go". */
@@ -436,8 +449,10 @@ export function raceOpenText(units: Units): string {
 
 export interface RaceExpectedText {
   heading: string
-  /** The range and the most likely time, or the goal's own estimate. */
-  headline: string
+  /** The time as one figure: the most likely time, or the goal's own. */
+  figure: string
+  /** Where the figure comes from, with its range when there is one. */
+  source: string
   /** Start and finish clock; null without a start time. */
   clock: string | null
   /** How the range was widened or rounded, and the wide-on-purpose line. */
@@ -491,7 +506,9 @@ export interface RacePlanText {
   title: string
   daysToGo: string
   sketch: string
-  notices: string[]
+  firmHeading: string
+  aboutRanges: string
+  notices: RaceNoticeText[]
   expected: RaceExpectedText
   effort: { heading: string; instruction: string; study: string; readingAid: string }
   parts: RacePartText[]
@@ -503,17 +520,40 @@ export interface RacePlanText {
   dark: { heading: string; lines: string[] } | null
 }
 
-function noticeText(notice: RaceNotice, units: Units): string {
+function noticeText(notice: RaceNotice, units: Units): RaceNoticeText {
   switch (notice) {
     case 'no-prediction':
-      return say(T['race.plan.notice.no-prediction'], {}, units)
+      return {
+        text: say(T['race.plan.notice.no-prediction'], {}, units),
+        link: say(T['race.plan.firm.link-prediction'], {}, units),
+        to: 'goals',
+      }
     case 'no-start-time':
-      return say(T['race.plan.notice.no-start-time'], {}, units)
+      return {
+        text: say(T['race.plan.notice.no-start-time'], {}, units),
+        link: say(T['race.plan.firm.link-start-time'], {}, units),
+        to: 'goals',
+      }
     case 'no-heart-rate':
-      return say(T['race.plan.notice.no-heart-rate'], {}, units)
+      return {
+        text: say(T['race.plan.notice.no-heart-rate'], {}, units),
+        link: say(T['race.plan.firm.link-heart-rate'], {}, units),
+        to: 'profile',
+      }
     case 'no-climate':
-      return say(T['race.plan.notice.no-climate'], {}, units)
+      return {
+        text: say(T['race.plan.notice.no-climate'], {}, units),
+        link: say(T['race.plan.firm.link-climate'], {}, units),
+        to: 'goals',
+      }
   }
+}
+
+/** One line of "How firm is this": what is missing, and the page that fills it in. */
+export interface RaceNoticeText {
+  text: string
+  link: string
+  to: 'goals' | 'profile'
 }
 
 /** The instruction repeated in every part: the heart rate ceiling and the effort, or the effort. */
@@ -534,18 +574,15 @@ function instructionText(effort: RacePlan['effort'], units: Units): string {
 function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
   const { expected } = plan
   const notes: string[] = []
-  const headline =
+  const figure = say(T['race.plan.expected.figure'], { duration: duration(expected.midSec) }, units)
+  const source =
     expected.basis === 'prediction'
-      ? render(
-          TODAY_TEMPLATES['today.race.estimate'],
-          {
-            low: duration(expected.lowSec),
-            high: duration(expected.highSec),
-            likely: duration(expected.midSec),
-          },
+      ? say(
+          T['race.plan.expected.source-range'],
+          { low: duration(expected.lowSec), high: duration(expected.highSec) },
           units,
         )
-      : say(T['race.plan.expected.estimate'], { duration: duration(expected.midSec) }, units)
+      : say(T['race.plan.expected.source-goal'], {}, units)
   const clock =
     expected.start === null || expected.finish === null
       ? null
@@ -553,8 +590,7 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
           T['race.plan.expected.clock'],
           {
             start: expected.start,
-            from: clockText(expected.finish.from),
-            to: clockText(expected.finish.to),
+            range: clockRangeText(expected.finish.from, expected.finish.to),
           },
           units,
         )
@@ -570,7 +606,7 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
   notes.push(
     say(T['race.plan.expected.round'], { step: minutes(P.r1.arrivalRoundMin.value) }, units),
   )
-  return { heading: say(T['race.plan.expected.heading'], {}, units), headline, clock, notes }
+  return { heading: say(T['race.plan.expected.heading'], {}, units), figure, source, clock, notes }
 }
 
 function heatLines(plan: RacePlan, units: Units): string[] {
@@ -638,7 +674,7 @@ function partText(plan: RacePlan, third: RaceThird, units: Units): RacePartText 
         ? null
         : say(
             T['race.plan.part.clock'],
-            { from: clockText(third.clock.from), to: clockText(third.clock.to) },
+            { range: clockRangeText(third.clock.from, third.clock.to) },
             units,
           ),
     instruction: instructionText(plan.effort, units),
@@ -778,6 +814,8 @@ export function describeRacePlan(plan: RacePlan, units: Units): RacePlanText {
     title: say(T['race.plan.title'], {}, units),
     daysToGo: daysToGoText(plan.daysToRace, units),
     sketch: say(T['race.plan.sketch'], {}, units),
+    firmHeading: say(T['race.plan.firm.heading'], {}, units),
+    aboutRanges: say(T['race.plan.firm.about'], {}, units),
     notices: plan.notices.map((notice) => noticeText(notice, units)),
     expected: expectedText(plan, units),
     effort: {
@@ -904,11 +942,14 @@ function arrivalText(row: SplitRow, units: Units): string {
           units,
         )
   }
-  const from = clockText(row.clock.from)
-  const to = clockText(row.clock.to)
-  return from === to
-    ? say(T['race.plan.points.arrival-clock-at'], { at: from }, units)
-    : say(T['race.plan.points.arrival-clock'], { from, to }, units)
+  const at = clockText(row.clock.from)
+  return at === clockText(row.clock.to)
+    ? say(T['race.plan.points.arrival-clock-at'], { at }, units)
+    : say(
+        T['race.plan.points.arrival-clock'],
+        { range: clockRangeText(row.clock.from, row.clock.to) },
+        units,
+      )
 }
 
 /** The climb line, chosen on the figure as it will be printed: a climb that rounds to 0 says nothing. */
@@ -986,6 +1027,8 @@ export interface RacePointsEditorText {
   distance: string
   gain: string
   loss: string
+  /** The line under the climb and descent fields: since the previous point, in the runner's unit. */
+  climbHint: string
   cutoff: string
   cutoffClock: string
   cutoffDay: string
@@ -1009,6 +1052,8 @@ export function describeRacePointsEditor(
   units: Units,
 ): RacePointsEditorText {
   const self = args.supportLevel === 'self'
+  const climbUnit = units === 'mi' ? 'ft' : 'm'
+  const climbUnitPlural = units === 'mi' ? 'feet' : 'metres'
   return {
     title: say(self ? T['race.plan.points.sheet-self'] : T['race.plan.points.sheet'], {}, units),
     hint: say(T['race.plan.points.sheet-hint'], {}, units),
@@ -1019,8 +1064,9 @@ export function describeRacePointsEditor(
     saveFailed: say(T['race.plan.points.save-failed'], {}, units),
     name: say(T['race.plan.points.field-name'], {}, units),
     distance: say(T['race.plan.points.field-distance'], { unit: units }, units),
-    gain: say(T['race.plan.points.field-gain'], {}, units),
-    loss: say(T['race.plan.points.field-loss'], {}, units),
+    gain: say(T['race.plan.points.field-gain'], { unit: climbUnit }, units),
+    loss: say(T['race.plan.points.field-loss'], { unit: climbUnit }, units),
+    climbHint: say(T['race.plan.points.field-climb-hint'], { unit: climbUnitPlural }, units),
     cutoff: say(T['race.plan.points.field-cutoff'], {}, units),
     cutoffClock: say(T['race.plan.points.field-cutoff-clock'], {}, units),
     cutoffDay: say(T['race.plan.points.field-cutoff-day'], {}, units),
@@ -1030,7 +1076,11 @@ export function describeRacePointsEditor(
     errName: say(T['race.plan.points.err-name'], {}, units),
     errDistance: say(T['race.plan.points.err-distance'], {}, units),
     errDuplicate: say(T['race.plan.points.err-duplicate'], {}, units),
-    errMetres: say(T['race.plan.points.err-metres'], {}, units),
+    errMetres: say(
+      T['race.plan.points.err-metres'],
+      { unit: climbUnitPlural, example: units === 'mi' ? '2600' : '800' },
+      units,
+    ),
     errCutoff: say(T['race.plan.points.err-cutoff'], {}, units),
     errClock: say(T['race.plan.points.err-clock'], {}, units),
     pointN: (n) => say(T['race.plan.points.point-n'], { n: count(n) }, units),

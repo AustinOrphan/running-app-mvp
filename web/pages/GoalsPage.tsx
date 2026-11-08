@@ -19,6 +19,8 @@ import { useSettings } from '../api/settings.ts'
 import { ActivateConfirm } from '../components/ActivateConfirm.tsx'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { localiseEngineText } from '../components/engineText.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
@@ -858,6 +860,7 @@ function GoalRow({ goal, units, archived, result, onEdit, onRecordResult }: Goal
 /** The registry of goal races; one is active and drives the plan. */
 export function GoalsPage() {
   const goals = useGoals()
+  const goalsView = useLoadView(goals)
   const settings = useSettings()
   const plan = usePlan()
   const archivedPlans = useArchivedPlans()
@@ -883,13 +886,15 @@ export function GoalsPage() {
   }
 
   let body
-  if (goals.isError) {
+  if (goalsView === 'failed' || goalsView === 'retrying') {
     body = (
-      <p role="alert" className={styles.error}>
-        Goals did not load. The server did not respond; reload the page to try again.
-      </p>
+      <ErrorState
+        subject="Goals"
+        onRetry={() => goals.refetch()}
+        retrying={goalsView === 'retrying'}
+      />
     )
-  } else if (goals.isPending) {
+  } else if (goals.data === undefined) {
     body = <Skeleton lines={4} />
   } else if (goals.data.length === 0) {
     body = (

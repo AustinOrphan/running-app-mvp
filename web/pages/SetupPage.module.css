@@ -3,7 +3,27 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: var(--space-7) var(--gutter);
+  padding: var(--space-6) var(--gutter);
+}
+
+/* The block sits in the middle of the screen; `margin-block: auto` centres it and still lets the
+   page scroll when the keyboard leaves less room than the form needs. */
+.page > .form {
+  margin-block: auto;
+}
+
+.wordmark {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 600;
+}
+
+/* Two lines are kept for a refusal (the longest wraps once at 328 px), so the fields do not move when
+   it appears. */
+.alertSlot {
+  min-height: calc(var(--lh-sm) * 2);
 }
 
 .form {

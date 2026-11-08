@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   daysToGoText,
   describeRacePlan,
@@ -32,19 +33,32 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
         <h2 id="race-expected" className={cardStyles.heading}>
           {expected.heading}
         </h2>
-        <p className={cardStyles.headline}>{expected.headline}</p>
+        <p className={cardStyles.figure}>{expected.figure}</p>
+        <p className={cardStyles.text}>{expected.source}</p>
         {expected.clock === null ? null : <p className={cardStyles.text}>{expected.clock}</p>}
-        {expected.notes.map((note) => (
-          <p key={note} className={cardStyles.note}>
-            {note}
-          </p>
-        ))}
-        {text.notices.map((notice) => (
-          <p key={notice} className={cardStyles.note}>
-            {notice}
-          </p>
-        ))}
-        <p className={cardStyles.note}>{text.sketch}</p>
+        {text.notices.length === 0 ? null : (
+          <div className={cardStyles.firm}>
+            <h3 className={cardStyles.subheading}>{text.firmHeading}</h3>
+            <ul className={cardStyles.firmList}>
+              {text.notices.map((notice) => (
+                <li key={notice.to + notice.link}>
+                  <span>{notice.text}</span>{' '}
+                  <Link className={cardStyles.firmLink} to={`/${notice.to}`}>
+                    {notice.link}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <details className={cardStyles.nausea}>
+          <summary className={cardStyles.summary}>{text.aboutRanges}</summary>
+          {[...expected.notes, text.sketch].map((note) => (
+            <p key={note} className={cardStyles.note}>
+              {note}
+            </p>
+          ))}
+        </details>
         <div>
           <ExplainButton
             subject="the expected time"

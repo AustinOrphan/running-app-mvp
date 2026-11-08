@@ -113,6 +113,7 @@ for (const viewport of WIDTHS) {
 
     // a plan is a sketch: the disclaimer is on the page, and the range is called wide
     await expect(page.getByRole('region', { name: 'Disclaimer' })).toBeVisible()
+    await page.getByText('About these ranges').click()
     await expect(page.getByText(/The range is wide on purpose/)).toBeVisible()
     // no pace, no split and no cutoff anywhere
     const body = (await page.getByRole('main').textContent()) ?? ''
