@@ -15,6 +15,9 @@ export function endsHiddenLine(endsHiddenM: number): string {
 /** The legend of the cut-end markers. */
 export const CUT_ENDS_LINE = 'Dashed rings mark where the route is cut.'
 
+/** The legend of the start and finish markers. */
+export const START_FINISH_LINE = 'The filled dot is the start, the open ring the finish.'
+
 /** The text twin of the map: the distance, and whether the ends are hidden. */
 export function routeSummary(distanceM: number | null, units: Units, endsHiddenM: number): string {
   const lead =

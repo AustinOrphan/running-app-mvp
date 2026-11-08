@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CUT_ENDS_LINE,
+  START_FINISH_LINE,
   MAP_OFF_LINE,
   MAP_OFF_LINK,
   OSM_COPYRIGHT_URL,
@@ -29,9 +30,12 @@ import { useMapTiles } from './useMapTiles.ts'
 
 /** Space kept clear between the route and the edge of the box, in CSS pixels. */
 const FIT_PADDING = 28
-/** The scale bar is never longer than this share of the box, nor this many pixels. */
-const SCALE_MAX_SHARE = 0.4
-const SCALE_MAX_PX = 140
+/**
+ * The scale bar is never longer than this share of the box, nor this many pixels: on a phone it
+ * shares the foot of the map with the credit and must leave room for it.
+ */
+const SCALE_MAX_SHARE = 0.22
+const SCALE_MAX_PX = 120
 
 export interface RunMapProps {
   track: ActivityTrackView
@@ -239,7 +243,7 @@ export function RunMap({ track, units, distanceM, cursor }: RunMapProps) {
       </div>
       <figcaption className={styles.caption}>
         <span>{summary}</span>
-        {hidden ? <span>{` ${CUT_ENDS_LINE}`}</span> : null}
+        <span>{` ${hidden ? CUT_ENDS_LINE : START_FINISH_LINE}`}</span>
         {note === null ? null : <span className={styles.note}>{note}</span>}
       </figcaption>
     </figure>

@@ -229,6 +229,15 @@ its build runs `prisma migrate deploy` as a smoke test.
   come from `fetchRoute` (intervals.icu `latlng` stream: latitudes in `data`, longitudes in `data2`). The
   stored track is whole; `GET /api/activities/:id/track` cuts the first and last 200 m while
   `User.hideMapEnds` is on (the default), and nothing else may serve the stored polyline.
+- The run map (`web/components/map/RunMap.tsx`, tile maths in `shared/domain/mapTiles.ts`) uses no map
+  library: 256 px OpenStreetMap raster tiles as `<img>` elements under an SVG route. The tile host
+  `https://tile.openstreetmap.org` is the one outside host the CSP (`server/app.ts`, `imgSrc`) allows;
+  the worker does not intercept it (ADR 0012: cross-origin requests pass). The Map tiles switch is a
+  device setting (`rl_map_tiles`, `useMapTiles`, on by default, made by `createDeviceSwitch` like
+  Illustrations); off or offline the route is drawn alone. Every colour and size of the map is a custom
+  property on `.map` in `RunMap.module.css`. The charts report the distance under the pointer through
+  `DistanceCursor` (`distanceCursor.ts`), and the map's dot is moved by writing to its element, with no
+  render. E2e specs route-mock the tile host (`31-run-map.spec.ts`) and never reach it.
 - `Sheet` (`web/components/Sheet.tsx`) is stack-aware: only the topmost open sheet answers Tab and
   Escape, and the ones under it are `inert`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
