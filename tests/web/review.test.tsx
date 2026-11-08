@@ -25,9 +25,11 @@ import {
   activityPage,
   delayResponses,
   expectCleanCopy,
+  drawnArt,
   explainOf,
   mockApi,
   renderWithProviders,
+  showIllustrations,
   type MockRoutes,
 } from './helpers.tsx'
 import {
@@ -270,6 +272,25 @@ describe('ReviewPage', () => {
     })
     expect(await screen.findByRole('heading', { name: 'Review' })).toBeInTheDocument()
     expect(await screen.findByText('Week of 12 Oct')).toBeInTheDocument()
+  })
+
+  test('a reviewed week draws the review art only while the switch is on; an open week none', async () => {
+    const off = renderReview({ allReviewed: true })
+    await screen.findByText('Week of 12 Oct')
+    expect(drawnArt()).toEqual([])
+    cleanup()
+
+    showIllustrations()
+    renderReview({ allReviewed: true })
+    await screen.findByText('Week of 12 Oct')
+    expect(drawnArt()).toEqual(['review'])
+    expect(document.querySelector('svg[data-art]')).toHaveAttribute('aria-hidden', 'true')
+    cleanup()
+
+    renderReview({})
+    await screen.findByText('Week of 12 Oct')
+    expect(drawnArt()).toEqual([])
+    void off
   })
 
   test('opens on the last finished week when every week is reviewed', async () => {

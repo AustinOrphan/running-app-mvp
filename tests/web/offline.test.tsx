@@ -37,7 +37,7 @@ import {
 } from '../../web/pwa/register.ts'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
 import { makeCoach, makeHero, makeSession, makeToday } from './today-fixtures.ts'
-import { mockApi, renderWithProviders } from './helpers.tsx'
+import { drawnArt, mockApi, renderWithProviders, showIllustrations } from './helpers.tsx'
 import { renderToday, startToday } from './today-render.tsx'
 
 /** Thursday 2026-03-19 12:00 UTC; 07:00 in Chicago (CDT), 21:00 in Tokyo. */
@@ -79,6 +79,18 @@ describe('OfflineNote', () => {
   test("says nothing while the connection is there and the answer is the server's", () => {
     render(<OfflineNote view={saved()} units="mi" />)
     expect(screen.queryByText(/^Offline\./)).not.toBeInTheDocument()
+  })
+
+  test('draws the offline art beside the note only while the switch is on', () => {
+    goOffline()
+    const off = render(<OfflineNote view={saved()} units="mi" />)
+    expect(note()).toBeInTheDocument()
+    expect(drawnArt(off.container)).toEqual([])
+    off.unmount()
+
+    showIllustrations()
+    const on = render(<OfflineNote view={saved()} units="mi" />)
+    expect(drawnArt(on.container)).toEqual(['offline'])
   })
 
   test('its live region is on the page before the note, and the note is added to it', () => {

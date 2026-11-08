@@ -8,7 +8,21 @@ import {
 } from '../../web/components/illustrations/useIllustrations.ts'
 import { renderWithProviders } from './helpers.tsx'
 
-const ART_KEYS = ['runs', 'plan', 'offline', 'load', 'race', 'trends', 'strength', 'paces'] as const
+const ART_KEYS = [
+  'runs',
+  'plan',
+  'offline',
+  'load',
+  'race',
+  'trends',
+  'strength',
+  'paces',
+  'rest',
+  'done',
+  'review',
+  'brief',
+  'filter',
+] as const
 
 beforeEach(() => {
   localStorage.removeItem(ILLUSTRATIONS_KEY)

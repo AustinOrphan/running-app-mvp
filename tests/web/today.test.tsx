@@ -9,7 +9,14 @@ import { P } from '../../shared/engine/params/index.ts'
 import { resolveTargets } from '../../shared/engine/targets.ts'
 import { getOutbox } from '../../web/pwa/outbox.ts'
 import { makeActivity } from '../factories.ts'
-import { explainOf, expectCleanCopy, expectTouchScale, type MockRoutes } from './helpers.tsx'
+import {
+  drawnArt,
+  explainOf,
+  expectCleanCopy,
+  expectTouchScale,
+  showIllustrations,
+  type MockRoutes,
+} from './helpers.tsx'
 import {
   AVAILABLE,
   makeBrief,
@@ -211,6 +218,31 @@ describe("Today: today's session", () => {
     expect(within(card).queryByText(/Logged:/)).not.toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: 'Not today' })).not.toBeInTheDocument()
+  })
+
+  test('a completed session draws the done art only while the switch is on, and a session to run none', async () => {
+    const run = makeActivity({ id: 'r1', date: TODAY, durationSec: 2280, distanceM: 6000 })
+    const session = makeSession({ status: 'completed', activityId: 'r1' })
+    const done = makeToday({
+      sessions: [{ session, advice: 'as-planned', reasons: [] }],
+      coach: makeCoach({ hero: makeHero({ session, linkedRun: run }) }),
+    })
+
+    const off = render(done)
+    await screen.findByRole('article', { name: 'Easy run' })
+    expect(drawnArt(off.container)).toEqual([])
+    off.unmount()
+
+    showIllustrations()
+    const on = render(done)
+    await screen.findByRole('article', { name: 'Easy run' })
+    expect(drawnArt(on.container)).toEqual(['done'])
+    expect(on.container.querySelector('svg[data-art]')).toHaveAttribute('aria-hidden', 'true')
+    on.unmount()
+
+    const toRun = render(withEasyRun())
+    await screen.findByRole('article', { name: 'Easy run' })
+    expect(drawnArt(toRun.container)).toEqual([])
   })
 
   test('before a run the display number is the planned duration', async () => {

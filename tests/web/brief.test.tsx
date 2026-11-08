@@ -7,9 +7,11 @@ import type { BriefView, Units } from '../../shared/types.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { BriefPage } from '../../web/pages/BriefPage.tsx'
 import {
+  drawnArt,
   explainOf,
   expectCleanCopy,
   mockApi,
+  showIllustrations,
   renderWithProviders,
   type MockRoutes,
 } from './helpers.tsx'
@@ -379,6 +381,25 @@ describe('Brief page: a brief', () => {
     expect(
       await screen.findByText('No key session this week. The week is easy running.'),
     ).toBeInTheDocument()
+  })
+
+  test('since this brief: nothing draws the brief art only while the switch is on', async () => {
+    const view = makeView({ seen: true, revision: makeUpdate({ seenAt: WEEK }) })
+    const off = renderBrief('/brief', served(view))
+    await screen.findByText('Nothing has changed since this brief.')
+    expect(drawnArt(off.container)).toEqual([])
+    off.unmount()
+
+    showIllustrations()
+    const on = renderBrief('/brief', served(view))
+    await screen.findByText('Nothing has changed since this brief.')
+    expect(drawnArt(on.container)).toEqual(['brief'])
+    on.unmount()
+
+    // a later update to show: no drawing
+    const later = renderBrief('/brief', served(makeView({ since: [makeLater()] })), SEEN)
+    await screen.findByRole('region', { name: 'Since this brief' })
+    expect(drawnArt(later.container)).toEqual([])
   })
 
   test('since this brief: nothing, or the later updates through the same diff and undo', async () => {

@@ -5,7 +5,13 @@ import type { ResolvedTargets } from '../../shared/engine/types.ts'
 import type { TodayView } from '../../shared/types.ts'
 import { SessionTargets } from '../../web/components/today/SessionTargets.tsx'
 import { TodaySkeleton } from '../../web/components/today/TodaySkeleton.tsx'
-import { activityPage, delayResponses, expectCleanCopy } from './helpers.tsx'
+import {
+  activityPage,
+  delayResponses,
+  drawnArt,
+  expectCleanCopy,
+  showIllustrations,
+} from './helpers.tsx'
 import {
   makeCoach,
   makeHeat,
@@ -240,6 +246,42 @@ describe('Today: the hero variants', () => {
     const none = await screen.findByRole('region', { name: "Today's session" })
     expect(within(none).getByText('Nothing is planned today.')).toBeInTheDocument()
     expect(within(none).getByText(/^Next: Fri 20 Mar, Long run, /)).toBeInTheDocument()
+  })
+
+  test('a rest day and a day with nothing planned draw the rest art only while the switch is on', async () => {
+    const rest = makeSession({
+      kind: 'rest',
+      title: 'Rest',
+      durationMin: 0,
+      distanceM: null,
+      gainM: null,
+      rules: [],
+    })
+    const planned = makeToday({
+      coach: makeCoach({ hero: makeHero({ session: rest, target: null }) }),
+    })
+    const unplanned = makeToday({
+      coach: makeCoach({
+        next: makeSession({ id: 's2', date: '2026-03-20', title: 'Long run', durationMin: 90 }),
+        weekStrip: makeStrip({ targetRunMin: 300 }),
+      }),
+    })
+
+    const off = renderToday(planned)
+    await screen.findByRole('article', { name: 'Rest day.' })
+    expect(drawnArt(off.container)).toEqual([])
+    off.unmount()
+
+    showIllustrations()
+    const onRest = renderToday(planned)
+    await screen.findByRole('article', { name: 'Rest day.' })
+    expect(drawnArt(onRest.container)).toEqual(['rest'])
+    expect(onRest.container.querySelector('svg[data-art]')).toHaveAttribute('aria-hidden', 'true')
+    onRest.unmount()
+
+    const onNone = renderToday(unplanned)
+    await screen.findByText('Nothing is planned today.')
+    expect(drawnArt(onNone.container)).toEqual(['rest'])
   })
 
   test("the day's other sessions are named under the actions", async () => {

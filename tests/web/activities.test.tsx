@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -21,6 +21,8 @@ import { makeActivity } from '../factories.ts'
 import {
   activityPage,
   activityRoute,
+  drawnArt,
+  showIllustrations,
   delayResponses,
   expectCleanCopy,
   expectTouchScale,
@@ -144,6 +146,26 @@ describe('Activities page', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Import' }))
     expect(await screen.findByRole('dialog', { name: 'Import activities' })).toBeInTheDocument()
+  })
+
+  test('filters that match nothing draw the filter art only while the switch is on', async () => {
+    const run = makeActivity({ id: 'r1', type: 'run', durationSec: 2700, distanceM: 8000 })
+    // the server filters by type; the shared route does not
+    const byType: MockRoutes = {
+      'GET /api/activities': ({ query }) =>
+        activityPage(query.get('type') === 'strength' ? [] : [run]),
+    }
+    renderPage({ activities: [run], routes: byType })
+    await userEvent.click(await screen.findByRole('radio', { name: 'Strength' }))
+    expect(await screen.findByText('No activities match these filters.')).toBeInTheDocument()
+    expect(drawnArt()).toEqual([])
+    cleanup()
+
+    showIllustrations()
+    renderPage({ activities: [run], routes: byType })
+    await userEvent.click(await screen.findByRole('radio', { name: 'Strength' }))
+    expect(await screen.findByText('No activities match these filters.')).toBeInTheDocument()
+    expect(drawnArt()).toEqual(['filter'])
   })
 
   test('rows show date, type, duration, distance and pace in the user units (mi and km)', async () => {
