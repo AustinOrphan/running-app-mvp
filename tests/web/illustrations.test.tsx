@@ -16,6 +16,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  // one write that works clears any write failure a test left behind
+  renderHook(() => useIllustrations()).result.current.setOn(false)
   localStorage.removeItem(ILLUSTRATIONS_KEY)
 })
 
@@ -61,6 +63,30 @@ describe('the Illustrations switch', () => {
       result.current.setOn(false)
     })
     expect(result.current.on).toBe(false)
+  })
+})
+
+describe('the switch where storage can be read but not written', () => {
+  test('holds the choice for the page when setItem throws', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    const { result } = renderHook(() => useIllustrations())
+    act(() => {
+      result.current.setOn(true)
+    })
+    expect(result.current.on).toBe(true)
+    act(() => {
+      result.current.setOn(false)
+    })
+    expect(result.current.on).toBe(false)
+    vi.restoreAllMocks()
+    // a later write that works goes back to the stored value
+    act(() => {
+      result.current.setOn(true)
+    })
+    expect(localStorage.getItem(ILLUSTRATIONS_KEY)).toBe('on')
+    expect(result.current.on).toBe(true)
   })
 })
 

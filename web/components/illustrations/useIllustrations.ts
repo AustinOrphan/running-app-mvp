@@ -8,10 +8,13 @@ export const ILLUSTRATIONS_KEY = 'rl_illustrations'
 
 const listeners = new Set<() => void>()
 
-// Where storage is blocked the choice still holds for the life of the page.
+// Where storage cannot be written (blocked, full or read-only) the choice still holds for the life
+// of the page: `blockedChoice` is read while the last write failed, or while reading throws.
 let blockedChoice = false
+let writeFailed = false
 
 function snapshot(): boolean {
+  if (writeFailed) return blockedChoice
   try {
     return localStorage.getItem(ILLUSTRATIONS_KEY) === 'on'
   } catch {
@@ -38,7 +41,9 @@ export function useIllustrations(): { on: boolean; setOn: (next: boolean) => voi
   const setOn = useCallback((next: boolean) => {
     try {
       localStorage.setItem(ILLUSTRATIONS_KEY, next ? 'on' : 'off')
+      writeFailed = false
     } catch {
+      writeFailed = true
       blockedChoice = next
     }
     for (const listener of listeners) listener()
