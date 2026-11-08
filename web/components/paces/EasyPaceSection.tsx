@@ -1,7 +1,12 @@
 import { useId } from 'react'
 import { Link } from 'react-router-dom'
 import { gradeLegend } from '../../../shared/copy/grades.ts'
-import { lineIssueText, PACES_TEMPLATES, pacesText } from '../../../shared/copy/myPaces.ts'
+import {
+  climbNoteText,
+  lineIssueText,
+  PACES_TEMPLATES,
+  pacesText,
+} from '../../../shared/copy/myPaces.ts'
 import { render } from '../../../shared/copy/template.ts'
 import type { EasyPace, MyPaces } from '../../../shared/engine/myPaces.ts'
 import { P } from '../../../shared/engine/params/index.ts'
@@ -65,7 +70,9 @@ function howLines(pace: EasyPace, units: Units): string[] {
   return [
     pacesText(pace.basis === 'hr-model' ? 'paces.easy.how-hr' : 'paces.easy.how-zones'),
     ...heat,
-    pacesText('paces.easy.how-climb'),
+    pacesText(
+      pace.climb.source === 'personal' ? 'paces.easy.how-climb-own' : 'paces.easy.how-climb',
+    ),
     pacesText('paces.easy.how-grade'),
   ]
 }
@@ -166,7 +173,11 @@ export function EasyPaceSection({ easy, units }: EasyPaceSectionProps) {
                 )}
                 <Scenario
                   label={render(
-                    T['paces.easy.row-climb'],
+                    T[
+                      pace.climb.source === 'personal'
+                        ? 'paces.easy.row-climb-own'
+                        : 'paces.easy.row-climb'
+                    ],
                     { grade: { kind: 'percent', pct: pace.climb.gradePct } },
                     units,
                   )}
@@ -181,6 +192,10 @@ export function EasyPaceSection({ easy, units }: EasyPaceSectionProps) {
                         : 'paces.easy.hot-none-zones',
                     )
                   : pacesText('paces.easy.scenarios')}
+              </p>
+              <p className={styles.note}>
+                {climbNoteText(pace.climb.reason)}{' '}
+                <a href="#grades">{pacesText('paces.terrain.heading')}</a>
               </p>
             </div>
           </div>

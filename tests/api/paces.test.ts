@@ -9,6 +9,7 @@ import {
 } from '../../shared/limits.ts'
 import type { MyPacesView } from '../../shared/types.ts'
 import { cacheSizes } from '../../server/services/athleteState.ts'
+import { athlete, scaledCurve, syntheticRuns } from '../unit/engine/gradeCurve-fixtures.ts'
 import {
   client,
   createTestCtx,
@@ -155,6 +156,34 @@ describe('GET /api/paces: what the runner sees', () => {
     expect(easy.pace?.range[1]).toBe(Math.round(1000 / 2.9))
     expect(easy.pace?.hot).not.toBeNull()
     expect(easy.hr.runs).toBe(9)
+  })
+
+  test('the grade curve reads the stored terrain bins and shows the default with none (I13)', async () => {
+    const user = await newUser()
+    const empty = await pacesOf(user)
+    expect(empty.terrain.eligibleRuns).toBe(0)
+    expect(empty.terrain.bands).toHaveLength(9)
+    expect(empty.terrain.bands.every((band) => band.source === 'default')).toBe(true)
+
+    const runs = syntheticRuns(athlete(scaledCurve(0.5), 0.03), 40, today, 21, 2)
+    for (const run of runs) {
+      await ctx.prisma.activity.create({
+        data: {
+          userId: user.id,
+          date: run.date,
+          type: 'run',
+          durationSec: 3600,
+          distanceM: 9000,
+          terrainBins: JSON.stringify(run.bins),
+        },
+      })
+    }
+    const { terrain, events } = await pacesOf(user)
+    expect(terrain.eligibleRuns).toBe(40)
+    expect(terrain.bands.some((band) => band.source === 'personal')).toBe(true)
+    expect(terrain.bands[0]).toMatchObject({ source: 'default', reason: 'steep-end' })
+    // display only: the events are what they are without the bins
+    expect(events).toEqual(empty.events)
   })
 
   test('the events stand on the race and say so; a custom course follows the query', async () => {
