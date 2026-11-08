@@ -5,6 +5,7 @@ import {
   DISTANCE_ESTIMATE_TEMPLATES,
   estimateAboutText,
   estimateQuantity,
+  estimateParts,
   estimateText,
   nextWithEstimateText,
   weekStripEstimateText,
@@ -38,9 +39,37 @@ describe('estimate templates', () => {
 
   test('word an estimate: "about", and never a target, a goal or a comparison', () => {
     for (const id of ids) {
-      const text = DISTANCE_ESTIMATE_TEMPLATES[id].text
-      expect(text, id).toMatch(/\babout\b/)
-      expect(text, id).not.toMatch(/target|goal|short of|on track/i)
+      const template: Template = DISTANCE_ESTIMATE_TEMPLATES[id]
+      // A figure says "about"; a caption under one names the pace and has no figure of its own.
+      if (Object.keys(template.slots).length > 0) expect(template.text, id).toMatch(/\babout\b/)
+      expect(template.text, id).not.toMatch(/target|goal|short of|on track/i)
+    }
+  })
+})
+
+describe('estimateParts', () => {
+  test('splits the line into a figure and the pace it rests on', () => {
+    const easy = estimateParts({ distanceM: 8_000, basis: 'easy' }, 'km')
+    expect(easy).toEqual({ figure: 'about 8 km', caption: 'At your easy pace' })
+    expect(estimateParts({ distanceM: 8_000, basis: 'recent' }, 'km')).toEqual({
+      figure: 'about 8 km',
+      caption: 'At your recent pace',
+    })
+    expect(estimateParts({ distanceM: milesToM(7), basis: 'pace' }, 'mi')).toEqual({
+      figure: 'about 7 mi',
+      caption: null,
+    })
+  })
+
+  test('says with the figure and the caption what estimateText says in one line', () => {
+    for (const basis of ['easy', 'recent', 'pace'] as const) {
+      for (const units of ['km', 'mi'] as const) {
+        const estimate = { distanceM: 9_000, basis }
+        const { figure, caption } = estimateParts(estimate, units)
+        expect(caption === null ? figure : `${figure} ${caption.toLowerCase()}`).toBe(
+          estimateText(estimate, units),
+        )
+      }
     }
   })
 })

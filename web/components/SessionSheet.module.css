@@ -39,10 +39,11 @@
   font-weight: 600;
 }
 
+/* The prescription's grid: every figure under its label at one size, two columns at any width. */
 .facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
   margin: 0;
   font-variant-numeric: lining-nums tabular-nums;
 }
@@ -50,6 +51,7 @@
 .row {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .row dt {
@@ -63,6 +65,14 @@
   font-family: var(--font-serif);
   font-size: var(--text-lg);
   line-height: var(--lh-lg);
+}
+
+/* A note under a figure: what it rests on, or what the day changes. */
+.row dd.caption {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 
 .plain,

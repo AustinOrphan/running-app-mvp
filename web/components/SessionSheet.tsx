@@ -7,7 +7,7 @@ import type {
   Step,
   ZoneKey,
 } from '../../shared/engine/types.ts'
-import { estimateAboutText, estimateText } from '../../shared/copy/distanceEstimate.ts'
+import { estimateAboutText, estimateParts } from '../../shared/copy/distanceEstimate.ts'
 import { formatQuantity } from '../../shared/copy/quantity.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
 import { addDays } from '../../shared/dates.ts'
@@ -29,7 +29,7 @@ import { useToast } from './Toast.tsx'
 import { WhyDrawer } from './WhyDrawer.tsx'
 import { WristSection } from './WristStatus.tsx'
 import { AdjustSection, isSettledForChange } from './disruption/AdjustSection.tsx'
-import { SessionTargets } from './today/SessionTargets.tsx'
+import { targetRows, type TargetRow } from './today/targetText.ts'
 import { assessmentLines, unratedEffortNote } from './engineText.ts'
 import {
   formatClimb,
@@ -152,13 +152,32 @@ function activityLabel(activity: ActivityListItem, units: Units | undefined): st
   return parts.join(', ')
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** A figure under its label, with an optional caption under the figure. */
+function Row({
+  label,
+  children,
+  caption = null,
+}: {
+  label: string
+  children: ReactNode
+  caption?: string | null
+}) {
   return (
     <div className={styles.row}>
       <dt>{label}</dt>
       <dd>{children}</dd>
+      {caption === null ? null : <dd className={styles.caption}>{caption}</dd>}
     </div>
   )
+}
+
+/** The rows of the session's targets, in the grid of the prescription: one size, label over value. */
+function TargetRows({ rows }: { rows: TargetRow[] }) {
+  return rows.map((row) => (
+    <Row key={row.key} label={row.term} caption={row.note}>
+      {row.value}
+    </Row>
+  ))
 }
 
 /**
@@ -172,12 +191,20 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 export function StoredTargets({
   session,
   units,
+  facts = null,
 }: {
   session: Pick<PlanSession, 'kind' | 'target'>
   units: Units
+  /** The rows of the prescription that come before the targets, in the same grid. */
+  facts?: ReactNode
 }) {
   const targets = resolveTargets(session, null, { hot: false })
-  return <SessionTargets targets={targets} units={units} day="other" />
+  return (
+    <dl className={styles.facts}>
+      {facts}
+      <TargetRows rows={targetRows(targets, units, 'other')} />
+    </dl>
+  )
 }
 
 /**
@@ -185,10 +212,22 @@ export function StoredTargets({
  * same rows, in the same order and words, as Today's hero, plus the notes that explain a figure.
  * The sheet opens for a session on any day, so a note does not say "today".
  */
-export function SheetTargets({ targets, units }: { targets: ResolvedTargets; units: Units }) {
+export function SheetTargets({
+  targets,
+  units,
+  facts = null,
+}: {
+  targets: ResolvedTargets
+  units: Units
+  /** The rows of the prescription that come before the targets, in the same grid. */
+  facts?: ReactNode
+}) {
   return (
     <>
-      <SessionTargets targets={targets} units={units} day="other" />
+      <dl className={styles.facts}>
+        {facts}
+        <TargetRows rows={targetRows(targets, units, 'other')} />
+      </dl>
       {targets.hotNote !== null ? <p className={styles.note}>{targets.hotNote}</p> : null}
       {targets.zonesNote !== null ? <p className={styles.note}>{targets.zonesNote}</p> : null}
     </>
@@ -379,6 +418,25 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
   const original = session.original
   const estimate = session.distanceEstimate ?? null
   const settled = isSettledForChange(session)
+  const parts = units !== undefined && estimate !== null ? estimateParts(estimate, units) : null
+  const facts = (
+    <>
+      {session.durationMin > 0 ? (
+        <Row label="Time">{`${String(session.durationMin)}${NBSP}min`}</Row>
+      ) : null}
+      {units === undefined ? null : parts !== null ? (
+        <Row label="Distance" caption={parts.caption}>
+          {parts.figure}
+        </Row>
+      ) : session.distanceM !== null ? (
+        <Row label="Distance">{formatDistance(session.distanceM, units)}</Row>
+      ) : null}
+      {session.gainM !== null && units !== undefined ? (
+        <Row label="Climb">{formatClimb(session.gainM, units)}</Row>
+      ) : null}
+      <Row label="Zone">{ZONE_LABELS[session.target.zone]}</Row>
+    </>
+  )
 
   return (
     <>
@@ -403,27 +461,16 @@ export function SessionSheet({ session, onClose }: SessionSheetProps) {
             <h3 id="prescription-title" className={styles.heading}>
               Prescription
             </h3>
-            <dl className={styles.facts}>
-              {session.durationMin > 0 ? (
-                <Row label="Time">{`${String(session.durationMin)}${NBSP}min`}</Row>
-              ) : null}
-              {units === undefined ? null : estimate !== null ? (
-                <Row label="Distance">{estimateText(estimate, units)}</Row>
-              ) : session.distanceM !== null ? (
-                <Row label="Distance">{formatDistance(session.distanceM, units)}</Row>
-              ) : null}
-              {session.gainM !== null && units !== undefined ? (
-                <Row label="Climb">{formatClimb(session.gainM, units)}</Row>
-              ) : null}
-              <Row label="Zone">{ZONE_LABELS[session.target.zone]}</Row>
-            </dl>
-            {workout.data !== undefined ? (
-              units !== undefined ? (
-                <SheetTargets targets={workout.data.targets} units={units} />
-              ) : null
+            {/* One grid, one size: the facts of the session, then its targets under the same two
+                columns. The targets come from the server's resolver once the workout has loaded
+                (or from the stored ones when it failed), so the facts stand alone until then. */}
+            {workout.data !== undefined && units !== undefined ? (
+              <SheetTargets targets={workout.data.targets} units={units} facts={facts} />
             ) : workout.isError && units !== undefined ? (
-              <StoredTargets session={session} units={units} />
-            ) : null}
+              <StoredTargets session={session} units={units} facts={facts} />
+            ) : (
+              <dl className={styles.facts}>{facts}</dl>
+            )}
             {session.target.heatNote !== null ? (
               <p className={styles.note}>{session.target.heatNote}</p>
             ) : null}

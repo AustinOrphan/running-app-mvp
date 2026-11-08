@@ -141,18 +141,35 @@ describe('SessionSheet', () => {
     expect(within(dialog).queryByText('60 m')).not.toBeInTheDocument()
   })
 
+  test('prints the facts and the targets in one grid: every figure under its label, Effort too', async () => {
+    renderSheet(makeSession())
+    const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
+    const effort = await within(dialog).findByText('6 to 7 out of 10')
+    const grid = effort.closest('dl')
+    if (grid === null) throw new Error('The effort is not in a term list.')
+    // The same list holds Time, Distance, Climb and Zone, and the targets after them, in the order the session is run by.
+    const labels = [...grid.querySelectorAll('dt')].map((term) => term.textContent)
+    expect(labels).toEqual(['Time', 'Distance', 'Climb', 'Zone', 'Pace', 'Effort', 'Heart rate'])
+    expect(within(dialog).getAllByRole('term')).toHaveLength(labels.length)
+    // A label over its value, in one row element each.
+    for (const row of grid.children) {
+      expect(row.firstElementChild?.tagName).toBe('DT')
+      expect(row.children[1]?.tagName).toBe('DD')
+    }
+  })
+
   describe('the distance estimate', () => {
     test('replaces the plan’s distance with "about", naming the easy pace for an easy-paced run', async () => {
       renderSheet(makeSession({ distanceEstimate: { distanceM: 8400, basis: 'easy' } }), {
         'GET /api/settings': () => ({ ...settings, units: 'km' }),
       })
       const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
-      expect(await within(dialog).findByText('about 8 km at your easy pace')).toBeInTheDocument()
+      // The figure under its label, and the pace it rests on as a caption under the figure.
+      const figure = await within(dialog).findByText('about 8 km')
+      expect(figure).toBe(within(dialog).getByText('Distance').nextElementSibling)
+      expect(figure.nextElementSibling).toHaveTextContent('At your easy pace')
       // One distance, not two: the plan's own 9.00 km gives way to the estimate.
       expect(within(dialog).queryByText('9.00 km')).not.toBeInTheDocument()
-      expect(within(dialog).getByText('Distance').nextElementSibling).toHaveTextContent(
-        'about 8 km at your easy pace',
-      )
     })
 
     test('names the recent pace when the recent logged runs stand in for the zones', async () => {
@@ -160,7 +177,8 @@ describe('SessionSheet', () => {
         'GET /api/settings': () => ({ ...settings, units: 'km' }),
       })
       const dialog = await screen.findByRole('dialog', { name: 'Threshold intervals' })
-      expect(await within(dialog).findByText('about 8 km at your recent pace')).toBeInTheDocument()
+      const figure = await within(dialog).findByText('about 8 km')
+      expect(figure.nextElementSibling).toHaveTextContent('At your recent pace')
       expect(within(dialog).queryByText(/easy pace/)).not.toBeInTheDocument()
     })
 
@@ -169,8 +187,9 @@ describe('SessionSheet', () => {
         'GET /api/settings': () => ({ ...settings, units: 'mi' }),
       })
       const dialog = await screen.findByRole('dialog')
-      expect(await within(dialog).findByText('about 7 mi')).toBeInTheDocument()
-      expect(within(dialog).queryByText(/easy pace/)).not.toBeInTheDocument()
+      const figure = await within(dialog).findByText('about 7 mi')
+      expect(figure.nextElementSibling).toBeNull()
+      expect(within(dialog).queryByText(/easy pace|recent pace/)).not.toBeInTheDocument()
     })
 
     test('without an estimate the plan’s own distance stands, and a session without either shows none', async () => {
@@ -197,8 +216,11 @@ describe('SessionSheet', () => {
         }),
       )
       const dialog = await screen.findByRole('dialog')
-      const estimate = await within(dialog).findByText('about 8 km at your easy pace')
+      const estimate = await within(dialog).findByText('about 8 km')
       expect(estimate.textContent).not.toMatch(/target|ahead|behind|short|over/i)
+      expect(estimate.nextElementSibling?.textContent).not.toMatch(
+        /target|ahead|behind|short|over/i,
+      )
       expect(within(dialog).getByText('Distance')).toBeInTheDocument()
       expectCleanCopy(dialog)
     })
