@@ -4,7 +4,10 @@
 //
 // Rules, in the order the spec gives them:
 // - Only PUTs to a URL in `OUTBOX_ROUTES` are queued, and a PUT is idempotent by construction, so
-//   a second send of the same entry (two tabs, a reply lost on the way back) changes nothing.
+//   a second send of the same entry (two tabs, a reply lost on the way back) changes nothing. A
+//   create is queued only as a PUT of an id the client chose (a Done: `PUT /api/activities/done/:id`).
+// - An entry whose send could not go out, and the ones behind it, are marked `held`: the runner was
+//   told they are saved on the phone, so the page shows that and says when they have gone up.
 // - One entry per URL. A second write to the same URL is combined with the queued one: merged
 //   where the PUT itself merges (a check-in keeps the keys it does not mention), replaced where it
 //   replaces. The entry keeps its place in the queue.
@@ -44,6 +47,11 @@ export interface OutboxRoute {
   combine: 'merge' | 'replace'
   /** The query keys that read what the write changes, refreshed once the server has it. */
   invalidates: readonly string[]
+  /**
+   * True when a refusal found after the write was queued names its reason to the runner (a run
+   * another phone had already logged), where the generic notice only says it was removed.
+   */
+  quoteReason?: boolean
 }
 
 /**
@@ -76,6 +84,26 @@ export const OUTBOX_ROUTES: readonly OutboxRoute[] = [
     combine: 'replace',
     invalidates: [...ACTIVITY_DATA_KEYS],
   },
+  {
+    // `PUT /api/activities/done/:activityId` creates the activity under the id the sheet chose and
+    // links it to the session; a repeat of the id answers with the stored row and writes nothing, and
+    // a session already logged is a 409 (ADR 0012, queued writes). The whole body is one run, so a
+    // second write replaces the first.
+    label: 'run',
+    matches: (url) => /^\/api\/activities\/done\/[\w-]{8,64}$/.test(url),
+    combine: 'replace',
+    invalidates: [...ACTIVITY_DATA_KEYS],
+    quoteReason: true,
+  },
+  {
+    // `PUT /api/activities/:id/feedback` stores the rating keys it names (effort, feel, pain) and
+    // leaves the others, so a second write merges into the first and a replay changes nothing.
+    label: 'rating',
+    matches: (url) => /^\/api\/activities\/[\w-]{1,64}\/feedback$/.test(url),
+    combine: 'merge',
+    invalidates: [...ACTIVITY_DATA_KEYS],
+    quoteReason: true,
+  },
 ]
 
 /** An entry older than this is dropped unsent. */
@@ -103,6 +131,11 @@ export interface OutboxEntry {
   version: number
   /** The user the entry was queued under; absent only if it was queued before `adopt` ran. */
   userId?: string
+  /**
+   * Set once a send of the entry could not go out (no connection, a 5xx): the runner was told it is
+   * saved on this phone, so the page says when it has gone up.
+   */
+  held?: boolean
 }
 
 /** A refusal the page shows once, inline, near what was lost. */
@@ -124,8 +157,8 @@ export type SaveResult =
   | { status: 'sent'; response?: unknown }
   /** It is kept on this phone and goes out when a connection allows. */
   | { status: 'queued' }
-  /** The server refused it, in these words; it is not queued. */
-  | { status: 'rejected'; reason: string }
+  /** The server refused it, in these words; it is not queued. `conflict` is a 409. */
+  | { status: 'rejected'; reason: string; conflict?: boolean }
 
 /** What one attempt to send an entry came to. */
 export type SendResult =
@@ -133,7 +166,7 @@ export type SendResult =
   /** No connection, a 5xx, a 408 or a 429: keep the entry and try again later. */
   | { kind: 'retry' }
   /** Any other 4xx: the entry will never be accepted. */
-  | { kind: 'refused'; reason: string }
+  | { kind: 'refused'; reason: string; conflict?: boolean }
   | { kind: 'unauthorized' }
 
 // ---- Storage ---------------------------------------------------------------------------------
@@ -417,7 +450,7 @@ function withoutSent(entries: OutboxEntry[], sent: OutboxEntry): OutboxEntry[] {
  * which empties the queue.
  */
 interface Report {
-  refused: Map<string, string>
+  refused: Map<string, { reason: string; conflict: boolean }>
   responses: Map<string, unknown>
   signedOut: boolean
 }
@@ -495,6 +528,17 @@ export function createOutbox(deps: OutboxDeps): Outbox {
     return entries
   }
 
+  /**
+   * Marks everything still queued as waiting on the phone (`held`) when a run stops: the entry that
+   * could not be sent and the ones behind it, which were never tried, are all kept for later.
+   */
+  async function holdAll(): Promise<void> {
+    const entries = await store.transact((current) =>
+      current.some((e) => e.held !== true) ? current.map((e) => ({ ...e, held: true })) : current,
+    )
+    publish({ entries: [...entries].sort(bySeq) })
+  }
+
   async function pass(): Promise<void> {
     let entries = await expire()
     const tried = new Set<string>()
@@ -505,12 +549,14 @@ export function createOutbox(deps: OutboxDeps): Outbox {
       if (next === undefined) return
       if (!isOnline()) {
         halted = true
+        await holdAll()
         return
       }
       tried.add(`${next.url}#${String(next.version)}`)
       const result = await sendWithTimeout(send, next, sendTimeoutMs)
       if (result.kind === 'retry') {
         halted = true
+        await holdAll()
         return
       }
       if (result.kind === 'unauthorized') {
@@ -525,19 +571,15 @@ export function createOutbox(deps: OutboxDeps): Outbox {
         for (const listener of [...sentListeners]) listener(next)
         continue
       }
-      report.refused.set(next.url, result.reason)
+      report.refused.set(next.url, { reason: result.reason, conflict: result.conflict === true })
       if (!waiting.has(next.url)) {
-        const label = routeOf(next.url)?.label ?? 'entry'
-        publish({
-          notices: [
-            ...state.notices,
-            {
-              id: nextNoticeId++,
-              url: next.url,
-              message: render(TEMPLATES['today.outbox.dropped'], { what: label }, 'mi'),
-            },
-          ],
-        })
+        const route = routeOf(next.url)
+        const what = route?.label ?? 'entry'
+        const message =
+          route?.quoteReason === true
+            ? render(TEMPLATES['today.outbox.dropped-why'], { what, reason: result.reason }, 'mi')
+            : render(TEMPLATES['today.outbox.dropped'], { what }, 'mi')
+        publish({ notices: [...state.notices, { id: nextNoticeId++, url: next.url, message }] })
       }
     }
   }
@@ -602,8 +644,12 @@ export function createOutbox(deps: OutboxDeps): Outbox {
         )
         publish({ entries: [...entries].sort(bySeq) })
         const finished = await flush()
-        const reason = finished.refused.get(url)
-        if (reason !== undefined) return { status: 'rejected', reason }
+        const refused = finished.refused.get(url)
+        if (refused !== undefined) {
+          return refused.conflict
+            ? { status: 'rejected', reason: refused.reason, conflict: true }
+            : { status: 'rejected', reason: refused.reason }
+        }
         if (finished.signedOut) {
           return {
             status: 'rejected',
@@ -648,7 +694,9 @@ export async function sendEntry(entry: OutboxEntry, signal?: AbortSignal): Promi
     const { status } = error
     if (status === 401) return { kind: 'unauthorized' }
     if (status === 0 || status >= 500 || status === 408 || status === 429) return { kind: 'retry' }
-    return { kind: 'refused', reason: error.message }
+    return status === 409
+      ? { kind: 'refused', reason: error.message, conflict: true }
+      : { kind: 'refused', reason: error.message }
   }
 }
 

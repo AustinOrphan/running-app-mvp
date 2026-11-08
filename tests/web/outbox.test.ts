@@ -63,14 +63,55 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('the run and rating routes', () => {
+  const DONE = '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+  const RATING = '/api/activities/r1/feedback'
+
+  test('match their own URL and nothing near it', () => {
+    const run = OUTBOX_ROUTES.find((route) => route.label === 'run')
+    const rating = OUTBOX_ROUTES.find((route) => route.label === 'rating')
+    expect(run?.matches(DONE)).toBe(true)
+    expect(rating?.matches(RATING)).toBe(true)
+    for (const url of [
+      '/api/activities',
+      '/api/activities/done',
+      '/api/activities/done/short',
+      '/api/activities/r1',
+      '/api/activities/r1/feedback/extra',
+      '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10/x',
+    ]) {
+      expect(run?.matches(url), url).toBe(false)
+    }
+    expect(rating?.matches('/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10')).toBe(false)
+  })
+
+  test('hold every queued entry when a send cannot go out, and say so in the notice when one is refused later', async () => {
+    const r = rig({ send: () => Promise.resolve({ kind: 'retry' }) })
+    await r.outbox.save(DONE, { date: DAY })
+    await r.outbox.save(RATING, { rpe: 4 })
+    expect((await r.store.read()).map((e) => e.held)).toEqual([true, true])
+
+    r.send.mockImplementation(() =>
+      Promise.resolve<SendResult>({ kind: 'refused', reason: 'Already logged.', conflict: true }),
+    )
+    await r.outbox.flush()
+    expect(r.outbox.getState().notices.map((n) => n.message)).toEqual([
+      'A run saved on this phone was not added. Already logged. Enter it again if it still applies.',
+      'A rating saved on this phone was not added. Already logged. Enter it again if it still applies.',
+    ])
+  })
+})
+
 describe('the allowlist', () => {
   const route = (label: string) => OUTBOX_ROUTES.find((candidate) => candidate.label === label)
 
-  test('holds the check-in of a day, the fuel log of a run and the strength log of a session, and nothing else', () => {
+  test('holds the check-in of a day, the fuel log of a run, the strength log of a session, a run and a rating, and nothing else', () => {
     expect(OUTBOX_ROUTES.map((entry) => entry.label)).toEqual([
       'check-in',
       'fuel log',
       'strength log',
+      'run',
+      'rating',
     ])
   })
 

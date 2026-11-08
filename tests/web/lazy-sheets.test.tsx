@@ -81,6 +81,7 @@ describe('the sheets that open on a tap', () => {
     render(
       createElement(DoneSheet, {
         plan: { kind: 'easy', durationMin: 40, distanceM: 6000 },
+        sessionId: 's1',
         date: '2026-03-18',
         units: 'km',
         onClose,
@@ -103,6 +104,7 @@ describe('the sheets that open on a tap', () => {
     render(
       createElement(DoneSheet, {
         plan: { kind: 'easy', durationMin: 40, distanceM: 6000 },
+        sessionId: 's1',
         date: '2026-03-18',
         units: 'km',
         onClose: vi.fn(),

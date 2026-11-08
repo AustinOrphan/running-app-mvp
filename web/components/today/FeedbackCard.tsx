@@ -2,8 +2,15 @@ import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ActivityListItem, Units } from '../../../shared/types.ts'
 import { formatDistance, formatDuration } from '../../../shared/units.ts'
-import { useSaveFeedback } from '../../api/activities.ts'
+import {
+  useQueuedRating,
+  useSaveRating,
+  WriteRefused,
+  type Landed,
+} from '../../api/activityOutbox.ts'
 import { ApiError } from '../../api/client.ts'
+import { render } from '../../../shared/copy/template.ts'
+import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { TYPE_LABELS } from '../../pages/ActivityForm.tsx'
 import { Button } from '../Button.tsx'
 import { FeedbackFields, type FeedbackValues } from '../FeelPicker.tsx'
@@ -39,9 +46,10 @@ function FeedbackItem({
 }: {
   activity: ActivityListItem
   units: Units
-  onSaved: () => void
+  onSaved: (landed: Landed) => void
 }) {
-  const save = useSaveFeedback(activity.id)
+  const save = useSaveRating(activity.id)
+  const queued = useQueuedRating(activity.id)
   // Starts from the saved pain so a save that only sets RPE or feel does not clear it.
   const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: activity.pain })
   const touched = value.rpe !== null || value.feel !== null || value.pain !== activity.pain
@@ -53,25 +61,35 @@ function FeedbackItem({
         <RunLink id={activity.id} line={line} />
       </p>
       <FeedbackFields value={value} onChange={setValue} />
-      <div className={styles.feedbackActions}>
-        <Button
-          variant="primary"
-          disabled={!touched}
-          loading={save.isPending}
-          onClick={() => {
-            // The saved run drops out of the card, which unmounts this item before a mutate-level
-            // onSuccess could fire. The promise settles anyway, and the page owns the toast.
-            save.mutateAsync(value).then(onSaved, () => {
-              // The error shows in the card; there is nothing more to do here.
-            })
-          }}
-        >
-          Save
-        </Button>
-      </div>
+      {queued ? (
+        <p role="status" className={styles.caption}>
+          {render(TEMPLATES['today.rate.queued'], {}, units)}
+        </p>
+      ) : (
+        <div className={styles.feedbackActions}>
+          <Button
+            variant="primary"
+            disabled={!touched}
+            loading={save.isPending}
+            onClick={() => {
+              // The saved run drops out of the card, which unmounts this item before a mutate-level
+              // onSuccess could fire. The promise settles anyway, and the page owns the toast.
+              save.mutateAsync(value).then(onSaved, () => {
+                // The error shows in the card; there is nothing more to do here.
+              })
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      )}
       {save.isError ? (
         <p role="alert" className={styles.feedbackError}>
-          {`Feedback not saved. ${save.error instanceof ApiError ? save.error.message : 'Something went wrong.'} Try again.`}
+          {`Feedback not saved. ${
+            save.error instanceof ApiError || save.error instanceof WriteRefused
+              ? save.error.message
+              : 'Something went wrong.'
+          } Try again.`}
         </p>
       ) : null}
     </li>
@@ -118,7 +136,7 @@ export function FeedbackCard({
 }: {
   unrated: ActivityListItem[]
   units: Units
-  onSaved: () => void
+  onSaved: (landed: Landed) => void
   /** A run the hero already asks about, left out so it is not asked twice. */
   exclude?: string | null
 }) {

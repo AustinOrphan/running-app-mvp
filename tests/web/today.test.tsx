@@ -280,10 +280,10 @@ describe("Today: today's session", () => {
         unrated: [run],
       })
 
-    test('is rated in the hero through the feedback PATCH, once, and keeps focus on the answer', async () => {
+    test('is rated in the hero through the feedback write, once, and keeps focus on the answer', async () => {
       const user = userEvent.setup()
       const { api } = render(unratedDay(), {
-        'PATCH /api/activities/r1/feedback': () => ({}),
+        'PUT /api/activities/r1/feedback': () => ({}),
       })
       const card = await screen.findByRole('article', { name: 'Easy run' })
       const ask = within(card).getByRole('region', { name: 'Rate this run' })
@@ -297,9 +297,9 @@ describe("Today: today's session", () => {
       const saved = await within(card).findByText('Rating saved.')
       expect(saved).toHaveFocus()
       expect(await screen.findByText('Feedback saved')).toBeInTheDocument()
-      const patches = api.calls.filter((call) => call.method === 'PATCH')
-      expect(patches).toHaveLength(1)
-      expect(patches[0]).toMatchObject({
+      const puts = api.calls.filter((call) => call.method === 'PUT')
+      expect(puts).toHaveLength(1)
+      expect(puts[0]).toMatchObject({
         url: '/api/activities/r1/feedback',
         body: { rpe: 6, feel: 0, pain: null },
       })
@@ -308,9 +308,9 @@ describe("Today: today's session", () => {
     test('a failed save says so and keeps the chosen answers', async () => {
       const user = userEvent.setup()
       render(unratedDay(), {
-        'PATCH /api/activities/r1/feedback': () => ({
-          status: 500,
-          body: { error: { code: 'internal', message: 'Server error' } },
+        'PUT /api/activities/r1/feedback': () => ({
+          status: 400,
+          body: { error: { code: 'validation', message: 'Server error' } },
         }),
       })
       const ask = await screen.findByRole('region', { name: 'Rate this run' })
@@ -1020,8 +1020,18 @@ describe('Today: the check-in sheet', () => {
   })
 })
 
+/** The id the Done sheet chooses for its write, fixed so a test can route it. */
+const DONE_ID = '0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'
+const DONE_URL = `/api/activities/done/${DONE_ID}`
+
 describe('Today: Done', () => {
+  let uuid: { mockRestore: () => void }
+  beforeEach(() => {
+    uuid = vi.spyOn(crypto, 'randomUUID').mockReturnValue(DONE_ID)
+  })
+
   afterEach(() => {
+    uuid.mockRestore()
     setOnline(true)
     window.localStorage.clear()
   })
@@ -1056,7 +1066,7 @@ describe('Today: Done', () => {
 
   test('the Done toast offers the saved run', async () => {
     const user = userEvent.setup()
-    render(withEasyRun(), { 'POST /api/activities': () => ({ id: 'new1' }) })
+    render(withEasyRun(), { [`PUT ${DONE_URL}`]: () => ({ id: 'new1' }) })
     const sheet = await openDone(user)
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('button', { name: 'See the run' })).toBeInTheDocument()
@@ -1064,18 +1074,26 @@ describe('Today: Done', () => {
 
   test('Save posts one run with the planned figures, exactly as planned', async () => {
     const user = userEvent.setup()
-    const { api } = render(withEasyRun(), { 'POST /api/activities': () => ({}) })
+    const { api } = render(withEasyRun(), { [`PUT ${DONE_URL}`]: () => ({}) })
     const sheet = await openDone(user)
     await user.click(within(sheet).getByRole('button', { name: 'RPE 4' }))
     await user.click(within(sheet).getByRole('button', { name: 'As expected' }))
     // A second tap while the first is on its way posts nothing more.
     await user.dblClick(within(sheet).getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Run saved')).toBeInTheDocument()
-    const posts = api.calls.filter((call) => call.method === 'POST')
+    const posts = api.calls.filter((call) => call.method === 'PUT')
     expect(posts).toHaveLength(1)
     expect(posts[0]).toMatchObject({
-      url: '/api/activities',
-      body: { date: TODAY, type: 'run', durationSec: 2700, distanceM: 8047, rpe: 4, feel: 0 },
+      url: DONE_URL,
+      body: {
+        date: TODAY,
+        type: 'run',
+        durationSec: 2700,
+        distanceM: 8047,
+        rpe: 4,
+        feel: 0,
+        sessionId: 's1',
+      },
     })
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: "Log today's run" })).not.toBeInTheDocument()
@@ -1086,7 +1104,7 @@ describe('Today: Done', () => {
 
   test('what the runner changes is what is posted', async () => {
     const user = userEvent.setup()
-    const { api } = render(withEasyRun(), { 'POST /api/activities': () => ({}) })
+    const { api } = render(withEasyRun(), { [`PUT ${DONE_URL}`]: () => ({}) })
     const sheet = await openDone(user)
     const duration = within(sheet).getByRole('textbox', { name: 'Duration' })
     await user.clear(duration)
@@ -1096,13 +1114,14 @@ describe('Today: Done', () => {
     await user.type(distance, '6')
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(api.calls.some((call) => call.method === 'POST')).toBe(true)
+      expect(api.calls.some((call) => call.method === 'PUT')).toBe(true)
     })
-    expect(api.calls.find((call) => call.method === 'POST')?.body).toEqual({
+    expect(api.calls.find((call) => call.method === 'PUT')?.body).toEqual({
       date: TODAY,
       type: 'run',
       durationSec: 3030,
       distanceM: 9656,
+      sessionId: 's1',
     })
   })
 
@@ -1115,13 +1134,13 @@ describe('Today: Done', () => {
     await user.type(duration, 'a while')
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(await within(sheet).findByText('Enter minutes like 45, or 0:45:00')).toBeVisible()
-    expect(api.calls.filter((call) => call.method === 'POST')).toEqual([])
+    expect(api.calls.filter((call) => call.method === 'PUT')).toEqual([])
   })
 
   test('a refusal keeps the entries and says what to do', async () => {
     const user = userEvent.setup()
     render(withEasyRun(), {
-      'POST /api/activities': () => ({
+      [`PUT ${DONE_URL}`]: () => ({
         status: 400,
         body: { error: { code: 'validation', message: 'That day is not open.' } },
       }),
@@ -1138,48 +1157,49 @@ describe('Today: Done', () => {
     )
   })
 
-  test('with no connection Save is off, the sheet says why, and the entries stay as a draft', async () => {
+  test('with no connection Save keeps the run on the phone and says so, with the draft cleared', async () => {
     const user = userEvent.setup()
     setOnline(false)
     const { api } = render(withEasyRun())
     const sheet = await openDone(user)
-    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled()
     expect(
-      within(sheet).getByText('Needs a connection. Your entries stay on this phone.'),
+      within(sheet).getByText(
+        'No connection. Save keeps this on the phone and sends it when you are back online.',
+      ),
     ).toBeVisible()
-    const duration = within(sheet).getByRole('textbox', { name: 'Duration' })
-    await user.clear(duration)
-    await user.type(duration, '52')
     await user.click(within(sheet).getByRole('button', { name: 'RPE 5' }))
+    await user.click(within(sheet).getByRole('button', { name: 'Pain 2' }))
     expect(JSON.parse(window.localStorage.getItem('rl_done_draft_2026-03-18') ?? 'null')).toEqual({
-      duration: '52',
+      duration: '45',
       distance: '5',
       rpe: 5,
       feel: null,
+      pain: 2,
     })
-    await user.click(within(sheet).getByRole('button', { name: 'Close' }))
-
-    // Opened again, with the connection back, the draft is there and Save works.
-    setOnline(true)
-    act(() => {
-      window.dispatchEvent(new Event('online'))
-    })
-    const again = await openDone(user)
-    expect(within(again).getByRole('textbox', { name: 'Duration' })).toHaveValue('52')
-    expect(within(again).getByRole('button', { name: 'RPE 5' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    await user.click(within(sheet).getByRole('button', { name: 'Save' }))
+    // Queued, not sent: the toast says where it is, the sheet is gone, Done is gone and the hero
+    // says the run waits on the phone.
     expect(
-      within(again).queryByText('Needs a connection. Your entries stay on this phone.'),
-    ).not.toBeInTheDocument()
-    expect(within(again).getByRole('button', { name: 'Save' })).toBeEnabled()
-    expect(api.calls.filter((call) => call.method === 'POST')).toEqual([])
+      (await screen.findAllByText('Saved on this phone. It goes up when you are back online.'))
+        .length,
+    ).toBeGreaterThan(0)
+    expect(screen.queryByRole('dialog', { name: "Log today's run" })).not.toBeInTheDocument()
+    const card = screen.getByRole('article', { name: 'Easy run' })
+    expect(within(card).getByRole('status')).toHaveTextContent(
+      'Saved on this phone. It goes up when you are back online.',
+    )
+    expect(within(card).queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
+    expect(window.localStorage.getItem('rl_done_draft_2026-03-18')).toBeNull()
+    const [entry] = getOutbox().getState().entries
+    expect(entry?.url).toBe(DONE_URL)
+    expect(entry?.body).toMatchObject({ date: TODAY, rpe: 5, pain: 2, sessionId: 's1' })
+    expect(api.calls.filter((call) => call.method === 'PUT')).toEqual([])
   })
 
   test('the draft is removed once the run is saved', async () => {
     const user = userEvent.setup()
-    render(withEasyRun(), { 'POST /api/activities': () => ({}) })
+    render(withEasyRun(), { [`PUT ${DONE_URL}`]: () => ({}) })
     const sheet = await openDone(user)
     await user.click(within(sheet).getByRole('button', { name: 'RPE 3' }))
     expect(window.localStorage.getItem('rl_done_draft_2026-03-18')).not.toBeNull()
@@ -1202,7 +1222,7 @@ describe('Today: Done', () => {
         sessions: [{ session, advice: 'as-planned', reasons: [] }],
         coach: makeCoach({ hero: makeHero({ session, target: null }) }),
       }),
-      { 'POST /api/activities': () => ({}) },
+      { [`PUT ${DONE_URL}`]: () => ({}) },
     )
     const card = await screen.findByRole('article', { name: 'Strength' })
     await user.click(within(card).getByRole('button', { name: 'Done' }))
@@ -1211,10 +1231,11 @@ describe('Today: Done', () => {
     expect(within(sheet).queryByRole('textbox', { name: /^Distance/ })).not.toBeInTheDocument()
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Session saved')).toBeInTheDocument()
-    expect(api.calls.find((call) => call.method === 'POST')?.body).toEqual({
+    expect(api.calls.find((call) => call.method === 'PUT')?.body).toEqual({
       date: TODAY,
       type: 'strength',
       durationSec: 1800,
+      sessionId: 's1',
     })
   })
 
@@ -1226,14 +1247,14 @@ describe('Today: Done', () => {
         sessions: [{ session, advice: 'as-planned', reasons: [] }],
         coach: makeCoach({ hero: makeHero({ session, target: null }) }),
       }),
-      { 'POST /api/activities': () => ({}) },
+      { [`PUT ${DONE_URL}`]: () => ({}) },
     )
     const card = await screen.findByRole('article', { name: 'Hike' })
     await user.click(within(card).getByRole('button', { name: 'Done' }))
     const sheet = await screen.findByRole('dialog', { name: "Log today's session" })
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Session saved')).toBeInTheDocument()
-    expect(api.calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+    expect(api.calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
       date: TODAY,
       type: 'cross',
       subtype: 'hike',
@@ -1250,7 +1271,7 @@ describe('Today: Done', () => {
         sessions: [{ session: planned, advice: 'downgrade-easy', reasons: [] }],
         coach: makeCoach({ hero: makeHero({ session: planned, advice: 'downgrade-easy', eased }) }),
       }),
-      { 'POST /api/activities': () => ({}) },
+      { [`PUT ${DONE_URL}`]: () => ({}) },
     )
     const card = await screen.findByRole('article', { name: 'Easy run' })
     await user.click(within(card).getByRole('button', { name: 'Done' }))
@@ -1258,7 +1279,7 @@ describe('Today: Done', () => {
     expect(within(sheet).getByRole('textbox', { name: 'Duration' })).toHaveValue('30')
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
     await screen.findByText('Run saved')
-    expect(api.calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+    expect(api.calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
       durationSec: 1800,
       distanceM: 4828,
     })
@@ -1386,7 +1407,7 @@ describe('Today: How did it go? toast', () => {
     const day = () => makeToday({ unrated: saved ? [] : [run] })
     render(day(), {
       'GET /api/today': () => day(),
-      'PATCH /api/activities/r1/feedback': () => {
+      'PUT /api/activities/r1/feedback': () => {
         saved = true
         return {}
       },

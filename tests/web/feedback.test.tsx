@@ -119,7 +119,7 @@ describe('Today: How did it go?', () => {
         makeActivity({ id: 'newest', date: '2026-03-17', type: 'run', durationSec: 1800 }),
         makeActivity({ id: 'middle', date: '2026-03-14', type: 'race', durationSec: 2400 }),
       ],
-      { 'PATCH /api/activities/older/feedback': () => ({}) },
+      { 'PUT /api/activities/older/feedback': () => ({}) },
     )
     const card = await screen.findByRole('region', { name: 'How did it go?' })
     // one form, for the newest run
@@ -137,7 +137,7 @@ describe('Today: How did it go?', () => {
     await user.click(within(older).getByRole('button', { name: 'RPE 3' }))
     await user.click(within(older).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(api.calls.find((c) => c.method === 'PATCH')?.url).toContain('/older/feedback')
+      expect(api.calls.find((c) => c.method === 'PUT')?.url).toContain('/older/feedback')
     })
   })
 
@@ -157,7 +157,7 @@ describe('Today: How did it go?', () => {
   test('saves RPE, feel and pain for the activity', async () => {
     const user = userEvent.setup()
     const api = renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })], {
-      'PATCH /api/activities/r1/feedback': () => ({}),
+      'PUT /api/activities/r1/feedback': () => ({}),
     })
     const card = await screen.findByRole('region', { name: 'How did it go?' })
     await user.click(within(card).getByRole('button', { name: 'RPE 6' }))
@@ -165,9 +165,9 @@ describe('Today: How did it go?', () => {
     await user.click(within(card).getByRole('button', { name: 'Pain 0' }))
     await user.click(within(card).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true)
+      expect(api.calls.some((c) => c.method === 'PUT')).toBe(true)
     })
-    expect(api.calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+    expect(api.calls.find((c) => c.method === 'PUT')?.body).toEqual({
       rpe: 6,
       feel: -1,
       pain: 0,
@@ -177,7 +177,7 @@ describe('Today: How did it go?', () => {
   test('refreshes today after a save, since the server re-assesses the session', async () => {
     const user = userEvent.setup()
     const api = renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })], {
-      'PATCH /api/activities/r1/feedback': () => ({}),
+      'PUT /api/activities/r1/feedback': () => ({}),
     })
     const card = await screen.findByRole('region', { name: 'How did it go?' })
     const gets = (path: string) =>
@@ -196,7 +196,7 @@ describe('Today: How did it go?', () => {
     const user = userEvent.setup()
     const api = renderDashboard(
       [makeActivity({ id: 'r1', date: '2026-03-17', type: 'run', pain: 3 })],
-      { 'PATCH /api/activities/r1/feedback': () => ({}) },
+      { 'PUT /api/activities/r1/feedback': () => ({}) },
     )
     const card = await screen.findByRole('region', { name: 'How did it go?' })
     expect(within(card).getByRole('button', { name: 'Pain 3' })).toHaveAttribute(
@@ -207,9 +207,9 @@ describe('Today: How did it go?', () => {
     await user.click(within(card).getByRole('button', { name: 'RPE 4' }))
     await user.click(within(card).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
-      expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true)
+      expect(api.calls.some((c) => c.method === 'PUT')).toBe(true)
     })
-    expect(api.calls.find((c) => c.method === 'PATCH')?.body).toEqual({
+    expect(api.calls.find((c) => c.method === 'PUT')?.body).toEqual({
       rpe: 4,
       feel: null,
       pain: 3,
@@ -225,9 +225,9 @@ describe('Today: How did it go?', () => {
   test('a failed save stays in the card with the entries', async () => {
     const user = userEvent.setup()
     renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })], {
-      'PATCH /api/activities/r1/feedback': () => ({
-        status: 500,
-        body: { error: { code: 'internal', message: 'Server error' } },
+      'PUT /api/activities/r1/feedback': () => ({
+        status: 400,
+        body: { error: { code: 'validation', message: 'Server error' } },
       }),
     })
     const card = await screen.findByRole('region', { name: 'How did it go?' })
