@@ -106,19 +106,59 @@ describe('computeTerrainBins', () => {
 })
 
 describe('streams sampled more slowly than the 10 s bucket', () => {
-  test.each([12, 15, 20, 30])('a record every %i s keeps the true speed and time', (everySec) => {
-    const { summary } = summaryOf(COURSE, { everySec })
-    const bins = computeTerrainBins(summary.stream, summary.stream.sampleSec)
-    const speed = (band: number) => bins.m[band]! / bins.sec[band]!
-    // Within 0.1 m/s: a step across a change of grade blends two legs. An unfixed step width
-    // would read 4.5 m/s on 15 s sampling.
-    expect(Math.abs(speed(FLAT) - 3)).toBeLessThan(0.1)
-    expect(Math.abs(speed(UP_8) - 2.4)).toBeLessThan(0.1)
-    expect(Math.abs(speed(DOWN_8) - 3.6)).toBeLessThan(0.1)
-    // Seconds stay near the moving time: steps beside a stop and at the two ends are left out.
-    expect(sum(bins.sec)).toBeLessThanOrEqual(summary.movingSec!)
-    expect(sum(bins.sec)).toBeGreaterThan(summary.movingSec! * 0.85)
-    expect(bins.walkSec[FLAT]).toBe(0)
+  test.each([12, 15, 20, 30])(
+    'a record every %i s keeps band speeds and the totals',
+    (everySec) => {
+      const { summary } = summaryOf(COURSE, { everySec })
+      const bins = computeTerrainBins(summary.stream, summary.stream.sampleSec)
+      const speed = (band: number) => bins.m[band]! / bins.sec[band]!
+      // Within 0.1 m/s: a step across a change of grade blends two legs. An unfixed step width
+      // would read 4.5 m/s on 15 s sampling.
+      expect(Math.abs(speed(FLAT) - 3)).toBeLessThan(0.1)
+      expect(Math.abs(speed(UP_8) - 2.4)).toBeLessThan(0.1)
+      expect(Math.abs(speed(DOWN_8) - 3.6)).toBeLessThan(0.1)
+      // Seconds stay near the moving time: steps beside a stop and at the two ends are left out.
+      expect(sum(bins.sec)).toBeLessThanOrEqual(summary.movingSec!)
+      expect(sum(bins.sec)).toBeGreaterThan(summary.movingSec! * 0.85)
+      expect(bins.walkSec[FLAT]).toBe(0)
+    },
+  )
+})
+
+describe('steady running on a stream sampled every 12, 15 or 25 s', () => {
+  // On the 10 s grid such a recording gives steps alternately 10 and 20 s apart over equal
+  // distances, so only pooled quantities are right: the walking time and flatCv use segments.
+  const hill: Leg = { seconds: 120, speed: 3, gradePct: 5 }
+  const binsAt = (speed: number, everySec: number) => {
+    const { summary } = summaryOf(
+      [
+        { ...hill, speed },
+        { seconds: 1500, speed, gradePct: 0 },
+      ],
+      {
+        everySec,
+      },
+    )
+    return computeTerrainBins(summary.stream, summary.stream.sampleSec)
+  }
+
+  test.each([1, 10, 12, 15, 25])('3 m/s every %i s reads as steady', (everySec) => {
+    const bins = binsAt(3, everySec)
+    expect(bins.flatCv).not.toBeNull()
+    expect(bins.flatCv!).toBeLessThan(0.05)
+  })
+
+  test.each([1, 10, 12, 15, 25])('1.9 m/s every %i s books no walking', (everySec) => {
+    const bins = binsAt(1.9, everySec)
+    expect(sum(bins.sec)).toBeGreaterThan(1000)
+    expect(sum(bins.walkSec)).toBe(0)
+  })
+
+  test('running below the walking floor is booked as walking at any sampling', () => {
+    for (const everySec of [10, 12, 15, 25]) {
+      const bins = binsAt(1.2, everySec)
+      expect(sum(bins.walkSec)).toBeGreaterThan(sum(bins.sec) * 0.9)
+    }
   })
 })
 
@@ -168,12 +208,12 @@ describe('no terrain to read', () => {
 })
 
 describe('flat speed variation', () => {
-  test('is near zero for steady running and large for intervals', () => {
+  test('is near zero for steady running and large for repeats of three minutes', () => {
     const hill: Leg = { seconds: 120, speed: 3, gradePct: 5 }
     const steady = summaryOf([hill, { seconds: 1200, speed: 3, gradePct: 0 }]).summary
-    const repeats: Leg[] = Array.from({ length: 12 }, () => [
-      { seconds: 60, speed: 4.5, gradePct: 0 },
-      { seconds: 40, speed: 2, gradePct: 0 },
+    const repeats: Leg[] = Array.from({ length: 6 }, () => [
+      { seconds: 180, speed: 4.5, gradePct: 0 },
+      { seconds: 180, speed: 2, gradePct: 0 },
     ]).flat()
     const intervals = summaryOf([hill, ...repeats]).summary
     const cv = (s: typeof steady) => computeTerrainBins(s.stream, s.stream.sampleSec).flatCv

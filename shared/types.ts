@@ -235,7 +235,7 @@ export interface TerrainBins {
   sec: number[]
   m: number[]
   walkSec: number[]
-  /** Variation of the step speed in the flat band (standard deviation over mean); null if too few steps. */
+  /** Variation of segment speed (2 minutes or more) in the flat band, standard deviation over mean; null if too few segments. */
   flatCv: number | null
 }
 export interface Injury {

@@ -39,6 +39,16 @@ export const TERRAIN_MAX_STEP_SEC = 30
  * says nothing about the course, and booking the run as all flat would feed the flat band falsely.
  */
 export const TERRAIN_MIN_ALTITUDE_RANGE_M = 2
+/**
+ * Seconds a segment must hold before it is closed, for the walking time and the flat-speed
+ * variation. Data preparation: the stream keeps only 10 s bucket starts, so a step's seconds are the
+ * grid gap, not the elapsed time. A recording every 12, 15 or 25 s gives steps alternately 10 and 20
+ * s apart over equal distances, and a single step's speed is off by a factor of two. Over a run of
+ * consecutive steps the errors cancel, leaving at most one bucket (10 s) in all, so a segment of
+ * 120 s reads its speed to within about 8% at any sampling interval. The price is that variation
+ * faster than about two minutes (short repeats) is averaged away; the measure is for steady running.
+ */
+export const TERRAIN_SEGMENT_SEC = 120
 /** Faster than this over one bucket is a GPS jump, not running (the world record is 10.4 m/s). */
 const MAX_SPEED_MPS = 12
 /** Same cap as the gap-distance grade: a steeper reading is a data error. */
@@ -78,16 +88,18 @@ export function hasTerrainBins(type: ActivityType): boolean {
  * means "computed" and the backfill never revisits the run.
  *
  * The stream is a 10 s grid, but a recording sampled more slowly leaves empty buckets (no altitude;
- * distance carried forward). A step runs from one sampled bucket to the next, so it spans the true
- * elapsed time and its speed is not inflated. A step is dropped when it is slower than
+ * distance carried forward). A step runs from one sampled bucket to the next, so its distance and
+ * time add up to the run's (the band totals are exact), but its own speed is not: the stream keeps
+ * only 10 s bucket starts, so a step's seconds are the grid gap, not the elapsed time. A step is dropped when it is slower than
  * `TERRAIN_STOPPED_MPS`, faster than a GPS-jump bound or longer than `TERRAIN_MAX_STEP_SEC`; a step
  * also counts only when the steps on both sides are moving, so a bucket that is part running and
  * part standing (averaging a walking speed) is neither booked as walking nor counted as moving
  * time. The grade belongs to the step's midpoint: altitude at the two ends of a `TERRAIN_WINDOW_M`
  * span along the distance (interpolated). A step whose span runs off the start or the end of the
  * run is left out. Time under `c9.walkingFloorMps` also counts as walking time of its band.
- * `flatCv` is the time-weighted coefficient of variation of the step speed in the flat band, the
- * measure of a steady run (null with under two flat steps).
+ * Walking time and `flatCv` (the time-weighted coefficient of variation of segment speed in the flat
+ * band, the measure of a steady run; null with under two flat segments) are read over segments of
+ * at least `TERRAIN_SEGMENT_SEC`, each segment's speed being its metres over its seconds.
  */
 export function computeTerrainBins(stream: ActivityStreamData, sampleSec: number): TerrainBins {
   const out = emptyBins()
@@ -141,28 +153,51 @@ export function computeTerrainBins(stream: ActivityStreamData, sampleSec: number
   })
 
   const half = TERRAIN_WINDOW_M / 2
+  // Walking time and flat-speed variation are read over segments of consecutive steps in one band,
+  // never over single steps: on a stream recorded every 12, 15 or 25 s the 10 s grid gives steps
+  // alternately 10 and 20 s apart over a constant distance, so one step's speed is off by a factor
+  // of two either way while the sums over a few steps are right.
+  let segment = { bin: -1, sec: 0, m: 0 }
   let flatSec = 0
   let flatSum = 0
   let flatSquares = 0
-  let flatSteps = 0
+  let flatSegments = 0
+  const flush = (): void => {
+    if (segment.sec > 0) {
+      const speed = segment.m / segment.sec
+      if (speed < out.walkMps) out.walkSec[segment.bin]! += segment.sec
+      if (segment.bin === FLAT_BAND && segment.sec >= TERRAIN_SEGMENT_SEC) {
+        flatSec += segment.sec
+        flatSum += segment.sec * speed
+        flatSquares += segment.sec * speed * speed
+        flatSegments += 1
+      }
+    }
+    segment = { bin: -1, sec: 0, m: 0 }
+  }
   for (let k = 1; k < steps.length - 1; k++) {
     const step = steps[k]!
-    if (!step.moving || !steps[k - 1]!.moving || !steps[k + 1]!.moving) continue
-    if (step.mid - half < first || step.mid + half > last) continue
+    const counts = step.moving && steps[k - 1]!.moving && steps[k + 1]!.moving
+    if (!counts || step.mid - half < first || step.mid + half > last) {
+      flush()
+      continue
+    }
     const grade = (altitudeAt(step.mid + half) - altitudeAt(step.mid - half)) / TERRAIN_WINDOW_M
-    if (Math.abs(grade) > MAX_GRADE) continue
+    if (Math.abs(grade) > MAX_GRADE) {
+      flush()
+      continue
+    }
     const bin = binOf(grade * 100)
     out.sec[bin]! += step.dt
     out.m[bin]! += step.dd
-    if (step.speed < out.walkMps) out.walkSec[bin]! += step.dt
-    if (bin === FLAT_BAND) {
-      flatSec += step.dt
-      flatSum += step.dt * step.speed
-      flatSquares += step.dt * step.speed * step.speed
-      flatSteps += 1
-    }
+    if (segment.bin !== bin) flush()
+    segment.bin = bin
+    segment.sec += step.dt
+    segment.m += step.dd
+    if (segment.sec >= TERRAIN_SEGMENT_SEC) flush()
   }
-  if (flatSteps >= 2) {
+  flush()
+  if (flatSegments >= 2) {
     const mean = flatSum / flatSec
     const variance = Math.max(0, flatSquares / flatSec - mean * mean)
     out.flatCv = Math.round((Math.sqrt(variance) / mean) * 1000) / 1000
