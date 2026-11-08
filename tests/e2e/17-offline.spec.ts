@@ -322,7 +322,7 @@ test('Done with a rating and pain, logged with no connection, is kept on the pho
   })
   await sheet.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(
-    toast(page, 'Saved on this phone. It goes up when you are back online.'),
+    toast(page, 'Saved on this phone. It goes up as soon as the server can be reached.'),
   ).toBeVisible()
   await expect(sheet).toBeHidden()
   expect(await queued(page)).toBe(1)

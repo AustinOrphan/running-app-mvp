@@ -167,6 +167,12 @@ export const TODAY_TEMPLATES = {
     'A {what} saved on this phone was not added. {reason} Enter it again if it still applies.',
     { what: 'text', reason: 'text' },
   ),
+  // Settings, before signing out with a run or rating that has not gone up (a sign-out clears it).
+  'settings.signout-waiting': tpl('Not yet sent from this phone: {what}. Signing out clears it.', {
+    what: 'text',
+  }),
+  'settings.signout-anyway': tpl('Sign out anyway', {}, { shape: 'label' }),
+  'settings.signout-cancel': tpl('Cancel', {}, { shape: 'label' }),
   'today.outbox.dismiss': tpl('Dismiss', {}, { shape: 'label' }),
 
   // A sheet whose code could not be loaded (no connection and no copy kept, or a release replaced
@@ -232,13 +238,17 @@ export const TODAY_TEMPLATES = {
     'This session already has a run logged, so the one from this phone was not added.',
   ),
   // Shown on Today while a Done waits in the outbox, and as the toast when it is queued.
-  'today.done.queued': tpl('Saved on this phone. It goes up when you are back online.'),
+  'today.done.queued': tpl('Saved on this phone. It goes up as soon as the server can be reached.'),
   // The quiet line in the session card while that Done waits (the toast says the long version once).
   'today.done.waiting': tpl('Saved on this phone, waiting to go up.'),
   // The toast when a queued write reaches the server.
   'today.done.sent-later': tpl('The run saved on this phone has gone up.'),
   'today.rate.sent-later': tpl('The rating saved on this phone has gone up.'),
-  'today.rate.queued': tpl('Rating saved on this phone. It goes up when you are back online.'),
+  'today.rate.queued': tpl(
+    'Rating saved on this phone. It goes up as soon as the server can be reached.',
+  ),
+  // The quiet line where the rating form was while it waits (the toast says the long version once).
+  'today.rate.waiting': tpl('Rating saved on this phone, waiting to go up.'),
   'today.done.not-saved': tpl('Not saved. {reason} Your entries are still here; try again.', {
     reason: 'text',
   }),

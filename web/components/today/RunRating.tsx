@@ -54,7 +54,7 @@ export function RunRating({ run, units }: { run: Activity; units: Units }) {
   if ((saved !== null && !refused) || queued) {
     return (
       <p ref={done} tabIndex={-1} role="status" className={styles.saved}>
-        {render(TEMPLATES[queued ? 'today.rate.queued' : 'today.rate.saved'], {}, units)}
+        {render(TEMPLATES[queued ? 'today.rate.waiting' : 'today.rate.saved'], {}, units)}
       </p>
     )
   }

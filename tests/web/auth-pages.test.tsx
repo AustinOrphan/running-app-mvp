@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { describe, expect, test, vi } from 'vitest'
 import { ToastProvider } from '../../web/components/Toast.tsx'
+import { getOutbox, resetOutboxForTests } from '../../web/pwa/outbox.ts'
 import { LoginPage } from '../../web/pages/LoginPage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
 import { SetupPage } from '../../web/pages/SetupPage.tsx'
@@ -549,6 +550,41 @@ describe('SettingsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
     expect(calls.some((c) => c.method === 'POST' && c.url === '/api/auth/logout')).toBe(true)
+  })
+
+  test('settings: Sign out with a run waiting names it first and can be cancelled', async () => {
+    resetOutboxForTests()
+    const { calls } = mockApi({
+      ...settingsRoutes(() => ({})),
+      'PUT /api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10': () => ({
+        status: 503,
+        body: { error: { code: 'internal', message: 'Offline.' } },
+      }),
+      'POST /api/auth/logout': () => ({ status: 204, body: undefined }),
+    })
+    await getOutbox().save('/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10', {
+      date: '2026-03-18',
+      type: 'run',
+      durationSec: 1800,
+    })
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.click(screen.getByRole('button', { name: 'Sign out' }))
+    const warning = await screen.findByRole('alert')
+    expect(warning).toHaveTextContent('Not yet sent from this phone: 1 run. Signing out clears it.')
+    expect(warning).toHaveFocus()
+    expect(calls.some((c) => c.url === '/api/auth/logout')).toBe(false)
+
+    await typist.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(getOutbox().getState().entries).toHaveLength(1)
+
+    await typist.click(screen.getByRole('button', { name: 'Sign out' }))
+    await typist.click(await screen.findByRole('button', { name: 'Sign out anyway' }))
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(getOutbox().getState().entries).toEqual([])
   })
 
   test('settings with an empty display name renders without "null" or "undefined"', async () => {

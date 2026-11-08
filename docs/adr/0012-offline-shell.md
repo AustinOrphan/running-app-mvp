@@ -308,7 +308,10 @@ added by this change.
   repeat).
 - **Conflict.** The body carries `sessionId`, the planned session marked done. When that session
   already has an activity (done on another phone, or matched from a sync) the write is a 409 and
-  stores nothing. A session the active plan no longer holds is not an error: the run is kept and the
+  stores nothing. The create and the claim of the session are one transaction (`updateMany` where
+  `activityId` is null; a count of 0 rolls the activity back), so two sends for one session end as one
+  201 and one 409, and a failure after the insert cannot leave an unlinked run that a replay would
+  answer 200 for. A session the active plan no longer holds is not an error: the run is kept and the
   matcher ties it to the plan as for any other run.
 - **Pain.** The sheet gains the 0 to 10 pain scale already used by the rating and the activity page; it
   is the existing `Activity.pain`. No pain-area chips exist anywhere (the check-in takes a free-text
@@ -320,10 +323,20 @@ added by this change.
   ones behind it, are marked `held`. The page shows a held Done in the session card ("Saved on this
   phone, waiting to go up.", Done hidden so it cannot be made twice), a held rating in place of its
   form, and a toast says when a held entry has gone up. A 409 sets `conflict` on the refused result: the
-  sheet shows the server's sentence in a status line and a "Back to Today" button; a refusal found on
-  replay is a dismissible notice on Today that quotes the server's sentence (`quoteReason`).
+  sheet shows the server's sentence in a status line, takes focus, and swaps Save for "Back to Today"; a conflict found on
+  replay is a dismissible notice on Today that says the server's sentence alone, and reads Today
+  again so the card agrees. Another refusal on replay quotes the sentence and says to enter it again
+  (`quoteReason`).
 - **Dates.** The sheet sends `session.date` from Today's payload, the server's day. The phone's clock
   and time zone are not read, and no time of day is shown for a queued write.
+- **Expiry.** A run and a rating do not expire (`expires: false` on their routes): the PUT is
+  idempotent, the date is historical and the entry is the only record of the run. The other entries
+  still drop after 7 days.
+- **Wording.** A write can be held for want of a connection or because the server did not answer, so
+  the toast says "It goes up as soon as the server can be reached."; the card keeps a short line.
+- **Sign-out.** Settings names a waiting run or rating before signing out ("Not yet sent from this
+  phone: 1 run. Signing out clears it.") and offers Cancel. A 401 purges at once, as the rule above
+  requires, and so loses a waiting run without that warning; sign-in on another account does the same.
 - **Purge.** Unchanged. The entries live in the outbox, emptied only by `purgeDeviceData()`; the draft
   keeps its place in `purgeDrafts()` and now holds the pain value too.
 
@@ -363,7 +376,10 @@ added by this change.
 - A phone that logs offline and a second device that logs the same session first: the second write is
   refused with one plain sentence and the phone's run is not stored. The runner can enter it again as
   an unlinked activity from Activities.
-- An entry older than 7 days is dropped unsent (unchanged), with the generic notice.
+- A check-in, fuel log or strength log older than 7 days is dropped unsent and without a notice
+  (unchanged); a run and a rating are kept until they go up or the session ends.
+- A 401 (an expired session) clears a waiting run with no warning: the outbox is health data and is
+  emptied only through `purgeDeviceData()`.
 - The `held` flag is stored in the entry in IndexedDB; an entry written by an earlier build has none
   and is treated as not waiting until its first failed send.
 - The strength sheet's own save of "without sets" still posts an activity and needs a connection.

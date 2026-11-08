@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
@@ -144,6 +144,11 @@ export function DoneSheet({ plan, sessionId, date, units, onClose, onSaved }: Do
   const [failure, setFailure] = useState<string | null>(null)
   // The session was already logged elsewhere: nothing was stored, and saving again cannot help.
   const [conflict, setConflict] = useState<string | null>(null)
+  const conflictLine = useRef<HTMLParagraphElement>(null)
+  // Save is replaced by "Back to Today" and held focus: it goes to the explanation, which scrolls into view.
+  useEffect(() => {
+    if (conflict !== null) conflictLine.current?.focus()
+  }, [conflict])
 
   function change(patch: Partial<DoneForm>) {
     const next = { ...form, ...patch }
@@ -341,7 +346,7 @@ export function DoneSheet({ plan, sessionId, date, units, onClose, onSaved }: Do
           hint="0 is none, 10 is the worst. Tap again to clear."
         />
         {conflict === null ? null : (
-          <p role="status" className={styles.notice}>
+          <p ref={conflictLine} tabIndex={-1} role="status" className={styles.notice}>
             {conflict}
           </p>
         )}

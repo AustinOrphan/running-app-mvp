@@ -1181,8 +1181,11 @@ describe('Today: Done', () => {
     // Queued, not sent: the toast says where it is, the sheet is gone, Done is gone and the hero
     // says the run waits on the phone.
     expect(
-      (await screen.findAllByText('Saved on this phone. It goes up when you are back online.'))
-        .length,
+      (
+        await screen.findAllByText(
+          'Saved on this phone. It goes up as soon as the server can be reached.',
+        )
+      ).length,
     ).toBeGreaterThan(0)
     expect(screen.queryByRole('dialog', { name: "Log today's run" })).not.toBeInTheDocument()
     const card = screen.getByRole('article', { name: 'Easy run' })

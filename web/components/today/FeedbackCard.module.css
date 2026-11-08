@@ -73,3 +73,8 @@
 .runLink {
   color: inherit;
 }
+
+.caption:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}

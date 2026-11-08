@@ -1,3 +1,4 @@
+import { resetOutboxForTests } from '../../web/pwa/outbox.ts'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -220,6 +221,24 @@ describe('Today: How did it go?', () => {
     renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })])
     const card = await screen.findByRole('region', { name: 'How did it go?' })
     expect(within(card).getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
+  test('a rating queued with no connection leaves the pickers in view but inert, with one short line', async () => {
+    resetOutboxForTests()
+    const user = userEvent.setup()
+    renderDashboard([makeActivity({ id: 'r1', date: '2026-03-17', type: 'run' })], {
+      'PUT /api/activities/r1/feedback': () => ({
+        status: 503,
+        body: { error: { code: 'internal', message: 'Offline.' } },
+      }),
+    })
+    const card = await screen.findByRole('region', { name: 'How did it go?' })
+    await user.click(within(card).getByRole('button', { name: 'RPE 6' }))
+    await user.click(within(card).getByRole('button', { name: 'Save' }))
+    const line = await within(card).findByText('Rating saved on this phone, waiting to go up.')
+    expect(line).toHaveFocus()
+    expect(within(card).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: 'RPE 6' }).closest('[inert]')).not.toBeNull()
   })
 
   test('a failed save stays in the card with the entries', async () => {

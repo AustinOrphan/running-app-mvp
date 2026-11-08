@@ -590,11 +590,12 @@ export function createOutbox(deps: OutboxDeps): Outbox {
         const route = routeOf(next.url)
         const what = route?.label ?? 'entry'
         // A conflict is said once, in the server's own sentence: there is nothing to enter again.
-        const message = result.conflict
-          ? result.reason
-          : route?.quoteReason === true
-            ? render(TEMPLATES['today.outbox.dropped-why'], { what, reason: result.reason }, 'mi')
-            : render(TEMPLATES['today.outbox.dropped'], { what }, 'mi')
+        const message =
+          result.conflict === true && route?.quoteReason === true
+            ? result.reason
+            : route?.quoteReason === true
+              ? render(TEMPLATES['today.outbox.dropped-why'], { what, reason: result.reason }, 'mi')
+              : render(TEMPLATES['today.outbox.dropped'], { what }, 'mi')
         publish({ notices: [...state.notices, { id: nextNoticeId++, url: next.url, message }] })
       }
     }

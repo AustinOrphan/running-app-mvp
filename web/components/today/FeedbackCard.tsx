@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ActivityListItem, Units } from '../../../shared/types.ts'
 import { formatDistance, formatDuration } from '../../../shared/units.ts'
@@ -54,16 +54,28 @@ function FeedbackItem({
   const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: activity.pain })
   const touched = value.rpe !== null || value.feel !== null || value.pain !== activity.pain
   const line = activityLine(activity, units)
+  const waiting = useRef<HTMLParagraphElement>(null)
+  // The Save button held focus and is gone once the rating waits; focus goes to the line that says so.
+  const pickers = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (queued) {
+      pickers.current?.setAttribute('inert', '')
+      waiting.current?.focus()
+    } else pickers.current?.removeAttribute('inert')
+  }, [queued])
 
   return (
     <li className={styles.feedbackItem}>
       <p className={styles.feedbackTitle}>
         <RunLink id={activity.id} line={line} />
       </p>
-      <FeedbackFields value={value} onChange={setValue} />
+      {/* Waiting on the phone, the pickers stay in view but cannot be changed (there is no Save). */}
+      <div ref={pickers}>
+        <FeedbackFields value={value} onChange={setValue} />
+      </div>
       {queued ? (
-        <p role="status" className={styles.caption}>
-          {render(TEMPLATES['today.rate.queued'], {}, units)}
+        <p ref={waiting} tabIndex={-1} role="status" className={styles.caption}>
+          {render(TEMPLATES['today.rate.waiting'], {}, units)}
         </p>
       ) : (
         <div className={styles.feedbackActions}>

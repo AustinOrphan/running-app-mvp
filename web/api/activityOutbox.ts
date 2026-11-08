@@ -113,6 +113,24 @@ export function useQueuedRating(activityId: string): boolean {
 }
 
 /**
+ * What waits on this phone that the server has not got and that cannot be made again from the
+ * server: runs and ratings, in words ("1 run and 2 ratings"), or null when none. Signing out
+ * clears them, so the Settings page names them first.
+ */
+export function useWaitingRecords(): string | null {
+  const { entries } = useOutboxState()
+  const runs = entries.filter(isDoneEntry).length
+  const ratings = entries.filter((entry) =>
+    /^\/api\/activities\/[^/]+\/feedback$/.test(entry.url),
+  ).length
+  const parts = [
+    runs === 0 ? null : `${String(runs)} ${runs === 1 ? 'run' : 'runs'}`,
+    ratings === 0 ? null : `${String(ratings)} ${ratings === 1 ? 'rating' : 'ratings'}`,
+  ].filter((part): part is string => part !== null)
+  return parts.length === 0 ? null : parts.join(' and ')
+}
+
+/**
  * The refusals of Done and ratings found when the outbox sent them later, to show on Today (a
  * session logged on another phone meanwhile). The runner dismisses each.
  */

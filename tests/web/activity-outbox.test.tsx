@@ -202,7 +202,9 @@ describe('the Done sheet when the session was logged elsewhere', () => {
     const sheet = await screen.findByRole('dialog', { name: "Log today's run" })
     await user.click(within(sheet).getByRole('button', { name: 'RPE 5' }))
     await user.click(within(sheet).getByRole('button', { name: 'Save' }))
-    expect(await within(sheet).findByRole('status')).toHaveTextContent(ALREADY)
+    const explanation = await within(sheet).findByRole('status')
+    expect(explanation).toHaveTextContent(ALREADY)
+    expect(explanation).toHaveFocus()
     expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     expect(Object.keys(window.localStorage).filter((k) => k.startsWith('rl_done_draft'))).toEqual(
