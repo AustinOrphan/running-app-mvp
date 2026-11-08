@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   bodyWeightIn,
+  bodyWeightKg,
   DEFAULT_WEIGHT_UNIT,
   formatBodyWeight,
   formatLoad,
@@ -519,5 +520,12 @@ describe('body weight', () => {
     for (const grams of [0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(formatBodyWeight(grams, 'kg')).toBe(NO_VALUE)
     }
+  })
+})
+
+describe('bodyWeightKg', () => {
+  it('reads a body weight typed in the runner’s unit as kilograms to two decimals', () => {
+    expect(bodyWeightKg(150, 'lb')).toBe(68.04)
+    expect(bodyWeightKg(64.5, 'kg')).toBe(64.5)
   })
 })

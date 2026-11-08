@@ -2,6 +2,7 @@ import type { Units } from './types.ts'
 
 const M_PER_MILE = 1609.344
 export const FEET_PER_METRE = 3.28084
+const CM_PER_INCH = 2.54
 /** What a formatter prints for a value it cannot show. Never "NaN" or "undefined". */
 export const NO_VALUE = '—'
 
@@ -54,6 +55,16 @@ export function formatDistance(distanceM: number, units: Units): string {
 /** Minutes as hours with one decimal: 450 -> '7.5'. */
 export function minutesToHours1(min: number): string {
   return (min / 60).toFixed(1)
+}
+
+/** Height as the Profile shows it: inches for miles, centimetres for km; one decimal, no trailing zero. */
+export function heightText(cm: number, units: Units): string {
+  return String(Number((units === 'mi' ? cm / CM_PER_INCH : cm).toFixed(1)))
+}
+
+/** Centimetres (one decimal) from a height typed in the runner's unit. */
+export function heightCm(value: number, units: Units): number {
+  return units === 'mi' ? Math.round(value * CM_PER_INCH * 10) / 10 : value
 }
 
 /** Climb in the runner's unit: metres for km, feet for miles ("197 ft"). */

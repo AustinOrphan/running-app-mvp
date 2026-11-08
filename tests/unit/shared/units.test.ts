@@ -5,6 +5,8 @@ import {
   formatDuration,
   formatEstimate,
   formatPace,
+  heightCm,
+  heightText,
   kmToM,
   milesToM,
   minutesToHours1,
@@ -103,5 +105,14 @@ describe('finish estimates', () => {
         formatQuantity({ kind: 'duration', sec: roundEstimateSec(sec) }, 'km'),
       )
     }
+  })
+})
+
+describe('height', () => {
+  test('is shown in inches for miles and centimetres for km, and read back as centimetres', () => {
+    expect(heightText(177.8, 'mi')).toBe('70')
+    expect(heightText(172.5, 'km')).toBe('172.5')
+    expect(heightCm(68, 'mi')).toBe(172.7)
+    expect(heightCm(172.5, 'km')).toBe(172.5)
   })
 })
