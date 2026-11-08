@@ -624,6 +624,25 @@ describe('estimateState: fitness', () => {
       expect(s.fitness.csTrainingSince).toBeNull()
     })
 
+    test('the stretches of a race are efforts like a whole run, not training', () => {
+      const s = estimateState(input([long(10, { type: 'race' })]))
+      expect(s.fitness.csMps).toBeCloseTo(4, 6)
+      expect(s.fitness.csTrainingSince).toBeNull()
+    })
+
+    test('whole runs that give a fit on their own replace the stretches, and the fit is no longer from training', () => {
+      const eff = (n: number, t: number) =>
+        run(n, { durationSec: t, gapDistanceM: 3.9 * t + 100, distanceM: 3.9 * t + 100 })
+      // the long run alone would give 4 m/s from training; three test runs give 3.9 m/s of their own
+      const withTest = estimateState(input([long(10), eff(20, 180), eff(21, 360), eff(22, 720)]))
+      expect(withTest.fitness.csMps).toBeCloseTo(3.9, 6)
+      expect(withTest.fitness.csTrainingSince).toBeNull()
+      // two test runs are not enough: the stretches are used, and the fit says it is from training
+      const partial = estimateState(input([long(10), eff(20, 180), eff(21, 360)]))
+      expect(partial.fitness.csMps).toBeCloseTo(4, 6)
+      expect(partial.fitness.csTrainingSince).not.toBeNull()
+    })
+
     test('a run outside the window gives no stretches', () => {
       const s = estimateState(input([long(100)]))
       expect(s.fitness).toMatchObject({ csMps: null, csEfforts: 0 })

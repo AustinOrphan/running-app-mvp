@@ -64,4 +64,44 @@ describe('computeBestEfforts [A6]', () => {
     expect(at(out, 800)).toBeUndefined()
     expect(at(out, 400)).toBeCloseTo(133.3, 0)
   })
+
+  describe('a pause stored the way an import stores it', () => {
+    // 3 m/s for an hour at a constant altitude; a pause of 40 s is four empty buckets: distance
+    // carried forward and a missing altitude, which JSON stores as null.
+    function withPause(pause: boolean, base: number): ActivityStreamData {
+      const t: number[] = []
+      const d: number[] = []
+      const alt: number[] = []
+      let dist = 0
+      for (let i = 0; i < 360; i++) {
+        t.push(i * 10)
+        const stopped = pause && i >= 100 && i < 104
+        if (!stopped) dist += 30
+        d.push(dist)
+        alt.push(stopped ? Number.NaN : base)
+      }
+      return JSON.parse(
+        JSON.stringify({ t, d, hr: null, alt, cad: null, pwr: null }),
+      ) as ActivityStreamData
+    }
+
+    it('reads a missing altitude as no grade, not as 0 m', () => {
+      for (const base of [0, 250]) {
+        expect(computeBestEfforts(withPause(true, base), false).efforts).toEqual(
+          computeBestEfforts(withPause(false, base), false).efforts,
+        )
+      }
+    })
+
+    it('does not let a stretch span the pause', () => {
+      // 3000 m takes 1000 s; the pause sits at 1000 s, so the stretch has to start after it.
+      const paused = computeBestEfforts(withPause(true, 250), false)
+      expect(at(paused, 3000)).toBeCloseTo(1000, 0)
+      // A run that is all pause but for two short spans reaches only the short targets.
+      const t = Array.from({ length: 40 }, (_, i) => i * 10)
+      const d = t.map((_, i) => (i < 20 ? i * 30 : 570 + (i >= 22 ? (i - 22) * 30 : 0)))
+      const out = computeBestEfforts({ t, d, hr: null, alt: null, cad: null, pwr: null }, true)
+      expect(at(out, 800)).toBeUndefined()
+    })
+  })
 })

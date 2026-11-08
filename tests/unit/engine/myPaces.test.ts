@@ -293,8 +293,11 @@ describe('the events [C9, L1 to L6]', () => {
     const narrow = eventRow(flat, spec)
     expect(wide.basis.cs).toEqual({ csMps: 3.5, efforts: 4, since: '2026-08-11' })
     expect(narrow.basis.cs?.since).toBeNull()
-    const span = (row: typeof wide) => row.time!.highSec - row.time!.lowSec
-    expect(span(wide) / span(narrow)).toBeCloseTo(1 + P.a6.csTrainingWideningPct.value / 100, 1)
+    // only the faster end opens
+    expect(wide.time!.highSec).toBe(narrow.time!.highSec)
+    expect(wide.time!.midSec - wide.time!.lowSec).toBeGreaterThan(
+      narrow.time!.midSec - narrow.time!.lowSec,
+    )
     expect(wide.rules).toContain('A6')
     expect(wide.grade).toBe('D')
     expect(paces({ state: trained }).view.test.fromTraining).toBe(true)

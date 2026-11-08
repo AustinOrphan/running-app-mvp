@@ -243,8 +243,12 @@ export interface CsEffort {
   activity: Activity
   distanceM: number
   timeSec: number
-  /** A whole run, or the fastest stretch of a run longer than the fit range (from training). */
-  source: 'whole' | 'stretch'
+  /**
+   * A whole run (`whole`), the fastest stretch of a race (`race`), or the fastest stretch of a longer
+   * training run (`stretch`). Only a `stretch` is an effort of training, probably below what the
+   * runner can hold.
+   */
+  source: 'whole' | 'race' | 'stretch'
 }
 
 /**
@@ -252,7 +256,10 @@ export interface CsEffort {
  * distance band inside the window, in the order the bands were first reached. A run whose own
  * flat-equivalent distance lies in the fit range is one effort; a longer run gives its fastest
  * stretches at the distances of `a6.csEffortTargetsM` that last `a6.csMinEffortSec` or more (its
- * `bestEfforts`, when they were read). Fewer than `a6.csMinEfforts` of them give no fit.
+ * `bestEfforts`, when they were read). When the whole runs and the stretches of races give a fit on
+ * their own (the guided test, a race), those are the efforts and the stretches of training runs are
+ * left out, so the fit follows the efforts actually used. Fewer than `a6.csMinEfforts` of them give
+ * no fit.
  */
 export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
   const edges = [
@@ -262,15 +269,16 @@ export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
   ]
   const lowest = edges[0]!
   const highest = edges[edges.length - 1]!
-  const best = new Map<number, CsEffort>()
+  const measured = new Map<number, CsEffort>()
+  const all = new Map<number, CsEffort>()
   const offer = (effort: CsEffort): void => {
     if (effort.distanceM < lowest || effort.distanceM > highest) return
     let band = 0
     while (band + 1 < edges.length - 1 && effort.distanceM >= edges[band + 1]!) band += 1
-    const held = best.get(band)
-    if (!held || effort.distanceM / effort.timeSec > held.distanceM / held.timeSec) {
-      best.set(band, effort)
-    }
+    const faster = (held: CsEffort | undefined) =>
+      !held || effort.distanceM / effort.timeSec > held.distanceM / held.timeSec
+    if (effort.source !== 'stretch' && faster(measured.get(band))) measured.set(band, effort)
+    if (faster(all.get(band))) all.set(band, effort)
   }
   for (const a of runs) {
     const age = daysBetween(a.date, today)
@@ -283,11 +291,13 @@ export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
     }
     for (const e of a.bestEfforts?.efforts ?? []) {
       if (e.timeSec >= P.a6.csMinEffortSec.value) {
-        offer({ activity: a, distanceM: e.distanceM, timeSec: e.timeSec, source: 'stretch' })
+        const source = a.type === 'race' ? 'race' : 'stretch'
+        offer({ activity: a, distanceM: e.distanceM, timeSec: e.timeSec, source })
       }
     }
   }
-  return [...best.values()]
+  const solid = [...measured.values()]
+  return criticalSpeed(solid) !== null ? solid : [...all.values()]
 }
 
 function fitnessOf(runs: Activity[], input: EngineInput, today: string): AthleteState['fitness'] {

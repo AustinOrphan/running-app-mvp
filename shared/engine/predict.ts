@@ -24,6 +24,8 @@ interface Estimate {
 interface Base {
   sec: number
   estimates: Estimate[]
+  /** A line for the conditions when a critical speed from training met a race (see `basePrediction`). */
+  floorNote: string | null
 }
 
 /** Race anchors the state carries (date, distance, time). */
@@ -224,14 +226,30 @@ function csEstimate(state: AthleteState, target: PredictTarget): Estimate | null
   }
 }
 
-/** Mean of the available estimates, flat road conditions, no heat. */
+/**
+ * Mean of the available estimates, flat road conditions, no heat. A critical speed found from
+ * training (A6) is a floor on fitness, so it is never averaged with a race: the race stands alone,
+ * unless the floor implies a faster time than the race does, in which case the floor stands alone
+ * (the runner has shown at least that fitness since the race).
+ */
 function basePrediction(state: AthleteState, target: PredictTarget): Base | null {
-  const estimates = [raceEstimate(state, target), csEstimate(state, target)].filter(
-    (e): e is Estimate => e !== null,
-  )
+  const race = raceEstimate(state, target)
+  const cs = csEstimate(state, target)
+  let estimates = [race, cs].filter((e): e is Estimate => e !== null)
+  let floorNote: string | null = null
+  if (race && cs && state.fitness.csTrainingSince != null) {
+    if (cs.sec < race.sec) {
+      estimates = [cs]
+      floorNote = 'Training shows a faster time than the race does, so the race is not averaged in.'
+    } else {
+      estimates = [race]
+      floorNote =
+        'Critical speed from training implies a slower time than the race, and it is only a floor, so it is not used.'
+    }
+  }
   if (estimates.length === 0) return null
   const sec = estimates.reduce((sum, e) => sum + e.sec, 0) / estimates.length
-  return { sec, estimates }
+  return { sec, estimates, floorNote }
 }
 
 /** The Param that sets the least half-width of the interval for a course of this distance. */
@@ -278,6 +296,8 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
     conditions.push(...e.conditions)
   }
 
+  if (base.floorNote !== null) conditions.push(base.floorNote)
+
   let sec = base.sec
   if (target.gainM > 0) {
     const flatKm = fmtKm(target.gainM * P.l5.gainEquivalentM.value)
@@ -322,14 +342,16 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
     )
     rules.add('L3')
   }
-  // A critical speed found from the stretches of training runs is a floor, not a measurement (A6).
+  // A critical speed found from the stretches of training runs is a floor on fitness, so a time
+  // from it is an upper bound: only the faster end of the interval opens (A6).
   const trainingSince = base.estimates.some((e) => CS_METHODS.has(e.method))
     ? (state.fitness.csTrainingSince ?? null)
     : null
+  let fastSideFactor = 1
   if (trainingSince !== null) {
-    halfWidth *= 1 + P.a6.csTrainingWideningPct.value / 100
+    fastSideFactor = 1 + P.a6.csTrainingWideningPct.value / 100
     conditions.push(
-      `Critical speed comes from the best efforts in training since ${trainingSince}, not from races or a test; the interval is widened by ${P.a6.csTrainingWideningPct.value}%.`,
+      `Critical speed comes from the best efforts in training since ${trainingSince}, not from races or a test, so it is a floor and the time is at most this; the faster end of the interval is widened by ${P.a6.csTrainingWideningPct.value}%.`,
     )
     rules.add('A6')
   }
@@ -347,7 +369,7 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
   return {
     method: base.estimates.map((e) => e.method).join('+'),
     predictedSec: Math.round(sec),
-    lowSec: Math.round(sec * (1 - halfWidth / 100)),
+    lowSec: Math.round(sec * Math.max(0, 1 - (halfWidth * fastSideFactor) / 100)),
     highSec: Math.round(sec * (1 + halfWidth / 100)),
     conditions,
     rules: [...rules].sort(),

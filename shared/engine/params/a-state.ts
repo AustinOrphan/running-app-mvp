@@ -195,7 +195,7 @@ export const aState = {
     ),
     csMinEffortSec: param('a6.csMinEffortSec', 120, 'D', 'A6', ['smyth-2020-cs-training-data'], {
       unit: 's',
-      note: 'Default: a stretch of a run shorter than this is not an effort. The stream keeps a sample every 10 s, so a stretch of 120 s is read to about 8%, and a shorter one is mostly noise.',
+      note: 'Default: a stretch of a run shorter than this is not an effort. The stream keeps a sample every 10 s, so a stretch of 120 s is read to about 8%, and a shorter one is mostly noise. At ordinary running speeds the 800 m and longer targets last longer than this, so it mostly removes the 400 m target.',
     }),
     csTrainingWideningPct: param(
       'a6.csTrainingWideningPct',
@@ -205,7 +205,7 @@ export const aState = {
       ['smyth-2020-cs-training-data'],
       {
         unit: '%',
-        note: 'Default: a critical speed that uses the stretch of a longer run is a floor, since training efforts are rarely all-out; no study sizes the bias, so the interval is widened by half again, as for one source (L3).',
+        note: 'Default: a critical speed that uses the stretch of a longer run is a floor, since training efforts are rarely all-out, so a time from it is an upper bound; no study sizes the bias, so the faster end of the interval only is widened by half again, as for one source (L3).',
       },
     ),
     exponentMinRaces: param(

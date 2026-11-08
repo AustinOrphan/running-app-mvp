@@ -28,13 +28,19 @@ function hrBoundary(
   }
 }
 
-function paceBoundary(paceSecPerKm: number, source: Boundary['source'], asOf: string): Boundary {
+function paceBoundary(
+  paceSecPerKm: number,
+  source: Boundary['source'],
+  asOf: string,
+  fromTraining = false,
+): Boundary {
   const [low, high] = percentBand(paceSecPerKm, P.c7.bandDefaultPacePct.value)
   return {
     value: Math.round(paceSecPerKm),
     band: [Math.round(low), Math.round(high)],
     source,
     asOf,
+    ...(fromTraining ? { fromTraining } : {}),
   }
 }
 
@@ -116,6 +122,9 @@ export function buildZones(profile: AthleteProfile, state: AthleteState, today: 
     paceSource = 'cs'
   }
 
+  // A critical speed from the stretches of training runs is a floor (A6): say so on what it drives.
+  const fromTraining =
+    paceSource === 'cs' && stateCs !== null && state.fitness.csTrainingSince != null
   const csMps: Boundary | null =
     stateCs !== null && stateCs > 0
       ? {
@@ -126,14 +135,15 @@ export function buildZones(profile: AthleteProfile, state: AthleteState, today: 
           ],
           source: 'cs',
           asOf: today,
+          ...(fromTraining ? { fromTraining } : {}),
         }
       : null
   const lt1PaceValue =
     csEquivalentMps !== null ? paceOf(csEquivalentMps * P.c4.lt1CsFraction.value) : null
   const lt1PaceSecPerKm =
-    lt1PaceValue !== null ? paceBoundary(lt1PaceValue, paceSource, today) : null
+    lt1PaceValue !== null ? paceBoundary(lt1PaceValue, paceSource, today, fromTraining) : null
   const thresholdPaceSecPerKm =
-    thresholdPace !== null ? paceBoundary(thresholdPace, paceSource, today) : null
+    thresholdPace !== null ? paceBoundary(thresholdPace, paceSource, today, fromTraining) : null
 
   // Heart-rate boundaries.
   const lt1Frac = P.c2.lt1FractionOfHrMax.value

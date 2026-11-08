@@ -150,6 +150,11 @@ export interface Boundary {
   band: [number, number]
   source: 'tested' | 'cs' | 'dfa' | 'rpe' | 'hrmax-observed' | 'hrmax-age' | 'hrr' | 'profile'
   asOf: string
+  /**
+   * True on a boundary found from a critical speed that uses the stretches of training runs (rule
+   * A6): a floor, so the boundary may sit low. Absent otherwise.
+   */
+  fromTraining?: boolean
 }
 export interface ZoneSet {
   hrMax: Boundary | null

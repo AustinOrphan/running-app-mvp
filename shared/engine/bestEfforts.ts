@@ -5,8 +5,9 @@
 //
 // What is fixed here is data preparation, not an engine decision: the grade of a step is taken over
 // the same 30 s as the grade-adjusted distance of an import (`computeGapDistance`), a step that is
-// longer than 30 s apart or faster than 12 m/s is a pause or a GPS jump and no stretch spans it
-// (the same bounds as the terrain bins), and a distance is flat-equivalent through
+// longer than 30 s, slower than 0.5 m/s, faster than 12 m/s or between buckets with no altitude is a
+// pause or a GPS jump and no stretch spans it (the bounds of the terrain bins; the 12 m/s bound only
+// catches a jump of more than that, so a smaller one is not detected), and a distance is flat-equivalent through
 // `gradeAdjustedSpeed` (I11). The distances are `a6.csEffortTargetsM`; the shortest time a stretch
 // must last to count is `a6.csMinEffortSec`, applied where the efforts are chosen.
 import type { ActivityStreamData, BestEfforts } from '../types.ts'
@@ -18,6 +19,8 @@ const GRADE_WINDOW_SEC = 30
 const MAX_GRADE = 0.45
 const MAX_STEP_SEC = 30
 const MAX_SPEED_MPS = 12
+/** Slower than this over a step is standing still (the terrain bins' bound): a pause, not running. */
+const STOPPED_MPS = 0.5
 
 /**
  * The fastest stretch at each target distance, in flat-equivalent metres. `flat` says the run needs
@@ -42,8 +45,16 @@ export function computeBestEfforts(stream: ActivityStreamData, flat: boolean): B
     while (hi + 1 < t.length && t[hi + 1]! <= ti + half) hi++
     const dd = d[i + 1]! - d[i]!
     const dt = t[i + 1]! - ti
+    // An empty bucket (a pause) has a carried-forward distance and a missing altitude, which JSON
+    // stores as null; it is a break whichever of the two shows it.
+    const heightsKnown = !alt || (Number.isFinite(alt[i]) && Number.isFinite(alt[i + 1]))
     const usable =
-      Number.isFinite(dd) && dt > 0 && dt <= MAX_STEP_SEC && dd >= 0 && dd / dt <= MAX_SPEED_MPS
+      Number.isFinite(dd) &&
+      dt > 0 &&
+      dt <= MAX_STEP_SEC &&
+      dd / dt >= STOPPED_MPS &&
+      dd / dt <= MAX_SPEED_MPS &&
+      heightsKnown
     broken.push(!usable)
     if (!usable) {
       cum.push(cum[i]!)
@@ -52,7 +63,8 @@ export function computeBestEfforts(stream: ActivityStreamData, flat: boolean): B
     let grade = 0
     if (alt) {
       const run = d[hi]! - d[lo]!
-      const rise = alt[hi]! - alt[lo]!
+      // A missing altitude (null, which would read as 0 m) at either end gives no grade.
+      const rise = Number.isFinite(alt[hi]) && Number.isFinite(alt[lo]) ? alt[hi]! - alt[lo]! : NaN
       grade = run > 1 && Number.isFinite(rise) ? rise / run : 0
       grade = Math.max(-MAX_GRADE, Math.min(MAX_GRADE, grade))
     }

@@ -183,6 +183,19 @@ describe('buildZones pace (rules C4, C5, C7)', () => {
     expect(z.lt1PaceSecPerKm).toBeNull()
   })
 
+  it('marks the boundaries of a critical speed from training, and only those', () => {
+    const base = withCs(3.5)
+    const trained = withCs(3.5, {
+      fitness: { ...base.fitness, csTrainingSince: '2026-08-11' },
+    })
+    const z = buildZones(profile(), trained, TODAY)
+    expect(z.csMps?.fromTraining).toBe(true)
+    expect(z.lt1PaceSecPerKm?.fromTraining).toBe(true)
+    expect(z.thresholdPaceSecPerKm?.fromTraining).toBe(true)
+    expect(z.hrMax?.fromTraining).toBeUndefined()
+    expect(buildZones(profile(), base, TODAY).csMps).not.toHaveProperty('fromTraining')
+  })
+
   it('puts LT1 at 82.3% of CS and threshold at CS minus 1.0 km/h for most athletes', () => {
     const cs = 3.5
     const z = buildZones(profile(), withCs(cs), TODAY)
