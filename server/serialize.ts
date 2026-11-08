@@ -25,6 +25,7 @@ import type {
   WristPublication as WristPublicationRow,
 } from './db.ts'
 import type { WeightSeriesRow, WellnessSeriesRow } from '../shared/domain/trends.ts'
+import type { TrendRun } from '../shared/domain/trendsRuns.ts'
 import type {
   CourseSnapshot,
   LoggedPrediction,
@@ -984,6 +985,49 @@ export async function loadWellnessSeries(
     where: { userId, date: { gte: opts.from, lte: opts.to } },
     select: { date: true, restingHr: true, hrvRmssd: true, sleepSec: true },
   })
+}
+
+/**
+ * The columns of the runs the Trends run panels read (drift, and what the heart-rate fit reads), for
+ * an inclusive range, in no particular order. Flagged duplicates are left out, as every statistic
+ * does. It takes a window the snapshot does not hold (365 days against the 104 weeks the page shows
+ * and the eight weeks each window reads before it), so the engine input is untouched (ADR 0019).
+ */
+export async function loadRunSeries(
+  prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  opts: { from: string; to: string },
+): Promise<TrendRun[]> {
+  const rows = await prisma.activity.findMany({
+    where: {
+      userId,
+      type: 'run',
+      duplicateStatus: { in: ['none', 'dismissed'] },
+      date: { gte: opts.from, lte: opts.to },
+    },
+    select: {
+      date: true,
+      type: true,
+      duplicateStatus: true,
+      durationSec: true,
+      distanceM: true,
+      movingSec: true,
+      gapDistanceM: true,
+      avgHr: true,
+      elevationGainM: true,
+      hrHistogram: true,
+      tempC: true,
+      humidityPct: true,
+      windKph: true,
+      decouplingPct: true,
+    },
+  })
+  return rows.map((row) => ({
+    ...row,
+    type: row.type as ActivityType,
+    duplicateStatus: row.duplicateStatus as DuplicateStatus,
+    hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
+  }))
 }
 
 /**
