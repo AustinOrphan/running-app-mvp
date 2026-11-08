@@ -449,7 +449,7 @@ describe('MyPacesPage: a critical speed from training [A6]', () => {
     const events = await screen.findByRole('region', { name: 'What you can run now' })
     expect(
       within(events).getAllByText(
-        /^These times are at most\. They rest on your best efforts in training since 11 Aug/,
+        /^Rows marked at most rest on your best efforts in training since 11 Aug/,
       ),
     ).toHaveLength(1)
     expect(within(events).getByRole('link', { name: 'A short test' })).toHaveAttribute(

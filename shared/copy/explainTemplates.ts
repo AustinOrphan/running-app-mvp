@@ -161,6 +161,10 @@ export const EXPLAIN_TEMPLATES = {
     'Your critical speed is {speed}, a pace of {pace}, from {n} efforts in the last {days} days.',
     { speed: 'speed', pace: 'pace', n: 'count', days: 'count' },
   ),
+  'explain.a6-cs-training': tpl(
+    'Your critical speed is {speed}, a pace of {pace}, from {n} efforts in your training runs of the last {days} days. It is a floor, not a measurement.',
+    { speed: 'speed', pace: 'pace', n: 'count', days: 'count' },
+  ),
   'explain.cs-gap': tpl(
     'Critical speed needs {need} efforts between {from} and {to} in the last {days} days; {found} found. Zones use heart rate and effort until then.',
     { need: 'count', from: 'distance', to: 'distance', days: 'count', found: 'count' },
@@ -449,6 +453,10 @@ export const EXPLAIN_TEMPLATES = {
     low: 'duration',
     high: 'duration',
   }),
+  'explain.l6-range-floor': tpl(
+    'At most about {predicted}, with a range of {low} to {high}. Training is rarely all-out, so the faster end is wider.',
+    { predicted: 'duration', low: 'duration', high: 'duration' },
+  ),
   'explain.l6-floor': tpl(
     'The range is never narrower than {pct} either side of the predicted time.',
     {

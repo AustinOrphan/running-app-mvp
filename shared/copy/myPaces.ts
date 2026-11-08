@@ -155,7 +155,7 @@ export const PACES_TEMPLATES = {
     'Worked out from your races and your critical speed, with no goal and no weather. Each is a range and a sketch.',
   ),
   'paces.events.training': tpl(
-    'These times are at most. They rest on your best efforts in training since {date}, not on races; a race or a short test would likely show faster.',
+    'Rows marked at most rest on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
     { date: 'date' },
   ),
   'paces.events.none': tpl('Not enough to say yet for this distance.'),

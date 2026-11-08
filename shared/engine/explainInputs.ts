@@ -849,7 +849,7 @@ function fitnessFacts(scope: Scope): InputFact[] {
     make(
       'A6',
       'cs',
-      'explain.a6-cs',
+      ctx.state.fitness.csTrainingSince == null ? 'explain.a6-cs' : 'explain.a6-cs-training',
       {
         speed: speed(cs * 3.6),
         pace: pace(1000 / cs),
@@ -1611,11 +1611,16 @@ function bandFacts(scope: Scope): InputFact[] {
   const { goal, prediction } = scope.ctx
   if (prediction === null) return [gap('L6', 'explain.l6-gap', {})]
   const facts = [
-    make('L6', 'range', 'explain.l6-range', {
-      predicted: duration(prediction.predictedSec),
-      low: duration(prediction.lowSec),
-      high: duration(prediction.highSec),
-    }),
+    make(
+      'L6',
+      'range',
+      prediction.trainingSince === undefined ? 'explain.l6-range' : 'explain.l6-range-floor',
+      {
+        predicted: duration(prediction.predictedSec),
+        low: duration(prediction.lowSec),
+        high: duration(prediction.highSec),
+      },
+    ),
   ]
   if (goal !== null && goal.distanceM !== null) {
     facts.push(

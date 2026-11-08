@@ -1583,6 +1583,31 @@ describe('A2, A5, A6, A7, A8: the athlete state', () => {
     expect(facts.every((f) => f.state === 'used')).toBe(true)
   })
 
+  test('A6 and L6 say a fit and a time from training are a floor, at most', () => {
+    const input = richInput()
+    const base = contextOf(input)
+    const state = {
+      ...base.state,
+      fitness: { ...base.state.fitness, csTrainingSince: '2026-08-11' },
+    }
+    const g = input.goal
+    const prediction = predictFromState(state, {
+      distanceM: g.distanceM,
+      gainM: g.gainM,
+      surface: g.surface,
+      wbgtC: g.raceWbgtC,
+    })
+    const ctx = { ...base, state, prediction }
+    const [cs] = factsOf('A6', ctx)
+    expect(cs!.template).toBe('explain.a6-cs-training')
+    expect(text(cs!, 'km')).toMatch(/floor, not a measurement/)
+    const [range] = factsOf('L6', ctx)
+    expect(range!.template).toBe('explain.l6-range-floor')
+    expect(text(range!, 'km')).toMatch(/^At most about /)
+    expect(factsOf('A6')[0]!.template).toBe('explain.a6-cs')
+    expect(factsOf('L6')[0]!.template).toBe('explain.l6-range')
+  })
+
   test('A6 gives critical speed with the efforts it was fitted from', () => {
     const [fact] = factsOf('A6')
     expect(fact!.template).toBe('explain.a6-cs')

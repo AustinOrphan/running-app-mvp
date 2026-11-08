@@ -123,8 +123,8 @@ export function buildZones(profile: AthleteProfile, state: AthleteState, today: 
   }
 
   // A critical speed from the stretches of training runs is a floor (A6): say so on what it drives.
-  const fromTraining =
-    paceSource === 'cs' && stateCs !== null && state.fitness.csTrainingSince != null
+  const csFromTraining = stateCs !== null && state.fitness.csTrainingSince != null
+  const fromTraining = paceSource === 'cs' && csFromTraining
   const csMps: Boundary | null =
     stateCs !== null && stateCs > 0
       ? {
@@ -135,7 +135,7 @@ export function buildZones(profile: AthleteProfile, state: AthleteState, today: 
           ],
           source: 'cs',
           asOf: today,
-          ...(fromTraining ? { fromTraining } : {}),
+          ...(csFromTraining ? { fromTraining: true } : {}),
         }
       : null
   const lt1PaceValue =
