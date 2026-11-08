@@ -33,7 +33,7 @@ test('Settings holds its sections at the form measure', async ({ page }) => {
 
 test('the Research filter is as wide as the list under it', async ({ page }) => {
   await page.goto('/research')
-  const filter = page.getByRole('radiogroup', { name: 'Rule grade' })
+  const filter = page.getByRole('radiogroup', { name: 'Grade' })
   await expect(filter).toBeVisible()
   const list = page.getByRole('main').locator('ul').first()
   await expect(list).toBeVisible()
