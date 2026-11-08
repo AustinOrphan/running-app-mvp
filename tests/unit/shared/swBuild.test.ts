@@ -101,6 +101,10 @@ describe('what the shell keeps', () => {
   test.each([
     'sw.js',
     'assets/index-AbC123.js.map',
+    // The precompressed copies the server sends in place of a file (`web/sw/precompress.ts`).
+    'assets/index-AbC123.js.br',
+    'assets/index-AbC123.css.gz',
+    'index.html.br',
     // The web worker of the Apple Health import needs a connection anyway.
     'assets/appleHealth.worker-AbC123.js',
     'assets/libre-franklin-latin-ext-wght-normal-AbC123.woff2',

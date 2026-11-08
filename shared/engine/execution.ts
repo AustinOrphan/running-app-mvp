@@ -31,6 +31,11 @@ export interface HrModel {
   /** HR added per degree of WBGT above the optimum band, after shrinkage towards the prior. */
   heatBpmPerC: number
   residualSdBpm: number
+  /** Runs among those fitted that were hot enough to carry a heat term; the heat term is the prior's at few. */
+  hotRuns: number
+  /** The slowest and the fastest grade-adjusted speed fitted, m/s: the line is read inside them. */
+  minSpeedMps: number
+  maxSpeedMps: number
 }
 
 /** Context of an assessment. `hrModel` and `checkin` are optional: without them those parts drop out. */
@@ -77,7 +82,7 @@ const HR_UNSUITED_KINDS: ReadonlySet<SessionKind> = new Set([
  * Whether an activity counts: `possible` and `confirmed` duplicates do not, while `dismissed` rows
  * (owner said not a duplicate, `duplicateOfId` kept) do, as in shared/domain/stats.ts.
  */
-function counts(activity: Activity): boolean {
+function counts(activity: Pick<Activity, 'duplicateStatus'>): boolean {
   return activity.duplicateStatus === 'none' || activity.duplicateStatus === 'dismissed'
 }
 
@@ -183,8 +188,32 @@ export function matchSessions(
 // Conditions and HR qualification
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * The columns of a run the heart-rate-at-pace model reads. A caller that holds only these (the
+ * Trends page, which fits the model over windows older than the snapshot) can fit it without a
+ * whole `Activity`.
+ */
+export type HrFitRun = Pick<
+  Activity,
+  | 'date'
+  | 'type'
+  | 'duplicateStatus'
+  | 'durationSec'
+  | 'distanceM'
+  | 'movingSec'
+  | 'gapDistanceM'
+  | 'avgHr'
+  | 'elevationGainM'
+  | 'hrHistogram'
+  | 'tempC'
+  | 'humidityPct'
+  | 'windKph'
+>
+
 /** The WBGT of the weather an activity recorded, from the Liljegren model; null without temperature and humidity. */
-export function wbgtOf(activity: Activity): number | null {
+export function wbgtOf(
+  activity: Pick<Activity, 'tempC' | 'humidityPct' | 'windKph'>,
+): number | null {
   if (activity.tempC === null || activity.humidityPct === null) return null
   return liljegrenWbgt({
     tempC: activity.tempC,
@@ -200,29 +229,43 @@ export function heatExcessC(wbgtC: number | null): number {
 }
 
 /** Grade-adjusted speed in m/s, falling back to plain distance; null when not computable. */
-function speedMps(activity: Activity): number | null {
+function speedMps(
+  activity: Pick<Activity, 'gapDistanceM' | 'distanceM' | 'movingSec' | 'durationSec'>,
+): number | null {
   const distance = activity.gapDistanceM ?? activity.distanceM
   const seconds = activity.movingSec ?? activity.durationSec
   if (distance === null || distance <= 0 || seconds <= 0) return null
   return distance / seconds
 }
 
-function histogramTotalSec(activity: Activity): number {
+function histogramTotalSec(activity: Pick<Activity, 'hrHistogram'>): number {
   return activity.hrHistogram?.sec.reduce((sum, s) => sum + s, 0) ?? 0
 }
 
+/**
+ * Flat enough for wrist heart rate to be read: at most `hrModel.maxGainPerKm` of climb per
+ * kilometre [rules B2]. A run with no climb or distance recorded passes.
+ */
+export function isFlatRun(activity: Pick<Activity, 'elevationGainM' | 'distanceM'>): boolean {
+  if (activity.elevationGainM === null || activity.distanceM === null || activity.distanceM <= 0) {
+    return true
+  }
+  return activity.elevationGainM / (activity.distanceM / M_PER_KM) <= P.hrModel.maxGainPerKm.value
+}
+
 /** Flat, with a sampled histogram: the checks every HR use needs [rules B2]. */
-function hrDataUsable(activity: Activity): boolean {
+function hrDataUsable(
+  activity: Pick<
+    Activity,
+    'avgHr' | 'hrHistogram' | 'durationSec' | 'elevationGainM' | 'distanceM'
+  >,
+): boolean {
   if (activity.avgHr === null || activity.hrHistogram === null) return false
   if (activity.durationSec <= 0) return false
   if (histogramTotalSec(activity) / activity.durationSec < P.hrModel.minHistogramCoverage.value) {
     return false
   }
-  if (activity.elevationGainM !== null && activity.distanceM !== null && activity.distanceM > 0) {
-    const gainPerKm = activity.elevationGainM / (activity.distanceM / M_PER_KM)
-    if (gainPerKm > P.hrModel.maxGainPerKm.value) return false
-  }
-  return true
+  return isFlatRun(activity)
 }
 
 function hasWorkSteps(session: SessionSpec): boolean {
@@ -258,7 +301,7 @@ function timeInBand(
 }
 
 /** Share of the time spent within the steady band around the average HR. */
-function steadyShare(activity: Activity): number {
+function steadyShare(activity: Pick<Activity, 'hrHistogram' | 'avgHr'>): number {
   const hist = activity.hrHistogram
   const total = histogramTotalSec(activity)
   if (hist === null || activity.avgHr === null || total <= 0) return 0
@@ -316,6 +359,8 @@ interface ModelPoint {
   v: number
   h: number
   hr: number
+  /** The run's day, `YYYY-MM-DD`. */
+  date: string
 }
 
 /**
@@ -323,22 +368,17 @@ interface ModelPoint {
  * a counted run (a race is not one) with an average heart rate, long enough, flat, with a sampled
  * and steady histogram [rules B2, A8].
  */
-function modelPoint(a: Activity): ModelPoint | null {
+function modelPoint(a: HrFitRun): ModelPoint | null {
   if (a.type !== 'run' || !counts(a) || a.avgHr === null) return null
   if (a.durationSec < P.hrModel.minDurationMin.value * SEC_PER_MIN) return null
   if (!hrDataUsable(a) || steadyShare(a) < P.hrModel.steadyMinShare.value) return null
   const v = speedMps(a)
   if (v === null) return null
-  return { v, h: heatExcessC(wbgtOf(a)), hr: a.avgHr }
+  return { v, h: heatExcessC(wbgtOf(a)), hr: a.avgHr, date: a.date }
 }
 
-/**
- * Fits HR against grade-adjusted speed on the steady flat runs of the last
- * `hrModel.windowWeeks` weeks, with a heat term that starts at the prior and moves towards the
- * athlete's own hot runs by shrinkage. Null with fewer than `hrModel.minQualifyingRuns` runs:
- * never a guess.
- */
-export function fitHrModel(activities: Activity[], today: string): HrModel | null {
+/** The points of the runs inside the last `hrModel.windowWeeks` weeks, in the order they are given. */
+function windowPoints(activities: readonly HrFitRun[], today: string): ModelPoint[] {
   const windowDays = P.hrModel.windowWeeks.value * 7
   const points: ModelPoint[] = []
   for (const a of activities) {
@@ -347,6 +387,34 @@ export function fitHrModel(activities: Activity[], today: string): HrModel | nul
     const point = modelPoint(a)
     if (point !== null) points.push(point)
   }
+  return points
+}
+
+/**
+ * The runs the HR-at-pace model is fitted from: how many qualify in the window and the day of the
+ * earliest. It is what the model is built on, whether or not there are enough of them
+ * (`hrModel.minQualifyingRuns`), so a page can say how far a runner is from a fit.
+ */
+export function hrModelSample(
+  activities: readonly HrFitRun[],
+  today: string,
+): { runs: number; first: string | null } {
+  const points = windowPoints(activities, today)
+  const first = points.reduce<string | null>(
+    (earliest, p) => (earliest === null || p.date < earliest ? p.date : earliest),
+    null,
+  )
+  return { runs: points.length, first }
+}
+
+/**
+ * Fits HR against grade-adjusted speed on the steady flat runs of the last
+ * `hrModel.windowWeeks` weeks, with a heat term that starts at the prior and moves towards the
+ * athlete's own hot runs by shrinkage. Null with fewer than `hrModel.minQualifyingRuns` runs:
+ * never a guess.
+ */
+export function fitHrModel(activities: readonly HrFitRun[], today: string): HrModel | null {
+  const points = windowPoints(activities, today)
   const n = points.length
   if (n < P.hrModel.minQualifyingRuns.value) return null
 
@@ -386,6 +454,9 @@ export function fitHrModel(activities: Activity[], today: string): HrModel | nul
     slopeBpmPerMps: slope,
     heatBpmPerC: heat,
     residualSdBpm: Math.max(sd, P.hrModel.minResidualSdBpm.value),
+    hotRuns,
+    minSpeedMps: Math.min(...points.map((p) => p.v)),
+    maxSpeedMps: Math.max(...points.map((p) => p.v)),
   }
 }
 

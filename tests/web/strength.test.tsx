@@ -2452,7 +2452,7 @@ describe('the layout rules of the stylesheet (design 11.7)', () => {
 
   test('the reps-left scale is the touch scale: 44 px a value, in the columns the component sets', () => {
     expect(css('ScalePicker.module.css')).toMatch(
-      /\[data-touch='true'\][^}]*repeat\(var\(--cols\), minmax\(2\.75rem/s,
+      /\.button \{[^}]*flex: 0 0 calc\([^}]*var\(--cols\)[^}]*min-width: 2\.75rem/s,
     )
   })
 })
@@ -2519,20 +2519,22 @@ describe('the Strength page: its sections and states (design 11.3)', () => {
   test('puts "Set up strength" first while the setup is not saved, with its five parts', async () => {
     openPage({ view: unsavedView() })
     await page('Set up strength')
-    expect(headings()).toEqual(['Set up strength', ...SECTIONS])
+    // a section with nothing in it stays out until it has: no lifts, sessions or saved setup yet
+    expect(headings()).toEqual([
+      'Set up strength',
+      'Next session',
+      'This block',
+      'About strength work',
+    ])
     const setup = region('Set up strength')
     expect(
       setup.getByText(
         'The workout follows the saved equipment, lifting history and starting loads. Until they are saved it is bodyweight only.',
       ),
     ).toBeVisible()
-    expect(setup.getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Weight unit',
-      'Equipment',
-      'Lifting history',
-      'Exercises',
-      'Starting points',
-    ])
+    expect(setup.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual(
+      ['Weight unit', 'Equipment', 'Lifting history', 'Exercises', 'Starting points'],
+    )
     expect(
       region('Next session').getByText(
         'This workout is bodyweight only. Set up strength and the lifts use the saved equipment.',
@@ -2614,24 +2616,11 @@ describe('the Strength page: its sections and states (design 11.3)', () => {
     expect(next.queryByRole('button', { name: 'Log sets' })).not.toBeInTheDocument()
     expect(next.getByRole('button', { name: 'Log a session' })).toBeVisible()
     expect(next.getByRole('button', { name: 'Add a past session' })).toBeVisible()
-    expect(
-      region('This block').getByText(
-        'No strength block runs this week. Maintenance sessions are short and keep the loads.',
-      ),
-    ).toBeVisible()
-    expect(
-      region('Lifts').getByText(
-        'No lifts are logged yet. Log a session and its lifts appear here.',
-      ),
-    ).toBeVisible()
-    expect(
-      region('History of one lift').getByText('Choose a lift from the list to see its history.'),
-    ).toBeVisible()
-    expect(
-      region('Recent sessions').getByText(
-        'No sessions are logged yet. Log sets and they appear here.',
-      ),
-    ).toBeVisible()
+    // a section with nothing to show is not drawn: no block, no lifts, no sessions
+    for (const name of ['This block', 'Lifts', 'History of one lift', 'Recent sessions']) {
+      expect(screen.queryByRole('region', { name }), name).not.toBeInTheDocument()
+    }
+    expect(headings()).toEqual(['Next session', 'Equipment and units', 'About strength work'])
     expectCleanCopy(document.body)
   })
 })
@@ -4381,13 +4370,17 @@ describe('the Strength page: equipment and units (design 11.3, 6.5, 11.4)', () =
     }
   })
 
-  test('says nothing is saved before the setup, and lists the injuries of the Profile with a link', async () => {
+  test('leaves the equipment section out before the setup is saved', async () => {
     openPage({ view: unsavedView() })
+    await page('Set up strength')
+    // the setup card stands in for the section until the first part is saved
+    expect(screen.queryByRole('region', { name: 'Equipment and units' })).not.toBeInTheDocument()
+  })
+
+  test('lists the injuries of the Profile with a link once the setup is saved', async () => {
+    openPage()
     await page('Equipment and units')
     const units = region('Equipment and units')
-    expect(units.getByText('None saved, so workouts are bodyweight only.')).toBeVisible()
-    expect(units.getByText('Not set yet.')).toBeVisible()
-    expect(units.getByText('No starting points are saved.')).toBeVisible()
     expect(await units.findByText('On the Profile: left knee.')).toBeVisible()
     expect(units.getByRole('link', { name: 'Open the Profile' })).toHaveAttribute(
       'href',

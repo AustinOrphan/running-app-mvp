@@ -179,7 +179,8 @@ describe('the season strip, its buttons and its words', () => {
 
   test('has one button for each plan week, in order, in a group named "Weeks of the plan"', async () => {
     const data = plan()
-    mockApi(routes(data))
+    // no minutes run, so the names are the planned state however soon the weeks would arrive
+    mockApi(routes(data, { 'GET /api/weeks': () => [] }))
     renderPlan()
     const group = within(await strip()).getByRole('group', { name: 'Weeks of the plan' })
     const buttons = within(group).getAllByRole('button')

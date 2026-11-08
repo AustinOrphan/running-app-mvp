@@ -41,6 +41,7 @@ export function renderSw(template: string, buildId: string, precache: readonly s
  */
 export function isPrecached(path: string): boolean {
   if (path === 'sw.js' || path.endsWith('.map')) return false
+  if (path.endsWith('.br') || path.endsWith('.gz')) return false
   if (!path.includes('/')) return true
   if (!path.startsWith('assets/')) return false
   const name = path.slice('assets/'.length)

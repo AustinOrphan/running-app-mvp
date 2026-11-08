@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { addDays, todayIso } from '../../shared/dates.ts'
-import type { Boundary, ZoneSet } from '../../shared/engine/types.ts'
 import type {
   AthleteProfile,
   Availability,
@@ -11,8 +10,15 @@ import type {
   Terrain,
   Units,
   Weekday,
+  WeightUnit,
 } from '../../shared/types.ts'
-import { formatDuration, milesToM } from '../../shared/units.ts'
+import {
+  bodyWeightIn,
+  bodyWeightKg,
+  DEFAULT_WEIGHT_UNIT,
+  isWeightUnit,
+} from '../../shared/domain/weight.ts'
+import { formatDuration, heightCm, heightText, milesToM } from '../../shared/units.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { rulesRef } from '../api/explain.ts'
 import { useProfile, useUpdateProfile } from '../api/profile.ts'
@@ -20,21 +26,17 @@ import { useSaveScreening, useScreenings } from '../api/screenings.ts'
 import { useSettings } from '../api/settings.ts'
 import { useZones } from '../api/zones.ts'
 import { Button } from '../components/Button.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { Field, Input, Select } from '../components/Field.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { Sheet } from '../components/Sheet.tsx'
 import { useToast } from '../components/Toast.tsx'
+import { ZoneSummary } from '../components/ZoneSummary.tsx'
 import { formatLongDate } from '../components/format.ts'
 import { strengthProfileHint } from '../components/strength/profileHint.ts'
-import {
-  BOUNDARY_SOURCE_LABELS,
-  bpmRangeText,
-  bpmText,
-  paceRangeText,
-  paceText,
-} from '../components/zoneFormat.ts'
 import styles from './ProfilePage.module.css'
 
 const WEEKDAYS: Array<{ value: Weekday; label: string }> = [
@@ -127,7 +129,17 @@ function browserTimezone(): string | undefined {
   }
 }
 
-function toDraft(profile: AthleteProfile, units: Units): Draft {
+/** Height and body weight are typed in the runner's units and stored in centimetres and kilograms. */
+interface BodyUnits {
+  units: Units
+  weightUnit: WeightUnit
+}
+
+const heightLabel = (units: Units) => (units === 'mi' ? 'Height (in)' : 'Height (cm)')
+const weightLabel = (unit: WeightUnit) => (unit === 'lb' ? 'Weight (lb)' : 'Weight (kg)')
+
+function toDraft(profile: AthleteProfile, body: BodyUnits): Draft {
+  const { units, weightUnit } = body
   // 'UTC' is the server's default for a profile that was never filled in.
   const timezone = profile.timezone === 'UTC' ? (browserTimezone() ?? 'UTC') : profile.timezone
   const availability = {} as Draft['availability']
@@ -138,8 +150,9 @@ function toDraft(profile: AthleteProfile, units: Units): Draft {
   return {
     birthYear: text(profile.birthYear),
     sex: profile.sex ?? '',
-    heightCm: text(profile.heightCm),
-    weightKg: text(profile.weightKg),
+    heightCm: profile.heightCm === null ? '' : heightText(profile.heightCm, units),
+    weightKg:
+      profile.weightKg === null ? '' : String(bodyWeightIn(profile.weightKg * 1000, weightUnit)),
     runningSinceYear: text(profile.runningSinceYear),
     hrMax: text(profile.hrMax),
     hrMaxSource: profile.hrMaxSource ?? '',
@@ -224,7 +237,36 @@ function parsePace(raw: string, units: Units, problems: Problems): number | null
   return Math.round((Number(match[1]) * 60 + Number(match[2])) / kmPerUnit(units))
 }
 
-function toProfile(draft: Draft, units: Units, problems: Problems): AthleteProfile {
+function toProfile(
+  draft: Draft,
+  initial: AthleteProfile,
+  body: BodyUnits,
+  problems: Problems,
+): AthleteProfile {
+  const { units, weightUnit } = body
+  // Text left as shown keeps the stored value, so a save never drifts a height or weight that was only shown rounded.
+  const shown = toDraft(initial, body)
+  // Untouched means the text is the one shown for the stored value; every other number is converted.
+  const typedHeight =
+    draft.heightCm === shown.heightCm
+      ? undefined
+      : parseNumber(draft.heightCm, 'heightCm', problems, { integer: false })
+  const typedWeight =
+    draft.weightKg === shown.weightKg
+      ? undefined
+      : parseNumber(draft.weightKg, 'weightKg', problems, { integer: false })
+  const height =
+    typedHeight === undefined
+      ? initial.heightCm
+      : typedHeight === null
+        ? null
+        : heightCm(typedHeight, units)
+  const weight =
+    typedWeight === undefined
+      ? initial.weightKg
+      : typedWeight === null
+        ? null
+        : bodyWeightKg(typedWeight, weightUnit)
   const int = { integer: true }
   const availability = {} as Availability
   for (const { value } of WEEKDAYS) {
@@ -253,8 +295,8 @@ function toProfile(draft: Draft, units: Units, problems: Problems): AthleteProfi
   return {
     birthYear: parseNumber(draft.birthYear, 'birthYear', problems, int),
     sex: draft.sex === '' ? null : draft.sex,
-    heightCm: parseNumber(draft.heightCm, 'heightCm', problems, { integer: false }),
-    weightKg: parseNumber(draft.weightKg, 'weightKg', problems, { integer: false }),
+    heightCm: height,
+    weightKg: weight,
     hrMax: parseNumber(draft.hrMax, 'hrMax', problems, int),
     hrMaxSource: draft.hrMaxSource === '' ? null : draft.hrMaxSource,
     hrRest: parseNumber(draft.hrRest, 'hrRest', problems, int),
@@ -277,10 +319,11 @@ function emptyInjury(): InjuryDraft {
   return { area: '', side: '', year: '', month: '', kind: 'other', notes: '' }
 }
 
-function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units }) {
+function ProfileForm({ initial, units, weightUnit }: { initial: AthleteProfile } & BodyUnits) {
+  const body: BodyUnits = { units, weightUnit }
   const toast = useToast()
   const update = useUpdateProfile()
-  const [draft, setDraft] = useState<Draft>(() => toDraft(initial, units))
+  const [draft, setDraft] = useState<Draft>(() => toDraft(initial, body))
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
   const [locationNote, setLocationNote] = useState<string | undefined>()
 
@@ -307,7 +350,7 @@ function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units
   function onSubmit(event: FormEvent) {
     event.preventDefault()
     const problems = new Problems()
-    const profile = toProfile(draft, units, problems)
+    const profile = toProfile(draft, initial, body, problems)
     setLocalErrors(problems.errors)
     if (problems.any) {
       // Drop the previous attempt's server errors so only this attempt's problems show.
@@ -316,7 +359,7 @@ function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units
     }
     update.mutate(profile, {
       onSuccess: (saved) => {
-        setDraft(toDraft(saved, units))
+        setDraft(toDraft(saved, body))
         toast.show('Profile saved')
       },
     })
@@ -396,8 +439,8 @@ function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units
                 </Select>
               )}
             </Field>
-            {numberField('Height (cm)', 'heightCm', 'heightCm', { decimal: true })}
-            {numberField('Weight (kg)', 'weightKg', 'weightKg', { decimal: true })}
+            {numberField(heightLabel(units), 'heightCm', 'heightCm', { decimal: true })}
+            {numberField(weightLabel(weightUnit), 'weightKg', 'weightKg', { decimal: true })}
             {numberField('Running since (year)', 'runningSinceYear', 'runningSinceYear')}
           </div>
         </section>
@@ -808,25 +851,6 @@ function ProfileForm({ initial, units }: { initial: AthleteProfile; units: Units
   )
 }
 
-const ZONE_ROWS: Array<{
-  label: string
-  pick: (zones: ZoneSet) => Boundary | null
-  show: (value: number, units: Units) => string
-}> = [
-  { label: 'Maximum heart rate', pick: (z) => z.hrMax, show: (v) => bpmText(v) },
-  { label: 'Easy heart rate limit', pick: (z) => z.lt1Hr, show: (v) => bpmText(v) },
-  { label: 'Threshold heart rate', pick: (z) => z.lt2Hr, show: (v) => bpmText(v) },
-  { label: 'Critical speed', pick: (z) => z.csMps, show: (v, u) => paceText(1000 / v, u) },
-  { label: 'Easy pace limit', pick: (z) => z.lt1PaceSecPerKm, show: (v, u) => paceText(v, u) },
-  { label: 'Threshold pace', pick: (z) => z.thresholdPaceSecPerKm, show: (v, u) => paceText(v, u) },
-]
-
-const ZONE_NAMES = [
-  { key: 'z1', label: 'Zone 1' },
-  { key: 'z2', label: 'Zone 2' },
-  { key: 'z3', label: 'Zone 3' },
-] as const
-
 /** The current zone set: each boundary with the source it came from, then the three zones. */
 function ZonesSection({ units }: { units: Units }) {
   const headingId = useId()
@@ -837,54 +861,7 @@ function ZonesSection({ units }: { units: Units }) {
   } else if (zones.isPending) {
     body = null
   } else {
-    const set = zones.data
-    body = (
-      <>
-        <ul className={styles.boundaries}>
-          {ZONE_ROWS.map((row) => {
-            const boundary = row.pick(set)
-            return (
-              <li key={row.label} className={styles.boundary}>
-                <span className={styles.boundaryName}>{row.label}</span>
-                {boundary === null ? (
-                  <span className={styles.note}>Not estimated yet.</span>
-                ) : (
-                  <>
-                    <span className={styles.boundaryValue}>{row.show(boundary.value, units)}</span>
-                    <span className={styles.note}>
-                      {`Range ${row.show(boundary.band[0], units)} to ${row.show(boundary.band[1], units)}`}
-                    </span>
-                    <span className={styles.note}>
-                      {`${BOUNDARY_SOURCE_LABELS[boundary.source]}, as of ${boundary.asOf}`}
-                    </span>
-                  </>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-        <table className={styles.zoneTable}>
-          <thead>
-            <tr>
-              <th scope="col">Zone</th>
-              <th scope="col">Heart rate</th>
-              <th scope="col">Pace</th>
-              <th scope="col">Effort (1-10)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ZONE_NAMES.map(({ key, label }) => (
-              <tr key={key}>
-                <th scope="row">{label}</th>
-                <td>{set.hr ? bpmRangeText(set.hr[key]) : 'Not set'}</td>
-                <td>{set.pace ? paceRangeText(set.pace[key], units) : 'Not set'}</td>
-                <td>{`${String(set.rpe[key][0])} to ${String(set.rpe[key][1])}`}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </>
-    )
+    body = <ZoneSummary set={zones.data} units={units} />
   }
   return (
     <section className={styles.section} aria-labelledby={headingId}>
@@ -896,6 +873,9 @@ function ZonesSection({ units }: { units: Units }) {
         <Link to="/review">review page</Link>.
       </p>
       {body}
+      <div>
+        <Link to="/paces">{render(TEMPLATES['paces.link.from-profile'], {}, 'km')}</Link>
+      </div>
       <div>
         <ExplainButton subject="zones" rules={['C1', 'C2']} explain={{ subject: 'zone' }} />
       </div>
@@ -1058,24 +1038,34 @@ export function ProfilePage() {
   const profile = useProfile()
   // Pace is typed in the runner's unit; a failed settings load falls back to the stored km.
   const settings = useSettings()
+  const view = useLoadView(profile)
 
-  if (profile.isError) {
+  if (view === 'failed' || view === 'retrying') {
     return (
       <>
         <PageHeader title="Profile" />
-        <p role="alert" className={styles.error}>
-          The profile did not load. The server did not respond; reload the page to try again.
-        </p>
+        <ErrorState
+          subject="The profile"
+          onRetry={() => profile.refetch()}
+          retrying={view === 'retrying'}
+        />
       </>
     )
   }
-  if (profile.isPending || settings.isPending) {
+  if (profile.data === undefined || settings.isPending) {
     return <div className="skeleton" aria-busy="true" aria-label="Loading" />
   }
   const units = settings.data?.units ?? 'km'
+  // Without settings the form shows the stored kilograms; with them, a stored answer that is not a unit reads as the default.
+  const weightUnit: WeightUnit =
+    settings.data === undefined
+      ? 'kg'
+      : isWeightUnit(settings.data.weightUnit)
+        ? settings.data.weightUnit
+        : DEFAULT_WEIGHT_UNIT
   return (
     <>
-      <ProfileForm initial={profile.data} units={units} />
+      <ProfileForm initial={profile.data} units={units} weightUnit={weightUnit} />
       <div className={styles.extras}>
         <ZonesSection units={units} />
         <ScreeningSection />

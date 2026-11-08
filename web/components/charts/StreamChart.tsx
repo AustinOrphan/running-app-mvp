@@ -12,6 +12,7 @@ import type { Units } from '../../../shared/types.ts'
 import { formatDuration } from '../../../shared/units.ts'
 import {
   buildSeries,
+  drawablePoints,
   streamXAxis,
   type SeriesPoint,
   type StreamChannel,
@@ -33,6 +34,20 @@ const NAMES: Record<StreamChannel, string> = {
   pace: 'Pace',
   hr: 'Heart rate',
   alt: 'Elevation',
+}
+
+/** A value with a gap on both sides draws no line, so it gets a dot of its own. */
+function lonelyDot(drawn: SeriesPoint[]) {
+  return (props: { cx?: number; cy?: number; index?: number }) => {
+    const { cx, cy, index } = props
+    const i = index ?? -1
+    const alone = drawn[i - 1]?.y == null && drawn[i + 1]?.y == null
+    return alone && cx !== undefined && cy !== undefined ? (
+      <circle key={i} cx={cx} cy={cy} r={2.5} fill={chartColors.actual} />
+    ) : (
+      <g key={i} />
+    )
+  }
 }
 
 function valuesOf(points: SeriesPoint[]): number[] {
@@ -109,6 +124,7 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
   const values = valuesOf(points)
   if (values.length === 0) return null
 
+  const drawn = drawablePoints(points, stream.sampleSec)
   const axis = streamXAxis(stream)
   const { domain, ticks } = yScale(values, channel)
   const label = describe(channel, units, values)
@@ -130,7 +146,7 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
           height="100%"
           initialDimension={{ width: 640, height: 176 }}
         >
-          <ComposedChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <ComposedChart data={drawn} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid {...gridProps} />
             <XAxis
               {...axisProps}
@@ -170,6 +186,7 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
                 stroke={chartColors.actual}
                 strokeWidth={2}
                 fill="var(--accent-soft)"
+                dot={lonelyDot(drawn)}
                 connectNulls={false}
                 isAnimationActive={false}
               />
@@ -180,7 +197,7 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
                 type="monotone"
                 stroke={chartColors.actual}
                 strokeWidth={2}
-                dot={false}
+                dot={lonelyDot(drawn)}
                 connectNulls={false}
                 isAnimationActive={false}
               />
@@ -191,23 +208,27 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
       <figcaption className={styles.caption}>
         {`${NAMES[channel]}, ${unitCaption}, against ${xName}.`}
       </figcaption>
-      <table className="visually-hidden">
-        <caption>{label}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{axis === 'distance' ? `Distance (${units})` : 'Time (min)'}</th>
-            <th scope="col">{NAMES[channel]}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
-              <th scope="row">{xFormat(row.x)}</th>
-              <td>{formatValue(channel, units, row.y)}</td>
+      {/* The wrapper clips the table: `overflow` does not apply to a table, and a hidden table as wide
+          as its no-wrap caption pushed the page 15 px sideways at 360 px. */}
+      <div className="visually-hidden">
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{axis === 'distance' ? `Distance (${units})` : 'Time (min)'}</th>
+              <th scope="col">{NAMES[channel]}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={index}>
+                <th scope="row">{xFormat(row.x)}</th>
+                <td>{formatValue(channel, units, row.y)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   )
 }

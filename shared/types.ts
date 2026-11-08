@@ -1,7 +1,9 @@
+import type { ReviewPrefill } from './domain/review.ts'
 import type { RaceOutcome, RaceScore, RecordSummary } from './engine/backtest.ts'
 import type { FuelTargetText } from './engine/fuelCopy.ts'
 import type { LoadPosition } from './engine/loadSetting.ts'
 import type { MethodPosition } from './engine/methods.ts'
+import type { EventRow, MyPaces } from './engine/myPaces.ts'
 import type { RacePlan, RacePlanSummary } from './engine/racePlan.ts'
 import type { CheckpointInput } from './engine/raceSplits.ts'
 import type { HistorySession, LiftHistory, WeekHistory } from './engine/strength.ts'
@@ -83,6 +85,8 @@ export interface Activity {
   humidityPct: number | null
   weatherSource: 'open-meteo' | 'provider' | 'manual' | null
   hrHistogram: HrHistogram | null
+  /** Time and distance by grade band; null for a type that has none or a run not yet computed. */
+  terrainBins: TerrainBins | null
   decouplingPct: number | null
   gapDistanceM: number | null
   /** -2 much easier .. +2 much harder than expected. */
@@ -109,7 +113,7 @@ export type ActivityCore = Pick<
  * route always sends it; it is optional in the type only because the other routes that answer with
  * an activity (create, update, the detail) are typed through this shape too and do not carry it.
  */
-export type ActivityListItem = Omit<Activity, 'hrHistogram'> & {
+export type ActivityListItem = Omit<Activity, 'hrHistogram' | 'terrainBins'> & {
   strengthSets?: number | null
 }
 /**
@@ -216,6 +220,23 @@ export interface HrHistogram {
   start: number
   width: number
   sec: number[]
+}
+/**
+ * Where a run's moving time went by grade band, from its stream (distance and altitude). Band `i`
+ * holds grades from `edgesPct[i-1]` up to `edgesPct[i]` percent (open at both ends), so every array
+ * has `edgesPct.length + 1` entries. `sec` and `m` are the moving seconds and metres, `walkSec` the
+ * part of `sec` spent under `walkMps`, `flatCv` how steady the flat running was. No per-sample data. `v` is the shape version.
+ */
+export interface TerrainBins {
+  v: number
+  windowM: number
+  walkMps: number
+  edgesPct: number[]
+  sec: number[]
+  m: number[]
+  walkSec: number[]
+  /** Variation of segment speed (2 minutes or more) in the flat band, standard deviation over mean; null if too few segments. */
+  flatCv: number | null
 }
 export interface Injury {
   area: string
@@ -569,7 +590,11 @@ export type ReviewSignals = WeeklyDecision['signals']
  * A review as a version-2 plan returns it: the engine's weekly decision sits in the `suggested*`
  * fields and `signals` carries the signals behind it. Version-1 plans get a plain review.
  */
-export type ReviewView = WeeklyReview & { signals?: ReviewSignals }
+export type ReviewView = WeeklyReview & {
+  signals?: ReviewSignals
+  /** What the week's check-ins suggest for fatigue and symptoms; absent without a check-in. */
+  prefill?: ReviewPrefill
+}
 
 /** What saving returns: the review, plus for a version-2 plan the re-plan the review triggered. */
 export type SavedReview = ReviewView & {
@@ -1424,6 +1449,13 @@ export type RacePlanReason = 'no-goal' | 'no-distance' | 'not-ultra' | 'race-ove
 export interface RacePlanView {
   plan: RacePlan | null
   reason: RacePlanReason | null
+}
+/**
+ * The answer of `GET /api/paces` (rule C9, ADR 0020): the easy pace, the events and the test, and
+ * the row of the custom course when the request named one. The zones are `GET /api/zones`.
+ */
+export interface MyPacesView extends MyPaces {
+  custom: EventRow | null
 }
 /** One course point of the goal race, as the runner entered it (rule H14, ADR 0018). */
 export type RaceCheckpointRow = CheckpointInput

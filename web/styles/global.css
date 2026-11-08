@@ -24,6 +24,7 @@ h3 {
   font-family: var(--font-serif);
   font-weight: 600;
   margin: 0;
+  text-wrap: balance;
 }
 
 h1 {

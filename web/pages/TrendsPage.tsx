@@ -7,13 +7,21 @@ import {
   nightsCaption,
   recoveryAria,
   runCaption,
+  spanText,
   TRENDS_TEMPLATES,
   trendsText,
   weightAria,
   weightCaption,
 } from '../../shared/copy/trends.ts'
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
-import { MIN_NIGHTS_PER_MEAN, MIN_WEIGHINS_PER_WEEK } from '../../shared/domain/trends.ts'
+import {
+  cropStart,
+  firstRecordWeek,
+  MIN_NIGHTS_PER_MEAN,
+  MIN_WEIGHINS_PER_WEEK,
+  trendWeekHasRecord,
+  weekHasRecord,
+} from '../../shared/domain/trends.ts'
 import { DEFAULT_WEIGHT_UNIT, formatBodyWeight, isWeightUnit } from '../../shared/domain/weight.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import type { TrendsView, TrendWeek, Units, WeekRow, WeightUnit } from '../../shared/types.ts'
@@ -24,6 +32,7 @@ import { RecoveryChart, TrendsRunChart, WeightChart } from '../components/charts
 import { EmptyState } from '../components/EmptyState.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
+import { RunPanels } from '../components/trends/RunPanels.tsx'
 import { useOnline } from '../components/useOnline.ts'
 import styles from './TrendsPage.module.css'
 
@@ -64,39 +73,42 @@ interface RunningProps {
   units: Units
   currentWeek: string
   months: number
+  /** The first week with a record in the whole history; the plot starts there when the range reaches past it. */
+  firstRecord: string | null
 }
 
 /** Running per week: the bars, the 4-week line, race flags and strength squares. */
-function RunningSection({ weeks, units, currentWeek, months }: RunningProps) {
+function RunningSection({ weeks, units, currentWeek, months, firstRecord }: RunningProps) {
   const [metric, setMetric] = useState<'time' | 'distance'>('time')
   const hasRuns = weeks.some((week) => week.runMin > 0)
   const latestComplete = [...weeks].reverse().find((week) => week.weekStart !== currentWeek)
-  const count = { kind: 'count' as const, n: months }
+  const span = spanText(months, cropStart(weeks, firstRecord))
   const ariaLabel =
     latestComplete === undefined
-      ? render(TRENDS_TEMPLATES['trends.run.aria-none'], { months: count }, units)
+      ? render(TRENDS_TEMPLATES['trends.run.aria-none'], { span }, units)
       : metric === 'time'
         ? render(
             TRENDS_TEMPLATES['trends.run.aria-time'],
-            { months: count, time: { kind: 'minutes', min: latestComplete.runMin } },
+            { span, time: { kind: 'minutes', min: latestComplete.runMin } },
             units,
           )
         : render(
             TRENDS_TEMPLATES['trends.run.aria-distance'],
-            { months: count, distance: { kind: 'distance', m: latestComplete.runM } },
+            { span, distance: { kind: 'distance', m: latestComplete.runM } },
             units,
           )
 
   return (
     <section className={styles.section} aria-labelledby="trends-run-heading">
-      <h2 id="trends-run-heading" className={styles.heading}>
-        {text('trends.run.heading')}
-      </h2>
-      {hasRuns ? (
-        <>
+      <div className={styles.headingRow}>
+        <h2 id="trends-run-heading" className={styles.heading}>
+          {text('trends.run.heading')}
+        </h2>
+        {hasRuns ? (
           <Segmented<'time' | 'distance'>
             label="Show"
             dense
+            fit
             value={metric}
             onChange={setMetric}
             options={[
@@ -104,9 +116,14 @@ function RunningSection({ weeks, units, currentWeek, months }: RunningProps) {
               { value: 'distance', label: 'Distance' },
             ]}
           />
+        ) : null}
+      </div>
+      {hasRuns ? (
+        <>
           <p className={styles.caption}>{runCaption(metric, units)}</p>
           <TrendsRunChart
             weeks={weeks}
+            firstRecord={firstRecord}
             metric={metric}
             units={units}
             currentWeek={currentWeek}
@@ -134,6 +151,8 @@ interface PanelProps {
   bandLine: string | null
   none: string
   weeks: readonly TrendWeek[]
+  /** The first week with a night in the whole history. */
+  firstRecord: string | null
   unit: string
   decimals: number
   months: number
@@ -150,6 +169,7 @@ function RecoveryPanel({
   bandLine,
   none,
   weeks,
+  firstRecord,
   unit,
   decimals,
   months,
@@ -168,12 +188,13 @@ function RecoveryPanel({
           {bandLine !== null ? <p className={styles.caption}>{bandLine}</p> : null}
           <RecoveryChart
             weeks={weeks}
+            firstRecord={firstRecord}
             unit={unit}
             decimals={decimals}
             band={bandLine !== null}
             ariaLabel={recoveryAria(
               name,
-              months,
+              spanText(months, cropStart(weeks, firstRecord)),
               latest === null ? null : `${latest.toFixed(decimals)} ${unit}`,
             )}
           />
@@ -206,6 +227,7 @@ function RecoverySection({ recovery, months, weekCount }: RecoverySectionProps) 
   const hrv = recovery.hrv.slice(-weekCount)
   const restingHr = recovery.restingHr.slice(-weekCount)
   const sleep = recovery.sleep.slice(-weekCount)
+  const first = (series: readonly TrendWeek[]) => firstRecordWeek(series, trendWeekHasRecord)
   return (
     <>
       <RecoveryPanel
@@ -214,6 +236,7 @@ function RecoverySection({ recovery, months, weekCount }: RecoverySectionProps) 
         bandLine={bandLineOf(hrv, 'hrv', recovery.cycleBaseline)}
         none={text('trends.hrv.none')}
         weeks={hrv}
+        firstRecord={first(recovery.hrv)}
         unit="ms"
         decimals={0}
         months={months}
@@ -226,6 +249,7 @@ function RecoverySection({ recovery, months, weekCount }: RecoverySectionProps) 
         bandLine={bandLineOf(restingHr, 'resting-hr', false)}
         none={text('trends.rhr.none')}
         weeks={restingHr}
+        firstRecord={first(recovery.restingHr)}
         unit="bpm"
         decimals={0}
         months={months}
@@ -237,6 +261,7 @@ function RecoverySection({ recovery, months, weekCount }: RecoverySectionProps) 
         bandLine={null}
         none={text('trends.sleep.none')}
         weeks={sleep}
+        firstRecord={first(recovery.sleep)}
         unit="h"
         decimals={1}
         months={months}
@@ -332,6 +357,7 @@ export function TrendsPage() {
       <Segmented<RangeKey>
         label="Range"
         dense
+        fit
         value={range}
         onChange={(next) => {
           setRange(next)
@@ -344,7 +370,9 @@ export function TrendsPage() {
         units={settings.data.units}
         currentWeek={thisWeek}
         months={chosen.months}
+        firstRecord={firstRecordWeek(weeks.data, weekHasRecord)}
       />
+      <RunPanels months={chosen.months} weekCount={chosen.weeks} units={settings.data.units} />
       <section className={styles.section} aria-labelledby="trends-recovery-heading">
         <h2 id="trends-recovery-heading" className={styles.heading}>
           {text('trends.recovery.heading')}

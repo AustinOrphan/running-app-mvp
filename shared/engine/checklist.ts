@@ -3,7 +3,7 @@
 // differentiation, the session spike guard, availability, spacing, ultra caps and race day.
 // It re-reads the finished plan; it never repairs one. A failed item blocks publishing with its
 // detail, so each detail names the week or date at fault.
-import { ordinal } from '../copy/quantity.ts'
+import { agree, ordinal, plural } from '../copy/quantity.ts'
 import { windowCheckLine } from '../copy/revision.ts'
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import type { Weekday } from '../types.ts'
@@ -263,11 +263,13 @@ function progression(draft: PlanDraft, input: EngineInput, state: AthleteState):
   const notes: string[] = []
   if (soft > 0) {
     const steps = [...softSteps].sort((a, b) => a - b).map((pct) => `${pct}%`)
-    notes.push(`${soft} week(s) step above the soft ${steps.join(' or ')} and carry a warning`)
+    notes.push(
+      `${plural(soft, 'week')} ${agree(soft, 'steps', 'step')} above the soft ${steps.join(' or ')} and ${agree(soft, 'carries', 'carry')} a warning`,
+    )
   }
   if (zone !== null) {
     notes.push(
-      `${zoneWeeks} week(s) use the rebuild step of ${Math.round(zone.step * 100)}% a week, up to ${Math.round(zone.ceilingMin)} min`,
+      `${plural(zoneWeeks, 'week')} ${agree(zoneWeeks, 'uses', 'use')} the rebuild step of ${Math.round(zone.step * 100)}% a week, up to ${Math.round(zone.ceilingMin)} min`,
     )
   }
   const withNotes = (clause: string) =>
@@ -435,7 +437,7 @@ function taper(draft: PlanDraft): ChecklistResult {
     'taper',
     failures.length === 0,
     failures.length === 0
-      ? `The taper falls every week over ${taperWeeks.length} week(s).`
+      ? `The taper falls every week over ${plural(taperWeeks.length, 'week')}.`
       : failures.join('; '),
     rules,
   )
@@ -667,7 +669,7 @@ function spikeGuard(draft: PlanDraft, state: AthleteState): ChecklistResult {
     failures.length === 0
       ? warned === 0
         ? 'No run is above the session spike limit.'
-        : `${warned} run(s) are in the warn band and carry a warning.`
+        : `${plural(warned, 'run')} ${agree(warned, 'is', 'are')} in the warn band and ${agree(warned, 'carries', 'carry')} a warning.`
       : failures.join('; '),
     rules,
   )
@@ -793,7 +795,10 @@ function raceDay(draft: PlanDraft, input: EngineInput): ChecklistResult {
   const sameDay = draft.sessions.filter(
     (s) => s.date === input.goal.date && s.kind !== 'race' && VOLUME_KINDS.has(s.kind),
   )
-  if (sameDay.length > 0) failures.push(`${sameDay.length} run(s) share the race day`)
+  if (sameDay.length > 0)
+    failures.push(
+      `${plural(sameDay.length, 'run')} ${agree(sameDay.length, 'shares', 'share')} the race day`,
+    )
   // after the race: the hold, the step caps and no quality before the window ends [H12]
   const { own } = postRaceWindows(input)
   failures.push(

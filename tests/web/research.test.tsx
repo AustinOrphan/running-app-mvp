@@ -423,6 +423,17 @@ describe('ResearchPage', () => {
     expect(await screen.findByRole('button', { name: /Tapering/ }, SLOW)).toBeVisible()
   })
 
+  test('the grade filter is a group labelled Grade with the letters as its cells', async () => {
+    renderWithProviders(<ResearchPage />)
+    const group = await screen.findByRole('radiogroup', { name: 'Grade' }, SLOW)
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((radio) => radio.textContent),
+    ).toEqual(['All', 'A', 'B', 'C', 'D'])
+    expect(within(group).getByRole('radio', { name: 'Grade D' })).toBeInTheDocument()
+  })
+
   test('filters rules by grade', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ResearchPage />)
@@ -501,7 +512,6 @@ describe('citations', () => {
     topics: [],
     findings: [],
     limitations: '',
-    implications: [],
   }
 
   test('a short citation keeps a multi-word surname and drops the initials', () => {

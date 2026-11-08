@@ -8,6 +8,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { recordsStart } from '../../../shared/copy/trends.ts'
+import { cropToFirstRecord } from '../../../shared/domain/trends.ts'
 import type { TrendWeek } from '../../../shared/types.ts'
 import { formatShortDate } from '../format.ts'
 import { monthStep, monthTicks, tickLabel } from './monthTicks.ts'
@@ -17,6 +19,8 @@ import { axisProps, chartColors, ChartTooltip, gridProps } from './theme.ts'
 export interface RecoveryChartProps {
   /** One entry per week drawn, oldest first. */
   weeks: readonly TrendWeek[]
+  /** The first week with a night in the whole history; weeks before it are not drawn. */
+  firstRecord?: string | null
   /** The unit of the readings, for the tooltip and the table: `ms`, `bpm` or `h`. */
   unit: string
   /** Decimals a mean shows in the tooltip and the table. */
@@ -60,7 +64,16 @@ export function recoveryScale(values: readonly number[]): {
  * a week for sitting inside or outside the band (rule T1). The figures are in a visually hidden
  * table: week, mean, nights, low and high.
  */
-export function RecoveryChart({ weeks, unit, decimals, band, ariaLabel }: RecoveryChartProps) {
+export function RecoveryChart({
+  weeks: allWeeks,
+  firstRecord = null,
+  unit,
+  decimals,
+  band,
+  ariaLabel,
+}: RecoveryChartProps) {
+  // Weeks before the first night with a reading are not drawn; the caption says where they start.
+  const { weeks, cutBefore } = cropToFirstRecord(allWeeks, firstRecord)
   const points: Point[] = weeks.map((week) => ({
     weekStart: week.weekStart,
     label: formatShortDate(week.weekStart),
@@ -145,6 +158,7 @@ export function RecoveryChart({ weeks, unit, decimals, band, ariaLabel }: Recove
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      {cutBefore === null ? null : <p className={styles.start}>{recordsStart(cutBefore)}</p>}
       {/* The wrapper holds the width of the table; a bare absolute table would widen the page. */}
       <div className="visually-hidden">
         <table>

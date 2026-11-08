@@ -13,24 +13,22 @@
   font-weight: 600;
 }
 
-/* One row, however many steps: the columns share the width and may shrink below a finger. */
+/*
+ * Equal cells of at least 44 px in `--cols` columns (`touchColumns`). A short last row is centred,
+ * so pain 0 to 10 reads as six cells and five centred below, never as a ragged edge.
+ */
 .row {
-  display: grid;
-  grid-template-columns: repeat(var(--steps), minmax(0, 1fr));
-  gap: var(--space-1);
+  --gap: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap);
   max-width: 34rem;
 }
 
-/*
- * A touch scale keeps a 44 px square per step. Up to six steps share one row; more are set in two
- * rows of about the same length (`--cols`), so 1 to 10 reads as 5 and 5, and never as 7 and 3.
- */
-.row[data-touch='true'] {
-  grid-template-columns: repeat(var(--cols), minmax(2.75rem, 1fr));
-}
-
 .button {
-  min-width: 0;
+  flex: 0 0 calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));
+  min-width: 2.75rem;
   min-height: var(--control-h);
   padding: 0;
   border: 1px solid var(--border-strong);
@@ -48,16 +46,6 @@
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
-}
-
-@media (max-width: 30rem) {
-  .row {
-    gap: 2px;
-  }
-
-  .button {
-    font-size: var(--text-sm);
-  }
 }
 
 .hint {

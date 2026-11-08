@@ -1,0 +1,75 @@
+/* The zone set as the Profile and My paces show it: each boundary with its range, source and day,
+   then the three zones in a table. */
+.boundaries {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.boundary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.boundary:first-child {
+  border-top: 0;
+}
+
+/* From 640 px the boundaries sit in columns, each row keeping its rule above it. */
+@media (min-width: 40rem) {
+  .boundaries {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    column-gap: var(--space-5);
+  }
+
+  .boundary:first-child {
+    border-top: 1px solid var(--border);
+  }
+}
+
+.boundaryName {
+  font-weight: 600;
+}
+
+.boundaryValue {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.zoneTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.zoneTable th,
+.zoneTable td {
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  font-weight: 500;
+  vertical-align: top;
+}
+
+.zoneTable thead th {
+  border-top: 0;
+  color: var(--text-muted);
+}
+
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}

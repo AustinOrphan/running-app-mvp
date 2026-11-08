@@ -66,6 +66,15 @@ function nearestAnchor(races: Race[], distanceM: number): Race | null {
   return best
 }
 
+/**
+ * The race a prediction for this course is anchored on (rule L1): the one nearest in distance on
+ * the log scale, climb counted as flat distance (L5). Null without a race. Whether the prediction
+ * used it is `Prediction.method`; the page names it only when it did.
+ */
+export function anchorRaceFor(state: AthleteState, target: PredictTarget): Race | null {
+  return nearestAnchor(state.fitness.races, effectiveDistanceM(target))
+}
+
 function distinctDistances(races: Race[]): number {
   return new Set(races.map((r) => Math.round(r.distanceM / 10))).size
 }

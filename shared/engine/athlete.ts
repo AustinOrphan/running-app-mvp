@@ -335,12 +335,15 @@ function vo2maxTrend(input: EngineInput, today: string): number | null {
   return (-sxy / sxx) * P.a6.vo2maxTrendPerDays.value
 }
 
+/** The columns of a run the durability descriptor reads [A7]. */
+export type DurabilityRun = Pick<Activity, 'type' | 'decouplingPct' | 'tempC' | 'durationSec'>
+
 /**
  * Whether a run is one durability can be read from [A7]: a cool long run with a drift reading. A
  * long run lasts from the reference duration of the durability prior (90 min) up to the drift
  * inference limit.
  */
-export function isDurabilityCandidate(a: Activity): boolean {
+export function isDurabilityCandidate(a: DurabilityRun): boolean {
   return (
     a.type === 'run' &&
     a.decouplingPct !== null &&
@@ -352,7 +355,7 @@ export function isDurabilityCandidate(a: Activity): boolean {
 }
 
 /** Whether two durability candidates are comparable [A7]: close in duration and in temperature. */
-export function comparableLongRuns(anchor: Activity, other: Activity): boolean {
+export function comparableLongRuns(anchor: DurabilityRun, other: DurabilityRun): boolean {
   return (
     Math.abs(other.durationSec - anchor.durationSec) <=
       P.a7.comparableDurationTolerance.value * anchor.durationSec &&
@@ -366,9 +369,11 @@ export function comparableLongRuns(anchor: Activity, other: Activity): boolean {
  * comparable when their duration and temperature are close (`comparableLongRuns`). On a tie the
  * group anchored on the newer run wins.
  */
-export function durabilityRuns(runs: Activity[]): Activity[] {
+export function durabilityRuns<T extends DurabilityRun & { date: string }>(
+  runs: readonly T[],
+): T[] {
   const candidates = runs.filter(isDurabilityCandidate)
-  let best: Activity[] = []
+  let best: T[] = []
   for (const anchor of candidates) {
     const group = candidates.filter((a) => comparableLongRuns(anchor, a))
     const newer = group.length === best.length && anchor.date > (best[0]?.date ?? '')

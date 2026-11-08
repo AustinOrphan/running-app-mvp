@@ -92,6 +92,14 @@ its build runs `prisma migrate deploy` as a smoke test.
   `forecastStamp(prisma, userId)`. The fetch is `Deps.fetch`, read at each call (the global `fetch`
   when unset); tests inject one through the API helpers' `ctx.fetch` and never stub the global, and
   settle a background refresh with `settleWeatherCache`.
+- Terrain bins (D2-2): `Activity.terrainBins` (JSON text, `TerrainBins` in `shared/types.ts`) holds a
+  run's or race's moving seconds, metres and walking seconds by grade band, and `flatCv`, from the
+  stored 10 s stream (distance and altitude, no heart rate). `computeTerrainBins`
+  (`shared/importers/files/terrainBins.ts`) is the one function; `storeParsed` writes it at import and
+  the `terrain` job (`runTerrainJob`, every 5 minutes, `server/services/terrainBackfill.ts`) fills runs
+  imported before the column, 20 per user per tick, idempotent, recording a `terrain` job run (`partial`
+  when a stored stream is unreadable). Null means not computed; a run with nothing to read (no altitude,
+  or under 2 m of it) stores all-zero bins. The list read omits the column.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.
@@ -139,6 +147,10 @@ its build runs `prisma migrate deploy` as a smoke test.
   hold that starts applies at once: the resolver cannot draw a shape it reads as the default (ADR 0017,
   addendum). The change of the preset in place is `PUT /api/plan/method` (`commitMethod`, reason
   `method-change`).
+- My paces (ADR 0020, rule C9) is derived on read and stored nowhere: `myPaces` and `eventRow`
+  (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
+  `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
+  figure on it is a range and a sketch; a new number is a Param under C9.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`

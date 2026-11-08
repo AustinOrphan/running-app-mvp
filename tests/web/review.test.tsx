@@ -12,6 +12,7 @@ import type {
   PlanSessionView,
   PlanWeekView,
   PlanWithSessions,
+  ReviewView,
   StrengthView,
   WeekRow,
   WeeklyReview,
@@ -174,7 +175,7 @@ function v2Plan(sessions: PlanSessionView[] = []): PlanWithSessions {
   )
 }
 
-function makeReview(weekStart: string, over: Partial<WeeklyReview> = {}): WeeklyReview {
+function makeReview(weekStart: string, over: Partial<ReviewView> = {}): ReviewView {
   return {
     id: '',
     userId: 'u1',
@@ -199,7 +200,7 @@ function makeReview(weekStart: string, over: Partial<WeeklyReview> = {}): Weekly
 interface Fixture {
   plan?: PlanWithSessions | null
   proposals?: ZoneProposalView[]
-  reviews?: Record<string, Partial<WeeklyReview>>
+  reviews?: Record<string, Partial<ReviewView>>
   weeks?: Record<string, Partial<WeekRow>>
   activities?: Activity[]
   /** Mark every week as reviewed. */
@@ -1412,5 +1413,92 @@ describe('ReviewPage: strength (design 12.2 and 12.4)', () => {
       // at no point is there neither the question nor its answer
       expect(frames.filter((frame) => !frame.question && !frame.answer)).toEqual([])
     })
+  })
+})
+
+describe('the answers filled in from the week check-ins', () => {
+  const prefill = {
+    checkinDays: 5,
+    fatigue: 7,
+    fatigueAverage: 4,
+    fatigueDays: 5,
+    symptoms: 'mild' as const,
+    symptomsBasis: 'soreness' as const,
+  }
+  const CARD = "From this week's check-ins"
+
+  test('shows what the check-ins say, with the basis, and leaves the form as it is', async () => {
+    renderReview({ reviews: { [W]: { prefill } } })
+    await ready()
+    const card = screen.getByRole('region', { name: CARD })
+    expect(
+      within(card).getByText('Fatigue 7 of 10, from an average of 4 of 5 over 5 days.'),
+    ).toBeInTheDocument()
+    expect(within(card).getByText(/^Symptoms: mild\. Soreness of 4 or more/)).toBeInTheDocument()
+    expect(within(card).getByText(/^Taken from 5 days of check-ins/)).toBeInTheDocument()
+    // nothing is chosen until the runner confirms
+    expect(screen.getByRole('radio', { name: '7', checked: false })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Mild', checked: false })).toBeInTheDocument()
+    expectCleanCopy(card)
+  })
+
+  test('Looks right fills fatigue and symptoms, says so, and the save sends them', async () => {
+    const user = userEvent.setup()
+    const api = renderReview(
+      { reviews: { [W]: { prefill } } },
+      { [`PUT /api/reviews/${W}`]: () => makeReview(W, { id: 'r1' }) },
+    )
+    await ready()
+    await user.click(screen.getByRole('button', { name: 'Looks right' }))
+    expect(
+      await screen.findByText(/^Fatigue and symptoms are filled in from the check-ins/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Filled in/ })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '7', checked: true })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Mild', checked: true })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save review' }))
+    expect(await screen.findByText('Week of 12 Oct saved')).toBeInTheDocument()
+    expect(api.calls.find((c) => c.method === 'PUT')?.body).toMatchObject({
+      fatigue: 7,
+      symptoms: 'mild',
+    })
+  })
+
+  test('a change below replaces the answer and the button offers it again', async () => {
+    const user = userEvent.setup()
+    renderReview({ reviews: { [W]: { prefill } } })
+    await ready()
+    await user.click(screen.getByRole('button', { name: 'Looks right' }))
+    await user.click(screen.getByRole('radio', { name: '4' }))
+    expect(screen.getByRole('button', { name: 'Looks right' })).toBeInTheDocument()
+    expect(screen.queryByText(/^Fatigue and symptoms are filled in/)).toBeNull()
+  })
+
+  test('offers only the answers it has, and nothing for a reviewed week or no check-ins', async () => {
+    renderReview({
+      reviews: {
+        [W]: {
+          prefill: {
+            ...prefill,
+            checkinDays: 1,
+            fatigue: null,
+            fatigueAverage: null,
+            fatigueDays: 1,
+          },
+        },
+      },
+    })
+    await ready()
+    expect(screen.getByText(/^Fatigue: too few answers this week/)).toBeInTheDocument()
+    cleanup()
+    renderReview({
+      reviews: { [W]: { prefill, reviewedAt: '2026-10-20T00:00:00.000Z', finalDecision: 'hold' } },
+    })
+    await ready()
+    expect(screen.queryByRole('region', { name: CARD })).toBeNull()
+    cleanup()
+    renderReview()
+    await ready()
+    expect(screen.queryByRole('button', { name: 'Looks right' })).toBeNull()
   })
 })

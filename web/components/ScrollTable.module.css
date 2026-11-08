@@ -1,0 +1,20 @@
+/* The two inner gradients are the paper that covers the two outer shadows once the box is scrolled
+   to that edge (`local` moves with the content), so a shadow shows only where more is hidden. */
+.scroll {
+  max-width: 100%;
+  overflow: auto;
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left center / 2rem 100% no-repeat
+      local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right center / 2rem 100% no-repeat
+      local,
+    linear-gradient(to right, var(--border-strong), transparent) left center / 0.75rem 100%
+      no-repeat scroll,
+    linear-gradient(to left, var(--border-strong), transparent) right center / 0.75rem 100%
+      no-repeat scroll;
+}
+
+.scroll:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}

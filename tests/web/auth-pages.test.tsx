@@ -1,7 +1,7 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { LoginPage } from '../../web/pages/LoginPage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
@@ -29,7 +29,7 @@ describe('SetupPage', () => {
     const { container } = renderWithProviders(<Pages />, { route: '/setup' })
     const typist = userEvent.setup()
 
-    await screen.findByRole('heading', { name: 'Set up your training log' })
+    await screen.findByRole('heading', { name: 'Set up your log' })
     await typist.type(screen.getByLabelText('Email'), 'runner@example.com')
     await typist.type(screen.getByLabelText('Password'), 'a-long-enough-pass')
     await typist.type(screen.getByLabelText('Confirm password'), 'a-different-pass')
@@ -66,7 +66,7 @@ describe('SetupPage', () => {
     renderWithProviders(<Pages />, { route: '/setup' })
     const typist = userEvent.setup()
 
-    await screen.findByRole('heading', { name: 'Set up your training log' })
+    await screen.findByRole('heading', { name: 'Set up your log' })
     const password = screen.getByLabelText('Password')
     expect(password).toHaveAccessibleDescription('At least 12 characters.')
 
@@ -103,7 +103,7 @@ describe('SetupPage', () => {
     renderWithProviders(<Pages />, { route: '/setup' })
     const typist = userEvent.setup()
 
-    await screen.findByRole('heading', { name: 'Set up your training log' })
+    await screen.findByRole('heading', { name: 'Set up your log' })
     expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'password')
     await typist.click(screen.getByRole('button', { name: 'Show passwords' }))
     expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'text')
@@ -152,6 +152,14 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
     expect(screen.getByLabelText('Email')).toHaveValue('runner@example.com')
+    // the refusal is announced and sits under the password, so no field moves when it appears
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Invalid email or password')
+    expect(
+      screen.getByLabelText('Password').compareDocumentPosition(alert) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(screen.getByText('Running log')).toBeInTheDocument()
 
     await typist.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(
@@ -207,7 +215,7 @@ describe('SettingsPage', () => {
     }
   }
 
-  test('settings: switching to Kilometres PUTs { units: "km" } and toasts "Settings saved"; display name over 80 characters shows the error', async () => {
+  test('settings: switching to Kilometres PUTs { units: "km" } and shows "Saved"; display name over 80 characters shows the error and keeps the text', async () => {
     const { calls } = mockApi(
       settingsRoutes((body) => {
         const patch = body as { units?: string; displayName?: string }
@@ -235,13 +243,13 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('radiogroup', { name: 'Distance units' })).toBeInTheDocument()
     await typist.click(screen.getByRole('radio', { name: 'Kilometres' }))
 
-    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    expect(await screen.findByText('Saved', { selector: 'span' })).toBeInTheDocument()
     expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([{ units: 'km' }])
     expect(screen.getByRole('radio', { name: 'Kilometres' })).toBeChecked()
 
     await typist.click(screen.getByLabelText('Display name'))
     await typist.paste('x'.repeat(81))
-    await typist.click(screen.getByRole('button', { name: 'Save settings' }))
+    await typist.tab()
     expect(await screen.findByText('Use at most 80 characters.')).toBeInTheDocument()
     expect(screen.getByLabelText('Display name')).toHaveValue('x'.repeat(81))
   })
@@ -259,9 +267,9 @@ describe('SettingsPage', () => {
     await screen.findByRole('heading', { name: 'Settings' })
     await typist.click(screen.getByRole('radio', { name: 'Kilometres' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Settings not saved.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Not saved.')
     expect(screen.getByRole('radio', { name: 'Miles' })).toBeChecked()
-    expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
+    expect(screen.queryByText('Saved', { selector: 'span' })).not.toBeInTheDocument()
     expectCleanCopy(document.body)
   })
 
@@ -288,7 +296,7 @@ describe('SettingsPage', () => {
     )
 
     await typist.click(box)
-    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    expect(await screen.findByText('Saved', { selector: 'span' })).toBeInTheDocument()
     expect(box).toBeChecked()
     await typist.click(box)
     await waitFor(() => {
@@ -301,7 +309,7 @@ describe('SettingsPage', () => {
     expectCleanCopy(container)
   })
 
-  test('settings: saving a display name sends only the changed field', async () => {
+  test('settings: the display name saves on leaving the field, sends only that field and has no Save button', async () => {
     const { calls } = mockApi(
       settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
     )
@@ -310,12 +318,153 @@ describe('SettingsPage', () => {
 
     await screen.findByRole('heading', { name: 'Settings' })
     await typist.type(screen.getByLabelText('Display name'), '  Sam ')
-    await typist.click(screen.getByRole('button', { name: 'Save settings' }))
+    await typist.tab()
 
-    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    expect(await screen.findByText('Saved', { selector: 'span' })).toBeInTheDocument()
     expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
       { displayName: 'Sam' },
     ])
+    expect(screen.queryByRole('button', { name: 'Save settings' })).not.toBeInTheDocument()
+  })
+
+  test('settings: the display name saves after a pause, and "Saved" is a polite status', async () => {
+    const { calls } = mockApi(
+      settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
+    )
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    const status = screen.getByRole('status', { name: 'Save status' })
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status).toBeEmptyDOMElement()
+    await typist.type(screen.getByLabelText('Display name'), 'Sam')
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(0)
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
+        { displayName: 'Sam' },
+      ])
+    })
+    expect(await within(status).findByText('Saved')).toBeInTheDocument()
+  })
+
+  test('settings: changing the theme shows the same "Saved"', async () => {
+    mockApi(settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })))
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.click(screen.getByRole('radio', { name: 'Dark' }))
+    expect(
+      await within(screen.getByRole('status', { name: 'Save status' })).findByText('Saved'),
+    ).toBeInTheDocument()
+  })
+
+  test('settings: a refused display name keeps what was typed and says so beside the field', async () => {
+    mockApi(
+      settingsRoutes(() => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'Something went wrong.' } },
+      })),
+    )
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.type(screen.getByLabelText('Display name'), 'Sam')
+    await typist.tab()
+    expect(await screen.findByText(/^Not saved\. The name stays in the field/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Display name')).toHaveValue('Sam')
+    // the refusal is announced, not only drawn beside the field
+    expect(await screen.findByRole('alert')).toHaveTextContent('Display name not saved.')
+    expectCleanCopy(document.body)
+  })
+
+  test('settings: a refused name stays on screen while another setting saves', async () => {
+    mockApi(
+      settingsRoutes((body) => {
+        if ((body as { displayName?: string }).displayName !== undefined) {
+          return { status: 500, body: { error: { code: 'internal', message: 'Boom' } } }
+        }
+        return { email: user.email, displayName: null, units: 'km', ...(body as object) }
+      }),
+    )
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.type(screen.getByLabelText('Display name'), 'Sam')
+    await typist.tab()
+    expect(await screen.findByText(/^Not saved\. The name stays/)).toBeInTheDocument()
+    await typist.click(screen.getByRole('radio', { name: 'Kilometres' }))
+    expect(
+      await within(screen.getByRole('status', { name: 'Save status' })).findByText('Saved'),
+    ).toBeInTheDocument()
+    // the units save is not the name's: its error is still there
+    expect(screen.getAllByText(/^Not saved\. The name stays/).length).toBeGreaterThan(0)
+    expect(screen.getByLabelText('Display name')).toHaveValue('Sam')
+  })
+
+  test('settings: a save that fails after a newer one rolls back its own field and not the shared Saved', async () => {
+    const { calls } = mockApi(
+      settingsRoutes((body) => {
+        const patch = body as { units?: string; displayName?: string }
+        if (patch.units !== undefined) {
+          return { status: 500, body: { error: { code: 'internal', message: 'Boom' } } }
+        }
+        return { email: user.email, displayName: patch.displayName ?? null, units: 'mi' }
+      }),
+    )
+    // the units save (the first PUT) answers last
+    const answer = globalThis.fetch
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const slow =
+        init?.method === 'PUT' && typeof init.body === 'string' && init.body.includes('"units"')
+      const response = await answer(input, init)
+      if (slow) await new Promise((resolve) => setTimeout(resolve, 250))
+      return response
+    })
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.click(screen.getByRole('radio', { name: 'Kilometres' }))
+    await typist.type(screen.getByLabelText('Display name'), 'Sam')
+    await typist.tab()
+    expect(
+      await within(screen.getByRole('status', { name: 'Save status' })).findByText('Saved'),
+    ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(2)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    // the older save failed after the newer one succeeded: its own field is rolled back to what the
+    // server holds, the name stays as saved, and Saved (the newer save's) is still showing
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: 'Miles' })).toBeChecked()
+    })
+    expect(screen.getByRole('radio', { name: 'Kilometres' })).not.toBeChecked()
+    expect(screen.getByLabelText('Display name')).toHaveValue('Sam')
+    expect(screen.getByRole('alert')).toHaveTextContent('Not saved.')
+    expect(screen.getByRole('status', { name: 'Save status' })).toHaveTextContent('Saved')
+  })
+
+  test('settings: leaving the page with a name not yet saved sends it', async () => {
+    const { calls } = mockApi(
+      settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
+    )
+    const view = renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    await typist.type(screen.getByLabelText('Display name'), 'Sam')
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(0)
+    view.unmount()
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
+        { displayName: 'Sam' },
+      ])
+    })
   })
 
   test('settings: Weight units sits beside Distance units, reads pounds by default, and saves the choice by itself', async () => {
@@ -339,11 +488,15 @@ describe('SettingsPage', () => {
       screen
         .getAllByRole('radiogroup')
         .slice(0, 2)
-        .map((group) => group.getAttribute('aria-label')),
+        .map(
+          (group) =>
+            group.getAttribute('aria-label') ??
+            document.getElementById(group.getAttribute('aria-labelledby') ?? '')?.textContent,
+        ),
     ).toEqual(['Distance units', 'Weight units'])
 
     await typist.click(screen.getByRole('radio', { name: 'Kilograms' }))
-    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    expect(await screen.findByText('Saved', { selector: 'span' })).toBeInTheDocument()
     expect(calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
       { weightUnit: 'kg' },
     ])
@@ -378,9 +531,9 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('radio', { name: 'Kilograms' })).toBeChecked()
     await typist.click(screen.getByRole('radio', { name: 'Pounds' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Settings not saved.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Not saved.')
     expect(screen.getByRole('radio', { name: 'Kilograms' })).toBeChecked()
-    expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
+    expect(screen.queryByText('Saved', { selector: 'span' })).not.toBeInTheDocument()
   })
 
   test('settings: Sign out posts /api/auth/logout and returns to /login', async () => {

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { PrismaClient } from './db.ts'
+import compression from 'compression'
 import cookieParser from 'cookie-parser'
 import express, { type Express } from 'express'
 import helmet from 'helmet'
@@ -22,6 +23,7 @@ import { importsRouter } from './routes/imports.ts'
 import { ingestRouter } from './routes/ingest.ts'
 import { integrationsRouter } from './routes/integrations.ts'
 import { jobsRouter } from './routes/jobs.ts'
+import { pacesRouter } from './routes/paces.ts'
 import { planRouter } from './routes/plan.ts'
 import { predictionsRouter } from './routes/predictions.ts'
 import { profileRouter } from './routes/profile.ts'
@@ -33,6 +35,7 @@ import { stateRouter } from './routes/state.ts'
 import { statsRouter } from './routes/stats.ts'
 import { raceRouter } from './routes/race.ts'
 import { trendsRouter } from './routes/trends.ts'
+import { trendsRunsRouter } from './routes/trendsRuns.ts'
 import { strengthRouter } from './routes/strength.ts'
 import { todayRouter } from './routes/today.ts'
 import { weatherRouter } from './routes/weather.ts'
@@ -92,6 +95,11 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
     }),
   )
 
+  // API responses over 1 kB are gzipped or brotli-compressed for a client that accepts it (the
+  // `compression` package: it negotiates, sets `Vary` and skips types that do not compress). The
+  // built files are not compressed here; `mountStatic` serves copies made at build time.
+  app.use('/api', compression({ threshold: 1024 }))
+
   // Before the API routers, so every API call shares one budget. It stops at `/api`: the hashed
   // assets, the manifest, the icons and the index fallback that `mountStatic` serves are cheap and
   // cacheable, not an abuse surface, and counting them would spend the budget on page loads.
@@ -128,6 +136,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/settings', settingsRouter(deps))
   app.use('/api/state', stateRouter(deps))
   app.use('/api/stats', statsRouter(deps))
+  app.use('/api/trends/runs', trendsRunsRouter(deps))
   app.use('/api/trends', trendsRouter(deps))
   app.use('/api/explain', explainRouter(deps))
   app.use('/api/brief', briefRouter(deps))
@@ -150,6 +159,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/today', todayRouter(deps))
   app.use('/api/checkins', checkinsRouter(deps))
   app.use('/api/zones', zonesRouter(deps))
+  app.use('/api/paces', pacesRouter(deps))
   app.use('/api/predictions', predictionsRouter(deps))
   app.use('/api/screenings', screeningsRouter(deps))
   app.use('/api/research', researchRouter(deps))

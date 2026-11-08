@@ -76,7 +76,7 @@ test('enters two points and reads their arrival ranges, the cutoff and the finis
   const first = dialog.getByRole('group', { name: 'Point 1' })
   await first.getByLabel('Name').fill('Checkpoint A')
   await first.getByLabel(/^Distance from the start/).fill('30')
-  await first.getByLabel(/^Climb since the previous point/).fill('900')
+  await first.getByLabel(/^Climb \(/).fill('900')
   await first.getByLabel('Cutoff entered as').selectOption('clock')
   await first.getByLabel('Cutoff, time of day').fill('14:30')
 
@@ -84,7 +84,7 @@ test('enters two points and reads their arrival ranges, the cutoff and the finis
   const second = dialog.getByRole('group', { name: 'Point 2' })
   await second.getByLabel('Name').fill('Checkpoint B')
   await second.getByLabel(/^Distance from the start/).fill('80')
-  await second.getByLabel(/^Descent since the previous point/).fill('500')
+  await second.getByLabel(/^Descent \(/).fill('500')
   await second.getByLabel('Cutoff, hours and minutes into the race').fill('21:00')
 
   await dialog.getByRole('button', { name: 'Save' }).click()

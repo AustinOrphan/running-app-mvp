@@ -3,6 +3,7 @@ import { addDays } from '../../shared/dates.ts'
 import { isToRun } from '../../shared/domain/sessionStatus.ts'
 import type { PlanSession, PlanWithSessions, WristItem, WristStatus } from '../../shared/types.ts'
 import { publishable } from '../../shared/workouts/labels.ts'
+import { buildFit } from '../fixtures/fit/buildFit.ts'
 import {
   logStrengthSession,
   nextStrengthWorkout,
@@ -67,6 +68,17 @@ test('every Fatigue rating sits inside its control at 360 px and can be chosen',
       groupBox.x + groupBox.width + 0.5,
     )
   }
+  // Ten cells in two equal rows, each at least 44 px wide and tall (they were 32 px wide in one row).
+  const cells = await group.getByRole('radio').all()
+  expect(cells).toHaveLength(10)
+  const tops = new Set<number>()
+  for (const cell of cells) {
+    const box = await cell.boundingBox()
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44)
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+    tops.add(Math.round(box?.y ?? 0))
+  }
+  expect(tops.size).toBe(2)
   await group.getByRole('radio', { name: '10', exact: true }).click()
   await expect(group.getByRole('radio', { name: '10', exact: true })).toBeChecked()
 })
@@ -153,6 +165,33 @@ test('the Activities type filter needs no scrolling at 360 px', async () => {
   await expect(group).toBeVisible()
   const overflow = await group.evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(overflow).toBeLessThanOrEqual(0)
+  await expectOneLineOptions(group)
+})
+
+/** Every option of a segmented control is one line tall and its word fits inside its own cell. */
+async function expectOneLineOptions(group: Locator) {
+  for (const option of await group.getByRole('radio').all()) {
+    const fits = await option.evaluate((el) => ({
+      height: el.getBoundingClientRect().height,
+      overflow: el.scrollWidth - el.clientWidth,
+    }))
+    expect(fits.height, 'one line, 44 px or more').toBeLessThanOrEqual(50)
+    expect(fits.height).toBeGreaterThanOrEqual(44)
+    expect(fits.overflow, 'the word fits its cell').toBeLessThanOrEqual(0)
+  }
+}
+
+test('the Research grade filter is one short row labelled Grade at 360 px', async () => {
+  await page.goto('/research')
+  const group = page.getByRole('radiogroup', { name: 'Grade' })
+  await expect(group).toBeVisible()
+  await expect(group.getByRole('radio')).toHaveCount(5)
+  await expect(group.getByRole('radio', { name: 'Grade A' })).toBeVisible()
+  await expectOneLineOptions(group)
+  expect(await group.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
 })
 
 test('the Stats page does not scroll sideways at 360 px; wide tables scroll inside', async () => {
@@ -1137,4 +1176,236 @@ test('the Strength page and its setup and logging sheets fit 360 px with every c
   expect(await isUncovered(pinned), 'Save at the end of the sheet').toBe(true)
   await page.keyboard.press('Escape')
   await expect(sheet).toBeHidden()
+})
+
+test('a failed Activities read shows one Try again button at 390 px and the list after it', async () => {
+  await resetData()
+  await api.post('/activities', {
+    date: relativeDates().lastWednesday,
+    type: 'run',
+    durationSec: 45 * 60,
+    distanceM: 8047,
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  // The client retries a failed read itself, so the route fails every request until Try again.
+  let failing = true
+  await page.route('**/api/activities?**', async (route) => {
+    if (failing) return route.abort()
+    return route.continue()
+  })
+  await page.goto('/activities')
+  const alert = page.getByRole('alert').filter({ hasText: 'Activities did not load.' })
+  await expect(alert).toBeVisible()
+  failing = false
+  const retry = page.getByRole('button', { name: 'Try again' })
+  expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await retry.click()
+  await expect(page.getByText('45:00', { exact: true })).toBeVisible()
+  await expect(alert).toBeHidden()
+  await page.unroute('**/api/activities?**')
+  await page.setViewportSize({ width: 360, height: 740 })
+})
+
+test('the first run is on the first screen of Activities at 360 px, with the dates behind a button', async () => {
+  await resetData()
+  for (const back of [3, 4, 5]) {
+    await api.post('/activities', {
+      date: addDays(relativeDates().today, -back),
+      type: 'run',
+      durationSec: 45 * 60,
+      distanceM: 8047,
+    })
+  }
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/activities')
+  const first = page.getByRole('link', { name: /^Run, / }).first()
+  await expect(first).toBeVisible()
+  const box = await first.boundingBox()
+  // above the tab bar (56 px) at the foot of the first screen
+  expect((box?.y ?? 9999) + (box?.height ?? 0)).toBeLessThanOrEqual(740 - 56)
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await expect(page.getByLabel('From')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Dates' }).click()
+  await expect(page.getByLabel('From')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
+})
+
+test('a tap on the right edge of Decline declines, and Why after it does not cover the button', async () => {
+  const { lastWednesday, raceDate } = relativeDates()
+  await resetData()
+  await api.post('/activities', {
+    date: lastWednesday,
+    type: 'run',
+    durationSec: 45 * 60,
+    distanceM: 8047,
+  })
+  const goal = (await api.post('/goals', {
+    name: 'Edge marathon',
+    priority: 'A',
+    targetDate: raceDate,
+    distanceM: 42_195,
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id })
+  // The server proposes no zone change for this log, so the proposal is served to the page.
+  let declined = 0
+  await page.route('**/api/zones/proposals', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    return route.fulfill({
+      json:
+        declined > 0
+          ? []
+          : [
+              {
+                id: 'zp1',
+                boundary: 'thresholdPace',
+                from: 330,
+                to: 320,
+                observations: 3,
+                reason: 'The last 3 threshold sessions felt easier than expected.',
+                rules: ['C8'],
+              },
+            ],
+    })
+  })
+  await page.route('**/api/zones/proposals/zp1/decline', async (route) => {
+    declined += 1
+    return route.fulfill({ status: 204 })
+  })
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.goto('/review')
+  const decline = page.getByRole('button', { name: /^Decline / })
+  await decline.scrollIntoViewIfNeeded()
+  const box = await decline.boundingBox()
+  expect(box).not.toBeNull()
+  const why = page.getByRole('button', { name: /^Why: .*change$/ })
+  const whyBox = await why.boundingBox()
+  // the two buttons do not overlap
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual((whyBox?.x ?? 0) + 0.5)
+  // a tap 3 px inside Decline's right edge lands on Decline
+  await page.mouse.click(
+    (box?.x ?? 0) + (box?.width ?? 0) - 3,
+    (box?.y ?? 0) + (box?.height ?? 0) / 2,
+  )
+  await expect.poll(() => declined).toBe(1)
+  await expect(page.getByRole('dialog', { name: 'Evidence' })).toHaveCount(0)
+  await page.unroute('**/api/zones/proposals')
+  await page.unroute('**/api/zones/proposals/zp1/decline')
+})
+
+test('a trail run with charts does not scroll sideways at 360 px', async () => {
+  await resetData()
+  const start = new Date()
+  start.setDate(start.getDate() - 1)
+  start.setHours(7, 0, 0, 0)
+  const durationSec = 60 * 60
+  const speedMps = 2.6
+  const bytes = buildFit({
+    serial: 4_100_000_006,
+    utcOffsetMin: -start.getTimezoneOffset(),
+    productName: 'Synthetic Watch',
+    sessions: [
+      {
+        sport: 1,
+        subSport: 3,
+        startUnix: Math.floor(start.getTime() / 1000),
+        durationSec,
+        distanceM: durationSec * speedMps,
+        ascentM: 300,
+        descentM: 290,
+        avgHr: 142,
+        maxHr: 165,
+        records: Array.from({ length: durationSec / 10 + 1 }, (_, i) => ({
+          t: i * 10,
+          distanceM: i * 10 * speedMps,
+          speedMps,
+          hr: 140 + Math.round(10 * Math.sin(i / 40)),
+          altitudeM: 300 + Math.round(60 * Math.sin(i / 90)),
+        })),
+      },
+    ],
+  })
+  await page.goto('/activities')
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: 'Import activities' })
+  await sheet.getByRole('radio', { name: 'Activity files' }).check()
+  await sheet.getByLabel('Activity files (FIT, GPX, TCX, ZIP)').setInputFiles({
+    name: 'trail.fit',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from(bytes),
+  })
+  await sheet.getByRole('button', { name: 'Import files' }).click()
+  await expect(sheet.getByText('1 imported, 0 already imported, 0 skipped')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('link', { name: /^Run, / }).click()
+  await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
+  // The charts are lazy chunks, and each carries a hidden table of its figures.
+  await expect(page.getByRole('img', { name: /^Pace, average / })).toBeVisible()
+  await expect(page.getByRole('img', { name: /^Elevation, from / })).toBeVisible()
+  expect(await pageOverflow()).toBeLessThanOrEqual(0)
+})
+
+test('a four-hour trail run keeps its charts before the rating form and does not widen the page at 360 px', async () => {
+  await resetData()
+  const start = new Date()
+  start.setDate(start.getDate() - 1)
+  start.setHours(6, 0, 0, 0)
+  const durationSec = 255 * 60
+  const speedMps = (19.67 * 1609.344) / durationSec
+  // Heart rate only on every sixth record and elevation on every ninth: a sparsely sampled stream.
+  const records = Array.from({ length: durationSec / 10 + 1 }, (_, i) => ({
+    t: i * 10,
+    distanceM: i * 10 * speedMps,
+    speedMps,
+    ...(i % 6 === 0 ? { hr: 135 + Math.round(15 * Math.sin(i / 200)) } : {}),
+    ...(i % 9 === 0 ? { altitudeM: 400 + Math.round(300 * Math.sin(i / 300)) } : {}),
+  }))
+  const bytes = buildFit({
+    serial: 4_100_000_009,
+    utcOffsetMin: -start.getTimezoneOffset(),
+    productName: 'Synthetic Watch',
+    sessions: [
+      {
+        sport: 1,
+        subSport: 3,
+        startUnix: Math.floor(start.getTime() / 1000),
+        durationSec,
+        distanceM: speedMps * durationSec,
+        avgHr: 140,
+        maxHr: 168,
+        records,
+      },
+    ],
+  })
+  await page.goto('/activities')
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: 'Import activities' })
+  await sheet.getByRole('radio', { name: 'Activity files' }).check()
+  await sheet.getByLabel('Activity files (FIT, GPX, TCX, ZIP)').setInputFiles({
+    name: 'trail.fit',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from(bytes),
+  })
+  await sheet.getByRole('button', { name: 'Import files' }).click()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  const listed = (await api.get('/activities')) as
+    Array<{ id: string }> | { items: Array<{ id: string }> }
+  const [first] = Array.isArray(listed) ? listed : listed.items
+  await page.goto(`/activities/${first?.id ?? ''}`)
+
+  const charts = page.getByRole('region', { name: 'Charts' })
+  await expect(charts).toBeVisible()
+  // Every channel draws a line: the heart-rate and elevation paths are not empty.
+  for (const name of [/^Heart rate, average/, /^Elevation, from/]) {
+    const path = charts.getByRole('img', { name }).locator('path.recharts-curve').first()
+    await expect(path).toHaveAttribute('d', /^M/)
+  }
+  const top = (name: string) =>
+    page.getByRole('region', { name }).evaluate((el) => el.getBoundingClientRect().top)
+  expect(await top('Charts')).toBeLessThan(await top('How did it go?'))
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  )
 })

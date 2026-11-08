@@ -83,6 +83,8 @@ function routes(plan: PlanWithSessions | PlanWithWeeks | null, extra: MockRoutes
     'GET /api/profile': () => makeProfile(),
     'GET /api/weeks': () => [] as WeekRow[],
     'GET /api/plan/revisions': () => [makeRevision()],
+    // asked for only when a weekly update with a diff could show the strip
+    'GET /api/today': () => makeToday({ date: '2027-01-13' }),
     'GET /api/plan/disruptions': () => [],
     'GET /api/activities': () => activityPage([]),
     ...sheetRoutes(plan !== null && 'sessions' in plan ? plan.sessions : []),
@@ -2258,5 +2260,172 @@ describe('Plan page, version-1 plans', () => {
     ).toBeEnabled()
     expect(calls.some((c) => c.url.startsWith('/api/plan/revisions'))).toBe(false)
     expect(calls.some((c) => c.url.startsWith('/api/plan/disruptions'))).toBe(false)
+  })
+})
+
+describe('Plan page, the strip after the weekly update', () => {
+  const strip = () => screen.findByRole('region', { name: 'The latest plan update' })
+  const line = (externalId: string) =>
+    makeLine({ externalId, sessionId: null, date: '2027-01-14', weekStart: '2027-01-11' })
+
+  // The server's day and zone, read from Today; the device clock is not used.
+  const serverDay = (date = '2027-01-13', tz = 'UTC'): MockRoutes => ({
+    'GET /api/today': () => makeToday({ date, tz }),
+  })
+
+  function twoSessions(over: Partial<PlanRevisionView> = {}) {
+    return unseenUpdate({ diff: makeDiff([line('ext-c'), line('ext-b')]), ...over })
+  }
+
+  test('says what Monday changed, links to the brief and offers the undo', async () => {
+    mockApi(
+      routes(makeV2Plan(), { ...serverDay(), 'GET /api/plan/revisions': () => [twoSessions()] }),
+    )
+    renderPlan()
+    const region = await strip()
+    expect(within(region).getByText('Updated Monday: 2 sessions changed.')).toBeInTheDocument()
+    expect(within(region).getByRole('link', { name: 'See the brief' })).toHaveAttribute(
+      'href',
+      '/brief/2027-01-11',
+    )
+    expect(within(region).getByRole('button', { name: 'Undo update' })).toBeInTheDocument()
+    expectCleanCopy(region)
+  })
+
+  test('marks the changed days in the table and no other', async () => {
+    mockApi(
+      routes(makeV2Plan(), { ...serverDay(), 'GET /api/plan/revisions': () => [twoSessions()] }),
+    )
+    renderPlan()
+    await strip()
+    const hill = await screen.findByRole('button', { name: /Hill strides/ })
+    expect(within(hill).getByText('Changed')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /Steady long run/ })).getByText('Changed'),
+    ).toBeInTheDocument()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Earlier weeks (1)' }))
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Days for week of 4 Jan' }))
+    expect(
+      within(screen.getByRole('button', { name: /Easy run/ })).queryByText('Changed'),
+    ).toBeNull()
+  })
+
+  test('words a single changed session', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay(),
+        'GET /api/plan/revisions': () => [unseenUpdate({ diff: makeDiff([line('ext-c')]) })],
+      }),
+    )
+    renderPlan()
+    expect(await screen.findByText('Updated Monday: one session changed.')).toBeInTheDocument()
+  })
+
+  test('words an update that moved only the weeks ahead', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay(),
+        'GET /api/plan/revisions': () => [unseenUpdate({ diff: makeDiff([], [makeWeekLine()]) })],
+      }),
+    )
+    renderPlan()
+    expect(
+      await screen.findByText('Updated Monday: the running time of the weeks ahead changed.'),
+    ).toBeInTheDocument()
+  })
+
+  test.each([
+    ['older than a few days', { createdAt: '2027-01-05T12:00:00.000Z' }],
+    ['written by a request', { reason: 'owner' as const, auto: false }],
+    [
+      'already undone',
+      { undo: { available: false, reasons: [], undoneAt: '2027-01-12T09:00:00.000Z' } },
+    ],
+    ['with nothing in its diff', { diff: makeDiff([]) }],
+  ] satisfies Array<[string, Partial<PlanRevisionView>]>)(
+    'shows no strip for an update %s',
+    async (_name, over) => {
+      mockApi(
+        routes(makeV2Plan(), {
+          ...serverDay(),
+          'GET /api/plan/revisions': () => [twoSessions(over)],
+        }),
+      )
+      renderPlan()
+      await screen.findByRole('region', { name: 'What changed' })
+      expect(screen.queryByRole('region', { name: 'The latest plan update' })).toBeNull()
+    },
+  )
+
+  test('shows no strip, and no error of its own, when the revisions do not load', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        ...serverDay(),
+        'GET /api/plan/revisions': () => ({
+          status: 503,
+          body: { error: { code: 'internal', message: 'No connection.' } },
+        }),
+      }),
+    )
+    renderPlan()
+    expect(await screen.findByText('The list of changes did not load.')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'The latest plan update' })).toBeNull()
+  })
+})
+
+describe('Plan page, the strip reads the server day', () => {
+  test('words the weekday and the brief in the zone of the server, not the device', async () => {
+    // 20:00 UTC on Sunday 17 Jan is already Monday 18 Jan in Tokyo, where the weekly job runs.
+    const update = unseenUpdate({
+      createdAt: '2027-01-17T20:00:00.000Z',
+      diff: makeDiff([makeLine({ externalId: 'ext-c', sessionId: null })]),
+    })
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/today': () => makeToday({ date: '2027-01-18', tz: 'Asia/Tokyo' }),
+        'GET /api/plan/revisions': () => [update],
+      }),
+    )
+    renderPlan()
+    const region = await screen.findByRole('region', { name: 'The latest plan update' })
+    expect(within(region).getByText('Updated Monday: one session changed.')).toBeInTheDocument()
+    expect(within(region).getByRole('link', { name: 'See the brief' })).toHaveAttribute(
+      'href',
+      '/brief/2027-01-18',
+    )
+  })
+
+  test('shows no strip until Today has loaded', async () => {
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/today': () => ({
+          status: 503,
+          body: { error: { code: 'internal', message: 'No connection.' } },
+        }),
+        'GET /api/plan/revisions': () => [unseenUpdate()],
+      }),
+    )
+    renderPlan()
+    await screen.findByRole('region', { name: 'What changed' })
+    expect(screen.queryByRole('region', { name: 'The latest plan update' })).toBeNull()
+  })
+
+  test('a purpose-only rewrite is neither counted nor marked', async () => {
+    const purposeOnly = makeLine({ externalId: 'ext-b', sessionId: null, fields: [] })
+    const visible = makeLine({ externalId: 'ext-c', sessionId: null })
+    mockApi(
+      routes(makeV2Plan(), {
+        'GET /api/today': () => makeToday({ date: '2027-01-13', tz: 'UTC' }),
+        'GET /api/plan/revisions': () => [unseenUpdate({ diff: makeDiff([purposeOnly, visible]) })],
+      }),
+    )
+    renderPlan()
+    expect(await screen.findByText('Updated Monday: one session changed.')).toBeInTheDocument()
+    expect(
+      within(await screen.findByRole('button', { name: /Hill strides/ })).getByText('Changed'),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /Steady long run/ })).queryByText('Changed'),
+    ).toBeNull()
   })
 })

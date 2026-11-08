@@ -23,7 +23,7 @@ export function useUpdateProfile() {
     onSuccess: (saved) => {
       queryClient.setQueryData([keys.profile], saved)
       return Promise.all(
-        [keys.zones, keys.plan, keys.today, keys.zoneProposals].map((key) =>
+        [keys.zones, keys.plan, keys.today, keys.zoneProposals, keys.paces].map((key) =>
           queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       )
