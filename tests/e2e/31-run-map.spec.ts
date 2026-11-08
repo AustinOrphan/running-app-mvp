@@ -35,12 +35,19 @@ function tileSvg(z: number, x: number, y: number): string {
 }
 
 /** Answers the tile server from the page and records every outside request. */
-async function mockTiles(page: Page): Promise<{ tiles: string[]; outside: string[] }> {
-  const seen = { tiles: [] as string[], outside: [] as string[] }
+async function mockTiles(
+  page: Page,
+): Promise<{ tiles: string[]; outside: string[]; referers: Array<string | undefined> }> {
+  const seen = {
+    tiles: [] as string[],
+    outside: [] as string[],
+    referers: [] as Array<string | undefined>,
+  }
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url())
     if (url.hostname === TILE_HOST) {
       seen.tiles.push(url.pathname)
+      seen.referers.push(route.request().headers()['referer'])
       const m = /^\/(\d+)\/(\d+)\/(\d+)\.png$/.exec(url.pathname)
       if (m === null) return route.fulfill({ status: 404 })
       return route.fulfill({
@@ -165,6 +172,8 @@ test('the run map: tiles through the CSP, the route, hidden ends, the chart dot,
 
   // every viewport and both themes: no sideways scroll, the height asked for, the route in view
   const passes = [
+    { width: 320, height: 700, scheme: 'light', mapPx: 240 },
+    { width: 320, height: 700, scheme: 'dark', mapPx: 240 },
     { width: 360, height: 780, scheme: 'light', mapPx: 240 },
     { width: 390, height: 844, scheme: 'dark', mapPx: 240 },
     { width: 768, height: 1024, scheme: 'light', mapPx: 320 },
@@ -192,6 +201,16 @@ test('the run map: tiles through the CSP, the route, hidden ends, the chart dot,
     expect(line.x + line.width).toBeLessThanOrEqual(frameBox.x + frameBox.width + 1)
     expect(line.y).toBeGreaterThanOrEqual(frameBox.y - 1)
     expect(line.y + line.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1)
+    // the chips do not overlap each other, and the route does not run under either
+    const scaleBox = (await map.locator('[data-scale]').boundingBox())!
+    const creditBox = (await map.getByRole('link', { name: /OpenStreetMap/ }).boundingBox())!
+    const apart =
+      scaleBox.x + scaleBox.width <= creditBox.x ||
+      creditBox.x + creditBox.width <= scaleBox.x ||
+      scaleBox.y + scaleBox.height <= creditBox.y ||
+      creditBox.y + creditBox.height <= scaleBox.y
+    expect(apart, `chips overlap at ${String(pass.width)}`).toBe(true)
+    expect(line.y + line.height).toBeLessThanOrEqual(Math.min(scaleBox.y, creditBox.y))
     if (SHOTS_DIR !== undefined) {
       mkdirSync(SHOTS_DIR, { recursive: true })
       await map.scrollIntoViewIfNeeded()
@@ -239,4 +258,12 @@ test('the run map: tiles through the CSP, the route, hidden ends, the chart dot,
   }
   await page.goto('/settings')
   await page.getByRole('checkbox', { name: 'Map tiles' }).check()
+
+  // the whole run, not only its first load: no other host was asked, no policy blocked anything,
+  // and every tile request carried the app's origin as its referer (the tile policy needs one)
+  expect(seen.outside).toEqual([])
+  expect(violations).toEqual([])
+  expect(seen.referers.length).toBeGreaterThan(0)
+  const origin = new URL(baseURL ?? '').origin
+  for (const referer of seen.referers) expect(referer).toBe(`${origin}/`)
 })
