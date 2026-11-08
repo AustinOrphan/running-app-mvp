@@ -23,6 +23,7 @@ import { importsRouter } from './routes/imports.ts'
 import { ingestRouter } from './routes/ingest.ts'
 import { integrationsRouter } from './routes/integrations.ts'
 import { jobsRouter } from './routes/jobs.ts'
+import { pacesRouter } from './routes/paces.ts'
 import { planRouter } from './routes/plan.ts'
 import { predictionsRouter } from './routes/predictions.ts'
 import { profileRouter } from './routes/profile.ts'
@@ -156,6 +157,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/today', todayRouter(deps))
   app.use('/api/checkins', checkinsRouter(deps))
   app.use('/api/zones', zonesRouter(deps))
+  app.use('/api/paces', pacesRouter(deps))
   app.use('/api/predictions', predictionsRouter(deps))
   app.use('/api/screenings', screeningsRouter(deps))
   app.use('/api/research', researchRouter(deps))

@@ -538,10 +538,21 @@ test('the next load rises one step after a session at the top of the range with 
   for (const name of progressing) {
     await expect(rowOf(next, name)).toContainText('Suggested 45 lb')
   }
-  // both lifts moved the same way, so the card says so once under its subtitle, not on each row
-  await expect(next.getByText('Up one step')).toHaveCount(1)
-  await expect(next.getByRole('listitem').getByText('Up one step')).toHaveCount(0)
   const after = await nextStrengthWorkout(api)
+  // Which calf raise the next session holds depends on where the plan puts its sessions in the week
+  // (A takes the standing one, B the seated one), so it depends on the weekday. A seated raise has no
+  // history and starts at its own load, with no word. Every loaded lift moving the same way is said
+  // once under the subtitle; otherwise each lift that moved says it on its own row.
+  const loaded = after.lifts.filter((lift) => lift.loadG !== null)
+  if (loaded.every((lift) => lift.change === 'increase')) {
+    await expect(next.getByText('Up one step')).toHaveCount(1)
+    await expect(next.getByRole('listitem').getByText('Up one step')).toHaveCount(0)
+  } else {
+    await expect(next.getByText('Up one step')).toHaveCount(progressing.length)
+    for (const name of progressing) {
+      await expect(rowOf(next, name).getByText('Up one step')).toHaveCount(1)
+    }
+  }
   expect(after.sessionId).not.toBe(first.sessionId)
   for (const id of ['goblet-squat', 'dumbbell-rdl']) {
     expect(after.lifts.find((candidate) => candidate.exerciseId === id)).toMatchObject({

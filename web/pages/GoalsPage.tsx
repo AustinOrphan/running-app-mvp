@@ -1,4 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { fieldErrors } from '../api/client.ts'
 import { rulesRef } from '../api/explain.ts'
 import {
@@ -618,6 +621,9 @@ function GoalOutlook({ goal, hasResult }: { goal: Goal; hasResult: boolean }) {
               rules={prediction.rules}
               explain={{ subject: 'prediction', goalId: goal.id }}
             />
+            <div>
+              <Link to="/paces">{render(TEMPLATES['paces.link.from-goal'], {}, 'km')}</Link>
+            </div>
           </>
         ) : (
           <p className={styles.note}>

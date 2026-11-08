@@ -73,6 +73,8 @@ export const ACTIVITY_DATA_KEYS = [
   keys.today,
   keys.plan,
   keys.predictions,
+  // My paces: the heart-rate line, critical speed and the race anchors all read the activities.
+  keys.paces,
   keys.state,
   keys.stats,
   // The strength readers: a deleted activity takes its log with it, and a log's sessions, weeks and

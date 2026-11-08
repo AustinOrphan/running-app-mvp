@@ -13,6 +13,7 @@ import { GoalsPage } from './pages/GoalsPage.tsx'
 import { IntegrationsPage } from './pages/IntegrationsPage.tsx'
 import { LoginPage } from './pages/LoginPage.tsx'
 import { MorePage } from './pages/MorePage.tsx'
+import { MyPacesPage } from './pages/MyPacesPage.tsx'
 import { PlanPage } from './pages/PlanPage.tsx'
 import { ProfilePage } from './pages/ProfilePage.tsx'
 import { ResearchPage } from './pages/ResearchPage.tsx'
@@ -79,6 +80,7 @@ export function App() {
           <Route path="/brief" element={<BriefPage />} />
           <Route path="/brief/:weekStart" element={<BriefPage />} />
           <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/paces" element={<MyPacesPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/trends" element={<TrendsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
