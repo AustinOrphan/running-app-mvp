@@ -210,7 +210,10 @@ its build runs `prisma migrate deploy` as a smoke test.
   `loadRacePlan` (`server/services/racePlan.ts`, memo `race.plan`), so the Race page, the Today slot `race`
   and the race-day block of the session sheet render one object. The plan reads no forecast (the race heat
   is the `ClimateCache` normal), states no pace, split or rate above a tolerated rung, and is not on the
-  watch, the feed or the brief (`racePlanIsolation.test.ts`). `FUEL_KINDS.race` stays false.
+  watch, the feed or the brief (`racePlanIsolation.test.ts`). `FUEL_KINDS.race` stays false. The plan also carries the rehearsal count (`rehearsalFor`,
+  `shared/engine/rehearsal.ts`, the night runs by the sun at the home place from `shared/domain/sun.ts`
+  and the downhill time from the terrain bins), read from `context.activities` only, shown on the Race
+  page alone and worded as plain counts with no target.
   The checkpoints come from the runner or from a course GPX read in the browser
   (`shared/importers/files/course.ts` through `web/components/race/courseImport.ts`, loaded on the
   first file chosen): only the confirmed rows are sent, so no track is stored. The race card

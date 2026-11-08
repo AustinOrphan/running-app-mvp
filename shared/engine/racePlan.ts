@@ -13,7 +13,7 @@
 //
 // Pure: no clock, no I/O. `today` and the weather arrive as data. Every number comes from `P`.
 import { addDays, daysBetween } from '../dates.ts'
-import type { RangeLabel, SupportLevel } from '../types.ts'
+import type { Activity, RangeLabel, SupportLevel } from '../types.ts'
 import { eahCard, isHotForFuel, raceFuelFor, type RaceFuel } from './fuel.ts'
 import { startMinutes } from './goal.ts'
 import { isHotForSteering } from './heat.ts'
@@ -21,6 +21,7 @@ import { shakeOutFor } from './micro.ts'
 import { P } from './params/index.ts'
 import { rangeLabel } from './predict.ts'
 import { clockAt, type RaceClock } from './raceClock.ts'
+import { rehearsalFor, type RaceRehearsal } from './rehearsal.ts'
 import { splitsFor, type CheckpointInput, type RaceSplits } from './raceSplits.ts'
 import type { GoalModel, LadderResult, Prediction } from './types.ts'
 
@@ -51,6 +52,11 @@ export interface RacePlanInput {
   acclimationCredit: number
   /** The runner's own course points for the goal (`RaceCheckpoint`); empty when there are none. */
   checkpoints: readonly CheckpointInput[]
+  /**
+   * The runs the rehearsal count reads (the snapshot's history window) and the home place. Absent:
+   * the plan carries no rehearsal.
+   */
+  history?: { activities: readonly Activity[]; homeLat: number | null; homeLng: number | null }
   /** The server's day. */
   today: string
 }
@@ -187,6 +193,11 @@ export interface RacePlan {
   heat: RaceHeat
   /** Null when the race does not cross darkness (D1). */
   dark: RaceDark | null
+  /**
+   * What the runner's recent runs hold of the night and downhill preparation the plan asks for (H6,
+   * H5); null without history or when the plan asks for neither.
+   */
+  rehearsal: RaceRehearsal | null
   /** Arrival ranges for the runner's checkpoints and the finish; null without any row. */
   splits: RaceSplits | null
   notices: RaceNotice[]
@@ -379,6 +390,20 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
       }
     : null
 
+  const rehearsal =
+    input.history === undefined
+      ? null
+      : rehearsalFor({
+          activities: input.history.activities,
+          homeLat: input.history.homeLat,
+          homeLng: input.history.homeLng,
+          today: input.today,
+          night: dark !== null,
+          downhill:
+            goal.distanceM > 0 &&
+            goal.lossM / (goal.distanceM / 1000) >= P.h12.hillyDescentMPerKm.value,
+        })
+
   const shakeOut = shakeOutFor(goal.date, expected.midSec / SEC_PER_MIN)
   const [carbLow, carbHigh] = P.k6.carbLoadGPerKgDay.value
   const finalHours = [...P.k6.carbLoadFinalHours.value] as [number, number]
@@ -423,6 +448,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
     ['H7', 'H8', 'H9'],
     heat.rules,
     dark?.rules ?? [],
+    rehearsal?.rules ?? [],
     raceWeek?.rules ?? [],
     splits?.rules ?? [],
   ]
@@ -444,6 +470,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
     raceWeek,
     heat,
     dark,
+    rehearsal,
     splits,
     notices,
     rules: [...new Set(['H14', ...blocks.flat()])],

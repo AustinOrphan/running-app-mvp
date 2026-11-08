@@ -54,6 +54,11 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
     weightKg: context.profile.weightKg,
     acclimationCredit: context.state.heatAcclimation,
     checkpoints,
+    history: {
+      activities: context.activities,
+      homeLat: context.profile.homeLat,
+      homeLng: context.profile.homeLng,
+    },
     today,
   })
   return { plan, reason: null }

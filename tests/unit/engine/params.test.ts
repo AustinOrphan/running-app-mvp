@@ -41,7 +41,7 @@ function isDocumentedRule(rule: string): boolean {
 
 describe('parameter registry', () => {
   it('has a dated version', () => {
-    expect(PARAMS_VERSION).toBe('2026-11-07.7')
+    expect(PARAMS_VERSION).toBe('2026-11-07.8')
   })
 
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
@@ -346,13 +346,19 @@ describe('parameter registry', () => {
     expect(lintText(text)).toEqual([])
   })
 
-  it('carries the race plan of rule H14 as five labelled defaults, read by the plan', () => {
+  it('carries the race plan of rule H14 as eleven labelled defaults, read by the plan', () => {
     const r1 = [
       P.r1.thirds,
       P.r1.arrivalRoundMin,
       P.r1.raceWeekCardDays,
       P.r1.maxCheckpoints,
       P.r1.unenteredClimbShare,
+      P.r1.rehearsalWindowWeeks,
+      P.r1.darkSunAltitudeDeg,
+      P.r1.nightRunMinDarkMin,
+      P.r1.longRunMin,
+      P.r1.descentBandMaxPct,
+      P.r1.sustainedDescentMin,
     ]
     expect(r1.map((p) => [p.id, p.value, p.unit, p.grade, p.rule, p.evidence])).toEqual([
       ['r1.thirds', 3, 'parts', 'D', 'H14', []],
@@ -360,6 +366,12 @@ describe('parameter registry', () => {
       ['r1.raceWeekCardDays', 7, 'days', 'D', 'H14', []],
       ['r1.maxCheckpoints', 40, 'rows', 'D', 'H14', []],
       ['r1.unenteredClimbShare', 1, 'fraction', 'D', 'H14', []],
+      ['r1.rehearsalWindowWeeks', 12, 'weeks', 'D', 'H14', []],
+      ['r1.darkSunAltitudeDeg', -6, 'degrees', 'D', 'H14', []],
+      ['r1.nightRunMinDarkMin', 10, 'min', 'D', 'H14', []],
+      ['r1.longRunMin', 90, 'min', 'D', 'H14', []],
+      ['r1.descentBandMaxPct', -6, '% grade', 'D', 'H14', []],
+      ['r1.sustainedDescentMin', 10, 'min', 'D', 'H14', []],
     ])
     for (const p of r1) {
       expect(p.note, p.id).toMatch(/^Default:/)
@@ -379,6 +391,12 @@ describe('parameter registry', () => {
       'r1.raceWeekCardDays',
       'r1.maxCheckpoints',
       'r1.unenteredClimbShare',
+      'r1.rehearsalWindowWeeks',
+      'r1.darkSunAltitudeDeg',
+      'r1.nightRunMinDarkMin',
+      'r1.longRunMin',
+      'r1.descentBandMaxPct',
+      'r1.sustainedDescentMin',
     ]) {
       expect(text, id).toContain(`\`${id}\``)
     }
