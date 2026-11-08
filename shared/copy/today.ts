@@ -161,6 +161,12 @@ export const TODAY_TEMPLATES = {
   ),
   // The control that clears such a notice when nothing the runner does next clears it by itself
   // (a strength log refused on replay, design 9.6).
+  // The same, for a write whose refusal is worth quoting (a run or a rating): `reason` is the
+  // server's own sentence.
+  'today.outbox.dropped-why': tpl(
+    'A {what} saved on this phone was not added. {reason} Enter it again if it still applies.',
+    { what: 'text', reason: 'text' },
+  ),
   'today.outbox.dismiss': tpl('Dismiss', {}, { shape: 'label' }),
 
   // A sheet whose code could not be loaded (no connection and no copy kept, or a release replaced
@@ -213,12 +219,24 @@ export const TODAY_TEMPLATES = {
   'today.done.planned-time': tpl('Planned: {duration}. Change anything that differs.', {
     duration: 'minutes',
   }),
-  'today.done.offline': tpl('Needs a connection. Your entries stay on this phone.'),
+  'today.done.offline': tpl(
+    'No connection. Save keeps this on the phone and sends it when you are back online.',
+  ),
   'today.done.saved-run': tpl('Run saved', {}, { shape: 'label' }),
   'today.done.saved-session': tpl('Session saved', {}, { shape: 'label' }),
   // The toast's one action: the page of the entry just saved.
   'today.done.see-run': tpl('See the run', {}, { shape: 'label' }),
   'today.done.see-session': tpl('See the session', {}, { shape: 'label' }),
+  // The server's answer when the session was already marked done (another phone, or a sync).
+  'today.done.already-logged': tpl(
+    'This session already has a run logged, so the one from this phone was not added.',
+  ),
+  // Shown on Today while a Done waits in the outbox, and as the toast when it is queued.
+  'today.done.queued': tpl('Saved on this phone. It goes up when you are back online.'),
+  // The toast when a queued write reaches the server.
+  'today.done.sent-later': tpl('The run saved on this phone has gone up.'),
+  'today.rate.sent-later': tpl('The rating saved on this phone has gone up.'),
+  'today.rate.queued': tpl('Rating saved on this phone. It goes up when you are back online.'),
   'today.done.not-saved': tpl('Not saved. {reason} Your entries are still here; try again.', {
     reason: 'text',
   }),

@@ -6,7 +6,10 @@ import { loadProfile } from '../serialize.ts'
 import { createLogger } from '../logger.ts'
 import { markDuplicates } from './duplicates.ts'
 import { runExecutionForActivity, runExecutionQuietly } from './execution.ts'
-import { linkPlanSession } from './planEngine.ts'
+import { assertLinkable, linkPlanSession } from './planEngine.ts'
+import { conflict, notFound } from '../errors.ts'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
 import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
@@ -237,6 +240,8 @@ export interface ManualActivityOptions {
    * (`assertLinkable`).
    */
   sessionId?: string
+  /** The id the row is stored under, when the client chose it (`saveDoneActivity`). */
+  id?: string
 }
 
 /**
@@ -253,7 +258,13 @@ export async function createManualActivity(
   opts: ManualActivityOptions = {},
 ): Promise<ActivityRow> {
   const { prisma } = deps
-  const data = { ...input, userId, source: 'manual', duplicateStatus: 'none' }
+  const data = {
+    ...input,
+    ...(opts.id === undefined ? {} : { id: opts.id }),
+    userId,
+    source: 'manual',
+    duplicateStatus: 'none',
+  }
   const { within } = opts
   const created = within
     ? await prisma.$transaction(async (tx) => {
@@ -269,6 +280,76 @@ export async function createManualActivity(
     await linkPlanSession(deps, { userId, sessionId: opts.sessionId, activityId: created.id })
   }
   return prisma.activity.findFirstOrThrow({ where: { id: created.id, userId } })
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'
+}
+
+/** What `saveDoneActivity` did: `created` is false for a repeat of an id already stored. */
+export interface SavedDoneActivity {
+  activity: ActivityRow
+  created: boolean
+}
+
+/**
+ * The idempotent create behind "Done" (ADR 0012, the queued writes): the client chooses the
+ * activity's id, so a send that is repeated after a lost answer, or replayed by the outbox, is the
+ * same write and stores one activity. A repeat returns the stored row and changes nothing, so it
+ * never undoes an edit made since. An id held by another runner is as good as unknown (404).
+ *
+ * `sessionId` is the session the runner marked done. When that session already has an activity
+ * (done on another device, or matched from a sync) the write is refused with 409 and nothing is
+ * stored. A session the plan no longer holds is not an error: the run is kept and the matcher ties
+ * it to the plan as for any other, so a run logged at a trailhead is never lost to a re-plan.
+ */
+export async function saveDoneActivity(
+  deps: Deps,
+  userId: string,
+  activityId: string,
+  input: ManualActivityInput,
+  sessionId?: string,
+): Promise<SavedDoneActivity> {
+  const { prisma } = deps
+  const repeat = async (): Promise<SavedDoneActivity | null> => {
+    const existing = await prisma.activity.findUnique({ where: { id: activityId } })
+    if (!existing) return null
+    if (existing.userId !== userId) throw notFound('Activity not found.')
+    return { activity: existing, created: false }
+  }
+  const already = await repeat()
+  if (already) return already
+
+  let linkTo: string | undefined
+  if (sessionId !== undefined) {
+    const session = await prisma.planSession.findFirst({
+      where: { id: sessionId, plan: { userId, status: 'active' } },
+    })
+    if (session) {
+      if (session.activityId !== null) {
+        throw conflict(render(TEMPLATES['today.done.already-logged'], {}, 'mi'), { sessionId })
+      }
+      await assertLinkable(deps, session, {
+        id: null,
+        type: input.type,
+        subtype: input.subtype ?? null,
+      })
+      linkTo = session.id
+    }
+  }
+  try {
+    const activity = await createManualActivity(deps, userId, input, {
+      id: activityId,
+      ...(linkTo === undefined ? {} : { sessionId: linkTo }),
+    })
+    return { activity, created: true }
+  } catch (error) {
+    // Two sends of one id at once: the loser hit the winner's row, and is a repeat.
+    if (!isUniqueViolation(error)) throw error
+    const winner = await repeat()
+    if (winner) return winner
+    throw error
+  }
 }
 
 const WELLNESS_FIELDS = [

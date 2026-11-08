@@ -1,10 +1,10 @@
 import { gunzipSync } from 'node:zlib'
-import { Router } from 'express'
+import { Router, type RequestHandler } from 'express'
 import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
-import { createManualActivity } from '../services/activityStore.ts'
+import { createManualActivity, saveDoneActivity } from '../services/activityStore.ts'
 import {
   moveConfirmedLogs,
   rematchDuplicates,
@@ -121,6 +121,14 @@ const feedbackSchema = z.strictObject({
   pain: optionalKeepInt(0, 10),
 })
 
+/** The id the client chose for a Done: a UUID, as the outbox's route pattern reads it. */
+const doneIdParam = z.object({
+  activityId: z.string().regex(/^[\w-]{8,64}$/, 'Use an id of 8 to 64 letters, digits, - or _.'),
+})
+
+/** A Done is an activity plus the session it marks done. */
+const doneSchema = activitySchema.extend({ sessionId: z.string().min(1).max(64).optional() })
+
 const FILE_TYPES: Record<string, string> = {
   fit: 'application/octet-stream',
   gpx: 'application/gpx+xml',
@@ -233,6 +241,15 @@ export function activitiesRouter(deps: Deps): Router {
     res.status(201).json(toActivity(await createManualActivity(deps, req.userId, body)))
   })
 
+  // Registered before /:id. `PUT` of a client-chosen id is the idempotent create the outbox queues
+  // (ADR 0012): a repeat of the id answers 200 with the stored activity and writes nothing.
+  router.put('/done/:activityId', async (req, res) => {
+    const { activityId } = parse(doneIdParam, req.params)
+    const { sessionId, ...body } = parse(doneSchema, req.body)
+    const saved = await saveDoneActivity(deps, req.userId, activityId, body, sessionId)
+    res.status(saved.created ? 201 : 200).json(toActivity(saved.activity))
+  })
+
   router.get('/:id', async (req, res) => {
     res.json(toActivity(await findOwned(req.userId, idParam(req.params.id))))
   })
@@ -277,7 +294,9 @@ export function activitiesRouter(deps: Deps): Router {
       .send(bytes)
   })
 
-  router.patch('/:id/feedback', async (req, res) => {
+  // PATCH and PUT are the same write: a rating stores the keys it names and nothing else, so a
+  // repeat changes nothing. The outbox queues the PUT.
+  const saveFeedback: RequestHandler = async (req, res) => {
     const id = idParam(req.params.id)
     await findOwned(req.userId, id)
     const body = parse(feedbackSchema, req.body)
@@ -285,7 +304,9 @@ export function activitiesRouter(deps: Deps): Router {
     // A new rating changes the assessment of the session this activity fulfils.
     await runExecutionQuietly(deps, { userId: req.userId, activityId: id })
     res.json(toActivity(await findOwned(req.userId, id)))
-  })
+  }
+  router.patch('/:id/feedback', saveFeedback)
+  router.put('/:id/feedback', saveFeedback)
 
   router.put('/:id', async (req, res) => {
     const id = idParam(req.params.id)
