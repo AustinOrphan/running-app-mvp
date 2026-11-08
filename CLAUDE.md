@@ -200,6 +200,12 @@ its build runs `prisma migrate deploy` as a smoke test.
   and the race-day block of the session sheet render one object. The plan reads no forecast (the race heat
   is the `ClimateCache` normal), states no pace, split or rate above a tolerated rung, and is not on the
   watch, the feed or the brief (`racePlanIsolation.test.ts`). `FUEL_KINDS.race` stays false.
+  The checkpoints come from the runner or from a course GPX read in the browser
+  (`shared/importers/files/course.ts` through `web/components/race/courseImport.ts`, loaded on the
+  first file chosen): only the confirmed rows are sent, so no track is stored. The race card
+  (`?view=card`, `describeRaceCard`) is a view of the same rows, kept offline as the sixth read of
+  ADR 0012; its crew notes are `race-crew:` keys in `web/pwa/drafts.ts`, on the device only, and
+  `RaceCard.module.css` holds the print layout.
 - `Sheet` (`web/components/Sheet.tsx`) is stack-aware: only the topmost open sheet answers Tab and
   Escape, and the ones under it are `inert`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are

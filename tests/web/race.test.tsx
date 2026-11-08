@@ -692,3 +692,155 @@ describe('RacePage: Import course GPX', () => {
     expect(calls.filter((c) => c.method === 'PUT')).toEqual([])
   })
 })
+
+// ---------------------------------------------------------------------------------------------
+// The race card
+// ---------------------------------------------------------------------------------------------
+
+describe('RacePage: the race card', () => {
+  const CARD_POINTS: CheckpointInput[] = [
+    { name: 'Station A', distanceM: 50_000, gainM: 1200, lossM: 300, cutoffSec: 9 * HOUR },
+    { name: 'Station B', distanceM: 110_000, gainM: null, lossM: null, cutoffSec: null },
+  ]
+
+  function open(plan: RacePlan, route = '/race?view=card') {
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    return renderWithProviders(<RacePage />, { route })
+  }
+
+  test('has one block for the start, each checkpoint and the finish, with the facts of the leg ahead', async () => {
+    const { container } = open(planWith({}, 'aided', CARD_POINTS))
+    const list = await screen.findByRole('list', { name: 'Race card, one block for each stop' })
+    const blocks = within(list).getAllByRole('article')
+    expect(blocks.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Start',
+      'Station A',
+      'Station B',
+      'Finish',
+    ])
+    expect(within(blocks[0]!).getByText('Start 06:00')).toBeVisible()
+    expect(within(blocks[0]!).getByText('Next: Station A, 50 km on.')).toBeVisible()
+    expect(
+      within(blocks[0]!).getByText(/^Fuel for this leg: about \d+( to \d+)? g of carbohydrate\.$/),
+    ).toBeVisible()
+    expect(within(blocks[0]!).getByText('Climb on this leg: 1200 m, as entered.')).toBeVisible()
+    const a = blocks[1]!
+    expect(within(a).getByText(/^About \d\d:\d\d/)).toBeVisible()
+    expect(within(a).getByText('Cutoff 15:00')).toBeVisible()
+    expect(within(a).getByText('Cutoff 9 h into the race')).toBeVisible()
+    expect(within(blocks[3]!).queryByText(/^Next:|^Fuel for/)).toBeNull()
+    expectCleanCopy(container)
+    // no pace, no split, no rate
+    expect(container.textContent).not.toMatch(/\bpace\b|\bsplit|g\/h|per hour/i)
+  })
+
+  test('names the headlamp on a block the plan holds as outside daylight', async () => {
+    const plan = planWith({}, 'aided', CARD_POINTS)
+    open(plan)
+    const dark = plan.splits!.rows.some((row) => row.night === true)
+    expect(dark).toBe(true)
+    expect(
+      (await screen.findAllByText(/^Headlamp: this arrival is outside daylight\./)).length,
+    ).toBe(plan.splits!.rows.filter((row) => row.night === true).length)
+  })
+
+  test('says what to do when the plan has no checkpoints', async () => {
+    open(planWith())
+    expect(await screen.findByRole('heading', { level: 2, name: 'Race card' })).toBeVisible()
+    expect(screen.getByText(/Add checkpoints, or import the course/)).toBeVisible()
+    expect(screen.queryByRole('list', { name: /Race card, one block/ })).toBeNull()
+  })
+
+  test('is reached from the view switch, and the plan comes back from it', async () => {
+    const user = userEvent.setup()
+    open(planWith({}, 'aided', CARD_POINTS), '/race')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+    await user.click(screen.getByRole('radio', { name: 'Race card' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Race card' })).toBeVisible()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Expected time' })).toBeNull()
+    await user.click(screen.getByRole('radio', { name: 'Plan' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+  })
+
+  test('keeps a crew note on the phone, shows it again, and removes it when it is cleared', async () => {
+    const user = userEvent.setup()
+    const plan = planWith({}, 'aided', CARD_POINTS)
+    const first = open(plan)
+    const field = await screen.findByRole('textbox', { name: 'Crew note for Station A' })
+    await user.type(field, 'Drop bag, spare socks')
+    expect(window.localStorage.getItem('race-crew:goal-1:point-50000')).toBe(
+      'Drop bag, spare socks',
+    )
+    // nothing is sent: no write went to the server
+    first.unmount()
+    open(plan)
+    expect(await screen.findByRole('textbox', { name: 'Crew note for Station A' })).toHaveValue(
+      'Drop bag, spare socks',
+    )
+    await user.clear(screen.getByRole('textbox', { name: 'Crew note for Station A' }))
+    expect(window.localStorage.getItem('race-crew:goal-1:point-50000')).toBeNull()
+  })
+
+  test('puts the note in the printed card as text, with the field left to the screen', async () => {
+    window.localStorage.setItem('race-crew:goal-1:point-50000', 'Meet at the red tent')
+    open(planWith({}, 'aided', CARD_POINTS))
+    const block = await screen.findByRole('article', { name: 'Station A' })
+    const printed = within(block).getByText('Crew note:').closest('p')
+    expect(printed).toHaveTextContent('Crew note: Meet at the red tent')
+    expect(within(block).getByRole('textbox', { name: 'Crew note for Station A' })).toHaveValue(
+      'Meet at the red tent',
+    )
+  })
+
+  test('says so when the browser will not keep a note', async () => {
+    const user = userEvent.setup()
+    open(planWith({}, 'aided', CARD_POINTS))
+    const field = await screen.findByRole('textbox', { name: 'Crew note for Station A' })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Full.', 'QuotaExceededError')
+    })
+    await user.type(field, 'x')
+    expect(await screen.findByText('This browser would not keep the note.')).toBeVisible()
+  })
+
+  test('marks the page for the print rules while it is on screen, and only then', async () => {
+    const view = open(planWith({}, 'aided', CARD_POINTS))
+    await screen.findByRole('heading', { level: 2, name: 'Race card' })
+    expect(document.documentElement.dataset['print']).toBe('race-card')
+    view.unmount()
+    expect(document.documentElement.dataset['print']).toBeUndefined()
+  })
+
+  test('prints from its button', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => undefined)
+    const user = userEvent.setup()
+    open(planWith({}, 'aided', CARD_POINTS))
+    await user.click(await screen.findByRole('button', { name: 'Print the card' }))
+    expect(print).toHaveBeenCalledTimes(1)
+  })
+
+  test('lists no fuel for a self-supported race', async () => {
+    open(planWith({}, 'self', CARD_POINTS))
+    expect(await screen.findByText(/You carry everything on this course/)).toBeVisible()
+    expect(screen.queryByText(/^Fuel for this leg/)).toBeNull()
+  })
+
+  test("reads from the phone's copy with no signal", async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    mockApi({
+      'GET /api/race/plan': () => ({
+        plan: planWith({}, 'aided', CARD_POINTS),
+        reason: null,
+        servedFromCache: true,
+        savedAt: '2026-03-18T05:12:00.000Z',
+      }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race?view=card' })
+    expect(await screen.findByRole('article', { name: 'Station A' })).toBeVisible()
+    expect(screen.getByText(/^Offline\. Showing the race plan saved/)).toBeVisible()
+  })
+})

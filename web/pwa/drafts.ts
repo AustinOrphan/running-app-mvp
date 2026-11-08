@@ -25,6 +25,16 @@ export const STRENGTH_DRAFT_PREFIX = 'strength-draft:'
  */
 export const STRENGTH_PROMPT_PREFIX = 'strength-prompt:'
 
+/**
+ * The crew note of one stop on the race card: `race-crew:<goal id>:<point>`. Free text the runner
+ * wrote for the people at an aid station. It stays on the device (the server never sees it) and goes
+ * with the drafts when a session ends, so by `purgeDeviceData()` too.
+ */
+export const RACE_CREW_PREFIX = 'race-crew:'
+
+/** The longest crew note, in characters. */
+export const RACE_CREW_NOTE_MAX = 500
+
 const COUNT_QUIET_KEY = `${STRENGTH_PROMPT_PREFIX}count-not-now`
 
 const DRAFT_PREFIXES = [
@@ -32,6 +42,7 @@ const DRAFT_PREFIXES = [
   FUEL_DRAFT_PREFIX,
   STRENGTH_DRAFT_PREFIX,
   STRENGTH_PROMPT_PREFIX,
+  RACE_CREW_PREFIX,
 ]
 
 /**
@@ -56,6 +67,30 @@ export function readCountNotNow(): string | null {
 export function writeCountNotNow(day: string): boolean {
   try {
     window.localStorage.setItem(COUNT_QUIET_KEY, day)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** The crew note under `id` (`<goal id>:<point>`), or an empty one: none yet, or storage is blocked. */
+export function readCrewNote(id: string): string {
+  try {
+    return window.localStorage.getItem(`${RACE_CREW_PREFIX}${id}`) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Keeps the crew note under `id`, or removes the key for an empty one, and says whether it did:
+ * false when storage is blocked or full, so the page can say the note will not be there next time.
+ */
+export function writeCrewNote(id: string, text: string): boolean {
+  try {
+    const key = `${RACE_CREW_PREFIX}${id}`
+    if (text === '') window.localStorage.removeItem(key)
+    else window.localStorage.setItem(key, text.slice(0, RACE_CREW_NOTE_MAX))
     return true
   } catch {
     return false

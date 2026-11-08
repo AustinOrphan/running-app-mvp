@@ -14,6 +14,7 @@ import {
   DONE_DRAFT_PREFIX,
   FUEL_DRAFT_PREFIX,
   purgeDrafts,
+  RACE_CREW_PREFIX,
   STRENGTH_DRAFT_PREFIX,
   STRENGTH_PROMPT_PREFIX,
   writeCountNotNow,
@@ -47,8 +48,8 @@ async function queuedOutbox() {
 }
 
 /**
- * What a day of use leaves in local storage: the three drafts, the answer to the strength count
- * question, and two keys that are not data.
+ * What a day of use leaves in local storage: the three drafts, a crew note of the race card, the
+ * answer to the strength count question, and two keys that are not data.
  */
 function seedDevice(): void {
   window.localStorage.clear()
@@ -60,6 +61,7 @@ function seedDevice(): void {
     '{"minutes":"40"}',
   )
   writeCountNotNow('2026-03-18')
+  window.localStorage.setItem(`${RACE_CREW_PREFIX}goal-1:point-50000`, 'Drop bag at the tent')
   window.localStorage.setItem('rl_today_more', 'open')
   window.localStorage.setItem('theme', 'dark')
 }
@@ -71,7 +73,8 @@ function draftKeys(): string[] {
         key.startsWith(DONE_DRAFT_PREFIX) ||
         key.startsWith(FUEL_DRAFT_PREFIX) ||
         key.startsWith(STRENGTH_DRAFT_PREFIX) ||
-        key.startsWith(STRENGTH_PROMPT_PREFIX),
+        key.startsWith(STRENGTH_PROMPT_PREFIX) ||
+        key.startsWith(RACE_CREW_PREFIX),
     )
     .sort()
 }
@@ -82,7 +85,7 @@ function withClient(queryClient: QueryClient) {
 }
 
 describe('purging the drafts', () => {
-  test("removes the Done, fuel and strength drafts, and the strength question's answer, and nothing else", () => {
+  test("removes the Done, fuel and strength drafts, the crew notes, and the strength question's answer, and nothing else", () => {
     seedDevice()
     purgeDrafts()
     expect(draftKeys()).toEqual([])
@@ -178,7 +181,7 @@ describe('opening the app with a session that has ended', () => {
       expect(result.current.data).toEqual(user)
     })
     expect(outbox.getState().entries).toHaveLength(1)
-    expect(draftKeys()).toHaveLength(5)
+    expect(draftKeys()).toHaveLength(6)
   })
 
   test('a server that cannot answer is not an expired session: nothing is purged', async () => {
@@ -195,7 +198,7 @@ describe('opening the app with a session that has ended', () => {
       expect(result.current.isError).toBe(true)
     })
     expect(outbox.getState().entries).toHaveLength(1)
-    expect(draftKeys()).toHaveLength(5)
+    expect(draftKeys()).toHaveLength(6)
   })
 })
 

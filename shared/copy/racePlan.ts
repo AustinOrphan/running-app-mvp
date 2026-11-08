@@ -380,6 +380,56 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.points.err-clock': tpl('Enter a time of day that falls after the start.'),
   'race.plan.points.err-count': tpl('There is room for {n} points.', { n: 'count' }),
 
+  // ---- The race card -------------------------------------------------------------------------------
+  'race.plan.card.title': tpl('Race card', {}, { shape: 'label' }),
+  'race.plan.card.view': tpl('View', {}, { shape: 'label' }),
+  'race.plan.card.view-plan': tpl('Plan', {}, { shape: 'label' }),
+  'race.plan.card.print': tpl('Print the card', {}, { shape: 'label' }),
+  'race.plan.card.list': tpl('Race card, one block for each stop', {}, { shape: 'label' }),
+  'race.plan.card.intro': tpl(
+    'One block for each stop, to read at a glance or to print. The times are ranges from the plan: a sketch, not a promise.',
+  ),
+  'race.plan.card.empty': tpl(
+    'The race card has one block for each checkpoint. Add checkpoints, or import the course, to build it.',
+  ),
+  'race.plan.card.start': tpl('Start', {}, { shape: 'label' }),
+  'race.plan.card.start-at': tpl('Start {time}', { time: 'text' }, { shape: 'label' }),
+  'race.plan.card.next': tpl('Next: {name}, {distance} on.', {
+    name: 'text',
+    distance: 'distance',
+  }),
+  'race.plan.card.next-finish': tpl('Next: the finish, {distance} on.', { distance: 'distance' }),
+  'race.plan.card.fuel-at': tpl('Fuel for this leg: about {g} g of carbohydrate.', {
+    g: 'count',
+  }),
+  'race.plan.card.fuel': tpl('Fuel for this leg: about {low} to {high} g of carbohydrate.', {
+    low: 'count',
+    high: 'count',
+  }),
+  'race.plan.card.climb-entered': tpl('Climb on this leg: {climb}, as entered.', {
+    climb: 'climb',
+  }),
+  'race.plan.card.climb-shared': tpl(
+    'Climb on this leg: about {climb}, shared out from the course total.',
+    { climb: 'climb' },
+  ),
+  'race.plan.card.headlamp': tpl(
+    'Headlamp: this arrival is outside daylight. Dusk is {dusk} and dawn {dawn}.',
+    { dusk: 'text', dawn: 'text' },
+  ),
+  'race.plan.card.note-label': tpl('Crew note for {name}', { name: 'text' }, { shape: 'label' }),
+  'race.plan.card.note-hint': tpl(
+    'Kept on this phone only. It is not sent anywhere, and signing out clears it.',
+  ),
+  'race.plan.card.note-unsaved': tpl('This browser would not keep the note.'),
+  'race.plan.card.note-print': tpl('Crew note', {}, { shape: 'label' }),
+  'race.plan.card.estimate-note': tpl(
+    'Grams of carbohydrate are an estimate: the rate from the plan, over the time of each leg.',
+  ),
+  'race.plan.card.self-note': tpl(
+    'You carry everything on this course, so no fuel is listed for each leg.',
+  ),
+
   // ---- Checkpoints from a course file --------------------------------------------------------------
   'race.plan.course.import': tpl('Import course GPX', {}, { shape: 'label' }),
   'race.plan.course.file-label': tpl('Course GPX file', {}, { shape: 'label' }),
@@ -1108,6 +1158,148 @@ function pointRowText(row: SplitRow, units: Units): RacePointRowText {
     carry: carryText(row, units),
     cutoff,
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The words of the race card
+// ---------------------------------------------------------------------------------------------
+
+export interface RaceCardBlockText {
+  /** `start`, `point-<metres>` or `finish`: stable while the point stays where it is; the crew note's key. */
+  key: string
+  name: string
+  /** The distance from the start; null on the start block. */
+  distance: string | null
+  /** The arrival range (the start time on the start block); null when there is none to say. */
+  arrival: string | null
+  /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
+  cutoff: string[]
+  /** Said only where the plan holds that the arrival falls outside daylight. */
+  headlamp: string | null
+  /** The leg that starts here: where it goes and how far. Null on the finish block. */
+  next: string | null
+  fuel: string | null
+  climb: string | null
+  noteLabel: string
+}
+
+export interface RaceCardText {
+  heading: string
+  intro: string
+  print: string
+  /** The switch between the plan and the card. */
+  viewLabel: string
+  viewPlan: string
+  viewCard: string
+  list: string
+  /** The line for a plan with no checkpoint rows; the blocks are then empty. */
+  empty: string
+  blocks: RaceCardBlockText[]
+  notes: string[]
+  noteHint: string
+  noteUnsaved: string
+  /** The label a printed note carries in place of the field. */
+  notePrint: string
+}
+
+/** The grams of a leg, each end rounded; nothing when the rounded high end is 0. */
+function cardFuelText(leg: SplitRow, units: Units): string | null {
+  if (leg.carryG === null) return null
+  const low = roundTo(leg.carryG[0], RACE_CARB_ROUND_G)
+  const high = roundTo(leg.carryG[1], RACE_CARB_ROUND_G)
+  if (high <= 0) return null
+  if (low === high) return say(T['race.plan.card.fuel-at'], { g: count(high) }, units)
+  return say(T['race.plan.card.fuel'], { low: count(low), high: count(high) }, units)
+}
+
+/** The climb of a leg as it will be printed: a climb that rounds to 0 says nothing. */
+function cardClimbText(leg: SplitRow, units: Units): string | null {
+  const m = roundTo(leg.gainM, leg.gainEntered ? 1 : 10)
+  if (m <= 0) return null
+  return say(
+    leg.gainEntered ? T['race.plan.card.climb-entered'] : T['race.plan.card.climb-shared'],
+    { climb: { kind: 'climb', m } },
+    units,
+  )
+}
+
+/**
+ * The race card: one block for the start, each checkpoint and the finish, from the same rows as the
+ * table (`plan.splits`), so a card cannot say what the table does not. What a block says about the
+ * leg ahead (the distance, the carbohydrate, the climb) is read from the next row, whose segment it
+ * is. The fuel is the plan's own (`raceFuelFor`, through the rate the rows were made with), so a card
+ * never states a rate above the tolerated rung, and no block states a pace or a split (ADR 0018).
+ */
+export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
+  const self = plan.supportLevel === 'self'
+  const splits = plan.splits
+  const base = {
+    heading: say(T['race.plan.card.title'], {}, units),
+    intro: say(T['race.plan.card.intro'], {}, units),
+    print: say(T['race.plan.card.print'], {}, units),
+    viewLabel: say(T['race.plan.card.view'], {}, units),
+    viewPlan: say(T['race.plan.card.view-plan'], {}, units),
+    viewCard: say(T['race.plan.card.title'], {}, units),
+    list: say(T['race.plan.card.list'], {}, units),
+    empty: say(T['race.plan.card.empty'], {}, units),
+    noteHint: say(T['race.plan.card.note-hint'], {}, units),
+    noteUnsaved: say(T['race.plan.card.note-unsaved'], {}, units),
+    notePrint: say(T['race.plan.card.note-print'], {}, units),
+  }
+  if (splits === null) return { ...base, blocks: [], notes: [] }
+
+  const dark = plan.dark
+  const label = (name: string) => say(T['race.plan.card.note-label'], { name }, units)
+  const leg = (to: SplitRow | undefined) => {
+    if (to === undefined) return { next: null, fuel: null, climb: null }
+    const distance = { kind: 'distance', m: to.segmentM } as const
+    return {
+      next: to.finish
+        ? say(T['race.plan.card.next-finish'], { distance }, units)
+        : say(T['race.plan.card.next'], { name: to.name ?? '', distance }, units),
+      fuel: cardFuelText(to, units),
+      climb: cardClimbText(to, units),
+    }
+  }
+
+  const startName = say(T['race.plan.card.start'], {}, units)
+  const start = plan.expected.start
+  const blocks: RaceCardBlockText[] = [
+    {
+      key: 'start',
+      name: startName,
+      distance: null,
+      arrival: start === null ? null : say(T['race.plan.card.start-at'], { time: start }, units),
+      cutoff: [],
+      headlamp: null,
+      ...leg(splits.rows[0]),
+      noteLabel: label(startName),
+    },
+    ...splits.rows.map((row, index): RaceCardBlockText => {
+      const point = pointRowText(row, units)
+      return {
+        key: row.finish ? 'finish' : `point-${String(row.distanceM)}`,
+        name: point.name,
+        distance: point.distance,
+        arrival: point.arrival,
+        cutoff: point.cutoff,
+        headlamp:
+          row.night === true && dark !== null
+            ? say(T['race.plan.card.headlamp'], { dusk: dark.dusk, dawn: dark.dawn }, units)
+            : null,
+        ...leg(splits.rows[index + 1]),
+        noteLabel: label(point.name),
+      }
+    }),
+  ]
+
+  const notes: string[] = []
+  if (self) notes.push(say(T['race.plan.card.self-note'], {}, units))
+  else if (splits.rows.some((row) => row.carryG !== null)) {
+    notes.push(say(T['race.plan.card.estimate-note'], {}, units))
+  }
+  notes.push(say(T['race.plan.points.late'], {}, units))
+  return { ...base, blocks, notes }
 }
 
 /** The labels, hints and refusals of the checkpoint editor sheet. */

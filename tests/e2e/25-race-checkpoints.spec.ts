@@ -253,3 +253,61 @@ test('a file that is not a course says so and opens nothing', async () => {
   await expect(page.getByRole('alert')).toContainText('That file could not be read as a course')
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
+
+test('the race card prints on one or two pages, black on white, with no navigation, in either theme', async () => {
+  await api.put('/race/checkpoints', {
+    checkpoints: Array.from({ length: 24 }, (_unused, i) => ({
+      name: `Station ${String(i + 1)}`,
+      distanceM: (i + 1) * 6000,
+      gainM: 150 + i,
+      lossM: 120,
+      cutoffSec: (i + 2) * 3600,
+    })),
+  })
+  await page.goto('/race?view=card')
+  const list = page.getByRole('list', { name: 'Race card, one block for each stop' })
+  await expect(list.getByRole('article')).toHaveCount(26)
+  await list
+    .getByRole('textbox', { name: 'Crew note for Station 3' })
+    .fill('Crew parks at the lower lot and walks up')
+  expect(await scrollsSideways()).toBe(false)
+
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ media: 'print', colorScheme: scheme })
+    // no navigation, and the page is black on white whatever the theme
+    await expect(page.getByRole('navigation')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Skip to content' })).toBeHidden()
+    const colours = await page.evaluate(() => {
+      const block = document.querySelector('article')
+      return {
+        page: getComputedStyle(document.body).backgroundColor,
+        text: block === null ? '' : getComputedStyle(block).color,
+        border: block === null ? '' : getComputedStyle(block).borderTopColor,
+      }
+    })
+    expect(colours).toEqual({
+      page: 'rgb(255, 255, 255)',
+      text: 'rgb(0, 0, 0)',
+      border: 'rgb(0, 0, 0)',
+    })
+    // the note prints as text and the field stays on the screen
+    await expect(page.getByText('Crew note:')).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Crew note for Station 3' })).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Print the card' })).toBeHidden()
+    await expect(page.getByRole('radio', { name: 'Race card' })).toBeHidden()
+
+    for (const format of ['A4', 'Letter'] as const) {
+      const pdf = await page.pdf({ format, printBackground: true })
+      const pages = pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length ?? 0
+      expect(pages, `${format} in ${scheme}`).toBeGreaterThanOrEqual(1)
+      expect(pages, `${format} in ${scheme}`).toBeLessThanOrEqual(2)
+    }
+  }
+  await page.emulateMedia({ media: null, colorScheme: null })
+  // the screen is as it was
+  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
+  await api.put('/race/checkpoints', { checkpoints: [] })
+  await page.evaluate(() => {
+    window.localStorage.clear()
+  })
+})

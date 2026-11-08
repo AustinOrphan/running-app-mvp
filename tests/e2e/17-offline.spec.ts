@@ -51,6 +51,13 @@ function kept(name: string): Promise<string[]> {
   }, name)
 }
 
+/** The keys of the race card's crew notes in the page's local storage. */
+function crewKeys(): Promise<string[]> {
+  return page.evaluate(() =>
+    Object.keys(window.localStorage).filter((key) => key.startsWith('race-crew:')),
+  )
+}
+
 /** Waits until the worker controls the page and has filled its cache for offline use. */
 async function waitForKeptAnswers(): Promise<void> {
   const { today } = relativeDates()
@@ -382,6 +389,12 @@ test("the race plan opens with no connection from the phone's copy, and says whe
   })) as { id: string }
   await api.post(`/goals/${goal.id}/activate`)
   await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 0 })
+  await api.put('/race/checkpoints', {
+    checkpoints: [
+      { name: 'Station A', distanceM: 50_000, gainM: 1200, lossM: 300, cutoffSec: 9 * 3600 },
+      { name: 'Station B', distanceM: 110_000, gainM: null, lossM: null, cutoffSec: null },
+    ],
+  })
 
   await page.goto('/race')
   await expect(page.getByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
@@ -413,7 +426,32 @@ test("the race plan opens with no connection from the phone's copy, and says whe
   })
   await dialog.getByRole('button', { name: 'Close' }).click()
 
+  // The race card opens from the same copy, and a crew note is kept on the phone alone.
+  await page.getByRole('radio', { name: 'Race card' }).click()
+  await expect(page).toHaveURL(/\/race\?view=card$/)
+  const list = page.getByRole('list', { name: 'Race card, one block for each stop' })
+  await expect(list.getByRole('article')).toHaveCount(4)
+  const stationA = list.getByRole('article', { name: 'Station A' })
+  await expect(stationA.getByText('Cutoff 9 h into the race')).toBeVisible()
+  await expect(stationA.getByText(/^Fuel for this leg: about /)).toBeVisible()
+  await stationA
+    .getByRole('textbox', { name: 'Crew note for Station A' })
+    .fill('Drop bag at the tent')
+  await page.reload()
+  await expect(
+    page
+      .getByRole('article', { name: 'Station A' })
+      .getByRole('textbox', { name: 'Crew note for Station A' }),
+  ).toHaveValue('Drop bag at the tent')
+  expect(await crewKeys()).toHaveLength(1)
+
   await page.context().setOffline(false)
   await expect(page.getByText(/^Offline\./)).toBeHidden()
   await expect(page.getByText(/days to go/)).toBeVisible()
+
+  // Signing out takes the note with the rest of what the device kept.
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page).toHaveURL(/\/login$/)
+  await expect.poll(() => crewKeys()).toEqual([])
 })

@@ -1,0 +1,240 @@
+/* The race card: one block for each stop, in one column on a phone and two on a wide screen. The
+   screen layout reads like the checkpoint table; the print layout at the end is black on white with
+   no navigation, two columns, and no block split across a page. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  max-width: var(--page-max);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+
+.card > * {
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.text {
+  margin: 0;
+  max-width: var(--prose-max);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.note {
+  margin: 0;
+  max-width: var(--prose-max);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.blocks {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .blocks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.item {
+  min-width: 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: 100%;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: 600;
+}
+
+.muted,
+.line {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.noteField {
+  margin-top: var(--space-2);
+}
+
+/* The printed note: nothing on the screen, where the field above shows it. */
+.notePrint {
+  display: none;
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notePrintLabel {
+  font-weight: 600;
+}
+
+@media print {
+  /* Paper is black on white in either theme: the tokens are set again for this page, at a
+     specificity above the dark theme's. Only while the card is on screen (`RaceCard.tsx` sets the
+     attribute), so printing any other page is unchanged. */
+  :global(html:root[data-print='race-card']) {
+    color-scheme: light;
+    --surface: #fff;
+    --surface-raised: #fff;
+    --surface-sunken: #fff;
+    --text: #000;
+    --text-muted: #000;
+    --border: #000;
+    --border-strong: #000;
+    --accent: #000;
+  }
+
+  :global(html[data-print='race-card']) :global(body) {
+    background: #fff;
+    color: #000;
+  }
+
+  /* No navigation, skip link or page chrome. */
+  :global(html[data-print='race-card']) :global(nav),
+  :global(html[data-print='race-card']) :global(a[href='#main']) {
+    display: none !important;
+  }
+
+  :global(html[data-print='race-card']) :global(main) {
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* The page's own title is one small line; the card is the page. */
+  :global(html[data-print='race-card']) :global(h1) {
+    font-size: 14pt;
+    line-height: 1.2;
+  }
+
+  :global(html[data-print='race-card']) :global(header) :global(p) {
+    margin: 0;
+    font-size: 9pt;
+    line-height: 1.2;
+  }
+
+  .noPrint,
+  .noteField {
+    display: none !important;
+  }
+
+  .notePrint {
+    display: block;
+    margin: 1pt 0 0;
+  }
+
+  .card {
+    gap: 3pt;
+    padding: 0;
+    border-top: 0;
+    max-width: none;
+    color: #000;
+  }
+
+  .heading {
+    font-size: 13pt;
+  }
+
+  .note {
+    max-width: none;
+    font-size: 8pt;
+    line-height: 1.2;
+  }
+
+  .blocks {
+    display: block;
+    column-count: 2;
+    column-gap: 10pt;
+  }
+
+  .item {
+    break-inside: avoid;
+    margin-bottom: 4pt;
+  }
+
+  .block {
+    height: auto;
+    gap: 0;
+    padding: 3pt 5pt;
+    border: 1px solid #000;
+    border-radius: 0;
+  }
+
+  .name {
+    font-size: 10pt;
+    line-height: 1.2;
+  }
+
+  .lead {
+    font-size: 9.5pt;
+    line-height: 1.2;
+  }
+
+  .muted,
+  .line,
+  .notePrint {
+    font-size: 8.5pt;
+    line-height: 1.2;
+  }
+}
+
+@page {
+  margin: 10mm;
+}
