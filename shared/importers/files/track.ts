@@ -161,7 +161,7 @@ function walkedLength(points: ReadonlyArray<{ lat: number; lng: number }>): numb
  * `TRACK_MAX_SPEED_MPS` while the speed across it does not (an end is judged against its one
  * neighbour pair). Needs a time on every point; without them the points are returned as they are.
  */
-function dropJumps(points: RoutePoint[]): RoutePoint[] {
+function dropJumps<T extends RoutePoint>(points: T[]): T[] {
   const n = points.length
   if (n < 3 || points.some((p) => typeof p.t !== 'number' || !Number.isFinite(p.t))) return points
   const fast = (a: number, b: number): boolean => {
@@ -175,6 +175,15 @@ function dropJumps(points: RoutePoint[]): RoutePoint[] {
     if (i === n - 1) return !(fast(n - 2, n - 1) && !fast(n - 3, n - 2))
     return !(fast(i - 1, i) && fast(i, i + 1) && !fast(i - 1, i + 1))
   })
+}
+
+/**
+ * The fixes of a route that may be trusted, in order: positions on the globe (not 0,0), without a
+ * single fix that jumps away and back. The one rule the track and an activity's own distance
+ * share, so the two agree. Returns the same objects, so a caller can match them by identity.
+ */
+export function usableFixes<T extends RoutePoint>(route: ReadonlyArray<T>): T[] {
+  return dropJumps(route.filter((p) => validPosition(p.lat, p.lng)))
 }
 
 /**
@@ -218,7 +227,7 @@ function cumulativeDistance(device: ReadonlyArray<number | null>, walked: number
  * still above `TRACK_MAX_POINTS` is simplified again with a tolerance 1.5 times wider until it fits.
  */
 export function buildTrack(route: ReadonlyArray<RoutePoint>): Track | null {
-  const valid = dropJumps(route.filter((p) => validPosition(p.lat, p.lng)))
+  const valid = usableFixes(route)
   if (valid.length < 2) return null
 
   let prevLng = valid[0]!.lng

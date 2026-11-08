@@ -1,6 +1,6 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser'
 import type { ParsedActivity } from '../../types.ts'
-import { validPosition } from './track.ts'
+import { usableFixes, validPosition } from './track.ts'
 import {
   classifySport,
   elevationGainLoss,
@@ -146,10 +146,21 @@ export function parseGpx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const foot = isFootActivity(sport.type, sport.subtype)
     const cadenceScale = foot ? 2 : 1
 
+    // Distance walks only the fixes the track also trusts (on the globe, not 0,0, no lone jump), so
+    // one bad fix cannot add thousands of kilometres and the activity and its track agree.
+    const usable = new Set<Point>(
+      usableFixes(
+        points.flatMap((p) =>
+          p.lat !== null && p.lng !== null
+            ? [{ lat: p.lat, lng: p.lng, d: null, t: (p.ms - first.ms) / 1000, point: p }]
+            : [],
+        ),
+      ).map((fix) => fix.point),
+    )
     let distance: number | null = null
     let previous: Point | null = null
     const raw: RawPoint[] = points.map((p) => {
-      if (p.lat !== null && p.lng !== null) {
+      if (p.lat !== null && p.lng !== null && usable.has(p)) {
         if (previous?.lat != null && previous.lng != null) {
           distance = (distance ?? 0) + haversineM(previous.lat, previous.lng, p.lat, p.lng)
         } else if (distance === null) {

@@ -325,4 +325,46 @@ describe('track robustness', () => {
     const cut = trimTrackEnds(track, 200)!
     expect(cut.bbox.maxLng).toBeGreaterThan(180)
   })
+
+  test('a GPX with a null-island or out-of-range fix keeps the true distance', () => {
+    const gpxOf = (bad: (i: number) => [number, number] | null) => {
+      const pts = Array.from({ length: 300 }, (_, i) => {
+        const [lat, lng] = bad(i) ?? [40 + i * 0.0001, -100]
+        return `<trkpt lat="${lat}" lon="${lng}"><time>2026-01-05T07:0${Math.floor(i / 60)}:${String(i % 60).padStart(2, '0')}Z</time></trkpt>`
+      })
+      return new TextEncoder().encode(
+        `<?xml version="1.0"?><gpx version="1.1" creator="x"><trk><trkseg>${pts.join('')}</trkseg></trk></gpx>`,
+      )
+    }
+    const clean = parseActivityFile(
+      'a.gpx',
+      gpxOf(() => null),
+      OPTS,
+    )[0]!
+    const trueDistance = 299 * haversineM(40, -100, 40.0001, -100)
+    expect(clean.distanceM).toBe(Math.round(trueDistance))
+
+    const nullIsland = parseActivityFile(
+      'b.gpx',
+      gpxOf((i) => (i === 150 ? [0, 0] : null)),
+      OPTS,
+    )[0]!
+    expect(nullIsland.distanceM).toBe(Math.round(trueDistance))
+    expect(Math.max(...nullIsland.samples.d!)).toBeLessThan(trueDistance + 50)
+
+    const outOfRange = parseActivityFile(
+      'c.gpx',
+      gpxOf((i) => (i === 80 ? [95, 200] : null)),
+      OPTS,
+    )[0]!
+    expect(outOfRange.distanceM).toBe(Math.round(trueDistance))
+
+    // A lone jump that is on the globe but not a runner is skipped too, where times exist.
+    const jump = parseActivityFile(
+      'd.gpx',
+      gpxOf((i) => (i === 100 ? [41, -99] : null)),
+      OPTS,
+    )[0]!
+    expect(jump.distanceM).toBeLessThan(trueDistance + 50)
+  })
 })
