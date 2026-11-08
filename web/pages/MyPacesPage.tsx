@@ -24,7 +24,7 @@ const JUMPS = [
 /**
  * My paces (rule C9, ADR 0020): the easy pace, the zones as the runner trains by them and what they
  * can run now at the standard distances and at one of their own, and their speed on each grade
- * (rule I13, display only), all derived on the server from the
+ * (rule I13), all derived on the server from the
  * runner's own runs and stored nowhere. The page only lays out what `GET /api/paces` and
  * `GET /api/zones` send; the words are `shared/copy/myPaces.ts`.
  */

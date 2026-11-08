@@ -4,6 +4,7 @@ import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, AthleteProfile, WeekRow } from '../types.ts'
 import { injuryReports } from './disruption.ts'
+import { personalClimbOf } from './gradeCurve.ts'
 import { isHeatExposure } from './heat.ts'
 import { countsTowardReference } from './limits.ts'
 import {
@@ -644,6 +645,7 @@ export function estimateState(input: EngineInput): AthleteState {
     fitness: fitnessOf(runs, input, today),
     efficiency: efficiencyIndex(acts, today),
     durability: durabilityOf(runs),
+    climb: personalClimbOf(acts, today),
     history,
     risk: riskOf(input, weeks, age, lastRunDate, yearsRunning),
     lowFrequency: lowFrequencyOf(runs, today, Math.max(typicalWeekMin, recentWeekMin)),

@@ -12,18 +12,23 @@
 // Heat and a climb are shown as one example each: the heat-steering WBGT (`i9.warnWbgtC`) through
 // the line's own heat term, and `c9.exampleGradePct` through the cost of the grade (rule I11), or,
 // when the runner's own curve passes its test for the band that holds that grade, through their own
-// speed ratio there (rule I13; display only, the predictions below do not read it).
+// speed ratio there (rule I13; display only, the easy pace is the same whatever the climb example).
 //
-// Predictions are `predictFromState`, unchanged: no goal, no race-day weather, the courses of the
-// caller. The grade of a method is the lowest among the Params it reads.
+// Predictions are `predictFromState`: no goal, no race-day weather, the courses of the caller. A
+// course with gain also reads the runner's own climbing a little (rule L5, `EventRow.ownClimb`). The grade of a method is the lowest among the Params it reads.
 import type { Activity } from '../types.ts'
 import { heatExcessC, hrModelSample, type HrModel } from './execution.ts'
-import { gradeCurve, type BandReason, type GradeBand, type GradeCurve } from './gradeCurve.ts'
-import { isDuplicate } from './load.ts'
+import {
+  curveRunsOf,
+  gradeCurve,
+  type BandReason,
+  type GradeBand,
+  type GradeCurve,
+} from './gradeCurve.ts'
 import { P } from './params/index.ts'
 import { anchorRaceFor, predictFromState, rangeLabel } from './predict.ts'
 import { gradeAdjustedSpeed } from './terrain.ts'
-import type { AthleteState, Grade, Param, Prediction, ZoneSet } from './types.ts'
+import type { AthleteState, ClimbBlend, Grade, Param, Prediction, ZoneSet } from './types.ts'
 
 const M_PER_KM = 1000
 const PERCENT = 100
@@ -121,6 +126,8 @@ export interface EventRow extends EventSpec {
   singleSource: boolean
   /** Climb counted as flat distance (rule L5). */
   climbs: boolean
+  /** Set when the runner's own climbing moved the time (rule L5, I13). */
+  ownClimb: ClimbBlend | null
   rules: string[]
 }
 
@@ -193,13 +200,6 @@ function climbOf(range: PaceBand, curve: GradeCurve): EasyPace['climb'] {
     reason: band?.reason ?? 'untested',
     bandIndex: band?.index ?? null,
   }
-}
-
-/** The runs the curve reads: runs (not races) that are not flagged duplicates. */
-function curveRuns(activities: readonly Activity[]) {
-  return activities
-    .filter((a) => a.type === 'run' && !isDuplicate(a))
-    .map((a) => ({ id: a.id, date: a.date, bins: a.terrainBins }))
 }
 
 /** The top of Z1, the ceiling a heart-rate easy pace answers to; null without a heart-rate zone. */
@@ -380,6 +380,9 @@ const METHOD_PARAMS: Record<string, ReadonlyArray<Param<unknown>>> = {
 const SINGLE_SOURCE_PARAMS = [P.l3.singleSourceWideningPct, P.l3.minSources]
 const CLIMB_PARAMS = [
   P.l5.gainEquivalentM,
+  P.l5.personalBlendFaster,
+  P.l5.personalBlendSlower,
+  P.l5.personalBlendMaxShiftPct,
   P.l5.trailIntervalWideningPct,
   P.l5.gainWideningPctPerMPerKm,
 ]
@@ -397,6 +400,7 @@ function rowOf(spec: EventSpec, state: AthleteState, prediction: Prediction | nu
       wide: label.wide,
       singleSource: false,
       climbs: spec.gainM > 0,
+      ownClimb: null,
       rules: label.rules,
     }
   }
@@ -435,6 +439,7 @@ function rowOf(spec: EventSpec, state: AthleteState, prediction: Prediction | nu
     wide: label.wide,
     singleSource: prediction.rules.includes('L3'),
     climbs: spec.gainM > 0,
+    ownClimb: prediction.climb ?? null,
     rules: prediction.rules,
   }
 }
@@ -457,7 +462,7 @@ export function eventRow(state: AthleteState, spec: EventSpec): EventRow {
 export function myPaces(input: MyPacesInput, events: readonly EventSpec[]): MyPaces {
   const { state, zones, today } = input
   const sample = hrModelSample(input.activities, today)
-  const terrain = gradeCurve(curveRuns(input.activities), today)
+  const terrain = gradeCurve(curveRunsOf(input.activities), today)
   const fromLine = hrBasedPace(input, terrain, sample)
   const pace = fromLine.pace ?? zoneBasedPace(zones, terrain)
   return {

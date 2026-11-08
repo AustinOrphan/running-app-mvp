@@ -5,6 +5,7 @@ import type { EventRow } from '../../../shared/engine/myPaces.ts'
 import type { Units } from '../../../shared/types.ts'
 import { formatDistance } from '../../../shared/units.ts'
 import { GradeBadge } from '../GradeBadge.tsx'
+import { signedMinutes } from '../../../shared/engine/predict.ts'
 import { paceParts, timeText } from './format.ts'
 import styles from './Paces.module.css'
 import { paceRangeText } from '../zoneFormat.ts'
@@ -80,6 +81,18 @@ export function EventCard({ row, units }: { row: EventRow; units: Units }) {
             <p className={styles.note}>{pacesText('paces.event.single')}</p>
           ) : null}
           {row.climbs ? <p className={styles.note}>{pacesText('paces.event.climb')}</p> : null}
+          {row.ownClimb === null ? null : (
+            <p className={styles.note}>
+              {render(
+                T['paces.event.climb-own'],
+                {
+                  runs: { kind: 'count', n: row.ownClimb.runs },
+                  shift: signedMinutes(row.ownClimb.shiftSec),
+                },
+                units,
+              )}
+            </p>
+          )}
           {row.wide ? <p className={styles.note}>{pacesText('paces.event.wide')}</p> : null}
         </>
       )}

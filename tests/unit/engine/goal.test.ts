@@ -167,6 +167,19 @@ beforeEach(() => {
 })
 
 describe('distanceClassOf [D1]', () => {
+  it('keeps the plan on the default climb allowance whatever the state holds of the own climbing (L5)', () => {
+    const goal = makeGoal({ distanceM: 160934, gainM: 5000, surface: 'trail' })
+    const state = makeState({ csMps: 3.3 })
+    const plain = goalModel(goal, state, null)
+    const own = goalModel(goal, { ...state, climb: { ratio: 0.6, runs: 30 } }, null)
+    expect(own).toEqual(plain)
+    // The pages' prediction does read it.
+    const target = { distanceM: 160934, gainM: 5000, surface: 'trail' as const, wbgtC: null }
+    expect(
+      predictFromState({ ...state, climb: { ratio: 0.6, runs: 30 } }, target)!.predictedSec,
+    ).toBeLessThan(predictFromState(state, target)!.predictedSec)
+  })
+
   it('classes the usual race distances', () => {
     expect(distanceClassOf(5000)).toBe('5k')
     expect(distanceClassOf(10000)).toBe('10k')
