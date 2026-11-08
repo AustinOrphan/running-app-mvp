@@ -134,7 +134,8 @@ describe('Plan page: the day cards', () => {
     renderPlan()
     await user.click(await screen.findByRole('button', { name: /Steady long run/ }))
     const sheet = await screen.findByRole('dialog', { name: 'Steady long run' })
-    expect(await within(sheet).findByText('about 16 km at your easy pace')).toBeInTheDocument()
+    const figure = await within(sheet).findByText('about 16 km')
+    expect(figure.nextElementSibling).toHaveTextContent('At your easy pace')
   })
 
   test('read a plan answer without the field as no estimate', async () => {
