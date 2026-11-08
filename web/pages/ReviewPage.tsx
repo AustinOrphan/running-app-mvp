@@ -49,6 +49,8 @@ import { Field, Input, Textarea } from '../components/Field.tsx'
 import { Meter } from '../components/Meter.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { combineQueries, useLoadView } from '../components/loadView.ts'
 import { Skeleton } from '../components/Skeleton.tsx'
 import { ReviewCountPrompt, ReviewLifts } from '../components/strength/ReviewStrength.tsx'
 import { useToast } from '../components/Toast.tsx'
@@ -187,18 +189,23 @@ export function ReviewPage() {
   const weeks = useWeeks({ from, to: thisWeek })
   const plan = usePlan()
   const activities = useActivities({ from, to: addDays(thisWeek, 6) })
+  const loads = combineQueries([reviews, weeks, plan, activities])
+  const loadView = useLoadView(loads)
 
-  if (reviews.isError || weeks.isError || plan.isError || activities.isError) {
+  if (loadView === 'failed' || loadView === 'retrying') {
     return (
       <>
         <PageHeader title="Review" />
-        <p role="alert">
-          The review did not load. Check the connection and reload the page to try again.
-        </p>
+        <ErrorState subject="The review" onRetry={loads.retry} retrying={loadView === 'retrying'} />
       </>
     )
   }
-  if (reviews.isPending || weeks.isPending || plan.isPending || activities.isPending) {
+  if (
+    reviews.data === undefined ||
+    weeks.data === undefined ||
+    plan.data === undefined ||
+    activities.data === undefined
+  ) {
     return (
       <>
         <PageHeader title="Review" />

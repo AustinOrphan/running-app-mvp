@@ -5,7 +5,7 @@ import type { ResolvedTargets } from '../../shared/engine/types.ts'
 import type { TodayView } from '../../shared/types.ts'
 import { SessionTargets } from '../../web/components/today/SessionTargets.tsx'
 import { TodaySkeleton } from '../../web/components/today/TodaySkeleton.tsx'
-import { activityPage, expectCleanCopy } from './helpers.tsx'
+import { activityPage, delayResponses, expectCleanCopy } from './helpers.tsx'
 import {
   makeCoach,
   makeHeat,
@@ -65,16 +65,26 @@ describe('Today: the first screen', () => {
     )
   })
 
-  test('a failed payload says so and offers nothing else', async () => {
-    renderToday(dayOf(), {
-      'GET /api/today': () => ({
-        status: 500,
-        body: { error: { code: 'internal', message: 'Server error' } },
-      }),
+  test('a failed payload says so, and Try again reads it again and shows the hero', async () => {
+    const user = userEvent.setup()
+    let reads = 0
+    const { api } = renderToday(dayOf(), {
+      'GET /api/today': () =>
+        ++reads === 1
+          ? { status: 500, body: { error: { code: 'internal', message: 'Server error' } } }
+          : dayOf(),
     })
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Today did not load. Reload the page to try again.',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Today did not load.')
+    expect(screen.getByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument()
+    const retry = screen.getByRole('button', { name: 'Try again' })
+    delayResponses(100)
+    await user.click(retry)
+    // The button stays in place, focused and busy, while the read runs; then the hero replaces it.
+    expect(retry).toHaveFocus()
+    expect(retry).toHaveAttribute('aria-busy', 'true')
+    expect(await screen.findByRole('article', { name: 'Easy run' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(api.calls.filter((call) => call.url === '/api/today')).toHaveLength(2)
   })
 
   test('a failed refetch keeps the last payload on the page', async () => {

@@ -196,13 +196,49 @@ describe('Plan page, version-2 plans', () => {
     expect(within(warnings).getAllByRole('button', { name: 'Why this warning' })).toHaveLength(1)
     expect(within(warnings).getByText('Climbing above the 10% step in 3 weeks')).toBeInTheDocument()
     expect(within(warnings).queryByText(/2027-01/)).not.toBeInTheDocument()
-    await user.click(within(warnings).getByText('Show each one'))
+    // The line is one tap: it opens to the message of each week.
+    const line = within(warnings).getByRole('button', {
+      name: /Caution Climbing above the 10% step in 3 weeks/,
+    })
+    expect(line).toHaveAttribute('aria-expanded', 'false')
+    expect(within(warnings).queryByText(/week of 4 Jan/)).not.toBeInTheDocument()
+    await user.click(line)
+    expect(line).toHaveAttribute('aria-expanded', 'true')
     expect(
       within(warnings).getByText('Climbing in the week of 4 Jan is 700 m, above a 10% step.'),
     ).toBeInTheDocument()
     expect(
       within(warnings).getByText('Climbing in the week of 18 Jan is 900 m, above a 10% step.'),
     ).toBeInTheDocument()
+  })
+
+  test('prints one line per warning, the weightiest first, with the whole sentence in the page', async () => {
+    const note = {
+      code: 'a-note',
+      severity: 'info' as const,
+      message: 'A note about the plan that is long enough to run past one line on a narrow phone.',
+      rules: ['H4'],
+    }
+    const caution = {
+      ...note,
+      code: 'a-caution',
+      severity: 'warn' as const,
+      message: 'Caution text.',
+    }
+    const held = { ...note, code: 'a-hold', severity: 'hold' as const, message: 'Held text.' }
+    mockApi(routes(makeV2Plan({ warnings: [note, caution, held] })))
+    renderPlan()
+    const warnings = await screen.findByRole('region', { name: 'Warnings' })
+    const lines = within(warnings).getAllByRole('button', { name: /^(Held back|Caution|Note) / })
+    expect(lines.map((line) => line.textContent)).toEqual([
+      'Held back Held text.',
+      'Caution Caution text.',
+      `Note ${note.message}`,
+    ])
+    // Nothing is cut from the page: the long line is whole in the text, and no part is hidden.
+    expect(lines[2]).toHaveAccessibleName(`Note ${note.message}`)
+    expect(warnings.querySelector('[hidden], [aria-hidden="true"]')).toBeNull()
+    expect(within(warnings).getAllByRole('button', { name: 'Why this warning' })).toHaveLength(3)
   })
 
   test('shows engine text in feet and miles with the miles setting', async () => {

@@ -34,6 +34,10 @@ export const DISTANCE_ESTIMATE_TEMPLATES = {
   ),
   // A run with a pace target of its own, and a week: the figure alone.
   'estimate.about': tpl('about {distance}', { distance: 'distance' }, { shape: 'label' }),
+  // Under the figure of a session's distance in a label-over-value grid ("about 5 mi"): the pace its
+  // minutes were worked out at. A paced run has none, its figure stands alone.
+  'estimate.caption-easy': tpl('At your easy pace', {}, { shape: 'label' }),
+  'estimate.caption-recent': tpl('At your recent pace', {}, { shape: 'label' }),
   // The caption under the week strip's meter.
   'estimate.week-strip': tpl("The week's planned runs come to about {distance}.", {
     distance: 'distance',
@@ -75,6 +79,32 @@ export function estimateText(estimate: DistanceEstimate, units: Units): string {
       return render(DISTANCE_ESTIMATE_TEMPLATES['estimate.about-recent'], { distance }, units)
     case 'pace':
       return render(DISTANCE_ESTIMATE_TEMPLATES['estimate.about'], { distance }, units)
+  }
+}
+
+/**
+ * The estimate in two parts for a label-over-value grid: the figure ("about 5 mi") and, for a run
+ * worked out at a pace of the runner's, the caption that names it ("At your easy pace"). A run with
+ * a pace target of its own has no caption. Together they say what `estimateText` says in one line.
+ */
+export function estimateParts(
+  estimate: DistanceEstimate,
+  units: Units,
+): { figure: string; caption: string | null } {
+  const figure = estimateAboutText(estimate.distanceM, units)
+  switch (estimate.basis) {
+    case 'easy':
+      return {
+        figure,
+        caption: render(DISTANCE_ESTIMATE_TEMPLATES['estimate.caption-easy'], {}, units),
+      }
+    case 'recent':
+      return {
+        figure,
+        caption: render(DISTANCE_ESTIMATE_TEMPLATES['estimate.caption-recent'], {}, units),
+      }
+    case 'pace':
+      return { figure, caption: null }
   }
 }
 

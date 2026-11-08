@@ -1,4 +1,4 @@
-import { act, renderHook, screen, within } from '@testing-library/react'
+import { act, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -281,6 +281,50 @@ describe('DashboardPage: the layout', () => {
     expect(columns).toHaveAttribute('data-layout', 'two')
     // The same node, so an open sheet or a half-typed answer survives the resize.
     expect(screen.getByRole('article', { name: 'Long run' })).toBe(hero)
+  })
+})
+
+describe('DashboardPage: the rest-day layout', () => {
+  let media: ReturnType<typeof controlMedia>
+  beforeEach(startToday)
+  afterEach(() => {
+    media.restore()
+    vi.useRealTimers()
+  })
+
+  const columns = (container: HTMLElement) => container.querySelector('[data-layout]')
+  const dayOf = (hero: ReturnType<typeof makeHero>) =>
+    makeToday({ coach: makeCoach({ hero, weekStrip: makeStrip() }) })
+
+  test('a planned rest day puts the week under the Next line on a desktop', async () => {
+    media = controlMedia(true)
+    const { container } = renderToday(dayOf(makeHero({ session: makeSession({ kind: 'rest' }) })))
+    await waitFor(() => {
+      expect(columns(container)).toHaveAttribute('data-day', 'rest')
+    })
+  })
+
+  test('advice that turns to rest on a run day keeps the layout and the check-in row in place', async () => {
+    media = controlMedia(true)
+    let current = dayOf(makeHero({ advice: 'as-planned' }))
+    const { container, api } = renderToday(current, { 'GET /api/today': () => current })
+    const check = await screen.findByRole('button', { name: "Something hurts, or I'm ill" })
+    expect(columns(container)).not.toHaveAttribute('data-day')
+    check.focus()
+
+    // The payload read again after a check-in, with the advice turned to rest.
+    current = dayOf(makeHero({ advice: 'rest' }))
+    act(() => {
+      window.dispatchEvent(new Event('visibilitychange'))
+    })
+    await waitFor(() => {
+      expect(api.calls.filter((call) => call.url === '/api/today')).toHaveLength(2)
+    })
+    await screen.findByText(/rest day/i)
+    expect(columns(container)).not.toHaveAttribute('data-day')
+    // The same element, still focused: nothing was remounted.
+    expect(screen.getByRole('button', { name: "Something hurts, or I'm ill" })).toBe(check)
+    expect(check).toHaveFocus()
   })
 })
 

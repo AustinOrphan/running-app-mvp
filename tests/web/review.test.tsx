@@ -1502,3 +1502,29 @@ describe('the answers filled in from the week check-ins', () => {
     expect(screen.queryByRole('button', { name: 'Looks right' })).toBeNull()
   })
 })
+
+describe('ReviewPage: a failed load', () => {
+  test('says so, and Try again reads the reviews again and shows the week', async () => {
+    const user = userEvent.setup()
+    const base = routes()
+    let reads = 0
+    const api = renderReview(
+      {},
+      {
+        'GET /api/reviews': (request) =>
+          ++reads === 1
+            ? { status: 500, body: { error: { code: 'internal', message: 'Boom' } } }
+            : base['GET /api/reviews']!(request),
+      },
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('The review did not load.')
+    const retry = screen.getByRole('button', { name: 'Try again' })
+    delayResponses(100)
+    await user.click(retry)
+    expect(retry).toHaveFocus()
+    expect(retry).toHaveAttribute('aria-busy', 'true')
+    expect(await screen.findByText('Week of 12 Oct')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(api.calls.filter((call) => call.url.startsWith('/api/reviews'))).toHaveLength(2)
+  })
+})

@@ -36,3 +36,26 @@ export function useLoadView(query: LoadQuery): LoadView {
   }
   return loadViewOf(query, failed || query.isError)
 }
+
+/** A query a page waits on: what `loadViewOf` reads, and the call that reads it again. */
+export interface RetryableQuery extends LoadQuery {
+  refetch: () => unknown
+}
+
+/**
+ * Several reads that one page needs, as one `LoadQuery`: it has data only when every read has,
+ * failed when any has, and is fetching while any is. `retry` reads again only the reads that failed,
+ * so a page does not fetch what it already holds. A read that holds data counts as failed never.
+ */
+export function combineQueries(queries: readonly RetryableQuery[]): LoadQuery & {
+  retry: () => Promise<unknown>
+} {
+  // A read that holds data has not failed, whatever its background refetch did: data wins.
+  const failed = (query: RetryableQuery) => query.isError && query.data === undefined
+  return {
+    data: queries.every((query) => query.data !== undefined) ? true : undefined,
+    isError: queries.some(failed),
+    isFetching: queries.some((query) => query.isFetching),
+    retry: () => Promise.all(queries.filter(failed).map((query) => query.refetch())),
+  }
+}

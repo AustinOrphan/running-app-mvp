@@ -104,6 +104,15 @@
   line-height: var(--lh-lg);
 }
 
+/* Tomorrow's session under "Nothing is planned today": a small hero, set in the text colour so the
+   week strip that follows it on a desktop rest day reads as the page's next thing. */
+.nextLine {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
 /* The logged-run line is a link to the run; a 44 px row so a thumb finds it. */
 .runLink {
   display: inline-flex;

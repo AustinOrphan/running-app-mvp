@@ -72,7 +72,9 @@
   white-space: nowrap;
 }
 
-/* Week table: a two-line list on phones, a true table from 900px. */
+/* Week table: a short list of rows on a phone and a tablet, a true table once the page column is
+   wide enough for nine columns (1240px: the side rail takes 220px and the gutters 64px, which
+   leaves 956px, and the table needs about 940px at its narrowest). */
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -97,7 +99,8 @@
   grid-template-areas:
     'week phase target'
     'summary summary actual'
-    'focus focus edit';
+    'focus focus focus'
+    'edit edit edit';
   column-gap: var(--space-3);
   align-items: baseline;
   padding: var(--space-3) 0 var(--space-3) var(--space-3);
@@ -159,6 +162,8 @@
 .week {
   grid-area: week;
   font-weight: 600;
+  /* The date and "This week" stay on one line; the phase beside it wraps instead. */
+  white-space: nowrap;
 }
 
 /* "This week" beside the date of the current week, with the accent bar on the row's edge. */
@@ -258,9 +263,16 @@
 .edit {
   grid-area: edit;
   justify-self: end;
+  /* Days and Edit side by side, each a quiet button at the control height (48px). */
+  display: flex;
+  align-items: center;
 }
 
-@media (min-width: 900px) {
+.edit > * {
+  min-width: 2.75rem;
+}
+
+@media (min-width: 1240px) {
   .table thead {
     position: static;
     width: auto;
@@ -274,7 +286,7 @@
   }
 
   .table th {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2);
     text-align: left;
     font-size: var(--text-sm);
     font-weight: 600;
@@ -289,7 +301,7 @@
 
   .row td {
     display: table-cell;
-    padding: var(--space-3);
+    padding: var(--space-3) var(--space-2);
     vertical-align: baseline;
     border-top: inherit;
   }
@@ -317,7 +329,6 @@
   /* Figures never wrap ("4.3 / h"); the Focus column takes the slack. */
   .row .week,
   .row .target,
-  .row .actual,
   .row .number {
     white-space: nowrap;
   }
@@ -346,16 +357,24 @@
     text-align: left;
   }
 
-  .actual {
-    font-size: var(--text-base);
+  /* "0.7 of 1.4 h run" on a line of its own: the one column that may not give way to a long Focus. */
+  .row .actual {
+    min-width: 7.25rem;
   }
 
   .focus {
     font-size: var(--text-sm);
   }
 
-  .edit {
+  .row .edit {
+    display: table-cell;
+    white-space: nowrap;
     text-align: right;
+  }
+
+  .row .edit > * {
+    padding: 0 var(--space-2);
+    vertical-align: middle;
   }
 }
 
@@ -500,7 +519,7 @@
   content: '\2212';
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1240px) {
   .earlierRow {
     display: table-row;
   }
@@ -595,7 +614,7 @@ p.weekFiles {
   line-height: var(--lh-sm);
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1240px) {
   .daysRow {
     display: table-row;
   }
@@ -606,29 +625,80 @@ p.weekFiles {
   }
 }
 
-.warningText {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
+/* The warnings panel above the week table: one 44px line per warning, so the week row stays on the
+   first screen. The text is whole in the page and ends in an ellipsis; a tap opens the line. */
+.warnings {
+  padding-block: var(--space-3);
 }
 
-.warningDetails summary {
-  /* A 44 px row: the 22 px line of this size and 11 px above and below. */
-  padding-block: calc((2.75rem - var(--lh-sm)) / 2);
-  cursor: pointer;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
+.warnings .panelTitle {
+  margin-bottom: 0;
 }
 
-.items .warningDetails ul {
-  margin: var(--space-1) 0 0;
+.warningItems {
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.items .warningDetails li {
-  display: block;
+.warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-2);
+  max-width: var(--prose-max);
+}
+
+.warningToggle {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.warningToggle::after {
+  flex: none;
+  color: var(--accent);
+  content: '+';
+  font-weight: 600;
+}
+
+.warningToggle[aria-expanded='true']::after {
+  content: '\2212';
+}
+
+.warningLine {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warningToggle[aria-expanded='true'] .warningLine {
+  padding-block: var(--space-2);
+  overflow: visible;
+  white-space: normal;
+}
+
+.warningList {
+  flex-basis: 100%;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.warningList li {
   padding: var(--space-1) 0;
   color: var(--text-muted);
   font-size: var(--text-sm);
