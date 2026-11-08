@@ -7,6 +7,8 @@ import { useSettings } from '../api/settings.ts'
 import { checkinUrl } from '../api/checkins.ts'
 import { useServerToday } from '../api/today.ts'
 import buttonStyles from '../components/Button.module.css'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { combineQueries, useLoadView } from '../components/loadView.ts'
 import { briefLeads } from '../components/BriefLine.tsx'
 import { formatWeekdayDate } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -111,6 +113,8 @@ export function DashboardPage() {
   const outbox = useOutboxState()
   const phoneCopy = usePhoneCopy(todayView.data)
   const verdict = useRef<HTMLParagraphElement>(null)
+  const loads = combineQueries([todayView, settings])
+  const loadView = useLoadView(loads)
 
   // The check control asks the server for the connected services, so it joins the header only once
   // the first screen is on the page: the payload and the settings are the first screen's reads.
@@ -118,15 +122,13 @@ export function DashboardPage() {
     live ? <HeaderWithCheck context={context} /> : <TodayHeader context={context} />
 
   // A read that fails after one that worked (the midnight refetch with the connection down) keeps
-  // the last payload on the page; the error replaces the page only when there is nothing to show.
-  if (
-    (todayView.isError && todayView.data === undefined) ||
-    (settings.isError && settings.data === undefined)
-  ) {
+  // the last payload on the page, and so does the phone's saved copy: the error replaces the page
+  // only when there is nothing to show, and the same state stays through a retry.
+  if (loadView === 'failed' || loadView === 'retrying') {
     return (
       <>
         {header()}
-        <p role="alert">Today did not load. Reload the page to try again.</p>
+        <ErrorState subject="Today" onRetry={loads.retry} retrying={loadView === 'retrying'} />
       </>
     )
   }

@@ -16,6 +16,8 @@ import { fieldErrors } from '../api/client.ts'
 import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useDisruptions } from '../api/disruptions.ts'
 import { useGoals } from '../api/goals.ts'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { combineQueries, useLoadView } from '../components/loadView.ts'
 import { useProfile } from '../api/profile.ts'
 import {
   useGeneratePlan,
@@ -1575,6 +1577,8 @@ function PlanBanners({ windows }: { windows: DisruptionView[] }) {
 export function PlanPage() {
   const plan = usePlan()
   const goals = useGoals()
+  const loads = combineQueries([plan, goals])
+  const loadView = useLoadView(loads)
   const [regenerating, setRegenerating] = useState(false)
   const [openSessionId, setOpenSessionId] = useState<string | null>(null)
   const [why, setWhy] = useState<WhyTarget | null>(null)
@@ -1605,17 +1609,15 @@ export function PlanPage() {
           .map((line) => line.externalId),
   )
 
-  if (plan.isError || goals.isError) {
+  if (loadView === 'failed' || loadView === 'retrying') {
     return (
       <>
         <PageHeader title="Plan" />
-        <p role="alert" className={styles.error}>
-          The plan did not load. The server did not respond; reload the page to try again.
-        </p>
+        <ErrorState subject="The plan" onRetry={loads.retry} retrying={loadView === 'retrying'} />
       </>
     )
   }
-  if (plan.isPending || goals.isPending) {
+  if (plan.data === undefined || goals.data === undefined) {
     return (
       <>
         <PageHeader title="Plan" />

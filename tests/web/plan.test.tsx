@@ -15,7 +15,13 @@ import type {
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeWeekRow } from '../factories.ts'
 import { makeProfile } from './plan-fixtures.ts'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  delayResponses,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 import { wristRoutes } from './wrist-fixtures.ts'
 
 const settings: UserSettings = {
@@ -128,6 +134,9 @@ function routes(
     ...extra,
   }
 }
+
+/** The answer of a read that failed. */
+const FAILED = { status: 500, body: { error: { code: 'internal', message: 'Boom' } } }
 
 function row(weekStart: string): HTMLElement {
   const el = document.querySelector<HTMLElement>(`tr[data-week="${weekStart}"]`)
@@ -1000,5 +1009,27 @@ describe('Plan page, the plan shape on the Generate form', () => {
     const group = await screen.findByRole('radiogroup', { name: 'Plan shape' })
     await user.click(within(group).getByRole('radio', { name: 'A longer base' }))
     expect(within(group).queryByText(/Held at the plan's own shape/)).not.toBeInTheDocument()
+  })
+})
+
+describe('PlanPage: a failed load', () => {
+  test('says so, and Try again reads the plan again and shows it', async () => {
+    const user = userEvent.setup()
+    let reads = 0
+    const api = mockApi(
+      routes(makePlan(), { 'GET /api/plan': () => (++reads === 1 ? FAILED : makePlan()) }),
+    )
+    renderWithProviders(<PlanPage />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('The plan did not load.')
+    const retry = screen.getByRole('button', { name: 'Try again' })
+    delayResponses(100)
+    await user.click(retry)
+    expect(retry).toHaveFocus()
+    expect(retry).toHaveAttribute('aria-busy', 'true')
+    expect(await screen.findByText(/Spring half plan/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(api.calls.filter((call) => call.url === '/api/plan')).toHaveLength(2)
+    // The goals were read once: only the read that failed is read again.
+    expect(api.calls.filter((call) => call.url === '/api/goals')).toHaveLength(1)
   })
 })
