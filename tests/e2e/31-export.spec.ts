@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { unzipSync } from 'fflate'
 import { createPrisma } from '../../server/db.ts'
+import { verifyZip } from '../zipCrc.ts'
 import { RUNNER, resetData, signedInApi } from './helpers.ts'
 import { E2E_DATABASE_URL } from './env.ts'
 
@@ -47,10 +48,14 @@ test('Download all your data saves a ZIP with the runner records and no secret',
   await page.getByRole('button', { name: 'Download all your data' }).click()
   const download = await downloading
   expect(download.suggestedFilename()).toMatch(/^running-log-export-\d{4}-\d{2}-\d{2}\.zip$/)
-  await expect(page.getByText('Archive downloaded.')).toBeVisible()
+  await expect(page.getByText(/Your download has started/)).toBeVisible()
+  // The archive itself needs the one-time token the button fetched; a bare GET is refused.
+  expect((await page.request.get('/api/export')).status()).toBe(403)
 
   const path = await download.path()
   const bytes = readFileSync(path)
+  // Every entry's sizes and CRC-32 are recomputed here, not trusted.
+  verifyZip(bytes)
   const files = unzipSync(new Uint8Array(bytes))
   const text = (name: string) => Buffer.from(files[name] ?? new Uint8Array()).toString('utf8')
 

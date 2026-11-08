@@ -7,8 +7,8 @@ import { DEFAULT_WEIGHT_UNIT, isWeightUnit } from '../../shared/domain/weight.ts
 import type { Units, UserSettings, WeightUnit } from '../../shared/types.ts'
 import { useLogout } from '../api/auth.ts'
 import { useWaitingRecords } from '../api/activityOutbox.ts'
-import { ApiError, fieldErrors } from '../api/client.ts'
-import { useDownloadExport } from '../api/export.ts'
+import { fieldErrors } from '../api/client.ts'
+import { exportRefusal, useDownloadExport, type ExportRefusal } from '../api/export.ts'
 import { useSettings, useUpdateSettings, type SettingsPatch } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
@@ -30,6 +30,14 @@ const OFFLINE_USE = {
   unsupported: TEMPLATES['today.offline.use-unsupported'],
   refused: TEMPLATES['today.offline.use-refused'],
 } satisfies Record<OfflineStatus, (typeof TEMPLATES)['today.offline.use-ready']>
+
+/** The line under the export button for each kind of refusal. */
+const EXPORT_REFUSAL_COPY = {
+  running: TEMPLATES['export.running'],
+  rate: TEMPLATES['export.rate'],
+  'too-big': TEMPLATES['export.too-big'],
+  error: TEMPLATES['export.error'],
+} satisfies Record<ExportRefusal, (typeof TEMPLATES)['export.error']>
 
 /** The settings that save by themselves, each with its own rollback. */
 type SettingKey = 'units' | 'weightUnit' | 'showBodyWeight' | 'displayName'
@@ -345,20 +353,12 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             <p className={styles.note}>{render(TEMPLATES['export.busy'], {}, units)}</p>
           ) : null}
           {download.isSuccess ? (
-            <p className={styles.note}>{render(TEMPLATES['export.done'], {}, units)}</p>
+            <p className={styles.note}>{render(TEMPLATES['export.started'], {}, units)}</p>
           ) : null}
         </div>
         {download.isError ? (
           <p role="alert" className={styles.alert}>
-            {render(
-              TEMPLATES[
-                download.error instanceof ApiError && download.error.status === 429
-                  ? 'export.running'
-                  : 'export.error'
-              ],
-              {},
-              units,
-            )}
+            {render(EXPORT_REFUSAL_COPY[exportRefusal(download.error)], {}, units)}
           </p>
         ) : null}
         <p className={styles.note}>{render(OFFLINE_USE[offline], {}, units)}</p>

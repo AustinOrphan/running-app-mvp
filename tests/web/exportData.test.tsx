@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
@@ -18,53 +18,26 @@ function Pages() {
   )
 }
 
-/** The settings routes of `mockApi`, plus an answer for `/api/export` chosen by the test. */
-function withExport(answer: () => Promise<Response>) {
-  const { calls } = mockApi({
+function refusal(status: number, code: string, details?: unknown) {
+  return { status, body: { error: { code, message: 'Refused.', details } } }
+}
+
+function routes(token: () => unknown) {
+  return {
     'GET /api/settings': () => user,
     'GET /api/auth/me': () => user,
-  })
-  const others = globalThis.fetch
-  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
-    if (url.pathname === '/api/export') {
-      calls.push({ method: 'GET', url: url.pathname, body: undefined })
-      return answer()
-    }
-    return others(input, init)
-  })
-  return { calls }
-}
-
-function zipResponse(): Response {
-  return new Response(new Uint8Array([0x50, 0x4b, 0x05, 0x06]), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/zip',
-      'Content-Disposition': 'attachment; filename="running-log-export-2026-11-08.zip"',
-    },
-  })
-}
-
-function errorResponse(status: number, code: string, message: string): Response {
-  return new Response(JSON.stringify({ error: { code, message } }), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  })
+    'POST /api/export/token': token,
+  }
 }
 
 describe('Settings: download all your data', () => {
-  const downloads: Array<{ name: string; href: string }> = []
+  const clicked: Array<{ href: string; download: string }> = []
   beforeEach(() => {
-    downloads.length = 0
-    vi.stubGlobal(
-      'URL',
-      Object.assign(URL, { createObjectURL: () => 'blob:test', revokeObjectURL: () => {} }),
-    )
+    clicked.length = 0
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
       this: HTMLAnchorElement,
     ) {
-      downloads.push({ name: this.download, href: this.href })
+      clicked.push({ href: this.getAttribute('href') ?? '', download: this.download })
     })
   })
   afterEach(() => {
@@ -72,7 +45,7 @@ describe('Settings: download all your data', () => {
   })
 
   test('says what is included and what is not, and passes the G5 lint', async () => {
-    withExport(() => Promise.resolve(zipResponse()))
+    mockApi(routes(() => ({ token: 't', expiresInSec: 60 })))
     const { container } = renderWithProviders(<Pages />, { route: '/settings' })
     await screen.findByRole('heading', { name: 'Settings' })
     expect(screen.getByRole('button', { name: 'Download all your data' })).toBeEnabled()
@@ -81,61 +54,68 @@ describe('Settings: download all your data', () => {
     expectCleanCopy(container)
   })
 
-  test('shows a busy state while the archive is made, then saves it under the server name', async () => {
-    let finish: (response: Response) => void = () => {}
-    const { calls } = withExport(
-      () =>
-        new Promise<Response>((resolve) => {
-          finish = resolve
-        }),
-    )
+  test('asks for a token, then follows a link so the browser streams the file', async () => {
+    const { calls } = mockApi(routes(() => ({ token: 'abc/123+x', expiresInSec: 60 })))
+    const { container } = renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+    await screen.findByRole('heading', { name: 'Settings' })
+
+    await typist.click(screen.getByRole('button', { name: 'Download all your data' }))
+    expect(await screen.findByText(/Your download has started/)).toBeInTheDocument()
+    expect(clicked).toEqual([{ href: '/api/export?token=abc%2F123%2Bx', download: '' }])
+    // The page itself never fetches the archive: only the token step goes through the API client.
+    expect(calls.filter((call) => call.url.startsWith('/api/export'))).toEqual([
+      { method: 'POST', url: '/api/export/token', body: undefined },
+    ])
+    expectCleanCopy(container)
+  })
+
+  test('shows a busy state while the token is requested, and ignores a second press', async () => {
+    let finish: (value: unknown) => void = () => {}
+    const { calls } = mockApi(routes(() => ({})))
+    // mockApi answers at once; hold the token step open instead.
+    const answer = globalThis.fetch
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
+      if (url.pathname === '/api/export/token') {
+        calls.push({ method: 'POST', url: url.pathname, body: undefined })
+        return new Promise<Response>((resolve) => {
+          finish = () => {
+            resolve(
+              new Response(JSON.stringify({ token: 't', expiresInSec: 60 }), {
+                headers: { 'Content-Type': 'application/json' },
+              }),
+            )
+          }
+        })
+      }
+      return answer(input, init)
+    })
     renderWithProviders(<Pages />, { route: '/settings' })
     const typist = userEvent.setup()
     await screen.findByRole('heading', { name: 'Settings' })
 
     const button = screen.getByRole('button', { name: 'Download all your data' })
     await typist.click(button)
-    expect(await screen.findByText(/Preparing the archive/)).toBeInTheDocument()
+    expect(await screen.findByText('Getting the download ready.')).toBeInTheDocument()
     expect(button).toHaveAttribute('aria-busy', 'true')
-    // A second press while it runs sends nothing.
     await typist.click(button)
-    expect(calls.filter((call) => call.url === '/api/export')).toHaveLength(1)
+    expect(calls.filter((call) => call.url === '/api/export/token')).toHaveLength(1)
 
-    finish(zipResponse())
-    expect(await screen.findByText('Archive downloaded.')).toBeInTheDocument()
-    expect(downloads).toEqual([{ name: 'running-log-export-2026-11-08.zip', href: 'blob:test' }])
+    finish(undefined)
+    expect(await screen.findByText(/Your download has started/)).toBeInTheDocument()
     expect(button).not.toHaveAttribute('aria-busy')
-    expect(screen.queryByText(/Preparing the archive/)).toBeNull()
+    expect(screen.queryByText('Getting the download ready.')).toBeNull()
   })
 
-  test('a server error is a plain line and a second try works', async () => {
+  test('an export already running says so, and a later try works', async () => {
     let attempt = 0
-    withExport(() =>
-      Promise.resolve(
-        ++attempt === 1 ? errorResponse(500, 'internal', 'Something went wrong.') : zipResponse(),
+    mockApi(
+      routes(() =>
+        ++attempt === 1
+          ? refusal(429, 'conflict', { code: 'export-running' })
+          : { token: 't', expiresInSec: 60 },
       ),
-    )
-    const { container } = renderWithProviders(<Pages />, { route: '/settings' })
-    const typist = userEvent.setup()
-    await screen.findByRole('heading', { name: 'Settings' })
-
-    await typist.click(screen.getByRole('button', { name: 'Download all your data' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The archive could not be made. Try again; nothing was changed.',
-    )
-    expect(downloads).toEqual([])
-    expectCleanCopy(container)
-
-    await typist.click(screen.getByRole('button', { name: 'Download all your data' }))
-    await waitFor(() => {
-      expect(downloads).toHaveLength(1)
-    })
-    expect(screen.queryByRole('alert')).toBeNull()
-  })
-
-  test('an export already running says so', async () => {
-    withExport(() =>
-      Promise.resolve(errorResponse(429, 'conflict', 'An export is already running.')),
     )
     renderWithProviders(<Pages />, { route: '/settings' })
     const typist = userEvent.setup()
@@ -145,15 +125,48 @@ describe('Settings: download all your data', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'An export is already running. Wait for it to finish, then try again.',
     )
+    expect(clicked).toEqual([])
+    await typist.click(screen.getByRole('button', { name: 'Download all your data' }))
+    expect(await screen.findByText(/Your download has started/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  test('a network error is the same plain line', async () => {
-    withExport(() => Promise.reject(new TypeError('network down')))
+  test('any other 429 gets the general line, not "already running"', async () => {
+    mockApi(routes(() => refusal(429, 'internal', { retryAfterSec: 30 })))
     renderWithProviders(<Pages />, { route: '/settings' })
     const typist = userEvent.setup()
     await screen.findByRole('heading', { name: 'Settings' })
 
     await typist.click(screen.getByRole('button', { name: 'Download all your data' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('The archive could not be made.')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Too many requests just now. Try again in a few minutes.')
+    expect(alert).not.toHaveTextContent('already running')
+  })
+
+  test('a history too large for one ZIP is named', async () => {
+    mockApi(routes(() => refusal(413, 'validation', { code: 'export-too-many-files' })))
+    const { container } = renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+    await screen.findByRole('heading', { name: 'Settings' })
+
+    await typist.click(screen.getByRole('button', { name: 'Download all your data' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'more files than one archive can hold',
+    )
+    expectCleanCopy(container)
+  })
+
+  test('a server error is a plain line', async () => {
+    mockApi(routes(() => refusal(500, 'internal')))
+    const { container } = renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+    await screen.findByRole('heading', { name: 'Settings' })
+
+    await typist.click(screen.getByRole('button', { name: 'Download all your data' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The download could not be started. Try again; nothing was changed.',
+    )
+    expect(clicked).toEqual([])
+    expectCleanCopy(container)
   })
 })

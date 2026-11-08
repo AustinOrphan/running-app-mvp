@@ -49,9 +49,23 @@ export function exportRouter(deps: Deps): Router {
     for (const [hash, held] of tokens) if (held.expires <= now) tokens.delete(hash)
   }
 
-  router.post('/token', (req, res) => {
+  /** Refuses, before any byte is sent, an account that a ZIP without ZIP64 cannot hold. */
+  async function assertFits(userId: string): Promise<void> {
+    const entries = await exportEntryCount(prisma, userId)
+    if (entries > MAX_ZIP_ENTRIES) {
+      throw new HttpError(
+        413,
+        'validation',
+        `This account has ${String(entries)} files to export; one archive holds at most ${String(MAX_ZIP_ENTRIES)}.`,
+        { code: 'export-too-many-files' },
+      )
+    }
+  }
+
+  router.post('/token', async (req, res) => {
     parse(z.strictObject({}), req.query)
     if (running.has(req.userId)) throw alreadyRunning()
+    await assertFits(req.userId)
     const now = Date.now()
     dropExpired(now)
     const token = newToken()
@@ -78,15 +92,7 @@ export function exportRouter(deps: Deps): Router {
     }
     if (running.has(userId)) throw alreadyRunning()
     // Refused before a byte is sent: a ZIP without ZIP64 holds 65,535 entries at most.
-    const entries = await exportEntryCount(prisma, userId)
-    if (entries > MAX_ZIP_ENTRIES) {
-      throw new HttpError(
-        413,
-        'validation',
-        `This account has ${String(entries)} files to export; one archive holds at most ${String(MAX_ZIP_ENTRIES)}.`,
-        { code: 'export-too-many-files' },
-      )
-    }
+    await assertFits(userId)
     if (running.has(userId)) throw alreadyRunning()
     running.add(userId)
     const started = Date.now()

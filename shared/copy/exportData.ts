@@ -10,10 +10,14 @@ export const EXPORT_TEMPLATES = {
   'export.not-included': tpl(
     'It leaves out your password and the keys and tokens of connected sources.',
   ),
-  'export.busy': tpl(
-    'Preparing the archive. A long history can take a minute; keep this page open.',
+  'export.busy': tpl('Getting the download ready.'),
+  'export.started': tpl(
+    'Your download has started. A long history can take a minute to arrive; watch your browser’s downloads.',
   ),
-  'export.done': tpl('Archive downloaded.'),
   'export.running': tpl('An export is already running. Wait for it to finish, then try again.'),
-  'export.error': tpl('The archive could not be made. Try again; nothing was changed.'),
+  'export.rate': tpl('Too many requests just now. Try again in a few minutes.'),
+  'export.too-big': tpl(
+    'This history has more files than one archive can hold, so it cannot be downloaded in one piece.',
+  ),
+  'export.error': tpl('The download could not be started. Try again; nothing was changed.'),
 } as const

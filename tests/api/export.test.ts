@@ -378,11 +378,11 @@ describe('GET /api/export', () => {
         gz,
       })),
     })
-    const res = await download(huge)
+    const res = await client(ctx, huge).post('/api/export/token')
     expect(res.status).toBe(413)
-    expect(res.headers['content-type']).toMatch(/json/)
-    const refusal = JSON.parse(res.body.toString()) as { error: { details: { code: string } } }
-    expect(refusal.error.details.code).toBe('export-too-many-files')
+    expect((res.body as { error: { details: { code: string } } }).error.details.code).toBe(
+      'export-too-many-files',
+    )
   }, 60_000)
 
   describe('one export at a time', () => {
