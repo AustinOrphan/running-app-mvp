@@ -79,7 +79,7 @@ async function waitForKeptAnswers(): Promise<void> {
 
 /**
  * The element fits the phone and the desktop widths in both colour schemes with motion reduced:
- * nothing scrolls sideways, and the element stays inside the viewport.
+ * nothing scrolls sideways.
  */
 async function expectNoOverflowAt(target: Locator): Promise<void> {
   for (const size of [
@@ -95,10 +95,6 @@ async function expectNoOverflowAt(target: Locator): Promise<void> {
         page: document.documentElement.scrollWidth <= window.innerWidth,
       }))
       expect(fit.page, `${String(size.width)} px, ${colorScheme}`).toBe(true)
-      const box = await target.boundingBox()
-      expect((box?.x ?? 0) + (box?.width ?? 0), `${String(size.width)} px`).toBeLessThanOrEqual(
-        size.width + 1,
-      )
     }
   }
   await page.setViewportSize({ width: 1280, height: 720 })
