@@ -182,6 +182,32 @@ export const aState = {
       unit: 'days',
       note: 'Default: the 90-day window is an engine choice; the CS method itself is grade C.',
     }),
+    csEffortTargetsM: param<number[]>(
+      'a6.csEffortTargetsM',
+      [400, 800, 1000, 1500, 3000, 5000],
+      'C',
+      'A6',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: 'm',
+        note: 'The distances the paper took the fastest grade-adjusted effort at; read from the stream of a run longer than the fit range.',
+      },
+    ),
+    csMinEffortSec: param('a6.csMinEffortSec', 120, 'D', 'A6', ['smyth-2020-cs-training-data'], {
+      unit: 's',
+      note: 'Default: a stretch of a run shorter than this is not an effort. The stream keeps a sample every 10 s, so a stretch of 120 s is read to about 8%, and a shorter one is mostly noise.',
+    }),
+    csTrainingWideningPct: param(
+      'a6.csTrainingWideningPct',
+      50,
+      'D',
+      'A6',
+      ['smyth-2020-cs-training-data'],
+      {
+        unit: '%',
+        note: 'Default: a critical speed that uses the stretch of a longer run is a floor, since training efforts are rarely all-out; no study sizes the bias, so the interval is widened by half again, as for one source (L3).',
+      },
+    ),
     exponentMinRaces: param(
       'a6.exponentMinRaces',
       2,

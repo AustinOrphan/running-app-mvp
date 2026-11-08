@@ -21,7 +21,8 @@ import type { AthleteState, EngineInput, HistoryBlock } from './types.ts'
 
 const WEEKS_SHOWN = 16
 const DAYS_PER_WEEK = 7
-const INDOOR_OR_TRACK = /treadmill|indoor|track/i
+/** A treadmill, indoor or track run needs no grade correction. */
+export const INDOOR_OR_TRACK = /treadmill|indoor|track/i
 
 const isRun = (a: Activity) => a.type === 'run' || a.type === 'race'
 
@@ -242,12 +243,16 @@ export interface CsEffort {
   activity: Activity
   distanceM: number
   timeSec: number
+  /** A whole run, or the fastest stretch of a run longer than the fit range (from training). */
+  source: 'whole' | 'stretch'
 }
 
 /**
  * The efforts critical speed is fitted from [rules A6]: the fastest grade-adjusted effort of each
- * distance band inside the window, in the order the bands were first reached. Fewer than
- * `a6.csMinEfforts` of them give no fit.
+ * distance band inside the window, in the order the bands were first reached. A run whose own
+ * flat-equivalent distance lies in the fit range is one effort; a longer run gives its fastest
+ * stretches at the distances of `a6.csEffortTargetsM` that last `a6.csMinEffortSec` or more (its
+ * `bestEfforts`, when they were read). Fewer than `a6.csMinEfforts` of them give no fit.
  */
 export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
   const edges = [
@@ -255,19 +260,31 @@ export function csEffortsOf(runs: Activity[], today: string): CsEffort[] {
     ...P.a6.csBandInnerEdgesM.value,
     P.a6.csMaxDistanceM.value,
   ]
+  const lowest = edges[0]!
+  const highest = edges[edges.length - 1]!
   const best = new Map<number, CsEffort>()
+  const offer = (effort: CsEffort): void => {
+    if (effort.distanceM < lowest || effort.distanceM > highest) return
+    let band = 0
+    while (band + 1 < edges.length - 1 && effort.distanceM >= edges[band + 1]!) band += 1
+    const held = best.get(band)
+    if (!held || effort.distanceM / effort.timeSec > held.distanceM / held.timeSec) {
+      best.set(band, effort)
+    }
+  }
   for (const a of runs) {
     const age = daysBetween(a.date, today)
     if (age < 0 || age >= P.a6.csWindowDays.value) continue
     const distanceM = flatDistance(a)
     const timeSec = a.movingSec ?? a.durationSec
-    if (distanceM === null || timeSec <= 0) continue
-    if (distanceM < edges[0]! || distanceM > edges[edges.length - 1]!) continue
-    let band = 0
-    while (band + 1 < edges.length - 1 && distanceM >= edges[band + 1]!) band += 1
-    const held = best.get(band)
-    if (!held || distanceM / timeSec > held.distanceM / held.timeSec) {
-      best.set(band, { activity: a, distanceM, timeSec })
+    if (distanceM !== null && timeSec > 0 && distanceM >= lowest && distanceM <= highest) {
+      offer({ activity: a, distanceM, timeSec, source: 'whole' })
+      continue
+    }
+    for (const e of a.bestEfforts?.efforts ?? []) {
+      if (e.timeSec >= P.a6.csMinEffortSec.value) {
+        offer({ activity: a, distanceM: e.distanceM, timeSec: e.timeSec, source: 'stretch' })
+      }
     }
   }
   return [...best.values()]
@@ -286,6 +303,10 @@ function fitnessOf(runs: Activity[], input: EngineInput, today: string): Athlete
     csMps: cs?.csMps ?? null,
     dPrimeM: cs?.dPrimeM ?? null,
     csEfforts: efforts.length,
+    csTrainingSince:
+      cs !== null && efforts.some((e) => e.source === 'stretch')
+        ? addDays(today, 1 - P.a6.csWindowDays.value)
+        : null,
     exponent: personalExponent(races),
     races,
     vo2maxTrend: vo2maxTrend(input, today),

@@ -270,6 +270,32 @@ describe('predictFromState: interval [L2, L5, L6]', () => {
     expect(p?.rules).toContain('L3')
   })
 
+  it('widens a prediction that stands on a critical speed from training and says since when [A6]', () => {
+    const fit = { csMps: 3.4, dPrimeM: 180, csEfforts: 4 }
+    const measured = predictFromState(makeState(fit), road(HALF))!
+    const trained = predictFromState(
+      makeState({ ...fit, csTrainingSince: '2026-08-11' }),
+      road(HALF),
+    )!
+    expect(trained.predictedSec).toBe(measured.predictedSec)
+    expect(halfWidthPct(trained) / halfWidthPct(measured)).toBeCloseTo(
+      1 + P.a6.csTrainingWideningPct.value / 100,
+      1,
+    )
+    expect(trained.trainingSince).toBe('2026-08-11')
+    expect(measured.trainingSince).toBeUndefined()
+    expect(trained.rules).toContain('A6')
+    expect(trained.conditions.join(' ')).toMatch(/training since 2026-08-11/)
+  })
+
+  it('does not widen a race-based prediction for a fit it does not use [A6]', () => {
+    const state = makeState({
+      races: [race('2026-09-01', 10000, 3000)],
+      csTrainingSince: '2026-08-11',
+    })
+    expect(predictFromState(state, road(HALF))?.trainingSince).toBeUndefined()
+  })
+
   it('widens a trail interval by 50% on top', () => {
     const state = agreeing(10000)
     const roadP = predictFromState(state, road(10000))!

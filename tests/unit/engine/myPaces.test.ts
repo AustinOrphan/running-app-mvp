@@ -276,12 +276,29 @@ describe('the events [C9, L1 to L6]', () => {
     expect(ten?.pace?.midSec).toBeCloseTo(ten!.time!.midSec / 10, 6)
     expect(ten?.pace?.fastSec).toBeLessThan(ten!.pace!.slowSec)
     expect(ten?.basis.race).toEqual(tenK)
-    expect(ten?.basis.cs).toEqual({ csMps: 3.5, efforts: 3 })
+    expect(ten?.basis.cs).toEqual({ csMps: 3.5, efforts: 3, since: null })
     expect(ten?.methods).toEqual(['riegel', 'critical-speed'])
     expect(ten?.singleSource).toBe(false)
     // the fit of critical speed and the widening for one source are grade D defaults (A6, L3)
     expect(ten?.grade).toBe('D')
     expect(ten?.rules).toEqual(expect.arrayContaining(['L1', 'L6']))
+  })
+
+  it('says a critical speed found from training widens the range and offers the test (A6)', () => {
+    const base = { csMps: 3.5, dPrimeM: 150, csEfforts: 4 }
+    const flat = stateWith(base)
+    const trained = stateWith({ ...base, csTrainingSince: '2026-08-11' })
+    const spec = { key: 'half' as const, distanceM: 21097, gainM: 0 }
+    const wide = eventRow(trained, spec)
+    const narrow = eventRow(flat, spec)
+    expect(wide.basis.cs).toEqual({ csMps: 3.5, efforts: 4, since: '2026-08-11' })
+    expect(narrow.basis.cs?.since).toBeNull()
+    const span = (row: typeof wide) => row.time!.highSec - row.time!.lowSec
+    expect(span(wide) / span(narrow)).toBeCloseTo(1 + P.a6.csTrainingWideningPct.value / 100, 1)
+    expect(wide.rules).toContain('A6')
+    expect(wide.grade).toBe('D')
+    expect(paces({ state: trained }).view.test.fromTraining).toBe(true)
+    expect(paces({ state: flat }).view.test.fromTraining).toBe(false)
   })
 
   it('says one source widens the range, and grades a placeholder as a default', () => {
@@ -308,6 +325,7 @@ describe('the events [C9, L1 to L6]', () => {
       spreadRatio: P.a6.csMinTimeSpreadRatio.value,
       windowDays: P.a6.csWindowDays.value,
       done: false,
+      fromTraining: false,
     })
   })
 

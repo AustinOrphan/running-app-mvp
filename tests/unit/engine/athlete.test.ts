@@ -582,6 +582,54 @@ describe('estimateState: fitness', () => {
     expect(estimateState(input(flat)).fitness.csMps).toBeCloseTo(4, 6)
   })
 
+  describe('efforts from the stretches of longer runs [A6]', () => {
+    // CS 4 m/s, D' 100 m: a 12 km run whose fastest stretches lie on that line
+    const stretch = (t: number) => ({ distanceM: 4 * t + 100, timeSec: t })
+    const long = (n: number, over: Partial<Activity> = {}) =>
+      run(n, {
+        durationSec: 4000,
+        distanceM: 12_000,
+        gapDistanceM: 12_000,
+        bestEfforts: { v: 1, efforts: [stretch(180), stretch(360), stretch(720), stretch(1200)] },
+        ...over,
+      })
+
+    test('fit CS from one long run, labelled as from training with the first day of the window', () => {
+      const s = estimateState(input([long(10)]))
+      expect(s.fitness.csMps).toBeCloseTo(4, 6)
+      expect(s.fitness.csEfforts).toBe(4)
+      expect(s.fitness.csTrainingSince).toBe(addDays(TODAY, 1 - P.a6.csWindowDays.value))
+    })
+
+    test('a run inside the fit range counts as one effort and gives no stretches', () => {
+      const eff = (n: number, t: number) =>
+        run(n, {
+          durationSec: t,
+          gapDistanceM: 4 * t + 100,
+          distanceM: 4 * t + 100,
+          bestEfforts: { v: 1, efforts: [stretch(200)] },
+        })
+      const s = estimateState(input([eff(10, 180), eff(20, 360), eff(30, 720)]))
+      expect(s.fitness.csEfforts).toBe(3)
+      expect(s.fitness.csTrainingSince).toBeNull()
+    })
+
+    test('a stretch shorter than the minimum effort time is not an effort', () => {
+      const brief = { distanceM: 400, timeSec: P.a6.csMinEffortSec.value - 1 }
+      const s = estimateState(
+        input([long(10, { bestEfforts: { v: 1, efforts: [brief, stretch(360), stretch(720)] } })]),
+      )
+      expect(s.fitness.csEfforts).toBe(2)
+      expect(s.fitness.csMps).toBeNull()
+      expect(s.fitness.csTrainingSince).toBeNull()
+    })
+
+    test('a run outside the window gives no stretches', () => {
+      const s = estimateState(input([long(100)]))
+      expect(s.fitness).toMatchObject({ csMps: null, csEfforts: 0 })
+    })
+  })
+
   test('fewer than 3 bands: no CS', () => {
     const s = estimateState(input([eff(10, 180), eff(20, 360)]))
     expect(s.fitness).toMatchObject({ csMps: null, dPrimeM: null, csEfforts: 2 })

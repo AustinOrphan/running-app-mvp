@@ -30,6 +30,8 @@ interface Base {
 type Race = AthleteState['fitness']['races'][number]
 
 const SEC_PER_MIN = 60
+/** The methods that stand on the critical-speed fit. */
+export const CS_METHODS = new Set(['critical-speed', 'cs-durability', 'cs-fraction'])
 const FIXED_POINT_ITERATIONS = 400
 const FIXED_POINT_TOLERANCE_MIN = 1e-7
 
@@ -320,6 +322,17 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
     )
     rules.add('L3')
   }
+  // A critical speed found from the stretches of training runs is a floor, not a measurement (A6).
+  const trainingSince = base.estimates.some((e) => CS_METHODS.has(e.method))
+    ? (state.fitness.csTrainingSince ?? null)
+    : null
+  if (trainingSince !== null) {
+    halfWidth *= 1 + P.a6.csTrainingWideningPct.value / 100
+    conditions.push(
+      `Critical speed comes from the best efforts in training since ${trainingSince}, not from races or a test; the interval is widened by ${P.a6.csTrainingWideningPct.value}%.`,
+    )
+    rules.add('A6')
+  }
   if (target.surface === 'trail' || target.surface === 'mixed') {
     const gainPerKm = (Math.max(0, target.gainM) / target.distanceM) * 1000
     const widening =
@@ -338,6 +351,7 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
     highSec: Math.round(sec * (1 + halfWidth / 100)),
     conditions,
     rules: [...rules].sort(),
+    ...(trainingSince === null ? {} : { trainingSince }),
   }
 }
 

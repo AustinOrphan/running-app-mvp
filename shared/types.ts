@@ -87,6 +87,11 @@ export interface Activity {
   hrHistogram: HrHistogram | null
   /** Time and distance by grade band; null for a type that has none or a run not yet computed. */
   terrainBins: TerrainBins | null
+  /**
+   * The fastest grade-adjusted stretches of the run (rule A6), read from its stream when the athlete
+   * snapshot is built and stored nowhere. Absent when the run was not read for them.
+   */
+  bestEfforts?: BestEfforts | null
   decouplingPct: number | null
   gapDistanceM: number | null
   /** -2 much easier .. +2 much harder than expected. */
@@ -206,6 +211,11 @@ export interface ActivityStreamData {
   alt: number[] | null
   cad: number[] | null
   pwr: number[] | null
+}
+/** The fastest flat-equivalent stretch of a run at each distance of `a6.csEffortTargetsM` it reaches. */
+export interface BestEfforts {
+  v: number
+  efforts: Array<{ distanceM: number; timeSec: number }>
 }
 export interface Lap {
   startSec: number

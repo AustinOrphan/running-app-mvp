@@ -39,7 +39,7 @@ export interface RacePlanInput {
   goal: GoalModel
   supportLevel: SupportLevel
   /** The live prediction for the goal; null when the state supports no source. */
-  prediction: Pick<Prediction, 'predictedSec' | 'lowSec' | 'highSec'> | null
+  prediction: Pick<Prediction, 'predictedSec' | 'lowSec' | 'highSec' | 'trainingSince'> | null
   /**
    * The top of the current zone 1, the ceiling the race session of an ultra goal shows
    * (`resolveTargets`, rule H11); null when the zones hold no heart rate.
@@ -85,6 +85,11 @@ export interface RaceExpected {
   start: string | null
   /** The clock at the two ends of the range; null without a start time. */
   finish: { from: RaceClock; to: RaceClock } | null
+  /**
+   * The first day of the window when the prediction stands on a critical speed found from training
+   * (rule A6), so the range is wider and the page says why; null or absent otherwise.
+   */
+  trainingSince?: string | null
   /** How wide the range has to be, with its rules and grade (`rangeLabel`, rules L4 and L6). */
   range: RangeLabel
   rules: string[]
@@ -279,6 +284,7 @@ function expectedOf(input: RacePlanInput): RaceExpected {
   const range = rangeLabel({ distanceM: goal.distanceM })
   return {
     basis: prediction === null ? 'estimate' : 'prediction',
+    trainingSince: prediction?.trainingSince ?? null,
     lowSec,
     highSec,
     midSec,
