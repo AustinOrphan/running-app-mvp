@@ -163,13 +163,34 @@
   /* no transition: the dot goes where the pointer is, and reduced motion has nothing to remove */
 }
 
+.map:focus {
+  outline: none;
+}
+
+.map:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* One wrapping row along the foot: the scale bar, then the credit. Where they do not fit side by
+   side the credit wraps under the scale bar; the fit reads this row's measured height. */
+.chips {
+  position: absolute;
+  right: var(--map-gap);
+  bottom: var(--map-gap);
+  left: var(--map-gap);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--map-gap);
+  pointer-events: none;
+}
+
 .scale,
 .credit {
-  position: absolute;
-  bottom: var(--map-gap);
   box-sizing: border-box;
-  min-height: var(--map-chip-h);
-  padding: 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--map-chip);
   color: var(--map-chip-ink);
@@ -178,7 +199,6 @@
 }
 
 .scale {
-  left: var(--map-gap);
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -194,16 +214,10 @@
 }
 
 .credit {
-  right: var(--map-gap);
-  display: flex;
-  align-items: center;
-  max-width: calc(100% - 2 * var(--map-gap));
+  margin-left: auto;
+  max-width: 100%;
   text-decoration: underline;
-}
-
-.frame[data-stacked] .scale {
-  /* two rows of chips: the scale bar sits above the credit */
-  bottom: calc(2 * var(--map-gap) + var(--map-chip-h));
+  pointer-events: auto;
 }
 
 .retry {

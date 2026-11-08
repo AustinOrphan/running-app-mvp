@@ -172,14 +172,20 @@ test('the run map: tiles through the CSP, the route, hidden ends, the chart dot,
 
   // every viewport and both themes: no sideways scroll, the height asked for, the route in view
   const passes = [
-    { width: 320, height: 700, scheme: 'light', mapPx: 240 },
-    { width: 320, height: 700, scheme: 'dark', mapPx: 240 },
-    { width: 360, height: 780, scheme: 'light', mapPx: 240 },
-    { width: 360, height: 780, scheme: 'dark', mapPx: 240 },
-    { width: 390, height: 844, scheme: 'light', mapPx: 240 },
-    { width: 390, height: 844, scheme: 'dark', mapPx: 240 },
-    { width: 768, height: 1024, scheme: 'light', mapPx: 320 },
-    { width: 1280, height: 900, scheme: 'dark', mapPx: 320 },
+    { width: 320, height: 700, scheme: 'light', mapPx: 240, text: 100 },
+    { width: 320, height: 700, scheme: 'dark', mapPx: 240, text: 100 },
+    { width: 360, height: 780, scheme: 'light', mapPx: 240, text: 100 },
+    { width: 360, height: 780, scheme: 'dark', mapPx: 240, text: 100 },
+    { width: 390, height: 844, scheme: 'light', mapPx: 240, text: 100 },
+    { width: 390, height: 844, scheme: 'dark', mapPx: 240, text: 100 },
+    // larger text: the root size is raised, as a runner's browser setting does, and the map (15rem)
+    // and the chips grow with it
+    { width: 320, height: 700, scheme: 'light', mapPx: 360, text: 150 },
+    { width: 320, height: 700, scheme: 'dark', mapPx: 360, text: 150 },
+    { width: 390, height: 844, scheme: 'light', mapPx: 360, text: 150 },
+    { width: 390, height: 844, scheme: 'dark', mapPx: 360, text: 150 },
+    { width: 768, height: 1024, scheme: 'light', mapPx: 320, text: 100 },
+    { width: 1280, height: 900, scheme: 'dark', mapPx: 320, text: 100 },
   ] as const
   for (const pass of passes) {
     await page.setViewportSize({ width: pass.width, height: pass.height })
@@ -187,40 +193,89 @@ test('the run map: tiles through the CSP, the route, hidden ends, the chart dot,
       colorScheme: pass.scheme,
       reducedMotion: pass.scheme === 'dark' ? 'reduce' : 'no-preference',
     })
+    await page.evaluate((text) => {
+      document.documentElement.style.fontSize = text === 100 ? '' : `${String(text)}%`
+    }, pass.text)
     await expect(map.getByRole('img', { name: 'Map of the route' })).toBeVisible()
     const frame = map.getByRole('img', { name: 'Map of the route' }).locator('..')
     await expect
       .poll(async () => Math.round((await frame.boundingBox())?.height ?? 0))
       .toBe(pass.mapPx)
-    const scrolls = await page.evaluate(
-      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    // Nothing of the map widens the page. At the normal text size the whole page must not scroll
+    // sideways; at 150% the heart-rate bands further down the page (not the map) are wider than a
+    // 320 px phone, so there only the map's own parts are held to the viewport.
+    const reaching = await page.evaluate(
+      ({ scoped }) => {
+        const root = scoped
+          ? document.querySelector('section[aria-label="Route of this run"]')
+          : null
+        const all = Array.from((root ?? document.body).querySelectorAll('*'))
+        const limit = document.documentElement.clientWidth + 1
+        return all
+          .filter((el) => {
+            if (el.getBoundingClientRect().right <= limit) return false
+            // what a clipping ancestor hides cannot widen the page
+            for (let up = el.parentElement; up !== null; up = up.parentElement) {
+              const style = getComputedStyle(up)
+              if (style.overflowX !== 'visible' || style.clip !== 'auto') return false
+            }
+            return true
+          })
+          .slice(0, 4)
+          .map((el) => `${el.tagName}.${String(el.className)}`)
+      },
+      { scoped: pass.text !== 100 },
     )
-    expect(scrolls, `sideways scroll at ${String(pass.width)}`).toBe(false)
-    // the line is inside the frame
-    const line = (await map.locator('polyline').last().boundingBox())!
-    const frameBox = (await frame.boundingBox())!
-    expect(line.x).toBeGreaterThanOrEqual(frameBox.x - 1)
-    expect(line.x + line.width).toBeLessThanOrEqual(frameBox.x + frameBox.width + 1)
-    expect(line.y).toBeGreaterThanOrEqual(frameBox.y - 1)
-    expect(line.y + line.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1)
-    // the chips do not overlap each other, and the route does not run under either
-    const scaleBox = (await map.locator('[data-scale]').boundingBox())!
-    const creditBox = (await map.getByRole('link', { name: /OpenStreetMap/ }).boundingBox())!
-    const apart =
-      scaleBox.x + scaleBox.width <= creditBox.x ||
-      creditBox.x + creditBox.width <= scaleBox.x ||
-      scaleBox.y + scaleBox.height <= creditBox.y ||
-      creditBox.y + creditBox.height <= scaleBox.y
-    expect(apart, `chips overlap at ${String(pass.width)}`).toBe(true)
-    expect(line.y + line.height).toBeLessThanOrEqual(Math.min(scaleBox.y, creditBox.y))
+    expect(reaching, `reaches past the viewport at ${String(pass.width)} px`).toEqual([])
+    if (pass.text === 100) {
+      const scrolls = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      )
+      expect(scrolls, `sideways scroll at ${String(pass.width)}`).toBe(false)
+    }
+    // the line is inside the frame, the chips do not overlap each other, and the route runs under
+    // neither (polled: the fit follows the chips' measured height a frame after the text grows)
+    const label = `${String(pass.width)} px at ${String(pass.text)}% text`
+    await expect
+      .poll(async () => {
+        const line = await map.locator('polyline').last().boundingBox()
+        const frameBox = await frame.boundingBox()
+        const scaleBox = await map.locator('[data-scale]').boundingBox()
+        const creditBox = await map.getByRole('link', { name: /OpenStreetMap/ }).boundingBox()
+        if (!line || !frameBox || !scaleBox || !creditBox) return 'missing'
+        const inside =
+          line.x >= frameBox.x - 1 &&
+          line.x + line.width <= frameBox.x + frameBox.width + 1 &&
+          line.y >= frameBox.y - 1 &&
+          line.y + line.height <= frameBox.y + frameBox.height + 1
+        const apart =
+          scaleBox.x + scaleBox.width <= creditBox.x ||
+          creditBox.x + creditBox.width <= scaleBox.x ||
+          scaleBox.y + scaleBox.height <= creditBox.y ||
+          creditBox.y + creditBox.height <= scaleBox.y
+        const clear = line.y + line.height <= Math.min(scaleBox.y, creditBox.y)
+        const chipsInside =
+          Math.max(scaleBox.y + scaleBox.height, creditBox.y + creditBox.height) <=
+            frameBox.y + frameBox.height + 1 &&
+          Math.max(scaleBox.x + scaleBox.width, creditBox.x + creditBox.width) <=
+            frameBox.x + frameBox.width + 1
+        return JSON.stringify({ inside, apart, clear, chipsInside })
+      }, label)
+      .toBe(JSON.stringify({ inside: true, apart: true, clear: true, chipsInside: true }))
     if (SHOTS_DIR !== undefined) {
       mkdirSync(SHOTS_DIR, { recursive: true })
       await map.scrollIntoViewIfNeeded()
       await map.screenshot({
-        path: join(SHOTS_DIR, `map-${String(pass.width)}-${pass.scheme}.png`),
+        path: join(
+          SHOTS_DIR,
+          `map-${String(pass.width)}-${pass.scheme}${pass.text === 100 ? '' : `-text${String(pass.text)}`}.png`,
+        ),
       })
     }
   }
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = ''
+  })
   await page.emulateMedia({ colorScheme: null, reducedMotion: null })
   await page.setViewportSize({ width: 1280, height: 900 })
 

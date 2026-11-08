@@ -377,6 +377,8 @@ describe('the route map on the activity page', () => {
     const section = await routeSection()
     for (const tile of tileImages(section)) fireEvent.error(tile)
     await user.click(await within(section).findByRole('button', { name: 'Try again.' }))
+    // the button left with the note: focus is on the map, not dropped to the page
+    expect(document.activeElement).toBe(section.querySelector('figure'))
     await waitFor(() => {
       expect(within(section).queryByText(/did not load/)).not.toBeInTheDocument()
     })
@@ -433,7 +435,7 @@ describe('the route map on the activity page', () => {
   test('has no drag, wheel or key handling of its own and no focusable part but the credit', async () => {
     renderPage(makeTrack())
     const section = await routeSection()
-    const focusable = section.querySelectorAll('a[href], button, [tabindex]')
+    const focusable = section.querySelectorAll('a[href], button, [tabindex]:not([tabindex="-1"])')
     expect(Array.from(focusable).map((el) => el.textContent)).toEqual([
       '© OpenStreetMap contributors',
     ])

@@ -32,20 +32,13 @@ import { useMapTiles } from './useMapTiles.ts'
 /** Space kept clear between the route and the edge of the box, in CSS pixels. */
 const FIT_PADDING = 28
 /**
- * The chips (scale bar, credit) sit in a band along the foot of the frame, and the fit keeps the
- * route above it. These three numbers are the one source of the band: the fit reads them here and
- * the stylesheet reads them from custom properties set on the frame.
+ * The chips (scale bar, credit) sit in one wrapping row along the foot of the frame, and the fit
+ * keeps the route above it. The row's height is measured (`useHeight`), so the band follows the
+ * chips' real size at any text size; only the gap around the row is a number, set here and read by
+ * the stylesheet as a custom property on the frame.
  */
-const CHIP_HEIGHT = 24
 const CHIP_GAP = 8
-/** Below this width the two chips cannot share a row, so they are stacked: credit under scale bar. */
-const STACK_BELOW = 340
 
-/** Height of the chip band: one row of chips, or two stacked, with a gap above, between and below. */
-function chipBand(width: number): number {
-  const rows = width < STACK_BELOW ? 2 : 1
-  return rows * CHIP_HEIGHT + (rows + 1) * CHIP_GAP
-}
 /**
  * The scale bar is never longer than this share of the box, nor this many pixels: on a phone it
  * shares the foot of the map with the credit and must leave room for it.
@@ -96,6 +89,31 @@ function useBox(ref: React.RefObject<HTMLElement | null>): Box | null {
 }
 
 /**
+ * The height of an element handed over by a callback ref, kept current by a ResizeObserver; null
+ * until it has been measured, and while there is no element.
+ */
+function useHeight(): [(element: HTMLElement | null) => void, number | null] {
+  const [element, setElement] = useState<HTMLElement | null>(null)
+  const [height, setHeight] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    if (element === null) return undefined
+    const read = (value: number) => {
+      setHeight((previous) => (previous === value ? previous : value))
+    }
+    read(element.getBoundingClientRect().height)
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry !== undefined) read(entry.contentRect.height)
+    })
+    observer.observe(element)
+    return () => {
+      observer.disconnect()
+    }
+  }, [element])
+  return [setElement, element === null ? null : height]
+}
+
+/**
  * The route of a run drawn on a street map, with no map library: OpenStreetMap raster tiles placed
  * as images by the tile maths in `shared/domain/mapTiles.ts`, the route as an SVG line over them.
  * A static fit: no drag, no wheel, no zoom. The tiles are muted by a CSS filter (and inverted in
@@ -129,7 +147,9 @@ function RunMapBody({
 }: RunMapProps & { online: boolean; tilesSwitch: boolean }) {
   const frameRef = useRef<HTMLDivElement>(null)
   const dotRef = useRef<HTMLSpanElement>(null)
+  const figureRef = useRef<HTMLElement>(null)
   const box = useBox(frameRef)
+  const [chipsRef, chipsHeight] = useHeight()
   const wantTiles = tilesSwitch && online
   // Tiles that failed. Cleared when a tile loads after all, and by the retry link, which also
   // remounts the images; a change of the wish for tiles remounts the whole body (see `RunMap`).
@@ -147,11 +167,11 @@ function RunMapBody({
               top: FIT_PADDING,
               right: FIT_PADDING,
               left: FIT_PADDING,
-              bottom: Math.max(FIT_PADDING, chipBand(box.width)),
+              bottom: Math.max(FIT_PADDING, chipsHeight === null ? 0 : chipsHeight + 2 * CHIP_GAP),
             },
             density,
           }),
-    [box, track.bbox, density],
+    [box, chipsHeight, track.bbox, density],
   )
   const points = useMemo<Pixel[]>(
     () => (view === null ? [] : path.map(([lat, lng]) => toBox(view, lat, lng))),
@@ -202,6 +222,8 @@ function RunMapBody({
         onClick={() => {
           setFailed(new Set())
           setAttempt((n) => n + 1)
+          // the button is about to leave with the note; focus stays on the map, not the page top
+          figureRef.current?.focus()
         }}
       >
         {MAP_RETRY}
@@ -210,17 +232,11 @@ function RunMapBody({
   ) : null
 
   return (
-    <figure className={styles.map}>
+    <figure className={styles.map} ref={figureRef} tabIndex={-1}>
       <div
         className={styles.frame}
         ref={frameRef}
-        data-stacked={box !== null && box.width < STACK_BELOW ? 'true' : undefined}
-        style={
-          {
-            '--map-chip-h': `${String(CHIP_HEIGHT)}px`,
-            '--map-gap': `${String(CHIP_GAP)}px`,
-          } as CSSProperties
-        }
+        style={{ '--map-gap': `${String(CHIP_GAP)}px` } as CSSProperties}
       >
         {view === null ? null : (
           <>
@@ -301,22 +317,26 @@ function RunMapBody({
               )}
               <span ref={dotRef} className={styles.dot} data-marker="cursor" hidden />
             </div>
-            {scale === null ? null : (
-              <div className={styles.scale} aria-hidden="true" data-scale={scale.label}>
-                <span className={styles.scaleBar} style={{ width: scale.px }} />
-                <span>{scale.label}</span>
+            {scale === null && !showCredit ? null : (
+              <div className={styles.chips} ref={chipsRef}>
+                {scale === null ? null : (
+                  <div className={styles.scale} aria-hidden="true" data-scale={scale.label}>
+                    <span className={styles.scaleBar} style={{ width: scale.px }} />
+                    <span>{scale.label}</span>
+                  </div>
+                )}
+                {showCredit ? (
+                  <a
+                    className={styles.credit}
+                    href={OSM_COPYRIGHT_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {OSM_CREDIT}
+                  </a>
+                ) : null}
               </div>
             )}
-            {showCredit ? (
-              <a
-                className={styles.credit}
-                href={OSM_COPYRIGHT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {OSM_CREDIT}
-              </a>
-            ) : null}
           </>
         )}
       </div>
