@@ -1,4 +1,7 @@
 -- AlterTable
+ALTER TABLE "Activity" ADD COLUMN "trackV" INTEGER;
+
+-- AlterTable
 ALTER TABLE "User" ADD COLUMN "hideMapEnds" BOOLEAN NOT NULL DEFAULT true;
 
 -- CreateTable

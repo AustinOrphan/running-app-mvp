@@ -1847,6 +1847,7 @@ function verifyActivityTrack(db: DatabaseSync, before: Snapshot): void {
     { id: 'u1', hideMapEnds: 1 },
   ])
   // Existing activities have no track; the backfill job fills them.
+  expect(rowsOf(db, 'SELECT id, "trackV" FROM "Activity" WHERE "trackV" IS NOT NULL')).toEqual([])
   expect(rowsOf(db, 'SELECT "activityId" FROM "ActivityTrack"')).toEqual([])
   expect(rowsOf(db, 'SELECT COUNT(*) AS n FROM "Activity"')).toEqual([{ n: 4 }])
   // A track is keyed by its activity and goes with it.

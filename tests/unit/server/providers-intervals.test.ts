@@ -257,6 +257,7 @@ describe('intervals.icu fetchActivity', () => {
     expect(result?.file).toBeUndefined()
     expect(result?.parsed).toEqual({
       providerKey: 'intervals:i7',
+      route: null,
       startUtc: '2026-03-02T07:00:00Z',
       utcOffsetMin: 60,
       type: 'run',

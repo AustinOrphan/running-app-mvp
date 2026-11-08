@@ -12,7 +12,7 @@ import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
 import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
-import { buildTrack, hasTrack } from '../../shared/importers/files/track.ts'
+import { TRACK_VERSION, buildTrack, hasTrack } from '../../shared/importers/files/track.ts'
 import type { Track } from '../../shared/importers/files/track.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 
@@ -81,6 +81,13 @@ export async function storeParsed(
     data: JSON.stringify(streamData),
     laps: parsed.laps.length > 0 ? JSON.stringify(parsed.laps) : null,
   }
+  // A run with positions keeps its simplified route; a treadmill run or one with none keeps no row,
+  // and a re-import without positions leaves a track it already has. `trackV` records that the
+  // positions were looked for (a file, or a provider answer that says so), so the backfill skips
+  // the run; an import that knows nothing about positions leaves it as it was.
+  const looksForTrack = hasTrack(parsed.type, parsed.subtype)
+  const track = looksForTrack && parsed.route ? buildTrack(parsed.route) : null
+  const lookedForTrack = looksForTrack && (opts.file !== undefined || parsed.route !== undefined)
   const fields = {
     date: local.date,
     startTime: local.startTime,
@@ -97,16 +104,13 @@ export async function storeParsed(
     avgPowerW: roundOrNull(parsed.avgPowerW),
     deviceName: parsed.deviceName,
     hrHistogram: summary.hrHistogram ? JSON.stringify(summary.hrHistogram) : null,
+    ...(lookedForTrack ? { trackV: TRACK_VERSION } : {}),
     terrainBins: hasTerrainBins(parsed.type)
       ? JSON.stringify(computeTerrainBins(summary.stream, sampleSec))
       : null,
     decouplingPct: summary.decouplingPct,
     gapDistanceM: roundOrNull(summary.gapDistanceM),
   }
-  // A run with positions keeps its simplified route; a treadmill run or one with none keeps no row,
-  // and a re-import without positions leaves a track it already has.
-  const track =
-    parsed.route && hasTrack(parsed.type, parsed.subtype) ? buildTrack(parsed.route) : null
   const startLat = roundCoordinate(parsed.startLat)
   const startLng = roundCoordinate(parsed.startLng)
 

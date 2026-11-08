@@ -316,7 +316,7 @@ async function fromStreams(
       deviceName: detail.device_name ?? null,
       startLat: lat !== null && lng !== null ? round2(lat) : null,
       startLng: lat !== null && lng !== null ? round2(lng) : null,
-      ...(route ? { route } : {}),
+      route,
       samples: {
         t,
         d: distance,

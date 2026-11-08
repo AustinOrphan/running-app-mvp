@@ -81,6 +81,7 @@ model Activity {
   weatherSource   String? // 'open-meteo' | 'provider' | 'manual'
   hrHistogram     String? // JSON text: HrHistogram
   terrainBins     String? // JSON text: TerrainBins (runs and races with a stream)
+  trackV          Int? // TRACK_VERSION when the run's positions were last looked for (a row in ActivityTrack, or none); null = not yet
   decouplingPct   Float?
   gapDistanceM    Int?
   feel            Int? // -2 much easier .. +2 much harder than expected
