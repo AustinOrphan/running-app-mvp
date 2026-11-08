@@ -129,22 +129,20 @@ export function useCheckRuns(): CheckRuns {
           resolve('timeout')
         }, CHECK_WAIT_MS)
       })
-      const answers = await Promise.race([
-        Promise.allSettled(targets.map((item) => mutateAsync({ provider: item.provider }))),
-        timedOut,
-      ])
+      // Each refusal is kept as its request settles, so a request that hangs does not take the
+      // others' answers with it: after the wait only the unanswered ones read as slow.
+      const settled = targets.map((item) =>
+        mutateAsync({ provider: item.provider }).then(
+          () => undefined,
+          (reason: unknown) => {
+            next.refused[item.provider] =
+              reason instanceof ApiError ? reason.message : 'Something went wrong.'
+          },
+        ),
+      )
+      await Promise.race([Promise.all(settled), timedOut])
       clearTimeout(timer)
       if (live.current !== next) return
-      if (answers === 'timeout') {
-        setPending({ ...next, refused: { ...next.refused }, answered: true })
-        return
-      }
-      answers.forEach((answer, index) => {
-        if (answer.status === 'fulfilled') return
-        const reason: unknown = answer.reason
-        next.refused[targets[index]!.provider] =
-          reason instanceof ApiError ? reason.message : 'Something went wrong.'
-      })
       setPending({ ...next, refused: { ...next.refused }, answered: true })
     },
     [mutateAsync],
@@ -253,7 +251,13 @@ export function useCheckRuns(): CheckRuns {
           ...failures,
           ...(slow.length === 0
             ? []
-            : [render(TEMPLATES['today.check.slow'], { source: joinSources(slow) }, UNITS)]),
+            : [
+                render(
+                  TEMPLATES[slow.length === 1 ? 'today.check.slow' : 'today.check.slow-many'],
+                  { source: joinSources(slow) },
+                  UNITS,
+                ),
+              ]),
         ]
         setProblem(lines.length === 0 ? null : lines.join(' '))
       }

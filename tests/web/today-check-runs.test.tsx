@@ -264,6 +264,86 @@ describe('Today: check for new runs', () => {
     vi.useRealTimers()
   })
 
+  describe('after 90 seconds with a request that never settles', () => {
+    /** Holds back the sync answer of the named services for ever; the rest answer as usual. */
+    function hang(...providers: string[]) {
+      const answer = globalThis.fetch
+      vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+        const response = await answer(input, init)
+        const url = typeof input === 'string' ? input : ''
+        if (init?.method === 'POST' && providers.some((p) => url.endsWith(`/${p}/sync`))) {
+          await new Promise(() => {})
+        }
+        return response
+      })
+    }
+
+    async function pressAndWait(button: HTMLElement) {
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+      vi.setSystemTime(NOW)
+      fireEvent.click(button)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000)
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(90_000)
+      })
+    }
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    test('one refused source keeps its own reason, and only the hung one reads as slow', async () => {
+      const { routes } = fakeServices(
+        [service('intervals', 'Intervals.icu'), service('strava', 'Strava')],
+        minutesAgo(5),
+        minutesAgo(0),
+      )
+      renderToday(makeToday({ coach: makeCoach() }), {
+        ...routes,
+        'POST /api/integrations/intervals/sync': () => ({
+          status: 409,
+          body: { error: { code: 'conflict', message: 'Reconnect Intervals.icu first.' } },
+        }),
+        'GET /api/integrations/strava/runs': () => [],
+      })
+      const button = await screen.findByRole('button', { name: 'Check for new runs' })
+      hang('strava')
+      await pressAndWait(button)
+      const alert = screen.getByRole('alert')
+      expect(alert).toHaveTextContent(
+        'Could not check Intervals.icu. Reconnect Intervals.icu first. Try again.',
+      )
+      expect(alert).toHaveTextContent('Strava has not answered yet. Its runs show once it does.')
+      expect(alert).not.toHaveTextContent('Intervals.icu and Strava')
+      expect(button).not.toHaveAttribute('aria-busy', 'true')
+    })
+
+    test('two hung sources are named together, in the plural', async () => {
+      const { routes } = fakeServices(
+        [service('intervals', 'Intervals.icu'), service('strava', 'Strava')],
+        minutesAgo(5),
+        minutesAgo(0),
+      )
+      // The list never shows a newer pull for either, so both stay unanswered.
+      renderToday(makeToday({ coach: makeCoach() }), {
+        ...routes,
+        'GET /api/integrations': () => [
+          service('intervals', 'Intervals.icu', { lastSyncAt: minutesAgo(5) }),
+          service('strava', 'Strava', { lastSyncAt: minutesAgo(5) }),
+        ],
+      })
+      const button = await screen.findByRole('button', { name: 'Check for new runs' })
+      hang('intervals', 'strava')
+      await pressAndWait(button)
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Intervals.icu and Strava have not answered yet. Their runs show once they do.',
+      )
+      expect(button).not.toHaveAttribute('aria-busy', 'true')
+    })
+  })
+
   test('says so when nothing new came', async () => {
     const user = userEvent.setup()
     const after = minutesAgo(0)
