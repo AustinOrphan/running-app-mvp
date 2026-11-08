@@ -250,6 +250,9 @@ export const TODAY_TEMPLATES = {
   'today.check.slow': tpl('{source} has not answered yet. Its runs show once it does.', {
     source: 'text',
   }),
+  'today.check.slow-many': tpl('{source} have not answered yet. Their runs show once they do.', {
+    source: 'text',
+  }),
 
   // Monday on Today: while the weekly update's brief is unopened and it changed sessions, a card
   // stands under the session hero (`MondayBrief`), and a review that is due gets its own link beside it.
