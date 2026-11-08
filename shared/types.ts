@@ -273,6 +273,11 @@ export interface ParsedActivity {
   deviceName: string | null
   startLat: number | null
   startLng: number | null
+  /**
+   * Every recorded position in time order, for the track builder only; it is not stored as it is
+   * and not per sample. Absent or empty when the source has no positions.
+   */
+  route?: Array<{ lat: number; lng: number; d: number | null; t?: number | null }> | null
   /** Seconds from the start, as recorded. */
   samples: {
     t: number[]
@@ -477,6 +482,21 @@ export interface ActivityDetail {
   laps: Lap[] | null
   hasFile: boolean
 }
+/**
+ * `GET /api/activities/:id/track`: the simplified route of a run (M1a). `polyline` is a Google
+ * encoded polyline at precision 5 and `distM` the cumulative metres at each of its points, so a
+ * chart can map a distance to a point. When `endsHiddenM` is not 0 the first and last
+ * `endsHiddenM` metres have been cut off (`UserSettings.hideMapEnds`); `distM` keeps its absolute values.
+ */
+export interface ActivityTrackView {
+  activityId: string
+  v: number
+  polyline: string
+  distM: number[]
+  pointCount: number
+  bbox: { minLat: number; minLng: number; maxLat: number; maxLng: number }
+  endsHiddenM: number
+}
 export interface UploadedFile {
   name: string
   bytes: Uint8Array
@@ -624,6 +644,11 @@ export interface UserSettings {
    * the chart and deletes no weigh-in.
    */
   showBodyWeight: boolean
+  /**
+   * Whether the track read leaves out the first and last 200 m of a run's map (M1a), so a
+   * screenshot never shows where the runner starts. On by default; the stored track is whole.
+   */
+  hideMapEnds: boolean
 }
 export interface SessionUser extends UserSettings {
   id: string

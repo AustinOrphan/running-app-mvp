@@ -27,6 +27,7 @@ function settings(units: Units): UserSettings {
     units,
     weightUnit: 'lb',
     showBodyWeight: false,
+    hideMapEnds: true,
   }
 }
 

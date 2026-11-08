@@ -15,6 +15,7 @@ import {
   withIndex,
 } from './summarize.ts'
 import type { RawPoint } from './summarize.ts'
+import { validPosition } from './track.ts'
 
 type Message = Record<string, unknown>
 
@@ -193,6 +194,22 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const startLat = lat ?? (firstPositioned ? num(firstPositioned, 'position_lat') : null)
     const startLng = lng ?? (firstPositioned ? num(firstPositioned, 'position_long') : null)
 
+    const route = recordsBySession[index]!.flatMap((record) => {
+      const rLat = num(record, 'position_lat')
+      const rLng = num(record, 'position_long')
+      const time = ms(record['timestamp'])
+      return rLat !== null && rLng !== null && validPosition(rLat, rLng)
+        ? [
+            {
+              lat: rLat,
+              lng: rLng,
+              d: num(record, 'distance'),
+              t: time === null ? null : Math.max(0, (time - startMs) / 1000),
+            },
+          ]
+        : []
+    })
+
     const startUtc = msToUtcIso(startMs)
     const utcOffsetMin =
       fileOffset !== null && Math.abs(fileOffset) <= MAX_OFFSET_MIN
@@ -223,6 +240,7 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
       deviceName: deviceName(infos),
       startLat: startLat === null ? null : roundCoord(startLat),
       startLng: startLng === null ? null : roundCoord(startLng),
+      route: route.length > 0 ? route : null,
       samples,
       laps: lapsOf(laps, startMs, endMs, foot),
     })

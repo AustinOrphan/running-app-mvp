@@ -3,11 +3,13 @@ import { gunzipSync } from 'node:zlib'
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 import { storeParsed, storeWellness } from '../../server/services/activityStore.ts'
 import type { ParsedActivity } from '../../shared/types.ts'
+import { syntheticRun } from '../fixtures/syntheticRoute.ts'
 import { createTestCtx, seedUser, type TestCtx, type TestUser } from './helpers.ts'
 
 // The real summarize and localDateTime belong to the file-parser task. This stand-in keeps the
 // store tests independent of it: same shapes, simple arithmetic.
-vi.mock('../../shared/importers/files/summarize.ts', () => ({
+vi.mock('../../shared/importers/files/summarize.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../shared/importers/files/summarize.ts')>()),
   summarize: (parsed: ParsedActivity) => ({
     movingSec: parsed.elapsedSec - 60,
     hrHistogram: parsed.samples.hr ? { start: 40, width: 1, sec: [1, 2, 3] } : null,
@@ -422,5 +424,43 @@ describe('storeWellness', () => {
     const n = await storeWellness(ctx, user.id, [{ ...empty, date: '2026-03-01' }], 'intervals')
     expect(n).toBe(0)
     expect(await ctx.prisma.wellnessDay.count()).toBe(0)
+  })
+})
+
+describe('storeParsed tracks', () => {
+  const route = syntheticRun(900).map((f) => ({ lat: f.lat, lng: f.lng, d: f.distanceM }))
+
+  test('a run with positions stores a simplified track', async () => {
+    const { activityId } = await storeParsed(ctx, user.id, parsed({ route }), upload)
+    const row = await ctx.prisma.activityTrack.findUniqueOrThrow({ where: { activityId } })
+    expect(row.v).toBe(1)
+    expect(row.pointCount).toBeGreaterThan(2)
+    expect(row.pointCount).toBeLessThan(route.length)
+    expect(JSON.parse(row.distM)).toHaveLength(row.pointCount)
+  })
+
+  test('a treadmill run, a run without positions and a ride store none', async () => {
+    await storeParsed(
+      ctx,
+      user.id,
+      parsed({ route, subtype: 'treadmill', providerKey: 'a' }),
+      upload,
+    )
+    await storeParsed(ctx, user.id, parsed({ route: null, providerKey: 'b' }), upload)
+    await storeParsed(
+      ctx,
+      user.id,
+      parsed({ route, type: 'cross', subtype: 'bike', providerKey: 'c' }),
+      upload,
+    )
+    expect(await ctx.prisma.activityTrack.count()).toBe(0)
+  })
+
+  test('a re-import without positions keeps the track; deleting the activity removes it', async () => {
+    const { activityId } = await storeParsed(ctx, user.id, parsed({ route }), upload)
+    await storeParsed(ctx, user.id, parsed({ route: null }), upload)
+    expect(await ctx.prisma.activityTrack.count()).toBe(1)
+    await ctx.prisma.activity.delete({ where: { id: activityId } })
+    expect(await ctx.prisma.activityTrack.count()).toBe(0)
   })
 })

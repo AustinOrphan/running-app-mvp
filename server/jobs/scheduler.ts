@@ -22,6 +22,7 @@ import {
   syncMessage,
 } from '../services/syncLog.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
+import { backfillTracks } from '../services/trackBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
 import { refreshWeatherCaches } from '../services/weatherCache.ts'
 import { REPLAN_SLOT, usersDueForWeeklyUpdate, type DailySlot } from './weeklyUpdate.ts'
@@ -40,6 +41,8 @@ export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
 export const PUBLISH_INTERVAL_MS = 2 * MINUTE_MS
 /** How often the terrain backfill reads one batch of stored streams for each user. */
 export const TERRAIN_INTERVAL_MS = 5 * MINUTE_MS
+/** How often the track backfill reads stored originals and asks intervals.icu for a few streams. */
+export const TRACK_INTERVAL_MS = 5 * MINUTE_MS
 /** Activities that get weather per user per run. */
 const WEATHER_BATCH = 50
 /** The first run waits, so a crash loop never hammers a provider. */
@@ -237,6 +240,41 @@ export async function runTerrainJob(deps: Deps, log?: Log): Promise<void> {
     } catch (error) {
       log?.warn({ reason: safeMessage(error), userId: user.id }, 'terrain backfill failed')
       await recordJob(deps, 'terrain', user.id, startedAt, { error })
+    }
+  }
+}
+
+/**
+ * Fills the route tracks of runs imported before `ActivityTrack` existed (M1a): stored originals
+ * first, then a few intervals.icu streams per tick (`backfillTracks`). A tick that fills something,
+ * meets an unreadable file or makes a request records a `track` run: `accepted` the tracks written,
+ * `failed` the unreadable files and failed requests, `partial` when there are any and `paused` while
+ * intervals.icu is rate limiting; a tick with nothing to do is not stored. A user's failure is
+ * recorded as an error run and the job goes on. Idempotent and resumable: a run that was looked at
+ * is never selected again.
+ */
+export async function runTrackJob(deps: Deps, log?: Log, opts: { now?: Date } = {}): Promise<void> {
+  const users = await deps.prisma.user.findMany({ select: { id: true } })
+  for (const user of users) {
+    const startedAt = new Date()
+    try {
+      const result = await backfillTracks(deps, user.id, opts)
+      const failures = [
+        ...result.unreadable.map((ref) => ({ ref, reason: 'the stored file could not be read' })),
+        ...result.failures,
+      ]
+      await recordJob(deps, 'track', user.id, startedAt, {
+        accepted: result.filled,
+        failed: failures.length,
+        // Only a 429 met in this tick is a `paused` run; waiting out an earlier pause is idle.
+        status:
+          result.pause && result.requests > 0 ? 'paused' : failures.length > 0 ? 'partial' : 'ok',
+        failures,
+        skipIdle: true,
+      })
+    } catch (error) {
+      log?.warn({ reason: safeMessage(error), userId: user.id }, 'track backfill failed')
+      await recordJob(deps, 'track', user.id, startedAt, { error })
     }
   }
 }
@@ -459,7 +497,7 @@ export const PUBLISH_MORNING_SLOT: DailySlot = { hour: 4, minute: 45 }
 
 /**
  * Starts the hourly sync, 5-minute folder scan and 10-minute weather jobs, the 5-minute terrain
- * backfill, the daily database
+ * and track backfills, the daily database
  * backup (02:00 local), the nightly matching (02:30 local), the Monday re-plan (03:00 local) and
  * its catch-up, and the weekly prediction log (each 30 s after start, then every 6 hours), the
  * publisher's 2-minute check and its forced 04:45 run; returns `stop()`.
@@ -516,6 +554,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('folder', FOLDER_INTERVAL_MS, () => runFolderJob(deps, log))
   every('weather', WEATHER_INTERVAL_MS, () => runWeatherJob(deps, opts, log))
   every('terrain', TERRAIN_INTERVAL_MS, () => runTerrainJob(deps, log))
+  every('track', TRACK_INTERVAL_MS, () => runTrackJob(deps, log))
   daily('backup', BACKUP_SLOT, () => runBackupJob(deps, {}, log))
   daily('matching', MATCHING_SLOT, () => runMatchingJob(deps, {}, log))
   daily('replan', REPLAN_SLOT, () => runReplanJob(deps, {}, log))

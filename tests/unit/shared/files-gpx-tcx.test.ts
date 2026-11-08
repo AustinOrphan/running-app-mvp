@@ -28,8 +28,8 @@ describe('parseGpx', () => {
       avgCadence: 168,
       avgPowerW: null,
       deviceName: 'Example Watch 100',
-      startLat: 0,
-      startLng: 0,
+      startLat: 10,
+      startLng: 20,
     })
     expect(a!.distanceM).toBe(44)
     expect(a!.samples.t).toEqual([0, 10, 20, 30, 40])
