@@ -220,6 +220,15 @@ its build runs `prisma migrate deploy` as a smoke test.
   (`?view=card`, `describeRaceCard`) is a view of the same rows, kept offline as the sixth read of
   ADR 0012; its crew notes are `race-crew:` keys in `web/pwa/drafts.ts`, on the device only, and
   `RaceCard.module.css` holds the print layout.
+- Run tracks (M1a): a parsed run carries `route` (every recorded position, not stored as it is). `buildTrack`
+  (`shared/importers/files/track.ts`) simplifies it with Douglas-Peucker at 5 m, caps it at 2,000 points and
+  encodes a precision-5 polyline with the cumulative metres per kept point; these constants are data
+  preparation, not engine Params. `ActivityTrack` (non-state) is written only by `storeParsed` and the `track`
+  backfill (`server/services/trackBackfill.ts`); `Activity.trackV` records that the positions were looked for,
+  so a treadmill run or one with none has no row and is not looked for again. A pull provider's positions
+  come from `fetchRoute` (intervals.icu `latlng` stream: latitudes in `data`, longitudes in `data2`). The
+  stored track is whole; `GET /api/activities/:id/track` cuts the first and last 200 m while
+  `User.hideMapEnds` is on (the default), and nothing else may serve the stored polyline.
 - `Sheet` (`web/components/Sheet.tsx`) is stack-aware: only the topmost open sheet answers Tab and
   Escape, and the ones under it are `inert`.
 - Packages that only the Vite build uses (react, recharts, fonts, router, query) are
