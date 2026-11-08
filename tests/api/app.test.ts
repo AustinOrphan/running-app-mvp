@@ -25,7 +25,10 @@ describe('app skeleton', () => {
     expect(res.body).toEqual({ status: 'ok' })
     expect(res.headers['x-request-id']).toBeTruthy()
     expect(res.headers['x-content-type-options']).toBe('nosniff')
-    expect(res.headers['content-security-policy']).toContain("default-src 'self'")
+    const csp = res.headers['content-security-policy'] as string
+    expect(csp).toContain("default-src 'self'")
+    // the only image host besides the app itself is the map tile server (M1b)
+    expect(csp).toContain("img-src 'self' data: https://tile.openstreetmap.org;")
   })
 
   test('an inbound request id is echoed when it is well formed', async () => {
