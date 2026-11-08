@@ -67,7 +67,7 @@ Each item names the default that holds until the owner answers.
     `combineQueries`), pages loaded on demand with idle prefetch, the rail from 720 px, More in
     three groups, desktop measures, the Plan week row and compact warnings, the session sheet grid.
   - The Sunday e2e trap (#653): two specs assumed a weekday and failed from 00:00 UTC on Sundays.
-  - Queued writes (#666, in review at this update): Done, a rating and pain go through the outbox
+  - Queued writes (#666): Done, a rating and pain go through the outbox
     when there is no signal and go up once.
 
 - **Load progression from the runner's history (2026-10-25, `feat/load-progression`, PR #565,
