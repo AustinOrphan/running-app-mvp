@@ -26,8 +26,12 @@ const STREAM_PAGE_ROWS = 5
 export const ORIGINAL_FILES_DIR = 'original-files'
 
 type Row = Record<string, unknown>
-/** Reads the page after `after` (a row key; `undefined` for the first page). */
-type Finder = (take: number, after: string | undefined) => Promise<Row[]>
+/**
+ * Reads the page that follows `last`, the final row of the page before (`undefined` for the
+ * first). Paging is by key (`id > last.id`), never by a cursor row: a cursor whose row was deleted
+ * between two reads makes the database answer an empty page, and the table would end early.
+ */
+type Finder = (take: number, last: Row | undefined) => Promise<Row[]>
 
 interface Table {
   /** The file in the archive. */
@@ -42,23 +46,27 @@ interface Table {
   shape?: 'array' | 'object'
   /** The columns that hold JSON text; they are written as JSON, not as a string of JSON. */
   json?: readonly string[]
-  /** The row column that is its key for paging. */
-  key?: string
   pageRows?: number
   find: Finder
 }
 
-/** The paging args that continue after the row with this id. */
-function after(key: string | undefined): { cursor?: { id: string }; skip?: number } {
-  return key === undefined ? {} : { cursor: { id: key }, skip: 1 }
+/** Where clause part: rows with an id after the last one read. */
+function idAfter(last: Row | undefined): { id?: { gt: string } } {
+  return last === undefined ? {} : { id: { gt: String(last['id']) } }
 }
 
 /** The same for the tables keyed by their activity. */
-function afterActivity(key: string | undefined): {
-  cursor?: { activityId: string }
-  skip?: number
+function activityIdAfter(last: Row | undefined): { activityId?: { gt: string } } {
+  return last === undefined ? {} : { activityId: { gt: String(last['activityId']) } }
+}
+
+/** Activities are read oldest first: the key is (date, id). */
+function activityAfter(last: Row | undefined): {
+  OR?: ({ date: { gt: string } } | { date: string; id: { gt: string } })[]
 } {
-  return key === undefined ? {} : { cursor: { activityId: key }, skip: 1 }
+  if (last === undefined) return {}
+  const date = String(last['date'])
+  return { OR: [{ date: { gt: date } }, { date, id: { gt: String(last['id']) } }] }
 }
 
 /** The tables, in archive order. `prisma` and `userId` are fixed per export. */
@@ -125,12 +133,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'duplicateOfId, duplicateStatus: the duplicate pass’s link and verdict.',
       ],
       json: ['hrHistogram', 'terrainBins'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.activity.findMany({
-          where: mine,
-          orderBy: [{ date: 'asc' }, { startTime: 'asc' }, { id: 'asc' }],
+          where: { ...mine, ...activityAfter(last) },
+          orderBy: [{ date: 'asc' }, { id: 'asc' }],
           take,
-          ...after(key),
         }),
     },
     {
@@ -144,14 +151,12 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'data: the sampled series (see the keys in each row); laps: the lap list.',
       ],
       json: ['data', 'laps'],
-      key: 'activityId',
       pageRows: STREAM_PAGE_ROWS,
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.activityStream.findMany({
-          where: { activity: mine },
+          where: { activity: mine, ...activityIdAfter(last) },
           orderBy: { activityId: 'asc' },
           take,
-          ...afterActivity(key),
         }),
     },
     {
@@ -164,14 +169,12 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'sizeBytes: the size of the original file. sha256: its SHA-256.',
         'archivePath: where the file is in this archive.',
       ],
-      key: 'activityId',
       pageRows: PAGE_ROWS,
-      find: async (take, key) => {
+      find: async (take, last) => {
         const rows = await prisma.activityFile.findMany({
-          where: { activity: mine },
+          where: { activity: mine, ...activityIdAfter(last) },
           orderBy: { activityId: 'asc' },
           take,
-          ...afterActivity(key),
           // The blob goes out as its own entry, not in this index.
           select: { activityId: true, format: true, fileName: true, sizeBytes: true, sha256: true },
         })
@@ -184,12 +187,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       about: 'One row per import you ran, with its counts and the rows it could not read.',
       fields: ['errors: the rows that were skipped and why, as JSON.'],
       json: ['errors'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.importBatch.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -197,12 +199,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       models: ['ImportedFile'],
       about: 'The files the importers have seen (by SHA-256) and what came of each.',
       fields: ['outcome: imported, duplicate, no-activity or invalid.'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.importedFile.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -217,12 +218,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'fatigue, soreness, sleepQuality, mood, stress: check-in answers, 1 to 5, 3 is normal.',
         'painScore: 0 to 10. illness: true when the check-in said ill.',
       ],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.wellnessDay.findMany({
-          where: mine,
-          orderBy: [{ date: 'asc' }, { id: 'asc' }],
+          where: { ...mine, ...idAfter(last) },
+          orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -234,12 +234,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'suggestedNextMin, finalNextMin: planned running minutes for the next week.',
         'fatigue: 1 to 5.',
       ],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.weeklyReview.findMany({
-          where: mine,
-          orderBy: [{ weekStart: 'asc' }, { id: 'asc' }],
+          where: { ...mine, ...idAfter(last) },
+          orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -248,8 +247,12 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       about: 'Your answers to the screening questionnaire.',
       fields: ['answers: the answers, as JSON. flags: how many were flagged.'],
       json: ['answers'],
-      find: (take, key) =>
-        prisma.screening.findMany({ where: mine, orderBy: { id: 'asc' }, take, ...after(key) }),
+      find: (take, last) =>
+        prisma.screening.findMany({
+          where: { ...mine, ...idAfter(last) },
+          orderBy: { id: 'asc' },
+          take,
+        }),
     },
     {
       file: 'goals.json',
@@ -259,16 +262,24 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'targetDate: YYYY-MM-DD. distanceM, gainM, lossM: metres. targetTimeSec: seconds.',
         'startTime: HH:MM. raceLat, raceLng: degrees, rounded to 0.01.',
       ],
-      find: (take, key) =>
-        prisma.goal.findMany({ where: mine, orderBy: { id: 'asc' }, take, ...after(key) }),
+      find: (take, last) =>
+        prisma.goal.findMany({
+          where: { ...mine, ...idAfter(last) },
+          orderBy: { id: 'asc' },
+          take,
+        }),
     },
     {
       file: 'race-results.json',
       models: ['RaceResult'],
       about: 'The results you recorded for finished races.',
       fields: ['date: YYYY-MM-DD. distanceM, gainM: metres. timeSec: seconds.'],
-      find: (take, key) =>
-        prisma.raceResult.findMany({ where: mine, orderBy: { id: 'asc' }, take, ...after(key) }),
+      find: (take, last) =>
+        prisma.raceResult.findMany({
+          where: { ...mine, ...idAfter(last) },
+          orderBy: { id: 'asc' },
+          take,
+        }),
     },
     {
       file: 'race-checkpoints.json',
@@ -278,12 +289,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'distanceM: metres from the start. gainM, lossM: metres since the previous point.',
         'cutoffSec: elapsed seconds from the start.',
       ],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.raceCheckpoint.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -296,12 +306,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'inputs: what the prediction used, as JSON.',
       ],
       json: ['inputs'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.predictionLog.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -314,8 +323,12 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'feasibility, warnings, checklist, options: the generator’s notes, as JSON.',
       ],
       json: ['feasibility', 'warnings', 'checklist', 'options'],
-      find: (take, key) =>
-        prisma.plan.findMany({ where: mine, orderBy: { id: 'asc' }, take, ...after(key) }),
+      find: (take, last) =>
+        prisma.plan.findMany({
+          where: { ...mine, ...idAfter(last) },
+          orderBy: { id: 'asc' },
+          take,
+        }),
     },
     {
       file: 'plan-weeks.json',
@@ -327,12 +340,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'tid: the intensity targets, percent of running time. flags: the week’s flags.',
       ],
       json: ['tid', 'flags'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.planWeek.findMany({
-          where: ofMyPlans,
+          where: { ...ofMyPlans, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -347,12 +359,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'externalId: the session’s identity outside the database.',
       ],
       json: ['structure', 'target', 'rules', 'flags', 'execution', 'original'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.planSession.findMany({
-          where: ofMyPlans,
+          where: { ...ofMyPlans, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -365,12 +376,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       ],
       json: ['changes', 'decision', 'diff', 'undo'],
       pageRows: STREAM_PAGE_ROWS,
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.planRevision.findMany({
-          where: ofMyPlans,
+          where: { ...ofMyPlans, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -379,12 +389,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       about: 'The Monday briefs, as the facts they were built from.',
       fields: ['weekStart: the Monday, YYYY-MM-DD. facts: template ids and values, as JSON.'],
       json: ['facts'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.weeklyBrief.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -392,12 +401,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       models: ['Disruption'],
       about: 'The illness, injury, travel and time windows you reported.',
       fields: ['startDate, endDate: YYYY-MM-DD, inclusive. maxRunMin: minutes. pain: 0 to 10.'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.disruption.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -414,12 +422,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       models: ['StrengthLift'],
       about: 'The starting loads you entered for each exercise.',
       fields: ['loadG: grams. reps: repetitions. rir: reps in reserve, 0 to 5. asOf: YYYY-MM-DD.'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.strengthLift.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -431,12 +438,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'prescribed: what the sheet showed when you logged, as JSON.',
       ],
       json: ['prescribed'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.strengthLog.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -447,12 +453,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'logId: the session in strength-logs.json. position: the order in the session.',
         'loadG: grams. count: repetitions, seconds or contacts, by the exercise. rir: 0 to 5.',
       ],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.strengthSet.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -460,12 +465,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       models: ['FuelProduct'],
       about: 'The fuel products you keep, archived ones included.',
       fields: ['carbsG: grams per serving. sodiumMg: milligrams. kcal: kilocalories.'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.fuelProduct.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
         }),
     },
     {
@@ -478,8 +482,12 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'gut, nausea: 0 to 4.',
       ],
       json: ['items'],
-      find: (take, key) =>
-        prisma.fuelLog.findMany({ where: mine, orderBy: { id: 'asc' }, take, ...after(key) }),
+      find: (take, last) =>
+        prisma.fuelLog.findMany({
+          where: { ...mine, ...idAfter(last) },
+          orderBy: { id: 'asc' },
+          take,
+        }),
     },
     {
       file: 'fuel-settings.json',
@@ -500,12 +508,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       ],
       // An allowlist: the secret, the push-token hash, the cursor, the settings and the last error
       // text are not read at all.
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.integration.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
           select: {
             id: true,
             provider: true,
@@ -524,12 +531,11 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       about:
         'Whether the watch or calendar delivery is switched on. The feed’s token is not included.',
       fields: ['channel: intervals or calendar. lastRunAt, pausedUntil: ISO 8601 UTC.'],
-      find: (take, key) =>
+      find: (take, last) =>
         prisma.deliveryChannel.findMany({
-          where: mine,
+          where: { ...mine, ...idAfter(last) },
           orderBy: { id: 'asc' },
           take,
-          ...after(key),
           select: {
             id: true,
             channel: true,
@@ -548,8 +554,12 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       about: 'The log of the last syncs and jobs (the app keeps 200 rows and 90 days).',
       fields: ['startedAt, finishedAt: ISO 8601 UTC. failures: the first failures, as JSON.'],
       json: ['failures'],
-      find: (take, key) =>
-        prisma.syncRun.findMany({ where: mine, orderBy: { id: 'asc' }, take, ...after(key) }),
+      find: (take, last) =>
+        prisma.syncRun.findMany({
+          where: { ...mine, ...idAfter(last) },
+          orderBy: { id: 'asc' },
+          take,
+        }),
     },
   ]
 }
@@ -596,16 +606,13 @@ function present(row: Row, json: readonly string[] | undefined): Row {
 /** Reads a table a page at a time. */
 async function* rowsOf(table: Table): AsyncGenerator<Row[], void, undefined> {
   const take = table.pageRows ?? PAGE_ROWS
-  const key = table.key ?? 'id'
-  let cursor: string | undefined
+  let last: Row | undefined
   for (;;) {
-    const page = await table.find(take, cursor)
+    const page = await table.find(take, last)
     if (page.length === 0) return
     yield page
     if (page.length < take) return
-    const last = page[page.length - 1]?.[key]
-    if (typeof last !== 'string') throw new Error(`${table.file}: a row has no ${key}.`)
-    cursor = last
+    last = page[page.length - 1]
   }
 }
 
@@ -636,18 +643,17 @@ async function* jsonChunks(table: Table, counted: { rows: number }): AsyncGenera
 
 async function* csvChunks(prisma: PrismaClient, userId: string): AsyncGenerator<Buffer> {
   yield Buffer.from(`${activityCsvHeader()}\r\n`)
-  let cursor: string | undefined
+  let last: Row | undefined
   for (;;) {
     const page = await prisma.activity.findMany({
-      where: { userId },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }, { id: 'asc' }],
+      where: { userId, ...activityAfter(last) },
+      orderBy: [{ date: 'asc' }, { id: 'asc' }],
       take: PAGE_ROWS,
-      ...after(cursor),
     })
     if (page.length === 0) return
     yield Buffer.from(page.map((row) => `${activityCsvLine(row)}\r\n`).join(''))
     if (page.length < PAGE_ROWS) return
-    cursor = page[page.length - 1]?.id
+    last = page[page.length - 1]
   }
 }
 
@@ -656,13 +662,12 @@ async function* originalFiles(
   userId: string,
   counted: { files: number },
 ): AsyncGenerator<ZipEntry> {
-  let cursor: string | undefined
+  let last: Row | undefined
   for (;;) {
     const page = await prisma.activityFile.findMany({
-      where: { activity: { userId } },
+      where: { activity: { userId }, ...activityIdAfter(last) },
       orderBy: { activityId: 'asc' },
       take: FILE_PAGE_ROWS,
-      ...afterActivity(cursor),
     })
     if (page.length === 0) return
     for (const file of page) {
@@ -676,7 +681,7 @@ async function* originalFiles(
       yield { name: originalFilePath(file), data: bytes }
     }
     if (page.length < FILE_PAGE_ROWS) return
-    cursor = page[page.length - 1]?.activityId
+    last = page[page.length - 1]
   }
 }
 
