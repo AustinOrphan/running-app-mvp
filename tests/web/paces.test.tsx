@@ -371,6 +371,25 @@ describe('MyPacesPage: what you can run now', () => {
     expect(within(events).getByLabelText('Distance (km)')).toHaveValue('')
   })
 
+  test('says when the own climbing moved a course, with the weights in How this is made', async () => {
+    const user = userEvent.setup()
+    const { routes } = serve({ ...stateWith(FITNESS), climb: { gainEquivalentM: 7, runs: 23 } })
+    mockApi(routes)
+    renderWithProviders(<MyPacesPage />, { route: '/paces' })
+    const events = await screen.findByRole('region', { name: 'What you can run now' })
+    expect(within(events).queryByText(/Includes your own speed on climbs/)).toBeNull()
+    await user.type(within(events).getByLabelText('Distance (km)'), '15')
+    await user.type(within(events).getByLabelText('Climb (m), optional'), '600')
+    await user.click(within(events).getByRole('button', { name: 'Show paces' }))
+    const card = await within(events).findByRole('article', { name: '15.00 km' })
+    expect(
+      within(card).getByText(
+        /^Includes your own speed on climbs from 23 runs, moving this by (-\d+ min|less than a minute)\.$/,
+      ),
+    ).toBeInTheDocument()
+    expect(within(events).getByText(/never more than|at most 3%/)).toBeInTheDocument()
+  })
+
   test('keeps the page when the course does not load, and says so in its row', async () => {
     const user = userEvent.setup()
     const { routes } = serve()

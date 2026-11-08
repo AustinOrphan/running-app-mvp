@@ -15,6 +15,7 @@
 //
 // Pure. The sentences that fuel, fluid and the safety card already have (`fuelCopy.ts`) are
 // reused, not written again.
+import { signedMinutes } from '../engine/predict.ts'
 import {
   eahText,
   FUEL_TEMPLATES,
@@ -94,6 +95,14 @@ export const RACE_PLAN_TEMPLATES = {
     start: 'text',
     range: 'text',
   }),
+  'race.plan.expected.climb': tpl(
+    'Includes your own speed on climbs from {runs} runs, moving this by {shift}.',
+    { runs: 'count', shift: 'text' },
+  ),
+  'race.plan.expected.climb-how': tpl(
+    'Your climbing counts {faster} of the gap to the default when it is faster, {slower} when slower, and moves the time by at most {max} (L5).',
+    { faster: 'percent', slower: 'percent', max: 'percent' },
+  ),
   'race.plan.expected.round': tpl('Times are rounded to {step}, and the range outward.', {
     step: 'minutes',
   }),
@@ -363,6 +372,10 @@ export const RACE_PLAN_TEMPLATES = {
     'The course is shared out by distance, counting each unit of climb as {n} units of flat. Climb left out is spread over the segments without one.',
     { n: 'count' },
   ),
+  'race.plan.points.weights-own': tpl(
+    'Your own speed on climbs from {runs} runs is blended in, so here each unit of climb counts as {n} units of flat, not {standard}.',
+    { runs: 'count', n: 'text', standard: 'count' },
+  ),
   'race.plan.points.late': tpl(
     'Speed tends to fall late in a long race, so the later end of each range is the likelier one.',
   ),
@@ -569,6 +582,7 @@ const count = (n: number) => ({ kind: 'count', n }) as const
 const minutes = (min: number) => ({ kind: 'minutes', min }) as const
 const duration = (sec: number) => ({ kind: 'duration', sec }) as const
 const percent = (pct: number) => ({ kind: 'percent', pct }) as const
+const oneDecimal = (n: number): string => String(Math.round(n * 10) / 10)
 const share = (fraction: number) => ({ kind: 'share', fraction }) as const
 
 /** A whole number the way every figure of the plan reads. */
@@ -810,6 +824,27 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
       render(
         TODAY_TEMPLATES['today.race.wide'],
         { distance: { kind: 'distance', m: plan.distanceM }, grade: expected.range.grade },
+        units,
+      ),
+    )
+  }
+  if (expected.climb !== null) {
+    notes.push(
+      say(
+        T['race.plan.expected.climb'],
+        {
+          runs: count(expected.climb.runs),
+          shift: signedMinutes(expected.climb.shiftSec),
+        },
+        units,
+      ),
+      say(
+        T['race.plan.expected.climb-how'],
+        {
+          faster: percent(P.l5.personalBlendFaster.value * 100),
+          slower: percent(P.l5.personalBlendSlower.value * 100),
+          max: percent(P.l5.personalBlendMaxShiftPct.value),
+        },
         units,
       ),
     )
@@ -1200,6 +1235,19 @@ export function describeRacePoints(plan: RacePlan, units: Units): RacePointsText
 
   const notes = [
     say(T['race.plan.points.weights'], { n: count(P.l5.gainEquivalentM.value) }, units),
+    ...(splits.climb === null
+      ? []
+      : [
+          say(
+            T['race.plan.points.weights-own'],
+            {
+              runs: count(splits.climb.runs),
+              n: oneDecimal(splits.climb.usedM),
+              standard: count(P.l5.gainEquivalentM.value),
+            },
+            units,
+          ),
+        ]),
     say(T['race.plan.points.defaults'], {}, units),
     say(T['race.plan.points.late'], {}, units),
   ]

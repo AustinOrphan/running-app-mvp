@@ -433,6 +433,14 @@ export const EXPLAIN_TEMPLATES = {
     gain: 'climb',
     distance: 'distance',
   }),
+  'explain.l5-own': tpl(
+    'Your own speed on climbs from {runs} runs (I13) moves this by {shift}. Steep climbs stay on the default.',
+    { runs: 'count', shift: 'text' },
+  ),
+  'explain.l5-own-weights': tpl(
+    'Your climbing counts {faster} of the gap to the default when it is faster, {slower} when slower, and moves the time by at most {max}.',
+    { faster: 'percent', slower: 'percent', max: 'percent' },
+  ),
   'explain.l5-trail': tpl('On a trail course the range is widened by {pct}.', { pct: 'percent' }),
   'explain.l5-gap': tpl(
     'A trail prediction starts from a road estimate, which needs a race result or critical speed; none found.',
