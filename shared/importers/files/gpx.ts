@@ -170,8 +170,12 @@ export function parseGpx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const startUtc = msToUtcIso(first.ms)
     const change = samples.alt ? elevationGainLoss(samples.alt) : null
     const located = points.find((p) => p.lat !== null && p.lng !== null)
-    const route = points.flatMap((p, i) =>
-      validPosition(p.lat, p.lng) ? [{ lat: p.lat!, lng: p.lng!, d: raw[i]!.d ?? null }] : [],
+    // No `d`: the running haversine in `raw` also counts the hop to a dropped fix (0,0), so it is
+    // not a distance the track may trust. The track builder walks the valid fixes itself.
+    const route = points.flatMap((p) =>
+      validPosition(p.lat, p.lng)
+        ? [{ lat: p.lat!, lng: p.lng!, d: null, t: (p.ms - first.ms) / 1000 }]
+        : [],
     )
     const avgHr = mean((samples.hr ?? []).filter((v) => v > 0))
     const avgCadence = mean(samples.cad ?? [])

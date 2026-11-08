@@ -34,6 +34,14 @@ export interface RemoteActivityRef {
   startUtc: string
 }
 
+/** The remote refused the stored credential (HTTP 401 or 403): only a reconnect fixes it. */
+export class ProviderAuthError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ProviderAuthError'
+  }
+}
+
 /** A pull run that stopped early. The sync service saves `cursor` and pauses the provider. */
 export class RateLimitPause extends Error {
   cursor?: string

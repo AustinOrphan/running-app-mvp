@@ -2,7 +2,7 @@ import { gunzipSync } from 'node:zlib'
 import type { Deps } from '../app.ts'
 import { SecretError } from '../crypto.ts'
 import { getProvider } from '../providers/registry.ts'
-import { RateLimitPause } from '../providers/types.ts'
+import { ProviderAuthError, RateLimitPause } from '../providers/types.ts'
 import { loadProfile } from '../serialize.ts'
 import { trackRow } from './activityStore.ts'
 import { isSyncing, openIntegration, providerContext } from './sync.ts'
@@ -19,7 +19,16 @@ export const TRACK_FILE_BATCH = 20
  */
 export const TRACK_STREAM_BATCH = 5
 
+/** Failed stream requests for one run before the run is given up on (marked, no route). */
+export const TRACK_MAX_ATTEMPTS = 3
+/** How long the stream part leaves an integration alone after intervals.icu refused its key. */
+export const TRACK_AUTH_BACKOFF_MS = 60 * 60_000
+
 const PROVIDER = 'intervals'
+/** Failed requests per activity since the process started; a restart starts the count again. */
+const attempts = new Map<string, number>()
+/** When the stream part may ask an integration again after an auth refusal. */
+const authBlockedUntil = new Map<string, number>()
 const RUN_TYPES = ['run', 'race']
 
 export interface TrackBackfillResult {
@@ -72,8 +81,10 @@ function sessionFor(
  * 2. Pulled intervals.icu runs with no original: one `latlng,distance` stream request each, newest
  *    first, `TRACK_STREAM_BATCH` per call, only while the integration is connected, not paused and
  *    not syncing. A 429 stops the part and sets the integration's `pausedUntil` as the sync does; a
- *    404 means no streams (marked); any other failure ends the part and leaves the run for the next
- *    call.
+ *    404 means no streams (marked); a 401 or 403 stops the part for an hour (the sync's needs-auth
+ *    handling owns it); any other failure ends the part and leaves the run for the next call, and
+ *    after `TRACK_MAX_ATTEMPTS` failures of the same run it is marked with no route and the part
+ *    goes on.
  *
  * A run is written only while `trackV` is still null (an import that wins the race is not
  * overwritten). It never reads the network except through the provider's `fetchRoute`, with the
@@ -96,7 +107,12 @@ export async function backfillTracks(
     remaining: 0,
   }
 
-  /** Marks a run looked at, with or without a track, in one transaction. */
+  /**
+   * Marks a run looked at, with or without a track, in one transaction. The mark is written only
+   * while the row still has the `updatedAt` it was read with, so it cannot rewind a newer edit
+   * (`updatedAt` is held at that value so the pass does not make the explain cards stale); an edit
+   * in between leaves the run unmarked for the next call.
+   */
   async function settle(
     activity: { id: string; updatedAt: Date },
     route: ReadonlyArray<RoutePoint> | null | undefined,
@@ -104,10 +120,10 @@ export async function backfillTracks(
     const track = route ? buildTrack(route) : null
     const written = await prisma.$transaction(async (tx) => {
       const marked = await tx.activity.updateMany({
-        where: { id: activity.id, trackV: null },
+        where: { id: activity.id, trackV: null, updatedAt: activity.updatedAt },
         data: { trackV: TRACK_VERSION, updatedAt: activity.updatedAt },
       })
-      if (marked.count === 0) return false
+      if (marked.count === 0) return null
       if (track) {
         const row = trackRow(track)
         await tx.activityTrack.upsert({
@@ -118,6 +134,7 @@ export async function backfillTracks(
       }
       return track !== null
     })
+    if (written === null) return
     if (written) result.filled += 1
     else result.withoutPositions += 1
   }
@@ -168,6 +185,8 @@ export async function backfillTracks(
       result.pause = {
         retryAfterSec: Math.ceil((integration.pausedUntil.getTime() - now.getTime()) / 1000),
       }
+    } else if ((authBlockedUntil.get(integration.id) ?? 0) > now.getTime()) {
+      // intervals.icu refused the key a moment ago; the sync's needs-auth handling takes it from here.
     } else if (!isSyncing(userId, PROVIDER)) {
       await streamPart(integration)
     }
@@ -191,13 +210,13 @@ export async function backfillTracks(
     })
     for (const run of runs) {
       const remoteId = run.providerKey!.slice(PROVIDER.length + 1)
+      let route: Awaited<ReturnType<NonNullable<typeof pull>['fetchRoute'] & {}>>
       try {
         result.requests += 1
-        const route = await pull!.fetchRoute!(
+        route = await pull!.fetchRoute!(
           { id: remoteId, startUtc: run.startUtc ?? now.toISOString() },
           ctx,
         )
-        await settle(run, route)
       } catch (error) {
         if (error instanceof RateLimitPause) {
           const until = new Date(now.getTime() + error.retryAfterSec * 1000)
@@ -206,14 +225,31 @@ export async function backfillTracks(
             data: { pausedUntil: until },
           })
           result.pause = { retryAfterSec: error.retryAfterSec }
-        } else {
-          result.failures.push({
-            ref: run.providerKey!,
-            reason: safeMessage(error, secrets),
-          })
+          return
         }
-        return
+        if (error instanceof ProviderAuthError) {
+          // Not a failure of this run: the key is refused. Leave it to the sync's needs-auth handling.
+          authBlockedUntil.set(row.id, now.getTime() + TRACK_AUTH_BACKOFF_MS)
+          return
+        }
+        const tries = (attempts.get(run.id) ?? 0) + 1
+        const reason = safeMessage(error, secrets)
+        if (tries < TRACK_MAX_ATTEMPTS) {
+          attempts.set(run.id, tries)
+          result.failures.push({ ref: run.providerKey!, reason })
+          return
+        }
+        // A run that fails every tick would block the ones behind it: give it up like a 404.
+        attempts.delete(run.id)
+        result.failures.push({
+          ref: run.providerKey!,
+          reason: `${reason} (given up after ${String(tries)} attempts)`,
+        })
+        await settle(run, null)
+        continue
       }
+      attempts.delete(run.id)
+      await settle(run, route)
     }
   }
 

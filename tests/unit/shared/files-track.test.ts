@@ -166,7 +166,8 @@ describe('route extraction', () => {
     const [a] = parseActivityFile('run.gpx', new TextEncoder().encode(gpx), OPTS)
     expect(a!.route).toHaveLength(100)
     expect(a!.route![50]!.lat).toBeCloseTo(fixes[50]!.lat, 5)
-    expect(a!.route![99]!.d).toBeGreaterThan(200)
+    expect(a!.route![99]!.d).toBeNull()
+    expect(a!.route![99]!.t).toBe(99)
   })
 
   test('TCX: Position', () => {
@@ -190,14 +191,36 @@ describe('trimTrackEnds', () => {
   const track = buildTrack(fixes.map((f) => ({ lat: f.lat, lng: f.lng, d: f.distanceM })))!
   const total = track.distM[track.distM.length - 1]!
 
-  test('cuts exactly 200 m at each end and keeps absolute distances', () => {
+  /** Great-circle length of an encoded polyline. */
+  const lengthOf = (polyline: string): number => {
+    const path = decodePolyline(polyline)
+    let sum = 0
+    for (let i = 1; i < path.length; i++) {
+      sum += haversineM(path[i - 1]![0], path[i - 1]![1], path[i]![0], path[i]![1])
+    }
+    return sum
+  }
+
+  test('cuts 200 m of the path at each end and keeps absolute distances', () => {
     const cut = trimTrackEnds(track, 200)!
-    expect(cut.distM[0]).toBe(200)
-    expect(cut.distM[cut.distM.length - 1]).toBe(total - 200)
+    expect(lengthOf(cut.polyline)).toBeCloseTo(lengthOf(track.polyline) - 400, -0.5)
+    expect(cut.distM[0]).toBeGreaterThan(150)
+    expect(cut.distM[cut.distM.length - 1]).toBeLessThan(total - 150)
     expect(cut.pointCount).toBe(cut.distM.length)
     expect(decodePolyline(cut.polyline)).toHaveLength(cut.pointCount)
     expect(cut.bbox.minLat).toBeGreaterThanOrEqual(track.bbox.minLat - 1e-5)
     expect(cut.bbox.maxLat).toBeLessThanOrEqual(track.bbox.maxLat + 1e-5)
+  })
+
+  test('measures on the path, so a corrupt or inflated distM cannot shorten the hidden ends', () => {
+    const straight = buildTrack(
+      Array.from({ length: 301 }, (_, i) => ({ lat: 12 + i * 0.00009, lng: -45, d: i * 10 })),
+    )!
+    const corrupt = { ...straight, distM: [0, 21_718_022] }
+    const cut = trimTrackEnds(corrupt, 200)!
+    expect(lengthOf(cut.polyline)).toBeCloseTo(lengthOf(straight.polyline) - 400, -0.5)
+    // A distM that does not match the vertices is refused outright.
+    expect(trimTrackEnds({ ...straight, distM: [0] }, 200)).toBeNull()
   })
 
   test('cuts at the distance even when the kept points are far apart', () => {
@@ -206,7 +229,10 @@ describe('trimTrackEnds', () => {
     )!
     expect(straight.pointCount).toBe(2)
     const cut = trimTrackEnds(straight, 200)!
-    expect(cut.distM).toEqual([200, 800])
+    expect(cut.distM[0]).toBeGreaterThanOrEqual(199)
+    expect(cut.distM[0]).toBeLessThanOrEqual(200)
+    expect(cut.distM[1]).toBeGreaterThanOrEqual(799)
+    expect(cut.distM[1]).toBeLessThanOrEqual(801)
     const [a, b] = decodePolyline(cut.polyline)
     expect(a![0]).toBeCloseTo(12 + 0.00009 * 20, 5)
     expect(b![0]).toBeCloseTo(12 + 0.00009 * 80, 5)
@@ -218,5 +244,85 @@ describe('trimTrackEnds', () => {
     )!
     expect(trimTrackEnds(short, 200)).toBeNull()
     expect(trimTrackEnds(short, 0)).not.toBeNull()
+  })
+})
+
+describe('track robustness', () => {
+  const line = (
+    n: number,
+    over: (i: number) => Partial<{ lat: number; lng: number; d: number | null }> = () => ({}),
+  ) =>
+    Array.from({ length: n }, (_, i) => ({
+      lat: 40 + i * 0.0001,
+      lng: -100,
+      d: null as number | null,
+      t: i,
+      ...over(i),
+    }))
+
+  test('GPX with a null-island fix still trims 200 m of ground', () => {
+    const pts: string[] = []
+    for (let i = 0; i < 300; i++) {
+      const lat = i === 150 ? 0 : 40 + i * 0.0001
+      const lng = i === 150 ? 0 : -100
+      pts.push(
+        `<trkpt lat="${lat}" lon="${lng}"><time>2026-01-05T07:0${Math.floor(i / 60)}:${String(i % 60).padStart(2, '0')}Z</time></trkpt>`,
+      )
+    }
+    const gpx = `<?xml version="1.0"?><gpx version="1.1" creator="x"><trk><trkseg>${pts.join('')}</trkseg></trk></gpx>`
+    const [a] = parseActivityFile('run.gpx', new TextEncoder().encode(gpx), OPTS)
+    expect(a!.route).toHaveLength(299)
+    const built = buildTrack(a!.route!)!
+    expect(built.distM[built.distM.length - 1]).toBeGreaterThan(3000)
+    expect(built.distM[built.distM.length - 1]).toBeLessThan(3500)
+    const cut = trimTrackEnds(built, 200)!
+    expect(cut.distM[0]).toBeGreaterThan(190)
+    expect(cut.distM[0]).toBeLessThan(210)
+  })
+
+  test('falls back to the walked length when the device total disagrees', () => {
+    const track = buildTrack(line(300, (i) => ({ d: i === 150 ? 21_718_022 : i * 10.02 })))!
+    expect(track.distM[track.distM.length - 1]).toBeLessThan(3500)
+  })
+
+  test('uses the device distance where present and fills only its gaps', () => {
+    const track = buildTrack(line(301, (i) => ({ d: i % 100 === 0 || i === 301 ? i * 10 : null })))!
+    // The straight line is kept as two points; the end value is the device's 3000 m.
+    expect(track.distM).toEqual([0, 3000])
+    const gappy = buildTrack(line(301, (i) => ({ d: i < 150 ? null : i * 10 })))!
+    // The leading gap is filled from the walked length (about 11 m a step here), so the total
+    // is the device's 3000 m plus what the gap adds beyond zero.
+    expect(gappy.distM[gappy.distM.length - 1]).toBeGreaterThan(3000)
+    expect(gappy.distM[gappy.distM.length - 1]).toBeLessThan(3300)
+  })
+
+  test('drops a single jumping fix, so it cannot stretch the track or its box', () => {
+    const track = buildTrack(line(300, (i) => (i === 100 ? { lat: 41, lng: -99 } : {})))!
+    expect(track.bbox.maxLat).toBeLessThan(40.04)
+    expect(track.bbox.maxLng).toBe(-100)
+    expect(track.pointCount).toBe(2)
+    // Without times the filter cannot judge speed and keeps the fix.
+    const untimed = buildTrack(
+      line(300, (i) => ({ ...(i === 100 ? { lat: 41, lng: -99 } : {}) })).map(
+        ({ t: _t, ...p }) => p,
+      ),
+    )!
+    expect(untimed.bbox.maxLat).toBe(41)
+  })
+
+  test('a run across the antimeridian is one path with unwrapped longitudes', () => {
+    const track = buildTrack(
+      Array.from({ length: 200 }, (_, i) => {
+        const lng = 179.99 + i * 0.0002
+        return { lat: 10, lng: lng > 180 ? lng - 360 : lng, d: null, t: i }
+      }),
+    )!
+    expect(track.bbox.minLng).toBeGreaterThan(179.9)
+    expect(track.bbox.maxLng).toBeGreaterThan(180)
+    expect(track.bbox.maxLng).toBeLessThan(180.1)
+    expect(track.distM[track.distM.length - 1]).toBeGreaterThan(3000)
+    expect(track.distM[track.distM.length - 1]).toBeLessThan(5000)
+    const cut = trimTrackEnds(track, 200)!
+    expect(cut.bbox.maxLng).toBeGreaterThan(180)
   })
 })

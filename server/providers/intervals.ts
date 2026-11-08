@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { parse, validationError } from '../errors.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 import {
+  ProviderAuthError,
   RateLimitPause,
   type FileFormat,
   type ProviderCtx,
@@ -16,7 +17,7 @@ const WINDOW_DAYS = 180
 const DAY_MS = 24 * 3600 * 1000
 const STREAM_TYPES = 'time,distance,heartrate,altitude,cadence,watts,latlng'
 /** The stream type that holds positions: `data` is the latitudes and `data2` the longitudes. */
-const TRACK_STREAM_TYPES = 'latlng,distance'
+const TRACK_STREAM_TYPES = 'latlng,distance,time'
 const DEFAULT_RETRY_AFTER_SEC = 60
 
 const connectBody = z.object({
@@ -113,7 +114,7 @@ async function pullGet(
     })
   }
   if (response.status === 401 || response.status === 403) {
-    throw new Error('intervals.icu rejected the API key. Reconnect with a new key.')
+    throw new ProviderAuthError('intervals.icu rejected the API key. Reconnect with a new key.')
   }
   throw new Error(`intervals.icu answered HTTP ${response.status}.`)
 }
@@ -247,12 +248,14 @@ function routeOf(raw: unknown): ParsedActivity['route'] {
   if (!latlng || !Array.isArray(latlng.data) || !Array.isArray(latlng.data2)) return null
   const distance = entries.find((e) => e.type === 'distance')
   const distances = Array.isArray(distance?.data) ? (distance.data as unknown[]) : []
+  const time = entries.find((e) => e.type === 'time')
+  const times = Array.isArray(time?.data) ? (time.data as unknown[]) : []
   const route: NonNullable<ParsedActivity['route']> = []
   for (let i = 0; i < latlng.data.length; i++) {
     const lat = num(latlng.data[i])
     const lng = num(latlng.data2[i])
     if (lat === null || lng === null) continue
-    route.push({ lat, lng, d: num(distances[i]) })
+    route.push({ lat, lng, d: num(distances[i]), t: num(times[i]) })
   }
   return route.length > 0 ? route : null
 }

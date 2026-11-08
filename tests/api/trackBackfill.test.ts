@@ -2,7 +2,7 @@ import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, test } fr
 import { runTrackJob } from '../../server/jobs/scheduler.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
 import { sealSecret } from '../../server/services/sync.ts'
-import { backfillTracks } from '../../server/services/trackBackfill.ts'
+import { TRACK_MAX_ATTEMPTS, backfillTracks } from '../../server/services/trackBackfill.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import { fakeFetch } from '../fakeFetch.ts'
 import { buildFit } from '../fixtures/fit/buildFit.ts'
@@ -210,8 +210,8 @@ describe('backfillTracks from intervals.icu streams', () => {
     const first = await backfillTracks(ctx, user.id, { streamLimit: 2 })
     expect(first).toMatchObject({ filled: 2, requests: 2, remaining: 1, pause: null })
     expect(urls).toEqual([
-      `${BASE}/activity/i3/streams.json?types=latlng,distance`,
-      `${BASE}/activity/i2/streams.json?types=latlng,distance`,
+      `${BASE}/activity/i3/streams.json?types=latlng,distance,time`,
+      `${BASE}/activity/i2/streams.json?types=latlng,distance,time`,
     ])
     expect(await trackOf(runs[2]!.id)).not.toBeNull()
     expect(await trackOf(runs[0]!.id)).toBeNull()
@@ -273,6 +273,72 @@ describe('backfillTracks from intervals.icu streams', () => {
     expect(
       (await ctx.prisma.activity.findUniqueOrThrow({ where: { id: run.id } })).trackV,
     ).toBeNull()
+  })
+
+  test('a run that fails every tick is given up after the attempt limit and the next one goes on', async () => {
+    await connect()
+    const bad = await pulledRun(user.id, 'bad', '2026-01-06')
+    const good = await pulledRun(user.id, 'good', '2026-01-05')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/bad/`]: () => new Response('', { status: 500 }),
+      [`GET ${BASE}/activity/good/`]: () => new Response(streamsBody, { status: 200 }),
+    })
+    for (let tick = 1; tick < TRACK_MAX_ATTEMPTS; tick++) {
+      const result = await backfillTracks(ctx, user.id)
+      expect(result.failures).toHaveLength(1)
+      expect(await trackOf(good.id)).toBeNull()
+    }
+    const last = await backfillTracks(ctx, user.id)
+    expect(last.failures[0]!.reason).toContain('given up')
+    expect(last).toMatchObject({ withoutPositions: 1, filled: 1 })
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id: bad.id } })).trackV).toBe(1)
+    expect(await trackOf(bad.id)).toBeNull()
+    expect(await trackOf(good.id)).not.toBeNull()
+  })
+
+  test('a 401 stops the stream part for the integration and is not a per-run failure', async () => {
+    await connect()
+    const run = await pulledRun(user.id, 'i1', '2026-01-05')
+    let calls = 0
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => {
+        calls += 1
+        return new Response('', { status: 401 })
+      },
+    })
+    const now = new Date('2026-02-01T12:00:00Z')
+    const first = await backfillTracks(ctx, user.id, { now })
+    expect(first.failures).toEqual([])
+    expect(calls).toBe(1)
+    // Within the back-off nothing is asked again.
+    await backfillTracks(ctx, user.id, { now: new Date('2026-02-01T12:05:00Z') })
+    expect(calls).toBe(1)
+    expect(
+      (await ctx.prisma.activity.findUniqueOrThrow({ where: { id: run.id } })).trackV,
+    ).toBeNull()
+  })
+
+  test('an edit made while the stream was fetched is not rewound; the run is retried', async () => {
+    await connect()
+    const run = await pulledRun(user.id, 'i1', '2026-01-05')
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: async () => {
+        await ctx.prisma.activity.update({ where: { id: run.id }, data: { notes: 'felt good' } })
+        return new Response(streamsBody, { status: 200 })
+      },
+    })
+    const first = await backfillTracks(ctx, user.id)
+    expect(first).toMatchObject({ filled: 0, withoutPositions: 0 })
+    const edited = await ctx.prisma.activity.findUniqueOrThrow({ where: { id: run.id } })
+    expect(edited.notes).toBe('felt good')
+    expect(edited.updatedAt.getTime()).toBeGreaterThanOrEqual(run.updatedAt.getTime())
+    expect(edited.trackV).toBeNull()
+    ctx.fetch = fakeFetch({
+      [`GET ${BASE}/activity/`]: () => new Response(streamsBody, { status: 200 }),
+    })
+    expect(await backfillTracks(ctx, user.id)).toMatchObject({ filled: 1 })
+    const done = await ctx.prisma.activity.findUniqueOrThrow({ where: { id: run.id } })
+    expect(done.updatedAt).toEqual(edited.updatedAt)
   })
 
   test('no integration, no request: the run waits', async () => {

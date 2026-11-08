@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { fakeFetch, type FakeRoute } from '../../fakeFetch.ts'
 import { HttpError } from '../../../server/errors.ts'
 import { intervalsProvider } from '../../../server/providers/intervals.ts'
-import { RateLimitPause, type ProviderCtx } from '../../../server/providers/types.ts'
+import {
+  ProviderAuthError,
+  RateLimitPause,
+  type ProviderCtx,
+} from '../../../server/providers/types.ts'
 import type { ParsedActivity } from '../../../shared/types.ts'
 
 const BASE = 'https://intervals.icu/api/v1'
@@ -421,11 +425,11 @@ describe('intervals.icu route', () => {
       },
     })
     const route = await intervalsProvider.fetchRoute!(ref, ctx)
-    expect(urls).toEqual([`${BASE}/activity/i7/streams.json?types=latlng,distance`])
+    expect(urls).toEqual([`${BASE}/activity/i7/streams.json?types=latlng,distance,time`])
     expect(route).toEqual([
-      { lat: 12.3456, lng: -45.6789, d: 0 },
-      { lat: 12.3466, lng: -45.6779, d: 10 },
-      { lat: 12.3476, lng: -45.6769, d: 20 },
+      { lat: 12.3456, lng: -45.6789, d: 0, t: null },
+      { lat: 12.3466, lng: -45.6779, d: 10, t: null },
+      { lat: 12.3476, lng: -45.6769, d: 20, t: null },
     ])
   })
 
@@ -446,6 +450,14 @@ describe('intervals.icu route', () => {
     const error = await intervalsProvider.fetchRoute!(ref, ctx).catch((e: unknown) => e)
     expect(error).toBeInstanceOf(RateLimitPause)
     expect((error as RateLimitPause).retryAfterSec).toBe(90)
+  })
+
+  it('fetchRoute raises a typed auth error on a 401 or 403', async () => {
+    for (const status of [401, 403]) {
+      const ctx = makeCtx({ [`GET ${BASE}/activity/i7/streams.json`]: () => json({}, status) })
+      const error = await intervalsProvider.fetchRoute!(ref, ctx).catch((e: unknown) => e)
+      expect(error).toBeInstanceOf(ProviderAuthError)
+    }
   })
 
   it('a pulled run built from streams carries its route', async () => {

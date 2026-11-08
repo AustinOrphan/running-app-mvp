@@ -197,8 +197,16 @@ export function parseFit(bytes: Uint8Array, opts: { timezone: string }): ParsedA
     const route = recordsBySession[index]!.flatMap((record) => {
       const rLat = num(record, 'position_lat')
       const rLng = num(record, 'position_long')
+      const time = ms(record['timestamp'])
       return rLat !== null && rLng !== null && validPosition(rLat, rLng)
-        ? [{ lat: rLat, lng: rLng, d: num(record, 'distance') }]
+        ? [
+            {
+              lat: rLat,
+              lng: rLng,
+              d: num(record, 'distance'),
+              t: time === null ? null : Math.max(0, (time - startMs) / 1000),
+            },
+          ]
         : []
     })
 

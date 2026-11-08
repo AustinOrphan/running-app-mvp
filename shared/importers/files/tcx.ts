@@ -134,7 +134,9 @@ export function parseTcx(bytes: Uint8Array, opts: { timezone: string }): ParsedA
 
     const change = samples.alt ? elevationGainLoss(samples.alt) : null
     const route = trackpoints.flatMap((tp) =>
-      validPosition(tp.lat, tp.lng) ? [{ lat: tp.lat!, lng: tp.lng!, d: tp.raw.d ?? null }] : [],
+      validPosition(tp.lat, tp.lng)
+        ? [{ lat: tp.lat!, lng: tp.lng!, d: tp.raw.d ?? null, t: tp.raw.t }]
+        : [],
     )
     const located = trackpoints.find((tp) => tp.lat !== null && tp.lng !== null)
     const avgHr = mean((samples.hr ?? []).filter((v) => v > 0))

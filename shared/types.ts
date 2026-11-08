@@ -277,7 +277,7 @@ export interface ParsedActivity {
    * Every recorded position in time order, for the track builder only; it is not stored as it is
    * and not per sample. Absent or empty when the source has no positions.
    */
-  route?: Array<{ lat: number; lng: number; d: number | null }> | null
+  route?: Array<{ lat: number; lng: number; d: number | null; t?: number | null }> | null
   /** Seconds from the start, as recorded. */
   samples: {
     t: number[]

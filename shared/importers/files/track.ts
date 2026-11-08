@@ -1,9 +1,9 @@
 import { haversineM } from './summarize.ts'
 
 /**
- * Route simplification for the run map (M1a). The tolerance and the cap are data preparation, not
- * engine Params: they decide how much of a recorded path is kept for drawing, and no training
- * decision reads them.
+ * Route simplification for the run map (M1a). The tolerance, the cap and the speed limit are data
+ * preparation, not engine Params: they decide how much of a recorded path is kept for drawing, and
+ * no training decision reads them.
  */
 
 /** Shape version of a stored track; a change to the tolerance, cap or encoding raises it. */
@@ -16,17 +16,25 @@ export const TRACK_MAX_POINTS = 2000
 export const TRACK_PRECISION = 5
 /** A path shorter than this, in metres, is not a route worth drawing. */
 const MIN_TRACK_M = 50
+/** A single fix that implies a speed above this (m/s) from both neighbours is a GPS jump. */
+export const TRACK_MAX_SPEED_MPS = 15
+/** Device distance is trusted while its total is within this factor of the walked length. */
+const DEVICE_DISTANCE_FACTOR = 2
 
-/** One recorded position; `d` is the device's cumulative metres when the source has them. */
+/**
+ * One recorded position. `d` is the device's cumulative metres and `t` the seconds from the start,
+ * each when the source has them.
+ */
 export interface RoutePoint {
   lat: number
   lng: number
   d: number | null
+  t?: number | null
 }
 
 export interface Track {
   v: number
-  /** Google encoded polyline, precision 5. */
+  /** Google encoded polyline, precision 5. Longitudes are unwrapped, so they may pass +-180. */
   polyline: string
   /** Cumulative metres at each kept point, from 0, non-decreasing. */
   distM: number[]
@@ -137,28 +145,97 @@ export function decodePolyline(text: string): Array<[number, number]> {
   return out
 }
 
+/** Cumulative great-circle length of a path, from 0. */
+function walkedLength(points: ReadonlyArray<{ lat: number; lng: number }>): number[] {
+  const out = [0]
+  for (let i = 1; i < points.length; i++) {
+    const p = points[i - 1]!
+    const q = points[i]!
+    out.push(out[i - 1]! + haversineM(p.lat, p.lng, q.lat, q.lng))
+  }
+  return out
+}
+
+/**
+ * Drops a single fix that jumps away and back: the speed into it and out of it both exceed
+ * `TRACK_MAX_SPEED_MPS` while the speed across it does not (an end is judged against its one
+ * neighbour pair). Needs a time on every point; without them the points are returned as they are.
+ */
+function dropJumps(points: RoutePoint[]): RoutePoint[] {
+  const n = points.length
+  if (n < 3 || points.some((p) => typeof p.t !== 'number' || !Number.isFinite(p.t))) return points
+  const fast = (a: number, b: number): boolean => {
+    const p = points[a]!
+    const q = points[b]!
+    const dt = Math.max(1, Math.abs(q.t! - p.t!))
+    return haversineM(p.lat, p.lng, q.lat, q.lng) / dt > TRACK_MAX_SPEED_MPS
+  }
+  return points.filter((_, i) => {
+    if (i === 0) return !(fast(0, 1) && !fast(1, 2))
+    if (i === n - 1) return !(fast(n - 2, n - 1) && !fast(n - 3, n - 2))
+    return !(fast(i - 1, i) && fast(i, i + 1) && !fast(i - 1, i + 1))
+  })
+}
+
+/**
+ * Cumulative distance of each point: the device's where it has one, with the walked length between
+ * known values filling the gaps. The walked length stands in for all of it when no point has a
+ * device value, or when the device total is not within a factor of 2 of the walked length (a
+ * counter that jumped, reset or ran in other units).
+ */
+function cumulativeDistance(device: ReadonlyArray<number | null>, walked: number[]): number[] {
+  const known = (i: number): boolean => typeof device[i] === 'number' && Number.isFinite(device[i])
+  const first = device.findIndex((_, i) => known(i))
+  if (first < 0) return walked
+  const out: number[] = []
+  let anchor = first
+  for (let i = 0; i < device.length; i++) {
+    if (known(i)) {
+      out.push(device[i]!)
+      anchor = i
+    } else if (i < first) {
+      out.push(device[first]! - (walked[first]! - walked[i]!))
+    } else {
+      out.push(out[anchor]! + (walked[i]! - walked[anchor]!))
+    }
+  }
+  const total = out[out.length - 1]! - out[0]!
+  const walkedTotal = walked[walked.length - 1]!
+  const agrees =
+    total >= walkedTotal / DEVICE_DISTANCE_FACTOR && total <= walkedTotal * DEVICE_DISTANCE_FACTOR
+  return agrees ? out : walked
+}
+
 /**
  * Builds the stored track of one run from its recorded positions in time order, or null when there
  * are fewer than two usable positions or the path is under 50 m. Positions that are not on the
- * globe, or exactly 0,0, are dropped. Cumulative distance uses the device's `d` where every point
- * has one and the great-circle length of the path otherwise. Douglas-Peucker keeps the points that
- * matter at `TRACK_TOLERANCE_M`; a path still above `TRACK_MAX_POINTS` is simplified again with a
- * tolerance 1.5 times wider until it fits.
+ * globe, or exactly 0,0, are dropped, and so is a single fix that jumps away and back
+ * (`TRACK_MAX_SPEED_MPS`). Longitudes are unwrapped against the previous fix, so a run across the
+ * antimeridian is one continuous path: its longitudes, and the bounding box, may lie beyond +-180
+ * and a map must read them so. Cumulative distance uses the device's values where present (gaps
+ * filled from the walked length) while their total agrees with the walked length, and the walked
+ * length otherwise. Douglas-Peucker keeps the points that matter at `TRACK_TOLERANCE_M`; a path
+ * still above `TRACK_MAX_POINTS` is simplified again with a tolerance 1.5 times wider until it fits.
  */
 export function buildTrack(route: ReadonlyArray<RoutePoint>): Track | null {
-  const points = route.filter((p) => validPosition(p.lat, p.lng))
-  if (points.length < 2) return null
+  const valid = dropJumps(route.filter((p) => validPosition(p.lat, p.lng)))
+  if (valid.length < 2) return null
 
-  const device = points.every((p) => p.d !== null && Number.isFinite(p.d))
-  let walked = 0
-  const cumulative = points.map((p, i) => {
-    if (i > 0) {
-      const prev = points[i - 1]!
-      walked += haversineM(prev.lat, prev.lng, p.lat, p.lng)
-    }
-    return device ? p.d! : walked
+  let prevLng = valid[0]!.lng
+  const points: RoutePoint[] = valid.map((p) => {
+    let lng = p.lng
+    while (lng - prevLng > 180) lng -= 360
+    while (lng - prevLng < -180) lng += 360
+    prevLng = lng
+    return { ...p, lng }
   })
-  if (walked < MIN_TRACK_M) return null
+
+  const walked = walkedLength(points)
+  if (walked[walked.length - 1]! < MIN_TRACK_M) return null
+  const cumulative = cumulativeDistance(
+    points.map((p) => p.d),
+    walked,
+  )
 
   let tolerance = TRACK_TOLERANCE_M
   let kept = simplifyIndexes(points, tolerance)
@@ -201,44 +278,54 @@ export function hasTrack(type: string, subtype: string | null): boolean {
 export const MAP_END_TRIM_M = 200
 
 /**
- * The track without its first and last `metres` of recorded distance, or null when nothing would
- * be left (a run under twice `metres`). The cut falls exactly at `metres`, on a point interpolated
- * along the segment it lands in, not at the nearest kept vertex, so a straight stretch never keeps
- * more than the stated distance. `distM` keeps its absolute values, so a chart can still map a
- * distance to a point; the bounding box is that of the trimmed path.
+ * The track without its first and last `metres`, or null when nothing would be left (a path under
+ * twice `metres`) or the stored track is inconsistent. The distance is measured along the simplified
+ * path itself (the great-circle length of its vertices), never from the stored `distM`: GPS jitter
+ * and a bad device counter can inflate or corrupt `distM`, and neither may shorten the hidden
+ * stretch below `metres` of ground. The cut falls exactly there, on a point interpolated along the
+ * segment it lands in. `distM` of the kept points keeps its absolute values (interpolated at the
+ * cuts), so a chart can still map a distance to a point; the bounding box is that of the trimmed path.
  */
 export function trimTrackEnds(track: Track, metres: number): Track | null {
   const path = decodePolyline(track.polyline)
-  const total = track.distM[track.distM.length - 1] ?? 0
+  if (path.length < 2 || track.distM.length !== path.length) return null
+  const walked = walkedLength(path.map(([lat, lng]) => ({ lat, lng })))
+  const total = walked[walked.length - 1]!
   const from = metres
   const to = total - metres
-  if (path.length < 2 || to <= from) return null
+  if (to <= from) return null
 
-  const at = (d: number): [number, number] => {
+  const at = (w: number): { point: [number, number]; dist: number } => {
     for (let i = 1; i < path.length; i++) {
-      const d0 = track.distM[i - 1]!
-      const d1 = track.distM[i]!
-      if (d <= d1) {
-        const f = d1 === d0 ? 0 : (d - d0) / (d1 - d0)
+      const w1 = walked[i]!
+      if (w <= w1) {
+        const w0 = walked[i - 1]!
+        const f = w1 === w0 ? 0 : (w - w0) / (w1 - w0)
         const [aLat, aLng] = path[i - 1]!
         const [bLat, bLng] = path[i]!
-        return [aLat + (bLat - aLat) * f, aLng + (bLng - aLng) * f]
+        const d0 = track.distM[i - 1]!
+        const d1 = track.distM[i]!
+        return {
+          point: [aLat + (bLat - aLat) * f, aLng + (bLng - aLng) * f],
+          dist: Math.round(d0 + (d1 - d0) * f),
+        }
       }
     }
-    return path[path.length - 1]!
+    return { point: path[path.length - 1]!, dist: track.distM[path.length - 1]! }
   }
 
-  const points: Array<[number, number]> = [at(from)]
-  const dist: number[] = [from]
+  const start = at(from)
+  const end = at(to)
+  const points: Array<[number, number]> = [start.point]
+  const dist: number[] = [start.dist]
   for (let i = 0; i < path.length; i++) {
-    const d = track.distM[i]!
-    if (d > from && d < to) {
+    if (walked[i]! > from && walked[i]! < to) {
       points.push(path[i]!)
-      dist.push(d)
+      dist.push(track.distM[i]!)
     }
   }
-  points.push(at(to))
-  dist.push(to)
+  points.push(end.point)
+  dist.push(end.dist)
 
   const polyline = encodePolyline(points)
   const kept = decodePolyline(polyline)
