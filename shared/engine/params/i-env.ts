@@ -386,8 +386,8 @@ export const iEnv = {
       note: 'Default: a run needs this many minutes in the flat band for its own flat speed to be a steady reference.',
     }),
     maxFlatSpeedCv: param('i13.maxFlatSpeedCv', 0.15, 'D', 'I13', GRADE_CURVE, {
-      unit: 'fraction (SD over mean)',
-      note: 'Default: the largest variation of flat-band speed over segments of up to 120 s for a run to count as steady. Variation faster than about two minutes is averaged out in the bins, so this separates steady runs from long repeats and nothing finer.',
+      unit: 'fraction',
+      note: 'Default: the largest variation (standard deviation over mean) of flat-band speed over segments of up to 120 s for a run to count as steady. Variation faster than about two minutes is averaged out in the bins, so this separates steady runs from long repeats and nothing finer.',
     }),
     minBinMin: param('i13.minBinMin', 10, 'D', 'I13', GRADE_CURVE, {
       unit: 'min',
@@ -406,8 +406,8 @@ export const iEnv = {
       note: 'Default: how far back runs count; the athlete snapshot holds 365 days.',
     }),
     minGainOverDefaultPct: param('i13.minGainOverDefaultPct', 10, 'D', 'I13', GRADE_CURVE, {
-      unit: '% lower error',
-      note: 'Default: how much lower the leave-one-run-out error of a band must be than the Minetti error for the personal ratio to show.',
+      unit: '%',
+      note: 'Default: how many percent lower the leave-one-run-out error of a band must be than the Minetti error for the personal ratio to show.',
     }),
     minBacktestRuns: param('i13.minBacktestRuns', 5, 'D', 'I13', GRADE_CURVE, {
       unit: 'runs',

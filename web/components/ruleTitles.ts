@@ -109,6 +109,7 @@ export const RULE_TITLES: Record<string, string> = {
   I10: 'Cold',
   I11: 'Gradient and grade-adjusted pace',
   I12: 'Altitude',
+  I13: 'Personal speed by grade',
   // (j) adaptation
   J1: 'Inputs',
   J2: 'Subjective first',
