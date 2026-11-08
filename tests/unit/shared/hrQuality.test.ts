@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { P } from '../../../shared/engine/params/index.ts'
 import { defaultBandRatios } from '../../../shared/engine/gradeCurve.ts'
 import {
-  computeHrQuality,
   gaDecouplingPct,
   hrQualityFailure,
   hrQualityPasses,
-} from '../../../shared/importers/files/hrQuality.ts'
+} from '../../../shared/engine/hrQuality.ts'
+import { computeHrQuality } from '../../../shared/importers/files/hrQuality.ts'
 import { hrSourceOfDeviceInfos } from '../../../shared/importers/files/hrSource.ts'
 import type { ActivityStreamData, HrQuality } from '../../../shared/types.ts'
 
@@ -258,6 +258,7 @@ describe('hrSourceOfDeviceInfos', () => {
         { device_type: 121, source_type: 'antplus' },
         { device_type: 1, source_type: 'antplus' },
         { device_type: 120, source_type: 'local' },
+        { device_index: 5, device_type: 'whr', source_type: 'local' },
       ]),
     ).toBe('wrist')
     expect(hrSourceOfDeviceInfos([])).toBe('unknown')

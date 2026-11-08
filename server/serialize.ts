@@ -1028,6 +1028,8 @@ export async function loadRunSeries(
       humidityPct: true,
       windKph: true,
       decouplingPct: true,
+      hrQuality: true,
+      terrainBins: true,
     },
   })
   return rows.map((row) => ({
@@ -1035,6 +1037,8 @@ export async function loadRunSeries(
     type: row.type as ActivityType,
     duplicateStatus: row.duplicateStatus as DuplicateStatus,
     hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
+    hrQuality: parseJson<HrQuality | null>(row.hrQuality, null),
+    terrainBins: parseJson<TerrainBins | null>(row.terrainBins, null),
   }))
 }
 

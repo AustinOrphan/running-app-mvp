@@ -100,6 +100,8 @@ export function trendRun(over: Partial<TrendRun> = {}): TrendRun {
     humidityPct: null,
     windKph: null,
     decouplingPct: 4,
+    terrainBins: null,
+    hrQuality: null,
     ...over,
   }
 }

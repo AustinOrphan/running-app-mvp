@@ -4,7 +4,10 @@
 // (`ble_device_type` `heart_rate`), with a `source_type` of `antplus`/`ant` or
 // `bluetooth_low_energy`/`bluetooth`. The decoder keeps `device_type` as the raw number, so both the
 // number and the name are accepted. A device on the watch itself has `source_type` `local` and is
-// not an external sensor. Pure, so the import and the backfill agree.
+// not an external sensor: a Garmin watch lists its own optical sensor there as `device_type` `whr`
+// (wrist heart rate), beside `gps`, `barometer`, `accelerometer` and `sensor_hub` (seen on 74 of 76
+// stored files of one runner, 2026-11-08; the other two list `whr` at another index). Pure, so the
+// import and the backfill agree.
 import type { HrSource } from '../../types.ts'
 
 type Message = Record<string, unknown>

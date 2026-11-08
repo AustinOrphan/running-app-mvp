@@ -12,9 +12,14 @@
 // The same pass also keeps, per terrain band and per half, the clean moving seconds, metres and heart
 // rate times seconds, so the drift of a hilly run can be read on grade-adjusted pace with the
 // runner's own ratio per band (`gaDecouplingPct`) without the stream.
-import { TERRAIN_EDGES_PCT, TERRAIN_WINDOW_M } from '../../domain/terrainShape.ts'
+import {
+  TERRAIN_BAND_COUNT,
+  TERRAIN_EDGES_PCT,
+  TERRAIN_WINDOW_M,
+} from '../../domain/terrainShape.ts'
 import { defaultBandRatios } from '../../engine/gradeCurve.ts'
 import { P } from '../../engine/params/index.ts'
+import { gaDecouplingPct } from '../../engine/hrQuality.ts'
 import { gradeAdjustedSpeed } from '../../engine/terrain.ts'
 import type { ActivityStreamData, HrQuality, HrQualityHalves, HrSource } from '../../types.ts'
 import { DECOUPLING_MIN_SEC } from './summarize.ts'
@@ -30,7 +35,7 @@ export const HR_QUALITY_VERSION = 1
 const MAX_SPEED_MPS = 12
 /** Same cap as the terrain bins and the gap-distance grade: a steeper reading is a data error. */
 const MAX_GRADE = 0.45
-const BAND_COUNT = TERRAIN_EDGES_PCT.length + 1
+const BAND_COUNT = TERRAIN_BAND_COUNT
 
 function binOf(gradePct: number): number {
   let bin = 0
@@ -334,61 +339,4 @@ export function computeHrQuality(
     out.gapDecouplingPct = gaDecouplingPct(out, defaultBandRatios())
   }
   return out
-}
-
-/**
- * Whether a run's heart rate passes: at least `hrModel.minDurationMin` minutes of moving time and,
- * unless the source is an external sensor, at least `b2.qMinCleanShare` of it clean. A strap passes
- * by its source (rule B2); a wrist or unknown source passes on the checks. Engine numbers.
- */
-export function hrQualityPasses(quality: HrQuality | null): boolean {
-  if (quality === null) return false
-  if (quality.movingSec < P.hrModel.minDurationMin.value * 60) return false
-  if (quality.source === 'strap') return true
-  return quality.cleanSec / quality.movingSec >= P.b2.qMinCleanShare.value
-}
-
-/** What most of a failing run's unclean seconds were, or null when it passes. */
-export type HrQualityFailure =
-  'short' | 'cadence-lock' | 'spikes' | 'dropouts' | 'flat-lines' | 'mismatch'
-
-export function hrQualityFailure(quality: HrQuality): HrQualityFailure | null {
-  if (hrQualityPasses(quality)) return null
-  if (quality.movingSec < P.hrModel.minDurationMin.value * 60) return 'short'
-  const counts: Array<[HrQualityFailure, number]> = [
-    ['cadence-lock', quality.lockSec],
-    ['spikes', quality.spikeSec],
-    ['dropouts', quality.dropSec],
-    ['flat-lines', quality.flatSec],
-    ['mismatch', quality.mismatchSec],
-  ]
-  return counts.reduce((best, item) => (item[1] > best[1] ? item : best))[0]
-}
-
-/**
- * Drift on grade-adjusted pace, in percent, from the clean time of a run: heart rate per unit of
- * grade-adjusted speed in the second half over the first, minus 1. The speed of a band is divided by
- * its `ratio` to flat (the runner's own ratio where rule I13 shows one, Minetti otherwise; one
- * entry per band of the terrain bins). Null without halves, or when a half has under
- * `b2.qMinHalfCleanMin` clean minutes.
- */
-export function gaDecouplingPct(quality: HrQuality, ratios: readonly number[]): number | null {
-  const { halves } = quality
-  if (!halves || ratios.length !== BAND_COUNT) return null
-  const cost: number[] = []
-  for (const h of [0, 1] as const) {
-    let sec = 0
-    let flatM = 0
-    let hrSec = 0
-    for (let b = 0; b < BAND_COUNT; b++) {
-      const ratio = ratios[b]!
-      if (!(ratio > 0)) return null
-      sec += halves.sec[h][b]!
-      flatM += halves.m[h][b]! / ratio
-      hrSec += halves.hrSec[h][b]!
-    }
-    if (sec < P.b2.qMinHalfCleanMin.value * 60 || flatM <= 0 || hrSec <= 0) return null
-    cost.push(hrSec / sec / (flatM / sec))
-  }
-  return Math.round((cost[1]! / cost[0]! - 1) * 10_000) / 100
 }
