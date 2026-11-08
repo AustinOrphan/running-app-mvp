@@ -240,7 +240,10 @@ describe('Trends, heart rate at one speed', () => {
     )
     mockPage(view({ hrWindows: windows }))
     renderWithProviders(<TrendsPage />)
-    expect(await screen.findByText('No heart-rate line in this range yet.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('No point can be read at one pace in this range.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('No heart-rate line in this range yet.')).not.toBeInTheDocument()
     expect(
       screen.getByText(/^No window of this range ran \d:\d\d \/km or a pace near it/),
     ).toBeInTheDocument()

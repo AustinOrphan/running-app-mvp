@@ -219,6 +219,7 @@ export const TRENDS_TEMPLATES = {
     'A line needs {runs} steady flat runs with heart rate within {weeks} weeks. The latest {weeks} weeks have {have}.',
     { runs: 'count', weeks: 'count', have: 'count' },
   ),
+  'trends.hr.empty-pace': tpl('No point can be read at one pace in this range.'),
   'trends.hr.empty-pace-body': tpl(
     'No window of this range ran {pace} or a pace near it, so no point can be read at one pace.',
     { pace: 'pace' },

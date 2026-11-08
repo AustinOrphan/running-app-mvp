@@ -117,7 +117,7 @@ function SpeedPanel({ view, from, months, units }: PanelProps) {
     // Some window has a line, but none ran the reference pace: say that, not the run count.
     return (
       <EmptyState
-        title={text('trends.hr.empty')}
+        title={text('trends.hr.empty-pace')}
         body={hrEmptyPaceBody(series.referenceMps, units)}
       />
     )
