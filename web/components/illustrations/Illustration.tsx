@@ -4,8 +4,9 @@ import { useIllustrations } from './useIllustrations.ts'
 
 /**
  * The drawings behind the Illustrations switch (visual design, section 5). Each is a few strokes of
- * `currentColor` (the muted text colour set by `.art`) plus, at most, one stroke in `--accent`: the
- * thing the page is waiting for. Drawn on a 160 by 120 sheet, round caps, no fill, no motion.
+ * `currentColor` (the muted text colour set by `.art`) plus one accent colour, `--accent`, on the few
+ * strokes that carry what the page is waiting for. Drawn on a 160 by 120 sheet, round caps, no area
+ * fill (a small filled dot is allowed), no motion.
  */
 export type ArtKey = 'runs' | 'plan' | 'offline' | 'load' | 'race' | 'trends' | 'strength' | 'paces'
 
