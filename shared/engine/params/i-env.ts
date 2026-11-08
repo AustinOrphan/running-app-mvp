@@ -1,4 +1,4 @@
-// Section (i) Environment, including the terrain additions I11 and I12. Source:
+// Section (i) Environment, including the terrain additions I11 to I13. Source:
 // research/engine-rules.md. Task E3 may add here.
 import { param, type ParamGroups } from './define.ts'
 
@@ -7,6 +7,11 @@ const HEAT_CONSENSUS = [
   'tyler-2016-heat-adaptation-meta',
   'daanen-2018-acclimation-decay',
   'periard-2015-heat-acclimation-adaptations',
+]
+const GRADE_CURVE = [
+  'minetti-2002-gradient-cost',
+  'lemire-2021-economy-slopes-correlated',
+  'jaen-carrillo-2026-trail-digital-twin',
 ]
 const MINETTI = ['minetti-2002-gradient-cost', 'vernillo-2017-graded-running-review']
 
@@ -372,5 +377,49 @@ export const iEnv = {
         range: [4.6, 7.5],
       },
     ),
+  },
+  // I13: every value is a default. No study fixes any of them; the gate that matters is the
+  // runner's own leave-one-run-out test (`shared/engine/gradeCurve.ts`).
+  i13: {
+    minFlatMin: param('i13.minFlatMin', 20, 'D', 'I13', GRADE_CURVE, {
+      unit: 'min',
+      note: 'Default: a run needs this many minutes in the flat band for its own flat speed to be a steady reference.',
+    }),
+    maxFlatSpeedCv: param('i13.maxFlatSpeedCv', 0.15, 'D', 'I13', GRADE_CURVE, {
+      unit: 'fraction (SD over mean)',
+      note: 'Default: the largest variation of flat-band speed over segments of up to 120 s for a run to count as steady. Variation faster than about two minutes is averaged out in the bins, so this separates steady runs from long repeats and nothing finer.',
+    }),
+    minBinMin: param('i13.minBinMin', 10, 'D', 'I13', GRADE_CURVE, {
+      unit: 'min',
+      note: 'Default: minutes pooled over the eligible runs before a band speaks.',
+    }),
+    minBinRuns: param('i13.minBinRuns', 3, 'D', 'I13', GRADE_CURVE, {
+      unit: 'runs',
+      note: 'Default: eligible runs that must reach the band before it speaks, so one hilly day cannot stand for a runner.',
+    }),
+    priorMin: param('i13.priorMin', 20, 'D', 'I13', GRADE_CURVE, {
+      unit: 'min',
+      note: 'Default: weight of the Minetti ratio, in minutes, when the personal ratio is shrunk toward it.',
+    }),
+    windowWeeks: param('i13.windowWeeks', 52, 'D', 'I13', GRADE_CURVE, {
+      unit: 'weeks',
+      note: 'Default: how far back runs count; the athlete snapshot holds 365 days.',
+    }),
+    minGainOverDefaultPct: param('i13.minGainOverDefaultPct', 10, 'D', 'I13', GRADE_CURVE, {
+      unit: '% lower error',
+      note: 'Default: how much lower the leave-one-run-out error of a band must be than the Minetti error for the personal ratio to show.',
+    }),
+    minBacktestRuns: param('i13.minBacktestRuns', 5, 'D', 'I13', GRADE_CURVE, {
+      unit: 'runs',
+      note: 'Default: runs a band must have been tested on before its comparison with Minetti counts.',
+    }),
+    minTestBandMin: param('i13.minTestBandMin', 1, 'D', 'I13', GRADE_CURVE, {
+      unit: 'min',
+      note: 'Default: minutes a held-out run needs in a band to be tested there.',
+    }),
+    walkingMajorityShare: param('i13.walkingMajorityShare', 0.5, 'D', 'I13', GRADE_CURVE, {
+      unit: 'fraction of time',
+      note: 'Default: the walking share above which a band counts as walked; half the time.',
+    }),
   },
 } satisfies ParamGroups
