@@ -12,7 +12,20 @@ function primaryLinks() {
   return within(screen.getByRole('navigation', { name: 'Primary' })).getAllByRole('link')
 }
 
+/** A viewport from 720 px, where the tab bar has become the rail. */
+function stubRailWidth(): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(min-width: 720px)',
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+}
+
 describe('Nav', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   test('five items in order; exactly one is current', () => {
     renderWithProviders(<Nav />, { route: '/plan' })
     const links = primaryLinks()
@@ -54,17 +67,47 @@ describe('Nav', () => {
     expect(current.map((l) => l.textContent)).toEqual(['Today'])
   })
 
-  test('the rail group lists Goals, Stats, Trends and Settings', () => {
+  test('the rail lists every page that is not a tab, in the groups of the More page', () => {
     renderWithProviders(<Nav />, { route: '/stats' })
-    const group = within(screen.getByRole('navigation', { name: 'Other pages' }))
-    expect(group.getAllByRole('link').map((l) => l.textContent)).toEqual([
-      'Goals',
-      'Stats',
-      'Trends',
-      'Settings',
+    const rail = within(screen.getByRole('navigation', { name: 'Other pages' }))
+    const groups = rail.getAllByRole('group')
+    expect(groups.map((g) => g.getAttribute('aria-labelledby'))).toEqual([
+      'rail-training',
+      'rail-data',
+      'rail-you',
     ])
-    expect(group.getByRole('link', { name: 'Stats' })).toHaveAttribute('data-current', 'true')
-    expect(group.getByRole('link', { name: 'Stats' })).not.toHaveAttribute('aria-current')
+    expect(
+      groups.map((g) =>
+        within(g)
+          .getAllByRole('link')
+          .map((l) => l.textContent),
+      ),
+    ).toEqual([
+      ['Weekly brief', 'Goals', 'My paces', 'Strength', 'Fuel lab'],
+      ['Stats', 'Trends', 'Integrations', 'Research'],
+      ['Profile', 'Settings'],
+    ])
+    expect(rail.getByRole('link', { name: 'Stats' })).toHaveAttribute('data-current', 'true')
+    // On a phone the More tab is the current item, so the rail's link is styled and not announced.
+    expect(rail.getByRole('link', { name: 'Stats' })).not.toHaveAttribute('aria-current')
+  })
+
+  test('from 720 px the rail link is the current page and the hidden More tab is not announced', () => {
+    stubRailWidth()
+    mockApi({ 'GET /api/race/plan': () => ({ plan: null, reason: 'no-goal' }) })
+    renderWithProviders(<Nav />, { route: '/stats' })
+    const current = screen
+      .getAllByRole('link')
+      .filter((l) => l.getAttribute('aria-current') === 'page')
+    expect(current.map((l) => l.textContent)).toEqual(['Stats'])
+  })
+
+  test('the race plan joins the Training group once the plan exists', async () => {
+    stubRailWidth()
+    mockApi({ 'GET /api/race/plan': () => ({ plan: { sections: [] }, reason: null }) })
+    renderWithProviders(<Nav />, { route: '/' })
+    const rail = within(screen.getByRole('navigation', { name: 'Other pages' }))
+    expect(await rail.findByRole('link', { name: 'Race plan' })).toHaveAttribute('href', '/race')
   })
 })
 
@@ -155,6 +198,49 @@ describe('MorePage', () => {
     expect(within(nav).getByRole('link', { name: /^Research/ })).toHaveTextContent(
       'The papers and rules the plan rests on',
     )
+  })
+
+  test('groups the pages under Training, Data and You and reaches every page that is not a tab', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    const nav = within(screen.getByRole('navigation', { name: 'More pages' }))
+    const groups = nav.getAllByRole('region')
+    expect(groups.map((g) => within(g).getByRole('heading', { level: 2 }).textContent)).toEqual([
+      'Training',
+      'Data',
+      'You',
+    ])
+    expect(
+      groups.map((g) =>
+        within(g)
+          .getAllByRole('link')
+          .map((l) => l.getAttribute('href')),
+      ),
+    ).toEqual([
+      ['/brief', '/goals', '/paces', '/strength', '/fuel'],
+      ['/stats', '/trends', '/integrations', '/research'],
+      ['/profile', '/settings'],
+    ])
+  })
+
+  test('has no theme control: Settings has it', () => {
+    renderWithProviders(<MorePage />, { route: '/more' })
+    expect(screen.queryByRole('group', { name: 'Theme' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Light|Dark|System/ })).not.toBeInTheDocument()
+  })
+
+  test('the rail and the More page list the same pages', () => {
+    renderWithProviders(
+      <>
+        <Nav />
+        <MorePage />
+      </>,
+      { route: '/more' },
+    )
+    const hrefs = (name: string) =>
+      within(screen.getByRole('navigation', { name }))
+        .getAllByRole('link')
+        .map((l) => l.getAttribute('href'))
+    expect(hrefs('Other pages')).toEqual(hrefs('More pages'))
   })
 
   test('links to Integrations and Profile', () => {

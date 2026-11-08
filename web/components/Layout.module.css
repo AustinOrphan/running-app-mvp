@@ -25,14 +25,19 @@
   outline: none;
 }
 
+/* The two measures every page picks from, inherited by the page inside: text is read at the
+   reading measure (68 characters) and a form is a column of its own width, so neither stretches
+   with the 72rem page. */
 .content {
+  --measure-read: var(--prose-max);
+  --measure-form: 34rem;
   width: 100%;
   max-width: var(--page-max);
   margin: 0 auto;
   padding: 0 var(--gutter);
 }
 
-@media (min-width: 900px) {
+@media (min-width: 720px) {
   .main {
     margin-left: var(--rail-w);
     padding-bottom: var(--space-7);

@@ -1,12 +1,12 @@
 .intro {
-  max-width: var(--prose-max);
+  max-width: var(--measure-read);
   margin: 0 0 var(--space-4);
 }
 
 .legend {
   display: grid;
   gap: var(--space-1);
-  max-width: var(--prose-max);
+  max-width: var(--measure-read);
   margin: 0 0 var(--space-5);
   color: var(--text-muted);
   font-size: var(--text-sm);
@@ -28,6 +28,8 @@
 }
 
 .filter {
+  /* The list's width, so the filter and the rows under it share both edges. */
+  max-width: var(--measure-read);
   margin-bottom: var(--space-5);
   overflow-x: auto;
 }
@@ -36,7 +38,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  max-width: var(--prose-max);
+  max-width: var(--measure-read);
 }
 
 .topicButton {
@@ -92,7 +94,7 @@ li:last-child > .topicButton {
 }
 
 .topic {
-  max-width: var(--prose-max);
+  max-width: var(--measure-read);
 }
 
 .topicTitle {

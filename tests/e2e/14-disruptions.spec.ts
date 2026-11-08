@@ -271,8 +271,8 @@ test('Not today carries the Not 100% entry, which opens the window sheet from th
   await window.getByRole('button', { name: 'Next' }).click()
   await expect(window.getByLabel('From')).toHaveValue(today)
 
-  // Cancelling writes nothing, and focus lands on the title the Not today button belonged to.
-  await window.getByRole('button', { name: 'Cancel' }).click()
+  // Closing writes nothing, and focus lands on the title the Not today button belonged to.
+  await window.getByRole('button', { name: 'Close' }).click()
   await expect(window).toBeHidden()
   await expect(card.getByRole('heading', { level: 2 })).toBeFocused()
   expect(await windowsOf()).toEqual([])

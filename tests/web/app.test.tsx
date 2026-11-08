@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, test } from 'vitest'
-import { App } from '../../web/App.tsx'
+import { App, preloadRoute } from '../../web/App.tsx'
 import { activityPage, mockApi, renderWithProviders } from './helpers.tsx'
 import { makeToday } from './today-fixtures.ts'
 
@@ -107,5 +108,28 @@ describe('App routing', () => {
     })
     renderWithProviders(<App />, { route })
     expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
+  })
+
+  test('a failed first load says what happened and reads again on request', async () => {
+    const user = userEvent.setup()
+    let connected = false
+    mockApi({
+      'GET /api/setup': () =>
+        connected
+          ? { needsSetup: false }
+          : { status: 503, body: { error: { code: 'internal', message: 'No connection.' } } },
+      'GET /api/auth/me': () => signedOut,
+    })
+    renderWithProviders(<App />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('The app did not load.')
+    connected = true
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+  })
+
+  test('preloading a route that matches nothing does nothing', () => {
+    expect(() => {
+      preloadRoute('/no/such/page')
+    }).not.toThrow()
   })
 })

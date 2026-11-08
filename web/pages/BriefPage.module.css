@@ -1,8 +1,8 @@
-/* One column on a phone, in the order of the design: the week, what changed, what the plan
-   noticed, the next key session, what changed since. From 900 px the update (the longest section,
-   with its rows and its undo) takes the left column and the three short sections stack on the
-   right, so the reading order and the order of the page stay the same. `min-width: 0` lets a long
-   line wrap inside a grid cell instead of widening the page at 360 px. */
+/* One column at every width, in the order of the design: the week, what changed, what the plan
+   noticed, the next key session, what changed since. The update is the longest section and the
+   others are a line or two, so two columns left one of them empty or stretched; the brief reads as
+   a document, at the reading measure. `min-width: 0` lets a long line wrap instead of widening the
+   page at 360 px. */
 .page {
   display: flex;
   flex-direction: column;
@@ -20,7 +20,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  max-width: var(--prose-max);
+  max-width: var(--measure-read);
 }
 
 .lead p {
@@ -40,6 +40,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+  max-width: var(--measure-read);
 }
 
 .grid > * {
@@ -63,7 +64,7 @@
 .text,
 .muted {
   margin: 0;
-  max-width: var(--prose-max);
+  max-width: var(--measure-read);
 }
 
 .muted {
@@ -99,7 +100,7 @@
   margin: 0;
   padding-left: var(--space-3);
   border-left: 3px solid var(--border-strong);
-  max-width: var(--prose-max);
+  max-width: var(--measure-read);
 }
 
 /* The quiet button carries a button's padding; pull it back so its text lines up with the fact. */
@@ -113,20 +114,10 @@
   gap: var(--space-2);
 }
 
-/* The three short sections: one column of their own from 900 px, so the update's height never
-   stretches the gaps between them. */
+/* The three short sections, stacked like the rest of the page. */
 .side {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
   min-width: 0;
-}
-
-@media (min-width: 900px) {
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--space-6);
-    align-items: start;
-  }
 }

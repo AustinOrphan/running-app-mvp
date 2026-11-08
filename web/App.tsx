@@ -1,30 +1,97 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Suspense, useEffect } from 'react'
+import { matchPath, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useMe, useSetupStatus } from './api/auth.ts'
 import { dropUserQueries, keys, UNAUTHORIZED_EVENT } from './api/client.ts'
+import { ErrorState } from './components/ErrorState.tsx'
 import { Layout } from './components/Layout.tsx'
-import { ActivitiesPage } from './pages/ActivitiesPage.tsx'
-import { ActivityDetailPage } from './pages/ActivityDetailPage.tsx'
-import { BriefPage } from './pages/BriefPage.tsx'
-import { DashboardPage } from './pages/DashboardPage.tsx'
-import { FuelLabPage } from './pages/FuelLabPage.tsx'
-import { GoalsPage } from './pages/GoalsPage.tsx'
-import { IntegrationsPage } from './pages/IntegrationsPage.tsx'
-import { LoginPage } from './pages/LoginPage.tsx'
-import { MorePage } from './pages/MorePage.tsx'
-import { MyPacesPage } from './pages/MyPacesPage.tsx'
-import { PlanPage } from './pages/PlanPage.tsx'
-import { ProfilePage } from './pages/ProfilePage.tsx'
-import { ResearchPage } from './pages/ResearchPage.tsx'
-import { ReviewPage } from './pages/ReviewPage.tsx'
-import { SettingsPage } from './pages/SettingsPage.tsx'
-import { SetupPage } from './pages/SetupPage.tsx'
-import { StatsPage } from './pages/StatsPage.tsx'
-import { RacePage } from './pages/RacePage.tsx'
-import { StrengthPage } from './pages/StrengthPage.tsx'
-import { TrendsPage } from './pages/TrendsPage.tsx'
+import { useLoadView } from './components/loadView.ts'
+import { Skeleton } from './components/Skeleton.tsx'
 import { useOutboxReplay } from './pwa/outbox.ts'
+import styles from './App.module.css'
+import { lazyPage, warmPages, type Page } from './lazyPage.tsx'
+
+const setupPage = lazyPage(() => import('./pages/SetupPage.tsx').then((m) => m.SetupPage))
+const loginPage = lazyPage(() => import('./pages/LoginPage.tsx').then((m) => m.LoginPage))
+const dashboardPage = lazyPage(() =>
+  import('./pages/DashboardPage.tsx').then((m) => m.DashboardPage),
+)
+const activitiesPage = lazyPage(() =>
+  import('./pages/ActivitiesPage.tsx').then((m) => m.ActivitiesPage),
+)
+const activityPage = lazyPage(() =>
+  import('./pages/ActivityDetailPage.tsx').then((m) => m.ActivityDetailPage),
+)
+const planPage = lazyPage(() => import('./pages/PlanPage.tsx').then((m) => m.PlanPage))
+const reviewPage = lazyPage(() => import('./pages/ReviewPage.tsx').then((m) => m.ReviewPage))
+const briefPage = lazyPage(() => import('./pages/BriefPage.tsx').then((m) => m.BriefPage))
+const goalsPage = lazyPage(() => import('./pages/GoalsPage.tsx').then((m) => m.GoalsPage))
+const pacesPage = lazyPage(() => import('./pages/MyPacesPage.tsx').then((m) => m.MyPacesPage))
+const statsPage = lazyPage(() => import('./pages/StatsPage.tsx').then((m) => m.StatsPage))
+const trendsPage = lazyPage(() => import('./pages/TrendsPage.tsx').then((m) => m.TrendsPage))
+const settingsPage = lazyPage(() => import('./pages/SettingsPage.tsx').then((m) => m.SettingsPage))
+const integrationsPage = lazyPage(() =>
+  import('./pages/IntegrationsPage.tsx').then((m) => m.IntegrationsPage),
+)
+const profilePage = lazyPage(() => import('./pages/ProfilePage.tsx').then((m) => m.ProfilePage))
+const researchPage = lazyPage(() => import('./pages/ResearchPage.tsx').then((m) => m.ResearchPage))
+const fuelPage = lazyPage(() => import('./pages/FuelLabPage.tsx').then((m) => m.FuelLabPage))
+const strengthPage = lazyPage(() => import('./pages/StrengthPage.tsx').then((m) => m.StrengthPage))
+const racePage = lazyPage(() => import('./pages/RacePage.tsx').then((m) => m.RacePage))
+const morePage = lazyPage(() => import('./pages/MorePage.tsx').then((m) => m.MorePage))
+
+/** The pages outside the sign-in gate. */
+const PUBLIC_ROUTES: ReadonlyArray<readonly [path: string, page: Page]> = [
+  ['/setup', setupPage],
+  ['/login', loginPage],
+]
+
+/** The pages behind the gate, inside the layout. */
+const APP_ROUTES: ReadonlyArray<readonly [path: string, page: Page]> = [
+  ['/', dashboardPage],
+  ['/activities', activitiesPage],
+  ['/activities/:id', activityPage],
+  ['/plan', planPage],
+  ['/review', reviewPage],
+  ['/brief', briefPage],
+  ['/brief/:weekStart', briefPage],
+  ['/goals', goalsPage],
+  ['/paces', pacesPage],
+  ['/stats', statsPage],
+  ['/trends', trendsPage],
+  ['/settings', settingsPage],
+  ['/integrations', integrationsPage],
+  ['/profile', profilePage],
+  ['/research', researchPage],
+  ['/fuel', fuelPage],
+  ['/strength', strengthPage],
+  ['/race', racePage],
+  ['/more', morePage],
+]
+
+/** The pages the tab bar and the side rail open most: fetched once the app is idle. */
+export function warmTabRoutes(): void {
+  warmPages([
+    dashboardPage,
+    activitiesPage,
+    planPage,
+    reviewPage,
+    morePage,
+    trendsPage,
+    settingsPage,
+  ])
+}
+
+/**
+ * Starts fetching the code of the page for `pathname` at once. The entry calls it before React
+ * renders: the page's code then downloads while the app asks the server who is signed in, instead
+ * of after that answer. A path that matches no route does nothing, and a failed fetch is left to
+ * the route itself.
+ */
+export function preloadRoute(pathname: string): void {
+  const route = [...PUBLIC_ROUTES, ...APP_ROUTES].find(([path]) => matchPath(path, pathname))
+  route?.[1].load().catch(() => {})
+}
 
 /** Sends first-run visitors to /setup and signed-out visitors to /login. */
 function AuthGate() {
@@ -34,6 +101,12 @@ function AuthGate() {
   // Writes kept on this phone while offline go out whenever the app is open, once the queue has
   // been checked against the signed-in user; a 401 drops them.
   useOutboxReplay(me.data?.id ?? null)
+  // One view for the two reads the gate waits on: it fails when either has failed without data.
+  const view = useLoadView({
+    data: setup.data !== undefined && me.data !== undefined ? true : undefined,
+    isError: (setup.isError && setup.data === undefined) || (me.isError && me.data === undefined),
+    isFetching: setup.isFetching || me.isFetching,
+  })
 
   useEffect(() => {
     function onUnauthorized() {
@@ -54,10 +127,18 @@ function AuthGate() {
     if (signedOut) dropUserQueries(queryClient)
   }, [signedOut, queryClient])
 
-  if (setup.isError || me.isError) {
-    return <p role="alert">The server did not respond. Reload the page to try again.</p>
+  if (view === 'failed' || view === 'retrying') {
+    return (
+      <div className={styles.gate}>
+        <ErrorState
+          subject="The app"
+          onRetry={() => Promise.all([setup.refetch(), me.refetch()])}
+          retrying={view === 'retrying'}
+        />
+      </div>
+    )
   }
-  if (setup.isPending || me.isPending) {
+  if (setup.data === undefined || me.data === undefined) {
     return <div className="skeleton" aria-busy="true" aria-label="Loading" />
   }
   if (setup.data.needsSetup) return <Navigate to="/setup" replace />
@@ -67,32 +148,19 @@ function AuthGate() {
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/setup" element={<SetupPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<AuthGate />}>
-        <Route element={<Layout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="/activities" element={<ActivitiesPage />} />
-          <Route path="/activities/:id" element={<ActivityDetailPage />} />
-          <Route path="/plan" element={<PlanPage />} />
-          <Route path="/review" element={<ReviewPage />} />
-          <Route path="/brief" element={<BriefPage />} />
-          <Route path="/brief/:weekStart" element={<BriefPage />} />
-          <Route path="/goals" element={<GoalsPage />} />
-          <Route path="/paces" element={<MyPacesPage />} />
-          <Route path="/stats" element={<StatsPage />} />
-          <Route path="/trends" element={<TrendsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/integrations" element={<IntegrationsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/research" element={<ResearchPage />} />
-          <Route path="/fuel" element={<FuelLabPage />} />
-          <Route path="/strength" element={<StrengthPage />} />
-          <Route path="/race" element={<RacePage />} />
-          <Route path="/more" element={<MorePage />} />
+    <Suspense fallback={<Skeleton />}>
+      <Routes>
+        {PUBLIC_ROUTES.map(([path, { Component }]) => (
+          <Route key={path} path={path} element={<Component />} />
+        ))}
+        <Route element={<AuthGate />}>
+          <Route element={<Layout />}>
+            {APP_ROUTES.map(([path, { Component }]) => (
+              <Route key={path} path={path} element={<Component />} />
+            ))}
+          </Route>
         </Route>
-      </Route>
-    </Routes>
+      </Routes>
+    </Suspense>
   )
 }

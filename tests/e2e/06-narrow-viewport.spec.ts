@@ -434,13 +434,13 @@ test('the Not 100% sheet and the window banner fit at 360 px, with every button 
     expect((pain?.x ?? 0) + (pain?.width ?? 0), `pain ${rating}`).toBeLessThanOrEqual(width + 0.5)
     expect(pain?.x ?? -1, `pain ${rating}`).toBeGreaterThanOrEqual(0)
   }
-  await expectReachable(['Cancel', 'Back', 'Next'])
+  await expectReachable(['Back', 'Next'])
 
   // Step 3: the preview, whose rows and buttons stay inside the screen.
   await sheet.getByRole('button', { name: 'Next' }).click()
   await expect(sheet.getByRole('heading', { name: 'What would change' })).toBeVisible()
-  await expectReachable(['Cancel', 'Back', 'Apply to my plan'])
-  await sheet.getByRole('button', { name: 'Cancel' }).click()
+  await expectReachable(['Back', 'Apply to my plan'])
+  await sheet.getByRole('button', { name: 'Close' }).click()
   await expect(sheet).toBeHidden()
 
   // A window in force: the banner wraps inside the screen and its three buttons stay in reach.
@@ -522,6 +522,18 @@ for (const size of [
     expect(rowBox, 'last activity row').not.toBeNull()
     expect((rowBox?.y ?? 0) + (rowBox?.height ?? 0)).toBeLessThanOrEqual(limit)
     expect(await isUncovered(lastRow)).toBe(true)
+
+    // The last row of the More page, the last link of a list of eleven.
+    await page.goto('/more')
+    const lastLink = page.getByRole('navigation', { name: 'More pages' }).getByRole('link').last()
+    await expect(lastLink).toBeVisible()
+    await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight)
+    })
+    const lastLinkBox = await lastLink.boundingBox()
+    expect(lastLinkBox, 'last More row').not.toBeNull()
+    expect((lastLinkBox?.y ?? 0) + (lastLinkBox?.height ?? 0)).toBeLessThanOrEqual(limit)
+    expect(await isUncovered(lastLink)).toBe(true)
 
     // The Review page's Save button, at the very end of its form.
     await page.goto(`/review`)
@@ -914,8 +926,9 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
   await page.setViewportSize({ width: 360, height: 740 })
   await page.goto('/fuel')
   await expect(page.getByRole('heading', { name: 'Fuel lab', level: 1 })).toBeVisible()
-  const history = page.getByRole('region', { name: 'Fuel history, newest first' })
-  await expect(history.getByRole('row')).toHaveCount(3)
+  // Below 40 rem the history is a list of runs, so the gut result is on screen with no sideways scroll.
+  const history = page.getByRole('list', { name: 'Fuel history, newest first' })
+  await expect(history.getByRole('listitem')).toHaveCount(2)
   const width = page.viewportSize()?.width ?? 0
   const height = page.viewportSize()?.height ?? 0
 
@@ -934,7 +947,7 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
     )
   }
 
-  // The page: nothing pushes it sideways, and the history table scrolls inside its own box.
+  // The page: nothing pushes it sideways, and every run's result is inside the screen.
   expect(await pageOverflow(), 'the lab page').toBeLessThanOrEqual(0)
   expect(await pastRightEdge(page.getByRole('main')), 'past the right edge').toEqual([])
   // The grades on the ladder are explained in a line of the page, since a phone shows no hover
@@ -949,9 +962,12 @@ test('the Fuel lab and an open fuel log fit 360 px, with every control reachable
   const historyBox = await history.boundingBox()
   expect((historyBox?.x ?? -1) + (historyBox?.width ?? 0)).toBeLessThanOrEqual(width + 0.5)
   expect(historyBox?.x ?? -1).toBeGreaterThanOrEqual(0)
-  expect(await history.evaluate((el) => el.scrollWidth > el.clientWidth), 'table scrolls').toBe(
-    true,
-  )
+  for (const gut of await history.getByText(/Gut: /).all()) {
+    await gut.scrollIntoViewIfNeeded()
+    const box = await gut.boundingBox()
+    expect((box?.x ?? 0) + (box?.width ?? 0), 'the gut result').toBeLessThanOrEqual(width + 0.5)
+    expect(await isUncovered(gut), 'the gut result is not under the tab bar').toBe(true)
+  }
 
   // Every button of the lab is on screen when scrolled to and is at least 44 px tall.
   for (const name of ['Add a product', 'Save settings']) {
@@ -1337,7 +1353,9 @@ test('a trail run with charts does not scroll sideways at 360 px', async () => {
     buffer: Buffer.from(bytes),
   })
   await sheet.getByRole('button', { name: 'Import files' }).click()
-  await expect(sheet.getByText('1 imported, 0 already imported, 0 skipped')).toBeVisible()
+  await expect(
+    sheet.getByText('1 added to your log. 0 already there. 0 could not be read.'),
+  ).toBeVisible()
   await sheet.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('link', { name: /^Run, / }).click()
   await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()

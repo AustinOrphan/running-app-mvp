@@ -16,7 +16,13 @@ import {
   uploadActivityFiles,
 } from '../../web/import/files.ts'
 import { ImportDialog } from '../../web/pages/ImportDialog.tsx'
-import { expectCleanCopy, mockApi, renderWithProviders, type MockRoutes } from './helpers.tsx'
+import {
+  activityPage,
+  expectCleanCopy,
+  mockApi,
+  renderWithProviders,
+  type MockRoutes,
+} from './helpers.tsx'
 
 const exportXml = readFileSync(join(process.cwd(), 'tests/fixtures/apple/export.xml'), 'utf8')
 
@@ -60,6 +66,8 @@ const GPX = `<?xml version="1.0" encoding="UTF-8"?>
 function renderDialog(routes: MockRoutes) {
   const api = mockApi({
     'GET /api/settings': () => ({ units: 'mi' }),
+    // The result links to the newest runs of the batch.
+    'GET /api/activities': () => activityPage([]),
     ...routes,
   })
   renderWithProviders(
@@ -290,7 +298,7 @@ describe('Import dialog, activity files', () => {
       ])
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import files' }))
     expect(
-      await within(dialog).findByText('1 imported, 1 already imported, 1 skipped'),
+      await within(dialog).findByText('1 added to your log. 1 already there. 1 could not be read.'),
     ).toBeInTheDocument()
     expect(within(dialog).getByText('b.fit: already imported')).toBeInTheDocument()
     expect(
@@ -412,7 +420,7 @@ describe('Import dialog, Apple Health', () => {
     )
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import export' }))
     expect(
-      await within(dialog).findByText('2 imported, 0 already imported, 0 skipped'),
+      await within(dialog).findByText('2 added to your log. 0 already there. 0 could not be read.'),
     ).toBeInTheDocument()
     expect(within(dialog).getByText(/wellness days/)).toBeInTheDocument()
     expectCleanCopy(dialog)

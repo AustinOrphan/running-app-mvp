@@ -23,7 +23,7 @@ import {
 } from './helpers.ts'
 
 // The Monday brief the way a runner meets it: what the weekly update changed, with its cause, in
-// one column on a phone and two from 900 px; the undo previewed before it is done; the undo refused
+// one column at every width; the undo previewed before it is done; the undo refused
 // while a warning sign from a check-in is active and once a run is linked to a changed session.
 //
 // The weekly update is the scheduler's job, which no request can start, so the spec runs it itself,
@@ -267,7 +267,7 @@ test('an unopened brief with changes stands under the session in a card, at 360 
   }
 })
 
-test('the brief lists a change with its cause, in one column on a phone and two from 900 px', async () => {
+test('the brief lists a change with its cause, in one column at every width', async () => {
   const { thisMonday } = relativeDates()
   const monday = addDays(thisMonday, 7)
   await reportIllness(thisMonday, true)
@@ -328,22 +328,30 @@ test('the brief lists a change with its cause, in one column on a phone and two 
   await noSidewaysScroll()
   await page.screenshot({ path: test.info().outputPath('brief-360.png'), fullPage: true })
 
-  // From 900 px the update takes the left column and the other three stack on the right.
+  // Wider, the sections stay in one column at the reading measure (68 characters), so none is
+  // stretched or left alone beside a short one.
   await page.setViewportSize({ width: 900, height: 900 })
   await expect(changed).toBeVisible()
   const wide = await Promise.all([changed, noticed, key, since].map(boxOf))
-  expect(wide[1]!.x, 'what the plan noticed is right of the update').toBeGreaterThan(
-    wide[0]!.x + wide[0]!.width - 1,
-  )
-  expect(wide[1]!.y).toBeCloseTo(wide[0]!.y, 0)
-  expect(wide[2]!.x).toBeCloseTo(wide[1]!.x, 0)
-  expect(wide[2]!.y).toBeGreaterThan(wide[1]!.y + wide[1]!.height - 1)
-  expect(wide[3]!.x).toBeCloseTo(wide[1]!.x, 0)
-  expect(wide[3]!.y).toBeGreaterThan(wide[2]!.y + wide[2]!.height - 1)
+  for (const [above, below] of [
+    [wide[0], wide[1]],
+    [wide[1], wide[2]],
+    [wide[2], wide[3]],
+  ] as const) {
+    expect(below!.y, 'each section sits below the one before').toBeGreaterThan(
+      above!.y + above!.height - 1,
+    )
+    expect(below!.x).toBeCloseTo(above!.x, 0)
+  }
   await noSidewaysScroll()
   await page.screenshot({ path: test.info().outputPath('brief-900.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 900 })
   await noSidewaysScroll()
+  const desktop = await Promise.all([changed, since].map(boxOf))
+  expect(desktop[0]!.width, 'the update is no wider than the reading measure').toBeLessThanOrEqual(
+    820,
+  )
+  expect(desktop[1]!.x).toBeCloseTo(desktop[0]!.x, 0)
   await page.screenshot({ path: test.info().outputPath('brief-1280.png'), fullPage: true })
   await page.setViewportSize({ width: 360, height: 740 })
 

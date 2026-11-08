@@ -252,6 +252,19 @@ describe('Not 100%, step 2', () => {
     expectCleanCopy(dialog)
   })
 
+  test('the footer is Back and Next in one row, with no Cancel: Close in the header leaves', async () => {
+    const user = userEvent.setup()
+    const { onClose } = renderSheet()
+    const { dialog } = await open(user)
+    await toWhen(user, dialog, /Ill, above the neck/)
+    const next = within(dialog).getByRole('button', { name: 'Next' })
+    const back = within(dialog).getByRole('button', { name: 'Back' })
+    expect(next.parentElement).toBe(back.parentElement)
+    expect(within(dialog).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
   test('an illness below the neck adds the clinician line', async () => {
     const user = userEvent.setup()
     renderSheet()
@@ -493,7 +506,8 @@ describe('Not 100%, step 3', () => {
     ).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Apply to my plan' })).toBeEnabled()
     expect(within(dialog).getByRole('button', { name: 'Back' })).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    // Step 3 leaves through Back or the sheet's Close, not a Cancel of its own.
+    expect(within(dialog).queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
     expectCleanCopy(dialog)
   })
 

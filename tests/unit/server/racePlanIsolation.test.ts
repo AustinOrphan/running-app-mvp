@@ -113,7 +113,7 @@ describe('who reads the race plan', () => {
     const named = FILES.filter((file) =>
       readFileSync(join(ROOT, file), 'utf8').includes("'race.plan."),
     ).sort()
-    expect(named).toEqual(['shared/copy/racePlan.ts', 'web/pages/MorePage.tsx'])
+    expect(named).toEqual(['shared/copy/racePlan.ts', 'web/components/destinations.tsx'])
   })
 })
 

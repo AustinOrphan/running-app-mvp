@@ -64,7 +64,10 @@ test('Trends reads by role, switches range and stays inside 360 px', async ({ pa
 
   // From More, as a phone reaches it.
   await page.goto('/more')
-  await page.getByRole('link', { name: /^Trends/ }).click()
+  await page
+    .getByRole('navigation', { name: 'More pages' })
+    .getByRole('link', { name: /^Trends/ })
+    .click()
   await expect(page).toHaveURL(/\/trends$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Trends' })).toBeVisible()
   await expect(page.getByText('Nothing here is a target.')).toBeVisible()

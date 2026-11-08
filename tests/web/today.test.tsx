@@ -1616,7 +1616,7 @@ describe('Today: Not 100%', () => {
     expect(writesOf(api.calls)).toEqual([])
 
     // closing it puts focus on the title, as after the other sheets: the Not today button is gone
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })

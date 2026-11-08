@@ -105,6 +105,8 @@ const listSchema = z.object({
   from: dateSchema.optional(),
   to: dateSchema.optional(),
   type: z.enum(['run', 'race', 'strength', 'cross']).optional(),
+  // The runs of one import batch, so the import's result can link to the newest of them.
+  importBatchId: z.string().min(1).max(64).optional(),
   limit: queryInt(1, ACTIVITY_PAGE_MAX, `Use a whole number from 1 to ${ACTIVITY_PAGE_MAX}.`)
     .optional()
     .transform((value) => value ?? ACTIVITY_PAGE_DEFAULT),

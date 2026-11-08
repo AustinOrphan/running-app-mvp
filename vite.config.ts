@@ -28,6 +28,16 @@ export default defineConfig({
               priority: 2,
             },
             { name: 'vendor', test: /node_modules/, priority: 1 },
+            // What two or more pages or sheets share (fields, buttons, data hooks, formatting) in one
+            // chunk. Left to the bundler it becomes fifty tiny chunks, and a page then waits several
+            // round trips on a phone link, where the server speaks HTTP/1.1 with six connections.
+            {
+              name: 'app',
+              test: /web[\\/](?:components[\\/](?!charts[\\/])|api[\\/]|pwa[\\/])/,
+              minShareCount: 2,
+              includeDependenciesRecursively: false,
+              priority: 0,
+            },
           ],
         },
       },

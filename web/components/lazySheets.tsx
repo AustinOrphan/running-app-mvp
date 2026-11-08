@@ -7,13 +7,24 @@
 // Loading shows nothing: the code is a few kilobytes, `warmSheets` fetches it when the app is idle,
 // and a sheet that is not there yet only delays the tap by the time of one request. When the code
 // cannot be loaded at all (offline with no copy kept, or a release replaced the file) the sheet
-// opens with a short notice instead of taking the page down with it.
-import { lazy, Suspense, type ComponentType } from 'react'
+// opens with a short notice and a Try again button that runs the import again (`ChunkBoundary`),
+// instead of taking the page down with it.
+import { lazy, Suspense, useState, type ComponentType } from 'react'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { Button } from './Button.tsx'
+import { ChunkBoundary, loadChunk } from './ChunkBoundary.tsx'
 import { Sheet } from './Sheet.tsx'
 
-function Unavailable({ onClose }: { onClose: () => void }) {
+function Unavailable({
+  onClose,
+  onRetry,
+  retrying,
+}: {
+  onClose: () => void
+  onRetry: () => void
+  retrying: boolean
+}) {
   return (
     <Sheet
       open
@@ -21,6 +32,9 @@ function Unavailable({ onClose }: { onClose: () => void }) {
       title={render(TEMPLATES['today.sheet.unavailable-title'], {}, 'km')}
     >
       <p role="alert">{render(TEMPLATES['today.sheet.unavailable'], {}, 'km')}</p>
+      <Button variant="primary" busy={retrying} onClick={onRetry}>
+        {render(TEMPLATES['error.retry'], {}, 'km')}
+      </Button>
     </Sheet>
   )
 }
@@ -32,18 +46,26 @@ function lazySheet<P extends { onClose: () => void }>(
   load: () => Promise<ComponentType<P>>,
 ): ComponentType<P> {
   loaders.push(load)
-  const Loaded = lazy(async () => {
-    try {
-      return { default: await load() }
-    } catch {
-      return { default: Unavailable as ComponentType<P> }
-    }
-  }) as unknown as ComponentType<P>
+  const make = () => lazy(() => loadChunk(load)) as unknown as ComponentType<P>
+  let Loaded = make()
   return function LazySheet(props: P) {
+    const [version, setVersion] = useState(0)
     return (
-      <Suspense fallback={null}>
-        <Loaded {...props} />
-      </Suspense>
+      <ChunkBoundary
+        key={version}
+        onRetry={async () => {
+          await load()
+          Loaded = make()
+          setVersion((v) => v + 1)
+        }}
+        fallback={({ retry, retrying }) => (
+          <Unavailable onClose={props.onClose} onRetry={retry} retrying={retrying} />
+        )}
+      >
+        <Suspense fallback={null}>
+          <Loaded {...props} />
+        </Suspense>
+      </ChunkBoundary>
     )
   }
 }

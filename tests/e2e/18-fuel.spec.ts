@@ -76,7 +76,10 @@ test('a product, a logged 3-hour run, a step up, and two runs scored 2 take the 
 
   // The lab is one of the pages under More.
   await page.goto('/more')
-  await page.getByRole('link', { name: /Fuel lab/ }).click()
+  await page
+    .getByRole('navigation', { name: 'More pages' })
+    .getByRole('link', { name: /Fuel lab/ })
+    .click()
   await expect(page.getByRole('heading', { name: 'Fuel lab', level: 1 })).toBeVisible()
 
   // Before any log: the floor, the standard safety card, and the three runs waiting for a log.
@@ -131,8 +134,10 @@ test('a product, a logged 3-hour run, a step up, and two runs scored 2 take the 
   )
   await expect(rung(page, '30 to 50 g/h')).toContainText('Tolerated')
   await expect(rung(page, '60 g/h')).toContainText('Next up')
-  const history = page.getByRole('region', { name: 'Fuel history, newest first' })
-  await expect(history.getByRole('row')).toHaveCount(2)
+  // The lab is two columns at this width, so the history section is under 40 rem wide and its runs
+  // are a list; the table is covered by the web tests and where the section is wider.
+  const history = page.getByRole('list', { name: 'Fuel history, newest first' })
+  await expect(history.getByRole('listitem')).toHaveCount(1)
   await expect(history).toContainText('Tolerated at 30 to 50 g/h. Next long run: 60 g/h.')
   await expect(prompts.getByRole('listitem')).toHaveCount(2)
 

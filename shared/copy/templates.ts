@@ -20,6 +20,7 @@ import { GOALS_TEMPLATES } from './goals.ts'
 import { GRADE_TEMPLATES } from './grades.ts'
 import { LOAD_TEMPLATES } from './load.ts'
 import { METHOD_TEMPLATES } from './method.ts'
+import { NAV_TEMPLATES } from './navigation.ts'
 import { OVERSHOOT_TEMPLATES } from './overshoot.ts'
 import { PACES_TEMPLATES } from './myPaces.ts'
 import { PAGE_TEMPLATES, PROVIDER_TEMPLATES } from './pageCopy.ts'
@@ -46,6 +47,7 @@ import { TRACK_RECORD_TEMPLATES } from './trackRecord.ts'
 import { TRENDS_TEMPLATES } from './trends.ts'
 
 export const TEMPLATES = {
+  ...NAV_TEMPLATES,
   ...REVISION_TEMPLATES,
   ...REVISION_VIEW_TEMPLATES,
   ...TODAY_TEMPLATES,

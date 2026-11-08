@@ -1080,7 +1080,12 @@ describe('Import dialog', () => {
   const csv = 'Run Id,Start Date,Distance\n1001,26/03/02 6:30,3\n'
 
   function renderDialog(routes: MockRoutes, units: Units = 'mi') {
-    const api = mockApi({ 'GET /api/settings': () => settings(units), ...routes })
+    const api = mockApi({
+      'GET /api/settings': () => settings(units),
+      // The result links to the newest runs of the batch.
+      'GET /api/activities': () => activityPage([]),
+      ...routes,
+    })
     renderWithProviders(
       <ToastProvider>
         <ImportDialog open onClose={() => {}} />
@@ -1105,7 +1110,7 @@ describe('Import dialog', () => {
     await chooseFile(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
     expect(
-      await within(dialog).findByText('3 imported, 0 already imported, 0 skipped'),
+      await within(dialog).findByText('3 added to your log. 0 already there. 0 could not be read.'),
     ).toBeInTheDocument()
     expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual({
       fileName: 'runs.csv',
@@ -1113,6 +1118,39 @@ describe('Import dialog', () => {
       distanceUnit: 'mi',
     })
     expectCleanCopy(dialog)
+  })
+
+  test('the result links to the newest runs of the batch, with the run page for each', async () => {
+    const api = renderDialog({
+      'POST /api/imports/smashrun': () => ({ status: 201, body: batch({ id: 'batch-9' }) }),
+      'GET /api/activities': () =>
+        activityPage([
+          makeActivity({ id: 'r3', date: '2026-03-02', distanceM: 8047 }),
+          makeActivity({ id: 'r2', date: '2026-03-01', distanceM: 5000 }),
+        ]),
+    })
+    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    await chooseFile(dialog)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
+    const list = await within(dialog).findByRole('list', { name: 'Newest runs added' })
+    const links = within(list).getAllByRole('link')
+    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/activities/r3', '/activities/r2'])
+    expect(links[0]).toHaveTextContent('Mon 2 Mar, Run, 5 mi')
+    expect(
+      api.calls.some((c) => c.url === '/api/activities?importBatchId=batch-9&limit=3&offset=0'),
+    ).toBe(true)
+    expectCleanCopy(dialog)
+  })
+
+  test('the choices have a visible label, and the unit says what a wrong pick does', async () => {
+    renderDialog({})
+    const dialog = await screen.findByRole('dialog', { name: 'Import activities' })
+    expect(within(dialog).getByText('Source')).toBeVisible()
+    expect(within(dialog).getByText('The app or service the file came from.')).toBeVisible()
+    expect(within(dialog).getByText('Distance unit in the file')).toBeVisible()
+    expect(
+      within(dialog).getByRole('radiogroup', { name: 'Distance unit in the file' }),
+    ).toHaveAccessibleDescription(/A wrong pick scales every distance/)
   })
 
   test('the form reads cleanly for every source', async () => {
@@ -1136,7 +1174,7 @@ describe('Import dialog', () => {
     await userEvent.click(within(dialog).getByRole('radio', { name: 'mi' }))
     await chooseFile(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
-    await within(dialog).findByText(/imported/)
+    await within(dialog).findByText(/added to your log/)
     expect(api.calls.find((c) => c.method === 'POST')?.body).toMatchObject({ distanceUnit: 'mi' })
   })
 
@@ -1149,7 +1187,7 @@ describe('Import dialog', () => {
     expect(within(dialog).queryByRole('radio', { name: 'km' })).not.toBeInTheDocument()
     await chooseFile(dialog, 'a.csv')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
-    await within(dialog).findByText(/imported/)
+    await within(dialog).findByText(/added to your log/)
     const post = api.calls.find((c) => c.method === 'POST')
     expect(post?.url).toBe('/api/imports/csv')
     expect(post?.body).toEqual({ fileName: 'a.csv', text: csv })
@@ -1175,7 +1213,7 @@ describe('Import dialog', () => {
     await chooseFile(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Import file' }))
     expect(
-      await within(dialog).findByText('2 imported, 1 already imported, 1 skipped'),
+      await within(dialog).findByText('2 added to your log. 1 already there. 1 could not be read.'),
     ).toBeInTheDocument()
     expect(within(dialog).getByText('Line 3: Distance must be above 0')).toBeInTheDocument()
     expect(within(dialog).getByText('already imported (smashrun:1001)')).toBeInTheDocument()
