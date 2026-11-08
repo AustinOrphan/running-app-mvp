@@ -103,3 +103,10 @@
   font-size: var(--text-lg);
   line-height: var(--lh-lg);
 }
+
+/* The logged-run line is a link to the run; a 44 px row so a thumb finds it. */
+.runLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}

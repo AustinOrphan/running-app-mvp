@@ -40,13 +40,18 @@ function dayOf(over: Parameters<typeof makeHero>[0] = {}, view: Partial<TodayVie
 }
 
 describe('Today: the first screen', () => {
-  test('requests only the payload and the settings', async () => {
+  test('requests the payload and the settings, then the list of services for the check control', async () => {
     const { api } = renderToday(dayOf())
     await screen.findByRole('article', { name: 'Easy run' })
-    expect([...new Set(api.calls.map((call) => call.url))].sort()).toEqual([
-      '/api/settings',
-      '/api/today',
-    ])
+    await waitFor(() => {
+      expect([...new Set(api.calls.map((call) => call.url))].sort()).toEqual([
+        '/api/integrations',
+        '/api/settings',
+        '/api/today',
+      ])
+    })
+    // The first screen needs neither: the services are asked for after it is on the page.
+    expect(api.calls[0]?.url).not.toBe('/api/integrations')
   })
 
   test('shows the page header and the date while the payload loads, then the hero', async () => {

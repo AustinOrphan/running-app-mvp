@@ -357,7 +357,7 @@ test('after an illness check-in Today offers a window, creates nothing, and the 
     await expect(page.getByText(/Illness was reported/)).toHaveCount(0)
     await expect(page.getByRole('region', { name: 'Health notes' })).toHaveCount(0)
     const verdict = page.getByRole('region', { name: 'Readiness' }).getByRole('status')
-    await expect(verdict).toHaveText('A rest day of the window.')
+    await expect(verdict).toHaveText('The window keeps today at rest.')
     await expect(page.getByText('Ready as planned.')).toHaveCount(0)
     // With a window open the check-in link adds a window, and opens the sheet that makes one.
     await expect(hurts).toBeHidden()

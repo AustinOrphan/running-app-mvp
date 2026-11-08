@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { ActivityListItem, Units } from '../../../shared/types.ts'
 import { formatDistance, formatDuration } from '../../../shared/units.ts'
 import { useSaveFeedback } from '../../api/activities.ts'
@@ -21,6 +22,16 @@ function activityLine(activity: ActivityListItem, units: Units): { type: string;
   }
 }
 
+/** The run's line, linked to its page, where the rating can also be read in full. */
+function RunLink({ id, line }: { id: string; line: { type: string; rest: string } }) {
+  return (
+    <Link to={`/activities/${encodeURIComponent(id)}`} className={styles.runLink}>
+      <span className={styles.feedbackType}>{line.type}</span>
+      {line.rest}
+    </Link>
+  )
+}
+
 function FeedbackItem({
   activity,
   units,
@@ -39,8 +50,7 @@ function FeedbackItem({
   return (
     <li className={styles.feedbackItem}>
       <p className={styles.feedbackTitle}>
-        <span className={styles.feedbackType}>{line.type}</span>
-        {line.rest}
+        <RunLink id={activity.id} line={line} />
       </p>
       <FeedbackFields value={value} onChange={setValue} />
       <div className={styles.feedbackActions}>
@@ -82,8 +92,7 @@ function FeedbackQueued({
   return (
     <li className={styles.feedbackQueued}>
       <p className={styles.feedbackQueuedText}>
-        <span className={styles.feedbackType}>{line.type}</span>
-        {line.rest}
+        <RunLink id={activity.id} line={line} />
       </p>
       <Button
         variant="secondary"
@@ -105,15 +114,19 @@ export function FeedbackCard({
   unrated,
   units,
   onSaved,
+  exclude = null,
 }: {
   unrated: ActivityListItem[]
   units: Units
   onSaved: () => void
+  /** A run the hero already asks about, left out so it is not asked twice. */
+  exclude?: string | null
 }) {
   const headingId = useId()
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set())
-  if (unrated.length === 0) return null
-  const newestFirst = [...unrated].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  const rows = exclude === null ? unrated : unrated.filter((activity) => activity.id !== exclude)
+  if (rows.length === 0) return null
+  const newestFirst = [...rows].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   const [newest, ...older] = newestFirst
   return (
     <section aria-labelledby={headingId} className={styles.section}>

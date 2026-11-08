@@ -17,6 +17,9 @@ export const TODAY_TEMPLATES = {
   ),
   // Low signals on a day with a harder run (long, race, hike) or with no run at all.
   'today.verdict.low-plan-stays': tpl('Signals are a little low. The plan stays as it is.'),
+  // A day with no run to do (a rest day, or nothing planned) and normal signals: "Ready as planned."
+  // would sit over "Nothing is planned today." and read as a contradiction.
+  'today.verdict.ready-no-session': tpl('Signals are normal. The plan stays as it is.'),
   'today.verdict.easy': tpl('An easy run is the better choice today.'),
   'today.verdict.rest': tpl('A rest day is the better choice today.'),
   'today.verdict.lighter-week': tpl(
@@ -26,7 +29,7 @@ export const TODAY_TEMPLATES = {
   // While a window is open the band states it, and the verdict names the day instead of "Ready as
   // planned." (`windowVerdict`): a rest day, a day of limited running, the easy tail, the return
   // week. Each is a state of the day, so none repeats the window's dates or limits.
-  'today.verdict.window-rest': tpl('A rest day of the window.'),
+  'today.verdict.window-rest': tpl('The window keeps today at rest.'),
   'today.verdict.window-limited': tpl('A day of limited running.'),
   'today.verdict.window-easy': tpl('Easy running only today.'),
   'today.verdict.window-return': tpl('A day of the return week.'),
@@ -130,8 +133,21 @@ export const TODAY_TEMPLATES = {
   'today.checkin.sheet-new': tpl(
     'Optional. 1 to 5, where 3 is normal. These answers come first when the plan checks readiness.',
   ),
-  'today.checkin.sheet-saved': tpl('Saved for today. Change any answer and save again.'),
+  'today.checkin.sheet-saved': tpl(
+    'Saved for today. 3 is normal. Change any answer and save again.',
+  ),
   'today.checkin.pain-hint': tpl('0 is none, 10 is the worst.'),
+  // The end labels of the five scales, so the direction is never a guess. Soreness, fatigue and
+  // stress rise when things are worse; sleep and mood fall (readiness reads them that way).
+  'today.checkin.scale-fatigue': tpl('1 fresh, 5 drained.'),
+  'today.checkin.scale-soreness': tpl('1 none, 5 very sore.'),
+  'today.checkin.scale-sleep': tpl('1 poor, 5 good.'),
+  'today.checkin.scale-mood': tpl('1 low, 5 good.'),
+  'today.checkin.scale-stress': tpl('1 calm, 5 very stressed.'),
+  'today.checkin.pain-area-hint': tpl('Optional. Where it hurts, in a few words.'),
+  'today.checkin.bone-hint': tpl(
+    'Tick this if pressing on one spot of a bone hurts. Progression then holds until a later check-in clears it.',
+  ),
   'today.checkin.toast-sent': tpl('Check-in saved', {}, { shape: 'label' }),
   'today.checkin.toast-queued': tpl('Check-in saved on this phone', {}, { shape: 'label' }),
   // `reason` is the server's own sentence, quoted.
@@ -200,9 +216,46 @@ export const TODAY_TEMPLATES = {
   'today.done.offline': tpl('Needs a connection. Your entries stay on this phone.'),
   'today.done.saved-run': tpl('Run saved', {}, { shape: 'label' }),
   'today.done.saved-session': tpl('Session saved', {}, { shape: 'label' }),
+  // The toast's one action: the page of the entry just saved.
+  'today.done.see-run': tpl('See the run', {}, { shape: 'label' }),
+  'today.done.see-session': tpl('See the session', {}, { shape: 'label' }),
   'today.done.not-saved': tpl('Not saved. {reason} Your entries are still here; try again.', {
     reason: 'text',
   }),
+
+  // Check for new runs (the control in Today's header). `source` is the name of the service or
+  // services that answered, written by the caller from their labels.
+  'today.check.label': tpl('Check for new runs', {}, { shape: 'label' }),
+  'today.check.busy': tpl('Checking for new runs.'),
+  'today.check.arrived-one': tpl(
+    'One new run added from {source}',
+    { source: 'text' },
+    { shape: 'label' },
+  ),
+  'today.check.arrived-many': tpl(
+    '{count} new runs added from {source}',
+    { count: 'count', source: 'text' },
+    { shape: 'label' },
+  ),
+  'today.check.none': tpl('No new runs', {}, { shape: 'label' }),
+  // `reason` is the service's or the server's own sentence, quoted.
+  'today.check.failed': tpl('Could not check {source}. {reason} Try again.', {
+    source: 'text',
+    reason: 'text',
+  }),
+  'today.check.partial': tpl('{source} did not finish. {reason} Try again later.', {
+    source: 'text',
+    reason: 'text',
+  }),
+  'today.check.slow': tpl('{source} has not answered yet. Its runs show once it does.', {
+    source: 'text',
+  }),
+
+  // Monday on Today: while the weekly update's brief is unopened and it changed sessions, a card
+  // stands under the session hero (`MondayBrief`), and a review that is due gets its own link beside it.
+  'today.monday.title': tpl('The plan was updated', {}, { shape: 'label' }),
+  'today.monday.review': tpl('Review last week', {}, { shape: 'label' }),
+  'today.monday.review-note': tpl('A few answers keep the next update accurate.'),
 
   // The race countdown.
   'today.race.estimate': tpl('Finish estimate {low} to {high}, most likely about {likely}.', {
@@ -254,14 +307,12 @@ export const TODAY_TEMPLATES = {
     { weekday: 'weekday', date: 'date', mark: 'text', logged: 'minutes' },
     { shape: 'label' },
   ),
-  // The advisory split of what is left of the week's target. Advice, not a minimum.
-  'today.week.advisory': tpl(
-    '{perDay} a day left, through Sunday',
-    { perDay: 'minutes' },
-    { shape: 'label' },
-  ),
-  'today.week.nothing-left': tpl('Nothing left to plan this week', {}, { shape: 'label' }),
-  'today.week.advisory-caption': tpl('advisory', {}, { shape: 'label' }),
+  // What the plan holds for the rest of the week, as a description (`plannedRestOfWeekMin`), never
+  // what the target would take. It is left out while a window is open, on a rest day and when the
+  // verdict is an easy day, a rest day or a lighter week (`showWeekAdvisory`).
+  'today.week.rest-planned': tpl('Planned for the rest of the week: {total}.', {
+    total: 'minutes',
+  }),
 
   // The targets of the session, as the hero's term list reads them: a term, its value and, when
   // the day calls for it, a note. The order of the terms follows the lead (`resolveTargets`).
@@ -314,6 +365,18 @@ export const TODAY_TEMPLATES = {
     duration: 'duration',
   }),
   'today.hero.logged-time': tpl('Logged: {duration}.', { duration: 'duration' }),
+  // The rating ask under a logged run that has no rating yet (the hero's own, before the card of
+  // older runs below).
+  'today.rate.heading': tpl('Rate this run', {}, { shape: 'label' }),
+  'today.rate.caption': tpl(
+    'Optional. A rating of effort or feel is what lets the plan adjust. Rate any or all of it.',
+  ),
+  'today.rate.save': tpl('Save rating', {}, { shape: 'label' }),
+  'today.rate.saved': tpl('Rating saved.'),
+  'today.rate.not-saved': tpl('Rating not saved. {reason} Try again.', { reason: 'text' }),
+  // The link under the figures of a session that has a run: the run's own page.
+  'today.hero.see-run': tpl('See the run', {}, { shape: 'label' }),
+  'today.hero.see-session': tpl('See the session', {}, { shape: 'label' }),
   'today.hero.also': tpl('Also today: {sessions}.', { sessions: 'text' }),
   'today.hero.nothing-planned': tpl('Nothing is planned today.'),
   'today.hero.next': tpl('Next: {date}, {title}, {duration}.', {

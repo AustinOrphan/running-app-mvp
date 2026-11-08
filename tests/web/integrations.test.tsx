@@ -72,6 +72,7 @@ function status(key: string, over: Partial<IntegrationStatus> = {}): Integration
     lastSyncAt: null,
     lastSyncStatus: null,
     lastError: null,
+    pausedUntil: null,
     ...over,
   }
 }

@@ -151,7 +151,7 @@ function fullDay(): TodayView {
         disruption: null,
         fuel: makeFuelSlot(),
         watch: null,
-        brief: makeItem(),
+        brief: makeItem({ seen: true }),
         fuelPrompt: makeFuelPrompts(),
         strength: null,
         strengthSetup: null,
@@ -187,10 +187,10 @@ describe('DashboardPage: the layout', () => {
     }
     const order = [
       named('disruption'),
-      screen.getByRole('region', { name: 'Readiness' }),
       hero,
       named('fuel'),
       named('watch'),
+      screen.getByRole('region', { name: 'Readiness' }),
       screen.getByRole('region', { name: 'This week' }),
       named('brief'),
       named('fuelPrompt'),
@@ -207,6 +207,41 @@ describe('DashboardPage: the layout', () => {
     expect(hero.contains(named('fuel'))).toBe(true)
     expect(hero.contains(named('watch'))).toBe(true)
     expect(screen.getByRole('radiogroup', { name: 'How do you feel today?' })).toBeInTheDocument()
+  })
+
+  test('an unopened brief with changes stands under the session hero, with the review beside it', async () => {
+    media = controlMedia(false)
+    const day = fullDay()
+    day.coach.slots.brief = makeItem({ seen: false, changeCount: 2 })
+    day.coach.health = { ...day.coach.health, lastWeekReady: true }
+    const { container } = renderToday(day, {
+      'GET /api/brief': () => ({ brief: null }),
+    })
+    const hero = await screen.findByRole('article', { name: 'Long run' })
+    const card = screen.getByRole('region', { name: 'The plan was updated' })
+    const review = screen.getByRole('link', { name: /Review last week/ })
+    const [session, week] = Array.from(hero.closest('[data-layout]')?.children ?? [])
+    // Under the session hero and over the readiness read, in the session column.
+    expect(session?.contains(card)).toBe(true)
+    expect(follows(container.querySelector('[data-slot="disruption"]')!, hero)).toBe(true)
+    expect(follows(hero, card)).toBe(true)
+    expect(follows(card, screen.getByRole('region', { name: 'Readiness' }))).toBe(true)
+    expect(session?.contains(review)).toBe(true)
+    // The line is not drawn a second time under the week, and the review link is not repeated.
+    expect(week?.querySelector('[data-slot="brief"]')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /review/i })).toHaveLength(1)
+  })
+
+  test('an opened brief is back under the week, and the review is a link at the foot', async () => {
+    media = controlMedia(false)
+    const day = fullDay()
+    day.coach.health = { ...day.coach.health, lastWeekReady: true }
+    renderToday(day)
+    await screen.findByRole('article', { name: 'Long run' })
+    expect(screen.queryByRole('region', { name: 'The plan was updated' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Weekly brief' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Last week is ready to review.' })).toBeInTheDocument()
   })
 
   test.each([
@@ -449,7 +484,7 @@ describe('RecentWeeks: the chart and its data', () => {
     })
     await screen.findByRole('article', { name: 'Long run' })
     const requested = () => api.calls.map((call) => call.url.split('?')[0]).sort()
-    expect(requested()).toEqual(['/api/settings', '/api/today'])
+    expect(requested()).toEqual(['/api/integrations', '/api/settings', '/api/today'])
     expect(screen.queryByRole('img', { name: /Run hours per week/ })).not.toBeInTheDocument()
 
     act(() => {

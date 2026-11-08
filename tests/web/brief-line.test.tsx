@@ -181,7 +181,8 @@ describe('the brief slot', () => {
   })
 
   test('fills the slot from the payload within its budget, and asks for nothing', () => {
-    const { api, container } = renderSlot(makeItem())
+    // Unopened and with no changes: it stays in its place, with the quiet "New" marker.
+    const { api, container } = renderSlot(makeItem({ changeCount: 0 }))
     const region = screen.getByRole('region', { name: 'Weekly brief' })
     expect(api.calls).toEqual([])
     const slot = region.closest('[data-slot]')
@@ -198,7 +199,7 @@ describe('the brief slot', () => {
   })
 
   test('without the settings in the cache it does nothing', () => {
-    const { api, container } = renderSlot(makeItem(), null)
+    const { api, container } = renderSlot(makeItem({ seen: true }), null)
     expect(api.calls).toEqual([])
     expect(container).toBeEmptyDOMElement()
   })
@@ -206,12 +207,14 @@ describe('the brief slot', () => {
   test('shows the brief of the payload, whatever week the device clock is in', () => {
     // The server decides which week is current; the payload holds that week's brief or none.
     vi.setSystemTime(new Date('2027-06-02T12:00:00'))
-    renderSlot(makeItem({ weekStart: '2027-01-11' }))
+    renderSlot(makeItem({ weekStart: '2027-01-11', seen: true }))
     expect(screen.getByRole('region', { name: 'Weekly brief' })).toBeInTheDocument()
   })
 
   test('follows the payload when the server asks again: the new week brings its brief', async () => {
-    const { queryClient } = renderSlot(makeItem({ weekStart: '2027-01-04', changeCount: 3 }))
+    const { queryClient } = renderSlot(
+      makeItem({ weekStart: '2027-01-04', changeCount: 3, seen: true }),
+    )
     expect(screen.getByRole('region', { name: 'Weekly brief' })).toHaveTextContent(
       'Since last week: 3 changes',
     )
@@ -228,7 +231,7 @@ describe('the brief slot', () => {
     act(() => {
       queryClient.setQueryData(
         [keys.today],
-        todayWith(makeItem({ weekStart: '2027-01-11', changeCount: 1 })),
+        todayWith(makeItem({ weekStart: '2027-01-11', changeCount: 1, seen: true })),
       )
     })
     expect(await screen.findByRole('region', { name: 'Weekly brief' })).toHaveTextContent(
@@ -238,24 +241,32 @@ describe('the brief slot', () => {
 
   test('offline it draws nothing: the brief page is not cached', () => {
     setOnline(false)
-    const { container } = renderSlot(makeItem())
+    const { container } = renderSlot(makeItem({ seen: true }))
     expect(container.querySelector('[data-slot]')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
   })
 
   test("a copy the worker served draws nothing either, with the browser online and the week's brief maybe gone", () => {
-    const { container } = renderSlot(makeItem(), SETTINGS, undefined, { servedFromCache: true })
+    const { container } = renderSlot(makeItem({ seen: true }), SETTINGS, undefined, {
+      servedFromCache: true,
+    })
     expect(container.querySelector('[data-slot]')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
   })
 
   test("the server's own answer, with no mark, draws it", () => {
-    renderSlot(makeItem(), SETTINGS)
+    renderSlot(makeItem({ seen: true }), SETTINGS)
     expect(screen.getByRole('region', { name: 'Weekly brief' })).toBeInTheDocument()
   })
 
+  test('an unopened brief that changed sessions leaves the slot to the card that leads the page', () => {
+    const { container } = renderSlot(makeItem({ seen: false, changeCount: 2 }))
+    expect(container.querySelector('[data-slot]')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
+  })
+
   test('content a page passes to the slot is kept, and the mount is not used', () => {
-    renderSlot(makeItem(), SETTINGS, <p>The page&apos;s own line</p>)
+    renderSlot(makeItem({ seen: true }), SETTINGS, <p>The page&apos;s own line</p>)
     expect(screen.getByText("The page's own line").closest('[data-slot]')).toHaveAttribute(
       'data-slot',
       'brief',
@@ -268,16 +279,26 @@ describe('Today', () => {
   beforeEach(startToday)
 
   test('keeps to its two requests, with the brief line in the first answer', async () => {
-    const { api } = renderToday(todayWith(makeItem({ weekStart: '2026-03-16', seen: false })))
+    const { api } = renderToday(
+      todayWith(makeItem({ weekStart: '2026-03-16', seen: false, changeCount: 0 })),
+    )
     const region = await screen.findByRole('region', { name: 'Weekly brief' })
     expect(region.closest('[data-slot]')).toHaveAttribute('data-slot', 'brief')
-    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+    expect(api.calls.map((call) => call.url).sort()).toEqual([
+      '/api/integrations',
+      '/api/settings',
+      '/api/today',
+    ])
   })
 
   test('a week with no brief has no line, and still only the two requests', async () => {
     const { api } = renderToday(todayWith(null))
     await screen.findByRole('region', { name: 'Readiness' })
     expect(screen.queryByRole('region', { name: 'Weekly brief' })).not.toBeInTheDocument()
-    expect(api.calls.map((call) => call.url).sort()).toEqual(['/api/settings', '/api/today'])
+    expect(api.calls.map((call) => call.url).sort()).toEqual([
+      '/api/integrations',
+      '/api/settings',
+      '/api/today',
+    ])
   })
 })

@@ -313,6 +313,7 @@ describe('a second account in the same tab', () => {
       'GET /api/today': () =>
         current === null ? signedOut : todayOf(current === userA ? 'Run of A' : 'Run of B'),
       'GET /api/settings': () => ({ email: 'x@example.com', displayName: null, units: 'mi' }),
+      'GET /api/integrations': () => [],
       'GET /api/goals': () => [],
       'GET /api/plan': () => null,
       'GET /api/weeks': () => [],

@@ -221,6 +221,7 @@ describe('the Integrations page', () => {
       lastSyncAt: null,
       lastSyncStatus: null,
       lastError: null,
+      pausedUntil: null,
       ...over,
     }
   }

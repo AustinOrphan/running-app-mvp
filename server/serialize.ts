@@ -305,6 +305,7 @@ export function toIntegrationStatus(
       lastSyncAt: null,
       lastSyncStatus: null,
       lastError: null,
+      pausedUntil: null,
     }
   }
   return {
@@ -316,6 +317,7 @@ export function toIntegrationStatus(
     lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
     lastSyncStatus: row.lastSyncStatus,
     lastError: row.lastError,
+    pausedUntil: row.pausedUntil ? row.pausedUntil.toISOString() : null,
   }
 }
 

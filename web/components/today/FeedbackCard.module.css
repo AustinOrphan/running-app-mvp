@@ -68,3 +68,8 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
+
+/* The run's line links to its page; the link keeps the line's own type and colour. */
+.runLink {
+  color: inherit;
+}

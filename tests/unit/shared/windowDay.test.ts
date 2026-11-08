@@ -81,8 +81,8 @@ describe('what the open windows make of the day', () => {
 
 describe('the verdict under a window', () => {
   test.each([
-    ['resting', 'window-rest', 'A rest day of the window.'],
-    ['rest-gate', 'window-rest', 'A rest day of the window.'],
+    ['resting', 'window-rest', 'The window keeps today at rest.'],
+    ['rest-gate', 'window-rest', 'The window keeps today at rest.'],
     ['limited', 'window-limited', 'A day of limited running.'],
     ['easy-only', 'window-easy', 'Easy running only today.'],
     ['returning', 'window-return', 'A day of the return week.'],
