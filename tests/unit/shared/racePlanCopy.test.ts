@@ -465,6 +465,27 @@ describe('the words of the checkpoint table', () => {
     expect(describeRacePoints(own, 'km').notes.join(' ')).toContain(
       'each unit of climb counts as 9.3 units of flat, not 10',
     )
+    const same = racePlanFor(
+      input({
+        checkpoints: [
+          { name: 'Checkpoint A', distanceM: 40_000, gainM: null, lossM: null, cutoffSec: null },
+        ],
+        prediction: {
+          predictedSec: 31 * HOUR,
+          lowSec: 27 * HOUR,
+          highSec: 37 * HOUR,
+          climb: {
+            runs: 23,
+            defaultM: 10,
+            personalM: 10,
+            usedM: 10.02,
+            shiftSec: 60,
+            capped: false,
+          },
+        },
+      }),
+    )
+    expect(describeRacePoints(same, 'km').notes.join(' ')).not.toMatch(/blended in/)
     const plain = describeRacePlan(PLANS[0]![1], 'km').expected.notes.join(' ')
     expect(plain).not.toMatch(/your own speed/i)
   })

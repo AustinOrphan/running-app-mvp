@@ -402,7 +402,7 @@ export function curveRunsOf(activities: readonly Activity[]): GradeCurveRun[] {
 
 /**
  * The runner's own climbing as the state carries it [rule L5]: `personalClimbRatio` of the curve on
- * `today` and the runs behind the curve; null when no climbing band shows a personal ratio.
+ * `today` and the runs behind its passing climbing bands; null when no climbing band shows a personal ratio.
  */
 export function personalClimbOf(
   activities: readonly Activity[],
@@ -410,5 +410,12 @@ export function personalClimbOf(
 ): { ratio: number; runs: number } | null {
   const curve = gradeCurve(curveRunsOf(activities), today)
   const ratio = personalClimbRatio(curve)
-  return ratio === null ? null : { ratio, runs: curve.eligibleRuns }
+  if (ratio === null) return null
+  // The runs behind the climbing bands that passed: the most any one of them rests on.
+  const runs = Math.max(
+    ...curve.bands
+      .filter((band) => band.midPct > 0 && band.source === 'personal')
+      .map((b) => b.runs),
+  )
+  return { ratio, runs }
 }

@@ -184,7 +184,7 @@ export const PACES_TEMPLATES = {
   ),
   'paces.events.how-climb': tpl('Climb counts as flat distance, and trail widens the range (L5).'),
   'paces.events.how-climb-own': tpl(
-    'Your own speed on climbs (I13) moves a time a little, and only on grades where its test passed. Steep climbs stay on the default.',
+    'Your own speed on climbs (I13) moves a time a little, and only on grades where its test passed. Climbs whose test did not pass stay on the default.',
   ),
   'paces.events.how-climb-weights': tpl(
     'Your climbing counts {faster} of the gap to the default when it is faster, {slower} when slower, and moves the time by at most {max} (L5).',
@@ -204,7 +204,7 @@ export const PACES_TEMPLATES = {
   'paces.custom.load-error': tpl('That distance did not load. Try it again, or clear it.'),
   'paces.custom.range-error': tpl('That distance is out of range.'),
 
-  // Climbs and descents: the runner's own speed by grade next to the default (rule I13, display only)
+  // Climbs and descents: the runner's own speed by grade next to the default (rule I13)
   'paces.terrain.heading': tpl('Climbs and descents', {}, { shape: 'label' }),
   'paces.terrain.lead': tpl(
     'Your speed on each grade as a share of your flat speed. The default is the cost of the grade at equal effort; yours is the speed you kept.',
@@ -291,7 +291,7 @@ export const PACES_TEMPLATES = {
     'On a descent the default is the most speed equal effort allows (I13, I11), so your own figure can sit under it.',
   ),
   'paces.terrain.how-display': tpl(
-    'This is display only: predictions still count climb as flat distance plus a fixed allowance (L5), and no plan, zone or prediction reads it.',
+    'Predictions read this a little (L5): only on climbing grades whose test passed, and by at most a few percent of the time. No plan or zone reads it.',
   ),
   'paces.terrain.how-grade': tpl(
     'This is a grade D default (I13): a way to look at your runs, not a measured threshold.',

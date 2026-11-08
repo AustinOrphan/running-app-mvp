@@ -1588,10 +1588,11 @@ function trailFacts(scope: Scope): InputFact[] {
   if (prediction === null) return [gap('L5', 'explain.l5-gap', {})]
   const facts: InputFact[] = []
   if (gain > 0) {
+    const usedM = prediction.climb?.usedM
     facts.push(
-      make('L5', 'climb', 'explain.l5-climb', {
+      make('L5', 'climb', usedM === undefined ? 'explain.l5-climb' : 'explain.l5-climb-own', {
         gain: climb(gain),
-        distance: distance(gain * P.l5.gainEquivalentM.value),
+        distance: distance(gain * (usedM ?? P.l5.gainEquivalentM.value)),
       }),
     )
   }

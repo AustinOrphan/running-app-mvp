@@ -331,7 +331,9 @@ describe('personalClimbOf', () => {
     const climb = personalClimbOf(asActivities(runs), TODAY)
     expect(climb).toEqual({
       ratio: personalClimbRatio(curve),
-      runs: curve.eligibleRuns,
+      runs: Math.max(
+        ...curve.bands.filter((b) => b.midPct > 0 && b.source === 'personal').map((b) => b.runs),
+      ),
     })
     expect(personalClimbOf(asActivities(runs, 'race'), TODAY)).toBeNull()
   })

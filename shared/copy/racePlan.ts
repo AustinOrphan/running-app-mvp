@@ -1235,7 +1235,8 @@ export function describeRacePoints(plan: RacePlan, units: Units): RacePointsText
 
   const notes = [
     say(T['race.plan.points.weights'], { n: count(P.l5.gainEquivalentM.value) }, units),
-    ...(splits.climb === null
+    ...(splits.climb === null ||
+    oneDecimal(splits.climb.usedM) === oneDecimal(P.l5.gainEquivalentM.value)
       ? []
       : [
           say(

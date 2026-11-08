@@ -565,7 +565,7 @@ describe('MyPacesPage: climbs and descents [I13]', () => {
     expect(within(section).getByText('49% of the time walking')).toBeInTheDocument()
   })
 
-  test('names the rules, the gate and that it is display only in the disclosure', async () => {
+  test('names the rules, the gate and that predictions read it a little in the disclosure', async () => {
     const { routes } = serve(stateWith(FITNESS), withBins(40))
     mockApi(routes)
     renderWithProviders(<MyPacesPage />, { route: '/paces' })
@@ -576,9 +576,7 @@ describe('MyPacesPage: climbs and descents [I13]', () => {
     expect(
       within(how).getByText(/a sign test at 1%\), on at least 7 tested runs/),
     ).toBeInTheDocument()
-    expect(
-      within(how).getByText(/^This is display only: predictions still count climb as flat/),
-    ).toBeInTheDocument()
+    expect(within(how).getByText(/^Predictions read this a little \(L5\)/)).toBeInTheDocument()
     expect(how).toHaveTextContent('I13')
     expect(how).toHaveTextContent('C9')
   })

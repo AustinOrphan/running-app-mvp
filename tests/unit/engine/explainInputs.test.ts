@@ -2294,6 +2294,10 @@ describe('L1 to L6: the prediction', () => {
     expect(own.slots.shift).toBe('+2 min')
     expect(facts.map((f) => f.id)).toContain('l5.own-climb-weights')
     expect(factsOf('L5', ctx).map((f) => f.id)).not.toContain('l5.own-climb')
+    // The climb line states the figure used and that it includes the runner's own climbing.
+    const climbFact = facts.find((f) => f.id === 'l5.climb')!
+    expect(climbFact.template).toBe('explain.l5-climb-own')
+    expect(slot(climbFact, 'distance', 'distance').m).toBe(trail.input.goal.gainM * 9.25)
   })
 
   test('L6 gives the predicted time and range and the least range for the distance', () => {

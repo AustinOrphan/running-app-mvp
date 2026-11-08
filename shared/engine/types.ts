@@ -270,7 +270,7 @@ export interface AthleteState {
   durability: { decouplingMedianPct: number | null; samples: number }
   /**
    * The runner's climbing against Minetti's from the curve of rule I13 (below 1: climbs faster), and
-   * the runs behind it; null without a personal climbing band (rule L5).
+   * the runs behind its passing climbing bands; null without a personal climbing band (rule L5).
    */
   climb?: { ratio: number; runs: number } | null
   /**
@@ -351,7 +351,7 @@ export interface ChecklistResult {
 }
 /** What the runner's own climbing did to a prediction (rule L5): present only when it moved it. */
 export interface ClimbBlend {
-  /** Eligible runs behind the curve of rule I13. */
+  /** Runs behind the climbing bands of the curve (rule I13) that passed its test. */
   runs: number
   /** `l5.gainEquivalentM`. */
   defaultM: number
