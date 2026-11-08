@@ -369,3 +369,13 @@
 .result p {
   margin: 0;
 }
+
+/* The footer of the Not 100% steps: one row, the way back one share and the way on two, so the
+   primary button is the wide one under the thumb. Steps 2 and 3 have no Cancel of their own; the
+   sheet's Close in the header and Escape leave from any step. */
+.footerRow {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--space-2);
+  width: 100%;
+}

@@ -250,10 +250,7 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
       </>
     )
     footer = (
-      <>
-        <Button variant="quiet" disabled={busy} onClick={onClose}>
-          Cancel
-        </Button>
+      <div className={styles.footerRow}>
         <Button variant="secondary" disabled={busy} onClick={back}>
           Back
         </Button>
@@ -265,7 +262,7 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
         >
           Apply to my plan
         </Button>
-      </>
+      </div>
     )
   } else if (step === 'when' && draft.reason !== null) {
     const { from, until } = datesOf(draft, today)
@@ -406,17 +403,14 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
       </>
     )
     footer = (
-      <>
-        <Button variant="quiet" disabled={busy} onClick={onClose}>
-          Cancel
-        </Button>
+      <div className={styles.footerRow}>
         <Button variant="secondary" disabled={busy} onClick={back}>
           Back
         </Button>
         <Button variant="primary" loading={previewWindow.isPending} onClick={showPreview}>
           Next
         </Button>
-      </>
+      </div>
     )
   } else {
     body = (
@@ -455,7 +449,7 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
       </>
     )
     footer = (
-      <>
+      <div className={styles.footerRow}>
         <Button variant="quiet" onClick={onClose}>
           Cancel
         </Button>
@@ -468,7 +462,7 @@ export function NotFullSheet({ onClose, today: given }: NotFullSheetProps) {
         >
           Next
         </Button>
-      </>
+      </div>
     )
   }
 

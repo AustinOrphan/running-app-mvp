@@ -396,13 +396,13 @@ test('the Not 100% sheet and the window banner fit at 360 px, with every button 
     expect((pain?.x ?? 0) + (pain?.width ?? 0), `pain ${rating}`).toBeLessThanOrEqual(width + 0.5)
     expect(pain?.x ?? -1, `pain ${rating}`).toBeGreaterThanOrEqual(0)
   }
-  await expectReachable(['Cancel', 'Back', 'Next'])
+  await expectReachable(['Back', 'Next'])
 
   // Step 3: the preview, whose rows and buttons stay inside the screen.
   await sheet.getByRole('button', { name: 'Next' }).click()
   await expect(sheet.getByRole('heading', { name: 'What would change' })).toBeVisible()
-  await expectReachable(['Cancel', 'Back', 'Apply to my plan'])
-  await sheet.getByRole('button', { name: 'Cancel' }).click()
+  await expectReachable(['Back', 'Apply to my plan'])
+  await sheet.getByRole('button', { name: 'Close' }).click()
   await expect(sheet).toBeHidden()
 
   // A window in force: the banner wraps inside the screen and its three buttons stay in reach.
@@ -1198,7 +1198,9 @@ test('a trail run with charts does not scroll sideways at 360 px', async () => {
     buffer: Buffer.from(bytes),
   })
   await sheet.getByRole('button', { name: 'Import files' }).click()
-  await expect(sheet.getByText('1 imported, 0 already imported, 0 skipped')).toBeVisible()
+  await expect(
+    sheet.getByText('1 added to your log. 0 already there. 0 could not be read.'),
+  ).toBeVisible()
   await sheet.getByRole('button', { name: 'Done' }).click()
   await page.getByRole('link', { name: /^Details, Run on / }).click()
   await expect(page.getByRole('heading', { name: 'Run', level: 1 })).toBeVisible()
