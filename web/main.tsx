@@ -6,7 +6,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { App, preloadRoute } from './App.tsx'
+import { App, preloadRoute, warmTabRoutes } from './App.tsx'
 import { createQueryClient } from './api/client.ts'
 import { warmSheets } from './components/lazySheets.tsx'
 import { registerServiceWorker, reloadOnPreloadError } from './pwa/register.ts'
@@ -33,6 +33,9 @@ createRoot(root).render(
 )
 // The sheets wait until the page has the connection to itself: on a phone link, fetching their
 // forty files at once delays the code and the data of the page being opened.
-window.setTimeout(warmSheets, 3000)
+window.setTimeout(() => {
+  warmTabRoutes()
+  warmSheets()
+}, 3000)
 // The offline shell: a production build only (ADR 0012).
 registerServiceWorker()

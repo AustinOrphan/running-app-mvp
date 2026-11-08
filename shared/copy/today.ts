@@ -151,7 +151,7 @@ export const TODAY_TEMPLATES = {
   // the file): the page itself still works.
   'today.sheet.unavailable-title': tpl('This did not open', {}, { shape: 'label' }),
   'today.sheet.unavailable': tpl(
-    'This part of the app did not load. Reload the page to try again.',
+    'This part of the app did not load. Try again, or reload the page.',
   ),
 
   // Offline (E2-8, ADR 0012): the line above Today while the numbers on screen are the phone's

@@ -89,10 +89,37 @@ describe('the sheets that open on a tap', () => {
     )
     const sheet = await screen.findByRole('dialog', { name: 'This did not open' })
     expect(within(sheet).getByRole('alert')).toHaveTextContent(
-      'This part of the app did not load. Reload the page to try again.',
+      'This part of the app did not load. Try again, or reload the page.',
     )
     await user.click(within(sheet).getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  test('Try again runs the import again; offline a failure stays on the notice, online it reloads', async () => {
+    const user = userEvent.setup()
+    const reload = vi.fn()
+    vi.stubGlobal('location', { ...window.location, reload })
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    render(
+      createElement(DoneSheet, {
+        plan: { kind: 'easy', durationMin: 40, distanceM: 6000 },
+        date: '2026-03-18',
+        units: 'km',
+        onClose: vi.fn(),
+        onSaved: vi.fn(),
+      }),
+    )
+    const sheet = await screen.findByRole('dialog', { name: 'This did not open' })
+    await user.click(within(sheet).getByRole('button', { name: 'Try again' }))
+    await screen.findByRole('dialog', { name: 'This did not open' })
+    expect(reload).not.toHaveBeenCalled()
+    onLine.mockReturnValue(true)
+    await user.click(within(sheet).getByRole('button', { name: 'Try again' }))
+    await waitFor(() => {
+      expect(reload).toHaveBeenCalledTimes(1)
+    })
+    vi.unstubAllGlobals()
+    onLine.mockRestore()
   })
 
   test('are all fetched once the app is idle, and a sheet that will not load is left to itself', async () => {

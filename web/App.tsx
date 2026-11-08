@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect, type ComponentType } from 'react'
+import { Suspense, useEffect } from 'react'
 import { matchPath, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useMe, useSetupStatus } from './api/auth.ts'
 import { dropUserQueries, keys, UNAUTHORIZED_EVENT } from './api/client.ts'
@@ -9,40 +9,7 @@ import { useLoadView } from './components/loadView.ts'
 import { Skeleton } from './components/Skeleton.tsx'
 import { useOutboxReplay } from './pwa/outbox.ts'
 import styles from './App.module.css'
-
-/** A route's page: loaded the first time the route opens, with `load` to fetch it ahead of that. */
-interface Page {
-  Component: ComponentType
-  load: () => Promise<unknown>
-}
-
-/**
- * A page loaded the first time its route opens, so a visit downloads the code of the page it
- * shows and not of the other twenty. The pages are named exports; the module's own file is
- * unchanged. When the code cannot be fetched (offline with no copy kept, or a release replaced
- * the file) the route shows the failed-load state with a button that reloads, not a blank screen.
- */
-function lazyPage(load: () => Promise<ComponentType>): Page {
-  const Component = lazy(async () => {
-    try {
-      return { default: await load() }
-    } catch {
-      return { default: PageUnavailable }
-    }
-  })
-  return { Component, load }
-}
-
-function PageUnavailable() {
-  return (
-    <ErrorState
-      subject="This page"
-      onRetry={() => {
-        window.location.reload()
-      }}
-    />
-  )
-}
+import { lazyPage, warmPages, type Page } from './lazyPage.tsx'
 
 const setupPage = lazyPage(() => import('./pages/SetupPage.tsx').then((m) => m.SetupPage))
 const loginPage = lazyPage(() => import('./pages/LoginPage.tsx').then((m) => m.LoginPage))
@@ -101,6 +68,19 @@ const APP_ROUTES: ReadonlyArray<readonly [path: string, page: Page]> = [
   ['/race', racePage],
   ['/more', morePage],
 ]
+
+/** The pages the tab bar and the side rail open most: fetched once the app is idle. */
+export function warmTabRoutes(): void {
+  warmPages([
+    dashboardPage,
+    activitiesPage,
+    planPage,
+    reviewPage,
+    morePage,
+    trendsPage,
+    settingsPage,
+  ])
+}
 
 /**
  * Starts fetching the code of the page for `pathname` at once. The entry calls it before React
