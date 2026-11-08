@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
 import { createPrisma, initSqlite } from '../../server/db.ts'
 import { E2E_DATABASE_URL } from './env.ts'
+import { athlete, scaledCurve, syntheticRuns } from '../unit/engine/gradeCurve-fixtures.ts'
 import { relativeDates, resetData, RUNNER, signedInApi, type Api } from './helpers.ts'
 
 // My paces (rule C9, ADR 0020): the easy pace, the zones and what the runner can run now, read by
@@ -81,6 +82,34 @@ async function seedRunner(): Promise<void> {
   }
 }
 
+/**
+ * Forty steady runs with terrain bins of a runner half as steep as the default curve (synthetic,
+ * seeded), on top of the nine: enough for the climbing bands to pass the test of rule I13. They
+ * carry no heart-rate histogram, so the heart-rate line and the predictions do not change.
+ */
+async function seedTerrainRuns(): Promise<void> {
+  const { today } = relativeDates()
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  try {
+    await initSqlite(prisma)
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: RUNNER.email } })
+    for (const run of syntheticRuns(athlete(scaledCurve(0.5), 0.03), 40, today, 21, 2)) {
+      await prisma.activity.create({
+        data: {
+          userId: user.id,
+          date: run.date,
+          type: 'run',
+          durationSec: 3600,
+          distanceM: 9000,
+          terrainBins: JSON.stringify(run.bins),
+        },
+      })
+    }
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
 test.beforeAll(async ({ browser, baseURL }) => {
   const context = await browser.newContext({ baseURL })
   page = await context.newPage()
@@ -118,6 +147,12 @@ test('with an empty log the page says what would give a pace, opens the test and
     test_.getByText(/^Run 3 hard, flat efforts of .+ to .+, on separate days/),
   ).toBeVisible()
   await expect(test_.getByText('0 of 3 efforts found so far.')).toBeVisible()
+  // No grade data: every grade shows the default, and the section says what gives data.
+  const grades = page.getByRole('region', { name: 'Climbs and descents' })
+  await expect(grades.getByText(/^No steady run has grade data yet/)).toBeVisible()
+  await expect(grades.getByRole('row')).toHaveCount(10)
+  await expect(grades.getByText('Yours', { exact: true })).toHaveCount(0)
+  await expect(grades.getByText(/^No climbing grade has enough runs to say/)).toBeVisible()
   expect(await scrollsSideways()).toBe(false)
 })
 
@@ -139,6 +174,9 @@ test('a runner with a heart-rate line gets a pace range, a hot day, a climb and 
   await expect(terms.nth(0)).toHaveText('Cool and flat')
   await expect(terms.nth(1)).toHaveText(/^Hot day, WBGT 25 °C, default heat rise$/)
   await expect(terms.nth(2)).toHaveText('Climb of 5%')
+  await expect(
+    easy.getByText(/^The climb row uses the default cost of a grade: too few/),
+  ).toBeVisible()
 
   // The first screen at 390 x 844: the heading, the jump links and the lead figure are in view.
   const unit = easy.getByText(/^\/(km|mi)$/).first()
@@ -190,6 +228,55 @@ test('a runner with a heart-rate line gets a pace range, a hot day, a climb and 
   await expect(test_.getByText('Make the longest last at least 2 times')).toBeVisible()
 })
 
+test('with enough steady runs on grades the climb row and the table show the runner own speed', async () => {
+  await seedTerrainRuns()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/paces')
+
+  const easy = page.getByRole('region', { name: 'Easy pace' })
+  await expect(easy.getByRole('term').nth(2)).toHaveText(
+    'Climb of 5%, from your own runs on this grade',
+  )
+  await expect(easy.getByText(/^The climb row uses the speed you kept on this grade/)).toBeVisible()
+
+  const grades = page.getByRole('region', { name: 'Climbs and descents' })
+  await expect(grades.getByText(/^From 40 steady runs in the last 52 weeks/)).toBeVisible()
+  await expect(grades.getByText(/^No steady run has grade data yet/)).toHaveCount(0)
+  const row = grades.getByRole('row', { name: /^3% to 6%/ })
+  await expect(row.getByText('Yours', { exact: true })).toBeVisible()
+  await expect(grades.getByRole('row', { name: /^Flat, -3% to 3%/ })).toContainText('100%')
+  await expect(
+    grades.getByText(/^You walk more than half the time on climbs from \d+% up\./),
+  ).toBeVisible()
+  await expect(
+    grades.getByText(/^Walking here means slower than \d+:\d{2} \/(km|mi)\.$/),
+  ).toBeVisible()
+
+  // The disclosure names the rules, the gate and that nothing else reads the curve.
+  await grades.getByText('How this is made').click()
+  await expect(grades.getByText(/leaving each run out in turn/)).toBeVisible()
+  await expect(grades.getByText(/a sign test at 1%\), on at least 7 tested runs/)).toBeVisible()
+  await expect(
+    grades.getByText(/^This is display only: predictions still count climb/),
+  ).toBeVisible()
+  await grades.getByRole('button', { name: 'Why: the speed by grade' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  expect(await scrollsSideways()).toBe(false)
+})
+
+test('a failed read shows the shared error state, and Try again brings the page back', async () => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('**/api/paces', (route) => route.abort())
+  await page.goto('/paces')
+  await expect(page.getByRole('alert')).toHaveText('My paces did not load.')
+  await page.unroute('**/api/paces')
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('region', { name: 'Climbs and descents' })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
 for (const viewport of WIDTHS) {
   for (const scheme of ['light', 'dark'] as const) {
     test(`the page stays inside ${String(viewport.width)} px in ${scheme}, with reduced motion`, async () => {
@@ -198,6 +285,7 @@ for (const viewport of WIDTHS) {
       await page.goto('/paces')
       await expect(page.getByRole('region', { name: 'Easy pace' })).toBeVisible()
       await expect(page.getByRole('region', { name: 'What you can run now' })).toBeVisible()
+      await expect(page.getByRole('row', { name: /^3% to 6%/ })).toBeVisible()
       expect(await scrollsSideways()).toBe(false)
       if (scheme === 'light') {
         await page.screenshot({
@@ -221,6 +309,14 @@ test('the page works from the keyboard: Tab to a jump link, Enter, and open a di
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/#zones$/)
   await expect(page.getByRole('heading', { level: 2, name: 'Zones' })).toBeInViewport()
+  const grades = nav.getByRole('link', { name: 'Climbs and descents' })
+  await grades.focus()
+  await expect(grades).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/#grades$/)
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Climbs and descents' }),
+  ).toBeInViewport()
 
   // A disclosure opens and closes from its summary with the keyboard.
   const how = page.getByRole('region', { name: 'Easy pace' }).getByText('How this is made')

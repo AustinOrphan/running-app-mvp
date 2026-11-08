@@ -76,3 +76,17 @@ the race plan (ADR 0018) and the strength workout (ADR 0014) are.
   (ADR 0014, ADR 0018).
 - Predictions only through a goal. Rejected: the question was about distances the runner has no goal
   for.
+
+## Addendum 2026-11-07: the climb row and the grade table read the personal curve (rule I13)
+
+- `myPaces` computes `gradeCurve` (`shared/engine/gradeCurve.ts`) from the snapshot's activities
+  (`context.activities` already carries `Activity.terrainBins`, so no new reader and no new query of
+  the history window; runs only, flagged duplicates out) and returns it as `MyPaces.terrain`, inside
+  the memo `paces.view`. The curve is therefore keyed by the data version and the day like the rest.
+- The example climb uses the runner's own ratio for the band that holds `c9.exampleGradePct` when
+  the curve shows one there, and the cost of the grade (I11) otherwise, with the reason
+  (`EasyPace.climb.source`, `reason`). A section "Climbs and descents" lists every band with its
+  share of flat speed, its source and its minutes, and the grade where walking passes half the time.
+- Display only: `personalGainEquivalent` stays uncalled and no prediction row reads the curve
+  (`myPaces.test.ts` checks the events are equal with and without bins).
+- The page's failed load now uses the shared `ErrorState` and `useLoadView`.
