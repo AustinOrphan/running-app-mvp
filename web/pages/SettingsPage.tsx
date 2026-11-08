@@ -363,8 +363,8 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
           Map tiles
         </label>
         <p id="maps-tiles-note" className={styles.note}>
-          Loads map tiles from OpenStreetMap, which sees the area of each run you open. This device
-          only.
+          Loads map tiles from OpenStreetMap, which sees the area of each run you open (the tile
+          addresses, not the route). This device only.
         </p>
       </section>
 

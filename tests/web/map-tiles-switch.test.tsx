@@ -79,7 +79,7 @@ describe('the Map tiles setting', () => {
     const box = screen.getByRole('checkbox', { name: 'Map tiles' })
     expect(box).toBeChecked()
     expect(box).toHaveAccessibleDescription(
-      'Loads map tiles from OpenStreetMap, which sees the area of each run you open. This device only.',
+      'Loads map tiles from OpenStreetMap, which sees the area of each run you open (the tile addresses, not the route). This device only.',
     )
     await typist.click(box)
     expect(box).not.toBeChecked()

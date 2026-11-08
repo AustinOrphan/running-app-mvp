@@ -3,8 +3,9 @@
 A self-hosted training log and planner for one runner. It keeps activities, goal races, a
 generated weekly plan, weekly reviews, a Today page that leads with the day's session and
 readiness, and stats. One Node process serves the API and the built web app, and the data lives in
-a single SQLite file. There is no telemetry. The app calls third parties only for the integrations
-you connect and for weather (see Integrations).
+a single SQLite file. There is no telemetry. The server calls third parties only for the integrations
+you connect and for weather (see Integrations). Your browser loads map tiles from OpenStreetMap
+when you open a run, unless you turn that off (see Weather and privacy).
 
 Targets are a sketch, not minimums: the plan never makes up missed volume, and a suggestion never
 changes a target by itself.
@@ -232,7 +233,7 @@ tool, or any app that can write files to iCloud Drive, Dropbox, Syncthing or a n
 
 ### Weather and privacy
 
-The app otherwise makes no third-party requests. Weather comes from Open-Meteo (no account or key),
+The server otherwise makes no third-party requests. Weather comes from Open-Meteo (no account or key),
 and no setting turns the lookups off. A background job runs every ten minutes and sends:
 
 - For each activity with a start location, that location rounded to a cell of 0.1 degree (about 11
@@ -250,6 +251,15 @@ saved home location as the place for activities without a start location and for
 coordinates. It does not stop the requests above, and leaving the home location empty stops only
 the forecast and that fallback. Providers see only what is connected: the app calls intervals.icu,
 Strava and Garmin only after they are connected, and only for the connected account.
+
+The map on a run's page is the one thing your browser, not the server, fetches from a third party.
+It loads 256 px tiles from OpenStreetMap (`tile.openstreetmap.org`). Each tile address names a
+square of the world, so OpenStreetMap can see the area of every run you open, along with your IP
+address and the app's address as the referer. The route itself never leaves the server, and nothing
+else is sent. Settings, under Maps, has a "Map tiles" checkbox, on by default, that turns the
+tiles off on that device; the route is then drawn alone, with no request to OpenStreetMap. The
+setting is kept in the browser, so each device has its own. The server's Content-Security-Policy
+allows that one image host and no other.
 
 ## Sessions on the watch
 
