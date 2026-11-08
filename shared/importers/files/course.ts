@@ -99,9 +99,51 @@ function filledAltitudes(points: readonly TrackPoint[]): number[] | null {
   })
 }
 
+/** A XML character reference or one of the five predefined entities, as the parser leaves it. */
+const ENTITY = /&(?:#(\d{1,7})|#x([0-9a-fA-F]{1,6})|(amp|lt|gt|quot|apos));/g
+const NAMED: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
+
+/** Decodes the five predefined entities and numeric references; the parser is told not to. */
+function decodeEntities(text: string): string {
+  return text.replace(ENTITY, (whole, dec?: string, hex?: string, named?: string) => {
+    if (named !== undefined) return NAMED[named] ?? whole
+    const code = dec !== undefined ? Number(dec) : parseInt(hex ?? '', 16)
+    return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)
+      ? String.fromCodePoint(code)
+      : whole
+  })
+}
+
+/**
+ * The nearest point of the segment from `a` to `b` to `spot`: how far along it (0 to 1) and how far
+ * off, in metres, on a flat plane around the waypoint (accurate to centimetres at the 300 m snap).
+ */
+function nearestOnSegment(
+  spot: TrackPoint,
+  a: TrackPoint,
+  b: TrackPoint,
+): { t: number; distanceM: number } {
+  const rad = Math.PI / 180
+  const radius = 6_371_000
+  const scale = Math.cos(spot.lat * rad)
+  const flat = (p: TrackPoint) => ({
+    x: (p.lng - spot.lng) * rad * radius * scale,
+    y: (p.lat - spot.lat) * rad * radius,
+  })
+  const pa = flat(a)
+  const pb = flat(b)
+  const dx = pb.x - pa.x
+  const dy = pb.y - pa.y
+  const span = dx * dx + dy * dy
+  const t = span === 0 ? 0 : Math.min(1, Math.max(0, -(pa.x * dx + pa.y * dy) / span))
+  return { t, distanceM: Math.hypot(pa.x + t * dx, pa.y + t * dy) }
+}
+
 function nameOf(node: XmlNode): string | null {
   const text = textOf(node['name']) ?? textOf(node['desc'])
-  return text === null ? null : text.slice(0, NAME_MAX)
+  if (text === null) return null
+  const decoded = decodeEntities(text).trim().slice(0, NAME_MAX).trim()
+  return decoded === '' ? null : decoded
 }
 
 /**
@@ -128,28 +170,35 @@ export function parseCourse(bytes: Uint8Array): Course {
   // A waypoint is placed once for each pass of the track within snap distance: an out-and-back
   // passes its aid stations twice and each lap of a loop passes them again. Two stretches within
   // snap distance belong to one pass unless they lie `COURSE_PASS_GAP_M` or more apart along the
-  // track; the closest point of each pass is its place.
+  // track; the closest place of each pass is its place. The place is the nearest point of a track
+  // segment, not the nearest vertex, so a thinned or sparse track does not move a waypoint by half
+  // a gap.
   const waypoints = asArray(gpx['wpt']).flatMap((node) => {
     if (!isNode(node)) return []
     const spot = pointOf(node, 'ele')
     if (spot === null) return []
     const name = nameOf(node)
-    const passes: Array<{ index: number; offTrackM: number }> = []
-    let nearest = { index: 0, offTrackM: Infinity }
-    let lastNear = -1
-    points.forEach((p, index) => {
-      const d = haversineM(spot.lat, spot.lng, p.lat, p.lng)
-      if (d < nearest.offTrackM) nearest = { index, offTrackM: d }
-      if (d > COURSE_MAX_OFF_TRACK_M) return
-      const current = passes[passes.length - 1]
-      if (current === undefined || along[index]! - along[lastNear]! >= COURSE_PASS_GAP_M) {
-        passes.push({ index, offTrackM: d })
-      } else if (d < current.offTrackM) {
-        current.index = index
-        current.offTrackM = d
+    const passes: Array<{ index: number; at: number; offTrackM: number }> = []
+    let nearest = { index: 0, at: 0, offTrackM: Infinity }
+    let lastAt = -Infinity
+    for (let k = 0; k < points.length - 1; k++) {
+      const hit = nearestOnSegment(spot, points[k]!, points[k + 1]!)
+      const length = along[k + 1]! - along[k]!
+      const found = {
+        index: hit.t < 0.5 ? k : k + 1,
+        at: along[k]! + hit.t * length,
+        offTrackM: hit.distanceM,
       }
-      lastNear = index
-    })
+      if (found.offTrackM < nearest.offTrackM) nearest = found
+      if (found.offTrackM > COURSE_MAX_OFF_TRACK_M) continue
+      const current = passes[passes.length - 1]
+      if (current === undefined || found.at - lastAt >= COURSE_PASS_GAP_M) {
+        passes.push(found)
+      } else if (found.offTrackM < current.offTrackM) {
+        Object.assign(current, found)
+      }
+      lastAt = found.at
+    }
     if (passes.length === 0) return [{ ...nearest, name, pass: 1, passes: 1, off: true }]
     return passes.map((pass, n) => ({
       ...pass,
@@ -190,6 +239,7 @@ export function parseCourse(bytes: Uint8Array): Course {
     waypoints: onTrack
       .map((w) => ({
         ...sample(w.index),
+        distanceM: w.at,
         name: w.name,
         offTrackM: w.offTrackM,
         pass: w.pass,

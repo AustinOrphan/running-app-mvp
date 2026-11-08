@@ -158,3 +158,38 @@ describe('courseSampleAt', () => {
     expect(courseSampleAt(course, course.distanceM * 2).gainM).toBe(50)
   })
 })
+
+describe('waypoint names', () => {
+  const named = (name: string) =>
+    parseCourse(bytes(gpx({ waypoints: [{ name, i: 10 }] }))).waypoints[0]!.name
+
+  test('decode the five predefined entities and numeric references once', () => {
+    expect(named('Black &amp; Blue')).toBe('Black & Blue')
+    expect(named('&lt;Aid&gt; &quot;3&quot; &apos;lower&apos;')).toBe('<Aid> "3" \'lower\'')
+    expect(named('Caf&#233; &#x41;')).toBe('Caf\u00e9 A')
+    expect(named('Fish &amp;amp; Chips')).toBe('Fish &amp; Chips')
+  })
+
+  test('leave an unknown or out-of-range reference as it was written', () => {
+    expect(named('Pit &nbsp; stop')).toBe('Pit &nbsp; stop')
+    expect(named('Odd &#0; &#1114112; &#xD800;')).toBe('Odd &#0; &#1114112; &#xD800;')
+  })
+
+  test('are cut to 60 characters after decoding, and trimmed', () => {
+    expect(named('&amp;'.repeat(70))).toBe('&'.repeat(60))
+  })
+})
+
+describe('a waypoint on a sparse track', () => {
+  test('is placed on the segment, not on the nearest vertex', () => {
+    // two track points 11 km apart, a waypoint a quarter of the way along and 50 m north of the line
+    const xml =
+      '<gpx><wpt lat="0.00045" lon="0.025"><name>Quarter</name></wpt>' +
+      '<trk><trkseg><trkpt lat="0" lon="0"><ele>100</ele></trkpt>' +
+      '<trkpt lat="0" lon="0.1"><ele>140</ele></trkpt></trkseg></trk></gpx>'
+    const course = parseCourse(bytes(xml))
+    const [w] = course.waypoints
+    expect(w!.distanceM / course.distanceM).toBeCloseTo(0.25, 2)
+    expect(w!.offTrackM).toBeCloseTo(50, -1)
+  })
+})
