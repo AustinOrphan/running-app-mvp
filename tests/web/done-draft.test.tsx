@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { keys } from '../../web/api/client.ts'
 import { DoneSheet } from '../../web/components/today/DoneSheet.tsx'
@@ -14,13 +15,15 @@ function open(userId: string | null) {
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <DoneSheet
-          plan={{ kind: 'easy', durationMin: 40, distanceM: 6000 }}
-          date={DATE}
-          units="km"
-          onClose={vi.fn()}
-          onSaved={vi.fn()}
-        />
+        <MemoryRouter>
+          <DoneSheet
+            plan={{ kind: 'easy', durationMin: 40, distanceM: 6000 }}
+            date={DATE}
+            units="km"
+            onClose={vi.fn()}
+            onSaved={vi.fn()}
+          />
+        </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
   )

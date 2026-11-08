@@ -452,6 +452,7 @@ describe('Disconnect on the intervals.icu card', () => {
     lastSyncAt: null,
     lastSyncStatus: null,
     lastError: null,
+    pausedUntil: null,
   }
 
   function page(status: WristStatus, extra: MockRoutes = {}) {

@@ -19,6 +19,8 @@ describe('the box of a chart that measures itself', () => {
   test('is found for every chart the app draws', () => {
     expect(drawn).toEqual([
       'CourseProfileChart',
+      'DurabilityChart',
+      'EfficiencyChart',
       'EstimatedMaxChart',
       'MonthlyHoursChart',
       'PredictionTrackChart',

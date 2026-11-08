@@ -320,17 +320,21 @@ describe('GradeBadge', () => {
 })
 
 describe('ScalePicker', () => {
-  test('a touch scale marks its row so the buttons keep a 44 px square', () => {
+  test('every scale marks its row so the buttons keep a 44 px square, with or without the old prop', () => {
     render(
       <>
         <ScalePicker legend="Pain" min={0} max={10} value={null} onChange={() => {}} touch />
         <ScalePicker legend="RPE" min={1} max={10} value={null} onChange={() => {}} />
       </>,
     )
-    const touch = screen.getByRole('group', { name: 'Pain' }).querySelector('[data-touch]')
-    expect(touch).not.toBeNull()
-    expect(within(touch as HTMLElement).getAllByRole('button')).toHaveLength(11)
-    expect(screen.getByRole('group', { name: 'RPE' }).querySelector('[data-touch]')).toBeNull()
+    for (const [name, steps] of [
+      ['Pain', 11],
+      ['RPE', 10],
+    ] as const) {
+      const row = screen.getByRole('group', { name }).querySelector('[data-touch]')
+      expect(row).not.toBeNull()
+      expect(within(row as HTMLElement).getAllByRole('button')).toHaveLength(steps)
+    }
   })
 
   test('a touch scale is set in balanced rows: one row to six steps, else two that differ by one', () => {
@@ -347,11 +351,37 @@ describe('ScalePicker', () => {
     expectTouchScale(screen.getByRole('group', { name: 'Sleep' }), { steps: 5, columns: 5 })
   })
 
-  test('the default scale keeps its one row and sets no column count', () => {
+  test('a scale without the old prop is set in the same balanced rows', () => {
     render(<ScalePicker legend="RPE" min={1} max={10} value={null} onChange={() => {}} />)
-    const row = screen.getByRole('group', { name: 'RPE' }).querySelector<HTMLElement>('div')!
-    expect(row.style.getPropertyValue('--steps')).toBe('10')
-    expect(row.style.getPropertyValue('--cols')).toBe('')
+    expectTouchScale(screen.getByRole('group', { name: 'RPE' }), { steps: 10, columns: 5 })
+  })
+})
+
+describe('Segmented numbers', () => {
+  const ten = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))
+
+  test('a scale of ten short numbers is set in two rows of five', () => {
+    render(<Segmented label="Fatigue" options={ten} value="" onChange={() => {}} />)
+    const group = screen.getByRole('radiogroup', { name: 'Fatigue' })
+    expect(group.style.getPropertyValue('--cols')).toBe('5')
+    expect(within(group).getAllByRole('radio')).toHaveLength(10)
+  })
+
+  test('words stay in one row', () => {
+    render(
+      <Segmented
+        label="Kind"
+        options={[
+          { value: 'a', label: 'One' },
+          { value: 'b', label: 'Two' },
+        ]}
+        value="a"
+        onChange={() => {}}
+      />,
+    )
+    expect(screen.getByRole('radiogroup', { name: 'Kind' }).style.getPropertyValue('--cols')).toBe(
+      '',
+    )
   })
 })
 

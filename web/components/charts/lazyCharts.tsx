@@ -22,7 +22,16 @@ function Unavailable() {
 }
 
 type Place =
-  'weekly' | 'season' | 'monthly' | 'stream' | 'track' | 'estimate' | 'trendsRun' | 'recovery'
+  | 'weekly'
+  | 'season'
+  | 'monthly'
+  | 'stream'
+  | 'track'
+  | 'estimate'
+  | 'trendsRun'
+  | 'recovery'
+  | 'drift'
+  | 'efficiency'
 
 /**
  * A chart that loads on first use; `place` names the class that holds its height meanwhile, or
@@ -88,6 +97,14 @@ export const TrendsRunChart = lazyChart(
 export const RecoveryChart = lazyChart(
   () => import('./RecoveryChart.tsx').then((module) => module.RecoveryChart),
   'recovery',
+)
+export const DurabilityChart = lazyChart(
+  () => import('./DurabilityChart.tsx').then((module) => module.DurabilityChart),
+  'drift',
+)
+export const EfficiencyChart = lazyChart(
+  () => import('./EfficiencyChart.tsx').then((module) => module.EfficiencyChart),
+  'efficiency',
 )
 export const WeightChart = lazyChart(
   () => import('./WeightChart.tsx').then((module) => module.WeightChart),

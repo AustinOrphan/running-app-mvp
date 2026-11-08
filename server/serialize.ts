@@ -25,6 +25,7 @@ import type {
   WristPublication as WristPublicationRow,
 } from './db.ts'
 import type { WeightSeriesRow, WellnessSeriesRow } from '../shared/domain/trends.ts'
+import type { TrendRun } from '../shared/domain/trendsRuns.ts'
 import type {
   CourseSnapshot,
   LoggedPrediction,
@@ -86,6 +87,7 @@ import type {
   GoalSurface,
   GoalType,
   HrHistogram,
+  TerrainBins,
   ImportBatch,
   ImportReportRow,
   Injury,
@@ -132,11 +134,11 @@ function parseJson<T>(text: string | null, fallback: T): T {
   }
 }
 
-/** An activity row read without its heart-rate histogram (`ACTIVITY_LIST_OMIT`). */
-export type ActivityListRow = Omit<ActivityRow, 'hrHistogram'>
+/** An activity row read without its heart-rate histogram and terrain bins (`ACTIVITY_LIST_OMIT`). */
+export type ActivityListRow = Omit<ActivityRow, 'hrHistogram' | 'terrainBins'>
 
 /** The columns an activity has in every answer: the list's, without the heart-rate histogram. */
-function activityColumns(row: ActivityListRow): Omit<Activity, 'hrHistogram'> {
+function activityColumns(row: ActivityListRow): Omit<Activity, 'hrHistogram' | 'terrainBins'> {
   return {
     id: row.id,
     userId: row.userId,
@@ -194,6 +196,7 @@ export function toActivity(row: ActivityRow): Activity {
   return {
     ...activityColumns(row),
     hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
+    terrainBins: parseJson<TerrainBins | null>(row.terrainBins, null),
   }
 }
 
@@ -302,6 +305,7 @@ export function toIntegrationStatus(
       lastSyncAt: null,
       lastSyncStatus: null,
       lastError: null,
+      pausedUntil: null,
     }
   }
   return {
@@ -313,6 +317,7 @@ export function toIntegrationStatus(
     lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
     lastSyncStatus: row.lastSyncStatus,
     lastError: row.lastError,
+    pausedUntil: row.pausedUntil ? row.pausedUntil.toISOString() : null,
   }
 }
 
@@ -987,6 +992,49 @@ export async function loadWellnessSeries(
 }
 
 /**
+ * The columns of the runs the Trends run panels read (drift, and what the heart-rate fit reads), for
+ * an inclusive range, in no particular order. Flagged duplicates are left out, as every statistic
+ * does. It takes a window the snapshot does not hold (365 days against the 104 weeks the page shows
+ * and the eight weeks each window reads before it), so the engine input is untouched (ADR 0019).
+ */
+export async function loadRunSeries(
+  prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  opts: { from: string; to: string },
+): Promise<TrendRun[]> {
+  const rows = await prisma.activity.findMany({
+    where: {
+      userId,
+      type: 'run',
+      duplicateStatus: { in: ['none', 'dismissed'] },
+      date: { gte: opts.from, lte: opts.to },
+    },
+    select: {
+      date: true,
+      type: true,
+      duplicateStatus: true,
+      durationSec: true,
+      distanceM: true,
+      movingSec: true,
+      gapDistanceM: true,
+      avgHr: true,
+      elevationGainM: true,
+      hrHistogram: true,
+      tempC: true,
+      humidityPct: true,
+      windKph: true,
+      decouplingPct: true,
+    },
+  })
+  return rows.map((row) => ({
+    ...row,
+    type: row.type as ActivityType,
+    duplicateStatus: row.duplicateStatus as DuplicateStatus,
+    hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
+  }))
+}
+
+/**
  * The weigh-ins of an inclusive range, for the Trends weight series. Called only when the runner
  * has turned body weight on and the screening is below `j5.redsHoldFlags` (ADR 0019), so the column
  * is selected on no other path of the page.
@@ -1002,8 +1050,8 @@ export async function loadWeightSeries(
   })
 }
 
-/** The column a list never reads: the heart-rate histogram is the largest and only the detail needs it. */
-const ACTIVITY_LIST_OMIT = { hrHistogram: true } as const
+/** The columns a list never reads: the heart-rate histogram is the largest, and only the detail needs it and the terrain bins. */
+const ACTIVITY_LIST_OMIT = { hrHistogram: true, terrainBins: true } as const
 
 /** The `where` of a user's activities in an inclusive date range, optionally of one type. */
 function activityWhere(userId: string, opts: { from?: string; to?: string; type?: ActivityType }) {

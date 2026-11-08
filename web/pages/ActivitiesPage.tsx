@@ -7,7 +7,7 @@ import {
   activityPaceLabel,
   activitySetsText,
 } from '../../shared/copy/activityList.ts'
-import { todayIso } from '../../shared/dates.ts'
+import { addDays, isIsoDate, todayIso } from '../../shared/dates.ts'
 import { movingTimeDiffers } from '../../shared/domain/movingTime.ts'
 import type { ActivityListItem, ActivityType, Units } from '../../shared/types.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
@@ -21,6 +21,8 @@ import { ApiError } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
 import { EmptyState } from '../components/EmptyState.tsx'
+import { ErrorState } from '../components/ErrorState.tsx'
+import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
 import { formatShortDate, formatWeekday } from '../components/format.ts'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -42,10 +44,25 @@ const FILTER_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
 
 const EN_DASH = '–'
 
+/** Older and later years carry the year so a long list stays unambiguous. */
+function withYear(text: string, date: string): string {
+  return date.slice(0, 4) === todayIso().slice(0, 4) ? text : `${text} ${date.slice(0, 4)}`
+}
+
 function dateHeading(date: string): string {
-  const base = `${formatWeekday(date)} ${formatShortDate(date)}`
-  // Older years carry the year so a long list stays unambiguous.
-  return date.slice(0, 4) === todayIso().slice(0, 4) ? base : `${base} ${date.slice(0, 4)}`
+  return withYear(`${formatWeekday(date)} ${formatShortDate(date)}`, date)
+}
+
+/**
+ * A date the date input holds as the runner types, for the summary beside the Dates button. Only a
+ * real YYYY-MM-DD that reads back as itself has one: a year typed halfway ("0002-03-15") or a fifth
+ * digit ("20266-03-15") is a value the input may hold, and formatting it would throw.
+ */
+function rangeDate(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !isIsoDate(value) || addDays(value, 0) !== value) {
+    return null
+  }
+  return withYear(formatShortDate(value), value)
 }
 
 /** Consecutive rows with the same date; the API already sorts newest first. */
@@ -62,12 +79,10 @@ function groupByDate(rows: ActivityListItem[]): Array<{ date: string; rows: Acti
 function ActivityRow({
   activity,
   units,
-  onEdit,
   restorable = false,
 }: {
   activity: ActivityListItem
   units: Units
-  onEdit: () => void
   /** Offers to undo a confirmed duplicate, so the row counts again. */
   restorable?: boolean
 }) {
@@ -83,46 +98,49 @@ function ActivityRow({
   // a row with a moving time that differs shows the moving pace and says so; the duration is elapsed
   const movingPace = showPace && activity.movingSec !== null && movingTimeDiffers(activity)
   const source = sourceLabel(activity.source)
+  const distance = hasDistance
+    ? activity.distanceM === null
+      ? EN_DASH
+      : formatDistance(activity.distanceM, units)
+    : sets
+  const duration = formatDuration(activity.durationSec)
+  const pace =
+    showPace && activity.distanceM !== null
+      ? formatPace(
+          movingPace && activity.movingSec !== null ? activity.movingSec : activity.durationSec,
+          activity.distanceM,
+          units,
+        )
+      : null
+  const note =
+    activity.duplicateStatus === 'confirmed'
+      ? [source, 'Duplicate, not counted'].filter((part) => part !== null).join(' · ')
+      : source
 
   return (
     <li className={styles.item}>
-      <div className={styles.main}>
-        <button type="button" className={styles.row} onClick={onEdit}>
-          <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
-          <span className={styles.figure}>{formatDuration(activity.durationSec)}</span>
-          {hasDistance ? (
-            <span className={styles.figure}>
-              {activity.distanceM === null ? EN_DASH : formatDistance(activity.distanceM, units)}
-            </span>
-          ) : sets !== null ? (
-            <span className={styles.figure}>{sets}</span>
-          ) : null}
-          {showPace && activity.distanceM !== null ? (
-            <span className={styles.pace}>
-              {/* With a moving time that differs, the pace is the moving one and a screen reader is told so */}
-              <span className="visually-hidden">{`${activityPaceLabel(movingPace)}: `}</span>
-              {formatPace(
-                movingPace && activity.movingSec !== null
-                  ? activity.movingSec
-                  : activity.durationSec,
-                activity.distanceM,
-                units,
-              )}
-            </span>
-          ) : null}
-          {source !== null ? <span className={styles.source}>{source}</span> : null}
-          {activity.duplicateStatus === 'confirmed' ? (
-            <span className={styles.source}>Duplicate, not counted</span>
-          ) : null}
-        </button>
-        <Link
-          to={`/activities/${encodeURIComponent(activity.id)}`}
-          className={styles.detailLink}
-          aria-label={`Details, ${TYPE_LABELS[activity.type]} on ${formatShortDate(activity.date)}`}
-        >
-          Details
-        </Link>
-      </div>
+      {/* The whole row is the link to the activity; editing is on its page. The name is the kind,
+          the figures in reading order and the pace with its label. */}
+      <Link
+        to={`/activities/${encodeURIComponent(activity.id)}`}
+        className={styles.row}
+        aria-label={[
+          TYPE_LABELS[activity.type],
+          dateHeading(activity.date),
+          distance === EN_DASH ? null : distance,
+          duration,
+          pace === null ? null : `${activityPaceLabel(movingPace)} ${pace}`,
+          note,
+        ]
+          .filter((part) => part !== null && part !== '')
+          .join(', ')}
+      >
+        <span className={styles.type}>{TYPE_LABELS[activity.type]}</span>
+        <span className={styles.figure}>{distance ?? ''}</span>
+        <span className={styles.figure}>{duration}</span>
+        <span className={styles.pace}>{pace ?? ''}</span>
+        {note !== null && note !== '' ? <span className={styles.source}>{note}</span> : null}
+      </Link>
       {restorable && activity.duplicateStatus === 'confirmed' ? (
         <div className={styles.duplicate}>
           <div className={styles.duplicateActions}>
@@ -185,11 +203,12 @@ export function ActivitiesPage() {
   const adding = params.get('new') === '1'
   const duplicatesOnly = params.get('duplicates') === '1'
   const confirmedHeadingId = useId()
+  const datesId = useId()
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [editing, setEditing] = useState<ActivityListItem | null>(null)
+  const [datesOpen, setDatesOpen] = useState(false)
   const [importing, setImporting] = useState(false)
 
   const settings = useSettings()
@@ -210,7 +229,10 @@ export function ActivitiesPage() {
   const total = duplicatesOnly ? whole.data?.length : paged.data?.total
   // A page that failed leaves the rows already read in place; only a failed first read is an error.
   const moreFailed = !duplicatesOnly && paged.isFetchNextPageError
-  const loadFailed = activities.isError && !moreFailed
+  // Rows already on the screen stay when a later read fails (data wins in `useLoadView`); only a
+  // list with none is an error, and its retry keeps the error state mounted.
+  const loadView = useLoadView(activities)
+  const loadFailed = loadView === 'failed' || loadView === 'retrying'
 
   const moreButton = useRef<HTMLButtonElement>(null)
   const countStatus = useRef<HTMLParagraphElement>(null)
@@ -238,6 +260,14 @@ export function ActivitiesPage() {
     )
   }
 
+  // A range that is set keeps its fields in view, so a filter is never active out of sight.
+  const showDates = datesOpen
+  const rangeText = [
+    rangeDate(from) === null ? null : `from ${rangeDate(from) ?? ''}`,
+    rangeDate(to) === null ? null : `to ${rangeDate(to) ?? ''}`,
+  ]
+    .filter((part) => part !== null)
+    .join(' ')
   const filtersActive = typeFilter !== 'all' || from !== '' || to !== '' || duplicatesOnly
   const rows = (loaded ?? []).filter((row) => !duplicatesOnly || row.duplicateStatus === 'possible')
   // The duplicates view also lists confirmed rows, so a wrong confirmation can be undone.
@@ -255,7 +285,8 @@ export function ActivitiesPage() {
   const remaining = total === undefined || loaded === undefined ? 0 : total - loaded.length
   const showMore = !duplicatesOnly && !badRange && !loadFailed && !loading && paged.hasNextPage
   // The empty state carries its own Log and Import buttons, so the bar and filters wait for data.
-  const showControls = filtersActive || (!loading && !noneAtAll)
+  // The controls stay through a retry of a failed first read, so the button does not move under the finger.
+  const showControls = filtersActive || loadFailed || (!loading && !noneAtAll)
 
   const logButton = (
     <Button
@@ -286,9 +317,11 @@ export function ActivitiesPage() {
     )
   } else if (loadFailed) {
     body = (
-      <p role="alert" className={styles.error}>
-        Activities did not load. Reload the page to try again.
-      </p>
+      <ErrorState
+        subject="Activities"
+        retrying={loadView === 'retrying'}
+        onRetry={() => activities.refetch()}
+      />
     )
   } else if (loading) {
     body = <Skeleton lines={5} />
@@ -322,14 +355,7 @@ export function ActivitiesPage() {
         <h2 className={styles.date}>{dateHeading(group.date)}</h2>
         <ul className={styles.list}>
           {group.rows.map((row) => (
-            <ActivityRow
-              key={row.id}
-              activity={row}
-              units={units}
-              onEdit={() => {
-                setEditing(row)
-              }}
-            />
+            <ActivityRow key={row.id} activity={row} units={units} />
           ))}
         </ul>
       </section>
@@ -360,34 +386,53 @@ export function ActivitiesPage() {
             value={typeFilter}
             onChange={setTypeFilter}
           />
-          <div className={styles.dates}>
-            <Field label="From">
-              {(control) => (
-                <Input
-                  {...control}
-                  type="date"
-                  max={to || undefined}
-                  value={from}
-                  onChange={(e) => {
-                    setFrom(e.target.value)
-                  }}
-                />
-              )}
-            </Field>
-            <Field label="To">
-              {(control) => (
-                <Input
-                  {...control}
-                  type="date"
-                  min={from || undefined}
-                  value={to}
-                  onChange={(e) => {
-                    setTo(e.target.value)
-                  }}
-                />
-              )}
-            </Field>
+          <div className={styles.datesBar}>
+            <Button
+              variant="quiet"
+              className={styles.datesToggle}
+              aria-expanded={showDates}
+              aria-controls={datesId}
+              onClick={() => {
+                setDatesOpen(!showDates)
+              }}
+            >
+              Dates
+            </Button>
+            {/* A range that is set stays in force when the fields are folded away, and says so here. */}
+            {!showDates && rangeText !== '' ? (
+              <span className={styles.rangeText}>{rangeText}</span>
+            ) : null}
           </div>
+          {showDates ? (
+            <div id={datesId} className={styles.dates}>
+              <Field label="From">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="date"
+                    max={to || undefined}
+                    value={from}
+                    onChange={(e) => {
+                      setFrom(e.target.value)
+                    }}
+                  />
+                )}
+              </Field>
+              <Field label="To">
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="date"
+                    min={from || undefined}
+                    value={to}
+                    onChange={(e) => {
+                      setTo(e.target.value)
+                    }}
+                  />
+                )}
+              </Field>
+            </div>
+          ) : null}
           {duplicatesOnly ? (
             <p className={styles.notice}>
               Showing possible duplicates only.{' '}
@@ -437,15 +482,7 @@ export function ActivitiesPage() {
               <h3 className={styles.date}>{dateHeading(group.date)}</h3>
               <ul className={styles.list}>
                 {group.rows.map((row) => (
-                  <ActivityRow
-                    key={row.id}
-                    activity={row}
-                    units={units}
-                    restorable
-                    onEdit={() => {
-                      setEditing(row)
-                    }}
-                  />
+                  <ActivityRow key={row.id} activity={row} units={units} restorable />
                 ))}
               </ul>
             </div>
@@ -454,11 +491,9 @@ export function ActivitiesPage() {
       ) : null}
 
       <ActivityForm
-        open={adding || editing !== null}
-        activity={editing ?? undefined}
+        open={adding}
         onClose={() => {
-          setEditing(null)
-          if (adding) setFlag('new', false)
+          setFlag('new', false)
         }}
       />
       <ImportDialog

@@ -103,11 +103,13 @@ test('profile, goal, plan, today, a rated run, its assessment, a review and what
 
   // Rate it on Today: RPE and how it felt.
   await page.goto('/')
-  const feedback = page.getByRole('region', { name: 'How did it go?' })
+  // The run is the hero's own, so the hero asks about it.
+  const feedback = page.getByRole('region', { name: 'Rate this run' })
   await expect(feedback).toBeVisible()
   await feedback.getByRole('button', { name: 'RPE 4' }).click()
   await feedback.getByRole('button', { name: 'As expected' }).click()
-  await feedback.getByRole('button', { name: 'Save', exact: true }).click()
+  await feedback.getByRole('button', { name: 'Save rating' }).click()
+  await expect(page.getByText('Rating saved.')).toBeVisible()
   await expect(feedback).toBeHidden()
 
   // The plan's session sheet shows the assessment of the linked run.
