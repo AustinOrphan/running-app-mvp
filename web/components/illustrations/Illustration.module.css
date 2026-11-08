@@ -1,0 +1,26 @@
+/* Line art on the paper: muted ink, one accent stroke, nothing that moves. */
+.art {
+  flex: none;
+  display: block;
+  align-self: flex-start;
+  height: 8rem;
+  width: auto;
+  max-width: 100%;
+  margin-bottom: var(--space-3);
+  color: var(--text-muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.art :global(.accent) {
+  stroke: var(--accent);
+}
+
+@media (max-width: 480px) {
+  .art {
+    height: 6rem;
+  }
+}

@@ -8,19 +8,15 @@ export const ILLUSTRATIONS_KEY = 'rl_illustrations'
 
 const listeners = new Set<() => void>()
 
-function read(): boolean {
+// Where storage is blocked the choice still holds for the life of the page.
+let blockedChoice = false
+
+function snapshot(): boolean {
   try {
     return localStorage.getItem(ILLUSTRATIONS_KEY) === 'on'
   } catch {
-    return false
+    return blockedChoice
   }
-}
-
-// Where storage is blocked the choice still holds for the life of the page.
-let fallback: boolean | null = null
-
-function snapshot(): boolean {
-  return fallback ?? read()
 }
 
 function subscribe(listener: () => void): () => void {
@@ -42,9 +38,8 @@ export function useIllustrations(): { on: boolean; setOn: (next: boolean) => voi
   const setOn = useCallback((next: boolean) => {
     try {
       localStorage.setItem(ILLUSTRATIONS_KEY, next ? 'on' : 'off')
-      fallback = null
     } catch {
-      fallback = next
+      blockedChoice = next
     }
     for (const listener of listeners) listener()
   }, [])
