@@ -2,7 +2,7 @@
 // H14, ADR 0018): each reads the one plan, and every sentence passes the copy lint.
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
   describeRacePlan,
   describeRacePoints,
@@ -20,10 +20,15 @@ import { RaceSessionSection } from '../../web/components/race/RaceSessionSection
 import { TodaySlot } from '../../web/components/today/TodaySlot.tsx'
 import { MorePage } from '../../web/pages/MorePage.tsx'
 import { RacePage } from '../../web/pages/RacePage.tsx'
+import { courseGpx, courseGpxFrom, outAndBackPoints } from '../fixtures/course/buildCourseGpx.ts'
 import { expectCleanCopy, makeTestQueryClient, mockApi, renderWithProviders } from './helpers.tsx'
 import { makeCoach, makeToday } from './today-fixtures.ts'
 
 const HOUR = 3600
+
+afterEach(() => {
+  window.localStorage.clear()
+})
 const RACE = '2026-03-20'
 const TODAY = '2026-03-18'
 
@@ -186,7 +191,7 @@ describe('RacePage', () => {
     expect(screen.queryByRole('heading', { level: 2 })).toBeNull()
   })
 
-  test('says it needs a connection when the plan cannot be read', async () => {
+  test('says the plan did not load when it cannot be read, and offers to try again', async () => {
     mockApi({
       'GET /api/race/plan': () => ({
         status: 503,
@@ -195,7 +200,71 @@ describe('RacePage', () => {
       'GET /api/settings': () => SETTINGS,
     })
     renderWithProviders(<RacePage />, { route: '/race' })
-    expect(await screen.findByRole('alert')).toHaveTextContent(/needs a connection/)
+    expect(await screen.findByRole('alert')).toHaveTextContent('The race plan did not load.')
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+})
+
+describe("RacePage: the phone's copy", () => {
+  const SAVED = '2026-03-18T05:12:00.000Z'
+
+  test('says it is the saved copy, when it was saved, and leaves out the days to go', async () => {
+    mockApi({
+      'GET /api/race/plan': () => ({
+        plan: planWith(),
+        reason: null,
+        servedFromCache: true,
+        savedAt: SAVED,
+      }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    const { container } = renderWithProviders(<RacePage />, { route: '/race' })
+    expect(await screen.findByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+    const note = screen.getByText(/^Offline\. Showing the race plan saved (at|on) /)
+    expect(note.closest('[aria-live="polite"]')).not.toBeNull()
+    expect(screen.queryByText(/days to go|Race day/)).toBeNull()
+    expect(screen.getByText(/^Example 100, /)).toBeVisible()
+    expect(container.textContent).not.toMatch(/needs a connection/)
+    expectCleanCopy(container)
+  })
+
+  test("shows no note, and the days to go, for the server's own answer", async () => {
+    mockApi({
+      'GET /api/race/plan': () => ({ plan: planWith(), reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    expect(await screen.findByText(/2 days to go/)).toBeVisible()
+    expect(screen.queryByText(/^Offline\./)).toBeNull()
+  })
+
+  test("asks again when the browser is online, and the server's answer replaces the copy", async () => {
+    let reads = 0
+    mockApi({
+      'GET /api/race/plan': () => {
+        reads += 1
+        return reads === 1
+          ? { plan: planWith(), reason: null, servedFromCache: true, savedAt: SAVED }
+          : { plan: planWith(), reason: null }
+      },
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    expect(await screen.findByText(/2 days to go/)).toBeVisible()
+    expect(screen.queryByText(/^Offline\./)).toBeNull()
+    expect(reads).toBe(2)
+  })
+
+  test('says so when the browser is offline and the copy carries no time', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    mockApi({
+      'GET /api/race/plan': () => ({ plan: planWith(), reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race' })
+    expect(
+      await screen.findByText('Offline. Showing the race plan saved on this phone.'),
+    ).toBeVisible()
   })
 })
 
@@ -490,5 +559,347 @@ describe('RacePage: the checkpoint table', () => {
         calls.find((c) => c.method === 'PUT')!.body as { checkpoints: CheckpointInput[] }
       ).checkpoints.map((row) => row.name),
     ).toEqual(['Checkpoint B'])
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The course import
+// ---------------------------------------------------------------------------------------------
+
+describe('RacePage: Import course GPX', () => {
+  const gpxFile = (text: string, name = 'course.gpx') =>
+    new File([text], name, { type: 'application/gpx+xml' })
+
+  function setup(plan: RacePlan = planWith()) {
+    return mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+      'GET /api/race/checkpoints': () => ROWS_VIEW(plan),
+      'PUT /api/race/checkpoints': ({ body }) => ({
+        goalId: plan.goalId,
+        distanceM: plan.distanceM,
+        checkpoints: (body as { checkpoints: CheckpointInput[] }).checkpoints,
+      }),
+    })
+  }
+
+  test('proposes the waypoints, lets the runner rename, drop and type a cutoff, and sends only the confirmed rows', async () => {
+    const { calls } = setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    const file = gpxFile(
+      courseGpx({
+        waypoints: [
+          { name: 'Station A', at: 40 },
+          { name: 'Station B', at: 90 },
+          { name: 'Station C', at: 120 },
+        ],
+      }),
+    )
+    await user.upload(screen.getByLabelText('Course GPX file'), file)
+
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(within(dialog).getByText(/Proposed from the waypoints in the file: 3/)).toBeVisible()
+    expect(within(dialog).getByText(/Course in the file: 161\.\d km/)).toBeVisible()
+    // The saved table is not read: the rows come from the file.
+    expect(calls.filter((c) => c.url.includes('/race/checkpoints'))).toEqual([])
+    const first = await within(dialog).findByRole('group', { name: 'Point 1' })
+    expect(within(first).getByLabelText('Name')).toHaveValue('Station A')
+    expect(within(first).getByLabelText('Climb (m)')).not.toHaveValue('')
+
+    await user.clear(within(first).getByLabelText('Name'))
+    await user.type(within(first).getByLabelText('Name'), 'Lower station')
+    await user.type(within(first).getByLabelText('Cutoff, hours and minutes into the race'), '9:30')
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Point 2' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    const sent = (calls.find((c) => c.method === 'PUT')!.body as { checkpoints: CheckpointInput[] })
+      .checkpoints
+    expect(sent.map((row) => row.name)).toEqual(['Lower station', 'Station C'])
+    expect(sent[0]!.cutoffSec).toBe(9.5 * HOUR)
+    expect(sent[1]!.cutoffSec).toBeNull()
+    // Only the rows go: no track and no waypoint list.
+    expect(Object.keys(calls.find((c) => c.method === 'PUT')!.body as object)).toEqual([
+      'checkpoints',
+    ])
+    expect(JSON.stringify(calls.find((c) => c.method === 'PUT')!.body).length).toBeLessThan(600)
+  })
+
+  test('draws the profile with a hidden table of the course and the checkpoints', async () => {
+    setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(
+      screen.getByLabelText('Course GPX file'),
+      gpxFile(courseGpx({ waypoints: [{ name: 'Station A', at: 40 }] })),
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(
+      await within(dialog).findByRole('img', { name: /^Elevation profile, from \d+ m to \d+ m$/ }),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText(/Dots mark the checkpoints/)).toBeVisible()
+    const table = await within(dialog).findByRole('table', { name: 'Checkpoints on the course' })
+    expect(within(table).getByRole('rowheader', { name: 'Station A' })).toBeInTheDocument()
+    expectCleanCopy(dialog)
+  })
+
+  test('an out-and-back course proposes each station twice, in order, and the dots and table follow', async () => {
+    const { calls } = setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    const xml = courseGpxFrom(outAndBackPoints(), [
+      { name: 'Station C', lon: 0.4 },
+      { name: 'Station A', lon: 0.1 },
+      { name: 'Station B', lon: 0.25 },
+    ])
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(xml))
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    const names = [1, 2, 3, 4, 5, 6].map(
+      (n) =>
+        (
+          within(dialog)
+            .getByRole('group', { name: `Point ${String(n)}` })
+            .querySelector('input') as HTMLInputElement
+        ).value,
+    )
+    expect(names).toEqual([
+      'Station A',
+      'Station B',
+      'Station C',
+      'Station C (2nd pass)',
+      'Station B (2nd pass)',
+      'Station A (2nd pass)',
+    ])
+    const table = await within(dialog).findByRole('table', { name: 'Checkpoints on the course' })
+    const rows = within(table)
+      .getAllByRole('rowheader')
+      .map((cell) => cell.textContent)
+    expect(rows).toEqual(names)
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+    })
+    const sent = (calls.find((c) => c.method === 'PUT')!.body as { checkpoints: CheckpointInput[] })
+      .checkpoints
+    expect(sent.map((r) => r.name)).toEqual(names)
+    expect(sent.every((r, i) => i === 0 || r.distanceM > sent[i - 1]!.distanceM)).toBe(true)
+  })
+
+  test('mentions the crew notes in the replace line when the goal has some', async () => {
+    window.localStorage.setItem('race-crew:goal-1:point-500-station-a', 'Drop bag')
+    setup(planWith({}, 'aided', POINTS))
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(courseGpx()))
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(within(dialog).getByText('Saving replaces the checkpoints you have now.')).toBeVisible()
+    expect(within(dialog).getByText(/A crew note stays with a stop while/)).toBeVisible()
+  })
+
+  test('proposes evenly spaced rows, and says so, when the file has no waypoints', async () => {
+    setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(courseGpx()))
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(
+      within(dialog).getByText(
+        /The file holds no waypoints, so the points below are spaced evenly/,
+      ),
+    ).toBeVisible()
+    expect(await within(dialog).findByRole('group', { name: 'Point 1' })).toBeInTheDocument()
+  })
+
+  test('says the saved table is replaced when the plan already has rows', async () => {
+    setup(planWith({}, 'aided', POINTS))
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(courseGpx()))
+    const dialog = await screen.findByRole('dialog', { name: 'Checkpoints from the course' })
+    expect(within(dialog).getByText('Saving replaces the checkpoints you have now.')).toBeVisible()
+  })
+
+  test('says in one sentence that a file is not a course, and opens nothing', async () => {
+    setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile('<kml></kml>'))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'That file could not be read as a course. Choose a GPX file that holds a track.',
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  test('works with no connection until the save', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const { calls } = setup()
+    const user = userEvent.setup()
+    renderWithProviders(<RacePage />, { route: '/race' })
+    await screen.findByRole('heading', { level: 2, name: 'Checkpoints' })
+    await user.upload(screen.getByLabelText('Course GPX file'), gpxFile(courseGpx()))
+    expect(await screen.findByRole('dialog', { name: 'Checkpoints from the course' })).toBeVisible()
+    expect(calls.filter((c) => c.method === 'PUT')).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The race card
+// ---------------------------------------------------------------------------------------------
+
+describe('RacePage: the race card', () => {
+  const CARD_POINTS: CheckpointInput[] = [
+    { name: 'Station A', distanceM: 50_000, gainM: 1200, lossM: 300, cutoffSec: 9 * HOUR },
+    { name: 'Station B', distanceM: 110_000, gainM: null, lossM: null, cutoffSec: null },
+  ]
+
+  function open(plan: RacePlan, route = '/race?view=card') {
+    mockApi({
+      'GET /api/race/plan': () => ({ plan, reason: null }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    return renderWithProviders(<RacePage />, { route })
+  }
+
+  test('has one block for the start, each checkpoint and the finish, with the facts of the leg ahead', async () => {
+    const { container } = open(planWith({}, 'aided', CARD_POINTS))
+    const list = await screen.findByRole('list', { name: 'Race card, one block for each stop' })
+    const blocks = within(list).getAllByRole('article')
+    expect(blocks.map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Start',
+      'Station A',
+      'Station B',
+      'Finish',
+    ])
+    expect(within(blocks[0]!).getByText('Start 06:00')).toBeVisible()
+    expect(within(blocks[0]!).getByText('Next: Station A, 50 km on.')).toBeVisible()
+    expect(
+      within(blocks[0]!).getByText(/^Fuel for this leg: about \d+( to \d+)? g of carbohydrate\.$/),
+    ).toBeVisible()
+    expect(within(blocks[0]!).getByText('Climb on this leg: 1200 m, as entered.')).toBeVisible()
+    const a = blocks[1]!
+    expect(within(a).getByText(/^About \d\d:\d\d/)).toBeVisible()
+    expect(within(a).getByText('Cutoff 15:00')).toBeVisible()
+    expect(within(a).getByText('Cutoff 9 h into the race')).toBeVisible()
+    expect(within(blocks[3]!).queryByText(/^Next:|^Fuel for/)).toBeNull()
+    expectCleanCopy(container)
+    // no pace, no split, no rate
+    expect(container.textContent).not.toMatch(/\bpace\b|\bsplit|g\/h|per hour/i)
+  })
+
+  test('names the headlamp on a block the plan holds as outside daylight', async () => {
+    const plan = planWith({}, 'aided', CARD_POINTS)
+    open(plan)
+    const dark = plan.splits!.rows.some((row) => row.night === true)
+    expect(dark).toBe(true)
+    expect(
+      (await screen.findAllByText(/^Headlamp: this arrival is outside daylight\./)).length,
+    ).toBe(plan.splits!.rows.filter((row) => row.night === true).length)
+  })
+
+  test('says what to do when the plan has no checkpoints', async () => {
+    open(planWith())
+    expect(await screen.findByRole('heading', { level: 2, name: 'Race card' })).toBeVisible()
+    expect(screen.getByText(/Add checkpoints, or import the course/)).toBeVisible()
+    expect(screen.queryByRole('list', { name: /Race card, one block/ })).toBeNull()
+  })
+
+  test('is reached from the view switch, and the plan comes back from it', async () => {
+    const user = userEvent.setup()
+    open(planWith({}, 'aided', CARD_POINTS), '/race')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+    await user.click(screen.getByRole('radio', { name: 'Race card' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Race card' })).toBeVisible()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Expected time' })).toBeNull()
+    await user.click(screen.getByRole('radio', { name: 'Plan' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+  })
+
+  test('keeps a crew note on the phone, shows it again, and removes it when it is cleared', async () => {
+    const user = userEvent.setup()
+    const plan = planWith({}, 'aided', CARD_POINTS)
+    const first = open(plan)
+    const field = await screen.findByRole('textbox', { name: 'Crew note for Station A' })
+    await user.type(field, 'Drop bag, spare socks')
+    expect(window.localStorage.getItem('race-crew:goal-1:point-500-station-a')).toBe(
+      'Drop bag, spare socks',
+    )
+    // nothing is sent: no write went to the server
+    first.unmount()
+    open(plan)
+    expect(await screen.findByRole('textbox', { name: 'Crew note for Station A' })).toHaveValue(
+      'Drop bag, spare socks',
+    )
+    await user.clear(screen.getByRole('textbox', { name: 'Crew note for Station A' }))
+    expect(window.localStorage.getItem('race-crew:goal-1:point-500-station-a')).toBeNull()
+  })
+
+  test('puts the note in the printed card as text, with the field left to the screen', async () => {
+    window.localStorage.setItem('race-crew:goal-1:point-500-station-a', 'Meet at the red tent')
+    open(planWith({}, 'aided', CARD_POINTS))
+    const block = await screen.findByRole('article', { name: 'Station A' })
+    const printed = within(block).getByText('Crew note:').closest('p')
+    expect(printed).toHaveTextContent('Crew note: Meet at the red tent')
+    expect(within(block).getByRole('textbox', { name: 'Crew note for Station A' })).toHaveValue(
+      'Meet at the red tent',
+    )
+  })
+
+  test('says so when the browser will not keep a note', async () => {
+    const user = userEvent.setup()
+    open(planWith({}, 'aided', CARD_POINTS))
+    const field = await screen.findByRole('textbox', { name: 'Crew note for Station A' })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Full.', 'QuotaExceededError')
+    })
+    await user.type(field, 'x')
+    expect(await screen.findByText('This browser would not keep the note.')).toBeVisible()
+  })
+
+  test('marks the page for the print rules while it is on screen, and only then', async () => {
+    const view = open(planWith({}, 'aided', CARD_POINTS))
+    await screen.findByRole('heading', { level: 2, name: 'Race card' })
+    expect(document.documentElement.dataset['print']).toBe('race-card')
+    view.unmount()
+    expect(document.documentElement.dataset['print']).toBeUndefined()
+  })
+
+  test('prints from its button', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => undefined)
+    const user = userEvent.setup()
+    open(planWith({}, 'aided', CARD_POINTS))
+    await user.click(await screen.findByRole('button', { name: 'Print the card' }))
+    expect(print).toHaveBeenCalledTimes(1)
+  })
+
+  test('lists no fuel for a self-supported race', async () => {
+    open(planWith({}, 'self', CARD_POINTS))
+    expect(await screen.findByText(/You carry everything on this course/)).toBeVisible()
+    expect(screen.queryByText(/^Fuel for this leg/)).toBeNull()
+  })
+
+  test("reads from the phone's copy with no signal", async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    mockApi({
+      'GET /api/race/plan': () => ({
+        plan: planWith({}, 'aided', CARD_POINTS),
+        reason: null,
+        servedFromCache: true,
+        savedAt: '2026-03-18T05:12:00.000Z',
+      }),
+      'GET /api/settings': () => SETTINGS,
+    })
+    renderWithProviders(<RacePage />, { route: '/race?view=card' })
+    expect(await screen.findByRole('article', { name: 'Station A' })).toBeVisible()
+    expect(screen.getByText(/^Offline\. Showing the race plan saved/)).toBeVisible()
   })
 })

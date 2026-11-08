@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
+import { courseGpx } from '../fixtures/course/buildCourseGpx.ts'
 import { relativeDates, resetData, signedInApi, toast, type Api } from './helpers.ts'
 
 // The runner's checkpoint table on the Race page (rule H14, ADR 0018, step 4 of the race plan):
@@ -183,4 +184,153 @@ test('a self-supported race calls them course points, with no aid wording and no
   const text = (await section.textContent()) ?? ''
   expect(text).not.toMatch(/aid|checkpoint(?!\s[A-C])|Carry about|Grams to carry/i)
   expect(await scrollsSideways()).toBe(false)
+})
+
+test('imports a course GPX file: proposes its waypoints, draws the profile, and saves only the confirmed rows', async () => {
+  await api.put(`/goals/${goalId}`, { supportLevel: 'aided' })
+  await page.goto('/race')
+  const file = courseGpx({
+    waypoints: [
+      { name: 'Station A', at: 40 },
+      { name: 'Station B', at: 90 },
+      { name: 'Station C', at: 120 },
+    ],
+  })
+  await page.getByLabel('Course GPX file').setInputFiles({
+    name: 'example-course.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(file),
+  })
+  const dialog = page.getByRole('dialog', { name: 'Checkpoints from the course' })
+  await expect(dialog).toBeVisible()
+  await expect(
+    dialog.getByText('Proposed from the waypoints in the file: 3.', { exact: false }),
+  ).toBeVisible()
+  await expect(
+    dialog.getByRole('img', { name: /^Elevation profile, from \d+ (m|ft) to \d+ (m|ft)$/ }),
+  ).toBeVisible()
+  await expect(dialog.getByRole('group', { name: 'Point 3' })).toBeVisible()
+  // the dialog holds its width at 360 px, the chart included
+  expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+  await page.screenshot({ path: test.info().outputPath('course-import-360.png') })
+
+  const first = dialog.getByRole('group', { name: 'Point 1' })
+  await expect(first.getByLabel('Name')).toHaveValue('Station A')
+  await first.getByLabel('Name').fill('Lower station')
+  await first.getByLabel('Cutoff, hours and minutes into the race').fill('9:30')
+  await dialog.getByRole('button', { name: 'Remove Point 2' }).click()
+  await dialog.getByRole('button', { name: 'Save' }).click()
+  await expect(toast(page, 'Saved')).toBeVisible()
+  await expect(dialog).toBeHidden()
+
+  const list = page.getByRole('list', { name: 'Arrival times by point' })
+  await expect(list.getByRole('article')).toHaveCount(3)
+  await expect(
+    list
+      .getByRole('article', { name: 'Lower station' })
+      .getByText('Cutoff 9 h 30 min into the race'),
+  ).toBeVisible()
+  await expect(list.getByRole('article', { name: 'Station C' })).toBeVisible()
+  await expect(list.getByRole('article', { name: 'Station B' })).toHaveCount(0)
+  // the table holds the rows alone: nothing of the track was stored
+  const saved = (await api.get('/race/checkpoints')) as {
+    checkpoints: Array<Record<string, unknown>>
+  }
+  expect(saved.checkpoints.map((row) => Object.keys(row).sort())).toEqual([
+    ['cutoffSec', 'distanceM', 'gainM', 'lossM', 'name'],
+    ['cutoffSec', 'distanceM', 'gainM', 'lossM', 'name'],
+  ])
+  expect(await scrollsSideways()).toBe(false)
+})
+
+test('a file that is not a course says so and opens nothing', async () => {
+  await page.goto('/race')
+  await page.getByLabel('Course GPX file').setInputFiles({
+    name: 'not-a-course.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from('<gpx></gpx>'),
+  })
+  await expect(page.getByRole('alert')).toContainText('That file could not be read as a course')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('the race card prints on one or two pages, black on white, with no navigation, in either theme', async () => {
+  await api.put('/race/checkpoints', {
+    checkpoints: Array.from({ length: 24 }, (_unused, i) => ({
+      name: `Station ${String(i + 1)}`,
+      distanceM: (i + 1) * 6000,
+      gainM: 150 + i,
+      lossM: 120,
+      cutoffSec: (i + 2) * 3600,
+    })),
+  })
+  await page.goto('/race?view=card')
+  const list = page.getByRole('list', { name: 'Race card, one block for each stop' })
+  await expect(list.getByRole('article')).toHaveCount(26)
+  await list
+    .getByRole('textbox', { name: 'Crew note for Station 3' })
+    .fill('Crew parks at the lower lot and walks up')
+  expect(await scrollsSideways()).toBe(false)
+
+  // the rail of a wide screen is app chrome too: the wordmark and the theme button stay off paper
+  await page.setViewportSize({ width: 1280, height: 800 })
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ media: 'print', colorScheme: scheme })
+    await expect(page.getByText('Running log', { exact: true })).toBeHidden()
+    await expect(page.getByText(/^Theme:/)).toBeHidden()
+    // no navigation, and the page is black on white whatever the theme
+    await expect(page.getByRole('navigation')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Skip to content' })).toBeHidden()
+    const colours = await page.evaluate(() => {
+      const block = document.querySelector('article')
+      return {
+        page: getComputedStyle(document.body).backgroundColor,
+        text: block === null ? '' : getComputedStyle(block).color,
+        border: block === null ? '' : getComputedStyle(block).borderTopColor,
+      }
+    })
+    expect(colours).toEqual({
+      page: 'rgb(255, 255, 255)',
+      text: 'rgb(0, 0, 0)',
+      border: 'rgb(0, 0, 0)',
+    })
+    // the note prints as text and the field stays on the screen
+    await expect(page.getByText('Crew note:')).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Crew note for Station 3' })).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Print the card' })).toBeHidden()
+    await expect(page.getByRole('radio', { name: 'Race card' })).toBeHidden()
+
+    for (const format of ['A4', 'Letter'] as const) {
+      const pdf = await page.pdf({ format, printBackground: true })
+      const pages = pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)?.length ?? 0
+      expect(pages, `${format} in ${scheme}`).toBeGreaterThanOrEqual(1)
+      expect(pages, `${format} in ${scheme}`).toBeLessThanOrEqual(2)
+    }
+  }
+  await page.emulateMedia({ media: null, colorScheme: null })
+  await page.setViewportSize({ width: 360, height: 740 })
+  // the screen is as it was
+  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible()
+  await api.put('/race/checkpoints', { checkpoints: [] })
+  await page.evaluate(() => {
+    window.localStorage.clear()
+  })
+})
+
+test('a stop with a 60-character name and no break in it does not widen the card at 360 px', async () => {
+  const long = 'W'.repeat(60)
+  await api.put('/race/checkpoints', {
+    checkpoints: [{ name: long, distanceM: 40_000, gainM: 100, lossM: 50, cutoffSec: 9 * 3600 }],
+  })
+  await page.goto('/race?view=card')
+  await expect(page.getByRole('article', { name: long })).toBeVisible()
+  await page.getByRole('textbox', { name: `Crew note for ${long}` }).fill('Z'.repeat(120))
+  expect(await scrollsSideways()).toBe(false)
+  await page.goto('/race')
+  await expect(page.getByRole('article', { name: long })).toBeVisible()
+  expect(await scrollsSideways()).toBe(false)
+  await api.put('/race/checkpoints', { checkpoints: [] })
+  await page.evaluate(() => {
+    window.localStorage.clear()
+  })
 })

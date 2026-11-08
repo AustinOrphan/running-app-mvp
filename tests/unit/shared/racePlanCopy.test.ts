@@ -3,9 +3,15 @@
 // things the plan never says.
 import { describe, expect, it } from 'vitest'
 import { lintText } from '../../../shared/copy/lint.ts'
+import { RACE_CARB_ROUND_G } from '../../../shared/copy/limits.ts'
 import {
   clockRangeText,
   clockText,
+  describeRaceCard,
+  describeRaceCourse,
+  raceCopyNoteText,
+  describeRaceCourseProfile,
+  describeRaceCourseProposal,
   describeRacePlan,
   describeRacePoints,
   describeRacePointsEditor,
@@ -543,5 +549,366 @@ describe('the words of the checkpoint table', () => {
         if (typeof value === 'string') expect(lintText(value), key).toEqual([])
       }
     }
+  })
+})
+
+describe('the words of the course import', () => {
+  const facts = {
+    distanceM: 161_000,
+    gainM: 6_200,
+    lossM: 6_100,
+    basis: 'waypoints' as const,
+    waypoints: 18,
+    spacingM: 15_000,
+    offTrack: 2,
+    offTrackM: 300,
+    merged: 1,
+    mergeM: 50,
+    edge: 2,
+    beyondGoal: 2,
+    capped: 3,
+    max: 40,
+    goalDistanceM: 150_000,
+    lengthDiffers: true,
+  }
+
+  it.each(UNITS)('pass the G5 lint in %s', (units) => {
+    const proposals = [
+      describeRaceCourseProposal(facts, units),
+      describeRaceCourseProposal({ ...facts, basis: 'spaced', gainM: null, lossM: null }, units),
+    ]
+    const words = [
+      allText(describeRaceCourse(units)),
+      allText(proposals),
+      allText(describeRaceCourseProfile({ lowM: 300, highM: 900 }, units)),
+      [describeRaceCourse(units).errLarge(25), describeRaceCourse(units).pointName(3)],
+    ].flat()
+    expect(words.length).toBeGreaterThan(20)
+    for (const line of words) expect(lintText(line), line).toEqual([])
+  })
+
+  it('says each fact once and nothing that sets a pace or a target', () => {
+    const text = describeRaceCourseProposal(facts, 'km')
+    expect(text.summary).toBe('Course in the file: 161 km, 6200 m of climb and 6100 m of descent.')
+    expect(text.source).toBe(
+      'Proposed from the waypoints in the file: 18. Rename, drop or add points, then type the cutoffs.',
+    )
+    expect(text.notices).toHaveLength(6)
+    expect(text.notices.join(' ')).toMatch(/goal distance of 150 km are left out: 2/)
+    expect(text.notices.join(' ')).toMatch(
+      /room for 40 points, so the first 40 are kept and 3 are left out/,
+    )
+    expect(text.notices.join(' ')).toMatch(/goal 150 km/)
+    const joined = [text.summary, text.source, ...text.notices].join('\n')
+    expect(joined).not.toMatch(/\d:\d\d ?\/ ?(km|mi)|\b(pace|split|target time|goal time)\b/i)
+  })
+
+  it('says the beyond-goal notice even when the track is within two percent of the goal', () => {
+    const near = describeRaceCourseProposal(
+      {
+        ...facts,
+        lengthDiffers: false,
+        goalDistanceM: 50_000,
+        distanceM: 50_900,
+        edge: 0,
+        merged: 0,
+        offTrack: 0,
+        capped: 0,
+        beyondGoal: 1,
+      },
+      'km',
+    )
+    expect(near.notices).toEqual([
+      'Waypoints at or past the goal distance of 50 km are left out: 1.',
+    ])
+  })
+
+  it('reads the climb in feet for miles, and names the axes', () => {
+    expect(describeRaceCourseProposal(facts, 'mi').summary).toContain('ft of climb')
+    const profile = describeRaceCourseProfile({ lowM: 300, highM: 900 }, 'mi')
+    expect(profile.distanceUnit).toBe('mi')
+    expect(profile.elevationUnit).toBe('ft')
+    expect(profile.caption).toBe(
+      'Elevation in ft against distance in mi. Dots mark the checkpoints.',
+    )
+  })
+
+  it('says no climb when the file holds no elevation', () => {
+    const flat = describeRaceCourseProposal({ ...facts, gainM: null, lossM: null }, 'km')
+    expect(flat.summary).toContain('no elevation')
+  })
+})
+
+describe("the note for the phone's copy", () => {
+  const now = new Date('2026-10-23T18:00:00Z')
+
+  it('names the time of a copy kept today, in the given zone', () => {
+    expect(raceCopyNoteText('2026-10-23T11:12:00Z', now, 'km', 'UTC')).toBe(
+      'Offline. Showing the race plan saved at 11:12.',
+    )
+  })
+
+  it('names the day too when the copy was kept on another day', () => {
+    expect(raceCopyNoteText('2026-10-22T21:50:00Z', now, 'mi', 'UTC')).toBe(
+      'Offline. Showing the race plan saved on Thu 22 Oct at 21:50.',
+    )
+  })
+
+  it('reads the day in the zone given, not in UTC', () => {
+    expect(raceCopyNoteText('2026-10-23T03:30:00Z', now, 'km', 'America/Chicago')).toBe(
+      'Offline. Showing the race plan saved on Thu 22 Oct at 22:30.',
+    )
+  })
+
+  it("says only that the copy is the phone's own when it carries no time", () => {
+    for (const savedAt of [undefined, 'not a time']) {
+      expect(raceCopyNoteText(savedAt, now, 'km', 'UTC')).toBe(
+        'Offline. Showing the race plan saved on this phone.',
+      )
+    }
+  })
+
+  it('passes the G5 lint', () => {
+    for (const line of [
+      raceCopyNoteText('2026-10-22T21:50:00Z', now, 'km', 'UTC'),
+      raceCopyNoteText('2026-10-23T11:12:00Z', now, 'km', 'UTC'),
+      raceCopyNoteText(undefined, now, 'km', 'UTC'),
+    ]) {
+      expect(lintText(line), line).toEqual([])
+    }
+  })
+})
+
+describe('the words of the race card', () => {
+  const POINTS = [
+    { name: 'Checkpoint A', distanceM: 50_000, gainM: 2000, lossM: 300, cutoffSec: 9 * HOUR },
+    { name: 'Checkpoint B', distanceM: 110_000, gainM: null, lossM: null, cutoffSec: null },
+    { name: 'Checkpoint C', distanceM: 150_000, gainM: 40, lossM: null, cutoffSec: 28 * HOUR },
+  ]
+  const aided = racePlanFor(input({ checkpoints: POINTS, ladder: ladderOf([run(0), run(1)]) }))
+  const CARDS: Array<[string, RacePlan]> = [
+    ['aided', aided],
+    ['self-supported', racePlanFor(input({ checkpoints: POINTS, supportLevel: 'self' }))],
+    ['no start time', racePlanFor(input({ checkpoints: POINTS, goal: goal({ startTime: null }) }))],
+    [
+      'no darkness',
+      racePlanFor(input({ checkpoints: POINTS, goal: goal({ crossesDarkness: false }) })),
+    ],
+    ['no course climb', racePlanFor(input({ checkpoints: POINTS, goal: goal({ gainM: 0 }) }))],
+  ]
+
+  it.each(CARDS)('passes the G5 lint in both unit systems: %s', (_name, plan) => {
+    for (const units of UNITS) {
+      const lines = allText(describeRaceCard(plan, units))
+      expect(lines.length).toBeGreaterThan(20)
+      for (const line of lines) expect(lintText(line), line).toEqual([])
+    }
+  })
+
+  it('has a block for the start, each checkpoint and the finish, in that order', () => {
+    const card = describeRaceCard(aided, 'km')
+    expect(card.blocks.map((block) => block.name)).toEqual([
+      'Start',
+      'Checkpoint A',
+      'Checkpoint B',
+      'Checkpoint C',
+      'Finish',
+    ])
+    expect(card.blocks.map((block) => block.key)).toEqual([
+      'start',
+      'point-500-checkpoint-a',
+      'point-1100-checkpoint-b',
+      'point-1500-checkpoint-c',
+      'finish',
+    ])
+  })
+
+  it('says the arrival and the cutoff of a stop as two separate facts', () => {
+    const [, a, , c, finish] = describeRaceCard(aided, 'km').blocks
+    expect(a!.arrival).toMatch(/^About /)
+    expect(a!.cutoff).toEqual(['Cutoff 15:00', 'Cutoff 9 h into the race'])
+    expect(a!.arrival).not.toMatch(/cutoff/i)
+    expect(c!.cutoff).toHaveLength(2)
+    expect(finish!.cutoff).toEqual([])
+    expect(finish!.next).toBeNull()
+  })
+
+  it('reads the leg ahead from the next row: where it goes, its carbohydrate and its climb', () => {
+    const card = describeRaceCard(aided, 'km')
+    const rows = aided.splits!.rows
+    const [start, a, b, , finish] = card.blocks
+    expect(start!.next).toBe('Next: Checkpoint A, 50 km on.')
+    expect(a!.next).toBe('Next: Checkpoint B, 60 km on.')
+    expect(card.blocks[3]!.next).toBe('Next: the finish, 10.9 km on.')
+    // The climb of a leg is the next row's: A was entered at 2000 m, B was not, C at 40 m.
+    expect(start!.climb).toBe('Climb on this leg: 2000 m, as entered.')
+    expect(a!.climb).toMatch(
+      /^Climb on this leg: about [\d ]+ m, shared out from the course total\.$/,
+    )
+    expect(b!.climb).toBe('Climb on this leg: 40 m, as entered.')
+    // The grams are those the table gives the same leg: one rate, one source (`raceFuelFor`).
+    const round = (g: number) => Math.round(g / RACE_CARB_ROUND_G) * RACE_CARB_ROUND_G
+    const grams = (low: number, high: number) =>
+      round(low) === round(high)
+        ? `Fuel for this leg: about ${String(round(high))} g of carbohydrate.`
+        : `Fuel for this leg: about ${String(round(low))} to ${String(round(high))} g of carbohydrate.`
+    expect(start!.fuel).toBe(grams(rows[0]!.carryG![0], rows[0]!.carryG![1]))
+    expect(a!.fuel).toBe(grams(rows[1]!.carryG![0], rows[1]!.carryG![1]))
+    expect(finish!.fuel).toBeNull()
+    expect(finish!.climb).toBeNull()
+  })
+
+  it("says one figure when a leg's two ends round alike, and two when the rate is a range", () => {
+    const fixed = describeRaceCard(aided, 'km').blocks[0]!.fuel
+    expect(fixed).toMatch(/^Fuel for this leg: about \d+ g of carbohydrate\.$/)
+    const ranged = racePlanFor(
+      input({ checkpoints: POINTS, ladder: ladderOf([run(0), run(1), run(2)]) }),
+    )
+    const lines = describeRaceCard(ranged, 'km')
+      .blocks.map((b) => b.fuel)
+      .filter((line): line is string => line !== null)
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) expect(line).toMatch(/^Fuel for this leg: about \d+( to \d+)? g /)
+  })
+
+  it('names the headlamp only for an arrival the plan holds as outside daylight', () => {
+    const card = describeRaceCard(aided, 'km')
+    const dark = aided.dark!
+    for (const [index, row] of aided.splits!.rows.entries()) {
+      const block = card.blocks[index + 1]!
+      if (row.night === true) {
+        expect(block.headlamp).toBe(
+          `Headlamp: this arrival is outside daylight. Dusk is ${dark.dusk} and dawn ${dark.dawn}.`,
+        )
+      } else {
+        expect(block.headlamp).toBeNull()
+      }
+    }
+    expect(card.blocks.some((block) => block.headlamp !== null)).toBe(true)
+    expect(card.blocks[0]!.headlamp).toBeNull()
+    const noDark = describeRaceCard(CARDS[3]![1], 'km')
+    expect(noDark.blocks.every((block) => block.headlamp === null)).toBe(true)
+  })
+
+  it('lists no fuel for a self-supported race, and says why once', () => {
+    const card = describeRaceCard(CARDS[1]![1], 'km')
+    expect(card.blocks.every((block) => block.fuel === null)).toBe(true)
+    expect(card.notes[0]).toBe(
+      'You carry everything on this course, so no fuel is listed for each leg.',
+    )
+  })
+
+  it('gives the start block the start time, and none without one', () => {
+    expect(describeRaceCard(aided, 'km').blocks[0]!.arrival).toBe('Start 06:00')
+    expect(describeRaceCard(CARDS[2]![1], 'km').blocks[0]!.arrival).toBeNull()
+  })
+
+  it('says the empty state, with no blocks, for a plan with no rows', () => {
+    const card = describeRaceCard(PLANS[0]![1], 'km')
+    expect(card.blocks).toEqual([])
+    expect(card.empty).toMatch(/Add checkpoints, or import the course/)
+  })
+
+  it.each(CARDS)('states no pace, no split and no rate: %s', (_name, plan) => {
+    for (const units of UNITS) {
+      const card = describeRaceCard(plan, units)
+      const joined = allText({ ...card, heading: '' }).join('\n')
+      expect(joined).not.toMatch(/\d:\d\d ?\/ ?(km|mi)|\b(pace|split|splits|negative split)\b/i)
+      expect(joined).not.toMatch(/g\/h|g per hour|\bper hour\b/i)
+      expect(joined).not.toMatch(
+        /\b(behind|ahead of|catch up|make up for|target time|goal time)\b/i,
+      )
+    }
+  })
+
+  it('keys a block by its place to 100 m and its name, so a note follows a re-imported or nudged stop', () => {
+    const renamed = racePlanFor(
+      input({
+        checkpoints: POINTS.map((p, i) => (i === 0 ? { ...p, name: 'Lower station' } : p)),
+        ladder: ladderOf([run(0), run(1)]),
+      }),
+    )
+    const keys = describeRaceCard(aided, 'km').blocks.map((b) => b.key)
+    expect(keys).toEqual([
+      'start',
+      'point-500-checkpoint-a',
+      'point-1100-checkpoint-b',
+      'point-1500-checkpoint-c',
+      'finish',
+    ])
+    // renamed, the stop gets a new key: its note is left behind, not given to another stop
+    const after = describeRaceCard(renamed, 'km').blocks.map((b) => b.key)
+    expect(after[1]).toBe('point-500-lower-station')
+    expect(after.filter((key, i) => key !== keys[i])).toEqual(['point-500-lower-station'])
+    // nudged a few metres, it keeps its key
+    const nudged = racePlanFor(
+      input({
+        checkpoints: POINTS.map((p, i) => (i === 0 ? { ...p, distanceM: p.distanceM + 30 } : p)),
+        ladder: ladderOf([run(0), run(1)]),
+      }),
+    )
+    expect(describeRaceCard(nudged, 'km').blocks.map((b) => b.key)).toEqual(keys)
+  })
+})
+
+describe('the name of a later pass', () => {
+  it('reads as plain ordinals', () => {
+    const words = describeRaceCourse('km')
+    expect(words.passName('Station', 2)).toBe('Station (2nd pass)')
+    expect(words.passName('Station', 3)).toBe('Station (3rd pass)')
+    expect(words.passName('Station', 4)).toBe('Station (4th pass)')
+    expect(words.passName('Station', 11)).toBe('Station (11th pass)')
+    expect(words.passName('Station', 22)).toBe('Station (22nd pass)')
+    expect(lintText(words.passName('Station', 2))).toEqual([])
+  })
+
+  it('leaves the card in distance order whatever order the rows were given in', () => {
+    const rows = [
+      { name: 'B (2nd pass)', distanceM: 120_000, gainM: null, lossM: null, cutoffSec: null },
+      { name: 'A', distanceM: 30_000, gainM: null, lossM: null, cutoffSec: null },
+      { name: 'B', distanceM: 70_000, gainM: null, lossM: null, cutoffSec: null },
+      { name: 'A (2nd pass)', distanceM: 150_000, gainM: null, lossM: null, cutoffSec: null },
+    ]
+    const card = describeRaceCard(racePlanFor(input({ checkpoints: rows })), 'km')
+    expect(card.blocks.map((b) => b.name)).toEqual([
+      'Start',
+      'A',
+      'B',
+      'B (2nd pass)',
+      'A (2nd pass)',
+      'Finish',
+    ])
+    expect(card.blocks.map((b) => b.next)).toEqual([
+      'Next: A, 30 km on.',
+      'Next: B, 40 km on.',
+      'Next: B (2nd pass), 50 km on.',
+      'Next: A (2nd pass), 30 km on.',
+      'Next: the finish, 10.9 km on.',
+      null,
+    ])
+  })
+})
+
+describe('the start block of the race card', () => {
+  const POINTS = [
+    { name: 'Checkpoint A', distanceM: 50_000, gainM: null, lossM: null, cutoffSec: null },
+  ]
+  const headlamp = (startTime: string | null) =>
+    describeRaceCard(racePlanFor(input({ checkpoints: POINTS, goal: goal({ startTime }) })), 'km')
+      .blocks[0]!.headlamp
+
+  it('names the headlamp when the race starts outside daylight', () => {
+    expect(headlamp('04:00')).toMatch(/^Headlamp: this arrival is outside daylight\. Dusk is /)
+  })
+
+  it('says nothing for a start in daylight or with no start time', () => {
+    expect(headlamp('06:00')).toBeNull()
+    expect(headlamp(null)).toBeNull()
+  })
+
+  it('says the notes stay on the phone and go at sign-out', () => {
+    expect(describeRaceCard(PLANS[0]![1], 'km').noteHint).toBe(
+      'Notes stay on this phone and are cleared when you sign out.',
+    )
   })
 })

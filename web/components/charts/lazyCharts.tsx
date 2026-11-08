@@ -78,6 +78,10 @@ export const StreamChart = lazyChart(
   () => import('./StreamChart.tsx').then((module) => module.StreamChart),
   'stream',
 )
+export const CourseProfileChart = lazyChart(
+  () => import('./CourseProfileChart.tsx').then((module) => module.CourseProfileChart),
+  'stream',
+)
 export const PredictionTrackChart = lazyChart(
   () => import('./PredictionTrackChart.tsx').then((module) => module.PredictionTrackChart),
   'track',

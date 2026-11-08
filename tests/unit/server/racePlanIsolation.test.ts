@@ -41,17 +41,22 @@ const ENGINE_ALLOWED = [
   'shared/types.ts',
   'web/components/race/CheckpointSheet.tsx',
   'web/components/race/CheckpointTable.tsx',
+  'web/components/race/RaceCard.tsx',
   'web/components/race/RaceSlot.tsx',
   'web/pages/RacePage.tsx',
 ]
 
 const COPY_ALLOWED = [
   'shared/copy/templates.ts',
+  'web/components/charts/CourseProfileChart.tsx',
   'web/components/race/CheckpointSheet.tsx',
   'web/components/race/CheckpointTable.tsx',
+  'web/components/race/CourseImportButton.tsx',
   'web/components/race/RaceBlocks.tsx',
+  'web/components/race/RaceCard.tsx',
   'web/components/race/RaceSessionSection.tsx',
   'web/components/race/RaceSlot.tsx',
+  'web/components/race/courseImport.ts',
   'web/pages/RacePage.tsx',
 ]
 

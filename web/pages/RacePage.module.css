@@ -11,3 +11,23 @@
 .page > * {
   min-width: 0;
 }
+
+/* The live region for the phone's-copy note: no height while it is empty. */
+.copyNote {
+  min-width: 0;
+}
+
+.copyNote:not(:empty) {
+  margin-bottom: var(--space-3);
+}
+
+/* The switch between the plan and the card is for the screen. */
+.views {
+  margin-bottom: var(--space-3);
+}
+
+@media print {
+  .views {
+    display: none;
+  }
+}

@@ -72,7 +72,9 @@ export function Sheet({
     openSheets.push({ id, root: () => root.current })
     syncOpenSheets()
     const first = body.current?.querySelector<HTMLElement>(focusable) ?? panel.current
-    first?.focus()
+    // A sheet opens at its top, whatever its first control is: scrolling to that control would hide
+    // the lines above it (the course import opens on a summary and a chart before its first field).
+    first?.focus({ preventScroll: true })
 
     function onKeyDown(event: globalThis.KeyboardEvent) {
       // a sheet over this one is the one the keys are for

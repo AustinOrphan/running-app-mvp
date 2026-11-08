@@ -10,14 +10,17 @@ import { useOnline } from '../useOnline.ts'
  * connection, or the service worker answered from its cache because the server did not
  * (`servedFromCache`, the common case on a phone with one bar of signal: the browser believes it is
  * online). One predicate, so the note, the day rules below and every line that needs the server
- * ask the same question.
+ * ask the same question. The race plan's page asks it too (ADR 0012, addendum).
  */
-export function isPhoneCopy(online: boolean, view: TodayView | undefined): boolean {
+export function isPhoneCopy(
+  online: boolean,
+  view: Pick<TodayView, 'servedFromCache'> | undefined,
+): boolean {
   return !online || view?.servedFromCache === true
 }
 
 /** `isPhoneCopy` for a component: reads the browser's connection itself. */
-export function usePhoneCopy(view: TodayView | undefined): boolean {
+export function usePhoneCopy(view: Pick<TodayView, 'servedFromCache'> | undefined): boolean {
   return isPhoneCopy(useOnline(), view)
 }
 

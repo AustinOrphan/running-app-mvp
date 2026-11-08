@@ -6,6 +6,7 @@ import {
   planWithRunToday,
   queued,
   relativeDates,
+  resetData,
   saveStrengthSetup,
   signedInApi,
   strengthOnlyToday,
@@ -50,6 +51,13 @@ function kept(name: string): Promise<string[]> {
   }, name)
 }
 
+/** The keys of the race card's crew notes in the page's local storage. */
+function crewKeys(): Promise<string[]> {
+  return page.evaluate(() =>
+    Object.keys(window.localStorage).filter((key) => key.startsWith('race-crew:')),
+  )
+}
+
 /** Waits until the worker controls the page and has filled its cache for offline use. */
 async function waitForKeptAnswers(): Promise<void> {
   const { today } = relativeDates()
@@ -62,6 +70,7 @@ async function waitForKeptAnswers(): Promise<void> {
         '/api/setup',
         '/api/settings',
         '/api/today',
+        '/api/race/plan',
         '/api/research/params',
         `/api/today?date=${addDays(today, 1)}`,
       ]),
@@ -359,4 +368,90 @@ test('a strength log saved with no connection is kept on the phone and sent once
   expect(after.items.filter((item) => item.type === 'strength')).toHaveLength(1)
   const plan = (await api.get('/plan')) as PlanWithSessions
   expect(plan.sessions.find((item) => item.id === session.id)?.status).toBe('completed')
+})
+
+// The race plan is the sixth kept read (ADR 0012, addendum). It comes last: it makes an ultra goal
+// the current one, which the cases above must not meet.
+test("the race plan opens with no connection from the phone's copy, and says when it was saved", async () => {
+  const { today } = relativeDates()
+  await resetData()
+  const goal = (await api.post('/goals', {
+    name: 'Offline ultra',
+    priority: 'A',
+    targetDate: addDays(today, 7 * 20),
+    distanceM: 160_934,
+    gainM: 5000,
+    lossM: 5000,
+    surface: 'trail',
+    goalType: 'finish',
+    startTime: '06:00',
+    supportLevel: 'aided',
+  })) as { id: string }
+  await api.post(`/goals/${goal.id}/activate`)
+  await api.post('/plan/generate', { goalId: goal.id, strengthPreference: 0 })
+  await api.put('/race/checkpoints', {
+    checkpoints: [
+      { name: 'Station A', distanceM: 50_000, gainM: 1200, lossM: 300, cutoffSec: 9 * 3600 },
+      { name: 'Station B', distanceM: 110_000, gainM: null, lossM: null, cutoffSec: null },
+    ],
+  })
+
+  await page.goto('/race')
+  await expect(page.getByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+  await expect.poll(() => kept(API_CACHE), { timeout: WARM_TIMEOUT }).toContain('/api/race/plan')
+
+  await page.context().setOffline(true)
+  const offline = await page.evaluate(async () => {
+    const response = await fetch('/api/race/plan')
+    return (await response.json()) as { servedFromCache?: boolean; savedAt?: string }
+  })
+  expect(offline.servedFromCache).toBe(true)
+  expect(Number.isNaN(Date.parse(offline.savedAt ?? ''))).toBe(false)
+
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1, name: 'Race plan' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Expected time' })).toBeVisible()
+  await expect(
+    page.getByText(/^Offline\. Showing the race plan saved at \d{2}:\d{2}\.$/),
+  ).toBeVisible()
+  await expect(page.getByText(/needs a connection/)).toHaveCount(0)
+  // the days to go are the server's to say
+  await expect(page.getByText(/days to go/)).toHaveCount(0)
+
+  // What needs the server says so: the saved table is not kept.
+  await page.getByRole('button', { name: 'Edit checkpoints' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Edit checkpoints' })
+  await expect(dialog.getByText('The checkpoint table needs a connection.')).toBeVisible({
+    timeout: 15_000,
+  })
+  await dialog.getByRole('button', { name: 'Close' }).click()
+
+  // The race card opens from the same copy, and a crew note is kept on the phone alone.
+  await page.getByRole('radio', { name: 'Race card' }).click()
+  await expect(page).toHaveURL(/\/race\?view=card$/)
+  const list = page.getByRole('list', { name: 'Race card, one block for each stop' })
+  await expect(list.getByRole('article')).toHaveCount(4)
+  const stationA = list.getByRole('article', { name: 'Station A' })
+  await expect(stationA.getByText('Cutoff 9 h into the race')).toBeVisible()
+  await expect(stationA.getByText(/^Fuel for this leg: about /)).toBeVisible()
+  await stationA
+    .getByRole('textbox', { name: 'Crew note for Station A' })
+    .fill('Drop bag at the tent')
+  await page.reload()
+  await expect(
+    page
+      .getByRole('article', { name: 'Station A' })
+      .getByRole('textbox', { name: 'Crew note for Station A' }),
+  ).toHaveValue('Drop bag at the tent')
+  expect(await crewKeys()).toHaveLength(1)
+
+  await page.context().setOffline(false)
+  await expect(page.getByText(/^Offline\./)).toBeHidden()
+  await expect(page.getByText(/days to go/)).toBeVisible()
+
+  // Signing out takes the note with the rest of what the device kept.
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page).toHaveURL(/\/login$/)
+  await expect.poll(() => crewKeys()).toEqual([])
 })

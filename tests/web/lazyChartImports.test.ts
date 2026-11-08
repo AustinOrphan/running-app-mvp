@@ -13,6 +13,7 @@ const CHARTS = [
   'WeeklyHoursChart',
   'MonthlyHoursChart',
   'StreamChart',
+  'CourseProfileChart',
   'PredictionTrackChart',
   'EstimatedMaxChart',
   'TrendsRunChart',
