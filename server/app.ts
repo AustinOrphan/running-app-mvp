@@ -16,6 +16,7 @@ import { briefRouter, briefsRouter } from './routes/brief.ts'
 import { calendarRouter, redactedRequest } from './routes/calendar.ts'
 import { checkinsRouter } from './routes/checkins.ts'
 import { explainRouter } from './routes/explain.ts'
+import { exportRouter } from './routes/export.ts'
 import { fuelRouter } from './routes/fuel.ts'
 import { goalsRouter } from './routes/goals.ts'
 import { healthRouter } from './routes/health.ts'
@@ -144,6 +145,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/fuel', fuelRouter(deps))
   app.use('/api/strength', strengthRouter(deps))
   app.use('/api/race', raceRouter(deps))
+  app.use('/api/export', exportRouter(deps))
   app.use('/api/activities', activitiesRouter(deps))
   app.use('/api/imports', importsRouter(deps))
   app.use('/api/goals', goalsRouter(deps))
