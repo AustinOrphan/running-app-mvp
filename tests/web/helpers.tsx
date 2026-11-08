@@ -82,6 +82,7 @@ export function delayResponses(ms: number): void {
 function listItem(item: ActivityListItem): ActivityListItem {
   const row: Record<string, unknown> = { ...item }
   delete row['hrHistogram']
+  delete row['terrainBins']
   return row as unknown as ActivityListItem
 }
 

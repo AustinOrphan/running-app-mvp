@@ -121,6 +121,7 @@ export function activity(date: string, over: Partial<Activity> = {}): Activity {
     humidityPct: null,
     weatherSource: null,
     hrHistogram: null,
+    terrainBins: null,
     decouplingPct: null,
     gapDistanceM: null,
     feel: null,
