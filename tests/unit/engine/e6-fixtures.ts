@@ -171,6 +171,7 @@ export function run(
     humidityPct: null,
     weatherSource: null,
     hrHistogram: null,
+    terrainBins: null,
     decouplingPct: null,
     gapDistanceM: null,
     feel: null,

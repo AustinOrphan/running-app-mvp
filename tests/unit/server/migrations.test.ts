@@ -1762,6 +1762,82 @@ function verifyShowBodyWeight(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+/** The previous release's activities: runs with a stored stream, a race, a strength session. */
+function seedTerrainRelease(db: DatabaseSync): void {
+  insert(db, 'User', {
+    id: 'u1',
+    email: 'runner@example.com',
+    passwordHash: 'not-a-real-hash',
+    updatedAt: STAMP,
+  })
+  const stream = JSON.stringify({
+    t: [0, 10, 20],
+    d: [0, 30, 60],
+    hr: null,
+    alt: [10, 10.5, 11],
+    cad: null,
+    pwr: null,
+  })
+  for (const [id, type] of [
+    ['a1', 'run'],
+    ['a2', 'run'],
+    ['a3', 'race'],
+    ['a4', 'strength'],
+  ] as const) {
+    insert(db, 'Activity', {
+      id,
+      userId: 'u1',
+      date: '2026-10-06',
+      type,
+      durationSec: 2700,
+      distanceM: 8000,
+      hrHistogram: id === 'a1' ? '{"start":40,"width":1,"sec":[1,2,3]}' : null,
+      gapDistanceM: 8100,
+      updatedAt: STAMP,
+    })
+  }
+  for (const id of ['a1', 'a3']) {
+    insert(db, 'ActivityStream', { activityId: id, sampleSec: 10, data: stream })
+  }
+}
+
+function verifyTerrainBins(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Every activity of the previous release reads null: the backfill job fills runs that have a stream.
+  expect(rowsOf(db, 'SELECT id, "terrainBins" FROM "Activity" ORDER BY id')).toEqual([
+    { id: 'a1', terrainBins: null },
+    { id: 'a2', terrainBins: null },
+    { id: 'a3', terrainBins: null },
+    { id: 'a4', terrainBins: null },
+  ])
+  // The streams and the other derived columns are untouched.
+  expect(rowsOf(db, 'SELECT "activityId" FROM "ActivityStream" ORDER BY "activityId"')).toEqual([
+    { activityId: 'a1' },
+    { activityId: 'a3' },
+  ])
+  expect(
+    rowsOf(db, `SELECT "hrHistogram", "gapDistanceM" FROM "Activity" WHERE id = 'a1'`),
+  ).toEqual([{ hrHistogram: '{"start":40,"width":1,"sec":[1,2,3]}', gapDistanceM: 8100 }])
+  // The column takes JSON text, and a new activity without it reads null.
+  db.prepare(`UPDATE "Activity" SET "terrainBins" = ? WHERE id = 'a1'`).run('{"v":1}')
+  expect(rowsOf(db, `SELECT "terrainBins" FROM "Activity" WHERE id = 'a1'`)).toEqual([
+    { terrainBins: '{"v":1}' },
+  ])
+  insert(db, 'Activity', {
+    id: 'a5',
+    userId: 'u1',
+    date: '2026-10-07',
+    type: 'run',
+    durationSec: 1800,
+    updatedAt: STAMP,
+  })
+  expect(rowsOf(db, `SELECT "terrainBins" FROM "Activity" WHERE id = 'a5'`)).toEqual([
+    { terrainBins: null },
+  ])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -1832,6 +1908,11 @@ const CASES: FixtureCase[] = [
     migration: 'race_checkpoints',
     seed: seedRaceCheckpointRelease,
     verify: verifyRaceCheckpoints,
+  },
+  {
+    migration: 'terrain_bins',
+    seed: seedTerrainRelease,
+    verify: verifyTerrainBins,
   },
 ]
 

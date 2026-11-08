@@ -9,8 +9,11 @@
 }
 
 .option {
-  flex: 1 1 0;
+  /* Each option is as wide as its word plus padding and the spare room is shared, so a long word
+     ("Strength") never runs into its neighbour; a row that is still too wide scrolls. */
+  flex: 1 0 auto;
   min-width: 0;
+  white-space: nowrap;
   min-height: calc(var(--control-h) - 2px);
   padding: 0 var(--space-3);
   border: 0;
@@ -40,13 +43,47 @@
 
 @media (max-width: 420px) {
   .option {
-    padding: 0 var(--space-1);
+    padding: 0 var(--space-2);
   }
 }
 
-/* Five short words on a 360 px row: smaller type, and just enough padding to keep them apart. */
+.fit {
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Five short words on a 360 px row: smaller type, and just enough padding to keep them apart. A
+   control that takes only its own width (`fit`) has room for more. */
 .dense .option {
   padding: 0 2px;
   font-size: var(--text-sm);
   font-weight: 600;
+}
+
+/*
+ * Numbers 1 to 10 in two equal rows (5 and 5): ten cells in a 328 px row were 32 px wide, under the
+ * 44 px target. The 1 px gap shows the border colour between the cells, so the group still reads
+ * as joined buttons.
+ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(2.75rem, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+
+.grid .option {
+  min-height: var(--control-h);
+  border-left: 0;
+  background: var(--surface-raised);
+  font-family: var(--font-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.grid .option[aria-checked='true'] {
+  background: var(--accent-soft);
+}
+
+.fit.dense .option {
+  padding: 0 var(--space-3);
 }

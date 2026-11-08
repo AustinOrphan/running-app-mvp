@@ -87,6 +87,7 @@ import type {
   GoalSurface,
   GoalType,
   HrHistogram,
+  TerrainBins,
   ImportBatch,
   ImportReportRow,
   Injury,
@@ -133,11 +134,11 @@ function parseJson<T>(text: string | null, fallback: T): T {
   }
 }
 
-/** An activity row read without its heart-rate histogram (`ACTIVITY_LIST_OMIT`). */
-export type ActivityListRow = Omit<ActivityRow, 'hrHistogram'>
+/** An activity row read without its heart-rate histogram and terrain bins (`ACTIVITY_LIST_OMIT`). */
+export type ActivityListRow = Omit<ActivityRow, 'hrHistogram' | 'terrainBins'>
 
 /** The columns an activity has in every answer: the list's, without the heart-rate histogram. */
-function activityColumns(row: ActivityListRow): Omit<Activity, 'hrHistogram'> {
+function activityColumns(row: ActivityListRow): Omit<Activity, 'hrHistogram' | 'terrainBins'> {
   return {
     id: row.id,
     userId: row.userId,
@@ -195,6 +196,7 @@ export function toActivity(row: ActivityRow): Activity {
   return {
     ...activityColumns(row),
     hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
+    terrainBins: parseJson<TerrainBins | null>(row.terrainBins, null),
   }
 }
 
@@ -1046,8 +1048,8 @@ export async function loadWeightSeries(
   })
 }
 
-/** The column a list never reads: the heart-rate histogram is the largest and only the detail needs it. */
-const ACTIVITY_LIST_OMIT = { hrHistogram: true } as const
+/** The columns a list never reads: the heart-rate histogram is the largest, and only the detail needs it and the terrain bins. */
+const ACTIVITY_LIST_OMIT = { hrHistogram: true, terrainBins: true } as const
 
 /** The `where` of a user's activities in an inclusive date range, optionally of one type. */
 function activityWhere(userId: string, opts: { from?: string; to?: string; type?: ActivityType }) {

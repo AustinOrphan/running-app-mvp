@@ -10,6 +10,7 @@ import type { Activity, ActivityListItem, ImportBatch, Units } from '../../share
 import { api, keys } from '../../web/api/client.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivitiesPage } from '../../web/pages/ActivitiesPage.tsx'
+import { ActivityForm } from '../../web/pages/ActivityForm.tsx'
 import {
   opensItsPage,
   parseDistanceInput,
@@ -20,6 +21,7 @@ import { makeActivity } from '../factories.ts'
 import {
   activityPage,
   activityRoute,
+  delayResponses,
   expectCleanCopy,
   expectTouchScale,
   makeTestQueryClient,
@@ -48,6 +50,31 @@ function renderPage(opts: {
       <ActivitiesPage />
     </ToastProvider>,
     { route: opts.route ?? '/activities' },
+  )
+  return api
+}
+
+/**
+ * The edit sheet of one activity, as the activity page opens it. The list no longer opens it (a row
+ * is a link to the page), so the sheet is rendered on its own here, beside the page it would sit on.
+ */
+function renderEditSheet(row: ActivityListItem, routes: MockRoutes = {}, onClose = () => {}) {
+  const api = mockApi({
+    'GET /api/settings': () => settings('mi'),
+    'GET /api/activities': activityRoute([row]),
+    ...routes,
+  })
+  renderWithProviders(
+    <ToastProvider>
+      <Routes>
+        <Route
+          path="/activities"
+          element={<ActivityForm open activity={row} onClose={onClose} />}
+        />
+        <Route path="/activities/:id" element={<p>Opened an activity</p>} />
+      </Routes>
+    </ToastProvider>,
+    { route: '/activities' },
   )
   return api
 }
@@ -104,6 +131,9 @@ describe('parseDistanceInput', () => {
   })
 })
 
+/** The year the date headings add: none for the current year, as the list does. */
+const YEAR_2026 = todayIso().startsWith('2026') ? '' : ' 2026'
+
 describe('Activities page', () => {
   test('empty list shows "No activities yet." with Log and Import actions, never an error', async () => {
     renderPage({})
@@ -159,8 +189,11 @@ describe('Activities page', () => {
       [12, '12 sets'],
     ])('%i sets read "%s", beside the duration', async (sets, text) => {
       renderPage({ activities: [strength(sets)] })
-      const figure = await screen.findByText(text)
-      expect(figure.parentElement).toHaveTextContent(`Strength40:00${text}`)
+      await screen.findByText(text)
+      // one link names the kind and the figures in reading order
+      expect(
+        screen.getByRole('link', { name: `Strength, Mon 2 Mar${YEAR_2026}, ${text}, 40:00` }),
+      ).toBeInTheDocument()
       // no distance and no dash stand in the cell, and a strength row has no pace
       expect(screen.queryByText('–')).not.toBeInTheDocument()
       expect(screen.queryByText(/\/mi$/)).not.toBeInTheDocument()
@@ -193,6 +226,76 @@ describe('Activities page', () => {
     })
   })
 
+  test('a row is one link to its activity, named by kind, day, distance, duration and pace; nothing says Details', async () => {
+    renderPage({
+      activities: [makeActivity({ id: 'r9', durationSec: 2700, distanceM: 8047 })],
+    })
+    const link = await screen.findByRole('link', {
+      name: `Run, Mon 2 Mar${YEAR_2026}, 5.00 mi, 45:00, Pace 9:00 /mi`,
+    })
+    expect(link).toHaveAttribute('href', '/activities/r9')
+    expect(screen.queryByRole('link', { name: /Details/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('Details')).not.toBeInTheDocument()
+    // the row is not a button: editing is on the activity's page
+    expect(screen.queryByRole('button', { name: /5\.00 mi/ })).not.toBeInTheDocument()
+  })
+
+  test('a row with no distance leaves the dash out of its name', async () => {
+    renderPage({ activities: [makeActivity({ id: 'r8', durationSec: 2700, distanceM: null })] })
+    expect(
+      await screen.findByRole('link', { name: `Run, Mon 2 Mar${YEAR_2026}, 45:00` }),
+    ).toBeInTheDocument()
+  })
+
+  test('the date range is behind a Dates button that folds and opens whatever is set, and a set range stays in force', async () => {
+    const user = userEvent.setup()
+    renderPage({ activities: [makeActivity()] })
+    await screen.findByText('30:00')
+    const toggle = screen.getByRole('button', { name: 'Dates' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByLabelText('From')).not.toBeInTheDocument()
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } })
+    // The toggle folds the fields away and the filter stays, said next to the button; focus stays on it.
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).toHaveFocus()
+    expect(screen.queryByLabelText('From')).not.toBeInTheDocument()
+    expect(screen.getByText(`from 1 Mar${YEAR_2026}`)).toBeInTheDocument()
+    await user.click(toggle)
+    expect(screen.getByLabelText('From')).toHaveValue('2026-03-01')
+    expect(screen.queryByText(`from 1 Mar${YEAR_2026}`)).not.toBeInTheDocument()
+  })
+
+  test('a row of another year carries the year in its name, as its date heading does', async () => {
+    renderPage({ activities: [makeActivity({ id: 'old', date: '2020-03-02' })] })
+    expect(await screen.findByRole('link', { name: /^Run, Mon 2 Mar 2020, / })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Mon 2 Mar 2020' })).toBeInTheDocument()
+  })
+
+  test('a date the input holds half-typed does not crash the page or make a summary', async () => {
+    const user = userEvent.setup()
+    renderPage({ activities: [makeActivity()] })
+    await screen.findByText('30:00')
+    await user.click(screen.getByRole('button', { name: 'Dates' }))
+    for (const typed of ['0002-03-15', '20266-03-15']) {
+      fireEvent.change(screen.getByLabelText('From'), { target: { value: typed } })
+      // the fields are open and the page is still there
+      expect(screen.getByLabelText('From')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Dates' }))
+      expect(screen.queryByText(/^from /)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Dates' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      )
+      await user.click(screen.getByRole('button', { name: 'Dates' }))
+    }
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2020-03-15' } })
+    await user.click(screen.getByRole('button', { name: 'Dates' }))
+    expect(screen.getByText('from 15 Mar 2020')).toBeInTheDocument()
+  })
+
   test('km users see km and pace per km', async () => {
     renderPage({
       units: 'km',
@@ -208,43 +311,39 @@ describe('Activities page', () => {
 
     test('a moving time of zero is a missing reading: the row keeps "Pace" and the elapsed figure', async () => {
       renderPage({ activities: [run({ movingSec: 0 })] })
-      const pace = await screen.findByText('9:00 /mi')
-      expect(pace).toHaveTextContent('Pace: 9:00 /mi')
-      expect(screen.queryByText(/Moving pace/)).not.toBeInTheDocument()
+      await screen.findByText('9:00 /mi')
+      expect(screen.getByRole('link', { name: /, Pace 9:00 \/mi/ })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /Moving pace/ })).not.toBeInTheDocument()
     })
 
     test('a row with no moving time keeps the label "Pace"', async () => {
       renderPage({ activities: [run()] })
-      const pace = await screen.findByText('9:00 /mi')
-      expect(pace).toHaveTextContent('Pace: 9:00 /mi')
-      expect(screen.queryByText(/Moving pace/)).not.toBeInTheDocument()
+      await screen.findByText('9:00 /mi')
+      expect(screen.getByRole('link', { name: /, Pace 9:00 \/mi/ })).toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /Moving pace/ })).not.toBeInTheDocument()
     })
 
     test('a row whose moving time differs shows the moving pace, tells a screen reader so, and shows nothing more', async () => {
       renderPage({ activities: [run({ movingSec: 2600 })] })
       const pace = await screen.findByText('8:40 /mi')
-      // the label a screen reader reads before the figure, and nothing else on the line
-      expect(pace).toHaveTextContent('Moving pace: 8:40 /mi')
-      expect(pace.textContent).toBe('Moving pace: 8:40 /mi')
-      expect(within(pace).getByText('Moving pace:')).toHaveClass('visually-hidden')
+      // the link's name says Moving pace before the figure; the line itself holds only the figure
+      expect(screen.getByRole('link', { name: /, Moving pace 8:40 \/mi/ })).toBeInTheDocument()
+      expect(pace.textContent).toBe('8:40 /mi')
       expect(screen.queryByText('elapsed')).not.toBeInTheDocument()
       // the figure is the one from the moving time; the duration beside it stays elapsed
-      expect(pace.firstChild?.nextSibling?.textContent).toBe('8:40 /mi')
       expect(screen.getByText('45:00')).toBeInTheDocument()
-      expectCleanCopy(pace)
+      expectCleanCopy(document.body)
     })
 
-    test('the row is named for it: its button says Moving pace', async () => {
+    test('the row is named for it: its link says Moving pace', async () => {
       renderPage({ activities: [run({ movingSec: 2600 })] })
-      expect(
-        await screen.findByRole('button', { name: /Moving pace: ?8:40 \/mi/ }),
-      ).toBeInTheDocument()
+      expect(await screen.findByRole('link', { name: /Moving pace 8:40 \/mi/ })).toBeInTheDocument()
     })
 
     test('a moving time within a second of the elapsed time is the same time, so the label stays "Pace"', async () => {
       renderPage({ activities: [run({ movingSec: 2700 })] })
-      const pace = await screen.findByText('9:00 /mi')
-      expect(pace).toHaveTextContent('Pace: 9:00 /mi')
+      await screen.findByText('9:00 /mi')
+      expect(screen.getByRole('link', { name: /, Pace 9:00 \/mi/ })).toBeInTheDocument()
       expect(screen.queryByText(/Elapsed/)).not.toBeInTheDocument()
     })
 
@@ -261,16 +360,19 @@ describe('Activities page', () => {
 
     test('reads in kilometres too, and the row keeps its date, type, duration and distance', async () => {
       renderPage({ units: 'km', activities: [run({ movingSec: 2600 })] })
-      const pace = await screen.findByText('5:23 /km')
-      expect(pace).toHaveTextContent('Moving pace: 5:23 /km')
+      await screen.findByText('5:23 /km')
+      expect(screen.getByRole('link', { name: /, Moving pace 5:23 \/km/ })).toBeInTheDocument()
       expect(screen.getByText('45:00')).toBeInTheDocument()
       expect(screen.getByText('8.05 km')).toBeInTheDocument()
     })
 
-    test('adds no width to the line: no wrapping rule and no extra element for the qualifier', () => {
+    test('adds no width to the line: the qualifier lives in the link name, not in an element', () => {
       const css = readFileSync(join(process.cwd(), 'web/pages/ActivitiesPage.module.css'), 'utf8')
       expect(css).not.toMatch(/\.qualifier/)
-      expect(css).not.toMatch(/\.pace \{[^}]*white-space: nowrap;/s)
+      // distance, duration and pace are fixed columns, so a row's figures line up with the next row's
+      expect(css).toMatch(
+        /\.row \{[^}]*grid-template-columns: minmax\(0, 1fr\) 5\.25rem 4\.5rem 4\.5rem;/s,
+      )
     })
   })
 
@@ -413,11 +515,7 @@ describe('Activities page', () => {
       distanceM: 5000,
       date: '2026-03-02',
     })
-    const api = renderPage({
-      activities: [row],
-      routes: { 'PUT /api/activities/imp1': () => row },
-    })
-    await user.click(await screen.findByRole('button', { name: /3\.11 mi/ }))
+    const api = renderEditSheet(row, { 'PUT /api/activities/imp1': () => row })
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     expect(within(dialog).getByLabelText('Duration')).toHaveValue('30:00')
     await user.clear(within(dialog).getByLabelText('Duration'))
@@ -437,14 +535,10 @@ describe('Activities page', () => {
   test('Delete asks for confirmation; deleting a manual row toasts "Activity deleted" with Undo that re-posts it', async () => {
     const user = userEvent.setup()
     const row = makeActivity({ id: 'a1', durationSec: 2700, distanceM: 8047, rpe: 6 })
-    const api = renderPage({
-      activities: [row],
-      routes: {
-        'DELETE /api/activities/a1': () => ({ status: 204, body: undefined }),
-        'POST /api/activities': () => ({ status: 201, body: row }),
-      },
+    const api = renderEditSheet(row, {
+      'DELETE /api/activities/a1': () => ({ status: 204, body: undefined }),
+      'POST /api/activities': () => ({ status: 201, body: row }),
     })
-    await user.click(await screen.findByRole('button', { name: /5\.00 mi/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(within(dialog).getByText('Delete this activity?')).toBeInTheDocument()
@@ -470,17 +564,13 @@ describe('Activities page', () => {
   test('a failed Undo says the activity was not restored', async () => {
     const user = userEvent.setup()
     const row = makeActivity({ id: 'a1', durationSec: 2700, distanceM: 8047 })
-    renderPage({
-      activities: [row],
-      routes: {
-        'DELETE /api/activities/a1': () => ({ status: 204, body: undefined }),
-        'POST /api/activities': () => ({
-          status: 500,
-          body: { error: { code: 'internal', message: 'The server did not respond.' } },
-        }),
-      },
+    renderEditSheet(row, {
+      'DELETE /api/activities/a1': () => ({ status: 204, body: undefined }),
+      'POST /api/activities': () => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'The server did not respond.' } },
+      }),
     })
-    await user.click(await screen.findByRole('button', { name: /5\.00 mi/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
     await user.click(within(dialog).getByRole('button', { name: 'Delete activity' }))
@@ -603,6 +693,7 @@ describe('Activities page', () => {
   test('a From date after To explains the range and sends no request for it', async () => {
     const api = renderPage({ activities: [makeActivity()] })
     await screen.findByText('30:00')
+    await userEvent.click(screen.getByRole('button', { name: 'Dates' }))
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-10' } })
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-20' } })
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -623,6 +714,7 @@ describe('Activities page', () => {
     const api = renderPage({ activities: [makeActivity()] })
     await screen.findByText('30:00')
     await user.click(screen.getByRole('radio', { name: 'Race' }))
+    await user.click(screen.getByRole('button', { name: 'Dates' }))
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } })
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-03-31' } })
     await waitFor(() => {
@@ -756,24 +848,20 @@ describe('Activities page: where a saved activity lands', () => {
     expect(screen.queryByText(/Opened activity/)).not.toBeInTheDocument()
   })
 
-  test('editing a row of today stays on the list: only a new activity opens its page', async () => {
+  test('saving an edit of a row of today closes the sheet and stays: only a new activity opens its page', async () => {
     const row = makeActivity({ id: 'today1', date: todayIso(), durationSec: 1800, distanceM: 5000 })
-    const api = renderRoutes({
-      activities: [row],
-      routes: { 'PUT /api/activities/today1': () => row },
-    })
+    const onClose = vi.fn()
+    const api = renderEditSheet(row, { 'PUT /api/activities/today1': () => row }, onClose)
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: /3\.11 mi/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Edit activity' })
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => {
       expect(api.calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
     })
     await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(onClose).toHaveBeenCalled()
     })
-    expect(screen.queryByText(/Opened activity/)).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Activities', level: 1 })).toBeInTheDocument()
+    expect(screen.queryByText('Opened an activity')).not.toBeInTheDocument()
   })
 
   test('the rule is today and yesterday, and no other day', () => {
@@ -798,18 +886,18 @@ describe('Activities page: paging', () => {
 
     const status = await screen.findByText('Showing 50 of 120 activities')
     expect(status).toHaveAttribute('role', 'status')
-    expect(screen.getAllByRole('button', { name: /^Run/ })).toHaveLength(50)
+    expect(screen.getAllByRole('link', { name: /^Run/ })).toHaveLength(50)
     const more = screen.getByRole('button', { name: 'Show 50 more' })
 
     await user.click(more)
     expect(await screen.findByText('Showing 100 of 120 activities')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /^Run/ })).toHaveLength(100)
+    expect(screen.getAllByRole('link', { name: /^Run/ })).toHaveLength(100)
     // The button that was pressed is still where the keyboard left it.
     expect(screen.getByRole('button', { name: 'Show 20 more' })).toHaveFocus()
 
     await user.click(screen.getByRole('button', { name: 'Show 20 more' }))
     expect(await screen.findByText('120 activities')).toHaveAttribute('role', 'status')
-    expect(screen.getAllByRole('button', { name: /^Run/ })).toHaveLength(120)
+    expect(screen.getAllByRole('link', { name: /^Run/ })).toHaveLength(120)
     expect(screen.queryByRole('button', { name: /^Show \d+ more$/ })).not.toBeInTheDocument()
     expect(api.calls.filter((c) => c.url.startsWith('/api/activities')).map((c) => c.url)).toEqual([
       '/api/activities?limit=50&offset=0',
@@ -892,6 +980,43 @@ describe('Activities page: paging', () => {
     expect(screen.getByRole('button', { name: 'Show 50 more' })).toBeInTheDocument()
   })
 
+  test('a list that did not load says so with one Try again button, keeps focus on it through the retry and shows the rows after', async () => {
+    const user = userEvent.setup()
+    const serve = activityRoute([makeActivity()])
+    let fail = true
+    const api = renderPage({
+      routes: {
+        'GET /api/activities': (req) =>
+          fail
+            ? { status: 500, body: { error: { code: 'internal', message: 'Server error.' } } }
+            : serve(req),
+      },
+    })
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Activities did not load.')
+    expectCleanCopy(document.body)
+    const retry = screen.getByRole('button', { name: 'Try again' })
+    expect(screen.getAllByRole('button', { name: 'Try again' })).toHaveLength(1)
+    const before = api.calls.filter((c) => c.url.startsWith('/api/activities')).length
+    fail = false
+    delayResponses(150)
+    await user.click(retry)
+    // the read is back to pending: the same button is still mounted, focused and busy
+    const during = screen.getByRole('button', { name: 'Try again' })
+    expect(during).toBe(retry)
+    expect(during).toHaveFocus()
+    expect(during).toHaveAttribute('aria-busy', 'true')
+    expect(during).not.toBeDisabled()
+    // Log, Import and the filters stay through the retry, so the button does not move
+    expect(screen.getByRole('button', { name: 'Log activity' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Filter by type' })).toBeInTheDocument()
+    expect(await screen.findByText('30:00')).toBeInTheDocument()
+    expect(api.calls.filter((c) => c.url.startsWith('/api/activities')).length).toBeGreaterThan(
+      before,
+    )
+    expect(screen.queryByText(/did not load/)).not.toBeInTheDocument()
+  })
+
   test('a page that did not load says so, keeps the rows and tries again on the next press', async () => {
     const user = userEvent.setup()
     const serve = activityRoute(history(120))
@@ -914,7 +1039,7 @@ describe('Activities page: paging', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'More activities did not load. Try again.',
     )
-    expect(screen.getAllByRole('button', { name: /^Run/ })).toHaveLength(50)
+    expect(screen.getAllByRole('link', { name: /^Run/ })).toHaveLength(50)
     expect(screen.getByText('Showing 50 of 120 activities')).toBeInTheDocument()
     expect(screen.queryByText(/Activities did not load/)).not.toBeInTheDocument()
     expectCleanCopy(document.body)

@@ -61,6 +61,7 @@ export function run(
         bin === Math.floor((avgHr - 100) / 5) ? durationSec : 0,
       ),
     },
+    terrainBins: null,
     decouplingPct: null,
     gapDistanceM: speedMps * durationSec,
     feel: null,

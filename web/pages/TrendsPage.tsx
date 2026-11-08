@@ -100,14 +100,15 @@ function RunningSection({ weeks, units, currentWeek, months, firstRecord }: Runn
 
   return (
     <section className={styles.section} aria-labelledby="trends-run-heading">
-      <h2 id="trends-run-heading" className={styles.heading}>
-        {text('trends.run.heading')}
-      </h2>
-      {hasRuns ? (
-        <>
+      <div className={styles.headingRow}>
+        <h2 id="trends-run-heading" className={styles.heading}>
+          {text('trends.run.heading')}
+        </h2>
+        {hasRuns ? (
           <Segmented<'time' | 'distance'>
             label="Show"
             dense
+            fit
             value={metric}
             onChange={setMetric}
             options={[
@@ -115,6 +116,10 @@ function RunningSection({ weeks, units, currentWeek, months, firstRecord }: Runn
               { value: 'distance', label: 'Distance' },
             ]}
           />
+        ) : null}
+      </div>
+      {hasRuns ? (
+        <>
           <p className={styles.caption}>{runCaption(metric, units)}</p>
           <TrendsRunChart
             weeks={weeks}
@@ -352,6 +357,7 @@ export function TrendsPage() {
       <Segmented<RangeKey>
         label="Range"
         dense
+        fit
         value={range}
         onChange={(next) => {
           setRange(next)
