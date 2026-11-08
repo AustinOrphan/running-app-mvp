@@ -34,3 +34,6 @@ export function routeAloneLine(reason: 'offline' | 'failed'): string {
   if (reason === 'offline') return 'Offline: the route is drawn without a street map.'
   return 'The street map did not load. The route is drawn alone.'
 }
+
+/** The retry link after every tile failed. */
+export const MAP_RETRY = 'Try again.'

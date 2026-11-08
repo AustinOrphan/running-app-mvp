@@ -81,6 +81,23 @@ describe('viewFor and tilesFor', () => {
     expect((a.y + b.y) / 2).toBeCloseTo(120, 6)
   })
 
+  test('keeps the route out of a padded band: a taller bottom inset leaves it clear', () => {
+    const pad = { top: 16, right: 16, bottom: 56, left: 16 }
+    const view = viewFor(bbox, 360, 240, { padding: pad })
+    const a = toBox(view, bbox.maxLat, bbox.minLng)
+    const b = toBox(view, bbox.minLat, bbox.maxLng)
+    expect(Math.min(a.y, b.y)).toBeGreaterThanOrEqual(pad.top - 1e-6)
+    expect(Math.max(a.y, b.y)).toBeLessThanOrEqual(240 - pad.bottom + 1e-6)
+    expect(Math.min(a.x, b.x)).toBeGreaterThanOrEqual(pad.left - 1e-6)
+    expect(Math.max(a.x, b.x)).toBeLessThanOrEqual(360 - pad.right + 1e-6)
+    // centred in what is left, and a number still means the same on every side
+    expect((a.y + b.y) / 2).toBeCloseTo(16 + (240 - 16 - 56) / 2, 6)
+    expect(fitZoom(bbox, 360, 240, 16)).toBeCloseTo(
+      fitZoom(bbox, 360, 240, { top: 16, right: 16, bottom: 16, left: 16 }),
+      9,
+    )
+  })
+
   test('uses tiles one zoom deeper on a high-density screen, drawn at the same size', () => {
     const low = viewFor(bbox, 360, 240, { density: 1 })
     const high = viewFor(bbox, 360, 240, { density: 2 })

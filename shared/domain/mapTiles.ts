@@ -50,19 +50,29 @@ export function wrapTileX(x: number, zoom: number): number {
   return ((x % n) + n) % n
 }
 
+/** Space kept clear inside the box, in CSS pixels: one number for every side, or each side. */
+export type Insets = number | { top: number; right: number; bottom: number; left: number }
+
+function insetsOf(padding: Insets): { top: number; right: number; bottom: number; left: number } {
+  return typeof padding === 'number'
+    ? { top: padding, right: padding, bottom: padding, left: padding }
+    : padding
+}
+
 /**
  * The largest zoom, fractional, at which the box fits in `width` x `height` pixels with `padding`
- * on every side, capped at `maxZoom`. A box of no extent (one point) takes the cap.
+ * clear, capped at `maxZoom`. A box of no extent (one point) takes the cap.
  */
 export function fitZoom(
   bbox: Bbox,
   width: number,
   height: number,
-  padding = 0,
+  padding: Insets = 0,
   maxZoom = MAX_FIT_ZOOM,
 ): number {
-  const availW = Math.max(1, width - 2 * padding)
-  const availH = Math.max(1, height - 2 * padding)
+  const pad = insetsOf(padding)
+  const availW = Math.max(1, width - pad.left - pad.right)
+  const availH = Math.max(1, height - pad.top - pad.bottom)
   const a = project(bbox.maxLat, bbox.minLng, 0)
   const b = project(bbox.minLat, bbox.maxLng, 0)
   const spanX = Math.abs(b.x - a.x)
@@ -92,7 +102,7 @@ export interface MapView {
 }
 
 export interface ViewOptions {
-  padding?: number
+  padding?: Insets
   /** `window.devicePixelRatio`; at 1.5 or more the tiles come one zoom level deeper. */
   density?: number
   maxZoom?: number
@@ -100,7 +110,7 @@ export interface ViewOptions {
 
 export const HIGH_DENSITY = 1.5
 
-/** The view that centres the bbox in the box at the zoom that fits it. */
+/** The view that centres the bbox in the box, less the padding, at the zoom that fits it. */
 export function viewFor(
   bbox: Bbox,
   width: number,
@@ -109,6 +119,7 @@ export function viewFor(
 ): MapView {
   const { padding = 0, density = 1, maxZoom = MAX_FIT_ZOOM } = options
   const zoom = fitZoom(bbox, width, height, padding, maxZoom)
+  const pad = insetsOf(padding)
   const a = project(bbox.maxLat, bbox.minLng, zoom)
   const b = project(bbox.minLat, bbox.maxLng, zoom)
   const centreX = (a.x + b.x) / 2
@@ -121,8 +132,8 @@ export function viewFor(
     zoom,
     tileZoom,
     tileCss: TILE_SIZE * 2 ** (zoom - tileZoom),
-    originX: centreX - width / 2,
-    originY: centreY - height / 2,
+    originX: centreX - (pad.left + (width - pad.left - pad.right) / 2),
+    originY: centreY - (pad.top + (height - pad.top - pad.bottom) / 2),
     centreLat: (bbox.minLat + bbox.maxLat) / 2,
   }
 }

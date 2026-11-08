@@ -1,16 +1,17 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState, type ReactNode } from 'react'
+import { Profiler, useState, type ReactNode } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { encodePolyline } from '../../shared/importers/files/track.ts'
-import type { ActivityDetail, ActivityTrackView } from '../../shared/types.ts'
+import type { Activity, ActivityDetail, ActivityTrackView } from '../../shared/types.ts'
 import { createDistanceCursor } from '../../web/components/map/distanceCursor.ts'
 import { RunMap } from '../../web/components/map/RunMap.tsx'
 import { MAP_TILES_KEY } from '../../web/components/map/useMapTiles.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { makeActivity } from '../factories.ts'
+import { makeView } from './strength-fixtures.ts'
 import { mockApi, noTrackRoute, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
 // The chart's own pointer handling needs layout that jsdom does not have; the tooltip is replaced
@@ -99,7 +100,17 @@ async function routeSection(): Promise<HTMLElement> {
   return section
 }
 
-function renderPage(track: ActivityTrackView | null, routes: MockRoutes = {}) {
+interface PageOptions {
+  activity?: Partial<Activity>
+  /** Replaces fields of the stream (`d: null` makes a chart against time). */
+  stream?: Partial<NonNullable<ActivityDetail['stream']>>
+}
+
+function renderPage(
+  track: ActivityTrackView | null,
+  routes: MockRoutes = {},
+  options: PageOptions = {},
+) {
   const t = Array.from({ length: 12 }, (_, i) => i * 10)
   const detail: ActivityDetail = {
     activity: makeActivity({
@@ -108,6 +119,7 @@ function renderPage(track: ActivityTrackView | null, routes: MockRoutes = {}) {
       durationSec: 1800,
       distanceM: 5000,
       type: 'run',
+      ...options.activity,
     }),
     stream: {
       sampleSec: 10,
@@ -117,6 +129,7 @@ function renderPage(track: ActivityTrackView | null, routes: MockRoutes = {}) {
       alt: t.map((_, i) => 100 + i),
       cad: null,
       pwr: null,
+      ...options.stream,
     },
     laps: null,
     hasFile: false,
@@ -175,6 +188,8 @@ describe('the route map on the activity page', () => {
     for (const tile of tiles) {
       expect(tile.src).toMatch(/^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/)
       expect(tile).toHaveAttribute('alt', '')
+      // the tile server's usage policy asks for a referer; the page's own policy sends none
+      expect(tile).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
     }
 
     // the route, a start and a finish marker, and no cut ends
@@ -225,13 +240,37 @@ describe('the route map on the activity page', () => {
     expect(high).toEqual([low[0]! + 1])
   })
 
-  test('shows no section for a run with no track, and asks nothing else of the server', async () => {
+  test('shows no section when the track answers 404', async () => {
     renderPage(null)
     await screen.findByRole('heading', { level: 2, name: 'Summary' })
     await waitFor(() => {
       expect(screen.queryByRole('region', { name: 'Route of this run' })).not.toBeInTheDocument()
     })
     expect(screen.queryByRole('heading', { name: 'Route' })).not.toBeInTheDocument()
+  })
+
+  test.each([
+    ['a treadmill run', { type: 'run' as const, subtype: 'treadmill' }],
+    ['a strength session', { type: 'strength' as const, subtype: null }],
+  ])('%s shows no section and never asks for a track', async (_name, activity) => {
+    const asked: string[] = []
+    renderPage(
+      makeTrack(),
+      {
+        'GET /api/activities/a1/track': () => {
+          asked.push('track')
+          return makeTrack()
+        },
+        'GET /api/strength': () => makeView(),
+        'GET /api/strength/logs': () => [],
+      },
+      { activity },
+    )
+    await screen.findByRole('heading', { level: 2, name: 'Summary' })
+    // let anything the page was going to ask for reach the mock
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(asked).toEqual([])
+    expect(screen.queryByRole('region', { name: 'Route of this run' })).not.toBeInTheDocument()
   })
 
   test('says the ends are hidden and marks the cut ends, not a start and a finish', async () => {
@@ -281,6 +320,83 @@ describe('the route map on the activity page', () => {
     expect(within(section).queryByRole('link', { name: /OpenStreetMap/ })).not.toBeInTheDocument()
     expect(section.querySelectorAll('polyline')).toHaveLength(2)
     expect(section.querySelector('[data-scale]')).not.toBeNull()
+  })
+
+  test('after every tile failed, going offline and back online asks for the tiles again', async () => {
+    let onLine = true
+    vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => onLine)
+    renderPage(makeTrack())
+    const section = await routeSection()
+    for (const tile of tileImages(section)) fireEvent.error(tile)
+    await waitFor(() => {
+      expect(within(section).getByText(/The street map did not load\./)).toBeInTheDocument()
+    })
+
+    onLine = false
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    expect(tileImages()).toHaveLength(0)
+    onLine = true
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+    await waitFor(() => {
+      expect(tileImages(section).length).toBeGreaterThan(0)
+    })
+    for (const tile of tileImages(section)) expect(tile).toBeVisible()
+    expect(within(section).queryByText(/did not load/)).not.toBeInTheDocument()
+    expect(within(section).getByRole('link', { name: /OpenStreetMap/ })).toBeInTheDocument()
+  })
+
+  test('turning the switch off and on again also gives failed tiles another go', async () => {
+    renderPage(makeTrack())
+    const section = await routeSection()
+    for (const tile of tileImages(section)) fireEvent.error(tile)
+    await waitFor(() => {
+      expect(within(section).getByText(/The street map did not load\./)).toBeInTheDocument()
+    })
+    act(() => {
+      localStorage.setItem(MAP_TILES_KEY, 'off')
+      window.dispatchEvent(new StorageEvent('storage', { key: MAP_TILES_KEY }))
+    })
+    expect(tileImages()).toHaveLength(0)
+    act(() => {
+      localStorage.setItem(MAP_TILES_KEY, 'on')
+      window.dispatchEvent(new StorageEvent('storage', { key: MAP_TILES_KEY }))
+    })
+    await waitFor(() => {
+      expect(tileImages(section).length).toBeGreaterThan(0)
+    })
+    for (const tile of tileImages(section)) expect(tile).toBeVisible()
+  })
+
+  test('a Try again link after every tile failed loads them again', async () => {
+    const user = userEvent.setup()
+    renderPage(makeTrack())
+    const section = await routeSection()
+    for (const tile of tileImages(section)) fireEvent.error(tile)
+    await user.click(await within(section).findByRole('button', { name: 'Try again.' }))
+    await waitFor(() => {
+      expect(within(section).queryByText(/did not load/)).not.toBeInTheDocument()
+    })
+    expect(tileImages(section).length).toBeGreaterThan(0)
+    for (const tile of tileImages(section)) expect(tile).toBeVisible()
+    expect(within(section).getByRole('link', { name: /OpenStreetMap/ })).toBeInTheDocument()
+  })
+
+  test('a tile that errors and then loads is shown again', async () => {
+    renderPage(makeTrack())
+    const section = await routeSection()
+    const [tile] = tileImages(section)
+    fireEvent.error(tile!)
+    await waitFor(() => {
+      expect(tile).not.toBeVisible()
+    })
+    fireEvent.load(tile!)
+    await waitFor(() => {
+      expect(tile).toBeVisible()
+    })
   })
 
   test('one failed tile of several leaves the others and the credit', async () => {
@@ -381,6 +497,18 @@ describe('the chart pointer and the map', () => {
     expect(Number(m?.[2])).toBeCloseTo(y!, 0)
   })
 
+  test('a chart against time (a stream with no distance) does not move the dot', async () => {
+    renderPage(makeTrack(), {}, { stream: { d: null } })
+    const section = await routeSection()
+    const pointers = await screen.findAllByTestId('chart-pointer')
+    expect(pointers.length).toBeGreaterThan(0)
+    for (const pointer of pointers) {
+      fireEvent.click(pointer)
+      expect(dotOf(section).hidden).toBe(true)
+      fireEvent.click(pointer)
+    }
+  })
+
   test('shows no dot for a distance in the hidden ends', async () => {
     renderPage(
       makeTrack({
@@ -402,26 +530,32 @@ describe('the chart pointer and the map', () => {
     expect(dotOf(section).hidden).toBe(false)
   })
 
-  test('moving the dot renders no component again', () => {
+  test('moving the dot commits nothing: no render of the map or its parents', () => {
     const cursor = createDistanceCursor()
-    let renders = 0
-    function Probe({ children }: { children: ReactNode }) {
-      renders += 1
-      return <>{children}</>
-    }
+    const commits: string[] = []
     const { container } = renderWithProviders(
-      <Probe>
+      <Profiler
+        id="map"
+        onRender={(id, phase) => {
+          commits.push(`${id}:${phase}`)
+        }}
+      >
         <RunMap track={makeTrack()} units="km" distanceM={900} cursor={cursor} />
-      </Probe>,
+      </Profiler>,
     )
-    const before = renders
+    const before = commits.length
+    expect(before).toBeGreaterThan(0)
     const dot = container.querySelector<HTMLElement>('[data-marker="cursor"]')!
+    const seen = new Set<string>()
     for (const d of [100, 200, 300, 400, 500, 600]) {
       act(() => {
         cursor.set(d)
       })
       expect(dot.hidden).toBe(false)
+      seen.add(dot.style.transform)
     }
-    expect(renders).toBe(before)
+    // the dot moved to six places, and React committed nothing for any of them
+    expect(seen.size).toBeGreaterThan(1)
+    expect(commits.length).toBe(before)
   })
 })

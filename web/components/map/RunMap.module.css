@@ -9,7 +9,6 @@
   --map-cut: 0.875rem;
   --map-dot: 1.125rem;
   --map-ring: 3px;
-  --map-gap: var(--space-2);
 
   /* colour */
   --map-paper: var(--surface);
@@ -168,6 +167,8 @@
 .credit {
   position: absolute;
   bottom: var(--map-gap);
+  box-sizing: border-box;
+  min-height: var(--map-chip-h);
   padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--map-chip);
@@ -181,7 +182,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding-block: var(--space-1);
   font-variant-numeric: tabular-nums;
 }
 
@@ -195,9 +195,25 @@
 
 .credit {
   right: var(--map-gap);
+  display: flex;
+  align-items: center;
   max-width: calc(100% - 2 * var(--map-gap));
-  padding-block: var(--space-1);
   text-decoration: underline;
+}
+
+.frame[data-stacked] .scale {
+  /* two rows of chips: the scale bar sits above the credit */
+  bottom: calc(2 * var(--map-gap) + var(--map-chip-h));
+}
+
+.retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .caption {

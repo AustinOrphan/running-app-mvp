@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, type CSSProperties, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CUT_ENDS_LINE,
   START_FINISH_LINE,
   MAP_OFF_LINE,
+  MAP_RETRY,
   MAP_OFF_LINK,
   OSM_COPYRIGHT_URL,
   OSM_CREDIT,
@@ -30,6 +31,21 @@ import { useMapTiles } from './useMapTiles.ts'
 
 /** Space kept clear between the route and the edge of the box, in CSS pixels. */
 const FIT_PADDING = 28
+/**
+ * The chips (scale bar, credit) sit in a band along the foot of the frame, and the fit keeps the
+ * route above it. These three numbers are the one source of the band: the fit reads them here and
+ * the stylesheet reads them from custom properties set on the frame.
+ */
+const CHIP_HEIGHT = 24
+const CHIP_GAP = 8
+/** Below this width the two chips cannot share a row, so they are stacked: credit under scale bar. */
+const STACK_BELOW = 340
+
+/** Height of the chip band: one row of chips, or two stacked, with a gap above, between and below. */
+function chipBand(width: number): number {
+  const rows = width < STACK_BELOW ? 2 : 1
+  return rows * CHIP_HEIGHT + (rows + 1) * CHIP_GAP
+}
 /**
  * The scale bar is never longer than this share of the box, nor this many pixels: on a phone it
  * shares the foot of the map with the credit and must leave room for it.
@@ -86,14 +102,39 @@ function useBox(ref: React.RefObject<HTMLElement | null>): Box | null {
  * dark mode); with the Map tiles switch off, offline, or when they fail to load, the route is drawn
  * alone on the paper with its scale bar. A dot follows the distance a chart points at.
  */
-export function RunMap({ track, units, distanceM, cursor }: RunMapProps) {
+export function RunMap(props: RunMapProps) {
+  const online = useOnline()
+  const tilesSwitch = useMapTiles().on
+  // Keyed on the wish for tiles: the switch turning off and on, or the network going and coming
+  // back, starts the body again, so tiles that failed before are asked for again and none of the
+  // old failures is remembered.
+  const wantTiles = tilesSwitch && online
+  return (
+    <RunMapBody
+      key={wantTiles ? 'tiles' : 'bare'}
+      {...props}
+      online={online}
+      tilesSwitch={tilesSwitch}
+    />
+  )
+}
+
+function RunMapBody({
+  track,
+  units,
+  distanceM,
+  cursor,
+  online,
+  tilesSwitch,
+}: RunMapProps & { online: boolean; tilesSwitch: boolean }) {
   const frameRef = useRef<HTMLDivElement>(null)
   const dotRef = useRef<HTMLSpanElement>(null)
   const box = useBox(frameRef)
-  const online = useOnline()
-  const tilesSwitch = useMapTiles().on
   const wantTiles = tilesSwitch && online
+  // Tiles that failed. Cleared when a tile loads after all, and by the retry link, which also
+  // remounts the images; a change of the wish for tiles remounts the whole body (see `RunMap`).
   const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set())
+  const [attempt, setAttempt] = useState(0)
 
   const path = useMemo(() => decodePolyline(track.polyline), [track.polyline])
   const density = typeof window === 'undefined' ? 1 : window.devicePixelRatio
@@ -101,7 +142,15 @@ export function RunMap({ track, units, distanceM, cursor }: RunMapProps) {
     () =>
       box === null
         ? null
-        : viewFor(track.bbox, box.width, box.height, { padding: FIT_PADDING, density }),
+        : viewFor(track.bbox, box.width, box.height, {
+            padding: {
+              top: FIT_PADDING,
+              right: FIT_PADDING,
+              left: FIT_PADDING,
+              bottom: Math.max(FIT_PADDING, chipBand(box.width)),
+            },
+            density,
+          }),
     [box, track.bbox, density],
   )
   const points = useMemo<Pixel[]>(
@@ -145,12 +194,34 @@ export function RunMap({ track, units, distanceM, cursor }: RunMapProps) {
   ) : !online ? (
     routeAloneLine('offline')
   ) : tilesAllFailed ? (
-    routeAloneLine('failed')
+    <>
+      {routeAloneLine('failed')}{' '}
+      <button
+        type="button"
+        className={styles.retry}
+        onClick={() => {
+          setFailed(new Set())
+          setAttempt((n) => n + 1)
+        }}
+      >
+        {MAP_RETRY}
+      </button>
+    </>
   ) : null
 
   return (
     <figure className={styles.map}>
-      <div className={styles.frame} ref={frameRef}>
+      <div
+        className={styles.frame}
+        ref={frameRef}
+        data-stacked={box !== null && box.width < STACK_BELOW ? 'true' : undefined}
+        style={
+          {
+            '--map-chip-h': `${String(CHIP_HEIGHT)}px`,
+            '--map-gap': `${String(CHIP_GAP)}px`,
+          } as CSSProperties
+        }
+      >
         {view === null ? null : (
           <>
             <div role="img" aria-label="Map of the route" className={styles.picture}>
@@ -158,7 +229,7 @@ export function RunMap({ track, units, distanceM, cursor }: RunMapProps) {
                 <div className={styles.tiles} aria-hidden="true">
                   {tiles.map((tile) => (
                     <img
-                      key={tile.key}
+                      key={`${tile.key}#${String(attempt)}`}
                       src={tileUrl(tile)}
                       alt=""
                       width={tile.width}
@@ -171,6 +242,14 @@ export function RunMap({ track, units, distanceM, cursor }: RunMapProps) {
                       hidden={failed.has(tile.key)}
                       onError={() => {
                         setFailed((previous) => new Set(previous).add(tile.key))
+                      }}
+                      onLoad={() => {
+                        setFailed((previous) => {
+                          if (!previous.has(tile.key)) return previous
+                          const next = new Set(previous)
+                          next.delete(tile.key)
+                          return next
+                        })
                       }}
                     />
                   ))}
