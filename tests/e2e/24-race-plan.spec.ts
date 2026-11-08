@@ -106,6 +106,7 @@ for (const viewport of WIDTHS) {
     await expect(headings.filter({ hasText: 'Fuel and fluid' })).toBeVisible()
     await expect(headings.filter({ hasText: 'Race week' })).toBeVisible()
     await expect(headings.filter({ hasText: 'Dark hours' })).toBeVisible()
+    await expect(headings.filter({ hasText: 'Rehearsal' })).toBeVisible()
 
     const parts = page.getByRole('article', { name: /^Part \d of \d$/ })
     await expect(parts).toHaveCount(P.r1.thirds.value)
@@ -122,6 +123,62 @@ for (const viewport of WIDTHS) {
     await page.screenshot({ path: test.info().outputPath(`race-${String(viewport.width)}.png`) })
   })
 }
+
+test("the Rehearsal block counts a night run and downhill time from the runner's own runs", async () => {
+  await raceIn(40)
+  const { today } = relativeDates()
+  const prisma = createPrisma(E2E_DATABASE_URL)
+  const date = addDays(today, -2)
+  try {
+    const user = await prisma.user.findFirstOrThrow()
+    await prisma.athleteProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, homeLat: 40.01, homeLng: -105.27, timezone: 'UTC' },
+      update: { homeLat: 40.01, homeLng: -105.27 },
+    })
+    // 07:00 UTC is midnight to 1 am at the home place: dark in every season.
+    await prisma.activity.create({
+      data: {
+        userId: user.id,
+        date,
+        type: 'run',
+        durationSec: 5400,
+        movingSec: 5400,
+        distanceM: 12_000,
+        source: 'manual',
+        startUtc: `${date}T07:00:00Z`,
+        terrainBins: JSON.stringify({
+          v: 1,
+          windowM: 60,
+          walkMps: 1,
+          edgesPct: [-15, -10, -6, -3, 3, 6, 10, 15],
+          sec: [0, 0, 1800, 0, 3600, 0, 0, 0, 0],
+          m: [0, 0, 3000, 0, 9000, 0, 0, 0, 0],
+          walkSec: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+          flatCv: null,
+        }),
+      },
+    })
+    for (const viewport of WIDTHS) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await page.goto('/race')
+      const block = page.getByRole('region', { name: 'Rehearsal' })
+      await expect(
+        block.getByText(/^Night runs: 1 since .*, 1 h 30 min in the dark\.$/),
+      ).toBeVisible()
+      await expect(block.getByText('Downhill: 30 min on grades of 6% or steeper.')).toBeVisible()
+      await expect(block.getByText('Long runs with 10 min or more of it: 1.')).toBeVisible()
+      const text = (await block.textContent()) ?? ''
+      expect(text).not.toMatch(/behind|missed|streak|should|goal|target/i)
+      expect(await scrollsSideways()).toBe(false)
+    }
+  } finally {
+    await prisma.activity.deleteMany({
+      where: { date, source: 'manual', startUtc: `${date}T07:00:00Z` },
+    })
+    await prisma.$disconnect()
+  }
+})
 
 test('Today shows no race card before race week', async () => {
   await raceIn(P.r1.raceWeekCardDays.value + 3)

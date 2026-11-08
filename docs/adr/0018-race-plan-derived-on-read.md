@@ -128,3 +128,25 @@ export of a race must call `racePlanFor`, and ADR 0008 needs an amendment first.
 model, `RaceCheckpoint`, with its migration and its migration case, two routes under `requireAuth`, a
 table and an editor sheet on the Race page, and a note in the H14 rule text. The Race page and the
 editor need a connection (step 5 is not built).
+
+## Addendum: rehearsal count (task R1, 2026-11-07)
+
+The plan carries `rehearsal` (`rehearsalFor`, `shared/engine/rehearsal.ts`): the night runs and the
+downhill time in the runs of the last `r1.rehearsalWindowWeeks` weeks, beside the ask of H6 and H5.
+It is read-only and derived like the rest of the plan.
+
+- **Data.** The runs come from `context.activities` (ADR 0009) inside `buildRacePlan`, so the `race.plan`
+  memo holds the count and no new query of the history window exists. The change key is unchanged: a
+  new run raises the data version.
+- **Sun.** `shared/domain/sun.ts` (`sunAltitudeDeg`, `darkMinutesOf`) is a NOAA approximation from a
+  UTC instant and a place, so no time zone is needed. It places the runs only. The race's own dark
+  hours still use the D1 clock (**Fact:** the race's time zone is still not stored), so the "Solar
+  module now" alternative above stays declined for the race and is taken for the rehearsal, where
+  the instant and the home place are known.
+- **Place.** The home place of the profile; a run's own start point only when there is no home place;
+  a run with neither, or with no start instant, is counted as unplaced and said so, never as day.
+- **Words.** Plain counts, no target, no comparison with the ask, no colour (G5). Six grade D `r1`
+  Params (window, dark altitude, minimum dark minutes, long run, descent band, sustained descent),
+  `PARAMS_VERSION` raised, no plan digest change.
+- **Not elsewhere.** The block is on the Race page only. It is not in the Today summary, the race card,
+  the watch files, the feed or the brief (`racePlanIsolation.test.ts`).
