@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { addDays } from '../../shared/dates.ts'
 import type { Activity, PlanSession, PlanWithSessions, StrengthView } from '../../shared/types.ts'
 import {
@@ -75,6 +75,34 @@ async function waitForKeptAnswers(): Promise<void> {
         `/api/today?date=${addDays(today, 1)}`,
       ]),
     )
+}
+
+/**
+ * The element fits the phone and the desktop widths in both colour schemes with motion reduced:
+ * nothing scrolls sideways, and the element stays inside the viewport.
+ */
+async function expectNoOverflowAt(target: Locator): Promise<void> {
+  for (const size of [
+    { width: 360, height: 740 },
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.setViewportSize(size)
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
+      await expect(target).toBeVisible()
+      const fit = await page.evaluate(() => ({
+        page: document.documentElement.scrollWidth <= window.innerWidth,
+      }))
+      expect(fit.page, `${String(size.width)} px, ${colorScheme}`).toBe(true)
+      const box = await target.boundingBox()
+      expect((box?.x ?? 0) + (box?.width ?? 0), `${String(size.width)} px`).toBeLessThanOrEqual(
+        size.width + 1,
+      )
+    }
+  }
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.emulateMedia({ colorScheme: null, reducedMotion: null })
 }
 
 test.beforeAll(async ({ browser, baseURL }) => {
@@ -259,6 +287,79 @@ test('a check-in tapped just after the connection went, on a page that stays ope
   await expect.poll(() => queued(page)).toBe(0)
   expect(((await api.get(`/checkins/${today}`)) as { fatigue: number }).fatigue).toBe(5)
   await api.put(`/checkins/${today}`, { fatigue: null })
+})
+
+// Done, a rating and pain in one write (ADR 0012, queued writes): the run is kept on the phone under
+// an id the sheet chose, shown as waiting, and sent once when the connection returns.
+test('Done with a rating and pain, logged with no connection, is kept on the phone and sent once when it returns', async () => {
+  const { today } = relativeDates()
+  await page.goto('/')
+  const card = page.getByRole('article', { name: planned.title })
+  await expect(card.getByRole('button', { name: 'Done' })).toBeVisible()
+  await waitForKeptAnswers()
+
+  await page.context().setOffline(true)
+  await page.reload()
+  await expect(card).toBeVisible()
+  await card.getByRole('button', { name: 'Done' }).click()
+  const sheet = page.getByRole('dialog', { name: /^Log today's/ })
+  await expect(
+    sheet.getByText(
+      'No connection. Save keeps this on the phone and sends it when you are back online.',
+    ),
+  ).toBeVisible()
+  await sheet.getByRole('button', { name: 'RPE 6' }).click()
+  await sheet.getByRole('button', { name: 'As expected' }).click()
+  await sheet.getByRole('button', { name: 'Pain 3' }).click()
+
+  await expectNoOverflowAt(sheet)
+
+  const sends: number[] = []
+  page.on('response', (response) => {
+    const request = response.request()
+    if (
+      request.method() === 'PUT' &&
+      /^\/api\/activities\/done\/[\w-]+$/.test(new URL(request.url()).pathname)
+    ) {
+      sends.push(response.status())
+    }
+  })
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(
+    toast(page, 'Saved on this phone. It goes up when you are back online.'),
+  ).toBeVisible()
+  await expect(sheet).toBeHidden()
+  expect(await queued(page)).toBe(1)
+  await expect(card.getByText('Saved on this phone, waiting to go up.')).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Done' })).toBeHidden()
+  await expectNoOverflowAt(card)
+  // The server has heard nothing of it.
+  const before = (await api.get(`/activities?from=${today}&to=${today}`)) as { items: Activity[] }
+  expect(before.items.filter((item) => item.type === 'run')).toHaveLength(0)
+  expect(sends).toEqual([])
+
+  // It is on the device, not in the page: a reload with the network still off finds it waiting.
+  await page.reload()
+  await expect(
+    page
+      .getByRole('article', { name: planned.title })
+      .getByText('Saved on this phone, waiting to go up.'),
+  ).toBeVisible()
+  expect(await queued(page)).toBe(1)
+
+  await page.context().setOffline(false)
+  await expect.poll(() => queued(page)).toBe(0)
+  await expect(toast(page, 'The run saved on this phone has gone up.')).toBeVisible()
+  await expect(
+    page.getByRole('article', { name: planned.title }).getByText('Completed'),
+  ).toBeVisible()
+  expect(sends).toEqual([201])
+  const after = (await api.get(`/activities?from=${today}&to=${today}`)) as { items: Activity[] }
+  const runs = after.items.filter((item) => item.type === 'run')
+  expect(runs).toHaveLength(1)
+  expect([runs[0]?.rpe, runs[0]?.feel, runs[0]?.pain]).toEqual([6, 0, 3])
+  const plan = (await api.get('/plan')) as PlanWithSessions
+  expect(plan.sessions.find((item) => item.id === planned.id)?.activityId).toBe(runs[0]?.id)
 })
 
 test('a 401 empties what the worker kept', async () => {
