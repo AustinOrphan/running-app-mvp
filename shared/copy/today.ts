@@ -301,6 +301,15 @@ export const TODAY_TEMPLATES = {
     high: 'duration',
     likely: 'duration',
   }),
+  'today.race.estimate-floor': tpl('At most about {likely}. Finish estimate {low} to {high}.', {
+    low: 'duration',
+    high: 'duration',
+    likely: 'duration',
+  }),
+  'today.race.floor-basis': tpl(
+    'It rests on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
+    { date: 'date' },
+  ),
   'today.race.wide': tpl(
     'The range is wide on purpose. Predictions for {distance} rest on thin evidence (grade {grade}).',
     { distance: 'distance', grade: 'text' },

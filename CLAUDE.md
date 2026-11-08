@@ -106,6 +106,14 @@ its build runs `prisma migrate deploy` as a smoke test.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.
+- The full-data export (`POST /api/export/token`, then `GET /api/export?token=`; `routes/export.ts`,
+  `services/exportArchive.ts`, `services/zipWriter.ts`) streams one ZIP of the signed-in runner's rows.
+  A model holding a secret (`User`, `Integration`, `DeliveryChannel`) is read only through an
+  allowlist `select`; every Prisma model must be in an export table or in `EXCLUDED_MODELS` with a
+  reason (a test fails on a model in neither or both). A table is paged by key (`id > last`), never by
+  cursor row. The token is single-use, bound to the runner, held hashed in memory for a minute, and
+  never logged; one export runs per runner. A plain ZIP, so at most 65,535 files and 4 GiB: refused up
+  front. A new table goes into `exportTables` (its README text comes from the same entry).
 - `listWellness` never returns a short list as complete: when it stops early (a spent request
   budget) it throws `WellnessTruncated` with the days it read; the sync stores them and records a
   `paused` run, never `ok`.
@@ -154,6 +162,15 @@ its build runs `prisma migrate deploy` as a smoke test.
   (`shared/engine/myPaces.ts`) over the snapshot and `hrModelOf`, the memo `paces.view` behind
   `GET /api/paces`, and the zones shown through `ZoneSummary`, the one rendering the Profile shares. A
   figure on it is a range and a sketch; a new number is a Param under C9.
+- Heart-rate quality (rule B2, batch HQ1, ADR 0019 addendum): `Activity.hrQuality` (JSON `HrQuality`) is
+  written by `storeParsed` (`computeHrQuality`, `shared/importers/files/hrQuality.ts`) and by the
+  `hr-quality` job (`backfillHrQuality`, every 5 minutes, newest runs first), which also computes again a
+  summary whose `th` (the eight data-preparation thresholds) differs from the current ones. It stores
+  counts only; whether a run passes is read by `hrQualityPasses` (`shared/engine/hrQuality.ts`): at least
+  `hrModel.minDurationMin` of moving time, and an external-sensor source (FIT `device_info`, `hrSource.ts`) or at
+  least `b2.qMinCleanShare` clean. Only the Trends panels read it, through `HrFitOptions.hilly` and
+  `longRunReadings`; `fitHrModel`, My paces, the zones, A7 and C9 stay flat-only. A new check or threshold
+  is a `b2.q` Param, a `HR_QUALITY_VERSION` bump when its meaning changes, and a Params version.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - npm only. Strict TypeScript. Prettier formats, ESLint 9 flat config lints.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`

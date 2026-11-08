@@ -24,12 +24,16 @@ interface Estimate {
 interface Base {
   sec: number
   estimates: Estimate[]
+  /** A line for the conditions when a critical speed from training met a race (see `basePrediction`). */
+  floorNote: string | null
 }
 
 /** Race anchors the state carries (date, distance, time). */
 type Race = AthleteState['fitness']['races'][number]
 
 const SEC_PER_MIN = 60
+/** The methods that stand on the critical-speed fit. */
+export const CS_METHODS = new Set(['critical-speed', 'cs-durability', 'cs-fraction'])
 const FIXED_POINT_ITERATIONS = 400
 const FIXED_POINT_TOLERANCE_MIN = 1e-7
 
@@ -244,19 +248,34 @@ function csEstimate(
   }
 }
 
-/** Mean of the available estimates, flat road conditions, no heat. */
+/**
+ * Mean of the available estimates, flat road conditions, no heat. A critical speed found from
+ * training (A6) is a floor on fitness, so it is never averaged with a race: the race stands alone,
+ * unless the floor implies a faster time than the race does, in which case the floor stands alone
+ * (the runner has shown at least that fitness since the race).
+ */
 function basePrediction(
   state: AthleteState,
   target: PredictTarget,
   gainEquivalentM: number = P.l5.gainEquivalentM.value,
 ): Base | null {
-  const estimates = [
-    raceEstimate(state, target, gainEquivalentM),
-    csEstimate(state, target, gainEquivalentM),
-  ].filter((e): e is Estimate => e !== null)
+  const race = raceEstimate(state, target, gainEquivalentM)
+  const cs = csEstimate(state, target, gainEquivalentM)
+  let estimates = [race, cs].filter((e): e is Estimate => e !== null)
+  let floorNote: string | null = null
+  if (race && cs && state.fitness.csTrainingSince != null) {
+    if (cs.sec < race.sec) {
+      estimates = [cs]
+      floorNote = 'Training shows a faster time than the race does, so the race is not averaged in.'
+    } else {
+      estimates = [race]
+      floorNote =
+        'Critical speed from training implies a slower time than the race, and it is only a floor, so it is not used.'
+    }
+  }
   if (estimates.length === 0) return null
   const sec = estimates.reduce((sum, e) => sum + e.sec, 0) / estimates.length
-  return { sec, estimates }
+  return { sec, estimates, floorNote }
 }
 
 /**
@@ -345,6 +364,8 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
     conditions.push(...e.conditions)
   }
 
+  if (base.floorNote !== null) conditions.push(base.floorNote)
+
   let sec = base.sec
   if (target.gainM > 0) {
     const flatKm = fmtKm(target.gainM * (climb?.blend.usedM ?? P.l5.gainEquivalentM.value))
@@ -397,6 +418,19 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
     )
     rules.add('L3')
   }
+  // A critical speed found from the stretches of training runs is a floor on fitness, so a time
+  // from it is an upper bound: only the faster end of the interval opens (A6).
+  const trainingSince = base.estimates.some((e) => CS_METHODS.has(e.method))
+    ? (state.fitness.csTrainingSince ?? null)
+    : null
+  let fastSideFactor = 1
+  if (trainingSince !== null) {
+    fastSideFactor = 1 + P.a6.csTrainingWideningPct.value / 100
+    conditions.push(
+      `Critical speed comes from the best efforts in training since ${trainingSince}, not from races or a test, so it is a floor and the time is at most this; the faster end of the interval is widened by ${P.a6.csTrainingWideningPct.value}%.`,
+    )
+    rules.add('A6')
+  }
   if (target.surface === 'trail' || target.surface === 'mixed') {
     const gainPerKm = (Math.max(0, target.gainM) / target.distanceM) * 1000
     const widening =
@@ -411,10 +445,11 @@ export function predictFromState(state: AthleteState, target: PredictTarget): Pr
   return {
     method: base.estimates.map((e) => e.method).join('+'),
     predictedSec: Math.round(sec),
-    lowSec: Math.round(sec * (1 - halfWidth / 100)),
+    lowSec: Math.round(sec * Math.max(0, 1 - (halfWidth * fastSideFactor) / 100)),
     highSec: Math.round(sec * (1 + halfWidth / 100)),
     conditions,
     rules: [...rules].sort(),
+    ...(trainingSince === null ? {} : { trainingSince }),
     ...(climb === null ? {} : { climb: { ...climb.blend, shiftSec: Math.round(climbShiftSec) } }),
   }
 }

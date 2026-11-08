@@ -255,6 +255,27 @@ describe('figures that restate a Param come from the Param', () => {
     expect(base.expected.notes.join(' ')).toContain(`${String(P.r1.arrivalRoundMin.value)} min`)
   })
 
+  it('says a prediction from training rests on training efforts that were not races (A6)', () => {
+    const from = racePlanFor(
+      input({
+        prediction: {
+          predictedSec: 31 * HOUR,
+          lowSec: 20 * HOUR,
+          highSec: 41 * HOUR,
+          trainingSince: '2026-08-11',
+        },
+      }),
+    )
+    const expected = describeRacePlan(from, 'km').expected
+    const notes = expected.notes.join(' ')
+    expect(expected.source).toMatch(/^At most about this long\./)
+    expect(notes).toMatch(/best efforts in training since 11 Aug/)
+    expect(notes).toMatch(/not on races/)
+    expect(lintText(notes)).toEqual([])
+    expect(base.expected.notes.join(' ')).not.toMatch(/in training/)
+    expect(base.expected.source).toMatch(/^Most likely time/)
+  })
+
   it('says the low-confidence hours from i6.lowConfidenceEventHours on a hot race', () => {
     const hot = describeRacePlan(PLANS[2]![1], 'km')
     expect(hot.heat.join(' ')).toContain(`${String(P.i6.lowConfidenceEventHours.value)} hours`)

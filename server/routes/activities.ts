@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
+import { activityCsvHeader, activityCsvLine } from '../services/activitiesCsv.ts'
 import { createManualActivity, saveDoneActivity, toTrack } from '../services/activityStore.ts'
 import {
   moveConfirmedLogs,
@@ -23,7 +24,6 @@ import {
   MAX_ELEVATION_GAIN_M,
   MAX_NOTES,
 } from '../../shared/limits.ts'
-import { mToMiles } from '../../shared/units.ts'
 import { MAP_END_TRIM_M, trimTrackEnds } from '../../shared/importers/files/track.ts'
 import type {
   ActivityDetail,
@@ -162,33 +162,6 @@ function attachmentName(stored: string | null, format: string, id: string): stri
 
 const resolveSchema = z.object({ status: z.enum(['confirmed', 'dismissed']) })
 
-const EXPORT_HEADER = [
-  'date',
-  'start_time',
-  'type',
-  'minutes',
-  'miles',
-  'avg_hr',
-  'max_hr',
-  'elevation_gain_m',
-  'rpe',
-  'notes',
-  'source',
-  'duplicate_status',
-]
-
-/** One text cell: quoted when needed (RFC 4180) and defused when a spreadsheet would run it. */
-function textCell(value: string | null): string {
-  if (value === null || value === '') return ''
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
-  return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe
-}
-
-function numberCell(value: number | null, digits?: number): string {
-  if (value === null) return ''
-  return digits === undefined ? String(value) : value.toFixed(digits)
-}
-
 function idParam(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -216,25 +189,7 @@ export function activitiesRouter(deps: Deps): Router {
   // Registered before /:id so "export.csv" is not read as an id.
   router.get('/export.csv', async (req, res) => {
     const rows = (await loadActivities(prisma, req.userId)).reverse()
-    const lines = [EXPORT_HEADER.join(',')]
-    for (const a of rows) {
-      lines.push(
-        [
-          a.date,
-          a.startTime ?? '',
-          a.type,
-          numberCell(a.durationSec / 60, 2),
-          numberCell(a.distanceM === null ? null : mToMiles(a.distanceM), 4),
-          numberCell(a.avgHr),
-          numberCell(a.maxHr),
-          numberCell(a.elevationGainM),
-          numberCell(a.rpe),
-          textCell(a.notes),
-          a.source,
-          a.duplicateStatus,
-        ].join(','),
-      )
-    }
+    const lines = [activityCsvHeader(), ...rows.map(activityCsvLine)]
     res
       .status(200)
       .type('text/csv; charset=utf-8')

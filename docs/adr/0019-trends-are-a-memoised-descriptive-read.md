@@ -146,3 +146,58 @@ paper, migration or environment variable, and `PARAMS_VERSION` is unchanged.
 - **Opinion:** a reference speed taken from the range shown is better than a fixed one, because a
   fixed speed would sit outside the speeds of a short range and leave every window a gap; the cost is
   that the pace in the caption changes with the range.
+
+## Addendum 2026-11-08: hilly runs whose heart rate passed (batch HQ1)
+
+Status: Accepted 2026-11-08 (#672)
+
+### Decision
+
+- Rule B2 gains five per-run checks on the stored 10 s stream (cadence lock against the stored steps
+  per minute, spikes, dropouts, flat lines, and heart rate falling while the grade-adjusted effort
+  rises). `computeHrQuality` (`shared/importers/files/hrQuality.ts`) counts the flagged moving
+  seconds into `Activity.hrQuality` beside the heart-rate source read from the FIT `device_info`
+  (`hrSource.ts`) and the data-preparation thresholds it used (`th`). Import and the `hr-quality`
+  backfill job (`server/services/hrQualityBackfill.ts`, modelled on `terrain`) write it; the job also
+  computes again a summary whose `th` differs from the current thresholds.
+- Whether a run passes is read from the counts (`hrQualityPasses`, `shared/engine/hrQuality.ts`), never
+  stored: at least `hrModel.minDurationMin` of moving time, and either an external-sensor source or
+  at least `b2.qMinCleanShare` clean. The ten `b2.q*` Params are grade D; eight are data preparation
+  and two (`b2.qMinCleanShare`, `b2.qMinHalfCleanMin`) decide which runs the panels draw.
+- The drift panel draws a hilly run that passes as a diamond with a grade-adjusted drift
+  (`gaDecouplingPct`: per-band, per-half clean seconds, metres and heart rate times seconds, divided
+  by the band ratios of the grade curve of the day the page is read, `bandRatios`). The heart-rate
+  panel's fit takes passing hilly runs through `HrFitOptions.hilly`, which only `hrWindows` sets, and
+  names how many the drawn windows include.
+- The engine is untouched: `fitHrModel`, `hrAgainstModel`, My paces, the zones, the A7 test and the C9
+  easy pace use the flat-only default, and `plan:report` is unchanged apart from the Params version.
+- `loadRunSeries` reads two more columns, `hrQuality` and `terrainBins` (the grade curve needs the
+  bins of the runs it already loads); the read is still one query.
+
+### Reasons
+
+- **Rule:** the owner decided on 2026-11-08 to try the middle path (task HQ1), and rule B2 in
+  `research/engine-rules.md` (amendment of 2026-11-08) states the checks; the A7 test and the C9 pace
+  stay flat-only until the owner decides otherwise.
+- **Fact:** a Fenix 5 had 13% MAPE on one trail run [navalta-2020-trail-running-hr]; a Crossref and
+  Europe PMC search on 2026-11-08 found no study that validates a rescue of hilly wrist data or any of
+  the ten numbers (evidence gap 33). The panels mark such runs.
+- **Fact:** on 76 stored runs of one runner, every FIT file lists the watch's own heart-rate sensor
+  (`device_type` `whr`, `source_type` `local`) and none an external one (read 2026-11-08), so every
+  source there is `wrist`; the same 7 hilly runs all pass, so the checks have not been scored against
+  a strap.
+- **Fact:** every importer stores cadence in steps per minute (`fit.ts`, `gpx.ts`, `tcx.ts`, the
+  provider modules, read 2026-11-08), so the lock check compares heart rate with the stored value only.
+- **Opinion:** a pass read from the counts beats a stored pass, because the two engine numbers can
+  then move with a Params version and no job; the cost is that the page cannot list passes without
+  the Params.
+- **Opinion:** a diamond in the drift panel keeps hilly drift out of the median, which a dot would
+  suggest; the cost is a third mark to learn.
+- **Preference:** grade-adjusted drift is read against today's curve and not the curve of the run's
+  day, so one curve serves every diamond; an old diamond can move a little when the curve changes.
+
+### Alternatives
+
+- Fit hilly runs in the engine's own HR model: rejected. **Rule:** the owner kept the A7 test and the
+  C9 pace for a later decision.
+- Store the pass with the counts: rejected. **Opinion:** a threshold change would need a backfill.

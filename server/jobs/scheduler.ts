@@ -21,6 +21,7 @@ import {
   safeMessage,
   syncMessage,
 } from '../services/syncLog.ts'
+import { backfillHrQuality } from '../services/hrQualityBackfill.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
 import { backfillTracks } from '../services/trackBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
@@ -41,6 +42,8 @@ export const PREDICTION_INTERVAL_MS = 6 * 60 * MINUTE_MS
 export const PUBLISH_INTERVAL_MS = 2 * MINUTE_MS
 /** How often the terrain backfill reads one batch of stored streams for each user. */
 export const TERRAIN_INTERVAL_MS = 5 * MINUTE_MS
+/** How often the heart-rate quality backfill reads one batch of stored streams for each user. */
+export const HR_QUALITY_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the track backfill reads stored originals and asks intervals.icu for a few streams. */
 export const TRACK_INTERVAL_MS = 5 * MINUTE_MS
 /** Activities that get weather per user per run. */
@@ -240,6 +243,35 @@ export async function runTerrainJob(deps: Deps, log?: Log): Promise<void> {
     } catch (error) {
       log?.warn({ reason: safeMessage(error), userId: user.id }, 'terrain backfill failed')
       await recordJob(deps, 'terrain', user.id, startedAt, { error })
+    }
+  }
+}
+
+/**
+ * Fills the heart-rate quality of runs imported before the column existed (batch HQ1), one small
+ * batch per user per tick, from the stored streams and the stored FIT originals. Recorded like the
+ * terrain job: a `hr-quality` run per user and tick that filled something or met an unreadable
+ * stream, a `partial` run when there are unreadable ones, nothing when there is nothing left.
+ */
+export async function runHrQualityJob(deps: Deps, log?: Log): Promise<void> {
+  const users = await deps.prisma.user.findMany({ select: { id: true } })
+  for (const user of users) {
+    const startedAt = new Date()
+    try {
+      const result = await backfillHrQuality(deps, user.id)
+      await recordJob(deps, 'hr-quality', user.id, startedAt, {
+        accepted: result.filled,
+        failed: result.unreadable.length,
+        status: result.unreadable.length > 0 ? 'partial' : 'ok',
+        failures: result.unreadable.map((ref) => ({
+          ref,
+          reason: 'the stored stream could not be read',
+        })),
+        skipIdle: true,
+      })
+    } catch (error) {
+      log?.warn({ reason: safeMessage(error), userId: user.id }, 'hr quality backfill failed')
+      await recordJob(deps, 'hr-quality', user.id, startedAt, { error })
     }
   }
 }
@@ -554,6 +586,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('folder', FOLDER_INTERVAL_MS, () => runFolderJob(deps, log))
   every('weather', WEATHER_INTERVAL_MS, () => runWeatherJob(deps, opts, log))
   every('terrain', TERRAIN_INTERVAL_MS, () => runTerrainJob(deps, log))
+  every('hr-quality', HR_QUALITY_INTERVAL_MS, () => runHrQualityJob(deps, log))
   every('track', TRACK_INTERVAL_MS, () => runTrackJob(deps, log))
   daily('backup', BACKUP_SLOT, () => runBackupJob(deps, {}, log))
   daily('matching', MATCHING_SLOT, () => runMatchingJob(deps, {}, log))

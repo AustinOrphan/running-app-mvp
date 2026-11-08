@@ -91,6 +91,17 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.firm.link-heart-rate': tpl('Set your heart rate', {}, { shape: 'label' }),
   'race.plan.firm.link-climate': tpl('Save the climate', {}, { shape: 'label' }),
   'race.plan.firm.about': tpl('About these ranges', {}, { shape: 'label' }),
+  'race.plan.expected.source-floor': tpl(
+    'At most about this long. Finish estimate {low} to {high}.',
+    {
+      low: 'duration',
+      high: 'duration',
+    },
+  ),
+  'race.plan.expected.training': tpl(
+    'The time rests on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
+    { date: 'date' },
+  ),
   'race.plan.expected.clock': tpl('Start {start}. Finish about {range}.', {
     start: 'text',
     range: 'text',
@@ -803,7 +814,11 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
   const source =
     expected.basis === 'prediction'
       ? say(
-          T['race.plan.expected.source-range'],
+          T[
+            expected.trainingSince == null
+              ? 'race.plan.expected.source-range'
+              : 'race.plan.expected.source-floor'
+          ],
           { low: duration(expected.lowSec), high: duration(expected.highSec) },
           units,
         )
@@ -824,6 +839,15 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
       render(
         TODAY_TEMPLATES['today.race.wide'],
         { distance: { kind: 'distance', m: plan.distanceM }, grade: expected.range.grade },
+        units,
+      ),
+    )
+  }
+  if (expected.trainingSince != null) {
+    notes.push(
+      say(
+        T['race.plan.expected.training'],
+        { date: { kind: 'date', iso: expected.trainingSince, style: 'short' } },
         units,
       ),
     )

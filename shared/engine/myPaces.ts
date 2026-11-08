@@ -26,7 +26,7 @@ import {
   type GradeCurve,
 } from './gradeCurve.ts'
 import { P } from './params/index.ts'
-import { anchorRaceFor, predictFromState, rangeLabel } from './predict.ts'
+import { anchorRaceFor, CS_METHODS, predictFromState, rangeLabel } from './predict.ts'
 import { gradeAdjustedSpeed } from './terrain.ts'
 import type { AthleteState, ClimbBlend, Grade, Param, Prediction, ZoneSet } from './types.ts'
 
@@ -95,6 +95,8 @@ export interface CsTest {
   windowDays: number
   /** True when the efforts already give a critical speed. */
   done: boolean
+  /** True when that critical speed uses the stretches of longer runs, so a test would narrow it (A6). */
+  fromTraining: boolean
 }
 
 export type EventKey = 'five-k' | 'ten-k' | 'half' | 'marathon' | 'fifty-k' | 'custom'
@@ -108,8 +110,11 @@ export interface EventSpec {
 export interface EventBasis {
   /** The race the prediction is anchored on, when the method used one. */
   race: { date: string; distanceM: number; timeSec: number } | null
-  /** Critical speed, when the method used it. */
-  cs: { csMps: number; efforts: number } | null
+  /**
+   * Critical speed, when the method used it. `since` is the first day of the window when the fit
+   * uses the best efforts of training runs (not races or a test); null for a fit from whole runs.
+   */
+  cs: { csMps: number; efforts: number; since: string | null } | null
 }
 
 export interface EventRow extends EventSpec {
@@ -332,7 +337,6 @@ function zoneBasedPace(zones: ZoneSet, terrain: GradeCurve): EasyPace | null {
 
 /** Methods that read a race, and methods that read critical speed (`predictFromState`). */
 const RACE_METHODS = new Set(['personal-exponent', 'riegel', 'same-distance', 'single-anchor'])
-const CS_METHODS = new Set(['critical-speed', 'cs-durability', 'cs-fraction'])
 
 /** The Params of the critical-speed fit of rule A6 that every critical-speed method reads. */
 const CS_FIT_PARAMS: ReadonlyArray<Param<unknown>> = [
@@ -342,6 +346,13 @@ const CS_FIT_PARAMS: ReadonlyArray<Param<unknown>> = [
   P.a6.csWindowDays,
   P.a6.csBandInnerEdgesM,
   P.a6.csMinTimeSpreadRatio,
+]
+
+/** The Params of a fit that uses the stretches of training runs (A6), read on top of the above. */
+const CS_TRAINING_PARAMS: ReadonlyArray<Param<unknown>> = [
+  P.a6.csEffortTargetsM,
+  P.a6.csMinEffortSec,
+  P.a6.csTrainingWideningPct,
 ]
 
 /**
@@ -426,11 +437,19 @@ function rowOf(spec: EventSpec, state: AthleteState, prediction: Prediction | nu
     },
     basis: {
       race: anchor === null ? null : { ...anchor },
-      cs: usesCs && csMps !== null ? { csMps, efforts: state.fitness.csEfforts } : null,
+      cs:
+        usesCs && csMps !== null
+          ? {
+              csMps,
+              efforts: state.fitness.csEfforts,
+              since: prediction.trainingSince ?? null,
+            }
+          : null,
     },
     methods,
     grade: lowestGrade([
       ...gradesOf(methods.flatMap((m) => METHOD_PARAMS[m] ?? [])),
+      ...(prediction.trainingSince === undefined ? [] : gradesOf(CS_TRAINING_PARAMS)),
       // The floor of the interval is set by the distance (L2, L4, L6).
       label.grade,
       ...(prediction.rules.includes('L3') ? gradesOf(SINGLE_SOURCE_PARAMS) : []),
@@ -489,6 +508,7 @@ export function myPaces(input: MyPacesInput, events: readonly EventSpec[]): MyPa
       spreadRatio: P.a6.csMinTimeSpreadRatio.value,
       windowDays: P.a6.csWindowDays.value,
       done: state.fitness.csMps !== null,
+      fromTraining: state.fitness.csTrainingSince != null,
     },
   }
 }

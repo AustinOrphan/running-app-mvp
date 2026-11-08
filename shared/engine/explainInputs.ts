@@ -849,7 +849,7 @@ function fitnessFacts(scope: Scope): InputFact[] {
     make(
       'A6',
       'cs',
-      'explain.a6-cs',
+      ctx.state.fitness.csTrainingSince == null ? 'explain.a6-cs' : 'explain.a6-cs-training',
       {
         speed: speed(cs * 3.6),
         pace: pace(1000 / cs),
@@ -1064,7 +1064,10 @@ function anchorFacts(scope: Scope): InputFact[] {
     if (boundary === null) return []
     const date = day(isIsoDate(boundary.asOf) ? boundary.asOf : ctx.asOf)
     // Critical speed is the fit itself: "comes from your critical speed" would explain it by itself.
-    if (name === 'cs') return [make('C2', name, 'explain.c2-cs', { date }, { sources: efforts })]
+    if (name === 'cs') {
+      const template = boundary.fromTraining === true ? 'explain.c2-cs-training' : 'explain.c2-cs'
+      return [make('C2', name, template, { date }, { sources: efforts })]
+    }
     return [
       make(
         'C2',
@@ -1622,11 +1625,16 @@ function bandFacts(scope: Scope): InputFact[] {
   const { goal, prediction } = scope.ctx
   if (prediction === null) return [gap('L6', 'explain.l6-gap', {})]
   const facts = [
-    make('L6', 'range', 'explain.l6-range', {
-      predicted: duration(prediction.predictedSec),
-      low: duration(prediction.lowSec),
-      high: duration(prediction.highSec),
-    }),
+    make(
+      'L6',
+      'range',
+      prediction.trainingSince === undefined ? 'explain.l6-range' : 'explain.l6-range-floor',
+      {
+        predicted: duration(prediction.predictedSec),
+        low: duration(prediction.lowSec),
+        high: duration(prediction.highSec),
+      },
+    ),
   ]
   if (goal !== null && goal.distanceM !== null) {
     facts.push(

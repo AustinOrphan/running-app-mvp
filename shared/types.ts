@@ -87,6 +87,13 @@ export interface Activity {
   hrHistogram: HrHistogram | null
   /** Time and distance by grade band; null for a type that has none or a run not yet computed. */
   terrainBins: TerrainBins | null
+  /**
+   * The fastest grade-adjusted stretches of the run (rule A6), read from its stream when the athlete
+   * snapshot is built and stored nowhere. Absent when the run was not read for them.
+   */
+  bestEfforts?: BestEfforts | null
+  /** Quality of the run's heart rate (rule B2, batch HQ1); null for a type that has none or a run not yet computed. */
+  hrQuality: HrQuality | null
   decouplingPct: number | null
   gapDistanceM: number | null
   /** -2 much easier .. +2 much harder than expected. */
@@ -113,7 +120,7 @@ export type ActivityCore = Pick<
  * route always sends it; it is optional in the type only because the other routes that answer with
  * an activity (create, update, the detail) are typed through this shape too and do not carry it.
  */
-export type ActivityListItem = Omit<Activity, 'hrHistogram' | 'terrainBins'> & {
+export type ActivityListItem = Omit<Activity, 'hrHistogram' | 'terrainBins' | 'hrQuality'> & {
   strengthSets?: number | null
 }
 /**
@@ -207,6 +214,11 @@ export interface ActivityStreamData {
   cad: number[] | null
   pwr: number[] | null
 }
+/** The fastest flat-equivalent stretch of a run at each distance of `a6.csEffortTargetsM` it reaches. */
+export interface BestEfforts {
+  v: number
+  efforts: Array<{ distanceM: number; timeSec: number }>
+}
 export interface Lap {
   startSec: number
   durationSec: number
@@ -237,6 +249,47 @@ export interface TerrainBins {
   walkSec: number[]
   /** Variation of segment speed (2 minutes or more) in the flat band, standard deviation over mean; null if too few segments. */
   flatCv: number | null
+}
+/**
+ * Where a run's heart rate came from: `strap` is an external sensor the file lists (a chest strap
+ * or armband), `wrist` is a file that lists device information and no such sensor, `unknown` is a
+ * file with no device information. The checks treat `wrist` and `unknown` alike (rule B2).
+ */
+export type HrSource = 'strap' | 'wrist' | 'unknown'
+/**
+ * The per-run quality of a run's heart rate, from its stored stream (rule B2, batch HQ1). All times
+ * are seconds of moving time; a second can be flagged by more than one check, so the flagged
+ * seconds can add up to more than `movingSec - cleanSec`. The pass or fail is read from these by
+ * `hrQualityPasses`, so a new threshold needs no backfill. `halves` holds the clean moving time
+ * of the first and the second half of a run of 40 minutes or more, by terrain band, for the
+ * grade-adjusted drift; null for a shorter run or a run with no altitude.
+ */
+export interface HrQuality {
+  v: number
+  /** The data-preparation thresholds the counts were computed with (`HR_QUALITY_THRESHOLDS`). */
+  th: string
+  source: HrSource
+  movingSec: number
+  cleanSec: number
+  /** Heart rate within a few bpm of the step cadence for a sustained stretch. */
+  lockSec: number
+  /** Neighbouring means farther apart than a heart changes. */
+  spikeSec: number
+  /** No heart rate at all. */
+  dropSec: number
+  /** One exact value for a minute or more. */
+  flatSec: number
+  /** Heart rate fell while the effort rose sharply. */
+  mismatchSec: number
+  halves: HrQualityHalves | null
+  /** Grade-adjusted drift on the Minetti curve, percent; null when `halves` is. */
+  gapDecouplingPct: number | null
+}
+/** Per terrain band (the edges of `TerrainBins`), for each half: clean seconds, metres and heart rate times seconds. */
+export interface HrQualityHalves {
+  sec: [number[], number[]]
+  m: [number[], number[]]
+  hrSec: [number[], number[]]
 }
 export interface Injury {
   area: string
@@ -271,6 +324,8 @@ export interface ParsedActivity {
   avgCadence: number | null
   avgPowerW: number | null
   deviceName: string | null
+  /** Where the heart rate came from, when the file says (FIT `device_info`); absent reads as `unknown`. */
+  hrSource?: HrSource
   startLat: number | null
   startLng: number | null
   /**
@@ -1382,7 +1437,10 @@ export interface TodayRace {
   /** The race distance in metres; null when the goal has none. */
   distanceM: number | null
   /** Null when the athlete's state supports no source, or the goal has no distance. */
-  prediction: Pick<Prediction, 'method' | 'predictedSec' | 'lowSec' | 'highSec'> | null
+  prediction: Pick<
+    Prediction,
+    'method' | 'predictedSec' | 'lowSec' | 'highSec' | 'trainingSince'
+  > | null
   /** How wide the range has to be; null when the goal has no distance. */
   range: RangeLabel | null
 }

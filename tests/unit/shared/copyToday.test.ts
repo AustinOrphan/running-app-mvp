@@ -121,6 +121,24 @@ describe('race countdown copy', () => {
     ).toBe('Finish estimate 27 h 40 min to 36 h 20 min, most likely about 31 h 50 min.')
   })
 
+  test('says "at most" and the basis for a time from training (A6)', () => {
+    expect(
+      renderFact(
+        { template: 'today.race.estimate-floor', slots: raceEstimateSlots(prediction) },
+        'km',
+      ),
+    ).toBe('At most about 31 h 50 min. Finish estimate 27 h 40 min to 36 h 20 min.')
+    expect(
+      renderFact(
+        {
+          template: 'today.race.floor-basis',
+          slots: { date: { kind: 'date', iso: '2026-08-11', style: 'short' } },
+        },
+        'km',
+      ),
+    ).toMatch(/^It rests on your best efforts in training since 11 Aug, not on races\./)
+  })
+
   test('rounds the way formatEstimate does, for a short race too', () => {
     const marathon = {
       lowSec: hms(3, 33, 14),

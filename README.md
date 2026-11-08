@@ -87,7 +87,13 @@ A manual run on the same day within 80 m of an imported one is flagged as a poss
 left out of totals until you confirm or dismiss it. Files up to 10 MB are accepted. Excel-saved
 files (byte-order mark, Windows line endings) import like clean ones.
 
-Activities can be exported again from Settings as CSV.
+Activities can be exported again from Settings as CSV. Settings also has "Download all your data": one
+ZIP with every record of your account as JSON files (activities and their streams, plans, logs,
+reviews, goals, settings), the activity CSV, the original imported files as uploaded, and a
+`README.txt` that names each file, its fields and units. It leaves out your password and the keys and
+tokens of connected sources. The archive is a plain ZIP, so it holds at most 65,535 files and 4 GiB.
+One export runs at a time; the browser's download manager streams it to disk. The operator's backup
+(below) is a different thing: it copies the whole database for a restore.
 
 ## Integrations
 

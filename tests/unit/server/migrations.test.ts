@@ -1838,6 +1838,32 @@ function verifyTerrainBins(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+function verifyHrQuality(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Every activity of the previous release reads null: the backfill job fills runs that have a stream.
+  expect(rowsOf(db, 'SELECT id, "hrQuality" FROM "Activity" ORDER BY id')).toEqual([
+    { id: 'a1', hrQuality: null },
+    { id: 'a2', hrQuality: null },
+    { id: 'a3', hrQuality: null },
+    { id: 'a4', hrQuality: null },
+  ])
+  // The streams and the other derived columns are untouched.
+  expect(rowsOf(db, 'SELECT "activityId" FROM "ActivityStream" ORDER BY "activityId"')).toEqual([
+    { activityId: 'a1' },
+    { activityId: 'a3' },
+  ])
+  expect(
+    rowsOf(db, `SELECT "hrHistogram", "gapDistanceM" FROM "Activity" WHERE id = 'a1'`),
+  ).toEqual([{ hrHistogram: '{"start":40,"width":1,"sec":[1,2,3]}', gapDistanceM: 8100 }])
+  // The column takes JSON text, and a new activity without it reads null.
+  db.prepare(`UPDATE "Activity" SET "hrQuality" = ? WHERE id = 'a1'`).run('{"v":1}')
+  expect(rowsOf(db, `SELECT "hrQuality" FROM "Activity" WHERE id = 'a1'`)).toEqual([
+    { hrQuality: '{"v":1}' },
+  ])
+}
+
 function verifyActivityTrack(db: DatabaseSync, before: Snapshot): void {
   expectNothingLost(before, db)
   expectConsistent(db)
@@ -1946,6 +1972,11 @@ const CASES: FixtureCase[] = [
     migration: 'terrain_bins',
     seed: seedTerrainRelease,
     verify: verifyTerrainBins,
+  },
+  {
+    migration: 'hr_quality',
+    seed: seedTerrainRelease,
+    verify: verifyHrQuality,
   },
   {
     migration: 'activity_track',

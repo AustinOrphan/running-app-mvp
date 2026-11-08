@@ -4,8 +4,9 @@
 import type { TemplateId } from '../copy/templates.ts'
 import { daysBetween } from '../dates.ts'
 import { isToRun } from '../domain/sessionStatus.ts'
-import type { Activity, Checkin, PlanSessionStatus } from '../types.ts'
+import type { Activity, Checkin, HrQuality, PlanSessionStatus } from '../types.ts'
 import { liljegrenWbgt } from './heat.ts'
+import { hrQualityPasses } from './hrQuality.ts'
 import { P } from './params/index.ts'
 import { sessionTitle } from './sessions.ts'
 import type {
@@ -208,7 +209,20 @@ export type HrFitRun = Pick<
   | 'tempC'
   | 'humidityPct'
   | 'windKph'
->
+> & {
+  /** The run's heart-rate quality (rule B2, HQ1); absent or null reads as no summary. */
+  hrQuality?: HrQuality | null
+}
+
+/** What a caller may change in the HR-at-pace fit. */
+export interface HrFitOptions {
+  /**
+   * Also fit hilly runs (more climb per km than `hrModel.maxGainPerKm`) whose heart rate passes the
+   * per-run checks of B2 (`hrQualityPasses`). Their speed is grade-adjusted like every run's. Only
+   * the Trends panel sets it; the engine's own fits leave it off (rule A11, batch HQ1).
+   */
+  hilly?: boolean
+}
 
 /** The WBGT of the weather an activity recorded, from the Liljegren model; null without temperature and humidity. */
 export function wbgtOf(
@@ -258,14 +272,15 @@ function hrDataUsable(
   activity: Pick<
     Activity,
     'avgHr' | 'hrHistogram' | 'durationSec' | 'elevationGainM' | 'distanceM'
-  >,
+  > & { hrQuality?: HrQuality | null },
+  hilly = false,
 ): boolean {
   if (activity.avgHr === null || activity.hrHistogram === null) return false
   if (activity.durationSec <= 0) return false
   if (histogramTotalSec(activity) / activity.durationSec < P.hrModel.minHistogramCoverage.value) {
     return false
   }
-  return isFlatRun(activity)
+  return isFlatRun(activity) || (hilly && hrQualityPasses(activity.hrQuality ?? null))
 }
 
 function hasWorkSteps(session: SessionSpec): boolean {
@@ -361,6 +376,10 @@ interface ModelPoint {
   hr: number
   /** The run's day, `YYYY-MM-DD`. */
   date: string
+  /** Climbs more than `hrModel.maxGainPerKm`: in the fit only on `HrFitOptions.hilly`. */
+  hilly: boolean
+  /** Date and length, to tell two runs of one day apart. */
+  key: string
 }
 
 /**
@@ -368,23 +387,34 @@ interface ModelPoint {
  * a counted run (a race is not one) with an average heart rate, long enough, flat, with a sampled
  * and steady histogram [rules B2, A8].
  */
-function modelPoint(a: HrFitRun): ModelPoint | null {
+function modelPoint(a: HrFitRun, hilly = false): ModelPoint | null {
   if (a.type !== 'run' || !counts(a) || a.avgHr === null) return null
   if (a.durationSec < P.hrModel.minDurationMin.value * SEC_PER_MIN) return null
-  if (!hrDataUsable(a) || steadyShare(a) < P.hrModel.steadyMinShare.value) return null
+  if (!hrDataUsable(a, hilly) || steadyShare(a) < P.hrModel.steadyMinShare.value) return null
   const v = speedMps(a)
   if (v === null) return null
-  return { v, h: heatExcessC(wbgtOf(a)), hr: a.avgHr, date: a.date }
+  return {
+    v,
+    h: heatExcessC(wbgtOf(a)),
+    hr: a.avgHr,
+    date: a.date,
+    hilly: !isFlatRun(a),
+    key: `${a.date}|${String(a.durationSec)}`,
+  }
 }
 
 /** The points of the runs inside the last `hrModel.windowWeeks` weeks, in the order they are given. */
-function windowPoints(activities: readonly HrFitRun[], today: string): ModelPoint[] {
+function windowPoints(
+  activities: readonly HrFitRun[],
+  today: string,
+  hilly: boolean,
+): ModelPoint[] {
   const windowDays = P.hrModel.windowWeeks.value * 7
   const points: ModelPoint[] = []
   for (const a of activities) {
     const age = daysBetween(a.date, today)
     if (age < 0 || age >= windowDays) continue
-    const point = modelPoint(a)
+    const point = modelPoint(a, hilly)
     if (point !== null) points.push(point)
   }
   return points
@@ -398,13 +428,14 @@ function windowPoints(activities: readonly HrFitRun[], today: string): ModelPoin
 export function hrModelSample(
   activities: readonly HrFitRun[],
   today: string,
-): { runs: number; first: string | null } {
-  const points = windowPoints(activities, today)
+  opts: HrFitOptions = {},
+): { runs: number; first: string | null; hillyKeys: string[] } {
+  const points = windowPoints(activities, today, opts.hilly ?? false)
   const first = points.reduce<string | null>(
     (earliest, p) => (earliest === null || p.date < earliest ? p.date : earliest),
     null,
   )
-  return { runs: points.length, first }
+  return { runs: points.length, first, hillyKeys: points.filter((p) => p.hilly).map((p) => p.key) }
 }
 
 /**
@@ -413,8 +444,12 @@ export function hrModelSample(
  * athlete's own hot runs by shrinkage. Null with fewer than `hrModel.minQualifyingRuns` runs:
  * never a guess.
  */
-export function fitHrModel(activities: readonly HrFitRun[], today: string): HrModel | null {
-  const points = windowPoints(activities, today)
+export function fitHrModel(
+  activities: readonly HrFitRun[],
+  today: string,
+  opts: HrFitOptions = {},
+): HrModel | null {
+  const points = windowPoints(activities, today, opts.hilly ?? false)
   const n = points.length
   if (n < P.hrModel.minQualifyingRuns.value) return null
 

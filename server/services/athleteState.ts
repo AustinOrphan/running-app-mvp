@@ -4,7 +4,8 @@
 // day and the parameter version, so a write by any caller, another connection or another process,
 // and midnight, all make the next read build a fresh picture. Nothing here raises the data version.
 import { addDays, mondayOf, todayIso } from '../../shared/dates.ts'
-import { estimateState } from '../../shared/engine/athlete.ts'
+import { estimateState, INDOOR_OR_TRACK } from '../../shared/engine/athlete.ts'
+import { computeBestEfforts } from '../../shared/engine/bestEfforts.ts'
 import { recentPaceSecPerKm, withDistanceEstimate } from '../../shared/engine/distanceEstimate.ts'
 import { fitHrModel, type HrModel } from '../../shared/engine/execution.ts'
 import { goalModel } from '../../shared/engine/goal.ts'
@@ -27,6 +28,7 @@ import { buildZones } from '../../shared/engine/zones.ts'
 import { ZONE_CHANGE_MARK, zoneDecisionsOf } from '../../shared/engine/zoneChange.ts'
 import type {
   Activity,
+  ActivityStreamData,
   AthleteProfile,
   Disruption,
   Goal,
@@ -434,6 +436,41 @@ export async function goalModelFor(
   return goalModel(goal, ctx.state, climate)
 }
 
+/**
+ * The runs of the critical-speed window with their fastest stretches (rule A6), read from the
+ * stored 10 s streams when the snapshot is built and kept nowhere else. A run with no stream, or one
+ * that cannot be read, is returned as it is. The window is the same for every reader because the
+ * snapshot is: the plan, the zones and My paces all fit critical speed from these activities.
+ */
+async function withBestEfforts(
+  prisma: PrismaClient,
+  activities: Activity[],
+  today: string,
+): Promise<Activity[]> {
+  const windowStart = addDays(today, 1 - P.a6.csWindowDays.value)
+  const candidates = activities.filter(
+    (a) => (a.type === 'run' || a.type === 'race') && a.date >= windowStart && !isDuplicate(a),
+  )
+  if (candidates.length === 0) return activities
+  const streams = await prisma.activityStream.findMany({
+    where: { activityId: { in: candidates.map((a) => a.id) } },
+    select: { activityId: true, data: true },
+  })
+  const efforts = new Map<string, Activity['bestEfforts']>()
+  for (const row of streams) {
+    const run = candidates.find((a) => a.id === row.activityId)
+    if (!run) continue
+    try {
+      const stream = JSON.parse(row.data) as ActivityStreamData
+      const flat = run.subtype !== null && INDOOR_OR_TRACK.test(run.subtype)
+      efforts.set(run.id, computeBestEfforts(stream, flat))
+    } catch {
+      // An unreadable stream gives no stretches; the run still counts as a whole run.
+    }
+  }
+  return activities.map((a) => (efforts.has(a.id) ? { ...a, bestEfforts: efforts.get(a.id) } : a))
+}
+
 async function buildContext(
   prisma: PrismaClient,
   userId: string,
@@ -497,7 +534,7 @@ async function buildContext(
     }),
   ])
 
-  const activities = newestFirst.reverse()
+  const activities = await withBestEfforts(prisma, newestFirst.reverse(), today)
   const wellness: EngineInput['wellness'] = wellnessRows.map((row) => ({
     ...toWellnessDay(row),
     fatigue: row.fatigue,
