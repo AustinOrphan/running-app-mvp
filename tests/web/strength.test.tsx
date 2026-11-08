@@ -2452,7 +2452,7 @@ describe('the layout rules of the stylesheet (design 11.7)', () => {
 
   test('the reps-left scale is the touch scale: 44 px a value, in the columns the component sets', () => {
     expect(css('ScalePicker.module.css')).toMatch(
-      /\[data-touch='true'\][^}]*repeat\(var\(--cols\), minmax\(2\.75rem/s,
+      /\.button \{[^}]*flex: 0 0 calc\([^}]*var\(--cols\)[^}]*min-width: 2\.75rem/s,
     )
   })
 })

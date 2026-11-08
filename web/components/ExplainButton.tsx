@@ -46,7 +46,12 @@ export function ExplainButton({ subject, rules, explain, icon = false }: Explain
           <InfoIcon />
         </button>
       ) : (
-        <Button variant="quiet" aria-label={`Why: ${subject}`} onClick={show}>
+        <Button
+          variant="quiet"
+          className={styles.why}
+          aria-label={`Why: ${subject}`}
+          onClick={show}
+        >
           Why
         </Button>
       )}

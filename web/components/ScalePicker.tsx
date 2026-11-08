@@ -8,11 +8,7 @@ export interface ScalePickerProps {
   value: number | null
   onChange: (value: number | null) => void
   hint?: string
-  /**
-   * Keeps every button at least 44 px wide and tall: a scale with too many steps for one row is
-   * set in two balanced rows (1 to 10 as 5 and 5, 0 to 10 as 6 and 5). Without it the buttons share
-   * one row, however narrow.
-   */
+  /** Every scale is a touch scale now; the prop is accepted so a caller that still passes it compiles. */
   touch?: boolean
 }
 
@@ -22,21 +18,18 @@ export function touchColumns(steps: number): number {
 }
 
 /**
- * A numbered scale such as RPE 1 to 10, pain 0 to 10 or a 1 to 5 check-in answer: one row of
- * equal buttons that share the width, so it never wraps (at 360 px the buttons are narrow but
- * stay on one line). With `touch` every button is at least 44 px square and a long scale is set in
- * two balanced rows (`touchColumns`). Tapping the chosen number clears it.
+ * A numbered scale such as RPE 1 to 10, pain 0 to 10 or a 1 to 5 check-in answer. Every button is
+ * at least 44 px wide and tall and all share one width: up to six steps sit in one row, a longer
+ * scale in two balanced rows (`touchColumns`: 1 to 10 as 5 and 5, 0 to 10 as 6 and 5 with the short
+ * row centred). Tapping the chosen number clears it.
  */
-export function ScalePicker({ legend, min, max, value, onChange, hint, touch }: ScalePickerProps) {
+export function ScalePicker({ legend, min, max, value, onChange, hint }: ScalePickerProps) {
   const numbers = Array.from({ length: max - min + 1 }, (_, i) => min + i)
-  const row = {
-    '--steps': numbers.length,
-    ...(touch === true ? { '--cols': touchColumns(numbers.length) } : {}),
-  } as CSSProperties
+  const row = { '--cols': touchColumns(numbers.length) } as CSSProperties
   return (
     <fieldset className={styles.fieldset}>
       <legend>{legend}</legend>
-      <div className={styles.row} style={row} data-touch={touch === true ? 'true' : undefined}>
+      <div className={styles.row} style={row} data-touch="true">
         {numbers.map((n) => (
           <button
             key={n}
