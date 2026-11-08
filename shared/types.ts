@@ -256,6 +256,8 @@ export type HrSource = 'strap' | 'wrist' | 'unknown'
  */
 export interface HrQuality {
   v: number
+  /** The data-preparation thresholds the counts were computed with (`HR_QUALITY_THRESHOLDS`). */
+  th: string
   source: HrSource
   movingSec: number
   cleanSec: number

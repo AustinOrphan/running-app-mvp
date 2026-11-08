@@ -80,22 +80,22 @@ describe('computeHrQuality', () => {
     expect(brief.lockSec).toBe(0)
   })
 
-  it('compares with twice a cadence stored for one foot, and not with a walking cadence', () => {
-    const oneFoot = computeHrQuality(
-      stream(TWENTY_FIVE_MIN, {
-        hr: (i) => (i < 60 ? 171 + (i % 2) : 140 + (i % 4)),
-        cad: () => 86,
-      }),
+  it('compares heart rate with the stored steps per minute only: a power hike at 72 spm is not a lock', () => {
+    // Every importer stores steps per minute, so 72 is a hike, and a heart rate near 144 (twice it) is no lock.
+    const hike = computeHrQuality(
+      stream(TWENTY_FIVE_MIN, { hr: (i) => 143 + (i % 3), cad: () => 72 }),
       10,
       'wrist',
     )
-    expect(oneFoot.lockSec).toBe(600)
-    const walking = computeHrQuality(
-      stream(TWENTY_FIVE_MIN, { hr: (i) => 50 + (i % 3), cad: () => 50 }),
+    expect(hike.lockSec).toBe(0)
+    expect(hike.cleanSec).toBe(hike.movingSec)
+    // Heart rate that sits on a slow stored cadence is not read either: the floor applies to it.
+    const slow = computeHrQuality(
+      stream(TWENTY_FIVE_MIN, { hr: (i) => 71 + (i % 3), cad: () => 72 }),
       10,
       'wrist',
     )
-    expect(walking.lockSec).toBe(0)
+    expect(slow.lockSec).toBe(0)
   })
 
   it('flags both neighbours of a jump faster than a heart changes', () => {

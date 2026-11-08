@@ -30,7 +30,24 @@ import {
 } from './terrainBins.ts'
 
 /** Version of the stored shape. A change of a check or of what is counted raises it. */
-export const HR_QUALITY_VERSION = 1
+export const HR_QUALITY_VERSION = 2
+
+/**
+ * The eight data-preparation thresholds a summary was computed with, as one string. A summary whose
+ * `th` differs from this was computed with other numbers, and the backfill computes it again.
+ */
+export const HR_QUALITY_THRESHOLDS = [
+  P.b2.qFlatLineSec,
+  P.b2.qMaxJumpBpm,
+  P.b2.qLockBandBpm,
+  P.b2.qLockMinSec,
+  P.b2.qLockMinCadenceSpm,
+  P.b2.qMismatchWindowSec,
+  P.b2.qMismatchHrDropBpm,
+  P.b2.qMismatchEffortRise,
+]
+  .map((param) => String(param.value))
+  .join('/')
 /** Faster than this over one bucket is a GPS jump, not running. Same figure as the terrain bins. */
 const MAX_SPEED_MPS = 12
 /** Same cap as the terrain bins and the gap-distance grade: a steeper reading is a data error. */
@@ -183,15 +200,9 @@ function markEqualRuns(steps: readonly Step[], minSec: number, flags: boolean[])
   close(steps.length)
 }
 
-/** The cadence a heart rate is compared with: steps per minute, or twice a single foot's. */
-function stepsPerMin(cad: number): number | null {
-  const floor = P.b2.qLockMinCadenceSpm.value
-  if (cad >= floor) return cad
-  return cad >= floor / 2 ? cad * 2 : null
-}
-
 const empty = (source: HrSource): HrQuality => ({
   v: HR_QUALITY_VERSION,
+  th: HR_QUALITY_THRESHOLDS,
   source,
   movingSec: 0,
   cleanSec: 0,
@@ -229,12 +240,14 @@ export function computeHrQuality(
   const mismatch = new Array<boolean>(n).fill(false)
 
   const band = P.b2.qLockBandBpm.value
+  const minCadence = P.b2.qLockMinCadenceSpm.value
   markRuns(
     steps,
     (step) => {
       if (step.hr === null || step.cad === null) return false
-      const spm = stepsPerMin(step.cad)
-      return spm !== null && Math.abs(step.hr - spm) <= band
+      // Every importer stores steps per minute, so the stored value is compared as it is; a slower
+      // cadence is walking or hiking, where heart rate and cadence meet by chance.
+      return step.cad >= minCadence && Math.abs(step.hr - step.cad) <= band
     },
     P.b2.qLockMinSec.value,
     lock,

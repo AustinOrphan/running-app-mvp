@@ -40,7 +40,8 @@ describe('longRunReadings', () => {
         return row
       }
       return {
-        v: 1,
+        v: 2,
+        th: '',
         source: 'wrist',
         movingSec: 7000,
         cleanSec: 6800,
@@ -288,7 +289,8 @@ describe('fixedSpeedSeries', () => {
 
 describe('hrWindows with hilly runs that passed (B2, HQ1)', () => {
   const strap: HrQuality = {
-    v: 1,
+    v: 2,
+    th: '',
     source: 'strap',
     movingSec: 2300,
     cleanSec: 2300,

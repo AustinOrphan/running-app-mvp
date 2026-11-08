@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { runHrQualityJob } from '../../server/jobs/scheduler.ts'
 import { storeParsed } from '../../server/services/activityStore.ts'
 import { backfillHrQuality } from '../../server/services/hrQualityBackfill.ts'
+import { HR_QUALITY_THRESHOLDS } from '../../shared/importers/files/hrQuality.ts'
 import { hrQualityPasses } from '../../shared/engine/hrQuality.ts'
 import { parseActivityFile } from '../../shared/importers/files/index.ts'
 import type { HrQuality } from '../../shared/types.ts'
@@ -147,9 +148,20 @@ describe('backfillHrQuality', () => {
 
   test('does not overwrite a summary an import wrote in the meantime', async () => {
     const run = await importOld(user.id, 1, 5)
-    await ctx.prisma.activity.update({ where: { id: run.id }, data: { hrQuality: '{"v":9}' } })
+    const current = JSON.stringify({ v: 9, th: HR_QUALITY_THRESHOLDS })
+    await ctx.prisma.activity.update({ where: { id: run.id }, data: { hrQuality: current } })
     expect(await backfillHrQuality(deps(), user.id)).toMatchObject({ filled: 0, remaining: 0 })
-    expect(await qualityOf(run.id)).toBe('{"v":9}')
+    expect(await qualityOf(run.id)).toBe(current)
+  })
+
+  test('computes again a summary made with other thresholds, and the source stays', async () => {
+    const run = await importOld(user.id, 1, 5, true)
+    await ctx.prisma.activity.update({
+      where: { id: run.id },
+      data: { hrQuality: JSON.stringify({ v: 1, th: '1/2/3', source: 'wrist' }) },
+    })
+    expect(await backfillHrQuality(deps(), user.id)).toMatchObject({ filled: 1, remaining: 0 })
+    expect(await qualityOf(run.id)).toBe(run.imported)
   })
 
   test('an unreadable stream gets an all-zero summary, is reported and is not met again', async () => {

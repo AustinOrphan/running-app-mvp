@@ -109,7 +109,7 @@ export const bLoad = {
       ['bent-2020-ppg-inaccuracy', 'fallet-2017-wrist-ppg-adaptive'],
       {
         unit: 'bpm',
-        note: 'Default (data preparation): heart rate within this many bpm of the step cadence (or of twice a cadence stored per foot) counts as a candidate for cadence lock.',
+        note: 'Default (data preparation): heart rate within this many bpm of the step cadence counts as a candidate for cadence lock.',
       },
     ),
     qLockMinSec: param(
@@ -125,7 +125,7 @@ export const bLoad = {
     ),
     qLockMinCadenceSpm: param('b2.qLockMinCadenceSpm', 120, 'D', 'B2', [], {
       unit: 'steps per min',
-      note: 'Default (data preparation): a cadence below this is walking or standing, or one foot, and heart rate and cadence meet by chance there;the lock check reads a cadence at or above it as steps per minute, and one from half of it up to it as a single foot and doubles it. Below half of it there is no check.',
+      note: 'Default (data preparation): a cadence below this is walking, hiking or standing, where heart rate and cadence meet by chance; the lock check reads the stored steps per minute at or above it and nothing slower.',
     }),
     qMismatchWindowSec: param(
       'b2.qMismatchWindowSec',

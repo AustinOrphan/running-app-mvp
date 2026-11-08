@@ -1,7 +1,7 @@
 import { gunzipSync } from 'node:zlib'
 import type { Deps } from '../app.ts'
 import { fitHrSource } from '../../shared/importers/files/fit.ts'
-import { computeHrQuality } from '../../shared/importers/files/hrQuality.ts'
+import { computeHrQuality, HR_QUALITY_THRESHOLDS } from '../../shared/importers/files/hrQuality.ts'
 import type { ActivityStreamData, HrSource } from '../../shared/types.ts'
 
 /** Runs read and written per user per call: small, so a call is short and a request never queues behind it. */
@@ -18,6 +18,12 @@ export interface HrQualityBackfillResult {
 
 const RUN_TYPES = ['run', 'race']
 
+/** No summary yet, or one computed with other data-preparation thresholds (`HR_QUALITY_THRESHOLDS`). */
+const STALE = [
+  { hrQuality: null },
+  { NOT: { hrQuality: { contains: `"th":"${HR_QUALITY_THRESHOLDS}"` } } },
+]
+
 /** The heart-rate source of a stored original; a file that is not FIT, or cannot be read, is unknown. */
 function sourceOfFile(file: { format: string; gz: Uint8Array } | null): HrSource {
   if (file === null || file.format !== 'fit') return 'unknown'
@@ -30,7 +36,7 @@ function sourceOfFile(file: { format: string; gz: Uint8Array } | null): HrSource
 
 /**
  * Fills `Activity.hrQuality` from the stored stream for the newest runs and races of one user that
- * have a stream and no summary, with the function the import uses (both read the 10 s stream, so
+ * have a stream and no summary or a stale one (other thresholds), with the function the import uses (both read the 10 s stream, so
  * the numbers agree). The heart-rate source is read from the stored original FIT file when there is
  * one, because the stream does not carry it. Idempotent and resumable: a run with a summary is never
  * selected again, a run is written only while its column is still null (an import that wins the
@@ -46,7 +52,7 @@ export async function backfillHrQuality(
   const { prisma } = deps
   const where = {
     userId,
-    hrQuality: null,
+    OR: STALE,
     type: { in: RUN_TYPES },
     stream: { isNot: null },
   }
@@ -77,7 +83,7 @@ export async function backfillHrQuality(
       )
     }
     return prisma.activity.updateMany({
-      where: { id: row.id, hrQuality: null },
+      where: { id: row.id, OR: STALE },
       data: { hrQuality: JSON.stringify(quality) },
     })
   })
