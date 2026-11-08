@@ -342,6 +342,7 @@ export function ActivitiesPage() {
   } else if (rows.length === 0) {
     body = (
       <EmptyState
+        art={duplicatesOnly ? undefined : 'filter'}
         title={duplicatesOnly ? 'No possible duplicates.' : 'No activities match these filters.'}
         body={
           duplicatesOnly

@@ -2,6 +2,7 @@ import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { isoDateInZone } from '../../../shared/dates.ts'
 import type { TodayView, Units } from '../../../shared/types.ts'
+import { Illustration } from '../illustrations/Illustration.tsx'
 import { serverToday, usePhoneCopy } from './phoneCopy.ts'
 import styles from './OfflineNote.module.css'
 
@@ -79,6 +80,7 @@ export function OfflineNote({ view, units }: { view: TodayView; units: Units }) 
   const phoneCopy = usePhoneCopy(view)
   return (
     <div aria-live="polite" aria-atomic="true" className={styles.region}>
+      {phoneCopy ? <Illustration art="offline" size="small" /> : null}
       {phoneCopy ? <p className={styles.note}>{noteText(view, units)}</p> : null}
     </div>
   )

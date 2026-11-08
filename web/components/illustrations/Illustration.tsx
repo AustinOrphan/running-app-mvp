@@ -8,7 +8,20 @@ import { useIllustrations } from './useIllustrations.ts'
  * strokes that carry what the page is waiting for. Drawn on a 160 by 120 sheet, round caps, no area
  * fill (a small filled dot is allowed), no motion.
  */
-export type ArtKey = 'runs' | 'plan' | 'offline' | 'load' | 'race' | 'trends' | 'strength' | 'paces'
+export type ArtKey =
+  | 'runs'
+  | 'plan'
+  | 'offline'
+  | 'load'
+  | 'race'
+  | 'trends'
+  | 'strength'
+  | 'paces'
+  | 'rest'
+  | 'done'
+  | 'review'
+  | 'brief'
+  | 'filter'
 
 const DOTS = '0.1 5.4'
 
@@ -22,6 +35,11 @@ const SPAN: Record<ArtKey, readonly [number, number]> = {
   trends: [22, 140],
   strength: [10, 150],
   paces: [34, 125],
+  rest: [6, 150],
+  done: [34, 122],
+  review: [38, 114],
+  brief: [10, 150],
+  filter: [20, 140],
 }
 
 const DRAWINGS: Record<ArtKey, ReactElement> = {
@@ -122,15 +140,67 @@ const DRAWINGS: Record<ArtKey, ReactElement> = {
       <path d="M44 112 H72 M80 112 H116" />
     </>
   ),
+  // A pair of shoes set by a door: nothing to lace up today.
+  rest: (
+    <>
+      <path d="M112 108 V18 H148 V108" />
+      <circle cx="121" cy="64" r="2.4" fill="currentColor" />
+      <path d="M6 108 H104" />
+      <path d="M10 108 V80 C10 75 16 74 19 78 L28 90 H44 C50 90 52 100 52 108" />
+      <path d="M56 108 V80 C56 75 62 74 65 78 L74 90 H90 C96 90 98 100 98 108" />
+      <path className="accent" d="M20 80 L25 86 M26 78 L31 84 M66 80 L71 86 M72 78 L77 84" />
+    </>
+  ),
+  // A cup on its saucer, steam rising: the day is done and quiet.
+  done: (
+    <>
+      <path d="M54 54 H100 V80 C100 93 91 102 77 102 C63 102 54 93 54 80 Z" />
+      <path d="M100 60 H108 C117 60 117 78 108 78 H99" />
+      <path d="M38 108 H118" />
+      <path className="accent" d="M68 44 C63 38 73 34 68 27 M84 44 C79 38 89 34 84 27" />
+    </>
+  ),
+  // A closed notebook with a ribbon marking the place.
+  review: (
+    <>
+      <rect x="42" y="22" width="68" height="84" rx="4" />
+      <path d="M54 22 V106" />
+      <path d="M66 46 H98 M66 58 H90" />
+      <path className="accent" d="M94 14 V40 L99 35 L104 40 V14" />
+    </>
+  ),
+  // A still horizon with the sun just above it, the water level: nothing has moved.
+  brief: (
+    <>
+      <path d="M10 90 H150" />
+      <path className="accent" d="M44 90 A36 36 0 0 1 116 90" />
+      <path d="M30 101 H70 M84 101 H128 M50 112 H110" />
+    </>
+  ),
+  // A magnifier held over bare ground: nothing matches.
+  filter: (
+    <>
+      <circle cx="72" cy="50" r="26" />
+      <path className="accent" d="M91 69 L116 94" />
+      <path d="M20 108 H64 M72 108 H140" />
+    </>
+  ),
 }
 
 /** The drawing for `art` when the switch is on; nothing at all when it is off. */
-export function Illustration({ art }: { art: ArtKey | undefined }) {
+export function Illustration({
+  art,
+  size,
+}: {
+  art: ArtKey | undefined
+  /** `small` (80 px, 64 px at 480 and under) for a quiet moment inside a page's own content. */
+  size?: 'small'
+}) {
   const { on } = useIllustrations()
   if (!on || art === undefined) return null
   return (
     <svg
-      className={styles.art}
+      className={size === 'small' ? `${styles.art} ${styles.small}` : styles.art}
       viewBox={`${String(SPAN[art][0])} 0 ${String(SPAN[art][1] - SPAN[art][0])} 120`}
       aria-hidden="true"
       focusable="false"

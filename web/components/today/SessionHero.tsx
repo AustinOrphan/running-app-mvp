@@ -9,6 +9,7 @@ import type { PlanSessionView, TodayHeat, TodayHero, Units } from '../../../shar
 import { formatDistance } from '../../../shared/units.ts'
 import { useQueuedDone } from '../../api/activityOutbox.ts'
 import { isFocusLost } from '../focusMain.ts'
+import { Illustration } from '../illustrations/Illustration.tsx'
 import { WhyDrawer } from '../WhyDrawer.tsx'
 import { CoolerStart } from './CoolerStart.tsx'
 import { DoneSheet, NotFullSheet, StrengthSheet } from '../lazySheets.tsx'
@@ -55,6 +56,7 @@ export function NoSession({ next, units }: { next: PlanSessionView | null; units
         {render(TEMPLATES['today.hero.nothing-planned'], {}, units)}
       </p>
       {line === null ? null : <p className={styles.nextLine}>{line}</p>}
+      <Illustration art="rest" size="small" />
     </section>
   )
 }
@@ -276,6 +278,12 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
         />
       ) : null}
       {nextText === null ? null : <p className={styles.muted}>{nextText}</p>}
+      {/* A quiet drawing, never a reward: a rest day, or a session that is settled. */}
+      {rest ? (
+        <Illustration art="rest" size="small" />
+      ) : session.status === 'completed' || session.status === 'partial' ? (
+        <Illustration art="done" size="small" />
+      ) : null}
 
       {queuedDone === null || strengthHero ? null : (
         <p role="status" className={styles.muted}>

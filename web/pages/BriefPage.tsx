@@ -12,6 +12,7 @@ import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useSettings } from '../api/settings.ts'
 import buttonStyles from '../components/Button.module.css'
 import { Button } from '../components/Button.tsx'
+import { Illustration } from '../components/illustrations/Illustration.tsx'
 import { InputFacts } from '../components/InputFacts.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
@@ -185,7 +186,10 @@ function BriefBody({ brief, units }: { brief: BriefView; units: Units }) {
           <section aria-labelledby="brief-since" className={styles.section}>
             <h2 id="brief-since">{briefText('brief.heading-since', units)}</h2>
             {brief.since.length === 0 ? (
-              <p className={styles.text}>{briefText('brief.since-none', units)}</p>
+              <>
+                <p className={styles.text}>{briefText('brief.since-none', units)}</p>
+                <Illustration art="brief" size="small" />
+              </>
             ) : (
               <ol className={styles.revisions}>
                 {brief.since.map((revision) => (

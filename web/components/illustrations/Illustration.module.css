@@ -24,3 +24,15 @@
     height: 6rem;
   }
 }
+
+/* A quiet moment inside a page's content: smaller, and space above it instead of below. */
+.small {
+  height: 5rem;
+  margin: var(--space-2) 0 0;
+}
+
+@media (max-width: 480px) {
+  .small {
+    height: 4rem;
+  }
+}
