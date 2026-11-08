@@ -76,7 +76,10 @@ test('a product, a logged 3-hour run, a step up, and two runs scored 2 take the 
 
   // The lab is one of the pages under More.
   await page.goto('/more')
-  await page.getByRole('link', { name: /Fuel lab/ }).click()
+  await page
+    .getByRole('navigation', { name: 'More pages' })
+    .getByRole('link', { name: /Fuel lab/ })
+    .click()
   await expect(page.getByRole('heading', { name: 'Fuel lab', level: 1 })).toBeVisible()
 
   // Before any log: the floor, the standard safety card, and the three runs waiting for a log.
