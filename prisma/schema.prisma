@@ -79,6 +79,7 @@ model Activity {
   humidityPct     Int?
   weatherSource   String? // 'open-meteo' | 'provider' | 'manual'
   hrHistogram     String? // JSON text: HrHistogram
+  terrainBins     String? // JSON text: TerrainBins (runs and races with a stream)
   decouplingPct   Float?
   gapDistanceM    Int?
   feel            Int? // -2 much easier .. +2 much harder than expected
