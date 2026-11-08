@@ -31,9 +31,14 @@ async function seedRunner(page: Page, baseURL: string | undefined) {
 }
 
 const PAGES = [
-  { path: '/', failing: '**/api/today*', subject: 'Today' },
-  { path: '/plan', failing: '**/api/plan', subject: 'The plan' },
-  { path: '/review', failing: '**/api/reviews*', subject: 'The review' },
+  { path: '/', failing: '**/api/today*', subject: 'Today', drawn: { name: 'Readiness' } },
+  { path: '/plan', failing: '**/api/plan', subject: 'The plan', drawn: { name: 'Season' } },
+  {
+    path: '/review',
+    failing: '**/api/reviews*',
+    subject: 'The review',
+    drawn: { name: /^Week of / },
+  },
 ]
 
 for (const entry of PAGES) {
@@ -61,6 +66,10 @@ for (const entry of PAGES) {
     await retry.click()
     await expect(page.getByText(`${entry.subject} did not load.`)).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0)
+    // The page itself is drawn: its first region, not only an absent error.
+    await expect(
+      page.getByRole('region', entry.drawn).or(page.getByText(entry.drawn.name)).first(),
+    ).toBeVisible()
     expect(aborted).toBe(3)
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

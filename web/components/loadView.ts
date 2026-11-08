@@ -45,16 +45,17 @@ export interface RetryableQuery extends LoadQuery {
 /**
  * Several reads that one page needs, as one `LoadQuery`: it has data only when every read has,
  * failed when any has, and is fetching while any is. `retry` reads again only the reads that failed,
- * so a page does not fetch what it already holds.
+ * so a page does not fetch what it already holds. A read that holds data counts as failed never.
  */
 export function combineQueries(queries: readonly RetryableQuery[]): LoadQuery & {
   retry: () => Promise<unknown>
 } {
+  // A read that holds data has not failed, whatever its background refetch did: data wins.
+  const failed = (query: RetryableQuery) => query.isError && query.data === undefined
   return {
     data: queries.every((query) => query.data !== undefined) ? true : undefined,
-    isError: queries.some((query) => query.isError),
+    isError: queries.some(failed),
     isFetching: queries.some((query) => query.isFetching),
-    retry: () =>
-      Promise.all(queries.filter((query) => query.isError).map((query) => query.refetch())),
+    retry: () => Promise.all(queries.filter(failed).map((query) => query.refetch())),
   }
 }

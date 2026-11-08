@@ -167,10 +167,9 @@ export function DashboardPage() {
   // A rest day: nothing to run, so on a desktop the week and its meter move up under the "Next:"
   // line (the left column), and the check-in and the rest stand in the right column as an aside. A
   // phone keeps one column in the order of the session first.
-  const restDay =
-    coach.hero === null
-      ? planned
-      : coach.hero.advice === 'rest' || coach.hero.session.kind === 'rest'
+  // Read from the planned day, not from today's advice: a check-in can turn the advice to rest, and
+  // the layout must not swap under the runner (the check-in row would remount and lose its focus).
+  const restDay = coach.hero === null ? planned : coach.hero.session.kind === 'rest'
   const weekStrip =
     coach.weekStrip === null ? null : (
       <WeekStrip

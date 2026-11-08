@@ -55,4 +55,14 @@ describe('combineQueries', () => {
     expect(failed.refetch).toHaveBeenCalledTimes(1)
     expect(held.refetch).not.toHaveBeenCalled()
   })
+
+  test('a read that holds data does not fail the page when its background refetch fails', async () => {
+    const held = read({ data: 1, isError: true })
+    const first = read({ isFetching: true })
+    const combined = combineQueries([held, first])
+    expect(combined.isError).toBe(false)
+    expect(loadViewOf(combined, false)).toBe('loading')
+    await combined.retry()
+    expect(held.refetch).not.toHaveBeenCalled()
+  })
 })
