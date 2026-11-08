@@ -154,6 +154,9 @@ export const TRENDS_TEMPLATES = {
   'trends.drift.hilly': tpl(
     'Diamonds are hilly runs whose heart rate passed the checks. Their drift is on grade-adjusted pace, over the clean part of the stream.',
   ),
+  'trends.drift.curve': tpl(
+    "A diamond is read against today's grade curve, so it can move a little when the curve changes.",
+  ),
   'trends.drift.checks': tpl(
     'The checks look for heart rate that follows cadence, jumps, gaps, flat lines, and a fall while effort rises. Diamonds are not part of the median.',
   ),
@@ -183,7 +186,7 @@ export const TRENDS_TEMPLATES = {
   ),
   'trends.drift.empty': tpl('No long-run readings in this range yet.'),
   'trends.drift.empty-body': tpl(
-    'A reading needs a run of 40 minutes or more with a heart-rate stream, from a watch file or a synced account. A spreadsheet import has none.',
+    'A reading needs a run long enough to split in two, with a heart-rate stream from a watch file or synced account. A spreadsheet import has none.',
   ),
   'trends.drift.aria': tpl(
     'Heart-rate drift of {count} runs, {span}. Latest {pct} on {date}.',
@@ -220,6 +223,9 @@ export const TRENDS_TEMPLATES = {
   'trends.hr.hilly': tpl(
     'Includes {count} hilly runs whose heart rate passed the checks, on grade-adjusted pace.',
     { count: 'count' },
+  ),
+  'trends.hr.hilly-scope': tpl(
+    'The count covers the windows drawn, and a run that sits in two windows counts once.',
   ),
   'trends.hr.hilly-one': tpl(
     'Includes 1 hilly run whose heart rate passed the checks, on grade-adjusted pace.',

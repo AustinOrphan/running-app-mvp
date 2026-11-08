@@ -237,7 +237,7 @@ describe('Trends, heart-rate drift on long runs', () => {
     expect(await screen.findByText('No long-run readings in this range yet.')).toBeInTheDocument()
     expect(
       screen.getByText(
-        /^A reading needs a run of 40 minutes or more with a heart-rate stream, from a watch file/,
+        /^A reading needs a run long enough to split in two, with a heart-rate stream from a watch file/,
       ),
     ).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: /^Heart-rate drift/ })).not.toBeInTheDocument()

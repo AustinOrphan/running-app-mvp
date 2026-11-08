@@ -109,6 +109,7 @@ function DriftPanel({ view, from, months, units }: PanelProps) {
         <>
           <p className={styles.caption}>{text('trends.drift.hilly')}</p>
           <p className={styles.caption}>{text('trends.drift.checks')}</p>
+          <p className={styles.caption}>{text('trends.drift.curve')}</p>
         </>
       ) : null}
     </>
@@ -145,7 +146,12 @@ function SpeedPanel({ view, from, months, units }: PanelProps) {
         ariaLabel={hrAria(spanText(months, null), { mps: series.referenceMps, latestBpm }, units)}
         hillyNote={hillyNote}
       />
-      {hillyNote === null ? null : <p className={styles.caption}>{hillyNote}</p>}
+      {hillyNote === null ? null : (
+        <>
+          <p className={styles.caption}>{hillyNote}</p>
+          <p className={styles.caption}>{text('trends.hr.hilly-scope')}</p>
+        </>
+      )}
       <p className={styles.caption}>{text('trends.hr.reference')}</p>
       <p className={styles.caption}>{text('trends.hr.heat')}</p>
       <p className={styles.caption}>{hrOverlapLine(HR_WINDOW_STEP_DAYS / 7)}</p>
