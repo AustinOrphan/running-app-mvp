@@ -40,7 +40,7 @@ const EXPORT_REFUSAL_COPY = {
 } satisfies Record<ExportRefusal, (typeof TEMPLATES)['export.error']>
 
 /** The settings that save by themselves, each with its own rollback. */
-type SettingKey = 'units' | 'weightUnit' | 'showBodyWeight' | 'displayName'
+type SettingKey = 'units' | 'weightUnit' | 'showBodyWeight' | 'hideMapEnds' | 'displayName'
 
 /** How long "Saved" stays, and how long the name field waits after the last key before it saves. */
 const SAVED_MS = 3000
@@ -72,6 +72,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   )
   // a cached answer from before the switch existed has none, and reads as off
   const [showBodyWeight, setShowBodyWeight] = useState(initial.showBodyWeight === true)
+  const [hideMapEnds, setHideMapEnds] = useState(initial.hideMapEnds !== false)
   const [displayName, setDisplayName] = useState(initial.displayName ?? '')
 
   const [flash, setFlash] = useState(false)
@@ -159,6 +160,15 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     setShowBodyWeight(next)
     save('showBodyWeight', { showBodyWeight: next }, () => {
       setShowBodyWeight(previous)
+      setFailure(render(TEMPLATES['settings.not-saved'], {}, units))
+    })
+  }
+
+  function onHideMapEndsChange(next: boolean) {
+    const previous = hideMapEnds
+    setHideMapEnds(next)
+    save('hideMapEnds', { hideMapEnds: next }, () => {
+      setHideMapEnds(previous)
       setFailure(render(TEMPLATES['settings.not-saved'], {}, units))
     })
   }
@@ -322,6 +332,27 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         </label>
         <p id="trends-weight-note" className={styles.note}>
           {trendsText('trends.settings.hiding-note')}
+        </p>
+      </section>
+
+      <section className={styles.section} aria-labelledby="maps-heading">
+        <h2 id="maps-heading" className={styles.heading}>
+          Maps
+        </h2>
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={hideMapEnds}
+            aria-describedby="maps-ends-note"
+            onChange={(event) => {
+              onHideMapEndsChange(event.target.checked)
+            }}
+          />
+          Hide the first and last 200 m of each map
+        </label>
+        <p id="maps-ends-note" className={styles.note}>
+          A screenshot of a map then does not show where a run started or finished. The whole route
+          stays stored on this server.
         </p>
       </section>
 

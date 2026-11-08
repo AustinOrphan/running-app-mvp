@@ -274,6 +274,21 @@ describe('GET /api/export', () => {
       })
     })
 
+    test('the whole stored track is there, untrimmed, and the settings say whether the map trims', () => {
+      const [track] = JSON.parse(text(entries, 'activity-tracks.json')) as Record<string, unknown>[]
+      expect(track).toMatchObject({
+        v: 1,
+        polyline: '_p~iF~ps|U_ulLnnqC',
+        distM: [0, 1000],
+        pointCount: 2,
+        minLat: 38.5,
+        maxLng: -120.2,
+      })
+      expect(JSON.parse(text(entries, 'settings.json'))).toMatchObject({ hideMapEnds: true })
+      expect(text(entries, 'README.txt')).toMatch(/Google encoded polyline, precision 5/)
+      expect(text(entries, 'README.txt')).toMatch(/does not\.?/)
+    })
+
     test('the CSV is the activity CSV, oldest first', () => {
       const lines = text(entries, 'activities.csv').trim().split('\r\n')
       expect(lines[0]).toBe(

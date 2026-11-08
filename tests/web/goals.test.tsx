@@ -38,6 +38,7 @@ const miUser: UserSettings = {
   units: 'mi',
   weightUnit: 'lb',
   showBodyWeight: false,
+  hideMapEnds: true,
 }
 const kmUser: UserSettings = { ...miUser, units: 'km' }
 

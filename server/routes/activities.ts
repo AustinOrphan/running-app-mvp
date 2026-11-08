@@ -5,7 +5,7 @@ import type { Deps } from '../app.ts'
 import { conflict, notFound, parse, validationError } from '../errors.ts'
 import { loadActivities, loadActivityPage, toActivity } from '../serialize.ts'
 import { activityCsvHeader, activityCsvLine } from '../services/activitiesCsv.ts'
-import { createManualActivity, saveDoneActivity } from '../services/activityStore.ts'
+import { createManualActivity, saveDoneActivity, toTrack } from '../services/activityStore.ts'
 import {
   moveConfirmedLogs,
   rematchDuplicates,
@@ -24,7 +24,13 @@ import {
   MAX_ELEVATION_GAIN_M,
   MAX_NOTES,
 } from '../../shared/limits.ts'
-import type { ActivityDetail, ActivityStreamData, Lap } from '../../shared/types.ts'
+import { MAP_END_TRIM_M, trimTrackEnds } from '../../shared/importers/files/track.ts'
+import type {
+  ActivityDetail,
+  ActivityTrackView,
+  ActivityStreamData,
+  Lap,
+} from '../../shared/types.ts'
 
 const dateSchema = z
   .string()
@@ -226,6 +232,33 @@ export function activitiesRouter(deps: Deps): Router {
       hasFile: file !== null,
     }
     res.json(detail)
+  })
+
+  // The simplified route of a run for its map. 404 when the run has none (a treadmill run, no
+  // positions, not backfilled yet) or when hiding its ends leaves nothing. With `hideMapEnds` on
+  // (the default) the first and last 200 m are cut here, so a stored whole track never leaves the
+  // server and a screenshot of a map never shows the start.
+  router.get('/:id/track', async (req, res) => {
+    const row = await findOwned(req.userId, idParam(req.params.id))
+    const [stored, account] = await Promise.all([
+      prisma.activityTrack.findUnique({ where: { activityId: row.id } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { hideMapEnds: true } }),
+    ])
+    const whole = stored ? toTrack(stored) : null
+    if (!whole) throw notFound('This activity has no track.')
+    const hide = account?.hideMapEnds !== false
+    const track = hide ? trimTrackEnds(whole, MAP_END_TRIM_M) : whole
+    if (!track) throw notFound('This activity has no track.')
+    const view: ActivityTrackView = {
+      activityId: row.id,
+      v: track.v,
+      polyline: track.polyline,
+      distM: track.distM,
+      pointCount: track.pointCount,
+      bbox: track.bbox,
+      endsHiddenM: hide ? MAP_END_TRIM_M : 0,
+    }
+    res.json(view)
   })
 
   // What stood out on a run: at most three facts, computed on the first read and stored, then

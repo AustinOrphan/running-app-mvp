@@ -12,10 +12,11 @@ import type {
   ActivityDetail,
   ActivityListItem,
   ActivityListPage,
+  ActivityTrackView,
   ActivityType,
   Feel,
 } from '../../shared/types.ts'
-import { api, keys, qs } from './client.ts'
+import { ApiError, api, keys, qs } from './client.ts'
 
 /** Rows the Activities page adds with each "Show more". */
 export const ACTIVITY_VIEW_PAGE = 50
@@ -179,6 +180,29 @@ export function useActivityDetail(id: string | undefined) {
   return useQuery({
     queryKey: [keys.activityDetail, id],
     queryFn: () => api<ActivityDetail>('GET', `/activities/${encodeURIComponent(id ?? '')}/detail`),
+    enabled: id !== undefined && id !== '',
+  })
+}
+
+/**
+ * The simplified route of a run (`GET /api/activities/:id/track`), or null when it has none (a 404:
+ * a treadmill run, no positions, or nothing left once the ends are hidden). The key sits under
+ * `keys.activityDetail`, so a change of the hide-ends setting or a re-import reads it again.
+ */
+export function useActivityTrack(id: string | undefined) {
+  return useQuery({
+    queryKey: [keys.activityDetail, id, 'track'],
+    queryFn: async () => {
+      try {
+        return await api<ActivityTrackView>(
+          'GET',
+          `/activities/${encodeURIComponent(id ?? '')}/track`,
+        )
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null
+        throw error
+      }
+    },
     enabled: id !== undefined && id !== '',
   })
 }

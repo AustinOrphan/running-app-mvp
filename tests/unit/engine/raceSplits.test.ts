@@ -139,6 +139,21 @@ describe('splitsFor: the arrival ranges', () => {
     expect(rows[0]?.lowSec).toBe(Math.floor((10 * HOUR * share) / STEP) * STEP)
   })
 
+  it('weighs climb at the figure the prediction used when the runner own climbing moved it (L5)', () => {
+    const over = {
+      distanceM: 100_000,
+      courseGainM: 1000,
+      checkpoints: [row('Checkpoint A', 50_000, { gainM: 0 })],
+      expected: { lowSec: 10 * HOUR, highSec: 10 * HOUR, midSec: 10 * HOUR },
+    }
+    const climb = { runs: 23, defaultM: 10, personalM: 6, usedM: 9, shiftSec: -600, capped: false }
+    const result = splits({ ...over, climb })
+    const share = 50_000 / (50_000 + 50_000 + 9 * 1000)
+    expect(result.rows[0]?.lowSec).toBe(Math.floor((10 * HOUR * share) / STEP) * STEP)
+    expect(result.climb).toEqual(climb)
+    expect(splits(over).climb).toBeNull()
+  })
+
   it('spreads the climb left after the entered rows, all of it with the default share', () => {
     expect(P.r1.unenteredClimbShare.value).toBe(1)
     const { rows } = splits({

@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { parse, validationError } from '../errors.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 import {
+  ProviderAuthError,
+  ProviderHttpError,
   RateLimitPause,
   type FileFormat,
   type ProviderCtx,
@@ -14,7 +16,9 @@ export const BASE_URL = 'https://intervals.icu/api/v1'
 /** Longest span asked for in one activities request. */
 const WINDOW_DAYS = 180
 const DAY_MS = 24 * 3600 * 1000
-const STREAM_TYPES = 'time,distance,heartrate,altitude,cadence,watts'
+const STREAM_TYPES = 'time,distance,heartrate,altitude,cadence,watts,latlng'
+/** The stream type that holds positions: `data` is the latitudes and `data2` the longitudes. */
+const TRACK_STREAM_TYPES = 'latlng,distance,time'
 const DEFAULT_RETRY_AFTER_SEC = 60
 
 const connectBody = z.object({
@@ -111,9 +115,9 @@ async function pullGet(
     })
   }
   if (response.status === 401 || response.status === 403) {
-    throw new Error('intervals.icu rejected the API key. Reconnect with a new key.')
+    throw new ProviderAuthError('intervals.icu rejected the API key. Reconnect with a new key.')
   }
-  throw new Error(`intervals.icu answered HTTP ${response.status}.`)
+  throw new ProviderHttpError(`intervals.icu answered HTTP ${response.status}.`, response.status)
 }
 
 async function pullJson(ctx: ProviderCtx, path: string): Promise<unknown> {
@@ -231,6 +235,32 @@ function channel(streams: Map<string, number[]>, key: string, scale = 1): number
   return scale === 1 ? data : data.map((value) => Math.round(value * scale))
 }
 
+type StreamEntry = { type?: unknown; data?: unknown; data2?: unknown }
+
+/**
+ * The positions of a `streams.json` answer. The `latlng` entry carries latitudes in `data` and
+ * longitudes in `data2`; a sample without both is left out, and `distance` (when the answer has
+ * it) gives each kept position its cumulative metres. Null when the activity has no positions.
+ */
+function routeOf(raw: unknown): ParsedActivity['route'] {
+  if (!Array.isArray(raw)) return null
+  const entries = raw as StreamEntry[]
+  const latlng = entries.find((e) => e.type === 'latlng')
+  if (!latlng || !Array.isArray(latlng.data) || !Array.isArray(latlng.data2)) return null
+  const distance = entries.find((e) => e.type === 'distance')
+  const distances = Array.isArray(distance?.data) ? (distance.data as unknown[]) : []
+  const time = entries.find((e) => e.type === 'time')
+  const times = Array.isArray(time?.data) ? (time.data as unknown[]) : []
+  const route: NonNullable<ParsedActivity['route']> = []
+  for (let i = 0; i < latlng.data.length; i++) {
+    const lat = num(latlng.data[i])
+    const lng = num(latlng.data2[i])
+    if (lat === null || lng === null) continue
+    route.push({ lat, lng, d: num(distances[i]), t: num(times[i]) })
+  }
+  return route.length > 0 ? route : null
+}
+
 async function fromStreams(
   ref: RemoteActivityRef,
   ctx: ProviderCtx,
@@ -253,6 +283,7 @@ async function fromStreams(
       }
     }
   }
+  const route = routeOf(raw)
   const length = Math.max(0, ...[...streams.values()].map((data) => data.length))
   const t = channel(streams, 'time') ?? Array.from({ length }, (_, i) => i)
   const distance = channel(streams, 'distance')
@@ -289,6 +320,7 @@ async function fromStreams(
       deviceName: detail.device_name ?? null,
       startLat: lat !== null && lng !== null ? round2(lat) : null,
       startLng: lat !== null && lng !== null ? round2(lng) : null,
+      route,
       samples: {
         t,
         d: distance,
@@ -348,6 +380,13 @@ export const intervalsProvider: PullProvider = {
 
   async fetchActivity(ref, ctx) {
     return (await fromOriginalFile(ref, ctx)) ?? (await fromStreams(ref, ctx))
+  },
+
+  async fetchRoute(ref, ctx) {
+    const id = encodeURIComponent(ref.id)
+    // One request: positions and the distance that goes with them. A 404 means no streams.
+    const raw = await pullJson(ctx, `/activity/${id}/streams.json?types=${TRACK_STREAM_TYPES}`)
+    return routeOf(raw)
   },
 
   async listWellness(from, to, ctx): Promise<WellnessInput[]> {

@@ -4,11 +4,13 @@ import {
   backtestGradeCurve,
   gainEquivalent,
   gradeCurve,
-  personalGainEquivalent,
+  personalClimbOf,
+  personalClimbRatio,
   minSignTestPairs,
   signTestP,
   type GradeCurveRun,
 } from '../../../shared/engine/gradeCurve.ts'
+import type { Activity } from '../../../shared/types.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import { athlete, MINETTI_RATIOS, scaledCurve, syntheticRuns } from './gradeCurve-fixtures.ts'
 
@@ -68,7 +70,7 @@ describe('gradeCurve with no data', () => {
       )
       expect(band.personalRatio).toBeNull()
     })
-    expect(personalGainEquivalent(curve)).toBeNull()
+    expect(personalClimbRatio(curve)).toBeNull()
   })
 
   test('the default ratios fall on climbs and rise on descents', () => {
@@ -106,7 +108,7 @@ describe('gradeCurve backtest', () => {
     const curve = gradeCurve(syntheticRuns(athlete(MINETTI_RATIOS), 40, TODAY, 2, 2), TODAY)
     expect(curve.eligibleRuns).toBeGreaterThan(30)
     expect(curve.overall!.gainPct).toBeLessThan(P.i13.minGainOverDefaultPct.value)
-    expect(personalGainEquivalent(curve)).toBeNull()
+    expect(personalClimbRatio(curve)).toBeNull()
   })
 
   test('the two open steep ends always keep Minetti, whatever the data says', () => {
@@ -161,7 +163,7 @@ describe('gradeCurve backtest', () => {
       expect(band.ratio).toBe(band.personalRatio)
     }
     expect(curve.overall!.maePersonalPct).toBeLessThan(curve.overall!.maeDefaultPct)
-    expect(personalGainEquivalent(curve)).not.toBeNull()
+    expect(personalClimbRatio(curve)).not.toBeNull()
   })
 
   test('the backtest alone reports per-band errors and the held-out runs', () => {
@@ -308,5 +310,69 @@ describe('gainEquivalent', () => {
 
   test('a runner no slower on a climb than on the flat has no extra', () => {
     expect(gainEquivalent(5, 1)).toBe(0)
+  })
+})
+
+describe('personalClimbOf', () => {
+  const asActivities = (runs: GradeCurveRun[], type = 'run'): Activity[] =>
+    runs.map(
+      (run) => ({ id: run.id, date: run.date, type, terrainBins: run.bins }) as unknown as Activity,
+    )
+
+  test('is null without a personal climbing band', () => {
+    expect(personalClimbOf([], TODAY)).toBeNull()
+    const runs = syntheticRuns(athlete(scaledCurve(0.5)), 4, TODAY, 3, 2)
+    expect(personalClimbOf(asActivities(runs), TODAY)).toBeNull()
+  })
+
+  test('hands over the figure of the curve and the runs behind it; races are not read', () => {
+    const runs = syntheticRuns(athlete(scaledCurve(0.5)), 40, TODAY, 3, 2)
+    const curve = gradeCurve(runs, TODAY)
+    const climb = personalClimbOf(asActivities(runs), TODAY)
+    expect(climb).toEqual({
+      ratio: personalClimbRatio(curve),
+      runs: Math.max(
+        ...curve.bands.filter((b) => b.midPct > 0 && b.source === 'personal').map((b) => b.runs),
+      ),
+    })
+    expect(personalClimbOf(asActivities(runs, 'race'), TODAY)).toBeNull()
+  })
+})
+
+describe('personalClimbRatio', () => {
+  test('weights the climbing bands by the course shares, the same for both sums', () => {
+    const runs = syntheticRuns(athlete(scaledCurve(0.5)), 40, TODAY, 3, 2)
+    const curve = gradeCurve(runs, TODAY)
+    const shares = P.l5.climbBandGainShare.value
+    const climbing = curve.bands.filter((band) => band.midPct > 0)
+    expect(shares).toHaveLength(climbing.length)
+    expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10)
+    let personal = 0
+    let minetti = 0
+    climbing.forEach((band, i) => {
+      personal += shares[i]! * gainEquivalent(band.midPct, band.ratio)
+      minetti += shares[i]! * gainEquivalent(band.midPct, band.defaultRatio)
+    })
+    expect(personalClimbRatio(curve)).toBeCloseTo(personal / minetti, 10)
+  })
+
+  test('one band moves the ratio only in proportion to its share', () => {
+    const runs = syntheticRuns(athlete(scaledCurve(0.5)), 40, TODAY, 3, 2)
+    const curve = gradeCurve(runs, TODAY)
+    const onlyFirst = {
+      ...curve,
+      bands: curve.bands.map((band) =>
+        band.midPct > 0 && band.fromPct !== 3
+          ? { ...band, source: 'default' as const, ratio: band.defaultRatio }
+          : band,
+      ),
+    }
+    const first = curve.bands.find((band) => band.fromPct === 3)!
+    expect(first.source).toBe('personal')
+    const ratio = personalClimbRatio(onlyFirst)!
+    const bandRatio =
+      gainEquivalent(first.midPct, first.ratio) / gainEquivalent(first.midPct, first.defaultRatio)
+    expect(ratio).toBeGreaterThan(Math.min(1, bandRatio))
+    expect(ratio).toBeLessThan(Math.max(1, bandRatio))
   })
 })

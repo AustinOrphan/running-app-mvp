@@ -39,6 +39,7 @@ const settings = (units: Units) => ({
     units,
     weightUnit: 'lb',
     showBodyWeight: false,
+    hideMapEnds: true,
   }),
 })
 

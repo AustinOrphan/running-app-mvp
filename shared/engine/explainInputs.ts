@@ -68,7 +68,7 @@ import {
 } from './macro.ts'
 import { P } from './params/index.ts'
 import { ownHoldReasons, postRaceWindows } from './postRace.ts'
-import { rangeLabel } from './predict.ts'
+import { rangeLabel, signedMinutes } from './predict.ts'
 import {
   checkinsOf,
   focalBoneActive,
@@ -1588,10 +1588,24 @@ function trailFacts(scope: Scope): InputFact[] {
   if (prediction === null) return [gap('L5', 'explain.l5-gap', {})]
   const facts: InputFact[] = []
   if (gain > 0) {
+    const usedM = prediction.climb?.usedM
     facts.push(
-      make('L5', 'climb', 'explain.l5-climb', {
+      make('L5', 'climb', usedM === undefined ? 'explain.l5-climb' : 'explain.l5-climb-own', {
         gain: climb(gain),
-        distance: distance(gain * P.l5.gainEquivalentM.value),
+        distance: distance(gain * (usedM ?? P.l5.gainEquivalentM.value)),
+      }),
+    )
+  }
+  if (gain > 0 && prediction.climb) {
+    facts.push(
+      make('L5', 'own-climb', 'explain.l5-own', {
+        runs: count(prediction.climb.runs),
+        shift: signedMinutes(prediction.climb.shiftSec),
+      }),
+      make('L5', 'own-climb-weights', 'explain.l5-own-weights', {
+        faster: percent(P.l5.personalBlendFaster.value * 100),
+        slower: percent(P.l5.personalBlendSlower.value * 100),
+        max: percent(P.l5.personalBlendMaxShiftPct.value),
       }),
     )
   }

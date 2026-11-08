@@ -83,6 +83,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'units: "mi" or "km", the distance unit shown on screen. Stored distances are metres.',
         'weightUnit: "lb" or "kg", the unit strength loads are shown in. Stored loads are grams.',
         'showBodyWeight: whether Trends draws the body-weight chart.',
+        'hideMapEnds: whether the map view leaves out the first and last 200 metres of a run. It only trims the view; activity-tracks.json holds the whole route.',
         'The password and its hash are not included.',
       ],
       // An allowlist, so a column added to User stays out until it is listed here.
@@ -97,6 +98,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
             units: true,
             weightUnit: true,
             showBodyWeight: true,
+            hideMapEnds: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -132,6 +134,7 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'hrHistogram: {start, width, sec}. Heart-rate bins of width bpm from start bpm; sec[i] is the seconds spent in bin i.',
         'terrainBins: where moving time went by grade band, from the stream. Band i holds grades from edgesPct[i-1] up to edgesPct[i] percent (open at both ends), so each array has edgesPct.length + 1 entries. sec: moving seconds per band. m: metres per band. walkSec: the part of sec spent under walkMps (metres per second). windowM: the smoothing window in metres. flatCv: how steady the flat running was (standard deviation over mean of segment speed), or null. v: the shape version.',
         'duplicateOfId, duplicateStatus: the duplicate pass’s link and verdict.',
+        'trackV: the version of the route extraction (see activity-tracks.json); null means not looked at yet.',
       ],
       json: ['hrHistogram', 'terrainBins'],
       find: (take, last) =>
@@ -156,6 +159,26 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
       pageRows: STREAM_PAGE_ROWS,
       find: (take, last) =>
         prisma.activityStream.findMany({
+          where: { activity: mine, ...activityIdAfter(last) },
+          orderBy: { activityId: 'asc' },
+          take,
+        }),
+    },
+    {
+      file: 'activity-tracks.json',
+      models: ['ActivityTrack'],
+      about:
+        'The route of each run that had positions, one row per activity: the whole stored track, with the first and last 200 metres included. Only the map view in the app trims the ends (the hideMapEnds setting); this file does not.',
+      fields: [
+        'activityId: the activity in activities.json. v: the version of the extraction.',
+        'polyline: the simplified route as a Google encoded polyline, precision 5: each point is latitude and longitude in degrees times 1e5, rounded, stored as the difference from the previous point (the first from 0,0), in zigzag form, in base-64-like 5-bit chunks. Any polyline decoder with precision 5 reads it.',
+        'distM: cumulative metres along the route for each point of the polyline, the same length as the decoded polyline. pointCount: the number of points.',
+        'minLat, minLng, maxLat, maxLng: the bounding box in degrees. toleranceM: how far in metres the simplified route may differ from the recorded one.',
+      ],
+      json: ['distM'],
+      pageRows: STREAM_PAGE_ROWS,
+      find: (take, last) =>
+        prisma.activityTrack.findMany({
           where: { activity: mine, ...activityIdAfter(last) },
           orderBy: { activityId: 'asc' },
           take,

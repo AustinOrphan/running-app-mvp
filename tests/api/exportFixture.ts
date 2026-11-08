@@ -58,6 +58,20 @@ export async function seedEverything(
       laps: JSON.stringify([{ lap: 1 }]),
     },
   })
+  await prisma.activityTrack.create({
+    data: {
+      activityId: activity.id,
+      v: 1,
+      polyline: '_p~iF~ps|U_ulLnnqC',
+      distM: JSON.stringify([0, 1000]),
+      pointCount: 2,
+      minLat: 38.5,
+      minLng: -120.2,
+      maxLat: 40.7,
+      maxLng: -120.2,
+      toleranceM: 5,
+    },
+  })
   await prisma.activityFile.create({
     data: {
       activityId: activity.id,
