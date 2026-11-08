@@ -106,6 +106,14 @@ its build runs `prisma migrate deploy` as a smoke test.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.
+- The full-data export (`POST /api/export/token`, then `GET /api/export?token=`; `routes/export.ts`,
+  `services/exportArchive.ts`, `services/zipWriter.ts`) streams one ZIP of the signed-in runner's rows.
+  A model holding a secret (`User`, `Integration`, `DeliveryChannel`) is read only through an
+  allowlist `select`; every Prisma model must be in an export table or in `EXCLUDED_MODELS` with a
+  reason (a test fails on a model in neither or both). A table is paged by key (`id > last`), never by
+  cursor row. The token is single-use, bound to the runner, held hashed in memory for a minute, and
+  never logged; one export runs per runner. A plain ZIP, so at most 65,535 files and 4 GiB: refused up
+  front. A new table goes into `exportTables` (its README text comes from the same entry).
 - `listWellness` never returns a short list as complete: when it stops early (a spent request
   budget) it throws `WellnessTruncated` with the days it read; the sync stores them and records a
   `paused` run, never `ok`.

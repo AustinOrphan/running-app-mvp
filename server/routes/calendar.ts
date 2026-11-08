@@ -22,8 +22,13 @@ const FEED_URL = /(\/api\/calendar\/+)[^/?#]+/gi
  * host or an extra slash; other URLs are unchanged.
  */
 export function redactFeedToken(url: string): string {
-  return url.replace(FEED_URL, `$1${TOKEN_PLACEHOLDER}`)
+  return url
+    .replace(FEED_URL, `$1${TOKEN_PLACEHOLDER}`)
+    .replace(EXPORT_TOKEN, `$1${TOKEN_PLACEHOLDER}`)
 }
+
+/** The one-time download token in `GET /api/export?token=...` (`routes/export.ts`). */
+const EXPORT_TOKEN = /([?&]token=)[^&#]*/gi
 
 /**
  * The `req` serializer of the access log (`pino-http`): the logged URL, and the route parameters

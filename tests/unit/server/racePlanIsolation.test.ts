@@ -96,7 +96,11 @@ describe('who reads the race plan', () => {
           readFileSync(join(ROOT, file), 'utf8'),
         ),
     )
-    expect(touching).toEqual(['server/services/raceCheckpoints.ts'])
+    // The full-data export hands the runner their own checkpoints; it reads the table and nothing else does.
+    expect(touching).toEqual([
+      'server/services/exportArchive.ts',
+      'server/services/raceCheckpoints.ts',
+    ])
   })
 
   test('nothing that delivers a session, a feed or a brief imports the plan or its copy', () => {

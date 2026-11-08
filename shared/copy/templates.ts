@@ -37,6 +37,7 @@ import { STRENGTH_REVIEW_TEMPLATES } from './strengthReview.ts'
 import { STRENGTH_TEMPLATES } from './strengthTemplates.ts'
 import { WINDOW_VIEW_TEMPLATES } from './windowView.ts'
 import { EXPLAIN_TEMPLATES } from './explainTemplates.ts'
+import { EXPORT_TEMPLATES } from './exportData.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
 import { STANDOUT_TEMPLATES } from './standoutTemplates.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
@@ -79,6 +80,7 @@ export const TEMPLATES = {
   ...STRENGTH_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,
   ...SETTINGS_TEMPLATES,
+  ...EXPORT_TEMPLATES,
   ...ERROR_TEMPLATES,
   ...REVIEW_PREFILL_TEMPLATES,
   ...PLAN_STRIP_TEMPLATES,
