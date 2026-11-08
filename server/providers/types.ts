@@ -86,6 +86,11 @@ export interface PullProvider {
     file?: { name: string; format: FileFormat; bytes: Uint8Array }
   } | null>
   /**
+   * The recorded positions of an already stored activity, for the track backfill: one request per
+   * activity. Null when the remote has none. Throws `RateLimitPause` on a 429.
+   */
+  fetchRoute?(ref: RemoteActivityRef, ctx: ProviderCtx): Promise<ParsedActivity['route']>
+  /**
    * Daily wellness for `from` to `to`, oldest first. Throws `WellnessTruncated` (with the days it
    * read) instead of returning less than the window.
    */
