@@ -55,6 +55,7 @@ const drawerRoutes = (units: Units = 'mi') => ({
     units,
     weightUnit: 'lb',
     showBodyWeight: false,
+    hideMapEnds: true,
   }),
   'GET /api/explain': (): ExplainView => ({
     subject: 'rules',

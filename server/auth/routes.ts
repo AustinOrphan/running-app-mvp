@@ -29,6 +29,7 @@ interface UserRow {
   units: string
   weightUnit: string
   showBodyWeight: boolean
+  hideMapEnds: boolean
 }
 
 function toSessionUser(row: UserRow): SessionUser {
@@ -39,6 +40,7 @@ function toSessionUser(row: UserRow): SessionUser {
     units: row.units as Units,
     weightUnit: toWeightUnit(row.weightUnit),
     showBodyWeight: row.showBodyWeight,
+    hideMapEnds: row.hideMapEnds,
   }
 }
 

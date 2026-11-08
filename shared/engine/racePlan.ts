@@ -23,7 +23,7 @@ import { rangeLabel } from './predict.ts'
 import { clockAt, type RaceClock } from './raceClock.ts'
 import { rehearsalFor, type RaceRehearsal } from './rehearsal.ts'
 import { splitsFor, type CheckpointInput, type RaceSplits } from './raceSplits.ts'
-import type { GoalModel, LadderResult, Prediction } from './types.ts'
+import type { ClimbBlend, GoalModel, LadderResult, Prediction } from './types.ts'
 
 const SEC_PER_MIN = 60
 const MIN_PER_HOUR = 60
@@ -39,7 +39,7 @@ export interface RacePlanInput {
   goal: GoalModel
   supportLevel: SupportLevel
   /** The live prediction for the goal; null when the state supports no source. */
-  prediction: Pick<Prediction, 'predictedSec' | 'lowSec' | 'highSec'> | null
+  prediction: Pick<Prediction, 'predictedSec' | 'lowSec' | 'highSec' | 'climb'> | null
   /**
    * The top of the current zone 1, the ceiling the race session of an ultra goal shows
    * (`resolveTargets`, rule H11); null when the zones hold no heart rate.
@@ -87,6 +87,8 @@ export interface RaceExpected {
   finish: { from: RaceClock; to: RaceClock } | null
   /** How wide the range has to be, with its rules and grade (`rangeLabel`, rules L4 and L6). */
   range: RangeLabel
+  /** The runner's own climbing moved the prediction (rule L5); null otherwise. */
+  climb: ClimbBlend | null
   rules: string[]
 }
 
@@ -288,7 +290,8 @@ function expectedOf(input: RacePlanInput): RaceExpected {
         ? null
         : { from: clockAt(startMin, lowSec), to: clockAt(startMin, highSec) },
     range,
-    rules: ['H14', ...range.rules],
+    climb: prediction?.climb ?? null,
+    rules: ['H14', ...(prediction?.climb ? ['L5'] : []), ...range.rules],
   }
 }
 
@@ -439,6 +442,7 @@ export function racePlanFor(input: RacePlanInput): RacePlan {
     expected: { lowSec: expected.lowSec, highSec: expected.highSec, midSec: expected.midSec },
     startMin: startMinutes(expected.start),
     rateGPerH: [rateLow, rateHigh],
+    climb: expected.climb,
   })
 
   const blocks = [

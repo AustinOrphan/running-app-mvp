@@ -156,7 +156,7 @@ export interface TerrainSectionProps {
 }
 
 /**
- * The runner's speed on each grade next to the default (rule I13, display only): what the figures
+ * The runner's speed on each grade next to the default (rule I13): what the figures
  * are, a table of every band with its source and the minutes behind it, the grade where walking
  * passes half the time, and how it is made. A band shows the runner's own speed only where the
  * engine's test passed; the table says which, and why not for the others. No verdict: the two

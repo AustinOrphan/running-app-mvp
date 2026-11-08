@@ -90,7 +90,13 @@ export function goalModel(
     distanceM >= P.d2.finishFirstFromM.value
       ? 'finish'
       : goal.goalType
-  const prediction = predictFromState(state, { distanceM, gainM, surface: goal.surface, wbgtC })
+  // The plan stays on the default climb allowance: the runner's own climbing (rule L5) moves the
+  // prediction the pages show, never `expectedDurationSec`, which sets the ultra long runs, the
+  // race session and the shake-out.
+  const prediction = predictFromState(
+    { ...state, climb: null },
+    { distanceM, gainM, surface: goal.surface, wbgtC },
+  )
   const expectedDurationSec = expectedDuration(distanceM, gainM, goal.targetTimeSec, prediction)
   const startTime = startMinutes(goal.startTime) === null ? null : goal.startTime
 

@@ -24,6 +24,7 @@ export const settings: UserSettings = {
   units: 'km',
   weightUnit: 'lb',
   showBodyWeight: false,
+  hideMapEnds: true,
 }
 
 const WEEKDAYS: readonly Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']

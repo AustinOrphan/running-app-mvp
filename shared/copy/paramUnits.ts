@@ -100,6 +100,7 @@ const UNIT_RULES: Readonly<Record<string, UnitRule>> = {
   'fraction of CS': frac('{value} of critical speed'),
   'fraction of HRmax': frac('{value} of maximum heart rate'),
   'fraction of day 1': frac('{value} of day 1'),
+  'fraction of the difference': frac('{value} of the difference'),
   'fraction of duration': frac('{value} of the duration'),
   'fraction of moving time': frac('{value} of moving time'),
   'fraction of expected race duration': frac('{value} of the expected race duration'),

@@ -9,7 +9,7 @@
     <name>Synthetic morning run</name>
     <type>running</type>
     <trkseg>
-      <trkpt lat="0.0000" lon="0.0000">
+      <trkpt lat="10.0000" lon="20.0000">
         <ele>10.0</ele>
         <time>2026-01-05T20:00:00Z</time>
         <extensions>
@@ -19,7 +19,7 @@
           </gpxtpx:TrackPointExtension>
         </extensions>
       </trkpt>
-      <trkpt lat="0.0001" lon="0.0000">
+      <trkpt lat="10.0001" lon="20.0000">
         <ele>11.0</ele>
         <time>2026-01-05T20:00:10Z</time>
         <extensions>
@@ -29,7 +29,7 @@
           </gpxtpx:TrackPointExtension>
         </extensions>
       </trkpt>
-      <trkpt lat="0.0002" lon="0.0000">
+      <trkpt lat="10.0002" lon="20.0000">
         <ele>12.5</ele>
         <time>2026-01-05T20:00:20Z</time>
         <extensions>
@@ -39,7 +39,7 @@
           </gpxtpx:TrackPointExtension>
         </extensions>
       </trkpt>
-      <trkpt lat="0.0003" lon="0.0000">
+      <trkpt lat="10.0003" lon="20.0000">
         <ele>12.0</ele>
         <time>2026-01-05T20:00:30Z</time>
         <extensions>
@@ -49,7 +49,7 @@
           </gpxtpx:TrackPointExtension>
         </extensions>
       </trkpt>
-      <trkpt lat="0.0004" lon="0.0000">
+      <trkpt lat="10.0004" lon="20.0000">
         <ele>13.0</ele>
         <time>2026-01-05T20:00:40Z</time>
         <extensions>

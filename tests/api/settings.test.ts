@@ -43,6 +43,7 @@ describe('settings', () => {
       units: 'mi',
       weightUnit: 'lb',
       showBodyWeight: false,
+      hideMapEnds: true,
     })
 
     const put = await client(ctx, user)
@@ -55,6 +56,7 @@ describe('settings', () => {
       units: 'km',
       weightUnit: 'lb',
       showBodyWeight: false,
+      hideMapEnds: true,
     })
 
     const after = await client(ctx, user).get('/api/settings')
@@ -67,6 +69,7 @@ describe('settings', () => {
       units: 'mi',
       weightUnit: 'lb',
       showBodyWeight: false,
+      hideMapEnds: true,
     })
   })
 
@@ -98,6 +101,7 @@ describe('settings', () => {
   test('PUT saves the body-weight switch, off by default, and rejects anything but a boolean', async () => {
     expect((await client(ctx, user).get('/api/settings')).body).toMatchObject({
       showBodyWeight: false,
+      hideMapEnds: true,
     })
     const on = await client(ctx, user).put('/api/settings').send({ showBodyWeight: true })
     expect(on.status).toBe(200)

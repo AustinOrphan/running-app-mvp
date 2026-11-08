@@ -13,6 +13,8 @@ import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { localDateTime, summarize } from '../../shared/importers/files/index.ts'
 import { computeHrQuality } from '../../shared/importers/files/hrQuality.ts'
 import { computeTerrainBins, hasTerrainBins } from '../../shared/importers/files/terrainBins.ts'
+import { TRACK_VERSION, buildTrack, hasTrack } from '../../shared/importers/files/track.ts'
+import type { Track } from '../../shared/importers/files/track.ts'
 import type { ActivityType, ParsedActivity, WellnessInput } from '../../shared/types.ts'
 
 export interface StoreOptions {
@@ -36,6 +38,50 @@ function roundOrNull(value: number | null): number | null {
 /** Start coordinates are kept to 0.01 degrees (about 1 km). */
 function roundCoordinate(value: number | null): number | null {
   return value === null ? null : Math.round(value * 100) / 100
+}
+
+/** The `ActivityTrack` columns of a built track. */
+export function trackRow(track: Track) {
+  return {
+    v: track.v,
+    polyline: track.polyline,
+    distM: JSON.stringify(track.distM),
+    pointCount: track.pointCount,
+    minLat: track.bbox.minLat,
+    minLng: track.bbox.minLng,
+    maxLat: track.bbox.maxLat,
+    maxLng: track.bbox.maxLng,
+    toleranceM: track.toleranceM,
+  }
+}
+
+/** A stored `ActivityTrack` row as a `Track`; null when its distance list is unreadable. */
+export function toTrack(row: {
+  v: number
+  polyline: string
+  distM: string
+  pointCount: number
+  minLat: number
+  minLng: number
+  maxLat: number
+  maxLng: number
+  toleranceM: number
+}): Track | null {
+  let distM: unknown
+  try {
+    distM = JSON.parse(row.distM)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(distM) || distM.some((d) => typeof d !== 'number')) return null
+  return {
+    v: row.v,
+    polyline: row.polyline,
+    distM: distM as number[],
+    pointCount: row.pointCount,
+    bbox: { minLat: row.minLat, minLng: row.minLng, maxLat: row.maxLat, maxLng: row.maxLng },
+    toleranceM: row.toleranceM,
+  }
 }
 
 /**
@@ -65,6 +111,13 @@ export async function storeParsed(
     data: JSON.stringify(streamData),
     laps: parsed.laps.length > 0 ? JSON.stringify(parsed.laps) : null,
   }
+  // A run with positions keeps its simplified route; a treadmill run or one with none keeps no row,
+  // and a re-import without positions leaves a track it already has. `trackV` records that the
+  // positions were looked for (a file, or a provider answer that says so), so the backfill skips
+  // the run; an import that knows nothing about positions leaves it as it was.
+  const looksForTrack = hasTrack(parsed.type, parsed.subtype)
+  const track = looksForTrack && parsed.route ? buildTrack(parsed.route) : null
+  const lookedForTrack = looksForTrack && (opts.file !== undefined || parsed.route !== undefined)
   const fields = {
     date: local.date,
     startTime: local.startTime,
@@ -81,6 +134,7 @@ export async function storeParsed(
     avgPowerW: roundOrNull(parsed.avgPowerW),
     deviceName: parsed.deviceName,
     hrHistogram: summary.hrHistogram ? JSON.stringify(summary.hrHistogram) : null,
+    ...(lookedForTrack ? { trackV: TRACK_VERSION } : {}),
     terrainBins: hasTerrainBins(parsed.type)
       ? JSON.stringify(computeTerrainBins(summary.stream, sampleSec))
       : null,
@@ -150,6 +204,15 @@ export async function storeParsed(
         create: { activityId, ...streamRow },
         update: streamRow,
       })
+
+      if (track) {
+        const row = trackRow(track)
+        await tx.activityTrack.upsert({
+          where: { activityId },
+          create: { activityId, ...row },
+          update: row,
+        })
+      }
 
       if (opts.file && sha256 !== null && gz !== null) {
         const fileRow = {

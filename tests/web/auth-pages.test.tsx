@@ -282,6 +282,7 @@ describe('SettingsPage', () => {
         units: 'mi',
         weightUnit: 'lb',
         showBodyWeight: false,
+        hideMapEnds: true,
         ...(body as object),
       })),
     )

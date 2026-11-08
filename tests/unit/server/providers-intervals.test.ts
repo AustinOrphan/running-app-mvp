@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { fakeFetch, type FakeRoute } from '../../fakeFetch.ts'
 import { HttpError } from '../../../server/errors.ts'
 import { intervalsProvider } from '../../../server/providers/intervals.ts'
-import { RateLimitPause, type ProviderCtx } from '../../../server/providers/types.ts'
+import {
+  ProviderAuthError,
+  RateLimitPause,
+  type ProviderCtx,
+} from '../../../server/providers/types.ts'
 import type { ParsedActivity } from '../../../shared/types.ts'
 
 const BASE = 'https://intervals.icu/api/v1'
@@ -257,6 +261,7 @@ describe('intervals.icu fetchActivity', () => {
     expect(result?.file).toBeUndefined()
     expect(result?.parsed).toEqual({
       providerKey: 'intervals:i7',
+      route: null,
       startUtc: '2026-03-02T07:00:00Z',
       utcOffsetMin: 60,
       type: 'run',
@@ -397,5 +402,73 @@ describe('intervals.icu listWellness', () => {
     const url = new URL(urls[0] ?? '')
     expect(url.searchParams.get('oldest')).toBe('2026-03-01')
     expect(url.searchParams.get('newest')).toBe('2026-03-03')
+  })
+})
+
+describe('intervals.icu route', () => {
+  const ref = { id: 'i7', startUtc: '2026-03-02T07:00:00Z' }
+  const streams = [
+    {
+      type: 'latlng',
+      data: [12.3456, null, 12.3466, 12.3476],
+      data2: [-45.6789, null, -45.6779, -45.6769],
+    },
+    { type: 'distance', data: [0, 5, 10, 20] },
+  ]
+
+  it('fetchRoute asks for latlng and distance once and pairs data with data2', async () => {
+    const urls: string[] = []
+    const ctx = makeCtx({
+      [`GET ${BASE}/activity/i7/streams.json`]: (req) => {
+        urls.push(req.url)
+        return json(streams)
+      },
+    })
+    const route = await intervalsProvider.fetchRoute!(ref, ctx)
+    expect(urls).toEqual([`${BASE}/activity/i7/streams.json?types=latlng,distance,time`])
+    expect(route).toEqual([
+      { lat: 12.3456, lng: -45.6789, d: 0, t: null },
+      { lat: 12.3466, lng: -45.6779, d: 10, t: null },
+      { lat: 12.3476, lng: -45.6769, d: 20, t: null },
+    ])
+  })
+
+  it('fetchRoute gives null for a 404 and for an activity without latlng', async () => {
+    const none = makeCtx({ [`GET ${BASE}/activity/i7/streams.json`]: () => json({}, 404) })
+    expect(await intervalsProvider.fetchRoute!(ref, none)).toBeNull()
+    const noGps = makeCtx({
+      [`GET ${BASE}/activity/i7/streams.json`]: () => json([{ type: 'distance', data: [0, 1] }]),
+    })
+    expect(await intervalsProvider.fetchRoute!(ref, noGps)).toBeNull()
+  })
+
+  it('fetchRoute pauses on a 429', async () => {
+    const ctx = makeCtx({
+      [`GET ${BASE}/activity/i7/streams.json`]: () =>
+        new Response('', { status: 429, headers: { 'retry-after': '90' } }),
+    })
+    const error = await intervalsProvider.fetchRoute!(ref, ctx).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(RateLimitPause)
+    expect((error as RateLimitPause).retryAfterSec).toBe(90)
+  })
+
+  it('fetchRoute raises a typed auth error on a 401 or 403', async () => {
+    for (const status of [401, 403]) {
+      const ctx = makeCtx({ [`GET ${BASE}/activity/i7/streams.json`]: () => json({}, status) })
+      const error = await intervalsProvider.fetchRoute!(ref, ctx).catch((e: unknown) => e)
+      expect(error).toBeInstanceOf(ProviderAuthError)
+    }
+  })
+
+  it('a pulled run built from streams carries its route', async () => {
+    const ctx = makeCtx({
+      [`GET ${BASE}/activity/i7/file`]: () => json({}, 404),
+      [`GET ${BASE}/activity/i7/streams.json`]: () =>
+        json([{ type: 'time', data: [0, 1, 2, 3] }, ...streams]),
+      [`GET ${BASE}/activity/i7`]: () =>
+        json({ id: 'i7', type: 'Run', start_date: '2026-03-02T07:00:00Z', elapsed_time: 4 }),
+    })
+    const result = await intervalsProvider.fetchActivity(ref, ctx)
+    expect(result?.parsed.route).toHaveLength(3)
   })
 })

@@ -9,6 +9,7 @@ const updateSchema = z.strictObject({
   units: z.enum(['mi', 'km']).optional(),
   weightUnit: z.enum(['lb', 'kg']).optional(),
   showBodyWeight: z.boolean().optional(),
+  hideMapEnds: z.boolean().optional(),
   displayName: z
     .string()
     .trim()
@@ -28,6 +29,7 @@ export function settingsRouter(deps: Deps): Router {
     units: string
     weightUnit: string
     showBodyWeight: boolean
+    hideMapEnds: boolean
   }) {
     const settings: UserSettings = {
       email: user.email,
@@ -35,6 +37,7 @@ export function settingsRouter(deps: Deps): Router {
       units: user.units as Units,
       weightUnit: toWeightUnit(user.weightUnit),
       showBodyWeight: user.showBodyWeight,
+      hideMapEnds: user.hideMapEnds,
     }
     return settings
   }
@@ -55,6 +58,7 @@ export function settingsRouter(deps: Deps): Router {
         ...(body.units === undefined ? {} : { units: body.units }),
         ...(body.weightUnit === undefined ? {} : { weightUnit: body.weightUnit }),
         ...(body.showBodyWeight === undefined ? {} : { showBodyWeight: body.showBodyWeight }),
+        ...(body.hideMapEnds === undefined ? {} : { hideMapEnds: body.hideMapEnds }),
         ...(body.displayName === undefined ? {} : { displayName: body.displayName }),
       },
     })

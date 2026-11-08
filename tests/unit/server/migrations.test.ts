@@ -1864,6 +1864,39 @@ function verifyHrQuality(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+function verifyActivityTrack(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // The runner of the previous release hides the ends of a map until they say otherwise.
+  expect(rowsOf(db, 'SELECT id, "hideMapEnds" FROM "User" ORDER BY id')).toEqual([
+    { id: 'u1', hideMapEnds: 1 },
+  ])
+  // Existing activities have no track; the backfill job fills them.
+  expect(rowsOf(db, 'SELECT id, "trackV" FROM "Activity" WHERE "trackV" IS NOT NULL')).toEqual([])
+  expect(rowsOf(db, 'SELECT "activityId" FROM "ActivityTrack"')).toEqual([])
+  expect(rowsOf(db, 'SELECT COUNT(*) AS n FROM "Activity"')).toEqual([{ n: 4 }])
+  // A track is keyed by its activity and goes with it.
+  db.exec('PRAGMA foreign_keys = ON')
+  insert(db, 'ActivityTrack', {
+    activityId: 'a1',
+    v: 1,
+    polyline: '_p~iF~ps|U',
+    distM: '[0,10]',
+    pointCount: 2,
+    minLat: 38.5,
+    minLng: -120.2,
+    maxLat: 38.6,
+    maxLng: -120.1,
+    toleranceM: 5,
+  })
+  expect(rowsOf(db, 'SELECT "activityId", v FROM "ActivityTrack"')).toEqual([
+    { activityId: 'a1', v: 1 },
+  ])
+  db.exec(`DELETE FROM "Activity" WHERE id = 'a1'`)
+  expect(rowsOf(db, 'SELECT "activityId" FROM "ActivityTrack"')).toEqual([])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -1944,6 +1977,11 @@ const CASES: FixtureCase[] = [
     migration: 'hr_quality',
     seed: seedTerrainRelease,
     verify: verifyHrQuality,
+  },
+  {
+    migration: 'activity_track',
+    seed: seedTerrainRelease,
+    verify: verifyActivityTrack,
   },
 ]
 
