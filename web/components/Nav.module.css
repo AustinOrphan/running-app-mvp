@@ -1,4 +1,4 @@
-/* Below 900px: a bottom tab bar with the five primary items only. */
+/* Below 720px: a bottom tab bar with the five tabs only. */
 .chrome {
   position: fixed;
   z-index: 20;
@@ -62,8 +62,8 @@
   display: block;
 }
 
-/* From 900px: a 220px rail down the left edge. */
-@media (min-width: 900px) {
+/* From 720px: a rail down the left edge, with every page in it. */
+@media (min-width: 720px) {
   .chrome {
     top: 0;
     right: auto;
@@ -72,6 +72,8 @@
     flex-direction: column;
     gap: var(--space-5);
     padding: var(--space-6) var(--space-3) var(--space-4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-top: 0;
     border-right: 1px solid var(--border);
     background: var(--surface);
@@ -86,15 +88,33 @@
     font-weight: 600;
   }
 
+  .more {
+    display: none;
+  }
+
   .secondary {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
     padding-top: var(--space-4);
     border-top: 1px solid var(--border);
+  }
+
+  .groupTitle {
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: var(--lh-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   .footer {
     display: block;
     margin-top: auto;
+    padding-top: var(--space-3);
   }
 
   .list {
@@ -133,6 +153,7 @@
   .sublink {
     display: flex;
     align-items: center;
+    gap: var(--space-3);
     height: 2.5rem;
     padding: 0 var(--space-3);
     border-radius: var(--radius-md);
@@ -145,6 +166,33 @@
   .sublink[data-current='true'] {
     color: var(--accent);
     font-weight: 600;
+    background: var(--accent-soft);
+  }
+
+  .subicon {
+    display: flex;
+    flex: none;
+  }
+
+  .subicon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* A mouse needs less height than a thumb; the rail has to fit a short window without scrolling. */
+  @media (pointer: fine) {
+    .chrome {
+      gap: var(--space-4);
+      padding-top: var(--space-5);
+    }
+
+    .link {
+      height: 2.5rem;
+    }
+
+    .sublink {
+      height: 1.875rem;
+    }
   }
 
   .theme {

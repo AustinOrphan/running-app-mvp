@@ -7,7 +7,7 @@ import { ToastProvider } from './Toast.tsx'
 
 export { useTheme } from './Nav.tsx'
 
-/** Tab bar below 900px, side rail above, one `<main>`, a skip link and the toast host. */
+/** Tab bar below 720px, side rail from 720px, one `<main>`, a skip link and the toast host. */
 export function Layout() {
   useEffect(() => {
     restoreTheme()

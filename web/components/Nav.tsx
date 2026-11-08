@@ -1,6 +1,9 @@
 import { useCallback, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useRacePlan } from '../api/race.ts'
+import { destinationGroups, MORE_PATHS } from './destinations.tsx'
 import styles from './Nav.module.css'
+import { useMediaQuery } from './useMediaQuery.ts'
 
 export type Theme = 'system' | 'light' | 'dark'
 
@@ -134,19 +137,7 @@ const primary: Item[] = [
   {
     to: '/more',
     label: 'More',
-    paths: [
-      '/more',
-      '/brief',
-      '/goals',
-      '/paces',
-      '/stats',
-      '/trends',
-      '/settings',
-      '/integrations',
-      '/profile',
-      '/fuel',
-      '/strength',
-    ],
+    paths: MORE_PATHS,
     icon: (
       <Icon>
         <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="3" />
@@ -155,27 +146,29 @@ const primary: Item[] = [
   },
 ]
 
-const secondary = [
-  { to: '/goals', label: 'Goals' },
-  { to: '/stats', label: 'Stats' },
-  { to: '/trends', label: 'Trends' },
-  { to: '/settings', label: 'Settings' },
-]
-
 function isCurrent(pathname: string, paths: string[]): boolean {
   return paths.some((path) =>
     path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`),
   )
 }
 
+/** From this width the tab bar becomes a side rail (`Nav.module.css` and `Layout.module.css` agree). */
+const RAIL_QUERY = '(min-width: 720px)'
+
 /**
- * A bottom tab bar below 900px and a left rail from 900px; the same five items in both. Only the
- * primary item carries `aria-current`, so exactly one link is announced as the current page; the
- * rail's Goals, Stats, Trends and Settings links mark themselves with `data-current` for styling only.
+ * A bottom tab bar below 720px and a left rail from 720px. The tab bar has the five tabs. The rail
+ * has the four daily tabs, then every other page in the groups of the More page (Training, Data,
+ * You), so the More tab is hidden there and the rail reaches the same places. Exactly one link is
+ * announced as current: the tab on a phone, and on the rail the page's own link, which is the one
+ * that carries `aria-current` there (the hidden More tab does not).
  */
 export function Nav() {
   const { pathname } = useLocation()
   const { theme, setTheme } = useTheme()
+  const railed = useMediaQuery(RAIL_QUERY)
+  // The race plan joins the Training group only for an ultra goal with a race still to come; the
+  // rail asks only when it is on screen, so a phone does not spend a request on every page.
+  const hasRacePlan = useRacePlan({ enabled: railed }).data?.plan != null
   const nextTheme = themeOrder[(themeOrder.indexOf(theme) + 1) % themeOrder.length] ?? 'system'
 
   return (
@@ -184,13 +177,17 @@ export function Nav() {
       <nav aria-label="Primary" className={styles.primary}>
         <ul className={styles.list}>
           {primary.map((item) => {
+            const isMore = item.to === '/more'
             const current = isCurrent(pathname, item.paths)
             return (
-              <li key={item.to} className={styles.entry}>
+              <li
+                key={item.to}
+                className={isMore ? `${styles.entry} ${styles.more}` : styles.entry}
+              >
                 <Link
                   to={item.to}
                   className={styles.link}
-                  aria-current={current ? 'page' : undefined}
+                  aria-current={current && !(isMore && railed) ? 'page' : undefined}
                 >
                   {item.icon}
                   <span>{item.label}</span>
@@ -201,19 +198,36 @@ export function Nav() {
         </ul>
       </nav>
       <nav aria-label="Other pages" className={styles.secondary}>
-        <ul className={styles.list}>
-          {secondary.map((item) => (
-            <li key={item.to} className={styles.entry}>
-              <Link
-                to={item.to}
-                className={styles.sublink}
-                data-current={isCurrent(pathname, [item.to]) ? 'true' : undefined}
-              >
-                {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {destinationGroups(hasRacePlan).map((group) => (
+          <div
+            key={group.id}
+            role="group"
+            aria-labelledby={`rail-${group.id}`}
+            className={styles.group}
+          >
+            <p id={`rail-${group.id}`} className={styles.groupTitle}>
+              {group.title}
+            </p>
+            <ul className={styles.list}>
+              {group.items.map((item) => {
+                const current = isCurrent(pathname, [item.to])
+                return (
+                  <li key={item.to} className={styles.entry}>
+                    <Link
+                      to={item.to}
+                      className={styles.sublink}
+                      aria-current={current && railed ? 'page' : undefined}
+                      data-current={current ? 'true' : undefined}
+                    >
+                      <span className={styles.subicon}>{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ))}
       </nav>
       <div className={styles.footer}>
         <button

@@ -27,7 +27,8 @@
   animation: toast-in var(--dur-fast) var(--ease-out);
 }
 
-@media (min-width: 900px) {
+/* With the side rail (from 720px) the toast stands beside it, not over the tab bar. */
+@media (min-width: 720px) {
   .region {
     left: calc(var(--rail-w) + var(--gutter));
     right: auto;
