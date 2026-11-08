@@ -35,6 +35,7 @@ import { stateRouter } from './routes/state.ts'
 import { statsRouter } from './routes/stats.ts'
 import { raceRouter } from './routes/race.ts'
 import { trendsRouter } from './routes/trends.ts'
+import { trendsRunsRouter } from './routes/trendsRuns.ts'
 import { strengthRouter } from './routes/strength.ts'
 import { todayRouter } from './routes/today.ts'
 import { weatherRouter } from './routes/weather.ts'
@@ -135,6 +136,7 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
   app.use('/api/settings', settingsRouter(deps))
   app.use('/api/state', stateRouter(deps))
   app.use('/api/stats', statsRouter(deps))
+  app.use('/api/trends/runs', trendsRunsRouter(deps))
   app.use('/api/trends', trendsRouter(deps))
   app.use('/api/explain', explainRouter(deps))
   app.use('/api/brief', briefRouter(deps))

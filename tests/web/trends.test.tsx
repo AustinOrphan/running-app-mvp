@@ -7,6 +7,7 @@ import {
   weeklySleep,
   type WellnessSeriesRow,
 } from '../../shared/domain/trends.ts'
+import { hrWindows, type TrendsRunsView } from '../../shared/domain/trendsRuns.ts'
 import type { TrendsView, Units, UserSettings, WeekRow } from '../../shared/types.ts'
 import { monthTicks } from '../../web/components/charts/monthTicks.ts'
 import { TrendsPage } from '../../web/pages/TrendsPage.tsx'
@@ -92,9 +93,17 @@ function recoveryView(
   }
 }
 
-function mockTrends(opts: { units?: Units; weeks?: WeekRow[]; trends?: TrendsView } = {}) {
+/** What the server answers a runner with no run: no long run, and 26 windows with no line. */
+function noRuns(): TrendsRunsView {
+  return { asOf: '2026-03-18', longRuns: [], hrWindows: hrWindows([], '2026-03-18') }
+}
+
+function mockTrends(
+  opts: { units?: Units; weeks?: WeekRow[]; trends?: TrendsView; runs?: TrendsRunsView } = {},
+) {
   return mockApi({
     'GET /api/trends': () => opts.trends ?? recoveryView(),
+    'GET /api/trends/runs': () => opts.runs ?? noRuns(),
     'GET /api/weeks': () => opts.weeks ?? history(),
     'GET /api/settings': () => settings(opts.units ?? 'km'),
   })
@@ -492,6 +501,7 @@ describe('TrendsPage, recovery readings', () => {
         status: 500,
         body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
       }),
+      'GET /api/trends/runs': () => noRuns(),
       'GET /api/weeks': () => history(),
       'GET /api/settings': () => settings('km'),
     })
@@ -509,6 +519,7 @@ describe('TrendsPage, recovery readings', () => {
         status: 503,
         body: { error: { code: 'offline', message: 'x' } },
       }),
+      'GET /api/trends/runs': () => noRuns(),
       'GET /api/weeks': () => history(),
       'GET /api/settings': () => settings('km'),
     })
