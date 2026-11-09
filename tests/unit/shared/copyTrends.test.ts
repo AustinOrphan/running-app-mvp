@@ -241,7 +241,7 @@ describe('the words of the Trends page', () => {
 describe('the words of the climbing and intensity panels', () => {
   it('words the climbing captions in the runner unit and the coverage as counts', () => {
     expect(climbCaption('km')).toBe(
-      "Elevation gain on your runs each week, in metres; the line is the mean of four weeks. A watch's elevation is rough: read the shape of the weeks.",
+      "Elevation gain on your runs each week, in metres; the line is the mean of four weeks. A watch's elevation is rough: read the shape.",
     )
     expect(climbCaption('mi')).toContain('in feet;')
     expect(climbCoverageLine(31, 36)).toBe(

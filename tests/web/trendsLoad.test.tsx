@@ -102,7 +102,7 @@ describe('Trends, climbing per week', () => {
     )
     expect(
       screen.getByText(
-        "Elevation gain on your runs each week, in metres; the line is the mean of four weeks. A watch's elevation is rough: read the shape of the weeks.",
+        "Elevation gain on your runs each week, in metres; the line is the mean of four weeks. A watch's elevation is rough: read the shape.",
       ),
     ).toBeInTheDocument()
     expect(

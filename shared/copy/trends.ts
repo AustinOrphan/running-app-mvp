@@ -263,7 +263,7 @@ export const TRENDS_TEMPLATES = {
   // described: no aim, no ratio of recent to earlier weeks. A run with no gain is counted and named.
   'trends.climb.heading': tpl('Climbing per week', {}, { shape: 'label' }),
   'trends.climb.caption': tpl(
-    "Elevation gain on your runs each week, in {unit}; the line is the mean of four weeks. A watch's elevation is rough: read the shape of the weeks.",
+    "Elevation gain on your runs each week, in {unit}; the line is the mean of four weeks. A watch's elevation is rough: read the shape.",
     { unit: 'text' },
     { fallback: 'Elevation gain on your runs each week.' },
   ),
