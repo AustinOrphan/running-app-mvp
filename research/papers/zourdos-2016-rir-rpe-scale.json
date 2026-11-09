@@ -28,8 +28,8 @@
     "metadataMatches": true,
     "abstractSource": "europepmc",
     "findingsSupported": true,
-    "notes": "Crossref 2026-10-25: title (en dash in Crossref, hyphen here), J Strength Cond Res 30(1):267-275, 2016, eleven authors and DOI match. Europe PMC abstract (PMID 26049792) read; every figure above is in it. Design set to cross-sectional because each person did the same tests once and two groups were compared. Re-read 2026-10-31 for task RU1: abstract re-read on Europe PMC (PMID 26049792); the full text is closed access and was not fetched. Details beyond the abstract quoted by helms-2016-rir-rpe-application are that record's, not this one's.",
-    "checkedAt": "2026-10-31"
+    "notes": "Crossref 2026-10-25: title (en dash in Crossref, hyphen here), J Strength Cond Res 30(1):267-275, 2016, eleven authors and DOI match. Europe PMC abstract (PMID 26049792) read; every figure above is in it. Design set to cross-sectional because each person did the same tests once and two groups were compared. Re-read 2026-10-31 for task RU1: abstract re-read on Europe PMC (PMID 26049792); the full text is closed access and was not fetched. Details beyond the abstract quoted by helms-2016-rir-rpe-application are that record's, not this one's. Re-read 2026-11-09: the author's accepted manuscript (AUT Open Repository, handle 10292/12176; not the version of record, which is closed access) was read in full and the findings above match it.",
+    "checkedAt": "2026-11-09"
   },
   "vetting": {
     "r1": {
@@ -46,7 +46,7 @@
     },
     "r4": {
       "result": "hold",
-      "note": "Every confirmation read is by authors of the scale or shares authors with it (helms-2018-rpe-vs-percent-loading, refalo-2023-rir-accuracy-bench, remmert-2023-rir-accuracy-trained-untrained). Later independent studies of the RIR and velocity relationship (Jukic 2024, 10.14814/phy2.15955; Paulsen 2025, 10.7717/peerj.19797) were located by title and not read. The difference between novice and experienced squatters at 1RM is not found in five later accuracy papers (R4 of steele-2017-predict-repetitions-failure)."
+      "note": "Every confirmation read is by authors of the scale or shares authors with it (helms-2018-rpe-vs-percent-loading, refalo-2023-rir-accuracy-bench, remmert-2023-rir-accuracy-trained-untrained). Two later studies of the RIR and velocity relationship were read in full on 2026-11-09. Jukic 2024 (10.14814/phy2.15955, PMC10901726) is not independent of the scale's authors (Helms is a coauthor): in 46 resistance-trained people squatting, an individual RIR-velocity calibration predicted RIR in a second session within 2 repetitions on average, with slightly larger errors in females and in those with under 3 years of training. Paulsen 2025 (10.7717/peerj.19797, PMC12360324) is independent (no competing interests declared): in 19 well-trained people over six weeks of squat and bench the average individual r2 between mean velocity and perceived RIR was 0.3, and exercise, velocity-loss threshold, load and set number affected perceived RIR; the authors call velocity and perceived RIR complementary but not interchangeable and advise caution. Neither paper is cited by a rule or a Param. The difference between novice and experienced squatters at 1RM is not found in five later accuracy papers (R4 of steele-2017-predict-repetitions-failure)."
     },
     "r5": {
       "result": "pass",
