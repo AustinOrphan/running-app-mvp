@@ -1,8 +1,7 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import type { ActivityStreamData } from '../../shared/types.ts'
 import { StreamChart, yAxisWidth } from '../../web/components/charts/StreamChart.tsx'
-import { createDistanceCursor } from '../../web/components/map/distanceCursor.ts'
 import {
   alignSeries,
   buildSeries,

@@ -301,7 +301,9 @@ test('a run that filled a planned session opens on its result, then the rating, 
     // the context line names the session and sets the run beside it; the assessment follows
     const title = planned.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     await expect(against.getByText(new RegExp(`^Planned: ${title}, .*Ran: `))).toBeVisible()
-    await expect(against.getByText(/ against .* planned \(\d+%\)\.$/)).toBeVisible()
+    // the time against the plan is drawn as two bars, and the sentence that said it as a share is gone
+    await expect(against.getByRole('img', { name: /^Time: planned / })).toBeAttached()
+    await expect(against.getByText(/ planned \(\d+%\)\.$/)).toHaveCount(0)
     // an unrated run is never told how hard it was: the server wrote "harder than expected" from
     // the pace, and the page does not say it until the runner's own rating supports it
     await expect(against.getByText(/^Intensity /)).toBeVisible()
@@ -324,9 +326,7 @@ test('a run that filled a planned session opens on its result, then the rating, 
       const box = await locator.boundingBox()
       return box === null ? Number.NaN : Math.round(box.y + box.height)
     }
-    expect(
-      await bottomOf(against.getByText(/ against .* planned \(\d+%\)\.$/)),
-    ).toBeLessThanOrEqual(visible)
+    expect(await bottomOf(against.getByText(/^Intensity /))).toBeLessThanOrEqual(visible)
     const measured = {
       summaryEnds: await bottomOf(summary),
       resultEnds: await bottomOf(against),
