@@ -20,7 +20,7 @@ import { ActivateConfirm } from '../components/ActivateConfirm.tsx'
 import { Button } from '../components/Button.tsx'
 import { ConfirmSheet } from '../components/ConfirmSheet.tsx'
 import { TrashGlyph } from '../components/Glyphs.tsx'
-import { EmptyState } from '../components/EmptyState.tsx'
+import { EmptyPreview, EmptyState } from '../components/EmptyState.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { localiseEngineText } from '../components/engineText.ts'
@@ -899,6 +899,7 @@ export function GoalsPage() {
       <EmptyState
         title="No goals yet."
         body="Add the race you are training for. One goal at a time drives the plan."
+        preview={<EmptyPreview columns={['Race', 'Date', 'Distance']} />}
         action={
           <Button variant="primary" onClick={openNew}>
             Add goal

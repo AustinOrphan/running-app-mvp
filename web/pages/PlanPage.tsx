@@ -34,7 +34,7 @@ import { useWeeks } from '../api/weeks.ts'
 import { useWristStatus, weekZipHref } from '../api/wrist.ts'
 import type { PlanRevisionView } from '../../shared/types.ts'
 import { Button } from '../components/Button.tsx'
-import { EmptyState } from '../components/EmptyState.tsx'
+import { EmptyPreview, EmptyState } from '../components/EmptyState.tsx'
 import { Field, Input, Select, Textarea } from '../components/Field.tsx'
 import { LoadField } from '../components/LoadField.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -1667,7 +1667,8 @@ export function PlanPage() {
         {eligible.length === 0 ? (
           <EmptyState
             title="No plan yet. Choose a goal race, then generate weekly targets."
-            body="A plan needs a goal race with a distance."
+            body="A plan needs a goal race with a distance. Each week then lists its sessions by day."
+            preview={<EmptyPreview columns={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']} />}
             action={
               <Link to="/goals" className={styles.linkButton}>
                 Add goal
