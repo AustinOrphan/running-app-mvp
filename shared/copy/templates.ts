@@ -41,6 +41,7 @@ import { EXPORT_TEMPLATES } from './exportData.ts'
 import { PUBLISH_TEMPLATES } from './publish.ts'
 import { STANDOUT_TEMPLATES } from './standoutTemplates.ts'
 import { CopyError, isCopyStrict, render, tpl, type Template } from './template.ts'
+import { SURFACE_TEMPLATES } from './surface.ts'
 import { SYNC_TEMPLATES } from './sync.ts'
 import { TODAY_TEMPLATES } from './today.ts'
 import { WORKOUT_TEMPLATES } from './workouts.ts'
@@ -81,6 +82,7 @@ export const TEMPLATES = {
   ...RACE_PLAN_TEMPLATES,
   ...SETTINGS_TEMPLATES,
   ...EXPORT_TEMPLATES,
+  ...SURFACE_TEMPLATES,
   ...ERROR_TEMPLATES,
   ...REVIEW_PREFILL_TEMPLATES,
   ...PLAN_STRIP_TEMPLATES,

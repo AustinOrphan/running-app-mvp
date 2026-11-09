@@ -66,7 +66,7 @@ export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }
             {renderFact(
               {
                 template:
-                  prediction.trainingSince === undefined
+                  prediction.trainingSince === undefined || prediction.trainingWidened === true
                     ? 'today.race.estimate'
                     : 'today.race.estimate-floor',
                 slots: raceEstimateSlots(prediction),
@@ -78,7 +78,10 @@ export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }
             <p className={styles.estimate}>
               {renderFact(
                 {
-                  template: 'today.race.floor-basis',
+                  template:
+                    prediction.trainingWidened === true
+                      ? 'today.race.widened-basis'
+                      : 'today.race.floor-basis',
                   slots: { date: { kind: 'date', iso: prediction.trainingSince, style: 'short' } },
                 },
                 units,

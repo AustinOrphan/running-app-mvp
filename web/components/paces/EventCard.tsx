@@ -58,7 +58,13 @@ export function EventCard({ row, units }: { row: EventRow; units: Units }) {
           <dl className={styles.stats}>
             <div className={styles.stat}>
               <dt>
-                {row.basis.cs?.since == null ? 'Time' : pacesText('paces.event.time-at-most')}
+                {row.basis.cs?.since == null
+                  ? 'Time'
+                  : pacesText(
+                      row.basis.cs.widened === true
+                        ? 'paces.event.time-widened'
+                        : 'paces.event.time-at-most',
+                    )}
               </dt>
               <dd className={`${styles.statValue} figure-type`}>{timeText(time.midSec)}</dd>
               <dd

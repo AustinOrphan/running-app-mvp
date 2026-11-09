@@ -439,7 +439,7 @@ export async function goalModelFor(
 /**
  * The runs of the critical-speed window with their fastest stretches (rule A6), read from the
  * stored 10 s streams when the snapshot is built and kept nowhere else. A run with no stream, or one
- * that cannot be read, is returned as it is. The window is the same for every reader because the
+ * that cannot be read, is returned as it is. The streams are read for the wider window (`a6.csWideWindowDays`), which `csFitOf` uses only when the narrower one gives no fit. The window is the same for every reader because the
  * snapshot is: the plan, the zones and My paces all fit critical speed from these activities.
  */
 async function withBestEfforts(
@@ -447,7 +447,7 @@ async function withBestEfforts(
   activities: Activity[],
   today: string,
 ): Promise<Activity[]> {
-  const windowStart = addDays(today, 1 - P.a6.csWindowDays.value)
+  const windowStart = addDays(today, 1 - P.a6.csWideWindowDays.value)
   const candidates = activities.filter(
     (a) => (a.type === 'run' || a.type === 'race') && a.date >= windowStart && !isDuplicate(a),
   )

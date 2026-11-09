@@ -44,6 +44,28 @@ describe('parameter registry', () => {
     expect(PARAMS_VERSION).toBe('2026-11-09.3')
   })
 
+  it('holds the adaptive critical-speed window as grade D defaults with a note (A6)', () => {
+    expect(P.a6.csWideWindowDays).toMatchObject({
+      id: 'a6.csWideWindowDays',
+      value: 180,
+      grade: 'D',
+      rule: 'A6',
+      unit: 'days',
+      evidence: ['smyth-2020-cs-training-data'],
+    })
+    expect(P.a6.csWidenedSlowSideWideningPct).toMatchObject({
+      id: 'a6.csWidenedSlowSideWideningPct',
+      value: 50,
+      grade: 'D',
+      rule: 'A6',
+      unit: '%',
+      evidence: ['smyth-2020-cs-training-data'],
+    })
+    expect(P.a6.csWideWindowDays.note).toMatch(/default/i)
+    expect(P.a6.csWidenedSlowSideWideningPct.note).toMatch(/default/i)
+    expect(P.a6.csWideWindowDays.value).toBeGreaterThan(P.a6.csWindowDays.value)
+  })
+
   it('holds the undo window of the revision model as a grade D default of 7 days', () => {
     expect(P.revision.undoWindowDays).toMatchObject({
       id: 'revision.undoWindowDays',

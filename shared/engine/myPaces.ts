@@ -97,6 +97,10 @@ export interface CsTest {
   done: boolean
   /** True when that critical speed uses the stretches of longer runs, so a test would narrow it (A6). */
   fromTraining: boolean
+  /** True when that critical speed needed efforts older than the 90-day window (A6): not a floor. */
+  windowWidened: boolean
+  /** The wider window in days, said when `windowWidened`. */
+  wideWindowDays: number
 }
 
 export type EventKey = 'five-k' | 'ten-k' | 'half' | 'marathon' | 'fifty-k' | 'custom'
@@ -114,7 +118,7 @@ export interface EventBasis {
    * Critical speed, when the method used it. `since` is the first day of the window when the fit
    * uses the best efforts of training runs (not races or a test); null for a fit from whole runs.
    */
-  cs: { csMps: number; efforts: number; since: string | null } | null
+  cs: { csMps: number; efforts: number; since: string | null; widened?: boolean } | null
 }
 
 export interface EventRow extends EventSpec {
@@ -355,6 +359,12 @@ const CS_TRAINING_PARAMS: ReadonlyArray<Param<unknown>> = [
   P.a6.csTrainingWideningPct,
 ]
 
+/** The Params of a fit that needed the wider window (A6), read on top of the training ones. */
+const CS_WIDENED_PARAMS: ReadonlyArray<Param<unknown>> = [
+  P.a6.csWideWindowDays,
+  P.a6.csWidenedSlowSideWideningPct,
+]
+
 /**
  * The Params a method of `predictFromState` reads, for its grade: the ones named in the method and
  * the ones of the fit it stands on (the race exponent of A6, the critical-speed fit of A6). A grade
@@ -443,6 +453,7 @@ function rowOf(spec: EventSpec, state: AthleteState, prediction: Prediction | nu
               csMps,
               efforts: state.fitness.csEfforts,
               since: prediction.trainingSince ?? null,
+              ...(prediction.trainingWidened === true ? { widened: true } : {}),
             }
           : null,
     },
@@ -450,6 +461,7 @@ function rowOf(spec: EventSpec, state: AthleteState, prediction: Prediction | nu
     grade: lowestGrade([
       ...gradesOf(methods.flatMap((m) => METHOD_PARAMS[m] ?? [])),
       ...(prediction.trainingSince === undefined ? [] : gradesOf(CS_TRAINING_PARAMS)),
+      ...(prediction.trainingWidened === true ? gradesOf(CS_WIDENED_PARAMS) : []),
       // The floor of the interval is set by the distance (L2, L4, L6).
       label.grade,
       ...(prediction.rules.includes('L3') ? gradesOf(SINGLE_SOURCE_PARAMS) : []),
@@ -509,6 +521,8 @@ export function myPaces(input: MyPacesInput, events: readonly EventSpec[]): MyPa
       windowDays: P.a6.csWindowDays.value,
       done: state.fitness.csMps !== null,
       fromTraining: state.fitness.csTrainingSince != null,
+      windowWidened: state.fitness.csWindowWidened === true,
+      wideWindowDays: P.a6.csWideWindowDays.value,
     },
   }
 }

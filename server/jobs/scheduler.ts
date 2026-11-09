@@ -22,6 +22,7 @@ import {
   syncMessage,
 } from '../services/syncLog.ts'
 import { backfillHrQuality } from '../services/hrQualityBackfill.ts'
+import { backfillSurfaceBins } from '../services/surfaceBackfill.ts'
 import { backfillTerrainBins } from '../services/terrainBackfill.ts'
 import { backfillTracks } from '../services/trackBackfill.ts'
 import { enrichWeather } from '../services/weather.ts'
@@ -46,6 +47,8 @@ export const TERRAIN_INTERVAL_MS = 5 * MINUTE_MS
 export const HR_QUALITY_INTERVAL_MS = 5 * MINUTE_MS
 /** How often the track backfill reads stored originals and asks intervals.icu for a few streams. */
 export const TRACK_INTERVAL_MS = 5 * MINUTE_MS
+/** How often the surface job matches a batch of tracks to the downloaded map area. */
+export const SURFACE_INTERVAL_MS = 5 * MINUTE_MS
 /** Activities that get weather per user per run. */
 const WEATHER_BATCH = 50
 /** The first run waits, so a crash loop never hammers a provider. */
@@ -243,6 +246,36 @@ export async function runTerrainJob(deps: Deps, log?: Log): Promise<void> {
     } catch (error) {
       log?.warn({ reason: safeMessage(error), userId: user.id }, 'terrain backfill failed')
       await recordJob(deps, 'terrain', user.id, startedAt, { error })
+    }
+  }
+}
+
+/**
+ * Computes the trail, paved-path and road shares of runs inside the runner's downloaded map area
+ * (M1d), one small batch per user per tick (`backfillSurfaceBins`). A user with no area costs one
+ * read. A tick that fills something (or meets an unreadable track) records a `surface` run,
+ * `accepted` the runs filled and `failed` the unreadable tracks (a `partial` run when there are any);
+ * an idle tick is not stored. Idempotent and resumable like the terrain job. Never uses the network.
+ */
+export async function runSurfaceJob(deps: Deps, log?: Log): Promise<void> {
+  const users = await deps.prisma.user.findMany({ select: { id: true } })
+  for (const user of users) {
+    const startedAt = new Date()
+    try {
+      const result = await backfillSurfaceBins(deps, user.id)
+      await recordJob(deps, 'surface', user.id, startedAt, {
+        accepted: result.filled,
+        failed: result.unreadable.length,
+        status: result.unreadable.length > 0 ? 'partial' : 'ok',
+        failures: result.unreadable.map((ref) => ({
+          ref,
+          reason: 'the stored track could not be read',
+        })),
+        skipIdle: true,
+      })
+    } catch (error) {
+      log?.warn({ reason: safeMessage(error), userId: user.id }, 'surface job failed')
+      await recordJob(deps, 'surface', user.id, startedAt, { error })
     }
   }
 }
@@ -588,6 +621,7 @@ export function startScheduler(deps: Deps, opts: { fetch: typeof fetch }): () =>
   every('terrain', TERRAIN_INTERVAL_MS, () => runTerrainJob(deps, log))
   every('hr-quality', HR_QUALITY_INTERVAL_MS, () => runHrQualityJob(deps, log))
   every('track', TRACK_INTERVAL_MS, () => runTrackJob(deps, log))
+  every('surface', SURFACE_INTERVAL_MS, () => runSurfaceJob(deps, log))
   daily('backup', BACKUP_SLOT, () => runBackupJob(deps, {}, log))
   daily('matching', MATCHING_SLOT, () => runMatchingJob(deps, {}, log))
   daily('replan', REPLAN_SLOT, () => runReplanJob(deps, {}, log))

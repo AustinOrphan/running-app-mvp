@@ -290,6 +290,52 @@ describe('predictFromState: interval [L2, L5, L6]', () => {
     expect(trained.conditions.join(' ')).toMatch(/training since 2026-08-11.*at most/)
   })
 
+  it('opens both ends for a fit that needed the wider window and drops "at most" [A6]', () => {
+    const fit = { csMps: 3.4, dPrimeM: 180, csEfforts: 4 }
+    const measured = predictFromState(makeState(fit), road(HALF))!
+    const trained = predictFromState(
+      makeState({ ...fit, csTrainingSince: '2026-06-01' }),
+      road(HALF),
+    )!
+    const widened = predictFromState(
+      makeState({ ...fit, csTrainingSince: '2026-06-01', csWindowWidened: true }),
+      road(HALF),
+    )!
+    const fast = (p: typeof widened) => (p.predictedSec - p.lowSec) / p.predictedSec
+    const slow = (p: typeof widened) => (p.highSec - p.predictedSec) / p.predictedSec
+    expect(widened.predictedSec).toBe(measured.predictedSec)
+    expect(fast(widened) / fast(measured)).toBeCloseTo(
+      1 + P.a6.csTrainingWideningPct.value / 100,
+      1,
+    )
+    expect(slow(widened) / slow(measured)).toBeCloseTo(
+      1 + P.a6.csWidenedSlowSideWideningPct.value / 100,
+      1,
+    )
+    // The one-sided range of a fit inside 90 days is unchanged.
+    expect(trained.highSec).toBe(measured.highSec)
+    expect(trained.trainingWidened).toBeUndefined()
+    expect(widened.trainingWidened).toBe(true)
+    expect(widened.trainingSince).toBe('2026-06-01')
+    const text = widened.conditions.join(' ')
+    expect(text).toMatch(/since 2026-06-01.*older than 90 days.*may have changed/)
+    expect(text).not.toMatch(/at most/)
+  })
+
+  it('averages a widened fit with a race as any second source, not as a floor [A6]', () => {
+    const state = makeState({
+      csMps: 3.4,
+      dPrimeM: 180,
+      csEfforts: 4,
+      csTrainingSince: '2026-06-01',
+      csWindowWidened: true,
+      races: [race('2026-09-01', 10000, 3000)],
+    })
+    const p = predictFromState(state, road(HALF))!
+    expect(p.method).toContain('+')
+    expect(p.conditions.join(' ')).not.toMatch(/floor/)
+  })
+
   it('never averages a floor from training with a race: the faster of the two stands alone [A6]', () => {
     const base = { csMps: 3.4, dPrimeM: 180, csEfforts: 4, csTrainingSince: '2026-08-11' }
     const race10 = race('2026-09-01', 10000, 3000)

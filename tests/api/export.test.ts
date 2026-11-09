@@ -293,6 +293,31 @@ describe('GET /api/export', () => {
       expect(text(entries, 'README.txt')).toMatch(/does not\.?/)
     })
 
+    test('the shares of a run and the map area are there; the ways, which are OpenStreetMap’s, are not', () => {
+      const [run] = JSON.parse(text(entries, 'activities.json')) as Record<string, unknown>[]
+      expect(run!['surfaceBins']).toEqual({
+        v: 1,
+        trailM: 3100,
+        pavedM: 500,
+        roadM: 1400,
+        unknownM: 0,
+      })
+      const area = JSON.parse(text(entries, 'map-area.json')) as Record<string, unknown>
+      expect(area).toMatchObject({
+        minLat: 44.8,
+        maxLng: -92.8,
+        fetchedAt: '2026-11-09T10:00:00.000Z',
+        dataTimestamp: '2026-11-08T09:00:00Z',
+        wayCount: 2,
+      })
+      expect(Object.keys(entries).some((name) => /way/i.test(name))).toBe(false)
+      expect(
+        Object.values(entries).some((bytes) => Buffer.from(bytes).includes('way-polyline-')),
+      ).toBe(false)
+      expect(text(entries, 'README.txt')).toMatch(/© OpenStreetMap contributors/)
+      expect(text(entries, 'README.txt')).toMatch(/surfaceBins: how far the run went/)
+    })
+
     test('the CSV is the activity CSV, oldest first', () => {
       const lines = text(entries, 'activities.csv').trim().split('\r\n')
       expect(lines[0]).toBe(

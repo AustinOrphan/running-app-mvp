@@ -103,11 +103,31 @@ describe('critical speed from training', () => {
     expect(marathon!.time!.highSec).toBeGreaterThan(marathon!.time!.lowSec)
   })
 
-  test('the same run without a stream, or outside the window, gives no fit', async () => {
+  test('the same run without a stream, or outside the wide window, gives no fit', async () => {
     await seedLongRun(10, false)
-    await seedLongRun(120)
+    await seedLongRun(200)
     const { state } = await loadAthleteContext(deps(), { userId: user.id, today: TODAY })
     expect(state.fitness).toMatchObject({ csMps: null, csEfforts: 0 })
     expect(state.fitness.csTrainingSince ?? null).toBeNull()
+  })
+
+  test('a long run 120 days back widens the window: flagged, dated, and the range opens both ways', async () => {
+    await seedLongRun(120)
+    const { state } = await loadAthleteContext(deps(), { userId: user.id, today: TODAY })
+    expect(state.fitness.csMps).toBeGreaterThan(2.5)
+    expect(state.fitness.csWindowWidened).toBe(true)
+    expect(state.fitness.csTrainingSince).toBe(addDays(TODAY, -120))
+    const view = await loadMyPaces(deps(), { userId: user.id, today: TODAY })
+    expect(view.test).toMatchObject({ done: true, fromTraining: true, windowWidened: true })
+    const marathon = view.events.find((row) => row.key === 'marathon')
+    expect(marathon?.basis.cs).toMatchObject({ since: addDays(TODAY, -120), widened: true })
+  })
+
+  test('a run inside the 90 days is not widened even when an older one exists', async () => {
+    await seedLongRun(10)
+    await seedLongRun(120)
+    const { state } = await loadAthleteContext(deps(), { userId: user.id, today: TODAY })
+    expect(state.fitness.csWindowWidened).toBeUndefined()
+    expect(state.fitness.csTrainingSince).toBe(addDays(TODAY, -89))
   })
 })

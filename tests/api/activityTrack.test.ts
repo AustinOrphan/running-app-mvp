@@ -122,6 +122,16 @@ describe('GET /api/activities/:id/track', () => {
     expect((await get(user, id)).status).toBe(200)
   })
 
+  test('a re-import that replaces the route clears the run’s trail and road shares', async () => {
+    const id = await importRun(user.id)
+    await ctx.prisma.activity.update({
+      where: { id },
+      data: { surfaceBins: JSON.stringify({ v: 1, trailM: 9, pavedM: 0, roadM: 0, unknownM: 0 }) },
+    })
+    expect(await importRun(user.id)).toBe(id)
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).surfaceBins).toBeNull()
+  })
+
   test('the setting reads back and defaults on', async () => {
     const res = await client(ctx, user).get('/api/settings')
     expect((res.body as { hideMapEnds: boolean }).hideMapEnds).toBe(true)
