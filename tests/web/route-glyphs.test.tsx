@@ -128,7 +128,8 @@ describe('route glyphs and the hide-ends setting', () => {
     })
     let glyphReads = 0
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input).includes('/api/activities/glyphs') && ++glyphReads > 1) await gate
+      const url = input instanceof Request ? input.url : input.toString()
+      if (url.includes('/api/activities/glyphs') && ++glyphReads > 1) await gate
       return inner(input, init)
     })
     renderWithProviders(<GlyphProbe />)
