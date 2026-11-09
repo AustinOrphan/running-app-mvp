@@ -196,6 +196,21 @@ describe('buildZones pace (rules C4, C5, C7)', () => {
     expect(buildZones(profile(), base, TODAY).csMps).not.toHaveProperty('fromTraining')
   })
 
+  it('marks the boundaries of a fit that needed the wider window as such [A6]', () => {
+    const base = withCs(3.5)
+    const widened = withCs(3.5, {
+      fitness: { ...base.fitness, csTrainingSince: '2026-06-01', csWindowWidened: true },
+    })
+    const z = buildZones(profile(), widened, TODAY)
+    expect(z.csMps).toMatchObject({ fromTraining: true, windowWidened: true })
+    expect(z.thresholdPaceSecPerKm).toMatchObject({ fromTraining: true, windowWidened: true })
+    expect(z.lt1PaceSecPerKm).toMatchObject({ fromTraining: true, windowWidened: true })
+    const trained = withCs(3.5, {
+      fitness: { ...base.fitness, csTrainingSince: '2026-08-11' },
+    })
+    expect(buildZones(profile(), trained, TODAY).csMps).not.toHaveProperty('windowWidened')
+  })
+
   it('flags the critical-speed boundary from training even when a profile threshold drives the paces', () => {
     const base = withCs(3.5)
     const trained = withCs(3.5, { fitness: { ...base.fitness, csTrainingSince: '2026-08-11' } })

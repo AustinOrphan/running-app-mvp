@@ -103,6 +103,10 @@ export const RACE_PLAN_TEMPLATES = {
     'The time rests on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
     { date: 'date' },
   ),
+  'race.plan.expected.training-widened': tpl(
+    'From your best efforts in training since {date}, some older than three months. Fitness may have changed since. A short test narrows it.',
+    { date: 'date' },
+  ),
   'race.plan.expected.clock': tpl('Start {start}. Finish about {range}.', {
     start: 'text',
     range: 'text',
@@ -934,7 +938,7 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
     expected.basis === 'prediction'
       ? say(
           T[
-            expected.trainingSince == null
+            expected.trainingSince == null || expected.trainingWidened === true
               ? 'race.plan.expected.source-range'
               : 'race.plan.expected.source-floor'
           ],
@@ -965,7 +969,11 @@ function expectedText(plan: RacePlan, units: Units): RaceExpectedText {
   if (expected.trainingSince != null) {
     notes.push(
       say(
-        T['race.plan.expected.training'],
+        T[
+          expected.trainingWidened === true
+            ? 'race.plan.expected.training-widened'
+            : 'race.plan.expected.training'
+        ],
         { date: { kind: 'date', iso: expected.trainingSince, style: 'short' } },
         units,
       ),

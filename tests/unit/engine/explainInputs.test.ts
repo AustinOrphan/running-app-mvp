@@ -1608,6 +1608,37 @@ describe('A2, A5, A6, A7, A8: the athlete state', () => {
     expect(factsOf('L6')[0]!.template).toBe('explain.l6-range')
   })
 
+  test('A6, L6 and C2 say a fit that needed the wider window is no floor and may be stale', () => {
+    const input = richInput()
+    const base = contextOf(input)
+    const state = {
+      ...base.state,
+      fitness: { ...base.state.fitness, csTrainingSince: '2026-06-01', csWindowWidened: true },
+    }
+    const g = input.goal
+    const prediction = predictFromState(state, {
+      distanceM: g.distanceM,
+      gainM: g.gainM,
+      surface: g.surface,
+      wbgtC: g.raceWbgtC,
+    })
+    const zones = buildZones(input.profile, state, input.today)
+    const ctx = { ...base, state, prediction, zones }
+    const [cs] = factsOf('A6', ctx)
+    expect(cs!.template).toBe('explain.a6-cs-widened')
+    expect(text(cs!, 'km')).toMatch(
+      /since 1 Jun, some older than three months\. Fitness may have changed/,
+    )
+    expect(text(cs!, 'km')).not.toMatch(/at most/i)
+    const [range] = factsOf('L6', ctx)
+    expect(range!.template).toBe('explain.l6-range-widened')
+    expect(text(range!, 'km')).toMatch(/older than three months.*wider on both sides/)
+    expect(text(range!, 'km')).not.toMatch(/at most/i)
+    const c2 = factsOf('C2', ctx).find((f) => f.id === 'c2.cs')
+    expect(c2?.template).toBe('explain.c2-cs-widened')
+    expect(text(c2!, 'km')).toMatch(/some older than three months.*low or high/)
+  })
+
   test('A6 gives critical speed with the efforts it was fitted from', () => {
     const [fact] = factsOf('A6')
     expect(fact!.template).toBe('explain.a6-cs')

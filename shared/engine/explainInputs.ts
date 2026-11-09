@@ -195,6 +195,7 @@ const speed = (kmh: number): Q<'speed'> => ({ kind: 'speed', kmh })
 const loadOf = (g: number): Q<'load'> => ({ kind: 'load', g })
 const temp = (c: number): Q<'temp'> => ({ kind: 'temp', c })
 const day = (iso: string): Q<'date'> => ({ kind: 'date', iso, style: 'weekday' })
+const shortDay = (iso: string): Q<'date'> => ({ kind: 'date', iso, style: 'short' })
 const weekOf = (iso: string): Q<'date'> => ({ kind: 'date', iso, style: 'short' })
 
 const newestFirst = (a: SourceRef, b: SourceRef) =>
@@ -844,22 +845,29 @@ function fitnessFacts(scope: Scope): InputFact[] {
   const { ctx } = scope
   const efforts = csEffortsOf(countedRuns(ctx), ctx.asOf)
   const cs = ctx.state.fitness.csMps
+  const widened = ctx.state.fitness.csWindowWidened === true
   if (cs === null) return [csGap('A6', ctx, efforts)]
+  const sources = efforts.map((e) => activitySource(e.activity))
+  const base = { speed: speed(cs * 3.6), pace: pace(1000 / cs), n: count(efforts.length) }
+  const since = ctx.state.fitness.csTrainingSince
+  if (widened && since != null) {
+    return [
+      make(
+        'A6',
+        'cs',
+        'explain.a6-cs-widened',
+        { ...base, date: shortDay(since) },
+        { sources, window: lastDays(ctx, P.a6.csWideWindowDays.value) },
+      ),
+    ]
+  }
   return [
     make(
       'A6',
       'cs',
-      ctx.state.fitness.csTrainingSince == null ? 'explain.a6-cs' : 'explain.a6-cs-training',
-      {
-        speed: speed(cs * 3.6),
-        pace: pace(1000 / cs),
-        n: count(efforts.length),
-        days: count(P.a6.csWindowDays.value),
-      },
-      {
-        sources: efforts.map((e) => activitySource(e.activity)),
-        window: lastDays(ctx, P.a6.csWindowDays.value),
-      },
+      since == null ? 'explain.a6-cs' : 'explain.a6-cs-training',
+      { ...base, days: count(P.a6.csWindowDays.value) },
+      { sources, window: lastDays(ctx, P.a6.csWindowDays.value) },
     ),
   ]
 }
@@ -1065,7 +1073,16 @@ function anchorFacts(scope: Scope): InputFact[] {
     const date = day(isIsoDate(boundary.asOf) ? boundary.asOf : ctx.asOf)
     // Critical speed is the fit itself: "comes from your critical speed" would explain it by itself.
     if (name === 'cs') {
-      const template = boundary.fromTraining === true ? 'explain.c2-cs-training' : 'explain.c2-cs'
+      const template =
+        boundary.windowWidened === true
+          ? 'explain.c2-cs-widened'
+          : boundary.fromTraining === true
+            ? 'explain.c2-cs-training'
+            : 'explain.c2-cs'
+      const widenedDate = ctx.state.fitness.csTrainingSince
+      if (boundary.windowWidened === true && widenedDate != null) {
+        return [make('C2', name, template, { date: shortDay(widenedDate) }, { sources: efforts })]
+      }
       return [make('C2', name, template, { date }, { sources: efforts })]
     }
     return [
@@ -1628,7 +1645,11 @@ function bandFacts(scope: Scope): InputFact[] {
     make(
       'L6',
       'range',
-      prediction.trainingSince === undefined ? 'explain.l6-range' : 'explain.l6-range-floor',
+      prediction.trainingSince === undefined
+        ? 'explain.l6-range'
+        : prediction.trainingWidened === true
+          ? 'explain.l6-range-widened'
+          : 'explain.l6-range-floor',
       {
         predicted: duration(prediction.predictedSec),
         low: duration(prediction.lowSec),

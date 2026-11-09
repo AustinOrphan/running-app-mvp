@@ -310,6 +310,10 @@ export const TODAY_TEMPLATES = {
     'It rests on your best efforts in training since {date}, not on races. A race or a short test would likely show faster.',
     { date: 'date' },
   ),
+  'today.race.widened-basis': tpl(
+    'From your best efforts in training since {date}, some older than three months. Fitness may have changed since. A short test narrows it.',
+    { date: 'date' },
+  ),
   'today.race.wide': tpl(
     'The range is wide on purpose. Predictions for {distance} rest on thin evidence (grade {grade}).',
     { distance: 'distance', grade: 'text' },

@@ -41,7 +41,7 @@ export interface RacePlanInput {
   /** The live prediction for the goal; null when the state supports no source. */
   prediction: Pick<
     Prediction,
-    'predictedSec' | 'lowSec' | 'highSec' | 'trainingSince' | 'climb'
+    'predictedSec' | 'lowSec' | 'highSec' | 'trainingSince' | 'trainingWidened' | 'climb'
   > | null
   /**
    * The top of the current zone 1, the ceiling the race session of an ultra goal shows
@@ -93,6 +93,8 @@ export interface RaceExpected {
    * (rule A6), so the range is wider and the page says why; null or absent otherwise.
    */
   trainingSince?: string | null
+  /** True when that fit needed efforts older than the 90-day window (A6): no "at most". */
+  trainingWidened?: boolean
   /** How wide the range has to be, with its rules and grade (`rangeLabel`, rules L4 and L6). */
   range: RangeLabel
   /** The runner's own climbing moved the prediction (rule L5); null otherwise. */
@@ -290,6 +292,7 @@ function expectedOf(input: RacePlanInput): RaceExpected {
   return {
     basis: prediction === null ? 'estimate' : 'prediction',
     trainingSince: prediction?.trainingSince ?? null,
+    ...(prediction?.trainingWidened === true ? { trainingWidened: true } : {}),
     lowSec,
     highSec,
     midSec,

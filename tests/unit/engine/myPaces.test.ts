@@ -302,6 +302,28 @@ describe('the events [C9, L1 to L6]', () => {
     expect(wide.grade).toBe('D')
     expect(paces({ state: trained }).view.test.fromTraining).toBe(true)
     expect(paces({ state: flat }).view.test.fromTraining).toBe(false)
+    expect(paces({ state: trained }).view.test.windowWidened).toBe(false)
+  })
+
+  it('says a fit that needed the wider window opens both ends and is no "at most" (A6)', () => {
+    const base = { csMps: 3.5, dPrimeM: 150, csEfforts: 4 }
+    const spec = { key: 'half' as const, distanceM: 21097, gainM: 0 }
+    const trained = eventRow(stateWith({ ...base, csTrainingSince: '2026-08-11' }), spec)
+    const widenedState = stateWith({
+      ...base,
+      csTrainingSince: '2026-06-01',
+      csWindowWidened: true,
+    })
+    const widened = eventRow(widenedState, spec)
+    expect(widened.basis.cs).toEqual({ csMps: 3.5, efforts: 4, since: '2026-06-01', widened: true })
+    expect(trained.basis.cs).not.toHaveProperty('widened')
+    expect(widened.time!.highSec).toBeGreaterThan(trained.time!.highSec)
+    expect(widened.time!.lowSec).toBe(trained.time!.lowSec)
+    expect(widened.grade).toBe('D')
+    expect(paces({ state: widenedState }).view.test).toMatchObject({
+      fromTraining: true,
+      windowWidened: true,
+    })
   })
 
   it('says one source widens the range, and grades a placeholder as a default', () => {
@@ -329,6 +351,8 @@ describe('the events [C9, L1 to L6]', () => {
       windowDays: P.a6.csWindowDays.value,
       done: false,
       fromTraining: false,
+      windowWidened: false,
+      wideWindowDays: P.a6.csWideWindowDays.value,
     })
   })
 
