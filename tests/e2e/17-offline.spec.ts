@@ -530,7 +530,7 @@ test("the race plan opens with no connection from the phone's copy, and says whe
   await expect(list.getByRole('article')).toHaveCount(4)
   const stationA = list.getByRole('article', { name: 'Station A' })
   await expect(stationA.getByText('Cutoff 9 h into the race')).toBeVisible()
-  await expect(stationA.getByText(/^Fuel for this leg: about /)).toBeVisible()
+  await expect(stationA.getByText(/^About \d+( to \d+)? g of carbohydrate/)).toBeVisible()
   await stationA
     .getByRole('textbox', { name: 'Crew note for Station A' })
     .fill('Drop bag at the tent')

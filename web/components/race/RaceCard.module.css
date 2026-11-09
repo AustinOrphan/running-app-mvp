@@ -91,12 +91,151 @@
   line-height: var(--lh-base);
 }
 
+.figure {
+  display: flex;
+  flex-direction: column;
+  margin: var(--space-1) 0;
+}
+
+.figureLabel {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* The arrival window is the figure of the block, the first thing read on it. */
 .lead {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: var(--text-base);
-  line-height: var(--lh-base);
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+  font-weight: 650;
+}
+
+/* The start and the finish carry more weight than the stops between them. */
+.ends {
+  border-color: var(--border-strong);
+  border-top-width: 3px;
+  border-top-color: var(--accent);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0 var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.factLabel {
+  color: var(--text-muted);
+}
+
+.factValue {
+  margin: 0;
+  min-width: 0;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.factNote {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* The split sheet. On a phone it has two or three columns (the stop with its distance under it, the
+   arrival with the cutoff under it, the fuel), so it needs no sideways scroll; from 40rem of its own
+   width it shows a column for each fact. Both layouts are the one table. */
+.sheetBox {
+  container-type: inline-size;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.sheet {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.sheetCaption {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  text-align: left;
+}
+
+.sheet th,
+.sheet td {
+  height: 3rem;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.sheet thead th {
+  height: auto;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.sheet tbody th {
+  font-weight: 600;
+}
+
+.sheet td,
+.sheet th.num {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.num {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: var(--lh-xs);
+}
+
+.wide {
+  display: none;
+}
+
+@container (min-width: 40rem) {
+  .wide {
+    display: table-cell;
+  }
+
+  .narrow {
+    display: none;
+  }
+
+  .sheet thead th {
+    white-space: nowrap;
+  }
+}
+
+.cell {
+  display: block;
 }
 
 .muted,
@@ -179,7 +318,9 @@
     line-height: 1.2;
   }
 
+  /* The sheet above carries the cutoffs on paper, so the blocks do not say them twice. */
   .noPrint,
+  .screenOnly,
   .noteField {
     display: none !important;
   }
@@ -207,6 +348,49 @@
     line-height: 1.2;
   }
 
+  .sheetBox {
+    container-type: normal;
+    border: 1px solid #000;
+    border-radius: 0;
+    break-inside: avoid;
+  }
+
+  .sheet {
+    min-width: 0;
+    font-size: 8pt;
+    line-height: 1.15;
+  }
+
+  .wide {
+    display: table-cell;
+  }
+
+  .narrow {
+    display: none;
+  }
+
+  .sheet thead th {
+    white-space: nowrap;
+  }
+
+  .sheet th,
+  .sheet td {
+    height: auto;
+    padding: 1pt 4pt;
+    border-top: 1px solid #000;
+  }
+
+  .sheetCaption,
+  .figureLabel,
+  .sheet thead th {
+    font-size: 7.5pt;
+    line-height: 1.15;
+  }
+
+  .sheetCaption {
+    padding: 1pt 4pt;
+  }
+
   .blocks {
     display: block;
     column-count: 2;
@@ -232,7 +416,61 @@
   }
 
   .lead {
-    font-size: 9.5pt;
+    font-size: 11pt;
+    line-height: 1.2;
+  }
+
+  .ends {
+    border-top-width: 2pt;
+    border-top-color: #000;
+  }
+
+  .figure {
+    margin: 0;
+  }
+
+  .facts {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 6pt;
+    margin: 0;
+  }
+
+  /* The label above the figure and the cutoff lines of the sheet give way to one line each. */
+  .figureLabel {
+    display: none;
+  }
+
+  /* An elapsed window keeps its label: "into the race" is what tells it from a time of day. */
+  .figureLabel.keepLabel {
+    display: block;
+  }
+
+  .cell {
+    display: inline;
+  }
+
+  .cell:not(:last-child)::after {
+    content: ', ';
+  }
+
+  .factLabel {
+    min-width: 0;
+  }
+
+  .factNote {
+    display: none;
+  }
+
+  .fact {
+    display: flex;
+    gap: 3pt;
+    font-size: 8.5pt;
+    line-height: 1.2;
+  }
+
+  .factLabel {
+    font-size: 8.5pt;
     line-height: 1.2;
   }
 

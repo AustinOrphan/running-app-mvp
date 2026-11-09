@@ -1,5 +1,9 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import { describeRaceCard, type RaceCardBlockText } from '../../../shared/copy/racePlan.ts'
+import {
+  describeRaceCard,
+  type RaceCardBlockText,
+  type RaceCardSheet,
+} from '../../../shared/copy/racePlan.ts'
 import type { RacePlan } from '../../../shared/engine/racePlan.ts'
 import type { Units } from '../../../shared/types.ts'
 import { RACE_CREW_NOTE_MAX, readCrewNote, writeCrewNote } from '../../pwa/drafts.ts'
@@ -61,6 +65,66 @@ function CrewNote({
 }
 
 /**
+ * The split sheet: one table with a row for each stop. It is a view of the same rows as the blocks
+ * below it, so the two cannot disagree. On a phone the table scrolls inside its own box if it must.
+ */
+function SplitSheet({ sheet }: { sheet: RaceCardSheet }) {
+  return (
+    <div className={styles.sheetBox}>
+      <table className={styles.sheet}>
+        <caption className={styles.sheetCaption}>{sheet.caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{sheet.stop}</th>
+            <th scope="col" className={`${styles.num} ${styles.wide}`}>
+              {sheet.distance}
+            </th>
+            <th scope="col">{sheet.arrival}</th>
+            {sheet.showCutoff ? (
+              <th scope="col" className={styles.wide}>
+                {sheet.cutoff}
+              </th>
+            ) : null}
+            {sheet.showFuel ? <th scope="col">{sheet.fuel}</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {sheet.rows.map((row) => (
+            <tr key={row.key}>
+              <th scope="row">
+                {row.name}
+                <span className={`${styles.sub} ${styles.narrow}`}>{row.distance}</span>
+              </th>
+              <td className={`${styles.num} ${styles.wide}`}>{row.distance}</td>
+              <td>
+                {row.arrival}
+                {row.cutoff.length === 0 ? null : (
+                  <span className={`${styles.sub} ${styles.narrow}`}>
+                    {sheet.cutoff} {row.cutoff.join(', ')}
+                  </span>
+                )}
+              </td>
+              {sheet.showCutoff ? (
+                <td className={styles.wide}>
+                  {row.cutoff.length === 0
+                    ? sheet.noCutoff
+                    : row.cutoff.map((line) => (
+                        <span key={line} className={styles.cell}>
+                          {line}
+                        </span>
+                      ))}
+                </td>
+              ) : null}
+              {sheet.showFuel ? <td>{row.fuel ?? sheet.noFuel}</td> : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/**
  * The race card (rule H14, ADR 0018): one block for the start, each checkpoint and the finish, built
  * from the rows of the table by `describeRaceCard`, with a crew note for each stop and a print layout
  * (black on white, two columns, no navigation) that fits one or two pages. It works from the phone's
@@ -103,26 +167,51 @@ export function RaceCard({ plan, units }: RaceCardProps) {
           <p id={hintId} className={`${styles.note} ${styles.noPrint}`}>
             {text.noteHint}
           </p>
+          {text.sheet === null ? null : <SplitSheet sheet={text.sheet} />}
           <ol className={styles.blocks} aria-label={text.list}>
-            {text.blocks.map((block) => (
+            {text.blocks.map((block, index) => (
               <li key={`${plan.goalId}:${block.key}`} className={styles.item}>
-                <article className={styles.block} aria-label={block.name}>
+                <article
+                  className={`${styles.block} ${
+                    index === 0 || index === text.blocks.length - 1 ? styles.ends : ''
+                  }`}
+                  aria-label={block.name}
+                >
                   <div className={styles.title}>
                     <h3 className={styles.name}>{block.name}</h3>
                     {block.distance === null ? null : (
                       <p className={styles.muted}>{block.distance}</p>
                     )}
                   </div>
-                  {block.arrival === null ? null : <p className={styles.lead}>{block.arrival}</p>}
+                  {block.window === null ? null : (
+                    <div className={styles.figure}>
+                      <p
+                        className={`${styles.figureLabel} ${block.windowElapsed ? styles.keepLabel : ''}`}
+                      >
+                        {block.windowLabel}
+                      </p>
+                      <p className={styles.lead}>{block.window}</p>
+                    </div>
+                  )}
                   {block.cutoff.map((line) => (
-                    <p key={line} className={styles.line}>
+                    <p key={line} className={`${styles.line} ${styles.screenOnly}`}>
                       {line}
                     </p>
                   ))}
                   {block.headlamp === null ? null : <p className={styles.line}>{block.headlamp}</p>}
                   {block.next === null ? null : <p className={styles.line}>{block.next}</p>}
-                  {block.fuel === null ? null : <p className={styles.line}>{block.fuel}</p>}
-                  {block.climb === null ? null : <p className={styles.line}>{block.climb}</p>}
+                  {block.facts.length === 0 ? null : (
+                    <dl className={styles.facts}>
+                      {block.facts.map((fact) => (
+                        <div key={fact.key} className={styles.fact}>
+                          <dt className={styles.factLabel}>{fact.label}</dt>
+                          <dd className={styles.factValue}>
+                            {fact.value} <span className={styles.factNote}>{fact.note}</span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
                   <CrewNote
                     block={block}
                     noteId={`${plan.goalId}:${block.key}`}
