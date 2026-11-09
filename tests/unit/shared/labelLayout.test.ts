@@ -71,7 +71,12 @@ describe('placeLabels', () => {
       const labels = Array.from({ length: 6 }, () => next() * plot)
         .sort((a, b) => a - b)
         .map((x) => ({ x, width: textWidth('Aid station', 13) }))
-      expect(collide(placeLabels(labels, plot, options), labels)).toBe(false)
+      const placed = placeLabels(labels, plot, options)
+      expect(collide(placed, labels)).toBe(false)
+      // Dropping everything would pass the check above: the first label always fits, and a last
+      // one that has a row of its own to the right of the rest is kept.
+      expect(placed.length).toBeGreaterThanOrEqual(2)
+      expect(placed[0]!.index).toBe(0)
     }
   })
 

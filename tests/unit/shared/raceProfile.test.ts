@@ -60,6 +60,18 @@ describe('darkBands', () => {
     expect(bands[1]!.fromM).toBeCloseTo(95 * KM)
   })
 
+  test('shows a possible band alone when only the slow end of the range reaches dusk', () => {
+    // Start 10:00, dusk 20:00 is 10 h in: the fast end finishes at dusk, the slow end runs 4 h on.
+    const bands = darkBands({
+      ...BASE,
+      startMin: 600,
+      stops: [{ distanceM: 100 * KM, lowSec: 10 * HOUR, highSec: 14 * HOUR }],
+    })
+    expect(bands).toHaveLength(1)
+    expect(bands[0]).toMatchObject({ firm: false, toM: 100 * KM })
+    expect(bands[0]!.fromM).toBeCloseTo((100 * KM * 10) / 14, -1)
+  })
+
   test('is empty without points', () => {
     expect(darkBands({ ...BASE, stops: [] })).toEqual([])
   })
@@ -145,6 +157,14 @@ describe('raceProfileFor', () => {
     expect(profile.dark.length).toBeGreaterThan(0)
     expect(profile.fuelTicks.length).toBeGreaterThan(15)
     expect(profile.fuelTicks.every((m) => m > 0 && m < 100 * KM)).toBe(true)
+  })
+
+  test('draws the slow end’s night even where the plan’s own dark line is absent', () => {
+    // A 16:30 start with a 100 km course: the expected range is 18 to 23 h, so it crosses dusk both
+    // ways, whatever `plan.dark` says; the band is read from the range ends.
+    const plan = planOf({ startTime: '16:30', crossesDarkness: false })
+    expect(plan.dark).toBeNull()
+    expect(raceProfileFor(plan, COURSE)!.dark.length).toBeGreaterThan(0)
   })
 
   test('draws no band without a start time, and no cutoff clock either', () => {

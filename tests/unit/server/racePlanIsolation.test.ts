@@ -114,7 +114,7 @@ describe('who reads the race plan', () => {
     )
     expect(delivery.length).toBeGreaterThan(8)
     const offences = delivery.filter((file) =>
-      /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\.|courseSilhouette|loadRaceCourse|race\.course/.test(
+      /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\.|courseSilhouette|loadRaceCourse|race\.course|raceProfile|labelLayout|RaceProfile|RacePlanView/.test(
         readFileSync(join(ROOT, file), 'utf8'),
       ),
     )

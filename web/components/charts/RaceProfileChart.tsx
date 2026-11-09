@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -96,6 +97,7 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
         hasDark: dark.length > 0,
         hasFuel: fuelTicks.length > 0,
         hasCutoff: stops.some((s) => s.cutoffSec !== null),
+        hasCutoffClock: stops.some((s) => s.cutoffClock !== null),
       },
       units,
     )
@@ -127,20 +129,36 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
     return yScale(height(mid - span / 2), height(mid + span / 2))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, units])
-  const yWidth = yAxisWidth(ticks.map((t) => String(t)))
+  const topLabel = `${String(ticks[ticks.length - 1])} ${text.heightUnit}`
+  const yWidth = yAxisWidth([...ticks.slice(0, -1).map((t) => String(t)), topLabel])
   const totalX = totalM / perUnit
   const tickLength = (domain[1] - domain[0]) * 0.05
 
   // The plot's width, measured by the container, and the label font, read from the strip.
   const [width, setWidth] = useState(640)
   const stripRef = useRef<HTMLDivElement>(null)
+  const readoutRef = useRef<HTMLDivElement>(null)
   const [fontPx, setFontPx] = useState(FALLBACK_FONT_PX)
+  // The label font is read from the strip when the width changes; a change of the text size alone
+  // is caught by the readout's resize (its height is in em), so labels are laid out again at once.
   useEffect(() => {
     const el = stripRef.current
     if (el === null) return
     const size = parseFloat(getComputedStyle(el).fontSize)
-    if (Number.isFinite(size) && size > 0) setFontPx(size)
-  }, [width])
+    if (Number.isFinite(size) && size > 0 && size !== fontPx) setFontPx(size)
+  }, [fontPx, width])
+  useEffect(() => {
+    const el = readoutRef.current
+    if (el === null || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      const size = parseFloat(getComputedStyle(el).fontSize)
+      if (Number.isFinite(size) && size > 0) setFontPx(size)
+    })
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
   const plotWidth = Math.max(0, width - yWidth - MARGIN.left - MARGIN.right)
 
   const labels = useMemo(() => {
@@ -190,13 +208,14 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
   const [status, setStatus] = useState('')
   useEffect(() => {
     const timer = setTimeout(() => {
-      setStatus(readout ?? '')
+      setStatus(readout === null ? '' : `${readout.where}, ${readout.then}`)
     }, STATUS_THROTTLE_MS)
     return () => {
       clearTimeout(timer)
     }
   }, [readout])
 
+  const hatchId = `dark-hatch-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`
   const groupRef = useRef<HTMLDivElement>(null)
   const nearest = (clientX: number): number | null => {
     const box = groupRef.current?.getBoundingClientRect()
@@ -227,8 +246,15 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
 
   return (
     <figure className={styles.figure}>
-      <div className={styles.readout} aria-hidden="true">
-        {readout === null ? <span className={styles.hint}>{text.hint}</span> : readout}
+      <div ref={readoutRef} className={styles.readout} aria-hidden="true">
+        {readout === null ? (
+          <span className={styles.hint}>{text.hint}</span>
+        ) : (
+          <>
+            <span className={styles.where}>{readout.where}</span>
+            <span>{readout.then}</span>
+          </>
+        )}
       </div>
       <div role="status" className="visually-hidden">
         {status}
@@ -287,7 +313,29 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
                 domain={[0, totalX]}
                 tickCount={6}
                 allowDecimals={false}
-                tickFormatter={(x: number) => String(Math.round(x))}
+                tick={(props: {
+                  x?: number | string
+                  y?: number | string
+                  payload?: { value: number | string }
+                }) => {
+                  const value = Number(props.payload?.value)
+                  if (props.x === undefined || props.y === undefined || !Number.isFinite(value)) {
+                    return <g />
+                  }
+                  const atEnd = Math.abs(value - totalX) < totalX * 0.02
+                  return (
+                    <text
+                      x={props.x}
+                      y={Number(props.y) + 14}
+                      textAnchor={atEnd ? 'end' : 'middle'}
+                      className={styles.tick}
+                    >
+                      {atEnd
+                        ? `${String(Math.round(value))} ${text.distanceUnit}`
+                        : String(Math.round(value))}
+                    </text>
+                  )
+                }}
               />
               <YAxis
                 {...axisProps}
@@ -295,7 +343,9 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
                 domain={domain}
                 ticks={ticks}
                 allowDataOverflow
-                tickFormatter={(y: number) => String(y)}
+                tickFormatter={(y: number) =>
+                  y === ticks[ticks.length - 1] ? topLabel : String(y)
+                }
               />
               {dark.map((band) => (
                 <ReferenceArea
@@ -304,11 +354,11 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
                   x2={band.toM / perUnit}
                   y1={domain[0]}
                   y2={domain[1]}
-                  fill="var(--text-muted)"
-                  fillOpacity={band.firm ? 0.2 : 0.09}
-                  stroke="var(--border-strong)"
-                  strokeWidth={1}
-                  strokeOpacity={band.firm ? 1 : 0.5}
+                  fill={band.firm ? 'var(--text-muted)' : `url(#${hatchId})`}
+                  fillOpacity={band.firm ? 0.28 : 1}
+                  stroke="var(--text-muted)"
+                  strokeWidth={band.firm ? 1.5 : 1}
+                  strokeDasharray={band.firm ? undefined : '3 2'}
                 />
               ))}
               <Area
@@ -373,12 +423,23 @@ export function RaceProfileChart({ profile, units }: RaceProfileChartProps) {
           </ResponsiveContainer>
         </div>
       </div>
+      <svg width="0" height="0" aria-hidden="true" focusable="false" className={styles.defs}>
+        <defs>
+          <pattern id={hatchId} width="6" height="6" patternUnits="userSpaceOnUse">
+            <path d="M-1 1L1 -1M0 6L6 0M5 7L7 5" stroke="var(--text-muted)" strokeWidth="1.25" />
+          </pattern>
+        </defs>
+      </svg>
       <figcaption className={styles.caption}>
-        {text.caption.map((line) => (
-          <span key={line} className={styles.line}>
-            {line}
-          </span>
-        ))}
+        <span className={styles.line}>{text.caption}</span>
+        {text.notes.length === 0 ? null : (
+          <details className={styles.how}>
+            <summary>{text.howToRead}</summary>
+            {text.notes.map((note) => (
+              <p key={note}>{note}</p>
+            ))}
+          </details>
+        )}
       </figcaption>
       <div className="visually-hidden">
         <table>

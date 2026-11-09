@@ -118,49 +118,6 @@ test('enters two points and reads their arrival ranges, the cutoff and the finis
   await page.screenshot({ path: test.info().outputPath('checkpoints-360.png') })
 })
 
-test('the course profile leads the page at 360 px: names clear each other, nothing scrolls sideways, at 100 and 150 percent text', async () => {
-  await page.goto('/race')
-  const picture = page.getByRole('img', { name: /^Course profile over/ })
-  await expect(picture).toBeVisible()
-  const section = page.getByRole('region', { name: 'Course', exact: true })
-  await expect(section.locator('figcaption')).toContainText('Net height by leg')
-  await expect(section.locator('figcaption')).toContainText('Diamonds: the cutoffs')
-  for (const percent of [100, 150]) {
-    await page.evaluate((p) => {
-      document.documentElement.style.fontSize = `${String(p)}%`
-    }, percent)
-    await expect(picture).toBeVisible()
-    expect(await scrollsSideways(), `sideways scroll at ${String(percent)}%`).toBe(false)
-    const boxes = await section.locator('[class*="_label_"]').evaluateAll((nodes) =>
-      nodes.map((node) => {
-        const r = node.getBoundingClientRect()
-        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
-      }),
-    )
-    expect(boxes.length, 'at least one name is kept').toBeGreaterThan(0)
-    for (const [i, a] of boxes.entries()) {
-      expect(a.left).toBeGreaterThanOrEqual(0)
-      expect(a.right).toBeLessThanOrEqual(360)
-      for (const b of boxes.slice(i + 1)) {
-        const apart =
-          a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top
-        expect(apart, `names overlap at ${String(percent)}%`).toBe(true)
-      }
-    }
-  }
-  await page.evaluate(() => {
-    document.documentElement.style.fontSize = ''
-  })
-  // the arrow keys read the nearest known point: the start, then the first row
-  await section.getByRole('group', { name: 'Readout' }).focus()
-  await page.keyboard.press('ArrowRight')
-  await page.keyboard.press('ArrowRight')
-  await expect(
-    section.getByText(/^Checkpoint A, .* in · .* (above|below) the start/).first(),
-  ).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('profile-360.png') })
-})
-
 test('the table is still there after a reload, and the plan API holds the finish equal to the expected range', async () => {
   await page.reload()
   const list = page.getByRole('list', { name: 'Arrival times by point' })

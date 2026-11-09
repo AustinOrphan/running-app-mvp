@@ -9,11 +9,13 @@
 // A range is not turned into one time: the dark band has a firm part (dark at both ends of the
 // range) and a possible part (dark at one end). Pure: no clock, no I/O.
 import { startMinutes } from '../engine/goal.ts'
+import { P } from '../engine/params/index.ts'
 import type { RaceClock, RacePlan } from '../engine/racePlan.ts'
 import type { CourseSilhouettePoint } from '../types.ts'
 
 const SEC_PER_MIN = 60
 const SEC_PER_HOUR = 3600
+const MIN_PER_HOUR = 60
 const MIN_PER_DAY = 1440
 
 export interface ProfileStop {
@@ -46,11 +48,6 @@ export interface TimedPoint {
   distanceM: number
   lowSec: number
   highSec: number
-}
-
-const hhmm = (text: string): number | null => {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(text)
-  return match === null ? null : Number(match[1]) * 60 + Number(match[2])
 }
 
 /** The distance reached at `sec` along a line through `[sec, distance]` pairs (non-decreasing). */
@@ -179,12 +176,18 @@ export function raceProfileFor(
     highSec: row.highSec,
   }))
   const startMin = startMinutes(plan.expected.start)
-  const dawnMin = plan.dark === null ? null : hhmm(plan.dark.dawn)
-  const duskMin = plan.dark === null ? null : hhmm(plan.dark.dusk)
+  // The band follows the two ends of the range, not the plan's own dark line (`plan.dark`, which
+  // says whether the race crosses darkness at all): a race whose slow end alone reaches dusk still
+  // shows where, which is the headlamp question. The clock is the D1 one the dark line uses.
   const dark =
-    startMin === null || dawnMin === null || duskMin === null || timed.length === 0
+    startMin === null || timed.length === 0
       ? []
-      : darkBands({ startMin, dawnMin, duskMin, stops: timed })
+      : darkBands({
+          startMin,
+          dawnMin: P.d1Dark.dawnHour.value * MIN_PER_HOUR,
+          duskMin: P.d1Dark.duskHour.value * MIN_PER_HOUR,
+          stops: timed,
+        })
   const fuelTicks =
     plan.fuel.gPerH > 0 && timed.length > 0
       ? fuelTickPositions(

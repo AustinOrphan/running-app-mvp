@@ -103,14 +103,19 @@ describe('the course profile that leads the Race page', () => {
     expect(screen.getByRole('table', { name: 'Hourly fuel marks' })).toBeInTheDocument()
   })
 
-  test('says in the caption what each drawn mark is', async () => {
+  test('keeps one line under the chart and the notes for each drawn mark in a closed disclosure', async () => {
     await open(planWith(), COURSE)
     const figure = (await screen.findByRole('img', { name: /^Course profile/ })).closest('figure')!
-    const caption = figure.querySelector('figcaption')!.textContent
-    expect(caption).toContain('Net height by leg in m')
-    expect(caption).toContain('Band: the dark hours')
-    expect(caption).toContain('Ticks: each hour')
-    expect(caption).toContain('Diamonds: the cutoffs')
+    const caption = figure.querySelector('figcaption')!
+    expect(caption.querySelector('.line, [class*="_line_"]')!.textContent).toBe(
+      'Net height by leg, a smooth line between the points entered.',
+    )
+    const how = caption.querySelector('details')!
+    expect(how.open).toBe(false)
+    expect(within(how).getByText('How to read this')).toBeInTheDocument()
+    expect(how.textContent).toContain('Band: the dark hours')
+    expect(how.textContent).toContain('Ticks: each hour')
+    expect(how.textContent).toContain('Diamonds: the cutoffs entered, with the time of day.')
   })
 
   test('reads the nearest known point with the next stop, by the arrow keys', async () => {
@@ -119,15 +124,15 @@ describe('the course profile that leads the Race page', () => {
     const user = userEvent.setup()
     group.focus()
     await user.keyboard('{ArrowRight}')
-    expect(await screen.findByText(/^Start, 0 m in/)).toBeInTheDocument()
+    expect(await screen.findByText('Start, 0 m in')).toBeInTheDocument()
     await user.keyboard('{ArrowRight}')
     expect(
-      screen.getByText(
-        'Aid 1, 40 km in · 600 m above the start · Cutoff 15:00 · Next: Aid 2, 50 km on',
-      ),
+      screen.getByText('600 m above the start · Cutoff 15:00 · Next: Aid 2, 50 km on'),
     ).toBeInTheDocument()
+    expect(screen.getByText('Aid 1, 40 km in')).toBeInTheDocument()
     await user.keyboard('{End}')
-    expect(screen.getByText('Finish, 160.9 km in · 100 m above the start')).toBeInTheDocument()
+    expect(screen.getByText('Finish, 160.9 km in')).toBeInTheDocument()
+    expect(screen.getByText('100 m above the start')).toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(screen.getByText('Touch or move along the course to read a point.')).toBeInTheDocument()
   })
@@ -142,5 +147,17 @@ describe('the course profile that leads the Race page', () => {
     await open(planWith({ startTime: null }), COURSE)
     await screen.findByRole('img', { name: /^Course profile/ })
     expect(screen.queryByRole('table', { name: 'Stretches in the dark' })).not.toBeInTheDocument()
+    // the diamonds' note does not promise a time of day that is not drawn
+    const how = screen.getByText('How to read this').closest('details')!
+    expect(how.textContent).toContain('Diamonds: the cutoffs entered.')
+    expect(how.textContent).not.toContain('time of day')
+  })
+
+  test('heads the net height as height against the start', async () => {
+    await open(planWith(), COURSE)
+    await screen.findByRole('img', { name: /^Course profile/ })
+    expect(
+      screen.getByRole('columnheader', { name: 'Height against the start (m)' }),
+    ).toBeInTheDocument()
   })
 })
