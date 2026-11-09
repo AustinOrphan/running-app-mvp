@@ -679,10 +679,26 @@ export interface WeeklyReview {
 export type ReviewSignals = WeeklyDecision['signals']
 
 /**
+ * The offer to raise the plan to match recent weeks [rule E7]: made on the last finished week when
+ * the recent weeks were run above plan and nothing holds the plan. `fromWeek` is the first week the
+ * raise lifts; `currentMin` is its target now and `raisedMin` what it would be. Never applied
+ * without the runner's yes.
+ */
+export interface RaiseOffer {
+  /** The finished week the offer is made on; the runner's answer is remembered for it. */
+  weekStart: string
+  fromWeek: string
+  currentMin: number
+  raisedMin: number
+}
+
+/**
  * A review as a version-2 plan returns it: the engine's weekly decision sits in the `suggested*`
  * fields and `signals` carries the signals behind it. Version-1 plans get a plain review.
  */
 export type ReviewView = WeeklyReview & {
+  /** The offer to raise the plan to match recent weeks (rule E7); only on the last finished week. */
+  raise?: RaiseOffer
   signals?: ReviewSignals
   /** What the week's check-ins suggest for fatigue and symptoms; absent without a check-in. */
   prefill?: ReviewPrefill
@@ -829,6 +845,7 @@ export type PlanRevisionReason =
   | 'undo'
   | 'goal-switch'
   | 'method-change'
+  | 'raise-to-match'
 export interface PlanRevision {
   id: string
   planId: string
@@ -1162,6 +1179,10 @@ export interface UndoResult {
 export interface LoadSettingResult {
   loadAppetite: LoadAppetite
   revision: PlanRevisionView | null
+}
+/** The answer to `POST /api/plan/raise`: the revision the raise wrote, with its undo state. */
+export interface RaiseResult {
+  revision: PlanRevisionView
 }
 /**
  * The answer to `PUT /api/plan/method`: the shape asked for, and the revision that recorded the

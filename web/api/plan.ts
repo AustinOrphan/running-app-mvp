@@ -6,6 +6,7 @@ import type {
   ArchivedPlanView,
   LoadSettingResult,
   MethodChangeResult,
+  RaiseResult,
   PlanAction,
   PlanAdjustment,
   PlanGuardView,
@@ -270,6 +271,21 @@ export function useChangeMethod() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (method: PresetId) => api<MethodChangeResult>('PUT', '/plan/method', { method }),
+    onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
+  })
+}
+
+/**
+ * The runner's yes to the offer to raise the plan to match recent weeks (`POST /api/plan/raise`,
+ * rule E7): one re-plan and one revision that undoes like any other. `weekStart` and `raisedMin` are
+ * the week and figure the offer showed; the server refuses (409) when either no longer stands. The
+ * readers of the plan are read again, the reviews included, so the offer goes.
+ */
+export function useRaisePlan() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { weekStart: string; raisedMin: number }) =>
+      api<RaiseResult>('POST', '/plan/raise', body),
     onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
   })
 }

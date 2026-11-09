@@ -24,6 +24,21 @@ export function useReviews(params: { from: string; to: string }) {
 }
 
 /**
+ * Not now, to the offer to raise the plan to match recent weeks (rule E7): the server remembers it
+ * for the finished week, so the offer stays away on every device. Nothing in the plan changes.
+ */
+export function useDeclineRaise() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (weekStart: string) =>
+      api<undefined>('PUT', `/reviews/${encodeURIComponent(weekStart)}/raise`, {
+        answer: 'declined',
+      }),
+    onSuccess: () => invalidatePlanReaders(queryClient),
+  })
+}
+
+/**
  * A final decision can write next week's target, and a decided review of a version-2 plan
  * re-plans, so the readers of the plan (`invalidatePlanReaders`: the plan, its revisions, the
  * reviews, the brief, Today) refresh with the reviews.

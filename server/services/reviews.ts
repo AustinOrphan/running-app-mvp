@@ -17,6 +17,7 @@ import { createLogger } from '../logger.ts'
 import { loadActivityCores, toPlanWeek, toWeeklyReview } from '../serialize.ts'
 import { loadAthleteContext } from './athleteState.ts'
 import { replanActivePlan, weeklyDecisions } from './planEngine.ts'
+import { loadRaiseOffer, raiseWeekOf } from './raiseOffer.ts'
 import { viewRevision } from './revisions.ts'
 
 /** `undefined` keeps the stored value, `null` clears it. */
@@ -215,9 +216,16 @@ export async function listReviews(
   )
   const checkins = wantsPrefill ? (await loadAthleteContext(deps, { userId, today })).wellness : []
 
+  // The offer to raise the plan to match recent weeks (rule E7) belongs to the last finished week.
+  const offerWeek = raiseWeekOf(today)
+  const offer = weekStarts.includes(offerWeek)
+    ? await loadRaiseOffer(deps, { userId, today })
+    : null
+
   return weekStarts.map((weekStart): ReviewView => {
     const review = byWeek.get(weekStart) ?? synthetic(userId, weekStart, now)
-    if (review.reviewedAt !== null) return review
+    if (review.reviewedAt !== null)
+      return weekStart === offerWeek && offer ? { ...review, raise: offer } : review
     const context = contexts.get(weekStart)
     const v2 =
       context && isV2
@@ -235,6 +243,7 @@ export async function listReviews(
       suggestedNextMin: suggestion?.suggestedNextMin ?? null,
     }
     if (v2?.signals) view.signals = v2.signals
+    if (weekStart === offerWeek && offer) view.raise = offer
     const prefill = weekStart <= today ? prefillFromCheckins(weekStart, checkins) : null
     if (prefill) view.prefill = prefill
     return view

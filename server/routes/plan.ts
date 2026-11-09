@@ -13,6 +13,7 @@ import {
   commitDisruption,
   commitLoadSetting,
   commitMethod,
+  commitRaise,
   commitReplan,
   commitUndo,
   previewAction,
@@ -127,6 +128,14 @@ const loadBody = z.strictObject({ loadAppetite: z.enum(LOAD_APPETITES) })
 
 /** The plan shape: one of the method presets of the Generate form (rules P1 to P4). */
 const methodBody = z.strictObject({ method: z.enum(PRESET_IDS) })
+
+/** The yes to the offer to raise the plan to match recent weeks (rule E7): the week and figure shown. */
+const raiseBody = z.strictObject({
+  weekStart: z
+    .string()
+    .refine((value) => isIsoDate(value) && mondayOf(value) === value, 'Use a Monday, YYYY-MM-DD.'),
+  raisedMin: z.number().int().min(1).max(100_000),
+})
 
 const windowId = z.string().min(1).max(64)
 
@@ -259,6 +268,13 @@ export function planRouter(deps: Deps): Router {
   router.put('/method', async (req, res) => {
     const { method } = parse(methodBody, req.body)
     res.json(await commitMethod(deps, { userId: req.userId, method, today: todayIso() }))
+  })
+
+  // The runner's yes to the offer to raise the plan to match recent weeks: one re-plan, one revision
+  // (reason `raise-to-match`), with an undo. Never called by the app on its own.
+  router.post('/raise', async (req, res) => {
+    const body = parse(raiseBody, req.body)
+    res.json(await commitRaise(deps, { userId: req.userId, ...body, today: todayIso() }))
   })
 
   router.get('/archived', async (req, res) => {

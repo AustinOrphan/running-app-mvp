@@ -28,6 +28,7 @@ import type {
   PlanPreview,
   PlanRevisionView,
   PlanSession,
+  RaiseResult,
   RunMinutes,
   UndoReason,
   UndoResult,
@@ -46,6 +47,7 @@ import {
   type WindowPlanned,
 } from './disruptions.ts'
 import { failedChecklist, ownedSession, WRITE_TIMEOUT_MS } from './planEngine.ts'
+import { raiseWeekOf, saveRaiseAnswer } from './raiseOffer.ts'
 import {
   applyReplan,
   computeReplan,
@@ -380,6 +382,54 @@ export async function commitMethod(
     try {
       const written = await applyReplan(deps, result, { checkHead: true })
       return { method, revision: await viewRevision(deps, { userId, revisionId: written.id }) }
+    } catch (error) {
+      if (!(error instanceof StaleWrite)) throw error
+      if (attempt >= 2) throw conflict(stalePreviewMessage())
+    }
+  }
+}
+
+/**
+ * The runner's yes to the offer to raise the plan to match recent weeks [rule E7]: a re-plan with
+ * the level a new plan would read from those weeks, under every limit of an ordinary one (one
+ * revision, reason `raise-to-match`, with an undo). `weekStart` is the finished week the offer was
+ * made on and `raisedMin` the figure it showed. The write is refused with a 409 when the offer no
+ * longer stands (the condition no longer holds, the week is not the last finished one, the runner
+ * already answered for it) or the raised figure moved since it was shown; nothing is written then.
+ * A collision with another revision is decided once more, and a second one is a 409.
+ */
+export async function commitRaise(
+  deps: Deps,
+  args: { userId: string; weekStart: string; raisedMin: number; today: string },
+): Promise<RaiseResult> {
+  const { userId, weekStart, raisedMin, today } = args
+  const answered = await deps.prisma.weeklyReview.findUnique({
+    where: { userId_weekStart: { userId, weekStart } },
+    select: { raiseAnswer: true },
+  })
+  if (weekStart !== raiseWeekOf(today) || answered?.raiseAnswer != null) {
+    throw conflict(stalePreviewMessage())
+  }
+  for (let attempt = 1; ; attempt += 1) {
+    const result = await computeReplan(deps, {
+      userId,
+      reason: 'raise-to-match',
+      today,
+      raise: true,
+    })
+    const raise = result.raise
+    if (
+      raise === null ||
+      !raise.check.met ||
+      raise.rise === null ||
+      raise.rise.toMin !== raisedMin
+    ) {
+      throw conflict(stalePreviewMessage())
+    }
+    try {
+      const written = await applyReplan(deps, result, { checkHead: true })
+      await saveRaiseAnswer(deps, { userId, weekStart, answer: 'raised', today })
+      return { revision: await viewRevision(deps, { userId, revisionId: written.id }) }
     } catch (error) {
       if (!(error instanceof StaleWrite)) throw error
       if (attempt >= 2) throw conflict(stalePreviewMessage())

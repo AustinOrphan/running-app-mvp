@@ -594,6 +594,13 @@ export interface EngineInput {
    */
   weekCaps?: Record<string, number>
   /**
+   * Set by the runner's yes to the offer to raise the plan to match [rule E7]: a re-plan then starts
+   * its loading sequence from the level a new plan would read from the recent weeks
+   * (`startLevelMin`) when that is above the stored week, still inside the step the recent weeks
+   * allow and any hold. Absent, a re-plan carries on from the stored week.
+   */
+  raiseToLevel?: boolean
+  /**
    * The day the owner last accepted a change of each zone boundary (supplied by the server).
    * Zone proposals ignore observations on or before it [rules C8]; absent means none accepted.
    */

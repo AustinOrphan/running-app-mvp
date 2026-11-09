@@ -280,7 +280,7 @@ function disruptionDecision(
  * The worst pain reported in a week up to `asOf`, on a check-in or an activity. Focal bone pain
  * counts as the flag score [rules n-1, n-2].
  */
-function worstPainIn(input: EngineInput, weekStart: string, asOf: string): number {
+export function worstPainIn(input: EngineInput, weekStart: string, asOf: string): number {
   const weekEnd = addDays(weekStart, 6)
   let worst = 0
   for (let k = 0; k < 7; k++) {

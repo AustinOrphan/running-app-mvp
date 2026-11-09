@@ -37,6 +37,7 @@ export const REVISION_VIEW_TEMPLATES = {
   'revision-view.reason.undo': tpl('Undo', {}, { shape: 'label' }),
   'revision-view.reason.goal-switch': tpl('New plan for another goal', {}, { shape: 'label' }),
   'revision-view.reason.method-change': tpl('Plan shape changed', {}, { shape: 'label' }),
+  'revision-view.reason.raise-to-match': tpl('Raised to match', {}, { shape: 'label' }),
   /** For a reason a newer server may add. */
   'revision-view.reason.other': tpl('Plan update', {}, { shape: 'label' }),
   /** The one marker of a revision the runner has not opened yet. */
@@ -209,6 +210,7 @@ const REASON_IDS = {
   undo: 'revision-view.reason.undo',
   'goal-switch': 'revision-view.reason.goal-switch',
   'method-change': 'revision-view.reason.method-change',
+  'raise-to-match': 'revision-view.reason.raise-to-match',
 } as const satisfies Record<PlanRevisionReason, ViewId>
 
 /** "Weekly update", "Your edit": the label of what made a revision. */
