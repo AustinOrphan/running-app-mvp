@@ -1555,6 +1555,12 @@ export interface RacePlanView {
   plan: RacePlan | null
   reason: RacePlanReason | null
   /**
+   * The course's relative elevation at the runner's course points and the finish
+   * (`courseSilhouettePoints`), for the profile on the Race page; null when the course has no climb
+   * or descent to draw. Absent without a plan, and in a copy the phone kept from before the field.
+   */
+  course?: CourseSilhouettePoint[] | null
+  /**
    * Set by the service worker, never the server, on the phone's own copy (ADR 0012, addendum): the
    * answer was kept earlier and is served because the network did not answer.
    */

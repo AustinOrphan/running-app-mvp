@@ -26,6 +26,7 @@ describe('the box of a chart that measures itself', () => {
       'IntensityChart',
       'MonthlyHoursChart',
       'PredictionTrackChart',
+      'RaceProfileChart',
       'RecoveryChart',
       'StreamChart',
       'TrendsRunChart',

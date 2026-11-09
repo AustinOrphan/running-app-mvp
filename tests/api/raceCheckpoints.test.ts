@@ -337,6 +337,26 @@ describe('the race plan reads the table', () => {
     expect((await planOf(user)).plan?.splits).toBeNull()
   })
 
+  test('carries the coarse course for the profile, from the same rows, and drops it with them', async () => {
+    const user = await newUser()
+    await newGoal(user)
+    expect((await planOf(user)).course).toBeNull()
+    await client(ctx, user).put('/api/race/checkpoints').send({ checkpoints: ROWS })
+    const view = await planOf(user)
+    expect(view.course?.map((p) => p.distanceM)).toEqual([
+      0,
+      30_000,
+      80_000,
+      120_000,
+      HUNDRED_MILES_M,
+    ])
+    expect(view.course?.[0]).toEqual({ distanceM: 0, relM: 0 })
+    // Checkpoint A: 900 m up, 400 m down.
+    expect(view.course?.[1]?.relM).toBe(500)
+    await client(ctx, user).put('/api/race/checkpoints').send({ checkpoints: [] })
+    expect((await planOf(user)).course).toBeNull()
+  })
+
   test('a goal edit that moves the finish leaves rows past it out, with a count', async () => {
     const user = await newUser()
     const goal = await newGoal(user)
