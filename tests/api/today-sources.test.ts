@@ -146,6 +146,15 @@ async function delivered(u: TestUser, source: string, date: string, type = 'run'
   })
 }
 
+/** Makes `u` the install owner (the oldest account), the only one a Watched folder row counts for (F1). */
+async function asOwner(u: TestUser): Promise<void> {
+  await ctx.prisma.user.updateMany({
+    where: { id: { not: u.id } },
+    data: { createdAt: new Date() },
+  })
+  await ctx.prisma.user.update({ where: { id: u.id }, data: { createdAt: new Date(0) } })
+}
+
 const tagOf = (res: { headers: Record<string, unknown> }) => String(res.headers.etag)
 const notesOf = (res: { body: unknown }) => (res.body as TodayView).coach.health.notes
 const sourceNotes = (notes: HealthNote[]) => notes.filter((note) => note.code.startsWith('source-'))
@@ -302,6 +311,7 @@ describe('GET /api/today: a silent source', () => {
     await connect(u, 'strava', { createdAt: new Date(2026, 9, 11, 12) })
     await delivered(u, 'garmin', daysAgo(9))
     await delivered(u, FOLDER_STORES, daysAgo(6))
+    await asOwner(u)
     const notes = await sourceNotesFor(u)
     expect(notes.map((note) => [note.code, note.slots.source])).toEqual([
       ['source-silent', 'Strava'],
@@ -312,17 +322,30 @@ describe('GET /api/today: a silent source', () => {
     expect(notes[0]!.slots.since).toEqual({ kind: 'date', iso: daysAgo(10), style: 'short' })
   })
 
+  test('says nothing about a watched folder row of an account that is not the owner', async () => {
+    const owner = await seedUser(ctx, { email: 'sources-owner@example.com' })
+    const u = await runnerPlanning('sources-folder-stale@example.com', [daysAgo(3), daysAgo(1)])
+    await connect(u, 'folder', { createdAt: new Date(2026, 9, 11, 12) })
+    await delivered(u, FOLDER_STORES, daysAgo(6))
+    await asOwner(owner)
+    expect(await sourceNotesFor(u)).toEqual([])
+    await asOwner(u)
+    expect((await sourceNotesFor(u)).map((note) => note.code)).toEqual(['source-silent'])
+  })
+
   test('reads the runs of a watched folder under the source the folder stores, file', async () => {
     const u = await runnerPlanning('sources-folder@example.com', [daysAgo(3), daysAgo(1)])
     // Connected ten days ago: a lookup that missed the folder's runs would count from that day.
     await connect(u, 'folder', { createdAt: new Date(2026, 9, 11, 12) })
     await delivered(u, FOLDER_STORES, daysAgo(2))
+    await asOwner(u)
     expect(await sourceNotesFor(u)).toEqual([])
 
     // The same folder, quiet since its last file: named, with the day of that file.
     const quiet = await runnerPlanning('sources-folder-quiet@example.com', [daysAgo(3), daysAgo(1)])
     await connect(quiet, 'folder', { createdAt: new Date(2026, 9, 11, 12) })
     await delivered(quiet, FOLDER_STORES, daysAgo(6))
+    await asOwner(quiet)
     expect(await sourceNotesFor(quiet)).toEqual([
       {
         code: 'source-silent',

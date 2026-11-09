@@ -64,6 +64,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'rl-msg-'))
+  ctx.folderRoot = dir
   faults.store = false
   faults.parserThrowsText = false
   await ctx.prisma.syncRun.deleteMany()
@@ -79,7 +80,7 @@ afterEach(() => {
 })
 
 function deps() {
-  return { prisma: ctx.prisma, config: ctx.config }
+  return { prisma: ctx.prisma, config: ctx.config, folderRoot: ctx.folderRoot }
 }
 
 async function connect(provider: string, secret: object = {}, config: object = {}) {
@@ -249,28 +250,21 @@ const scenarios: Record<SyncMessageId, () => Promise<Outcome>> = {
     return { stored: run?.message, run, expected }
   },
 
-  'sync.msg.folder-none': async () => {
-    await connect('folder', {}, {})
-    await scanFails()
-    const [run] = await runsOf('folder')
-    return { stored: run?.message, run, expected: syncMessage('sync.msg.folder-none', {}) }
-  },
-
   'sync.msg.folder-unreadable': async () => {
-    const path = join(dir, 'missing')
-    await connect('folder', {}, { path })
+    ctx.folderRoot = join(dir, 'missing')
+    await connect('folder', {}, {})
     await scanFails()
     const [run] = await runsOf('folder')
     return {
       stored: run?.message,
       run,
-      expected: syncMessage('sync.msg.folder-unreadable', { path }),
+      expected: syncMessage('sync.msg.folder-unreadable', {}),
     }
   },
 
   'sync.msg.files.one': async () => {
     faults.store = true
-    await connect('folder', {}, { path: dir })
+    await connect('folder', {}, {})
     put('a.fit', fitBytes(0))
     await scanFails()
     const [run] = await runsOf('folder')
@@ -283,7 +277,7 @@ const scenarios: Record<SyncMessageId, () => Promise<Outcome>> = {
 
   'sync.msg.files.many': async () => {
     faults.store = true
-    await connect('folder', {}, { path: dir })
+    await connect('folder', {}, {})
     put('a.fit', fitBytes(0))
     put('b.fit', fitBytes(3600))
     await scanFails()
@@ -358,7 +352,7 @@ const scenarios: Record<SyncMessageId, () => Promise<Outcome>> = {
 
   'sync.msg.file-unreadable': async () => {
     faults.parserThrowsText = true
-    await connect('folder', {}, { path: dir })
+    await connect('folder', {}, {})
     put('odd.fit', fitBytes(0))
     await scanFolderIntegration(deps(), user.id)
     const [run] = await runsOf('folder')

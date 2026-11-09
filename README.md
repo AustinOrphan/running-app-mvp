@@ -133,7 +133,7 @@ activities list name the source of each activity.
 | Strava         | Your own API app, OAuth, pull  | Activities with heart rate, cadence, power and elevation |
 | Garmin Connect | Sign-in or pasted tokens, pull | Activities, resting HR, HRV (rMSSD), sleep. Experimental |
 | Apple Health   | Health Auto Export push, file  | Workouts, resting HR, HRV (SDNN), sleep, weight, VO2 max |
-| Watched folder | A folder on the server         | Any FIT, GPX or TCX file that lands in it                |
+| Watched folder | `/import` on the server, owner | Any FIT, GPX or TCX file that lands in it                |
 
 ### Activity files and exports
 
@@ -228,16 +228,24 @@ Two ways, which can be combined:
 
 ### Watched folder
 
-Point the Watched folder card at a directory on the server and any FIT, GPX or TCX file (also
-`.zip` and `.gz`) that appears in it is imported. This suits HealthFit, a Garmin or Coros export
-tool, or any app that can write files to iCloud Drive, Dropbox, Syncthing or a network share.
+Only the first account on the install (the owner) has this card. Turn on "Scan the import folder"
+and any FIT, GPX or TCX file (also `.zip` and `.gz`) that appears in the server's `/import`
+directory is imported. This suits HealthFit, a Garmin or Coros export tool, or any app that can
+write files to iCloud Drive, Dropbox, Syncthing or a network share. Other accounts import files
+with Import on the Activities page.
 
+- The server reads `/import` and nothing else; there is no path to type. If `/import` is missing,
+  is not a directory or is a symbolic link, the card and the sync history say "The import folder is
+  not available." and nothing more.
 - The folder is read-only to the app. It is scanned every 5 minutes, including subfolders, and a
   file changed in the last few seconds waits for the next scan. Files are remembered by content, so
-  moving or renaming one does not import it twice.
-- The path must exist and be a directory.
-- In Docker the folder must be mounted into the container, and the path on the card is the path
-  inside it. Add a read-only bind mount to `docker-compose.yml`:
+  moving or renaming one does not import it twice. Symbolic links inside the folder are skipped.
+- Limits per scan: a scan stops taking new files once it has taken 100 of them or 512 MB of them
+  (the file that passes 512 MB is still taken; the rest wait for the next scan). A `.zip` or `.gz`
+  that unpacks to more than 256 MB in total, a ZIP with more than 10,000 entries, and a ZIP or gzip
+  file that is empty, cut short or not an archive are reported as invalid and not imported.
+- In Docker the folder must be mounted at `/import`. Add a read-only bind mount to
+  `docker-compose.yml`:
 
   ```yaml
   services:
@@ -247,8 +255,7 @@ tool, or any app that can write files to iCloud Drive, Dropbox, Syncthing or a n
         - /srv/sync/running-files:/import:ro
   ```
 
-  Then enter `/import` on the card. The container runs as uid 1000, so that user must be able to
-  read the host folder.
+  The container runs as uid 1000, so that user must be able to read the host folder.
 
 ### Weather and privacy
 

@@ -93,7 +93,7 @@ afterEach(() => {
 })
 
 function deps() {
-  return { prisma: ctx.prisma, config: ctx.config }
+  return { prisma: ctx.prisma, config: ctx.config, folderRoot: ctx.folderRoot }
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -541,19 +541,20 @@ describe('a folder scan writes one run', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'rl-log-scan-'))
+    ctx.folderRoot = dir
   })
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  async function watch(path: string) {
+  async function watch() {
     await ctx.prisma.integration.create({
       data: {
         userId: user.id,
         provider: 'folder',
         status: 'connected',
         secret: sealSecret({}, ctx.config.sessionSecret),
-        config: JSON.stringify({ path }),
+        config: '{}',
       },
     })
   }
@@ -594,7 +595,7 @@ describe('a folder scan writes one run', () => {
   }
 
   test('a scheduled scan that finds nothing is stored once, not every five minutes', async () => {
-    await watch(dir)
+    await watch()
     await scanFolderIntegration(deps(), user.id)
     await scanFolderIntegration(deps(), user.id)
     await scanFolderIntegration(deps(), user.id)
@@ -618,7 +619,7 @@ describe('a folder scan writes one run', () => {
   })
 
   test('a scan with an unreadable file is partial and names it; the idle scan after it is stored once', async () => {
-    await watch(dir)
+    await watch()
     put('broken.fit', new Uint8Array([1, 2, 3, 4]))
     await scanFolderIntegration(deps(), user.id, { trigger: 'manual' })
     for (let scan = 0; scan < 3; scan += 1) await scanFolderIntegration(deps(), user.id)
@@ -639,25 +640,24 @@ describe('a folder scan writes one run', () => {
   })
 
   test('a scan with new files is stored, and so is every failed scan', async () => {
-    await watch(dir)
+    await watch()
     put('a.fit', fitBytes())
     await scanFolderIntegration(deps(), user.id)
     expect(await folderRuns()).toMatchObject([{ status: 'ok', accepted: 1 }])
 
-    await ctx.prisma.integration.updateMany({
-      data: { config: JSON.stringify({ path: join(dir, 'missing') }) },
-    })
+    ctx.folderRoot = join(dir, 'missing')
     await runFolderJob(deps())
     await runFolderJob(deps())
     expect((await folderRuns()).map((run) => run.status)).toEqual(['error', 'error', 'ok'])
   })
 
   test('an unreadable folder records an error run', async () => {
-    await watch(join(dir, 'missing'))
+    ctx.folderRoot = join(dir, 'missing')
+    await watch()
     await expect(runFolderJob(deps())).resolves.toBeUndefined()
     const run = await ctx.prisma.syncRun.findFirstOrThrow()
     expect(run).toMatchObject({ channel: 'folder', status: 'error', accepted: 0 })
-    expect(run.message).toContain('not a readable directory')
+    expect(run.message).toBe('The import folder is not available.')
   })
 })
 

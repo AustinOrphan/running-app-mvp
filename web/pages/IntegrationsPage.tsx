@@ -45,14 +45,6 @@ function text(value: unknown): string | undefined {
 
 /** The non-secret part of the connection worth showing on a connected card. */
 function configSummary(provider: string, config: Record<string, unknown>): ReactNode {
-  if (provider === 'folder') {
-    const path = text(config['path'])
-    return path === undefined ? null : (
-      <p className={styles.meta}>
-        Watching <code>{path}</code>
-      </p>
-    )
-  }
   if (provider === 'intervals') {
     const id = text(config['athleteId'])
     return id === undefined ? null : <p className={styles.meta}>Athlete {id}</p>
@@ -422,40 +414,38 @@ function GarminForm({
   )
 }
 
-function FolderForm({ submit, pending, errors, failure }: FormProps) {
-  const [path, setPath] = useState('')
+/** The Watched folder has no setting: the switch turns the scan of the server's import folder on or off (F1). */
+function FolderSwitch({
+  on,
+  pending,
+  failure,
+  onChange,
+}: {
+  on: boolean
+  pending: boolean
+  failure: string | undefined
+  onChange: (on: boolean) => void
+}) {
+  const hintId = useId()
   return (
-    <form
-      className={styles.form}
-      noValidate
-      onSubmit={onSubmitWith(() => {
-        submit({ path })
-      })}
-    >
-      <Field
-        label="Folder path"
-        hint="A folder on the server. In Docker it must be mounted into the container."
-        error={errors['path']}
-      >
-        {(control) => (
-          <Input
-            {...control}
-            type="text"
-            value={path}
-            autoComplete="off"
-            onChange={(event) => {
-              setPath(event.target.value)
-            }}
-          />
-        )}
-      </Field>
+    <div>
+      <label className={styles.check}>
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={pending}
+          aria-describedby={hintId}
+          onChange={(event) => {
+            onChange(event.target.checked)
+          }}
+        />
+        {render(TEMPLATES['integrations.folder.switch'], {}, 'km')}
+      </label>
+      <p id={hintId} className={styles.note}>
+        {render(TEMPLATES['integrations.folder.hint'], {}, 'km')}
+      </p>
       <FormAlert failure={failure} />
-      <div>
-        <Button type="submit" variant="primary" loading={pending}>
-          Connect
-        </Button>
-      </div>
-    </form>
+    </div>
   )
 }
 
@@ -580,7 +570,6 @@ const FORM_FIELDS: Record<string, string[]> = {
   intervals: ['athleteId', 'apiKey'],
   strava: ['clientId', 'clientSecret', 'publicBaseUrl'],
   garmin: ['username', 'password', 'code', 'tokens', 'acknowledgeRisk'],
-  folder: ['path'],
 }
 
 function failureMessage(provider: string, error: unknown): string | undefined {
@@ -610,7 +599,7 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
   const hasConnection = item.status !== 'disconnected'
   // `error` is a failed run with the credentials still in place: keep Sync now, not the form.
   const usable = item.status === 'connected' || item.status === 'error'
-  const showForm = (isPull || isFolder) && (!usable || editing || mfaPending)
+  const showForm = isPull && (!usable || editing || mfaPending)
 
   function submit(input: unknown) {
     connect.mutate(
@@ -651,9 +640,6 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
         break
       case 'garmin':
         form = <GarminForm {...formProps} mfaPending={mfaPending} />
-        break
-      case 'folder':
-        form = <FolderForm {...formProps} />
         break
       default:
         form = null
@@ -702,6 +688,18 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
 
       {form}
 
+      {isFolder ? (
+        <FolderSwitch
+          on={hasConnection}
+          pending={connect.isPending || disconnect.isPending}
+          failure={formProps.failure}
+          onChange={(on) => {
+            if (on) connect.mutate({ provider, input: {} })
+            else disconnect.mutate(provider, { onSuccess: onDisconnected })
+          }}
+        />
+      ) : null}
+
       {isPull && usable ? <SyncControls provider={provider} /> : null}
 
       {channels.includes('publish') && usable ? <WristSettings /> : null}
@@ -719,7 +717,7 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
       {hasConnection ? <SyncHistory provider={provider} /> : null}
 
       <div className={styles.row}>
-        {usable && (isPull || isFolder) && !editing && !mfaPending ? (
+        {usable && isPull && !editing && !mfaPending ? (
           <Button
             variant="quiet"
             onClick={() => {
@@ -729,7 +727,7 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
             Change connection
           </Button>
         ) : null}
-        {hasConnection || item.pushEnabled ? (
+        {(hasConnection || item.pushEnabled) && !isFolder ? (
           channels.includes('publish') ? (
             <DisconnectIntervals onDisconnected={onDisconnected} />
           ) : (
@@ -745,7 +743,7 @@ function ProviderCard({ item }: { item: IntegrationStatus }) {
           )
         ) : null}
       </div>
-      {hasConnection || item.pushEnabled ? (
+      {(hasConnection || item.pushEnabled) && !isFolder ? (
         <p className={styles.note}>Disconnecting forgets the credentials; activities stay.</p>
       ) : null}
       {disconnect.isError ? (

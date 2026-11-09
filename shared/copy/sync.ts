@@ -83,12 +83,9 @@ export const SYNC_TEMPLATES = {
     { reason: 'text' },
     { shape: 'label', fallback: 'None of the pushed activities could be stored.' },
   ),
-  'sync.msg.folder-none': tpl('No folder is configured.'),
-  'sync.msg.folder-unreadable': tpl(
-    'The watched folder is not a readable directory: {path}',
-    { path: 'text' },
-    { shape: 'label', fallback: 'The watched folder is not a readable directory.' },
-  ),
+  // One message for every reason the import folder cannot be read, so that it never says which
+  // paths exist on the server (F1).
+  'sync.msg.folder-unreadable': tpl('The import folder is not available.'),
   'sync.msg.files.one': tpl(
     '1 file could not be imported: {reason}',
     { reason: 'text' },
