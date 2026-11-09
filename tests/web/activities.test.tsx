@@ -634,6 +634,81 @@ describe('Activities page', () => {
     expect(api.calls.filter((c) => c.method === 'POST')[1]?.body).toEqual({ status: 'dismissed' })
   })
 
+  describe('the note under a possible duplicate fits the kind and the rule', () => {
+    const T0 = '2026-03-02T07:00:00Z'
+    const note = async (rows: ActivityListItem[]) => {
+      renderPage({ route: '/activities?duplicates=1', activities: rows })
+      const text = (await screen.findByText(/^Another /)).textContent ?? ''
+      expectCleanCopy(document.body)
+      return text
+    }
+
+    test('a run flagged on the date says 80 m', async () => {
+      const original = makeActivity({ id: 'o1', source: 'intervals' })
+      const copy = makeActivity({ duplicateStatus: 'possible', duplicateOfId: 'o1' })
+      expect(await note([original, copy])).toBe(
+        'Another run on this day is within 80 m. The other one is counted.',
+      )
+    })
+
+    test('a run flagged on the start instant says so', async () => {
+      const original = makeActivity({ id: 'o2', startUtc: T0, source: 'intervals' })
+      const copy = makeActivity({
+        startUtc: T0,
+        duplicateStatus: 'possible',
+        duplicateOfId: 'o2',
+      })
+      expect(await note([original, copy])).toBe(
+        'Another run started within 2 minutes of this one and is about as long. The other one is counted.',
+      )
+    })
+
+    test('a strength session never mentions a distance', async () => {
+      const original = makeActivity({
+        id: 'o3',
+        type: 'strength',
+        distanceM: null,
+        startUtc: T0,
+        source: 'intervals',
+      })
+      const copy = makeActivity({
+        type: 'strength',
+        distanceM: null,
+        duplicateStatus: 'possible',
+        duplicateOfId: 'o3',
+      })
+      expect(await note([original, copy])).toBe(
+        'Another strength session on this day is about as long. The other one is counted.',
+      )
+    })
+
+    test('a strength session flagged on the start instant says so', async () => {
+      const original = makeActivity({ id: 'o4', type: 'strength', distanceM: null, startUtc: T0 })
+      const copy = makeActivity({
+        type: 'strength',
+        distanceM: null,
+        startUtc: T0,
+        duplicateStatus: 'possible',
+        duplicateOfId: 'o4',
+      })
+      expect(await note([original, copy])).toBe(
+        'Another strength session started within 2 minutes of this one. The other one is counted.',
+      )
+    })
+
+    test('without the original on the screen the note names only the kind', async () => {
+      const copy = makeActivity({
+        type: 'strength',
+        distanceM: null,
+        duplicateStatus: 'possible',
+        duplicateOfId: 'gone',
+      })
+      expect(await note([copy])).toBe(
+        'Another strength session on this day looks like the same session. The other one is counted.',
+      )
+    })
+  })
+
   test('?new=1 opens the sheet', async () => {
     renderPage({ route: '/activities?new=1' })
     expect(await screen.findByRole('dialog', { name: 'Log activity' })).toBeInTheDocument()

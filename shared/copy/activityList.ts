@@ -2,7 +2,8 @@
 // screen, the button for the next page and the note when a page did not load. The numbers are the
 // server's `ActivityListPage.total` and the rows already read; the words are the templates below,
 // spread into `TEMPLATES`.
-import type { Units } from '../types.ts'
+import { matchActivities } from '../domain/duplicates.ts'
+import type { Activity, Units } from '../types.ts'
 import { render, tpl, type Template } from './template.ts'
 
 export const ACTIVITY_LIST_TEMPLATES = {
@@ -38,6 +39,27 @@ export const ACTIVITY_LIST_TEMPLATES = {
   'activity-list.sets.none': tpl('No sets', {}, { shape: 'label' }),
   'activity-list.sets.one': tpl('1 set', {}, { shape: 'label' }),
   'activity-list.sets.many': tpl('{n} sets', { n: 'count' }, { shape: 'label', fallback: 'Sets' }),
+  // The note under a possible duplicate: which kind of activity, and which rule of the duplicate pass
+  // flagged it (`matchActivities`). A strength session has no distance, so it is never "within 80 m".
+  // The other row of the pair is the one that counts, whichever source it came from.
+  'activity-list.dup.run.date': tpl(
+    'Another run on this day is within 80 m. The other one is counted.',
+  ),
+  'activity-list.dup.run.start': tpl(
+    'Another run started within 2 minutes of this one and is about as long. The other one is counted.',
+  ),
+  'activity-list.dup.run.unknown': tpl(
+    'Another run on this day looks like the same run. The other one is counted.',
+  ),
+  'activity-list.dup.strength.date': tpl(
+    'Another strength session on this day is about as long. The other one is counted.',
+  ),
+  'activity-list.dup.strength.start': tpl(
+    'Another strength session started within 2 minutes of this one. The other one is counted.',
+  ),
+  'activity-list.dup.strength.unknown': tpl(
+    'Another strength session on this day looks like the same session. The other one is counted.',
+  ),
 } satisfies Record<string, Template>
 
 const T = ACTIVITY_LIST_TEMPLATES
@@ -102,4 +124,17 @@ export function activitySetsText(sets: number | null | undefined): string | null
   if (sets === 0) return render(T['activity-list.sets.none'], {}, UNITS)
   if (sets === 1) return render(T['activity-list.sets.one'], {}, UNITS)
   return render(T['activity-list.sets.many'], { n: { kind: 'count', n: sets } }, UNITS)
+}
+
+type DuplicateRow = Pick<Activity, 'type' | 'date' | 'startUtc' | 'distanceM' | 'durationSec'>
+
+/**
+ * The note under a possible duplicate, by kind (a strength session or a run, a race being one) and
+ * by the rule that flagged the pair. `original` is the row it was flagged against; without it
+ * (not on the screen) the note says only that the other one looks like the same activity.
+ */
+export function possibleDuplicateNote(copy: DuplicateRow, original: DuplicateRow | null): string {
+  const kind = copy.type === 'strength' ? 'strength' : 'run'
+  const basis = original === null ? null : matchActivities(copy, original)
+  return render(T[`activity-list.dup.${kind}.${basis ?? 'unknown'}`], {}, UNITS)
 }

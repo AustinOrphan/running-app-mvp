@@ -6,12 +6,14 @@ import {
   matchActivities,
   pickDuplicate,
 } from '../../shared/domain/duplicates.ts'
+import { compatible } from '../../shared/engine/execution.ts'
+import type { SessionKind } from '../../shared/engine/types.ts'
 import type { DuplicateStatus } from '../../shared/types.ts'
 
 /** The activity types the pass compares, each only with its own kind (`findPossibleDuplicate`). */
 const COUNTED_TYPES = ['run', 'race', 'strength']
 
-type LogHandOverDb = Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>
+type LogHandOverDb = Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>
 
 /**
  * Hands the logs of a confirmed duplicate of `originalId` to the original, for each kind of log the
@@ -24,11 +26,17 @@ type LogHandOverDb = Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>
  * A strength log moves only onto a strength activity (anything else is refused and nothing is
  * written), and takes the effort, the pain and the note of the copy along where the original has
  * none, because the sheet that saved the log entered them on the copy. Returns whether a log moved.
+ *
+ * The plan session a copy fulfils moves to the original too (`carrySessionLink`), so the session
+ * opens the activity that counts. The id of a session that moved is pushed onto `movedSessions`: the
+ * caller assesses it against the original (`assessSessionsQuietly`), because the findings and the
+ * status stored with the session were drawn from the copy.
  */
 export async function moveConfirmedLogs(
   prisma: LogHandOverDb,
   userId: string,
   originalId: string,
+  movedSessions: string[] = [],
 ): Promise<boolean> {
   const copies = await prisma.activity.findMany({
     where: { userId, duplicateOfId: originalId, duplicateStatus: 'confirmed' },
@@ -36,6 +44,8 @@ export async function moveConfirmedLogs(
     orderBy: { id: 'asc' },
   })
   await carryHeatMark(prisma, originalId, copies)
+  const moved = await carrySessionLink(prisma, userId, originalId, copies)
+  if (moved !== null) movedSessions.push(moved)
   const fuel = await handOverLog(
     copies,
     originalId,
@@ -78,6 +88,47 @@ async function carryHeatMark(
     where: { id: originalId, heatExposure: null },
     data: { heatExposure: mark },
   })
+}
+
+/**
+ * The plan session a confirmed copy fulfils is handed to the original: a copy no longer counts
+ * (`counts` in `shared/engine/execution.ts`), so a session left on it would open the copy, without
+ * the time and the heart rate of the source that wins, and the original would fulfil nothing. The
+ * row keeps its `linkSource` and its status; only `activityId` changes, as in a manual link no
+ * revision is written (a link is not a change to the plan, ADR 0007). The findings stored with the
+ * session still describe the copy until the caller assesses the returned session. When the original already fulfils a session (the link is unique
+ * per activity), or its type no longer fits the session, both stay as they are. The first copy (by
+ * id) that fulfils a session gives it up; its id is returned, or null when nothing moved. Releasing a copy later does not move the link back, as
+ * it does not move a log back.
+ */
+async function carrySessionLink(
+  prisma: Pick<PrismaClient, 'activity' | 'planSession'>,
+  userId: string,
+  originalId: string,
+  copies: ReadonlyArray<{ id: string }>,
+): Promise<string | null> {
+  if (copies.length === 0) return null
+  const held = await prisma.planSession.findFirst({
+    where: { activityId: originalId, plan: { userId } },
+    select: { id: true },
+  })
+  if (held) return null
+  const original = await prisma.activity.findFirst({
+    where: { id: originalId, userId },
+    select: { type: true, subtype: true },
+  })
+  if (!original) return null
+  for (const copy of copies) {
+    const session = await prisma.planSession.findFirst({
+      where: { activityId: copy.id, plan: { userId } },
+      select: { id: true, kind: true },
+    })
+    if (!session) continue
+    if (!compatible(session.kind as SessionKind, original)) return null
+    await prisma.planSession.update({ where: { id: session.id }, data: { activityId: originalId } })
+    return session.id
+  }
+  return null
 }
 
 /**
@@ -139,14 +190,18 @@ function shiftDate(date: string, days: number): string {
  * pointed at the demoted row is re-pointed at the survivor. The status is `confirmed` for two
  * automated sources matched on start instant, else `possible`. Rows already `confirmed` or
  * `dismissed` are left alone; a `possible` row against the same original is upgraded to
- * `confirmed` when it now qualifies. Returns how many rows were newly flagged.
+ * `confirmed` when it now qualifies. Returns how many rows were newly flagged. `assess` gets the
+ * sessions that moved from a confirmed copy to its original, once the pass is done; a caller inside
+ * a transaction passes none and assesses them after it commits.
  */
 export async function markDuplicates(
-  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog'>,
+  prisma: Pick<PrismaClient, 'activity' | 'fuelLog' | 'strengthLog' | 'planSession'>,
   userId: string,
   activityIds: string[],
+  assess?: (sessionIds: string[]) => Promise<void>,
 ): Promise<number> {
   let flagged = 0
+  const movedSessions: string[] = []
   for (const id of new Set(activityIds)) {
     const row = await prisma.activity.findFirst({ where: { id, userId } })
     if (!row || !COUNTED_TYPES.includes(row.type)) continue
@@ -187,12 +242,14 @@ export async function markDuplicates(
         where: { userId, duplicateOfId: duplicate.id, id: { not: original.id } },
         data: { duplicateOfId: original.id },
       })
-      if (status === 'confirmed') await moveConfirmedLogs(prisma, userId, original.id)
+      if (status === 'confirmed')
+        await moveConfirmedLogs(prisma, userId, original.id, movedSessions)
       if (!wasFlagged) flagged += 1
       // The candidate is now itself a duplicate; it cannot demote anything else.
       if (duplicate.id === candidate.id) break
     }
   }
+  if (movedSessions.length > 0) await assess?.(movedSessions)
   return flagged
 }
 
