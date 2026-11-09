@@ -263,19 +263,16 @@ export const TRENDS_TEMPLATES = {
   // described: no aim, no ratio of recent to earlier weeks. A run with no gain is counted and named.
   'trends.climb.heading': tpl('Climbing per week', {}, { shape: 'label' }),
   'trends.climb.caption': tpl(
-    'Bars are the elevation gain recorded on your runs each week, in {unit}. The line is the mean of that week and the three before it.',
+    "Elevation gain on your runs each week, in {unit}; the line is the mean of four weeks. A watch's elevation is rough: read the shape of the weeks.",
     { unit: 'text' },
-    { fallback: 'Bars are the elevation gain recorded on your runs each week.' },
+    { fallback: 'Elevation gain on your runs each week.' },
   ),
   'trends.climb.line': tpl(
     'The line counts a week with no runs as no climbing and leaves out a week whose runs have no elevation. It stops at the last complete week.',
   ),
   'trends.climb.coverage': tpl(
-    '{have} of {runs} runs have elevation. A run with none is left out, not read as flat.',
+    '{have} of {runs} runs have elevation; the others are left out. The outlined bar is this week so far.',
     { have: 'count', runs: 'count' },
-  ),
-  'trends.climb.rough': tpl(
-    "Elevation from a watch's barometer or GPS is rough, so read the shape of the weeks, not the exact figure.",
   ),
   'trends.climb.empty': tpl('No elevation recorded in this range yet.'),
   'trends.climb.empty-body': tpl(
@@ -297,19 +294,18 @@ export const TRENDS_TEMPLATES = {
   // comparison with the plan: a split here is a picture of what was run, not a target.
   'trends.intensity.heading': tpl('Intensity per week', {}, { shape: 'label' }),
   'trends.intensity.caption': tpl(
-    "Bars are run hours per week, split by heart rate into the three zones as they stand today. Past weeks are read against today's zones.",
-  ),
-  'trends.intensity.limits': tpl(
-    'Zone 1 is up to {lt1}, Zone 2 is up to {lt2} and Zone 3 is above, by the heart rate of the zone table on Profile.',
+    "Run time each week by heart-rate zone, against today's zones (Zone 1 up to {lt1}, Zone 2 up to {lt2}, Zone 3 above).",
     { lt1: 'bpm', lt2: 'bpm' },
+    { fallback: "Run time each week by heart-rate zone, against today's zones." },
   ),
   'trends.intensity.neutral': tpl(
-    'The neutral part is time with no usable heart rate: no stream, a stream that did not pass the checks, or a stretch the stream does not cover.',
+    'The hatched part is time with no usable heart rate: no stream, a stream that did not pass the checks, or a stretch the stream does not cover.',
   ),
-  'trends.intensity.coverage': tpl('{have} of {runs} runs have usable heart rate.', {
-    have: 'count',
-    runs: 'count',
-  }),
+  'trends.intensity.coverage': tpl(
+    '{have} of {runs} runs have usable heart rate; the hatched part is time without it. The outlined bar is this week so far.',
+    { have: 'count', runs: 'count' },
+  ),
+  'trends.load.how': tpl('How this is counted', {}, { shape: 'label' }),
   'trends.intensity.legend-1': tpl('Zone 1', {}, { shape: 'label' }),
   'trends.intensity.legend-2': tpl('Zone 2', {}, { shape: 'label' }),
   'trends.intensity.legend-3': tpl('Zone 3', {}, { shape: 'label' }),
@@ -639,7 +635,7 @@ export function climbCaption(units: Units): string {
   return render(TRENDS_TEMPLATES['trends.climb.caption'], { unit: climbUnitWord(units) }, units)
 }
 
-/** "31 of 36 runs have elevation." The count of runs in view and how many carry a gain. */
+/** "31 of 36 runs have elevation; ..." The runs in view and how many carry a gain. */
 export function climbCoverageLine(have: number, runs: number): string {
   return render(
     TRENDS_TEMPLATES['trends.climb.coverage'],
@@ -659,7 +655,7 @@ export function climbAria(span: string, latestM: number | null, units: Units): s
       )
 }
 
-/** "20 of 36 runs have usable heart rate." */
+/** "20 of 36 runs have usable heart rate; ..." The runs in view and how many have it. */
 export function intensityCoverageLine(have: number, runs: number): string {
   return render(
     TRENDS_TEMPLATES['trends.intensity.coverage'],
@@ -668,10 +664,10 @@ export function intensityCoverageLine(have: number, runs: number): string {
   )
 }
 
-/** The two heart rates the zones are cut at, as the zone table on Profile gives them. */
-export function intensityLimitsLine(lt1Hr: number, lt2Hr: number): string {
+/** The line above the intensity chart: what it shows and the two heart rates the zones are cut at. */
+export function intensityCaption(lt1Hr: number, lt2Hr: number): string {
   return render(
-    TRENDS_TEMPLATES['trends.intensity.limits'],
+    TRENDS_TEMPLATES['trends.intensity.caption'],
     { lt1: { kind: 'bpm', bpm: lt1Hr }, lt2: { kind: 'bpm', bpm: lt2Hr } },
     'km',
   )

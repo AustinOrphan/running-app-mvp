@@ -102,12 +102,20 @@ describe('Trends, climbing per week', () => {
     )
     expect(
       screen.getByText(
-        'Bars are the elevation gain recorded on your runs each week, in metres. The line is the mean of that week and the three before it.',
+        "Elevation gain on your runs each week, in metres; the line is the mean of four weeks. A watch's elevation is rough: read the shape of the weeks.",
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText(/^3 of 4 runs have elevation\./)).toBeInTheDocument()
-    expect(screen.getByText(/barometer or GPS is rough/)).toBeInTheDocument()
-    expect(screen.getAllByText('Records start the week of 23 Feb.').length).toBeGreaterThan(0)
+    expect(
+      screen.getByText(/^3 of 4 runs have elevation; the others are left out\./),
+    ).toBeInTheDocument()
+    // The method sits in a closed details under the chart, with where the records start.
+    const how = screen.getAllByText('How this is counted')
+    expect(how).toHaveLength(2)
+    expect(how[0]!.closest('details')).not.toHaveAttribute('open')
+    expect(how[0]!.closest('details')).toHaveTextContent('Records start the week of 23 Feb.')
+    expect(how[0]!.closest('details')).toHaveTextContent(
+      'leaves out a week whose runs have no elevation',
+    )
 
     const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
     expect(
@@ -138,7 +146,7 @@ describe('Trends, climbing per week', () => {
     expect(chart).toHaveAccessibleName(
       'Climbing per week, since the week of 23 Feb. Latest complete week with elevation: 328 ft.',
     )
-    expect(screen.getByText(/in feet\. The line is the mean/)).toBeInTheDocument()
+    expect(screen.getByText(/in feet; the line is the mean of four weeks/)).toBeInTheDocument()
     const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
     expect(
       within(table)
@@ -151,7 +159,7 @@ describe('Trends, climbing per week', () => {
     mockPage(view({ runs: [run(12, { elevationGainM: null }), run(5, { elevationGainM: null })] }))
     renderWithProviders(<TrendsPage />)
     expect(await screen.findByText('No elevation recorded in this range yet.')).toBeInTheDocument()
-    expect(screen.getByText(/^0 of 2 runs have elevation\./)).toBeInTheDocument()
+    expect(screen.getByText(/^0 of 2 runs have elevation;/)).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: /^Climbing per week/ })).not.toBeInTheDocument()
   })
 
@@ -196,13 +204,16 @@ describe('Trends, intensity per week', () => {
     expect(chart).toHaveAccessibleName(
       'Intensity per week by zone, since the week of 23 Feb. Latest complete week: Zone 1 0 min, Zone 2 0 min, Zone 3 0 min, no usable heart rate 60 min.',
     )
-    expect(screen.getByText(/zones as they stand today\./)).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Zone 1 is up to 140 bpm, Zone 2 is up to 160 bpm and Zone 3 is above, by the heart rate of the zone table on Profile.',
+        "Run time each week by heart-rate zone, against today's zones (Zone 1 up to 140 bpm, Zone 2 up to 160 bpm, Zone 3 above).",
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText(/^3 of 4 runs have usable heart rate\./)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /^3 of 4 runs have usable heart rate; the hatched part is time without it\./,
+      ),
+    ).toBeInTheDocument()
 
     const figure = chart.closest('figure') as HTMLElement
     const key = within(figure).getByRole('list', { name: 'Key' })
@@ -258,7 +269,7 @@ describe('Trends, intensity per week', () => {
     mockPage(view({ runs: [run(8, { bandSec: null }), run(9, { bandSec: null })] }))
     renderWithProviders(<TrendsPage />)
     const chart = await screen.findByRole('img', { name: /^Intensity per week by zone/ })
-    expect(screen.getByText(/^0 of 2 runs have usable heart rate\./)).toBeInTheDocument()
+    expect(screen.getByText(/^0 of 2 runs have usable heart rate;/)).toBeInTheDocument()
     const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
     // The last row is this week, which holds no run.
     const cells = within(within(table).getAllByRole('row').at(-2)!)

@@ -9,7 +9,7 @@ import {
   YAxis,
   type BarShapeProps,
 } from 'recharts'
-import { recordsStart, trendsText } from '../../../shared/copy/trends.ts'
+import { trendsText } from '../../../shared/copy/trends.ts'
 import type { IntensityWeek } from '../../../shared/domain/trendsLoad.ts'
 import { formatShortDate } from '../format.ts'
 import styles from './IntensityChart.module.css'
@@ -19,8 +19,6 @@ import { axisProps, chartColors, ChartTooltip, gridProps } from './theme.ts'
 export interface IntensityChartProps {
   /** The weeks drawn, oldest first, the last of them the current week when it is in range. */
   weeks: readonly IntensityWeek[]
-  /** The week the plot starts at when the range reached past the first record, or null. */
-  cutBefore?: string | null
   /** The accessible name of the chart and the caption of its hidden table. */
   ariaLabel: string
 }
@@ -90,7 +88,7 @@ const minutesText = (sec: number): string => `${String(Math.round(sec / 60))} mi
  * fourth, neutral part. Stacked bars only: no line, no comparison with the plan. The figures are in
  * a visually hidden table.
  */
-export function IntensityChart({ weeks, cutBefore = null, ariaLabel }: IntensityChartProps) {
+export function IntensityChart({ weeks, ariaLabel }: IntensityChartProps) {
   const hatch = `hatch-${useId().replace(/:/g, '')}`
   const points: Point[] = weeks.map((week) => ({
     weekStart: week.weekStart,
@@ -210,7 +208,6 @@ export function IntensityChart({ weeks, cutBefore = null, ariaLabel }: Intensity
           </li>
         ))}
       </ul>
-      {cutBefore === null ? null : <p className={styles.start}>{recordsStart(cutBefore)}</p>}
       {/* The wrapper holds the width of the table; a bare absolute table would widen the page. */}
       <div className="visually-hidden">
         <table>

@@ -10,7 +10,7 @@ import {
   climbCoverageLine,
   intensityAria,
   intensityCoverageLine,
-  intensityLimitsLine,
+  intensityCaption,
   driftAria,
   driftComparableLine,
   driftFilledLine,
@@ -241,11 +241,11 @@ describe('the words of the Trends page', () => {
 describe('the words of the climbing and intensity panels', () => {
   it('words the climbing captions in the runner unit and the coverage as counts', () => {
     expect(climbCaption('km')).toBe(
-      'Bars are the elevation gain recorded on your runs each week, in metres. The line is the mean of that week and the three before it.',
+      "Elevation gain on your runs each week, in metres; the line is the mean of four weeks. A watch's elevation is rough: read the shape of the weeks.",
     )
-    expect(climbCaption('mi')).toContain('in feet.')
+    expect(climbCaption('mi')).toContain('in feet;')
     expect(climbCoverageLine(31, 36)).toBe(
-      '31 of 36 runs have elevation. A run with none is left out, not read as flat.',
+      '31 of 36 runs have elevation; the others are left out. The outlined bar is this week so far.',
     )
     expect(climbAria('last 12 months', 1000, 'km')).toBe(
       'Climbing per week, last 12 months. Latest complete week with elevation: 1000 m.',
@@ -254,19 +254,19 @@ describe('the words of the climbing and intensity panels', () => {
     expect(climbAria('last 12 months', null, 'km')).toBe(
       'Climbing per week, last 12 months. No complete week has elevation yet.',
     )
-    expect(TRENDS_TEMPLATES['trends.climb.rough'].text).toContain('barometer or GPS is rough')
   })
 
   it('words the intensity panel from the zone limits, and names the part with no usable heart rate', () => {
-    expect(intensityLimitsLine(140, 160)).toBe(
-      'Zone 1 is up to 140 bpm, Zone 2 is up to 160 bpm and Zone 3 is above, by the heart rate of the zone table on Profile.',
+    expect(intensityCaption(140, 160)).toBe(
+      "Run time each week by heart-rate zone, against today's zones (Zone 1 up to 140 bpm, Zone 2 up to 160 bpm, Zone 3 above).",
     )
-    expect(intensityCoverageLine(20, 36)).toBe('20 of 36 runs have usable heart rate.')
+    expect(intensityCoverageLine(20, 36)).toBe(
+      '20 of 36 runs have usable heart rate; the hatched part is time without it. The outlined bar is this week so far.',
+    )
     expect(intensityAria('last 12 months', { z1: 120, z2: 45, z3: 5, none: 30 })).toBe(
       'Intensity per week by zone, last 12 months. Latest complete week: Zone 1 2 h, Zone 2 45 min, Zone 3 5 min, no usable heart rate 30 min.',
     )
     expect(intensityAria('last 12 months', null)).toContain('No complete week has runs yet.')
-    expect(trendsText('trends.intensity.caption')).toContain('as they stand today')
     expect(trendsText('trends.intensity.neutral')).toContain('no usable heart rate')
   })
 
@@ -278,7 +278,7 @@ describe('the words of the climbing and intensity panels', () => {
       climbCoverageLine(31, 36),
       climbAria('since the week of 24 Aug', 842.5, 'mi'),
       climbAria('last 6 months', null, 'km'),
-      intensityLimitsLine(139.5, 161),
+      intensityCaption(139.5, 161),
       intensityCoverageLine(0, 12),
       intensityAria('last 24 months', { z1: 0, z2: 0, z3: 0, none: 0 }),
       intensityAria('last 24 months', null),

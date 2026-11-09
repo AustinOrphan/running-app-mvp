@@ -565,6 +565,10 @@ test.describe('the run panels', () => {
   }) => {
     await signedInApi(page, baseURL ?? '')
     await page.setViewportSize({ width: 390, height: 844 })
+    const loads: string[] = []
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/api/trends/load') loads.push(request.url())
+    })
     await page.goto('/trends')
     const { thisMonday, today } = relativeDates()
     // The plot starts at the week of the oldest run (the 50th steady run, 198 days back).
@@ -576,8 +580,14 @@ test.describe('the run panels', () => {
       climb.getByRole('img', { name: /^Climbing per week, since the week of / }),
     ).toBeVisible()
     // 58 runs; the 10 steady runs with no gain stored are counted, not read as flat.
-    await expect(climb.getByText(/^48 of 58 runs have elevation\./)).toBeVisible()
-    await expect(climb.getByText(/barometer or GPS is rough/)).toBeVisible()
+    await expect(
+      climb.getByText(/^48 of 58 runs have elevation; the others are left out\./),
+    ).toBeVisible()
+    await expect(climb.getByText(/A watch's elevation is rough/)).toBeVisible()
+    // The method is closed until asked for, and holds where the records start.
+    await expect(climb.getByText(/^Records start the week of /)).toBeHidden()
+    await climb.getByText('How this is counted').click()
+    await expect(climb.getByText(/^Records start the week of /)).toBeVisible()
     const climbTable = climb.getByRole('table', { name: /^Climbing per week, since the week of / })
     await expect(climbTable.getByRole('row')).toHaveCount(1 + weeks)
     await expect(climbTable.getByRole('columnheader')).toHaveText([
@@ -592,11 +602,16 @@ test.describe('the run panels', () => {
     await expect(
       intensity.getByRole('img', { name: /^Intensity per week by zone, since the week of / }),
     ).toBeVisible()
-    await expect(intensity.getByText(/zones as they stand today\./)).toBeVisible()
     await expect(
-      intensity.getByText(/^Zone 1 is up to 144 bpm, Zone 2 is up to 162 bpm and Zone 3 is above/),
+      intensity.getByText(
+        "Run time each week by heart-rate zone, against today's zones (Zone 1 up to 144 bpm, Zone 2 up to 162 bpm, Zone 3 above).",
+      ),
     ).toBeVisible()
-    await expect(intensity.getByText(/^37 of 58 runs have usable heart rate\./)).toBeVisible()
+    await expect(
+      intensity.getByText(
+        /^37 of 58 runs have usable heart rate; the hatched part is time without it\./,
+      ),
+    ).toBeVisible()
     await expect(intensity.getByRole('list', { name: 'Key' }).getByRole('listitem')).toHaveText([
       'Zone 1',
       'Zone 2',
@@ -615,7 +630,7 @@ test.describe('the run panels', () => {
       'No usable heart rate (min)',
     ])
     // Zone 3 holds time only from the long runs, and the neutral part holds the runs that did
-    // not pass the checks: both columns have a figure somewhere, neither is spread over the rest.
+    // not pass the checks: both columns have a figure somewhere.
     for (const column of [6, 7]) {
       const cells = await table
         .locator(`tbody tr td:nth-child(${String(column)})`)
@@ -625,9 +640,18 @@ test.describe('the run panels', () => {
         `column ${String(column)}`,
       ).toBe(true)
     }
+    // The third long run (24 days back, 125 minutes) failed the checks: its whole length is in
+    // the neutral column of its week, with no Zone 1, 2 or 3 time beyond what the week's other
+    // runs bring, so the column holds at least those 125 minutes.
+    const failedWeek = mondayOf(addDays(today, -24))
+    const failedRow = table.getByRole('row').nth(1 + daysBetween(firstWeek, failedWeek) / 7)
+    expect(Number(await failedRow.getByRole('cell').nth(5).textContent())).toBeGreaterThanOrEqual(
+      125,
+    )
     expect(await overflow(page)).toBeLessThanOrEqual(0)
 
     // The range switch moves both, with no new request for the rows.
+    expect(loads).toHaveLength(1)
     await page
       .getByRole('radiogroup', { name: 'Range' })
       .getByRole('radio', { name: '6 months' })
@@ -640,6 +664,7 @@ test.describe('the run panels', () => {
         .getByRole('table', { name: /^Intensity per week by zone, last 6 months/ })
         .getByRole('row'),
     ).toHaveCount(1 + 26)
+    expect(loads).toHaveLength(1)
     expect(await overflow(page)).toBeLessThanOrEqual(0)
   })
 

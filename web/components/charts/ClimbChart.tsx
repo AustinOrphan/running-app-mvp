@@ -9,7 +9,6 @@ import {
   YAxis,
   type BarShapeProps,
 } from 'recharts'
-import { recordsStart } from '../../../shared/copy/trends.ts'
 import { climbInUnit, type ClimbWeek } from '../../../shared/domain/trendsLoad.ts'
 import type { Units } from '../../../shared/types.ts'
 import { formatClimb } from '../../../shared/units.ts'
@@ -22,8 +21,6 @@ export interface ClimbChartProps {
   /** The weeks drawn, oldest first, the last of them the current week when it is in range. */
   weeks: readonly ClimbWeek[]
   units: Units
-  /** The week the plot starts at when the range reached past the first record, or null. */
-  cutBefore?: string | null
   /** The accessible name of the chart and the caption of its hidden table. */
   ariaLabel: string
 }
@@ -76,7 +73,7 @@ function ValueBar({ x, y, width, height, payload }: BarShapeProps) {
  * mean of each week and the three before it through complete weeks only. A week with no figure has
  * no bar. The figures are in a visually hidden table.
  */
-export function ClimbChart({ weeks, units, cutBefore = null, ariaLabel }: ClimbChartProps) {
+export function ClimbChart({ weeks, units, ariaLabel }: ClimbChartProps) {
   const points: Point[] = weeks.map((week) => ({
     weekStart: week.weekStart,
     label: formatShortDate(week.weekStart),
@@ -163,7 +160,6 @@ export function ClimbChart({ weeks, units, cutBefore = null, ariaLabel }: ClimbC
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      {cutBefore === null ? null : <p className={styles.start}>{recordsStart(cutBefore)}</p>}
       {/* The wrapper holds the width of the table; a bare absolute table would widen the page. */}
       <div className="visually-hidden">
         <table>

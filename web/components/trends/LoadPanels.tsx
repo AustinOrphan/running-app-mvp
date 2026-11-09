@@ -4,8 +4,9 @@ import {
   climbCaption,
   climbCoverageLine,
   intensityAria,
+  intensityCaption,
   intensityCoverageLine,
-  intensityLimitsLine,
+  recordsStart,
   spanText,
   trendsText,
 } from '../../../shared/copy/trends.ts'
@@ -53,6 +54,17 @@ function Section({ id, heading, children }: SectionProps) {
   )
 }
 
+/** The method under a chart, closed until asked for: where the records start and how the figures are counted. */
+function How({ cutBefore, children }: { cutBefore: string | null; children: ReactNode }) {
+  return (
+    <details className={styles.how}>
+      <summary>{text('trends.load.how')}</summary>
+      {cutBefore === null ? null : <p className={styles.caption}>{recordsStart(cutBefore)}</p>}
+      {children}
+    </details>
+  )
+}
+
 interface PanelProps {
   view: TrendsLoadView
   weekStarts: string[]
@@ -86,13 +98,12 @@ function ClimbPanel({ view, weekStarts, currentWeek, firstRecord, months, units 
       <ClimbChart
         weeks={weeks}
         units={units}
-        cutBefore={cutBefore}
         ariaLabel={climbAria(spanText(months, cutBefore), latest?.ascentM ?? null, units)}
       />
-      <p className={styles.caption}>{text('trends.run.this-week')}</p>
-      <p className={styles.caption}>{text('trends.climb.line')}</p>
-      <p className={styles.figure}>{climbCoverageLine(coverage.covered, coverage.runs)}</p>
-      <p className={styles.caption}>{text('trends.climb.rough')}</p>
+      <p className={styles.caption}>{climbCoverageLine(coverage.covered, coverage.runs)}</p>
+      <How cutBefore={cutBefore}>
+        <p className={styles.caption}>{text('trends.climb.line')}</p>
+      </How>
     </>
   )
 }
@@ -117,11 +128,9 @@ function IntensityPanel({ view, weekStarts, currentWeek, firstRecord, months }: 
   const minutes = (sec: number) => Math.round(sec / 60)
   return (
     <>
-      <p className={styles.caption}>{text('trends.intensity.caption')}</p>
-      <p className={styles.caption}>{intensityLimitsLine(view.zones.lt1Hr, view.zones.lt2Hr)}</p>
+      <p className={styles.caption}>{intensityCaption(view.zones.lt1Hr, view.zones.lt2Hr)}</p>
       <IntensityChart
         weeks={weeks}
-        cutBefore={cutBefore}
         ariaLabel={intensityAria(
           spanText(months, cutBefore),
           latestWeek === undefined
@@ -134,9 +143,10 @@ function IntensityPanel({ view, weekStarts, currentWeek, firstRecord, months }: 
               },
         )}
       />
-      <p className={styles.caption}>{text('trends.run.this-week')}</p>
-      <p className={styles.caption}>{text('trends.intensity.neutral')}</p>
-      <p className={styles.figure}>{intensityCoverageLine(coverage.covered, coverage.runs)}</p>
+      <p className={styles.caption}>{intensityCoverageLine(coverage.covered, coverage.runs)}</p>
+      <How cutBefore={cutBefore}>
+        <p className={styles.caption}>{text('trends.intensity.neutral')}</p>
+      </How>
     </>
   )
 }
