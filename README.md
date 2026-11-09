@@ -31,8 +31,18 @@ install; the setup page closes afterwards. Later accounts are added by the perso
 server (see "Accounts for other people" below), and `ALLOW_REGISTRATION=true` is not needed for
 that; it opens the setup page to anyone who can reach the server, so leave it `false`.
 
-Sign-in sets an httpOnly cookie that lasts 30 days. Sign-in is limited to 10 attempts per address
-per 15 minutes (successful ones count too); the limit is held in memory and resets on restart.
+Sign-in sets an httpOnly cookie that lasts 30 days. Only failed attempts count: an account is
+limited to 10 failed sign-ins per 15 minutes (the email is compared in lower case) and an address to
+100, and a successful sign-in clears that account's failures. Setup shares both budgets. Behind a
+proxy the address budget is one budget for all runners, a backstop against one client trying many
+accounts, so it is set far above what mistyping runners reach. The API is
+limited to 1,000 requests per 15 minutes per signed-in user, and to 10,000 per address (the
+address budget also covers requests with no session, such as the calendar feed and phone pushes).
+A password change counts refusals only, 5 per 15 minutes per signed-in user (the wrong current
+password, a weak new one). The calendar feed counts refusals only: 10 per token and 100 per address. The limits are held in
+memory and reset on restart. The app does not trust `X-Forwarded-For`, so behind a reverse proxy
+every request has the proxy's address; users there are told apart by account, user and token, and
+only the address budgets are shared.
 
 ## Commands
 
@@ -601,7 +611,7 @@ only its hash is stored, so a lost one is replaced with `reset-password`. Send i
 by a private channel. The first sign-in asks for a new password before anything else; Settings has
 a Password block for later changes (current password, new password, confirmation). Changing the
 password signs the account's other devices out and keeps the one in use. Wrong current passwords are
-limited to 5 per 15 minutes per account. A second account with the same email is refused.
+limited to 5 per 15 minutes (see the rate limits under First run). A second account with the same email is refused.
 
 `--units` (`km` or `mi`), `--weight` (`kg` or `lb`) and `--tz` (an IANA zone such as
 `America/Chicago`) set the account's own settings. Whatever is left out is taken from the browser

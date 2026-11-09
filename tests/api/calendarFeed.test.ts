@@ -455,15 +455,28 @@ describe('GET /api/calendar/:token/plan.ics', () => {
     expect(other.text).not.toContain('BEGIN:VCALENDAR')
   })
 
-  test('limits refusals like sign-in: ten answers of 404, then 429 for the same address', async () => {
+  test('limits refusals per token: ten answers of 404, then 429 for that token only', async () => {
     const u = await seedUser(ctx)
     const link = await makeLink(u)
-    for (let i = 0; i < 10; i += 1) {
+    const dead = `/api/calendar/${'B'.repeat(43)}/plan.ics`
+    for (let i = 0; i < 10; i += 1) expect((await open(dead)).status).toBe(404)
+    const limited = await open(dead)
+    expect(limited.status).toBe(429)
+    expect(limited.headers['retry-after']).toBeDefined()
+    expect(limited.body).toMatchObject({ error: { code: 'unauthorized' } })
+    // another subscription, dead or live, from the same address is not touched
+    expect((await open(`/api/calendar/${'C'.repeat(43)}/plan.ics`)).status).toBe(404)
+    expect((await open(link.path)).status).toBe(200)
+  })
+
+  test('limits a guesser of many tokens per address: 100 refusals, then 429 for any token', async () => {
+    const u = await seedUser(ctx)
+    const link = await makeLink(u)
+    for (let i = 0; i < 100; i += 1) {
       expect((await open(`/api/calendar/${String(i).padStart(43, 'B')}/plan.ics`)).status).toBe(404)
     }
     const limited = await open(`/api/calendar/${'C'.repeat(43)}/plan.ics`)
     expect(limited.status).toBe(429)
-    expect(limited.headers['retry-after']).toBeDefined()
     expect(limited.body).toMatchObject({ error: { code: 'unauthorized' } })
     // the guesser's address is out, even for the right token, until the window has passed
     expect((await open(link.path)).status).toBe(429)
@@ -473,10 +486,10 @@ describe('GET /api/calendar/:token/plan.ics', () => {
     const u = await seedUser(ctx)
     const link = await makeLink(u)
     for (let i = 0; i < 25; i += 1) expect((await open(link.path)).status).toBe(200)
-    for (let i = 0; i < 10; i += 1) {
-      expect((await open(`/api/calendar/${String(i).padStart(43, 'D')}/plan.ics`)).status).toBe(404)
-    }
-    expect((await open(`/api/calendar/${'E'.repeat(43)}/plan.ics`)).status).toBe(429)
+    const dead = `/api/calendar/${'D'.repeat(43)}/plan.ics`
+    for (let i = 0; i < 10; i += 1) expect((await open(dead)).status).toBe(404)
+    expect((await open(dead)).status).toBe(429)
+    expect((await open(link.path)).status).toBe(200)
   })
 
   test('is an empty calendar for a runner with no plan', async () => {

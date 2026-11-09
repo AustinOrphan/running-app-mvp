@@ -6,7 +6,11 @@ import type { Deps } from '../app.ts'
 import { conflict, parse, unauthorized, validationError } from '../errors.ts'
 import { requireAuth } from './middleware.ts'
 import { DUMMY_PASSWORD_HASH, hashPassword, passwordSchema, verifyPassword } from './password.ts'
-import { createLoginLimiter, createPasswordChangeLimiter } from './rateLimit.ts'
+import {
+  createPasswordChangeLimiter,
+  createSignInAccountLimiter,
+  createSignInAddressLimiter,
+} from './rateLimit.ts'
 import { clearSessionCookie, setSessionCookie, signSession } from './session.ts'
 
 const email = z.string().trim().toLowerCase()
@@ -68,7 +72,10 @@ function isUniqueViolation(error: unknown): boolean {
 export function authRouter(deps: Deps): Router {
   const router = Router()
   const { prisma, config } = deps
-  const loginLimiter = createLoginLimiter()
+  // Setup and sign-in share both budgets. The account limiter comes first, so a locked account's
+  // refusals never spend the address budget, which behind a proxy is one budget for every runner.
+  const addressLimiter = createSignInAddressLimiter()
+  const accountLimiter = createSignInAccountLimiter()
   const passwordLimiter = createPasswordChangeLimiter()
 
   router.get('/setup', async (_req, res) => {
@@ -76,7 +83,7 @@ export function authRouter(deps: Deps): Router {
     res.json({ needsSetup: users === 0 })
   })
 
-  router.post('/setup', loginLimiter, async (req, res) => {
+  router.post('/setup', accountLimiter.limit, addressLimiter, async (req, res) => {
     if ((await prisma.user.count()) > 0 && !config.allowRegistration) {
       throw conflict('Setup is closed because an account already exists.')
     }
@@ -105,12 +112,13 @@ export function authRouter(deps: Deps): Router {
     res.status(201).json(toSessionUser(user))
   })
 
-  router.post('/auth/login', loginLimiter, async (req, res) => {
+  router.post('/auth/login', accountLimiter.limit, addressLimiter, async (req, res) => {
     const body = parse(loginSchema, req.body)
     const user = await prisma.user.findUnique({ where: { email: body.email } })
     // Always one compare, so an unknown email takes as long as a wrong password.
     const matches = await verifyPassword(body.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH)
     if (!user || !matches) throw unauthorized('Invalid email or password')
+    accountLimiter.reset(body.email)
     setSessionCookie(
       res,
       signSession(user.id, config.sessionSecret, user.sessionVersion),

@@ -2,7 +2,7 @@ import { Router } from 'express'
 import type { SerializedRequest } from 'pino'
 import { todayIso } from '../../shared/dates.ts'
 import type { Deps } from '../app.ts'
-import { createFeedLimiter } from '../auth/rateLimit.ts'
+import { createFeedLimiters } from '../auth/rateLimit.ts'
 import { notFound } from '../errors.ts'
 import { calendarFeed, userForCalendarToken } from '../services/calendar.ts'
 
@@ -51,12 +51,12 @@ export function redactedRequest(req: SerializedRequest): SerializedRequest {
  * and every body parser (phase 3a design 4.8) and checks its own token: a request costs one hash
  * lookup, then one deliverable build. A token that is unknown, replaced or revoked is a 404 with
  * the body of any unknown route, never a 401, so the answer says nothing about which tokens have
- * existed. Refusals are rate-limited like sign-in.
+ * existed. Refusals are rate-limited per token hash and, more loosely, per address.
  */
 export function calendarRouter(deps: Deps): Router {
   const router = Router()
 
-  router.get('/:token/plan.ics', createFeedLimiter(), async (req, res) => {
+  router.get('/:token/plan.ics', ...createFeedLimiters(), async (req, res) => {
     const userId = await userForCalendarToken(deps, String(req.params.token))
     if (userId === null) throw notFound()
     const feed = await calendarFeed(deps, { userId, today: todayIso() })
