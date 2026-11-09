@@ -204,10 +204,13 @@ Status: Accepted 2026-11-08 (#672)
 
 ## Addendum 2026-11-08: climbing and intensity per week (task TL1)
 
+Status: Proposed 2026-11-08
+
 Two weekly panels join the page beside the running weeks: climbing per week and intensity per week.
 They add rule A12 and an amendment of T1 (`research/engine-rules.md`); no `Param`, paper, migration
-or environment variable, and `PARAMS_VERSION` is unchanged. Nothing in `shared/engine/` is read or
-changed apart from the export of `timeInBand`.
+or environment variable, and `PARAMS_VERSION` is unchanged. The panels read `hrQualityPasses` and
+`timeInBand` from `shared/engine/` and change nothing there but the export of `timeInBand`; no
+engine decision reads the panels.
 
 ### Decision
 
@@ -244,9 +247,8 @@ changed apart from the export of `timeInBand`.
 - **Fact:** the plan reads weekly run minutes (rules G-1, G-2, G-8) and Trends already draws them with
   a four-week mean, so a minutes curve would repeat the running panel (`web/pages/TrendsPage.tsx`,
   read 2026-11-08).
-- **Fact:** 1 of the runner's 333 runs carries a session rating, 31 of the last 36 runs carry an
-  elevation gain and 20 of the last 36 a stored heart-rate histogram (counted in the design pass of
-  2026-11-08). A panel on session RPE (rule B1) would be empty, so it was not built; unrated runs are
+- **Fact:** ratings were rare on the runner's own data (checked 2026-11-08); most runs carry an
+  elevation gain and about half carry a heart-rate histogram. A panel on session RPE (rule B1) would be empty, so it was not built; unrated runs are
   not estimated from heart rate (rules B2, B4).
 - **Rule:** G-5 and T1 forbid a ratio of recent to earlier load, and G5 forbids verdict copy; the
   panels follow them, checked by the copy lint and a scan test.
