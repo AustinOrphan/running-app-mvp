@@ -192,9 +192,9 @@ describe('Trends, intensity per week', () => {
   test('draws the zones as they stand today, with the neutral part named in the key and the table', async () => {
     mockPage(view({ runs: RUNS }))
     renderWithProviders(<TrendsPage />)
-    const chart = await screen.findByRole('img', { name: /^Run hours per week by zone/ })
+    const chart = await screen.findByRole('img', { name: /^Intensity per week by zone/ })
     expect(chart).toHaveAccessibleName(
-      'Run hours per week by zone, since the week of 23 Feb. Latest complete week: Zone 1 0 min, Zone 2 0 min, Zone 3 0 min, no usable heart rate 60 min.',
+      'Intensity per week by zone, since the week of 23 Feb. Latest complete week: Zone 1 0 min, Zone 2 0 min, Zone 3 0 min, no usable heart rate 60 min.',
     )
     expect(screen.getByText(/zones as they stand today\./)).toBeInTheDocument()
     expect(
@@ -250,14 +250,14 @@ describe('Trends, intensity per week', () => {
     renderWithProviders(<TrendsPage />)
     expect(await screen.findByText('No heart-rate zones are set yet.')).toBeInTheDocument()
     expect(
-      screen.queryByRole('img', { name: /^Run hours per week by zone/ }),
+      screen.queryByRole('img', { name: /^Intensity per week by zone/ }),
     ).not.toBeInTheDocument()
   })
 
   test('keeps a week of only unusable runs as one neutral part, never spread over the zones', async () => {
     mockPage(view({ runs: [run(8, { bandSec: null }), run(9, { bandSec: null })] }))
     renderWithProviders(<TrendsPage />)
-    const chart = await screen.findByRole('img', { name: /^Run hours per week by zone/ })
+    const chart = await screen.findByRole('img', { name: /^Intensity per week by zone/ })
     expect(screen.getByText(/^0 of 2 runs have usable heart rate\./)).toBeInTheDocument()
     const table = within(chart.closest('figure') as HTMLElement).getByRole('table')
     // The last row is this week, which holds no run.
@@ -272,7 +272,7 @@ describe('Trends, the two load panels', () => {
   test('keep every sentence clean under the G5 lint', async () => {
     mockPage(view({ runs: RUNS }))
     const { container } = renderWithProviders(<TrendsPage />)
-    await screen.findByRole('img', { name: /^Run hours per week by zone/ })
+    await screen.findByRole('img', { name: /^Intensity per week by zone/ })
     await screen.findByRole('img', { name: /^Climbing per week/ })
     expectCleanCopy(container)
   })

@@ -319,14 +319,14 @@ export const TRENDS_TEMPLATES = {
     'The zones need a maximum heart rate. Add one on Profile and the weeks are split here.',
   ),
   'trends.intensity.aria': tpl(
-    'Run hours per week by zone, {span}. Latest complete week: Zone 1 {z1}, Zone 2 {z2}, Zone 3 {z3}, no usable heart rate {none}.',
+    'Intensity per week by zone, {span}. Latest complete week: Zone 1 {z1}, Zone 2 {z2}, Zone 3 {z3}, no usable heart rate {none}.',
     { span: 'text', z1: 'minutes', z2: 'minutes', z3: 'minutes', none: 'minutes' },
-    { fallback: 'Run hours per week by heart-rate zone.' },
+    { fallback: 'Intensity per week by zone.' },
   ),
   'trends.intensity.aria-none': tpl(
-    'Run hours per week by heart-rate zone, {span}. No complete week has runs yet.',
+    'Intensity per week by zone, {span}. No complete week has runs yet.',
     { span: 'text' },
-    { fallback: 'Run hours per week by heart-rate zone.' },
+    { fallback: 'Intensity per week by zone.' },
   ),
 } as const
 

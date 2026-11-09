@@ -263,7 +263,7 @@ describe('the words of the climbing and intensity panels', () => {
     )
     expect(intensityCoverageLine(20, 36)).toBe('20 of 36 runs have usable heart rate.')
     expect(intensityAria('last 12 months', { z1: 120, z2: 45, z3: 5, none: 30 })).toBe(
-      'Run hours per week by zone, last 12 months. Latest complete week: Zone 1 2 h, Zone 2 45 min, Zone 3 5 min, no usable heart rate 30 min.',
+      'Intensity per week by zone, last 12 months. Latest complete week: Zone 1 2 h, Zone 2 45 min, Zone 3 5 min, no usable heart rate 30 min.',
     )
     expect(intensityAria('last 12 months', null)).toContain('No complete week has runs yet.')
     expect(trendsText('trends.intensity.caption')).toContain('as they stand today')

@@ -39,7 +39,7 @@ interface Point {
 }
 
 /** Width of the value axis (px); the ticks are bare numbers and the unit is in the caption. */
-const AXIS_WIDTH = 40
+const AXIS_WIDTH = 52
 /** Room on the right for the last month's label, which is centred on its week (px). */
 const RIGHT_ROOM = 12
 
