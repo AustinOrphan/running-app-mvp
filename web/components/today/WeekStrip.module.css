@@ -79,6 +79,17 @@
   background: var(--accent);
 }
 
+/* On today's tinted column the control edge is under 3:1 (tokensContrast.test.ts), so the outline
+   and the open marks take the muted text colour there. */
+.cell[aria-current='date'] .planned {
+  border-color: var(--text-muted);
+}
+
+.cell[aria-current='date'] .mark[data-mark='planned'],
+.cell[aria-current='date'] .mark[data-mark='unlogged'] {
+  border-color: var(--text-muted);
+}
+
 .tap:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
