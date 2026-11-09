@@ -26,7 +26,22 @@ const NOT_ONE_PACE: ReadonlySet<SessionKind> = new Set<SessionKind>(['long-fast-
 function isOneSteadyStretch(session: ChartSession): boolean {
   if (NOT_ONE_PACE.has(session.kind)) return false
   if (session.flags.includes('run-walk')) return false
+  // no steps at all is one stretch only for a session paced as a whole: a short threshold or
+  // intervals session stores no steps and its pace is the work pace
+  if (session.structure.length === 0) return session.kind === 'race-pace' || session.kind === 'race'
   return session.structure.every((step: Step) => step.kind === 'steady')
+}
+
+/** Whether every step that is run (not a warm-up, cool-down or recovery) is in Z1: no fast finish or work. */
+function isEasyThroughout(session: ChartSession): boolean {
+  if (NOT_ONE_PACE.has(session.kind)) return false
+  return session.structure.every(
+    (step: Step) =>
+      step.kind === 'warmup' ||
+      step.kind === 'cooldown' ||
+      step.kind === 'recover' ||
+      step.zone === 'z1',
+  )
 }
 
 /**
@@ -44,6 +59,7 @@ export function runChartContext(
   return {
     plannedPaceSecPerKm:
       targets.mode === 'pace' && isOneSteadyStretch(session) ? targets.paceSecPerKm : null,
-    easyCeilingBpm: targets.mode === 'hr-ceiling' ? targets.hrCeiling : null,
+    easyCeilingBpm:
+      targets.mode === 'hr-ceiling' && isEasyThroughout(session) ? targets.hrCeiling : null,
   }
 }

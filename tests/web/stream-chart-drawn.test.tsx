@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { cloneElement, Profiler, type ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { ActivityStreamData } from '../../shared/types.ts'
-import { StreamChart } from '../../web/components/charts/StreamChart.tsx'
+import { StreamChart, yScale } from '../../web/components/charts/StreamChart.tsx'
 import type { StreamData } from '../../web/components/charts/streamSeries.ts'
 import { createDistanceCursor } from '../../web/components/map/distanceCursor.ts'
 
@@ -11,8 +11,15 @@ import { createDistanceCursor } from '../../web/components/map/distanceCursor.ts
 // as elements, not only as captions.
 vi.mock('recharts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('recharts')>()
+  const { createElement } = await import('react')
   return {
     ...actual,
+    // counts how often a plot (a ComposedChart) renders
+    ComposedChart: (props: object) => {
+      ;(globalThis as { __plotRenders?: number }).__plotRenders =
+        ((globalThis as { __plotRenders?: number }).__plotRenders ?? 0) + 1
+      return createElement(actual.ComposedChart, props as never)
+    },
     ResponsiveContainer: ({ children }: { children: ReactElement }) =>
       cloneElement(children, { width: 640, height: 96 } as never),
   }
@@ -84,6 +91,30 @@ describe('what the plots draw', () => {
     expect(
       screen.getByText(/Heart rate above the easy ceiling of 145 bpm is hatched\./),
     ).toBeInTheDocument()
+  })
+})
+
+describe('axes', () => {
+  test('every pace tick lands on a round figure, whatever the span', () => {
+    for (const values of [
+      [330, 350],
+      [330, 380],
+      [331, 372],
+      [500, 500],
+    ]) {
+      const { domain, ticks } = yScale(values, 'pace', [])
+      expect((domain[1] - domain[0]) % 30).toBe(0)
+      for (const tick of ticks) expect(tick % 15).toBe(0)
+    }
+  })
+
+  test('a very short run labels its 0.25 tick as 0.25', () => {
+    const t = Array.from({ length: 12 }, (_, i) => i * 10)
+    const stream = makeStream({ d: t.map((_, i) => (i + 1) * 50) })
+    render(<StreamChart stream={stream} channels={['hr']} units="km" />)
+    const ticks = Array.from(document.querySelectorAll('tspan')).map((n) => n.textContent)
+    expect(ticks).toContain('0.25')
+    expect(ticks).not.toContain('0.3')
   })
 })
 
@@ -231,6 +262,21 @@ describe('the cursor', () => {
     expect(fireEvent.keyDown(panel(), { key: 'Escape' })).toBe(true)
     expect(fireEvent.keyDown(panel(), { key: 'ArrowRight' })).toBe(false)
     expect(fireEvent.keyDown(panel(), { key: 'Escape' })).toBe(false)
+  })
+
+  test('a parent that renders again with a fresh band array re-renders no plot', () => {
+    const renders = () => (globalThis as { __plotRenders?: number }).__plotRenders ?? 0
+    const stream = makeStream()
+    const view = (band: [number, number]) => (
+      <StreamChart stream={stream} units="km" plannedPaceSecPerKm={band} easyCeilingBpm={145} />
+    )
+    const { rerender } = render(view([345, 320]))
+    const before = renders()
+    expect(before).toBeGreaterThan(0)
+    rerender(view([345, 320])) // the same figures in a new array
+    expect(renders()).toBe(before)
+    rerender(view([350, 320])) // a different band does draw
+    expect(renders()).toBeGreaterThan(before)
   })
 
   test('moving the cursor commits nothing: no plot and no parent renders again', () => {

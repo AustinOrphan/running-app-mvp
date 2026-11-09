@@ -123,6 +123,43 @@ describe('runChartContext', () => {
   })
 })
 
+describe('runChartContext: edge sessions', () => {
+  test('a long run with a fast finish gets no ceiling: the finish is planned above Z1', () => {
+    const finish: Step = { kind: 'work', reps: 1, durationSec: 900, distanceM: null, zone: 'z2' }
+    const s = session({ kind: 'long-fast-finish', structure: [steady, finish] })
+    expect(runChartContext(s, ZONES)).toEqual({ plannedPaceSecPerKm: null, easyCeilingBpm: null })
+  })
+
+  test('a run-walk session with every step in Z1 keeps the ceiling and has no band', () => {
+    const walk: Step = { kind: 'recover', reps: 6, durationSec: 60, distanceM: null, zone: 'z1' }
+    const run: Step = { kind: 'work', reps: 6, durationSec: 120, distanceM: null, zone: 'z1' }
+    const s = session({ structure: [run, walk], flags: ['run-walk'] })
+    expect(runChartContext(s, ZONES)).toEqual({ plannedPaceSecPerKm: null, easyCeilingBpm: 142 })
+  })
+
+  test('an empty structure is one stretch only for race pace and race', () => {
+    const target = {
+      zone: 'z3' as const,
+      rpe: [6, 7] as [number, number],
+      hr: [159, 170] as [number, number],
+      paceSecPerKm: [330, 310] as [number, number],
+      heatNote: null,
+    }
+    for (const kind of ['threshold', 'intervals'] as const) {
+      expect(runChartContext(session({ kind, structure: [], target }), ZONES)).toEqual({
+        plannedPaceSecPerKm: null,
+        easyCeilingBpm: null,
+      })
+    }
+    const race = { ...target, zone: 'race-pace' as const, hr: null }
+    for (const kind of ['race-pace', 'race'] as const) {
+      expect(
+        runChartContext(session({ kind, structure: [], target: race }), ZONES).plannedPaceSecPerKm,
+      ).toEqual([330, 310])
+    }
+  })
+})
+
 describe('withoutMinutesShare', () => {
   test('drops the sentence that sets minutes against minutes as a share, and only it', () => {
     const lines = [

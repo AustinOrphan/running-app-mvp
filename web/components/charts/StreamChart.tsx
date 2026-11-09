@@ -111,7 +111,7 @@ function valuesOf(points: SeriesPoint[]): number[] {
  * and fastest 5% so a stop does not flatten the chart. `extra` are figures the plot draws that the
  * stream may not reach (the planned band, the ceiling): the bounds take them in.
  */
-function yScale(
+export function yScale(
   values: number[],
   channel: StreamChannel,
   extra: number[],
@@ -125,6 +125,8 @@ function yScale(
   let low = Math.floor(lo / step) * step
   let high = Math.ceil(hi / step) * step
   if (high === low) high = low + step
+  // the middle tick is a round figure: a pace span is a whole number of 30 s
+  if (channel === 'pace' && ((high - low) / step) % 2 === 1) high += step
   if (channel !== 'pace' && low < 0 && lo >= 0) low = 0
   return { domain: [low, high], ticks: [low, (low + high) / 2, high] }
 }
@@ -340,11 +342,7 @@ const Plot = memo(function Plot({
               hide={!last}
               height={X_AXIS_HEIGHT}
               tickFormatter={(x: number) =>
-                axis === 'distance'
-                  ? Number.isInteger(x)
-                    ? String(x)
-                    : x.toFixed(1)
-                  : String(Math.round(x))
+                axis === 'distance' ? String(Number(x.toFixed(2))) : String(Math.round(x))
               }
             />
             <YAxis
@@ -477,9 +475,16 @@ export function StreamChart({
   )
   const axis = streamXAxis(stream)
   const xMax = Math.max(rows.at(-1)?.x ?? 0, Number.EPSILON)
+  // keyed on the figures: the caller may hand over a fresh array with the same pace on every render
+  const slowPace = plannedPaceSecPerKm?.[0]
+  const fastPace = plannedPaceSecPerKm?.[1]
   const band = useMemo(
-    () => plannedPaceBand(plannedPaceSecPerKm, units),
-    [plannedPaceSecPerKm, units],
+    () =>
+      plannedPaceBand(
+        slowPace !== undefined && fastPace !== undefined ? [slowPace, fastPace] : null,
+        units,
+      ),
+    [slowPace, fastPace, units],
   )
   const ceiling =
     easyCeilingBpm !== null && Number.isFinite(easyCeilingBpm) && easyCeilingBpm > 0
