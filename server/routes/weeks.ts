@@ -38,7 +38,7 @@ export function weeksRouter(deps: Deps): Router {
     const weekStarts = parseWeekRange(req.query)
     const first = weekStarts[0] ?? mondayOf(todayIso())
     const last = weekStarts[weekStarts.length - 1] ?? first
-    // Six columns, from the lookback of the first row to the end of the last week.
+    // Seven columns, from the lookback of the first row to the end of the last week.
     const activities = await loadActivityCores(deps.prisma, req.userId, {
       from: activityLoadStart(first),
       to: addDays(last, 6),

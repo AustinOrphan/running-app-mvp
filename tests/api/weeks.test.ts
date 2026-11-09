@@ -164,10 +164,18 @@ describe('GET /api/weeks', () => {
   })
 })
 
-const CORE_COLUMNS = ['date', 'distanceM', 'duplicateStatus', 'durationSec', 'id', 'type']
+const CORE_COLUMNS = [
+  'date',
+  'distanceM',
+  'duplicateStatus',
+  'durationSec',
+  'elevationGainM',
+  'id',
+  'type',
+]
 
 describe('the activities a range loads', () => {
-  test('GET /weeks reads six columns, from 52 weeks before the first week to the last Sunday', async () => {
+  test('GET /weeks reads seven columns, from 52 weeks before the first week to the last Sunday', async () => {
     const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
     const res = await get('?from=2026-03-02&to=2026-03-09')
     expect(res.status).toBe(200)
@@ -207,7 +215,7 @@ describe('loadActivityCores', () => {
     }
   }
 
-  test('selects the six columns of the week rows and the statistics, for one user', async () => {
+  test('selects the seven columns of the week rows and the statistics, for one user', async () => {
     const { findMany, prisma } = stub()
     await loadActivityCores(prisma, 'u1')
     expect(findMany).toHaveBeenCalledTimes(1)

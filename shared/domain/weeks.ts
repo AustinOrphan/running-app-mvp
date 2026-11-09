@@ -8,11 +8,12 @@ import { addDays, mondayOf } from '../dates.ts'
  */
 export const STREAK_LOOKBACK_WEEKS = 52
 
-/** The five columns of an activity that the week rows read. */
+/** The columns of an activity that the week rows read; the gain is optional for callers with no climb to sum. */
 export type WeekCore = Pick<
   Activity,
   'date' | 'type' | 'durationSec' | 'distanceM' | 'duplicateStatus'
->
+> &
+  Partial<Pick<Activity, 'elevationGainM'>>
 
 /**
  * The first date of the activities that a range of weeks needs, given its first Monday. The row of
@@ -26,6 +27,7 @@ export function activityLoadStart(firstWeek: string): string {
 interface WeekTotals {
   runSec: number
   runM: number
+  climbM: number | null
   runSessions: number
   runDates: Set<string>
   strengthSessions: number
@@ -38,6 +40,7 @@ function emptyTotals(): WeekTotals {
   return {
     runSec: 0,
     runM: 0,
+    climbM: null,
     runSessions: 0,
     runDates: new Set(),
     strengthSessions: 0,
@@ -76,6 +79,9 @@ export function aggregateWeeks(activities: WeekCore[], weekStarts: string[]): We
       case 'run':
         totals.runSec += activity.durationSec
         totals.runM += activity.distanceM ?? 0
+        if (activity.elevationGainM != null) {
+          totals.climbM = (totals.climbM ?? 0) + activity.elevationGainM
+        }
         totals.runSessions += 1
         totals.runDates.add(activity.date)
         totals.longestRunSec = Math.max(totals.longestRunSec, activity.durationSec)
@@ -121,6 +127,7 @@ export function aggregateWeeks(activities: WeekCore[], weekStarts: string[]): We
       weekStart,
       runMin,
       runM: totals.runM,
+      climbM: totals.climbM,
       runSessions: totals.runSessions,
       runDays: totals.runDates.size,
       strengthSessions: totals.strengthSessions,

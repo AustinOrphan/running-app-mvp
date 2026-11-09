@@ -51,7 +51,7 @@ export function makeActivity(over: Partial<Activity> = {}): Activity {
   }
 }
 
-/** The six columns `loadActivityCores` returns, for code that reads no more than that. */
+/** The seven columns `loadActivityCores` returns, for code that reads no more than that. */
 export function makeActivityCore(over: Partial<ActivityCore> = {}): ActivityCore {
   return {
     id: `c${nextId++}`,
@@ -60,6 +60,7 @@ export function makeActivityCore(over: Partial<ActivityCore> = {}): ActivityCore
     durationSec: 1800,
     distanceM: 5000,
     duplicateStatus: 'none',
+    elevationGainM: null,
     ...over,
   }
 }
@@ -76,6 +77,7 @@ export function makeWeekRow(over: Partial<WeekRow> = {}): WeekRow {
     raceMin: 0,
     longestRunMin: 0,
     longRunShare: null,
+    climbM: null,
     avg4wRunMin: 0,
     streak3Plus: 0,
     ...over,

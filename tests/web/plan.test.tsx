@@ -296,7 +296,11 @@ describe('Plan page', () => {
     expect(within(row(after.weekStart)).getByText('After the race')).toBeInTheDocument()
     expect(within(row(after.weekStart)).queryByText('Race week')).not.toBeInTheDocument()
     expect(row(after.weekStart)).not.toHaveAttribute('data-race')
-    expect(screen.getAllByText('Race week')).toHaveLength(1)
+    expect(
+      within(
+        screen.getByRole('table', { name: 'Weekly plan, target and actual run hours' }),
+      ).getAllByText('Race week'),
+    ).toHaveLength(1)
   })
 
   test('week table: phase chips with --phase-level 1..6 (taper and race dashed), cutback rows italic with the word "cutback", race row emphasised, current week aria-current="date", targets via minutesToHours1', async () => {
@@ -427,7 +431,9 @@ describe('Plan page', () => {
     expect(rows()).toHaveLength(phases.length - 2)
     expect(screen.queryByRole('button', { name: 'Edit week of 28 Dec' })).not.toBeInTheDocument()
     // the fold is the first row of the table, above the current week
-    const first = document.querySelector('tbody tr')
+    const first = screen
+      .getByRole('table', { name: 'Weekly plan, target and actual run hours' })
+      .querySelector('tbody tr')
     expect(first).toContainElement(toggle)
 
     await user.click(toggle)

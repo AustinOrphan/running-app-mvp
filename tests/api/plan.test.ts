@@ -188,7 +188,7 @@ describe('computeBaselineRunMin', () => {
     }
   })
 
-  test('reads the six core columns over the 26 completed weeks, with no heart-rate histogram', async () => {
+  test('reads the seven core columns over the 26 completed weeks, with no heart-rate histogram', async () => {
     const findMany = vi.fn((_args: unknown) =>
       Promise.resolve([
         makeActivityCore({ date: '2026-02-10', durationSec: 60 * 60 }),
@@ -217,6 +217,7 @@ describe('computeBaselineRunMin', () => {
       'distanceM',
       'duplicateStatus',
       'durationSec',
+      'elevationGainM',
       'id',
       'type',
     ])

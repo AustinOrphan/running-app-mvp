@@ -944,7 +944,7 @@ export function toImportBatch(row: ImportBatchRow): ImportBatch {
 }
 
 /**
- * A user's activities as the six columns the week rows and the statistics read, in no particular
+ * A user's activities as the seven columns the week rows and the statistics read, in no particular
  * order, with flagged duplicates included. Dates are inclusive.
  */
 export async function loadActivityCores(
@@ -971,6 +971,7 @@ export async function loadActivityCores(
       durationSec: true,
       distanceM: true,
       duplicateStatus: true,
+      elevationGainM: true,
     },
   })
   return rows.map((row) => ({

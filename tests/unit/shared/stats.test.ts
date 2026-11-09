@@ -166,8 +166,8 @@ test('empty input gives empty arrays', () => {
   expect(longestRuns([])).toEqual([])
 })
 
-describe('rows of six columns', () => {
-  // The server loads these six columns instead of whole activities; every statistic reads no more.
+describe('rows of seven columns', () => {
+  // The server loads these seven columns instead of whole activities; every statistic reads no more.
   test('feed the efforts, the totals and the longest runs', () => {
     const rows = [
       makeActivityCore({ id: 'fast', durationSec: 1500 }),

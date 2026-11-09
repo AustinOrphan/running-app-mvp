@@ -104,12 +104,12 @@ export interface Activity {
   updatedAt: string
 }
 /**
- * The six columns the week rows and the statistics read. The server loads these
+ * The seven columns the week rows and the statistics read. The server loads these
  * (`loadActivityCores`) instead of whole activities, which also carry a heart-rate histogram.
  */
 export type ActivityCore = Pick<
   Activity,
-  'id' | 'date' | 'type' | 'durationSec' | 'distanceM' | 'duplicateStatus'
+  'id' | 'date' | 'type' | 'durationSec' | 'distanceM' | 'duplicateStatus' | 'elevationGainM'
 >
 /**
  * An activity as the list shows it: every column but the heart-rate histogram, which is the
@@ -567,6 +567,11 @@ export interface WeekRow {
   raceMin: number
   longestRunMin: number
   longRunShare: number | null
+  /**
+   * Elevation gain in metres summed over the week's runs, leaving out a run with no gain; null when
+   * no run of the week has one (the table shows a dash, never 0).
+   */
+  climbM: number | null
   avg4wRunMin: number
   /** Consecutive weeks ending here with 3 or more runs, counted up to 52 (`STREAK_LOOKBACK_WEEKS`). */
   streak3Plus: number

@@ -191,7 +191,7 @@ describe('the strip on the Plan page', () => {
       'GET /api/plan': () => ({ ...plan, generatorVersion: 1, sessions: [] }),
     })
     renderPlan()
-    await screen.findByRole('table')
+    await screen.findByRole('table', { name: 'Weekly plan, target and actual run hours' })
     expect(screen.queryByRole('region', { name: 'Watch' })).not.toBeInTheDocument()
   })
 })
@@ -298,7 +298,7 @@ describe('the days of a week', () => {
     const user = userEvent.setup()
     mockApi(routes(makeV2Plan(), sendingOn([])))
     renderPlan()
-    await screen.findByRole('table')
+    await screen.findByRole('table', { name: 'Weekly plan, target and actual run hours' })
     await user.click(await screen.findByRole('button', { name: 'Earlier weeks (1)' }))
     await user.click(await screen.findByRole('button', { name: 'Days for week of 4 Jan' }))
     const row = days('2027-01-04')

@@ -202,7 +202,7 @@ its build runs `prisma migrate deploy` as a smoke test.
   `replanActivePlan` wraps the first two. Nothing else creates a revision (a test scans `server/`),
   and each revision stores a `PlanDiff` and an `UndoPayload` built from the rows actually written.
   Summaries are templates in `shared/copy/revision.ts`.
-- Week and statistics code reads `ActivityCore` rows (`loadActivityCores`, six columns), from
+- Week and statistics code reads `ActivityCore` rows (`loadActivityCores`, seven columns, the last one the elevation gain), from
   `activityLoadStart(first week)` to the last Sunday, never every whole activity. A loop over weeks
   reads the database once for all of them (`executionRecordsByWeek`).
 - The strength workout (lifts, sets, loads, efforts) is derived on read in `shared/engine/strength.ts`

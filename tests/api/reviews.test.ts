@@ -214,12 +214,12 @@ describe('GET /api/reviews', () => {
     expect((await list('', null)).status).toBe(401)
   })
 
-  test('loads six columns of activities, from 52 weeks before the first week to the last Sunday', async () => {
+  test('loads seven columns of activities, from 52 weeks before the first week to the last Sunday', async () => {
     const findMany = vi.spyOn(ctx.prisma.activity, 'findMany')
     const res = await list(`?from=${W1}&to=${W3}`, user)
     expect(res.status).toBe(200)
     // The athlete snapshot (ADR 0009) reads the check-ins' window with whole rows; the weeks come
-    // from one read of six columns.
+    // from one read of seven columns.
     const bounded = findMany.mock.calls.filter(([args]) => args?.select !== undefined)
     expect(bounded).toHaveLength(1)
     const args = bounded[0]![0]!
@@ -229,6 +229,7 @@ describe('GET /api/reviews', () => {
       'distanceM',
       'duplicateStatus',
       'durationSec',
+      'elevationGainM',
       'id',
       'type',
     ])
