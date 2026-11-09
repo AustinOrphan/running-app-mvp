@@ -354,6 +354,20 @@ export const TODAY_TEMPLATES = {
     { weekday: 'weekday', date: 'date', mark: 'text', logged: 'minutes' },
     { shape: 'label' },
   ),
+  // The hidden table behind the week's bars: the minutes planned and the minutes logged, by day.
+  'today.week.table-caption': tpl(
+    'Run time by day this week, planned and logged',
+    {},
+    {
+      shape: 'label',
+    },
+  ),
+  'today.week.col-day': tpl('Day', {}, { shape: 'label' }),
+  'today.week.col-planned': tpl('Planned', {}, { shape: 'label' }),
+  'today.week.col-logged': tpl('Logged', {}, { shape: 'label' }),
+  'today.week.cell-min': tpl('{min}', { min: 'minutes' }, { shape: 'label' }),
+  'today.week.row-today': tpl('{weekday}, today', { weekday: 'weekday' }, { shape: 'label' }),
+  'today.week.row': tpl('{weekday}', { weekday: 'weekday' }, { shape: 'label' }),
   // What the plan holds for the rest of the week, as a description (`plannedRestOfWeekMin`), never
   // what the target would take. It is left out while a window is open, on a rest day and when the
   // verdict is an easy day, a rest day or a lighter week (`showWeekAdvisory`).

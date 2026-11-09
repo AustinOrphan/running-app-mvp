@@ -10,7 +10,7 @@ import type {
   WeekStripDay,
 } from '../../../shared/types.ts'
 import { minutesToHours1 } from '../../../shared/units.ts'
-import { plannedRestOfWeekMin } from '../../../shared/domain/weekStrip.ts'
+import { plannedRestOfWeekMin, weekBars, type WeekBar } from '../../../shared/domain/weekStrip.ts'
 import { formatWeekday } from '../format.ts'
 import { Meter } from '../Meter.tsx'
 import { SessionSheet } from '../SessionSheet.tsx'
@@ -40,9 +40,22 @@ function dayName(day: WeekStripDay, units: Units): string {
     : render(TEMPLATES['today.week.day'], when, units)
 }
 
-function DayFace({ day, units }: { day: WeekStripDay; units: Units }) {
+/** A bar's height as a share of the column, at least a hairline for any minutes at all. */
+function barHeight(share: number): string {
+  return share === 0 ? '0' : `max(${String(Math.round(share * 1000) / 10)}%, 3px)`
+}
+
+function DayFace({ day, bar, units }: { day: WeekStripDay; bar: WeekBar; units: Units }) {
   return (
     <>
+      <span aria-hidden="true" className={styles.bars}>
+        {bar.plannedMin > 0 ? (
+          <span className={styles.planned} style={{ height: barHeight(bar.plannedShare) }} />
+        ) : null}
+        {bar.runMin > 0 ? (
+          <span className={styles.run} style={{ height: barHeight(bar.runShare) }} />
+        ) : null}
+      </span>
       <span aria-hidden="true" className={styles.dayName}>
         {formatWeekday(day.date)}
       </span>
@@ -55,9 +68,51 @@ function DayFace({ day, units }: { day: WeekStripDay; units: Units }) {
   )
 }
 
+/** The figures behind the bars, for a screen reader: planned and logged minutes by day. */
+function WeekBarsTable({
+  bars,
+  today,
+  units,
+}: {
+  bars: readonly WeekBar[]
+  today: string | null
+  units: Units
+}) {
+  const say = (key: keyof typeof TEMPLATES, slots = {}) => render(TEMPLATES[key], slots, units)
+  const minutes = (min: number) => say('today.week.cell-min', { min: { kind: 'minutes', min } })
+  return (
+    <div className="visually-hidden">
+      <table>
+        <caption>{say('today.week.table-caption')}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{say('today.week.col-day')}</th>
+            <th scope="col">{say('today.week.col-planned')}</th>
+            <th scope="col">{say('today.week.col-logged')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bars.map((bar) => (
+            <tr key={bar.date}>
+              <th scope="row">
+                {say(bar.date === today ? 'today.week.row-today' : 'today.week.row', {
+                  weekday: { kind: 'weekday', iso: bar.date, style: 'long' },
+                })}
+              </th>
+              <td>{minutes(bar.plannedMin)}</td>
+              <td>{minutes(bar.runMin)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 /**
- * The week at a glance: seven days, each with a mark whose shape carries its meaning and a name
- * for screen readers, the run time logged under it, and the week's hours against the target as
+ * The week at a glance: seven days, each a column of bars (the planned minutes as an outline, the run minutes
+ * as a solid bar, both against the week's longest day; today's column is tinted and underlined),
+ * a mark whose shape carries its meaning and a name for screen readers, the run time logged, and the week's hours against the target as
  * the sketch Meter. A day with sessions opens its sheet. The strip describes and never grades: a
  * past day with a run still to do reads "planned, no run logged".
  */
@@ -81,6 +136,7 @@ export function WeekStrip({
   const empty = strip.days.every((d) => d.mark === 'free' && d.runMin === 0)
   if (empty && strip.targetRunMin === null) return null
   const plannedMin = plannedRestOfWeekMin(strip)
+  const bars = weekBars(strip)
   // `?? null`: an answer the phone kept from before the estimate existed has no field.
   const weekEstimateM = strip.distanceEstimateM ?? null
   // A week run past its plan: the meter's tick is the planned figure and the caption says how far
@@ -93,14 +149,14 @@ export function WeekStrip({
   return (
     <section aria-label="This week" className={styles.week}>
       <ol className={styles.days}>
-        {strip.days.map((day) => {
+        {strip.days.map((day, index) => {
           const session = mainSession(day.sessions)
           const current = day.isToday ? 'date' : undefined
           return (
             <li key={day.date} className={styles.day}>
               {session === null ? (
                 <div className={styles.cell} aria-current={current}>
-                  <DayFace day={day} units={units} />
+                  <DayFace day={day} bar={bars[index]!} units={units} />
                 </div>
               ) : (
                 <button
@@ -111,13 +167,18 @@ export function WeekStrip({
                     setOpenId(session.id)
                   }}
                 >
-                  <DayFace day={day} units={units} />
+                  <DayFace day={day} bar={bars[index]!} units={units} />
                 </button>
               )}
             </li>
           )
         })}
       </ol>
+      <WeekBarsTable
+        bars={bars}
+        today={strip.days.find((d) => d.isToday)?.date ?? null}
+        units={units}
+      />
       {strip.targetRunMin === null ? (
         <p className={styles.caption}>{`${minutesToHours1(strip.runMin)} h run this week`}</p>
       ) : (

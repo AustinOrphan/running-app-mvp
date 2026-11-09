@@ -181,3 +181,36 @@ export function plannedRestOfWeekMin(strip: Pick<WeekStrip, 'days'>): number {
   }
   return total
 }
+
+/** One day's column of the week bars: minutes, and the heights as shares of the week's tallest bar. */
+export interface WeekBar {
+  date: string
+  plannedMin: number
+  runMin: number
+  /** 0 to 1 of the tallest bar of the week; 0 for no minutes. */
+  plannedShare: number
+  runShare: number
+}
+
+/**
+ * The week as proportional bars: each day's planned run minutes (the day's run sessions, supporting
+ * work left out) as the outline and the run minutes logged as the solid bar, both against the
+ * week's largest figure. A week with no minutes has every share 0. Planned minutes describe the
+ * plan; a day with more run than plan simply has the taller solid bar.
+ */
+export function weekBars(strip: Pick<WeekStrip, 'days'>): WeekBar[] {
+  const days = strip.days.map((day) => ({
+    date: day.date,
+    runMin: day.runMin,
+    plannedMin: day.sessions
+      .filter((s) => !NOT_A_RUN.has(s.kind))
+      .reduce((sum, s) => sum + s.durationMin, 0),
+  }))
+  const tallest = Math.max(0, ...days.map((d) => Math.max(d.plannedMin, d.runMin)))
+  const share = (min: number): number => (tallest === 0 ? 0 : min / tallest)
+  return days.map((d) => ({
+    ...d,
+    plannedShare: share(d.plannedMin),
+    runShare: share(d.runMin),
+  }))
+}

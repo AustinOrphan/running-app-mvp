@@ -5,6 +5,7 @@ import { isToRun } from '../../../shared/domain/sessionStatus.ts'
 import {
   plannedRestOfWeekMin,
   showWeekAdvisory,
+  weekBars,
   weekStrip,
 } from '../../../shared/domain/weekStrip.ts'
 import { aggregateWeeks } from '../../../shared/domain/weeks.ts'
@@ -325,5 +326,34 @@ describe('plannedRestOfWeekMin', () => {
   })
   test('is zero when nothing is left', () => {
     expect(plannedRestOfWeekMin(strip([]))).toBe(0)
+  })
+})
+
+describe('weekBars', () => {
+  test('scales planned and logged minutes to the longest figure of the week', () => {
+    const view = strip(
+      [
+        session(MON, 'easy', 'planned', { durationMin: 40 }),
+        session(THU, 'long', 'planned', { durationMin: 120 }),
+      ],
+      [run(MON, 60)],
+    )
+    const bars = weekBars(view)
+    expect(bars).toHaveLength(7)
+    expect(bars[0]).toMatchObject({ plannedMin: 40, runMin: 60, runShare: 0.5 })
+    expect(bars[0]!.plannedShare).toBeCloseTo(1 / 3)
+    expect(bars[3]).toMatchObject({ plannedMin: 120, runMin: 0, plannedShare: 1, runShare: 0 })
+    expect(bars[1]).toMatchObject({ plannedMin: 0, runMin: 0, plannedShare: 0, runShare: 0 })
+  })
+
+  test('counts a logged run longer than the plan as the tallest bar', () => {
+    const view = strip([session(MON, 'easy', 'planned', { durationMin: 30 })], [run(MON, 90)])
+    expect(weekBars(view)[0]).toMatchObject({ runShare: 1 })
+    expect(weekBars(view)[0]!.plannedShare).toBeCloseTo(1 / 3)
+  })
+
+  test('leaves out strength, and gives a week with no minutes no height', () => {
+    const view = strip([session(TUE, 'strength', 'planned', { durationMin: 45 })])
+    for (const bar of weekBars(view)) expect(bar).toMatchObject({ plannedMin: 0, plannedShare: 0 })
   })
 })

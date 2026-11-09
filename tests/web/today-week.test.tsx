@@ -80,6 +80,44 @@ describe('Today: the week strip', () => {
     expectCleanCopy(container)
   })
 
+  test('draws the bars aria-hidden and keeps the figures in a hidden table', async () => {
+    renderToday(withWeek({ runMin: 60, targetRunMin: 300 }))
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    const table = within(strip).getByRole('table', {
+      name: 'Run time by day this week, planned and logged',
+    })
+    expect(table.parentElement).toHaveClass('visually-hidden')
+    expect(within(table).getAllByRole('row')).toHaveLength(8)
+    const monday = within(table).getByRole('row', { name: /^Monday/ })
+    expect(
+      within(monday)
+        .getAllByRole('cell')
+        .map((c) => c.textContent),
+    ).toEqual(['45 min', '40 min'])
+    // A rest day is a row of zeros and an empty column: the letters stay, no bar is drawn.
+    const thursday = within(table).getByRole('row', { name: /^Thursday/ })
+    expect(
+      within(thursday)
+        .getAllByRole('cell')
+        .map((c) => c.textContent),
+    ).toEqual(['0 min', '0 min'])
+    const bars = strip.querySelectorAll('[class*="bars"]')
+    expect(bars).toHaveLength(7)
+    for (const bar of bars) expect(bar).toHaveAttribute('aria-hidden', 'true')
+    expect(bars[3]!.children).toHaveLength(0)
+    expect(bars[0]!.children).toHaveLength(2)
+    expect(within(strip).getByText('Thu')).toBeInTheDocument()
+  })
+
+  test('marks today in the table and on the column, and only today', async () => {
+    renderToday(withWeek({ runMin: 60, targetRunMin: 300 }))
+    const strip = await screen.findByRole('region', { name: 'This week' })
+    const table = within(strip).getByRole('table')
+    expect(within(table).getByRole('rowheader', { name: 'Wednesday, today' })).toBeInTheDocument()
+    expect(within(table).getAllByRole('rowheader', { name: /today/ })).toHaveLength(1)
+    expect(strip.querySelectorAll('[aria-current="date"]')).toHaveLength(1)
+  })
+
   test('shows the hours against the target as a Meter, and the advisory split', async () => {
     renderToday(
       withWeek({
