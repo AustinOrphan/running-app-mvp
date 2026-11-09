@@ -15,6 +15,7 @@ import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
 import { useIllustrations } from '../components/illustrations/useIllustrations.ts'
+import { useMapTiles } from '../components/map/useMapTiles.ts'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
@@ -50,6 +51,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const illustrations = useIllustrations()
+  const mapTiles = useMapTiles()
   const update = useUpdateSettings()
   const logout = useLogout()
   const download = useDownloadExport()
@@ -180,6 +182,11 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
 
   function onIllustrationsChange(next: boolean) {
     illustrations.setOn(next)
+    confirm()
+  }
+
+  function onMapTilesChange(next: boolean) {
+    mapTiles.setOn(next)
     confirm()
   }
 
@@ -353,6 +360,21 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
         <p id="maps-ends-note" className={styles.note}>
           A screenshot of a map then does not show where a run started or finished. The whole route
           stays stored on this server.
+        </p>
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={mapTiles.on}
+            aria-describedby="maps-tiles-note"
+            onChange={(event) => {
+              onMapTilesChange(event.target.checked)
+            }}
+          />
+          Map tiles
+        </label>
+        <p id="maps-tiles-note" className={styles.note}>
+          Loads map tiles from OpenStreetMap, which sees the area of each run you open (the tile
+          addresses, not the route). This device only.
         </p>
       </section>
 

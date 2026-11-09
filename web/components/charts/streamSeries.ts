@@ -21,8 +21,20 @@ const PACE_WINDOW_SEC = 60
 const MIN_SPEED_MS = 0.5
 const MAX_PACE_MIN_PER_UNIT = 30
 
-function metresPerUnit(units: Units): number {
+export function metresPerUnit(units: Units): number {
   return units === 'mi' ? M_PER_MILE : 1000
+}
+
+/**
+ * The tooltip's x value of a chart against distance (kilometres or miles, as the chart is drawn) as
+ * metres from the start, or null when it is no finite number. The run map places its dot with it.
+ */
+export function distanceLabelToMetres(label: unknown, units: Units): number | null {
+  const value =
+    typeof label === 'number' || (typeof label === 'string' && label.trim() !== '')
+      ? Number(label)
+      : Number.NaN
+  return Number.isFinite(value) ? value * metresPerUnit(units) : null
 }
 
 /** Empty buckets serialize as null even though the type says number. */

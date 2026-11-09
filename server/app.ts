@@ -74,7 +74,8 @@ export function createApp(deps: Deps, opts: { globalLimit?: number } = {}): Expr
         directives: {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", 'data:'],
+          // The one outside host is the OpenStreetMap tile server, for the run map's tiles (M1b).
+          imgSrc: ["'self'", 'data:', 'https://tile.openstreetmap.org'],
           // Plain-HTTP self-hosting is supported, so the policy must not force HTTPS upgrades.
           upgradeInsecureRequests: null,
         },

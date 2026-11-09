@@ -4,6 +4,7 @@ import type { ActivityStreamData } from '../../shared/types.ts'
 import { StreamChart, yAxisWidth } from '../../web/components/charts/StreamChart.tsx'
 import {
   buildSeries,
+  distanceLabelToMetres,
   drawablePoints,
   streamXAxis,
   type StreamData,
@@ -120,6 +121,23 @@ describe('drawablePoints', () => {
     const drawn = drawablePoints(points, 10)
     expect(drawn.filter((p) => p.y === null)).toHaveLength(1)
     expect(drawn).toHaveLength(10 + 1 + 40)
+  })
+})
+
+describe('distanceLabelToMetres', () => {
+  test('turns the chart distance into metres in the unit the chart is drawn in', () => {
+    expect(distanceLabelToMetres(0.25, 'mi')).toBeCloseTo(402.336, 3)
+    expect(distanceLabelToMetres(1, 'mi')).toBeCloseTo(1609.344, 3)
+    expect(distanceLabelToMetres(0.25, 'km')).toBe(250)
+    expect(distanceLabelToMetres(0, 'km')).toBe(0)
+    // recharts may hand the label over as text
+    expect(distanceLabelToMetres('0.5', 'km')).toBe(500)
+  })
+
+  test('is null for anything that is not a finite number', () => {
+    for (const label of [undefined, null, '', 'far', Number.NaN, Infinity]) {
+      expect(distanceLabelToMetres(label, 'km')).toBeNull()
+    }
   })
 })
 

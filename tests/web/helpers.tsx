@@ -25,6 +25,14 @@ function isStatusResponse(value: unknown): value is { status: number; body: unkn
   )
 }
 
+/** The answer for an activity that has no route: the server's 404 for `GET /api/activities/:id/track`. */
+export const noTrackRoute: MockRoutes = {
+  'GET /api/activities/a1/track': () => ({
+    status: 404,
+    body: { error: { code: 'not_found', message: 'This activity has no track.' } },
+  }),
+}
+
 /**
  * Replaces `fetch` with a stub. Route keys look like `'GET /api/plan'` (no query string). A
  * handler returns the JSON body (200), or `{ status, body }` for another status; a `body` of

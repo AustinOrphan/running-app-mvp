@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   Area,
   ComposedChart,
@@ -13,11 +14,13 @@ import { formatDuration } from '../../../shared/units.ts'
 import {
   buildSeries,
   drawablePoints,
+  distanceLabelToMetres,
   streamXAxis,
   type SeriesPoint,
   type StreamChannel,
   type StreamData,
 } from './streamSeries.ts'
+import type { DistanceCursor } from '../map/distanceCursor.ts'
 import { axisProps, chartColors, ChartTooltip, gridProps } from './theme.ts'
 import styles from './StreamChart.module.css'
 
@@ -26,6 +29,11 @@ export interface StreamChartProps {
   channel: StreamChannel
   /** Display units; defaults to miles, the app's default. */
   units?: Units
+  /**
+   * Told the distance in metres under the pointer (or finger), and null when it leaves; the run map
+   * moves its dot to it. Only a chart against distance reports: one against time has no place.
+   */
+  cursor?: DistanceCursor
 }
 
 const MAX_TABLE_ROWS = 10
@@ -34,6 +42,32 @@ const NAMES: Record<StreamChannel, string> = {
   pace: 'Pace',
   hr: 'Heart rate',
   alt: 'Elevation',
+}
+
+/**
+ * Reports the tooltip's position to the cursor. It renders nothing; it sits in the tooltip's
+ * content so mouse and touch are both covered by the chart's own handling. The cursor is cleared
+ * when the pointer leaves and when the chart goes away.
+ */
+function CursorReporter({
+  cursor,
+  active,
+  metres,
+}: {
+  cursor: DistanceCursor
+  active: boolean
+  metres: number | null
+}) {
+  useEffect(() => {
+    cursor.set(active ? metres : null)
+  }, [cursor, active, metres])
+  useEffect(
+    () => () => {
+      cursor.set(null)
+    },
+    [cursor],
+  )
+  return null
 }
 
 /** A value with a gap on both sides draws no line, so it gets a dot of its own. */
@@ -119,7 +153,7 @@ function sampleRows(points: SeriesPoint[]): Array<{ x: number; y: number }> {
  * One stream channel against distance (or time when the stream has no distance). Gaps stay gaps.
  * The figures are also in a visually hidden table. Renders nothing when the channel has no values.
  */
-export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps) {
+export function StreamChart({ stream, channel, units = 'mi', cursor }: StreamChartProps) {
   const points = buildSeries(stream, channel, units)
   const values = valuesOf(points)
   if (values.length === 0) return null
@@ -169,12 +203,21 @@ export function StreamChart({ stream, channel, units = 'mi' }: StreamChartProps)
             />
             <Tooltip
               content={(props) => (
-                <ChartTooltip
-                  active={props.active}
-                  payload={props.payload}
-                  label={`${xFormat(Number(props.label))} ${axis === 'distance' ? units : 'min'}`}
-                  format={(value) => formatValue(channel, units, value)}
-                />
+                <>
+                  {cursor === undefined || axis !== 'distance' ? null : (
+                    <CursorReporter
+                      cursor={cursor}
+                      active={props.active === true}
+                      metres={distanceLabelToMetres(props.label, units)}
+                    />
+                  )}
+                  <ChartTooltip
+                    active={props.active}
+                    payload={props.payload}
+                    label={`${xFormat(Number(props.label))} ${axis === 'distance' ? units : 'min'}`}
+                    format={(value) => formatValue(channel, units, value)}
+                  />
+                </>
               )}
               cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1, fill: 'none' }}
             />
