@@ -293,7 +293,7 @@ function hrQualifiesForSession(session: SessionSpec, activity: Activity): boolea
 }
 
 /** Seconds below, within and above a band; bins are split in proportion to their overlap. */
-function timeInBand(
+export function timeInBand(
   hist: NonNullable<Activity['hrHistogram']>,
   lo: number,
   hi: number,
