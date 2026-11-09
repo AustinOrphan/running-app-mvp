@@ -1,4 +1,7 @@
-import type { Feel } from '../../shared/types.ts'
+import { render } from '../../shared/copy/template.ts'
+import { TEMPLATES } from '../../shared/copy/templates.ts'
+import { HEAT_MARK_OPTIONS } from '../../shared/copy/heatDays.ts'
+import type { Feel, HeatExposure } from '../../shared/types.ts'
 import styles from './FeelPicker.module.css'
 import { ScalePicker } from './ScalePicker.tsx'
 
@@ -48,10 +51,45 @@ export {
   type ScalePickerProps as ScaleChipsProps,
 } from './ScalePicker.tsx'
 
+export interface HeatMarkPickerProps {
+  value: HeatExposure | null
+  onChange: (value: HeatExposure | null) => void
+}
+
+/**
+ * The optional mark of a heat exposure besides the weather (rule I8): none, ran overdressed or in
+ * a warm room, or a hot bath or sauna after an easy run. "None" is the cleared state, so a mark is
+ * undone by choosing it or by tapping the chosen chip again.
+ */
+export function HeatMarkPicker({ value, onChange }: HeatMarkPickerProps) {
+  return (
+    <fieldset className={styles.fieldset}>
+      <legend>{render(TEMPLATES['heat.mark.legend'], {}, 'km')}</legend>
+      <div className={styles.heatChips}>
+        {HEAT_MARK_OPTIONS.map((option) => (
+          <button
+            key={option.value ?? 'none'}
+            type="button"
+            className={styles.chip}
+            aria-pressed={value === option.value}
+            onClick={() => {
+              onChange(value === option.value ? null : option.value)
+            }}
+          >
+            {render(TEMPLATES[option.label], {}, 'km')}
+          </button>
+        ))}
+      </div>
+      <p className={styles.hint}>{render(TEMPLATES['heat.mark.hint'], {}, 'km')}</p>
+    </fieldset>
+  )
+}
+
 export interface FeedbackValues {
   rpe: number | null
   feel: Feel | null
   pain: number | null
+  heatExposure: HeatExposure | null
 }
 
 export interface FeedbackFieldsProps {
@@ -59,7 +97,7 @@ export interface FeedbackFieldsProps {
   onChange: (value: FeedbackValues) => void
 }
 
-/** RPE, feel and pain together: the fields of the "How did it go?" card and the detail page. */
+/** RPE, feel, pain and the heat mark together: the fields of the "How did it go?" card and the detail page. */
 export function FeedbackFields({ value, onChange }: FeedbackFieldsProps) {
   return (
     <div className={styles.fields}>
@@ -90,6 +128,12 @@ export function FeedbackFields({ value, onChange }: FeedbackFieldsProps) {
           onChange({ ...value, pain })
         }}
         hint="0 is none, 10 is the worst."
+      />
+      <HeatMarkPicker
+        value={value.heatExposure}
+        onChange={(heatExposure) => {
+          onChange({ ...value, heatExposure })
+        }}
       />
     </div>
   )

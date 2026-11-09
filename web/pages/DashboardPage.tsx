@@ -26,6 +26,7 @@ import { MondayBrief } from '../components/today/MondayBrief.tsx'
 import { OfflineNote } from '../components/today/OfflineNote.tsx'
 import { dayState, usePhoneCopy } from '../components/today/phoneCopy.ts'
 import { PlanNotice } from '../components/today/PlanNotice.tsx'
+import { HeatDaysNote } from '../components/today/HeatDaysNote.tsx'
 import { RaceCountdown } from '../components/today/RaceCountdown.tsx'
 import { ReadinessRead } from '../components/today/ReadinessRead.tsx'
 import { NoSession, SessionHero } from '../components/today/SessionHero.tsx'
@@ -250,6 +251,7 @@ export function DashboardPage() {
     />
   )
   const raceBlock = coach.race === null ? null : <RaceCountdown race={coach.race} units={units} />
+  const heatDaysBlock = <HeatDaysNote heat={view.heat} units={units} />
   const healthBlock = <DataHealth health={coach.health} reviewShownAbove={leadingBrief !== null} />
   const restColumns = twoColumns && restDay
 
@@ -281,6 +283,7 @@ export function DashboardPage() {
                 <TodaySlot name="fuelPrompt" />
                 {feedbackBlock}
                 {raceBlock}
+                {heatDaysBlock}
                 {healthBlock}
               </div>
             </>
@@ -302,6 +305,7 @@ export function DashboardPage() {
                 <TodaySlot name="fuelPrompt" />
                 {feedbackBlock}
                 {raceBlock}
+                {heatDaysBlock}
                 {healthBlock}
               </div>
             </>

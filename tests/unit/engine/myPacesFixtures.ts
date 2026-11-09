@@ -67,6 +67,7 @@ export function run(
     gapDistanceM: speedMps * durationSec,
     feel: null,
     pain: null,
+    heatExposure: null,
     createdAt: '2026-06-30T00:00:00Z',
     updatedAt: '2026-06-30T00:00:00Z',
     ...over,

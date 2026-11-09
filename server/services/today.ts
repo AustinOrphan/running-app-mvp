@@ -16,6 +16,7 @@ import { bandOwnsIllness, openWindows, windowVerdict } from '../../shared/domain
 import {
   isHotForSteering,
   NO_HEAT_NOTE_KINDS,
+  suggestsHeatDays,
   trainingHeatAdvice,
   type TrainingHeatAdvice,
 } from '../../shared/engine/heat.ts'
@@ -45,7 +46,13 @@ import type {
 import type { Deps } from '../app.ts'
 import { dataVersionKey } from '../dataVersion.ts'
 import { validationError } from '../errors.ts'
-import { athleteKey, loadAthleteContext, type AthleteContext } from './athleteState.ts'
+import { isDuplicate } from '../../shared/engine/load.ts'
+import {
+  athleteKey,
+  goalModelFor,
+  loadAthleteContext,
+  type AthleteContext,
+} from './athleteState.ts'
 import { briefStamp } from './brief.ts'
 import { todayDisruptions } from './disruptions.ts'
 import { inputFromContext, loadForecast, sessionSpec } from './engineInput.ts'
@@ -148,6 +155,25 @@ function nextSession(sessions: readonly PlanSessionView[], date: string): PlanSe
   const ahead = sessions.filter((s) => s.date > date && s.kind !== 'rest' && isToRun(s.status))
   const first = ahead[0]
   return first === undefined ? null : mainSession(ahead.filter((s) => s.date === first.date))
+}
+
+/**
+ * Whether Today says what counts as a heat day (rule I8, `suggestsHeatDays`): the goal's race is
+ * expected warm (the cached race-day climate), the heat block's window is open and the days counted
+ * since it opened are fewer than the block asks. Reads state and the climate cache only; a goal
+ * with no cached climate has no expected heat and offers nothing.
+ */
+async function heatDaysOffered(context: AthleteContext, today: string): Promise<boolean> {
+  const goal = context.goal
+  if (goal === null) return false
+  const model = await goalModelFor(context, goal.id, { climate: true })
+  if (model === null) return false
+  return suggestsHeatDays({
+    raceWbgtC: model.raceWbgtC,
+    raceDate: model.date,
+    today,
+    activities: context.activities.filter((a) => !isDuplicate(a)),
+  })
 }
 
 /**
@@ -322,6 +348,7 @@ export async function todayView(
     coolerValue: heatAdvice?.coolerValue ?? null,
     index: peak?.index ?? null,
     hotForSteering: heatSession === null ? false : isHotForSteering(peak, heatSession.flags),
+    heatDays: await heatDaysOffered(context, today),
   }
 
   // The hero: the main session, eased when readiness says so, with the targets it will be run by.

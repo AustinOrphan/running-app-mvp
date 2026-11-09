@@ -835,6 +835,22 @@ describe('estimateState: heat acclimation credit', () => {
     expect(estimateState(input(block(50))).heatAcclimation).toBe(0)
   })
 
+  test('marked runs count like hot ones, once a day, and a bath counts only after an easy run', () => {
+    const cool = (n: number, over: Partial<Activity> = {}) =>
+      run(n, { durationSec: 2700, tempC: 15, rpe: 3, ...over })
+    const marked = Array.from({ length: 5 }, (_, i) =>
+      cool(i, { heatExposure: i % 2 === 0 ? 'overdressed' : 'passive' }),
+    )
+    expect(estimateState(input(marked)).heatAcclimation).toBeCloseTo(0.5, 9)
+    // a hot run and a marked run on one day are one day
+    const twice = [...marked, ...marked.map((a) => ({ ...a, id: `${a.id}-b`, tempC: 28 }))]
+    expect(estimateState(input(twice)).heatAcclimation).toBeCloseTo(0.5, 9)
+    // a bath after a hard run, or after a run under the minutes, is not a heat day
+    const hard = [0, 1, 2].map((n) => cool(n, { heatExposure: 'passive', rpe: 8 }))
+    const short = [3, 4].map((n) => cool(n, { heatExposure: 'passive', durationSec: 1200 }))
+    expect(estimateState(input([...hard, ...short])).heatAcclimation).toBe(0)
+  })
+
   test('five exposure days give half credit; cool or short runs give none', () => {
     expect(estimateState(input(block(0).slice(0, 5))).heatAcclimation).toBeCloseTo(0.5, 9)
     const cool = [0, 1, 2].map((n) => run(n, { durationSec: 2700, tempC: 20 }))

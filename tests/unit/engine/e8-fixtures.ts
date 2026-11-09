@@ -127,6 +127,7 @@ export function activity(date: string, over: Partial<Activity> = {}): Activity {
     gapDistanceM: null,
     feel: null,
     pain: null,
+    heatExposure: null,
     createdAt: '2026-10-21T00:00:00Z',
     updatedAt: '2026-10-21T00:00:00Z',
     ...over,

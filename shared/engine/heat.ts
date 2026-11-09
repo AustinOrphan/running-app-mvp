@@ -1,7 +1,8 @@
 // Heat: WBGT, race-time penalty, training guidance and acclimation credit [rules section i].
 // Pure: no clock, no I/O. The model constants below are the physical constants and instrument
 // dimensions of the Liljegren model; every tunable number comes from the registry.
-import { daysBetween } from '../dates.ts'
+import { addDays, daysBetween, mondayOf } from '../dates.ts'
+import type { HeatExposure } from '../types.ts'
 import { P } from './params/index.ts'
 import type { EngineInput, EngineWarning, SessionFlag, SessionSpec } from './types.ts'
 
@@ -384,23 +385,90 @@ export function isHotForSteering(
 // Acclimation [rules I8]
 // ---------------------------------------------------------------------------------------------
 
-/**
- * Whether an activity counts as a heat exposure day [rules I8]: not strength work, an air
- * temperature of `acclim.exposureTempC` or more, and at least `acclim.exposureMinDurationMin`
- * minutes. The one predicate behind the snapshot's credit (`athlete.ts`), the I8 and H13 Explain
- * builder and the race plan's credit, so the three cannot drift apart.
- */
-export function isHeatExposure(activity: {
+/** What the exposure predicate reads of an activity; the last two are absent on older fixtures. */
+export interface HeatExposureInput {
   type: string
   tempC: number | null
   durationSec: number
+  rpe?: number | null
+  heatExposure?: HeatExposure | null
+}
+
+/**
+ * Whether an activity counts as a heat exposure day [rules I8]. Not strength work, at least
+ * `acclim.exposureMinDurationMin` minutes, and one of three things:
+ *  1. an air temperature of `acclim.exposureTempC` or more;
+ *  2. the runner marked it 'overdressed' (extra layers or a warm room), a choice at grade D: the one
+ *     trial found, of extra layers outdoors in mild weather, showed no acclimation;
+ *  3. the runner marked it 'passive' (a hot bath or sauna straight after), only after an easy run:
+ *     a run (not a race) of at least `acclim.passiveMinRunMin` minutes whose RPE, when given, is at
+ *     most `acclim.passiveEasyMaxRpe`, as the passive protocols followed an exercise bout.
+ * The one predicate behind the snapshot's credit (`athlete.ts`), the I8 and H13 Explain builder,
+ * the race plan's credit and the suggestion, so they cannot drift apart. A day counts once however
+ * many of the three happened.
+ */
+export function isHeatExposure(activity: HeatExposureInput): boolean {
+  if (activity.type === 'strength') return false
+  const minutes = activity.durationSec / 60
+  if (activity.tempC !== null && activity.tempC >= P.acclim.exposureTempC.value) {
+    if (minutes >= P.acclim.exposureMinDurationMin.value) return true
+  }
+  if (activity.heatExposure === 'overdressed') {
+    return minutes >= P.acclim.exposureMinDurationMin.value
+  }
+  if (activity.heatExposure === 'passive') {
+    return (
+      activity.type === 'run' &&
+      minutes >= P.acclim.passiveMinRunMin.value &&
+      (activity.rpe == null || activity.rpe <= P.acclim.passiveEasyMaxRpe.value)
+    )
+  }
+  return false
+}
+
+/**
+ * The days from `from` to `to` (inclusive) on which any activity counted as a heat exposure, each
+ * date once and sorted. A pure helper over `isHeatExposure`.
+ */
+export function heatExposureDays(
+  activities: ReadonlyArray<HeatExposureInput & { date: string }>,
+  from: string,
+  to: string,
+): string[] {
+  const days = new Set<string>()
+  for (const a of activities) {
+    if (a.date >= from && a.date <= to && isHeatExposure(a)) days.add(a.date)
+  }
+  return [...days].sort()
+}
+
+/**
+ * The days in which the plan's heat block runs [rules I8]: from `ceil(i8.blockDays / 7)` weeks before
+ * the Monday of race week (the weeks `macro.ts` flags 'heat-acclimation') to the day before the race,
+ * so race week's top-up is inside. No number of its own.
+ */
+export function heatBlockWindow(raceDate: string): { from: string; to: string } {
+  const blockWeeks = Math.ceil(P.i8.blockDays.value / 7)
+  return { from: addDays(mondayOf(raceDate), -7 * blockWeeks), to: addDays(raceDate, -1) }
+}
+
+/**
+ * Whether Today and Explain say what counts as a heat day [rules I8]: the race is expected warm
+ * (WBGT at `i8.triggerWbgtC` or more), `today` is inside the block's window, and fewer than
+ * `i8.blockDays` heat days are counted since the window opened. An option, never a target: the
+ * answer is a yes or a no, and nothing here says how many days are missing.
+ */
+export function suggestsHeatDays(args: {
+  raceWbgtC: number | null
+  raceDate: string
+  today: string
+  activities: ReadonlyArray<HeatExposureInput & { date: string }>
 }): boolean {
-  return (
-    activity.type !== 'strength' &&
-    activity.tempC !== null &&
-    activity.tempC >= P.acclim.exposureTempC.value &&
-    activity.durationSec / 60 >= P.acclim.exposureMinDurationMin.value
-  )
+  const { raceWbgtC, raceDate, today, activities } = args
+  if (raceWbgtC === null || raceWbgtC < P.i8.triggerWbgtC.value) return false
+  const window = heatBlockWindow(raceDate)
+  if (today < window.from || today > window.to) return false
+  return heatExposureDays(activities, window.from, today).length < P.i8.blockDays.value
 }
 
 /**

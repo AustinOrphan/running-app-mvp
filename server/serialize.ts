@@ -77,6 +77,7 @@ import type {
   DuplicateStatus,
   EquipmentConfig,
   Feel,
+  HeatExposure,
   FuelLogItem,
   FuelLogView,
   FuelProduct,
@@ -180,6 +181,7 @@ function activityColumns(
     gapDistanceM: row.gapDistanceM,
     feel: row.feel as Feel | null,
     pain: row.pain,
+    heatExposure: row.heatExposure as HeatExposure | null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }

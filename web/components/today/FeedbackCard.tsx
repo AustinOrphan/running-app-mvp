@@ -50,9 +50,18 @@ function FeedbackItem({
 }) {
   const save = useSaveRating(activity.id)
   const queued = useQueuedRating(activity.id)
-  // Starts from the saved pain so a save that only sets RPE or feel does not clear it.
-  const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: activity.pain })
-  const touched = value.rpe !== null || value.feel !== null || value.pain !== activity.pain
+  // Starts from the saved pain and heat mark so a save that only sets RPE or feel does not clear them.
+  const [value, setValue] = useState<FeedbackValues>({
+    rpe: null,
+    feel: null,
+    pain: activity.pain,
+    heatExposure: activity.heatExposure,
+  })
+  const touched =
+    value.rpe !== null ||
+    value.feel !== null ||
+    value.pain !== activity.pain ||
+    value.heatExposure !== activity.heatExposure
   const line = activityLine(activity, units)
   const waiting = useRef<HTMLParagraphElement>(null)
   // The Save button held focus and is gone once the rating waits; focus goes to the line that says so.

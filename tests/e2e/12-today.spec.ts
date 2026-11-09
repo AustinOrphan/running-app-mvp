@@ -141,6 +141,7 @@ const WARM_DAY: TodayHeat = {
   coolerValue: 17,
   index: 'wbgt',
   hotForSteering: false,
+  heatDays: false,
 }
 
 /** Serves `GET /api/today` as the server sends it, on a warm day. */

@@ -579,6 +579,7 @@ describe('ActivityDetailPage', () => {
       rpe: 7,
       feel: 1,
       pain: 2,
+      heatExposure: null,
     })
   })
 
@@ -620,6 +621,31 @@ describe('ActivityDetailPage', () => {
       rpe: null,
       feel: -1,
       pain: 0,
+      heatExposure: null,
+    })
+  })
+
+  test('the heat mark starts from the stored one and is saved with the rating', async () => {
+    const user = userEvent.setup()
+    const base = makeDetail()
+    const api = renderDetail({
+      detail: { ...base, activity: { ...base.activity, rpe: 3, heatExposure: 'passive' } },
+      routes: { 'PATCH /api/activities/a1/feedback': () => ({}) },
+    })
+    const section = await screen.findByRole('region', { name: 'How did it go?' })
+    expect(
+      within(section).getByRole('button', { name: 'Hot bath or sauna after' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await user.click(
+      within(section).getByRole('button', { name: 'Ran overdressed or in a warm room' }),
+    )
+    await user.click(within(section).getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true)
+    })
+    expect(api.calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({
+      rpe: 3,
+      heatExposure: 'overdressed',
     })
   })
 

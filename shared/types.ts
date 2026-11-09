@@ -100,6 +100,8 @@ export interface Activity {
   feel: Feel | null
   /** 0-10. */
   pain: number | null
+  /** The runner's mark of a heat exposure besides the weather (rule I8); null when none. */
+  heatExposure: HeatExposure | null
   createdAt: string
   updatedAt: string
 }
@@ -205,6 +207,12 @@ export interface TrendsView {
   }
 }
 export type Feel = -2 | -1 | 0 | 1 | 2
+/**
+ * How a run was a heat exposure besides the weather (rule I8), marked by the runner: 'overdressed'
+ * for a run in extra layers or a warm room, 'passive' for a hot bath or sauna straight after an
+ * easy run. A run is at most one of the two (the count is one per day either way); null is neither.
+ */
+export type HeatExposure = 'overdressed' | 'passive'
 /** Aligned arrays of equal length; `null` when the source had no such channel. */
 export interface ActivityStreamData {
   t: number[]
@@ -1332,6 +1340,12 @@ export interface TodayHeat {
   index: 'wbgt' | 'air-temperature' | null
   /** The one test every surface steers by (`isHotForSteering`). */
   hotForSteering: boolean
+  /**
+   * True when Today says what counts as a heat day (rule I8): the race is expected warm, the heat
+   * block is open and the days counted since it opened are fewer than the block asks. A yes or a
+   * no, never a count of days.
+   */
+  heatDays: boolean
 }
 export interface TodayView {
   /** The viewed day: today, or a day ahead for a preview (`coach.preview`). */

@@ -559,6 +559,7 @@ function Feedback({ activity }: { activity: Activity }) {
     rpe: activity.rpe,
     feel: activity.feel,
     pain: activity.pain,
+    heatExposure: activity.heatExposure,
   })
 
   return (
@@ -724,7 +725,7 @@ export function ActivityDetailPage() {
       <AgainstThePlan activity={activity} units={units} />
       {/* Keyed on the stored values, so the pickers start again from them when they change. */}
       <Feedback
-        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}`}
+        key={`${activity.id}:${String(activity.rpe)}:${String(activity.feel)}:${String(activity.pain)}:${String(activity.heatExposure)}`}
         activity={activity}
       />
       <FuelSection activity={activity} />

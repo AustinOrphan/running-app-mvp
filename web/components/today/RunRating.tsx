@@ -41,11 +41,20 @@ export function RunRating({ run, units }: { run: Activity; units: Units }) {
   const { notices } = useActivityNotices()
   const refused = notices.some((notice) => notice.url === ratingUrl(run.id))
   const toast = useToast()
-  // Starts from the saved pain so a save that only sets RPE or feel does not clear it.
-  const [value, setValue] = useState<FeedbackValues>({ rpe: null, feel: null, pain: run.pain })
+  // Starts from the saved pain and heat mark so a save that only sets RPE or feel does not clear them.
+  const [value, setValue] = useState<FeedbackValues>({
+    rpe: null,
+    feel: null,
+    pain: run.pain,
+    heatExposure: run.heatExposure,
+  })
   const [saved, setSaved] = useState<Landed | null>(null)
   const done = useRef<HTMLParagraphElement>(null)
-  const touched = value.rpe !== null || value.feel !== null || value.pain !== run.pain
+  const touched =
+    value.rpe !== null ||
+    value.feel !== null ||
+    value.pain !== run.pain ||
+    value.heatExposure !== run.heatExposure
 
   useEffect(() => {
     if (saved !== null) done.current?.focus()
