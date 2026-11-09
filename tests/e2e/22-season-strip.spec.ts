@@ -132,7 +132,7 @@ for (const viewport of WIDTHS) {
         expect(box?.x ?? -1).toBeGreaterThanOrEqual(stripBox?.x ?? 0)
         expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(right + 0.5)
       }
-      const monthNames = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/
+      const monthNames = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})?$/
       const months = await season.locator('span').filter({ hasText: monthNames }).all()
       expect(months.length).toBeGreaterThan(0)
       expect(months.length).toBeLessThanOrEqual(5)
@@ -203,6 +203,37 @@ for (const viewport of WIDTHS) {
       await expect
         .poll(() => laterRow.evaluate((row) => row.getBoundingClientRect().top))
         .toBeLessThan(viewport.height / 2)
+    })
+
+    test('keeps every month label inside the strip and apart at 150% text', async ({
+      page,
+      baseURL,
+    }) => {
+      await seedPlan(page, baseURL)
+      await page.addInitScript(() => {
+        document.documentElement.style.fontSize = '150%'
+      })
+      await page.goto('/plan')
+      const season = page.getByRole('region', { name: 'Season' })
+      await expect(season).toBeVisible()
+      const stripBox = await season.boundingBox()
+      const right = (stripBox?.x ?? 0) + (stripBox?.width ?? 0)
+      const names = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})?$/
+      const months = await season.locator('span').filter({ hasText: names }).all()
+      expect(months.length).toBeGreaterThan(0)
+      expect(months.length).toBeLessThanOrEqual(5)
+      let previousRight = -Infinity
+      for (const month of months) {
+        const box = await month.boundingBox()
+        expect(box?.x ?? -1).toBeGreaterThanOrEqual(stripBox?.x ?? 0)
+        expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(right + 0.5)
+        expect(box?.x ?? 0).toBeGreaterThan(previousRight)
+        previousRight = (box?.x ?? 0) + (box?.width ?? 0)
+      }
+      const widest = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(widest).toBeLessThanOrEqual(0)
     })
 
     test('a tap on a week before this Monday opens "Earlier weeks" first', async ({

@@ -125,25 +125,26 @@ export function seasonBarSizes(band: number): { planned: number; actual: number 
   return { planned, actual }
 }
 
-/** Round steps for the hour axis, in hours; the axis has three steps above zero (four ticks). */
+/** Round steps for the hour axis, in hours; the axis has two steps above zero (three ticks). */
 const AXIS_STEPS = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 15, 20, 25, 30, 40, 50, 100]
 /** The tallest week sits this far under the top tick, so the race flag over it stays inside. */
 const AXIS_HEADROOM = 1.1
 
 /**
- * The y axis of the strip: four round ticks (0, and three equal steps) whose top is the smallest
- * round figure at least a tenth above the tallest week, in hours.
+ * The y axis of the strip: three round ticks (0, half and the top, as the chart rules give a chart
+ * this low) whose top is the smallest round figure at least a tenth above the tallest week, in
+ * hours.
  */
 export function hourAxis(peakHours: number): { max: number; ticks: number[] } {
   const need = Math.max(0, peakHours) * AXIS_HEADROOM
   const step =
-    AXIS_STEPS.find((candidate) => candidate * 3 >= need) ?? Math.ceil(need / 3 / 100) * 100
-  return { max: step * 3, ticks: [0, step, step * 2, step * 3] }
+    AXIS_STEPS.find((candidate) => candidate * 2 >= need) ?? Math.ceil(need / 2 / 100) * 100
+  return { max: step * 2, ticks: [0, step, step * 2] }
 }
 
 /** The most month labels the time axis carries at a phone's width. */
 const MAX_MONTH_LABELS = 5
-/** What a letter of a month label takes, the tick before it, and the least space between two. */
+/** What a letter of a month label takes at 16 px text, the tick before it, and the least space between two. */
 const MONTH_CHAR_PX = 7
 const MONTH_TICK_PX = 4
 const MONTH_GAP_PX = 8
@@ -153,43 +154,83 @@ export interface MonthMark {
   index: number
   /** 0 for January. */
   month: number
+  /** The year of the week, drawn on a second line at the first label and at each January. */
+  year: number
+  showYear: boolean
+  /** True when the label would run past the plot's right edge and is set against it instead. */
+  end: boolean
 }
 
-/** The month a week belongs to: the month of its Thursday, as the ISO week does. */
-function monthOfWeek(weekStart: string): number {
-  return Number(addDays(weekStart, 3).slice(5, 7)) - 1
+export interface MonthMarkOptions {
+  /** The text size against 16 px: a label is as wide as its letters. 1 when not given. */
+  scale?: number
+  /** The plan week of the race, whose month is always labelled, or null. */
+  raceIndex?: number | null
 }
+
+/** The date a week belongs to by its Thursday, as the ISO week does. */
+const thursdayOf = (weekStart: string): string => addDays(weekStart, 3)
 
 /**
- * The month labels of the time axis: the first week and each week where the month turns, thinned
- * to every second, third... one until at most five remain, none overlaps another and every one
- * ends inside the plot (`width` px for `weekStarts.length` columns). A label that would clip is
- * dropped, never shifted onto its neighbour.
+ * The month labels of the time axis: the first week and each week where the month turns. The first
+ * month and the race month always stay; the others are thinned to every second, third... one until
+ * at most five remain and none overlaps another. A label that would run past the plot is dropped,
+ * except the race month's, which is set against the right edge. `width` is the plot's px for
+ * `weekStarts.length` columns.
  */
-export function monthMarks(weekStarts: readonly string[], width: number): MonthMark[] {
+export function monthMarks(
+  weekStarts: readonly string[],
+  width: number,
+  { scale = 1, raceIndex = null }: MonthMarkOptions = {},
+): MonthMark[] {
   const count = weekStarts.length
   if (count === 0 || width <= 0) return []
   const band = width / count
   const candidates: MonthMark[] = []
   weekStarts.forEach((weekStart, index) => {
-    const month = monthOfWeek(weekStart)
-    if (index === 0 || month !== monthOfWeek(weekStarts[index - 1] ?? weekStart)) {
-      candidates.push({ index, month })
+    const day = thursdayOf(weekStart)
+    const month = Number(day.slice(5, 7)) - 1
+    const before = thursdayOf(weekStarts[index - 1] ?? weekStart)
+    if (index === 0 || month !== Number(before.slice(5, 7)) - 1) {
+      candidates.push({
+        index,
+        month,
+        year: Number(day.slice(0, 4)),
+        showYear: index === 0 || month === 0,
+        end: false,
+      })
     }
   })
-  const labelPx = 3 * MONTH_CHAR_PX + MONTH_TICK_PX
+  const widthOf = (mark: MonthMark) =>
+    ((mark.showYear ? 4 : 3) * MONTH_CHAR_PX + MONTH_TICK_PX) * scale
+  const leftOf = (mark: MonthMark) => (mark.end ? width - widthOf(mark) : mark.index * band)
+  const raceCandidate =
+    raceIndex === null ? -1 : candidates.findLastIndex((mark) => mark.index <= raceIndex)
+
   for (let stride = 1; stride <= candidates.length; stride += 1) {
-    const chosen = candidates
-      .filter((_, position) => position % stride === 0)
-      .filter((mark) => mark.index * band + labelPx <= width)
-    const apart = chosen.every(
-      (mark, position) =>
-        position === 0 ||
-        mark.index * band - (chosen[position - 1]?.index ?? 0) * band >= labelPx + MONTH_GAP_PX,
-    )
+    const chosen: MonthMark[] = []
+    candidates.forEach((candidate, position) => {
+      const kept = position === 0 || position === raceCandidate
+      if (position % stride !== 0 && !kept) return
+      if (candidate.index * band + widthOf(candidate) <= width) {
+        chosen.push(candidate)
+      } else if (position === raceCandidate) {
+        chosen.push({ ...candidate, end: true })
+      }
+    })
+    const apart = chosen.every((mark, position) => {
+      const previous = chosen[position - 1]
+      return (
+        previous === undefined ||
+        leftOf(mark) - leftOf(previous) - widthOf(previous) >= MONTH_GAP_PX
+      )
+    })
     if (chosen.length <= MAX_MONTH_LABELS && apart) return chosen
   }
-  return []
+  // Two kept labels that cannot both fit: the race month's alone says where the plan ends.
+  const race = candidates[raceCandidate]
+  if (race !== undefined) return [{ ...race, end: race.index * band + widthOf(race) > width }]
+  return candidates.slice(0, 1)
 }
 
 /**

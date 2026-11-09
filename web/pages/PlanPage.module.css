@@ -252,6 +252,11 @@
 }
 
 /* The word before the figure is for a phone's row; a wide screen's column has its heading. */
+/* A phone's row has no line for a week with no climb; the wide table keeps its dash. */
+.climb[data-empty='true'] {
+  display: none;
+}
+
 .climbLabel {
   margin-right: var(--space-1);
 }
@@ -374,6 +379,10 @@
   .actual,
   .climb {
     text-align: left;
+  }
+
+  .row .climb[data-empty='true'] {
+    display: table-cell;
   }
 
   .row .climb {

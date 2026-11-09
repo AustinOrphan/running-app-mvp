@@ -27,6 +27,7 @@ import {
   actualRange,
   bracketSpans,
   hourAxis,
+  isRaceWeek,
   monthMarks,
   SEASON_PLOT_MARGIN,
   seasonBarSizes,
@@ -60,6 +61,12 @@ function useWidth(ref: { current: HTMLElement | null }): number {
     }
   }, [ref])
   return width
+}
+
+/** The text size against 16 px, from the root element: the month labels are as wide as their letters. */
+function rootTextScale(): number {
+  const px = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+  return Number.isFinite(px) && px > 0 ? px / 16 : 1
 }
 
 /** The index a key moves the roving stop to, or null for a key that does not move it. */
@@ -125,9 +132,11 @@ export function SeasonStrip({
       ...figures.planned.map((week) => week.targetRunMin / 60),
     ),
   )
+  const raceIndex = plan.weeks.findIndex(isRaceWeek)
   const months = monthMarks(
     plan.weeks.map((week) => week.weekStart),
     width,
+    { scale: rootTextScale(), raceIndex: raceIndex < 0 ? null : raceIndex },
   )
   const table = seasonTableText()
 
@@ -239,10 +248,11 @@ export function SeasonStrip({
           {months.map((mark) => (
             <span
               key={mark.index}
-              className={styles.month}
-              style={{ left: `${String((mark.index / count) * 100)}%` }}
+              className={mark.end ? `${styles.month} ${styles.monthEnd}` : styles.month}
+              style={mark.end ? undefined : { left: `${String((mark.index / count) * 100)}%` }}
             >
               {seasonMonthLabel(mark.month)}
+              {mark.showYear ? <span className={styles.year}>{mark.year}</span> : null}
             </span>
           ))}
         </div>
@@ -283,9 +293,9 @@ export function SeasonStrip({
                 <td>{weekPhaseLabel(week)}</td>
                 <td>{minutesToHours1(shownTargetMin(week))}</td>
                 <td>
-                  {week.weekStart <= currentMonday
+                  {week.weekStart <= currentMonday && actual.has(week.weekStart)
                     ? minutesToHours1(actual.get(week.weekStart) ?? 0)
-                    : '–'}
+                    : table.runUnknown}
                 </td>
               </tr>
             ))}

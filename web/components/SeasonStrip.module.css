@@ -83,7 +83,7 @@
 .months {
   position: relative;
   grid-area: 2 / 2;
-  height: 1.125rem;
+  height: calc(var(--lh-xs) * 2);
   margin-top: var(--space-1);
 }
 
@@ -96,6 +96,20 @@
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   white-space: nowrap;
+}
+
+.year {
+  display: block;
+}
+
+/* A label that would run past the plot is set against its right edge; its tick moves with it. */
+.monthEnd {
+  right: 0;
+  padding-right: 3px;
+  padding-left: 0;
+  border-right: 1px solid var(--border-strong);
+  border-left: 0;
+  text-align: right;
 }
 
 .brackets {

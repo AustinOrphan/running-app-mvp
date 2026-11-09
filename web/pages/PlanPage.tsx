@@ -1453,6 +1453,7 @@ function PlanTable({
             const isCurrent = week.weekStart === currentMonday
             const runMin = week.weekStart <= currentMonday ? actual.get(week.weekStart) : undefined
             const short = formatShortDate(week.weekStart)
+            const weekClimbM = runMin === undefined ? null : (climb.get(week.weekStart) ?? null)
             const weekSessions = sessionsByWeek.get(week.weekStart) ?? []
             const expanded = weekSessions.length > 0 && open.has(week.weekStart)
             const run = runs.get(week.weekStart)
@@ -1508,11 +1509,12 @@ function PlanTable({
                       <OvershootNote ranMin={runMin} plannedMin={week.plannedRunMin} />
                     ) : null}
                   </td>
-                  <td className={styles.climb} data-cell="climb">
-                    <ClimbCell
-                      gainM={runMin === undefined ? null : (climb.get(week.weekStart) ?? null)}
-                      units={units}
-                    />
+                  <td
+                    className={styles.climb}
+                    data-cell="climb"
+                    data-empty={weekClimbM === null ? 'true' : undefined}
+                  >
+                    <ClimbCell gainM={weekClimbM} units={units} />
                   </td>
                   <td className={styles.summary}>
                     Long run {longRunText(week.longRunMin)}, {week.runDays} run days, strength{' '}

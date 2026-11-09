@@ -79,6 +79,8 @@ export const SEASON_TEMPLATES = {
   'season.col-phase': tpl('Phase', {}, { shape: 'label' }),
   'season.col-planned': tpl('Planned hours', {}, { shape: 'label' }),
   'season.col-run': tpl('Run hours', {}, { shape: 'label' }),
+  // A run-hours cell for a week the read has no figure for (still loading, or it failed).
+  'season.run-unknown': tpl('–', {}, { shape: 'label' }),
   // A week's climb in the week table: the word that names the figure on a phone (a desktop column
   // has a heading), and the words for its absence.
   'season.climb': tpl('Climb', {}, { shape: 'label' }),
@@ -221,6 +223,7 @@ export const seasonTableText = () => ({
   phase: render(SEASON_TEMPLATES['season.col-phase'], {}, STORED_UNITS),
   planned: render(SEASON_TEMPLATES['season.col-planned'], {}, STORED_UNITS),
   run: render(SEASON_TEMPLATES['season.col-run'], {}, STORED_UNITS),
+  runUnknown: render(SEASON_TEMPLATES['season.run-unknown'], {}, STORED_UNITS),
 })
 
 /** The word before a week's climb figure on a phone; the column heading on a wide screen. */
