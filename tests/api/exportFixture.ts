@@ -44,6 +44,7 @@ export async function seedEverything(
       pain: 2,
       notes: ownMarker,
       terrainBins: JSON.stringify({ flat: 1 }),
+      surfaceBins: JSON.stringify({ v: 1, trailM: 3100, pavedM: 500, roadM: 1400, unknownM: 0 }),
       hrQuality: JSON.stringify({ v: 1, source: 'wrist', movingSec: 1800, cleanSec: 1700 }),
       hrHistogram: JSON.stringify({ z1: 3 }),
     },
@@ -72,6 +73,23 @@ export async function seedEverything(
       maxLng: -120.2,
       toleranceM: 5,
     },
+  })
+  await prisma.mapArea.create({
+    data: {
+      userId,
+      minLat: 44.8,
+      minLng: -93.2,
+      maxLat: 45.2,
+      maxLng: -92.8,
+      fetchedAt: new Date('2026-11-09T10:00:00Z'),
+      dataTimestamp: '2026-11-08T09:00:00Z',
+      wayCount: 2,
+      v: 1,
+      matchV: 1,
+    },
+  })
+  await prisma.mapWay.create({
+    data: { userId, seq: 0, cls: 't', polyline: `way-polyline-${tag}` },
   })
   await prisma.activityFile.create({
     data: {

@@ -36,6 +36,8 @@ export const noTrackRoute: MockRoutes = {
 /** Reads a page makes on every list of activities, answered with nothing unless a test plans them. */
 const defaultRoutes: MockRoutes = {
   'GET /api/activities/glyphs': () => ({ glyphs: {} }),
+  // The Settings page's "Trail and road" block reads the downloaded map area (M1d).
+  'GET /api/map-area': () => ({ area: null, busy: false }),
 }
 
 /**
@@ -97,6 +99,7 @@ function listItem(item: ActivityListItem): ActivityListItem {
   const row: Record<string, unknown> = { ...item }
   delete row['hrHistogram']
   delete row['terrainBins']
+  delete row['surfaceBins']
   return row as unknown as ActivityListItem
 }
 

@@ -87,6 +87,8 @@ export interface Activity {
   hrHistogram: HrHistogram | null
   /** Time and distance by grade band; null for a type that has none or a run not yet computed. */
   terrainBins: TerrainBins | null
+  /** Metres on trail, paved path and road from the downloaded map area (M1d); null when not computed or outside the area. */
+  surfaceBins: SurfaceBins | null
   /**
    * The fastest grade-adjusted stretches of the run (rule A6), read from its stream when the athlete
    * snapshot is built and stored nowhere. Absent when the run was not read for them.
@@ -120,7 +122,10 @@ export type ActivityCore = Pick<
  * route always sends it; it is optional in the type only because the other routes that answer with
  * an activity (create, update, the detail) are typed through this shape too and do not carry it.
  */
-export type ActivityListItem = Omit<Activity, 'hrHistogram' | 'terrainBins' | 'hrQuality'> & {
+export type ActivityListItem = Omit<
+  Activity,
+  'hrHistogram' | 'terrainBins' | 'hrQuality' | 'surfaceBins'
+> & {
   strengthSets?: number | null
 }
 /**
@@ -232,6 +237,41 @@ export interface HrHistogram {
   start: number
   width: number
   sec: number[]
+}
+/**
+ * How far a run went on each kind of way, from its stored track and the OpenStreetMap ways of the
+ * runner's downloaded area (M1d). Whole metres; the four add up to the track's length. `unknownM` is
+ * the stretches with no mapped way within 25 m, or outside the area. `v` is the matcher version.
+ */
+export interface SurfaceBins {
+  v: number
+  trailM: number
+  pavedM: number
+  roadM: number
+  unknownM: number
+}
+/**
+ * The runner's downloaded map area (`GET /api/map-area`): null `area` before the first download.
+ * `runs` counts the runs with a track whose box meets the area, `done` those with shares so far.
+ */
+export interface MapAreaView {
+  /** The runner's time zone, for the dates of the area. */
+  tz: string
+  area: {
+    minLat: number
+    minLng: number
+    maxLat: number
+    maxLng: number
+    fetchedAt: string
+    dataTimestamp: string | null
+    wayCount: number
+    /** The classes were stored under an older rule set; downloading again applies the current one. */
+    outdated: boolean
+    runs: number
+    done: number
+  } | null
+  /** Whether a download is running now. */
+  busy: boolean
 }
 /**
  * Where a run's moving time went by grade band, from its stream (distance and altitude). Band `i`
