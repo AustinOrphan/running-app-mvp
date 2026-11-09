@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DataStatus, ReviewView, SavedReview, Symptoms } from '../../shared/types.ts'
-import { api, invalidatePlanReaders, keys, qs } from './client.ts'
+import { ApiError, api, invalidatePlanReaders, keys, qs } from './client.ts'
 
 export interface ReviewPatch {
   dataStatus?: DataStatus
@@ -35,6 +35,11 @@ export function useDeclineRaise() {
         answer: 'declined',
       }),
     onSuccess: () => invalidatePlanReaders(queryClient),
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 409 || error.status === 400)) {
+        void invalidatePlanReaders(queryClient)
+      }
+    },
   })
 }
 

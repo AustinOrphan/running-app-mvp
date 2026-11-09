@@ -136,6 +136,20 @@ async function ranAbove(email: string, factor: number): Promise<Fixture> {
   return { u, planId: plan.id }
 }
 
+const BASE = { weekStart: lastWeek, fromWeek: thisMonday, currentMin: 250, raisedMin: 300 }
+/** The yes to an offer as the screen sends it: the week, the week it starts from and both figures. */
+const yes = (offer: {
+  weekStart: string
+  fromWeek: string
+  currentMin: number
+  raisedMin: number
+}) => ({
+  weekStart: offer.weekStart,
+  fromWeek: offer.fromWeek,
+  currentMin: offer.currentMin,
+  raisedMin: offer.raisedMin,
+})
+
 const offerOf = async (f: Fixture): Promise<ReviewView | undefined> => {
   const res = await client(ctx, f.u).get(`/api/reviews?from=${lastWeek}&to=${lastWeek}`)
   expect(res.status, JSON.stringify(res.body)).toBe(200)
@@ -233,9 +247,7 @@ describe('POST /api/plan/raise', () => {
     const before = await weekRows(f)
     const count = await revisions(f)
 
-    const res = await client(ctx, f.u)
-      .post('/api/plan/raise')
-      .send({ weekStart: offer.weekStart, raisedMin: offer.raisedMin })
+    const res = await client(ctx, f.u).post('/api/plan/raise').send(yes(offer))
     expect(res.status, JSON.stringify(res.body)).toBe(200)
     const { revision } = res.body as RaiseResult
     expect(revision.reason).toBe('raise-to-match')
@@ -268,9 +280,7 @@ describe('POST /api/plan/raise', () => {
     const f = await ranAbove('raise-undo@example.com', 1.6)
     const offer = (await offerOf(f))!.raise!
     const before = await weekRows(f)
-    const res = await client(ctx, f.u)
-      .post('/api/plan/raise')
-      .send({ weekStart: offer.weekStart, raisedMin: offer.raisedMin })
+    const res = await client(ctx, f.u).post('/api/plan/raise').send(yes(offer))
     const { revision } = res.body as RaiseResult
     const undone = await client(ctx, f.u).post(`/api/plan/revisions/${revision.id}/undo`).send({})
     expect(undone.status, JSON.stringify(undone.body)).toBe(200)
@@ -289,29 +299,21 @@ describe('POST /api/plan/raise', () => {
     const before = { weeks: await weekRows(f), revisions: await revisions(f) }
     const post = (body: object) => client(ctx, f.u).post('/api/plan/raise').send(body)
 
-    expect(
-      (await post({ weekStart: offer.weekStart, raisedMin: offer.raisedMin + 5 })).status,
-    ).toBe(409)
-    expect(
-      (await post({ weekStart: addDays(lastWeek, -7), raisedMin: offer.raisedMin })).status,
-    ).toBe(409)
+    expect((await post({ ...yes(offer), raisedMin: offer.raisedMin + 5 })).status).toBe(409)
+    expect((await post({ ...yes(offer), weekStart: addDays(lastWeek, -7) })).status).toBe(409)
     expect(await weekRows(f)).toEqual(before.weeks)
     expect(await revisions(f)).toBe(before.revisions)
 
     // after Not now, a yes from a stale screen is refused too
     await client(ctx, f.u).put(`/api/reviews/${lastWeek}/raise`).send({ answer: 'declined' })
-    expect((await post({ weekStart: offer.weekStart, raisedMin: offer.raisedMin })).status).toBe(
-      409,
-    )
+    expect((await post(yes(offer))).status).toBe(409)
     expect(await revisions(f)).toBe(before.revisions)
   })
 
   test('is refused with a 409 when the recent weeks were run as planned', async () => {
     const f = await ranAbove('raise-notabove@example.com', 1)
     const count = await revisions(f)
-    const res = await client(ctx, f.u)
-      .post('/api/plan/raise')
-      .send({ weekStart: lastWeek, raisedMin: 300 })
+    const res = await client(ctx, f.u).post('/api/plan/raise').send(BASE)
     expect(res.status).toBe(409)
     expect(await revisions(f)).toBe(count)
   })
@@ -325,12 +327,17 @@ describe('POST /api/plan/raise', () => {
     for (const body of [
       {},
       { weekStart: lastWeek },
-      { raisedMin: 300 },
-      { weekStart: '2026-11-10', raisedMin: 300 },
-      { weekStart: lastWeek, raisedMin: 300.5 },
-      { weekStart: lastWeek, raisedMin: 0 },
-      { weekStart: lastWeek, raisedMin: '300' },
-      { weekStart: lastWeek, raisedMin: 300, extra: true },
+      { ...BASE, weekStart: undefined },
+      { ...BASE, fromWeek: undefined },
+      { ...BASE, currentMin: undefined },
+      { ...BASE, raisedMin: undefined },
+      { ...BASE, weekStart: '2026-11-10' },
+      { ...BASE, fromWeek: '2026-11-10' },
+      { ...BASE, raisedMin: 300.5 },
+      { ...BASE, raisedMin: 0 },
+      { ...BASE, raisedMin: '300' },
+      { ...BASE, currentMin: -1 },
+      { ...BASE, extra: true },
     ]) {
       const res = await post(body)
       expect(res.status, JSON.stringify(body)).toBe(400)
@@ -346,14 +353,14 @@ describe('POST /api/plan/raise', () => {
     const noOrigin = await request(ctx.app)
       .post('/api/plan/raise')
       .set('Cookie', f.u.cookie)
-      .send({ weekStart: lastWeek, raisedMin: 300 })
+      .send(BASE)
     expect(noOrigin.status).toBe(403)
     const cross = await request(ctx.app)
       .post('/api/plan/raise')
       .set('Host', 'app.test')
       .set('Origin', 'http://evil.test')
       .set('Cookie', f.u.cookie)
-      .send({ weekStart: lastWeek, raisedMin: 300 })
+      .send(BASE)
     expect(cross.status).toBe(403)
     const declineCross = await request(ctx.app)
       .put(`/api/reviews/${lastWeek}/raise`)
@@ -364,6 +371,66 @@ describe('POST /api/plan/raise', () => {
     expect(declineCross.status).toBe(403)
     expect(await revisions(f)).toBe(count)
     expect((await offerOf(f))?.raise).toBeDefined()
+  })
+})
+
+describe('answers that no longer stand', () => {
+  test('a second yes after a yes (another tab) is a 409 and writes nothing more', async () => {
+    const f = await ranAbove('raise-twice@example.com', 1.6)
+    const offer = (await offerOf(f))!.raise!
+    const post = () => client(ctx, f.u).post('/api/plan/raise').send(yes(offer))
+    expect((await post()).status).toBe(200)
+    const count = await revisions(f)
+    expect((await post()).status).toBe(409)
+    expect(await revisions(f)).toBe(count)
+  })
+
+  test('a Not now after a yes is a 409 and leaves the answer as raised', async () => {
+    const f = await ranAbove('raise-late-decline@example.com', 1.6)
+    const offer = (await offerOf(f))!.raise!
+    await client(ctx, f.u).post('/api/plan/raise').send(yes(offer)).expect(200)
+    const res = await client(ctx, f.u)
+      .put(`/api/reviews/${lastWeek}/raise`)
+      .send({ answer: 'declined' })
+    expect(res.status).toBe(409)
+    const row = await ctx.prisma.weeklyReview.findFirstOrThrow({
+      where: { userId: f.u.id, weekStart: lastWeek },
+    })
+    expect(row.raiseAnswer).toBe('raised')
+  })
+
+  test('a yes that names another start week or another current figure is a 409', async () => {
+    const f = await ranAbove('raise-mismatch@example.com', 1.6)
+    const offer = (await offerOf(f))!.raise!
+    const count = await revisions(f)
+    const post = (over: object) =>
+      client(ctx, f.u)
+        .post('/api/plan/raise')
+        .send({ ...yes(offer), ...over })
+    expect((await post({ fromWeek: addDays(offer.fromWeek, 7) })).status).toBe(409)
+    expect((await post({ currentMin: offer.currentMin + 1 })).status).toBe(409)
+    expect(await revisions(f)).toBe(count)
+  })
+
+  test('is blocked by pain reported in the current week, for the offer and the yes', async () => {
+    const f = await ranAbove('raise-pain-now@example.com', 1.6)
+    const offer = (await offerOf(f))!.raise!
+    await client(ctx, f.u).put(`/api/checkins/${now}`).send({ painScore: 1 }).expect(200)
+    expect((await offerOf(f))?.raise).toBeUndefined()
+    const res = await client(ctx, f.u).post('/api/plan/raise').send(yes(offer))
+    expect(res.status).toBe(409)
+  })
+
+  test('a Not now silences the offer for the whole look-back window and no longer', async () => {
+    const { raiseAnsweredWithin } = await import('../../server/services/raiseOffer.ts')
+    const f = await ranAbove('raise-window@example.com', 1.6)
+    await client(ctx, f.u).put(`/api/reviews/${lastWeek}/raise`).send({ answer: 'declined' })
+    const deps = { prisma: ctx.prisma, config: ctx.config, fetch: ctx.fetch }
+    const within = (days: number) =>
+      raiseAnsweredWithin(deps, { userId: f.u.id, today: addDays(now, days) })
+    expect(await within(0)).toBe(true)
+    expect(await within(21)).toBe(true)
+    expect(await within(28)).toBe(false)
   })
 })
 

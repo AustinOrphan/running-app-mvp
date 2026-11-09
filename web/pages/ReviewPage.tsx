@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { overshootTodayLine } from '../../shared/copy/overshoot.ts'
 import {
@@ -812,22 +812,37 @@ function RaiseOfferCard({ offer }: { offer: RaiseOffer | null }) {
   const toast = useToast()
   const [failure, setFailure] = useState<string | null>(null)
   const [done, setDone] = useState<PlanRevisionView | null>(null)
+  const [declined, setDeclined] = useState(false)
   const [why, setWhy] = useState<WhyTarget | null>(null)
   const busy = raise.isPending || decline.isPending
+  // The result line takes focus once an answer is saved, so the button that was pressed leaving the
+  // page does not drop it; the line is announced politely.
+  const resultRef = useRef<HTMLParagraphElement>(null)
+  const answered = done !== null || declined
+  useEffect(() => {
+    if (answered) resultRef.current?.focus()
+  }, [answered])
+
+  /** A refused answer: what was shown is out of date, the readers are fetched again. */
+  function refused(err: unknown, stale: string): string {
+    return err instanceof ApiError && (err.status === 409 || err.status === 400)
+      ? stale
+      : `The plan was not changed. ${err instanceof ApiError ? err.message : 'The server did not respond.'}`
+  }
 
   async function onRaise(current: RaiseOffer) {
     setFailure(null)
     try {
       const result = await raise.mutateAsync({
         weekStart: current.weekStart,
+        fromWeek: current.fromWeek,
+        currentMin: current.currentMin,
         raisedMin: current.raisedMin,
       })
       setDone(result.revision)
       toast.show(render(RAISE_TEMPLATES['raise.done'], {}, units))
     } catch (err) {
-      setFailure(
-        `The plan was not changed. ${err instanceof ApiError ? err.message : 'The server did not respond.'}`,
-      )
+      setFailure(refused(err, render(RAISE_TEMPLATES['raise.stale-raise'], {}, units)))
     }
   }
 
@@ -835,11 +850,10 @@ function RaiseOfferCard({ offer }: { offer: RaiseOffer | null }) {
     setFailure(null)
     try {
       await decline.mutateAsync(current.weekStart)
+      setDeclined(true)
       toast.show(render(RAISE_TEMPLATES['raise.declined'], {}, units))
     } catch (err) {
-      setFailure(
-        `That was not saved. ${err instanceof ApiError ? err.message : 'The server did not respond.'}`,
-      )
+      setFailure(refused(err, render(RAISE_TEMPLATES['raise.stale-decline'], {}, units)))
     }
   }
 
@@ -847,6 +861,9 @@ function RaiseOfferCard({ offer }: { offer: RaiseOffer | null }) {
     return (
       <section aria-labelledby={headingId} className={`${styles.section} ${styles.suggestion}`}>
         <h2 id={headingId}>What changed</h2>
+        <p ref={resultRef} tabIndex={-1} role="status" aria-live="polite">
+          {render(RAISE_TEMPLATES['raise.done'], {}, units)}
+        </p>
         <RevisionDiff
           revision={done}
           units={units}
@@ -865,7 +882,23 @@ function RaiseOfferCard({ offer }: { offer: RaiseOffer | null }) {
       </section>
     )
   }
-  if (offer === null) return null
+  if (declined) {
+    return (
+      <section className={styles.section}>
+        <p ref={resultRef} tabIndex={-1} role="status" aria-live="polite">
+          {render(RAISE_TEMPLATES['raise.declined'], {}, units)}
+        </p>
+      </section>
+    )
+  }
+  if (offer === null) {
+    // the offer went away after a refusal: the reason stays on the page
+    return failure === null ? null : (
+      <section className={styles.section}>
+        <p role="alert">{failure}</p>
+      </section>
+    )
+  }
 
   return (
     <section aria-labelledby={headingId} className={`${styles.section} ${styles.suggestion}`}>

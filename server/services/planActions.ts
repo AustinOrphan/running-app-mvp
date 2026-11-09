@@ -47,7 +47,7 @@ import {
   type WindowPlanned,
 } from './disruptions.ts'
 import { failedChecklist, ownedSession, WRITE_TIMEOUT_MS } from './planEngine.ts'
-import { raiseWeekOf, saveRaiseAnswer } from './raiseOffer.ts'
+import { raiseAnsweredWithin, raiseWeekOf, saveRaiseAnswer } from './raiseOffer.ts'
 import {
   applyReplan,
   computeReplan,
@@ -400,14 +400,17 @@ export async function commitMethod(
  */
 export async function commitRaise(
   deps: Deps,
-  args: { userId: string; weekStart: string; raisedMin: number; today: string },
+  args: {
+    userId: string
+    weekStart: string
+    fromWeek: string
+    currentMin: number
+    raisedMin: number
+    today: string
+  },
 ): Promise<RaiseResult> {
-  const { userId, weekStart, raisedMin, today } = args
-  const answered = await deps.prisma.weeklyReview.findUnique({
-    where: { userId_weekStart: { userId, weekStart } },
-    select: { raiseAnswer: true },
-  })
-  if (weekStart !== raiseWeekOf(today) || answered?.raiseAnswer != null) {
+  const { userId, weekStart, today } = args
+  if (weekStart !== raiseWeekOf(today) || (await raiseAnsweredWithin(deps, { userId, today }))) {
     throw conflict(stalePreviewMessage())
   }
   for (let attempt = 1; ; attempt += 1) {
@@ -418,11 +421,14 @@ export async function commitRaise(
       raise: true,
     })
     const raise = result.raise
+    // The yes writes what the offer showed: the same week, its figure now and the raised one.
     if (
       raise === null ||
       !raise.check.met ||
       raise.rise === null ||
-      raise.rise.toMin !== raisedMin
+      raise.rise.weekStart !== args.fromWeek ||
+      raise.rise.fromMin !== args.currentMin ||
+      raise.rise.toMin !== args.raisedMin
     ) {
       throw conflict(stalePreviewMessage())
     }

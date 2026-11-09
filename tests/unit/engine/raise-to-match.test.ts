@@ -203,6 +203,85 @@ describe('the condition', () => {
   })
 })
 
+describe('the condition, loading weeks and the current week', () => {
+  const markRecovery = (weeks: string[]) => (i: EngineInput) => ({
+    ...i,
+    existing: {
+      ...i.existing!,
+      weeks: i.existing!.weeks.map((w) =>
+        weeks.includes(w.weekStart) ? { ...w, isRecovery: true, flags: ['recovery'] } : w,
+      ),
+    },
+  })
+
+  it('leaves a recovery week out, for and against, in a 3:1 block', () => {
+    const weeks = raiseWeeksOf(baseInput().today)
+    // three loading weeks above plan, the easy week run as planned: still 3 of the loading weeks
+    const easyAsPlanned = scenario([360, 360, 360, 300], 300, markRecovery([weeks[3]!]))
+    expect(raiseToMatchCheck(easyAsPlanned.input, easyAsPlanned.state)).toMatchObject({ met: true })
+    // the easy week run above its plan is no week above plan: 3 loading weeks, all counted
+    const easyAbove = scenario([360, 360, 360, 360], 300, markRecovery([weeks[3]!]))
+    const check = raiseToMatchCheck(easyAbove.input, easyAbove.state)
+    expect(check.aboveWeeks).toEqual(weeks.slice(0, 3))
+    // with two of the four an easy week, two loading weeks cannot make 3
+    const two = scenario([360, 360, 360, 360], 300, markRecovery([weeks[1]!, weeks[3]!]))
+    expect(raiseToMatchCheck(two.input, two.state)).toMatchObject({
+      met: false,
+      block: 'not-above',
+    })
+  })
+
+  it('is blocked by pain or illness reported in the current week', () => {
+    const monday = mondayOf(baseInput().today)
+    const pain = scenario([360, 360, 360, 360], 300, (i) => ({
+      ...i,
+      wellness: [wellnessDay(monday, { painScore: 1 })],
+    }))
+    expect(raiseToMatchCheck(pain.input, pain.state)).toMatchObject({ met: false, block: 'pain' })
+    const ill = scenario([360, 360, 360, 360], 300, (i) => ({
+      ...i,
+      wellness: [wellnessDay(monday, { illness: true })],
+    }))
+    expect(raiseToMatchCheck(ill.input, ill.state)).toMatchObject({ met: false, block: 'fatigue' })
+  })
+
+  it('is blocked by any signal the weekly decision reads (J5) in the current week', () => {
+    const monday = mondayOf(baseInput().today)
+    const review = {
+      weekStart: monday,
+      fatigue: P.j5.reviewFatigueDecline.value,
+      symptoms: null,
+    } as WeeklyReview
+    const fatigued = scenario([360, 360, 360, 360], 300, (i) => ({ ...i, reviews: [review] }))
+    expect(raiseToMatchCheck(fatigued.input, fatigued.state)).toMatchObject({
+      met: false,
+      block: 'fatigue',
+    })
+  })
+})
+
+describe('the first week the raise lifts', () => {
+  const stored = [{ weekStart: '2026-12-07', targetRunMin: 300 }]
+  const week = {
+    weekStart: '2026-12-07',
+    targetRunMin: 330,
+    isRecovery: false,
+    isTaper: false,
+    phase: 'build',
+    flags: [],
+  } as unknown as WeekDraft
+  const change = { weekStart: '2026-12-07', field: 'plannedMin', from: 300, to: 330 }
+
+  it('needs the week\u2019s sessions to be rewritten with more running', () => {
+    expect(firstRise(stored, [week], '2026-12-07', [])).toBeNull()
+    expect(firstRise(stored, [week], '2026-12-07', [change])).toEqual({
+      weekStart: '2026-12-07',
+      fromMin: 300,
+      toMin: 330,
+    })
+  })
+})
+
 /** A scenario as the two arguments of the check. */
 function pair(s: { input: EngineInput; state: AthleteState }): [EngineInput, AthleteState] {
   return [s.input, s.state]
@@ -224,7 +303,8 @@ describe('a re-plan with the runner’s yes', () => {
   it('lifts the weeks ahead toward the level the recent weeks show, by steps, never lowering one', () => {
     const input = above()
     const before = replan(input).draft
-    const raised = replan({ ...input, raiseToLevel: true }).draft
+    const plan = replan({ ...input, raiseToLevel: true })
+    const raised = plan.draft
     const level = estimateState(input)
     const monday = mondayOf(input.today)
     const weeksOf = (weeks: WeekDraft[]) => weeks.filter((w) => w.weekStart >= monday)
@@ -242,7 +322,7 @@ describe('a re-plan with the runner’s yes', () => {
     }
     // the draft passes every item of the quality checklist, the progression limits included
     expect(raised.checklist.filter((item) => !item.ok)).toEqual([])
-    const rise = firstRise(input.existing!.weeks, raised.weeks, input.today)
+    const rise = firstRise(input.existing!.weeks, raised.weeks, input.today, plan.changes)
     expect(rise).not.toBeNull()
     expect(rise!.toMin).toBeGreaterThan(rise!.fromMin)
   })
@@ -271,7 +351,7 @@ describe('a re-plan with the runner’s yes', () => {
 
   it('finds no rise when the plan already holds the level', () => {
     const input = above()
-    const raised = replan({ ...input, raiseToLevel: true }).draft
-    expect(firstRise(raised.weeks, raised.weeks, input.today)).toBeNull()
+    const plan = replan({ ...input, raiseToLevel: true })
+    expect(firstRise(plan.draft.weeks, plan.draft.weeks, input.today, plan.changes)).toBeNull()
   })
 })

@@ -2,14 +2,13 @@
 // review asks whether to raise it. Pure; the condition here only decides whether to ask, and a yes
 // is a re-plan with `raiseToLevel` under every limit of the ordinary one. Never automatic.
 import { addDays, mondayOf } from '../dates.ts'
-import { worstPainIn } from './adapt.ts'
-import { isDisruptedWeek } from './disruption.ts'
+import { worstPainIn, weeklyDecision, type WeeklyContext } from './adapt.ts'
 import { plannedMinOf } from './limits.ts'
 import { persistentHoldOf } from './holds.ts'
 import { progressionHold } from './macro.ts'
 import { P } from './params/index.ts'
-import { checkinOn, poorSubjective } from './readiness.ts'
-import type { AthleteState, EngineInput, WeekDraft } from './types.ts'
+import { isLoadingWeek } from './startWeeks.ts'
+import type { AthleteState, EngineInput, PlanChange, WeekDraft } from './types.ts'
 
 /** Why the offer is not made; `null` when it is. */
 export type RaiseBlock =
@@ -25,11 +24,6 @@ export interface RaiseCheck {
   aboveWeeks: string[]
 }
 
-/** The weeks that are the plan's own loading weeks: not taper, race, or cut by a window. */
-function countsAsLoading(week: WeekDraft): boolean {
-  return !week.isTaper && week.phase !== 'race' && !isDisruptedWeek(week.flags)
-}
-
 /** The last `e7.raiseWeeksLooked` complete weeks before `today`, oldest first. */
 export function raiseWeeksOf(today: string): string[] {
   const count = P.e7.raiseWeeksLooked.value
@@ -42,22 +36,10 @@ export function isAbovePlan(minutes: number, planned: number): boolean {
   return planned > 0 && minutes * 100 > planned * (100 + P.e7.raiseAbovePlanPct.value)
 }
 
-/** A fatigue flag in the week: poor check-in days, a review that says so, or illness [rules J2, J5]. */
-function fatigueIn(input: EngineInput, weekStart: string): boolean {
-  let poorDays = 0
-  for (let k = 0; k < 7; k++) {
-    const checkin = checkinOn(input, addDays(weekStart, k))
-    if (poorSubjective(checkin)) poorDays += 1
-    if (checkin?.illness) return true
-  }
-  if (poorDays >= P.j5.subjectivePoorDays.value) return true
-  const review = input.reviews.find((r) => r.weekStart === weekStart)
-  return (
-    review !== undefined &&
-    ((review.fatigue !== null && review.fatigue >= P.j5.reviewFatigueDecline.value) ||
-      review.symptoms === 'persistent')
-  )
-}
+/** The J5 signals that are not about the plan being run short: a week run above plan cannot raise it. */
+const NOT_A_BLOCK: ReadonlySet<string> = new Set(['completion-low'])
+/** The J5 signals that are pain; every other one a decision reads blocks as fatigue. */
+const PAIN_SIGNALS: ReadonlySet<string> = new Set(['pain', 'pain-mild'])
 
 /**
  * Whether the weekly review asks "Your recent weeks were above plan. Raise the plan to match?" [rule
@@ -67,7 +49,11 @@ function fatigueIn(input: EngineInput, weekStart: string): boolean {
  * or limited-running window reaching those weeks or after; no break of `j7.tier1Days` days; and the
  * current and the next week are neither taper nor race.
  */
-export function raiseToMatchCheck(input: EngineInput, state: AthleteState): RaiseCheck {
+export function raiseToMatchCheck(
+  input: EngineInput,
+  state: AthleteState,
+  contextOf: (weekStart: string) => WeeklyContext = () => ({}),
+): RaiseCheck {
   const weekStarts = raiseWeeksOf(input.today)
   const no = (block: RaiseBlock, aboveWeeks: string[] = []): RaiseCheck => ({
     met: false,
@@ -88,14 +74,23 @@ export function raiseToMatchCheck(input: EngineInput, state: AthleteState): Rais
   const from = weekStarts[0]!
   if ((input.disruptions ?? []).some((w) => w.endDate >= from)) return no('disruption')
 
-  const last = addDays(currentMonday, -1)
-  if (weekStarts.some((w) => worstPainIn(input, w, last) > 0)) return no('pain')
-  if (weekStarts.some((w) => fatigueIn(input, w))) return no('fatigue')
+  // Pain, illness or any signal the weekly decision (J5) reads in the weeks read or in the current
+  // week so far blocks the offer, and so does the raise.
+  const read = [...weekStarts, currentMonday]
+  if (read.some((w) => worstPainIn(input, w, input.today) > 0)) return no('pain')
+  for (const week of read) {
+    const signals = weeklyDecision(input, week, contextOf(week)).signals.filter(
+      (signal) => !NOT_A_BLOCK.has(signal.code),
+    )
+    if (signals.some((signal) => PAIN_SIGNALS.has(signal.code))) return no('pain')
+    // a signal that only corroborates another (hrv) never stands alone
+    if (signals.some((signal) => signal.code !== 'hrv-suppressed')) return no('fatigue')
+  }
 
   const aboveWeeks = weekStarts.filter((weekStart) => {
     const week = stored.get(weekStart)
     const ran = state.weeks.find((w) => w.weekStart === weekStart)?.runMin ?? 0
-    return week !== undefined && countsAsLoading(week) && isAbovePlan(ran, plannedMinOf(week))
+    return week !== undefined && isLoadingWeek(week) && isAbovePlan(ran, plannedMinOf(week))
   })
   if (aboveWeeks.length < P.e7.raiseWeeksAbove.value) return no('not-above', aboveWeeks)
   return { met: true, block: null, weekStarts, aboveWeeks }
@@ -109,21 +104,34 @@ export interface RaiseRise {
 }
 
 /**
- * The first week from the current Monday on that the raised re-plan draws higher than the plan holds
- * it. Taper, race and recovery weeks are passed over: the figure shown is a loading week's.
+ * The first loading week from the current Monday on that the raised re-plan draws higher than the plan
+ * holds it and whose sessions it rewrites with more running (`changes`, the re-plan's own list), so the
+ * figures shown are the rows and sessions written. A settled current week whose row could rise while
+ * its sessions cannot is passed over for the first week whose sessions do.
  */
 export function firstRise(
   stored: readonly Pick<WeekDraft, 'weekStart' | 'targetRunMin'>[],
   raised: readonly WeekDraft[],
   today: string,
+  changes: readonly Pick<PlanChange, 'weekStart' | 'field' | 'from' | 'to'>[],
 ): RaiseRise | null {
   const currentMonday = mondayOf(today)
   const before = new Map(stored.map((w) => [w.weekStart, w.targetRunMin]))
+  const moreRunning = new Set(
+    changes
+      .filter(
+        (c) =>
+          c.field === 'plannedMin' &&
+          typeof c.from === 'number' &&
+          typeof c.to === 'number' &&
+          c.to > c.from,
+      )
+      .map((c) => c.weekStart),
+  )
   for (const week of [...raised].sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1))) {
-    if (week.weekStart < currentMonday || week.isRecovery || week.isTaper) continue
-    if (week.phase === 'race') continue
+    if (week.weekStart < currentMonday || !isLoadingWeek(week)) continue
     const was = before.get(week.weekStart)
-    if (was !== undefined && week.targetRunMin > was) {
+    if (was !== undefined && week.targetRunMin > was && moreRunning.has(week.weekStart)) {
       return { weekStart: week.weekStart, fromMin: was, toMin: week.targetRunMin }
     }
   }

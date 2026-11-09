@@ -134,6 +134,10 @@ const raiseBody = z.strictObject({
   weekStart: z
     .string()
     .refine((value) => isIsoDate(value) && mondayOf(value) === value, 'Use a Monday, YYYY-MM-DD.'),
+  fromWeek: z
+    .string()
+    .refine((value) => isIsoDate(value) && mondayOf(value) === value, 'Use a Monday, YYYY-MM-DD.'),
+  currentMin: z.number().int().min(0).max(100_000),
   raisedMin: z.number().int().min(1).max(100_000),
 })
 

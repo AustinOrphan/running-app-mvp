@@ -30,6 +30,7 @@ import {
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { draftRamp } from '../../shared/engine/checklist.ts'
+import type { ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
@@ -46,6 +47,7 @@ import { P } from '../../shared/engine/params/index.ts'
 import {
   firstRise,
   raiseToMatchCheck,
+  raiseWeeksOf,
   type RaiseCheck,
   type RaiseRise,
 } from '../../shared/engine/raise.ts'
@@ -962,13 +964,25 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // A hold trims the next quality session of the week it caps; a reduce makes it a recovery week.
   const decisions: Record<string, WeeklyDecision['decision']> =
     decision !== null && decidedWeek !== null ? { [decidedWeek]: decision.decision } : {}
-  const raiseCheck = args.raise ? raiseToMatchCheck(input, state) : null
+  // The weeks the condition reads, with the executions and screen the weekly decision reads (J5).
+  const raiseWeeks = args.raise ? [...raiseWeeksOf(today), currentMonday] : []
+  const raiseExecutions = args.raise
+    ? await executionRecordsByWeek(prisma, plan.id, raiseWeeks)
+    : new Map<string, ExecutionRecord[]>()
+  const raiseCheck = args.raise
+    ? raiseToMatchCheck(input, state, (weekStart) => ({
+        executions: raiseExecutions.get(weekStart) ?? [],
+        redsFlags: input.screeningFlags,
+        ramp: weeklyRamp(state),
+        rebuild: rebuildZone(input, state),
+      }))
+    : null
   const { draft, changes, heldWeek } = replan(
     { ...input, weekCaps, ...(args.raise ? { raiseToLevel: true } : {}) },
     { decisions },
   )
   const rise =
-    raiseCheck === null ? null : firstRise(input.existing?.weeks ?? [], draft.weeks, today)
+    raiseCheck === null ? null : firstRise(input.existing?.weeks ?? [], draft.weeks, today, changes)
   const targetLimits = raisedTargetLimits({ rows: weekRows, draft, input, state, decidedWeek })
 
   const reason: PlanRevisionReason =

@@ -16,6 +16,9 @@ export const RAISE_TEMPLATES = {
   'raise.raise': tpl('Raise', {}, { shape: 'label' }),
   'raise.later': tpl('Not now', {}, { shape: 'label' }),
   'raise.done': tpl('Plan raised', {}, { shape: 'label' }),
+  // The server refused: what the screen showed no longer stands, and nothing was written.
+  'raise.stale-raise': tpl('The plan changed since this was shown; nothing was raised.'),
+  'raise.stale-decline': tpl('The plan changed since this was shown; nothing was changed.'),
   'raise.declined': tpl('Plan left as it is', {}, { shape: 'label' }),
 } satisfies Record<string, Template>
 

@@ -284,9 +284,19 @@ export function useChangeMethod() {
 export function useRaisePlan() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: { weekStart: string; raisedMin: number }) =>
-      api<RaiseResult>('POST', '/plan/raise', body),
+    mutationFn: (body: {
+      weekStart: string
+      fromWeek: string
+      currentMin: number
+      raisedMin: number
+    }) => api<RaiseResult>('POST', '/plan/raise', body),
     onSuccess: () => invalidatePlanReaders(queryClient, isPreviewQuery),
+    // a refused yes means the offer on screen is out of date: read it again
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 409 || error.status === 400)) {
+        void invalidatePlanReaders(queryClient, isPreviewQuery)
+      }
+    },
   })
 }
 

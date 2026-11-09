@@ -1605,7 +1605,12 @@ describe('ReviewPage: the offer to raise the plan to match (rule E7)', () => {
     ).toBeInTheDocument()
     const posts = api.calls.filter((c) => c.method === 'POST' && c.url === '/api/plan/raise')
     expect(posts).toHaveLength(1)
-    expect(posts[0]!.body).toEqual({ weekStart: W, raisedMin: 345 })
+    expect(posts[0]!.body).toEqual({
+      weekStart: W,
+      fromWeek: CURRENT,
+      currentMin: 300,
+      raisedMin: 345,
+    })
   })
 
   test('Not now is sent once, changes nothing in the plan and says so', async () => {
@@ -1616,11 +1621,89 @@ describe('ReviewPage: the offer to raise the plan to match (rule E7)', () => {
     )
     await ready()
     await user.click(await screen.findByRole('button', { name: 'Not now' }))
-    expect(await screen.findByText('Plan left as it is')).toBeInTheDocument()
+    expect((await screen.findAllByText('Plan left as it is')).length).toBeGreaterThan(0)
     const puts = api.calls.filter((c) => c.method === 'PUT' && c.url === `/api/reviews/${W}/raise`)
     expect(puts).toHaveLength(1)
     expect(puts[0]!.body).toEqual({ answer: 'declined' })
     expect(api.calls.some((c) => c.url === '/api/plan/raise')).toBe(false)
+  })
+
+  test('a refused Raise reads the reviews and the plan again and says nothing was raised', async () => {
+    const user = userEvent.setup()
+    let offered = true
+    const api = renderReview(
+      { reviews: { [W]: { raise: offer } } },
+      {
+        'GET /api/reviews': ({ query }) =>
+          weekStartsBetween(query.get('from') ?? '', query.get('to') ?? '').map((weekStart) =>
+            makeReview(weekStart, weekStart === W && offered ? { raise: offer } : {}),
+          ),
+        'POST /api/plan/raise': () => {
+          offered = false
+          return {
+            status: 409,
+            body: { error: { code: 'conflict', message: 'This preview is out of date.' } },
+          }
+        },
+      },
+    )
+    await ready()
+    const reads = () =>
+      api.calls.filter((c) => c.method === 'GET' && c.url.startsWith('/api/reviews'))
+    const before = reads().length
+    await user.click(await screen.findByRole('button', { name: 'Raise' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The plan changed since this was shown; nothing was raised.',
+    )
+    await waitFor(() => {
+      expect(reads().length).toBeGreaterThan(before)
+    })
+    // the offer was read again and is gone; the reason stays
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Raise' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('nothing was raised')
+  })
+
+  test('a stale Not now says nothing was changed and reads the reviews again', async () => {
+    const user = userEvent.setup()
+    const api = renderReview(
+      { reviews: { [W]: { raise: offer } } },
+      {
+        [`PUT /api/reviews/${W}/raise`]: () => ({
+          status: 409,
+          body: { error: { code: 'conflict', message: 'The plan changed.' } },
+        }),
+      },
+    )
+    await ready()
+    const before = api.calls.filter((c) => c.url.startsWith('/api/reviews')).length
+    await user.click(await screen.findByRole('button', { name: 'Not now' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The plan changed since this was shown; nothing was changed.',
+    )
+    await waitFor(() => {
+      expect(api.calls.filter((c) => c.url.startsWith('/api/reviews')).length).toBeGreaterThan(
+        before,
+      )
+    })
+  })
+
+  test('keeps focus on the result line after an answer', async () => {
+    const user = userEvent.setup()
+    renderReview(
+      { reviews: { [W]: { raise: offer } } },
+      { [`PUT /api/reviews/${W}/raise`]: () => ({ status: 204, body: undefined }) },
+    )
+    await ready()
+    await user.click(await screen.findByRole('button', { name: 'Not now' }))
+    const line = (await screen.findAllByText('Plan left as it is')).find(
+      (el) => el.tagName === 'P',
+    )!
+    expect(line).toHaveAttribute('aria-live', 'polite')
+    await waitFor(() => {
+      expect(line).toHaveFocus()
+    })
   })
 
   test('says the plan was not changed when the server refuses', async () => {
@@ -1637,7 +1720,7 @@ describe('ReviewPage: the offer to raise the plan to match (rule E7)', () => {
     await ready()
     await user.click(await screen.findByRole('button', { name: 'Raise' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The plan was not changed. This preview is out of date.',
+      'The plan changed since this was shown; nothing was raised.',
     )
     expect(screen.getByRole('button', { name: 'Not now' })).toBeEnabled()
   })
