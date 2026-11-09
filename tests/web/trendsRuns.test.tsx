@@ -5,13 +5,7 @@ import { hrWindows, longRunReadings, type TrendsRunsView } from '../../shared/do
 import type { Units, UserSettings } from '../../shared/types.ts'
 import { TrendsPage } from '../../web/pages/TrendsPage.tsx'
 import { makeWeekRow, steadyTrendRun, trendRun } from '../factories.ts'
-import {
-  drawnArt,
-  expectCleanCopy,
-  mockApi,
-  renderWithProviders,
-  showIllustrations,
-} from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 
 // The charts load as a lazy chunk, which a busy CI runner can take more than the default second.
 configure({ asyncUtilTimeout: 6000 })
@@ -401,11 +395,9 @@ describe('Trends, heart rate at one speed', () => {
 
 describe('Trends, the run panels fail', () => {
   test('tell one failure once with a retry, and leave the rest of the page', async () => {
-    showIllustrations()
     mockPage('error')
     renderWithProviders(<TrendsPage />)
     expect(await screen.findByRole('alert')).toHaveTextContent('The run data did not load.')
-    expect(drawnArt()).toEqual([])
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     expect(

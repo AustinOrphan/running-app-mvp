@@ -141,6 +141,9 @@ describe('Activities page', () => {
     expect(screen.getByRole('heading', { name: 'Activities', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Log activity' })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    // the preview of the list to come is hidden from assistive technology
+    expect(screen.queryByRole('columnheader')).toBeNull()
+    expect(screen.getByText(/^Runs list here by day/)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Import' }))
     expect(await screen.findByRole('dialog', { name: 'Import activities' })).toBeInTheDocument()

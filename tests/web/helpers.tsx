@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, type RenderResult } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { expect, onTestFinished, vi } from 'vitest'
+import { expect, vi } from 'vitest'
 import { lintText } from '../../shared/copy/lint.ts'
 import type { ActivityListItem, ActivityListPage } from '../../shared/types.ts'
 
@@ -312,22 +312,4 @@ export function expectTouchScale(
   expect(row, 'a touch scale').not.toBeNull()
   expect(row?.querySelectorAll('button')).toHaveLength(expected.steps)
   expect(row?.style.getPropertyValue('--cols')).toBe(String(expected.columns))
-}
-
-/**
- * Turns the Illustrations switch on for the rest of the test (it is off by default). Pair it with
- * `drawnArt` to see which drawing a page chose.
- */
-export function showIllustrations(): void {
-  localStorage.setItem('rl_illustrations', 'on')
-  onTestFinished(() => {
-    localStorage.removeItem('rl_illustrations')
-  })
-}
-
-/** The `art` keys of the drawings in `container`, in document order. */
-export function drawnArt(container: ParentNode = document.body): Array<string | null> {
-  return Array.from(container.querySelectorAll('svg[data-art]'), (svg) =>
-    svg.getAttribute('data-art'),
-  )
 }

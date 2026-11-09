@@ -6,7 +6,7 @@ import { gradeMeaning } from '../../shared/copy/grades.ts'
 import { suggestAction, type SuggestInput } from '../../shared/domain/review.ts'
 import { P } from '../../shared/engine/params/index.ts'
 import { Button } from '../../web/components/Button.tsx'
-import { EmptyState } from '../../web/components/EmptyState.tsx'
+import { EmptyAxis, EmptyPreview, EmptyState } from '../../web/components/EmptyState.tsx'
 import { Field, Input } from '../../web/components/Field.tsx'
 import { GradeBadge } from '../../web/components/GradeBadge.tsx'
 import { Meter } from '../../web/components/Meter.tsx'
@@ -709,6 +709,32 @@ describe('EmptyState and PageHeader', () => {
     expect(screen.getByText('No runs this week yet.')).toBeInTheDocument()
     expect(screen.getByText("Log one when you're out.")).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Log activity' })).toBeInTheDocument()
+  })
+
+  test('EmptyState keeps its preview out of the accessibility tree, the sentence stays by role', () => {
+    const { container } = render(
+      <EmptyState
+        title="No activities yet."
+        body="Runs list here by day."
+        preview={<EmptyPreview columns={['Date', 'Distance']} />}
+      />,
+    )
+    expect(screen.getByText('No activities yet.')).toBeInTheDocument()
+    const preview = container.querySelector('[aria-hidden="true"]')
+    expect(preview).not.toBeNull()
+    expect(preview).toHaveTextContent('DateDistance\u2013\u2013')
+    expect(screen.queryByRole('img')).toBeNull()
+    expect(container.querySelector('svg')).toBeNull()
+  })
+
+  test('EmptyAxis names its two ends', () => {
+    const { container } = render(
+      <EmptyState
+        title="No runs in this range yet."
+        preview={<EmptyAxis ticks={['Earlier', 'This week']} />}
+      />,
+    )
+    expect(container.querySelector('[aria-hidden="true"]')).toHaveTextContent('EarlierThis week')
   })
 
   test('PageHeader renders the h1, context and actions', () => {

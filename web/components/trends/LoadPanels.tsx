@@ -168,7 +168,6 @@ export function LoadPanels({ months, weekCount, units }: LoadPanelsProps) {
           subject={text('trends.load.subject')}
           onRetry={load.refetch}
           retrying={loadView === 'retrying'}
-          art={false}
         />
       </Section>
     )

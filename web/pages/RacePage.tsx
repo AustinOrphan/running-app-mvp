@@ -16,7 +16,6 @@ import { rulesRef } from '../api/explain.ts'
 import { useRacePlan } from '../api/race.ts'
 import { useSettings } from '../api/settings.ts'
 import { RaceProfileChart } from '../components/charts/lazyCharts.tsx'
-import { Illustration } from '../components/illustrations/Illustration.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { ExplainButton } from '../components/ExplainButton.tsx'
 import { useLoadView } from '../components/loadView.ts'
@@ -368,10 +367,7 @@ export function RacePage() {
       ) : view === undefined || units === undefined ? (
         <Skeleton lines={6} />
       ) : plan === null ? (
-        <>
-          <Illustration art="race" />
-          <p className={cardStyles.text}>{raceEmptyText(view.reason ?? 'no-goal', units)}</p>
-        </>
+        <p className={cardStyles.text}>{raceEmptyText(view.reason ?? 'no-goal', units)}</p>
       ) : (
         <PlanBody plan={plan} course={view.course} units={units} />
       )}

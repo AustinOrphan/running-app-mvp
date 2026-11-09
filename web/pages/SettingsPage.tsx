@@ -15,7 +15,6 @@ import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
 import { useCondensedFigures } from '../components/figureType.ts'
-import { useIllustrations } from '../components/illustrations/useIllustrations.ts'
 import { useMapTiles } from '../components/map/useMapTiles.ts'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -51,7 +50,6 @@ const NAME_PAUSE_MS = 800
 function SettingsForm({ initial }: { initial: UserSettings }) {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
-  const illustrations = useIllustrations()
   const condensed = useCondensedFigures()
   const mapTiles = useMapTiles()
   const update = useUpdateSettings()
@@ -182,11 +180,6 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
     confirm()
   }
 
-  function onIllustrationsChange(next: boolean) {
-    illustrations.setOn(next)
-    confirm()
-  }
-
   function onCondensedChange(next: boolean) {
     condensed.setOn(next)
     confirm()
@@ -312,21 +305,6 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
             { value: 'dark', label: 'Dark' },
           ]}
         />
-        <label className={styles.check}>
-          <input
-            type="checkbox"
-            checked={illustrations.on}
-            aria-describedby="illustrations-note"
-            onChange={(event) => {
-              onIllustrationsChange(event.target.checked)
-            }}
-          />
-          Illustrations
-        </label>
-        <p id="illustrations-note" className={styles.note}>
-          Line drawings on empty pages and on pages that did not load. An experiment; this device
-          only.
-        </p>
         <label className={styles.check}>
           <input
             type="checkbox"

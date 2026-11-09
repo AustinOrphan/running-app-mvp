@@ -26,7 +26,7 @@ import {
 import { ApiError } from '../api/client.ts'
 import { useSettings } from '../api/settings.ts'
 import { Button } from '../components/Button.tsx'
-import { EmptyState } from '../components/EmptyState.tsx'
+import { EmptyPreview, EmptyState } from '../components/EmptyState.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
@@ -342,8 +342,8 @@ export function ActivitiesPage() {
     body = (
       <EmptyState
         title="No activities yet."
-        art="runs"
-        body="Log a run, or import a Smashrun export to bring your history in."
+        body="Runs list here by day, newest first. Log a run, or import a Smashrun export to bring your history in."
+        preview={<EmptyPreview columns={['Date', 'Type', 'Distance', 'Time']} />}
         action={
           <div className={styles.emptyActions}>
             {logButton}

@@ -29,7 +29,7 @@ import { useSettings } from '../api/settings.ts'
 import { useTrends } from '../api/trends.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { RecoveryChart, TrendsRunChart, WeightChart } from '../components/charts/lazyCharts.tsx'
-import { EmptyState } from '../components/EmptyState.tsx'
+import { EmptyAxis, EmptyState } from '../components/EmptyState.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
 import { LoadPanels } from '../components/trends/LoadPanels.tsx'
@@ -138,9 +138,9 @@ function RunningSection({ weeks, units, currentWeek, months, firstRecord }: Runn
         </>
       ) : (
         <EmptyState
-          art="trends"
           title={text('trends.run.empty')}
           body={text('trends.run.empty-body')}
+          preview={<EmptyAxis ticks={['Earlier', 'This week']} />}
         />
       )}
     </section>
