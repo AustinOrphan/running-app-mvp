@@ -19,6 +19,11 @@
   height: 11rem;
 }
 
+/* The race profile: the readout row (40 px), the names above the plot, the plot and the caption. */
+.raceProfile {
+  height: calc(40px + 40px + var(--chart-h-lg) + 72px);
+}
+
 /* The stacked stream panel: the readout row (40 px), a plot of --chart-h-sm for each channel, the x
    axis (24 px) and the caption (a note of two lines and the closed "How to read this"). */
 .streamPanel1,

@@ -62,7 +62,8 @@ async function buildRacePlan(deps: RaceDeps, userId: string, today: string): Pro
     },
     today,
   })
-  return { plan, reason: null }
+  // The same rows the plan was drawn from: no second read of the table.
+  return { plan, reason: null, course: courseSilhouettePoints(checkpoints, goal) }
 }
 
 /**

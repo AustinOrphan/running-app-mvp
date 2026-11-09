@@ -3,16 +3,19 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   daysToGoText,
   describeRaceCard,
+  describeRaceProfileHeading,
   describeRacePlan,
   raceCopyNoteText,
   raceEmptyText,
   raceTitleText,
 } from '../../shared/copy/racePlan.ts'
 import type { RacePlan } from '../../shared/engine/racePlan.ts'
-import type { Units } from '../../shared/types.ts'
+import { raceProfileFor } from '../../shared/domain/raceProfile.ts'
+import type { CourseSilhouettePoint, Units } from '../../shared/types.ts'
 import { rulesRef } from '../api/explain.ts'
 import { useRacePlan } from '../api/race.ts'
 import { useSettings } from '../api/settings.ts'
+import { RaceProfileChart } from '../components/charts/lazyCharts.tsx'
 import { Illustration } from '../components/illustrations/Illustration.tsx'
 import { ErrorState } from '../components/ErrorState.tsx'
 import { ExplainButton } from '../components/ExplainButton.tsx'
@@ -33,7 +36,15 @@ import { usePhoneCopy } from '../components/today/phoneCopy.ts'
 import { formatLongDate } from '../components/format.ts'
 import styles from './RacePage.module.css'
 
-function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
+function PlanBody({
+  plan,
+  course: courseShape,
+  units,
+}: {
+  plan: RacePlan
+  course: CourseSilhouettePoint[] | null | undefined
+  units: Units
+}) {
   const text = useMemo(() => describeRacePlan(plan, units), [plan, units])
   const { expected, effort, climbing, heat, raceWeek, dark } = text
   const [editing, setEditing] = useState(false)
@@ -43,7 +54,9 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
   // phone's copy of the page, open on it.
   const [params, setParams] = useSearchParams()
   const view = params.get('view') === 'card' ? 'card' : 'plan'
+  const profileHeading = useMemo(() => describeRaceProfileHeading(units), [units])
   const card = useMemo(() => describeRaceCard(plan, units), [plan, units])
+  const profile = useMemo(() => raceProfileFor(plan, courseShape), [plan, courseShape])
   return (
     <div className={styles.page}>
       <div className={styles.views}>
@@ -62,6 +75,14 @@ function PlanBody({ plan, units }: { plan: RacePlan; units: Units }) {
       {view === 'card' ? <RaceCard plan={plan} units={units} /> : null}
       {view === 'card' ? null : (
         <>
+          {profile === null ? null : (
+            <section className={cardStyles.section} aria-labelledby="race-profile">
+              <h2 id="race-profile" className={cardStyles.heading}>
+                {profileHeading}
+              </h2>
+              <RaceProfileChart profile={profile} units={units} />
+            </section>
+          )}
           <section className={cardStyles.section} aria-labelledby="race-expected">
             <h2 id="race-expected" className={cardStyles.heading}>
               {expected.heading}
@@ -352,7 +373,7 @@ export function RacePage() {
           <p className={cardStyles.text}>{raceEmptyText(view.reason ?? 'no-goal', units)}</p>
         </>
       ) : (
-        <PlanBody plan={plan} units={units} />
+        <PlanBody plan={plan} course={view.course} units={units} />
       )}
     </>
   )

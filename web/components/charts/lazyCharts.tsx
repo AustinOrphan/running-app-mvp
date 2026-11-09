@@ -26,6 +26,7 @@ type Place =
   | 'season'
   | 'monthly'
   | 'stream'
+  | 'raceProfile'
   | 'streamPanel1'
   | 'streamPanel2'
   | 'streamPanel3'
@@ -87,6 +88,10 @@ export const StreamChart = lazyChart(
 export const CourseProfileChart = lazyChart(
   () => import('./CourseProfileChart.tsx').then((module) => module.CourseProfileChart),
   'stream',
+)
+export const RaceProfileChart = lazyChart(
+  () => import('./RaceProfileChart.tsx').then((module) => module.RaceProfileChart),
+  'raceProfile',
 )
 export const PredictionTrackChart = lazyChart(
   () => import('./PredictionTrackChart.tsx').then((module) => module.PredictionTrackChart),

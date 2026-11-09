@@ -14,6 +14,7 @@ const CHARTS = [
   'MonthlyHoursChart',
   'StreamChart',
   'CourseProfileChart',
+  'RaceProfileChart',
   'PredictionTrackChart',
   'EstimatedMaxChart',
   'TrendsRunChart',

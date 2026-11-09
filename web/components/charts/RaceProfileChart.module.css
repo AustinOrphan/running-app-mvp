@@ -1,0 +1,106 @@
+.figure {
+  position: relative;
+  margin: 0;
+  min-width: 0;
+}
+
+/* The fixed readout row above the plot: its height holds the hint and the longest reading (two
+   lines at 360 px), so the page does not move when a point is read. */
+.readout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Two lines, in em, so a larger text size keeps the room; a longer reading grows the row. */
+  min-height: 2.8em;
+  padding: var(--space-1) 0;
+  color: var(--text);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  font-variant-numeric: lining-nums tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.where {
+  font-weight: 600;
+}
+
+.tick {
+  fill: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.defs {
+  position: absolute;
+  pointer-events: none;
+}
+
+.how summary {
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.how p {
+  margin: var(--space-1) 0 0;
+}
+
+.hint {
+  color: var(--text-muted);
+}
+
+/* A sideways scrub reads a point; a vertical swipe still scrolls the page. */
+.group {
+  touch-action: pan-y;
+  border-radius: var(--radius-sm);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The names of the course points, above the plot and level with it (the left margin is set from the
+   y axis). Each is placed by `placeLabels`, so none covers another. */
+.strip {
+  position: relative;
+  margin-right: 12px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.clock {
+  color: var(--text-muted);
+}
+
+/* The chart draws once at its initialDimension (640 px) before it measures this box; clipping keeps
+   that first frame from widening the page of a phone. */
+.chart {
+  width: 100%;
+  height: var(--chart-h-lg);
+  overflow: hidden;
+}
+
+@media (min-width: 900px) {
+  .chart {
+    height: 288px;
+  }
+}
+
+.caption {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.line {
+  display: block;
+}

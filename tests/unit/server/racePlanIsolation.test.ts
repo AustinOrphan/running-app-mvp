@@ -38,6 +38,7 @@ const ENGINE_ALLOWED = [
   // the engine module itself is imported by the copy, the server and the web that show it
   'server/services/racePlan.ts',
   'shared/copy/racePlan.ts',
+  'shared/domain/raceProfile.ts',
   'shared/types.ts',
   'web/components/race/CheckpointSheet.tsx',
   'web/components/race/CheckpointTable.tsx',
@@ -49,6 +50,7 @@ const ENGINE_ALLOWED = [
 const COPY_ALLOWED = [
   'shared/copy/templates.ts',
   'web/components/charts/CourseProfileChart.tsx',
+  'web/components/charts/RaceProfileChart.tsx',
   'web/components/race/CheckpointSheet.tsx',
   'web/components/race/CheckpointTable.tsx',
   'web/components/race/CourseImportButton.tsx',
@@ -112,7 +114,7 @@ describe('who reads the race plan', () => {
     )
     expect(delivery.length).toBeGreaterThan(8)
     const offences = delivery.filter((file) =>
-      /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\.|courseSilhouette|loadRaceCourse|race\.course/.test(
+      /racePlan|raceSplits|raceCheckpoint|RaceCheckpoint|race\.plan\.|courseSilhouette|loadRaceCourse|race\.course|raceProfile|labelLayout|RaceProfile|RacePlanView/.test(
         readFileSync(join(ROOT, file), 'utf8'),
       ),
     )
