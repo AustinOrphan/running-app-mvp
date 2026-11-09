@@ -7,7 +7,7 @@ import { addDays } from '../../shared/dates.ts'
 import { seasonDescription } from '../../shared/copy/season.ts'
 import type { Goal, PlanPhase, PlanWithSessions, WeekRow } from '../../shared/types.ts'
 import { SeasonStrip } from '../../web/components/SeasonStrip.tsx'
-import { seasonRuns } from '../../web/components/season.ts'
+import { hourAxis, seasonRuns } from '../../web/components/season.ts'
 import { ToastProvider } from '../../web/components/Toast.tsx'
 import { PlanPage } from '../../web/pages/PlanPage.tsx'
 import { makeWeekRow } from '../factories.ts'
@@ -148,7 +148,7 @@ describe('the season strip, its buttons and its words', () => {
     const season = await strip()
     const header = screen.getByRole('heading', { level: 1, name: 'Plan' })
     const feasibility = await screen.findByRole('region', { name: 'Feasibility' })
-    const table = screen.getByRole('table')
+    const table = screen.getByRole('table', { name: 'Weekly plan, target and actual run hours' })
     const order = (a: Element, b: Element) =>
       Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
     expect(order(header, season)).toBe(true)
@@ -615,5 +615,76 @@ describe('the strip on a plan of 60 weeks', () => {
     const left = Number(outlined[1]!.getAttribute('x'))
     const right = Number(outlined[0]!.getAttribute('x')) + width
     expect(left - right).toBeGreaterThanOrEqual(1.5)
+  })
+})
+
+describe('the axes, the table and the climb', () => {
+  test('puts round hour ticks on the y axis, the unit once on the top one', async () => {
+    mockApi(routes(plan()))
+    renderPlan()
+    const season = await strip()
+    // the tallest week plans 410 min (6.8 h), so the axis runs to 9 h in steps of 3
+    const axis = hourAxis(410 / 60)
+    expect(axis.ticks).toEqual([0, 3, 6, 9])
+    expect(within(season).getByText('9 h')).toBeInTheDocument()
+    for (const tick of ['0', '3', '6']) expect(within(season).getByText(tick)).toBeInTheDocument()
+    expect(within(season).queryByText('3 h')).not.toBeInTheDocument()
+  })
+
+  test('names the months on the time axis where they turn, once each', async () => {
+    mockApi(routes(plan()))
+    renderPlan()
+    const season = await strip()
+    for (const name of ['Dec', 'Jan', 'Feb', 'Mar']) {
+      expect(within(season).getAllByText(name)).toHaveLength(1)
+    }
+  })
+
+  test('has a hidden table of the weeks: phase, planned hours and run hours', async () => {
+    const data = plan()
+    mockApi(routes(data))
+    renderPlan()
+    const season = await strip()
+    const table = within(season).getByRole('table', {
+      name: 'Season by week: planned and run hours',
+    })
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((th) => th.textContent),
+    ).toEqual(['Week of', 'Phase', 'Planned hours', 'Run hours'])
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(data.weeks.length)
+    // this week: 90 min run so far; a week still to come has no run figure
+    expect(rows[4]?.textContent).toMatch(/^11 Jan.*1\.5$/)
+    expect(rows[8]?.textContent).toMatch(/^8 Feb.*–$/)
+  })
+
+  test("shows a week's climb in the runner's unit, and a dash with its words for none", async () => {
+    mockApi(
+      routes(plan(), {
+        'GET /api/weeks': () => [
+          ...RAN.slice(0, 4),
+          makeWeekRow({ weekStart: CURRENT, runMin: 90, climbM: 394 }),
+        ],
+      }),
+    )
+    renderPlan()
+    await strip()
+    await waitFor(() => {
+      expect(row(CURRENT).querySelector('[data-cell="climb"]')).toHaveTextContent('Climb 394 m')
+    })
+    // a later week has no runs yet: a dash, named for a screen reader
+    const later = row(addDays(START, 7 * 7)).querySelector<HTMLElement>('[data-cell="climb"]')
+    expect(later?.textContent).toBe('—No climb recorded')
+    expect(within(later as HTMLElement).getByText('—')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  test('has a Climb column heading in the table', async () => {
+    mockApi(routes(plan()))
+    renderPlan()
+    await strip()
+    const table = screen.getByRole('table', { name: 'Weekly plan, target and actual run hours' })
+    expect(within(table).getByRole('columnheader', { name: 'Climb' })).toBeInTheDocument()
   })
 })

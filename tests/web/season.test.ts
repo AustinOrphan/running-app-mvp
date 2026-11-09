@@ -3,6 +3,9 @@ import { addDays } from '../../shared/dates.ts'
 import type { PlanPhase, PlanWeek } from '../../shared/types.ts'
 import {
   actualRange,
+  bracketSpans,
+  hourAxis,
+  monthMarks,
   isPostRace,
   isRaceWeek,
   planSpan,
@@ -180,5 +183,77 @@ describe('seasonBarSizes', () => {
       expect(actual).toBeLessThanOrEqual(planned)
       expect(planned).toBeGreaterThanOrEqual(1)
     }
+  })
+})
+
+describe('hourAxis', () => {
+  test('gives four round ticks whose top clears the tallest week by a tenth', () => {
+    expect(hourAxis(1.6)).toEqual({ max: 3, ticks: [0, 1, 2, 3] })
+    expect(hourAxis(7.3)).toEqual({ max: 9, ticks: [0, 3, 6, 9] })
+    expect(hourAxis(12.4)).toEqual({ max: 15, ticks: [0, 5, 10, 15] })
+  })
+
+  test.each([0.2, 1, 3.4, 6.1, 9.9, 12.4, 33, 80, 140])(
+    'peak %s h stays under the top tick',
+    (peak) => {
+      const { max, ticks } = hourAxis(peak)
+      expect(max).toBeGreaterThanOrEqual(peak * 1.1)
+      expect(ticks).toHaveLength(4)
+      expect(ticks[0]).toBe(0)
+      expect(ticks[3]).toBe(max)
+      // the steps are equal and a multiple of half an hour
+      const step = ticks[1] ?? 0
+      expect(ticks.map((tick, i) => tick - i * step)).toEqual([0, 0, 0, 0])
+      expect((step * 2) % 1).toBe(0)
+    },
+  )
+
+  test('a plan with no hours still has an axis', () => {
+    expect(hourAxis(0)).toEqual({ max: 1.5, ticks: [0, 0.5, 1, 1.5] })
+  })
+})
+
+describe('monthMarks', () => {
+  const weeks = (from: string, n: number) =>
+    Array.from({ length: n }, (_, i) => addDays(from, 7 * i))
+
+  test('labels the first week and each week where the month turns', () => {
+    const marks = monthMarks(weeks('2026-11-02', 20), 600)
+    expect(marks.map((m) => m.month)).toEqual([10, 11, 0, 1, 2].slice(0, marks.length))
+    expect(marks[0]?.index).toBe(0)
+  })
+
+  test('at 360 px a 40-week plan keeps at most five labels, apart and inside the plot', () => {
+    const plotWidth = 360 - 2 * 16 - 36
+    const list = weeks('2026-11-02', 40)
+    const marks = monthMarks(list, plotWidth)
+    expect(marks.length).toBeGreaterThan(0)
+    expect(marks.length).toBeLessThanOrEqual(5)
+    const band = plotWidth / list.length
+    marks.forEach((mark, i) => {
+      // a label is about 25 px wide; it must end inside the plot
+      expect(mark.index * band + 25).toBeLessThanOrEqual(plotWidth)
+      if (i > 0) expect((mark.index - (marks[i - 1]?.index ?? 0)) * band).toBeGreaterThanOrEqual(33)
+    })
+  })
+
+  test('a label that would run past the plot edge is dropped, not shifted', () => {
+    // the last week turns a month, but two weeks of 5 px leave no room for a name
+    const marks = monthMarks(['2026-11-23', '2026-11-30'], 10)
+    expect(marks.map((m) => m.index)).toEqual([])
+  })
+
+  test('no weeks, no marks', () => {
+    expect(monthMarks([], 300)).toEqual([])
+  })
+})
+
+describe('bracketSpans', () => {
+  test('starts each phase after the weeks of the ones before it', () => {
+    expect(bracketSpans([{ weeks: 5 }, { weeks: 8 }, { weeks: 1 }])).toEqual([
+      { start: 1, span: 5 },
+      { start: 6, span: 8 },
+      { start: 14, span: 1 },
+    ])
   })
 })

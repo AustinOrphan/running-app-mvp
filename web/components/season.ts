@@ -2,6 +2,7 @@
 // the runs of phase names it brackets, and the marks on the weeks. Pure; the figures are the
 // plan's, as the week table prints them.
 import type { SeasonRun } from '../../shared/copy/season.ts'
+import { addDays } from '../../shared/dates.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
 import type { PlanWeek } from '../../shared/types.ts'
 import type { WeekMark } from './charts/WeeklyHoursChart.tsx'
@@ -123,3 +124,88 @@ export function seasonBarSizes(band: number): { planned: number; actual: number 
   const actual = Math.min(planned, Math.round(clamp(planned / 2, ACTUAL_MIN, ACTUAL_MAX)))
   return { planned, actual }
 }
+
+/** Round steps for the hour axis, in hours; the axis has three steps above zero (four ticks). */
+const AXIS_STEPS = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 15, 20, 25, 30, 40, 50, 100]
+/** The tallest week sits this far under the top tick, so the race flag over it stays inside. */
+const AXIS_HEADROOM = 1.1
+
+/**
+ * The y axis of the strip: four round ticks (0, and three equal steps) whose top is the smallest
+ * round figure at least a tenth above the tallest week, in hours.
+ */
+export function hourAxis(peakHours: number): { max: number; ticks: number[] } {
+  const need = Math.max(0, peakHours) * AXIS_HEADROOM
+  const step =
+    AXIS_STEPS.find((candidate) => candidate * 3 >= need) ?? Math.ceil(need / 3 / 100) * 100
+  return { max: step * 3, ticks: [0, step, step * 2, step * 3] }
+}
+
+/** The most month labels the time axis carries at a phone's width. */
+const MAX_MONTH_LABELS = 5
+/** What a letter of a month label takes, the tick before it, and the least space between two. */
+const MONTH_CHAR_PX = 7
+const MONTH_TICK_PX = 4
+const MONTH_GAP_PX = 8
+
+export interface MonthMark {
+  /** The plan week the label stands at. */
+  index: number
+  /** 0 for January. */
+  month: number
+}
+
+/** The month a week belongs to: the month of its Thursday, as the ISO week does. */
+function monthOfWeek(weekStart: string): number {
+  return Number(addDays(weekStart, 3).slice(5, 7)) - 1
+}
+
+/**
+ * The month labels of the time axis: the first week and each week where the month turns, thinned
+ * to every second, third... one until at most five remain, none overlaps another and every one
+ * ends inside the plot (`width` px for `weekStarts.length` columns). A label that would clip is
+ * dropped, never shifted onto its neighbour.
+ */
+export function monthMarks(weekStarts: readonly string[], width: number): MonthMark[] {
+  const count = weekStarts.length
+  if (count === 0 || width <= 0) return []
+  const band = width / count
+  const candidates: MonthMark[] = []
+  weekStarts.forEach((weekStart, index) => {
+    const month = monthOfWeek(weekStart)
+    if (index === 0 || month !== monthOfWeek(weekStarts[index - 1] ?? weekStart)) {
+      candidates.push({ index, month })
+    }
+  })
+  const labelPx = 3 * MONTH_CHAR_PX + MONTH_TICK_PX
+  for (let stride = 1; stride <= candidates.length; stride += 1) {
+    const chosen = candidates
+      .filter((_, position) => position % stride === 0)
+      .filter((mark) => mark.index * band + labelPx <= width)
+    const apart = chosen.every(
+      (mark, position) =>
+        position === 0 ||
+        mark.index * band - (chosen[position - 1]?.index ?? 0) * band >= labelPx + MONTH_GAP_PX,
+    )
+    if (chosen.length <= MAX_MONTH_LABELS && apart) return chosen
+  }
+  return []
+}
+
+/**
+ * The brackets under the bars as columns: where each phase run starts (1-based, as a grid column)
+ * and how many weeks it spans.
+ */
+export function bracketSpans(
+  runs: ReadonlyArray<{ weeks: number }>,
+): Array<{ start: number; span: number }> {
+  let start = 1
+  return runs.map((run) => {
+    const placed = { start, span: run.weeks }
+    start += run.weeks
+    return placed
+  })
+}
+
+/** The compact chart's plot margin in px: the page's axis ticks are laid against the same figures. */
+export const SEASON_PLOT_MARGIN = { top: 4, right: 0, bottom: 9, left: 0 } as const

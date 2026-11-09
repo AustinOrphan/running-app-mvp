@@ -40,6 +40,10 @@ export interface WeeklyHoursChartProps {
   plannedBarSize?: number
   /** Width of the solid actual bar in px. */
   actualBarSize?: number
+  /** The compact chart's top in hours, when the page draws its own axis: the bars then scale to it. */
+  yMax?: number
+  /** The compact chart's plot margin in px, when the page lines its own axis up with the bars. */
+  margin?: { top: number; right: number; bottom: number; left: number }
   /** Marks by `weekStart`; only the compact chart draws them. */
   marks?: Readonly<Record<string, WeekMark>>
 }
@@ -150,6 +154,8 @@ export function WeeklyHoursChart({
   plannedBarSize = compact ? COMPACT_BAR_PLANNED : BAR_PLANNED,
   actualBarSize = compact ? COMPACT_BAR_ACTUAL : BAR_ACTUAL,
   marks,
+  yMax,
+  margin = COMPACT_MARGIN,
 }: WeeklyHoursChartProps) {
   const plannedByWeek = new Map((planned ?? []).map((p) => [p.weekStart, p.targetRunMin]))
   const hasPlanned = planned !== undefined && plannedByWeek.size > 0
@@ -167,7 +173,7 @@ export function WeeklyHoursChart({
   const peak = Math.max(0, ...points.map((p) => Math.max(p.actual, p.planned ?? 0)))
   // An even ceiling keeps the three ticks (0, half, ceiling) on whole hours.
   const ceiling = compact
-    ? Math.max(1, peak * COMPACT_HEADROOM)
+    ? (yMax ?? Math.max(1, peak * COMPACT_HEADROOM))
     : Math.max(2, Math.ceil(peak / 2) * 2)
   const ticks = [0, ceiling / 2, ceiling]
 
@@ -187,7 +193,7 @@ export function WeeklyHoursChart({
           // the compact chart is a picture under the page's own buttons: no Tab stop of its own
           accessibilityLayer={!compact}
           data={points}
-          margin={compact ? COMPACT_MARGIN : { top: 8, right: 0, bottom: 0, left: 0 }}
+          margin={compact ? margin : { top: 8, right: 0, bottom: 0, left: 0 }}
         >
           {compact ? null : <CartesianGrid {...gridProps} />}
           {/* Bars on different category axes are laid out independently, so the planned bar

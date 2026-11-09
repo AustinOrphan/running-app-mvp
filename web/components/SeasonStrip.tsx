@@ -7,19 +7,33 @@ import {
   type KeyboardEvent,
 } from 'react'
 import {
+  seasonAxisTop,
   seasonDescription,
   seasonLegend,
+  seasonMonthLabel,
+  seasonTableText,
   seasonTitle,
   seasonWeekName,
   seasonWeeksName,
 } from '../../shared/copy/season.ts'
 import { mondayOf, todayIso } from '../../shared/dates.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
+import { minutesToHours1 } from '../../shared/units.ts'
 import type { PlanWithWeeks } from '../../shared/types.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { WeeklyHoursChart, warmWeeklyHoursChart } from './charts/lazyCharts.tsx'
-import { weekPhaseLabel } from './format.ts'
-import { actualRange, seasonBarSizes, seasonFigures, seasonMarks, seasonRuns } from './season.ts'
+import { formatShortDate, weekPhaseLabel } from './format.ts'
+import {
+  actualRange,
+  bracketSpans,
+  hourAxis,
+  monthMarks,
+  SEASON_PLOT_MARGIN,
+  seasonBarSizes,
+  seasonFigures,
+  seasonMarks,
+  seasonRuns,
+} from './season.ts'
 import styles from './SeasonStrip.module.css'
 
 /** The width the strip is laid out for until it has been measured: a phone 390 px wide. */
@@ -88,6 +102,7 @@ export function SeasonStrip({
   }, [])
   const currentMonday = mondayOf(todayIso())
   const weeks = useWeeks(actualRange(plan, currentMonday))
+  // the bars' own box: the plot less the axis gutter, so the weeks' columns are measured exactly
   const plotRef = useRef<HTMLDivElement>(null)
   const width = useWidth(plotRef)
   const buttons = useRef<Array<HTMLButtonElement | null>>([])
@@ -103,6 +118,18 @@ export function SeasonStrip({
 
   const band = width / count
   const barSizes = seasonBarSizes(band)
+  const axis = hourAxis(
+    Math.max(
+      0,
+      ...figures.weeks.map((week) => week.runMin / 60),
+      ...figures.planned.map((week) => week.targetRunMin / 60),
+    ),
+  )
+  const months = monthMarks(
+    plan.weeks.map((week) => week.weekStart),
+    width,
+  )
+  const table = seasonTableText()
 
   // The one Tab stop is the week that was last on, else this week, else the first. A plan that
   // is replaced by a shorter one leaves the last week it has.
@@ -120,10 +147,7 @@ export function SeasonStrip({
   }
 
   // Each run starts in the column after the weeks of the runs before it.
-  const placed = runs.map((run, index) => ({
-    run,
-    start: 1 + runs.slice(0, index).reduce((sum, earlier) => sum + earlier.weeks, 0),
-  }))
+  const spans = bracketSpans(runs)
   return (
     <section
       aria-labelledby="season-title"
@@ -136,14 +160,44 @@ export function SeasonStrip({
       <p id="season-description" className="visually-hidden">
         {description}
       </p>
-      <div ref={plotRef} className={styles.plot} style={{ '--weeks': count } as CSSProperties}>
+      <div
+        className={styles.plot}
+        style={
+          {
+            '--weeks': count,
+            '--plot-top': `${String(SEASON_PLOT_MARGIN.top)}px`,
+            '--plot-bottom': `${String(SEASON_PLOT_MARGIN.bottom)}px`,
+          } as CSSProperties
+        }
+      >
+        {/* The y axis: round ticks in hours, the unit once on the top tick. */}
+        <div className={styles.axis} aria-hidden="true">
+          {axis.ticks.map((tick) => (
+            <span
+              key={tick}
+              className={styles.tick}
+              style={{ '--at': tick / axis.max } as CSSProperties}
+            >
+              {tick === axis.max ? seasonAxisTop(String(tick)) : String(tick)}
+            </span>
+          ))}
+        </div>
         {/* The bars say nothing to a screen reader; the description above and the buttons do. */}
-        <div className={styles.bars} aria-hidden="true">
+        <div ref={plotRef} className={styles.bars} aria-hidden="true">
+          {axis.ticks.map((tick) => (
+            <span
+              key={tick}
+              className={styles.gridline}
+              style={{ '--at': tick / axis.max } as CSSProperties}
+            />
+          ))}
           <WeeklyHoursChart
             compact
             weeks={figures.weeks}
             planned={figures.planned}
             marks={marks}
+            yMax={axis.max}
+            margin={{ ...SEASON_PLOT_MARGIN }}
             plannedBarSize={barSizes.planned}
             actualBarSize={barSizes.actual}
             ariaLabel={description}
@@ -181,8 +235,20 @@ export function SeasonStrip({
             />
           ))}
         </div>
+        <div className={styles.months} aria-hidden="true">
+          {months.map((mark) => (
+            <span
+              key={mark.index}
+              className={styles.month}
+              style={{ left: `${String((mark.index / count) * 100)}%` }}
+            >
+              {seasonMonthLabel(mark.month)}
+            </span>
+          ))}
+        </div>
         <div className={styles.brackets} aria-hidden="true">
-          {placed.map(({ run, start }) => {
+          {runs.map((run, position) => {
+            const start = spans[position]?.start ?? 1
             const fits = run.weeks * band >= run.label.length * LABEL_CHAR_PX + LABEL_PAD_PX
             return (
               <div
@@ -198,6 +264,34 @@ export function SeasonStrip({
         </div>
       </div>
       <p className={styles.legend}>{seasonLegend()}</p>
+      {/* a table sizes to its content whatever its box, so the box that hides it is a wrapper */}
+      <div className="visually-hidden">
+        <table>
+          <caption>{table.caption}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{table.week}</th>
+              <th scope="col">{table.phase}</th>
+              <th scope="col">{table.planned}</th>
+              <th scope="col">{table.run}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {plan.weeks.map((week) => (
+              <tr key={week.weekStart}>
+                <th scope="row">{formatShortDate(week.weekStart)}</th>
+                <td>{weekPhaseLabel(week)}</td>
+                <td>{minutesToHours1(shownTargetMin(week))}</td>
+                <td>
+                  {week.weekStart <= currentMonday
+                    ? minutesToHours1(actual.get(week.weekStart) ?? 0)
+                    : '–'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   )
 }

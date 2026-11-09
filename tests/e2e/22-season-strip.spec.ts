@@ -123,6 +123,33 @@ for (const viewport of WIDTHS) {
         const buttonCentre = (button?.x ?? 0) + (button?.width ?? 0) / 2
         expect(Math.abs(barCentre - buttonCentre)).toBeLessThan(1)
       }
+      // Every week is on screen, and no month label or axis tick runs past the strip or the window.
+      const stripBox = await season.boundingBox()
+      const right = Math.min(viewport.width, (stripBox?.x ?? 0) + (stripBox?.width ?? 0))
+      const outlines = await bars.locator('rect[fill="none"]').all()
+      for (const outline of outlines) {
+        const box = await outline.boundingBox()
+        expect(box?.x ?? -1).toBeGreaterThanOrEqual(stripBox?.x ?? 0)
+        expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(right + 0.5)
+      }
+      const monthNames = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/
+      const months = await season.locator('span').filter({ hasText: monthNames }).all()
+      expect(months.length).toBeGreaterThan(0)
+      expect(months.length).toBeLessThanOrEqual(5)
+      for (const month of months) {
+        const box = await month.boundingBox()
+        expect(box?.x ?? -1).toBeGreaterThanOrEqual(0)
+        expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(right + 0.5)
+      }
+      const ticks = await season
+        .locator('span')
+        .filter({ hasText: /^\d+(\.\d)?( h)?$/ })
+        .all()
+      expect(ticks.length).toBeGreaterThanOrEqual(3)
+      for (const tick of ticks) {
+        const box = await tick.boundingBox()
+        expect(box?.x ?? -1).toBeGreaterThanOrEqual(0)
+      }
       const widest = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
       )

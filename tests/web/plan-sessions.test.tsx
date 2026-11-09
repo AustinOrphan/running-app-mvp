@@ -783,9 +783,11 @@ describe('Plan page, rest windows', () => {
     const target = scrolled.mock.contexts[0] as HTMLElement
     expect(target).toBe(document.activeElement)
     expect(target.tagName).toBe('H2')
-    expect(screen.getByRole('table').compareDocumentPosition(target)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    )
+    expect(
+      screen
+        .getByRole('table', { name: 'Weekly plan, target and actual run hours' })
+        .compareDocumentPosition(target),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(panel.parentElement).toContainElement(target)
     await user.click(within(header).getByRole('button', { name: 'Not 100%' }))
     const dialog = await screen.findByRole('dialog', { name: 'Not 100%' })
@@ -1246,7 +1248,7 @@ describe('Plan page, a week run past its plan', () => {
     expect(cell('2027-01-04', 'actual').textContent).toBe('4.7 h run')
     // the focus line is the heading row's, once for the run, and not in the row
     expect(row('2027-01-04').textContent).toBe(
-      '4 JanBase 5.0\u00a0h4.7 h runLong run 90\u00a0min, 4 run days, strength 190\u00a0min—41DaysEdit',
+      '4 JanBase 5.0\u00a0h4.7 h run—No climb recordedLong run 90\u00a0min, 4 run days, strength 190\u00a0min—41DaysEdit',
     )
     expect(screen.getAllByText('Week focus 0')).toHaveLength(1)
     expect(screen.getByText('Week focus 0').closest('tr')).toBe(

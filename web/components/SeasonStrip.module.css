@@ -1,5 +1,5 @@
-/* The season above the week table: bars, the buttons laid over them, and the phase brackets under
-   them. The three share one column per plan week (`--weeks`), so a button and a bracket sit exactly
+/* The season above the week table: the hour axis, the bars, the buttons laid over them, the month
+   axis and the phase brackets under them. The bars, the buttons, the months and the brackets share one column per plan week (`--weeks`), so a button and a bracket sit exactly
    over and under the bars of their weeks; the compact chart draws one band per week across its
    whole box, with no axis and no margin at the sides. */
 .strip {
@@ -9,12 +9,43 @@
 
 .plot {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 2.25rem minmax(0, 1fr);
 }
 
 .bars {
-  grid-area: 1 / 1;
+  position: relative;
+  grid-area: 1 / 2;
   min-width: 0;
+}
+
+/* The y axis: a tick sits at its share of the plot's height, between the chart's own margins. */
+.axis {
+  position: relative;
+  grid-area: 1 / 1;
+}
+
+.tick,
+.gridline {
+  position: absolute;
+  top: calc(var(--plot-top) + (100% - var(--plot-top) - var(--plot-bottom)) * (1 - var(--at)));
+}
+
+.tick {
+  right: var(--space-1);
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+}
+
+/* One 1 px horizontal line per tick, under the bars. */
+.gridline {
+  right: 0;
+  left: 0;
+  height: 0;
+  border-top: 1px solid var(--chart-grid);
 }
 
 /* The chart's own wrapper is positioned, which paints it over a sibling that is not: the columns
@@ -22,7 +53,7 @@
 .weeks {
   position: relative;
   z-index: 1;
-  grid-area: 1 / 1;
+  grid-area: 1 / 2;
   display: grid;
   grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
 }
@@ -48,8 +79,27 @@
   outline-offset: 0;
 }
 
+/* The time axis: a month's name at the week where it turns, with a tick above it. */
+.months {
+  position: relative;
+  grid-area: 2 / 2;
+  height: 1.125rem;
+  margin-top: var(--space-1);
+}
+
+.month {
+  position: absolute;
+  top: 0;
+  padding-left: 3px;
+  border-left: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  white-space: nowrap;
+}
+
 .brackets {
-  grid-area: 2 / 1;
+  grid-area: 3 / 2;
   display: grid;
   grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
   align-items: start;
