@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { TrendsLoadView } from '../../shared/domain/trendsLoad.ts'
 import type { TrendsRunsView } from '../../shared/domain/trendsRuns.ts'
 import type { TrendsView } from '../../shared/types.ts'
 import { api, keys } from './client.ts'
@@ -11,6 +12,19 @@ export function useTrends() {
   return useQuery({
     queryKey: [keys.trends],
     queryFn: () => api<TrendsView>('GET', '/trends'),
+  })
+}
+
+/**
+ * The runs of the last 104 weeks with their elevation gain and their seconds in each heart-rate
+ * zone, for the climbing and intensity panels. The server computes them once per data version, so
+ * a run added or removed reads again through `ACTIVITY_DATA_KEYS`; the key sits under `keys.trends`
+ * for the same reason.
+ */
+export function useTrendsLoad() {
+  return useQuery({
+    queryKey: [keys.trends, 'load'],
+    queryFn: () => api<TrendsLoadView>('GET', '/trends/load'),
   })
 }
 

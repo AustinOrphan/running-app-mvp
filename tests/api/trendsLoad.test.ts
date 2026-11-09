@@ -115,7 +115,7 @@ describe('GET /api/trends/load', () => {
   test('gives no bands to a run with no histogram, a failed quality check or no summary', async () => {
     await withZones()
     const failing = JSON.stringify({
-      ...JSON.parse(run(user.id, 1).hrQuality as string),
+      ...(JSON.parse(run(user.id, 1).hrQuality) as object),
       cleanSec: 1200,
       lockSec: 2400,
     })

@@ -32,6 +32,7 @@ import { RecoveryChart, TrendsRunChart, WeightChart } from '../components/charts
 import { EmptyState } from '../components/EmptyState.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
 import { Segmented } from '../components/Segmented.tsx'
+import { LoadPanels } from '../components/trends/LoadPanels.tsx'
 import { RunPanels } from '../components/trends/RunPanels.tsx'
 import { useOnline } from '../components/useOnline.ts'
 import styles from './TrendsPage.module.css'
@@ -376,6 +377,7 @@ export function TrendsPage() {
         months={chosen.months}
         firstRecord={firstRecordWeek(weeks.data, weekHasRecord)}
       />
+      <LoadPanels months={chosen.months} weekCount={chosen.weeks} units={settings.data.units} />
       <RunPanels months={chosen.months} weekCount={chosen.weeks} units={settings.data.units} />
       <section className={styles.section} aria-labelledby="trends-recovery-heading">
         <h2 id="trends-recovery-heading" className={styles.heading}>

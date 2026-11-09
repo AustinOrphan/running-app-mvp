@@ -59,6 +59,7 @@ function mockPage(runs: TrendsRunsView | 'error', units: Units = 'km') {
     makeWeekRow({ weekStart: addDays(THIS_WEEK, -7 * (103 - i)), runMin: 240, runM: 40_000 }),
   )
   return mockApi({
+    'GET /api/trends/load': () => ({ asOf: '2026-03-18', zones: null, runs: [] }),
     'GET /api/trends/runs': () =>
       runs === 'error'
         ? { status: 500, body: { error: { code: 'internal', message: 'Something went wrong.' } } }
@@ -90,8 +91,10 @@ describe('Trends, heart-rate drift on long runs', () => {
     renderWithProviders(<TrendsPage />)
     await screen.findByRole('heading', { level: 2, name: 'Heart-rate drift on long runs' })
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
-    expect(headings.slice(0, 4)).toEqual([
+    expect(headings.slice(0, 6)).toEqual([
       'Running per week',
+      'Climbing per week',
+      'Intensity per week',
       'Heart-rate drift on long runs',
       'Heart rate at one speed',
       'Recovery readings',
@@ -417,6 +420,7 @@ describe('Trends, the run panels fail', () => {
       makeWeekRow({ weekStart: addDays(THIS_WEEK, -7 * (103 - i)), runMin: 240, runM: 40_000 }),
     )
     mockApi({
+      'GET /api/trends/load': () => ({ asOf: '2026-03-18', zones: null, runs: [] }),
       'GET /api/trends/runs': () => {
         calls += 1
         return calls === 1
