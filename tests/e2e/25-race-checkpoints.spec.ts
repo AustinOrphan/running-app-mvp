@@ -278,7 +278,9 @@ test('the race card prints on one or two pages, black on white, with no navigati
   // at 360 px the sheet has no scroll box: two or three columns, the cutoff under the arrival
   await expect(sheet.getByRole('columnheader')).toHaveCount(3)
   await expect(sheet.getByRole('columnheader', { name: 'Cutoff' })).toBeHidden()
-  await expect(sheet.getByRole('row', { name: /^Station 3 / })).toContainText('Cutoff 10:00, 4 h into the race')
+  await expect(sheet.getByRole('row', { name: /^Station 3 / })).toContainText(
+    'Cutoff 10:00, 4 h into the race',
+  )
   expect(
     await sheet.evaluate((el) => el.scrollWidth <= (el.parentElement?.clientWidth ?? 0) + 1),
   ).toBe(true)
