@@ -398,32 +398,49 @@ export interface HeatExposureInput {
  * Whether an activity counts as a heat exposure day [rules I8]. Not strength work, at least
  * `acclim.exposureMinDurationMin` minutes, and one of three things:
  *  1. an air temperature of `acclim.exposureTempC` or more;
- *  2. the runner marked it 'overdressed' (extra layers or a warm room), a choice at grade D: the one
- *     trial found, of extra layers outdoors in mild weather, showed no acclimation;
+ *  2. the runner marked it 'warm-room' (a run indoors at that temperature or more): the same
+ *     exposure as an outdoor run at `acclim.exposureTempC`, so the same minutes and the same grade;
+ *     extra clothing in mild weather is not counted, as the one trial found no acclimation;
  *  3. the runner marked it 'passive' (a hot bath or sauna straight after), only after an easy run:
- *     a run (not a race) of at least `acclim.passiveMinRunMin` minutes whose RPE, when given, is at
- *     most `acclim.passiveEasyMaxRpe`, as the passive protocols followed an exercise bout.
+ *     a run (not a race) of at least `acclim.passiveMinRunMin` minutes that is easy. A run rated at
+ *     all is easy when its RPE is at most `acclim.passiveEasyMaxRpe`; a run with no RPE is easy only
+ *     when it filled a planned easy or recovery session (`filledEasySession`), so an unrated run
+ *     never counts on the mark alone. The passive protocols followed an exercise bout.
  * The one predicate behind the snapshot's credit (`athlete.ts`), the I8 and H13 Explain builder,
  * the race plan's credit and the suggestion, so they cannot drift apart. A day counts once however
  * many of the three happened.
  */
-export function isHeatExposure(activity: HeatExposureInput): boolean {
+export function isHeatExposure(activity: HeatExposureInput, filledEasySession = false): boolean {
   if (activity.type === 'strength') return false
   const minutes = activity.durationSec / 60
   if (activity.tempC !== null && activity.tempC >= P.acclim.exposureTempC.value) {
     if (minutes >= P.acclim.exposureMinDurationMin.value) return true
   }
-  if (activity.heatExposure === 'overdressed') {
+  if (activity.heatExposure === 'warm-room') {
     return minutes >= P.acclim.exposureMinDurationMin.value
   }
   if (activity.heatExposure === 'passive') {
     return (
       activity.type === 'run' &&
       minutes >= P.acclim.passiveMinRunMin.value &&
-      (activity.rpe == null || activity.rpe <= P.acclim.passiveEasyMaxRpe.value)
+      (activity.rpe == null ? filledEasySession : activity.rpe <= P.acclim.passiveEasyMaxRpe.value)
     )
   }
   return false
+}
+
+/**
+ * The ids of the activities that filled a planned easy or recovery session, from the plan's
+ * sessions; the ones `isHeatExposure` takes as easy when they carry no RPE.
+ */
+export function easySessionActivityIds(
+  sessions: ReadonlyArray<{ kind: string; activityId: string | null }> | null | undefined,
+): Set<string> {
+  const ids = new Set<string>()
+  for (const s of sessions ?? []) {
+    if (s.activityId !== null && (s.kind === 'easy' || s.kind === 'recovery')) ids.add(s.activityId)
+  }
+  return ids
 }
 
 /**
@@ -431,13 +448,20 @@ export function isHeatExposure(activity: HeatExposureInput): boolean {
  * date once and sorted. A pure helper over `isHeatExposure`.
  */
 export function heatExposureDays(
-  activities: ReadonlyArray<HeatExposureInput & { date: string }>,
+  activities: ReadonlyArray<HeatExposureInput & { date: string; id?: string }>,
   from: string,
   to: string,
+  easyIds: ReadonlySet<string> = new Set(),
 ): string[] {
   const days = new Set<string>()
   for (const a of activities) {
-    if (a.date >= from && a.date <= to && isHeatExposure(a)) days.add(a.date)
+    if (
+      a.date >= from &&
+      a.date <= to &&
+      isHeatExposure(a, a.id !== undefined && easyIds.has(a.id))
+    ) {
+      days.add(a.date)
+    }
   }
   return [...days].sort()
 }
@@ -455,20 +479,29 @@ export function heatBlockWindow(raceDate: string): { from: string; to: string } 
 /**
  * Whether Today and Explain say what counts as a heat day [rules I8]: the race is expected warm
  * (WBGT at `i8.triggerWbgtC` or more), `today` is inside the block's window, and fewer than
- * `i8.blockDays` heat days are counted since the window opened. An option, never a target: the
+ * `i8.blockDays` heat days are counted since the window opened, and the runner is not ill or in a
+ * disruption window (`held`). An option, never a target: the
  * answer is a yes or a no, and nothing here says how many days are missing.
  */
 export function suggestsHeatDays(args: {
   raceWbgtC: number | null
   raceDate: string
   today: string
-  activities: ReadonlyArray<HeatExposureInput & { date: string }>
+  activities: ReadonlyArray<HeatExposureInput & { date: string; id?: string }>
+  /** Ids of the activities that filled a planned easy or recovery session (`easySessionActivityIds`). */
+  easyIds?: ReadonlySet<string>
+  /**
+   * True while the runner is ill, has an open disruption window or a red flag: a bath or sauna is
+   * never suggested then.
+   */
+  held?: boolean
 }): boolean {
-  const { raceWbgtC, raceDate, today, activities } = args
+  const { raceWbgtC, raceDate, today, activities, easyIds, held = false } = args
+  if (held) return false
   if (raceWbgtC === null || raceWbgtC < P.i8.triggerWbgtC.value) return false
   const window = heatBlockWindow(raceDate)
   if (today < window.from || today > window.to) return false
-  return heatExposureDays(activities, window.from, today).length < P.i8.blockDays.value
+  return heatExposureDays(activities, window.from, today, easyIds).length < P.i8.blockDays.value
 }
 
 /**

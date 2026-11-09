@@ -133,11 +133,29 @@ describe('GET /api/today: heat.heatDays', () => {
     for (const date of days.slice(0, need - 1)) await markedRun(user, date, 'passive')
     expect((await heatOf(user)).heatDays).toBe(true)
     // a second run on a counted day is the same day
-    await markedRun(user, days[0]!, 'overdressed')
+    await markedRun(user, days[0]!, 'warm-room')
     expect((await heatOf(user)).heatDays).toBe(true)
     // the last day of the block ends the suggestion
-    await markedRun(user, days[need - 1]!, 'overdressed')
+    await markedRun(user, days[need - 1]!, 'warm-room')
     expect((await heatOf(user)).heatDays).toBe(false)
+  })
+
+  test('says nothing during an open disruption window, and again once it is over', async () => {
+    const user = await newUser()
+    await newGoal(user, 8, warm)
+    expect((await heatOf(user)).heatDays).toBe(true)
+    const window = await ctx.prisma.disruption.create({
+      data: {
+        userId: user.id,
+        reason: 'illness-below-neck',
+        mode: 'rest',
+        startDate: addDays(today, -1),
+        endDate: addDays(today, 2),
+      },
+    })
+    expect((await heatOf(user)).heatDays).toBe(false)
+    await ctx.prisma.disruption.update({ where: { id: window.id }, data: { status: 'undone' } })
+    expect((await heatOf(user)).heatDays).toBe(true)
   })
 
   test('an unmarked run in mild weather is no heat day', async () => {

@@ -208,11 +208,11 @@ export interface TrendsView {
 }
 export type Feel = -2 | -1 | 0 | 1 | 2
 /**
- * How a run was a heat exposure besides the weather (rule I8), marked by the runner: 'overdressed'
- * for a run in extra layers or a warm room, 'passive' for a hot bath or sauna straight after an
- * easy run. A run is at most one of the two (the count is one per day either way); null is neither.
+ * How a run was a heat exposure besides the outdoor weather (rule I8), marked by the runner:
+ * 'warm-room' for a run indoors at 25 C or more, 'passive' for a hot bath or sauna straight after
+ * an easy run. A run is at most one of the two (the count is one per day either way); null is neither.
  */
-export type HeatExposure = 'overdressed' | 'passive'
+export type HeatExposure = 'warm-room' | 'passive'
 /** Aligned arrays of equal length; `null` when the source had no such channel. */
 export interface ActivityStreamData {
   t: number[]

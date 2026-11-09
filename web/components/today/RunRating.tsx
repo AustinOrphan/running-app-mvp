@@ -12,7 +12,7 @@ import {
 } from '../../api/activityOutbox.ts'
 import { ApiError } from '../../api/client.ts'
 import { Button } from '../Button.tsx'
-import { FeedbackFields, type FeedbackValues } from '../FeelPicker.tsx'
+import { FeedbackFields, showHeatMark, type FeedbackValues } from '../FeelPicker.tsx'
 import { useToast } from '../Toast.tsx'
 import styles from './RunRating.module.css'
 
@@ -34,7 +34,16 @@ export function isUnrated(run: Pick<Activity, 'rpe' | 'feel'>): boolean {
  * replaces held it), because the fresh read of Today would otherwise remove the block under the
  * runner. A rating the server refused when it was sent later brings the form back.
  */
-export function RunRating({ run, units }: { run: Activity; units: Units }) {
+export function RunRating({
+  run,
+  units,
+  heatDays = false,
+}: {
+  run: Activity
+  units: Units
+  /** Today says what counts as a heat day (`TodayHeat.heatDays`): the Heat mark is offered. */
+  heatDays?: boolean
+}) {
   const headingId = useId()
   const save = useSaveRating(run.id)
   const queued = useQueuedRating(run.id)
@@ -49,6 +58,7 @@ export function RunRating({ run, units }: { run: Activity; units: Units }) {
     heatExposure: run.heatExposure,
   })
   const [saved, setSaved] = useState<Landed | null>(null)
+  const [heatOnly, setHeatOnly] = useState(false)
   const done = useRef<HTMLParagraphElement>(null)
   const touched =
     value.rpe !== null ||
@@ -63,7 +73,13 @@ export function RunRating({ run, units }: { run: Activity; units: Units }) {
   if ((saved !== null && !refused) || queued) {
     return (
       <p ref={done} tabIndex={-1} role="status" className={styles.saved}>
-        {render(TEMPLATES[queued ? 'today.rate.waiting' : 'today.rate.saved'], {}, units)}
+        {render(
+          TEMPLATES[
+            queued ? 'today.rate.waiting' : heatOnly ? 'today.rate.heat-saved' : 'today.rate.saved'
+          ],
+          {},
+          units,
+        )}
       </p>
     )
   }
@@ -75,7 +91,12 @@ export function RunRating({ run, units }: { run: Activity; units: Units }) {
         {render(TEMPLATES['today.rate.heading'], {}, units)}
       </h3>
       <p className={styles.caption}>{render(TEMPLATES['today.rate.caption'], {}, units)}</p>
-      <FeedbackFields value={value} onChange={setValue} />
+      <FeedbackFields
+        value={value}
+        onChange={setValue}
+        showHeat={showHeatMark(run, heatDays)}
+        units={units}
+      />
       <div className={styles.actions}>
         <Button
           variant="primary"
@@ -84,11 +105,14 @@ export function RunRating({ run, units }: { run: Activity; units: Units }) {
           onClick={() => {
             save.mutate(value, {
               onSuccess: (landed) => {
+                setHeatOnly(value.rpe === null && value.feel === null && value.pain === run.pain)
                 setSaved(landed)
                 toast.show(
                   landed === 'queued'
                     ? render(TEMPLATES['today.rate.queued'], {}, units)
-                    : 'Feedback saved',
+                    : value.rpe === null && value.feel === null && value.pain === run.pain
+                      ? render(TEMPLATES['today.rate.heat-saved'], {}, units)
+                      : 'Feedback saved',
                 )
               },
             })

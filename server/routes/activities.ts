@@ -140,7 +140,7 @@ const feedbackSchema = z.strictObject({
   feel: optionalKeepInt(-2, 2),
   pain: optionalKeepInt(0, 10),
   /** Absent leaves the mark alone; null clears it (rule I8). */
-  heatExposure: z.enum(['overdressed', 'passive']).nullable().optional(),
+  heatExposure: z.enum(['warm-room', 'passive']).nullable().optional(),
 })
 
 /** The id the client chose for a Done: a UUID, as the outbox's route pattern reads it. */

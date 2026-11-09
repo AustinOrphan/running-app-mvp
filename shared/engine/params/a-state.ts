@@ -500,7 +500,7 @@ export const aState = {
       ['racinais-2015-heat-consensus'],
       {
         unit: 'min',
-        note: 'Default: a hot run shorter than this does not count as a heat exposure day. A run marked overdressed or in a warm room needs the same minutes.',
+        note: 'Default: a hot run shorter than this does not count as a heat exposure day. A run the runner marks as in a warm room (25 C or more indoors) needs the same minutes.',
       },
     ),
     passiveMinRunMin: param(

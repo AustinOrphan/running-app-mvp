@@ -11,27 +11,37 @@ describe('heat day copy (rule I8, HT1)', () => {
   it('says what counts in the owner words, in the runner units', () => {
     const slots = { temp: { kind: 'temp', c: 25 } } as const
     expect(render(TEMPLATES['heat.note.counts'], slots, 'km')).toBe(
-      'Heat days count from runs at 25 °C or more, runs in extra layers or a warm room, or a hot bath or sauna after an easy run.',
+      'Heat days count from runs at 25 °C or more, outdoors or in a warm room, or a hot bath or sauna after an easy run.',
     )
     // a heat threshold reads in °C with miles too, as the other heat rules do (`quantityParts`)
     expect(render(TEMPLATES['heat.note.counts'], slots, 'mi')).toContain('runs at 25 °C or more')
   })
 
   it('offers three marks, none first, with the owner labels', () => {
-    expect(HEAT_MARK_OPTIONS.map((o) => o.value)).toEqual([null, 'overdressed', 'passive'])
-    expect(HEAT_MARK_OPTIONS.map((o) => say(o.label))).toEqual([
-      'None',
-      'Ran overdressed or in a warm room',
-      'Hot bath or sauna after',
-    ])
+    expect(HEAT_MARK_OPTIONS.map((o) => o.value)).toEqual([null, 'warm-room', 'passive'])
+    expect(
+      HEAT_MARK_OPTIONS.map((o) =>
+        o.value === 'warm-room'
+          ? render(TEMPLATES['heat.mark.warm-room'], { temp: { kind: 'temp', c: 25 } }, 'km')
+          : say(o.label as 'heat.mark.none'),
+      ),
+    ).toEqual(['None', 'Ran in a warm room (25 °C or more)', 'Hot bath or sauna after'])
   })
 
-  it('keeps the safety lines to the five the owner named, the last asking a clinician', () => {
-    const lines = HEAT_SAFETY_LINES.map((id) => say(id))
-    expect(lines).toEqual([
+  it('states the dose studied and keeps the safety lines, the last asking a clinician', () => {
+    expect(say('heat.dose')).toBe(
+      'The trials used about 40 minutes in water at about 40 °C, or about 30 minutes in a sauna, straight after an easy run, on consecutive days.',
+    )
+    expect(say('explain.i8-dose')).toBe(say('heat.dose'))
+    expect(HEAT_SAFETY_LINES.map((id) => say(id))).toEqual([
       'Drink before and after.',
-      'Start shorter than you think you need to.',
+      'Start shorter than that.',
+      'Do not go hotter than that.',
+      'Not after a hard or long run, or a run in the heat.',
+      'Not when you are unwell, feverish or dehydrated.',
+      'No alcohol before or during.',
       'Do not do it alone at first.',
+      'Stand up slowly afterwards.',
       'Get out if you feel dizzy, sick or confused.',
       'Skip it with a heart or blood-pressure condition, in pregnancy, or on medicines that change how you handle heat, and ask a clinician.',
     ])
@@ -47,6 +57,10 @@ describe('heat day copy (rule I8, HT1)', () => {
     for (const phrase of ['drink before and after', 'start shorter', 'alone at first', 'dizzy']) {
       expect(safety).toContain(phrase)
     }
+    const more = say('explain.i8-safety-more').toLowerCase()
+    for (const phrase of ['hotter', 'hard or long run', 'unwell', 'alcohol', 'stand up slowly']) {
+      expect(more).toContain(phrase)
+    }
   })
 
   it('is an option and never a target: nothing counts days or says one is missing', () => {
@@ -54,9 +68,12 @@ describe('heat day copy (rule I8, HT1)', () => {
       'heat.mark.hint',
       'heat.note.counts',
       'heat.note.option',
+      'heat.dose',
       ...HEAT_SAFETY_LINES,
       'explain.i8-counts',
+      'explain.i8-dose',
       'explain.i8-safety',
+      'explain.i8-safety-more',
       'explain.i8-safety-ask',
     ] as const
     for (const id of ids) {

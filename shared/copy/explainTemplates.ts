@@ -1080,13 +1080,19 @@ export const EXPLAIN_TEMPLATES = {
     { min: 'minutes', temp: 'temp', days: 'count' },
   ),
   // What counts as a heat day, when the race is expected warm and the block is open (rule I8, HT1).
-  // The words match `heat.note.counts` and `heat.safe.*` in `heatDays.ts`.
+  // The words match `heat.note.counts`, `heat.dose` and `heat.safe.*` in `heatDays.ts`.
   'explain.i8-counts': tpl(
-    'Heat days count from runs at {temp} or more, runs in extra layers or a warm room, or a hot bath or sauna after an easy run.',
+    'Heat days count from runs at {temp} or more, outdoors or in a warm room, or a hot bath or sauna after an easy run.',
     { temp: 'temp' },
+  ),
+  'explain.i8-dose': tpl(
+    'The trials used about 40 minutes in water at about 40 °C, or about 30 minutes in a sauna, straight after an easy run, on consecutive days.',
   ),
   'explain.i8-safety': tpl(
     'To do it safely, drink before and after, start shorter, do not do it alone at first, and get out if you feel dizzy, sick or confused.',
+  ),
+  'explain.i8-safety-more': tpl(
+    'Do not go hotter than the trials, not after a hard or long run or a run in the heat, not when unwell, feverish or dehydrated, no alcohol, and stand up slowly.',
   ),
   'explain.i8-safety-ask': tpl(
     'Skip it with a heart or blood-pressure condition, in pregnancy, or on medicines that change how you handle heat, and ask a clinician.',

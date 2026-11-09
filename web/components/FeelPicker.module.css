@@ -86,7 +86,7 @@
   line-height: var(--lh-sm);
 }
 
-/* Three chips that wrap: the words are long ("Ran overdressed or in a warm room"). */
+/* Three chips that wrap: the words are long ("Ran in a warm room (25 °C or more)"). */
 .heatChips {
   display: flex;
   flex-wrap: wrap;

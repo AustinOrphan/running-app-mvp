@@ -438,6 +438,8 @@ export const TODAY_TEMPLATES = {
   ),
   'today.rate.save': tpl('Save rating', {}, { shape: 'label' }),
   'today.rate.saved': tpl('Rating saved.'),
+  // A save that changed only the Heat mark.
+  'today.rate.heat-saved': tpl('Heat saved.'),
   'today.rate.not-saved': tpl('Rating not saved. {reason} Try again.', { reason: 'text' }),
   // The link under the figures of a session that has a run: the run's own page.
   'today.hero.see-run': tpl('See the run', {}, { shape: 'label' }),

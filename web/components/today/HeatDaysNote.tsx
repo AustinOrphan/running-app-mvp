@@ -1,11 +1,11 @@
 import { useId } from 'react'
-import { HEAT_SAFETY_LINES } from '../../../shared/copy/heatDays.ts'
 import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { TodayHeat, Units } from '../../../shared/types.ts'
 import { rulesRef } from '../../api/explain.ts'
 import { ExplainButton } from '../ExplainButton.tsx'
+import { HeatSafely } from '../HeatSafely.tsx'
 import styles from './HeatDaysNote.module.css'
 
 /** Heat acclimation, spelled as the Param registry spells it. */
@@ -40,16 +40,7 @@ export function HeatDaysNote({ heat, units }: { heat: TodayHeat; units: Units })
         )}
       </p>
       <p className={styles.text}>{render(TEMPLATES['heat.note.option'], {}, units)}</p>
-      <details className={styles.safely}>
-        <summary className={styles.summary}>
-          {render(TEMPLATES['heat.note.safely'], {}, units)}
-        </summary>
-        <ul className={styles.lines}>
-          {HEAT_SAFETY_LINES.map((id) => (
-            <li key={id}>{render(TEMPLATES[id], {}, units)}</li>
-          ))}
-        </ul>
-      </details>
+      <HeatSafely units={units} />
     </section>
   )
 }

@@ -241,11 +241,14 @@ export function DashboardPage() {
       unrated={view.unrated}
       units={units}
       exclude={heroAsksRating ? (coach.hero?.linkedRun?.id ?? null) : null}
-      onSaved={(landed) => {
+      heatDays={view.heat.heatDays}
+      onSaved={(landed, heatOnly) => {
         toast.show(
           landed === 'queued'
             ? render(TEMPLATES['today.rate.queued'], {}, units)
-            : 'Feedback saved',
+            : heatOnly
+              ? render(TEMPLATES['today.rate.heat-saved'], {}, units)
+              : 'Feedback saved',
         )
       }}
     />

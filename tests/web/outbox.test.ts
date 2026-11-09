@@ -359,6 +359,20 @@ describe('replay', () => {
     expect(await store.read()).toEqual([])
   })
 
+  test('a heat mark queued, then a rating, merge into one write that carries both (rule I8)', async () => {
+    const { outbox, store, send, online } = rig()
+    online.value = false
+    await outbox.save('/api/activities/r1/feedback', { heatExposure: 'passive' })
+    await outbox.save('/api/activities/r1/feedback', { rpe: 3, pain: null })
+    expect((await store.read()).map((entry) => entry.body)).toEqual([
+      { heatExposure: 'passive', rpe: 3, pain: null },
+    ])
+    online.value = true
+    await outbox.flush()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0]![0].body).toEqual({ heatExposure: 'passive', rpe: 3, pain: null })
+  })
+
   test('a run and a rating never age out, where a check-in does', async () => {
     const { outbox, store, send, online, clock } = rig()
     const RUN = '/api/activities/done/0b6f3c1e-8d4a-4f6b-9a31-5c0e2d7b6a10'

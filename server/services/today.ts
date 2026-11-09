@@ -16,6 +16,7 @@ import { bandOwnsIllness, openWindows, windowVerdict } from '../../shared/domain
 import {
   isHotForSteering,
   NO_HEAT_NOTE_KINDS,
+  easySessionActivityIds,
   suggestsHeatDays,
   trainingHeatAdvice,
   type TrainingHeatAdvice,
@@ -163,7 +164,12 @@ function nextSession(sessions: readonly PlanSessionView[], date: string): PlanSe
  * since it opened are fewer than the block asks. Reads state and the climate cache only; a goal
  * with no cached climate has no expected heat and offers nothing.
  */
-async function heatDaysOffered(context: AthleteContext, today: string): Promise<boolean> {
+async function heatDaysOffered(
+  context: AthleteContext,
+  today: string,
+  state: { held: boolean },
+): Promise<boolean> {
+  if (state.held) return false
   const goal = context.goal
   if (goal === null) return false
   const model = await goalModelFor(context, goal.id, { climate: true })
@@ -173,6 +179,8 @@ async function heatDaysOffered(context: AthleteContext, today: string): Promise<
     raceDate: model.date,
     today,
     activities: context.activities.filter((a) => !isDuplicate(a)),
+    easyIds: easySessionActivityIds(context.planSessions),
+    held: false,
   })
 }
 
@@ -348,7 +356,9 @@ export async function todayView(
     coolerValue: heatAdvice?.coolerValue ?? null,
     index: peak?.index ?? null,
     hotForSteering: heatSession === null ? false : isHotForSteering(peak, heatSession.flags),
-    heatDays: await heatDaysOffered(context, today),
+    heatDays: await heatDaysOffered(context, today, {
+      held: openWindows(windows).length > 0 || bandHoldsIllness || readiness.redFlags.length > 0,
+    }),
   }
 
   // The hero: the main session, eased when readiness says so, with the targets it will be run by.

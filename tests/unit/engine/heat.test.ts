@@ -3,6 +3,7 @@ import {
   acclimationCredit,
   heatAbilityMultiplier,
   heatPenaltyPct,
+  easySessionActivityIds,
   heatBlockWindow,
   heatExposureDays,
   heatWarning,
@@ -463,24 +464,27 @@ describe('isHeatExposure: the runner-marked kinds (rules I8, HT1)', () => {
   const minutes = (n: number) => n * 60
 
   it('counts a run marked overdressed or in a warm room, at any temperature', () => {
-    expect(isHeatExposure({ ...mild, heatExposure: 'overdressed' })).toBe(true)
-    expect(isHeatExposure({ ...mild, tempC: null, heatExposure: 'overdressed' })).toBe(true)
+    expect(isHeatExposure({ ...mild, heatExposure: 'warm-room' })).toBe(true)
+    expect(isHeatExposure({ ...mild, tempC: null, heatExposure: 'warm-room' })).toBe(true)
     // a hard run in extra layers is still a run in extra layers
-    expect(isHeatExposure({ ...mild, rpe: 8, heatExposure: 'overdressed' })).toBe(true)
+    expect(isHeatExposure({ ...mild, rpe: 8, heatExposure: 'warm-room' })).toBe(true)
   })
 
   it('needs the exposure minutes for an overdressed run and never counts strength work', () => {
     const short = minutes(P.acclim.exposureMinDurationMin.value) - 1
-    expect(isHeatExposure({ ...mild, durationSec: short, heatExposure: 'overdressed' })).toBe(false)
-    expect(isHeatExposure({ ...mild, type: 'strength', heatExposure: 'overdressed' })).toBe(false)
+    expect(isHeatExposure({ ...mild, durationSec: short, heatExposure: 'warm-room' })).toBe(false)
+    expect(isHeatExposure({ ...mild, type: 'strength', heatExposure: 'warm-room' })).toBe(false)
     expect(isHeatExposure({ ...mild, type: 'strength', heatExposure: 'passive' })).toBe(false)
   })
 
   it('counts a hot bath or sauna only after an easy run of enough minutes', () => {
     const passive = { ...mild, heatExposure: 'passive' } as const
     expect(isHeatExposure(passive)).toBe(true)
-    // no RPE given: the runner's mark stands
-    expect(isHeatExposure({ ...passive, rpe: null })).toBe(true)
+    // no RPE: counts only when the run filled a planned easy or recovery session
+    expect(isHeatExposure({ ...passive, rpe: null })).toBe(false)
+    expect(isHeatExposure({ ...passive, rpe: null }, true)).toBe(true)
+    // a rating decides over the session: a hard run on an easy session is not easy
+    expect(isHeatExposure({ ...passive, rpe: 8 }, true)).toBe(false)
     expect(isHeatExposure({ ...passive, rpe: P.acclim.passiveEasyMaxRpe.value })).toBe(true)
     expect(isHeatExposure({ ...passive, rpe: P.acclim.passiveEasyMaxRpe.value + 1 })).toBe(false)
     expect(
@@ -525,7 +529,7 @@ describe('heatExposureDays: one per day (rules I8, HT1)', () => {
       [
         run('2026-07-03', { tempC: 28 }),
         run('2026-07-03', { heatExposure: 'passive' }),
-        run('2026-07-02', { heatExposure: 'overdressed', tempC: 30 }),
+        run('2026-07-02', { heatExposure: 'warm-room', tempC: 30 }),
         run('2026-07-01', { heatExposure: 'passive' }),
         run('2026-06-30', { tempC: 28 }),
         run('2026-07-04', { tempC: 28 }),
@@ -540,7 +544,7 @@ describe('heatExposureDays: one per day (rules I8, HT1)', () => {
   it('feeds the credit one gain per day', () => {
     const both = [
       run('2026-07-03', { tempC: 28, heatExposure: 'passive' }),
-      run('2026-07-03', { heatExposure: 'overdressed' }),
+      run('2026-07-03', { heatExposure: 'warm-room' }),
     ]
     const days = heatExposureDays(both, '2026-07-01', '2026-07-03')
     expect(days).toHaveLength(1)
@@ -594,7 +598,7 @@ describe('suggestsHeatDays (rules I8, HT1)', () => {
     const need = P.i8.blockDays.value
     const counted = (n: number) =>
       Array.from({ length: n }, (_, i) =>
-        day(addDays(window.from, i), i % 2 === 0 ? {} : { heatExposure: 'overdressed' }),
+        day(addDays(window.from, i), i % 2 === 0 ? {} : { heatExposure: 'warm-room' }),
       )
     expect(suggestsHeatDays({ ...base, activities: counted(need - 1) as never[] })).toBe(true)
     expect(suggestsHeatDays({ ...base, activities: counted(need) as never[] })).toBe(false)
@@ -607,5 +611,39 @@ describe('suggestsHeatDays (rules I8, HT1)', () => {
     // a bath after a hard run is not a heat day, so it does not end the suggestion
     const hard = Array.from({ length: need }, (_, i) => day(addDays(window.from, i), { rpe: 8 }))
     expect(suggestsHeatDays({ ...base, activities: hard as never[] })).toBe(true)
+  })
+})
+
+describe('easySessionActivityIds (rules I8, HT1)', () => {
+  it('lists the activities that filled an easy or recovery session', () => {
+    const ids = easySessionActivityIds([
+      { kind: 'easy', activityId: 'a1' },
+      { kind: 'recovery', activityId: 'a2' },
+      { kind: 'long', activityId: 'a3' },
+      { kind: 'easy', activityId: null },
+    ])
+    expect([...ids].sort()).toEqual(['a1', 'a2'])
+    expect(easySessionActivityIds(null).size).toBe(0)
+  })
+
+  it('lets an unrated bath count through the day, and a held runner is never offered it', () => {
+    const raceDate = '2027-06-12'
+    const window = heatBlockWindow(raceDate)
+    const unrated = {
+      id: 'u1',
+      date: window.from,
+      type: 'run',
+      tempC: 12,
+      durationSec: 2400,
+      rpe: null,
+      heatExposure: 'passive',
+    } as const
+    expect(heatExposureDays([unrated], window.from, window.to)).toEqual([])
+    expect(heatExposureDays([unrated], window.from, window.to, new Set(['u1']))).toEqual([
+      window.from,
+    ])
+    const base = { raceWbgtC: 24, raceDate, today: window.from, activities: [] }
+    expect(suggestsHeatDays(base)).toBe(true)
+    expect(suggestsHeatDays({ ...base, held: true })).toBe(false)
   })
 })

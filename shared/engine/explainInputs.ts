@@ -54,7 +54,7 @@ import {
   weeklyRamp,
   wholeMinutes,
 } from './limits.ts'
-import { isHeatExposure, suggestsHeatDays } from './heat.ts'
+import { easySessionActivityIds, isHeatExposure, suggestsHeatDays } from './heat.ts'
 import { isDuplicate, sessionLoad } from './load.ts'
 import { blockLiftMin, loadPosition, rebuildZone, responseBasis, zoneBlock } from './loadSetting.ts'
 import { effective, overrides, resolveMethod, type MethodPosition } from './methods.ts'
@@ -3374,7 +3374,10 @@ function heatAdaptationFacts(rule: 'I8' | 'H13'): Builder {
     const credit = ctx.state.heatAcclimation
     const days = P.i8.zeroCreditDays.value
     const window = lastDays(ctx, days + 1)
-    const exposed = countedUpTo(ctx).filter((a) => a.date >= window.from && isHeatExposure(a))
+    const easyIds = easySessionActivityIds(ctx.input.existing?.sessions)
+    const exposed = countedUpTo(ctx).filter(
+      (a) => a.date >= window.from && isHeatExposure(a, easyIds.has(a.id)),
+    )
     const facts: InputFact[] = !(credit > 0)
       ? [
           gap(
@@ -3408,11 +3411,19 @@ function heatAdaptationFacts(rule: 'I8' | 'H13'): Builder {
         raceDate: race.date,
         today: ctx.asOf,
         activities: countedUpTo(ctx),
+        easyIds,
+        held:
+          ctx.readiness.redFlags.length > 0 ||
+          (ctx.input.disruptions ?? []).some(
+            (w) => w.startDate <= ctx.asOf && ctx.asOf <= w.endDate,
+          ),
       })
     ) {
       facts.push(
         make(rule, 'counts', 'explain.i8-counts', { temp: temp(P.acclim.exposureTempC.value) }),
+        make(rule, 'dose', 'explain.i8-dose', {}),
         make(rule, 'safety', 'explain.i8-safety', {}),
+        make(rule, 'safety-more', 'explain.i8-safety-more', {}),
         make(rule, 'safety-ask', 'explain.i8-safety-ask', {}),
       )
     }

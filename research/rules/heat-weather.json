@@ -129,8 +129,23 @@
     ]
   },
   {
+    "id": "heat-acclimation-warm-room-day",
+    "statement": "Count a run indoors in a room at 25 C or more, marked by the runner, as a heat day on the same terms as an outdoor run at 25 C or more (at least 30 min); it is the same exposure. Do not count extra clothing in mild weather: the one trial found no acclimation.",
+    "parameter": "warm_room_heat_day",
+    "value": "25 C or more, at least 30 min, indoors or out",
+    "unit": "C, min",
+    "appliesTo": "Runners who mark a run; the 25 C cut-off is a default",
+    "grade": "D",
+    "confidence": "low",
+    "evidence": [
+      "racinais-2015-heat-consensus",
+      "tyler-2016-heat-adaptation-meta",
+      "stevens-2018-additional-clothing-training"
+    ]
+  },
+  {
     "id": "heat-acclimation-passive-day",
-    "statement": "Count a heat day when a hot bath (about 40 C, about 40 min) or a sauna (about 90 C, about 30 min) follows an easy run of at least 30 min that the runner marks, as an option and not a target; the studies followed an exercise bout straight away, on consecutive days, 6 or more times, in young healthy men. The 30 min run and the easy-effort cut-off are defaults. Show safety lines with it: drink, start shorter, not alone at first, stop if dizzy, sick or confused, ask a clinician with heart or blood-pressure conditions, pregnancy or medicines that change heat tolerance.",
+    "statement": "Count a heat day when a hot bath (about 40 C, about 40 min) or a sauna (about 90 C, about 30 min) follows an easy run of at least 30 min that the runner marks (rated RPE 4 or less, or filling a planned easy or recovery session), as an option and not a target; the studies followed an exercise bout straight away, on consecutive days, 6 or more times, in young healthy men. The 30 min run and the easy-effort cut-off are defaults. Never suggest it during an illness or an open disruption window. Show the dose studied and safety lines with it (sources in I8 of engine-rules.md): drink, start shorter, not hotter, not after a hard or long run or in the heat, not when unwell or dehydrated, no alcohol, not alone at first, stand up slowly, stop if dizzy, sick or confused, ask a clinician with heart or blood-pressure conditions, pregnancy or medicines that change heat tolerance.",
     "parameter": "passive_heat_day",
     "value": "post-run hot water about 40 min at about 40 C, or sauna about 30 min; 6-7+ consecutive days",
     "unit": "min per session",
@@ -140,19 +155,9 @@
     "evidence": [
       "zurawlew-2016-hot-water-immersion",
       "scoon-2007-post-exercise-sauna",
-      "heathcote-2018-passive-heating-review"
+      "heathcote-2018-passive-heating-review",
+      "racinais-2015-heat-consensus"
     ]
-  },
-  {
-    "id": "heat-acclimation-overdressed-day",
-    "statement": "A run in extra layers or a warm room that the runner marks counts as a heat day only by an owner decision: the one trial of two weeks of training in extra clothing in mild outdoor weather found no sign of heat acclimation. Count it at grade D, say so, and do not read the layers or the room temperature.",
-    "parameter": "overdressed_heat_day",
-    "value": "counts when marked; at least 30 min",
-    "unit": "min",
-    "appliesTo": "Runners who choose to mark a run; evidence is one small trial in male triathletes",
-    "grade": "D",
-    "confidence": "low",
-    "evidence": ["stevens-2018-additional-clothing-training", "racinais-2015-heat-consensus"]
   },
   {
     "id": "heat-acclimation-decay",

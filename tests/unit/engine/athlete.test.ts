@@ -839,7 +839,7 @@ describe('estimateState: heat acclimation credit', () => {
     const cool = (n: number, over: Partial<Activity> = {}) =>
       run(n, { durationSec: 2700, tempC: 15, rpe: 3, ...over })
     const marked = Array.from({ length: 5 }, (_, i) =>
-      cool(i, { heatExposure: i % 2 === 0 ? 'overdressed' : 'passive' }),
+      cool(i, { heatExposure: i % 2 === 0 ? 'warm-room' : 'passive' }),
     )
     expect(estimateState(input(marked)).heatAcclimation).toBeCloseTo(0.5, 9)
     // a hot run and a marked run on one day are one day
@@ -849,6 +849,29 @@ describe('estimateState: heat acclimation credit', () => {
     const hard = [0, 1, 2].map((n) => cool(n, { heatExposure: 'passive', rpe: 8 }))
     const short = [3, 4].map((n) => cool(n, { heatExposure: 'passive', durationSec: 1200 }))
     expect(estimateState(input([...hard, ...short])).heatAcclimation).toBe(0)
+  })
+
+  test('an unrated bath counts only when the run filled a planned easy or recovery session', () => {
+    const baths = [0, 1, 2, 3, 4].map((n) =>
+      run(n, {
+        id: `bath-${String(n)}`,
+        durationSec: 2700,
+        tempC: 15,
+        rpe: null,
+        heatExposure: 'passive',
+      }),
+    )
+    expect(estimateState(input(baths)).heatAcclimation).toBe(0)
+    const sessions = (kind: string) =>
+      baths.map((a) => ({ id: `s-${a.id}`, kind, activityId: a.id, status: 'done' }))
+    const withSessions = (kind: string) =>
+      ({
+        ...input(baths),
+        existing: { weeks: [], sessions: sessions(kind) },
+      }) as unknown as EngineInput
+    expect(estimateState(withSessions('easy')).heatAcclimation).toBeCloseTo(0.5, 9)
+    expect(estimateState(withSessions('recovery')).heatAcclimation).toBeCloseTo(0.5, 9)
+    expect(estimateState(withSessions('threshold')).heatAcclimation).toBe(0)
   })
 
   test('five exposure days give half credit; cool or short runs give none', () => {

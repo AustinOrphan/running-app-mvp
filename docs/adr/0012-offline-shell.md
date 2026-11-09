@@ -319,7 +319,7 @@ added by this change.
 - **Rating.** `PUT /api/activities/:id/feedback`, the same handler as `PATCH` (kept for the activity
   page). It stores the keys it names and leaves the others, so a second queued rating merges into the
   first (`combine: 'merge'`) and a replay changes nothing. The keys are `rpe`, `feel`, `pain` and
-  `heatExposure` (rule I8, task HT1: null, `overdressed` or `passive`; null clears it, a rating that
+  `heatExposure` (rule I8, task HT1: null, `warm-room` or `passive`; null clears it, a rating that
   omits it leaves it), so the heat mark queues with the rating and needs no entry of its own.
 - **Outbox.** Two allowlist entries, `run` and `rating`. An entry whose send could not go out, and the
   ones behind it, are marked `held`. The page shows a held Done in the session card ("Saved on this

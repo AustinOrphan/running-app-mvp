@@ -27,25 +27,3 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
-
-/* A 44px row, as the "What to know today" disclosure: the marker stays, so the line reads as openable. */
-.summary {
-  display: list-item;
-  padding-block: calc((2.75rem - var(--lh-base)) / 2);
-  color: var(--accent);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.summary:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-offset);
-}
-
-.lines {
-  margin: 0;
-  padding-left: var(--space-5);
-  max-width: var(--prose-max);
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-}

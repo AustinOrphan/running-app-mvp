@@ -13,7 +13,7 @@ import { render } from '../../../shared/copy/template.ts'
 import { TEMPLATES } from '../../../shared/copy/templates.ts'
 import { TYPE_LABELS } from '../../pages/ActivityForm.tsx'
 import { Button } from '../Button.tsx'
-import { FeedbackFields, type FeedbackValues } from '../FeelPicker.tsx'
+import { FeedbackFields, showHeatMark, type FeedbackValues } from '../FeelPicker.tsx'
 import { formatShortDate, formatWeekday } from '../format.ts'
 import styles from './FeedbackCard.module.css'
 
@@ -43,10 +43,12 @@ function FeedbackItem({
   activity,
   units,
   onSaved,
+  heatDays,
 }: {
   activity: ActivityListItem
   units: Units
-  onSaved: (landed: Landed) => void
+  onSaved: (landed: Landed, heatOnly: boolean) => void
+  heatDays: boolean
 }) {
   const save = useSaveRating(activity.id)
   const queued = useQueuedRating(activity.id)
@@ -86,7 +88,12 @@ function FeedbackItem({
       </p>
       {/* Waiting on the phone, the pickers stay in view but cannot be changed (there is no Save). */}
       <div ref={pickers}>
-        <FeedbackFields value={value} onChange={setValue} />
+        <FeedbackFields
+          value={value}
+          onChange={setValue}
+          showHeat={showHeatMark(activity, heatDays)}
+          units={units}
+        />
       </div>
       {queued ? (
         <p ref={waiting} tabIndex={-1} role="status" className={styles.caption}>
@@ -102,10 +109,12 @@ function FeedbackItem({
               // The saved run drops out of the card, which unmounts this item before a mutate-level
               // onSuccess could fire. The promise settles anyway, and the page owns the toast.
               saved.current = true
+              const heatOnly =
+                value.rpe === null && value.feel === null && value.pain === activity.pain
               save.mutateAsync(value).then(
                 (landed) => {
                   if (landed === 'sent') saved.current = false
-                  onSaved(landed)
+                  onSaved(landed, heatOnly)
                 },
                 () => {
                   saved.current = false
@@ -168,10 +177,13 @@ export function FeedbackCard({
   units,
   onSaved,
   exclude = null,
+  heatDays = false,
 }: {
   unrated: ActivityListItem[]
   units: Units
-  onSaved: (landed: Landed) => void
+  onSaved: (landed: Landed, heatOnly: boolean) => void
+  /** Today says what counts as a heat day (`TodayHeat.heatDays`): the Heat mark is offered on runs. */
+  heatDays?: boolean
   /** A run the hero already asks about, left out so it is not asked twice. */
   exclude?: string | null
 }) {
@@ -192,11 +204,23 @@ export function FeedbackCard({
       </p>
       <ul className={styles.feedbackList}>
         {newest === undefined ? null : (
-          <FeedbackItem key={newest.id} activity={newest} units={units} onSaved={onSaved} />
+          <FeedbackItem
+            key={newest.id}
+            activity={newest}
+            units={units}
+            onSaved={onSaved}
+            heatDays={heatDays}
+          />
         )}
         {older.map((activity) =>
           opened.has(activity.id) ? (
-            <FeedbackItem key={activity.id} activity={activity} units={units} onSaved={onSaved} />
+            <FeedbackItem
+              key={activity.id}
+              activity={activity}
+              units={units}
+              onSaved={onSaved}
+              heatDays={heatDays}
+            />
           ) : (
             <FeedbackQueued
               key={activity.id}

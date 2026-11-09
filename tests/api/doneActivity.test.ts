@@ -289,8 +289,8 @@ describe('PUT /api/activities/:id/feedback', () => {
       'passive',
     )
     // the other kind replaces it, and null clears it
-    expect(((await send({ heatExposure: 'overdressed' })).body as Activity).heatExposure).toBe(
-      'overdressed',
+    expect(((await send({ heatExposure: 'warm-room' })).body as Activity).heatExposure).toBe(
+      'warm-room',
     )
     expect(((await send({ heatExposure: null })).body as Activity).heatExposure).toBeNull()
     expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).heatExposure).toBeNull()

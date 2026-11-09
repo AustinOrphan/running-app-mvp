@@ -5,7 +5,7 @@ import { aggregateWeeks } from '../domain/weeks.ts'
 import type { Activity, AthleteProfile, WeekRow } from '../types.ts'
 import { injuryReports } from './disruption.ts'
 import { personalClimbOf } from './gradeCurve.ts'
-import { isHeatExposure } from './heat.ts'
+import { easySessionActivityIds, isHeatExposure } from './heat.ts'
 import { countsTowardReference } from './limits.ts'
 import {
   criticalSpeed,
@@ -459,8 +459,17 @@ function durabilityOf(runs: Activity[]): AthleteState['durability'] {
 }
 
 /** Heat acclimation credit, 0..1: gained on exposure days, lost at a fixed rate otherwise [I8]. */
-function heatCredit(acts: Activity[], today: string): number {
-  const exposed = new Set(acts.filter(isHeatExposure).map((a) => a.date))
+function heatCredit(
+  acts: Activity[],
+  today: string,
+  sessions: EngineInput['existing'] extends infer E
+    ? E extends { sessions: infer S }
+      ? S
+      : never
+    : never,
+): number {
+  const easy = easySessionActivityIds(sessions)
+  const exposed = new Set(acts.filter((a) => isHeatExposure(a, easy.has(a.id))).map((a) => a.date))
   const gain = 1 / P.i8.blockDays.value
   const decay = P.i8.decayPctPerDay.value / 100
   const days = P.i8.zeroCreditDays.value
@@ -712,6 +721,6 @@ export function estimateState(input: EngineInput): AthleteState {
     history,
     risk: riskOf(input, weeks, age, lastRunDate, yearsRunning),
     lowFrequency: lowFrequencyOf(runs, today, Math.max(typicalWeekMin, recentWeekMin)),
-    heatAcclimation: heatCredit(acts, today),
+    heatAcclimation: heatCredit(acts, today, input.existing?.sessions ?? []),
   }
 }

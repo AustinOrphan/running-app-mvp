@@ -3744,11 +3744,13 @@ describe('heat: D6, I2, I3, I8 and H13', () => {
     expect(facts.map((f) => f.template)).toEqual([
       'explain.i8-gap',
       'explain.i8-counts',
+      'explain.i8-dose',
       'explain.i8-safety',
+      'explain.i8-safety-more',
       'explain.i8-safety-ask',
     ])
     expect(text(facts[1]!)).toBe(
-      'Heat days count from runs at 25 °C or more, runs in extra layers or a warm room, or a hot bath or sauna after an easy run.',
+      'Heat days count from runs at 25 °C or more, outdoors or in a warm room, or a hot bath or sauna after an easy run.',
     )
     // an option and not a target: no count of days, none missing, in any of the lines
     for (const fact of facts.slice(1)) expect(text(fact)).not.toMatch(/\d+ (days?|more)|missing/)
@@ -3761,6 +3763,28 @@ describe('heat: D6, I2, I3, I8 and H13', () => {
     ]) {
       expect(factsOf('I8', quiet).map((f) => f.template)).toEqual(['explain.i8-gap'])
     }
+    // an open disruption window, or a red flag, says nothing
+    const ill = warm({})
+    expect(
+      factsOf('I8', {
+        ...ill,
+        input: {
+          ...ill.input,
+          disruptions: [
+            {
+              id: 'w1',
+              reason: 'illness-below-neck',
+              mode: 'rest',
+              startDate: addDays(TODAY, -1),
+              endDate: addDays(TODAY, 2),
+              maxRunMin: null,
+              pain: null,
+              gaitChange: false,
+            },
+          ],
+        },
+      }).map((f) => f.template),
+    ).toEqual(['explain.i8-gap'])
     // H13 reads the same credit and does not add the lines
     expect(factsOf('H13', warm({})).map((f) => f.template)).toEqual(['explain.i8-gap'])
     const marked = Array.from({ length: P.i8.blockDays.value }, (_, i) =>
