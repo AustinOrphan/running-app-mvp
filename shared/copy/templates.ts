@@ -8,6 +8,7 @@
 import { FUEL_TEMPLATES } from '../engine/fuelCopy.ts'
 import type { InputFact } from '../engine/types.ts'
 import type { Units, WeightUnit } from '../types.ts'
+import { ACCOUNT_TEMPLATES } from './account.ts'
 import { ACTIVITY_LIST_TEMPLATES } from './activityList.ts'
 import { ACTIVITY_PAGE_TEMPLATES } from './activityPage.ts'
 import { BRIEF_TEMPLATES } from './briefTemplates.ts'
@@ -84,6 +85,7 @@ export const TEMPLATES = {
   ...STRENGTH_TEMPLATES,
   ...RACE_PLAN_TEMPLATES,
   ...SETTINGS_TEMPLATES,
+  ...ACCOUNT_TEMPLATES,
   ...EXPORT_TEMPLATES,
   ...SURFACE_TEMPLATES,
   ...ERROR_TEMPLATES,

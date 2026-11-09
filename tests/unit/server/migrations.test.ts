@@ -1864,6 +1864,25 @@ function verifyHrQuality(db: DatabaseSync, before: Snapshot): void {
   ])
 }
 
+function verifyUserMustChangePassword(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // The accounts of the previous release keep signing in as they did: nothing is asked of them.
+  expect(
+    rowsOf(
+      db,
+      `SELECT email, "mustChangePassword", "unitsFromBrowser", "zoneFromBrowser" FROM "User"`,
+    ),
+  ).toEqual([
+    {
+      email: 'runner@example.com',
+      mustChangePassword: 0,
+      unitsFromBrowser: 0,
+      zoneFromBrowser: 0,
+    },
+  ])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2156,6 +2175,11 @@ const CASES: FixtureCase[] = [
     migration: 'activity_heat_exposure',
     seed: seedTerrainRelease,
     verify: verifyActivityHeatExposure,
+  },
+  {
+    migration: 'user_must_change_password',
+    seed: seedTerrainRelease,
+    verify: verifyUserMustChangePassword,
   },
 ]
 
