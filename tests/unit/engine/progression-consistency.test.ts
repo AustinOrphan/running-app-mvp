@@ -210,6 +210,7 @@ describe('the part current week is never a ramp baseline [rules g-2]', () => {
     raceMin: 0,
     longestRunMin: 0,
     longRunShare: null,
+    climbM: null,
     avg4wRunMin: runMin,
     streak3Plus: 0,
   })

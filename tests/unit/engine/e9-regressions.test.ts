@@ -22,6 +22,7 @@ const row = (weekStart: string, runMin: number): WeekRow => ({
   raceMin: 0,
   longestRunMin: 0,
   longRunShare: null,
+  climbM: null,
   avg4wRunMin: runMin,
   streak3Plus: 0,
 })

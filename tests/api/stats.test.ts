@@ -139,7 +139,7 @@ describe('GET /api/stats is memoised by data version', () => {
     const first = await getStats()
     expect(first.status).toBe(200)
     expect(findMany).toHaveBeenCalledTimes(1)
-    // Six columns of every activity, for the whole history.
+    // Seven columns of every activity, for the whole history.
     const args = findMany.mock.calls[0]![0]!
     expect(args.select).toEqual({
       id: true,
@@ -148,6 +148,7 @@ describe('GET /api/stats is memoised by data version', () => {
       durationSec: true,
       distanceM: true,
       duplicateStatus: true,
+      elevationGainM: true,
     })
     expect(args.where).toEqual({ userId: user.id })
     expect(cacheSizes(ctx.prisma).memos).toBe(1)
