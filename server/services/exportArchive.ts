@@ -136,8 +136,9 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
         'duplicateOfId, duplicateStatus: the duplicate pass’s link and verdict.',
         'hrQuality: the checks on the run’s heart-rate data, from its stream; null means not checked yet (and for a run with no stream). v: the version. th: the thresholds the counts used. source: strap, wrist or unknown. movingSec: moving seconds. cleanSec: moving seconds that passed every check. lockSec (heart rate locked to the step cadence), spikeSec (jumps larger than a heart makes), dropSec (no heart rate), flatSec (one exact value for a minute or more), mismatchSec (heart rate fell while effort rose sharply): seconds flagged by each check; one second can be flagged by several, so they can add up to more than movingSec minus cleanSec. halves: for runs of 40 minutes or more, the clean seconds, metres and heart rate times seconds of the first and second half by terrain band (the bands of terrainBins), or null. gapDecouplingPct: drift between the halves on grade-adjusted pace, in percent, or null.',
         'trackV: the version of the route extraction (see activity-tracks.json); null means not looked at yet.',
+        'surfaceBins: how far the run went on each kind of way, from its route and the OpenStreetMap ways of your downloaded map area (see map-area.json); null means not computed, or the run is outside the area or has no route. trailM, pavedM, roadM: metres on trails (paths, tracks and unpaved ways), paved paths and roads. unknownM: metres with no mapped way within 25 m. The four add up to the length of the route. v: the version of the matching.',
       ],
-      json: ['hrHistogram', 'terrainBins', 'hrQuality'],
+      json: ['hrHistogram', 'terrainBins', 'hrQuality', 'surfaceBins'],
       find: (take, last) =>
         prisma.activity.findMany({
           where: { ...mine, ...activityAfter(last) },
@@ -184,6 +185,19 @@ export function exportTables(prisma: PrismaClient, userId: string): Table[] {
           orderBy: { activityId: 'asc' },
           take,
         }),
+    },
+    {
+      file: 'map-area.json',
+      models: ['MapArea'],
+      shape: 'object',
+      about:
+        'The map area you downloaded for the trail and road shares, if any. The ways themselves are OpenStreetMap’s data (© OpenStreetMap contributors, ODbL) and are not in this archive; download the area again to get them.',
+      fields: [
+        'minLat, minLng, maxLat, maxLng: the box that was asked of OpenStreetMap, in degrees.',
+        'fetchedAt: when it was downloaded, ISO 8601 UTC. dataTimestamp: the date of the OpenStreetMap data the answer held. wayCount: the number of ways kept.',
+        'v, matchV: the versions of the way classes and of the matching.',
+      ],
+      find: (take) => prisma.mapArea.findMany({ where: mine, take }),
     },
     {
       file: 'activity-files.json',
@@ -596,6 +610,7 @@ export const EXCLUDED_MODELS: Readonly<Record<string, string>> = {
   WristPublication: 'The publisher’s queue for the watch; rebuilt from the plan.',
   ForecastCache: 'Shared weather cache, not owned by a runner.',
   ClimateCache: 'Shared climate cache, not owned by a runner.',
+  MapWay: 'OpenStreetMap’s data (ODbL), kept as a convenience; download the area again to get it.',
 }
 
 /** `original-files/<activityId>-<name>`; the id keeps two uploads of the same name apart. */

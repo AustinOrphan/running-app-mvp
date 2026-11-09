@@ -1930,6 +1930,69 @@ function verifyActivityTrack(db: DatabaseSync, before: Snapshot): void {
   expect(rowsOf(db, 'SELECT "activityId" FROM "ActivityTrack"')).toEqual([])
 }
 
+function verifyTrailRoad(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+
+  // Every activity of the previous release reads null: the surface job fills runs inside a
+  // downloaded area, and there is none yet.
+  expect(rowsOf(db, 'SELECT id, "surfaceBins" FROM "Activity" ORDER BY id')).toEqual([
+    { id: 'a1', surfaceBins: null },
+    { id: 'a2', surfaceBins: null },
+    { id: 'a3', surfaceBins: null },
+    { id: 'a4', surfaceBins: null },
+  ])
+  expect(rowsOf(db, 'SELECT "userId" FROM "MapArea"')).toEqual([])
+  expect(rowsOf(db, 'SELECT "userId" FROM "MapWay"')).toEqual([])
+  // The other derived columns are untouched.
+  expect(
+    rowsOf(db, `SELECT "hrHistogram", "gapDistanceM" FROM "Activity" WHERE id = 'a1'`),
+  ).toEqual([{ hrHistogram: '{"start":40,"width":1,"sec":[1,2,3]}', gapDistanceM: 8100 }])
+
+  // The column takes JSON text.
+  db.prepare(`UPDATE "Activity" SET "surfaceBins" = ? WHERE id = 'a1'`).run('{"v":1}')
+  expect(rowsOf(db, `SELECT "surfaceBins" FROM "Activity" WHERE id = 'a1'`)).toEqual([
+    { surfaceBins: '{"v":1}' },
+  ])
+
+  // An area is one row per runner and its ways are numbered per runner; both go with the runner.
+  db.exec('PRAGMA foreign_keys = ON')
+  insert(db, 'MapArea', {
+    userId: 'u1',
+    minLat: 44.8,
+    minLng: -93.2,
+    maxLat: 45.2,
+    maxLng: -92.8,
+    fetchedAt: STAMP,
+    dataTimestamp: '2026-11-08T09:00:00Z',
+    wayCount: 2,
+    v: 1,
+    matchV: 1,
+  })
+  insert(db, 'MapWay', { userId: 'u1', seq: 0, cls: 't', polyline: '_p~iF~ps|U' })
+  insert(db, 'MapWay', { userId: 'u1', seq: 1, cls: 'r', polyline: '_p~iF~ps|U' })
+  expect(() => {
+    insert(db, 'MapWay', { userId: 'u1', seq: 1, cls: 'p', polyline: 'x' })
+  }).toThrow()
+  expect(() => {
+    insert(db, 'MapArea', {
+      userId: 'nobody',
+      minLat: 0,
+      minLng: 0,
+      maxLat: 1,
+      maxLng: 1,
+      fetchedAt: STAMP,
+      wayCount: 0,
+      v: 1,
+      matchV: 1,
+    })
+  }).toThrow()
+  expect(rowsOf(db, 'SELECT COUNT(*) AS n FROM "MapWay"')).toEqual([{ n: 2 }])
+  db.exec(`DELETE FROM "User" WHERE id = 'u1'`)
+  expect(rowsOf(db, 'SELECT "userId" FROM "MapArea"')).toEqual([])
+  expect(rowsOf(db, 'SELECT "userId" FROM "MapWay"')).toEqual([])
+}
+
 const CASES: FixtureCase[] = [
   {
     migration: 'foundation_plan_session',
@@ -2015,6 +2078,11 @@ const CASES: FixtureCase[] = [
     migration: 'activity_track',
     seed: seedTerrainRelease,
     verify: verifyActivityTrack,
+  },
+  {
+    migration: 'trail_road',
+    seed: seedTerrainRelease,
+    verify: verifyTrailRoad,
   },
   {
     migration: 'activity_heat_exposure',

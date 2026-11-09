@@ -15,6 +15,7 @@ import { ErrorState } from '../components/ErrorState.tsx'
 import { useLoadView } from '../components/loadView.ts'
 import { Field, Input } from '../components/Field.tsx'
 import { useCondensedFigures } from '../components/figureType.ts'
+import { TrailRoadSettings } from '../components/map/TrailRoadSettings.tsx'
 import { useMapTiles } from '../components/map/useMapTiles.ts'
 import { useTheme, type Theme } from '../components/Nav.tsx'
 import { PageHeader } from '../components/PageHeader.tsx'
@@ -375,6 +376,7 @@ function SettingsForm({ initial }: { initial: UserSettings }) {
           Loads map tiles from OpenStreetMap, which sees the area of each run you open (the tile
           addresses, not the route). This device only.
         </p>
+        <TrailRoadSettings units={units} />
       </section>
 
       <section className={styles.section} aria-labelledby="data-heading">

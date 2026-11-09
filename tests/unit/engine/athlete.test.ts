@@ -388,6 +388,29 @@ describe('estimateState: experience, risk and flags', () => {
     expect(state(injury(2025, 5, 'muscle')).risk.recentInjury).toBe(false)
   })
 
+  test('injuryKind: the most recent injury in the window, a tendon when several share the month [g-3]', () => {
+    const injury = (year: number, month: number, kind: 'bone-stress' | 'tendon' | 'muscle') => ({
+      area: 'x',
+      side: null,
+      year,
+      month,
+      kind,
+      notes: null,
+    })
+    const kindOf = (...injuries: ReturnType<typeof injury>[]) =>
+      estimateState(input([], { profile: { injuries } })).risk.injuryKind
+    expect(kindOf()).toBeUndefined()
+    // outside the window: no kind
+    expect(kindOf(injury(2023, 3, 'tendon'))).toBeUndefined()
+    expect(kindOf(injury(2025, 8, 'tendon'))).toBe('tendon')
+    // the later one decides, whichever order they are listed in
+    expect(kindOf(injury(2025, 7, 'tendon'), injury(2025, 12, 'muscle'))).toBe('muscle')
+    expect(kindOf(injury(2025, 12, 'muscle'), injury(2025, 7, 'tendon'))).toBe('muscle')
+    expect(kindOf(injury(2025, 12, 'muscle'), injury(2025, 12, 'tendon'))).toBe('tendon')
+    // an old injury outside the window does not decide
+    expect(kindOf(injury(2023, 3, 'tendon'), injury(2025, 12, 'bone-stress'))).toBe('bone-stress')
+  })
+
   test('BSI factors count prior BSI, 12 h of weekly running and low BMI in women', () => {
     const heavy = Array.from({ length: 28 }, (_, i) => run(i, { durationSec: 7200 })) // 14 h/week
     const profile: Partial<AthleteProfile> = {

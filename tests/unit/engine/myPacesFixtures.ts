@@ -62,6 +62,7 @@ export function run(
       ),
     },
     terrainBins: null,
+    surfaceBins: null,
     hrQuality: null,
     decouplingPct: null,
     gapDistanceM: speedMps * durationSec,
