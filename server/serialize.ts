@@ -25,6 +25,7 @@ import type {
   WristPublication as WristPublicationRow,
 } from './db.ts'
 import type { WeightSeriesRow, WellnessSeriesRow } from '../shared/domain/trends.ts'
+import type { LoadSource } from '../shared/domain/trendsLoad.ts'
 import type { TrendRun } from '../shared/domain/trendsRuns.ts'
 import type {
   CourseSnapshot,
@@ -1039,6 +1040,39 @@ export async function loadRunSeries(
     hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
     hrQuality: parseJson<HrQuality | null>(row.hrQuality, null),
     terrainBins: parseJson<TerrainBins | null>(row.terrainBins, null),
+  }))
+}
+
+/**
+ * The columns of the runs the Trends climbing and intensity panels read, for an inclusive range, in
+ * no particular order: runs only (a race is not a run, as in the weekly minutes), flagged duplicates
+ * left out. The window is the page's 104 weeks plus the three before them for the 4-week line, which
+ * the 365 days of the snapshot do not cover, so the engine input is untouched (ADR 0019, rule A12).
+ */
+export async function loadLoadSeries(
+  prisma: Pick<PrismaClient, 'activity'>,
+  userId: string,
+  opts: { from: string; to: string },
+): Promise<LoadSource[]> {
+  const rows = await prisma.activity.findMany({
+    where: {
+      userId,
+      type: 'run',
+      duplicateStatus: { in: ['none', 'dismissed'] },
+      date: { gte: opts.from, lte: opts.to },
+    },
+    select: {
+      date: true,
+      durationSec: true,
+      elevationGainM: true,
+      hrHistogram: true,
+      hrQuality: true,
+    },
+  })
+  return rows.map((row) => ({
+    ...row,
+    hrHistogram: parseJson<HrHistogram | null>(row.hrHistogram, null),
+    hrQuality: parseJson<HrQuality | null>(row.hrQuality, null),
   }))
 }
 
