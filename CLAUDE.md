@@ -103,6 +103,20 @@ its build runs `prisma migrate deploy` as a smoke test.
   imported before the column, 20 per user per tick, idempotent, recording a `terrain` job run (`partial`
   when a stored stream is unreadable). Null means not computed; a run with nothing to read (no altitude,
   or under 2 m of it) stores all-zero bins. The list read omits the column.
+- Trail and road (M1d): the runner's one OpenStreetMap download. `POST /api/map-area`
+  (`server/routes/mapArea.ts`, `server/services/mapArea.ts`) sends Overpass (`ctx`-style, through
+  `Deps.fetch`) only the box from `mapAreaBox` (`shared/domain/mapArea.ts`: the stored tracks' centres, the
+  95 % nearest their median, cut to about 40 x 40 km); no run or route is sent, and one download runs at a
+  time per runner. The answer is stored as `MapWay` rows (a class from `classifyWay`,
+  `shared/domain/surface.ts`, and a 3 m simplified polyline) plus one `MapArea` row, both non-state. The
+  `surface` job (`backfillSurfaceBins`, every 5 minutes, 20 runs per user per tick) matches each stored
+  track to the nearest way within 25 m (`shared/domain/surfaceMatch.ts`) and writes `Activity.surfaceBins`
+  with `updatedAt` held; null means not computed, or the run has no track or lies outside the area (such a
+  run is never selected). A download or a removal clears every run's bins; a change to the matcher raises
+  `SURFACE_VERSION`, a change to the classes `SURFACE_CLASS_VERSION` (the stored classes then need a new
+  download). The export keeps the area and the bins, not the ways (ODbL data, re-downloadable). Words are
+  `shared/copy/surface.ts`; the credit "Map data © OpenStreetMap contributors" shows with the block and the
+  run's line. Nothing in `shared/engine` reads the shares.
 - Secrets (API keys, client secrets, tokens) are encrypted and decrypted only through
   `server/crypto.ts`, stored in `Integration.secret`, and never logged or returned by the API.
   Refreshed tokens are saved through `ctx.saveSecret`. No new environment variables.

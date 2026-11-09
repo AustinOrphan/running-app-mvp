@@ -47,6 +47,8 @@ model User {
   strengthLogs      StrengthLog[]
   strengthSets      StrengthSet[]
   raceCheckpoints   RaceCheckpoint[]
+  mapArea           MapArea?
+  mapWays           MapWay[]
 }
 
 model Activity {
@@ -81,6 +83,7 @@ model Activity {
   weatherSource   String? // 'open-meteo' | 'provider' | 'manual'
   hrHistogram     String? // JSON text: HrHistogram
   terrainBins     String? // JSON text: TerrainBins (runs and races with a stream)
+  surfaceBins     String? // JSON text: SurfaceBins (M1d: metres on trail, paved path and road; null = not computed, or outside the downloaded map area)
   hrQuality       String? // JSON text: HrQuality (runs and races with a stream)
   trackV          Int? // TRACK_VERSION when the run's positions were last looked for (a row in ActivityTrack, or none); null = not yet
   decouplingPct   Float?
@@ -380,6 +383,40 @@ model ActivityTrack {
   createdAt  DateTime @default(now())
 
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+// Trail and road (M1d). The one OpenStreetMap download of a runner: the box (rounded outward to 0.01
+// degrees) that was asked for, when, what Overpass said its data dated from, and how many ways came
+// back. `v` is the class version the ways were classified under (`SURFACE_CLASS_VERSION`); `matchV`
+// the matcher version the activities' `surfaceBins` were last cleared for (`SURFACE_VERSION`).
+// Non-state: written by the download route and the `surface` job, read straight from the table.
+model MapArea {
+  userId        String   @id
+  minLat        Float
+  minLng        Float
+  maxLat        Float
+  maxLng        Float
+  fetchedAt     DateTime
+  dataTimestamp String? // Overpass `osm3s.timestamp_osm_base`, ISO 8601
+  wayCount      Int
+  v             Int
+  matchV        Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One OpenStreetMap way of the area: its class ('t' trail, 'p' paved path, 'r' road) and its
+// geometry simplified to 3 m as a precision-5 encoded polyline (integer 1e-5 degrees, delta-coded).
+// `seq` numbers the ways of one download from 0.
+model MapWay {
+  userId   String
+  seq      Int
+  cls      String
+  polyline String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, seq])
 }
 
 model ActivityFile {
