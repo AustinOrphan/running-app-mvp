@@ -145,6 +145,7 @@
   margin: 0 0 var(--space-4);
   padding: 0;
   list-style: none;
+  container-type: inline-size;
 }
 
 .band {
@@ -217,5 +218,28 @@
   .band {
     grid-template-columns: 6.5rem 1fr 6rem;
     gap: var(--space-2);
+  }
+}
+
+/* The label and the time need about 14rem and the bar a few more, so a list narrower than 22rem
+   (a raised text size at 320 px is under 15rem) stacks: label and time share the first line while
+   they fit and the time drops under the label when they do not; the bar spans the last line. Both
+   keep their whole text. */
+@container (max-width: 22rem) {
+  .band {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-3);
+  }
+
+  .bandLabel,
+  .bandTime {
+    white-space: nowrap;
+  }
+
+  .bandTrack {
+    flex: 1 0 100%;
+    order: 1;
   }
 }
