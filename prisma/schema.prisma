@@ -21,6 +21,7 @@ model User {
   hideMapEnds    Boolean  @default(true) // the track read leaves out the first and last 200 m of a run (M1a); the stored track is whole
   mustChangePassword Boolean @default(false) // set by create-user: the first sign-in asks for a new password before anything else
   unitsFromBrowser   Boolean @default(false) // set by create-user when no units were given: the first load takes the units and the weight unit from the browser's locale, once
+  sessionsValidFrom  DateTime? // a session cookie issued before this moment is refused: set when the password changes, so the other devices sign out
   zoneFromBrowser    Boolean @default(false) // set by create-user when no zone was given: the first load saves the browser's zone while the profile still reads UTC, once
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

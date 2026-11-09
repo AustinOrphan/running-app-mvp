@@ -1,4 +1,4 @@
-import type { RequestHandler } from 'express'
+import type { Request, RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import type { ApiErrorCode } from '../../shared/types.ts'
 import type { Config } from '../config.ts'
@@ -9,6 +9,9 @@ interface LimiterOptions {
   max?: number
   windowMs?: number
 }
+
+/** The key a limiter counts under; `req.ip` when a limiter has none. */
+type KeyGenerator = (req: Request) => string
 
 /** How a limiter counts: every request, or only the ones that were refused (status 400 and up). */
 type Counting = 'every-request' | 'refusals'
@@ -26,8 +29,10 @@ function createLimiter(
   code: ApiErrorCode,
   message: string,
   counting: Counting = 'every-request',
+  keyGenerator?: KeyGenerator,
 ): RequestHandler {
   return rateLimit({
+    ...(keyGenerator === undefined ? {} : { keyGenerator }),
     limit: opts.max ?? defaultMax,
     windowMs: opts.windowMs ?? WINDOW_MS,
     skipSuccessfulRequests: counting === 'refusals',
@@ -91,4 +96,20 @@ export function createGlobalLimiter(
  */
 export function createFeedLimiter(opts: LimiterOptions = {}): RequestHandler {
   return createLimiter(opts, 10, 'unauthorized', 'Too many requests. Try again later.', 'refusals')
+}
+
+/**
+ * Limiter of the password change: 5 refusals per 15 minutes per signed-in user (it sits after
+ * `requireAuth`). A success does not count, so changing a password once never uses the budget, and
+ * the key is the user id, so a second device or address does not get a fresh one.
+ */
+export function createPasswordChangeLimiter(opts: LimiterOptions = {}): RequestHandler {
+  return createLimiter(
+    opts,
+    5,
+    'unauthorized',
+    'Too many attempts. Try again later.',
+    'refusals',
+    (req) => req.userId,
+  )
 }

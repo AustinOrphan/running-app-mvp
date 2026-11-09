@@ -788,6 +788,8 @@ export interface UserSettings {
 }
 export interface SessionUser extends UserSettings {
   id: string
+  /** True after create-user until the first password change: the app asks for a new one first. */
+  mustChangePassword: boolean
 }
 export type GoalPriority = 'A' | 'B' | 'C'
 export type GoalStatus = 'target' | 'considering' | 'done' | 'dropped'

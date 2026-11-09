@@ -12,14 +12,21 @@ export function signSession(userId: string, secret: string): string {
   })
 }
 
-/** Returns the user id for a valid, unexpired token signed with `secret`; otherwise null. */
-export function verifySession(token: string, secret: string): { userId: string } | null {
+/**
+ * Returns the user id and the whole second the token was issued in, for a valid, unexpired token
+ * signed with `secret`; otherwise null.
+ */
+export function verifySession(
+  token: string,
+  secret: string,
+): { userId: string; issuedAtSec: number } | null {
   try {
     const payload = jwt.verify(token, secret, { algorithms: ['HS256'] })
     if (typeof payload === 'string' || typeof payload.sub !== 'string' || payload.sub === '') {
       return null
     }
-    return { userId: payload.sub }
+    if (typeof payload.iat !== 'number') return null
+    return { userId: payload.sub, issuedAtSec: payload.iat }
   } catch {
     return null
   }

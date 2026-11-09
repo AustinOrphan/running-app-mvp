@@ -1883,6 +1883,19 @@ function verifyUserMustChangePassword(db: DatabaseSync, before: Snapshot): void 
   ])
 }
 
+function verifyUserSessionsValidFrom(db: DatabaseSync, before: Snapshot): void {
+  expectNothingLost(before, db)
+  expectConsistent(db)
+  // Every account of the previous release reads null: the sessions that are open stay open.
+  expect(rowsOf(db, `SELECT email, "sessionsValidFrom" FROM "User"`)).toEqual([
+    { email: 'runner@example.com', sessionsValidFrom: null },
+  ])
+  db.prepare(`UPDATE "User" SET "sessionsValidFrom" = ? WHERE id = 'u1'`).run(STAMP)
+  expect(rowsOf(db, `SELECT "sessionsValidFrom" FROM "User"`)).toEqual([
+    { sessionsValidFrom: STAMP },
+  ])
+}
+
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
   // Rows, including the sessions linked to activities, are all kept.
   expectNothingLost(before, db)
@@ -2180,6 +2193,11 @@ const CASES: FixtureCase[] = [
     migration: 'user_must_change_password',
     seed: seedTerrainRelease,
     verify: verifyUserMustChangePassword,
+  },
+  {
+    migration: 'user_sessions_valid_from',
+    seed: seedTerrainRelease,
+    verify: verifyUserSessionsValidFrom,
   },
 ]
 

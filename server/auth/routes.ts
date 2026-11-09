@@ -3,10 +3,10 @@ import { z } from 'zod'
 import { toWeightUnit } from '../serialize.ts'
 import type { SessionUser, Units } from '../../shared/types.ts'
 import type { Deps } from '../app.ts'
-import { conflict, parse, unauthorized } from '../errors.ts'
+import { conflict, parse, unauthorized, validationError } from '../errors.ts'
 import { requireAuth } from './middleware.ts'
 import { DUMMY_PASSWORD_HASH, hashPassword, passwordSchema, verifyPassword } from './password.ts'
-import { createLoginLimiter } from './rateLimit.ts'
+import { createLoginLimiter, createPasswordChangeLimiter } from './rateLimit.ts'
 import { clearSessionCookie, setSessionCookie, signSession } from './session.ts'
 
 const email = z.string().trim().toLowerCase()
@@ -22,6 +22,11 @@ const loginSchema = z.object({
   password: z.string().min(1).max(1024),
 })
 
+const changePasswordSchema = z.strictObject({
+  currentPassword: z.string().min(1).max(1024),
+  newPassword: passwordSchema,
+})
+
 interface UserRow {
   id: string
   email: string
@@ -30,6 +35,7 @@ interface UserRow {
   weightUnit: string
   showBodyWeight: boolean
   hideMapEnds: boolean
+  mustChangePassword: boolean
 }
 
 function toSessionUser(row: UserRow): SessionUser {
@@ -41,6 +47,7 @@ function toSessionUser(row: UserRow): SessionUser {
     weightUnit: toWeightUnit(row.weightUnit),
     showBodyWeight: row.showBodyWeight,
     hideMapEnds: row.hideMapEnds,
+    mustChangePassword: row.mustChangePassword,
   }
 }
 
@@ -57,6 +64,7 @@ export function authRouter(deps: Deps): Router {
   const router = Router()
   const { prisma, config } = deps
   const loginLimiter = createLoginLimiter()
+  const passwordLimiter = createPasswordChangeLimiter()
 
   router.get('/setup', async (_req, res) => {
     const users = await prisma.user.count()
@@ -101,6 +109,35 @@ export function authRouter(deps: Deps): Router {
   router.post('/auth/logout', (_req, res) => {
     clearSessionCookie(res)
     res.status(204).end()
+  })
+
+  // Sessions are signed cookies with no server-side record, so "sign out the other devices" is a
+  // moment (`sessionsValidFrom`): `requireAuth` refuses a cookie issued before it. The cookie of
+  // this request is replaced by one issued after it, so this device stays signed in.
+  router.put('/auth/password', requireAuth(deps), passwordLimiter, async (req, res) => {
+    const body = parse(changePasswordSchema, req.body)
+    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    if (!user) throw unauthorized()
+    if (!(await verifyPassword(body.currentPassword, user.passwordHash))) {
+      throw validationError('The current password is not right.', [
+        { path: 'currentPassword', message: 'That is not the current password.' },
+      ])
+    }
+    if (body.newPassword === body.currentPassword) {
+      throw validationError('Choose a password you have not used here.', [
+        { path: 'newPassword', message: 'Choose a different password from the current one.' },
+      ])
+    }
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await hashPassword(body.newPassword),
+        mustChangePassword: false,
+        sessionsValidFrom: new Date(),
+      },
+    })
+    setSessionCookie(res, signSession(updated.id, config.sessionSecret), isSecure(req))
+    res.json(toSessionUser(updated))
   })
 
   router.get('/auth/me', requireAuth(deps), async (req, res) => {

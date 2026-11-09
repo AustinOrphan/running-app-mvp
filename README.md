@@ -598,8 +598,10 @@ docker compose exec app node dist/scripts/create-user.js friend@example.com "Fri
 Only the email is required. The script prints a long random temporary password once, on standard
 output (the words around it go to standard error, so `... > file` captures the password alone);
 only its hash is stored, so a lost one is replaced with `reset-password`. Send it to the person
-by a private channel. The first sign-in asks for a new password before anything else. A second
-account with the same email is refused.
+by a private channel. The first sign-in asks for a new password before anything else; Settings has
+a Password block for later changes (current password, new password, confirmation). Changing the
+password signs the account's other devices out and keeps the one in use. Wrong current passwords are
+limited to 5 per 15 minutes per account. A second account with the same email is refused.
 
 `--units` (`km` or `mi`), `--weight` (`kg` or `lb`) and `--tz` (an IANA zone such as
 `America/Chicago`) set the account's own settings. Whatever is left out is taken from the browser
@@ -622,7 +624,7 @@ docker compose exec app node dist/scripts/reset-password.js you@example.com
 ```
 
 This is also how a tester's forgotten password is reset: the owner runs it for that email and tells
-the person the new password.
+the person the new password. A reset ends every session the account had open.
 
 ## Installing as an app
 

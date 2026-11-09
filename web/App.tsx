@@ -8,6 +8,7 @@ import { applyCondensedFigures, useCondensedFigures } from './components/figureT
 import { Layout } from './components/Layout.tsx'
 import { useLoadView } from './components/loadView.ts'
 import { Skeleton } from './components/Skeleton.tsx'
+import { ChangePasswordPage } from './pages/ChangePasswordPage.tsx'
 import { useOutboxReplay } from './pwa/outbox.ts'
 import styles from './App.module.css'
 import { lazyPage, warmPages, type Page } from './lazyPage.tsx'
@@ -144,6 +145,8 @@ function AuthGate() {
   }
   if (setup.data.needsSetup) return <Navigate to="/setup" replace />
   if (me.data === null) return <Navigate to="/login" replace />
+  // A temporary password asks for its replacement before anything else is shown.
+  if (me.data.mustChangePassword) return <ChangePasswordPage />
   return <Outlet />
 }
 

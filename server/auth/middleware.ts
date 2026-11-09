@@ -59,9 +59,12 @@ export function requireAuth(deps: Deps): RequestHandler {
       }
       const user = await deps.prisma.user.findUnique({
         where: { id: session.userId },
-        select: { id: true },
+        select: { id: true, sessionsValidFrom: true },
       })
-      if (!user) {
+      // A cookie from before the last password change is refused; the second is the token's unit.
+      const validFromSec =
+        user?.sessionsValidFrom == null ? 0 : Math.floor(user.sessionsValidFrom.getTime() / 1000)
+      if (!user || session.issuedAtSec < validFromSec) {
         next(unauthorized())
         return
       }

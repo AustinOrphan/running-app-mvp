@@ -92,6 +92,27 @@ export function useSetup() {
   })
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+/**
+ * Changes the signed-in user's password. The server signs the other devices out and answers with
+ * the user and a fresh cookie for this one; the user goes into the `me` cache, which clears the
+ * must-change flag and so lets the app past the screen that asks for it.
+ */
+export function useChangePassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: ChangePasswordRequest) =>
+      api<SessionUser>('PUT', '/auth/password', request),
+    onSuccess: (user) => {
+      queryClient.setQueryData([keys.me], user)
+    },
+  })
+}
+
 /**
  * Signs out and drops every cached query, every unsent draft, every write waiting in the outbox and
  * the device's copy of the server's answers, so no data outlives the session.
