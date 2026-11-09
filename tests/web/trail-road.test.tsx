@@ -10,6 +10,7 @@ import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
 import { makeActivity } from '../factories.ts'
 import { makeView } from './strength-fixtures.ts'
+import { makeToday } from './today-fixtures.ts'
 import { mockApi, noTrackRoute, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
 afterEach(() => {
@@ -270,6 +271,7 @@ describe('the run page line', () => {
       'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
       'GET /api/plan': () => null,
       'GET /api/zones': () => ({ hr: null }),
+      'GET /api/today': () => makeToday(),
       'GET /api/strength': () => makeView(),
       'GET /api/strength/logs': () => [],
       ...noTrackRoute,
