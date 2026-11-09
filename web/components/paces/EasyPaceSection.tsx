@@ -12,7 +12,6 @@ import type { EasyPace, MyPaces } from '../../../shared/engine/myPaces.ts'
 import { P } from '../../../shared/engine/params/index.ts'
 import type { Units } from '../../../shared/types.ts'
 import { GradeBadge } from '../GradeBadge.tsx'
-import { Illustration } from '../illustrations/Illustration.tsx'
 import { HowMade } from './HowMade.tsx'
 import { paceBandParts } from './format.ts'
 import styles from './Paces.module.css'
@@ -91,7 +90,6 @@ function Scenario({ label, value }: { label: string; value: { value: string; uni
 function NoPace({ easy, units }: { easy: MyPaces['easy']; units: Units }) {
   return (
     <div className={styles.empty}>
-      <Illustration art="paces" />
       <p className={styles.emptyTitle}>{pacesText('paces.easy.none-heading')}</p>
       {easy.lineIssue !== null ? (
         <p className={styles.text}>{lineIssueText(easy.lineIssue)}</p>

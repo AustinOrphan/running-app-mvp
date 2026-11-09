@@ -250,7 +250,6 @@ function RouteMap({
           subject="The route"
           retrying={loadView === 'retrying'}
           onRetry={() => track.refetch()}
-          art={false}
         />
       </Section>
     )

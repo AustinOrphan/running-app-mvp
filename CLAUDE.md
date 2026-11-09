@@ -258,7 +258,7 @@ its build runs `prisma migrate deploy` as a smoke test.
   the worker passes cross-origin requests through (`web/sw/sw.js`, tested in
   `tests/unit/shared/sw.test.ts`). The Map tiles switch is a
   device setting (`rl_map_tiles`, `useMapTiles`, on by default, made by `createDeviceSwitch` like
-  Illustrations); off or offline the route is drawn alone. Colours and sizes of the map are custom
+  Condensed figures); off or offline the route is drawn alone. Colours and sizes of the map are custom
   properties on `.map` in `RunMap.module.css`, except the chip band along its foot (`CHIP_HEIGHT`, `CHIP_GAP`,
   `STACK_BELOW` in `RunMap.tsx`), which the fit and the stylesheet both read. The charts report the distance under the pointer through
   `DistanceCursor` (`distanceCursor.ts`), and the map's dot is moved by writing to its element, with no

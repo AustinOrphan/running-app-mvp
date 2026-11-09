@@ -12,12 +12,10 @@ import type {
   UserSettings,
 } from '../../shared/types.ts'
 import {
-  drawnArt,
   expectCleanCopy,
   explainOf,
   mockApi,
   renderWithProviders,
-  showIllustrations,
   type MockRoutes,
 } from './helpers.tsx'
 import { makeRace, makeRecord } from './track-record-fixtures.ts'
@@ -124,12 +122,10 @@ async function fillBasics(user: User, dialog: HTMLElement, name: string) {
 
 describe('Goals page', () => {
   test('empty state "No goals yet." with an Add goal action', async () => {
-    showIllustrations()
     mockApi(routes([], miUser))
     renderWithProviders(<GoalsPage />)
 
     expect(await screen.findByText('No goals yet.')).toBeInTheDocument()
-    expect(drawnArt()).toEqual(['plan'])
     expect(screen.getByRole('heading', { name: 'Goals', level: 1 })).toBeInTheDocument()
     const add = screen.getAllByRole('button', { name: 'Add goal' })
     expect(add).toHaveLength(1)

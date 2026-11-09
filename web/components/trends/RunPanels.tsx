@@ -181,7 +181,6 @@ export function RunPanels({ months, weekCount, units }: RunPanelsProps) {
           subject={text('trends.runs.subject')}
           onRetry={runs.refetch}
           retrying={loadView === 'retrying'}
-          art={false}
         />
       </Section>
     )

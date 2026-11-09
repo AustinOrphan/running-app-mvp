@@ -329,7 +329,6 @@ export function ActivitiesPage() {
     body = (
       <EmptyState
         title="No activities yet."
-        art="runs"
         body="Log a run, or import a Smashrun export to bring your history in."
         action={
           <div className={styles.emptyActions}>

@@ -12,13 +12,7 @@ import type { TrendsView, Units, UserSettings, WeekRow } from '../../shared/type
 import { monthTicks } from '../../web/components/charts/monthTicks.ts'
 import { TrendsPage } from '../../web/pages/TrendsPage.tsx'
 import { makeWeekRow } from '../factories.ts'
-import {
-  drawnArt,
-  expectCleanCopy,
-  mockApi,
-  renderWithProviders,
-  showIllustrations,
-} from './helpers.tsx'
+import { expectCleanCopy, mockApi, renderWithProviders } from './helpers.tsx'
 
 // The charts load as a lazy chunk, which a busy CI runner can take more than the default second
 // to resolve (a push run failed on it while its pull_request twin passed), so every find in this
@@ -299,11 +293,9 @@ describe('TrendsPage, running per week', () => {
   })
 
   test('says so when the range holds no run, with the range switch still there', async () => {
-    showIllustrations()
     mockTrends({ weeks: history().map((w) => ({ ...w, runMin: 0, runM: 0 })) })
     const { container } = renderWithProviders(<TrendsPage />)
     expect(await screen.findByText('No runs in this range yet.')).toBeInTheDocument()
-    expect(drawnArt()).toEqual(['trends'])
     expect(screen.getByRole('radiogroup', { name: 'Range' })).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: /^Run hours per week/ })).not.toBeInTheDocument()
     expectCleanCopy(container)

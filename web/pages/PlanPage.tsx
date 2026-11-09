@@ -1666,7 +1666,6 @@ export function PlanPage() {
         <PageHeader title="Plan" />
         {eligible.length === 0 ? (
           <EmptyState
-            art="plan"
             title="No plan yet. Choose a goal race, then generate weekly targets."
             body="A plan needs a goal race with a distance."
             action={
@@ -1677,10 +1676,7 @@ export function PlanPage() {
           />
         ) : (
           <>
-            <EmptyState
-              art="plan"
-              title="No plan yet. Choose a goal race, then generate weekly targets."
-            />
+            <EmptyState title="No plan yet. Choose a goal race, then generate weekly targets." />
             <GenerateForm goals={eligible} />
           </>
         )}

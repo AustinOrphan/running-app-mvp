@@ -362,31 +362,14 @@ describe('SettingsPage', () => {
     ).toBeInTheDocument()
   })
 
-  test('settings: Illustrations sits under Appearance, is off by default, saves at once on this device and shows the same "Saved"', async () => {
-    localStorage.removeItem('rl_illustrations')
-    const mock = mockApi(
-      settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
-    )
+  test('settings: Appearance offers no Illustrations switch', async () => {
+    mockApi(settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })))
     renderWithProviders(<Pages />, { route: '/settings' })
-    const typist = userEvent.setup()
 
     await screen.findByRole('heading', { name: 'Settings' })
     const appearance = within(screen.getByRole('region', { name: 'Appearance' }))
-    const box = appearance.getByRole('checkbox', { name: 'Illustrations' })
-    expect(box).not.toBeChecked()
-
-    await typist.click(box)
-    expect(box).toBeChecked()
-    expect(localStorage.getItem('rl_illustrations')).toBe('on')
-    expect(
-      await within(screen.getByRole('status', { name: 'Save status' })).findByText('Saved'),
-    ).toBeInTheDocument()
-    // a device setting: nothing goes to the server
-    expect(mock.calls.some((call) => call.method === 'PUT')).toBe(false)
-
-    await typist.click(box)
-    expect(localStorage.getItem('rl_illustrations')).toBe('off')
-    localStorage.removeItem('rl_illustrations')
+    expect(appearance.getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument()
+    expect(appearance.queryByRole('checkbox', { name: 'Illustrations' })).toBeNull()
   })
 
   test('settings: Condensed figures sits under Appearance, is off by default and saves on this device only', async () => {

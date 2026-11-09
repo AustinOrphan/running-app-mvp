@@ -2,7 +2,7 @@ import { createDeviceSwitch } from './deviceSwitch.ts'
 
 /**
  * The Condensed figures switch (an experiment, visual design section 9): a device setting like the
- * theme and the Illustrations switch, kept in `localStorage` and off until the runner turns it on.
+ * theme and the Map tiles switch, kept in `localStorage` and off until the runner turns it on.
  * On, the large figures (the `figure-type` class, see `global.css`) are set in Archivo at 75% width.
  */
 export const CONDENSED_FIGURES_KEY = 'rl_condensed_figures'
