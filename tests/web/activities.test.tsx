@@ -922,11 +922,13 @@ describe('Activities page: paging', () => {
     expect(await screen.findByText('120 activities')).toHaveAttribute('role', 'status')
     expect(screen.getAllByRole('link', { name: /^Run/ })).toHaveLength(120)
     expect(screen.queryByRole('button', { name: /^Show \d+ more$/ })).not.toBeInTheDocument()
-    expect(api.calls.filter((c) => c.url.startsWith('/api/activities')).map((c) => c.url)).toEqual([
-      '/api/activities?limit=50&offset=0',
-      '/api/activities?limit=50&offset=50',
-      '/api/activities?limit=50&offset=100',
-    ])
+    expect(api.calls.filter((c) => c.url.startsWith('/api/activities?')).map((c) => c.url)).toEqual(
+      [
+        '/api/activities?limit=50&offset=0',
+        '/api/activities?limit=50&offset=50',
+        '/api/activities?limit=50&offset=100',
+      ],
+    )
     expectCleanCopy(document.body)
   })
 

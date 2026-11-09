@@ -552,6 +552,18 @@ export interface ActivityTrackView {
   bbox: { minLat: number; minLng: number; maxLat: number; maxLng: number }
   endsHiddenM: number
 }
+/**
+ * A run's route as a small line drawing (`routeGlyph`, `shared/domain/routeGlyph.ts`): `d` is an
+ * SVG path of straight segments inside a 100 x 100 box, north up, equal scale on both axes. Built
+ * from the track as the map serves it (the ends cut unless the runner shows them).
+ */
+export interface RouteGlyph {
+  d: string
+}
+/** `GET /api/activities/glyphs`: a glyph for each asked id that has a drawable track; others are absent. */
+export interface ActivityGlyphs {
+  glyphs: Record<string, RouteGlyph>
+}
 export interface UploadedFile {
   name: string
   bytes: Uint8Array

@@ -36,7 +36,8 @@ import type {
 import { minutesToHours1 } from '../../shared/units.ts'
 import { ApiError, fieldErrors } from '../api/client.ts'
 import { ruleTarget, type WhyTarget } from '../api/explain.ts'
-import { useActivities } from '../api/activities.ts'
+import { useActivities, useActivityGlyphs } from '../api/activities.ts'
+import { RouteGlyph } from '../components/RouteGlyph.tsx'
 import { usePlan } from '../api/plan.ts'
 import { useReviews, useSaveReview, type ReviewPatch } from '../api/reviews.ts'
 import { useSettings } from '../api/settings.ts'
@@ -322,6 +323,10 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
         hasPossibleDuplicates={hasPossibleDuplicates}
         isV2={plan !== null && plan.generatorVersion >= 2}
         sessions={sessions}
+        linkedRuns={sessions.flatMap((session) => {
+          const run = activities.find((activity) => activity.id === session.activityId)
+          return run === undefined ? [] : [run]
+        })}
       />
 
       <ReviewCountPrompt />
@@ -365,6 +370,8 @@ interface WeekReviewProps {
   /** Version-2 plans use the server's weekly decision; version-1 plans suggest live from the form. */
   isV2: boolean
   sessions: PlanSession[]
+  /** The activities the week's sessions are linked to, for the route drawings. */
+  linkedRuns: ActivityListItem[]
 }
 
 function WeekReview({
@@ -377,6 +384,7 @@ function WeekReview({
   hasPossibleDuplicates,
   isV2,
   sessions,
+  linkedRuns,
 }: WeekReviewProps) {
   const finished = isFinished(weekStart, today)
   const toast = useToast()
@@ -592,7 +600,9 @@ function WeekReview({
         </label>
       </section>
 
-      {sessions.length > 0 ? <SessionSummaries sessions={sessions} /> : null}
+      {sessions.length > 0 ? (
+        <SessionSummaries sessions={sessions} linkedRuns={linkedRuns} />
+      ) : null}
 
       <section className={styles.section}>
         {suggestion ? (
@@ -726,8 +736,18 @@ function decisionRules(signals: ReviewSignals): string[] {
   return rules.length > 0 ? rules : ['J5']
 }
 
-function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
+function SessionSummaries({
+  sessions,
+  linkedRuns,
+}: {
+  sessions: PlanSession[]
+  linkedRuns: ActivityListItem[]
+}) {
   const headingId = useId()
+  const glyphs = useActivityGlyphs(linkedRuns)
+  const anyGlyph = sessions.some(
+    (session) => session.activityId !== null && glyphs.has(session.activityId),
+  )
   return (
     <section aria-labelledby={headingId} className={styles.section}>
       <h2 id={headingId}>Planned sessions</h2>
@@ -739,6 +759,14 @@ function SessionSummaries({ sessions }: { sessions: PlanSession[] }) {
               <span className={styles.sessionTitle}>{session.title}</span>
               <span className={styles.muted}>{`${String(session.durationMin)} min`}</span>
               <span className={styles.sessionStatus}>{sessionStatusLabel(session.status)}</span>
+              {/* With any drawing on the list, every row keeps the slot, so the status stays in line. */}
+              {anyGlyph ? (
+                <span className={styles.sessionGlyphSlot}>
+                  {session.activityId !== null && glyphs.has(session.activityId) ? (
+                    <RouteGlyph glyph={glyphs.get(session.activityId)!} />
+                  ) : null}
+                </span>
+              ) : null}
             </div>
             {/* The engine's lines already cover completion, intensity, effort and conditions. */}
             {(session.execution === null

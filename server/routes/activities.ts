@@ -12,10 +12,12 @@ import {
   releaseDuplicatesOf,
 } from '../services/duplicates.ts'
 import { runExecutionQuietly } from '../services/execution.ts'
+import { loadGlyphs } from '../services/glyphs.ts'
 import { standoutView } from '../services/insight.ts'
 import { strengthTypeLockedMessage } from '../../shared/copy/strengthTemplates.ts'
 import { isIsoDate, todayIso } from '../../shared/dates.ts'
 import {
+  ACTIVITY_GLYPH_IDS_MAX,
   ACTIVITY_OFFSET_MAX,
   ACTIVITY_PAGE_DEFAULT,
   ACTIVITY_PAGE_MAX,
@@ -121,6 +123,18 @@ const listSchema = z.object({
     .transform((value) => value ?? 0),
 })
 
+const glyphsSchema = z.object({
+  ids: z
+    .string()
+    .min(1, 'Give the ids to draw, separated by commas.')
+    .transform((text) => [...new Set(text.split(',').filter((id) => id !== ''))])
+    .pipe(
+      z
+        .array(z.string().min(1).max(64))
+        .max(ACTIVITY_GLYPH_IDS_MAX, `Ask for at most ${ACTIVITY_GLYPH_IDS_MAX} ids at a time.`),
+    ),
+})
+
 const feedbackSchema = z.strictObject({
   rpe: optionalKeepInt(1, 10),
   feel: optionalKeepInt(-2, 2),
@@ -195,6 +209,12 @@ export function activitiesRouter(deps: Deps): Router {
       .type('text/csv; charset=utf-8')
       .set('Content-Disposition', `attachment; filename="activities-${todayIso()}.csv"`)
       .send(`${lines.join('\r\n')}\r\n`)
+  })
+
+  // Registered before /:id. The route glyphs of one page of rows in a single read; see `loadGlyphs`.
+  router.get('/glyphs', async (req, res) => {
+    const { ids } = parse(glyphsSchema, req.query)
+    res.json(await loadGlyphs(prisma, req.userId, ids))
   })
 
   router.post('/', async (req, res) => {

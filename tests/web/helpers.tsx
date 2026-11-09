@@ -33,6 +33,11 @@ export const noTrackRoute: MockRoutes = {
   }),
 }
 
+/** Reads a page makes on every list of activities, answered with nothing unless a test plans them. */
+const defaultRoutes: MockRoutes = {
+  'GET /api/activities/glyphs': () => ({ glyphs: {} }),
+}
+
 /**
  * Replaces `fetch` with a stub. Route keys look like `'GET /api/plan'` (no query string). A
  * handler returns the JSON body (200), or `{ status, body }` for another status; a `body` of
@@ -50,7 +55,8 @@ export function mockApi(routes: MockRoutes): {
     const body: unknown = rawBody === undefined ? undefined : JSON.parse(rawBody)
     calls.push({ method, url: `${url.pathname}${url.search}`, body })
 
-    const handler = routes[`${method} ${url.pathname}`]
+    const handler =
+      routes[`${method} ${url.pathname}`] ?? defaultRoutes[`${method} ${url.pathname}`]
     if (!handler) {
       unmatchedCalls.push(`${method} ${url.pathname}`)
       return Promise.reject(new Error(`Unmocked request: ${method} ${url.pathname}`))
