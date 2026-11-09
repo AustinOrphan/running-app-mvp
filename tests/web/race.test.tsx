@@ -853,20 +853,52 @@ describe('RacePage: the race card', () => {
       'Station B',
       'Finish',
     ])
-    expect(within(blocks[0]!).getByText('Start 06:00')).toBeVisible()
+    expect(within(blocks[0]!).getByText('Start time')).toBeVisible()
+    expect(within(blocks[0]!).getByText('06:00')).toBeVisible()
     expect(within(blocks[0]!).getByText('Next: Station A, 50 km on.')).toBeVisible()
-    expect(
-      within(blocks[0]!).getByText(/^Fuel for this leg: about \d+( to \d+)? g of carbohydrate\.$/),
-    ).toBeVisible()
-    expect(within(blocks[0]!).getByText('Climb on this leg: 1200 m, as entered.')).toBeVisible()
+    expect(within(blocks[0]!).getByText(/^About \d+( to \d+)? g$/)).toBeVisible()
+    expect(within(blocks[0]!).getByText('Climb')).toBeVisible()
+    expect(within(blocks[0]!).getByText('1200 m')).toBeVisible()
+    expect(within(blocks[0]!).getByText('300 m')).toBeVisible()
     const a = blocks[1]!
-    expect(within(a).getByText(/^About \d\d:\d\d/)).toBeVisible()
+    expect(within(a).getByText('Expected arrival')).toBeVisible()
+    expect(within(a).getByText(/^\d\d:\d\d to \d\d:\d\d/)).toBeVisible()
+    expect(within(a).queryByText(/^About \d\d:/)).toBeNull()
     expect(within(a).getByText('Cutoff 15:00')).toBeVisible()
     expect(within(a).getByText('Cutoff 9 h into the race')).toBeVisible()
-    expect(within(blocks[3]!).queryByText(/^Next:|^Fuel for/)).toBeNull()
+    expect(within(blocks[3]!).queryByText(/^Next:|^Fuel$/)).toBeNull()
     expectCleanCopy(container)
     // no pace, no split, no rate
     expect(container.textContent).not.toMatch(/\bpace\b|\bsplit|g\/h|per hour/i)
+  })
+
+  test('opens with the split sheet: a table of stops with distance, arrival, cutoff and fuel', async () => {
+    const { container } = open(planWith({}, 'aided', CARD_POINTS))
+    const table = await screen.findByRole('table', {
+      name: /^Each stop with its distance, expected arrival, cutoff and the fuel/,
+    })
+    const heads = within(table)
+      .getAllByRole('columnheader')
+      .map((h) => h.textContent)
+    expect(heads).toEqual([
+      'Stop',
+      'Distance',
+      'Expected arrival',
+      'Cutoff',
+      'Fuel for the leg after',
+    ])
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(5)
+    const a = within(table).getByRole('row', { name: /^Station A/ })
+    expect(within(a).getByRole('rowheader', { name: 'Station A' })).toBeVisible()
+    expect(within(a).getByRole('cell', { name: '50 km' })).toBeVisible()
+    expect(within(a).getByRole('cell', { name: /^\d\d:\d\d to \d\d:\d\d/ })).toBeVisible()
+    expect(within(a).getByText('15:00')).toBeVisible()
+    expect(within(a).getByText('9 h into the race')).toBeVisible()
+    // before the blocks, under the heading
+    const list = screen.getByRole('list', { name: 'Race card, one block for each stop' })
+    expect(table.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.textContent).not.toMatch(/\bpace\b|\bsplit\b|g\/h|per hour|forecast/i)
   })
 
   test('names the headlamp on a block the plan holds as outside daylight', async () => {
@@ -957,7 +989,8 @@ describe('RacePage: the race card', () => {
   test('lists no fuel for a self-supported race', async () => {
     open(planWith({}, 'self', CARD_POINTS))
     expect(await screen.findByText(/You carry everything on this course/)).toBeVisible()
-    expect(screen.queryByText(/^Fuel for this leg/)).toBeNull()
+    expect(screen.queryByText(/^About \d+( to \d+)? g$/)).toBeNull()
+    expect(screen.queryByRole('columnheader', { name: 'Fuel for the leg after' })).toBeNull()
   })
 
   test("reads from the phone's copy with no signal", async () => {

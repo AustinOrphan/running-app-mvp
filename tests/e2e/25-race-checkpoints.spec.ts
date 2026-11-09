@@ -271,6 +271,10 @@ test('the race card prints on one or two pages, black on white, with no navigati
     .getByRole('textbox', { name: 'Crew note for Station 3' })
     .fill('Crew parks at the lower lot and walks up')
   expect(await scrollsSideways()).toBe(false)
+  // the split sheet leads the card, one row for the start, each stop and the finish
+  const sheet = page.getByRole('table', { name: /^Each stop with its distance/ })
+  await expect(sheet.getByRole('row')).toHaveCount(27)
+  await expect(sheet.getByRole('rowheader', { name: 'Station 3' })).toBeVisible()
 
   // the rail of a wide screen is app chrome too: the wordmark and the theme button stay off paper
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -299,6 +303,17 @@ test('the race card prints on one or two pages, black on white, with no navigati
     await expect(page.getByRole('textbox', { name: 'Crew note for Station 3' })).toBeHidden()
     await expect(page.getByRole('button', { name: 'Print the card' })).toBeHidden()
     await expect(page.getByRole('radio', { name: 'Race card' })).toBeHidden()
+
+    // nothing is wider than the page: the sheet, the blocks and the card stay inside the print width
+    const overflow = await page.evaluate(() => {
+      const root = document.documentElement
+      const card = document.querySelector('section[aria-labelledby="race-card-heading"]')
+      const limit = card === null ? root.clientWidth : card.getBoundingClientRect().right
+      return [...document.querySelectorAll('table, article, caption, th, td')].filter(
+        (el) => el.getBoundingClientRect().right > limit + 1,
+      ).length
+    })
+    expect(overflow, `elements past the card's edge in print, ${scheme}`).toBe(0)
 
     for (const format of ['A4', 'Letter'] as const) {
       const pdf = await page.pdf({ format, printBackground: true })

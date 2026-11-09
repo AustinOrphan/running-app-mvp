@@ -822,9 +822,10 @@ describe('the words of the race card', () => {
 
   it('says the arrival and the cutoff of a stop as two separate facts', () => {
     const [, a, , c, finish] = describeRaceCard(aided, 'km').blocks
-    expect(a!.arrival).toMatch(/^About /)
+    expect(a!.windowLabel).toBe('Expected arrival')
+    expect(a!.window).toMatch(/^\d\d:\d\d to \d\d:\d\d/)
+    expect(a!.window).not.toMatch(/about|cutoff/i)
     expect(a!.cutoff).toEqual(['Cutoff 15:00', 'Cutoff 9 h into the race'])
-    expect(a!.arrival).not.toMatch(/cutoff/i)
     expect(c!.cutoff).toHaveLength(2)
     expect(finish!.cutoff).toEqual([])
     expect(finish!.next).toBeNull()
@@ -837,35 +838,37 @@ describe('the words of the race card', () => {
     expect(start!.next).toBe('Next: Checkpoint A, 50 km on.')
     expect(a!.next).toBe('Next: Checkpoint B, 60 km on.')
     expect(card.blocks[3]!.next).toBe('Next: the finish, 10.9 km on.')
-    // The climb of a leg is the next row's: A was entered at 2000 m, B was not, C at 40 m.
-    expect(start!.climb).toBe('Climb on this leg: 2000 m, as entered.')
-    expect(a!.climb).toMatch(
-      /^Climb on this leg: about [\d ]+ m, shared out from the course total\.$/,
-    )
-    expect(b!.climb).toBe('Climb on this leg: 40 m, as entered.')
+    const fact = (block: typeof start, key: string) => block!.facts.find((f) => f.key === key)
+    expect(fact(start, 'climb')).toMatchObject({ value: '2000 m', note: 'as entered' })
+    expect(fact(start, 'descent')).toMatchObject({ value: '300 m', note: 'shown, not counted' })
+    expect(fact(a, 'climb')!.value).toMatch(/^About [\d ]+ m$/)
+    expect(fact(a, 'climb')!.note).toBe('shared out from the course total')
+    expect(fact(a, 'descent')).toBeUndefined()
+    expect(fact(b, 'climb')).toMatchObject({ value: '40 m', note: 'as entered' })
     // The grams are those the table gives the same leg: one rate, one source (`raceFuelFor`).
     const round = (g: number) => Math.round(g / RACE_CARB_ROUND_G) * RACE_CARB_ROUND_G
     const grams = (low: number, high: number) =>
       round(low) === round(high)
-        ? `Fuel for this leg: about ${String(round(high))} g of carbohydrate.`
-        : `Fuel for this leg: about ${String(round(low))} to ${String(round(high))} g of carbohydrate.`
-    expect(start!.fuel).toBe(grams(rows[0]!.carryG![0], rows[0]!.carryG![1]))
-    expect(a!.fuel).toBe(grams(rows[1]!.carryG![0], rows[1]!.carryG![1]))
-    expect(finish!.fuel).toBeNull()
-    expect(finish!.climb).toBeNull()
+        ? `About ${String(round(high))} g`
+        : `About ${String(round(low))} to ${String(round(high))} g`
+    expect(fact(start, 'fuel')!.value).toBe(grams(rows[0]!.carryG![0], rows[0]!.carryG![1]))
+    expect(fact(a, 'fuel')!.value).toBe(grams(rows[1]!.carryG![0], rows[1]!.carryG![1]))
+    expect(finish!.facts).toEqual([])
   })
 
   it("says one figure when a leg's two ends round alike, and two when the rate is a range", () => {
-    const fixed = describeRaceCard(aided, 'km').blocks[0]!.fuel
-    expect(fixed).toMatch(/^Fuel for this leg: about \d+ g of carbohydrate\.$/)
+    const fuelOf = (b: { facts: Array<{ key: string; value: string }> }) =>
+      b.facts.find((f) => f.key === 'fuel')?.value ?? null
+    const fixed = fuelOf(describeRaceCard(aided, 'km').blocks[0]!)
+    expect(fixed).toMatch(/^About \d+ g$/)
     const ranged = racePlanFor(
       input({ checkpoints: POINTS, ladder: ladderOf([run(0), run(1), run(2)]) }),
     )
     const lines = describeRaceCard(ranged, 'km')
-      .blocks.map((b) => b.fuel)
+      .blocks.map((b) => fuelOf(b))
       .filter((line): line is string => line !== null)
     expect(lines.length).toBeGreaterThan(0)
-    for (const line of lines) expect(line).toMatch(/^Fuel for this leg: about \d+( to \d+)? g /)
+    for (const line of lines) expect(line).toMatch(/^About \d+( to \d+)? g$/)
   })
 
   it('names the headlamp only for an arrival the plan holds as outside daylight', () => {
@@ -889,15 +892,56 @@ describe('the words of the race card', () => {
 
   it('lists no fuel for a self-supported race, and says why once', () => {
     const card = describeRaceCard(CARDS[1]![1], 'km')
-    expect(card.blocks.every((block) => block.fuel === null)).toBe(true)
+    expect(card.blocks.every((block) => block.facts.every((f) => f.key !== 'fuel'))).toBe(true)
+    expect(card.sheet!.showFuel).toBe(false)
     expect(card.notes[0]).toBe(
       'You carry everything on this course, so no fuel is listed for each leg.',
     )
   })
 
   it('gives the start block the start time, and none without one', () => {
-    expect(describeRaceCard(aided, 'km').blocks[0]!.arrival).toBe('Start 06:00')
-    expect(describeRaceCard(CARDS[2]![1], 'km').blocks[0]!.arrival).toBeNull()
+    expect(describeRaceCard(aided, 'km').blocks[0]).toMatchObject({
+      windowLabel: 'Start time',
+      window: '06:00',
+    })
+    expect(describeRaceCard(CARDS[2]![1], 'km').blocks[0]!.window).toBeNull()
+  })
+
+  it('builds the split sheet from the same rows: a row for the start, each stop and the finish', () => {
+    const card = describeRaceCard(aided, 'km')
+    const sheet = card.sheet!
+    expect(sheet.rows.map((r) => r.name)).toEqual(card.blocks.map((b) => b.name))
+    expect(sheet.rows.map((r) => r.arrival)).toEqual(card.blocks.map((b) => b.window))
+    expect(sheet.rows.map((r) => r.distance)).toEqual([
+      'At the start',
+      '50 km',
+      '110 km',
+      '150 km',
+      '160.9 km',
+    ])
+    expect(sheet.rows[1]!.cutoff).toEqual(['15:00', '9 h into the race'])
+    expect(sheet.rows[2]!.cutoff).toEqual([])
+    expect(sheet.rows[4]!.fuel).toBeNull()
+    expect(sheet.rows[0]!.fuel).toBe(card.blocks[0]!.facts.find((f) => f.key === 'fuel')!.value)
+    expect(sheet.showCutoff).toBe(true)
+    expect(sheet.showFuel).toBe(true)
+  })
+
+  it('leaves the cutoff column out when no stop has a cutoff, and the sheet out without rows', () => {
+    const none = racePlanFor(
+      input({
+        checkpoints: POINTS.map((p) => ({ ...p, cutoffSec: null })),
+        ladder: ladderOf([run(0), run(1)]),
+      }),
+    )
+    expect(describeRaceCard(none, 'km').sheet!.showCutoff).toBe(false)
+    expect(describeRaceCard(PLANS[0]![1], 'km').sheet).toBeNull()
+  })
+
+  it('says the arrival in elapsed time when there is no start time', () => {
+    const card = describeRaceCard(CARDS[2]![1], 'km')
+    expect(card.blocks[1]!.windowLabel).toBe('Expected arrival, into the race')
+    expect(card.blocks[1]!.window).toMatch(/ to /)
   })
 
   it('says the empty state, with no blocks, for a plan with no rows', () => {

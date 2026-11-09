@@ -460,32 +460,67 @@ export const RACE_PLAN_TEMPLATES = {
   'race.plan.card.print': tpl('Print the card', {}, { shape: 'label' }),
   'race.plan.card.list': tpl('Race card, one block for each stop', {}, { shape: 'label' }),
   'race.plan.card.intro': tpl(
-    'One block for each stop, to read at a glance or to print. The times are ranges from the plan: a sketch, not a promise.',
+    'A table of every stop, then one block for each, to read at a glance or to print. The times are ranges from the plan: a sketch, not a promise.',
   ),
   'race.plan.card.empty': tpl(
     'The race card has one block for each checkpoint. Add checkpoints, or import the course, to build it.',
   ),
   'race.plan.card.start': tpl('Start', {}, { shape: 'label' }),
-  'race.plan.card.start-at': tpl('Start {time}', { time: 'text' }, { shape: 'label' }),
+  'race.plan.card.window-label': tpl('Expected arrival', {}, { shape: 'label' }),
+  'race.plan.card.window-label-elapsed': tpl(
+    'Expected arrival, into the race',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.card.window-elapsed': tpl(
+    '{from} to {to}',
+    { from: 'duration', to: 'duration' },
+    { shape: 'label' },
+  ),
+  'race.plan.card.window-elapsed-at': tpl('{at}', { at: 'duration' }, { shape: 'label' }),
+  'race.plan.card.start-label': tpl('Start time', {}, { shape: 'label' }),
+  'race.plan.card.fact-climb': tpl('Climb', {}, { shape: 'label' }),
+  'race.plan.card.fact-descent': tpl('Descent', {}, { shape: 'label' }),
+  'race.plan.card.fact-fuel': tpl('Fuel', {}, { shape: 'label' }),
+  'race.plan.card.value-climb': tpl('{climb}', { climb: 'climb' }, { shape: 'label' }),
+  'race.plan.card.value-climb-about': tpl('About {climb}', { climb: 'climb' }, { shape: 'label' }),
+  'race.plan.card.value-fuel-at': tpl('About {g} g', { g: 'count' }, { shape: 'label' }),
+  'race.plan.card.value-fuel': tpl(
+    'About {low} to {high} g',
+    { low: 'count', high: 'count' },
+    { shape: 'label' },
+  ),
+  'race.plan.card.note-entered': tpl('as entered', {}, { shape: 'label' }),
+  'race.plan.card.note-shared': tpl('shared out from the course total', {}, { shape: 'label' }),
+  'race.plan.card.note-descent': tpl('shown, not counted', {}, { shape: 'label' }),
+  'race.plan.card.note-carb': tpl('of carbohydrate for this leg', {}, { shape: 'label' }),
+  'race.plan.card.sheet-caption': tpl(
+    'Each stop with its distance, expected arrival, cutoff and the fuel for the leg after it',
+    {},
+    { shape: 'label' },
+  ),
+  'race.plan.card.sheet-stop': tpl('Stop', {}, { shape: 'label' }),
+  'race.plan.card.sheet-distance': tpl('Distance', {}, { shape: 'label' }),
+  'race.plan.card.sheet-arrival': tpl('Expected arrival', {}, { shape: 'label' }),
+  'race.plan.card.sheet-cutoff': tpl('Cutoff', {}, { shape: 'label' }),
+  'race.plan.card.sheet-fuel': tpl('Fuel for the leg after', {}, { shape: 'label' }),
+  'race.plan.card.sheet-distance-at': tpl(
+    '{distance}',
+    { distance: 'distance' },
+    { shape: 'label' },
+  ),
+  'race.plan.card.sheet-cutoff-elapsed': tpl(
+    '{elapsed} into the race',
+    { elapsed: 'duration' },
+    { shape: 'label' },
+  ),
+  'race.plan.card.sheet-at-start': tpl('At the start', {}, { shape: 'label' }),
+  'race.plan.card.sheet-none': tpl('None', {}, { shape: 'label' }),
   'race.plan.card.next': tpl('Next: {name}, {distance} on.', {
     name: 'text',
     distance: 'distance',
   }),
   'race.plan.card.next-finish': tpl('Next: the finish, {distance} on.', { distance: 'distance' }),
-  'race.plan.card.fuel-at': tpl('Fuel for this leg: about {g} g of carbohydrate.', {
-    g: 'count',
-  }),
-  'race.plan.card.fuel': tpl('Fuel for this leg: about {low} to {high} g of carbohydrate.', {
-    low: 'count',
-    high: 'count',
-  }),
-  'race.plan.card.climb-entered': tpl('Climb on this leg: {climb}, as entered.', {
-    climb: 'climb',
-  }),
-  'race.plan.card.climb-shared': tpl(
-    'Climb on this leg: about {climb}, shared out from the course total.',
-    { climb: 'climb' },
-  ),
   'race.plan.card.headlamp': tpl(
     'Headlamp: this arrival is outside daylight. Dusk is {dusk} and dawn {dawn}.',
     { dusk: 'text', dawn: 'text' },
@@ -1381,17 +1416,52 @@ export interface RaceCardBlockText {
   name: string
   /** The distance from the start; null on the start block. */
   distance: string | null
-  /** The arrival range (the start time on the start block); null when there is none to say. */
-  arrival: string | null
+  /** The label over the figure: the expected arrival, or the start time on the start block. */
+  windowLabel: string | null
+  /** The arrival window as the figure of the block ("13:25 to 14:00"); the start time on the start block. */
+  window: string | null
   /** The cutoff, in the clock and in elapsed time with a start time: facts, never compared. */
   cutoff: string[]
   /** Said only where the plan holds that the arrival falls outside daylight. */
   headlamp: string | null
   /** The leg that starts here: where it goes and how far. Null on the finish block. */
   next: string | null
-  fuel: string | null
-  climb: string | null
+  /** The climb, descent and fuel of that leg, each one figure with its source in words. */
+  facts: RaceCardFact[]
   noteLabel: string
+}
+
+export interface RaceCardFact {
+  key: 'climb' | 'descent' | 'fuel'
+  label: string
+  value: string
+  note: string
+}
+
+/** The split sheet at the head of the card: one row for each stop, from the same rows as the blocks. */
+export interface RaceCardSheetRow {
+  key: string
+  name: string
+  distance: string
+  arrival: string | null
+  cutoff: string[]
+  /** The fuel for the leg after this stop; null on the finish and where the plan lists none. */
+  fuel: string | null
+}
+
+export interface RaceCardSheet {
+  caption: string
+  stop: string
+  distance: string
+  arrival: string
+  cutoff: string
+  fuel: string
+  /** The word for an empty cell. */
+  none: string
+  /** A column nobody filled in is left out. */
+  showCutoff: boolean
+  showFuel: boolean
+  rows: RaceCardSheetRow[]
 }
 
 export interface RaceCardText {
@@ -1405,6 +1475,7 @@ export interface RaceCardText {
   list: string
   /** The line for a plan with no checkpoint rows; the blocks are then empty. */
   empty: string
+  sheet: RaceCardSheet | null
   blocks: RaceCardBlockText[]
   notes: string[]
   noteHint: string
@@ -1428,24 +1499,76 @@ function pointKey(row: SplitRow): string {
 }
 
 /** The grams of a leg, each end rounded; nothing when the rounded high end is 0. */
-function cardFuelText(leg: SplitRow, units: Units): string | null {
+function cardFuelValue(leg: SplitRow, units: Units): string | null {
   if (leg.carryG === null) return null
   const low = roundTo(leg.carryG[0], RACE_CARB_ROUND_G)
   const high = roundTo(leg.carryG[1], RACE_CARB_ROUND_G)
   if (high <= 0) return null
-  if (low === high) return say(T['race.plan.card.fuel-at'], { g: count(high) }, units)
-  return say(T['race.plan.card.fuel'], { low: count(low), high: count(high) }, units)
+  if (low === high) return say(T['race.plan.card.value-fuel-at'], { g: count(high) }, units)
+  return say(T['race.plan.card.value-fuel'], { low: count(low), high: count(high) }, units)
 }
 
-/** The climb of a leg as it will be printed: a climb that rounds to 0 says nothing. */
-function cardClimbText(leg: SplitRow, units: Units): string | null {
-  const m = roundTo(leg.gainM, leg.gainEntered ? 1 : 10)
-  if (m <= 0) return null
-  return say(
-    leg.gainEntered ? T['race.plan.card.climb-entered'] : T['race.plan.card.climb-shared'],
-    { climb: { kind: 'climb', m } },
-    units,
-  )
+/** The climb, descent and fuel of a leg as figures; a figure that rounds to 0 is left out. */
+function cardFacts(leg: SplitRow, units: Units): RaceCardFact[] {
+  const facts: RaceCardFact[] = []
+  const gain = roundTo(leg.gainM, leg.gainEntered ? 1 : 10)
+  if (gain > 0) {
+    facts.push({
+      key: 'climb',
+      label: say(T['race.plan.card.fact-climb'], {}, units),
+      value: say(
+        leg.gainEntered ? T['race.plan.card.value-climb'] : T['race.plan.card.value-climb-about'],
+        { climb: { kind: 'climb', m: gain } },
+        units,
+      ),
+      note: say(
+        leg.gainEntered ? T['race.plan.card.note-entered'] : T['race.plan.card.note-shared'],
+        {},
+        units,
+      ),
+    })
+  }
+  if (leg.lossM !== null && leg.lossM > 0) {
+    facts.push({
+      key: 'descent',
+      label: say(T['race.plan.card.fact-descent'], {}, units),
+      value: say(
+        T['race.plan.card.value-climb'],
+        { climb: { kind: 'climb', m: leg.lossM } },
+        units,
+      ),
+      note: say(T['race.plan.card.note-descent'], {}, units),
+    })
+  }
+  const fuel = cardFuelValue(leg, units)
+  if (fuel !== null) {
+    facts.push({
+      key: 'fuel',
+      label: say(T['race.plan.card.fact-fuel'], {}, units),
+      value: fuel,
+      note: say(T['race.plan.card.note-carb'], {}, units),
+    })
+  }
+  return facts
+}
+
+/** The expected-arrival window alone, with the label that says what it is. */
+function cardWindow(row: SplitRow, units: Units): { label: string; window: string } {
+  if (row.clock === null) {
+    const window =
+      row.lowSec === row.highSec
+        ? say(T['race.plan.card.window-elapsed-at'], { at: duration(row.lowSec) }, units)
+        : say(
+            T['race.plan.card.window-elapsed'],
+            { from: duration(row.lowSec), to: duration(row.highSec) },
+            units,
+          )
+    return { label: say(T['race.plan.card.window-label-elapsed'], {}, units), window }
+  }
+  return {
+    label: say(T['race.plan.card.window-label'], {}, units),
+    window: clockRangeText(row.clock.from, row.clock.to),
+  }
 }
 
 /**
@@ -1471,19 +1594,18 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
     noteUnsaved: say(T['race.plan.card.note-unsaved'], {}, units),
     notePrint: say(T['race.plan.card.note-print'], {}, units),
   }
-  if (splits === null) return { ...base, blocks: [], notes: [] }
+  if (splits === null) return { ...base, sheet: null, blocks: [], notes: [] }
 
   const dark = plan.dark
   const label = (name: string) => say(T['race.plan.card.note-label'], { name }, units)
   const leg = (to: SplitRow | undefined) => {
-    if (to === undefined) return { next: null, fuel: null, climb: null }
+    if (to === undefined) return { next: null, facts: [] }
     const distance = { kind: 'distance', m: to.segmentM } as const
     return {
       next: to.finish
         ? say(T['race.plan.card.next-finish'], { distance }, units)
         : say(T['race.plan.card.next'], { name: to.name ?? '', distance }, units),
-      fuel: cardFuelText(to, units),
-      climb: cardClimbText(to, units),
+      facts: cardFacts(to, units),
     }
   }
 
@@ -1494,7 +1616,8 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
       key: 'start',
       name: startName,
       distance: null,
-      arrival: start === null ? null : say(T['race.plan.card.start-at'], { time: start }, units),
+      windowLabel: start === null ? null : say(T['race.plan.card.start-label'], {}, units),
+      window: start,
       cutoff: [],
       headlamp:
         plan.thirds[0]?.startsInDaylight === false && dark !== null
@@ -1509,7 +1632,8 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
         key: row.finish ? 'finish' : pointKey(row),
         name: point.name,
         distance: point.distance,
-        arrival: point.arrival,
+        windowLabel: cardWindow(row, units).label,
+        window: cardWindow(row, units).window,
         cutoff: point.cutoff,
         headlamp:
           row.night === true && dark !== null
@@ -1521,13 +1645,51 @@ export function describeRaceCard(plan: RacePlan, units: Units): RaceCardText {
     }),
   ]
 
+  const sheetRows: RaceCardSheetRow[] = blocks.map((block, index) => {
+    const row = index === 0 ? null : splits.rows[index - 1]!
+    const cutoff: string[] = []
+    if (row?.cutoffSec != null) {
+      if (row.cutoffClock !== null) cutoff.push(clockText(row.cutoffClock))
+      cutoff.push(
+        say(T['race.plan.card.sheet-cutoff-elapsed'], { elapsed: duration(row.cutoffSec) }, units),
+      )
+    }
+    return {
+      key: block.key,
+      name: block.name,
+      distance:
+        row === null
+          ? say(T['race.plan.card.sheet-at-start'], {}, units)
+          : say(
+              T['race.plan.card.sheet-distance-at'],
+              { distance: { kind: 'distance', m: row.distanceM } },
+              units,
+            ),
+      arrival: block.window,
+      cutoff,
+      fuel: block.facts.find((fact) => fact.key === 'fuel')?.value ?? null,
+    }
+  })
+  const sheet: RaceCardSheet = {
+    caption: say(T['race.plan.card.sheet-caption'], {}, units),
+    stop: say(T['race.plan.card.sheet-stop'], {}, units),
+    distance: say(T['race.plan.card.sheet-distance'], {}, units),
+    arrival: say(T['race.plan.card.sheet-arrival'], {}, units),
+    cutoff: say(T['race.plan.card.sheet-cutoff'], {}, units),
+    fuel: say(T['race.plan.card.sheet-fuel'], {}, units),
+    none: say(T['race.plan.card.sheet-none'], {}, units),
+    showCutoff: sheetRows.some((row) => row.cutoff.length > 0),
+    showFuel: sheetRows.some((row) => row.fuel !== null),
+    rows: sheetRows,
+  }
+
   const notes: string[] = []
   if (self) notes.push(say(T['race.plan.card.self-note'], {}, units))
   else if (splits.rows.some((row) => row.carryG !== null)) {
     notes.push(say(T['race.plan.card.estimate-note'], {}, units))
   }
   notes.push(say(T['race.plan.points.late'], {}, units))
-  return { ...base, blocks, notes }
+  return { ...base, sheet, blocks, notes }
 }
 
 /** The labels, hints and refusals of the checkpoint editor sheet. */

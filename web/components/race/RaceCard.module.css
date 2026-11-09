@@ -91,12 +91,122 @@
   line-height: var(--lh-base);
 }
 
+.figure {
+  display: flex;
+  flex-direction: column;
+  margin: var(--space-1) 0;
+}
+
+.figureLabel {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* The arrival window is the figure of the block, the first thing read on it. */
 .lead {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: var(--text-base);
-  line-height: var(--lh-base);
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+  font-weight: 650;
+}
+
+/* The start and the finish carry more weight than the stops between them. */
+.ends {
+  border-color: var(--border-strong);
+  border-top-width: 3px;
+  border-top-color: var(--accent);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0 var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.factLabel {
+  color: var(--text-muted);
+}
+
+.factValue {
+  margin: 0;
+  min-width: 0;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.factNote {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* The split sheet: scrolls inside its own box when the phone is too narrow for it. */
+.sheetBox {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.sheet {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.sheetCaption {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  text-align: left;
+}
+
+.sheet th,
+.sheet td {
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.sheet thead th {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.sheet tbody th {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sheet td,
+.sheet th.num {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.num {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.cell {
+  display: block;
 }
 
 .muted,
@@ -179,7 +289,9 @@
     line-height: 1.2;
   }
 
+  /* The sheet above carries the cutoffs on paper, so the blocks do not say them twice. */
   .noPrint,
+  .screenOnly,
   .noteField {
     display: none !important;
   }
@@ -207,6 +319,36 @@
     line-height: 1.2;
   }
 
+  .sheetBox {
+    overflow: visible;
+    border: 1px solid #000;
+    border-radius: 0;
+    break-inside: avoid;
+  }
+
+  .sheet {
+    min-width: 0;
+    font-size: 8pt;
+    line-height: 1.15;
+  }
+
+  .sheet th,
+  .sheet td {
+    padding: 1pt 4pt;
+    border-top: 1px solid #000;
+  }
+
+  .sheetCaption,
+  .figureLabel,
+  .sheet thead th {
+    font-size: 7.5pt;
+    line-height: 1.15;
+  }
+
+  .sheetCaption {
+    padding: 1pt 4pt;
+  }
+
   .blocks {
     display: block;
     column-count: 2;
@@ -232,7 +374,53 @@
   }
 
   .lead {
-    font-size: 9.5pt;
+    font-size: 11pt;
+    line-height: 1.2;
+  }
+
+  .ends {
+    border-top-width: 2pt;
+    border-top-color: #000;
+  }
+
+  .figure {
+    margin: 0;
+  }
+
+  .facts {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 6pt;
+    margin: 0;
+  }
+
+  /* The label above the figure and the cutoff lines of the sheet give way to one line each. */
+  .figureLabel {
+    display: none;
+  }
+
+  .cell {
+    display: inline;
+    margin-right: 4pt;
+  }
+
+  .factLabel {
+    min-width: 0;
+  }
+
+  .factNote {
+    display: none;
+  }
+
+  .fact {
+    display: flex;
+    gap: 3pt;
+    font-size: 8.5pt;
+    line-height: 1.2;
+  }
+
+  .factLabel {
+    font-size: 8.5pt;
     line-height: 1.2;
   }
 
