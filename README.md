@@ -621,3 +621,9 @@ again after a change to the artwork.
 ## Licence
 
 MIT.
+
+The web build bundles three typefaces from Fontsource, each under the SIL Open Font License 1.1
+(<https://openfontlicense.org>), whose notices ship in the packages' `LICENSE` files: Source Serif 4,
+Libre Franklin (Copyright 2020 The Libre Franklin Project Authors) and Archivo (Copyright 2020 The
+Archivo Project Authors), the last only for the "Condensed figures"
+switch in Settings. The fonts are not modified and are not sold on their own.

@@ -47,7 +47,7 @@ export function RaceCountdown({ race, units }: { race: TodayRace; units: Units }
             <span className={styles.number}>Race day</span>
           ) : (
             <>
-              <span className={styles.number}>{String(daysToRace)}</span>
+              <span className={`${styles.number} figure-type`}>{String(daysToRace)}</span>
               {` ${plural(daysToRace, 'day', 'days')} to the race`}
             </>
           )}

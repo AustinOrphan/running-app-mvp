@@ -60,7 +60,7 @@ export function EventCard({ row, units }: { row: EventRow; units: Units }) {
               <dt>
                 {row.basis.cs?.since == null ? 'Time' : pacesText('paces.event.time-at-most')}
               </dt>
-              <dd className={styles.statValue}>{timeText(time.midSec)}</dd>
+              <dd className={`${styles.statValue} figure-type`}>{timeText(time.midSec)}</dd>
               <dd
                 className={styles.statRange}
               >{`${timeText(time.lowSec)} to ${timeText(time.highSec)}`}</dd>
@@ -68,7 +68,9 @@ export function EventCard({ row, units }: { row: EventRow; units: Units }) {
             <div className={styles.stat}>
               <dt>Pace</dt>
               <dd>
-                <span className={styles.statValue}>{paceParts(pace.midSec, units).value}</span>{' '}
+                <span className={`${styles.statValue} figure-type`}>
+                  {paceParts(pace.midSec, units).value}
+                </span>{' '}
                 <span className={styles.statUnit}>{paceParts(pace.midSec, units).unit}</span>
               </dd>
               <dd className={styles.statRange}>

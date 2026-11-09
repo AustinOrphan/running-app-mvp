@@ -202,7 +202,7 @@ export function SessionHero({ hero, heat, next, units, readOnly = false }: Sessi
         <>
           <div className={styles.figureRow}>
             <p className={styles.figure}>
-              <span className={styles.display}>
+              <span className={`${styles.display} figure-type`}>
                 {String(ran === null ? shown.durationMin : Math.round(ran.durationSec / 60))}
               </span>{' '}
               <span className={styles.unit}>min</span>

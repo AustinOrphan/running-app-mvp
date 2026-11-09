@@ -87,7 +87,7 @@ function PlanBody({
             <h2 id="race-expected" className={cardStyles.heading}>
               {expected.heading}
             </h2>
-            <p className={cardStyles.figure}>{expected.figure}</p>
+            <p className={`${cardStyles.figure} figure-type`}>{expected.figure}</p>
             <p className={cardStyles.text}>{expected.source}</p>
             {expected.clock === null ? null : <p className={cardStyles.text}>{expected.clock}</p>}
             {text.notices.length === 0 ? null : (

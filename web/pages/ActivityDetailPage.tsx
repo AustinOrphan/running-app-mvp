@@ -102,7 +102,7 @@ function Reading({ label, value }: { label: string; value: string }) {
   return (
     <div className={styles.figure}>
       <dt>{label}</dt>
-      <dd>{value}</dd>
+      <dd className="figure-type">{value}</dd>
     </div>
   )
 }

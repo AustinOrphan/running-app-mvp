@@ -75,3 +75,13 @@ a {
   border-radius: var(--radius-sm);
   min-height: 1em;
 }
+
+/* Condensed figures (a device switch, off by default): the large figures marked `figure-type` are
+   set in Archivo at 75% width. Off, the attribute is absent and the figures keep their own faces.
+   Units are never marked, so they stay in their own face and size. */
+:root[data-condensed-figures='on'] .figure-type {
+  font-family: 'Archivo Variable', var(--font-serif);
+  font-stretch: 75%;
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+}

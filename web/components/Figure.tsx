@@ -19,7 +19,7 @@ export function Figure({ label, value, unit }: FigureProps) {
     <div className={styles.figure}>
       <dt>{label}</dt>
       <dd>
-        <span className={styles.value}>{value}</span>
+        <span className={`${styles.value} figure-type`}>{value}</span>
         {unit === undefined ? null : (
           <>
             {' '}

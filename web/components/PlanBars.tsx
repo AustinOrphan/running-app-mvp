@@ -52,7 +52,7 @@ export function PlanBars({
           <span className={styles.track}>
             <span className={styles.outline} style={{ width: pct(geometry.planned) }} />
           </span>
-          <span className={styles.value}>{barFigure(plannedSec, units)}</span>
+          <span className={`${styles.value} figure-type`}>{barFigure(plannedSec, units)}</span>
         </div>
         <div className={styles.row} aria-hidden="true">
           <span className={styles.name}>Ran</span>
@@ -69,7 +69,9 @@ export function PlanBars({
               />
             )}
           </span>
-          <span className={styles.value}>{barFigure(activity.durationSec, units)}</span>
+          <span className={`${styles.value} figure-type`}>
+            {barFigure(activity.durationSec, units)}
+          </span>
         </div>
       </div>
       <figcaption className={styles.caption}>

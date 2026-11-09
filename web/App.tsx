@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useLayoutEffect } from 'react'
 import { matchPath, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useMe, useSetupStatus } from './api/auth.ts'
 import { dropUserQueries, keys, UNAUTHORIZED_EVENT } from './api/client.ts'
 import { ErrorState } from './components/ErrorState.tsx'
+import { applyCondensedFigures, useCondensedFigures } from './components/figureType.ts'
 import { Layout } from './components/Layout.tsx'
 import { useLoadView } from './components/loadView.ts'
 import { Skeleton } from './components/Skeleton.tsx'
@@ -147,6 +148,11 @@ function AuthGate() {
 }
 
 export function App() {
+  const condensed = useCondensedFigures()
+  // before paint, so a page does not show the serif figures for a frame
+  useLayoutEffect(() => {
+    applyCondensedFigures(condensed.on)
+  }, [condensed.on])
   return (
     <Suspense fallback={<Skeleton />}>
       <Routes>

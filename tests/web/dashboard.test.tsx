@@ -142,6 +142,15 @@ describe('DashboardPage', () => {
     expect(screen.queryByText('Last week is ready to review.')).not.toBeInTheDocument()
   })
 
+  test('the hero minutes carry the figure class and the unit beside them does not', async () => {
+    renderToday(planned())
+    const hero = await screen.findByRole('article', { name: 'Easy run' })
+    const marked = hero.querySelectorAll('.figure-type')
+    expect(marked).toHaveLength(1)
+    expect(marked[0]?.textContent).toMatch(/^\d+$/)
+    expect(screen.getByText('min', { selector: 'span' })).not.toHaveClass('figure-type')
+  })
+
   test('"Log activity" links to /activities?new=1', async () => {
     renderToday(planned())
     expect(await screen.findByRole('link', { name: 'Log activity' })).toHaveAttribute(

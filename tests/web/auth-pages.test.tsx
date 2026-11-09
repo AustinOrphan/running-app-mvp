@@ -389,6 +389,30 @@ describe('SettingsPage', () => {
     localStorage.removeItem('rl_illustrations')
   })
 
+  test('settings: Condensed figures sits under Appearance, is off by default and saves on this device only', async () => {
+    localStorage.removeItem('rl_condensed_figures')
+    const mock = mockApi(
+      settingsRoutes((body) => ({ email: user.email, units: 'mi', ...(body as object) })),
+    )
+    renderWithProviders(<Pages />, { route: '/settings' })
+    const typist = userEvent.setup()
+
+    await screen.findByRole('heading', { name: 'Settings' })
+    const appearance = within(screen.getByRole('region', { name: 'Appearance' }))
+    const box = appearance.getByRole('checkbox', { name: 'Condensed figures' })
+    expect(box).not.toBeChecked()
+    expect(box).toHaveAccessibleDescription('Narrower, bolder numbers. This device only.')
+
+    await typist.click(box)
+    expect(box).toBeChecked()
+    expect(localStorage.getItem('rl_condensed_figures')).toBe('on')
+    expect(mock.calls.some((call) => call.method === 'PUT')).toBe(false)
+
+    await typist.click(box)
+    expect(localStorage.getItem('rl_condensed_figures')).toBe('off')
+    localStorage.removeItem('rl_condensed_figures')
+  })
+
   test('settings: a refused display name keeps what was typed and says so beside the field', async () => {
     mockApi(
       settingsRoutes(() => ({
