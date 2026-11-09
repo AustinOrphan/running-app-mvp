@@ -201,38 +201,28 @@ test('the run map: tiles through the CSP, the route, hidden ends, the chart dot,
     await expect
       .poll(async () => Math.round((await frame.boundingBox())?.height ?? 0))
       .toBe(pass.mapPx)
-    // Nothing of the map widens the page. At the normal text size the whole page must not scroll
-    // sideways; at 150% the heart-rate bands further down the page (not the map) are wider than a
-    // 320 px phone, so there only the map's own parts are held to the viewport.
-    const reaching = await page.evaluate(
-      ({ scoped }) => {
-        const root = scoped
-          ? document.querySelector('section[aria-label="Route of this run"]')
-          : null
-        const all = Array.from((root ?? document.body).querySelectorAll('*'))
-        const limit = document.documentElement.clientWidth + 1
-        return all
-          .filter((el) => {
-            if (el.getBoundingClientRect().right <= limit) return false
-            // what a clipping ancestor hides cannot widen the page
-            for (let up = el.parentElement; up !== null; up = up.parentElement) {
-              const style = getComputedStyle(up)
-              if (style.overflowX !== 'visible' || style.clip !== 'auto') return false
-            }
-            return true
-          })
-          .slice(0, 4)
-          .map((el) => `${el.tagName}.${String(el.className)}`)
-      },
-      { scoped: pass.text !== 100 },
-    )
+    // Nothing on the page reaches past the viewport, whatever the text size.
+    const reaching = await page.evaluate(() => {
+      const all = Array.from(document.body.querySelectorAll('*'))
+      const limit = document.documentElement.clientWidth + 1
+      return all
+        .filter((el) => {
+          if (el.getBoundingClientRect().right <= limit) return false
+          // what a clipping ancestor hides cannot widen the page
+          for (let up = el.parentElement; up !== null; up = up.parentElement) {
+            const style = getComputedStyle(up)
+            if (style.overflowX !== 'visible' || style.clip !== 'auto') return false
+          }
+          return true
+        })
+        .slice(0, 4)
+        .map((el) => `${el.tagName}.${String(el.className)}`)
+    })
     expect(reaching, `reaches past the viewport at ${String(pass.width)} px`).toEqual([])
-    if (pass.text === 100) {
-      const scrolls = await page.evaluate(
-        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      )
-      expect(scrolls, `sideways scroll at ${String(pass.width)}`).toBe(false)
-    }
+    const scrolls = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    )
+    expect(scrolls, `sideways scroll at ${String(pass.width)}`).toBe(false)
     // the line is inside the frame, the chips do not overlap each other, and the route runs under
     // neither (polled: the fit follows the chips' measured height a frame after the text grows)
     const label = `${String(pass.width)} px at ${String(pass.text)}% text`
