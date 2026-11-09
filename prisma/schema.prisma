@@ -259,7 +259,7 @@ model PlanRevision {
   id           String    @id @default(cuid())
   planId       String
   createdAt    DateTime  @default(now())
-  reason       String // 'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch' | 'method-change'
+  reason       String // 'generate' | 'weekly' | 'review' | 'owner' | 'break' | 'disruption' | 'undo' | 'goal-switch' | 'method-change' | 'raise-to-match'
   summary      String
   changes      String    @default("[]") // JSON text: PlanChange[]
   auto         Boolean   @default(false) // written by the scheduler, not by a request
@@ -348,6 +348,10 @@ model WeeklyReview {
   finalNextMin        Int?
   notes               String?
   reviewedAt          DateTime?
+  // The runner's answer to the offer to raise the plan to match recent weeks (rule E7), made on this
+  // finished week: null = not answered, 'declined' = Not now, 'raised' = Raise. The offer is not
+  // made again for the same weeks.
+  raiseAnswer         String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

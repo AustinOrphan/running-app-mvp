@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { DataStatus, ReviewView, SavedReview, Symptoms } from '../../shared/types.ts'
-import { api, invalidatePlanReaders, keys, qs } from './client.ts'
+import { ApiError, api, invalidatePlanReaders, keys, qs } from './client.ts'
 
 export interface ReviewPatch {
   dataStatus?: DataStatus
@@ -20,6 +20,26 @@ export function useReviews(params: { from: string; to: string }) {
   return useQuery({
     queryKey: [keys.reviews, params],
     queryFn: () => api<ReviewView[]>('GET', `/reviews${qs(params)}`),
+  })
+}
+
+/**
+ * Not now, to the offer to raise the plan to match recent weeks (rule E7): the server remembers it
+ * for the finished week, so the offer stays away on every device. Nothing in the plan changes.
+ */
+export function useDeclineRaise() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (weekStart: string) =>
+      api<undefined>('PUT', `/reviews/${encodeURIComponent(weekStart)}/raise`, {
+        answer: 'declined',
+      }),
+    onSuccess: () => invalidatePlanReaders(queryClient),
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 409 || error.status === 400)) {
+        void invalidatePlanReaders(queryClient)
+      }
+    },
   })
 }
 

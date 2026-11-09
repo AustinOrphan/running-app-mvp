@@ -22,6 +22,7 @@ import {
   methodChangeSummary,
   methodFlipSummary,
   overshootsSummary,
+  raiseSummary,
   stalePreviewMessage,
   targetsSummary,
   type OvershootLine,
@@ -29,6 +30,7 @@ import {
 import { runMinutesAhead } from '../../shared/domain/runMinutes.ts'
 import { estimateState } from '../../shared/engine/athlete.ts'
 import { draftRamp } from '../../shared/engine/checklist.ts'
+import type { ExecutionRecord } from '../../shared/engine/adapt.ts'
 import { disruptionPlan, heldDates } from '../../shared/engine/disruption.ts'
 import { diffPlans, type PlanWrites, type RowWrites } from '../../shared/engine/diff.ts'
 import { backdatedSkips, replan, weeklyDecision, weeklyRamp } from '../../shared/engine/index.ts'
@@ -42,6 +44,13 @@ import { loadPosition, rebuildZone } from '../../shared/engine/loadSetting.ts'
 import { progressionHold } from '../../shared/engine/macro.ts'
 import { resolveMethod } from '../../shared/engine/methods.ts'
 import { P } from '../../shared/engine/params/index.ts'
+import {
+  firstRise,
+  raiseToMatchCheck,
+  raiseWeeksOf,
+  type RaiseCheck,
+  type RaiseRise,
+} from '../../shared/engine/raise.ts'
 import { shapeOfFlags, takesShape } from '../../shared/engine/shape.ts'
 import type {
   AthleteState,
@@ -567,6 +576,13 @@ export interface ReplanArgs {
    * the old preset for an undo.
    */
   method?: PresetId
+  /**
+   * Set by the offer to raise the plan to match recent weeks [rule E7]: the re-plan starts its loading
+   * sequence from the level a new plan would read, inside every limit of an ordinary re-plan, and
+   * `ReplanResult.raise` says whether the condition holds and which week it lifts first. Never set by
+   * the scheduler.
+   */
+  raise?: boolean
 }
 
 /** A past session that a rest window skips, written before the re-plan's own rows. */
@@ -619,6 +635,8 @@ export interface ReplanResult {
   diff: PlanDiff
   /** The running time of the next 28 days, now and once the same writes are applied. */
   runMin: RunMinutes | null
+  /** Set when the re-plan was asked to raise the plan to match recent weeks [rule E7]; else null. */
+  raise: { check: RaiseCheck; rise: RaiseRise | null } | null
 }
 
 /** A write that found the plan changed since it was decided; the caller recomputes or answers 409. */
@@ -946,7 +964,25 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // A hold trims the next quality session of the week it caps; a reduce makes it a recovery week.
   const decisions: Record<string, WeeklyDecision['decision']> =
     decision !== null && decidedWeek !== null ? { [decidedWeek]: decision.decision } : {}
-  const { draft, changes, heldWeek } = replan({ ...input, weekCaps }, { decisions })
+  // The weeks the condition reads, with the executions and screen the weekly decision reads (J5).
+  const raiseWeeks = args.raise ? [...raiseWeeksOf(today), currentMonday] : []
+  const raiseExecutions = args.raise
+    ? await executionRecordsByWeek(prisma, plan.id, raiseWeeks)
+    : new Map<string, ExecutionRecord[]>()
+  const raiseCheck = args.raise
+    ? raiseToMatchCheck(input, state, (weekStart) => ({
+        executions: raiseExecutions.get(weekStart) ?? [],
+        redsFlags: input.screeningFlags,
+        ramp: weeklyRamp(state),
+        rebuild: rebuildZone(input, state),
+      }))
+    : null
+  const { draft, changes, heldWeek } = replan(
+    { ...input, weekCaps, ...(args.raise ? { raiseToLevel: true } : {}) },
+    { decisions },
+  )
+  const rise =
+    raiseCheck === null ? null : firstRise(input.existing?.weeks ?? [], draft.weeks, today, changes)
   const targetLimits = raisedTargetLimits({ rows: weekRows, draft, input, state, decidedWeek })
 
   const reason: PlanRevisionReason =
@@ -959,17 +995,19 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
   // A change of the method leads with the shape asked for and the weeks drawn again; any other
   // re-plan that finds the shape in effect changed since the plan was written says so after its lead.
   const lead =
-    args.method !== undefined
-      ? methodChangeSummary({
-          requested: args.method,
-          reason: position.reason,
-          weeks: shape?.weeks ?? 0,
-          from: shape?.from ?? currentMonday,
-          held: heldWeek !== null,
-        })
-      : args.loadAppetite === undefined
-        ? describeChanges(changes)
-        : loadSettingSummary(loadPosition(input, state))
+    args.raise && rise !== null
+      ? raiseSummary(rise)
+      : args.method !== undefined
+        ? methodChangeSummary({
+            requested: args.method,
+            reason: position.reason,
+            weeks: shape?.weeks ?? 0,
+            from: shape?.from ?? currentMonday,
+            held: heldWeek !== null,
+          })
+        : args.loadAppetite === undefined
+          ? describeChanges(changes)
+          : loadSettingSummary(loadPosition(input, state))
   const flip =
     args.method === undefined && shape !== null
       ? methodFlipSummary({
@@ -1039,6 +1077,7 @@ export async function computeReplan(deps: Deps, args: ReplanArgs): Promise<Repla
     holds,
     diff: diffPlans(writes),
     runMin: runMinutesAhead(sessionRows, writes.sessions, today),
+    raise: raiseCheck === null ? null : { check: raiseCheck, rise },
   }
 }
 

@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { overshootTodayLine } from '../../shared/copy/overshoot.ts'
 import {
@@ -8,6 +8,7 @@ import {
   REVIEW_PREFILL_TEMPLATES,
 } from '../../shared/copy/reviewPrefill.ts'
 import { sessionStatusLabel } from '../../shared/copy/sessionStatus.ts'
+import { RAISE_TEMPLATES, raiseFigures } from '../../shared/copy/raise.ts'
 import { render } from '../../shared/copy/template.ts'
 import { addDays, mondayOf, todayIso, weekStartsBetween } from '../../shared/dates.ts'
 import { toV1Phase } from '../../shared/domain/plan.ts'
@@ -25,6 +26,7 @@ import type {
   PlanSession,
   PlanWeek,
   PlanWithSessions,
+  RaiseOffer,
   ReviewSignals,
   ReviewView,
   SavedReview,
@@ -38,8 +40,8 @@ import { ApiError, fieldErrors } from '../api/client.ts'
 import { ruleTarget, type WhyTarget } from '../api/explain.ts'
 import { useActivities, useActivityGlyphs } from '../api/activities.ts'
 import { RouteGlyph } from '../components/RouteGlyph.tsx'
-import { usePlan } from '../api/plan.ts'
-import { useReviews, useSaveReview, type ReviewPatch } from '../api/reviews.ts'
+import { usePlan, useRaisePlan } from '../api/plan.ts'
+import { useDeclineRaise, useReviews, useSaveReview, type ReviewPatch } from '../api/reviews.ts'
 import { useSettings } from '../api/settings.ts'
 import { useWeeks } from '../api/weeks.ts'
 import { useAcceptZoneProposal, useDeclineZoneProposal, useZoneProposals } from '../api/zones.ts'
@@ -233,7 +235,7 @@ interface ReviewBodyProps {
   today: string
   from: string
   thisWeek: string
-  reviews: WeeklyReview[]
+  reviews: ReviewView[]
   weeks: WeekRow[]
   plan: PlanWithSessions | null
   activities: ActivityListItem[]
@@ -330,6 +332,8 @@ function ReviewBody({ today, from, thisWeek, reviews, weeks, plan, activities }:
       />
 
       <ReviewCountPrompt />
+
+      <RaiseOfferCard offer={reviews.find((item) => item.raise !== undefined)?.raise ?? null} />
 
       <ZoneProposals />
 
@@ -794,6 +798,139 @@ function SessionSummaries({
 }
 
 /** Proposed zone changes. Zones change only when the runner accepts; the section stays mounted so the toast shows. */
+/**
+ * The offer to raise the plan to match recent weeks (rule E7): the question, the figures it would
+ * write and two answers. Raise applies a re-plan under the usual limits and shows what changed; Not
+ * now is remembered by the server and changes nothing. It appears only when the server finds the
+ * recent weeks above plan, and never applies itself.
+ */
+function RaiseOfferCard({ offer }: { offer: RaiseOffer | null }) {
+  const headingId = useId()
+  const units = useSettings().data?.units ?? 'mi'
+  const raise = useRaisePlan()
+  const decline = useDeclineRaise()
+  const toast = useToast()
+  const [failure, setFailure] = useState<string | null>(null)
+  const [done, setDone] = useState<PlanRevisionView | null>(null)
+  const [declined, setDeclined] = useState(false)
+  const [why, setWhy] = useState<WhyTarget | null>(null)
+  const busy = raise.isPending || decline.isPending
+  // The result line takes focus once an answer is saved, so the button that was pressed leaving the
+  // page does not drop it; the line is announced politely.
+  const resultRef = useRef<HTMLParagraphElement>(null)
+  const answered = done !== null || declined
+  useEffect(() => {
+    if (answered) resultRef.current?.focus()
+  }, [answered])
+
+  /** A refused answer: what was shown is out of date, the readers are fetched again. */
+  function refused(err: unknown, stale: string): string {
+    return err instanceof ApiError && (err.status === 409 || err.status === 400)
+      ? stale
+      : `The plan was not changed. ${err instanceof ApiError ? err.message : 'The server did not respond.'}`
+  }
+
+  async function onRaise(current: RaiseOffer) {
+    setFailure(null)
+    try {
+      const result = await raise.mutateAsync({
+        weekStart: current.weekStart,
+        fromWeek: current.fromWeek,
+        currentMin: current.currentMin,
+        raisedMin: current.raisedMin,
+      })
+      setDone(result.revision)
+      toast.show(render(RAISE_TEMPLATES['raise.done'], {}, units))
+    } catch (err) {
+      setFailure(refused(err, render(RAISE_TEMPLATES['raise.stale-raise'], {}, units)))
+    }
+  }
+
+  async function onDecline(current: RaiseOffer) {
+    setFailure(null)
+    try {
+      await decline.mutateAsync(current.weekStart)
+      setDeclined(true)
+      toast.show(render(RAISE_TEMPLATES['raise.declined'], {}, units))
+    } catch (err) {
+      setFailure(refused(err, render(RAISE_TEMPLATES['raise.stale-decline'], {}, units)))
+    }
+  }
+
+  if (done !== null) {
+    return (
+      <section aria-labelledby={headingId} className={`${styles.section} ${styles.suggestion}`}>
+        <h2 id={headingId}>What changed</h2>
+        <p ref={resultRef} tabIndex={-1} role="status" aria-live="polite">
+          {render(RAISE_TEMPLATES['raise.done'], {}, units)}
+        </p>
+        <RevisionDiff
+          revision={done}
+          units={units}
+          onWhy={(rules) => {
+            setWhy(ruleTarget(rules))
+          }}
+        />
+        <WhyDrawer
+          explain={why?.explain}
+          rules={why?.rules ?? []}
+          open={why !== null}
+          onClose={() => {
+            setWhy(null)
+          }}
+        />
+      </section>
+    )
+  }
+  if (declined) {
+    return (
+      <section className={styles.section}>
+        <p ref={resultRef} tabIndex={-1} role="status" aria-live="polite">
+          {render(RAISE_TEMPLATES['raise.declined'], {}, units)}
+        </p>
+      </section>
+    )
+  }
+  if (offer === null) {
+    // the offer went away after a refusal: the reason stays on the page
+    return failure === null ? null : (
+      <section className={styles.section}>
+        <p role="alert">{failure}</p>
+      </section>
+    )
+  }
+
+  return (
+    <section aria-labelledby={headingId} className={`${styles.section} ${styles.suggestion}`}>
+      <h2 id={headingId}>{render(RAISE_TEMPLATES['raise.question'], {}, units)}</h2>
+      <p>{raiseFigures(offer)}</p>
+      <p className={styles.muted}>{render(RAISE_TEMPLATES['raise.limits'], {}, units)}</p>
+      {failure !== null ? <p role="alert">{failure}</p> : null}
+      <div className={styles.actions}>
+        <Button
+          variant="primary"
+          loading={raise.isPending}
+          disabled={busy}
+          onClick={() => {
+            void onRaise(offer)
+          }}
+        >
+          {render(RAISE_TEMPLATES['raise.raise'], {}, units)}
+        </Button>
+        <Button
+          disabled={busy}
+          onClick={() => {
+            void onDecline(offer)
+          }}
+        >
+          {render(RAISE_TEMPLATES['raise.later'], {}, units)}
+        </Button>
+        <ExplainButton subject="the offer to raise the plan" rules={['E7']} />
+      </div>
+    </section>
+  )
+}
+
 function ZoneProposals() {
   const headingId = useId()
   const proposals = useZoneProposals()

@@ -195,6 +195,14 @@ its build runs `prisma migrate deploy` as a smoke test.
 - No hand-drawn illustrations (visual design, section 18; the Illustrations switch of #665 was retired 2026-11-09). A
   picture is drawn from the runner's data (course silhouette and profile, route map, route glyphs) or not at
   all; an empty state is type, with an optional `preview` (`EmptyPreview`, `EmptyAxis`). A test scans `web/`.
+- Raise to match (rule E7, owner decision 2026-11-09) is an offer, never automatic: `raiseToMatchCheck`
+  and `firstRise` (`shared/engine/raise.ts`) decide whether the weekly review asks and what it shows,
+  `loadRaiseOffer` (`server/services/raiseOffer.ts`) takes the figures from a `computeReplan` with
+  `raise: true` that writes nothing, and only `POST /api/plan/raise` (`commitRaise`, reason
+  `raise-to-match`) applies it, through `applyReplan`, with `EngineInput.raiseToLevel` lifting the
+  start of the loading sequence inside the usual step cap and holds. Not now is
+  `WeeklyReview.raiseAnswer` on the finished week, so it holds across devices. No scheduler or weekly
+  re-plan sets `raise`.
 - Targets are a sketch, not minimums: no red, no "behind" or "missed" copy, no streaks or badges.
 - UI changes follow the design rules in `docs/superpowers/specs/2026-10-21-visual-design.md` (sections 8 to
   19; the colour pairs are tested in `tests/unit/shared/tokensContrast.test.ts`). Each visual change lands as
