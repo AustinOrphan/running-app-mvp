@@ -3,9 +3,9 @@
 Current state only; rewritten at every boundary. History lives in `git log`, the specs and
 plans under `docs/superpowers/`, the research corpus under `research/` and `docs/adr/`.
 
-Last update: 2026-11-08.
+Last update: 2026-11-09.
 
-## Waiting on the owner (2026-11-08)
+## Waiting on the owner (2026-11-09)
 
 Each item names the default that holds until the owner answers.
 
@@ -21,36 +21,53 @@ Each item names the default that holds until the owner answers.
    2026-11-09), whose claims rest on the abstract: Warden 2014, Doherty 2020, Keogh 2016, Mountjoy
    2023 with its correction, Bourdon 2017, Ely 2007, and the erratum of Tyler 2016. Default: the
    rules that cite them keep their present grades.
-2. **Passive heat before a warm race** (the heat pass): may the plan suggest sauna or hot-water
-   immersion, not only running in the heat? Default: no; only runs at 25 °C or more count.
-3. **A runner who runs more than planned** (rule E7, RU2): a re-plan carries on from the stored
-   week, so weeks run above the plan never lift the weekly ceiling; only a new plan reads the
-   level. Default: as is (the cautious choice; no study supports lifting it).
-4. **Move the live copy to an always-on home server.** The service files and the cutover runbook
-   are in the owner's private homelab repository, not yet committed there. Default: the live copy
-   stays on the laptop under tmux, and its scheduled jobs stop whenever the laptop sleeps.
-5. **The design direction.** A design sweep (2026-11-08) proposed three directions with mock-ups
-   and recommends Contour (map paper, a spruce accent, terrain in sienna, a condensed type, the
-   course profile as the race page's hero) over Notebook and Timetable, with six open questions
-   (direction, accent, illustrations by default, a printable race card, a race-day view, art drawn
-   from the runner's data). Default: the present look; the illustrations in use (#668, draft) wait
-   for the answer and are redrawn to the chosen standards.
-6. **Terrain and map data for elevation correction and trail versus road** (M1c, M1d): either send
-   sampled points of each run to Open-Meteo's elevation service and OpenStreetMap behind a switch
-   that starts off, or download terrain and map data for the home area once and keep it (no
-   per-run request; a new library and about 100 MB). Recommended: the local copy. Default: neither
-   is built; elevation is the watch's.
-7. **Critical speed from more than 90 days of training** (A6, #673): the window is grade D.
-   Default: 90 days.
-8. **Edit from the activity list.** Each row is one link to the activity's page since #654, and
-   editing happens there. Default: as is.
+2. **Move the live copy to the home server.** Decided 2026-11-09: after this round. The service
+   files and the cutover runbook (`docs/runbooks/running-log.md`) are in the owner's private homelab
+   repository, still uncommitted there; the runbook's steps are stop and back up on the laptop,
+   deploy and set the secret, copy the backup in, restore and start, verify, re-add the phone
+   clients, retire the laptop copy. Default: the live copy stays on the laptop, and its scheduled
+   jobs stop whenever the laptop sleeps.
+3. **The home server's nightly backup of the app's volume.** The runbook leaves out the volume's
+   `backups/` folder from the homelab's own nightly backup until its key's reach is decided. Default:
+   the app's own daily copies only, on the same disk.
 
-Answered on 2026-11-08: wrist heart rate stays the default with per-run quality checks (HQ1, #672;
-a chest strap is an option later); the personal grade curve feeds predictions a little (D2-5,
-#670); a map of each run is built (M1a #669, M1b #674); training load is drawn from data already
-stored (TL1). The illustrations (#665) were on but invisible on a full log: see item 6.
+Answered on 2026-11-09, one item at a time with options:
+
+- **Design:** no full redesign; the design rules first, then one revertible PR per change (#679 to
+  #686). Illustrations: pictures only from the runner's data (#687 retired the drawn set, #688 route
+  glyphs).
+- **Terrain and map data:** elevation correction dropped (every stored FIT file lists a barometer
+  and the stored gain equals the watch's); trail versus road from one OpenStreetMap download of the
+  home area (#692).
+- **Critical speed:** 90 days, widened to 180 only when 90 gives no fit, then not "at most" and
+  widened on both sides (#691).
+- **Sources:** the open-access ones checked first (#689); the rest stay in item 1.
+- **Rest days on the injury-return ladder:** 2 after a tendon injury, 1 otherwise (#693).
+- **Heat before a warm race:** runs at 25 °C or more, outdoors or in a warm room, and a hot bath or
+  sauna after an easy run, with the studied dose and safety lines; extra layers are not counted (the
+  one trial was negative) (#695).
+- **Running more than planned:** the weekly review offers to raise the plan, never automatically
+  (#694).
+- **Edit from the activity list:** as is.
 
 ## Where things stand
+
+- **The owner's answers built (2026-11-09, #679 to #695).** Each reviewed by a Sonnet adversarial
+  panel and fixed before merge; `PARAMS_VERSION` `2026-11-09.6`:
+  - Design rules (#679: sections 8 to 19 of the visual design spec, a contrast test on the tokens),
+    then G (#680: destructive actions in a confirm sheet, never red), C (#681: one stream panel with
+    a readout, the planned band and easy ceiling where they apply, time bars against the plan), D
+    (#682: season strip axes, months with their year, a Climb column), E (#683: the course silhouette
+    under the countdown, the week as proportional bars), A (#684: the race card's split sheet and
+    arrival windows), B (#685: the course profile leading the Race page, with aid lines, night,
+    cutoffs and fuel ticks), F (#686: condensed figures behind a device switch, off by default).
+  - The drawn illustrations retired for typographic empty states (#687); route glyphs on the Log and
+    the weekly review (#688).
+  - Sources (#689): six read in full text, attributions corrected, the first week after a 100-mile
+    race capped at 20 min per run (Koop).
+  - Critical speed's adaptive window (#691); trail, paved path and road per run (#692); rest days by
+    injury type (#693); the raise-to-match offer (#694); heat days from warm-room runs and a hot bath
+    or sauna (#695); a flaky page test fixed (#690).
 
 - **Tracks, predictions, export and load (2026-11-08, #669 to #676).** Each reviewed by a Sonnet
   adversarial panel and fixed before merge:
@@ -60,8 +77,6 @@ stored (TL1). The illustrations (#665) were on but invisible on a full log: see 
     says what the tiles reveal.
   - Predictions for a runner with no race (#673, rule A6): critical speed from the fastest stretches
     of training runs, a floor, so times read "at most" and the range widens toward faster.
-    `PARAMS_VERSION` `2026-11-09.3` (RU3: `injuryReturn.restDaysBetweenTendon` is 2 days for a
-    tendon injury, `restDaysBetween` stays 1 for the other kinds; the owner decided 2026-11-09).
   - The personal climb in predictions (#670, rule L5): an asymmetric blend capped at 3 %, the plan
     kept on the default.
   - Wrist heart-rate checks (#672, rule B2): cadence lock, spikes and dropouts per run, with a
