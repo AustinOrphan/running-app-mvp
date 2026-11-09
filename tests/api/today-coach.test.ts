@@ -999,6 +999,38 @@ describe('GET /api/today: the race', () => {
     expect(race!.prediction!.lowSec).toBeLessThan(race!.prediction!.predictedSec)
     expect(race!.prediction!.highSec).toBeGreaterThan(race!.prediction!.predictedSec)
   })
+
+  describe('critical speed from efforts, rule A6', () => {
+    // Critical speed 4 m/s, D' 100 m: three whole runs in three distance bands.
+    const efforts = (userId: string, ages: number[]) =>
+      [180, 360, 720].map((sec, i) => ({
+        userId,
+        date: addDays(today, -ages[i]!),
+        type: 'run',
+        durationSec: sec,
+        movingSec: sec,
+        distanceM: 4 * sec + 100,
+        gapDistanceM: 4 * sec + 100,
+        rpe: 8,
+        source: 'manual',
+      }))
+
+    test('efforts only 100 to 170 days back widen the window and the prediction says so', async () => {
+      const { u } = await planWith('race-widened@example.com', [], { raceInDays: 90 })
+      await ctx.prisma.activity.createMany({ data: efforts(u.id, [100, 130, 170]) })
+      const { race } = (await view(u)).coach
+      expect(race?.prediction?.trainingSince).toBe(addDays(today, -170))
+      expect(race?.prediction?.trainingWidened).toBe(true)
+    })
+
+    test('efforts inside 90 days do not', async () => {
+      const { u } = await planWith('race-narrow@example.com', [], { raceInDays: 90 })
+      await ctx.prisma.activity.createMany({ data: efforts(u.id, [10, 30, 60]) })
+      const { race } = (await view(u)).coach
+      expect(race?.prediction).not.toBeNull()
+      expect(race?.prediction?.trainingWidened).toBeUndefined()
+    })
+  })
 })
 
 // ---------------------------------------------------------------------------------------------

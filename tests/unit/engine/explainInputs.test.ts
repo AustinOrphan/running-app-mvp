@@ -1664,10 +1664,24 @@ describe('A2, A5, A6, A7, A8: the athlete state', () => {
     const [fact] = factsOf('A6', contextOf(two))
     expect(fact).toMatchObject({ state: 'insufficient', template: 'explain.cs-gap' })
     expect(text(fact!, 'km')).toBe(
-      'Critical speed needs 3 efforts between 400 m and 5 km in the last 90 days; 2 found. Zones use heart rate and effort until then.',
+      'Critical speed needs 3 efforts between 400 m and 5 km in the last 180 days; 2 found. Zones use heart rate and effort until then.',
     )
     expect(text(fact!, 'mi')).toContain('between 0.25 mi and 3.1 mi')
     expect(fact!.sources).toHaveLength(2)
+  })
+
+  test('A6 counts the efforts of the last 180 days when no fit exists even then', () => {
+    const old = activity(addDays(TODAY, -150), {
+      id: 'old-effort',
+      distanceM: 1500,
+      durationSec: 420,
+      movingSec: 420,
+      elevationGainM: 0,
+    })
+    const [fact] = factsOf('A6', contextOf({ ...emptyInput(), activities: [old] }))
+    expect(fact).toMatchObject({ state: 'insufficient', template: 'explain.cs-gap' })
+    expect(slot(fact!, 'days', 'count').n).toBe(P.a6.csWideWindowDays.value)
+    expect(slot(fact!, 'found', 'count').n).toBe(1)
   })
 
   test('A6 tells efforts that are too close in length from too few efforts', () => {

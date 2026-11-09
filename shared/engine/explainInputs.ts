@@ -815,10 +815,21 @@ function experienceFacts(scope: Scope): InputFact[] {
   return facts
 }
 
+/**
+ * The days the critical-speed fit read: the wider window when the fit needed it or when no fit
+ * exists (both windows were tried), else the 90-day one [rules A6].
+ */
+function csWindowDays(ctx: ExplainContext): number {
+  const { csMps, csWindowWidened } = ctx.state.fitness
+  return csMps === null || csWindowWidened === true
+    ? P.a6.csWideWindowDays.value
+    : P.a6.csWindowDays.value
+}
+
 /** Why critical speed is missing, as a gap sentence for `rule`. */
 function csGap(rule: string, ctx: ExplainContext, efforts: ReturnType<typeof csEffortsOf>) {
   const sources = efforts.map((e) => activitySource(e.activity))
-  const window = lastDays(ctx, P.a6.csWindowDays.value)
+  const window = lastDays(ctx, csWindowDays(ctx))
   if (efforts.length >= P.a6.csMinEfforts.value) {
     return gap(
       rule,
@@ -834,7 +845,7 @@ function csGap(rule: string, ctx: ExplainContext, efforts: ReturnType<typeof csE
       need: count(P.a6.csMinEfforts.value),
       from: distance(P.a6.csMinDistanceM.value),
       to: distance(P.a6.csMaxDistanceM.value),
-      days: count(P.a6.csWindowDays.value),
+      days: count(csWindowDays(ctx)),
       found: count(efforts.length),
     },
     { sources, window },
@@ -857,7 +868,7 @@ function fitnessFacts(scope: Scope): InputFact[] {
         'cs',
         'explain.a6-cs-widened',
         { ...base, date: shortDay(since) },
-        { sources, window: lastDays(ctx, P.a6.csWideWindowDays.value) },
+        { sources, window: lastDays(ctx, csWindowDays(ctx)) },
       ),
     ]
   }
@@ -866,8 +877,8 @@ function fitnessFacts(scope: Scope): InputFact[] {
       'A6',
       'cs',
       since == null ? 'explain.a6-cs' : 'explain.a6-cs-training',
-      { ...base, days: count(P.a6.csWindowDays.value) },
-      { sources, window: lastDays(ctx, P.a6.csWindowDays.value) },
+      { ...base, days: count(csWindowDays(ctx)) },
+      { sources, window: lastDays(ctx, csWindowDays(ctx)) },
     ),
   ]
 }
@@ -1148,7 +1159,7 @@ function lineBetweenZonesFacts(scope: Scope): InputFact[] {
         { share: share(P.c4.lt1CsFraction.value), pace: pace(lt1.value) },
         {
           sources: csEffortsOf(countedRuns(ctx), ctx.asOf).map((e) => activitySource(e.activity)),
-          window: lastDays(ctx, P.a6.csWindowDays.value),
+          window: lastDays(ctx, csWindowDays(ctx)),
         },
       ),
     )
@@ -1210,7 +1221,7 @@ function thresholdFacts(scope: Scope): InputFact[] {
       { pace: pace(threshold.value), margin: speed(margin) },
       {
         sources: csEffortsOf(countedRuns(ctx), ctx.asOf).map((e) => activitySource(e.activity)),
-        window: lastDays(ctx, P.a6.csWindowDays.value),
+        window: lastDays(ctx, csWindowDays(ctx)),
       },
     ),
   ]
@@ -1655,6 +1666,9 @@ function bandFacts(scope: Scope): InputFact[] {
         low: duration(prediction.lowSec),
         high: duration(prediction.highSec),
       },
+      prediction.trainingWidened === true
+        ? { window: lastDays(scope.ctx, P.a6.csWideWindowDays.value) }
+        : undefined,
     ),
   ]
   if (goal !== null && goal.distanceM !== null) {
@@ -1851,7 +1865,7 @@ function intervalBudgetFacts(scope: Scope): InputFact[] {
       { distance: distance(dPrimeM), share: share(P.c6.repFractionOfTte.value) },
       {
         sources: efforts.map((e) => activitySource(e.activity)),
-        window: lastDays(ctx, P.a6.csWindowDays.value),
+        window: lastDays(ctx, csWindowDays(ctx)),
       },
     ),
   ]

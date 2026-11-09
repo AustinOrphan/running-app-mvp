@@ -285,8 +285,8 @@ export function csFitOf(runs: Activity[], today: string): CsFit {
   if (criticalSpeed(narrow) !== null)
     return { efforts: narrow, widened: false, oldestEffortDate: null }
   const wide = csEffortsWithin(runs, today, P.a6.csWideWindowDays.value)
-  if (criticalSpeed(wide) === null)
-    return { efforts: narrow, widened: false, oldestEffortDate: null }
+  // With no fit after both windows, the efforts found in the wider one are the ones to count.
+  if (criticalSpeed(wide) === null) return { efforts: wide, widened: false, oldestEffortDate: null }
   const oldest = wide.map((e) => e.activity.date).sort()[0] ?? null
   return { efforts: wide, widened: true, oldestEffortDate: oldest }
 }
