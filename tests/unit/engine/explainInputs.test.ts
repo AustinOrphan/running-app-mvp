@@ -3418,8 +3418,23 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
         runningSinceYear: 2015,
       }),
     })
-    expect(text(factsOf('E6', injured).at(-1)!)).toBe(
+    expect(text(factsOf('E6', injured).at(-2)!)).toBe(
       'You start on the return ladder at runs of 5 min, because of an injury in your profile.',
+    )
+    expect(text(factsOf('E6', injured).at(-1)!)).toBe('The ladder keeps 1 rest day between runs.')
+    // a tendon injury spaces the runs by 2 rest days and says why
+    const tendon = contextOf({
+      ...emptyInput(),
+      profile: profileOf({
+        injuries: [{ kind: 'tendon', year: 2026, month: 9 } as never],
+        runningSinceYear: 2015,
+      }),
+    })
+    const rest = factsOf('E6', tendon).at(-1)!
+    expect(rest.template).toBe('explain.e6-injury-rest-tendon')
+    expect(slot(rest, 'days', 'count').n).toBe(P.injuryReturn.restDaysBetweenTendon.value)
+    expect(text(rest)).toBe(
+      'The ladder keeps 2 rest days between runs, because the injury is a tendon injury and tendons adapt over two to three days.',
     )
   })
 
@@ -3444,6 +3459,7 @@ describe('the stored plan: E2 to E4, E6, F5, H7, H10, K1 and K2', () => {
     expect(sentences(factsOf('E6', injured), 'km')).toEqual([
       missing,
       'You start on the return ladder at runs of 5 min, because of an injury in your profile.',
+      'The ladder keeps 1 rest day between runs.',
     ])
     expect(sentences(factsOf('E6', experienced), 'km')).toEqual([
       missing,

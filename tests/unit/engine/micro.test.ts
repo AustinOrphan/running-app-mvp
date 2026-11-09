@@ -1211,6 +1211,71 @@ describe('placeWeek: start-path weeks [rules E6, g-3]', () => {
     for (const s of sessions) expect(s.flags).toContain('injury-return')
   })
 
+  it('spaces the runs of an injury-return level by the rest days of the injury kind [g-3]', () => {
+    const injury = week({
+      index: 0,
+      targetRunMin: 10,
+      longRunMin: 0,
+      runDays: 3,
+      qualitySessions: 0,
+      flags: ['injury-return', 'injury-level-0'],
+    })
+    const heldDay = (day: number) => ({
+      date: `2026-11-0${String(2 + day)}`,
+      held: true,
+      gate: false,
+      maxRunMin: 0,
+      quality: false,
+      reason: 'travel' as const,
+      windowIds: [],
+    })
+    // `held` days are closed; a run in `prev` sits on a closed day (a re-plan keeps finished runs)
+    const place = (
+      kind: 'tendon' | 'bone-stress' | 'muscle' | undefined,
+      held: number[] = [],
+      prev: SessionSpec[] = [],
+    ) =>
+      runsOf(
+        placeWeek(injury, {
+          profile: profile({ longRunDay: 'sat' }),
+          zones: ZONES,
+          state: state({
+            experience: 'novice',
+            risk: {
+              ...state().risk,
+              recentInjury: true,
+              ...(kind === undefined ? {} : { injuryKind: kind }),
+            },
+          }),
+          prevSessions: prev,
+          dayRules: held.map(heldDay),
+        }),
+      )
+    const kinds = ['bone-stress', 'muscle', undefined] as const
+    // the in-week gap: Monday to Wednesday are open, so two runs fit 2 days apart (1 rest day) and
+    // a tendon injury, which needs 3 days between runs, keeps one run
+    const openMonToWed = [3, 4, 5, 6]
+    expect(place('tendon', openMonToWed)).toHaveLength(1)
+    for (const kind of kinds) {
+      const days = place(kind, openMonToWed).map(dayOf)
+      expect(days).toHaveLength(2)
+      expect(days[1]! - days[0]!).toBe(2)
+    }
+    // with the whole week open both runs fit, and a tendon injury puts them 3 or more days apart
+    const tendon = place('tendon').map(dayOf)
+    expect(tendon).toHaveLength(2)
+    expect(tendon[1]! - tendon[0]!).toBeGreaterThanOrEqual(
+      P.injuryReturn.restDaysBetweenTendon.value + 1,
+    )
+    // the start gap: a run kept on Monday keeps the next run 3 days away after a tendon injury,
+    // 2 days away after the other kinds
+    const keptRun = session({ kind: 'easy', date: '2026-11-02', durationMin: 5 })
+    const firstAfterKept = (kind: (typeof kinds)[number] | 'tendon') =>
+      Math.min(...place(kind, [0], [keptRun]).map(dayOf))
+    expect(firstAfterKept('tendon')).toBe(3)
+    for (const kind of kinds) expect(firstAfterKept(kind)).toBe(2)
+  })
+
   it('holds an injury-return run to 1.10x the longest run: the lesser of the level and the bound', () => {
     const injury = week({
       index: 0,

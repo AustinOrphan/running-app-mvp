@@ -17,30 +17,28 @@ Each item names the default that holds until the owner answers.
    2020, Bourdon 2017, Keogh 2016. Pages saved from a browser: the Higdon advanced 5K plan, the
    original Couch-to-5K text. Into `data/sources/` (git-ignored). Default: the rules that cite them
    keep their present grades.
-2. **Rest days between runs on an injury-return ladder** (RU3): `injuryReturn.restDaysBetween` is 1
-   day; its tendon source says 2 to 3. Recommended: 2. Default: 1 until answered.
-3. **Passive heat before a warm race** (the heat pass): may the plan suggest sauna or hot-water
+2. **Passive heat before a warm race** (the heat pass): may the plan suggest sauna or hot-water
    immersion, not only running in the heat? Default: no; only runs at 25 °C or more count.
-4. **A runner who runs more than planned** (rule E7, RU2): a re-plan carries on from the stored
+3. **A runner who runs more than planned** (rule E7, RU2): a re-plan carries on from the stored
    week, so weeks run above the plan never lift the weekly ceiling; only a new plan reads the
    level. Default: as is (the cautious choice; no study supports lifting it).
-5. **Move the live copy to an always-on home server.** The service files and the cutover runbook
+4. **Move the live copy to an always-on home server.** The service files and the cutover runbook
    are in the owner's private homelab repository, not yet committed there. Default: the live copy
    stays on the laptop under tmux, and its scheduled jobs stop whenever the laptop sleeps.
-6. **The design direction.** A design sweep (2026-11-08) proposed three directions with mock-ups
+5. **The design direction.** A design sweep (2026-11-08) proposed three directions with mock-ups
    and recommends Contour (map paper, a spruce accent, terrain in sienna, a condensed type, the
    course profile as the race page's hero) over Notebook and Timetable, with six open questions
    (direction, accent, illustrations by default, a printable race card, a race-day view, art drawn
    from the runner's data). Default: the present look; the illustrations in use (#668, draft) wait
    for the answer and are redrawn to the chosen standards.
-7. **Terrain and map data for elevation correction and trail versus road** (M1c, M1d): either send
+6. **Terrain and map data for elevation correction and trail versus road** (M1c, M1d): either send
    sampled points of each run to Open-Meteo's elevation service and OpenStreetMap behind a switch
    that starts off, or download terrain and map data for the home area once and keep it (no
    per-run request; a new library and about 100 MB). Recommended: the local copy. Default: neither
    is built; elevation is the watch's.
-8. **Critical speed from more than 90 days of training** (A6, #673): the window is grade D.
+7. **Critical speed from more than 90 days of training** (A6, #673): the window is grade D.
    Default: 90 days.
-9. **Edit from the activity list.** Each row is one link to the activity's page since #654, and
+8. **Edit from the activity list.** Each row is one link to the activity's page since #654, and
    editing happens there. Default: as is.
 
 Answered on 2026-11-08: wrist heart rate stays the default with per-run quality checks (HQ1, #672;
@@ -58,7 +56,8 @@ stored (TL1). The illustrations (#665) were on but invisible on a full log: see 
     says what the tiles reveal.
   - Predictions for a runner with no race (#673, rule A6): critical speed from the fastest stretches
     of training runs, a floor, so times read "at most" and the range widens toward faster.
-    `PARAMS_VERSION` `2026-11-08.4`.
+    `PARAMS_VERSION` `2026-11-09.1` (RU3: `injuryReturn.restDaysBetweenTendon` is 2 days for a
+    tendon injury, `restDaysBetween` stays 1 for the other kinds; the owner decided 2026-11-09).
   - The personal climb in predictions (#670, rule L5): an asymmetric blend capped at 3 %, the plan
     kept on the default.
   - Wrist heart-rate checks (#672, rule B2): cadence lock, spikes and dropouts per run, with a
@@ -2107,9 +2106,6 @@ things stand" gives counts and percentages without a weekly total or a date.
       that lets the rebuild ceiling lift the ceiling (R is above the ceiling for 16 of 54
       half-marathon runners of the history sweep at Upper, new plans), and a re-plan that raises the
       ceiling by the weeks run.
-    - RU3, `injuryReturn.restDaysBetween` against its tendon source (S4b, #606: the Param is 1 day,
-      the table it takes its levels from says 2 to 3 days between runs, so the Param is less
-      conservative than its source): a value question for the owner.
     - S3, the book records (_Run Less, Run Faster_ 3rd ed., Pierce, Murr and Moss, for the FIRST
       plans; Lydiard, with Gilmour 1997 for the phase lengths; then the corpus gaps Koop 2nd ed.,
       Daniels 4th and Pfitzinger 4th; the Daniels page is what the R1 failure above waits on): the

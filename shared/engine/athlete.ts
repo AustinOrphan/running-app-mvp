@@ -2,7 +2,7 @@
 // state; nothing reads the clock, the network or the database.
 import { addDays, daysBetween, mondayOf } from '../dates.ts'
 import { aggregateWeeks } from '../domain/weeks.ts'
-import type { Activity, AthleteProfile, WeekRow } from '../types.ts'
+import type { Activity, AthleteProfile, Injury, WeekRow } from '../types.ts'
 import { injuryReports } from './disruption.ts'
 import { personalClimbOf } from './gradeCurve.ts'
 import { isHeatExposure } from './heat.ts'
@@ -450,9 +450,16 @@ function riskOf(
 ): AthleteState['risk'] {
   const { profile, today } = input
   const monthsNow = yearOf(today) * 12 + Number(today.slice(5, 7))
-  const recentInjury = profile.injuries.some(
-    (i) => monthsNow - (i.year * 12 + (i.month ?? 12)) <= P.a9.recentInjuryWindowMonths.value,
+  const monthOf = (i: Injury): number => i.year * 12 + (i.month ?? 12)
+  const recentInjuries = profile.injuries.filter(
+    (i) => monthsNow - monthOf(i) <= P.a9.recentInjuryWindowMonths.value,
   )
+  const recentInjury = recentInjuries.length > 0
+  // The injury the return ladder is for: the most recent one in the window [rule g-3]. Injuries of
+  // one month take the tendon, whose rest between runs is the longer.
+  const latest = recentInjuries.reduce((m, i) => Math.max(m, monthOf(i)), -Infinity)
+  const latestKinds = recentInjuries.filter((i) => monthOf(i) === latest).map((i) => i.kind)
+  const injuryKind = latestKinds.includes('tendon') ? 'tendon' : latestKinds[0]
   const priorBsi = profile.injuries.some((i) => i.kind === 'bone-stress')
   const bmi = bmiOf(profile)
 
@@ -486,6 +493,7 @@ function riskOf(
   const reported = injuryReports(input.disruptions ?? []).some((r) => r.until >= today)
   return {
     recentInjury,
+    ...(injuryKind !== undefined ? { injuryKind } : {}),
     ...(reported ? { injuryReport: true } : {}),
     priorBsi,
     bsiFactors,

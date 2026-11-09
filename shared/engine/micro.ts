@@ -33,6 +33,7 @@ import {
   fitBlueprints,
   hasWalk,
   injuryLevel,
+  injuryRestDays,
   ladderRung,
   rungSessions,
   sessionMin,
@@ -616,7 +617,7 @@ function planRuns(
   // sits next to a run kept earlier in the same week: the weeks of a start path keep a rest day
   // between runs [rules F5, E6, g-3].
   const spacedFromKept = startWeekPlan || floorWeek
-  const startGap = injuryWeek ? P.injuryReturn.restDaysBetween.value + 1 : 2
+  const startGap = injuryWeek ? injuryRestDays(state) + 1 : 2
   const nearKept = (day: number) =>
     before.some(
       (s) =>
@@ -790,7 +791,7 @@ function planRuns(
       ? startWeek('injury-return', injuryLevel(week.flags) ?? 0).sessions
       : rungSessions(rung!)
     const wanted = Math.min(all.length, runDays)
-    const gap = injuryWeek ? P.injuryReturn.restDaysBetween.value + 1 : 2
+    const gap = injuryWeek ? injuryRestDays(state) + 1 : 2
     const days = spacedDays(wanted, gap).sort((a, b) => a - b)
     const blueprints = all.slice(all.length - days.length)
     // each session is cut to its day's limit, and the week to its target: the week is placed

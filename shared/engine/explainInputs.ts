@@ -77,7 +77,7 @@ import {
   recentPain,
   sleepAverageH,
 } from './readiness.ts'
-import { isLoadingWeek, rungCount } from './startWeeks.ts'
+import { injuryRestDays, isLoadingWeek, rungCount } from './startWeeks.ts'
 import { liftFor, percentOfMax, workoutFor } from './strength.ts'
 import { resolveTargets } from './targets.ts'
 import { deliveredShares, isDrawnOutsideE4, wholePercents } from './tid.ts'
@@ -2680,6 +2680,15 @@ function startPathFacts(scope: Scope): InputFact[] {
       make('E6', 'path', 'explain.e6-injury', {
         session: minutes(P.injuryReturn.levelsMin.value[path.level] ?? 0),
       }),
+      make(
+        'E6',
+        'rest',
+        state.risk.injuryKind === 'tendon'
+          ? 'explain.e6-injury-rest-tendon'
+          : 'explain.e6-injury-rest',
+        { days: count(injuryRestDays(state)) },
+        { sources: [profileSource(ctx)] },
+      ),
     )
   }
   return facts

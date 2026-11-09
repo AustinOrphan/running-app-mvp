@@ -6,6 +6,7 @@ import type {
   CauseCode,
   EquipmentConfig,
   EquipmentKind,
+  Injury,
   PlanSessionStatus,
   DisruptionMode,
   DisruptionReason,
@@ -299,6 +300,12 @@ export interface AthleteState {
      * `injuryTight`, never alone.
      */
     injuryReport?: boolean
+    /**
+     * The kind of the injury the injury-return ladder is for: the most recent profile injury inside
+     * the `a9.recentInjuryWindowMonths` window (a tendon injury when several share the month).
+     * Absent without such an injury, so a state without one is unchanged [rule g-3].
+     */
+    injuryKind?: Injury['kind']
     priorBsi: boolean
     bsiFactors: number
     redsFlags: number
