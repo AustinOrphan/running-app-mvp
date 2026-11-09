@@ -131,7 +131,7 @@ const ROUGH_TRACKTYPES: ReadonlySet<string> = new Set(['grade2', 'grade3', 'grad
  *    `foot=no` / a closed `access` without a foot exception: null.
  * 2. trail: an unpaved `surface`, any `sac_scale` but `none`, or `tracktype` grade2 to grade5, on any
  *    highway; otherwise a `path`, `track` or `bridleway` with no paved surface.
- * 3. paved path: a `footway`, `cycleway`, `pedestrian`, `steps` or `bridleway` with a paved surface,
+ * 3. paved path: a `track` of `tracktype=grade1` with no surface, a `footway`, `cycleway`, `pedestrian`, `steps` or `bridleway` with a paved surface,
  *    or a sidewalk or crossing (`footway=sidewalk|crossing`); a `path` with a paved surface.
  * 4. road: a car highway (residential, service, unclassified, living_street, tertiary and up), and
  *    a `track` with a paved surface (a farm lane).
@@ -150,6 +150,9 @@ export function classifyWay(tags: SurfaceTags): WayClass | null {
   if (surface !== undefined && UNPAVED.has(surface)) return 'trail'
   if (tags.sac_scale !== undefined && tags.sac_scale !== 'none') return 'trail'
   if (tags.tracktype !== undefined && ROUGH_TRACKTYPES.has(tags.tracktype)) return 'trail'
+
+  // `tracktype=grade1` is a solid, usually paved track: a paved path unless a surface says otherwise.
+  if (highway === 'track' && tags.tracktype === 'grade1' && surface === undefined) return 'paved'
 
   if (ROAD_HIGHWAYS.has(highway)) return 'road'
   if (PATH_HIGHWAYS.has(highway)) {

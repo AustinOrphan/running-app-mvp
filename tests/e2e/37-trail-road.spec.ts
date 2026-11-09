@@ -95,7 +95,7 @@ test('download the area, see a run’s shares, remove the area', async ({ page, 
     await expect(group).toBeVisible()
     await expect(
       group.getByText(
-        'One request to OpenStreetMap with a box of about 40 × 40 km around where you run. No run or route is sent.',
+        'One request to OpenStreetMap with a box of up to 40 × 40 km around where you run. No run or route is sent.',
       ),
     ).toBeVisible()
     await expect(group.getByRole('button', { name: 'Remove' })).toHaveCount(0)
@@ -103,7 +103,9 @@ test('download the area, see a run’s shares, remove the area', async ({ page, 
 
     await group.getByRole('button', { name: 'Download map data' }).click()
     await expect(
-      group.getByText(/^Downloaded .*: 2 ways, 1 of your runs inside the area\.$/),
+      group.getByText(
+        /^Downloaded .*: 2 ways in an area of \d+ × \d+ (km|mi), 1 of your runs inside it\.$/,
+      ),
     ).toBeVisible()
     await expect(group.getByText('The OpenStreetMap data is from Sun 8 Nov 2026.')).toBeVisible()
     await expect(group.getByText(/0 of 1 runs are worked out so far/)).toBeVisible()

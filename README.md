@@ -272,9 +272,9 @@ allows that one image host and no other.
 Settings, under Maps, has a "Trail and road" block that says how much of each run was on trail,
 paved path and road. It needs OpenStreetMap's road and path data for your area, which the server
 downloads once, when you press "Download map data", and again only when you press "Download again".
-The server asks the Overpass API (`overpass-api.de`) for the ways in a box. The box is about 40 × 40
-km around where you run, worked out from your stored routes (the box around the middle 95 % of your
-runs, centred on their median, cut to that size) and rounded outward to 0.01 degree (about 1 km).
+The server asks the Overpass API (`overpass-api.de`) for the ways in a box. The box is up to
+40 × 40 km (never less than 10 km a side) around where you run, worked out from your stored routes (the
+box around the 95 % of your runs nearest the place most of them happened, cut to that size) and rounded outward to 0.01 degree (about 1 km).
 That box, your server's IP address and a User-Agent that names the app (`running-log/1`, no email or
 account) are all that is sent: no run, no route and no date. Nothing is requested per run and
 nothing in the background. The answer is stored as a class and a simplified outline per way, and

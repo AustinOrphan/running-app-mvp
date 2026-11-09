@@ -13,7 +13,9 @@ import {
   type SurfaceTags,
 } from '../../shared/domain/surface.ts'
 import { encodePolyline, simplifyIndexes } from '../../shared/importers/files/track.ts'
+import { loadProfile } from '../serialize.ts'
 import type { MapAreaView } from '../../shared/types.ts'
+import { clearSurfaceBins } from './surfaceBackfill.ts'
 import { fetchOf } from './weatherCache.ts'
 
 export const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
@@ -23,8 +25,10 @@ export const OVERPASS_USER_AGENT = 'running-log/1 (self-hosted training log; one
 export const OVERPASS_QUERY_TIMEOUT_S = 120
 /** How long the app waits for the answer before it gives up, in milliseconds. */
 export const OVERPASS_REQUEST_TIMEOUT_MS = 180_000
-/** The largest answer read, in bytes; a denser area than this is refused rather than held in memory. */
-export const OVERPASS_MAX_BYTES = 400 * 1024 * 1024
+/** The most decoded bytes read from the answer; a denser area is refused rather than held in memory. */
+export const OVERPASS_MAX_BYTES = 80 * 1024 * 1024
+/** The most ways stored for one runner. */
+export const MAX_WAYS = 250_000
 /** A way's geometry is simplified to this many metres (the matcher looks 25 m either side). */
 export const WAY_TOLERANCE_M = 3
 /** Rows written per statement. */
@@ -40,7 +44,7 @@ const downloading = new Set<string>()
 export function overpassQuery(box: GeoBox): string {
   const bbox = [box.minLat, box.minLng, box.maxLat, box.maxLng].map((n) => n.toFixed(2)).join(',')
   return [
-    `[out:json][timeout:${String(OVERPASS_QUERY_TIMEOUT_S)}][maxsize:1073741824];`,
+    `[out:json][timeout:${String(OVERPASS_QUERY_TIMEOUT_S)}][maxsize:${String(OVERPASS_MAX_BYTES)}];`,
     `way["highway"]["highway"!~"^(${EXCLUDED_HIGHWAYS})$"](${bbox});`,
     'out tags geom qt;',
   ].join('\n')
@@ -122,6 +126,48 @@ export function parseOverpass(body: unknown): ParsedOverpass {
   return { ways, dataTimestamp: typeof stamp === 'string' ? stamp : null }
 }
 
+function tooMuch(): HttpError {
+  return new HttpError(
+    502,
+    'internal',
+    'The area holds more map data than the app can take in one download. Nothing was changed.',
+  )
+}
+
+/**
+ * The answer's text, read as a stream and counted in decoded bytes (the length header is absent on a
+ * chunked answer and counts compressed bytes on a gzip one). Past `OVERPASS_MAX_BYTES` the body is
+ * cancelled and the download refused.
+ */
+async function readCapped(response: Response): Promise<string> {
+  const declared = Number(response.headers.get('content-length') ?? 0)
+  if (declared > OVERPASS_MAX_BYTES) {
+    await response.body?.cancel().catch(() => undefined)
+    throw tooMuch()
+  }
+  if (!response.body) return ''
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > OVERPASS_MAX_BYTES) {
+      await reader.cancel().catch(() => undefined)
+      throw tooMuch()
+    }
+    chunks.push(value)
+  }
+  const whole = new Uint8Array(total)
+  let at = 0
+  for (const chunk of chunks) {
+    whole.set(chunk, at)
+    at += chunk.byteLength
+  }
+  return new TextDecoder().decode(whole)
+}
+
 function badAnswer(): HttpError {
   return new HttpError(
     502,
@@ -199,23 +245,15 @@ export async function downloadMapArea(
       await response.body?.cancel().catch(() => undefined)
       throw unavailable(response.status, false)
     }
-    const length = Number(response.headers.get('content-length') ?? 0)
-    if (length > OVERPASS_MAX_BYTES) {
-      await response.body?.cancel().catch(() => undefined)
-      throw new HttpError(
-        502,
-        'internal',
-        'The area holds more map data than the app can take in one download. Nothing was changed.',
-      )
-    }
     let parsed: ParsedOverpass
     try {
-      parsed = parseOverpass(await response.json())
+      parsed = parseOverpass(JSON.parse(await readCapped(response)) as unknown)
     } catch (error) {
       if (error instanceof HttpError) throw error
       const name = error instanceof Error ? error.name : ''
       throw name === 'TimeoutError' || name === 'AbortError' ? unavailable(null, true) : badAnswer()
     }
+    if (parsed.ways.length > MAX_WAYS) throw tooMuch()
     if (parsed.ways.length === 0) {
       throw new HttpError(
         502,
@@ -251,10 +289,7 @@ export async function downloadMapArea(
           create: { userId, ...data },
           update: data,
         })
-        await tx.activity.updateMany({
-          where: { userId, surfaceBins: { not: null } },
-          data: { surfaceBins: null },
-        })
+        await clearSurfaceBins(tx, userId)
       },
       { timeout: 120_000, maxWait: 10_000 },
     )
@@ -270,10 +305,7 @@ export async function removeMapArea(prisma: Deps['prisma'], userId: string): Pro
     async (tx) => {
       await tx.mapWay.deleteMany({ where: { userId } })
       await tx.mapArea.deleteMany({ where: { userId } })
-      await tx.activity.updateMany({
-        where: { userId, surfaceBins: { not: null } },
-        data: { surfaceBins: null },
-      })
+      await clearSurfaceBins(tx, userId)
     },
     { timeout: 120_000, maxWait: 10_000 },
   )
@@ -283,7 +315,8 @@ export async function removeMapArea(prisma: Deps['prisma'], userId: string): Pro
 export async function loadMapArea(prisma: Deps['prisma'], userId: string): Promise<MapAreaView> {
   const row = await prisma.mapArea.findUnique({ where: { userId } })
   const busy = downloading.has(userId)
-  if (!row) return { area: null, busy }
+  const { timezone: tz } = await loadProfile(prisma, userId)
+  if (!row) return { tz, area: null, busy }
   const inside = {
     activity: { userId, type: { in: ['run', 'race'] } },
     minLat: { lte: row.maxLat },
@@ -298,6 +331,7 @@ export async function loadMapArea(prisma: Deps['prisma'], userId: string): Promi
     }),
   ])
   return {
+    tz,
     area: {
       minLat: row.minLat,
       minLng: row.minLng,

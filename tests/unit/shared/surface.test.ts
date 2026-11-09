@@ -59,6 +59,12 @@ describe('classifyWay', () => {
       { highway: 'residential', tracktype: 'grade1' },
       'road',
     ],
+    ['a grade 1 track with no surface', { highway: 'track', tracktype: 'grade1' }, 'paved'],
+    [
+      'a grade 1 track of dirt',
+      { highway: 'track', tracktype: 'grade1', surface: 'dirt' },
+      'trail',
+    ],
     // unknown: lean to road only for car highways
     ['a footway with no surface', { highway: 'footway' }, 'unknown'],
     ['a cycleway with no surface', { highway: 'cycleway' }, 'unknown'],

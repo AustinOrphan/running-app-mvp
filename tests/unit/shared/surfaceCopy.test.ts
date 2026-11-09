@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { assertCleanCopy } from '../../../shared/copy/lint.ts'
 import {
   NOT_MATCHED_NOTE_PCT,
+  areaSizeText,
   SURFACE_CREDIT,
   SURFACE_TEMPLATES,
   surfaceLine,
@@ -62,10 +63,18 @@ describe('surfaceLine', () => {
   })
 })
 
+describe('areaSizeText', () => {
+  const box = { minLat: 44.8, maxLat: 45.2, minLng: -93.2, maxLng: -92.8 }
+  test('is the real width and height in the runner’s unit', () => {
+    expect(areaSizeText(box, 'km')).toBe('31 × 45 km')
+    expect(areaSizeText(box, 'mi')).toBe('20 × 28 mi')
+  })
+})
+
 describe('SURFACE_TEMPLATES', () => {
   test('say what is sent, and credit OpenStreetMap', () => {
     expect(render(SURFACE_TEMPLATES['surface.sent'], {}, 'km')).toBe(
-      'One request to OpenStreetMap with a box of about 40 × 40 km around where you run. No run or route is sent.',
+      'One request to OpenStreetMap with a box of up to 40 × 40 km around where you run. No run or route is sent.',
     )
     expect(SURFACE_CREDIT).toBe('Map data © OpenStreetMap contributors')
   })

@@ -24,7 +24,7 @@ import type {
 } from '../../shared/types.ts'
 import { hasTrack } from '../../shared/importers/files/track.ts'
 import { ROUTE_HEADING, ROUTE_SECTION_NAME } from '../../shared/copy/runMap.ts'
-import { SURFACE_CREDIT, surfaceLine } from '../../shared/copy/surface.ts'
+import { surfaceLine } from '../../shared/copy/surface.ts'
 import { render } from '../../shared/copy/template.ts'
 import { TEMPLATES } from '../../shared/copy/templates.ts'
 import { formatDistance, formatDuration, formatPace } from '../../shared/units.ts'
@@ -49,6 +49,7 @@ import { useLoadView } from '../components/loadView.ts'
 import { Figure } from '../components/Figure.tsx'
 import { hasPlanBars, PlanBars } from '../components/PlanBars.tsx'
 import { createDistanceCursor, type DistanceCursor } from '../components/map/distanceCursor.ts'
+import { SurfaceCredit } from '../components/map/SurfaceCredit.tsx'
 import { RunMap, RunMapLoading } from '../components/map/RunMap.tsx'
 import { FuelSection } from '../components/fuel/FuelSection.tsx'
 import { ActivitySets } from '../components/strength/ActivitySets.tsx'
@@ -233,7 +234,9 @@ function Summary({ activity, units }: { activity: Activity; units: Units }) {
               )}
             </p>
           )}
-          <p className={styles.muted}>{SURFACE_CREDIT}</p>
+          <p className={styles.muted}>
+            <SurfaceCredit />
+          </p>
         </>
       )}
       {activity.duplicateStatus === 'confirmed' ? (

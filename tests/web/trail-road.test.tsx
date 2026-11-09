@@ -9,6 +9,7 @@ import { ToastProvider } from '../../web/components/Toast.tsx'
 import { ActivityDetailPage } from '../../web/pages/ActivityDetailPage.tsx'
 import { SettingsPage } from '../../web/pages/SettingsPage.tsx'
 import { makeActivity } from '../factories.ts'
+import { makeView } from './strength-fixtures.ts'
 import { mockApi, noTrackRoute, renderWithProviders, type MockRoutes } from './helpers.tsx'
 
 afterEach(() => {
@@ -61,18 +62,20 @@ async function block(): Promise<HTMLElement> {
 
 describe('the Trail and road block in Settings', () => {
   test('before a download: what it does, what is sent and when, the button and the credit', async () => {
-    renderSettings({ 'GET /api/map-area': () => ({ area: null, busy: false }) })
+    renderSettings({ 'GET /api/map-area': () => ({ tz: 'UTC', area: null, busy: false }) })
     const group = await block()
     expect(
       within(group).getByText(/Says how much of each run was on trail, paved path and road/),
     ).toBeInTheDocument()
     expect(
       within(group).getByText(
-        'One request to OpenStreetMap with a box of about 40 × 40 km around where you run. No run or route is sent.',
+        'One request to OpenStreetMap with a box of up to 40 × 40 km around where you run. No run or route is sent.',
       ),
     ).toBeInTheDocument()
     expect(within(group).getByText(/made when you press the button/)).toBeInTheDocument()
-    expect(within(group).getByRole('button', { name: 'Download map data' })).toBeInTheDocument()
+    expect(
+      await within(group).findByRole('button', { name: 'Download map data' }),
+    ).toBeInTheDocument()
     expect(within(group).queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
     expect(within(group).queryByRole('button', { name: 'Download again' })).not.toBeInTheDocument()
     const credit = within(group).getByRole('link', {
@@ -83,9 +86,76 @@ describe('the Trail and road block in Settings', () => {
     expect(screen.getByRole('heading', { name: 'Maps' })).toBeInTheDocument()
   })
 
+  test('dates the download in the runner’s zone, not UTC', async () => {
+    // 03:30 UTC on the 10th is the evening of the 9th in Los Angeles.
+    renderSettings({
+      'GET /api/map-area': () => ({
+        tz: 'America/Los_Angeles',
+        area: {
+          ...AREA,
+          fetchedAt: '2026-11-10T03:30:00.000Z',
+          dataTimestamp: '2026-11-09T07:30:00Z',
+        },
+        busy: false,
+      }),
+    })
+    const group = await block()
+    expect(await within(group).findByText(/^Downloaded Mon 9 Nov 2026:/)).toBeInTheDocument()
+    expect(
+      within(group).getByText('The OpenStreetMap data is from Sun 8 Nov 2026.'),
+    ).toBeInTheDocument()
+  })
+
+  test('says it could not read the area, and offers no download, when the read fails', async () => {
+    renderSettings({
+      'GET /api/map-area': () => ({
+        status: 500,
+        body: { error: { code: 'internal', message: 'Something went wrong on the server.' } },
+      }),
+    })
+    const group = await block()
+    expect(await within(group).findByText(/map area could not be read/)).toBeInTheDocument()
+    expect(
+      within(group).queryByRole('button', { name: 'Download map data' }),
+    ).not.toBeInTheDocument()
+    expect(within(group).queryByText(/Reading the map area/)).not.toBeInTheDocument()
+  })
+
+  test('says it is offline, not that there is no area, when the browser is offline', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderSettings({})
+    const group = await block()
+    expect(within(group).getByText(/You are offline/)).toBeInTheDocument()
+    expect(
+      within(group).queryByRole('button', { name: 'Download map data' }),
+    ).not.toBeInTheDocument()
+  })
+
+  test('says it is reading the area until the read answers', async () => {
+    renderSettings({ 'GET /api/map-area': () => new Promise(() => undefined) })
+    const group = await block()
+    expect(within(group).getByText('Reading the map area.')).toBeInTheDocument()
+    expect(
+      within(group).queryByRole('button', { name: 'Download map data' }),
+    ).not.toBeInTheDocument()
+  })
+
+  test('a dropped connection on the download gets the app’s words, not a raw message', async () => {
+    renderSettings({
+      'GET /api/map-area': () => ({ tz: 'UTC', area: null, busy: false }),
+      'POST /api/map-area': () => ({ status: 500, body: 'not json' }),
+    })
+    const typist = userEvent.setup()
+    const group = await block()
+    await typist.click(await within(group).findByRole('button', { name: 'Download map data' }))
+    expect(await within(group).findByRole('alert')).toHaveTextContent(
+      'The download did not go through. Nothing was changed; try again later.',
+    )
+  })
+
   test('says so while a download is running, and holds the buttons', async () => {
     renderSettings({
-      'GET /api/map-area': () => ({ area: { ...AREA }, busy: true }),
+      'GET /api/map-area': () => ({ tz: 'UTC', area: { ...AREA }, busy: true }),
     })
     const group = await block()
     expect(await within(group).findByText(/Asking OpenStreetMap/)).toBeInTheDocument()
@@ -98,24 +168,24 @@ describe('the Trail and road block in Settings', () => {
 
 describe('the download flow', () => {
   test('the button posts an empty body and the answer replaces the block', async () => {
-    let area: MapAreaView = { area: null, busy: false }
+    let area: MapAreaView = { tz: 'UTC', area: null, busy: false }
     const { calls } = renderSettings({
       'GET /api/map-area': () => area,
       'POST /api/map-area': () => {
-        area = { area: AREA, busy: false }
+        area = { tz: 'UTC', area: AREA, busy: false }
         return area
       },
       'DELETE /api/map-area': () => {
-        area = { area: null, busy: false }
+        area = { tz: 'UTC', area: null, busy: false }
         return area
       },
     })
     const typist = userEvent.setup()
     const group = await block()
-    await typist.click(within(group).getByRole('button', { name: 'Download map data' }))
+    await typist.click(await within(group).findByRole('button', { name: 'Download map data' }))
 
     await within(group).findByText(
-      'Downloaded Mon 9 Nov 2026: 12,345 ways, 12 of your runs inside the area.',
+      'Downloaded Mon 9 Nov 2026: 12,345 ways in an area of 31 × 45 km, 12 of your runs inside it.',
     )
     expect(
       within(group).getByText('The OpenStreetMap data is from Sun 8 Nov 2026.'),
@@ -135,7 +205,7 @@ describe('the download flow', () => {
 
   test('says how many runs are worked out while the job catches up', async () => {
     renderSettings({
-      'GET /api/map-area': () => ({ area: { ...AREA, done: 3 }, busy: false }),
+      'GET /api/map-area': () => ({ tz: 'UTC', area: { ...AREA, done: 3 }, busy: false }),
     })
     const group = await block()
     expect(
@@ -147,7 +217,7 @@ describe('the download flow', () => {
 
   test('says when the stored classes are older than the rules', async () => {
     renderSettings({
-      'GET /api/map-area': () => ({ area: { ...AREA, outdated: true }, busy: false }),
+      'GET /api/map-area': () => ({ tz: 'UTC', area: { ...AREA, outdated: true }, busy: false }),
     })
     const group = await block()
     expect(await within(group).findByText(/The rules that sort ways changed/)).toBeInTheDocument()
@@ -155,7 +225,7 @@ describe('the download flow', () => {
 
   test('shows the server’s own words when OpenStreetMap refuses, and keeps the block as it was', async () => {
     const { calls } = renderSettings({
-      'GET /api/map-area': () => ({ area: null, busy: false }),
+      'GET /api/map-area': () => ({ tz: 'UTC', area: null, busy: false }),
       'POST /api/map-area': () => ({
         status: 502,
         body: {
@@ -169,16 +239,18 @@ describe('the download flow', () => {
     })
     const typist = userEvent.setup()
     const group = await block()
-    await typist.click(within(group).getByRole('button', { name: 'Download map data' }))
+    await typist.click(await within(group).findByRole('button', { name: 'Download map data' }))
     const alert = await within(group).findByRole('alert')
     expect(alert).toHaveTextContent('OpenStreetMap refused the request (status 429).')
-    expect(within(group).getByRole('button', { name: 'Download map data' })).toBeInTheDocument()
+    expect(
+      await within(group).findByRole('button', { name: 'Download map data' }),
+    ).toBeInTheDocument()
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1)
   })
 })
 
 describe('the run page line', () => {
-  function renderRun(surfaceBins: SurfaceBins | null, type: 'run' | 'strength' = 'run') {
+  function renderRun(surfaceBins: SurfaceBins | null, type: 'run' | 'race' | 'strength' = 'run') {
     const detail: ActivityDetail = {
       activity: makeActivity({
         id: 'a1',
@@ -198,6 +270,8 @@ describe('the run page line', () => {
       'GET /api/activities/a1/standout': () => ({ items: [], more: 0 }),
       'GET /api/plan': () => null,
       'GET /api/zones': () => ({ hr: null }),
+      'GET /api/strength': () => makeView(),
+      'GET /api/strength/logs': () => [],
       ...noTrackRoute,
     })
     renderWithProviders(
@@ -234,6 +308,26 @@ describe('the run page line', () => {
     expect(
       screen.getByText('25 % of the route was not matched to a mapped way.'),
     ).toBeInTheDocument()
+  })
+
+  test('a race has the line too', async () => {
+    renderRun(bins({ trailM: 700, roadM: 300 }), 'race')
+    expect(await screen.findByText('Trail 70 % · road 30 %')).toBeInTheDocument()
+  })
+
+  test('a strength session shows none, whatever its row holds', async () => {
+    renderRun(bins({ trailM: 700, roadM: 300 }), 'strength')
+    await screen.findByRole('heading', { level: 2, name: 'Summary' })
+    expect(screen.queryByText(/Trail \d+ %/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Map data © OpenStreetMap contributors')).not.toBeInTheDocument()
+  })
+
+  test('the credit is the linked one', async () => {
+    renderRun(bins({ trailM: 700, roadM: 300 }))
+    const credit = await screen.findByRole('link', {
+      name: 'Map data © OpenStreetMap contributors',
+    })
+    expect(credit).toHaveAttribute('href', 'https://www.openstreetmap.org/copyright')
   })
 
   test.each([

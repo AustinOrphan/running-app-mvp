@@ -255,6 +255,8 @@ export interface SurfaceBins {
  * `runs` counts the runs with a track whose box meets the area, `done` those with shares so far.
  */
 export interface MapAreaView {
+  /** The runner's time zone, for the dates of the area. */
+  tz: string
   area: {
     minLat: number
     minLng: number

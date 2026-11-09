@@ -2,7 +2,8 @@
 // line on a run. `SURFACE_TEMPLATES` is spread into `TEMPLATES`, so the G5 lint renders each one.
 // The figures are shares of the route matched to a mapped way: a description of where the run went,
 // with no target and no good or bad kind of surface.
-import type { SurfaceBins } from '../types.ts'
+import { boxSizeM } from '../domain/mapArea.ts'
+import type { SurfaceBins, Units } from '../types.ts'
 import { tpl } from './template.ts'
 
 /** The credit OpenStreetMap's licence (ODbL) asks for, wherever the data or what it produced is shown. */
@@ -18,7 +19,7 @@ export const SURFACE_TEMPLATES = {
     'Says how much of each run was on trail, paved path and road, from OpenStreetMap data for your area.',
   ),
   'surface.sent': tpl(
-    'One request to OpenStreetMap with a box of about 40 × 40 km around where you run. No run or route is sent.',
+    'One request to OpenStreetMap with a box of up to 40 × 40 km around where you run. No run or route is sent.',
   ),
   'surface.when': tpl(
     'It is made when you press the button, and again only when you press it again. The runs are worked out here, from the stored routes.',
@@ -27,11 +28,13 @@ export const SURFACE_TEMPLATES = {
   'surface.again': tpl('Download again', {}, { shape: 'label' }),
   'surface.remove': tpl('Remove', {}, { shape: 'label' }),
   'surface.busy': tpl('Asking OpenStreetMap. This can take a few minutes.'),
-  'surface.fetched': tpl('Downloaded {date}: {ways} ways, {runs} of your runs inside the area.', {
-    date: 'text',
-    ways: 'text',
-    runs: 'text',
-  }),
+  'surface.fetched': tpl(
+    'Downloaded {date}: {ways} ways in an area of {size}, {runs} of your runs inside it.',
+    { date: 'text', ways: 'text', size: 'text', runs: 'text' },
+  ),
+  'surface.loading': tpl('Reading the map area.'),
+  'surface.unavailable': tpl('The map area could not be read. Try again in a moment.'),
+  'surface.offline': tpl('You are offline. The download needs a connection.'),
   'surface.data-date': tpl('The OpenStreetMap data is from {date}.', { date: 'text' }),
   'surface.progress': tpl(
     '{done} of {runs} runs are worked out so far; the rest follow in the background.',
@@ -49,6 +52,17 @@ export const SURFACE_TEMPLATES = {
     share: 'text',
   }),
 } as const
+
+/** "23 × 31 km" (or miles): the size of a downloaded box, to the nearest whole unit. */
+export function areaSizeText(
+  box: { minLat: number; minLng: number; maxLat: number; maxLng: number },
+  units: Units,
+): string {
+  const { heightM, widthM } = boxSizeM(box)
+  const per = units === 'mi' ? 1609.344 : 1000
+  const part = (m: number) => String(Math.max(1, Math.round(m / per)))
+  return `${part(widthM)} × ${part(heightM)} ${units === 'mi' ? 'mi' : 'km'}`
+}
 
 /** Whole percents of `parts` that add up to 100 (largest remainder); all zero when the total is. */
 function percents(parts: readonly number[]): number[] {

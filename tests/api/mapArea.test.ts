@@ -244,6 +244,70 @@ describe('map area routes', () => {
     expect(await ctx.prisma.mapWay.count({ where: { userId: user.id } })).toBe(3)
   })
 
+  test('an oversize answer with no Content-Length is cut off while streaming, and refused', async () => {
+    await addRun(user.id, line([-500, 0], [500, 0]))
+    let sent = 0
+    let cancelled = false
+    ctx.fetch = fakeFetch({
+      [`POST ${OVERPASS_URL}`]: () => {
+        const chunk = new Uint8Array(4 * 1024 * 1024).fill(32)
+        const body = new ReadableStream<Uint8Array>({
+          pull(controller) {
+            sent += 1
+            controller.enqueue(chunk)
+            if (sent > 200) controller.close()
+          },
+          cancel() {
+            cancelled = true
+          },
+        })
+        return new Response(body, { status: 200 })
+      },
+    })
+    const res = await post()
+    expect(res.status).toBe(502)
+    expect(errorOf(res)).toMatch(/more map data than the app can take/)
+    expect(cancelled).toBe(true)
+    // Stopped soon after the cap (80 MB = 20 chunks), not at the end of the stream.
+    expect(sent).toBeLessThan(40)
+    expect(await ctx.prisma.mapArea.count()).toBe(0)
+  })
+
+  test('a declared oversize answer is refused without reading it', async () => {
+    await addRun(user.id, line([-500, 0], [500, 0]))
+    ctx.fetch = fakeFetch({
+      [`POST ${OVERPASS_URL}`]: () =>
+        new Response('{}', {
+          status: 200,
+          headers: { 'Content-Length': String(500 * 1024 * 1024) },
+        }),
+    })
+    const res = await post()
+    expect(res.status).toBe(502)
+    expect(errorOf(res)).toMatch(/more map data than the app can take/)
+  })
+
+  test('a normal answer streamed in pieces with no Content-Length is stored', async () => {
+    await addRun(user.id, line([-500, 0], [500, 0]))
+    const bytes = new TextEncoder().encode(JSON.stringify(overpassAnswer(threeWays())))
+    ctx.fetch = fakeFetch({
+      [`POST ${OVERPASS_URL}`]: () => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            for (let at = 0; at < bytes.length; at += 100) {
+              controller.enqueue(bytes.slice(at, at + 100))
+            }
+            controller.close()
+          },
+        })
+        return new Response(body, { status: 200 })
+      },
+    })
+    const res = await post()
+    expect(res.status).toBe(200)
+    expect((res.body as MapAreaView).area?.wayCount).toBe(3)
+  })
+
   test('a timeout is a 504 with a plain message', async () => {
     await addRun(user.id, line([-500, 0], [500, 0]))
     ctx.fetch = () => Promise.reject(new DOMException('The operation timed out.', 'TimeoutError'))
@@ -321,6 +385,27 @@ describe('map area routes', () => {
     await addRun(other.id, line([-400, 0], [400, 0]), '2026-10-06')
     overpass()
     expect(((await post()).body as MapAreaView).area?.runs).toBe(1)
+  })
+
+  test('clearing the shares holds every run’s updatedAt', async () => {
+    const id = await addRun(user.id, line([-500, 0], [500, 0]))
+    overpass()
+    await post()
+    const bins = JSON.stringify({ v: 1, trailM: 1, pavedM: 0, roadM: 0, unknownM: 0 })
+    await ctx.prisma.activity.update({ where: { id }, data: { surfaceBins: bins } })
+    const before = await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })
+    await post()
+    expect((await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })).updatedAt).toEqual(
+      before.updatedAt,
+    )
+    await ctx.prisma.activity.updateMany({
+      where: { id },
+      data: { surfaceBins: bins, updatedAt: before.updatedAt },
+    })
+    await del()
+    const after = await ctx.prisma.activity.findUniqueOrThrow({ where: { id } })
+    expect(after.surfaceBins).toBeNull()
+    expect(after.updatedAt).toEqual(before.updatedAt)
   })
 
   test('removing deletes the ways and the area and clears the shares, and is idempotent', async () => {

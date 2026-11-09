@@ -20,12 +20,6 @@ export const MAP_AREA_GRID_DEG = 0.01
 
 const M_PER_DEG_LAT = 111_320
 
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = sorted.length >> 1
-  return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2
-}
-
 function roundDown(value: number): number {
   return Math.round(Math.floor(value / MAP_AREA_GRID_DEG + 1e-9) * MAP_AREA_GRID_DEG * 100) / 100
 }
@@ -33,15 +27,25 @@ function roundUp(value: number): number {
   return Math.round(Math.ceil(value / MAP_AREA_GRID_DEG - 1e-9) * MAP_AREA_GRID_DEG * 100) / 100
 }
 
+/** Metres between two centres, on a flat local projection. */
+function distM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const mLng = M_PER_DEG_LAT * Math.max(0.05, Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180))
+  return Math.hypot((a.lat - b.lat) * M_PER_DEG_LAT, (a.lng - b.lng) * mLng)
+}
+
+/** Runs within this many metres of a centre count as "around" it when the home centre is chosen. */
+export const MAP_AREA_HOME_RADIUS_M = 20_000
+
 /**
  * The box to download for a runner whose tracks have these boxes, or null when there are none.
  *
- * 1. Each track is its centre (the middle of its box). The median centre is the median latitude and
- *    the median longitude of the centres.
- * 2. The `MAP_AREA_KEEP` share of tracks whose centres lie nearest the median centre (at least one)
+ * 1. Each track is its centre (the middle of its box). The home centre is the track centre with the
+ *    most other centres within `MAP_AREA_HOME_RADIUS_M` (ties go to the one with the smallest total
+ *    distance to all centres), so it always lies where a run happened, never between two cities.
+ * 2. The `MAP_AREA_KEEP` share of tracks whose centres lie nearest the home centre (at least one)
  *    are kept; a race abroad or a trip does not stretch the box.
  * 3. The box is the union of the kept tracks' boxes, cut to `MAP_AREA_MAX_M` on a side centred on the
- *    median centre, and widened to at least `MAP_AREA_MIN_M` on a side around it.
+ *    home centre, and widened to at least `MAP_AREA_MIN_M` on a side around it.
  * 4. The edges are rounded outward to 0.01 degrees and kept within 85 degrees of the equator.
  */
 export function mapAreaBox(tracks: ReadonlyArray<GeoBox>): GeoBox | null {
@@ -50,16 +54,26 @@ export function mapAreaBox(tracks: ReadonlyArray<GeoBox>): GeoBox | null {
     lat: (t.minLat + t.maxLat) / 2,
     lng: (t.minLng + t.maxLng) / 2,
   }))
-  const centre = { lat: median(centres.map((c) => c.lat)), lng: median(centres.map((c) => c.lng)) }
+  let centre = centres[0]!
+  let bestNear = -1
+  let bestTotal = Infinity
+  for (const c of centres) {
+    let near = 0
+    let total = 0
+    for (const other of centres) {
+      const d = distM(c, other)
+      total += d
+      if (d <= MAP_AREA_HOME_RADIUS_M) near += 1
+    }
+    if (near > bestNear || (near === bestNear && total < bestTotal)) {
+      centre = c
+      bestNear = near
+      bestTotal = total
+    }
+  }
   const mPerDegLng = M_PER_DEG_LAT * Math.max(0.05, Math.cos((centre.lat * Math.PI) / 180))
   const ranked = tracks
-    .map((box, i) => ({
-      box,
-      d: Math.hypot(
-        (centres[i]!.lat - centre.lat) * M_PER_DEG_LAT,
-        (centres[i]!.lng - centre.lng) * mPerDegLng,
-      ),
-    }))
+    .map((box, i) => ({ box, d: distM(centres[i]!, centre) }))
     .sort((a, b) => a.d - b.d)
   const kept = ranked.slice(0, Math.max(1, Math.ceil(ranked.length * MAP_AREA_KEEP)))
 

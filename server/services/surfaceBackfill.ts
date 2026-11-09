@@ -20,6 +20,27 @@ export interface SurfaceBackfillResult {
   remaining: number
 }
 
+/**
+ * Clears the shares of every run of a user, one row at a time with `updatedAt` held (as the job's own
+ * writes do), so the explain cards do not go stale. A row edited in between keeps its shares until the
+ * next clear; the job's `fetchedAt` guard covers the rest.
+ */
+export async function clearSurfaceBins(
+  tx: Pick<Deps['prisma'], 'activity'>,
+  userId: string,
+): Promise<void> {
+  const rows = await tx.activity.findMany({
+    where: { userId, surfaceBins: { not: null } },
+    select: { id: true, updatedAt: true },
+  })
+  for (const row of rows) {
+    await tx.activity.updateMany({
+      where: { id: row.id, updatedAt: row.updatedAt },
+      data: { surfaceBins: null, updatedAt: row.updatedAt },
+    })
+  }
+}
+
 const RUN_TYPES = ['run', 'race']
 
 /**
@@ -52,10 +73,7 @@ export async function backfillSurfaceBins(
         data: { matchV: SURFACE_VERSION },
       })
       if (moved.count === 0) return
-      await tx.activity.updateMany({
-        where: { userId, surfaceBins: { not: null } },
-        data: { surfaceBins: null },
-      })
+      await clearSurfaceBins(tx, userId)
     })
     area = await prisma.mapArea.findUnique({ where: { userId } })
     if (!area) return { filled: 0, unreadable: [], remaining: 0 }
