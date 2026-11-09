@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import jwt from 'jsonwebtoken'
+import { afterEach, describe, expect, test } from 'vitest'
 import { setPasswordByEmail } from '../../server/auth/password.ts'
 import { signSession } from '../../server/auth/session.ts'
 import { client, createTestCtx, seedUser, type TestCtx } from './helpers.ts'
@@ -120,37 +121,54 @@ describe('PUT /api/auth/password', () => {
     SLOW,
   )
 
-  test('other sessions of the user end, and another user is not touched', async () => {
+  test('other sessions of the user end at once, this one stays, and another user is not touched', async () => {
     const ctx = await ctxFor()
     const user = await seedUser(ctx)
     const other = await seedUser(ctx, { email: 'other@example.com' })
-    // the cookie another device holds, issued now; the change is made a minute later
-    const old = `rl_session=${signSession(user.id, ctx.config.sessionSecret)}`
-    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 60_000 })
-    try {
-      const response = await client(ctx, user)
-        .put('/api/auth/password')
-        .send({ currentPassword: CURRENT, newPassword: NEXT })
-      expect(response.status).toBe(200)
-      const fresh = { ...user, cookie: cookieOf(response) }
-      expect((await client(ctx, fresh).get('/api/auth/me')).status).toBe(200)
-    } finally {
-      vi.useRealTimers()
-    }
-    expect((await client(ctx, { ...user, cookie: old }).get('/api/auth/me')).status).toBe(401)
+    // the cookie another device holds, issued just before the change, in the same second
+    const old = { ...user, cookie: `rl_session=${signSession(user.id, ctx.config.sessionSecret)}` }
+    expect((await client(ctx, old).get('/api/auth/me')).status).toBe(200)
+
+    const response = await client(ctx, user)
+      .put('/api/auth/password')
+      .send({ currentPassword: CURRENT, newPassword: NEXT })
+    expect(response.status).toBe(200)
+    const fresh = { ...user, cookie: cookieOf(response) }
+
+    expect((await client(ctx, fresh).get('/api/auth/me')).status).toBe(200)
+    expect((await client(ctx, old).get('/api/auth/me')).status).toBe(401)
+    expect((await client(ctx, user).get('/api/auth/me')).status).toBe(401)
     expect((await client(ctx, other).get('/api/auth/me')).status).toBe(200)
+    const row = await ctx.prisma.user.findUniqueOrThrow({ where: { id: user.id } })
+    expect(row.sessionVersion).toBe(1)
   })
 
-  test('reset-password ends the sessions that were open', async () => {
+  test('a cookie with no version keeps working for an account at version 0, and a sign-in carries the version', async () => {
+    const ctx = await ctxFor()
+    const user = await seedUser(ctx)
+    const legacy = jwt.sign({}, ctx.config.sessionSecret, { algorithm: 'HS256', subject: user.id })
+    expect(
+      (await client(ctx, { ...user, cookie: `rl_session=${legacy}` }).get('/api/auth/me')).status,
+    ).toBe(200)
+
+    await setPasswordByEmail(ctx.prisma, user.email, NEXT)
+    expect(
+      (await client(ctx, { ...user, cookie: `rl_session=${legacy}` }).get('/api/auth/me')).status,
+    ).toBe(401)
+    const login = await client(ctx)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: NEXT })
+    expect(login.status).toBe(200)
+    expect(
+      (await client(ctx, { ...user, cookie: cookieOf(login) }).get('/api/auth/me')).status,
+    ).toBe(200)
+  })
+
+  test('reset-password ends every session that was open', async () => {
     const ctx = await ctxFor()
     const user = await seedUser(ctx)
     expect((await client(ctx, user).get('/api/auth/me')).status).toBe(200)
-    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 60_000 })
-    try {
-      await setPasswordByEmail(ctx.prisma, user.email, NEXT)
-    } finally {
-      vi.useRealTimers()
-    }
+    await setPasswordByEmail(ctx.prisma, user.email, NEXT)
     expect((await client(ctx, user).get('/api/auth/me')).status).toBe(401)
   })
 

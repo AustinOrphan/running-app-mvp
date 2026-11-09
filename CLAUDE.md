@@ -212,7 +212,7 @@ its build runs `prisma migrate deploy` as a smoke test.
   a generated temporary password printed once to stdout, `mustChangePassword` set, units and zone either
   given or left to the browser through `unitsFromBrowser` and `zoneFromBrowser`, applied once by
   `POST /api/settings/browser-defaults`). Sessions are signed cookies with no server-side record, so ending
-  the other devices is `User.sessionsValidFrom`: `requireAuth` refuses a cookie issued before it, and
+  every session is `User.sessionVersion`: the cookie carries it (none reads as 0), `requireAuth` refuses any other value, and
   `PUT /api/auth/password` and `setPasswordByEmail` set it. `ALLOW_REGISTRATION` stays the only way to open
   sign-up.
 - Env vars are exactly `DATABASE_URL`, `SESSION_SECRET`, `PORT`, `NODE_ENV`, `ALLOW_REGISTRATION`

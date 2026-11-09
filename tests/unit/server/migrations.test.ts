@@ -1883,17 +1883,16 @@ function verifyUserMustChangePassword(db: DatabaseSync, before: Snapshot): void 
   ])
 }
 
-function verifyUserSessionsValidFrom(db: DatabaseSync, before: Snapshot): void {
+function verifyUserSessionVersion(db: DatabaseSync, before: Snapshot): void {
   expectNothingLost(before, db)
   expectConsistent(db)
-  // Every account of the previous release reads null: the sessions that are open stay open.
-  expect(rowsOf(db, `SELECT email, "sessionsValidFrom" FROM "User"`)).toEqual([
-    { email: 'runner@example.com', sessionsValidFrom: null },
+  // Every account of the previous release reads 0, the version a cookie without one carries, so the
+  // sessions that are open stay open.
+  expect(rowsOf(db, `SELECT email, "sessionVersion" FROM "User"`)).toEqual([
+    { email: 'runner@example.com', sessionVersion: 0 },
   ])
-  db.prepare(`UPDATE "User" SET "sessionsValidFrom" = ? WHERE id = 'u1'`).run(STAMP)
-  expect(rowsOf(db, `SELECT "sessionsValidFrom" FROM "User"`)).toEqual([
-    { sessionsValidFrom: STAMP },
-  ])
+  db.prepare(`UPDATE "User" SET "sessionVersion" = "sessionVersion" + 1 WHERE id = 'u1'`).run()
+  expect(rowsOf(db, `SELECT "sessionVersion" FROM "User"`)).toEqual([{ sessionVersion: 1 }])
 }
 
 function verifyActivityHeatExposure(db: DatabaseSync, before: Snapshot): void {
@@ -2195,9 +2194,9 @@ const CASES: FixtureCase[] = [
     verify: verifyUserMustChangePassword,
   },
   {
-    migration: 'user_sessions_valid_from',
+    migration: 'user_session_version',
     seed: seedTerrainRelease,
-    verify: verifyUserSessionsValidFrom,
+    verify: verifyUserSessionVersion,
   },
 ]
 

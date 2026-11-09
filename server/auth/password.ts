@@ -53,7 +53,7 @@ export async function setPasswordByEmail(
   await prisma.user.update({
     where: { id: user.id },
     // Every session of the account ends: a reset is made because the old password is not trusted.
-    data: { passwordHash: await hashPassword(password), sessionsValidFrom: new Date() },
+    data: { passwordHash: await hashPassword(password), sessionVersion: { increment: 1 } },
   })
   return true
 }

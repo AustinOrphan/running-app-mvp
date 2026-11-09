@@ -38,6 +38,7 @@ interface UserRow {
   mustChangePassword: boolean
   unitsFromBrowser: boolean
   zoneFromBrowser: boolean
+  sessionVersion: number
 }
 
 function toSessionUser(row: UserRow): SessionUser {
@@ -96,7 +97,11 @@ export function authRouter(deps: Deps): Router {
       if (isUniqueViolation(error)) throw conflict('An account with that email already exists.')
       throw error
     }
-    setSessionCookie(res, signSession(user.id, config.sessionSecret), isSecure(req))
+    setSessionCookie(
+      res,
+      signSession(user.id, config.sessionSecret, user.sessionVersion),
+      isSecure(req),
+    )
     res.status(201).json(toSessionUser(user))
   })
 
@@ -106,7 +111,11 @@ export function authRouter(deps: Deps): Router {
     // Always one compare, so an unknown email takes as long as a wrong password.
     const matches = await verifyPassword(body.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH)
     if (!user || !matches) throw unauthorized('Invalid email or password')
-    setSessionCookie(res, signSession(user.id, config.sessionSecret), isSecure(req))
+    setSessionCookie(
+      res,
+      signSession(user.id, config.sessionSecret, user.sessionVersion),
+      isSecure(req),
+    )
     res.json(toSessionUser(user))
   })
 
@@ -116,8 +125,8 @@ export function authRouter(deps: Deps): Router {
   })
 
   // Sessions are signed cookies with no server-side record, so "sign out the other devices" is a
-  // moment (`sessionsValidFrom`): `requireAuth` refuses a cookie issued before it. The cookie of
-  // this request is replaced by one issued after it, so this device stays signed in.
+  // counter (`sessionVersion`): the cookies carry its value and `requireAuth` refuses any other.
+  // The cookie of this request is replaced by one with the new value, so this device stays in.
   router.put('/auth/password', requireAuth(deps), passwordLimiter, async (req, res) => {
     const body = parse(changePasswordSchema, req.body)
     const user = await prisma.user.findUnique({ where: { id: req.userId } })
@@ -137,10 +146,14 @@ export function authRouter(deps: Deps): Router {
       data: {
         passwordHash: await hashPassword(body.newPassword),
         mustChangePassword: false,
-        sessionsValidFrom: new Date(),
+        sessionVersion: { increment: 1 },
       },
     })
-    setSessionCookie(res, signSession(updated.id, config.sessionSecret), isSecure(req))
+    setSessionCookie(
+      res,
+      signSession(updated.id, config.sessionSecret, updated.sessionVersion),
+      isSecure(req),
+    )
     res.json(toSessionUser(updated))
   })
 
