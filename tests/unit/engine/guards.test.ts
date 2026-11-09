@@ -34,6 +34,7 @@ const withWeeks = (minutes: number[], over: Parameters<typeof state>[0] = {}) =>
       raceMin: 0,
       longestRunMin: 0,
       longRunShare: null,
+      climbM: null,
       avg4wRunMin: runMin,
       streak3Plus: 0,
     })),

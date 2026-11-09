@@ -71,6 +71,7 @@ import {
   todayIso,
 } from '../../shared/dates.ts'
 import { isVisibleLine } from '../../shared/engine/diff.ts'
+import { weekClimbLabel, weekClimbNone } from '../../shared/copy/season.ts'
 import { actualRange, planSpan } from '../components/season.ts'
 import { RevisionDiff } from '../components/revisions/RevisionDiff.tsx'
 import { estimateAboutText } from '../../shared/copy/distanceEstimate.ts'
@@ -108,7 +109,7 @@ import { fileRefusalSentence, weekLinkLabel } from '../../shared/copy/workouts.t
 import { distanceClassOf } from '../../shared/engine/goal.ts'
 import { BUILD_PHASES, isCutbackIndex } from '../../shared/domain/plan.ts'
 import { shownTargetMin } from '../../shared/domain/plannedWeek.ts'
-import { minutesToHours1 } from '../../shared/units.ts'
+import { formatClimb, minutesToHours1, NO_VALUE } from '../../shared/units.ts'
 import { groupWarnings, localiseEngineText } from '../components/engineText.ts'
 import type { PersistentHold } from '../../shared/engine/holds.ts'
 import type { LoadPosition } from '../../shared/engine/loadSetting.ts'
@@ -1244,7 +1245,7 @@ function DaysRow({
   )
   return (
     <tr className={styles.daysRow} data-days-for={week.weekStart}>
-      <td colSpan={10}>
+      <td colSpan={11}>
         <DayCards
           week={week}
           sessions={sessions}
@@ -1311,6 +1312,27 @@ interface WeekReveal {
   weekStart: string
 }
 
+/**
+ * A week's climb in the runner's unit: the sum of its runs' elevation gain, a dash for a week with
+ * none to sum. On a phone the figure carries the word "Climb"; on a wide screen the column does.
+ */
+function ClimbCell({ gainM, units }: { gainM: number | null; units: Units | undefined }) {
+  if (gainM === null) {
+    return (
+      <>
+        <span aria-hidden="true">{NO_VALUE}</span>
+        <span className="visually-hidden">{weekClimbNone()}</span>
+      </>
+    )
+  }
+  return (
+    <>
+      <span className={styles.climbLabel}>{weekClimbLabel()} </span>
+      {formatClimb(gainM, units ?? 'mi')}
+    </>
+  )
+}
+
 function PlanTable({
   plan,
   sessions,
@@ -1330,6 +1352,7 @@ function PlanTable({
   const { first, last } = planSpan(plan)
   const weeks = useWeeks(actualRange(plan, currentMonday))
   const actual = new Map((weeks.data ?? []).map((w) => [w.weekStart, w.runMin]))
+  const climb = new Map((weeks.data ?? []).map((w) => [w.weekStart, w.climbM]))
   // The current week opens to its days at first; other weeks open on request.
   const [open, setOpen] = useState<Set<string>>(() => new Set([currentMonday]))
   // The weeks before this Monday sit behind one row at the top of the table, closed at first, so the
@@ -1392,6 +1415,7 @@ function PlanTable({
             <th scope="col">Phase</th>
             <th scope="col">Target</th>
             <th scope="col">Actual</th>
+            <th scope="col">Climb</th>
             <th scope="col">Long run</th>
             <th scope="col">Day 2</th>
             <th scope="col">Run days</th>
@@ -1405,7 +1429,7 @@ function PlanTable({
         <tbody ref={body}>
           {earlierCount > 0 ? (
             <tr className={styles.earlierRow}>
-              <td colSpan={10}>
+              <td colSpan={11}>
                 <button
                   type="button"
                   className={styles.earlierToggle}
@@ -1429,6 +1453,7 @@ function PlanTable({
             const isCurrent = week.weekStart === currentMonday
             const runMin = week.weekStart <= currentMonday ? actual.get(week.weekStart) : undefined
             const short = formatShortDate(week.weekStart)
+            const weekClimbM = runMin === undefined ? null : (climb.get(week.weekStart) ?? null)
             const weekSessions = sessionsByWeek.get(week.weekStart) ?? []
             const expanded = weekSessions.length > 0 && open.has(week.weekStart)
             const run = runs.get(week.weekStart)
@@ -1437,7 +1462,7 @@ function PlanTable({
               <Fragment key={week.weekStart}>
                 {heading !== null ? (
                   <tr className={styles.phaseHeading}>
-                    <td colSpan={10}>{heading}</td>
+                    <td colSpan={11}>{heading}</td>
                   </tr>
                 ) : null}
                 <tr
@@ -1483,6 +1508,13 @@ function PlanTable({
                     {week.overshoot && runMin !== undefined ? (
                       <OvershootNote ranMin={runMin} plannedMin={week.plannedRunMin} />
                     ) : null}
+                  </td>
+                  <td
+                    className={styles.climb}
+                    data-cell="climb"
+                    data-empty={weekClimbM === null ? 'true' : undefined}
+                  >
+                    <ClimbCell gainM={weekClimbM} units={units} />
                   </td>
                   <td className={styles.summary}>
                     Long run {longRunText(week.longRunMin)}, {week.runDays} run days, strength{' '}

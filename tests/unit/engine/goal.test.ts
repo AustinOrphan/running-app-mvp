@@ -52,6 +52,7 @@ function makeState(
     raceMin: 0,
     longestRunMin: 60,
     longRunShare: 0.3,
+    climbM: null,
     avg4wRunMin: weekMin,
     streak3Plus: 0,
   }))

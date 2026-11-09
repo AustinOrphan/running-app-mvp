@@ -540,6 +540,7 @@ describe('macroPlan: 5 km and 10 km long-run tiers [rules D7]', () => {
       raceMin: 0,
       longestRunMin: 0,
       longRunShare: null,
+      climbM: null,
       avg4wRunMin: runMin,
       streak3Plus: 0,
     }))

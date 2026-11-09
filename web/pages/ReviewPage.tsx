@@ -157,6 +157,7 @@ function emptyWeek(weekStart: string): WeekRow {
     raceMin: 0,
     longestRunMin: 0,
     longRunShare: null,
+    climbM: null,
     avg4wRunMin: 0,
     streak3Plus: 0,
   }

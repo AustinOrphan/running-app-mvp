@@ -71,6 +71,20 @@ export const SEASON_TEMPLATES = {
     { fallback: 'planned', shape: 'label' },
   ),
   'season.planned-none': tpl('no running planned', {}, { shape: 'label' }),
+  // The y axis names its unit once, on the top tick.
+  'season.axis-top': tpl('{hours} h', { hours: 'text' }, { fallback: 'h', shape: 'label' }),
+  // The hidden table that carries the strip's figures.
+  'season.table-caption': tpl('Season by week: planned and run hours', {}, { shape: 'label' }),
+  'season.col-week': tpl('Week of', {}, { shape: 'label' }),
+  'season.col-phase': tpl('Phase', {}, { shape: 'label' }),
+  'season.col-planned': tpl('Planned hours', {}, { shape: 'label' }),
+  'season.col-run': tpl('Run hours', {}, { shape: 'label' }),
+  // A run-hours cell for a week the read has no figure for (still loading, or it failed).
+  'season.run-unknown': tpl('–', {}, { shape: 'label' }),
+  // A week's climb in the week table: the word that names the figure on a phone (a desktop column
+  // has a heading), and the words for its absence.
+  'season.climb': tpl('Climb', {}, { shape: 'label' }),
+  'season.climb-none': tpl('No climb recorded', {}, { shape: 'label' }),
 } satisfies Record<string, Template>
 
 /**
@@ -197,3 +211,45 @@ export const seasonWeeksName = (): string =>
 /** The line under the bars. */
 export const seasonLegend = (): string =>
   render(SEASON_TEMPLATES['season.legend'], {}, STORED_UNITS)
+
+/** The label of the y axis's top tick: "12 h". The other ticks are bare numbers. */
+export const seasonAxisTop = (hours: string): string =>
+  render(SEASON_TEMPLATES['season.axis-top'], { hours }, STORED_UNITS)
+
+/** The headings and the caption of the strip's hidden table. */
+export const seasonTableText = () => ({
+  caption: render(SEASON_TEMPLATES['season.table-caption'], {}, STORED_UNITS),
+  week: render(SEASON_TEMPLATES['season.col-week'], {}, STORED_UNITS),
+  phase: render(SEASON_TEMPLATES['season.col-phase'], {}, STORED_UNITS),
+  planned: render(SEASON_TEMPLATES['season.col-planned'], {}, STORED_UNITS),
+  run: render(SEASON_TEMPLATES['season.col-run'], {}, STORED_UNITS),
+  runUnknown: render(SEASON_TEMPLATES['season.run-unknown'], {}, STORED_UNITS),
+})
+
+/** The word before a week's climb figure on a phone; the column heading on a wide screen. */
+export const weekClimbLabel = (): string =>
+  render(SEASON_TEMPLATES['season.climb'], {}, STORED_UNITS)
+
+/** The words for a week with no climb to show (no run, or no run with a gain). */
+export const weekClimbNone = (): string =>
+  render(SEASON_TEMPLATES['season.climb-none'], {}, STORED_UNITS)
+
+const MONTH_ABBREVIATIONS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
+/** A month's short name for the strip's time axis; `month` is 0 for January. */
+export function seasonMonthLabel(month: number): string {
+  return MONTH_ABBREVIATIONS[month] ?? ''
+}

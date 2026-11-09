@@ -109,6 +109,7 @@ describe('aggregateWeeks', () => {
       raceMin: 0,
       longestRunMin: 0,
       longRunShare: null,
+      climbM: null,
       avg4wRunMin: 0,
       streak3Plus: 0,
     })
@@ -195,6 +196,36 @@ describe('aggregateWeeks', () => {
       { date: W, type: 'run', durationSec: min(30), distanceM: null, duplicateStatus: 'possible' },
     ]
     expect(first(aggregateWeeks(core, [W]))).toMatchObject({ runMin: 60, runM: 10000 })
+  })
+
+  test('climb sums the gain of the week runs, leaves out a run with none, and is null when none has one', () => {
+    const rows = aggregateWeeks(
+      [
+        makeActivity({ date: W, type: 'run', elevationGainM: 120 }),
+        makeActivity({ date: addDays(W, 1), type: 'run', elevationGainM: 80 }),
+        makeActivity({ date: addDays(W, 2), type: 'run', elevationGainM: null }),
+        // a race, a strength log and a flagged duplicate add nothing
+        makeActivity({ date: addDays(W, 3), type: 'race', elevationGainM: 900 }),
+        makeActivity({ date: addDays(W, 4), type: 'strength', elevationGainM: 50 }),
+        makeActivity({
+          date: addDays(W, 5),
+          type: 'run',
+          elevationGainM: 70,
+          duplicateStatus: 'possible',
+        }),
+        // the next week has a run, but no gain recorded
+        makeActivity({ date: addDays(W, 7), type: 'run', elevationGainM: null }),
+      ],
+      [W, addDays(W, 7), addDays(W, 14)],
+    )
+    expect(rows.map((row) => row.climbM)).toEqual([200, null, null])
+  })
+
+  test('a run with a gain of 0 m counts as a climb of 0, not as a missing figure', () => {
+    const row = first(
+      aggregateWeeks([makeActivity({ date: W, type: 'run', elevationGainM: 0 })], [W]),
+    )
+    expect(row.climbM).toBe(0)
   })
 
   test('rows follow weekStarts order and include weeks with no activity', () => {

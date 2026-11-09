@@ -95,12 +95,13 @@
 
 .row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   grid-template-areas:
-    'week phase target'
-    'summary summary actual'
-    'focus focus focus'
-    'edit edit edit';
+    'week phase target target'
+    'summary summary actual actual'
+    'summary summary climb climb'
+    'focus focus focus focus'
+    'edit edit edit edit';
   column-gap: var(--space-3);
   align-items: baseline;
   padding: var(--space-3) 0 var(--space-3) var(--space-3);
@@ -242,6 +243,24 @@
   line-height: var(--lh-sm);
 }
 
+.climb {
+  grid-area: climb;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* The word before the figure is for a phone's row; a wide screen's column has its heading. */
+/* A phone's row has no line for a week with no climb; the wide table keeps its dash. */
+.climb[data-empty='true'] {
+  display: none;
+}
+
+.climbLabel {
+  margin-right: var(--space-1);
+}
+
 .summary {
   grid-area: summary;
   color: var(--text-muted);
@@ -310,6 +329,10 @@
     display: none;
   }
 
+  .climbLabel {
+    display: none;
+  }
+
   .row .number {
     display: table-cell;
   }
@@ -353,13 +376,23 @@
   }
 
   .target,
-  .actual {
+  .actual,
+  .climb {
     text-align: left;
+  }
+
+  .row .climb[data-empty='true'] {
+    display: table-cell;
+  }
+
+  .row .climb {
+    padding-inline: var(--space-1);
+    white-space: nowrap;
   }
 
   /* "0.7 of 1.4 h run" on a line of its own: the one column that may not give way to a long Focus. */
   .row .actual {
-    min-width: 7.25rem;
+    min-width: 6rem;
   }
 
   .focus {
