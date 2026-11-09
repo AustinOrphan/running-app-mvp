@@ -75,6 +75,13 @@ describe('bandSeconds', () => {
     // A summary that was never computed is not a pass.
     expect(bandSeconds(source({ hrQuality: null }), ZONES)).toBeNull()
   })
+
+  it('is null for a histogram that holds no time or a bin that is not a number', () => {
+    const zero = { start: 100, width: 1, sec: new Array<number>(121).fill(0) }
+    expect(bandSeconds(source({ hrHistogram: zero }), ZONES)).toBeNull()
+    const nan = histogram({ 130: 600, 150: Number.NaN })
+    expect(bandSeconds(source({ hrHistogram: nan }), ZONES)).toBeNull()
+  })
 })
 
 describe('loadRuns', () => {
@@ -90,6 +97,11 @@ describe('loadRuns', () => {
     expect(rows[0]!.bandSec).toBeNull()
     expect(rows[1]!.elevationGainM).toBeNull()
     expect(rows[1]!.bandSec).toEqual([1200, 1200, 1200])
+  })
+
+  it('keeps a gain that is not a number as null, not as 0', () => {
+    const [row] = loadRuns([source({ elevationGainM: Number.NaN })], ZONES)
+    expect(row!.elevationGainM).toBeNull()
   })
 })
 
@@ -257,6 +269,15 @@ describe('intensityWeeks', () => {
       current,
     )
     expect(rows[0]).toMatchObject({ usableRuns: 1, noHrSec: 600 })
+  })
+
+  it('never takes negative time for the neutral part when the bands outlast the run', () => {
+    const rows = intensityWeeks(
+      [run({ date: '2026-05-26', durationSec: 1800, bandSec: [1000, 1000, 1000] })],
+      weeks,
+      current,
+    )
+    expect(rows[0]).toMatchObject({ belowSec: 1000, betweenSec: 1000, aboveSec: 1000, noHrSec: 0 })
   })
 
   it('keeps a week of only unmeasured runs as one neutral segment', () => {
